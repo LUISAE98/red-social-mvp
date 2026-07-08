@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import {
@@ -37,6 +38,7 @@ export default function StoryCircles({ creatorId, currentUserId }: Props) {
   const [storyCovers, setStoryCovers] = useState<Partial<Record<string, string>>>({});
   const [storyCoverPhoto, setStoryCoverPhoto] = useState<Partial<Record<string, string>>>({});
 
+  const tCommon = useTranslations("common");
   const isOwner = !!currentUserId && currentUserId === creatorId;
 
   useEffect(() => {
@@ -93,10 +95,10 @@ export default function StoryCircles({ creatorId, currentUserId }: Props) {
   const consejosRecibidos = stories.filter((s) => s.type === "consejo" && !isSent(s));
 
   const allGroups: { key: StoryGroupKey; list: StoryDoc[]; type: StoryType; sublabel: string; role: "creator" | "buyer" }[] = [
-    { key: "saludo_sent", list: saludosEnviados, type: "saludo", sublabel: "Enviados", role: "creator" },
-    { key: "consejo_sent", list: consejosEnviados, type: "consejo", sublabel: "Enviados", role: "creator" },
-    { key: "saludo_received", list: saludosRecibidos, type: "saludo", sublabel: "Recibidos", role: "buyer" },
-    { key: "consejo_received", list: consejosRecibidos, type: "consejo", sublabel: "Recibidos", role: "buyer" },
+    { key: "saludo_sent", list: saludosEnviados, type: "saludo", sublabel: tCommon("storySent"), role: "creator" },
+    { key: "consejo_sent", list: consejosEnviados, type: "consejo", sublabel: tCommon("storySent"), role: "creator" },
+    { key: "saludo_received", list: saludosRecibidos, type: "saludo", sublabel: tCommon("storyReceived"), role: "buyer" },
+    { key: "consejo_received", list: consejosRecibidos, type: "consejo", sublabel: tCommon("storyReceived"), role: "buyer" },
   ];
   const groups = allGroups.filter((g) => g.list.length > 0);
 
@@ -132,7 +134,7 @@ export default function StoryCircles({ creatorId, currentUserId }: Props) {
             {isOwner && (
               <button
                 type="button"
-                aria-label={`Cambiar portada de ${g.type}s ${g.sublabel.toLowerCase()}`}
+                aria-label={tCommon("storyChangeCover", { label: `${g.type}s ${g.sublabel.toLowerCase()}` })}
                 onClick={(e) => { e.stopPropagation(); setPickerGroup({ key: g.key, type: g.type, role: g.role }); }}
                 style={gearBtnStyle}
               >

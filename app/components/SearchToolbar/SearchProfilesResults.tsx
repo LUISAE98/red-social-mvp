@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import {
   useEffect,
   useRef,
@@ -27,6 +28,7 @@ export default function SearchProfilesResults({
   onRefresh,
   currentUserId,
 }: SearchProfilesResultsProps) {
+  const tCommon = useTranslations("common");
   const [visibleCount, setVisibleCount] = useState(10);
   const [mobileRefreshEnabled, setMobileRefreshEnabled] = useState(false);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
@@ -171,7 +173,7 @@ export default function SearchProfilesResults({
 >
         <section style={shellStyle}>
           <div style={emptyStyle}>
-            No se encontraron perfiles con esa búsqueda.
+            {tCommon("noProfilesFound")}
           </div>
         </section>
       </RefreshableArea>
@@ -189,7 +191,7 @@ export default function SearchProfilesResults({
           profile.displayName?.trim() ||
           `${profile.firstName ?? ""} ${profile.lastName ?? ""}`.trim() ||
           profile.handle ||
-          "Usuario";
+          tCommon("user");
 
         const canOpenProfile = Boolean(profile.handle);
 
@@ -231,7 +233,7 @@ export default function SearchProfilesResults({
                   openProfile(profile.handle);
                 }}
               >
-                Abrir
+                {tCommon("openProfile")}
               </button>
             </div>
           </article>

@@ -63,7 +63,7 @@ export default function ProfileSubnav({
       ? [
           {
             key: "groups" as const,
-            title: isOwner ? tGroups("myGroups") : "Las comunidades de este perfil",
+            title: isOwner ? tGroups("myGroups") : tGroups("profileCommunitiesTitle"),
             label: isOwner ? tGroups("myGroups") : tGroups("title"),
             iconType: "communities" as const,
           },
@@ -73,8 +73,8 @@ export default function ProfileSubnav({
       ? [
           {
             key: "services" as const,
-            title: "Servicios del perfil",
-            label: "Servicios",
+            title: tGroups("profileServicesTitle"),
+            label: tGroups("servicesLabel"),
             iconType: "services" as const,
           },
         ]
@@ -83,8 +83,8 @@ export default function ProfileSubnav({
       ? [
           {
             key: "settings" as const,
-            title: "Configuración del perfil",
-            label: "Configuración",
+            title: tGroups("profileSettingsTitle"),
+            label: tGroups("settingsLabel"),
             iconType: "settings" as const,
           },
         ]

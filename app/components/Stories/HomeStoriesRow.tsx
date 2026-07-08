@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   collection,
   documentId,
@@ -70,6 +71,7 @@ const fontStack =
   'inherit';
 
 export default function HomeStoriesRow({ currentUserId }: Props) {
+  const tCommon = useTranslations("common");
   const [loaded, setLoaded] = useState<boolean>(() => !!peekStoriesIds(currentUserId));
   const [creatorIds, setCreatorIds] = useState<string[]>(() => peekStoriesIds(currentUserId)?.creatorIds ?? []);
   const [groupIds, setGroupIds] = useState<string[]>(() => peekStoriesIds(currentUserId)?.groupIds ?? []);
@@ -436,7 +438,7 @@ export default function HomeStoriesRow({ currentUserId }: Props) {
 
   function renderLiveBubble({ entityId, entityType }: LiveEntity) {
     const info = displayInfoMap.get(entityId);
-    const name = info?.displayName ?? (entityType === "group" ? "Comunidad" : "Usuario");
+    const name = info?.displayName ?? (entityType === "group" ? tCommon("communityLabel") : tCommon("userLabel"));
     return (
       <div
         key={`live-${entityId}`}
@@ -479,7 +481,7 @@ export default function HomeStoriesRow({ currentUserId }: Props) {
   function renderBubble(group: StoryGroup) {
     const isGrp = group.source === "group";
     const emoji = isGrp ? "🏘️" : "👤";
-    const name = group.info.displayName ?? (isGrp ? "Comunidad" : "Usuario");
+    const name = group.info.displayName ?? (isGrp ? tCommon("communityLabel") : tCommon("userLabel"));
     const ring = group.hasUnviewed ? VIBRA_GRADIENT : SEEN_COLOR;
     return (
       <button
@@ -608,7 +610,7 @@ export default function HomeStoriesRow({ currentUserId }: Props) {
                 paddingBottom: 6,
               }}
             >
-              Recomendados
+              {tCommon("recommended")}
             </span>
             <div style={{ display: "flex", gap: 16 }}>
               {recommendedStoryGroups.map((group) => renderBubble(group))}

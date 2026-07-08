@@ -77,6 +77,7 @@ import ScheduleDateTimeSelector, {
 } from "@/app/(protected)/wallet/components/ScheduleDateTimeSelector";
 
 function BuyerMessagePlayer({ message }: { message: string }) {
+  const tServices = useTranslations("services");
   const [speechState, setSpeechState] = useState<"idle" | "playing" | "paused">("idle");
   const [speechHighlight, setSpeechHighlight] = useState<{ start: number; length: number } | null>(null);
   const [speechRate, setSpeechRate] = useState<1 | 1.4 | 1.8>(1);
@@ -150,7 +151,7 @@ function BuyerMessagePlayer({ message }: { message: string }) {
         <button
           type="button"
           onClick={handleToggleSpeech}
-          aria-label={speechState === "playing" ? "Pausar lectura" : speechState === "paused" ? "Reanudar lectura" : "Leer mensaje"}
+          aria-label={speechState === "playing" ? tServices("pauseReading") : speechState === "paused" ? tServices("resumeReading") : tServices("readMessage")}
           style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.6)", padding: 2, display: "flex", alignItems: "center", flexShrink: 0, transition: "color 0.15s" }}
         >
           {speechState === "playing" ? (
@@ -267,7 +268,24 @@ function getTypeChipStyle(type: string): React.CSSProperties {
   };
 }
 
-function getMeetGreetStatusLabel(status: string): string {
+function getMeetGreetStatusLabel(status: string, t?: (k: string) => string): string {
+  if (t) {
+    const map: Record<string, string> = {
+      pending_creator_response: "statusPendingResponse",
+      accepted_pending_schedule: "statusAcceptedPendingSchedule",
+      scheduled: "statusScheduled",
+      reschedule_requested: "statusRescheduleRequested",
+      rejected: "statusRejected",
+      refund_requested: "statusRefundRequested",
+      refund_review: "statusRefundReview",
+      ready_to_prepare: "statusReadyToPrepare",
+      in_preparation: "statusInPreparation",
+      completed: "statusCompleted",
+      cancelled: "statusCancelled",
+    };
+    return map[status] ? t(map[status]) : t("statusUnknown");
+  }
+  // fallback to original Spanish strings
   switch (status) {
     case "pending_creator_response":
       return "En espera de aceptación";
@@ -424,13 +442,19 @@ function toDateSafe(value: unknown): Date | null {
   return null;
 }
 
-function getRelativeTime(value: unknown): string {
+function getRelativeTime(value: unknown, tCommonFn?: (k: string, params?: Record<string, string | number | Date>) => string): string {
   const date = toDateSafe(value);
-  if (!date) return "Hace un momento";
+  if (!date) return tCommonFn ? tCommonFn("relativeTimeNow") : "Hace un momento";
   const diffMs = Date.now() - date.getTime();
   const diffMins = Math.floor(diffMs / 60000);
   const diffHours = Math.floor(diffMins / 60);
   const diffDays = Math.floor(diffHours / 24);
+  if (tCommonFn) {
+    if (diffDays >= 1) return tCommonFn("relativeTimeDays", { count: diffDays });
+    if (diffHours >= 1) return tCommonFn("relativeTimeHours", { count: diffHours });
+    if (diffMins >= 1) return tCommonFn("relativeTimeMinutes", { count: diffMins });
+    return tCommonFn("relativeTimeNow");
+  }
   if (diffDays >= 1) return `Hace ${diffDays} ${diffDays === 1 ? "día" : "días"}`;
   if (diffHours >= 1) return `Hace ${diffHours} ${diffHours === 1 ? "hora" : "horas"}`;
   if (diffMins >= 1) return `Hace ${diffMins} ${diffMins === 1 ? "minuto" : "minutos"}`;
@@ -529,6 +553,8 @@ export default function OwnerSidebarMyGroups({
   const tServices = useTranslations("services");
   const tNav = useTranslations("nav");
   const tGroups = useTranslations("groups");
+  const tSessions = useTranslations("sessions");
+  const tWallet = useTranslations("wallet");
   const pathname = usePathname();
   const [inviteGroupId, setInviteGroupId] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(false);
@@ -805,14 +831,14 @@ useEffect(() => {
         await acceptMeetGreetRequest({ requestId });
       }
 
-      showMyGroupsToast("✅ Solicitud aceptada. Ahora puedes proponer fecha y hora.");
+      showMyGroupsToast(tServices("successRequestAccepted"));
 
       setScheduleOpenMap((prev) => ({
         ...prev,
         [requestId]: true,
       }));
     } catch (e: unknown) {
-      showMyGroupsToast((e instanceof Error ? e.message : null) ?? "No se pudo aceptar la solicitud.", "error");
+      showMyGroupsToast((e instanceof Error ? e.message : null) ?? tServices("errorAcceptRequest"), "error");
     } finally {
       setMeetGreetBusy(requestId, false);
     }
@@ -838,14 +864,14 @@ useEffect(() => {
         });
       }
 
-      showMyGroupsToast("✅ Solicitud rechazada.");
+      showMyGroupsToast(tServices("successRequestRejected"));
 
       setRejectOpenMap((prev) => ({
         ...prev,
         [requestId]: false,
       }));
     } catch (e: unknown) {
-      showMyGroupsToast((e instanceof Error ? e.message : null) ?? "No se pudo rechazar la solicitud.", "error");
+      showMyGroupsToast((e instanceof Error ? e.message : null) ?? tServices("errorRejectRequest"), "error");
     } finally {
       setMeetGreetBusy(requestId, false);
     }
@@ -859,7 +885,7 @@ useEffect(() => {
     const scheduledAt = parts ? schedulePartsToIso(parts) : null;
 
     if (!scheduledAt) {
-      setMeetGreetError(requestId, "Selecciona día, mes, año, hora y minuto.");
+      setMeetGreetError(requestId, tServices("selectDateTimeError"));
       return;
     }
     const selectedScheduleDate = new Date(scheduledAt);
@@ -877,7 +903,7 @@ if (scheduleConflict.hasConflict) {
   setMeetGreetError(
     requestId,
     scheduleConflict.message ??
-      "Ese horario ya está ocupado. Selecciona otra hora disponible."
+      tServices("scheduleConflictError")
   );
   return;
 }
@@ -899,14 +925,14 @@ if (scheduleConflict.hasConflict) {
         await proposeMeetGreetSchedule(payload);
       }
 
-      showMyGroupsToast("✅ Fecha propuesta/agendada correctamente.");
+      showMyGroupsToast(tServices("successDateProposed"));
 
       setScheduleOpenMap((prev) => ({
         ...prev,
         [requestId]: false,
       }));
     } catch (e: unknown) {
-      showMyGroupsToast((e instanceof Error ? e.message : null) ?? "No se pudo guardar la fecha.", "error");
+      showMyGroupsToast((e instanceof Error ? e.message : null) ?? tServices("errorSaveDate"), "error");
     } finally {
       setMeetGreetBusy(requestId, false);
     }
@@ -938,9 +964,9 @@ if (scheduleConflict.hasConflict) {
         [requestId]: true,
       }));
 
-      showMyGroupsToast("✅ Panel de preparación abierto.");
+      showMyGroupsToast(tServices("successPreparationOpened"));
     } catch (e: unknown) {
-      showMyGroupsToast((e instanceof Error ? e.message : null) ?? "No se pudo abrir la preparación.", "error");
+      showMyGroupsToast((e instanceof Error ? e.message : null) ?? tServices("errorOpenPreparation"), "error");
     } finally {
       setMeetGreetBusy(requestId, false);
     }
@@ -948,7 +974,7 @@ if (scheduleConflict.hasConflict) {
 
   async function handleCreatorAcceptAndSchedule(requestId: string, kind: "meet_greet" | "exclusive_session", scheduledAtIso: string | null, note: string | null) {
     if (!scheduledAtIso) {
-      setMeetGreetError(requestId, "Selecciona día, mes, año, hora y minuto.");
+      setMeetGreetError(requestId, tServices("selectDateTimeError"));
       return;
     }
     const selectedDate = new Date(scheduledAtIso);
@@ -957,7 +983,7 @@ if (scheduleConflict.hasConflict) {
       ownerCalendarItems
     );
     if (conflict.hasConflict) {
-      setMeetGreetError(requestId, conflict.message ?? "Ese horario ya está ocupado. Selecciona otra hora disponible.");
+      setMeetGreetError(requestId, conflict.message ?? tServices("scheduleConflictError"));
       return;
     }
     setMeetGreetBusy(requestId, true);
@@ -980,7 +1006,7 @@ if (scheduleConflict.hasConflict) {
         note: note ?? null,
       });
     } catch (e: unknown) {
-      showMyGroupsToast((e instanceof Error ? e.message : null) ?? "No se pudo agendar la sesión.", "error");
+      showMyGroupsToast((e instanceof Error ? e.message : null) ?? tServices("errorScheduleSession"), "error");
     } finally {
       setMeetGreetBusy(requestId, false);
     }
@@ -1006,7 +1032,7 @@ if (scheduleConflict.hasConflict) {
     } catch {
       // La notificación no es crítica; continúa aunque falle
     }
-    showMyGroupsToast("✅ Sesión reagendada correctamente.");
+    showMyGroupsToast(tServices("successRescheduled"));
   }
 
   async function handleCreatorRejectDirect(requestId: string, kind: "meet_greet" | "exclusive_session", reason: string | null) {
@@ -1019,9 +1045,9 @@ if (scheduleConflict.hasConflict) {
       } else {
         await rejectMeetGreetRequest({ requestId, rejectionReason: reason });
       }
-      showMyGroupsToast("✅ Solicitud rechazada.");
+      showMyGroupsToast(tServices("successRequestRejected"));
     } catch (e: unknown) {
-      showMyGroupsToast((e instanceof Error ? e.message : null) ?? "No se pudo rechazar la solicitud.", "error");
+      showMyGroupsToast((e instanceof Error ? e.message : null) ?? tServices("errorRejectRequest"), "error");
       throw e;
     } finally {
       setMeetGreetBusy(requestId, false);
@@ -1042,7 +1068,7 @@ if (scheduleConflict.hasConflict) {
 
   async function handleCreatorScheduleDirect(requestId: string, kind: "meet_greet" | "exclusive_session", scheduledAtIso: string | null, note: string | null) {
     if (!scheduledAtIso) {
-      setMeetGreetError(requestId, "Selecciona día, mes, año, hora y minuto.");
+      setMeetGreetError(requestId, tServices("selectDateTimeError"));
       return;
     }
     const selectedDate = new Date(scheduledAtIso);
@@ -1051,7 +1077,7 @@ if (scheduleConflict.hasConflict) {
       ownerCalendarItems
     );
     if (conflict.hasConflict) {
-      setMeetGreetError(requestId, conflict.message ?? "Ese horario ya está ocupado. Selecciona otra hora disponible.");
+      setMeetGreetError(requestId, conflict.message ?? tServices("scheduleConflictError"));
       return;
     }
     setMeetGreetBusy(requestId, true);
@@ -1064,9 +1090,9 @@ if (scheduleConflict.hasConflict) {
       } else {
         await proposeMeetGreetSchedule(payload);
       }
-      showMyGroupsToast("✅ Fecha propuesta/agendada correctamente.");
+      showMyGroupsToast(tServices("successDateProposed"));
     } catch (e: unknown) {
-      showMyGroupsToast((e instanceof Error ? e.message : null) ?? "No se pudo guardar la fecha.", "error");
+      showMyGroupsToast((e instanceof Error ? e.message : null) ?? tServices("errorSaveDate"), "error");
       throw e;
     } finally {
       setMeetGreetBusy(requestId, false);
@@ -1166,7 +1192,7 @@ if (scheduleConflict.hasConflict) {
         targetName: null,
         requestText: row.data.buyerMessage ?? null,
         status: row.data.status,
-        statusLabel: getMeetGreetStatusLabel(row.data.status),
+        statusLabel: getMeetGreetStatusLabel(row.data.status, tSessions),
         description: row.data.buyerMessage ?? null,
         creatorScheduleNote: getCreatorScheduleNote(row.data),
         creatorScheduleNoteUpdatedAt: toDateSafe(
@@ -1212,7 +1238,7 @@ if (scheduleConflict.hasConflict) {
       rows.map((row) => ({
         id: row.id,
         kind: "exclusive_session" as const,
-        title: "Sesión exclusiva",
+        title: tServices("exclusiveSession"),
         groupId,
         groupName: groupNameById.get(groupId) ?? null,
         profileUserId: null,
@@ -1230,7 +1256,7 @@ if (scheduleConflict.hasConflict) {
         targetName: null,
         requestText: row.data.buyerMessage ?? null,
         status: row.data.status,
-        statusLabel: getMeetGreetStatusLabel(row.data.status),
+        statusLabel: getMeetGreetStatusLabel(row.data.status, tSessions),
         description: row.data.buyerMessage ?? null,
         creatorScheduleNote: getCreatorScheduleNote(row.data),
         creatorScheduleNoteUpdatedAt: toDateSafe(
@@ -1436,7 +1462,7 @@ height: 3.2px;
         padding: "2px 2px 0",
       }}
     >
-      No tienes comunidades como owner.
+      {tGroups("noOwnerCommunities")}
     </div>
   )}
 
@@ -1485,8 +1511,8 @@ const copyHref = isProfileCard
   ? g.profileHref ?? (g.handle ? `/u/${g.handle}` : "/")
   : `/groups/${g.id}`;
 const copyTitle = isProfileCard
-  ? "Copiar link del perfil"
-  : "Copiar link del grupo";
+  ? tCommon("copyProfileLink")
+  : tCommon("copyGroupLink");
 
             const meetGreetServiceRequests = meetGreets
               .filter((row) => isServiceRequestAlertStatus(row.data.status))
@@ -1722,8 +1748,7 @@ boxShadow:
                               marginTop: 1,
                             }}
                           >
-                            {newPostsCounts[g.id]}{" "}
-                            {newPostsCounts[g.id] === 1 ? "nuevo" : "nuevos"}
+                            {tCommon("newPostsCount", { count: newPostsCounts![g.id] })}
                           </div>
                         )}
                       </div>
@@ -1733,8 +1758,8 @@ boxShadow:
     type="button"
     aria-label={
       isOpen
-        ? "Cerrar opciones de comunidad"
-        : "Abrir opciones de comunidad"
+        ? tGroups("closeCommunityOptions")
+        : tGroups("openCommunityOptions")
     }
     style={{
       border: "none",
@@ -1849,12 +1874,11 @@ boxShadow:
                                   fontWeight: 700,
                                 }}
                               >
-                                Link de invitación
+                                {tGroups("inviteLinkTitle")}
                               </span>
 
                               <span style={styles.subtle}>
-                                Genera un link con vigencia personalizada y
-                                copia automática al portapapeles.
+                                {tGroups("inviteLinkSubtitleFull")}
                               </span>
                             </div>
 
@@ -1866,7 +1890,7 @@ boxShadow:
                                 width: "100%",
                               }}
                             >
-                              Generar link de invitación
+                              {tGroups("generateInviteLink")}
                             </button>
                           </div>
                         </div>
@@ -1904,7 +1928,7 @@ boxShadow:
                                 fontWeight: 550,
                               }}
                             >
-                              Solicitudes de Acceso
+                              {tGroups("joinRequestSectionTitle")}
                             </span>
 
                             <CountBadge count={joinRequests.length} tone="pink" />
@@ -1991,7 +2015,7 @@ boxShadow:
                                           </div>
 
                                           <div style={styles.subtle}>
-                                            Solicitud pendiente
+                                            {tGroups("joinRequestPending")}
                                           </div>
                                         </div>
                                       </div>
@@ -2023,7 +2047,7 @@ boxShadow:
                                             opacity: busy ? 0.6 : 1,
                                           }}
                                         >
-                                          {busy ? "..." : "Aprobar"}
+                                          {busy ? tCommon("processing") : tGroups("approveButton")}
                                         </button>
 
                                         <button
@@ -2090,7 +2114,7 @@ boxShadow:
                                 fontWeight: 550,
                               }}
                             >
-                              Saludos y Consejos
+                              {tGroups("greetingsAndAdviceSection")}
                             </span>
                             <CountBadge count={greetingServiceCount} tone="pink" />
                           </button>
@@ -2111,7 +2135,7 @@ boxShadow:
                                   const buyerLetter = getInitials(buyer?.displayName);
 
                                   const listEarning = greetingEarningsMap[`${g.id}_${req.type}`] ?? null;
-                                  const reviewLabel = req.type === "consejo" ? "Grabar consejo" : req.type === "saludo" ? "Grabar saludo" : "Grabar";
+                                  const reviewLabel = req.type === "consejo" ? tWallet("typeLabelAdvice") : req.type === "saludo" ? tWallet("typeLabelGreeting") : tWallet("typeLabelMessage");
 
                                   return (
                                     <div key={r.id} style={styles.miniItem}>
@@ -2168,11 +2192,11 @@ boxShadow:
                                             </Link>
                                           ) : (
                                             <span style={{ color: "#fff", fontWeight: 600, fontSize: 12, lineHeight: 1.2 }}>
-                                              {buyer?.displayName ?? "Usuario"}
+                                              {buyer?.displayName ?? tCommon("user")}
                                             </span>
                                           )}
                                           <span style={{ display: "block", color: "rgba(255,255,255,0.42)", fontSize: 11, lineHeight: 1.3 }}>
-                                            {getRelativeTime(req.createdAt)}
+                                            {getRelativeTime(req.createdAt, tCommon)}
                                           </span>
                                         </div>
                                         {listEarning ? (
@@ -2244,7 +2268,7 @@ boxShadow:
                                 fontWeight: 550,
                               }}
                             >
-                              Sesiones en vivo
+                              {tGroups("liveSessionsSection")}
                             </span>
                             <CountBadge count={scheduledServiceRequests.length} tone="pink" />
                           </button>
@@ -2279,10 +2303,10 @@ boxShadow:
                                         )}
                                         <div style={{ minWidth: 0, flex: 1, overflow: "hidden" }}>
                                           <span style={{ color: "#fff", fontWeight: 600, fontSize: 12, lineHeight: 1.2, display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                                            {req.buyerDisplayName ?? "Usuario"}
+                                            {req.buyerDisplayName ?? tCommon("user")}
                                           </span>
                                           <span style={{ display: "block", color: "rgba(255,255,255,0.42)", fontSize: 11, lineHeight: 1.3 }}>
-                                            {getRelativeTime(req.createdAt)}
+                                            {getRelativeTime(req.createdAt, tCommon)}
                                           </span>
                                         </div>
                                         {sessionEarning ? (
@@ -2434,8 +2458,8 @@ boxShadow:
                                           }}
                                         >
                                           {isExclusiveSession
-                                            ? "👑 Sesión exclusiva"
-                                            : "🤝 Meet & Greet"}
+                                            ? `👑 ${tServices("exclusiveSession")}`
+                                            : `🤝 ${tSessions("meetGreetTitle")}`}
                                         </span>
 
                                         <div
@@ -2459,7 +2483,7 @@ boxShadow:
                                         }}
                                       >
                                         <span style={styles.subtle}>
-                                          Comprador:
+                                          {tCommon("buyer")}:
                                         </span>
                                         {renderUserLink(req.buyerId)}
                                       </div>
@@ -2478,7 +2502,7 @@ boxShadow:
                                           width: "fit-content",
                                         }}
                                       >
-                                        {getMeetGreetStatusLabel(req.status)}
+                                        {getMeetGreetStatusLabel(req.status, tSessions)}
                                       </div>
                                     </div>
                                                                         <div
@@ -2499,7 +2523,7 @@ boxShadow:
 
                                     {scheduledAtText ? (
                                       <div style={styles.subtle}>
-                                        Fecha agendada: {scheduledAtText}
+                                        {tServices("scheduledDateLabel")}: {scheduledAtText}
                                       </div>
                                     ) : null}
 
@@ -2523,7 +2547,7 @@ boxShadow:
                                           width: "fit-content",
                                         }}
                                       >
-                                        {busy ? "Procesando..." : "Prepararse"}
+                                        {busy ? tCommon("processing") : tServices("prepare")}
                                       </button>
                                     ) : null}
 
@@ -2742,10 +2766,10 @@ maxWidth: 220,
                 </div>
                 <div>
                   <p style={{ margin: 0, fontSize: 15, fontWeight: 600, color: "#fff", letterSpacing: "-0.01em" }}>
-                    Sesión reagendada
+                    {tServices("rescheduleNotificationTitle")}
                   </p>
                   <p style={{ margin: 0, fontSize: 12, color: "rgba(255,255,255,0.50)" }}>
-                    {isExclusive ? "Sesión exclusiva" : "Meet & Greet"}
+                    {isExclusive ? tServices("exclusiveSession") : tSessions("meetGreetTitle")}
                   </p>
                 </div>
               </div>
@@ -2801,7 +2825,7 @@ maxWidth: 220,
               {/* Título + círculo verde después del texto */}
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <span style={{ fontSize: 17, fontWeight: 500, color: "#fff", letterSpacing: "-0.02em", lineHeight: 1.2 }}>
-                  {postScheduleCalendar.kind === "exclusive_session" ? "Sesión exclusiva agendada" : "Sesión en vivo agendada"}
+                  {postScheduleCalendar.kind === "exclusive_session" ? tServices("exclusiveSessionScheduled") : tServices("liveSessionScheduled")}
                 </span>
                 <div style={{
                   width: 22, height: 22, borderRadius: "50%", background: "#22c55e",
@@ -2827,7 +2851,7 @@ maxWidth: 220,
                   }
                 </div>
                 <span style={{ flex: 1, fontSize: 14, fontWeight: 500, color: "#fff", letterSpacing: "-0.01em" }}>
-                  {postScheduleCalendar.req.buyerDisplayName ?? postScheduleCalendar.req.buyerUsername ?? "Comprador"}
+                  {postScheduleCalendar.req.buyerDisplayName ?? postScheduleCalendar.req.buyerUsername ?? tCommon("buyer")}
                 </span>
                 <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 2, flexShrink: 0 }}>
                   <span style={{ fontSize: 12, fontWeight: 500, color: "rgba(255,255,255,0.70)" }}>

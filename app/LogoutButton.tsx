@@ -34,15 +34,6 @@ async function handleLogout() {
     console.error("Error cerrando sesión en Firebase:", error);
   }
 
-  try {
-    await fetch("/api/auth/logout", {
-      method: "POST",
-      cache: "no-store",
-    });
-  } catch (error) {
-    console.error("Error limpiando sesión del servidor:", error);
-  }
-
   // Limpiar caché del cliente que es solo por sesión (no debe persistir para el
   // siguiente usuario en este navegador). Clave definida en GroupsSearchPanel.
   try {
@@ -52,6 +43,20 @@ async function handleLogout() {
     }
   } catch (error) {
     console.error("Error limpiando caché local de sesión:", error);
+  }
+
+  // Petición de limpieza de sesión del servidor SIN await, con keepalive para
+  // que se complete aunque la página ya esté navegando. Así navegamos de
+  // inmediato tras signOut y no dejamos una ventana donde reaparezca la sesión
+  // (evita el parpadeo al cerrar sesión).
+  try {
+    void fetch("/api/auth/logout", {
+      method: "POST",
+      cache: "no-store",
+      keepalive: true,
+    }).catch(() => {});
+  } catch {
+    // ignorar
   }
 
   window.location.href = "/login";

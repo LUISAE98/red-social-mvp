@@ -149,32 +149,35 @@ function isProfileRequest(req: {
   );
 }
 
-function getMeetGreetStatusLabel(status: string): string {
-  switch (status) {
-    case "pending_creator_response":
-      return "En espera de aceptación";
-    case "accepted_pending_schedule":
-      return "Aceptado, pendiente de fecha";
-    case "scheduled":
-      return "Agendado";
-    case "reschedule_requested":
-      return "Cambio de fecha solicitado";
-    case "rejected":
-      return "Rechazado";
-    case "refund_requested":
-    case "refund_review":
-      return "En proceso de devolución";
-    case "ready_to_prepare":
-      return "Ya casi inicia";
-    case "in_preparation":
-      return "En preparación";
-    case "completed":
-      return "Completado";
-    case "cancelled":
-      return "Cancelado";
-    default:
-      return status || "Estado desconocido";
-  }
+function getMeetGreetStatusLabel(status?: string | null, t?: (key: string) => string): string {
+  if (!status) return t ? t("statusUnknown") : "Estado desconocido";
+  const map: Record<string, string> = {
+    pending_creator_response: "statusPendingResponse",
+    accepted_pending_schedule: "statusAcceptedPendingSchedule",
+    scheduled: "statusScheduled",
+    reschedule_requested: "statusRescheduleRequested",
+    rejected: "statusRejected",
+    refund_requested: "statusRefundRequested",
+    refund_review: "statusRefundReview",
+    ready_to_prepare: "statusReadyToPrepare",
+    in_preparation: "statusInPreparation",
+    completed: "statusCompleted",
+    cancelled: "statusCancelled",
+  };
+  const key = map[status];
+  if (key && t) return t(key);
+  // fallback strings (for when t is not provided)
+  if (status === "pending_creator_response") return "En espera de aceptación";
+  if (status === "accepted_pending_schedule") return "Aceptado, pendiente de fecha";
+  if (status === "scheduled") return "Agendado";
+  if (status === "reschedule_requested") return "Cambio de fecha solicitado";
+  if (status === "rejected") return "Rechazado";
+  if (status === "refund_requested" || status === "refund_review") return "En proceso de devolución";
+  if (status === "ready_to_prepare") return "Ya casi inicia";
+  if (status === "in_preparation") return "En preparación";
+  if (status === "completed") return "Completado";
+  if (status === "cancelled") return "Cancelado";
+  return status || (t ? t("statusUnknown") : "Estado desconocido");
 }
 
 function getMeetGreetStatusStyle(status: string): React.CSSProperties {
@@ -747,6 +750,9 @@ export default function OwnerSidebarGreetings({
 }: Props) {
   const tCommon = useTranslations("common");
   const tServices = useTranslations("services");
+  const tGroups = useTranslations("groups");
+  const tSessions = useTranslations("sessions");
+  const tWallet = useTranslations("wallet");
   const [busyMap, setBusyMap] = useState<BusyMap>({});
   const [errorMap, setErrorMap] = useState<TextMap>({});
   const [successMap, setSuccessMap] = useState<TextMap>({});
@@ -856,7 +862,7 @@ export default function OwnerSidebarGreetings({
       if (buyerAutoOpenedRef.current.has(key)) continue;
       buyerAutoOpenedRef.current.add(key);
       const creatorMini = userMiniMap[row.data.creatorId] ?? null;
-      const creatorName = creatorMini?.displayName ?? "Creador";
+      const creatorName = creatorMini?.displayName ?? tCommon("creator");
       const creatorAvatar = creatorMini?.photoURL ?? null;
       setViewSessionItem({ row, creatorName, creatorAvatar });
       break;
@@ -953,7 +959,7 @@ export default function OwnerSidebarGreetings({
       setScheduleOpenMap((prev) => ({ ...prev, [requestId]: true }));
       setOpenItemKey(`incoming-${kind}-${requestId}`);
     } catch (e: unknown) {
-      showGreetingsToast((e instanceof Error ? e.message : null) ?? "No se pudo aceptar la solicitud.", "error");
+      showGreetingsToast((e instanceof Error ? e.message : null) ?? tServices("errorAcceptRequest"), "error");
     } finally {
       setBusy(requestId, false);
     }
@@ -979,7 +985,7 @@ export default function OwnerSidebarGreetings({
       showGreetingsToast("✅ Solicitud rechazada.");
       setRejectOpenMap((prev) => ({ ...prev, [requestId]: false }));
     } catch (e: unknown) {
-      showGreetingsToast((e instanceof Error ? e.message : null) ?? "No se pudo rechazar la solicitud.", "error");
+      showGreetingsToast((e instanceof Error ? e.message : null) ?? tServices("errorRejectRequest"), "error");
     } finally {
       setBusy(requestId, false);
     }
@@ -997,7 +1003,7 @@ export default function OwnerSidebarGreetings({
       }
       showGreetingsToast("✅ Solicitud rechazada.");
     } catch (e: unknown) {
-      showGreetingsToast((e instanceof Error ? e.message : null) ?? "No se pudo rechazar la solicitud.", "error");
+      showGreetingsToast((e instanceof Error ? e.message : null) ?? tServices("errorRejectRequest"), "error");
       throw e;
     } finally {
       setBusy(requestId, false);
@@ -1006,7 +1012,7 @@ export default function OwnerSidebarGreetings({
 
   async function handleCreatorScheduleDirect(requestId: string, kind: ScheduledServiceKind, scheduledAtIso: string | null, note: string | null) {
     if (!scheduledAtIso) {
-      setError(requestId, "Selecciona día, mes, año, hora y minuto.");
+      setError(requestId, tServices("selectDateTimeError"));
       return;
     }
     const selectedDate = new Date(scheduledAtIso);
@@ -1015,7 +1021,7 @@ export default function OwnerSidebarGreetings({
       buildCalendarItems
     );
     if (conflict.hasConflict) {
-      setError(requestId, conflict.message ?? "Ese horario ya está ocupado. Selecciona otra hora disponible.");
+      setError(requestId, conflict.message ?? tServices("scheduleConflictError"));
       return;
     }
     setBusy(requestId, true);
@@ -1031,7 +1037,7 @@ export default function OwnerSidebarGreetings({
       }
       showGreetingsToast("✅ Fecha propuesta/agendada correctamente.");
     } catch (e: unknown) {
-      showGreetingsToast((e instanceof Error ? e.message : null) ?? "No se pudo guardar la fecha.", "error");
+      showGreetingsToast((e instanceof Error ? e.message : null) ?? tServices("errorSaveDate"), "error");
       throw e;
     } finally {
       setBusy(requestId, false);
@@ -1040,7 +1046,7 @@ export default function OwnerSidebarGreetings({
 
   async function handleCreatorAcceptAndSchedule(requestId: string, kind: ScheduledServiceKind, scheduledAtIso: string | null, note: string | null) {
     if (!scheduledAtIso) {
-      setError(requestId, "Selecciona día, mes, año, hora y minuto.");
+      setError(requestId, tServices("selectDateTimeError"));
       return;
     }
     const selectedDate = new Date(scheduledAtIso);
@@ -1049,7 +1055,7 @@ export default function OwnerSidebarGreetings({
       buildCalendarItems
     );
     if (conflict.hasConflict) {
-      setError(requestId, conflict.message ?? "Ese horario ya está ocupado. Selecciona otra hora disponible.");
+      setError(requestId, conflict.message ?? tServices("scheduleConflictError"));
       return;
     }
     setBusy(requestId, true);
@@ -1068,7 +1074,7 @@ export default function OwnerSidebarGreetings({
       setIncomingSessionOverlayOpen(false);
       setTimeout(() => setIncomingSessionOverlayData(null), 300);
     } catch (e: unknown) {
-      showGreetingsToast((e instanceof Error ? e.message : null) ?? "No se pudo agendar la sesión.", "error");
+      showGreetingsToast((e instanceof Error ? e.message : null) ?? tServices("errorScheduleSession"), "error");
     } finally {
       setBusy(requestId, false);
     }
@@ -1082,7 +1088,7 @@ async function handleCreatorSchedule(
   const scheduledAt = parts ? schedulePartsToIso(parts) : null;
 
   if (!scheduledAt) {
-    setError(requestId, "Selecciona día, mes, año, hora y minuto.");
+    setError(requestId, tServices("selectDateTimeError"));
     return;
   }
 
@@ -1101,8 +1107,7 @@ async function handleCreatorSchedule(
   if (scheduleConflict.hasConflict) {
     setError(
       requestId,
-      scheduleConflict.message ??
-        "Ese horario ya está ocupado. Selecciona otra hora disponible."
+      scheduleConflict.message ?? tServices("scheduleConflictError")
     );
     return;
   }
@@ -1130,7 +1135,7 @@ async function handleCreatorSchedule(
     setScheduleOpenMap((prev) => ({ ...prev, [requestId]: false }));
     setCalendarOpenMap((prev) => ({ ...prev, [requestId]: false }));
   } catch (e: unknown) {
-    showGreetingsToast((e instanceof Error ? e.message : null) ?? "No se pudo guardar la fecha.", "error");
+    showGreetingsToast((e instanceof Error ? e.message : null) ?? tServices("errorSaveDate"), "error");
   } finally {
     setBusy(requestId, false);
   }
@@ -1156,7 +1161,7 @@ async function handleCreatorSchedule(
       showGreetingsToast("✅ Devolución solicitada.");
       setRefundOpenMap((prev) => ({ ...prev, [requestId]: false }));
     } catch (e: unknown) {
-      showGreetingsToast((e instanceof Error ? e.message : null) ?? "No se pudo solicitar la devolución.", "error");
+      showGreetingsToast((e instanceof Error ? e.message : null) ?? tServices("errorRequestRefund"), "error");
     } finally {
       setBusy(requestId, false);
     }
@@ -1182,7 +1187,7 @@ async function handleCreatorSchedule(
       showGreetingsToast("✅ Cambio de fecha solicitado.");
       setRescheduleOpenMap((prev) => ({ ...prev, [requestId]: false }));
     } catch (e: unknown) {
-      showGreetingsToast((e instanceof Error ? e.message : null) ?? "No se pudo solicitar el cambio de fecha.", "error");
+      showGreetingsToast((e instanceof Error ? e.message : null) ?? tServices("errorRequestReschedule"), "error");
     } finally {
       setBusy(requestId, false);
     }
@@ -1199,7 +1204,7 @@ async function handleCreatorSchedule(
         await declineMeetGreetReschedule(requestId);
       }
     } catch (e: unknown) {
-      showGreetingsToast((e instanceof Error ? e.message : null) ?? "No se pudo procesar.", "error");
+      showGreetingsToast((e instanceof Error ? e.message : null) ?? tServices("errorProcess"), "error");
     } finally {
       setBusy(requestId, false);
     }
@@ -1221,7 +1226,7 @@ async function handleCreatorSchedule(
       setPreparationOpenMap((prev) => ({ ...prev, [requestId]: true }));
       setSuccess(requestId, "✅ Panel de preparación abierto.");
     } catch (e: unknown) {
-      setError(requestId, (e instanceof Error ? e.message : null) ?? "No se pudo abrir la preparación.");
+      setError(requestId, (e instanceof Error ? e.message : null) ?? tServices("errorOpenPreparation"));
     } finally {
       setBusy(requestId, false);
     }
@@ -1322,7 +1327,7 @@ async function handleCreatorSchedule(
         onClick={() => router.push(`/groups/${group.id}`)}
         style={baseStyle}
       >
-        Comunidad: {group.name ?? "Ir a la comunidad"}
+        {tServices("contextCommunity", { name: group.name ?? tServices("contextCommunityDefault") })}
       </button>
     );
   }
@@ -1332,7 +1337,7 @@ async function handleCreatorSchedule(
     const label =
       req.profileDisplayName ??
       req.creatorDisplayName ??
-      "Perfil del creador";
+      tServices("contextProfileDefault");
 
     if (username) {
       return (
@@ -1341,7 +1346,7 @@ async function handleCreatorSchedule(
           onClick={() => router.push(`/u/${username}`)}
           style={baseStyle}
         >
-          Perfil: {label}
+          {tServices("contextProfile", { name: label })}
         </button>
       );
     }
@@ -1354,7 +1359,7 @@ async function handleCreatorSchedule(
           display: "inline-flex",
         }}
       >
-        Perfil: {label}
+        {tServices("contextProfile", { name: label })}
       </span>
     );
   }
@@ -1413,8 +1418,8 @@ async function handleCreatorSchedule(
     const creator = userMiniMap[req.creatorId] ?? null;
 
     const sourceName = isProfile
-      ? (req.profileDisplayName ?? creator?.displayName ?? "Perfil")
-      : (group?.name ?? "Comunidad");
+      ? (req.profileDisplayName ?? creator?.displayName ?? tCommon("profile"))
+      : (group?.name ?? tCommon("community"));
     const sourceAvatar = isProfile
       ? (creator?.photoURL ?? null)
       : (group?.avatarUrl ?? null);
@@ -1460,7 +1465,7 @@ async function handleCreatorSchedule(
           </div>
           {(req.status === "rejected" || req.status === "refund_requested" || req.status === "refund_review" || relTime) && (
             <div style={{ color: "rgba(255,255,255,0.45)", fontSize: 11, marginTop: 2 }}>
-              {req.status === "rejected" ? "Rechazado" : (req.status === "refund_requested" || req.status === "refund_review") ? "En proceso de devolución" : relTime}
+              {req.status === "rejected" ? tSessions("statusRejected") : (req.status === "refund_requested" || req.status === "refund_review") ? tServices("statusRefundInProgress") : relTime}
             </div>
           )}
         </div>
@@ -1493,7 +1498,7 @@ async function handleCreatorSchedule(
     const busy = !!busyMap[row.id];
     const isExclusiveSession = row.serviceKind === "exclusive_session";
     const serviceType = isExclusiveSession ? "digital_exclusive_session" : "meet_greet_digital";
-    const serviceTitle = isExclusiveSession ? "Sesión exclusiva" : "Meet & Greet";
+    const serviceTitle = isExclusiveSession ? tServices("exclusiveSession") : tSessions("meetGreetTitle");
     const noShowExpired = isNoShowExpired(req.scheduledAt);
     const canRequestRefund = req.status === "rejected" && req.paymentStatus !== "refunded";
     const canRetry =
@@ -1513,7 +1518,7 @@ const creatorScheduleNote = getCreatorScheduleNote(req);
 
     if (req.status === "rejected") {
       const creator = userMiniMap[req.creatorId] ?? null;
-      const creatorName = creator?.displayName ?? "Creador";
+      const creatorName = creator?.displayName ?? tCommon("creator");
       const creatorAvatar = creator?.photoURL ?? null;
       const creatorInitial = creatorName.charAt(0).toUpperCase();
       const relTime = req.createdAt ? getRelativeTime(req.createdAt as { toDate: () => Date }, tCommon) : null;
@@ -1555,7 +1560,7 @@ const creatorScheduleNote = getCreatorScheduleNote(req);
               {creatorName}
             </div>
             <div style={{ color: "rgba(255,255,255,0.45)", fontSize: 11, marginTop: 2 }}>
-              Rechazado
+              {tSessions("statusRejected")}
             </div>
           </div>
           <button
@@ -1583,7 +1588,7 @@ const creatorScheduleNote = getCreatorScheduleNote(req);
 
     {
       const creator2 = userMiniMap[req.creatorId] ?? null;
-      const creatorName2 = creator2?.displayName ?? "Creador";
+      const creatorName2 = creator2?.displayName ?? tCommon("creator");
       const creatorAvatar2 = creator2?.photoURL ?? null;
       const creatorInitial2 = creatorName2.charAt(0).toUpperCase();
       const relTime2 = req.createdAt ? getRelativeTime(req.createdAt as { toDate: () => Date }, tCommon) : null;
@@ -1617,7 +1622,7 @@ const creatorScheduleNote = getCreatorScheduleNote(req);
             </div>
             {(req.status === "rejected" || req.status === "refund_requested" || req.status === "refund_review" || relTime2) && (
               <div style={{ color: "rgba(255,255,255,0.45)", fontSize: 11, marginTop: 2 }}>
-                {req.status === "rejected" ? "Rechazado" : (req.status === "refund_requested" || req.status === "refund_review") ? "En proceso de devolución" : relTime2}
+                {req.status === "rejected" ? tSessions("statusRejected") : (req.status === "refund_requested" || req.status === "refund_review") ? tServices("statusRefundInProgress") : relTime2}
               </div>
             )}
           </div>
@@ -1668,7 +1673,7 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
       return {
         id: item.id,
         kind,
-        title: isExclusive ? "Sesión exclusiva" : "Meet & Greet",
+        title: isExclusive ? tServices("exclusiveSession") : tSessions("meetGreetTitle"),
         groupId: resolvedGroupId,
         groupName: group?.name ?? null,
         buyerId: item.data.buyerId ?? "",
@@ -1689,7 +1694,7 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
         targetName: null,
         requestText: item.data.buyerMessage ?? null,
         status: item.data.status,
-        statusLabel: getMeetGreetStatusLabel(item.data.status),
+        statusLabel: getMeetGreetStatusLabel(item.data.status, tSessions),
         description: item.data.buyerMessage ?? null,
         creatorScheduleNote: getCreatorScheduleNote(item.data),
         creatorScheduleNoteUpdatedAt: toDateSafe(
@@ -1731,8 +1736,8 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
   function renderIncomingScheduledServiceCard(row: ScheduledRow, itemKey: string) {
     const req = row.data;
     const isExclusiveSession = row.serviceKind === "exclusive_session";
-    const serviceTitle = isExclusiveSession ? "Sesión exclusiva" : "Meet & Greet";
-    const buyerName = req.buyerDisplayName ?? "Comprador";
+    const serviceTitle = isExclusiveSession ? tServices("exclusiveSession") : tSessions("meetGreetTitle");
+    const buyerName = req.buyerDisplayName ?? tCommon("buyer");
     const buyerAvatar = (req as MeetGreetRequestDoc).buyerAvatarUrl ?? null;
     const buyerInitial = buyerName.charAt(0).toUpperCase();
     const relTime = req.createdAt ? getRelativeTime(req.createdAt as { toDate: () => Date }, tCommon) : null;
@@ -1818,7 +1823,7 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
   return (
     <>
     <div style={{ display: "grid", gap: 8 }}>
-      <SectionHeading>Mis servicios</SectionHeading>
+      <SectionHeading>{tGroups("myServices")}</SectionHeading>
 
       <SectionBlock
         sectionKey="requested"
@@ -1839,7 +1844,7 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
                 fontWeight: 600, fontSize: 12, cursor: "pointer",
               }}
             >
-              Ver más
+              {tCommon("viewMore")}
             </button>
           )}
         </div>
@@ -1928,7 +1933,7 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
                 </svg>
               </span>
               <span style={{ fontSize: 13, fontWeight: 700, color: "#fff", lineHeight: 1.2, minWidth: 0 }}>
-                Entregados
+                {tCommon("delivered")}
               </span>
             </span>
             <CountBadge count={buyerDelivered.length + completedBuyerScheduledRows.length} tone="pink" />
@@ -1957,7 +1962,7 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
                 const sessionType = isExclusive ? "exclusive_session" : "meet_greet";
                 const creator = userMiniMap[req.creatorId] ?? null;
                 const group = req.groupId ? groupMetaMap[req.groupId] ?? null : null;
-                const sourceName = req.profileDisplayName ?? creator?.displayName ?? (group?.name ?? "Creador");
+                const sourceName = req.profileDisplayName ?? creator?.displayName ?? (group?.name ?? tCommon("creator"));
                 const sourceAvatar = creator?.photoURL ?? group?.avatarUrl ?? null;
                 const sourceInitial = sourceName.charAt(0).toUpperCase();
                 const completedTs = req.updatedAt as { toDate: () => Date } | undefined;
@@ -2017,7 +2022,7 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
                             const url = await callGetRecordingDownloadUrl({ sessionId: row.id, sessionType });
                             window.location.href = url;
                           } catch {
-                            setDownloadErrorMap((prev) => ({ ...prev, [row.id]: "No se pudo obtener el enlace." }));
+                            setDownloadErrorMap((prev) => ({ ...prev, [row.id]: tCommon("generalError") }));
                           } finally {
                             setDownloadBusyMap((prev) => ({ ...prev, [row.id]: false }));
                           }
@@ -2038,7 +2043,7 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
                           whiteSpace: "nowrap",
                         }}
                       >
-                        {downloadBusy ? "Obteniendo..." : "Descargar sesión"}
+                        {downloadBusy ? tCommon("loading") : tServices("downloadSession")}
                       </button>
                       {downloadError && (
                         <div style={{ fontSize: 10, color: "#fca5a5", textAlign: "right" }}>{downloadError}</div>
@@ -2056,8 +2061,8 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
                 const creator = userMiniMap[req.creatorId] ?? null;
 
                 const sourceName = isProfile
-                  ? (req.profileDisplayName ?? creator?.displayName ?? "Perfil")
-                  : (group?.name ?? "Comunidad");
+                  ? (req.profileDisplayName ?? creator?.displayName ?? tCommon("profile"))
+                  : (group?.name ?? tCommon("community"));
                 const sourceAvatar = isProfile
                   ? (creator?.photoURL ?? null)
                   : (group?.avatarUrl ?? null);
@@ -2066,7 +2071,7 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
                 const deliveredTs = req.deliveredAt as { toDate: () => Date } | undefined;
                 const relTime = deliveredTs ? getRelativeTime(deliveredTs, tCommon) : null;
 
-                const btnLabel = req.type === "consejo" ? "Ver consejo" : req.type === "mensaje" ? "Ver mensaje" : "Ver saludo";
+                const btnLabel = req.type === "consejo" ? tServices("viewAdvice") : req.type === "mensaje" ? tServices("viewMessage") : tServices("viewGreeting");
 
                 return (
                   <div
@@ -2142,7 +2147,7 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
                     fontWeight: 600, fontSize: 12, cursor: "pointer",
                   }}
                 >
-                  Ver más
+                  {tCommon("viewMore")}
                 </button>
               )}
             </div>
@@ -2186,7 +2191,7 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
         onReject={() => {}}
         onClose={() => setViewDeliveredItem(null)}
         getInitials={(name) => (name ?? "?").charAt(0).toUpperCase()}
-        typeLabel={(t) => t === "consejo" ? "Consejo" : t === "mensaje" ? "Mensaje" : "Saludo"}
+        typeLabel={(t) => t === "consejo" ? tWallet("typeLabelAdvice") : t === "mensaje" ? tWallet("typeLabelMessage") : tWallet("typeLabelGreeting")}
       />
     )}
     {viewSessionItem && (() => {

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import type { CreatorService, CreatorServiceType } from "@/types/group";
 import { getVisibleServices } from "@/lib/services/normalizeServices";
 
@@ -40,78 +41,12 @@ type ServiceConfig = {
   color: string;
 };
 
-const CONFIG: Record<string, ServiceConfig> = {
-  saludo: {
-    title: "Saludo personalizado",
-    description: "Recibe un video exclusivo con un mensaje para ti.",
-    meta1Fallback: "Entrega 48–72 h",
-    meta2: "Video hasta 1 min",
-    color: "#b45cff",
-  },
-  consejo: {
-    title: "Consejo personalizado",
-    description: "Haz una pregunta y recibe una respuesta personalizada.",
-    meta1Fallback: "Entrega 3–5 días",
-    meta2: "Respuesta por escrito",
-    color: "#f7c948",
-  },
-  meet_greet_digital: {
-    title: "Encuentro en vivo",
-    description: "Encuentro en vivo uno a uno especialmente para ti.",
-    meta1Fallback: "Duración 30 minutos",
-    meta2: "Plataforma Google Meet",
-    color: "#45b8ff",
-  },
-  clase_personalizada: {
-    title: "Sesión exclusiva",
-    description: "Experiencia privada y duradera uno a uno.",
-    meta1Fallback: "Duración 60 minutos",
-    meta2: "Totalmente personalizada",
-    color: "#f472b6",
-  },
+const COLORS: Record<string, string> = {
+  saludo: "#b45cff",
+  consejo: "#f7c948",
+  meet_greet_digital: "#45b8ff",
+  clase_personalizada: "#f472b6",
 };
-
-function getMeta1(service: CreatorService): string {
-  const conf = CONFIG[service.type];
-  if (!conf) return "";
-  if (service.type === "meet_greet_digital") {
-    const dur = service.meta?.meetGreet?.durationMinutes;
-    return dur ? `Duración ${dur} minutos` : conf.meta1Fallback;
-  }
-  if (service.type === "clase_personalizada") {
-    const dur = service.meta?.customClass?.durationMinutes;
-    return dur ? `Duración ${dur} minutos` : conf.meta1Fallback;
-  }
-  return conf.meta1Fallback;
-}
-
-function formatPrice(service: CreatorService): {
-  hasPrice: boolean;
-  numberPart: string;
-  currencyCode: string;
-} {
-  const price =
-    service.publicPrice ??
-    service.memberPrice ??
-    (service as CreatorService & { price?: number | null }).price ??
-    null;
-  const currency = service.currency ?? "MXN";
-  if (typeof price !== "number")
-    return { hasPrice: false, numberPart: "Precio por confirmar", currencyCode: "" };
-  try {
-    return {
-      hasPrice: true,
-      numberPart: new Intl.NumberFormat("es-MX", {
-        style: "currency",
-        currency,
-        maximumFractionDigits: 0,
-      }).format(price),
-      currencyCode: currency,
-    };
-  } catch {
-    return { hasPrice: true, numberPart: `$${price}`, currencyCode: currency };
-  }
-}
 
 function buildHref(
   serviceType: CreatorServiceType,
@@ -156,6 +91,81 @@ export default function CreatorExperiencesSection({
   viewerMembershipStatus = null,
   viewerCanRequest = true,
 }: Props) {
+  const tServices = useTranslations("services");
+
+  const CONFIG: Record<string, ServiceConfig> = {
+    saludo: {
+      title: tServices("cardSaludoTitle"),
+      description: tServices("cardSaludoDesc"),
+      meta1Fallback: tServices("cardSaludoMeta1"),
+      meta2: tServices("cardSaludoMeta2"),
+      color: COLORS.saludo,
+    },
+    consejo: {
+      title: tServices("cardConsejoTitle"),
+      description: tServices("cardConsejoDesc"),
+      meta1Fallback: tServices("cardConsejoMeta1"),
+      meta2: tServices("cardConsejoMeta2"),
+      color: COLORS.consejo,
+    },
+    meet_greet_digital: {
+      title: tServices("cardMeetGreetTitle"),
+      description: tServices("cardMeetGreetDesc"),
+      meta1Fallback: tServices("cardMeetGreetMeta1"),
+      meta2: tServices("cardMeetGreetMeta2"),
+      color: COLORS.meet_greet_digital,
+    },
+    clase_personalizada: {
+      title: tServices("cardSessionTitle"),
+      description: tServices("cardSessionDesc"),
+      meta1Fallback: tServices("cardSessionMeta1"),
+      meta2: tServices("cardSessionMeta2"),
+      color: COLORS.clase_personalizada,
+    },
+  };
+
+  function getMeta1(service: CreatorService): string {
+    const conf = CONFIG[service.type];
+    if (!conf) return "";
+    if (service.type === "meet_greet_digital") {
+      const dur = service.meta?.meetGreet?.durationMinutes;
+      return dur ? tServices("cardMeetGreetDuration", { minutes: String(dur) }) : conf.meta1Fallback;
+    }
+    if (service.type === "clase_personalizada") {
+      const dur = service.meta?.customClass?.durationMinutes;
+      return dur ? tServices("cardSessionDuration", { minutes: String(dur) }) : conf.meta1Fallback;
+    }
+    return conf.meta1Fallback;
+  }
+
+  function formatPrice(service: CreatorService): {
+    hasPrice: boolean;
+    numberPart: string;
+    currencyCode: string;
+  } {
+    const price =
+      service.publicPrice ??
+      service.memberPrice ??
+      (service as CreatorService & { price?: number | null }).price ??
+      null;
+    const currency = service.currency ?? "MXN";
+    if (typeof price !== "number")
+      return { hasPrice: false, numberPart: tServices("cardPriceToConfirm"), currencyCode: "" };
+    try {
+      return {
+        hasPrice: true,
+        numberPart: new Intl.NumberFormat("es-MX", {
+          style: "currency",
+          currency,
+          maximumFractionDigits: 0,
+        }).format(price),
+        currencyCode: currency,
+      };
+    } catch {
+      return { hasPrice: true, numberPart: `$${price}`, currencyCode: currency };
+    }
+  }
+
   if (viewerCanRequest === false) return null;
 
   const rawServices = Array.isArray(services) ? services : [];
@@ -214,7 +224,7 @@ export default function CreatorExperiencesSection({
             lineHeight: 1.2,
           }}
         >
-          Experiencias con {creatorName}
+          {tServices("cardExperiencesWith", { name: creatorName })}
         </h2>
         <p
           style={{
@@ -224,7 +234,7 @@ export default function CreatorExperiencesSection({
             lineHeight: 1.4,
           }}
         >
-          Descubre nuevas formas de conectar conmigo.
+          {tServices("cardDiscoverMore")}
         </p>
         <div
           style={{
@@ -248,7 +258,7 @@ export default function CreatorExperiencesSection({
           const meta2 = conf.meta2;
           const priceData = rawService
             ? formatPrice(rawService)
-            : { hasPrice: false, numberPart: "Precio por confirmar", currencyCode: "" };
+            : { hasPrice: false, numberPart: tServices("cardPriceToConfirm"), currencyCode: "" };
           const href = buildHref(type, contextType, groupId, creatorHandle);
           if (href === "#") return null;
 
@@ -340,7 +350,7 @@ export default function CreatorExperiencesSection({
                       letterSpacing: "0.01em",
                     }}
                   >
-                    {type === "clase_personalizada" ? "Consíguela por" : "Consíguelo por"}
+                    {type === "clase_personalizada" ? tServices("cardGetItForFeminine") : tServices("cardGetItFor")}
                   </span>
                 )}
                 {priceData.hasPrice ? (

@@ -30,6 +30,7 @@ import {
   removePostFromAllFeedCaches,
 } from "@/lib/posts/post-feed-cache";
 import RefreshableArea from "@/components/refresh/RefreshableArea";
+import { useTranslations } from "next-intl";
 
 const MIN_POST_SEARCH_LENGTH = 2;
 const SEARCH_POSTS_PAGE_SIZE = 20;
@@ -101,6 +102,8 @@ export default function SearchPostsResults({
   search,
   currentUser,
 }: SearchPostsResultsProps) {
+  const tCommon = useTranslations("common");
+  const tPosts = useTranslations("posts");
   const userId = currentUser?.uid ?? null;
 
   const [posts, setPosts] = useState<PostWithFlags[]>([]);
@@ -227,7 +230,7 @@ export default function SearchPostsResults({
       } catch (e: unknown) {
         if (!active) return;
         console.error("searchPosts error completo:", e);
-        setError((e instanceof Error ? e.message : null) ?? "Error");
+        setError((e instanceof Error ? e.message : null) ?? tCommon("loadError"));
       } finally {
         if (active) setLoading(false);
       }
@@ -246,7 +249,7 @@ export default function SearchPostsResults({
       await softDeletePost(postId);
       removePostFromAllFeedCaches(postId);
     } catch (e: unknown) {
-      setError((e instanceof Error ? e.message : null) ?? "No se pudo eliminar la publicación.");
+      setError((e instanceof Error ? e.message : null) ?? tCommon("generalError"));
       throw e;
     }
   }
@@ -264,7 +267,7 @@ export default function SearchPostsResults({
         } as Post["counts"],
       });
     } catch (e: unknown) {
-      setError((e instanceof Error ? e.message : null) ?? "No se pudo actualizar la flamita.");
+      setError((e instanceof Error ? e.message : null) ?? tPosts("errorFlame"));
       throw e;
     }
   }
@@ -290,7 +293,7 @@ export default function SearchPostsResults({
         } as Post["counts"],
       });
     } catch (e: unknown) {
-      setError((e instanceof Error ? e.message : null) ?? "No se pudo actualizar el guardado.");
+      setError((e instanceof Error ? e.message : null) ?? tCommon("generalError"));
       throw e;
     }
   }
@@ -417,7 +420,7 @@ export default function SearchPostsResults({
       ? [
           {
             key: "fromDate",
-            label: `Desde: ${fromDate}`,
+            label: `${tCommon("filterFrom")}: ${fromDate}`,
             onRemove: () => {
               setDraftFromDate("");
               setFromDate("");
@@ -429,7 +432,7 @@ export default function SearchPostsResults({
       ? [
           {
             key: "toDate",
-            label: `Hasta: ${toDate}`,
+            label: `${tCommon("filterUntil")}: ${toDate}`,
             onRemove: () => {
               setDraftToDate("");
               setToDate("");
@@ -638,7 +641,7 @@ export default function SearchPostsResults({
         >
           <div className="vibraPullRefreshSpinner refreshing" style={{ width: 32, height: 32 }} />
           <span style={{ fontSize: 13, color: "rgba(255,255,255,0.32)", letterSpacing: "0.01em" }}>
-            Buscando publicaciones...
+            {tCommon("searchingPosts")}
           </span>
         </div>
       </RefreshableArea>
@@ -664,7 +667,7 @@ export default function SearchPostsResults({
         enabled={mobileRefreshEnabled}
         indicatorTop="calc(env(safe-area-inset-top) + 116px)"
       >
-        <div>Escribe algo para buscar</div>
+        <div>{tCommon("writeToSearch")}</div>
       </RefreshableArea>
     );
   }
@@ -686,7 +689,7 @@ export default function SearchPostsResults({
                     type="button"
                     style={activeFilterRemoveStyle}
                     onClick={filter.onRemove}
-                    aria-label={`Quitar filtro ${filter.label}`}
+                    aria-label={tCommon("removeFilter", { label: filter.label })}
                   >
                     ×
                   </button>
@@ -702,17 +705,17 @@ export default function SearchPostsResults({
             onClick={() => setIsFiltersOpen((prev) => !prev)}
           >
             <span aria-hidden="true">🧮</span>
-            Filtros
+            {tCommon("filters")}
           </button>
 
           {isFiltersOpen && (
             <div style={filtersPanelStyle} className="search-posts-filters-panel">
               <div style={filterBlockStyle}>
-                <p style={filterBlockTitleStyle}>Fecha</p>
+                <p style={filterBlockTitleStyle}>{tCommon("filterDate")}</p>
 
                 <div style={dateFieldWrapStyle}>
                   <label htmlFor="posts-filter-from" style={dateLabelStyle}>
-                    Desde
+                    {tCommon("filterFrom")}
                   </label>
                   <input
                     id="posts-filter-from"
@@ -726,7 +729,7 @@ export default function SearchPostsResults({
 
                 <div style={dateFieldWrapStyle}>
                   <label htmlFor="posts-filter-to" style={dateLabelStyle}>
-                    Hasta
+                    {tCommon("filterUntil")}
                   </label>
                   <input
                     id="posts-filter-to"
@@ -745,7 +748,7 @@ export default function SearchPostsResults({
                   style={filterActionSecondaryStyle}
                   onClick={clearDateFilters}
                 >
-                  Limpiar
+                  {tCommon("clear")}
                 </button>
 
                 <button
@@ -753,7 +756,7 @@ export default function SearchPostsResults({
                   style={filterActionPrimaryStyle}
                   onClick={applyDateFilters}
                 >
-                  Listo
+                  {tCommon("done")}
                 </button>
               </div>
             </div>
@@ -762,7 +765,7 @@ export default function SearchPostsResults({
       </div>
 
       {!hasResults ? (
-        <div style={emptyStyle}>No se encontraron coincidencias exactas.</div>
+        <div style={emptyStyle}>{tCommon("noExactMatches")}</div>
       ) : (
         visiblePosts.map((post) => {
           const canDelete = userId === post.authorId;

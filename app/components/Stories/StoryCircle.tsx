@@ -1,14 +1,10 @@
 "use client";
 
 import Image from "next/image";
+import { useTranslations } from "next-intl";
 import type { StoryType } from "@/lib/stories/types";
 
 const VIBRA_GRADIENT = "linear-gradient(135deg, #ec4899 0%, #9333ea 52%, #3b82f6 100%)";
-
-const LABELS: Record<StoryType, string> = {
-  saludo: "Saludos",
-  consejo: "Consejos",
-};
 
 type Props = {
   type: StoryType;
@@ -19,14 +15,15 @@ type Props = {
 };
 
 export default function StoryCircle({ type, thumbnailUrl, onClick, size = 74, sublabel }: Props) {
+  const tCommon = useTranslations("common");
   const borderSize = size + 6;
-  const label = LABELS[type];
+  const label = type === "saludo" ? tCommon("storySaludos") : tCommon("storyConsejos");
 
   return (
     <button
       type="button"
       onClick={onClick}
-      aria-label={`Ver historias de ${label}`}
+      aria-label={tCommon("storyViewLabel", { label })}
       style={{
         display: "flex",
         flexDirection: "column",

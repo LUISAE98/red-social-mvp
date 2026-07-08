@@ -17,11 +17,11 @@ import type {
 export const OWNER_SIDEBAR_NO_SHOW_GRACE_MS = 15 * 60 * 1000;
 export const OWNER_SIDEBAR_FOLLOWING_LIMIT = 30;
 
-export function visibilitySectionTitle(v: string) {
-  if (v === "public") return "Comunidades públicas";
-  if (v === "private") return "Comunidades privadas";
-  if (v === "hidden") return "Comunidades ocultas";
-  return "Otras comunidades";
+export function visibilitySectionTitle(v: string, t?: (key: string) => string) {
+  if (v === "public") return t ? t("visibilityPublicTitle") : "Comunidades públicas";
+  if (v === "private") return t ? t("visibilityPrivateTitle") : "Comunidades privadas";
+  if (v === "hidden") return t ? t("visibilityHiddenTitle") : "Comunidades ocultas";
+  return t ? t("otherCommunities") : "Otras comunidades";
 }
 
 export function typeLabel(t: string) {
@@ -94,7 +94,7 @@ export function getInitials(name?: string | null) {
   return `${first}${second}`.toUpperCase() || "C";
 }
 
-export function friendlyJoinErrorMessage(err: unknown) {
+export function friendlyJoinErrorMessage(err: unknown, fallback = "Ocurrió un error.") {
   const errMsg = err instanceof Error ? err.message : "";
   const msg = errMsg.toLowerCase();
   if (
@@ -104,10 +104,10 @@ export function friendlyJoinErrorMessage(err: unknown) {
   ) {
     return null;
   }
-  return errMsg || "Ocurrió un error.";
+  return errMsg || fallback;
 }
 
-export function buildDisplayName(user?: Partial<UserDoc> | null, uid?: string) {
+export function buildDisplayName(user?: Partial<UserDoc> | null, uid?: string, userFallback = "Usuario") {
   const dn = user?.displayName?.trim();
   if (dn) return dn;
 
@@ -117,8 +117,8 @@ export function buildDisplayName(user?: Partial<UserDoc> | null, uid?: string) {
     .trim();
 
   if (full) return full;
-  if (uid) return `Usuario ${uid.slice(0, 6)}`;
-  return "Usuario";
+  if (uid) return `${userFallback} ${uid.slice(0, 6)}`;
+  return userFallback;
 }
 
 export function shouldOwnerSidebarTreatAsNoShowRejected(

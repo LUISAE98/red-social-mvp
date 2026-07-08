@@ -29,12 +29,15 @@ export default function GroupsSearchToolbar({
   fontStack,
   showCreateGroup = true,
   showCloseSearch = false,
-  placeholder = "Buscar comunidades, perfiles o publicaciones...",
-  ariaLabel = "Buscar comunidades, perfiles o publicaciones",
+  placeholder,
+  ariaLabel,
   isMobileClosing = false,
   autoFocusOnMount = false,
 }: GroupsSearchToolbarProps) {
   const tCommon = useTranslations("common");
+  const tGroups = useTranslations("groups");
+  const resolvedPlaceholder = placeholder ?? tCommon("searchPlaceholder");
+  const resolvedAriaLabel = ariaLabel ?? tCommon("searchAriaLabel");
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [isFocused, setIsFocused] = useState(false);
 
@@ -297,7 +300,7 @@ export default function GroupsSearchToolbar({
             <input
               ref={inputRef}
               type="text"
-              placeholder={placeholder}
+              placeholder={resolvedPlaceholder}
               value={search}
               onFocus={() => { setIsFocused(true); onFocusChange?.(true); }}
               onBlur={() => { setIsFocused(false); onFocusChange?.(false); }}
@@ -311,7 +314,7 @@ export default function GroupsSearchToolbar({
                 }
               }}
               className="search-input"
-              aria-label={ariaLabel}
+              aria-label={resolvedAriaLabel}
               autoCorrect="off"
               autoCapitalize="none"
               spellCheck={false}
@@ -332,8 +335,8 @@ export default function GroupsSearchToolbar({
                 type="button"
                 className="inner-action-btn"
                 onClick={handleClearSearch}
-                aria-label="Limpiar búsqueda"
-                title="Limpiar búsqueda"
+                aria-label={tCommon("clearSearch")}
+                title={tCommon("clearSearch")}
               >
                 ✕
               </button>
@@ -345,8 +348,8 @@ export default function GroupsSearchToolbar({
           <button
             onClick={onCreateGroup}
             className="create-btn"
-            aria-label="Crear comunidad"
-            title="Crear comunidad"
+            aria-label={tGroups("createCommunity")}
+            title={tGroups("createCommunity")}
             type="button"
           >
             +

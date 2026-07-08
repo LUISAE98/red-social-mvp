@@ -88,8 +88,8 @@ const pageWrap: CSSProperties = {
             }
             return refreshRef.current();
           }}>
-            <SessionCountdownBanner uid={effectiveUid} />
             <HomeStoriesRow currentUserId={effectiveUid} />
+            <SessionCountdownBanner uid={effectiveUid} />
             <HomePostsFeed currentUserId={effectiveUid} refreshRef={refreshRef} />
           </RefreshableArea>
         </div>

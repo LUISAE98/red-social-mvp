@@ -1,5 +1,7 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+
 type TabType = "groups" | "profiles" | "posts";
 
 type SearchSubnavProps = {
@@ -11,18 +13,20 @@ export default function SearchSubnav({
   activeTab,
   onChangeTab,
 }: SearchSubnavProps) {
+  const tNav = useTranslations("nav");
+
   const tabs: Array<{
     key: TabType;
     label: string;
     emoji: string;
   }> = [
-    { key: "groups", label: "Comunidades", emoji: "🌍" },
-    { key: "profiles", label: "Perfiles", emoji: "🧍" },
-    { key: "posts", label: "Publicaciones", emoji: "📰" },
+    { key: "groups", label: tNav("searchTabGroups"), emoji: "🌍" },
+    { key: "profiles", label: tNav("searchTabProfiles"), emoji: "🧍" },
+    { key: "posts", label: tNav("searchTabPosts"), emoji: "📰" },
   ];
 
   return (
-    <nav className="search-subnav" aria-label="Secciones de búsqueda">
+    <nav className="search-subnav" aria-label={tNav("searchTabsAriaLabel")}>
       {tabs.map((tab) => {
         const active = activeTab === tab.key;
 

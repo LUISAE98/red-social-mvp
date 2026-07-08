@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import {
@@ -34,6 +35,7 @@ export default function GroupStoryCircles({
   currentUserId,
   isOwner = false,
 }: Props) {
+  const tCommon = useTranslations("common");
   const [stories, setStories] = useState<StoryDoc[]>([]);
   const [viewerType, setViewerType] = useState<StoryType | null>(null);
   const [viewerSourceRect, setViewerSourceRect] = useState<DOMRect | null>(null);
@@ -122,7 +124,7 @@ export default function GroupStoryCircles({
             {isOwner && (
               <button
                 type="button"
-                aria-label="Cambiar portada de saludos"
+                aria-label={tCommon("storyChangeCover", { label: tCommon("storySaludos").toLowerCase() })}
                 onClick={(e) => { e.stopPropagation(); setPickerType("saludo"); }}
                 style={gearBtnStyle}
               >
@@ -142,7 +144,7 @@ export default function GroupStoryCircles({
             {isOwner && (
               <button
                 type="button"
-                aria-label="Cambiar portada de consejos"
+                aria-label={tCommon("storyChangeCover", { label: tCommon("storyConsejos").toLowerCase() })}
                 onClick={(e) => { e.stopPropagation(); setPickerType("consejo"); }}
                 style={gearBtnStyle}
               >

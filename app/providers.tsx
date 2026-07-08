@@ -75,7 +75,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const startAuthTransition = (mode: "entering" | "exiting") => {
     setAuthTransitionMode(mode);
-    scheduleIdle();
+    // El cierre de sesión ("exiting") siempre termina en una recarga a /login,
+    // que reinicia todo el estado. Le damos un margen amplio al temporizador
+    // para que NO reaparezca contenido (parpadeo de la sesión) antes de que la
+    // navegación ocurra. "entering" mantiene la transición corta de siempre.
+    scheduleIdle(mode === "exiting" ? 6000 : AUTH_TRANSITION_MS);
   };
 
   const value = useMemo(

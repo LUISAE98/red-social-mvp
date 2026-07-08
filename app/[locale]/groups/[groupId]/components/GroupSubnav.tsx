@@ -1,6 +1,7 @@
 "use client";
 
 import { CSSProperties } from "react";
+import { useTranslations } from "next-intl";
 import {
   VibraSubnavIcon,
   VibraSubnavIconsStyles,
@@ -20,6 +21,7 @@ export default function GroupSubnav({
   onChange,
   canManage = false,
 }: GroupSubnavProps) {
+  const tGroups = useTranslations("groups");
   const fontStack =
     'inherit';
 
@@ -30,24 +32,24 @@ export default function GroupSubnav({
   }[] = [
     {
       key: "feed",
-      title: "Publicaciones",
+      title: tGroups("postsSection"),
       iconType: "posts",
     },
     {
       key: "members",
-      title: "Integrantes",
+      title: tGroups("membersTab"),
       iconType: "members",
     },
     ...(canManage
       ? [
           {
             key: "services" as const,
-            title: "Servicios del grupo",
+            title: tGroups("groupServicesTab"),
             iconType: "services" as const,
           },
           {
             key: "settings" as const,
-            title: "Configuración del grupo",
+            title: tGroups("groupSettingsTab"),
             iconType: "settings" as const,
           },
         ]

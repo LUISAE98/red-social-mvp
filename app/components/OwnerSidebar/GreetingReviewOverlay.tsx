@@ -39,16 +39,16 @@ function getGreetingStatusLabel(status: string, t: (key: string) => string): str
   }
 }
 
-function getRelativeTime(createdAt?: { toDate: () => Date } | null): string {
-  if (!createdAt) return "Hace un momento";
+function getRelativeTime(createdAt: { toDate: () => Date } | null | undefined, tc: (k: string, v?: Record<string, unknown>) => string): string {
+  if (!createdAt) return tc("relativeTimeNow");
   const diffMs = Date.now() - createdAt.toDate().getTime();
   const diffMins = Math.floor(diffMs / 60000);
   const diffHours = Math.floor(diffMins / 60);
   const diffDays = Math.floor(diffHours / 24);
-  if (diffDays >= 1) return `Hace ${diffDays} ${diffDays === 1 ? "día" : "días"}`;
-  if (diffHours >= 1) return `Hace ${diffHours} ${diffHours === 1 ? "hora" : "horas"}`;
-  if (diffMins >= 1) return `Hace ${diffMins} ${diffMins === 1 ? "minuto" : "minutos"}`;
-  return "Hace un momento";
+  if (diffDays >= 1) return tc("relativeTimeDays", { count: diffDays });
+  if (diffHours >= 1) return tc("relativeTimeHours", { count: diffHours });
+  if (diffMins >= 1) return tc("relativeTimeMinutes", { count: diffMins });
+  return tc("relativeTimeNow");
 }
 
 type ViewState = "review" | "camera";
@@ -508,9 +508,9 @@ export default function GreetingReviewOverlay({
         };
         xhr.onload = () => {
           if (xhr.status >= 200 && xhr.status < 300) resolve();
-          else reject(new Error(`Error al subir: ${xhr.status}`));
+          else reject(new Error(tCommon("generalError")));
         };
-        xhr.onerror = () => reject(new Error("Error de red al subir el video."));
+        xhr.onerror = () => reject(new Error(tCommon("generalError")));
         xhr.open("PUT", uploadUrl);
         xhr.send(blob);
       });
@@ -523,7 +523,7 @@ export default function GreetingReviewOverlay({
       setCompletedEarningsNet((prev) => [...prev, earningNet ?? 0]);
       setUploadSucceeded(true);
     } catch (e: unknown) {
-      setUploadError((e instanceof Error ? e.message : null) ?? "No se pudo subir el video. Intenta de nuevo.");
+      setUploadError((e instanceof Error ? e.message : null) ?? tCommon("generalError"));
       setIsUploading(false);
       setUploadProgress(0);
     }
@@ -542,20 +542,12 @@ export default function GreetingReviewOverlay({
     ? `https://image.mux.com/${req.muxPlaybackId}/thumbnail.jpg`
     : null;
 
+  const typeLabel = req.type === "consejo" ? tWallet("typeLabelAdvice") : req.type === "mensaje" ? tWallet("typeLabelMessage") : tWallet("typeLabelGreeting");
   const titleText = viewMode
-    ? (req.type === "consejo" ? "Ver Consejo" : req.type === "mensaje" ? "Ver Mensaje" : "Ver Saludo")
-    : req.type === "consejo"
-      ? "Revisar Consejo"
-      : req.type === "mensaje"
-        ? "Revisar Mensaje"
-        : "Revisar Saludo";
+    ? `${tServices("viewRequest")} ${typeLabel}`
+    : `${tServices("readMessage")} ${typeLabel}`;
 
-  const cameraTitleText = viewMode ? titleText
-    : req.type === "consejo"
-      ? "Responder Consejo"
-      : req.type === "mensaje"
-        ? "Responder Mensaje"
-        : "Responder Saludo";
+  const cameraTitleText = viewMode ? titleText : `${tServices("readMessage")} ${typeLabel}`;
 
   const preloadOverlayAvatar = async () => {
     overlayAvatarRef.current = null;
@@ -615,7 +607,7 @@ export default function GreetingReviewOverlay({
       setViewState("camera");
       setRecordPhase("preview");
     } catch {
-      setCameraError("No se pudo acceder a la cámara. Verifica los permisos.");
+      setCameraError(tCommon("generalError"));
       stopCamera();
     }
   };
@@ -687,7 +679,7 @@ export default function GreetingReviewOverlay({
       if (videoRef.current) videoRef.current.srcObject = stream;
       setRecordPhase("preview");
     } catch {
-      setCameraError("No se pudo acceder a la cámara.");
+      setCameraError(tCommon("generalError"));
       stopCamera();
     }
   };
@@ -703,7 +695,7 @@ export default function GreetingReviewOverlay({
     tempVideo.onloadedmetadata = () => {
       if (tempVideo.duration > maxSeconds) {
         URL.revokeObjectURL(url);
-        setUploadError(`El video supera el máximo de ${maxLabel} para este tipo de servicio.`);
+        setUploadError(tServices("videoExceedsMax", { max: maxLabel }));
         return;
       }
       if (blobUrlRef.current) URL.revokeObjectURL(blobUrlRef.current);
@@ -717,7 +709,7 @@ export default function GreetingReviewOverlay({
     };
     tempVideo.onerror = () => {
       URL.revokeObjectURL(url);
-      setUploadError("No se pudo leer el archivo de video.");
+      setUploadError(tCommon("generalError"));
     };
     tempVideo.src = url;
   };
@@ -896,7 +888,7 @@ export default function GreetingReviewOverlay({
       streamRef.current = stream;
       if (videoRef.current) videoRef.current.srcObject = stream;
     }).catch(() => {
-      setCameraError("No se pudo acceder a la cámara.");
+      setCameraError(tCommon("generalError"));
     });
   };
 
@@ -1905,7 +1897,7 @@ export default function GreetingReviewOverlay({
                   color: "rgba(255,255,255,0.45)", fontWeight: 500, fontSize: 13,
                   cursor: "pointer", fontFamily: fontStack,
                 }}>
-                  Cerrar
+                  {tCommon("close")}
                 </button>
               </>
             ) : uploadSucceeded ? successContent : (
@@ -1927,7 +1919,7 @@ export default function GreetingReviewOverlay({
                   color: "rgba(255,255,255,0.3)", fontWeight: 500, fontSize: 13,
                   cursor: "pointer", fontFamily: fontStack,
                 }}>
-                  Cancelar
+                  {tCommon("cancel")}
                 </button>
               </>
             )}
@@ -2089,7 +2081,7 @@ export default function GreetingReviewOverlay({
                     color: "rgba(255,255,255,0.38)", fontWeight: 500, fontSize: 13,
                     cursor: "pointer", fontFamily: fontStack,
                   }}>
-                    Cerrar
+                    {tCommon("close")}
                   </button>
                 </>
               ) : uploadSucceeded ? successContent : (

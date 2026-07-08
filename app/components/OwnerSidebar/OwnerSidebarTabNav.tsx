@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import Image from "next/image";
 import type { CSSProperties } from "react";
 import type { TopView } from "./OwnerSidebar";
@@ -35,6 +36,8 @@ export default function OwnerSidebarTabNav({
   loadingFollowing = false,
   loadingGroups = false,
 }: Props) {
+  const tNav = useTranslations("nav");
+
   const fontStack =
     'inherit';
 
@@ -48,8 +51,8 @@ export default function OwnerSidebarTabNav({
       ? [
           {
             key: "following" as const,
-            label: "Seguidos",
-            title: "Seguidos",
+            label: tNav("tabFollowing"),
+            title: tNav("tabFollowing"),
             showBadge: false,
             icon: <SidebarFollowingIcon size={25} strokeWidth={1.6} />,
           },
@@ -59,8 +62,8 @@ export default function OwnerSidebarTabNav({
       ? [
           {
             key: "owned" as const,
-            label: "Mis comunidades",
-            title: "Mis comunidades",
+            label: tNav("tabOwnedCommunities"),
+            title: tNav("tabOwnedCommunities"),
             showBadge: joinRequestsCount > 0,
             icon: <SidebarMyCommunitiesIcon size={25} strokeWidth={1.6} />,
           },
@@ -70,8 +73,8 @@ export default function OwnerSidebarTabNav({
       ? [
           {
             key: "communities" as const,
-            label: "Comunidades que sigo",
-            title: "Comunidades que sigo",
+            label: tNav("tabJoinedCommunities"),
+            title: tNav("tabJoinedCommunities"),
             showBadge: false,
             icon: <SidebarOtherCommunitiesIcon size={25} strokeWidth={1.6} />,
           },
@@ -81,8 +84,8 @@ export default function OwnerSidebarTabNav({
       ? [
           {
             key: "greetings" as const,
-            label: "Experiencias",
-            title: "Experiencias",
+            label: tNav("tabExperiences"),
+            title: tNav("tabExperiences"),
             showBadge: false,
             icon: <SidebarExperiencesIcon size={25} strokeWidth={1.6} />,
           },

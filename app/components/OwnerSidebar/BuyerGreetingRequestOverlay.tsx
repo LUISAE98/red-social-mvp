@@ -42,16 +42,16 @@ function formatDate(ts: { toDate: () => Date } | undefined): string {
   } catch { return ts.toDate().toLocaleString("es-MX"); }
 }
 
-function getRelativeTime(ts?: { toDate: () => Date } | null): string {
-  if (!ts) return "Hace un momento";
+function getRelativeTime(ts: { toDate: () => Date } | null | undefined, tCommon: (key: string, params?: Record<string, number>) => string): string {
+  if (!ts) return tCommon("relativeTimeNow");
   const diffMs = Date.now() - ts.toDate().getTime();
   const diffMins = Math.floor(diffMs / 60000);
   const diffHours = Math.floor(diffMins / 60);
   const diffDays = Math.floor(diffHours / 24);
-  if (diffDays >= 1) return `Hace ${diffDays} ${diffDays === 1 ? "día" : "días"}`;
-  if (diffHours >= 1) return `Hace ${diffHours} ${diffHours === 1 ? "hora" : "horas"}`;
-  if (diffMins >= 1) return `Hace ${diffMins} ${diffMins === 1 ? "minuto" : "minutos"}`;
-  return "Hace un momento";
+  if (diffDays >= 1) return tCommon("relativeTimeDays", { count: diffDays });
+  if (diffHours >= 1) return tCommon("relativeTimeHours", { count: diffHours });
+  if (diffMins >= 1) return tCommon("relativeTimeMinutes", { count: diffMins });
+  return tCommon("relativeTimeNow");
 }
 
 function getTypeLabel(type: string, t: (key: string) => string): string {
@@ -528,7 +528,7 @@ export default function BuyerGreetingRequestOverlay({ item, sourceName, sourceAv
           <header style={{ ...headerStyle, gridTemplateColumns: "48px 1fr 48px", borderBottom: "1px solid rgba(255,255,255,0.12)" }}>
             <div aria-hidden="true" />
             <h3 style={{ margin: 0, textAlign: "center", fontSize: 17, fontWeight: 500, letterSpacing: "-0.02em", lineHeight: 1.2, color: "#fff" }}>
-              {typeLabel} solicitado
+              {tServices("typeRequested", { type: typeLabel })}
             </h3>
             <button type="button" onClick={handleClose} aria-label={tCommon("close")} style={{
               border: "none", background: "none", color: "#fff", cursor: "pointer",

@@ -9,6 +9,8 @@ export type BuyerNextSession = {
   serviceKind: "meet_greet" | "exclusive_session";
   scheduledAt: Date;
   creatorDisplayName: string | null;
+  creatorAvatarUrl: string | null;
+  durationMinutes: number | null;
   status: string;
 };
 
@@ -85,6 +87,8 @@ export function useBuyerNextSession(uid: string | null): {
         const data = d.data() as {
           scheduledAt?: unknown;
           creatorDisplayName?: string | null;
+          creatorAvatarUrl?: string | null;
+          durationMinutes?: number | null;
           status?: string;
         };
         const scheduledAt = toDate(data.scheduledAt);
@@ -96,6 +100,8 @@ export function useBuyerNextSession(uid: string | null): {
           serviceKind: "meet_greet",
           scheduledAt,
           creatorDisplayName: data.creatorDisplayName ?? null,
+          creatorAvatarUrl: data.creatorAvatarUrl ?? null,
+          durationMinutes: data.durationMinutes ?? null,
           status: data.status ?? "scheduled",
         });
       });
@@ -112,6 +118,8 @@ export function useBuyerNextSession(uid: string | null): {
         const data = d.data() as {
           scheduledAt?: unknown;
           creatorDisplayName?: string | null;
+          creatorAvatarUrl?: string | null;
+          durationMinutes?: number | null;
           status?: string;
         };
         const scheduledAt = toDate(data.scheduledAt);
@@ -123,6 +131,8 @@ export function useBuyerNextSession(uid: string | null): {
           serviceKind: "exclusive_session",
           scheduledAt,
           creatorDisplayName: data.creatorDisplayName ?? null,
+          creatorAvatarUrl: data.creatorAvatarUrl ?? null,
+          durationMinutes: data.durationMinutes ?? null,
           status: data.status ?? "scheduled",
         });
       });

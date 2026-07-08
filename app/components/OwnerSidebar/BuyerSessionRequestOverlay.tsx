@@ -13,7 +13,23 @@ type ScheduledServiceKind = "meet_greet" | "exclusive_session";
 
 const PANEL_CLOSE_THRESHOLD = 130;
 
-function getSessionStatusLabel(status: string): string {
+function getSessionStatusLabel(status: string, t?: (k: string) => string): string {
+  if (t) {
+    const map: Record<string, string> = {
+      pending_creator_response: "statusPendingResponse",
+      accepted_pending_schedule: "statusAcceptedPendingSchedule",
+      scheduled: "statusScheduled",
+      reschedule_requested: "statusRescheduleRequested",
+      rejected: "statusRejected",
+      refund_requested: "statusRefundRequested",
+      refund_review: "statusRefundReview",
+      ready_to_prepare: "statusReadyToPrepare",
+      in_preparation: "statusInPreparation",
+      completed: "statusCompleted",
+      cancelled: "statusCancelled",
+    };
+    return map[status] ? t(map[status]) : t("statusUnknown");
+  }
   switch (status) {
     case "pending_creator_response": return "Pendiente";
     case "accepted_pending_schedule": return "Aceptado";
@@ -114,13 +130,19 @@ function buildChatEntries(req: SessionRequest): ChatEntry[] {
   return entries;
 }
 
-function getRelativeTime(ts: unknown): string {
+function getRelativeTime(ts: unknown, t?: (k: string, params?: Record<string, string | number | Date>) => string): string {
   const d = toDate(ts);
-  if (!d) return "Hace un momento";
+  if (!d) return t ? t("relativeTimeNow") : "Hace un momento";
   const diffMs = Date.now() - d.getTime();
   const diffMins = Math.floor(diffMs / 60000);
   const diffHours = Math.floor(diffMins / 60);
   const diffDays = Math.floor(diffHours / 24);
+  if (t) {
+    if (diffDays >= 1) return t("relativeTimeDays", { count: diffDays });
+    if (diffHours >= 1) return t("relativeTimeHours", { count: diffHours });
+    if (diffMins >= 1) return t("relativeTimeMinutes", { count: diffMins });
+    return t("relativeTimeNow");
+  }
   if (diffDays >= 1) return `Hace ${diffDays} ${diffDays === 1 ? "día" : "días"}`;
   if (diffHours >= 1) return `Hace ${diffHours} ${diffHours === 1 ? "hora" : "horas"}`;
   if (diffMins >= 1) return `Hace ${diffMins} ${diffMins === 1 ? "minuto" : "minutos"}`;
@@ -188,13 +210,14 @@ export default function BuyerSessionRequestOverlay({
 
   const tCommon = useTranslations("common");
   const tServices = useTranslations("services");
+  const tSessions = useTranslations("sessions");
 
   const req = item.data;
   const isExclusive = item.serviceKind === "exclusive_session";
   const bgImage = isExclusive ? "/sesionexclusiva.png" : "/encuentroenvivo.png";
   const retryBtnBg = isExclusive ? "rgba(236,72,153,0.85)" : "rgba(59,130,246,0.85)";
   const priceColor = isExclusive ? "#f9a8d4" : "#93c5fd";
-  const serviceTitle = isExclusive ? tServices("exclusiveSession") : "Sesión en vivo";
+  const serviceTitle = isExclusive ? tServices("exclusiveSession") : tServices("liveSession");
   const creatorInitial = creatorName.charAt(0).toUpperCase();
 
   useEffect(() => { setMounted(true); }, []);
@@ -307,7 +330,7 @@ export default function BuyerSessionRequestOverlay({
           {creatorName}
         </span>
         <span style={{ display: "block", color: "rgba(255,255,255,0.42)", fontSize: 11, lineHeight: 1.3 }}>
-          {getSessionStatusLabel(req.status)}
+          {getSessionStatusLabel(req.status, tSessions)}
         </span>
       </div>
       {(req.durationMinutes != null || req.priceSnapshot != null) && (
@@ -316,7 +339,7 @@ export default function BuyerSessionRequestOverlay({
             <>
               <div style={{ flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "center", gap: 0 }}>
                 <span style={{ color: "#fff", fontWeight: 700, fontSize: 22, lineHeight: 1.1 }}>{req.durationMinutes}</span>
-                <span style={{ color: "#fff", fontSize: 11, fontWeight: 500 }}>minutos</span>
+                <span style={{ color: "#fff", fontSize: 11, fontWeight: 500 }}>{tCommon("minutes")}</span>
               </div>
               {req.priceSnapshot != null && (
                 <div style={{ width: 1, height: 36, background: "rgba(255,255,255,0.15)", flexShrink: 0 }} />
@@ -325,7 +348,7 @@ export default function BuyerSessionRequestOverlay({
           )}
           {req.priceSnapshot != null && (
             <div style={{ flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 1 }}>
-              <span style={{ color: priceColor, fontSize: 10, fontWeight: 500, opacity: 0.8, lineHeight: 1 }}>Pagaste</span>
+              <span style={{ color: priceColor, fontSize: 10, fontWeight: 500, opacity: 0.8, lineHeight: 1 }}>{tServices("paidLabel")}</span>
               <span style={{ color: priceColor, fontWeight: 700, fontSize: 24, lineHeight: 1 }}>{formatMoney(req.priceSnapshot)}</span>
             </div>
           )}
@@ -343,13 +366,13 @@ export default function BuyerSessionRequestOverlay({
             <path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
           </svg>
           <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
-            <span style={{ color: "#fff", fontSize: 11, fontWeight: 600, lineHeight: 1.2 }}>Fecha agendada</span>
+            <span style={{ color: "#fff", fontSize: 11, fontWeight: 600, lineHeight: 1.2 }}>{tServices("scheduledDateLabel")}</span>
             {(() => { const p = fmtDateSplit(req.scheduledAt); return p ? (
               <>
                 <span style={{ color: "#fff", fontSize: 13, fontWeight: 400, lineHeight: 1.2 }}>{p.dayTime}</span>
                 <span style={{ color: "#fff", fontSize: 12, fontWeight: 400, lineHeight: 1.2 }}>{p.dateStr}</span>
               </>
-            ) : <span style={{ color: "#fff", fontSize: 13, fontWeight: 400, lineHeight: 1.2 }}>Sin fecha</span>; })()}
+            ) : <span style={{ color: "#fff", fontSize: 13, fontWeight: 400, lineHeight: 1.2 }}>{tServices("noDateLabel")}</span>; })()}
           </div>
         </div>
         <div style={{ display: "flex", flexDirection: "row", alignItems: "flex-start", justifyContent: "center", gap: 10, padding: "12px 10px", borderRadius: 12 }}>
@@ -357,7 +380,7 @@ export default function BuyerSessionRequestOverlay({
             <circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 3" />
           </svg>
           <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
-            <span style={{ color: "#fff", fontSize: 11, fontWeight: 600, lineHeight: 1.2 }}>Solicitado</span>
+            <span style={{ color: "#fff", fontSize: 11, fontWeight: 600, lineHeight: 1.2 }}>{tServices("requestedDateLabel")}</span>
             {(() => { const p = fmtDateSplit(req.createdAt); return p ? (
               <>
                 <span style={{ color: "#fff", fontSize: 13, fontWeight: 400, lineHeight: 1.2 }}>{p.dayTime}</span>
@@ -392,7 +415,7 @@ export default function BuyerSessionRequestOverlay({
                     <button
                       type="button"
                       onClick={() => handleToggleChatTts(idx, entry.text)}
-                      aria-label={isPlaying ? "Pausar lectura" : isActive && chatTtsState === "paused" ? "Reanudar lectura" : "Leer mensaje"}
+                      aria-label={isPlaying ? tServices("pauseReading") : isActive && chatTtsState === "paused" ? tServices("resumeReading") : tServices("readMessage")}
                       style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.6)", padding: 2, display: "flex", alignItems: "center", flexShrink: 0, transition: "color 0.15s" }}
                     >
                       {isPlaying ? (
@@ -428,7 +451,7 @@ export default function BuyerSessionRequestOverlay({
 
       {(req.status === "rejected" || req.status === "refund_requested" || req.status === "refund_review") && (req.rejectedAt ?? req.updatedAt) ? (
         <div style={{ display: "grid", gap: 2 }}>
-          <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 12 }}>Rechazado el</span>
+          <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 12 }}>{tServices("rejectedOn")}</span>
           <span style={{ color: "#fff", fontWeight: 600, fontSize: 13 }}>{formatDate(req.rejectedAt ?? req.updatedAt)}</span>
         </div>
       ) : null}
@@ -439,7 +462,7 @@ export default function BuyerSessionRequestOverlay({
           background: "rgba(120,18,18,0.28)", border: "1px solid rgba(255,90,90,0.24)",
           borderRadius: 13, padding: "10px 12px",
         }}>
-          <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 12 }}>Motivo de rechazo</span>
+          <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 12 }}>{tServices("rejectionLabel")}</span>
           <span style={{ color: "#ffdada", fontSize: 13, lineHeight: 1.4 }}>{req.rejectionReason}</span>
         </div>
       ) : null}
@@ -447,7 +470,7 @@ export default function BuyerSessionRequestOverlay({
       {req.autoRejectReason === "creator_no_show_after_15_minutes" ? (
         <div style={{ background: "rgba(120,18,18,0.28)", border: "1px solid rgba(255,90,90,0.24)", borderRadius: 13, padding: "10px 12px" }}>
           <span style={{ color: "#ffdada", fontSize: 13, lineHeight: 1.4 }}>
-            El creador no se conectó dentro de los 15 minutos posteriores a la hora agendada.
+            {tServices("creatorNoShowMessage")}
           </span>
         </div>
       ) : null}
@@ -455,7 +478,7 @@ export default function BuyerSessionRequestOverlay({
       {req.autoRejectReason === "buyer_no_show_after_15_minutes" ? (
         <div style={{ background: "rgba(120,18,18,0.28)", border: "1px solid rgba(255,90,90,0.24)", borderRadius: 13, padding: "10px 12px" }}>
           <span style={{ color: "#ffdada", fontSize: 13, lineHeight: 1.4 }}>
-            No te conectaste dentro de los 15 minutos posteriores a la hora agendada.
+            {tServices("buyerNoShowMessage")}
           </span>
         </div>
       ) : null}
@@ -485,7 +508,7 @@ export default function BuyerSessionRequestOverlay({
         <circle cx="12" cy="8" r="0.5" fill={priceColor} />
       </svg>
       <p style={{ margin: 0, fontSize: 12, color: "rgba(255,255,255,0.5)", lineHeight: 1.5 }}>
-        El creador tiene 60 días para responder tu solicitud. Si no lo hace, se realizará la devolución de manera automática.
+        {tServices("creatorResponseNotice")}
       </p>
     </div>
   ) : null;
@@ -495,7 +518,7 @@ export default function BuyerSessionRequestOverlay({
       <textarea
         value={refundReason}
         onChange={(e) => setRefundReason(e.target.value)}
-        placeholder="Explica por qué solicitas devolución."
+        placeholder={tServices("refundReasonPlaceholder")}
         style={{
           background: "rgba(255,255,255,0.06)", border: "none", borderRadius: 12,
           color: "#fff", fontSize: 13, padding: "10px 12px", resize: "none",
@@ -515,7 +538,7 @@ export default function BuyerSessionRequestOverlay({
             fontFamily: "inherit", letterSpacing: "-0.02em", display: "grid", placeItems: "center",
           }}
         >
-          {busy ? "Procesando..." : "Confirmar devolución"}
+          {busy ? tCommon("processing") : tServices("confirmRefund")}
         </button>
         <button type="button" onClick={() => setRefundOpen(false)} style={{
           flex: 1, height: 42, borderRadius: 5, border: "none",
@@ -532,7 +555,7 @@ export default function BuyerSessionRequestOverlay({
       <textarea
         value={rescheduleReason}
         onChange={(e) => setRescheduleReason(e.target.value)}
-        placeholder="Sugiere un horario o describe cuándo puedes..."
+        placeholder={tServices("rescheduleReasonPlaceholder")}
         style={{
           background: "rgba(255,255,255,0.06)", border: "none", borderRadius: 12,
           color: "#fff", fontSize: 13, padding: "10px 12px", resize: "none",
@@ -552,7 +575,7 @@ export default function BuyerSessionRequestOverlay({
             fontFamily: "inherit", letterSpacing: "-0.02em", display: "grid", placeItems: "center",
           }}
         >
-          {busy ? tServices("submitting") : "Confirmar solicitud"}
+          {busy ? tServices("submitting") : tServices("confirmReschedule")}
         </button>
         <button type="button" onClick={() => setRescheduleOpen(false)} style={{
           flex: 1, height: 42, borderRadius: 5, border: "none",
@@ -581,7 +604,7 @@ export default function BuyerSessionRequestOverlay({
         fontSize: 15, fontWeight: 500, cursor: busy ? "not-allowed" : "pointer",
         fontFamily: "inherit", letterSpacing: "-0.02em", display: "grid", placeItems: "center",
       }}>
-        Solicitar devolución
+        {tServices("requestRefund")}
       </button>
     </div>
   ) : canReschedule ? (
@@ -597,7 +620,7 @@ export default function BuyerSessionRequestOverlay({
                 <path d="M12 7v5" stroke="#fde047" strokeWidth="2" strokeLinecap="round"/>
                 <circle cx="12" cy="16" r="1" fill="#fde047"/>
               </svg>
-              <span style={{ fontSize: 12, color: "#fde047", lineHeight: 1.4 }}>Este es tu último intento de cambio de horario.</span>
+              <span style={{ fontSize: 12, color: "#fde047", lineHeight: 1.4 }}>{tServices("lastRescheduleAttempt")}</span>
             </div>
           );
         }
@@ -620,7 +643,7 @@ export default function BuyerSessionRequestOverlay({
       fontSize: 15, fontWeight: 500, cursor: busy ? "not-allowed" : "pointer",
       fontFamily: "inherit", letterSpacing: "-0.02em", display: "grid", placeItems: "center",
     }}>
-      {busy ? "Procesando..." : "Prepararse"}
+      {busy ? tCommon("processing") : tServices("prepareButton")}
     </button>
   ) : null;
 

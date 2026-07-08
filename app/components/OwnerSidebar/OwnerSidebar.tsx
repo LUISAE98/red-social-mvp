@@ -509,6 +509,11 @@ export default function OwnerSidebar() {
   const router = useRouter();
   const pathname = usePathname();
   const tNav = useTranslations("nav");
+  const tCommon = useTranslations("common");
+  const tGroups = useTranslations("groups");
+  const tWallet = useTranslations("wallet");
+  const tServices = useTranslations("services");
+  const tSessions = useTranslations("sessions");
   const [isMobile, setIsMobile] = useState(false);
   const [ownerSidebarRefreshKey, setOwnerSidebarRefreshKey] = useState(0);
 
@@ -959,13 +964,13 @@ miniItem: {
           ...prev,
           [viewer.uid]: {
             uid: viewer.uid,
-            displayName: buildDisplayName(u, viewer.uid),
+            displayName: buildDisplayName(u, viewer.uid, tCommon("user")),
             handle: u.handle ?? null,
             photoURL: u.photoURL ?? null,
           },
         }));
       } catch (e: unknown) {
-        setMsg((e instanceof Error ? e.message : null) ?? "No se pudo cargar tu perfil.");
+        setMsg((e instanceof Error ? e.message : null) ?? tCommon("errorLoadProfile"));
         setUserDoc(null);
       } finally {
         setLoadingUser(false);
@@ -1026,7 +1031,7 @@ miniItem: {
         setLoadingGroups(false);
       },
       (e: FirestoreError) => {
-        setGroupsErr(e.message ?? "No se pudieron cargar tus comunidades.");
+        setGroupsErr(e.message ?? tCommon("loadError"));
         setMyGroups([]);
         setOpenCommunities({});
         setLoadingGroups(false);
@@ -1115,7 +1120,7 @@ miniItem: {
       },
       (e: Error) => {
         setGroupsErr(
-          e.message ?? "No se pudieron cargar tus comunidades."
+          e.message ?? tCommon("loadError")
         );
         setJoinedGroups([]);
         setLoadingCommunities(false);
@@ -1158,7 +1163,7 @@ miniItem: {
         setBrowseGroups(explorable);
       },
       (e: FirestoreError) => {
-        setGroupsErr(e.message ?? "No se pudieron cargar las comunidades.");
+        setGroupsErr(e.message ?? tCommon("loadError"));
         setBrowseGroups([]);
       }
     );
@@ -1230,7 +1235,7 @@ miniItem: {
 
                 return {
                   uid: targetUserId,
-                  displayName: buildDisplayName(data, targetUserId),
+                  displayName: buildDisplayName(data, targetUserId, tCommon("user")),
                   handle,
                   photoURL:
                     typeof data.photoURL === "string" && data.photoURL.trim()
@@ -1260,7 +1265,7 @@ miniItem: {
         } catch (e: unknown) {
           if (!cancelled) {
             setGroupsErr(
-              (e instanceof Error ? e.message : null) ?? "No se pudieron cargar los perfiles que sigues."
+              (e instanceof Error ? e.message : null) ?? tCommon("loadError")
             );
             followedProfilesRef.current = [];
             setFollowedProfiles([]);
@@ -1274,7 +1279,7 @@ miniItem: {
       (e: FirestoreError) => {
         if (!cancelled) {
           setGroupsErr(
-            e.message ?? "No se pudieron cargar los perfiles que sigues."
+            e.message ?? tCommon("loadError")
           );
           followedProfilesRef.current = [];
           setFollowedProfiles([]);
@@ -1437,7 +1442,7 @@ miniItem: {
           }));
         },
         (e: FirestoreError) => {
-          setGroupsErr(e.message ?? "No se pudieron cargar solicitudes.");
+          setGroupsErr(e.message ?? tCommon("loadError"));
           setJoinRequestsByGroup((prev) => ({
             ...prev,
             [g.id]: [],
@@ -1518,7 +1523,7 @@ miniItem: {
       },
       (e: FirestoreError) => {
         setGroupsErr(
-          e.message ?? "No se pudieron cargar solicitudes de servicios."
+          e.message ?? tCommon("loadError")
         );
         setGreetingsByGroup({});
       }
@@ -1665,7 +1670,7 @@ miniItem: {
       },
       (e: FirestoreError) => {
         setGroupsErr(
-          e.message ?? "No se pudieron cargar solicitudes de meet & greet."
+          e.message ?? tCommon("loadError")
         );
         setMeetGreetsByGroup({});
       }
@@ -1779,8 +1784,7 @@ miniItem: {
       },
       (e: FirestoreError) => {
         setGroupsErr(
-          e.message ??
-            "No se pudieron cargar solicitudes de sesión exclusiva."
+          e.message ?? tCommon("loadError")
         );
         setExclusiveSessionsByGroup({});
       }
@@ -1942,7 +1946,7 @@ const groupsForSeen = [
                 uid,
                 {
                   uid,
-                  displayName: buildDisplayName(null, uid),
+                  displayName: buildDisplayName(null, uid, tCommon("user")),
                   handle: null,
                   photoURL: null,
                 } satisfies UserMini,
@@ -1954,7 +1958,7 @@ const groupsForSeen = [
               uid,
               {
                 uid,
-                displayName: buildDisplayName(data, uid),
+                displayName: buildDisplayName(data, uid, tCommon("user")),
                 handle: data.handle ?? null,
                 photoURL: data.photoURL ?? null,
               } satisfies UserMini,
@@ -1964,7 +1968,7 @@ const groupsForSeen = [
               uid,
               {
                 uid,
-                displayName: buildDisplayName(null, uid),
+                displayName: buildDisplayName(null, uid, tCommon("user")),
                 handle: null,
                 photoURL: null,
               } satisfies UserMini,
@@ -2042,9 +2046,9 @@ const groupsForSeen = [
       }));
 
       await approveJoinRequest(groupId, userId);
-      showSidebarToast("✅ Solicitud de acceso aprobada.");
+      showSidebarToast(tCommon("successApproveJoin"));
     } catch (e: unknown) {
-      const friendly = friendlyJoinErrorMessage(e);
+      const friendly = friendlyJoinErrorMessage(e, tCommon("generalError"));
       if (friendly) setGroupsErr(friendly);
 
       setJoinRequestsByGroup((prev) => {
@@ -2072,9 +2076,9 @@ const groupsForSeen = [
       }));
 
       await rejectJoinRequest(groupId, userId);
-      showSidebarToast("✅ Solicitud de acceso rechazada.");
+      showSidebarToast(tCommon("successRejectJoin"));
     } catch (e: unknown) {
-      const friendly = friendlyJoinErrorMessage(e);
+      const friendly = friendlyJoinErrorMessage(e, tCommon("generalError"));
       if (friendly) setGroupsErr(friendly);
 
       setJoinRequestsByGroup((prev) => {
@@ -2103,11 +2107,11 @@ const groupsForSeen = [
       await respondGreetingRequest({ requestId, action });
       showSidebarToast(
         action === "accept"
-          ? "✅ Solicitud de servicio aceptada."
-          : "✅ Solicitud de servicio rechazada."
+          ? tCommon("successServiceAccepted")
+          : tCommon("successServiceRejected")
       );
     } catch (e: unknown) {
-      showSidebarToast((e instanceof Error ? e.message : null) ?? "❌ No se pudo actualizar la solicitud.", "error");
+      showSidebarToast((e instanceof Error ? e.message : null) ?? tCommon("errorUpdateRequest"), "error");
     } finally {
       setGreetingBusyId(null);
     }
@@ -2115,7 +2119,7 @@ const groupsForSeen = [
 
   function renderUserLink(uid: string) {
     const u = userMiniMap[uid];
-    const label = u?.displayName ?? buildDisplayName(null, uid);
+    const label = u?.displayName ?? buildDisplayName(null, uid, tCommon("user"));
     const href = u?.handle ? `/u/${u.handle}` : null;
 
     if (!href) {
@@ -2162,14 +2166,14 @@ const groupsForSeen = [
     g: GroupDocLite,
     opts?: { compact?: boolean; subtitle?: React.ReactNode }
   ) {
-const communityName = g.name ?? "(Sin nombre)";
+const communityName = g.name ?? tGroups("noName");
 const avatarFallback = getInitials(communityName);
 const isProfileCard = g.visibility === "profile" && !!g.profileHref;
 const canCopyLink = g.visibility !== "hidden";
 const copyHref = isProfileCard ? g.profileHref! : `/groups/${g.id}`;
 const copyTitle = isProfileCard
-  ? "Copiar link del perfil"
-  : "Copiar link del grupo";
+  ? tCommon("copyProfileLink")
+  : tCommon("copyGroupLink");
   const isSelectedGroup = isProfileCard
   ? pathname === g.profileHref
   : pathname === `/groups/${g.id}`;
@@ -2187,10 +2191,10 @@ const copyTitle = isProfileCard
               currency &&
               (currency === "MXN" || currency === "USD")
             ) {
-              return `Suscripción activa · ${formatSidebarMoney(price, currency)}`;
+              return `${tCommon("activeSubscription")} · ${formatSidebarMoney(price, currency)}`;
             }
 
-            return "Suscripción activa";
+            return tCommon("activeSubscription");
           })()
         : null;
 
@@ -2280,8 +2284,7 @@ color: "rgba(255,255,255,0.94)",
                   marginTop: 1,
                 }}
               >
-                {newPostsCounts[g.id]}{" "}
-                {newPostsCounts[g.id] === 1 ? "nuevo" : "nuevos"}
+                {tCommon("newPostsCount", { count: newPostsCounts[g.id] })}
               </div>
             ) : null}
           </div>
@@ -2312,14 +2315,14 @@ color: "rgba(255,255,255,0.94)",
     );
 
     return [
-      { key: "public", title: visibilitySectionTitle("public"), items: publics },
+      { key: "public", title: visibilitySectionTitle("public", tGroups), items: publics },
       {
         key: "private",
-        title: visibilitySectionTitle("private"),
+        title: visibilitySectionTitle("private", tGroups),
         items: privates,
       },
-      { key: "hidden", title: visibilitySectionTitle("hidden"), items: hiddens },
-      { key: "other", title: visibilitySectionTitle("other"), items: others },
+      { key: "hidden", title: visibilitySectionTitle("hidden", tGroups), items: hiddens },
+      { key: "other", title: visibilitySectionTitle("other", tGroups), items: others },
     ].filter((section) => section.items.length > 0);
   }, [myGroups]);
 
@@ -2354,14 +2357,14 @@ color: "rgba(255,255,255,0.94)",
     );
 
     return [
-      { key: "public", title: visibilitySectionTitle("public"), items: publics },
+      { key: "public", title: visibilitySectionTitle("public", tGroups), items: publics },
       {
         key: "private",
-        title: visibilitySectionTitle("private"),
+        title: visibilitySectionTitle("private", tGroups),
         items: privates,
       },
-      { key: "hidden", title: visibilitySectionTitle("hidden"), items: hiddens },
-      { key: "other", title: visibilitySectionTitle("other"), items: others },
+      { key: "hidden", title: visibilitySectionTitle("hidden", tGroups), items: hiddens },
+      { key: "other", title: visibilitySectionTitle("other", tGroups), items: others },
     ].filter((section) => section.items.length > 0);
   }, [joinedGroups, hiddenSidebarMembershipGroups, myGroups]);
 
@@ -2398,13 +2401,13 @@ color: "rgba(255,255,255,0.94)",
     );
 
     return [
-      { key: "public", title: visibilitySectionTitle("public"), items: publics },
+      { key: "public", title: visibilitySectionTitle("public", tGroups), items: publics },
       {
         key: "private",
-        title: visibilitySectionTitle("private"),
+        title: visibilitySectionTitle("private", tGroups),
         items: privates,
       },
-      { key: "other", title: visibilitySectionTitle("other"), items: others },
+      { key: "other", title: visibilitySectionTitle("other", tGroups), items: others },
     ].filter((section) => section.items.length > 0);
   }, [browseGroups, joinedGroups]);
 
@@ -2806,7 +2809,14 @@ newPostsCounts={newPostsCounts}
               groupMetaMap={groupMetaMap}
               userMiniMap={userMiniMap}
               styles={styles}
-              typeLabel={typeLabel}
+              typeLabel={(type) => {
+                if (type === "saludo") return tWallet("typeLabelGreeting");
+                if (type === "consejo") return tWallet("typeLabelAdvice");
+                if (type === "mensaje") return tWallet("typeLabelMessage");
+                if (type === "meet_greet_digital") return tSessions("meetGreetTitle");
+                if (type === "exclusive_session" || type === "clase_personalizada" || type === "digital_exclusive_session") return tServices("exclusiveSession");
+                return type;
+              }}
               fmtDate={fmtDate}
               renderUserLink={renderUserLink}
               router={router}

@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { usePathname } from "next/navigation";
 import type { CSSProperties } from "react";
 import CopyLinkButton from "@/components/ui/CopyLinkButton";
@@ -27,13 +28,15 @@ export default function OwnerSidebarFollowedProfiles({
   currentUserId,
   newPostsCounts,
 }: Props) {
+  const tNav = useTranslations("nav");
+  const tCommon = useTranslations("common");
   const pathname = usePathname();
 
   if (loadingFollowing) {
     return (
       <div style={{ ...styles.sectionPanel, background: "transparent" }}>
-        <div style={styles.sectionTitle}>Perfiles seguidos</div>
-        <div style={styles.subtle}>Cargando perfiles...</div>
+        <div style={styles.sectionTitle}>{tNav("sidebarFollowedProfiles")}</div>
+        <div style={styles.subtle}>{tCommon("loadingProfiles")}</div>
       </div>
     );
   }
@@ -41,8 +44,8 @@ export default function OwnerSidebarFollowedProfiles({
   if (followedProfiles.length === 0) {
     return (
       <div style={{ ...styles.sectionPanel, background: "transparent" }}>
-        <div style={styles.sectionTitle}>Perfiles seguidos</div>
-        <div style={styles.subtle}>Aún no sigues perfiles.</div>
+        <div style={styles.sectionTitle}>{tNav("sidebarFollowedProfiles")}</div>
+        <div style={styles.subtle}>{tCommon("noFollowedProfiles")}</div>
       </div>
     );
   }
@@ -50,12 +53,12 @@ export default function OwnerSidebarFollowedProfiles({
   return (
     <div style={{ ...styles.sectionPanel, background: "transparent" }}>
       <div style={styles.sectionHeaderRow}>
-        <div style={styles.sectionTitle}>Perfiles seguidos</div>
+        <div style={styles.sectionTitle}>{tNav("sidebarFollowedProfiles")}</div>
       </div>
 
       <div style={{ display: "grid", gap: 6 }}>
         {followedProfiles.map((profile) => {
-          const displayName = profile.displayName || "Usuario";
+          const displayName = profile.displayName || tCommon("user");
           const handle = profile.handle;
           const profileHref = `/u/${handle}`;
           const isSelectedProfile = pathname === profileHref;
@@ -153,8 +156,7 @@ export default function OwnerSidebarFollowedProfiles({
                           flexShrink: 0,
                         }}
                       >
-                        {newPostsCounts![profile.uid]}{" "}
-                        {newPostsCounts![profile.uid] === 1 ? "nuevo" : "nuevos"}
+                        {tCommon("newPostsCount", { count: newPostsCounts![profile.uid] })}
                       </span>
                     )}
                   </div>
@@ -163,7 +165,7 @@ export default function OwnerSidebarFollowedProfiles({
 
               <CopyLinkButton
                 href={profileHref}
-                title="Copiar link del perfil"
+                title={tCommon("copyProfileLink")}
                 style={{
                   flexShrink: 0,
                   marginLeft: "auto",

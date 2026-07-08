@@ -34,25 +34,19 @@ export function getDateFromTimestamp(value?: { toDate?: () => Date } | null) {
   }
 }
 
-export function formatExactDate(value?: { toDate?: () => Date } | null) {
+export function formatExactDate(value?: { toDate?: () => Date } | null, locale = "es") {
   const date = getDateFromTimestamp(value);
-
-  if (!date) return "Fecha no disponible";
-
+  if (!date) return "";
   try {
-    return new Intl.DateTimeFormat("es-MX", {
-      dateStyle: "medium",
-      timeStyle: "short",
-    }).format(date);
+    return new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "short" }).format(date);
   } catch {
-    return "Fecha no disponible";
+    return "";
   }
 }
 
-export function formatRelativeDate(value?: { toDate?: () => Date } | null) {
+export function formatRelativeDate(value?: { toDate?: () => Date } | null, locale = "es") {
   const date = getDateFromTimestamp(value);
-
-  if (!date) return "Ahora mismo";
+  if (!date) return "";
 
   const diffMs = Date.now() - date.getTime();
   const diffSeconds = Math.max(0, Math.floor(diffMs / 1000));
@@ -63,33 +57,31 @@ export function formatRelativeDate(value?: { toDate?: () => Date } | null) {
   const diffMonths = Math.floor(diffDays / 30);
   const diffYears = Math.floor(diffDays / 365);
 
-  if (diffSeconds < 30) return "Ahora mismo";
-  if (diffSeconds < 60) return `hace ${diffSeconds} segundos`;
+  const rtf = new Intl.RelativeTimeFormat(locale, { numeric: "auto" });
 
-  if (diffMinutes === 1) return "hace 1 minuto";
-  if (diffMinutes < 60) return `hace ${diffMinutes} minutos`;
-
-  if (diffHours === 1) return "hace 1 hora";
-  if (diffHours < 24) return `hace ${diffHours} horas`;
-
-  if (diffDays === 1) return "hace 1 día";
-  if (diffDays < 7) return `hace ${diffDays} días`;
-
-  if (diffWeeks === 1) return "hace 1 semana";
-  if (diffWeeks < 5) return `hace ${diffWeeks} semanas`;
-
-  if (diffMonths === 1) return "hace 1 mes";
-  if (diffMonths < 12) return `hace ${diffMonths} meses`;
-
-  if (diffYears === 1) return "hace 1 año";
-  return `hace ${diffYears} años`;
+  if (diffSeconds < 30) return rtf.format(0, "second");
+  if (diffSeconds < 60) return rtf.format(-diffSeconds, "second");
+  if (diffMinutes < 60) return rtf.format(-diffMinutes, "minute");
+  if (diffHours < 24) return rtf.format(-diffHours, "hour");
+  if (diffDays < 7) return rtf.format(-diffDays, "day");
+  if (diffWeeks < 5) return rtf.format(-diffWeeks, "week");
+  if (diffMonths < 12) return rtf.format(-diffMonths, "month");
+  return rtf.format(-diffYears, "year");
 }
 
 export function formatScheduledLiveDate(
   value?: { toDate?: () => Date } | null,
+  options: {
+    locale?: string;
+    todayAt?: (time: string) => string;
+    tomorrowAt?: (time: string) => string;
+    tbd?: string;
+    dateAt?: (date: string, time: string) => string;
+  } = {}
 ): string {
+  const { locale = "es", todayAt, tomorrowAt, tbd, dateAt } = options;
   const date = getDateFromTimestamp(value);
-  if (!date) return "Fecha por confirmar";
+  if (!date) return tbd ?? "Fecha por confirmar";
 
   try {
     const now = new Date();
@@ -98,13 +90,13 @@ export function formatScheduledLiveDate(
       date.getMonth() === now.getMonth() &&
       date.getDate() === now.getDate();
 
-    const timePart = new Intl.DateTimeFormat("es-MX", {
+    const timePart = new Intl.DateTimeFormat(locale, {
       hour: "numeric",
       minute: "2-digit",
       hour12: true,
     }).format(date);
 
-    if (isToday) return `Hoy a las ${timePart}`;
+    if (isToday) return todayAt ? todayAt(timePart) : `Hoy a las ${timePart}`;
 
     const tomorrow = new Date(now);
     tomorrow.setDate(now.getDate() + 1);
@@ -113,17 +105,18 @@ export function formatScheduledLiveDate(
       date.getMonth() === tomorrow.getMonth() &&
       date.getDate() === tomorrow.getDate();
 
-    if (isTomorrow) return `Mañana a las ${timePart}`;
+    if (isTomorrow) return tomorrowAt ? tomorrowAt(timePart) : `Mañana a las ${timePart}`;
 
-    const datePart = new Intl.DateTimeFormat("es-MX", {
+    const datePart = new Intl.DateTimeFormat(locale, {
       weekday: "long",
       day: "numeric",
       month: "long",
     }).format(date);
 
-    return `${datePart.charAt(0).toUpperCase()}${datePart.slice(1)} a las ${timePart}`;
+    const capitalizedDate = `${datePart.charAt(0).toUpperCase()}${datePart.slice(1)}`;
+    return dateAt ? dateAt(capitalizedDate, timePart) : `${capitalizedDate} a las ${timePart}`;
   } catch {
-    return "Fecha por confirmar";
+    return tbd ?? "Fecha por confirmar";
   }
 }
 

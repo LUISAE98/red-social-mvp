@@ -104,17 +104,17 @@ function getCreatorScheduleNote(req: SessionRequest): string | null {
   return (req as MeetGreetRequestDoc).creatorScheduleNote ?? null;
 }
 
-function getRelativeTime(value: unknown): string {
+function getRelativeTime(value: unknown, tc: (k: string, v?: Record<string, unknown>) => string): string {
   const date = toDateSafe(value);
-  if (!date) return "Hace un momento";
+  if (!date) return tc("relativeTimeNow");
   const diffMs = Date.now() - date.getTime();
   const diffMins = Math.floor(diffMs / 60000);
   const diffHours = Math.floor(diffMins / 60);
   const diffDays = Math.floor(diffHours / 24);
-  if (diffDays >= 1) return `Hace ${diffDays} ${diffDays === 1 ? "día" : "días"}`;
-  if (diffHours >= 1) return `Hace ${diffHours} ${diffHours === 1 ? "hora" : "horas"}`;
-  if (diffMins >= 1) return `Hace ${diffMins} ${diffMins === 1 ? "minuto" : "minutos"}`;
-  return "Hace un momento";
+  if (diffDays >= 1) return tc("relativeTimeDays", { count: diffDays });
+  if (diffHours >= 1) return tc("relativeTimeHours", { count: diffHours });
+  if (diffMins >= 1) return tc("relativeTimeMinutes", { count: diffMins });
+  return tc("relativeTimeNow");
 }
 
 function isPrepareWindowOpen(value: unknown): boolean {
@@ -129,7 +129,23 @@ function isNoShowExpired(value: unknown): boolean {
   return Date.now() >= date.getTime() + 15 * 60 * 1000;
 }
 
-function getMeetGreetStatusLabel(status: string): string {
+function getMeetGreetStatusLabel(status: string, t?: (k: string) => string): string {
+  if (t) {
+    const map: Record<string, string> = {
+      pending_creator_response: "statusPendingResponse",
+      accepted_pending_schedule: "statusAcceptedPendingSchedule",
+      scheduled: "statusScheduled",
+      reschedule_requested: "statusRescheduleRequested",
+      rejected: "statusRejected",
+      refund_requested: "statusRefundRequested",
+      refund_review: "statusRefundReview",
+      ready_to_prepare: "statusReadyToPrepare",
+      in_preparation: "statusInPreparation",
+      completed: "statusCompleted",
+      cancelled: "statusCancelled",
+    };
+    return map[status] ? t(map[status]) : t("statusUnknown");
+  }
   switch (status) {
     case "pending_creator_response": return "En espera de aceptación";
     case "accepted_pending_schedule": return "Aceptado, pendiente de fecha";
@@ -274,6 +290,8 @@ export default function SessionRequestOverlay({
   const tCommon = useTranslations("common");
   const tFeed = useTranslations("feed");
   const tServices = useTranslations("services");
+  const tSessions = useTranslations("sessions");
+  const tWallet = useTranslations("wallet");
   const [mounted, setMounted] = useState(false);
   const [visible, setVisible] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
@@ -439,11 +457,12 @@ export default function SessionRequestOverlay({
   );
 
   const isRescheduleRequested = status === "reschedule_requested";
+  const sessionTypeLabel = isExclusive ? tServices("exclusiveSession") : tServices("liveSession");
   const panelTitle = readOnly
-    ? "Ver solicitud"
+    ? tServices("viewRequest")
     : isRescheduleRequested
-    ? isExclusive ? "Reagendar sesión exclusiva" : "Reagendar sesión en vivo"
-    : isExclusive ? "Agendar sesión exclusiva" : "Agendar sesión en vivo";
+    ? `${tServices("reschedule")} ${sessionTypeLabel}`
+    : `${tServices("schedule")} ${sessionTypeLabel}`;
 
   if (!mounted || !visible) return null;
 
@@ -483,10 +502,10 @@ export default function SessionRequestOverlay({
         )}
         <div style={{ minWidth: 0, flex: 1 }}>
           <div style={{ color: "#fff", fontWeight: 600, fontSize: 13, lineHeight: 1.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-            {req.buyerDisplayName ?? "Usuario"}
+            {req.buyerDisplayName ?? tCommon("user")}
           </div>
           <div style={{ color: "rgba(255,255,255,0.42)", fontSize: 11, lineHeight: 1.3, marginTop: 4 }}>
-            {getMeetGreetStatusLabel(status)}
+            {getMeetGreetStatusLabel(status, tSessions)}
           </div>
         </div>
         {earning && (
@@ -504,13 +523,13 @@ export default function SessionRequestOverlay({
             <path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
           </svg>
           <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
-            <span style={{ color: "#fff", fontSize: 11, fontWeight: 600, lineHeight: 1.2 }}>Fecha agendada</span>
+            <span style={{ color: "#fff", fontSize: 11, fontWeight: 600, lineHeight: 1.2 }}>{tServices("scheduledDateLabel")}</span>
             {scheduledParts ? (
               <>
                 <span style={{ color: "#fff", fontSize: 13, fontWeight: 400, lineHeight: 1.2 }}>{scheduledParts.dayTime}</span>
                 <span style={{ color: "#fff", fontSize: 12, fontWeight: 400, lineHeight: 1.2 }}>{scheduledParts.dateStr}</span>
               </>
-            ) : <span style={{ color: "#fff", fontSize: 13, fontWeight: 400, lineHeight: 1.2 }}>Sin fecha</span>}
+            ) : <span style={{ color: "#fff", fontSize: 13, fontWeight: 400, lineHeight: 1.2 }}>{tServices("noDateLabel")}</span>}
           </div>
         </div>
         <div style={{ display: "flex", flexDirection: "row", alignItems: "flex-start", justifyContent: "center", gap: 10, padding: "12px 10px", borderRadius: 12 }}>
@@ -518,7 +537,7 @@ export default function SessionRequestOverlay({
             <circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 3" />
           </svg>
           <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
-            <span style={{ color: "#fff", fontSize: 11, fontWeight: 600, lineHeight: 1.2 }}>Solicitado</span>
+            <span style={{ color: "#fff", fontSize: 11, fontWeight: 600, lineHeight: 1.2 }}>{tServices("requestedDateLabel")}</span>
             {createdParts ? (
               <>
                 <span style={{ color: "#fff", fontSize: 13, fontWeight: 400, lineHeight: 1.2 }}>{createdParts.dayTime}</span>
@@ -552,7 +571,7 @@ export default function SessionRequestOverlay({
                     <button
                       type="button"
                       onClick={() => handleToggleChatTts(idx, entry.text)}
-                      aria-label={isPlaying ? "Pausar lectura" : isActive && chatTtsState === "paused" ? "Reanudar lectura" : "Leer mensaje"}
+                      aria-label={isPlaying ? tServices("pauseReading") : isActive && chatTtsState === "paused" ? tServices("resumeReading") : tServices("readMessage")}
                       style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.6)", padding: 2, display: "flex", alignItems: "center", flexShrink: 0, transition: "color 0.15s" }}
                     >
                       {isPlaying ? (
@@ -589,21 +608,21 @@ export default function SessionRequestOverlay({
       {/* Motivo de rechazo */}
       {req.rejectionReason && (
         <div style={{ borderRadius: 10, border: "1px solid rgba(248,113,113,0.18)", background: "rgba(248,113,113,0.08)", padding: "9px 11px", fontSize: 13, lineHeight: 1.4, color: "#fecaca" }}>
-          Motivo de rechazo: {req.rejectionReason}
+          {tServices("rejectionLabel")}: {req.rejectionReason}
         </div>
       )}
 
       {/* Motivo de devolución */}
       {req.refundReason && (
         <div style={{ borderRadius: 10, border: "1px solid rgba(250,204,21,0.18)", background: "rgba(250,204,21,0.08)", padding: "9px 11px", fontSize: 13, lineHeight: 1.4, color: "#fde68a" }}>
-          Motivo de devolución: {req.refundReason}
+          {tServices("refundReasonLabel")}: {req.refundReason}
         </div>
       )}
 
       {/* Banner preparación */}
       {canPrepare && (
         <div style={{ borderRadius: 10, border: "1px solid rgba(96,165,250,0.18)", background: "rgba(96,165,250,0.08)", padding: "9px 11px", fontSize: 13, lineHeight: 1.4, color: "#bfdbfe" }}>
-          🤝 Ya puedes entrar a preparación.
+          {tServices("canPrepareMessage")}
         </div>
       )}
 
@@ -631,7 +650,7 @@ export default function SessionRequestOverlay({
                 letterSpacing: "-0.01em",
               }}
             >
-              Aceptar y agendar sesión
+              {tCommon("accept")}
             </button>
           )}
           {canReject && !isRescheduleRequested && (
@@ -669,7 +688,7 @@ export default function SessionRequestOverlay({
             onClick={() => setCalendarOpen(true)}
             style={{ background: "none", border: "none", padding: 0, cursor: "pointer", fontFamily: "inherit", fontSize: 12, fontWeight: 500, color: isExclusive ? "#f472b6" : "#60a5fa", width: "fit-content" }}
           >
-            Ver calendario
+            {tWallet("viewCalendarAriaLabel")}
           </button>
           <div className="sro-schedule">
             <ScheduleDateTimeSelector value={scheduleParts} onChange={(p) => setScheduleParts(p)} disabled={busy} />
@@ -714,12 +733,12 @@ export default function SessionRequestOverlay({
                 letterSpacing: "-0.01em",
               }}
             >
-              {busy ? tFeed("processing") : "Confirmar y agendar sesión"}
+              {busy ? tFeed("processing") : tServices("confirmReschedule")}
             </button>
           )}
           <ScheduleCalendarOverlay
             open={calendarOpen}
-            title="Calendario del creador"
+            title={tWallet("calendarTitle")}
             items={ownerCalendarItems}
             excludeId={requestId}
             selectedDate={selectedScheduleDate}
@@ -782,13 +801,13 @@ export default function SessionRequestOverlay({
                   fontFamily: "inherit",
                 }}
               >
-                No cambiar la fecha
+                {tCommon("no")}
               </button>
             </>
           )}
           {canPrepare && (
             <button type="button" onClick={onPrepare} disabled={busy} style={{ height: 34, borderRadius: 8, border: "none", background: "#3b82f6", color: "#fff", fontWeight: 600, fontSize: 13, padding: "0 14px", cursor: busy ? "not-allowed" : "pointer", opacity: busy ? 0.7 : 1, fontFamily: "inherit" }}>
-              {busy ? tFeed("processing") : "Prepararse"}
+              {busy ? tFeed("processing") : tServices("prepareButton")}
             </button>
           )}
         </div>
@@ -801,7 +820,7 @@ export default function SessionRequestOverlay({
             <textarea
               value={rejectReason}
               onChange={(e) => setRejectReason(e.target.value)}
-              placeholder="Explica por qué rechazas la solicitud..."
+              placeholder={tServices("rejectReasonPlaceholder")}
               rows={3}
               style={{ width: "100%", padding: "12px 13px", borderRadius: 12, border: "none", background: "rgba(255,255,255,0.06)", color: "#fff", outline: "none", fontSize: 13, fontWeight: 500, fontFamily: "inherit", resize: "none", boxSizing: "border-box", lineHeight: 1.5 }}
             />
@@ -814,7 +833,7 @@ export default function SessionRequestOverlay({
                 disabled={busy}
                 style={{ flex: 1, height: 36, borderRadius: 6, border: "none", background: "rgba(220,38,38,0.62)", color: "#fff", fontWeight: 600, fontSize: 13, cursor: busy ? "not-allowed" : "pointer", opacity: busy ? 0.6 : 1, fontFamily: "inherit" }}
               >
-                {busy ? tFeed("processing") : "Confirmar rechazo"}
+                {busy ? tFeed("processing") : tServices("confirmReject")}
               </button>
               <button
                 type="button"
@@ -867,8 +886,8 @@ export default function SessionRequestOverlay({
             fontWeight: 500,
           }}>
             {canDownload
-              ? `Te queda${downloadDaysLeft === 1 ? "" : "n"} ${downloadDaysLeft} día${downloadDaysLeft === 1 ? "" : "s"} para descargar la sesión`
-              : "Ya no puedes descargar esta sesión"}
+              ? tServices("downloadDaysLeft", { days: downloadDaysLeft })
+              : tServices("downloadExpired")}
           </div>
           {downloadError && (
             <div style={{ fontSize: 12, color: "#fca5a5", textAlign: "center" }}>{downloadError}</div>
@@ -884,7 +903,7 @@ export default function SessionRequestOverlay({
                   const url = await callGetRecordingDownloadUrl({ sessionId: requestId, sessionType: serviceKind });
                   window.location.href = url;
                 } catch {
-                  setDownloadError("No se pudo obtener el enlace.");
+                  setDownloadError(tCommon("generalError"));
                 } finally {
                   setDownloadBusy(false);
                 }
@@ -908,7 +927,7 @@ export default function SessionRequestOverlay({
                 letterSpacing: "-0.01em",
               }}
             >
-              {downloadBusy ? "Obteniendo..." : "Descargar sesión"}
+              {downloadBusy ? tCommon("processing") : tServices("downloadVideo")}
             </button>
             <button
               type="button"
@@ -985,7 +1004,7 @@ export default function SessionRequestOverlay({
             letterSpacing: "-0.01em",
           }}
         >
-          {status === "scheduled" ? tServices("reschedule") : "Poner fecha"}
+          {status === "scheduled" ? tServices("reschedule") : tServices("setDate")}
         </button>
       ) : acceptExpanded ? (
         <>
@@ -997,7 +1016,7 @@ export default function SessionRequestOverlay({
               if (currentAt && newAt) {
                 const sameMinute = Math.floor(currentAt.getTime() / 60000) === Math.floor(newAt.getTime() / 60000);
                 if (sameMinute) {
-                  showRescheduleToast("No puedes reagendar en la misma fecha y horario", "error");
+                  showRescheduleToast(tServices("sameSlotError"), "error");
                   return;
                 }
               }
@@ -1005,8 +1024,8 @@ export default function SessionRequestOverlay({
                 await onSchedule(selectedScheduleIso, scheduleNote || null);
                 showRescheduleToast(
                   isRescheduleRequested || status === "scheduled"
-                    ? "✅ Sesión reagendada correctamente."
-                    : "✅ Fecha guardada correctamente.",
+                    ? tServices("successRescheduled")
+                    : tServices("successDateProposed"),
                   "success"
                 );
                 onClose();

@@ -113,18 +113,18 @@ function statusDotColor(status?: SidebarMemberStatus) {
   return "#22c55e";
 }
 
-function statusLabel(status?: SidebarMemberStatus) {
-  if (status === "subscribed") return "Suscrito";
-  if (status === "muted") return "Muteado";
-  if (status === "banned") return "Baneado";
-  if (status === "removed") return "Sin acceso";
-  return "Activo";
+function statusLabel(status?: SidebarMemberStatus, tg?: (key: string) => string) {
+  if (status === "subscribed") return tg ? tg("statusSubscribed") : "Suscrito";
+  if (status === "muted") return tg ? tg("statusMuted") : "Muteado";
+  if (status === "banned") return tg ? tg("statusBanned") : "Baneado";
+  if (status === "removed") return tg ? tg("statusRemoved") : "Expulsado";
+  return tg ? tg("statusActive") : "Activo";
 }
 
-function roleLabel(role?: SidebarMemberRole) {
-  if (role === "mod") return "Moderador";
-  if (role === "owner") return "Owner";
-  return "Miembro";
+function roleLabel(role?: SidebarMemberRole, tg?: (key: string) => string) {
+  if (role === "mod") return tg ? tg("roleMod") : "Moderador";
+  if (role === "owner") return tg ? tg("roleOwner") : "Owner";
+  return tg ? tg("roleMember") : "Miembro";
 }
 
 function resolveAccessState(group: GroupDocLite): AccessState {
@@ -221,11 +221,14 @@ function getPriceIncreaseMeta(group: GroupDocLite) {
 function buildJoinedSubtitle(
   group: GroupDocLite,
   isMobile: boolean,
-  newCount?: number
+  newCount?: number,
+  tg?: (key: string) => string,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  tc?: (key: string, values?: any) => string
 ): React.ReactNode {
   const status = normalizeMemberStatus(group);
   const role = normalizeMemberRole(group);
-  const statusText = statusLabel(status);
+  const statusText = statusLabel(status, tg);
   const dotColor = statusDotColor(status);
   const accessState = resolveAccessState(group);
 
@@ -264,7 +267,7 @@ function buildJoinedSubtitle(
           >
             •
           </span>
-          <span>{roleLabel(role)}</span>
+          <span>{roleLabel(role, tg)}</span>
         </>
       )}
 
@@ -301,7 +304,7 @@ function buildJoinedSubtitle(
             •
           </span>
           <span style={{ color: "#a855f7", fontWeight: 700 }}>
-            {newCount} {newCount === 1 ? "nuevo" : "nuevos"}
+            {tc ? tc("newPostsCount", { count: newCount }) : `${newCount} ${newCount === 1 ? "nuevo" : "nuevos"}`}
           </span>
         </>
       )}
@@ -310,7 +313,9 @@ function buildJoinedSubtitle(
 }
 
 function buildAccessNotice(
-  group: GroupDocLite
+  group: GroupDocLite,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  tg?: (key: string, values?: Record<string, any>) => any
 ):
   | {
       title?: string;
@@ -336,14 +341,21 @@ function buildAccessNotice(
     if (isPriceIncreaseReminder) {
       const { previous, next, currency } = getPriceIncreaseMeta(group);
 
-      const priceText =
+      const text =
         previous != null && next != null
-          ? `La suscripción pasó de ${formatMoney(previous, currency)} a ${formatMoney(next, currency)}.`
-          : "La suscripción aumentó de precio.";
+          ? tg
+            ? tg("bannerPriceIncreaseText", {
+                prev: formatMoney(previous, currency),
+                next: formatMoney(next, currency),
+              })
+            : `La suscripción pasó de ${formatMoney(previous, currency)} a ${formatMoney(next, currency)}. Para seguir dentro debes suscribirte con el nuevo monto.`
+          : tg
+          ? tg("bannerPriceIncreaseFallbackText")
+          : "La suscripción aumentó de precio. Para seguir dentro debes suscribirte con el nuevo monto.";
 
       return {
-        title: "Esta comunidad aumentó su precio de suscripción",
-        text: `${priceText} Para seguir dentro debes suscribirte con el nuevo monto.`,
+        title: tg ? tg("bannerPriceIncreaseTitle") : "Esta comunidad aumentó su precio de suscripción",
+        text,
         tone: "warning",
         showSubscribeCta: true,
         showDismissCta: false,
@@ -352,8 +364,8 @@ function buildAccessNotice(
 
     if (isFreeToSubscriptionReminder) {
       return {
-        title: "Esta comunidad cambió a suscripción",
-        text: "Antes estabas dentro gratis, pero esta comunidad ahora requiere suscripción para continuar.",
+        title: tg ? tg("bannerFreeToSubscriptionTitle") : "Esta comunidad cambió a suscripción",
+        text: tg ? tg("bannerFreeToSubscriptionText") : "Antes estabas dentro gratis, pero esta comunidad ahora requiere suscripción para continuar.",
         tone: "warning",
         showSubscribeCta: true,
         showDismissCta: false,
@@ -361,8 +373,8 @@ function buildAccessNotice(
     }
 
     return {
-      title: "Acceso requiere suscripción",
-      text: "Esta comunidad requiere suscripción. Debes suscribirte para continuar.",
+      title: tg ? tg("bannerAccessRequiresSubscriptionTitle") : "Acceso requiere suscripción",
+      text: tg ? tg("bannerAccessRequiresSubscriptionText") : "Esta comunidad requiere suscripción. Debes suscribirte para continuar.",
       tone: "warning",
       showSubscribeCta: true,
       showDismissCta: false,
@@ -371,8 +383,8 @@ function buildAccessNotice(
 
   if (state === "legacy_free") {
     return {
-      title: "Acceso conservado",
-      text: "Esta comunidad ahora es de suscripción, pero conservas acceso gratis porque ya estabas dentro antes del cambio.",
+      title: tg ? tg("bannerAccessPreservedTitle") : "Acceso conservado",
+      text: tg ? tg("bannerAccessPreservedText") : "Esta comunidad ahora es de suscripción, pero conservas acceso gratis porque ya estabas dentro antes del cambio.",
       tone: "success",
       showSubscribeCta: false,
       showDismissCta: false,
@@ -381,8 +393,8 @@ function buildAccessNotice(
 
   if (state === "banned") {
     return {
-      title: "Acceso restringido",
-      text: "No puedes interactuar normalmente en esta comunidad porque tu estado actual está restringido.",
+      title: tg ? tg("bannerAccessRestrictedTitle") : "Acceso restringido",
+      text: tg ? tg("bannerAccessRestrictedText") : "No puedes interactuar normalmente en esta comunidad porque tu estado actual está restringido.",
       tone: "danger",
       showSubscribeCta: false,
       showDismissCta: false,
@@ -441,7 +453,9 @@ function LeaveGroupActionCard(params: {
   openMenuGroupId?: string | null;
   onToggleMenu?: (groupId: string) => void;
   onLeave: (group: GroupDocLite) => void;
+  leaveLabel?: string;
 }) {
+  const tCommon = useTranslations("common");
   const { group, renderCommunityCard, subtitle, onLeave } = params;
 
   const actionWidth = 150;
@@ -500,7 +514,7 @@ style={{
       padding: "0 14px",
     }}
   >
-    Abandonar grupo
+    {params.leaveLabel ?? tCommon("leave")}
   </button>
 </div>
 
@@ -584,6 +598,8 @@ export default function OwnerSidebarOtherGroups({
   newPostsCounts = {},
 }: Props) {
   const tCommon = useTranslations("common");
+  const tGroups = useTranslations("groups");
+  const tNav = useTranslations("nav");
   const router = useRouter();
   const [dismissedGroupIds, setDismissedGroupIds] = useState<Set<string>>(
     () => new Set()
@@ -705,8 +721,8 @@ async function handleConfirmLeaveGroup() {
                 type="button"
                 onClick={onCreateCommunity}
                 style={styles.createInlineButton}
-                aria-label="Crear comunidad"
-                title="Crear comunidad"
+                aria-label={tGroups("createCommunity")}
+                title={tGroups("createCommunity")}
               >
                 <span aria-hidden="true">+</span>
                 <span>Crear</span>
@@ -720,7 +736,7 @@ async function handleConfirmLeaveGroup() {
               const isMod = role === "mod";
               const joinRequests = joinRequestsByGroup[g.id] ?? [];
               const joinListOpen = joinSectionOpen[g.id] === true;
-              const accessNotice = buildAccessNotice(g);
+              const accessNotice = buildAccessNotice(g, tGroups);
               const accessState = resolveAccessState(g);
               const memberStatus = normalizeMemberStatus(g);
 
@@ -734,15 +750,16 @@ async function handleConfirmLeaveGroup() {
                 isActuallyJoinedStatus(memberStatus);
 
               if (!showJoinSection) {
-                const notice = buildAccessNotice(g);
+                const notice = buildAccessNotice(g, tGroups);
 return (
   <div key={g.id} style={{ display: "grid", gap: 6 }}>
 <LeaveGroupActionCard
   group={g}
   isMobile={isMobile}
   renderCommunityCard={renderCommunityCard}
-  subtitle={buildJoinedSubtitle(g, isMobile, newPostsCounts[g.id])}
+  subtitle={buildJoinedSubtitle(g, isMobile, newPostsCounts[g.id], tGroups, tCommon)}
   onLeave={openLeaveConfirm}
+  leaveLabel={tCommon("leave")}
 />
 
     {notice && (
@@ -772,7 +789,7 @@ return (
                 cursor: "pointer",
               }}
             >
-              Suscribirme
+              {tGroups("subscribe")}
             </button>
           </div>
         )}
@@ -802,8 +819,9 @@ return (
                       group={g}
                       isMobile={isMobile}
                       renderCommunityCard={renderCommunityCard}
-                      subtitle={buildJoinedSubtitle(g, isMobile, newPostsCounts[g.id])}
+                      subtitle={buildJoinedSubtitle(g, isMobile, newPostsCounts[g.id], tGroups, tCommon)}
                       onLeave={openLeaveConfirm}
+                      leaveLabel={tCommon("leave")}
                     />
 
                     <button
@@ -816,8 +834,8 @@ return (
                       }
                       aria-label={
                         joinListOpen
-                          ? "Cerrar solicitudes de acceso"
-                          : "Abrir solicitudes de acceso"
+                          ? tGroups("closeJoinRequests")
+                          : tGroups("openJoinRequests")
                       }
                       style={{
                         minWidth: 52,
@@ -874,7 +892,7 @@ return (
                                 cursor: "pointer",
                               }}
                             >
-                              Suscribirme
+                              {tGroups("subscribe")}
                             </button>
                           )}
 
@@ -901,8 +919,8 @@ return (
                               }}
                             >
                               {dismissingGroupIds.has(g.id)
-                                ? "Olvidando..."
-                                : "Olvidar"}
+                                ? tCommon("forgetting")
+                                : tCommon("forget")}
                             </button>
                           )}
                         </div>
@@ -933,7 +951,7 @@ return (
                             fontWeight: 700,
                           }}
                         >
-                          Solicitudes de acceso
+                          {tGroups("joinRequestSectionTitle")}
                         </span>
                         <CountBadge count={joinRequests.length} tone="blue" />
                       </div>
@@ -1006,7 +1024,7 @@ return (
                                       {renderUserLink(r.userId)}
                                     </div>
                                     <div style={styles.subtle}>
-                                      Solicitud pendiente
+                                      {tGroups("joinRequestPending")}
                                     </div>
                                   </div>
                                 </div>
@@ -1030,7 +1048,7 @@ return (
                                       cursor: busy ? "not-allowed" : "pointer",
                                     }}
                                   >
-                                    {busy ? "Procesando..." : "Aprobar"}
+                                    {busy ? tCommon("processing") : tGroups("approveButton")}
                                   </button>
 
                                   <button
@@ -1065,15 +1083,15 @@ return (
       {hasAnyPending && (
         <div style={{ display: "grid", gap: 8 }}>
           <div style={styles.sectionHeaderRow}>
-            <div style={styles.sectionTitle}>Solicitudes de acceso enviadas</div>
+            <div style={styles.sectionTitle}>{tGroups("joinRequestSectionTitle")}</div>
 
             {!hasAnyJoined ? (
               <button
                 type="button"
                 onClick={onCreateCommunity}
                 style={styles.createInlineButton}
-                aria-label="Crear comunidad"
-                title="Crear comunidad"
+                aria-label={tGroups("createCommunity")}
+                title={tGroups("createCommunity")}
               >
                 <span aria-hidden="true">+</span>
                 <span>Crear</span>
@@ -1087,8 +1105,8 @@ return (
 
               return renderCommunityCard(community, {
                 subtitle: row.createdAt
-                  ? `Solicitud pendiente · ${fmtDate(row.createdAt)}`
-                  : "Solicitud pendiente",
+                  ? `${tGroups("joinRequestPending")} · ${fmtDate(row.createdAt)}`
+                  : tGroups("joinRequestPending"),
               });
             })}
           </div>
@@ -1100,14 +1118,14 @@ return (
         !hasAnyPending && (
           <div style={{ display: "grid", gap: 8 }}>
             <div style={styles.sectionHeaderRow}>
-              <div style={styles.sectionTitle}>Otras comunidades</div>
+              <div style={styles.sectionTitle}>{tNav("otherCommunities")}</div>
 
               <button
                 type="button"
                 onClick={onCreateCommunity}
                 style={styles.createInlineButton}
-                aria-label="Crear comunidad"
-                title="Crear comunidad"
+                aria-label={tGroups("createCommunity")}
+                title={tGroups("createCommunity")}
               >
                 <span aria-hidden="true">+</span>
                 <span>Crear</span>
@@ -1121,7 +1139,7 @@ return (
                 padding: "2px 2px 0",
               }}
             >
-              No tienes otras comunidades ni solicitudes pendientes.
+              {tGroups("noOwnerCommunities")}
             </div>
           </div>
         )}
@@ -1129,7 +1147,7 @@ return (
   <div
     role="dialog"
     aria-modal="true"
-    aria-label="Confirmar salida del grupo"
+    aria-label={tGroups("leaveGroupAriaLabel")}
     style={{
       position: "fixed",
       inset: 0,
@@ -1162,7 +1180,7 @@ return (
     letterSpacing: -0.2,
   }}
 >
-  ¿Estás seguro de que quieres abandonar el grupo?
+  {tGroups("leaveConfirm")}
 </div>
 
         <div
@@ -1205,7 +1223,7 @@ return (
     opacity: leavingGroupId ? 0.7 : 1,
   }}
 >
-  Cancelar
+  {tCommon("cancel")}
 </button>
 
 <button
@@ -1224,7 +1242,7 @@ return (
     opacity: leavingGroupId ? 0.75 : 1,
   }}
 >
-  {leavingGroupId ? "Saliendo..." : "Sí, abandonar"}
+  {leavingGroupId ? tCommon("loading") : tCommon("leave")}
 </button>
       </div>
     </div>

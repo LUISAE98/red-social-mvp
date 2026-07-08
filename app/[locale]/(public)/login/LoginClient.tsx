@@ -639,15 +639,15 @@ body.loginNoScroll {
 
 <div style={heroCopyStyle}>
   <h2 style={heroTitleStyle}>
-    Conecta. Comparte.
+    {t("heroTitle")}
     <br />
     <span className="heroVibraGradientText">Vibra.</span>
   </h2>
 
   <p style={heroTextStyle}>
-    Únete a comunidades que vibran contigo.
+    {t("heroSubtitle1")}
     <br />
-    Comparte ideas, contenido y experiencias únicas.
+    {t("heroSubtitle2")}
   </p>
 
 <div
@@ -665,41 +665,33 @@ minWidth: 520,
  <div className="loginHeroServiceIcons">
   <div className="loginHeroServiceIconBlock">
     <VibraServiceIcon type="communities" size={70} showLabel={false} />
-    <div className="loginHeroServiceIconTitle">Comunidades</div>
+    <div className="loginHeroServiceIconTitle">{t("featureCommunitiesTitle")}</div>
     <div className="loginHeroServiceIconText">
-      Espacios para conectar
-      <br />
-      con tu gente.
+      {t("featureCommunitiesText")}
     </div>
   </div>
 
   <div className="loginHeroServiceIconBlock">
     <VibraServiceIcon type="content" size={70} showLabel={false} />
-    <div className="loginHeroServiceIconTitle">Contenido</div>
+    <div className="loginHeroServiceIconTitle">{t("featureContentTitle")}</div>
     <div className="loginHeroServiceIconText">
-      Publica, interactúa y
-      <br />
-      crece con tu audiencia.
+      {t("featureContentText")}
     </div>
   </div>
 
   <div className="loginHeroServiceIconBlock">
     <VibraServiceIcon type="realTime" size={70} showLabel={false} />
-    <div className="loginHeroServiceIconTitle">Tiempo real</div>
+    <div className="loginHeroServiceIconTitle">{t("featureRealtimeTitle")}</div>
     <div className="loginHeroServiceIconText">
-      Chats, lives y experiencias
-      <br />
-      sin límites.
+      {t("featureRealtimeText")}
     </div>
   </div>
 
   <div className="loginHeroServiceIconBlock">
     <VibraServiceIcon type="exclusiveSession" size={70} showLabel={false} />
-    <div className="loginHeroServiceIconTitle">Monetiza</div>
+    <div className="loginHeroServiceIconTitle">{t("featureMonetizeTitle")}</div>
     <div className="loginHeroServiceIconText">
-      Convierte tu pasión en
-      <br />
-      ingresos reales.
+      {t("featureMonetizeText")}
     </div>
   </div>
 </div>

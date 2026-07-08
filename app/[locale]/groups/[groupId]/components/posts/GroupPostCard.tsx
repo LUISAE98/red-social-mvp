@@ -13,7 +13,7 @@ import {
   useState,
   type CSSProperties,
 } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { createPortal } from "react-dom";
 import type { Comment, CommentReply, Post, PostLiveData, PostPlayback } from "@/lib/posts/types";
 import { db } from "@/lib/firebase";
@@ -165,6 +165,7 @@ onToggleProfilePin,
   const tCommon = useTranslations("common");
   const tFeed = useTranslations("feed");
   const tGroups = useTranslations("groups");
+  const locale = useLocale();
 
   const [comments, setComments] = useState<Comment[] | null>(null);
   const [commentsPanelOpen, setCommentsPanelOpen] = useState(false);
@@ -462,7 +463,7 @@ useEffect(() => {
   const authorStatusBadge = useMemo(() => {
     if (effectiveAuthorStatus === "banned") {
       return {
-        text: "Baneado",
+        text: tGroups("statusBanned"),
         border: "1px solid rgba(255,70,70,0.34)",
         background: "rgba(255,70,70,0.14)",
         color: "#ff8a8a",
@@ -471,7 +472,7 @@ useEffect(() => {
 
     if (effectiveAuthorStatus === "muted") {
       return {
-        text: "Muteado",
+        text: tGroups("statusMuted"),
         border: "1px solid rgba(245,166,35,0.34)",
         background: "rgba(245,166,35,0.14)",
         color: "#ffd48a",
@@ -480,7 +481,7 @@ useEffect(() => {
 
     if (effectiveAuthorStatus === "removed") {
       return {
-        text: "Expulsado",
+        text: tGroups("statusRemoved"),
         border: "1px solid rgba(255,70,70,0.34)",
         background: "rgba(255,70,70,0.14)",
         color: "#ff8a8a",
@@ -694,7 +695,7 @@ useEffect(() => {
     flameUsersCacheRef.current[post.id] = users;
     setFlameUsers(users);
   } catch (e: unknown) {
-    setFlameUsersError((e instanceof Error ? e.message : null) ?? "No se pudieron cargar las flamitas.");
+    setFlameUsersError((e instanceof Error ? e.message : null) ?? tFeed("errorLoadFlames"));
   } finally {
     setLoadingFlameUsers(false);
   }
@@ -702,7 +703,7 @@ useEffect(() => {
 
 function handleToggleFlame() {
   if (!currentUserId) {
-    setInlineActionError("Inicia sesión para dar flamita.");
+    setInlineActionError(tCommon("loginToLike"));
     return;
   }
   if (!onToggleFlame) return;
@@ -729,7 +730,7 @@ function handleToggleFlame() {
     } catch (e: unknown) {
       setOptimisticViewerHasFlamed(flameServerStateRef.current);
       setOptimisticLikesCount(post.counts?.likes ?? 0);
-      setInlineActionError((e instanceof Error ? e.message : null) ?? "No se pudo actualizar la flamita.");
+      setInlineActionError((e instanceof Error ? e.message : null) ?? tFeed("errorUpdateFlame"));
     } finally {
       setFlameBusy(false);
     }
@@ -738,7 +739,7 @@ function handleToggleFlame() {
 
 function handleToggleSave() {
   if (!currentUserId) {
-    setInlineActionError("Inicia sesión para guardar publicaciones.");
+    setInlineActionError(tCommon("loginToSave"));
     return;
   }
   if (!onToggleSave) return;
@@ -764,7 +765,7 @@ function handleToggleSave() {
     } catch (e: unknown) {
       setOptimisticViewerHasSaved(saveServerStateRef.current);
       setOptimisticSavesCount(post.counts?.saves ?? 0);
-      setInlineActionError((e instanceof Error ? e.message : null) ?? "No se pudo actualizar el guardado.");
+      setInlineActionError((e instanceof Error ? e.message : null) ?? tFeed("errorUpdateSave"));
     } finally {
       setSaveBusy(false);
     }
@@ -789,11 +790,11 @@ function handleToggleSave() {
     if (rawMsg.toLowerCase().includes("permission")) {
       setInlineActionError(
         !currentUserId
-          ? "Inicia sesión para ver los comentarios."
-          : "Solo los miembros pueden ver los comentarios de esta publicación."
+          ? tCommon("loginToComment")
+          : tFeed("membersOnlyComments")
       );
     } else {
-      setInlineActionError(rawMsg || "No se pudieron cargar los comentarios.");
+      setInlineActionError(rawMsg || tFeed("errorLoadComments"));
     }
   } finally {
     setLoadingComments(false);
@@ -813,8 +814,8 @@ function handleToggleSave() {
     if (premiumState.isBlocked) {
       setInlineActionError(
         currentUserId
-          ? "Desbloquea este contenido para poder comentar."
-          : "Inicia sesión para poder comentar."
+          ? tFeed("unlockToComment")
+          : tCommon("loginToComment")
       );
       return;
     }
@@ -832,7 +833,7 @@ function handleToggleSave() {
       setComments(nextComments);
       setCommentText("");
     } catch (e: unknown) {
-      const message = (e instanceof Error ? e.message : null) ?? "No se pudo comentar.";
+      const message = (e instanceof Error ? e.message : null) ?? tFeed("errorComment");
       setInlineActionError(message);
     } finally {
       setCreatingComment(false);
@@ -1573,8 +1574,8 @@ function renderBlurredMediaBackdrop(
 
   const liveAccessCtaText =
     liveVisibilityMode === "members_only"
-      ? (currentUserId ? "Únete a la comunidad para ver este live" : "Inicia sesión y únete para ver este live")
-      : "Inicia sesión para ver este live";
+      ? (currentUserId ? tFeed("joinToWatchLive") : tCommon("loginAndJoinToWatchLive"))
+      : tCommon("loginToWatchLive");
 
   const premiumState = resolvePostPremiumState({
     post,
@@ -1590,9 +1591,9 @@ function renderBlurredMediaBackdrop(
 
   const commentBlockedMessage =
     premiumState.isBlocked && !currentUserId
-      ? "Inicia sesión para poder comentar."
+      ? tCommon("loginToComment")
       : premiumState.isBlocked
-      ? "Desbloquea este contenido para poder comentar."
+      ? tFeed("unlockToComment")
       : !effectiveCanCommentOnPosts
       ? buildCommentBlockedMessage(commentBlockedReason)
       : null;
@@ -2245,8 +2246,8 @@ style={{
 }}
 >
   {showExactPostDate
-    ? formatExactDate(post.createdAt)
-    : formatRelativeDate(post.createdAt)}
+    ? formatExactDate(post.createdAt, locale)
+    : formatRelativeDate(post.createdAt, locale)}
   {(post.editedAt ?? localText !== null) ? (
     <span style={{ opacity: 0.45, fontStyle: "italic", marginLeft: 2 }}>
       {" · Editado"}
@@ -2347,7 +2348,7 @@ style={{
       }}
     >
       <VibraNavigationIcon type="premiumCrown" size={14} />
-      Publicación Premium
+      {tFeed("premiumPost")}
     </div>
   )}
 
@@ -2420,7 +2421,7 @@ style={{
             fontFamily: fontStack, cursor: "pointer", whiteSpace: "nowrap",
           }}
         >
-          Abrir panel para ver estadísticas
+          {tFeed("openPanelStats")}
         </button>
       )}
       {premiumState.isBlocked ? (
@@ -2542,7 +2543,7 @@ style={{
             fontSize: 13, fontFamily: fontStack, cursor: "pointer", whiteSpace: "nowrap",
           }}
         >
-          Abrir panel para ver estadísticas
+          {tFeed("openPanelStats")}
         </button>
       )}
 
@@ -2565,7 +2566,7 @@ style={{
           <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="12" cy="12" r="3" /><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14" />
           </svg>
-          Abrir centro de control
+          {tFeed("openControlCenter")}
         </button>
       )}
 
@@ -2615,7 +2616,7 @@ style={{
                 color: "rgba(255,255,255,0.7)",
                 textAlign: "center", padding: "0 20px",
               }}>
-                Has sido baneado de este live
+                {tFeed("bannedFromLive")}
               </span>
             </div>
           )}
@@ -2685,7 +2686,7 @@ style={{
                     <line x1="15" y1="9" x2="9" y2="15" />
                     <line x1="9" y1="9" x2="15" y2="15" />
                   </svg>
-                  <span style={{ fontSize: 12, fontWeight: 500 }}>El creador decidió no subir el video</span>
+                  <span style={{ fontSize: 12, fontWeight: 500 }}>{tFeed("creatorNoVideoUpload")}</span>
                 </>
               ) : !isCFLive && !activeLiveData?.vodSettingsConfirmed ? (
                 <>
@@ -2694,7 +2695,7 @@ style={{
                     <circle cx="12" cy="12" r="10" stroke="rgba(255,255,255,0.15)" />
                     <path d="M12 2a10 10 0 0 1 10 10" stroke="rgba(255,255,255,0.55)" />
                   </svg>
-                  <span style={{ fontSize: 12, fontWeight: 500 }}>El creador aún no sube el video</span>
+                  <span style={{ fontSize: 12, fontWeight: 500 }}>{tFeed("creatorVideoNotUploaded")}</span>
                 </>
               ) : activeLiveData?.vodStatus === "processing" ? (
                 <>
@@ -2703,7 +2704,7 @@ style={{
                     <circle cx="12" cy="12" r="10" stroke="rgba(255,255,255,0.15)" />
                     <path d="M12 2a10 10 0 0 1 10 10" stroke="rgba(255,255,255,0.55)" />
                   </svg>
-                  <span style={{ fontSize: 12, fontWeight: 500 }}>Preparando grabación…</span>
+                  <span style={{ fontSize: 12, fontWeight: 500 }}>{tFeed("preparingRecording")}</span>
                 </>
               ) : (
                 <>
@@ -2711,7 +2712,7 @@ style={{
                     <circle cx="12" cy="12" r="10" />
                     <polyline points="10 15 15 12 10 9 10 15" />
                   </svg>
-                  <span style={{ fontSize: 12, fontWeight: 500 }}>El live ha terminado</span>
+                  <span style={{ fontSize: 12, fontWeight: 500 }}>{tFeed("liveEnded")}</span>
                 </>
               )}
             </div>
@@ -2790,7 +2791,7 @@ style={{
                           whiteSpace: "nowrap",
                         }}
                       >
-                        Abrir panel para comenzar con la transmisión
+                        {tFeed("openPanelToStart")}
                       </button>
                       {activeLiveData?.broadcastMode === "rtmp" && activeLiveData?.liveStreamId && (
                         <button
@@ -2811,7 +2812,7 @@ style={{
                             whiteSpace: "nowrap",
                           }}
                         >
-                          Ver Key y URL de transmisión
+                          {tFeed("viewStreamKey")}
                         </button>
                       )}
                     </>
@@ -2833,7 +2834,7 @@ style={{
                         whiteSpace: "nowrap",
                       }}
                     >
-                      Iniciar transmisión
+                      {tFeed("startStream")}
                     </button>
                   )}
                 </div>
@@ -2860,7 +2861,7 @@ style={{
               boxShadow: isLiveBlockedByTicket ? "0 0 0 2px rgba(239,68,68,0.3)" : "0 0 0 2px rgba(168,85,255,0.3)",
               animation: "livePulse 2s ease-in-out infinite",
             }} />
-            {isLiveBlockedByTicket ? "La transmisión ya inició" : "Esperando inicio"}
+            {isLiveBlockedByTicket ? tFeed("streamStarted") : tFeed("waitingStart")}
           </div>
 
           {/* Ticket overlay — parte inferior de la portada */}
@@ -2947,7 +2948,13 @@ style={{
             color: "rgba(255,255,255,0.55)",
           }}
         >
-          {formatScheduledLiveDate(activeLiveData?.scheduledStartAt)}
+          {formatScheduledLiveDate(activeLiveData?.scheduledStartAt, {
+            locale,
+            tbd: tFeed("scheduledTBD"),
+            todayAt: (time) => tFeed("scheduledToday", { time }),
+            tomorrowAt: (time) => tFeed("scheduledTomorrow", { time }),
+            dateAt: (date, time) => tFeed("scheduledDateAt", { date, time }),
+          })}
         </span>
       </div>
 
@@ -3065,10 +3072,10 @@ style={{
         </svg>
         <div>
           <div style={{ fontSize: 11.5, fontWeight: 700, color: "#fca5a5", fontFamily: fontStack }}>
-            Ticket pagado
+            {tFeed("ticketPaid")}
           </div>
           <div style={{ fontSize: 10, color: "rgba(255,255,255,0.55)", fontFamily: fontStack, marginTop: 1 }}>
-            Ya puedes ver este live
+            {tFeed("canWatchLive")}
           </div>
         </div>
         <span style={{
@@ -3452,7 +3459,7 @@ function getCarouselMediaFrameWidth(media: DisplayMediaItem) {
                   letterSpacing: "-0.01em",
                 }}
               >
-                Preparando video
+                {tFeed("preparingVideo")}
               </div>
             </div>
           </div>
@@ -3957,7 +3964,7 @@ padding: "0 0 2px 0",
   <button
     type="button"
     onClick={() => setPaymentPanelOpen(true)}
-    aria-label="Desbloquear contenido premium"
+    aria-label={tFeed("unlockPremiumContent")}
     style={{
       width: "100%",
       height: 42,
@@ -3978,7 +3985,7 @@ padding: "0 0 2px 0",
     }}
   >
     <VibraNavigationIcon type="premiumCrown" size={17} />
-    {`Desbloquea el contenido por $${(post.oneTimePrice ?? 0).toLocaleString("es-MX")} ${post.currency ?? "MXN"}`}
+    {tFeed("unlockPremiumFor", { price: `$${(post.oneTimePrice ?? 0).toLocaleString("es-MX")} ${post.currency ?? "MXN"}` })}
   </button>
 )}
 {premiumState.isPremium && (
@@ -4440,8 +4447,8 @@ padding: "0 0 2px 0",
       : null
   }
   authorStatusBadge={authorStatusBadge}
-  relativeDate={formatRelativeDate(post.createdAt)}
-  exactDate={formatExactDate(post.createdAt)}
+  relativeDate={formatRelativeDate(post.createdAt, locale)}
+  exactDate={formatExactDate(post.createdAt, locale)}
   likesCount={optimisticLikesCount}
   viewerHasFlamed={optimisticViewerHasFlamed}
   commentsCount={visibleCommentsTotal}

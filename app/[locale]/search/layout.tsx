@@ -11,6 +11,7 @@ import LogoutButton from "@/app/LogoutButton";
 import OwnerSidebar from "@/app/components/OwnerSidebar/OwnerSidebar";
 import MobileBottomNav from "@/app/components/MobileBottomNav";
 import GroupsSearchPanel from "@/app/components/SearchToolbar/GroupsSearchPanel";
+import LanguageSwitcher from "@/app/components/LanguageSwitcher";
 import { useWalletVisibility } from "@/lib/wallet/useWalletVisibility";
 import { useMobileHeaderFade } from "@/app/hooks/useMobileHeaderFade";
 import {
@@ -821,7 +822,9 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
         }
 
         .desktopLogoutWrap {
-          display: none;
+          display: flex;
+          align-items: center;
+          justify-content: flex-end;
         }
 
         .mobileSearchRow {
@@ -1156,7 +1159,7 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
               </div>
 
               <div className="desktopLogoutWrap">
-                <LogoutButton />
+                <LanguageSwitcher variant="desktop" />
               </div>
             </div>
 
