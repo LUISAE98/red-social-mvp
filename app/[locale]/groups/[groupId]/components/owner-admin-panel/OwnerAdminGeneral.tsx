@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useTranslations } from "next-intl";
 import { doc, onSnapshot, serverTimestamp, updateDoc, type Timestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { buildGroupSearchIndex } from "@/lib/groups/groupSearchIndex";
@@ -160,6 +161,7 @@ export default function OwnerAdminGeneral({
   currentTags = null,
   currentVisibility = "public",
 }: Props) {
+  const tCommon = useTranslations("common");
   const isOwner = useMemo(
     () => ownerId === currentUserId,
     [ownerId, currentUserId]
@@ -680,7 +682,7 @@ await updateDoc(groupRef, {
                   <SpinningGear /> Guardando...
                 </>
               ) : (
-                "Guardar"
+                tCommon("save")
               )}
             </button>
           </div>

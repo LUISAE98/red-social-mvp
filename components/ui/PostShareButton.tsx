@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type CSSProperties } from "react";
+import { useTranslations } from "next-intl";
 import { buildPublicPostUrl } from "@/lib/posts/share-url";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
@@ -15,6 +16,7 @@ const fontStack =
   'inherit';
 
 export default function PostShareButton({ postId }: PostShareButtonProps) {
+  const tCommon = useTranslations("common");
   const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState(false);
   const { toast: shareToast, showToast: showShareToast } = useVibraToast(2400);
@@ -43,7 +45,7 @@ export default function PostShareButton({ postId }: PostShareButtonProps) {
   async function copyUrl(url: string) {
     await navigator.clipboard.writeText(url);
     setCopied(true);
-    showShareToast("Link copiado al portapapeles.", "success");
+    showShareToast(tCommon("linkCopiedToClipboard"), "success");
     window.setTimeout(() => {
       setCopied(false);
     }, 1400);
@@ -69,7 +71,7 @@ export default function PostShareButton({ postId }: PostShareButtonProps) {
       try {
         await copyUrl(url);
       } catch {
-        showShareToast("No se pudo copiar el link.", "error");
+        showShareToast(tCommon("linkCopyError"), "error");
       }
     } finally {
       setBusy(false);
@@ -81,8 +83,8 @@ export default function PostShareButton({ postId }: PostShareButtonProps) {
       <button
         type="button"
         onClick={handleShare}
-        aria-label={copied ? "Link copiado" : "Compartir publicación"}
-        title={copied ? "Link copiado" : "Compartir publicación"}
+        aria-label={copied ? tCommon("linkCopied") : tCommon("sharePost")}
+        title={copied ? tCommon("linkCopied") : tCommon("sharePost")}
         style={buttonStyle}
       >
         <span aria-hidden="true">{copied ? "✅" : "🔗"}</span>

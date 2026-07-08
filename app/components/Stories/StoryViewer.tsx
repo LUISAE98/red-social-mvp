@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { doc, getDoc, onSnapshot } from "firebase/firestore";
@@ -62,6 +63,7 @@ export default function StoryViewer({
   onCloseCarousel,
   sourceRect,
 }: Props) {
+  const tCommon = useTranslations("common");
   const [index, setIndex] = useState(initialIndex);
   const [progress, setProgress] = useState(0);
   const [videoReady, setVideoReady] = useState(false);
@@ -736,7 +738,7 @@ export default function StoryViewer({
           {/* Close */}
           <button
             type="button"
-            aria-label="Cerrar"
+            aria-label={tCommon("closeAriaLabel")}
             onClick={onCloseOverride ?? onCloseCarousel ?? onClose}
             style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.9)", padding: "0 5px", display: "flex", alignItems: "center", justifyContent: "center" }}
           >
@@ -835,7 +837,7 @@ export default function StoryViewer({
                   )}
                   <button
                     type="button"
-                    aria-label="Cerrar contexto"
+                    aria-label={tCommon("closeContextAriaLabel")}
                     onTouchStart={(e) => e.stopPropagation()}
                     onClick={(e) => { e.stopPropagation(); setContextOpen(false); }}
                     style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.75)", padding: 4, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}

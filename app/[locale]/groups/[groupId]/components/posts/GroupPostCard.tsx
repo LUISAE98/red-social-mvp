@@ -13,6 +13,7 @@ import {
   useState,
   type CSSProperties,
 } from "react";
+import { useTranslations } from "next-intl";
 import { createPortal } from "react-dom";
 import type { Comment, CommentReply, Post, PostLiveData, PostPlayback } from "@/lib/posts/types";
 import { db } from "@/lib/firebase";
@@ -161,6 +162,10 @@ onToggleProfilePin,
   commentBlockedReason = null,
   showDeletedBanner = false,
 }: GroupPostCardProps) {
+  const tCommon = useTranslations("common");
+  const tFeed = useTranslations("feed");
+  const tGroups = useTranslations("groups");
+
   const [comments, setComments] = useState<Comment[] | null>(null);
   const [commentsPanelOpen, setCommentsPanelOpen] = useState(false);
   const [desktopVisibleCount, setDesktopVisibleCount] = useState(5);
@@ -2210,7 +2215,7 @@ const shouldClampFeedPostText =
                   </span>
 
                   <span style={communityMetaTextStyle}>
-                    {getCommunityVisibilityLabel(groupInfo.visibility)}
+                    {tGroups(getCommunityVisibilityLabel(groupInfo.visibility))}
                   </span>
                 </div>
               )}
@@ -2278,7 +2283,7 @@ style={{
                   <line x1="12" x2="12" y1="17" y2="22" />
                   <path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z" />
                 </svg>
-                <span>Fijado</span>
+                <span>{tFeed("pinned")}</span>
               </span>
             )}
             {shouldShowActionsMenu && (
@@ -2390,7 +2395,7 @@ style={{
               WebkitTapHighlightColor: "transparent",
             }}
           >
-            {postTextExpanded ? "- Ver menos" : "+ Ver más"}
+            {postTextExpanded ? `- ${tCommon("seeLess")}` : `+ ${tCommon("seeMore")}`}
           </button>
         )}
       </span>
@@ -4301,7 +4306,7 @@ padding: "0 0 2px 0",
                             ...(isDanger && !isBusy ? { color: "#ff8a8a" } : {}),
                           }}
                         >
-                          {isBusy ? "Procesando..." : buildActionLabel(action)}
+                          {isBusy ? tFeed("processing") : buildActionLabel(action)}
                         </button>
                       );
                     })}
@@ -4378,7 +4383,7 @@ padding: "0 0 2px 0",
                   disabled={moderationBusy}
                   style={disabledButtonStyle}
                 >
-                  Cancelar
+                  {tCommon("cancel")}
                 </button>
 
                 <button

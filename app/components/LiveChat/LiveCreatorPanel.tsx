@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { createPortal } from "react-dom";
+import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useRef, useState, memo, type CSSProperties } from "react";
 import Hls from "hls.js";
 import {
@@ -57,14 +58,14 @@ import { db } from "@/lib/firebase";
 const FONT = 'inherit';
 const DIV = "1px solid rgba(255,255,255,0.12)";
 
-const STATUS_LABELS: Record<string, string> = {
-  draft: "Borrador",
-  scheduled: "Programado",
-  upcoming: "Por comenzar",
-  live: "En vivo",
-  ended: "Finalizado",
-  cancelled: "Cancelado",
-  error: "Error",
+const STATUS_LABEL_KEYS: Record<string, string> = {
+  draft: "statusDraft",
+  scheduled: "statusScheduled",
+  upcoming: "statusUpcoming",
+  live: "statusLive",
+  ended: "statusEnded",
+  cancelled: "statusCancelled",
+  error: "statusError",
 };
 
 type Props = {
@@ -75,6 +76,7 @@ type Props = {
 };
 
 function OBSBrowserSourceBanner({ postId }: { postId: string }) {
+  const tLive = useTranslations("live");
   const [copied, setCopied] = useState(false);
   const url = typeof window !== "undefined"
     ? `${window.location.origin}/live-overlay.html?postId=${postId}`
@@ -117,7 +119,7 @@ function OBSBrowserSourceBanner({ postId }: { postId: string }) {
             transition: "all 0.2s",
           }}
         >
-          {copied ? "✓ Copiado" : "Copiar"}
+          {copied ? tLive("copied") : tLive("copy")}
         </button>
       </div>
       <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 5 }}>
@@ -128,6 +130,8 @@ function OBSBrowserSourceBanner({ postId }: { postId: string }) {
 }
 
 export default function LiveCreatorPanel({ open, onClose, post, portrait = false }: Props) {
+  const tCommon = useTranslations("common");
+  const tLive = useTranslations("live");
   const { user } = useAuth();
   const { messages, deleteMessage } = useLiveChat(open ? post.id : null, 50);
   const [isDesktop, setIsDesktop] = useState(false);
@@ -533,7 +537,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
       console.error("[LiveCreatorPanel] toggleChat error:", err);
       setOptimisticChatEnabled(null);
       const msg = err instanceof Error ? err.message : String(err);
-      showPanelToast(msg.includes("permission") ? "Sin permiso para cambiar el chat." : "Error al cambiar el chat.", "error");
+      showPanelToast(msg.includes("permission") ? tLive("chatPermissionError") : tLive("chatToggleError"), "error");
     } finally {
       setTogglingChat(false);
     }
@@ -651,7 +655,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
   const onPanelTouchStart = (e: React.TouchEvent) => startPanelDrag(e.touches[0].clientY);
 
   // Cálculos para barra de 3 pestañas portrait
-  const PORTRAIT_TAB_LABELS = ["Supercomentarios", "Chat", "Estadísticas"] as const;
+  const PORTRAIT_TAB_LABELS = [tLive("superComments"), tLive("chat"), tLive("stats")];
   const portraitTabProgress = portraitTab - tabDragOffset / (tabContainerRef.current?.offsetWidth || 1);
   const isPortraitDragging = tabDragOffset !== 0;
 
@@ -673,7 +677,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
       return (
         <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
           <span style={{ fontSize: 11, color: "rgba(255,255,255,0.18)", fontFamily: FONT }}>
-            {data.length === 0 ? "Iniciando…" : "Acumulando datos…"}
+            {data.length === 0 ? tLive("starting") : tLive("accumulating")}
           </span>
         </div>
       );
@@ -747,7 +751,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
       return (
         <div style={{ height: 40, display: "flex", alignItems: "center", justifyContent: "center" }}>
           <span style={{ fontSize: 11, color: "rgba(255,255,255,0.18)", fontFamily: FONT }}>
-            Acumulando datos…
+            {tLive("accumulating")}
           </span>
         </div>
       );
@@ -874,7 +878,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
                   transition: "color 0.2s",
                 }}
               >
-                {tab === "supercomentarios" ? "Supercomentarios" : "Estadísticas"}
+                {tab === "supercomentarios" ? tLive("superComments") : tLive("stats")}
               </button>
             );
           })}
@@ -942,17 +946,17 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
     }
 
     const stats: Array<{ id: string; value: string; sub?: string; label: string; green?: boolean }> = [
-      { id: "total",       value: fmtMoney(net(totalRevenue)),    sub: displayPeak > 0 ? `Récord ${fmtMoney(displayPeak)}` : undefined, label: "Ingreso total neto", green: true },
-      { id: "ahora",       value: viewerCount.toLocaleString("es-MX"),                                        label: "Espectadores ahora" },
-      { id: "pico",        value: peakViewerCount.toLocaleString("es-MX"),                                    label: "Pico de espectadores" },
-      { id: "unicos",      value: uniqueViewerCount > 0 ? uniqueViewerCount.toLocaleString("es-MX") : "—",    label: "Espectadores únicos" },
-      { id: "seguids",     value: newFollowers > 0 ? newFollowers.toLocaleString("es-MX") : "—",              label: "Nuevos seguidores" },
-      { id: "mensajes",    value: totalChatMessages > 0 ? totalChatMessages.toLocaleString("es-MX") : "—",    label: "Mensajes en chat" },
-      { id: "tvisto",      value: avgWatchSeconds > 0 ? formatWatchTime(avgWatchSeconds) : "—",               label: "Tiempo visto prom." },
-      { id: "donaciones",  value: fmtMoney(net(donationRevenue)), sub: `${donationCount} donacs.`,            label: "Donaciones" },
-      { id: "supercoment", value: fmtMoney(net(superRevenue)),    sub: `${superCount} SC`,                    label: "Supercomentarios" },
-      { id: "tickets",     value: fmtMoney(net(ticketRevenue)),   sub: `${ticketCount} comprados`,            label: "Tickets de acceso" },
-      { id: "vod",         value: fmtMoney(net(vodRevenue)),      sub: `${vodBuyerCount} comprados`,          label: "Ingresos VOD" },
+      { id: "total",       value: fmtMoney(net(totalRevenue)),    sub: displayPeak > 0 ? `Récord ${fmtMoney(displayPeak)}` : undefined, label: tLive("statNetRevenue"), green: true },
+      { id: "ahora",       value: viewerCount.toLocaleString("es-MX"),                                        label: tLive("statViewersNow") },
+      { id: "pico",        value: peakViewerCount.toLocaleString("es-MX"),                                    label: tLive("statPeakViewers") },
+      { id: "unicos",      value: uniqueViewerCount > 0 ? uniqueViewerCount.toLocaleString("es-MX") : "—",    label: tLive("statUniqueViewers") },
+      { id: "seguids",     value: newFollowers > 0 ? newFollowers.toLocaleString("es-MX") : "—",              label: tLive("statNewFollowers") },
+      { id: "mensajes",    value: totalChatMessages > 0 ? totalChatMessages.toLocaleString("es-MX") : "—",    label: tLive("statChatMessages") },
+      { id: "tvisto",      value: avgWatchSeconds > 0 ? formatWatchTime(avgWatchSeconds) : "—",               label: tLive("statAvgWatchTime") },
+      { id: "donaciones",  value: fmtMoney(net(donationRevenue)), sub: tLive("donationCount", { count: donationCount }),            label: tLive("statDonations") },
+      { id: "supercoment", value: fmtMoney(net(superRevenue)),    sub: `${superCount} SC`,                    label: tLive("superComments") },
+      { id: "tickets",     value: fmtMoney(net(ticketRevenue)),   sub: tLive("boughtCount", { count: ticketCount }),            label: tLive("statAccessTickets") },
+      { id: "vod",         value: fmtMoney(net(vodRevenue)),      sub: tLive("boughtCount", { count: vodBuyerCount }),          label: tLive("statVodRevenue") },
     ];
 
     return (
@@ -1005,9 +1009,9 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
     const avgRevenuePerViewer = uniqueViewerCount > 0 ? totalRevenue / uniqueViewerCount : 0;
 
     const revenueSources = [
-      { label: "Donaciones",      amount: donationRevenue, color: "#f97316" },
-      { label: "Supercomentarios", amount: superRevenue,   color: "#facc15" },
-      { label: "Tickets live",    amount: ticketRevenue,   color: "#4ade80" },
+      { label: tLive("statDonations"),      amount: donationRevenue, color: "#f97316" },
+      { label: tLive("superComments"), amount: superRevenue,   color: "#facc15" },
+      { label: tLive("statLiveTicketsLabel"),    amount: ticketRevenue,   color: "#4ade80" },
       { label: "VOD",             amount: vodRevenue,       color: "#60a5fa" },
     ].filter((s) => s.amount > 0);
 
@@ -1061,18 +1065,18 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
 
     // Todos los items arrastrables: tiles + charts
     const tileItems: Array<{ id: string; defaultX: number; defaultY: number; width: number; height: number; extra?: React.CSSProperties; content: React.ReactNode }> = [
-      { id: "ahora",       defaultX: tx(0), defaultY: R0, width: TILE2W, height: TILE, content: <><span style={val}>{viewerCount.toLocaleString("es-MX")}</span><span style={lbl}>Espectadores ahora</span></> },
-      { id: "pico",        defaultX: tx(1), defaultY: R0, width: TILE2W, height: TILE, content: <><span style={val}>{peakViewerCount.toLocaleString("es-MX")}</span><span style={lbl}>Pico de espectadores</span></> },
-      { id: "unicos",      defaultX: tx(2), defaultY: R0, width: TILE2W, height: TILE, content: <><span style={val}>{uniqueViewerCount > 0 ? uniqueViewerCount.toLocaleString("es-MX") : "—"}</span><span style={lbl}>Espectadores únicos</span></> },
-      { id: "seguids",     defaultX: tx(3), defaultY: R0, width: TILE2W, height: TILE, content: <><span style={val}>{newFollowers > 0 ? newFollowers.toLocaleString("es-MX") : "—"}</span><span style={lbl}>Nuevos seguidores</span></> },
-      { id: "mensajes",    defaultX: tx(4), defaultY: R0, width: TILE2W, height: TILE, content: <><span style={val}>{totalChatMessages > 0 ? totalChatMessages.toLocaleString("es-MX") : "—"}</span><span style={lbl}>Mensajes en chat</span></> },
-      { id: "tvisto",      defaultX: tx(5), defaultY: R0, width: TILE2W, height: TILE, content: <><span style={val}>{avgWatchSeconds > 0 ? formatWatchTime(avgWatchSeconds) : "—"}</span><span style={lbl}>Tiempo visto prom.</span></> },
+      { id: "ahora",       defaultX: tx(0), defaultY: R0, width: TILE2W, height: TILE, content: <><span style={val}>{viewerCount.toLocaleString("es-MX")}</span><span style={lbl}>{tLive("statViewersNow")}</span></> },
+      { id: "pico",        defaultX: tx(1), defaultY: R0, width: TILE2W, height: TILE, content: <><span style={val}>{peakViewerCount.toLocaleString("es-MX")}</span><span style={lbl}>{tLive("statPeakViewers")}</span></> },
+      { id: "unicos",      defaultX: tx(2), defaultY: R0, width: TILE2W, height: TILE, content: <><span style={val}>{uniqueViewerCount > 0 ? uniqueViewerCount.toLocaleString("es-MX") : "—"}</span><span style={lbl}>{tLive("statUniqueViewers")}</span></> },
+      { id: "seguids",     defaultX: tx(3), defaultY: R0, width: TILE2W, height: TILE, content: <><span style={val}>{newFollowers > 0 ? newFollowers.toLocaleString("es-MX") : "—"}</span><span style={lbl}>{tLive("statNewFollowers")}</span></> },
+      { id: "mensajes",    defaultX: tx(4), defaultY: R0, width: TILE2W, height: TILE, content: <><span style={val}>{totalChatMessages > 0 ? totalChatMessages.toLocaleString("es-MX") : "—"}</span><span style={lbl}>{tLive("statChatMessages")}</span></> },
+      { id: "tvisto",      defaultX: tx(5), defaultY: R0, width: TILE2W, height: TILE, content: <><span style={val}>{avgWatchSeconds > 0 ? formatWatchTime(avgWatchSeconds) : "—"}</span><span style={lbl}>{tLive("statAvgWatchTime")}</span></> },
       // TODO: restaurar condiciones (superCount > 0, isPaidLive && ticketCount > 0, hasVod && vodBuyerCount > 0, totalRevenue > 0) cuando el diseño esté listo
-      { id: "donaciones",  defaultX: tx(0), defaultY: R1, width: TILE2W, height: TILE, content: <><span style={val}>{fmtMoney(net(donationRevenue))}</span><span style={sub}>{donationCount} donacs.</span><span style={lbl}>Donaciones</span></> },
-      { id: "supercoment", defaultX: tx(6), defaultY: R0, width: TILE2W, height: TILE, content: <><span style={val}>{fmtMoney(net(superRevenue))}</span><span style={sub}>{superCount} SC</span><span style={lbl}>Supercomentarios</span></> },
-      { id: "tickets",     defaultX: tx(7), defaultY: R0, width: TILE2W, height: TILE, content: <><span style={val}>{fmtMoney(net(ticketRevenue))}</span><span style={sub}>{ticketCount} comprados</span><span style={lbl}>Tickets de acceso</span></> },
-      { id: "vod",         defaultX: tx(8), defaultY: R0, width: TILE2W, height: TILE, content: <><span style={val}>{fmtMoney(net(vodRevenue))}</span><span style={sub}>{vodBuyerCount} comprados</span><span style={lbl}>Ingresos VOD</span></> },
-      { id: "total",       defaultX: tx(9), defaultY: R0, width: TILE2W, height: TILE, content: (() => { const displayPeak = peakRevenue > 0 ? peakRevenue : net(totalRevenue); return <><span style={{ ...val, color: "#4ade80" }}>{fmtMoney(net(totalRevenue))}</span>{displayPeak > 0 && <span style={sub}>Récord {fmtMoney(displayPeak)}</span>}<span style={{ ...lbl, color: "#4ade80" }}>Ingreso total neto</span></>; })() },
+      { id: "donaciones",  defaultX: tx(0), defaultY: R1, width: TILE2W, height: TILE, content: <><span style={val}>{fmtMoney(net(donationRevenue))}</span><span style={sub}>{tLive("donationCount", { count: donationCount })}</span><span style={lbl}>{tLive("statDonations")}</span></> },
+      { id: "supercoment", defaultX: tx(6), defaultY: R0, width: TILE2W, height: TILE, content: <><span style={val}>{fmtMoney(net(superRevenue))}</span><span style={sub}>{superCount} SC</span><span style={lbl}>{tLive("superComments")}</span></> },
+      { id: "tickets",     defaultX: tx(7), defaultY: R0, width: TILE2W, height: TILE, content: <><span style={val}>{fmtMoney(net(ticketRevenue))}</span><span style={sub}>{tLive("boughtCount", { count: ticketCount })}</span><span style={lbl}>{tLive("statAccessTickets")}</span></> },
+      { id: "vod",         defaultX: tx(8), defaultY: R0, width: TILE2W, height: TILE, content: <><span style={val}>{fmtMoney(net(vodRevenue))}</span><span style={sub}>{tLive("boughtCount", { count: vodBuyerCount })}</span><span style={lbl}>{tLive("statVodRevenue")}</span></> },
+      { id: "total",       defaultX: tx(9), defaultY: R0, width: TILE2W, height: TILE, content: (() => { const displayPeak = peakRevenue > 0 ? peakRevenue : net(totalRevenue); return <><span style={{ ...val, color: "#4ade80" }}>{fmtMoney(net(totalRevenue))}</span>{displayPeak > 0 && <span style={sub}>Récord {fmtMoney(displayPeak)}</span>}<span style={{ ...lbl, color: "#4ade80" }}>{tLive("statNetRevenue")}</span></>; })() },
       { id: "chart_espect", defaultX: CELL*2 + OFFSET, defaultY: R1, width: CELL*7, height: CELL*2, content: <><span style={{ display: "block", ...lbl, marginBottom: 3 }}>Espectadores</span>{renderViewerChart()}</> },
       { id: "chart_activ",  defaultX: CELL*9 + OFFSET, defaultY: R1, width: CELL*7, height: CELL*2, content: <><span style={{ display: "block", ...lbl, marginBottom: 3 }}>Actividad general de tu audiencia</span>{renderHeatmap()}</> },
     ];
@@ -1461,13 +1465,13 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
           gap: 8, padding: "10px 16px", borderBottom: "1px solid rgba(255,255,255,0.06)",
         }}>
           <span style={{ fontSize: 13, fontWeight: 500, color: "#a855f7", fontFamily: FONT }}>
-            {scEnabled ? "Desactivar supercomentarios" : "Activar supercomentarios"}
+            {scEnabled ? tLive("disableSuperComments") : tLive("enableSuperComments")}
           </span>
           <button
             type="button"
             onClick={handleToggleSuperComments}
             disabled={togglingScEnabled}
-            aria-label={scEnabled ? "Desactivar supercomentarios" : "Activar supercomentarios"}
+            aria-label={scEnabled ? tLive("disableSuperComments") : tLive("enableSuperComments")}
             style={{
               border: "none", padding: 0, background: "transparent",
               cursor: togglingScEnabled ? "not-allowed" : "pointer",
@@ -1509,7 +1513,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
                 color: "#fff", fontSize: 13, fontWeight: 600, fontFamily: FONT, cursor: "pointer",
               }}
             >
-              Configuración de supercomentarios
+              {tLive("superCommentsConfig")}
             </button>
           </div>
         )}
@@ -1517,7 +1521,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
         {broadcastMode !== "direct" && broadcastMode !== "rtmp" ? (
           <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
             <span style={{ fontSize: 12, color: "rgba(255,255,255,0.2)", fontFamily: FONT, textAlign: "center", padding: "0 16px" }}>
-              Los supercomentarios solo están disponibles en transmisión directa
+              {tLive("superCommentsLiveOnly")}
             </span>
           </div>
         ) : (
@@ -1545,8 +1549,8 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
               }}
             >
               {tab === "nuevos"
-                ? `Nuevos${nuevos.length > 0 ? ` (${nuevos.length})` : ""}`
-                : `Reproducidos${reproducidos.length > 0 ? ` (${reproducidos.length})` : ""}`}
+                ? `${tLive("scNewTab")}${nuevos.length > 0 ? ` (${nuevos.length})` : ""}`
+                : `${tLive("scPlayedTab")}${reproducidos.length > 0 ? ` (${reproducidos.length})` : ""}`}
             </button>
           ))}
         </div>
@@ -1554,7 +1558,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
         {tabItems.length === 0 ? (
           <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8 }}>
             <span style={{ fontSize: 12, color: "rgba(255,255,255,0.15)", fontFamily: FONT }}>
-              {superCommentTab === "nuevos" ? "Sin supercomentarios nuevos" : "Ninguno reproducido aún"}
+              {superCommentTab === "nuevos" ? tLive("noNewSuperComments") : tLive("nonePlayedYet")}
             </span>
           </div>
         ) : (
@@ -1592,7 +1596,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
                       <button
                         type="button"
                         onClick={() => handlePlaySC(sc)}
-                        title={sc.played ? "Reproducir de nuevo" : "Reproducir"}
+                        title={sc.played ? tLive("replayAction") : tLive("playAction")}
                         style={{
                           padding: "3px 10px", borderRadius: 6, border: "none",
                           background: playingId === sc.id
@@ -1615,7 +1619,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
                         }}
                         active={sc.hidden}
                         activeColor="#f59e0b"
-                        title={sc.hidden ? "Mostrar" : "Ocultar"}
+                        title={sc.hidden ? tCommon("show") : tCommon("hide")}
                       >
                         {sc.hidden ? (
                           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -1634,7 +1638,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
                         onClick={() => deleteSuperComment(post.id, sc.id)}
                         active={false}
                         activeColor="#ef4444"
-                        title="Eliminar supercomentario"
+                        title={tLive("deleteSuperComment")}
                       >
                         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                           <polyline points="3 6 5 6 21 6" />
@@ -1647,7 +1651,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
                         onClick={() => handleBanToggle(sc.userId)}
                         active={liveData?.bannedUsers?.includes(sc.userId) ?? false}
                         activeColor="#ef4444"
-                        title={liveData?.bannedUsers?.includes(sc.userId) ? "Desbanear" : "Banear del live"}
+                        title={liveData?.bannedUsers?.includes(sc.userId) ? tLive("unban") : tLive("banFromLive")}
                       >
                         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                           <circle cx="12" cy="12" r="10" />
@@ -1696,7 +1700,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
           <polyline points="12 6 12 12 16 14" />
         </svg>
         <span style={{ fontSize: 14, fontWeight: 700, color: "rgba(255,255,255,0.85)", letterSpacing: "0.01em" }}>
-          Transmisión finalizada
+          {tLive("broadcastEnded")}
         </span>
       </div>
     );
@@ -1705,7 +1709,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
   function renderChatSection(hideHeader = false) {
     return (
       <div style={{ display: "flex", flexDirection: "column", overflow: "hidden", flex: 1, minHeight: 0 }}>
-        {!hideHeader && sectionHeader("Chat")}
+        {!hideHeader && sectionHeader(tLive("chat"))}
 
         {/* Fila activar/desactivar chat con switch — agrupados a la derecha */}
         <div style={{
@@ -1713,13 +1717,13 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
           gap: 8, padding: "10px 16px",
         }}>
           <span style={{ fontSize: 13, fontWeight: 500, color: "#a855f7", fontFamily: FONT }}>
-            {chatEnabled ? "Desactivar chat live" : "Activar chat live"}
+            {chatEnabled ? tLive("disableLiveChat") : tLive("enableLiveChat")}
           </span>
           <button
             type="button"
             onClick={handleToggleChat}
             disabled={togglingChat}
-            aria-label={chatEnabled ? "Desactivar chat" : "Activar chat"}
+            aria-label={chatEnabled ? tLive("disableChat") : tLive("enableChat")}
             style={{
               border: "none", padding: 0, background: "transparent",
               cursor: togglingChat ? "not-allowed" : "pointer",
@@ -1760,7 +1764,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
                 <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
               </svg>
               <span style={{ fontSize: 12 }}>
-                {liveStatus === "live" ? "Esperando mensajes..." : "Sin mensajes aún"}
+                {liveStatus === "live" ? tLive("waitingForMessages") : tLive("noMessagesYet")}
               </span>
             </div>
           ) : (
@@ -1915,7 +1919,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
               type="button"
               onClick={isBroadcasting ? undefined : handlePanelClose}
               disabled={isBroadcasting}
-              title={isBroadcasting ? "Detén la transmisión antes de salir" : "Cerrar"}
+              title={isBroadcasting ? tCommon("stopBroadcastBeforeLeaving") : tCommon("closeAriaLabel")}
               style={{
                 width: 32, height: 32, borderRadius: "50%",
                 border: isBroadcasting ? "1px solid rgba(239,68,68,0.4)" : "none",
@@ -1924,7 +1928,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
                 cursor: isBroadcasting ? "not-allowed" : "pointer",
                 display: "grid", placeItems: "center",
               }}
-              aria-label={isBroadcasting ? "Detén la transmisión antes de salir" : "Cerrar"}
+              aria-label={isBroadcasting ? tCommon("stopBroadcastBeforeLeaving") : tCommon("closeAriaLabel")}
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <line x1="19" y1="12" x2="5" y2="12" /><polyline points="12 19 5 12 12 5" />
@@ -1999,7 +2003,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
                   type="button"
                   onClick={isBroadcasting ? undefined : handlePanelClose}
                   disabled={isBroadcasting}
-                  title={isBroadcasting ? "Detén la transmisión antes de salir" : "Cerrar"}
+                  title={isBroadcasting ? tCommon("stopBroadcastBeforeLeaving") : tCommon("closeAriaLabel")}
                   style={{
                     width: 32, height: 32, borderRadius: "50%", flexShrink: 0,
                     border: isBroadcasting ? "1px solid rgba(168,85,255,0.4)" : "none",
@@ -2008,7 +2012,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
                     cursor: isBroadcasting ? "not-allowed" : "pointer",
                     display: "grid", placeItems: "center",
                   }}
-                  aria-label={isBroadcasting ? "Detén la transmisión antes de salir" : "Cerrar"}
+                  aria-label={isBroadcasting ? tCommon("stopBroadcastBeforeLeaving") : tCommon("closeAriaLabel")}
                 >
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                     <line x1="19" y1="12" x2="5" y2="12" /><polyline points="12 19 5 12 12 5" />
@@ -2110,7 +2114,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
               background: "#0d0d12", borderRadius: 18,
               boxShadow: "0 0 0 1px rgba(255,255,255,0.08), 0 24px 48px rgba(0,0,0,0.8)",
             }}>
-              {sectionHeader("Supercomentarios")}
+              {sectionHeader(tLive("superComments"))}
               {renderSuperCommentsSection()}
             </div>
           </div>
@@ -2349,7 +2353,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
               {renderChatSection()}
             </div>
             <div style={{ width: "clamp(150px, 38%, 240px)", flexShrink: 0, display: "flex", flexDirection: "column" }}>
-              {sectionHeader("Control")}
+              {sectionHeader(tLive("control"))}
               {comingSoon()}
             </div>
           </div>
@@ -2392,6 +2396,7 @@ type MessageRowProps = {
 };
 
 function ChatMessageRow({ msg, isMuted, isBanned, onMute, onBan, onDelete }: MessageRowProps) {
+  const tLive = useTranslations("live");
   return (
     <div style={{
       display: "flex", alignItems: "center", gap: 8,
@@ -2421,7 +2426,7 @@ function ChatMessageRow({ msg, isMuted, isBanned, onMute, onBan, onDelete }: Mes
       </span>
 
       <div style={{ display: "flex", gap: 2, flexShrink: 0, alignItems: "flex-start", marginTop: 1 }}>
-        <ModActionBtn onClick={onMute} active={isMuted} activeColor="#f59e0b" title={isMuted ? "Desmutear" : "Mutear"}>
+        <ModActionBtn onClick={onMute} active={isMuted} activeColor="#f59e0b" title={isMuted ? tLive("unmute") : tLive("mute")}>
           {isMuted ? (
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
@@ -2435,14 +2440,14 @@ function ChatMessageRow({ msg, isMuted, isBanned, onMute, onBan, onDelete }: Mes
           )}
         </ModActionBtn>
 
-        <ModActionBtn onClick={onBan} active={isBanned} activeColor="#ef4444" title={isBanned ? "Desbanear" : "Banear del live"}>
+        <ModActionBtn onClick={onBan} active={isBanned} activeColor="#ef4444" title={isBanned ? tLive("unban") : tLive("banFromLive")}>
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="12" cy="12" r="10" />
             <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
           </svg>
         </ModActionBtn>
 
-        <ModActionBtn onClick={onDelete} active={false} activeColor="#ef4444" title="Eliminar mensaje">
+        <ModActionBtn onClick={onDelete} active={false} activeColor="#ef4444" title={tLive("deleteMessage")}>
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="3 6 5 6 21 6" />
             <path d="M19 6l-1 14H6L5 6" />
@@ -2551,6 +2556,8 @@ function MuxLivePlaceholder() {
 const VOD_PLAYBACK_RATES = [0.5, 0.75, 1, 1.25, 1.5, 2];
 
 const VideoPreview = memo(function VideoPreview({ hlsUrl, fill, objectFit = "cover", showLiveBadge, autoPlay = true }: { hlsUrl: string; fill?: boolean; objectFit?: "cover" | "contain"; showLiveBadge?: boolean; autoPlay?: boolean }) {
+  const tCommon = useTranslations("common");
+  const tLive = useTranslations("live");
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
   const [muted, setMuted] = useState(true);
@@ -2709,7 +2716,7 @@ const VideoPreview = memo(function VideoPreview({ hlsUrl, fill, objectFit = "cov
     <button
       type="button"
       onClick={() => setMuted((m) => !m)}
-      title={muted ? "Activar audio" : "Silenciar"}
+      title={muted ? tCommon("unmuteLabel") : tCommon("muteLabel")}
       style={{
         position: "absolute", bottom, right,
         width: bordered ? 32 : 28, height: bordered ? 32 : 28, borderRadius: "50%",
@@ -2741,7 +2748,7 @@ const VideoPreview = memo(function VideoPreview({ hlsUrl, fill, objectFit = "cov
       <button
         type="button"
         onClick={jumpToLive}
-        aria-label="Ir al momento actual del live"
+        aria-label={tLive("goToLive")}
         style={{
           position: "absolute",
           bottom: "max(14px, env(safe-area-inset-bottom))",

@@ -2,6 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import type { CreatorServiceType } from "@/types/group";
 import { getVisibleServices, type NormalizedService } from "@/lib/services/normalizeServices";
 import type { CreatorService } from "@/types/group";
@@ -35,12 +36,15 @@ const ALLOWED_SERVICE_TYPES: CreatorServiceType[] = [
   "clase_personalizada",
 ];
 
-function getServiceLabel(type: CreatorServiceType): string {
+function getServiceLabel(
+  type: CreatorServiceType,
+  t: (key: string) => string
+): string {
   switch (type) {
     case "saludo":
-      return "Solicitar saludo";
+      return t("requestGreeting");
     case "consejo":
-      return "Solicitar consejo";
+      return t("requestAdvice");
     case "meet_greet_digital":
       return "Agendar encuentro";
     case "clase_personalizada":
@@ -134,6 +138,7 @@ export default function CreatorServicesMenu({
   viewerCanRequest = true,
   className,
 }: Props) {
+  const tServices = useTranslations("services");
   const visibleServices = getVisibleServices(services, contextType);
 
   const allowedServices = visibleServices
@@ -190,7 +195,7 @@ export default function CreatorServicesMenu({
                 groupId ?? "no-group"
               }-${service.type}`}
               href={href}
-              aria-label={getServiceLabel(service.type)}
+              aria-label={getServiceLabel(service.type, tServices)}
               style={{
                 width: "clamp(72px, 18vw, 96px)",
                 color: "#fff",
@@ -232,7 +237,7 @@ export default function CreatorServicesMenu({
                   textWrap: "balance",
                 }}
               >
-                {getServiceLabel(service.type)}
+                {getServiceLabel(service.type, tServices)}
               </span>
             </Link>
           );

@@ -1,4 +1,7 @@
+import { useTranslations } from "next-intl";
+
 export default function NotificationsPage() {
+  const t = useTranslations("notifications");
   return (
     <div
       style={{
@@ -13,7 +16,7 @@ export default function NotificationsPage() {
         padding: "24px",
       }}
     >
-      Aquí irán las notificaciones
+      {t("placeholder")}
     </div>
   );
 }

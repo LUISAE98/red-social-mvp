@@ -3,7 +3,8 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
+import { usePathname, useRouter } from "@/i18n/navigation";
 import { setNavSlideDir } from "@/lib/nav-slide";
 import { doc, getDoc } from "firebase/firestore";
 
@@ -159,6 +160,7 @@ export default function MobileBottomNav({
 }: {
   showWallet?: boolean;
 }) {
+  const t = useTranslations("nav");
   const pathname = usePathname();
   const router = useRouter();
   const { user } = useAuth();
@@ -259,7 +261,7 @@ export default function MobileBottomNav({
         key: "home",
         href: "/",
         active: pathname === "/" || pathname === "/home" || pathname.startsWith("/feed"),
-        label: "Home",
+        label: t("home"),
         type: "icon",
         iconKey: "home",
       },
@@ -267,7 +269,7 @@ export default function MobileBottomNav({
         key: "groups",
         href: "/groups",
         active: pathname.startsWith("/groups"),
-        label: "Mis comunidades",
+        label: t("groups"),
         type: "icon",
         iconKey: "groups",
       },
@@ -277,7 +279,7 @@ export default function MobileBottomNav({
       key: "notifications",
       href: "/notifications",
       active: pathname.startsWith("/notifications"),
-      label: "Notificaciones",
+      label: t("notifications"),
       type: "icon",
       iconKey: "notifications",
     });
@@ -287,7 +289,7 @@ export default function MobileBottomNav({
         key: "wallet",
         href: "/wallet/finanzas",
         active: pathname.startsWith("/wallet"),
-        label: "Wallet",
+        label: t("wallet"),
         type: "icon",
         iconKey: "wallet",
       });
@@ -297,7 +299,7 @@ export default function MobileBottomNav({
       key: "profile",
       href: profileHref,
       active: handle ? (pathname === `/u/${handle}` || pathname.startsWith(`/u/${handle}/`)) : false,
-      label: "Mi perfil",
+      label: t("profile"),
       type: "avatar",
     });
 
@@ -405,7 +407,7 @@ export default function MobileBottomNav({
         }
       `}</style>
 
-      <nav className="wrap" aria-label="Navegación móvil inferior">
+      <nav className="wrap" aria-label={t("mobileNavLabel")}>
         <div
           className="navShell"
           style={{

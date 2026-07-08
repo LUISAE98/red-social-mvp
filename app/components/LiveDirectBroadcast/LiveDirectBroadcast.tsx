@@ -1,5 +1,6 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import { getAuth } from "firebase/auth";
 const FONT = "inherit";
 
@@ -25,6 +26,7 @@ export default function LiveDirectBroadcast({
   onHeadphonesChange,
   micMutedForTTS,
 }: Props) {
+  const tLive = useTranslations("live");
   const hiddenVideoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -500,7 +502,7 @@ export default function LiveDirectBroadcast({
         await (screen.orientation as any).lock?.(currentPortrait ? "portrait" : "landscape");
       } catch { /* not supported on iOS */ }
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Error desconocido al iniciar";
+      const msg = err instanceof Error ? err.message : tLive("broadcastStartError");
       setError(msg);
       setStatus("error");
       onBroadcastingChange?.(false);
@@ -617,7 +619,7 @@ export default function LiveDirectBroadcast({
         background: "rgba(0,0,0,0.85)",
         borderTop: "1px solid rgba(255,255,255,0.08)",
       }}>
-        <ControlBtn onClick={toggleMic} disabled={!hasMedia} active={micMuted} title={micMuted ? "Activar micrófono" : "Silenciar micrófono"}>
+        <ControlBtn onClick={toggleMic} disabled={!hasMedia} active={micMuted} title={micMuted ? tLive("micUnmute") : tLive("micMute")}>
           {micMuted ? (
             <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
               <line x1="1" y1="1" x2="23" y2="23" />
@@ -634,7 +636,7 @@ export default function LiveDirectBroadcast({
           )}
         </ControlBtn>
 
-        <ControlBtn onClick={toggleCam} disabled={!hasMedia} active={camOff} title={camOff ? "Activar cámara" : "Apagar cámara"}>
+        <ControlBtn onClick={toggleCam} disabled={!hasMedia} active={camOff} title={camOff ? tLive("camOn") : tLive("camOff")}>
           {camOff ? (
             <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
               <path d="M16 16v1a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2m5.66 0H14a2 2 0 0 1 2 2v3.34l1 1L23 7v10" />
@@ -657,7 +659,7 @@ export default function LiveDirectBroadcast({
             background: "#ef4444",
             color: "#fff", fontSize: 14, fontWeight: 600, letterSpacing: "-0.01em", cursor: "pointer", fontFamily: FONT,
           }}>
-            Detener transmisión
+            {tLive("stopBroadcast")}
           </button>
         ) : (
           <button type="button" onClick={startBroadcast} disabled={status === "connecting" || !hasMedia} style={{
@@ -669,7 +671,7 @@ export default function LiveDirectBroadcast({
             cursor: (status === "connecting" || !hasMedia) ? "not-allowed" : "pointer",
             fontFamily: FONT,
           }}>
-            {status === "connecting" ? "Conectando…" : "Iniciar transmisión"}
+            {status === "connecting" ? tLive("connecting") : tLive("startBroadcast")}
           </button>
         )}
       </div>

@@ -2,11 +2,12 @@
 
 import type React from "react";
 import { usePathname } from "next/navigation";
+import { stripLocalePrefix } from "@/lib/localePath";
 import { useAuth } from "../providers";
 
 export default function VibraGlobalBackground() {
   const { authTransitionMode } = useAuth();
-  const pathname = usePathname();
+  const pathname = stripLocalePrefix(usePathname());
 
   const isAuthPage =
     pathname === "/login" ||

@@ -27,6 +27,7 @@ import {
 } from "@/lib/groups/groupModeration";
 import { useReport } from "@/lib/moderation/useReport";
 import ReportModal from "@/app/components/ReportModal/ReportModal";
+import { useTranslations } from "next-intl";
 
 type PostCommentThreadProps = {
   postId: string;
@@ -83,25 +84,29 @@ function getDateFromTimestamp(value?: { toDate?: () => Date } | null) {
   }
 }
 
-function formatExactDate(value?: { toDate?: () => Date } | null) {
-  const date = getDateFromTimestamp(value);
+type TFunc = (key: string, params?: Record<string, number | string>) => string;
 
-  if (!date) return "Fecha no disponible";
+function formatExactDate(value?: { toDate?: () => Date } | null, t?: TFunc, locale?: string) {
+  const date = getDateFromTimestamp(value);
+  const unavailable = t ? t("dateUnavailable") : "Fecha no disponible";
+
+  if (!date) return unavailable;
 
   try {
-    return new Intl.DateTimeFormat("es-MX", {
+    return new Intl.DateTimeFormat(locale ?? "es-MX", {
       dateStyle: "medium",
       timeStyle: "short",
     }).format(date);
   } catch {
-    return "Fecha no disponible";
+    return unavailable;
   }
 }
 
-function formatRelativeDate(value?: { toDate?: () => Date } | null) {
+function formatRelativeDate(value?: { toDate?: () => Date } | null, t?: TFunc) {
   const date = getDateFromTimestamp(value);
+  const now = t ? t("dateNow") : "Ahora mismo";
 
-  if (!date) return "Ahora mismo";
+  if (!date) return now;
 
   const diffMs = Date.now() - date.getTime();
   const diffSeconds = Math.max(0, Math.floor(diffMs / 1000));
@@ -112,26 +117,31 @@ function formatRelativeDate(value?: { toDate?: () => Date } | null) {
   const diffMonths = Math.floor(diffDays / 30);
   const diffYears = Math.floor(diffDays / 365);
 
-  if (diffSeconds < 30) return "Ahora mismo";
-  if (diffSeconds < 60) return `hace ${diffSeconds} segundos`;
+  if (!t) {
+    if (diffSeconds < 30) return "Ahora mismo";
+    if (diffSeconds < 60) return `hace ${diffSeconds} segundos`;
+    if (diffMinutes === 1) return "hace 1 minuto";
+    if (diffMinutes < 60) return `hace ${diffMinutes} minutos`;
+    if (diffHours === 1) return "hace 1 hora";
+    if (diffHours < 24) return `hace ${diffHours} horas`;
+    if (diffDays === 1) return "hace 1 día";
+    if (diffDays < 7) return `hace ${diffDays} días`;
+    if (diffWeeks === 1) return "hace 1 semana";
+    if (diffWeeks < 5) return `hace ${diffWeeks} semanas`;
+    if (diffMonths === 1) return "hace 1 mes";
+    if (diffMonths < 12) return `hace ${diffMonths} meses`;
+    if (diffYears === 1) return "hace 1 año";
+    return `hace ${diffYears} años`;
+  }
 
-  if (diffMinutes === 1) return "hace 1 minuto";
-  if (diffMinutes < 60) return `hace ${diffMinutes} minutos`;
-
-  if (diffHours === 1) return "hace 1 hora";
-  if (diffHours < 24) return `hace ${diffHours} horas`;
-
-  if (diffDays === 1) return "hace 1 día";
-  if (diffDays < 7) return `hace ${diffDays} días`;
-
-  if (diffWeeks === 1) return "hace 1 semana";
-  if (diffWeeks < 5) return `hace ${diffWeeks} semanas`;
-
-  if (diffMonths === 1) return "hace 1 mes";
-  if (diffMonths < 12) return `hace ${diffMonths} meses`;
-
-  if (diffYears === 1) return "hace 1 año";
-  return `hace ${diffYears} años`;
+  if (diffSeconds < 30) return now;
+  if (diffSeconds < 60) return t("dateSecondsAgo", { count: diffSeconds });
+  if (diffMinutes < 60) return t("dateMinutesAgo", { count: diffMinutes });
+  if (diffHours < 24) return t("dateHoursAgo", { count: diffHours });
+  if (diffDays < 7) return t("dateDaysAgo", { count: diffDays });
+  if (diffWeeks < 5) return t("dateWeeksAgo", { count: diffWeeks });
+  if (diffMonths < 12) return t("dateMonthsAgo", { count: diffMonths });
+  return t("dateYearsAgo", { count: diffYears });
 }
 
 const URL_REGEX = /(https?:\/\/[^\s]+)/g;
@@ -160,13 +170,13 @@ function getAuthorInfo(entity: {
   authorName?: string;
   authorAvatarUrl?: string | null;
   authorUsername?: string | null;
-}) {
+}, fallback?: string) {
   const authorId = entity.authorId || "";
 
   const authorName =
     typeof entity.authorName === "string" && entity.authorName.trim().length > 0
       ? entity.authorName.trim()
-      : authorId || "Usuario";
+      : authorId || (fallback ?? "Usuario");
 
   const avatarUrl =
     typeof entity.authorAvatarUrl === "string" &&
@@ -522,6 +532,9 @@ function ReplyActionsPortal({
   onError: (msg: string | null) => void;
   onReport?: () => void;
 }) {
+  const tGroups = useTranslations("groups");
+  const tCommon = useTranslations("common");
+
   const isOwnReply = currentUserId === reply.authorId;
   const canDeleteReply = isOwner || isModerator || isOwnReply;
   const canEditReply = isOwnReply && editingReplyId !== reply.id;
@@ -551,16 +564,16 @@ function ReplyActionsPortal({
 
   async function handleBlockInGroup() {
     if (blockLoading) return;
-    const confirmed = window.confirm("¿Seguro que quieres bloquear a este usuario en este grupo?");
+    const confirmed = window.confirm(tGroups("confirmBlockInGroup"));
     if (!confirmed) return;
     try { onError(null); await block(); onClose(); await onBlockComplete?.(); }
-    catch (e: unknown) { onError((e as Error)?.message ?? "No se pudo bloquear en este grupo."); }
+    catch (e: unknown) { onError((e as Error)?.message ?? tGroups("errorBlockInGroup")); }
   }
 
   async function handleUnblockInGroup() {
     if (blockLoading) return;
     try { onError(null); await unblock(); onClose(); await onBlockComplete?.(); }
-    catch (e: unknown) { onError((e as Error)?.message ?? "No se pudo desbloquear en este grupo."); }
+    catch (e: unknown) { onError((e as Error)?.message ?? tGroups("errorUnblockInGroup")); }
   }
 
   async function handleMuteConfirm() {
@@ -572,67 +585,67 @@ function ReplyActionsPortal({
       setMuteModalOpen(false);
       onClose();
       await onModerationComplete?.();
-    } catch (e: unknown) { onError((e as Error)?.message ?? "No se pudo mutear al usuario."); }
+    } catch (e: unknown) { onError((e as Error)?.message ?? tGroups("errorMuteUser")); }
     finally { setModerationBusy(false); }
   }
 
   async function handleUnmute() {
     if (!groupId || moderationBusy) return;
-    if (!window.confirm("¿Quitar el mute a este usuario?")) return;
+    if (!window.confirm(tGroups("confirmUnmuteUser"))) return;
     try {
       setModerationBusy(true);
       await unmuteGroupMember(groupId, reply.authorId);
       onClose();
       await onModerationComplete?.();
-    } catch (e: unknown) { onError((e as Error)?.message ?? "No se pudo quitar el mute."); }
+    } catch (e: unknown) { onError((e as Error)?.message ?? tGroups("errorUnmuteUser")); }
     finally { setModerationBusy(false); }
   }
 
   async function handleBan() {
     if (!groupId || moderationBusy) return;
-    if (!window.confirm("¿Seguro que quieres banear a este usuario de la comunidad?")) return;
+    if (!window.confirm(tGroups("confirmBanUser"))) return;
     try {
       setModerationBusy(true);
       await banGroupMember(groupId, reply.authorId);
       onClose();
       await onModerationComplete?.();
-    } catch (e: unknown) { onError((e as Error)?.message ?? "No se pudo banear al usuario."); }
+    } catch (e: unknown) { onError((e as Error)?.message ?? tGroups("errorBanUser")); }
     finally { setModerationBusy(false); }
   }
 
   async function handleUnban() {
     if (!groupId || moderationBusy) return;
-    if (!window.confirm("¿Quitar el ban a este usuario?")) return;
+    if (!window.confirm(tGroups("confirmUnbanUser"))) return;
     try {
       setModerationBusy(true);
       await unbanGroupMember(groupId, reply.authorId);
       onClose();
       await onModerationComplete?.();
-    } catch (e: unknown) { onError((e as Error)?.message ?? "No se pudo quitar el ban."); }
+    } catch (e: unknown) { onError((e as Error)?.message ?? tGroups("errorUnbanUser")); }
     finally { setModerationBusy(false); }
   }
 
   async function handleRemove() {
     if (!groupId || moderationBusy) return;
-    if (!window.confirm("¿Seguro que quieres expulsar a este usuario de la comunidad?")) return;
+    if (!window.confirm(tGroups("confirmRemoveUser"))) return;
     try {
       setModerationBusy(true);
       await removeGroupMember(groupId, reply.authorId);
       onClose();
       await onModerationComplete?.();
-    } catch (e: unknown) { onError((e as Error)?.message ?? "No se pudo expulsar al usuario."); }
+    } catch (e: unknown) { onError((e as Error)?.message ?? tGroups("errorRemoveUser")); }
     finally { setModerationBusy(false); }
   }
 
   async function handleSocialBlock() {
-    if (!window.confirm("¿Seguro que quieres bloquear el perfil de este usuario?")) return;
+    if (!window.confirm(tCommon("confirmBlockProfile"))) return;
     try { await socialBlock(); onClose(); }
-    catch (e: unknown) { onError((e as Error)?.message ?? "No se pudo bloquear el perfil."); }
+    catch (e: unknown) { onError((e as Error)?.message ?? tCommon("errorBlockProfile")); }
   }
 
   async function handleSocialUnblock() {
     try { await socialUnblock(); onClose(); }
-    catch (e: unknown) { onError((e as Error)?.message ?? "No se pudo desbloquear el perfil."); }
+    catch (e: unknown) { onError((e as Error)?.message ?? tCommon("errorUnblockProfile")); }
   }
 
   const items: React.ReactNode[] = [];
@@ -640,7 +653,7 @@ function ReplyActionsPortal({
   if (canEditReply) {
     items.push(
       <ActionMenuItem key="edit" index={items.length} onClick={() => { onStartEdit(); onClose(); }}>
-        Editar respuesta
+        {tGroups("editReply")}
       </ActionMenuItem>,
     );
   }
@@ -649,21 +662,21 @@ function ReplyActionsPortal({
     items.push(
       <ActionMenuItem key="delete" index={items.length} danger disabled={deletingReplyId === reply.id}
         onClick={() => { onDelete(); onClose(); }}>
-        {deletingReplyId === reply.id ? "Eliminando..." : "Eliminar respuesta"}
+        {deletingReplyId === reply.id ? tGroups("deleting") : tGroups("deleteReply")}
       </ActionMenuItem>,
     );
   }
 
   if (canModerateMember && authorStatus !== "removed") {
     if (authorStatus === "muted") {
-      items.push(<ActionMenuItem key="unmute" index={items.length} disabled={moderationBusy} onClick={handleUnmute}>{moderationBusy ? "Procesando..." : "Quitar mute"}</ActionMenuItem>);
-      items.push(<ActionMenuItem key="ban" index={items.length} danger disabled={moderationBusy} onClick={handleBan}>{moderationBusy ? "Procesando..." : "Banear"}</ActionMenuItem>);
+      items.push(<ActionMenuItem key="unmute" index={items.length} disabled={moderationBusy} onClick={handleUnmute}>{moderationBusy ? tGroups("processing") : tGroups("unmute")}</ActionMenuItem>);
+      items.push(<ActionMenuItem key="ban" index={items.length} danger disabled={moderationBusy} onClick={handleBan}>{moderationBusy ? tGroups("processing") : tGroups("ban")}</ActionMenuItem>);
     } else if (authorStatus === "banned") {
-      items.push(<ActionMenuItem key="unban" index={items.length} disabled={moderationBusy} onClick={handleUnban}>{moderationBusy ? "Procesando..." : "Quitar ban"}</ActionMenuItem>);
+      items.push(<ActionMenuItem key="unban" index={items.length} disabled={moderationBusy} onClick={handleUnban}>{moderationBusy ? tGroups("processing") : tGroups("unban")}</ActionMenuItem>);
     } else {
-      items.push(<ActionMenuItem key="mute" index={items.length} disabled={moderationBusy} onClick={() => setMuteModalOpen(true)}>Mutear</ActionMenuItem>);
-      items.push(<ActionMenuItem key="ban" index={items.length} danger disabled={moderationBusy} onClick={handleBan}>{moderationBusy ? "Procesando..." : "Banear"}</ActionMenuItem>);
-      items.push(<ActionMenuItem key="remove" index={items.length} danger disabled={moderationBusy} onClick={handleRemove}>{moderationBusy ? "Procesando..." : "Expulsar"}</ActionMenuItem>);
+      items.push(<ActionMenuItem key="mute" index={items.length} disabled={moderationBusy} onClick={() => setMuteModalOpen(true)}>{tGroups("mute")}</ActionMenuItem>);
+      items.push(<ActionMenuItem key="ban" index={items.length} danger disabled={moderationBusy} onClick={handleBan}>{moderationBusy ? tGroups("processing") : tGroups("ban")}</ActionMenuItem>);
+      items.push(<ActionMenuItem key="remove" index={items.length} danger disabled={moderationBusy} onClick={handleRemove}>{moderationBusy ? tGroups("processing") : tGroups("remove")}</ActionMenuItem>);
     }
   }
 
@@ -671,7 +684,7 @@ function ReplyActionsPortal({
     items.push(
       <ActionMenuItem key="group-block" index={items.length} disabled={blockLoading}
         onClick={groupBlockRel.hasBlocked ? handleUnblockInGroup : handleBlockInGroup}>
-        {blockLoading ? "Procesando..." : groupBlockRel.hasBlocked ? "Desbloquear en este grupo" : "Bloquear en este grupo"}
+        {blockLoading ? tGroups("processing") : groupBlockRel.hasBlocked ? tGroups("unblockInGroup") : tGroups("blockInGroup")}
       </ActionMenuItem>,
     );
   }
@@ -680,7 +693,7 @@ function ReplyActionsPortal({
     items.push(
       <ActionMenuItem key="social-block" index={items.length} disabled={socialLoading}
         onClick={socialRel.hasBlocked ? handleSocialUnblock : handleSocialBlock}>
-        {socialLoading ? "Procesando..." : socialRel.hasBlocked ? "Desbloquear de mi perfil" : "Bloquear de mi perfil"}
+        {socialLoading ? tGroups("processing") : socialRel.hasBlocked ? tGroups("unblockProfile") : tGroups("blockProfile")}
       </ActionMenuItem>,
     );
   }
@@ -689,7 +702,7 @@ function ReplyActionsPortal({
     items.push(
       <ActionMenuItem key="report" index={items.length}
         onClick={() => { onClose(); onReport(); }}>
-        Reportar respuesta
+        {tGroups("reportReply")}
       </ActionMenuItem>,
     );
   }
@@ -708,19 +721,18 @@ function ReplyActionsPortal({
       {muteModalOpen && typeof document !== "undefined" && createPortal(
         <div style={MUTE_MODAL_STYLES.backdrop} onClick={() => !moderationBusy && setMuteModalOpen(false)}>
           <div style={{ ...MUTE_MODAL_STYLES.card, fontFamily: fontStack }} onClick={(e) => e.stopPropagation()}>
-            <h3 style={MUTE_MODAL_STYLES.title}>Mutear integrante</h3>
+            <h3 style={MUTE_MODAL_STYLES.title}>{tGroups("muteModalTitle")}</h3>
             <p style={MUTE_MODAL_STYLES.text}>
-              Elige durante cuántos días quieres mutear a{" "}
-              <strong>{reply.authorName ?? "este usuario"}</strong>.
+              {tGroups("muteModalText", { name: reply.authorName ?? tGroups("muteModalThisUser") })}
             </p>
             <input type="number" min={1} max={365} value={muteDays} onChange={(e) => setMuteDays(e.target.value)}
-              style={{ ...MUTE_MODAL_STYLES.input, fontFamily: fontStack }} placeholder="Ej. 7" disabled={moderationBusy} />
+              style={{ ...MUTE_MODAL_STYLES.input, fontFamily: fontStack }} placeholder={tGroups("muteModalPlaceholder")} disabled={moderationBusy} />
             <div style={MUTE_MODAL_STYLES.row}>
               <button type="button" onClick={() => setMuteModalOpen(false)} disabled={moderationBusy}
-                style={{ ...MUTE_MODAL_STYLES.cancelBtn, fontFamily: fontStack }}>Cancelar</button>
+                style={{ ...MUTE_MODAL_STYLES.cancelBtn, fontFamily: fontStack }}>{tCommon("cancel")}</button>
               <button type="button" onClick={handleMuteConfirm} disabled={moderationBusy || !muteValid}
                 style={{ ...(moderationBusy || !muteValid ? MUTE_MODAL_STYLES.disabledBtn : MUTE_MODAL_STYLES.primaryBtn), fontFamily: fontStack }}>
-                {moderationBusy ? "Aplicando..." : "Aplicar mute"}
+                {moderationBusy ? tGroups("muteModalApplying") : tGroups("muteModalApply")}
               </button>
             </div>
           </div>
@@ -771,6 +783,9 @@ function CommentActionsPortal({
   onError: (msg: string | null) => void;
   onReport?: () => void;
 }) {
+  const tGroups = useTranslations("groups");
+  const tCommon = useTranslations("common");
+
   const isOwnComment = currentUserId === comment.authorId;
   const canEditOwnComment = isOwnComment;
   const canDeleteComment = isOwner || isModerator || isPostAuthor || isOwnComment;
@@ -799,16 +814,16 @@ function CommentActionsPortal({
 
   async function handleBlockInGroup() {
     if (groupBlockLoading) return;
-    const confirmed = window.confirm("¿Seguro que quieres bloquear a este usuario en este grupo?");
+    const confirmed = window.confirm(tGroups("confirmBlockInGroup"));
     if (!confirmed) return;
     try { onError(null); await blockInGroup(); onClose(); await onBlockComplete?.(); }
-    catch (e: unknown) { onError((e as Error)?.message ?? "No se pudo bloquear en este grupo."); }
+    catch (e: unknown) { onError((e as Error)?.message ?? tGroups("errorBlockInGroup")); }
   }
 
   async function handleUnblockInGroup() {
     if (groupBlockLoading) return;
     try { onError(null); await unblockInGroup(); onClose(); await onBlockComplete?.(); }
-    catch (e: unknown) { onError((e as Error)?.message ?? "No se pudo desbloquear en este grupo."); }
+    catch (e: unknown) { onError((e as Error)?.message ?? tGroups("errorUnblockInGroup")); }
   }
 
   async function handleMuteConfirm() {
@@ -820,67 +835,67 @@ function CommentActionsPortal({
       setMuteModalOpen(false);
       onClose();
       await onModerationComplete?.();
-    } catch (e: unknown) { onError((e as Error)?.message ?? "No se pudo mutear al usuario."); }
+    } catch (e: unknown) { onError((e as Error)?.message ?? tGroups("errorMuteUser")); }
     finally { setModerationBusy(false); }
   }
 
   async function handleUnmute() {
     if (!groupId || moderationBusy) return;
-    if (!window.confirm("¿Quitar el mute a este usuario?")) return;
+    if (!window.confirm(tGroups("confirmUnmuteUser"))) return;
     try {
       setModerationBusy(true);
       await unmuteGroupMember(groupId, comment.authorId);
       onClose();
       await onModerationComplete?.();
-    } catch (e: unknown) { onError((e as Error)?.message ?? "No se pudo quitar el mute."); }
+    } catch (e: unknown) { onError((e as Error)?.message ?? tGroups("errorUnmuteUser")); }
     finally { setModerationBusy(false); }
   }
 
   async function handleBan() {
     if (!groupId || moderationBusy) return;
-    if (!window.confirm("¿Seguro que quieres banear a este usuario de la comunidad?")) return;
+    if (!window.confirm(tGroups("confirmBanUser"))) return;
     try {
       setModerationBusy(true);
       await banGroupMember(groupId, comment.authorId);
       onClose();
       await onModerationComplete?.();
-    } catch (e: unknown) { onError((e as Error)?.message ?? "No se pudo banear al usuario."); }
+    } catch (e: unknown) { onError((e as Error)?.message ?? tGroups("errorBanUser")); }
     finally { setModerationBusy(false); }
   }
 
   async function handleUnban() {
     if (!groupId || moderationBusy) return;
-    if (!window.confirm("¿Quitar el ban a este usuario?")) return;
+    if (!window.confirm(tGroups("confirmUnbanUser"))) return;
     try {
       setModerationBusy(true);
       await unbanGroupMember(groupId, comment.authorId);
       onClose();
       await onModerationComplete?.();
-    } catch (e: unknown) { onError((e as Error)?.message ?? "No se pudo quitar el ban."); }
+    } catch (e: unknown) { onError((e as Error)?.message ?? tGroups("errorUnbanUser")); }
     finally { setModerationBusy(false); }
   }
 
   async function handleRemove() {
     if (!groupId || moderationBusy) return;
-    if (!window.confirm("¿Seguro que quieres expulsar a este usuario de la comunidad?")) return;
+    if (!window.confirm(tGroups("confirmRemoveUser"))) return;
     try {
       setModerationBusy(true);
       await removeGroupMember(groupId, comment.authorId);
       onClose();
       await onModerationComplete?.();
-    } catch (e: unknown) { onError((e as Error)?.message ?? "No se pudo expulsar al usuario."); }
+    } catch (e: unknown) { onError((e as Error)?.message ?? tGroups("errorRemoveUser")); }
     finally { setModerationBusy(false); }
   }
 
   async function handleSocialBlock() {
-    if (!window.confirm("¿Seguro que quieres bloquear el perfil de este usuario?")) return;
+    if (!window.confirm(tCommon("confirmBlockProfile"))) return;
     try { await socialBlock(); onClose(); }
-    catch (e: unknown) { onError((e as Error)?.message ?? "No se pudo bloquear el perfil."); }
+    catch (e: unknown) { onError((e as Error)?.message ?? tCommon("errorBlockProfile")); }
   }
 
   async function handleSocialUnblock() {
     try { await socialUnblock(); onClose(); }
-    catch (e: unknown) { onError((e as Error)?.message ?? "No se pudo desbloquear el perfil."); }
+    catch (e: unknown) { onError((e as Error)?.message ?? tCommon("errorUnblockProfile")); }
   }
 
   const items: React.ReactNode[] = [];
@@ -888,7 +903,7 @@ function CommentActionsPortal({
   if (canEditOwnComment && !editingComment) {
     items.push(
       <ActionMenuItem key="edit" index={items.length} onClick={() => { onStartEdit(); onClose(); }}>
-        Editar comentario
+        {tGroups("editComment")}
       </ActionMenuItem>,
     );
   }
@@ -897,21 +912,21 @@ function CommentActionsPortal({
     items.push(
       <ActionMenuItem key="delete" index={items.length} danger disabled={deletingCommentId === comment.id}
         onClick={() => { onClose(); onDelete(); }}>
-        {deletingCommentId === comment.id ? "Eliminando..." : "Eliminar comentario"}
+        {deletingCommentId === comment.id ? tGroups("deleting") : tGroups("deleteComment")}
       </ActionMenuItem>,
     );
   }
 
   if (canModerateMember && authorStatus !== "removed") {
     if (authorStatus === "muted") {
-      items.push(<ActionMenuItem key="unmute" index={items.length} disabled={moderationBusy} onClick={handleUnmute}>{moderationBusy ? "Procesando..." : "Quitar mute"}</ActionMenuItem>);
-      items.push(<ActionMenuItem key="ban" index={items.length} danger disabled={moderationBusy} onClick={handleBan}>{moderationBusy ? "Procesando..." : "Banear"}</ActionMenuItem>);
+      items.push(<ActionMenuItem key="unmute" index={items.length} disabled={moderationBusy} onClick={handleUnmute}>{moderationBusy ? tGroups("processing") : tGroups("unmute")}</ActionMenuItem>);
+      items.push(<ActionMenuItem key="ban" index={items.length} danger disabled={moderationBusy} onClick={handleBan}>{moderationBusy ? tGroups("processing") : tGroups("ban")}</ActionMenuItem>);
     } else if (authorStatus === "banned") {
-      items.push(<ActionMenuItem key="unban" index={items.length} disabled={moderationBusy} onClick={handleUnban}>{moderationBusy ? "Procesando..." : "Quitar ban"}</ActionMenuItem>);
+      items.push(<ActionMenuItem key="unban" index={items.length} disabled={moderationBusy} onClick={handleUnban}>{moderationBusy ? tGroups("processing") : tGroups("unban")}</ActionMenuItem>);
     } else {
-      items.push(<ActionMenuItem key="mute" index={items.length} disabled={moderationBusy} onClick={() => setMuteModalOpen(true)}>Mutear</ActionMenuItem>);
-      items.push(<ActionMenuItem key="ban" index={items.length} danger disabled={moderationBusy} onClick={handleBan}>{moderationBusy ? "Procesando..." : "Banear"}</ActionMenuItem>);
-      items.push(<ActionMenuItem key="remove" index={items.length} danger disabled={moderationBusy} onClick={handleRemove}>{moderationBusy ? "Procesando..." : "Expulsar"}</ActionMenuItem>);
+      items.push(<ActionMenuItem key="mute" index={items.length} disabled={moderationBusy} onClick={() => setMuteModalOpen(true)}>{tGroups("mute")}</ActionMenuItem>);
+      items.push(<ActionMenuItem key="ban" index={items.length} danger disabled={moderationBusy} onClick={handleBan}>{moderationBusy ? tGroups("processing") : tGroups("ban")}</ActionMenuItem>);
+      items.push(<ActionMenuItem key="remove" index={items.length} danger disabled={moderationBusy} onClick={handleRemove}>{moderationBusy ? tGroups("processing") : tGroups("remove")}</ActionMenuItem>);
     }
   }
 
@@ -919,7 +934,7 @@ function CommentActionsPortal({
     items.push(
       <ActionMenuItem key="group-block" index={items.length} danger={!groupBlockRel.hasBlocked} disabled={groupBlockLoading}
         onClick={groupBlockRel.hasBlocked ? handleUnblockInGroup : handleBlockInGroup}>
-        {groupBlockLoading ? "Procesando..." : groupBlockRel.hasBlocked ? "Desbloquear en este grupo" : "Bloquear en este grupo"}
+        {groupBlockLoading ? tGroups("processing") : groupBlockRel.hasBlocked ? tGroups("unblockInGroup") : tGroups("blockInGroup")}
       </ActionMenuItem>,
     );
   }
@@ -928,7 +943,7 @@ function CommentActionsPortal({
     items.push(
       <ActionMenuItem key="social-block" index={items.length} disabled={socialLoading}
         onClick={socialRel.hasBlocked ? handleSocialUnblock : handleSocialBlock}>
-        {socialLoading ? "Procesando..." : socialRel.hasBlocked ? "Desbloquear de mi perfil" : "Bloquear de mi perfil"}
+        {socialLoading ? tGroups("processing") : socialRel.hasBlocked ? tGroups("unblockProfile") : tGroups("blockProfile")}
       </ActionMenuItem>,
     );
   }
@@ -937,7 +952,7 @@ function CommentActionsPortal({
     items.push(
       <ActionMenuItem key="report" index={items.length}
         onClick={() => { onClose(); onReport(); }}>
-        Reportar comentario
+        {tGroups("reportComment")}
       </ActionMenuItem>,
     );
   }
@@ -956,19 +971,18 @@ function CommentActionsPortal({
       {muteModalOpen && typeof document !== "undefined" && createPortal(
         <div style={MUTE_MODAL_STYLES.backdrop} onClick={() => !moderationBusy && setMuteModalOpen(false)}>
           <div style={{ ...MUTE_MODAL_STYLES.card, fontFamily: fontStack }} onClick={(e) => e.stopPropagation()}>
-            <h3 style={MUTE_MODAL_STYLES.title}>Mutear integrante</h3>
+            <h3 style={MUTE_MODAL_STYLES.title}>{tGroups("muteModalTitle")}</h3>
             <p style={MUTE_MODAL_STYLES.text}>
-              Elige durante cuántos días quieres mutear a{" "}
-              <strong>{comment.authorName ?? "este usuario"}</strong>.
+              {tGroups("muteModalText", { name: comment.authorName ?? tGroups("muteModalThisUser") })}
             </p>
             <input type="number" min={1} max={365} value={muteDays} onChange={(e) => setMuteDays(e.target.value)}
-              style={{ ...MUTE_MODAL_STYLES.input, fontFamily: fontStack }} placeholder="Ej. 7" disabled={moderationBusy} />
+              style={{ ...MUTE_MODAL_STYLES.input, fontFamily: fontStack }} placeholder={tGroups("muteModalPlaceholder")} disabled={moderationBusy} />
             <div style={MUTE_MODAL_STYLES.row}>
               <button type="button" onClick={() => setMuteModalOpen(false)} disabled={moderationBusy}
-                style={{ ...MUTE_MODAL_STYLES.cancelBtn, fontFamily: fontStack }}>Cancelar</button>
+                style={{ ...MUTE_MODAL_STYLES.cancelBtn, fontFamily: fontStack }}>{tCommon("cancel")}</button>
               <button type="button" onClick={handleMuteConfirm} disabled={moderationBusy || !muteValid}
                 style={{ ...(moderationBusy || !muteValid ? MUTE_MODAL_STYLES.disabledBtn : MUTE_MODAL_STYLES.primaryBtn), fontFamily: fontStack }}>
-                {moderationBusy ? "Aplicando..." : "Aplicar mute"}
+                {moderationBusy ? tGroups("muteModalApplying") : tGroups("muteModalApply")}
               </button>
             </div>
           </div>
@@ -999,6 +1013,8 @@ export default function PostCommentThread({
   onModerationComplete,
   showAdminDetails = false,
 }: PostCommentThreadProps) {
+  const tCommon = useTranslations("common");
+  const tPosts = useTranslations("posts");
   const { reportTarget, openReport, closeReport } = useReport();
   const [replies, setReplies] = useState<CommentReply[] | null>(null);
   const [loadingReplies, setLoadingReplies] = useState(false);
@@ -1053,7 +1069,7 @@ export default function PostCommentThread({
     return () => document.removeEventListener("keydown", handler);
   }, [replyActionsMenuOpenId]);
 
-  const author = getAuthorInfo(comment);
+  const author = getAuthorInfo(comment, tCommon("user"));
   const isOwnComment = currentUserId === comment.authorId;
   const canDeleteComment = isOwner || isModerator || isPostAuthor || isOwnComment;
   const canEditOwnComment = isOwnComment;
@@ -1070,7 +1086,7 @@ export default function PostCommentThread({
       const nextReplies = await onLoadReplies(postId, comment.id);
       setReplies(nextReplies);
     } catch (e: unknown) {
-      setInlineError((e instanceof Error ? e.message : null) ?? "No se pudieron cargar las respuestas.");
+      setInlineError((e instanceof Error ? e.message : null) ?? tPosts("errorLoadReplies"));
     } finally {
       setLoadingReplies(false);
     }
@@ -1088,7 +1104,7 @@ export default function PostCommentThread({
       setReplyText("");
       setReplyBoxOpen(false);
     } catch (e: unknown) {
-      setInlineError((e instanceof Error ? e.message : null) ?? "No se pudo responder.");
+      setInlineError((e instanceof Error ? e.message : null) ?? tPosts("errorCreateReply"));
     } finally {
       setCreatingReply(false);
     }
@@ -1104,7 +1120,7 @@ export default function PostCommentThread({
       setReplies(nextReplies);
       setLocalReplyCount(nextReplies.length);
     } catch (e: unknown) {
-      setInlineError((e instanceof Error ? e.message : null) ?? "No se pudo eliminar la respuesta.");
+      setInlineError((e instanceof Error ? e.message : null) ?? tPosts("errorDeleteReply"));
     } finally {
       setDeletingReplyId(null);
     }
@@ -1132,7 +1148,7 @@ export default function PostCommentThread({
       setLocalCommentEditedAt(Timestamp.now());
       setEditingComment(false);
     } catch (e: unknown) {
-      setInlineError((e instanceof Error ? e.message : null) ?? "No se pudo guardar el comentario.");
+      setInlineError((e instanceof Error ? e.message : null) ?? tPosts("errorSaveComment"));
     } finally {
       setSavingEditComment(false);
     }
@@ -1161,7 +1177,7 @@ export default function PostCommentThread({
       );
       setEditingReplyId(null);
     } catch (e: unknown) {
-      setInlineError((e instanceof Error ? e.message : null) ?? "No se pudo guardar la respuesta.");
+      setInlineError((e instanceof Error ? e.message : null) ?? tPosts("errorSaveReply"));
     } finally {
       setSavingEditReplyId(null);
     }
@@ -1169,7 +1185,7 @@ export default function PostCommentThread({
 
   async function handleToggleCommentFlame() {
     if (!currentUserId) {
-      setInlineError("Inicia sesión para dar flamita.");
+      setInlineError(tPosts("loginToFlame"));
       return;
     }
 
@@ -1191,7 +1207,7 @@ export default function PostCommentThread({
     } catch (e: unknown) {
       setCommentLiked(previousLiked);
       setCommentLikes(previousLikes);
-      setInlineError((e instanceof Error ? e.message : null) ?? "No se pudo actualizar la flamita.");
+      setInlineError((e instanceof Error ? e.message : null) ?? tPosts("errorFlame"));
     } finally {
       setCommentFlameBusy(false);
     }
@@ -1285,7 +1301,7 @@ export default function PostCommentThread({
             <polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2" />
           </svg>
           <div>
-            <span style={{ fontSize: 11, fontWeight: 700, color: "#f87171" }}>Comentario eliminado</span>
+            <span style={{ fontSize: 11, fontWeight: 700, color: "#f87171" }}>{tPosts("commentDeleted")}</span>
             {comment.deletedAt && (
               <span style={{ fontSize: 10, color: "rgba(239,68,68,0.6)", marginLeft: 6 }}>
                 {comment.deletedAt.toDate().toLocaleString("es-MX", { dateStyle: "medium", timeStyle: "short" })}
@@ -1324,18 +1340,18 @@ export default function PostCommentThread({
                       lineHeight: 1.4,
                     }}
                   >
-                    No es suscriptor
+                    {tPosts("notSubscriber")}
                   </span>
                 )}
 
                 <button
                   type="button"
                   onClick={() => setShowExactCommentDate((prev) => !prev)}
-                  title={formatExactDate(comment.createdAt)}
+                  title={formatExactDate(comment.createdAt, tCommon)}
                   aria-label={
                     showExactCommentDate
-                      ? "Mostrar fecha relativa del comentario"
-                      : "Mostrar fecha exacta del comentario"
+                      ? tPosts("showRelativeCommentDate")
+                      : tPosts("showExactCommentDate")
                   }
                   style={{
                     fontSize: 10.5,
@@ -1352,11 +1368,11 @@ export default function PostCommentThread({
                   }}
                 >
                   {showExactCommentDate
-                    ? formatExactDate(comment.createdAt)
-                    : formatRelativeDate(comment.createdAt)}
+                    ? formatExactDate(comment.createdAt, tCommon)
+                    : formatRelativeDate(comment.createdAt, tCommon)}
                   {(localCommentEditedAt ?? comment.editedAt) ? (
                     <span style={{ opacity: 0.45, fontStyle: "italic", marginLeft: 2 }}>
-                      {" · Editado"}
+                      {" "}{tPosts("editedSuffix")}
                     </span>
                   ) : null}
                 </button>
@@ -1378,7 +1394,7 @@ export default function PostCommentThread({
                       disabled={savingEditComment || !editCommentText.trim()}
                       style={savingEditComment || !editCommentText.trim() ? disabledButtonStyle : primaryButtonStyle}
                     >
-                      {savingEditComment ? "Guardando..." : "Guardar"}
+                      {savingEditComment ? tCommon("sending") : tCommon("save")}
                     </button>
                     <button
                       type="button"
@@ -1386,7 +1402,7 @@ export default function PostCommentThread({
                       disabled={savingEditComment}
                       style={actionButtonStyle}
                     >
-                      Cancelar
+                      {tCommon("cancel")}
                     </button>
                   </div>
                 </div>
@@ -1409,7 +1425,7 @@ export default function PostCommentThread({
               {showAdminDetails && comment.editHistory && comment.editHistory.length > 0 && (
                 <div style={{ marginTop: 8, display: "grid", gap: 4 }}>
                   <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(251,191,36,0.65)", letterSpacing: "0.05em" }}>
-                    VERSIONES ANTERIORES
+                    {tPosts("previousVersions")}
                   </div>
                   {comment.editHistory.map((entry, idx) => (
                     <div key={idx} style={{
@@ -1436,7 +1452,7 @@ export default function PostCommentThread({
                 type="button"
                 onClick={handleToggleCommentFlame}
                 aria-pressed={commentLiked}
-                aria-label={commentLiked ? "Quitar flamita del comentario" : "Dar flamita al comentario"}
+                aria-label={commentLiked ? tPosts("removeFlame") : tPosts("addFlame")}
                 style={{
                   width: 22,
                   height: 22,
@@ -1457,7 +1473,7 @@ export default function PostCommentThread({
                 </span>
               </button>
               <span
-                aria-label={`${commentLikes} flamitas`}
+                aria-label={tPosts("flameCountLabel", { count: commentLikes })}
                 style={{ minWidth: 8, color: "rgba(255,255,255,0.62)", fontSize: 11.5, fontWeight: 600, lineHeight: 1 }}
               >
                 {commentLikes}
@@ -1475,10 +1491,10 @@ export default function PostCommentThread({
                 style={loadingReplies ? disabledActionButtonStyle : actionButtonStyle}
               >
                 {loadingReplies
-                  ? "Cargando..."
+                  ? tPosts("loadingReplies")
                   : replies === null
-                    ? replyCount === 1 ? "Ver 1 respuesta" : `Ver ${replyCount} respuestas`
-                    : "Respuestas cargadas"}
+                    ? tPosts("viewReplies", { count: replyCount })
+                    : tPosts("repliesLoaded")}
               </button>
             )}
 
@@ -1488,7 +1504,7 @@ export default function PostCommentThread({
                 onClick={() => setReplyBoxOpen((prev) => !prev)}
                 style={actionButtonStyle}
               >
-                Responder
+                {tPosts("reply")}
               </button>
             )}
 
@@ -1496,10 +1512,10 @@ export default function PostCommentThread({
               <button
                 type="button"
                 onClick={() => setCommentMenuOpen(true)}
-                aria-label="Más acciones del comentario"
+                aria-label={tPosts("moreCommentOptions")}
                 style={actionButtonStyle}
               >
-                Más opciones
+                {tPosts("moreOptions")}
               </button>
             )}
           </div>
@@ -1511,7 +1527,7 @@ export default function PostCommentThread({
                 <AutoGrowTextarea
                   value={replyText}
                   onChange={(e) => setReplyText(e.target.value)}
-                  placeholder="Escribe una respuesta..."
+                  placeholder={tPosts("replyPlaceholder")}
                   maxRows={3}
                   style={inputStyle}
                   disabled={!canCommentOnPosts}
@@ -1527,7 +1543,7 @@ export default function PostCommentThread({
                     : primaryButtonStyle
                 }
               >
-                {creatingReply ? "Enviando..." : "Responder"}
+                {creatingReply ? tCommon("sending") : tPosts("reply")}
               </button>
             </div>
           )}
@@ -1553,7 +1569,7 @@ export default function PostCommentThread({
           {replies !== null && replies.length > 0 && (
             <div style={{ marginTop: 10, display: "grid", gap: 10 }}>
               {replies.map((reply) => {
-                const replyAuthor = getAuthorInfo(reply);
+                const replyAuthor = getAuthorInfo(reply, tCommon("user"));
                 const canDeleteReply = isOwner || isModerator || currentUserId === reply.authorId;
                 const canEditReply = currentUserId === reply.authorId && editingReplyId !== reply.id;
                 const canBlockReply =
@@ -1586,7 +1602,7 @@ export default function PostCommentThread({
                           <polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2" />
                         </svg>
                         <div>
-                          <span style={{ fontSize: 10.5, fontWeight: 700, color: "#f87171" }}>Respuesta eliminada</span>
+                          <span style={{ fontSize: 10.5, fontWeight: 700, color: "#f87171" }}>{tPosts("replyDeleted")}</span>
                           {reply.deletedAt && (
                             <span style={{ fontSize: 9.5, color: "rgba(239,68,68,0.6)", marginLeft: 6 }}>
                               {reply.deletedAt.toDate().toLocaleString("es-MX", { dateStyle: "medium", timeStyle: "short" })}
@@ -1623,18 +1639,18 @@ export default function PostCommentThread({
                               lineHeight: 1.4,
                             }}
                           >
-                            No es suscriptor
+                            {tPosts("notSubscriber")}
                           </span>
                         )}
 
                         <button
                           type="button"
                           onClick={() => setExactReplyDates((prev) => ({ ...prev, [reply.id]: !prev[reply.id] }))}
-                          title={formatExactDate(reply.createdAt)}
+                          title={formatExactDate(reply.createdAt, tCommon)}
                           aria-label={
                             exactReplyDates[reply.id]
-                              ? "Mostrar fecha relativa de la respuesta"
-                              : "Mostrar fecha exacta de la respuesta"
+                              ? tPosts("showRelativeReplyDate")
+                              : tPosts("showExactReplyDate")
                           }
                           style={{
                             fontSize: 10,
@@ -1651,11 +1667,11 @@ export default function PostCommentThread({
                           }}
                         >
                           {exactReplyDates[reply.id]
-                            ? formatExactDate(reply.createdAt)
-                            : formatRelativeDate(reply.createdAt)}
+                            ? formatExactDate(reply.createdAt, tCommon)
+                            : formatRelativeDate(reply.createdAt, tCommon)}
                           {reply.editedAt ? (
                             <span style={{ opacity: 0.45, fontStyle: "italic", marginLeft: 2 }}>
-                              {" · Editado"}
+                              {" "}{tPosts("editedSuffix")}
                             </span>
                           ) : null}
                         </button>
@@ -1686,7 +1702,7 @@ export default function PostCommentThread({
                                   : primaryButtonStyle
                               }
                             >
-                              {savingEditReplyId === reply.id ? "Guardando..." : "Guardar"}
+                              {savingEditReplyId === reply.id ? tCommon("sending") : tCommon("save")}
                             </button>
                             <button
                               type="button"
@@ -1694,7 +1710,7 @@ export default function PostCommentThread({
                               disabled={savingEditReplyId === reply.id}
                               style={actionButtonStyle}
                             >
-                              Cancelar
+                              {tCommon("cancel")}
                             </button>
                           </div>
                         </div>
@@ -1717,7 +1733,7 @@ export default function PostCommentThread({
                       {showAdminDetails && reply.editHistory && reply.editHistory.length > 0 && (
                         <div style={{ marginTop: 7, display: "grid", gap: 4 }}>
                           <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(251,191,36,0.65)", letterSpacing: "0.05em" }}>
-                            VERSIONES ANTERIORES
+                            {tPosts("previousVersions")}
                           </div>
                           {reply.editHistory.map((entry, idx) => (
                             <div key={idx} style={{
@@ -1748,7 +1764,7 @@ export default function PostCommentThread({
                             }}
                             style={actionButtonStyle}
                           >
-                            Responder
+                            {tPosts("reply")}
                           </button>
                         )}
 
@@ -1756,10 +1772,10 @@ export default function PostCommentThread({
                           <button
                             type="button"
                             onClick={() => setReplyActionsMenuOpenId(reply.id)}
-                            aria-label="Más acciones de la respuesta"
+                            aria-label={tPosts("moreReplyOptions")}
                             style={actionButtonStyle}
                           >
-                            Más opciones
+                            {tPosts("moreOptions")}
                           </button>
                         )}
                       </div>

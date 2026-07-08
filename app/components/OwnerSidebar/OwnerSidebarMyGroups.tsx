@@ -63,6 +63,7 @@ import {
 } from "@/lib/exclusiveSession/exclusiveSessionRequests";
 
 import LiveRingAvatar from "@/app/components/LiveRing/LiveRingAvatar";
+import { useTranslations } from "next-intl";
 
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
@@ -524,6 +525,10 @@ export default function OwnerSidebarMyGroups({
   greetingBusyId,
   newPostsCounts = {},
 }: Props) {
+  const tCommon = useTranslations("common");
+  const tServices = useTranslations("services");
+  const tNav = useTranslations("nav");
+  const tGroups = useTranslations("groups");
   const pathname = usePathname();
   const [inviteGroupId, setInviteGroupId] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(false);
@@ -1445,11 +1450,11 @@ height: 3.2px;
                 type="button"
                 onClick={onCreateCommunity}
                 style={styles.createInlineButton}
-                aria-label="Crear comunidad"
-                title="Crear comunidad"
+                aria-label={tNav("createCommunityLabel")}
+                title={tNav("createCommunityLabel")}
               >
                 <span aria-hidden="true">+</span>
-                <span>Crear</span>
+                <span>{tCommon("create")}</span>
               </button>
             ) : null}
           </div>
@@ -1459,7 +1464,7 @@ const isOpen = openCommunities[g.id] === true;
 const isPublic = g.visibility === "public";
 const isInviteEligible = g.visibility === "hidden";
 
-const communityName = g.name ?? "(Sin nombre)";
+const communityName = g.name ?? tGroups("noName");
 const avatarFallback = getInitials(communityName);
 const isProfileCard = g.visibility === "profile";
 
@@ -1770,8 +1775,8 @@ boxShadow:
     <button
       type="button"
       onClick={(e) => { e.stopPropagation(); setInviteGroupId(g.id); }}
-      title="Generar link de invitación"
-      aria-label="Generar link de invitación"
+      title={tGroups("generateInviteLink")}
+      aria-label={tGroups("generateInviteLink")}
       style={{
         flexShrink: 0,
         marginLeft: "auto",
@@ -2041,7 +2046,7 @@ boxShadow:
                                             opacity: busy ? 0.6 : 1,
                                           }}
                                         >
-                                          {busy ? "..." : "Rechazar"}
+                                          {busy ? "..." : tCommon("reject")}
                                         </button>
                                       </div>
                                     </div>
@@ -2295,7 +2300,7 @@ boxShadow:
                                         disabled={busy}
                                         style={{ width: "100%", height: 30, borderRadius: 8, border: "none", background: "rgba(59,130,246,0.18)", color: "#93c5fd", fontWeight: 520, fontSize: 12, cursor: busy ? "not-allowed" : "pointer", fontFamily: "inherit", opacity: busy ? 0.7 : 1 }}
                                       >
-                                        {busy ? "Procesando..." : req.status === "reschedule_requested" ? "Reagendar" : "Agendar solicitud"}
+                                        {busy ? tCommon("processing") : req.status === "reschedule_requested" ? tServices("reschedule") : tServices("schedule")}
                                       </button>
                                     </div>
                                   );
@@ -2557,8 +2562,8 @@ boxShadow:
 {sectionIndex === lastRealGroupSectionIndex && isMobile ? (
   <Link
     href="/groups/new"
-    aria-label="Crear comunidad"
-    title="Crear comunidad"
+    aria-label={tNav("createCommunityLabel")}
+    title={tNav("createCommunityLabel")}
     style={{
       width: "100%",
       marginTop: 10,
@@ -2775,7 +2780,7 @@ maxWidth: 220,
                   letterSpacing: "-0.02em",
                 }}
               >
-                Entendido
+                {tCommon("understood")}
               </button>
             </div>
           </div>
@@ -2785,7 +2790,7 @@ maxWidth: 220,
       {postScheduleCalendar && (
         <ScheduleCalendarOverlay
           open
-          title="Calendario"
+          title={tNav("calendar")}
           items={ownerCalendarItems}
           selectedDate={postScheduleCalendar.date}
           selectedVariant={postScheduleCalendar.kind === "exclusive_session" ? "pink" : "blue"}

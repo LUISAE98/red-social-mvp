@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import { createPortal } from "react-dom";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { collection, getDocs, query, where } from "firebase/firestore";
@@ -120,6 +121,7 @@ export default function StoryCoverPicker({
   onUploadPhoto,
   onClose,
 }: Props) {
+  const tCommon = useTranslations("common");
   const [mounted, setMounted] = useState(false);
   const [closing, setClosing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -362,7 +364,7 @@ export default function StoryCoverPicker({
           <button
             type="button"
             onClick={handleClose}
-            aria-label="Cerrar"
+            aria-label={tCommon("closeAriaLabel")}
             style={{
               width: 40,
               height: 40,

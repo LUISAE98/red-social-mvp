@@ -1,6 +1,7 @@
 "use client";
 
 import { CSSProperties, useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   VibraSubnavIcon,
   VibraSubnavIconsStyles,
@@ -28,6 +29,7 @@ export default function ProfileSubnav({
   showServicesTab = true,
   showSettingsTab = true,
 }: ProfileSubnavProps) {
+  const tGroups = useTranslations("groups");
   const fontStack = 'inherit';
 
   const [isDesktop, setIsDesktop] = useState(false);
@@ -51,8 +53,8 @@ export default function ProfileSubnav({
       ? [
           {
             key: "posts" as const,
-            title: "Publicaciones",
-            label: "Publicaciones",
+            title: tGroups("postsSection"),
+            label: tGroups("postsSection"),
             iconType: "posts" as const,
           },
         ]
@@ -61,8 +63,8 @@ export default function ProfileSubnav({
       ? [
           {
             key: "groups" as const,
-            title: isOwner ? "Mis comunidades" : "Las comunidades de este perfil",
-            label: isOwner ? "Mis comunidades" : "Comunidades",
+            title: isOwner ? tGroups("myGroups") : "Las comunidades de este perfil",
+            label: isOwner ? tGroups("myGroups") : tGroups("title"),
             iconType: "communities" as const,
           },
         ]

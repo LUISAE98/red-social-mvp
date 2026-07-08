@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { CSSProperties, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 
@@ -20,8 +21,11 @@ type BlockedAccountsOverlayProps = {
 
 type ActiveTab = "profile" | "groups";
 
-function formatBlockedDate(value: BlockedProfileAccount["createdAt"]) {
-  if (!value?.toDate) return "Fecha no disponible";
+function formatBlockedDate(
+  value: BlockedProfileAccount["createdAt"],
+  fallback: string
+) {
+  if (!value?.toDate) return fallback;
 
   try {
     return new Intl.DateTimeFormat("es-MX", {
@@ -30,7 +34,7 @@ function formatBlockedDate(value: BlockedProfileAccount["createdAt"]) {
       year: "numeric",
     }).format(value.toDate());
   } catch {
-    return "Fecha no disponible";
+    return fallback;
   }
 }
 
@@ -105,6 +109,9 @@ export default function BlockedAccountsOverlay({
   currentUserId,
   onClose,
 }: BlockedAccountsOverlayProps) {
+  const tProfile = useTranslations("profile");
+  const tCommon = useTranslations("common");
+
   const [mounted, setMounted] = useState(false);
   const [activeTab, setActiveTab] = useState<ActiveTab>("profile");
   const [profileBlocks, setProfileBlocks] = useState<BlockedProfileAccount[]>(
@@ -151,12 +158,13 @@ export default function BlockedAccountsOverlay({
         setLoading(false);
       },
       (err) => {
-        setError(err.message || "No se pudieron cargar las cuentas bloqueadas.");
+        setError(err.message || tProfile("blockLoadError"));
         setLoading(false);
       }
     );
 
     return () => unsubscribe();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, uid]);
 
   const activeItems = useMemo(() => {
@@ -176,7 +184,7 @@ export default function BlockedAccountsOverlay({
         blockedUserId: account.blockedUserId,
       });
     } catch (err: unknown) {
-      setError((err instanceof Error ? err.message : null) ?? "No se pudo desbloquear este perfil.");
+      setError((err instanceof Error ? err.message : null) ?? tProfile("unblockError"));
     } finally {
       setBusyKey(null);
     }
@@ -195,7 +203,7 @@ export default function BlockedAccountsOverlay({
         });
       } catch (err: unknown) {
         setError(
-          (err instanceof Error ? err.message : null) ?? "No se pudo desbloquear esta cuenta en la comunidad."
+          (err instanceof Error ? err.message : null) ?? tProfile("unblockGroupError")
         );
       } finally {
         setBusyKey(null);
@@ -244,11 +252,13 @@ export default function BlockedAccountsOverlay({
     gridTemplateRows: "auto auto minmax(0, 1fr)",
   };
 
+  const dateUnavailable = tProfile("dateUnavailable");
+
   return createPortal(
     <div
       role="dialog"
       aria-modal="true"
-      aria-label="Cuentas bloqueadas"
+      aria-label={tProfile("blockedAccountsTitle")}
       onClick={onClose}
       style={{
         position: "fixed",
@@ -301,7 +311,7 @@ export default function BlockedAccountsOverlay({
                 color: "#fff",
               }}
             >
-              Cuentas bloqueadas
+              {tProfile("blockedAccountsTitle")}
             </h2>
 
             <p
@@ -312,7 +322,7 @@ export default function BlockedAccountsOverlay({
                 color: "rgba(255,255,255,0.58)",
               }}
             >
-              Administra perfiles bloqueados y bloqueos dentro de comunidades.
+              {tProfile("blockedAccountsDesc")}
             </p>
           </div>
 
@@ -326,7 +336,7 @@ export default function BlockedAccountsOverlay({
               fontSize: 16,
               lineHeight: 1,
             }}
-            aria-label="Cerrar"
+            aria-label={tCommon("closeAriaLabel")}
           >
             ×
           </button>
@@ -347,7 +357,7 @@ export default function BlockedAccountsOverlay({
             style={tabButton("profile")}
             onClick={() => setActiveTab("profile")}
           >
-            Perfil ({profileBlocks.length})
+            {tProfile("blockedProfiles")} ({profileBlocks.length})
           </button>
 
           <button
@@ -355,7 +365,7 @@ export default function BlockedAccountsOverlay({
             style={tabButton("groups")}
             onClick={() => setActiveTab("groups")}
           >
-            Comunidades ({groupBlocks.length})
+            {tProfile("blockedInCommunities")} ({groupBlocks.length})
           </button>
         </div>
 
@@ -369,11 +379,11 @@ export default function BlockedAccountsOverlay({
           }}
         >
           {!uid && (
-            <EmptyState text="Inicia sesión para ver tus cuentas bloqueadas." />
+            <EmptyState text={tProfile("blockedLoginRequired")} />
           )}
 
           {uid && loading && (
-            <EmptyState text="Cargando cuentas bloqueadas..." />
+            <EmptyState text={tProfile("blockedAccountsLoading")} />
           )}
 
           {uid && error && (
@@ -396,8 +406,8 @@ export default function BlockedAccountsOverlay({
             <EmptyState
               text={
                 activeTab === "profile"
-                  ? "No tienes perfiles bloqueados."
-                  : "No tienes cuentas bloqueadas dentro de comunidades."
+                  ? tProfile("noBlockedProfiles")
+                  : tProfile("noBlockedInCommunities")
               }
             />
           )}
@@ -479,8 +489,8 @@ export default function BlockedAccountsOverlay({
                       >
                         {account.user.handle
                           ? `@${account.user.handle}`
-                          : "Perfil bloqueado"}{" "}
-                        · {formatBlockedDate(account.createdAt)}
+                          : tProfile("blockedProfileFallback")}{" "}
+                        · {formatBlockedDate(account.createdAt, dateUnavailable)}
                       </div>
                     </div>
                   </div>
@@ -498,7 +508,7 @@ export default function BlockedAccountsOverlay({
                       cursor: isBusy ? "not-allowed" : "pointer",
                     }}
                   >
-                    {isBusy ? "Desbloqueando..." : "Desbloquear"}
+                    {isBusy ? tProfile("unblockingLabel") : tProfile("unblockLabel")}
                   </button>
                 </div>
               );
@@ -581,8 +591,8 @@ export default function BlockedAccountsOverlay({
                       >
                         {account.user.handle
                           ? `@${account.user.handle}`
-                          : "Usuario bloqueado"}{" "}
-                        · {formatBlockedDate(account.createdAt)}
+                          : tProfile("blockedUserFallback")}{" "}
+                        · {formatBlockedDate(account.createdAt, dateUnavailable)}
                       </div>
 
 <Link
@@ -635,7 +645,7 @@ export default function BlockedAccountsOverlay({
                       cursor: isBusy ? "not-allowed" : "pointer",
                     }}
                   >
-                    {isBusy ? "Desbloqueando..." : "Desbloquear"}
+                    {isBusy ? tProfile("unblockingLabel") : tProfile("unblockLabel")}
                   </button>
                 </div>
               );

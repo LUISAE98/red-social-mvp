@@ -2,7 +2,8 @@ import { AuthProvider } from "./providers";
 import type { Metadata, Viewport } from "next";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import { Suspense } from "react";
-import { getLocale } from "next-intl/server";
+import { getLocale, getMessages } from "next-intl/server";
+import { NextIntlClientProvider } from "next-intl";
 import "./globals.css";
 import RootChrome from "./RootChrome";
 import VibraGlobalBackground from "./components/VibraGlobalBackground";
@@ -45,6 +46,7 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const locale = await getLocale();
+  const messages = await getMessages();
 
   return (
     <html lang={locale} style={{ backgroundColor: "#000000" }}>
@@ -181,13 +183,15 @@ export default async function RootLayout({
   </defs>
 </svg>
 
-<AuthProvider>
-  <DesktopRefreshSplash />
+<NextIntlClientProvider locale={locale} messages={messages}>
+  <AuthProvider>
+    <DesktopRefreshSplash />
 
-  <VibraGlobalBackground />
+    <VibraGlobalBackground />
 
-  <Suspense fallback={null}><RootChrome>{children}</RootChrome></Suspense>
-</AuthProvider>
+    <Suspense fallback={null}><RootChrome>{children}</RootChrome></Suspense>
+  </AuthProvider>
+</NextIntlClientProvider>
       </body>
     </html>
   );

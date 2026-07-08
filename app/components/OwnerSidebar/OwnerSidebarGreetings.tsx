@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useTranslations } from "next-intl";
 import {
   acceptMeetGreetRequest,
   proposeMeetGreetSchedule,
@@ -248,16 +249,19 @@ function toDateSafe(value: unknown): Date | null {
   return null;
 }
 
-function getRelativeTime(ts?: { toDate: () => Date } | null): string {
-  if (!ts) return "Hace un momento";
+function getRelativeTime(
+  ts: { toDate: () => Date } | null | undefined,
+  t: (key: string, params?: Record<string, number>) => string
+): string {
+  if (!ts) return t("relativeTimeNow");
   const diffMs = Date.now() - ts.toDate().getTime();
   const diffMins = Math.floor(diffMs / 60000);
   const diffHours = Math.floor(diffMins / 60);
   const diffDays = Math.floor(diffHours / 24);
-  if (diffDays >= 1) return `Hace ${diffDays} ${diffDays === 1 ? "día" : "días"}`;
-  if (diffHours >= 1) return `Hace ${diffHours} ${diffHours === 1 ? "hora" : "horas"}`;
-  if (diffMins >= 1) return `Hace ${diffMins} ${diffMins === 1 ? "minuto" : "minutos"}`;
-  return "Hace un momento";
+  if (diffDays >= 1) return t("relativeTimeDays", { count: diffDays });
+  if (diffHours >= 1) return t("relativeTimeHours", { count: diffHours });
+  if (diffMins >= 1) return t("relativeTimeMinutes", { count: diffMins });
+  return t("relativeTimeNow");
 }
 
 function isPrepareWindowOpen(value: unknown): boolean {
@@ -622,7 +626,14 @@ function SectionBlock({
   children: ReactNode;
   styles: Record<string, React.CSSProperties>;
 }) {
+  const tWallet = useTranslations("wallet");
   const visual = getSectionVisual(sectionKey);
+  const sectionTitle =
+    sectionKey === "rejected"
+      ? tWallet("sectionRejected")
+      : sectionKey === "refund"
+        ? tWallet("sectionRefund")
+        : tWallet("sectionPending");
 
   if (count <= 0) return null;
 
@@ -688,7 +699,7 @@ function SectionBlock({
               minWidth: 0,
             }}
           >
-            {visual.title}
+            {sectionTitle}
           </span>
         </span>
 
@@ -734,6 +745,8 @@ export default function OwnerSidebarGreetings({
   renderUserLink,
   router,
 }: Props) {
+  const tCommon = useTranslations("common");
+  const tServices = useTranslations("services");
   const [busyMap, setBusyMap] = useState<BusyMap>({});
   const [errorMap, setErrorMap] = useState<TextMap>({});
   const [successMap, setSuccessMap] = useState<TextMap>({});
@@ -1407,7 +1420,7 @@ async function handleCreatorSchedule(
       : (group?.avatarUrl ?? null);
     const sourceInitial = sourceName.charAt(0).toUpperCase();
 
-    const relTime = req.createdAt ? getRelativeTime(req.createdAt as { toDate: () => Date }) : null;
+    const relTime = req.createdAt ? getRelativeTime(req.createdAt as { toDate: () => Date }, tCommon) : null;
     const cardColors = getServiceCardColors(req.type);
 
     return (
@@ -1503,7 +1516,7 @@ const creatorScheduleNote = getCreatorScheduleNote(req);
       const creatorName = creator?.displayName ?? "Creador";
       const creatorAvatar = creator?.photoURL ?? null;
       const creatorInitial = creatorName.charAt(0).toUpperCase();
-      const relTime = req.createdAt ? getRelativeTime(req.createdAt as { toDate: () => Date }) : null;
+      const relTime = req.createdAt ? getRelativeTime(req.createdAt as { toDate: () => Date }, tCommon) : null;
       const cardColors = getServiceCardColors(row.serviceKind);
 
       return (
@@ -1573,7 +1586,7 @@ const creatorScheduleNote = getCreatorScheduleNote(req);
       const creatorName2 = creator2?.displayName ?? "Creador";
       const creatorAvatar2 = creator2?.photoURL ?? null;
       const creatorInitial2 = creatorName2.charAt(0).toUpperCase();
-      const relTime2 = req.createdAt ? getRelativeTime(req.createdAt as { toDate: () => Date }) : null;
+      const relTime2 = req.createdAt ? getRelativeTime(req.createdAt as { toDate: () => Date }, tCommon) : null;
       const cardColors2 = getServiceCardColors(row.serviceKind);
       const noShowExpired2 = isNoShowExpired(req.scheduledAt);
       const canPrepareCard =
@@ -1617,7 +1630,7 @@ const creatorScheduleNote = getCreatorScheduleNote(req);
               fontWeight: 600, fontSize: 11, cursor: "pointer", whiteSpace: "nowrap",
             }}
           >
-            {canPrepareCard ? "Prepararse" : "Ver solicitud"}
+            {canPrepareCard ? tServices("prepare") : tServices("viewDetails")}
           </button>
         </div>
       );
@@ -1722,7 +1735,7 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
     const buyerName = req.buyerDisplayName ?? "Comprador";
     const buyerAvatar = (req as MeetGreetRequestDoc).buyerAvatarUrl ?? null;
     const buyerInitial = buyerName.charAt(0).toUpperCase();
-    const relTime = req.createdAt ? getRelativeTime(req.createdAt as { toDate: () => Date }) : null;
+    const relTime = req.createdAt ? getRelativeTime(req.createdAt as { toDate: () => Date }, tCommon) : null;
     const cardColors = getServiceCardColors(row.serviceKind);
 
     return (
@@ -1784,7 +1797,7 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
             whiteSpace: "nowrap",
           }}
         >
-          {req.status === "reschedule_requested" ? "Reagendar" : "Ver solicitud"}
+          {req.status === "reschedule_requested" ? tServices("reschedule") : tServices("viewDetails")}
         </button>
       </div>
     );
@@ -1948,7 +1961,7 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
                 const sourceAvatar = creator?.photoURL ?? group?.avatarUrl ?? null;
                 const sourceInitial = sourceName.charAt(0).toUpperCase();
                 const completedTs = req.updatedAt as { toDate: () => Date } | undefined;
-                const relTime = completedTs ? getRelativeTime(completedTs) : null;
+                const relTime = completedTs ? getRelativeTime(completedTs, tCommon) : null;
                 const downloadBusy = !!downloadBusyMap[row.id];
                 const downloadError = downloadErrorMap[row.id] ?? null;
 
@@ -2051,7 +2064,7 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
                 const sourceInitial = sourceName.charAt(0).toUpperCase();
 
                 const deliveredTs = req.deliveredAt as { toDate: () => Date } | undefined;
-                const relTime = deliveredTs ? getRelativeTime(deliveredTs) : null;
+                const relTime = deliveredTs ? getRelativeTime(deliveredTs, tCommon) : null;
 
                 const btnLabel = req.type === "consejo" ? "Ver consejo" : req.type === "mensaje" ? "Ver mensaje" : "Ver saludo";
 

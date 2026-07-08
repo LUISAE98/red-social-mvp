@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import VibraSavedPostIcon from "@/app/components/VibraServiceIcons/VibraSavedPostIcon";
 
 type PostSaveButtonProps = {
@@ -31,6 +32,7 @@ export default function PostSaveButton({
   onClick,
   className = "",
 }: PostSaveButtonProps) {
+  const tPosts = useTranslations("posts");
   const safeCount = Math.max(0, Number.isFinite(count) ? count : 0);
 
   return (
@@ -39,8 +41,8 @@ export default function PostSaveButton({
       onClick={onClick}
       disabled={disabled || loading}
       aria-pressed={saved}
-      aria-label={saved ? "Quitar publicación guardada" : "Guardar publicación"}
-      title={saved ? "Guardado" : "Guardar"}
+      aria-label={saved ? tPosts("unsave") : tPosts("save")}
+      title={saved ? tPosts("unsave") : tPosts("save")}
       className={[
         "inline-flex items-center gap-1 border-0 bg-transparent p-0 text-xs font-semibold transition",
         "focus:outline-none",

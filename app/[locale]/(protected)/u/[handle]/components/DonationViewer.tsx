@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import { createPortal } from "react-dom";
 import type HlsType from "hls.js";
 import { getMutePreference, setMutePreference } from "@/lib/utils/mutePreference";
@@ -36,6 +37,7 @@ function desktopPanelSize(): { width: number; height: number } {
 const VIBRA_RING = "linear-gradient(135deg, #ec4899 0%, #9333ea 52%, #3b82f6 100%)";
 
 export default function DonationViewer({ open, donation, profileName, profilePhoto, profileHandle, onClose, onDonate }: Props) {
+  const tCommon = useTranslations("common");
   const [mounted, setMounted] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
   const [muted, setMuted] = useState(() =>
@@ -222,7 +224,7 @@ export default function DonationViewer({ open, donation, profileName, profilePho
   const muteBtn = (sz: number) => (
     <button
       type="button"
-      aria-label={muted ? "Activar sonido" : "Silenciar"}
+      aria-label={muted ? tCommon("unmuteLabel") : tCommon("muteLabel")}
       onClick={(e) => {
         e.stopPropagation();
         setMuted((m) => {
@@ -257,7 +259,7 @@ export default function DonationViewer({ open, donation, profileName, profilePho
   const closeBtn = (sz: number) => (
     <button
       type="button"
-      aria-label="Cerrar"
+      aria-label={tCommon("closeAriaLabel")}
       onClick={onClose}
       style={{
         background: "none", border: "none", cursor: "pointer",

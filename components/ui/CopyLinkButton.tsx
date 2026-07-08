@@ -1,6 +1,7 @@
 "use client";
 
 import { CSSProperties, useEffect, useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   VibraNavigationIcon,
   VibraNavigationIconsStyles,
@@ -31,14 +32,18 @@ function getAbsoluteUrl(href: string) {
 
 export default function CopyLinkButton({
   href,
-  label = "Copiar link",
-  copiedLabel = "Link copiado correctamente",
-  title = "Copiar enlace",
+  label,
+  copiedLabel,
+  title,
   disabled = false,
   className,
   style,
   iconOnly = true,
 }: CopyLinkButtonProps) {
+  const tCommon = useTranslations("common");
+  const resolvedLabel = label ?? tCommon("copyLink");
+  const resolvedCopiedLabel = copiedLabel ?? tCommon("linkCopiedOk");
+  const resolvedTitle = title ?? tCommon("copyLinkTitle");
   const [copied, setCopied] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const { toast: copyToast, showToast: showCopyToast } = useVibraToast(2400);
@@ -73,7 +78,7 @@ useEffect(() => {
     try {
       await navigator.clipboard.writeText(absoluteUrl);
       setCopied(true);
-      showCopyToast("Link copiado correctamente", "success");
+      showCopyToast(tCommon("linkCopiedOk"), "success");
     } catch {
       try {
         const textarea = document.createElement("textarea");
@@ -89,9 +94,9 @@ useEffect(() => {
         document.body.removeChild(textarea);
 
         setCopied(true);
-        showCopyToast("Link copiado correctamente", "success");
+        showCopyToast(tCommon("linkCopiedOk"), "success");
       } catch {
-        showCopyToast("No se pudo copiar el link.", "error");
+        showCopyToast(tCommon("linkCopyError"), "error");
       }
     }
   }
@@ -167,8 +172,8 @@ const copiedCircleStyle: CSSProperties = {
         className={className}
         onClick={handleCopy}
         disabled={disabled}
-        title={title}
-        aria-label={title}
+        title={resolvedTitle}
+        aria-label={resolvedTitle}
         style={buttonStyle}
       >
 <span aria-hidden="true" style={copyIconStyle}>
@@ -188,7 +193,7 @@ const copiedCircleStyle: CSSProperties = {
   </svg>
 </span>
 
-{!iconOnly ? <span>{copied ? copiedLabel : label}</span> : null}
+{!iconOnly ? <span>{copied ? resolvedCopiedLabel : resolvedLabel}</span> : null}
       </button>
 
       <VibraToast toast={copyToast} />

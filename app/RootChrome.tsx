@@ -2,18 +2,24 @@
 
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+// Quita el prefijo de idioma de forma determinista (sin depender del provider
+// de next-intl), para que la detección de rutas del guardián de auth funcione
+// tras la migración i18n sin inestabilidad ni problemas de hidratación.
+import { stripLocalePrefix } from "@/lib/localePath";
 import { useEffect, useRef } from "react";
 import { useAuth } from "@/app/providers";
 import GroupsSearchPanel from "@/app/components/SearchToolbar/GroupsSearchPanel";
 import { buildCurrentPathWithSearch, getNextFromSearchParams } from "@/lib/auth-redirect";
+import { useTranslations } from "next-intl";
 
 export default function RootChrome({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const tCommon = useTranslations("common");
   const { user, loading, authTransitionMode, startAuthTransition } = useAuth();
-  const pathname = usePathname();
+  const pathname = stripLocalePrefix(usePathname());
   const router = useRouter();
   const searchParams = useSearchParams();
   const isPublicPostRoute = pathname.startsWith("/p/");
@@ -66,7 +72,23 @@ const isOverlayRoute = pathname.startsWith("/live-overlay/");
   const fontStack =
     'inherit';
     if (authTransitionMode === "exiting") {
-  return null;
+  // Pantalla negra CONTINUA durante el cierre de sesión (en vez de null).
+  // Como RootChrome vive en el layout raíz y no se desmonta al navegar, este
+  // negro cubre toda la transición (redirect del guardián + recarga) sin los
+  // parpadeos que se veían cuando el overlay del botón se desmontaba a media
+  // transición o cuando aquí se devolvía null y se asomaba el fondo.
+  return (
+    <div
+      aria-hidden="true"
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "#000",
+        zIndex: 999999,
+        pointerEvents: "none",
+      }}
+    />
+  );
 }
 if (user && isAuthPage) {
   return null;
@@ -99,7 +121,7 @@ if (isPublicPostRoute || isOverlayRoute) {
           z-index: 100;
           padding-top: env(safe-area-inset-top);
           border-bottom: none;
-          background: #000000;
+          background: transparent;
         }
 
         .rootChromePublicHeaderInner {
@@ -245,7 +267,7 @@ if (isPublicPostRoute || isOverlayRoute) {
                     className="rootChromeDesktopAuthLink"
                     onClick={() => startAuthTransition("entering")}
                   >
-                    Iniciar sesión
+                    {tCommon("login")}
                   </Link>
                 ) : null}
               </div>

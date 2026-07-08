@@ -1,14 +1,16 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import WalletSectionShell from "../components/WalletSectionShell";
 import { WalletCard } from "../components/WalletUi";
 
 export default function WalletFinanzasPage() {
+  const tWallet = useTranslations("wallet");
   return (
     <WalletSectionShell activeTab="finances">
       <WalletCard
-        title="Finanzas"
-        description="Aquí irá tu panel financiero del creador con balance, comisiones, neto, disponibles y movimientos."
+        title={tWallet("financesTitle")}
+        description={tWallet("financesDescription")}
       >
         <div
           style={{
@@ -27,7 +29,7 @@ export default function WalletFinanzasPage() {
               color: "#fff",
             }}
           >
-            Panel financiero en preparación
+            {tWallet("financesPanelTitle")}
           </div>
 
           <div
@@ -39,8 +41,7 @@ export default function WalletFinanzasPage() {
               fontWeight: 400,
             }}
           >
-            En la siguiente fase conectaremos balance general, pendientes,
-            liberados, comisiones e historial financiero detallado.
+            {tWallet("financesPanelDesc")}
           </div>
         </div>
       </WalletCard>

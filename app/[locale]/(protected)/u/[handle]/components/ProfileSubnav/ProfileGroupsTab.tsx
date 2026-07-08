@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { CSSProperties, useEffect, useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import Link from "next/link";
@@ -55,12 +56,12 @@ function initials(name: string) {
   return (a + b).toUpperCase() || "?";
 }
 
-function getVisibilityLabel(
+function getVisibilityKey(
   visibility?: "public" | "private" | "hidden"
-): string {
-  if (visibility === "private") return "Comunidad privada";
-  if (visibility === "hidden") return "Comunidad oculta";
-  return "Comunidad pública";
+): "privateLabel" | "hiddenLabel" | "publicLabel" {
+  if (visibility === "private") return "privateLabel";
+  if (visibility === "hidden") return "hiddenLabel";
+  return "publicLabel";
 }
 
 function Switch({
@@ -131,6 +132,7 @@ export default function ProfileGroupsTab({
   groupsVisibleToVisitors,
   onGroupsVisibilityChanged,
 }: ProfileGroupsTabProps) {
+  const tGroups = useTranslations("groups");
   const cacheKey = `${profileUid}:${isOwner}`;
   const [groups, setGroups] = useState<GroupListItem[]>(() => peekGroups(cacheKey) ?? []);
   const [loading, setLoading] = useState<boolean>(() => !peekGroups(cacheKey));
@@ -170,14 +172,14 @@ export default function ProfileGroupsTab({
 
       if (!isOwner && !isViewerLoggedIn) {
         setGroups([]);
-        setMsg("Para ver comunidades debes iniciar sesión.");
+        setMsg(tGroups("loginRequired"));
         setLoading(false);
         return;
       }
 
       if (!isOwner && !canViewerSeeGroups) {
         setGroups([]);
-        setMsg("Este perfil no muestra sus comunidades.");
+        setMsg(tGroups("profileHidden"));
         setLoading(false);
         return;
       }
@@ -234,13 +236,13 @@ export default function ProfileGroupsTab({
         if (!next.length) {
           setMsg(
             isOwner
-              ? "Todavía no has creado comunidades visibles aquí."
-              : "Este perfil todavía no tiene comunidades visibles."
+              ? tGroups("noVisibleOwn")
+              : tGroups("noVisibleOther")
           );
         }
       } catch (e: unknown) {
         if (cancelled) return;
-        setMsg((e instanceof Error ? e.message : null) ?? "No se pudieron cargar las comunidades.");
+        setMsg((e instanceof Error ? e.message : null) ?? tGroups("loadError"));
         setGroups([]);
       } finally {
         if (!cancelled) setLoading(false);
@@ -268,13 +270,13 @@ export default function ProfileGroupsTab({
       onGroupsVisibilityChanged?.(nextValue);
       showToast(
         nextValue
-          ? "Ahora los visitantes pueden ver tus comunidades."
-          : "Tus comunidades ya no se muestran a visitantes.",
+          ? tGroups("visibilityEnabled")
+          : tGroups("visibilityDisabled"),
         "success"
       );
     } catch (e: unknown) {
       showToast(
-        "No se pudo actualizar la visibilidad de tus comunidades.",
+        tGroups("visibilityError"),
         "error"
       );
     } finally {
@@ -283,8 +285,8 @@ export default function ProfileGroupsTab({
   }
 
   const title = useMemo(() => {
-    return isOwner ? "Mis comunidades" : "Sus comunidades";
-  }, [isOwner]);
+    return isOwner ? tGroups("myGroups") : tGroups("theirCommunities");
+  }, [isOwner, tGroups]);
 
   return (
     <section style={wrapStyle}>
@@ -419,7 +421,7 @@ export default function ProfileGroupsTab({
                   lineHeight: 1.2,
                 }}
               >
-                Mostrar mis comunidades creadas
+                {tGroups("showMyCommunities")}
               </div>
 
               <div className="profile-groups-visibility-switch">
@@ -427,7 +429,7 @@ export default function ProfileGroupsTab({
                   checked={groupsVisibleToVisitors}
                   onChange={toggleGroupsVisibility}
                   disabled={savingVisibility}
-                  label="Mostrar mis comunidades creadas"
+                  label={tGroups("showMyCommunities")}
                 />
               </div>
 
@@ -439,8 +441,7 @@ export default function ProfileGroupsTab({
                   color: "rgba(255,255,255,0.70)",
                 }}
               >
-                Actívalo para que los visitantes puedan ver las comunidades que has
-                creado. Los ocultos NUNCA se mostrarán.
+                {tGroups("visibilityToggleHint")}
               </div>
             </div>
           )}
@@ -609,7 +610,7 @@ export default function ProfileGroupsTab({
                             color: "rgba(255,255,255,0.78)",
                           }}
                         >
-                          {getVisibilityLabel(group.visibility)}
+                          {tGroups(getVisibilityKey(group.visibility))}
                         </div>
                       </div>
                     </div>

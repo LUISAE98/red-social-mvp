@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useMemo, useRef, useState } from "react";
 import { leaveGroup } from "@/lib/groups/membership";
+import { useTranslations } from "next-intl";
 import type { Timestamp } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 
@@ -582,6 +583,7 @@ export default function OwnerSidebarOtherGroups({
   onCreateCommunity,
   newPostsCounts = {},
 }: Props) {
+  const tCommon = useTranslations("common");
   const router = useRouter();
   const [dismissedGroupIds, setDismissedGroupIds] = useState<Set<string>>(
     () => new Set()
@@ -1043,7 +1045,7 @@ return (
                                       cursor: busy ? "not-allowed" : "pointer",
                                     }}
                                   >
-                                    {busy ? "Procesando..." : "Rechazar"}
+                                    {busy ? tCommon("processing") : tCommon("reject")}
                                   </button>
                                 </div>
                               </div>

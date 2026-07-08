@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { onAuthStateChanged, signOut, type User } from "firebase/auth";
 import { auth, db } from "@/lib/firebase";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -18,6 +19,7 @@ const vibraPurple = "#a855ff";
 const vibraBlue = "#4f46ff";
 
 export default function CompleteProfileClient() {
+  const t = useTranslations("completeProfile");
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -80,7 +82,7 @@ export default function CompleteProfileClient() {
     setMsg(null);
 
     if (!currentUser) {
-      setMsg("Tu sesión expiró. Inicia sesión nuevamente.");
+      setMsg(t("errorSessionExpired"));
       return;
     }
 
@@ -89,17 +91,17 @@ export default function CompleteProfileClient() {
     const cleanedLastName = cleanName(lastName);
 
     if (!isValidHandle(normalizedHandle)) {
-      setMsg("El username debe tener entre 3 y 20 caracteres: letras, números o guion bajo.");
+      setMsg(t("errorInvalidHandle"));
       return;
     }
 
     if (!cleanedFirstName) {
-      setMsg("Escribe tu nombre.");
+      setMsg(t("errorFirstNameRequired"));
       return;
     }
 
     if (!cleanedLastName) {
-      setMsg("Escribe tu apellido.");
+      setMsg(t("errorLastNameRequired"));
       return;
     }
 
@@ -118,7 +120,7 @@ export default function CompleteProfileClient() {
       if (err instanceof Error) {
         setMsg(err.message);
       } else {
-        setMsg("No se pudo completar tu perfil. Intenta nuevamente.");
+        setMsg(t("errorGeneric"));
       }
     } finally {
       setLoading(false);
@@ -261,45 +263,45 @@ export default function CompleteProfileClient() {
         <div style={shellStyle}>
           <Image src="/logotipo.png" alt="Vibra" width={142} height={40} style={logoStyle} />
 
-          <h1 style={titleStyle}>Completa tu perfil</h1>
+          <h1 style={titleStyle}>{t("title")}</h1>
           <p style={subtitleStyle}>
-            Solo necesitamos estos datos para terminar de crear tu cuenta.
+            {t("subtitle")}
           </p>
 
           <form onSubmit={handleSubmit} style={{ display: "grid", gap: 13 }}>
             <label style={{ display: "grid", gap: 4 }}>
-              <span style={labelTextStyle}>Username</span>
+              <span style={labelTextStyle}>{t("usernameLabel")}</span>
               <input
                 className="completeProfileInput"
                 value={handle}
                 onChange={(e) => setHandle(normalizeHandle(e.target.value))}
                 style={inputStyle}
-                placeholder="tuusuario"
+                placeholder={t("usernamePlaceholder")}
                 autoComplete="username"
               />
             </label>
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
               <label style={{ display: "grid", gap: 4 }}>
-                <span style={labelTextStyle}>Nombre</span>
+                <span style={labelTextStyle}>{t("firstNameLabel")}</span>
                 <input
                   className="completeProfileInput"
                   value={firstName}
                   onChange={(e) => setFirstName(e.target.value)}
                   style={inputStyle}
-                  placeholder="Nombre"
+                  placeholder={t("firstNamePlaceholder")}
                   autoComplete="given-name"
                 />
               </label>
 
               <label style={{ display: "grid", gap: 4 }}>
-                <span style={labelTextStyle}>Apellido</span>
+                <span style={labelTextStyle}>{t("lastNameLabel")}</span>
                 <input
                   className="completeProfileInput"
                   value={lastName}
                   onChange={(e) => setLastName(e.target.value)}
                   style={inputStyle}
-                  placeholder="Apellido"
+                  placeholder={t("lastNamePlaceholder")}
                   autoComplete="family-name"
                 />
               </label>
@@ -315,7 +317,7 @@ export default function CompleteProfileClient() {
                 cursor: loading ? "not-allowed" : "pointer",
               }}
             >
-              {loading ? "Creando perfil..." : "Terminar registro"}
+              {loading ? t("submitting") : t("submit")}
             </button>
 
             <button
@@ -328,7 +330,7 @@ export default function CompleteProfileClient() {
                 cursor: loading ? "not-allowed" : "pointer",
               }}
             >
-              Cancelar
+              {t("cancel")}
             </button>
           </form>
 

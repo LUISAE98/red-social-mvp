@@ -4,6 +4,7 @@
 
 import Image from "next/image";
 import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import SafeCropper from "@/components/media/SafeCropper";
 import { useAuth } from "@/app/providers";
@@ -207,6 +208,9 @@ function SelectField({
 }
 
 function NewGroupPageContent() {
+const tCommon = useTranslations("common");
+const tGroups = useTranslations("groups");
+const tProfile = useTranslations("profile");
 const router = useRouter();
 const pathname = usePathname();
 const searchParams = useSearchParams();
@@ -659,7 +663,7 @@ const onCropComplete = useCallback(
           }}
         >
           <p style={{ fontSize: 13, color: "rgba(255,255,255,0.72)", margin: 0 }}>
-            Cargando…
+            {tCommon("loading")}
           </p>
         </div>
       </div>
@@ -711,7 +715,7 @@ const onCropComplete = useCallback(
                 lineHeight: 1.2,
               }}
             >
-              Crear comunidad
+              {tGroups("createCommunity")}
             </h1>
             <p
               style={{
@@ -794,7 +798,7 @@ const onCropComplete = useCallback(
                     color: "rgba(255,255,255,0.92)",
                   }}
                 >
-                  Descripción
+                  {tGroups("groupDescription")}
                 </label>
                 <textarea
                   style={{
@@ -1001,7 +1005,7 @@ const onCropComplete = useCallback(
                       lineHeight: 1.2,
                     }}
                   >
-                    {name.trim() || "Nombre de la comunidad"}
+                    {name.trim() || tGroups("groupName")}
                   </p>
 
                   <p
@@ -1365,7 +1369,7 @@ const onCropComplete = useCallback(
                   value={postingMode}
                   onChange={(value) => setPostingMode(value as PostingMode)}
                 >
-                  <option value="members">Miembros</option>
+                  <option value="members">{tGroups("members")}</option>
                   <option value="owner_only">Solo dueño</option>
                 </SelectField>
               </div>
@@ -1436,7 +1440,7 @@ const onCropComplete = useCallback(
                     checked={monetizationMode === "free"}
                     onChange={() => setMonetizationMode("free")}
                   />
-                  Gratis
+                  {tCommon("free")}
                 </label>
 
                 <label
@@ -1537,7 +1541,7 @@ const onCropComplete = useCallback(
                 transition: "opacity 150ms ease",
               }}
             >
-              {loading ? "Creando..." : "Crear comunidad"}
+              {loading ? "Creando..." : tGroups("createCommunity")}
             </button>
           </form>
         </div>
@@ -1580,7 +1584,7 @@ const onCropComplete = useCallback(
               }}
             >
               <div style={{ fontWeight: 600, color: "#fff", fontSize: 16 }}>
-                {cropMode === "avatar" ? "Recortar avatar de la comunidad" : "Recortar portada"}
+                {cropMode === "avatar" ? "Recortar avatar de la comunidad" : tProfile("cropCover")}
               </div>
 
               <button
@@ -1592,7 +1596,7 @@ const onCropComplete = useCallback(
                   opacity: croppingBusy ? 0.6 : 1,
                 }}
               >
-                Cerrar
+                {tCommon("close")}
               </button>
             </div>
 
@@ -1634,7 +1638,7 @@ const onCropComplete = useCallback(
                   flexWrap: "wrap",
                 }}
               >
-                <label style={styles.label}>Zoom</label>
+                <label style={styles.label}>{tCommon("zoom")}</label>
 
                 <input
                   type="range"
@@ -1656,7 +1660,7 @@ const onCropComplete = useCallback(
                       opacity: croppingBusy ? 0.6 : 1,
                     }}
                   >
-                    Cancelar
+                    {tCommon("cancel")}
                   </button>
 
                   <button
@@ -1669,7 +1673,7 @@ const onCropComplete = useCallback(
                       cursor: croppingBusy ? "not-allowed" : "pointer",
                     }}
                   >
-                    {croppingBusy ? "Guardando..." : "Guardar"}
+                    {croppingBusy ? "Guardando..." : tCommon("save")}
                   </button>
                 </div>
               </div>
@@ -1681,8 +1685,7 @@ const onCropComplete = useCallback(
                   color: "rgba(255,255,255,0.55)",
                 }}
               >
-                Tip: mueve la imagen para encuadrar.{" "}
-                {cropMode === "avatar" ? "Avatar 1:1." : "Portada 16:9."}
+                {cropMode === "avatar" ? tProfile("cropTipAvatar") : tProfile("cropTipCover")}
               </div>
             </div>
           </div>

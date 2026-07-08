@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, type CSSProperties } from "react";
+import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import {
   collection,
@@ -12,8 +13,6 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/app/providers";
-import { getMeetGreetStatusLabel } from "@/lib/meetGreet/types";
-import { getExclusiveSessionStatusLabel } from "@/lib/exclusiveSession/types";
 import { setMeetGreetPreparing } from "@/lib/meetGreet/meetGreetRequests";
 import { setExclusiveSessionPreparing } from "@/lib/exclusiveSession/exclusiveSessionRequests";
 import { callGetRecordingDownloadUrl } from "@/lib/liveKit/sessionLifecycle";
@@ -70,24 +69,21 @@ type BuyerSession = BuyerSessionDoc & {
 
 function getRecordingExpiry(expiresAt: string | null): {
   expired: boolean;
-  label: string | null;
+  diffDays: number | null;
+  dateLabel: string | null;
 } {
-  if (!expiresAt) return { expired: false, label: null };
+  if (!expiresAt) return { expired: false, diffDays: null, dateLabel: null };
   const exp = new Date(expiresAt);
-  if (isNaN(exp.getTime())) return { expired: false, label: null };
+  if (isNaN(exp.getTime())) return { expired: false, diffDays: null, dateLabel: null };
   const now = Date.now();
-  if (now > exp.getTime()) return { expired: true, label: null };
+  if (now > exp.getTime()) return { expired: true, diffDays: null, dateLabel: null };
   const diffDays = Math.ceil((exp.getTime() - now) / (1000 * 60 * 60 * 24));
   const dateLabel = new Intl.DateTimeFormat("es-MX", {
     day: "numeric",
     month: "short",
     year: "numeric",
   }).format(exp);
-  const urgency = diffDays <= 7 ? "⚠️ " : "";
-  return {
-    expired: false,
-    label: `${urgency}Disponible hasta el ${dateLabel} (${diffDays} ${diffDays === 1 ? "día" : "días"})`,
-  };
+  return { expired: false, diffDays, dateLabel };
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -152,18 +148,24 @@ function getStatusColor(status: string): string {
   return "rgba(255,255,255,0.60)";
 }
 
-function getStatusLabel(session: BuyerSession): string {
-  if (session.kind === "meet_greet") {
-    return getMeetGreetStatusLabel(session.status as Parameters<typeof getMeetGreetStatusLabel>[0]);
-  }
-  return getExclusiveSessionStatusLabel(
-    session.status as Parameters<typeof getExclusiveSessionStatusLabel>[0]
-  );
-}
+const SESSION_STATUS_KEY_MAP: Record<string, string> = {
+  pending_creator_response: "statusPendingResponse",
+  accepted_pending_schedule: "statusAcceptedPendingSchedule",
+  scheduled: "statusScheduled",
+  reschedule_requested: "statusRescheduleRequested",
+  rejected: "statusRejected",
+  refund_requested: "statusRefundRequested",
+  refund_review: "statusRefundReview",
+  ready_to_prepare: "statusReadyToPrepare",
+  in_preparation: "statusInPreparation",
+  completed: "statusCompleted",
+  cancelled: "statusCancelled",
+};
 
 // ─── Componente de tarjeta ────────────────────────────────────────────────────
 
 function SessionCard({ session }: { session: BuyerSession }) {
+  const tSessions = useTranslations("sessions");
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [joiningBusy, setJoiningBusy] = useState(false);
@@ -195,17 +197,17 @@ function SessionCard({ session }: { session: BuyerSession }) {
       router.push(callHref);
     } catch (err: unknown) {
       setJoinError(
-        err instanceof Error ? err.message : "No se pudo unir a la sesión."
+        err instanceof Error ? err.message : tSessions("joinError")
       );
       setJoiningBusy(false);
     }
   }
 
-  const creatorLabel = session.creatorDisplayName ?? session.creatorUsername ?? "Creador";
+  const creatorLabel = session.creatorDisplayName ?? session.creatorUsername ?? tSessions("creatorFallback");
   const sourceLabel =
     session.source === "profile"
-      ? session.profileDisplayName ?? "Perfil"
-      : session.groupName ?? "Comunidad";
+      ? session.profileDisplayName ?? tSessions("profileFallback")
+      : session.groupName ?? tSessions("communityFallback");
 
   return (
     <div style={cardStyle}>
@@ -235,7 +237,7 @@ function SessionCard({ session }: { session: BuyerSession }) {
         <div style={cardHeaderMain}>
           <div style={cardTitleRow}>
             <span style={cardTitle}>
-              {session.kind === "meet_greet" ? "Meet & Greet" : "Sesión Exclusiva"}
+              {session.kind === "meet_greet" ? tSessions("meetGreetTitle") : tSessions("exclusiveSessionTitle")}
             </span>
             <span
               style={{
@@ -243,12 +245,13 @@ function SessionCard({ session }: { session: BuyerSession }) {
                 color: getStatusColor(session.status),
               }}
             >
-              {getStatusLabel(session)}
+              {tSessions(SESSION_STATUS_KEY_MAP[session.status] ?? "statusUnknown")}
             </span>
           </div>
           <div style={cardSubline}>
-            Con {creatorLabel}
-            {sourceLabel ? ` · ${sourceLabel}` : ""}
+            {sourceLabel
+              ? tSessions("withCreatorAndSource", { name: creatorLabel, source: sourceLabel })
+              : tSessions("withCreator", { name: creatorLabel })}
           </div>
           {session.scheduledAtDate ? (
             <div style={cardMeta}>
@@ -258,7 +261,7 @@ function SessionCard({ session }: { session: BuyerSession }) {
                 if (!tzd?.showBoth) return null;
                 return (
                   <span style={{ display: "block", fontSize: 11, color: "rgba(255,255,255,0.38)", marginTop: 2 }}>
-                    {tzd.creatorTime} hrs para el creador ({tzd.creatorLabel})
+                    {tSessions("creatorTimeNote", { time: tzd.creatorTime ?? "", label: tzd.creatorLabel ?? "" })}
                   </span>
                 );
               })()}
@@ -279,7 +282,7 @@ function SessionCard({ session }: { session: BuyerSession }) {
               onClick={() => void handleJoin()}
               disabled={joiningBusy}
             >
-              {joiningBusy ? "Conectando…" : "Unirse a la llamada"}
+              {joiningBusy ? tSessions("joining") : tSessions("joinCall")}
             </button>
           ) : null}
 
@@ -287,13 +290,16 @@ function SessionCard({ session }: { session: BuyerSession }) {
             <>
               {session.recordingStatus === "processing" ||
               session.recordingStatus === "recording" ? (
-                <div style={processingBadge}>⏳ Procesando grabación…</div>
+                <div style={processingBadge}>{tSessions("processingRecording")}</div>
               ) : recordingReady ? (
                 (() => {
-                  const { expired, label } = getRecordingExpiry(session.recordingExpiresAt);
+                  const { expired, diffDays, dateLabel } = getRecordingExpiry(session.recordingExpiresAt);
+                  const expiryLabelStr = diffDays !== null && dateLabel
+                    ? tSessions(diffDays <= 7 ? "recordingAvailableUrgent" : "recordingAvailable", { date: dateLabel, days: diffDays })
+                    : null;
                   return expired ? (
                     <div style={failedBadge}>
-                      La grabación ya no está disponible (expiró).
+                      {tSessions("recordingExpired")}
                     </div>
                   ) : (
                     <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
@@ -316,18 +322,18 @@ function SessionCard({ session }: { session: BuyerSession }) {
                             });
                             window.open(url, "_blank", "noopener,noreferrer");
                           } catch {
-                            setDownloadError("No se pudo obtener el enlace de descarga.");
+                            setDownloadError(tSessions("downloadError"));
                           } finally {
                             setDownloadBusy(false);
                           }
                         }}
                       >
-                        {downloadBusy ? "Obteniendo enlace…" : "↓ Descargar grabación"}
+                        {downloadBusy ? tSessions("fetchingLink") : tSessions("downloadRecording")}
                         {!downloadBusy && session.recordingDurationSeconds
                           ? ` (${formatDuration(session.recordingDurationSeconds)})`
                           : ""}
                       </button>
-                      {label ? <span style={expiryLabel}>{label}</span> : null}
+                      {expiryLabelStr ? <span style={expiryLabel}>{expiryLabelStr}</span> : null}
                       {downloadError ? (
                         <span style={{ ...expiryLabel, color: "#fca5a5" }}>
                           {downloadError}
@@ -337,7 +343,7 @@ function SessionCard({ session }: { session: BuyerSession }) {
                   );
                 })()
               ) : session.recordingStatus === "failed" ? (
-                <div style={failedBadge}>La grabación no está disponible.</div>
+                <div style={failedBadge}>{tSessions("recordingFailed")}</div>
               ) : null}
             </>
           ) : null}
@@ -353,14 +359,14 @@ function SessionCard({ session }: { session: BuyerSession }) {
         <div style={expandedPanel}>
           {session.durationMinutes ? (
             <div style={detailRow}>
-              <span style={detailLabel}>Duración</span>
-              <span style={detailValue}>{session.durationMinutes} min</span>
+              <span style={detailLabel}>{tSessions("durationLabel")}</span>
+              <span style={detailValue}>{tSessions("durationValue", { minutes: session.durationMinutes })}</span>
             </div>
           ) : null}
 
           {session.priceSnapshot != null ? (
             <div style={detailRow}>
-              <span style={detailLabel}>Precio</span>
+              <span style={detailLabel}>{tSessions("priceLabel")}</span>
               <span style={detailValue}>
                 {formatWalletMoney(session.priceSnapshot)}{" "}
                 {session.currency ?? "MXN"}
@@ -374,16 +380,16 @@ function SessionCard({ session }: { session: BuyerSession }) {
 
           {session.creatorScheduleNote ? (
             <div style={infoBox}>
-              <strong>Nota del creador:</strong> {session.creatorScheduleNote}
+              <strong>{tSessions("creatorNote")}</strong> {session.creatorScheduleNote}
             </div>
           ) : null}
 
           {session.rejectionReason ? (
-            <div style={errorBox}>Motivo: {session.rejectionReason}</div>
+            <div style={errorBox}>{tSessions("rejectionReason")} {session.rejectionReason}</div>
           ) : null}
 
           {session.refundReason ? (
-            <div style={warningBox}>Devolución: {session.refundReason}</div>
+            <div style={warningBox}>{tSessions("refundReason")} {session.refundReason}</div>
           ) : null}
         </div>
       ) : null}
@@ -394,6 +400,7 @@ function SessionCard({ session }: { session: BuyerSession }) {
 // ─── Página principal ─────────────────────────────────────────────────────────
 
 export default function SessionsPage() {
+  const tSessions = useTranslations("sessions");
   const { user } = useAuth();
   const [sessions, setSessions] = useState<BuyerSession[]>([]);
   const [loading, setLoading] = useState(true);
@@ -515,24 +522,24 @@ export default function SessionsPage() {
   if (!user) {
     return (
       <div style={pageWrapper}>
-        <p style={emptyMsg}>Debes iniciar sesión para ver tus sesiones.</p>
+        <p style={emptyMsg}>{tSessions("loginRequired")}</p>
       </div>
     );
   }
 
   return (
     <div style={pageWrapper}>
-      <h1 style={pageTitle}>Mis Sesiones</h1>
+      <h1 style={pageTitle}>{tSessions("pageTitle")}</h1>
 
       {loading ? (
-        <p style={emptyMsg}>Cargando…</p>
+        <p style={emptyMsg}>{tSessions("loading")}</p>
       ) : sessions.length === 0 ? (
-        <p style={emptyMsg}>No tienes sesiones registradas aún.</p>
+        <p style={emptyMsg}>{tSessions("empty")}</p>
       ) : (
         <>
           {active.length > 0 ? (
             <section style={section}>
-              <h2 style={sectionTitle}>Próximas y activas</h2>
+              <h2 style={sectionTitle}>{tSessions("sectionUpcoming")}</h2>
               {active.map((s) => (
                 <SessionCard key={s.id} session={s} />
               ))}
@@ -541,7 +548,7 @@ export default function SessionsPage() {
 
           {delivered.length > 0 ? (
             <section style={section}>
-              <h2 style={sectionTitle}>Entregados</h2>
+              <h2 style={sectionTitle}>{tSessions("sectionDelivered")}</h2>
               {delivered.map((s) => (
                 <SessionCard key={s.id} session={s} />
               ))}
@@ -550,7 +557,7 @@ export default function SessionsPage() {
 
           {history.length > 0 ? (
             <section style={section}>
-              <h2 style={sectionTitle}>Historial</h2>
+              <h2 style={sectionTitle}>{tSessions("sectionHistory")}</h2>
               {history.map((s) => (
                 <SessionCard key={s.id} session={s} />
               ))}

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useTranslations } from "next-intl";
 import { useSocialRelationship } from "@/lib/social/useSocialRelationship";
 import { useReport } from "@/lib/moderation/useReport";
 import ReportModal from "@/app/components/ReportModal/ReportModal";
@@ -14,6 +15,7 @@ type Props = {
 };
 
 export default function ProfileMoreMenu({ viewerUid, profileUid, onUnblockSuccess, onUnblockError }: Props) {
+  const tCommon = useTranslations("common");
   const menuPanelRef = useRef<HTMLDivElement | null>(null);
   const menuButtonRef = useRef<HTMLButtonElement | null>(null);
   const menuCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -62,7 +64,7 @@ export default function ProfileMoreMenu({ viewerUid, profileUid, onUnblockSucces
 
   async function handleBlockClick() {
     if (loading) return;
-    const confirmed = window.confirm("¿Seguro que quieres bloquear a este usuario?");
+    const confirmed = window.confirm(tCommon("confirmBlockUser"));
     if (!confirmed) return;
     closeMenu();
     await block();
@@ -101,8 +103,8 @@ export default function ProfileMoreMenu({ viewerUid, profileUid, onUnblockSucces
       <button
         ref={menuButtonRef}
         type="button"
-        aria-label="Opciones del perfil"
-        title="Opciones"
+        aria-label={tCommon("profileOptions")}
+        title={tCommon("options")}
         aria-haspopup="menu"
         aria-expanded={menuOpen}
         onClick={() => setMenuOpen((v) => !v)}
@@ -195,7 +197,7 @@ export default function ProfileMoreMenu({ viewerUid, profileUid, onUnblockSucces
                   disabled={loading}
                   style={{ ...itemStyle, color: "#ff8a8a" }}
                 >
-                  Desbloquear usuario
+                  {tCommon("unblock")}
                 </button>
               ) : (
                 <button
@@ -205,7 +207,7 @@ export default function ProfileMoreMenu({ viewerUid, profileUid, onUnblockSucces
                   disabled={loading}
                   style={{ ...itemStyle, color: "#ff8a8a" }}
                 >
-                  Bloquear usuario
+                  {tCommon("block")}
                 </button>
               )}
               <button
@@ -225,7 +227,7 @@ export default function ProfileMoreMenu({ viewerUid, profileUid, onUnblockSucces
                   borderTop: "1px solid rgba(255,255,255,0.08)",
                 }}
               >
-                Reportar usuario
+                {tCommon("report")}
               </button>
             </div>
           </div>

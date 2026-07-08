@@ -1,8 +1,9 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
+import { Link } from "@/i18n/navigation";
 import LogoutButton from "@/app/LogoutButton";
 import {
   VibraNavigationIcon,
@@ -85,26 +86,26 @@ export default function WalletDesktopRail({
   activePath: string;
   showWallet: boolean;
 }) {
+  const t = useTranslations("nav");
+
   const walletItems: Array<{
     key: WalletRailTab;
-    label: string;
     href: string;
     icon: VibraNavigationIconType;
   }> = [
-    { key: "finances", label: "Finanzas", href: "/wallet/finanzas", icon: "finance" },
-    { key: "calendar", label: "Calendario", href: "/wallet/calendario", icon: "calendar" },
-    { key: "pending", label: "Pendientes", href: "/wallet/pendientes", icon: "pending" },
-    { key: "history", label: "Historial", href: "/wallet/historial", icon: "history" },
+    { key: "finances", href: "/wallet/finanzas", icon: "finance" },
+    { key: "calendar", href: "/wallet/calendario", icon: "calendar" },
+    { key: "pending", href: "/wallet/pendientes", icon: "pending" },
+    { key: "history", href: "/wallet/historial", icon: "history" },
   ];
 
   const mainItems: Array<{
     key: MainRailTab;
-    label: string;
     href: string;
     icon: VibraNavigationIconType;
   }> = [
-    { key: "home", label: "Inicio", href: "/", icon: "home" },
-    { key: "saved", label: "Guardados", href: "/saved", icon: "saved" },
+    { key: "home", href: "/", icon: "home" },
+    { key: "saved", href: "/saved", icon: "saved" },
   ];
 
   const [walletOpen, setWalletOpen] = useState(true);
@@ -528,10 +529,10 @@ export default function WalletDesktopRail({
         }
       `}</style>
 
-      <aside className="walletRail" aria-label="Accesos directos">
+      <aside className="walletRail" aria-label={t("sidebarLabel")}>
         <div className="walletRailCenter" ref={sidebarScrollRef}>
-          <section className="railSection mainMenuSection" aria-label="Navegación principal">
-            <h3 className="secondaryTitle">Menú</h3>
+          <section className="railSection mainMenuSection" aria-label={t("mainNavLabel")}>
+            <h3 className="secondaryTitle">{t("menu")}</h3>
 
             <nav className="walletNav">
               {mainItems.map((item) => {
@@ -545,14 +546,14 @@ export default function WalletDesktopRail({
                     <span className="walletIcon" aria-hidden="true">
                       <VibraNavigationIcon type={item.icon} size={21} />
                     </span>
-                    <span className="walletLabel">{item.label}</span>
+                    <span className="walletLabel">{t(item.key)}</span>
                   </Link>
                 );
               })}
             </nav>
           </section>
 
-          <section className="railSection createCommunitySection" aria-label="Crear comunidad">
+          <section className="railSection createCommunitySection" aria-label={t("createCommunityLabel")}>
             <Image
               src="/Crear-comunidad.png"
               alt=""
@@ -563,28 +564,24 @@ export default function WalletDesktopRail({
             />
 
             <div className="createCommunityCopy">
-              <strong>Crea tu comunidad</strong>
-              <span>
-                Conecta, comparte y
-                <br />
-                monetiza tu pasión.
-              </span>
+              <strong>{t("createCommunityTitle")}</strong>
+              <span>{t("createCommunitySubtitle")}</span>
             </div>
 
             <Link href="/groups/new" className="createCommunityButton">
-              Crear comunidad
+              {t("createCommunityButton")}
             </Link>
           </section>
 
           {showWallet ? (
-            <section className="railSection" aria-label="Wallet">
+            <section className="railSection" aria-label={t("wallet")}>
               <button
                 type="button"
                 className="walletToggle"
                 onClick={() => setWalletOpen((o) => !o)}
                 aria-expanded={walletOpen}
               >
-                <h3 className="walletTitle">Wallet</h3>
+                <h3 className="walletTitle">{t("wallet")}</h3>
                 <span className="walletToggleIcon" aria-hidden="true">
                   {walletOpen ? "−" : "+"}
                 </span>
@@ -609,7 +606,7 @@ export default function WalletDesktopRail({
                         <span className="walletIcon" aria-hidden="true">
                           <VibraNavigationIcon type={item.icon} size={21} />
                         </span>
-                        <span className="walletLabel">{item.label}</span>
+                        <span className="walletLabel">{t(item.key)}</span>
                       </Link>
                     );
                   })}
@@ -618,7 +615,7 @@ export default function WalletDesktopRail({
             </section>
           ) : null}
 
-          <section className="logoutSection" aria-label="Cerrar sesión">
+          <section className="logoutSection" aria-label={t("profile")}>
             <LogoutButton variant="settings" />
           </section>
         </div>

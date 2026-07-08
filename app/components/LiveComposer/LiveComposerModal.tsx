@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useState, useEffect, useRef, type CSSProperties } from "react";
+import { useTranslations } from "next-intl";
 import { createPortal } from "react-dom";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
@@ -36,10 +37,7 @@ type LiveComposerModalProps = {
 const fontStack = "inherit";
 const PANEL_CLOSE_THRESHOLD = 130;
 
-const MONTHS_ES = [
-  "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
-  "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
-];
+type MonthNames = [string, string, string, string, string, string, string, string, string, string, string, string];
 
 function getDaysInMonth(month: string, year: string): number {
   const m = parseInt(month);
@@ -56,22 +54,23 @@ function buildCurrentYears(): number[] {
 function buildScheduledDate(
   day: string, month: string, year: string,
   hour: string, minute: string, period: "AM" | "PM",
+  invalidDateTimeMsg: string,
 ): Date | null {
   if (!day && !month && !year && !hour && !minute) return null;
   if (!day || !month || !year || !hour || !minute) {
-    throw new Error("Completa todos los campos de fecha y hora.");
+    throw new Error(invalidDateTimeMsg);
   }
   let h = parseInt(hour);
   if (period === "PM" && h !== 12) h += 12;
   if (period === "AM" && h === 12) h = 0;
   const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day), h, parseInt(minute), 0);
-  if (isNaN(date.getTime())) throw new Error("Fecha u hora inválida.");
+  if (isNaN(date.getTime())) throw new Error(invalidDateTimeMsg);
   return date;
 }
 
-async function uploadLiveCover(file: File): Promise<string> {
+async function uploadLiveCover(file: File, signInMsg: string): Promise<string> {
   const uid = auth.currentUser?.uid;
-  if (!uid) throw new Error("Debes iniciar sesión para subir la portada.");
+  if (!uid) throw new Error(signInMsg);
   const normalized = await normalizeImageFile(file, { maxSizeBytes: 150 * 1024 * 1024 });
   const ext = normalized.file.type === "image/png" ? "png" : "jpg";
   const randomId =
@@ -139,21 +138,33 @@ type VisibilityOption = {
   icon: "globe" | "user" | "lock";
 };
 
+type VisibilityTranslations = {
+  everyoneTitle: string;
+  everyoneDesc: string;
+  loggedInTitle: string;
+  loggedInDesc: string;
+  anyVibraUser: string;
+  anyVibraUserDesc: string;
+  membersTitle: string;
+  membersDesc: string;
+};
+
 function getVisibilityOptions(
   contextType: "group" | "profile",
   groupVisibility: GroupVisibility,
+  t: VisibilityTranslations,
 ): VisibilityOption[] {
   if (contextType === "profile" || groupVisibility === "public") {
     return [
-      { mode: "everyone", icon: "globe", title: "Todos, incluyendo visitantes", description: "Cualquiera puede verlo aunque no tenga cuenta en Vibra" },
-      { mode: "logged_in_only", icon: "user", title: "Solo usuarios con cuenta", description: "Solo personas con cuenta en Vibra pueden verlo" },
+      { mode: "everyone", icon: "globe", title: t.everyoneTitle, description: t.everyoneDesc },
+      { mode: "logged_in_only", icon: "user", title: t.loggedInTitle, description: t.loggedInDesc },
     ];
   }
   if (groupVisibility === "private") {
     return [
-      { mode: "members_only", icon: "lock", title: "Solo miembros de la comunidad", description: "Solo quienes ya forman parte de esta comunidad pueden verlo" },
-      { mode: "logged_in_only", icon: "user", title: "Cualquier usuario de Vibra", description: "Cualquier persona con cuenta puede verlo, aunque no sea miembro" },
-      { mode: "everyone", icon: "globe", title: "Todos, incluyendo visitantes", description: "Cualquiera puede verlo aunque no tenga cuenta en Vibra" },
+      { mode: "members_only", icon: "lock", title: t.membersTitle, description: t.membersDesc },
+      { mode: "logged_in_only", icon: "user", title: t.anyVibraUser, description: t.anyVibraUserDesc },
+      { mode: "everyone", icon: "globe", title: t.everyoneTitle, description: t.everyoneDesc },
     ];
   }
   return [];
@@ -170,7 +181,26 @@ export default function LiveComposerModal({
   profileId,
   groupVisibility,
 }: LiveComposerModalProps) {
+  const tCommon = useTranslations("common");
+  const tLive = useTranslations("live");
   const isEditMode = !!editPost;
+
+  const MONTHS: MonthNames = [
+    tLive("monthJan"), tLive("monthFeb"), tLive("monthMar"), tLive("monthApr"),
+    tLive("monthMay"), tLive("monthJun"), tLive("monthJul"), tLive("monthAug"),
+    tLive("monthSep"), tLive("monthOct"), tLive("monthNov"), tLive("monthDec"),
+  ];
+
+  const visibilityTranslations: VisibilityTranslations = {
+    everyoneTitle: tLive("privacyEveryoneTitle"),
+    everyoneDesc: tLive("privacyEveryoneDesc"),
+    loggedInTitle: tLive("privacyLoggedInTitle"),
+    loggedInDesc: tLive("privacyLoggedInDesc"),
+    anyVibraUser: tLive("privacyAnyVibraUser"),
+    anyVibraUserDesc: tLive("privacyAnyVibraUserDesc"),
+    membersTitle: tLive("privacyMembersTitle"),
+    membersDesc: tLive("privacyMembersDesc"),
+  };
 
   const [mounted, setMounted] = useState(false);
   const [shouldRender, setShouldRender] = useState(open);
@@ -195,7 +225,7 @@ export default function LiveComposerModal({
   const [paidAccessMode, setPaidAccessMode] = useState<"everyone_pays" | "members_free_non_members_pay">("everyone_pays");
 
   const isHiddenGroup = contextType === "group" && groupVisibility === "hidden";
-  const visibilityOptions = getVisibilityOptions(contextType, groupVisibility ?? null);
+  const visibilityOptions = getVisibilityOptions(contextType, groupVisibility ?? null, visibilityTranslations);
   const [visibilityMode, setVisibilityMode] = useState<LiveVisibilityMode>(
     deriveDefaultVisibility(contextType, groupVisibility ?? null)
   );
@@ -372,19 +402,19 @@ export default function LiveComposerModal({
 
   async function handleSubmit() {
     if (saving) return;
-    if (!title.trim()) { showLiveComposerToast("El título es obligatorio.", "error"); return; }
+    if (!title.trim()) { showLiveComposerToast(tLive("titleRequired"), "error"); return; }
 
     let scheduledDate: Date | null = null;
     try {
-      scheduledDate = buildScheduledDate(day, month, year, hour, minute, period);
+      scheduledDate = buildScheduledDate(day, month, year, hour, minute, period, tLive("invalidDateTime"));
     } catch (e) {
-      showLiveComposerToast(e instanceof Error ? e.message : "Fecha u hora inválida.", "error");
+      showLiveComposerToast(e instanceof Error ? e.message : tLive("invalidDateTime"), "error");
       return;
     }
 
     const priceNum = parseFloat(ticketPrice.replace(",", "."));
     if (accessType === "paid" && (isNaN(priceNum) || priceNum <= 0)) {
-      showLiveComposerToast("El precio del ticket debe ser mayor a 0.", "error");
+      showLiveComposerToast(tLive("ticketPriceRequired"), "error");
       return;
     }
 
@@ -392,7 +422,7 @@ export default function LiveComposerModal({
 
     try {
       let finalCoverUrl: string | null = existingCoverUrl;
-      if (coverFile) finalCoverUrl = await uploadLiveCover(coverFile);
+      if (coverFile) finalCoverUrl = await uploadLiveCover(coverFile, tLive("uploadCoverSignIn"));
 
       const effectiveMode: LiveVisibilityMode = isHiddenGroup ? "members_only" : visibilityMode;
       const cleanTitle = title.trim();
@@ -474,14 +504,14 @@ export default function LiveComposerModal({
           broadcastGroupIds: finalBroadcastGroupIds,
         });
       } else {
-        throw new Error("Contexto inválido para crear el live.");
+        throw new Error(tLive("invalidContext"));
       }
 
       resetForm();
       onSuccess?.();
       onClose();
     } catch (e) {
-      showLiveComposerToast(e instanceof Error ? e.message : isEditMode ? "No se pudo guardar el live." : "No se pudo crear el live.", "error");
+      showLiveComposerToast(e instanceof Error ? e.message : isEditMode ? tLive("saveLiveError") : tLive("createLiveError"), "error");
     } finally {
       setSaving(false);
     }
@@ -575,7 +605,7 @@ export default function LiveComposerModal({
         type="button"
         onClick={handleCoverClick}
         disabled={saving}
-        aria-label={coverPreviewUrl ? "Cambiar portada" : "Agregar portada"}
+        aria-label={coverPreviewUrl ? tLive("changeCover") : tLive("addCover")}
         style={{
           width: "100%", aspectRatio: "16/7", borderRadius: 12,
           border: coverPreviewUrl ? "none" : "1.5px dashed rgba(255,255,255,0.18)",
@@ -589,7 +619,7 @@ export default function LiveComposerModal({
       >
         {coverPreviewUrl ? (
           <>
-            <Image src={coverPreviewUrl} alt="Portada del live" fill style={{ objectFit: "cover", display: "block" }} />
+            <Image src={coverPreviewUrl} alt={tLive("coverAlt")} fill style={{ objectFit: "cover", display: "block" }} />
             <div
               style={{
                 position: "absolute", inset: 0, display: "flex",
@@ -599,7 +629,7 @@ export default function LiveComposerModal({
               onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.opacity = "1"; }}
               onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.opacity = "0"; }}
             >
-              <span style={{ fontSize: 13, fontWeight: 600, color: "#fff", fontFamily: fontStack }}>Cambiar portada</span>
+              <span style={{ fontSize: 13, fontWeight: 600, color: "#fff", fontFamily: fontStack }}>{tLive("changeCover")}</span>
             </div>
           </>
         ) : (
@@ -628,7 +658,7 @@ export default function LiveComposerModal({
       <textarea
         value={description}
         onChange={(e) => setDescription(e.target.value)}
-        placeholder="Cuéntale a tu audiencia más detalles..."
+        placeholder={tLive("descriptionPlaceholder")}
         disabled={saving}
         maxLength={500}
         rows={3}
@@ -735,10 +765,10 @@ export default function LiveComposerModal({
               }} />
               <div>
                 <div style={{ fontSize: 13, fontWeight: 600, color: active ? "#e9d5ff" : "#fff", fontFamily: fontStack }}>
-                  {type === "free" ? "Gratuito" : "Con ticket de entrada"}
+                  {type === "free" ? tLive("ticketFree") : tLive("ticketPaid")}
                 </div>
                 <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", fontFamily: fontStack, marginTop: 2 }}>
-                  {type === "free" ? "Cualquier persona con acceso puede verlo sin costo" : "Los espectadores deben pagar para acceder al live"}
+                  {type === "free" ? tLive("ticketFreeDesc") : tLive("ticketPaidDesc")}
                 </div>
               </div>
             </div>
@@ -783,11 +813,11 @@ export default function LiveComposerModal({
 
           {contextType === "group" && groupVisibility === "private" && visibilityMode !== "members_only" && (
             <>
-              <label style={labelStyle}>¿Quién paga?</label>
+              <label style={labelStyle}>{tLive("whoPays")}</label>
               <div style={{ marginBottom: 8, borderRadius: 10, border: "1px solid rgba(255,255,255,0.08)", overflow: "hidden" }}>
                 {([
-                  { value: "everyone_pays", label: "Todos pagan", desc: "Tanto miembros como no miembros deben comprar el ticket" },
-                  { value: "members_free_non_members_pay", label: "Miembros gratis / No miembros pagan", desc: "Los miembros actuales de la comunidad entran sin costo" },
+                  { value: "everyone_pays", label: tLive("payAllPay"), desc: tLive("payAllPayDesc") },
+                  { value: "members_free_non_members_pay", label: tLive("payMembersFree"), desc: tLive("payMembersFreeDesc") },
                 ] as const).map(({ value, label, desc }, idx) => {
                   const active = paidAccessMode === value;
                   return (
@@ -843,7 +873,7 @@ export default function LiveComposerModal({
             className="vibra-live-select"
           >
             <option value="">Mes</option>
-            {MONTHS_ES.map((name, i) => (
+            {MONTHS.map((name, i) => (
               <option key={i + 1} value={String(i + 1)}>{name}</option>
             ))}
           </select>
@@ -892,13 +922,13 @@ export default function LiveComposerModal({
 
         // When creating from a community: offer the creator's profile + other communities
         if (contextType === "group") {
-          destinations.push({ id: "__profile__", name: "Tu perfil", visibility: "public", avatarUrl: null, isProfile: true });
+          destinations.push({ id: "__profile__", name: tLive("yourProfile"), visibility: "public", avatarUrl: null, isProfile: true });
         }
 
         // Non-hidden communities (excluding origin group)
         userGroups.forEach((g) => {
           if (g.visibility !== "hidden") {
-            destinations.push({ id: g.id, name: g.name ?? "Comunidad", visibility: g.visibility ?? null, avatarUrl: g.avatarUrl, isProfile: false });
+            destinations.push({ id: g.id, name: g.name ?? tLive("communityFallback"), visibility: g.visibility ?? null, avatarUrl: g.avatarUrl, isProfile: false });
           }
         });
 
@@ -934,7 +964,7 @@ export default function LiveComposerModal({
             <div style={{ borderRadius: 10, border: "1px solid rgba(255,255,255,0.08)", overflow: "hidden", marginBottom: 10 }}>
               {destinations.map((dest, idx) => {
                 const isSelected = broadcastGroupIds.includes(dest.id);
-                const visLabel = dest.visibility === "public" ? "Público" : dest.visibility === "private" ? "Privado" : "";
+                const visLabel = dest.visibility === "public" ? tLive("visPublic") : dest.visibility === "private" ? tLive("visPrivate") : "";
                 const isLast = idx === destinations.length - 1;
                 return (
                   <div
@@ -1036,8 +1066,8 @@ export default function LiveComposerModal({
         }}
       >
         {saving
-          ? (isEditMode ? "Guardando..." : "Creando live...")
-          : (isEditMode ? "Guardar cambios" : "Programar live")
+          ? (isEditMode ? tCommon("saving") : tLive("creatingLive"))
+          : (isEditMode ? tCommon("saveChanges") : tLive("scheduleLive"))
         }
       </button>
     </div>
@@ -1087,7 +1117,7 @@ export default function LiveComposerModal({
             onMouseDown={(e) => e.stopPropagation()}
             role="dialog"
             aria-modal="true"
-            aria-label={isEditMode ? "Editar live" : "Live programado"}
+            aria-label={isEditMode ? tLive("editLive") : tLive("scheduledLive")}
             style={{
               width: "min(100%, 540px)",
               maxHeight: "min(88vh, 680px)",
@@ -1114,13 +1144,13 @@ export default function LiveComposerModal({
             } as CSSProperties}>
               <div />
               <span style={{ fontSize: 17, fontWeight: 500, color: "#fff", lineHeight: 1.2, textAlign: "center", letterSpacing: "-0.02em" }}>
-                {isEditMode ? "Editar live" : "Live programado"}
+                {isEditMode ? tLive("editLive") : tLive("scheduledLive")}
               </span>
               <button
                 type="button"
                 onClick={handleClose}
                 disabled={saving}
-                aria-label="Cerrar"
+                aria-label={tCommon("closeAriaLabel")}
                 style={{
                   border: "none", background: "none", color: "#fff",
                   cursor: saving ? "not-allowed" : "pointer",
@@ -1141,7 +1171,7 @@ export default function LiveComposerModal({
           <div
             role="dialog"
             aria-modal="true"
-            aria-label={isEditMode ? "Editar live" : "Live programado"}
+            aria-label={isEditMode ? tLive("editLive") : tLive("scheduledLive")}
             style={{
               width: "100%",
               maxHeight: "calc(100vh - 72px)",
@@ -1190,7 +1220,7 @@ export default function LiveComposerModal({
                 >
                   <div aria-hidden="true" />
                   <h3 style={{ margin: 0, textAlign: "center", fontSize: 17, fontWeight: 500, letterSpacing: "-0.02em", lineHeight: 1.2, color: "#fff" }}>
-                    {isEditMode ? "Editar live" : "Live programado"}
+                    {isEditMode ? tLive("editLive") : tLive("scheduledLive")}
                   </h3>
                   <button
                     type="button"

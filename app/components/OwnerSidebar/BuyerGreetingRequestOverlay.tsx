@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import { createPortal } from "react-dom";
 import type { GreetingRequestDoc } from "./OwnerSidebar";
 import { playEdgeTTS } from "@/lib/tts/edge-tts-client";
@@ -53,17 +54,17 @@ function getRelativeTime(ts?: { toDate: () => Date } | null): string {
   return "Hace un momento";
 }
 
-function getTypeLabel(type: string): string {
-  if (type === "consejo") return "Consejo";
-  if (type === "mensaje") return "Mensaje";
-  return "Saludo";
+function getTypeLabel(type: string, t: (key: string) => string): string {
+  if (type === "consejo") return t("typeLabelAdvice");
+  if (type === "mensaje") return t("typeLabelMessage");
+  return t("typeLabelGreeting");
 }
 
-function getStatusLabel(status: string): string {
-  if (status === "accepted") return "En proceso";
-  if (status === "delivered") return "Entregado";
-  if (status === "rejected") return "Rechazado";
-  return "Pendiente";
+function getStatusLabel(status: string, t: (key: string) => string): string {
+  if (status === "accepted") return t("statusInProgress");
+  if (status === "delivered") return t("statusDelivered");
+  if (status === "rejected") return t("statusRejected");
+  return t("statusPending");
 }
 
 function getStatusStyle(status: string): React.CSSProperties {
@@ -97,6 +98,9 @@ type Props = {
 };
 
 export default function BuyerGreetingRequestOverlay({ item, sourceName, sourceAvatar, onClose, onRefund, onRetry }: Props) {
+  const tCommon = useTranslations("common");
+  const tServices = useTranslations("services");
+  const tWallet = useTranslations("wallet");
   const [mounted, setMounted] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [closing, setClosing] = useState(false);
@@ -116,7 +120,7 @@ export default function BuyerGreetingRequestOverlay({ item, sourceName, sourceAv
   const closeRef = useRef<() => void>(() => {});
 
   const req = item.data;
-  const typeLabel = getTypeLabel(req.type);
+  const typeLabel = getTypeLabel(req.type, tWallet);
   const bgImage = req.type === "consejo" ? "/consejo.png" : "/saludo.png";
   const retryBtnBg = req.type === "consejo" ? "rgba(250,204,21,0.85)" : req.type === "mensaje" ? "rgba(96,165,250,0.85)" : "#a855ff";
   const retryBtnColor = req.type === "consejo" ? "#111" : "#fff";
@@ -124,9 +128,9 @@ export default function BuyerGreetingRequestOverlay({ item, sourceName, sourceAv
   const createdAt = req.createdAt as { toDate: () => Date } | undefined;
   const sourceInitial = sourceName.charAt(0).toUpperCase();
   const instructionsLabel =
-    req.type === "consejo" ? "¿Cuál es el contexto del consejo?" :
-    req.type === "mensaje" ? "¿Cuál es el contexto del mensaje?" :
-    "¿Cuál es el contexto del saludo?";
+    req.type === "consejo" ? tServices("contextAdvice") :
+    req.type === "mensaje" ? tServices("contextMessage") :
+    tServices("contextGreeting");
 
   useEffect(() => { setMounted(true); }, []);
   useEffect(() => {
@@ -251,12 +255,12 @@ export default function BuyerGreetingRequestOverlay({ item, sourceName, sourceAv
           {sourceName}
         </span>
         <span style={{ display: "block", color: "rgba(255,255,255,0.42)", fontSize: 11, lineHeight: 1.3 }}>
-          {getStatusLabel(req.status)}
+          {getStatusLabel(req.status, tServices)}
         </span>
       </div>
       {req.priceSnapshot != null && (
         <div style={{ flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 1 }}>
-          <span style={{ color: priceColor, fontSize: 10, fontWeight: 500, opacity: 0.8, lineHeight: 1 }}>Pagaste</span>
+          <span style={{ color: priceColor, fontSize: 10, fontWeight: 500, opacity: 0.8, lineHeight: 1 }}>{tServices("paidLabel")}</span>
           <span style={{ color: priceColor, fontWeight: 700, fontSize: 24, lineHeight: 1 }}>{formatMoney(req.priceSnapshot)}</span>
         </div>
       )}
@@ -267,7 +271,7 @@ export default function BuyerGreetingRequestOverlay({ item, sourceName, sourceAv
     <div style={{ display: "grid", gap: 14 }}>
       {req.toName ? (
         <div style={{ display: "grid", gap: 2 }}>
-          <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 12 }}>¿Para quién es?</span>
+          <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 12 }}>{tServices("toWhomLabel")}</span>
           <span style={{ color: "#fff", fontWeight: 600, fontSize: 13 }}>{req.toName}</span>
         </div>
       ) : null}
@@ -279,7 +283,7 @@ export default function BuyerGreetingRequestOverlay({ item, sourceName, sourceAv
             {speechState !== "idle" && (
               <button
                 type="button"
-                aria-label="Cambiar velocidad de lectura"
+                aria-label={tServices("changeReadingSpeed")}
                 onClick={handleCycleRate}
                 style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.55)", padding: "2px 4px", display: "flex", alignItems: "center", flexShrink: 0, fontSize: 11, fontWeight: 700, letterSpacing: "-0.3px" }}
               >
@@ -288,7 +292,7 @@ export default function BuyerGreetingRequestOverlay({ item, sourceName, sourceAv
             )}
             <button
               type="button"
-              aria-label={speechState === "playing" ? "Pausar lectura" : speechState === "paused" ? "Reanudar lectura" : "Leer contexto"}
+              aria-label={speechState === "playing" ? tServices("pauseReading") : speechState === "paused" ? tServices("resumeReading") : tServices("readContext")}
               onClick={handleToggleSpeech}
               style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.6)", padding: 2, display: "flex", alignItems: "center", flexShrink: 0, transition: "color 0.15s" }}
             >
@@ -325,14 +329,14 @@ export default function BuyerGreetingRequestOverlay({ item, sourceName, sourceAv
 
       {createdAt ? (
         <div style={{ display: "grid", gap: 2 }}>
-          <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 12 }}>Solicitado el</span>
+          <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 12 }}>{tServices("requestedOn")}</span>
           <span style={{ color: "#fff", fontWeight: 600, fontSize: 13 }}>{formatDate(createdAt)}</span>
         </div>
       ) : null}
 
       {(req.status === "rejected" || req.status === "refund_requested" || req.status === "refund_review") && req.updatedAt ? (
         <div style={{ display: "grid", gap: 2 }}>
-          <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 12 }}>Rechazado el</span>
+          <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 12 }}>{tServices("rejectedOn")}</span>
           <span style={{ color: "#fff", fontWeight: 600, fontSize: 13 }}>{formatDate(req.updatedAt as { toDate: () => Date })}</span>
         </div>
       ) : null}
@@ -349,7 +353,7 @@ export default function BuyerGreetingRequestOverlay({ item, sourceName, sourceAv
         <circle cx="12" cy="8" r="0.5" fill={priceColor} />
       </svg>
       <p style={{ margin: 0, fontSize: 12, color: "rgba(255,255,255,0.5)", lineHeight: 1.5 }}>
-        El creador tiene 60 días para responder tu solicitud. Si no lo hace, se realizará la devolución de manera automática.
+        {tServices("creatorResponseNotice")}
       </p>
     </div>
   ) : null;
@@ -359,7 +363,7 @@ export default function BuyerGreetingRequestOverlay({ item, sourceName, sourceAv
       <textarea
         value={refundReason}
         onChange={(e) => setRefundReason(e.target.value)}
-        placeholder="Explica por qué solicitas devolución."
+        placeholder={tServices("refundReasonPlaceholder")}
         style={{
           background: "rgba(255,255,255,0.06)", border: "none", borderRadius: 12,
           color: "#fff", fontSize: 13, padding: "10px 12px", resize: "none",
@@ -372,22 +376,22 @@ export default function BuyerGreetingRequestOverlay({ item, sourceName, sourceAv
           onClick={() => { onRefund?.(refundReason); setRefundOpen(false); }}
           style={{ ...btnPrimary, flex: 1, width: "auto", background: "rgba(220,38,38,0.80)", fontSize: 15 }}
         >
-          Confirmar devolución
+          {tServices("confirmRefund")}
         </button>
         <button type="button" onClick={() => setRefundOpen(false)}
           style={{ ...btnSecondary, flex: 1, width: "auto" }}
         >
-          Cancelar
+          {tCommon("cancel")}
         </button>
       </div>
     </div>
   ) : req.status === "rejected" ? (
     <div style={{ display: "flex", gap: 8 }}>
       <button type="button" onClick={onRetry} style={{ ...btnPrimary, flex: 1, width: "auto", background: retryBtnBg, color: retryBtnColor }}>
-        Intentar de nuevo
+        {tCommon("retry")}
       </button>
       <button type="button" onClick={() => setRefundOpen(true)} style={{ ...btnSecondary, flex: 1, width: "auto" }}>
-        Solicitar devolución
+        {tServices("requestRefund")}
       </button>
     </div>
   ) : null;
@@ -458,7 +462,7 @@ export default function BuyerGreetingRequestOverlay({ item, sourceName, sourceAv
                 >
                   <div aria-hidden="true" />
                   <h3 style={{ margin: 0, textAlign: "center", fontSize: 17, fontWeight: 500, letterSpacing: "-0.02em", lineHeight: 1.2, color: "#fff" }}>
-                    {typeLabel} solicitado
+                    {tServices("typeRequested", { type: typeLabel })}
                   </h3>
                   <button type="button" onClick={handleClose} style={{
                     width: 40, height: 40, border: "none", background: "transparent",
@@ -526,7 +530,7 @@ export default function BuyerGreetingRequestOverlay({ item, sourceName, sourceAv
             <h3 style={{ margin: 0, textAlign: "center", fontSize: 17, fontWeight: 500, letterSpacing: "-0.02em", lineHeight: 1.2, color: "#fff" }}>
               {typeLabel} solicitado
             </h3>
-            <button type="button" onClick={handleClose} aria-label="Cerrar" style={{
+            <button type="button" onClick={handleClose} aria-label={tCommon("close")} style={{
               border: "none", background: "none", color: "#fff", cursor: "pointer",
               display: "grid", placeItems: "center", justifySelf: "end", padding: 4,
             }}>

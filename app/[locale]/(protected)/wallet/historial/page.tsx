@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import type { Timestamp } from "firebase/firestore";
 import { useAuth } from "@/app/providers";
 import type { WalletServiceItem } from "@/lib/wallet/ownerWallet";
@@ -27,16 +28,6 @@ type HistoryFilter =
   | "saludo"
   | "consejo";
 
-const FILTER_OPTIONS: Array<{ value: HistoryFilter; label: string; emoji?: string; color?: string }> = [
-  { value: "all", label: "Todo", emoji: "📋" },
-  { value: "meet_greet", label: "Sesión en vivo", emoji: "🤝" },
-  { value: "exclusive_session", label: "Sesión exclusiva", emoji: "👑" },
-  { value: "saludo", label: "Saludos", emoji: "👋" },
-  { value: "consejo", label: "Consejos", emoji: "💡" },
-  { value: "refund_in_progress", label: "En devolución", emoji: "💸", color: "#f87171" },
-  { value: "rejected", label: "Rechazados", emoji: "❌", color: "#f87171" },
-];
-
 function getInitials(name?: string | null): string {
   if (!name) return "?";
   return name
@@ -45,12 +36,6 @@ function getInitials(name?: string | null): string {
     .join("")
     .toUpperCase()
     .slice(0, 2);
-}
-
-function typeLabel(t: string): string {
-  if (t === "consejo") return "Consejo";
-  if (t === "mensaje") return "Mensaje";
-  return "Saludo";
 }
 
 function rowToGreetingDoc(row: WalletServiceItem, creatorId: string): GreetingRequestDoc {
@@ -153,10 +138,27 @@ function filterHistoryItems(
 }
 
 export default function WalletHistorialPage() {
+  const tWallet = useTranslations("wallet");
   const { user } = useAuth();
   const walletData = useWalletData();
   const [filter, setFilter] = useState<HistoryFilter[]>(["all"]);
   const [viewRow, setViewRow] = useState<WalletServiceItem | null>(null);
+
+  const FILTER_OPTIONS: Array<{ value: HistoryFilter; label: string; emoji?: string; color?: string }> = [
+    { value: "all", label: tWallet("filterAll"), emoji: "📋" },
+    { value: "meet_greet", label: tWallet("filterLiveSession"), emoji: "🤝" },
+    { value: "exclusive_session", label: tWallet("filterExclusiveSession"), emoji: "👑" },
+    { value: "saludo", label: tWallet("filterGreetings"), emoji: "👋" },
+    { value: "consejo", label: tWallet("filterAdvice"), emoji: "💡" },
+    { value: "refund_in_progress", label: tWallet("filterRefundInProgress"), emoji: "💸", color: "#f87171" },
+    { value: "rejected", label: tWallet("filterRejected"), emoji: "❌", color: "#f87171" },
+  ];
+
+  function translatedTypeLabel(kind: string): string {
+    if (kind === "consejo") return tWallet("typeLabelAdvice");
+    if (kind === "mensaje") return tWallet("typeLabelMessage");
+    return tWallet("typeLabelGreeting");
+  }
 
   const overlayBuyers: Record<string, UserMini | null> = useMemo(() => {
     if (!viewRow) return {};
@@ -187,10 +189,10 @@ export default function WalletHistorialPage() {
     .map((row) => ({
       ...row,
       status: "rejected",
-      statusLabel: "Rechazado",
+      statusLabel: tWallet("noShowStatusLabel"),
       rejectionReason:
         row.rejectionReason ||
-        "No se conectó dentro de los 15 minutos de tolerancia.",
+        tWallet("noShowRejectionReason"),
     }));
 
   const existingKeys = new Set(
@@ -214,12 +216,12 @@ const filteredItems = useMemo(() => {
       {walletData.error ? <WalletErrorBox message={walletData.error} /> : null}
 
       <WalletCard
-        title="Historial"
+        title={tWallet("historialTitle")}
         transparent
         headerRight={
           <WalletFilterMenu
-            label="Filtro"
-            menuLabel="Filtrar historial"
+            label={tWallet("filterLabel")}
+            menuLabel={tWallet("filterHistorialMenu")}
             value={filter}
             options={FILTER_OPTIONS}
             onChange={setFilter}
@@ -265,8 +267,8 @@ const filteredItems = useMemo(() => {
             <WalletList items={filteredItems} mode="history" onView={setViewRow} />
           ) : (
             <EmptyRows
-              title="Sin historial"
-              subtitle="No hay movimientos para el filtro seleccionado."
+              title={tWallet("emptyHistorial")}
+              subtitle={tWallet("emptyHistorialSubtitle")}
             />
           )}
         </>
@@ -283,7 +285,7 @@ const filteredItems = useMemo(() => {
         onReject={() => {}}
         onClose={() => setViewRow(null)}
         getInitials={getInitials}
-        typeLabel={typeLabel}
+        typeLabel={translatedTypeLabel}
       />
     )}
 

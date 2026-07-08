@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useTranslations, useLocale } from "next-intl";
 import {
   createUserWithEmailAndPassword,
   sendEmailVerification,
@@ -22,20 +23,12 @@ const vibraBlue = "#4f46ff";
 
 type Sex = "male" | "female" | "other" | "prefer_not_say";
 
-const MONTHS = [
-  { value: 1, label: "Enero" },
-  { value: 2, label: "Febrero" },
-  { value: 3, label: "Marzo" },
-  { value: 4, label: "Abril" },
-  { value: 5, label: "Mayo" },
-  { value: 6, label: "Junio" },
-  { value: 7, label: "Julio" },
-  { value: 8, label: "Agosto" },
-  { value: 9, label: "Septiembre" },
-  { value: 10, label: "Octubre" },
-  { value: 11, label: "Noviembre" },
-  { value: 12, label: "Diciembre" },
-];
+function getMonths(locale: string) {
+  return Array.from({ length: 12 }, (_, i) => ({
+    value: i + 1,
+    label: new Intl.DateTimeFormat(locale, { month: "long" }).format(new Date(2000, i, 1)),
+  }));
+}
 
 function normalizeHandle(raw: string) {
   return raw.trim().toLowerCase();
@@ -54,27 +47,21 @@ function isValidName(s: string) {
   return v.length >= 1 && v.length <= 40;
 }
 
-function friendlyAuthError(err: unknown) {
+function friendlyAuthErrorKey(err: unknown): string {
   const code = (err as { code?: string } | null)?.code;
-
-  if (code === "auth/email-already-in-use") return "Este correo ya está registrado.";
-  if (code === "auth/invalid-email") return "El correo no es válido.";
-  if (code === "auth/weak-password") return "La contraseña debe tener al menos 6 caracteres.";
-  if (code === "auth/network-request-failed") {
-    return "Error de red. Revisa tu conexión e intenta de nuevo.";
-  }
-
-  return "Error inesperado. Intenta nuevamente.";
+  if (code === "auth/email-already-in-use") return "errEmailInUse";
+  if (code === "auth/invalid-email") return "errInvalidEmail";
+  if (code === "auth/weak-password") return "errWeakPassword";
+  if (code === "auth/network-request-failed") return "errNetworkFailed";
+  return "errUnexpected";
 }
 
-function friendlyProfileError(err: unknown) {
+function friendlyProfileErrorKey(err: unknown): string {
   const code = (err as { code?: string } | null)?.code;
   const msg = String((err as { message?: string } | null)?.message || "");
-
-  if (code === "permission-denied") return "Permiso denegado. Revisa reglas de Firestore.";
-  if (msg.includes("HANDLE_TAKEN")) return "Ese nombre de usuario ya está ocupado.";
-
-  return "No se pudo completar el registro. Intenta nuevamente.";
+  if (code === "permission-denied") return "errPermissionDenied";
+  if (msg.includes("HANDLE_TAKEN")) return "errHandleTaken";
+  return "errRegistrationFailed";
 }
 
 function isLeapYear(year: number) {
@@ -140,6 +127,8 @@ function getYearOptions() {
 }
 
 export default function RegisterClient() {
+  const t = useTranslations("auth.register");
+  const locale = useLocale();
   const [email, setEmail] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -193,32 +182,32 @@ const handle = useMemo(() => normalizeHandle(handleRaw), [handleRaw]);
     const ln = cleanName(lastName);
 
     if (!isValidName(fn)) {
-      setMsg("Nombre inválido (1–40 caracteres).");
+      setMsg(t("errInvalidName"));
       return;
     }
 
     if (!isValidName(ln)) {
-      setMsg("Apellido inválido (1–40 caracteres).");
+      setMsg(t("errInvalidLastName"));
       return;
     }
 
     if (!isValidHandle(handle)) {
-      setMsg("El username debe tener 3–20 caracteres y solo usar letras, números o _. Ej: luisae98");
+      setMsg(t("errInvalidHandle"));
       return;
     }
 
     if (!birthYear || !birthMonth || !birthDay || !birthDate) {
-      setMsg("Completa tu fecha de nacimiento.");
+      setMsg(t("errCompleteBirthdate"));
       return;
     }
 
     if (!Number.isFinite(calculatedAge) || calculatedAge < 18) {
-      setMsg("Debes tener al menos 18 años para crear una cuenta.");
+      setMsg(t("errUnder18"));
       return;
     }
 
     if (password !== password2) {
-      setMsg("Las contraseñas no coinciden.");
+      setMsg(t("errPasswordMismatch"));
       return;
     }
 
@@ -229,7 +218,7 @@ const handle = useMemo(() => normalizeHandle(handleRaw), [handleRaw]);
       const handleSnap = await getDoc(handleRef);
 
       if (handleSnap.exists()) {
-        setMsg("Ese username ya está ocupado.");
+        setMsg(t("errHandleTaken"));
         setLoading(false);
         return;
       }
@@ -278,9 +267,9 @@ router.replace(`/login?registered=1&next=${encodeURIComponent(nextPath)}`);
     } catch (err: unknown) {
       const errCode = (err as { code?: string } | null)?.code;
       if (typeof errCode === "string" && errCode.startsWith("auth/")) {
-        setMsg(friendlyAuthError(err));
+        setMsg(t(friendlyAuthErrorKey(err) as Parameters<typeof t>[0]));
       } else {
-        setMsg(friendlyProfileError(err));
+        setMsg(t(friendlyProfileErrorKey(err) as Parameters<typeof t>[0]));
       }
     } finally {
       setLoading(false);
@@ -464,7 +453,7 @@ select option {
               letterSpacing: "-0.02em",
             }}
           >
-            Crear cuenta
+            {t("title")}
           </h1>
 
           <p
@@ -476,14 +465,14 @@ select option {
               lineHeight: 1.35,
             }}
           >
-            Elige tu username y completa tu perfil básico.
+            {t("subtitle")}
           </p>
         </div>
 
         <div style={innerPanelStyle}>
           <form onSubmit={handleRegister} style={{ display: "grid", gap: 8 }}>
             <label style={{ display: "grid", gap: 4 }}>
-              <span style={labelTextStyle}>Correo</span>
+              <span style={labelTextStyle}>{t("emailLabel")}</span>
               <input
                 type="email"
                 required
@@ -491,13 +480,13 @@ select option {
                 autoComplete="email"
                 onChange={(e) => setEmail(e.target.value)}
                 style={inputStyle}
-                placeholder="tucorreo@ejemplo.com"
+                placeholder={t("emailPlaceholder")}
               />
             </label>
 
             <div className="register-two-col">
               <label style={{ display: "grid", gap: 4 }}>
-                <span style={labelTextStyle}>Nombre</span>
+                <span style={labelTextStyle}>{t("firstNameLabel")}</span>
                 <input
                   type="text"
                   required
@@ -505,12 +494,12 @@ select option {
                   autoComplete="given-name"
                   onChange={(e) => setFirstName(e.target.value)}
                   style={inputStyle}
-                  placeholder="Tu nombre"
+                  placeholder={t("firstNamePlaceholder")}
                 />
               </label>
 
               <label style={{ display: "grid", gap: 4 }}>
-                <span style={labelTextStyle}>Apellido</span>
+                <span style={labelTextStyle}>{t("lastNameLabel")}</span>
                 <input
                   type="text"
                   required
@@ -518,31 +507,31 @@ select option {
                   autoComplete="family-name"
                   onChange={(e) => setLastName(e.target.value)}
                   style={inputStyle}
-                  placeholder="Tu apellido"
+                  placeholder={t("lastNamePlaceholder")}
                 />
               </label>
             </div>
 
             <label style={{ display: "grid", gap: 4 }}>
-              <span style={labelTextStyle}>Username</span>
+              <span style={labelTextStyle}>{t("usernameLabel")}</span>
               <input
                 type="text"
                 required
                 value={handleRaw}
                 onChange={(e) => setHandleRaw(e.target.value)}
                 style={inputStyle}
-                placeholder="ej: luisae98"
+                placeholder={t("usernamePlaceholder")}
                 autoCapitalize="none"
                 autoCorrect="off"
                 spellCheck={false}
               />
               <span style={helperTextStyle}>
-                3–20 caracteres, solo letras, números o guion bajo.
+                {t("usernameHelper")}
               </span>
             </label>
 
             <div style={{ display: "grid", gap: 4 }}>
-              <span style={labelTextStyle}>Fecha de nacimiento</span>
+              <span style={labelTextStyle}>{t("birthdateLabel")}</span>
 
               <div className="birthdate-grid">
                 <select
@@ -555,7 +544,7 @@ select option {
                       : "1px solid rgba(255,255,255,0.12)",
                   }}
                 >
-                  <option value="">Día</option>
+                  <option value="">{t("dayPlaceholder")}</option>
                   {days.map((day) => (
                     <option key={day} value={String(day)}>
                       {day}
@@ -587,8 +576,8 @@ select option {
                       : "1px solid rgba(255,255,255,0.12)",
                   }}
                 >
-                  <option value="">Mes</option>
-                  {MONTHS.map((month) => (
+                  <option value="">{t("monthPlaceholder")}</option>
+                  {getMonths(locale).map((month) => (
                     <option key={month.value} value={String(month.value)}>
                       {month.label}
                     </option>
@@ -619,7 +608,7 @@ select option {
                       : "1px solid rgba(255,255,255,0.12)",
                   }}
                 >
-                  <option value="">Año</option>
+                  <option value="">{t("yearPlaceholder")}</option>
                   {years.map((year) => (
                     <option key={year} value={String(year)}>
                       {year}
@@ -630,27 +619,27 @@ select option {
 
               {isUnder18 ? (
                 <span style={errorTextStyle}>
-                  Debes tener al menos 18 años para crear una cuenta.
+                  {t("under18Error")}
                 </span>
               ) : null}
             </div>
 
             <label style={{ display: "grid", gap: 4 }}>
-              <span style={labelTextStyle}>Sexo</span>
+              <span style={labelTextStyle}>{t("sexLabel")}</span>
               <select
                 value={sex}
                 onChange={(e) => setSex(e.target.value as Sex)}
                 style={selectStyle}
               >
-                <option value="prefer_not_say">Prefiero no decir</option>
-                <option value="male">Hombre</option>
-                <option value="female">Mujer</option>
-                <option value="other">Otro</option>
+                <option value="prefer_not_say">{t("sexPreferNotSay")}</option>
+                <option value="male">{t("sexMale")}</option>
+                <option value="female">{t("sexFemale")}</option>
+                <option value="other">{t("sexOther")}</option>
               </select>
             </label>
 
             <label style={{ display: "grid", gap: 4 }}>
-              <span style={labelTextStyle}>Contraseña</span>
+              <span style={labelTextStyle}>{t("passwordLabel")}</span>
               <input
                 type="password"
                 required
@@ -658,12 +647,12 @@ select option {
                 autoComplete="new-password"
                 onChange={(e) => setPassword(e.target.value)}
                 style={inputStyle}
-                placeholder="Mínimo 6 caracteres"
+                placeholder={t("passwordPlaceholder")}
               />
             </label>
 
             <label style={{ display: "grid", gap: 4 }}>
-              <span style={labelTextStyle}>Confirmar contraseña</span>
+              <span style={labelTextStyle}>{t("confirmPasswordLabel")}</span>
               <input
                 type="password"
                 required
@@ -676,11 +665,11 @@ select option {
                     ? "1px solid rgba(255,255,255,0.12)"
                     : "1px solid rgba(255,107,107,0.72)",
                 }}
-                placeholder="Repite tu contraseña"
+                placeholder={t("confirmPasswordPlaceholder")}
               />
               {!passwordsMatch && password2 ? (
                 <span style={errorTextStyle}>
-                  Las contraseñas no coinciden.
+                  {t("passwordMismatch")}
                 </span>
               ) : null}
             </label>
@@ -695,7 +684,7 @@ select option {
               }}
             >
 <Link href={loginHref} style={linkStyle}>
-  Ya tengo cuenta
+  {t("haveAccount")}
 </Link>
             </div>
 
@@ -709,7 +698,7 @@ select option {
                 cursor: loading || isUnder18 ? "not-allowed" : "pointer",
               }}
             >
-              {loading ? "Creando..." : "Crear cuenta"}
+              {loading ? t("submitting") : t("submit")}
             </button>
           </form>
         </div>

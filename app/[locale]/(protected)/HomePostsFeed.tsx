@@ -3,6 +3,7 @@
 
 import type { CSSProperties } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import { doc, getDoc } from "firebase/firestore";
 
 import { db } from "@/lib/firebase";
@@ -175,6 +176,7 @@ function peekFreshCache(uid: string | null): HomeFeedCacheEntry | null {
 }
 
 export default function HomePostsFeed({ currentUserId, refreshRef }: HomePostsFeedProps) {
+  const t = useTranslations("common");
   const [posts, setPosts] = useState<PostWithFlags[]>(() => {
     const c = peekFreshCache(currentUserId);
     return c ? c.posts.filter((p) => p.isDeleted !== true) : [];
@@ -646,7 +648,7 @@ const handleHomePullRefresh = useCallback(async () => {
 
       removePostFromAllFeedCaches(postId);
     } catch (e: unknown) {
-      setError((e instanceof Error ? e.message : null) ?? "Error desconocido");
+      setError((e instanceof Error ? e.message : null) ?? t("unknownError"));
       throw e;
     }
   }
@@ -656,7 +658,7 @@ const handleHomePullRefresh = useCallback(async () => {
       setError(null);
       return await fetchPostComments(postId);
     } catch (e: unknown) {
-      setError((e instanceof Error ? e.message : null) ?? "Error desconocido");
+      setError((e instanceof Error ? e.message : null) ?? t("unknownError"));
       throw e;
     }
   }
@@ -689,7 +691,7 @@ const handleHomePullRefresh = useCallback(async () => {
       await createPostComment({ postId, text });
       return await syncPostCommentsCount(postId);
     } catch (e: unknown) {
-      setError((e instanceof Error ? e.message : null) ?? "Error desconocido");
+      setError((e instanceof Error ? e.message : null) ?? t("unknownError"));
       throw e;
     }
   }
@@ -703,7 +705,7 @@ const handleHomePullRefresh = useCallback(async () => {
       await deletePostComment({ postId, commentId });
       return await syncPostCommentsCount(postId);
     } catch (e: unknown) {
-      setError((e instanceof Error ? e.message : null) ?? "Error desconocido");
+      setError((e instanceof Error ? e.message : null) ?? t("unknownError"));
       throw e;
     }
   }

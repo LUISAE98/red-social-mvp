@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useTranslations } from "next-intl";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import {
@@ -787,7 +788,7 @@ function ConfirmModal({
   title,
   description,
   confirmLabel,
-  cancelLabel = "Cancelar",
+  cancelLabel: cancelLabelProp,
   loading = false,
   onConfirm,
   onCancel,
@@ -801,6 +802,8 @@ function ConfirmModal({
   onConfirm: () => void;
   onCancel: () => void;
 }) {
+  const tCommon = useTranslations("common");
+  const cancelLabel = cancelLabelProp ?? tCommon("cancel");
   useLockBodyScroll(open);
   useCloseOnEscape(open, onCancel, loading);
 
@@ -947,7 +950,7 @@ function OverlayModal({
   title,
   children,
   confirmLabel = "Guardar cambios",
-  cancelLabel = "Cancelar",
+  cancelLabel: cancelLabelProp,
   loading = false,
   onConfirm,
   onCancel,
@@ -961,6 +964,8 @@ function OverlayModal({
   onConfirm: () => void;
   onCancel: () => void;
 }) {
+  const tCommon = useTranslations("common");
+  const cancelLabel = cancelLabelProp ?? tCommon("cancel");
   useLockBodyScroll(open);
   useCloseOnEscape(open, onCancel, loading);
 

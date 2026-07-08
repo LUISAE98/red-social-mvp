@@ -17,6 +17,7 @@ import { createPortal } from "react-dom";
 import { VibraNavigationIcon } from "@/app/components/VibraServiceIcons/VibraNavigationIcons";
 import ComposerPremiumPanel from "./ComposerPremiumPanel";
 import type { useComposerPremium } from "./useComposerPremium";
+import { useTranslations } from "next-intl";
 
 type SelectedMediaItem = {
   id: string;
@@ -187,6 +188,7 @@ export default function PostComposerMobileOverlay({
   onPreviewPointerUp,
 }: PostComposerMobileOverlayProps) {
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const tCommon = useTranslations("common");
   const dragStartYRef = useRef(0);
   const dragStartOffsetYRef = useRef(0);
   const publishSuccessTimerRef = useRef<number | null>(null);
@@ -574,7 +576,7 @@ export default function PostComposerMobileOverlay({
     <button
       type="button"
       onClick={onClose}
-      aria-label="Cerrar"
+      aria-label={tCommon("closeAriaLabel")}
       style={{
         width: 40,
         height: 40,
@@ -613,10 +615,10 @@ export default function PostComposerMobileOverlay({
       disabled={disabledPublish || isPublishIconState}
       aria-label={
         isPublishSuccess
-          ? "Publicado"
+          ? tCommon("done")
           : isPublishLoading
-            ? "Publicando"
-            : "Publicar"
+            ? tCommon("publishing")
+            : tCommon("publish")
       }
       style={{
         width: isPublishIconState ? 38 : undefined,
@@ -663,7 +665,7 @@ export default function PostComposerMobileOverlay({
       ) : premiumComposer.premiumEnabled ? (
         <VibraNavigationIcon type="premiumCrown" size={22} />
       ) : (
-        isEditMode ? "Guardar" : "Publicar"
+        isEditMode ? tCommon("save") : tCommon("publish")
       )}
     </button>
   </header>

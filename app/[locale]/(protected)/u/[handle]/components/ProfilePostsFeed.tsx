@@ -3,6 +3,7 @@
 
 import type { CSSProperties } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import { doc, getDoc, Timestamp } from "firebase/firestore";
 
 import type { Comment, CommentReply, Post } from "@/lib/posts/types";
@@ -483,6 +484,7 @@ export default function ProfilePostsFeed({
   onDonationClose,
   onDonationPay,
 }: ProfilePostsFeedProps) {
+  const t = useTranslations("common");
   const showDonationBanner =
     donation?.mode === "general" && donation?.enabled === true && donation?.visible !== false;
 
@@ -1036,7 +1038,7 @@ async function handleToggleProfilePin(postId: string): Promise<void> {
 
       removePostFromAllFeedCaches(postId);
     } catch (e: unknown) {
-      setError((e instanceof Error ? e.message : null) ?? "Error desconocido");
+      setError((e instanceof Error ? e.message : null) ?? t("unknownError"));
       throw e;
     }
   }
@@ -1046,7 +1048,7 @@ async function handleToggleProfilePin(postId: string): Promise<void> {
       setError(null);
       return await fetchPostComments(postId);
     } catch (e: unknown) {
-      setError((e instanceof Error ? e.message : null) ?? "Error desconocido");
+      setError((e instanceof Error ? e.message : null) ?? t("unknownError"));
       throw e;
     }
   }
@@ -1079,7 +1081,7 @@ async function handleToggleProfilePin(postId: string): Promise<void> {
       await createPostComment({ postId, text });
       return await syncPostCommentsCount(postId);
     } catch (e: unknown) {
-      setError((e instanceof Error ? e.message : null) ?? "Error desconocido");
+      setError((e instanceof Error ? e.message : null) ?? t("unknownError"));
       throw e;
     }
   }
@@ -1093,7 +1095,7 @@ async function handleToggleProfilePin(postId: string): Promise<void> {
       await deletePostComment({ postId, commentId });
       return await syncPostCommentsCount(postId);
     } catch (e: unknown) {
-      setError((e instanceof Error ? e.message : null) ?? "Error desconocido");
+      setError((e instanceof Error ? e.message : null) ?? t("unknownError"));
       throw e;
     }
   }

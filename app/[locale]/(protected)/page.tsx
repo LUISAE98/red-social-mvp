@@ -8,6 +8,7 @@ import HomePostsFeed from "./HomePostsFeed";
 import HomeStoriesRow, { invalidateStoriesCache } from "@/app/components/Stories/HomeStoriesRow";
 import RefreshableArea from "@/components/refresh/RefreshableArea";
 import { invalidateRecommendationCache } from "@/app/components/GroupRecommendations/recommendation-engine";
+import SessionCountdownBanner from "@/app/components/SessionCountdownBanner/SessionCountdownBanner";
 
 const SESSION_UID_KEY = "vibra:uid";
 
@@ -87,6 +88,7 @@ const pageWrap: CSSProperties = {
             }
             return refreshRef.current();
           }}>
+            <SessionCountdownBanner uid={effectiveUid} />
             <HomeStoriesRow currentUserId={effectiveUid} />
             <HomePostsFeed currentUserId={effectiveUid} refreshRef={refreshRef} />
           </RefreshableArea>

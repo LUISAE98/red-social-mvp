@@ -3,6 +3,7 @@
 import { createPortal } from "react-dom";
 import { useEffect, useState } from "react";
 import type { CSSProperties } from "react";
+import { useTranslations } from "next-intl";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import type { GreetingType } from "@/lib/greetings/greetingRequests";
@@ -70,19 +71,20 @@ type GroupServiceModalsProps = {
   formatMoney: (value: number, currency: Currency) => string;
 };
 
-function getGreetingUi(type: GreetingType) {
+function getGreetingUi(
+  type: GreetingType,
+  tServices: ReturnType<typeof useTranslations>
+) {
   if (type === "consejo") {
     return {
-      title: "Solicitar consejo",
+      title: tServices("requestAdvice"),
       intro:
         "Completa tu solicitud con el mayor contexto posible para que el creador entienda bien qué consejo necesitas.",
-      recipientLabel: "¿Para quién o para qué situación es el consejo?",
-      recipientPlaceholder:
-        "Ej. Para mí / Para Ana / Para mi proceso actual",
-      instructionsLabel: "Describe tu situación o qué consejo necesitas",
-      instructionsPlaceholder:
-        "Ej. Necesito consejo sobre disciplina, entrenamiento, motivación, enfoque, relaciones, etc.",
-      submitLabel: "Solicitar consejo",
+      recipientLabel: tServices("recipientLabel"),
+      recipientPlaceholder: tServices("recipientPlaceholder"),
+      instructionsLabel: tServices("instructionsLabel"),
+      instructionsPlaceholder: tServices("instructionsPlaceholder"),
+      submitLabel: tServices("requestAdvice"),
       helperText:
         "Nota: el creador revisará tu solicitud de consejo y podrá aceptarla o rechazarla. Pagos y entrega se integran después.",
     };
@@ -180,6 +182,7 @@ export default function GroupServiceModals({
   serviceToastStyle,
   formatMoney,
 }: GroupServiceModalsProps) {
+  const tServices = useTranslations("services");
   const [mounted, setMounted] = useState(false);
   const { toast: serviceModalToast, showToast: showServiceModalToast } = useVibraToast();
 
@@ -238,7 +241,7 @@ export default function GroupServiceModals({
     onCloseExclusiveSession,
   ]);
 
-  const greetingUi = getGreetingUi(greetType);
+  const greetingUi = getGreetingUi(greetType, tServices);
 
   const greetingModal =
     mounted && greetOpen

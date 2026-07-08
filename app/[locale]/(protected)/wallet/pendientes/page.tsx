@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import type { Timestamp } from "firebase/firestore";
 import { useAuth } from "@/app/providers";
 import { formatWalletMoney, type WalletServiceItem } from "@/lib/wallet/ownerWallet";
@@ -40,17 +41,6 @@ type PendingFilter =
   | "saludo"
   | "consejo";
 
-const FILTER_OPTIONS: Array<{
-  value: PendingFilter;
-  label: string;
-  emoji?: string;
-}> = [
-  { value: "all", label: "Todos", emoji: "📋" },
-  { value: "meet_greet", label: "Sesión en vivo", emoji: "🤝" },
-  { value: "exclusive_session", label: "Sesión exclusiva", emoji: "👑" },
-  { value: "saludo", label: "Saludos", emoji: "👋" },
-  { value: "consejo", label: "Consejos", emoji: "💡" },
-];
 
 function isSafePendingStatus(status: string): boolean {
   return ![
@@ -130,7 +120,22 @@ function rowToFakeRequest(row: WalletServiceItem): MeetGreetRequestDoc {
 }
 
 export default function WalletPendientesPage() {
+  const tWallet = useTranslations("wallet");
   const { user } = useAuth();
+
+  const FILTER_OPTIONS: Array<{ value: PendingFilter; label: string; emoji?: string }> = [
+    { value: "all", label: tWallet("filterAllPlural"), emoji: "📋" },
+    { value: "meet_greet", label: tWallet("filterLiveSession"), emoji: "🤝" },
+    { value: "exclusive_session", label: tWallet("filterExclusiveSession"), emoji: "👑" },
+    { value: "saludo", label: tWallet("filterGreetings"), emoji: "👋" },
+    { value: "consejo", label: tWallet("filterAdvice"), emoji: "💡" },
+  ];
+
+  function translatedTypeLabel(kind: string): string {
+    if (kind === "consejo") return tWallet("typeLabelAdvice");
+    if (kind === "mensaje") return tWallet("typeLabelMessage");
+    return tWallet("typeLabelGreeting");
+  }
   const walletData = useWalletData();
   const [filter, setFilter] = useState<PendingFilter[]>(["all"]);
   const [recordRow, setRecordRow] = useState<WalletServiceItem | null>(null);
@@ -212,7 +217,7 @@ export default function WalletPendientesPage() {
         await acceptMeetGreetRequest({ requestId: viewItem.id });
       }
     } catch (e) {
-      setFeedbackError((e instanceof Error ? e.message : null) ?? "No se pudo aceptar.");
+      setFeedbackError((e instanceof Error ? e.message : null) ?? tWallet("cannotAccept"));
     } finally {
       setBusy(false);
     }
@@ -230,7 +235,7 @@ export default function WalletPendientesPage() {
       }
       closeViewItem();
     } catch (e) {
-      setFeedbackError((e instanceof Error ? e.message : null) ?? "No se pudo rechazar.");
+      setFeedbackError((e instanceof Error ? e.message : null) ?? tWallet("cannotReject"));
     } finally {
       setBusy(false);
     }
@@ -247,10 +252,10 @@ export default function WalletPendientesPage() {
       } else {
         await proposeMeetGreetSchedule({ requestId: viewItem.id, scheduledAt: scheduledAtIso, creatorTimezone });
       }
-      setFeedbackSuccess("✅ Sesión agendada.");
+      setFeedbackSuccess(tWallet("sessionScheduled"));
       setTimeout(closeViewItem, 900);
     } catch (e) {
-      setFeedbackError((e instanceof Error ? e.message : null) ?? "No se pudo agendar.");
+      setFeedbackError((e instanceof Error ? e.message : null) ?? tWallet("cannotSchedule"));
     } finally {
       setBusy(false);
     }
@@ -269,10 +274,10 @@ export default function WalletPendientesPage() {
         await acceptMeetGreetRequest({ requestId: viewItem.id });
         if (scheduledAtIso) await proposeMeetGreetSchedule({ requestId: viewItem.id, scheduledAt: scheduledAtIso, creatorTimezone });
       }
-      setFeedbackSuccess("✅ Sesión aceptada y agendada.");
+      setFeedbackSuccess(tWallet("sessionAcceptedAndScheduled"));
       setTimeout(closeViewItem, 900);
     } catch (e) {
-      setFeedbackError((e instanceof Error ? e.message : null) ?? "No se pudo aceptar y agendar.");
+      setFeedbackError((e instanceof Error ? e.message : null) ?? tWallet("cannotAcceptAndSchedule"));
     } finally {
       setBusy(false);
     }
@@ -289,7 +294,7 @@ export default function WalletPendientesPage() {
         await setMeetGreetPreparing({ requestId: viewItem.id, role: "creator" });
       }
     } catch (e) {
-      setFeedbackError((e instanceof Error ? e.message : null) ?? "No se pudo preparar.");
+      setFeedbackError((e instanceof Error ? e.message : null) ?? tWallet("cannotPrepare"));
     } finally {
       setBusy(false);
     }
@@ -347,13 +352,13 @@ export default function WalletPendientesPage() {
           ) : totalPendingCount === 0 ? (
             <div style={{ marginTop: -8, marginBottom: 0, textAlign: "center" }}>
               <p style={{ margin: "0 0 4px", fontSize: 12, color: "rgba(255,255,255,0.50)", fontFamily: "inherit", fontWeight: 500 }}>
-                Monto total a liberar
+                {tWallet("totalToRelease")}
               </p>
               <p style={{ margin: "0 0 8px", fontSize: 28, fontWeight: 700, lineHeight: 1, letterSpacing: "-0.03em", color: "rgba(255,255,255,0.25)", fontFamily: "inherit" }}>
                 $0.00 MXN
               </p>
               <p style={{ margin: 0, fontSize: 13, color: "rgba(255,255,255,0.45)", fontFamily: "inherit", fontWeight: 400 }}>
-                No tienes pendientes por el momento
+                {tWallet("noPending")}
               </p>
             </div>
 
@@ -363,20 +368,20 @@ export default function WalletPendientesPage() {
               {totalPendingAmount != null && (
                 <div style={{ marginTop: -8, marginBottom: 14, textAlign: "center" }}>
                   <p style={{ margin: "0 0 4px", fontSize: 12, color: "rgba(255,255,255,0.50)", fontFamily: "inherit", fontWeight: 500 }}>
-                    Monto total a liberar
+                    {tWallet("totalToRelease")}
                   </p>
                   <p style={{ margin: "0 0 8px", fontSize: 28, fontWeight: 700, lineHeight: 1, letterSpacing: "-0.03em", color: "#86efac", fontFamily: "inherit" }}>
                     {formatWalletMoney(Math.round(totalPendingAmount * 100) / 100)} MXN
                   </p>
                   <p style={{ margin: 0, fontSize: 13, color: "#fff", fontFamily: "inherit", fontWeight: 500 }}>
-                    {totalPendingCount} pendiente{totalPendingCount !== 1 ? "s" : ""}
+                    {tWallet("pendingCount", { count: totalPendingCount })}
                   </p>
                 </div>
               )}
               <div style={{ display: "flex", justifyContent: "flex-end" }}>
                 <WalletFilterMenu
-                  label="Filtro"
-                  menuLabel="Filtrar pendientes"
+                  label={tWallet("filterLabel")}
+                  menuLabel={tWallet("filterPendingMenu")}
                   value={filter}
                   options={FILTER_OPTIONS}
                   onChange={setFilter}
@@ -398,8 +403,8 @@ export default function WalletPendientesPage() {
                 />
               ) : (
                 <EmptyRows
-                  title="No hay resultados para este filtro"
-                  subtitle="Cambia el filtro para ver otros pendientes activos."
+                  title={tWallet("noFilterResults")}
+                  subtitle={tWallet("noFilterResultsSubtitle")}
                 />
               )}
             </>
@@ -434,7 +439,7 @@ export default function WalletPendientesPage() {
           }}
           onClose={() => setRecordRow(null)}
           getInitials={(name) => (name ?? "U").split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()}
-          typeLabel={(t) => t === "consejo" ? "Consejo" : t === "mensaje" ? "Mensaje" : "Saludo"}
+          typeLabel={translatedTypeLabel}
         />
       )}
 

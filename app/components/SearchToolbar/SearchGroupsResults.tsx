@@ -7,6 +7,7 @@ import {
   useState,
   type CSSProperties,
 } from "react";
+import { useTranslations } from "next-intl";
 import type { User } from "firebase/auth";
 import RefreshableArea from "@/components/refresh/RefreshableArea";
 import LiveRingAvatar from "@/app/components/LiveRing/LiveRingAvatar";
@@ -89,15 +90,20 @@ function isVisibleEnabledService(service: Record<string, unknown> | null): boole
   return enabled && visible;
 }
 
-function buildSearchServiceDots(source?: {
-  offerings?: Array<Record<string, unknown>> | Record<string, unknown>;
-  donation?: Record<string, unknown>;
-  monetization?: Record<string, unknown>;
-  greetingsEnabled?: boolean;
-  adviceEnabled?: boolean;
-  digitalMeetGreetEnabled?: boolean;
-  customClassEnabled?: boolean;
-}): SearchServiceDot[] {
+type ServicesDotT = (key: string) => string;
+
+function buildSearchServiceDots(
+  source: {
+    offerings?: Array<Record<string, unknown>> | Record<string, unknown>;
+    donation?: Record<string, unknown>;
+    monetization?: Record<string, unknown>;
+    greetingsEnabled?: boolean;
+    adviceEnabled?: boolean;
+    digitalMeetGreetEnabled?: boolean;
+    customClassEnabled?: boolean;
+  } | undefined,
+  t: ServicesDotT
+): SearchServiceDot[] {
   const offerings = source?.offerings;
   const donation = source?.donation ?? {};
   const monetization = source?.monetization ?? {};
@@ -132,7 +138,7 @@ function buildSearchServiceDots(source?: {
     dots.push({
       key: "saludo",
       color: SEARCH_SERVICE_COLORS.saludo,
-      title: "Solicitar saludo",
+      title: t("requestGreeting"),
     });
   }
 
@@ -140,7 +146,7 @@ function buildSearchServiceDots(source?: {
     dots.push({
       key: "consejo",
       color: SEARCH_SERVICE_COLORS.consejo,
-      title: "Solicitar consejo",
+      title: t("requestAdvice"),
     });
   }
 
@@ -148,7 +154,7 @@ function buildSearchServiceDots(source?: {
     dots.push({
       key: "meet_greet_digital",
       color: SEARCH_SERVICE_COLORS.meetGreet,
-      title: "Agendar encuentro",
+      title: t("requestMeetGreet"),
     });
   }
 
@@ -156,7 +162,7 @@ function buildSearchServiceDots(source?: {
     dots.push({
       key: "clase_personalizada",
       color: SEARCH_SERVICE_COLORS.exclusiveSession,
-      title: "Reservar sesión exclusiva",
+      title: t("requestSession"),
     });
   }
 
@@ -168,7 +174,7 @@ function buildSearchServiceDots(source?: {
     dots.push({
       key: "wedding_donation",
       color: SEARCH_SERVICE_COLORS.weddingDonation,
-      title: "Apoyar boda",
+      title: t("weddingDonation"),
     });
   }
 
@@ -180,19 +186,19 @@ function buildSearchServiceDots(source?: {
     dots.push({
       key: "general_donation",
       color: SEARCH_SERVICE_COLORS.generalDonation,
-      title: "Apoyar",
+      title: t("generalDonation"),
     });
   }
 
   return dots;
 }
 
-function ServiceDots({ dots }: { dots: SearchServiceDot[] }) {
+function ServiceDots({ dots, ariaLabel }: { dots: SearchServiceDot[]; ariaLabel: string }) {
   if (dots.length === 0) return null;
 
   return (
     <span
-      aria-label="Servicios activos"
+      aria-label={ariaLabel}
       style={{
         display: "inline-flex",
         alignItems: "center",
@@ -228,11 +234,11 @@ function isBlockedStatus(status: CanonicalMemberStatus) {
   return status === "banned" || status === "removed";
 }
 
-function membershipStatusLabel(status: CanonicalMemberStatus) {
-  if (status === "active") return "Ya estás unido";
-  if (status === "muted") return "Ya estás unido (muteado)";
-  if (status === "banned") return "Baneado";
-  if (status === "removed") return "Expulsado";
+function membershipStatusKey(status: CanonicalMemberStatus): string {
+  if (status === "active") return "statusActive";
+  if (status === "muted") return "statusMuted";
+  if (status === "banned") return "statusBanned";
+  if (status === "removed") return "statusRemoved";
   return "";
 }
 
@@ -282,6 +288,10 @@ export default function SearchGroupsResults({
   onLeave,
   onRefresh,
 }: SearchGroupsResultsProps) {
+  const tGroups = useTranslations("groups");
+  const tCommon = useTranslations("common");
+  const tServices = useTranslations("services");
+
 const [isMobile, setIsMobile] = useState(false);
 const [isFiltersOpen, setIsFiltersOpen] = useState(false);
 const [visibleCount, setVisibleCount] = useState(10);
@@ -711,12 +721,12 @@ const cardStyle: CSSProperties = {
   const activeFilters = [
     ...visibilityFilters.map((value) => ({
       key: `visibility-${value}`,
-      label: value === "public" ? "Públicas" : "Privadas",
+      label: value === "public" ? tGroups("publicShort") : tGroups("privateShort"),
       onRemove: () => toggleVisibilityFilter(value),
     })),
     ...monetizationFilters.map((value) => ({
       key: `monetization-${value}`,
-      label: value === "free" ? "Gratuitas" : "De pago",
+      label: value === "free" ? tCommon("free") : tCommon("premium"),
       onRemove: () => toggleMonetizationFilter(value),
     })),
   ];
@@ -730,13 +740,13 @@ const cardStyle: CSSProperties = {
           onClick={() => setIsFiltersOpen((prev) => !prev)}
         >
           <span aria-hidden="true">🧮</span>
-          Filtros
+          {tCommon("filters")}
         </button>
 
         {isFiltersOpen && (
           <div style={filtersPanelStyle} className="search-groups-filters-panel">
             <div style={filterBlockStyle}>
-              <p style={filterBlockTitleStyle}>Visibilidad</p>
+              <p style={filterBlockTitleStyle}>{tGroups("visibility")}</p>
 
               <button
                 type="button"
@@ -747,7 +757,7 @@ const cardStyle: CSSProperties = {
                 }
                 onClick={() => toggleVisibilityFilter("public")}
               >
-                Públicas
+                {tGroups("publicShort")}
               </button>
 
               <button
@@ -759,12 +769,12 @@ const cardStyle: CSSProperties = {
                 }
                 onClick={() => toggleVisibilityFilter("private")}
               >
-                Privadas
+                {tGroups("privateShort")}
               </button>
             </div>
 
             <div style={filterBlockStyle}>
-              <p style={filterBlockTitleStyle}>Monetización</p>
+              <p style={filterBlockTitleStyle}>{tCommon("monetization")}</p>
 
               <button
                 type="button"
@@ -775,7 +785,7 @@ const cardStyle: CSSProperties = {
                 }
                 onClick={() => toggleMonetizationFilter("free")}
               >
-                Gratuitas
+                {tCommon("free")}
               </button>
 
               <button
@@ -787,7 +797,7 @@ const cardStyle: CSSProperties = {
                 }
                 onClick={() => toggleMonetizationFilter("paid")}
               >
-                De pago
+                {tCommon("premium")}
               </button>
             </div>
 
@@ -797,7 +807,7 @@ const cardStyle: CSSProperties = {
                 style={filterActionSecondaryStyle}
                 onClick={clearAllFilters}
               >
-                Limpiar
+                {tCommon("clear")}
               </button>
 
               <button
@@ -805,7 +815,7 @@ const cardStyle: CSSProperties = {
                 style={filterActionPrimaryStyle}
                 onClick={() => setIsFiltersOpen(false)}
               >
-                Listo
+                {tCommon("done")}
               </button>
             </div>
           </div>
@@ -829,14 +839,14 @@ const cardStyle: CSSProperties = {
 
 const visLabel =
   group.visibility === "public"
-    ? "Comunidad pública"
+    ? tGroups("publicLabel")
     : group.visibility === "private"
-      ? "Comunidad privada"
-      : "Comunidad oculta";
+      ? tGroups("privateLabel")
+      : tGroups("hiddenLabel");
 
 const price = resolveSubscriptionPrice(group);
 const cur = resolveSubscriptionCurrency(group);
-const serviceDots = buildSearchServiceDots(group);
+const serviceDots = buildSearchServiceDots(group, tServices);
 
     return (
       <article
@@ -852,7 +862,7 @@ const serviceDots = buildSearchServiceDots(group);
               entityType="group"
               currentUserId={currentUser?.uid ?? null}
               photoURL={group.avatarUrl ?? null}
-              displayName={group.name ?? "Comunidad"}
+              displayName={group.name ?? tGroups("title")}
               size={42}
               onClick={(e) => { e.stopPropagation(); onNavigate(`/groups/${group.id}`); }}
             />
@@ -880,7 +890,7 @@ const serviceDots = buildSearchServiceDots(group);
       lineHeight: 1.2,
     }}
   >
-    {group.name ?? "(sin nombre)"}
+    {group.name ?? tGroups("title")}
   </span>
 
   {!isMobile ? (
@@ -912,7 +922,7 @@ const serviceDots = buildSearchServiceDots(group);
     </>
   ) : null}
 
-  {!isMobile ? <ServiceDots dots={serviceDots} /> : null}
+  {!isMobile ? <ServiceDots dots={serviceDots} ariaLabel={tCommon("activeServices")} /> : null}
 </h3>
 
 {isMobile ? (
@@ -950,7 +960,7 @@ const serviceDots = buildSearchServiceDots(group);
           ·
         </span>
 
-        <ServiceDots dots={serviceDots} />
+        <ServiceDots dots={serviceDots} ariaLabel={tCommon("activeServices")} />
       </>
     ) : null}
   </div>
@@ -968,7 +978,7 @@ const serviceDots = buildSearchServiceDots(group);
               <div style={metaRowStyle} className="search-result-meta">
                 {!isOwner && isBlocked && (
                   <span style={dangerMetaStyle}>
-                    ({membershipStatusLabel(membershipStatus)})
+                    ({membershipStatusKey(membershipStatus) ? tGroups(membershipStatusKey(membershipStatus)) : ""})
                   </span>
                 )}
               </div>
@@ -986,7 +996,7 @@ const serviceDots = buildSearchServiceDots(group);
                 style={primaryButtonStyle}
                 onClick={() => void onJoinPublic(group.id)}
               >
-                Unirme
+                {tGroups("join")}
               </button>
             )}
 
@@ -996,7 +1006,7 @@ const serviceDots = buildSearchServiceDots(group);
                 style={primaryButtonStyle}
                 onClick={() => onNavigate(`/groups/${group.id}`)}
               >
-                💎 Suscribirme
+                💎 {tGroups("subscribe")}
                 {price != null ? ` · ${price} ${cur ?? "MXN"}` : ""}
               </button>
             )}
@@ -1009,7 +1019,7 @@ const serviceDots = buildSearchServiceDots(group);
                     style={secondaryButtonStyle}
                     onClick={() => void onRequestPrivate(group.id)}
                   >
-                    Solicitar acceso
+                    {tGroups("requestAccess")}
                   </button>
                 ) : (
                   <button
@@ -1017,7 +1027,7 @@ const serviceDots = buildSearchServiceDots(group);
                     style={secondaryButtonStyle}
                     onClick={() => void onCancelRequest(group.id)}
                   >
-                    Cancelar
+                    {tCommon("cancel")}
                   </button>
                 )}
               </>
@@ -1029,7 +1039,7 @@ const serviceDots = buildSearchServiceDots(group);
                 style={secondaryButtonStyle}
                 onClick={() => void onLeave(group.id, group.ownerId)}
               >
-                Salir
+                {tCommon("leave")}
               </button>
             )}
           </div>
@@ -1056,7 +1066,7 @@ const serviceDots = buildSearchServiceDots(group);
                       type="button"
                       style={activeFilterRemoveStyle}
                       onClick={filter.onRemove}
-                      aria-label={`Quitar filtro ${filter.label}`}
+                      aria-label={tCommon("removeFilter", { label: filter.label })}
                     >
                       ×
                     </button>
@@ -1069,7 +1079,7 @@ const serviceDots = buildSearchServiceDots(group);
         </div>
 
         <div style={emptyStyle}>
-          No se encontraron comunidades con esos filtros.
+          {tGroups("noGroupsFound")}
         </div>
 
         <style jsx>{`
@@ -1120,7 +1130,7 @@ const serviceDots = buildSearchServiceDots(group);
                 type="button"
                 style={activeFilterRemoveStyle}
                 onClick={filter.onRemove}
-                aria-label={`Quitar filtro ${filter.label}`}
+                aria-label={tCommon("removeFilter", { label: filter.label })}
               >
                 ×
               </button>
@@ -1134,7 +1144,7 @@ const serviceDots = buildSearchServiceDots(group);
 {displayGroups.length > 0 && (
   <div style={sectionStyle}>
     <h2 style={sectionTitleStyle}>
-      Coincidencias
+      {tGroups("matches")}
     </h2>
 
     {displayGroups.map(renderGroupCard)}

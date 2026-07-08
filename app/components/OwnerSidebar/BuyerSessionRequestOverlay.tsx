@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useTranslations } from "next-intl";
 import type { MeetGreetRequestDoc, ExclusiveSessionRequestDoc } from "./OwnerSidebar";
 import { playEdgeTTS } from "@/lib/tts/edge-tts-client";
 import type { EdgeTTSHandle } from "@/lib/tts/edge-tts-client";
@@ -185,12 +186,15 @@ export default function BuyerSessionRequestOverlay({
   const pointerStartRef = useRef({ y: 0, offset: 0 });
   const closeRef = useRef<() => void>(() => {});
 
+  const tCommon = useTranslations("common");
+  const tServices = useTranslations("services");
+
   const req = item.data;
   const isExclusive = item.serviceKind === "exclusive_session";
   const bgImage = isExclusive ? "/sesionexclusiva.png" : "/encuentroenvivo.png";
   const retryBtnBg = isExclusive ? "rgba(236,72,153,0.85)" : "rgba(59,130,246,0.85)";
   const priceColor = isExclusive ? "#f9a8d4" : "#93c5fd";
-  const serviceTitle = isExclusive ? "Sesión exclusiva" : "Sesión en vivo";
+  const serviceTitle = isExclusive ? tServices("exclusiveSession") : "Sesión en vivo";
   const creatorInitial = creatorName.charAt(0).toUpperCase();
 
   useEffect(() => { setMounted(true); }, []);
@@ -519,7 +523,7 @@ export default function BuyerSessionRequestOverlay({
           fontSize: 15, fontWeight: 500, cursor: "pointer",
           fontFamily: "inherit", letterSpacing: "-0.02em", display: "grid", placeItems: "center",
         }}>
-          Cancelar
+          {tCommon("cancel")}
         </button>
       </div>
     </div>
@@ -548,7 +552,7 @@ export default function BuyerSessionRequestOverlay({
             fontFamily: "inherit", letterSpacing: "-0.02em", display: "grid", placeItems: "center",
           }}
         >
-          {busy ? "Enviando..." : "Confirmar solicitud"}
+          {busy ? tServices("submitting") : "Confirmar solicitud"}
         </button>
         <button type="button" onClick={() => setRescheduleOpen(false)} style={{
           flex: 1, height: 42, borderRadius: 5, border: "none",
@@ -556,7 +560,7 @@ export default function BuyerSessionRequestOverlay({
           fontSize: 15, fontWeight: 500, cursor: "pointer",
           fontFamily: "inherit", letterSpacing: "-0.02em", display: "grid", placeItems: "center",
         }}>
-          Cancelar
+          {tCommon("cancel")}
         </button>
       </div>
     </div>
@@ -569,7 +573,7 @@ export default function BuyerSessionRequestOverlay({
         fontSize: 15, fontWeight: 500, cursor: busy ? "not-allowed" : "pointer",
         fontFamily: "inherit", letterSpacing: "-0.02em", display: "grid", placeItems: "center",
       }}>
-        Intentar de nuevo
+        {tCommon("retry")}
       </button>
       <button type="button" onClick={() => setRefundOpen(true)} disabled={busy} style={{
         flex: 1, height: 42, borderRadius: 5, border: "none",
@@ -605,7 +609,7 @@ export default function BuyerSessionRequestOverlay({
         fontSize: 15, fontWeight: 500, cursor: "pointer",
         fontFamily: "inherit", letterSpacing: "-0.02em", display: "grid", placeItems: "center",
       }}>
-        Reagendar
+        {tServices("reschedule")}
       </button>
     </div>
   ) : canPrepare ? (
@@ -754,7 +758,7 @@ export default function BuyerSessionRequestOverlay({
             <h3 style={{ margin: 0, textAlign: "center", fontSize: 17, fontWeight: 500, letterSpacing: "-0.02em", lineHeight: 1.2, color: "#fff" }}>
               {serviceTitle}
             </h3>
-            <button type="button" onClick={handleClose} aria-label="Cerrar" style={{
+            <button type="button" onClick={handleClose} aria-label={tCommon("close")} style={{
               border: "none", background: "none", color: "#fff", cursor: "pointer",
               display: "grid", placeItems: "center", justifySelf: "end", padding: 4,
             }}>

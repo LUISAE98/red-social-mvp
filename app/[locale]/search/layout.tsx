@@ -3,7 +3,8 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
+import { usePathname, useRouter } from "@/i18n/navigation";
 import VibraSavedPostIcon from "@/app/components/VibraServiceIcons/VibraSavedPostIcon";
 import { useAuth } from "@/app/providers";
 import LogoutButton from "@/app/LogoutButton";
@@ -95,6 +96,8 @@ function WalletDesktopRail({
   activePath: string;
   showWallet: boolean;
 }) {
+  const tNav = useTranslations("nav");
+  const tCommon = useTranslations("common");
   const walletItems: Array<{
     key: WalletRailTab;
     label: string;
@@ -103,25 +106,25 @@ function WalletDesktopRail({
   }> = [
     {
       key: "finances",
-      label: "Finanzas",
+      label: tNav("finances"),
       href: "/wallet/finanzas",
       icon: "finance",
     },
     {
       key: "calendar",
-      label: "Calendario",
+      label: tNav("calendar"),
       href: "/wallet/calendario",
       icon: "calendar",
     },
     {
       key: "pending",
-      label: "Pendientes",
+      label: tNav("pending"),
       href: "/wallet/pendientes",
       icon: "pending",
     },
     {
       key: "history",
-      label: "Historial",
+      label: tNav("history"),
       href: "/wallet/historial",
       icon: "history",
     },
@@ -135,13 +138,13 @@ function WalletDesktopRail({
   }> = [
     {
       key: "home",
-      label: "Inicio",
+      label: tNav("home"),
       href: "/",
       icon: "home",
     },
     {
       key: "saved",
-      label: "Guardados",
+      label: tNav("saved"),
       href: "/saved",
       icon: "saved",
     },
@@ -548,10 +551,10 @@ opacity: 0.85;
 }
       `}</style>
 
-      <aside className="walletRail" aria-label="Accesos directos">
+      <aside className="walletRail" aria-label={tNav("sidebarLabel")}>
                 <div className="walletRailCenter" ref={sidebarScrollRef}>
-          <section className="railSection mainMenuSection" aria-label="Navegación principal">
-            <h3 className="secondaryTitle">Menú</h3>
+          <section className="railSection mainMenuSection" aria-label={tNav("mainNavLabel")}>
+            <h3 className="secondaryTitle">{tNav("menu")}</h3>
 
             <nav className="walletNav">
               {mainItems.map((item) => {
@@ -574,7 +577,7 @@ opacity: 0.85;
             </nav>
           </section>
 
-          <section className="railSection createCommunitySection" aria-label="Crear comunidad">
+          <section className="railSection createCommunitySection" aria-label={tNav("createCommunityLabel")}>
             <Image
               src="/Crear-comunidad.png"
               alt=""
@@ -584,22 +587,18 @@ opacity: 0.85;
             />
 
             <div className="createCommunityCopy">
-              <strong>Crea tu comunidad</strong>
-              <span>
-                Conecta, comparte y
-                <br />
-                monetiza tu pasión.
-              </span>
+              <strong>{tNav("createCommunityTitle")}</strong>
+              <span>{tNav("createCommunitySubtitle")}</span>
             </div>
 
             <Link href="/groups/new" className="createCommunityButton">
-              Crear comunidad
+              {tNav("createCommunityButton")}
             </Link>
           </section>
 
           {showWallet ? (
-            <section className="railSection" aria-label="Wallet">
-              <h3 className="walletTitle">Wallet</h3>
+            <section className="railSection" aria-label={tNav("walletNavLabel")}>
+              <h3 className="walletTitle">{tNav("wallet")}</h3>
 
               <nav className="walletNav">
                 {walletItems.map((item) => {
@@ -625,7 +624,7 @@ opacity: 0.85;
           ) : null}
         </div>
 
-        <section className="logoutSection" aria-label="Cerrar sesión">
+        <section className="logoutSection" aria-label={tCommon("logout")}>
           <LogoutButton variant="settings" />
         </section>
       </aside>
@@ -680,7 +679,7 @@ function AuthenticatedSearchShell({
 }: {
   children: React.ReactNode;
 }) {
-
+  const tNav = useTranslations("nav");
   const pathname = usePathname();
   const router = useRouter();
   const { user } = useAuth();
@@ -1141,7 +1140,7 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
 >
             <div className="desktopHeader">
               <div className="brandCol">
-<Link href="/" className="brand" aria-label="Ir al inicio">
+<Link href="/" className="brand" aria-label={tNav("goHome")}>
   <Image src="/logotipo.png" alt="Vibra" width={112} height={32} className="brandLogo" />
 </Link>
               </div>
@@ -1179,7 +1178,7 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
 <Link
   href="/"
   className={`mobileBrand ${mobileSearchOpen ? "mobileBrandHidden" : "mobileBrandVisible"}`}
-  aria-label="Ir al inicio"
+  aria-label={tNav("goHome")}
 >
   <Image src="/logotipo.png" alt="Vibra" width={86} height={25} className="mobileBrandLogo" />
 </Link>
@@ -1188,8 +1187,8 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
       <button
         type="button"
         onClick={() => router.push("/saved")}
-        title="Guardados"
-        aria-label="Ver guardados"
+        title={tNav("saved")}
+        aria-label={tNav("viewSaved")}
         className="mobileSearchIconButton"
       >
         <VibraSavedPostIcon size={22} color="#a855ff" />
@@ -1197,8 +1196,8 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
 <button
   type="button"
 onClick={() => setMobileSearchOpen(true)}
-  title="Buscar comunidad"
-  aria-label="Buscar comunidad"
+  title={tNav("searchCommunity")}
+  aria-label={tNav("searchCommunity")}
   className="mobileSearchIconButton"
 >
         <VibraNavigationIcon type="search" size={24} strokeWidth={2.2} />

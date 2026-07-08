@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import { createPortal } from "react-dom";
 
 import { getProfileFollowers } from "@/lib/social/social-service";
@@ -29,6 +30,7 @@ export default function ProfileFollowersOverlay({
   profileUserId,
   onClose,
 }: ProfileFollowersOverlayProps) {
+  const tCommon = useTranslations("common");
   const [followers, setFollowers] = useState<ProfileFollowerListItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -392,7 +394,7 @@ export default function ProfileFollowersOverlay({
                     lineHeight: 1,
                     padding: 0,
                   }}
-                  aria-label="Cerrar seguidores"
+                  aria-label={tCommon("closeAriaLabel")}
                 >
                   ×
                 </button>
@@ -469,7 +471,7 @@ export default function ProfileFollowersOverlay({
                     lineHeight: 1,
                     padding: 0,
                   }}
-                  aria-label="Cerrar seguidores"
+                  aria-label={tCommon("closeAriaLabel")}
                 >
                   ×
                 </button>

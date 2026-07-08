@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
+import { useTranslations } from "next-intl";
 import { playEdgeTTS } from "@/lib/tts/edge-tts-client";
 import type { EdgeTTSHandle } from "@/lib/tts/edge-tts-client";
 import Image from "next/image";
@@ -270,6 +271,9 @@ export default function SessionRequestOverlay({
   ownerAvatarUrl,
   ownerDisplayName,
 }: SessionRequestOverlayProps) {
+  const tCommon = useTranslations("common");
+  const tFeed = useTranslations("feed");
+  const tServices = useTranslations("services");
   const [mounted, setMounted] = useState(false);
   const [visible, setVisible] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
@@ -649,7 +653,7 @@ export default function SessionRequestOverlay({
                 fontFamily: "inherit",
               }}
             >
-              Rechazar
+              {tCommon("reject")}
             </button>
           )}
         </div>
@@ -710,7 +714,7 @@ export default function SessionRequestOverlay({
                 letterSpacing: "-0.01em",
               }}
             >
-              {busy ? "Procesando..." : "Confirmar y agendar sesión"}
+              {busy ? tFeed("processing") : "Confirmar y agendar sesión"}
             </button>
           )}
           <ScheduleCalendarOverlay
@@ -753,7 +757,7 @@ export default function SessionRequestOverlay({
                   letterSpacing: "-0.01em",
                 }}
               >
-                Reagendar
+                {tServices("reschedule")}
               </button>
               <button
                 type="button"
@@ -784,7 +788,7 @@ export default function SessionRequestOverlay({
           )}
           {canPrepare && (
             <button type="button" onClick={onPrepare} disabled={busy} style={{ height: 34, borderRadius: 8, border: "none", background: "#3b82f6", color: "#fff", fontWeight: 600, fontSize: 13, padding: "0 14px", cursor: busy ? "not-allowed" : "pointer", opacity: busy ? 0.7 : 1, fontFamily: "inherit" }}>
-              {busy ? "Procesando..." : "Prepararse"}
+              {busy ? tFeed("processing") : "Prepararse"}
             </button>
           )}
         </div>
@@ -810,14 +814,14 @@ export default function SessionRequestOverlay({
                 disabled={busy}
                 style={{ flex: 1, height: 36, borderRadius: 6, border: "none", background: "rgba(220,38,38,0.62)", color: "#fff", fontWeight: 600, fontSize: 13, cursor: busy ? "not-allowed" : "pointer", opacity: busy ? 0.6 : 1, fontFamily: "inherit" }}
               >
-                {busy ? "Procesando..." : "Confirmar rechazo"}
+                {busy ? tFeed("processing") : "Confirmar rechazo"}
               </button>
               <button
                 type="button"
                 onClick={() => setRejectOpen(false)}
                 style={{ flex: 1, height: 36, borderRadius: 6, border: "none", background: "rgba(255,255,255,0.10)", color: "rgba(255,255,255,0.70)", fontWeight: 500, fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}
               >
-                Cancelar
+                {tCommon("cancel")}
               </button>
             </div>
           </div>
@@ -923,7 +927,7 @@ export default function SessionRequestOverlay({
                 letterSpacing: "-0.01em",
               }}
             >
-              Cerrar
+              {tCommon("close")}
             </button>
           </div>
         </>
@@ -946,7 +950,7 @@ export default function SessionRequestOverlay({
             letterSpacing: "-0.01em",
           }}
         >
-          Cerrar
+          {tCommon("close")}
         </button>
       )}
     </div>
@@ -981,7 +985,7 @@ export default function SessionRequestOverlay({
             letterSpacing: "-0.01em",
           }}
         >
-          {status === "scheduled" ? "Reagendar" : "Poner fecha"}
+          {status === "scheduled" ? tServices("reschedule") : "Poner fecha"}
         </button>
       ) : acceptExpanded ? (
         <>
@@ -1026,7 +1030,7 @@ export default function SessionRequestOverlay({
               letterSpacing: "-0.01em",
             }}
           >
-            {busy ? "Procesando..." : "Confirmar"}
+            {busy ? tFeed("processing") : tCommon("confirm")}
           </button>
           <button
             type="button"
@@ -1045,7 +1049,7 @@ export default function SessionRequestOverlay({
               fontFamily: "inherit",
             }}
           >
-            Cancelar
+            {tCommon("cancel")}
           </button>
         </>
       ) : null}
@@ -1079,7 +1083,7 @@ export default function SessionRequestOverlay({
       <button
         type="button"
         onClick={onClose}
-        aria-label="Cerrar"
+        aria-label={tCommon("close")}
         style={{ border: "none", background: "none", color: "rgba(255,255,255,0.86)", cursor: "pointer", display: "grid", placeItems: "center", justifySelf: "end", padding: 4, width: 40, height: 40, fontSize: 28, fontWeight: 300, lineHeight: 1, fontFamily: "inherit" }}
       >
         ×

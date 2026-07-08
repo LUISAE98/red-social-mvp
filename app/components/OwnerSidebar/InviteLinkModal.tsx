@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
+import { useTranslations } from "next-intl";
 import { createInviteLink } from "@/lib/groups/inviteLinks";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
@@ -15,12 +16,6 @@ type Unit = "minutes" | "hours" | "days";
 
 const fontStack =
   'inherit';
-
-function friendlyUnitLabel(unit: Unit, value: number) {
-  if (unit === "days") return value === 1 ? "día" : "días";
-  if (unit === "hours") return value === 1 ? "hora" : "horas";
-  return value === 1 ? "minuto" : "minutos";
-}
 
 function sanitizeNumeric(value: string) {
   return value.replace(/\D/g, "");
@@ -64,6 +59,8 @@ async function copyToClipboardWithFallback(text: string) {
 }
 
 export default function InviteLinkModal({ groupId, onClose }: Props) {
+  const tGroups = useTranslations("groups");
+  const tCommon = useTranslations("common");
     const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -77,10 +74,10 @@ export default function InviteLinkModal({ groupId, onClose }: Props) {
   const [maxUsesValue, setMaxUsesValue] = useState("");
 
   const durationLabel = useMemo(() => {
-    if (unit === "days") return "Días";
-    if (unit === "hours") return "Horas";
-    return "Minutos";
-  }, [unit]);
+    if (unit === "days") return tGroups("daysLabel");
+    if (unit === "hours") return tGroups("hoursLabel");
+    return tGroups("minutesLabel");
+  }, [unit, tGroups]);
 
   function convertToHours(value: number, selectedUnit: Unit) {
     if (selectedUnit === "days") return value * 24;
@@ -90,25 +87,25 @@ export default function InviteLinkModal({ groupId, onClose }: Props) {
 
   function validateDuration(value: number, selectedUnit: Unit) {
     if (!Number.isFinite(value) || value <= 0) {
-      return "La duración debe ser mayor a 0.";
+      return tGroups("durationPositiveError");
     }
 
     if (selectedUnit === "minutes" && value > 43200) {
-      return "Los minutos deben estar entre 1 y 43200.";
+      return tGroups("minutesRangeError");
     }
 
     if (selectedUnit === "hours" && value > 720) {
-      return "Las horas deben estar entre 1 y 720.";
+      return tGroups("hoursRangeError");
     }
 
     if (selectedUnit === "days" && value > 30) {
-      return "Los días deben estar entre 1 y 30.";
+      return tGroups("daysRangeError");
     }
 
     const expiresInHours = convertToHours(value, selectedUnit);
 
     if (expiresInHours < 1 / 60 || expiresInHours > 720) {
-      return "La vigencia total debe estar entre 1 minuto y 30 días.";
+      return tGroups("totalValidityError");
     }
 
     return null;
@@ -134,7 +131,7 @@ export default function InviteLinkModal({ groupId, onClose }: Props) {
           parsedMaxUses < 1 ||
           parsedMaxUses > 1000)
       ) {
-        showInviteToast("Los usos máximos deben estar entre 1 y 1000.", "error");
+        showInviteToast(tGroups("maxUsesRangeError"), "error");
         return;
       }
 
@@ -147,10 +144,10 @@ export default function InviteLinkModal({ groupId, onClose }: Props) {
       });
 
       setLink(`${window.location.origin}/invite/${res.token}`);
-      showInviteToast("Link generado. Ya puedes copiarlo y compartirlo.", "success");
+      showInviteToast(tGroups("linkGeneratedSuccess"), "success");
     } catch (e: unknown) {
       console.error(e);
-      showInviteToast((e instanceof Error ? e.message : null) ?? "Error creando link.", "error");
+      showInviteToast((e instanceof Error ? e.message : null) ?? tGroups("linkCreateError"), "error");
     } finally {
       setLoading(false);
     }
@@ -164,18 +161,15 @@ export default function InviteLinkModal({ groupId, onClose }: Props) {
 
       if (!ok) {
         showInviteToast(
-          "No se pudo copiar automáticamente. Mantén presionado el link y cópialo manualmente.",
+          tGroups("copyManuallyError"),
           "error"
         );
         return;
       }
 
-      showInviteToast("Link copiado al portapapeles.", "success");
+      showInviteToast(tCommon("linkCopiedToClipboard"), "success");
     } catch {
-      showInviteToast(
-        "No se pudo copiar automáticamente. Mantén presionado el link y cópialo manualmente.",
-        "error"
-      );
+      showInviteToast(tGroups("copyManuallyError"), "error");
     }
   }
 
@@ -332,9 +326,9 @@ export default function InviteLinkModal({ groupId, onClose }: Props) {
     >
       <div style={cardStyle} onClick={(e) => e.stopPropagation()}>
         <div style={headerStyle}>
-          <h2 style={titleStyle}>Link de invitación</h2>
+          <h2 style={titleStyle}>{tGroups("inviteLinkTitle")}</h2>
           <p style={subtitleStyle}>
-            Genera un acceso privado con vigencia personalizada.
+            {tGroups("inviteLinkSubtitle")}
           </p>
         </div>
 
@@ -342,7 +336,7 @@ export default function InviteLinkModal({ groupId, onClose }: Props) {
           {!link ? (
             <>
               <label style={labelStyle}>
-                <span style={labelTextStyle}>Duración</span>
+                <span style={labelTextStyle}>{tGroups("durationField")}</span>
 
                 <input
                   type="text"
@@ -352,7 +346,7 @@ export default function InviteLinkModal({ groupId, onClose }: Props) {
                   onChange={(e) =>
                     setDurationValue(sanitizeNumeric(e.target.value))
                   }
-                  placeholder="Cantidad"
+                  placeholder={tGroups("quantityPlaceholder")}
                   style={inputStyle}
                 />
 
@@ -388,22 +382,22 @@ export default function InviteLinkModal({ groupId, onClose }: Props) {
                         }}
                       >
                         {item === "minutes"
-                          ? "Minutos"
+                          ? tGroups("minutesLabel")
                           : item === "hours"
-                          ? "Horas"
-                          : "Días"}
+                          ? tGroups("hoursLabel")
+                          : tGroups("daysLabel")}
                       </button>
                     );
                   })}
                 </div>
 
                 <span style={hintStyle}>
-                  Define cuántos {durationLabel.toLowerCase()} estará activo.
+                  {unit === "days" ? tGroups("durationHintDays") : unit === "hours" ? tGroups("durationHintHours") : tGroups("durationHintMinutes")}
                 </span>
               </label>
 
               <label style={labelStyle}>
-                <span style={labelTextStyle}>Usos máximos</span>
+                <span style={labelTextStyle}>{tGroups("maxUsesField")}</span>
 
                 <input
                   type="text"
@@ -413,18 +407,21 @@ export default function InviteLinkModal({ groupId, onClose }: Props) {
                   onChange={(e) =>
                     setMaxUsesValue(sanitizeNumeric(e.target.value))
                   }
-                  placeholder="Déjalo vacío para ilimitado"
+                  placeholder={tGroups("maxUsesPlaceholder")}
                   style={inputStyle}
                 />
 
                 <span style={hintStyle}>
-                  Déjalo vacío para ilimitado. Rango permitido: 1 a 1000.
+                  {tGroups("maxUsesHint")}
                 </span>
               </label>
 
               <div style={noticeStyle}>
-                El link expirará en {parsedDuration || 0}{" "}
-                {friendlyUnitLabel(unit, parsedDuration || 0)}.
+                {unit === "days"
+                  ? tGroups("expiresInDays", { count: parsedDuration || 0 })
+                  : unit === "hours"
+                  ? tGroups("expiresInHours", { count: parsedDuration || 0 })
+                  : tGroups("expiresInMinutes", { count: parsedDuration || 0 })}
               </div>
 
               <div style={{ display: "grid", gap: 8, marginTop: 2 }}>
@@ -438,7 +435,7 @@ export default function InviteLinkModal({ groupId, onClose }: Props) {
                     cursor: loading ? "not-allowed" : "pointer",
                   }}
                 >
-                  {loading ? "Generando..." : "Generar link"}
+                  {loading ? tGroups("generatingLink") : tGroups("generateLink")}
                 </button>
 
                 <button
@@ -451,7 +448,7 @@ export default function InviteLinkModal({ groupId, onClose }: Props) {
                     cursor: loading ? "not-allowed" : "pointer",
                   }}
                 >
-                  Cancelar
+                  {tCommon("cancel")}
                 </button>
               </div>
             </>
@@ -478,7 +475,7 @@ export default function InviteLinkModal({ groupId, onClose }: Props) {
                   onClick={handleCopy}
                   style={primaryButtonStyle}
                 >
-                  Copiar link
+                  {tGroups("copyLinkButton")}
                 </button>
 
                 <button
@@ -488,7 +485,7 @@ export default function InviteLinkModal({ groupId, onClose }: Props) {
                   }}
                   style={secondaryButtonStyle}
                 >
-                  Crear otro link
+                  {tGroups("createAnotherLink")}
                 </button>
 
                 <button
@@ -496,7 +493,7 @@ export default function InviteLinkModal({ groupId, onClose }: Props) {
                   onClick={onClose}
                   style={ghostButtonStyle}
                 >
-                  Cerrar
+                  {tCommon("close")}
                 </button>
               </div>
             </>

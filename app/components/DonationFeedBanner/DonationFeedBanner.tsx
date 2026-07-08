@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Hls from "hls.js";
+import { useTranslations } from "next-intl";
 import { getMutePreference, setMutePreference } from "@/lib/utils/mutePreference";
 
 type Props = {
@@ -35,6 +36,7 @@ export default function DonationFeedBanner({
   donationMode, goalLabel,
   expanded, onClose, onDonate, onClick,
 }: Props) {
+  const tCommon = useTranslations("common");
   const [dims, setDims] = useState<VideoDimensions>(null);
   const [muted, setMuted] = useState(true);
   const [videoReady, setVideoReady] = useState(false);
@@ -266,12 +268,12 @@ export default function DonationFeedBanner({
   const videoWidthInline = isPortrait ? "18%" : "36%";
   const orientation = isPortrait ? "portrait" : "landscape";
   const donateLabel = donationMode === "wedding"
-    ? (goalLabel?.trim() || "Sumarte a nuestro gran día 💍")
-    : "Donar";
+    ? (goalLabel?.trim() || tCommon("weddingGoalDefault"))
+    : tCommon("donate");
 
   // ── Viewer controls ───────────────────────────────────────────────────────────
   const muteBtn = (sz: number) => (
-    <button type="button" aria-label={muted ? "Activar sonido" : "Silenciar"}
+    <button type="button" aria-label={muted ? tCommon("unmuteAriaLabel") : tCommon("muteAriaLabel")}
       onClick={(e) => { e.stopPropagation(); setMuted((m) => { const next = !m; setMutePreference(next); return next; }); }}
       style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.9)", padding: "0 5px", display: "flex", alignItems: "center", justifyContent: "center" }}
     >
@@ -313,7 +315,7 @@ export default function DonationFeedBanner({
         {avatarRing}
         <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
           <span style={{ color: "#fff", fontSize: sz === 20 ? 13 : 17, fontWeight: 600, lineHeight: "1.2" }}>{creatorName ?? ""}</span>
-          <span style={{ color: "rgba(255,255,255,0.75)", fontSize: sz === 20 ? 11 : 13, fontWeight: 500, lineHeight: "1.2" }}>Donación</span>
+          <span style={{ color: "rgba(255,255,255,0.75)", fontSize: sz === 20 ? 11 : 13, fontWeight: 500, lineHeight: "1.2" }}>{tCommon("donation")}</span>
         </div>
       </>
     );
@@ -336,7 +338,7 @@ export default function DonationFeedBanner({
           : <div style={headerStyle}>{headerInner}</div>}
         <div style={{ position: "absolute", top: controlsTop, right: 10, display: "flex", alignItems: "center", gap: 4, zIndex: 11 }}>
           {muteBtn(sz)}
-          <button type="button" aria-label="Cerrar" onClick={handleClose}
+          <button type="button" aria-label={tCommon("closeAriaLabel")} onClick={handleClose}
             style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.9)", padding: "0 5px", display: "flex", alignItems: "center", justifyContent: "center" }}
           >
             <svg width={sz} height={sz} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
@@ -352,7 +354,7 @@ export default function DonationFeedBanner({
             <svg width={sz === 20 ? 12 : 14} height={sz === 20 ? 12 : 14} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" style={{ flexShrink: 0 }}>
               <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.27 2 8.5 2 5.41 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.08C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.41 22 8.5c0 3.77-3.4 6.86-8.55 11.53L12 21.35z" />
             </svg>
-            {donateLabel === "Donar" ? "Hacer una aportación" : donateLabel}
+            {donationMode === "wedding" ? donateLabel : tCommon("makeContribution")}
           </button>
         </div>
       </>
@@ -428,7 +430,7 @@ export default function DonationFeedBanner({
   ) : null;
 
   const muteIconBanner = (
-    <button type="button" aria-label={muted ? "Activar sonido" : "Silenciar"}
+    <button type="button" aria-label={muted ? tCommon("unmuteAriaLabel") : tCommon("muteAriaLabel")}
       onClick={(e) => { e.stopPropagation(); setMuted((m) => !m); }}
       style={{ position: "absolute", bottom: 6, right: 6, zIndex: 3, background: "rgba(0,0,0,0.55)", border: "none", borderRadius: "50%", width: 26, height: 26, cursor: "pointer", padding: 0, display: "flex", alignItems: "center", justifyContent: "center", color: "rgba(255,255,255,0.9)", WebkitTapHighlightColor: "transparent" }}
     >
@@ -454,7 +456,7 @@ export default function DonationFeedBanner({
           <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
         </svg>
         <span style={{ fontSize: 11, color: "#ec4899", lineHeight: 1.3, overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis", minWidth: 0 }}>
-          Tu aportación es completamente voluntaria
+          {tCommon("voluntaryContribution")}
         </span>
       </div>
       <button type="button"
@@ -464,7 +466,7 @@ export default function DonationFeedBanner({
         <svg width="16" height="16" viewBox="0 0 24 24" fill="white">
           <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
         </svg>
-        Hacer una aportación
+        {tCommon("makeContribution")}
       </button>
     </>
   ) : null;
@@ -521,7 +523,7 @@ export default function DonationFeedBanner({
                 <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 5, width: "90%" }}>
                   {creatorName && (
                     <p style={{ margin: 0, fontSize: 17, fontWeight: 400, color: "#fff", lineHeight: 1.2, textAlign: "center", overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis", width: "100%" }}>
-                      Apoya a {creatorName}
+                      {tCommon("supportCreator", { name: creatorName })}
                     </p>
                   )}
                   {message && (
@@ -551,7 +553,7 @@ export default function DonationFeedBanner({
           onClick={onClick}
           style={{ position: "relative", width: "100%", borderRadius: 16, overflow: "hidden", background: "#0a0a0a", cursor: onClick ? "pointer" : "default", aspectRatio: "16 / 8", WebkitTapHighlightColor: "transparent" }}
         >
-          <Image src="/donacion.png" alt="Donación" fill sizes="(max-width: 720px) 100vw, 720px" style={{ objectFit: "cover", objectPosition: "center" }} priority />
+          <Image src="/donacion.png" alt={tCommon("donation")} fill sizes="(max-width: 720px) 100vw, 720px" style={{ objectFit: "cover", objectPosition: "center" }} priority />
           <div style={{ position: "absolute", inset: 0, background: "rgba(10,10,10,0.68)" }} />
 
           {hlsUrl && (
@@ -573,7 +575,7 @@ export default function DonationFeedBanner({
                 <div className="dbv-text-block" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
                   {creatorName && (
                     <p className="dbv-title" style={{ margin: 0, fontSize: 18, fontWeight: 400, color: "#fff", lineHeight: 1.2, textAlign: "center", overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis" }}>
-                      Apoya a {creatorName}
+                      {tCommon("supportCreator", { name: creatorName })}
                     </p>
                   )}
                   {message && (
@@ -610,7 +612,7 @@ export default function DonationFeedBanner({
               <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 5, width: "90%" }}>
                 {creatorName && (
                   <p style={{ margin: 0, fontSize: 17, fontWeight: 400, color: "#fff", lineHeight: 1.2, textAlign: "center", overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis", width: "100%" }}>
-                    Apoya a {creatorName}
+                    {tCommon("supportCreator", { name: creatorName })}
                   </p>
                 )}
                 {message && (

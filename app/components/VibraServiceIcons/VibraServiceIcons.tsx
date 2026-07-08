@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { useTranslations } from "next-intl";
 
 export type VibraServiceIconType =
   | "saludo"
@@ -46,7 +47,7 @@ const SERVICE_CONFIG: Record<
   },
 
   consejo: {
-    label: "Solicitar consejo",
+    label: "requestAdvice",
     color: "#FACC15",
     rgb: "250, 204, 21",
     animationClass: "vibraServiceIconBulb",
@@ -158,6 +159,9 @@ const SERVICE_CONFIG: Record<
   },
 };
 
+/** Types whose SERVICE_CONFIG.label stores a next-intl "services" namespace key. */
+const TRANSLATED_LABEL_TYPES = new Set<VibraServiceIconType>(["consejo"]);
+
 export function VibraServiceIcon({
   type,
   label,
@@ -169,8 +173,12 @@ export function VibraServiceIcon({
   size?: number;
   showLabel?: boolean;
 }) {
+  const tServices = useTranslations("services");
   const config = SERVICE_CONFIG[type];
-  const finalLabel = label ?? config.label;
+  const configLabel = TRANSLATED_LABEL_TYPES.has(type)
+    ? tServices(config.label as Parameters<typeof tServices>[0])
+    : config.label;
+  const finalLabel = label ?? configLabel;
 
   return (
     <div

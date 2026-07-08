@@ -2,6 +2,7 @@
 
 import { createPortal } from "react-dom";
 import { useEffect, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import type { GreetingType } from "@/lib/greetings/greetingRequests";
@@ -68,7 +69,7 @@ type CreatorServiceModalsProps = {
 
 // ─── Greeting copy ────────────────────────────────────────────────────────────
 
-function getGreetingUi(type: GreetingType, creatorName?: string) {
+function getGreetingUi(type: GreetingType, tServices: (key: string) => string, creatorName?: string) {
   if (type === "consejo") {
     const name = creatorName ?? "el creador";
     return {
@@ -78,7 +79,7 @@ function getGreetingUi(type: GreetingType, creatorName?: string) {
       recipientPlaceholder: "",
       instructionsLabel: "Cuéntale tu situación con el mayor detalle posible",
       instructionsPlaceholder: "",
-      submitLabel: "Solicitar consejo",
+      submitLabel: tServices("requestAdvice"),
       helperText: "Nota: el creador revisará tu solicitud de consejo y podrá aceptarla o rechazarla. Pagos y entrega se integran después.",
     };
   }
@@ -224,6 +225,7 @@ function Panel({
   footer: React.ReactNode;
   bgImage?: string;
 }) {
+  const tCommon = useTranslations("common");
   const [visible, setVisible] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [panelOffsetY, setPanelOffsetY] = useState(0);
@@ -326,7 +328,7 @@ function Panel({
             <button
               type="button"
               onClick={() => { if (!submitting) onClose(); }}
-              aria-label="Cerrar"
+              aria-label={tCommon("close")}
               style={{ border: "none", background: "none", color: "rgba(255,255,255,0.86)", cursor: "pointer", display: "grid", placeItems: "center", justifySelf: "end", padding: 4, width: 40, height: 40, fontSize: 28, fontWeight: 300, lineHeight: 1 }}
             >
               ×
@@ -397,6 +399,7 @@ export default function CreatorServiceModals({
   serviceToast,
   isRetry,
 }: CreatorServiceModalsProps) {
+  const tServices = useTranslations("services");
   const [mounted, setMounted] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [meetGreetAcceptedTerms, setMeetGreetAcceptedTerms] = useState(false);
@@ -446,7 +449,7 @@ export default function CreatorServiceModals({
 
   if (!mounted) return null;
 
-  const greetingUi = getGreetingUi(greetType, creatorName);
+  const greetingUi = getGreetingUi(greetType, tServices, creatorName);
 
   const greetAccent = greetType === "consejo" ? "#f7c948" : "#a855f7";
   const greetAccentDim = greetType === "consejo" ? "rgba(247,201,72,0.78)" : "rgba(168,85,247,0.78)";
@@ -474,7 +477,7 @@ export default function CreatorServiceModals({
           disabled={greetSubmitting || !acceptedTerms}
           style={{ ...s.primaryBtn, background: greetAccent, ...((greetSubmitting || !acceptedTerms) ? s.primaryBtnDisabled : {}) }}
         >
-          {greetSubmitting ? "Enviando..." : isRetry ? "Intentar" : greetPriceLabel ? <>Continuar al pago <span style={{ color: "#fff", opacity: 0.5, margin: "0 4px" }}>·</span> {greetPriceLabel}</> : "Continuar al pago"}
+          {greetSubmitting ? tServices("submitting") : isRetry ? "Intentar" : greetPriceLabel ? <>Continuar al pago <span style={{ color: "#fff", opacity: 0.5, margin: "0 4px" }}>·</span> {greetPriceLabel}</> : "Continuar al pago"}
         </button>
       }
     >
@@ -676,7 +679,7 @@ export default function CreatorServiceModals({
             disabled={isDisabled}
             style={{ ...s.primaryBtn, background: btnBg, ...(isDisabled ? s.primaryBtnDisabled : {}) }}
           >
-            {params.submitting ? "Enviando..." : params.isRetry ? "Intentar" : params.priceLabel
+            {params.submitting ? tServices("submitting") : params.isRetry ? "Intentar" : params.priceLabel
               ? <>Continuar al pago <span style={{ color: "#fff", opacity: 0.5, margin: "0 4px" }}>·</span> {params.priceLabel}</>
               : params.submitLabel}
           </button>
@@ -696,7 +699,7 @@ export default function CreatorServiceModals({
                   <path d="M12 7v5l3 3" />
                 </svg>
                 <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
-                  <span style={{ color: "#fff", fontSize: 11, fontWeight: 600, lineHeight: 1.2 }}>Duración</span>
+                  <span style={{ color: "#fff", fontSize: 11, fontWeight: 600, lineHeight: 1.2 }}>{tServices("duration")}</span>
                   <span style={{ color: "#fff", fontSize: 13, fontWeight: 400, lineHeight: 1.2 }}>{params.durationLabel.replace("min", "minutos")}</span>
                   <span style={{ color: "rgba(255,255,255,0.42)", fontSize: 10, lineHeight: 1.4 }}>Tiempo completo dedicado para ti.</span>
                 </div>
@@ -753,7 +756,7 @@ export default function CreatorServiceModals({
             </div>
           ) : (
             <>
-              <span style={s.micro}>Duración: {params.durationLabel}</span>
+              <span style={s.micro}>{tServices("duration")}: {params.durationLabel}</span>
               <span style={s.micro}>Fecha y hora: Se acordarán contigo después de aceptar la solicitud.</span>
             </>
           )}

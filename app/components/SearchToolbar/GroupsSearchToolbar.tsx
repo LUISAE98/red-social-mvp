@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 
 export type GroupsSearchToolbarProps = {
   search: string;
@@ -33,6 +34,7 @@ export default function GroupsSearchToolbar({
   isMobileClosing = false,
   autoFocusOnMount = false,
 }: GroupsSearchToolbarProps) {
+  const tCommon = useTranslations("common");
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [isFocused, setIsFocused] = useState(false);
 
@@ -320,8 +322,8 @@ export default function GroupsSearchToolbar({
                 type="button"
                 className="inner-action-btn"
                 onClick={handleClose}
-                aria-label="Cerrar búsqueda"
-                title="Cerrar búsqueda"
+                aria-label={tCommon("closeSearchAriaLabel")}
+                title={tCommon("closeSearchAriaLabel")}
               >
                 ✕
               </button>

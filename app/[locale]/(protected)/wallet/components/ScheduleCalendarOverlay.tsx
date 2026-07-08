@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, useRef, type ReactNode } from "react";
 import { createPortal } from "react-dom";
+import { useTranslations } from "next-intl";
 import type { WalletServiceItem } from "@/lib/wallet/ownerWallet";
 import ScheduleDateTimeSelector, {
   getSchedulePartsFromDate,
@@ -173,6 +174,8 @@ export default function ScheduleCalendarOverlay({
   selectedVariant = "green",
   onReschedule,
 }: Props) {
+  const tCommon = useTranslations("common");
+  const tServices = useTranslations("services");
   const [mounted, setMounted] = useState(false);
   const [monthOffset, setMonthOffset] = useState(0);
   const MAX_MONTHS_FORWARD = 6;
@@ -621,7 +624,7 @@ export default function ScheduleCalendarOverlay({
             <button
               type="button"
               onClick={onClose}
-              aria-label="Cerrar"
+              aria-label={tCommon("closeAriaLabel")}
               style={{
                 border: "none",
                 background: "none",
@@ -651,7 +654,7 @@ export default function ScheduleCalendarOverlay({
   setSelectedEventDayKey(null);
   setMonthOffset((prev) => Math.max(prev - monthCount, 0));
 }}
-                aria-label="Meses anteriores"
+                aria-label={tServices("prevMonths")}
               >
                 ‹
               </button>
@@ -665,7 +668,7 @@ export default function ScheduleCalendarOverlay({
     Math.min(prev + monthCount, MAX_MONTHS_FORWARD)
   );
 }}
-                aria-label="Meses siguientes"
+                aria-label={tServices("nextMonths")}
               >
                 ›
               </button>
@@ -857,7 +860,7 @@ export default function ScheduleCalendarOverlay({
                                       letterSpacing: "-0.01em", lineHeight: 1.4, flexShrink: 0,
                                     }}
                                   >
-                                    {isExpanded ? "Cancelar" : "Reagendar"}
+                                    {isExpanded ? tCommon("cancel") : tServices("reschedule")}
                                   </button>
                                 )}
                               </div>
@@ -896,14 +899,14 @@ export default function ScheduleCalendarOverlay({
                                     disabled={rescheduleBusy}
                                     onClick={async () => {
                                       const iso = schedulePartsToIso(rescheduleParts);
-                                      if (!iso) { setRescheduleError("Selecciona fecha y hora completas."); return; }
+                                      if (!iso) { setRescheduleError(tServices("selectDateTimeFull")); return; }
                                       setRescheduleBusy(true);
                                       setRescheduleError(null);
                                       try {
                                         await onReschedule!(item, iso);
                                         setExpandedRescheduleKey(null);
                                       } catch (e) {
-                                        setRescheduleError(e instanceof Error ? e.message : "Error al reagendar.");
+                                        setRescheduleError(e instanceof Error ? e.message : tServices("rescheduleError"));
                                       } finally {
                                         setRescheduleBusy(false);
                                       }
@@ -917,7 +920,7 @@ export default function ScheduleCalendarOverlay({
                                       fontFamily: "inherit",
                                     }}
                                   >
-                                    {rescheduleBusy ? "Confirmando..." : "Confirmar"}
+                                    {rescheduleBusy ? tServices("confirmingLabel") : tServices("confirmLabel")}
                                   </button>
                                 </div>
                               </div>
@@ -928,7 +931,7 @@ export default function ScheduleCalendarOverlay({
                     ))
                   ) : (
                     <div className="scheduleEmpty">
-                      No hay eventos agendados activos para este día.
+                      {tServices("noActiveEvents")}
                     </div>
                   )}
                   </div>

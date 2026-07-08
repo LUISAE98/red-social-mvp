@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { useAuth } from "@/app/providers";
 import {
   signInWithEmailAndPassword,
@@ -30,22 +31,20 @@ const vibraPink = "#ff2fb3";
 const vibraPurple = "#a855ff";
 const vibraBlue = "#4f46ff";
 
-function friendlyAuthError(err: unknown) {
+function friendlyAuthErrorKey(err: unknown): string {
   const code = (err as { code?: string } | null)?.code;
-
-  if (code === "auth/invalid-credential") return "Correo o contraseña incorrectos.";
-  if (code === "auth/user-not-found") return "Usuario no encontrado.";
-  if (code === "auth/wrong-password") return "Contraseña incorrecta.";
-  if (code === "auth/too-many-requests") return "Demasiados intentos. Intenta más tarde.";
-  if (code === "auth/network-request-failed") return "Error de red. Revisa tu conexión.";
-  if (code === "auth/unauthorized-domain") return "Este dominio no está autorizado en Firebase Auth.";
-if (code === "auth/operation-not-allowed") return "El proveedor Google no está habilitado correctamente.";
-if (code === "auth/account-exists-with-different-credential") return "Ya existe una cuenta con este correo usando otro método de acceso.";
-if (code === "auth/cancelled-popup-request") return "Se canceló una ventana anterior de Google.";
-if (code === "auth/popup-closed-by-user") return "Se cerró la ventana de Google antes de completar el acceso.";
-if (code === "auth/popup-blocked") return "El navegador bloqueó la ventana emergente de Google.";
-
-  return "Error inesperado. Intenta nuevamente.";
+  if (code === "auth/invalid-credential") return "errInvalidCredential";
+  if (code === "auth/user-not-found") return "errUserNotFound";
+  if (code === "auth/wrong-password") return "errWrongPassword";
+  if (code === "auth/too-many-requests") return "errTooManyRequests";
+  if (code === "auth/network-request-failed") return "errNetworkFailed";
+  if (code === "auth/unauthorized-domain") return "errUnauthorizedDomain";
+  if (code === "auth/operation-not-allowed") return "errOperationNotAllowed";
+  if (code === "auth/account-exists-with-different-credential") return "errAccountExistsDiff";
+  if (code === "auth/cancelled-popup-request") return "errCancelledPopup";
+  if (code === "auth/popup-closed-by-user") return "errPopupClosed";
+  if (code === "auth/popup-blocked") return "errPopupBlocked";
+  return "errUnexpected";
 }
 
 async function applyAuthPersistence(keepSession: boolean) {
@@ -62,6 +61,7 @@ async function applyAuthPersistence(keepSession: boolean) {
 }
 
 export default function LoginClient() {
+  const t = useTranslations("auth.login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [keepSession, setKeepSession] = useState(true);
@@ -105,7 +105,7 @@ async function createSessionFromUser(user: User) {
 
   if (!response.ok || !data?.ok) {
     await signOut(auth);
-    throw new Error(data?.error || "No se pudo crear la sesión");
+    throw new Error(data?.error || t("errSessionFailed"));
   }
 }
 
@@ -137,10 +137,10 @@ router.replace(nextPath);
         if (!maybeFirebaseError.code) {
           setMsg(err.message);
         } else {
-          setMsg(friendlyAuthError(maybeFirebaseError));
+          setMsg(t(friendlyAuthErrorKey(maybeFirebaseError) as Parameters<typeof t>[0]));
         }
       } else {
-        setMsg("Error inesperado. Intenta nuevamente.");
+        setMsg(t("errUnexpected"));
       }
     } finally {
       setLoading(false);
@@ -187,16 +187,12 @@ router.replace(nextPath);
 
     const maybeFirebaseError = err as Error & { code?: string };
 
-    if (maybeFirebaseError?.code === "auth/popup-closed-by-user") {
-      setMsg("Se cerró la ventana de Google antes de completar el acceso.");
-    } else if (maybeFirebaseError?.code === "auth/popup-blocked") {
-      setMsg("El navegador bloqueó la ventana emergente de Google.");
-    } else if (maybeFirebaseError?.code) {
-      setMsg(friendlyAuthError(maybeFirebaseError));
+    if (maybeFirebaseError?.code) {
+      setMsg(t(friendlyAuthErrorKey(maybeFirebaseError) as Parameters<typeof t>[0]));
     } else if (err instanceof Error) {
       setMsg(err.message);
     } else {
-      setMsg("Error inesperado. Intenta nuevamente.");
+      setMsg(t("errUnexpected"));
     }
   } finally {
     setLoading(false);
@@ -723,19 +719,19 @@ minWidth: 520,
     style={logoStyle}
   />
 
-  <h1 style={titleStyle}>Iniciar sesión</h1>
-  <p style={subtitleStyle}>Accede con tu correo y contraseña.</p>
+  <h1 style={titleStyle}>{t("title")}</h1>
+  <p style={subtitleStyle}>{t("subtitle")}</p>
 </div>
 
             {registered && (
               <div style={noticeStyle}>
-                Cuenta creada. Revisa tu correo para verificarla.
+                {t("accountCreated")}
               </div>
             )}
 
             <form onSubmit={handleLogin} style={{ display: "grid", gap: 14 }}>
               <label style={{ display: "grid", gap: 4 }}>
-                <span style={labelTextStyle}>Correo</span>
+                <span style={labelTextStyle}>{t("emailLabel")}</span>
                 <input
                   type="email"
                   required
@@ -743,12 +739,12 @@ minWidth: 520,
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   style={inputStyle}
-                  placeholder="tucorreo@ejemplo.com"
+                  placeholder={t("emailPlaceholder")}
                 />
               </label>
 
               <label style={{ display: "grid", gap: 4 }}>
-                <span style={labelTextStyle}>Contraseña</span>
+                <span style={labelTextStyle}>{t("passwordLabel")}</span>
                 <input
                   type="password"
                   required
@@ -756,14 +752,14 @@ minWidth: 520,
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   style={inputStyle}
-                  placeholder="Tu contraseña"
+                  placeholder={t("passwordPlaceholder")}
                 />
               </label>
 
               <div style={switchRowStyle}>
                 <div style={{ minWidth: 0 }}>
                   <div style={{ fontSize: 11.5, fontWeight: 600 }}>
-                    Mantener sesión
+                    {t("keepSession")}
                   </div>
                   <div
                     style={{
@@ -772,14 +768,14 @@ minWidth: 520,
                       color: "rgba(255,255,255,0.6)",
                     }}
                   >
-                    Dispositivos personales
+                    {t("keepSessionHint")}
                   </div>
                 </div>
 
                 <button
                   type="button"
                   aria-pressed={keepSession}
-                  aria-label="Mantener sesión iniciada"
+                  aria-label={t("keepSessionAriaLabel")}
                   onClick={() => setKeepSession((prev) => !prev)}
                   style={switchButtonStyle}
                 >
@@ -798,11 +794,11 @@ marginBottom: 6,
                 }}
               >
 <Link href={registerHref} style={registerLinkStyle}>
-  Crear cuenta
+  {t("createAccount")}
 </Link>
 
 <Link href="/reset-password" style={forgotLinkStyle}>
-  Olvidé mi contraseña
+  {t("forgotPassword")}
 </Link>
               </div>
 
@@ -817,7 +813,7 @@ marginBottom: 6,
     filter: loading ? "grayscale(0.15)" : "none",
   }}
 >
-  Entrar
+  {t("submit")}
 </button>
 
 <button
@@ -869,7 +865,7 @@ marginBottom: 6,
       d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.58C13.46.9 11.43 0 9 0A9 9 0 0 0 .94 4.96l3.02 2.33C4.67 5.16 6.66 3.58 9 3.58z"
     />
   </svg>
-  Continuar con Google
+  {t("googleContinue")}
 </button>
             </form>
 

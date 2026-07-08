@@ -17,6 +17,7 @@ import { db } from "@/lib/firebase";
 import { useLivekitRoom } from "@/lib/liveKit/useLivekitRoom";
 import type { LivekitSessionType, LivekitErrorCode } from "@/lib/liveKit/getLivekitToken";
 import { callJoinSession, callEndSession } from "@/lib/liveKit/sessionLifecycle";
+import { useTranslations } from "next-intl";
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -42,10 +43,12 @@ function collectionForType(sessionType: LivekitSessionType): string {
 // ─── Componente raíz ──────────────────────────────────────────────────────────
 
 export default function LiveKitVideoRoom({ sessionId, sessionType, role, onLeave }: Props) {
+  const tLive = useTranslations("live");
+  const tCommon = useTranslations("common");
   const roomState = useLivekitRoom({ sessionId, sessionType, enabled: true });
 
   if (roomState.status === "idle" || roomState.status === "loading") {
-    return <StatusScreen message="Conectando…" spinner />;
+    return <StatusScreen message={tLive("connecting")} spinner />;
   }
 
   if (roomState.status === "error") {
@@ -121,6 +124,8 @@ function RoomContent({
   role: "buyer" | "creator";
   onLeave: () => void;
 }) {
+  const tLive = useTranslations("live");
+  const tCommon = useTranslations("common");
   const connectionState = useConnectionState();
   const participants = useParticipants();
   const { localParticipant, isMicrophoneEnabled, isCameraEnabled } = useLocalParticipant();
@@ -239,12 +244,12 @@ function RoomContent({
       {/* Área de video principal */}
       <div style={styles.videoArea}>
         {isConnecting ? (
-          <CenteredLabel>Conectando…</CenteredLabel>
+          <CenteredLabel>{tLive("connecting")}</CenteredLabel>
         ) : !remoteConnected ? (
           <CenteredLabel>
             {role === "creator"
-              ? "Esperando que el participante se una…"
-              : "Esperando que el creador se una…"}
+              ? tLive("waitingParticipant")
+              : tLive("waitingCreator")}
           </CenteredLabel>
         ) : remoteCameraTrack ? (
           <VideoTrack
@@ -258,7 +263,7 @@ function RoomContent({
             }}
           />
         ) : (
-          <CenteredLabel>Participante conectado · cámara apagada</CenteredLabel>
+          <CenteredLabel>{tLive("participantCameraOff")}</CenteredLabel>
         )}
 
         {/* Countdown timer — visible cuando ambos están conectados y hay deadline */}
@@ -348,7 +353,7 @@ function RoomContent({
         <ControlButton
           onClick={toggleCamera}
           active={isCameraEnabled}
-          label={isCameraEnabled ? "Cám ON" : "Cám OFF"}
+          label={isCameraEnabled ? tLive("camStatusOn") : tLive("camStatusOff")}
         />
 
         <button
@@ -357,12 +362,12 @@ function RoomContent({
           disabled={isEnding}
           style={{ ...styles.endButton, opacity: isEnding ? 0.6 : 1 }}
         >
-          {isEnding ? "Finalizando…" : confirmingEnd ? "¿Confirmar fin?" : "Finalizar sesión"}
+          {isEnding ? tLive("endingSession") : confirmingEnd ? tLive("confirmEnd") : tLive("endSession")}
         </button>
 
         {confirmingEnd && !isEnding && (
           <button type="button" onClick={() => setConfirmingEnd(false)} style={styles.cancelButton}>
-            Cancelar
+            {tCommon("cancel")}
           </button>
         )}
       </div>
@@ -400,6 +405,7 @@ function StatusScreen({
   onRetry?: () => void;
   retryLabel?: string;
 }) {
+  const tCommon = useTranslations("common");
   return (
     <div style={styles.statusScreen}>
       {spinner && <div style={styles.spinner} />}
@@ -417,7 +423,7 @@ function StatusScreen({
       </p>
       {onRetry && (
         <button type="button" onClick={onRetry} style={styles.retryButton}>
-          {retryLabel ?? "Reintentar"}
+          {retryLabel ?? tCommon("retry")}
         </button>
       )}
     </div>
@@ -439,13 +445,13 @@ function errorVariant(code: LivekitErrorCode, message: string): AccessErrorVaria
   return "generic";
 }
 
-const ACCESS_ERROR_CONFIG: Record<AccessErrorVariant, { icon: string; title: string; color: string }> = {
-  denied:      { icon: "🔒", title: "Acceso denegado",      color: "#fca5a5" },
-  "not-found": { icon: "🔍", title: "Sesión no encontrada", color: "#fcd34d" },
-  schedule:    { icon: "🕐", title: "Fuera de horario",     color: "#fcd34d" },
-  cancelled:   { icon: "✕",  title: "Sesión cancelada",     color: "#fca5a5" },
-  ended:       { icon: "✓",  title: "Sesión finalizada",    color: "rgba(255,255,255,0.55)" },
-  generic:     { icon: "⚠",  title: "No disponible",        color: "#fca5a5" },
+const ACCESS_ERROR_CONFIG: Record<AccessErrorVariant, { icon: string; titleKey: string; color: string }> = {
+  denied:      { icon: "🔒", titleKey: "errorAccessDenied",  color: "#fca5a5" },
+  "not-found": { icon: "🔍", titleKey: "errorNotFound",      color: "#fcd34d" },
+  schedule:    { icon: "🕐", titleKey: "errorSchedule",      color: "#fcd34d" },
+  cancelled:   { icon: "✕",  titleKey: "errorCancelled",     color: "#fca5a5" },
+  ended:       { icon: "✓",  titleKey: "errorEnded",         color: "rgba(255,255,255,0.55)" },
+  generic:     { icon: "⚠",  titleKey: "errorGeneric",       color: "#fca5a5" },
 };
 
 function AccessErrorScreen({
@@ -457,8 +463,10 @@ function AccessErrorScreen({
   errorCode: LivekitErrorCode;
   onClose: () => void;
 }) {
+  const tLive = useTranslations("live");
   const variant = errorVariant(errorCode, message);
-  const { icon, title, color } = ACCESS_ERROR_CONFIG[variant];
+  const { icon, titleKey, color } = ACCESS_ERROR_CONFIG[variant];
+  const title = tLive(titleKey as Parameters<typeof tLive>[0]);
 
   return (
     <div style={styles.statusScreen}>

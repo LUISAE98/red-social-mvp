@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import { usePathname, useRouter } from "next/navigation";
@@ -92,6 +93,16 @@ export function isBlockedStatus(status: CanonicalMemberStatus) {
   return status === "banned" || status === "removed";
 }
 
+export function membershipStatusKey(status: CanonicalMemberStatus): string {
+  if (status === "active") return "statusActive";
+  if (status === "subscribed") return "statusSubscribed";
+  if (status === "muted") return "statusMuted";
+  if (status === "banned") return "statusBanned";
+  if (status === "removed") return "statusRemoved";
+  return "";
+}
+
+/** @deprecated Use membershipStatusKey and translate at call site */
 export function membershipStatusLabel(status: CanonicalMemberStatus) {
   if (status === "active") return "Ya estás unido";
   if (status === "subscribed") return "Suscripción activa";
@@ -200,15 +211,20 @@ function isVisibleEnabledService(service: Record<string, unknown> | null): boole
   return enabled && visible;
 }
 
-function buildSearchServiceDots(source?: {
-  offerings?: Array<Record<string, unknown>> | Record<string, unknown>;
-  donation?: Record<string, unknown>;
-  monetization?: Record<string, unknown>;
-  greetingsEnabled?: boolean;
-  adviceEnabled?: boolean;
-  digitalMeetGreetEnabled?: boolean;
-  customClassEnabled?: boolean;
-}): SearchServiceDot[] {
+type ServicesDotT = (key: string) => string;
+
+function buildSearchServiceDots(
+  source: {
+    offerings?: Array<Record<string, unknown>> | Record<string, unknown>;
+    donation?: Record<string, unknown>;
+    monetization?: Record<string, unknown>;
+    greetingsEnabled?: boolean;
+    adviceEnabled?: boolean;
+    digitalMeetGreetEnabled?: boolean;
+    customClassEnabled?: boolean;
+  } | undefined,
+  t: ServicesDotT
+): SearchServiceDot[] {
   const offerings = source?.offerings;
   const donation = source?.donation ?? {};
   const monetization = source?.monetization ?? {};
@@ -239,7 +255,7 @@ function buildSearchServiceDots(source?: {
     dots.push({
       key: "saludo",
       color: SEARCH_SERVICE_COLORS.saludo,
-      title: "Solicitar saludo",
+      title: t("requestGreeting"),
     });
   }
 
@@ -247,7 +263,7 @@ function buildSearchServiceDots(source?: {
     dots.push({
       key: "consejo",
       color: SEARCH_SERVICE_COLORS.consejo,
-      title: "Solicitar consejo",
+      title: t("requestAdvice"),
     });
   }
 
@@ -255,7 +271,7 @@ function buildSearchServiceDots(source?: {
     dots.push({
       key: "meet_greet_digital",
       color: SEARCH_SERVICE_COLORS.meetGreet,
-      title: "Agendar encuentro",
+      title: t("requestMeetGreet"),
     });
   }
 
@@ -263,7 +279,7 @@ function buildSearchServiceDots(source?: {
     dots.push({
       key: "clase_personalizada",
       color: SEARCH_SERVICE_COLORS.exclusiveSession,
-      title: "Reservar sesión exclusiva",
+      title: t("requestSession"),
     });
   }
 
@@ -275,7 +291,7 @@ function buildSearchServiceDots(source?: {
     dots.push({
       key: "wedding_donation",
       color: SEARCH_SERVICE_COLORS.weddingDonation,
-      title: "Apoyar boda",
+      title: t("weddingDonation"),
     });
   }
 
@@ -287,19 +303,19 @@ function buildSearchServiceDots(source?: {
     dots.push({
       key: "general_donation",
       color: SEARCH_SERVICE_COLORS.generalDonation,
-      title: "Apoyar",
+      title: t("generalDonation"),
     });
   }
 
   return dots;
 }
 
-function ServiceDots({ dots }: { dots: SearchServiceDot[] }) {
+function ServiceDots({ dots, ariaLabel }: { dots: SearchServiceDot[]; ariaLabel: string }) {
   if (dots.length === 0) return null;
 
   return (
     <span
-      aria-label="Servicios activos"
+      aria-label={ariaLabel}
       style={{
         display: "inline-flex",
         alignItems: "center",
@@ -426,6 +442,10 @@ export default function GroupsSearchPanel({
   showCloseSearch = false,
   onCloseSearch,
 }: GroupsSearchPanelProps) {
+  const tGroups = useTranslations("groups");
+  const tCommon = useTranslations("common");
+  const tServices = useTranslations("services");
+
   const router = useRouter();
   const pathname = usePathname();
 
@@ -462,17 +482,30 @@ const previousPathnameRef = useRef<string | null>(null);
 
 const normalizedSearch = debouncedSearch.trim().toLowerCase();
 const hasSearch = normalizedSearch.length >= MIN_SEARCH_LENGTH;
-const historyVisible = !hasSearch && isFocused && history.length > 0;
+// Sin sesión iniciada nunca se muestra historial (es privado del usuario).
+const historyVisible = !!user && !hasSearch && isFocused && history.length > 0;
 
 isFocusedRef.current = isFocused;
 
   useEffect(() => {
     setMounted(true);
-    setHistory(loadHistory());
 
     const unsub = onAuthStateChanged(auth, (u) => {
       setUser(u);
       setAuthLoading(false);
+
+      if (u) {
+        // Sesión activa: cargar el historial guardado en este navegador.
+        setHistory(loadHistory());
+      } else {
+        // Sin sesión: el historial de búsqueda es privado del usuario.
+        // No mostrarlo y borrarlo del almacenamiento para que no quede
+        // disponible al siguiente usuario del navegador.
+        setHistory([]);
+        try {
+          localStorage.removeItem(HISTORY_KEY);
+        } catch {}
+      }
     });
 
     return () => unsub();
@@ -535,7 +568,7 @@ useEffect(() => {
       setCommunities(result.groups as Community[]);
     } catch (e) {
       const message =
-        e instanceof Error ? e.message : "Error cargando comunidades";
+        e instanceof Error ? e.message : tGroups("loadError");
 
       setError(message);
       setCommunities([]);
@@ -592,7 +625,7 @@ useEffect(() => {
       const message =
         e instanceof Error
           ? e.message
-          : "Error cargando perfiles";
+          : tCommon("loadError");
 
       setError(message);
       setProfiles([]);
@@ -770,7 +803,7 @@ const filteredCommunities = useMemo(() => {
       }));
     } catch (e) {
       const message =
-        e instanceof Error ? e.message : "No se pudo unir a la comunidad";
+        e instanceof Error ? e.message : tGroups("joinError");
       setError(message);
     }
   }
@@ -794,7 +827,7 @@ const filteredCommunities = useMemo(() => {
       }));
     } catch (e) {
       const message =
-        e instanceof Error ? e.message : "No se pudo enviar solicitud";
+        e instanceof Error ? e.message : tGroups("requestAccess");
       setError(message);
     }
   }
@@ -812,7 +845,7 @@ const filteredCommunities = useMemo(() => {
       }));
     } catch (e) {
       const message =
-        e instanceof Error ? e.message : "No se pudo cancelar solicitud";
+        e instanceof Error ? e.message : tCommon("cancel");
       setError(message);
     }
   }
@@ -821,7 +854,7 @@ const filteredCommunities = useMemo(() => {
     if (!user) return;
 
     if (ownerId && ownerId === user.uid) {
-      setError("El owner no puede salir de su propia comunidad.");
+      setError(tGroups("leaveConfirm"));
       return;
     }
 
@@ -840,7 +873,7 @@ const filteredCommunities = useMemo(() => {
       }));
     } catch (e) {
       const message =
-        e instanceof Error ? e.message : "No se pudo salir de la comunidad";
+        e instanceof Error ? e.message : tCommon("leave");
       setError(message);
     }
   }
@@ -1429,7 +1462,7 @@ to {
     <div className="search-dropdown-inner">
       <section className="dropdown-section">
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 14px 4px" }}>
-          <h2 className="dropdown-title" style={{ padding: 0 }}>Recientes</h2>
+          <h2 className="dropdown-title" style={{ padding: 0 }}>{tCommon("recent")}</h2>
           <button
             type="button"
             onMouseDown={(e) => e.preventDefault()}
@@ -1439,14 +1472,14 @@ to {
             }}
             style={{ background: "none", border: "none", color: "rgba(255,255,255,0.44)", fontSize: "12px", cursor: "pointer", fontFamily: fontStack, padding: "2px 4px", borderRadius: 6 }}
           >
-            Limpiar
+            {tCommon("clear")}
           </button>
         </div>
         {history.map((entry, i) => {
           const removeBtn = (
             <button
               type="button"
-              aria-label="Eliminar del historial"
+              aria-label={tCommon("removeFromHistory")}
               onMouseDown={(e) => e.preventDefault()}
               onClick={(e) => {
                 e.stopPropagation();
@@ -1494,7 +1527,7 @@ to {
               <div style={{ minWidth: 0, flex: 1 }}>
                 <div style={{ color: "rgba(255,255,255,0.9)", fontSize: 13, fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{entry.name}</div>
                 <div style={{ color: "rgba(255,255,255,0.44)", fontSize: 12 }}>
-                  {isProfile && entry.handle ? `@${entry.handle}` : "Comunidad"}
+                  {isProfile && entry.handle ? `@${entry.handle}` : tGroups("title")}
                 </div>
               </div>
               {removeBtn}
@@ -1514,19 +1547,19 @@ to {
             <div className="search-dropdown-inner">
               {isLoading && (
                 <div className="dropdown-helper">
-                  Buscando comunidades, perfiles y publicaciones...
+                  {tCommon("loading")}
                 </div>
               )}
 
               {!isLoading && !hasAnyResults && (
                 <div className="dropdown-helper">
-                  No se encontraron comunidades ni perfiles con esa búsqueda.
+                  {tGroups("noGroupsFound")}
                 </div>
               )}
 
               {!isLoading && previewCommunities.length > 0 && (
                 <section className="dropdown-section">
-                  <h2 className="dropdown-title">Comunidades</h2>
+                  <h2 className="dropdown-title">{tGroups("title")}</h2>
 
                   {previewCommunities.map((g) => {
                     const isOwner =
@@ -1546,20 +1579,20 @@ to {
 
 const visLabel =
   g.visibility === "public"
-    ? "Comunidad pública"
+    ? tGroups("publicLabel")
     : g.visibility === "private"
-      ? "Comunidad privada"
-      : "Comunidad oculta";
+      ? tGroups("privateLabel")
+      : tGroups("hiddenLabel");
                     const price = g.monetization?.priceMonthly ?? null;
                     const cur = g.monetization?.currency ?? null;
-                    const serviceDots = buildSearchServiceDots(g);
+                    const serviceDots = buildSearchServiceDots(g, tServices);
 
                     return (
                       <div
                         key={g.id}
                         className="result-item"
                         onClick={() => {
-                          const entry: SearchHistoryEntry = { kind: "entity", entityType: "community", id: g.id, name: g.name ?? "(sin nombre)", avatarUrl: g.avatarUrl ?? null, href: `/groups/${g.id}`, ts: Date.now() };
+                          const entry: SearchHistoryEntry = { kind: "entity", entityType: "community", id: g.id, name: g.name ?? tGroups("title"), avatarUrl: g.avatarUrl ?? null, href: `/groups/${g.id}`, ts: Date.now() };
                           setHistory((h) => pushToHistory(h, entry));
                           handleNavigateAndClose(`/groups/${g.id}`);
                         }}
@@ -1571,11 +1604,11 @@ const visLabel =
                               entityType="group"
                               currentUserId={user?.uid ?? null}
                               photoURL={g.avatarUrl ?? null}
-                              displayName={g.name ?? "Comunidad"}
+                              displayName={g.name ?? tGroups("title")}
                               size={42}
                               onClick={(e) => {
                                 e.stopPropagation();
-                                const entry: SearchHistoryEntry = { kind: "entity", entityType: "community", id: g.id, name: g.name ?? "(sin nombre)", avatarUrl: g.avatarUrl ?? null, href: `/groups/${g.id}`, ts: Date.now() };
+                                const entry: SearchHistoryEntry = { kind: "entity", entityType: "community", id: g.id, name: g.name ?? tGroups("title"), avatarUrl: g.avatarUrl ?? null, href: `/groups/${g.id}`, ts: Date.now() };
                                 setHistory((h) => pushToHistory(h, entry));
                                 handleNavigateAndClose(`/groups/${g.id}`);
                               }}
@@ -1584,18 +1617,22 @@ const visLabel =
                             <div className="result-content">
 <h3 className="result-name result-name-with-meta">
   <span className="result-name-text">
-    {g.name ?? "(sin nombre)"}
+    {g.name ?? tGroups("title")}
   </span>
 <span className="result-name-dot visibility-desktop">·</span>
 <span className="result-name-visibility">
   <span className="visibility-desktop">{visLabel}</span>
   <span className="visibility-mobile">
-    {visLabel.replace("Comunidad ", "").toLowerCase()}
+    {g.visibility === "public"
+      ? tGroups("publicShort")
+      : g.visibility === "private"
+        ? tGroups("privateShort")
+        : tGroups("hiddenShort")}
   </span>
 </span>
 
 <span className="service-dots-desktop">
-  <ServiceDots dots={serviceDots} />
+  <ServiceDots dots={serviceDots} ariaLabel={tCommon("activeServices")} />
 </span>
 </h3>
 
@@ -1613,7 +1650,7 @@ const visLabel =
   {serviceDots.length > 0 ? (
     <>
       <span className="mobile-service-separator">·</span>
-      <ServiceDots dots={serviceDots} />
+      <ServiceDots dots={serviceDots} ariaLabel={tCommon("activeServices")} />
     </>
   ) : null}
 </div>
@@ -1622,7 +1659,7 @@ const visLabel =
 
                                 {!isOwner && isBlocked && (
                                   <span className="meta-inline meta-danger">
-                                    ({membershipStatusLabel(membershipStatus)})
+                                    ({membershipStatusKey(membershipStatus) ? tGroups(membershipStatusKey(membershipStatus)) : ""})
                                   </span>
                                 )}
                               </div>
@@ -1639,7 +1676,7 @@ const visLabel =
                                 className="primary-btn"
                                 type="button"
                               >
-                                Unirme
+                                {tGroups("join")}
                               </button>
                             )}
 
@@ -1649,7 +1686,7 @@ const visLabel =
   className="primary-btn"
   type="button"
 >
-  💎 Suscribirme
+  💎 {tGroups("subscribe")}
   {price != null ? ` · ${price} ${cur ?? "MXN"}` : ""}
 </button>
                             )}
@@ -1668,7 +1705,7 @@ const visLabel =
                                       className="secondary-btn"
                                       type="button"
                                     >
-                                      Solicitar acceso
+                                      {tGroups("requestAccess")}
                                     </button>
                                   ) : (
 <button
@@ -1676,7 +1713,7 @@ const visLabel =
   className="secondary-btn"
   type="button"
 >
-  Cancelar
+  {tCommon("cancel")}
 </button>
                                   )}
                                 </>
@@ -1688,7 +1725,7 @@ const visLabel =
                                 className="secondary-btn"
                                 type="button"
                               >
-                                Salir
+                                {tCommon("leave")}
                               </button>
                             )}
                           </div>
@@ -1701,16 +1738,16 @@ const visLabel =
 
               {!isLoading && previewProfiles.length > 0 && (
                 <section className="dropdown-section">
-                  <h2 className="dropdown-title">Perfiles</h2>
+                  <h2 className="dropdown-title">{tCommon("profiles")}</h2>
 
                   {previewProfiles.map((p) => {
                     const fullName =
                       p.displayName?.trim() ||
                       `${p.firstName ?? ""} ${p.lastName ?? ""}`.trim() ||
                       p.handle ||
-                      "Usuario";
+                      tCommon("user");
 
-                      const serviceDots = buildSearchServiceDots(p);
+                      const serviceDots = buildSearchServiceDots(p, tServices);
 
                     return (
                       <div
@@ -1742,7 +1779,7 @@ const visLabel =
   <div className="result-content">
     <h3 className="result-name result-name-with-meta">
   <span className="result-name-text">{fullName}</span>
-  <ServiceDots dots={serviceDots} />
+  <ServiceDots dots={serviceDots} ariaLabel={tCommon("activeServices")} />
 </h3>
 
     <div className="result-meta">
@@ -1751,7 +1788,7 @@ const visLabel =
   </div>
 </div>
 
-<div className="profile-cta">Abrir</div>
+<div className="profile-cta">{tCommon("open")}</div>
                         </div>
                       </div>
                     );
@@ -1767,7 +1804,7 @@ const visLabel =
                   className="more-results-btn"
                   onClick={handleOpenFullResults}
                 >
-                  Ver más resultados
+                  {tCommon("viewMore")}
                 </button>
               </div>
             )}

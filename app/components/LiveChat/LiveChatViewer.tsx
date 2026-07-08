@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import { doc, getDoc } from "firebase/firestore";
@@ -45,6 +46,7 @@ export default function LiveChatViewer({
   onDonate,
   onFollow,
 }: Props) {
+  const tLive = useTranslations("live");
   const { user } = useAuth();
   const { reportTarget, openReport, closeReport } = useReport();
   const { messages, send } = useLiveChat(liveId);
@@ -85,7 +87,7 @@ export default function LiveChatViewer({
   useEffect(() => {
     if (!user?.uid) { setSenderInfo(null); return; }
     setSenderInfo({
-      username: user.displayName ?? "Espectador",
+      username: user.displayName ?? tLive("defaultViewer"),
       avatarUrl: user.photoURL ?? null,
     });
     getDoc(doc(db, "users", user.uid))
@@ -93,7 +95,7 @@ export default function LiveChatViewer({
         if (!snap.exists()) return;
         const d = snap.data();
         setSenderInfo({
-          username: d?.displayName ?? d?.handle ?? user.displayName ?? "Espectador",
+          username: d?.displayName ?? d?.handle ?? user.displayName ?? tLive("defaultViewer"),
           avatarUrl: d?.photoURL ?? user.photoURL ?? null,
         });
       })
@@ -120,7 +122,7 @@ export default function LiveChatViewer({
     if (!user || !senderInfo || !text.trim()) return;
     const messageText = text.trim();
     if (messageText.length > 50) {
-      showChatToast("El mensaje no puede exceder 50 caracteres.", "error");
+      showChatToast(tLive("messageTooLong"), "error");
       return;
     }
     setText("");
@@ -133,7 +135,7 @@ export default function LiveChatViewer({
         text: messageText,
       });
     } catch {
-      showChatToast("No se pudo enviar.", "error");
+      showChatToast(tLive("sendError"), "error");
       setText(messageText);
     }
   }, [user, senderInfo, text, send]);
@@ -263,7 +265,7 @@ export default function LiveChatViewer({
                       type="button"
                       onClick={() => openReport({ targetType: "live_chat_message", targetId: item.id, targetOwnerId: item.userId })}
                       style={{ background: "none", border: "none", color: "rgba(255,255,255,0.25)", fontSize: 14, cursor: "pointer", padding: "0 2px", flexShrink: 0, lineHeight: 1 }}
-                      title="Reportar mensaje"
+                      title={tLive("reportMessage")}
                     >
                       ⋯
                     </button>
@@ -296,7 +298,7 @@ export default function LiveChatViewer({
                         value={text}
                         onChange={(e) => setText(e.target.value)}
                         onKeyDown={handleKeyDown}
-                        placeholder="Escribe un mensaje..."
+                        placeholder={tLive("chatPlaceholder")}
                         style={{
                           flex: 1, background: "rgba(255,255,255,0.13)",
                           border: "1px solid rgba(255,255,255,0.18)", borderRadius: 20,
@@ -360,7 +362,7 @@ export default function LiveChatViewer({
               flex: 1, display: "flex", alignItems: "center", justifyContent: "center",
               color: "rgba(255,255,255,0.2)", fontSize: 12, fontFamily: FONT, textAlign: "center", padding: "24px 0",
             }}>
-              {liveEnded ? "El live ha terminado" : chatEnabled ? "Sé el primero en comentar" : "El chat está cerrado"}
+              {liveEnded ? tLive("liveEnded") : chatEnabled ? tLive("beFirstToComment") : tLive("chatClosed")}
             </div>
           )}
           {feed.map((item) =>
@@ -404,11 +406,11 @@ export default function LiveChatViewer({
         <div style={{ padding: "8px 10px", borderTop: "1px solid rgba(255,255,255,0.06)", flexShrink: 0 }}>
           {liveEnded ? (
             <div style={{ textAlign: "center", fontSize: 12, color: "rgba(255,255,255,0.25)", fontFamily: FONT, padding: "4px 0" }}>
-              El live ha terminado
+              {tLive("liveEnded")}
             </div>
           ) : !chatEnabled ? (
             <div style={{ textAlign: "center", fontSize: 12, color: "rgba(255,255,255,0.25)", fontFamily: FONT, padding: "4px 0" }}>
-              El chat está cerrado
+              {tLive("chatClosed")}
             </div>
           ) : !user ? (
             <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "4px 0" }}>
@@ -433,7 +435,7 @@ export default function LiveChatViewer({
                   value={text}
                   onChange={(e) => setText(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  placeholder="Escribe un mensaje..."
+                  placeholder={tLive("chatPlaceholder")}
                   style={{
                     flex: 1, background: "rgba(255,255,255,0.07)",
                     border: "1px solid rgba(255,255,255,0.09)", borderRadius: 18,
@@ -484,11 +486,12 @@ function Avatar({ url, name, size, ringColor }: { url?: string | null; name: str
 }
 
 function BillButton({ onClick }: { onClick: () => void }) {
+  const tLive = useTranslations("live");
   return (
     <button
       type="button"
       onClick={onClick}
-      title="Supercomentario"
+      title={tLive("superComment")}
       style={{
         width: 32, height: 32, borderRadius: "50%", border: "none",
         background: "rgba(234,179,8,0.18)",

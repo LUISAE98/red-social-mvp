@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import {
   MAX_POST_IMAGES,
   type GroupVisibility,
@@ -260,6 +261,7 @@ export default function GroupPostComposer({
   editPost,
   onEditClose,
 }: GroupPostComposerProps) {
+  const tCommon = useTranslations("common");
   const isEditMode = !!editPost;
   const [text, setText] = useState(() => editPost?.text ?? "");
   const [creating, setCreating] = useState(false);
@@ -1152,17 +1154,17 @@ const launcherButtonStyle: CSSProperties = {
                 }
                 aria-label={
                   isPreparingImages
-                    ? "Preparando publicación"
+                    ? tCommon("uploading")
                     : creating
-                      ? "Publicando"
-                      : "Abrir editor para publicar"
+                      ? tCommon("publishing")
+                      : tCommon("publish")
                 }
                 title={
                   isPreparingImages
-                    ? "Preparando..."
+                    ? tCommon("uploading")
                     : creating
-                      ? "Publicando..."
-                      : "Publicar"
+                      ? tCommon("publishing")
+                      : tCommon("publish")
                 }
               >
                 <VibraNavigationIcon

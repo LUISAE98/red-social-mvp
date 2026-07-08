@@ -14,6 +14,7 @@ import {
   useCallback,
 } from "react";
 import { createPortal } from "react-dom";
+import { useLocale, useTranslations } from "next-intl";
 import {
   useParams,
   usePathname,
@@ -114,6 +115,10 @@ import {
 export default function GroupPage() {
   const params = useParams<{ groupId: string }>();
   const groupId = params.groupId;
+  const locale = useLocale();
+  const tCommon = useTranslations("common");
+  const tGroups = useTranslations("groups");
+  const tFeed = useTranslations("feed");
 
   const { user } = useAuth();
   const router = useRouter();
@@ -215,8 +220,8 @@ const handleGroupPullRefresh = useCallback(async () => {
 const formattedMemberCount = useMemo(() => {
   if (memberCount == null) return null;
 
-  return new Intl.NumberFormat("es-MX").format(memberCount);
-}, [memberCount]);
+  return new Intl.NumberFormat(locale).format(memberCount);
+}, [memberCount, locale]);
 
   const error = actionError ?? realtimeError;
 
@@ -1230,7 +1235,7 @@ const openCropWithFile = useCallback(
                   marginTop: 4,
                 }}
               >
-                Volver a comunidades
+                {tCommon("back")}
               </button>
             </div>
           </div>
@@ -1701,7 +1706,7 @@ const avatarNode = (
       />
 
       <span>
-        {formattedMemberCount} {memberCount === 1 ? "miembro" : "miembros"}
+        {formattedMemberCount} {memberCount === 1 ? tCommon("member") : tCommon("members")}
       </span>
     </>
   )}
@@ -1836,9 +1841,9 @@ const avatarNode = (
                               }}
                             >
                               {joining
-                                ? "Enviando..."
+                                ? tCommon("sending")
                                 : user
-                                ? "Solicitar acceso"
+                                ? tGroups("requestAccess")
                                 : "Iniciar sesión para solicitar acceso"}
                             </button>
                           ) : (
@@ -1851,7 +1856,7 @@ const avatarNode = (
                                 cursor: joining ? "not-allowed" : "pointer",
                               }}
                             >
-                              {joining ? "Cancelando..." : "Cancelar solicitud"}
+                              {joining ? tCommon("sending") : tCommon("cancel")}
                             </button>
                           )}
                         </div>
@@ -1903,7 +1908,7 @@ const avatarNode = (
                     disabled={subscriptionSubmitting}
                     style={{ ...secondaryButton, opacity: subscriptionSubmitting ? 0.75 : 1, cursor: subscriptionSubmitting ? "not-allowed" : "pointer" }}
                   >
-                    Cerrar
+                    {tCommon("close")}
                   </button>
                 </div>
                 <div style={{ marginTop: 10, display: "grid", gap: 12 }}>
@@ -1928,7 +1933,7 @@ const avatarNode = (
                       disabled={subscriptionSubmitting}
                       style={{ ...primaryButton, opacity: subscriptionSubmitting ? 0.75 : 1, cursor: subscriptionSubmitting ? "not-allowed" : "pointer" }}
                     >
-                      {subscriptionSubmitting ? "Procesando..." : "Pagar y unirme"}
+                      {subscriptionSubmitting ? tFeed("processing") : "Pagar y unirme"}
                     </button>
                     <button
                       type="button"
@@ -1936,7 +1941,7 @@ const avatarNode = (
                       disabled={subscriptionSubmitting}
                       style={{ ...secondaryButton, opacity: subscriptionSubmitting ? 0.75 : 1, cursor: subscriptionSubmitting ? "not-allowed" : "pointer" }}
                     >
-                      Cancelar
+                      {tCommon("cancel")}
                     </button>
                   </div>
                 </div>
@@ -2297,7 +2302,7 @@ const avatarNode = (
       />
 
       <span>
-        {formattedMemberCount} {memberCount === 1 ? "miembro" : "miembros"}
+        {formattedMemberCount} {memberCount === 1 ? tCommon("member") : tCommon("members")}
       </span>
     </>
   )}
@@ -2334,7 +2339,7 @@ const avatarNode = (
                               cursor: joining ? "not-allowed" : "pointer",
                             }}
                           >
-                            {joining ? "Uniéndote..." : user ? "Unirme" : "Iniciar sesión para unirme"}
+                            {joining ? tFeed("processing") : user ? tGroups("join") : "Iniciar sesión para unirme"}
                           </button>
                         ) : null
                       )
@@ -2603,7 +2608,7 @@ const avatarNode = (
                   disabled={subscriptionSubmitting}
                   style={{ ...secondaryButton, opacity: subscriptionSubmitting ? 0.75 : 1, cursor: subscriptionSubmitting ? "not-allowed" : "pointer" }}
                 >
-                  Cerrar
+                  {tCommon("close")}
                 </button>
               </div>
               <div style={{ marginTop: 10, display: "grid", gap: 12 }}>
@@ -2628,7 +2633,7 @@ const avatarNode = (
                     disabled={subscriptionSubmitting}
                     style={{ ...primaryButton, opacity: subscriptionSubmitting ? 0.75 : 1, cursor: subscriptionSubmitting ? "not-allowed" : "pointer" }}
                   >
-                    {subscriptionSubmitting ? "Procesando..." : "Pagar y unirme"}
+                    {subscriptionSubmitting ? tFeed("processing") : "Pagar y unirme"}
                   </button>
                   <button
                     type="button"
@@ -2636,7 +2641,7 @@ const avatarNode = (
                     disabled={subscriptionSubmitting}
                     style={{ ...secondaryButton, opacity: subscriptionSubmitting ? 0.75 : 1, cursor: subscriptionSubmitting ? "not-allowed" : "pointer" }}
                   >
-                    Cancelar
+                    {tCommon("cancel")}
                   </button>
                 </div>
               </div>
@@ -2681,7 +2686,7 @@ const avatarNode = (
               <p style={{ fontSize: 17, fontWeight: 700, lineHeight: 1.25, margin: 0 }}>
                 {membershipRequiresSubscription
                   ? "¿Cancelar suscripción?"
-                  : "¿Salir de la comunidad?"}
+                  : tGroups("leaveConfirm")}
               </p>
               <p style={{ fontSize: 14, color: "rgba(255,255,255,0.75)", lineHeight: 1.5, margin: 0 }}>
                 {membershipRequiresSubscription
@@ -2720,7 +2725,7 @@ const avatarNode = (
                     opacity: leaving ? 0.6 : 1,
                   }}
                 >
-                  Cancelar
+                  {tCommon("cancel")}
                 </button>
                 <button
                   type="button"
@@ -2740,10 +2745,10 @@ const avatarNode = (
                   }}
                 >
                   {leaving
-                    ? "Procesando..."
+                    ? tFeed("processing")
                     : membershipRequiresSubscription
                     ? "Cancelar suscripción"
-                    : "Salir"}
+                    : tCommon("leave")}
                 </button>
               </div>
             </div>

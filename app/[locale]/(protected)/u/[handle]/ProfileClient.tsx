@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import Image from "next/image";
@@ -76,6 +77,8 @@ import StoryViewer from "@/app/components/Stories/StoryViewer";
 import { setLastVisitTimestamp } from "@/lib/utils/visitTimestamps";
 import { useLiveRingState } from "@/lib/live/useLiveRingState";
 import { useSetMobileHeader } from "@/app/contexts/MobileHeaderContext";
+import LanguageSwitcher from "@/app/components/LanguageSwitcher";
+import SessionCountdownBanner from "@/app/components/SessionCountdownBanner/SessionCountdownBanner";
 import {
   type FirestoreDateLike,
   type CropMode,
@@ -163,6 +166,10 @@ const blockStatusCache = new Map<string, BlockStatusEntry>();
 // ──────────────────────────────────────────────────────────────────────────────
 
 export default function ProfileClient() {
+  const tProfile = useTranslations("profile");
+  const tCommon = useTranslations("common");
+  const tServices = useTranslations("services");
+
   const params = useParams<{ handle: string }>();
   const pathname = usePathname();
   const router = useRouter();
@@ -386,7 +393,7 @@ useEffect(() => {
       : 0;
 
   const followersLabel = `${followersCount.toLocaleString("es-MX")} ${
-    followersCount === 1 ? "seguidor" : "seguidores"
+    followersCount === 1 ? tProfile("follower") : tProfile("followers")
   }`;
 
 function openFollowersOverlay() {
@@ -1372,9 +1379,9 @@ await createGreetingRequest({
     setToName("");
     setInstructions("");
     setGreetSuccess(null);
-    setServiceToast("Solicitud enviada al creador.");
+    setServiceToast(tServices("requestSent"));
   } catch (e: unknown) {
-    setGreetError((e instanceof Error ? e.message : null) ?? "No se pudo enviar la solicitud.");
+    setGreetError((e instanceof Error ? e.message : null) ?? tServices("requestError"));
   } finally {
     setGreetSubmitting(false);
   }
@@ -1403,7 +1410,7 @@ await createMeetGreetRequest({
     setMeetGreetMessage("");
     setServiceToast("Solicitud de meet & greet enviada.");
   } catch (e: unknown) {
-    setMeetGreetError((e instanceof Error ? e.message : null) ?? "No se pudo enviar la solicitud.");
+    setMeetGreetError((e instanceof Error ? e.message : null) ?? tServices("requestError"));
   } finally {
     setMeetGreetSubmitting(false);
   }
@@ -1433,7 +1440,7 @@ await createExclusiveSessionRequest({
     setExclusiveSessionMessage("");
     setServiceToast("Solicitud de sesión exclusiva enviada.");
   } catch (e: unknown) {
-    setExclusiveSessionError((e instanceof Error ? e.message : null) ?? "No se pudo enviar la solicitud.");
+    setExclusiveSessionError((e instanceof Error ? e.message : null) ?? tServices("requestError"));
   } finally {
     setExclusiveSessionSubmitting(false);
   }
@@ -1455,7 +1462,7 @@ await createExclusiveSessionRequest({
       >
         <div className="vibraPullRefreshSpinner refreshing" style={{ width: 32, height: 32 }} />
         <span style={{ fontSize: 13, color: "rgba(255,255,255,0.32)", letterSpacing: "0.01em" }}>
-          Cargando perfil...
+          {tProfile("loadingProfile")}
         </span>
       </main>
     );
@@ -1473,7 +1480,7 @@ await createExclusiveSessionRequest({
         }}
       >
         <div style={{ maxWidth: ui.pageMaxWidth, margin: "0 auto", padding: "0" }}>
-          {msg ?? "Perfil no disponible"}
+          {msg ?? tProfile("profileUnavailable")}
         </div>
       </main>
     );
@@ -1483,8 +1490,8 @@ await createExclusiveSessionRequest({
     userDoc.displayName || `${userDoc.firstName} ${userDoc.lastName}`.trim();
 
   const profileVisibilityLabel = profileRestricted
-    ? "Perfil reservado"
-    : "Perfil público";
+    ? tProfile("restricted")
+    : tProfile("public");
 
   const normalizedBirthDate = normalizeDateValue(userDoc.birthDate ?? null);
   const normalizedCreatedAt = normalizeDateValue(userDoc.createdAt ?? null);
@@ -1727,7 +1734,7 @@ await createExclusiveSessionRequest({
 
 <div
   className="shared-communities-cover"
-  aria-label="Comunidades compartidas"
+  aria-label={tProfile("sharedCommunitiesLabel")}
 >
   <SharedCommunitiesBadge
     profileUid={userDoc.uid}
@@ -1782,8 +1789,8 @@ await createExclusiveSessionRequest({
       onClick={handlePickCover}
       disabled={uploading}
       type="button"
-      aria-label="Elegir portada"
-      title="Elegir portada"
+      aria-label={tProfile("ariaChangeCover")}
+      title={tProfile("ariaChangeCover")}
       style={{
         position: "absolute",
         right: 14,
@@ -1930,14 +1937,14 @@ await createExclusiveSessionRequest({
                     }}
                     aria-label={
                       profileIsLive
-                        ? `Ver live de ${fullName}`
+                        ? tProfile("ariaLiveView", { name: fullName })
                         : profileRing !== "none" && profileRingStories.length > 0
-                          ? `Ver historias de ${fullName}`
+                          ? tProfile("ariaStoriesView", { name: fullName })
                           : isOwner
-                            ? "Cambiar foto de perfil"
+                            ? tProfile("ariaChangeAvatar")
                             : undefined
                     }
-                    title={isOwner && !profileIsLive && profileRing === "none" ? "Cambiar foto de perfil" : undefined}
+                    title={isOwner && !profileIsLive && profileRing === "none" ? tProfile("ariaChangeAvatar") : undefined}
                   >
                     {avatarSrc ? (
                       <Image
@@ -1995,8 +2002,8 @@ await createExclusiveSessionRequest({
                         lineHeight: 1,
                         padding: 0,
                       }}
-                      title="Cambiar foto de perfil"
-                      aria-label="Cambiar foto de perfil"
+                      title={tProfile("ariaChangeAvatar")}
+                      aria-label={tProfile("ariaChangeAvatar")}
                     >
                       {uploading && cropMode === "avatar" ? "..." : "✎"}
                     </button>
@@ -2087,10 +2094,10 @@ await createExclusiveSessionRequest({
                       }}
                     >
                       {checkingProfileBlock
-                        ? "Validando acceso al perfil..."
+                        ? tProfile("checkingAccess")
                         : profileBlockedByViewer
-                          ? "Bloqueaste este perfil. Puedes desbloquearlo usando el menú ⋮."
-                          : "Este perfil no está disponible."}
+                          ? tProfile("blockedByViewer")
+                          : tProfile("blockedByProfile")}
                     </div>
                   ) : null}
 
@@ -2116,8 +2123,7 @@ await createExclusiveSessionRequest({
                         textAlign: "center",
                       }}
                     >
-                      Puedes ver este perfil públicamente. Inicia sesión para
-                      interactuar, seguir explorando y usar funciones completas.
+                      {tProfile("guestCta")}
                     </div>
 
                     <div className="profile-actions-row" style={{ marginTop: 14 }}>
@@ -2126,7 +2132,7 @@ await createExclusiveSessionRequest({
                         onClick={redirectToLogin}
                         style={styles.buttonPrimary}
                       >
-                        Iniciar sesión
+                        {tCommon("login")}
                       </button>
                     </div>
                   </div>
@@ -2248,6 +2254,9 @@ await createExclusiveSessionRequest({
   </div>
 )}
 
+{viewer?.uid && (
+  <SessionCountdownBanner uid={viewer.uid} />
+)}
 <ProfilePostsFeed
   key={`profile-posts-${userDoc.uid}-${profilePostsRefreshKey}`}
   profileUid={userDoc.uid}
@@ -2574,8 +2583,8 @@ await createExclusiveSessionRequest({
             >
               <div style={styles.subtitle}>
                 {cropMode === "avatar"
-                  ? "Recortar foto de perfil"
-                  : "Recortar portada"}
+                  ? tProfile("cropAvatar")
+                  : tProfile("cropCover")}
               </div>
 
               <button
@@ -2587,7 +2596,7 @@ await createExclusiveSessionRequest({
                   cursor: uploading ? "not-allowed" : "pointer",
                 }}
               >
-                Cerrar
+                {tCommon("close")}
               </button>
             </div>
 
@@ -2629,7 +2638,7 @@ await createExclusiveSessionRequest({
                   flexWrap: "wrap",
                 }}
               >
-                <label style={styles.label}>Zoom</label>
+                <label style={styles.label}>{tCommon("zoom")}</label>
 
                 <input
                   type="range"
@@ -2658,7 +2667,7 @@ await createExclusiveSessionRequest({
                       cursor: uploading ? "not-allowed" : "pointer",
                     }}
                   >
-                    Cancelar
+                    {tCommon("cancel")}
                   </button>
 
                   <button
@@ -2673,19 +2682,20 @@ await createExclusiveSessionRequest({
                       cursor: uploading ? "not-allowed" : "pointer",
                     }}
                   >
-                    {uploading ? "Subiendo..." : "Guardar"}
+                    {uploading ? tCommon("uploading") : tCommon("save")}
                   </button>
                 </div>
               </div>
 
               <div style={{ marginTop: 10, ...styles.microText }}>
-                Tip: mueve la imagen para encuadrar.{" "}
-                {cropMode === "avatar" ? "Avatar 1:1." : "Portada 16:9."}
+                {cropMode === "avatar" ? tProfile("cropTipAvatar") : tProfile("cropTipCover")}
               </div>
             </div>
           </div>
         </div>
       )}
+
+      {isOwner && <LanguageSwitcher variant="mobile-bubble" />}
 
       <VibraToast toast={profileToast} />
     </>

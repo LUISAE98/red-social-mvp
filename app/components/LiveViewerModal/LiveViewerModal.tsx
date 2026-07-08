@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useTranslations } from "next-intl";
 import { createPortal } from "react-dom";
 import Hls from "hls.js";
 import { doc, getDoc, onSnapshot } from "firebase/firestore";
@@ -285,6 +286,7 @@ function DonationPanel({ onClose, postId, userId, username, avatarUrl, guestId }
 const VOD_PLAYBACK_RATES = [0.5, 0.75, 1, 1.25, 1.5, 2];
 
 export default function LiveViewerModal({ open, onClose, post, onManage, initialPortrait = false, initialStream }: Props) {
+  const tCommon = useTranslations("common");
   const { user } = useAuth();
   const { relationship, follow } = useSocialRelationship(user?.uid ?? null, post.authorId ?? null);
   const showFollowBtn = !!user && !!post.authorId && user.uid !== post.authorId && !relationship.isFollowing;
@@ -1135,7 +1137,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
         <button
           type="button"
           onClick={onClose}
-          aria-label="Cerrar"
+          aria-label={tCommon("closeAriaLabel")}
           style={{
             position: "absolute", top: "max(20px, env(safe-area-inset-top))",
             right: "max(20px, env(safe-area-inset-right))",
@@ -1707,7 +1709,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
           <button
             type="button"
             onClick={onClose}
-            aria-label="Cerrar"
+            aria-label={tCommon("closeAriaLabel")}
             style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.9)", padding: "0 5px", display: "flex", alignItems: "center", justifyContent: "center" }}
           >
             <svg width={iconSz} height={iconSz} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import type { Post } from "@/lib/posts/types";
@@ -22,6 +23,8 @@ function applyPanelOffset(raw: number): number {
 }
 
 export default function LiveEndSummaryPanel({ open, onClose, post }: Props) {
+  const tCommon = useTranslations("common");
+  const tLive = useTranslations("live");
   const liveData = post.liveData;
   const defaultPaid = liveData?.accessType === "paid";
   const defaultPrice = liveData?.ticketPrice ? String(liveData.ticketPrice) : "";
@@ -97,7 +100,7 @@ export default function LiveEndSummaryPanel({ open, onClose, post }: Props) {
     if (saving) return;
     const price = vodAvailable && vodPaid ? (parseFloat(priceInput) || null) : null;
     if (vodAvailable && vodPaid && (!price || price <= 0)) {
-      showSummaryToast("Ingresa un precio válido mayor a 0.", "error");
+      showSummaryToast(tLive("invalidPrice"), "error");
       return;
     }
     setSaving(true);
@@ -112,7 +115,7 @@ export default function LiveEndSummaryPanel({ open, onClose, post }: Props) {
       });
       onClose();
     } catch {
-      showSummaryToast("No se pudo guardar. Intenta de nuevo.", "error");
+      showSummaryToast(tLive("saveFailed"), "error");
     } finally {
       setSaving(false);
     }
@@ -173,19 +176,19 @@ export default function LiveEndSummaryPanel({ open, onClose, post }: Props) {
       `}</style>
 
       {/* Row: disponible — primera decisión */}
-      <Row label="Dejar disponible el VOD" description="Si eliges No, el VOD no será visible para tu audiencia.">
-        <Toggle value={vodAvailable} onChange={setVodAvailable} labelOn="Sí" labelOff="No" />
+      <Row label={tLive("makeVodAvailable")} description={tLive("makeVodAvailableDesc")}>
+        <Toggle value={vodAvailable} onChange={setVodAvailable} labelOn={tCommon("yes")} labelOff={tCommon("no")} />
       </Row>
 
       {/* Las opciones de fijar y ticket solo aparecen si el VOD quedará disponible */}
       {vodAvailable && (
         <>
-          <Row label="Fijar VOD en el feed" description="El post seguirá fijado al inicio del feed mientras esté disponible.">
-            <Toggle value={keepPinned} onChange={setKeepPinned} labelOn="Sí" labelOff="No" />
+          <Row label={tLive("pinVodInFeed")} description={tLive("pinVodInFeedDesc")}>
+            <Toggle value={keepPinned} onChange={setKeepPinned} labelOn={tCommon("yes")} labelOff={tCommon("no")} />
           </Row>
 
-          <Row label="Ticket de entrada" description="Cobra un precio por ver el VOD. El contenido queda bloqueado para quienes no paguen.">
-            <Toggle value={vodPaid} onChange={setVodPaid} labelOn="Cobrar" labelOff="Gratis" />
+          <Row label={tLive("accessTicket")} description={tLive("accessTicketDesc")}>
+            <Toggle value={vodPaid} onChange={setVodPaid} labelOn={tLive("charge")} labelOff={tLive("free")} />
           </Row>
 
           {vodPaid && (
@@ -300,7 +303,7 @@ export default function LiveEndSummaryPanel({ open, onClose, post }: Props) {
                 letterSpacing: "-0.02em", display: "grid", placeItems: "center",
               }}
             >
-              {saving ? "Guardando…" : "Confirmar"}
+              {saving ? tCommon("saving") : tCommon("confirm")}
             </button>
           </div>
         </div>
@@ -339,7 +342,7 @@ export default function LiveEndSummaryPanel({ open, onClose, post }: Props) {
           <button
             type="button"
             onClick={onClose}
-            aria-label="Cerrar"
+            aria-label={tCommon("closeAriaLabel")}
             style={{ border: "none", background: "none", color: "#fff", cursor: "pointer", display: "grid", placeItems: "center", justifySelf: "end", padding: 4 }}
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
@@ -368,7 +371,7 @@ export default function LiveEndSummaryPanel({ open, onClose, post }: Props) {
               letterSpacing: "-0.02em", display: "grid", placeItems: "center",
             }}
           >
-            {saving ? "Guardando…" : "Confirmar"}
+            {saving ? tCommon("saving") : tCommon("confirm")}
           </button>
         </div>
       </section>

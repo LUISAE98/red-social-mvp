@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import { createPortal } from "react-dom";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
@@ -461,8 +462,8 @@ function OverlayModal({
   open,
   title,
   children,
-  confirmLabel = "Guardar cambios",
-  cancelLabel = "Cancelar",
+  confirmLabel: confirmLabelProp,
+  cancelLabel: cancelLabelProp,
   loading = false,
   onConfirm,
   onCancel,
@@ -476,6 +477,9 @@ function OverlayModal({
   onConfirm: () => void;
   onCancel: () => void;
 }) {
+  const tCommon = useTranslations("common");
+  const confirmLabel = confirmLabelProp ?? tCommon("saveChanges");
+  const cancelLabel = cancelLabelProp ?? tCommon("cancel");
   useLockBodyScroll(open);
   useCloseOnEscape(open, onCancel, loading);
 

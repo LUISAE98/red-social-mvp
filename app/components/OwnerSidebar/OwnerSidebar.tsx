@@ -10,6 +10,7 @@ import {
   type CSSProperties,
 } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import {
   collection,
   doc,
@@ -507,6 +508,7 @@ let ownerSidebarCache: OwnerSidebarCache | null = null;
 export default function OwnerSidebar() {
   const router = useRouter();
   const pathname = usePathname();
+  const tNav = useTranslations("nav");
   const [isMobile, setIsMobile] = useState(false);
   const [ownerSidebarRefreshKey, setOwnerSidebarRefreshKey] = useState(0);
 
@@ -621,7 +623,7 @@ const handleOwnerSidebarPullRefresh = useCallback(async () => {
 
     return {
       id: profileBucketKey,
-      name: "Mi perfil",
+      name: tNav("profile"),
       ownerId: viewer.uid,
       visibility: "profile",
       avatarUrl,

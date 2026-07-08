@@ -5,7 +5,8 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
+import { usePathname, useRouter } from "@/i18n/navigation";
 import VibraSavedPostIcon from "@/app/components/VibraServiceIcons/VibraSavedPostIcon";
 import { useAuth } from "@/app/providers";
 import LogoutButton from "@/app/LogoutButton";
@@ -67,7 +68,7 @@ function AuthenticatedGroupsShell({
 }: {
   children: React.ReactNode;
 }) {
-
+  const tNav = useTranslations("nav");
   const pathname = usePathname();
   const router = useRouter();
   const { user } = useAuth();
@@ -689,7 +690,7 @@ const contentAreaClassName = isEmbed
 >
             <div className="desktopHeader">
               <div className="brandCol">
-<Link href="/" className="brand" aria-label="Ir al inicio">
+<Link href="/" className="brand" aria-label={tNav("goHome")}>
   <Image src="/logotipo.png" alt="Vibra" width={112} height={32} className="brandLogo" />
 </Link>
               </div>
@@ -729,7 +730,7 @@ const contentAreaClassName = isEmbed
       <Link
         href="/"
         className="mobileBrand mobileBrandVisible"
-        aria-label="Ir al inicio"
+        aria-label={tNav("goHome")}
       >
         <Image src="/logotipo.png" alt="Vibra" width={86} height={25} className="mobileBrandLogo" />
       </Link>
@@ -737,8 +738,8 @@ const contentAreaClassName = isEmbed
         <button
           type="button"
           onClick={() => router.push("/saved")}
-          title="Guardados"
-          aria-label="Ver guardados"
+          title={tNav("saved")}
+          aria-label={tNav("viewSaved")}
           className="mobileSearchIconButton"
         >
           <VibraSavedPostIcon size={22} color="#a855ff" />
@@ -746,8 +747,8 @@ const contentAreaClassName = isEmbed
         <button
           type="button"
           onClick={() => setMobileSearchOpen(true)}
-          title="Buscar comunidad"
-          aria-label="Buscar comunidad"
+          title={tNav("searchCommunity")}
+          aria-label={tNav("searchCommunity")}
           className="mobileSearchIconButton"
         >
           <VibraNavigationIcon type="search" size={24} strokeWidth={2.2} />

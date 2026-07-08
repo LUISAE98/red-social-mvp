@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useTranslations } from "next-intl";
 import { useAuth } from "@/app/providers";
 import {
   formatWalletMoney,
@@ -162,6 +163,7 @@ function ViewModeIconButton({
   mode: CalendarViewMode;
   onClick: () => void;
 }) {
+  const tWallet = useTranslations("wallet");
   const isList = mode === "list";
 
   return (
@@ -196,7 +198,7 @@ function ViewModeIconButton({
         className="button"
         onClick={onClick}
         title={isList ? "Ver calendario" : "Ver lista"}
-        aria-label={isList ? "Ver calendario" : "Ver lista"}
+        aria-label={isList ? tWallet("viewCalendarAriaLabel") : tWallet("viewListAriaLabel")}
       >
         {isList ? (
           <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -451,6 +453,7 @@ function EventsOverlay({
   onClose: () => void;
   onViewItem: (item: WalletServiceItem) => void;
 }) {
+  const tCommon = useTranslations("common");
   const [mounted, setMounted] = useState(false);
   const [shouldRender, setShouldRender] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
@@ -638,7 +641,7 @@ function EventsOverlay({
                   <button
                     type="button"
                     onClick={onClose}
-                    aria-label="Cerrar"
+                    aria-label={tCommon("closeAriaLabel")}
                     style={{
                       width: 40,
                       height: 40,
@@ -744,7 +747,7 @@ function EventsOverlay({
               <button
                 type="button"
                 onClick={onClose}
-                aria-label="Cerrar"
+                aria-label={tCommon("closeAriaLabel")}
                 style={{
                   border: "none",
                   background: "none",
@@ -1002,6 +1005,7 @@ function MonthCard({
 }
 
 export default function WalletCalendarioPage() {
+  const tWalletPage = useTranslations("wallet");
   const { user } = useAuth();
   const walletData = useWalletData();
 
@@ -1133,7 +1137,7 @@ export default function WalletCalendarioPage() {
     <WalletSectionShell activeTab="calendar">
       {walletData.error ? <WalletErrorBox message={walletData.error} /> : null}
 
-      <WalletCard title="Calendario" transparent>
+      <WalletCard title={tWalletPage("calendarTitle")} transparent>
         <style jsx>{`
           .cardButtonSlot {
             display: flex;

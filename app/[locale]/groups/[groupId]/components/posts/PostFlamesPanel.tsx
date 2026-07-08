@@ -6,6 +6,7 @@ import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
+import { useTranslations } from "next-intl";
 
 export type PostFlameUser = {
   userId: string;
@@ -69,6 +70,7 @@ export default function PostFlamesPanel({
   users,
   onClose,
 }: PostFlamesPanelProps) {
+  const tCommon = useTranslations("common");
   const { toast: flameToast, showToast: showFlameToast } = useVibraToast();
   useEffect(() => { if (error) showFlameToast(error, "error"); }, [error]); // eslint-disable-line react-hooks/exhaustive-deps
   // mounted gate — prevents portal on server
@@ -195,7 +197,7 @@ export default function PostFlamesPanel({
     <button
       type="button"
       onClick={onClose}
-      aria-label="Cerrar"
+      aria-label={tCommon("closeAriaLabel")}
       style={{ background: "none", border: "none", color: "rgba(255,255,255,0.86)", cursor: "pointer", fontSize: 32, fontWeight: 300, lineHeight: 1, padding: 0 }}
     >
       ×

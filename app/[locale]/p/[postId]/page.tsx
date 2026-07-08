@@ -9,6 +9,7 @@ import PublicPostPageClient, {
 
 type PublicPostPageProps = {
   params: Promise<{
+    locale: string;
     postId: string;
   }>;
 };
@@ -24,11 +25,11 @@ function getDateFromTimestamp(value: unknown): Date | null {
   }
 }
 
-function formatExactDate(date: Date | null): string | null {
+function formatExactDate(date: Date | null, locale = "es-MX"): string | null {
   if (!date) return null;
 
   try {
-    return new Intl.DateTimeFormat("es-MX", {
+    return new Intl.DateTimeFormat(locale, {
       dateStyle: "medium",
       timeStyle: "short",
     }).format(date);
@@ -90,7 +91,7 @@ function toAbsoluteUrl(value: string | null | undefined): string | undefined {
   return `${cleanBaseUrl}${cleanValue.startsWith("/") ? "" : "/"}${cleanValue}`;
 }
 
-function toPublicPostView(post: Post): PublicPostView {
+function toPublicPostView(post: Post, locale = "es-MX"): PublicPostView {
   const createdAtDate = getDateFromTimestamp(post.createdAt);
 
   const media = Array.isArray(post.media)
@@ -183,7 +184,7 @@ function toPublicPostView(post: Post): PublicPostView {
       typeof post.groupAvatarUrl === "string" ? post.groupAvatarUrl : null,
 
     createdAtMs: createdAtDate ? createdAtDate.getTime() : null,
-    createdAtExactLabel: formatExactDate(createdAtDate),
+    createdAtExactLabel: formatExactDate(createdAtDate, locale),
 
     shareTitle:
       typeof post.shareTitle === "string" && post.shareTitle.trim()
@@ -224,7 +225,7 @@ function toPublicPostView(post: Post): PublicPostView {
 export async function generateMetadata({
   params,
 }: PublicPostPageProps): Promise<Metadata> {
-  const { postId } = await params;
+  const { postId, locale } = await params;
   const post = await fetchPublicPostById(postId);
 
   if (!post) {
@@ -240,7 +241,7 @@ export async function generateMetadata({
     };
   }
 
-  const publicPost = toPublicPostView(post);
+  const publicPost = toPublicPostView(post, locale);
 
   const title = buildPreviewText(
     publicPost.shareTitle || publicPost.text || "Publicación en Vibra",
@@ -292,14 +293,14 @@ export async function generateMetadata({
 }
 
 export default async function PublicPostPage({ params }: PublicPostPageProps) {
-  const { postId } = await params;
+  const { postId, locale } = await params;
   const post = await fetchPublicPostById(postId);
 
   if (!post) {
     notFound();
   }
 
-  const publicPost = toPublicPostView(post);
+  const publicPost = toPublicPostView(post, locale);
   const postUrl = buildPublicPostUrl(publicPost.id);
 
   return <PublicPostPageClient post={publicPost} postUrl={postUrl} />;

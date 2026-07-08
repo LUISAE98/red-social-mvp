@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
+import { useTranslations } from "next-intl";
 import {
   callCreateMuxLiveStream,
   callCreateCFLiveInput,
@@ -125,6 +126,7 @@ export default function LiveStreamSetup({
   onStreamCreated,
   onOpenCreatorPanel,
 }: Props) {
+  const tCommon = useTranslations("common");
   const [mounted, setMounted] = useState(false);
   const [shouldRender, setShouldRender] = useState(open);
   const [isDesktop, setIsDesktop] = useState(false);
@@ -617,7 +619,7 @@ export default function LiveStreamSetup({
               <button
                 type="button"
                 onClick={onClose}
-                aria-label="Cerrar"
+                aria-label={tCommon("closeAriaLabel")}
                 style={{
                   border: "none", background: "none", color: "#fff",
                   cursor: "pointer", display: "grid", placeItems: "center",

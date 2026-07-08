@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
+import { useTranslations } from "next-intl";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import { submitSuperComment, submitSuperCommentAsGuest } from "@/lib/liveChat/super-comment-service";
@@ -34,6 +35,8 @@ export default function SuperCommentModal({
   config,
 }: Props) {
   const isGuest = !userId;
+  const tLive = useTranslations("live");
+  const tCommon = useTranslations("common");
 
   const [mounted, setMounted] = useState(false);
   const [shouldRender, setShouldRender] = useState(open);
@@ -95,7 +98,7 @@ export default function SuperCommentModal({
         await submitSuperComment({
           postId,
           userId,
-          username: username ?? "Espectador",
+          username: username ?? tLive("defaultViewer"),
           avatarUrl: avatarUrl ?? null,
           text: text.trim(),
           tier: selectedTier,
@@ -109,7 +112,7 @@ export default function SuperCommentModal({
         setSelectedTier(null);
       }, 1800);
     } catch {
-      showScToast("No se pudo enviar el supercomentario. Intenta de nuevo.", "error");
+      showScToast(tLive("scSendError"), "error");
     } finally {
       setSubmitting(false);
     }
@@ -212,7 +215,7 @@ export default function SuperCommentModal({
                   type="text"
                   value={guestNickname}
                   onChange={(e) => setGuestNickname(e.target.value.slice(0, 30))}
-                  placeholder="Tu apodo (mín. 2 caracteres)"
+                  placeholder={tLive("nicknamePlaceholder")}
                   autoFocus
                   onKeyDown={(e) => { if (e.key === "Enter") handleNicknameContinue(); }}
                   style={{
@@ -382,10 +385,10 @@ export default function SuperCommentModal({
                     }}
                   >
                     {submitting
-                      ? "Enviando..."
+                      ? tCommon("sending")
                       : selectedTier
-                      ? `Pagar $${selectedTier.price} MXN y enviar`
-                      : "Selecciona un nivel"}
+                      ? tLive("scPayAndSend", { price: selectedTier.price })
+                      : tLive("selectLevel")}
                   </button>
 
                   <p style={{ margin: "10px 0 0", fontSize: 11, color: "rgba(255,255,255,0.25)", fontFamily: FONT, textAlign: "center" }}>

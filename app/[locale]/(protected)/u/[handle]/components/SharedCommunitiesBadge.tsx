@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   getSharedCommunitiesWithProfile,
   type SharedCommunity,
@@ -36,6 +37,8 @@ export default function SharedCommunitiesBadge({
   profileUid,
   viewerUid,
 }: SharedCommunitiesBadgeProps) {
+  const tProfile = useTranslations("profile");
+
   const cacheKey = `${viewerUid}:${profileUid}`;
   const shouldFetch = Boolean(profileUid && viewerUid && profileUid !== viewerUid);
 
@@ -123,8 +126,8 @@ export default function SharedCommunitiesBadge({
 <button
   type="button"
   className="group flex max-w-[160px] items-center justify-end bg-transparent px-0 py-0 transition-opacity duration-200" 
-  aria-label="Ver comunidades que comparten"
-  title="Comunidades que comparten"
+  aria-label={tProfile("sharedCommunitiesBadgeAriaLabel")}
+  title={tProfile("sharedCommunitiesTitle")}
   onTouchStart={handleTouchStart}
   onClick={() => setIsOverlayOpen(true)}
 >
@@ -173,7 +176,7 @@ className={[
                 marginLeft: -15,
                 zIndex: 40,
               }}
-              aria-label={`Comparten ${communities.length} comunidades`}
+              aria-label={tProfile("sharesCommunities", { count: communities.length })}
             >
               +
             </span>

@@ -235,16 +235,18 @@ export function getGroupInfo(entity: Record<string, unknown>) {
   };
 }
 
-export function getCommunityVisibilityLabel(visibility: string | null) {
+export function getCommunityVisibilityLabel(
+  visibility: string | null,
+): "publicLabel" | "privateLabel" | "hiddenLabel" | "title" {
   switch (visibility) {
     case "public":
-      return "Comunidad pública";
+      return "publicLabel";
     case "private":
-      return "Comunidad privada";
+      return "privateLabel";
     case "hidden":
-      return "Comunidad oculta";
+      return "hiddenLabel";
     default:
-      return "Comunidad";
+      return "title";
   }
 }
 

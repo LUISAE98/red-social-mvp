@@ -3,6 +3,7 @@
 import { createPortal } from "react-dom";
 import type { CSSProperties } from "react";
 import type { Post } from "@/lib/posts/types";
+import { useTranslations } from "next-intl";
 
 type PostPaymentPanelProps = {
   open: boolean;
@@ -125,6 +126,8 @@ export default function PostPaymentPanel({
   onPay,
   onClose,
 }: PostPaymentPanelProps) {
+  const tCommon = useTranslations("common");
+
   if (!open || typeof document === "undefined") return null;
 
   const isGuest = !currentUserId;
@@ -198,7 +201,7 @@ export default function PostPaymentPanel({
             <button
               type="button"
               onClick={onClose}
-              aria-label="Cerrar"
+              aria-label={tCommon("closeAriaLabel")}
               style={closeButtonStyle}
             >
               ✕

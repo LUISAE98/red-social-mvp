@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import { createPortal } from "react-dom";
 import {
   formatWalletMoney,
@@ -592,6 +593,10 @@ export function WalletServiceRow({
     getSchedulePartsFromDate(row.scheduledAt)
   );
 
+  const tCommon = useTranslations("common");
+  const tServices = useTranslations("services");
+  const tWallet = useTranslations("wallet");
+
   useEffect(() => {
     setScheduleParts(getSchedulePartsFromDate(row.scheduledAt));
     setScheduleNote(row.creatorScheduleNote ?? "");
@@ -873,11 +878,11 @@ export function WalletServiceRow({
 
   if (isScheduledService && onView) {
     const actionLabel =
-      mode === "history" && row.status === "completed" ? "Ver sesión" :
-      mode === "history" && ["rejected", "cancelled", "refund_requested", "refund_review"].includes(row.status) ? "Ver solicitud" :
-      row.status === "reschedule_requested" ? "Reagendar" :
-      ["scheduled", "ready_to_prepare", "in_preparation", "completed"].includes(row.status) ? "Ver solicitud" :
-      "Agendar solicitud";
+      mode === "history" && row.status === "completed" ? tServices("viewDetails") :
+      mode === "history" && ["rejected", "cancelled", "refund_requested", "refund_review"].includes(row.status) ? tServices("viewDetails") :
+      row.status === "reschedule_requested" ? tServices("reschedule") :
+      ["scheduled", "ready_to_prepare", "in_preparation", "completed"].includes(row.status) ? tServices("viewDetails") :
+      tServices("schedule");
     return (
       <>
         <style jsx>{`
@@ -1098,7 +1103,7 @@ export function WalletServiceRow({
             </div>
           </div>
           <span style={{ flexShrink: 0, height: 32, padding: "0 12px", borderRadius: 8, background: theme.btnBg, color: theme.btnColor, fontWeight: 600, fontSize: 12, display: "flex", alignItems: "center", gap: 4, whiteSpace: "nowrap" }}>
-            {open ? "Cerrar" : "Ver"}&nbsp;<span style={{ fontSize: 9 }}>{open ? "▴" : "▾"}</span>
+            {open ? tCommon("closeLabel") : tCommon("viewLabel")}&nbsp;<span style={{ fontSize: 9 }}>{open ? "▴" : "▾"}</span>
           </span>
         </button>
 
@@ -1109,23 +1114,23 @@ export function WalletServiceRow({
 
 {row.requestSource === "profile" ? (
   <div className="walletMiniMeta">
-    Origen: Perfil del creador
+    {tWallet("sourceProfile")}
     {row.profileDisplayName ? ` · ${row.profileDisplayName}` : ""}
     {row.profileUsername ? ` · @${row.profileUsername}` : ""}
   </div>
 ) : row.groupName ? (
-  <div className="walletMiniMeta">Origen: Comunidad · {row.groupName}</div>
+  <div className="walletMiniMeta">{tWallet("sourceCommunity", { groupName: row.groupName })}</div>
 ) : null}
 
               {row.priceSnapshot != null ? (
                 <div className="walletMiniMeta">
-                  Precio: {formatWalletMoney(row.priceSnapshot)}
+                  {tWallet("priceLabel", { price: formatWalletMoney(row.priceSnapshot) })}
                 </div>
               ) : null}
 
               {row.durationMinutes != null ? (
                 <div className="walletMiniMeta">
-                  Duración: {row.durationMinutes} min
+                  {tWallet("durationLabel", { minutes: row.durationMinutes })}
                 </div>
               ) : null}
 
@@ -1133,7 +1138,7 @@ export function WalletServiceRow({
               isStartingSoon(row.scheduledAt) &&
               !isNoShowExpired(row.scheduledAt) ? (
                 <div className="walletServiceWarningBox">
-                  ⚠️ Este servicio está próximo a iniciar.
+                  {tWallet("soonToStart")}
                 </div>
               ) : null}
 
@@ -1268,7 +1273,7 @@ export function WalletServiceRow({
                         cursor: busy ? "not-allowed" : "pointer",
                       }}
                     >
-                      {busy ? "Procesando..." : "Aceptar"}
+                      {busy ? tCommon("processing") : tCommon("accept")}
                     </button>
                   ) : null}
 
@@ -1290,7 +1295,7 @@ export function WalletServiceRow({
                         cursor: busy ? "not-allowed" : "pointer",
                       }}
                     >
-                      Rechazar
+                      {tCommon("reject")}
                     </button>
                   ) : null}
 
@@ -1317,8 +1322,8 @@ export function WalletServiceRow({
                       }}
                     >
                       {row.status === "accepted_pending_schedule"
-                        ? "Poner fecha"
-                        : "Proponer nueva fecha"}
+                        ? tServices("setDate")
+                        : tServices("proposeNewDate")}
                     </button>
                   ) : null}
 
@@ -1336,7 +1341,7 @@ export function WalletServiceRow({
                         cursor: busy ? "not-allowed" : "pointer",
                       }}
                     >
-                      {busy ? "Procesando..." : "Prepararse"}
+                      {busy ? tCommon("processing") : tServices("prepare")}
                     </button>
                   ) : null}
                 </div>
@@ -1365,7 +1370,7 @@ export function WalletServiceRow({
                         cursor: busy ? "not-allowed" : "pointer",
                       }}
                     >
-                      {busy ? "Procesando..." : "Confirmar rechazo"}
+                      {busy ? tCommon("processing") : tServices("confirmReject")}
                     </button>
 
                     <button
@@ -1381,7 +1386,7 @@ export function WalletServiceRow({
                         cursor: busy ? "not-allowed" : "pointer",
                       }}
                     >
-                      Cancelar
+                      {tCommon("cancel")}
                     </button>
                   </div>
                 </div>
@@ -1445,7 +1450,7 @@ export function WalletServiceRow({
                             : "pointer",
                       }}
                     >
-                      {busy ? "Procesando..." : "Guardar fecha"}
+                      {busy ? tCommon("processing") : tServices("saveDate")}
                     </button>
 
                     <button
@@ -1462,13 +1467,13 @@ export function WalletServiceRow({
                         cursor: busy ? "not-allowed" : "pointer",
                       }}
                     >
-                      Cancelar
+                      {tCommon("cancel")}
                     </button>
                   </div>
 
                   <ScheduleCalendarOverlay
                     open={calendarOpen}
-                    title="Calendario del creador"
+                    title={tWallet("calendarTitle")}
                     items={calendarItems}
                     excludeId={row.id}
                     selectedDate={selectedScheduledAt}
@@ -1527,7 +1532,7 @@ export function WalletServiceRow({
                                   : "pointer",
                             }}
                           >
-                            {busy ? "Procesando..." : "Guardar fecha"}
+                            {busy ? tCommon("processing") : tServices("saveDate")}
                           </button>
 
                           <button
@@ -1543,7 +1548,7 @@ export function WalletServiceRow({
                               cursor: busy ? "not-allowed" : "pointer",
                             }}
                           >
-                            Cerrar calendario
+                            {tWallet("closeCalendar")}
                           </button>
                         </div>
                       </div>

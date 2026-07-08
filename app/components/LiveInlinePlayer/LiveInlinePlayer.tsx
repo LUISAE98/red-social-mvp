@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import Hls from "hls.js";
 import type { ActiveSuperComment } from "@/lib/posts/types";
@@ -28,6 +29,7 @@ const fontStack = 'inherit';
 
 // Thumbnail en tiempo real de CF Stream mientras conecta WebRTC
 function CfThumbnail({ url, ts, title }: { url: string; ts: number; title?: string | null }) {
+  const tLive = useTranslations("live");
   const [loadedSrc, setLoadedSrc] = useState<string | null>(null);
 
   useEffect(() => {
@@ -61,7 +63,7 @@ function CfThumbnail({ url, ts, title }: { url: string; ts: number; title?: stri
     // eslint-disable-next-line @next/next/no-img-element
     <img
       src={loadedSrc}
-      alt={title ?? "En vivo"}
+      alt={title ?? tLive("liveAlt")}
       style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}
     />
   );
@@ -104,6 +106,7 @@ export default function LiveInlinePlayer({
   onOrientationDetected,
   onStreamReady,
 }: Props) {
+  const tCommon = useTranslations("common");
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
@@ -671,7 +674,7 @@ export default function LiveInlinePlayer({
           backdropFilter: "blur(4px)",
           WebkitBackdropFilter: "blur(4px)",
         }}
-        aria-label={muted ? "Activar sonido" : "Silenciar"}
+        aria-label={muted ? tCommon("unmuteLabel") : tCommon("muteLabel")}
       >
         {muted ? (
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"

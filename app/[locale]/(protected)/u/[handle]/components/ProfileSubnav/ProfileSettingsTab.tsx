@@ -2,6 +2,7 @@
 
 import { CSSProperties, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
+import { useTranslations } from "next-intl";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import LogoutButton from "@/app/LogoutButton";
@@ -217,6 +218,8 @@ export default function ProfileSettingsTab({
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const { toast: settingsToast, showToast: showSettingsToast } = useVibraToast();
+  const tCommon = useTranslations("common");
+  const tProfile = useTranslations("profile");
   useEffect(() => { if (err) showSettingsToast(err, "error"); }, [err]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -523,7 +526,7 @@ export default function ProfileSettingsTab({
       <div style={panel}>
         <div className="profile-setting-item" style={item}>
           <div>
-            <div style={labelStyle}>Perfil reservado</div>
+            <div style={labelStyle}>{tProfile("restricted")}</div>
             <div style={valueStyle}>
   {localRestricted ? "Activado" : "Desactivado"}
 </div>
@@ -676,7 +679,7 @@ export default function ProfileSettingsTab({
             disabled={sendingPassword}
             onClick={handlePasswordReset}
           >
-            {sendingPassword ? "Enviando..." : "Cambiar contraseña"}
+            {sendingPassword ? tCommon("sending") : "Cambiar contraseña"}
           </button>
         </div>
 
@@ -776,7 +779,7 @@ export default function ProfileSettingsTab({
                 cursor: savingName ? "not-allowed" : "pointer",
               }}
             >
-              Cancelar
+              {tCommon("cancel")}
             </button>
 
             <button
@@ -797,7 +800,7 @@ export default function ProfileSettingsTab({
                   <SpinningGear /> Guardando...
                 </>
               ) : (
-                "Guardar"
+                tCommon("save")
               )}
             </button>
           </div>
@@ -839,7 +842,7 @@ export default function ProfileSettingsTab({
                 cursor: savingBio ? "not-allowed" : "pointer",
               }}
             >
-              Cancelar
+              {tCommon("cancel")}
             </button>
 
             <button
@@ -860,7 +863,7 @@ export default function ProfileSettingsTab({
                   <SpinningGear /> Guardando...
                 </>
               ) : (
-                "Guardar"
+                tCommon("save")
               )}
             </button>
           </div>

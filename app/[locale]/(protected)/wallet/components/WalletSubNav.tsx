@@ -1,7 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { useRef, useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
+import { Link } from "@/i18n/navigation";
 import {
   VibraNavigationIcon,
   VibraNavigationIconsStyles,
@@ -12,16 +13,15 @@ export type WalletTabKey = "finances" | "calendar" | "pending" | "history";
 
 type WalletTabItem = {
   key: WalletTabKey;
-  label: string;
   href: string;
   icon: VibraNavigationIconType;
 };
 
 const TABS: WalletTabItem[] = [
-  { key: "finances", label: "Finanzas", href: "/wallet/finanzas", icon: "finance" },
-  { key: "calendar", label: "Calendario", href: "/wallet/calendario", icon: "calendar" },
-  { key: "pending", label: "Pendientes", href: "/wallet/pendientes", icon: "pending" },
-  { key: "history", label: "Historial", href: "/wallet/historial", icon: "history" },
+  { key: "finances", href: "/wallet/finanzas", icon: "finance" },
+  { key: "calendar", href: "/wallet/calendario", icon: "calendar" },
+  { key: "pending", href: "/wallet/pendientes", icon: "pending" },
+  { key: "history", href: "/wallet/historial", icon: "history" },
 ];
 
 export default function WalletSubNav({
@@ -29,6 +29,7 @@ export default function WalletSubNav({
 }: {
   activeTab: WalletTabKey;
 }) {
+  const t = useTranslations("nav");
   const tabRefs = useRef<(HTMLAnchorElement | null)[]>([]);
   const navRef = useRef<HTMLDivElement | null>(null);
   const [indicatorStyle, setIndicatorStyle] = useState<{ left: number; width: number } | null>(null);
@@ -153,7 +154,7 @@ export default function WalletSubNav({
       <VibraNavigationIconsStyles />
 
       <div className="wrap">
-        <nav ref={navRef} className="nav" aria-label="Secciones de wallet">
+        <nav ref={navRef} className="nav" aria-label={t("walletNavLabel")}>
           {TABS.map((tab, index) => {
             const isActive = activeTab === tab.key;
 
@@ -170,7 +171,7 @@ export default function WalletSubNav({
                     <span className="emoji walletSubNavEmoji" aria-hidden="true">
                       <VibraNavigationIcon type={tab.icon} size={22} strokeWidth={2} />
                     </span>
-                    <span className="label">{tab.label}</span>
+                    <span className="label">{t(tab.key)}</span>
                   </span>
                 </span>
               </Link>

@@ -17,6 +17,7 @@ import { createPortal } from "react-dom";
 import { VibraNavigationIcon } from "@/app/components/VibraServiceIcons/VibraNavigationIcons";
 import ComposerPremiumPanel from "./ComposerPremiumPanel";
 import type { useComposerPremium } from "./useComposerPremium";
+import { useTranslations } from "next-intl";
 
 type SelectedMediaItem = {
   id: string;
@@ -184,6 +185,7 @@ export default function PostComposerDesktopOverlay({
   onPreviewPointerMove,
   onPreviewPointerUp,
 }: PostComposerDesktopOverlayProps) {
+  const tCommon = useTranslations("common");
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const onCloseRef = useRef(onClose);
   const [mounted, setMounted] = useState(false);
@@ -410,7 +412,7 @@ const removeMediaButtonStyle: CSSProperties = {
           <button
             type="button"
             onClick={onClose}
-            aria-label="Cerrar"
+            aria-label={tCommon("closeAriaLabel")}
             style={{
               border: "none",
               background: "none",
@@ -1033,7 +1035,7 @@ style={{
                   ? (isEditMode ? "Guardando..." : "Publicando...")
                   : premiumComposer.premiumEnabled
                     ? <VibraNavigationIcon type="premiumCrown" size={22} />
-                    : (isEditMode ? "Guardar cambios" : "Publicar")}
+                    : (isEditMode ? tCommon("saveChanges") : tCommon("publish"))}
             </button>
         </div>
       </section>

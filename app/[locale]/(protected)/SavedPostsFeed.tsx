@@ -3,6 +3,7 @@
 
 import type { CSSProperties } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import { doc, getDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import type { Comment, CommentReply, Post } from "@/lib/posts/types";
@@ -123,6 +124,7 @@ function isVideoPostStillProcessing(post: PostWithFlags): boolean {
 }
 
 export default function SavedPostsFeed() {
+  const tSaved = useTranslations("saved");
   const [currentUserId, setCurrentUserId] = useState<string | null>(
     auth.currentUser?.uid ?? null
   );
@@ -307,7 +309,7 @@ const syncPostsState = useCallback(
 
         setError(
           (e instanceof Error ? e.message : null) ??
-            "No se pudieron cargar tus publicaciones guardadas. Intenta de nuevo."
+            tSaved("loadError")
         );
       } finally {
         loadingMoreRef.current = false;
@@ -518,7 +520,7 @@ if (!trigger.isConnected) return;
         } as Post["counts"],
       });
     } catch (e: unknown) {
-      setError((e instanceof Error ? e.message : null) ?? "No se pudo actualizar la flamita.");
+      setError((e instanceof Error ? e.message : null) ?? tSaved("flameError"));
       throw e;
     }
   }
@@ -559,7 +561,7 @@ if (!trigger.isConnected) return;
         } as Post["counts"],
       });
     } catch (e: unknown) {
-      setError((e instanceof Error ? e.message : null) ?? "No se pudo actualizar el guardado.");
+      setError((e instanceof Error ? e.message : null) ?? tSaved("saveError"));
       throw e;
     }
   }
@@ -571,7 +573,7 @@ if (!trigger.isConnected) return;
 
       removePostFromAllFeedCaches(postId);
     } catch (e: unknown) {
-      setError((e instanceof Error ? e.message : null) ?? "No se pudo eliminar la publicación.");
+      setError((e instanceof Error ? e.message : null) ?? tSaved("deletePostError"));
       throw e;
     }
   }
@@ -581,7 +583,7 @@ if (!trigger.isConnected) return;
       setError(null);
       return await fetchPostComments(postId);
     } catch (e: unknown) {
-      setError((e instanceof Error ? e.message : null) ?? "No se pudieron cargar los comentarios.");
+      setError((e instanceof Error ? e.message : null) ?? tSaved("commentsError"));
       throw e;
     }
   }
@@ -614,7 +616,7 @@ if (!trigger.isConnected) return;
       await createPostComment({ postId, text });
       return await syncPostCommentsCount(postId);
     } catch (e: unknown) {
-      setError((e instanceof Error ? e.message : null) ?? "No se pudo crear el comentario.");
+      setError((e instanceof Error ? e.message : null) ?? tSaved("commentCreateError"));
       throw e;
     }
   }
@@ -628,7 +630,7 @@ if (!trigger.isConnected) return;
       await deletePostComment({ postId, commentId });
       return await syncPostCommentsCount(postId);
     } catch (e: unknown) {
-      setError((e instanceof Error ? e.message : null) ?? "No se pudo eliminar el comentario.");
+      setError((e instanceof Error ? e.message : null) ?? tSaved("commentDeleteError"));
       throw e;
     }
   }
@@ -641,7 +643,7 @@ if (!trigger.isConnected) return;
       setError(null);
       return await fetchCommentReplies({ postId, commentId });
     } catch (e: unknown) {
-      setError((e instanceof Error ? e.message : null) ?? "No se pudieron cargar las respuestas.");
+      setError((e instanceof Error ? e.message : null) ?? tSaved("repliesError"));
       throw e;
     }
   }
@@ -657,7 +659,7 @@ if (!trigger.isConnected) return;
       await syncPostCommentsCount(postId);
       return await fetchCommentReplies({ postId, commentId });
     } catch (e: unknown) {
-      setError((e instanceof Error ? e.message : null) ?? "No se pudo crear la respuesta.");
+      setError((e instanceof Error ? e.message : null) ?? tSaved("replyCreateError"));
       throw e;
     }
   }
@@ -673,7 +675,7 @@ if (!trigger.isConnected) return;
       await syncPostCommentsCount(postId);
       return await fetchCommentReplies({ postId, commentId });
     } catch (e: unknown) {
-      setError((e instanceof Error ? e.message : null) ?? "No se pudo eliminar la respuesta.");
+      setError((e instanceof Error ? e.message : null) ?? tSaved("replyDeleteError"));
       throw e;
     }
   }
@@ -837,12 +839,12 @@ const visiblePosts = useMemo(() => {
       <section style={shellStyle}>
         <div style={headerStyle}>
           <div style={titleRowStyle}>
-            <h2 style={titleStyle}>Guardados</h2>
+            <h2 style={titleStyle}>{tSaved("title")}</h2>
           </div>
-          <p style={subtitleStyle}>Inicia sesión para ver tus publicaciones guardadas.</p>
+          <p style={subtitleStyle}>{tSaved("loginToView")}</p>
         </div>
 
-        <div style={noticeStyle}>Debes iniciar sesión para ver esta sección.</div>
+        <div style={noticeStyle}>{tSaved("loginRequired")}</div>
       </section>
     );
   }
@@ -852,7 +854,7 @@ return (
     <section style={shellStyle}>
       <div style={headerStyle}>
         <div style={titleRowStyle}>
-          <h2 style={titleStyle}>Guardados</h2>
+          <h2 style={titleStyle}>{tSaved("title")}</h2>
         </div>
       </div>
 
@@ -867,9 +869,9 @@ return (
           type="search"
           value={searchInput}
           onChange={(event) => setSearchInput(event.target.value)}
-          placeholder="Buscar en guardados"
+          placeholder={tSaved("searchPlaceholder")}
           style={searchInputStyle}
-          aria-label="Buscar en guardados"
+          aria-label={tSaved("searchPlaceholder")}
         />
 
         {activeSearch ? (
@@ -877,8 +879,8 @@ return (
             type="button"
             onClick={handleClearSearch}
             style={clearSearchButtonStyle}
-            aria-label="Limpiar búsqueda"
-            title="Limpiar búsqueda"
+            aria-label={tSaved("clearSearch")}
+            title={tSaved("clearSearch")}
           >
             ×
           </button>
@@ -887,8 +889,8 @@ return (
         <button
           type="submit"
           style={searchButtonStyle}
-          aria-label="Buscar"
-          title="Buscar"
+          aria-label={tSaved("search")}
+          title={tSaved("search")}
         >
           🔎
         </button>
@@ -909,18 +911,18 @@ return (
         >
           <div className="vibraPullRefreshSpinner refreshing" style={{ width: 32, height: 32 }} />
           <span style={{ fontSize: 13, color: "rgba(255,255,255,0.32)", letterSpacing: "0.01em" }}>
-            Cargando guardados...
+            {tSaved("loading")}
           </span>
         </div>
       )}
 
       {!loadingInitial && posts.length === 0 && (
-        <div style={noticeStyle}>Todavía no tienes publicaciones guardadas.</div>
+        <div style={noticeStyle}>{tSaved("empty")}</div>
       )}
 
       {!loadingInitial && posts.length > 0 && visiblePosts.length === 0 && (
         <div style={noticeStyle}>
-          No se encontraron guardados para esta búsqueda.
+          {tSaved("noSearchResults")}
         </div>
       )}
 
@@ -957,11 +959,11 @@ return (
       <div ref={loadMoreTriggerRef} style={{ width: "100%", height: 1 }} />
 
       {loadingMore && (
-        <div style={noticeStyle}>Cargando más publicaciones guardadas...</div>
+        <div style={noticeStyle}>{tSaved("loadingMore")}</div>
       )}
 
       {!loadingInitial && !loadingMore && posts.length > 0 && !hasMore && (
-        <div style={noticeStyle}>Ya viste todas tus publicaciones guardadas.</div>
+        <div style={noticeStyle}>{tSaved("allLoaded")}</div>
       )}
     </section>
   </RefreshableArea>

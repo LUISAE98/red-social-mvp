@@ -1,6 +1,7 @@
 "use client";
 
 import type { CSSProperties } from "react";
+import { useTranslations } from "next-intl";
 import SafeCropper from "@/components/media/SafeCropper";
 
 export type GroupCropMode = "avatar" | "cover";
@@ -60,6 +61,9 @@ export default function GroupImageCropModal({
   onCropComplete,
   onSave,
 }: GroupImageCropModalProps) {
+  const tCommon = useTranslations("common");
+  const tGroups = useTranslations("groups");
+
   if (!cropOpen) return null;
 
   return (
@@ -191,7 +195,7 @@ export default function GroupImageCropModal({
                   cursor: uploading ? "not-allowed" : "pointer",
                 }}
               >
-                Cancelar
+                {tCommon("cancel")}
               </button>
 
               <button
@@ -206,14 +210,14 @@ export default function GroupImageCropModal({
                   cursor: uploading ? "not-allowed" : "pointer",
                 }}
               >
-                {uploading ? "Subiendo..." : "Guardar"}
+                {uploading ? tCommon("uploading") : tCommon("save")}
               </button>
             </div>
           </div>
 
           <div style={{ marginTop: 10, ...microText }}>
-            Tip: mueve la imagen para encuadrar.{" "}
-            {cropMode === "avatar" ? "Avatar 1:1." : "Portada 16:9."}
+            {tGroups("cropTipBase")}{" "}
+            {cropMode === "avatar" ? tGroups("cropTipAvatarLabel") : tGroups("cropTipCoverLabel")}
           </div>
         </div>
       </div>

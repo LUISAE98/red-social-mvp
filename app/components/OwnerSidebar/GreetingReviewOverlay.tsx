@@ -23,18 +23,19 @@ import {
 } from "@/app/components/VibraServiceIcons/VibraVideoIcons";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
+import { useTranslations } from "next-intl";
 
 const fontStack =
   'inherit';
 
-function getGreetingStatusLabel(status: string): string {
+function getGreetingStatusLabel(status: string, t: (key: string) => string): string {
   switch (status) {
-    case "delivered": return "Entregado";
-    case "rejected": return "Rechazado";
-    case "devolucion": return "En devolución";
-    case "accepted": return "Aceptado";
-    case "pending": return "Pendiente";
-    default: return status || "Pendiente";
+    case "delivered": return t("statusDelivered");
+    case "rejected": return t("statusRejected");
+    case "devolucion": return t("statusRefund");
+    case "accepted": return t("statusAccepted");
+    case "pending": return t("statusPending");
+    default: return status || t("statusPending");
   }
 }
 
@@ -210,6 +211,9 @@ export default function GreetingReviewOverlay({
   buyerSourceAvatar,
   readOnly = false,
 }: Props) {
+  const tCommon = useTranslations("common");
+  const tServices = useTranslations("services");
+  const tWallet = useTranslations("wallet");
   const [mounted, setMounted] = useState(false);
   const [earningFormatted, setEarningFormatted] = useState<string | null>(null);
   const [sourceInfo, setSourceInfo] = useState<{ name: string; photoURL: string | null } | null>(null);
@@ -334,7 +338,7 @@ export default function GreetingReviewOverlay({
           typeof data.name === "string" && data.name.trim()
             ? data.name.trim()
             : null;
-        const resolvedName = rawName || "Comunidad";
+        const resolvedName = rawName || tCommon("community");
         const photoURL =
           typeof data.avatarUrl === "string" && data.avatarUrl ? data.avatarUrl :
           typeof data.photoURL === "string" && data.photoURL ? data.photoURL :
@@ -469,19 +473,19 @@ export default function GreetingReviewOverlay({
     if (type === "saludo") {
       if (seconds >= 210) {
         const rem = 240 - seconds;
-        return rem > 0 ? `El saludo concluirá en ${rem} ${rem === 1 ? "segundo" : "segundos"}` : null;
+        return rem > 0 ? tServices("greetingConcludesIn", { count: rem }) : null;
       }
-      if (seconds >= 180 && seconds < 190) return "Este saludo es considerablemente más largo de lo habitual";
-      if (seconds >= 120 && seconds < 130) return "Este saludo ya supera la duración habitual";
-      if (seconds >= 60 && seconds < 70) return "Ya estás en el tiempo promedio de un saludo personalizado";
+      if (seconds >= 180 && seconds < 190) return tServices("greetingVeryLong");
+      if (seconds >= 120 && seconds < 130) return tServices("greetingTooLong");
+      if (seconds >= 60 && seconds < 70) return tServices("greetingAvgDuration");
     }
     if (type === "consejo") {
       if (seconds >= 390) {
         const rem = 420 - seconds;
-        return rem > 0 ? `El consejo concluirá en ${rem} ${rem === 1 ? "segundo" : "segundos"}` : null;
+        return rem > 0 ? tServices("adviceConcludesIn", { count: rem }) : null;
       }
-      if (seconds >= 300 && seconds < 310) return "Este consejo ya supera la duración habitual";
-      if (seconds >= 150 && seconds < 160) return "Ya estás en el tiempo promedio de un consejo";
+      if (seconds >= 300 && seconds < 310) return tServices("adviceTooLong");
+      if (seconds >= 150 && seconds < 160) return tServices("adviceAvgDuration");
     }
     return null;
   }
@@ -961,8 +965,8 @@ export default function GreetingReviewOverlay({
       overlayCanvas.width = srcW;
       overlayCanvas.height = srcH;
       const overlayCtx = overlayCanvas.getContext("2d")!;
-      const creatorDisplayName = req.profileDisplayName ?? req.profileUsername ?? "Creador";
-      const serviceLabel = req.type === "consejo" ? "Consejo" : req.type === "mensaje" ? "Mensaje" : "Saludo";
+      const creatorDisplayName = req.profileDisplayName ?? req.profileUsername ?? tCommon("creator");
+      const serviceLabel = req.type === "consejo" ? tWallet("typeLabelAdvice") : req.type === "mensaje" ? tWallet("typeLabelMessage") : tWallet("typeLabelGreeting");
       const initials = getInitials(creatorDisplayName);
       drawOverlayOnly(overlayCtx, srcW, srcH, overlayAvatarRef.current, creatorDisplayName, serviceLabel, initials);
       // toDataURL avoids Blob/FileReader async chain and works without canvas taint issues
@@ -1116,7 +1120,7 @@ export default function GreetingReviewOverlay({
   const successCompletedCount = completedEarningsNet.length;
   const successTotalEarned = completedEarningsNet.reduce((a, b) => a + b, 0);
   const successFmt = new Intl.NumberFormat("es-MX", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-  const successLabel = req.type === "consejo" ? "¡Consejo enviado!" : req.type === "mensaje" ? "¡Mensaje enviado!" : "¡Saludo enviado!";
+  const successLabel = req.type === "consejo" ? tServices("successAdvice") : req.type === "mensaje" ? tServices("successMessage") : tServices("successGreeting");
 
   // Success content — shown inline in the panel below the info section
   const successContent = (
@@ -1192,10 +1196,10 @@ export default function GreetingReviewOverlay({
                 {storyAdded ? "✓" : "◎"}
               </span>
               {addingStory
-                ? "Agregando..."
+                ? tServices("adding")
                 : storyAdded
-                  ? "Agregado a tu historia"
-                  : "Agregar a historia"}
+                  ? tServices("addedToStory")
+                  : tServices("addToStory")}
             </button>
           ) : (
             <div style={{
@@ -1206,7 +1210,7 @@ export default function GreetingReviewOverlay({
             }}>
               <span style={{ fontSize: 14, lineHeight: 1, flexShrink: 0 }}>🔒</span>
               <span style={{ color: "rgba(255,255,255,0.42)", fontSize: 12, lineHeight: 1.4, fontFamily: fontStack }}>
-                El comprador no permitió publicar este {req.type === "consejo" ? "consejo" : "saludo"} en historias
+                {req.type === "consejo" ? tServices("buyerNoStoryPermissionAdvice") : tServices("buyerNoStoryPermissionGreeting")}
               </span>
             </div>
           )
@@ -1226,7 +1230,7 @@ export default function GreetingReviewOverlay({
           color: "rgba(255,255,255,0.38)", fontWeight: 500, fontSize: 13,
           cursor: "pointer", fontFamily: fontStack,
         }}>
-          {successIsLast ? "Cerrar" : "Cancelar"}
+          {successIsLast ? tCommon("closeLabel") : tCommon("cancel")}
         </button>
       </div>
     </div>
@@ -1235,7 +1239,7 @@ export default function GreetingReviewOverlay({
   const typeWord = req.type === "consejo" ? "consejo" : req.type === "mensaje" ? "mensaje" : "saludo";
   // Profile source: name is always "Tu perfil", photo comes from buyers[creatorId] (already loaded)
   // Group source: name and photo come from sourceInfo (loaded async from Firestore)
-  const sourceName = req.source === "profile" ? "Tu perfil" : (sourceInfo?.name ?? null);
+  const sourceName = req.source === "profile" ? tCommon("yourProfile") : (sourceInfo?.name ?? null);
   const sourcePhotoURL = req.source === "profile"
     ? (buyers[req.creatorId]?.photoURL ?? null)
     : (sourceInfo?.photoURL ?? null);
@@ -1297,10 +1301,10 @@ export default function GreetingReviewOverlay({
       )}
       <div style={{ minWidth: 0, flex: 1 }}>
         <span style={{ color: "#fff", fontWeight: 600, fontSize: 13, lineHeight: 1.2, display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-          {buyerSourceName ?? "Creador"}
+          {buyerSourceName ?? tCommon("creator")}
         </span>
         <span style={{ display: "block", color: "rgba(255,255,255,0.42)", fontSize: 11, lineHeight: 1.3, marginTop: 4 }}>
-          {getGreetingStatusLabel(req.status)}
+          {getGreetingStatusLabel(req.status, tServices)}
         </span>
       </div>
     </div>
@@ -1333,11 +1337,11 @@ export default function GreetingReviewOverlay({
           </Link>
         ) : (
           <span style={{ color: "#fff", fontWeight: 600, fontSize: 13, lineHeight: 1.2 }}>
-            {buyer?.displayName ?? "Usuario"}
+            {buyer?.displayName ?? tCommon("user")}
           </span>
         )}
         <span style={{ display: "block", color: "rgba(255,255,255,0.42)", fontSize: 11, lineHeight: 1.3, marginTop: 4 }}>
-          {getGreetingStatusLabel(req.status)}
+          {getGreetingStatusLabel(req.status, tServices)}
         </span>
       </div>
       {earningFormatted && (
@@ -1370,7 +1374,7 @@ export default function GreetingReviewOverlay({
             {speechState !== "idle" && (
               <button
                 type="button"
-                aria-label="Cambiar velocidad de lectura"
+                aria-label={tServices("changeReadingSpeed")}
                 onClick={handleCycleRate}
                 style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.55)", padding: "2px 4px", display: "flex", alignItems: "center", flexShrink: 0, fontSize: 11, fontWeight: 700, letterSpacing: "-0.3px" }}
               >
@@ -1379,7 +1383,7 @@ export default function GreetingReviewOverlay({
             )}
             <button
               type="button"
-              aria-label={speechState === "playing" ? "Pausar lectura" : speechState === "paused" ? "Reanudar lectura" : "Leer contexto"}
+              aria-label={speechState === "playing" ? tServices("pauseReading") : speechState === "paused" ? tServices("resumeReading") : tServices("readContext")}
               onClick={handleToggleSpeech}
               style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.6)", padding: 2, display: "flex", alignItems: "center", flexShrink: 0, transition: "color 0.15s" }}
             >
@@ -1417,13 +1421,13 @@ export default function GreetingReviewOverlay({
       ) : null}
       {viewMode && req.createdAt && (
         <div style={{ display: "grid", gap: 2 }}>
-          <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 12 }}>Solicitado el</span>
+          <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 12 }}>{tServices("requestedOn")}</span>
           <span style={{ color: "#fff", fontWeight: 600, fontSize: 13 }}>{formatDateDisplay(req.createdAt.toDate())}</span>
         </div>
       )}
       {viewMode && req.deliveredAt && (
         <div style={{ display: "grid", gap: 2 }}>
-          <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 12 }}>Enviado el</span>
+          <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 12 }}>{tServices("sentOn")}</span>
           <span style={{ color: "#fff", fontWeight: 600, fontSize: 13 }}>{formatDateDisplay(req.deliveredAt.toDate())}</span>
         </div>
       )}
@@ -1438,7 +1442,7 @@ export default function GreetingReviewOverlay({
             <div style={{ height: "100%", width: `${uploadProgress}%`, background: "linear-gradient(90deg, #22c55e, #86efac)", borderRadius: 2, transition: "width 200ms ease" }} />
           </div>
           <span style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", textAlign: "center", fontFamily: fontStack }}>
-            {uploadProgress < 100 ? `Subiendo... ${uploadProgress}%` : "Procesando..."}
+            {uploadProgress < 100 ? tServices("uploadingProgress", { progress: uploadProgress }) : tServices("processing")}
           </span>
         </div>
       )}
@@ -1451,7 +1455,7 @@ export default function GreetingReviewOverlay({
           }}>
             🎬 {`${Math.floor(fileDuration / 60)}:${String(Math.round(fileDuration % 60)).padStart(2, "0")}`}
           </span>
-          <span style={{ fontSize: 11, color: "rgba(255,255,255,0.42)", fontFamily: fontStack }}>Archivo listo para subir</span>
+          <span style={{ fontSize: 11, color: "rgba(255,255,255,0.42)", fontFamily: fontStack }}>{tCommon("fileReady")}</span>
         </div>
       )}
       <button type="button" onClick={handleRepeat} disabled={busy || isUploading} style={{
@@ -1461,7 +1465,7 @@ export default function GreetingReviewOverlay({
         fontWeight: 600, fontSize: 13,
         cursor: (busy || isUploading) ? "not-allowed" : "pointer", fontFamily: fontStack,
       }}>
-        {wasUploadedRef.current ? "Cambiar archivo" : "Repetir grabación"}
+        {wasUploadedRef.current ? tCommon("changeFile") : tServices("recordAgain")}
       </button>
       <button type="button" onClick={handleSendGreeting} disabled={busy || isUploading} style={{
         width: "100%", height: 42, borderRadius: 10,
@@ -1473,8 +1477,8 @@ export default function GreetingReviewOverlay({
         fontFamily: fontStack,
       }}>
         {isUploading
-          ? (uploadProgress < 100 ? `Subiendo ${uploadProgress}%` : "Procesando...")
-          : `Enviar ${req.type === "consejo" ? "consejo" : req.type === "mensaje" ? "mensaje" : "saludo"}`}
+          ? (uploadProgress < 100 ? tServices("uploadingProgress", { progress: uploadProgress }) : tServices("processing"))
+          : req.type === "consejo" ? tServices("sendAdvice") : req.type === "mensaje" ? tServices("sendMessage") : tServices("sendGreeting")}
       </button>
     </div>
   ) : null;
@@ -1573,7 +1577,7 @@ export default function GreetingReviewOverlay({
                   (v as HTMLVideoElement & { webkitEnterFullscreen: () => void }).webkitEnterFullscreen();
               } catch { /* ignored */ }
             }}
-            aria-label="Pantalla completa"
+            aria-label={tCommon("fullscreen")}
             style={vpBtnStyle}
           >
             <VideoExpandIcon size={22} />
@@ -1581,7 +1585,7 @@ export default function GreetingReviewOverlay({
           <button
             type="button"
             onClick={(e) => { e.stopPropagation(); setVpMuted((m) => !m); showVPChrome(); scheduleVPChromeHide(); }}
-            aria-label={vpMuted ? "Activar sonido" : "Silenciar"}
+            aria-label={vpMuted ? tCommon("unmute") : tCommon("muteLabel")}
             style={vpBtnStyle}
           >
             {vpMuted ? <VideoMuteIcon size={22} /> : <VideoUnmuteIcon size={22} />}
@@ -1604,7 +1608,7 @@ export default function GreetingReviewOverlay({
           <button
             type="button"
             onClick={(e) => { e.stopPropagation(); handleVPPlayPause(); }}
-            aria-label={vpPlaying ? "Pausar" : "Reproducir"}
+            aria-label={vpPlaying ? tCommon("pause") : tCommon("play")}
             style={{ ...vpBtnStyle, pointerEvents: "auto" }}
           >
             {vpPlaying ? <VideoPauseIcon size={46} /> : <VideoPlayIcon size={46} />}
@@ -1648,7 +1652,7 @@ export default function GreetingReviewOverlay({
               max={vpDuration > 0 ? vpDuration : 0}
               step={0.1}
               value={Math.min(vpCurrentTime, vpDuration > 0 ? vpDuration : vpCurrentTime)}
-              aria-label="Progreso del video"
+              aria-label={tCommon("videoProgress")}
               onChange={(e) => handleVPSeek(Number(e.currentTarget.value))}
               onMouseDown={() => showVPChrome()}
               onTouchStart={() => showVPChrome()}
@@ -1834,7 +1838,7 @@ export default function GreetingReviewOverlay({
                       <span aria-hidden="true" style={{ fontSize: 15, lineHeight: 1 }}>
                         {existingStory ? "✕" : "◎"}
                       </span>
-                      {removingStory ? "Quitando..." : addingStory ? "Agregando..." : existingStory ? "Quitar de mi historia" : "Agregar a mi historia"}
+                      {removingStory ? tServices("removing") : addingStory ? tServices("adding") : existingStory ? tServices("removeFromMyStory") : tServices("addToMyStory")}
                     </button>
                   </>
                 )}
@@ -1853,7 +1857,7 @@ export default function GreetingReviewOverlay({
                       fontFamily: fontStack, boxSizing: "border-box",
                     }}
                   >
-                    {downloading ? `Procesando ${downloadProgress}%...` : "↓ Descargar video"}
+                    {downloading ? tServices("downloadingProgress", { progress: downloadProgress }) : tServices("downloadVideo")}
                   </button>
                 )}
                 {viewMode && !buyerViewMode && (req.type === "saludo" || req.type === "consejo") && (
@@ -1883,14 +1887,14 @@ export default function GreetingReviewOverlay({
                         <span aria-hidden="true" style={{ fontSize: 15, lineHeight: 1 }}>
                           {existingStory ? "✕" : "◎"}
                         </span>
-                        {removingStory ? "Quitando..." : addingStory ? "Agregando..." : existingStory ? "Quitar historia" : "Agregar a historia"}
+                        {removingStory ? tServices("removing") : addingStory ? tServices("adding") : existingStory ? tServices("removeStory") : tServices("addToStory")}
                       </button>
                     </>
                   ) : (
                     <div style={{ borderRadius: 12, padding: "10px 14px", border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.04)", display: "flex", alignItems: "center", gap: 8 }}>
                       <span>🔒</span>
                       <span style={{ color: "rgba(255,255,255,0.42)", fontSize: 12, fontFamily: fontStack }}>
-                        El comprador no permitió publicar este {req.type === "consejo" ? "consejo" : "saludo"} en historias
+                        {req.type === "consejo" ? tServices("buyerNoStoryPermissionAdvice") : tServices("buyerNoStoryPermissionGreeting")}
                       </span>
                     </div>
                   )
@@ -2018,7 +2022,7 @@ export default function GreetingReviewOverlay({
                         <span aria-hidden="true" style={{ fontSize: 14, lineHeight: 1 }}>
                           {existingStory ? "✕" : "◎"}
                         </span>
-                        {removingStory ? "Quitando..." : addingStory ? "Agregando..." : existingStory ? "Quitar de mi historia" : "Agregar a mi historia"}
+                        {removingStory ? tServices("removing") : addingStory ? tServices("adding") : existingStory ? tServices("removeFromMyStory") : tServices("addToMyStory")}
                       </button>
                     </>
                   )}
@@ -2037,7 +2041,7 @@ export default function GreetingReviewOverlay({
                         fontFamily: fontStack, boxSizing: "border-box",
                       }}
                     >
-                      {downloading ? `Procesando ${downloadProgress}%...` : "↓ Descargar video"}
+                      {downloading ? tServices("downloadingProgress", { progress: downloadProgress }) : tServices("downloadVideo")}
                     </button>
                   )}
                   {viewMode && !buyerViewMode && (req.type === "saludo" || req.type === "consejo") && (
@@ -2067,14 +2071,14 @@ export default function GreetingReviewOverlay({
                           <span aria-hidden="true" style={{ fontSize: 14, lineHeight: 1 }}>
                             {existingStory ? "✕" : "◎"}
                           </span>
-                          {removingStory ? "Quitando..." : addingStory ? "Agregando..." : existingStory ? "Quitar historia" : "Agregar a historia"}
+                          {removingStory ? tServices("removing") : addingStory ? tServices("adding") : existingStory ? tServices("removeStory") : tServices("addToStory")}
                         </button>
                       </>
                     ) : (
                       <div style={{ borderRadius: 10, padding: "10px 14px", border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.04)", display: "flex", alignItems: "center", gap: 8 }}>
                         <span>🔒</span>
                         <span style={{ color: "rgba(255,255,255,0.42)", fontSize: 11, fontFamily: fontStack }}>
-                          El comprador no permitió publicar este {req.type === "consejo" ? "consejo" : "saludo"} en historias
+                          {req.type === "consejo" ? tServices("buyerNoStoryPermissionAdvice") : tServices("buyerNoStoryPermissionGreeting")}
                         </span>
                       </div>
                     )
@@ -2294,7 +2298,7 @@ export default function GreetingReviewOverlay({
               <span style={{ color: "#fff", fontWeight: 500, fontSize: 17, letterSpacing: "-0.02em", textAlign: "center" }}>
                 {titleText}
               </span>
-              <button type="button" onClick={handleClose} aria-label="Cerrar" style={{ border: "none", background: "none", color: "rgba(255,255,255,0.86)", cursor: "pointer", display: "grid", placeItems: "center", justifySelf: "end", padding: 4, width: 40, height: 40, fontSize: 28, fontWeight: 300, lineHeight: 1, fontFamily: fontStack }}>×</button>
+              <button type="button" onClick={handleClose} aria-label={tCommon("closeAriaLabel")} style={{ border: "none", background: "none", color: "rgba(255,255,255,0.86)", cursor: "pointer", display: "grid", placeItems: "center", justifySelf: "end", padding: 4, width: 40, height: 40, fontSize: 28, fontWeight: 300, lineHeight: 1, fontFamily: fontStack }}>×</button>
             </div>
             <div style={slideStyle}>{buyerRow}</div>
           </div>
@@ -2312,7 +2316,7 @@ export default function GreetingReviewOverlay({
                     fontWeight: 600, fontSize: 14, cursor: "pointer",
                     fontFamily: fontStack, letterSpacing: "-0.01em",
                   }}>
-                    Cerrar
+                    {tCommon("closeLabel")}
                   </button>
                 </div>
               ) : (
@@ -2346,7 +2350,7 @@ export default function GreetingReviewOverlay({
                     opacity: busy ? 0.7 : 1,
                     fontFamily: fontStack,
                   }}>
-                    {busy ? "Procesando..." : "Rechazar"}
+                    {busy ? tCommon("processing") : tCommon("reject")}
                   </button>
                 </div>
               )}
@@ -2396,7 +2400,7 @@ export default function GreetingReviewOverlay({
             <span style={{ color: "#fff", fontWeight: 500, fontSize: 17, letterSpacing: "-0.02em", textAlign: "center" }}>
               {titleText}
             </span>
-            <button type="button" onClick={handleClose} aria-label="Cerrar" style={{ border: "none", background: "none", color: "rgba(255,255,255,0.86)", cursor: "pointer", display: "grid", placeItems: "center", justifySelf: "end", padding: 4, width: 40, height: 40, fontSize: 28, fontWeight: 300, lineHeight: 1, fontFamily: fontStack }}>×</button>
+            <button type="button" onClick={handleClose} aria-label={tCommon("closeAriaLabel")} style={{ border: "none", background: "none", color: "rgba(255,255,255,0.86)", cursor: "pointer", display: "grid", placeItems: "center", justifySelf: "end", padding: 4, width: 40, height: 40, fontSize: 28, fontWeight: 300, lineHeight: 1, fontFamily: fontStack }}>×</button>
           </div>
 
           <div className="grv-z2" style={{ flex: 1, overflowY: "auto", minHeight: 0, padding: "18px 20px 20px", display: "grid", gap: 16, alignContent: "start", ...slideStyle }}>
@@ -2413,7 +2417,7 @@ export default function GreetingReviewOverlay({
                   fontWeight: 600, fontSize: 14, cursor: "pointer",
                   fontFamily: fontStack, letterSpacing: "-0.01em",
                 }}>
-                  Cerrar
+                  {tCommon("closeLabel")}
                 </button>
               </div>
             ) : (
@@ -2448,7 +2452,7 @@ export default function GreetingReviewOverlay({
                   opacity: busy ? 0.7 : 1,
                   fontFamily: fontStack,
                 }}>
-                  {busy ? "Procesando..." : "Rechazar"}
+                  {busy ? tCommon("processing") : tCommon("reject")}
                 </button>
               </div>
             )}

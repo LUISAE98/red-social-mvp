@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { useTranslations } from "next-intl";
 import { useSocialRelationship } from "@/lib/social/useSocialRelationship";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
@@ -19,6 +20,9 @@ export default function ProfileSocialActions({
   profileRestricted,
   profileName,
 }: ProfileSocialActionsProps) {
+  const tCommon = useTranslations("common");
+  const tFeed = useTranslations("feed");
+  const tProfile = useTranslations("profile");
   const isOwnProfile = !!viewerUid && viewerUid === profileUid;
 
   const { relationship, loading, error, follow, unfollow } =
@@ -37,14 +41,14 @@ export default function ProfileSocialActions({
     !isOwnProfile && !profileRestricted && !relationship.hasBlocked && relationship.canFollow;
 
   const followButtonLabel = loading
-    ? "Procesando..."
+    ? tFeed("processing")
     : relationship.isFollowing && relationship.isFollowedBy
       ? "Ambos se siguen"
       : relationship.isFollowing
         ? "Siguiendo"
         : relationship.isFollowedBy
-          ? "Seguir también"
-          : "Seguir";
+          ? tProfile("followMutual")
+          : tCommon("follow");
 
   function handleFollowClick() {
     if (loading) return;

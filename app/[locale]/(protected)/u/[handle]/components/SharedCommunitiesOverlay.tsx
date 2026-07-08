@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import type { SharedCommunity } from "@/lib/social/sharedCommunities";
 
 type SharedCommunitiesOverlayProps = {
@@ -20,18 +21,18 @@ function getInitial(name: string): string {
   return name.trim().charAt(0).toUpperCase() || "C";
 }
 
-function getVisibilityLabel(visibility: string | null): string | null {
+function getVisibilityLabel(
+  visibility: string | null,
+  t: ReturnType<typeof useTranslations>
+): string | null {
   const normalized = visibility?.trim().toLowerCase();
 
   if (!normalized) return null;
-  if (normalized === "public") return "Comunidad pública";
-  if (normalized === "private") return "Comunidad privada";
-  if (normalized === "hidden") return "Comunidad oculta";
-  if (normalized === "pública" || normalized === "publica") return "Comunidad pública";
-  if (normalized === "privada") return "Comunidad privada";
-  if (normalized === "oculta") return "Comunidad oculta";
+  if (normalized === "public" || normalized === "pública" || normalized === "publica") return t("publicLabel");
+  if (normalized === "private" || normalized === "privada") return t("privateLabel");
+  if (normalized === "hidden" || normalized === "oculta") return t("hiddenLabel");
 
-  return "Comunidad";
+  return t("title");
 }
 
 export default function SharedCommunitiesOverlay({
@@ -39,6 +40,10 @@ export default function SharedCommunitiesOverlay({
   communities,
   onClose,
 }: SharedCommunitiesOverlayProps) {
+  const tProfile = useTranslations("profile");
+  const tGroups = useTranslations("groups");
+  const tCommon = useTranslations("common");
+
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -63,7 +68,7 @@ export default function SharedCommunitiesOverlay({
       <button
         type="button"
         className="absolute inset-0 cursor-default"
-        aria-label="Cerrar panel de comunidades compartidas"
+        aria-label={tProfile("sharedCommunitiesTitle")}
         onClick={onClose}
       />
 
@@ -71,19 +76,19 @@ export default function SharedCommunitiesOverlay({
         <header className="flex items-start justify-between gap-4 border-b border-white/10 px-5 py-4">
           <div>
             <h2 className="text-base font-bold text-white">
-              Comunidades que comparten
+              {tProfile("sharedCommunitiesTitle")}
             </h2>
             <p className="mt-1 text-sm text-white/45">
               {communities.length === 1
-                ? "Comparten 1 comunidad."
-                : `Comparten ${communities.length} comunidades.`}
+                ? tProfile("sharesCommunity")
+                : tProfile("sharesCommunities", { count: communities.length })}
             </p>
           </div>
 
           <button
             type="button"
             className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/5 text-lg font-bold text-white/70 transition hover:bg-white/10 hover:text-white"
-            aria-label="Cerrar"
+            aria-label={tCommon("closeAriaLabel")}
             onClick={onClose}
           >
             ×
@@ -93,7 +98,7 @@ export default function SharedCommunitiesOverlay({
         <div className="max-h-[70vh] overflow-y-auto px-3 py-3">
           {communities.map((community) => {
             const imageUrl = getCommunityImage(community);
-            const visibilityLabel = getVisibilityLabel(community.visibility);
+            const visibilityLabel = getVisibilityLabel(community.visibility, tGroups);
 
             return (
               <Link

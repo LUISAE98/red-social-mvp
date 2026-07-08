@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { useTranslations } from "next-intl";
 
 export type VibraNavigationIconType =
   | "home"
@@ -456,8 +457,31 @@ export function VibraNavigationIcon({
   showLabel?: boolean;
   strokeWidth?: number;
 }) {
+  const tCommon = useTranslations("common");
+  const tNav = useTranslations("nav");
   const config = NAVIGATION_ICON_CONFIG[type];
-  const finalLabel = label ?? config.label;
+  const translatedLabel = (() => {
+    switch (type) {
+      case "home": return tNav("home");
+      case "search": return tCommon("search");
+      case "saved": return tNav("saved");
+      case "finance": return tNav("finances");
+      case "calendar": return tNav("calendar");
+      case "pending": return tNav("pending");
+      case "history": return tNav("history");
+      case "myCommunities": return tNav("groups");
+      case "otherCommunities": return tNav("otherCommunities");
+      case "requested": return tNav("requested");
+      case "copyLink": return tCommon("copyLink");
+      case "publish": return tCommon("publish");
+      case "attachMedia": return tCommon("attachMedia");
+      case "premiumCrown": return tCommon("premium");
+      case "premiumLock": return tCommon("premiumLock");
+      case "premiumUnlocked": return tCommon("premiumUnlocked");
+      default: return config.label;
+    }
+  })();
+  const finalLabel = label ?? translatedLabel;
 
   const finalSize =
     size ??

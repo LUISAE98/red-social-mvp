@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
+import { useTranslations } from "next-intl";
 
 type DonationMode = "none" | "general" | "wedding";
 type Currency = "MXN" | "USD";
@@ -74,6 +75,8 @@ export default function DonationEntryPoint({
   onDonateIntent,
   buttonStyle,
 }: Props) {
+  const tCommon = useTranslations("common");
+
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [amountMode, setAmountMode] = useState<DonationAmountMode>("minimum");
@@ -344,7 +347,7 @@ export default function DonationEntryPoint({
             disabled={submitting}
             style={cancelButtonStyle}
           >
-            Cerrar
+            {tCommon("close")}
           </button>
         </div>
 
@@ -462,7 +465,7 @@ export default function DonationEntryPoint({
                 cursor: submitting ? "not-allowed" : "pointer",
               }}
             >
-              Cancelar
+              {tCommon("cancel")}
             </button>
           </div>
         </div>

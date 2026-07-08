@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
+import { useTranslations } from "next-intl";
 import LiveRingAvatar from "@/app/components/LiveRing/LiveRingAvatar";
 import {
   collection,
@@ -209,16 +210,19 @@ function JoinButton({
   loading: boolean;
   isPaidSubscriptionPrivate: boolean;
 }) {
+  const tCommon = useTranslations("common");
+  const tGroups = useTranslations("groups");
+
   const label =
     state === "joined"
-      ? "Unido"
+      ? tGroups("joined")
       : state === "pending"
-        ? "Solicitud enviada"
+        ? tGroups("requestSent")
         : state === "request"
           ? isPaidSubscriptionPrivate
-            ? "Suscribirme"
-            : "Solicitar"
-          : "Unirme";
+            ? tGroups("subscribe")
+            : tGroups("requestAccess")
+          : tGroups("join");
 
   const isInactive = loading || state === "joined" || state === "pending";
   const isPaid = !isInactive && state === "request" && isPaidSubscriptionPrivate;
@@ -249,7 +253,7 @@ function JoinButton({
         transition: "opacity 150ms ease",
       }}
     >
-      {loading ? "Procesando..." : label}
+      {loading ? tCommon("processing") : label}
     </button>
   );
 }
@@ -263,6 +267,7 @@ function FollowButton({
   onClick: () => void;
   loading: boolean;
 }) {
+  const tCommon = useTranslations("common");
   const isInactive = loading || isFollowing;
 
   return (
@@ -289,7 +294,7 @@ function FollowButton({
         transition: "opacity 150ms ease",
       }}
     >
-      {loading ? "Procesando..." : isFollowing ? "Siguiendo" : "Seguir"}
+      {loading ? tCommon("processing") : isFollowing ? tCommon("unfollow") : tCommon("follow")}
     </button>
   );
 }
@@ -308,6 +313,7 @@ function ProfileCard({
   currentUserId: string | null;
 }) {
   const router = useRouter();
+  const tGroups = useTranslations("groups");
   const followersLabel =
     profile.followersCount > 0
       ? `${profile.followersCount.toLocaleString("es-MX")} ${
@@ -460,7 +466,7 @@ function ProfileCard({
                 flexShrink: 0,
               }}
             >
-              {profile.hasActiveServices ? "Ofrece servicios" : ""}
+              {profile.hasActiveServices ? tGroups("offersServices") : ""}
             </div>
           </div>
         </Link>
@@ -497,17 +503,18 @@ function GroupCard({
   onJoin: () => void;
   currentUserId: string | null;
 }) {
+  const tGroups = useTranslations("groups");
   const router = useRouter();
   const categoryLabel = group.category
     ? GROUP_CATEGORY_LABELS[group.category]
-    : "Sin categoría";
+    : tGroups("noCategory");
 
   const visibilityLabel =
     group.visibility === "public"
-      ? "Comunidad pública"
+      ? tGroups("publicLabel")
       : group.visibility === "private"
-        ? "Comunidad privada"
-        : "Comunidad oculta";
+        ? tGroups("privateLabel")
+        : tGroups("hiddenLabel");
 
   const isPaidSubscriptionPrivate =
     group.visibility === "private" && resolveSubscriptionEnabled(group);
@@ -732,15 +739,18 @@ function LiveCTAButton({
   loading: boolean;
   onClick: () => void;
 }) {
-  let label = "Ver en vivo";
+  const tCommon = useTranslations("common");
+  const tGroups = useTranslations("groups");
+
+  let label: string;
   if (rec.groupId) {
-    if (state === "joined") label = "Unido";
-    else if (state === "pending") label = "Solicitud enviada";
-    else if (rec.groupVisibility === "private" && rec.subscriptionEnabled) label = "Suscribirme";
-    else if (rec.groupVisibility === "private") label = "Solicitar";
-    else label = "Unirme";
+    if (state === "joined") label = tGroups("joined");
+    else if (state === "pending") label = tGroups("requestSent");
+    else if (rec.groupVisibility === "private" && rec.subscriptionEnabled) label = tGroups("subscribe");
+    else if (rec.groupVisibility === "private") label = tGroups("requestAccess");
+    else label = tGroups("join");
   } else {
-    label = state === "following" ? "Siguiendo" : "Seguir";
+    label = state === "following" ? tCommon("unfollow") : tCommon("follow");
   }
 
   const inactive = loading || state === "joined" || state === "pending" || state === "following";
@@ -772,7 +782,7 @@ function LiveCTAButton({
         transition: "opacity 150ms ease",
       }}
     >
-      {loading ? "Procesando..." : label}
+      {loading ? tCommon("processing") : label}
     </button>
   );
 }
@@ -1007,6 +1017,8 @@ export default function GroupRecommendationsRail({
   className,
 }: Props) {
   const router = useRouter();
+  const tGroups = useTranslations("groups");
+  const tCommon = useTranslations("common");
   const [selectedCategories, setSelectedCategories] = useState<
     CanonicalGroupCategory[]
   >([]);
@@ -1082,7 +1094,7 @@ export default function GroupRecommendationsRail({
       setError(
         err instanceof Error
           ? err.message
-          : "No se pudieron cargar recomendaciones."
+          : tGroups("recsLoadError")
       );
     } finally {
       setLoading(false);
@@ -1203,7 +1215,7 @@ export default function GroupRecommendationsRail({
               groupId: null,
               liveCoverUrl: (ld.coverUrl as string | null) ?? null,
               liveTitle: (ld.title as string | null) ?? null,
-              displayName: (u.displayName as string) ?? (u.username as string) ?? "Usuario",
+              displayName: (u.displayName as string) ?? (u.username as string) ?? tCommon("user"),
               avatarUrl: (u.photoURL as string | null) ?? null,
               coverUrl: (u.coverPhotoURL as string | null) ?? null,
               handle: (u.handle as string | null) ?? null,
@@ -1248,7 +1260,7 @@ export default function GroupRecommendationsRail({
       // loadRecommendations will be triggered automatically by the invalidation listener
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "No se pudo guardar la selección."
+        err instanceof Error ? err.message : tGroups("saveSelectionError")
       );
     } finally {
       setSavingOnboarding(false);
@@ -1288,7 +1300,7 @@ export default function GroupRecommendationsRail({
       router.refresh();
     } catch (err) {
       const message =
-        err instanceof Error ? err.message : "No se pudo completar la acción.";
+        err instanceof Error ? err.message : tGroups("actionError");
 
       if (message === "GROUP_REQUIRES_SUBSCRIPTION") {
         router.push(`/groups/${group.id}?service=suscripcion`);
@@ -1343,7 +1355,7 @@ export default function GroupRecommendationsRail({
       setFollowStates((prev) => ({ ...prev, [profile.uid]: true }));
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "No se pudo seguir al perfil."
+        err instanceof Error ? err.message : tGroups("followError")
       );
     } finally {
       setFollowLoadingByProfile((prev) => ({ ...prev, [profile.uid]: false }));
@@ -1462,7 +1474,7 @@ export default function GroupRecommendationsRail({
                 fontFamily: fontStack,
               }}
             >
-              {savingOnboarding ? "Guardando..." : "Continuar"}
+              {savingOnboarding ? tCommon("saving") : tCommon("continue")}
             </button>
 
             <span

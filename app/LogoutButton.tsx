@@ -4,6 +4,7 @@ import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { useState } from "react";
 import { createPortal } from "react-dom";
+import { useTranslations } from "next-intl";
 import { useAuth } from "@/app/providers";
 
 type LogoutButtonVariant = "icon" | "settings";
@@ -19,6 +20,7 @@ export default function LogoutButton({
   className,
   style,
 }: LogoutButtonProps) {
+const tCommon = useTranslations("common");
 const [loading, setLoading] = useState(false);
 const { startAuthTransition } = useAuth();
 
@@ -39,6 +41,17 @@ async function handleLogout() {
     });
   } catch (error) {
     console.error("Error limpiando sesión del servidor:", error);
+  }
+
+  // Limpiar caché del cliente que es solo por sesión (no debe persistir para el
+  // siguiente usuario en este navegador). Clave definida en GroupsSearchPanel.
+  try {
+    const SESSION_ONLY_STORAGE_KEYS = ["vibra_search_history"];
+    for (const key of SESSION_ONLY_STORAGE_KEYS) {
+      localStorage.removeItem(key);
+    }
+  } catch (error) {
+    console.error("Error limpiando caché local de sesión:", error);
   }
 
   window.location.href = "/login";
@@ -69,8 +82,8 @@ const overlay =
         <button
           onClick={handleLogout}
           disabled={loading}
-          aria-label={loading ? "Cerrando sesión" : "Cerrar sesión"}
-          title={loading ? "Cerrando sesión..." : "Cerrar sesión"}
+          aria-label={loading ? tCommon("loggingOut") : tCommon("logout")}
+          title={loading ? tCommon("loggingOut") : tCommon("logout")}
           className={className}
           style={{
 width: "100%",
@@ -98,7 +111,7 @@ padding: "8px 14px",
           }}
           type="button"
         >
-         Cerrar sesión
+         {tCommon("logout")}
         </button>
       </>
     );
@@ -145,7 +158,7 @@ padding: "8px 14px",
       'inherit',
   }}
 >
-  Salir
+  {tCommon("logout")}
 </span>
       </button>
     </>

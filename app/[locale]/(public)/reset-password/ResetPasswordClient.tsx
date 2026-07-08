@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { sendPasswordResetEmail } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import Link from "next/link";
@@ -9,18 +10,17 @@ const vibraPink = "#ff2fb3";
 const vibraPurple = "#a855ff";
 const vibraBlue = "#4f46ff";
 
-function friendlyAuthError(err: unknown) {
+function friendlyAuthErrorKey(err: unknown): string {
   const code = (err as { code?: string } | null)?.code;
-
-  if (code === "auth/invalid-email") return "El correo no es válido.";
-  if (code === "auth/user-not-found") return "No existe una cuenta con ese correo.";
-  if (code === "auth/too-many-requests") return "Demasiados intentos. Intenta más tarde.";
-  if (code === "auth/network-request-failed") return "Error de red. Revisa tu conexión.";
-
-  return "Error inesperado. Intenta nuevamente.";
+  if (code === "auth/invalid-email") return "errInvalidEmail";
+  if (code === "auth/user-not-found") return "errUserNotFound";
+  if (code === "auth/too-many-requests") return "errTooManyRequests";
+  if (code === "auth/network-request-failed") return "errNetworkFailed";
+  return "errUnexpected";
 }
 
 export default function ResetPasswordClient() {
+  const t = useTranslations("auth.resetPassword");
   const [email, setEmail] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -32,9 +32,9 @@ export default function ResetPasswordClient() {
 
     try {
       await sendPasswordResetEmail(auth, email.trim());
-      setMsg("Listo. Te enviamos un correo para restablecer tu contraseña.");
+      setMsg(t("successMsg"));
     } catch (err: unknown) {
-      setMsg(friendlyAuthError(err));
+      setMsg(t(friendlyAuthErrorKey(err) as Parameters<typeof t>[0]));
     } finally {
       setLoading(false);
     }
@@ -150,7 +150,7 @@ const pageStyle: React.CSSProperties = {
               letterSpacing: "-0.02em",
             }}
           >
-            Recuperar contraseña
+            {t("title")}
           </h1>
 
           <p
@@ -162,14 +162,14 @@ const pageStyle: React.CSSProperties = {
               lineHeight: 1.35,
             }}
           >
-            Escribe tu correo y te mandaremos un enlace para restablecerla.
+            {t("subtitle")}
           </p>
         </div>
 
         <div style={innerPanelStyle}>
           <form onSubmit={handleReset} style={{ display: "grid", gap: 8 }}>
             <label style={{ display: "grid", gap: 4 }}>
-              <span style={labelTextStyle}>Correo</span>
+              <span style={labelTextStyle}>{t("emailLabel")}</span>
               <input
                 type="email"
                 required
@@ -177,7 +177,7 @@ const pageStyle: React.CSSProperties = {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 style={inputStyle}
-                placeholder="tucorreo@ejemplo.com"
+                placeholder={t("emailPlaceholder")}
               />
             </label>
 
@@ -191,11 +191,11 @@ const pageStyle: React.CSSProperties = {
               }}
             >
               <Link href="/login" style={linkStyle}>
-                Volver a login
+                {t("backToLogin")}
               </Link>
 
               <Link href="/register" style={linkStyle}>
-                Crear cuenta
+                {t("createAccount")}
               </Link>
             </div>
 
@@ -209,7 +209,7 @@ const pageStyle: React.CSSProperties = {
                 cursor: loading ? "not-allowed" : "pointer",
               }}
             >
-              {loading ? "Enviando..." : "Enviar correo"}
+              {loading ? t("submitting") : t("submit")}
             </button>
           </form>
         </div>

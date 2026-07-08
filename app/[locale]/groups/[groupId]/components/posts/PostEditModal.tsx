@@ -14,6 +14,7 @@ import {
 import { uploadPostImage } from "@/lib/posts/image-upload";
 import { updatePost } from "@/lib/posts/post-service";
 import type { Post, PostMedia } from "@/lib/posts/types";
+import { useTranslations } from "next-intl";
 
 type PostEditModalProps = {
   post: Post;
@@ -37,6 +38,7 @@ export default function PostEditModal({
   onClose,
   onSaved,
 }: PostEditModalProps) {
+  const tCommon = useTranslations("common");
   const isPremium = isPremiumPost(post);
 
   const [text, setText] = useState(post.text ?? "");
@@ -213,7 +215,7 @@ export default function PostEditModal({
               type="button"
               onClick={onClose}
               disabled={busy}
-              aria-label="Cerrar"
+              aria-label={tCommon("closeAriaLabel")}
               style={{
                 width: 28,
                 height: 28,
