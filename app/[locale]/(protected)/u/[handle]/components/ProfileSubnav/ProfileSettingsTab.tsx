@@ -2,7 +2,7 @@
 
 import { CSSProperties, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import LogoutButton from "@/app/LogoutButton";
@@ -31,12 +31,12 @@ type ProfileSettingsTabProps = {
   onSendPasswordReset?: () => Promise<void> | void;
 };
 
-function formatDate(value?: string | Date | null) {
-  if (!value) return "No disponible";
+function formatDate(value?: string | Date | null, locale?: string): string | null {
+  if (!value) return null;
   const date = value instanceof Date ? value : new Date(value);
-  if (Number.isNaN(date.getTime())) return "No disponible";
+  if (Number.isNaN(date.getTime())) return null;
 
-  return new Intl.DateTimeFormat("es-MX", {
+  return new Intl.DateTimeFormat(locale ?? "es-MX", {
     day: "2-digit",
     month: "long",
     year: "numeric",
@@ -220,6 +220,7 @@ export default function ProfileSettingsTab({
   const { toast: settingsToast, showToast: showSettingsToast } = useVibraToast();
   const tCommon = useTranslations("common");
   const tProfile = useTranslations("profile");
+  const locale = useLocale();
   useEffect(() => { if (err) showSettingsToast(err, "error"); }, [err]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -243,21 +244,22 @@ export default function ProfileSettingsTab({
 
   const remainingDays = daysUntilNameChange(displayNameLastChangedAt);
   const canChangeName = remainingDays <= 0;
+  const unavailableText = tProfile("unavailable");
 
-  const resolvedDisplayName = displayName?.trim() || "No disponible";
+  const resolvedDisplayName = displayName?.trim() || unavailableText;
   const resolvedUsername = username?.trim()
     ? `@${username.trim()}`
-    : "No disponible";
-  const resolvedEmail = email?.trim() || "No disponible";
-  const resolvedBirthDate = formatDate(birthDate);
-  const resolvedAppCreatedAt = formatDate(appCreatedAt);
+    : unavailableText;
+  const resolvedEmail = email?.trim() || unavailableText;
+  const resolvedBirthDate = formatDate(birthDate, locale) ?? unavailableText;
+  const resolvedAppCreatedAt = formatDate(appCreatedAt, locale) ?? unavailableText;
   const restrictedHelpText = localRestricted
-    ? "Reservado: nadie verá tus servicios, publicaciones ni comentarios desde tu perfil, incluyendo personas sin sesión."
-    : "Público: las personas, incluso sin sesión, podrán ver tus servicios activos y publicaciones públicas.";
+    ? tProfile("reservedHelpActive")
+    : tProfile("publicHelpActive");
 
   const commentsHelpText = localCommentsEnabled
-    ? "Abiertos: cualquiera que te siga puede comentar en tus publicaciones."
-    : "Restringidos: solo tú puedes comentar en tus publicaciones.";
+    ? tProfile("commentsOpenHelp")
+    : tProfile("commentsRestrictedHelp");
 
   async function handleCommentsEnabledChange(nextValue: boolean) {
     if (isSavingComments || !onToggleCommentsEnabled) return;
@@ -268,10 +270,10 @@ export default function ProfileSettingsTab({
 
     try {
       await onToggleCommentsEnabled(nextValue);
-      setMsg(nextValue ? "Comentarios abiertos." : "Comentarios restringidos.");
+      setMsg(nextValue ? tProfile("commentsOpenMsg") : tProfile("commentsRestrictedMsg"));
     } catch (error: unknown) {
       setLocalCommentsEnabled(!nextValue);
-      setErr((error instanceof Error ? error.message : null) ?? "No se pudo actualizar la configuración de comentarios.");
+      setErr((error instanceof Error ? error.message : null) ?? tProfile("commentsUpdateError"));
     }
   }
 
@@ -284,28 +286,28 @@ export default function ProfileSettingsTab({
 
     try {
       await onToggleRestricted(nextValue);
-      setMsg(nextValue ? "Perfil reservado activado." : "Perfil público activado.");
+      setMsg(nextValue ? tProfile("profileReservedActive") : tProfile("profilePublicActive"));
     } catch (error: unknown) {
       setLocalRestricted(!nextValue);
-      setErr((error instanceof Error ? error.message : null) ?? "No se pudo actualizar el perfil reservado.");
+      setErr((error instanceof Error ? error.message : null) ?? tProfile("profileUpdateError"));
     }
   }
 
   async function handleSaveName() {
     if (!onUpdateDisplayName) {
-      setErr("Falta conectar la función para cambiar nombre.");
+      setErr(tProfile("nameConnectError"));
       return;
     }
 
     const nextName = draftName.trim();
 
     if (nextName.length < 3) {
-      setErr("El nombre debe tener al menos 3 caracteres.");
+      setErr(tProfile("nameMinLengthError"));
       return;
     }
 
     if (!canChangeName) {
-      setErr(`Podrás cambiar tu nombre nuevamente en ${remainingDays} día(s).`);
+      setErr(tProfile("nameChangeCooldown", { days: remainingDays }));
       return;
     }
 
@@ -315,10 +317,10 @@ export default function ProfileSettingsTab({
 
     try {
       await onUpdateDisplayName(nextName);
-      setMsg("Nombre actualizado.");
+      setMsg(tProfile("nameUpdated"));
       setEditNameOpen(false);
     } catch (error: unknown) {
-      setErr((error instanceof Error ? error.message : null) ?? "No se pudo actualizar el nombre.");
+      setErr((error instanceof Error ? error.message : null) ?? tProfile("nameUpdateError"));
     } finally {
       setSavingName(false);
     }
@@ -333,10 +335,10 @@ export default function ProfileSettingsTab({
 
     try {
       await onUpdateBio(draftBio);
-      setMsg("Descripción actualizada.");
+      setMsg(tProfile("descriptionUpdated"));
       setEditBioOpen(false);
     } catch (error: unknown) {
-      setErr((error instanceof Error ? error.message : null) ?? "No se pudo actualizar la descripción.");
+      setErr((error instanceof Error ? error.message : null) ?? tProfile("descriptionError"));
     } finally {
       setSavingBio(false);
     }
@@ -344,7 +346,7 @@ export default function ProfileSettingsTab({
 
   async function handlePasswordReset() {
     if (!onSendPasswordReset) {
-      setErr("Falta conectar el envío de correo para cambiar contraseña.");
+      setErr(tProfile("passwordEmailConnectError"));
       return;
     }
 
@@ -354,9 +356,9 @@ export default function ProfileSettingsTab({
 
     try {
       await onSendPasswordReset();
-      setMsg("Te enviamos un correo para cambiar tu contraseña.");
+      setMsg(tProfile("passwordEmailSent"));
     } catch (error: unknown) {
-      setErr((error instanceof Error ? error.message : null) ?? "No se pudo enviar el correo de cambio de contraseña.");
+      setErr((error instanceof Error ? error.message : null) ?? tProfile("passwordEmailError"));
     } finally {
       setSendingPassword(false);
     }
@@ -521,14 +523,14 @@ export default function ProfileSettingsTab({
         }
       `}</style>
 
-      <h3 style={titleStyle}>Configuración de perfil</h3>
+      <h3 style={titleStyle}>{tProfile("settingsTitle")}</h3>
 
       <div style={panel}>
         <div className="profile-setting-item" style={item}>
           <div>
             <div style={labelStyle}>{tProfile("restricted")}</div>
             <div style={valueStyle}>
-  {localRestricted ? "Activado" : "Desactivado"}
+  {localRestricted ? tProfile("enabled") : tProfile("disabled")}
 </div>
 
 <div
@@ -550,8 +552,8 @@ export default function ProfileSettingsTab({
             onChange={handleRestrictedChange}
             label={
               localRestricted
-                ? "Desactivar perfil reservado"
-                : "Activar perfil reservado"
+                ? tProfile("disableReserved")
+                : tProfile("enableReserved")
             }
           />
         </div>
@@ -559,9 +561,9 @@ export default function ProfileSettingsTab({
         {onToggleCommentsEnabled && (
           <div className="profile-setting-item" style={item}>
             <div>
-              <div style={labelStyle}>Comentarios en mis publicaciones</div>
+              <div style={labelStyle}>{tProfile("commentsLabel")}</div>
               <div style={valueStyle}>
-                {localCommentsEnabled ? "Abiertos" : "Solo yo"}
+                {localCommentsEnabled ? tProfile("commentsOpen") : tProfile("commentsRestricted")}
               </div>
               <div
                 style={{
@@ -582,8 +584,8 @@ export default function ProfileSettingsTab({
               onChange={handleCommentsEnabledChange}
               label={
                 localCommentsEnabled
-                  ? "Restringir comentarios a solo yo"
-                  : "Abrir comentarios a seguidores"
+                  ? tProfile("restrictComments")
+                  : tProfile("openComments")
               }
             />
           </div>
@@ -591,11 +593,11 @@ export default function ProfileSettingsTab({
 
         <div className="profile-setting-item" style={item}>
           <div>
-            <div style={labelStyle}>Nombre</div>
+            <div style={labelStyle}>{tProfile("nameFieldLabel")}</div>
             <div style={valueStyle}>{resolvedDisplayName}</div>
             {!canChangeName && (
               <div style={{ marginTop: 4, fontSize: 11, color: "rgba(255,255,255,0.50)" }}>
-                Disponible en {remainingDays} día(s).
+                {tProfile("nameAvailableIn", { days: remainingDays })}
               </div>
             )}
           </div>
@@ -612,18 +614,18 @@ export default function ProfileSettingsTab({
             onClick={() => {
               setErr(null);
               setMsg(null);
-              setDraftName(resolvedDisplayName === "No disponible" ? "" : resolvedDisplayName);
+              setDraftName(resolvedDisplayName === unavailableText ? "" : resolvedDisplayName);
               setEditNameOpen(true);
             }}
           >
-            Modificar
+            {tProfile("editLabel")}
           </button>
         </div>
 
         {onUpdateBio && (
           <div className="profile-setting-item" style={item}>
             <div style={{ minWidth: 0 }}>
-              <div style={labelStyle}>Descripción del perfil</div>
+              <div style={labelStyle}>{tProfile("bioFieldLabel")}</div>
               <div
                 style={{
                   ...valueStyle,
@@ -635,7 +637,7 @@ export default function ProfileSettingsTab({
                   wordBreak: "break-word",
                 }}
               >
-                {bio?.trim() || "Sin descripción"}
+                {bio?.trim() || tProfile("noDescription")}
               </div>
             </div>
 
@@ -650,21 +652,21 @@ export default function ProfileSettingsTab({
                 setEditBioOpen(true);
               }}
             >
-              Modificar
+              {tProfile("editLabel")}
             </button>
           </div>
         )}
 
         <div className="profile-setting-item" style={item}>
           <div>
-            <div style={labelStyle}>Usuario</div>
+            <div style={labelStyle}>{tProfile("usernameFieldLabel")}</div>
             <div style={valueStyle}>{resolvedUsername}</div>
           </div>
         </div>
 
         <div className="profile-setting-item" style={item}>
           <div>
-            <div style={labelStyle}>Correo</div>
+            <div style={labelStyle}>{tProfile("emailFieldLabel")}</div>
             <div style={valueStyle}>{resolvedEmail}</div>
           </div>
 
@@ -679,28 +681,28 @@ export default function ProfileSettingsTab({
             disabled={sendingPassword}
             onClick={handlePasswordReset}
           >
-            {sendingPassword ? tCommon("sending") : "Cambiar contraseña"}
+            {sendingPassword ? tCommon("sending") : tProfile("changePasswordLabel")}
           </button>
         </div>
 
         <div className="profile-setting-item" style={item}>
           <div>
-            <div style={labelStyle}>Fecha de nacimiento</div>
+            <div style={labelStyle}>{tProfile("birthDateFieldLabel")}</div>
             <div style={valueStyle}>{resolvedBirthDate}</div>
           </div>
         </div>
 
         <div className="profile-setting-item" style={item}>
           <div>
-            <div style={labelStyle}>Fecha de creación</div>
+            <div style={labelStyle}>{tProfile("creationDateFieldLabel")}</div>
             <div style={valueStyle}>{resolvedAppCreatedAt}</div>
           </div>
         </div>
 
         <div className="profile-setting-item" style={item}>
           <div>
-            <div style={labelStyle}>Cuentas bloqueadas</div>
-            <div style={valueStyle}>Perfiles y comunidades</div>
+            <div style={labelStyle}>{tProfile("blockedAccountsLabel")}</div>
+            <div style={valueStyle}>{tProfile("profilesAndCommunities")}</div>
 
             <div
               style={{
@@ -711,8 +713,7 @@ export default function ProfileSettingsTab({
                 maxWidth: 620,
               }}
             >
-              Consulta los perfiles que bloqueaste y las cuentas bloqueadas dentro
-              de comunidades.
+              {tProfile("blockedProfilesHint")}
             </div>
           </div>
 
@@ -726,7 +727,7 @@ export default function ProfileSettingsTab({
               setBlockedAccountsOpen(true);
             }}
           >
-            Ver
+            {tCommon("viewLabel")}
           </button>
         </div>
 
@@ -753,18 +754,18 @@ export default function ProfileSettingsTab({
       <FullScreenModal open={editNameOpen} onClose={() => !savingName && setEditNameOpen(false)}>
         <div style={modalCard} onClick={(e) => e.stopPropagation()}>
           <strong style={{ fontSize: 16, color: "#fff", lineHeight: 1.2 }}>
-            Modificar nombre
+            {tProfile("editNameTitle")}
           </strong>
 
           <input
             style={inputStyle}
             value={draftName}
             onChange={(e) => setDraftName(e.target.value)}
-            placeholder="Nombre visible"
+            placeholder={tProfile("namePlaceholder")}
           />
 
           <div style={{ fontSize: 12, color: "rgba(255,255,255,0.62)", lineHeight: 1.4 }}>
-            Podrás volver a cambiar tu nombre después de 60 días.
+            {tProfile("nameChangeNote")}
           </div>
 
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
@@ -797,7 +798,7 @@ export default function ProfileSettingsTab({
             >
               {savingName ? (
                 <>
-                  <SpinningGear /> Guardando...
+                  <SpinningGear /> {tCommon("saving")}
                 </>
               ) : (
                 tCommon("save")
@@ -810,7 +811,7 @@ export default function ProfileSettingsTab({
       <FullScreenModal open={editBioOpen} onClose={() => !savingBio && setEditBioOpen(false)}>
         <div style={modalCard} onClick={(e) => e.stopPropagation()}>
           <strong style={{ fontSize: 16, color: "#fff", lineHeight: 1.2 }}>
-            Descripción del perfil
+            {tProfile("bioFieldLabel")}
           </strong>
 
           <textarea
@@ -822,7 +823,7 @@ export default function ProfileSettingsTab({
             }}
             value={draftBio}
             onChange={(e) => setDraftBio(e.target.value.slice(0, 300))}
-            placeholder="Cuéntale a tu audiencia quién eres..."
+            placeholder={tProfile("bioPlaceholder")}
             maxLength={300}
           />
 
@@ -860,7 +861,7 @@ export default function ProfileSettingsTab({
             >
               {savingBio ? (
                 <>
-                  <SpinningGear /> Guardando...
+                  <SpinningGear /> {tCommon("saving")}
                 </>
               ) : (
                 tCommon("save")

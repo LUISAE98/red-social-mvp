@@ -189,6 +189,8 @@ export default function PostComposerMobileOverlay({
 }: PostComposerMobileOverlayProps) {
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const tCommon = useTranslations("common");
+  const tPosts = useTranslations("posts");
+  const tLive = useTranslations("live");
   const dragStartYRef = useRef(0);
   const dragStartOffsetYRef = useRef(0);
   const publishSuccessTimerRef = useRef<number | null>(null);
@@ -768,8 +770,8 @@ export default function PostComposerMobileOverlay({
               onChange={(event) => setText(event.target.value)}
               placeholder={
                 contextType === "profile"
-                  ? "Comparte algo en tu perfil..."
-                  : "Comparte algo en esta comunidad..."
+                  ? tPosts("shareOnProfilePlaceholder")
+                  : tPosts("shareInCommunityPlaceholder")
               }
               style={{
                 width: "100%",
@@ -810,8 +812,8 @@ export default function PostComposerMobileOverlay({
                   type="button"
                   onClick={onOpenMediaPicker}
                   disabled={creating || isPreparingImages}
-                  title="Agregar fotos o videos"
-                  aria-label="Agregar fotos o videos"
+                  title={tPosts("addPhotosOrVideos")}
+                  aria-label={tPosts("addPhotosOrVideos")}
                   style={{
                     width: 42,
                     height: 42,
@@ -838,8 +840,8 @@ export default function PostComposerMobileOverlay({
                     type="button"
                     onClick={onLiveClick}
                     disabled={creating}
-                    title="Programar live"
-                    aria-label="Programar live"
+                    title={tLive("scheduleLive")}
+                    aria-label={tLive("scheduleLive")}
                     style={{
                       width: 32,
                       height: 42,

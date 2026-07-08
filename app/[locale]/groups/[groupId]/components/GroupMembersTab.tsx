@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import {
@@ -245,6 +246,49 @@ export default function GroupMembersTab({
   canMembersViewList,
 }: GroupMembersTabProps) {
   const currentUid = auth.currentUser?.uid ?? null;
+  const tGroups = useTranslations("groups");
+  const tCommon = useTranslations("common");
+
+  function localizedRole(role?: string): string {
+    const normalized = normalizeRole(role);
+    if (normalized === "owner") return tGroups("roleOwner");
+    if (normalized === "mod") return tGroups("roleMod");
+    return tGroups("roleMember");
+  }
+
+  function localizedStatus(status?: string, mutedUntil?: unknown): string {
+    const normalized = resolveEffectiveStatus(status, mutedUntil);
+    if (normalized === "muted") {
+      const until = getMutedUntilDate(mutedUntil);
+      if (until) {
+        const diffMs = until.getTime() - Date.now();
+        if (diffMs > 0) {
+          const days = Math.max(1, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+          const remaining = tGroups("muteRemainingDays", { count: days });
+          return tGroups("statusMutedWith", { remaining });
+        }
+      }
+      return tGroups("statusMuted");
+    }
+    if (normalized === "subscribed") return tGroups("statusSubscribed");
+    if (normalized === "banned") return tGroups("statusBanned");
+    if (normalized === "removed") return tGroups("statusRemoved");
+    return tGroups("statusActive");
+  }
+
+  function localizedActionLabel(action: MemberAction): string {
+    if (action === "promote_to_mod") return tGroups("actionPromoteToMod");
+    if (action === "demote_to_member") return tGroups("actionDemoteToMember");
+    if (action === "mute") return tGroups("mute");
+    if (action === "unmute") return tGroups("unmute");
+    if (action === "ban") return tGroups("ban");
+    if (action === "unban") return tGroups("unban");
+    return tGroups("actionRemoveFull");
+  }
+
+  function localizedMemberName(member: EnrichedMember): string {
+    return member.displayName?.trim() || member.handle?.trim() || tGroups("memberNoName");
+  }
 
   const [members, setMembers] = useState<EnrichedMember[]>([]);
   const [loading, setLoading] = useState(true);
@@ -443,13 +487,13 @@ export default function GroupMembersTab({
           setLoading(false);
         } catch (e: unknown) {
           console.error(e);
-          setError((e instanceof Error ? e.message : null) ?? "No se pudo cargar la lista de integrantes.");
+          setError((e instanceof Error ? e.message : null) ?? tGroups("membersLoadError"));
           setLoading(false);
         }
       },
       (e) => {
         console.error(e);
-        setError(e?.message ?? "No se pudo cargar la lista de integrantes.");
+        setError(e?.message ?? tGroups("membersLoadError"));
         setLoading(false);
       }
     );
@@ -530,7 +574,7 @@ export default function GroupMembersTab({
     } catch (e: unknown) {
       console.error(e);
       setError(
-        (e instanceof Error ? e.message : null) ?? "No se pudo actualizar la visibilidad de integrantes."
+        (e instanceof Error ? e.message : null) ?? tGroups("visibilityUpdateError")
       );
     } finally {
       setSavingVisibility(false);
@@ -617,13 +661,13 @@ export default function GroupMembersTab({
         await removeGroupMember(groupId, targetUserId);
       }
 
-      const displayName = memberPrimaryName(member);
-      setActionMessage(`${buildActionLabel(action)} aplicado a ${displayName}.`);
+      const displayName = localizedMemberName(member);
+      setActionMessage(tGroups("actionApplied", { action: localizedActionLabel(action), name: displayName }));
       setOpenMenuForUid(null);
       setMenuPosition(null);
     } catch (e: unknown) {
       console.error(e);
-      setError((e instanceof Error ? e.message : null) ?? "No se pudo completar la acción.");
+      setError((e instanceof Error ? e.message : null) ?? tGroups("actionCompletionError"));
     } finally {
       setActionLoadingForUid(null);
     }
@@ -667,12 +711,12 @@ export default function GroupMembersTab({
     try {
       await muteGroupMember(groupId, muteTarget.resolvedUid, durationDays);
       setActionMessage(
-        `Mutear aplicado a ${memberPrimaryName(muteTarget)} durante ${durationDays} día(s).`
+        tGroups("muteApplied", { name: localizedMemberName(muteTarget), days: durationDays })
       );
       closeMuteModal();
     } catch (e: unknown) {
       console.error(e);
-      setError((e instanceof Error ? e.message : null) ?? "No se pudo completar la acción.");
+      setError((e instanceof Error ? e.message : null) ?? tGroups("actionCompletionError"));
     } finally {
       setActionLoadingForUid(null);
     }
@@ -1083,7 +1127,7 @@ export default function GroupMembersTab({
               <button
                 type="button"
                 aria-pressed={safeCanMembersViewList}
-                aria-label="Permitir que los miembros vean esta lista"
+                aria-label={tGroups("allowMembersViewListLabel")}
                 onClick={() =>
                   handleToggleMembersVisibility(!safeCanMembersViewList)
                 }
@@ -1101,7 +1145,7 @@ export default function GroupMembersTab({
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar por nombre o username"
+            placeholder={tGroups("searchMembersPlaceholder")}
             style={inputStyle}
           />
 
@@ -1112,28 +1156,28 @@ export default function GroupMembersTab({
               style={selectStyle}
             >
               <option value="all" style={{ background: "#141414", color: "#fff" }}>
-                Todos
+                {tGroups("filterAll")}
               </option>
               <option value="active" style={{ background: "#141414", color: "#fff" }}>
-                Activos
+                {tGroups("filterActive")}
               </option>
               <option value="subscribed" style={{ background: "#141414", color: "#fff" }}>
-                Suscritos
+                {tGroups("filterSubscribed")}
               </option>
               <option value="muted" style={{ background: "#141414", color: "#fff" }}>
-                Muteados
+                {tGroups("filterMuted")}
               </option>
               <option value="banned" style={{ background: "#141414", color: "#fff" }}>
-                Baneados
+                {tGroups("filterBanned")}
               </option>
               <option value="removed" style={{ background: "#141414", color: "#fff" }}>
-                Expulsados
+                {tGroups("filterRemoved")}
               </option>
               <option value="mod" style={{ background: "#141414", color: "#fff" }}>
-                Moderadores
+                {tGroups("filterMods")}
               </option>
               <option value="member" style={{ background: "#141414", color: "#fff" }}>
-                Miembros
+                {tGroups("filterMembers")}
               </option>
             </select>
           )}
@@ -1142,8 +1186,8 @@ export default function GroupMembersTab({
         {(isOwner || isModerator) && (
           <p style={helperText}>
             {isOwner
-              ? "Los moderadores se muestran primero. Desde la flecha de cada integrante puedes asignar o quitar el rol, además de moderar."
-              : "Desde la flecha de cada integrante puedes mutear, banear o expulsar miembros normales del comunidad."}
+              ? tGroups("ownerMembersHelper")
+              : tGroups("modMembersHelper")}
           </p>
         )}
 
@@ -1151,23 +1195,23 @@ export default function GroupMembersTab({
 
         {!canViewList && !isOwner && !isModerator && (
           <div style={emptyStyle}>
-            El owner de esta comunidad no permite que otros miembros vean la lista de integrantes.
+            {tGroups("membersListHidden")}
           </div>
         )}
 
-        {canViewList && loading && <div style={emptyStyle}>Cargando integrantes...</div>}
+        {canViewList && loading && <div style={emptyStyle}>{tGroups("loadingMembers")}</div>}
         <VibraToast toast={membersToast} />
 
         {canViewList && !loading && !error && filteredMembers.length === 0 && (
-          <div style={emptyStyle}>No encontramos integrantes con ese criterio.</div>
+          <div style={emptyStyle}>{tGroups("noMembersFound")}</div>
         )}
 
         {canViewList && !loading && !error && filteredMembers.length > 0 && (
           <div style={listStyle}>
             {filteredMembers.map((member) => {
-              const displayName = memberPrimaryName(member);
-              const statusText = friendlyStatus(member.status, member.mutedUntil);
-              const roleText = friendlyRole(member.roleInGroup || member.role);
+              const displayName = localizedMemberName(member);
+              const statusText = localizedStatus(member.status, member.mutedUntil);
+              const roleText = localizedRole(member.roleInGroup || member.role);
               const dotColor = statusDotColor(member.status, member.mutedUntil);
               const canManage = canManageMember(member);
               const menuOpen = openMenuForUid === member.resolvedUid;
@@ -1341,7 +1385,7 @@ export default function GroupMembersTab({
                           : menuItemStyle
                     }
                   >
-                    {isProcessing ? "Procesando..." : buildActionLabel(action)}
+                    {isProcessing ? tGroups("processing") : localizedActionLabel(action)}
                   </button>
                 );
               })}
@@ -1356,10 +1400,9 @@ export default function GroupMembersTab({
         createPortal(
           <div style={modalBackdropStyle} onClick={closeMuteModal}>
             <div style={modalCardStyle} onClick={(e) => e.stopPropagation()}>
-              <h3 style={modalTitleStyle}>Mutear integrante</h3>
+              <h3 style={modalTitleStyle}>{tGroups("muteModalTitle")}</h3>
               <p style={modalTextStyle}>
-                Elige durante cuántos días quieres mutear a{" "}
-                <strong>{memberPrimaryName(muteTarget)}</strong>.
+                {tGroups("muteModalText", { name: localizedMemberName(muteTarget) })}
               </p>
 
               <input
@@ -1391,7 +1434,7 @@ export default function GroupMembersTab({
                       : secondaryButtonStyle
                   }
                 >
-                  Cancelar
+                  {tCommon("cancel")}
                 </button>
 
                 <button
@@ -1413,8 +1456,8 @@ export default function GroupMembersTab({
                   }
                 >
                   {actionLoadingForUid === muteTarget.resolvedUid
-                    ? "Aplicando..."
-                    : "Aplicar mute"}
+                    ? tGroups("muteModalApplying")
+                    : tGroups("muteModalApply")}
                 </button>
               </div>
             </div>

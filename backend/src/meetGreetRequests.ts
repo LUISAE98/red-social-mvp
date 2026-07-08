@@ -222,7 +222,7 @@ function assertProfileMeetGreetEnabled(userData: FirebaseFirestore.DocumentData)
   if (!offering) {
     throw new HttpsError(
       "failed-precondition",
-      "Este perfil no tiene activo el servicio de meet & greet digital."
+      "Este perfil no tiene activo el servicio de sesión en vivo."
     );
   }
 
@@ -243,7 +243,7 @@ function assertMeetGreetEnabled(groupData: FirebaseFirestore.DocumentData) {
   if (!legacyFlag && !offeringEnabled) {
     throw new HttpsError(
       "failed-precondition",
-      "Este grupo no tiene activo el servicio de meet & greet digital."
+      "Este grupo no tiene activo el servicio de sesión en vivo."
     );
   }
 
@@ -257,7 +257,7 @@ async function assertMeetGreetEligibleMembership(groupId: string, uid: string) {
   if (!memberSnap.exists) {
     throw new HttpsError(
       "permission-denied",
-      "Debes tener una membresía válida para solicitar este meet & greet."
+      "Debes tener una membresía válida para solicitar esta sesión en vivo."
     );
   }
 
@@ -272,7 +272,7 @@ async function assertMeetGreetEligibleMembership(groupId: string, uid: string) {
   if (blockedStatuses.has(status)) {
     throw new HttpsError(
       "permission-denied",
-      "Tu membresía no permite solicitar este meet & greet."
+      "Tu membresía no permite solicitar esta sesión en vivo."
     );
   }
 
@@ -283,7 +283,7 @@ async function assertMeetGreetEligibleMembership(groupId: string, uid: string) {
   if (!hasJoinedMembership && !hasLegacyAccess) {
     throw new HttpsError(
       "permission-denied",
-      "Debes tener una membresía válida para solicitar este meet & greet."
+      "Debes tener una membresía válida para solicitar esta sesión en vivo."
     );
   }
 
@@ -311,7 +311,7 @@ async function getMeetGreetOrThrow(requestId: string) {
   const snap = await ref.get();
 
   if (!snap.exists) {
-    throw new HttpsError("not-found", "La solicitud de meet & greet no existe.");
+    throw new HttpsError("not-found", "La solicitud de sesión en vivo no existe.");
   }
 
   const data = snap.data() ?? {};
@@ -419,7 +419,7 @@ async function assertNoCreatorScheduleConflict(params: {
     {
       name: MEET_GREET_COLLECTION,
       currentRequestBelongsHere: true,
-      conflictLabel: "otro Meet & Greet",
+      conflictLabel: "otra sesión en vivo",
     },
     {
       name: EXCLUSIVE_SESSION_COLLECTION,
@@ -629,7 +629,7 @@ if (source === "profile") {
     if (creatorId === uid) {
       throw new HttpsError(
         "failed-precondition",
-        "El creador no puede comprarse a sí mismo un meet & greet."
+        "El creador no puede comprarse a sí mismo una sesión en vivo."
       );
     }
 
@@ -666,7 +666,7 @@ if (source === "profile") {
 ) {
   throw new HttpsError(
     "failed-precondition",
-    "El servicio de Meet & Greet necesita una duración válida para poder agendarse."
+    "El servicio de sesión en vivo necesita una duración válida para poder agendarse."
   );
 }
     const payload = {
@@ -1112,7 +1112,7 @@ export const setMeetGreetPreparing = onCall(
     if (rejectedByNoShow) {
       throw new HttpsError(
         "failed-precondition",
-        "Este meet & greet fue rechazado automáticamente porque una de las partes no se conectó a tiempo."
+        "Esta sesión en vivo fue rechazada automáticamente porque una de las partes no se conectó a tiempo."
       );
     }
 
@@ -1123,7 +1123,7 @@ export const setMeetGreetPreparing = onCall(
     if (now < prepareStartMs) {
       throw new HttpsError(
         "failed-precondition",
-        "La preparación solo se habilita 10 minutos antes del meet & greet."
+        "La preparación solo se habilita 10 minutos antes de la sesión en vivo."
       );
     }
 

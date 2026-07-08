@@ -5,6 +5,7 @@
 
 import { type CSSProperties } from "react";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useAuth } from "@/app/providers";
 import LiveKitVideoRoom from "@/app/components/liveKit/LiveKitVideoRoom";
 import type { LivekitSessionType } from "@/lib/liveKit/getLivekitToken";
@@ -14,6 +15,9 @@ export default function SessionCallPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const { user } = useAuth();
+
+  const tSessions = useTranslations("sessions");
+  const tCommon = useTranslations("common");
 
   const sessionId = typeof params.sessionId === "string" ? params.sessionId : null;
 
@@ -30,7 +34,7 @@ export default function SessionCallPage() {
   if (!user) {
     return (
       <div style={screen}>
-        <p style={errorMsg}>Debes iniciar sesión para unirte a esta sesión.</p>
+        <p style={errorMsg}>{tSessions("mustLoginToJoinSession")}</p>
       </div>
     );
   }
@@ -38,16 +42,16 @@ export default function SessionCallPage() {
   if (!sessionId || !sessionType) {
     return (
       <div style={screen}>
-        <p style={errorMsg}>Enlace de sesión inválido.</p>
+        <p style={errorMsg}>{tSessions("invalidSessionLink")}</p>
         <button type="button" onClick={handleLeave} style={backButton}>
-          Regresar
+          {tCommon("back")}
         </button>
       </div>
     );
   }
 
   // ── Vista de llamada ───────────────────────────────────────────────────────
-  const sessionLabel = sessionType === "meet_greet" ? "Meet & Greet" : "Sesión Exclusiva";
+  const sessionLabel = sessionType === "meet_greet" ? tSessions("meetGreetTitle") : tSessions("exclusiveSessionTitle");
 
   return (
     <div style={screen}>

@@ -78,7 +78,6 @@ import { setLastVisitTimestamp } from "@/lib/utils/visitTimestamps";
 import { useLiveRingState } from "@/lib/live/useLiveRingState";
 import { useSetMobileHeader } from "@/app/contexts/MobileHeaderContext";
 import LanguageSwitcher from "@/app/components/LanguageSwitcher";
-import SessionCountdownBanner from "@/app/components/SessionCountdownBanner/SessionCountdownBanner";
 import {
   type FirestoreDateLike,
   type CropMode,
@@ -623,14 +622,14 @@ function getServicePriceLabel(type: CreatorServiceType) {
   const price = service?.publicPrice ?? service?.memberPrice ?? null;
   const currency = service?.currency ?? "MXN";
 
-  if (typeof price !== "number") return "Precio por confirmar";
+  if (typeof price !== "number") return tServices("priceToConfirm");
   return formatMoney(price, currency);
 }
 
 function getServiceDurationLabel(type: CreatorServiceType) {
   const service = getProfileService(type);
   const minutes = service?.durationMinutes ?? null;
-  if (typeof minutes !== "number") return "Duración por confirmar";
+  if (typeof minutes !== "number") return tServices("durationToConfirm");
   return `${minutes} min`;
 }
 
@@ -692,7 +691,7 @@ function resetExclusiveSessionModal() {
 
       if (hs.empty) {
         setUserDoc(null);
-        setMsg("No existe este usuario.");
+        setMsg(tProfile("userNotFound"));
         setLoading(false);
         return;
       }
@@ -702,7 +701,7 @@ function resetExclusiveSessionModal() {
 
       if (!uid) {
         setUserDoc(null);
-        setMsg("Handle inválido.");
+        setMsg(tProfile("invalidHandle"));
         setLoading(false);
         return;
       }
@@ -714,7 +713,7 @@ function resetExclusiveSessionModal() {
         (usnap) => {
           if (!usnap.exists()) {
             setUserDoc(null);
-            setMsg("Perfil no encontrado.");
+            setMsg(tProfile("profileNotFound"));
             setLoading(false);
             return;
           }
@@ -732,14 +731,14 @@ function resetExclusiveSessionModal() {
         },
         (error) => {
           setUserDoc(null);
-          setMsg(error?.message ?? "Error cargando perfil");
+          setMsg(error?.message ?? tProfile("profileLoadError"));
           setLoading(false);
         }
       );
     } catch (e: unknown) {
       if (cancelled) return;
 
-      setMsg((e instanceof Error ? e.message : null) ?? "Error cargando perfil");
+      setMsg((e instanceof Error ? e.message : null) ?? tProfile("profileLoadError"));
       setUserDoc(null);
       setLoading(false);
     }
@@ -869,7 +868,7 @@ function handleUnblockFailed() {
   }
 
   if (viewer.uid === userDoc.uid) {
-    setServiceToast("No puedes solicitar tus propios servicios.");
+    setServiceToast(tProfile("ownServicesError"));
     closeServiceQueryParam();
     return;
   }
@@ -937,7 +936,7 @@ function handleUnblockFailed() {
         setCroppedAreaPixels(null);
         setCropOpen(true);
       } catch (e: unknown) {
-        showProfileToast((e instanceof Error ? e.message : null) ?? "No se pudo leer la imagen.", "error");
+        showProfileToast((e instanceof Error ? e.message : null) ?? tProfile("imageReadError"), "error");
       }
     },
     [isOwner]
@@ -1010,13 +1009,13 @@ async function handleCreateProfilePost(payload: ProfileComposerSubmitPayload) {
       .filter((item) => item.type === "video");
 
     if (videoItems.length > 3) {
-      setProfileComposerError("Puedes agregar máximo 3 videos por publicación.");
+      setProfileComposerError(tProfile("maxVideosError"));
       return;
     }
 
     if (videoItems.length > 0) {
       setProfileVideoUploadProgress(0);
-      setProfileVideoUploadStatus("Validando videos...");
+      setProfileVideoUploadStatus(tProfile("validatingVideos"));
 
       for (const videoItem of videoItems) {
         const duration = await getVideoDuration(videoItem.file);
@@ -1024,7 +1023,7 @@ async function handleCreateProfilePost(payload: ProfileComposerSubmitPayload) {
         if (duration > VIDEO_MAX_DURATION_SECONDS) {
           setProfileVideoUploadProgress(null);
           setProfileVideoUploadStatus(null);
-          setProfileComposerError("Cada video no puede durar más de 30 minutos.");
+          setProfileComposerError(tProfile("videoDurationError"));
           return;
         }
       }
@@ -1049,7 +1048,7 @@ async function handleCreateProfilePost(payload: ProfileComposerSubmitPayload) {
 
     const uploadedVideoCovers =
       videoCoverItems.length > 0
-        ? (setProfileVideoUploadStatus("Subiendo portadas de videos..."),
+        ? (setProfileVideoUploadStatus(tProfile("uploadingCovers")),
           await uploadPostImages({
             groupId: `profile-${userDoc.uid}`,
             files: videoCoverItems.map((item) => item.coverFile as File),
@@ -1065,7 +1064,7 @@ async function handleCreateProfilePost(payload: ProfileComposerSubmitPayload) {
     );
 
     if (videoItems.length > 0) {
-      setProfileVideoUploadStatus("Preparando subida de videos...");
+      setProfileVideoUploadStatus(tProfile("preparingUpload"));
 
       const callable = httpsCallable<
         {
@@ -1119,10 +1118,10 @@ async function handleCreateProfilePost(payload: ProfileComposerSubmitPayload) {
       }
 
       if (!sharedPostId) {
-        throw new Error("No se pudo preparar la publicación de video.");
+        throw new Error(tProfile("preparePostError"));
       }
 
-      setProfileVideoUploadStatus("Creando publicación con media...");
+      setProfileVideoUploadStatus(tProfile("creatingPost"));
 
       const videoUploadsPayload = muxUploads.map((upload) => ({
         uploadId: upload.uploadId,
@@ -1146,7 +1145,7 @@ async function handleCreateProfilePost(payload: ProfileComposerSubmitPayload) {
         const upload = muxUploads[index];
 
         setProfileVideoUploadStatus(
-          `Subiendo video ${index + 1} de ${muxUploads.length} a Mux...`
+          tProfile("uploadingVideo", { index: index + 1, total: muxUploads.length })
         );
 
         await uploadVideoFileToMux({
@@ -1156,9 +1155,7 @@ async function handleCreateProfilePost(payload: ProfileComposerSubmitPayload) {
         });
       }
 
-      setProfileVideoUploadStatus(
-        "Videos subidos. Mux los está procesando; aparecerán listos en unos momentos."
-      );
+      setProfileVideoUploadStatus(tProfile("videosUploaded"));
     } else if (uploadedImages.length > 0) {
       await createMediaPost({
         contextType: "profile",
@@ -1178,14 +1175,14 @@ async function handleCreateProfilePost(payload: ProfileComposerSubmitPayload) {
 
     clearAllPostFeedCaches();
     setProfilePostsRefreshKey((value) => value + 1);
-    showProfileToast("Publicación creada en tu perfil.", "success");
+    showProfileToast(tProfile("postCreated"), "success");
 
     window.setTimeout(() => {
       setProfileVideoUploadProgress(null);
       setProfileVideoUploadStatus(null);
     }, 2500);
   } catch (e: unknown) {
-    setProfileComposerError((e instanceof Error ? e.message : null) ?? "No se pudo publicar en tu perfil.");
+    setProfileComposerError((e instanceof Error ? e.message : null) ?? tProfile("postError"));
     setProfileVideoUploadProgress(null);
     setProfileVideoUploadStatus(null);
     throw e;
@@ -1213,13 +1210,13 @@ async function handleCreateProfilePost(payload: ProfileComposerSubmitPayload) {
         setActiveTab("groups");
       }
 
-      showProfileToast(nextValue ? "Perfil reservado activado." : "Perfil público activado.", "success");
+      showProfileToast(nextValue ? tProfile("profileReservedActive") : tProfile("profilePublicActive"), "success");
     } catch (e: unknown) {
       const err = e as { code?: string; message?: string } | null;
       showProfileToast(
         err?.code === "permission-denied"
-          ? "Permiso denegado. Revisa reglas de Firestore."
-          : `No se pudo actualizar la privacidad del perfil: ${err?.message ?? "error"}`,
+          ? tProfile("firestorePermissionError")
+          : tProfile("privacyUpdateError"),
         "error"
       );
       throw e;
@@ -1277,7 +1274,7 @@ async function handleSendPasswordReset() {
   const email = viewer?.email;
 
   if (!email) {
-    throw new Error("No encontramos un correo asociado a esta cuenta.");
+    throw new Error(tCommon("noEmailFound"));
   }
 
   await sendPasswordResetEmail(auth, email);
@@ -1287,7 +1284,7 @@ async function handleSendPasswordReset() {
     if (!userDoc || !isOwner) return;
 
     if (!cropImageSrc || !croppedAreaPixels) {
-      showProfileToast("No se pudo recortar la imagen.", "error");
+      showProfileToast(tProfile("cropError"), "error");
       return;
     }
 
@@ -1319,12 +1316,12 @@ async function handleSendPasswordReset() {
         setAvatarRenderUrl(freshUrl);
         setUserDoc((prev) => (prev ? { ...prev, photoURL: freshUrl } : prev));
         await updateDoc(uref, { photoURL: freshUrl });
-        showProfileToast("Foto de perfil actualizada.", "success");
+        showProfileToast(tProfile("photoUpdated"), "success");
       } else {
         setCoverRenderUrl(freshUrl);
         setUserDoc((prev) => (prev ? { ...prev, coverUrl: freshUrl } : prev));
         await updateDoc(uref, { coverUrl: freshUrl });
-        showProfileToast("Foto de portada actualizada.", "success");
+        showProfileToast(tProfile("coverUpdated"), "success");
       }
 
       setCropOpen(false);
@@ -1337,8 +1334,8 @@ async function handleSendPasswordReset() {
       const err = e as { code?: string; message?: string } | null;
       showProfileToast(
         err?.code === "permission-denied"
-          ? "Permiso denegado. Revisa reglas de Storage/Firestore."
-          : `No se pudo subir la imagen: ${err?.message ?? "error"}`,
+          ? tProfile("storagePermissionError")
+          : tProfile("imageUploadError"),
         "error"
       );
     } finally {
@@ -1350,11 +1347,11 @@ async function handleSubmitGreeting() {
   if (!userDoc || !viewer) return;
 
   if (!toName.trim()) {
-    setGreetError("Escribe el nombre de la persona a quien va dirigido el saludo.");
+    setGreetError(tProfile("greetingToHint"));
     return;
   }
   if (!instructions.trim()) {
-    setGreetError("Escribe las instrucciones para el saludo.");
+    setGreetError(tProfile("greetingInstructionsHint"));
     return;
   }
 
@@ -1408,7 +1405,7 @@ await createMeetGreetRequest({
 
     setMeetGreetOpen(false);
     setMeetGreetMessage("");
-    setServiceToast("Solicitud de meet & greet enviada.");
+    setServiceToast(tProfile("meetGreetSent"));
   } catch (e: unknown) {
     setMeetGreetError((e instanceof Error ? e.message : null) ?? tServices("requestError"));
   } finally {
@@ -1438,7 +1435,7 @@ await createExclusiveSessionRequest({
 
     setExclusiveSessionOpen(false);
     setExclusiveSessionMessage("");
-    setServiceToast("Solicitud de sesión exclusiva enviada.");
+    setServiceToast(tProfile("sessionSent"));
   } catch (e: unknown) {
     setExclusiveSessionError((e instanceof Error ? e.message : null) ?? tServices("requestError"));
   } finally {
@@ -1642,7 +1639,7 @@ await createExclusiveSessionRequest({
           }
 
           @media (max-width: 640px) {
-            .profile-card button[aria-label="Cambiar foto de perfil"][title="Cambiar foto de perfil"] {
+            .profile-card button[data-action="change-avatar"] {
               right: -10px !important;
               bottom: -2px !important;
             }
@@ -1760,8 +1757,8 @@ await createExclusiveSessionRequest({
     {!shouldHideProfileSocialContent && (
       <CopyLinkButton
         href={profileShareHref}
-        copiedLabel="Link del perfil copiado correctamente"
-        title="Copiar link del perfil"
+        copiedLabel={tCommon("linkCopiedOk")}
+        title={tCommon("copyProfileLink")}
         style={{
           width: 34,
           height: 34,
@@ -2004,6 +2001,7 @@ await createExclusiveSessionRequest({
                       }}
                       title={tProfile("ariaChangeAvatar")}
                       aria-label={tProfile("ariaChangeAvatar")}
+                      data-action="change-avatar"
                     >
                       {uploading && cropMode === "avatar" ? "..." : "✎"}
                     </button>
@@ -2254,9 +2252,6 @@ await createExclusiveSessionRequest({
   </div>
 )}
 
-{viewer?.uid && (
-  <SessionCountdownBanner uid={viewer.uid} />
-)}
 <ProfilePostsFeed
   key={`profile-posts-${userDoc.uid}-${profilePostsRefreshKey}`}
   profileUid={userDoc.uid}

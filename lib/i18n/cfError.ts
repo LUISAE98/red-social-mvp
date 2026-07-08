@@ -22,7 +22,7 @@ const MSG_TO_KEY: Record<string, string> = {
   "el perfil no existe.": "profileNotFound",
   "perfil no encontrado.": "profileNotFound",
   "la solicitud de sesión exclusiva no existe.": "requestNotFound",
-  "la solicitud de meet & greet no existe.": "requestNotFound",
+  "la solicitud de sesión en vivo no existe.": "requestNotFound",
   "solicitud no existe.": "requestNotFound",
   "la publicación no existe.": "postNotFound",
   "la sesión no existe.": "sessionNotFound",
@@ -46,9 +46,9 @@ const MSG_TO_KEY: Record<string, string> = {
   "te uniste correctamente a la comunidad.": "joinedSuccessfully",
   "tu solicitud de acceso fue enviada.": "requestSent",
   "debes tener una membresía válida para solicitar esta sesión exclusiva.": "needsValidMembership",
-  "debes tener una membresía válida para solicitar este meet & greet.": "needsValidMembership",
+  "debes tener una membresía válida para solicitar esta sesión en vivo.": "needsValidMembership",
   "tu membresía no permite solicitar esta sesión exclusiva.": "needsValidMembership",
-  "tu membresía no permite solicitar este meet & greet.": "needsValidMembership",
+  "tu membresía no permite solicitar esta sesión en vivo.": "needsValidMembership",
   "tu membresía no permite publicar en esta comunidad.": "needsValidMembership",
 
   // session lifecycle
@@ -78,8 +78,8 @@ const MSG_TO_KEY: Record<string, string> = {
   // service availability
   "este perfil no tiene activo el servicio de sesión exclusiva.": "serviceNotEnabled",
   "este grupo no tiene activo el servicio de sesión exclusiva.": "serviceNotEnabled",
-  "este perfil no tiene activo el servicio de meet & greet digital.": "serviceNotEnabled",
-  "este grupo no tiene activo el servicio de meet & greet digital.": "serviceNotEnabled",
+  "este perfil no tiene activo el servicio de sesión en vivo.": "serviceNotEnabled",
+  "este grupo no tiene activo el servicio de sesión en vivo.": "serviceNotEnabled",
 
   // scheduling
   "la fecha propuesta debe ser futura.": "futureDateRequired",

@@ -111,8 +111,8 @@ export default function GroupsSearchToolbar({
 .search-input-wrap {
   position: relative;
   min-width: 0;
-  width: ${isExpanded ? "min(100%, 920px)" : "360px"};
-  max-width: 920px;
+  width: ${isExpanded ? "min(100%, 600px)" : "360px"};
+  max-width: 600px;
   padding: 2px;
   border-radius: 20px;
   background: linear-gradient(

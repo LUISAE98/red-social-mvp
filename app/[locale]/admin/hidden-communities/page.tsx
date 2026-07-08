@@ -13,6 +13,7 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAdminPreview } from "../context";
+import { useTranslations } from "next-intl";
 
 type Community = {
   id: string;
@@ -63,12 +64,12 @@ function toCommunityBase(
   };
 }
 
-function rel(date: Date): string {
+function rel(date: Date, t: (key: string, params?: Record<string, string | number | Date>) => string): string {
   const m = Math.floor((Date.now() - date.getTime()) / 60000);
-  if (m < 1) return "ahora";
-  if (m < 60) return `hace ${m}m`;
+  if (m < 1) return t("timeNow");
+  if (m < 60) return t("timeMinutesAgo", { count: m });
   const h = Math.floor(m / 60);
-  if (h < 24) return `hace ${h}h`;
+  if (h < 24) return t("timeHoursAgo", { count: h });
   return date.toLocaleString("es-MX", { dateStyle: "medium" });
 }
 
@@ -76,6 +77,7 @@ type Tab = "unverified" | "verified";
 
 export default function HiddenCommunitiesPage() {
   const { setPreviewUrl } = useAdminPreview();
+  const tAdmin = useTranslations("admin");
   const [tab, setTab] = useState<Tab>("unverified");
   type CommunityBase = Omit<Community, "postsCount" | "livesCount" | "memberCount" | "creatorName" | "creatorAvatar" | "creatorHandle">;
 
@@ -183,16 +185,16 @@ export default function HiddenCommunitiesPage() {
       <div style={{ marginBottom: 20, display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
         <div>
           <h1 style={{ fontSize: 18, fontWeight: 700, color: "#fff", margin: 0 }}>
-            Comunidades ocultas
+            {tAdmin("hiddenCommunitiesTitle")}
           </h1>
           <p style={{ fontSize: 12, color: "#444", margin: "4px 0 0" }}>
-            No aparecen en búsquedas públicas.
+            {tAdmin("hiddenCommunitiesSubtitle")}
           </p>
         </div>
         <button
           onClick={() => setEnrichKey((k) => k + 1)}
           disabled={enriching}
-          title="Actualizar contadores"
+          title={tAdmin("refreshCounters")}
           style={{
             flexShrink: 0,
             marginTop: 2,
@@ -223,7 +225,7 @@ export default function HiddenCommunitiesPage() {
             <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
             <path d="M8 16H3v5" />
           </svg>
-          {enriching ? "Actualizando..." : "Actualizar"}
+          {enriching ? tAdmin("refreshing") : tAdmin("refresh")}
         </button>
         <style jsx>{`
           @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
@@ -246,7 +248,7 @@ export default function HiddenCommunitiesPage() {
               cursor: "pointer",
             }}
           >
-            {t === "unverified" ? "Sin verificar" : "Verificadas"}
+            {t === "unverified" ? tAdmin("tabUnverified") : tAdmin("tabVerified")}
             <span
               style={{
                 marginLeft: 5,
@@ -270,8 +272,8 @@ export default function HiddenCommunitiesPage() {
       ) : filtered.length === 0 ? (
         <div style={{ color: "#444", fontSize: 13 }}>
           {tab === "unverified"
-            ? "No hay comunidades sin verificar."
-            : "No hay comunidades verificadas."}
+            ? tAdmin("noUnverifiedCommunities")
+            : tAdmin("noVerifiedCommunities")}
         </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -305,7 +307,7 @@ export default function HiddenCommunitiesPage() {
                   {c.avatarUrl ? (
                     <img
                       src={c.avatarUrl}
-                      alt={c.name ?? "comunidad"}
+                      alt={c.name ?? tAdmin("communityAltText")}
                       style={{
                         width: 44,
                         height: 44,
@@ -337,7 +339,7 @@ export default function HiddenCommunitiesPage() {
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                       <span style={{ fontSize: 13, fontWeight: 700, color: "#fff" }}>
-                        {c.name ?? "Sin nombre"}
+                        {c.name ?? tAdmin("communityNameFallback")}
                       </span>
                       <span
                         style={{
@@ -349,7 +351,7 @@ export default function HiddenCommunitiesPage() {
                           color: c.modVerified ? "#86efac" : "#f59e0b",
                         }}
                       >
-                        {c.modVerified ? "Verificada" : "Sin verificar"}
+                        {c.modVerified ? tAdmin("badgeVerified") : tAdmin("badgeUnverified")}
                       </span>
                     </div>
                     {c.description && (
@@ -382,9 +384,9 @@ export default function HiddenCommunitiesPage() {
                   }}
                 >
                   {[
-                    { label: "Posts", value: c.postsCount },
-                    { label: "Lives", value: c.livesCount },
-                    { label: "Miembros", value: c.memberCount },
+                    { label: tAdmin("statPosts"), value: c.postsCount },
+                    { label: tAdmin("statLives"), value: c.livesCount },
+                    { label: tAdmin("statMembers"), value: c.memberCount },
                   ].map((stat, i) => (
                     <div
                       key={stat.label}
@@ -418,7 +420,7 @@ export default function HiddenCommunitiesPage() {
                   }}
                 >
                   <span style={{ fontSize: 10, color: "#444" }}>
-                    {c.createdAt ? rel(c.createdAt) : "—"}
+                    {c.createdAt ? rel(c.createdAt, tAdmin) : "—"}
                   </span>
                   <span
                     style={{
@@ -448,12 +450,12 @@ export default function HiddenCommunitiesPage() {
                     cursor: c.creatorHandle ? "pointer" : "default",
                     opacity: c.creatorHandle ? 1 : 0.6,
                   }}
-                  title={c.creatorHandle ? `Ver perfil de ${c.creatorName}` : undefined}
+                  title={c.creatorHandle ? tAdmin("viewCreatorProfile", { name: c.creatorName ?? "" }) : undefined}
                 >
                   {c.creatorAvatar ? (
                     <img
                       src={c.creatorAvatar}
-                      alt={c.creatorName ?? "creador"}
+                      alt={c.creatorName ?? tAdmin("creatorAltText")}
                       style={{
                         width: 22,
                         height: 22,
@@ -480,7 +482,7 @@ export default function HiddenCommunitiesPage() {
                     </div>
                   )}
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <span style={{ fontSize: 10, color: "#444" }}>Creador · </span>
+                    <span style={{ fontSize: 10, color: "#444" }}>{tAdmin("creatorLabel")}</span>
                     <span
                       style={{
                         fontSize: 11,
@@ -488,7 +490,7 @@ export default function HiddenCommunitiesPage() {
                         fontWeight: 600,
                       }}
                     >
-                      {c.creatorName ?? c.ownerId ?? "Desconocido"}
+                      {c.creatorName ?? c.ownerId ?? tAdmin("creatorNameFallback")}
                     </span>
                     {c.creatorHandle && (
                       <span style={{ fontSize: 10, color: "#555", marginLeft: 4 }}>

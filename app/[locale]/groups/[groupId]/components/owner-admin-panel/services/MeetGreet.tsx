@@ -236,7 +236,7 @@ export default function MeetGreet({
 
         {meetGreetCalc ? (
           <div style={subtleStyle}>
-            Por un meet & greet de{" "}
+            Por una sesión en vivo de{" "}
             {formatMoney(meetGreetCalc.gross, draft.meetGreet.currency)}, tú cobras{" "}
             {formatMoney(meetGreetCalc.net, draft.meetGreet.currency)}.
           </div>
@@ -276,7 +276,7 @@ export default function MeetGreet({
           }}
         >
           <div style={{ display: "grid", gap: 2, minWidth: 0 }}>
-            <span style={titleStyle}>{meetGreetEmoji} Meet & Greet digital</span>
+            <span style={titleStyle}>{meetGreetEmoji} Sesión en vivo</span>
           </div>
 
           <SwitchComponent
@@ -285,7 +285,7 @@ export default function MeetGreet({
             onChange={(next) => {
               void handleToggle(next);
             }}
-            label="Activar Meet & Greet digital"
+            label="Activar Sesión en vivo"
           />
         </div>
 
@@ -294,7 +294,7 @@ export default function MeetGreet({
 
       <OverlayModalComponent
         open={overlayMode !== null}
-        title={`${meetGreetEmoji} Configurar Meet & Greet digital`}
+        title={`${meetGreetEmoji} Configurar Sesión en vivo`}
         loading={saving}
         onCancel={closeOverlay}
         onConfirm={() => void confirmOverlaySave()}

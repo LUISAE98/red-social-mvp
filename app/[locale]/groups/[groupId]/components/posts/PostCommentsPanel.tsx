@@ -10,6 +10,7 @@ import {
   type TextareaHTMLAttributes,
 } from "react";
 import { createPortal } from "react-dom";
+import { useTranslations } from "next-intl";
 import type { Comment, CommentReply } from "@/lib/posts/types";
 import PostCommentThread from "./PostCommentThread";
 
@@ -151,6 +152,7 @@ export default function PostCommentsPanel({
   onModerationComplete,
   showAdminDetails = false,
 }: PostCommentsPanelProps) {
+  const tPosts = useTranslations("posts");
   useEffect(() => {
     if (!open || !isMobile) return;
 
@@ -370,7 +372,7 @@ export default function PostCommentsPanel({
           <div style={listStyle}>
             {loading && (
               <p style={{ margin: 0, fontSize: 12, color: "rgba(255,255,255,0.58)" }}>
-                Cargando comentarios...
+                {tPosts("loadingComments")}
               </p>
             )}
 
@@ -386,7 +388,7 @@ export default function PostCommentsPanel({
                 }}
               >
                 <p style={{ margin: 0, fontSize: 12, color: "rgba(255,255,255,0.52)", lineHeight: 1.4 }}>
-                  Todavía no hay comentarios en esta publicación.
+                  {tPosts("noComments")}
                 </p>
               </div>
             )}
@@ -436,7 +438,7 @@ export default function PostCommentsPanel({
                   textUnderlineOffset: 2,
                 }}
               >
-                Ver más comentarios
+                {tPosts("viewMoreComments")}
               </button>
             )}
           </div>
@@ -451,7 +453,7 @@ export default function PostCommentsPanel({
                   <AutoGrowTextarea
                     value={commentText}
                     onChange={(e) => onCommentTextChange(e.target.value)}
-                    placeholder="Escribe un comentario..."
+                    placeholder={tPosts("writeComment")}
                     maxRows={2}
                     style={inputStyle}
                   />
@@ -616,13 +618,13 @@ export default function PostCommentsPanel({
                   color: "#fff",
                 }}
               >
-                Comentarios
+                {tPosts("commentsTitle")}
               </h3>
 
               <button
                 type="button"
                 onClick={onClose}
-                aria-label="Cerrar comentarios"
+                aria-label={tPosts("closeComments")}
                 style={{
                   width: 40,
                   height: 40,
@@ -657,7 +659,7 @@ export default function PostCommentsPanel({
             >
               {loading && (
                 <p style={{ margin: 0, fontSize: 12, color: "rgba(255,255,255,0.58)" }}>
-                  Cargando comentarios...
+                  {tPosts("loadingComments")}
                 </p>
               )}
 
@@ -673,7 +675,7 @@ export default function PostCommentsPanel({
                   }}
                 >
                   <p style={{ margin: 0, fontSize: 12, color: "rgba(255,255,255,0.52)", lineHeight: 1.4 }}>
-                    Todavía no hay comentarios en esta publicación.
+                    {tPosts("noComments")}
                   </p>
                 </div>
               )}

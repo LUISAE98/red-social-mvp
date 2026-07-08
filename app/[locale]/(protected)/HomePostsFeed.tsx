@@ -177,6 +177,8 @@ function peekFreshCache(uid: string | null): HomeFeedCacheEntry | null {
 
 export default function HomePostsFeed({ currentUserId, refreshRef }: HomePostsFeedProps) {
   const t = useTranslations("common");
+  const tFeed = useTranslations("feed");
+  const tProfile = useTranslations("profile");
   const [posts, setPosts] = useState<PostWithFlags[]>(() => {
     const c = peekFreshCache(currentUserId);
     return c ? c.posts.filter((p) => p.isDeleted !== true) : [];
@@ -358,7 +360,7 @@ export default function HomePostsFeed({ currentUserId, refreshRef }: HomePostsFe
 
         setError(
           (e instanceof Error ? e.message : null) ??
-            "No se pudieron cargar las publicaciones. Intenta de nuevo."
+            tProfile("loadPostsError")
         );
       } finally {
         if (mode === "more") {
@@ -818,7 +820,7 @@ const shellStyle: CSSProperties = {
     return (
       <section style={shellStyle}>
         <div style={noticeStyle}>
-          Inicia sesión para ver publicaciones de tus comunidades.
+          {tFeed("loginToViewFeed")}
         </div>
       </section>
     );
@@ -841,7 +843,7 @@ return (
       >
         <div className="vibraPullRefreshSpinner refreshing" style={{ width: 32, height: 32 }} />
         <span style={{ fontSize: 13, color: "rgba(255,255,255,0.32)", letterSpacing: "0.01em" }}>
-          Cargando publicaciones...
+          {tProfile("postsLoading")}
         </span>
       </div>
     )}
@@ -912,11 +914,11 @@ return (
     })}
 
     {loadingMore && (
-      <div style={noticeStyle}>Cargando más publicaciones...</div>
+      <div style={noticeStyle}>{tProfile("postsLoadingMore")}</div>
     )}
 
     {!loadingInitial && !loadingMore && posts.length > 0 && !hasMore && (
-      <div style={noticeStyle}>Ya viste todas las publicaciones disponibles.</div>
+      <div style={noticeStyle}>{tProfile("allPostsLoaded")}</div>
     )}
 
     {!loadingInitial && posts.length > 0 && !hasInlineRecommendation && (

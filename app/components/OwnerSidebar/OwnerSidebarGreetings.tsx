@@ -954,7 +954,7 @@ export default function OwnerSidebarGreetings({
       } else {
         await acceptMeetGreetRequest({ requestId });
       }
-      showGreetingsToast("✅ Solicitud aceptada. Ahora puedes proponer fecha y hora.");
+      showGreetingsToast(tServices("successRequestAccepted"));
       closeInlinePanels(requestId, "schedule");
       setScheduleOpenMap((prev) => ({ ...prev, [requestId]: true }));
       setOpenItemKey(`incoming-${kind}-${requestId}`);
@@ -982,7 +982,7 @@ export default function OwnerSidebarGreetings({
         await rejectMeetGreetRequest(payload);
       }
 
-      showGreetingsToast("✅ Solicitud rechazada.");
+      showGreetingsToast(tServices("successRequestRejected"));
       setRejectOpenMap((prev) => ({ ...prev, [requestId]: false }));
     } catch (e: unknown) {
       showGreetingsToast((e instanceof Error ? e.message : null) ?? tServices("errorRejectRequest"), "error");
@@ -1001,7 +1001,7 @@ export default function OwnerSidebarGreetings({
       } else {
         await rejectMeetGreetRequest({ requestId, rejectionReason: reason });
       }
-      showGreetingsToast("✅ Solicitud rechazada.");
+      showGreetingsToast(tServices("successRequestRejected"));
     } catch (e: unknown) {
       showGreetingsToast((e instanceof Error ? e.message : null) ?? tServices("errorRejectRequest"), "error");
       throw e;
@@ -1035,7 +1035,7 @@ export default function OwnerSidebarGreetings({
       } else {
         await proposeMeetGreetSchedule(payload);
       }
-      showGreetingsToast("✅ Fecha propuesta/agendada correctamente.");
+      showGreetingsToast(tServices("successDateProposed"));
     } catch (e: unknown) {
       showGreetingsToast((e instanceof Error ? e.message : null) ?? tServices("errorSaveDate"), "error");
       throw e;
@@ -1070,7 +1070,7 @@ export default function OwnerSidebarGreetings({
         await acceptMeetGreetRequest({ requestId });
         await proposeMeetGreetSchedule({ requestId, scheduledAt: scheduledAtIso, note, creatorTimezone });
       }
-      showGreetingsToast("✅ Sesión aceptada y agendada.");
+      showGreetingsToast(tServices("successSessionAcceptedAndScheduled"));
       setIncomingSessionOverlayOpen(false);
       setTimeout(() => setIncomingSessionOverlayData(null), 300);
     } catch (e: unknown) {
@@ -1131,7 +1131,7 @@ async function handleCreatorSchedule(
       await proposeMeetGreetSchedule(payload);
     }
 
-    showGreetingsToast("✅ Fecha propuesta/agendada correctamente.");
+    showGreetingsToast(tServices("successDateProposed"));
     setScheduleOpenMap((prev) => ({ ...prev, [requestId]: false }));
     setCalendarOpenMap((prev) => ({ ...prev, [requestId]: false }));
   } catch (e: unknown) {
@@ -1158,7 +1158,7 @@ async function handleCreatorSchedule(
         await requestMeetGreetRefund(payload);
       }
 
-      showGreetingsToast("✅ Devolución solicitada.");
+      showGreetingsToast(tServices("successRefundRequested"));
       setRefundOpenMap((prev) => ({ ...prev, [requestId]: false }));
     } catch (e: unknown) {
       showGreetingsToast((e instanceof Error ? e.message : null) ?? tServices("errorRequestRefund"), "error");
@@ -1184,7 +1184,7 @@ async function handleCreatorSchedule(
         await requestMeetGreetReschedule(payload);
       }
 
-      showGreetingsToast("✅ Cambio de fecha solicitado.");
+      showGreetingsToast(tServices("successRescheduleRequested"));
       setRescheduleOpenMap((prev) => ({ ...prev, [requestId]: false }));
     } catch (e: unknown) {
       showGreetingsToast((e instanceof Error ? e.message : null) ?? tServices("errorRequestReschedule"), "error");
@@ -1224,7 +1224,7 @@ async function handleCreatorSchedule(
 
       setPreparationRoleMap((prev) => ({ ...prev, [requestId]: role }));
       setPreparationOpenMap((prev) => ({ ...prev, [requestId]: true }));
-      setSuccess(requestId, "✅ Panel de preparación abierto.");
+      setSuccess(requestId, tServices("successPreparationOpened"));
     } catch (e: unknown) {
       setError(requestId, (e instanceof Error ? e.message : null) ?? tServices("errorOpenPreparation"));
     } finally {
@@ -1486,7 +1486,7 @@ async function handleCreatorSchedule(
             whiteSpace: "nowrap",
           }}
         >
-          Ver solicitud
+          {tServices("viewRequest")}
         </button>
       </div>
     );
@@ -1580,7 +1580,7 @@ const creatorScheduleNote = getCreatorScheduleNote(req);
               whiteSpace: "nowrap",
             }}
           >
-            Ver solicitud
+            {tServices("viewRequest")}
           </button>
         </div>
       );

@@ -165,6 +165,7 @@ onToggleProfilePin,
   const tCommon = useTranslations("common");
   const tFeed = useTranslations("feed");
   const tGroups = useTranslations("groups");
+  const tPosts = useTranslations("posts");
   const locale = useLocale();
 
   const [comments, setComments] = useState<Comment[] | null>(null);
@@ -858,8 +859,8 @@ function handleToggleSave() {
       setInlineActionError(
         (e instanceof Error ? e.message : null) ??
           (scope === "group"
-            ? "No se pudo actualizar el fijado del grupo."
-            : "No se pudo actualizar el fijado del perfil.")
+            ? tPosts("pinGroupError")
+            : tPosts("pinProfileError"))
       );
     } finally {
       setPinBusy(false);
@@ -936,7 +937,7 @@ function handleToggleSave() {
       closeMenu();
       await blockPostAuthor();
     } catch (e: unknown) {
-      setInlineActionError((e instanceof Error ? e.message : null) ?? "No se pudo bloquear este usuario.");
+      setInlineActionError((e instanceof Error ? e.message : null) ?? tCommon("errorBlockProfile"));
     }
   }
 
@@ -948,7 +949,7 @@ function handleToggleSave() {
       closeMenu();
       await unblockPostAuthor();
     } catch (e: unknown) {
-      setInlineActionError((e instanceof Error ? e.message : null) ?? "No se pudo desbloquear este usuario.");
+      setInlineActionError((e instanceof Error ? e.message : null) ?? tCommon("errorUnblockProfile"));
     }
   }
 
@@ -956,7 +957,7 @@ function handleToggleSave() {
     if (groupMemberBlockLoading) return;
 
     const confirmed = window.confirm(
-      "¿Seguro que quieres bloquear a este usuario en este grupo?"
+      tGroups("confirmBlockInGroup")
     );
 
     if (!confirmed) return;
@@ -969,7 +970,7 @@ function handleToggleSave() {
       await onGroupMemberBlockComplete?.();
     } catch (e: unknown) {
       setInlineActionError(
-        (e instanceof Error ? e.message : null) ?? "No se pudo bloquear este usuario en este grupo."
+        (e instanceof Error ? e.message : null) ?? tGroups("errorBlockInGroup")
       );
     }
   }
@@ -985,7 +986,7 @@ function handleToggleSave() {
       await onGroupMemberBlockComplete?.();
     } catch (e: unknown) {
       setInlineActionError(
-        (e instanceof Error ? e.message : null) ?? "No se pudo desbloquear este usuario en este grupo."
+        (e instanceof Error ? e.message : null) ?? tGroups("errorUnblockInGroup")
       );
     }
   }
@@ -1559,11 +1560,11 @@ function renderBlurredMediaBackdrop(
 
   const liveVisibilityBadge: { label: string; icon: "lock" | "globe" | "user" } | null =
     liveVisibilityMode === "members_only"
-      ? { label: "Solo miembros", icon: "lock" }
+      ? { label: tPosts("visibilityMembersOnly"), icon: "lock" }
       : liveVisibilityMode === "logged_in_only"
-        ? { label: "Solo con cuenta", icon: "user" }
+        ? { label: tPosts("visibilityRegistered"), icon: "user" }
         : liveVisibilityMode === "everyone"
-          ? { label: "Visible sin cuenta", icon: "globe" }
+          ? { label: tPosts("visibilityPublic"), icon: "globe" }
           : null;
 
   const liveAccessBlocked =
@@ -1692,7 +1693,7 @@ const displayMedia = mediaFromPost
           type: "video" as const,
           url: previewUrl || `video-processing-placeholder-${post.id}-${index}`,
           thumbnailUrl,
-          altText: item.altText ?? "Video preparándose",
+          altText: item.altText ?? tPosts("videoProcessing"),
           duration: item.duration ?? null,
           playbackUrl: null,
           hlsUrl: item.hlsUrl ?? null,
@@ -1710,7 +1711,7 @@ const displayMedia = mediaFromPost
         type: "video" as const,
         url: previewUrl,
         thumbnailUrl,
-        altText: item.altText ?? "Video de la publicación",
+        altText: item.altText ?? tPosts("videoAlt"),
         duration: item.duration ?? null,
         playbackUrl,
         hlsUrl: item.hlsUrl ?? null,
@@ -1869,7 +1870,7 @@ function getMediaDotsTranslateX() {
               type: "video",
               url: rootVideoThumbnailUrl || rootVideoPlaybackUrl,
               thumbnailUrl: rootVideoThumbnailUrl,
-              altText: "Video de la publicación",
+              altText: tPosts("videoAlt"),
               duration: post.videoData?.duration ?? null,
               playbackUrl: rootVideoPlaybackUrl,
               hlsUrl:
@@ -2227,8 +2228,8 @@ const shouldClampFeedPostText =
   title={formatExactDate(post.createdAt)}
   aria-label={
     showExactPostDate
-      ? "Mostrar fecha relativa de la publicación"
-      : "Mostrar fecha exacta de la publicación"
+      ? tPosts("showRelativeDateLabel")
+      : tPosts("showExactDateLabel")
   }
 style={{
   ...metaStyle,
@@ -2295,7 +2296,7 @@ style={{
                   onClick={() => setMenuOpen((prev) => !prev)}
                   aria-haspopup="menu"
                   aria-expanded={menuOpen}
-                  aria-label="Abrir acciones de la publicación"
+                  aria-label={tPosts("openPostActions")}
                   style={menuButtonStyle}
                   disabled={deleting || moderationBusy || pinBusy}
                 >
@@ -2528,7 +2529,7 @@ style={{
           <circle cx="11" cy="11" r="10" stroke="#fff" strokeWidth="1.4" fill="none" />
           <circle cx="11" cy="11" r="6" fill="#fff" />
         </svg>
-        {isLiveActive ? "En vivo" : activeLiveData?.status === "ended" ? "Finalizado" : "Live Programado"}
+        {isLiveActive ? tGroups("liveLabel") : activeLiveData?.status === "ended" ? tPosts("liveStatusEnded") : tPosts("liveStatusScheduled")}
       </div>
 
       {/* Botón "Abrir panel" — solo para el creador cuando el live ya terminó */}
@@ -3125,7 +3126,7 @@ style={{
 {!shouldLoadFeedVideo && videoThumbnailUrl && (
   <Image
     src={videoThumbnailUrl}
-    alt="Vista previa del video"
+    alt={tPosts("videoPreviewAlt")}
     draggable={false}
     fill
     style={{
@@ -3209,7 +3210,7 @@ cursor: isMobile ? "pointer" : "default",
   <button
     type="button"
     onClick={() => openMediaViewer(videoThumbnailUrl || videoPlaybackUrl)}
-    aria-label="Reproducir video"
+    aria-label={tPosts("playVideo")}
     style={{
       position: "absolute",
       inset: 0,
@@ -3264,7 +3265,7 @@ cursor: isMobile ? "pointer" : "default",
           </div>
 
           <div style={{ fontSize: 14, fontWeight: 800, marginBottom: 6 }}>
-            {isVideoError ? "No se pudo procesar el video" : "Video procesándose"}
+            {isVideoError ? tPosts("videoProcessingError") : tPosts("videoProcessing")}
           </div>
 
           <div
@@ -3625,8 +3626,8 @@ style={{
           onClick={(e) => openMedia(first, e.currentTarget)}
           aria-label={
             first.type === "video"
-              ? "Reproducir video de la publicación"
-              : "Abrir imagen de la publicación"
+              ? tPosts("playPostVideo")
+              : tPosts("openPostImage")
           }
           style={{
             position: "absolute",

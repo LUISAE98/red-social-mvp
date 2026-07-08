@@ -17,10 +17,6 @@ import { useAuth } from "@/app/providers";
 import { useReport } from "@/lib/moderation/useReport";
 import ReportModal from "@/app/components/ReportModal/ReportModal";
 
-const LABELS: Record<StoryType, string> = {
-  saludo: "Saludo",
-  consejo: "Consejo",
-};
 
 const VIBRA_RING = "linear-gradient(135deg, #ec4899 0%, #9333ea 52%, #3b82f6 100%)";
 const VIEW_THRESHOLD_MS = 15_000;
@@ -64,6 +60,7 @@ export default function StoryViewer({
   sourceRect,
 }: Props) {
   const tCommon = useTranslations("common");
+  const tWallet = useTranslations("wallet");
   const [index, setIndex] = useState(initialIndex);
   const [progress, setProgress] = useState(0);
   const [videoReady, setVideoReady] = useState(false);
@@ -226,7 +223,7 @@ export default function StoryViewer({
   }, [story?.greetingCreatorId, story?.creatorId]);
 
   const startSpeechFrom = useCallback((charIndex: number) => {
-    const text = instructions ?? "Sin contexto disponible.";
+    const text = instructions ?? tWallet("noContextAvailable");
     if (ttsAudioRef.current) { ttsAudioRef.current.stop(); ttsAudioRef.current = null; }
     speechOffsetRef.current = charIndex;
     const gen = ++speechGenRef.current;
@@ -541,9 +538,9 @@ export default function StoryViewer({
         groupId: story.source === "group" ? story.groupId : null,
         allowCreatorStory: greetAllowStory,
       });
-      setGreetSuccess("¡Solicitud enviada! El creador la revisará pronto.");
+      setGreetSuccess(tWallet("greetRequestSuccess"));
     } catch (err: unknown) {
-      setGreetError(err instanceof Error ? err.message : "Error al enviar la solicitud.");
+      setGreetError(err instanceof Error ? err.message : tWallet("requestError"));
     } finally {
       setGreetSubmitting(false);
     }
@@ -553,7 +550,7 @@ export default function StoryViewer({
   const videoUrl = resolvedPlaybackId
     ? `https://stream.mux.com/${resolvedPlaybackId}/high.mp4`
     : null;
-  const label = LABELS[effectiveType];
+  const label = effectiveType === "saludo" ? tWallet("typeLabelGreeting") : tWallet("typeLabelAdvice");
   const isLandscape = !!videoAspect && videoAspect.w > videoAspect.h;
   const thumbUrl = resolvedPlaybackId
     ? `https://image.mux.com/${resolvedPlaybackId}/thumbnail.jpg?time=0`
@@ -689,8 +686,8 @@ export default function StoryViewer({
       })()}
 
       {/* Tap zones */}
-      <button type="button" aria-label="Historia anterior" onClick={() => { if (suppressNextClickRef.current) { suppressNextClickRef.current = false; return; } goTo(index - 1); }} style={{ position: "absolute", top: 0, left: 0, width: "35%", height: "100%", background: "none", border: "none", cursor: index > 0 ? "w-resize" : "default", zIndex: 5 }} />
-      <button type="button" aria-label="Historia siguiente" onClick={() => { if (suppressNextClickRef.current) { suppressNextClickRef.current = false; return; } goTo(index + 1); }} style={{ position: "absolute", top: 0, right: 0, width: "65%", height: "100%", background: "none", border: "none", cursor: "e-resize", zIndex: 5 }} />
+      <button type="button" aria-label={tCommon("prevStory")} onClick={() => { if (suppressNextClickRef.current) { suppressNextClickRef.current = false; return; } goTo(index - 1); }} style={{ position: "absolute", top: 0, left: 0, width: "35%", height: "100%", background: "none", border: "none", cursor: index > 0 ? "w-resize" : "default", zIndex: 5 }} />
+      <button type="button" aria-label={tCommon("nextStory")} onClick={() => { if (suppressNextClickRef.current) { suppressNextClickRef.current = false; return; } goTo(index + 1); }} style={{ position: "absolute", top: 0, right: 0, width: "65%", height: "100%", background: "none", border: "none", cursor: "e-resize", zIndex: 5 }} />
 
       {(showClose || onCloseCarousel) && (
         <div
@@ -710,7 +707,7 @@ export default function StoryViewer({
           {/* Mute / unmute */}
           <button
             type="button"
-            aria-label={muted ? "Activar sonido" : "Silenciar"}
+            aria-label={muted ? tCommon("unmute") : tCommon("muteAriaLabel")}
             onClick={(e) => {
               e.stopPropagation();
               setMuted((m) => {
@@ -806,7 +803,7 @@ export default function StoryViewer({
                   {hasSpeechSupport && speechState !== "idle" && (
                     <button
                       type="button"
-                      aria-label="Cambiar velocidad de lectura"
+                      aria-label={tWallet("changeReadingSpeed")}
                       onTouchStart={(e) => e.stopPropagation()}
                       onClick={(e) => { e.stopPropagation(); handleCycleRate(); }}
                       style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.75)", padding: "4px 6px", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginRight: 6, fontSize: 12, fontWeight: 700, letterSpacing: "-0.3px" }}
@@ -818,7 +815,7 @@ export default function StoryViewer({
                   <button
                     type="button"
                     disabled={instructionsLoading || !instructions}
-                    aria-label={speechState === "playing" ? "Pausar lectura" : speechState === "paused" ? "Reanudar lectura" : "Leer contexto"}
+                    aria-label={speechState === "playing" ? tWallet("pauseReading") : speechState === "paused" ? tWallet("resumeReading") : tWallet("readContext")}
                     onTouchStart={(e) => e.stopPropagation()}
                     onClick={(e) => { e.stopPropagation(); handleToggleSpeech(); }}
                     style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.85)", padding: 4, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginRight: 6, transition: "color 0.15s" }}
@@ -866,8 +863,8 @@ export default function StoryViewer({
                   >
                     {(() => {
                       const text = instructionsLoading
-                        ? "Cargando contexto…"
-                        : instructions ?? "Sin contexto disponible.";
+                        ? tWallet("loadingContext")
+                        : instructions ?? tWallet("noContextAvailable");
                       if (speechState === "idle" || !speechHighlight) return text;
                       const { start, length } = speechHighlight;
                       return (
@@ -905,7 +902,7 @@ export default function StoryViewer({
                   WebkitTapHighlightColor: "transparent",
                 }}
               >
-                Contexto
+                {tWallet("contextLabel")}
               </button>
               <button
                 type="button"
@@ -927,7 +924,7 @@ export default function StoryViewer({
                   WebkitTapHighlightColor: "transparent",
                 }}
               >
-                {effectiveType === "saludo" ? "Quiero mi saludo" : "Quiero mi consejo"}
+                {effectiveType === "saludo" ? tWallet("wantGreeting") : tWallet("wantAdvice")}
               </button>
               {user && greetingAuthorUid && user.uid !== greetingAuthorUid && (
                 <button
@@ -956,7 +953,7 @@ export default function StoryViewer({
                     whiteSpace: "nowrap",
                   }}
                 >
-                  Reportar
+                  {tCommon("report")}
                 </button>
               )}
             </div>

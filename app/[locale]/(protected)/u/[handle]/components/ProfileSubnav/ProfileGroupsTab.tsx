@@ -133,6 +133,7 @@ export default function ProfileGroupsTab({
   onGroupsVisibilityChanged,
 }: ProfileGroupsTabProps) {
   const tGroups = useTranslations("groups");
+  const tProfile = useTranslations("profile");
   const cacheKey = `${profileUid}:${isOwner}`;
   const [groups, setGroups] = useState<GroupListItem[]>(() => peekGroups(cacheKey) ?? []);
   const [loading, setLoading] = useState<boolean>(() => !peekGroups(cacheKey));
@@ -165,7 +166,7 @@ export default function ProfileGroupsTab({
     async function run() {
       if (!profileUid) {
         setGroups([]);
-        setMsg("Perfil inválido.");
+        setMsg(tProfile("invalidProfile"));
         setLoading(false);
         return;
       }

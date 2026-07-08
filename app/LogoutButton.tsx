@@ -128,8 +128,8 @@ padding: "8px 14px",
       <button
         onClick={handleLogout}
         disabled={loading}
-        aria-label={loading ? "Cerrando sesión" : "Cerrar sesión"}
-        title={loading ? "Cerrando sesión..." : "Cerrar sesión"}
+        aria-label={loading ? tCommon("loggingOut") : tCommon("logout")}
+        title={loading ? tCommon("loggingOut") : tCommon("logout")}
         style={{
           width: "100%",
           height: 40,

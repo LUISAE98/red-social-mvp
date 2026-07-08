@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import {
   useCallback,
   useEffect,
@@ -130,6 +131,8 @@ export default function PostImageViewer({
   onVideoClose,
   externalVideoElement = null,
 }: PostImageViewerProps) {
+  const tPosts = useTranslations("posts");
+  const tCommon = useTranslations("common");
   const [mounted, setMounted] = useState(false);
   const [showExactDate, setShowExactDate] = useState(false);
   const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
@@ -1165,7 +1168,7 @@ const previewUrl = media.url;
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={currentVideoPoster}
-                  alt={currentMedia.altText || "Portada del video"}
+                  alt={currentMedia.altText || tPosts("videoCoverAlt")}
                   draggable={false}
                   style={{
                     position: "absolute",
@@ -1279,7 +1282,7 @@ const previewUrl = media.url;
           <PostPinchZoomImage
             key={currentMediaKey}
             src={currentMedia.url}
-            alt={currentMedia.altText || "Imagen de la publicación"}
+            alt={currentMedia.altText || tPosts("imageAlt")}
             onClose={onClose}
             onZoomStateChange={setIsCurrentImageZoomed}
             onPinchStateChange={setIsCurrentImagePinching}
@@ -1290,7 +1293,7 @@ const previewUrl = media.url;
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={currentMedia.url}
-            alt={currentMedia.altText || "Imagen de la publicación"}
+            alt={currentMedia.altText || tPosts("imageAlt")}
             style={{
               display: "block",
               width: "100%",
@@ -1606,7 +1609,7 @@ const previewUrl = media.url;
                   type="button"
                   onTouchEnd={(e) => { e.preventDefault(); setVideoMuted((m) => !m); }}
                   onClick={() => setVideoMuted((m) => !m)}
-                  aria-label={videoMuted ? "Activar sonido" : "Silenciar"}
+                  aria-label={videoMuted ? tCommon("unmute") : tCommon("muteAriaLabel")}
                   style={liveBtnStyle}
                 >
                   {videoMuted ? (
@@ -1634,7 +1637,7 @@ const previewUrl = media.url;
                         (vid as HTMLVideoElement & { webkitEnterFullscreen: () => void }).webkitEnterFullscreen();
                     } catch { /* ignored */ }
                   }}
-                  aria-label="Pantalla completa"
+                  aria-label={tCommon("fullscreen")}
                   style={liveBtnStyle}
                 >
                   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -1651,7 +1654,7 @@ const previewUrl = media.url;
               type="button"
               onTouchEnd={(e) => { e.preventDefault(); handleMobileClose(); }}
               onClick={handleMobileClose}
-              aria-label="Cerrar visor"
+              aria-label={tPosts("closeViewer")}
               style={liveBtnStyle}
             >
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true">
@@ -1662,9 +1665,9 @@ const previewUrl = media.url;
           </div>
         </div>
 
-        {renderMediaPreview(previousMedia, "Anterior")}
+        {renderMediaPreview(previousMedia, tPosts("previousMedia"))}
         {renderCurrentMedia()}
-        {renderMediaPreview(nextMedia, "Siguiente")}
+        {renderMediaPreview(nextMedia, tPosts("nextMedia"))}
 
 
         {/* ── Center: Skip-10 · Play/Pause · Skip+10 ── */}
@@ -1692,7 +1695,7 @@ const previewUrl = media.url;
               type="button"
               onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); handleVideoPlayPause(); }}
               onClick={(e) => { e.stopPropagation(); handleVideoPlayPause(); }}
-              aria-label={videoPlaying ? "Pausar video" : "Reproducir video"}
+              aria-label={videoPlaying ? tPosts("pauseVideo") : tPosts("playVideo")}
               style={{ background: "none", border: "none", color: "#fff", cursor: "pointer", padding: 0, display: "flex", alignItems: "center", pointerEvents: "auto", WebkitTapHighlightColor: "transparent", outline: "none", boxShadow: "none" }}
             >
               {videoPlaying ? <VideoPauseIcon size={44} /> : <VideoPlayIcon size={44} />}
@@ -1758,7 +1761,7 @@ const previewUrl = media.url;
                 type="button"
                 onClick={() => setShowExactDate((prev) => !prev)}
                 title={exactDate}
-                aria-label={showExactDate ? "Mostrar fecha relativa" : "Mostrar fecha exacta"}
+                aria-label={showExactDate ? tPosts("showRelativeDateLabel") : tPosts("showExactDateLabel")}
                 style={{
                   display: "block",
                   color: "rgba(255,255,255,0.54)",
@@ -1826,7 +1829,7 @@ const previewUrl = media.url;
                       max={videoDuration > 0 ? videoDuration : 0}
                       step={0.1}
                       value={Math.min(videoCurrentTime, videoDuration > 0 ? videoDuration : videoCurrentTime)}
-                      aria-label="Progreso del video"
+                      aria-label={tCommon("videoProgress")}
                       onChange={(e) => handleVideoSeek(Number(e.currentTarget.value))}
                       onTouchStart={(e) => e.stopPropagation()}
                       onTouchMove={(e) => e.stopPropagation()}
@@ -1852,7 +1855,7 @@ const previewUrl = media.url;
                 type="button"
                 onClick={onToggleFlame}
                 aria-pressed={viewerHasFlamed}
-                aria-label={viewerHasFlamed ? "Quitar flamita de la publicación" : "Dar flamita a la publicación"}
+                aria-label={viewerHasFlamed ? tPosts("removeFlameFromPost") : tPosts("addFlameToPost")}
                 style={flameButtonStyle}
               >
                 <span aria-hidden="true" style={{ display: "inline-grid", placeItems: "center", lineHeight: 1 }}>
@@ -1863,7 +1866,7 @@ const previewUrl = media.url;
                 type="button"
                 onClick={onOpenFlames}
                 disabled={!onOpenFlames || likesCount === 0}
-                aria-label="Ver usuarios que dieron flamita"
+                aria-label={tPosts("viewFlameUsers")}
                 style={{
                   ...actionButtonStyle,
                   opacity: !onOpenFlames || likesCount === 0 ? 0.55 : 1,
@@ -1877,7 +1880,7 @@ const previewUrl = media.url;
             <button
               type="button"
               onClick={onOpenComments}
-              aria-label="Ver comentarios"
+              aria-label={tPosts("viewComments")}
               style={actionButtonStyle}
             >
               <span aria-hidden="true">
@@ -1897,8 +1900,8 @@ const previewUrl = media.url;
               {post.isShareable === true && (
                 <PostShareButton
                   postId={post.id}
-                  title={post.shareTitle || "Publicación"}
-                  text={post.shareDescription || post.text || "Mira esta publicación."}
+                  title={post.shareTitle || tPosts("shareDefaultTitle")}
+                  text={post.shareDescription || post.text || tPosts("shareDefaultText")}
                 />
               )}
             </div>
@@ -2051,7 +2054,7 @@ const previewUrl = media.url;
           <button
               type="button"
               onClick={onClose}
-              aria-label="Cerrar visor"
+              aria-label={tPosts("closeViewer")}
               style={{
                 position: "absolute",
                 top: 14,
@@ -2126,7 +2129,7 @@ const previewUrl = media.url;
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={currentMedia.url}
-              alt={currentMedia.altText || "Imagen de la publicación"}
+              alt={currentMedia.altText || tPosts("imageAlt")}
               style={{
                 display: "block",
                 maxWidth: "100%",
@@ -2228,7 +2231,7 @@ const previewUrl = media.url;
                   <button
                     type="button"
                     onClick={(e) => { e.stopPropagation(); handleVideoPlayPause(); }}
-                    aria-label={videoPlaying ? "Pausar" : "Reproducir"}
+                    aria-label={videoPlaying ? tCommon("pause") : tCommon("play")}
                     style={{ background: "none", border: "none", color: "#fff", cursor: "pointer", padding: 0, display: "flex", alignItems: "center", pointerEvents: "auto" }}
                   >
                     {videoPlaying ? <VideoPauseIcon size={36} /> : <VideoPlayIcon size={36} />}
@@ -2291,7 +2294,7 @@ const previewUrl = media.url;
               <button
                 type="button"
                 onClick={goToPreviousMedia}
-                aria-label="Ver media anterior"
+                aria-label={tPosts("viewPrevMedia")}
                 style={{
                   position: "absolute",
                   left: 14,
@@ -2314,7 +2317,7 @@ const previewUrl = media.url;
               <button
                 type="button"
                 onClick={goToNextMedia}
-                aria-label="Ver media siguiente"
+                aria-label={tPosts("viewNextMedia")}
                 style={{
                   position: "absolute",
                   right: 14,
@@ -2478,8 +2481,8 @@ const previewUrl = media.url;
                 title={exactDate}
                 aria-label={
                   showExactDate
-                    ? "Mostrar fecha relativa de la publicación"
-                    : "Mostrar fecha exacta de la publicación"
+                    ? tPosts("showRelativeDateLabel")
+                    : tPosts("showExactDateLabel")
                 }
                 style={{
                   display: "block",
@@ -2596,8 +2599,8 @@ const previewUrl = media.url;
   aria-pressed={viewerHasFlamed}
   aria-label={
     viewerHasFlamed
-      ? "Quitar flamita de la publicación"
-      : "Dar flamita a la publicación"
+      ? tPosts("removeFlameFromPost")
+      : tPosts("addFlameToPost")
   }
   style={flameButtonStyle}
 >
@@ -2617,7 +2620,7 @@ const previewUrl = media.url;
                   type="button"
                   onClick={onOpenFlames}
                   disabled={!onOpenFlames || likesCount === 0}
-                  aria-label="Ver usuarios que dieron flamita"
+                  aria-label={tPosts("viewFlameUsers")}
                   style={{
                     ...actionButtonStyle,
                     opacity: !onOpenFlames || likesCount === 0 ? 0.55 : 1,
@@ -2655,8 +2658,8 @@ const previewUrl = media.url;
                 {post.isShareable === true && (
                   <PostShareButton
                     postId={post.id}
-                    title={post.shareTitle || "Publicación"}
-                    text={post.shareDescription || post.text || "Mira esta publicación."}
+                    title={post.shareTitle || tPosts("shareDefaultTitle")}
+                    text={post.shareDescription || post.text || tPosts("shareDefaultText")}
                   />
                 )}
               </div>

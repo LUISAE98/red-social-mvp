@@ -37,6 +37,8 @@ import GroupPostsFeed from "./components/posts/GroupPostsFeed";
 import GroupRecommendationsRail from "@/app/components/GroupRecommendations/GroupRecommendationsRail";
 import CreatorExperiencesSection from "@/components/services/CreatorExperiencesSection";
 import DonationFeedBanner from "@/app/components/DonationFeedBanner/DonationFeedBanner";
+import SessionCountdownBanner from "@/app/components/SessionCountdownBanner/SessionCountdownBanner";
+import CreatorSessionCountdownBanner from "@/app/components/SessionCountdownBanner/CreatorSessionCountdownBanner";
 import CopyLinkButton from "@/components/ui/CopyLinkButton";
 import {
   createGreetingRequest,
@@ -119,6 +121,7 @@ export default function GroupPage() {
   const tCommon = useTranslations("common");
   const tGroups = useTranslations("groups");
   const tFeed = useTranslations("feed");
+  const tServices = useTranslations("services");
 
   const { user } = useAuth();
   const router = useRouter();
@@ -572,14 +575,12 @@ function redirectToLogin() {
     if (!group) return;
 
     if (group.visibility !== "private" && group.visibility !== "hidden") {
-      setSubscriptionError(
-        "La suscripción mensual solo puede usarse en comunidades privadas u ocultas."
-      );
+      setSubscriptionError(tGroups("subscriptionOnlyPrivate"));
       return;
     }
 
     if (!subscriptionEnabled) {
-      setSubscriptionError("Esta comunidad no tiene suscripción activa.");
+      setSubscriptionError(tGroups("subscriptionNotActive"));
       return;
     }
 
@@ -593,8 +594,7 @@ function redirectToLogin() {
         currency: subscriptionCurrency,
       });
 
-      const successMessage =
-        "✅ Suscripción procesada. Ya formas parte de la comunidad.";
+      const successMessage = tGroups("subscriptionProcessed");
       setSubscriptionOpen(false);
       setServiceToast(successMessage);
       clearServiceQuery();
@@ -606,8 +606,7 @@ function redirectToLogin() {
       }, 4000);
     } catch (e: unknown) {
       setSubscriptionError(
-        (e instanceof Error ? e.message : null) ??
-          "No se pudo completar la suscripción. El flujo backend se conecta en el siguiente bloque."
+        (e instanceof Error ? e.message : null) ?? tGroups("subscriptionSubmitError")
       );
     } finally {
       setSubscriptionSubmitting(false);
@@ -621,7 +620,7 @@ function redirectToLogin() {
     }
 
     if (groupIsPausedForAccess) {
-      setActionError("La comunidad está pausada. No puedes unirte por ahora.");
+      setActionError(tGroups("communityPaused"));
       return;
     }
 
@@ -631,7 +630,7 @@ function redirectToLogin() {
     try {
       await joinGroup(groupId, user.uid);
     } catch (e: unknown) {
-      setActionError((e instanceof Error ? e.message : null) ?? "No se pudo unir");
+      setActionError((e instanceof Error ? e.message : null) ?? tGroups("joinError"));
     } finally {
       setJoining(false);
     }
@@ -645,7 +644,7 @@ function redirectToLogin() {
       await leaveGroup(groupId, user.uid);
       setLeaveOverlayOpen(false);
     } catch (e: unknown) {
-      setLeaveError((e instanceof Error ? e.message : null) ?? "No se pudo salir de la comunidad.");
+      setLeaveError((e instanceof Error ? e.message : null) ?? tGroups("leaveError"));
     } finally {
       setLeaving(false);
     }
@@ -658,9 +657,7 @@ function redirectToLogin() {
     }
 
         if (groupIsPausedForAccess) {
-      setActionError(
-        "La comunidad está pausada. No puedes solicitar acceso por ahora."
-      );
+      setActionError(tGroups("communityPausedAccess"));
       return;
     }
 
@@ -676,7 +673,7 @@ function redirectToLogin() {
         return;
       }
 
-      setActionError(errMsg ?? "No se pudo enviar la solicitud");
+      setActionError(errMsg ?? tGroups("requestError"));
     } finally {
       setJoining(false);
     }
@@ -694,7 +691,7 @@ function redirectToLogin() {
     try {
       await cancelJoinRequest(groupId, user.uid);
     } catch (e: unknown) {
-      setActionError((e instanceof Error ? e.message : null) ?? "No se pudo cancelar la solicitud");
+      setActionError((e instanceof Error ? e.message : null) ?? tGroups("cancelRequestError"));
     } finally {
       setJoining(false);
     }
@@ -726,26 +723,22 @@ function redirectToLogin() {
     if (!user) return;
 
     if (isOwner) {
-      setGreetError("No puedes solicitar/comprar saludos en tu propia comunidad.");
+      setGreetError(tGroups("ownCommunityGreeting"));
       return;
     }
 
     if (!canRequestCreatorServices) {
-  setGreetError(
-    "No tienes una membresía válida para solicitar este servicio."
-  );
-  return;
-}
+      setGreetError(tGroups("noValidMembership"));
+      return;
+    }
 
     if (!toName.trim()) {
-      setGreetError(
-        "Escribe el nombre de la persona a quien va dirigido el saludo."
-      );
+      setGreetError(tGroups("greetingToHint"));
       return;
     }
 
     if (!instructions.trim()) {
-      setGreetError("Escribe el contexto / instrucciones del saludo.");
+      setGreetError(tGroups("greetingContextHint"));
       return;
     }
 
@@ -754,7 +747,7 @@ function redirectToLogin() {
     setGreetSuccess(null);
 
     try {
-      const res = await createGreetingRequest({
+      await createGreetingRequest({
         groupId,
         type: greetType,
         toName: toName.trim(),
@@ -763,7 +756,7 @@ function redirectToLogin() {
         allowCreatorStory,
       });
 
-      const successMessage = "Solicitud de saludo enviada correctamente.";
+      const successMessage = tGroups("greetSent");
 
       setServiceToast(successMessage);
       setGreetOpen(false);
@@ -778,7 +771,7 @@ function redirectToLogin() {
         );
       }, 4000);
     } catch (e: unknown) {
-      setGreetError((e instanceof Error ? e.message : null) ?? "No se pudo enviar la solicitud.");
+      setGreetError((e instanceof Error ? e.message : null) ?? tGroups("greetRequestError"));
     } finally {
       setGreetSubmitting(false);
     }
@@ -808,31 +801,27 @@ function redirectToLogin() {
     }
 
     if (isOwner) {
-      setMeetGreetError(
-        "No puedes solicitar/comprar un meet & greet en tu propia comunidad."
-      );
+      setMeetGreetError(tGroups("ownCommunityMeetGreet"));
       return;
     }
 
     if (!canRequestMeetGreet) {
-  setMeetGreetError(
-    "No tienes una membresía válida para solicitar este meet & greet."
-  );
-  return;
-}
+      setMeetGreetError(tGroups("noValidMembershipMeetGreet"));
+      return;
+    }
 
     setMeetGreetSubmitting(true);
     setMeetGreetError(null);
 
     try {
-      const result = await createMeetGreetRequest({
+      await createMeetGreetRequest({
         groupId,
         buyerMessage: meetGreetMessage.trim() || null,
         priceSnapshot: meetGreetPrice,
         durationMinutes: meetGreetDurationMinutes,
       });
 
-      const successMessage = "Meet & Greet solicitado correctamente.";
+      const successMessage = tGroups("meetGreetSent");
 
       setMeetGreetOpen(false);
       setMeetGreetMessage("");
@@ -846,7 +835,7 @@ function redirectToLogin() {
       }, 4000);
     } catch (e: unknown) {
       setMeetGreetError(
-        (e instanceof Error ? e.message : null) ?? "No se pudo crear la solicitud de meet & greet."
+        (e instanceof Error ? e.message : null) ?? tGroups("meetGreetError")
       );
     } finally {
       setMeetGreetSubmitting(false);
@@ -878,30 +867,26 @@ function redirectToLogin() {
     }
 
     if (isOwner) {
-      setExclusiveSessionError(
-        "No puedes solicitar/comprar una sesión exclusiva en tu propia comunidad."
-      );
+      setExclusiveSessionError(tGroups("ownCommunitySession"));
       return;
     }
 
-        if (!canRequestExclusiveSession) {
-      setExclusiveSessionError(
-        "No tienes una membresía válida para solicitar esta sesión exclusiva."
-      );
+    if (!canRequestExclusiveSession) {
+      setExclusiveSessionError(tGroups("noValidMembershipSession"));
       return;
     }
     setExclusiveSessionSubmitting(true);
     setExclusiveSessionError(null);
 
     try {
-      const result = await createExclusiveSessionRequest({
+      await createExclusiveSessionRequest({
         groupId,
         buyerMessage: exclusiveSessionMessage.trim() || null,
         priceSnapshot: exclusiveSessionPrice,
         durationMinutes: exclusiveSessionDurationMinutes,
       });
 
-      const successMessage = "Sesión exclusiva solicitada correctamente.";
+      const successMessage = tGroups("sessionExclusiveSent");
 
       setExclusiveSessionOpen(false);
       setExclusiveSessionMessage("");
@@ -915,7 +900,7 @@ function redirectToLogin() {
       }, 4000);
     } catch (e: unknown) {
       setExclusiveSessionError(
-        (e instanceof Error ? e.message : null) ?? "No se pudo crear la solicitud de sesión exclusiva."
+        (e instanceof Error ? e.message : null) ?? tGroups("sessionCreateError")
       );
     } finally {
       setExclusiveSessionSubmitting(false);
@@ -947,20 +932,16 @@ function redirectToLogin() {
       }
 
       if (isOwner) {
-        setServiceToast(
-          "No puedes solicitar este servicio dentro de tu propia comunidad."
-        );
+        setServiceToast(tGroups("ownCommunityService"));
         clearServiceQuery();
         return;
       }
 
       if (!canRequestCreatorServices) {
-  setServiceToast(
-    "No tienes una membresía válida para solicitar este servicio."
-  );
-  clearServiceQuery();
-  return;
-}
+        setServiceToast(tGroups("noValidMembership"));
+        clearServiceQuery();
+        return;
+      }
 
       const retry = searchParams.get("retry") === "true";
       const prefillToName = searchParams.get("toName") ?? "";
@@ -981,20 +962,16 @@ function redirectToLogin() {
       }
 
       if (isOwner) {
-        setServiceToast(
-          "No puedes solicitar/comprar un meet & greet en tu propia comunidad."
-        );
+        setServiceToast(tGroups("ownCommunityMeetGreet"));
         clearServiceQuery();
         return;
       }
 
       if (!canRequestCreatorServices) {
-  setServiceToast(
-    "No tienes una membresía válida para solicitar este servicio."
-  );
-  clearServiceQuery();
-  return;
-}
+        setServiceToast(tGroups("noValidMembership"));
+        clearServiceQuery();
+        return;
+      }
       const retryMG = searchParams.get("retry") === "true";
       const prefillMsgMG = searchParams.get("message") ?? "";
       openMeetGreetForm();
@@ -1012,17 +989,13 @@ function redirectToLogin() {
       }
 
       if (isOwner) {
-        setServiceToast(
-          "No puedes solicitar/comprar una sesión exclusiva en tu propia comunidad."
-        );
+        setServiceToast(tGroups("ownCommunitySession"));
         clearServiceQuery();
         return;
       }
 
       if (!canRequestCreatorServices) {
-        setServiceToast(
-          "No tienes una membresía válida para solicitar este servicio."
-        );
+        setServiceToast(tGroups("noValidMembership"));
         clearServiceQuery();
         return;
       }
@@ -1078,10 +1051,10 @@ const openCropWithFile = useCallback(
       setCroppedAreaPixels(null);
       setCropOpen(true);
     } catch (e: unknown) {
-      setActionError((e instanceof Error ? e.message : null) ?? "❌ No se pudo leer la imagen.");
+      setActionError((e instanceof Error ? e.message : null) ?? `❌ ${tGroups("groupImageReadError")}`);
     }
   },
-  [isOwner]
+  [isOwner, tGroups]
 );
 
   function handlePickAvatar() {
@@ -1105,7 +1078,7 @@ const openCropWithFile = useCallback(
     if (!group) return;
     if (!isOwner) return;
     if (!cropImageSrc || !croppedAreaPixels) {
-      setActionError("❌ No se pudo recortar la imagen.");
+      setActionError(`❌ ${tGroups("groupCropError")}`);
       return;
     }
 
@@ -1146,8 +1119,8 @@ const openCropWithFile = useCallback(
       const err = e as { code?: string; message?: string } | null;
       setActionError(
         err?.code === "permission-denied"
-          ? "❌ Permiso denegado. Revisa reglas de Storage/Firestore."
-          : `❌ No se pudo subir la imagen: ${err?.message ?? "error"}`
+          ? `❌ ${tGroups("groupStoragePermissionError")}`
+          : `❌ ${tGroups("groupImageUploadError")}: ${err?.message ?? "error"}`
       );
     } finally {
       setUploading(false);
@@ -1184,7 +1157,7 @@ const openCropWithFile = useCallback(
       >
         <div className="vibraPullRefreshSpinner refreshing" style={{ width: 32, height: 32 }} />
         <span style={{ fontSize: 13, color: "rgba(255,255,255,0.32)", letterSpacing: "0.01em" }}>
-          Cargando comunidad...
+          {tGroups("loadingCommunity")}
         </span>
       </main>
     );
@@ -1219,11 +1192,11 @@ const openCropWithFile = useCallback(
           <div style={{ ...cardStyle, padding: 18 }}>
             <div style={{ display: "grid", gap: 10 }}>
               <h1 style={{ ...titleStyle, margin: 0 }}>
-                Comunidad no disponible
+                {tGroups("communityNotAvailable")}
               </h1>
 
               <p style={{ ...textStyle, margin: 0 }}>
-                Esta comunidad fue eliminada o desactivada por su owner.
+                {tGroups("communityDeletedDesc")}
               </p>
 
               <button
@@ -1270,7 +1243,7 @@ const openCropWithFile = useCallback(
       </svg>
       <div>
         <div style={{ fontSize: 12, fontWeight: 700, color: "#f87171" }}>
-          Comunidad eliminada
+          {tGroups("communityDeletedBanner")}
         </div>
         <div style={{ fontSize: 11, color: "#ef4444", marginTop: 2 }}>
           {formatDeletedAt(groupDeletionState.deletedAt)}
@@ -1278,7 +1251,7 @@ const openCropWithFile = useCallback(
             ? ` · ${groupDeletionState.deletionReason}`
             : ""}
           {groupDeletionState.deletedBy
-            ? ` · por ${groupDeletionState.deletedBy}`
+            ? tGroups("deletedByPrefix") + groupDeletionState.deletedBy
             : ""}
         </div>
       </div>
@@ -1440,8 +1413,8 @@ const avatarNode = (
           pointerEvents: isOwner ? "auto" : "none",
           position: "relative",
         }}
-        aria-label="Avatar de la comunidad"
-        title={isOwner ? "Cambiar avatar de la comunidad" : undefined}
+        aria-label={tGroups("communityAvatarLabel")}
+        title={isOwner ? tGroups("changeAvatarLabel") : undefined}
       >
         {group.avatarUrl ? (
           <Image
@@ -1488,8 +1461,8 @@ const avatarNode = (
             fontFamily: groupPageFontStack,
             lineHeight: 1,
           }}
-          title="Cambiar avatar de la comunidad"
-          aria-label="Cambiar avatar de la comunidad"
+          title={tGroups("changeAvatarLabel")}
+          aria-label={tGroups("changeAvatarLabel")}
         >
           {uploading && cropMode === "avatar" ? "..." : "✎"}
         </button>
@@ -1651,8 +1624,8 @@ const avatarNode = (
                 {canShareGroup && (
   <CopyLinkButton
     href={groupShareHref}
-    copiedLabel="Link del grupo copiado correctamente"
-    title="Copiar link del grupo"
+    copiedLabel={tCommon("groupLinkCopied")}
+    title={tCommon("copyGroupLink")}
     style={{
       ...groupRoundIconButtonStyle,
       position: "absolute",
@@ -1723,44 +1696,33 @@ const avatarNode = (
                         textAlign: "center",
                       }}
                     >
-                      {isBanned &&
-                        "🚫 Estás baneado de esta comunidad. No puedes ingresar."}
+                      {isBanned && tGroups("communityBanned")}
 
-                      {!isBanned &&
-                        hasLegacyAccess &&
-                        "✅ Conservas acceso legado en esta comunidad. Recarga la vista si tu estado cambió hace un momento."}
+                      {!isBanned && hasLegacyAccess && tGroups("communityLegacyAccess")}
 
-                      {!isBanned &&
-                        approved &&
-                        "✅ Aprobado. Entrando…"}
+                      {!isBanned && approved && tGroups("approvedAccess")}
 
                       {!isBanned &&
                         shouldShowSubscriptionRecovery &&
-                        `Esta comunidad ahora requiere suscripción para recuperar o conservar acceso. ${
-                          subscriptionPrice != null
-                            ? `Costo mensual: ${formatMoney(
-                                subscriptionPrice,
-                                subscriptionCurrency
-                              )}.`
-                            : "Costo mensual disponible dentro del panel de suscripción."
-                        }`}
+                        tGroups("subscriptionRequiredRecovery", {
+                          priceText: subscriptionPrice != null
+                            ? tGroups("subscriptionMonthlyCost", { price: `${formatMoney(subscriptionPrice, subscriptionCurrency)}` })
+                            : tGroups("subscriptionMonthlyCostAvailable"),
+                        })}
 
                       {!isBanned &&
                         !shouldShowSubscriptionRecovery &&
                         isSubscriptionGroup &&
-                        `Esta comunidad requiere suscripción para entrar. ${
-                          subscriptionPrice != null
-                            ? `Costo mensual: ${formatMoney(
-                                subscriptionPrice,
-                                subscriptionCurrency
-                              )}.`
-                            : "Costo mensual disponible dentro del panel de suscripción."
-                        }`}
+                        tGroups("subscriptionRequired", {
+                          priceText: subscriptionPrice != null
+                            ? tGroups("subscriptionMonthlyCost", { price: `${formatMoney(subscriptionPrice, subscriptionCurrency)}` })
+                            : tGroups("subscriptionMonthlyCostAvailable"),
+                        })}
 
                       {!isBanned &&
                         removedBySubscriptionTransition &&
                         !subscriptionEnabled &&
-                        "Tu acceso anterior fue retirado durante un cambio de modelo de acceso. En este momento ya no perteneces a la comunidad."}
+                        tGroups("accessRevoked")}
 
                       {!isBanned &&
                         !shouldShowSubscriptionRecovery &&
@@ -1768,7 +1730,7 @@ const avatarNode = (
                         !isSubscriptionGroup &&
                         isPrivate &&
                         pending &&
-                        "✅ Solicitud enviada. Está pendiente de revisión."}
+                        tGroups("pendingRequest")}
 
                       {!isBanned &&
                         !shouldShowSubscriptionRecovery &&
@@ -1778,7 +1740,7 @@ const avatarNode = (
                         !pending &&
                         !approved &&
                         !rejected &&
-                        "Esta comunidad es privada. Puedes verla, pero necesitas aprobación para entrar."}
+                        tGroups("communityPrivateRequiresApproval")}
 
                       {!isBanned &&
                         !shouldShowSubscriptionRecovery &&
@@ -1786,14 +1748,14 @@ const avatarNode = (
                         !isSubscriptionGroup &&
                         isPrivate &&
                         rejected &&
-                        "❌ Tu solicitud fue rechazada."}
+                        tGroups("communityAccessRejected")}
 
                       {!isBanned &&
                         !shouldShowSubscriptionRecovery &&
                         !removedBySubscriptionTransition &&
                         !isSubscriptionGroup &&
                         isHidden &&
-                        "Esta comunidad es oculta. No tienes acceso en este momento."}
+                        tGroups("communityHiddenNoAccess")}
                     </div>
 
                     {!isBanned &&
@@ -1814,9 +1776,9 @@ const avatarNode = (
                           >
                             {user
                               ? subscriptionPrice != null
-                                ? `Suscribirme por $${subscriptionPrice} ${subscriptionCurrency}`
-                                : "Suscribirme"
-                              : "Iniciar sesión para suscribirme"}
+                                ? tGroups("subscribeForPrice", { price: `${formatMoney(subscriptionPrice, subscriptionCurrency)} ${subscriptionCurrency}` })
+                                : tGroups("subscribeCta")
+                              : tGroups("loginToSubscribe")}
                           </button>
                         </div>
                       )}
@@ -1844,7 +1806,7 @@ const avatarNode = (
                                 ? tCommon("sending")
                                 : user
                                 ? tGroups("requestAccess")
-                                : "Iniciar sesión para solicitar acceso"}
+                                : tGroups("loginToRequestAccess")}
                             </button>
                           ) : (
                             <button
@@ -1901,7 +1863,7 @@ const avatarNode = (
                 onClick={(e) => e.stopPropagation()}
               >
                 <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
-                  <div id="group-subscription-modal-title" style={subtitleStyle}>Suscripción mensual</div>
+                  <div id="group-subscription-modal-title" style={subtitleStyle}>{tServices("subscriptionModalTitle")}</div>
                   <button
                     type="button"
                     onClick={closeSubscriptionModal}
@@ -1912,13 +1874,13 @@ const avatarNode = (
                   </button>
                 </div>
                 <div style={{ marginTop: 10, display: "grid", gap: 12 }}>
-                  <div style={textStyle}>Esta comunidad requiere suscripción para unirte.</div>
+                  <div style={textStyle}>{tServices("subscriptionModalRequired")}</div>
                   <div style={panelStyle}>
-                    <div style={labelStyle}>Costo mensual</div>
+                    <div style={labelStyle}>{tServices("monthlyCost")}</div>
                     <div style={{ marginTop: 6, fontSize: 24, fontWeight: 800, color: "#fff" }}>
                       {subscriptionPrice != null
                         ? formatMoney(subscriptionPrice, subscriptionCurrency)
-                        : `Precio no disponible (${subscriptionCurrency})`}
+                        : tServices("priceNotAvailable", { currency: subscriptionCurrency })}
                     </div>
                   </div>
                   {subscriptionError && (
@@ -1933,7 +1895,7 @@ const avatarNode = (
                       disabled={subscriptionSubmitting}
                       style={{ ...primaryButton, opacity: subscriptionSubmitting ? 0.75 : 1, cursor: subscriptionSubmitting ? "not-allowed" : "pointer" }}
                     >
-                      {subscriptionSubmitting ? tFeed("processing") : "Pagar y unirme"}
+                      {subscriptionSubmitting ? tFeed("processing") : tServices("payAndJoin")}
                     </button>
                     <button
                       type="button"
@@ -2214,8 +2176,8 @@ const avatarNode = (
               {canShareGroup && (
   <CopyLinkButton
     href={groupShareHref}
-    copiedLabel="Link del grupo copiado correctamente"
-    title="Copiar link del grupo"
+    copiedLabel={tCommon("groupLinkCopied")}
+    title={tCommon("copyGroupLink")}
     style={{
       ...groupRoundIconButtonStyle,
       position: "absolute",
@@ -2241,8 +2203,8 @@ const avatarNode = (
                     cursor: uploading ? "not-allowed" : "pointer",
                     zIndex: 40,
                   }}
-                  title="Elegir portada"
-                  aria-label="Elegir portada"
+                  title={tGroups("chooseCover")}
+                  aria-label={tGroups("chooseCover")}
                 >
                   <span
                     aria-hidden="true"
@@ -2325,7 +2287,7 @@ const avatarNode = (
                           onClick={() => setLeaveOverlayOpen(true)}
                           style={{ ...primaryButton }}
                         >
-                          {membershipRequiresSubscription ? "Ya estás suscrito" : "Ya eres miembro"}
+                          {membershipRequiresSubscription ? tGroups("subscribedLabel") : tGroups("alreadyMemberLabel")}
                         </button>
                       ) : (
                         group.visibility === "public" && memberStatus !== "banned" ? (
@@ -2339,7 +2301,7 @@ const avatarNode = (
                               cursor: joining ? "not-allowed" : "pointer",
                             }}
                           >
-                            {joining ? tFeed("processing") : user ? tGroups("join") : "Iniciar sesión para unirme"}
+                            {joining ? tFeed("processing") : user ? tGroups("join") : tGroups("loginToJoin")}
                           </button>
                         ) : null
                       )
@@ -2372,7 +2334,7 @@ const avatarNode = (
                       fontWeight: 500,
                     }}
                   >
-                    🚫 Estás baneado de esta comunidad
+                    {tGroups("communityBannedMessage")}
                   </div>
                 )}
 
@@ -2397,7 +2359,7 @@ const avatarNode = (
                   fontWeight: 600,
                 }}
               >
-                Comunidad pausada. No podrás publicar ni comentar mientras esté pausada.
+                {tGroups("communityPausedDetail")}
               </div>
             </div>
           )}
@@ -2430,6 +2392,18 @@ const avatarNode = (
                       creatorName={group.name ?? null}
                       profilePhoto={group.avatarUrl ?? null}
                     />
+                  </div>
+                )}
+
+                {user?.uid && isOwner && (
+                  <div className="group-feed-item" style={{ marginBottom: 12 }}>
+                    <CreatorSessionCountdownBanner uid={user.uid} />
+                  </div>
+                )}
+
+                {user?.uid && (
+                  <div className="group-feed-item" style={{ marginBottom: 12 }}>
+                    <SessionCountdownBanner uid={user.uid} />
                   </div>
                 )}
 
@@ -2556,12 +2530,12 @@ const avatarNode = (
         meetGreetPriceLabel={
           meetGreetPrice != null
             ? formatMoney(meetGreetPrice, meetGreetCurrency)
-            : "Por definir"
+            : tCommon("toBeConfirmed")
         }
         meetGreetDurationLabel={
           meetGreetDurationMinutes != null
-            ? `${meetGreetDurationMinutes} minutos`
-            : "Por definir"
+            ? `${meetGreetDurationMinutes} ${tCommon("minutes")}`
+            : tCommon("toBeConfirmed")
         }
         onCloseMeetGreet={closeMeetGreetForm}
         onSubmitMeetGreet={submitMeetGreetRequest}
@@ -2573,12 +2547,12 @@ const avatarNode = (
         exclusiveSessionPriceLabel={
           exclusiveSessionPrice != null
             ? formatMoney(exclusiveSessionPrice, exclusiveSessionCurrency)
-            : "Por definir"
+            : tCommon("toBeConfirmed")
         }
         exclusiveSessionDurationLabel={
           exclusiveSessionDurationMinutes != null
-            ? `${exclusiveSessionDurationMinutes} minutos`
-            : "Por definir"
+            ? `${exclusiveSessionDurationMinutes} ${tCommon("minutes")}`
+            : tCommon("toBeConfirmed")
         }
         onCloseExclusiveSession={closeExclusiveSessionForm}
         onSubmitExclusiveSession={submitExclusiveSessionRequest}
@@ -2601,7 +2575,7 @@ const avatarNode = (
               onClick={(e) => e.stopPropagation()}
             >
               <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
-                <div id="group-subscription-modal-title" style={subtitleStyle}>Suscripción mensual</div>
+                <div id="group-subscription-modal-title" style={subtitleStyle}>{tServices("subscriptionModalTitle")}</div>
                 <button
                   type="button"
                   onClick={closeSubscriptionModal}
@@ -2612,13 +2586,13 @@ const avatarNode = (
                 </button>
               </div>
               <div style={{ marginTop: 10, display: "grid", gap: 12 }}>
-                <div style={textStyle}>Esta comunidad requiere suscripción para unirte.</div>
+                <div style={textStyle}>{tServices("subscriptionModalRequired")}</div>
                 <div style={panelStyle}>
-                  <div style={labelStyle}>Costo mensual</div>
+                  <div style={labelStyle}>{tServices("monthlyCost")}</div>
                   <div style={{ marginTop: 6, fontSize: 24, fontWeight: 800, color: "#fff" }}>
                     {subscriptionPrice != null
                       ? formatMoney(subscriptionPrice, subscriptionCurrency)
-                      : `Precio no disponible (${subscriptionCurrency})`}
+                      : tServices("priceNotAvailable", { currency: subscriptionCurrency })}
                   </div>
                 </div>
                 {subscriptionError && (
@@ -2633,7 +2607,7 @@ const avatarNode = (
                     disabled={subscriptionSubmitting}
                     style={{ ...primaryButton, opacity: subscriptionSubmitting ? 0.75 : 1, cursor: subscriptionSubmitting ? "not-allowed" : "pointer" }}
                   >
-                    {subscriptionSubmitting ? tFeed("processing") : "Pagar y unirme"}
+                    {subscriptionSubmitting ? tFeed("processing") : tServices("payAndJoin")}
                   </button>
                   <button
                     type="button"
@@ -2685,13 +2659,13 @@ const avatarNode = (
             <div style={{ padding: "4px 0 16px", display: "grid", gap: 14 }}>
               <p style={{ fontSize: 17, fontWeight: 700, lineHeight: 1.25, margin: 0 }}>
                 {membershipRequiresSubscription
-                  ? "¿Cancelar suscripción?"
+                  ? tGroups("cancelSubscriptionTitle")
                   : tGroups("leaveConfirm")}
               </p>
               <p style={{ fontSize: 14, color: "rgba(255,255,255,0.75)", lineHeight: 1.5, margin: 0 }}>
                 {membershipRequiresSubscription
-                  ? "Perderás el acceso a los contenidos exclusivos de esta comunidad."
-                  : "Podrás volver a unirte si la comunidad es pública."}
+                  ? tGroups("cancelSubscriptionWarning")
+                  : tGroups("leaveWarning")}
               </p>
 
               {leaveError && (
@@ -2747,7 +2721,7 @@ const avatarNode = (
                   {leaving
                     ? tFeed("processing")
                     : membershipRequiresSubscription
-                    ? "Cancelar suscripción"
+                    ? tGroups("cancelSubscriptionButton")
                     : tCommon("leave")}
                 </button>
               </div>

@@ -31,6 +31,7 @@ export default function ProfileFollowersOverlay({
   onClose,
 }: ProfileFollowersOverlayProps) {
   const tCommon = useTranslations("common");
+  const tProfile = useTranslations("profile");
   const [followers, setFollowers] = useState<ProfileFollowerListItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -147,7 +148,7 @@ export default function ProfileFollowersOverlay({
           setFollowers([]);
           setError(
             (e instanceof Error ? e.message : null) ??
-              "No se pudo cargar la lista de seguidores."
+              tProfile("followersLoadError")
           );
         }
       } finally {
@@ -200,20 +201,20 @@ export default function ProfileFollowersOverlay({
         letterSpacing: "-0.02em",
       }}
     >
-      Seguidores
+      {tProfile("followersTitle")}
     </h2>
   );
 
   const listEl = (
     <>
       {!canViewFollowers ? (
-        <div style={emptyStyle}>No puedes ver los seguidores de este perfil.</div>
+        <div style={emptyStyle}>{tProfile("cannotViewFollowers")}</div>
       ) : loading ? (
-        <div style={emptyStyle}>Cargando seguidores...</div>
+        <div style={emptyStyle}>{tProfile("loadingFollowers")}</div>
       ) : error ? (
         <div style={emptyStyle}>{error}</div>
       ) : followers.length === 0 ? (
-        <div style={emptyStyle}>Todavía no tienes seguidores.</div>
+        <div style={emptyStyle}>{tProfile("noFollowers")}</div>
       ) : (
         <div style={{ display: "grid", gap: 10 }}>
           {followers.map((follower) => (

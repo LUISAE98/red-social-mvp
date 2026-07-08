@@ -25,7 +25,7 @@ const TARGET_LABELS: Record<string, string> = {
   greeting: "Saludo/Consejo",
   user: "Usuario",
   community: "Comunidad",
-  meet_greet: "Meet & Greet",
+  meet_greet: "Sesión en vivo",
   exclusive_session: "Sesión exclusiva",
 };
 

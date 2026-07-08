@@ -316,8 +316,8 @@ function ProfileCard({
   const tGroups = useTranslations("groups");
   const followersLabel =
     profile.followersCount > 0
-      ? `${profile.followersCount.toLocaleString("es-MX")} ${
-          profile.followersCount === 1 ? "seguidor" : "seguidores"
+      ? `${profile.followersCount.toLocaleString()} ${
+          profile.followersCount === 1 ? tGroups("follower") : tGroups("followers")
         }`
       : "";
 
@@ -683,7 +683,7 @@ function GroupCard({
                 flexShrink: 0,
               }}
             >
-              {subscriptionPriceLabel ? `${subscriptionPriceLabel} / mes` : ""}
+              {subscriptionPriceLabel ? `${subscriptionPriceLabel} ${tGroups("perMonth")}` : ""}
             </div>
           </div>
         </Link>
@@ -802,6 +802,7 @@ function LiveRecommendationCard({
   onOpenViewer: () => void;
   onAction: () => void;
 }) {
+  const tGroups = useTranslations("groups");
   const coverImage = rec.liveCoverUrl ?? rec.coverUrl;
   return (
     <div style={cardStyles}>
@@ -950,7 +951,7 @@ function LiveRecommendationCard({
                 <circle cx="11" cy="11" r="10" stroke="#fff" strokeWidth="1.4" fill="none" />
                 <circle cx="11" cy="11" r="6" fill="#fff" />
               </svg>
-              En vivo
+              {tGroups("liveLabel")}
               <style>{`@keyframes lrRecPulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.7;transform:scale(.88)}}`}</style>
             </div>
           </div>
@@ -1201,7 +1202,7 @@ export default function GroupRecommendationsRail({
               groupId: gid,
               liveCoverUrl: (ld.coverUrl as string | null) ?? null,
               liveTitle: (ld.title as string | null) ?? null,
-              displayName: (g.name as string) ?? "Comunidad",
+              displayName: (g.name as string) ?? tCommon("communityLabel"),
               avatarUrl: (g.avatarUrl as string | null) ?? null,
               coverUrl: (g.coverUrl as string | null) ?? null,
               groupVisibility: (g.visibility as string | null) ?? null,
@@ -1418,8 +1419,7 @@ export default function GroupRecommendationsRail({
               fontFamily: fontStack,
             }}
           >
-            Selecciona al menos <strong>{minCategories}</strong> categorías para
-            personalizar tus comunidades sugeridas.
+            {tGroups("selectAtLeast", { min: minCategories })}
           </div>
 
           <div
@@ -1484,7 +1484,7 @@ export default function GroupRecommendationsRail({
                 fontFamily: fontStack,
               }}
             >
-              Seleccionadas: {selectedCategories.length}/{minCategories} mínimo
+              {tGroups("selectedCount", { count: selectedCategories.length, min: minCategories })}
             </span>
           </div>
         </div>
@@ -1578,7 +1578,7 @@ export default function GroupRecommendationsRail({
               fontFamily: fontStack,
             }}
           >
-            Aún no tenemos comunidades disponibles para recomendarte.
+            {tGroups("noCommunitiesAvailable")}
           </p>
 
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
@@ -1602,7 +1602,7 @@ export default function GroupRecommendationsRail({
                 fontFamily: fontStack,
               }}
             >
-              Crear comunidad
+              {tGroups("createCommunityRailButton")}
             </button>
 
             <button
@@ -1628,7 +1628,7 @@ export default function GroupRecommendationsRail({
                 fontFamily: fontStack,
               }}
             >
-              Cambiar categorías
+              {tGroups("changeCategories")}
             </button>
           </div>
         </div>

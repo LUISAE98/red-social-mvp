@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import { doc, onSnapshot } from "firebase/firestore";
 import { httpsCallable } from "firebase/functions";
 import { db, functions } from "@/lib/firebase";
@@ -88,6 +89,9 @@ export default function ProfileDonation({
   OverlayModalComponent,
   onSaveDraft,
 }: Props) {
+  const tProfile = useTranslations("profile");
+  const tCommon = useTranslations("common");
+
   const isEnabled = draft.donationMode !== "none";
 
   const [overlayMode, setOverlayMode] = useState<OverlayMode>(null);
@@ -151,22 +155,22 @@ export default function ProfileDonation({
 
     const amount = parseFloat(overlayDraft.donationMinimumAmount as string);
     if (isNaN(amount) || amount <= 0) {
-      setSaveErr("Debes definir un monto mínimo válido.");
+      setSaveErr(tProfile("donationInvalidAmount"));
       return;
     }
 
     const hasVideo = Boolean(overlayDraft.donationPlaybackId) || uploadPending;
     if (!hasVideo) {
-      setSaveErr("Debes subir un video de presentación.");
+      setSaveErr(tProfile("donationNoVideo"));
       return;
     }
 
     if (!(overlayDraft.donationMessage as string).trim()) {
-      setSaveErr("Debes escribir un mensaje de presentación.");
+      setSaveErr(tProfile("donationNoMessage"));
       return;
     }
     if ((overlayDraft.donationMessage as string).trim().length > 160) {
-      setSaveErr("El mensaje no puede superar 160 caracteres.");
+      setSaveErr(tProfile("donationMessageTooLong"));
       return;
     }
 
@@ -200,7 +204,7 @@ export default function ProfileDonation({
     // Validate duration
     const duration = await getVideoDuration(file);
     if (duration > VIDEO_MAX_SECONDS) {
-      setUploadErr(`El video no puede durar más de 5 minutos (duración: ${Math.round(duration)}s).`);
+      setUploadErr(tProfile("donationVideoTooLong", { duration: Math.round(duration) }));
       if (fileInputRef.current) fileInputRef.current.value = "";
       return;
     }
@@ -226,9 +230,9 @@ export default function ProfileDonation({
         xhr.onload = () => {
           xhrRef.current = null;
           if (xhr.status >= 200 && xhr.status < 300) resolve();
-          else reject(new Error(`Upload falló: ${xhr.status}`));
+          else reject(new Error(tProfile("donationUploadFailed", { status: xhr.status })));
         };
-        xhr.onerror = () => { xhrRef.current = null; reject(new Error("Error de red al subir")); };
+        xhr.onerror = () => { xhrRef.current = null; reject(new Error(tProfile("donationNetworkError"))); };
         xhr.open("PUT", uploadUrl);
         xhr.setRequestHeader("Content-Type", file.type || "video/mp4");
         xhr.send(file);
@@ -250,7 +254,7 @@ export default function ProfileDonation({
       });
       playbackListenerRef.current = unsub;
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "No se pudo subir el video.";
+      const msg = err instanceof Error ? err.message : tProfile("donationUploadDefault");
       setUploadErr(msg);
     } finally {
       setUploadProgress(null);
@@ -260,7 +264,7 @@ export default function ProfileDonation({
 
   function renderSummary() {
     if (!isEnabled) return null;
-    const modeLabel = "Donación";
+    const modeLabel = tCommon("donation");
     const amount = draft.donationMinimumAmount
       ? `${draft.donationMinimumAmount} ${draft.donationCurrency}`
       : null;
@@ -278,21 +282,21 @@ export default function ProfileDonation({
         }}
       >
         <div style={{ display: "grid", gap: 4 }}>
-          <div style={subtleStyle}>Tipo</div>
+          <div style={subtleStyle}>{tProfile("donationTypeLabel")}</div>
           <div style={{ color: "#fff", fontSize: 14, fontWeight: 700 }}>{modeLabel}</div>
         </div>
 
         {amount && (
           <div style={{ display: "grid", gap: 4 }}>
-            <div style={subtleStyle}>Monto mínimo</div>
+            <div style={subtleStyle}>{tProfile("donationMinAmount")}</div>
             <div style={{ color: "#fff", fontSize: 14, fontWeight: 700 }}>{amount}</div>
           </div>
         )}
 
         <div style={{ display: "grid", gap: 4 }}>
-          <div style={subtleStyle}>Video de presentación</div>
+          <div style={subtleStyle}>{tProfile("donationPresentationVideo")}</div>
           <div style={{ color: hasVideo ? "#a3e635" : "rgba(255,255,255,0.4)", fontSize: 13 }}>
-            {hasVideo ? "✓ Video listo" : "Sin video"}
+            {hasVideo ? tProfile("donationVideoReady") : tProfile("donationNoVideoStatus")}
           </div>
         </div>
 
@@ -308,7 +312,7 @@ export default function ProfileDonation({
             cursor: isBusy ? "not-allowed" : "pointer",
           }}
         >
-          Modificar
+          {tProfile("editLabel")}
         </button>
       </div>
     );
@@ -323,13 +327,13 @@ export default function ProfileDonation({
       <div style={panelStyle}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
           <div style={{ display: "grid", gap: 2, minWidth: 0 }}>
-            <span style={titleStyle}>🎁 Donación / Apoyo</span>
+            <span style={titleStyle}>{tProfile("donationTitle")}</span>
           </div>
           <SwitchComponent
             checked={isEnabled}
             disabled={isBusy}
             onChange={(next) => { void handleToggle(next); }}
-            label="Activar donaciones"
+            label={tProfile("donationEnableLabel")}
           />
         </div>
         {renderSummary()}
@@ -337,18 +341,18 @@ export default function ProfileDonation({
 
       <OverlayModalComponent
         open={overlayMode !== null}
-        title="🎁 Configurar donación"
+        title={tProfile("donationConfigTitle")}
         loading={isBusy}
         onCancel={closeOverlay}
         onConfirm={() => void confirmOverlaySave()}
       >
         {/* Message */}
         <div>
-          <div style={{ ...subtleStyle, marginBottom: 8 }}>Mensaje de presentación (máx. 160 caracteres)</div>
+          <div style={{ ...subtleStyle, marginBottom: 8 }}>{tProfile("donationMessageLabel")}</div>
           <textarea
             value={overlayDraft.donationMessage as string}
             onChange={(e) => setOverlayDraft((p) => ({ ...p, donationMessage: e.target.value.slice(0, 160) }))}
-            placeholder="Escribe un mensaje para quienes te apoyan..."
+            placeholder={tProfile("donationMessagePlaceholder")}
             disabled={isBusy}
             rows={3}
             maxLength={160}
@@ -361,7 +365,7 @@ export default function ProfileDonation({
 
         {/* Amount + currency */}
         <div>
-          <div style={{ ...subtleStyle, marginBottom: 8 }}>Monto mínimo</div>
+          <div style={{ ...subtleStyle, marginBottom: 8 }}>{tProfile("donationMinAmount")}</div>
           <div style={{ display: "flex", gap: 8 }}>
             <input
               type="number"
@@ -369,7 +373,7 @@ export default function ProfileDonation({
               step="1"
               value={overlayDraft.donationMinimumAmount as string}
               onChange={(e) => setOverlayDraft((p) => ({ ...p, donationMinimumAmount: e.target.value }))}
-              placeholder="Ej. 50"
+              placeholder={tProfile("donationAmountPlaceholder")}
               disabled={isBusy}
               style={{ ...inputStyle, flex: 1 }}
             />
@@ -387,27 +391,27 @@ export default function ProfileDonation({
 
         {/* Video upload */}
         <div>
-          <div style={{ ...subtleStyle, marginBottom: 8 }}>Video de presentación (máx. 5 min)</div>
+          <div style={{ ...subtleStyle, marginBottom: 8 }}>{tProfile("donationVideoLabel")}</div>
 
           {/* Already has a ready playbackId */}
           {overlayPlaybackId && !uploadPending && uploadProgress === null && (
-            <div style={{ ...subtleStyle, color: "#a3e635", marginBottom: 8 }}>✓ Video listo</div>
+            <div style={{ ...subtleStyle, color: "#a3e635", marginBottom: 8 }}>{tProfile("donationVideoReady")}</div>
           )}
 
           {/* Saved playbackId from draft but overlayDraft hasn't picked it up yet */}
           {!overlayPlaybackId && savedPlaybackId && !uploadPending && uploadProgress === null && (
-            <div style={{ ...subtleStyle, color: "#a3e635", marginBottom: 8 }}>✓ Video listo</div>
+            <div style={{ ...subtleStyle, color: "#a3e635", marginBottom: 8 }}>{tProfile("donationVideoReady")}</div>
           )}
 
           {/* Upload in progress */}
           {uploadProgress !== null && (
-            <div style={{ ...subtleStyle, marginBottom: 8 }}>Subiendo video… {uploadProgress}%</div>
+            <div style={{ ...subtleStyle, marginBottom: 8 }}>{tProfile("donationUploading", { progress: uploadProgress })}</div>
           )}
 
           {/* Pending processing */}
           {uploadPending && uploadProgress === null && (
             <div style={{ ...subtleStyle, color: "rgba(255,200,80,0.9)", marginBottom: 8 }}>
-              ⏳ Procesando video, puede tardar unos minutos…
+              {tProfile("donationProcessing")}
             </div>
           )}
 
@@ -422,7 +426,7 @@ export default function ProfileDonation({
                 cursor: isBusy ? "not-allowed" : "pointer",
               }}
             >
-              {overlayPlaybackId || savedPlaybackId ? "Cambiar video" : "Subir video"}
+              {overlayPlaybackId || savedPlaybackId ? tProfile("donationChangeVideo") : tProfile("donationUploadVideo")}
             </button>
           )}
 

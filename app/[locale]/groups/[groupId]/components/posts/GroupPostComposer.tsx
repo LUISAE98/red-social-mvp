@@ -262,6 +262,8 @@ export default function GroupPostComposer({
   onEditClose,
 }: GroupPostComposerProps) {
   const tCommon = useTranslations("common");
+  const tPosts = useTranslations("posts");
+  const tLive = useTranslations("live");
   const isEditMode = !!editPost;
   const [text, setText] = useState(() => editPost?.text ?? "");
   const [creating, setCreating] = useState(false);
@@ -1133,14 +1135,14 @@ const launcherButtonStyle: CSSProperties = {
                 onClick={handleOpenComposerOverlay}
                 disabled={creating}
                 style={launcherButtonStyle}
-                aria-label="Abrir editor de publicación"
-                title="Abrir editor de publicación"
+                aria-label={tPosts("openEditorLabel")}
+                title={tPosts("openEditorLabel")}
               >
                 {text.trim().length > 0
                   ? text.trim()
                   : contextType === "profile"
-                    ? "Comparte algo en tu perfil..."
-                    : "Comparte algo en esta comunidad..."}
+                    ? tPosts("shareOnProfilePlaceholder")
+                    : tPosts("shareInCommunityPlaceholder")}
               </button>
 
               <button
@@ -1187,8 +1189,8 @@ const launcherButtonStyle: CSSProperties = {
                       }
                     : secondaryButtonStyle
                 }
-                aria-label="Agregar media"
-                title="Agregar media"
+                aria-label={tPosts("addMedia")}
+                title={tPosts("addMedia")}
               >
                 <VibraNavigationIcon
                   type="attachMedia"
@@ -1207,8 +1209,8 @@ const launcherButtonStyle: CSSProperties = {
                       ? { ...secondaryButtonStyle, opacity: 0.5, cursor: "not-allowed" }
                       : secondaryButtonStyle
                   }
-                  aria-label="Programar live"
-                  title="Programar live"
+                  aria-label={tLive("scheduleLive")}
+                  title={tLive("scheduleLive")}
                 >
                   <svg
                     width="22"

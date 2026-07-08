@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { doc, getDoc } from "firebase/firestore";
+import { useTranslations } from "next-intl";
 
 import { db } from "@/lib/firebase";
 import { searchGroups } from "@/lib/groups/searchGroups";
@@ -206,6 +207,7 @@ async function readViewerGroupState(
 }
 
 function SearchPageContent() {
+  const tGroups = useTranslations("groups");
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user } = useAuth();
@@ -442,12 +444,12 @@ function SearchPageContent() {
   }
 
   return (
-    <main className="search-page" aria-label="Resultados de búsqueda">
+    <main className="search-page" aria-label={tGroups("searchResultsTitle")}>
       <SearchSubnav activeTab={activeTab} onChangeTab={handleChangeTab} />
 
       <section className="search-content">
         <div className="search-query">
-          Resultados para: <strong>{queryText.trim() || "—"}</strong>
+          {tGroups("searchResultsFor")} <strong>{queryText.trim() || "—"}</strong>
         </div>
 
         {activeTab === "groups" && (

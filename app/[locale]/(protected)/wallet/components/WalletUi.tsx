@@ -688,7 +688,7 @@ export function WalletServiceRow({
         showWalletRowToast("✅ Sesión exclusiva aceptada. Ahora puedes poner fecha.");
       } else {
         await acceptMeetGreetRequest({ requestId: row.id });
-        showWalletRowToast("✅ Meet & Greet aceptado. Ahora puedes poner fecha.");
+        showWalletRowToast("✅ Sesión en vivo aceptada. Ahora puedes poner fecha.");
       }
 
       setScheduleOpen(true);
@@ -714,7 +714,7 @@ export function WalletServiceRow({
           requestId: row.id,
           rejectionReason: rejectReason || null,
         });
-        showWalletRowToast("✅ Meet & Greet rechazado.");
+        showWalletRowToast("✅ Sesión en vivo rechazada.");
       }
 
       setRejectOpen(false);

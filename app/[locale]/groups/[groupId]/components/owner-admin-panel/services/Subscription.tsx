@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
 
@@ -152,6 +153,7 @@ function TransitionPolicyPanel({
   titleStyle: React.CSSProperties;
   subtleStyle: React.CSSProperties;
 }) {
+  const tServices = useTranslations("services");
   const panelStyle: React.CSSProperties = {
     padding: "10px",
     borderRadius: 14,
@@ -179,9 +181,9 @@ function TransitionPolicyPanel({
     return (
       <div style={panelStyle}>
         <div style={{ display: "grid", gap: 2 }}>
-          <span style={titleStyle}>Transición: gratis → suscripción</span>
+          <span style={titleStyle}>{tServices("freeToSubscriptionPolicyTitle")}</span>
           <span style={subtleStyle}>
-            Debes decidir qué pasa con los miembros actuales al volver la comunidad de suscripción.
+            {tServices("freeToSubscriptionPolicyDescription")}
           </span>
         </div>
 
@@ -191,9 +193,9 @@ function TransitionPolicyPanel({
           onClick={() => onChange("legacy_free")}
           style={optionCard(value === "legacy_free")}
         >
-          <span style={titleStyle}>Dejar a los miembros actuales gratis</span>
+          <span style={titleStyle}>{tServices("freeToSubscriptionOptionLegacyFreeTitle")}</span>
           <span style={subtleStyle}>
-            Los miembros que ya estaban dentro conservan acceso legado sin pagar.
+            {tServices("freeToSubscriptionOptionLegacyFreeDesc")}
           </span>
         </button>
 
@@ -203,9 +205,9 @@ function TransitionPolicyPanel({
           onClick={() => onChange("require_subscription")}
           style={optionCard(value === "require_subscription")}
         >
-          <span style={titleStyle}>Pedir suscripción a los miembros actuales</span>
+          <span style={titleStyle}>{tServices("freeToSubscriptionOptionRequireTitle")}</span>
           <span style={subtleStyle}>
-            Los miembros existentes deberán suscribirse para continuar con acceso.
+            {tServices("freeToSubscriptionOptionRequireDesc")}
           </span>
         </button>
       </div>
@@ -216,9 +218,9 @@ function TransitionPolicyPanel({
     return (
       <div style={panelStyle}>
         <div style={{ display: "grid", gap: 2 }}>
-          <span style={titleStyle}>Cambio: aumento de precio de suscripción</span>
+          <span style={titleStyle}>{tServices("priceIncreasePolicyTitle")}</span>
           <span style={subtleStyle}>
-            Como el nuevo precio es mayor al anterior, debes decidir qué pasa con los miembros que ya estaban dentro.
+            {tServices("priceIncreasePolicyDescription")}
           </span>
         </div>
 
@@ -228,9 +230,9 @@ function TransitionPolicyPanel({
           onClick={() => onChange("keep_legacy_price")}
           style={optionCard(value === "keep_legacy_price")}
         >
-          <span style={titleStyle}>Mantener a cada quien como ya estaba</span>
+          <span style={titleStyle}>{tServices("priceIncreaseOptionKeepLegacyTitle")}</span>
           <span style={subtleStyle}>
-            Los suscriptores de pago actuales conservan su precio anterior. Los integrantes que ya eran gratis por legado siguen gratis por legado. El nuevo precio solo aplica a nuevas suscripciones.
+            {tServices("priceIncreaseOptionKeepLegacyDesc")}
           </span>
         </button>
 
@@ -241,10 +243,10 @@ function TransitionPolicyPanel({
           style={optionCard(value === "require_resubscribe_new_price")}
         >
           <span style={titleStyle}>
-            Sacar a los suscriptores de pago actuales y pedir nueva suscripción
+            {tServices("priceIncreaseOptionRequireResubscribeTitle")}
           </span>
           <span style={subtleStyle}>
-            Los suscriptores de pago actuales deberán suscribirse otra vez con el nuevo precio. Los integrantes gratis por legado se mantienen como gratis por legado.
+            {tServices("priceIncreaseOptionRequireResubscribeDesc")}
           </span>
         </button>
       </div>
@@ -254,9 +256,9 @@ function TransitionPolicyPanel({
   return (
     <div style={panelStyle}>
       <div style={{ display: "grid", gap: 2 }}>
-        <span style={titleStyle}>Transición: suscripción → gratis</span>
+        <span style={titleStyle}>{tServices("subscriptionToFreePolicyTitle")}</span>
         <span style={subtleStyle}>
-          Debes decidir qué pasa con los integrantes cuando la comunidad deje de ser de suscripción.
+          {tServices("subscriptionToFreePolicyDescription")}
         </span>
       </div>
 
@@ -266,9 +268,9 @@ function TransitionPolicyPanel({
         onClick={() => onChange("keep_members_free")}
         style={optionCard(value === "keep_members_free")}
       >
-        <span style={titleStyle}>Mantener a todos dentro y volverla gratuita</span>
+        <span style={titleStyle}>{tServices("subscriptionToFreeOptionKeepTitle")}</span>
         <span style={subtleStyle}>
-          La comunidad deja de cobrar y quienes están dentro permanecen con acceso normal.
+          {tServices("subscriptionToFreeOptionKeepDesc")}
         </span>
       </button>
 
@@ -278,9 +280,9 @@ function TransitionPolicyPanel({
         onClick={() => onChange("remove_all_members")}
         style={optionCard(value === "remove_all_members")}
       >
-        <span style={titleStyle}>Sacar a todos al quitar la suscripción</span>
+        <span style={titleStyle}>{tServices("subscriptionToFreeOptionRemoveTitle")}</span>
         <span style={subtleStyle}>
-          La comunidad vuelve a ser gratuita, pero sin conservar automáticamente a los miembros actuales.
+          {tServices("subscriptionToFreeOptionRemoveDesc")}
         </span>
       </button>
     </div>
@@ -310,6 +312,7 @@ export default function Subscription({
   onSaveDraft,
   onRemoveLegacyMembers,
 }: Props) {
+  const tServices = useTranslations("services");
   const [overlayMode, setOverlayMode] = useState<SubscriptionOverlayMode>(null);
   const [overlayDraft, setOverlayDraft] = useState<ServiceDraft>(draft);
   const [showRemoveLegacyMembersModal, setShowRemoveLegacyMembersModal] =
@@ -424,7 +427,7 @@ function handleModify() {
         }}
       >
         <div style={{ display: "grid", gap: 4 }}>
-          <div style={subtleStyle}>Precio mensual configurado</div>
+          <div style={subtleStyle}>{tServices("subscriptionSummaryPriceLabel")}</div>
           <div style={{ color: "#fff", fontSize: 14, fontWeight: 700 }}>
             {draft.subscription.price
               ? formatMoney(Number(draft.subscription.price), draft.subscription.currency)
@@ -434,9 +437,10 @@ function handleModify() {
 
         {subscriptionCalc ? (
           <div style={subtleStyle}>
-            Por una suscripción de{" "}
-            {formatMoney(subscriptionCalc.gross, draft.subscription.currency)}, tú cobras{" "}
-            {formatMoney(subscriptionCalc.net, draft.subscription.currency)}.
+            {tServices("subscriptionCalculationMessage", {
+              price: formatMoney(subscriptionCalc.gross, draft.subscription.currency),
+              netAmount: formatMoney(subscriptionCalc.net, draft.subscription.currency),
+            })}
           </div>
         ) : null}
 
@@ -452,7 +456,7 @@ function handleModify() {
             cursor: isBusy ? "not-allowed" : "pointer",
           }}
         >
-          Modificar
+          {tServices("subscriptionModifyButton")}
         </button>
       </div>
     );
@@ -477,14 +481,14 @@ function handleModify() {
           >
             <div style={{ display: "grid", gap: 2, minWidth: 0 }}>
               <span style={titleStyle}>
-                {subscriptionEmoji} Suscripción mensual
+                {subscriptionEmoji} {tServices("subscriptionTitle")}
               </span>
             </div>
 
 <div
   onClick={() => {
     if (disabledByVisibility) {
-      showSubToast("No puedes activar suscripción mensual en una comunidad pública. Primero cambia la comunidad a privada u oculta.", "warning");
+      showSubToast(tServices("subscriptionPublicDisabledToast"), "warning");
     }
   }}
   style={{
@@ -497,8 +501,8 @@ function handleModify() {
     onChange={handleToggle}
     label={
       disabledByVisibility
-        ? "Disponible solo para comunidades privadas u ocultas"
-        : "Activar suscripción mensual"
+        ? tServices("subscriptionDisabledLabel")
+        : tServices("subscriptionToggleLabel")
     }
   />
 </div>
@@ -516,7 +520,7 @@ function handleModify() {
       color: "rgba(255,255,255,0.68)",
     }}
   >
-    No puedes activar la suscripción mensual en comunidades públicas. Cambia la comunidad a privada u oculta para habilitar esta función.
+    {tServices("subscriptionPublicDisabledWarning")}
   </div>
 )}
 
@@ -526,14 +530,14 @@ function handleModify() {
         {canRemoveLegacyFreeMembersLater && (
           <div style={panelStyle}>
             <div style={{ display: "grid", gap: 2 }}>
-              <span style={titleStyle}>Retirar miembros gratuitos</span>
+              <span style={titleStyle}>{tServices("removeLegacyMembersTitle")}</span>
               <span style={subtleStyle}>
-                Esta acción aparece solo cuando la comunidad ya quedó guardada como comunidad de suscripción y todavía existen miembros activos con acceso gratuito heredado.
+                {tServices("removeLegacyMembersDescription")}
               </span>
             </div>
 
             <div style={subtleStyle}>
-              Miembros gratuitos detectados actualmente:{" "}
+              {tServices("removeLegacyMembersCountLabel")}{" "}
               <strong style={{ color: "#fff" }}>
                 {activeLegacyFreeMembersCount}
               </strong>
@@ -556,15 +560,15 @@ function handleModify() {
               {removingLegacyMembers ? (
                 <>
                   <SpinningGearComponent />
-                  Retirando miembros gratuitos...
+                  {tServices("removingLegacyMembersButton")}
                 </>
               ) : (
-                "Sacar a los miembros gratuitos"
+                tServices("removeLegacyMembersButton")
               )}
             </button>
 
             <div style={subtleStyle}>
-              Solo afectará a miembros activos con acceso gratuito heredado. No toca owner, moderadores protegidos, miembros removidos ni suscriptores de pago.
+              {tServices("removeLegacyMembersWarning")}
             </div>
           </div>
         )}
@@ -572,7 +576,7 @@ function handleModify() {
 
       <OverlayModalComponent
         open={overlayMode !== null}
-        title={`${subscriptionEmoji} Configurar suscripción mensual`}
+        title={`${subscriptionEmoji} ${tServices("subscriptionConfigModalTitle")}`}
         loading={saving}
         onCancel={closeOverlay}
         onConfirm={() => void confirmOverlaySave()}
@@ -592,7 +596,7 @@ function handleModify() {
                 },
               }))
             }
-            placeholder="Precio mensual"
+            placeholder={tServices("subscriptionPriceInputPlaceholder")}
             style={{ ...inputStyle, width: 160, flex: "1 1 200px" }}
           />
 
@@ -666,20 +670,18 @@ function handleModify() {
 
       <ConfirmModalComponent
         open={showRemoveLegacyMembersModal}
-        title="Retirar miembros gratuitos"
+        title={tServices("confirmRemoveLegacyMembersTitle")}
         description={
           <>
-            Vas a retirar a todos los miembros que siguen dentro con acceso gratuito
-            heredado en esta comunidad. Después de esto, deberán suscribirse o
-            quitar/olvidar el grupo.
+            {tServices("confirmRemoveLegacyMembersDescription")}
             <br />
             <br />
             <strong style={{ color: "#fff" }}>
-              Miembros detectados para esta acción: {activeLegacyFreeMembersCount}
+              {tServices("confirmRemoveLegacyMembersCount")} {activeLegacyFreeMembersCount}
             </strong>
           </>
         }
-        confirmLabel="Sí, retirar miembros gratuitos"
+        confirmLabel={tServices("confirmRemoveLegacyMembersButton")}
         loading={removingLegacyMembers}
         onCancel={() => {
           if (removingLegacyMembers) return;

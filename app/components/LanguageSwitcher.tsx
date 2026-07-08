@@ -172,8 +172,8 @@ export default function LanguageSwitcher({ variant = "desktop" }: { variant?: Va
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        title="Cambiar idioma"
-        aria-label="Cambiar idioma"
+        title={tCommon("changeLanguage")}
+        aria-label={tCommon("changeLanguage")}
         style={{
           height: 32,
           padding: "0 11px",

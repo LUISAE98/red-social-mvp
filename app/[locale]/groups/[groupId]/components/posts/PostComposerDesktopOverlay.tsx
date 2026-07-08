@@ -186,6 +186,8 @@ export default function PostComposerDesktopOverlay({
   onPreviewPointerUp,
 }: PostComposerDesktopOverlayProps) {
   const tCommon = useTranslations("common");
+  const tPosts = useTranslations("posts");
+  const tLive = useTranslations("live");
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const onCloseRef = useRef(onClose);
   const [mounted, setMounted] = useState(false);
@@ -525,8 +527,8 @@ const removeMediaButtonStyle: CSSProperties = {
               onChange={(event) => setText(event.target.value)}
 placeholder={
   contextType === "profile"
-    ? "Comparte algo en tu perfil..."
-    : "Comparte algo en esta comunidad..."
+    ? tPosts("shareOnProfilePlaceholder")
+    : tPosts("shareInCommunityPlaceholder")
 }
 style={{
   width: "100%",
@@ -566,8 +568,8 @@ style={{
       type="button"
       onClick={onOpenMediaPicker}
       disabled={creating || isPreparingImages}
-      title="Agregar fotos o videos"
-      aria-label="Agregar fotos o videos"
+      title={tPosts("addPhotosOrVideos")}
+      aria-label={tPosts("addPhotosOrVideos")}
       style={{
         width: 42,
         height: 42,
@@ -594,8 +596,8 @@ style={{
         type="button"
         onClick={onLiveClick}
         disabled={creating}
-        title="Programar live"
-        aria-label="Programar live"
+        title={tLive("scheduleLive")}
+        aria-label={tLive("scheduleLive")}
         style={{
           width: 32,
           height: 42,

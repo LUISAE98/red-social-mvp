@@ -4,16 +4,22 @@ import { useEffect, useState } from "react";
 import { collection, onSnapshot, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
-export type BuyerNextSession = {
+export type CreatorSession = {
   id: string;
   serviceKind: "meet_greet" | "exclusive_session";
   scheduledAt: Date;
-  creatorDisplayName: string | null;
-  creatorAvatarUrl: string | null;
+  buyerDisplayName: string | null;
+  buyerAvatarUrl: string | null;
   durationMinutes: number | null;
   status: string;
   preparingBuyerAt: Date | null;
   preparingCreatorAt: Date | null;
+};
+
+export type UseCreatorTodaySessionsResult = {
+  nextSession: CreatorSession | null;
+  todaySessions: CreatorSession[];
+  loading: boolean;
 };
 
 const ACTIVE_STATUSES = ["scheduled", "ready_to_prepare", "in_preparation"];
@@ -33,63 +39,81 @@ function toDate(value: unknown): Date | null {
   return null;
 }
 
-function isVisibleToday(scheduledAt: Date): boolean {
+function isToday(scheduledAt: Date): boolean {
   const now = new Date();
-  const sameDay =
+  return (
     now.getFullYear() === scheduledAt.getFullYear() &&
     now.getMonth() === scheduledAt.getMonth() &&
-    now.getDate() === scheduledAt.getDate();
-  if (!sameDay) return false;
-  const oneAmToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 1, 0, 0, 0);
-  return now >= oneAmToday;
+    now.getDate() === scheduledAt.getDate()
+  );
 }
 
-export function useBuyerNextSession(uid: string | null): {
-  session: BuyerNextSession | null;
-  loading: boolean;
-} {
-  const [session, setSession] = useState<BuyerNextSession | null>(null);
-  const [loading, setLoading] = useState(true);
+function isVisibleNow(): boolean {
+  const now = new Date();
+  const oneAm = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 1, 0, 0, 0);
+  return now >= oneAm;
+}
+
+function pickNext(sessions: CreatorSession[]): CreatorSession | null {
+  const nowMs = Date.now();
+  const upcoming = sessions.filter((s) => s.scheduledAt.getTime() > nowMs);
+  if (upcoming.length > 0) return upcoming[0];
+  // All started — return the most recently started for elapsed counter
+  return sessions[sessions.length - 1] ?? null;
+}
+
+export function useCreatorTodaySessions(uid: string | null): UseCreatorTodaySessionsResult {
+  const [result, setResult] = useState<UseCreatorTodaySessionsResult>({
+    nextSession: null,
+    todaySessions: [],
+    loading: true,
+  });
 
   useEffect(() => {
     if (!uid) {
-      setSession(null);
-      setLoading(false);
+      setResult({ nextSession: null, todaySessions: [], loading: false });
       return;
     }
 
-    const candidates = new Map<string, BuyerNextSession>();
+    const candidates = new Map<string, CreatorSession>();
     let mgLoaded = false;
     let esLoaded = false;
 
-    function pick() {
+    function publish() {
       if (!mgLoaded || !esLoaded) return;
-      const visible = Array.from(candidates.values())
-        .filter((s) => isVisibleToday(s.scheduledAt))
+      if (!isVisibleNow()) {
+        setResult({ nextSession: null, todaySessions: [], loading: false });
+        return;
+      }
+      const today = Array.from(candidates.values())
+        .filter((s) => isToday(s.scheduledAt))
         .sort((a, b) => a.scheduledAt.getTime() - b.scheduledAt.getTime());
-      setSession(visible[0] ?? null);
-      setLoading(false);
+      setResult({
+        nextSession: pickNext(today),
+        todaySessions: today,
+        loading: false,
+      });
     }
 
     const mgQ = query(
       collection(db, "meetGreetRequests"),
-      where("buyerId", "==", uid),
+      where("creatorId", "==", uid),
       where("status", "in", ACTIVE_STATUSES)
     );
 
     const esQ = query(
       collection(db, "exclusiveSessionRequests"),
-      where("buyerId", "==", uid),
+      where("creatorId", "==", uid),
       where("status", "in", ACTIVE_STATUSES)
     );
 
     const unsubMg = onSnapshot(mgQ, (snap) => {
-      const mgIds = new Set<string>();
+      const ids = new Set<string>();
       snap.docs.forEach((d) => {
         const data = d.data() as {
           scheduledAt?: unknown;
-          creatorDisplayName?: string | null;
-          creatorAvatarUrl?: string | null;
+          buyerDisplayName?: string | null;
+          buyerAvatarUrl?: string | null;
           durationMinutes?: number | null;
           status?: string;
           preparingBuyerAt?: unknown;
@@ -98,13 +122,13 @@ export function useBuyerNextSession(uid: string | null): {
         const scheduledAt = toDate(data.scheduledAt);
         if (!scheduledAt) return;
         const key = `mg-${d.id}`;
-        mgIds.add(key);
+        ids.add(key);
         candidates.set(key, {
           id: d.id,
           serviceKind: "meet_greet",
           scheduledAt,
-          creatorDisplayName: data.creatorDisplayName ?? null,
-          creatorAvatarUrl: data.creatorAvatarUrl ?? null,
+          buyerDisplayName: data.buyerDisplayName ?? null,
+          buyerAvatarUrl: data.buyerAvatarUrl ?? null,
           durationMinutes: data.durationMinutes ?? null,
           status: data.status ?? "scheduled",
           preparingBuyerAt: toDate(data.preparingBuyerAt),
@@ -112,19 +136,19 @@ export function useBuyerNextSession(uid: string | null): {
         });
       });
       for (const k of candidates.keys()) {
-        if (k.startsWith("mg-") && !mgIds.has(k)) candidates.delete(k);
+        if (k.startsWith("mg-") && !ids.has(k)) candidates.delete(k);
       }
       mgLoaded = true;
-      pick();
+      publish();
     });
 
     const unsubEs = onSnapshot(esQ, (snap) => {
-      const esIds = new Set<string>();
+      const ids = new Set<string>();
       snap.docs.forEach((d) => {
         const data = d.data() as {
           scheduledAt?: unknown;
-          creatorDisplayName?: string | null;
-          creatorAvatarUrl?: string | null;
+          buyerDisplayName?: string | null;
+          buyerAvatarUrl?: string | null;
           durationMinutes?: number | null;
           status?: string;
           preparingBuyerAt?: unknown;
@@ -133,13 +157,13 @@ export function useBuyerNextSession(uid: string | null): {
         const scheduledAt = toDate(data.scheduledAt);
         if (!scheduledAt) return;
         const key = `es-${d.id}`;
-        esIds.add(key);
+        ids.add(key);
         candidates.set(key, {
           id: d.id,
           serviceKind: "exclusive_session",
           scheduledAt,
-          creatorDisplayName: data.creatorDisplayName ?? null,
-          creatorAvatarUrl: data.creatorAvatarUrl ?? null,
+          buyerDisplayName: data.buyerDisplayName ?? null,
+          buyerAvatarUrl: data.buyerAvatarUrl ?? null,
           durationMinutes: data.durationMinutes ?? null,
           status: data.status ?? "scheduled",
           preparingBuyerAt: toDate(data.preparingBuyerAt),
@@ -147,10 +171,10 @@ export function useBuyerNextSession(uid: string | null): {
         });
       });
       for (const k of candidates.keys()) {
-        if (k.startsWith("es-") && !esIds.has(k)) candidates.delete(k);
+        if (k.startsWith("es-") && !ids.has(k)) candidates.delete(k);
       }
       esLoaded = true;
-      pick();
+      publish();
     });
 
     return () => {
@@ -159,5 +183,5 @@ export function useBuyerNextSession(uid: string | null): {
     };
   }, [uid]);
 
-  return { session, loading };
+  return result;
 }

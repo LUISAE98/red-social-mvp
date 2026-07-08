@@ -70,7 +70,7 @@ async function getCroppedBlob(
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d");
 
-  if (!ctx) throw new Error("No se pudo inicializar canvas.");
+  if (!ctx) throw new Error("canvas_context_unavailable");
 
   const safeX = clamp(pixelCrop.x, 0, image.width);
   const safeY = clamp(pixelCrop.y, 0, image.height);
@@ -96,7 +96,7 @@ async function getCroppedBlob(
     canvas.toBlob(
       (blob) => {
         if (!blob) {
-          reject(new Error("No se pudo generar el recorte."));
+          reject(new Error("crop_blob_unavailable"));
           return;
         }
         resolve(blob);
@@ -381,7 +381,7 @@ async function onPickAvatar(file: File | null) {
     setCroppedAreaPixels(null);
     setCropOpen(true);
   } catch (e: unknown) {
-    setError((e instanceof Error ? e.message : null) ?? "Avatar: no se pudo leer la imagen.");
+    setError((e instanceof Error ? e.message : null) ?? tGroups("avatarReadError"));
   }
 }
 
@@ -405,7 +405,7 @@ async function onPickCover(file: File | null) {
     setCroppedAreaPixels(null);
     setCropOpen(true);
   } catch (e: unknown) {
-    setError((e instanceof Error ? e.message : null) ?? "Portada: no se pudo leer la imagen.");
+    setError((e instanceof Error ? e.message : null) ?? tGroups("coverReadError"));
   }
 }
 
@@ -436,7 +436,7 @@ const onCropComplete = useCallback(
 
   async function confirmCrop() {
     if (!cropImageSrc || !croppedAreaPixels) {
-      setError("No se pudo recortar la imagen.");
+      setError(tGroups("cropError"));
       return;
     }
 
@@ -466,8 +466,8 @@ const onCropComplete = useCallback(
       setZoom(1);
       setCroppedAreaPixels(null);
       setCropImageSrc("");
-    } catch (err: unknown) {
-      setError((err instanceof Error ? err.message : null) ?? "No se pudo recortar la imagen.");
+    } catch {
+      setError(tGroups("cropError"));
     } finally {
       setCroppingBusy(false);
     }
@@ -478,7 +478,7 @@ const onCropComplete = useCallback(
     setError(null);
 
     if (!user) {
-      setError("Debes iniciar sesión.");
+      setError(tGroups("mustLogin"));
       return;
     }
 
@@ -486,12 +486,12 @@ const onCropComplete = useCallback(
     const trimmedDesc = description.trim();
 
     if (trimmedName.length < 3) {
-      setError("El nombre debe tener al menos 3 caracteres.");
+      setError(tGroups("nameMinLength"));
       return;
     }
 
     if (trimmedDesc.length < 10) {
-      setError("La descripción debe tener al menos 10 caracteres.");
+      setError(tGroups("descriptionMinLength"));
       return;
     }
 
@@ -502,7 +502,7 @@ const onCropComplete = useCallback(
       ageMinNum != null &&
       (!Number.isFinite(ageMinNum) || ageMinNum < 18 || ageMinNum > 99)
     ) {
-      setError("Edad mínima inválida (18–99).");
+      setError(tGroups("ageMinInvalid"));
       return;
     }
 
@@ -510,19 +510,19 @@ const onCropComplete = useCallback(
       ageMaxNum != null &&
       (!Number.isFinite(ageMaxNum) || ageMaxNum < 18 || ageMaxNum > 99)
     ) {
-      setError("Edad máxima inválida (18–99).");
+      setError(tGroups("ageMaxInvalid"));
       return;
     }
 
     if (ageMinNum != null && ageMaxNum != null && ageMinNum > ageMaxNum) {
-      setError("Edad mínima no puede ser mayor que edad máxima.");
+      setError(tGroups("ageMinGreaterThanMax"));
       return;
     }
 
     const priceNum = priceMonthly ? Number(priceMonthly) : null;
     if (isPaid) {
       if (priceNum == null || !(priceNum > 0) || !Number.isFinite(priceNum)) {
-        setError("Precio mensual inválido.");
+        setError(tGroups("priceInvalid"));
         return;
       }
     }
@@ -634,7 +634,7 @@ const onCropComplete = useCallback(
       router.push(`/groups/${groupId}`);
     } catch (err: unknown) {
       console.error("CREATE_GROUP_ERROR", err);
-      setError((err instanceof Error ? err.message : null) ?? "Error creando comunidad.");
+      setError((err instanceof Error ? err.message : null) ?? tGroups("groupCreationError"));
     } finally {
       setLoading(false);
     }
@@ -726,7 +726,7 @@ const onCropComplete = useCallback(
                 lineHeight: 1.45,
               }}
             >
-              Configura lo esencial de tu comunidad con estilo dark premium del MVP.
+              {tGroups("createGroupDescription")}
             </p>
           </div>
 
@@ -768,7 +768,7 @@ const onCropComplete = useCallback(
                     color: "rgba(255,255,255,0.92)",
                   }}
                 >
-                  Nombre
+                  {tGroups("name")}
                 </label>
                 <input
                   style={{
@@ -784,7 +784,7 @@ const onCropComplete = useCallback(
                   }}
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="Ej: Fans de Alfredo"
+                  placeholder={tGroups("nameExample")}
                 />
               </div>
 
@@ -831,15 +831,15 @@ const onCropComplete = useCallback(
                     color: "rgba(255,255,255,0.92)",
                   }}
                 >
-                  Visibilidad
+                  {tGroups("visibility")}
                 </label>
                 <SelectField
                   value={visibility}
                   onChange={(value) => setVisibility(value as GroupVisibility)}
                 >
-                  <option value="public">Público</option>
-                  <option value="private">Privado (requiere aprobación)</option>
-                  <option value="hidden">Oculto (solo con link)</option>
+                  <option value="public">{tGroups("visibilityPublic")}</option>
+                  <option value="private">{tGroups("visibilityPrivate")}</option>
+                  <option value="hidden">{tGroups("visibilityHidden")}</option>
                 </SelectField>
               </div>
             </section>
@@ -864,9 +864,9 @@ const onCropComplete = useCallback(
                   flexWrap: "wrap",
                 }}
               >
-                <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>Imágenes</h2>
+                <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>{tGroups("images")}</h2>
                 <span style={{ fontSize: 12, color: "rgba(255,255,255,0.50)" }}>
-                  Preview de cómo se verá tu comunidad
+                  {tGroups("imagePreviewDescription")}
                 </span>
               </div>
 
@@ -888,7 +888,7 @@ const onCropComplete = useCallback(
                   {coverPreview ? (
                     <Image
                       src={coverPreview}
-                      alt="Portada"
+                      alt={tGroups("cover")}
                       width={1280}
                       height={210}
                       style={{ width: "100%", height: 210, objectFit: "cover", display: "block" }}
@@ -906,7 +906,7 @@ const onCropComplete = useCallback(
                           "linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02))",
                       }}
                     >
-                      Portada de la comunidad
+                      {tGroups("communitycover")}
                     </div>
                   )}
 
@@ -928,7 +928,7 @@ const onCropComplete = useCallback(
                       backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)",
                     }}
                   >
-                    Elegir portada
+                    {tGroups("chooseCover")}
                   </button>
 
                   <div
@@ -949,7 +949,7 @@ const onCropComplete = useCallback(
                     {avatarPreview ? (
                       <Image
                         src={avatarPreview}
-                        alt="Avatar"
+                        alt={tGroups("avatar")}
                         fill
                         style={{ objectFit: "cover", display: "block" }}
                       />
@@ -964,14 +964,14 @@ const onCropComplete = useCallback(
                           fontSize: 12,
                         }}
                       >
-                        Avatar
+                        {tGroups("avatar")}
                       </div>
                     )}
 
                     <button
                       type="button"
                       onClick={() => avatarInputRef.current?.click()}
-                      aria-label="Elegir avatar"
+                      aria-label={tGroups("chooseAvatarAriaLabel")}
                       style={{
                         position: "absolute",
                         right: 6,
@@ -1018,7 +1018,7 @@ const onCropComplete = useCallback(
                   >
                     {description.trim()
                       ? description.trim()
-                      : "Aquí verás una vista previa de cómo lucirá tu comunidad al crearla."}
+                      : tGroups("previewEmptyState")}
                   </p>
 
                   <p
@@ -1029,7 +1029,7 @@ const onCropComplete = useCallback(
                       lineHeight: 1.4,
                     }}
                   >
-                    Vista previa de tu comunidad
+                    {tGroups("previewLabel")}
                   </p>
                 </div>
               </div>
@@ -1078,7 +1078,7 @@ const onCropComplete = useCallback(
                         padding: 0,
                       }}
                     >
-                      Quitar avatar
+                      {tGroups("removeAvatar")}
                     </button>
                   )}
 
@@ -1095,7 +1095,7 @@ const onCropComplete = useCallback(
                         padding: 0,
                       }}
                     >
-                      Quitar portada
+                      {tGroups("removeCover")}
                     </button>
                   )}
                 </div>
@@ -1110,7 +1110,7 @@ const onCropComplete = useCallback(
                     textAlign: "center",
                   }}
                 >
-                  Subiendo avatar: {avatarUploadPct}%
+                  {tGroups("uploadingAvatar")}{avatarUploadPct}%
                 </p>
               )}
 
@@ -1123,7 +1123,7 @@ const onCropComplete = useCallback(
                     textAlign: "center",
                   }}
                 >
-                  Subiendo portada: {coverUploadPct}%
+                  {tGroups("uploadingCover")}{coverUploadPct}%
                 </p>
               )}
 
@@ -1135,7 +1135,7 @@ const onCropComplete = useCallback(
                   textAlign: "center",
                 }}
               >
-                Aquí ya puedes ver el avatar centrado sobre la portada antes de crear la comunidad.
+                {tGroups("avatarPreviewInfo")}
               </p>
             </section>
 
@@ -1160,7 +1160,7 @@ const onCropComplete = useCallback(
                     color: "rgba(255,255,255,0.92)",
                   }}
                 >
-                  Categoría
+                  {tGroups("category")}
                 </label>
                 <SelectField
                   value={category}
@@ -1184,7 +1184,7 @@ const onCropComplete = useCallback(
                     color: "rgba(255,255,255,0.92)",
                   }}
                 >
-                  Tags (separados por coma)
+                  {tGroups("tagsLabel")}
                 </label>
                 <input
                   style={{
@@ -1200,7 +1200,7 @@ const onCropComplete = useCallback(
                   }}
                   value={tagsRaw}
                   onChange={(e) => setTagsRaw(e.target.value)}
-                  placeholder="ej: futbol, pumas, liga mx"
+                  placeholder={tGroups("tagsExample")}
                 />
                 <p
                   style={{
@@ -1209,7 +1209,7 @@ const onCropComplete = useCallback(
                     color: "rgba(255,255,255,0.45)",
                   }}
                 >
-                  Máximo 10 tags. Ejemplo: futbol, pumas, liga mx.
+                  {tGroups("tagsMaxInfo")}
                 </p>
               </div>
 
@@ -1227,7 +1227,7 @@ const onCropComplete = useCallback(
               >
                 <div>
                   <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: "#fff" }}>
-                    Mensaje de bienvenida
+                    {tGroups("welcomeMessageLabel")}
                   </p>
                   <p
                     style={{
@@ -1236,7 +1236,7 @@ const onCropComplete = useCallback(
                       color: "rgba(255,255,255,0.55)",
                     }}
                   >
-                    Envía un texto inicial cuando entren a la comunidad.
+                    {tGroups("welcomeMessageDescription")}
                   </p>
                 </div>
                 <ToggleSwitch checked={greetingsEnabled} onChange={setGreetingsEnabled} />
@@ -1253,7 +1253,7 @@ const onCropComplete = useCallback(
                       color: "rgba(255,255,255,0.92)",
                     }}
                   >
-                    Mensaje de bienvenida
+                    {tGroups("welcomeMessageLabel")}
                   </label>
                   <textarea
                     style={{
@@ -1271,7 +1271,7 @@ const onCropComplete = useCallback(
                     }}
                     value={welcomeMessage}
                     onChange={(e) => setWelcomeMessage(e.target.value)}
-                    placeholder="Ej: Bienvenido a la comunidad..."
+                    placeholder={tGroups("welcomeMessageExample")}
                     rows={3}
                   />
                 </div>
@@ -1288,7 +1288,7 @@ const onCropComplete = useCallback(
                       color: "rgba(255,255,255,0.92)",
                     }}
                   >
-                    Edad mínima
+                    {tGroups("ageMin")}
                   </label>
                   <input
                     type="number"
@@ -1319,7 +1319,7 @@ const onCropComplete = useCallback(
                       color: "rgba(255,255,255,0.92)",
                     }}
                   >
-                    Edad máxima
+                    {tGroups("ageMax")}
                   </label>
                   <input
                     type="number"
@@ -1363,14 +1363,14 @@ const onCropComplete = useCallback(
                     color: "rgba(255,255,255,0.92)",
                   }}
                 >
-                  Quién puede publicar
+                  {tGroups("whoCanPost")}
                 </label>
                 <SelectField
                   value={postingMode}
                   onChange={(value) => setPostingMode(value as PostingMode)}
                 >
                   <option value="members">{tGroups("members")}</option>
-                  <option value="owner_only">Solo dueño</option>
+                  <option value="owner_only">{tGroups("ownerOnly")}</option>
                 </SelectField>
               </div>
 
@@ -1388,7 +1388,7 @@ const onCropComplete = useCallback(
               >
                 <div>
                   <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: "#fff" }}>
-                    Permitir comentarios
+                    {tGroups("allowComments")}
                   </p>
                   <p
                     style={{
@@ -1397,7 +1397,7 @@ const onCropComplete = useCallback(
                       color: "rgba(255,255,255,0.55)",
                     }}
                   >
-                    Activa respuestas dentro de publicaciones de la comunidad.
+                    {tGroups("commentsDescription")}
                   </p>
                 </div>
                 <ToggleSwitch checked={commentsEnabled} onChange={setCommentsEnabled} />
@@ -1415,11 +1415,11 @@ const onCropComplete = useCallback(
                 gap: 12,
               }}
             >
-              <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>Monetización</h2>
+              <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>{tCommon("monetization")}</h2>
 
               {!subscriptionAllowed && (
                 <p style={{ margin: 0, fontSize: 12, color: "rgba(255,255,255,0.50)" }}>
-                  Nota: las comunidades públicas no pueden tener suscripción en este MVP.
+                  {tGroups("publicGroupsNoSubscription")}
                 </p>
               )}
 
@@ -1460,7 +1460,7 @@ const onCropComplete = useCallback(
                     disabled={!subscriptionAllowed}
                     onChange={() => setMonetizationMode("paid")}
                   />
-                  Suscripción mensual
+                  {tGroups("monthlySubscription")}
                 </label>
               </div>
 
@@ -1476,7 +1476,7 @@ const onCropComplete = useCallback(
                         color: "rgba(255,255,255,0.92)",
                       }}
                     >
-                      Precio mensual
+                      {tGroups("monthlyPrice")}
                     </label>
                     <input
                       type="number"
@@ -1493,7 +1493,7 @@ const onCropComplete = useCallback(
                       }}
                       value={priceMonthly}
                       onChange={(e) => setPriceMonthly(e.target.value)}
-                      placeholder="Ej: 99"
+                      placeholder={tGroups("priceExample")}
                     />
                   </div>
 
@@ -1507,7 +1507,7 @@ const onCropComplete = useCallback(
                         color: "rgba(255,255,255,0.92)",
                       }}
                     >
-                      Moneda
+                      {tGroups("currency")}
                     </label>
                     <SelectField
                       value={currency}
@@ -1541,7 +1541,7 @@ const onCropComplete = useCallback(
                 transition: "opacity 150ms ease",
               }}
             >
-              {loading ? "Creando..." : tGroups("createCommunity")}
+              {loading ? tGroups("creating") : tGroups("createCommunity")}
             </button>
           </form>
         </div>
@@ -1584,7 +1584,7 @@ const onCropComplete = useCallback(
               }}
             >
               <div style={{ fontWeight: 600, color: "#fff", fontSize: 16 }}>
-                {cropMode === "avatar" ? "Recortar avatar de la comunidad" : tProfile("cropCover")}
+                {cropMode === "avatar" ? tGroups("cropAvatarTitle") : tProfile("cropCover")}
               </div>
 
               <button
@@ -1673,7 +1673,7 @@ const onCropComplete = useCallback(
                       cursor: croppingBusy ? "not-allowed" : "pointer",
                     }}
                   >
-                    {croppingBusy ? "Guardando..." : tCommon("save")}
+                    {croppingBusy ? tCommon("saving") : tCommon("save")}
                   </button>
                 </div>
               </div>

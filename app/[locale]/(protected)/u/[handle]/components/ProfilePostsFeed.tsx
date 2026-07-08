@@ -32,6 +32,8 @@ import GroupPostCard from "@/app/groups/[groupId]/components/posts/GroupPostCard
 import GroupRecommendationsRail from "@/app/components/GroupRecommendations/GroupRecommendationsRail";
 import { buildRandomRecommendationSlots } from "@/app/components/GroupRecommendations/recommendation-engine";
 import DonationFeedBanner from "@/app/components/DonationFeedBanner/DonationFeedBanner";
+import SessionCountdownBanner from "@/app/components/SessionCountdownBanner/SessionCountdownBanner";
+import CreatorSessionCountdownBanner from "@/app/components/SessionCountdownBanner/CreatorSessionCountdownBanner";
 import { loadFeedWithRetry } from "@/lib/posts/feed-load-helpers";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
@@ -485,6 +487,9 @@ export default function ProfilePostsFeed({
   onDonationPay,
 }: ProfilePostsFeedProps) {
   const t = useTranslations("common");
+  const tProfile = useTranslations("profile");
+  const tFeed = useTranslations("feed");
+  const tPosts = useTranslations("posts");
   const showDonationBanner =
     donation?.mode === "general" && donation?.enabled === true && donation?.visible !== false;
 
@@ -724,7 +729,7 @@ const cacheKey = useMemo(
 
         setError(
           (e instanceof Error ? e.message : null) ??
-            "No se pudieron cargar las publicaciones. Intenta de nuevo."
+            tProfile("loadPostsError")
         );
       } finally {
         if (mode === "more") {
@@ -975,14 +980,14 @@ const cacheKey = useMemo(
         } as Post["counts"],
       });
     } catch (e: unknown) {
-      setError((e instanceof Error ? e.message : null) ?? "No se pudo actualizar la flamita.");
+      setError((e instanceof Error ? e.message : null) ?? tFeed("errorUpdateFlame"));
       throw e;
     }
   }
   
 async function handleToggleProfilePin(postId: string): Promise<void> {
   if (!isOwner) {
-    throw new Error("Solo puedes fijar publicaciones en tu propio perfil.");
+    throw new Error(tProfile("pinOwnProfileOnly"));
   }
 
   try {
@@ -999,7 +1004,7 @@ async function handleToggleProfilePin(postId: string): Promise<void> {
     });
   } catch (e: unknown) {
     setError(
-      (e instanceof Error ? e.message : null) ?? "No se pudo fijar o desfijar la publicación en tu perfil."
+      (e instanceof Error ? e.message : null) ?? tProfile("pinError")
     );
     throw e;
   }
@@ -1026,7 +1031,7 @@ async function handleToggleProfilePin(postId: string): Promise<void> {
         } as Post["counts"],
       });
     } catch (e: unknown) {
-      setError((e instanceof Error ? e.message : null) ?? "No se pudo actualizar el guardado.");
+      setError((e instanceof Error ? e.message : null) ?? tFeed("errorUpdateSave"));
       throw e;
     }
   }
@@ -1108,7 +1113,7 @@ async function handleToggleProfilePin(postId: string): Promise<void> {
       setError(null);
       return await fetchCommentReplies({ postId, commentId });
     } catch (e: unknown) {
-      setError((e instanceof Error ? e.message : null) ?? "No se pudieron cargar las respuestas.");
+      setError((e instanceof Error ? e.message : null) ?? tPosts("errorLoadReplies"));
       throw e;
     }
   }
@@ -1126,7 +1131,7 @@ async function handleToggleProfilePin(postId: string): Promise<void> {
 
       return await fetchCommentReplies({ postId, commentId });
     } catch (e: unknown) {
-      setError((e instanceof Error ? e.message : null) ?? "No se pudo crear la respuesta.");
+      setError((e instanceof Error ? e.message : null) ?? tPosts("errorCreateReply"));
       throw e;
     }
   }
@@ -1144,7 +1149,7 @@ async function handleToggleProfilePin(postId: string): Promise<void> {
 
       return await fetchCommentReplies({ postId, commentId });
     } catch (e: unknown) {
-      setError((e instanceof Error ? e.message : null) ?? "No se pudo eliminar la respuesta.");
+      setError((e instanceof Error ? e.message : null) ?? tPosts("errorDeleteReply"));
       throw e;
     }
   }
@@ -1266,7 +1271,7 @@ const shellStyle: CSSProperties = {
   if ((!showPosts || profileRestricted) && !isOwner) {
     return (
       <section style={shellStyle}>
-        <div style={reservedStyle}>Perfil reservado</div>
+        <div style={reservedStyle}>{tProfile("profileReservedLabel")}</div>
       </section>
     );
   }
@@ -1292,7 +1297,19 @@ const shellStyle: CSSProperties = {
         </div>
       )}
 
-      {loadingInitial && <div style={noticeStyle}>Cargando publicaciones...</div>}
+      {viewerUid && isOwner && (
+        <div style={postItemStyle}>
+          <CreatorSessionCountdownBanner uid={viewerUid} />
+        </div>
+      )}
+
+      {viewerUid && (
+        <div style={postItemStyle}>
+          <SessionCountdownBanner uid={viewerUid} />
+        </div>
+      )}
+
+      {loadingInitial && <div style={noticeStyle}>{tProfile("postsLoading")}</div>}
 
       {!loadingInitial && posts.length === 0 && viewerUid && !isEmbed && (
         <div style={recommendationWrapperStyle}>
@@ -1305,7 +1322,7 @@ const shellStyle: CSSProperties = {
 
       {!loadingInitial && posts.length === 0 && !viewerUid && (
         <div style={noticeStyle}>
-          Todavía no hay publicaciones visibles en este perfil.
+          {tProfile("noPostsVisible")}
         </div>
       )}
 
@@ -1366,11 +1383,11 @@ const shellStyle: CSSProperties = {
       })}
 
       {loadingMore && (
-        <div style={noticeStyle}>Cargando más publicaciones...</div>
+        <div style={noticeStyle}>{tProfile("postsLoadingMore")}</div>
       )}
 
       {!loadingInitial && !loadingMore && posts.length > 0 && !hasMore && (
-        <div style={noticeStyle}>Ya viste todas las publicaciones disponibles.</div>
+        <div style={noticeStyle}>{tProfile("allPostsLoaded")}</div>
       )}
 
       {!loadingInitial &&

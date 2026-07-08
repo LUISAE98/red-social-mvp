@@ -78,46 +78,38 @@ function getGreetingUi(
   if (type === "consejo") {
     return {
       title: tServices("requestAdvice"),
-      intro:
-        "Completa tu solicitud con el mayor contexto posible para que el creador entienda bien qué consejo necesitas.",
+      intro: tServices("greetIntroConsejo"),
       recipientLabel: tServices("recipientLabel"),
       recipientPlaceholder: tServices("recipientPlaceholder"),
       instructionsLabel: tServices("instructionsLabel"),
       instructionsPlaceholder: tServices("instructionsPlaceholder"),
       submitLabel: tServices("requestAdvice"),
-      helperText:
-        "Nota: el creador revisará tu solicitud de consejo y podrá aceptarla o rechazarla. Pagos y entrega se integran después.",
+      helperText: tServices("greetHelperConsejo"),
     };
   }
 
   if (type === "mensaje") {
     return {
-      title: "Solicitar mensaje",
-      intro:
-        "Completa tu solicitud con contexto claro para que el creador prepare el mensaje de forma personalizada.",
-      recipientLabel: "¿A quién va dirigido el mensaje?",
-      recipientPlaceholder: "Ej. Para Juan",
-      instructionsLabel: "Indica el contexto del mensaje",
-      instructionsPlaceholder:
-        "Ej. Mensaje de felicitación, apoyo, ánimo o respuesta personalizada.",
-      submitLabel: "Solicitar mensaje",
-      helperText:
-        "Nota: el creador podrá aceptar o rechazar tu solicitud de mensaje. Pagos y entrega se integran después.",
+      title: tServices("greetTitleMensaje"),
+      intro: tServices("greetIntroMensaje"),
+      recipientLabel: tServices("greetRecipientMensaje"),
+      recipientPlaceholder: tServices("greetPlaceholderRecipientMensaje"),
+      instructionsLabel: tServices("greetInstructionsMensaje"),
+      instructionsPlaceholder: tServices("greetPlaceholderInstructionsMensaje"),
+      submitLabel: tServices("greetTitleMensaje"),
+      helperText: tServices("greetHelperMensaje"),
     };
   }
 
   return {
-    title: "Solicitar saludo",
-    intro:
-      "Completa tu solicitud con el contexto necesario para que el creador prepare el saludo como lo esperas.",
-    recipientLabel: "¿Para quién es el saludo?",
-    recipientPlaceholder: "Ej. Para Ana, por su cumpleaños",
-    instructionsLabel: "Indica cómo quieres el saludo",
-    instructionsPlaceholder:
-      "Ej. Que la felicite por su cumpleaños, que mencione su nombre y que sea con tono alegre.",
-    submitLabel: "Solicitar saludo",
-    helperText:
-      "Nota: el creador podrá aceptar o rechazar tu solicitud de saludo. Pagos y entrega de video se integran después.",
+    title: tServices("greetTitleSaludo"),
+    intro: tServices("greetIntroSaludo"),
+    recipientLabel: tServices("greetRecipientSaludo"),
+    recipientPlaceholder: tServices("greetPlaceholderRecipientSaludo"),
+    instructionsLabel: tServices("greetInstructionsSaludo"),
+    instructionsPlaceholder: tServices("greetPlaceholderInstructionsSaludo"),
+    submitLabel: tServices("greetTitleSaludo"),
+    helperText: tServices("greetHelperSaludo"),
   };
 }
 
@@ -183,6 +175,7 @@ export default function GroupServiceModals({
   formatMoney,
 }: GroupServiceModalsProps) {
   const tServices = useTranslations("services");
+  const tCommon = useTranslations("common");
   const [mounted, setMounted] = useState(false);
   const { toast: serviceModalToast, showToast: showServiceModalToast } = useVibraToast();
 
@@ -282,7 +275,7 @@ export default function GroupServiceModals({
                     cursor: greetSubmitting ? "not-allowed" : "pointer",
                   }}
                 >
-                  Cerrar
+                  {tCommon("close")}
                 </button>
               </div>
 
@@ -345,13 +338,13 @@ export default function GroupServiceModals({
                     gap: 10,
                   }}>
                     <span style={{ ...labelStyle, fontSize: 13, fontWeight: 600 }}>
-                      Comparte este momento con la comunidad
+                      {tServices("shareWithCommunity")}
                     </span>
                     <span style={{ ...microText, color: "rgba(255,255,255,0.6)", lineHeight: 1.5 }}>
-                      Permite que el creador publique este {greetType} en historias para que otros usuarios puedan verlo.
+                      {tServices("shareWithCommunityDesc", { greetType })}
                     </span>
                     <span style={{ ...microText, color: "rgba(255,255,255,0.42)", lineHeight: 1.5 }}>
-                      Tu identidad permanecerá privada. Solo se mostrará el video y el contexto de la solicitud.
+                      {tServices("sharePrivacyNote")}
                     </span>
                     <label style={{ display: "flex", alignItems: "center", gap: 12, cursor: greetSubmitting ? "not-allowed" : "pointer" }}>
                       <div
@@ -381,7 +374,7 @@ export default function GroupServiceModals({
                         }} />
                       </div>
                       <span style={{ ...microText, color: "rgba(255,255,255,0.82)", fontSize: 13 }}>
-                        Permitir publicación en historias
+                        {tServices("allowStories")}
                       </span>
                     </label>
                   </div>
@@ -399,7 +392,7 @@ export default function GroupServiceModals({
                       cursor: greetSubmitting ? "not-allowed" : "pointer",
                     }}
                   >
-                    {greetSubmitting ? "Enviando..." : greetPriceLabel ? `Continuar al pago ${greetPriceLabel}` : "Continuar al pago"}
+                    {greetSubmitting ? tCommon("sending") : greetPriceLabel ? tServices("continueToPaymentWithPrice", { price: greetPriceLabel }) : tServices("continueToPayment")}
                   </button>
 
                   <button
@@ -412,7 +405,7 @@ export default function GroupServiceModals({
                       cursor: greetSubmitting ? "not-allowed" : "pointer",
                     }}
                   >
-                    Cancelar
+                    {tCommon("cancel")}
                   </button>
                 </div>
 
@@ -450,7 +443,7 @@ export default function GroupServiceModals({
                 }}
               >
                 <div id="group-subscription-modal-title" style={subtitleStyle}>
-                  Suscripción mensual
+                  {tServices("subscriptionModalTitle")}
                 </div>
 
                 <button
@@ -463,17 +456,17 @@ export default function GroupServiceModals({
                     cursor: subscriptionSubmitting ? "not-allowed" : "pointer",
                   }}
                 >
-                  Cerrar
+                  {tCommon("close")}
                 </button>
               </div>
 
               <div style={{ marginTop: 10, display: "grid", gap: 12 }}>
                 <div style={textStyle}>
-                  Esta comunidad requiere suscripción para unirte.
+                  {tServices("subscriptionModalRequired")}
                 </div>
 
                 <div style={panelStyle}>
-                  <div style={labelStyle}>Costo mensual</div>
+                  <div style={labelStyle}>{tServices("monthlyCost")}</div>
                   <div
                     style={{
                       marginTop: 6,
@@ -505,7 +498,7 @@ export default function GroupServiceModals({
                       cursor: subscriptionSubmitting ? "not-allowed" : "pointer",
                     }}
                   >
-                    {subscriptionSubmitting ? "Procesando..." : "Pagar y unirme"}
+                    {subscriptionSubmitting ? tCommon("processing") : tServices("payAndJoin")}
                   </button>
 
                   <button
@@ -582,7 +575,7 @@ export default function GroupServiceModals({
                 cursor: params.submitting ? "not-allowed" : "pointer",
               }}
             >
-              Cerrar
+              {tCommon("close")}
             </button>
           </div>
 
@@ -590,20 +583,20 @@ export default function GroupServiceModals({
             <div style={textStyle}>{params.description}</div>
 
             <div style={panelStyle}>
-              <div style={labelStyle}>Resumen del servicio</div>
+              <div style={labelStyle}>{tServices("serviceResume")}</div>
 
               <div style={{ marginTop: 8, display: "grid", gap: 6 }}>
                 <div style={microText}>
-                  Precio: <strong style={{ color: "#fff" }}>{params.priceLabel}</strong>
+                  {tServices("priceLabel")} <strong style={{ color: "#fff" }}>{params.priceLabel}</strong>
                 </div>
 
                 <div style={microText}>
-                  Duración:{" "}
+                  {tServices("duration")}:{" "}
                   <strong style={{ color: "#fff" }}>{params.durationLabel}</strong>
                 </div>
 
                 <div style={microText}>
-                  Pago: <strong style={{ color: "#fff" }}>Simulado por ahora</strong>
+                  {tServices("paymentLabel")} <strong style={{ color: "#fff" }}>{tServices("simulatedForNow")}</strong>
                 </div>
               </div>
             </div>
@@ -640,7 +633,7 @@ export default function GroupServiceModals({
                   cursor: params.submitting ? "not-allowed" : "pointer",
                 }}
               >
-                {params.submitting ? "Enviando..." : params.submitLabel}
+                {params.submitting ? tCommon("sending") : params.submitLabel}
               </button>
 
               <button
@@ -668,19 +661,16 @@ export default function GroupServiceModals({
   const meetGreetModal = renderScheduledRequestModal({
     open: meetGreetOpen,
     submitting: meetGreetSubmitting,
-    title: "Solicitar Meet & Greet",
-    description:
-      "Envía tu solicitud de meet & greet. El creador podrá aceptarla, rechazarla y después proponerte fecha y hora.",
+    title: tServices("requestMeetGreetTitle"),
+    description: tServices("meetGreetRequestDesc"),
     priceLabel: meetGreetPriceLabel,
     durationLabel: meetGreetDurationLabel,
     message: meetGreetMessage,
     error: meetGreetError,
-    textareaLabel: "Cuéntale al creador cualquier detalle importante",
-    textareaPlaceholder:
-      "Ej. horarios preferidos, zona horaria, motivo del meet & greet o cualquier contexto útil.",
-    submitLabel: "Solicitar meet & greet",
-    helperText:
-      "El flujo de agenda, aceptación, rechazo, cambio de fecha y preparación se mostrará después en OwnerSidebar.",
+    textareaLabel: tServices("meetGreetContextLabel"),
+    textareaPlaceholder: tServices("meetGreetContextPlaceholder"),
+    submitLabel: tServices("requestMeetGreetSubmit"),
+    helperText: tServices("meetGreetHelperText"),
     titleId: "group-meet-greet-modal-title",
     onClose: onCloseMeetGreet,
     onSubmit: onSubmitMeetGreet,
@@ -690,19 +680,16 @@ export default function GroupServiceModals({
   const exclusiveSessionModal = renderScheduledRequestModal({
     open: exclusiveSessionOpen,
     submitting: exclusiveSessionSubmitting,
-    title: "Solicitar sesión exclusiva",
-    description:
-      "Envía tu solicitud de sesión exclusiva. El creador podrá aceptarla, rechazarla y después proponerte fecha y hora.",
+    title: tServices("requestExclusiveSessionTitle"),
+    description: tServices("exclusiveSessionRequestDesc"),
     priceLabel: exclusiveSessionPriceLabel,
     durationLabel: exclusiveSessionDurationLabel,
     message: exclusiveSessionMessage,
     error: exclusiveSessionError,
-    textareaLabel: "Cuéntale al creador cualquier detalle importante",
-    textareaPlaceholder:
-      "Ej. tema de la sesión, horarios preferidos, zona horaria o cualquier contexto útil.",
-    submitLabel: "Solicitar sesión exclusiva",
-    helperText:
-      "El flujo de agenda, aceptación, rechazo, cambio de fecha y preparación usa la misma mecánica que Meet & Greet.",
+    textareaLabel: tServices("exclusiveSessionContextLabel"),
+    textareaPlaceholder: tServices("exclusiveSessionContextPlaceholder"),
+    submitLabel: tServices("requestExclusiveSessionSubmit"),
+    helperText: tServices("exclusiveSessionHelperText"),
     titleId: "group-exclusive-session-modal-title",
     onClose: onCloseExclusiveSession,
     onSubmit: onSubmitExclusiveSession,

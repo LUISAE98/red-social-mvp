@@ -13,6 +13,7 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAdminPreview } from "../context";
+import { useTranslations } from "next-intl";
 
 type Community = {
   id: string;
@@ -71,19 +72,20 @@ function toCommunityBase(id: string, d: FireCommunity): CommunityBase {
   };
 }
 
-function rel(date: Date): string {
+function rel(date: Date, t: (key: string, params?: Record<string, string | number | Date>) => string): string {
   const m = Math.floor((Date.now() - date.getTime()) / 60000);
-  if (m < 1) return "ahora";
-  if (m < 60) return `hace ${m}m`;
+  if (m < 1) return t("timeNow");
+  if (m < 60) return t("timeMinutesAgo", { count: m });
   const h = Math.floor(m / 60);
-  if (h < 24) return `hace ${h}h`;
-  return date.toLocaleString("es-MX", { dateStyle: "medium" });
+  if (h < 24) return t("timeHoursAgo", { count: h });
+  return date.toLocaleString();
 }
 
 type Tab = "active" | "deleted";
 
 export default function PrivateCommunitiesPage() {
   const { setPreviewUrl } = useAdminPreview();
+  const tAdmin = useTranslations("admin");
   const [tab, setTab] = useState<Tab>("active");
 
   const [bases, setBases] = useState<CommunityBase[]>([]);
@@ -197,16 +199,16 @@ export default function PrivateCommunitiesPage() {
       <div style={{ marginBottom: 20, display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
         <div>
           <h1 style={{ fontSize: 18, fontWeight: 700, color: "#fff", margin: 0 }}>
-            Comunidades privadas
+            {tAdmin("privateCommunityTitle")}
           </h1>
           <p style={{ fontSize: 12, color: "#444", margin: "4px 0 0" }}>
-            Visibles solo para miembros invitados.
+            {tAdmin("privateCommunitySubtitle")}
           </p>
         </div>
         <button
           onClick={() => setEnrichKey((k) => k + 1)}
           disabled={enriching}
-          title="Actualizar contadores"
+          title={tAdmin("refreshCounters")}
           style={{
             flexShrink: 0,
             marginTop: 2,
@@ -237,15 +239,15 @@ export default function PrivateCommunitiesPage() {
             <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
             <path d="M8 16H3v5" />
           </svg>
-          {enriching ? "Actualizando..." : "Actualizar"}
+          {enriching ? tAdmin("refreshing") : tAdmin("refresh")}
         </button>
       </div>
 
       {/* Tabs */}
       <div style={{ display: "flex", gap: 6, marginBottom: 20 }}>
         {([
-          { key: "active" as Tab, label: "Activas", count: activeCount },
-          { key: "deleted" as Tab, label: "Eliminadas", count: deletedCount },
+          { key: "active" as Tab, label: tAdmin("tabActive"), count: activeCount },
+          { key: "deleted" as Tab, label: tAdmin("tabDeleted"), count: deletedCount },
         ]).map((t) => (
           <button
             key={t.key}
@@ -283,12 +285,12 @@ export default function PrivateCommunitiesPage() {
       </div>
 
       {loading ? (
-        <div style={{ color: "#444", fontSize: 13 }}>Cargando...</div>
+        <div style={{ color: "#444", fontSize: 13 }}>{tAdmin("loadingCommunities")}</div>
       ) : filtered.length === 0 ? (
         <div style={{ color: "#444", fontSize: 13 }}>
           {tab === "active"
-            ? "No hay comunidades privadas activas."
-            : "No hay comunidades privadas eliminadas."}
+            ? tAdmin("noActiveCommunities")
+            : tAdmin("noDeletedCommunities")}
         </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -323,7 +325,7 @@ export default function PrivateCommunitiesPage() {
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={c.avatarUrl}
-                      alt={c.name ?? "comunidad"}
+                      alt={c.name ?? tAdmin("communityAltText")}
                       style={{
                         width: 44,
                         height: 44,
@@ -364,7 +366,7 @@ export default function PrivateCommunitiesPage() {
                           textDecoration: c.isDeleted ? "line-through" : "none",
                         }}
                       >
-                        {c.name ?? "Sin nombre"}
+                        {c.name ?? tAdmin("communityNameFallback")}
                       </span>
 
                       {c.isDeleted && (
@@ -378,7 +380,7 @@ export default function PrivateCommunitiesPage() {
                             color: "#f87171",
                           }}
                         >
-                          Eliminada
+                          {tAdmin("badgeDeleted")}
                         </span>
                       )}
 
@@ -392,7 +394,7 @@ export default function PrivateCommunitiesPage() {
                           color: c.modVerified ? "#86efac" : "#f59e0b",
                         }}
                       >
-                        {c.modVerified ? "Verificada" : "Sin verificar"}
+                        {c.modVerified ? tAdmin("badgeVerified") : tAdmin("badgeUnverified")}
                       </span>
                     </div>
 
@@ -426,9 +428,9 @@ export default function PrivateCommunitiesPage() {
                   }}
                 >
                   {[
-                    { label: "Posts", value: c.postsCount },
-                    { label: "Lives", value: c.livesCount },
-                    { label: "Miembros", value: c.memberCount },
+                    { label: tAdmin("statPosts"), value: c.postsCount },
+                    { label: tAdmin("statLives"), value: c.livesCount },
+                    { label: tAdmin("statMembers"), value: c.memberCount },
                   ].map((stat, i) => (
                     <div
                       key={stat.label}
@@ -461,11 +463,11 @@ export default function PrivateCommunitiesPage() {
                 >
                   <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
                     <span style={{ fontSize: 10, color: "#444" }}>
-                      Creada: {c.createdAt ? rel(c.createdAt) : "—"}
+                      {tAdmin("createdLabel")}{c.createdAt ? rel(c.createdAt, tAdmin) : "—"}
                     </span>
                     {c.isDeleted && c.deletedAt && (
                       <span style={{ fontSize: 10, color: "#7f1d1d" }}>
-                        Eliminada: {rel(c.deletedAt)}
+                        {tAdmin("deletedLabel")}{rel(c.deletedAt, tAdmin)}
                       </span>
                     )}
                   </div>
@@ -497,13 +499,13 @@ export default function PrivateCommunitiesPage() {
                     cursor: c.creatorHandle ? "pointer" : "default",
                     opacity: c.creatorHandle ? 1 : 0.6,
                   }}
-                  title={c.creatorHandle ? `Ver perfil de ${c.creatorName}` : undefined}
+                  title={c.creatorHandle ? tAdmin("viewCreatorProfile", { name: c.creatorName ?? "" }) : undefined}
                 >
                   {c.creatorAvatar ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={c.creatorAvatar}
-                      alt={c.creatorName ?? "creador"}
+                      alt={c.creatorName ?? tAdmin("creatorAltText")}
                       style={{
                         width: 22,
                         height: 22,
@@ -530,7 +532,7 @@ export default function PrivateCommunitiesPage() {
                     </div>
                   )}
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <span style={{ fontSize: 10, color: "#444" }}>Creador · </span>
+                    <span style={{ fontSize: 10, color: "#444" }}>{tAdmin("creatorLabel")}</span>
                     <span
                       style={{
                         fontSize: 11,
@@ -538,7 +540,7 @@ export default function PrivateCommunitiesPage() {
                         fontWeight: 600,
                       }}
                     >
-                      {c.creatorName ?? c.ownerId ?? "Desconocido"}
+                      {c.creatorName ?? c.ownerId ?? tAdmin("creatorNameFallback")}
                     </span>
                     {c.creatorHandle && (
                       <span style={{ fontSize: 10, color: "#555", marginLeft: 4 }}>

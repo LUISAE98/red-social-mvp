@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { useTranslations, useLocale } from "next-intl";
 
 export type ScheduleParts = {
   day: string;
@@ -16,20 +17,15 @@ type Props = {
   disabled?: boolean;
 };
 
-const MONTH_OPTIONS = [
-  { value: "01", label: "Enero" },
-  { value: "02", label: "Febrero" },
-  { value: "03", label: "Marzo" },
-  { value: "04", label: "Abril" },
-  { value: "05", label: "Mayo" },
-  { value: "06", label: "Junio" },
-  { value: "07", label: "Julio" },
-  { value: "08", label: "Agosto" },
-  { value: "09", label: "Septiembre" },
-  { value: "10", label: "Octubre" },
-  { value: "11", label: "Noviembre" },
-  { value: "12", label: "Diciembre" },
-];
+function getMonthOptions(locale: string): { value: string; label: string }[] {
+  return Array.from({ length: 12 }, (_, i) => ({
+    value: String(i + 1).padStart(2, "0"),
+    label:
+      new Date(2024, i, 1)
+        .toLocaleString(locale, { month: "long" })
+        .replace(/^\w/, (c) => c.toUpperCase()),
+  }));
+}
 
 export function getSchedulePartsFromDate(value: Date | null): ScheduleParts {
   const date = value ?? new Date();
@@ -102,6 +98,8 @@ export default function ScheduleDateTimeSelector({
   onChange,
   disabled = false,
 }: Props) {
+  const tWallet = useTranslations("wallet");
+  const locale = useLocale();
   const now = new Date();
   const currentYear = now.getFullYear();
   const currentMonth = now.getMonth() + 1;
@@ -139,7 +137,7 @@ export default function ScheduleDateTimeSelector({
     ? allDayOptions.filter((d) => Number(d) >= currentDay)
     : allDayOptions;
 
-  const allMonthOptions = MONTH_OPTIONS;
+  const allMonthOptions = getMonthOptions(locale);
   const monthOptions = isSelectedYear
     ? allMonthOptions.filter((m) => Number(m.value) >= currentMonth)
     : allMonthOptions;
@@ -349,7 +347,7 @@ export default function ScheduleDateTimeSelector({
       <div>
         <div className="selectorGrid">
           <label className="fieldGroup">
-            <span className="label">Día</span>
+            <span className="label">{tWallet("dayLabel")}</span>
             <select
               value={value.day}
               onChange={(e) => updatePart("day", e.target.value)}
@@ -365,7 +363,7 @@ export default function ScheduleDateTimeSelector({
           </label>
 
           <label className="fieldGroup">
-            <span className="label">Mes</span>
+            <span className="label">{tWallet("monthLabel")}</span>
             <select
               value={value.month}
               onChange={(e) => updatePart("month", e.target.value)}
@@ -381,7 +379,7 @@ export default function ScheduleDateTimeSelector({
           </label>
 
           <label className="fieldGroup">
-            <span className="label">Año</span>
+            <span className="label">{tWallet("yearLabel")}</span>
             <select
               value={value.year}
               onChange={(e) => updatePart("year", e.target.value)}
@@ -399,7 +397,7 @@ export default function ScheduleDateTimeSelector({
 
         <div className="timeGrid">
           <label className="fieldGroup">
-            <span className="label">Hora</span>
+            <span className="label">{tWallet("hourLabel")}</span>
             <select
               value={value.hour}
               onChange={(e) => updatePart("hour", e.target.value)}
@@ -415,7 +413,7 @@ export default function ScheduleDateTimeSelector({
           </label>
 
           <label className="fieldGroup">
-            <span className="label">Minuto</span>
+            <span className="label">{tWallet("minuteLabel")}</span>
             <select
               value={value.minute}
               onChange={(e) => updatePart("minute", e.target.value)}

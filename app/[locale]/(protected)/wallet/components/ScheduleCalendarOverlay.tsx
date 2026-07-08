@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, useRef, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import type { WalletServiceItem } from "@/lib/wallet/ownerWallet";
 import ScheduleDateTimeSelector, {
   getSchedulePartsFromDate,
@@ -54,16 +54,21 @@ function isSameMonth(a: Date, b: Date): boolean {
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth();
 }
 
-function getMonthLabel(date: Date): string {
-  const month = new Intl.DateTimeFormat("es-MX", {
+function getMonthLabel(date: Date, locale: string): string {
+  const month = new Intl.DateTimeFormat(locale, {
     month: "long",
   }).format(date);
 
   return `${month} ${date.getFullYear()}`;
 }
 
-function getWeekdayInitials(): string[] {
-  return ["L", "M", "M", "J", "V", "S", "D"];
+function getWeekdayInitials(locale: string): string[] {
+  const baseDate = new Date(2024, 0, 1); // Monday
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(baseDate);
+    d.setDate(baseDate.getDate() + i);
+    return d.toLocaleString(locale, { weekday: "narrow" }).toUpperCase();
+  });
 }
 
 function getMonthDaysMatrix(monthDate: Date): Date[] {
@@ -90,13 +95,13 @@ function getMonthDaysMatrix(monthDate: Date): Date[] {
   return days;
 }
 
-function buildMonthWindow(baseDate: Date, count: number): CalendarMonthItem[] {
+function buildMonthWindow(baseDate: Date, count: number, locale: string): CalendarMonthItem[] {
   return Array.from({ length: count }, (_, index) => {
     const date = addMonths(baseDate, index);
 
     return {
       key: getMonthKey(date),
-      label: getMonthLabel(date),
+      label: getMonthLabel(date, locale),
       firstDate: date,
     };
   });
@@ -161,7 +166,7 @@ function isSameDay(a: Date | null | undefined, b: Date): boolean {
 
 export default function ScheduleCalendarOverlay({
   open,
-  title = "Calendario del creador",
+  title,
   items,
   excludeId,
   selectedDate,
@@ -176,6 +181,9 @@ export default function ScheduleCalendarOverlay({
 }: Props) {
   const tCommon = useTranslations("common");
   const tServices = useTranslations("services");
+  const tWallet = useTranslations("wallet");
+  const locale = useLocale();
+  const resolvedTitle = title ?? tWallet("creatorCalendar");
   const [mounted, setMounted] = useState(false);
   const [monthOffset, setMonthOffset] = useState(0);
   const MAX_MONTHS_FORWARD = 6;
@@ -250,8 +258,8 @@ export default function ScheduleCalendarOverlay({
   const currentMonthBase = useMemo(() => startOfMonth(new Date()), []);
 
   const monthsWindow = useMemo(
-    () => buildMonthWindow(addMonths(currentMonthBase, monthOffset), monthCount),
-    [currentMonthBase, monthOffset, monthCount]
+    () => buildMonthWindow(addMonths(currentMonthBase, monthOffset), monthCount, locale),
+    [currentMonthBase, monthOffset, monthCount, locale]
   );
 
   const selectedEventItems = selectedEventDayKey
@@ -620,7 +628,7 @@ export default function ScheduleCalendarOverlay({
         >
           <header className="scheduleOverlayHeader">
             <div aria-hidden="true" />
-            <h3 className="scheduleOverlayTitle">{title}</h3>
+            <h3 className="scheduleOverlayTitle">{resolvedTitle}</h3>
             <button
               type="button"
               onClick={onClose}
@@ -701,7 +709,7 @@ export default function ScheduleCalendarOverlay({
                     </div>
 
                     <div className="scheduleWeekdays">
-                      {getWeekdayInitials().map((weekday, index) => (
+                      {getWeekdayInitials(locale).map((weekday, index) => (
                         <div key={`${weekday}-${index}`} className="scheduleWeekday">
                           {weekday}
                         </div>
@@ -753,8 +761,8 @@ export default function ScheduleCalendarOverlay({
 }}
                             title={
                               hasEvents
-                                ? `${dayItems.length} evento${dayItems.length === 1 ? "" : "s"}`
-                                : "Seleccionar día"
+                                ? tWallet("calendarEventsCount", { count: dayItems.length })
+                                : tWallet("selectDay")
                             }
                           >
                             {hasEvents ? countLabel : day.getDate()}
@@ -776,7 +784,7 @@ export default function ScheduleCalendarOverlay({
               {displayEventDayKey && (
                 <div className="scheduleSelectedEvents">
                   <h4 className="scheduleSelectedTitle">
-                    Eventos agendados para este día
+                    {tWallet("scheduledEventsDay")}
                   </h4>
 
                   <div className="scheduleEventsScroll">
@@ -823,13 +831,13 @@ export default function ScheduleCalendarOverlay({
                                 {/* Nombre + duración */}
                                 <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 8 }}>
                                   <span style={{ fontSize: 14, fontWeight: 600, color: "#fff", letterSpacing: "-0.01em" }}>
-                                    {item.buyerDisplayName ?? item.buyerUsername ?? "Comprador"}
+                                    {item.buyerDisplayName ?? item.buyerUsername ?? tCommon("buyer")}
                                   </span>
                                   {item.durationMinutes && (
                                     <>
                                       <span style={{ width: 1, height: 16, background: "rgba(255,255,255,0.35)", flexShrink: 0, borderRadius: 1 }} />
                                       <span style={{ fontSize: 15, fontWeight: 600, color: "rgba(255,255,255,0.60)", whiteSpace: "nowrap" }}>
-                                        {item.durationMinutes} minutos
+                                        {item.durationMinutes} {tCommon("minutes")}
                                       </span>
                                     </>
                                   )}
@@ -838,7 +846,7 @@ export default function ScheduleCalendarOverlay({
                               {/* Hora + botón */}
                               <div style={{ position: "relative", zIndex: 2, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "0 12px 10px" }}>
                                 <span style={{ fontSize: 15, fontWeight: 600, color: "#fff", letterSpacing: "-0.01em" }}>
-                                  {item.scheduledAt?.toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit", hour12: false })} hrs
+                                  {item.scheduledAt?.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit", hour12: false })} {tWallet("hoursAbbr")}
                                 </span>
                                 {onReschedule && (
                                   <button

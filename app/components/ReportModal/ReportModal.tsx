@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { createPortal } from "react-dom";
 import { submitReport } from "@/lib/moderation/reportService";
 import {
@@ -48,6 +49,7 @@ const cardStyle: React.CSSProperties = {
 };
 
 export default function ReportModal({ target, onClose }: Props) {
+  const tCommon = useTranslations("common");
   const [mounted, setMounted] = useState(false);
   const [step, setStep] = useState<Step>("select");
   const [selectedReason, setSelectedReason] = useState<ReportReason | null>(null);
@@ -85,7 +87,7 @@ export default function ReportModal({ target, onClose }: Props) {
 
       setStep("done");
     } catch {
-      setError("Ocurrió un error al enviar el reporte. Intenta de nuevo.");
+      setError(tCommon("reportSubmitError"));
     } finally {
       setLoading(false);
     }
@@ -111,10 +113,10 @@ export default function ReportModal({ target, onClose }: Props) {
         {step === "select" && (
           <>
             <p style={{ fontSize: 17, fontWeight: 700, margin: "0 0 4px" }}>
-              Reportar contenido
+              {tCommon("reportContentTitle")}
             </p>
             <p style={{ fontSize: 13, color: "#888", margin: "0 0 20px" }}>
-              ¿Por qué quieres reportar esto?
+              {tCommon("reportContentSubtitle")}
             </p>
 
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -151,7 +153,7 @@ export default function ReportModal({ target, onClose }: Props) {
 
             {selectedReason && (
               <textarea
-                placeholder="Descripción adicional (opcional)"
+                placeholder={tCommon("reportAdditionalDesc")}
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 maxLength={500}
@@ -194,7 +196,7 @@ export default function ReportModal({ target, onClose }: Props) {
                   cursor: "pointer",
                 }}
               >
-                Cancelar
+                {tCommon("cancel")}
               </button>
               <button
                 onClick={handleSubmit}
@@ -215,7 +217,7 @@ export default function ReportModal({ target, onClose }: Props) {
                   transition: "background 150ms",
                 }}
               >
-                {loading ? "Enviando..." : "Enviar reporte"}
+                {loading ? tCommon("sending") : tCommon("reportSubmit")}
               </button>
             </div>
           </>
@@ -225,11 +227,10 @@ export default function ReportModal({ target, onClose }: Props) {
           <div style={{ textAlign: "center", padding: "20px 0 8px" }}>
             <div style={{ fontSize: 44, marginBottom: 16 }}>🛡️</div>
             <p style={{ fontSize: 17, fontWeight: 700, margin: "0 0 8px" }}>
-              Reporte enviado
+              {tCommon("reportSentTitle")}
             </p>
             <p style={{ fontSize: 13, color: "#888", margin: "0 0 24px", lineHeight: 1.5 }}>
-              Nuestro equipo lo revisará. Gracias por ayudar a mantener la
-              comunidad segura.
+              {tCommon("reportSentDesc")}
             </p>
             <button
               onClick={onClose}
@@ -244,7 +245,7 @@ export default function ReportModal({ target, onClose }: Props) {
                 cursor: "pointer",
               }}
             >
-              Cerrar
+              {tCommon("close")}
             </button>
           </div>
         )}

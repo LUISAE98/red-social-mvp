@@ -62,7 +62,7 @@ export default function MeetGreetPreparationFullscreen({
   if (!mounted || !open) return null;
 
   const sessionLabel =
-    sessionType === "meet_greet" ? "Meet & Greet" : "Sesión Exclusiva";
+    sessionType === "meet_greet" ? "Sesión en vivo" : "Sesión Exclusiva";
 
   return createPortal(
     <div role="dialog" aria-modal="true" style={backdrop}>

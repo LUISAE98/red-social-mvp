@@ -43,9 +43,9 @@ export default function ProfileSocialActions({
   const followButtonLabel = loading
     ? tFeed("processing")
     : relationship.isFollowing && relationship.isFollowedBy
-      ? "Ambos se siguen"
+      ? tProfile("mutualFollow")
       : relationship.isFollowing
-        ? "Siguiendo"
+        ? tProfile("followingLabel")
         : relationship.isFollowedBy
           ? tProfile("followMutual")
           : tCommon("follow");

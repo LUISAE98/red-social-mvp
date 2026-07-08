@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { useAuth } from "@/app/providers";
 import {
   formatWalletMoney,
@@ -51,16 +51,20 @@ function isSameMonth(a: Date, b: Date): boolean {
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth();
 }
 
-function getMonthLabel(date: Date): string {
-  const month = new Intl.DateTimeFormat("es-MX", {
+function getMonthLabel(date: Date, locale: string): string {
+  const month = new Intl.DateTimeFormat(locale, {
     month: "long",
   }).format(date);
-
-  return `${month} ${date.getFullYear()}`;
+  return `${month.charAt(0).toUpperCase()}${month.slice(1)} ${date.getFullYear()}`;
 }
 
-function getWeekdayInitials(): string[] {
-  return ["L", "M", "M", "J", "V", "S", "D"];
+function getWeekdayInitials(locale: string): string[] {
+  const baseDate = new Date(2024, 0, 1);
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(baseDate);
+    d.setDate(baseDate.getDate() + i);
+    return d.toLocaleString(locale, { weekday: "narrow" }).toUpperCase();
+  });
 }
 
 function getMonthDaysMatrix(monthDate: Date): Date[] {
@@ -81,12 +85,12 @@ function getMonthDaysMatrix(monthDate: Date): Date[] {
   return days;
 }
 
-function buildMonthWindow(baseDate: Date): CalendarMonthItem[] {
+function buildMonthWindow(baseDate: Date, locale: string): CalendarMonthItem[] {
   return Array.from({ length: 12 }, (_, index) => {
     const date = addMonths(baseDate, index);
     return {
       key: getMonthKey(date),
-      label: getMonthLabel(date),
+      label: getMonthLabel(date, locale),
       firstDate: date,
     };
   });
@@ -136,13 +140,13 @@ function sortEventsBySchedule(items: WalletServiceItem[]): WalletServiceItem[] {
     });
 }
 
-function formatSelectedDayLabel(dayKey: string | null): string {
+function formatSelectedDayLabel(dayKey: string | null, locale: string): string {
   if (!dayKey) return "";
 
   const [year, month, day] = dayKey.split("-").map(Number);
   const date = new Date(year, (month ?? 1) - 1, day ?? 1);
 
-  const label = new Intl.DateTimeFormat("es-MX", {
+  const label = new Intl.DateTimeFormat(locale, {
     weekday: "long",
     day: "numeric",
     month: "long",
@@ -197,7 +201,7 @@ function ViewModeIconButton({
         type="button"
         className="button"
         onClick={onClick}
-        title={isList ? "Ver calendario" : "Ver lista"}
+        title={isList ? tWallet("viewCalendarAriaLabel") : tWallet("viewListAriaLabel")}
         aria-label={isList ? tWallet("viewCalendarAriaLabel") : tWallet("viewListAriaLabel")}
       >
         {isList ? (
@@ -222,15 +226,9 @@ function ViewModeIconButton({
   );
 }
 
-function getServiceKindLabel(kind: string): string {
-  if (kind === "meet_greet") return "Meet & Greet";
-  if (kind === "exclusive_session") return "Sesión exclusiva";
-  return kind;
-}
-
-function formatScheduledShort(date: Date | null): string | null {
+function formatScheduledShort(date: Date | null, locale: string): string | null {
   if (!date) return null;
-  return new Intl.DateTimeFormat("es-MX", {
+  return new Intl.DateTimeFormat(locale, {
     day: "numeric",
     month: "short",
     hour: "2-digit",
@@ -272,6 +270,8 @@ function CalendarEventCard({
   onView: () => void;
   inOverlay?: boolean;
 }) {
+  const tWallet = useTranslations("wallet");
+  const locale = useLocale();
   const initial = (item.buyerDisplayName ?? "U").charAt(0).toUpperCase();
   const theme = getServiceCardTheme(item.kind);
 
@@ -361,7 +361,7 @@ function CalendarEventCard({
               flexShrink: 1,
             }}
           >
-            {item.buyerDisplayName ?? "Usuario"}
+            {item.buyerDisplayName ?? tWallet("userFallback")}
           </span>
           {item.priceSnapshot != null ? (
             <span
@@ -388,12 +388,12 @@ function CalendarEventCard({
         >
           {item.scheduledAt
             ? (() => {
-                const label = new Intl.DateTimeFormat("es-MX", {
+                const label = new Intl.DateTimeFormat(locale, {
                   weekday: "long", day: "numeric", month: "long", year: "numeric",
                 }).format(item.scheduledAt);
                 return label.charAt(0).toUpperCase() + label.slice(1);
               })()
-            : "Sin fecha"}
+            : tWallet("noDate")}
         </div>
       </div>
 
@@ -421,7 +421,7 @@ function CalendarEventCard({
           justifyContent: "center",
         }}
       >
-        Ver solicitud
+        {tWallet("viewRequest")}
       </button>
       <span className="calEvCardChevron" style={{ display: "none", flexShrink: 0, color: theme.btnColor, alignItems: "center", justifyContent: "center", position: "relative", zIndex: 1 }}>
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -820,6 +820,8 @@ function MonthCard({
   onSelectDay: (dayKey: string) => void;
   onSelectMonth: (monthKey: string) => void;
 }) {
+  const tWallet = useTranslations("wallet");
+  const locale = useLocale();
   const previewDays = getMonthDaysMatrix(month.firstDate);
   const monthEventDays = new Set(
     Array.from(eventsByDay.keys()).filter((key) => key.startsWith(`${month.key}-`))
@@ -947,7 +949,7 @@ function MonthCard({
               type="button"
               className="monthCount"
               onClick={() => onSelectMonth(month.key)}
-              title="Ver todas las sesiones del mes"
+              title={tWallet("viewAllSessionsMonth")}
             >
               {monthEventCount > 9 ? "9+" : monthEventCount}
             </button>
@@ -955,7 +957,7 @@ function MonthCard({
         </div>
 
         <div className="weekdays">
-          {getWeekdayInitials().map((weekday, index) => (
+          {getWeekdayInitials(locale).map((weekday, index) => (
             <div key={`${weekday}-${index}`} className="weekday">
               {weekday}
             </div>
@@ -971,10 +973,7 @@ function MonthCard({
 
             if (hasEvent) {
               const countLabel = getDayCountLabel(dayItems.length);
-              const countTitle =
-                dayItems.length > 9
-                  ? `${dayItems.length} eventos programados`
-                  : `${dayItems.length} evento${dayItems.length === 1 ? "" : "s"}`;
+              const countTitle = tWallet("calendarEventsCount", { count: dayItems.length });
               return (
                 <button
                   key={day.toISOString()}
@@ -1006,6 +1005,7 @@ function MonthCard({
 
 export default function WalletCalendarioPage() {
   const tWalletPage = useTranslations("wallet");
+  const locale = useLocale();
   const { user } = useAuth();
   const walletData = useWalletData();
 
@@ -1023,7 +1023,7 @@ export default function WalletCalendarioPage() {
   );
 
   const currentMonthBase = useMemo(() => startOfMonth(new Date()), []);
-  const monthsWindow = useMemo(() => buildMonthWindow(currentMonthBase), [currentMonthBase]);
+  const monthsWindow = useMemo(() => buildMonthWindow(currentMonthBase, locale), [currentMonthBase, locale]);
   const eventsByDay = useMemo(() => groupEventsByDay(calendarItems), [calendarItems]);
 
   const selectedItems = useMemo(() => {
@@ -1035,7 +1035,7 @@ export default function WalletCalendarioPage() {
   }, [selectedDayKey, selectedMonthKey, eventsByDay, calendarItems]);
 
   const overlayTitle = useMemo(() => {
-    if (selectedDayKey) return formatSelectedDayLabel(selectedDayKey);
+    if (selectedDayKey) return formatSelectedDayLabel(selectedDayKey, locale);
     if (selectedMonthKey) {
       const found = monthsWindow.find((m) => m.key === selectedMonthKey);
       if (found) {
@@ -1072,7 +1072,7 @@ export default function WalletCalendarioPage() {
   const viewItemEarning =
     viewItem?.priceSnapshot != null && viewItem.priceSnapshot > 0
       ? "$" +
-        new Intl.NumberFormat("es-MX", {
+        new Intl.NumberFormat(locale, {
           minimumFractionDigits: 0,
           maximumFractionDigits: 0,
         }).format(viewItem.priceSnapshot * 0.77) +
@@ -1106,11 +1106,11 @@ export default function WalletCalendarioPage() {
           creatorTimezone,
         });
       }
-      setFeedbackSuccess("✅ Sesión reagendada.");
+      setFeedbackSuccess(tWalletPage("calendarRescheduled"));
       setTimeout(closeViewItem, 900);
     } catch (e: unknown) {
       setFeedbackError(
-        (e instanceof Error ? e.message : null) ?? "No se pudo reagendar."
+        (e instanceof Error ? e.message : null) ?? tWalletPage("calendarRescheduleError")
       );
     } finally {
       setBusy(false);
@@ -1206,8 +1206,8 @@ export default function WalletCalendarioPage() {
             </div>
           ) : calendarItems.length === 0 ? (
             <EmptyRows
-              title="Sin eventos programados"
-              subtitle="Todavía no tienes Meet & Greet o sesiones exclusivas activas para mostrar en calendario."
+              title={tWalletPage("noEvents")}
+              subtitle={tWalletPage("noEventsDesc")}
             />
           ) : viewMode === "list" ? (
             <div style={{ display: "grid", gap: 8 }}>

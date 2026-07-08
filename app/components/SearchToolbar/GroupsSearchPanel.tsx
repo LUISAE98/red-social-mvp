@@ -102,16 +102,6 @@ export function membershipStatusKey(status: CanonicalMemberStatus): string {
   return "";
 }
 
-/** @deprecated Use membershipStatusKey and translate at call site */
-export function membershipStatusLabel(status: CanonicalMemberStatus) {
-  if (status === "active") return "Ya estás unido";
-  if (status === "subscribed") return "Suscripción activa";
-  if (status === "muted") return "Ya estás unido (muteado)";
-  if (status === "banned") return "Baneado";
-  if (status === "removed") return "Expulsado";
-  return "";
-}
-
 function isPaidGroup(group: Community) {
   return !!group.monetization?.isPaid;
 }
@@ -953,7 +943,9 @@ function handleOpenFullResults() {
   top: calc(100% + 8px);
   left: 0;
   right: 0;
-  width: 100%;
+  width: 600px;
+  max-width: 100%;
+  margin: 0 auto;
   min-width: 0;
   border: ${cardBorder};
   border-radius: 20px;
