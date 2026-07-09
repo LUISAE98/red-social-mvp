@@ -16,7 +16,13 @@ export type BuyerNextSession = {
   preparingCreatorAt: Date | null;
 };
 
-const ACTIVE_STATUSES = ["scheduled", "ready_to_prepare", "in_preparation"];
+export type UseBuyerNextSessionResult = {
+  session: BuyerNextSession | null;
+  completedSession: BuyerNextSession | null;
+  loading: boolean;
+};
+
+const ACTIVE_STATUSES = ["scheduled", "ready_to_prepare", "in_preparation", "completed", "session_incomplete", "auto_rejected_no_show"];
 
 function toDate(value: unknown): Date | null {
   if (!value) return null;
@@ -44,17 +50,43 @@ function isVisibleToday(scheduledAt: Date): boolean {
   return now >= oneAmToday;
 }
 
-export function useBuyerNextSession(uid: string | null): {
-  session: BuyerNextSession | null;
-  loading: boolean;
-} {
-  const [session, setSession] = useState<BuyerNextSession | null>(null);
-  const [loading, setLoading] = useState(true);
+function buildEntry(
+  id: string,
+  serviceKind: "meet_greet" | "exclusive_session",
+  data: {
+    scheduledAt?: unknown;
+    creatorDisplayName?: string | null;
+    creatorAvatarUrl?: string | null;
+    durationMinutes?: number | null;
+    status?: string;
+    preparingBuyerAt?: unknown;
+    preparingCreatorAt?: unknown;
+  },
+  scheduledAt: Date
+): BuyerNextSession {
+  return {
+    id,
+    serviceKind,
+    scheduledAt,
+    creatorDisplayName: data.creatorDisplayName ?? null,
+    creatorAvatarUrl: data.creatorAvatarUrl ?? null,
+    durationMinutes: data.durationMinutes ?? null,
+    status: data.status ?? "scheduled",
+    preparingBuyerAt: toDate(data.preparingBuyerAt),
+    preparingCreatorAt: toDate(data.preparingCreatorAt),
+  };
+}
+
+export function useBuyerNextSession(uid: string | null): UseBuyerNextSessionResult {
+  const [result, setResult] = useState<UseBuyerNextSessionResult>({
+    session: null,
+    completedSession: null,
+    loading: true,
+  });
 
   useEffect(() => {
     if (!uid) {
-      setSession(null);
-      setLoading(false);
+      setResult({ session: null, completedSession: null, loading: false });
       return;
     }
 
@@ -67,8 +99,15 @@ export function useBuyerNextSession(uid: string | null): {
       const visible = Array.from(candidates.values())
         .filter((s) => isVisibleToday(s.scheduledAt))
         .sort((a, b) => a.scheduledAt.getTime() - b.scheduledAt.getTime());
-      setSession(visible[0] ?? null);
-      setLoading(false);
+
+      const active = visible.filter((s) => s.status !== "completed");
+      const completed = visible.filter((s) => s.status === "completed");
+
+      setResult({
+        session: active[0] ?? null,
+        completedSession: completed[completed.length - 1] ?? null,
+        loading: false,
+      });
     }
 
     const mgQ = query(
@@ -99,17 +138,7 @@ export function useBuyerNextSession(uid: string | null): {
         if (!scheduledAt) return;
         const key = `mg-${d.id}`;
         mgIds.add(key);
-        candidates.set(key, {
-          id: d.id,
-          serviceKind: "meet_greet",
-          scheduledAt,
-          creatorDisplayName: data.creatorDisplayName ?? null,
-          creatorAvatarUrl: data.creatorAvatarUrl ?? null,
-          durationMinutes: data.durationMinutes ?? null,
-          status: data.status ?? "scheduled",
-          preparingBuyerAt: toDate(data.preparingBuyerAt),
-          preparingCreatorAt: toDate(data.preparingCreatorAt),
-        });
+        candidates.set(key, buildEntry(d.id, "meet_greet", data, scheduledAt));
       });
       for (const k of candidates.keys()) {
         if (k.startsWith("mg-") && !mgIds.has(k)) candidates.delete(k);
@@ -134,17 +163,7 @@ export function useBuyerNextSession(uid: string | null): {
         if (!scheduledAt) return;
         const key = `es-${d.id}`;
         esIds.add(key);
-        candidates.set(key, {
-          id: d.id,
-          serviceKind: "exclusive_session",
-          scheduledAt,
-          creatorDisplayName: data.creatorDisplayName ?? null,
-          creatorAvatarUrl: data.creatorAvatarUrl ?? null,
-          durationMinutes: data.durationMinutes ?? null,
-          status: data.status ?? "scheduled",
-          preparingBuyerAt: toDate(data.preparingBuyerAt),
-          preparingCreatorAt: toDate(data.preparingCreatorAt),
-        });
+        candidates.set(key, buildEntry(d.id, "exclusive_session", data, scheduledAt));
       });
       for (const k of candidates.keys()) {
         if (k.startsWith("es-") && !esIds.has(k)) candidates.delete(k);
@@ -159,5 +178,5 @@ export function useBuyerNextSession(uid: string | null): {
     };
   }, [uid]);
 
-  return { session, loading };
+  return result;
 }

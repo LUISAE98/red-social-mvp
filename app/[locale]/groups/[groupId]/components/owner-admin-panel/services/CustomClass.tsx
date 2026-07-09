@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 
 type Currency = "MXN" | "USD";
 
@@ -62,6 +63,8 @@ type ServiceDraft = {
   donationMinimumAmount: string;
   donationGoalLabel: string;
   donationMessage: string;
+  donationVideoUrl: string;
+  donationPlaybackId: string;
   freeToSubscriptionPolicy: FreeToSubscriptionPolicy;
   subscriptionToFreePolicy: SubscriptionToFreePolicy;
   subscriptionPriceIncreasePolicy: SubscriptionPriceIncreasePolicy;
@@ -123,6 +126,8 @@ export default function CustomClass({
   OverlayModalComponent,
   onSaveDraft,
 }: Props) {
+  const tServices = useTranslations("services");
+
   const [overlayMode, setOverlayMode] = useState<OverlayMode>(null);
   const [overlayDraft, setOverlayDraft] = useState<ServiceDraft>(draft);
 
@@ -214,7 +219,7 @@ export default function CustomClass({
         }}
       >
         <div style={{ display: "grid", gap: 4 }}>
-          <div style={subtleStyle}>Precio configurado</div>
+          <div style={subtleStyle}>{tServices("meetGreetConfiguredPrice")}</div>
           <div style={{ color: "#fff", fontSize: 14, fontWeight: 700 }}>
             {draft.customClass.price
               ? formatMoney(
@@ -226,24 +231,25 @@ export default function CustomClass({
         </div>
 
         <div style={{ display: "grid", gap: 4 }}>
-          <div style={subtleStyle}>Duración configurada</div>
+          <div style={subtleStyle}>{tServices("meetGreetConfiguredDuration")}</div>
           <div style={{ color: "#fff", fontSize: 14, fontWeight: 700 }}>
             {draft.customClass.durationMinutes
               ? `${draft.customClass.durationMinutes} min`
-              : "Sin duración"}
+              : tServices("meetGreetNoDuration")}
           </div>
         </div>
 
         {customClassCalc ? (
           <div style={subtleStyle}>
-            Por una sesión exclusiva de{" "}
-            {formatMoney(customClassCalc.gross, draft.customClass.currency)}, tú cobras{" "}
-            {formatMoney(customClassCalc.net, draft.customClass.currency)}.
+            {tServices("customClassEarningsDesc", {
+              gross: formatMoney(customClassCalc.gross, draft.customClass.currency),
+              net: formatMoney(customClassCalc.net, draft.customClass.currency),
+            })}
           </div>
         ) : null}
 
         <div style={subtleStyle}>
-          Visibilidad actual: solo miembros.
+          {tServices("meetGreetMembersVisibility")}
         </div>
 
         <button
@@ -258,7 +264,7 @@ export default function CustomClass({
             cursor: isBusy ? "not-allowed" : "pointer",
           }}
         >
-          Modificar
+          {tServices("modify")}
         </button>
       </div>
     );
@@ -276,7 +282,7 @@ export default function CustomClass({
           }}
         >
           <div style={{ display: "grid", gap: 2, minWidth: 0 }}>
-            <span style={titleStyle}>{customClassEmoji} Sesión exclusiva</span>
+            <span style={titleStyle}>{customClassEmoji} {tServices("exclusiveSessionTitle")}</span>
           </div>
 
           <SwitchComponent
@@ -285,7 +291,7 @@ export default function CustomClass({
             onChange={(next) => {
               void handleToggle(next);
             }}
-            label="Activar sesión exclusiva"
+            label={tServices("customClassActivateLabel")}
           />
         </div>
 
@@ -294,7 +300,7 @@ export default function CustomClass({
 
       <OverlayModalComponent
         open={overlayMode !== null}
-        title={`${customClassEmoji} Configurar sesión exclusiva`}
+        title={`${customClassEmoji} ${tServices("customClassConfigTitle")}`}
         loading={saving}
         onCancel={closeOverlay}
         onConfirm={() => void confirmOverlaySave()}
@@ -317,7 +323,7 @@ export default function CustomClass({
                 },
               }))
             }
-            placeholder="Precio"
+            placeholder={tServices("pricePlaceholder")}
             style={{ ...inputStyle, width: 130, flex: "1 1 180px" }}
           />
 
@@ -358,13 +364,13 @@ export default function CustomClass({
                 },
               }))
             }
-            placeholder="Duración (min)"
+            placeholder={tServices("durationPlaceholder")}
             style={{ ...inputStyle, width: 160, flex: "1 1 180px" }}
           />
         </div>
         <div style={subtleStyle}>
-  Este servicio queda visible solo para miembros.
-</div>
+          {tServices("membersOnlyServiceNote")}
+        </div>
       </OverlayModalComponent>
     </>
   );

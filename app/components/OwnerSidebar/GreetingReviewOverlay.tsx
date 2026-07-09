@@ -1910,7 +1910,7 @@ export default function GreetingReviewOverlay({
                     color: "rgba(255,255,255,0.5)", fontWeight: 500, fontSize: 13,
                     cursor: "pointer", fontFamily: fontStack,
                   }}>
-                    Subir video
+                    {tServices("uploadVideo")}
                   </button>
                 )}
                 <button type="button" onClick={stopCamera} style={{
@@ -2094,7 +2094,7 @@ export default function GreetingReviewOverlay({
                       color: "rgba(255,255,255,0.38)", fontWeight: 500, fontSize: 12,
                       cursor: "pointer", fontFamily: fontStack,
                     }}>
-                      Subir video
+                      {tServices("uploadVideo")}
                     </button>
                   )}
                 </>

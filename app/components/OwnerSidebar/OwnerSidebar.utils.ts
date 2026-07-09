@@ -55,7 +55,8 @@ export function isMeetGreetCreatorActiveItem(status?: MeetGreetStatus | null) {
     status === "scheduled" ||
     status === "reschedule_requested" ||
     status === "ready_to_prepare" ||
-    status === "in_preparation"
+    status === "in_preparation" ||
+    status === "auto_rejected_no_show"
   );
 }
 
@@ -66,7 +67,8 @@ export function isMeetGreetPendingItem(status?: MeetGreetStatus | null) {
     status === "scheduled" ||
     status === "reschedule_requested" ||
     status === "ready_to_prepare" ||
-    status === "in_preparation"
+    status === "in_preparation" ||
+    status === "auto_rejected_no_show"
   );
 }
 
@@ -145,6 +147,16 @@ export function normalizeOwnerSidebarNoShowStatus<T extends MeetGreetRequestDoc>
   item: T,
   nowMs = Date.now()
 ): T {
+  // Already auto-rejected by backend → display as rejected in sidebar
+  if (item.status === "auto_rejected_no_show") {
+    return {
+      ...item,
+      status: "rejected",
+      rejectionReason:
+        item.rejectionReason ??
+        "La sesión no se realizó dentro del tiempo de tolerancia.",
+    };
+  }
   if (!shouldOwnerSidebarTreatAsNoShowRejected(item, nowMs)) return item;
 
   return {

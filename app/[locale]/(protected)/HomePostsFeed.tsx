@@ -616,7 +616,7 @@ const handleHomePullRefresh = useCallback(async () => {
         } as Post["counts"],
       });
     } catch (e: unknown) {
-      setError((e instanceof Error ? e.message : null) ?? "No se pudo actualizar la flamita.");
+      setError((e instanceof Error ? e.message : null) ?? tFeed("errorUpdateFlame"));
       throw e;
     }
   }
@@ -638,7 +638,7 @@ const handleHomePullRefresh = useCallback(async () => {
         } as Post["counts"],
       });
     } catch (e: unknown) {
-      setError((e instanceof Error ? e.message : null) ?? "No se pudo actualizar el guardado.");
+      setError((e instanceof Error ? e.message : null) ?? tFeed("errorUpdateSave"));
       throw e;
     }
   }
@@ -720,7 +720,7 @@ const handleHomePullRefresh = useCallback(async () => {
       setError(null);
       return await fetchCommentReplies({ postId, commentId });
     } catch (e: unknown) {
-      setError((e instanceof Error ? e.message : null) ?? "No se pudieron cargar las respuestas.");
+      setError((e instanceof Error ? e.message : null) ?? tFeed("loadRepliesError"));
       throw e;
     }
   }
@@ -738,7 +738,7 @@ const handleHomePullRefresh = useCallback(async () => {
 
       return await fetchCommentReplies({ postId, commentId });
     } catch (e: unknown) {
-      setError((e instanceof Error ? e.message : null) ?? "No se pudo crear la respuesta.");
+      setError((e instanceof Error ? e.message : null) ?? tFeed("createReplyError"));
       throw e;
     }
   }
@@ -756,7 +756,7 @@ const handleHomePullRefresh = useCallback(async () => {
 
       return await fetchCommentReplies({ postId, commentId });
     } catch (e: unknown) {
-      setError((e instanceof Error ? e.message : null) ?? "No se pudo eliminar la respuesta.");
+      setError((e instanceof Error ? e.message : null) ?? tFeed("deleteReplyError"));
       throw e;
     }
   }

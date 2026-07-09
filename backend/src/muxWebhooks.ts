@@ -234,6 +234,34 @@ async function markDonationVideoAssetReady(params: {
   logger.info("muxWebhook donation video asset.ready processed", { profileId, assetId, playbackId });
 }
 
+async function markGroupDonationVideoAssetReady(params: {
+  groupId: string;
+  assetId: string;
+  playbackId: string;
+  duration: number | null;
+  uploadRef: DocumentReference<DocumentData> | null;
+}) {
+  const { groupId, assetId, playbackId, duration, uploadRef } = params;
+  const now = FieldValue.serverTimestamp();
+  const hlsUrl = `https://stream.mux.com/${playbackId}.m3u8`;
+
+  await db.collection("groups").doc(groupId).update({
+    "donation.playbackId": playbackId,
+    "donation.videoUrl": hlsUrl,
+    "donation.videoStatus": "ready",
+    updatedAt: now,
+  });
+
+  if (uploadRef) {
+    await uploadRef.set(
+      { status: "ready", assetId, playbackId, duration, hlsUrl, updatedAt: now },
+      { merge: true }
+    );
+  }
+
+  logger.info("muxWebhook group donation video asset.ready processed", { groupId, assetId, playbackId });
+}
+
 async function markAssetReady(event: MuxWebhookEvent) {
   const assetId = event.data?.id ?? null;
   const uploadId = event.data?.upload_id ?? null;
@@ -321,18 +349,47 @@ async function markAssetReady(event: MuxWebhookEvent) {
         : null);
   }
 
+  // Handle group donation video uploads — update group donation settings, no post document
+  const uploadData = uploadRef ? (await uploadRef.get()).data() ?? {} : {};
+  const isGroupDonationVideo =
+    passthrough.source === "vibra-group-donation-video" ||
+    uploadData.source === "group-donation";
+
+  if (isGroupDonationVideo) {
+    const resolvedGroupId =
+      (typeof passthrough.groupId === "string" && passthrough.groupId) ||
+      (typeof uploadData.groupId === "string" && uploadData.groupId) ||
+      null;
+
+    if (!resolvedGroupId || !assetId || !playbackId) {
+      logger.warn("muxWebhook group donation video asset.ready missing data", {
+        groupId: resolvedGroupId,
+        assetId,
+        playbackId,
+        uploadId,
+      });
+      return;
+    }
+
+    await markGroupDonationVideoAssetReady({
+      groupId: resolvedGroupId,
+      assetId,
+      playbackId,
+      duration,
+      uploadRef,
+    });
+    return;
+  }
+
   // Handle donation video uploads — update profile donation settings, no post document
   const isDonationVideo =
     passthrough.source === "vibra-donation-video" ||
-    (uploadRef &&
-      (await uploadRef.get().then((s) => s.data()?.source === "donation")));
+    uploadData.source === "donation";
 
   if (isDonationVideo) {
     const resolvedProfileId =
       profileId ??
-      (uploadRef
-        ? await uploadRef.get().then((s) => s.data()?.profileId ?? null)
-        : null);
+      (typeof uploadData.profileId === "string" ? uploadData.profileId : null);
 
     if (!resolvedProfileId || !assetId || !playbackId) {
       logger.warn("muxWebhook donation video asset.ready missing data", {

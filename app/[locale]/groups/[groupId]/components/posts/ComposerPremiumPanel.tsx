@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { useTranslations } from "next-intl";
 import type {
   PostPremiumAccessMode,
   PostPremiumFreeFor,
@@ -37,51 +38,24 @@ type ComposerPremiumPanelProps = {
   isEditMode?: boolean;
 };
 
-const accessModeLabels: Record<
-  PostPremiumAccessMode,
-  { title: string; description: string }
-> = {
-  members_only: {
-    title: "Solo miembros del grupo",
-    description: "Solo los miembros de tu comunidad podrán ver esta publicación y pagar para desbloquear su contenido.",
-  },
-  public: {
-    title: "Público",
-    description: "Cualquier persona, incluso sin tener una cuenta en Vibra, podrá pagar para desbloquear esta publicación. El resto de tus publicaciones seguirán siendo privadas y solo estarán disponibles para los miembros de tu comunidad.",
-  },
-};
-
-const freeForLabels: Record<
-  PostPremiumFreeFor,
-  { title: string; description: string }
-> = {
-  members_and_subscribers: {
-    title: "Gratis para miembros",
-    description: "Los miembros y suscriptores del grupo lo ven gratis; otros usuarios pagan para acceder.",
-  },
-  none: {
-    title: "Pago para todos",
-    description: "Todo usuario debe comprar acceso al video.",
-  },
-};
-
 const fontStack =
   'inherit';
 
 function buildReadonlyConfigText(
   accessMode: PostPremiumAccessMode,
   freeFor: PostPremiumFreeFor,
+  t: (key: string) => string,
 ): string {
   if (accessMode === "public" && freeFor === "none") {
-    return "El acceso a este video premium es público. Cualquier persona dentro y fuera de Vibra puede pagar para desbloquearlo.";
+    return t("premiumReadonlyPublicPaid");
   }
   if (accessMode === "public" && freeFor === "members_and_subscribers") {
-    return "El acceso es público. Los miembros y suscriptores del grupo lo ven gratis; cualquier otra persona puede pagar para desbloquearlo.";
+    return t("premiumReadonlyPublicMembersFree");
   }
   if (accessMode === "members_only" && freeFor === "none") {
-    return "El acceso está limitado a los miembros del grupo, quienes deben pagar para desbloquear el video.";
+    return t("premiumReadonlyMembersOnlyPaid");
   }
-  return "El acceso está limitado a los miembros del grupo. Los suscriptores lo ven gratis; el resto de los miembros paga para desbloquearlo.";
+  return t("premiumReadonlyMembersOnlySubscribersFree");
 }
 
 function formatThousands(raw: string): string {
@@ -200,7 +174,36 @@ export default function ComposerPremiumPanel({
   disabled = false,
   isEditMode = false,
 }: ComposerPremiumPanelProps) {
+  const tPosts = useTranslations("posts");
   const { toast: premiumToast, showToast: showPremiumToast } = useVibraToast();
+
+  const accessModeLabels: Record<
+    PostPremiumAccessMode,
+    { title: string; description: string }
+  > = {
+    members_only: {
+      title: tPosts("premiumReachMembersTitle"),
+      description: tPosts("premiumReachMembersDesc"),
+    },
+    public: {
+      title: tPosts("premiumReachPublicTitle"),
+      description: tPosts("premiumReachPublicDesc"),
+    },
+  };
+
+  const freeForLabels: Record<
+    PostPremiumFreeFor,
+    { title: string; description: string }
+  > = {
+    members_and_subscribers: {
+      title: tPosts("premiumAccessFreeTitle"),
+      description: tPosts("premiumAccessFreeDesc"),
+    },
+    none: {
+      title: tPosts("premiumAccessPaidTitle"),
+      description: tPosts("premiumAccessPaidDesc"),
+    },
+  };
 
   useEffect(() => {
     if (premiumErrorMessage) showPremiumToast(premiumErrorMessage, "error");
@@ -259,7 +262,7 @@ export default function ComposerPremiumPanel({
             fontFamily: fontStack,
           }}
         >
-          Configurar monetización
+          {tPosts("premiumConfigTitle")}
         </div>
 
         <div
@@ -269,7 +272,7 @@ export default function ComposerPremiumPanel({
             lineHeight: 1.35,
           }}
         >
-          Define cómo se cobrará el acceso a este video.
+          {tPosts("premiumConfigDesc")}
         </div>
       </div>
 
@@ -284,7 +287,7 @@ export default function ComposerPremiumPanel({
             textAlign: "justify",
           }}
         >
-          {buildReadonlyConfigText(accessMode, freeFor)}
+          {buildReadonlyConfigText(accessMode, freeFor, tPosts)}
         </p>
       ) : null}
 
@@ -299,10 +302,7 @@ export default function ComposerPremiumPanel({
             textAlign: "justify",
           }}
         >
-          Las publicaciones premium creadas desde perfiles siempre serán
-          públicas. Cualquier persona podrá verlas dentro de Vibra, incluso sin
-          iniciar sesión. Además, tanto usuarios registrados como visitantes sin
-          cuenta podrán pagar para desbloquear el contenido premium.
+          {tPosts("premiumProfilePublicNote")}
         </p>
       ) : null}
 
@@ -317,10 +317,7 @@ export default function ComposerPremiumPanel({
             textAlign: "justify",
           }}
         >
-          Las publicaciones premium de comunidades ocultas solo están
-          disponibles para los miembros del grupo. Al ser una comunidad oculta,
-          el contenido no es visible desde fuera; todos los miembros que deseen
-          acceder deberán pagar para desbloquearlo.
+          {tPosts("premiumHiddenCommunityNote")}
         </p>
       ) : null}
 
@@ -335,7 +332,7 @@ export default function ComposerPremiumPanel({
               textTransform: "uppercase",
             }}
           >
-            Alcance del acceso
+            {tPosts("premiumReachLabel")}
           </div>
 
           {capabilities.allowedAccessModes.map((option) => (
@@ -364,11 +361,7 @@ export default function ComposerPremiumPanel({
               textAlign: "justify",
             }}
           >
-            Las publicaciones premium creadas desde comunidades públicas siempre
-            serán públicas. Cualquier persona podrá verlas dentro de Vibra,
-            incluso sin iniciar sesión. Además, tanto los usuarios registrados
-            como los visitantes sin cuenta podrán pagar para desbloquear el
-            contenido premium.
+            {tPosts("premiumPublicCommunityNote")}
           </p>
         ) : null
       ) : null}
@@ -384,7 +377,7 @@ export default function ComposerPremiumPanel({
               textTransform: "uppercase",
             }}
           >
-            Quién lo ve gratis
+            {tPosts("premiumFreeViewerLabel")}
           </div>
 
           {capabilities.allowedFreeForOptions.map((option) => (
@@ -441,7 +434,7 @@ export default function ComposerPremiumPanel({
                 textTransform: "uppercase",
               }}
             >
-              Precio
+              {tPosts("premiumPriceLabel")}
             </span>
           </span>
 
@@ -513,7 +506,7 @@ export default function ComposerPremiumPanel({
                 fontFamily: fontStack,
               }}
             >
-              Por cada desbloqueo de tu publicación premium cobrarás{" "}
+              {tPosts("premiumEarningsPerUnlock")}{" "}
               <strong style={{ color: "#a855ff", fontWeight: 600 }}>
                 ${creatorEarnings} MXN
               </strong>

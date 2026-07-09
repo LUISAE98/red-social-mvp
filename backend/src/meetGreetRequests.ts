@@ -43,6 +43,7 @@ type MeetGreetStatus =
   | "ready_to_prepare"
   | "in_preparation"
   | "completed"
+  | "session_incomplete"
   | "cancelled";
 
 type UserRole = "buyer" | "creator";
@@ -549,8 +550,7 @@ async function rejectNoShowIfExpired(
   if (!expiration.shouldReject) return false;
 
   await ref.update({
-    status: "rejected",
-    rejectedAt: now,
+    status: "auto_rejected_no_show",
     autoRejectedAt: now,
     autoRejectReason: expiration.reasonCode,
     noShowMissingCreator: expiration.missingCreator,
@@ -844,7 +844,7 @@ export const rejectMeetGreetRequest = onCall(
     ensureCreator(data, uid);
     ensureStatusAllowed(
       data.status as MeetGreetStatus,
-      ["pending_creator_response", "accepted_pending_schedule", "reschedule_requested"],
+      ["pending_creator_response", "accepted_pending_schedule", "reschedule_requested", "scheduled", "ready_to_prepare", "in_preparation"],
       "rechazar la solicitud"
     );
 
@@ -885,7 +885,7 @@ export const proposeMeetGreetSchedule = onCall(
     ensureCreator(data, uid);
     ensureStatusAllowed(
       data.status as MeetGreetStatus,
-      ["accepted_pending_schedule", "reschedule_requested", "scheduled", "ready_to_prepare"],
+      ["accepted_pending_schedule", "reschedule_requested", "scheduled", "ready_to_prepare", "auto_rejected_no_show"],
       "proponer fecha"
     );
 
@@ -917,6 +917,7 @@ export const proposeMeetGreetSchedule = onCall(
       autoRejectReason: null,
       noShowMissingCreator: false,
       noShowMissingBuyer: false,
+      rejectionReason: null,
       updatedAt: nowTs(),
       scheduleHistory: admin.firestore.FieldValue.arrayUnion({
         proposedAt: nowTs(),
@@ -958,7 +959,7 @@ export const requestMeetGreetReschedule = onCall(
     ensureBuyer(data, uid);
     ensureStatusAllowed(
       data.status as MeetGreetStatus,
-      ["scheduled", "ready_to_prepare"],
+      ["scheduled", "ready_to_prepare", "auto_rejected_no_show"],
       "solicitar cambio de fecha"
     );
 
@@ -1055,7 +1056,7 @@ export const requestMeetGreetRefund = onCall(
     ensureBuyer(data, uid);
     ensureStatusAllowed(
       data.status as MeetGreetStatus,
-      ["rejected"],
+      ["rejected", "auto_rejected_no_show"],
       "solicitar devolución"
     );
 
@@ -1195,8 +1196,7 @@ export async function expireMeetGreetNoShowsHandler() {
     if (!expiration.shouldReject) return;
 
     batch.update(doc.ref, {
-      status: "rejected",
-      rejectedAt: now,
+      status: "auto_rejected_no_show",
       autoRejectedAt: now,
       autoRejectReason: expiration.reasonCode,
       noShowMissingCreator: expiration.missingCreator,

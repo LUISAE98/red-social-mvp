@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { onAuthStateChanged, type User } from "firebase/auth";
 import { doc, getDoc, setDoc } from "firebase/firestore";
+import { useTranslations } from "next-intl";
 import { auth, db } from "@/lib/firebase";
 import { uploadFile } from "@/lib/storage/uploadFile";
 
@@ -11,6 +12,7 @@ type AdminProfile = {
 };
 
 export default function AdminProfilePage() {
+  const tAdmin = useTranslations("admin");
   const [viewer, setViewer] = useState<User | null>(null);
   const [profile, setProfile] = useState<AdminProfile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -58,7 +60,7 @@ export default function AdminProfilePage() {
       setProfile((prev) => ({ ...prev, avatarUrl: url }));
     } catch (err: unknown) {
       setError(
-        (err instanceof Error ? err.message : null) ?? "No se pudo subir la imagen."
+        (err instanceof Error ? err.message : null) ?? tAdmin("uploadImageError")
       );
     } finally {
       setUploading(false);
@@ -70,7 +72,7 @@ export default function AdminProfilePage() {
   if (loading) {
     return (
       <div style={{ color: "#444", fontSize: 13, paddingTop: 8 }}>
-        Cargando perfil...
+        {tAdmin("loadingProfile")}
       </div>
     );
   }

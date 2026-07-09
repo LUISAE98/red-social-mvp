@@ -27,6 +27,14 @@ export async function callEndSession(payload: SessionLifecyclePayload): Promise<
   await fn(payload);
 }
 
+export async function callForceCompleteSession(payload: SessionLifecyclePayload): Promise<void> {
+  const fn = httpsCallable<SessionLifecyclePayload, { success: boolean }>(
+    functions,
+    "forceCompleteSession"
+  );
+  await fn(payload);
+}
+
 export async function callGetRecordingDownloadUrl(
   payload: SessionLifecyclePayload
 ): Promise<string> {

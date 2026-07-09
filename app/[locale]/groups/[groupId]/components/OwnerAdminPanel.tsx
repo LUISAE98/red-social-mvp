@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { useTranslations } from "next-intl";
 import OwnerAdminGeneral from "./owner-admin-panel/OwnerAdminGeneral";
 import OwnerAdminStatus from "./owner-admin-panel/OwnerAdminStatus";
 import OwnerAdminDangerZone from "./owner-admin-panel/OwnerAdminDangerZone";
@@ -42,6 +43,7 @@ export default function OwnerAdminPanel({
   currentPostingMode = "members",
   currentCommentsEnabled = true,
 }: Props) {
+  const tGroups = useTranslations("groups");
   const isOwner = useMemo(() => {
     return !!ownerId && !!currentUserId && ownerId === currentUserId;
   }, [ownerId, currentUserId]);
@@ -77,7 +79,7 @@ export default function OwnerAdminPanel({
 
   return (
     <section style={shellStyle}>
-      <h3 style={titleStyle}>Configuración general</h3>
+      <h3 style={titleStyle}>{tGroups("generalSettings")}</h3>
 
       <div style={panelStyle}>
         <div style={{ display: "grid", gap: 12 }}>

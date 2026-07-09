@@ -265,6 +265,83 @@ export const createMuxDonationUpload = onCall<{ profileId: string }>(
   }
 );
 
+export const createMuxGroupDonationUpload = onCall<{ groupId: string }>(
+  {
+    region: "us-central1",
+    secrets: [muxTokenId, muxTokenSecret],
+  },
+  async (request) => {
+    const uid = request.auth?.uid;
+
+    if (!uid) {
+      throw new HttpsError("unauthenticated", "Debes iniciar sesión para subir video.");
+    }
+
+    const groupId = normalizeRequiredString(request.data?.groupId, "groupId");
+
+    const groupSnap = await db.collection("groups").doc(groupId).get();
+
+    if (!groupSnap.exists) {
+      throw new HttpsError("not-found", "La comunidad no existe.");
+    }
+
+    const group = groupSnap.data() || {};
+
+    if (group.ownerId !== uid) {
+      throw new HttpsError("permission-denied", "Solo el owner puede configurar el video de donación.");
+    }
+
+    const originHeader = request.rawRequest.headers.origin;
+    const corsOrigin =
+      typeof originHeader === "string" && originHeader.trim()
+        ? originHeader.trim()
+        : "*";
+
+    const mux = createMuxClient();
+
+    let upload: Awaited<ReturnType<typeof mux.video.uploads.create>>;
+
+    try {
+      upload = await mux.video.uploads.create({
+        cors_origin: corsOrigin,
+        new_asset_settings: {
+          playback_policy: ["public"],
+          video_quality: "plus",
+          mp4_support: "standard",
+          passthrough: JSON.stringify({
+            authorId: uid,
+            groupId,
+            source: "vibra-group-donation-video",
+          }),
+        },
+      });
+    } catch (error) {
+      console.error("createMuxGroupDonationUpload Mux upload creation failed", error);
+      throw new HttpsError("internal", "No se pudo crear la subida de video en Mux.");
+    }
+
+    const now = FieldValue.serverTimestamp();
+
+    await db.collection("muxUploads").doc(upload.id).set({
+      provider: "mux",
+      uploadId: upload.id,
+      authorId: uid,
+      groupId,
+      source: "group-donation",
+      status: "waiting_for_upload",
+      assetId: null,
+      playbackId: null,
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    return {
+      uploadId: upload.id,
+      uploadUrl: upload.url,
+    };
+  }
+);
+
 export const createMuxDirectUpload = onCall<CreateMuxDirectUploadRequest>(
   {
     region: "us-central1",

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { signOut } from "firebase/auth";
+import { useTranslations } from "next-intl";
 import { auth } from "@/lib/firebase";
 import { usePlatformMod } from "@/lib/moderation/usePlatformMod";
 import { AdminPreviewContext } from "./context";
@@ -28,6 +29,7 @@ export default function AdminLayout({
   const { isPlatformMod, loading, wrongProvider } = usePlatformMod();
   const router = useRouter();
   const pathname = usePathname();
+  const tAdmin = useTranslations("admin");
   const [isMobile, setIsMobile] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -118,8 +120,7 @@ export default function AdminLayout({
           Acceso denegado
         </div>
         <div style={{ color: "#666", fontSize: 13, maxWidth: 320 }}>
-          El panel de moderación requiere iniciar sesión con Google. Cierra sesión
-          y vuelve a entrar usando tu cuenta de Google con verificación en dos pasos.
+          {tAdmin("requiresGoogleSignIn")}
         </div>
       </div>
     );
@@ -149,7 +150,7 @@ export default function AdminLayout({
           Solo disponible en escritorio
         </div>
         <div style={{ color: "#555", fontSize: 13, maxWidth: 280, lineHeight: 1.5 }}>
-          El panel de moderación no está disponible en dispositivos móviles. Accede desde un ordenador.
+          {tAdmin("mobileNotAvailable")}
         </div>
         <button
           onClick={handleSignOut}
@@ -166,7 +167,7 @@ export default function AdminLayout({
             cursor: "pointer",
           }}
         >
-          {signingOut ? "Cerrando..." : "Cerrar sesión"}
+          {signingOut ? tAdmin("signingOut") : tAdmin("signOut")}
         </button>
       </div>
     );
@@ -377,7 +378,7 @@ export default function AdminLayout({
         <div className="shell">
           {/* Col 1 — Navigation */}
           <nav className="sidebar">
-            <div className="sidebarTitle">Menú del moderador</div>
+            <div className="sidebarTitle">{tAdmin("moderatorMenuTitle")}</div>
 
             {NAV_ITEMS.map((item) => (
               <Link
@@ -421,7 +422,7 @@ export default function AdminLayout({
                 (e.currentTarget as HTMLButtonElement).style.borderColor = "#1e1e1e";
               }}
             >
-              {signingOut ? "Cerrando..." : "Cerrar sesión"}
+              {signingOut ? tAdmin("signingOut") : tAdmin("signOut")}
             </button>
           </nav>
 

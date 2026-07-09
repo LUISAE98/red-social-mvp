@@ -111,8 +111,8 @@ export default function GroupImageCropModal({
         >
           <div style={subtitleStyle}>
             {cropMode === "avatar"
-              ? "Recortar avatar de la comunidad"
-              : "Recortar portada de la comunidad"}
+              ? tGroups("cropAvatarTitle")
+              : tGroups("cropCoverTitle")}
           </div>
 
           <button
@@ -124,7 +124,7 @@ export default function GroupImageCropModal({
               cursor: uploading ? "not-allowed" : "pointer",
             }}
           >
-            Cerrar
+            {tCommon("close")}
           </button>
         </div>
 
@@ -166,7 +166,7 @@ export default function GroupImageCropModal({
               flexWrap: "wrap",
             }}
           >
-            <label style={labelStyle}>Zoom</label>
+            <label style={labelStyle}>{tCommon("zoom")}</label>
 
             <input
               type="range"

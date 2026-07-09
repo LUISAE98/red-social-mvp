@@ -47,6 +47,9 @@ const COLLECTION_BY_TYPE: Record<SessionType, string> = {
 
 const JOINABLE_STATUSES = new Set(["scheduled", "ready_to_prepare", "in_preparation"]);
 const ENDABLE_STATUSES = new Set(["scheduled", "ready_to_prepare", "in_preparation"]);
+const FORCE_COMPLETE_STATUSES = new Set(["session_incomplete"]);
+const SESSION_COMPLETE_THRESHOLD_PCT = 0.8;
+const FALLBACK_DURATION_MINUTES = 30;
 
 function requireAuth(uid?: string): string {
   if (!uid) throw new HttpsError("unauthenticated", "Debes iniciar sesión.");
@@ -254,20 +257,43 @@ export const endSession = onCall(
 
     // Si ninguno se unió realmente, marcar como rechazado (no-show) en vez de completado
     const sessionStarted = !!startedAt || (!!creatorJoinedAt && !!buyerJoinedAt);
-    const finalStatus = sessionStarted ? "completed" : "rejected";
 
-    const now = new Date().toISOString();
+    const nowMs = Date.now();
+    const nowIso = new Date(nowMs).toISOString();
+
+    let finalStatus: string;
     const updates: Record<string, unknown> = {
-      status: finalStatus,
       roomStatus: "ended",
-      endedAt: now,
+      endedAt: nowIso,
       updatedAt: admin.firestore.Timestamp.now(),
     };
 
     if (!sessionStarted) {
+      finalStatus = "rejected";
       updates.autoRejectedAt = admin.firestore.Timestamp.now();
       updates.autoRejectReason = "La sesión finalizó sin que ambos participantes se conectaran.";
+    } else {
+      // Calcular duración real vs umbral del 80%
+      const startedAtMs = startedAt
+        ? new Date(startedAt as string).getTime()
+        : nowMs;
+      const actualDurationSec = Math.max(0, (nowMs - startedAtMs) / 1000);
+      const durationMinutes =
+        typeof session.durationMinutes === "number" && session.durationMinutes > 0
+          ? session.durationMinutes
+          : FALLBACK_DURATION_MINUTES;
+      const requiredDurationSec = durationMinutes * 60 * SESSION_COMPLETE_THRESHOLD_PCT;
+
+      if (actualDurationSec >= requiredDurationSec) {
+        finalStatus = "completed";
+      } else {
+        finalStatus = "session_incomplete";
+        updates.actualDurationSeconds = Math.floor(actualDurationSec);
+        updates.requiredDurationSeconds = Math.floor(requiredDurationSec);
+      }
     }
+
+    updates.status = finalStatus;
 
     // Detener grabación activa → el webhook de LiveKit (Bloque 9) actualizará a "ready"
     if (livekitEgressId && recordingStatus === "recording") {
@@ -285,6 +311,61 @@ export const endSession = onCall(
       role: isCreator ? "creator" : "buyer",
       previousStatus: status,
       hadRecording: !!livekitEgressId,
+    });
+
+    return { success: true, finalStatus };
+  }
+);
+
+// ── forceCompleteSession ──────────────────────────────────────────────────────
+// Llamado por el comprador o creador cuando confirman que la sesión "Concluyó con éxito"
+// a pesar de no haber alcanzado el umbral del 80%.
+
+export const forceCompleteSession = onCall(
+  { region: REGION, secrets: ALL_SECRETS },
+  async (request) => {
+    const uid = requireAuth(request.auth?.uid);
+    const { sessionId, sessionType } = request.data ?? {};
+
+    if (typeof sessionId !== "string" || !sessionId.trim()) {
+      throw new HttpsError("invalid-argument", "sessionId es requerido.");
+    }
+
+    const collection = resolveCollection(sessionType);
+    const cleanId = sessionId.trim();
+    const docRef = db.collection(collection).doc(cleanId);
+    const snap = await docRef.get();
+
+    if (!snap.exists) throw new HttpsError("not-found", "La sesión no existe.");
+
+    const session = snap.data()!;
+    const { creatorId, buyerId, status } = session;
+
+    const isCreator = uid === creatorId;
+    const isBuyer = uid === buyerId;
+    if (!isCreator && !isBuyer) {
+      throw new HttpsError("permission-denied", "No tienes acceso a esta sesión.");
+    }
+
+    if (!FORCE_COMPLETE_STATUSES.has(status)) {
+      throw new HttpsError(
+        "failed-precondition",
+        `La sesión no puede marcarse como completada desde el estado: ${status}.`
+      );
+    }
+
+    await docRef.update({
+      status: "completed",
+      forceCompletedAt: new Date().toISOString(),
+      forceCompletedBy: uid,
+      updatedAt: admin.firestore.Timestamp.now(),
+    });
+
+    logger.info("session_force_completed", {
+      sessionId: cleanId,
+      sessionType,
+      uid,
+      role: isCreator ? "creator" : "buyer",
     });
 
     return { success: true };

@@ -1,6 +1,10 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
+import { doc, onSnapshot } from "firebase/firestore";
+import { httpsCallable } from "firebase/functions";
+import { db, functions } from "@/lib/firebase";
 
 type Currency = "MXN" | "USD";
 
@@ -62,6 +66,8 @@ type ServiceDraft = {
   donationMinimumAmount: string;
   donationGoalLabel: string;
   donationMessage: string;
+  donationVideoUrl: string;
+  donationPlaybackId: string;
   freeToSubscriptionPolicy: FreeToSubscriptionPolicy;
   subscriptionToFreePolicy: SubscriptionToFreePolicy;
   subscriptionPriceIncreasePolicy: SubscriptionPriceIncreasePolicy;
@@ -92,6 +98,19 @@ type SwitchProps = {
   label?: string;
 };
 
+const VIDEO_MAX_SECONDS = 300;
+
+function getVideoDuration(file: File): Promise<number> {
+  return new Promise((resolve) => {
+    const video = document.createElement("video");
+    const url = URL.createObjectURL(file);
+    video.preload = "metadata";
+    video.onloadedmetadata = () => { URL.revokeObjectURL(url); resolve(video.duration); };
+    video.onerror = () => { URL.revokeObjectURL(url); resolve(0); };
+    video.src = url;
+  });
+}
+
 type Props = {
   draft: ServiceDraft;
   savedDraft: ServiceDraft;
@@ -99,6 +118,7 @@ type Props = {
   removingLegacyMembers: boolean;
 
   donationEmoji: string;
+  groupId: string;
 
   panelStyle: React.CSSProperties;
   titleStyle: React.CSSProperties;
@@ -123,6 +143,7 @@ export default function Donation({
   saving,
   removingLegacyMembers,
   donationEmoji,
+  groupId,
   panelStyle,
   titleStyle,
   subtleStyle,
@@ -135,13 +156,26 @@ export default function Donation({
   SwitchComponent,
   onSaveDraft,
 }: Props) {
+  const tServices = useTranslations("services");
+
   const isEnabled = draft.donationMode !== "none";
 
   const [overlayMode, setOverlayMode] = useState<OverlayMode>(null);
   const [overlayDraft, setOverlayDraft] = useState<ServiceDraft>(draft);
   const [saveErr, setSaveErr] = useState<string | null>(null);
 
-  const isBusy = saving || removingLegacyMembers;
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+  const [uploadPending, setUploadPending] = useState(false);
+  const [uploadErr, setUploadErr] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const xhrRef = useRef<XMLHttpRequest | null>(null);
+  const playbackListenerRef = useRef<(() => void) | null>(null);
+
+  useEffect(() => {
+    return () => { playbackListenerRef.current?.(); };
+  }, []);
+
+  const isBusy = saving || removingLegacyMembers || uploadProgress !== null;
 
   const donationMinimumCalc = useMemo(() => {
     return draft.donationMode !== "none"
@@ -166,17 +200,89 @@ export default function Donation({
     };
   }
 
+  function stopPlaybackListener() {
+    playbackListenerRef.current?.();
+    playbackListenerRef.current = null;
+  }
+
   function openOverlay(mode: OverlayMode, nextDraft?: ServiceDraft) {
+    stopPlaybackListener();
     setOverlayMode(mode);
     setOverlayDraft(nextDraft ?? draft);
     setSaveErr(null);
+    setUploadErr(null);
+    setUploadPending(false);
   }
 
   function closeOverlay() {
     if (isBusy) return;
+    stopPlaybackListener();
     setOverlayMode(null);
     setOverlayDraft(draft);
     setSaveErr(null);
+    setUploadErr(null);
+    setUploadPending(false);
+  }
+
+  async function handleVideoSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadErr(null);
+    setUploadPending(false);
+
+    const duration = await getVideoDuration(file);
+    if (duration > VIDEO_MAX_SECONDS) {
+      setUploadErr(`El video no puede durar más de 5 minutos (${Math.round(duration)}s).`);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+
+    setUploadProgress(0);
+
+    try {
+      const callable = httpsCallable<{ groupId: string }, { uploadId: string; uploadUrl: string }>(
+        functions,
+        "createMuxGroupDonationUpload"
+      );
+      const result = await callable({ groupId });
+      const { uploadUrl, uploadId } = result.data;
+
+      await new Promise<void>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhrRef.current = xhr;
+        xhr.upload.onprogress = (ev) => {
+          if (ev.total > 0) setUploadProgress(Math.round((ev.loaded / ev.total) * 100));
+        };
+        xhr.onload = () => {
+          xhrRef.current = null;
+          if (xhr.status >= 200 && xhr.status < 300) resolve();
+          else reject(new Error(`Error al subir (${xhr.status})`));
+        };
+        xhr.onerror = () => { xhrRef.current = null; reject(new Error("Error de red al subir el video.")); };
+        xhr.open("PUT", uploadUrl);
+        xhr.setRequestHeader("Content-Type", file.type || "video/mp4");
+        xhr.send(file);
+      });
+
+      setOverlayDraft((p) => ({ ...p, donationVideoUrl: `mux://uploads/${uploadId}`, donationPlaybackId: "" }));
+      setUploadPending(true);
+
+      stopPlaybackListener();
+      const unsub = onSnapshot(doc(db, "groups", groupId), (snap) => {
+        const playbackId = snap.data()?.donation?.playbackId;
+        if (typeof playbackId === "string" && playbackId) {
+          setOverlayDraft((p) => ({ ...p, donationPlaybackId: playbackId }));
+          setUploadPending(false);
+          stopPlaybackListener();
+        }
+      });
+      playbackListenerRef.current = unsub;
+    } catch (err: unknown) {
+      setUploadErr(err instanceof Error ? err.message : "No se pudo subir el video.");
+    } finally {
+      setUploadProgress(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
   }
 
   async function confirmOverlaySave() {
@@ -185,16 +291,16 @@ export default function Donation({
 
     const amount = parseFloat(overlayDraft.donationMinimumAmount);
     if (isNaN(amount) || amount <= 0) {
-      setSaveErr("Debes definir un monto mínimo válido.");
+      setSaveErr(tServices("donationMinAmountError"));
       return;
     }
 
     if (!overlayDraft.donationMessage.trim()) {
-      setSaveErr("Debes escribir un mensaje de presentación.");
+      setSaveErr(tServices("donationMessageRequired"));
       return;
     }
     if (overlayDraft.donationMessage.trim().length > 160) {
-      setSaveErr("El mensaje no puede superar 160 caracteres.");
+      setSaveErr(tServices("donationMessageTooLong"));
       return;
     }
 
@@ -221,7 +327,8 @@ export default function Donation({
   function renderSummary() {
     if (draft.donationMode === "none") return null;
 
-    const donationModeLabel = "Donación";
+    const donationModeLabel = tServices("donationModeLabel");
+    const hasVideo = Boolean(draft.donationPlaybackId);
 
     return (
       <div
@@ -235,14 +342,14 @@ export default function Donation({
         }}
       >
         <div style={{ display: "grid", gap: 4 }}>
-          <div style={subtleStyle}>Tipo</div>
+          <div style={subtleStyle}>{tServices("donationTypeLabel")}</div>
           <div style={{ color: "#fff", fontSize: 14, fontWeight: 700 }}>
             {donationModeLabel}
           </div>
         </div>
 
         <div style={{ display: "grid", gap: 4 }}>
-          <div style={subtleStyle}>Monto mínimo</div>
+          <div style={subtleStyle}>{tServices("donationMinAmount")}</div>
           <div style={{ color: "#fff", fontSize: 14, fontWeight: 700 }}>
             {draft.donationMinimumAmount
               ? formatMoney(Number(draft.donationMinimumAmount), draft.donationCurrency)
@@ -250,11 +357,18 @@ export default function Donation({
           </div>
         </div>
 
+        <div style={{ display: "grid", gap: 4 }}>
+          <div style={subtleStyle}>Video de presentación</div>
+          <div style={{ color: hasVideo ? "#a3e635" : "rgba(255,255,255,0.4)", fontSize: 13 }}>
+            {hasVideo ? "✓ Video listo" : "Sin video (opcional)"}
+          </div>
+        </div>
+
         {donationMinimumCalc ? (
           <div style={subtleStyle}>
-            Monto mínimo configurado:{" "}
-            {formatMoney(donationMinimumCalc.gross, draft.donationCurrency)}. El
-            usuario podrá donar ese monto o uno mayor.
+            {tServices("donationMinConfiguredDesc", {
+              amount: formatMoney(donationMinimumCalc.gross, draft.donationCurrency),
+            })}
           </div>
         ) : null}
 
@@ -270,7 +384,7 @@ export default function Donation({
             cursor: isBusy ? "not-allowed" : "pointer",
           }}
         >
-          Modificar
+          {tServices("modify")}
         </button>
       </div>
     );
@@ -288,7 +402,7 @@ export default function Donation({
           }}
         >
           <div style={{ display: "grid", gap: 2, minWidth: 0 }}>
-            <span style={titleStyle}>{donationEmoji} Donación / Apoyo</span>
+            <span style={titleStyle}>{donationEmoji} {tServices("donationTitle")}</span>
           </div>
           <SwitchComponent
             checked={isEnabled}
@@ -296,7 +410,7 @@ export default function Donation({
             onChange={(next) => {
               void handleToggle(next);
             }}
-            label="Activar donaciones"
+            label={tServices("donationEnableLabel")}
           />
         </div>
         {renderSummary()}
@@ -304,13 +418,13 @@ export default function Donation({
 
       <OverlayModalComponent
         open={overlayMode !== null}
-        title={`${donationEmoji} Configurar donación`}
+        title={`${donationEmoji} ${tServices("donationConfigTitle")}`}
         loading={saving}
         onCancel={closeOverlay}
         onConfirm={() => void confirmOverlaySave()}
       >
         <div>
-          <div style={{ ...subtleStyle, marginBottom: 8 }}>Mensaje de presentación (máx. 160 caracteres)</div>
+          <div style={{ ...subtleStyle, marginBottom: 8 }}>{tServices("donationMessageLabel")}</div>
           <textarea
             value={overlayDraft.donationMessage}
             onChange={(e) => setOverlayDraft((p) => ({ ...p, donationMessage: e.target.value.slice(0, 160) }))}
@@ -326,7 +440,7 @@ export default function Donation({
         </div>
 
         <div>
-          <div style={{ ...subtleStyle, marginBottom: 8 }}>Monto mínimo</div>
+          <div style={{ ...subtleStyle, marginBottom: 8 }}>{tServices("donationMinAmount")}</div>
           <div style={{ display: "flex", gap: 8 }}>
             <input
               type="number"
@@ -358,6 +472,56 @@ export default function Donation({
               <option value="USD">USD</option>
             </select>
           </div>
+        </div>
+
+        {/* Video de presentación (opcional) */}
+        <div>
+          <div style={{ ...subtleStyle, marginBottom: 6 }}>Video de presentación <span style={{ opacity: 0.5 }}>(opcional, máx. 5 min)</span></div>
+
+          {overlayDraft.donationPlaybackId ? (
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ fontSize: 13, color: "#a3e635" }}>✓ Video listo</span>
+              <button
+                type="button"
+                disabled={isBusy}
+                onClick={() => fileInputRef.current?.click()}
+                style={{ ...buttonSecondaryStyle, fontSize: 12, padding: "4px 10px" }}
+              >
+                Cambiar
+              </button>
+            </div>
+          ) : uploadPending ? (
+            <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)" }}>
+              ⏳ Procesando video...
+            </div>
+          ) : uploadProgress !== null ? (
+            <div style={{ fontSize: 13, color: "rgba(255,255,255,0.6)" }}>
+              Subiendo {uploadProgress}%...
+            </div>
+          ) : (
+            <button
+              type="button"
+              disabled={isBusy}
+              onClick={() => fileInputRef.current?.click()}
+              style={{ ...buttonSecondaryStyle }}
+            >
+              Subir video
+            </button>
+          )}
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="video/*"
+            style={{ display: "none" }}
+            onChange={(e) => void handleVideoSelect(e)}
+          />
+
+          {uploadErr && (
+            <div style={{ color: "rgba(255,120,120,0.95)", fontSize: 12, marginTop: 6 }}>
+              {uploadErr}
+            </div>
+          )}
         </div>
 
         {saveErr && (

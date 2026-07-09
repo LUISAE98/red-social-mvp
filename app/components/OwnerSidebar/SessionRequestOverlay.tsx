@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { playEdgeTTS } from "@/lib/tts/edge-tts-client";
 import type { EdgeTTSHandle } from "@/lib/tts/edge-tts-client";
 import Image from "next/image";
@@ -292,6 +292,7 @@ export default function SessionRequestOverlay({
   const tServices = useTranslations("services");
   const tSessions = useTranslations("sessions");
   const tWallet = useTranslations("wallet");
+  const locale = useLocale();
   const [mounted, setMounted] = useState(false);
   const [visible, setVisible] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
@@ -474,15 +475,13 @@ export default function SessionRequestOverlay({
   function fmtDateSplit(value: unknown): { dayTime: string; dateStr: string } | null {
     const d = toDateSafe(value);
     if (!d) return null;
-    const weekday = d.toLocaleString("es-MX", { weekday: "long" });
     const hh = String(d.getHours()).padStart(2, "0");
     const mm = String(d.getMinutes()).padStart(2, "0");
-    const day = String(d.getDate()).padStart(2, "0");
-    const month = d.toLocaleString("es-MX", { month: "long" });
-    const year = d.getFullYear();
+    const weekday = new Intl.DateTimeFormat(locale, { weekday: "long" }).format(d);
+    const dateStr = new Intl.DateTimeFormat(locale, { day: "2-digit", month: "long", year: "numeric" }).format(d);
     return {
-      dayTime: `${weekday.charAt(0).toUpperCase() + weekday.slice(1)} ${hh}:${mm} hrs`,
-      dateStr: `${day} de ${month.charAt(0).toUpperCase() + month.slice(1)} de ${year}`,
+      dayTime: `${weekday.charAt(0).toUpperCase() + weekday.slice(1)} ${hh}:${mm} ${tWallet("hoursAbbr")}`,
+      dateStr,
     };
   }
 
@@ -510,7 +509,7 @@ export default function SessionRequestOverlay({
         </div>
         {earning && (
           <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", flexShrink: 0, gap: 2 }}>
-            <span style={{ color: "#86efac", fontWeight: 500, fontSize: 11, letterSpacing: "0.01em", lineHeight: 1 }}>Tu ganancia</span>
+            <span style={{ color: "#86efac", fontWeight: 500, fontSize: 11, letterSpacing: "0.01em", lineHeight: 1 }}>{tWallet("yourEarning")}</span>
             <span style={{ color: "#86efac", fontWeight: 700, fontSize: 20, letterSpacing: "-0.03em", lineHeight: 1 }}>{earning}</span>
           </div>
         )}
@@ -693,7 +692,7 @@ export default function SessionRequestOverlay({
           <div className="sro-schedule">
             <ScheduleDateTimeSelector value={scheduleParts} onChange={(p) => setScheduleParts(p)} disabled={busy} />
             <div style={{ marginTop: 4, fontSize: 11, color: "rgba(255,255,255,0.38)" }}>
-              Seleccionando en tu hora local: {getTimezoneLabel(getViewerTimezone())}
+              {tSessions("schedulingLocalTime", { timezone: getTimezoneLabel(getViewerTimezone()) })}
             </div>
           </div>
           {scheduleConflict.message && (
@@ -702,7 +701,7 @@ export default function SessionRequestOverlay({
             </div>
           )}
           <label style={{ display: "grid", gap: 6 }}>
-            <span style={{ color: "rgba(255,255,255,0.72)", fontSize: 12, fontWeight: 700, lineHeight: 1 }}>Mensaje al comprador</span>
+            <span style={{ color: "rgba(255,255,255,0.72)", fontSize: 12, fontWeight: 700, lineHeight: 1 }}>{tSessions("scheduleBuyerMessage")}</span>
             <textarea
               value={scheduleNote}
               onChange={(e) => setScheduleNote(e.target.value)}

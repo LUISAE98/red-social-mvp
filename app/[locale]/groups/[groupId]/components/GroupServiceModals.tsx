@@ -480,9 +480,7 @@ export default function GroupServiceModals({
                       : `Precio no disponible (${subscriptionCurrencyLabel})`}
                   </div>
                   <div style={{ marginTop: 8, ...microText }}>
-                    Al continuar, el flujo intenta darte acceso inmediato a la
-                    comunidad. La conexión completa del backend se termina en el
-                    siguiente bloque.
+                    {tServices("subscriptionFlowNote")}
                   </div>
                 </div>
 
@@ -511,7 +509,7 @@ export default function GroupServiceModals({
                       cursor: subscriptionSubmitting ? "not-allowed" : "pointer",
                     }}
                   >
-                    Cancelar
+                    {tCommon("cancel")}
                   </button>
                 </div>
               </div>
@@ -646,7 +644,7 @@ export default function GroupServiceModals({
                   cursor: params.submitting ? "not-allowed" : "pointer",
                 }}
               >
-                Cancelar
+                {tCommon("cancel")}
               </button>
             </div>
 

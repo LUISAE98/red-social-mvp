@@ -10,24 +10,12 @@ import {
   Timestamp,
   limit,
 } from "firebase/firestore";
+import { useTranslations } from "next-intl";
 import { db } from "@/lib/firebase";
 import { claimReport } from "@/lib/moderation/reportService";
 import type { Report } from "@/lib/moderation/types";
 import { REPORT_REASON_LABELS } from "@/lib/moderation/types";
 import Link from "next/link";
-
-const TARGET_LABELS: Record<string, string> = {
-  post: "Publicación",
-  comment: "Comentario",
-  comment_reply: "Respuesta",
-  live: "Live",
-  live_chat_message: "Chat del live",
-  greeting: "Saludo/Consejo",
-  user: "Usuario",
-  community: "Comunidad",
-  meet_greet: "Sesión en vivo",
-  exclusive_session: "Sesión exclusiva",
-};
 
 type FireReport = Omit<Report, "createdAt" | "claimedAt" | "resolvedAt"> & {
   createdAt: Timestamp;
@@ -55,6 +43,21 @@ function rel(date: Date): string {
 }
 
 export default function AdminReportsPage() {
+  const tAdmin = useTranslations("admin");
+
+  const TARGET_LABELS: Record<string, string> = {
+    post: tAdmin("targetPost"),
+    comment: tAdmin("targetComment"),
+    comment_reply: tAdmin("targetReply"),
+    live: tAdmin("targetLive"),
+    live_chat_message: tAdmin("targetLiveChat"),
+    greeting: tAdmin("targetGreeting"),
+    user: tAdmin("targetUser"),
+    community: tAdmin("targetCommunity"),
+    meet_greet: tAdmin("targetLiveSession"),
+    exclusive_session: tAdmin("targetExclusiveSession"),
+  };
+
   const [reports, setReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState(true);
   const [claiming, setClaiming] = useState<string | null>(null);
@@ -86,7 +89,7 @@ export default function AdminReportsPage() {
     try {
       await claimReport(id);
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Error al atender el reporte");
+      setError(e instanceof Error ? e.message : tAdmin("attendReportError"));
     } finally {
       setClaiming(null);
     }
@@ -99,7 +102,7 @@ export default function AdminReportsPage() {
           Reportes generales
         </h1>
         <p style={{ fontSize: 13, color: "#555", margin: "6px 0 0" }}>
-          Reportes pendientes sin asignar — toma uno para atenderlo.
+          {tAdmin("pendingReportsNote")}
         </p>
       </div>
 
@@ -110,9 +113,9 @@ export default function AdminReportsPage() {
       )}
 
       {loading ? (
-        <div style={{ color: "#555", fontSize: 14 }}>Cargando reportes...</div>
+        <div style={{ color: "#555", fontSize: 14 }}>{tAdmin("reportsLoading")}</div>
       ) : reports.length === 0 ? (
-        <div style={{ color: "#555", fontSize: 14 }}>No hay reportes pendientes.</div>
+        <div style={{ color: "#555", fontSize: 14 }}>{tAdmin("noReportsPending")}</div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           {reports.map((r) => (

@@ -2247,8 +2247,8 @@ style={{
 }}
 >
   {showExactPostDate
-    ? formatExactDate(post.createdAt, locale)
-    : formatRelativeDate(post.createdAt, locale)}
+    ? formatExactDate(post.liveData?.startedAt ?? post.createdAt, locale)
+    : formatRelativeDate(post.liveData?.startedAt ?? post.createdAt, locale)}
   {(post.editedAt ?? localText !== null) ? (
     <span style={{ opacity: 0.45, fontStyle: "italic", marginLeft: 2 }}>
       {" · Editado"}
@@ -4448,8 +4448,8 @@ padding: "0 0 2px 0",
       : null
   }
   authorStatusBadge={authorStatusBadge}
-  relativeDate={formatRelativeDate(post.createdAt, locale)}
-  exactDate={formatExactDate(post.createdAt, locale)}
+  relativeDate={formatRelativeDate(post.liveData?.startedAt ?? post.createdAt, locale)}
+  exactDate={formatExactDate(post.liveData?.startedAt ?? post.createdAt, locale)}
   likesCount={optimisticLikesCount}
   viewerHasFlamed={optimisticViewerHasFlamed}
   commentsCount={visibleCommentsTotal}

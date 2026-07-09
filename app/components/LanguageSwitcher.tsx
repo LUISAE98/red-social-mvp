@@ -11,7 +11,7 @@ const LOCALES: { code: Locale; label: string; name: string }[] = [
   { code: "pt-BR", label: "PT", name: "Português" },
 ];
 
-type Variant = "desktop" | "mobile-bubble";
+type Variant = "desktop" | "mobile-bubble" | "cover-corner";
 
 const dropdownBase: React.CSSProperties = {
   background: "rgba(8, 5, 20, 0.97)",
@@ -166,6 +166,62 @@ export default function LanguageSwitcher({ variant = "desktop" }: { variant?: Va
     );
   }
 
+  if (variant === "cover-corner") {
+    return (
+      <>
+        <style>{`.vb-lang-corner{display:none}@media(max-width:900px){.vb-lang-corner{display:block}}`}</style>
+        <div
+          ref={containerRef}
+          className="vb-lang-corner"
+          style={{ position: "absolute", top: 14, right: 14, zIndex: 40 }}
+        >
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); setOpen((o) => !o); }}
+            title={tCommon("changeLanguage")}
+            aria-label={tCommon("changeLanguage")}
+            style={{
+              width: 34,
+              height: 34,
+              borderRadius: "50%",
+              background: "linear-gradient(135deg, rgb(3,3,6) 0%, rgb(8,5,13) 48%, rgb(0,0,0) 100%)",
+              border: "none",
+              color: "#a855ff",
+              fontSize: 11,
+              fontWeight: 800,
+              fontFamily: "inherit",
+              letterSpacing: "0.04em",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              boxShadow:
+                "inset 0 1px 0 rgba(255,255,255,0.04), inset 0 -1px 0 rgba(255,255,255,0.016), inset 0 0 11px rgba(168,85,255,0.13), inset 0 0 18px rgba(168,85,255,0.085), inset 0 0 26px rgba(126,34,206,0.065), 0 0 7px rgba(168,85,255,0.05), 0 12px 24px rgba(0,0,0,0.5)",
+              backdropFilter: "blur(10px)",
+              WebkitBackdropFilter: "blur(10px)",
+            }}
+          >
+            {label}
+          </button>
+          {open && (
+            <div
+              style={{
+                ...dropdownBase,
+                position: "absolute",
+                top: "calc(100% + 8px)",
+                right: 0,
+              }}
+            >
+              {LOCALES.map((l) => (
+                <DropdownItem key={l.code} locale={l} current={currentLocale} onSelect={switchLocale} />
+              ))}
+            </div>
+          )}
+        </div>
+      </>
+    );
+  }
+
   // desktop variant — hidden on mobile via its parent (.desktopHeader display:none at ≤900px)
   return (
     <div ref={containerRef} style={{ position: "relative" }}>
@@ -178,16 +234,17 @@ export default function LanguageSwitcher({ variant = "desktop" }: { variant?: Va
           height: 32,
           padding: "0 11px",
           borderRadius: 8,
-          background: open ? "rgba(168, 85, 255, 0.12)" : "rgba(255, 255, 255, 0.06)",
-          border: "1px solid rgba(168, 85, 255, 0.28)",
-          color: "rgba(255, 255, 255, 0.85)",
+          background: "transparent",
+          border: "none",
+          color: "#a855ff",
           fontSize: 11,
           fontWeight: 700,
           letterSpacing: "0.04em",
           cursor: "pointer",
           fontFamily: "inherit",
           whiteSpace: "nowrap",
-          transition: "background 140ms ease",
+          transition: "opacity 140ms ease",
+          opacity: open ? 0.75 : 1,
         }}
       >
         {label}

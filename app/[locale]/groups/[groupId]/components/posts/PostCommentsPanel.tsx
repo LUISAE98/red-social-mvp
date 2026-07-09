@@ -364,7 +364,7 @@ export default function PostCommentsPanel({
               }}
               onClick={onCloseDesktop}
             >
-              Comentarios
+              {tPosts("commentsTitle")}
             </h3>
           </div>
 
@@ -464,8 +464,8 @@ export default function PostCommentsPanel({
                     placeholder={
                       commentBlockedMessage ??
                       (groupId
-                        ? "Comentarios bloqueados en esta comunidad"
-                        : "Solo el dueño puede comentar en este perfil")
+                        ? tPosts("commentsBlockedGroup")
+                        : tPosts("ownerOnlyComment"))
                     }
                     style={{
                       ...inputStyle,
@@ -485,7 +485,7 @@ export default function PostCommentsPanel({
                 disabled={!canCommentOnPosts || creatingComment}
                 style={primaryButtonStyle}
               >
-                {creatingComment ? "Comentando..." : "Comentar"}
+                {creatingComment ? tPosts("commentingLabel") : tPosts("commentButton")}
               </button>
             </div>
           </div>
@@ -515,7 +515,7 @@ export default function PostCommentsPanel({
     <div
       role="dialog"
       aria-modal="true"
-      aria-label="Comentarios"
+      aria-label={tPosts("commentsTitle")}
       style={{
         position: "fixed",
         inset: 0,
@@ -723,7 +723,7 @@ export default function PostCommentsPanel({
                 <AutoGrowTextarea
                   value={commentText}
                   onChange={(e) => onCommentTextChange(e.target.value)}
-                  placeholder="Escribe un comentario..."
+                  placeholder={tPosts("writeComment")}
                   maxRows={2}
                   style={inputStyle}
                 />
@@ -731,7 +731,7 @@ export default function PostCommentsPanel({
                 <input
                   type="text"
                   disabled
-                  placeholder={commentBlockedMessage ?? "Comentarios bloqueados en esta comunidad"}
+                  placeholder={commentBlockedMessage ?? tPosts("commentsBlockedGroup")}
                   style={{
                     ...inputStyle,
                     color: "rgba(255,255,255,0.46)",
@@ -754,7 +754,7 @@ export default function PostCommentsPanel({
               }
               style={primaryButtonStyle}
             >
-              {creatingComment ? "Comentando..." : "Comentar"}
+              {creatingComment ? tPosts("commentingLabel") : tPosts("commentButton")}
             </button>
           </div>
         </div>

@@ -12,6 +12,7 @@ import {
   endAt,
   Timestamp,
 } from "firebase/firestore";
+import { useTranslations } from "next-intl";
 import { db } from "@/lib/firebase";
 
 type UserDoc = {
@@ -44,6 +45,7 @@ function toUserDoc(id: string, d: Record<string, unknown>): UserDoc {
 }
 
 export default function AdminUsersPage() {
+  const tAdmin = useTranslations("admin");
   const [tab, setTab] = useState<Tab>("banned");
   const [users, setUsers] = useState<UserDoc[]>([]);
   const [loading, setLoading] = useState(true);
@@ -120,7 +122,7 @@ export default function AdminUsersPage() {
               cursor: "pointer",
             }}
           >
-            {t === "banned" ? "Bloqueados" : "Buscar"}
+            {t === "banned" ? tAdmin("tabBanned") : tAdmin("tabSearch")}
           </button>
         ))}
       </div>
@@ -129,7 +131,7 @@ export default function AdminUsersPage() {
         <form onSubmit={handleSearch} style={{ display: "flex", gap: 8, marginBottom: 20 }}>
           <input
             type="text"
-            placeholder="Buscar por handle…"
+            placeholder={tAdmin("searchHandlePlaceholder")}
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
             style={{
@@ -156,20 +158,20 @@ export default function AdminUsersPage() {
               cursor: "pointer",
             }}
           >
-            Buscar
+            {tAdmin("searchButton")}
           </button>
         </form>
       )}
 
       {loading ? (
-        <div style={{ color: "#555", fontSize: 14 }}>Cargando...</div>
+        <div style={{ color: "#555", fontSize: 14 }}>{tAdmin("myReportsLoading")}</div>
       ) : users.length === 0 ? (
         <div style={{ color: "#555", fontSize: 14 }}>
           {tab === "banned"
-            ? "No hay usuarios bloqueados."
+            ? tAdmin("noBannedUsers")
             : searchQuery
             ? "Sin resultados."
-            : "Escribe un handle y presiona Buscar."}
+            : tAdmin("searchPrompt")}
         </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>

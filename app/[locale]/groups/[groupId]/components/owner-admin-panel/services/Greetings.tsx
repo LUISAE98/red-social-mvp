@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 
 type Currency = "MXN" | "USD";
 
@@ -62,6 +63,8 @@ type ServiceDraft = {
   donationMinimumAmount: string;
   donationGoalLabel: string;
   donationMessage: string;
+  donationVideoUrl: string;
+  donationPlaybackId: string;
   freeToSubscriptionPolicy: FreeToSubscriptionPolicy;
   subscriptionToFreePolicy: SubscriptionToFreePolicy;
   subscriptionPriceIncreasePolicy: SubscriptionPriceIncreasePolicy;
@@ -123,6 +126,8 @@ export default function Saludos({
   OverlayModalComponent,
   onSaveDraft,
 }: Props) {
+  const tServices = useTranslations("services");
+
   const [overlayMode, setOverlayMode] = useState<OverlayMode>(null);
   const [overlayDraft, setOverlayDraft] = useState<ServiceDraft>(draft);
 
@@ -213,7 +218,7 @@ export default function Saludos({
         }}
       >
         <div style={{ display: "grid", gap: 4 }}>
-          <div style={subtleStyle}>Precio configurado</div>
+          <div style={subtleStyle}>{tServices("meetGreetConfiguredPrice")}</div>
           <div style={{ color: "#fff", fontSize: 14, fontWeight: 700 }}>
             {draft.saludo.price
               ? formatMoney(Number(draft.saludo.price), draft.saludo.currency)
@@ -223,14 +228,15 @@ export default function Saludos({
 
         {saludoCalc ? (
           <div style={subtleStyle}>
-            Por un saludo de{" "}
-            {formatMoney(saludoCalc.gross, draft.saludo.currency)}, tú cobras{" "}
-            {formatMoney(saludoCalc.net, draft.saludo.currency)}.
+            {tServices("greetingEarningsDesc", {
+              gross: formatMoney(saludoCalc.gross, draft.saludo.currency),
+              net: formatMoney(saludoCalc.net, draft.saludo.currency),
+            })}
           </div>
         ) : null}
 
         <div style={subtleStyle}>
-          Visibilidad actual: solo miembros.
+          {tServices("meetGreetMembersVisibility")}
         </div>
 
         <button
@@ -245,7 +251,7 @@ export default function Saludos({
             cursor: isBusy ? "not-allowed" : "pointer",
           }}
         >
-          Modificar
+          {tServices("modify")}
         </button>
       </div>
     );
@@ -263,7 +269,7 @@ export default function Saludos({
           }}
         >
           <div style={{ display: "grid", gap: 2, minWidth: 0 }}>
-            <span style={titleStyle}>{saludoEmoji} Saludos</span>
+            <span style={titleStyle}>{saludoEmoji} {tServices("greetingsTitle")}</span>
           </div>
 
           <SwitchComponent
@@ -272,7 +278,7 @@ export default function Saludos({
             onChange={(next) => {
               void handleToggle(next);
             }}
-            label="Activar saludos"
+            label={tServices("greetingsActivateLabel")}
           />
         </div>
 
@@ -281,7 +287,7 @@ export default function Saludos({
 
       <OverlayModalComponent
         open={overlayMode !== null}
-        title={`${saludoEmoji} Configurar saludos`}
+        title={`${saludoEmoji} ${tServices("greetingsConfigTitle")}`}
         loading={saving}
         onCancel={closeOverlay}
         onConfirm={() => void confirmOverlaySave()}
@@ -304,7 +310,7 @@ export default function Saludos({
                 },
               }))
             }
-            placeholder="Precio"
+            placeholder={tServices("pricePlaceholder")}
             style={{ ...inputStyle, width: 130, flex: "1 1 180px" }}
           />
 
@@ -330,7 +336,7 @@ export default function Saludos({
         </div>
 
         <div style={subtleStyle}>
-          Este servicio queda visible solo para miembros.
+          {tServices("membersOnlyServiceNote")}
         </div>
       </OverlayModalComponent>
     </>

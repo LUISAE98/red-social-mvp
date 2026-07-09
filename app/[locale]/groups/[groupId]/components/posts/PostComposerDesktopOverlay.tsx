@@ -305,7 +305,7 @@ const removeMediaButtonStyle: CSSProperties = {
     <div
       role="dialog"
       aria-modal="true"
-      aria-label={isEditMode ? "Editar publicación" : "Crear publicación"}
+      aria-label={isEditMode ? tPosts("editPostTitle") : tPosts("createPostTitle")}
       style={{
         position: "fixed",
         top: 0,
@@ -408,7 +408,7 @@ const removeMediaButtonStyle: CSSProperties = {
           <div />
 
           <span style={{ fontSize: 17, fontWeight: 500, color: "#fff", lineHeight: 1.2, textAlign: "center", letterSpacing: "-0.02em" }}>
-            {isEditMode ? "Editar publicación" : "Crear publicación"}
+            {isEditMode ? tPosts("editPostTitle") : tPosts("createPostTitle")}
           </span>
 
           <button
@@ -479,7 +479,7 @@ const removeMediaButtonStyle: CSSProperties = {
                   }}
                 >
                   <VibraNavigationIcon type="premiumCrown" size={14} />
-                  Publicación Premium
+                  {tPosts("premiumPostBadge")}
                 </div>
               ) : null}
 
@@ -648,7 +648,7 @@ style={{
         {!premiumComposer.premiumEnabled ? (
           <VibraNavigationIcon type="premiumCrown" size={20} />
         ) : null}
-        {premiumComposer.premiumEnabled ? "Quitar Premium" : "Monetizar Video"}
+        {premiumComposer.premiumEnabled ? tPosts("removePremium") : tPosts("monetizeVideo")}
       </button>
     ) : null}
   </div>
@@ -733,7 +733,7 @@ style={{
                           {item.type === "image" ? (
                             <Image
                               src={item.previewUrl}
-                              alt={`Vista previa de imagen ${index + 1}`}
+                              alt={tPosts("imagePreviewAlt", { n: index + 1 })}
                               fill
                               style={{ objectFit: "cover", userSelect: "none" }}
                               draggable={false}
@@ -743,7 +743,7 @@ style={{
                               {videoCoverPreviewUrl ? (
                                 <Image
                                   src={videoCoverPreviewUrl}
-                                  alt={`Portada del video ${index + 1}`}
+                                  alt={tPosts("videoCoverAlt", { n: index + 1 })}
                                   fill
                                   style={{ objectFit: "cover", userSelect: "none" }}
                                   draggable={false}
@@ -787,7 +787,7 @@ style={{
                                         lineHeight: 1.15,
                                       }}
                                     >
-                                      Cargando video
+                                      {tPosts("loadingVideo")}
                                     </span>
                                   </div>
                                 </div>
@@ -853,7 +853,7 @@ style={{
                                   zIndex: 3,
                                 }}
                               >
-                                {hasManualCover ? "Cambiar" : "Portada"}
+                                {hasManualCover ? tPosts("changeButton") : tPosts("coverLabel")}
                               </button>
                             </>
                           )}
@@ -885,7 +885,7 @@ style={{
                               onPointerDown={(event) => event.stopPropagation()}
                               onClick={() => onRemoveMedia(index)}
                               style={removeMediaButtonStyle}
-                              aria-label={`Quitar media ${index + 1}`}
+                              aria-label={tPosts("removeMediaAria", { n: index + 1 })}
                               disabled={creating}
                             >
                               ×
@@ -949,7 +949,7 @@ borderRadius: 14,
                         lineHeight: 1,
                         flex: "0 0 auto",
                       }}
-                      aria-label="Agregar otra media"
+                      aria-label={tPosts("addMoreMedia")}
                     >
                       +
                     </button>
@@ -1032,9 +1032,9 @@ style={{
 }}
 >
               {isPreparingImages
-                ? "Preparando..."
+                ? tPosts("preparingLabel")
                 : creating
-                  ? (isEditMode ? "Guardando..." : "Publicando...")
+                  ? (isEditMode ? tCommon("saving") : tCommon("publishing"))
                   : premiumComposer.premiumEnabled
                     ? <VibraNavigationIcon type="premiumCrown" size={22} />
                     : (isEditMode ? tCommon("saveChanges") : tCommon("publish"))}

@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { doc, serverTimestamp, updateDoc } from "firebase/firestore";
+import { useTranslations } from "next-intl";
 import { db } from "@/lib/firebase";
 import { softDeleteGroup } from "@/lib/groups/groupDeletion";
 
@@ -16,6 +17,8 @@ export default function OwnerAdminDangerZone({
   groupName,
 }: OwnerAdminDangerZoneProps) {
   const router = useRouter();
+  const tGroups = useTranslations("groups");
+  const tCommon = useTranslations("common");
 
   const [isOpen, setIsOpen] = useState(false);
   const [confirmText, setConfirmText] = useState("");
@@ -51,7 +54,7 @@ export default function OwnerAdminDangerZone({
       const message =
         error instanceof Error
           ? error.message
-          : "No se pudo pausar la comunidad. Intenta de nuevo.";
+          : tGroups("pauseCommunityError");
 
       setErrorMessage(message);
     } finally {
@@ -79,7 +82,7 @@ export default function OwnerAdminDangerZone({
       const message =
         error instanceof Error
           ? error.message
-          : "No se pudo eliminar la comunidad. Intenta de nuevo.";
+          : tGroups("deleteCommunityError");
 
       setErrorMessage(message);
       setIsDeleting(false);
@@ -114,7 +117,7 @@ export default function OwnerAdminDangerZone({
               cursor: "pointer",
             }}
           >
-            Eliminar comunidad
+            {tGroups("deleteCommunityButton")}
           </button>
         ) : (
           <div style={{ display: "grid", gap: 12 }}>
@@ -127,7 +130,7 @@ export default function OwnerAdminDangerZone({
                   color: "#fff",
                 }}
               >
-                Eliminar comunidad
+                {tGroups("deleteCommunityButton")}
               </h4>
 
               <p
@@ -179,7 +182,7 @@ export default function OwnerAdminDangerZone({
                 disabled={isDeleting || isPausing}
                 rows={1}
                 maxLength={240}
-                placeholder="Ej. Eliminación solicitada por el owner."
+                placeholder={tGroups("deletionReasonPlaceholder")}
                 style={{
                   width: "100%",
                   minHeight: 42,
@@ -275,7 +278,7 @@ export default function OwnerAdminDangerZone({
                   opacity: isDeleting || isPausing ? 0.65 : 1,
                 }}
               >
-                Cancelar
+                {tCommon("cancel")}
               </button>
 
               <button
@@ -299,7 +302,7 @@ export default function OwnerAdminDangerZone({
                       : "pointer",
                 }}
               >
-                Eliminar comunidad
+                {tGroups("deleteCommunityButton")}
               </button>
             </div>
           </div>

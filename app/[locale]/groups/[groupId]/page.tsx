@@ -2001,7 +2001,7 @@ const avatarNode = (
 
 .group-content {
   position: relative;
-  padding: 0 18px 20px;
+  padding: 0 18px 8px;
   min-width: 0;
 }
 
@@ -2121,7 +2121,7 @@ const avatarNode = (
   }
 
   .group-content {
-    padding: 0 12px 18px;
+    padding: 0 12px 8px;
   }
 
   .group-actions-row > button {
@@ -2322,6 +2322,7 @@ const avatarNode = (
                 </div>
               </div>
 
+              {((!isOwner && !effectiveIsMember && group.visibility === "public" && memberStatus === "banned") || !!error) && (
               <div className="group-actions-wrap">
                 {!isOwner && !effectiveIsMember && group.visibility === "public" && memberStatus === "banned" && (
                   <div
@@ -2344,6 +2345,7 @@ const avatarNode = (
                   </div>
                 )}
               </div>
+              )}
             </div>
           </section>
 

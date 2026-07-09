@@ -71,6 +71,7 @@ export default function PostFlamesPanel({
   onClose,
 }: PostFlamesPanelProps) {
   const tCommon = useTranslations("common");
+  const tPosts = useTranslations("posts");
   const { toast: flameToast, showToast: showFlameToast } = useVibraToast();
   useEffect(() => { if (error) showFlameToast(error, "error"); }, [error]); // eslint-disable-line react-hooks/exhaustive-deps
   // mounted gate — prevents portal on server
@@ -189,7 +190,7 @@ export default function PostFlamesPanel({
 
   const titleEl = (
     <h2 style={{ margin: 0, fontSize: 17, fontWeight: 500, lineHeight: 1.2, textAlign: "center", letterSpacing: "-0.02em" }}>
-      Flamitas
+      {tPosts("flamesTitle")}
     </h2>
   );
 
@@ -206,7 +207,7 @@ export default function PostFlamesPanel({
 
   const bodyEl = (
     <div style={{ padding: "8px 14px calc(16px + env(safe-area-inset-bottom))", overflowY: "auto", flex: 1, minHeight: 0 }}>
-      {loading && <p style={stateStyle}>Cargando...</p>}
+      {loading && <p style={stateStyle}>{tCommon("loading")}</p>}
 
       <VibraToast toast={flameToast} />
 
@@ -214,10 +215,10 @@ export default function PostFlamesPanel({
         <div style={emptyCardStyle}>
           <span style={{ fontSize: 28, lineHeight: 1 }}>🔥</span>
           <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "#fff" }}>
-            Sé el primero en dar flamita
+            {tPosts("beFirstFlame")}
           </p>
           <p style={{ margin: 0, fontSize: 12.5, color: "rgba(255,255,255,0.52)", lineHeight: 1.4 }}>
-            Todavía nadie ha reaccionado a esta publicación.
+            {tPosts("noFlamesYet")}
           </p>
         </div>
       )}

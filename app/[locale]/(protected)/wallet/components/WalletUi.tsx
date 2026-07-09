@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { createPortal } from "react-dom";
 import {
   formatWalletMoney,
@@ -111,17 +111,17 @@ function isClosedStatus(status: string): boolean {
   ].includes(status);
 }
 
-function getNoShowMessage(row: WalletServiceItem): string | null {
+function getNoShowMessage(row: WalletServiceItem, buyerMsg: string, creatorMsg: string): string | null {
   if (!row.rejectionReason) return null;
 
   const lower = row.rejectionReason.toLowerCase();
 
   if (lower.includes("comprador") || lower.includes("buyer")) {
-    return "El comprador no se conectó dentro de los 15 minutos de tolerancia.";
+    return buyerMsg;
   }
 
   if (lower.includes("creador") || lower.includes("creator")) {
-    return "El creador no se conectó dentro de los 15 minutos de tolerancia.";
+    return creatorMsg;
   }
 
   return row.rejectionReason;
@@ -162,20 +162,16 @@ function getScheduledServiceActionFlags(row: WalletServiceItem) {
   return { canAccept, canReject, canSchedule, canPrepare };
 }
 
-function buildSourceLabel(row: WalletServiceItem): string | null {
+function buildSourceLabel(row: WalletServiceItem, labels: {
+  profileFull: string; profileName: string; profileUsername: string; profileDefault: string; community: string;
+}): string | null {
   if (row.requestSource === "profile") {
-    if (row.profileDisplayName && row.profileUsername) {
-      return `Perfil: ${row.profileDisplayName} · @${row.profileUsername}`;
-    }
-
-    if (row.profileDisplayName) return `Perfil: ${row.profileDisplayName}`;
-    if (row.profileUsername) return `Perfil: @${row.profileUsername}`;
-
-    return "Perfil del creador";
+    if (row.profileDisplayName && row.profileUsername) return labels.profileFull;
+    if (row.profileDisplayName) return labels.profileName;
+    if (row.profileUsername) return labels.profileUsername;
+    return labels.profileDefault;
   }
-
-  if (row.groupName) return `Comunidad: ${row.groupName}`;
-
+  if (row.groupName) return labels.community;
   return null;
 }
 
@@ -185,39 +181,25 @@ function formatRecordingDuration(seconds: number): string {
   return `${m}:${String(s).padStart(2, "0")}`;
 }
 
-function getRecordingExpiry(expiresAt: string | null): {
+function getRecordingExpiry(expiresAt: string | null, locale: string): {
   expired: boolean;
-  label: string | null;
+  diffDays: number | null;
+  dateLabel: string | null;
 } {
-  if (!expiresAt) return { expired: false, label: null };
+  if (!expiresAt) return { expired: false, diffDays: null, dateLabel: null };
   const exp = new Date(expiresAt);
-  if (isNaN(exp.getTime())) return { expired: false, label: null };
+  if (isNaN(exp.getTime())) return { expired: false, diffDays: null, dateLabel: null };
   const now = Date.now();
-  if (now > exp.getTime()) return { expired: true, label: null };
+  if (now > exp.getTime()) return { expired: true, diffDays: null, dateLabel: null };
   const diffDays = Math.ceil((exp.getTime() - now) / (1000 * 60 * 60 * 24));
-  const dateLabel = new Intl.DateTimeFormat("es-MX", {
+  const dateLabel = new Intl.DateTimeFormat(locale, {
     day: "numeric",
     month: "short",
     year: "numeric",
   }).format(exp);
-  const urgency = diffDays <= 7 ? "⚠️ " : "";
-  return {
-    expired: false,
-    label: `${urgency}Disponible hasta el ${dateLabel} (${diffDays} ${diffDays === 1 ? "día" : "días"})`,
-  };
+  return { expired: false, diffDays, dateLabel };
 }
 
-function getRelativeTime(date: Date | null): string {
-  if (!date) return "Hace un momento";
-  const diffMs = Date.now() - date.getTime();
-  const diffMins = Math.floor(diffMs / 60000);
-  const diffHours = Math.floor(diffMins / 60);
-  const diffDays = Math.floor(diffHours / 24);
-  if (diffDays >= 1) return `Hace ${diffDays} ${diffDays === 1 ? "día" : "días"}`;
-  if (diffHours >= 1) return `Hace ${diffHours} ${diffHours === 1 ? "hora" : "horas"}`;
-  if (diffMins >= 1) return `Hace ${diffMins} ${diffMins === 1 ? "minuto" : "minutos"}`;
-  return "Hace un momento";
-}
 
 const walletFontStack = 'inherit';
 
@@ -524,39 +506,39 @@ export function EmptyRows({
     </div>
   );
 }
-function buildRowSubtitle(row: WalletServiceItem): string {
+function buildRowSubtitle(row: WalletServiceItem, labels: {
+  sourceLabel: string | null;
+  forTarget: string;
+  buyerLabel: string;
+  motiveLabel: string;
+  refundLabel: string;
+}): string {
   const chunks: string[] = [];
 
-  const sourceLabel = buildSourceLabel(row);
-
-  if (sourceLabel) {
-    chunks.push(sourceLabel);
+  if (labels.sourceLabel) {
+    chunks.push(labels.sourceLabel);
   }
 
   chunks.push(row.statusLabel);
 
   if (row.targetName) {
-    chunks.push(`Para ${row.targetName}`);
+    chunks.push(labels.forTarget);
   }
 
   if (row.buyerDisplayName) {
-    chunks.push(`Comprador: ${row.buyerDisplayName}`);
+    chunks.push(labels.buyerLabel);
   }
 
   if (row.priceSnapshot != null) {
-  chunks.push(formatWalletMoney(row.priceSnapshot));
-}
+    chunks.push(formatWalletMoney(row.priceSnapshot));
+  }
 
-  const noShowMessage = getNoShowMessage(row);
-
-  if (noShowMessage) {
-    chunks.push(`Motivo: ${noShowMessage}`);
-  } else if (row.rejectionReason) {
-    chunks.push(`Motivo: ${row.rejectionReason}`);
+  if (labels.motiveLabel) {
+    chunks.push(labels.motiveLabel);
   }
 
   if (row.refundReason) {
-    chunks.push(`Devolución: ${row.refundReason}`);
+    chunks.push(labels.refundLabel);
   }
 
   return chunks.join(" · ");
@@ -596,21 +578,54 @@ export function WalletServiceRow({
   const tCommon = useTranslations("common");
   const tServices = useTranslations("services");
   const tWallet = useTranslations("wallet");
+  const locale = useLocale();
 
   useEffect(() => {
     setScheduleParts(getSchedulePartsFromDate(row.scheduledAt));
     setScheduleNote(row.creatorScheduleNote ?? "");
   }, [row.scheduledAt, row.creatorScheduleNote]);
 
+  const noShowMessage = getNoShowMessage(row, tWallet("noShowBuyer"), tWallet("noShowCreator"));
+  const sourceLabel = buildSourceLabel(row, {
+    profileFull: tWallet("sourceLabelProfileFull", { displayName: row.profileDisplayName ?? "", username: row.profileUsername ?? "" }),
+    profileName: tWallet("sourceLabelProfileName", { displayName: row.profileDisplayName ?? "" }),
+    profileUsername: tWallet("sourceLabelProfileUsername", { username: row.profileUsername ?? "" }),
+    profileDefault: tWallet("sourceLabelProfileDefault"),
+    community: row.groupName ? tWallet("sourceCommunity", { groupName: row.groupName }) : "",
+  });
+  const motiveLabel = noShowMessage
+    ? tWallet("motiveLabel", { motive: noShowMessage })
+    : row.rejectionReason
+    ? tWallet("motiveLabel", { motive: row.rejectionReason })
+    : "";
+  const relativeTime = (() => {
+    const d = row.createdAt;
+    if (!d) return tCommon("relativeTimeNow");
+    const diffMs = Date.now() - d.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHours / 24);
+    if (diffDays >= 1) return tCommon("relativeTimeDays", { count: diffDays });
+    if (diffHours >= 1) return tCommon("relativeTimeHours", { count: diffHours });
+    if (diffMins >= 1) return tCommon("relativeTimeMinutes", { count: diffMins });
+    return tCommon("relativeTimeNow");
+  })();
+
   const statusTone = getStatusTone(row);
-  const subtitle = buildRowSubtitle(row);
+  const subtitle = buildRowSubtitle(row, {
+    sourceLabel,
+    forTarget: row.targetName ? tWallet("forTarget", { name: row.targetName }) : "",
+    buyerLabel: row.buyerDisplayName ? tWallet("buyerLabel", { name: row.buyerDisplayName }) : "",
+    motiveLabel,
+    refundLabel: row.refundReason ? tWallet("refundLabel", { reason: row.refundReason }) : "",
+  });
   const meta = getWalletServiceRowMeta(row);
 
   const historyStatusLabel: string | null =
     row.status === "rejected" || row.status === "cancelled"
-      ? "Rechazado"
+      ? tWallet("historyRejected")
       : row.status === "refund_requested" || row.status === "refund_review"
-      ? "En devolución"
+      ? tWallet("historyRefund")
       : null;
 
   const historyStatusColor: string =
@@ -650,8 +665,6 @@ export function WalletServiceRow({
     !row.preparingCreatorAt &&
     isNoShowExpired(row.scheduledAt);
 
-  const noShowMessage = getNoShowMessage(row);
-
   const { canAccept, canReject, canSchedule, canPrepare } =
     isScheduledService
       ? getScheduledServiceActionFlags(row)
@@ -671,9 +684,9 @@ export function WalletServiceRow({
         action,
       });
 
-      showWalletRowToast(action === "accept" ? "✅ Solicitud aceptada." : "✅ Solicitud rechazada.");
+      showWalletRowToast(action === "accept" ? tWallet("greetingAccepted") : tWallet("greetingRejected"));
     } catch (e: unknown) {
-      showWalletRowToast((e instanceof Error ? e.message : null) ?? "No se pudo actualizar la solicitud.", "error");
+      showWalletRowToast((e instanceof Error ? e.message : null) ?? tWallet("greetingUpdateError"), "error");
     } finally {
       setBusy(false);
     }
@@ -685,15 +698,15 @@ export function WalletServiceRow({
     try {
       if (isExclusiveSession) {
         await acceptExclusiveSessionRequest({ requestId: row.id });
-        showWalletRowToast("✅ Sesión exclusiva aceptada. Ahora puedes poner fecha.");
+        showWalletRowToast(tWallet("exclusiveAccepted"));
       } else {
         await acceptMeetGreetRequest({ requestId: row.id });
-        showWalletRowToast("✅ Sesión en vivo aceptada. Ahora puedes poner fecha.");
+        showWalletRowToast(tWallet("liveAccepted"));
       }
 
       setScheduleOpen(true);
     } catch (e: unknown) {
-      showWalletRowToast((e instanceof Error ? e.message : null) ?? "No se pudo aceptar la solicitud.", "error");
+      showWalletRowToast((e instanceof Error ? e.message : null) ?? tWallet("acceptError"), "error");
     } finally {
       setBusy(false);
     }
@@ -708,18 +721,18 @@ export function WalletServiceRow({
           requestId: row.id,
           rejectionReason: rejectReason || null,
         });
-        showWalletRowToast("✅ Sesión exclusiva rechazada.");
+        showWalletRowToast(tWallet("exclusiveRejected"));
       } else {
         await rejectMeetGreetRequest({
           requestId: row.id,
           rejectionReason: rejectReason || null,
         });
-        showWalletRowToast("✅ Sesión en vivo rechazada.");
+        showWalletRowToast(tWallet("liveRejected"));
       }
 
       setRejectOpen(false);
     } catch (e: unknown) {
-      showWalletRowToast((e instanceof Error ? e.message : null) ?? "No se pudo rechazar la solicitud.", "error");
+      showWalletRowToast((e instanceof Error ? e.message : null) ?? tWallet("rejectError"), "error");
     } finally {
       setBusy(false);
     }
@@ -729,14 +742,13 @@ export function WalletServiceRow({
     const scheduledAt = schedulePartsToIso(scheduleParts);
 
     if (!scheduledAt) {
-      showWalletRowToast("Selecciona día, mes, año, hora y minuto.", "error");
+      showWalletRowToast(tWallet("selectDateTimeError"), "error");
       return;
     }
 
     if (scheduleConflict.hasConflict) {
       showWalletRowToast(
-        scheduleConflict.message ??
-          "Ese horario ya está ocupado. Selecciona otra hora disponible.",
+        scheduleConflict.message ?? tWallet("scheduleConflictFallback"),
         "error"
       );
       return;
@@ -757,11 +769,11 @@ export function WalletServiceRow({
         await proposeMeetGreetSchedule(payload);
       }
 
-      showWalletRowToast("✅ Fecha guardada correctamente.");
+      showWalletRowToast(tWallet("dateSaved"));
       setScheduleOpen(false);
       setCalendarOpen(false);
     } catch (e: unknown) {
-      showWalletRowToast((e instanceof Error ? e.message : null) ?? "No se pudo guardar la fecha.", "error");
+      showWalletRowToast((e instanceof Error ? e.message : null) ?? tWallet("dateSaveError"), "error");
     } finally {
       setBusy(false);
     }
@@ -785,7 +797,7 @@ export function WalletServiceRow({
 
       setPreparationOpen(true);
     } catch (e: unknown) {
-      showWalletRowToast((e instanceof Error ? e.message : null) ?? "No se pudo abrir la preparación.", "error");
+      showWalletRowToast((e instanceof Error ? e.message : null) ?? tWallet("prepareError"), "error");
     } finally {
       setBusy(false);
     }
@@ -796,10 +808,13 @@ export function WalletServiceRow({
     const isHistory = mode === "history";
     const isReadOnly = isHistory && (row.status === "rejected" || row.status === "devolucion");
     const actionLabel = isHistory
-      ? (isReadOnly ? "Ver solicitud" : row.kind === "consejo" ? "Ver consejo" : row.kind === "mensaje" ? "Ver mensaje" : "Ver saludo")
-      : (row.kind === "consejo" ? "Grabar consejo" : row.kind === "saludo" ? "Grabar saludo" : "Grabar");
+      ? (isReadOnly ? tWallet("viewRequest") : row.kind === "consejo" ? tWallet("actionViewConsejo") : row.kind === "mensaje" ? tWallet("actionViewMensaje") : tWallet("actionViewSaludo"))
+      : (row.kind === "consejo" ? tWallet("actionRecordConsejo") : row.kind === "saludo" ? tWallet("actionRecordSaludo") : tWallet("actionRecord"));
     const sentLabel = isHistory && row.deliveredAt
-      ? `${row.kind === "consejo" ? "Consejo" : row.kind === "mensaje" ? "Mensaje" : "Saludo"} enviado el ${new Intl.DateTimeFormat("es-MX", { day: "numeric", month: "short", year: "numeric" }).format(row.deliveredAt)}`
+      ? tWallet(
+          row.kind === "consejo" ? "sentLabelConsejo" : row.kind === "mensaje" ? "sentLabelMensaje" : "sentLabelSaludo",
+          { date: new Intl.DateTimeFormat(locale, { day: "numeric", month: "short", year: "numeric" }).format(row.deliveredAt) }
+        )
       : null;
     const theme = getServiceCardTheme(row.kind);
     const handleGreetingClick = () => isHistory ? onView?.(row) : onRecord?.(row);
@@ -836,7 +851,7 @@ export function WalletServiceRow({
             <div style={{ flex: 1, minWidth: 0, overflow: "hidden" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
                 <span style={{ color: "#fff", fontWeight: 600, fontSize: 13, lineHeight: 1.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flexShrink: 1 }}>
-                  {row.buyerDisplayName ?? "Usuario"}
+                  {row.buyerDisplayName ?? tCommon("user")}
                 </span>
                 {row.priceSnapshot != null ? (
                   <span style={{ color: isHistory && historyStatusLabel ? historyStatusColor : "#86efac", fontWeight: 600, fontSize: 11, lineHeight: 1.2, whiteSpace: "nowrap", flexShrink: 0 }}>
@@ -847,7 +862,7 @@ export function WalletServiceRow({
               <div style={{ color: "rgba(255,255,255,0.48)", fontSize: 11, lineHeight: 1.3, marginTop: 3 }}>
                 {isHistory && historyStatusLabel
                   ? <span style={{ color: historyStatusColor }}>{historyStatusLabel}</span>
-                  : (sentLabel ?? getRelativeTime(row.createdAt))}
+                  : (sentLabel ?? relativeTime)}
               </div>
             </div>
             <button
@@ -908,7 +923,7 @@ export function WalletServiceRow({
             <div style={{ flex: 1, minWidth: 0, overflow: "hidden" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
                 <span style={{ color: "#fff", fontWeight: 600, fontSize: 13, lineHeight: 1.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flexShrink: 1 }}>
-                  {row.buyerDisplayName ?? "Usuario"}
+                  {row.buyerDisplayName ?? tCommon("user")}
                 </span>
                 {row.priceSnapshot != null ? (
                   <span style={{ color: mode === "history" && historyStatusLabel ? historyStatusColor : "#86efac", fontWeight: 600, fontSize: 11, lineHeight: 1.2, whiteSpace: "nowrap", flexShrink: 0 }}>
@@ -921,12 +936,12 @@ export function WalletServiceRow({
                   ? <span style={{ color: historyStatusColor }}>{historyStatusLabel}</span>
                   : row.scheduledAt
                   ? (() => {
-                      const label = new Intl.DateTimeFormat("es-MX", {
+                      const label = new Intl.DateTimeFormat(locale, {
                         weekday: "long", day: "numeric", month: "long", year: "numeric",
                       }).format(row.scheduledAt);
                       return label.charAt(0).toUpperCase() + label.slice(1);
                     })()
-                  : "Por agendar"}
+                  : tWallet("pendingSchedule")}
               </div>
             </div>
             <button
@@ -1090,7 +1105,7 @@ export function WalletServiceRow({
           <div style={{ flex: 1, minWidth: 0, overflow: "hidden" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
               <span style={{ color: "#fff", fontWeight: 600, fontSize: 13, lineHeight: 1.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flexShrink: 1 }}>
-                {row.buyerDisplayName ?? "Usuario"}
+                {row.buyerDisplayName ?? tCommon("user")}
               </span>
               {row.priceSnapshot != null ? (
                 <span style={{ color: "#86efac", fontWeight: 600, fontSize: 11, lineHeight: 1.2, whiteSpace: "nowrap", flexShrink: 0 }}>
@@ -1144,8 +1159,7 @@ export function WalletServiceRow({
 
               {isScheduledService && row.status !== "rejected" && noShowExpired ? (
                 <div className="walletServiceErrorBox">
-                  Este servicio ya superó los 15 minutos de tolerancia. Se
-                  actualizará como rechazado automáticamente.
+                  {tWallet("noShowExpiredWarning")}
                 </div>
               ) : null}
 
@@ -1154,12 +1168,12 @@ export function WalletServiceRow({
               ) : null}
 
               {row.targetName ? (
-                <div className="walletMiniMeta">Para: {row.targetName}</div>
+                <div className="walletMiniMeta">{tWallet("forTarget", { name: row.targetName })}</div>
               ) : null}
 
               {row.buyerDisplayName ? (
                 <div className="walletMiniMeta">
-                  Comprador: {row.buyerDisplayName}
+                  {tWallet("buyerLabel", { name: row.buyerDisplayName })}
                 </div>
               ) : null}
 
@@ -1171,20 +1185,20 @@ export function WalletServiceRow({
 
               {row.creatorScheduleNote ? (
                 <div className="walletServiceInfoBox">
-                  <strong>Instrucciones del creador:</strong>{" "}
+                  <strong>{tWallet("creatorInstructions")}</strong>{" "}
                   {row.creatorScheduleNote}
                 </div>
               ) : null}
 
               {row.rejectionReason && !noShowMessage ? (
                 <div className="walletServiceErrorBox">
-                  Motivo: {row.rejectionReason}
+                  {tWallet("motiveLabel", { motive: row.rejectionReason })}
                 </div>
               ) : null}
 
               {row.refundReason ? (
                 <div className="walletServiceWarningBox">
-                  Devolución: {row.refundReason}
+                  {tWallet("refundLabel", { reason: row.refundReason })}
                 </div>
               ) : null}
 
@@ -1196,14 +1210,17 @@ export function WalletServiceRow({
                   {row.recordingStatus === "recording" ||
                   row.recordingStatus === "processing" ? (
                     <div className="walletServiceWarningBox">
-                      ⏳ Procesando grabación…
+                      {tWallet("recordingProcessing")}
                     </div>
                   ) : row.recordingStatus === "ready" ? (
                     (() => {
-                      const { expired, label } = getRecordingExpiry(row.recordingExpiresAt ?? null);
+                      const { expired, diffDays, dateLabel } = getRecordingExpiry(row.recordingExpiresAt ?? null, locale);
+                      const availLabel = dateLabel
+                        ? `${(diffDays ?? 0) <= 7 ? "⚠️ " : ""}${tWallet("recordingAvailableUntil", { date: dateLabel, count: diffDays ?? 0 })}`
+                        : null;
                       return expired ? (
                         <div className="walletServiceErrorBox">
-                          La grabación ya no está disponible (expiró hace más de 30 días).
+                          {tWallet("recordingExpired")}
                         </div>
                       ) : (
                         <>
@@ -1223,20 +1240,20 @@ export function WalletServiceRow({
                                 });
                                 window.location.href = url;
                               } catch {
-                                setDownloadError("No se pudo obtener el enlace de descarga.");
+                                setDownloadError(tWallet("downloadError"));
                               } finally {
                                 setDownloadBusy(false);
                               }
                             }}
                           >
-                            {downloadBusy ? "Obteniendo enlace…" : "↓ Descargar grabación"}
+                            {downloadBusy ? tWallet("downloadFetching") : tWallet("downloadRecording")}
                             {!downloadBusy && row.recordingDurationSeconds
                               ? ` (${formatRecordingDuration(row.recordingDurationSeconds)})`
                               : ""}
                           </button>
-                          {label ? (
+                          {availLabel ? (
                             <div className="walletMiniMeta" style={{ color: "rgba(253,230,138,0.85)" }}>
-                              {label}
+                              {availLabel}
                             </div>
                           ) : null}
                           {downloadError ? (
@@ -1247,7 +1264,7 @@ export function WalletServiceRow({
                     })()
                   ) : row.recordingStatus === "failed" ? (
                     <div className="walletServiceErrorBox">
-                      La grabación no está disponible.
+                      {tWallet("recordingFailed")}
                     </div>
                   ) : null}
                 </div>
@@ -1351,7 +1368,7 @@ export function WalletServiceRow({
                   <textarea
                     value={rejectReason}
                     onChange={(e) => setRejectReason(e.target.value)}
-                    placeholder="Explica por qué rechazas la solicitud."
+                    placeholder={tWallet("rejectReasonPlaceholder")}
                     className="walletField"
                     style={{ minHeight: 92, resize: "vertical" }}
                   />
@@ -1408,7 +1425,7 @@ export function WalletServiceRow({
                       cursor: busy ? "not-allowed" : "pointer",
                     }}
                   >
-                    Ver calendario
+                    {tWallet("viewCalendar")}
                   </button>
 
                   <ScheduleDateTimeSelector
@@ -1428,7 +1445,7 @@ export function WalletServiceRow({
                   <textarea
                     value={scheduleNote}
                     onChange={(e) => setScheduleNote(e.target.value)}
-                    placeholder="Mensaje o instrucciones para el comprador sobre esta fecha."
+                    placeholder={tWallet("scheduleBuyerMessagePlaceholder")}
                     className="walletField"
                     style={{ minHeight: 92, resize: "vertical" }}
                   />
@@ -1509,7 +1526,7 @@ export function WalletServiceRow({
                         <textarea
                           value={scheduleNote}
                           onChange={(e) => setScheduleNote(e.target.value)}
-                          placeholder="Mensaje o instrucciones para el comprador sobre esta fecha."
+                          placeholder={tWallet("scheduleBuyerMessagePlaceholder")}
                           className="walletField"
                           style={{ minHeight: 92, resize: "vertical" }}
                         />
@@ -1652,6 +1669,7 @@ export function WalletFilterMenu<T extends string>({
   allValue: T;
   transparent?: boolean;
 }) {
+  const tCommon = useTranslations("common");
   const [open, setOpen] = useState(false);
   const [closing, setClosing] = useState(false);
   const [pending, setPending] = useState<T[]>(value);
@@ -1872,7 +1890,7 @@ export function WalletFilterMenu<T extends string>({
                     letterSpacing: "-0.01em",
                   }}
                 >
-                  Aceptar
+                  {tCommon("accept")}
                 </button>
               </div>
             </div>

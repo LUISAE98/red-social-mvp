@@ -426,7 +426,7 @@ export default function PostComposerMobileOverlay({
     <div
       role="dialog"
       aria-modal="true"
-      aria-label="Crear publicación"
+      aria-label={isEditMode ? tPosts("editPostTitle") : tPosts("createPostTitle")}
       style={{
         position: "fixed",
         inset: 0,
@@ -608,7 +608,7 @@ export default function PostComposerMobileOverlay({
         color: "#fff",
       }}
     >
-      {isEditMode ? "Editar publicación" : "Crear publicación"}
+      {isEditMode ? tPosts("editPostTitle") : tPosts("createPostTitle")}
     </h2>
 
     <button
@@ -722,7 +722,7 @@ export default function PostComposerMobileOverlay({
                   }}
                 >
                   <VibraNavigationIcon type="premiumCrown" size={14} />
-                  Publicación Premium
+                  {tPosts("premiumPostBadge")}
                 </div>
               ) : null}
 
@@ -898,7 +898,7 @@ export default function PostComposerMobileOverlay({
                     {!premiumComposer.premiumEnabled ? (
                       <VibraNavigationIcon type="premiumCrown" size={20} />
                     ) : null}
-                    {premiumComposer.premiumEnabled ? "Quitar Premium" : "Monetizar Video"}
+                    {premiumComposer.premiumEnabled ? tPosts("removePremium") : tPosts("monetizeVideo")}
                   </button>
                 ) : null}
               </div>
@@ -983,7 +983,7 @@ export default function PostComposerMobileOverlay({
                           {item.type === "image" ? (
                             <Image
                               src={item.previewUrl}
-                              alt={`Vista previa de imagen ${index + 1}`}
+                              alt={tPosts("imagePreviewAlt", { n: index + 1 })}
                               fill
                               style={{ objectFit: "cover", userSelect: "none" }}
                               draggable={false}
@@ -993,7 +993,7 @@ export default function PostComposerMobileOverlay({
                               {videoCoverPreviewUrl ? (
                                 <Image
                                   src={videoCoverPreviewUrl}
-                                  alt={`Portada del video ${index + 1}`}
+                                  alt={tPosts("videoCoverAlt", { n: index + 1 })}
                                   fill
                                   style={{ objectFit: "cover", userSelect: "none" }}
                                   draggable={false}
@@ -1037,7 +1037,7 @@ export default function PostComposerMobileOverlay({
                                         lineHeight: 1.15,
                                       }}
                                     >
-                                      Cargando video
+                                      {tPosts("loadingVideo")}
                                     </span>
                                   </div>
                                 </div>
@@ -1105,7 +1105,7 @@ export default function PostComposerMobileOverlay({
                                   zIndex: 3,
                                 }}
                               >
-                                {hasManualCover ? "Cambiar" : "Portada"}
+                                {hasManualCover ? tPosts("changeButton") : tPosts("coverLabel")}
                               </button>
                             </>
                           )}
@@ -1137,7 +1137,7 @@ export default function PostComposerMobileOverlay({
                               onPointerDown={(event) => event.stopPropagation()}
                               onClick={() => onRemoveMedia(index)}
                               style={removeMediaButtonStyle}
-                              aria-label={`Quitar media ${index + 1}`}
+                              aria-label={tPosts("removeMediaAria", { n: index + 1 })}
                               disabled={creating}
                             >
                               ×
@@ -1201,7 +1201,7 @@ export default function PostComposerMobileOverlay({
                         lineHeight: 1,
                         flex: "0 0 auto",
                       }}
-                      aria-label="Agregar otra media"
+                      aria-label={tPosts("addMoreMedia")}
                     >
                       +
                     </button>

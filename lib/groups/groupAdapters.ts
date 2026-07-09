@@ -129,6 +129,9 @@ export type GroupDoc = {
     goalLabel?: string | null;
     title?: string | null;
     description?: string | null;
+    message?: string | null;
+    videoUrl?: string | null;
+    playbackId?: string | null;
   } | null;
 };
 
@@ -337,6 +340,9 @@ export function normalizeDonationInput(
     goalLabel: raw.goalLabel ?? null,
     title: raw.title ?? null,
     description: raw.description ?? null,
+    message: raw.message ?? null,
+    videoUrl: raw.videoUrl ?? null,
+    playbackId: raw.playbackId ?? null,
   };
 }
 

@@ -69,42 +69,42 @@ type CreatorServiceModalsProps = {
 
 // ─── Greeting copy ────────────────────────────────────────────────────────────
 
-function getGreetingUi(type: GreetingType, tServices: (key: string) => string, creatorName?: string) {
+function getGreetingUi(type: GreetingType, tServices: ReturnType<typeof useTranslations>, creatorName?: string) {
   if (type === "consejo") {
-    const name = creatorName ?? "el creador";
+    const name = creatorName ?? tServices("creatorFallback");
     return {
-      title: `Tu consejo personal con ${name}`,
-      intro: `Cuéntale a ${name} cuál es tu situación o qué decisión necesitas tomar. Mientras más contexto compartas, más útil y personalizado podrá ser su consejo.`,
-      recipientLabel: "¿Sobre qué tema te gustaría recibir un consejo?",
+      title: tServices("greetTitleConsejoWith", { name }),
+      intro: tServices("greetIntroConsejoWith", { name }),
+      recipientLabel: tServices("greetRecipientConsejo"),
       recipientPlaceholder: "",
-      instructionsLabel: "Cuéntale tu situación con el mayor detalle posible",
+      instructionsLabel: tServices("greetInstructionsConsejo"),
       instructionsPlaceholder: "",
       submitLabel: tServices("requestAdvice"),
-      helperText: "Nota: el creador revisará tu solicitud de consejo y podrá aceptarla o rechazarla. Pagos y entrega se integran después.",
+      helperText: tServices("greetHelperConsejo"),
     };
   }
   if (type === "mensaje") {
     return {
-      title: "Solicitar mensaje",
-      intro: "Completa tu solicitud con contexto claro para que el creador prepare el mensaje de forma personalizada.",
-      recipientLabel: "¿A quién va dirigido el mensaje?",
-      recipientPlaceholder: "Ej. Para Juan",
-      instructionsLabel: "Indica el contexto del mensaje",
-      instructionsPlaceholder: "Ej. Mensaje de felicitación, apoyo, ánimo o respuesta personalizada.",
-      submitLabel: "Solicitar mensaje",
-      helperText: "Nota: el creador podrá aceptar o rechazar tu solicitud de mensaje. Pagos y entrega se integran después.",
+      title: tServices("greetTitleMensaje"),
+      intro: tServices("greetIntroMensaje"),
+      recipientLabel: tServices("greetRecipientMensaje"),
+      recipientPlaceholder: tServices("greetPlaceholderRecipientMensaje"),
+      instructionsLabel: tServices("greetInstructionsMensaje"),
+      instructionsPlaceholder: tServices("greetPlaceholderInstructionsMensaje"),
+      submitLabel: tServices("submitMensaje"),
+      helperText: tServices("greetHelperMensaje"),
     };
   }
-  const name = creatorName ?? "el creador";
+  const name = creatorName ?? tServices("creatorFallback");
   return {
-    title: `Tu saludo personalizado con ${name}`,
-    intro: `Cuéntale a ${name} para quién es el saludo y qué te gustaría que dijera. Mientras más detalles compartas, más especial será el video.`,
-    recipientLabel: "¿Para quién es el saludo?",
+    title: tServices("greetTitleSaludoWith", { name }),
+    intro: tServices("greetIntroSaludoWith", { name }),
+    recipientLabel: tServices("greetRecipientSaludo"),
     recipientPlaceholder: "",
-    instructionsLabel: "Cuéntanos cómo te gustaría que fuera el saludo",
+    instructionsLabel: tServices("greetInstructionsSaludoWith"),
     instructionsPlaceholder: "",
-    submitLabel: "Continuar al pago",
-    helperText: "Nota: el creador podrá aceptar o rechazar tu solicitud de saludo. Pagos y entrega de video se integran después.",
+    submitLabel: tServices("continueToPayment"),
+    helperText: tServices("greetHelperSaludo"),
   };
 }
 
@@ -477,7 +477,7 @@ export default function CreatorServiceModals({
           disabled={greetSubmitting || !acceptedTerms}
           style={{ ...s.primaryBtn, background: greetAccent, ...((greetSubmitting || !acceptedTerms) ? s.primaryBtnDisabled : {}) }}
         >
-          {greetSubmitting ? tServices("submitting") : isRetry ? "Intentar" : greetPriceLabel ? <>Continuar al pago <span style={{ color: "#fff", opacity: 0.5, margin: "0 4px" }}>·</span> {greetPriceLabel}</> : "Continuar al pago"}
+          {greetSubmitting ? tServices("submitting") : isRetry ? tServices("retryLabel") : greetPriceLabel ? <>{tServices("continueToPayment")} <span style={{ color: "#fff", opacity: 0.5, margin: "0 4px" }}>·</span> {greetPriceLabel}</> : tServices("continueToPayment")}
         </button>
       }
     >
@@ -492,11 +492,11 @@ export default function CreatorServiceModals({
               <path d="M8 12.5l3 3 5-5.5" />
             </svg>
             <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
-              <span style={{ color: "#fff", fontSize: 11, fontWeight: 600, lineHeight: 1.2 }}>{greetType === "consejo" ? "Consejo personal" : "Saludo personalizado"}</span>
+              <span style={{ color: "#fff", fontSize: 11, fontWeight: 600, lineHeight: 1.2 }}>{greetType === "consejo" ? tServices("greetBadgeConsejo") : tServices("greetBadgeSaludo")}</span>
               <span style={{ color: "rgba(255,255,255,0.42)", fontSize: 10, lineHeight: 1.4 }}>
                 {greetType === "consejo"
-                  ? <>{creatorName ?? "El creador"} analizará tu situación y te dará un consejo adaptado a ti.</>
-                  : <>{creatorName ?? "El creador"} grabará un saludo exclusivo mencionando los detalles que nos compartas</>}
+                  ? tServices("greetBadgeConsejoDesc", { name: creatorName ?? tServices("creatorFallback") })
+                  : tServices("greetBadgeSaludoDesc", { name: creatorName ?? tServices("creatorFallback") })}
               </span>
             </div>
           </div>
@@ -507,9 +507,9 @@ export default function CreatorServiceModals({
               <path d="M4 19h16" />
             </svg>
             <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
-              <span style={{ color: "#fff", fontSize: 11, fontWeight: 600, lineHeight: 1.2 }}>Descargable</span>
+              <span style={{ color: "#fff", fontSize: 11, fontWeight: 600, lineHeight: 1.2 }}>{tServices("downloadableLabel")}</span>
               <span style={{ color: "rgba(255,255,255,0.42)", fontSize: 10, lineHeight: 1.4 }}>
-                Podrás descargar tu {greetType === "consejo" ? "consejo" : "saludo"} en video de alta calidad para guardarlo y compartirlo
+                {greetType === "consejo" ? tServices("downloadableDescConsejo") : tServices("downloadableDescSaludo")}
               </span>
             </div>
           </div>
@@ -541,26 +541,26 @@ export default function CreatorServiceModals({
           onFocus={(e) => { setTimeout(() => e.target.scrollIntoView({ behavior: "smooth", block: "center" }), 80); }}
         />
         <span style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", textAlign: "right" }}>
-          {(greetType === "saludo" ? 500 : 900) - instructions.length} caracteres restantes
+          {tServices("charsRemaining", { count: String((greetType === "saludo" ? 500 : 900) - instructions.length) })}
         </span>
       </label>
 
       {(greetType === "saludo" || greetType === "consejo") && (
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
           <div style={{ minWidth: 0, display: "grid", gap: 4 }}>
-            <span style={{ ...s.label, fontSize: 13, fontWeight: 600, color: greetAccentDim }}>Permite que este {greetType === "consejo" ? "consejo" : "saludo"} inspire a más personas</span>
+            <span style={{ ...s.label, fontSize: 13, fontWeight: 600, color: greetAccentDim }}>{greetType === "consejo" ? tServices("allowInspireConsejoLabel") : tServices("allowInspireSaludoLabel")}</span>
             <span style={{ ...s.micro, color: "rgba(255,255,255,0.6)", lineHeight: 1.5 }}>
-              Permite que el creador publique este {greetType === "consejo" ? "consejo" : "saludo"} en historias para que otros usuarios puedan verlo.
+              {greetType === "consejo" ? tServices("allowInspireConsejoDesc") : tServices("allowInspireSaludoDesc")}
             </span>
             <span style={{ fontSize: 10, color: "rgba(255,255,255,0.42)", lineHeight: 1.5 }}>
-              No mostraremos tu nombre ni tu información personal, solo podrá compartirse el video.
+              {tServices("allowPrivacyNote")}
             </span>
           </div>
           <button
             type="button"
             role="switch"
             aria-checked={allowCreatorStory}
-            aria-label="Permitir publicación en historias"
+            aria-label={tServices("allowStories")}
             onClick={() => { if (!greetSubmitting) onChangeAllowCreatorStory(!allowCreatorStory); }}
             disabled={greetSubmitting}
             style={{
@@ -588,16 +588,16 @@ export default function CreatorServiceModals({
       {/* T&C switch */}
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
         <div style={{ minWidth: 0, display: "grid", gap: 4 }}>
-          <span style={{ ...s.label, fontSize: 13, fontWeight: 600, color: greetAccentDim }}>Acepta nuestros términos y condiciones</span>
+          <span style={{ ...s.label, fontSize: 13, fontWeight: 600, color: greetAccentDim }}>{tServices("termsTitle")}</span>
           <span style={{ fontSize: 10, color: "rgba(255,255,255,0.42)", lineHeight: 1.5 }}>
-            Asegúrate de leer los términos y condiciones antes de aceptarlos.
+            {tServices("termsDesc")}
           </span>
         </div>
         <button
           type="button"
           role="switch"
           aria-checked={acceptedTerms}
-          aria-label="Aceptar términos y condiciones"
+          aria-label={tServices("termsAriaLabel")}
           onClick={() => { if (!greetSubmitting) setAcceptedTerms(!acceptedTerms); }}
           disabled={greetSubmitting}
           style={{
@@ -679,8 +679,8 @@ export default function CreatorServiceModals({
             disabled={isDisabled}
             style={{ ...s.primaryBtn, background: btnBg, ...(isDisabled ? s.primaryBtnDisabled : {}) }}
           >
-            {params.submitting ? tServices("submitting") : params.isRetry ? "Intentar" : params.priceLabel
-              ? <>Continuar al pago <span style={{ color: "#fff", opacity: 0.5, margin: "0 4px" }}>·</span> {params.priceLabel}</>
+            {params.submitting ? tServices("submitting") : params.isRetry ? tServices("retryLabel") : params.priceLabel
+              ? <>{tServices("continueToPayment")} <span style={{ color: "#fff", opacity: 0.5, margin: "0 4px" }}>·</span> {params.priceLabel}</>
               : params.submitLabel}
           </button>
         }
@@ -688,7 +688,7 @@ export default function CreatorServiceModals({
         <p style={{ ...s.text, margin: 0 }}>{params.description}</p>
 
         <div style={{ display: "grid", gap: 10 }}>
-          <span style={{ ...s.label, fontWeight: 600 }}>{params.sectionLabel ?? "Resumen del servicio"}</span>
+          <span style={{ ...s.label, fontWeight: 600 }}>{params.sectionLabel ?? tServices("serviceResume")}</span>
 
           {params.showDetailIcons ? (
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
@@ -700,8 +700,8 @@ export default function CreatorServiceModals({
                 </svg>
                 <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
                   <span style={{ color: "#fff", fontSize: 11, fontWeight: 600, lineHeight: 1.2 }}>{tServices("duration")}</span>
-                  <span style={{ color: "#fff", fontSize: 13, fontWeight: 400, lineHeight: 1.2 }}>{params.durationLabel.replace("min", "minutos")}</span>
-                  <span style={{ color: "rgba(255,255,255,0.42)", fontSize: 10, lineHeight: 1.4 }}>Tiempo completo dedicado para ti.</span>
+                  <span style={{ color: "#fff", fontSize: 13, fontWeight: 400, lineHeight: 1.2 }}>{params.durationLabel}</span>
+                  <span style={{ color: "rgba(255,255,255,0.42)", fontSize: 10, lineHeight: 1.4 }}>{tServices("timeFullyDedicatedDesc")}</span>
                 </div>
               </div>
               {/* Cámara */}
@@ -711,9 +711,9 @@ export default function CreatorServiceModals({
                   <path d="M16 10l6-3v10l-6-3V10Z" />
                 </svg>
                 <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
-                  <span style={{ color: "#fff", fontSize: 11, fontWeight: 600, lineHeight: 1.2 }}>Modalidad</span>
-                  <span style={{ color: "#fff", fontSize: 13, fontWeight: 400, lineHeight: 1.2 }}>En línea</span>
-                  <span style={{ color: "rgba(255,255,255,0.42)", fontSize: 10, lineHeight: 1.4 }}>Desde cualquier lugar del mundo.</span>
+                  <span style={{ color: "#fff", fontSize: 11, fontWeight: 600, lineHeight: 1.2 }}>{tServices("modalityLabel")}</span>
+                  <span style={{ color: "#fff", fontSize: 13, fontWeight: 400, lineHeight: 1.2 }}>{tServices("onlineLabel")}</span>
+                  <span style={{ color: "rgba(255,255,255,0.42)", fontSize: 10, lineHeight: 1.4 }}>{tServices("fromAnywhereDesc")}</span>
                 </div>
               </div>
               {params.extraDetailIconSlot ?? null}
@@ -725,12 +725,12 @@ export default function CreatorServiceModals({
                   <path d="M8 12.5l3 3 5-5" />
                 </svg>
                 <div style={{ display: "flex", flexDirection: "column", gap: 5, minWidth: 0 }}>
-                  <span style={{ color: "#fff", fontSize: 11, fontWeight: 600, lineHeight: 1.2 }}>¿Qué incluye?</span>
+                  <span style={{ color: "#fff", fontSize: 11, fontWeight: 600, lineHeight: 1.2 }}>{tServices("whatIncludesLabel")}</span>
                   {(params.includesItems ?? [
-                    "Conversación personalizada",
-                    "Resuelve dudas y recibe consejos",
-                    "Ideas y recomendaciones prácticas",
-                    `Atención directa de ${creatorName ?? "el creador"}`,
+                    tServices("defaultIncludeConversation"),
+                    tServices("defaultIncludeDQ"),
+                    tServices("defaultIncludeIdeas"),
+                    tServices("defaultIncludeAttentionWith", { name: creatorName ?? tServices("creatorFallback") }),
                   ]).map((item) => (
                     <div key={item} style={{ display: "flex", alignItems: "flex-start", gap: 5 }}>
                       <svg width={11} height={11} viewBox="0 0 24 24" fill="none" stroke={params.accentColor ?? "#3b82f6"} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ flexShrink: 0, marginTop: 1 }}>
@@ -748,16 +748,16 @@ export default function CreatorServiceModals({
                   <path d="M3 10h18M8 2v4M16 2v4" />
                 </svg>
                 <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
-                  <span style={{ color: "#fff", fontSize: 11, fontWeight: 600, lineHeight: 1.2 }}>Fecha y hora</span>
-                  <span style={{ color: "#fff", fontSize: 13, fontWeight: 400, lineHeight: 1.2 }}>Acordaremos contigo</span>
-                  <span style={{ color: "rgba(255,255,255,0.42)", fontSize: 10, lineHeight: 1.4 }}>El creador te escribirá para proponer opciones.</span>
+                  <span style={{ color: "#fff", fontSize: 11, fontWeight: 600, lineHeight: 1.2 }}>{tServices("scheduleDateTimeLabel")}</span>
+                  <span style={{ color: "#fff", fontSize: 13, fontWeight: 400, lineHeight: 1.2 }}>{tServices("scheduleToBeAgreed")}</span>
+                  <span style={{ color: "rgba(255,255,255,0.42)", fontSize: 10, lineHeight: 1.4 }}>{tServices("scheduleContactForOptions")}</span>
                 </div>
               </div>
             </div>
           ) : (
             <>
               <span style={s.micro}>{tServices("duration")}: {params.durationLabel}</span>
-              <span style={s.micro}>Fecha y hora: Se acordarán contigo después de aceptar la solicitud.</span>
+              <span style={s.micro}>{tServices("scheduleSimpleText")}</span>
             </>
           )}
         </div>
@@ -774,7 +774,7 @@ export default function CreatorServiceModals({
             onFocus={(e) => { setTimeout(() => e.target.scrollIntoView({ behavior: "smooth", block: "center" }), 80); }}
           />
           <span style={{ ...s.micro, textAlign: "right" }}>
-            {remaining} caracteres restantes
+            {tServices("charsRemaining", { count: String(remaining) })}
           </span>
         </div>
 
@@ -791,17 +791,17 @@ export default function CreatorServiceModals({
           <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
             <div style={{ minWidth: 0, display: "grid", gap: 4 }}>
               <span style={{ ...s.label, fontSize: 13, fontWeight: 600, color: params.accentDimColor ?? "rgba(255,255,255,0.78)" }}>
-                Acepta nuestros términos y condiciones
+                {tServices("termsTitle")}
               </span>
               <span style={{ fontSize: 10, color: "rgba(255,255,255,0.42)", lineHeight: 1.5 }}>
-                Asegúrate de leer los términos y condiciones antes de aceptarlos.
+                {tServices("termsDesc")}
               </span>
             </div>
             <button
               type="button"
               role="switch"
               aria-checked={params.termsAccepted}
-              aria-label="Aceptar términos y condiciones"
+              aria-label={tServices("termsAriaLabel")}
               onClick={() => { if (!params.submitting) params.onToggleTerms!(); }}
               disabled={params.submitting}
               style={{
@@ -831,16 +831,16 @@ export default function CreatorServiceModals({
     renderScheduledRequestModal({
       open: meetGreetOpen,
       submitting: meetGreetSubmitting,
-      title: `Tu encuentro en vivo con ${creatorName ?? "el creador"}`,
-      description: `Cuéntale a ${creatorName ?? "el creador"} de qué te gustaría hablar durante el encuentro. Mientras más contexto compartas, más personalizada podrá ser la experiencia.`,
+      title: tServices("meetGreetTitleWith", { name: creatorName ?? tServices("creatorFallback") }),
+      description: tServices("meetGreetDescWith", { name: creatorName ?? tServices("creatorFallback") }),
       priceLabel: meetGreetPriceLabel,
       durationLabel: meetGreetDurationLabel,
       message: meetGreetMessage,
       error: meetGreetError,
-      textareaLabel: "¿Qué te gustaría tratar durante el encuentro?",
+      textareaLabel: tServices("meetGreetTextareaLabel"),
       textareaPlaceholder: "",
-      submitLabel: "Solicitar encuentro en vivo",
-      sectionLabel: "Detalles del encuentro",
+      submitLabel: tServices("meetGreetSubmitLabel"),
+      sectionLabel: tServices("meetGreetSectionLabel"),
       showDetailIcons: true,
       maxLength: 700,
       bgImage: "/encuentroenvivo.png",
@@ -849,7 +849,7 @@ export default function CreatorServiceModals({
       accentDimColor: "rgba(96,165,250,0.9)",
       termsAccepted: meetGreetAcceptedTerms,
       onToggleTerms: () => setMeetGreetAcceptedTerms(!meetGreetAcceptedTerms),
-      helperText: "Después de aceptar tu solicitud, el creador coordinará contigo todos los detalles para llevar a cabo el encuentro.",
+      helperText: tServices("meetGreetHelperTextFull"),
       titleId: "vibra-svc-meetgreet-title",
       onClose: onCloseMeetGreet,
       onSubmit: onSubmitMeetGreet,
@@ -863,16 +863,16 @@ export default function CreatorServiceModals({
     renderScheduledRequestModal({
       open: exclusiveSessionOpen,
       submitting: exclusiveSessionSubmitting,
-      title: `Tu sesión exclusiva con ${creatorName ?? "el creador"}`,
-      description: `Vive una experiencia profunda y personalizada 1:1 con ${creatorName ?? "el creador"}. Tendrás hasta ${exclusiveSessionDurationLabel.replace("min", "minutos")} de atención exclusiva para trabajar en tus objetivos, resolver dudas y recibir una guía adaptada para ti.`,
+      title: tServices("exclusiveSessionTitleWith", { name: creatorName ?? tServices("creatorFallback") }),
+      description: tServices("exclusiveSessionDescWith", { name: creatorName ?? tServices("creatorFallback"), duration: exclusiveSessionDurationLabel }),
       priceLabel: exclusiveSessionPriceLabel,
       durationLabel: exclusiveSessionDurationLabel,
       message: exclusiveSessionMessage,
       error: exclusiveSessionError,
-      textareaLabel: "¿Qué te gustaría tratar durante la sesión?",
+      textareaLabel: tServices("exclusiveSessionTextareaLabel"),
       textareaPlaceholder: "",
-      submitLabel: "Solicitar sesión exclusiva",
-      sectionLabel: "Detalles de la sesión",
+      submitLabel: tServices("requestExclusiveSessionSubmit"),
+      sectionLabel: tServices("exclusiveSessionSectionLabel"),
       showDetailIcons: true,
       maxLength: 700,
       bgImage: "/sesionexclusiva.png",
@@ -886,8 +886,8 @@ export default function CreatorServiceModals({
             <circle cx="12" cy="12" r="1.5" fill="#ec4899" stroke="none" />
           </svg>
           <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
-            <span style={{ color: "#fff", fontSize: 11, fontWeight: 600, lineHeight: 1.2 }}>Enfoque personalizado</span>
-            <span style={{ color: "rgba(255,255,255,0.42)", fontSize: 10, lineHeight: 1.4 }}>La sesión se adapta a tus objetivos, retos e intereses.</span>
+            <span style={{ color: "#fff", fontSize: 11, fontWeight: 600, lineHeight: 1.2 }}>{tServices("exclusiveSessionFocusedLabel")}</span>
+            <span style={{ color: "rgba(255,255,255,0.42)", fontSize: 10, lineHeight: 1.4 }}>{tServices("exclusiveSessionFocusedDesc")}</span>
           </div>
         </div>
       ),
@@ -899,15 +899,15 @@ export default function CreatorServiceModals({
             <circle cx="12" cy="16" r="1" fill="#ec4899" stroke="none" />
           </svg>
           <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
-            <span style={{ color: "#fff", fontSize: 11, fontWeight: 600, lineHeight: 1.2 }}>Experiencia privada</span>
-            <span style={{ color: "rgba(255,255,255,0.42)", fontSize: 10, lineHeight: 1.4 }}>Conversación 1:1 en un espacio completamente privado.</span>
+            <span style={{ color: "#fff", fontSize: 11, fontWeight: 600, lineHeight: 1.2 }}>{tServices("exclusiveSessionPrivateLabel")}</span>
+            <span style={{ color: "rgba(255,255,255,0.42)", fontSize: 10, lineHeight: 1.4 }}>{tServices("exclusiveSessionPrivateDesc")}</span>
           </div>
         </div>
       ),
       accentDimColor: "rgba(236,72,153,0.9)",
       termsAccepted: exclusiveSessionAcceptedTerms,
       onToggleTerms: () => setExclusiveSessionAcceptedTerms(!exclusiveSessionAcceptedTerms),
-      helperText: "Después de aceptar tu solicitud, el creador coordinará contigo todos los detalles para llevar a cabo la sesión.",
+      helperText: tServices("exclusiveSessionHelperTextFull"),
       titleId: "vibra-svc-exclusive-title",
       onClose: onCloseExclusiveSession,
       onSubmit: onSubmitExclusiveSession,

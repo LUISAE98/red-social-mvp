@@ -22,7 +22,7 @@ export type UseCreatorTodaySessionsResult = {
   loading: boolean;
 };
 
-const ACTIVE_STATUSES = ["scheduled", "ready_to_prepare", "in_preparation"];
+const ACTIVE_STATUSES = ["scheduled", "ready_to_prepare", "in_preparation", "auto_rejected_no_show"];
 
 function toDate(value: unknown): Date | null {
   if (!value) return null;
@@ -56,10 +56,12 @@ function isVisibleNow(): boolean {
 
 function pickNext(sessions: CreatorSession[]): CreatorSession | null {
   const nowMs = Date.now();
-  const upcoming = sessions.filter((s) => s.scheduledAt.getTime() > nowMs);
+  // Only active (non-auto-rejected) sessions are candidates for the main countdown
+  const active = sessions.filter((s) => s.status !== "auto_rejected_no_show");
+  const upcoming = active.filter((s) => s.scheduledAt.getTime() > nowMs);
   if (upcoming.length > 0) return upcoming[0];
-  // All started — return the most recently started for elapsed counter
-  return sessions[sessions.length - 1] ?? null;
+  // All active started — return the most recently started for elapsed counter
+  return active[active.length - 1] ?? null;
 }
 
 export function useCreatorTodaySessions(uid: string | null): UseCreatorTodaySessionsResult {

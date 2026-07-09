@@ -460,6 +460,22 @@ match /profileFeed/{postId} {
   allow create, update, delete: if false;
 }
 
+// Libro mayor de wallet: el dueño lee sus entradas; solo el backend escribe.
+match /walletLedger/{entryId} {
+  allow get, list: if signedIn()
+    && request.auth.uid == uid;
+
+  allow create, update, delete: if false;
+}
+
+// Resumen agregado del wallet: el dueño lo lee; solo el backend lo mantiene.
+match /walletSummary/{docId} {
+  allow get, list: if signedIn()
+    && request.auth.uid == uid;
+
+  allow create, update, delete: if false;
+}
+
 match /commentFlames/{flameId} {
   allow get, list: if signedIn()
     && request.auth.uid == uid;

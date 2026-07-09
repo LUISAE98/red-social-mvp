@@ -170,7 +170,7 @@ export {
 export { onGroupMembershipMetaUpdated } from "./groupMembershipsSync";
 
 // Mux uploads
-export { createMuxDirectUpload, createMuxDonationUpload } from "./muxUploads";
+export { createMuxDirectUpload, createMuxDonationUpload, createMuxGroupDonationUpload } from "./muxUploads";
 
 // Mux webhooks
 export { muxWebhook } from "./muxWebhooks";
@@ -200,11 +200,22 @@ export { cleanupLiveViewersOnEnd } from "./liveViewersCleanup";
 // Live heartbeat cleanup — termina lives CF directos huérfanos (browser cerrado sin detener)
 export { liveHeartbeatCleanup } from "./liveHeartbeatCleanup";
 
+// Wallet — triggers que alimentan el libro mayor de ganancias (Fase 2)
+export {
+  onSuperCommentLedger,
+  onLiveAccessLedger,
+  onPostAccessLedger,
+  onGroupSubscriptionLedger,
+  onGreetingLedger,
+  onExclusiveSessionLedger,
+  onMeetGreetLedger,
+} from "./wallet/ledgerTriggers";
+
 // LiveKit — tokens de videollamada para sesiones exclusivas y meet & greet
 export { getLivekitToken } from "./livekitTokens";
 
 // LiveKit — ciclo de vida de sesiones (join, end)
-export { joinSession, endSession } from "./sessionLifecycle";
+export { joinSession, endSession, forceCompleteSession } from "./sessionLifecycle";
 
 // LiveKit — webhooks de sala y grabación
 export { livekitWebhook } from "./livekitWebhook";

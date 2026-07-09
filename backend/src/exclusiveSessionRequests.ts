@@ -43,6 +43,8 @@ type ExclusiveSessionStatus =
   | "ready_to_prepare"
   | "in_preparation"
   | "completed"
+  | "session_incomplete"
+  | "auto_rejected_no_show"
   | "cancelled";
 
 type UserRole = "buyer" | "creator";
@@ -484,8 +486,7 @@ function getAutoRejectFields(data: FirebaseFirestore.DocumentData, now: Timestam
 
   if (!creatorJoined && !buyerJoined) {
     return {
-      status: "rejected" as ExclusiveSessionStatus,
-      rejectedAt: now,
+      status: "auto_rejected_no_show" as ExclusiveSessionStatus,
       autoRejectedAt: now,
       autoRejectReason: "both_no_show_after_15_minutes",
       noShowRole: "both",
@@ -497,8 +498,7 @@ function getAutoRejectFields(data: FirebaseFirestore.DocumentData, now: Timestam
 
   if (!creatorJoined) {
     return {
-      status: "rejected" as ExclusiveSessionStatus,
-      rejectedAt: now,
+      status: "auto_rejected_no_show" as ExclusiveSessionStatus,
       autoRejectedAt: now,
       autoRejectReason: "creator_no_show_after_15_minutes",
       noShowRole: "creator",
@@ -805,7 +805,7 @@ export const rejectExclusiveSessionRequest = onCall(
     ensureCreator(data, uid);
     ensureStatusAllowed(
       data.status as ExclusiveSessionStatus,
-      ["pending_creator_response", "accepted_pending_schedule", "reschedule_requested"],
+      ["pending_creator_response", "accepted_pending_schedule", "reschedule_requested", "scheduled", "ready_to_prepare", "in_preparation"],
       "rechazar la solicitud"
     );
 
@@ -846,7 +846,7 @@ export const proposeExclusiveSessionSchedule = onCall(
     ensureCreator(data, uid);
     ensureStatusAllowed(
       data.status as ExclusiveSessionStatus,
-      ["accepted_pending_schedule", "reschedule_requested", "scheduled", "ready_to_prepare"],
+      ["accepted_pending_schedule", "reschedule_requested", "scheduled", "ready_to_prepare", "auto_rejected_no_show"],
       "proponer fecha"
     );
 
@@ -877,6 +877,7 @@ export const proposeExclusiveSessionSchedule = onCall(
       autoRejectedAt: null,
       autoRejectReason: null,
       noShowRole: null,
+      rejectionReason: null,
       updatedAt: nowTs(),
       scheduleHistory: admin.firestore.FieldValue.arrayUnion({
         proposedAt: nowTs(),
@@ -918,7 +919,7 @@ export const requestExclusiveSessionReschedule = onCall(
     ensureBuyer(data, uid);
     ensureStatusAllowed(
       data.status as ExclusiveSessionStatus,
-      ["scheduled", "ready_to_prepare"],
+      ["scheduled", "ready_to_prepare", "auto_rejected_no_show"],
       "solicitar cambio de fecha"
     );
 
@@ -1015,7 +1016,7 @@ export const requestExclusiveSessionRefund = onCall(
     ensureBuyer(data, uid);
     ensureStatusAllowed(
       data.status as ExclusiveSessionStatus,
-      ["rejected"],
+      ["rejected", "auto_rejected_no_show"],
       "solicitar devolución"
     );
 

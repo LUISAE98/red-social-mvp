@@ -46,11 +46,11 @@ function getServiceLabel(
     case "consejo":
       return t("requestAdvice");
     case "meet_greet_digital":
-      return "Agendar encuentro";
+      return t("scheduleMeetGreet");
     case "clase_personalizada":
-      return "Reservar sesión exclusiva";
+      return t("scheduleExclusiveSession");
     default:
-      return "Servicio";
+      return t("serviceFallback");
   }
 }
 
@@ -159,7 +159,7 @@ export default function CreatorServicesMenu({
   return (
     <nav
       className={className}
-      aria-label="Servicios del creador"
+      aria-label={tServices("creatorServicesAriaLabel")}
       style={{
         width: "100%",
         display: "flex",

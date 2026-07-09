@@ -3,7 +3,7 @@
 import { createPortal } from "react-dom";
 import type { CSSProperties } from "react";
 import type { Post } from "@/lib/posts/types";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 
 type PostPaymentPanelProps = {
   open: boolean;
@@ -112,10 +112,10 @@ const sheetBase: CSSProperties = {
   gap: 16,
 };
 
-function formatPrice(price: number | null | undefined, currency: string | null | undefined): string {
+function formatPrice(price: number | null | undefined, currency: string | null | undefined, locale: string): string {
   if (!price) return "—";
   const cur = currency ?? "MXN";
-  return `$${price.toLocaleString("es-MX")} ${cur}`;
+  return `$${price.toLocaleString(locale)} ${cur}`;
 }
 
 export default function PostPaymentPanel({
@@ -127,11 +127,13 @@ export default function PostPaymentPanel({
   onClose,
 }: PostPaymentPanelProps) {
   const tCommon = useTranslations("common");
+  const tPosts = useTranslations("posts");
+  const locale = useLocale();
 
   if (!open || typeof document === "undefined") return null;
 
   const isGuest = !currentUserId;
-  const price = formatPrice(post.oneTimePrice, post.currency);
+  const price = formatPrice(post.oneTimePrice, post.currency, locale);
 
   const overlayStyle: CSSProperties = isMobile
     ? {
@@ -189,7 +191,7 @@ export default function PostPaymentPanel({
       <div
         role="dialog"
         aria-modal="true"
-        aria-label="Desbloquear contenido premium"
+        aria-label={tPosts("premiumUnlockAriaLabel")}
         style={overlayStyle}
         onClick={(e) => {
           if (e.target === e.currentTarget) onClose();
@@ -197,7 +199,7 @@ export default function PostPaymentPanel({
       >
         <div className="vibra-pay-sheet" style={sheetStyle}>
           <div style={headerStyle}>
-            <span style={titleStyle}>Desbloquear contenido</span>
+            <span style={titleStyle}>{tPosts("premiumUnlockPanelTitle")}</span>
             <button
               type="button"
               onClick={onClose}
@@ -211,7 +213,7 @@ export default function PostPaymentPanel({
           <div style={dividerStyle} />
 
           <div style={priceRowStyle}>
-            <span style={priceLabelStyle}>Acceso único al contenido</span>
+            <span style={priceLabelStyle}>{tPosts("premiumSingleAccessLabel")}</span>
             <span style={priceAmountStyle}>{price}</span>
           </div>
 
@@ -220,15 +222,15 @@ export default function PostPaymentPanel({
               <div style={warnBoxStyle}>
                 <span style={warnIconStyle}>⚠️</span>
                 <span>
-                  No estás registrado. El acceso quedará guardado en este dispositivo y navegador. Si borras el caché o usas otro navegador, <strong>perderás el acceso</strong>.
+                  {tPosts.rich("premiumGuestDeviceWarning", {
+                    strong: (chunks) => <strong>{chunks}</strong>,
+                  })}
                 </span>
               </div>
 
               <div style={warnBoxStyle}>
                 <span style={warnIconStyle}>💬</span>
-                <span>
-                  No podrás comentar ni dar like en este post aunque pagues el desbloqueo.
-                </span>
+                <span>{tPosts("premiumGuestNoInteraction")}</span>
               </div>
             </>
           )}
@@ -241,7 +243,7 @@ export default function PostPaymentPanel({
             }}
             style={payButtonStyle}
           >
-            Pagar {price}
+            {tPosts("premiumPayButton", { price })}
           </button>
         </div>
       </div>

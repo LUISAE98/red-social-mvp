@@ -80,16 +80,39 @@ async function handleRoomFinished(event: WebhookEvent): Promise<void> {
   const now = admin.firestore.Timestamp.now();
 
   if (sessionStarted) {
-    await session.ref.update({
-      status: "completed",
+    // Calcular duración real vs umbral del 80%
+    const SESSION_COMPLETE_THRESHOLD_PCT = 0.8;
+    const FALLBACK_DURATION_MINUTES = 30;
+    const nowMs = Date.now();
+    const startedAtMs = startedAt
+      ? new Date(startedAt as string).getTime()
+      : nowMs;
+    const actualDurationSec = Math.max(0, (nowMs - startedAtMs) / 1000);
+    const durationMinutes =
+      typeof session.data.durationMinutes === "number" && session.data.durationMinutes > 0
+        ? session.data.durationMinutes
+        : FALLBACK_DURATION_MINUTES;
+    const requiredDurationSec = durationMinutes * 60 * SESSION_COMPLETE_THRESHOLD_PCT;
+    const finalStatus = actualDurationSec >= requiredDurationSec ? "completed" : "session_incomplete";
+
+    const updates: Record<string, unknown> = {
+      status: finalStatus,
       roomStatus: "ended",
       endedAt: new Date().toISOString(),
       updatedAt: now,
-    });
+    };
+    if (finalStatus === "session_incomplete") {
+      updates.actualDurationSeconds = Math.floor(actualDurationSec);
+      updates.requiredDurationSeconds = Math.floor(requiredDurationSec);
+    }
+
+    await session.ref.update(updates);
     logger.info("livekit_webhook_room_finished_session_closed", {
       roomName,
       sessionId: session.ref.id,
-      finalStatus: "completed",
+      finalStatus,
+      actualDurationSec,
+      requiredDurationSec,
     });
   } else {
     await session.ref.update({

@@ -163,6 +163,8 @@ type ServiceDraft = {
   donationMinimumAmount: string;
   donationGoalLabel: string;
   donationMessage: string;
+  donationVideoUrl: string;
+  donationPlaybackId: string;
   freeToSubscriptionPolicy: FreeToSubscriptionPolicy;
   subscriptionToFreePolicy: SubscriptionToFreePolicy;
   subscriptionPriceIncreasePolicy: SubscriptionPriceIncreasePolicy;
@@ -339,6 +341,9 @@ function pickDonation(donation: DonationInput) {
     currency: (donation?.currency ?? "MXN") as Currency,
     minimumAmount,
     goalLabel: typeof donation?.goalLabel === "string" ? donation.goalLabel : "",
+    message: typeof donation?.message === "string" ? donation.message : "",
+    videoUrl: typeof donation?.videoUrl === "string" ? donation.videoUrl : "",
+    playbackId: typeof donation?.playbackId === "string" ? donation.playbackId : "",
   };
 }
 
@@ -447,6 +452,8 @@ function createEmptyDraft(): ServiceDraft {
     donationMinimumAmount: "",
     donationGoalLabel: "",
     donationMessage: "",
+    donationVideoUrl: "",
+    donationPlaybackId: "",
     freeToSubscriptionPolicy: "",
     subscriptionToFreePolicy: "",
     subscriptionPriceIncreasePolicy: "",
@@ -615,6 +622,9 @@ function sameDraft(a: ServiceDraft, b: ServiceDraft) {
     a.donationCurrency === b.donationCurrency &&
     a.donationMinimumAmount === b.donationMinimumAmount &&
     a.donationGoalLabel === b.donationGoalLabel &&
+    a.donationMessage === b.donationMessage &&
+    a.donationVideoUrl === b.donationVideoUrl &&
+    a.donationPlaybackId === b.donationPlaybackId &&
     a.freeToSubscriptionPolicy === b.freeToSubscriptionPolicy &&
     a.subscriptionToFreePolicy === b.subscriptionToFreePolicy &&
     a.subscriptionPriceIncreasePolicy === b.subscriptionPriceIncreasePolicy
@@ -1195,7 +1205,9 @@ export default function OwnerAdminServices({
       donationCurrency: donation.currency ?? "MXN",
       donationMinimumAmount: donation.minimumAmount,
       donationGoalLabel: donation.goalLabel ?? "",
-      donationMessage: (donation as { message?: string }).message ?? "",
+      donationMessage: donation.message ?? "",
+      donationVideoUrl: donation.videoUrl ?? "",
+      donationPlaybackId: donation.playbackId ?? "",
       freeToSubscriptionPolicy: transitions.freeToSubscriptionPolicy,
       subscriptionToFreePolicy: transitions.subscriptionToFreePolicy,
       subscriptionPriceIncreasePolicy:
@@ -1674,6 +1686,8 @@ export default function OwnerAdminServices({
             : [],
         goalLabel: workingDraft.donationGoalLabel.trim() || null,
         message: workingDraft.donationMessage.trim() || null,
+        videoUrl: workingDraft.donationVideoUrl || null,
+        playbackId: workingDraft.donationPlaybackId || null,
       };
 
       const preservedPaidPostsEnabled =
@@ -1884,6 +1898,8 @@ export default function OwnerAdminServices({
                 : "",
             donationGoalLabel: workingDraft.donationGoalLabel,
             donationMessage: workingDraft.donationMessage,
+            donationVideoUrl: workingDraft.donationVideoUrl,
+            donationPlaybackId: workingDraft.donationPlaybackId,
             freeToSubscriptionPolicy: workingDraft.freeToSubscriptionPolicy,
             subscriptionToFreePolicy: workingDraft.subscriptionToFreePolicy,
             subscriptionPriceIncreasePolicy:
@@ -1950,6 +1966,8 @@ export default function OwnerAdminServices({
           workingDraft.donationMode !== "none" ? workingDraft.donationMinimumAmount : "",
         donationGoalLabel: workingDraft.donationGoalLabel,
         donationMessage: workingDraft.donationMessage,
+        donationVideoUrl: workingDraft.donationVideoUrl,
+        donationPlaybackId: workingDraft.donationPlaybackId,
         freeToSubscriptionPolicy: workingDraft.freeToSubscriptionPolicy,
         subscriptionToFreePolicy: workingDraft.subscriptionToFreePolicy,
         subscriptionPriceIncreasePolicy:
@@ -2063,6 +2081,7 @@ export default function OwnerAdminServices({
         saving={saving}
         removingLegacyMembers={removingLegacyMembers}
         donationEmoji={SERVICE_EMOJIS.donation}
+        groupId={groupId}
         panelStyle={panelStyle}
         titleStyle={titleStyle}
         subtleStyle={subtleStyle}

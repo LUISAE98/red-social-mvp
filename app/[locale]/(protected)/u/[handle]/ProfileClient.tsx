@@ -630,7 +630,7 @@ function getServiceDurationLabel(type: CreatorServiceType) {
   const service = getProfileService(type);
   const minutes = service?.durationMinutes ?? null;
   if (typeof minutes !== "number") return tServices("durationToConfirm");
-  return `${minutes} min`;
+  return `${minutes} ${tCommon("minutes")}`;
 }
 
 function resetGreetingModal() {
@@ -1557,7 +1557,7 @@ await createExclusiveSessionRequest({
 
 .profile-content {
   position: relative;
-  padding: 0 18px 20px;
+  padding: 0 18px 8px;
   min-width: 0;
   overflow: visible;
 }
@@ -1663,7 +1663,7 @@ await createExclusiveSessionRequest({
   }
 
 .profile-content {
-  padding: 0 12px 18px;
+  padding: 0 12px 8px;
 }
 
 .shared-communities-cover {
@@ -1782,6 +1782,8 @@ await createExclusiveSessionRequest({
   )}
 
   {isOwner && (
+    <>
+    <LanguageSwitcher variant="cover-corner" />
     <button
       onClick={handlePickCover}
       disabled={uploading}
@@ -1824,6 +1826,7 @@ await createExclusiveSessionRequest({
         ✎
       </span>
     </button>
+    </>
   )}
 </>
             </div>
@@ -2689,8 +2692,6 @@ await createExclusiveSessionRequest({
           </div>
         </div>
       )}
-
-      {isOwner && <LanguageSwitcher variant="mobile-bubble" />}
 
       <VibraToast toast={profileToast} />
     </>

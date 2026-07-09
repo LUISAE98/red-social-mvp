@@ -15,6 +15,7 @@ import {
   useState,
   type CSSProperties,
 } from "react";
+import { useTranslations, useLocale } from "next-intl";
 import { VibraNavigationIcon } from "@/app/components/VibraServiceIcons/VibraNavigationIcons";
 import type { PostPremiumStateResult } from "@/lib/posts/post-premium-state";
 import { fontStack, getInitials, formatMediaDuration } from "./GroupPostCard.utils";
@@ -34,14 +35,16 @@ export function PremiumPostPanel({
   currency?: string | null;
   isMobile?: boolean;
 }) {
+  const tPosts = useTranslations("posts");
+  const locale = useLocale();
   const isUnlocked = !state.isBlocked;
   const isAuthor = state.state === "unlocked_author";
 
   let statusText: string | null = null;
-  if (isAuthor) statusText = "Esta publicación te pertenece";
-  else if (state.hasAccessByMembership) statusText = "Acceso incluido por tu membresía";
-  else if (state.hasAccessBySubscription) statusText = "Acceso incluido por tu suscripción";
-  else if (state.hasAccessByPurchase) statusText = "Ya tienes acceso a este contenido";
+  if (isAuthor) statusText = tPosts("premiumBelongsToYou");
+  else if (state.hasAccessByMembership) statusText = tPosts("premiumAccessByMembership");
+  else if (state.hasAccessBySubscription) statusText = tPosts("premiumAccessBySubscription");
+  else if (state.hasAccessByPurchase) statusText = tPosts("premiumAlreadyHaveAccess");
 
   const netEarnings =
     isAuthor && typeof oneTimePrice === "number" && oneTimePrice > 0
@@ -81,7 +84,7 @@ export function PremiumPostPanel({
             fontFamily: fontStack,
           }}
         >
-          {isUnlocked ? "Contenido desbloqueado" : "Esta es una publicación premium"}
+          {isUnlocked ? tPosts("premiumUnlockedLabel") : tPosts("premiumLockedLabel")}
         </div>
         <div
           style={{
@@ -93,8 +96,8 @@ export function PremiumPostPanel({
           }}
         >
           {isUnlocked
-            ? (statusText ?? "Tienes acceso a este contenido")
-            : (state.panelMessage ?? "Desbloquea este contenido para verlo")}
+            ? (statusText ?? tPosts("premiumDefaultAccessText"))
+            : (state.panelMessage ?? tPosts("premiumDefaultLockedText"))}
         </div>
       </div>
 
@@ -114,7 +117,7 @@ export function PremiumPostPanel({
               lineHeight: 1.3,
             }}
           >
-            Por cada ticket ganas
+            {tPosts("premiumEarningsLabel")}
           </div>
           <div
             style={{
@@ -126,7 +129,7 @@ export function PremiumPostPanel({
               marginTop: 1,
             }}
           >
-            ${netEarnings.toLocaleString("es-MX")} {currency ?? "MXN"}
+            ${netEarnings.toLocaleString(locale)} {currency ?? "MXN"}
           </div>
         </div>
       )}
@@ -135,7 +138,7 @@ export function PremiumPostPanel({
         <button
           type="button"
           onClick={onOpenPayment}
-          aria-label="Desbloquear contenido premium"
+          aria-label={tPosts("premiumUnlockAriaLabel")}
           style={{
             height: 30,
             padding: "0 10px",
@@ -156,7 +159,7 @@ export function PremiumPostPanel({
           }}
         >
           <VibraNavigationIcon type="premiumCrown" size={17} />
-          {`Desbloquea el contenido por $${(oneTimePrice ?? 0).toLocaleString("es-MX")} ${currency ?? "MXN"}`}
+          {tPosts("premiumUnlockForPrice", { price: `$${(oneTimePrice ?? 0).toLocaleString(locale)} ${currency ?? "MXN"}` })}
         </button>
       )}
     </div>
@@ -182,9 +185,10 @@ export function LiveTicketPanel({
   paid?: boolean;
   memberFree?: boolean;
 }) {
+  const tPosts = useTranslations("posts");
   const priceLabel = ticketPrice
     ? `$${ticketPrice} ${currency ?? "MXN"}`
-    : "Precio por definir";
+    : tPosts("liveTicketPriceUndefined");
 
   const isPaid = paid && !isAuthor;
   const isMemberFree = memberFree && !isAuthor;
@@ -243,19 +247,19 @@ export function LiveTicketPanel({
       <div style={{ minWidth: 0, flex: 1 }}>
         <div style={{ fontSize: 12.5, fontWeight: 600, color: titleColor, lineHeight: 1.3, fontFamily: fontStack }}>
           {isAuthor
-            ? "Live con ticket de entrada"
-            : isPaid ? "Ticket pagado"
-            : isMemberFree ? "Acceso incluido por membresía"
-            : "Ticket requerido"}
+            ? tPosts("liveTicketAuthorTitle")
+            : isPaid ? tPosts("liveTicketPaidTitle")
+            : isMemberFree ? tPosts("liveTicketMemberFreeTitle")
+            : tPosts("liveTicketRequiredTitle")}
         </div>
         <div style={{ fontSize: 10, color: "rgba(255,255,255,0.65)", lineHeight: 1.4, marginTop: 2, fontFamily: fontStack }}>
           {isAuthor
-            ? `Precio del ticket: ${priceLabel}`
+            ? tPosts("liveTicketPriceLabel", { price: priceLabel })
             : isPaid
-              ? "Ya tienes acceso a este live"
+              ? tPosts("liveTicketAlreadyHaveAccess")
               : isMemberFree
-                ? "Este live es gratuito para ti como miembro"
-                : `Compra tu ticket para acceder — ${priceLabel}`}
+                ? tPosts("liveTicketMemberFreeAccess")
+                : tPosts("liveTicketBuyPrompt", { price: priceLabel })}
         </div>
       </div>
 
@@ -288,7 +292,7 @@ export function LiveTicketPanel({
             <path d="M15 17v2" />
             <path d="M5 5h14a2 2 0 0 1 2 2v3a2 2 0 0 0 0 4v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-3a2 2 0 0 0 0-4V7a2 2 0 0 1 2-2z" />
           </svg>
-          Comprar ticket
+          {tPosts("liveTicketBuyButton")}
         </button>
       )}
     </div>

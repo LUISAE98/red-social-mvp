@@ -61,6 +61,7 @@ export default function StoryViewer({
 }: Props) {
   const tCommon = useTranslations("common");
   const tWallet = useTranslations("wallet");
+  const tServices = useTranslations("services");
   const [index, setIndex] = useState(initialIndex);
   const [progress, setProgress] = useState(0);
   const [videoReady, setVideoReady] = useState(false);
@@ -223,7 +224,7 @@ export default function StoryViewer({
   }, [story?.greetingCreatorId, story?.creatorId]);
 
   const startSpeechFrom = useCallback((charIndex: number) => {
-    const text = instructions ?? tWallet("noContextAvailable");
+    const text = instructions ?? tServices("noContextAvailable");
     if (ttsAudioRef.current) { ttsAudioRef.current.stop(); ttsAudioRef.current = null; }
     speechOffsetRef.current = charIndex;
     const gen = ++speechGenRef.current;
@@ -538,7 +539,7 @@ export default function StoryViewer({
         groupId: story.source === "group" ? story.groupId : null,
         allowCreatorStory: greetAllowStory,
       });
-      setGreetSuccess(tWallet("greetRequestSuccess"));
+      setGreetSuccess(tServices("greetRequestSuccess"));
     } catch (err: unknown) {
       setGreetError(err instanceof Error ? err.message : tWallet("requestError"));
     } finally {
@@ -803,7 +804,7 @@ export default function StoryViewer({
                   {hasSpeechSupport && speechState !== "idle" && (
                     <button
                       type="button"
-                      aria-label={tWallet("changeReadingSpeed")}
+                      aria-label={tServices("changeReadingSpeed")}
                       onTouchStart={(e) => e.stopPropagation()}
                       onClick={(e) => { e.stopPropagation(); handleCycleRate(); }}
                       style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.75)", padding: "4px 6px", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginRight: 6, fontSize: 12, fontWeight: 700, letterSpacing: "-0.3px" }}
@@ -815,7 +816,7 @@ export default function StoryViewer({
                   <button
                     type="button"
                     disabled={instructionsLoading || !instructions}
-                    aria-label={speechState === "playing" ? tWallet("pauseReading") : speechState === "paused" ? tWallet("resumeReading") : tWallet("readContext")}
+                    aria-label={speechState === "playing" ? tServices("pauseReading") : speechState === "paused" ? tServices("resumeReading") : tServices("readContext")}
                     onTouchStart={(e) => e.stopPropagation()}
                     onClick={(e) => { e.stopPropagation(); handleToggleSpeech(); }}
                     style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.85)", padding: 4, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginRight: 6, transition: "color 0.15s" }}
@@ -863,8 +864,8 @@ export default function StoryViewer({
                   >
                     {(() => {
                       const text = instructionsLoading
-                        ? tWallet("loadingContext")
-                        : instructions ?? tWallet("noContextAvailable");
+                        ? tServices("loadingContext")
+                        : instructions ?? tServices("noContextAvailable");
                       if (speechState === "idle" || !speechHighlight) return text;
                       const { start, length } = speechHighlight;
                       return (
@@ -902,7 +903,7 @@ export default function StoryViewer({
                   WebkitTapHighlightColor: "transparent",
                 }}
               >
-                {tWallet("contextLabel")}
+                {tServices("contextLabel")}
               </button>
               <button
                 type="button"
@@ -924,7 +925,7 @@ export default function StoryViewer({
                   WebkitTapHighlightColor: "transparent",
                 }}
               >
-                {effectiveType === "saludo" ? tWallet("wantGreeting") : tWallet("wantAdvice")}
+                {effectiveType === "saludo" ? tServices("wantGreeting") : tServices("wantAdvice")}
               </button>
               {user && greetingAuthorUid && user.uid !== greetingAuthorUid && (
                 <button

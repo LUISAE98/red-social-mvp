@@ -65,6 +65,8 @@ type ServiceDraft = {
   donationMinimumAmount: string;
   donationGoalLabel: string;
   donationMessage: string;
+  donationVideoUrl: string;
+  donationPlaybackId: string;
   freeToSubscriptionPolicy: FreeToSubscriptionPolicy;
   subscriptionToFreePolicy: SubscriptionToFreePolicy;
   subscriptionPriceIncreasePolicy: SubscriptionPriceIncreasePolicy;

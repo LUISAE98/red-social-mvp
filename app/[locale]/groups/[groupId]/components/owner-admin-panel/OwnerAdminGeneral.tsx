@@ -469,7 +469,7 @@ await updateDoc(groupRef, {
       setEditField(null);
       setDraftValue("");
     } catch (e: unknown) {
-      setGeneralErr((e instanceof Error ? e.message : null) ?? "No se pudo guardar el cambio.");
+      setGeneralErr((e instanceof Error ? e.message : null) ?? tCommon("generalError"));
     } finally {
       setSavingGeneral(false);
     }
@@ -661,7 +661,7 @@ await updateDoc(groupRef, {
                 cursor: savingGeneral ? "not-allowed" : "pointer",
               }}
             >
-              Cancelar
+              {tCommon("cancel")}
             </button>
 
             <button

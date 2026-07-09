@@ -163,6 +163,8 @@ function getMeetGreetStatusLabel(status?: string | null, t?: (key: string) => st
     in_preparation: "statusInPreparation",
     completed: "statusCompleted",
     cancelled: "statusCancelled",
+    session_incomplete: "statusSessionIncomplete",
+    auto_rejected_no_show: "statusRejected",
   };
   const key = map[status];
   if (key && t) return t(key);
@@ -171,12 +173,13 @@ function getMeetGreetStatusLabel(status?: string | null, t?: (key: string) => st
   if (status === "accepted_pending_schedule") return "Aceptado, pendiente de fecha";
   if (status === "scheduled") return "Agendado";
   if (status === "reschedule_requested") return "Cambio de fecha solicitado";
-  if (status === "rejected") return "Rechazado";
+  if (status === "rejected" || status === "auto_rejected_no_show") return "Rechazado";
   if (status === "refund_requested" || status === "refund_review") return "En proceso de devolución";
   if (status === "ready_to_prepare") return "Ya casi inicia";
   if (status === "in_preparation") return "En preparación";
   if (status === "completed") return "Completado";
   if (status === "cancelled") return "Cancelado";
+  if (status === "session_incomplete") return "Sesión corta";
   return status || (t ? t("statusUnknown") : "Estado desconocido");
 }
 
@@ -214,11 +217,19 @@ function getMeetGreetStatusStyle(status: string): React.CSSProperties {
     };
   }
 
-  if (status === "rejected" || status === "cancelled") {
+  if (status === "rejected" || status === "cancelled" || status === "auto_rejected_no_show") {
     return {
       border: "1px solid rgba(248,113,113,0.28)",
       background: "rgba(248,113,113,0.14)",
       color: "#fca5a5",
+    };
+  }
+
+  if (status === "session_incomplete") {
+    return {
+      border: "1px solid rgba(250,204,21,0.26)",
+      background: "rgba(250,204,21,0.12)",
+      color: "#fde047",
     };
   }
 

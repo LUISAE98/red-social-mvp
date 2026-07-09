@@ -39,6 +39,7 @@ export default function PostEditModal({
   onSaved,
 }: PostEditModalProps) {
   const tCommon = useTranslations("common");
+  const tPosts = useTranslations("posts");
   const isPremium = isPremiumPost(post);
 
   const [text, setText] = useState(post.text ?? "");
@@ -66,7 +67,7 @@ export default function PostEditModal({
     if (files.length === 0) return;
 
     if (!groupIdForUpload) {
-      showEditToast("No se puede subir imágenes sin contexto de grupo o perfil.", "error");
+      showEditToast(tPosts("uploadContextError"), "error");
       return;
     }
 
@@ -80,7 +81,7 @@ export default function PostEditModal({
       );
       setMediaItems((prev) => [...prev, ...uploaded]);
     } catch {
-      showEditToast("No se pudieron subir las imágenes. Intenta de nuevo.", "error");
+      showEditToast(tPosts("uploadImagesError"), "error");
     } finally {
       setUploading(false);
     }
@@ -101,7 +102,7 @@ export default function PostEditModal({
       onClose();
     } catch (err) {
       showEditToast(
-        err instanceof Error ? err.message : "No se pudo guardar la edición.",
+        err instanceof Error ? err.message : tPosts("editSaveFailed"),
         "error",
       );
     } finally {
@@ -183,7 +184,7 @@ export default function PostEditModal({
       <div
         role="dialog"
         aria-modal="true"
-        aria-label="Editar publicación"
+        aria-label={tPosts("editPostTitle")}
         style={overlayStyle}
         onClick={(e) => {
           if (e.target === e.currentTarget && !busy) onClose();
@@ -209,7 +210,7 @@ export default function PostEditModal({
                 letterSpacing: "-0.01em",
               }}
             >
-              Editar publicación
+              {tPosts("editPostTitle")}
             </span>
             <button
               type="button"
@@ -250,7 +251,7 @@ export default function PostEditModal({
               value={text}
               onChange={(e) => setText(e.target.value)}
               disabled={busy}
-              placeholder="¿Qué quieres compartir?"
+              placeholder={tPosts("sharePromptPlaceholder")}
               rows={5}
               style={{
                 width: "100%",
@@ -281,8 +282,8 @@ export default function PostEditModal({
                   }}
                 >
                   {isPremium
-                    ? "Videos (no se pueden cambiar en posts premium)"
-                    : "Videos"}
+                    ? tPosts("videosPremiumLocked")
+                    : tPosts("videosLabel")}
                 </p>
                 <div
                   style={{
@@ -344,7 +345,7 @@ export default function PostEditModal({
                           type="button"
                           onClick={() => removeMedia(item.url)}
                           disabled={busy}
-                          aria-label="Quitar video"
+                          aria-label={tPosts("removeVideoAria")}
                           style={{
                             position: "absolute",
                             top: 4,
@@ -383,7 +384,7 @@ export default function PostEditModal({
                         fontWeight: 500,
                       }}
                     >
-                      Imágenes
+                      {tPosts("imagesLabel")}
                     </p>
                     <div
                       style={{
@@ -417,7 +418,7 @@ export default function PostEditModal({
                             type="button"
                             onClick={() => removeMedia(item.url)}
                             disabled={busy}
-                            aria-label="Quitar imagen"
+                            aria-label={tPosts("removeImageAria")}
                             style={{
                               position: "absolute",
                               top: 4,
@@ -465,7 +466,7 @@ export default function PostEditModal({
                   }}
                 >
                   <span>+</span>
-                  {uploading ? "Subiendo..." : "Agregar imágenes"}
+                  {uploading ? tCommon("uploading") : tPosts("addImagesButton")}
                 </button>
 
                 <input
@@ -510,7 +511,7 @@ export default function PostEditModal({
                 opacity: busy ? 0.5 : 1,
               }}
             >
-              Cancelar
+              {tCommon("cancel")}
             </button>
             <button
               type="button"
@@ -532,7 +533,7 @@ export default function PostEditModal({
                 letterSpacing: "-0.01em",
               }}
             >
-              {saving ? "Guardando..." : "Guardar cambios"}
+              {saving ? tCommon("saving") : tCommon("saveChanges")}
             </button>
           </div>
         </div>
