@@ -35,23 +35,35 @@ admin.initializeApp({
 
 const db = admin.firestore();
 // Se requiere DESPUÉS de initializeApp para que el ledger use esta credencial.
-const { recordEarning, settleEarning, reverseEarning, stampOccurredAt } = require("../lib/wallet/ledger.js");
+const { recordEarning, settleEarning, reverseEarning, stampOccurredAt, stampChannel } = require("../lib/wallet/ledger.js");
 
 const DRY = process.env.DRY_RUN !== "false";
 const num = (v) => (typeof v === "number" && Number.isFinite(v) ? v : 0);
 const str = (v) => (typeof v === "string" && v.trim().length > 0 ? v : null);
+// Canal de la venta: si hay groupId → comunidad; si no → perfil.
+const channelFromGroupId = (groupId) =>
+  groupId
+    ? { channelType: "group", channelId: groupId }
+    : { channelType: "profile", channelId: null };
 // Fecha real de la venta (del doc de origen) como Date.
 const toJsDate = (v) => {
   if (v && typeof v.toDate === "function") { try { return v.toDate(); } catch { return null; } }
   if (v instanceof Date) return v;
   return null;
 };
-// Registra + sella la fecha real en la entrada (nueva o ya existente).
-async function record(creatorId, params, occurredDate) {
+// Registra + sella fecha real y canal en la entrada (nueva o ya existente).
+async function record(creatorId, params, occurredDate, channel) {
   if (DRY) return;
-  await recordEarning(creatorId, { ...params, occurredAt: occurredDate || undefined });
+  await recordEarning(creatorId, {
+    ...params,
+    occurredAt: occurredDate || undefined,
+    ...(channel || {}),
+  });
   if (occurredDate) {
     await stampOccurredAt(creatorId, params.sourceType, params.sourceId, occurredDate);
+  }
+  if (channel) {
+    await stampChannel(creatorId, params.sourceType, params.sourceId, channel.channelType, channel.channelId);
   }
 }
 
@@ -98,7 +110,8 @@ async function backfillSuperComments() {
         buyerId: str(d.userId) || str(d.guestId),
         earnedImmediately: true,
       },
-      toJsDate(d.createdAt)
+      toJsDate(d.createdAt),
+      channelFromGroupId(str(post && post.groupId))
     );
   }
 }
@@ -124,7 +137,8 @@ async function backfillLiveAccess() {
           buyerId: u.id,
           earnedImmediately: true,
         },
-        toJsDate(d.createdAt)
+        toJsDate(d.createdAt),
+        channelFromGroupId(str(d.groupId))
       );
     }
   }
@@ -156,7 +170,8 @@ async function backfillPostAccess() {
         buyerId: str(d.buyerId),
         earnedImmediately: true,
       },
-      toJsDate(d.createdAt)
+      toJsDate(d.createdAt),
+      channelFromGroupId(str(d.groupId) || str(post && post.groupId))
     );
   }
 }
@@ -186,7 +201,8 @@ async function backfillSubscriptions() {
         buyerId: uid,
         earnedImmediately: true,
       },
-      toJsDate(d.subscribedAt || d.joinedAt || d.updatedAt)
+      toJsDate(d.subscribedAt || d.joinedAt || d.updatedAt),
+      { channelType: "group", channelId: groupId }
     );
   }
 }
@@ -219,7 +235,8 @@ async function backfillRequests(opts) {
         buyerId: str(d.buyerId),
         earnedImmediately: false,
       },
-      toJsDate(d.createdAt)
+      toJsDate(d.createdAt),
+      channelFromGroupId(str(d.groupId))
     );
     if (!DRY && delivered) {
       await settleEarning(creatorId, opts.sourceType, doc.id);

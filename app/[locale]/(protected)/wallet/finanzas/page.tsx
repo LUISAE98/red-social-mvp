@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { useAuth } from "@/app/providers";
 import WalletSectionShell from "../components/WalletSectionShell";
 import { WalletCard } from "../components/WalletUi";
@@ -36,11 +36,28 @@ function formatMonthLabel(year: number, month: number): string {
   }
 }
 
+function formatMonthName(date: Date, locale: string): string {
+  try {
+    const name = new Intl.DateTimeFormat(locale, { month: "long" }).format(date);
+    return name.charAt(0).toUpperCase() + name.slice(1);
+  } catch {
+    return "";
+  }
+}
+
 export default function WalletFinanzasPage() {
   const tWallet = useTranslations("wallet");
+  const locale = useLocale();
   const { user } = useAuth();
   const { summary } = useWalletFinances(user?.uid);
   const [mode, setMode] = useState<"net" | "gross">("net");
+
+  // Último día del mes en curso (fecha de disponibilidad del retiro).
+  const withdrawDate = useMemo(() => {
+    const now = new Date();
+    const last = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    return { day: last.getDate(), month: formatMonthName(last, locale) };
+  }, [locale]);
 
   const view = selectFinanceView(summary, mode);
 
@@ -138,7 +155,10 @@ export default function WalletFinanzasPage() {
                 letterSpacing: "-0.01em",
               }}
             >
-              {tWallet("financesAvailable")}
+              {tWallet("financesAvailableOn", {
+                day: withdrawDate.day,
+                month: withdrawDate.month,
+              })}
             </div>
             <div
               style={{

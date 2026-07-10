@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { WalletCard } from "./WalletUi";
 import {
@@ -37,9 +37,22 @@ function formatDate(date: Date | null): string {
   }
 }
 
-type Filter = "all" | LedgerStatus;
+type Filter = "all" | LedgerStatus | "withdrawal" | "subscription";
 
-const FILTERS: Filter[] = ["all", "earned", "pending", "refunded", "rejected"];
+const FILTERS: Filter[] = [
+  "all",
+  "earned",
+  "pending",
+  "refunded",
+  "rejected",
+  "withdrawal",
+  "subscription",
+];
+
+// Paginación: 50 por página; se precargan los siguientes 50 al acercarse
+// a 20 filas del final de la lista visible (≈ fila 30 de 50).
+const PAGE_SIZE = 50;
+const PREFETCH_OFFSET = 20;
 
 export default function WalletTransactions({
   uid,
@@ -49,19 +62,60 @@ export default function WalletTransactions({
   mode: "net" | "gross";
 }) {
   const tWallet = useTranslations("wallet");
-  const { entries, loading } = useWalletLedger(uid);
   const [filter, setFilter] = useState<Filter>("all");
+  const [limitCount, setLimitCount] = useState(PAGE_SIZE);
+  const { entries, loading } = useWalletLedger(uid, limitCount);
 
-  const visible = useMemo(
-    () => (filter === "all" ? entries : entries.filter((e) => e.status === filter)),
-    [entries, filter]
-  );
+  const visible = useMemo(() => {
+    if (filter === "all") return entries;
+    // Los retiros aún no se registran en el libro mayor (pestaña vacía por ahora).
+    if (filter === "withdrawal") return [];
+    // Suscriptores: ingresos por suscripción a comunidad (filtra por tipo).
+    if (filter === "subscription") return entries.filter((e) => e.type === "subscription");
+    return entries.filter((e) => e.status === filter);
+  }, [entries, filter]);
+
+  // Puede haber más en el servidor si la ventana llegó a su tope.
+  const hasMore = filter !== "withdrawal" && entries.length >= limitCount;
+
+  const loadMore = useCallback(() => {
+    setLimitCount((c) => c + PAGE_SIZE);
+  }, []);
+
+  const selectFilter = (f: Filter) => {
+    setFilter(f);
+    setLimitCount(PAGE_SIZE);
+  };
+
+  // Observa la fila-gatillo (20 antes del final) para precargar la próxima página.
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!hasMore) return;
+    const el = sentinelRef.current;
+    if (!el) return;
+    const io = new IntersectionObserver(
+      (obs) => {
+        if (obs.some((o) => o.isIntersecting)) loadMore();
+      },
+      { rootMargin: "300px" }
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [hasMore, loadMore, visible.length]);
+
+  const triggerIndex = Math.max(0, visible.length - PREFETCH_OFFSET);
 
   const filterLabel = (f: Filter) =>
-    f === "all" ? tWallet("txFilterAll") : tWallet(ledgerStatusLabelKey(f));
+    f === "all"
+      ? tWallet("txFilterAll")
+      : f === "withdrawal"
+        ? tWallet("txFilterWithdrawals")
+        : f === "subscription"
+          ? tWallet("txFilterSubscribers")
+          : tWallet(ledgerStatusLabelKey(f));
 
   return (
-    <WalletCard title={tWallet("txTitle")}>
+    <WalletCard title={tWallet("txTitle")} transparent>
       {/* Filtros por estado */}
       <div
         style={{
@@ -77,7 +131,7 @@ export default function WalletTransactions({
             <button
               key={f}
               type="button"
-              onClick={() => setFilter(f)}
+              onClick={() => selectFilter(f)}
               style={{
                 border: "1px solid rgba(255,255,255,0.1)",
                 cursor: "pointer",
@@ -117,6 +171,7 @@ export default function WalletTransactions({
             return (
               <div
                 key={entry.id}
+                ref={index === triggerIndex ? sentinelRef : undefined}
                 style={{
                   display: "flex",
                   alignItems: "center",

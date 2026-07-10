@@ -416,6 +416,8 @@ export function CountBadge({
   count: number;
   tone: "blue" | "green" | "yellow" | "pink";
 }) {
+  if (count === 0) return null;
+
   const bg =
     tone === "blue"
       ? "linear-gradient(180deg, #2f8cff 0%, #1f6fe5 100%)"

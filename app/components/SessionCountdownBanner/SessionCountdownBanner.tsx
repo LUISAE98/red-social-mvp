@@ -180,6 +180,9 @@ export default function SessionCountdownBanner({ uid }: { uid: string }) {
   const [countdown321, setCountdown321] = useState<number | null>(null);
   const countdown321Triggered = useRef(false);
   const preSessionCtxRef = useRef<{ secondsLeft: number | null; inProgress: boolean }>({ secondsLeft: null, inProgress: false });
+  const [reminderOpen, setReminderOpen] = useState(false);
+  const reminderTriggeredRef = useRef<Set<string>>(new Set());
+  const reminderCtxRef = useRef<{ canPrepare: boolean; connected: boolean; inProgress: boolean; isPastStart: boolean; msLate: number }>({ canPrepare: false, connected: false, inProgress: false, isPastStart: false, msLate: 0 });
   // session_incomplete panel states
   const [incompleteDismissed, setIncompleteDismissed] = useState(false);
   const [forceCompleting, setForceCompleting] = useState(false);
@@ -193,6 +196,7 @@ export default function SessionCountdownBanner({ uid }: { uid: string }) {
 
   useEffect(() => {
     lateTriggeredRef.current.clear();
+    reminderTriggeredRef.current.clear();
     setReschedOpen(false);
     setReschedReason("");
     setIncompleteDismissed(false);
@@ -200,6 +204,7 @@ export default function SessionCountdownBanner({ uid }: { uid: string }) {
     setForceCompleted(false);
     countdown321Triggered.current = false;
     setCountdown321(null);
+    setReminderOpen(false);
   }, [session?.id]);
 
   useEffect(() => {
@@ -236,6 +241,29 @@ export default function SessionCountdownBanner({ uid }: { uid: string }) {
     return () => clearTimeout(t);
   }, [countdown321]);
 
+  // Session reminder: open panel when prepare window activates + every 5 min of delay
+  useEffect(() => {
+    const ctx = reminderCtxRef.current;
+    if (ctx.inProgress || prepOpen || ctx.connected) return;
+    if (!ctx.canPrepare) return;
+
+    // First trigger: when prepare window first opens (before session start)
+    if (!ctx.isPastStart && !reminderTriggeredRef.current.has("prep_window")) {
+      reminderTriggeredRef.current.add("prep_window");
+      setReminderOpen(true);
+      return;
+    }
+
+    // Periodic trigger: every 5 min of delay
+    if (ctx.msLate > 0) {
+      const bucket = Math.floor(ctx.msLate / (5 * 60 * 1000)) * 5;
+      const key = `late_${bucket}`;
+      if (bucket > 0 && !reminderTriggeredRef.current.has(key)) {
+        reminderTriggeredRef.current.add(key);
+        setReminderOpen(true);
+      }
+    }
+  }, [now, prepOpen]);
 
   if (loading) return null;
 
@@ -410,6 +438,7 @@ export default function SessionCountdownBanner({ uid }: { uid: string }) {
       ? Math.max(0, Math.ceil(((prepT0 + 60_000) - now) / 1000))
       : null;
   preSessionCtxRef.current = { secondsLeft: preSessionSecondsLeft, inProgress: sessionInProgress };
+  reminderCtxRef.current = { canPrepare, connected: buyerConnected, inProgress: sessionInProgress, isPastStart, msLate };
 
   async function handlePrepare() {
     if (!session || busy || !canPrepare) return;
@@ -644,7 +673,7 @@ export default function SessionCountdownBanner({ uid }: { uid: string }) {
                     <div style={{ fontSize: 12, color: "rgba(255,255,255,0.65)", marginBottom: 6 }}>
                       Ambos están en la sala
                     </div>
-                    <div style={{ fontSize: 38, fontWeight: 900, color: "#4ade80", letterSpacing: "-0.04em", lineHeight: 1, fontVariantNumeric: "tabular-nums" }}>
+                    <div style={{ fontSize: 28, fontWeight: 700, color: "#fff", letterSpacing: "-0.02em", lineHeight: 1, fontVariantNumeric: "tabular-nums" }}>
                       {preSessionSecondsLeft}
                     </div>
                     <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", marginTop: 4 }}>
@@ -705,6 +734,66 @@ export default function SessionCountdownBanner({ uid }: { uid: string }) {
 
         </div>
       </div>
+
+      {reminderOpen && !sessionInProgress && !prepOpen && createPortal(
+        <div style={{
+          position: "fixed", inset: 0, zIndex: 15000,
+          background: "rgba(0,0,0,0.70)",
+          backdropFilter: "blur(6px)",
+          WebkitBackdropFilter: "blur(6px)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          padding: "20px 16px", boxSizing: "border-box",
+        }}>
+          <div style={{ position: "relative", width: "100%", maxWidth: 360, borderRadius: 18, overflow: "hidden", boxShadow: "0 32px 80px rgba(0,0,0,0.85)" }}>
+            <div style={{ position: "absolute", inset: 0, backgroundImage: `url(${bgImage})`, backgroundSize: "cover", backgroundPosition: "center" }} />
+            <div style={{ position: "absolute", inset: 0, background: "linear-gradient(160deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.82) 100%)" }} />
+            <button
+              type="button"
+              onClick={() => setReminderOpen(false)}
+              style={{ position: "absolute", top: 12, right: 12, width: 30, height: 30, borderRadius: "50%", border: "none", background: "rgba(255,255,255,0.14)", color: "rgba(255,255,255,0.75)", fontSize: 14, cursor: "pointer", display: "grid", placeItems: "center", fontFamily: "inherit", zIndex: 1 }}
+            >✕</button>
+            <div style={{ position: "relative", padding: "22px 20px", display: "flex", flexDirection: "column", gap: 16 }}>
+              {/* Header */}
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <div style={{ width: 52, height: 52, borderRadius: "50%", overflow: "hidden", flexShrink: 0, background: "rgba(255,255,255,0.10)", border: "2px solid rgba(255,255,255,0.28)" }}>
+                  {session!.creatorAvatarUrl
+                    ? <Image src={session!.creatorAvatarUrl} alt={creatorName} width={52} height={52} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    : <div style={{ width: "100%", height: "100%", display: "grid", placeItems: "center", fontSize: 20, fontWeight: 700, color: "#fff", textTransform: "uppercase" }}>{creatorName[0]}</div>
+                  }
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.55)", marginBottom: 3 }}>{sessionLabel}</div>
+                  <div style={{ fontSize: 17, color: "#fff", fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{creatorName}</div>
+                </div>
+              </div>
+              {/* Countdown */}
+              <div style={{ textAlign: "center", padding: "4px 0" }}>
+                <div style={{ fontSize: 11, color: isPastStart ? "#fb923c" : "rgba(255,255,255,0.55)", marginBottom: 4, fontWeight: 500 }}>
+                  {isPastStart ? "Lleva de retraso" : "Comienza en"}
+                </div>
+                <div style={{ fontSize: 44, fontWeight: 900, color: isPastStart ? "#fb923c" : "#fff", letterSpacing: "-0.04em", fontVariantNumeric: "tabular-nums", lineHeight: 1 }}>
+                  {countdownValue}
+                </div>
+              </div>
+              {/* Action */}
+              {!buyerConnected ? (
+                <button
+                  type="button"
+                  onClick={async () => { await handlePrepare(); setReminderOpen(false); }}
+                  disabled={!canPrepare || busy}
+                  style={{ width: "100%", height: 46, borderRadius: 10, border: "none", background: canPrepare && !busy ? btnBg : "rgba(255,255,255,0.14)", color: canPrepare && !busy ? "#fff" : "rgba(255,255,255,0.35)", fontSize: 16, fontWeight: 700, cursor: canPrepare && !busy ? "pointer" : "not-allowed", fontFamily: "inherit", letterSpacing: "-0.02em" }}>
+                  {busy ? tCommon("processing") : tServices("prepareButton")}
+                </button>
+              ) : (
+                <div style={{ textAlign: "center", fontSize: 14, color: "#4ade80", fontWeight: 600 }}>
+                  Ya estás en la sala
+                </div>
+              )}
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
 
       {countdown321 !== null && createPortal(
         <div style={{

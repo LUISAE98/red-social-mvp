@@ -42,6 +42,15 @@ function num(v: unknown): number {
 function str(v: unknown): string | null {
   return typeof v === "string" && v.trim().length > 0 ? v : null;
 }
+/** Canal de la venta: si hay groupId → comunidad; si no → perfil. */
+function channelFromGroupId(groupId: string | null): {
+  channelType: "profile" | "group";
+  channelId: string | null;
+} {
+  return groupId
+    ? { channelType: "group", channelId: groupId }
+    : { channelType: "profile", channelId: null };
+}
 
 // ───────────────────────────── Grupo A (ganan al pagar) ─────────────────────
 
@@ -72,6 +81,7 @@ export const onSuperCommentLedger = onDocumentCreated(
       buyerId: str(data.userId) ?? str(data.guestId),
       earnedImmediately: true,
       occurredAt: data.createdAt,
+      ...channelFromGroupId(str(postSnap.get("groupId"))),
     });
   }
 );
@@ -97,6 +107,7 @@ export const onLiveAccessLedger = onDocumentCreated(
       buyerId: event.params.userId,
       earnedImmediately: true,
       occurredAt: data.createdAt,
+      ...channelFromGroupId(str(data.groupId)),
     });
   }
 );
@@ -138,6 +149,9 @@ export const onPostAccessLedger = onDocumentWritten(
     // VOD si el post es una transmisión (tiene liveData); si no, post premium.
     const isVod = postData?.liveData != null;
 
+    // Canal: groupId denormalizado en el postAccess; si no, el del post.
+    const groupId = str(data.groupId) ?? str(postData?.groupId);
+
     await recordEarning(creatorId, {
       type: isVod ? "vod_ticket" : "premium_post",
       grossAmount: gross,
@@ -146,6 +160,7 @@ export const onPostAccessLedger = onDocumentWritten(
       buyerId: str(data.buyerId),
       earnedImmediately: true,
       occurredAt: data.createdAt,
+      ...channelFromGroupId(groupId),
     });
   }
 );
@@ -187,6 +202,8 @@ export const onGroupSubscriptionLedger = onDocumentWritten(
       buyerId: uid,
       earnedImmediately: true,
       occurredAt: data.subscribedAt ?? data.joinedAt ?? data.updatedAt,
+      channelType: "group",
+      channelId: groupId,
     });
   }
 );
@@ -229,6 +246,7 @@ async function handleRequestLifecycle(params: {
         buyerId: str(after.buyerId),
         earnedImmediately: false,
         occurredAt: after.createdAt,
+        ...channelFromGroupId(str(after.groupId)),
       });
     }
     return;

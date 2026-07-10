@@ -12,9 +12,10 @@ const POS_KEY = "vibra:session-card-pos";
 type XY = { x: number; y: number };
 
 function getDefaultPos(): XY {
+  const isMobile = window.innerWidth < 768;
   return {
     x: 16,
-    y: Math.max(80, window.innerHeight - 420),
+    y: isMobile ? 80 : Math.max(80, window.innerHeight - 420),
   };
 }
 
@@ -40,11 +41,12 @@ export default function DraggableSessionCard({ uid }: { uid: string }) {
 
   useEffect(() => {
     const raw = loadSavedPos() ?? getDefaultPos();
-    // Clamp to current viewport — a position saved on a wider screen can be off-screen on mobile
+    // Clamp to current viewport — a position saved on a wider/taller screen can be off-screen on mobile
     const CARD_W = 320;
+    const CARD_H = 420; // conservative estimate; ensures card is mostly visible on small screens
     const clamped: XY = {
       x: Math.max(0, Math.min(window.innerWidth - Math.min(CARD_W, window.innerWidth - 16), raw.x)),
-      y: Math.max(0, Math.min(window.innerHeight - 120, raw.y)),
+      y: Math.max(0, Math.min(window.innerHeight - CARD_H, raw.y)),
     };
     posRef.current = clamped;
     setPos(clamped);
@@ -78,7 +80,7 @@ export default function DraggableSessionCard({ uid }: { uid: string }) {
     if (!dragging) setDragging(true);
 
     const cardW = cardRef.current?.offsetWidth ?? 320;
-    const cardH = cardRef.current?.offsetHeight ?? 300;
+    const cardH = cardRef.current?.offsetHeight ?? 420;
     const newX = Math.max(0, Math.min(window.innerWidth - cardW, dragStart.current.cx + dx));
     const newY = Math.max(0, Math.min(window.innerHeight - cardH, dragStart.current.cy + dy));
     const newPos = { x: newX, y: newY };

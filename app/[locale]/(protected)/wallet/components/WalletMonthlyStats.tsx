@@ -19,7 +19,7 @@ function formatMoney(value: number): string {
 }
 
 /**
- * Fila de 3 cifras (Rechazado · Ganado · Reembolsado). Al dar clic en cualquiera
+ * Fila de 2 cifras (Ganado · Rechazado). Al dar clic en cualquiera
  * alterna entre "este mes" e "histórico". Montos en neto.
  */
 export default function WalletMonthlyStats({
@@ -65,9 +65,8 @@ export default function WalletMonthlyStats({
   const toggle = () => setScope((s) => (s === "month" ? "all" : "month"));
 
   const columns = [
-    { key: "statRejected", amount: values.rejected, color: "#f87171" },
-    { key: "statEarned", amount: values.earned, color: "#4ade80" },
-    { key: "statRefunded", amount: values.refunded, color: "#fbbf24" },
+    { key: "statEarned", amount: values.earned, color: "#ffffff" },
+    { key: "statRejected", amount: values.rejected, color: "#ffffff" },
   ];
 
   return (

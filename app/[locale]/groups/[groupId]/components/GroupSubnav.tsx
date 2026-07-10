@@ -1,6 +1,6 @@
 "use client";
 
-import { CSSProperties } from "react";
+import { CSSProperties, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   VibraSubnavIcon,
@@ -22,22 +22,35 @@ export default function GroupSubnav({
   canManage = false,
 }: GroupSubnavProps) {
   const tGroups = useTranslations("groups");
-  const fontStack =
-    'inherit';
+  const fontStack = 'inherit';
+
+  const [isDesktop, setIsDesktop] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 769px)");
+    setIsDesktop(mq.matches);
+    const handler = (e: MediaQueryListEvent) => setIsDesktop(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
+
+  const iconSize = isDesktop ? 26 : 34;
 
   const tabs: {
     key: TabKey;
     title: string;
+    label: string;
     iconType: VibraSubnavIconType;
   }[] = [
     {
       key: "feed",
       title: tGroups("postsSection"),
+      label: tGroups("postsSection"),
       iconType: "posts",
     },
     {
       key: "members",
       title: tGroups("membersTab"),
+      label: tGroups("membersTab"),
       iconType: "members",
     },
     ...(canManage
@@ -45,11 +58,13 @@ export default function GroupSubnav({
           {
             key: "services" as const,
             title: tGroups("groupServicesTab"),
+            label: tGroups("servicesLabel"),
             iconType: "services" as const,
           },
           {
             key: "settings" as const,
             title: tGroups("groupSettingsTab"),
+            label: tGroups("settingsLabel"),
             iconType: "settings" as const,
           },
         ]
@@ -115,6 +130,15 @@ export default function GroupSubnav({
     alignItems: "center",
   };
 
+  const itemLabel: CSSProperties = {
+    display: "none",
+    fontSize: 13,
+    fontWeight: 600,
+    letterSpacing: "-0.01em",
+    whiteSpace: "nowrap",
+    lineHeight: 1,
+  };
+
   return (
     <>
       <style jsx>{`
@@ -128,6 +152,27 @@ export default function GroupSubnav({
             border-right: 0 !important;
             background: transparent !important;
             box-shadow: none !important;
+          }
+        }
+
+        @media (min-width: 769px) {
+          .group-subnav-item-inner {
+            display: flex !important;
+            flex-direction: row !important;
+            align-items: center !important;
+            justify-content: center !important;
+            gap: 7px !important;
+          }
+          .group-subnav-icon-wrap {
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            flex-shrink: 0 !important;
+          }
+          .group-subnav-label {
+            display: block !important;
+            color: #a855f7 !important;
+            line-height: 1 !important;
           }
         }
       `}</style>
@@ -169,12 +214,17 @@ export default function GroupSubnav({
                   : "none",
               }}
             >
-              <span style={itemInner}>
-                <VibraSubnavIcon
-                  type={tab.iconType}
-                  size={34}
-                  strokeWidth={2.25}
-                />
+              <span style={itemInner} className="group-subnav-item-inner">
+                <span className="group-subnav-icon-wrap">
+                  <VibraSubnavIcon
+                    type={tab.iconType}
+                    size={iconSize}
+                    strokeWidth={2.25}
+                  />
+                </span>
+                <span style={itemLabel} className="group-subnav-label">
+                  {tab.label}
+                </span>
               </span>
             </button>
           );

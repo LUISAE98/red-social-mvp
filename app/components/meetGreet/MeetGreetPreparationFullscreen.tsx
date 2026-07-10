@@ -50,12 +50,26 @@ export default function MeetGreetPreparationFullscreen({
     document.body.style.overscrollBehavior = "none";
     document.documentElement.style.overscrollBehavior = "none";
 
+    // Lock portrait orientation to prevent recording from cutting when device rotates.
+    // Supported on Android Chrome; silently ignored on iOS Safari (no standard API available).
+    let orientationLocked = false;
+    if (typeof screen !== "undefined" && screen.orientation && typeof (screen.orientation as ScreenOrientation & { lock?: (o: string) => Promise<void> }).lock === "function") {
+      (screen.orientation as ScreenOrientation & { lock: (o: string) => Promise<void> })
+        .lock("portrait")
+        .then(() => { orientationLocked = true; })
+        .catch(() => { /* not supported or denied */ });
+    }
+
     return () => {
       document.removeEventListener("keydown", handleEscape);
       document.body.style.overflow = prevBodyOverflow;
       document.documentElement.style.overflow = prevHtmlOverflow;
       document.body.style.overscrollBehavior = prevBodyOverscroll;
       document.documentElement.style.overscrollBehavior = prevHtmlOverscroll;
+
+      if (orientationLocked && typeof screen !== "undefined" && screen.orientation && typeof (screen.orientation as ScreenOrientation & { unlock?: () => void }).unlock === "function") {
+        try { (screen.orientation as ScreenOrientation & { unlock: () => void }).unlock(); } catch { /* */ }
+      }
     };
   }, [open, onClose]);
 

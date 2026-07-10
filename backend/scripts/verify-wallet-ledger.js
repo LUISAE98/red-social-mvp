@@ -23,6 +23,8 @@ const db = admin.firestore();
 (async () => {
   const led = await db.collectionGroup("walletLedger").get();
   const byStatus = {};
+  const byChannel = { profile: 0, group: 0, missing: 0 };
+  const groupIds = new Set();
   let withOcc = 0;
   let minD = null;
   let maxD = null;
@@ -30,6 +32,10 @@ const db = admin.firestore();
   led.docs.forEach((d) => {
     const s = d.data().status;
     byStatus[s] = (byStatus[s] || 0) + 1;
+    const ct = d.data().channelType;
+    if (ct === "group") { byChannel.group += 1; if (d.data().channelId) groupIds.add(d.data().channelId); }
+    else if (ct === "profile") byChannel.profile += 1;
+    else byChannel.missing += 1;
     const o = d.data().occurredAt;
     if (o && typeof o.toDate === "function") {
       withOcc += 1;
@@ -57,6 +63,7 @@ const db = admin.firestore();
   });
 
   console.log("Entradas en el ledger:", led.size, JSON.stringify(byStatus));
+  console.log("Por canal:", JSON.stringify(byChannel), "· comunidades distintas:", groupIds.size);
   console.log("Creadores con resumen:", sum.size);
   console.log("NETO ganado histórico total:  $" + lifeNet.toFixed(2) + " MXN");
   console.log("NETO por liberar (pendiente): $" + pendNet.toFixed(2) + " MXN");

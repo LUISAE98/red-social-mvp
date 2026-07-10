@@ -25,6 +25,8 @@ export type LedgerServiceType =
 
 export type LedgerStatus = "pending" | "earned" | "refunded" | "rejected";
 
+export type LedgerChannelType = "profile" | "group";
+
 export type LedgerEntry = {
   id: string;
   type: LedgerServiceType;
@@ -36,6 +38,10 @@ export type LedgerEntry = {
   /** Fecha real de la venta (si existe); si no, cae en createdAt. */
   occurredAt: Date | null;
   buyerId: string | null;
+  /** Canal que originó la venta: perfil del creador o una comunidad. */
+  channelType: LedgerChannelType;
+  /** Id de la comunidad si channelType = "group"; null para perfil. */
+  channelId: string | null;
 };
 
 /** Clave de traducción (namespace wallet) para el nombre de cada servicio. */
@@ -130,6 +136,8 @@ export function useWalletLedger(
               createdAt: toDate(d.createdAt),
               occurredAt: toDate(d.occurredAt) ?? toDate(d.createdAt),
               buyerId: typeof d.buyerId === "string" ? d.buyerId : null,
+              channelType: d.channelType === "group" ? "group" : "profile",
+              channelId: typeof d.channelId === "string" ? d.channelId : null,
             };
           })
         );

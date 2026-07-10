@@ -131,6 +131,10 @@ export type RecordEarningParams = {
   earnedImmediately: boolean;
   /** Fecha REAL de la venta (para gráficas de tiempo). Si no, usa el reloj. */
   occurredAt?: unknown;
+  /** Canal que originó la venta: perfil del creador o una comunidad. */
+  channelType?: "profile" | "group";
+  /** Id de la comunidad si channelType = "group"; null para perfil. */
+  channelId?: string | null;
 };
 
 /**
@@ -166,6 +170,8 @@ export async function recordEarning(
       sourceType: params.sourceType,
       sourceId: params.sourceId,
       buyerId: params.buyerId ?? null,
+      channelType: params.channelType ?? "profile",
+      channelId: params.channelId ?? null,
       createdAt: now,
       occurredAt: toOccurredAt(params.occurredAt),
       earnedAt: status === "earned" ? now : null,
@@ -204,6 +210,25 @@ export async function stampOccurredAt(
     { occurredAt: admin.firestore.Timestamp.fromDate(occurredAt) },
     { merge: true }
   );
+}
+
+/**
+ * Sella el canal (perfil/comunidad) en una entrada YA existente, para el
+ * backfill de datos que se registraron antes de trackear canal.
+ */
+export async function stampChannel(
+  creatorId: string,
+  sourceType: string,
+  sourceId: string,
+  channelType: "profile" | "group",
+  channelId: string | null
+): Promise<void> {
+  const ref = ledgerCollection(creatorId).doc(
+    deterministicEntryId(sourceType, sourceId)
+  );
+  const snap = await ref.get();
+  if (!snap.exists) return;
+  await ref.set({ channelType, channelId: channelId ?? null }, { merge: true });
 }
 
 /**
