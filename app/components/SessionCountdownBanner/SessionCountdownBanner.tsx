@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useTranslations, useLocale } from "next-intl";
 import { useBuyerNextSession, type BuyerNextSession } from "@/lib/hooks/useBuyerNextSession";
 import { setMeetGreetPreparing } from "@/lib/meetGreet/meetGreetRequests";
@@ -176,6 +177,9 @@ export default function SessionCountdownBanner({ uid }: { uid: string }) {
   const [reschedOpen, setReschedOpen] = useState(false);
   const [reschedReason, setReschedReason] = useState("");
   const lateTriggeredRef = useRef<Set<number>>(new Set());
+  const [countdown321, setCountdown321] = useState<number | null>(null);
+  const countdown321Triggered = useRef(false);
+  const preSessionCtxRef = useRef<{ secondsLeft: number | null; inProgress: boolean }>({ secondsLeft: null, inProgress: false });
   // session_incomplete panel states
   const [incompleteDismissed, setIncompleteDismissed] = useState(false);
   const [forceCompleting, setForceCompleting] = useState(false);
@@ -194,6 +198,8 @@ export default function SessionCountdownBanner({ uid }: { uid: string }) {
     setIncompleteDismissed(false);
     setForceCompleting(false);
     setForceCompleted(false);
+    countdown321Triggered.current = false;
+    setCountdown321(null);
   }, [session?.id]);
 
   useEffect(() => {
@@ -210,17 +216,26 @@ export default function SessionCountdownBanner({ uid }: { uid: string }) {
     return () => clearInterval(id);
   }, [session, completedSession]);
 
-  // Re-open overlay every 5 minutes of delay
+  // Trigger 3-2-1 when pre-session countdown reaches 0 (reads ref to avoid TDZ)
   useEffect(() => {
-    if (!session) return;
-    if (session.status === "auto_rejected_no_show" || session.status === "session_incomplete") return;
-    const msLate = now - session.scheduledAt.getTime();
-    if (msLate <= 0) return;
-    const bucket = Math.floor(msLate / (5 * 60 * 1000)) * 5;
-    if (bucket <= 0 || lateTriggeredRef.current.has(bucket)) return;
-    lateTriggeredRef.current.add(bucket);
-    setPrepOpen(true);
-  }, [now, session]);
+    const { secondsLeft, inProgress } = preSessionCtxRef.current;
+    if (secondsLeft !== 0 || countdown321Triggered.current || prepOpen || inProgress) return;
+    countdown321Triggered.current = true;
+    setCountdown321(3);
+  }, [now, prepOpen]);
+
+  // 3-2-1 countdown: 3→2→1→open prep room
+  useEffect(() => {
+    if (countdown321 === null) return;
+    if (countdown321 === 0) {
+      setCountdown321(null);
+      setPrepOpen(true);
+      return;
+    }
+    const t = setTimeout(() => setCountdown321((c) => (c !== null ? c - 1 : null)), 1000);
+    return () => clearTimeout(t);
+  }, [countdown321]);
+
 
   if (loading) return null;
 
@@ -364,18 +379,37 @@ export default function SessionCountdownBanner({ uid }: { uid: string }) {
   const toleranceExpired = isPastStart && msLate >= 15 * 60 * 1000;
   const canPrepare = msLeft <= 15 * 60 * 1000;
 
-  const sessionLabel = session!.serviceKind === "exclusive_session"
-    ? tServices("sessionLabelExclusive")
-    : tServices("sessionLabelLive");
+  // When startedAt is set, both joined LiveKit — switch to descending session timer
+  const sessionInProgress = !!session!.startedAt;
+  const durationMs = (session!.durationMinutes ?? 30) * 60 * 1000;
+  const sessionDeadline = sessionInProgress ? session!.startedAt!.getTime() + durationMs : null;
+  const msRemaining = sessionDeadline != null ? Math.max(0, sessionDeadline - now) : null;
+
+  const sessionLabel = "Sesión con";
   const creatorName = session!.creatorDisplayName ?? tSessions("creatorFallback");
   const bgImage = BG_IMAGE[session!.serviceKind];
   const btnBg = BTN_BG[session!.serviceKind];
 
-  const countdownLabel = isPastStart ? tServices("sessionLate") : tServices("sessionStartsIn");
-  const countdownValue = isPastStart ? formatCountdown(Math.abs(msLeft)) : formatCountdown(msLeft);
+  const countdownLabel = sessionInProgress
+    ? tServices("sessionTimeRemaining")
+    : isPastStart ? tServices("sessionLate") : tServices("sessionStartsIn");
+  const countdownValue = sessionInProgress
+    ? formatCountdown(msRemaining ?? 0)
+    : isPastStart ? formatCountdown(Math.abs(msLeft)) : formatCountdown(msLeft);
 
   const creatorConnected = !!session!.preparingCreatorAt;
   const buyerConnected = !!session!.preparingBuyerAt;
+
+  // Pre-session synchronized countdown
+  const prepT0 =
+    buyerConnected && creatorConnected && session!.preparingBuyerAt && session!.preparingCreatorAt
+      ? Math.max(session!.preparingBuyerAt.getTime(), session!.preparingCreatorAt.getTime())
+      : null;
+  const preSessionSecondsLeft =
+    prepT0 !== null && !sessionInProgress && !prepOpen
+      ? Math.max(0, Math.ceil(((prepT0 + 60_000) - now) / 1000))
+      : null;
+  preSessionCtxRef.current = { secondsLeft: preSessionSecondsLeft, inProgress: sessionInProgress };
 
   async function handlePrepare() {
     if (!session || busy || !canPrepare) return;
@@ -386,7 +420,7 @@ export default function SessionCountdownBanner({ uid }: { uid: string }) {
       } else {
         await setExclusiveSessionPreparing({ requestId: session.id, role: "buyer" });
       }
-      setPrepOpen(true);
+      // Do NOT open prep room here — it opens after the 3-2-1 countdown
     } catch (e) { console.error(e); } finally { setBusy(false); }
   }
 
@@ -504,7 +538,7 @@ export default function SessionCountdownBanner({ uid }: { uid: string }) {
 
   return (
     <>
-      {isPastStart && (
+      {isPastStart && !sessionInProgress && (
         <style>{`
           @keyframes session-late-pulse {
             0%, 100% { opacity: 1; }
@@ -533,31 +567,31 @@ export default function SessionCountdownBanner({ uid }: { uid: string }) {
 
           {/* Row 1: avatar + name + countdown */}
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <div style={{ width: 52, height: 52, borderRadius: "50%", overflow: "hidden", flexShrink: 0, background: "rgba(255,255,255,0.10)", border: "2px solid rgba(255,255,255,0.22)" }}>
+            <div style={{ width: 44, height: 44, borderRadius: "50%", overflow: "hidden", flexShrink: 0, background: "rgba(255,255,255,0.10)", border: "2px solid rgba(255,255,255,0.22)" }}>
               {session!.creatorAvatarUrl ? (
-                <Image src={session!.creatorAvatarUrl} alt={creatorName} width={52} height={52} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                <Image src={session!.creatorAvatarUrl} alt={creatorName} width={44} height={44} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
               ) : (
-                <div style={{ width: "100%", height: "100%", display: "grid", placeItems: "center", fontSize: 20, fontWeight: 700, color: "#fff", textTransform: "uppercase" }}>
+                <div style={{ width: "100%", height: "100%", display: "grid", placeItems: "center", fontSize: 18, fontWeight: 700, color: "#fff", textTransform: "uppercase" }}>
                   {creatorName[0]}
                 </div>
               )}
             </div>
 
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 13, color: "rgba(255,255,255,0.65)", fontWeight: 500, marginBottom: 3 }}>{sessionLabel}</div>
-              <div style={{ fontSize: 17, color: "#fff", fontWeight: 700, letterSpacing: "-0.01em", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{creatorName}</div>
+              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.65)", fontWeight: 500, marginBottom: 3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{sessionLabel}</div>
+              <div style={{ fontSize: 16, color: "#fff", fontWeight: 700, letterSpacing: "-0.01em", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{creatorName}</div>
             </div>
 
-            <div style={{ flexShrink: 0, textAlign: "right", maxWidth: "45%" }}>
-              <div style={{ fontSize: 11, fontWeight: 500, marginBottom: 2, lineHeight: 1.3, color: isPastStart ? "#fb923c" : "rgba(255,255,255,0.65)" }}>
+            <div style={{ flexShrink: 0, textAlign: "right", maxWidth: "40%" }}>
+              <div style={{ fontSize: 11, fontWeight: 500, marginBottom: 2, lineHeight: 1.3, color: sessionInProgress ? "#4ade80" : isPastStart ? "#fb923c" : "rgba(255,255,255,0.65)" }}>
                 {countdownLabel}
               </div>
-              <div style={{ fontSize: 26, fontWeight: 700, letterSpacing: "-0.03em", fontVariantNumeric: "tabular-nums", textShadow: "0 1px 8px rgba(0,0,0,0.5)", color: isPastStart ? "#fb923c" : "#fff", ...(isPastStart ? { animation: "session-late-pulse 1.6s ease-in-out infinite" } : {}) }}>
+              <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: "-0.03em", fontVariantNumeric: "tabular-nums", textShadow: "0 1px 8px rgba(0,0,0,0.5)", color: sessionInProgress ? (msRemaining != null && msRemaining <= 60000 ? "#ef4444" : msRemaining != null && msRemaining <= 300000 ? "#f59e0b" : "#4ade80") : isPastStart ? "#fb923c" : "#fff", ...(isPastStart && !sessionInProgress ? { animation: "session-late-pulse 1.6s ease-in-out infinite" } : {}) }}>
                 {countdownValue}
               </div>
-              {isPastStart && (
+              {isPastStart && !sessionInProgress && (
                 <div style={{ fontSize: 10, color: "#fb923c", marginTop: 3, lineHeight: 1.3, opacity: 0.85 }}>
-                  Solo tienes 15 min de tolerancia
+                  15 min de tolerancia
                 </div>
               )}
             </div>
@@ -582,14 +616,53 @@ export default function SessionCountdownBanner({ uid }: { uid: string }) {
             {!toleranceExpired ? (
               <>
                 {!canPrepare && (
-                  <div style={{ fontSize: 12, color: "rgba(255,255,255,0.60)", marginBottom: 8, lineHeight: 1.4 }}>
-                    {tServices("sessionWait15min")}
+                  <div style={{ display: "flex", alignItems: "flex-start", gap: 7, marginBottom: 8 }}>
+                    <svg
+                      width={15}
+                      height={15}
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke={session!.serviceKind === "exclusive_session" ? "#f9a8d4" : "#93c5fd"}
+                      strokeWidth={2}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                      style={{ flexShrink: 0, marginTop: 1 }}
+                    >
+                      <circle cx="12" cy="12" r="10" />
+                      <line x1="12" y1="8" x2="12" y2="8.01" />
+                      <line x1="12" y1="12" x2="12" y2="16" />
+                    </svg>
+                    <span style={{ fontSize: 12, color: "rgba(255,255,255,0.60)", lineHeight: 1.4 }}>
+                      {tServices("sessionWait15min")}
+                    </span>
                   </div>
                 )}
-                <button type="button" onClick={handlePrepare} disabled={!canPrepare || busy}
-                  style={{ width: "100%", height: 40, borderRadius: 8, border: "none", background: canPrepare && !busy ? btnBg : "rgba(255,255,255,0.14)", color: canPrepare && !busy ? "#fff" : "rgba(255,255,255,0.35)", fontSize: 15, fontWeight: 600, cursor: canPrepare && !busy ? "pointer" : "not-allowed", fontFamily: "inherit", letterSpacing: "-0.02em", transition: "background 0.2s" }}>
-                  {busy ? tCommon("processing") : tServices("prepareButton")}
-                </button>
+                {preSessionSecondsLeft !== null ? (
+                  /* Both prepared — synchronized countdown */
+                  <div style={{ textAlign: "center", padding: "6px 0" }}>
+                    <div style={{ fontSize: 12, color: "rgba(255,255,255,0.65)", marginBottom: 6 }}>
+                      Ambos están en la sala
+                    </div>
+                    <div style={{ fontSize: 38, fontWeight: 900, color: "#4ade80", letterSpacing: "-0.04em", lineHeight: 1, fontVariantNumeric: "tabular-nums" }}>
+                      {preSessionSecondsLeft}
+                    </div>
+                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", marginTop: 4 }}>
+                      La sesión comienza en...
+                    </div>
+                  </div>
+                ) : buyerConnected ? (
+                  /* Buyer prepared, waiting for creator */
+                  <div style={{ textAlign: "center", padding: "8px 0", fontSize: 13, color: "rgba(255,255,255,0.55)", fontStyle: "italic" }}>
+                    En sala · Esperando al creador
+                  </div>
+                ) : (
+                  /* Not yet prepared */
+                  <button type="button" onClick={handlePrepare} disabled={!canPrepare || busy}
+                    style={{ width: "100%", height: 40, borderRadius: 8, border: "none", background: canPrepare && !busy ? btnBg : "rgba(255,255,255,0.14)", color: canPrepare && !busy ? "#fff" : "rgba(255,255,255,0.35)", fontSize: 15, fontWeight: 600, cursor: canPrepare && !busy ? "pointer" : "not-allowed", fontFamily: "inherit", letterSpacing: "-0.02em", transition: "background 0.2s" }}>
+                    {busy ? tCommon("processing") : tServices("prepareButton")}
+                  </button>
+                )}
               </>
             ) : reschedOpen ? (
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -632,6 +705,36 @@ export default function SessionCountdownBanner({ uid }: { uid: string }) {
 
         </div>
       </div>
+
+      {countdown321 !== null && createPortal(
+        <div style={{
+          position: "fixed", inset: 0, zIndex: 20000,
+          background: "rgba(0,0,0,0.92)",
+          display: "flex", flexDirection: "column",
+          alignItems: "center", justifyContent: "center", gap: 12,
+        }}>
+          <style>{`
+            @keyframes cd321-pop {
+              from { transform: scale(0.3); opacity: 0; }
+              to   { transform: scale(1);   opacity: 1; }
+            }
+          `}</style>
+          <div
+            key={countdown321}
+            style={{
+              fontSize: 160, fontWeight: 900, color: "#fff",
+              letterSpacing: "-0.06em", lineHeight: 1,
+              animation: "cd321-pop 0.3s cubic-bezier(0.34,1.56,0.64,1)",
+            }}
+          >
+            {countdown321}
+          </div>
+          <div style={{ fontSize: 16, color: "rgba(255,255,255,0.55)", fontWeight: 500 }}>
+            La sesión está por comenzar
+          </div>
+        </div>,
+        document.body
+      )}
 
       <MeetGreetPreparationFullscreen
         open={prepOpen}

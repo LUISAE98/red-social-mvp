@@ -32,8 +32,6 @@ import GroupPostCard from "@/app/groups/[groupId]/components/posts/GroupPostCard
 import GroupRecommendationsRail from "@/app/components/GroupRecommendations/GroupRecommendationsRail";
 import { buildRandomRecommendationSlots } from "@/app/components/GroupRecommendations/recommendation-engine";
 import DonationFeedBanner from "@/app/components/DonationFeedBanner/DonationFeedBanner";
-import SessionCountdownBanner from "@/app/components/SessionCountdownBanner/SessionCountdownBanner";
-import CreatorSessionCountdownBanner from "@/app/components/SessionCountdownBanner/CreatorSessionCountdownBanner";
 import { loadFeedWithRetry } from "@/lib/posts/feed-load-helpers";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
@@ -1294,18 +1292,6 @@ const shellStyle: CSSProperties = {
             onClose={onDonationClose}
             onDonate={onDonationPay}
           />
-        </div>
-      )}
-
-      {viewerUid && isOwner && (
-        <div style={postItemStyle}>
-          <CreatorSessionCountdownBanner uid={viewerUid} />
-        </div>
-      )}
-
-      {viewerUid && (
-        <div style={postItemStyle}>
-          <SessionCountdownBanner uid={viewerUid} />
         </div>
       )}
 

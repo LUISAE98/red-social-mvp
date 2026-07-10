@@ -9,7 +9,12 @@ import {
   type VibraNavigationIconType,
 } from "@/app/components/VibraServiceIcons/VibraNavigationIcons";
 
-export type WalletTabKey = "finances" | "calendar" | "pending" | "history";
+export type WalletTabKey =
+  | "finances"
+  | "statistics"
+  | "calendar"
+  | "pending"
+  | "history";
 
 type WalletTabItem = {
   key: WalletTabKey;
@@ -18,7 +23,8 @@ type WalletTabItem = {
 };
 
 const TABS: WalletTabItem[] = [
-  { key: "finances", href: "/wallet/finanzas", icon: "finance" },
+  { key: "finances", href: "/wallet/finanzas", icon: "coin" },
+  { key: "statistics", href: "/wallet/estadisticas", icon: "finance" },
   { key: "calendar", href: "/wallet/calendario", icon: "calendar" },
   { key: "pending", href: "/wallet/pendientes", icon: "pending" },
   { key: "history", href: "/wallet/historial", icon: "history" },
@@ -59,7 +65,7 @@ export default function WalletSubNav({
           position: relative;
           width: 100%;
           display: grid;
-          grid-template-columns: repeat(4, minmax(0, 1fr));
+          grid-template-columns: repeat(5, minmax(0, 1fr));
           align-items: stretch;
         }
 

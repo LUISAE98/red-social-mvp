@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useAuth } from "@/app/providers";
 import WalletSectionShell from "../components/WalletSectionShell";
@@ -10,6 +10,7 @@ import {
   useWalletFinances,
   selectFinanceView,
 } from "@/lib/wallet/walletFinances";
+import { useWalletLedger } from "@/lib/wallet/walletLedger";
 
 function formatMoney(value: number): string {
   try {
@@ -24,6 +25,17 @@ function formatMoney(value: number): string {
   }
 }
 
+function formatMonthLabel(year: number, month: number): string {
+  try {
+    return new Intl.DateTimeFormat("es-MX", {
+      month: "short",
+      year: "numeric",
+    }).format(new Date(year, month, 1));
+  } catch {
+    return "";
+  }
+}
+
 export default function WalletFinanzasPage() {
   const tWallet = useTranslations("wallet");
   const { user } = useAuth();
@@ -31,8 +43,27 @@ export default function WalletFinanzasPage() {
   const [mode, setMode] = useState<"net" | "gross">("net");
 
   const view = selectFinanceView(summary, mode);
-  const hasPending = view.pending > 0;
-  const hasLosses = view.refunded > 0 || view.rejected > 0;
+
+  // Mejor mes: mes calendario con más ganancias (entradas "earned").
+  const { entries } = useWalletLedger(user?.uid, 365);
+  const bestMonth = useMemo(() => {
+    const byMonth = new Map<string, { year: number; month: number; amount: number }>();
+    for (const e of entries) {
+      if (e.status !== "earned" || !e.createdAt) continue;
+      const year = e.createdAt.getFullYear();
+      const month = e.createdAt.getMonth();
+      const key = `${year}-${month}`;
+      const amount = mode === "gross" ? e.grossAmount : e.netAmount;
+      const current = byMonth.get(key) ?? { year, month, amount: 0 };
+      current.amount += amount;
+      byMonth.set(key, current);
+    }
+    let best: { year: number; month: number; amount: number } | null = null;
+    for (const v of byMonth.values()) {
+      if (!best || v.amount > best.amount) best = v;
+    }
+    return best;
+  }, [entries, mode]);
 
   const toggle = (
     <div
@@ -80,7 +111,7 @@ export default function WalletFinanzasPage() {
 
   return (
     <WalletSectionShell activeTab="finances">
-      <WalletCard title={tWallet("financesTitle")} headerRight={toggle}>
+      <WalletCard headerRight={toggle} transparent>
         <div
           style={{
             display: "flex",
@@ -90,7 +121,15 @@ export default function WalletFinanzasPage() {
           }}
         >
           {/* Disponible para retirar */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 4,
+              alignItems: "center",
+              textAlign: "center",
+            }}
+          >
             <div
               style={{
                 fontSize: 12.5,
@@ -107,7 +146,7 @@ export default function WalletFinanzasPage() {
                 fontWeight: 700,
                 letterSpacing: "-0.03em",
                 lineHeight: 1.05,
-                color: "#fff",
+                color: "#4ade80",
               }}
             >
               {formatMoney(view.available)}
@@ -115,7 +154,7 @@ export default function WalletFinanzasPage() {
                 style={{
                   fontSize: 14,
                   fontWeight: 600,
-                  color: "rgba(255,255,255,0.5)",
+                  color: "rgba(74,222,128,0.6)",
                   marginLeft: 8,
                   letterSpacing: 0,
                 }}
@@ -125,64 +164,122 @@ export default function WalletFinanzasPage() {
             </div>
           </div>
 
-          {/* Ganado histórico */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+          {/* Fila de 3 columnas: por liberar · mejor mes · ganado histórico */}
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "flex-start",
+              gap: 10,
+            }}
+          >
+            {/* Monto por liberar (izquierda) */}
             <div
               style={{
-                fontSize: 12.5,
-                fontWeight: 500,
-                color: "rgba(255,255,255,0.6)",
-                letterSpacing: "-0.01em",
+                flex: 1,
+                minWidth: 0,
+                textAlign: "center",
+                display: "flex",
+                flexDirection: "column",
+                gap: 3,
               }}
             >
-              {tWallet("financesLifetime")}
+              <div
+                style={{
+                  fontSize: 12,
+                  fontWeight: 500,
+                  color: "rgba(255,255,255,0.6)",
+                  letterSpacing: "-0.01em",
+                }}
+              >
+                {tWallet("financesPendingAmount")}
+              </div>
+              <div
+                style={{
+                  fontSize: 17,
+                  fontWeight: 600,
+                  letterSpacing: "-0.02em",
+                  color: "rgba(255,255,255,0.9)",
+                }}
+              >
+                {formatMoney(view.pending)}
+              </div>
             </div>
+
+            {/* Mejor mes (centro) */}
             <div
               style={{
-                fontSize: 20,
-                fontWeight: 600,
-                letterSpacing: "-0.02em",
-                color: "rgba(255,255,255,0.9)",
+                flex: 1,
+                minWidth: 0,
+                textAlign: "center",
+                display: "flex",
+                flexDirection: "column",
+                gap: 3,
               }}
             >
-              {formatMoney(view.lifetime)} MXN
+              <div
+                style={{
+                  fontSize: 12,
+                  fontWeight: 500,
+                  color: "rgba(255,255,255,0.6)",
+                  letterSpacing: "-0.01em",
+                }}
+              >
+                {tWallet("financesBestMonth")}
+              </div>
+              <div
+                style={{
+                  fontSize: 17,
+                  fontWeight: 600,
+                  letterSpacing: "-0.02em",
+                  color: "rgba(255,255,255,0.9)",
+                }}
+              >
+                {formatMoney(bestMonth?.amount ?? 0)}
+              </div>
+              {bestMonth ? (
+                <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.4)" }}>
+                  {formatMonthLabel(bestMonth.year, bestMonth.month)}
+                </div>
+              ) : null}
+            </div>
+
+            {/* Ganado histórico (derecha) */}
+            <div
+              style={{
+                flex: 1,
+                minWidth: 0,
+                textAlign: "center",
+                display: "flex",
+                flexDirection: "column",
+                gap: 3,
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 12,
+                  fontWeight: 500,
+                  color: "rgba(255,255,255,0.6)",
+                  letterSpacing: "-0.01em",
+                }}
+              >
+                {tWallet("financesLifetime")}
+              </div>
+              <div
+                style={{
+                  fontSize: 17,
+                  fontWeight: 600,
+                  letterSpacing: "-0.02em",
+                  color: "rgba(255,255,255,0.9)",
+                }}
+              >
+                {formatMoney(view.lifetime)}
+              </div>
             </div>
           </div>
 
-          {/* Por liberar (solo si hay pendientes) */}
-          {hasPending ? (
-            <div
-              style={{
-                display: "flex",
-                gap: 10,
-                alignItems: "flex-start",
-                padding: "12px 14px",
-                borderRadius: 12,
-                border: "1px solid rgba(168,85,255,0.28)",
-                background:
-                  "linear-gradient(160deg, rgba(79,70,255,0.14), rgba(168,85,255,0.12))",
-              }}
-            >
-              <span aria-hidden="true" style={{ fontSize: 16, lineHeight: 1.3 }}>
-                💡
-              </span>
-              <div
-                style={{
-                  fontSize: 13,
-                  lineHeight: 1.5,
-                  color: "rgba(255,255,255,0.86)",
-                  fontWeight: 400,
-                }}
-              >
-                {tWallet("financesPendingRelease", {
-                  amount: `${formatMoney(view.pending)} MXN`,
-                })}
-              </div>
-            </div>
-          ) : null}
-
-          {/* Devuelto / perdido (solo si hay) */}
-          {hasLosses ? (
+          {/* Devuelto (solo si hay) */}
+          {view.refunded > 0 ? (
             <div
               style={{
                 display: "flex",
@@ -193,22 +290,12 @@ export default function WalletFinanzasPage() {
                 paddingTop: 2,
               }}
             >
-              {view.refunded > 0 ? (
-                <span>
-                  {tWallet("financesRefunded")}:{" "}
-                  <strong style={{ color: "rgba(255,255,255,0.7)", fontWeight: 600 }}>
-                    {formatMoney(view.refunded)} MXN
-                  </strong>
-                </span>
-              ) : null}
-              {view.rejected > 0 ? (
-                <span>
-                  {tWallet("financesRejectedLost")}:{" "}
-                  <strong style={{ color: "rgba(255,255,255,0.7)", fontWeight: 600 }}>
-                    {formatMoney(view.rejected)} MXN
-                  </strong>
-                </span>
-              ) : null}
+              <span>
+                {tWallet("financesRefunded")}:{" "}
+                <strong style={{ color: "rgba(255,255,255,0.7)", fontWeight: 600 }}>
+                  {formatMoney(view.refunded)} MXN
+                </strong>
+              </span>
             </div>
           ) : null}
         </div>

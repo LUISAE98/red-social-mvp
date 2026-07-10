@@ -35,32 +35,10 @@ services: {
   label: "Servicios",
   outline: (
     <svg viewBox="0 0 24 24" aria-hidden="true">
-      <rect
-        x="2.6"
-        y="5.2"
-        width="18.8"
-        height="13.6"
-        rx="2.8"
-        fill="none"
-        stroke={vibraPurple}
-      />
-
-      <circle
-        cx="12"
-        cy="12"
-        r="4.45"
-        fill="none"
-        stroke={vibraPurple}
-      />
-
+      <circle cx="12" cy="12" r="8.2" fill="none" stroke={vibraPurple} />
+      <path d="M12 7.4v9.2" fill="none" stroke={vibraPurple} />
       <path
-        d="M12 8.75V15.25"
-        fill="none"
-        stroke={vibraPurple}
-      />
-
-      <path
-        d="M13.75 10.25C13.35 9.7 12.75 9.4 12.05 9.45C11.35 9.5 10.85 9.9 10.85 10.55C10.85 11.25 11.45 11.55 12.25 11.78C13.15 12.05 13.85 12.45 13.85 13.35C13.85 14.15 13.2 14.6 12.25 14.68C11.45 14.75 10.75 14.4 10.35 13.8"
+        d="M14.3 9.4c-.5-.7-1.3-1.1-2.3-1.1-1.4 0-2.4.7-2.4 1.8 0 2.5 4.9 1.2 4.9 3.8 0 1.1-1 1.8-2.5 1.8-1 0-1.9-.4-2.4-1.2"
         fill="none"
         stroke={vibraPurple}
       />

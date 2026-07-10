@@ -36,7 +36,8 @@
     "tabOwnedCommunities": "Mis comunidades",
     "tabJoinedCommunities": "Comunidades que sigo",
     "tabExperiences": "Experiencias",
-    "sidebarFollowedProfiles": "Perfiles seguidos"
+    "sidebarFollowedProfiles": "Perfiles seguidos",
+    "statistics": "Estadísticas"
   },
   "common": {
     "accept": "Aceptar",
@@ -1004,7 +1005,23 @@
     "txTypeExclusiveSession": "Sesión exclusiva",
     "txTypeLiveSession": "Sesión en vivo",
     "txTypeSubscription": "Suscripción",
-    "txTypeVod": "VOD"
+    "txTypeVod": "VOD",
+    "financesPendingAmount": "Monto por liberar",
+    "financesBestMonth": "Mejor mes",
+    "statEarned": "Ganado {scope}",
+    "statRejected": "Rechazado {scope}",
+    "statRefunded": "Reembolsado {scope}",
+    "statScopeMonth": "este mes",
+    "statScopeAll": "histórico",
+    "statToggleHint": "Toca para ver el total del mes o histórico",
+    "chartTitle": "Ingresos",
+    "chartAllServices": "Todos",
+    "chartTapHint": "Toca aquí para cambiar de ingreso",
+    "chartRange5d": "5 días",
+    "chartRange30d": "30 días",
+    "chartRange3m": "3 meses",
+    "chartRange6m": "6 meses",
+    "chartRange1y": "1 año"
   },
   "services": {
     "confirmLabel": "Confirmar",
@@ -1217,7 +1234,8 @@
     "payAndJoin": "Pagar y unirme",
     "sessionLabelExclusive": "Sesión exclusiva con",
     "sessionLabelLive": "Sesión en vivo con",
-    "sessionLate": "La sesión ya inició, llevas de retraso",
+    "sessionLate": "Llevas de retraso",
+    "sessionTimeRemaining": "Tiempo restante",
     "sessionStartsIn": "Inicia en",
     "sessionWait15min": "Faltando 15 minutos podrás prepararte para entrar a tu sesión",
     "priceToConfirm": "Precio por confirmar",

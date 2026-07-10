@@ -71,6 +71,7 @@ export const onSuperCommentLedger = onDocumentCreated(
       sourceId: `${postId}_${scId}`,
       buyerId: str(data.userId) ?? str(data.guestId),
       earnedImmediately: true,
+      occurredAt: data.createdAt,
     });
   }
 );
@@ -95,6 +96,7 @@ export const onLiveAccessLedger = onDocumentCreated(
       sourceId: `${event.params.liveId}_${event.params.userId}`,
       buyerId: event.params.userId,
       earnedImmediately: true,
+      occurredAt: data.createdAt,
     });
   }
 );
@@ -143,13 +145,18 @@ export const onPostAccessLedger = onDocumentWritten(
       sourceId: event.params.accessId,
       buyerId: str(data.buyerId),
       earnedImmediately: true,
+      occurredAt: data.createdAt,
     });
   }
 );
 
-/** #10 suscripción a grupo (membresía con accessType "subscription"). */
+/**
+ * #10 suscripción a grupo. Se observa el doc de membresía del USUARIO
+ * (users/{uid}/groupMemberships/{groupId}) porque ese sí incluye `ownerId`
+ * (el doc de groups/{}/members/{} no lo trae).
+ */
 export const onGroupSubscriptionLedger = onDocumentWritten(
-  { document: "groups/{groupId}/members/{uid}", region: REGION },
+  { document: "users/{uid}/groupMemberships/{groupId}", region: REGION },
   async (event) => {
     const after = event.data?.after;
     if (!after?.exists) return;
@@ -179,6 +186,7 @@ export const onGroupSubscriptionLedger = onDocumentWritten(
       sourceId: `${groupId}_${uid}`,
       buyerId: uid,
       earnedImmediately: true,
+      occurredAt: data.subscribedAt ?? data.joinedAt ?? data.updatedAt,
     });
   }
 );
@@ -220,6 +228,7 @@ async function handleRequestLifecycle(params: {
         sourceId: params.requestId,
         buyerId: str(after.buyerId),
         earnedImmediately: false,
+        occurredAt: after.createdAt,
       });
     }
     return;

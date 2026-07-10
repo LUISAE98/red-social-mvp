@@ -11,11 +11,17 @@ import {
   type VibraNavigationIconType,
 } from "@/app/components/VibraServiceIcons/VibraNavigationIcons";
 
-type WalletRailTab = "finances" | "calendar" | "pending" | "history";
+type WalletRailTab =
+  | "finances"
+  | "statistics"
+  | "calendar"
+  | "pending"
+  | "history";
 type MainRailTab = "home" | "saved";
 
 function resolveWalletRailTab(pathname: string): WalletRailTab | null {
   if (pathname.startsWith("/wallet/finanzas")) return "finances";
+  if (pathname.startsWith("/wallet/estadisticas")) return "statistics";
   if (pathname.startsWith("/wallet/calendario")) return "calendar";
   if (pathname.startsWith("/wallet/pendientes")) return "pending";
   if (pathname.startsWith("/wallet/historial")) return "history";
@@ -93,7 +99,8 @@ export default function WalletDesktopRail({
     href: string;
     icon: VibraNavigationIconType;
   }> = [
-    { key: "finances", href: "/wallet/finanzas", icon: "finance" },
+    { key: "finances", href: "/wallet/finanzas", icon: "coin" },
+    { key: "statistics", href: "/wallet/estadisticas", icon: "finance" },
     { key: "calendar", href: "/wallet/calendario", icon: "calendar" },
     { key: "pending", href: "/wallet/pendientes", icon: "pending" },
     { key: "history", href: "/wallet/historial", icon: "history" },

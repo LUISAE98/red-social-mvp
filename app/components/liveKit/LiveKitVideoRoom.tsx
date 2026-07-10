@@ -161,13 +161,13 @@ function RoomContent({
     return onSnapshot(ref, (snap) => {
       if (!snap.exists()) return;
       const data = snap.data() as {
-        scheduledAt?: Timestamp;
+        startedAt?: Timestamp;
         durationMinutes?: number;
       };
-      const scheduledAt = data.scheduledAt;
+      const startedAt = data.startedAt;
       const dur = data.durationMinutes;
-      if (scheduledAt && dur != null) {
-        setSessionDeadline(scheduledAt.toMillis() + dur * 60 * 1000);
+      if (startedAt && dur != null) {
+        setSessionDeadline(startedAt.toMillis() + dur * 60 * 1000);
       }
     });
   }, [sessionId, sessionType]);

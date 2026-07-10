@@ -8,6 +8,7 @@ export type VibraNavigationIconType =
   | "search"
   | "saved"
   | "finance"
+  | "coin"
   | "calendar"
   | "pending"
   | "history"
@@ -228,6 +229,20 @@ premiumUnlocked: {
         <path stroke={gradientStroke} d="M8.5 19.5V14.5" />
         <path stroke={gradientStroke} d="M12.5 19.5V10" />
         <path stroke={gradientStroke} d="M16.5 19.5V6.5" />
+      </svg>
+    ),
+  },
+
+  coin: {
+    label: "Moneda",
+    icon: (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <circle stroke={gradientStroke} cx="12" cy="12" r="8.2" />
+        <path stroke={gradientStroke} d="M12 7.4v9.2" />
+        <path
+          stroke={gradientStroke}
+          d="M14.3 9.4c-.5-.7-1.3-1.1-2.3-1.1-1.4 0-2.4.7-2.4 1.8 0 2.5 4.9 1.2 4.9 3.8 0 1.1-1 1.8-2.5 1.8-1 0-1.9-.4-2.4-1.2"
+        />
       </svg>
     ),
   },

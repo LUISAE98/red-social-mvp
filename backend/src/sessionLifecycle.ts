@@ -46,7 +46,7 @@ const COLLECTION_BY_TYPE: Record<SessionType, string> = {
 };
 
 const JOINABLE_STATUSES = new Set(["scheduled", "ready_to_prepare", "in_preparation"]);
-const ENDABLE_STATUSES = new Set(["scheduled", "ready_to_prepare", "in_preparation"]);
+const ENDABLE_STATUSES = new Set(["scheduled", "ready_to_prepare", "in_preparation", "auto_rejected_no_show"]);
 const FORCE_COMPLETE_STATUSES = new Set(["session_incomplete"]);
 const SESSION_COMPLETE_THRESHOLD_PCT = 0.8;
 const FALLBACK_DURATION_MINUTES = 30;

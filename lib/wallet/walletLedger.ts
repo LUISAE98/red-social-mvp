@@ -33,6 +33,8 @@ export type LedgerEntry = {
   netAmount: number;
   currency: string;
   createdAt: Date | null;
+  /** Fecha real de la venta (si existe); si no, cae en createdAt. */
+  occurredAt: Date | null;
   buyerId: string | null;
 };
 
@@ -126,6 +128,7 @@ export function useWalletLedger(
               netAmount: toNumber(d.netAmount),
               currency: typeof d.currency === "string" ? d.currency : "MXN",
               createdAt: toDate(d.createdAt),
+              occurredAt: toDate(d.occurredAt) ?? toDate(d.createdAt),
               buyerId: typeof d.buyerId === "string" ? d.buyerId : null,
             };
           })

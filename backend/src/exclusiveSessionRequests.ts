@@ -1069,7 +1069,7 @@ export const setExclusiveSessionPreparing = onCall(
       throw new HttpsError("failed-precondition", "La solicitud todavía no tiene fecha agendada.");
     }
 
-    if (isNoShowExpired(scheduledAt)) {
+    if (isNoShowExpired(scheduledAt) && !data.startedAt) {
       const now = nowTs();
       await ref.update(getAutoRejectFields(data, now));
 
@@ -1159,6 +1159,7 @@ export async function expireExclusiveSessionNoShowsHandler() {
     if (!scheduledAt) return;
     if (!isNoShowExpired(scheduledAt)) return;
     if (data.preparingCreatorAt && data.preparingBuyerAt) return;
+    if (data.startedAt) return;
 
     batch.update(doc.ref, {
       ...getAutoRejectFields(data, now),

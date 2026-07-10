@@ -27,7 +27,7 @@ const COLLECTION_BY_TYPE: Record<SessionType, string> = {
 };
 
 // Estados que permiten entrar a la videollamada.
-const VALID_ENTRY_STATUSES = new Set(["scheduled", "ready_to_prepare", "in_preparation"]);
+const VALID_ENTRY_STATUSES = new Set(["scheduled", "ready_to_prepare", "in_preparation", "auto_rejected_no_show"]);
 
 // Mensajes específicos para estados terminales (antes del check genérico de estado).
 const TERMINAL_STATUS_MESSAGES: Partial<Record<string, string>> = {

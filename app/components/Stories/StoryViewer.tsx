@@ -14,8 +14,6 @@ import { getMutePreference, setMutePreference } from "@/lib/utils/mutePreference
 import { playEdgeTTS } from "@/lib/tts/edge-tts-client";
 import type { EdgeTTSHandle } from "@/lib/tts/edge-tts-client";
 import { useAuth } from "@/app/providers";
-import { useReport } from "@/lib/moderation/useReport";
-import ReportModal from "@/app/components/ReportModal/ReportModal";
 
 
 const VIBRA_RING = "linear-gradient(135deg, #ec4899 0%, #9333ea 52%, #3b82f6 100%)";
@@ -101,7 +99,6 @@ export default function StoryViewer({
   const speechCursorRef = useRef<HTMLSpanElement>(null);
 
   const { user } = useAuth();
-  const { reportTarget, openReport, closeReport } = useReport();
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const progressRafRef = useRef<number | null>(null);
@@ -927,36 +924,6 @@ export default function StoryViewer({
               >
                 {effectiveType === "saludo" ? tServices("wantGreeting") : tServices("wantAdvice")}
               </button>
-              {user && greetingAuthorUid && user.uid !== greetingAuthorUid && (
-                <button
-                  type="button"
-                  onTouchStart={(e) => e.stopPropagation()}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    openReport({
-                      targetType: "greeting",
-                      targetId: story.id,
-                      targetOwnerId: greetingAuthorUid,
-                    });
-                  }}
-                  style={{
-                    padding: isDesktop ? "8px 10px" : "11px 10px",
-                    borderRadius: 10,
-                    border: "1px solid rgba(255,255,255,0.15)",
-                    background: "rgba(255,255,255,0.07)",
-                    color: "rgba(255,255,255,0.65)",
-                    fontSize: isDesktop ? 12 : 14,
-                    fontWeight: 600,
-                    fontFamily: FONT,
-                    cursor: "pointer",
-                    letterSpacing: "-0.01em",
-                    WebkitTapHighlightColor: "transparent",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {tCommon("report")}
-                </button>
-              )}
             </div>
           </div>
         );
@@ -966,9 +933,6 @@ export default function StoryViewer({
     </>
   );
 
-  const reportModal = reportTarget ? (
-    <ReportModal target={reportTarget} onClose={closeReport} />
-  ) : null;
 
   // ── Shared: greeting purchase modal (renders above everything via its own portal) ──
   const greetModal = (
@@ -1036,7 +1000,7 @@ export default function StoryViewer({
           {renderPanelContent(12, false)}
         </div>
         {greetModal}
-        {reportModal}
+
       </>
     );
   }
@@ -1061,7 +1025,7 @@ export default function StoryViewer({
           document.body,
         )}
         {greetModal}
-        {reportModal}
+
       </>
     );
   }
@@ -1101,7 +1065,6 @@ export default function StoryViewer({
         document.body,
       )}
       {greetModal}
-      {reportModal}
     </>
   );
 }

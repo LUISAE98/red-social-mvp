@@ -14,6 +14,7 @@ export type CreatorSession = {
   status: string;
   preparingBuyerAt: Date | null;
   preparingCreatorAt: Date | null;
+  startedAt: Date | null;
 };
 
 export type UseCreatorTodaySessionsResult = {
@@ -120,6 +121,7 @@ export function useCreatorTodaySessions(uid: string | null): UseCreatorTodaySess
           status?: string;
           preparingBuyerAt?: unknown;
           preparingCreatorAt?: unknown;
+          startedAt?: unknown;
         };
         const scheduledAt = toDate(data.scheduledAt);
         if (!scheduledAt) return;
@@ -135,6 +137,7 @@ export function useCreatorTodaySessions(uid: string | null): UseCreatorTodaySess
           status: data.status ?? "scheduled",
           preparingBuyerAt: toDate(data.preparingBuyerAt),
           preparingCreatorAt: toDate(data.preparingCreatorAt),
+          startedAt: toDate(data.startedAt),
         });
       });
       for (const k of candidates.keys()) {
@@ -155,6 +158,7 @@ export function useCreatorTodaySessions(uid: string | null): UseCreatorTodaySess
           status?: string;
           preparingBuyerAt?: unknown;
           preparingCreatorAt?: unknown;
+          startedAt?: unknown;
         };
         const scheduledAt = toDate(data.scheduledAt);
         if (!scheduledAt) return;
@@ -170,6 +174,7 @@ export function useCreatorTodaySessions(uid: string | null): UseCreatorTodaySess
           status: data.status ?? "scheduled",
           preparingBuyerAt: toDate(data.preparingBuyerAt),
           preparingCreatorAt: toDate(data.preparingCreatorAt),
+          startedAt: toDate(data.startedAt),
         });
       });
       for (const k of candidates.keys()) {

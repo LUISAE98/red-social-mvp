@@ -35,11 +35,25 @@ admin.initializeApp({
 
 const db = admin.firestore();
 // Se requiere DESPUÉS de initializeApp para que el ledger use esta credencial.
-const { recordEarning, settleEarning, reverseEarning } = require("../lib/wallet/ledger.js");
+const { recordEarning, settleEarning, reverseEarning, stampOccurredAt } = require("../lib/wallet/ledger.js");
 
 const DRY = process.env.DRY_RUN !== "false";
 const num = (v) => (typeof v === "number" && Number.isFinite(v) ? v : 0);
 const str = (v) => (typeof v === "string" && v.trim().length > 0 ? v : null);
+// Fecha real de la venta (del doc de origen) como Date.
+const toJsDate = (v) => {
+  if (v && typeof v.toDate === "function") { try { return v.toDate(); } catch { return null; } }
+  if (v instanceof Date) return v;
+  return null;
+};
+// Registra + sella la fecha real en la entrada (nueva o ya existente).
+async function record(creatorId, params, occurredDate) {
+  if (DRY) return;
+  await recordEarning(creatorId, { ...params, occurredAt: occurredDate || undefined });
+  if (occurredDate) {
+    await stampOccurredAt(creatorId, params.sourceType, params.sourceId, occurredDate);
+  }
+}
 
 const stats = {};
 function tally(service, kind, gross) {
@@ -74,16 +88,18 @@ async function backfillSuperComments() {
     const hasText = str(d.text) !== null;
     const service = hasText ? "supercomment" : "live_donation";
     tally(service, "earned", gross);
-    if (!DRY) {
-      await recordEarning(authorId, {
+    await record(
+      authorId,
+      {
         type: hasText ? "supercomment" : "live_donation",
         grossAmount: gross,
         sourceType: "superComment",
         sourceId: `${postRef.id}_${doc.id}`,
         buyerId: str(d.userId) || str(d.guestId),
         earnedImmediately: true,
-      });
-    }
+      },
+      toJsDate(d.createdAt)
+    );
   }
 }
 
@@ -98,16 +114,18 @@ async function backfillLiveAccess() {
       const authorId = str(d.authorId);
       if (gross <= 0 || !authorId) continue;
       tally("live_ticket", "earned", gross);
-      if (!DRY) {
-        await recordEarning(authorId, {
+      await record(
+        authorId,
+        {
           type: "live_ticket",
           grossAmount: gross,
           sourceType: "liveAccess",
           sourceId: `${live.id}_${u.id}`,
           buyerId: u.id,
           earnedImmediately: true,
-        });
-      }
+        },
+        toJsDate(d.createdAt)
+      );
     }
   }
 }
@@ -128,43 +146,48 @@ async function backfillPostAccess() {
     const isVod = !!(post && post.liveData != null);
     const service = isVod ? "vod_ticket" : "premium_post";
     tally(service, "earned", gross);
-    if (!DRY) {
-      await recordEarning(creatorId, {
+    await record(
+      creatorId,
+      {
         type: isVod ? "vod_ticket" : "premium_post",
         grossAmount: gross,
         sourceType: "postAccess",
         sourceId: doc.id,
         buyerId: str(d.buyerId),
         earnedImmediately: true,
-      });
-    }
+      },
+      toJsDate(d.createdAt)
+    );
   }
 }
 
 async function backfillSubscriptions() {
-  // Sin filtro where() para no requerir un índice de collection-group solo por
-  // este backfill de una sola vez; filtramos en código.
-  const snap = await db.collectionGroup("members").get();
+  // Se usa el doc de membresía del USUARIO (users/{uid}/groupMemberships/{groupId})
+  // porque ese sí trae ownerId. Sin where() para no requerir índice.
+  const snap = await db.collectionGroup("groupMemberships").get();
   for (const doc of snap.docs) {
     const d = doc.data();
     if (d.accessType !== "subscription" || d.subscriptionActive !== true) continue;
     const ownerId = str(d.ownerId);
     const gross = num(d.subscriptionPriceMonthly);
-    const groupRef = doc.ref.parent.parent;
-    if (!ownerId || gross <= 0 || !groupRef) continue;
-    const uid = doc.id;
+    const userRef = doc.ref.parent.parent; // users/{uid}
+    if (!ownerId || gross <= 0 || !userRef) continue;
+    const uid = userRef.id;
+    const groupId = doc.id;
     if (ownerId === uid) continue;
     tally("subscription", "earned", gross);
-    if (!DRY) {
-      await recordEarning(ownerId, {
+    await record(
+      ownerId,
+      {
         type: "subscription",
         grossAmount: gross,
         sourceType: "groupSubscription",
-        sourceId: `${groupRef.id}_${uid}`,
+        sourceId: `${groupId}_${uid}`,
         buyerId: uid,
         earnedImmediately: true,
-      });
-    }
+      },
+      toJsDate(d.subscribedAt || d.joinedAt || d.updatedAt)
+    );
   }
 }
 
@@ -186,20 +209,22 @@ async function backfillRequests(opts) {
     const reversed = opts.reversedStatuses.includes(status);
     tally(service, delivered ? "earned" : reversed ? "reversed" : "pending", gross);
 
-    if (!DRY) {
-      await recordEarning(creatorId, {
+    await record(
+      creatorId,
+      {
         type: service,
         grossAmount: gross,
         sourceType: opts.sourceType,
         sourceId: doc.id,
         buyerId: str(d.buyerId),
         earnedImmediately: false,
-      });
-      if (delivered) {
-        await settleEarning(creatorId, opts.sourceType, doc.id);
-      } else if (reversed) {
-        await reverseEarning(creatorId, opts.sourceType, doc.id);
-      }
+      },
+      toJsDate(d.createdAt)
+    );
+    if (!DRY && delivered) {
+      await settleEarning(creatorId, opts.sourceType, doc.id);
+    } else if (!DRY && reversed) {
+      await reverseEarning(creatorId, opts.sourceType, doc.id);
     }
   }
 }

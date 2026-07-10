@@ -10,14 +10,16 @@ import { useAuth } from "@/app/providers";
 
 const TAB_ORDER: Record<WalletTabKey, number> = {
   finances: 0,
-  calendar: 1,
-  pending: 2,
-  history: 3,
+  statistics: 1,
+  calendar: 2,
+  pending: 3,
+  history: 4,
 };
 
 const STORAGE_KEY = "wallet-active-tab";
 
 function pathToTab(pathname: string): WalletTabKey {
+  if (pathname.includes("/estadisticas")) return "statistics";
   if (pathname.includes("/calendario")) return "calendar";
   if (pathname.includes("/pendientes")) return "pending";
   if (pathname.includes("/historial")) return "history";

@@ -63,8 +63,8 @@ export default function ProfileSubnav({
       ? [
           {
             key: "groups" as const,
-            title: isOwner ? tGroups("myGroups") : tGroups("profileCommunitiesTitle"),
-            label: isOwner ? tGroups("myGroups") : tGroups("title"),
+            title: isOwner ? tGroups("title") : tGroups("profileCommunitiesTitle"),
+            label: tGroups("title"),
             iconType: "communities" as const,
           },
         ]

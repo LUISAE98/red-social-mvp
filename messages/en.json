@@ -36,7 +36,8 @@
     "tabOwnedCommunities": "My communities",
     "tabJoinedCommunities": "Communities I joined",
     "tabExperiences": "Experiences",
-    "sidebarFollowedProfiles": "Followed profiles"
+    "sidebarFollowedProfiles": "Followed profiles",
+    "statistics": "Statistics"
   },
   "common": {
     "accept": "Accept",
@@ -1004,7 +1005,23 @@
     "txTypeExclusiveSession": "Exclusive session",
     "txTypeLiveSession": "Live session",
     "txTypeSubscription": "Subscription",
-    "txTypeVod": "VOD"
+    "txTypeVod": "VOD",
+    "financesPendingAmount": "Amount to release",
+    "financesBestMonth": "Best month",
+    "statEarned": "Earned {scope}",
+    "statRejected": "Rejected {scope}",
+    "statRefunded": "Refunded {scope}",
+    "statScopeMonth": "this month",
+    "statScopeAll": "all time",
+    "statToggleHint": "Tap to switch between this month and all time",
+    "chartTitle": "Income",
+    "chartAllServices": "All",
+    "chartTapHint": "Tap here to switch income",
+    "chartRange5d": "5 days",
+    "chartRange30d": "30 days",
+    "chartRange3m": "3 months",
+    "chartRange6m": "6 months",
+    "chartRange1y": "1 year"
   },
   "services": {
     "confirmLabel": "Confirm",
@@ -1217,7 +1234,8 @@
     "payAndJoin": "Pay and join",
     "sessionLabelExclusive": "Exclusive session with",
     "sessionLabelLive": "Live session with",
-    "sessionLate": "Session already started, you are late",
+    "sessionLate": "You are late",
+    "sessionTimeRemaining": "Time remaining",
     "sessionStartsIn": "Starts in",
     "sessionWait15min": "15 minutes before the session you can prepare to enter",
     "priceToConfirm": "Price to be confirmed",

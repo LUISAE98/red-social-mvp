@@ -53,6 +53,21 @@ export function netFromGross(gross: number): number {
   return round2(gross * WALLET_NET_RATE);
 }
 
+/** Normaliza la fecha real de la venta a Timestamp; si no hay, usa el reloj del servidor. */
+function toOccurredAt(value?: unknown) {
+  if (value instanceof admin.firestore.Timestamp) return value;
+  if (value instanceof Date) return admin.firestore.Timestamp.fromDate(value);
+  if (
+    value &&
+    typeof (value as { toDate?: unknown }).toDate === "function"
+  ) {
+    return admin.firestore.Timestamp.fromDate(
+      (value as { toDate: () => Date }).toDate()
+    );
+  }
+  return FieldValue.serverTimestamp();
+}
+
 function ledgerCollection(creatorId: string) {
   return db.collection("users").doc(creatorId).collection("walletLedger");
 }
@@ -114,6 +129,8 @@ export type RecordEarningParams = {
    * false = grupo B (cuenta al entregar/concluir) → estado "pending".
    */
   earnedImmediately: boolean;
+  /** Fecha REAL de la venta (para gráficas de tiempo). Si no, usa el reloj. */
+  occurredAt?: unknown;
 };
 
 /**
@@ -150,6 +167,7 @@ export async function recordEarning(
       sourceId: params.sourceId,
       buyerId: params.buyerId ?? null,
       createdAt: now,
+      occurredAt: toOccurredAt(params.occurredAt),
       earnedAt: status === "earned" ? now : null,
       settledAt: null,
       reversedAt: null,
@@ -165,6 +183,27 @@ export async function recordEarning(
 
     tx.set(sRef, { ...s, currency: "MXN", updatedAt: now }, { merge: true });
   });
+}
+
+/**
+ * Sella la fecha real de venta en una entrada YA existente (para el backfill
+ * de datos históricos que se registraron sin occurredAt).
+ */
+export async function stampOccurredAt(
+  creatorId: string,
+  sourceType: string,
+  sourceId: string,
+  occurredAt: Date
+): Promise<void> {
+  const ref = ledgerCollection(creatorId).doc(
+    deterministicEntryId(sourceType, sourceId)
+  );
+  const snap = await ref.get();
+  if (!snap.exists) return;
+  await ref.set(
+    { occurredAt: admin.firestore.Timestamp.fromDate(occurredAt) },
+    { merge: true }
+  );
 }
 
 /**

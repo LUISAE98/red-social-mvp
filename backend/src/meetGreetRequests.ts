@@ -495,6 +495,17 @@ function getNoShowExpiration(data: FirebaseFirestore.DocumentData): NoShowExpira
     };
   }
 
+  // If the session has already started (both joined LiveKit), never auto-reject
+  if (data.startedAt) {
+    return {
+      shouldReject: false,
+      missingCreator: false,
+      missingBuyer: false,
+      reasonCode: null,
+      reasonText: null,
+    };
+  }
+
   const missingCreator = !data.preparingCreatorAt;
   const missingBuyer = !data.preparingBuyerAt;
 

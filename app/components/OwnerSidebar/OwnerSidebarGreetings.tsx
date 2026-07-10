@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import {
   acceptMeetGreetRequest,
@@ -828,57 +828,7 @@ export default function OwnerSidebarGreetings({
     [incomingMeetGreets, incomingExclusiveSessions]
   );
 
-      const hasTimedScheduledServices = useMemo(() => {
-    return [...buyerScheduledServices, ...incomingScheduledServices].some(
-      (row) =>
-        row.data.scheduledAt &&
-        (row.data.status === "scheduled" ||
-          row.data.status === "ready_to_prepare" ||
-          row.data.status === "in_preparation")
-    );
-  }, [buyerScheduledServices, incomingScheduledServices]);
 
-  const [greetingsUiTick, setOwnerSidebarGreetingsUiTick] = useState(0);
-
-  useEffect(() => {
-    if (!hasTimedScheduledServices) return;
-
-    const interval = window.setInterval(() => {
-      setOwnerSidebarGreetingsUiTick((value) => value + 1);
-    }, 30_000);
-
-    return () => window.clearInterval(interval);
-  }, [hasTimedScheduledServices]);
-
-  const buyerAutoOpenedRef = useRef<Set<string>>(new Set());
-
-  useEffect(() => {
-    for (const row of buyerScheduledServices) {
-      if (!["scheduled", "ready_to_prepare", "in_preparation"].includes(row.data.status)) continue;
-      const startDate = (() => {
-        const v = row.data.scheduledAt;
-        if (!v) return null;
-        if (v instanceof Date) return v;
-        if (typeof v === "object" && v !== null && "toDate" in v && typeof (v as { toDate?: unknown }).toDate === "function") return (v as { toDate: () => Date }).toDate();
-        return null;
-      })();
-      if (!startDate) continue;
-      const minsLeft = (startDate.getTime() - Date.now()) / 60000;
-      let bucket: string | null = null;
-      if (minsLeft <= 15 && minsLeft > 10) bucket = "15";
-      else if (minsLeft <= 10 && minsLeft > 5) bucket = "10";
-      else if (minsLeft <= 5 && minsLeft > 0) bucket = "5";
-      if (!bucket) continue;
-      const key = `${row.id}-${bucket}`;
-      if (buyerAutoOpenedRef.current.has(key)) continue;
-      buyerAutoOpenedRef.current.add(key);
-      const creatorMini = userMiniMap[row.data.creatorId] ?? null;
-      const creatorName = creatorMini?.displayName ?? tCommon("creator");
-      const creatorAvatar = creatorMini?.photoURL ?? null;
-      setViewSessionItem({ row, creatorName, creatorAvatar });
-      break;
-    }
-  }, [greetingsUiTick, buyerScheduledServices, userMiniMap]);
 
   const completedBuyerScheduledRows = useMemo<ScheduledRow[]>(() => {
     return buyerScheduledServices.filter((row) => row.data.status === "completed");

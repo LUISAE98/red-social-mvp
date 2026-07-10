@@ -7,6 +7,7 @@ import { useAuth } from "@/app/providers";
 import type { WalletServiceItem } from "@/lib/wallet/ownerWallet";
 import { useWalletData } from "../components/WalletDataContext";
 import WalletSectionShell from "../components/WalletSectionShell";
+import WalletMonthlyStats from "../components/WalletMonthlyStats";
 import {
   EmptyRows,
   WalletCard,
@@ -214,6 +215,8 @@ const filteredItems = useMemo(() => {
     <>
     <WalletSectionShell activeTab="history">
       {walletData.error ? <WalletErrorBox message={walletData.error} /> : null}
+
+      <WalletMonthlyStats uid={user?.uid} />
 
       <WalletCard
         title={tWallet("historialTitle")}

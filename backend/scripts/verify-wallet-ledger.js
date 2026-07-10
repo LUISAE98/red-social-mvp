@@ -23,10 +23,28 @@ const db = admin.firestore();
 (async () => {
   const led = await db.collectionGroup("walletLedger").get();
   const byStatus = {};
+  let withOcc = 0;
+  let minD = null;
+  let maxD = null;
+  const months = new Set();
   led.docs.forEach((d) => {
     const s = d.data().status;
     byStatus[s] = (byStatus[s] || 0) + 1;
+    const o = d.data().occurredAt;
+    if (o && typeof o.toDate === "function") {
+      withOcc += 1;
+      const dt = o.toDate();
+      if (!minD || dt < minD) minD = dt;
+      if (!maxD || dt > maxD) maxD = dt;
+      months.add(dt.getFullYear() + "-" + String(dt.getMonth() + 1).padStart(2, "0"));
+    }
   });
+  console.log(
+    "occurredAt: " + withOcc + "/" + led.size + " · rango " +
+      (minD && minD.toISOString().slice(0, 10)) + " → " +
+      (maxD && maxD.toISOString().slice(0, 10)) + " · meses: " +
+      [...months].sort().join(", ")
+  );
 
   const sum = await db.collectionGroup("walletSummary").get();
   let lifeNet = 0, pendNet = 0, refNet = 0, rejNet = 0;

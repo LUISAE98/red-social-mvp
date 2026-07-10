@@ -14,6 +14,7 @@ export type BuyerNextSession = {
   status: string;
   preparingBuyerAt: Date | null;
   preparingCreatorAt: Date | null;
+  startedAt: Date | null;
 };
 
 export type UseBuyerNextSessionResult = {
@@ -61,6 +62,7 @@ function buildEntry(
     status?: string;
     preparingBuyerAt?: unknown;
     preparingCreatorAt?: unknown;
+    startedAt?: unknown;
   },
   scheduledAt: Date
 ): BuyerNextSession {
@@ -74,6 +76,7 @@ function buildEntry(
     status: data.status ?? "scheduled",
     preparingBuyerAt: toDate(data.preparingBuyerAt),
     preparingCreatorAt: toDate(data.preparingCreatorAt),
+    startedAt: toDate(data.startedAt),
   };
 }
 
@@ -133,6 +136,7 @@ export function useBuyerNextSession(uid: string | null): UseBuyerNextSessionResu
           status?: string;
           preparingBuyerAt?: unknown;
           preparingCreatorAt?: unknown;
+          startedAt?: unknown;
         };
         const scheduledAt = toDate(data.scheduledAt);
         if (!scheduledAt) return;
@@ -158,6 +162,7 @@ export function useBuyerNextSession(uid: string | null): UseBuyerNextSessionResu
           status?: string;
           preparingBuyerAt?: unknown;
           preparingCreatorAt?: unknown;
+          startedAt?: unknown;
         };
         const scheduledAt = toDate(data.scheduledAt);
         if (!scheduledAt) return;

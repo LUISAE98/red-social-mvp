@@ -21,6 +21,7 @@ import { VibraNavigationIcon } from "@/app/components/VibraServiceIcons/VibraNav
 import WalletDesktopRail from "@/app/components/WalletDesktopRail/WalletDesktopRail";
 import { MobileHeaderCtx, type MobileHeaderData } from "@/app/contexts/MobileHeaderContext";
 import LanguageSwitcher from "@/app/components/LanguageSwitcher";
+import DraggableSessionCard from "@/app/components/SessionCountdownBanner/DraggableSessionCard";
 
 
 function PublicProfileShell({
@@ -834,6 +835,7 @@ const contentAreaClassName = isEmbed
 
        {!isEmbed && <ScrollToTopFAB />}
        {!isEmbed && <MobileBottomNav showWallet={showWalletRail} />}
+       {!isEmbed && user && <DraggableSessionCard uid={user.uid} />}
       </div>
       </MobileHeaderCtx.Provider>
     </>

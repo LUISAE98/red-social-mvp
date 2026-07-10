@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useCreatorTodaySessions, type CreatorSession } from "@/lib/hooks/useCreatorTodaySessions";
 import { setMeetGreetPreparing } from "@/lib/meetGreet/meetGreetRequests";
 import { setExclusiveSessionPreparing } from "@/lib/exclusiveSession/exclusiveSessionRequests";
@@ -196,11 +197,28 @@ export default function CreatorSessionCountdownBanner({ uid }: { uid: string }) 
   const [reschedOpen, setReschedOpen] = useState(false);
   const [reschedReason, setReschedReason] = useState("");
   const lateTriggeredRef = useRef<Set<number>>(new Set());
+  const [countdown321, setCountdown321] = useState<number | null>(null);
+  const countdown321Triggered = useRef(false);
+  // Ref updated every render after variable computation — lets pre-early-return effects read fresh values
+  const preSessionCtxRef = useRef<{ secondsLeft: number | null; inProgress: boolean }>({ secondsLeft: null, inProgress: false });
+  const [listCollapsed, setListCollapsed] = useState(() => {
+    try { return localStorage.getItem("vibra:creator-list-collapsed") === "1"; } catch { return false; }
+  });
+
+  function toggleListCollapsed() {
+    setListCollapsed(v => {
+      const next = !v;
+      try { localStorage.setItem("vibra:creator-list-collapsed", next ? "1" : "0"); } catch { /* */ }
+      return next;
+    });
+  }
 
   useEffect(() => {
     lateTriggeredRef.current.clear();
     setReschedOpen(false);
     setReschedReason("");
+    countdown321Triggered.current = false;
+    setCountdown321(null);
   }, [nextSession?.id]);
 
   useEffect(() => {
@@ -209,17 +227,26 @@ export default function CreatorSessionCountdownBanner({ uid }: { uid: string }) 
     return () => clearInterval(id);
   }, [nextSession]);
 
-  // Re-open overlay every 5 minutes of delay
+  // Trigger 3-2-1 when pre-session countdown reaches 0 (reads ref so no TDZ issues)
   useEffect(() => {
-    if (!nextSession) return;
-    if (nextSession.status === "auto_rejected_no_show") return;
-    const msLate = now - nextSession.scheduledAt.getTime();
-    if (msLate <= 0) return;
-    const bucket = Math.floor(msLate / (5 * 60 * 1000)) * 5;
-    if (bucket <= 0 || lateTriggeredRef.current.has(bucket)) return;
-    lateTriggeredRef.current.add(bucket);
-    setPrepOpen(true);
-  }, [now, nextSession]);
+    const { secondsLeft, inProgress } = preSessionCtxRef.current;
+    if (secondsLeft !== 0 || countdown321Triggered.current || prepOpen || inProgress) return;
+    countdown321Triggered.current = true;
+    setCountdown321(3);
+  }, [now, prepOpen]);
+
+  // 3-2-1 countdown: 3→2→1→open prep room
+  useEffect(() => {
+    if (countdown321 === null) return;
+    if (countdown321 === 0) {
+      setCountdown321(null);
+      setPrepOpen(true);
+      return;
+    }
+    const t = setTimeout(() => setCountdown321((c) => (c !== null ? c - 1 : null)), 1000);
+    return () => clearTimeout(t);
+  }, [countdown321]);
+
 
   const noShowSessions = todaySessions.filter((s) => s.status === "auto_rejected_no_show");
   if (loading || todaySessions.length === 0) return null;
@@ -254,10 +281,23 @@ export default function CreatorSessionCountdownBanner({ uid }: { uid: string }) 
   const toleranceExpired = isPastStart && msLate >= 15 * 60 * 1000;
   const canPrepare = msLeft <= 15 * 60 * 1000;
 
-  const serviceLabel = nextSession.serviceKind === "exclusive_session" ? "exclusiva" : "en vivo";
+  // When startedAt is set, both joined LiveKit — switch to descending session timer
+  const sessionInProgress = !!nextSession.startedAt;
+  const durationMs = (nextSession.durationMinutes ?? 30) * 60 * 1000;
+  const sessionDeadline = sessionInProgress ? nextSession.startedAt!.getTime() + durationMs : null;
+  const msRemaining = sessionDeadline != null ? Math.max(0, sessionDeadline - now) : null;
+
   const buyerName = nextSession.buyerDisplayName ?? "Comprador";
-  const countdownLabel = isPastStart ? "La sesión ya inició, llevas de retraso" : "Próxima sesión en";
-  const countdownValue = isPastStart ? formatCountdown(Math.abs(msLeft)) : formatCountdown(msLeft);
+  const countdownLabel = sessionInProgress
+    ? "Tiempo restante"
+    : isPastStart
+    ? "Llevas de retraso"
+    : "Inicia en";
+  const countdownValue = sessionInProgress
+    ? formatCountdown(msRemaining ?? 0)
+    : isPastStart
+    ? formatCountdown(Math.abs(msLeft))
+    : formatCountdown(msLeft);
   const otherSessions = todaySessions.filter((s) => s.id !== nextSession.id);
   const sessionCountLabel =
     otherSessions.length === 0
@@ -269,6 +309,18 @@ export default function CreatorSessionCountdownBanner({ uid }: { uid: string }) 
   const buyerConnected = !!nextSession.preparingBuyerAt;
   const creatorConnected = !!nextSession.preparingCreatorAt;
 
+  // Pre-session synchronized countdown: starts when both are preparing
+  const prepT0 =
+    buyerConnected && creatorConnected && nextSession.preparingBuyerAt && nextSession.preparingCreatorAt
+      ? Math.max(nextSession.preparingBuyerAt.getTime(), nextSession.preparingCreatorAt.getTime())
+      : null;
+  const preSessionSecondsLeft =
+    prepT0 !== null && !sessionInProgress && !prepOpen
+      ? Math.max(0, Math.ceil(((prepT0 + 60_000) - now) / 1000))
+      : null;
+  // Update ref so pre-early-return effects can read these values
+  preSessionCtxRef.current = { secondsLeft: preSessionSecondsLeft, inProgress: sessionInProgress };
+
   async function handlePrepare() {
     if (!nextSession || busy || !canPrepare) return;
     setBusy(true);
@@ -278,7 +330,7 @@ export default function CreatorSessionCountdownBanner({ uid }: { uid: string }) 
       } else {
         await setExclusiveSessionPreparing({ requestId: nextSession.id, role: "creator" });
       }
-      setPrepOpen(true);
+      // Do NOT open prep room here — it opens after the 3-2-1 countdown
     } catch (e) {
       console.error(e);
     } finally {
@@ -340,141 +392,145 @@ export default function CreatorSessionCountdownBanner({ uid }: { uid: string }) 
           boxSizing: "border-box",
         }}
       >
-        {/* Background image — meet_greet */}
-        <div
-          style={{
-            position: "absolute",
-            inset: 0,
-            backgroundImage: "url(/encuentroenvivo.png)",
-            backgroundSize: "cover",
-            backgroundPosition: "center",
-            opacity: nextSession.serviceKind === "meet_greet" ? 1 : 0,
-            transition: "opacity 0.75s ease",
-          }}
-        />
-        {/* Background image — exclusive_session */}
-        <div
-          style={{
-            position: "absolute",
-            inset: 0,
-            backgroundImage: "url(/sesionexclusiva.png)",
-            backgroundSize: "cover",
-            backgroundPosition: "center",
-            opacity: nextSession.serviceKind === "exclusive_session" ? 1 : 0,
-            transition: "opacity 0.75s ease",
-          }}
-        />
-        {/* dark overlay */}
-        <div
-          style={{
-            position: "absolute",
-            inset: 0,
-            background: "linear-gradient(160deg, rgba(0,0,0,0.52) 0%, rgba(0,0,0,0.72) 100%)",
-          }}
-        />
+        {/* ── Core section: background image stays fixed here ── */}
+        <div style={{ position: "relative" }}>
+          {/* Background image — meet_greet */}
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              backgroundImage: "url(/encuentroenvivo.png)",
+              backgroundSize: "cover",
+              backgroundPosition: "center",
+              opacity: nextSession.serviceKind === "meet_greet" ? 1 : 0,
+              transition: "opacity 0.75s ease",
+            }}
+          />
+          {/* Background image — exclusive_session */}
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              backgroundImage: "url(/sesionexclusiva.png)",
+              backgroundSize: "cover",
+              backgroundPosition: "center",
+              opacity: nextSession.serviceKind === "exclusive_session" ? 1 : 0,
+              transition: "opacity 0.75s ease",
+            }}
+          />
+          {/* dark overlay */}
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              background: "linear-gradient(160deg, rgba(0,0,0,0.52) 0%, rgba(0,0,0,0.72) 100%)",
+            }}
+          />
 
-        <div
-          style={{
-            position: "relative",
-            padding: "16px 18px",
-            display: "flex",
-            flexDirection: "column",
-            gap: 14,
-          }}
-        >
-          {/* Row 1: buyer avatar + name (left) + countdown (right) */}
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            {/* Buyer avatar */}
-            <div
-              style={{
-                width: 52,
-                height: 52,
-                borderRadius: "50%",
-                overflow: "hidden",
-                flexShrink: 0,
-                background: "rgba(255,255,255,0.10)",
-                border: "2px solid rgba(255,255,255,0.22)",
-              }}
-            >
-              {nextSession.buyerAvatarUrl ? (
-                <Image
-                  src={nextSession.buyerAvatarUrl}
-                  alt={buyerName}
-                  width={52}
-                  height={52}
-                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                />
-              ) : (
+          <div
+            style={{
+              position: "relative",
+              padding: "16px 18px",
+              display: "flex",
+              flexDirection: "column",
+              gap: 14,
+            }}
+          >
+            {/* Row 1: buyer avatar + name (left) + countdown (right) */}
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              {/* Buyer avatar */}
+              <div
+                style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: "50%",
+                  overflow: "hidden",
+                  flexShrink: 0,
+                  background: "rgba(255,255,255,0.10)",
+                  border: "2px solid rgba(255,255,255,0.22)",
+                }}
+              >
+                {nextSession.buyerAvatarUrl ? (
+                  <Image
+                    src={nextSession.buyerAvatarUrl}
+                    alt={buyerName}
+                    width={44}
+                    height={44}
+                    style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                  />
+                ) : (
+                  <div
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      display: "grid",
+                      placeItems: "center",
+                      fontSize: 17,
+                      fontWeight: 700,
+                      color: "#fff",
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    {buyerName[0]}
+                  </div>
+                )}
+              </div>
+
+              {/* Buyer name block */}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.65)", fontWeight: 500, marginBottom: 3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                  Sesión con
+                </div>
                 <div
                   style={{
-                    width: "100%",
-                    height: "100%",
-                    display: "grid",
-                    placeItems: "center",
-                    fontSize: 20,
-                    fontWeight: 700,
+                    fontSize: 16,
                     color: "#fff",
-                    textTransform: "uppercase",
+                    fontWeight: 700,
+                    letterSpacing: "-0.01em",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
                   }}
                 >
-                  {buyerName[0]}
+                  {buyerName}
                 </div>
-              )}
-            </div>
+              </div>
 
-            {/* Buyer name block */}
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 13, color: "rgba(255,255,255,0.65)", fontWeight: 500, marginBottom: 3 }}>
-                Sesión {serviceLabel} con
-              </div>
-              <div
-                style={{
-                  fontSize: 17,
-                  color: "#fff",
-                  fontWeight: 700,
-                  letterSpacing: "-0.01em",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {buyerName}
-              </div>
-            </div>
-
-            {/* Countdown */}
-            <div style={{ flexShrink: 0, textAlign: "right", maxWidth: "45%" }}>
-              <div
-                style={{
-                  fontSize: 11,
-                  fontWeight: 500,
-                  marginBottom: 2,
-                  lineHeight: 1.3,
-                  color: isPastStart ? "#fb923c" : "rgba(255,255,255,0.65)",
-                }}
-              >
-                {countdownLabel}
-              </div>
-              <div
-                style={{
-                  fontSize: 26,
-                  fontWeight: 700,
-                  letterSpacing: "-0.03em",
-                  fontVariantNumeric: "tabular-nums",
-                  textShadow: "0 1px 8px rgba(0,0,0,0.5)",
-                  color: isPastStart ? "#fb923c" : "#fff",
-                  ...(isPastStart ? { animation: "creator-late-pulse 1.6s ease-in-out infinite" } : {}),
-                }}
-              >
-                {countdownValue}
-              </div>
-              {isPastStart && (
-                <div style={{ fontSize: 10, color: "#fb923c", marginTop: 3, lineHeight: 1.3, opacity: 0.85 }}>
-                  Solo tienes 15 min de tolerancia
+              {/* Countdown */}
+              <div style={{ flexShrink: 0, textAlign: "right", maxWidth: "40%" }}>
+                <div
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 500,
+                    marginBottom: 2,
+                    lineHeight: 1.3,
+                    color: sessionInProgress ? "#4ade80" : isPastStart ? "#fb923c" : "rgba(255,255,255,0.65)",
+                  }}
+                >
+                  {countdownLabel}
                 </div>
-              )}
+                <div
+                  style={{
+                    fontSize: 22,
+                    fontWeight: 700,
+                    letterSpacing: "-0.03em",
+                    fontVariantNumeric: "tabular-nums",
+                    textShadow: "0 1px 8px rgba(0,0,0,0.5)",
+                    color: sessionInProgress
+                      ? (msRemaining != null && msRemaining <= 60000 ? "#ef4444" : msRemaining != null && msRemaining <= 300000 ? "#f59e0b" : "#4ade80")
+                      : isPastStart ? "#fb923c" : "#fff",
+                    ...(isPastStart && !sessionInProgress ? { animation: "creator-late-pulse 1.6s ease-in-out infinite" } : {}),
+                  }}
+                >
+                  {countdownValue}
+                </div>
+                {isPastStart && !sessionInProgress && (
+                  <div style={{ fontSize: 10, color: "#fb923c", marginTop: 3, lineHeight: 1.3, opacity: 0.85 }}>
+                    15 min de tolerancia
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
 
           {/* Connection status notice */}
           {canPrepare && (buyerConnected || creatorConnected) && (
@@ -512,68 +568,134 @@ export default function CreatorSessionCountdownBanner({ uid }: { uid: string }) 
             </div>
           )}
 
-          {/* Session count + list */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.55)", fontWeight: 500, marginBottom: 2 }}>
-              {sessionCountLabel}
-            </div>
-            {otherSessions.map((s) =>
-              s.status === "auto_rejected_no_show" ? (
-                <ActionSessionRow key={s.id} session={s} />
-              ) : (
-                <SessionRow key={s.id} session={s} />
-              )
-            )}
-          </div>
-
           {/* Action area */}
-          {!toleranceExpired ? (
-            !canPrepare ? (
-              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.60)", lineHeight: 1.4 }}>
-                Faltando 15 minutos podrás prepararte para entrar a tu sesión
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={handlePrepare}
-                disabled={busy}
-                style={{
-                  position: "relative",
-                  overflow: "hidden",
-                  width: "100%",
-                  height: 40,
-                  borderRadius: 8,
-                  border: "none",
-                  background: busy ? "rgba(255,255,255,0.14)" : "transparent",
-                  color: busy ? "rgba(255,255,255,0.35)" : "#fff",
-                  fontSize: 15,
-                  fontWeight: 600,
-                  cursor: busy ? "not-allowed" : "pointer",
-                  fontFamily: "inherit",
-                  letterSpacing: "-0.02em",
-                }}
-              >
-                {!busy && (
-                  <>
-                    <span style={{
-                      position: "absolute", inset: 0, borderRadius: "inherit",
-                      background: "linear-gradient(135deg, #2563eb 0%, #3b82f6 100%)",
-                      opacity: nextSession.serviceKind === "meet_greet" ? 1 : 0,
-                      transition: "opacity 0.75s ease",
-                    }} />
-                    <span style={{
-                      position: "absolute", inset: 0, borderRadius: "inherit",
-                      background: "linear-gradient(135deg, #be185d 0%, #ec4899 100%)",
-                      opacity: nextSession.serviceKind === "exclusive_session" ? 1 : 0,
-                      transition: "opacity 0.75s ease",
-                    }} />
-                  </>
-                )}
-                <span style={{ position: "relative", zIndex: 1 }}>
-                  {busy ? "Procesando..." : "Prepararse"}
-                </span>
-              </button>
-            )
+          {sessionInProgress ? (
+            <button
+              type="button"
+              onClick={() => setPrepOpen(true)}
+              style={{
+                position: "relative",
+                overflow: "hidden",
+                width: "100%",
+                height: 40,
+                borderRadius: 8,
+                border: "none",
+                background: "transparent",
+                color: "#fff",
+                cursor: "pointer",
+                fontSize: 15,
+                fontWeight: 600,
+                fontFamily: "inherit",
+                letterSpacing: "-0.02em",
+              }}
+            >
+              <span style={{
+                position: "absolute", inset: 0, borderRadius: "inherit",
+                background: "linear-gradient(135deg, #16a34a 0%, #22c55e 100%)",
+                opacity: nextSession.serviceKind === "meet_greet" ? 1 : 0,
+                transition: "opacity 0.75s ease",
+              }} />
+              <span style={{
+                position: "absolute", inset: 0, borderRadius: "inherit",
+                background: "linear-gradient(135deg, #15803d 0%, #16a34a 100%)",
+                opacity: nextSession.serviceKind === "exclusive_session" ? 1 : 0,
+                transition: "opacity 0.75s ease",
+              }} />
+              <span style={{ position: "relative", zIndex: 1 }}>Abrir sesión</span>
+            </button>
+          ) : !toleranceExpired ? (
+            <>
+              {/* Info notice shown when not yet time to prepare */}
+              {!canPrepare && (
+                <div style={{ display: "flex", alignItems: "flex-start", gap: 7 }}>
+                  <svg
+                    width={15}
+                    height={15}
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke={nextSession.serviceKind === "exclusive_session" ? "#f9a8d4" : "#93c5fd"}
+                    strokeWidth={2}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                    style={{ flexShrink: 0, marginTop: 1 }}
+                  >
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="12" y1="8" x2="12" y2="8.01" />
+                    <line x1="12" y1="12" x2="12" y2="16" />
+                  </svg>
+                  <span style={{
+                    fontSize: 12,
+                    color: "rgba(255,255,255,0.60)",
+                    lineHeight: 1.4,
+                  }}>
+                    Faltando 15 minutos podrás prepararte para entrar a tu sesión
+                  </span>
+                </div>
+              )}
+
+              {preSessionSecondsLeft !== null ? (
+                /* Both prepared — synchronized countdown */
+                <div style={{ textAlign: "center", padding: "6px 0" }}>
+                  <div style={{ fontSize: 12, color: "rgba(255,255,255,0.65)", marginBottom: 6 }}>
+                    Ambos están en la sala
+                  </div>
+                  <div style={{ fontSize: 38, fontWeight: 900, color: "#4ade80", letterSpacing: "-0.04em", lineHeight: 1, fontVariantNumeric: "tabular-nums" }}>
+                    {preSessionSecondsLeft}
+                  </div>
+                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", marginTop: 4 }}>
+                    La sesión comienza en...
+                  </div>
+                </div>
+              ) : creatorConnected ? (
+                /* Creator prepared, waiting for buyer */
+                <div style={{ textAlign: "center", padding: "8px 0", fontSize: 13, color: "rgba(255,255,255,0.55)", fontStyle: "italic" }}>
+                  En sala · Esperando al comprador
+                </div>
+              ) : (
+                /* Not yet prepared */
+                <button
+                  type="button"
+                  onClick={handlePrepare}
+                  disabled={!canPrepare || busy}
+                  style={{
+                    position: "relative",
+                    overflow: "hidden",
+                    width: "100%",
+                    height: 40,
+                    borderRadius: 8,
+                    border: "none",
+                    background: !canPrepare || busy ? "rgba(255,255,255,0.14)" : "transparent",
+                    color: !canPrepare || busy ? "rgba(255,255,255,0.35)" : "#fff",
+                    cursor: !canPrepare || busy ? "not-allowed" : "pointer",
+                    fontSize: 15,
+                    fontWeight: 600,
+                    fontFamily: "inherit",
+                    letterSpacing: "-0.02em",
+                  }}
+                >
+                  {canPrepare && !busy && (
+                    <>
+                      <span style={{
+                        position: "absolute", inset: 0, borderRadius: "inherit",
+                        background: "linear-gradient(135deg, #2563eb 0%, #3b82f6 100%)",
+                        opacity: nextSession.serviceKind === "meet_greet" ? 1 : 0,
+                        transition: "opacity 0.75s ease",
+                      }} />
+                      <span style={{
+                        position: "absolute", inset: 0, borderRadius: "inherit",
+                        background: "linear-gradient(135deg, #be185d 0%, #ec4899 100%)",
+                        opacity: nextSession.serviceKind === "exclusive_session" ? 1 : 0,
+                        transition: "opacity 0.75s ease",
+                      }} />
+                    </>
+                  )}
+                  <span style={{ position: "relative", zIndex: 1 }}>
+                    {busy ? "Procesando..." : "Prepararse"}
+                  </span>
+                </button>
+              )}
+            </>
           ) : reschedOpen ? (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               <textarea
@@ -685,8 +807,87 @@ export default function CreatorSessionCountdownBanner({ uid }: { uid: string }) 
               </div>
             </div>
           )}
+
+          {/* Session count label + toggle — stays inside the background section */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.55)", fontWeight: 500 }}>
+              {sessionCountLabel}
+            </div>
+            {otherSessions.length > 0 && (
+              <button
+                type="button"
+                onClick={toggleListCollapsed}
+                style={{
+                  background: "none",
+                  border: "none",
+                  color: "#fff",
+                  cursor: "pointer",
+                  fontSize: 10,
+                  fontWeight: 600,
+                  padding: 0,
+                  fontFamily: "inherit",
+                  flexShrink: 0,
+                }}
+              >
+                {listCollapsed ? "Ver" : "Ocultar"}
+              </button>
+            )}
+          </div>
         </div>
+        </div>
+
+        {/* ── Session list: outside the background so el fondo no se redimensiona ── */}
+        {!listCollapsed && otherSessions.length > 0 && (
+          <div
+            style={{
+              background: "rgba(0,0,0,0.72)",
+              borderTop: "1px solid rgba(255,255,255,0.07)",
+              padding: "8px 18px 14px",
+              display: "flex",
+              flexDirection: "column",
+              gap: 6,
+            }}
+          >
+            {otherSessions.map((s) =>
+              s.status === "auto_rejected_no_show" ? (
+                <ActionSessionRow key={s.id} session={s} />
+              ) : (
+                <SessionRow key={s.id} session={s} />
+              )
+            )}
+          </div>
+        )}
       </div>
+
+      {countdown321 !== null && createPortal(
+        <div style={{
+          position: "fixed", inset: 0, zIndex: 20000,
+          background: "rgba(0,0,0,0.92)",
+          display: "flex", flexDirection: "column",
+          alignItems: "center", justifyContent: "center", gap: 12,
+        }}>
+          <style>{`
+            @keyframes cd321-pop {
+              from { transform: scale(0.3); opacity: 0; }
+              to   { transform: scale(1);   opacity: 1; }
+            }
+          `}</style>
+          <div
+            key={countdown321}
+            style={{
+              fontSize: 160, fontWeight: 900, color: "#fff",
+              letterSpacing: "-0.06em", lineHeight: 1,
+              animation: "cd321-pop 0.3s cubic-bezier(0.34,1.56,0.64,1)",
+            }}
+          >
+            {countdown321}
+          </div>
+          <div style={{ fontSize: 16, color: "rgba(255,255,255,0.55)", fontWeight: 500 }}>
+            La sesión está por comenzar
+          </div>
+        </div>,
+        document.body
+      )}
 
       <MeetGreetPreparationFullscreen
         open={prepOpen}
