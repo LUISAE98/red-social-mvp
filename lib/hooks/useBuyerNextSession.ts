@@ -37,6 +37,10 @@ function toDate(value: unknown): Date | null {
     const d = (value as { toDate: () => Date }).toDate();
     return d instanceof Date && !isNaN(d.getTime()) ? d : null;
   }
+  if (typeof value === "string") {
+    const d = new Date(value);
+    return !isNaN(d.getTime()) ? d : null;
+  }
   return null;
 }
 

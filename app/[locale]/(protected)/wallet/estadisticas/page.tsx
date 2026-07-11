@@ -3,6 +3,7 @@
 import { useAuth } from "@/app/providers";
 import WalletSectionShell from "../components/WalletSectionShell";
 import { WalletCard } from "../components/WalletUi";
+import WalletPurchaseGlobe from "../components/WalletPurchaseGlobe";
 import WalletIncomeChart from "../components/WalletIncomeChart";
 import WalletServiceBreakdown from "../components/WalletServiceBreakdown";
 import WalletTopFans from "../components/WalletTopFans";
@@ -18,6 +19,10 @@ export default function WalletEstadisticasPage() {
       <WalletCard transparent>
         <WalletIncomeChart uid={user?.uid} />
         <WalletServiceBreakdown uid={user?.uid} />
+      </WalletCard>
+
+      <WalletCard transparent>
+        <WalletPurchaseGlobe />
       </WalletCard>
 
       <WalletCard transparent>

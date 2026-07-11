@@ -161,13 +161,17 @@ function RoomContent({
     return onSnapshot(ref, (snap) => {
       if (!snap.exists()) return;
       const data = snap.data() as {
-        startedAt?: Timestamp;
+        startedAt?: Timestamp | string;
         durationMinutes?: number;
       };
       const startedAt = data.startedAt;
       const dur = data.durationMinutes;
       if (startedAt && dur != null) {
-        setSessionDeadline(startedAt.toMillis() + dur * 60 * 1000);
+        const startedAtMs =
+          typeof startedAt === "string"
+            ? new Date(startedAt).getTime()
+            : startedAt.toMillis();
+        setSessionDeadline(startedAtMs + dur * 60 * 1000);
       }
     });
   }, [sessionId, sessionType]);
@@ -345,16 +349,12 @@ function RoomContent({
 
       {/* Barra de controles */}
       <div style={styles.controls}>
-        <ControlButton
-          onClick={toggleMic}
-          active={isMicrophoneEnabled}
-          label={isMicrophoneEnabled ? "Mic ON" : "Mic OFF"}
-        />
-        <ControlButton
-          onClick={toggleCamera}
-          active={isCameraEnabled}
-          label={isCameraEnabled ? tLive("camStatusOn") : tLive("camStatusOff")}
-        />
+        <ControlButton onClick={toggleMic} active={isMicrophoneEnabled} label={isMicrophoneEnabled ? "Micrófono activo" : "Micrófono silenciado"}>
+          {isMicrophoneEnabled ? <MicIcon /> : <MicOffIcon />}
+        </ControlButton>
+        <ControlButton onClick={toggleCamera} active={isCameraEnabled} label={isCameraEnabled ? "Cámara activa" : "Cámara apagada"}>
+          {isCameraEnabled ? <CamIcon /> : <CamOffIcon />}
+        </ControlButton>
 
         <button
           type="button"
@@ -497,23 +497,68 @@ function ControlButton({
   onClick,
   active,
   label,
+  children,
 }: {
   onClick: () => void;
   active: boolean;
   label: string;
+  children: React.ReactNode;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
+      aria-label={label}
       style={{
         ...styles.controlButton,
-        background: active ? "rgba(255,255,255,0.10)" : "rgba(255,80,80,0.20)",
-        borderColor: active ? "rgba(255,255,255,0.18)" : "rgba(255,80,80,0.35)",
+        background: active ? "rgba(255,255,255,0.10)" : "rgba(239,68,68,0.22)",
+        borderColor: active ? "rgba(255,255,255,0.18)" : "rgba(239,68,68,0.40)",
       }}
     >
-      {label}
+      {children}
     </button>
+  );
+}
+
+function MicIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/>
+      <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+      <line x1="12" y1="19" x2="12" y2="23"/>
+      <line x1="8" y1="23" x2="16" y2="23"/>
+    </svg>
+  );
+}
+
+function MicOffIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <line x1="1" y1="1" x2="23" y2="23"/>
+      <path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V5a3 3 0 0 0-5.94-.6"/>
+      <path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23"/>
+      <line x1="12" y1="19" x2="12" y2="23"/>
+      <line x1="8" y1="23" x2="16" y2="23"/>
+    </svg>
+  );
+}
+
+function CamIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <polygon points="23 7 16 12 23 17 23 7"/>
+      <rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
+    </svg>
+  );
+}
+
+function CamOffIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <line x1="1" y1="1" x2="23" y2="23"/>
+      <path d="M21 21H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h3m3-3h6l2 3h2a2 2 0 0 1 2 2v9.34"/>
+      <path d="M23 7l-7 5 7 5V7z" strokeOpacity="0.5"/>
+    </svg>
   );
 }
 
@@ -582,15 +627,16 @@ const styles: Record<string, CSSProperties> = {
     flexWrap: "wrap",
   },
   controlButton: {
-    minHeight: 44,
-    padding: "10px 18px",
-    borderRadius: 12,
+    width: 48,
+    height: 48,
+    borderRadius: "50%",
     border: "1px solid",
     color: "#fff",
     cursor: "pointer",
-    fontSize: 13,
-    fontWeight: 700,
-    lineHeight: 1.1,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
     WebkitTapHighlightColor: "transparent",
     transition: "background 0.15s",
   },

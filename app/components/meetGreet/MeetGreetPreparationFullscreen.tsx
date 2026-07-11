@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useSyncExternalStore, type CSSProperties } from "react";
+import { useEffect, useState, useSyncExternalStore, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import LiveKitVideoRoom from "@/app/components/liveKit/LiveKitVideoRoom";
 import type { LivekitSessionType } from "@/lib/liveKit/getLivekitToken";
@@ -31,6 +31,15 @@ export default function MeetGreetPreparationFullscreen({
     () => true,
     () => false,
   );
+
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const mql = window.matchMedia("(pointer: coarse), (max-width: 767px)");
+    setIsMobile(mql.matches);
+    const h = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mql.addEventListener("change", h);
+    return () => mql.removeEventListener("change", h);
+  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -80,22 +89,24 @@ export default function MeetGreetPreparationFullscreen({
 
   return createPortal(
     <div role="dialog" aria-modal="true" style={backdrop}>
-      {/* Barra superior con info de la sesión */}
-      <div style={topBar}>
-        <div style={{ minWidth: 0 }}>
-          <div style={topBarTitle}>
-            {sessionLabel} — Sala de preparación
+      {/* Barra superior — solo en desktop */}
+      {!isMobile && (
+        <div style={topBar}>
+          <div style={{ minWidth: 0 }}>
+            <div style={topBarTitle}>
+              {sessionLabel} — Sala de preparación
+            </div>
+            <div style={topBarSubtitle}>
+              {role === "buyer" ? "Participante" : "Creador"}
+              {scheduledAtLabel ? ` · ${scheduledAtLabel}` : ""}
+              {durationMinutes != null ? ` · ${durationMinutes} min` : ""}
+            </div>
           </div>
-          <div style={topBarSubtitle}>
-            {role === "buyer" ? "Participante" : "Creador"}
-            {scheduledAtLabel ? ` · ${scheduledAtLabel}` : ""}
-            {durationMinutes != null ? ` · ${durationMinutes} min` : ""}
-          </div>
+          <button type="button" onClick={onClose} style={closeButton}>
+            Cerrar
+          </button>
         </div>
-        <button type="button" onClick={onClose} style={closeButton}>
-          Cerrar
-        </button>
-      </div>
+      )}
 
       {/* Área de videollamada */}
       <div style={body}>

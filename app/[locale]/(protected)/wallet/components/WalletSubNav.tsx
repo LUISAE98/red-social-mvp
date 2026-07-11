@@ -59,6 +59,7 @@ export default function WalletSubNav({
         .wrap {
           width: 100%;
           overflow-x: hidden;
+          container-type: inline-size;
         }
 
         .nav {
@@ -74,15 +75,16 @@ export default function WalletSubNav({
           min-width: 0;
         }
 
+        /* Base = solo icono (compacto), para celular y laptops estrechas. */
         .tabInner {
           min-width: 0;
-          min-height: 56px;
+          min-height: 52px;
           display: flex;
           flex-direction: column;
           align-items: center;
           justify-content: center;
-          gap: 9px;
-          padding: 0 10px 10px;
+          gap: 4px;
+          padding: 0 8px 10px;
           color: rgba(168, 85, 247, 0.55);
           font-size: 16px;
           font-weight: 500;
@@ -95,7 +97,7 @@ export default function WalletSubNav({
         .tabContent {
           display: flex;
           align-items: center;
-          gap: 8px;
+          gap: 0;
         }
 
         .tabLink:hover .tabInner {
@@ -117,7 +119,7 @@ export default function WalletSubNav({
         }
 
         .label {
-          display: inline-block;
+          display: none;
           min-width: 0;
         }
 
@@ -132,28 +134,34 @@ export default function WalletSubNav({
                       opacity 0.18s ease;
         }
 
-        @media (max-width: 900px) {
+        /* Con ancho suficiente en el subnav: se muestra el texto y el icono normal. */
+        @container (min-width: 760px) {
           .tabInner {
-            min-height: 52px;
-            padding: 0 8px 10px;
-            gap: 4px;
+            min-height: 56px;
+            padding: 0 10px 10px;
+            gap: 9px;
           }
 
           .tabContent {
-            gap: 0;
+            gap: 8px;
           }
 
           .label {
-            display: none;
+            display: inline-block;
           }
         }
       `}</style>
 
       <style jsx global>{`
-        @media (max-width: 900px) {
+        /* Base: icono grande (modo solo-icono). */
+        .walletSubNavEmoji .vibraNavigationIconSvg {
+          width: 28px !important;
+          height: 28px !important;
+        }
+        @container (min-width: 760px) {
           .walletSubNavEmoji .vibraNavigationIconSvg {
-            width: 28px !important;
-            height: 28px !important;
+            width: 22px !important;
+            height: 22px !important;
           }
         }
       `}</style>

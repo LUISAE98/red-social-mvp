@@ -47,6 +47,9 @@ type GroupMeta = {
   memberCount: number;
   price: number;
   visibility: GroupVisibility;
+  isSubscription: boolean;
+  /** Miembros nuevos en 30 d (solo para comunidades sin suscripción). */
+  newMembers: number | null;
 };
 
 function ChannelAvatar({
@@ -152,28 +155,56 @@ export default function WalletChannels({
         // sin permiso/índice → "—"
       }
       try {
+        const cutoffTs = Timestamp.fromMillis(new Date().getTime() - 30 * DAY);
         const gSnap = await getDocs(
           query(collection(db, "groups"), where("ownerId", "==", uid))
         );
-        ownedGroups = gSnap.docs.map((g) => {
-          const gd = g.data() as Record<string, unknown>;
-          const mon = gd.monetization as
-            | { subscriptionPriceMonthly?: unknown }
-            | undefined;
-          const vis = pickString(gd.visibility);
-          return {
-            id: g.id,
-            name: pickString(gd.name) ?? tWallet("channelCommunityFallback"),
-            avatar:
-              pickString(gd.avatarUrl) ??
-              pickString(gd.imageUrl) ??
-              pickString(gd.coverUrl),
-            memberCount: numOr0(gd.memberCount),
-            price: numOr0(mon?.subscriptionPriceMonthly),
-            visibility:
-              vis === "public" || vis === "private" || vis === "hidden" ? vis : null,
-          };
-        });
+        ownedGroups = await Promise.all(
+          gSnap.docs.map(async (g) => {
+            const gd = g.data() as Record<string, unknown>;
+            const mon = gd.monetization as
+              | {
+                  subscriptionPriceMonthly?: unknown;
+                  subscriptionsEnabled?: unknown;
+                  isPaid?: unknown;
+                }
+              | undefined;
+            const isSubscription =
+              mon?.subscriptionsEnabled === true || mon?.isPaid === true;
+            const vis = pickString(gd.visibility);
+
+            // Miembros nuevos (30 d): solo para comunidades sin suscripción.
+            let newMembers: number | null = null;
+            if (!isSubscription) {
+              try {
+                const c = await getCountFromServer(
+                  query(
+                    collection(db, "groups", g.id, "members"),
+                    where("joinedAt", ">=", cutoffTs)
+                  )
+                );
+                newMembers = c.data().count;
+              } catch {
+                newMembers = null;
+              }
+            }
+
+            return {
+              id: g.id,
+              name: pickString(gd.name) ?? tWallet("channelCommunityFallback"),
+              avatar:
+                pickString(gd.avatarUrl) ??
+                pickString(gd.imageUrl) ??
+                pickString(gd.coverUrl),
+              memberCount: numOr0(gd.memberCount),
+              price: numOr0(mon?.subscriptionPriceMonthly),
+              visibility:
+                vis === "public" || vis === "private" || vis === "hidden" ? vis : null,
+              isSubscription,
+              newMembers,
+            };
+          })
+        );
       } catch {
         // sin comunidades / sin permiso
       }
@@ -226,6 +257,8 @@ export default function WalletChannels({
         price: 0,
         newSubs: 0,
         visibility: null as GroupVisibility,
+        isSubscription: false,
+        newMembers: null as number | null,
       },
       ...groups.map((g) => {
         const a = agg.get(`g:${g.id}`);
@@ -241,6 +274,8 @@ export default function WalletChannels({
           price: g.price,
           newSubs: a?.newSubs30d ?? 0,
           visibility: g.visibility,
+          isSubscription: g.isSubscription,
+          newMembers: g.newMembers,
         };
       }),
     ];
@@ -368,15 +403,24 @@ export default function WalletChannels({
                       {statRow(tWallet("channelBuyers"), String(ch.buyers))}
                       {statRow(tWallet("channelIncome"), `${formatMoney(ch.net)} MXN`)}
                     </>
-                  ) : (
+                  ) : ch.isSubscription ? (
                     <>
-                      {statRow(tWallet("channelMembers"), String(ch.memberCount))}
+                      {statRow(tWallet("channelSubscribersTotal"), String(ch.memberCount))}
                       {statRow(tWallet("channelNewSubs"), String(ch.newSubs))}
                       {statRow(
                         tWallet("channelSubPrice"),
                         ch.price > 0
                           ? tWallet("channelPerMonth", { price: formatMoney(ch.price) })
                           : "—"
+                      )}
+                      {statRow(tWallet("channelIncome"), `${formatMoney(ch.net)} MXN`)}
+                    </>
+                  ) : (
+                    <>
+                      {statRow(tWallet("channelMembersTotal"), String(ch.memberCount))}
+                      {statRow(
+                        tWallet("channelNewMembers"),
+                        ch.newMembers == null ? "—" : String(ch.newMembers)
                       )}
                       {statRow(tWallet("channelIncome"), `${formatMoney(ch.net)} MXN`)}
                     </>

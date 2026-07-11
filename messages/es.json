@@ -1057,7 +1057,15 @@
     "channelPerMonth": "{price}/mes",
     "channelCommunityPublic": "Comunidad pública",
     "channelCommunityPrivate": "Comunidad privada",
-    "channelCommunityHidden": "Comunidad oculta"
+    "channelCommunityHidden": "Comunidad oculta",
+    "channelSubscribersTotal": "Suscriptores totales",
+    "channelMembersTotal": "Miembros totales",
+    "channelNewMembers": "Miembros nuevos (30 d)",
+    "globeTitle": "¿Desde dónde te compran?",
+    "globeCaption": "Ubicación aproximada · datos de ejemplo",
+    "globeLoading": "Cargando globo…",
+    "globeTooltipPurchases": "{count} compras",
+    "globeTooltipGross": "Bruto aprox. {amount} MXN"
   },
   "services": {
     "confirmLabel": "Confirmar",

@@ -201,9 +201,6 @@ export default function CreatorSessionCountdownBanner({ uid }: { uid: string }) 
   const countdown321Triggered = useRef(false);
   // Ref updated every render after variable computation — lets pre-early-return effects read fresh values
   const preSessionCtxRef = useRef<{ secondsLeft: number | null; inProgress: boolean }>({ secondsLeft: null, inProgress: false });
-  const [reminderOpen, setReminderOpen] = useState(false);
-  const reminderTriggeredRef = useRef<Set<string>>(new Set());
-  const reminderCtxRef = useRef<{ canPrepare: boolean; connected: boolean; inProgress: boolean; isPastStart: boolean; msLate: number }>({ canPrepare: false, connected: false, inProgress: false, isPastStart: false, msLate: 0 });
   const [listCollapsed, setListCollapsed] = useState(() => {
     try { return localStorage.getItem("vibra:creator-list-collapsed") === "1"; } catch { return false; }
   });
@@ -218,12 +215,10 @@ export default function CreatorSessionCountdownBanner({ uid }: { uid: string }) 
 
   useEffect(() => {
     lateTriggeredRef.current.clear();
-    reminderTriggeredRef.current.clear();
     setReschedOpen(false);
     setReschedReason("");
     countdown321Triggered.current = false;
     setCountdown321(null);
-    setReminderOpen(false);
   }, [nextSession?.id]);
 
   useEffect(() => {
@@ -251,28 +246,6 @@ export default function CreatorSessionCountdownBanner({ uid }: { uid: string }) 
     const t = setTimeout(() => setCountdown321((c) => (c !== null ? c - 1 : null)), 1000);
     return () => clearTimeout(t);
   }, [countdown321]);
-
-  // Session reminder: open panel when prepare window activates + every 5 min of delay
-  useEffect(() => {
-    const ctx = reminderCtxRef.current;
-    if (ctx.inProgress || prepOpen || ctx.connected) return;
-    if (!ctx.canPrepare) return;
-
-    if (!ctx.isPastStart && !reminderTriggeredRef.current.has("prep_window")) {
-      reminderTriggeredRef.current.add("prep_window");
-      setReminderOpen(true);
-      return;
-    }
-
-    if (ctx.msLate > 0) {
-      const bucket = Math.floor(ctx.msLate / (5 * 60 * 1000)) * 5;
-      const key = `late_${bucket}`;
-      if (bucket > 0 && !reminderTriggeredRef.current.has(key)) {
-        reminderTriggeredRef.current.add(key);
-        setReminderOpen(true);
-      }
-    }
-  }, [now, prepOpen]);
 
   const noShowSessions = todaySessions.filter((s) => s.status === "auto_rejected_no_show");
   if (loading || todaySessions.length === 0) return null;
@@ -315,7 +288,7 @@ export default function CreatorSessionCountdownBanner({ uid }: { uid: string }) 
 
   const buyerName = nextSession.buyerDisplayName ?? "Comprador";
   const countdownLabel = sessionInProgress
-    ? "Tiempo restante"
+    ? "Sesión en curso"
     : isPastStart
     ? "Llevas de retraso"
     : "Inicia en";
@@ -346,7 +319,6 @@ export default function CreatorSessionCountdownBanner({ uid }: { uid: string }) 
       : null;
   // Update ref so pre-early-return effects can read these values
   preSessionCtxRef.current = { secondsLeft: preSessionSecondsLeft, inProgress: sessionInProgress };
-  reminderCtxRef.current = { canPrepare, connected: creatorConnected, inProgress: sessionInProgress, isPastStart, msLate };
 
   async function handlePrepare() {
     if (!nextSession || busy || !canPrepare) return;
@@ -539,7 +511,7 @@ export default function CreatorSessionCountdownBanner({ uid }: { uid: string }) 
                 <div
                   style={{
                     fontSize: 22,
-                    fontWeight: 700,
+                    fontWeight: 500,
                     letterSpacing: "-0.03em",
                     fontVariantNumeric: "tabular-nums",
                     textShadow: "0 1px 8px rgba(0,0,0,0.5)",
@@ -885,70 +857,6 @@ export default function CreatorSessionCountdownBanner({ uid }: { uid: string }) 
           </div>
         )}
       </div>
-
-      {reminderOpen && !sessionInProgress && !prepOpen && createPortal(
-        <div style={{
-          position: "fixed", inset: 0, zIndex: 15000,
-          background: "rgba(0,0,0,0.70)",
-          backdropFilter: "blur(6px)",
-          WebkitBackdropFilter: "blur(6px)",
-          display: "flex", alignItems: "center", justifyContent: "center",
-          padding: "20px 16px", boxSizing: "border-box",
-        }}>
-          <div style={{ position: "relative", width: "100%", maxWidth: 360, borderRadius: 18, overflow: "hidden", boxShadow: "0 32px 80px rgba(0,0,0,0.85)" }}>
-            <div style={{ position: "absolute", inset: 0, backgroundImage: `url(${nextSession.serviceKind === "exclusive_session" ? "/sesionexclusiva.png" : "/encuentroenvivo.png"})`, backgroundSize: "cover", backgroundPosition: "center" }} />
-            <div style={{ position: "absolute", inset: 0, background: "linear-gradient(160deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.82) 100%)" }} />
-            <button
-              type="button"
-              onClick={() => setReminderOpen(false)}
-              style={{ position: "absolute", top: 12, right: 12, width: 30, height: 30, borderRadius: "50%", border: "none", background: "rgba(255,255,255,0.14)", color: "rgba(255,255,255,0.75)", fontSize: 14, cursor: "pointer", display: "grid", placeItems: "center", fontFamily: "inherit", zIndex: 1 }}
-            >✕</button>
-            <div style={{ position: "relative", padding: "22px 20px", display: "flex", flexDirection: "column", gap: 16 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                <div style={{ width: 52, height: 52, borderRadius: "50%", overflow: "hidden", flexShrink: 0, background: "rgba(255,255,255,0.10)", border: "2px solid rgba(255,255,255,0.28)" }}>
-                  {nextSession.buyerAvatarUrl
-                    ? <Image src={nextSession.buyerAvatarUrl} alt={buyerName} width={52} height={52} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                    : <div style={{ width: "100%", height: "100%", display: "grid", placeItems: "center", fontSize: 20, fontWeight: 700, color: "#fff", textTransform: "uppercase" }}>{buyerName[0]}</div>
-                  }
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.55)", marginBottom: 3 }}>Sesión con</div>
-                  <div style={{ fontSize: 17, color: "#fff", fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{buyerName}</div>
-                </div>
-              </div>
-              <div style={{ textAlign: "center", padding: "4px 0" }}>
-                <div style={{ fontSize: 11, color: isPastStart ? "#fb923c" : "rgba(255,255,255,0.55)", marginBottom: 4, fontWeight: 500 }}>
-                  {isPastStart ? "Lleva de retraso" : "Comienza en"}
-                </div>
-                <div style={{ fontSize: 44, fontWeight: 900, color: isPastStart ? "#fb923c" : "#fff", letterSpacing: "-0.04em", fontVariantNumeric: "tabular-nums", lineHeight: 1 }}>
-                  {countdownValue}
-                </div>
-              </div>
-              {!creatorConnected ? (
-                <button
-                  type="button"
-                  onClick={async () => { await handlePrepare(); setReminderOpen(false); }}
-                  disabled={!canPrepare || busy}
-                  style={{ position: "relative", overflow: "hidden", width: "100%", height: 46, borderRadius: 10, border: "none", background: !canPrepare || busy ? "rgba(255,255,255,0.14)" : "transparent", color: !canPrepare || busy ? "rgba(255,255,255,0.35)" : "#fff", fontSize: 16, fontWeight: 700, cursor: !canPrepare || busy ? "not-allowed" : "pointer", fontFamily: "inherit", letterSpacing: "-0.02em" }}
-                >
-                  {canPrepare && !busy && (
-                    <>
-                      <span style={{ position: "absolute", inset: 0, borderRadius: "inherit", background: "linear-gradient(135deg, #2563eb 0%, #3b82f6 100%)", opacity: nextSession.serviceKind === "meet_greet" ? 1 : 0, transition: "opacity 0.75s ease" }} />
-                      <span style={{ position: "absolute", inset: 0, borderRadius: "inherit", background: "linear-gradient(135deg, #be185d 0%, #ec4899 100%)", opacity: nextSession.serviceKind === "exclusive_session" ? 1 : 0, transition: "opacity 0.75s ease" }} />
-                    </>
-                  )}
-                  <span style={{ position: "relative", zIndex: 1 }}>{busy ? "Procesando..." : "Prepararse"}</span>
-                </button>
-              ) : (
-                <div style={{ textAlign: "center", fontSize: 14, color: "#4ade80", fontWeight: 600 }}>
-                  Ya estás en la sala
-                </div>
-              )}
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
 
       {countdown321 !== null && createPortal(
         <div style={{
