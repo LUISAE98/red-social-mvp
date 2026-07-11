@@ -1065,7 +1065,8 @@
     "globeCaption": "Approximate location · sample data",
     "globeLoading": "Loading globe…",
     "globeTooltipPurchases": "{count} purchases",
-    "globeTooltipGross": "Approx. gross {amount} MXN"
+    "globeTooltipGross": "Approx. gross {amount} MXN",
+    "globeApproxLocation": "Approximate location"
   },
   "services": {
     "confirmLabel": "Confirm",
@@ -1540,6 +1541,7 @@
     "statUniqueViewers": "Unique viewers",
     "statViewersNow": "Viewers now",
     "statVodRevenue": "VOD revenue",
+    "statVodViews": "VOD views",
     "stats": "Stats",
     "statusCancelled": "Cancelled",
     "statusDraft": "Draft",

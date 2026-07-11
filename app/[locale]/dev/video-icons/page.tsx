@@ -499,6 +499,86 @@ export default function VideoIconsPreview() {
     return () => clearInterval(id);
   }, []);
 
+  // Simulación de countdown descendente para el mockup de videollamada (20 min)
+  const [mockCountdown, setMockCountdown] = useState(20 * 60);
+  useEffect(() => {
+    const id = setInterval(() => setMockCountdown((t) => Math.max(0, t - 1)), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const [mockMic, setMockMic] = useState(true);
+  const [mockCam, setMockCam] = useState(true);
+  const [showTwoMinAlert, setShowTwoMinAlert] = useState(false);
+  const twoMinShownRef = useRef(false);
+  const [endSheet, setEndSheet] = useState<"hidden" | "confirm" | "feedback">("hidden");
+  const [feedbackText, setFeedbackText] = useState("");
+  const [sessionEnded, setSessionEnded] = useState(false);
+
+  useEffect(() => {
+    if (mockCountdown <= 120 && !twoMinShownRef.current) {
+      twoMinShownRef.current = true;
+      setShowTwoMinAlert(true);
+      setTimeout(() => setShowTwoMinAlert(false), 4500);
+    }
+  }, [mockCountdown]);
+
+  function timerColor(s: number): string {
+    if (s > 240) return "rgba(255,255,255,0.75)";
+    const p = (240 - s) / 240;
+    const r = Math.round(255 + (239 - 255) * p);
+    const g = Math.round(255 + (68 - 255) * p);
+    const b = Math.round(255 + (68 - 255) * p);
+    const a = (0.75 + 0.25 * p).toFixed(2);
+    return `rgba(${r},${g},${b},${a})`;
+  }
+
+  const PIP_W = 200;
+  const PIP_H = Math.round(PIP_W * 9 / 16);
+  const PANEL_W = 800;
+  const PANEL_H = 450;
+  const [pipPos, setPipPos] = useState({ x: PANEL_W - PIP_W - 16, y: PANEL_H - PIP_H - 88 });
+  const pipDragRef = useRef<{ sx: number; sy: number; px: number; py: number } | null>(null);
+
+  function handlePipDown(e: React.PointerEvent<HTMLDivElement>) {
+    pipDragRef.current = { sx: e.clientX, sy: e.clientY, px: pipPos.x, py: pipPos.y };
+    e.currentTarget.setPointerCapture(e.pointerId);
+    e.preventDefault();
+  }
+  function handlePipMove(e: React.PointerEvent<HTMLDivElement>) {
+    if (!pipDragRef.current) return;
+    const x = Math.max(0, Math.min(PANEL_W - PIP_W, pipDragRef.current.px + e.clientX - pipDragRef.current.sx));
+    const y = Math.max(0, Math.min(PANEL_H - PIP_H, pipDragRef.current.py + e.clientY - pipDragRef.current.sy));
+    setPipPos({ x, y });
+  }
+  function handlePipUp() { pipDragRef.current = null; }
+
+  // ── Estado panel móvil ────────────────────────────────────────────────────
+  const [mockMicMobile, setMockMicMobile] = useState(true);
+  const [mockCamMobile, setMockCamMobile] = useState(true);
+  const [endSheetMobile, setEndSheetMobile] = useState<"hidden" | "confirm" | "feedback">("hidden");
+  const [feedbackTextMobile, setFeedbackTextMobile] = useState("");
+  const [sessionEndedMobile, setSessionEndedMobile] = useState(false);
+
+  const MOBILE_W = 375;
+  const MOBILE_H = 812;
+  const PIP_WM = 120;
+  const PIP_HM = Math.round(PIP_WM * 9 / 16);
+  const [pipPosMobile, setPipPosMobile] = useState({ x: MOBILE_W - PIP_WM - 12, y: MOBILE_H - PIP_HM - 120 });
+  const pipDragRefMobile = useRef<{ sx: number; sy: number; px: number; py: number } | null>(null);
+
+  function handlePipDownMobile(e: React.PointerEvent<HTMLDivElement>) {
+    pipDragRefMobile.current = { sx: e.clientX, sy: e.clientY, px: pipPosMobile.x, py: pipPosMobile.y };
+    e.currentTarget.setPointerCapture(e.pointerId);
+    e.preventDefault();
+  }
+  function handlePipMoveMobile(e: React.PointerEvent<HTMLDivElement>) {
+    if (!pipDragRefMobile.current) return;
+    const x = Math.max(0, Math.min(MOBILE_W - PIP_WM, pipDragRefMobile.current.px + e.clientX - pipDragRefMobile.current.sx));
+    const y = Math.max(0, Math.min(MOBILE_H - PIP_HM, pipDragRefMobile.current.py + e.clientY - pipDragRefMobile.current.sy));
+    setPipPosMobile({ x, y });
+  }
+  function handlePipUpMobile() { pipDragRefMobile.current = null; }
+
   const [scrubPos, setScrubPos] = useState(37);
   const { toast, showToast } = useVibraToast();
   const { toast: demoToast, showToast: showDemoToast } = useVibraToast(1400);
@@ -508,6 +588,608 @@ export default function VideoIconsPreview() {
 
       <VibraToast toast={toast} />
       <VibraToast toast={demoToast} />
+
+      {/* ══════════════════════════════════════════════════════════════════════ */}
+      {/* SIMULACIÓN — PANTALLA DEL CREADOR (horizontal)                        */}
+      {/* ══════════════════════════════════════════════════════════════════════ */}
+
+      <h1 style={{ color: "#fff", fontSize: 22, fontWeight: 700, marginBottom: 6 }}>
+        Simulación — Pantalla del creador (horizontal)
+      </h1>
+      <p style={{ color: "rgba(255,255,255,0.35)", fontSize: 13, marginBottom: 24 }}>
+        Video grande = comprador · PiP esquina inferior-derecha = creador mismo · controles flotantes en el centro
+      </p>
+
+      <div style={{ marginBottom: 64 }}>
+        {/* Marco laptop — representa el browser window */}
+        <div style={{
+          width: 960,
+          maxWidth: "100%",
+          borderRadius: 12,
+          border: "1px solid rgba(255,255,255,0.10)",
+          overflow: "hidden",
+          background: "#0a0a0a",
+        }}>
+          {/* Chrome bar */}
+          <div style={{
+            height: 36, background: "#141414",
+            borderBottom: "1px solid rgba(255,255,255,0.06)",
+            display: "flex", alignItems: "center", padding: "0 14px", gap: 7, flexShrink: 0,
+          }}>
+            <div style={{ width: 11, height: 11, borderRadius: "50%", background: "#ff5f57" }} />
+            <div style={{ width: 11, height: 11, borderRadius: "50%", background: "#ffbd2e" }} />
+            <div style={{ width: 11, height: 11, borderRadius: "50%", background: "#28ca41" }} />
+          </div>
+
+          {/* Área de página — overlay de videollamada */}
+          <div style={{
+            position: "relative", height: 536,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            background: "#040404",
+          }}>
+            {/* Panel de videollamada */}
+            <div style={{
+              position: "relative",
+              width: 800, height: 450,
+              maxWidth: "96%", maxHeight: "90%",
+              borderRadius: 20,
+              overflow: "hidden",
+              background: "#0e1c2e",
+              flexShrink: 0,
+            }}>
+
+              {/* Video del comprador */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="https://picsum.photos/seed/buyer/800/450" alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
+
+              {/* Timer — top center */}
+              <div style={{
+                position: "absolute", top: 16, left: "50%", transform: "translateX(-50%)",
+                zIndex: 4,
+                display: "inline-flex", alignItems: "center",
+                background: "rgba(0,0,0,0.28)",
+                backdropFilter: "blur(8px)",
+                WebkitBackdropFilter: "blur(8px)",
+                borderRadius: 6,
+                padding: "4px 10px",
+                whiteSpace: "nowrap",
+              }}>
+                <span style={{
+                  fontFamily: "inherit",
+                  fontSize: 14, fontWeight: 600,
+                  color: timerColor(mockCountdown),
+                  lineHeight: 1,
+                }}>
+                  {formatTime(mockCountdown)}
+                </span>
+              </div>
+
+              {/* PiP — creador (arrastrable) */}
+              <div
+                onPointerDown={handlePipDown}
+                onPointerMove={handlePipMove}
+                onPointerUp={handlePipUp}
+                onPointerCancel={handlePipUp}
+                style={{
+                  position: "absolute",
+                  left: pipPos.x, top: pipPos.y,
+                  width: PIP_W, height: PIP_H,
+                  borderRadius: 10,
+                  overflow: "hidden",
+                  background: "#1a2510",
+                  zIndex: 3,
+                  cursor: pipDragRef.current ? "grabbing" : "grab",
+                  touchAction: "none",
+                  userSelect: "none",
+                }}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="https://picsum.photos/seed/creator/200/113" alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
+              </div>
+
+
+              {/* Aviso 2 minutos */}
+              {showTwoMinAlert && (
+                <div style={{
+                  position: "absolute", inset: 0, zIndex: 6,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  pointerEvents: "none",
+                }}>
+                  <div style={{
+                    background: "rgba(0,0,0,0.35)",
+                    backdropFilter: "blur(12px)",
+                    WebkitBackdropFilter: "blur(12px)",
+                    borderRadius: 10,
+                    padding: "10px 20px",
+                  }}>
+                    <span style={{ fontSize: 13, fontWeight: 500, color: "rgba(255,255,255,0.85)", letterSpacing: "0.01em" }}>
+                      Quedan 2 minutos de sesión
+                    </span>
+                  </div>
+                </div>
+              )}
+
+          {/* Controles flotantes */}
+          <div style={{
+            position: "absolute",
+            bottom: 28, left: "50%", transform: "translateX(-50%)",
+            zIndex: 5,
+            display: "flex", gap: 28, alignItems: "center",
+          }}>
+            {/* Mic */}
+            <button type="button" onClick={() => setMockMic(v => !v)} style={{
+              position: "relative", background: "none", border: "none", padding: 4,
+              cursor: "pointer", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center",
+            }}>
+              <svg width={26} height={26} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/>
+                <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                <line x1="12" y1="19" x2="12" y2="23"/>
+                <line x1="8" y1="23" x2="16" y2="23"/>
+              </svg>
+              {!mockMic && (
+                <span style={{ position: "absolute", bottom: 0, right: 0, width: 14, height: 14, borderRadius: "50%", background: "#ef4444", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <svg width={8} height={8} viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth={3.5} strokeLinecap="round" aria-hidden="true">
+                    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                  </svg>
+                </span>
+              )}
+            </button>
+
+            {/* Cámara */}
+            <button type="button" onClick={() => setMockCam(v => !v)} style={{
+              position: "relative", background: "none", border: "none", padding: 4,
+              cursor: "pointer", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center",
+            }}>
+              <svg width={26} height={26} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <polygon points="23 7 16 12 23 17 23 7"/>
+                <rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
+              </svg>
+              {!mockCam && (
+                <span style={{ position: "absolute", bottom: 0, right: 0, width: 14, height: 14, borderRadius: "50%", background: "#ef4444", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <svg width={8} height={8} viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth={3.5} strokeLinecap="round" aria-hidden="true">
+                    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                  </svg>
+                </span>
+              )}
+            </button>
+
+            {/* Terminar sesión */}
+            <button type="button" onClick={() => setEndSheet("confirm")} style={{
+              background: "none", border: "none", padding: 4,
+              cursor: "pointer", color: "#ef4444", display: "flex", alignItems: "center", justifyContent: "center",
+            }}>
+              <svg width={26} height={26} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" aria-hidden="true">
+                <line x1="18" y1="6" x2="6" y2="18"/>
+                <line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
+          </div>{/* /controles */}
+
+              {/* Pantalla negra al terminar sesión */}
+              {sessionEnded && (
+                <div style={{ position: "absolute", inset: 0, background: "#000", zIndex: 7 }} />
+              )}
+
+              {/* Panel Vibra — confirmar / feedback */}
+              {endSheet !== "hidden" && (
+                <>
+                  <style>{`
+                    @keyframes vibraEndPanelIn {
+                      from { opacity: 0; transform: scale(0.94) translateY(10px); }
+                      to   { opacity: 1; transform: scale(1) translateY(0); }
+                    }
+                  `}</style>
+                  <div
+                    style={{
+                      position: "absolute", inset: 0, zIndex: 10,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      padding: 24,
+                      background: "rgba(0,0,0,0.88)",
+                      fontFamily: "inherit",
+                    }}
+                    onMouseDown={e => { if (e.target === e.currentTarget && endSheet === "confirm") setEndSheet("hidden"); }}
+                  >
+                    <section style={{
+                      width: "min(100%, 380px)",
+                      borderRadius: 18,
+                      background: "#0a0a0a",
+                      boxShadow: "0 0 0 1px rgba(255,255,255,0.08), 0 32px 72px rgba(0,0,0,0.9)",
+                      color: "#fff",
+                      overflow: "hidden",
+                      animation: "vibraEndPanelIn 180ms ease-out",
+                    }}>
+
+                      {/* Header */}
+                      <header style={{
+                        height: 56,
+                        display: "grid",
+                        gridTemplateColumns: "48px 1fr 48px",
+                        alignItems: "center",
+                        padding: "0 12px",
+                        borderBottom: "1px solid rgba(255,255,255,0.12)",
+                        flexShrink: 0,
+                      }}>
+                        <div aria-hidden="true" />
+                        <span style={{
+                          fontSize: 17, fontWeight: 500, color: "#fff",
+                          lineHeight: 1.2, textAlign: "center", letterSpacing: "-0.02em",
+                        }}>
+                          {endSheet === "confirm" ? "Terminar sesión" : "Sesión terminada"}
+                        </span>
+                        {endSheet === "confirm" ? (
+                          <button type="button" onClick={() => setEndSheet("hidden")} style={{
+                            border: "none", background: "none", color: "#fff",
+                            cursor: "pointer", display: "grid", placeItems: "center",
+                            justifySelf: "end", padding: 4,
+                            fontSize: 32, fontWeight: 300, lineHeight: 1,
+                          }}>×</button>
+                        ) : (
+                          <div aria-hidden="true" />
+                        )}
+                      </header>
+
+                      {/* Confirmar */}
+                      {endSheet === "confirm" && (
+                        <>
+                          <div style={{ padding: "18px 20px 8px" }}>
+                            <p style={{ color: "rgba(255,255,255,0.70)", fontSize: 14, lineHeight: 1.55, margin: 0 }}>
+                              ¿Estás seguro de que quieres acabar la sesión antes de tiempo? Después nos dejarás un mensaje para decirnos qué pasó.
+                            </p>
+                          </div>
+                          <div style={{ padding: "14px 20px 18px", borderTop: "1px solid rgba(255,255,255,0.12)", display: "flex", flexDirection: "column", gap: 10 }}>
+                            <button type="button" onClick={() => { setSessionEnded(true); setEndSheet("feedback"); }} style={{
+                              width: "100%", height: 42, borderRadius: 5, border: "none",
+                              background: "#ef4444", color: "rgba(255,255,255,0.98)",
+                              fontSize: 15, fontWeight: 500, fontFamily: "inherit",
+                              cursor: "pointer", letterSpacing: "-0.02em",
+                              display: "grid", placeItems: "center",
+                            }}>
+                              Sí, terminar sesión
+                            </button>
+                            <button type="button" onClick={() => setEndSheet("hidden")} style={{
+                              width: "100%", height: 42, borderRadius: 5, border: "none",
+                              background: "rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.55)",
+                              fontSize: 15, fontWeight: 500, fontFamily: "inherit",
+                              cursor: "pointer", letterSpacing: "-0.02em",
+                              display: "grid", placeItems: "center",
+                            }}>
+                              No, continuar
+                            </button>
+                          </div>
+                        </>
+                      )}
+
+                      {/* Feedback */}
+                      {endSheet === "feedback" && (
+                        <>
+                          <div style={{ padding: "18px 20px 8px" }}>
+                            <textarea
+                              placeholder="Dinos qué pasó..."
+                              value={feedbackText}
+                              onChange={e => setFeedbackText(e.target.value)}
+                              rows={4}
+                              style={{
+                                width: "100%", boxSizing: "border-box",
+                                background: "rgba(255,255,255,0.06)",
+                                border: "none",
+                                borderRadius: 12, padding: "10px 12px",
+                                color: "#fff", fontSize: 13, resize: "none",
+                                fontFamily: "inherit", outline: "none",
+                                lineHeight: 1.5,
+                              }}
+                            />
+                          </div>
+                          <div style={{ padding: "14px 20px 18px", borderTop: "1px solid rgba(255,255,255,0.12)" }}>
+                            <button type="button" onClick={() => { setEndSheet("hidden"); setFeedbackText(""); setSessionEnded(false); }} style={{
+                              width: "100%", height: 42, borderRadius: 5, border: "none",
+                              background: "#a855ff", color: "rgba(255,255,255,0.98)",
+                              fontSize: 15, fontWeight: 500, fontFamily: "inherit",
+                              cursor: "pointer", letterSpacing: "-0.02em",
+                              display: "grid", placeItems: "center",
+                            }}>
+                              Enviar
+                            </button>
+                          </div>
+                        </>
+                      )}
+
+                    </section>
+                  </div>
+                </>
+              )}
+
+            </div>{/* /panel videollamada */}
+          </div>{/* /área de página */}
+        </div>{/* /marco laptop */}
+      </div>{/* /marginBottom */}
+
+      <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)", marginBottom: 56 }} />
+
+      {/* ══════════════════════════════════════════════════════════════════════ */}
+      {/* SIMULACIÓN — CELULAR                                                  */}
+      {/* ══════════════════════════════════════════════════════════════════════ */}
+
+      <h1 style={{ color: "#fff", fontSize: 22, fontWeight: 700, marginBottom: 6 }}>
+        Simulación — Pantalla del creador (celular)
+      </h1>
+      <p style={{ color: "rgba(255,255,255,0.35)", fontSize: 13, marginBottom: 24 }}>
+        Video ocupa toda la pantalla · sin esquinas redondeadas · respeta safe area
+      </p>
+
+      <div style={{ marginBottom: 64 }}>
+        {/* Marco teléfono */}
+        <div style={{
+          width: MOBILE_W,
+          maxWidth: "100%",
+          height: MOBILE_H,
+          borderRadius: 44,
+          border: "8px solid #1c1c1e",
+          boxShadow: "0 0 0 1px rgba(255,255,255,0.06), 0 24px 64px rgba(0,0,0,0.8)",
+          overflow: "hidden",
+          position: "relative",
+          background: "#000",
+          flexShrink: 0,
+        }}>
+
+          {/* Video del comprador — ocupa todo */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="https://picsum.photos/seed/buyer-mobile/375/812" alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
+
+          {/* Safe area top — Dynamic Island / notch */}
+          <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 50, zIndex: 5, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <div style={{ width: 120, height: 34, borderRadius: 20, background: "#000" }} />
+          </div>
+
+          {/* Timer — debajo del safe area */}
+          <div style={{
+            position: "absolute", top: 62, left: "50%", transform: "translateX(-50%)",
+            zIndex: 4,
+            display: "inline-flex", alignItems: "center",
+            background: "rgba(0,0,0,0.28)",
+            backdropFilter: "blur(8px)",
+            WebkitBackdropFilter: "blur(8px)",
+            borderRadius: 6,
+            padding: "4px 10px",
+            whiteSpace: "nowrap",
+          }}>
+            <span style={{
+              fontFamily: "inherit", fontSize: 14, fontWeight: 600,
+              color: timerColor(mockCountdown), lineHeight: 1,
+            }}>
+              {formatTime(mockCountdown)}
+            </span>
+          </div>
+
+          {/* PiP — arrastrable */}
+          <div
+            onPointerDown={handlePipDownMobile}
+            onPointerMove={handlePipMoveMobile}
+            onPointerUp={handlePipUpMobile}
+            onPointerCancel={handlePipUpMobile}
+            style={{
+              position: "absolute",
+              left: pipPosMobile.x, top: pipPosMobile.y,
+              width: PIP_WM, height: PIP_HM,
+              borderRadius: 10,
+              overflow: "hidden",
+              background: "#1a2510",
+              zIndex: 3,
+              cursor: pipDragRefMobile.current ? "grabbing" : "grab",
+              touchAction: "none",
+              userSelect: "none",
+            }}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="https://picsum.photos/seed/creator-mobile/120/68" alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          </div>
+
+          {/* Aviso 2 minutos */}
+          {showTwoMinAlert && (
+            <div style={{
+              position: "absolute", inset: 0, zIndex: 6,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              pointerEvents: "none",
+            }}>
+              <div style={{
+                background: "rgba(0,0,0,0.35)",
+                backdropFilter: "blur(12px)",
+                WebkitBackdropFilter: "blur(12px)",
+                borderRadius: 10,
+                padding: "10px 20px",
+              }}>
+                <span style={{ fontSize: 13, fontWeight: 500, color: "rgba(255,255,255,0.85)", letterSpacing: "0.01em" }}>
+                  Quedan 2 minutos de sesión
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* Controles flotantes — sobre safe area inferior */}
+          <div style={{
+            position: "absolute",
+            bottom: 0, left: 0, right: 0,
+            zIndex: 5,
+            display: "flex", gap: 36, justifyContent: "center", alignItems: "center",
+            paddingBottom: 44, paddingTop: 20,
+          }}>
+            {/* Mic */}
+            <button type="button" onClick={() => setMockMicMobile(v => !v)} style={{
+              position: "relative", background: "none", border: "none", padding: 4,
+              cursor: "pointer", color: "#fff",
+              display: "flex", alignItems: "center", justifyContent: "center",
+            }}>
+              <svg width={26} height={26} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/>
+                <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                <line x1="12" y1="19" x2="12" y2="23"/>
+                <line x1="8" y1="23" x2="16" y2="23"/>
+              </svg>
+              {!mockMicMobile && (
+                <span style={{ position: "absolute", bottom: 0, right: 0, width: 14, height: 14, borderRadius: "50%", background: "#ef4444", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <svg width={8} height={8} viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth={3.5} strokeLinecap="round" aria-hidden="true">
+                    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                  </svg>
+                </span>
+              )}
+            </button>
+
+            {/* Cámara */}
+            <button type="button" onClick={() => setMockCamMobile(v => !v)} style={{
+              position: "relative", background: "none", border: "none", padding: 4,
+              cursor: "pointer", color: "#fff",
+              display: "flex", alignItems: "center", justifyContent: "center",
+            }}>
+              <svg width={26} height={26} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <polygon points="23 7 16 12 23 17 23 7"/>
+                <rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
+              </svg>
+              {!mockCamMobile && (
+                <span style={{ position: "absolute", bottom: 0, right: 0, width: 14, height: 14, borderRadius: "50%", background: "#ef4444", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <svg width={8} height={8} viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth={3.5} strokeLinecap="round" aria-hidden="true">
+                    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                  </svg>
+                </span>
+              )}
+            </button>
+
+            {/* Terminar sesión */}
+            <button type="button" onClick={() => setEndSheetMobile("confirm")} style={{
+              background: "none", border: "none", padding: 4,
+              cursor: "pointer", color: "#ef4444",
+              display: "flex", alignItems: "center", justifyContent: "center",
+            }}>
+              <svg width={26} height={26} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" aria-hidden="true">
+                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
+          </div>
+
+          {/* Pantalla negra al terminar */}
+          {sessionEndedMobile && (
+            <div style={{ position: "absolute", inset: 0, background: "#000", zIndex: 7 }} />
+          )}
+
+          {/* Panel Vibra móvil */}
+          {endSheetMobile !== "hidden" && (
+            <>
+              <style>{`
+                @keyframes vibraEndPanelInM {
+                  from { opacity: 0; transform: scale(0.94) translateY(10px); }
+                  to   { opacity: 1; transform: scale(1) translateY(0); }
+                }
+              `}</style>
+              <div
+                style={{
+                  position: "absolute", inset: 0, zIndex: 10,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  padding: 20,
+                  background: "rgba(0,0,0,0.88)",
+                  fontFamily: "inherit",
+                }}
+                onMouseDown={e => { if (e.target === e.currentTarget && endSheetMobile === "confirm") setEndSheetMobile("hidden"); }}
+              >
+                <section style={{
+                  width: "100%",
+                  borderRadius: 18,
+                  background: "#0a0a0a",
+                  boxShadow: "0 0 0 1px rgba(255,255,255,0.08), 0 32px 72px rgba(0,0,0,0.9)",
+                  color: "#fff",
+                  overflow: "hidden",
+                  animation: "vibraEndPanelInM 180ms ease-out",
+                }}>
+                  <header style={{
+                    height: 56,
+                    display: "grid",
+                    gridTemplateColumns: "48px 1fr 48px",
+                    alignItems: "center",
+                    padding: "0 12px",
+                    borderBottom: "1px solid rgba(255,255,255,0.12)",
+                    flexShrink: 0,
+                  }}>
+                    <div aria-hidden="true" />
+                    <span style={{ fontSize: 17, fontWeight: 500, color: "#fff", lineHeight: 1.2, textAlign: "center", letterSpacing: "-0.02em" }}>
+                      {endSheetMobile === "confirm" ? "Terminar sesión" : "Sesión terminada"}
+                    </span>
+                    {endSheetMobile === "confirm" ? (
+                      <button type="button" onClick={() => setEndSheetMobile("hidden")} style={{
+                        border: "none", background: "none", color: "#fff", cursor: "pointer",
+                        display: "grid", placeItems: "center", justifySelf: "end", padding: 4,
+                        fontSize: 32, fontWeight: 300, lineHeight: 1,
+                      }}>×</button>
+                    ) : <div aria-hidden="true" />}
+                  </header>
+
+                  {endSheetMobile === "confirm" && (
+                    <>
+                      <div style={{ padding: "18px 20px 8px" }}>
+                        <p style={{ color: "rgba(255,255,255,0.70)", fontSize: 14, lineHeight: 1.55, margin: 0 }}>
+                          ¿Estás seguro de que quieres acabar la sesión antes de tiempo? Después nos dejarás un mensaje para decirnos qué pasó.
+                        </p>
+                      </div>
+                      <div style={{ padding: "14px 20px 18px", borderTop: "1px solid rgba(255,255,255,0.12)", display: "flex", flexDirection: "column", gap: 10 }}>
+                        <button type="button" onClick={() => { setSessionEndedMobile(true); setEndSheetMobile("feedback"); }} style={{
+                          width: "100%", height: 42, borderRadius: 5, border: "none",
+                          background: "#ef4444", color: "rgba(255,255,255,0.98)",
+                          fontSize: 15, fontWeight: 500, fontFamily: "inherit",
+                          cursor: "pointer", letterSpacing: "-0.02em",
+                          display: "grid", placeItems: "center",
+                        }}>
+                          Sí, terminar sesión
+                        </button>
+                        <button type="button" onClick={() => setEndSheetMobile("hidden")} style={{
+                          width: "100%", height: 42, borderRadius: 5, border: "none",
+                          background: "rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.55)",
+                          fontSize: 15, fontWeight: 500, fontFamily: "inherit",
+                          cursor: "pointer", letterSpacing: "-0.02em",
+                          display: "grid", placeItems: "center",
+                        }}>
+                          No, continuar
+                        </button>
+                      </div>
+                    </>
+                  )}
+
+                  {endSheetMobile === "feedback" && (
+                    <>
+                      <div style={{ padding: "18px 20px 8px" }}>
+                        <textarea
+                          placeholder="Dinos qué pasó..."
+                          value={feedbackTextMobile}
+                          onChange={e => setFeedbackTextMobile(e.target.value)}
+                          rows={4}
+                          style={{
+                            width: "100%", boxSizing: "border-box",
+                            background: "rgba(255,255,255,0.06)",
+                            border: "none", borderRadius: 12,
+                            padding: "10px 12px", color: "#fff",
+                            fontSize: 13, resize: "none",
+                            fontFamily: "inherit", outline: "none", lineHeight: 1.5,
+                          }}
+                        />
+                      </div>
+                      <div style={{ padding: "14px 20px 18px", borderTop: "1px solid rgba(255,255,255,0.12)" }}>
+                        <button type="button" onClick={() => { setEndSheetMobile("hidden"); setFeedbackTextMobile(""); setSessionEndedMobile(false); }} style={{
+                          width: "100%", height: 42, borderRadius: 5, border: "none",
+                          background: "#a855ff", color: "rgba(255,255,255,0.98)",
+                          fontSize: 15, fontWeight: 500, fontFamily: "inherit",
+                          cursor: "pointer", letterSpacing: "-0.02em",
+                          display: "grid", placeItems: "center",
+                        }}>
+                          Enviar
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </section>
+              </div>
+            </>
+          )}
+
+        </div>{/* /marco teléfono */}
+      </div>{/* /marginBottom */}
+
+      <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)", marginBottom: 56 }} />
 
       {/* ══════════════════════════════════════════════════════════════════════ */}
       {/* NUEVOS ICONOS — EN PROCESO                                            */}

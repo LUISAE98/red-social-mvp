@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useSyncExternalStore, type CSSProperties } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import LiveKitVideoRoom from "@/app/components/liveKit/LiveKitVideoRoom";
 import type { LivekitSessionType } from "@/lib/liveKit/getLivekitToken";
@@ -11,6 +11,7 @@ type Props = {
   role: "buyer" | "creator";
   sessionId: string;
   sessionType: LivekitSessionType;
+  // Mantenidos por compatibilidad — no se renderizan
   scheduledAtLabel?: string | null;
   durationMinutes?: number | null;
 };
@@ -21,189 +22,391 @@ export default function MeetGreetPreparationFullscreen({
   role,
   sessionId,
   sessionType,
-  scheduledAtLabel,
-  durationMinutes,
 }: Props) {
-  // useSyncExternalStore: client snapshot devuelve true, SSR snapshot devuelve false.
-  // Equivalente al patrón setMounted(true) en useEffect, sin setState en effect.
   const mounted = useSyncExternalStore(
     () => () => {},
     () => true,
     () => false,
   );
 
-  const [isMobile, setIsMobile] = useState(false);
+  const [isDesktop, setIsDesktop] = useState(false);
   useEffect(() => {
-    const mql = window.matchMedia("(pointer: coarse), (max-width: 767px)");
-    setIsMobile(mql.matches);
-    const h = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    const mql = window.matchMedia("(pointer: fine) and (min-width: 768px)");
+    setIsDesktop(mql.matches);
+    const h = (e: MediaQueryListEvent) => setIsDesktop(e.matches);
     mql.addEventListener("change", h);
     return () => mql.removeEventListener("change", h);
   }, []);
 
   useEffect(() => {
     if (!open) return;
-
     function handleEscape(event: KeyboardEvent) {
       if (event.key === "Escape") onClose();
     }
-
     const prevBodyOverflow = document.body.style.overflow;
     const prevHtmlOverflow = document.documentElement.style.overflow;
     const prevBodyOverscroll = document.body.style.overscrollBehavior;
     const prevHtmlOverscroll = document.documentElement.style.overscrollBehavior;
-
     document.addEventListener("keydown", handleEscape);
     document.body.style.overflow = "hidden";
     document.documentElement.style.overflow = "hidden";
     document.body.style.overscrollBehavior = "none";
     document.documentElement.style.overscrollBehavior = "none";
-
-    // Lock portrait orientation to prevent recording from cutting when device rotates.
-    // Supported on Android Chrome; silently ignored on iOS Safari (no standard API available).
-    let orientationLocked = false;
-    if (typeof screen !== "undefined" && screen.orientation && typeof (screen.orientation as ScreenOrientation & { lock?: (o: string) => Promise<void> }).lock === "function") {
-      (screen.orientation as ScreenOrientation & { lock: (o: string) => Promise<void> })
-        .lock("portrait")
-        .then(() => { orientationLocked = true; })
-        .catch(() => { /* not supported or denied */ });
-    }
-
     return () => {
       document.removeEventListener("keydown", handleEscape);
       document.body.style.overflow = prevBodyOverflow;
       document.documentElement.style.overflow = prevHtmlOverflow;
       document.body.style.overscrollBehavior = prevBodyOverscroll;
       document.documentElement.style.overscrollBehavior = prevHtmlOverscroll;
-
-      if (orientationLocked && typeof screen !== "undefined" && screen.orientation && typeof (screen.orientation as ScreenOrientation & { unlock?: () => void }).unlock === "function") {
-        try { (screen.orientation as ScreenOrientation & { unlock: () => void }).unlock(); } catch { /* */ }
-      }
     };
   }, [open, onClose]);
 
+  // ── Estado ────────────────────────────────────────────────────────────────
+  const [mode, setMode] = useState<"call" | "expired">("call");
+  const [endSheet, setEndSheet] = useState<"hidden" | "confirm" | "feedback">("hidden");
+  const [feedbackText, setFeedbackText] = useState("");
+  const [showTwoMinAlert, setShowTwoMinAlert] = useState(false);
+  const [sessionEnded, setSessionEnded] = useState(false);
+  const [isEndingSession, setIsEndingSession] = useState(false);
+  const endSessionRef = useRef<(() => Promise<void>) | null>(null);
+  const twoMinTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Reset al cerrar/abrir
+  useEffect(() => {
+    if (!open) {
+      setMode("call");
+      setEndSheet("hidden");
+      setFeedbackText("");
+      setShowTwoMinAlert(false);
+      setSessionEnded(false);
+      setIsEndingSession(false);
+    }
+  }, [open]);
+
+  const handleEndCallRequest = useCallback(() => {
+    setEndSheet("confirm");
+  }, []);
+
+  const handleTimerExpired = useCallback(() => {
+    setMode("expired");
+  }, []);
+
+  const handleTwoMinWarning = useCallback(() => {
+    setShowTwoMinAlert(true);
+    if (twoMinTimerRef.current) clearTimeout(twoMinTimerRef.current);
+    twoMinTimerRef.current = setTimeout(() => setShowTwoMinAlert(false), 4500);
+  }, []);
+
+  const handleConfirmEnd = useCallback(async () => {
+    setIsEndingSession(true);
+    setSessionEnded(true);
+    setEndSheet("feedback");
+    try {
+      await endSessionRef.current?.();
+    } finally {
+      setIsEndingSession(false);
+    }
+  }, []);
+
   if (!mounted || !open) return null;
 
-  const sessionLabel =
-    sessionType === "meet_greet" ? "Sesión en vivo" : "Sesión Exclusiva";
+  const backdropStyle: CSSProperties = {
+    position: "fixed",
+    inset: 0,
+    zIndex: 2147483647,
+    background: "#000",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+    overscrollBehavior: "none",
+    touchAction: "none",
+  };
+
+  const panelStyle: CSSProperties = {
+    position: "relative",
+    width: isDesktop ? "min(95dvw, calc(95dvh * 16 / 9))" : "100dvw",
+    height: isDesktop ? "min(95dvh, calc(95dvw * 9 / 16))" : "100dvh",
+    borderRadius: isDesktop ? 20 : 0,
+    overflow: "hidden",
+    flexShrink: 0,
+  };
 
   return createPortal(
-    <div role="dialog" aria-modal="true" style={backdrop}>
-      {/* Barra superior — solo en desktop */}
-      {!isMobile && (
-        <div style={topBar}>
-          <div style={{ minWidth: 0 }}>
-            <div style={topBarTitle}>
-              {sessionLabel} — Sala de preparación
-            </div>
-            <div style={topBarSubtitle}>
-              {role === "buyer" ? "Participante" : "Creador"}
-              {scheduledAtLabel ? ` · ${scheduledAtLabel}` : ""}
-              {durationMinutes != null ? ` · ${durationMinutes} min` : ""}
+    <div role="dialog" aria-modal="true" style={backdropStyle}>
+      <div style={panelStyle}>
+
+        {/* Video call activa */}
+        {mode === "call" && (
+          <LiveKitVideoRoom
+            sessionId={sessionId}
+            sessionType={sessionType}
+            role={role}
+            onLeave={onClose}
+            onEndCallRequest={handleEndCallRequest}
+            onTimerExpired={handleTimerExpired}
+            onTwoMinWarning={handleTwoMinWarning}
+            endSessionRef={endSessionRef}
+          />
+        )}
+
+        {/* Pantalla negra al terminar la sesión manualmente */}
+        {mode === "call" && sessionEnded && (
+          <div style={{ position: "absolute", inset: 0, background: "#000", zIndex: 7 }} />
+        )}
+
+        {/* Aviso 2 minutos */}
+        {mode === "call" && showTwoMinAlert && (
+          <div style={{
+            position: "absolute", inset: 0, zIndex: 6,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            pointerEvents: "none",
+          }}>
+            <div style={{
+              background: "rgba(0,0,0,0.35)",
+              backdropFilter: "blur(12px)",
+              WebkitBackdropFilter: "blur(12px)",
+              borderRadius: 10,
+              padding: "10px 20px",
+            }}>
+              <span style={{ fontSize: 13, fontWeight: 500, color: "rgba(255,255,255,0.85)", letterSpacing: "0.01em" }}>
+                Quedan 2 minutos de sesión
+              </span>
             </div>
           </div>
-          <button type="button" onClick={onClose} style={closeButton}>
-            Cerrar
-          </button>
-        </div>
-      )}
+        )}
 
-      {/* Área de videollamada */}
-      <div style={body}>
-        <LiveKitVideoRoom
-          sessionId={sessionId}
-          sessionType={sessionType}
-          role={role}
-          onLeave={onClose}
-        />
+        {/* Panel Vibra — confirmar fin / feedback */}
+        {mode === "call" && endSheet !== "hidden" && (
+          <>
+            <style>{`
+              @keyframes vibraEndPanelIn {
+                from { opacity: 0; transform: scale(0.94) translateY(10px); }
+                to   { opacity: 1; transform: scale(1) translateY(0); }
+              }
+            `}</style>
+            <div
+              style={{
+                position: "absolute", inset: 0, zIndex: 10,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                padding: 24,
+                background: "rgba(0,0,0,0.88)",
+                fontFamily: "inherit",
+              }}
+              onMouseDown={e => {
+                if (e.target === e.currentTarget && endSheet === "confirm") setEndSheet("hidden");
+              }}
+            >
+              <section style={{
+                width: "min(100%, 380px)",
+                borderRadius: 18,
+                background: "#0a0a0a",
+                boxShadow: "0 0 0 1px rgba(255,255,255,0.08), 0 32px 72px rgba(0,0,0,0.9)",
+                color: "#fff",
+                overflow: "hidden",
+                animation: "vibraEndPanelIn 180ms ease-out",
+              }}>
+
+                {/* Header */}
+                <header style={{
+                  height: 56,
+                  display: "grid",
+                  gridTemplateColumns: "48px 1fr 48px",
+                  alignItems: "center",
+                  padding: "0 12px",
+                  borderBottom: "1px solid rgba(255,255,255,0.12)",
+                  flexShrink: 0,
+                }}>
+                  <div aria-hidden="true" />
+                  <span style={{
+                    fontSize: 17, fontWeight: 500, color: "#fff",
+                    lineHeight: 1.2, textAlign: "center", letterSpacing: "-0.02em",
+                  }}>
+                    {endSheet === "confirm" ? "Terminar sesión" : "Sesión terminada"}
+                  </span>
+                  {endSheet === "confirm" ? (
+                    <button
+                      type="button"
+                      onClick={() => setEndSheet("hidden")}
+                      style={{
+                        border: "none", background: "none", color: "#fff",
+                        cursor: "pointer", display: "grid", placeItems: "center",
+                        justifySelf: "end", padding: 4,
+                        fontSize: 32, fontWeight: 300, lineHeight: 1,
+                      }}
+                    >×</button>
+                  ) : (
+                    <div aria-hidden="true" />
+                  )}
+                </header>
+
+                {/* Confirmar */}
+                {endSheet === "confirm" && (
+                  <>
+                    <div style={{ padding: "18px 20px 8px" }}>
+                      <p style={{ color: "rgba(255,255,255,0.70)", fontSize: 14, lineHeight: 1.55, margin: 0 }}>
+                        ¿Estás seguro de que quieres acabar la sesión antes de tiempo? Después nos dejarás un mensaje para decirnos qué pasó.
+                      </p>
+                    </div>
+                    <div style={{
+                      padding: "14px 20px 18px",
+                      borderTop: "1px solid rgba(255,255,255,0.12)",
+                      display: "flex", flexDirection: "column", gap: 10,
+                    }}>
+                      <button
+                        type="button"
+                        onClick={handleConfirmEnd}
+                        disabled={isEndingSession}
+                        style={{
+                          width: "100%", height: 42, borderRadius: 5, border: "none",
+                          background: isEndingSession ? "rgba(239,68,68,0.50)" : "#ef4444",
+                          color: "rgba(255,255,255,0.98)",
+                          fontSize: 15, fontWeight: 500, fontFamily: "inherit",
+                          cursor: isEndingSession ? "not-allowed" : "pointer",
+                          letterSpacing: "-0.02em",
+                          display: "grid", placeItems: "center",
+                        }}
+                      >
+                        {isEndingSession ? "Terminando…" : "Sí, terminar sesión"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEndSheet("hidden")}
+                        disabled={isEndingSession}
+                        style={{
+                          width: "100%", height: 42, borderRadius: 5, border: "none",
+                          background: "rgba(255,255,255,0.1)",
+                          color: "rgba(255,255,255,0.55)",
+                          fontSize: 15, fontWeight: 500, fontFamily: "inherit",
+                          cursor: isEndingSession ? "not-allowed" : "pointer",
+                          letterSpacing: "-0.02em",
+                          display: "grid", placeItems: "center",
+                        }}
+                      >
+                        No, continuar
+                      </button>
+                    </div>
+                  </>
+                )}
+
+                {/* Feedback — enviar no es funcional aún */}
+                {endSheet === "feedback" && (
+                  <>
+                    <div style={{ padding: "18px 20px 8px" }}>
+                      <textarea
+                        placeholder="Dinos qué pasó…"
+                        value={feedbackText}
+                        onChange={e => setFeedbackText(e.target.value)}
+                        rows={4}
+                        style={{
+                          width: "100%", boxSizing: "border-box",
+                          background: "rgba(255,255,255,0.06)",
+                          border: "none",
+                          borderRadius: 12, padding: "10px 12px",
+                          color: "#fff", fontSize: 13, resize: "none",
+                          fontFamily: "inherit", outline: "none",
+                          lineHeight: 1.5,
+                        }}
+                      />
+                    </div>
+                    <div style={{ padding: "14px 20px 18px", borderTop: "1px solid rgba(255,255,255,0.12)" }}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEndSheet("hidden");
+                          setFeedbackText("");
+                          setSessionEnded(false);
+                          onClose();
+                        }}
+                        style={{
+                          width: "100%", height: 42, borderRadius: 5, border: "none",
+                          background: "#a855ff", color: "rgba(255,255,255,0.98)",
+                          fontSize: 15, fontWeight: 500, fontFamily: "inherit",
+                          cursor: "pointer", letterSpacing: "-0.02em",
+                          display: "grid", placeItems: "center",
+                        }}
+                      >
+                        Enviar
+                      </button>
+                    </div>
+                  </>
+                )}
+
+              </section>
+            </div>
+          </>
+        )}
+
+        {/* Tarjeta de descarga — sesión expirada por tiempo */}
+        {mode === "expired" && (
+          <div style={{
+            position: "absolute", inset: 0, background: "#000",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            padding: 24, fontFamily: "inherit",
+          }}>
+            <div style={{
+              width: "min(100%, 340px)",
+              borderRadius: 18,
+              background: "#0a0a0a",
+              boxShadow: "0 0 0 1px rgba(255,255,255,0.08), 0 32px 72px rgba(0,0,0,0.9)",
+              overflow: "hidden",
+              padding: "32px 24px 28px",
+              display: "flex", flexDirection: "column", alignItems: "center", gap: 16,
+              textAlign: "center",
+            }}>
+              <div style={{
+                width: 56, height: 56, borderRadius: "50%",
+                background: "rgba(168,85,255,0.15)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+              }}>
+                <svg width={28} height={28} viewBox="0 0 24 24" fill="none" stroke="#a855ff" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="7 10 12 15 17 10"/>
+                  <line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+              </div>
+
+              <div>
+                <p style={{ color: "#fff", fontSize: 16, fontWeight: 600, margin: "0 0 8px", lineHeight: 1.3 }}>
+                  Tu sesión ha terminado
+                </p>
+                <p style={{ color: "rgba(255,255,255,0.50)", fontSize: 13, margin: 0, lineHeight: 1.55 }}>
+                  La grabación estará disponible para descargar. Tienes{" "}
+                  <strong style={{ color: "rgba(255,255,255,0.80)" }}>30 días</strong>{" "}
+                  para descargarla antes de que sea eliminada.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                style={{
+                  width: "100%", height: 42, borderRadius: 5, border: "none",
+                  background: "#a855ff", color: "rgba(255,255,255,0.98)",
+                  fontSize: 15, fontWeight: 500, fontFamily: "inherit",
+                  cursor: "pointer", letterSpacing: "-0.02em",
+                  display: "grid", placeItems: "center",
+                }}
+              >
+                Descargar grabación
+              </button>
+
+              <button
+                type="button"
+                onClick={onClose}
+                style={{
+                  background: "none", border: "none",
+                  color: "rgba(255,255,255,0.35)",
+                  fontSize: 13, cursor: "pointer", fontFamily: "inherit",
+                }}
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+        )}
+
       </div>
     </div>,
-    document.body
+    document.body,
   );
 }
-
-// ─── Estilos ──────────────────────────────────────────────────────────────────
-
-const backdrop: CSSProperties = {
-  position: "fixed",
-  inset: 0,
-  zIndex: 2147483647,
-  background: "rgba(0,0,0,0.94)",
-  backdropFilter: "blur(10px)",
-  WebkitBackdropFilter: "blur(10px)",
-  display: "flex",
-  flexDirection: "column",
-  width: "100dvw",
-  height: "100dvh",
-  maxWidth: "100dvw",
-  maxHeight: "100dvh",
-  overflow: "hidden",
-  paddingTop: "env(safe-area-inset-top)",
-  paddingRight: "env(safe-area-inset-right)",
-  paddingBottom: "env(safe-area-inset-bottom)",
-  paddingLeft: "env(safe-area-inset-left)",
-  boxSizing: "border-box",
-  overscrollBehavior: "none",
-  touchAction: "none",
-};
-
-const topBar: CSSProperties = {
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "space-between",
-  gap: 12,
-  padding: "max(12px,1.8dvh) 16px 12px",
-  borderBottom: "1px solid rgba(255,255,255,0.10)",
-  background: "rgba(255,255,255,0.03)",
-  color: "#fff",
-  flexShrink: 0,
-  minHeight: 60,
-  boxSizing: "border-box",
-};
-
-const topBarTitle: CSSProperties = {
-  fontSize: "clamp(14px,4dvw,16px)",
-  fontWeight: 800,
-  lineHeight: 1.15,
-  whiteSpace: "nowrap",
-  overflow: "hidden",
-  textOverflow: "ellipsis",
-  maxWidth: "calc(100dvw - 130px - env(safe-area-inset-left) - env(safe-area-inset-right))",
-};
-
-const topBarSubtitle: CSSProperties = {
-  marginTop: 4,
-  fontSize: 12,
-  lineHeight: 1.35,
-  color: "rgba(255,255,255,0.70)",
-  overflow: "hidden",
-  textOverflow: "ellipsis",
-  display: "-webkit-box",
-  WebkitLineClamp: 2,
-  WebkitBoxOrient: "vertical",
-};
-
-const closeButton: CSSProperties = {
-  minHeight: 42,
-  padding: "10px 14px",
-  borderRadius: 12,
-  border: "1px solid rgba(255,255,255,0.14)",
-  background: "rgba(255,255,255,0.06)",
-  color: "#fff",
-  cursor: "pointer",
-  fontSize: 13,
-  fontWeight: 700,
-  lineHeight: 1.1,
-  flexShrink: 0,
-  WebkitTapHighlightColor: "transparent",
-};
-
-const body: CSSProperties = {
-  flex: 1,
-  minHeight: 0,
-  display: "flex",
-  flexDirection: "column",
-  padding: "12px 16px max(12px,env(safe-area-inset-bottom))",
-  overflow: "hidden",
-  boxSizing: "border-box",
-};

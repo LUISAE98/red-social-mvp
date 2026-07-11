@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import { submitSuperComment, submitSuperCommentAsGuest } from "@/lib/liveChat/super-comment-service";
+import { registrarCompraGeo } from "@/lib/wallet/registrarCompraGeo";
 import { getSavedGuestNickname, saveGuestNickname } from "@/lib/guest-id";
 import type { SuperCommentConfig, SuperCommentTier } from "@/lib/liveChat/types";
 
@@ -15,6 +16,7 @@ type Props = {
   open: boolean;
   onClose: () => void;
   postId: string;
+  authorId?: string | null;
   /** undefined = modo invitado */
   userId?: string;
   username?: string;
@@ -28,6 +30,7 @@ export default function SuperCommentModal({
   open,
   onClose,
   postId,
+  authorId,
   userId,
   username,
   avatarUrl,
@@ -104,6 +107,11 @@ export default function SuperCommentModal({
           tier: selectedTier,
         });
       }
+      registrarCompraGeo({
+        creatorId: authorId,
+        serviceType: "supercomment",
+        grossAmount: selectedTier.price,
+      });
       setSent(true);
       setTimeout(() => {
         onClose();

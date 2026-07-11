@@ -476,6 +476,15 @@ match /walletSummary/{docId} {
   allow create, update, delete: if false;
 }
 
+// Geo agregada de compras (mapa): el dueño la lee; solo el servidor la escribe
+// (Route Handler con firebase-admin). Nunca desde el cliente.
+match /purchaseGeo/{cellId} {
+  allow get, list: if signedIn()
+    && request.auth.uid == uid;
+
+  allow create, update, delete: if false;
+}
+
 match /commentFlames/{flameId} {
   allow get, list: if signedIn()
     && request.auth.uid == uid;

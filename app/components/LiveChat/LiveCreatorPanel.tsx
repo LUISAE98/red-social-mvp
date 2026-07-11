@@ -46,6 +46,7 @@ import {
   subscribeToUniqueViewerCount,
   subscribeToAverageWatchTime,
   subscribeToNewFollowersDuringLive,
+  subscribeToVodViewCount,
 } from "@/lib/liveKit/liveViewers";
 import { playEdgeTTS, TTS_MIN_DURATION_SECS } from "@/lib/tts/edge-tts-client";
 import type { EdgeTTSHandle } from "@/lib/tts/edge-tts-client";
@@ -173,6 +174,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
   const [ticketCount, setTicketCount] = useState(0);
   const [vodRevenue, setVodRevenue] = useState(0);
   const [vodBuyerCount, setVodBuyerCount] = useState(0);
+  const [vodViewCount, setVodViewCount] = useState(0);
   const [peakRevenue, setPeakRevenue] = useState(0);
   const viewerCountRef = useRef(0);
   viewerCountRef.current = viewerCount;
@@ -481,6 +483,11 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
       setVodBuyerCount(count);
     });
   }, [open, post.id, post.authorId, post.requiresPayment]);
+
+  useEffect(() => {
+    if (!open || !post.id || !post.requiresPayment) return;
+    return subscribeToVodViewCount(post.id, setVodViewCount);
+  }, [open, post.id, post.requiresPayment]);
 
   // Récord histórico de ingresos totales netos
   useEffect(() => {
@@ -934,6 +941,8 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
     const currency = liveData?.currency ?? "MXN";
     const fmtMoney = (n: number) => n.toLocaleString("es-MX", { style: "currency", currency, maximumFractionDigits: 0 });
     const displayPeak = peakRevenue > 0 ? peakRevenue : net(totalRevenue);
+    const isPaidLive = liveData?.accessType === "paid";
+    const hasVod = post.requiresPayment === true;
 
     const TILE_COLORS = ["#fff", "#f97316", "#facc15", "#f472b6", "#a855f7", "#3b82f6", "#60a5fa", "#22d3ee", "#818cf8", "#f87171", "#fb923c"];
     function getTileColor(id: string) { return TILE_COLORS[itemColors[id] ?? 0] ?? "#fff"; }
@@ -946,17 +955,18 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
     }
 
     const stats: Array<{ id: string; value: string; sub?: string; label: string; green?: boolean }> = [
-      { id: "total",       value: fmtMoney(net(totalRevenue)),    sub: displayPeak > 0 ? `Récord ${fmtMoney(displayPeak)}` : undefined, label: tLive("statNetRevenue"), green: true },
-      { id: "ahora",       value: viewerCount.toLocaleString("es-MX"),                                        label: tLive("statViewersNow") },
-      { id: "pico",        value: peakViewerCount.toLocaleString("es-MX"),                                    label: tLive("statPeakViewers") },
-      { id: "unicos",      value: uniqueViewerCount > 0 ? uniqueViewerCount.toLocaleString("es-MX") : "—",    label: tLive("statUniqueViewers") },
-      { id: "seguids",     value: newFollowers > 0 ? newFollowers.toLocaleString("es-MX") : "—",              label: tLive("statNewFollowers") },
-      { id: "mensajes",    value: totalChatMessages > 0 ? totalChatMessages.toLocaleString("es-MX") : "—",    label: tLive("statChatMessages") },
-      { id: "tvisto",      value: avgWatchSeconds > 0 ? formatWatchTime(avgWatchSeconds) : "—",               label: tLive("statAvgWatchTime") },
-      { id: "donaciones",  value: fmtMoney(net(donationRevenue)), sub: tLive("donationCount", { count: donationCount }),            label: tLive("statDonations") },
-      { id: "supercoment", value: fmtMoney(net(superRevenue)),    sub: `${superCount} SC`,                    label: tLive("superComments") },
-      { id: "tickets",     value: fmtMoney(net(ticketRevenue)),   sub: tLive("boughtCount", { count: ticketCount }),            label: tLive("statAccessTickets") },
-      { id: "vod",         value: fmtMoney(net(vodRevenue)),      sub: tLive("boughtCount", { count: vodBuyerCount }),          label: tLive("statVodRevenue") },
+      { id: "ahora",    value: viewerCount.toLocaleString("es-MX"),                                         label: tLive("statViewersNow") },
+      { id: "pico",     value: peakViewerCount.toLocaleString("es-MX"),                                     label: tLive("statPeakViewers") },
+      { id: "unicos",   value: uniqueViewerCount > 0 ? uniqueViewerCount.toLocaleString("es-MX") : "—",     label: tLive("statUniqueViewers") },
+      { id: "seguids",  value: newFollowers > 0 ? newFollowers.toLocaleString("es-MX") : "—",               label: tLive("statNewFollowers") },
+      { id: "mensajes", value: totalChatMessages > 0 ? totalChatMessages.toLocaleString("es-MX") : "—",     label: tLive("statChatMessages") },
+      { id: "tvisto",   value: avgWatchSeconds > 0 ? formatWatchTime(avgWatchSeconds) : "—",                label: tLive("statAvgWatchTime") },
+      ...(donationCount > 0 ? [{ id: "donaciones",  value: fmtMoney(net(donationRevenue)), sub: tLive("donationCount", { count: donationCount }), label: tLive("statDonations") }] : []),
+      ...(superCount > 0    ? [{ id: "supercoment", value: fmtMoney(net(superRevenue)),    sub: `${superCount} SC`,                               label: tLive("superComments") }] : []),
+      ...(isPaidLive && ticketCount > 0  ? [{ id: "tickets", value: fmtMoney(net(ticketRevenue)), sub: tLive("boughtCount", { count: ticketCount }),   label: tLive("statAccessTickets") }] : []),
+      ...(hasVod && vodBuyerCount > 0    ? [{ id: "vod",     value: fmtMoney(net(vodRevenue)),    sub: tLive("boughtCount", { count: vodBuyerCount }), label: tLive("statVodRevenue") }] : []),
+      ...(hasVod && vodViewCount > 0     ? [{ id: "vodviews", value: vodViewCount.toLocaleString("es-MX"),                                              label: tLive("statVodViews") }] : []),
+      ...(totalRevenue > 0  ? [{ id: "total", value: fmtMoney(net(totalRevenue)), sub: displayPeak > 0 ? `Récord ${fmtMoney(displayPeak)}` : undefined, label: tLive("statNetRevenue"), green: true }] : []),
     ];
 
     return (
@@ -1065,18 +1075,18 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
 
     // Todos los items arrastrables: tiles + charts
     const tileItems: Array<{ id: string; defaultX: number; defaultY: number; width: number; height: number; extra?: React.CSSProperties; content: React.ReactNode }> = [
-      { id: "ahora",       defaultX: tx(0), defaultY: R0, width: TILE2W, height: TILE, content: <><span style={val}>{viewerCount.toLocaleString("es-MX")}</span><span style={lbl}>{tLive("statViewersNow")}</span></> },
-      { id: "pico",        defaultX: tx(1), defaultY: R0, width: TILE2W, height: TILE, content: <><span style={val}>{peakViewerCount.toLocaleString("es-MX")}</span><span style={lbl}>{tLive("statPeakViewers")}</span></> },
-      { id: "unicos",      defaultX: tx(2), defaultY: R0, width: TILE2W, height: TILE, content: <><span style={val}>{uniqueViewerCount > 0 ? uniqueViewerCount.toLocaleString("es-MX") : "—"}</span><span style={lbl}>{tLive("statUniqueViewers")}</span></> },
-      { id: "seguids",     defaultX: tx(3), defaultY: R0, width: TILE2W, height: TILE, content: <><span style={val}>{newFollowers > 0 ? newFollowers.toLocaleString("es-MX") : "—"}</span><span style={lbl}>{tLive("statNewFollowers")}</span></> },
-      { id: "mensajes",    defaultX: tx(4), defaultY: R0, width: TILE2W, height: TILE, content: <><span style={val}>{totalChatMessages > 0 ? totalChatMessages.toLocaleString("es-MX") : "—"}</span><span style={lbl}>{tLive("statChatMessages")}</span></> },
-      { id: "tvisto",      defaultX: tx(5), defaultY: R0, width: TILE2W, height: TILE, content: <><span style={val}>{avgWatchSeconds > 0 ? formatWatchTime(avgWatchSeconds) : "—"}</span><span style={lbl}>{tLive("statAvgWatchTime")}</span></> },
-      // TODO: restaurar condiciones (superCount > 0, isPaidLive && ticketCount > 0, hasVod && vodBuyerCount > 0, totalRevenue > 0) cuando el diseño esté listo
-      { id: "donaciones",  defaultX: tx(0), defaultY: R1, width: TILE2W, height: TILE, content: <><span style={val}>{fmtMoney(net(donationRevenue))}</span><span style={sub}>{tLive("donationCount", { count: donationCount })}</span><span style={lbl}>{tLive("statDonations")}</span></> },
-      { id: "supercoment", defaultX: tx(6), defaultY: R0, width: TILE2W, height: TILE, content: <><span style={val}>{fmtMoney(net(superRevenue))}</span><span style={sub}>{superCount} SC</span><span style={lbl}>{tLive("superComments")}</span></> },
-      { id: "tickets",     defaultX: tx(7), defaultY: R0, width: TILE2W, height: TILE, content: <><span style={val}>{fmtMoney(net(ticketRevenue))}</span><span style={sub}>{tLive("boughtCount", { count: ticketCount })}</span><span style={lbl}>{tLive("statAccessTickets")}</span></> },
-      { id: "vod",         defaultX: tx(8), defaultY: R0, width: TILE2W, height: TILE, content: <><span style={val}>{fmtMoney(net(vodRevenue))}</span><span style={sub}>{tLive("boughtCount", { count: vodBuyerCount })}</span><span style={lbl}>{tLive("statVodRevenue")}</span></> },
-      { id: "total",       defaultX: tx(9), defaultY: R0, width: TILE2W, height: TILE, content: (() => { const displayPeak = peakRevenue > 0 ? peakRevenue : net(totalRevenue); return <><span style={{ ...val, color: "#4ade80" }}>{fmtMoney(net(totalRevenue))}</span>{displayPeak > 0 && <span style={sub}>Récord {fmtMoney(displayPeak)}</span>}<span style={{ ...lbl, color: "#4ade80" }}>{tLive("statNetRevenue")}</span></>; })() },
+      { id: "ahora",    defaultX: tx(0), defaultY: R0, width: TILE2W, height: TILE, content: <><span style={val}>{viewerCount.toLocaleString("es-MX")}</span><span style={lbl}>{tLive("statViewersNow")}</span></> },
+      { id: "pico",     defaultX: tx(1), defaultY: R0, width: TILE2W, height: TILE, content: <><span style={val}>{peakViewerCount.toLocaleString("es-MX")}</span><span style={lbl}>{tLive("statPeakViewers")}</span></> },
+      { id: "unicos",   defaultX: tx(2), defaultY: R0, width: TILE2W, height: TILE, content: <><span style={val}>{uniqueViewerCount > 0 ? uniqueViewerCount.toLocaleString("es-MX") : "—"}</span><span style={lbl}>{tLive("statUniqueViewers")}</span></> },
+      { id: "seguids",  defaultX: tx(3), defaultY: R0, width: TILE2W, height: TILE, content: <><span style={val}>{newFollowers > 0 ? newFollowers.toLocaleString("es-MX") : "—"}</span><span style={lbl}>{tLive("statNewFollowers")}</span></> },
+      { id: "mensajes", defaultX: tx(4), defaultY: R0, width: TILE2W, height: TILE, content: <><span style={val}>{totalChatMessages > 0 ? totalChatMessages.toLocaleString("es-MX") : "—"}</span><span style={lbl}>{tLive("statChatMessages")}</span></> },
+      { id: "tvisto",   defaultX: tx(5), defaultY: R0, width: TILE2W, height: TILE, content: <><span style={val}>{avgWatchSeconds > 0 ? formatWatchTime(avgWatchSeconds) : "—"}</span><span style={lbl}>{tLive("statAvgWatchTime")}</span></> },
+      ...(donationCount > 0 ? [{ id: "donaciones",  defaultX: tx(0), defaultY: R1, width: TILE2W, height: TILE, content: <><span style={val}>{fmtMoney(net(donationRevenue))}</span><span style={sub}>{tLive("donationCount", { count: donationCount })}</span><span style={lbl}>{tLive("statDonations")}</span></> }] : []),
+      ...(superCount > 0    ? [{ id: "supercoment", defaultX: tx(6), defaultY: R0, width: TILE2W, height: TILE, content: <><span style={val}>{fmtMoney(net(superRevenue))}</span><span style={sub}>{superCount} SC</span><span style={lbl}>{tLive("superComments")}</span></> }] : []),
+      ...(isPaidLive && ticketCount > 0 ? [{ id: "tickets", defaultX: tx(7), defaultY: R0, width: TILE2W, height: TILE, content: <><span style={val}>{fmtMoney(net(ticketRevenue))}</span><span style={sub}>{tLive("boughtCount", { count: ticketCount })}</span><span style={lbl}>{tLive("statAccessTickets")}</span></> }] : []),
+      ...(hasVod && vodBuyerCount > 0   ? [{ id: "vod",     defaultX: tx(8), defaultY: R0, width: TILE2W, height: TILE, content: <><span style={val}>{fmtMoney(net(vodRevenue))}</span><span style={sub}>{tLive("boughtCount", { count: vodBuyerCount })}</span><span style={lbl}>{tLive("statVodRevenue")}</span></> }] : []),
+      ...(hasVod && vodViewCount > 0    ? [{ id: "vodviews", defaultX: CELL*16 + OFFSET, defaultY: R1, width: TILE2W, height: TILE, content: <><span style={val}>{vodViewCount.toLocaleString("es-MX")}</span><span style={lbl}>{tLive("statVodViews")}</span></> }] : []),
+      ...(totalRevenue > 0  ? [{ id: "total", defaultX: tx(9), defaultY: R0, width: TILE2W, height: TILE, content: (() => { const displayPeak = peakRevenue > 0 ? peakRevenue : net(totalRevenue); return <><span style={{ ...val, color: "#4ade80" }}>{fmtMoney(net(totalRevenue))}</span>{displayPeak > 0 && <span style={sub}>Récord {fmtMoney(displayPeak)}</span>}<span style={{ ...lbl, color: "#4ade80" }}>{tLive("statNetRevenue")}</span></>; })() }] : []),
       { id: "chart_espect", defaultX: CELL*2 + OFFSET, defaultY: R1, width: CELL*7, height: CELL*2, content: <><span style={{ display: "block", ...lbl, marginBottom: 3 }}>Espectadores</span>{renderViewerChart()}</> },
       { id: "chart_activ",  defaultX: CELL*9 + OFFSET, defaultY: R1, width: CELL*7, height: CELL*2, content: <><span style={{ display: "block", ...lbl, marginBottom: 3 }}>Actividad general de tu audiencia</span>{renderHeatmap()}</> },
     ];

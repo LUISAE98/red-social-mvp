@@ -26,6 +26,12 @@ type Props = {
   sessionType: LivekitSessionType;
   role: "buyer" | "creator";
   onLeave: () => void;
+  // Props opcionales — cuando se pasan, el control de fin de sesión y los
+  // avisos del timer se delegan al componente padre.
+  onEndCallRequest?: () => void;
+  onTimerExpired?: () => void;
+  onTwoMinWarning?: () => void;
+  endSessionRef?: { current: (() => Promise<void>) | null };
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -36,15 +42,32 @@ function formatTime(seconds: number): string {
   return `${m}:${s}`;
 }
 
+function timerColor(s: number): string {
+  if (s > 240) return "rgba(255,255,255,0.75)";
+  const p = (240 - s) / 240;
+  const r = Math.round(255 + (239 - 255) * p);
+  const g = Math.round(255 + (68 - 255) * p);
+  const b = Math.round(255 + (68 - 255) * p);
+  return `rgba(${r},${g},${b},${(0.75 + 0.25 * p).toFixed(2)})`;
+}
+
 function collectionForType(sessionType: LivekitSessionType): string {
   return sessionType === "meet_greet" ? "meetGreetRequests" : "exclusiveSessionRequests";
 }
 
 // ─── Componente raíz ──────────────────────────────────────────────────────────
 
-export default function LiveKitVideoRoom({ sessionId, sessionType, role, onLeave }: Props) {
+export default function LiveKitVideoRoom({
+  sessionId,
+  sessionType,
+  role,
+  onLeave,
+  onEndCallRequest,
+  onTimerExpired,
+  onTwoMinWarning,
+  endSessionRef,
+}: Props) {
   const tLive = useTranslations("live");
-  const tCommon = useTranslations("common");
   const roomState = useLivekitRoom({ sessionId, sessionType, enabled: true });
 
   if (roomState.status === "idle" || roomState.status === "loading") {
@@ -75,10 +98,7 @@ export default function LiveKitVideoRoom({ sessionId, sessionType, role, onLeave
       sampleRate: 48000,
     },
     publishDefaults: {
-      videoEncoding: {
-        maxBitrate: 3_500_000,
-        maxFramerate: 30,
-      },
+      videoEncoding: { maxBitrate: 3_500_000, maxFramerate: 30 },
       dtx: true,
       red: true,
       simulcast: false,
@@ -105,6 +125,10 @@ export default function LiveKitVideoRoom({ sessionId, sessionType, role, onLeave
         sessionType={sessionType}
         role={role}
         onLeave={onLeave}
+        onEndCallRequest={onEndCallRequest}
+        onTimerExpired={onTimerExpired}
+        onTwoMinWarning={onTwoMinWarning}
+        endSessionRef={endSessionRef}
       />
       <RoomAudioRenderer />
     </LiveKitRoom>
@@ -118,11 +142,19 @@ function RoomContent({
   sessionType,
   role,
   onLeave,
+  onEndCallRequest,
+  onTimerExpired,
+  onTwoMinWarning,
+  endSessionRef,
 }: {
   sessionId: string;
   sessionType: LivekitSessionType;
   role: "buyer" | "creator";
   onLeave: () => void;
+  onEndCallRequest?: () => void;
+  onTimerExpired?: () => void;
+  onTwoMinWarning?: () => void;
+  endSessionRef?: { current: (() => Promise<void>) | null };
 }) {
   const tLive = useTranslations("live");
   const tCommon = useTranslations("common");
@@ -130,40 +162,28 @@ function RoomContent({
   const participants = useParticipants();
   const { localParticipant, isMicrophoneEnabled, isCameraEnabled } = useLocalParticipant();
   const room = useRoomContext();
+
+  // Estado para flujo inline de confirmación (solo cuando no hay onEndCallRequest externo)
   const [confirmingEnd, setConfirmingEnd] = useState(false);
   const [isEnding, setIsEnding] = useState(false);
   const joinCalledRef = useRef(false);
-
-  // Device detection — pointer:fine identifica laptop/desktop, pointer:coarse = touch/móvil
-  const [isDesktop, setIsDesktop] = useState(false);
-  useEffect(() => {
-    const mql = window.matchMedia("(pointer: fine) and (min-width: 768px)");
-    setIsDesktop(mql.matches);
-    const h = (e: MediaQueryListEvent) => setIsDesktop(e.matches);
-    mql.addEventListener("change", h);
-    return () => mql.removeEventListener("change", h);
-  }, []);
+  const timerExpiredFiredRef = useRef(false);
+  const twoMinFiredRef = useRef(false);
+  const rootRef = useRef<HTMLDivElement>(null);
 
   const cameraTracks = useTracks([Track.Source.Camera], { onlySubscribed: false });
-
   const localCameraTrack = cameraTracks.find((t) => t.participant.isLocal);
   const remoteCameraTrack = cameraTracks.find((t) => !t.participant.isLocal);
-
   const remoteConnected = participants.some((p) => !p.isLocal);
 
-  // ── Deadline sincronizado desde Firestore ─────────────────────────────────
-  // Lee scheduledAt + durationMinutes del doc compartido para que ambos
-  // participantes computen exactamente el mismo countdown sin depender de props.
+  // ── Deadline desde Firestore ──────────────────────────────────────────────
   const [sessionDeadline, setSessionDeadline] = useState<number | null>(null);
 
   useEffect(() => {
     const ref = doc(db, collectionForType(sessionType), sessionId);
     return onSnapshot(ref, (snap) => {
       if (!snap.exists()) return;
-      const data = snap.data() as {
-        startedAt?: Timestamp | string;
-        durationMinutes?: number;
-      };
+      const data = snap.data() as { startedAt?: Timestamp | string; durationMinutes?: number };
       const startedAt = data.startedAt;
       const dur = data.durationMinutes;
       if (startedAt && dur != null) {
@@ -176,33 +196,63 @@ function RoomContent({
     });
   }, [sessionId, sessionType]);
 
-  // Countdown real-time: ambos participantes leen el mismo deadline absoluto
   const [remaining, setRemaining] = useState<number | null>(null);
   useEffect(() => {
     if (sessionDeadline == null) return;
-    const update = () => {
-      const r = Math.round((sessionDeadline - Date.now()) / 1000);
-      setRemaining(Math.max(0, r));
-    };
+    const update = () => setRemaining(Math.max(0, Math.round((sessionDeadline - Date.now()) / 1000)));
     update();
     const id = setInterval(update, 1000);
     return () => clearInterval(id);
   }, [sessionDeadline]);
 
-  // Registrar join en Firestore cuando la conexión LiveKit se establece.
+  // ── Callbacks de timer ────────────────────────────────────────────────────
+  useEffect(() => {
+    if (remaining == null || sessionDeadline == null) return;
+    if (!twoMinFiredRef.current && remaining <= 120 && remaining > 0) {
+      twoMinFiredRef.current = true;
+      onTwoMinWarning?.();
+    }
+    if (!timerExpiredFiredRef.current && remaining === 0) {
+      timerExpiredFiredRef.current = true;
+      if (onTimerExpired) {
+        onTimerExpired();
+      } else {
+        onLeave();
+      }
+    }
+  }, [remaining, sessionDeadline, onTimerExpired, onTwoMinWarning, onLeave]);
+
+  // ── Join session ──────────────────────────────────────────────────────────
   useEffect(() => {
     if (connectionState !== ConnectionState.Connected || joinCalledRef.current) return;
     joinCalledRef.current = true;
     callJoinSession({ sessionId, sessionType }).catch((err: unknown) => {
-      console.warn("joinSession error (no bloquea la llamada):", err);
+      console.warn("joinSession error:", err);
     });
   }, [connectionState, sessionId, sessionType]);
 
-  const handleEndSession = useCallback(async () => {
-    if (!confirmingEnd) {
-      setConfirmingEnd(true);
-      return;
-    }
+  // ── endSessionRef — para que el padre pueda disparar el fin ───────────────
+  useEffect(() => {
+    if (!endSessionRef) return;
+    endSessionRef.current = async () => {
+      setIsEnding(true);
+      try {
+        await callEndSession({ sessionId, sessionType });
+        await room.disconnect();
+      } catch (err: unknown) {
+        console.error("endSession error:", err);
+      } finally {
+        setIsEnding(false);
+      }
+    };
+    return () => {
+      if (endSessionRef) endSessionRef.current = null;
+    };
+  }, [endSessionRef, sessionId, sessionType, room]);
+
+  // ── Flujo de fin inline (fallback cuando no hay onEndCallRequest) ─────────
+  const handleEndInline = useCallback(async () => {
+    if (!confirmingEnd) { setConfirmingEnd(true); return; }
     setIsEnding(true);
     try {
       await callEndSession({ sessionId, sessionType });
@@ -227,148 +277,187 @@ function RoomContent({
     connectionState === ConnectionState.Connecting ||
     connectionState === ConnectionState.Reconnecting;
 
-  // Color del countdown según tiempo restante
-  const countdownColor =
-    remaining == null
-      ? "transparent"
-      : remaining <= 60
-      ? "#ef4444"
-      : remaining <= 300
-      ? "#f59e0b"
-      : "rgba(255,255,255,0.82)";
+  // ── PiP drag ──────────────────────────────────────────────────────────────
+  const [pipPos, setPipPos] = useState<{ x: number; y: number } | null>(null);
+  const pipDragRef = useRef<{
+    sx: number; sy: number; px: number; py: number;
+    cw: number; ch: number; pw: number; ph: number;
+  } | null>(null);
 
-  // PiP: en desktop más grande, en móvil más compacto
-  const pipSize = isDesktop
-    ? "clamp(90px, 14dvw, 140px)"
-    : "clamp(72px, 22dvw, 110px)";
+  function handlePipPointerDown(e: React.PointerEvent<HTMLDivElement>) {
+    const root = rootRef.current;
+    if (!root) return;
+    const rootRect = root.getBoundingClientRect();
+    const pipRect = e.currentTarget.getBoundingClientRect();
+    const spx = pipRect.left - rootRect.left;
+    const spy = pipRect.top - rootRect.top;
+    pipDragRef.current = {
+      sx: e.clientX, sy: e.clientY,
+      px: spx, py: spy,
+      cw: rootRect.width, ch: rootRect.height,
+      pw: pipRect.width, ph: pipRect.height,
+    };
+    setPipPos((p) => p ?? { x: spx, y: spy });
+    e.currentTarget.setPointerCapture(e.pointerId);
+    e.preventDefault();
+  }
 
-  // ── Layout ───────────────────────────────────────────────────────────────────
+  function handlePipPointerMove(e: React.PointerEvent<HTMLDivElement>) {
+    if (!pipDragRef.current) return;
+    const { sx, sy, px, py, cw, ch, pw, ph } = pipDragRef.current;
+    const x = Math.max(0, Math.min(cw - pw, px + (e.clientX - sx)));
+    const y = Math.max(0, Math.min(ch - ph, py + (e.clientY - sy)));
+    setPipPos({ x, y });
+  }
+
+  function handlePipPointerUp() { pipDragRef.current = null; }
+
+  // ── Layout ─────────────────────────────────────────────────────────────────
   return (
-    <div style={styles.root}>
-      {/* Área de video principal */}
-      <div style={styles.videoArea}>
-        {isConnecting ? (
-          <CenteredLabel>{tLive("connecting")}</CenteredLabel>
-        ) : !remoteConnected ? (
-          <CenteredLabel>
-            {role === "creator"
-              ? tLive("waitingParticipant")
-              : tLive("waitingCreator")}
-          </CenteredLabel>
-        ) : remoteCameraTrack ? (
+    <div ref={rootRef} style={styles.root}>
+
+      {/* Video principal — llena todo el contenedor */}
+      {isConnecting ? (
+        <CenteredLabel>{tLive("connecting")}</CenteredLabel>
+      ) : !remoteConnected ? (
+        <CenteredLabel>
+          {role === "creator" ? tLive("waitingParticipant") : tLive("waitingCreator")}
+        </CenteredLabel>
+      ) : remoteCameraTrack ? (
+        <div style={{ position: "absolute", inset: 0 }}>
           <VideoTrack
             trackRef={remoteCameraTrack}
-            style={{
-              position: "absolute",
-              inset: 0,
-              width: "100%",
-              height: "100%",
-              objectFit: "contain",
-            }}
+            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+          />
+        </div>
+      ) : (
+        <CenteredLabel>{tLive("participantCameraOff")}</CenteredLabel>
+      )}
+
+      {/* Countdown — top center */}
+      {remoteConnected && remaining != null && sessionDeadline != null && (
+        <div style={{
+          position: "absolute", top: 16, left: "50%", transform: "translateX(-50%)",
+          zIndex: 4,
+          display: "inline-flex", alignItems: "center",
+          background: "rgba(0,0,0,0.28)",
+          backdropFilter: "blur(8px)",
+          WebkitBackdropFilter: "blur(8px)",
+          borderRadius: 6,
+          padding: "4px 10px",
+          whiteSpace: "nowrap",
+        }}>
+          <span style={{
+            fontFamily: "inherit",
+            fontSize: 14, fontWeight: 600,
+            color: timerColor(remaining),
+            lineHeight: 1,
+          }}>
+            {formatTime(remaining)}
+          </span>
+        </div>
+      )}
+
+      {/* PiP local — arrastrable, 16:9 */}
+      <div
+        onPointerDown={handlePipPointerDown}
+        onPointerMove={handlePipPointerMove}
+        onPointerUp={handlePipPointerUp}
+        onPointerCancel={handlePipPointerUp}
+        style={{
+          position: "absolute",
+          ...(pipPos === null ? { top: 12, right: 12 } : { top: pipPos.y, left: pipPos.x }),
+          width: "clamp(100px, 14%, 160px)",
+          aspectRatio: "16/9",
+          borderRadius: 10,
+          overflow: "hidden",
+          background: "#111",
+          zIndex: 3,
+          cursor: pipDragRef.current ? "grabbing" : "grab",
+          touchAction: "none",
+          userSelect: "none",
+        }}
+      >
+        {localCameraTrack && isCameraEnabled ? (
+          <VideoTrack
+            trackRef={localCameraTrack}
+            style={{ width: "100%", height: "100%", objectFit: "cover", transform: "scaleX(-1)" }}
           />
         ) : (
-          <CenteredLabel>{tLive("participantCameraOff")}</CenteredLabel>
-        )}
-
-        {/* Countdown timer — visible cuando ambos están conectados y hay deadline */}
-        {remoteConnected && remaining != null && sessionDeadline != null && (
-          <div
-            style={{
-              position: "absolute",
-              top: 12,
-              left: "50%",
-              transform: "translateX(-50%)",
-              zIndex: 4,
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 6,
-              background: "rgba(0,0,0,0.58)",
-              backdropFilter: "blur(6px)",
-              WebkitBackdropFilter: "blur(6px)",
-              borderRadius: 8,
-              padding: "5px 12px",
-              border: `1px solid ${remaining <= 60 ? "rgba(239,68,68,0.45)" : "rgba(255,255,255,0.12)"}`,
-            }}
-          >
-            {remaining <= 60 && (
-              <span
-                style={{
-                  width: 7,
-                  height: 7,
-                  borderRadius: "50%",
-                  background: "#ef4444",
-                  flexShrink: 0,
-                  animation: "lkPulse 1s ease-in-out infinite",
-                }}
-              />
-            )}
-            <span
-              style={{
-                fontFamily: "ui-monospace, 'SF Mono', monospace",
-                fontSize: isDesktop ? 15 : 13,
-                fontWeight: 700,
-                color: countdownColor,
-                letterSpacing: "0.05em",
-                lineHeight: 1,
-              }}
-            >
-              {formatTime(remaining)}
-            </span>
-          </div>
-        )}
-
-        {/* PiP local */}
-        {localCameraTrack && isCameraEnabled && (
-          <div
-            style={{
-              ...styles.pipWrapper,
-              width: pipSize,
-            }}
-          >
-            <VideoTrack
-              trackRef={localCameraTrack}
-              style={{ ...styles.pipVideo, transform: "scaleX(-1)" }}
-            />
-          </div>
-        )}
-
-        {/* Indicador de cámara local apagada */}
-        {!isCameraEnabled && (
-          <div
-            style={{
-              ...styles.pipWrapper,
-              width: pipSize,
-            }}
-          >
-            <div style={styles.pipPlaceholder}>
-              <span style={{ fontSize: 22 }}>📷</span>
-            </div>
+          <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", background: "#1a1a1a" }}>
+            <span style={{ fontSize: 18 }}>📷</span>
           </div>
         )}
       </div>
 
-      {/* Barra de controles */}
+      {/* Controles flotantes */}
       <div style={styles.controls}>
-        <ControlButton onClick={toggleMic} active={isMicrophoneEnabled} label={isMicrophoneEnabled ? "Micrófono activo" : "Micrófono silenciado"}>
-          {isMicrophoneEnabled ? <MicIcon /> : <MicOffIcon />}
-        </ControlButton>
-        <ControlButton onClick={toggleCamera} active={isCameraEnabled} label={isCameraEnabled ? "Cámara activa" : "Cámara apagada"}>
-          {isCameraEnabled ? <CamIcon /> : <CamOffIcon />}
-        </ControlButton>
 
+        {/* Mic */}
         <button
           type="button"
-          onClick={handleEndSession}
-          disabled={isEnding}
-          style={{ ...styles.endButton, opacity: isEnding ? 0.6 : 1 }}
+          onClick={toggleMic}
+          aria-label={isMicrophoneEnabled ? "Silenciar micrófono" : "Activar micrófono"}
+          style={styles.iconButton}
         >
-          {isEnding ? tLive("endingSession") : confirmingEnd ? tLive("confirmEnd") : tLive("endSession")}
+          <MicIcon />
+          {!isMicrophoneEnabled && <span style={styles.offBadge}><XSmall /></span>}
         </button>
 
-        {confirmingEnd && !isEnding && (
-          <button type="button" onClick={() => setConfirmingEnd(false)} style={styles.cancelButton}>
-            {tCommon("cancel")}
+        {/* Cámara */}
+        <button
+          type="button"
+          onClick={toggleCamera}
+          aria-label={isCameraEnabled ? "Apagar cámara" : "Encender cámara"}
+          style={styles.iconButton}
+        >
+          <CamIcon />
+          {!isCameraEnabled && <span style={styles.offBadge}><XSmall /></span>}
+        </button>
+
+        {/* Terminar sesión */}
+        {onEndCallRequest ? (
+          <button
+            type="button"
+            onClick={onEndCallRequest}
+            disabled={isEnding}
+            aria-label="Terminar sesión"
+            style={{ ...styles.iconButton, color: "#ef4444", opacity: isEnding ? 0.5 : 1 }}
+          >
+            <svg width={26} height={26} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" aria-hidden="true">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
           </button>
+        ) : (
+          <>
+            <button
+              type="button"
+              onClick={handleEndInline}
+              disabled={isEnding}
+              aria-label="Terminar sesión"
+              style={{
+                ...styles.controlButton,
+                background: confirmingEnd ? "rgba(220,38,38,0.92)" : "rgba(239,68,68,0.28)",
+                borderColor: "rgba(239,68,68,0.50)",
+                opacity: isEnding ? 0.6 : 1,
+              }}
+            >
+              {isEnding
+                ? tLive("endingSession")
+                : confirmingEnd
+                ? tLive("confirmEnd")
+                : tLive("endSession")}
+            </button>
+            {confirmingEnd && !isEnding && (
+              <button
+                type="button"
+                onClick={() => setConfirmingEnd(false)}
+                style={styles.cancelButton}
+              >
+                {tCommon("cancel")}
+              </button>
+            )}
+          </>
         )}
       </div>
 
@@ -381,6 +470,14 @@ function RoomContent({
 }
 
 // ─── Subcomponentes simples ───────────────────────────────────────────────────
+
+function XSmall() {
+  return (
+    <svg width={8} height={8} viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth={3.5} strokeLinecap="round" aria-hidden="true">
+      <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+    </svg>
+  );
+}
 
 function CenteredLabel({ children }: { children: React.ReactNode }) {
   return (
@@ -409,16 +506,11 @@ function StatusScreen({
   return (
     <div style={styles.statusScreen}>
       {spinner && <div style={styles.spinner} />}
-      <p
-        style={{
-          color: isError ? "#fca5a5" : "rgba(255,255,255,0.75)",
-          fontSize: 15,
-          textAlign: "center",
-          margin: "12px 0 0",
-          lineHeight: 1.5,
-          maxWidth: 280,
-        }}
-      >
+      <p style={{
+        color: isError ? "#fca5a5" : "rgba(255,255,255,0.75)",
+        fontSize: 15, textAlign: "center",
+        margin: "12px 0 0", lineHeight: 1.5, maxWidth: 280,
+      }}>
         {message}
       </p>
       {onRetry && (
@@ -429,8 +521,6 @@ function StatusScreen({
     </div>
   );
 }
-
-// ─── Pantalla de error de acceso ─────────────────────────────────────────────
 
 type AccessErrorVariant = "denied" | "not-found" | "schedule" | "cancelled" | "ended" | "generic";
 
@@ -474,16 +564,7 @@ function AccessErrorScreen({
       <p style={{ color, fontSize: 15, fontWeight: 700, margin: "8px 0 0", textAlign: "center" }}>
         {title}
       </p>
-      <p
-        style={{
-          color: "rgba(255,255,255,0.60)",
-          fontSize: 13,
-          textAlign: "center",
-          margin: "6px 0 0",
-          lineHeight: 1.5,
-          maxWidth: 260,
-        }}
-      >
+      <p style={{ color: "rgba(255,255,255,0.60)", fontSize: 13, textAlign: "center", margin: "6px 0 0", lineHeight: 1.5, maxWidth: 260 }}>
         {message}
       </p>
       <button type="button" onClick={onClose} style={styles.retryButton}>
@@ -493,36 +574,9 @@ function AccessErrorScreen({
   );
 }
 
-function ControlButton({
-  onClick,
-  active,
-  label,
-  children,
-}: {
-  onClick: () => void;
-  active: boolean;
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-label={label}
-      style={{
-        ...styles.controlButton,
-        background: active ? "rgba(255,255,255,0.10)" : "rgba(239,68,68,0.22)",
-        borderColor: active ? "rgba(255,255,255,0.18)" : "rgba(239,68,68,0.40)",
-      }}
-    >
-      {children}
-    </button>
-  );
-}
-
 function MicIcon() {
   return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg width={26} height={26} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/>
       <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
       <line x1="12" y1="19" x2="12" y2="23"/>
@@ -531,83 +585,24 @@ function MicIcon() {
   );
 }
 
-function MicOffIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <line x1="1" y1="1" x2="23" y2="23"/>
-      <path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V5a3 3 0 0 0-5.94-.6"/>
-      <path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23"/>
-      <line x1="12" y1="19" x2="12" y2="23"/>
-      <line x1="8" y1="23" x2="16" y2="23"/>
-    </svg>
-  );
-}
-
 function CamIcon() {
   return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg width={26} height={26} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <polygon points="23 7 16 12 23 17 23 7"/>
       <rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
     </svg>
   );
 }
 
-function CamOffIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <line x1="1" y1="1" x2="23" y2="23"/>
-      <path d="M21 21H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h3m3-3h6l2 3h2a2 2 0 0 1 2 2v9.34"/>
-      <path d="M23 7l-7 5 7 5V7z" strokeOpacity="0.5"/>
-    </svg>
-  );
-}
-
-// ─── Estilos ─────────────────────────────────────────────────────────────────
+// ─── Estilos ──────────────────────────────────────────────────────────────────
 
 const styles: Record<string, CSSProperties> = {
   root: {
-    flex: 1,
-    minHeight: 0,
-    display: "grid",
-    gridTemplateRows: "minmax(0,1fr) auto",
-    gap: 10,
-    overflow: "hidden",
-  },
-  videoArea: {
     position: "relative",
-    minHeight: 0,
-    borderRadius: 16,
-    border: "1px solid rgba(255,255,255,0.10)",
-    background: "#0a0a0a",
-    overflow: "hidden",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  pipWrapper: {
-    position: "absolute",
-    bottom: 12,
-    right: 12,
-    aspectRatio: "3/4",
-    borderRadius: 10,
-    overflow: "hidden",
-    border: "1.5px solid rgba(255,255,255,0.18)",
-    background: "#111",
-    boxShadow: "0 4px 16px rgba(0,0,0,0.5)",
-    zIndex: 2,
-  },
-  pipVideo: {
     width: "100%",
     height: "100%",
-    objectFit: "cover",
-  },
-  pipPlaceholder: {
-    width: "100%",
-    height: "100%",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    background: "#1a1a1a",
+    overflow: "hidden",
+    background: "#000",
   },
   centeredLabel: {
     position: "absolute",
@@ -618,36 +613,84 @@ const styles: Record<string, CSSProperties> = {
     padding: 24,
   },
   controls: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
     display: "flex",
-    gap: 10,
+    gap: 28,
     justifyContent: "center",
     alignItems: "center",
-    flexShrink: 0,
-    padding: "4px 0 max(8px,env(safe-area-inset-bottom))",
+    padding: "20px max(16px,env(safe-area-inset-right)) max(24px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left))",
+    zIndex: 4,
     flexWrap: "wrap",
   },
-  controlButton: {
-    width: 48,
-    height: 48,
+  // Botón icono sin contenedor — nuevo estilo Vibra
+  iconButton: {
+    position: "relative",
+    background: "none",
+    border: "none",
+    padding: 4,
+    cursor: "pointer",
+    color: "#fff",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    WebkitTapHighlightColor: "transparent",
+    flexShrink: 0,
+  },
+  offBadge: {
+    position: "absolute",
+    bottom: 0,
+    right: 0,
+    width: 14,
+    height: 14,
     borderRadius: "50%",
+    background: "#ef4444",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+  } as CSSProperties,
+  // Botón con contenedor — fallback inline para la ruta standalone
+  controlButton: {
+    minHeight: 48,
+    padding: "10px 18px",
+    borderRadius: 12,
     border: "1px solid",
     color: "#fff",
     cursor: "pointer",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    flexShrink: 0,
+    fontSize: 13,
+    fontWeight: 800,
+    lineHeight: 1.1,
+    backdropFilter: "blur(8px)",
+    WebkitBackdropFilter: "blur(8px)",
     WebkitTapHighlightColor: "transparent",
-    transition: "background 0.15s",
+  },
+  cancelButton: {
+    minHeight: 48,
+    padding: "10px 16px",
+    borderRadius: 12,
+    border: "1px solid rgba(255,255,255,0.20)",
+    background: "rgba(255,255,255,0.10)",
+    backdropFilter: "blur(8px)",
+    WebkitBackdropFilter: "blur(8px)",
+    color: "rgba(255,255,255,0.80)",
+    cursor: "pointer",
+    fontSize: 12,
+    fontWeight: 700,
+    lineHeight: 1.1,
+    WebkitTapHighlightColor: "transparent",
   },
   statusScreen: {
-    flex: 1,
+    position: "absolute",
+    inset: 0,
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
     justifyContent: "center",
     gap: 12,
     padding: 24,
+    background: "#000",
   },
   spinner: {
     width: 36,
@@ -668,31 +711,5 @@ const styles: Record<string, CSSProperties> = {
     cursor: "pointer",
     fontSize: 13,
     fontWeight: 700,
-  },
-  endButton: {
-    minHeight: 44,
-    padding: "10px 18px",
-    borderRadius: 12,
-    border: "1px solid rgba(255,80,80,0.45)",
-    background: "rgba(220,38,38,0.75)",
-    color: "#fff",
-    cursor: "pointer",
-    fontSize: 13,
-    fontWeight: 800,
-    lineHeight: 1.1,
-    WebkitTapHighlightColor: "transparent",
-  },
-  cancelButton: {
-    minHeight: 44,
-    padding: "10px 16px",
-    borderRadius: 12,
-    border: "1px solid rgba(255,255,255,0.18)",
-    background: "rgba(255,255,255,0.07)",
-    color: "rgba(255,255,255,0.75)",
-    cursor: "pointer",
-    fontSize: 12,
-    fontWeight: 700,
-    lineHeight: 1.1,
-    WebkitTapHighlightColor: "transparent",
   },
 };

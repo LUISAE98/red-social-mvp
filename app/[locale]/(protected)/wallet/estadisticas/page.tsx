@@ -18,11 +18,8 @@ export default function WalletEstadisticasPage() {
     <WalletSectionShell activeTab="statistics">
       <WalletCard transparent>
         <WalletIncomeChart uid={user?.uid} />
+        <WalletPurchaseGlobe uid={user?.uid} />
         <WalletServiceBreakdown uid={user?.uid} />
-      </WalletCard>
-
-      <WalletCard transparent>
-        <WalletPurchaseGlobe />
       </WalletCard>
 
       <WalletCard transparent>

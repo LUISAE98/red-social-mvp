@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { registrarCompraGeo } from "@/lib/wallet/registrarCompraGeo";
 
 const STORAGE_PREFIX = "vibra_post_unlocked_";
 
@@ -46,6 +47,11 @@ export function usePostTempUnlock(
         ...(typeof price === "number" ? { price } : {}),
         status: "active",
         createdAt: serverTimestamp(),
+      });
+      registrarCompraGeo({
+        creatorId,
+        serviceType: "premium_post",
+        grossAmount: price,
       });
     }
   }, [key, postId, currentUserId, creatorId, price]);

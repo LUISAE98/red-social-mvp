@@ -29,6 +29,7 @@ import {
   leaveGroup,
 } from "@/lib/groups/membership";
 import { requestToJoin, cancelJoinRequest } from "@/lib/groups/joinRequests";
+import { registrarCompraGeo } from "@/lib/wallet/registrarCompraGeo";
 import OwnerAdminPanel from "./components/OwnerAdminPanel";
 import GroupSubnav from "./components/GroupSubnav";
 import GroupStoryCircles from "@/app/components/Stories/GroupStoryCircles";
@@ -592,6 +593,12 @@ function redirectToLogin() {
       await joinGroupWithSubscription(groupId, user.uid, {
         priceMonthly: subscriptionPrice ?? undefined,
         currency: subscriptionCurrency,
+      });
+
+      registrarCompraGeo({
+        creatorId: group?.ownerId,
+        serviceType: "subscription",
+        grossAmount: subscriptionPrice ?? undefined,
       });
 
       const successMessage = tGroups("subscriptionProcessed");

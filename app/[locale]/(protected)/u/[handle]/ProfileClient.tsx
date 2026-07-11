@@ -44,6 +44,7 @@ import {
   type GreetingType,
 } from "@/lib/greetings/greetingRequests";
 import { createMeetGreetRequest } from "@/lib/meetGreet/meetGreetRequests";
+import { registrarCompraGeo } from "@/lib/wallet/registrarCompraGeo";
 import { createExclusiveSessionRequest } from "@/lib/exclusiveSession/exclusiveSessionRequests";
 import { getServiceByType, type NormalizedService } from "@/lib/services/normalizeServices";
 import type { CreatorServiceType, Currency } from "@/types/group";
@@ -1403,6 +1404,12 @@ await createMeetGreetRequest({
   durationMinutes: (service as (NormalizedService & { durationMinutes?: number }) | null)?.durationMinutes ?? null,
 });
 
+    registrarCompraGeo({
+      creatorId: userDoc.uid,
+      serviceType: "live_session",
+      grossAmount: service?.publicPrice ?? service?.memberPrice ?? undefined,
+    });
+
     setMeetGreetOpen(false);
     setMeetGreetMessage("");
     setServiceToast(tProfile("meetGreetSent"));
@@ -1432,6 +1439,12 @@ await createExclusiveSessionRequest({
   priceSnapshot: service?.publicPrice ?? service?.memberPrice ?? null,
   durationMinutes: (service as (NormalizedService & { durationMinutes?: number }) | null)?.durationMinutes ?? null,
 });
+
+    registrarCompraGeo({
+      creatorId: userDoc.uid,
+      serviceType: "exclusive_session",
+      grossAmount: service?.publicPrice ?? service?.memberPrice ?? undefined,
+    });
 
     setExclusiveSessionOpen(false);
     setExclusiveSessionMessage("");

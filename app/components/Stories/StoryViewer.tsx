@@ -9,6 +9,7 @@ import { doc, getDoc, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { StoryDoc, StoryType } from "@/lib/stories/types";
 import { createGreetingRequest } from "@/lib/greetings/greetingRequests";
+import { registrarCompraGeo } from "@/lib/wallet/registrarCompraGeo";
 import CreatorServiceModals from "@/components/services/CreatorServiceModals";
 import { getMutePreference, setMutePreference } from "@/lib/utils/mutePreference";
 import { playEdgeTTS } from "@/lib/tts/edge-tts-client";
@@ -535,6 +536,10 @@ export default function StoryViewer({
         source: story.source === "group" ? "group" : "profile",
         groupId: story.source === "group" ? story.groupId : null,
         allowCreatorStory: greetAllowStory,
+      });
+      registrarCompraGeo({
+        creatorId: greetingAuthorUid,
+        serviceType: effectiveType === "consejo" ? "advice" : "greeting",
       });
       setGreetSuccess(tServices("greetRequestSuccess"));
     } catch (err: unknown) {

@@ -11,7 +11,7 @@ import { useAuth } from "@/app/providers";
 import type { Post, PostLiveData, PostPlayback } from "@/lib/posts/types";
 import LiveChatViewer from "@/app/components/LiveChat/LiveChatViewer";
 import { checkLiveAccess, grantSimulatedLiveAccess } from "@/lib/liveAccess/live-access-service";
-import { joinLivePresence, leaveLivePresence, subscribeToViewerCount, registerUniqueViewer, addWatchTime } from "@/lib/liveKit/liveViewers";
+import { joinLivePresence, leaveLivePresence, subscribeToViewerCount, registerUniqueViewer, addWatchTime, recordVodView } from "@/lib/liveKit/liveViewers";
 import type { ActiveSuperComment } from "@/lib/posts/types";
 import { TTS_MIN_DURATION_SECS } from "@/lib/tts/edge-tts-client";
 import type { EdgeTTSHandle } from "@/lib/tts/edge-tts-client";
@@ -20,6 +20,7 @@ import {
 } from "@/app/components/VibraServiceIcons/VibraVideoIcons";
 import { getOrCreateGuestId, getSavedGuestNickname, saveGuestNickname } from "@/lib/guest-id";
 import { submitSuperComment, submitSuperCommentAsGuest } from "@/lib/liveChat/super-comment-service";
+import { registrarCompraGeo } from "@/lib/wallet/registrarCompraGeo";
 import { useSocialRelationship } from "@/lib/social/useSocialRelationship";
 import { useReport } from "@/lib/moderation/useReport";
 import ReportModal from "@/app/components/ReportModal/ReportModal";
@@ -61,6 +62,7 @@ const DONATE_PRESETS = [20, 50, 100, 200, 500];
 type DonationPanelProps = {
   onClose: () => void;
   postId: string;
+  authorId?: string | null;
   /** undefined = modo invitado */
   userId?: string;
   username?: string;
@@ -68,7 +70,7 @@ type DonationPanelProps = {
   guestId?: string;
 };
 
-function DonationPanel({ onClose, postId, userId, username, avatarUrl, guestId }: DonationPanelProps) {
+function DonationPanel({ onClose, postId, authorId, userId, username, avatarUrl, guestId }: DonationPanelProps) {
   const isGuest = !userId;
   const [step, setStep] = useState<"nickname" | "amount">("amount");
   const [guestNickname, setGuestNickname] = useState("");
@@ -140,6 +142,11 @@ function DonationPanel({ onClose, postId, userId, username, avatarUrl, guestId }
           tier,
         });
       }
+      registrarCompraGeo({
+        creatorId: authorId,
+        serviceType: "live_donation",
+        grossAmount: finalAmount ?? undefined,
+      });
     } finally {
       setPaying(false);
       onClose();
@@ -340,6 +347,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
   const vodControlsTimerRef = useRef<number | null>(null);
   const scrubberRef = useRef<HTMLInputElement>(null);
   const isDraggingRef = useRef(false);
+  const vodViewRecordedRef = useRef(false);
 
   // ── Supercomentario activo (overlay sobre el video) ────────────────────────
   const [activeSuperComment, setActiveSuperComment] = useState<ActiveSuperComment | null>(null);
@@ -1107,6 +1115,11 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
         groupId: post.groupId ?? null,
         amount: liveData?.ticketPrice ?? 0,
         currency: liveData?.currency ?? "MXN",
+      });
+      registrarCompraGeo({
+        creatorId: post.authorId,
+        serviceType: "live_ticket",
+        grossAmount: liveData?.ticketPrice ?? undefined,
       });
       setHasAccess(true);
       // Si el live aún no ha iniciado, cerrar el modal — la tarjeta lo abrirá automáticamente cuando inicie
@@ -2038,6 +2051,15 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
             const v = videoRef.current;
             if (!v || !isEnded || !vodReady) return;
             if (isFinite(v.currentTime)) setVodCurrentTime(v.currentTime);
+            if (
+              !vodViewRecordedRef.current &&
+              user?.uid && post.id &&
+              isFinite(v.duration) && v.duration > 0 &&
+              v.currentTime / v.duration >= 0.2
+            ) {
+              vodViewRecordedRef.current = true;
+              recordVodView(post.id, user.uid).catch(() => {});
+            }
           }}
           onDurationChange={() => {
             const v = videoRef.current;
@@ -2294,6 +2316,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
       <DonationPanel
         onClose={() => setDonationOpen(false)}
         postId={post.id}
+        authorId={post.authorId}
         userId={user.uid}
         username={user.displayName ?? user.email?.split("@")[0] ?? "Usuario"}
         avatarUrl={user.photoURL ?? null}
@@ -2302,6 +2325,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
       <DonationPanel
         onClose={() => setDonationOpen(false)}
         postId={post.id}
+        authorId={post.authorId}
         guestId={guestId || undefined}
       />
     )
@@ -2554,7 +2578,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
           >
             {renderCreatorInfo()}
             <div style={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
-              <LiveChatViewer liveId={post.id} chatEnabled={chatEnabled} liveEnded={isEnded} isMuted={isMuted} mode="panel" broadcastMode={liveData?.broadcastMode} superCommentConfig={liveData?.superCommentConfig} />
+              <LiveChatViewer liveId={post.id} authorId={post.authorId} chatEnabled={chatEnabled} liveEnded={isEnded} isMuted={isMuted} mode="panel" broadcastMode={liveData?.broadcastMode} superCommentConfig={liveData?.superCommentConfig} />
             </div>
           </div>
         </div>
@@ -2618,7 +2642,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
           >
             {renderCreatorInfo()}
             <div style={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
-              <LiveChatViewer liveId={post.id} chatEnabled={chatEnabled} liveEnded={isEnded} isMuted={isMuted} mode="panel" broadcastMode={liveData?.broadcastMode} superCommentConfig={liveData?.superCommentConfig} />
+              <LiveChatViewer liveId={post.id} authorId={post.authorId} chatEnabled={chatEnabled} liveEnded={isEnded} isMuted={isMuted} mode="panel" broadcastMode={liveData?.broadcastMode} superCommentConfig={liveData?.superCommentConfig} />
             </div>
           </div>
         </div>
@@ -2756,7 +2780,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
                 transitionDelay: dvrActive ? "0s" : "0.25s",
               }}>
                 <LiveChatViewer
-                  liveId={post.id} chatEnabled={chatEnabled} liveEnded={isEnded} isMuted={isMuted}
+                  liveId={post.id} authorId={post.authorId} chatEnabled={chatEnabled} liveEnded={isEnded} isMuted={isMuted}
                   mode="overlay" broadcastMode={liveData?.broadcastMode} superCommentConfig={liveData?.superCommentConfig}
                   onDonate={!isEnded && (!user || post.authorId !== user.uid) ? () => setDonationOpen(true) : undefined}
                   onFollow={showFollowBtn ? follow : undefined}
@@ -2815,7 +2839,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
         }}>
           {renderCreatorInfo()}
           <div style={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
-            <LiveChatViewer liveId={post.id} chatEnabled={chatEnabled} liveEnded={isEnded} isMuted={isMuted} mode="panel" broadcastMode={liveData?.broadcastMode} superCommentConfig={liveData?.superCommentConfig} />
+            <LiveChatViewer liveId={post.id} authorId={post.authorId} chatEnabled={chatEnabled} liveEnded={isEnded} isMuted={isMuted} mode="panel" broadcastMode={liveData?.broadcastMode} superCommentConfig={liveData?.superCommentConfig} />
           </div>
         </div>
       </div>

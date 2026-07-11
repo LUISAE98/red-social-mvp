@@ -124,6 +124,28 @@ export function updatePeakViewers(postId: string, peak: number): Promise<void> {
   });
 }
 
+/**
+ * Records that a viewer has watched 20%+ of the VOD (idempotent — one doc per viewer).
+ * The subcollection size is used as the view counter.
+ */
+export function recordVodView(postId: string, viewerId: string): Promise<void> {
+  return setDoc(
+    doc(db, "posts", postId, "vodViewers", viewerId),
+    { viewedAt: serverTimestamp() },
+  );
+}
+
+/** Subscribes to the count of viewers who have watched 20%+ of the VOD. */
+export function subscribeToVodViewCount(
+  postId: string,
+  onCount: (count: number) => void,
+): () => void {
+  return onSnapshot(
+    collection(db, "posts", postId, "vodViewers"),
+    (snap) => onCount(snap.size),
+  );
+}
+
 /** Writes the viewer's current HLS playback latency (in seconds) to their presence doc. */
 export function updateViewerLatency(postId: string, uid: string, latencySeconds: number): Promise<void> {
   return updateDoc(doc(db, "posts", postId, "liveViewers", uid), {

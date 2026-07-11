@@ -21,6 +21,7 @@ const FONT = 'inherit';
 
 type Props = {
   liveId: string;
+  authorId?: string | null;
   chatEnabled?: boolean;
   liveEnded?: boolean;
   isMuted?: boolean;
@@ -37,6 +38,7 @@ type SenderInfo = { username: string; avatarUrl: string | null };
 
 export default function LiveChatViewer({
   liveId,
+  authorId,
   chatEnabled = true,
   liveEnded = false,
   isMuted = false,
@@ -178,6 +180,7 @@ export default function LiveChatViewer({
       open={superCommentOpen}
       onClose={() => setSuperCommentOpen(false)}
       postId={liveId}
+      authorId={authorId}
       userId={user?.uid}
       guestId={!user ? guestId : undefined}
       username={senderInfo?.username ?? user?.displayName ?? undefined}

@@ -444,3 +444,46 @@ Vive FUERA del `section-wrapper`, como hijo directo de `panel-outer`. No recibe 
   padding: "10px 14px 14px",
 }
 ```
+
+---
+
+## Textarea (campo de texto libre)
+
+Estilo canónico para todos los `<textarea>` de Vibra dentro de paneles y overlays.
+**Referencias:** `BuyerGreetingRequestOverlay.tsx`, `BuyerSessionRequestOverlay.tsx`, `SessionRequestOverlay.tsx`.
+
+```tsx
+<textarea
+  placeholder="Escribe aquí..."
+  style={{
+    width: "100%",
+    boxSizing: "border-box",
+    background: "rgba(255,255,255,0.06)",
+    border: "none",
+    borderRadius: 12,
+    padding: "10px 12px",
+    color: "#fff",
+    fontSize: 13,
+    fontFamily: "inherit",
+    lineHeight: 1.5,
+    resize: "none",
+    outline: "none",
+  }}
+/>
+```
+
+| Propiedad      | Valor                        |
+|----------------|------------------------------|
+| `background`   | `rgba(255,255,255,0.06)`     |
+| `border`       | `none`                       |
+| `borderRadius` | `12`                         |
+| `padding`      | `"10px 12px"`                |
+| `color`        | `"#fff"`                     |
+| `fontSize`     | `13`                         |
+| `fontFamily`   | `inherit`                    |
+| `lineHeight`   | `1.5`                        |
+| `resize`       | `"none"`                     |
+| `outline`      | `"none"`                     |
+| `width`        | `"100%"` + `boxSizing: "border-box"` |
+
+> El color del placeholder lo controla el navegador por defecto. No se sobreescribe con CSS inline.
