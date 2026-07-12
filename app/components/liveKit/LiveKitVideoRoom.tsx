@@ -26,6 +26,7 @@ type Props = {
   sessionType: LivekitSessionType;
   role: "buyer" | "creator";
   onLeave: () => void;
+  isMobile?: boolean;
   // Props opcionales — cuando se pasan, el control de fin de sesión y los
   // avisos del timer se delegan al componente padre.
   onEndCallRequest?: () => void;
@@ -62,6 +63,7 @@ export default function LiveKitVideoRoom({
   sessionType,
   role,
   onLeave,
+  isMobile,
   onEndCallRequest,
   onTimerExpired,
   onTwoMinWarning,
@@ -125,6 +127,7 @@ export default function LiveKitVideoRoom({
         sessionType={sessionType}
         role={role}
         onLeave={onLeave}
+        isMobile={isMobile}
         onEndCallRequest={onEndCallRequest}
         onTimerExpired={onTimerExpired}
         onTwoMinWarning={onTwoMinWarning}
@@ -142,6 +145,7 @@ function RoomContent({
   sessionType,
   role,
   onLeave,
+  isMobile,
   onEndCallRequest,
   onTimerExpired,
   onTwoMinWarning,
@@ -151,6 +155,7 @@ function RoomContent({
   sessionType: LivekitSessionType;
   role: "buyer" | "creator";
   onLeave: () => void;
+  isMobile?: boolean;
   onEndCallRequest?: () => void;
   onTimerExpired?: () => void;
   onTwoMinWarning?: () => void;
@@ -324,7 +329,13 @@ function RoomContent({
           {role === "creator" ? tLive("waitingParticipant") : tLive("waitingCreator")}
         </CenteredLabel>
       ) : remoteCameraTrack ? (
-        <div style={{ position: "absolute", inset: 0 }}>
+        <div style={{
+          position: "absolute",
+          top: 0,
+          bottom: 0,
+          left: isMobile ? "env(safe-area-inset-left, 0px)" : 0,
+          right: isMobile ? "env(safe-area-inset-right, 0px)" : 0,
+        }}>
           <VideoTrack
             trackRef={remoteCameraTrack}
             style={{ width: "100%", height: "100%", objectFit: "cover" }}
@@ -367,7 +378,7 @@ function RoomContent({
         style={{
           position: "absolute",
           ...(pipPos === null ? { top: 12, right: 12 } : { top: pipPos.y, left: pipPos.x }),
-          width: "clamp(100px, 14%, 160px)",
+          width: isMobile ? 170 : "clamp(100px, 14%, 160px)",
           aspectRatio: "16/9",
           borderRadius: 10,
           overflow: "hidden",

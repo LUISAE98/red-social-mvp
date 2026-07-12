@@ -512,6 +512,8 @@ const canRequestMeetGreet =
   const [subscriptionSubmitting, setSubscriptionSubmitting] = useState(false);
   const [subscriptionError, setSubscriptionError] = useState<string | null>(null);
 
+  const [groupDonationViewerOpen, setGroupDonationViewerOpen] = useState(false);
+
   const [activeTab, setActiveTab] = useState<"feed" | "members" | "services" | "settings">(
   "feed"
 );
@@ -2400,6 +2402,13 @@ const avatarNode = (
                       playbackId={normalizedCurrentDonation.playbackId ?? null}
                       creatorName={group.name ?? null}
                       profilePhoto={group.avatarUrl ?? null}
+                      donationMode={normalizedCurrentDonation.mode ?? null}
+                      goalLabel={normalizedCurrentDonation.goalLabel ?? null}
+                      expanded={groupDonationViewerOpen}
+                      onClick={normalizedCurrentDonation.playbackId ? () => setGroupDonationViewerOpen(true) : undefined}
+                      onClose={() => setGroupDonationViewerOpen(false)}
+                      suggestedAmounts={normalizedCurrentDonation.suggestedAmounts ?? null}
+                      currency={normalizedCurrentDonation.currency ?? null}
                     />
                   </div>
                 )}

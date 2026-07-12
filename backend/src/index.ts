@@ -206,6 +206,7 @@ export {
   onLiveAccessLedger,
   onPostAccessLedger,
   onGroupSubscriptionLedger,
+  onProfileDonationLedger,
   onGreetingLedger,
   onExclusiveSessionLedger,
   onMeetGreetLedger,

@@ -2276,7 +2276,7 @@ await createExclusiveSessionRequest({
   showPosts={isOwner ? ownerShowPosts : visitorCanSeePosts}
   profileRestricted={profileRestricted}
   commentsEnabled={profileCommentsEnabled}
-  donation={userDoc.donation as { mode?: string; enabled?: boolean; visible?: boolean; message?: string | null; playbackId?: string | null } | null}
+  donation={userDoc.donation as { mode?: string; enabled?: boolean; visible?: boolean; message?: string | null; playbackId?: string | null; suggestedAmounts?: number[] | null; currency?: string | null } | null}
   donationCreatorName={userDoc.displayName ?? userDoc.handle ?? null}
   donationProfilePhoto={userDoc.photoURL ?? null}
   donationProfileHandle={userDoc.handle ?? null}

@@ -2657,6 +2657,29 @@ function canUpdateReplyCount(delta) {
     }
 
     // ==========================
+    // DONACIONES EN PERFIL (pago simulado)
+    // ==========================
+    match /profileDonations/{donationId} {
+      // El creador y el comprador pueden leer; el creador lista para ingresos.
+      allow get: if signedIn()
+        && (resource.data.creatorId == request.auth.uid
+          || resource.data.buyerId == request.auth.uid);
+      allow list: if signedIn()
+        && resource.data.creatorId == request.auth.uid;
+
+      // Solo el comprador crea su donación simulada, a otro usuario.
+      allow create: if signedIn()
+        && request.resource.data.buyerId == request.auth.uid
+        && request.resource.data.creatorId is string
+        && request.resource.data.creatorId != request.auth.uid
+        && request.resource.data.amount is number
+        && request.resource.data.amount > 0
+        && request.resource.data.paymentStatus == "simulated_paid";
+
+      allow update, delete: if false;
+    }
+
+    // ==========================
     // LIVE CHAT
     // ==========================
     match /liveChats/{liveId}/messages/{messageId} {

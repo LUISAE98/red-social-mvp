@@ -143,6 +143,7 @@ export default function MeetGreetPreparationFullscreen({
             sessionType={sessionType}
             role={role}
             onLeave={onClose}
+            isMobile={!isDesktop}
             onEndCallRequest={handleEndCallRequest}
             onTimerExpired={handleTimerExpired}
             onTwoMinWarning={handleTwoMinWarning}

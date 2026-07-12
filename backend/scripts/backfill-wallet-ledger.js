@@ -207,6 +207,34 @@ async function backfillSubscriptions() {
   }
 }
 
+async function backfillProfileDonations() {
+  const snap = await db.collection("profileDonations").get();
+  for (const doc of snap.docs) {
+    const d = doc.data();
+    const paid = d.paymentStatus === "simulated_paid" || d.paymentStatus === "paid";
+    if (!paid) continue;
+    const gross = num(d.amount);
+    const creatorId = str(d.creatorId);
+    const buyerId = str(d.buyerId);
+    if (!creatorId || gross <= 0) continue;
+    if (buyerId === creatorId) continue;
+    tally("profile_donation", "earned", gross);
+    await record(
+      creatorId,
+      {
+        type: "profile_donation",
+        grossAmount: gross,
+        sourceType: "profileDonation",
+        sourceId: doc.id,
+        buyerId,
+        earnedImmediately: true,
+      },
+      toJsDate(d.createdAt),
+      { channelType: "profile", channelId: null }
+    );
+  }
+}
+
 // ── Grupo B: pendiente al pagar → ganado al entregar/concluir ────────────────
 
 async function backfillRequests(opts) {
@@ -253,6 +281,7 @@ async function main() {
   await backfillLiveAccess();
   await backfillPostAccess();
   await backfillSubscriptions();
+  await backfillProfileDonations();
 
   await backfillRequests({
     collection: "greetingRequests",

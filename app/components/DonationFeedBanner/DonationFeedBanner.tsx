@@ -6,6 +6,9 @@ import { createPortal } from "react-dom";
 import Hls from "hls.js";
 import { useTranslations } from "next-intl";
 import { getMutePreference, setMutePreference } from "@/lib/utils/mutePreference";
+import { createProfileDonation } from "@/lib/donations/profileDonations";
+import { registrarCompraGeo } from "@/lib/wallet/registrarCompraGeo";
+import DonationPanel from "./DonationPanel";
 
 type Props = {
   message?: string | null;
@@ -19,6 +22,11 @@ type Props = {
   onClose?: () => void;
   onDonate?: () => void;
   onClick?: () => void;
+  suggestedAmounts?: number[] | null;
+  currency?: string | null;
+  /** Creador que recibe la donación y comprador que la hace (para persistirla). */
+  creatorId?: string | null;
+  buyerId?: string | null;
 };
 
 type VideoDimensions = { w: number; h: number } | null;
@@ -35,6 +43,8 @@ export default function DonationFeedBanner({
   message, playbackId, creatorName, profilePhoto, profileHandle,
   donationMode, goalLabel,
   expanded, onClose, onDonate, onClick,
+  suggestedAmounts, currency,
+  creatorId, buyerId,
 }: Props) {
   const tCommon = useTranslations("common");
   const [dims, setDims] = useState<VideoDimensions>(null);
@@ -44,6 +54,7 @@ export default function DonationFeedBanner({
   const [isDesktop, setIsDesktop] = useState(false);
   const [progress, setProgress] = useState(0);
   const [dragY, setDragY] = useState(0);
+  const [donationPanelOpen, setDonationPanelOpen] = useState(false);
 
   // Banner video — callback ref so HLS re-initializes when the element is replaced
   // (happens when orientation flips after dims loads)
@@ -81,10 +92,14 @@ export default function DonationFeedBanner({
     img.src = thumbnailUrl;
   }, [thumbnailUrl]);
 
-  useEffect(() => { setMounted(true); }, []);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- flag de montaje para portal
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     const mql = window.matchMedia("(pointer: fine)");
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- lectura inicial de media query
     setIsDesktop(mql.matches);
     const h = (e: MediaQueryListEvent) => setIsDesktop(e.matches);
     mql.addEventListener("change", h);
@@ -94,6 +109,7 @@ export default function DonationFeedBanner({
   const [isMobile, setIsMobile] = useState(false);
   useEffect(() => {
     const mql = window.matchMedia("(max-width: 599px)");
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- lectura inicial de media query
     setIsMobile(mql.matches);
     const h = (e: MediaQueryListEvent) => setIsMobile(e.matches);
     mql.addEventListener("change", h);
@@ -103,6 +119,7 @@ export default function DonationFeedBanner({
   // ── HLS on banner video ───────────────────────────────────────────────────────
   useEffect(() => {
     const video = videoRef.current;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reset del flag al cambiar de video
     setVideoReady(false);
     hlsInViewerRef.current = false;
     hlsRef.current?.destroy();
@@ -169,6 +186,7 @@ export default function DonationFeedBanner({
       }
 
       const pref = getMutePreference();
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- sincroniza mute al transferir video
       setMuted(pref);
       viewerVideo.muted = pref;
       hlsInViewerRef.current = true;
@@ -224,6 +242,7 @@ export default function DonationFeedBanner({
   useEffect(() => {
     if (!expanded) {
       if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- reset de progreso al colapsar
       setProgress(0);
       return;
     }
@@ -348,7 +367,7 @@ export default function DonationFeedBanner({
         </div>
         <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: "40%", background: "linear-gradient(to top, rgba(0,0,0,0.85) 0%, transparent 100%)", pointerEvents: "none", zIndex: 8 }} />
         <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "0 14px", paddingBottom: btnPadBottom, zIndex: 10 }}>
-          <button type="button" onTouchStart={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); onDonate?.(); }}
+          <button type="button" onTouchStart={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); setDonationPanelOpen(true); }}
             style={{ width: "100%", padding: sz === 20 ? "8px 10px" : "11px 10px", borderRadius: 10, border: "none", background: "#ec4899", color: "#fff", fontSize: sz === 20 ? 12 : 14, fontWeight: 600, cursor: "pointer", letterSpacing: "-0.01em", display: "flex", alignItems: "center", justifyContent: "center", gap: 7 }}
           >
             <svg width={sz === 20 ? 12 : 14} height={sz === 20 ? 12 : 14} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" style={{ flexShrink: 0 }}>
@@ -449,7 +468,7 @@ export default function DonationFeedBanner({
     </button>
   );
 
-  const donateRow = onClick ? (
+  const donateRow = (
     <>
       <div style={{ display: "flex", alignItems: "center", gap: 5, width: "86%", overflow: "hidden" }}>
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#ec4899" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
@@ -460,7 +479,7 @@ export default function DonationFeedBanner({
         </span>
       </div>
       <button type="button"
-        onClick={(e) => { e.stopPropagation(); onClick(); }}
+        onClick={(e) => { e.stopPropagation(); setDonationPanelOpen(true); }}
         style={{ width: "86%", padding: "10px 0", justifyContent: "center", borderRadius: 10, border: "none", background: "#ec4899", color: "#fff", fontSize: 14, fontWeight: 600, letterSpacing: "-0.01em", cursor: "pointer", fontFamily: "inherit", WebkitTapHighlightColor: "transparent", display: "flex", alignItems: "center", gap: 7 }}
       >
         <svg width="16" height="16" viewBox="0 0 24 24" fill="white">
@@ -469,10 +488,26 @@ export default function DonationFeedBanner({
         {tCommon("makeContribution")}
       </button>
     </>
-  ) : null;
+  );
 
   return (
     <>
+      <DonationPanel
+        open={donationPanelOpen}
+        onClose={() => setDonationPanelOpen(false)}
+        creatorName={creatorName}
+        suggestedAmounts={suggestedAmounts}
+        currency={currency}
+        onContribute={(amount) => {
+          if (!creatorId || !buyerId) return;
+          void createProfileDonation({ creatorId, buyerId, amount, currency });
+          registrarCompraGeo({
+            creatorId,
+            serviceType: "profile_donation",
+            grossAmount: amount,
+          });
+        }}
+      />
       <style>{`
         .dbv-video-wrap { position: absolute; z-index: 2; border-radius: 10px; overflow: hidden; background: #000; }
 .dbv-video-wrap.portrait  { top: 2%; right: 12%; }

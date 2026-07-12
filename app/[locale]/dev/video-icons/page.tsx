@@ -559,11 +559,11 @@ export default function VideoIconsPreview() {
   const [feedbackTextMobile, setFeedbackTextMobile] = useState("");
   const [sessionEndedMobile, setSessionEndedMobile] = useState(false);
 
-  const MOBILE_W = 375;
-  const MOBILE_H = 812;
-  const PIP_WM = 120;
+  const MOBILE_W = 812;
+  const MOBILE_H = 375;
+  const PIP_WM = 170;
   const PIP_HM = Math.round(PIP_WM * 9 / 16);
-  const [pipPosMobile, setPipPosMobile] = useState({ x: MOBILE_W - PIP_WM - 12, y: MOBILE_H - PIP_HM - 120 });
+  const [pipPosMobile, setPipPosMobile] = useState({ x: MOBILE_W - PIP_WM - 30, y: 16 });
   const pipDragRefMobile = useRef<{ sx: number; sy: number; px: number; py: number } | null>(null);
 
   function handlePipDownMobile(e: React.PointerEvent<HTMLDivElement>) {
@@ -918,10 +918,9 @@ export default function VideoIconsPreview() {
       </p>
 
       <div style={{ marginBottom: 64 }}>
-        {/* Marco teléfono */}
+        {/* Marco teléfono — landscape */}
         <div style={{
           width: MOBILE_W,
-          maxWidth: "100%",
           height: MOBILE_H,
           borderRadius: 44,
           border: "8px solid #1c1c1e",
@@ -932,18 +931,18 @@ export default function VideoIconsPreview() {
           flexShrink: 0,
         }}>
 
-          {/* Video del comprador — ocupa todo */}
+          {/* Video del comprador — respeta safe areas laterales */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="https://picsum.photos/seed/buyer-mobile/375/812" alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }} />
+          <img src="https://picsum.photos/seed/buyer-mobile/812/375" alt="" style={{ position: "absolute", top: 0, bottom: 0, left: 50, right: 30, objectFit: "cover" }} />
 
-          {/* Safe area top — Dynamic Island / notch */}
-          <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 50, zIndex: 5, display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <div style={{ width: 120, height: 34, borderRadius: 20, background: "#000" }} />
+          {/* Safe area izquierda — Dynamic Island landscape (izquierda) */}
+          <div style={{ position: "absolute", top: 0, left: 0, bottom: 0, width: 50, zIndex: 5, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <div style={{ width: 12, height: 60, borderRadius: 8, background: "#000" }} />
           </div>
 
-          {/* Timer — debajo del safe area */}
+          {/* Timer — centrado arriba */}
           <div style={{
-            position: "absolute", top: 62, left: "50%", transform: "translateX(-50%)",
+            position: "absolute", top: 14, left: "50%", transform: "translateX(-50%)",
             zIndex: 4,
             display: "inline-flex", alignItems: "center",
             background: "rgba(0,0,0,0.28)",
@@ -981,7 +980,7 @@ export default function VideoIconsPreview() {
             }}
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="https://picsum.photos/seed/creator-mobile/120/68" alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            <img src="https://picsum.photos/seed/creator-mobile-l/120/68" alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
           </div>
 
           {/* Aviso 2 minutos */}
@@ -1005,13 +1004,13 @@ export default function VideoIconsPreview() {
             </div>
           )}
 
-          {/* Controles flotantes — sobre safe area inferior */}
+          {/* Controles flotantes — centrados abajo, safe area derecha en landscape */}
           <div style={{
             position: "absolute",
-            bottom: 0, left: 0, right: 0,
+            bottom: 0, left: 50, right: 30,
             zIndex: 5,
-            display: "flex", gap: 36, justifyContent: "center", alignItems: "center",
-            paddingBottom: 44, paddingTop: 20,
+            display: "flex", gap: 40, justifyContent: "center", alignItems: "center",
+            paddingBottom: 20, paddingTop: 16,
           }}>
             {/* Mic */}
             <button type="button" onClick={() => setMockMicMobile(v => !v)} style={{

@@ -42,6 +42,8 @@ type DonationData = {
   visible?: boolean;
   message?: string | null;
   playbackId?: string | null;
+  suggestedAmounts?: number[] | null;
+  currency?: string | null;
 } | null | undefined;
 
 type ProfilePostsFeedProps = {
@@ -1291,6 +1293,10 @@ const shellStyle: CSSProperties = {
             onClick={onDonate}
             onClose={onDonationClose}
             onDonate={onDonationPay}
+            suggestedAmounts={donation?.suggestedAmounts ?? null}
+            currency={donation?.currency ?? null}
+            creatorId={profileUid}
+            buyerId={viewerUid}
           />
         </div>
       )}

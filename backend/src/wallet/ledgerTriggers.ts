@@ -208,6 +208,38 @@ export const onGroupSubscriptionLedger = onDocumentWritten(
   }
 );
 
+/** #2 donaciones en perfil (pago simulado). Canal = perfil. */
+export const onProfileDonationLedger = onDocumentCreated(
+  { document: "profileDonations/{donationId}", region: REGION },
+  async (event) => {
+    const snap = event.data;
+    if (!snap) return;
+    const data = snap.data();
+
+    const paid =
+      data.paymentStatus === "simulated_paid" || data.paymentStatus === "paid";
+    if (!paid) return;
+
+    const gross = num(data.amount);
+    const creatorId = str(data.creatorId);
+    const buyerId = str(data.buyerId);
+    if (!creatorId || gross <= 0) return;
+    if (buyerId === creatorId) return; // no se dona a sí mismo
+
+    await recordEarning(creatorId, {
+      type: "profile_donation",
+      grossAmount: gross,
+      sourceType: "profileDonation",
+      sourceId: event.params.donationId,
+      buyerId,
+      earnedImmediately: true,
+      occurredAt: data.createdAt,
+      channelType: "profile",
+      channelId: null,
+    });
+  }
+);
+
 // ─────────────── Grupo B (pendiente al pagar → ganado al entregar) ───────────
 
 /**

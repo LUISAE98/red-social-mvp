@@ -18,7 +18,11 @@ function pointRadiusFor(purchases: number): number {
 const COUNTRIES_URL =
   "https://raw.githubusercontent.com/vasturiano/globe.gl/master/example/datasets/ne_110m_admin_0_countries.geojson";
 
-const GLOBE_H = 440;
+const MOBILE_H = 440;
+const LAPTOP_H = 580;
+// Ancho de contenedor a partir del cual tratamos la vista como laptop (globo más
+// grande + marco más alto, usando la MISMA señal para que nunca se corte).
+const LAPTOP_MIN_WIDTH = 820;
 
 function formatMoney(value: number): string {
   try {
@@ -115,13 +119,16 @@ export default function WalletPurchaseGlobe({
       controls.autoRotate = false;
       // Tamaño fijo: sin zoom (no se puede agrandar/achicar). Solo rotar.
       controls.enableZoom = false;
-      // Altitud menor = planeta más grande. En laptop ~20% más grande que en celular.
-      const isLaptop = typeof window !== "undefined" && window.innerWidth >= 1024;
-      g.pointOfView({ lat: 14, lng: -80, altitude: isLaptop ? 1.54 : 1.85 }, 0);
+      // Misma altitud siempre (deja margen → nunca se corta). El globo se ve más
+      // grande en laptop porque el marco es más alto (crece en píxeles con el alto).
+      g.pointOfView({ lat: 14, lng: -80, altitude: 1.85 }, 0);
     } catch {
       // aún no listo
     }
   }, [Globe, width]);
+
+  // Marco más alto en laptop para que el globo (más grande) no se corte.
+  const frameH = width >= LAPTOP_MIN_WIDTH ? LAPTOP_H : MOBILE_H;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 44 }}>
@@ -153,13 +160,13 @@ export default function WalletPurchaseGlobe({
       <div
         ref={wrapRef}
         className="globeFrame"
-        style={{ height: GLOBE_H, overflow: "hidden", marginBottom: 8 }}
+        style={{ height: frameH, overflow: "hidden", marginBottom: 8 }}
       >
         {Globe && width > 0 ? (
           <Globe
             ref={globeRef}
             width={width}
-            height={GLOBE_H}
+            height={frameH}
             backgroundColor="rgba(0,0,0,0)"
             globeImageUrl={img ?? undefined}
             atmosphereColor="#a855ff"

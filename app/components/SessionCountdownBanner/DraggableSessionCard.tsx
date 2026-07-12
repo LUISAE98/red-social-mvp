@@ -87,9 +87,10 @@ export default function DraggableSessionCard({ uid }: { uid: string }) {
     setMounted(true);
   }, []);
 
-  // Auto-snap to edge tab when session starts (both in LiveKit room)
+  // Auto-snap a pestaña cuando la sesión empieza — solo en móvil
   useEffect(() => {
     if (!mounted || !sessionStartedAt || autoSnappedRef.current || edgeMode !== null) return;
+    if (window.innerWidth >= 768) return;
     autoSnappedRef.current = true;
     setEdgeMode("right");
     setEdgeY(Math.max(60, Math.min(window.innerHeight - TAB_H - 20, posRef.current.y)));
@@ -143,8 +144,8 @@ export default function DraggableSessionCard({ uid }: { uid: string }) {
       const cardW = cardRef.current?.offsetWidth ?? CARD_W;
       const cardH = cardRef.current?.offsetHeight ?? CARD_H;
 
-      // Edge snap is blocked during the preparation countdown
-      const canSnapEdge = !isPreparationActive;
+      // Edge snap solo en móvil y fuera de countdown de preparación
+      const canSnapEdge = !isPreparationActive && window.innerWidth < 768;
 
       if (canSnapEdge && x < -(cardW - EDGE_PEEK)) {
         setEdgeMode("left");

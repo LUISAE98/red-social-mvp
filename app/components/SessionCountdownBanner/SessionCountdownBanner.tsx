@@ -105,17 +105,14 @@ function CompletedDownloadSection({
           type="button"
           onClick={dismiss}
           style={{
-            width: 24,
-            height: 24,
-            borderRadius: "50%",
             border: "none",
-            background: "rgba(255,255,255,0.12)",
-            color: "rgba(255,255,255,0.60)",
-            fontSize: 12,
+            background: "none",
+            color: "rgba(255,255,255,0.45)",
+            fontSize: 16,
             cursor: "pointer",
-            display: "grid",
-            placeItems: "center",
+            padding: "0 2px",
             fontFamily: "inherit",
+            lineHeight: 1,
             flexShrink: 0,
           }}
           aria-label="Cerrar sección de descarga"
@@ -124,9 +121,9 @@ function CompletedDownloadSection({
         </button>
       </div>
 
-      <div style={{ fontSize: 12, color: "rgba(255,255,255,0.65)", lineHeight: 1.5 }}>
+      <div style={{ fontSize: 12, color: "rgba(255,255,255,0.65)", lineHeight: 1.5, textAlign: "center" }}>
         {canDownload
-          ? `Descarga tu grabación. Tienes ${daysLeft} día${daysLeft === 1 ? "" : "s"} para hacerlo, después ya no se podrá.`
+          ? `Descarga tu sesión. Tienes ${daysLeft} día${daysLeft === 1 ? "" : "s"} para hacerlo, después ya no se podrá.`
           : "El enlace de descarga ha expirado (30 días)."}
       </div>
 
@@ -157,7 +154,7 @@ function CompletedDownloadSection({
           opacity: downloadBusy ? 0.7 : 1,
         }}
       >
-        {downloadBusy ? "Descargando..." : "Descargar grabación"}
+        {downloadBusy ? "Descargando..." : "Descargar sesión"}
       </button>
     </div>
   );
@@ -268,8 +265,8 @@ export default function SessionCountdownBanner({ uid }: { uid: string }) {
     return (
       <div style={{ width: "100%", position: "relative", borderRadius: 12, overflow: "hidden", marginBottom: 2, boxSizing: "border-box", backgroundImage: `url(${bgImage})`, backgroundSize: "cover", backgroundPosition: "center" }}>
         <div style={{ position: "absolute", inset: 0, background: "linear-gradient(160deg, rgba(0,0,0,0.60) 0%, rgba(0,0,0,0.80) 100%)" }} />
-        <button type="button" onClick={dismissStandalone} style={{ position: "absolute", top: 10, right: 10, width: 28, height: 28, borderRadius: "50%", border: "none", background: "rgba(255,255,255,0.14)", color: "rgba(255,255,255,0.70)", fontSize: 14, cursor: "pointer", display: "grid", placeItems: "center", zIndex: 2, fontFamily: "inherit" }} aria-label="Cerrar">✕</button>
-        <div style={{ position: "relative", padding: "16px 18px", display: "flex", flexDirection: "column", gap: 10 }}>
+        <button type="button" onClick={dismissStandalone} style={{ position: "absolute", top: 10, right: 10, border: "none", background: "none", color: "rgba(255,255,255,0.45)", fontSize: 16, cursor: "pointer", padding: "0 2px", zIndex: 2, fontFamily: "inherit", lineHeight: 1 }} aria-label="Cerrar">✕</button>
+        <div style={{ position: "relative", padding: "16px 40px 16px 18px", display: "flex", flexDirection: "column", gap: 10 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <div style={{ width: 44, height: 44, borderRadius: "50%", overflow: "hidden", flexShrink: 0, background: "rgba(255,255,255,0.10)", border: "2px solid rgba(34,197,94,0.50)" }}>
               {completedSession.creatorAvatarUrl
@@ -280,19 +277,19 @@ export default function SessionCountdownBanner({ uid }: { uid: string }) {
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 12, color: "rgba(255,255,255,0.60)", marginBottom: 2 }}>Sesión con</div>
               <div style={{ fontSize: 16, color: "#fff", fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{creatorName}</div>
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 5, background: "rgba(34,197,94,0.16)", border: "1px solid rgba(34,197,94,0.30)", borderRadius: 20, padding: "4px 10px", flexShrink: 0 }}>
-              <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#4ade80" }} />
-              <span style={{ fontSize: 11, color: "#4ade80", fontWeight: 600 }}>Completada</span>
+              <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 3 }}>
+                <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#4ade80", flexShrink: 0 }} />
+                <span style={{ fontSize: 11, color: "#4ade80", fontWeight: 600 }}>Completada</span>
+              </div>
             </div>
           </div>
-          <div style={{ fontSize: 12, color: "rgba(255,255,255,0.65)", lineHeight: 1.5 }}>
+          <div style={{ fontSize: 12, color: "rgba(255,255,255,0.65)", lineHeight: 1.5, textAlign: "center" }}>
             {canDownload
-              ? `Descarga tu sesión grabada. Tienes ${daysLeft} día${daysLeft === 1 ? "" : "s"} para hacerlo, después ya no se podrá.`
+              ? `Descarga tu sesión. Tienes ${daysLeft} día${daysLeft === 1 ? "" : "s"} para hacerlo, después ya no se podrá.`
               : "El enlace de descarga ha expirado (30 días)."}
           </div>
           <button type="button" onClick={handleDownload} disabled={!canDownload} style={{ width: "100%", height: 38, borderRadius: 8, border: "none", background: !canDownload ? "rgba(255,255,255,0.08)" : completedSession.serviceKind === "exclusive_session" ? "rgba(236,72,153,0.22)" : "rgba(59,130,246,0.22)", color: !canDownload ? "rgba(255,255,255,0.30)" : completedSession.serviceKind === "exclusive_session" ? "#f9a8d4" : "#93c5fd", fontSize: 14, fontWeight: 600, cursor: !canDownload ? "not-allowed" : "pointer", fontFamily: "inherit", letterSpacing: "-0.01em" }}>
-            Descargar grabación
+            Descargar sesión
           </button>
         </div>
       </div>
@@ -330,10 +327,10 @@ export default function SessionCountdownBanner({ uid }: { uid: string }) {
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 12, color: "rgba(255,255,255,0.60)", marginBottom: 2 }}>Sesión con</div>
               <div style={{ fontSize: 15, color: "#fff", fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{creatorName}</div>
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 5, background: "rgba(250,204,21,0.14)", border: "1px solid rgba(250,204,21,0.28)", borderRadius: 20, padding: "4px 10px", flexShrink: 0 }}>
-              <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#fde047" }} />
-              <span style={{ fontSize: 11, color: "#fde047", fontWeight: 600 }}>Sesión corta</span>
+              <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 3 }}>
+                <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#fde047", flexShrink: 0 }} />
+                <span style={{ fontSize: 11, color: "#fde047", fontWeight: 600 }}>Sesión corta</span>
+              </div>
             </div>
           </div>
 
@@ -360,7 +357,7 @@ export default function SessionCountdownBanner({ uid }: { uid: string }) {
                   {forceCompleting ? "Procesando..." : "Concluyó con éxito"}
                 </button>
                 <button type="button" onClick={() => setIncompleteDismissed(true)}
-                  style={{ flex: 1, height: 40, borderRadius: 8, border: "1px solid rgba(255,255,255,0.18)", background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.60)", fontSize: 13, fontWeight: 500, cursor: "pointer", fontFamily: "inherit", lineHeight: 1.2 }}>
+                  style={{ flex: 1, height: 40, borderRadius: 6, border: "none", background: "rgba(255,255,255,0.10)", color: "rgba(255,255,255,0.70)", fontSize: 13, fontWeight: 500, cursor: "pointer", fontFamily: "inherit", lineHeight: 1.2 }}>
                   Reportar problema
                 </button>
               </div>
@@ -481,10 +478,10 @@ export default function SessionCountdownBanner({ uid }: { uid: string }) {
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 13, color: "rgba(255,255,255,0.65)", fontWeight: 500, marginBottom: 3 }}>{sessionLabel}</div>
               <div style={{ fontSize: 17, color: "#fff", fontWeight: 700, letterSpacing: "-0.01em", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{creatorName}</div>
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 5, background: "rgba(251,146,60,0.14)", border: "1px solid rgba(251,146,60,0.28)", borderRadius: 20, padding: "4px 10px", flexShrink: 0 }}>
-              <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#fb923c" }} />
-              <span style={{ fontSize: 11, color: "#fb923c", fontWeight: 600 }}>No se realizó</span>
+              <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 3 }}>
+                <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#fb923c", flexShrink: 0 }} />
+                <span style={{ fontSize: 11, color: "#fb923c", fontWeight: 600 }}>No se realizó</span>
+              </div>
             </div>
           </div>
 
@@ -598,7 +595,7 @@ export default function SessionCountdownBanner({ uid }: { uid: string }) {
 
           {/* Connection status notice */}
           {canPrepare && (creatorConnected || buyerConnected) && (
-            <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "7px 10px", borderRadius: 8, background: creatorConnected ? "rgba(34,197,94,0.14)" : "rgba(255,255,255,0.08)", border: creatorConnected ? "1px solid rgba(34,197,94,0.28)" : "1px solid rgba(255,255,255,0.12)" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
               <div style={{ width: 7, height: 7, borderRadius: "50%", flexShrink: 0, background: creatorConnected ? "#4ade80" : "rgba(255,255,255,0.45)" }} />
               <span style={{ fontSize: 12, color: "#fff", fontWeight: 500, lineHeight: 1.3 }}>
                 {creatorConnected && !buyerConnected
