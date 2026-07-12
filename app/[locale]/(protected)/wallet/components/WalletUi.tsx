@@ -1907,6 +1907,8 @@ export function WalletFilterMenu<T extends string>({
           display: inline-flex;
           align-items: center;
           gap: 8px;
+          max-width: 100%;
+          min-width: 0;
           border-radius: 12px;
           border: none;
           background: transparent;
@@ -1917,6 +1919,17 @@ export function WalletFilterMenu<T extends string>({
           line-height: 1;
           transition: background 0.18s ease;
           cursor: pointer;
+        }
+
+        .filterButton :global(svg) {
+          flex-shrink: 0;
+        }
+
+        .filterButtonLabel {
+          min-width: 0;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
         }
 
         .filterButton:hover {
@@ -1932,7 +1945,7 @@ export function WalletFilterMenu<T extends string>({
         aria-expanded={open}
       >
         <FilterIcon />
-        <span>{label}</span>
+        <span className="filterButtonLabel">{label}</span>
       </button>
 
       {panel}

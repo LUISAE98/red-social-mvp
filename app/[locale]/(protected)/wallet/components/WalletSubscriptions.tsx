@@ -1,17 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useTranslations } from "next-intl";
-import {
-  collection,
-  getCountFromServer,
-  getDocs,
-  onSnapshot,
-  query,
-  where,
-} from "firebase/firestore";
-import { db } from "@/lib/firebase";
 import { useWalletLedger } from "@/lib/wallet/walletLedger";
+import {
+  useOwnedSubCommunities,
+  useSubscriptionCancels,
+} from "@/lib/wallet/walletSubscriptionData";
 import { WalletCard } from "./WalletUi";
 
 const DAY = 86400000;
@@ -30,21 +25,6 @@ function formatMoney(value: number): string {
     return `$${Math.round(value)}`;
   }
 }
-function numOr0(v: unknown): number {
-  return typeof v === "number" && Number.isFinite(v) ? v : 0;
-}
-function toDate(v: unknown): Date | null {
-  if (v && typeof (v as { toDate?: unknown }).toDate === "function") {
-    try {
-      return (v as { toDate: () => Date }).toDate();
-    } catch {
-      return null;
-    }
-  }
-  return null;
-}
-
-type Community = { id: string; price: number; activeSubs: number };
 
 /**
  * Bloque de Suscripciones. Se oculta por completo si el creador no tiene
@@ -61,77 +41,12 @@ export default function WalletSubscriptions({
 }) {
   const tWallet = useTranslations("wallet");
   const { entries } = useWalletLedger(uid, 1000);
-  // null = cargando; [] = sin comunidades de suscripción.
-  const [communities, setCommunities] = useState<Community[] | null>(null);
-  const [cancels, setCancels] = useState<Array<Date | null>>([]);
-
-  // Comunidades de suscripción propias + suscriptores activos (conteo).
-  useEffect(() => {
-    if (!uid) return;
-    let cancelled = false;
-    (async () => {
-      let result: Community[] = [];
-      try {
-        const gSnap = await getDocs(
-          query(collection(db, "groups"), where("ownerId", "==", uid))
-        );
-        result = await Promise.all(
-          gSnap.docs
-            .map((g) => {
-              const gd = g.data() as Record<string, unknown>;
-              const mon = gd.monetization as
-                | {
-                    subscriptionsEnabled?: unknown;
-                    isPaid?: unknown;
-                    subscriptionPriceMonthly?: unknown;
-                  }
-                | undefined;
-              const isSub =
-                mon?.subscriptionsEnabled === true || mon?.isPaid === true;
-              if (!isSub) return null;
-              return { g, price: numOr0(mon?.subscriptionPriceMonthly) };
-            })
-            .filter((x): x is { g: (typeof gSnap.docs)[number]; price: number } => x !== null)
-            .map(async ({ g, price }) => {
-              let activeSubs = 0;
-              try {
-                const c = await getCountFromServer(
-                  query(
-                    collection(db, "groups", g.id, "members"),
-                    where("subscriptionActive", "==", true)
-                  )
-                );
-                activeSubs = c.data().count;
-              } catch {
-                activeSubs = 0;
-              }
-              return { id: g.id, price, activeSubs };
-            })
-        );
-      } catch {
-        result = [];
-      }
-      if (!cancelled) setCommunities(result);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [uid]);
-
-  // Bajas (eventos de cancelación registrados por el trigger).
-  useEffect(() => {
-    if (!uid) return;
-    const unsub = onSnapshot(
-      query(collection(db, "users", uid, "subscriptionEvents")),
-      (snap) => setCancels(snap.docs.map((d) => toDate(d.data().occurredAt))),
-      () => {}
-    );
-    return () => unsub();
-  }, [uid]);
+  const { communities, loaded } = useOwnedSubCommunities(uid);
+  const { cancels } = useSubscriptionCancels(uid);
 
   const stats = useMemo(() => {
     const cutoff = new Date().getTime() - 30 * DAY;
-    const list = communities ?? [];
+    const list = communities;
     const active = list.reduce((s, c) => s + c.activeSubs, 0);
     // MRR neto: lo que realmente recibe el creador cada mes.
     const mrr = list.reduce((s, c) => s + c.activeSubs * c.price, 0) * NET_RATE;
@@ -153,7 +68,7 @@ export default function WalletSubscriptions({
   }, [communities, entries, cancels]);
 
   // Ocultar por completo mientras carga o si no hay comunidades de suscripción.
-  if (communities === null || communities.length === 0) return null;
+  if (!loaded || communities.length === 0) return null;
 
   const rows: { label: string; value: string }[] = [
     { label: tWallet("subsActive"), value: String(stats.active) },

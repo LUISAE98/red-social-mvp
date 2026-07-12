@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useSyncExternalStore } from "react";
 import { doc, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
@@ -90,35 +90,67 @@ export function selectFinanceView(
   };
 }
 
-/** Suscribe al resumen del wallet del usuario. */
+// Caché en memoria con listener persistente (compartido entre pestañas).
+type SummaryStore = {
+  summary: WalletSummary;
+  loaded: boolean;
+  unsub: (() => void) | null;
+  subs: Set<() => void>;
+};
+const summaryStores = new Map<string, SummaryStore>();
+
+function getSummaryStore(uid: string): SummaryStore {
+  let s = summaryStores.get(uid);
+  if (!s) {
+    s = { summary: EMPTY_WALLET_SUMMARY, loaded: false, unsub: null, subs: new Set() };
+    summaryStores.set(uid, s);
+  }
+  return s;
+}
+
+function ensureSummarySub(uid: string) {
+  const s = getSummaryStore(uid);
+  if (s.unsub) return;
+  const ref = doc(db, "users", uid, "walletSummary", "current");
+  const notify = () => s.subs.forEach((fn) => fn());
+  s.unsub = onSnapshot(
+    ref,
+    (snap) => {
+      s.summary = snap.exists()
+        ? normalizeSummary(snap.data() as Record<string, unknown>)
+        : EMPTY_WALLET_SUMMARY;
+      s.loaded = true;
+      notify();
+    },
+    () => {
+      s.loaded = true;
+      notify();
+    }
+  );
+}
+
+/** Suscribe (con caché persistente) al resumen del wallet del usuario. */
 export function useWalletFinances(uid: string | null | undefined) {
-  const [summary, setSummary] = useState<WalletSummary>(EMPTY_WALLET_SUMMARY);
-  const [loading, setLoading] = useState(true);
-
   useEffect(() => {
-    // Sin uid no nos suscribimos (el caso vacío se resuelve en el return).
-    if (!uid) return;
-
-    const ref = doc(db, "users", uid, "walletSummary", "current");
-    const unsub = onSnapshot(
-      ref,
-      (snap) => {
-        setSummary(
-          snap.exists()
-            ? normalizeSummary(snap.data() as Record<string, unknown>)
-            : EMPTY_WALLET_SUMMARY
-        );
-        setLoading(false);
-      },
-      () => setLoading(false)
-    );
-
-    return () => unsub();
+    if (uid) ensureSummarySub(uid);
   }, [uid]);
 
-  if (!uid) {
-    return { summary: EMPTY_WALLET_SUMMARY, loading: false };
-  }
-
+  const subscribe = useCallback(
+    (cb: () => void) => {
+      if (!uid) return () => {};
+      const s = getSummaryStore(uid);
+      s.subs.add(cb);
+      return () => {
+        s.subs.delete(cb);
+      };
+    },
+    [uid]
+  );
+  const getSnapshot = useCallback(
+    () => (uid ? summaryStores.get(uid)?.summary ?? EMPTY_WALLET_SUMMARY : EMPTY_WALLET_SUMMARY),
+    [uid]
+  );
+  const summary = useSyncExternalStore(subscribe, getSnapshot, () => EMPTY_WALLET_SUMMARY);
+  const loading = uid ? !(summaryStores.get(uid)?.loaded ?? false) : false;
   return { summary, loading };
 }

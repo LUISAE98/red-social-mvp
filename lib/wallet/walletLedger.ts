@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useSyncExternalStore } from "react";
 import {
   collection,
   limit,
@@ -104,54 +104,95 @@ function toNumber(value: unknown): number {
   return typeof value === "number" && Number.isFinite(value) ? value : 0;
 }
 
-/** Suscribe a los movimientos recientes del libro mayor del usuario. */
-export function useWalletLedger(
-  uid: string | null | undefined,
-  limitCount = 60
-) {
-  const [entries, setEntries] = useState<LedgerEntry[]>([]);
-  const [loading, setLoading] = useState(true);
+const EMPTY_ENTRIES: LedgerEntry[] = [];
 
+function mapLedgerDoc(doc: {
+  id: string;
+  data: () => Record<string, unknown>;
+}): LedgerEntry {
+  const d = doc.data();
+  return {
+    id: doc.id,
+    type: d.type as LedgerServiceType,
+    status: d.status as LedgerStatus,
+    grossAmount: toNumber(d.grossAmount),
+    netAmount: toNumber(d.netAmount),
+    currency: typeof d.currency === "string" ? d.currency : "MXN",
+    createdAt: toDate(d.createdAt),
+    occurredAt: toDate(d.occurredAt) ?? toDate(d.createdAt),
+    buyerId: typeof d.buyerId === "string" ? d.buyerId : null,
+    channelType: d.channelType === "group" ? "group" : "profile",
+    channelId: typeof d.channelId === "string" ? d.channelId : null,
+  };
+}
+
+// Caché en memoria por usuario con listener persistente: se comparte entre
+// pestañas y no se recarga al navegar (se limpia solo al refrescar la página).
+type LedgerStore = {
+  entries: LedgerEntry[];
+  loaded: boolean;
+  limit: number;
+  unsub: (() => void) | null;
+  subs: Set<() => void>;
+};
+const ledgerStores = new Map<string, LedgerStore>();
+
+function getLedgerStore(uid: string): LedgerStore {
+  let s = ledgerStores.get(uid);
+  if (!s) {
+    s = { entries: EMPTY_ENTRIES, loaded: false, limit: 0, unsub: null, subs: new Set() };
+    ledgerStores.set(uid, s);
+  }
+  return s;
+}
+
+function ensureLedgerSub(uid: string, wantLimit: number) {
+  const s = getLedgerStore(uid);
+  if (s.unsub && s.limit >= wantLimit) return; // ya cubierto por el listener actual
+  s.unsub?.();
+  s.limit = Math.max(s.limit, wantLimit);
+  const q = query(
+    collection(db, "users", uid, "walletLedger"),
+    orderBy("createdAt", "desc"),
+    limit(s.limit)
+  );
+  const notify = () => s.subs.forEach((fn) => fn());
+  s.unsub = onSnapshot(
+    q,
+    (snap) => {
+      s.entries = snap.docs.map((doc) => mapLedgerDoc(doc));
+      s.loaded = true;
+      notify();
+    },
+    () => {
+      s.loaded = true;
+      notify();
+    }
+  );
+}
+
+/** Suscribe (con caché persistente) al libro mayor del usuario. */
+export function useWalletLedger(uid: string | null | undefined, limitCount = 60) {
   useEffect(() => {
-    if (!uid) return;
-
-    const q = query(
-      collection(db, "users", uid, "walletLedger"),
-      orderBy("createdAt", "desc"),
-      limit(limitCount)
-    );
-    const unsub = onSnapshot(
-      q,
-      (snap) => {
-        setEntries(
-          snap.docs.map((doc) => {
-            const d = doc.data();
-            return {
-              id: doc.id,
-              type: d.type as LedgerServiceType,
-              status: d.status as LedgerStatus,
-              grossAmount: toNumber(d.grossAmount),
-              netAmount: toNumber(d.netAmount),
-              currency: typeof d.currency === "string" ? d.currency : "MXN",
-              createdAt: toDate(d.createdAt),
-              occurredAt: toDate(d.occurredAt) ?? toDate(d.createdAt),
-              buyerId: typeof d.buyerId === "string" ? d.buyerId : null,
-              channelType: d.channelType === "group" ? "group" : "profile",
-              channelId: typeof d.channelId === "string" ? d.channelId : null,
-            };
-          })
-        );
-        setLoading(false);
-      },
-      () => setLoading(false)
-    );
-
-    return () => unsub();
+    if (uid) ensureLedgerSub(uid, limitCount);
   }, [uid, limitCount]);
 
-  if (!uid) {
-    return { entries: [] as LedgerEntry[], loading: false };
-  }
-
+  const subscribe = useCallback(
+    (cb: () => void) => {
+      if (!uid) return () => {};
+      const s = getLedgerStore(uid);
+      s.subs.add(cb);
+      return () => {
+        s.subs.delete(cb);
+      };
+    },
+    [uid]
+  );
+  const getSnapshot = useCallback(
+    () => (uid ? ledgerStores.get(uid)?.entries ?? EMPTY_ENTRIES : EMPTY_ENTRIES),
+    [uid]
+  );
+  const entries = useSyncExternalStore(subscribe, getSnapshot, () => EMPTY_ENTRIES);
+  const loading = uid ? !(ledgerStores.get(uid)?.loaded ?? false) : false;
   return { entries, loading };
 }

@@ -394,7 +394,7 @@ function getSectionVisual(key: ServiceSectionKey): {
           <path d="M16 8L8 16" />
         </svg>
       ),
-      title: "Servicios rechazados",
+      title: "Experiencias rechazadas",
       countTone: { color: "#f43f5e" },
       containerStyle: {
         background: "#ef4444",

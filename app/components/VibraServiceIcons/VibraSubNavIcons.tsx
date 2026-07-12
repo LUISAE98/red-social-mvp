@@ -32,7 +32,7 @@ const SUBNAV_ICON_CONFIG: Record<
   },
 
 services: {
-  label: "Servicios",
+  label: "Experiencias",
   outline: (
     <svg viewBox="0 0 24 24" aria-hidden="true">
       <circle cx="12" cy="12" r="8.2" fill="none" stroke={vibraPurple} />
