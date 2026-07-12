@@ -2415,6 +2415,16 @@ allow list: if isPlatformMod()
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['latency', 'latencyUpdatedAt']);
       }
 
+      // Registro de vistas VOD (≥20% reproducido) — cada viewer escribe su propio doc; solo el autor lista
+      match /vodViewers/{viewerId} {
+        allow get, list: if signedIn()
+          && get(/databases/$(database)/documents/posts/$(postId)).data.authorId == request.auth.uid;
+        allow create, update: if signedIn()
+          && request.auth.uid == viewerId
+          && request.resource.data.viewedAt is timestamp;
+        allow delete: if false;
+      }
+
       // Credenciales privadas del live stream (streamKey) — solo el autor puede leer
       match /liveStream/{doc} {
         allow read: if signedIn()
