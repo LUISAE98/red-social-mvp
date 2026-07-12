@@ -18,6 +18,7 @@
 
 import {
   onDocumentCreated,
+  onDocumentDeleted,
   onDocumentWritten,
 } from "firebase-functions/v2/firestore";
 import * as admin from "firebase-admin";
@@ -205,6 +206,43 @@ export const onGroupSubscriptionLedger = onDocumentWritten(
       channelType: "group",
       channelId: groupId,
     });
+  }
+);
+
+/**
+ * Baja/churn de suscripción. Cancelar = `leaveGroup()` BORRA la membresía
+ * (users/{uid}/groupMemberships/{groupId}). Si la que se borra era una
+ * suscripción activa, registramos el evento para el dueño (para calcular bajas).
+ */
+export const onGroupSubscriptionChurn = onDocumentDeleted(
+  { document: "users/{uid}/groupMemberships/{groupId}", region: REGION },
+  async (event) => {
+    const snap = event.data;
+    if (!snap) return;
+    const data = snap.data();
+
+    const wasActiveSub =
+      data.accessType === "subscription" && data.subscriptionActive === true;
+    if (!wasActiveSub) return;
+
+    const ownerId = str(data.ownerId);
+    if (!ownerId) return;
+
+    const { groupId, uid } = event.params;
+    if (ownerId === uid) return;
+
+    await db
+      .collection("users")
+      .doc(ownerId)
+      .collection("subscriptionEvents")
+      .doc(event.id) // idempotente ante reintentos del mismo evento
+      .set({
+        type: "cancel",
+        groupId,
+        subscriberId: uid,
+        priceMonthly: num(data.subscriptionPriceMonthly),
+        occurredAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
   }
 );
 

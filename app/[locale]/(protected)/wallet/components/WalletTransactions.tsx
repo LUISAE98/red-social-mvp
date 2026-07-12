@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { WalletCard } from "./WalletUi";
+import WalletSubscriptions from "./WalletSubscriptions";
+import WalletActiveSubscribers from "./WalletActiveSubscribers";
 import {
   useWalletLedger,
   ledgerTypeLabelKey,
@@ -154,8 +156,13 @@ export default function WalletTransactions({
         })}
       </div>
 
-      {/* Lista */}
-      {loading ? (
+      {/* Pestaña Suscriptores: panel de suscripciones + lista de activos. */}
+      {filter === "subscription" ? (
+        <div>
+          <WalletSubscriptions uid={uid} bare />
+          <WalletActiveSubscribers uid={uid} />
+        </div>
+      ) : loading ? (
         <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 13, padding: "8px 0" }}>
           {tWallet("txLoading")}
         </div>

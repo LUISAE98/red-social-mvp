@@ -8,8 +8,9 @@ import WalletIncomeChart from "../components/WalletIncomeChart";
 import WalletServiceBreakdown from "../components/WalletServiceBreakdown";
 import WalletTopFans from "../components/WalletTopFans";
 import WalletMonthComparison from "../components/WalletMonthComparison";
-import WalletFanValue from "../components/WalletFanValue";
+import WalletSubscriptions from "../components/WalletSubscriptions";
 import WalletChannels from "../components/WalletChannels";
+import WalletCountryStats from "../components/WalletCountryStats";
 
 export default function WalletEstadisticasPage() {
   const { user } = useAuth();
@@ -20,6 +21,10 @@ export default function WalletEstadisticasPage() {
         <WalletIncomeChart uid={user?.uid} />
         <WalletPurchaseGlobe uid={user?.uid} />
         <WalletServiceBreakdown uid={user?.uid} />
+      </WalletCard>
+
+      <WalletCard transparent>
+        <WalletCountryStats uid={user?.uid} />
       </WalletCard>
 
       <WalletCard transparent>
@@ -47,9 +52,7 @@ export default function WalletEstadisticasPage() {
         </div>
       </WalletCard>
 
-      <WalletCard transparent>
-        <WalletFanValue uid={user?.uid} />
-      </WalletCard>
+      <WalletSubscriptions uid={user?.uid} />
 
       <WalletCard transparent>
         <WalletChannels uid={user?.uid} />

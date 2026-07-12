@@ -485,6 +485,15 @@ match /purchaseGeo/{cellId} {
   allow create, update, delete: if false;
 }
 
+// Eventos de suscripción (bajas/churn): el dueño los lee; solo el backend
+// (trigger) los escribe. Nunca desde el cliente.
+match /subscriptionEvents/{eventId} {
+  allow get, list: if signedIn()
+    && request.auth.uid == uid;
+
+  allow create, update, delete: if false;
+}
+
 match /commentFlames/{flameId} {
   allow get, list: if signedIn()
     && request.auth.uid == uid;
