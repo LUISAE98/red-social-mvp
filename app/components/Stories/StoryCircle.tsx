@@ -47,7 +47,7 @@ export default function StoryCircle({ type, thumbnailUrl, onClick, size = 74, su
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          padding: 2.5,
+          padding: 3,
           boxSizing: "border-box",
           flexShrink: 0,
         }}

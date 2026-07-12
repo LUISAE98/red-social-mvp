@@ -65,7 +65,7 @@ export default function StoryRingAvatar({
 
   const hasStories = ring !== "none" && stories.length > 0;
   const ringBg = ring === "vibra" ? VIBRA_GRADIENT : ring === "seen" ? SEEN_COLOR : "transparent";
-  const padding = ring !== "none" ? 2 : 0;
+  const padding = ring !== "none" ? 2.4 : 0;
   const innerBorder = ring !== "none" ? `1.5px solid ${GAP_COLOR}` : "none";
 
   const initials = (() => {

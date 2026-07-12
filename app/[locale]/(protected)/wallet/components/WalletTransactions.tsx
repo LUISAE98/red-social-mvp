@@ -5,14 +5,33 @@ import { useLocale, useTranslations } from "next-intl";
 import { WalletCard, WalletFilterMenu } from "./WalletUi";
 import WalletSubscriptions from "./WalletSubscriptions";
 import WalletActiveSubscribers from "./WalletActiveSubscribers";
+import WalletChannelFilter from "./WalletChannelFilter";
 import WalletMovementsChart, { type ChartBucket } from "./WalletMovementsChart";
+import { useOwnedChannels } from "@/lib/wallet/walletSubscriptionData";
 import {
   useWalletLedger,
   ledgerTypeLabelKey,
   ledgerStatusLabelKey,
   ledgerStatusColor,
+  type LedgerEntry,
   type LedgerStatus,
+  type LedgerServiceType,
 } from "@/lib/wallet/walletLedger";
+
+// Orden y emoji de las 11 experiencias para el filtro por tipo.
+const TYPE_ORDER: Array<{ value: LedgerServiceType; emoji: string }> = [
+  { value: "live_donation", emoji: "🎁" },
+  { value: "profile_donation", emoji: "💝" },
+  { value: "live_ticket", emoji: "🎟️" },
+  { value: "supercomment", emoji: "💬" },
+  { value: "advice", emoji: "💡" },
+  { value: "greeting", emoji: "👋" },
+  { value: "premium_post", emoji: "🔒" },
+  { value: "live_session", emoji: "🔴" },
+  { value: "exclusive_session", emoji: "⭐" },
+  { value: "subscription", emoji: "🔄" },
+  { value: "vod_ticket", emoji: "🎬" },
+];
 
 function formatMoney(value: number): string {
   try {
@@ -65,6 +84,10 @@ function monthLabelOf(ym: string, locale: string): string {
 function monthKey(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
+// Clave de canal de un movimiento (misma convención que el filtro/ledger).
+function entryChannelKey(e: LedgerEntry): string {
+  return e.channelType === "group" && e.channelId ? `g:${e.channelId}` : "profile";
+}
 // "2026-07" → "jul 26" (etiqueta corta para el eje de la gráfica).
 function monthShort(ym: string, locale: string): string {
   const [y, m] = ym.split("-").map(Number);
@@ -92,8 +115,48 @@ export default function WalletTransactions({
   const [statusFilter, setStatusFilter] = useState<Array<"all" | LedgerStatus>>(["all"]);
   // Filtro por mes dentro de "Todos".
   const [monthFilter, setMonthFilter] = useState<string[]>(["all"]);
+  // Filtro por experiencia (tipo de servicio) dentro de "Todos".
+  const [typeFilter, setTypeFilter] = useState<Array<"all" | LedgerServiceType>>(["all"]);
   const [limitCount, setLimitCount] = useState(PAGE_SIZE);
   const { entries, loading } = useWalletLedger(uid, limitCount);
+  // Filtro por canal (perfil + comunidades). ["all"] = todos; aplica a "Todos" y
+  // "Suscriptores", no a "Retiros". Multi-selección.
+  const { channels } = useOwnedChannels(uid);
+  const [channelFilter, setChannelFilter] = useState<string[]>(["all"]);
+
+  // Movimientos acotados al canal seleccionado.
+  const channelEntries = useMemo(() => {
+    if (channelFilter.includes("all")) return entries;
+    const allow = new Set(channelFilter);
+    return entries.filter((e) => allow.has(entryChannelKey(e)));
+  }, [entries, channelFilter]);
+
+  // + acotado por experiencia (tipo). Base de lista, gráfica y resumen.
+  const scopedEntries = useMemo(() => {
+    if (typeFilter.includes("all")) return channelEntries;
+    const allow = new Set(typeFilter);
+    return channelEntries.filter((e) => allow.has(e.type));
+  }, [channelEntries, typeFilter]);
+
+  // Estado de la pestaña Suscriptores según el canal elegido.
+  const subChannelState = useMemo(() => {
+    if (channelFilter.includes("all")) return { mode: "all" as const };
+    const selectedGroups = channelFilter
+      .filter((k) => k.startsWith("g:"))
+      .map((k) => k.slice(2));
+    const isSub = new Map(
+      channels.filter((c) => c.type === "group").map((c) => [c.id as string, c.isSubscription])
+    );
+    const validSubs = selectedGroups.filter((id) => isSub.get(id) === true);
+    if (validSubs.length) return { mode: "filtered" as const, communityIds: validSubs };
+    const onlyProfile = channelFilter.includes("profile") && selectedGroups.length === 0;
+    return {
+      mode: "message" as const,
+      message: onlyProfile
+        ? tWallet("subFilterProfileNoSub")
+        : tWallet("subFilterCommunityNoSub"),
+    };
+  }, [channelFilter, channels, tWallet]);
 
   // Meses disponibles (desde el primer registro cargado).
   const MONTH_OPTIONS = useMemo(() => {
@@ -113,6 +176,33 @@ export default function WalletTransactions({
     ? tWallet("filterMonthAllValue")
     : monthFilter.map((ym) => monthLabelOf(ym, locale)).join(", ");
 
+  const TYPE_OPTIONS: Array<{
+    value: "all" | LedgerServiceType;
+    label: string;
+    emoji?: string;
+  }> = [
+    { value: "all", label: tWallet("filterTypeAllValue"), emoji: "🎭" },
+    ...TYPE_ORDER.map((t) => ({
+      value: t.value,
+      label: tWallet(ledgerTypeLabelKey(t.value)),
+      emoji: t.emoji,
+    })),
+  ];
+
+  const typeSelLabel = typeFilter.includes("all")
+    ? tWallet("filterTypeAllValue")
+    : typeFilter
+        .filter((t): t is LedgerServiceType => t !== "all")
+        .map((t) => tWallet(ledgerTypeLabelKey(t)))
+        .join(", ");
+
+  const statusSelLabel = statusFilter.includes("all")
+    ? tWallet("filterStatusAllValue")
+    : statusFilter
+        .filter((s): s is LedgerStatus => s !== "all")
+        .map((s) => tWallet(ledgerStatusLabelKey(s)))
+        .join(", ");
+
   const STATUS_OPTIONS: Array<{
     value: "all" | LedgerStatus;
     label: string;
@@ -129,7 +219,7 @@ export default function WalletTransactions({
   const visible = useMemo(() => {
     // Retiros: aún no se registran en el libro mayor. Suscriptores: panel aparte.
     if (filter === "withdrawal" || filter === "subscription") return [];
-    let list = entries;
+    let list = scopedEntries;
     // Filtro por estado (multi-selección).
     if (!statusFilter.includes("all")) {
       list = list.filter((e) => statusFilter.includes(e.status));
@@ -142,18 +232,18 @@ export default function WalletTransactions({
       });
     }
     return list;
-  }, [entries, filter, statusFilter, monthFilter]);
+  }, [scopedEntries, filter, statusFilter, monthFilter]);
 
   // Meses a graficar: los seleccionados (o todos los disponibles), en orden.
   const chartMonths = useMemo(() => {
     const present = new Set<string>();
-    for (const e of entries) {
+    for (const e of scopedEntries) {
       const d = e.occurredAt ?? e.createdAt;
       if (d) present.add(monthKey(d));
     }
     const all = [...present].sort();
     return monthFilter.includes("all") ? all : monthFilter.filter((m) => present.has(m)).sort();
-  }, [entries, monthFilter]);
+  }, [scopedEntries, monthFilter]);
 
   // Tramos de la gráfica: 1 mes → 4 semanas; varios meses → un punto por mes.
   const chartBuckets = useMemo<ChartBucket[]>(() => {
@@ -188,8 +278,8 @@ export default function WalletTransactions({
   // Resumen (Ganado · Rechazado · Reembolsado) del mes filtrado.
   const summary = useMemo(() => {
     const scoped = monthFilter.includes("all")
-      ? entries
-      : entries.filter((e) => {
+      ? scopedEntries
+      : scopedEntries.filter((e) => {
           const d = e.occurredAt ?? e.createdAt;
           return d ? monthFilter.includes(monthKey(d)) : false;
         });
@@ -203,7 +293,7 @@ export default function WalletTransactions({
       else if (e.status === "refunded") refunded += amt;
     }
     return { earned, rejected, refunded };
-  }, [entries, monthFilter, mode]);
+  }, [scopedEntries, monthFilter, mode]);
 
   // Puede haber más en el servidor si la ventana llegó a su tope.
   const hasMore = filter !== "withdrawal" && entries.length >= limitCount;
@@ -262,6 +352,13 @@ export default function WalletTransactions({
         {tWallet("txTitle")}
       </span>
 
+      {/* Filtro por canal: perfil + comunidades (aplica a Todos y Suscriptores). */}
+      <WalletChannelFilter
+        channels={channels}
+        value={channelFilter}
+        onChange={setChannelFilter}
+      />
+
       {/* Pestañas: Todos · Retiros · Suscriptores */}
       <div
         style={{
@@ -300,20 +397,20 @@ export default function WalletTransactions({
         })}
       </div>
 
-      {/* Filtros — dentro de "Todos", debajo de las pestañas: mes (izq) · estado (der). */}
+      {/* Filtros — dentro de "Todos", apilados: mes · experiencia · ingresos. */}
       {filter === "all" ? (
         <div
           style={{
             display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            gap: 8,
+            flexDirection: "column",
+            alignItems: "flex-start",
+            gap: 2,
             marginBottom: 6,
             minWidth: 0,
           }}
         >
-          {/* Mes (izq): se encoge y trunca con "…" si no cabe. */}
-          <div style={{ minWidth: 0, flexShrink: 1, overflow: "hidden" }}>
+          {/* Mes: se trunca con "…" si no cabe. */}
+          <div style={{ maxWidth: "100%", minWidth: 0, overflow: "hidden" }}>
             <WalletFilterMenu
               label={monthSelLabel}
               menuLabel={tWallet("filterMonthMenu")}
@@ -324,10 +421,22 @@ export default function WalletTransactions({
               transparent
             />
           </div>
-          {/* Estado (der): tamaño fijo. */}
-          <div style={{ flexShrink: 0 }}>
+          {/* Experiencia (tipo de servicio). */}
+          <div style={{ maxWidth: "100%", minWidth: 0, overflow: "hidden" }}>
             <WalletFilterMenu
-              label={tWallet("filterLabel")}
+              label={typeSelLabel}
+              menuLabel={tWallet("filterTypeMenu")}
+              value={typeFilter}
+              options={TYPE_OPTIONS}
+              onChange={setTypeFilter}
+              allValue="all"
+              transparent
+            />
+          </div>
+          {/* Ingresos (estado). */}
+          <div style={{ maxWidth: "100%", minWidth: 0, overflow: "hidden" }}>
+            <WalletFilterMenu
+              label={statusSelLabel}
               menuLabel={tWallet("filterMovementsMenu")}
               value={statusFilter}
               options={STATUS_OPTIONS}
@@ -341,7 +450,7 @@ export default function WalletTransactions({
 
       {/* Gráfica: 1 mes → semanas; varios meses → comparación por mes. */}
       {filter === "all" && chartBuckets.length >= 1 ? (
-        <WalletMovementsChart entries={entries} mode={mode} buckets={chartBuckets} />
+        <WalletMovementsChart entries={scopedEntries} mode={mode} buckets={chartBuckets} />
       ) : null}
 
       {/* Resumen del mes filtrado: Ganado · Rechazado · Reembolsado. */}
@@ -352,7 +461,8 @@ export default function WalletTransactions({
             justifyContent: "space-between",
             alignItems: "flex-start",
             gap: 10,
-            marginBottom: 16,
+            marginTop: 26,
+            marginBottom: 26,
           }}
         >
           {[
@@ -399,8 +509,30 @@ export default function WalletTransactions({
       {/* Pestaña Suscriptores: panel de suscripciones + lista de activos. */}
       {filter === "subscription" ? (
         <div style={{ marginTop: 22 }}>
-          <WalletSubscriptions uid={uid} bare />
-          <WalletActiveSubscribers uid={uid} />
+          {subChannelState.mode === "message" ? (
+            <div
+              style={{
+                color: "rgba(255,255,255,0.55)",
+                fontSize: 13,
+                textAlign: "center",
+                padding: "18px 0",
+              }}
+            >
+              {subChannelState.message}
+            </div>
+          ) : (
+            <>
+              <WalletSubscriptions
+                uid={uid}
+                bare
+                communityIds={subChannelState.mode === "filtered" ? subChannelState.communityIds : null}
+              />
+              <WalletActiveSubscribers
+                uid={uid}
+                communityIds={subChannelState.mode === "filtered" ? subChannelState.communityIds : null}
+              />
+            </>
+          )}
         </div>
       ) : loading ? (
         <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 13, padding: "8px 0" }}>

@@ -34,19 +34,25 @@ function formatMoney(value: number): string {
 export default function WalletSubscriptions({
   uid,
   bare = false,
+  communityIds = null,
 }: {
   uid: string | null | undefined;
   /** true = sin tarjeta propia (para reusar dentro de otra sección). */
   bare?: boolean;
+  /** Si se pasa, limita las métricas a esas comunidades; null = todas. */
+  communityIds?: string[] | null;
 }) {
   const tWallet = useTranslations("wallet");
   const { entries } = useWalletLedger(uid, 1000);
   const { communities, loaded } = useOwnedSubCommunities(uid);
   const { cancels } = useSubscriptionCancels(uid);
 
+  const filterKey = communityIds && communityIds.length ? [...communityIds].sort().join(",") : null;
+
   const stats = useMemo(() => {
+    const allow = filterKey ? new Set(filterKey.split(",")) : null;
     const cutoff = new Date().getTime() - 30 * DAY;
-    const list = communities;
+    const list = allow ? communities.filter((c) => allow.has(c.id)) : communities;
     const active = list.reduce((s, c) => s + c.activeSubs, 0);
     // MRR neto: lo que realmente recibe el creador cada mes.
     const mrr = list.reduce((s, c) => s + c.activeSubs * c.price, 0) * NET_RATE;
@@ -55,17 +61,23 @@ export default function WalletSubscriptions({
     let incomeNet = 0;
     for (const e of entries) {
       if (e.type !== "subscription" || e.status !== "earned") continue;
+      if (allow && !(e.channelId && allow.has(e.channelId))) continue;
       incomeNet += e.netAmount;
       const d = e.occurredAt ?? e.createdAt;
       if (d && d.getTime() >= cutoff) newSubs += 1;
     }
 
-    const bajas = cancels.filter((d) => d && d.getTime() >= cutoff).length;
+    const bajas = cancels.filter(
+      (c) =>
+        c.occurredAt &&
+        c.occurredAt.getTime() >= cutoff &&
+        (!allow || (c.groupId && allow.has(c.groupId)))
+    ).length;
     const base = active + bajas;
     const churn = base > 0 ? (bajas / base) * 100 : null;
 
     return { active, mrr, newSubs, bajas, churn, incomeNet };
-  }, [communities, entries, cancels]);
+  }, [communities, entries, cancels, filterKey]);
 
   // Ocultar por completo mientras carga o si no hay comunidades de suscripción.
   if (!loaded || communities.length === 0) return null;

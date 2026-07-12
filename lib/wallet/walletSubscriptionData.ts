@@ -1,10 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useSyncExternalStore } from "react";
 import {
   collection,
+  doc,
   documentId,
   getCountFromServer,
+  getDoc,
   getDocs,
   onSnapshot,
   query,
@@ -115,6 +117,104 @@ export function useOwnedSubCommunities(uid: string | null | undefined) {
   return { communities, loaded };
 }
 
+// ───────────────────────── Canales del creador (perfil + comunidades) ─────────
+// Para el filtro por canal en Movimientos. Incluye TODAS las comunidades propias
+// (con o sin suscripción), no solo las de suscripción.
+export type WalletChannel = {
+  /** "profile" | "g:<groupId>" — misma clave que agrega el ledger. */
+  key: string;
+  type: "profile" | "group";
+  /** groupId si es comunidad; null para el perfil. */
+  id: string | null;
+  name: string | null;
+  avatar: string | null;
+  isSubscription: boolean;
+};
+const EMPTY_CHANNELS: WalletChannel[] = [];
+const channelStores = new Map<string, Store<WalletChannel[]>>();
+function getChannelStore(uid: string) {
+  let s = channelStores.get(uid);
+  if (!s) {
+    s = makeStore<WalletChannel[]>(EMPTY_CHANNELS);
+    channelStores.set(uid, s);
+  }
+  return s;
+}
+async function loadChannels(uid: string) {
+  const s = getChannelStore(uid);
+  if (s.loaded || s.loading) return;
+  s.loading = true;
+  try {
+    const [uSnap, gSnap] = await Promise.all([
+      getDoc(doc(db, "users", uid)),
+      getDocs(query(collection(db, "groups"), where("ownerId", "==", uid))),
+    ]);
+    const ud = uSnap.data() as Record<string, unknown> | undefined;
+    const profile: WalletChannel = {
+      key: "profile",
+      type: "profile",
+      id: null,
+      name:
+        pickString(ud?.displayName) ??
+        pickString(ud?.name) ??
+        pickString(ud?.username) ??
+        pickString(ud?.handle),
+      avatar: pickString(ud?.avatarUrl) ?? pickString(ud?.photoURL),
+      isSubscription: false,
+    };
+    const groups: WalletChannel[] = gSnap.docs.map((g) => {
+      const gd = g.data() as Record<string, unknown>;
+      const mon = gd.monetization as
+        | { subscriptionsEnabled?: unknown; isPaid?: unknown }
+        | undefined;
+      return {
+        key: `g:${g.id}`,
+        type: "group" as const,
+        id: g.id,
+        name:
+          pickString(gd.name) ??
+          pickString(gd.title) ??
+          pickString(gd.displayName),
+        avatar:
+          pickString(gd.avatarUrl) ??
+          pickString(gd.imageUrl) ??
+          pickString(gd.coverUrl),
+        isSubscription: mon?.subscriptionsEnabled === true || mon?.isPaid === true,
+      };
+    });
+    s.data = [profile, ...groups];
+  } catch {
+    s.data = EMPTY_CHANNELS;
+  }
+  s.loaded = true;
+  s.loading = false;
+  notify(s);
+}
+
+export function useOwnedChannels(uid: string | null | undefined) {
+  useEffect(() => {
+    if (uid) loadChannels(uid);
+  }, [uid]);
+  const subscribe = useCallback(
+    (cb: () => void) => {
+      if (!uid) return () => {};
+      const s = getChannelStore(uid);
+      s.subs.add(cb);
+      return () => {
+        s.subs.delete(cb);
+      };
+    },
+    [uid]
+  );
+  const getSnapshot = useCallback(
+    () => (uid ? channelStores.get(uid)?.data ?? EMPTY_CHANNELS : EMPTY_CHANNELS),
+    [uid]
+  );
+  const channels = useSyncExternalStore(subscribe, getSnapshot, () => EMPTY_CHANNELS);
+  const loaded = uid ? Boolean(channelStores.get(uid)?.loaded) : false;
+  return { channels, loaded };
+}
+
 // ───────────────────────── Suscriptores activos (con perfil) ─────────────────
 export type ActiveSubscriber = {
   uid: string;
@@ -122,12 +222,15 @@ export type ActiveSubscriber = {
   displayName: string | null;
   avatarUrl: string | null;
 };
-const EMPTY_SUBS: ActiveSubscriber[] = [];
-const subsStores = new Map<string, Store<ActiveSubscriber[]>>();
+// Registro crudo por membresía (una fila por comunidad); el hook deduplica y
+// filtra por comunidad para poder acotar la lista al canal seleccionado.
+type ActiveSubRecord = ActiveSubscriber & { communityId: string };
+const EMPTY_SUBS: ActiveSubRecord[] = [];
+const subsStores = new Map<string, Store<ActiveSubRecord[]>>();
 function getSubsStore(uid: string) {
   let s = subsStores.get(uid);
   if (!s) {
-    s = makeStore<ActiveSubscriber[]>(EMPTY_SUBS);
+    s = makeStore<ActiveSubRecord[]>(EMPTY_SUBS);
     subsStores.set(uid, s);
   }
   return s;
@@ -137,8 +240,8 @@ async function loadActiveSubscribers(uid: string) {
   if (s.loaded || s.loading) return;
   s.loading = true;
   try {
-    // Dedupe por uid: si está en varias comunidades, la suscripción más antigua.
-    const byUid = new Map<string, Date | null>();
+    // Un registro por membresía (conservamos communityId para poder filtrar).
+    const records: ActiveSubRecord[] = [];
     const gSnap = await getDocs(
       query(collection(db, "groups"), where("ownerId", "==", uid))
     );
@@ -160,18 +263,21 @@ async function loadActiveSubscribers(uid: string) {
           const memberUid = pickString(d.userId) ?? m.id;
           if (!memberUid || memberUid === uid) return;
           const since = toDate(d.subscribedAt) ?? toDate(d.joinedAt);
-          const prev = byUid.get(memberUid);
-          if (prev === undefined || (since && (!prev || since < prev))) {
-            byUid.set(memberUid, since);
-          }
+          records.push({
+            communityId: g.id,
+            uid: memberUid,
+            subscribedAt: since,
+            displayName: null,
+            avatarUrl: null,
+          });
         });
       } catch {
         // sin permiso a esa comunidad
       }
     }
 
-    // Perfiles por lote.
-    const ids = [...byUid.keys()];
+    // Perfiles por lote (uids únicos).
+    const ids = [...new Set(records.map((r) => r.uid))];
     const profiles = new Map<string, { displayName: string | null; avatarUrl: string | null }>();
     for (let i = 0; i < ids.length; i += 30) {
       const chunk = ids.slice(i, i + 30);
@@ -195,18 +301,11 @@ async function loadActiveSubscribers(uid: string) {
       }
     }
 
-    s.data = [...byUid.entries()]
-      .map(([u, since]) => ({
-        uid: u,
-        subscribedAt: since,
-        displayName: profiles.get(u)?.displayName ?? null,
-        avatarUrl: profiles.get(u)?.avatarUrl ?? null,
-      }))
-      .sort((a, b) => {
-        const ta = a.subscribedAt?.getTime() ?? Infinity;
-        const tb = b.subscribedAt?.getTime() ?? Infinity;
-        return ta - tb; // más antiguos primero
-      });
+    s.data = records.map((r) => ({
+      ...r,
+      displayName: profiles.get(r.uid)?.displayName ?? null,
+      avatarUrl: profiles.get(r.uid)?.avatarUrl ?? null,
+    }));
   } catch {
     s.data = EMPTY_SUBS;
   }
@@ -215,7 +314,14 @@ async function loadActiveSubscribers(uid: string) {
   notify(s);
 }
 
-export function useActiveSubscribers(uid: string | null | undefined) {
+/**
+ * Suscriptores activos. Si se pasan `communityIds`, se limita a esas comunidades;
+ * si no, agrega todas. Deduplica por uid (conserva la suscripción más antigua).
+ */
+export function useActiveSubscribers(
+  uid: string | null | undefined,
+  communityIds?: string[] | null
+) {
   useEffect(() => {
     if (uid) loadActiveSubscribers(uid);
   }, [uid]);
@@ -234,18 +340,46 @@ export function useActiveSubscribers(uid: string | null | undefined) {
     () => (uid ? subsStores.get(uid)?.data ?? EMPTY_SUBS : EMPTY_SUBS),
     [uid]
   );
-  const subscribers = useSyncExternalStore(subscribe, getSnapshot, () => EMPTY_SUBS);
+  const records = useSyncExternalStore(subscribe, getSnapshot, () => EMPTY_SUBS);
   const loaded = uid ? Boolean(subsStores.get(uid)?.loaded) : false;
+
+  const filterKey = communityIds && communityIds.length ? [...communityIds].sort().join(",") : null;
+  const subscribers = useMemo(() => {
+    const allow = filterKey ? new Set(filterKey.split(",")) : null;
+    const byUid = new Map<string, ActiveSubscriber>();
+    for (const r of records) {
+      if (allow && !allow.has(r.communityId)) continue;
+      const prev = byUid.get(r.uid);
+      if (
+        !prev ||
+        (r.subscribedAt && (!prev.subscribedAt || r.subscribedAt < prev.subscribedAt))
+      ) {
+        byUid.set(r.uid, {
+          uid: r.uid,
+          subscribedAt: r.subscribedAt,
+          displayName: r.displayName,
+          avatarUrl: r.avatarUrl,
+        });
+      }
+    }
+    return [...byUid.values()].sort((a, b) => {
+      const ta = a.subscribedAt?.getTime() ?? Infinity;
+      const tb = b.subscribedAt?.getTime() ?? Infinity;
+      return ta - tb; // más antiguos primero
+    });
+  }, [records, filterKey]);
+
   return { subscribers, loaded };
 }
 
 // ───────────────────────── Eventos de baja (churn) ───────────────────────────
-const EMPTY_CANCELS: Array<Date | null> = [];
-const cancelStores = new Map<string, Store<Array<Date | null>> & { unsub: (() => void) | null }>();
+export type SubscriptionCancel = { occurredAt: Date | null; groupId: string | null };
+const EMPTY_CANCELS: SubscriptionCancel[] = [];
+const cancelStores = new Map<string, Store<SubscriptionCancel[]> & { unsub: (() => void) | null }>();
 function getCancelStore(uid: string) {
   let s = cancelStores.get(uid);
   if (!s) {
-    s = { ...makeStore<Array<Date | null>>(EMPTY_CANCELS), unsub: null };
+    s = { ...makeStore<SubscriptionCancel[]>(EMPTY_CANCELS), unsub: null };
     cancelStores.set(uid, s);
   }
   return s;
@@ -256,7 +390,10 @@ function ensureCancelSub(uid: string) {
   s.unsub = onSnapshot(
     query(collection(db, "users", uid, "subscriptionEvents")),
     (snap) => {
-      s.data = snap.docs.map((d) => toDate(d.data().occurredAt));
+      s.data = snap.docs.map((d) => ({
+        occurredAt: toDate(d.data().occurredAt),
+        groupId: pickString(d.data().groupId),
+      }));
       s.loaded = true;
       notify(s);
     },

@@ -53,8 +53,8 @@ function GroupPreview({ group }: { group: CarouselGroup }) {
           </div>
           <div style={{
             position: "absolute", inset: 0, borderRadius: "50%", background: VIBRA_RING,
-            WebkitMaskImage: "radial-gradient(farthest-side, transparent calc(100% - 2.5px), white calc(100% - 2.5px))",
-            maskImage: "radial-gradient(farthest-side, transparent calc(100% - 2.5px), white calc(100% - 2.5px))",
+            WebkitMaskImage: "radial-gradient(farthest-side, transparent calc(100% - 3px), white calc(100% - 3px))",
+            maskImage: "radial-gradient(farthest-side, transparent calc(100% - 3px), white calc(100% - 3px))",
           }} />
         </div>
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>

@@ -54,11 +54,14 @@ function SubAvatar({ src, initial }: { src: string | null; initial: string }) {
  */
 export default function WalletActiveSubscribers({
   uid,
+  communityIds = null,
 }: {
   uid: string | null | undefined;
+  /** Si se pasa, limita la lista a esas comunidades; null = todas. */
+  communityIds?: string[] | null;
 }) {
   const tWallet = useTranslations("wallet");
-  const { subscribers, loaded } = useActiveSubscribers(uid);
+  const { subscribers, loaded } = useActiveSubscribers(uid, communityIds);
 
   const tenureLabel = (date: Date | null): string => {
     if (!date) return "—";

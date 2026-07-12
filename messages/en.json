@@ -1089,7 +1089,13 @@
     "filterMonthButton": "Month: {value}",
     "filterMonthAllValue": "All months",
     "movementsChartHint": "Tap to change the filter",
-    "weekShort": "W{n}"
+    "weekShort": "W{n}",
+    "channelFilterAll": "All",
+    "subFilterProfileNoSub": "Your profile can't offer subscriptions",
+    "subFilterCommunityNoSub": "This community doesn't require a subscription",
+    "filterTypeMenu": "Filter by experience",
+    "filterTypeAllValue": "All experiences",
+    "filterStatusAllValue": "All movements"
   },
   "services": {
     "confirmLabel": "Confirm",

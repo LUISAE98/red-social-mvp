@@ -38,6 +38,32 @@ function numOr0(value: unknown): number {
   return typeof value === "number" && Number.isFinite(value) ? value : 0;
 }
 
+// Chevron blanco propio (mismo trazo que las flechas del carrusel). Rota 90° al abrir.
+function Chevron({ open }: { open: boolean }) {
+  return (
+    <svg
+      width="15"
+      height="15"
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+      style={{
+        flexShrink: 0,
+        transform: open ? "rotate(90deg)" : "rotate(0deg)",
+        transition: "transform 260ms cubic-bezier(0.16,1,0.3,1)",
+      }}
+    >
+      <path
+        d="M9 18l6-6-6-6"
+        stroke="#fff"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 type GroupVisibility = "public" | "private" | "hidden" | null;
 type ProfileMeta = { name: string | null; avatar: string | null; followers: number };
 type GroupMeta = {
@@ -377,56 +403,56 @@ export default function WalletChannels({
                     {formatMoney(ch.net)} MXN
                   </span>
                 </div>
-                <span
-                  style={{
-                    flexShrink: 0,
-                    marginLeft: 4,
-                    color: "rgba(255,255,255,0.4)",
-                    fontSize: 11,
-                    transform: isOpen ? "rotate(90deg)" : "none",
-                    transition: "transform 150ms ease",
-                  }}
-                >
-                  ▶
+                <span style={{ flexShrink: 0, marginLeft: 4, display: "inline-flex" }}>
+                  <Chevron open={isOpen} />
                 </span>
               </button>
 
-              {isOpen ? (
-                <div style={{ padding: "2px 0 14px 48px" }}>
-                  {ch.type === "profile" ? (
-                    <>
-                      {statRow(tWallet("channelFollowers"), String(ch.followers))}
-                      {statRow(
-                        tWallet("channelNewFollowers"),
-                        newFollowers == null ? "—" : String(newFollowers)
-                      )}
-                      {statRow(tWallet("channelBuyers"), String(ch.buyers))}
-                      {statRow(tWallet("channelIncome"), `${formatMoney(ch.net)} MXN`)}
-                    </>
-                  ) : ch.isSubscription ? (
-                    <>
-                      {statRow(tWallet("channelSubscribersTotal"), String(ch.memberCount))}
-                      {statRow(tWallet("channelNewSubs"), String(ch.newSubs))}
-                      {statRow(
-                        tWallet("channelSubPrice"),
-                        ch.price > 0
-                          ? tWallet("channelPerMonth", { price: formatMoney(ch.price) })
-                          : "—"
-                      )}
-                      {statRow(tWallet("channelIncome"), `${formatMoney(ch.net)} MXN`)}
-                    </>
-                  ) : (
-                    <>
-                      {statRow(tWallet("channelMembersTotal"), String(ch.memberCount))}
-                      {statRow(
-                        tWallet("channelNewMembers"),
-                        ch.newMembers == null ? "—" : String(ch.newMembers)
-                      )}
-                      {statRow(tWallet("channelIncome"), `${formatMoney(ch.net)} MXN`)}
-                    </>
-                  )}
+              {/* Panel expandible: anima la altura con el truco grid-rows 0fr→1fr. */}
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateRows: isOpen ? "1fr" : "0fr",
+                  transition: "grid-template-rows 300ms cubic-bezier(0.16,1,0.3,1)",
+                }}
+              >
+                <div style={{ overflow: "hidden" }}>
+                  <div style={{ padding: "2px 0 14px 48px" }}>
+                    {ch.type === "profile" ? (
+                      <>
+                        {statRow(tWallet("channelFollowers"), String(ch.followers))}
+                        {statRow(
+                          tWallet("channelNewFollowers"),
+                          newFollowers == null ? "—" : String(newFollowers)
+                        )}
+                        {statRow(tWallet("channelBuyers"), String(ch.buyers))}
+                        {statRow(tWallet("channelIncome"), `${formatMoney(ch.net)} MXN`)}
+                      </>
+                    ) : ch.isSubscription ? (
+                      <>
+                        {statRow(tWallet("channelSubscribersTotal"), String(ch.memberCount))}
+                        {statRow(tWallet("channelNewSubs"), String(ch.newSubs))}
+                        {statRow(
+                          tWallet("channelSubPrice"),
+                          ch.price > 0
+                            ? tWallet("channelPerMonth", { price: formatMoney(ch.price) })
+                            : "—"
+                        )}
+                        {statRow(tWallet("channelIncome"), `${formatMoney(ch.net)} MXN`)}
+                      </>
+                    ) : (
+                      <>
+                        {statRow(tWallet("channelMembersTotal"), String(ch.memberCount))}
+                        {statRow(
+                          tWallet("channelNewMembers"),
+                          ch.newMembers == null ? "—" : String(ch.newMembers)
+                        )}
+                        {statRow(tWallet("channelIncome"), `${formatMoney(ch.net)} MXN`)}
+                      </>
+                    )}
+                  </div>
                 </div>
-              ) : null}
+              </div>
             </div>
           );
         })}
