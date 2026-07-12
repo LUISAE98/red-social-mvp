@@ -21,11 +21,6 @@ type PurchaseFeatureProps = {
 // Resolución H3 = la misma que hexPolygonResolution (para que calce con la rejilla gris).
 const HEX_RES = 3;
 
-// Zoom por gesto (rueda/pinch): 1x = tamaño base, hasta 1.4x. El zoom se queda.
-const ZOOM_MIN = 1;
-const ZOOM_MAX = 1.4;
-const clampZoom = (v: number) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, v));
-
 const COUNTRIES_URL =
   "https://raw.githubusercontent.com/vasturiano/globe.gl/master/example/datasets/ne_110m_admin_0_countries.geojson";
 
@@ -61,7 +56,7 @@ function darkTexture(): string | null {
 
 /**
  * Globo 3D interactivo (mock): concentración aproximada de compras por región.
- * Versión simple con react-globe.gl. El usuario rota y hace zoom.
+ * Versión simple con react-globe.gl. Tamaño fijo: el usuario solo rota.
  */
 export default function WalletPurchaseGlobe({
   uid,
@@ -76,10 +71,6 @@ export default function WalletPurchaseGlobe({
   const [Globe, setGlobe] = useState<GlobeComponent | null>(null);
   const [width, setWidth] = useState(0);
   const [countries, setCountries] = useState<object[]>([]);
-  const [zoom, setZoom] = useState(1);
-  const zoomRef = useRef(1);
-  zoomRef.current = zoom;
-  const zoomAreaRef = useRef<HTMLDivElement | null>(null);
   const [img] = useState<string | null>(() =>
     typeof document === "undefined" ? null : darkTexture()
   );
@@ -95,9 +86,9 @@ export default function WalletPurchaseGlobe({
     };
   }, []);
 
-  // Ancho base del contenedor (sin escalar).
+  // Ancho del contenedor.
   useEffect(() => {
-    const el = zoomAreaRef.current;
+    const el = wrapRef.current;
     if (!el) return;
     const update = () => setWidth(el.clientWidth);
     update();
@@ -105,58 +96,6 @@ export default function WalletPurchaseGlobe({
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
-
-  // Zoom "committed": tras estabilizarse el gesto, redimensiona el canvas real
-  // (para que el puntero vuelva a mapear bien y el tooltip funcione).
-  const [renderZoom, setRenderZoom] = useState(1);
-  useEffect(() => {
-    const t = setTimeout(() => setRenderZoom(zoom), 160);
-    return () => clearTimeout(t);
-  }, [zoom]);
-
-  // Zoom por gesto: rueda del mouse y pinch (dos dedos). El zoom se queda.
-  useEffect(() => {
-    const el = zoomAreaRef.current;
-    if (!el) return;
-
-    const onWheel = (e: WheelEvent) => {
-      e.preventDefault();
-      setZoom((z) => clampZoom(z + -e.deltaY * 0.0012));
-    };
-
-    let pinchStartDist = 0;
-    let pinchStartZoom = 1;
-    const touchDist = (t: TouchList) =>
-      Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
-
-    const onTouchStart = (e: TouchEvent) => {
-      if (e.touches.length === 2) {
-        pinchStartDist = touchDist(e.touches);
-        pinchStartZoom = zoomRef.current;
-      }
-    };
-    const onTouchMove = (e: TouchEvent) => {
-      if (e.touches.length === 2 && pinchStartDist > 0) {
-        e.preventDefault();
-        const d = touchDist(e.touches);
-        setZoom(clampZoom(pinchStartZoom * (d / pinchStartDist)));
-      }
-    };
-    const onTouchEnd = (e: TouchEvent) => {
-      if (e.touches.length < 2) pinchStartDist = 0;
-    };
-
-    el.addEventListener("wheel", onWheel, { passive: false });
-    el.addEventListener("touchstart", onTouchStart, { passive: false });
-    el.addEventListener("touchmove", onTouchMove, { passive: false });
-    el.addEventListener("touchend", onTouchEnd);
-    return () => {
-      el.removeEventListener("wheel", onWheel);
-      el.removeEventListener("touchstart", onTouchStart);
-      el.removeEventListener("touchmove", onTouchMove);
-      el.removeEventListener("touchend", onTouchEnd);
-    };
-  }, [Globe]);
 
   // Continentes (capa base gris).
   useEffect(() => {
@@ -172,7 +111,7 @@ export default function WalletPurchaseGlobe({
     };
   }, []);
 
-  // Controles: sin autorrotación, zoom, punto de vista inicial.
+  // Controles: sin autorrotación ni zoom; solo rotar.
   useEffect(() => {
     const g = globeRef.current;
     if (!g || width === 0) return;
@@ -185,8 +124,7 @@ export default function WalletPurchaseGlobe({
         maxDistance: number;
       };
       controls.autoRotate = false;
-      // El zoom de cámara se desactiva: el zoom lo maneja el gesto (CSS scale).
-      // Pan también, para que el pinch de dos dedos no mueva el globo.
+      // Tamaño fijo: sin zoom ni pan; el globo solo se puede rotar.
       controls.enableZoom = false;
       controls.enablePan = false;
       // Misma altitud siempre (deja margen → nunca se corta). El globo se ve más
@@ -277,34 +215,15 @@ export default function WalletPurchaseGlobe({
       </span>
 
       <div
-        ref={zoomAreaRef}
+        ref={wrapRef}
         className="globeFrame"
-        style={{
-          height: frameH * zoom,
-          marginBottom: 8,
-          overflow: "visible",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          touchAction: "none",
-          transition: "height 0.15s ease",
-        }}
+        style={{ height: frameH, overflow: "hidden", marginBottom: 8 }}
       >
-        <div
-          ref={wrapRef}
-          style={{
-            width: width * renderZoom,
-            height: frameH * renderZoom,
-            transform: `scale(${zoom / renderZoom})`,
-            transformOrigin: "center",
-            transition: "transform 0.15s ease",
-          }}
-        >
         {Globe && width > 0 ? (
           <Globe
             ref={globeRef}
-            width={Math.round(width * renderZoom)}
-            height={Math.round(frameH * renderZoom)}
+            width={width}
+            height={frameH}
             backgroundColor="rgba(0,0,0,0)"
             globeImageUrl={img ?? undefined}
             atmosphereColor="#a855ff"
@@ -338,7 +257,6 @@ export default function WalletPurchaseGlobe({
             }}
           />
         ) : null}
-        </div>
       </div>
     </div>
   );
