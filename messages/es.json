@@ -1107,6 +1107,7 @@
     "filterStatusAllValue": "Todos los movimientos",
     "kycWithdrawCta": "Da clic aquí para hacer tu registro KYC y poder hacer tus retiros",
     "kycPending": "Estamos verificando tu identidad…",
+    "kycContinue": "Continúa tu verificación KYC para poder retirar",
     "kycApproved": "Identidad verificada",
     "kycRetry": "Verificación rechazada. Da clic para reintentar",
     "withdrawButton": "Retirar",

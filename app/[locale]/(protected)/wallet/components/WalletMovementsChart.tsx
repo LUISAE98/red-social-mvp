@@ -218,7 +218,10 @@ export default function WalletMovementsChart({
                     position: "absolute",
                     left: `${(xAt(hoverIdx) / W) * 100}%`,
                     top: `${(yAt(hovered.amount) / H) * 100}%`,
-                    transform: "translate(-50%, calc(-100% - 12px))",
+                    // Traslación horizontal según la posición: en el primer punto el
+                    // tooltip queda alineado a la izquierda, en el último a la derecha,
+                    // y centrado en medio — así nunca se recorta en los extremos.
+                    transform: `translate(${(-(xAt(hoverIdx) / W) * 100).toFixed(1)}%, calc(-100% - 12px))`,
                     background: "rgba(20,14,40,0.96)",
                     border: `1px solid ${color}66`,
                     borderRadius: 8,

@@ -47,13 +47,17 @@ export default function WalletFinanzasPage() {
   const { toast: walletToast, showToast: showWalletToast } = useVibraToast();
 
   // ── CTA de KYC: solo mientras la identidad NO está verificada ──────────────
-  const kycInProgress = kyc.status === "pending" || kyc.status === "in_review";
-  const kycCtaLabel = kycInProgress
-    ? tWallet("kycPending")
-    : kyc.status === "declined"
-    ? tWallet("kycRetry")
-    : tWallet("kycWithdrawCta");
-  const kycCtaDisabled = kycInProgress || kyc.starting || kyc.loading;
+  // "in_review" = Didit revisando manualmente (bloqueado). "pending" = sesión
+  // creada pero sin terminar → clicable para continuar/reiniciar el flujo.
+  const kycCtaLabel =
+    kyc.status === "in_review"
+      ? tWallet("kycPending")
+      : kyc.status === "pending"
+      ? tWallet("kycContinue")
+      : kyc.status === "declined"
+      ? tWallet("kycRetry")
+      : tWallet("kycWithdrawCta");
+  const kycCtaDisabled = kyc.status === "in_review" || kyc.starting || kyc.loading;
 
   function handleKycClick() {
     if (kycCtaDisabled) return;
@@ -63,7 +67,6 @@ export default function WalletFinanzasPage() {
   // ── Celebración "Identidad verificada": 10 s, una sola vez tras verificar ──
   const [kycCelebrate, setKycCelebrate] = useState(false);
   const [kycCelebrateExiting, setKycCelebrateExiting] = useState(false);
-  const prevApprovedRef = useRef<boolean | null>(null);
   const celebratedRef = useRef(false);
   const cameFromDiditRef = useRef(false);
 
@@ -84,14 +87,11 @@ export default function WalletFinanzasPage() {
     }
   }, []);
 
-  // Dispara la celebración cuando la identidad pasa a verificada.
+  // Celebra UNA sola vez, y SOLO si el usuario acaba de volver del flujo de Didit
+  // (no en visitas normales a finanzas ya estando verificado).
   useEffect(() => {
-    const prev = prevApprovedRef.current;
-    prevApprovedRef.current = kyc.approved;
     if (kyc.loading || celebratedRef.current) return;
-    const justApproved = prev === false && kyc.approved;
-    const arrivedApproved = prev === null && kyc.approved && cameFromDiditRef.current;
-    if (justApproved || arrivedApproved) {
+    if (cameFromDiditRef.current && kyc.approved) {
       celebratedRef.current = true;
       // eslint-disable-next-line react-hooks/set-state-in-effect -- reacción a la aprobación async de Firestore
       setKycCelebrate(true);

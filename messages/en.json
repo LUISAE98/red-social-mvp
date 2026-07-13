@@ -1107,6 +1107,7 @@
     "filterStatusAllValue": "All movements",
     "kycWithdrawCta": "Click here to complete your KYC and enable withdrawals",
     "kycPending": "We're verifying your identity…",
+    "kycContinue": "Continue your KYC verification to withdraw",
     "kycApproved": "Identity verified",
     "kycRetry": "Verification declined. Click to try again",
     "withdrawButton": "Withdraw",
