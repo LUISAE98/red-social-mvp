@@ -4,6 +4,7 @@ import React, { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
+import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 
 type Currency = "MXN" | "USD";
 
@@ -315,6 +316,8 @@ export default function Subscription({
   onRemoveLegacyMembers,
 }: Props) {
   const tServices = useTranslations("services");
+  const { resolveStoredPrice, toDisplayForInput, currency: displayCurrency, formatAnchor } =
+    usePriceFormat();
   const [overlayMode, setOverlayMode] = useState<SubscriptionOverlayMode>(null);
   const [overlayDraft, setOverlayDraft] = useState<ServiceDraft>(draft);
   const [showRemoveLegacyMembersModal, setShowRemoveLegacyMembersModal] =
@@ -367,8 +370,22 @@ const disabledPanelStyle: React.CSSProperties = disabledByVisibility
     overlayNextSubscriptionPrice > savedPrevSubscriptionPrice;
 
   function openOverlay(mode: SubscriptionOverlayMode, nextDraft?: ServiceDraft) {
+    const src = nextDraft ?? draft;
+    // Mostrar el precio guardado en la moneda del creador para editarlo.
+    const n = Number(src.subscription.price);
+    const shown =
+      src.subscription.price !== "" && Number.isFinite(n) && n > 0
+        ? String(
+            Math.round(
+              toDisplayForInput(n, src.subscription.currency ?? "MXN") * 100
+            ) / 100
+          )
+        : src.subscription.price;
     setOverlayMode(mode);
-    setOverlayDraft(nextDraft ?? draft);
+    setOverlayDraft({
+      ...src,
+      subscription: { ...src.subscription, price: shown },
+    });
   }
 
   function closeOverlay() {
@@ -378,7 +395,17 @@ const disabledPanelStyle: React.CSSProperties = disabledByVisibility
   }
 
   async function confirmOverlaySave() {
-    await onSaveDraft(overlayDraft);
+    // El creador tecleó en su moneda; guardamos en MXN (ancla).
+    const n = Number(overlayDraft.subscription.price);
+    let toSave = overlayDraft;
+    if (overlayDraft.subscription.price !== "" && Number.isFinite(n) && n > 0) {
+      const { price, currency } = resolveStoredPrice(n);
+      toSave = {
+        ...overlayDraft,
+        subscription: { ...overlayDraft.subscription, price: String(price), currency },
+      };
+    }
+    await onSaveDraft(toSave);
     setOverlayMode(null);
   }
 
@@ -602,23 +629,26 @@ function handleModify() {
             style={{ ...inputStyle, width: 160, flex: "1 1 200px" }}
           />
 
-          <select
-            value={overlayDraft.subscription.currency}
-            onChange={(e) =>
-              setOverlayDraft((prev) => ({
-                ...prev,
-                subscription: {
-                  ...prev.subscription,
-                  currency: e.target.value as Currency,
-                },
-              }))
-            }
-            style={{ ...inputStyle, width: 100, flex: "1 1 120px" }}
+          <span
+            style={{
+              ...inputStyle,
+              width: 100,
+              flex: "1 1 120px",
+              display: "inline-flex",
+              alignItems: "center",
+              opacity: 0.75,
+            }}
           >
-            <option value="MXN">MXN</option>
-            <option value="USD">USD</option>
-          </select>
+            {displayCurrency}
+          </span>
         </div>
+        {displayCurrency !== "MXN" &&
+        overlayDraft.subscription.price &&
+        Number(overlayDraft.subscription.price) > 0 ? (
+          <div style={subtleStyle}>
+            = {formatAnchor(resolveStoredPrice(Number(overlayDraft.subscription.price)).price)}
+          </div>
+        ) : null}
 
         {shouldShowFreeToSubscriptionPolicy ? (
           <TransitionPolicyPanel

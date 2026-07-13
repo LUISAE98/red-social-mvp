@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import type { LedgerEntry, LedgerStatus } from "@/lib/wallet/walletLedger";
+import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 
 // Un tramo del eje X: una semana o un mes, con su etiqueta y su predicado de fecha.
 export type ChartBucket = { key: string; label: string; test: (d: Date) => boolean };
@@ -21,18 +22,6 @@ const METRIC_COLOR: Record<LedgerStatus, string> = {
   pending: "#c084fc",
 };
 
-function fmtMoney(v: number): string {
-  try {
-    return new Intl.NumberFormat("es-MX", {
-      style: "currency",
-      currency: "MXN",
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(v);
-  } catch {
-    return `$${Math.round(v)}`;
-  }
-}
 function fmtCompact(v: number): string {
   if (v >= 1000) return `$${(v / 1000).toFixed(v >= 10000 ? 0 : 1)}k`;
   return `$${Math.round(v)}`;
@@ -52,6 +41,7 @@ export default function WalletMovementsChart({
   buckets: ChartBucket[];
 }) {
   const tWallet = useTranslations("wallet");
+  const { format: fmtMoney } = usePriceFormat();
   const [metricIdx, setMetricIdx] = useState(0);
   const [hoverIdx, setHoverIdx] = useState<number | null>(null);
   const metric = METRICS[metricIdx];
@@ -113,8 +103,7 @@ export default function WalletMovementsChart({
             {tWallet(METRIC_KEY[metric])}
           </span>
           <span style={{ fontSize: 18, fontWeight: 700, color: "#fff", letterSpacing: "-0.02em" }}>
-            {fmtMoney(total)}{" "}
-            <span style={{ fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,0.4)" }}>MXN</span>
+            {fmtMoney(total)}
           </span>
         </div>
         <button

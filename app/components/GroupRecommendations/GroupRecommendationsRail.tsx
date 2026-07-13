@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { usePriceFormat } from "@/lib/currency/usePriceFormat";
+import { isDisplayCurrency } from "@/lib/currency/catalog";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
@@ -147,23 +149,6 @@ function resolveSubscriptionCurrency(group: RecommendationGroupCard) {
 
   const legacyCurrency = monetization?.currency;
   return typeof legacyCurrency === "string" ? legacyCurrency : null;
-}
-
-function formatSubscriptionPrice(group: RecommendationGroupCard) {
-  const price = resolveSubscriptionPrice(group);
-  const currency = resolveSubscriptionCurrency(group);
-
-  if (price == null || !currency) return null;
-
-  try {
-    return new Intl.NumberFormat("es-MX", {
-      style: "currency",
-      currency,
-      maximumFractionDigits: 2,
-    }).format(price);
-  } catch {
-    return `${currency} ${price.toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  }
 }
 
 function GroupCategoryPill({
@@ -504,6 +489,7 @@ function GroupCard({
   currentUserId: string | null;
 }) {
   const tGroups = useTranslations("groups");
+  const { format: formatMoney } = usePriceFormat();
   const router = useRouter();
   const categoryLabel = group.category
     ? GROUP_CATEGORY_LABELS[group.category]
@@ -519,9 +505,19 @@ function GroupCard({
   const isPaidSubscriptionPrivate =
     group.visibility === "private" && resolveSubscriptionEnabled(group);
 
-  const subscriptionPriceLabel = isPaidSubscriptionPrivate
-    ? formatSubscriptionPrice(group)
+  const subscriptionPrice = isPaidSubscriptionPrivate
+    ? resolveSubscriptionPrice(group)
     : null;
+  const subscriptionCurrency = resolveSubscriptionCurrency(group);
+  const subscriptionPriceLabel =
+    subscriptionPrice != null
+      ? formatMoney(subscriptionPrice, {
+          baseCurrency: isDisplayCurrency(subscriptionCurrency)
+            ? subscriptionCurrency
+            : "MXN",
+          code: true,
+        })
+      : null;
 
   return (
     <div style={cardStyles}>

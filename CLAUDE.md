@@ -134,7 +134,7 @@ La integración de identidad y cumplimiento es estratégica.
 
 No eliminar ni simplificar componentes relacionados con:
 
-* SumSub
+* Didit
 * Verificación de identidad
 * Cumplimiento financiero
 
@@ -213,7 +213,7 @@ Solicitar confirmación antes de modificar:
 
 * Wallet
 * Mercado Pago
-* SumSub
+* Didit
 * Autenticación principal
 
 No se requiere confirmación para modificar:

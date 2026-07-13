@@ -9,7 +9,7 @@ import type { WalletChannel } from "@/lib/wallet/walletSubscriptionData";
 const VIBRA_RING = "linear-gradient(135deg, #ec4899 0%, #9333ea 52%, #3b82f6 100%)";
 const AVATAR = 60; // diámetro del avatar (+30%)
 const RING_PAD = 2.4; // grosor del aro de Vibra (+20% sobre 2)
-const STACK_OVERLAP = 26; // encimado de los avatares de "Todos"
+const STACK_OVERLAP = 44; // encimado de los avatares de "Todos" (más angosto)
 const STACK_MAX = 4; // avatares visibles en el grupo "Todos"
 const LAPTOP_MIN_WIDTH = 820;
 

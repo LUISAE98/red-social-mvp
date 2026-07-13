@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
+import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import {
@@ -352,18 +353,6 @@ function calcNetAmount(raw: string) {
   if (raw.trim() === "" || Number.isNaN(n) || n <= 0) return null;
   const net = n * 0.77;
   return { gross: n, net };
-}
-
-function formatMoney(value: number, currency: Currency) {
-  try {
-    return new Intl.NumberFormat("es-MX", {
-      style: "currency",
-      currency,
-      maximumFractionDigits: 2,
-    }).format(value);
-  } catch {
-    return `${currency} ${value.toFixed(2)}`;
-  }
 }
 
 function normalizeDurationMeta(
@@ -1115,6 +1104,10 @@ export default function OwnerAdminServices({
   currentOfferings = null,
   currentDonation = null,
 }: Props) {
+  const priceFmt = usePriceFormat();
+  const formatMoney = (value: number, currency?: string) =>
+    priceFmt.format(value, { baseCurrency: currency ?? "MXN", code: true });
+
   const isOwner = useMemo(
     () => ownerId === currentUserId,
     [ownerId, currentUserId]

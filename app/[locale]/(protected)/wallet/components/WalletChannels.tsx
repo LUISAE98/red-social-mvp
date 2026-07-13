@@ -15,21 +15,10 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useWalletLedger } from "@/lib/wallet/walletLedger";
+import WalletScopeToggle, { type StatScope } from "./WalletScopeToggle";
+import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 
 const DAY = 86400000;
-
-function formatMoney(value: number): string {
-  try {
-    return new Intl.NumberFormat("es-MX", {
-      style: "currency",
-      currency: "MXN",
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(value);
-  } catch {
-    return `$${Math.round(value)}`;
-  }
-}
 
 function pickString(value: unknown): string | null {
   return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
@@ -137,12 +126,15 @@ export default function WalletChannels({
   uid: string | null | undefined;
 }) {
   const tWallet = useTranslations("wallet");
+  const { format: formatMoney } = usePriceFormat();
   const { entries } = useWalletLedger(uid, 1000);
 
   const [profile, setProfile] = useState<ProfileMeta | null>(null);
   const [groups, setGroups] = useState<GroupMeta[]>([]);
   const [newFollowers, setNewFollowers] = useState<number | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
+  // Alcance de la monetización por canal: histórico o últimos 30 días.
+  const [scope, setScope] = useState<StatScope>("all");
 
   // Metadatos: perfil (nombre/avatar/seguidores) + comunidades propias.
   useEffect(() => {
@@ -254,6 +246,10 @@ export default function WalletChannels({
     const cutoff = new Date().getTime() - 30 * DAY;
     for (const e of entries) {
       if (e.status !== "earned") continue;
+      if (scope === "30d") {
+        const d = e.occurredAt ?? e.createdAt;
+        if (!d || d.getTime() < cutoff) continue;
+      }
       const key = e.channelType === "group" && e.channelId ? `g:${e.channelId}` : "profile";
       const cur = map.get(key) ?? { net: 0, buyers: new Set<string>(), newSubs30d: 0 };
       cur.net += e.netAmount;
@@ -265,7 +261,7 @@ export default function WalletChannels({
       map.set(key, cur);
     }
     return map;
-  }, [entries]);
+  }, [entries, scope]);
 
   // Lista de canales combinando metadatos + monetización, ordenada desc.
   const channels = useMemo(() => {
@@ -341,6 +337,8 @@ export default function WalletChannels({
         {tWallet("channelsTitle")}
       </span>
 
+      <WalletScopeToggle value={scope} onChange={setScope} />
+
       <div style={{ display: "flex", flexDirection: "column" }}>
         {channels.list.map((ch, index) => {
           const pct =
@@ -400,7 +398,7 @@ export default function WalletChannels({
                     {pct}%
                   </span>
                   <span style={{ fontSize: 11.5, color: "rgba(255,255,255,0.55)" }}>
-                    {formatMoney(ch.net)} MXN
+                    {formatMoney(ch.net, { code: true })}
                   </span>
                 </div>
                 <span style={{ flexShrink: 0, marginLeft: 4, display: "inline-flex" }}>
@@ -426,7 +424,7 @@ export default function WalletChannels({
                           newFollowers == null ? "—" : String(newFollowers)
                         )}
                         {statRow(tWallet("channelBuyers"), String(ch.buyers))}
-                        {statRow(tWallet("channelIncome"), `${formatMoney(ch.net)} MXN`)}
+                        {statRow(tWallet("channelIncome"), formatMoney(ch.net, { code: true }))}
                       </>
                     ) : ch.isSubscription ? (
                       <>
@@ -438,7 +436,7 @@ export default function WalletChannels({
                             ? tWallet("channelPerMonth", { price: formatMoney(ch.price) })
                             : "—"
                         )}
-                        {statRow(tWallet("channelIncome"), `${formatMoney(ch.net)} MXN`)}
+                        {statRow(tWallet("channelIncome"), formatMoney(ch.net, { code: true }))}
                       </>
                     ) : (
                       <>
@@ -447,7 +445,7 @@ export default function WalletChannels({
                           tWallet("channelNewMembers"),
                           ch.newMembers == null ? "—" : String(ch.newMembers)
                         )}
-                        {statRow(tWallet("channelIncome"), `${formatMoney(ch.net)} MXN`)}
+                        {statRow(tWallet("channelIncome"), formatMoney(ch.net, { code: true }))}
                       </>
                     )}
                   </div>

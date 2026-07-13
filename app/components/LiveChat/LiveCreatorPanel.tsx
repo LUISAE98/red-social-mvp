@@ -55,6 +55,7 @@ import { subscribeToVodRevenue } from "@/lib/posts/post-access-service";
 import { subscribeToPeakRevenue, updatePeakRevenueIfRecord } from "@/lib/liveCreator/creator-stats-service";
 import { onSnapshot, doc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 
 const FONT = 'inherit';
 const DIV = "1px solid rgba(255,255,255,0.12)";
@@ -133,6 +134,7 @@ function OBSBrowserSourceBanner({ postId }: { postId: string }) {
 export default function LiveCreatorPanel({ open, onClose, post, portrait = false }: Props) {
   const tCommon = useTranslations("common");
   const tLive = useTranslations("live");
+  const { format: formatMoney } = usePriceFormat();
   const { user } = useAuth();
   const { messages, deleteMessage } = useLiveChat(open ? post.id : null, 50);
   const [isDesktop, setIsDesktop] = useState(false);
@@ -939,7 +941,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
     const totalRevenue = donationRevenue + superRevenue + ticketRevenue + vodRevenue;
     const net = (n: number) => n * CREATOR_SHARE;
     const currency = liveData?.currency ?? "MXN";
-    const fmtMoney = (n: number) => n.toLocaleString("es-MX", { style: "currency", currency, maximumFractionDigits: 0 });
+    const fmtMoney = (n: number) => formatMoney(n, { baseCurrency: currency, code: true });
     const displayPeak = peakRevenue > 0 ? peakRevenue : net(totalRevenue);
     const isPaidLive = liveData?.accessType === "paid";
     const hasVod = post.requiresPayment === true;
@@ -1028,7 +1030,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
     const CREATOR_SHARE = 0.77; // plataforma retiene 23%
     const net = (amount: number) => amount * CREATOR_SHARE;
     const fmtMoney = (amount: number) =>
-      amount.toLocaleString("es-MX", { style: "currency", currency, maximumFractionDigits: 0 });
+      formatMoney(amount, { baseCurrency: currency, code: true });
 
     const wideCard: React.CSSProperties = {
       width: 700, height: 140, flexShrink: 0, alignSelf: "flex-end",
@@ -1601,7 +1603,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
                         <span style={{ fontSize: 9, fontWeight: 700, color: "#ef4444", background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 3, padding: "0px 4px", flexShrink: 0 }}>BAN</span>
                       )}
                       <span style={{ fontSize: 12, fontWeight: 700, color: "#86efac", fontFamily: FONT, flexShrink: 0 }}>
-                        +${(sc.amount * 0.77).toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} MXN
+                        +{formatMoney(sc.amount * 0.77, { code: true })}
                       </span>
                       <button
                         type="button"
@@ -1676,7 +1678,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
                       </span>
                     ) : (
                       <span style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", fontStyle: "italic", fontFamily: FONT }}>
-                        Donación ${sc.amount.toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} MXN
+                        Donación {formatMoney(sc.amount, { code: true })}
                       </span>
                     )}
                   </div>
@@ -1848,7 +1850,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
                     {playingOverlay.username}
                   </span>
                   <span style={{ fontSize: 13, fontWeight: 700, color: "#86efac", fontFamily: FONT }}>
-                    +${(playingOverlay.amount * 0.77).toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} MXN
+                    +{formatMoney(playingOverlay.amount * 0.77, { code: true })}
                   </span>
                 </div>
               </div>
@@ -1866,7 +1868,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
                   {playingOverlay.text.slice(ttsReadIndex)}
                 </>
               ) : (
-                <span style={{ color: "rgba(255,255,255,0.35)", fontStyle: "italic" }}>Donación ${playingOverlay.amount.toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} MXN</span>
+                <span style={{ color: "rgba(255,255,255,0.35)", fontStyle: "italic" }}>Donación {formatMoney(playingOverlay.amount, { code: true })}</span>
               )}
             </div>
             {/* Botones */}

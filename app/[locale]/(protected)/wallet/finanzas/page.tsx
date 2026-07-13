@@ -11,19 +11,8 @@ import {
   selectFinanceView,
 } from "@/lib/wallet/walletFinances";
 import { useWalletLedger } from "@/lib/wallet/walletLedger";
-
-function formatMoney(value: number): string {
-  try {
-    return new Intl.NumberFormat("es-MX", {
-      style: "currency",
-      currency: "MXN",
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(value);
-  } catch {
-    return `$${value.toFixed(2)} MXN`;
-  }
-}
+import { usePriceFormat } from "@/lib/currency/usePriceFormat";
+import { useKyc } from "@/lib/kyc/useKyc";
 
 function formatMonthLabel(year: number, month: number): string {
   try {
@@ -48,9 +37,27 @@ function formatMonthName(date: Date, locale: string): string {
 export default function WalletFinanzasPage() {
   const tWallet = useTranslations("wallet");
   const locale = useLocale();
+  const { format: formatMoney } = usePriceFormat();
   const { user } = useAuth();
   const { summary } = useWalletFinances(user?.uid);
+  const kyc = useKyc(user?.uid);
   const [mode, setMode] = useState<"net" | "gross">("net");
+
+  // Etiqueta y acción del CTA de KYC según el estado de verificación.
+  const kycInProgress = kyc.status === "pending" || kyc.status === "in_review";
+  const kycCtaLabel = kyc.approved
+    ? tWallet("kycApproved")
+    : kycInProgress
+    ? tWallet("kycPending")
+    : kyc.status === "declined"
+    ? tWallet("kycRetry")
+    : tWallet("kycWithdrawCta");
+  const kycCtaDisabled = kyc.approved || kycInProgress || kyc.starting || kyc.loading;
+
+  function handleKycClick() {
+    if (kycCtaDisabled) return;
+    void kyc.startKyc(locale);
+  }
 
   // Último día del mes en curso (fecha de disponibilidad del retiro).
   const withdrawDate = useMemo(() => {
@@ -89,7 +96,7 @@ export default function WalletFinanzasPage() {
       style={{
         display: "inline-flex",
         padding: 3,
-        borderRadius: 999,
+        borderRadius: 11,
         background: "rgba(255,255,255,0.06)",
         border: "1px solid rgba(255,255,255,0.08)",
         gap: 2,
@@ -107,7 +114,7 @@ export default function WalletFinanzasPage() {
             style={{
               border: "none",
               cursor: "pointer",
-              borderRadius: 999,
+              borderRadius: 8,
               padding: "6px 14px",
               fontSize: 12.5,
               fontWeight: 600,
@@ -169,20 +176,39 @@ export default function WalletFinanzasPage() {
                 color: "#4ade80",
               }}
             >
-              {formatMoney(view.available)}
-              <span
-                style={{
-                  fontSize: 14,
-                  fontWeight: 600,
-                  color: "rgba(74,222,128,0.6)",
-                  marginLeft: 8,
-                  letterSpacing: 0,
-                }}
-              >
-                MXN
-              </span>
+              {formatMoney(view.available, { code: true })}
             </div>
           </div>
+
+          {/* CTA de KYC: justo debajo de la cifra, ocupando todo el renglón. */}
+          <button
+            type="button"
+            onClick={handleKycClick}
+            disabled={kycCtaDisabled}
+            style={{
+              width: "100%",
+              marginTop: -14,
+              padding: 0,
+              border: "none",
+              background: "transparent",
+              color: kyc.approved
+                ? "#4ade80"
+                : kyc.status === "declined"
+                ? "#f87171"
+                : "#c084fc",
+              fontFamily: "inherit",
+              fontSize: 12.5,
+              fontWeight: 600,
+              lineHeight: 1.35,
+              letterSpacing: "-0.01em",
+              textAlign: "center",
+              cursor: kycCtaDisabled ? "default" : "pointer",
+              opacity: kyc.starting ? 0.6 : 1,
+              WebkitTapHighlightColor: "transparent",
+            }}
+          >
+            {kycCtaLabel}
+          </button>
 
           {/* Fila de 3 columnas: por liberar · mejor mes · ganado histórico */}
           <div
@@ -298,6 +324,21 @@ export default function WalletFinanzasPage() {
             </div>
           </div>
 
+          {/* Aviso de comisión según el modo (neto ya descontado / bruto sin descontar). */}
+          <div
+            style={{
+              fontSize: 11.5,
+              lineHeight: 1.45,
+              color: "rgba(255,255,255,0.42)",
+              textAlign: "center",
+              marginTop: -12,
+            }}
+          >
+            {mode === "net"
+              ? tWallet("financesCommissionNet")
+              : tWallet("financesCommissionGross")}
+          </div>
+
           {/* Devuelto (solo si hay) */}
           {view.refunded > 0 ? (
             <div
@@ -313,7 +354,7 @@ export default function WalletFinanzasPage() {
               <span>
                 {tWallet("financesRefunded")}:{" "}
                 <strong style={{ color: "rgba(255,255,255,0.7)", fontWeight: 600 }}>
-                  {formatMoney(view.refunded)} MXN
+                  {formatMoney(view.refunded, { code: true })}
                 </strong>
               </span>
             </div>

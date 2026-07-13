@@ -4,7 +4,8 @@ import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import type { Timestamp } from "firebase/firestore";
 import { useAuth } from "@/app/providers";
-import { formatWalletMoney, type WalletServiceItem } from "@/lib/wallet/ownerWallet";
+import { type WalletServiceItem } from "@/lib/wallet/ownerWallet";
+import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import { useWalletData } from "../components/WalletDataContext";
 import WalletSectionShell from "../components/WalletSectionShell";
 import {
@@ -121,6 +122,7 @@ function rowToFakeRequest(row: WalletServiceItem): MeetGreetRequestDoc {
 
 export default function WalletPendientesPage() {
   const tWallet = useTranslations("wallet");
+  const { format: formatMoney } = usePriceFormat();
   const { user } = useAuth();
 
   const FILTER_OPTIONS: Array<{ value: PendingFilter; label: string; emoji?: string }> = [
@@ -195,9 +197,8 @@ export default function WalletPendientesPage() {
 
   const viewItemEarning = useMemo(() => {
     if (!viewItem?.priceSnapshot || viewItem.priceSnapshot <= 0) return null;
-    return "$" + new Intl.NumberFormat("es-MX", { minimumFractionDigits: 0, maximumFractionDigits: 0 })
-      .format(viewItem.priceSnapshot * 0.77) + " MXN";
-  }, [viewItem]);
+    return formatMoney(viewItem.priceSnapshot * 0.77, { baseCurrency: viewItem.currency ?? "MXN" });
+  }, [viewItem, formatMoney]);
 
   function closeViewItem() {
     setViewItem(null);
@@ -355,7 +356,7 @@ export default function WalletPendientesPage() {
                 {tWallet("totalToRelease")}
               </p>
               <p style={{ margin: "0 0 8px", fontSize: 28, fontWeight: 700, lineHeight: 1, letterSpacing: "-0.03em", color: "rgba(255,255,255,0.25)", fontFamily: "inherit" }}>
-                $0.00 MXN
+                {formatMoney(0)}
               </p>
               <p style={{ margin: 0, fontSize: 13, color: "rgba(255,255,255,0.45)", fontFamily: "inherit", fontWeight: 400 }}>
                 {tWallet("noPending")}
@@ -371,7 +372,7 @@ export default function WalletPendientesPage() {
                     {tWallet("totalToRelease")}
                   </p>
                   <p style={{ margin: "0 0 8px", fontSize: 28, fontWeight: 700, lineHeight: 1, letterSpacing: "-0.03em", color: "#86efac", fontFamily: "inherit" }}>
-                    {formatWalletMoney(Math.round(totalPendingAmount * 100) / 100)} MXN
+                    {formatMoney(Math.round(totalPendingAmount * 100) / 100, { code: true })}
                   </p>
                   <p style={{ margin: 0, fontSize: 13, color: "#fff", fontFamily: "inherit", fontWeight: 500 }}>
                     {tWallet("pendingCount", { count: totalPendingCount })}

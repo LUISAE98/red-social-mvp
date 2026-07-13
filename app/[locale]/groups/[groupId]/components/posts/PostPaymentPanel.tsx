@@ -3,7 +3,8 @@
 import { createPortal } from "react-dom";
 import type { CSSProperties } from "react";
 import type { Post } from "@/lib/posts/types";
-import { useTranslations, useLocale } from "next-intl";
+import { useTranslations } from "next-intl";
+import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 
 type PostPaymentPanelProps = {
   open: boolean;
@@ -112,12 +113,6 @@ const sheetBase: CSSProperties = {
   gap: 16,
 };
 
-function formatPrice(price: number | null | undefined, currency: string | null | undefined, locale: string): string {
-  if (!price) return "—";
-  const cur = currency ?? "MXN";
-  return `$${price.toLocaleString(locale)} ${cur}`;
-}
-
 export default function PostPaymentPanel({
   open,
   post,
@@ -128,12 +123,14 @@ export default function PostPaymentPanel({
 }: PostPaymentPanelProps) {
   const tCommon = useTranslations("common");
   const tPosts = useTranslations("posts");
-  const locale = useLocale();
+  const priceFmt = usePriceFormat();
 
   if (!open || typeof document === "undefined") return null;
 
   const isGuest = !currentUserId;
-  const price = formatPrice(post.oneTimePrice, post.currency, locale);
+  const price = post.oneTimePrice
+    ? priceFmt.format(post.oneTimePrice, { baseCurrency: post.currency ?? "MXN", code: true })
+    : "—";
 
   const overlayStyle: CSSProperties = isMobile
     ? {

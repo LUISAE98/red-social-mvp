@@ -24,6 +24,9 @@ import {
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import { useTranslations } from "next-intl";
+import { usePriceFormat } from "@/lib/currency/usePriceFormat";
+import type { DisplayCurrency } from "@/lib/currency/catalog";
+import { BRAND_DOMAIN } from "@/lib/brand";
 
 const fontStack =
   'inherit';
@@ -178,7 +181,7 @@ function drawOverlayOnly(
   ctx.font = `700 ${nameFs}px "Plus Jakarta Sans", sans-serif`;
   const nameW = ctx.measureText(creatorName).width;
   ctx.font = `700 ${urlFs}px "Plus Jakarta Sans", sans-serif`;
-  const urlW  = ctx.measureText("vibra.com").width;
+  const urlW  = ctx.measureText(BRAND_DOMAIN).width;
   const pillW = pillPad + dotR * 2 + Math.round(base * 0.011) + urlW + pillPad;
   const pillX = textX + nameW + Math.round(base * 0.011);
   const pillY = ay - aSize / 2;
@@ -193,7 +196,7 @@ function drawOverlayOnly(
   ctx.fillStyle = "#ffffff";
   ctx.font = `700 ${urlFs}px "Plus Jakarta Sans", sans-serif`;
   ctx.textBaseline = "middle";
-  ctx.fillText("vibra.com", pillX + pillPad + dotR * 2 + Math.round(base * 0.011), pillY + pillH / 2);
+  ctx.fillText(BRAND_DOMAIN, pillX + pillPad + dotR * 2 + Math.round(base * 0.011), pillY + pillH / 2);
   ctx.restore();
 }
 
@@ -214,6 +217,7 @@ export default function GreetingReviewOverlay({
   const tCommon = useTranslations("common");
   const tServices = useTranslations("services");
   const tWallet = useTranslations("wallet");
+  const { format: formatMoney } = usePriceFormat();
   const [mounted, setMounted] = useState(false);
   const [earningFormatted, setEarningFormatted] = useState<string | null>(null);
   const [sourceInfo, setSourceInfo] = useState<{ name: string; photoURL: string | null } | null>(null);
@@ -362,16 +366,9 @@ export default function GreetingReviewOverlay({
       const net = rawPrice * 0.77;
       const cur = typeof offering.currency === "string" ? offering.currency : "MXN";
       setEarningNet(net);
-      setEarningFormatted(
-        "$" +
-          new Intl.NumberFormat("es-MX", {
-            minimumFractionDigits: 0,
-            maximumFractionDigits: 0,
-          }).format(net) +
-          ` ${cur}`
-      );
+      setEarningFormatted(formatMoney(net, { baseCurrency: cur as DisplayCurrency, code: true }));
     }).catch(() => {});
-  }, [currentIndex, items]);
+  }, [currentIndex, items, formatMoney]);
 
   // Attach stream to video element after camera activates
   useEffect(() => {
@@ -1111,7 +1108,6 @@ export default function GreetingReviewOverlay({
   const successIsLast = currentIndex >= items.length - 1;
   const successCompletedCount = completedEarningsNet.length;
   const successTotalEarned = completedEarningsNet.reduce((a, b) => a + b, 0);
-  const successFmt = new Intl.NumberFormat("es-MX", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
   const successLabel = req.type === "consejo" ? tServices("successAdvice") : req.type === "mensaje" ? tServices("successMessage") : tServices("successGreeting");
 
   // Success content — shown inline in the panel below the info section
@@ -1151,7 +1147,7 @@ export default function GreetingReviewOverlay({
       {/* Earnings + completion — only shown on the very last item */}
       {successIsLast && successTotalEarned > 0 && (
         <span style={{ color: "#86efac", fontWeight: 600, fontSize: 12, lineHeight: 1.5, textAlign: "center" }}>
-          {`Grabaste ${successCompletedCount} ${successCompletedCount === 1 ? "saludo o consejo" : "saludos y consejos"} y ganaste $${successFmt.format(successTotalEarned)} MXN`}
+          {`Grabaste ${successCompletedCount} ${successCompletedCount === 1 ? "saludo o consejo" : "saludos y consejos"} y ganaste ${formatMoney(successTotalEarned, { code: true })}`}
         </span>
       )}
       {successIsLast && (

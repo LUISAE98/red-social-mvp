@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useWalletLedger } from "@/lib/wallet/walletLedger";
 import {
@@ -8,23 +8,13 @@ import {
   useSubscriptionCancels,
 } from "@/lib/wallet/walletSubscriptionData";
 import { WalletCard } from "./WalletUi";
+import WalletScopeToggle, { type StatScope } from "./WalletScopeToggle";
+import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 
 const DAY = 86400000;
 // El creador recibe el neto (precio menos la comisión de la plataforma, 23%).
 const NET_RATE = 0.77;
 
-function formatMoney(value: number): string {
-  try {
-    return new Intl.NumberFormat("es-MX", {
-      style: "currency",
-      currency: "MXN",
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(value);
-  } catch {
-    return `$${Math.round(value)}`;
-  }
-}
 
 /**
  * Bloque de Suscripciones. Se oculta por completo si el creador no tiene
@@ -43,18 +33,23 @@ export default function WalletSubscriptions({
   communityIds?: string[] | null;
 }) {
   const tWallet = useTranslations("wallet");
+  const { format: formatMoney } = usePriceFormat();
   const { entries } = useWalletLedger(uid, 1000);
   const { communities, loaded } = useOwnedSubCommunities(uid);
   const { cancels } = useSubscriptionCancels(uid);
 
   const filterKey = communityIds && communityIds.length ? [...communityIds].sort().join(",") : null;
+  // Alcance de las métricas de flujo (Nuevos, Bajas, Churn, Ingreso).
+  const [scope, setScope] = useState<StatScope>("all");
 
   const stats = useMemo(() => {
     const allow = filterKey ? new Set(filterKey.split(",")) : null;
     const cutoff = new Date().getTime() - 30 * DAY;
+    // En "histórico" no hay ventana; en "30d" solo lo del último mes.
+    const within = (t: number | null) => scope === "all" || (t != null && t >= cutoff);
     const list = allow ? communities.filter((c) => allow.has(c.id)) : communities;
+    // Activos y MRR son estado actual (no dependen del alcance).
     const active = list.reduce((s, c) => s + c.activeSubs, 0);
-    // MRR neto: lo que realmente recibe el creador cada mes.
     const mrr = list.reduce((s, c) => s + c.activeSubs * c.price, 0) * NET_RATE;
 
     let newSubs = 0;
@@ -62,22 +57,22 @@ export default function WalletSubscriptions({
     for (const e of entries) {
       if (e.type !== "subscription" || e.status !== "earned") continue;
       if (allow && !(e.channelId && allow.has(e.channelId))) continue;
-      incomeNet += e.netAmount;
       const d = e.occurredAt ?? e.createdAt;
-      if (d && d.getTime() >= cutoff) newSubs += 1;
+      if (!within(d ? d.getTime() : null)) continue;
+      incomeNet += e.netAmount;
+      newSubs += 1;
     }
 
+    const inCommunity = (c: (typeof cancels)[number]) =>
+      !allow || (c.groupId != null && allow.has(c.groupId));
     const bajas = cancels.filter(
-      (c) =>
-        c.occurredAt &&
-        c.occurredAt.getTime() >= cutoff &&
-        (!allow || (c.groupId && allow.has(c.groupId)))
+      (c) => inCommunity(c) && within(c.occurredAt ? c.occurredAt.getTime() : null)
     ).length;
     const base = active + bajas;
     const churn = base > 0 ? (bajas / base) * 100 : null;
 
     return { active, mrr, newSubs, bajas, churn, incomeNet };
-  }, [communities, entries, cancels, filterKey]);
+  }, [communities, entries, cancels, filterKey, scope]);
 
   // Ocultar por completo mientras carga o si no hay comunidades de suscripción.
   if (!loaded || communities.length === 0) return null;
@@ -91,7 +86,7 @@ export default function WalletSubscriptions({
       label: tWallet("subsChurnRate"),
       value: stats.churn == null ? "—" : `${Math.round(stats.churn)}%`,
     },
-    { label: tWallet("subsIncome"), value: `${formatMoney(stats.incomeNet)} MXN` },
+    { label: tWallet("subsIncome"), value: formatMoney(stats.incomeNet, { code: true }) },
   ];
 
   const content = (
@@ -107,6 +102,8 @@ export default function WalletSubscriptions({
       >
         {tWallet("subsTitle")}
       </span>
+
+      <WalletScopeToggle value={scope} onChange={setScope} />
 
       <div style={{ display: "flex", flexDirection: "column" }}>
         {rows.map((row, index) => (

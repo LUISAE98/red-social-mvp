@@ -7,6 +7,7 @@ import Hls from "hls.js";
 import type { ActiveSuperComment } from "@/lib/posts/types";
 import { TTS_MIN_DURATION_SECS } from "@/lib/tts/edge-tts-client";
 import type { EdgeTTSHandle } from "@/lib/tts/edge-tts-client";
+import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 
 const SILENT_WAV = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=";
 
@@ -107,6 +108,7 @@ export default function LiveInlinePlayer({
   onStreamReady,
 }: Props) {
   const tCommon = useTranslations("common");
+  const { format: formatMoney } = usePriceFormat();
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
@@ -637,7 +639,7 @@ export default function LiveInlinePlayer({
               </div>
               <div style={{ fontSize: 10, fontFamily: FONT }}>
                 <span style={{ color: "rgba(255,255,255,0.5)", fontWeight: 400 }}>donó </span>
-                <span style={{ color: "#4ade80", fontWeight: 700 }}>${activeSC.amount.toFixed(2)} MXN</span>
+                <span style={{ color: "#4ade80", fontWeight: 700 }}>{formatMoney(activeSC.amount, { code: true })}</span>
               </div>
             </div>
           </div>

@@ -1,12 +1,15 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   useWalletLedger,
   ledgerTypeLabelKey,
   type LedgerServiceType,
 } from "@/lib/wallet/walletLedger";
+import WalletScopeToggle, { type StatScope } from "./WalletScopeToggle";
+
+const DAY = 86400000;
 
 // Color por servicio (mismo espíritu que los recuadros del panel de live).
 const SERVICE_COLOR: Record<LedgerServiceType, string> = {
@@ -40,12 +43,19 @@ export default function WalletServiceBreakdown({
 }) {
   const tWallet = useTranslations("wallet");
   const { entries } = useWalletLedger(uid, 1000);
+  // Alcance de los porcentajes: histórico o últimos 30 días.
+  const [scope, setScope] = useState<StatScope>("all");
 
   const rows = useMemo(() => {
+    const cutoff = new Date().getTime() - 30 * DAY;
     const byType = new Map<LedgerServiceType, number>();
     let total = 0;
     for (const e of entries) {
       if (e.status !== "earned") continue;
+      if (scope === "30d") {
+        const d = e.occurredAt ?? e.createdAt;
+        if (!d || d.getTime() < cutoff) continue;
+      }
       byType.set(e.type, (byType.get(e.type) ?? 0) + e.netAmount);
       total += e.netAmount;
     }
@@ -57,9 +67,15 @@ export default function WalletServiceBreakdown({
         pct: (amount / total) * 100,
       }))
       .sort((a, b) => b.pct - a.pct);
-  }, [entries]);
+  }, [entries, scope]);
 
-  if (rows.length === 0) return null;
+  // Solo se oculta por completo si nunca ha habido ingresos (sin histórico).
+  const hasHistory = useMemo(
+    () => entries.some((e) => e.status === "earned" && e.netAmount > 0),
+    [entries]
+  );
+
+  if (!hasHistory) return null;
 
   return (
     <div style={{ marginTop: 48 }}>
@@ -78,7 +94,7 @@ export default function WalletServiceBreakdown({
 
       <p
         style={{
-          margin: "0 0 20px",
+          margin: "0 0 14px",
           textAlign: "center",
           fontSize: 16.5,
           fontWeight: 600,
@@ -90,6 +106,22 @@ export default function WalletServiceBreakdown({
         {tWallet("breakdownQuestion")}
       </p>
 
+      {/* Switch: histórico / últimos 30 días. */}
+      <WalletScopeToggle value={scope} onChange={setScope} style={{ marginBottom: 22 }} />
+
+      {rows.length === 0 ? (
+        <p
+          style={{
+            margin: 0,
+            textAlign: "center",
+            fontSize: 13,
+            color: "rgba(255,255,255,0.5)",
+            padding: "8px 0 4px",
+          }}
+        >
+          {tWallet("breakdownScopeEmpty")}
+        </p>
+      ) : (
       <div className="grid">
         {rows.map((row) => (
           <div
@@ -123,6 +155,7 @@ export default function WalletServiceBreakdown({
           </div>
         ))}
       </div>
+      )}
     </div>
   );
 }

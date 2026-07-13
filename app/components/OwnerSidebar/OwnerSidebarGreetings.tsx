@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
+import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import {
   acceptMeetGreetRequest,
   proposeMeetGreetSchedule,
@@ -343,20 +344,6 @@ function remainingReschedules(req: MeetGreetRequestDoc | ExclusiveSessionRequest
       : 0;
 
   return Math.max(0, 2 - used);
-}
-
-function formatMoney(value: number, currency?: string | null): string {
-  const safeCurrency = currency === "USD" ? "USD" : "MXN";
-
-  try {
-    return new Intl.NumberFormat("es-MX", {
-      style: "currency",
-      currency: safeCurrency,
-      maximumFractionDigits: 2,
-    }).format(value);
-  } catch {
-    return `${safeCurrency} ${value}`;
-  }
 }
 
 function getRequestCurrency(req: MeetGreetRequestDoc | ExclusiveSessionRequestDoc): string {
@@ -764,6 +751,7 @@ export default function OwnerSidebarGreetings({
   const tGroups = useTranslations("groups");
   const tSessions = useTranslations("sessions");
   const tWallet = useTranslations("wallet");
+  const { format: formatMoney } = usePriceFormat();
   const [busyMap, setBusyMap] = useState<BusyMap>({});
   const [errorMap, setErrorMap] = useState<TextMap>({});
   const [successMap, setSuccessMap] = useState<TextMap>({});
@@ -2223,7 +2211,7 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
         serviceKind={incomingSessionOverlayData.serviceKind}
         earning={
           incomingSessionOverlayData.req.priceSnapshot != null && incomingSessionOverlayData.req.priceSnapshot > 0
-            ? "$" + new Intl.NumberFormat("es-MX", { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(incomingSessionOverlayData.req.priceSnapshot * 0.77) + " MXN"
+            ? formatMoney(incomingSessionOverlayData.req.priceSnapshot * 0.77, { code: true })
             : null
         }
         busy={!!busyMap[incomingSessionOverlayData.id]}

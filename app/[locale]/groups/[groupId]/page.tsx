@@ -78,9 +78,9 @@ import {
   normalizeVisibility,
   toCatalogOfferings,
   visibilityLabel,
-  formatMoney,
 } from "@/lib/groups/groupAdapters";
 
+import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import { useGroupRealtime } from "@/lib/groups/useGroupRealtime";
 import { useLiveRingState } from "@/lib/live/useLiveRingState";
 import { setLastVisitTimestamp } from "@/lib/utils/visitTimestamps";
@@ -123,6 +123,10 @@ export default function GroupPage() {
   const tGroups = useTranslations("groups");
   const tFeed = useTranslations("feed");
   const tServices = useTranslations("services");
+
+  const priceFmt = usePriceFormat();
+  const formatMoney = (value: number, currency?: string) =>
+    priceFmt.format(value, { baseCurrency: currency ?? "MXN", code: true });
 
   const { user } = useAuth();
   const router = useRouter();
@@ -503,7 +507,7 @@ const canRequestMeetGreet =
   const greetPriceLabel = useMemo(() => {
     const price = greetOffering?.memberPrice ?? greetOffering?.publicPrice ?? (greetOffering as { price?: number } | null)?.price ?? null;
     const currency = greetOffering?.currency ?? "MXN";
-    return typeof price === "number" ? `${formatMoney(price, currency)} ${currency}` : undefined;
+    return typeof price === "number" ? formatMoney(price, currency) : undefined;
   }, [greetOffering]);
 
   const [serviceToast, setServiceToast] = useState<string | null>(null);
@@ -1785,7 +1789,7 @@ const avatarNode = (
                           >
                             {user
                               ? subscriptionPrice != null
-                                ? tGroups("subscribeForPrice", { price: `${formatMoney(subscriptionPrice, subscriptionCurrency)} ${subscriptionCurrency}` })
+                                ? tGroups("subscribeForPrice", { price: formatMoney(subscriptionPrice, subscriptionCurrency) })
                                 : tGroups("subscribeCta")
                               : tGroups("loginToSubscribe")}
                           </button>

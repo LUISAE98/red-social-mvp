@@ -3,19 +3,7 @@
 import { useMemo } from "react";
 import { useTranslations } from "next-intl";
 import { useWalletLedger } from "@/lib/wallet/walletLedger";
-
-function formatMoney(value: number): string {
-  try {
-    return new Intl.NumberFormat("es-MX", {
-      style: "currency",
-      currency: "MXN",
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(value);
-  } catch {
-    return `$${Math.round(value)}`;
-  }
-}
+import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 
 function formatMonthLabel(year: number, month: number): string {
   try {
@@ -37,6 +25,7 @@ export default function WalletMonthComparison({
   uid: string | null | undefined;
 }) {
   const tWallet = useTranslations("wallet");
+  const { format: formatMoney } = usePriceFormat();
   const { entries } = useWalletLedger(uid, 1000);
 
   const { current, best } = useMemo(() => {

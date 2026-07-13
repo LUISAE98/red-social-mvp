@@ -47,7 +47,7 @@ import { createMeetGreetRequest } from "@/lib/meetGreet/meetGreetRequests";
 import { registrarCompraGeo } from "@/lib/wallet/registrarCompraGeo";
 import { createExclusiveSessionRequest } from "@/lib/exclusiveSession/exclusiveSessionRequests";
 import { getServiceByType, type NormalizedService } from "@/lib/services/normalizeServices";
-import type { CreatorServiceType, Currency } from "@/types/group";
+import type { CreatorServiceType } from "@/types/group";
 import SafeCropper from "@/components/media/SafeCropper";
 import { auth, db, storage, functions } from "@/lib/firebase";
 import { normalizeImageFile } from "@/lib/uploads/image-normalizer";
@@ -79,6 +79,9 @@ import { setLastVisitTimestamp } from "@/lib/utils/visitTimestamps";
 import { useLiveRingState } from "@/lib/live/useLiveRingState";
 import { useSetMobileHeader } from "@/app/contexts/MobileHeaderContext";
 import LanguageSwitcher from "@/app/components/LanguageSwitcher";
+import CurrencySwitcher from "@/app/components/CurrencySwitcher";
+import { usePriceFormat } from "@/lib/currency/usePriceFormat";
+import type { DisplayCurrency } from "@/lib/currency/catalog";
 import {
   type FirestoreDateLike,
   type CropMode,
@@ -169,6 +172,7 @@ export default function ProfileClient() {
   const tProfile = useTranslations("profile");
   const tCommon = useTranslations("common");
   const tServices = useTranslations("services");
+  const priceFmt = usePriceFormat();
 
   const params = useParams<{ handle: string }>();
   const pathname = usePathname();
@@ -606,13 +610,8 @@ const ui = {
   router.replace(pathname || `/u/${handle}`, { scroll: false });
 }
 
-function formatMoney(value: number, currency: Currency) {
-  return new Intl.NumberFormat("es-MX", {
-    style: "currency",
-    currency,
-    maximumFractionDigits: 0,
-  }).format(value);
-}
+const formatMoney = (value: number, currency?: string) =>
+  priceFmt.format(value, { baseCurrency: (currency ?? "MXN") as DisplayCurrency, code: true });
 
 function getProfileService(type: CreatorServiceType) {
   return getServiceByType(userDoc?.offerings ?? null, type, "profile");
@@ -1796,6 +1795,7 @@ await createExclusiveSessionRequest({
 
   {isOwner && (
     <>
+    <CurrencySwitcher variant="cover-corner" />
     <LanguageSwitcher variant="cover-corner" />
     <button
       onClick={handlePickCover}
@@ -2424,7 +2424,7 @@ await createExclusiveSessionRequest({
     const s = getProfileService(greetType);
     const price = s?.publicPrice ?? s?.memberPrice ?? null;
     const currency = s?.currency ?? "MXN";
-    return typeof price === "number" ? `${formatMoney(price, currency)} ${currency}` : undefined;
+    return typeof price === "number" ? formatMoney(price, currency) : undefined;
   })()}
   meetGreetOpen={meetGreetOpen}
   meetGreetSubmitting={meetGreetSubmitting}

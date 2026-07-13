@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { cellToBoundary, cellToLatLng, latLngToCell } from "h3-js";
 import type { GlobeMethods } from "react-globe.gl";
 import { useWalletPurchaseGeo } from "@/lib/wallet/walletPurchaseGeo";
+import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 
 type GlobeComponent = typeof import("react-globe.gl").default;
 
@@ -30,19 +31,6 @@ const LAPTOP_H = 580;
 // grande + marco más alto, usando la MISMA señal para que nunca se corte).
 const LAPTOP_MIN_WIDTH = 820;
 
-function formatMoney(value: number): string {
-  try {
-    return new Intl.NumberFormat("es-MX", {
-      style: "currency",
-      currency: "MXN",
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(value);
-  } catch {
-    return `$${Math.round(value)}`;
-  }
-}
-
 function darkTexture(): string | null {
   const c = document.createElement("canvas");
   c.width = 8;
@@ -64,6 +52,7 @@ export default function WalletPurchaseGlobe({
   uid: string | null | undefined;
 }) {
   const tWallet = useTranslations("wallet");
+  const { format: formatMoney } = usePriceFormat();
   const { points } = useWalletPurchaseGeo(uid);
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const globeRef = useRef<GlobeMethods | undefined>(undefined);

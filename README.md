@@ -14,7 +14,7 @@ Plataforma social centrada en creadores: perfiles, comunidades, contenido, video
 - **Live Streaming** — transmisiones en vivo (LiveKit / RTMP / OBS).
 - **Servicios** — saludos, meet & greet, sesiones exclusivas.
 - **Wallet y Monetización** — saldos, ledger, comisiones, pagos y retiros.
-- **KYC** — verificación de identidad y cumplimiento (SumSub).
+- **KYC** — verificación de identidad y cumplimiento (Didit).
 
 ---
 
@@ -157,7 +157,7 @@ Tratar como infraestructura crítica y modificar con especial cuidado:
 
 - **Wallet** (saldos, ledger, comisiones, pagos, retiros)
 - **Mercado Pago**
-- **SumSub** (KYC)
+- **Didit** (KYC)
 - **Autenticación principal**
 - **Reglas de Firestore y Storage**
 

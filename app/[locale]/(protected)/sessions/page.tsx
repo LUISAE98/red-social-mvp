@@ -16,7 +16,7 @@ import { useAuth } from "@/app/providers";
 import { setMeetGreetPreparing } from "@/lib/meetGreet/meetGreetRequests";
 import { setExclusiveSessionPreparing } from "@/lib/exclusiveSession/exclusiveSessionRequests";
 import { callGetRecordingDownloadUrl } from "@/lib/liveKit/sessionLifecycle";
-import { formatWalletMoney } from "@/lib/wallet/ownerWallet";
+import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import { formatScheduledAt } from "@/lib/utils/timezoneDisplay";
 import type { LiveKitSessionRecordingStatus } from "@/types/livekit";
 
@@ -166,6 +166,7 @@ const SESSION_STATUS_KEY_MAP: Record<string, string> = {
 
 function SessionCard({ session }: { session: BuyerSession }) {
   const tSessions = useTranslations("sessions");
+  const { format: formatMoney } = usePriceFormat();
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [joiningBusy, setJoiningBusy] = useState(false);
@@ -368,8 +369,7 @@ function SessionCard({ session }: { session: BuyerSession }) {
             <div style={detailRow}>
               <span style={detailLabel}>{tSessions("priceLabel")}</span>
               <span style={detailValue}>
-                {formatWalletMoney(session.priceSnapshot)}{" "}
-                {session.currency ?? "MXN"}
+                {formatMoney(session.priceSnapshot, { baseCurrency: session.currency ?? "MXN" })}
               </span>
             </div>
           ) : null}

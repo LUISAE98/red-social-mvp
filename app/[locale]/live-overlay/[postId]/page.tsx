@@ -6,6 +6,7 @@ import { db } from "@/lib/firebase";
 import type { ActiveSuperComment } from "@/lib/posts/types";
 import { playEdgeTTS, TTS_MIN_DURATION_SECS } from "@/lib/tts/edge-tts-client";
 import type { EdgeTTSHandle } from "@/lib/tts/edge-tts-client";
+import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 
 // ── OBS Browser Source overlay ────────────────────────────────────────────────
 // URL: /live-overlay/{postId}
@@ -18,6 +19,7 @@ const FONT = 'inherit';
 function SCCard({ sc, fadingOut }: { sc: ActiveSuperComment; fadingOut: boolean }) {
   // Widget autónomo — diseñado para un Browser Source de ~700×160 en OBS.
   // El creador lo posiciona libremente en su escena; no depende de un canvas 1920×1080.
+  const { format: formatMoney } = usePriceFormat();
   const SIZE = 56;
   const RING = 3;
   const INSET = 4;
@@ -64,7 +66,7 @@ function SCCard({ sc, fadingOut }: { sc: ActiveSuperComment; fadingOut: boolean 
           </div>
           <div style={{ fontSize: 15, fontFamily: FONT }}>
             <span style={{ color: "rgba(255,255,255,0.5)", fontWeight: 400 }}>donó </span>
-            <span style={{ color: "#4ade80", fontWeight: 700 }}>${sc.amount.toFixed(2)} MXN</span>
+            <span style={{ color: "#4ade80", fontWeight: 700 }}>{formatMoney(sc.amount, { code: true })}</span>
           </div>
         </div>
       </div>

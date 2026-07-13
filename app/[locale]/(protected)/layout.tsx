@@ -21,6 +21,7 @@ import { VibraNavigationIcon } from "@/app/components/VibraServiceIcons/VibraNav
 import WalletDesktopRail from "@/app/components/WalletDesktopRail/WalletDesktopRail";
 import { MobileHeaderCtx, type MobileHeaderData } from "@/app/contexts/MobileHeaderContext";
 import LanguageSwitcher from "@/app/components/LanguageSwitcher";
+import CurrencySwitcher from "@/app/components/CurrencySwitcher";
 import DraggableSessionCard from "@/app/components/SessionCountdownBanner/DraggableSessionCard";
 
 
@@ -98,6 +99,8 @@ const [contextScrolled, setContextScrolled] = useState(false);
 
 const isHomePage = pathname === "/";
 const isProfilePage = /^\/u\/[^/]+/.test(pathname);
+// La wallet oculta/muestra el header al hacer scroll, igual que home.
+const isWalletPage = pathname.startsWith("/wallet");
 const [isEmbed, setIsEmbed] = useState(false);
 
 useLayoutEffect(() => {
@@ -132,14 +135,14 @@ useLayoutEffect(() => {
 
   // Scroll listener: comportamiento diferente según la ruta
   useEffect(() => {
-    if (!isHomePage && !isProfilePage) return;
+    if (!isHomePage && !isProfilePage && !isWalletPage) return;
 
     let lastY = window.scrollY;
 
     const handler = () => {
       const y = window.scrollY;
 
-      if (isHomePage) {
+      if (isHomePage || isWalletPage) {
         // Dirección: ocultar al bajar, mostrar al subir o estar cerca del top
         if (y > 60 && y > lastY) setHomeHeaderHidden(true);
         else if (y < lastY || y <= 20) setHomeHeaderHidden(false);
@@ -154,7 +157,7 @@ useLayoutEffect(() => {
 
     window.addEventListener("scroll", handler, { passive: true });
     return () => window.removeEventListener("scroll", handler);
-  }, [pathname, isHomePage, isProfilePage]);
+  }, [pathname, isHomePage, isProfilePage, isWalletPage]);
 
 const contentAreaClassName = isEmbed
   ? "contentArea contentAreaEmbed"
@@ -699,7 +702,7 @@ const contentAreaClassName = isEmbed
       <div className="layout">
 <div
   ref={safeAreaRef}
-  className={`safeAreaHeaderBackdrop${isHomePage && homeHeaderHidden ? " safeAreaHidden" : ""}`}
+  className={`safeAreaHeaderBackdrop${(isHomePage || isWalletPage) && homeHeaderHidden ? " safeAreaHidden" : ""}`}
 />
 
 <header
@@ -707,7 +710,7 @@ const contentAreaClassName = isEmbed
   className={[
     "header",
     mobileSearchOpen ? "headerMobileSearchOpen" : "",
-    isHomePage && homeHeaderHidden ? "headerFadeHome" : "",
+    (isHomePage || isWalletPage) && homeHeaderHidden ? "headerFadeHome" : "",
     isProfilePage && contextScrolled ? "headerContextScrolled" : "",
   ].filter(Boolean).join(" ")}
 >
@@ -735,6 +738,7 @@ const contentAreaClassName = isEmbed
               </div>
 
 <div className="desktopHeaderActions">
+                <CurrencySwitcher variant="desktop" />
                 <LanguageSwitcher variant="desktop" />
               </div>
             </div>

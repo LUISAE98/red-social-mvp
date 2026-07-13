@@ -6,9 +6,9 @@ import { createPortal } from "react-dom";
 import { useTranslations, useLocale } from "next-intl";
 import { useAuth } from "@/app/providers";
 import {
-  formatWalletMoney,
   type WalletServiceItem,
 } from "@/lib/wallet/ownerWallet";
+import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import { useWalletData } from "../components/WalletDataContext";
 import { proposeExclusiveSessionSchedule } from "@/lib/exclusiveSession/exclusiveSessionRequests";
 import { proposeMeetGreetSchedule } from "@/lib/meetGreet/meetGreetRequests";
@@ -272,6 +272,7 @@ function CalendarEventCard({
 }) {
   const tWallet = useTranslations("wallet");
   const locale = useLocale();
+  const { format: formatMoney } = usePriceFormat();
   const initial = (item.buyerDisplayName ?? "U").charAt(0).toUpperCase();
   const theme = getServiceCardTheme(item.kind);
 
@@ -374,7 +375,7 @@ function CalendarEventCard({
                 flexShrink: 0,
               }}
             >
-              +{formatWalletMoney(Math.round(item.priceSnapshot * 0.77 * 100) / 100)} MXN
+              +{formatMoney(Math.round(item.priceSnapshot * 0.77 * 100) / 100, { baseCurrency: item.currency ?? "MXN", code: true })}
             </span>
           ) : null}
         </div>
@@ -1006,6 +1007,7 @@ function MonthCard({
 export default function WalletCalendarioPage() {
   const tWalletPage = useTranslations("wallet");
   const locale = useLocale();
+  const { format: formatMoney } = usePriceFormat();
   const { user } = useAuth();
   const walletData = useWalletData();
 
@@ -1071,12 +1073,7 @@ export default function WalletCalendarioPage() {
 
   const viewItemEarning =
     viewItem?.priceSnapshot != null && viewItem.priceSnapshot > 0
-      ? "$" +
-        new Intl.NumberFormat(locale, {
-          minimumFractionDigits: 0,
-          maximumFractionDigits: 0,
-        }).format(viewItem.priceSnapshot * 0.77) +
-        " MXN"
+      ? formatMoney(viewItem.priceSnapshot * 0.77, { baseCurrency: viewItem.currency ?? "MXN" })
       : null;
 
   function closeViewItem() {

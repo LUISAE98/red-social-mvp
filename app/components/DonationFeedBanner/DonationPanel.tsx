@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { usePriceFormat } from "@/lib/currency/usePriceFormat";
+import { formatCurrency } from "@/lib/currency/format";
 
 type Props = {
   open: boolean;
@@ -21,9 +23,12 @@ function applyOffset(raw: number): number {
   return raw * 0.2;
 }
 
-export default function DonationPanel({ open, onClose, creatorName, suggestedAmounts, currency, onContribute }: Props) {
+export default function DonationPanel({ open, onClose, creatorName, suggestedAmounts, onContribute }: Props) {
+  // Los montos de la donación se muestran directo en la moneda del espectador
+  // (los elige/teclea en esa moneda); no se convierten desde MXN ni llevan "≈".
+  const { currency: displayCurrency, locale } = usePriceFormat();
   const amounts = suggestedAmounts?.length ? suggestedAmounts : DEFAULT_AMOUNTS;
-  const currencyLabel = currency ?? "MXN";
+  const currencyLabel = displayCurrency;
 
   const [mounted, setMounted] = useState(false);
   const [visible, setVisible] = useState(false);
@@ -179,7 +184,7 @@ export default function DonationPanel({ open, onClose, creatorName, suggestedAmo
                 textAlign: "center",
               }}
             >
-              ${amt}
+              {formatCurrency(amt, displayCurrency, locale)}
             </button>
           );
         })}
@@ -234,7 +239,7 @@ export default function DonationPanel({ open, onClose, creatorName, suggestedAmo
       {submitting
         ? "Procesando..."
         : effectiveAmount && effectiveAmount > 0
-          ? `Contribuir $${effectiveAmount} ${currencyLabel}`
+          ? `Contribuir ${formatCurrency(effectiveAmount, displayCurrency, locale, { code: true })}`
           : "Contribuir"}
     </button>
   ) : null;

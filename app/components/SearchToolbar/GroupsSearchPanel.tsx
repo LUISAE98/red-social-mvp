@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
+import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import { usePathname, useRouter } from "next/navigation";
@@ -435,6 +436,7 @@ export default function GroupsSearchPanel({
   const tGroups = useTranslations("groups");
   const tCommon = useTranslations("common");
   const tServices = useTranslations("services");
+  const { format: formatMoney } = usePriceFormat();
 
   const router = useRouter();
   const pathname = usePathname();
@@ -1679,7 +1681,7 @@ const visLabel =
   type="button"
 >
   💎 {tGroups("subscribe")}
-  {price != null ? ` · ${price} ${cur ?? "MXN"}` : ""}
+  {price != null ? ` · ${formatMoney(price, { baseCurrency: cur ?? "MXN" })}` : ""}
 </button>
                             )}
 

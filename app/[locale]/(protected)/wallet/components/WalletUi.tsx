@@ -5,12 +5,12 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { createPortal } from "react-dom";
 import {
-  formatWalletMoney,
   getWalletScheduleConflictResult,
   getWalletServiceDurationMinutes,
   getWalletServiceRowMeta,
   type WalletServiceItem,
 } from "@/lib/wallet/ownerWallet";
+import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 
 import { respondGreetingRequest } from "@/lib/greetings/greetingRequests";
 import {
@@ -512,6 +512,7 @@ function buildRowSubtitle(row: WalletServiceItem, labels: {
   buyerLabel: string;
   motiveLabel: string;
   refundLabel: string;
+  priceLabel: string | null;
 }): string {
   const chunks: string[] = [];
 
@@ -529,8 +530,8 @@ function buildRowSubtitle(row: WalletServiceItem, labels: {
     chunks.push(labels.buyerLabel);
   }
 
-  if (row.priceSnapshot != null) {
-    chunks.push(formatWalletMoney(row.priceSnapshot));
+  if (labels.priceLabel) {
+    chunks.push(labels.priceLabel);
   }
 
   if (labels.motiveLabel) {
@@ -579,6 +580,8 @@ export function WalletServiceRow({
   const tServices = useTranslations("services");
   const tWallet = useTranslations("wallet");
   const locale = useLocale();
+  const { format: formatMoney } = usePriceFormat();
+  const priceBase = row.currency ?? "MXN";
 
   useEffect(() => {
     setScheduleParts(getSchedulePartsFromDate(row.scheduledAt));
@@ -618,6 +621,10 @@ export function WalletServiceRow({
     buyerLabel: row.buyerDisplayName ? tWallet("buyerLabel", { name: row.buyerDisplayName }) : "",
     motiveLabel,
     refundLabel: row.refundReason ? tWallet("refundLabel", { reason: row.refundReason }) : "",
+    priceLabel:
+      row.priceSnapshot != null
+        ? formatMoney(row.priceSnapshot, { baseCurrency: row.currency ?? "MXN" })
+        : null,
   });
   const meta = getWalletServiceRowMeta(row);
 
@@ -855,7 +862,7 @@ export function WalletServiceRow({
                 </span>
                 {row.priceSnapshot != null ? (
                   <span style={{ color: isHistory && historyStatusLabel ? historyStatusColor : "#86efac", fontWeight: 600, fontSize: 11, lineHeight: 1.2, whiteSpace: "nowrap", flexShrink: 0 }}>
-                    +{formatWalletMoney(Math.round(row.priceSnapshot * 0.77 * 100) / 100)} MXN
+                    +{formatMoney(Math.round(row.priceSnapshot * 0.77 * 100) / 100, { baseCurrency: priceBase, code: true })}
                   </span>
                 ) : null}
               </div>
@@ -927,7 +934,7 @@ export function WalletServiceRow({
                 </span>
                 {row.priceSnapshot != null ? (
                   <span style={{ color: mode === "history" && historyStatusLabel ? historyStatusColor : "#86efac", fontWeight: 600, fontSize: 11, lineHeight: 1.2, whiteSpace: "nowrap", flexShrink: 0 }}>
-                    +{formatWalletMoney(Math.round(row.priceSnapshot * 0.77 * 100) / 100)} MXN
+                    +{formatMoney(Math.round(row.priceSnapshot * 0.77 * 100) / 100, { baseCurrency: priceBase, code: true })}
                   </span>
                 ) : null}
               </div>
@@ -1109,7 +1116,7 @@ export function WalletServiceRow({
               </span>
               {row.priceSnapshot != null ? (
                 <span style={{ color: "#86efac", fontWeight: 600, fontSize: 11, lineHeight: 1.2, whiteSpace: "nowrap", flexShrink: 0 }}>
-                  +{formatWalletMoney(Math.round(row.priceSnapshot * 0.77 * 100) / 100)} MXN
+                  +{formatMoney(Math.round(row.priceSnapshot * 0.77 * 100) / 100, { baseCurrency: priceBase, code: true })}
                 </span>
               ) : null}
             </div>
@@ -1139,7 +1146,7 @@ export function WalletServiceRow({
 
               {row.priceSnapshot != null ? (
                 <div className="walletMiniMeta">
-                  {tWallet("priceLabel", { price: formatWalletMoney(row.priceSnapshot) })}
+                  {tWallet("priceLabel", { price: formatMoney(row.priceSnapshot, { baseCurrency: priceBase }) })}
                 </div>
               ) : null}
 

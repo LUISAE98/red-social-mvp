@@ -7,6 +7,7 @@ import { logger } from "firebase-functions";
 import { expireMeetGreetNoShowsHandler, autoExpirePendingMeetGreetRequestsHandler } from "./meetGreetRequests";
 import { expireExclusiveSessionNoShowsHandler, autoExpirePendingExclusiveSessionRequestsHandler } from "./exclusiveSessionRequests";
 import { autoExpirePendingGreetingRequestsHandler } from "./greetingRequests";
+import { updateExchangeRatesHandler } from "./exchangeRates";
 
 // Healthcheck público
 export const healthcheck = onRequest(
@@ -62,6 +63,20 @@ export const autoExpirePendingServiceRequests = onSchedule(
     ]);
 
     logger.info("autoExpirePendingServiceRequests finished");
+  }
+);
+
+// Tasas de cambio: actualiza el doc config/exchangeRates cada 6 horas.
+export const updateExchangeRates = onSchedule(
+  {
+    schedule: "every 6 hours",
+    timeZone: "America/Mexico_City",
+    region: "us-central1",
+  },
+  async () => {
+    logger.info("updateExchangeRates started");
+    await updateExchangeRatesHandler();
+    logger.info("updateExchangeRates finished");
   }
 );
 
@@ -227,3 +242,6 @@ export { getRecordingDownloadUrl } from "./recordingDownload";
 
 // Moderación de plataforma
 export { submitReport, claimReport, resolveReport } from "./moderation";
+
+// KYC — verificación de identidad con Didit (habilita retiros del creador)
+export { createKycSession, diditWebhook } from "./kyc";

@@ -15,7 +15,8 @@ const PT_COUNTRIES = new Set([
  * Devuelve el locale según el código de país ISO (de la geo por IP).
  * Español o portugués según el país; cualquier otro → inglés.
  * Si el país es desconocido (null), devuelve null para dejar que next-intl
- * use su detección normal (cookie / Accept-Language / defaultLocale).
+ * use su detección normal (cookie / Accept-Language) y, si el idioma del
+ * usuario no está en nuestro repertorio, el defaultLocale que ahora es inglés.
  */
 export function localeFromCountry(country: string | null | undefined): Locale | null {
   if (!country) return null;

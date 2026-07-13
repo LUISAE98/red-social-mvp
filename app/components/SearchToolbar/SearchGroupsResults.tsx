@@ -9,6 +9,7 @@ import {
 } from "react";
 import { useTranslations } from "next-intl";
 import type { User } from "firebase/auth";
+import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import RefreshableArea from "@/components/refresh/RefreshableArea";
 import LiveRingAvatar from "@/app/components/LiveRing/LiveRingAvatar";
 
@@ -251,24 +252,16 @@ function resolveSubscriptionEnabled(group: Community) {
   );
 }
 
-function resolveSubscriptionPrice(group: Community) {
+function resolveSubscriptionPrice(group: Community): number | null {
   const monetization = group.monetization as Record<string, unknown> | undefined;
-
-  return (
-    monetization?.subscriptionPriceMonthly ??
-    monetization?.priceMonthly ??
-    null
-  );
+  const v = monetization?.subscriptionPriceMonthly ?? monetization?.priceMonthly ?? null;
+  return typeof v === "number" && Number.isFinite(v) ? v : null;
 }
 
-function resolveSubscriptionCurrency(group: Community) {
+function resolveSubscriptionCurrency(group: Community): string | null {
   const monetization = group.monetization as Record<string, unknown> | undefined;
-
-  return (
-    monetization?.subscriptionCurrency ??
-    monetization?.currency ??
-    null
-  );
+  const v = monetization?.subscriptionCurrency ?? monetization?.currency ?? null;
+  return typeof v === "string" ? v : null;
 }
 
 function isPaidPrivateGroup(group: Community) {
@@ -291,6 +284,7 @@ export default function SearchGroupsResults({
   const tGroups = useTranslations("groups");
   const tCommon = useTranslations("common");
   const tServices = useTranslations("services");
+  const priceFmt = usePriceFormat();
 
 const [isMobile, setIsMobile] = useState(false);
 const [isFiltersOpen, setIsFiltersOpen] = useState(false);
@@ -1007,7 +1001,7 @@ const serviceDots = buildSearchServiceDots(group, tServices);
                 onClick={() => onNavigate(`/groups/${group.id}`)}
               >
                 💎 {tGroups("subscribe")}
-                {price != null ? ` · ${price} ${cur ?? "MXN"}` : ""}
+                {price != null ? ` · ${priceFmt.format(price, { baseCurrency: cur ?? "MXN" })}` : ""}
               </button>
             )}
 

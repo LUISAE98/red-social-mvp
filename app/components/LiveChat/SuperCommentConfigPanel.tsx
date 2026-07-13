@@ -14,6 +14,7 @@ import {
   type SuperCommentConfig,
   type SuperCommentTier,
 } from "@/lib/liveChat/types";
+import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 
 const FONT = "inherit";
 const PANEL_CLOSE_THRESHOLD = 130;
@@ -25,6 +26,7 @@ type Props = {
 };
 
 export default function SuperCommentConfigPanel({ open, onClose, postId }: Props) {
+  const { format: formatMoney } = usePriceFormat();
   const [mounted, setMounted] = useState(false);
   const [shouldRender, setShouldRender] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
@@ -180,7 +182,7 @@ export default function SuperCommentConfigPanel({ open, onClose, postId }: Props
               ))}
             </div>
             {scConfig.tiers.map((tier) => {
-              const creatorEarns = (tier.price * 0.77).toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+              const creatorEarns = formatMoney(tier.price * 0.77, { code: true });
               return (
                 <div key={tier.id} style={{ marginBottom: 14 }}>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, alignItems: "center" }}>
@@ -211,7 +213,7 @@ export default function SuperCommentConfigPanel({ open, onClose, postId }: Props
                   </div>
                   <p style={{ margin: "5px 0 0", fontSize: 10.5, color: tier.color, fontFamily: FONT, textAlign: "left" as const, lineHeight: 1.4 }}>
                     Por cada comentario que un fan pague tú cobrarás{" "}
-                    <span style={{ color: "#86efac", fontWeight: 600 }}>${creatorEarns} MXN</span>
+                    <span style={{ color: "#86efac", fontWeight: 600 }}>{creatorEarns}</span>
                   </p>
                 </div>
               );

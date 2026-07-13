@@ -220,6 +220,13 @@ service cloud.firestore {
         && request.resource.data.lastAt is timestamp;
     }
 
+    // Configuración pública de solo lectura (catálogo/tasas de cambio).
+    // La escritura queda reservada al backend (Admin SDK).
+    match /config/{docId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
     match /users/{uid} {
       allow get, list: if true;
 
@@ -318,6 +325,16 @@ service cloud.firestore {
             && (!("storyCoverPhoto" in request.resource.data)
               || request.resource.data.storyCoverPhoto == null
               || request.resource.data.storyCoverPhoto is map)
+          )
+          ||
+          (
+            request.resource.data.diff(resource.data).changedKeys().hasOnly([
+              "preferredCurrency",
+              "updatedAt"
+            ])
+            && request.resource.data.preferredCurrency is string
+            && request.resource.data.preferredCurrency.size() >= 3
+            && request.resource.data.preferredCurrency.size() <= 4
           )
             )
           )
@@ -2860,6 +2877,17 @@ function canUpdateReplyCount(delta) {
     match /adminProfiles/{uid} {
       allow read: if isPlatformMod();
       allow write: if isPlatformMod() && request.auth.uid == uid;
+    }
+
+    // ==========================
+    // KYC (verificación de identidad)
+    // ==========================
+    // El estado de KYC lo escribe SOLO el backend (Didit webhook / callable con
+    // Admin SDK). El usuario únicamente puede leer su propio documento. No hay PII:
+    // los documentos de identidad los custodia Didit.
+    match /kyc/{userId} {
+      allow read: if signedIn() && request.auth.uid == userId;
+      allow write: if false;
     }
 
     // ==========================

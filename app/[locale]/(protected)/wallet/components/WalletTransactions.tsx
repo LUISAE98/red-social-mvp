@@ -2,12 +2,14 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
+import { motion } from "framer-motion";
 import { WalletCard, WalletFilterMenu } from "./WalletUi";
 import WalletSubscriptions from "./WalletSubscriptions";
 import WalletActiveSubscribers from "./WalletActiveSubscribers";
 import WalletChannelFilter from "./WalletChannelFilter";
 import WalletMovementsChart, { type ChartBucket } from "./WalletMovementsChart";
 import { useOwnedChannels } from "@/lib/wallet/walletSubscriptionData";
+import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import {
   useWalletLedger,
   ledgerTypeLabelKey,
@@ -32,19 +34,6 @@ const TYPE_ORDER: Array<{ value: LedgerServiceType; emoji: string }> = [
   { value: "subscription", emoji: "🔄" },
   { value: "vod_ticket", emoji: "🎬" },
 ];
-
-function formatMoney(value: number): string {
-  try {
-    return new Intl.NumberFormat("es-MX", {
-      style: "currency",
-      currency: "MXN",
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(value);
-  } catch {
-    return `$${value.toFixed(2)} MXN`;
-  }
-}
 
 function formatDate(date: Date | null): string {
   if (!date) return "";
@@ -110,6 +99,7 @@ export default function WalletTransactions({
 }) {
   const tWallet = useTranslations("wallet");
   const locale = useLocale();
+  const { format: formatMoney } = usePriceFormat();
   const [filter, setFilter] = useState<Filter>("all");
   // Filtro por estado dentro de "Todos" (multi-selección, mismo menú que Pendientes/Historial).
   const [statusFilter, setStatusFilter] = useState<Array<"all" | LedgerStatus>>(["all"]);
@@ -302,10 +292,32 @@ export default function WalletTransactions({
     setLimitCount((c) => c + PAGE_SIZE);
   }, []);
 
+  // Pestañas: pill deslizante + dirección del deslizamiento del contenido.
+  const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const tabsNavRef = useRef<HTMLDivElement | null>(null);
+  const [pill, setPill] = useState<{ left: number; width: number } | null>(null);
+  const [tabDir, setTabDir] = useState(0);
+
   const selectFilter = (f: Filter) => {
+    const from = FILTERS.indexOf(filter as Filter);
+    const to = FILTERS.indexOf(f);
+    setTabDir(to > from ? 1 : to < from ? -1 : 0);
     setFilter(f);
     setLimitCount(PAGE_SIZE);
   };
+
+  // Mide la pestaña activa para posicionar el pill (y re-mide al redimensionar).
+  useEffect(() => {
+    const measure = () => {
+      const idx = FILTERS.indexOf(filter as Filter);
+      const el = tabRefs.current[idx];
+      if (!el) return;
+      setPill({ left: el.offsetLeft, width: el.offsetWidth });
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, [filter, locale]);
 
   // Observa la fila-gatillo (20 antes del final) para precargar la próxima página.
   const sentinelRef = useRef<HTMLDivElement | null>(null);
@@ -359,36 +371,59 @@ export default function WalletTransactions({
         onChange={setChannelFilter}
       />
 
-      {/* Pestañas: Todos · Retiros · Suscriptores */}
+      {/* Pestañas: Todos · Retiros · Suscriptores — solo la activa lleva contenedor,
+          un pill que se desliza. Las demás flotan (solo texto). */}
       <div
+        ref={tabsNavRef}
         style={{
-          display: "flex",
-          flexWrap: "wrap",
-          gap: 6,
+          position: "relative",
+          display: "inline-flex",
+          gap: 4,
           marginBottom: 14,
+          maxWidth: "100%",
         }}
       >
-        {FILTERS.map((f) => {
+        {pill ? (
+          <span
+            aria-hidden="true"
+            style={{
+              position: "absolute",
+              left: pill.left,
+              width: pill.width,
+              top: 0,
+              bottom: 0,
+              borderRadius: 999,
+              background: "linear-gradient(135deg, #4f46ff, #a855ff)",
+              transition:
+                "left 0.28s cubic-bezier(0.4,0,0.2,1), width 0.28s cubic-bezier(0.4,0,0.2,1)",
+              pointerEvents: "none",
+            }}
+          />
+        ) : null}
+        {FILTERS.map((f, i) => {
           const active = filter === f;
           return (
             <button
               key={f}
+              ref={(el) => {
+                tabRefs.current[i] = el;
+              }}
               type="button"
               onClick={() => selectFilter(f)}
               style={{
-                border: "1px solid rgba(255,255,255,0.1)",
+                position: "relative",
+                zIndex: 1,
+                border: "none",
+                background: "transparent",
                 cursor: "pointer",
                 borderRadius: 999,
-                padding: "5px 12px",
+                padding: "5px 11px",
                 fontSize: 12,
                 fontWeight: 600,
                 letterSpacing: "-0.01em",
+                whiteSpace: "nowrap",
                 color: active ? "#fff" : "rgba(255,255,255,0.6)",
-                background: active
-                  ? "linear-gradient(135deg, #4f46ff, #a855ff)"
-                  : "rgba(255,255,255,0.04)",
-                borderColor: active ? "transparent" : "rgba(255,255,255,0.1)",
-                transition: "color 150ms ease, background 150ms ease",
+                transition: "color 220ms ease",
               }}
             >
               {filterLabel(f)}
@@ -397,6 +432,14 @@ export default function WalletTransactions({
         })}
       </div>
 
+      {/* Contenido de la pestaña: se desliza hacia el lado correspondiente al cambiar. */}
+      <div style={{ overflow: "hidden" }}>
+        <motion.div
+          key={filter}
+          initial={{ x: tabDir > 0 ? 42 : tabDir < 0 ? -42 : 0, opacity: 0.25 }}
+          animate={{ x: 0, opacity: 1 }}
+          transition={{ type: "spring", stiffness: 320, damping: 32, mass: 0.9 }}
+        >
       {/* Filtros — dentro de "Todos", apilados: mes · experiencia · ingresos. */}
       {filter === "all" ? (
         <div
@@ -611,6 +654,8 @@ export default function WalletTransactions({
           })}
         </div>
       )}
+        </motion.div>
+      </div>
     </WalletCard>
   );
 }

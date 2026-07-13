@@ -14,6 +14,7 @@ import {
   type CSSProperties,
 } from "react";
 import { useTranslations, useLocale } from "next-intl";
+import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import { createPortal } from "react-dom";
 import type { Comment, CommentReply, Post, PostLiveData, PostPlayback } from "@/lib/posts/types";
 import { db } from "@/lib/firebase";
@@ -167,6 +168,7 @@ onToggleProfilePin,
   const tGroups = useTranslations("groups");
   const tPosts = useTranslations("posts");
   const locale = useLocale();
+  const priceFmt = usePriceFormat();
 
   const [comments, setComments] = useState<Comment[] | null>(null);
   const [commentsPanelOpen, setCommentsPanelOpen] = useState(false);
@@ -1578,12 +1580,19 @@ function renderBlurredMediaBackdrop(
       ? (currentUserId ? tFeed("joinToWatchLive") : tCommon("loginAndJoinToWatchLive"))
       : tCommon("loginToWatchLive");
 
-  const premiumState = resolvePostPremiumState({
-    post,
-    currentUserId,
-    viewerIsMember: isOwner || viewerIsMember,
-    viewerAccess: isTempUnlocked ? ({ status: "active" } as PostAccess) : null,
-  });
+  const premiumState = resolvePostPremiumState(
+    {
+      post,
+      currentUserId,
+      viewerIsMember: isOwner || viewerIsMember,
+      viewerAccess: isTempUnlocked ? ({ status: "active" } as PostAccess) : null,
+    },
+    // Precio en la moneda del viewer (mismo hook que el resto de la UI).
+    (price, currency) =>
+      typeof price === "number" && price > 0
+        ? priceFmt.format(price, { baseCurrency: currency })
+        : null
+  );
 
   const effectiveCanCommentOnPosts =
     premiumState.isPremium && !premiumState.isBlocked && !!currentUserId
@@ -3986,7 +3995,7 @@ padding: "0 0 2px 0",
     }}
   >
     <VibraNavigationIcon type="premiumCrown" size={17} />
-    {tFeed("unlockPremiumFor", { price: `$${(post.oneTimePrice ?? 0).toLocaleString("es-MX")} ${post.currency ?? "MXN"}` })}
+    {tFeed("unlockPremiumFor", { price: priceFmt.format(post.oneTimePrice ?? 0, { baseCurrency: post.currency ?? "MXN", code: true }) })}
   </button>
 )}
 {premiumState.isPremium && (

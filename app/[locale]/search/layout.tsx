@@ -12,6 +12,7 @@ import OwnerSidebar from "@/app/components/OwnerSidebar/OwnerSidebar";
 import MobileBottomNav from "@/app/components/MobileBottomNav";
 import GroupsSearchPanel from "@/app/components/SearchToolbar/GroupsSearchPanel";
 import LanguageSwitcher from "@/app/components/LanguageSwitcher";
+import CurrencySwitcher from "@/app/components/CurrencySwitcher";
 import { useWalletVisibility } from "@/lib/wallet/useWalletVisibility";
 import { useMobileHeaderFade } from "@/app/hooks/useMobileHeaderFade";
 import {
@@ -1159,6 +1160,7 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
               </div>
 
               <div className="desktopLogoutWrap">
+                <CurrencySwitcher variant="desktop" />
                 <LanguageSwitcher variant="desktop" />
               </div>
             </div>

@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { useTranslations } from "next-intl";
+import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import type {
   PostPremiumAccessMode,
   PostPremiumFreeFor,
@@ -175,6 +176,7 @@ export default function ComposerPremiumPanel({
   isEditMode = false,
 }: ComposerPremiumPanelProps) {
   const tPosts = useTranslations("posts");
+  const priceFmt = usePriceFormat();
   const { toast: premiumToast, showToast: showPremiumToast } = useVibraToast();
 
   const accessModeLabels: Record<
@@ -235,7 +237,7 @@ export default function ComposerPremiumPanel({
   const parsedPrice = parseFloat(priceInput);
   const creatorEarnings =
     priceInput !== "" && Number.isFinite(parsedPrice) && parsedPrice > 0
-      ? (parsedPrice * 0.77).toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+      ? priceFmt.format(parsedPrice * 0.77, { baseCurrency: "MXN", code: true })
       : null;
 
   return (
@@ -508,7 +510,7 @@ export default function ComposerPremiumPanel({
             >
               {tPosts("premiumEarningsPerUnlock")}{" "}
               <strong style={{ color: "#a855ff", fontWeight: 600 }}>
-                ${creatorEarnings} MXN
+                {creatorEarnings}
               </strong>
             </span>
           ) : null}

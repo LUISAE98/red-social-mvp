@@ -91,11 +91,6 @@ function formatScheduledDate(value: unknown): string | null {
   return `${day} de ${month.charAt(0).toUpperCase() + month.slice(1)} del ${year} a las ${hh}:${mm} horas`;
 }
 
-function formatMoney(value: number, currency?: string | null): string {
-  const cur = currency === "USD" ? "USD" : "MXN";
-  return "$" + new Intl.NumberFormat("es-MX", { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(value) + " " + cur;
-}
-
 function getRequestCurrency(req: SessionRequest): string {
   return (req as MeetGreetRequestDoc & { currency?: string }).currency ?? "MXN";
 }

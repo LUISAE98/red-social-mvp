@@ -646,7 +646,7 @@ Stack:
 * Firebase Functions v2
 * Mux
 * Mercado Pago
-* SumSub
+* Didit
 * Sentry
 
 Estructura:

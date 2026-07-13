@@ -7,19 +7,7 @@ import {
   ledgerTypeLabelKey,
   type LedgerServiceType,
 } from "@/lib/wallet/walletLedger";
-
-function formatMoney(value: number): string {
-  try {
-    return new Intl.NumberFormat("es-MX", {
-      style: "currency",
-      currency: "MXN",
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(value);
-  } catch {
-    return `$${Math.round(value)}`;
-  }
-}
+import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 
 /** Monto compacto para el eje (ej. $1.2k, $850). */
 function formatCompact(value: number): string {
@@ -74,6 +62,7 @@ export default function WalletIncomeChart({
   uid: string | null | undefined;
 }) {
   const tWallet = useTranslations("wallet");
+  const { format: formatMoney } = usePriceFormat();
   const { entries } = useWalletLedger(uid, 1000);
   const [viewIndex, setViewIndex] = useState(0);
   const [range, setRange] = useState<RangeKey>("30d");
@@ -240,10 +229,7 @@ export default function WalletIncomeChart({
               letterSpacing: "-0.02em",
             }}
           >
-            {formatMoney(total)}{" "}
-            <span style={{ fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,0.4)" }}>
-              MXN
-            </span>
+            {formatMoney(total)}
           </span>
         </div>
 

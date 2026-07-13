@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import type { CreatorService, CreatorServiceType } from "@/types/group";
 import { getVisibleServices } from "@/lib/services/normalizeServices";
+import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 
 type ViewerMembershipStatus =
   | "active"
@@ -92,6 +93,7 @@ export default function CreatorExperiencesSection({
   viewerCanRequest = true,
 }: Props) {
   const tServices = useTranslations("services");
+  const priceFmt = usePriceFormat();
 
   const CONFIG: Record<string, ServiceConfig> = {
     saludo: {
@@ -141,7 +143,6 @@ export default function CreatorExperiencesSection({
   function formatPrice(service: CreatorService): {
     hasPrice: boolean;
     numberPart: string;
-    currencyCode: string;
   } {
     const price =
       service.publicPrice ??
@@ -150,20 +151,11 @@ export default function CreatorExperiencesSection({
       null;
     const currency = service.currency ?? "MXN";
     if (typeof price !== "number")
-      return { hasPrice: false, numberPart: tServices("cardPriceToConfirm"), currencyCode: "" };
-    try {
-      return {
-        hasPrice: true,
-        numberPart: new Intl.NumberFormat("es-MX", {
-          style: "currency",
-          currency,
-          maximumFractionDigits: 0,
-        }).format(price),
-        currencyCode: currency,
-      };
-    } catch {
-      return { hasPrice: true, numberPart: `$${price}`, currencyCode: currency };
-    }
+      return { hasPrice: false, numberPart: tServices("cardPriceToConfirm") };
+    return {
+      hasPrice: true,
+      numberPart: priceFmt.format(price, { baseCurrency: currency, code: true }),
+    };
   }
 
   if (viewerCanRequest === false) return null;
@@ -365,15 +357,6 @@ export default function CreatorExperiencesSection({
                       }}
                     >
                       {priceData.numberPart}
-                    </span>
-                    <span
-                      style={{
-                        fontSize: 13,
-                        fontWeight: 400,
-                        color: conf.color,
-                      }}
-                    >
-                      {priceData.currencyCode}
                     </span>
                   </span>
                 ) : (

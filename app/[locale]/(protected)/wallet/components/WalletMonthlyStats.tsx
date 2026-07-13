@@ -4,19 +4,7 @@ import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useWalletFinances } from "@/lib/wallet/walletFinances";
 import { useWalletLedger } from "@/lib/wallet/walletLedger";
-
-function formatMoney(value: number): string {
-  try {
-    return new Intl.NumberFormat("es-MX", {
-      style: "currency",
-      currency: "MXN",
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(value);
-  } catch {
-    return `$${value.toFixed(2)} MXN`;
-  }
-}
+import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 
 /**
  * Fila de 2 cifras (Ganado · Rechazado). Al dar clic en cualquiera
@@ -28,6 +16,7 @@ export default function WalletMonthlyStats({
   uid: string | null | undefined;
 }) {
   const tWallet = useTranslations("wallet");
+  const { format: formatMoney } = usePriceFormat();
   const { summary } = useWalletFinances(uid);
   const { entries } = useWalletLedger(uid, 365);
   const [scope, setScope] = useState<"month" | "all">("month");

@@ -12,19 +12,10 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useWalletLedger } from "@/lib/wallet/walletLedger";
+import WalletScopeToggle, { type StatScope } from "./WalletScopeToggle";
+import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 
-function formatMoney(value: number): string {
-  try {
-    return new Intl.NumberFormat("es-MX", {
-      style: "currency",
-      currency: "MXN",
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(value);
-  } catch {
-    return `$${Math.round(value)}`;
-  }
-}
+const DAY = 86400000;
 
 function pickString(value: unknown): string | null {
   return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
@@ -137,19 +128,32 @@ export default function WalletTopFans({
   uid: string | null | undefined;
 }) {
   const tWallet = useTranslations("wallet");
+  const { format: formatMoney } = usePriceFormat();
   const { entries } = useWalletLedger(uid, 1000);
+  const [scope, setScope] = useState<StatScope>("all");
 
   const topFans = useMemo(() => {
+    const cutoff = new Date().getTime() - 30 * DAY;
     const byBuyer = new Map<string, number>();
     for (const e of entries) {
       if (e.status !== "earned" || !e.buyerId) continue;
+      if (scope === "30d") {
+        const d = e.occurredAt ?? e.createdAt;
+        if (!d || d.getTime() < cutoff) continue;
+      }
       byBuyer.set(e.buyerId, (byBuyer.get(e.buyerId) ?? 0) + e.grossAmount);
     }
     return [...byBuyer.entries()]
       .map(([buyerId, total]) => ({ buyerId, total }))
       .sort((a, b) => b.total - a.total)
       .slice(0, 10);
-  }, [entries]);
+  }, [entries, scope]);
+
+  // Solo se oculta si nunca ha habido compradores (sin histórico).
+  const hasHistory = useMemo(
+    () => entries.some((e) => e.status === "earned" && Boolean(e.buyerId)),
+    [entries]
+  );
 
   const [profiles, setProfiles] = useState<Record<string, FanProfile>>({});
   const fanIdsKey = topFans.map((f) => f.buyerId).join(",");
@@ -188,7 +192,7 @@ export default function WalletTopFans({
     };
   }, [fanIdsKey]);
 
-  if (topFans.length === 0) return null;
+  if (!hasHistory) return null;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
@@ -204,6 +208,13 @@ export default function WalletTopFans({
         {tWallet("topFansTitle")}
       </span>
 
+      <WalletScopeToggle value={scope} onChange={setScope} style={{ marginBottom: 2 }} />
+
+      {topFans.length === 0 ? (
+        <div style={{ textAlign: "center", fontSize: 13, color: "rgba(255,255,255,0.5)", padding: "6px 0" }}>
+          {tWallet("breakdownScopeEmpty")}
+        </div>
+      ) : (
       <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
         {topFans.map((fan, index) => {
           const profile = profiles[fan.buyerId];
@@ -256,6 +267,7 @@ export default function WalletTopFans({
           );
         })}
       </div>
+      )}
     </div>
   );
 }

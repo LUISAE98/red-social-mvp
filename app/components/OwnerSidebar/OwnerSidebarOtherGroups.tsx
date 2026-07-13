@@ -4,6 +4,8 @@ import Image from "next/image";
 import { useMemo, useRef, useState } from "react";
 import { leaveGroup } from "@/lib/groups/membership";
 import { useTranslations } from "next-intl";
+import { usePriceFormat, type PriceFormatter } from "@/lib/currency/usePriceFormat";
+import type { DisplayCurrency } from "@/lib/currency/catalog";
 import type { Timestamp } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 
@@ -178,17 +180,7 @@ function shouldShowGroup(group: GroupDocLite, dismissedIds: Set<string>) {
   return true;
 }
 
-function formatMoney(value: number, currency: "MXN" | "USD" | string) {
-  try {
-    return new Intl.NumberFormat("es-MX", {
-      style: "currency",
-      currency: currency === "USD" ? "USD" : "MXN",
-      maximumFractionDigits: 2,
-    }).format(value);
-  } catch {
-    return `${currency} ${value.toFixed(2)}`;
-  }
-}
+type MoneyFormatter = PriceFormatter["format"];
 
 function getPriceIncreaseMeta(group: GroupDocLite) {
   const priceAware = group as PriceAwareGroup;
@@ -315,7 +307,8 @@ function buildJoinedSubtitle(
 function buildAccessNotice(
   group: GroupDocLite,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  tg?: (key: string, values?: Record<string, any>) => any
+  tg?: (key: string, values?: Record<string, any>) => any,
+  formatMoney?: MoneyFormatter
 ):
   | {
       title?: string;
@@ -340,15 +333,19 @@ function buildAccessNotice(
 
     if (isPriceIncreaseReminder) {
       const { previous, next, currency } = getPriceIncreaseMeta(group);
+      const fmt = (v: number) =>
+        formatMoney
+          ? formatMoney(v, { baseCurrency: (currency ?? "MXN") as DisplayCurrency, code: true })
+          : `${v}`;
 
       const text =
         previous != null && next != null
           ? tg
             ? tg("bannerPriceIncreaseText", {
-                prev: formatMoney(previous, currency),
-                next: formatMoney(next, currency),
+                prev: fmt(previous),
+                next: fmt(next),
               })
-            : `La suscripción pasó de ${formatMoney(previous, currency)} a ${formatMoney(next, currency)}. Para seguir dentro debes suscribirte con el nuevo monto.`
+            : `La suscripción pasó de ${fmt(previous)} a ${fmt(next)}. Para seguir dentro debes suscribirte con el nuevo monto.`
           : tg
           ? tg("bannerPriceIncreaseFallbackText")
           : "La suscripción aumentó de precio. Para seguir dentro debes suscribirte con el nuevo monto.";
@@ -600,6 +597,7 @@ export default function OwnerSidebarOtherGroups({
   const tCommon = useTranslations("common");
   const tGroups = useTranslations("groups");
   const tNav = useTranslations("nav");
+  const { format: formatMoney } = usePriceFormat();
   const router = useRouter();
   const [dismissedGroupIds, setDismissedGroupIds] = useState<Set<string>>(
     () => new Set()
@@ -736,7 +734,7 @@ async function handleConfirmLeaveGroup() {
               const isMod = role === "mod";
               const joinRequests = joinRequestsByGroup[g.id] ?? [];
               const joinListOpen = joinSectionOpen[g.id] === true;
-              const accessNotice = buildAccessNotice(g, tGroups);
+              const accessNotice = buildAccessNotice(g, tGroups, formatMoney);
               const accessState = resolveAccessState(g);
               const memberStatus = normalizeMemberStatus(g);
 
@@ -750,7 +748,7 @@ async function handleConfirmLeaveGroup() {
                 isActuallyJoinedStatus(memberStatus);
 
               if (!showJoinSection) {
-                const notice = buildAccessNotice(g, tGroups);
+                const notice = buildAccessNotice(g, tGroups, formatMoney);
 return (
   <div key={g.id} style={{ display: "grid", gap: 6 }}>
 <LeaveGroupActionCard

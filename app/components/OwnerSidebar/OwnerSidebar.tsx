@@ -11,6 +11,7 @@ import {
 } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import {
   collection,
   doc,
@@ -62,7 +63,6 @@ import {
   resolveSidebarSubscriptionEnabled,
   resolveSidebarSubscriptionPrice,
   resolveSidebarSubscriptionCurrency,
-  formatSidebarMoney,
 } from "./OwnerSidebar.utils";
 
 // Re-export de helpers públicos para preservar la API previa del módulo
@@ -516,6 +516,7 @@ export default function OwnerSidebar() {
   const tWallet = useTranslations("wallet");
   const tServices = useTranslations("services");
   const tSessions = useTranslations("sessions");
+  const { format: formatMoney } = usePriceFormat();
   const [isMobile, setIsMobile] = useState(false);
   const [ownerSidebarRefreshKey, setOwnerSidebarRefreshKey] = useState(0);
 
@@ -2193,7 +2194,7 @@ const copyTitle = isProfileCard
               currency &&
               (currency === "MXN" || currency === "USD")
             ) {
-              return `${tCommon("activeSubscription")} · ${formatSidebarMoney(price, currency)}`;
+              return `${tCommon("activeSubscription")} · ${formatMoney(price, { baseCurrency: currency ?? "MXN", code: true })}`;
             }
 
             return tCommon("activeSubscription");

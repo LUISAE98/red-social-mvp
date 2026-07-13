@@ -60,8 +60,12 @@ export function isPostPremium(post: Post): boolean {
  *   public       + none               → cualquiera puede comprar
  *   public       + members_and_subscribers → miembros ven gratis, otros compran
  */
+/** Formateador de precio inyectable (para mostrar en la moneda del viewer). */
+export type PostPriceFormatter = (price: number | null | undefined, currency: string) => string | null;
+
 export function resolvePostPremiumState(
-  ctx: PostPremiumViewerContext
+  ctx: PostPremiumViewerContext,
+  fmt: PostPriceFormatter = formatPrice
 ): PostPremiumStateResult {
   const {
     post,
@@ -105,8 +109,8 @@ export function resolvePostPremiumState(
     hasAccessByMembership: false,
     hasAccessBySubscription: false,
     hasAccessByPurchase: false,
-    panelMessage: buildPanelMessage(post),
-    ctaText: buildCtaText(post),
+    panelMessage: buildPanelMessage(post, fmt),
+    ctaText: buildCtaText(post, fmt),
   };
 }
 
@@ -118,15 +122,21 @@ export function viewerHasPremiumAccess(ctx: PostPremiumViewerContext): boolean {
 }
 
 /** Construye solo el mensaje del panel premium a partir del post. */
-export function getPremiumPanelMessage(post: Post): string | null {
+export function getPremiumPanelMessage(
+  post: Post,
+  fmt: PostPriceFormatter = formatPrice
+): string | null {
   if (!isPostPremium(post)) return null;
-  return buildPanelMessage(post);
+  return buildPanelMessage(post, fmt);
 }
 
 /** Construye solo el texto del CTA a partir del post. */
-export function getPremiumCtaText(post: Post): string | null {
+export function getPremiumCtaText(
+  post: Post,
+  fmt: PostPriceFormatter = formatPrice
+): string | null {
   if (!isPostPremium(post)) return null;
-  return buildCtaText(post);
+  return buildCtaText(post, fmt);
 }
 
 // ─── Builders internos ────────────────────────────────────────────────────────
@@ -159,7 +169,7 @@ function buildUnlockedResult(
   };
 }
 
-function buildPanelMessage(post: Post): string {
+function buildPanelMessage(post: Post, fmt: PostPriceFormatter = formatPrice): string {
   const premium = post.premium;
   if (!premium) return "Contenido exclusivo";
 
@@ -172,7 +182,7 @@ function buildPanelMessage(post: Post): string {
 
   // public + members_and_subscribers: miembros gratis, otros pagan
   if (freeFor === "members_and_subscribers") {
-    const priceLabel = formatPrice(price, currency ?? "MXN");
+    const priceLabel = fmt(price, currency ?? "MXN");
     if (priceLabel) {
       return `Los miembros lo ven gratis. Accede por ${priceLabel}`;
     }
@@ -180,7 +190,7 @@ function buildPanelMessage(post: Post): string {
   }
 
   // public + none: cualquiera debe pagar
-  const priceLabel = formatPrice(price, currency ?? "MXN");
+  const priceLabel = fmt(price, currency ?? "MXN");
   if (priceLabel) {
     return `Desbloquea esta publicación por ${priceLabel}`;
   }
@@ -188,7 +198,7 @@ function buildPanelMessage(post: Post): string {
   return "Contenido premium";
 }
 
-function buildCtaText(post: Post): string {
+function buildCtaText(post: Post, fmt: PostPriceFormatter = formatPrice): string {
   const premium = post.premium;
   if (!premium) return "Desbloquear";
 
@@ -198,7 +208,7 @@ function buildCtaText(post: Post): string {
     return "Unirme a la comunidad";
   }
 
-  const priceLabel = formatPrice(price, currency ?? "MXN");
+  const priceLabel = fmt(price, currency ?? "MXN");
   if (priceLabel) {
     return `Comprar por ${priceLabel}`;
   }
@@ -206,6 +216,7 @@ function buildCtaText(post: Post): string {
   return "Desbloquear";
 }
 
+// Fallback puro (server/otros callers sin formateador): sin sufijo de código.
 function formatPrice(
   price: number | null | undefined,
   currency: string
@@ -215,14 +226,12 @@ function formatPrice(
   }
 
   try {
-    const formatted = new Intl.NumberFormat("es-MX", {
+    return new Intl.NumberFormat("es-MX", {
       style: "currency",
       currency,
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
+      currencyDisplay: "narrowSymbol",
     }).format(price);
-    return `${formatted} MXN`;
   } catch {
-    return `$${price.toFixed(2)} ${currency}`;
+    return `$${price.toFixed(2)}`;
   }
 }

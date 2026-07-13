@@ -13,6 +13,8 @@ import CustomClass from "@/app/groups/[groupId]/components/owner-admin-panel/ser
 import ProfileDonation from "./ProfileDonation";
 
 import { updateProfileOfferings } from "@/lib/profile/updateProfileOfferings";
+import { usePriceFormat } from "@/lib/currency/usePriceFormat";
+import type { DisplayCurrency } from "@/lib/currency/catalog";
 
 import type {
   Currency,
@@ -300,18 +302,6 @@ function calcNetAmount(raw: string) {
   if (raw.trim() === "" || Number.isNaN(n) || n <= 0) return null;
   const net = n * 0.77;
   return { gross: n, net };
-}
-
-function formatMoney(value: number, currency: Currency) {
-  try {
-    return new Intl.NumberFormat("es-MX", {
-      style: "currency",
-      currency,
-      maximumFractionDigits: 2,
-    }).format(value);
-  } catch {
-    return `${currency} ${value.toFixed(2)}`;
-  }
 }
 
 function SpinningGear() {
@@ -618,6 +608,10 @@ export default function ProfileServicesTab({
     () => profileUserId === currentUserId,
     [profileUserId, currentUserId]
   );
+
+  const priceFmt = usePriceFormat();
+  const formatMoney = (value: number, currency?: string) =>
+    priceFmt.format(value, { baseCurrency: (currency ?? "MXN") as DisplayCurrency, code: true });
 
   const [draft, setDraft] = useState<ServiceDraft>(createEmptyDraft());
   const [, setSavedDraft] = useState<ServiceDraft>(createEmptyDraft());

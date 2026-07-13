@@ -15,7 +15,8 @@ import {
   useState,
   type CSSProperties,
 } from "react";
-import { useTranslations, useLocale } from "next-intl";
+import { useTranslations } from "next-intl";
+import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import { VibraNavigationIcon } from "@/app/components/VibraServiceIcons/VibraNavigationIcons";
 import type { PostPremiumStateResult } from "@/lib/posts/post-premium-state";
 import { fontStack, getInitials, formatMediaDuration } from "./GroupPostCard.utils";
@@ -36,7 +37,7 @@ export function PremiumPostPanel({
   isMobile?: boolean;
 }) {
   const tPosts = useTranslations("posts");
-  const locale = useLocale();
+  const priceFmt = usePriceFormat();
   const isUnlocked = !state.isBlocked;
   const isAuthor = state.state === "unlocked_author";
 
@@ -129,7 +130,7 @@ export function PremiumPostPanel({
               marginTop: 1,
             }}
           >
-            ${netEarnings.toLocaleString(locale)} {currency ?? "MXN"}
+            {priceFmt.format(netEarnings, { baseCurrency: currency ?? "MXN", code: true })}
           </div>
         </div>
       )}
@@ -159,7 +160,7 @@ export function PremiumPostPanel({
           }}
         >
           <VibraNavigationIcon type="premiumCrown" size={17} />
-          {tPosts("premiumUnlockForPrice", { price: `$${(oneTimePrice ?? 0).toLocaleString(locale)} ${currency ?? "MXN"}` })}
+          {tPosts("premiumUnlockForPrice", { price: priceFmt.format(oneTimePrice ?? 0, { baseCurrency: currency ?? "MXN", code: true }) })}
         </button>
       )}
     </div>
@@ -186,8 +187,9 @@ export function LiveTicketPanel({
   memberFree?: boolean;
 }) {
   const tPosts = useTranslations("posts");
+  const priceFmt = usePriceFormat();
   const priceLabel = ticketPrice
-    ? `$${ticketPrice} ${currency ?? "MXN"}`
+    ? priceFmt.format(ticketPrice, { baseCurrency: currency ?? "MXN", code: true })
     : tPosts("liveTicketPriceUndefined");
 
   const isPaid = paid && !isAuthor;

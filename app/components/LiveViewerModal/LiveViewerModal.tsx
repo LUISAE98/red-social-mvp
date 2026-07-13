@@ -24,6 +24,7 @@ import { registrarCompraGeo } from "@/lib/wallet/registrarCompraGeo";
 import { useSocialRelationship } from "@/lib/social/useSocialRelationship";
 import { useReport } from "@/lib/moderation/useReport";
 import ReportModal from "@/app/components/ReportModal/ReportModal";
+import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 
 const FONT =
   'inherit';
@@ -71,6 +72,7 @@ type DonationPanelProps = {
 };
 
 function DonationPanel({ onClose, postId, authorId, userId, username, avatarUrl, guestId }: DonationPanelProps) {
+  const { format: formatMoney } = usePriceFormat();
   const isGuest = !userId;
   const [step, setStep] = useState<"nickname" | "amount">("amount");
   const [guestNickname, setGuestNickname] = useState("");
@@ -281,7 +283,7 @@ function DonationPanel({ onClose, postId, authorId, userId, username, avatarUrl,
                 transition: "all 0.2s",
               }}
             >
-              {paying ? "Procesando..." : valid ? `Donar $${finalAmount} MXN` : "Selecciona un monto"}
+              {paying ? "Procesando..." : valid ? `Donar ${formatMoney(finalAmount!, { code: true })}` : "Selecciona un monto"}
             </button>
           </>
         )}
@@ -294,6 +296,7 @@ const VOD_PLAYBACK_RATES = [0.5, 0.75, 1, 1.25, 1.5, 2];
 
 export default function LiveViewerModal({ open, onClose, post, onManage, initialPortrait = false, initialStream }: Props) {
   const tCommon = useTranslations("common");
+  const { format: formatMoney } = usePriceFormat();
   const { user } = useAuth();
   const { relationship, follow } = useSocialRelationship(user?.uid ?? null, post.authorId ?? null);
   const showFollowBtn = !!user && !!post.authorId && user.uid !== post.authorId && !relationship.isFollowing;
@@ -1218,10 +1221,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
           marginBottom: 28,
         }}>
           <span style={{ fontSize: 36, fontWeight: 800, color: "#a855f7", letterSpacing: "-0.02em" }}>
-            ${ticketPrice.toLocaleString("es-MX")}
-          </span>
-          <span style={{ fontSize: 16, fontWeight: 600, color: "rgba(168,85,255,0.7)" }}>
-            {currency}
+            {formatMoney(ticketPrice, { baseCurrency: currency, code: true })}
           </span>
         </div>
 
@@ -1256,7 +1256,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
                 minWidth: 200,
               }}
             >
-              {payingAccess ? "Procesando..." : `Pagar $${ticketPrice.toLocaleString("es-MX")} ${currency}`}
+              {payingAccess ? "Procesando..." : `Pagar ${formatMoney(ticketPrice, { baseCurrency: currency, code: true })}`}
             </button>
 
             {accessError && (
@@ -1446,7 +1446,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
             </div>
             <div style={{ fontSize: 11, fontFamily: FONT }}>
               <span style={{ color: "rgba(255,255,255,0.5)", fontWeight: 400 }}>donó </span>
-              <span style={{ color: "#4ade80", fontWeight: 700 }}>${sc.amount.toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} MXN</span>
+              <span style={{ color: "#4ade80", fontWeight: 700 }}>{formatMoney(sc.amount, { code: true })}</span>
             </div>
           </div>
         </div>

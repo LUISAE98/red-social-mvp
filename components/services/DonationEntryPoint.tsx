@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
+import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 
 type DonationMode = "none" | "general" | "wedding";
 type Currency = "MXN" | "USD";
@@ -35,18 +36,6 @@ type Props = {
 
 type DonationAmountMode = "minimum" | "custom";
 
-function formatMoney(value: number, currency: Currency) {
-  try {
-    return new Intl.NumberFormat("es-MX", {
-      style: "currency",
-      currency,
-      maximumFractionDigits: 2,
-    }).format(value);
-  } catch {
-    return `${currency} ${value.toFixed(2)}`;
-  }
-}
-
 function normalizeCurrency(value: unknown): Currency {
   return value === "USD" ? "USD" : "MXN";
 }
@@ -76,6 +65,7 @@ export default function DonationEntryPoint({
   buttonStyle,
 }: Props) {
   const tCommon = useTranslations("common");
+  const { format: formatMoney } = usePriceFormat();
 
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -187,7 +177,7 @@ export default function DonationEntryPoint({
         setError(
           `❌ El monto debe ser igual o mayor a ${formatMoney(
             resolvedMinimumAmount,
-            resolvedNormalized.currency
+            { baseCurrency: resolvedNormalized.currency }
           )}.`
         );
         return;
@@ -210,7 +200,7 @@ export default function DonationEntryPoint({
       setSuccess(
         `✅ Donación preparada por ${formatMoney(
           finalAmount,
-          resolvedNormalized.currency
+          { baseCurrency: resolvedNormalized.currency }
         )}. El pago real se conectará en el siguiente paso.`
       );
     } catch (e: unknown) {
@@ -389,7 +379,7 @@ export default function DonationEntryPoint({
           <div style={textStyle}>
             Elige tu aporte. El monto mínimo configurado es{" "}
             <strong style={{ color: "#fff" }}>
-              {formatMoney(resolvedMinimumAmount, resolvedNormalized.currency)}
+              {formatMoney(resolvedMinimumAmount, { baseCurrency: resolvedNormalized.currency })}
             </strong>
             .
           </div>
@@ -407,7 +397,7 @@ export default function DonationEntryPoint({
               }}
             >
               Donar mínimo{" "}
-              {formatMoney(resolvedMinimumAmount, resolvedNormalized.currency)}
+              {formatMoney(resolvedMinimumAmount, { baseCurrency: resolvedNormalized.currency })}
             </button>
 
             <button

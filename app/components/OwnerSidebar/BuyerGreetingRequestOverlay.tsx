@@ -7,10 +7,7 @@ import { createPortal } from "react-dom";
 import type { GreetingRequestDoc } from "./OwnerSidebar";
 import { playEdgeTTS } from "@/lib/tts/edge-tts-client";
 import type { EdgeTTSHandle } from "@/lib/tts/edge-tts-client";
-
-function formatMoney(amount: number): string {
-  return "$" + new Intl.NumberFormat("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount) + " MXN";
-}
+import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 
 const btnPrimary: React.CSSProperties = {
   width: "100%", height: 42, borderRadius: 5, border: "none",
@@ -101,6 +98,7 @@ export default function BuyerGreetingRequestOverlay({ item, sourceName, sourceAv
   const tCommon = useTranslations("common");
   const tServices = useTranslations("services");
   const tWallet = useTranslations("wallet");
+  const { format: formatMoney } = usePriceFormat();
   const [mounted, setMounted] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [closing, setClosing] = useState(false);
@@ -261,7 +259,7 @@ export default function BuyerGreetingRequestOverlay({ item, sourceName, sourceAv
       {req.priceSnapshot != null && (
         <div style={{ flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 1 }}>
           <span style={{ color: priceColor, fontSize: 10, fontWeight: 500, opacity: 0.8, lineHeight: 1 }}>{tServices("paidLabel")}</span>
-          <span style={{ color: priceColor, fontWeight: 700, fontSize: 24, lineHeight: 1 }}>{formatMoney(req.priceSnapshot)}</span>
+          <span style={{ color: priceColor, fontWeight: 700, fontSize: 24, lineHeight: 1 }}>{formatMoney(req.priceSnapshot, { code: true })}</span>
         </div>
       )}
     </div>

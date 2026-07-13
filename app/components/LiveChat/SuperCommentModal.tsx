@@ -8,6 +8,7 @@ import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import { submitSuperComment, submitSuperCommentAsGuest } from "@/lib/liveChat/super-comment-service";
 import { registrarCompraGeo } from "@/lib/wallet/registrarCompraGeo";
 import { getSavedGuestNickname, saveGuestNickname } from "@/lib/guest-id";
+import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import type { SuperCommentConfig, SuperCommentTier } from "@/lib/liveChat/types";
 
 const FONT = 'inherit';
@@ -40,6 +41,7 @@ export default function SuperCommentModal({
   const isGuest = !userId;
   const tLive = useTranslations("live");
   const tCommon = useTranslations("common");
+  const { format: formatMoney } = usePriceFormat();
 
   const [mounted, setMounted] = useState(false);
   const [shouldRender, setShouldRender] = useState(open);
@@ -338,7 +340,7 @@ export default function SuperCommentModal({
                               color: isSelected ? tier.color : "rgba(255,255,255,0.5)",
                               fontFamily: FONT, flexShrink: 0,
                             }}>
-                              ${tier.price} MXN
+                              {formatMoney(tier.price, { code: true })}
                             </span>
                           </button>
                         );
@@ -395,7 +397,7 @@ export default function SuperCommentModal({
                     {submitting
                       ? tCommon("sending")
                       : selectedTier
-                      ? tLive("scPayAndSend", { price: selectedTier.price })
+                      ? tLive("scPayAndSend", { price: formatMoney(selectedTier.price) })
                       : tLive("selectLevel")}
                   </button>
 

@@ -7,6 +7,8 @@ import { useTranslations } from "next-intl";
 import type { MeetGreetRequestDoc, ExclusiveSessionRequestDoc } from "./OwnerSidebar";
 import { playEdgeTTS } from "@/lib/tts/edge-tts-client";
 import type { EdgeTTSHandle } from "@/lib/tts/edge-tts-client";
+import { usePriceFormat } from "@/lib/currency/usePriceFormat";
+import type { DisplayCurrency } from "@/lib/currency/catalog";
 
 type SessionRequest = MeetGreetRequestDoc | ExclusiveSessionRequestDoc;
 type ScheduledServiceKind = "meet_greet" | "exclusive_session";
@@ -149,10 +151,6 @@ function getRelativeTime(ts: unknown, t?: (k: string, params?: Record<string, st
   return "Hace un momento";
 }
 
-function formatMoney(amount: number): string {
-  return "$" + new Intl.NumberFormat("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount) + " MXN";
-}
-
 const ANIM_CSS = `
 @keyframes vibraComposerDesktopIn {
   from { opacity:0; transform:scale(0.94) translateY(10px); }
@@ -211,6 +209,7 @@ export default function BuyerSessionRequestOverlay({
   const tCommon = useTranslations("common");
   const tServices = useTranslations("services");
   const tSessions = useTranslations("sessions");
+  const { format: formatMoney } = usePriceFormat();
 
   const req = item.data;
   const isExclusive = item.serviceKind === "exclusive_session";
@@ -349,7 +348,7 @@ export default function BuyerSessionRequestOverlay({
           {req.priceSnapshot != null && (
             <div style={{ flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 1 }}>
               <span style={{ color: priceColor, fontSize: 10, fontWeight: 500, opacity: 0.8, lineHeight: 1 }}>{tServices("paidLabel")}</span>
-              <span style={{ color: priceColor, fontWeight: 700, fontSize: 24, lineHeight: 1 }}>{formatMoney(req.priceSnapshot)}</span>
+              <span style={{ color: priceColor, fontWeight: 700, fontSize: 24, lineHeight: 1 }}>{formatMoney(req.priceSnapshot, { baseCurrency: (req.currency ?? "MXN") as DisplayCurrency, code: true })}</span>
             </div>
           )}
         </div>
