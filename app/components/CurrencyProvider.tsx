@@ -43,15 +43,36 @@ function writeCookie(value: string) {
   }
 }
 
+function readCookie(): DisplayCurrency | null {
+  try {
+    const m = document.cookie.match(/(?:^|;\s*)vibra_currency=([^;]+)/);
+    const v = m?.[1];
+    return isDisplayCurrency(v) ? v : null;
+  } catch {
+    return null;
+  }
+}
+
 export function CurrencyProvider({
-  initial,
+  initial = "MXN",
   children,
 }: {
-  initial: DisplayCurrency;
+  /** Moneda inicial (opcional). Por defecto MXN, estable para SSR/hidratación. */
+  initial?: DisplayCurrency;
   children: React.ReactNode;
 }) {
   const { user } = useAuth();
   const [currency, setCurrencyState] = useState<DisplayCurrency>(initial);
+
+  // Tras montar, adopta la moneda persistida en la cookie (default por IP la fija
+  // el middleware). Se hace en efecto para NO romper la hidratación (SSR = MXN).
+  useEffect(() => {
+    const c = readCookie();
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (c && c !== currency) setCurrencyState(c);
+    // solo al montar
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Al iniciar sesión, la preferencia de la cuenta manda (cross-device).
   useEffect(() => {

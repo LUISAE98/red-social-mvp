@@ -2,7 +2,6 @@ import { AuthProvider } from "./providers";
 import type { Metadata, Viewport } from "next";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import { Suspense } from "react";
-import { cookies, headers } from "next/headers";
 import { getLocale, getMessages } from "next-intl/server";
 import { NextIntlClientProvider } from "next-intl";
 import "./globals.css";
@@ -10,7 +9,6 @@ import RootChrome from "./RootChrome";
 import VibraGlobalBackground from "./components/VibraGlobalBackground";
 import DesktopRefreshSplash from "@/components/DesktopRefreshSplash";
 import { CurrencyProvider } from "./components/CurrencyProvider";
-import { resolveDefaultCurrency } from "@/lib/currency/resolveDefaultCurrency";
 
 const plusJakarta = Plus_Jakarta_Sans({
   variable: "--font-jakarta",
@@ -50,15 +48,6 @@ export default async function RootLayout({
 }>) {
   const locale = await getLocale();
   const messages = await getMessages();
-
-  // Moneda de visualización inicial (cookie → país por IP → MXN). Sembrada en el
-  // servidor para evitar el flash de MXN en el primer render.
-  const cookieStore = await cookies();
-  const headerStore = await headers();
-  const initialCurrency = resolveDefaultCurrency({
-    cookie: cookieStore.get("vibra_currency")?.value ?? null,
-    country: headerStore.get("x-vercel-ip-country"),
-  });
 
   return (
     <html lang={locale} style={{ backgroundColor: "#000000" }}>
@@ -197,7 +186,7 @@ export default async function RootLayout({
 
 <NextIntlClientProvider locale={locale} messages={messages}>
   <AuthProvider>
-    <CurrencyProvider initial={initialCurrency}>
+    <CurrencyProvider>
       <DesktopRefreshSplash />
 
       <VibraGlobalBackground />

@@ -18,6 +18,7 @@ import { FieldValue } from "firebase-admin/firestore";
 import { logger } from "firebase-functions";
 import { defineSecret } from "firebase-functions/params";
 import { onCall, onRequest, HttpsError } from "firebase-functions/v2/https";
+import { checkAndRecord } from "./rateLimiter";
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -120,6 +121,9 @@ export const createKycSession = onCall(
       return { alreadyApproved: true, url: null };
     }
 
+    // Rate limit: evita creación masiva de sesiones (cada sesión tiene costo).
+    await checkAndRecord(uid, "kyc");
+
     const { locale, origin } = (request.data ?? {}) as {
       locale?: unknown;
       origin?: unknown;
@@ -212,13 +216,77 @@ function verifyDiditSignature(
   }
 }
 
+// Features del objeto decision que traen warnings con el motivo (risk).
+const WARNING_FEATURE_KEYS = [
+  "id_verifications",
+  "liveness_checks",
+  "face_matches",
+  "aml_screenings",
+  "poa_verifications",
+  "ip_analyses",
+  "phone_verifications",
+  "email_verifications",
+  "database_validations",
+];
+
+// Extrae un código de motivo (risk) de los warnings del payload o la decisión.
+// Prefiere un warning "de peso" (log_type != information) como causa del rechazo.
+function extractDeclineReason(payload: unknown): string | null {
+  if (!payload || typeof payload !== "object") return null;
+  const root = payload as Record<string, unknown>;
+  const sources: unknown[] = [root];
+  if (root.decision) sources.push(root.decision);
+
+  const collected: { risk: string; info: boolean }[] = [];
+  for (const src of sources) {
+    if (!src || typeof src !== "object") continue;
+    const obj = src as Record<string, unknown>;
+    for (const key of WARNING_FEATURE_KEYS) {
+      const arr = obj[key];
+      if (!Array.isArray(arr)) continue;
+      for (const item of arr) {
+        const warnings = (item as Record<string, unknown> | null)?.warnings;
+        if (!Array.isArray(warnings)) continue;
+        for (const w of warnings) {
+          const ww = w as Record<string, unknown>;
+          if (typeof ww.risk === "string" && ww.risk) {
+            const logType = typeof ww.log_type === "string" ? ww.log_type : "";
+            collected.push({ risk: ww.risk, info: logType === "information" });
+          }
+        }
+      }
+    }
+    if (typeof obj.last_warning === "string" && obj.last_warning) {
+      collected.push({ risk: obj.last_warning, info: false });
+    }
+  }
+  if (!collected.length) return null;
+  const severe = collected.find((c) => !c.info);
+  return (severe ?? collected[0]).risk;
+}
+
+// Si el webhook no trae la decisión, la consultamos por API (fuente autoritativa).
+async function fetchDeclineReason(sessionId: string | undefined): Promise<string | null> {
+  if (!sessionId) return null;
+  try {
+    const res = await fetch(`${DIDIT_API_BASE}/v3/session/${sessionId}/decision/`, {
+      headers: { "x-api-key": diditApiKey.value().trim() },
+    });
+    if (!res.ok) return null;
+    const decision = (await res.json()) as unknown;
+    return extractDeclineReason(decision);
+  } catch {
+    return null;
+  }
+}
+
 // ────────────────────────────────────────────────────────────────────────────
 // diditWebhook — recibe el resultado de la verificación y actualiza kyc/{uid}.
 // ────────────────────────────────────────────────────────────────────────────
 export const diditWebhook = onRequest(
   {
     region: REGION,
-    secrets: [diditWebhookSecret],
+    secrets: [diditWebhookSecret, diditApiKey],
   },
   async (req, res) => {
     if (req.method !== "POST") {
@@ -257,6 +325,12 @@ export const diditWebhook = onRequest(
     const { status: mapped, approved } = mapDiditStatus(rawStatus);
     const kycRef = db.collection("kyc").doc(uid);
 
+    // Motivo del rechazo (solo si Declined): del payload o, si no viene, de la API.
+    let reasonCode: string | null = null;
+    if (mapped === "declined") {
+      reasonCode = extractDeclineReason(event) ?? (await fetchDeclineReason(sessionId));
+    }
+
     try {
       await db.runTransaction(async (tx) => {
         const snap = await tx.get(kycRef);
@@ -289,7 +363,7 @@ export const diditWebhook = onRequest(
             status: mapped,
             kycApproved: approved,
             diditSessionId: sessionId ?? cur?.diditSessionId ?? null,
-            reason: mapped === "declined" ? "declined" : null,
+            reason: reasonCode,
             decisionAt: isTerminal
               ? FieldValue.serverTimestamp()
               : cur?.decisionAt ?? null,

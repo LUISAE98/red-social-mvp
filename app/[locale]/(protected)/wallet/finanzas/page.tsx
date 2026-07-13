@@ -16,6 +16,31 @@ import { useKyc } from "@/lib/kyc/useKyc";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 
+// Mapeo de códigos de motivo (risk) de Didit → clave de traducción amigable.
+const KYC_REASON_KEY: Record<string, string> = {
+  POSSIBLE_DUPLICATED_USER: "kycReasonDuplicate",
+  DUPLICATED_USER: "kycReasonDuplicate",
+  DUPLICATED_FACE: "kycReasonDuplicate",
+  DOCUMENT_EXPIRED: "kycReasonDocExpired",
+  EXPIRED_DOCUMENT: "kycReasonDocExpired",
+  DOCUMENT_TYPE_NOT_ALLOWED: "kycReasonDocUnsupported",
+  DOCUMENT_NOT_SUPPORTED: "kycReasonDocUnsupported",
+  UNSUPPORTED_DOCUMENT: "kycReasonDocUnsupported",
+  FACE_NOT_MATCHING: "kycReasonFaceMismatch",
+  FACE_MISMATCH: "kycReasonFaceMismatch",
+  LIVENESS_FAILED: "kycReasonLiveness",
+  NOT_LIVE: "kycReasonLiveness",
+  SPOOFING_DETECTED: "kycReasonLiveness",
+  DOCUMENT_MANIPULATED: "kycReasonManipulated",
+  TAMPERED_DOCUMENT: "kycReasonManipulated",
+  FRAUD: "kycReasonManipulated",
+  UNDERAGE: "kycReasonUnderage",
+  AGE_NOT_MET: "kycReasonUnderage",
+  BAD_QUALITY: "kycReasonQuality",
+  LOW_QUALITY: "kycReasonQuality",
+  UNREADABLE_DOCUMENT: "kycReasonQuality",
+};
+
 function formatMonthLabel(year: number, month: number): string {
   try {
     return new Intl.DateTimeFormat("es-MX", {
@@ -49,19 +74,26 @@ export default function WalletFinanzasPage() {
   // ── CTA de KYC: solo mientras la identidad NO está verificada ──────────────
   // "in_review" = Didit revisando manualmente (bloqueado). "pending" = sesión
   // creada pero sin terminar → clicable para continuar/reiniciar el flujo.
+  const kycReasonText = tWallet(
+    (kyc.reason && KYC_REASON_KEY[kyc.reason]) || "kycReasonGeneric"
+  );
   const kycCtaLabel =
     kyc.status === "in_review"
       ? tWallet("kycPending")
       : kyc.status === "pending"
       ? tWallet("kycContinue")
       : kyc.status === "declined"
-      ? tWallet("kycRetry")
+      ? tWallet("kycRejectedReason", { reason: kycReasonText })
       : tWallet("kycWithdrawCta");
   const kycCtaDisabled = kyc.status === "in_review" || kyc.starting || kyc.loading;
 
-  function handleKycClick() {
+  async function handleKycClick() {
     if (kycCtaDisabled) return;
-    void kyc.startKyc(locale);
+    try {
+      await kyc.startKyc(locale);
+    } catch {
+      showWalletToast(tWallet("kycStartError"), "error");
+    }
   }
 
   // ── Celebración "Identidad verificada": 10 s, una sola vez tras verificar ──
@@ -131,6 +163,10 @@ export default function WalletFinanzasPage() {
     if (!canWithdrawNow) return;
     showWalletToast(tWallet("withdrawComingSoon"), "warning");
   }
+
+  // La opción de registrar KYC solo aparece cuando ya hay saldo por retirar
+  // (al menos una compra). Si el creador ya inició el flujo, mostramos su estado.
+  const showKycCta = view.available > 0 || kyc.status !== "not_started";
 
   // Mejor mes: mes calendario con más ganancias (entradas "earned").
   const { entries } = useWalletLedger(user?.uid, 365);
@@ -349,7 +385,7 @@ export default function WalletFinanzasPage() {
                 </div>
               </>
             ) : null
-          ) : (
+          ) : showKycCta ? (
             <button
               type="button"
               onClick={handleKycClick}
@@ -374,7 +410,7 @@ export default function WalletFinanzasPage() {
             >
               {kycCtaLabel}
             </button>
-          )}
+          ) : null}
 
           <VibraToast toast={walletToast} />
 
