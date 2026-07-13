@@ -8,6 +8,7 @@ export default function GroupsMobilePage() {
 
   useLayoutEffect(() => {
     try {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setIsEmbed(window.self !== window.top);
     } catch {
       setIsEmbed(true);

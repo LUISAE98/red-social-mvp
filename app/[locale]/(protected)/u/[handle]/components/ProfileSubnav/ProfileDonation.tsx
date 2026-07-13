@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { doc, onSnapshot } from "firebase/firestore";
 import { httpsCallable } from "firebase/functions";
 import { db, functions } from "@/lib/firebase";
+import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 
 type Currency = "MXN" | "USD";
 type DonationMode = "none" | "general" | "wedding";
@@ -91,6 +92,8 @@ export default function ProfileDonation({
 }: Props) {
   const tProfile = useTranslations("profile");
   const tCommon = useTranslations("common");
+  const { format: formatMoney, resolveStoredPrice, toDisplayForInput, currency: displayCurrency, formatAnchor } =
+    usePriceFormat();
 
   const isEnabled = draft.donationMode !== "none";
 
@@ -134,8 +137,20 @@ export default function ProfileDonation({
 
   function openOverlay(mode: OverlayMode, next?: AnyDraft) {
     stopPlaybackListener();
+    const src = next ?? draft;
+    // Mostrar el mínimo guardado (MXN) en la moneda del creador para editarlo.
+    const stored = src.donationMinimumAmount as string;
+    const n = Number(stored);
+    const shown =
+      stored !== "" && Number.isFinite(n) && n > 0
+        ? String(
+            Math.round(
+              toDisplayForInput(n, (src.donationCurrency as string) ?? "MXN") * 100
+            ) / 100
+          )
+        : stored;
     setOverlayMode(mode);
-    setOverlayDraft(next ?? draft);
+    setOverlayDraft({ ...src, donationMinimumAmount: shown });
     setUploadErr(null);
     setUploadPending(false);
   }
@@ -174,7 +189,15 @@ export default function ProfileDonation({
       return;
     }
 
-    await onSaveDraft(overlayDraft);
+    // El creador tecleó en su moneda; guardamos en MXN (ancla).
+    const { price, currency } = resolveStoredPrice(amount);
+    const toSave: AnyDraft = {
+      ...overlayDraft,
+      donationMinimumAmount: String(price),
+      donationCurrency: currency,
+    };
+
+    await onSaveDraft(toSave);
     stopPlaybackListener();
     setOverlayMode(null);
   }
@@ -266,7 +289,7 @@ export default function ProfileDonation({
     if (!isEnabled) return null;
     const modeLabel = tCommon("donation");
     const amount = draft.donationMinimumAmount
-      ? `${draft.donationMinimumAmount} ${draft.donationCurrency}`
+      ? formatMoney(Number(draft.donationMinimumAmount), { baseCurrency: draft.donationCurrency ?? "MXN" })
       : null;
     const hasVideo = Boolean(draft.donationPlaybackId);
 
@@ -377,16 +400,26 @@ export default function ProfileDonation({
               disabled={isBusy}
               style={{ ...inputStyle, flex: 1 }}
             />
-            <select
-              value={overlayDraft.donationCurrency as string}
-              onChange={(e) => setOverlayDraft((p) => ({ ...p, donationCurrency: e.target.value as Currency }))}
-              disabled={isBusy}
-              style={{ ...inputStyle, width: 90 }}
+            <span
+              style={{
+                ...inputStyle,
+                width: 90,
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                opacity: 0.75,
+              }}
             >
-              <option value="MXN">MXN</option>
-              <option value="USD">USD</option>
-            </select>
+              {displayCurrency}
+            </span>
           </div>
+          {displayCurrency !== "MXN" &&
+          (overlayDraft.donationMinimumAmount as string) &&
+          Number(overlayDraft.donationMinimumAmount) > 0 ? (
+            <div style={{ ...subtleStyle, marginTop: 4 }}>
+              = {formatAnchor(resolveStoredPrice(Number(overlayDraft.donationMinimumAmount)).price)}
+            </div>
+          ) : null}
         </div>
 
         {/* Video upload */}

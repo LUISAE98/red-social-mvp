@@ -54,6 +54,7 @@ export default function AdminLayout({
 
   // Reset preview when navigating between sections
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setPreviewUrl(null);
     setNavUrl("/groups");
     setNavInput("/groups");

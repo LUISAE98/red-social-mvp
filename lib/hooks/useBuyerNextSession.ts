@@ -93,6 +93,7 @@ export function useBuyerNextSession(uid: string | null): UseBuyerNextSessionResu
 
   useEffect(() => {
     if (!uid) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setResult({ session: null, completedSession: null, loading: false });
       return;
     }

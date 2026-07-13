@@ -19,6 +19,7 @@ export function useLiveRingState(
 
   useEffect(() => {
     if (!entityId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setState(INITIAL);
       return;
     }

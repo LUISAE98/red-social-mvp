@@ -2,6 +2,7 @@
 
 import React, { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
+import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 
 type Currency = "MXN" | "USD";
 
@@ -127,6 +128,8 @@ export default function MeetGreet({
   onSaveDraft,
 }: Props) {
   const tServices = useTranslations("services");
+  const { resolveStoredPrice, toDisplayForInput, currency: displayCurrency, formatAnchor } =
+    usePriceFormat();
 
   const [overlayMode, setOverlayMode] = useState<OverlayMode>(null);
   const [overlayDraft, setOverlayDraft] = useState<ServiceDraft>(draft);
@@ -138,11 +141,22 @@ export default function MeetGreet({
   const isBusy = saving;
 
   function buildEnabledDraft(baseDraft: ServiceDraft) {
+    // Mostrar el precio guardado en la moneda del creador para editarlo.
+    const n = Number(baseDraft.meetGreet.price);
+    const shown =
+      baseDraft.meetGreet.price !== "" && Number.isFinite(n) && n > 0
+        ? String(
+            Math.round(
+              toDisplayForInput(n, baseDraft.meetGreet.currency ?? "MXN") * 100
+            ) / 100
+          )
+        : baseDraft.meetGreet.price;
     return {
       ...baseDraft,
       meetGreet: {
         ...baseDraft.meetGreet,
         enabled: true,
+        price: shown,
         visible: true,
         visibility: "members" as const,
       },
@@ -175,13 +189,20 @@ export default function MeetGreet({
   }
 
   async function confirmOverlaySave() {
+    // El creador tecleó en su moneda; guardamos en MXN (ancla).
+    const n = Number(overlayDraft.meetGreet.price);
+    let meetGreetToSave = {
+      ...overlayDraft.meetGreet,
+      visible: overlayDraft.meetGreet.enabled,
+      visibility: "members" as const,
+    };
+    if (overlayDraft.meetGreet.price !== "" && Number.isFinite(n) && n > 0) {
+      const { price, currency } = resolveStoredPrice(n);
+      meetGreetToSave = { ...meetGreetToSave, price: String(price), currency };
+    }
     await onSaveDraft({
       ...overlayDraft,
-      meetGreet: {
-        ...overlayDraft.meetGreet,
-        visible: overlayDraft.meetGreet.enabled,
-        visibility: "members",
-      },
+      meetGreet: meetGreetToSave,
     });
     setOverlayMode(null);
   }
@@ -327,25 +348,18 @@ export default function MeetGreet({
             style={{ ...inputStyle, width: 130, flex: "1 1 180px" }}
           />
 
-          <select
-            value={overlayDraft.meetGreet.currency}
-            onChange={(e) =>
-              setOverlayDraft((prev) => ({
-                ...prev,
-                meetGreet: {
-                  ...prev.meetGreet,
-                  enabled: true,
-                  currency: e.target.value as Currency,
-                  visible: true,
-                  visibility: "members",
-                },
-              }))
-            }
-            style={{ ...inputStyle, width: 100, flex: "1 1 120px" }}
+          <span
+            style={{
+              ...inputStyle,
+              width: 100,
+              flex: "1 1 120px",
+              display: "inline-flex",
+              alignItems: "center",
+              opacity: 0.75,
+            }}
           >
-            <option value="MXN">MXN</option>
-            <option value="USD">USD</option>
-          </select>
+            {displayCurrency}
+          </span>
 
           <input
             type="number"
@@ -368,6 +382,13 @@ export default function MeetGreet({
             style={{ ...inputStyle, width: 160, flex: "1 1 180px" }}
           />
         </div>
+        {displayCurrency !== "MXN" &&
+        overlayDraft.meetGreet.price &&
+        Number(overlayDraft.meetGreet.price) > 0 ? (
+          <div style={subtleStyle}>
+            = {formatAnchor(resolveStoredPrice(Number(overlayDraft.meetGreet.price)).price)}
+          </div>
+        ) : null}
 
         <div style={subtleStyle}>
           {tServices("membersOnlyServiceNote")}

@@ -1104,8 +1104,10 @@
     "filterStatusAllValue": "Todos los movimientos",
     "kycWithdrawCta": "Da clic aquí para hacer tu registro KYC y poder hacer tus retiros",
     "kycPending": "Estamos verificando tu identidad…",
-    "kycApproved": "✓ Identidad verificada",
-    "kycRetry": "Verificación rechazada. Da clic para reintentar"
+    "kycApproved": "Identidad verificada",
+    "kycRetry": "Verificación rechazada. Da clic para reintentar",
+    "withdrawButton": "Retirar",
+    "withdrawComingSoon": "El retiro estará disponible muy pronto"
   },
   "services": {
     "confirmLabel": "Confirmar",

@@ -2,6 +2,7 @@
 
 import React, { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
+import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 
 type Currency = "MXN" | "USD";
 
@@ -127,6 +128,8 @@ export default function Saludos({
   onSaveDraft,
 }: Props) {
   const tServices = useTranslations("services");
+  const { resolveStoredPrice, toDisplayForInput, currency: displayCurrency, formatAnchor } =
+    usePriceFormat();
 
   const [overlayMode, setOverlayMode] = useState<OverlayMode>(null);
   const [overlayDraft, setOverlayDraft] = useState<ServiceDraft>(draft);
@@ -138,11 +141,22 @@ export default function Saludos({
   const isBusy = saving;
 
   function buildEnabledDraft(baseDraft: ServiceDraft) {
+    // Mostrar el precio guardado en la moneda del creador para editarlo.
+    const n = Number(baseDraft.saludo.price);
+    const shown =
+      baseDraft.saludo.price !== "" && Number.isFinite(n) && n > 0
+        ? String(
+            Math.round(
+              toDisplayForInput(n, baseDraft.saludo.currency ?? "MXN") * 100
+            ) / 100
+          )
+        : baseDraft.saludo.price;
     return {
       ...baseDraft,
       saludo: {
         ...baseDraft.saludo,
         enabled: true,
+        price: shown,
         visible: true,
         visibility: "members" as const,
       },
@@ -174,13 +188,20 @@ export default function Saludos({
   }
 
   async function confirmOverlaySave() {
+    // El creador tecleó en su moneda; guardamos en MXN (ancla).
+    const n = Number(overlayDraft.saludo.price);
+    let saludoToSave = {
+      ...overlayDraft.saludo,
+      visible: overlayDraft.saludo.enabled,
+      visibility: "members" as const,
+    };
+    if (overlayDraft.saludo.price !== "" && Number.isFinite(n) && n > 0) {
+      const { price, currency } = resolveStoredPrice(n);
+      saludoToSave = { ...saludoToSave, price: String(price), currency };
+    }
     await onSaveDraft({
       ...overlayDraft,
-      saludo: {
-        ...overlayDraft.saludo,
-        visible: overlayDraft.saludo.enabled,
-        visibility: "members",
-      },
+      saludo: saludoToSave,
     });
     setOverlayMode(null);
   }
@@ -314,26 +335,26 @@ export default function Saludos({
             style={{ ...inputStyle, width: 130, flex: "1 1 180px" }}
           />
 
-          <select
-            value={overlayDraft.saludo.currency}
-            onChange={(e) =>
-              setOverlayDraft((prev) => ({
-                ...prev,
-                saludo: {
-                  ...prev.saludo,
-                  enabled: true,
-                  currency: e.target.value as Currency,
-                  visible: true,
-                  visibility: "members",
-                },
-              }))
-            }
-            style={{ ...inputStyle, width: 100, flex: "1 1 120px" }}
+          <span
+            style={{
+              ...inputStyle,
+              width: 100,
+              flex: "1 1 120px",
+              display: "inline-flex",
+              alignItems: "center",
+              opacity: 0.75,
+            }}
           >
-            <option value="MXN">MXN</option>
-            <option value="USD">USD</option>
-          </select>
+            {displayCurrency}
+          </span>
         </div>
+        {displayCurrency !== "MXN" &&
+        overlayDraft.saludo.price &&
+        Number(overlayDraft.saludo.price) > 0 ? (
+          <div style={subtleStyle}>
+            = {formatAnchor(resolveStoredPrice(Number(overlayDraft.saludo.price)).price)}
+          </div>
+        ) : null}
 
         <div style={subtleStyle}>
           {tServices("membersOnlyServiceNote")}

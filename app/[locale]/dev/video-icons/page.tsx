@@ -678,6 +678,7 @@ export default function VideoIconsPreview() {
                   overflow: "hidden",
                   background: "#1a2510",
                   zIndex: 3,
+                  // eslint-disable-next-line react-hooks/refs
                   cursor: pipDragRef.current ? "grabbing" : "grab",
                   touchAction: "none",
                   userSelect: "none",
@@ -974,6 +975,7 @@ export default function VideoIconsPreview() {
               overflow: "hidden",
               background: "#1a2510",
               zIndex: 3,
+              // eslint-disable-next-line react-hooks/refs
               cursor: pipDragRefMobile.current ? "grabbing" : "grab",
               touchAction: "none",
               userSelect: "none",

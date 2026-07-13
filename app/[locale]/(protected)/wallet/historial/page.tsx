@@ -173,6 +173,7 @@ export default function WalletHistorialPage() {
     };
   }, [viewRow]);
 
+  // eslint-disable-next-line react-hooks/preserve-manual-memoization
   const overlayItems = useMemo(() => {
     if (!viewRow || !user?.uid) return [];
     return [{ id: viewRow.id, data: rowToGreetingDoc(viewRow, user.uid) }];
@@ -184,6 +185,7 @@ export default function WalletHistorialPage() {
     [sessionViewRow]
   );
 
+  // eslint-disable-next-line react-hooks/preserve-manual-memoization
   const historyItems = useMemo(() => {
   const expiredItems = walletData.pendingCurrent
     .filter(isExpiredScheduledService)

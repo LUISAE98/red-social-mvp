@@ -8,6 +8,7 @@ export function useSidebarVisitCounts(uid: string | null) {
   const [counts, setCounts] = useState<Record<string, number>>({});
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (!uid) { setCounts({}); return; }
     try {
       const raw = localStorage.getItem(storageKey(uid));

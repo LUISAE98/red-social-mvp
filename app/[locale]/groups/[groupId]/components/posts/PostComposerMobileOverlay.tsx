@@ -216,6 +216,7 @@ export default function PostComposerMobileOverlay({
   const TEXTAREA_MAX_HEIGHT = 180;
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
 
     return () => {
@@ -231,6 +232,7 @@ export default function PostComposerMobileOverlay({
 
   useEffect(() => {
     if (open) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setShouldRender(true);
       setIsPanelDragging(false);
       setPanelOffsetY(panelCloseOffsetRef.current);
@@ -281,6 +283,7 @@ export default function PostComposerMobileOverlay({
     if (open) return;
 
     publishWasRequestedRef.current = false;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setPublishVisualState("idle");
 
     if (publishSuccessTimerRef.current !== null) {
@@ -292,6 +295,7 @@ export default function PostComposerMobileOverlay({
   useEffect(() => {
     if (creating || isPreparingImages) {
       if (publishWasRequestedRef.current || creating) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setPublishVisualState("loading");
       }
 

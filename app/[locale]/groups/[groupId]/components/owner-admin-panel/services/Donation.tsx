@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { doc, onSnapshot } from "firebase/firestore";
 import { httpsCallable } from "firebase/functions";
 import { db, functions } from "@/lib/firebase";
+import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 
 type Currency = "MXN" | "USD";
 
@@ -157,6 +158,8 @@ export default function Donation({
   onSaveDraft,
 }: Props) {
   const tServices = useTranslations("services");
+  const { resolveStoredPrice, toDisplayForInput, currency: displayCurrency, formatAnchor } =
+    usePriceFormat();
 
   const isEnabled = draft.donationMode !== "none";
 
@@ -207,8 +210,19 @@ export default function Donation({
 
   function openOverlay(mode: OverlayMode, nextDraft?: ServiceDraft) {
     stopPlaybackListener();
+    const src = nextDraft ?? draft;
+    // Mostrar el monto guardado en la moneda del creador para editarlo.
+    const n = Number(src.donationMinimumAmount);
+    const shown =
+      src.donationMinimumAmount !== "" && Number.isFinite(n) && n > 0
+        ? String(
+            Math.round(
+              toDisplayForInput(n, src.donationCurrency ?? "MXN") * 100
+            ) / 100
+          )
+        : src.donationMinimumAmount;
     setOverlayMode(mode);
-    setOverlayDraft(nextDraft ?? draft);
+    setOverlayDraft({ ...src, donationMinimumAmount: shown });
     setSaveErr(null);
     setUploadErr(null);
     setUploadPending(false);
@@ -304,7 +318,13 @@ export default function Donation({
       return;
     }
 
-    await onSaveDraft(overlayDraft);
+    // El creador tecleó en su moneda; guardamos en MXN (ancla).
+    const { price, currency } = resolveStoredPrice(amount);
+    await onSaveDraft({
+      ...overlayDraft,
+      donationMinimumAmount: String(price),
+      donationCurrency: currency,
+    });
     setOverlayMode(null);
   }
 
@@ -457,21 +477,25 @@ export default function Donation({
               disabled={isBusy}
               style={{ ...inputStyle, flex: 1 }}
             />
-            <select
-              value={overlayDraft.donationCurrency}
-              onChange={(e) =>
-                setOverlayDraft((p) => ({
-                  ...p,
-                  donationCurrency: e.target.value as Currency,
-                }))
-              }
-              disabled={isBusy}
-              style={{ ...inputStyle, width: 90 }}
+            <span
+              style={{
+                ...inputStyle,
+                width: 90,
+                display: "inline-flex",
+                alignItems: "center",
+                opacity: 0.75,
+              }}
             >
-              <option value="MXN">MXN</option>
-              <option value="USD">USD</option>
-            </select>
+              {displayCurrency}
+            </span>
           </div>
+          {displayCurrency !== "MXN" &&
+          overlayDraft.donationMinimumAmount &&
+          Number(overlayDraft.donationMinimumAmount) > 0 ? (
+            <div style={{ ...subtleStyle, marginTop: 6 }}>
+              = {formatAnchor(resolveStoredPrice(Number(overlayDraft.donationMinimumAmount)).price)}
+            </div>
+          ) : null}
         </div>
 
         {/* Video de presentación (opcional) */}

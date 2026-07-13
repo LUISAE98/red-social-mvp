@@ -78,6 +78,7 @@ export function useCreatorTodaySessions(uid: string | null): UseCreatorTodaySess
 
   useEffect(() => {
     if (!uid) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setResult({ nextSession: null, todaySessions: [], loading: false });
       return;
     }

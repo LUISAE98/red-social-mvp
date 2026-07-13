@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
+import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import type { Post } from "@/lib/posts/types";
 import { finalizeVodSettings } from "@/lib/posts/post-service";
 
@@ -25,9 +26,14 @@ function applyPanelOffset(raw: number): number {
 export default function LiveEndSummaryPanel({ open, onClose, post }: Props) {
   const tCommon = useTranslations("common");
   const tLive = useTranslations("live");
+  const { resolveStoredPrice, toDisplayForInput, currency: displayCurrency, formatAnchor } =
+    usePriceFormat();
   const liveData = post.liveData;
   const defaultPaid = liveData?.accessType === "paid";
-  const defaultPrice = liveData?.ticketPrice ? String(liveData.ticketPrice) : "";
+  // El precio guardado está en MXN (ancla); lo mostramos en la moneda del creador.
+  const defaultPrice = liveData?.ticketPrice
+    ? String(Math.round(toDisplayForInput(liveData.ticketPrice, "MXN") * 100) / 100)
+    : "";
 
   const [isMobile, setIsMobile] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -98,11 +104,14 @@ export default function LiveEndSummaryPanel({ open, onClose, post }: Props) {
 
   async function handleConfirm() {
     if (saving) return;
-    const price = vodAvailable && vodPaid ? (parseFloat(priceInput) || null) : null;
-    if (vodAvailable && vodPaid && (!price || price <= 0)) {
+    // El creador teclea en su moneda; validamos y GUARDAMOS en MXN (ancla).
+    const typedPrice = vodAvailable && vodPaid ? (parseFloat(priceInput) || null) : null;
+    if (vodAvailable && vodPaid && (!typedPrice || typedPrice <= 0)) {
       showSummaryToast(tLive("invalidPrice"), "error");
       return;
     }
+    const price =
+      typedPrice != null && typedPrice > 0 ? resolveStoredPrice(typedPrice).price : null;
     setSaving(true);
     try {
       await finalizeVodSettings(post.id, {
@@ -194,7 +203,7 @@ export default function LiveEndSummaryPanel({ open, onClose, post }: Props) {
           {vodPaid && (
             <div style={{ paddingTop: 2, paddingBottom: 14 }}>
               <label style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", fontFamily: FONT, display: "block", marginBottom: 8 }}>
-                Precio del ticket (MXN)
+                Precio del ticket
               </label>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <span style={{ fontSize: 14, color: "rgba(255,255,255,0.5)", fontFamily: FONT }}>$</span>
@@ -212,8 +221,15 @@ export default function LiveEndSummaryPanel({ open, onClose, post }: Props) {
                     fontSize: 15, fontFamily: FONT, outline: "none",
                   }}
                 />
-                <span style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", fontFamily: FONT }}>MXN</span>
+                <span style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", fontFamily: FONT }}>{displayCurrency}</span>
               </div>
+              {displayCurrency !== "MXN" &&
+              priceInput !== "" &&
+              Number(priceInput) > 0 ? (
+                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", fontFamily: FONT, marginTop: 6 }}>
+                  = {formatAnchor(resolveStoredPrice(Number(priceInput)).price)}
+                </div>
+              ) : null}
             </div>
           )}
         </>

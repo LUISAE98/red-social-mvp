@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
   getPremiumCapabilities,
@@ -8,6 +8,7 @@ import {
   type PremiumCapabilities,
   type PremiumValidationResult,
 } from "@/lib/posts/premium";
+import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import type {
   GroupVisibility,
   PostContextType,
@@ -61,6 +62,9 @@ export function useComposerPremium({
   viewerIsOwner = false,
   initialPremium,
 }: UseComposerPremiumParams) {
+  const { resolveStoredPrice, toDisplayForInput, currency: displayCurrency } =
+    usePriceFormat();
+
   const [premiumEnabled, setPremiumEnabledState] = useState(() => initialPremium?.enabled === true);
   const [accessMode, setAccessModeState] =
     useState<PostPremium["accessMode"]>(() => initialPremium?.accessMode ?? "public");
@@ -68,6 +72,21 @@ export function useComposerPremium({
   const [priceInput, setPriceInput] = useState(() =>
     initialPremium?.price != null ? String(initialPremium.price) : "",
   );
+
+  // Al editar un post premium existente, el precio está guardado en MXN (ancla).
+  // Lo mostramos en la moneda del creador para que pueda editarlo en su moneda.
+  // Solo una vez, cuando cargan las tasas / cambia la moneda de visualización.
+  const didHydratePremiumPrice = useRef(false);
+  useEffect(() => {
+    if (didHydratePremiumPrice.current) return;
+    if (initialPremium?.price == null) return;
+    const n = Number(initialPremium.price);
+    if (!Number.isFinite(n) || n <= 0) return;
+    didHydratePremiumPrice.current = true;
+    if (displayCurrency === "MXN") return;
+    const shown = toDisplayForInput(n, initialPremium.currency ?? "MXN");
+    setPriceInput(String(Math.round(shown * 100) / 100));
+  }, [initialPremium?.price, initialPremium?.currency, displayCurrency, toDisplayForInput]);
 
   const premiumContext = useMemo(
     () => ({
@@ -108,7 +127,17 @@ export function useComposerPremium({
     return { canEnablePremium: true, allowedAccessModes, allowedFreeForOptions, disabledReason: null };
   }, [capabilities, initialPremium, isEditModePremium]);
 
-  const price = useMemo(() => parsePriceInput(priceInput), [priceInput]);
+  // El creador teclea en su moneda; el precio se GUARDA en MXN (ancla).
+  // Convertimos aquí, en el borde donde el objeto `premium` (que se persiste) se
+  // construye. `price` queda ya en MXN para validación y persistencia.
+  const typedPrice = useMemo(() => parsePriceInput(priceInput), [priceInput]);
+  const price = useMemo(
+    () =>
+      typedPrice != null && typedPrice > 0
+        ? resolveStoredPrice(typedPrice).price
+        : typedPrice,
+    [typedPrice, resolveStoredPrice],
+  );
 
   function resetPremium() {
     setPremiumEnabledState(false);

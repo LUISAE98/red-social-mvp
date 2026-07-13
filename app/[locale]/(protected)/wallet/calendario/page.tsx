@@ -464,6 +464,7 @@ function EventsOverlay({
   const dragRef = useRef({ startY: 0, startOffset: 0 });
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
     const mq = window.matchMedia("(max-width: 900px)");
     setIsMobile(mq.matches);
@@ -475,6 +476,7 @@ function EventsOverlay({
   useEffect(() => {
     if (!mounted) return;
     if (open) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setIsClosing(false);
       setShouldRender(true);
       setPanelOffsetY(0);

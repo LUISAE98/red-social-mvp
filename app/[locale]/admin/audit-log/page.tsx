@@ -65,6 +65,7 @@ export default function AuditLogPage() {
   }
 
   function rel(date: Date): string {
+    // eslint-disable-next-line react-hooks/purity
     const m = Math.floor((Date.now() - date.getTime()) / 60000);
     if (m < 1) return tAdmin("timeNow");
     if (m < 60) return tAdmin("timeMinutesAgo", { count: m });

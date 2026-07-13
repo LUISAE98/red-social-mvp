@@ -17,6 +17,7 @@ export default function PullToRefresh({
   indicatorTop,
 }: PullToRefreshProps) {
   const [mounted, setMounted] = useState(false);
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { setMounted(true); }, []);
 
   const visible = pullDistance > 0 || isRefreshing;

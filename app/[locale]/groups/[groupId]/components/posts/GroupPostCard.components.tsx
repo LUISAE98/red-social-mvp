@@ -383,16 +383,21 @@ export const MediaGridVideoItem = forwardRef<MediaGridVideoItemHandle, MediaGrid
 
     // Stable refs for callbacks — avoids re-running event listener effects on every render
     const onRatioLoadedRef = useRef(onRatioLoaded);
+    // eslint-disable-next-line react-hooks/refs
     onRatioLoadedRef.current = onRatioLoaded;
     const onLoadErrorRef = useRef(onLoadError);
+    // eslint-disable-next-line react-hooks/refs
     onLoadErrorRef.current = onLoadError;
     const onTimeUpdateRef = useRef(onTimeUpdate);
+    // eslint-disable-next-line react-hooks/refs
     onTimeUpdateRef.current = onTimeUpdate;
     const durationRef = useRef(duration);
+    // eslint-disable-next-line react-hooks/refs
     durationRef.current = duration;
 
     const src = hlsUrl ?? playbackUrl ?? null;
     const srcRef = useRef(src);
+    // eslint-disable-next-line react-hooks/refs
     srcRef.current = src;
 
     useImperativeHandle(ref, () => ({

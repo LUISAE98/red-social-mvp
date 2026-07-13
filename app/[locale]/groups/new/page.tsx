@@ -11,7 +11,6 @@ import { useAuth } from "@/app/providers";
 import { createGroup } from "@/lib/groups/createGroup";
 import type {
   CanonicalGroupCategory,
-  Currency,
   GroupVisibility,
   PostingMode,
 } from "@/types/group";
@@ -27,6 +26,7 @@ import { uploadFile } from "@/lib/storage/uploadFile";
 import { buildFileName } from "@/lib/storage/fileNaming";
 import { buildCurrentPathWithSearch } from "@/lib/auth-redirect";
 import { normalizeImageFile } from "@/lib/uploads/image-normalizer";
+import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 
 
 function parseTags(raw: string): string[] {
@@ -211,6 +211,7 @@ function NewGroupPageContent() {
 const tCommon = useTranslations("common");
 const tGroups = useTranslations("groups");
 const tProfile = useTranslations("profile");
+const { resolveStoredPrice, currency: displayCurrency, formatAnchor } = usePriceFormat();
 const router = useRouter();
 const pathname = usePathname();
 const searchParams = useSearchParams();
@@ -296,7 +297,6 @@ const { user, loading: authLoading } = useAuth();
 
   const [monetizationMode, setMonetizationMode] = useState<"free" | "paid">("free");
   const [priceMonthly, setPriceMonthly] = useState<string>("");
-  const [currency, setCurrency] = useState<Currency>("MXN");
 
   const subscriptionAllowed = visibility !== "public";
   const isPaid = monetizationMode === "paid" && subscriptionAllowed;
@@ -527,6 +527,12 @@ const onCropComplete = useCallback(
       }
     }
 
+    // El creador tecleó en su moneda; guardamos en MXN (ancla).
+    const storedPrice =
+      isPaid && priceNum != null ? resolveStoredPrice(priceNum) : null;
+    const storedPriceMonthly = storedPrice ? storedPrice.price : null;
+    const storedCurrency = storedPrice ? storedPrice.currency : null;
+
     setLoading(true);
     setAvatarUploadPct(0);
     setCoverUploadPct(0);
@@ -554,11 +560,11 @@ const onCropComplete = useCallback(
         },
         monetization: {
           isPaid,
-          priceMonthly: isPaid ? priceNum : null,
-          currency: isPaid ? currency : null,
+          priceMonthly: storedPriceMonthly,
+          currency: storedCurrency,
           subscriptionsEnabled: isPaid,
-          subscriptionPriceMonthly: isPaid ? priceNum : null,
-          subscriptionCurrency: isPaid ? currency : null,
+          subscriptionPriceMonthly: storedPriceMonthly,
+          subscriptionCurrency: storedCurrency,
           paidPostsEnabled: false,
           paidLivesEnabled: false,
           paidVodEnabled: false,
@@ -1495,6 +1501,19 @@ const onCropComplete = useCallback(
                       onChange={(e) => setPriceMonthly(e.target.value)}
                       placeholder={tGroups("priceExample")}
                     />
+                    {displayCurrency !== "MXN" &&
+                    priceMonthly &&
+                    Number(priceMonthly) > 0 ? (
+                      <div
+                        style={{
+                          marginTop: 6,
+                          fontSize: 12,
+                          color: "rgba(255,255,255,0.6)",
+                        }}
+                      >
+                        = {formatAnchor(resolveStoredPrice(Number(priceMonthly)).price)}
+                      </div>
+                    ) : null}
                   </div>
 
                   <div>
@@ -1509,13 +1528,21 @@ const onCropComplete = useCallback(
                     >
                       {tGroups("currency")}
                     </label>
-                    <SelectField
-                      value={currency}
-                      onChange={(value) => setCurrency(value as Currency)}
+                    <span
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        borderRadius: 9,
+                        border: "1px solid rgba(255,255,255,0.14)",
+                        background: "rgba(255,255,255,0.04)",
+                        color: "#fff",
+                        padding: "9px 11px",
+                        fontSize: 13,
+                        boxSizing: "border-box",
+                      }}
                     >
-                      <option value="MXN">MXN</option>
-                      <option value="USD">USD</option>
-                    </SelectField>
+                      {displayCurrency}
+                    </span>
                   </div>
                 </div>
               )}

@@ -83,6 +83,7 @@ export default function DraggableSessionCard({ uid }: { uid: string }) {
       y: Math.max(0, Math.min(window.innerHeight - CARD_H, raw.y)),
     };
     posRef.current = clamped;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setPos(clamped);
     setMounted(true);
   }, []);
@@ -92,6 +93,7 @@ export default function DraggableSessionCard({ uid }: { uid: string }) {
     if (!mounted || !sessionStartedAt || autoSnappedRef.current || edgeMode !== null) return;
     if (window.innerWidth >= 768) return;
     autoSnappedRef.current = true;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setEdgeMode("right");
     setEdgeY(Math.max(60, Math.min(window.innerHeight - TAB_H - 20, posRef.current.y)));
     try { localStorage.removeItem(POS_KEY); } catch { /* */ }

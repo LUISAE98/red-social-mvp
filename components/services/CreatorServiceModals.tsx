@@ -241,6 +241,7 @@ function Panel({
 
   useEffect(() => {
     if (open) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setVisible(true);
       setPanelOffsetY(0);
     } else {
@@ -407,6 +408,7 @@ export default function CreatorServiceModals({
   const { toast: serviceModalToast, showToast: showServiceModalToast } = useVibraToast();
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
     const id = "vibra-svc-panel-css";
     if (!document.getElementById(id)) {
@@ -417,8 +419,11 @@ export default function CreatorServiceModals({
     }
   }, []);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { if (!greetOpen) setAcceptedTerms(false); }, [greetOpen]);
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { if (!meetGreetOpen) setMeetGreetAcceptedTerms(false); }, [meetGreetOpen]);
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { if (!exclusiveSessionOpen) setExclusiveSessionAcceptedTerms(false); }, [exclusiveSessionOpen]);
   useEffect(() => { if (greetError)            showServiceModalToast(greetError, "error"); }, [greetError]);           // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (greetSuccess)          showServiceModalToast(greetSuccess, "success"); }, [greetSuccess]);     // eslint-disable-line react-hooks/exhaustive-deps

@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useState, useEffect, useRef, type CSSProperties } from "react";
 import { useTranslations } from "next-intl";
+import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import { createPortal } from "react-dom";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
@@ -221,7 +222,8 @@ export default function LiveComposerModal({
   const { toast: liveComposerToast, showToast: showLiveComposerToast } = useVibraToast();
   const [accessType, setAccessType] = useState<"free" | "paid">("free");
   const [ticketPrice, setTicketPrice] = useState("");
-  const [currency, setCurrency] = useState<"MXN" | "USD">("MXN");
+  const { resolveStoredPrice, toDisplayForInput, currency: displayCurrency, formatAnchor } =
+    usePriceFormat();
   const [paidAccessMode, setPaidAccessMode] = useState<"everyone_pays" | "members_free_non_members_pay">("everyone_pays");
 
   const isHiddenGroup = contextType === "group" && groupVisibility === "hidden";
@@ -308,8 +310,11 @@ export default function LiveComposerModal({
     setCoverFile(null);
     setVisibilityMode(ld.visibilityMode ?? deriveDefaultVisibility(contextType, groupVisibility ?? null));
     setAccessType(ld.accessType ?? "free");
-    setTicketPrice(ld.ticketPrice != null ? String(ld.ticketPrice) : "");
-    setCurrency(ld.currency ?? "MXN");
+    setTicketPrice(
+      ld.ticketPrice != null
+        ? String(Math.round(toDisplayForInput(ld.ticketPrice, ld.currency ?? "MXN") * 100) / 100)
+        : ""
+    );
     setPaidAccessMode(ld.paidAccessMode ?? "everyone_pays");
     setBroadcastGroupIds(ld.broadcastGroupIds ?? []);
     const parsed = parseScheduledTimestamp(ld.scheduledStartAt);
@@ -374,7 +379,6 @@ export default function LiveComposerModal({
     setVisibilityMode(deriveDefaultVisibility(contextType, groupVisibility ?? null));
     setAccessType("free");
     setTicketPrice("");
-    setCurrency("MXN");
     setPaidAccessMode("everyone_pays");
     setBroadcastGroupIds([]);
       }
@@ -433,8 +437,10 @@ export default function LiveComposerModal({
         groupVisibility === "private" &&
         effectiveMode !== "members_only";
       const effectivePaidAccessMode = canHaveMemberExemption ? paidAccessMode : "everyone_pays";
-      const finalTicketPrice = accessType === "paid" ? priceNum : null;
-      const finalCurrency = accessType === "paid" ? currency : null;
+      // El creador teclea en su moneda; se guarda en MXN (ancla).
+      const storedTicket = accessType === "paid" ? resolveStoredPrice(priceNum) : null;
+      const finalTicketPrice = storedTicket ? storedTicket.price : null;
+      const finalCurrency = storedTicket ? storedTicket.currency : null;
       const finalPaidAccessMode = accessType === "paid" ? effectivePaidAccessMode : null;
 
       // Strip "__profile__" from community IDs before saving; it's stored separately as broadcast sentinel
@@ -793,23 +799,20 @@ export default function LiveComposerModal({
               />
             </div>
             <div style={{
-              width: 90, flexShrink: 0, position: "relative" as const,
-              display: "flex", alignItems: "center",
+              width: 90, flexShrink: 0,
+              display: "flex", alignItems: "center", justifyContent: "center",
               background: "rgba(255,255,255,0.06)", borderRadius: 10,
-              border: "1px solid rgba(255,255,255,0.1)", overflow: "hidden",
+              border: "1px solid rgba(255,255,255,0.1)",
+              color: "#fff", fontSize: 13, fontWeight: 600, fontFamily: fontStack,
             }}>
-              <select
-                value={currency}
-                onChange={(e) => setCurrency(e.target.value as "MXN" | "USD")}
-                disabled={saving}
-                style={{ width: "100%", background: "transparent", border: "none", color: "#fff", fontSize: 13, fontWeight: 600, fontFamily: fontStack, padding: "0 10px", cursor: "pointer", appearance: "none" as const }}
-                className="vibra-live-select"
-              >
-                <option value="MXN">MXN</option>
-                <option value="USD">USD</option>
-              </select>
+              {displayCurrency}
             </div>
           </div>
+          {displayCurrency !== "MXN" && ticketPrice && Number(ticketPrice) > 0 ? (
+            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", marginTop: -4, marginBottom: 8, fontFamily: fontStack }}>
+              = {formatAnchor(resolveStoredPrice(Number(ticketPrice)).price)}
+            </div>
+          ) : null}
 
           {contextType === "group" && groupVisibility === "private" && visibilityMode !== "members_only" && (
             <>

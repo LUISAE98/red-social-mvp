@@ -105,6 +105,7 @@ const [isEmbed, setIsEmbed] = useState(false);
 
 useLayoutEffect(() => {
   try {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsEmbed(window.self !== window.top);
   } catch {
     setIsEmbed(true);
@@ -120,6 +121,7 @@ useLayoutEffect(() => {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMobileSearchOpen(false);
     setHomeHeaderHidden(false);
     setContextScrolled(false);

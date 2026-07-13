@@ -694,6 +694,7 @@ const { headerRef, safeAreaRef } = useMobileHeaderFade();
     'inherit';
 
 useEffect(() => {
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   setMobileSearchOpen(false);
 }, [pathname]);
 

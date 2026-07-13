@@ -673,6 +673,7 @@ function useScheduledRows(
 
   useEffect(() => {
     if (!creatorId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setRows([]);
       setError(null);
       setLoading(false);
@@ -738,6 +739,7 @@ export function useOwnerWalletData(
 
   useEffect(() => {
     if (!creatorId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setGreetingRows([]);
       setGreetingError(null);
       setLoadingGreetings(false);

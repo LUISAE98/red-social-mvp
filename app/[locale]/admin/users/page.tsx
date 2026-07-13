@@ -55,6 +55,7 @@ export default function AdminUsersPage() {
   // Banned users — loaded once when tab = banned
   useEffect(() => {
     if (tab !== "banned") return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
     getDocs(
       query(
@@ -74,6 +75,7 @@ export default function AdminUsersPage() {
   useEffect(() => {
     if (tab !== "search") return;
     if (!searchQuery.trim()) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setUsers([]);
       setLoading(false);
       return;

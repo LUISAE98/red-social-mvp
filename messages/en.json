@@ -1104,8 +1104,10 @@
     "filterStatusAllValue": "All movements",
     "kycWithdrawCta": "Click here to complete your KYC and enable withdrawals",
     "kycPending": "We're verifying your identity…",
-    "kycApproved": "✓ Identity verified",
-    "kycRetry": "Verification declined. Click to try again"
+    "kycApproved": "Identity verified",
+    "kycRetry": "Verification declined. Click to try again",
+    "withdrawButton": "Withdraw",
+    "withdrawComingSoon": "Withdrawals will be available very soon"
   },
   "services": {
     "confirmLabel": "Confirm",

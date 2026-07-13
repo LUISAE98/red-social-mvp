@@ -289,6 +289,7 @@ export default function BuyerSessionRequestOverlay({
       setTimeout(() => onClose(), 180);
     }
   }
+  // eslint-disable-next-line react-hooks/refs
   closeRef.current = handleClose;
 
   function handlePanelPointerDown(e: React.PointerEvent) {

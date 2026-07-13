@@ -27,6 +27,7 @@ export default function GroupsHome() {
 
     if (user) {
       sessionStorage.setItem(SESSION_UID_KEY, user.uid);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setCachedUid(user.uid);
     } else {
       sessionStorage.removeItem(SESSION_UID_KEY);

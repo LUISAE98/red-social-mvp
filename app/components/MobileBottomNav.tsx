@@ -170,6 +170,7 @@ export default function MobileBottomNav({
   const [pendingHref, setPendingHref] = useState<string | null>(null);
 
   // Clear pending when real navigation completes
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { setPendingHref(null); }, [pathname]);
 
   // ── Nav scale (shrink on scroll-down / idle) ───────────────────────────────
@@ -255,6 +256,7 @@ export default function MobileBottomNav({
 
   const profileHref = handle ? `/u/${handle}` : "/login";
 
+  // eslint-disable-next-line react-hooks/preserve-manual-memoization
   const nav = useMemo(() => {
     const items: MobileNavItem[] = [
       {

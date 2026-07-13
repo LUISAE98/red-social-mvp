@@ -179,6 +179,7 @@ export default function GroupServiceModals({
   const [mounted, setMounted] = useState(false);
   const { toast: serviceModalToast, showToast: showServiceModalToast } = useVibraToast();
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { setMounted(true); }, []);
 
   useEffect(() => { if (greetError) showServiceModalToast(greetError, "error"); }, [greetError]); // eslint-disable-line react-hooks/exhaustive-deps

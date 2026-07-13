@@ -180,6 +180,7 @@ export default function PostCommentsPanel({
   useEffect(() => {
     if (!isMobile) return;
     if (open) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setShouldRender(true);
       setIsPanelDragging(false);
       setPanelOffsetY(panelCloseOffsetRef.current);

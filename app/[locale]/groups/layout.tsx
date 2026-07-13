@@ -9,8 +9,9 @@ import { useTranslations } from "next-intl";
 import { usePathname, useRouter } from "@/i18n/navigation";
 import VibraSavedPostIcon from "@/app/components/VibraServiceIcons/VibraSavedPostIcon";
 import { useAuth } from "@/app/providers";
-import LogoutButton from "@/app/LogoutButton";
 import OwnerSidebar from "@/app/components/OwnerSidebar/OwnerSidebar";
+import LanguageSwitcher from "@/app/components/LanguageSwitcher";
+import CurrencySwitcher from "@/app/components/CurrencySwitcher";
 import MobileBottomNav from "@/app/components/MobileBottomNav";
 import GroupsSearchPanel from "@/app/components/SearchToolbar/GroupsSearchPanel";
 import { useWalletVisibility } from "@/lib/wallet/useWalletVisibility";
@@ -89,6 +90,7 @@ const [isEmbed, setIsEmbed] = useState(false);
 
 useLayoutEffect(() => {
   try {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsEmbed(window.self !== window.top);
   } catch {
     setIsEmbed(true);
@@ -126,6 +128,7 @@ useLayoutEffect(() => {
   }, [pathname]);
 
 useEffect(() => {
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   setMobileSearchOpen(false);
   setContextScrolled(false);
 }, [pathname]);
@@ -269,8 +272,11 @@ const contentAreaClassName = isEmbed
           flex: 0 0 auto;
         }
 
-        .desktopLogoutWrap {
-          display: none;
+        .desktopHeaderActions {
+          min-width: 0;
+          display: flex;
+          align-items: center;
+          justify-content: flex-end;
         }
 
         .mobileSearchRow {
@@ -705,8 +711,9 @@ const contentAreaClassName = isEmbed
                 </div>
               </div>
 
-              <div className="desktopLogoutWrap">
-                <LogoutButton />
+              <div className="desktopHeaderActions">
+                <CurrencySwitcher variant="desktop" />
+                <LanguageSwitcher variant="desktop" />
               </div>
             </div>
 

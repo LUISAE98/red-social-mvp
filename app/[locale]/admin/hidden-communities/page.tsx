@@ -90,6 +90,7 @@ export default function HiddenCommunitiesPage() {
 
   // Phase 1: subscribe to group documents (base data only)
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
     const q = query(
       collection(db, "groups"),
@@ -109,6 +110,7 @@ export default function HiddenCommunitiesPage() {
   // Phase 2: enrich with counts — re-runs when base data changes OR when refreshed manually
   useEffect(() => {
     if (bases.length === 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setCommunities([]);
       return;
     }

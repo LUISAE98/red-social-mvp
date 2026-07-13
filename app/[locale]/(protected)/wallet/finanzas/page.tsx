@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { useAuth } from "@/app/providers";
 import WalletSectionShell from "../components/WalletSectionShell";
@@ -13,6 +13,8 @@ import {
 import { useWalletLedger } from "@/lib/wallet/walletLedger";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import { useKyc } from "@/lib/kyc/useKyc";
+import { useVibraToast } from "@/lib/hooks/useVibraToast";
+import VibraToast from "@/app/components/VibraToast/VibraToast";
 
 function formatMonthLabel(year: number, month: number): string {
   try {
@@ -42,22 +44,70 @@ export default function WalletFinanzasPage() {
   const { summary } = useWalletFinances(user?.uid);
   const kyc = useKyc(user?.uid);
   const [mode, setMode] = useState<"net" | "gross">("net");
+  const { toast: walletToast, showToast: showWalletToast } = useVibraToast();
 
-  // Etiqueta y acción del CTA de KYC según el estado de verificación.
+  // ── CTA de KYC: solo mientras la identidad NO está verificada ──────────────
   const kycInProgress = kyc.status === "pending" || kyc.status === "in_review";
-  const kycCtaLabel = kyc.approved
-    ? tWallet("kycApproved")
-    : kycInProgress
+  const kycCtaLabel = kycInProgress
     ? tWallet("kycPending")
     : kyc.status === "declined"
     ? tWallet("kycRetry")
     : tWallet("kycWithdrawCta");
-  const kycCtaDisabled = kyc.approved || kycInProgress || kyc.starting || kyc.loading;
+  const kycCtaDisabled = kycInProgress || kyc.starting || kyc.loading;
 
   function handleKycClick() {
     if (kycCtaDisabled) return;
     void kyc.startKyc(locale);
   }
+
+  // ── Celebración "Identidad verificada": 10 s, una sola vez tras verificar ──
+  const [kycCelebrate, setKycCelebrate] = useState(false);
+  const [kycCelebrateExiting, setKycCelebrateExiting] = useState(false);
+  const prevApprovedRef = useRef<boolean | null>(null);
+  const celebratedRef = useRef(false);
+  const cameFromDiditRef = useRef(false);
+
+  // Detecta el retorno desde el flujo de Didit y limpia los params de la URL.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.has("verificationSessionId") || params.has("status")) {
+      cameFromDiditRef.current = true;
+      params.delete("verificationSessionId");
+      params.delete("status");
+      const qs = params.toString();
+      window.history.replaceState(
+        null,
+        "",
+        window.location.pathname + (qs ? `?${qs}` : "") + window.location.hash
+      );
+    }
+  }, []);
+
+  // Dispara la celebración cuando la identidad pasa a verificada.
+  useEffect(() => {
+    const prev = prevApprovedRef.current;
+    prevApprovedRef.current = kyc.approved;
+    if (kyc.loading || celebratedRef.current) return;
+    const justApproved = prev === false && kyc.approved;
+    const arrivedApproved = prev === null && kyc.approved && cameFromDiditRef.current;
+    if (justApproved || arrivedApproved) {
+      celebratedRef.current = true;
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- reacción a la aprobación async de Firestore
+      setKycCelebrate(true);
+    }
+  }, [kyc.approved, kyc.loading]);
+
+  // Temporizador: visible 10 s, con salida animada al final.
+  useEffect(() => {
+    if (!kycCelebrate) return;
+    const exit = setTimeout(() => setKycCelebrateExiting(true), 9500);
+    const hide = setTimeout(() => setKycCelebrate(false), 10000);
+    return () => {
+      clearTimeout(exit);
+      clearTimeout(hide);
+    };
+  }, [kycCelebrate]);
 
   // Último día del mes en curso (fecha de disponibilidad del retiro).
   const withdrawDate = useMemo(() => {
@@ -67,6 +117,20 @@ export default function WalletFinanzasPage() {
   }, [locale]);
 
   const view = selectFinanceView(summary, mode);
+
+  // Botón Retirar: se habilita al llegar la fecha de disponibilidad (último día
+  // del mes, igual que la etiqueta "Disponible el…"). El flujo de retiro real es
+  // un ticket aparte; por ahora el botón solo refleja el estado.
+  const canWithdrawNow = useMemo(() => {
+    const now = new Date();
+    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    return now.getDate() >= lastDay && view.available > 0;
+  }, [view.available]);
+
+  function handleWithdrawClick() {
+    if (!canWithdrawNow) return;
+    showWalletToast(tWallet("withdrawComingSoon"), "warning");
+  }
 
   // Mejor mes: mes calendario con más ganancias (entradas "earned").
   const { entries } = useWalletLedger(user?.uid, 365);
@@ -135,7 +199,7 @@ export default function WalletFinanzasPage() {
 
   return (
     <WalletSectionShell activeTab="finances">
-      <WalletCard headerRight={toggle} transparent>
+      <WalletCard transparent>
         <div
           style={{
             display: "flex",
@@ -144,6 +208,42 @@ export default function WalletFinanzasPage() {
             paddingTop: 4,
           }}
         >
+          {/* Controles: switch neto/bruto (izq) + botón Retirar (der) */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 10,
+            }}
+          >
+            {toggle}
+            {kyc.approved ? (
+              <button
+                type="button"
+                onClick={handleWithdrawClick}
+                disabled={!canWithdrawNow}
+                style={{
+                  border: "none",
+                  borderRadius: 10,
+                  padding: "7px 16px",
+                  fontSize: 12.5,
+                  fontWeight: 700,
+                  letterSpacing: "-0.01em",
+                  whiteSpace: "nowrap",
+                  color: canWithdrawNow ? "#052e16" : "rgba(255,255,255,0.4)",
+                  background: canWithdrawNow
+                    ? "linear-gradient(135deg, #4ade80, #16a34a)"
+                    : "rgba(255,255,255,0.06)",
+                  cursor: canWithdrawNow ? "pointer" : "not-allowed",
+                  transition: "background 150ms ease, color 150ms ease",
+                }}
+              >
+                {tWallet("withdrawButton")}
+              </button>
+            ) : null}
+          </div>
+
           {/* Disponible para retirar */}
           <div
             style={{
@@ -180,35 +280,103 @@ export default function WalletFinanzasPage() {
             </div>
           </div>
 
-          {/* CTA de KYC: justo debajo de la cifra, ocupando todo el renglón. */}
-          <button
-            type="button"
-            onClick={handleKycClick}
-            disabled={kycCtaDisabled}
-            style={{
-              width: "100%",
-              marginTop: -14,
-              padding: 0,
-              border: "none",
-              background: "transparent",
-              color: kyc.approved
-                ? "#4ade80"
-                : kyc.status === "declined"
-                ? "#f87171"
-                : "#c084fc",
-              fontFamily: "inherit",
-              fontSize: 12.5,
-              fontWeight: 600,
-              lineHeight: 1.35,
-              letterSpacing: "-0.01em",
-              textAlign: "center",
-              cursor: kycCtaDisabled ? "default" : "pointer",
-              opacity: kyc.starting ? 0.6 : 1,
-              WebkitTapHighlightColor: "transparent",
-            }}
-          >
-            {kycCtaLabel}
-          </button>
+          {/* KYC: CTA mientras no está verificado; celebración al verificar. */}
+          {kyc.approved ? (
+            kycCelebrate ? (
+              <>
+                <style jsx global>{`
+                  @keyframes vbKycBadgeIn {
+                    0%   { opacity: 0; transform: translateY(4px) scale(0.9); }
+                    60%  { opacity: 1; transform: translateY(0) scale(1.04); }
+                    100% { opacity: 1; transform: translateY(0) scale(1); }
+                  }
+                  @keyframes vbKycBadgeOut {
+                    from { opacity: 1; transform: translateY(0) scale(1); }
+                    to   { opacity: 0; transform: translateY(-4px) scale(0.96); }
+                  }
+                  @keyframes vbKycCirclePop {
+                    0%   { transform: scale(0.4); }
+                    65%  { transform: scale(1.25); }
+                    100% { transform: scale(1); }
+                  }
+                `}</style>
+                <div
+                  style={{
+                    marginTop: -14,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 8,
+                    animation: kycCelebrateExiting
+                      ? "vbKycBadgeOut 0.5s ease forwards"
+                      : "vbKycBadgeIn 0.45s cubic-bezier(0.34,1.56,0.64,1) forwards",
+                  }}
+                >
+                  <span
+                    style={{
+                      width: 20,
+                      height: 20,
+                      borderRadius: "50%",
+                      background: "#22c55e",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      flexShrink: 0,
+                      animation:
+                        "vbKycCirclePop 0.4s cubic-bezier(0.34,1.56,0.64,1) forwards",
+                    }}
+                  >
+                    <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
+                      <path
+                        d="M2 6L5 9L10 3"
+                        stroke="#fff"
+                        strokeWidth="1.9"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </span>
+                  <span
+                    style={{
+                      color: "#4ade80",
+                      fontSize: 12.5,
+                      fontWeight: 600,
+                      letterSpacing: "-0.01em",
+                    }}
+                  >
+                    {tWallet("kycApproved")}
+                  </span>
+                </div>
+              </>
+            ) : null
+          ) : (
+            <button
+              type="button"
+              onClick={handleKycClick}
+              disabled={kycCtaDisabled}
+              style={{
+                width: "100%",
+                marginTop: -14,
+                padding: 0,
+                border: "none",
+                background: "transparent",
+                color: kyc.status === "declined" ? "#f87171" : "#c084fc",
+                fontFamily: "inherit",
+                fontSize: 12.5,
+                fontWeight: 600,
+                lineHeight: 1.35,
+                letterSpacing: "-0.01em",
+                textAlign: "center",
+                cursor: kycCtaDisabled ? "default" : "pointer",
+                opacity: kyc.starting ? 0.6 : 1,
+                WebkitTapHighlightColor: "transparent",
+              }}
+            >
+              {kycCtaLabel}
+            </button>
+          )}
+
+          <VibraToast toast={walletToast} />
 
           {/* Fila de 3 columnas: por liberar · mejor mes · ganado histórico */}
           <div

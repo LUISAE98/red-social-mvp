@@ -25,6 +25,7 @@ export function usePlatformMod(): PlatformModState {
     if (authLoading) return;
 
     if (!user) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setIsPlatformMod(false);
       setWrongProvider(false);
       setLoading(false);

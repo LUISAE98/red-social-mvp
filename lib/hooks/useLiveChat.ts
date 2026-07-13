@@ -15,6 +15,7 @@ export function useLiveChat(liveId: string | null, limit = 25) {
 
   useEffect(() => {
     if (!liveId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setMessages([]);
       return;
     }

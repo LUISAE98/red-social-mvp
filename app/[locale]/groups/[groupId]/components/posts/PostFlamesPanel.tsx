@@ -95,6 +95,7 @@ export default function PostFlamesPanel({
 
   // Mount + mobile detection
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
     const mq = window.matchMedia("(max-width: 639px)");
     setIsMobile(mq.matches);
@@ -112,6 +113,7 @@ export default function PostFlamesPanel({
         clearTimeout(closeTimerRef.current);
         closeTimerRef.current = null;
       }
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setClosing(false);
       setVisible(true);
       // Mobile: start off-screen, then slide in

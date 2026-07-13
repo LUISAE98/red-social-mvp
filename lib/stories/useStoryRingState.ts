@@ -43,6 +43,7 @@ export function useStoryRingState(
     return { ring: "none", stories: [], startIndex: 0 };
   }
 
+  // eslint-disable-next-line react-hooks/purity
   const now = Date.now();
   const unviewed: StoryDoc[] = [];
   const recent: StoryDoc[] = [];

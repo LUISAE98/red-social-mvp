@@ -38,6 +38,7 @@ export default function SearchProfilesResults({
   const hasMoreProfiles = visibleCount < profiles.length;
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setVisibleCount(10);
   }, [profiles]);
 

@@ -26,7 +26,13 @@ type Props = {
 };
 
 export default function SuperCommentConfigPanel({ open, onClose, postId }: Props) {
-  const { format: formatMoney } = usePriceFormat();
+  const {
+    format: formatMoney,
+    resolveStoredPrice,
+    toDisplayForInput,
+    currency: displayCurrency,
+    formatAnchor,
+  } = usePriceFormat();
   const [mounted, setMounted] = useState(false);
   const [shouldRender, setShouldRender] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
@@ -93,13 +99,24 @@ export default function SuperCommentConfigPanel({ open, onClose, postId }: Props
       .then((cfg) => {
         // Siempre aplicar los colores actuales del default por tier ID
         const colorMap = Object.fromEntries(DEFAULT_SUPER_COMMENT_TIERS.map((t) => [t.id, t.color]));
+        // Los precios están guardados en MXN (ancla). Los mostramos en la moneda
+        // del creador para que edite en su moneda; al guardar se reconvierten a MXN.
         setScConfig({
           ...cfg,
-          tiers: cfg.tiers.map((t) => ({ ...t, color: colorMap[t.id] ?? t.color })),
+          tiers: cfg.tiers.map((t) => ({
+            ...t,
+            color: colorMap[t.id] ?? t.color,
+            price:
+              t.price > 0
+                ? Math.round(toDisplayForInput(t.price, cfg.currency ?? "MXN") * 100) / 100
+                : t.price,
+          })),
         });
       })
       .catch(() => {})
       .finally(() => setLoadingConfig(false));
+    // Se carga una sola vez al abrir; toDisplayForInput es estable dentro de esa sesión.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   function updateTierField(tierId: string, field: keyof SuperCommentTier, rawValue: string) {
@@ -123,8 +140,17 @@ export default function SuperCommentConfigPanel({ open, onClose, postId }: Props
     setSavingConfig(true);
     setConfigSaved(false);
     try {
-      await saveSuperCommentConfig(uid, scConfig);
-      await copySuperCommentConfigToLive(postId, scConfig);
+      // El creador editó los precios en su moneda; se GUARDAN en MXN (ancla).
+      const configToSave: SuperCommentConfig = {
+        ...scConfig,
+        currency: "MXN",
+        tiers: scConfig.tiers.map((t) => ({
+          ...t,
+          price: t.price > 0 ? resolveStoredPrice(t.price).price : t.price,
+        })),
+      };
+      await saveSuperCommentConfig(uid, configToSave);
+      await copySuperCommentConfigToLive(postId, configToSave);
       setConfigSaved(true);
       setTimeout(() => onClose(), 2000);
     } catch {
@@ -175,14 +201,17 @@ export default function SuperCommentConfigPanel({ open, onClose, postId }: Props
         <>
           <div style={{ marginBottom: 16 }}>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 10, padding: "0 2px" }}>
-              {["Caracteres por msg.", "Fan paga (MXN)"].map((h) => (
+              {["Caracteres por msg.", `Fan paga (${displayCurrency})`].map((h) => (
                 <span key={h} style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.05em", color: "rgba(255,255,255,0.35)", fontFamily: FONT, textAlign: "center" as const }}>
                   {h}
                 </span>
               ))}
             </div>
             {scConfig.tiers.map((tier) => {
-              const creatorEarns = formatMoney(tier.price * 0.77, { code: true });
+              // tier.price está en la moneda del creador; el monto real (MXN) es el ancla.
+              const anchorPrice =
+                tier.price > 0 ? resolveStoredPrice(tier.price).price : 0;
+              const creatorEarns = formatMoney(anchorPrice * 0.77, { code: true });
               return (
                 <div key={tier.id} style={{ marginBottom: 14 }}>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, alignItems: "center" }}>
@@ -211,6 +240,11 @@ export default function SuperCommentConfigPanel({ open, onClose, postId }: Props
                       }}
                     />
                   </div>
+                  {displayCurrency !== "MXN" && anchorPrice > 0 ? (
+                    <p style={{ margin: "4px 0 0", fontSize: 10.5, color: "rgba(255,255,255,0.4)", fontFamily: FONT, textAlign: "left" as const, lineHeight: 1.4 }}>
+                      = {formatAnchor(anchorPrice)}
+                    </p>
+                  ) : null}
                   <p style={{ margin: "5px 0 0", fontSize: 10.5, color: tier.color, fontFamily: FONT, textAlign: "left" as const, lineHeight: 1.4 }}>
                     Por cada comentario que un fan pague tú cobrarás{" "}
                     <span style={{ color: "#86efac", fontWeight: 600 }}>{creatorEarns}</span>

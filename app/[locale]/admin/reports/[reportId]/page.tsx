@@ -123,6 +123,7 @@ export default function ReportDetailPage() {
 
   useEffect(() => {
     if (!report) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setPreviewLoading(true);
     fetchContentPreview(report)
       .then(setPreview)

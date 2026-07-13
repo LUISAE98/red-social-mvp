@@ -234,10 +234,20 @@ export default function ComposerPremiumPanel({
     ? capabilities.disabledReason
     : null;
 
+  const { resolveStoredPrice, currency: displayCurrency, formatAnchor } = priceFmt;
+
   const parsedPrice = parseFloat(priceInput);
+  const hasValidPrice =
+    priceInput !== "" && Number.isFinite(parsedPrice) && parsedPrice > 0;
+
+  // El creador teclea en su moneda; el monto en MXN (ancla) es lo que se cobra.
+  const anchorPrice = hasValidPrice
+    ? resolveStoredPrice(parsedPrice).price
+    : null;
+
   const creatorEarnings =
-    priceInput !== "" && Number.isFinite(parsedPrice) && parsedPrice > 0
-      ? priceFmt.format(parsedPrice * 0.77, { baseCurrency: "MXN", code: true })
+    anchorPrice != null
+      ? priceFmt.format(anchorPrice * 0.77, { baseCurrency: "MXN", code: true })
       : null;
 
   return (
@@ -495,9 +505,22 @@ export default function ComposerPremiumPanel({
                 flexShrink: 0,
               }}
             >
-              MXN
+              {displayCurrency}
             </span>
           </div>
+
+          {displayCurrency !== "MXN" && anchorPrice != null ? (
+            <span
+              style={{
+                color: "rgba(196,168,255,0.65)",
+                fontSize: 11.5,
+                lineHeight: 1.45,
+                fontFamily: fontStack,
+              }}
+            >
+              = {formatAnchor(anchorPrice)}
+            </span>
+          ) : null}
 
           {creatorEarnings ? (
             <span

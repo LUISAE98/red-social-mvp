@@ -207,6 +207,7 @@ function useGroupMemberStatus(
 
   useEffect(() => {
     if (!enabled || !groupId || !userId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setStatus(null);
       return;
     }

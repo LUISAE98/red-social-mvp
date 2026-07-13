@@ -2,6 +2,7 @@
 
 import React, { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
+import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 
 type Currency = "MXN" | "USD";
 
@@ -127,6 +128,8 @@ export default function CustomClass({
   onSaveDraft,
 }: Props) {
   const tServices = useTranslations("services");
+  const { resolveStoredPrice, toDisplayForInput, currency: displayCurrency, formatAnchor } =
+    usePriceFormat();
 
   const [overlayMode, setOverlayMode] = useState<OverlayMode>(null);
   const [overlayDraft, setOverlayDraft] = useState<ServiceDraft>(draft);
@@ -138,11 +141,22 @@ export default function CustomClass({
   const isBusy = saving;
 
   function buildEnabledDraft(baseDraft: ServiceDraft) {
+    // Mostrar el precio guardado en la moneda del creador para editarlo.
+    const n = Number(baseDraft.customClass.price);
+    const shown =
+      baseDraft.customClass.price !== "" && Number.isFinite(n) && n > 0
+        ? String(
+            Math.round(
+              toDisplayForInput(n, baseDraft.customClass.currency ?? "MXN") * 100
+            ) / 100
+          )
+        : baseDraft.customClass.price;
     return {
       ...baseDraft,
       customClass: {
         ...baseDraft.customClass,
         enabled: true,
+        price: shown,
         visible: true,
         visibility: "members" as const,
       },
@@ -175,13 +189,20 @@ export default function CustomClass({
   }
 
   async function confirmOverlaySave() {
+    // El creador tecleó en su moneda; guardamos en MXN (ancla).
+    const n = Number(overlayDraft.customClass.price);
+    let customClassToSave = {
+      ...overlayDraft.customClass,
+      visible: overlayDraft.customClass.enabled,
+      visibility: "members" as const,
+    };
+    if (overlayDraft.customClass.price !== "" && Number.isFinite(n) && n > 0) {
+      const { price, currency } = resolveStoredPrice(n);
+      customClassToSave = { ...customClassToSave, price: String(price), currency };
+    }
     await onSaveDraft({
       ...overlayDraft,
-      customClass: {
-        ...overlayDraft.customClass,
-        visible: overlayDraft.customClass.enabled,
-        visibility: "members",
-      },
+      customClass: customClassToSave,
     });
     setOverlayMode(null);
   }
@@ -327,25 +348,18 @@ export default function CustomClass({
             style={{ ...inputStyle, width: 130, flex: "1 1 180px" }}
           />
 
-          <select
-            value={overlayDraft.customClass.currency}
-            onChange={(e) =>
-              setOverlayDraft((prev) => ({
-                ...prev,
-                customClass: {
-                  ...prev.customClass,
-                  enabled: true,
-                  currency: e.target.value as Currency,
-                  visible: true,
-                  visibility: "members",
-                },
-              }))
-            }
-            style={{ ...inputStyle, width: 100, flex: "1 1 120px" }}
+          <span
+            style={{
+              ...inputStyle,
+              width: 100,
+              flex: "1 1 120px",
+              display: "inline-flex",
+              alignItems: "center",
+              opacity: 0.75,
+            }}
           >
-            <option value="MXN">MXN</option>
-            <option value="USD">USD</option>
-          </select>
+            {displayCurrency}
+          </span>
 
           <input
             type="number"
@@ -368,6 +382,13 @@ export default function CustomClass({
             style={{ ...inputStyle, width: 160, flex: "1 1 180px" }}
           />
         </div>
+        {displayCurrency !== "MXN" &&
+        overlayDraft.customClass.price &&
+        Number(overlayDraft.customClass.price) > 0 ? (
+          <div style={subtleStyle}>
+            = {formatAnchor(resolveStoredPrice(Number(overlayDraft.customClass.price)).price)}
+          </div>
+        ) : null}
         <div style={subtleStyle}>
           {tServices("membersOnlyServiceNote")}
         </div>

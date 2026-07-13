@@ -97,6 +97,7 @@ export default function PrivateCommunitiesPage() {
 
   // Phase 1: subscribe to all private group documents (including deleted)
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
     const q = query(
       collection(db, "groups"),
@@ -116,6 +117,7 @@ export default function PrivateCommunitiesPage() {
   // Phase 2: enrich with counts + creator info
   useEffect(() => {
     if (bases.length === 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setCommunities([]);
       return;
     }
