@@ -95,6 +95,11 @@ type Props = {
 
   saludoEmoji: string;
 
+  /** Muestra una descripción del servicio bajo el título (solo perfil). */
+  showDescription?: boolean;
+  /** Estilo para la descripción (solo perfil). */
+  descriptionStyle?: React.CSSProperties;
+
   panelStyle: React.CSSProperties;
   titleStyle: React.CSSProperties;
   subtleStyle: React.CSSProperties;
@@ -116,6 +121,8 @@ export default function Saludos({
   draft,
   saving,
   saludoEmoji,
+  showDescription = false,
+  descriptionStyle,
   panelStyle,
   titleStyle,
   subtleStyle,
@@ -291,6 +298,9 @@ export default function Saludos({
         >
           <div style={{ display: "grid", gap: 2, minWidth: 0 }}>
             <span style={titleStyle}>{saludoEmoji} {tServices("greetingsTitle")}</span>
+            {showDescription && (
+              <span style={descriptionStyle ?? subtleStyle}>{tServices("expSaludoDesc")}</span>
+            )}
           </div>
 
           <SwitchComponent

@@ -25,14 +25,9 @@ const [loading, setLoading] = useState(false);
 const { startAuthTransition } = useAuth();
 
 async function handleLogout() {
+  if (loading) return;
   setLoading(true);
   startAuthTransition("exiting");
-
-  try {
-    await signOut(auth);
-  } catch (error) {
-    console.error("Error cerrando sesión en Firebase:", error);
-  }
 
   // Limpiar caché del cliente que es solo por sesión (no debe persistir para el
   // siguiente usuario en este navegador). Clave definida en GroupsSearchPanel.
@@ -59,7 +54,23 @@ async function handleLogout() {
     // ignorar
   }
 
-  window.location.href = "/login";
+  // Cerrar sesión en Firebase, pero NUNCA dejar que esto bloquee la redirección.
+  // En páginas con muchos listeners de Firestore (ej. un perfil), signOut puede
+  // tardar o colgarse mientras esos listeners se caen; si esperáramos sin límite,
+  // la línea de navegación no se ejecutaría y el usuario quedaría en la página
+  // actual ya sin sesión. Con este race garantizamos que siempre redirigimos.
+  try {
+    await Promise.race([
+      signOut(auth),
+      new Promise((resolve) => setTimeout(resolve, 1200)),
+    ]);
+  } catch (error) {
+    console.error("Error cerrando sesión en Firebase:", error);
+  }
+
+  // Redirección dura y definitiva a login. Usamos replace para que el botón
+  // "atrás" no regrese a la página anterior (ya sin sesión).
+  window.location.replace("/login");
 }
 
 // Black overlay rendered via portal — covers the entire screen immediately

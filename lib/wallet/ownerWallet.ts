@@ -345,7 +345,7 @@ export function getWalletScheduleConflictResult(
   const serviceLabel =
     conflictItem.source === "exclusive_session"
       ? "sesión exclusiva"
-      : "Sesión en vivo";
+      : "Tiempo contigo";
 
   const startLabel = formatWalletTimeOnly(conflictItem.scheduledAt);
   const endLabel = conflictEndAt ? formatWalletTimeOnly(conflictEndAt) : null;
@@ -485,7 +485,7 @@ function normalizeScheduledRow(
   return {
     id,
     kind: isExclusive ? "exclusive_session" : "meet_greet",
-    title: isExclusive ? "Sesión exclusiva" : "Sesión en vivo",
+    title: isExclusive ? "Sesión exclusiva" : "Tiempo contigo",
     groupId: data.groupId ?? null,
     groupName: data.groupName ?? null,
     profileUserId: data.profileUserId ?? null,

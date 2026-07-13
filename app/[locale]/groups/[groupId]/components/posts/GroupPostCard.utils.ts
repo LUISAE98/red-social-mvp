@@ -57,16 +57,23 @@ export function formatRelativeDate(value?: { toDate?: () => Date } | null, local
   const diffMonths = Math.floor(diffDays / 30);
   const diffYears = Math.floor(diffDays / 365);
 
-  const rtf = new Intl.RelativeTimeFormat(locale, { numeric: "auto" });
+  const rtf = new Intl.RelativeTimeFormat(locale, { numeric: "always" });
 
-  if (diffSeconds < 30) return rtf.format(0, "second");
-  if (diffSeconds < 60) return rtf.format(-diffSeconds, "second");
-  if (diffMinutes < 60) return rtf.format(-diffMinutes, "minute");
-  if (diffHours < 24) return rtf.format(-diffHours, "hour");
-  if (diffDays < 7) return rtf.format(-diffDays, "day");
-  if (diffWeeks < 5) return rtf.format(-diffWeeks, "week");
-  if (diffMonths < 12) return rtf.format(-diffMonths, "month");
-  return rtf.format(-diffYears, "year");
+  const capitalize = (text: string) =>
+    text ? `${text.charAt(0).toUpperCase()}${text.slice(1)}` : text;
+
+  let relative: string;
+  if (diffSeconds < 30)
+    relative = new Intl.RelativeTimeFormat(locale, { numeric: "auto" }).format(0, "second");
+  else if (diffSeconds < 60) relative = rtf.format(-diffSeconds, "second");
+  else if (diffMinutes < 60) relative = rtf.format(-diffMinutes, "minute");
+  else if (diffHours < 24) relative = rtf.format(-diffHours, "hour");
+  else if (diffDays < 7) relative = rtf.format(-diffDays, "day");
+  else if (diffWeeks < 5) relative = rtf.format(-diffWeeks, "week");
+  else if (diffMonths < 12) relative = rtf.format(-diffMonths, "month");
+  else relative = rtf.format(-diffYears, "year");
+
+  return capitalize(relative);
 }
 
 export function formatScheduledLiveDate(

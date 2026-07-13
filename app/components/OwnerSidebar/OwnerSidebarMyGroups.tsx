@@ -1079,7 +1079,7 @@ if (scheduleConflict.hasConflict) {
       rows.map((row) => ({
         id: row.id,
         kind: "meet_greet" as const,
-        title: "Sesión en vivo",
+        title: "Tiempo contigo",
         groupId,
         groupName: groupNameById.get(groupId) ?? null,
         profileUserId: null,

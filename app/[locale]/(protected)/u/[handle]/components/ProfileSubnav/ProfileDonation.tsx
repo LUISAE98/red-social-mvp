@@ -53,6 +53,7 @@ type Props = {
   panelStyle: React.CSSProperties;
   titleStyle: React.CSSProperties;
   subtleStyle: React.CSSProperties;
+  descriptionStyle?: React.CSSProperties;
   inputStyle: React.CSSProperties;
   buttonSecondaryStyle: React.CSSProperties;
   SwitchComponent: React.ComponentType<SwitchProps>;
@@ -83,6 +84,7 @@ export default function ProfileDonation({
   panelStyle,
   titleStyle,
   subtleStyle,
+  descriptionStyle,
   inputStyle,
   buttonSecondaryStyle,
   SwitchComponent,
@@ -351,6 +353,7 @@ export default function ProfileDonation({
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
           <div style={{ display: "grid", gap: 2, minWidth: 0 }}>
             <span style={titleStyle}>{tProfile("donationTitle")}</span>
+            <span style={descriptionStyle ?? subtleStyle}>{tProfile("donationDesc")}</span>
           </div>
           <SwitchComponent
             checked={isEnabled}

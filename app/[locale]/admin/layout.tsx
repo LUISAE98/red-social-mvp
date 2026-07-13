@@ -61,9 +61,18 @@ export default function AdminLayout({
   }, [pathname]);
 
   async function handleSignOut() {
+    if (signingOut) return;
     setSigningOut(true);
-    await signOut(auth);
-    router.replace("/login");
+    // No dejar que signOut cuelgue la redirección; siempre mandamos a login.
+    try {
+      await Promise.race([
+        signOut(auth),
+        new Promise((resolve) => setTimeout(resolve, 1200)),
+      ]);
+    } catch (error) {
+      console.error("Error cerrando sesión en Firebase:", error);
+    }
+    window.location.replace("/login");
   }
 
   function handleSetPreviewUrl(url: string | null) {

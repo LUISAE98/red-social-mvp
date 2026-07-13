@@ -95,6 +95,11 @@ type Props = {
 
   customClassEmoji: string;
 
+  /** Muestra una descripción del servicio bajo el título (solo perfil). */
+  showDescription?: boolean;
+  /** Estilo para la descripción (solo perfil). */
+  descriptionStyle?: React.CSSProperties;
+
   panelStyle: React.CSSProperties;
   titleStyle: React.CSSProperties;
   subtleStyle: React.CSSProperties;
@@ -116,6 +121,8 @@ export default function CustomClass({
   draft,
   saving,
   customClassEmoji,
+  showDescription = false,
+  descriptionStyle,
   panelStyle,
   titleStyle,
   subtleStyle,
@@ -304,6 +311,9 @@ export default function CustomClass({
         >
           <div style={{ display: "grid", gap: 2, minWidth: 0 }}>
             <span style={titleStyle}>{customClassEmoji} {tServices("exclusiveSessionTitle")}</span>
+            {showDescription && (
+              <span style={descriptionStyle ?? subtleStyle}>{tServices("expSessionDesc")}</span>
+            )}
           </div>
 
           <SwitchComponent

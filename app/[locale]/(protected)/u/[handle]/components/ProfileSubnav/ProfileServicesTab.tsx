@@ -349,31 +349,39 @@ function Switch({
       onClick={() => !disabled && onChange(!checked)}
       disabled={disabled}
       aria-pressed={checked}
+      aria-label={label}
       title={label}
       style={{
-        width: 40,
-        height: 22,
+        position: "relative",
+        width: 36,
+        minWidth: 36,
+        maxWidth: 36,
+        height: 20,
+        minHeight: 20,
+        maxHeight: 20,
         borderRadius: 999,
-        border: "1px solid rgba(255,255,255,0.14)",
-        background: checked ? "#ffffff" : "rgba(255,255,255,0.08)",
-        padding: 2,
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: checked ? "flex-end" : "flex-start",
+        border: "1px solid rgba(255,255,255,0.18)",
+        background: checked
+          ? "linear-gradient(100deg, #a855ff, #4f46ff)"
+          : "rgba(255,255,255,0.10)",
+        padding: 0,
         cursor: disabled ? "not-allowed" : "pointer",
         opacity: disabled ? 0.55 : 1,
-        transition: "all 160ms ease",
+        transition: "all 0.2s ease",
         flexShrink: 0,
+        boxSizing: "border-box",
       }}
     >
       <span
         style={{
-          width: 16,
-          height: 16,
+          position: "absolute",
+          top: 2,
+          left: checked ? 18 : 2,
+          width: 14,
+          height: 14,
           borderRadius: "50%",
-          background: checked ? "#000" : "#fff",
-          boxShadow: "0 2px 8px rgba(0,0,0,0.35)",
-          transition: "all 160ms ease",
+          background: "#fff",
+          transition: "all 0.2s ease",
         }}
       />
     </button>
@@ -723,16 +731,55 @@ export default function ProfileServicesTab({
     gap: 9,
   };
 
+  // Panel con la misma imagen de fondo que se usa al presentar cada servicio
+  // (ver CreatorExperiencesSection), sin contorno.
+  const makeServicePanelStyle = (
+    image: string,
+    position: string
+  ): React.CSSProperties => ({
+    ...panelStyle,
+    border: "none",
+    padding: "14px",
+    background: `linear-gradient(rgba(11,11,15,0.80), rgba(11,11,15,0.80)), url('${image}') ${position}/cover no-repeat`,
+  });
+
+  const saludoPanelStyle = makeServicePanelStyle("/saludo.png", "center 32%");
+  const consejoPanelStyle = makeServicePanelStyle("/consejo.png", "center 60%");
+  const meetGreetPanelStyle = makeServicePanelStyle(
+    "/encuentroenvivo.png",
+    "center 60%"
+  );
+  const customClassPanelStyle = makeServicePanelStyle(
+    "/sesionexclusiva.png",
+    "center 75%"
+  );
+  const donationPanelStyle = makeServicePanelStyle("/donacion.png", "center 50%");
+
+  // Panel sin imagen de fondo, para servicios aún no activados.
+  const plainPanelStyle: React.CSSProperties = {
+    ...panelStyle,
+    border: "none",
+    padding: "14px",
+    background: "transparent",
+  };
+
   const subtleStyle: React.CSSProperties = {
     fontSize: 11,
     color: "rgba(255,255,255,0.56)",
     lineHeight: 1.35,
   };
 
+  // Descripción de cada experiencia: más legible que subtleStyle.
+  const descriptionStyle: React.CSSProperties = {
+    fontSize: 12.5,
+    color: "rgba(255,255,255,0.82)",
+    lineHeight: 1.4,
+  };
+
   const titleStyle: React.CSSProperties = {
-    fontSize: 12,
+    fontSize: 15,
     color: "#fff",
-    fontWeight: 700,
+    fontWeight: 500,
   };
 
   const inputStyle: React.CSSProperties = {
@@ -842,7 +889,7 @@ export default function ProfileServicesTab({
           Number.isNaN(meetGreetPriceNum) ||
           meetGreetPriceNum <= 0)
       ) {
-        setErr("❌ Precio inválido para sesión en vivo.");
+        setErr("❌ Precio inválido para Tiempo contigo.");
         return;
       }
 
@@ -864,7 +911,7 @@ export default function ProfileServicesTab({
           !Number.isInteger(meetGreetDurationNum))
       ) {
         setErr(
-          "❌ Debes definir una duración válida en minutos para sesión en vivo."
+          "❌ Debes definir una duración válida en minutos para Tiempo contigo."
         );
         return;
       }
@@ -1050,11 +1097,26 @@ export default function ProfileServicesTab({
 
   return (
     <div style={contentStyle}>
+      <h2
+        style={{
+          margin: 0,
+          fontSize: 16,
+          fontWeight: 600,
+          lineHeight: 1.2,
+          color: "#fff",
+          fontFamily: fontStack,
+        }}
+      >
+        Configura tus experiencias
+      </h2>
+
       <Greetings
         draft={draft}
         saving={saving}
         saludoEmoji={SERVICE_EMOJIS.saludo}
-        panelStyle={panelStyle}
+        showDescription
+        descriptionStyle={descriptionStyle}
+        panelStyle={draft.saludo.enabled ? saludoPanelStyle : plainPanelStyle}
         titleStyle={titleStyle}
         subtleStyle={subtleStyle}
         inputStyle={inputStyle}
@@ -1070,7 +1132,9 @@ export default function ProfileServicesTab({
         draft={draft}
         saving={saving}
         consejoEmoji={SERVICE_EMOJIS.consejo}
-        panelStyle={panelStyle}
+        showDescription
+        descriptionStyle={descriptionStyle}
+        panelStyle={draft.consejo.enabled ? consejoPanelStyle : plainPanelStyle}
         titleStyle={titleStyle}
         subtleStyle={subtleStyle}
         inputStyle={inputStyle}
@@ -1086,7 +1150,9 @@ export default function ProfileServicesTab({
         draft={draft}
         saving={saving}
         meetGreetEmoji={SERVICE_EMOJIS.meetGreet}
-        panelStyle={panelStyle}
+        showDescription
+        descriptionStyle={descriptionStyle}
+        panelStyle={draft.meetGreet.enabled ? meetGreetPanelStyle : plainPanelStyle}
         titleStyle={titleStyle}
         subtleStyle={subtleStyle}
         inputStyle={inputStyle}
@@ -1102,7 +1168,9 @@ export default function ProfileServicesTab({
         draft={draft}
         saving={saving}
         customClassEmoji={SERVICE_EMOJIS.customClass}
-        panelStyle={panelStyle}
+        showDescription
+        descriptionStyle={descriptionStyle}
+        panelStyle={draft.customClass.enabled ? customClassPanelStyle : plainPanelStyle}
         titleStyle={titleStyle}
         subtleStyle={subtleStyle}
         inputStyle={inputStyle}
@@ -1118,7 +1186,8 @@ export default function ProfileServicesTab({
         draft={draft}
         saving={saving}
         profileUserId={profileUserId}
-        panelStyle={panelStyle}
+        panelStyle={draft.donationMode !== "none" ? donationPanelStyle : plainPanelStyle}
+        descriptionStyle={descriptionStyle}
         titleStyle={titleStyle}
         subtleStyle={subtleStyle}
         inputStyle={inputStyle}

@@ -855,20 +855,20 @@ export default function PublicProfileLayout({
 }) {
   const { user, loading, authTransitionMode } = useAuth();
 
-  if (authTransitionMode === "exiting") {
+  // Hasta que el componente monte en el cliente, el estado de sesión aún no
+  // está resuelto (Firebase Auth resuelve async). Si decidiéramos el shell
+  // público vs. autenticado en el primer render, el HTML del servidor no
+  // coincidiría con el del cliente → error de hidratación. Renderizamos el
+  // mismo placeholder neutro hasta montar; luego ya ramificamos con seguridad.
+  // No cambia la lógica de autenticación.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted || authTransitionMode === "exiting" || loading) {
     return <div style={{ minHeight: "100dvh", background: "#000" }} />;
   }
-
-if (loading) {
-  return (
-    <div
-      style={{
-        minHeight: "100dvh",
-        background: "#000",
-      }}
-    />
-  );
-}
 
   if (user) {
     return <AuthenticatedProfileShell>{children}</AuthenticatedProfileShell>;

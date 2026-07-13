@@ -430,7 +430,7 @@ async function assertNoCreatorScheduleConflict(params: {
     {
       name: MEET_GREET_COLLECTION,
       currentRequestBelongsHere: false,
-      conflictLabel: "una sesión en vivo",
+      conflictLabel: "una Tiempo contigo",
     },
   ];
 

@@ -28,7 +28,7 @@ export function typeLabel(t: string) {
   if (t === "saludo") return "Saludo";
   if (t === "consejo") return "Consejo";
   if (t === "mensaje") return "Mensaje";
-  if (t === "meet_greet_digital") return "Sesión en vivo";
+  if (t === "meet_greet_digital") return "Tiempo contigo";
   if (t === "clase_personalizada") return "Sesión exclusiva";
   if (t === "exclusive_session") return "Sesión exclusiva";
   if (t === "digital_exclusive_session") return "Sesión exclusiva";

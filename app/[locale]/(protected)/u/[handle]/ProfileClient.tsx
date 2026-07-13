@@ -71,6 +71,7 @@ import { clearAllPostFeedCaches } from "@/lib/posts/post-feed-cache";
 import RefreshableArea from "@/components/refresh/RefreshableArea";
 import type { Post, PostMedia, PostPremium } from "@/lib/posts/types";
 import dynamic from "next/dynamic";
+import { motion } from "framer-motion";
 import StoryCircles from "@/app/components/Stories/StoryCircles";
 import { useStoryRingState } from "@/lib/stories/useStoryRingState";
 import { recordStoryView } from "@/lib/stories/storyService";
@@ -168,6 +169,15 @@ type BlockStatusEntry = {
 const blockStatusCache = new Map<string, BlockStatusEntry>();
 // ──────────────────────────────────────────────────────────────────────────────
 
+// ─── Orden de pestañas para animar el slide del subnav (misma UX que Wallet) ──
+const PROFILE_TAB_ORDER: Record<ProfileTabKey, number> = {
+  posts: 0,
+  groups: 1,
+  services: 2,
+  settings: 3,
+};
+// ──────────────────────────────────────────────────────────────────────────────
+
 export default function ProfileClient() {
   const tProfile = useTranslations("profile");
   const tCommon = useTranslations("common");
@@ -257,6 +267,18 @@ export default function ProfileClient() {
       window.scrollTo({ top: tabSwitchScrollY.current, behavior: "instant" });
       tabSwitchScrollY.current = null;
     }
+  }, [activeTab]);
+
+  // Dirección del slide entre pestañas (misma UX que Wallet):
+  // +1 = la pestaña nueva entra desde la derecha, -1 = desde la izquierda.
+  const prevTabRef = useRef<ProfileTabKey>(activeTab);
+  const tabSlideDirection = useMemo(() => {
+    const prev = prevTabRef.current;
+    if (prev === activeTab) return 0;
+    return PROFILE_TAB_ORDER[activeTab] > PROFILE_TAB_ORDER[prev] ? 1 : -1;
+  }, [activeTab]);
+  useEffect(() => {
+    prevTabRef.current = activeTab;
   }, [activeTab]);
 
   const [donationViewerOpen, setDonationViewerOpen] = useState(false);
@@ -2176,6 +2198,20 @@ await createExclusiveSessionRequest({
           )}
 
           <div className="profile-tab-content" style={styles.tabContentWrap}>
+            <motion.div
+              key={activeTab}
+              initial={{
+                x:
+                  tabSlideDirection > 0
+                    ? "100%"
+                    : tabSlideDirection < 0
+                      ? "-100%"
+                      : 0,
+              }}
+              animate={{ x: 0 }}
+              transition={{ type: "spring", stiffness: 320, damping: 32, mass: 0.9 }}
+              style={{ width: "100%", minWidth: 0 }}
+            >
             {!shouldHideProfileSocialContent &&
               (isOwner || showPostsTab || isProfileRestrictedForVisitor) &&
               activeTab === "posts" && (
@@ -2315,7 +2351,18 @@ await createExclusiveSessionRequest({
             {activeTab === "services" && isOwner && (
 <section
   className="profile-tab-panel"
-  style={{ ...styles.tabPlaceholder, marginTop: 8 }}
+  style={{
+    ...styles.tabPlaceholder,
+    border: "none",
+    background: "transparent",
+    boxShadow: "none",
+    backdropFilter: "none",
+    WebkitBackdropFilter: "none",
+    borderRadius: 0,
+    overflow: "visible",
+    padding: 0,
+    marginTop: 8,
+  }}
 >
                 <ProfileServicesTab
   profileUserId={userDoc.uid}
@@ -2369,6 +2416,7 @@ await createExclusiveSessionRequest({
 />
               </section>
             )}
+            </motion.div>
           </div>
 
           <input

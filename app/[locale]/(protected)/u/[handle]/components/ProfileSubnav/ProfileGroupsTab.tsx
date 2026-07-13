@@ -9,6 +9,7 @@ import Link from "next/link";
 import {
   collection,
   doc,
+  getCountFromServer,
   getDocs,
   limit,
   query,
@@ -84,40 +85,36 @@ function Switch({
       aria-label={label}
       title={label}
       style={{
-        width: 40,
-        minWidth: 40,
-        maxWidth: 40,
-        height: 22,
-        minHeight: 22,
-        maxHeight: 22,
+        position: "relative",
+        width: 36,
+        minWidth: 36,
+        maxWidth: 36,
+        height: 20,
+        minHeight: 20,
+        maxHeight: 20,
         borderRadius: 999,
-        border: "1px solid rgba(255,255,255,0.14)",
-        background: checked ? "#ffffff" : "rgba(255,255,255,0.08)",
-        padding: 2,
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: checked ? "flex-end" : "flex-start",
+        border: "1px solid rgba(255,255,255,0.18)",
+        background: checked
+          ? "linear-gradient(100deg, #a855ff, #4f46ff)"
+          : "rgba(255,255,255,0.10)",
+        padding: 0,
         cursor: disabled ? "not-allowed" : "pointer",
         opacity: disabled ? 0.55 : 1,
-        transition: "all 160ms ease",
+        transition: "all 0.2s ease",
         flexShrink: 0,
         boxSizing: "border-box",
-        overflow: "hidden",
       }}
     >
       <span
         style={{
-          width: 16,
-          minWidth: 16,
-          maxWidth: 16,
-          height: 16,
-          minHeight: 16,
-          maxHeight: 16,
+          position: "absolute",
+          top: 2,
+          left: checked ? 18 : 2,
+          width: 14,
+          height: 14,
           borderRadius: "50%",
-          background: checked ? "#000" : "#fff",
-          boxShadow: "0 2px 8px rgba(0,0,0,0.35)",
-          transition: "all 160ms ease",
-          flexShrink: 0,
+          background: "#fff",
+          transition: "all 0.2s ease",
         }}
       />
     </button>
@@ -146,12 +143,10 @@ export default function ProfileGroupsTab({
 
   const wrapStyle: CSSProperties = {
     marginTop: 12,
-    borderRadius: 18,
-    border: "1px solid rgba(255,255,255,0.16)",
-    background: "rgba(12,12,12,0.92)",
-    boxShadow: "0 18px 48px rgba(0,0,0,0.55)",
-    backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)",
-    padding: 16,
+    border: "none",
+    background: "transparent",
+    boxShadow: "none",
+    padding: 0,
     color: "#fff",
     fontFamily: fontStack,
     overflow: "hidden",
@@ -181,6 +176,22 @@ export default function ProfileGroupsTab({
       if (!isOwner && !canViewerSeeGroups) {
         setGroups([]);
         setMsg(tGroups("profileHidden"));
+        setLoading(false);
+        return;
+      }
+
+      // Cache fresco (dentro del TTL): mostramos lo cacheado y evitamos
+      // re-consultar en cada cambio de pestaña, igual que la wallet.
+      const cached = peekGroups(cacheKey);
+      if (cached) {
+        setGroups(cached);
+        setMsg(
+          cached.length
+            ? null
+            : isOwner
+              ? tGroups("noVisibleOwn")
+              : tGroups("noVisibleOther")
+        );
         setLoading(false);
         return;
       }
@@ -230,6 +241,22 @@ export default function ProfileGroupsTab({
           })
           .filter((g) => !!g.name && (isOwner || g.visibility !== "hidden"))
           .sort((a, b) => a.name.localeCompare(b.name, "es"));
+
+        // Conteo real de miembros por comunidad (subcolección members).
+        await Promise.all(
+          next.map(async (g) => {
+            try {
+              const countSnap = await getCountFromServer(
+                collection(db, "groups", g.id, "members")
+              );
+              g.memberCount = countSnap.data().count;
+            } catch {
+              // Si falla el conteo, dejamos memberCount como venía del doc.
+            }
+          })
+        );
+
+        if (cancelled) return;
 
         groupsCache.set(cacheKey, { groups: next, cachedAt: Date.now() });
         setGroups(next);
@@ -294,7 +321,7 @@ export default function ProfileGroupsTab({
       <style jsx>{`
         .profile-groups-grid {
           display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+          grid-template-columns: repeat(3, minmax(0, 1fr));
           gap: 16px;
           align-items: start;
           width: 100%;
@@ -316,7 +343,7 @@ export default function ProfileGroupsTab({
           max-width: 320px;
           margin: 0 auto;
           aspect-ratio: 1 / 1;
-          border: 1px solid rgba(255, 255, 255, 0.1);
+          border: none;
           background: #0d0d0f;
           border-radius: 22px;
           overflow: hidden;
@@ -333,10 +360,10 @@ export default function ProfileGroupsTab({
             "desc desc";
           column-gap: 16px;
           row-gap: 8px;
-          padding: 14px;
+          padding: 14px 0;
           border-radius: 14px;
-          border: 1px solid rgba(255,255,255,0.10);
-          background: rgba(255,255,255,0.03);
+          border: none;
+          background: transparent;
           width: 100%;
           min-width: 0;
           box-sizing: border-box;
@@ -437,12 +464,38 @@ export default function ProfileGroupsTab({
               <div
                 className="profile-groups-visibility-description"
                 style={{
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: 8,
                   fontSize: 12,
                   lineHeight: 1.45,
                   color: "rgba(255,255,255,0.70)",
                 }}
               >
-                {tGroups("visibilityToggleHint")}
+                <svg
+                  width={16}
+                  height={16}
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  aria-hidden="true"
+                  style={{ flexShrink: 0, marginTop: 1 }}
+                >
+                  <circle
+                    cx="12"
+                    cy="12"
+                    r="9"
+                    stroke="#a855ff"
+                    strokeWidth="2"
+                  />
+                  <circle cx="12" cy="8" r="1.25" fill="#a855ff" />
+                  <path
+                    d="M12 11.25v5"
+                    stroke="#a855ff"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                  />
+                </svg>
+                <span>{tGroups("visibilityToggleHint")}</span>
               </div>
             </div>
           )}
@@ -556,7 +609,6 @@ export default function ProfileGroupsTab({
                           borderRadius: "50%",
                           overflow: "hidden",
                           background: "#111",
-                          border: "3px solid rgba(0,0,0,0.92)",
                           boxShadow: "0 10px 24px rgba(0,0,0,0.40)",
                           display: "grid",
                           placeItems: "center",
@@ -594,7 +646,7 @@ export default function ProfileGroupsTab({
                         <div
                           style={{
                             fontSize: 16,
-                            fontWeight: 700,
+                            fontWeight: 600,
                             lineHeight: 1.2,
                             color: "#fff",
                             maxWidth: "100%",
@@ -613,6 +665,23 @@ export default function ProfileGroupsTab({
                         >
                           {tGroups(getVisibilityKey(group.visibility))}
                         </div>
+
+                        {typeof group.memberCount === "number" && (
+                          <div
+                            style={{
+                              fontSize: 13,
+                              fontWeight: 600,
+                              lineHeight: 1.2,
+                              color: "rgba(255,255,255,0.85)",
+                            }}
+                          >
+                            {group.memberCount}{" "}
+                            {group.memberCount === 1
+                              ? tGroups("member")
+                              : tGroups("members")}
+                          </div>
+                        )}
+
                       </div>
                     </div>
 

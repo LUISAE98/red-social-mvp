@@ -95,6 +95,14 @@ type Props = {
 
   meetGreetEmoji: string;
 
+  /** Muestra una descripción del servicio bajo el título (solo perfil). */
+  showDescription?: boolean;
+  /** Estilo para la descripción (solo perfil). */
+  descriptionStyle?: React.CSSProperties;
+
+  /** Título alternativo para el servicio (solo perfil). */
+  titleOverride?: string;
+
   panelStyle: React.CSSProperties;
   titleStyle: React.CSSProperties;
   subtleStyle: React.CSSProperties;
@@ -116,6 +124,9 @@ export default function MeetGreet({
   draft,
   saving,
   meetGreetEmoji,
+  showDescription = false,
+  descriptionStyle,
+  titleOverride,
   panelStyle,
   titleStyle,
   subtleStyle,
@@ -303,7 +314,10 @@ export default function MeetGreet({
           }}
         >
           <div style={{ display: "grid", gap: 2, minWidth: 0 }}>
-            <span style={titleStyle}>{meetGreetEmoji} {tServices("liveSessionTitle")}</span>
+            <span style={titleStyle}>{meetGreetEmoji} {titleOverride ?? tServices("liveSessionTitle")}</span>
+            {showDescription && (
+              <span style={descriptionStyle ?? subtleStyle}>{tServices("expMeetGreetDesc")}</span>
+            )}
           </div>
 
           <SwitchComponent

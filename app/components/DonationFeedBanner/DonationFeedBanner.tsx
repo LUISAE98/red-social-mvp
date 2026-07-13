@@ -8,6 +8,8 @@ import { useTranslations } from "next-intl";
 import { getMutePreference, setMutePreference } from "@/lib/utils/mutePreference";
 import { createProfileDonation } from "@/lib/donations/profileDonations";
 import { registrarCompraGeo } from "@/lib/wallet/registrarCompraGeo";
+import { useVibraToast } from "@/lib/hooks/useVibraToast";
+import VibraToast from "@/app/components/VibraToast/VibraToast";
 import DonationPanel from "./DonationPanel";
 
 type Props = {
@@ -27,6 +29,8 @@ type Props = {
   /** Creador que recibe la donación y comprador que la hace (para persistirla). */
   creatorId?: string | null;
   buyerId?: string | null;
+  /** El que ve el banner es el dueño/creador: no puede contribuirse a sí mismo. */
+  viewerIsCreator?: boolean;
 };
 
 type VideoDimensions = { w: number; h: number } | null;
@@ -44,9 +48,22 @@ export default function DonationFeedBanner({
   donationMode, goalLabel,
   expanded, onClose, onDonate, onClick,
   suggestedAmounts, currency,
-  creatorId, buyerId,
+  creatorId, buyerId, viewerIsCreator,
 }: Props) {
   const tCommon = useTranslations("common");
+  const { toast, showToast } = useVibraToast();
+  // No se puede hacer una contribución a uno mismo (ej. el dueño de la comunidad
+  // o el propio creador del perfil).
+  const isSelfContribution =
+    viewerIsCreator === true ||
+    (!!creatorId && !!buyerId && creatorId === buyerId);
+  const handleContributeClick = useCallback(() => {
+    if (isSelfContribution) {
+      showToast(tCommon("ownContributionError"), "error");
+      return;
+    }
+    setDonationPanelOpen(true);
+  }, [isSelfContribution, showToast, tCommon]);
   const [dims, setDims] = useState<VideoDimensions>(null);
   const [muted, setMuted] = useState(true);
   const [videoReady, setVideoReady] = useState(false);
@@ -367,7 +384,7 @@ export default function DonationFeedBanner({
         </div>
         <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: "40%", background: "linear-gradient(to top, rgba(0,0,0,0.85) 0%, transparent 100%)", pointerEvents: "none", zIndex: 8 }} />
         <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "0 14px", paddingBottom: btnPadBottom, zIndex: 10 }}>
-          <button type="button" onTouchStart={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); setDonationPanelOpen(true); }}
+          <button type="button" onTouchStart={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); handleContributeClick(); }}
             style={{ width: "100%", padding: sz === 20 ? "8px 10px" : "11px 10px", borderRadius: 10, border: "none", background: "#ec4899", color: "#fff", fontSize: sz === 20 ? 12 : 14, fontWeight: 600, cursor: "pointer", letterSpacing: "-0.01em", display: "flex", alignItems: "center", justifyContent: "center", gap: 7 }}
           >
             <svg width={sz === 20 ? 12 : 14} height={sz === 20 ? 12 : 14} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" style={{ flexShrink: 0 }}>
@@ -479,7 +496,7 @@ export default function DonationFeedBanner({
         </span>
       </div>
       <button type="button"
-        onClick={(e) => { e.stopPropagation(); setDonationPanelOpen(true); }}
+        onClick={(e) => { e.stopPropagation(); handleContributeClick(); }}
         style={{ width: "86%", padding: "10px 0", justifyContent: "center", borderRadius: 10, border: "none", background: "#ec4899", color: "#fff", fontSize: 14, fontWeight: 600, letterSpacing: "-0.01em", cursor: "pointer", fontFamily: "inherit", WebkitTapHighlightColor: "transparent", display: "flex", alignItems: "center", gap: 7 }}
       >
         <svg width="16" height="16" viewBox="0 0 24 24" fill="white">
@@ -492,6 +509,7 @@ export default function DonationFeedBanner({
 
   return (
     <>
+      <VibraToast toast={toast} />
       <DonationPanel
         open={donationPanelOpen}
         onClose={() => setDonationPanelOpen(false)}

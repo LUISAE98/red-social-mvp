@@ -1511,7 +1511,7 @@ export default function OwnerAdminServices({
           Number.isNaN(meetGreetPriceNum) ||
           meetGreetPriceNum <= 0)
       ) {
-        setErr("❌ Precio inválido para sesión en vivo.");
+        setErr("❌ Precio inválido para Tiempo contigo.");
         return;
       }
 
@@ -1533,7 +1533,7 @@ export default function OwnerAdminServices({
           !Number.isInteger(meetGreetDurationNum))
       ) {
         setErr(
-          "❌ Debes definir una duración válida en minutos para sesión en vivo."
+          "❌ Debes definir una duración válida en minutos para Tiempo contigo."
         );
         return;
       }

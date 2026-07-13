@@ -59,6 +59,10 @@ type EnrichedMember = MemberDoc & {
   photoURL: string | null;
 };
 
+// Cache a nivel de módulo: sobrevive al cambio de pestaña para no mostrar
+// spinner ni recargar visualmente al volver a "Integrantes" (misma UX que Wallet).
+const membersMemoryCache = new Map<string, EnrichedMember[]>();
+
 type FilterValue =
   | "all"
   | "active"
@@ -290,8 +294,10 @@ export default function GroupMembersTab({
     return member.displayName?.trim() || member.handle?.trim() || tGroups("memberNoName");
   }
 
-  const [members, setMembers] = useState<EnrichedMember[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [members, setMembers] = useState<EnrichedMember[]>(
+    () => membersMemoryCache.get(groupId) ?? []
+  );
+  const [loading, setLoading] = useState(() => !membersMemoryCache.has(groupId));
   const [error, setError] = useState<string | null>(null);
   const { toast: membersToast, showToast: showMembersToast } = useVibraToast();
   useEffect(() => { if (error) showMembersToast(error, "error"); }, [error]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -415,7 +421,11 @@ export default function GroupMembersTab({
       return;
     }
 
-    setLoading(true);
+    // Con cache disponible mostramos los datos guardados sin spinner; el
+    // onSnapshot refresca en segundo plano.
+    if (!membersMemoryCache.has(groupId)) {
+      setLoading(true);
+    }
     setError(null);
 
     const membersRef = collection(db, "groups", groupId, "members");
@@ -483,6 +493,7 @@ export default function GroupMembersTab({
             })
           );
 
+          membersMemoryCache.set(groupId, enriched);
           setMembers(enriched);
           setLoading(false);
         } catch (e: unknown) {

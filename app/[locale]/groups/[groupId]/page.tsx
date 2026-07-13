@@ -8,11 +8,13 @@ import OwnerAdminServices from "./components/owner-admin-panel/OwnerAdminService
 import { collection, doc, getCountFromServer, updateDoc } from "firebase/firestore";
 import {
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
   useCallback,
 } from "react";
+import { motion } from "framer-motion";
 import { createPortal } from "react-dom";
 import { useLocale, useTranslations } from "next-intl";
 import {
@@ -114,6 +116,16 @@ import {
   type GroupDoc,
   formatDeletedAt,
 } from "./page.utils";
+
+// ─── Orden de pestañas para animar el slide del subnav (misma UX que Wallet) ──
+type GroupTabKey = "feed" | "members" | "services" | "settings";
+const GROUP_TAB_ORDER: Record<GroupTabKey, number> = {
+  feed: 0,
+  members: 1,
+  services: 2,
+  settings: 3,
+};
+// ──────────────────────────────────────────────────────────────────────────────
 
 export default function GroupPage() {
   const params = useParams<{ groupId: string }>();
@@ -518,9 +530,33 @@ const canRequestMeetGreet =
 
   const [groupDonationViewerOpen, setGroupDonationViewerOpen] = useState(false);
 
-  const [activeTab, setActiveTab] = useState<"feed" | "members" | "services" | "settings">(
-  "feed"
-);
+  const [activeTab, setActiveTab] = useState<GroupTabKey>("feed");
+
+  // Cambio de pestaña preservando el scroll (misma UX que Wallet/Perfil).
+  const tabSwitchScrollY = useRef<number | null>(null);
+  const handleTabChange = useCallback((tab: GroupTabKey) => {
+    tabSwitchScrollY.current = window.scrollY;
+    setActiveTab(tab);
+  }, []);
+
+  useLayoutEffect(() => {
+    if (tabSwitchScrollY.current !== null) {
+      window.scrollTo({ top: tabSwitchScrollY.current, behavior: "instant" });
+      tabSwitchScrollY.current = null;
+    }
+  }, [activeTab]);
+
+  // Dirección del slide entre pestañas:
+  // +1 = la pestaña nueva entra desde la derecha, -1 = desde la izquierda.
+  const prevTabRef = useRef<GroupTabKey>(activeTab);
+  const tabSlideDirection = useMemo(() => {
+    const prev = prevTabRef.current;
+    if (prev === activeTab) return 0;
+    return GROUP_TAB_ORDER[activeTab] > GROUP_TAB_ORDER[prev] ? 1 : -1;
+  }, [activeTab]);
+  useEffect(() => {
+    prevTabRef.current = activeTab;
+  }, [activeTab]);
 
   const [uploading, setUploading] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement | null>(null);
@@ -2390,13 +2426,30 @@ const avatarNode = (
             <div className="group-subnav-wrap" style={{ marginTop: 12 }}>
               <GroupSubnav
                 activeTab={activeTab}
-                onChange={setActiveTab}
+                onChange={handleTabChange}
                 canManage={isOwner}
               />
             </div>
           )}
 
-          <div className="group-tab-content" style={{ width: "100%", minWidth: 0 }}>
+          <div
+            className="group-tab-content"
+            style={{ width: "100%", minWidth: 0, overflow: "hidden" }}
+          >
+            <motion.div
+              key={activeTab}
+              initial={{
+                x:
+                  tabSlideDirection > 0
+                    ? "100%"
+                    : tabSlideDirection < 0
+                      ? "-100%"
+                      : 0,
+              }}
+              animate={{ x: 0 }}
+              transition={{ type: "spring", stiffness: 320, damping: 32, mass: 0.9 }}
+              style={{ width: "100%", minWidth: 0 }}
+            >
             {activeTab === "feed" && (
               <section className="group-tab-panel group-feed-wrap" style={{ marginTop: 12 }}>
                 {normalizedCurrentDonation?.mode === "general" && normalizedCurrentDonation?.enabled === true && normalizedCurrentDonation?.visible !== false && (
@@ -2413,6 +2466,7 @@ const avatarNode = (
                       onClose={() => setGroupDonationViewerOpen(false)}
                       suggestedAmounts={normalizedCurrentDonation.suggestedAmounts ?? null}
                       currency={normalizedCurrentDonation.currency ?? null}
+                      viewerIsCreator={isOwner}
                     />
                   </div>
                 )}
@@ -2500,6 +2554,7 @@ const avatarNode = (
                 />
               </section>
             )}
+            </motion.div>
           </div>
 
           <input
