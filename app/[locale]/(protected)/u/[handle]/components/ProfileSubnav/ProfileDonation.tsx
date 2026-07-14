@@ -6,6 +6,7 @@ import { doc, onSnapshot } from "firebase/firestore";
 import { httpsCallable } from "firebase/functions";
 import { db, functions } from "@/lib/firebase";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
+import ServiceInfoIcon from "@/components/services/ServiceInfoIcon";
 
 type Currency = "MXN" | "USD";
 type DonationMode = "none" | "general" | "wedding";
@@ -26,6 +27,7 @@ type SwitchProps = {
   onChange: (next: boolean) => void;
   disabled?: boolean;
   label?: string;
+  activeColor?: string;
 };
 
 type ModeButtonProps = {
@@ -54,6 +56,8 @@ type Props = {
   titleStyle: React.CSSProperties;
   subtleStyle: React.CSSProperties;
   descriptionStyle?: React.CSSProperties;
+  /** Color de acento (vino); activa el ícono info y oculta el emoji cuando está inactivo. */
+  accentColor?: string;
   inputStyle: React.CSSProperties;
   buttonSecondaryStyle: React.CSSProperties;
   SwitchComponent: React.ComponentType<SwitchProps>;
@@ -85,6 +89,7 @@ export default function ProfileDonation({
   titleStyle,
   subtleStyle,
   descriptionStyle,
+  accentColor,
   inputStyle,
   buttonSecondaryStyle,
   SwitchComponent,
@@ -351,12 +356,26 @@ export default function ProfileDonation({
     <>
       <div style={panelStyle}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-          <div style={{ display: "grid", gap: 2, minWidth: 0 }}>
-            <span style={titleStyle}>{tProfile("donationTitle")}</span>
-            <span style={descriptionStyle ?? subtleStyle}>{tProfile("donationDesc")}</span>
+          <div style={{ display: "grid", gap: 8, minWidth: 0 }}>
+            <span style={titleStyle}>
+              {accentColor && !isEnabled
+                ? tProfile("donationTitle").replace(/^[^\p{L}]+/u, "")
+                : tProfile("donationTitle")}
+            </span>
+            <span
+              style={
+                accentColor && !isEnabled
+                  ? { ...(descriptionStyle ?? subtleStyle), display: "flex", alignItems: "flex-start", gap: 6 }
+                  : (descriptionStyle ?? subtleStyle)
+              }
+            >
+              {accentColor && !isEnabled ? <ServiceInfoIcon color={accentColor} /> : null}
+              <span>{tProfile("donationDesc")}</span>
+            </span>
           </div>
           <SwitchComponent
             checked={isEnabled}
+            activeColor={accentColor}
             disabled={isBusy}
             onChange={(next) => { void handleToggle(next); }}
             label={tProfile("donationEnableLabel")}

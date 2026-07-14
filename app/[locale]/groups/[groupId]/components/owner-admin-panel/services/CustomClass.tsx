@@ -3,6 +3,8 @@
 import React, { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
+import ServiceInfoIcon from "@/components/services/ServiceInfoIcon";
+import ServiceFeaturePreview from "@/components/services/ServiceFeaturePreview";
 
 type Currency = "MXN" | "USD";
 
@@ -76,6 +78,7 @@ type SwitchProps = {
   onChange: (next: boolean) => void;
   disabled?: boolean;
   label?: string;
+  activeColor?: string;
 };
 
 type OverlayModalProps = {
@@ -94,6 +97,8 @@ type Props = {
   saving: boolean;
 
   customClassEmoji: string;
+  /** Color de acento del servicio; activa el ícono info y oculta el emoji cuando está inactivo (solo perfil). */
+  accentColor?: string;
 
   /** Muestra una descripción del servicio bajo el título (solo perfil). */
   showDescription?: boolean;
@@ -121,6 +126,7 @@ export default function CustomClass({
   draft,
   saving,
   customClassEmoji,
+  accentColor,
   showDescription = false,
   descriptionStyle,
   panelStyle,
@@ -309,15 +315,28 @@ export default function CustomClass({
             gap: 10,
           }}
         >
-          <div style={{ display: "grid", gap: 2, minWidth: 0 }}>
-            <span style={titleStyle}>{customClassEmoji} {tServices("exclusiveSessionTitle")}</span>
+          <div style={{ display: "grid", gap: 8, minWidth: 0 }}>
+            <span style={titleStyle}>
+              {!accentColor || draft.customClass.enabled ? `${customClassEmoji} ` : ""}
+              {tServices("exclusiveSessionTitle")}
+            </span>
             {showDescription && (
-              <span style={descriptionStyle ?? subtleStyle}>{tServices("expSessionDesc")}</span>
+              <span
+                style={
+                  accentColor && !draft.customClass.enabled
+                    ? { ...(descriptionStyle ?? subtleStyle), display: "flex", alignItems: "flex-start", gap: 6 }
+                    : (descriptionStyle ?? subtleStyle)
+                }
+              >
+                {accentColor && !draft.customClass.enabled ? <ServiceInfoIcon color={accentColor} /> : null}
+                <span>{tServices("expSessionDesc")}</span>
+              </span>
             )}
           </div>
 
           <SwitchComponent
             checked={draft.customClass.enabled}
+            activeColor={accentColor}
             disabled={isBusy}
             onChange={(next) => {
               void handleToggle(next);
@@ -325,6 +344,10 @@ export default function CustomClass({
             label={tServices("customClassActivateLabel")}
           />
         </div>
+
+        {accentColor && !draft.customClass.enabled ? (
+          <ServiceFeaturePreview service="customClass" accentColor={accentColor} />
+        ) : null}
 
         {renderSummary()}
       </div>

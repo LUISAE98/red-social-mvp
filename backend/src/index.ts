@@ -245,3 +245,6 @@ export { submitReport, claimReport, resolveReport } from "./moderation";
 
 // KYC — verificación de identidad con Didit (habilita retiros del creador)
 export { createKycSession, diditWebhook } from "./kyc";
+
+// Backfill de búsqueda de historias (corrida única, protegida por secret)
+export { backfillStoriesSearch } from "./storiesBackfill";

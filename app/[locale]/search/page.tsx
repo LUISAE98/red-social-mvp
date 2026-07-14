@@ -14,6 +14,7 @@ import { useAuth } from "@/app/providers";
 import SearchSubnav from "@/app/components/SearchToolbar/SearchSubnav";
 import SearchGroupsResults from "@/app/components/SearchToolbar/SearchGroupsResults";
 import SearchProfilesResults from "@/app/components/SearchToolbar/SearchProfilesResults";
+import SearchStoriesResults from "@/app/components/SearchToolbar/SearchStoriesResults";
 
 import type {
   CanonicalMemberStatus,
@@ -21,7 +22,7 @@ import type {
   PublicUser,
 } from "@/app/components/SearchToolbar/GroupsSearchPanel";
 
-type TabType = "groups" | "profiles" | "posts";
+type TabType = "groups" | "profiles" | "posts" | "stories";
 
 type ViewerGroupStateCacheEntry = {
   expiresAt: number;
@@ -216,7 +217,9 @@ function SearchPageContent() {
   const urlTab = searchParams.get("tab") as TabType | null;
 
   const [activeTab, setActiveTab] = useState<TabType>(
-    urlTab === "profiles" || urlTab === "posts" ? urlTab : "groups"
+    urlTab === "profiles" || urlTab === "posts" || urlTab === "stories"
+      ? urlTab
+      : "groups"
   );
 
   const [debouncedQuery, setDebouncedQuery] = useState("");
@@ -246,7 +249,12 @@ function SearchPageContent() {
   }, [user?.uid]);
 
   useEffect(() => {
-    if (urlTab === "groups" || urlTab === "profiles" || urlTab === "posts") {
+    if (
+      urlTab === "groups" ||
+      urlTab === "profiles" ||
+      urlTab === "posts" ||
+      urlTab === "stories"
+    ) {
       setActiveTab(urlTab);
     }
   }, [urlTab]);
@@ -484,6 +492,10 @@ function SearchPageContent() {
             currentUser={user}
             onNavigate={handleNavigate}
           />
+        )}
+
+        {activeTab === "stories" && (
+          <SearchStoriesResults search={debouncedQuery} />
         )}
       </section>
 

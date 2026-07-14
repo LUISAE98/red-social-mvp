@@ -371,7 +371,7 @@ export default function SessionCountdownBanner({ uid }: { uid: string }) {
   // ── Active session countdown (session exists) ──────────────────────────────
   const msLeft = session!.scheduledAt.getTime() - now;
   const isPastStart = msLeft <= 0;
-  const msLate = isPastStart ? Math.abs(msLeft) : 0;
+  const msLate = isPastStart ? Math.min(Math.abs(msLeft), 15 * 60 * 1000) : 0;
 
   // When startedAt is set, both joined LiveKit — switch to descending session timer
   const sessionInProgress = !!session!.startedAt;
@@ -404,12 +404,14 @@ export default function SessionCountdownBanner({ uid }: { uid: string }) {
     ? "Sesión en curso"
     : countdownFrozen
     ? "En sala"
+    : toleranceExpired
+    ? "Se acabó el tiempo"
     : otherIsLate
     ? `${creatorName} lleva de retraso`
     : isPastStart ? tServices("sessionLate") : tServices("sessionStartsIn");
   const countdownValue = sessionInProgress
     ? formatCountdown(msRemaining ?? 0)
-    : isPastStart ? formatCountdown(Math.abs(msLeft)) : formatCountdown(msLeft);
+    : isPastStart ? formatCountdown(msLate) : formatCountdown(msLeft);
 
   // Pre-session synchronized countdown
   const prepT0 =
@@ -502,43 +504,39 @@ export default function SessionCountdownBanner({ uid }: { uid: string }) {
 
           {/* Action area */}
           <div>
-            {reschedOpen ? (
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                <textarea
-                  value={reschedReason}
-                  onChange={(e) => setReschedReason(e.target.value)}
-                  placeholder="Motivo del cambio de fecha (opcional)"
-                  rows={2}
-                  style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.18)", borderRadius: 8, color: "#fff", fontSize: 13, padding: "8px 10px", resize: "none", fontFamily: "inherit", outline: "none", width: "100%", boxSizing: "border-box" }}
-                />
-                <div style={{ display: "flex", gap: 8 }}>
-                  <button type="button" onClick={handleReschedule} disabled={busy}
-                    style={{ flex: 1, height: 38, borderRadius: 8, border: "none", background: busy ? "rgba(255,255,255,0.10)" : "rgba(255,255,255,0.16)", color: busy ? "rgba(255,255,255,0.35)" : "#fff", fontSize: 14, fontWeight: 600, cursor: busy ? "not-allowed" : "pointer", fontFamily: "inherit" }}>
-                    {busy ? tCommon("processing") : "Confirmar reagenda"}
-                  </button>
-                  <button type="button" onClick={() => setReschedOpen(false)} disabled={busy}
-                    style={{ height: 38, paddingInline: 14, borderRadius: 8, border: "1px solid rgba(255,255,255,0.18)", background: "transparent", color: "rgba(255,255,255,0.60)", fontSize: 13, fontWeight: 500, cursor: "pointer", fontFamily: "inherit" }}>
-                    {tCommon("cancel")}
-                  </button>
-                </div>
-              </div>
-            ) : (
+            <div style={{ overflow: "hidden", maxHeight: reschedOpen ? 0 : "120px", opacity: reschedOpen ? 0 : 1, transition: "max-height 0.30s cubic-bezier(0.16,1,0.3,1), opacity 0.18s ease", pointerEvents: reschedOpen ? "none" : "auto" }}>
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 <div style={{ fontSize: 12, color: "#fb923c", lineHeight: 1.4, fontWeight: 500 }}>
                   La sesión no se realizó dentro del tiempo de tolerancia. ¿Qué quieres hacer?
                 </div>
                 <div style={{ display: "flex", gap: 8 }}>
                   <button type="button" onClick={() => setReschedOpen(true)} disabled={busy}
-                    style={{ flex: 1, height: 40, borderRadius: 8, border: "1px solid rgba(255,255,255,0.28)", background: "rgba(255,255,255,0.10)", color: "#fff", fontSize: 14, fontWeight: 600, cursor: busy ? "not-allowed" : "pointer", fontFamily: "inherit", letterSpacing: "-0.02em" }}>
+                    style={{ flex: 1, height: 36, borderRadius: 6, border: "none", background: session!.serviceKind === "meet_greet" ? "#2563eb" : "#be185d", color: "#fff", fontSize: 13, fontWeight: 600, cursor: busy ? "not-allowed" : "pointer", fontFamily: "inherit", opacity: busy ? 0.7 : 1 }}>
                     Reagendar
                   </button>
                   <button type="button" onClick={handleRefund} disabled={busy}
-                    style={{ flex: 1, height: 40, borderRadius: 8, border: "none", background: busy ? "rgba(255,255,255,0.10)" : "rgba(239,68,68,0.22)", color: busy ? "rgba(255,255,255,0.35)" : "#fca5a5", fontSize: 13, fontWeight: 600, cursor: busy ? "not-allowed" : "pointer", fontFamily: "inherit", letterSpacing: "-0.01em" }}>
+                    style={{ flex: 1, height: 36, borderRadius: 6, border: "none", background: "rgba(255,255,255,0.10)", color: "rgba(255,255,255,0.70)", fontSize: 13, fontWeight: 500, cursor: busy ? "not-allowed" : "pointer", fontFamily: "inherit", opacity: busy ? 0.7 : 1 }}>
                     {busy ? tCommon("processing") : "Solicitar devolución"}
                   </button>
                 </div>
               </div>
-            )}
+            </div>
+            <div style={{ overflow: "hidden", maxHeight: reschedOpen ? "280px" : 0, opacity: reschedOpen ? 1 : 0, transition: "max-height 0.30s cubic-bezier(0.16,1,0.3,1), opacity 0.18s ease", pointerEvents: reschedOpen ? "auto" : "none" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8, paddingTop: 2 }}>
+                <textarea value={reschedReason} onChange={(e) => setReschedReason(e.target.value)} placeholder="Motivo del cambio de fecha (opcional)" rows={3}
+                  style={{ width: "100%", boxSizing: "border-box", background: "rgba(255,255,255,0.06)", border: "none", borderRadius: 12, padding: "10px 12px", color: "#fff", fontSize: 13, fontFamily: "inherit", lineHeight: 1.5, resize: "none", outline: "none" }} />
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button type="button" onClick={handleReschedule} disabled={busy}
+                    style={{ flex: 1, height: 36, borderRadius: 6, border: "none", background: session!.serviceKind === "meet_greet" ? "#2563eb" : "#be185d", color: "#fff", fontSize: 13, fontWeight: 600, cursor: busy ? "not-allowed" : "pointer", fontFamily: "inherit", opacity: busy ? 0.7 : 1 }}>
+                    {busy ? tCommon("processing") : "Confirmar reagenda"}
+                  </button>
+                  <button type="button" onClick={() => setReschedOpen(false)} disabled={busy}
+                    style={{ flex: 1, height: 36, borderRadius: 6, border: "none", background: "rgba(255,255,255,0.10)", color: "rgba(255,255,255,0.70)", fontSize: 13, fontWeight: 500, cursor: "pointer", fontFamily: "inherit", opacity: busy ? 0.7 : 1 }}>
+                    {tCommon("cancel")}
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
 
           {completedSession && <CompletedDownloadSection completed={completedSession} now={now} />}
@@ -598,11 +596,11 @@ export default function SessionCountdownBanner({ uid }: { uid: string }) {
                 {countdownLabel}
               </div>
               {!countdownFrozen && (
-                <div style={{ fontSize: 22, fontWeight: 500, letterSpacing: "-0.03em", fontVariantNumeric: "tabular-nums", textShadow: "0 1px 8px rgba(0,0,0,0.5)", color: sessionInProgress ? (msRemaining != null && msRemaining <= 60000 ? "#ef4444" : msRemaining != null && msRemaining <= 300000 ? "#f59e0b" : "#4ade80") : isPastStart ? "#fb923c" : "#fff", ...(isPastStart && !sessionInProgress ? { animation: "session-late-pulse 1.6s ease-in-out infinite" } : {}) }}>
+                <div style={{ fontSize: 22, fontWeight: 500, letterSpacing: "-0.03em", fontVariantNumeric: "tabular-nums", textShadow: "0 1px 8px rgba(0,0,0,0.5)", color: sessionInProgress ? (msRemaining != null && msRemaining <= 60000 ? "#ef4444" : msRemaining != null && msRemaining <= 300000 ? "#f59e0b" : "#4ade80") : isPastStart ? "#fb923c" : "#fff", ...(isPastStart && !sessionInProgress && !toleranceExpired ? { animation: "session-late-pulse 1.6s ease-in-out infinite" } : {}) }}>
                   {countdownValue}
                 </div>
               )}
-              {isPastStart && !sessionInProgress && !countdownFrozen && (
+              {isPastStart && !sessionInProgress && !countdownFrozen && !toleranceExpired && (
                 <div style={{ fontSize: 10, color: "#fb923c", marginTop: 3, lineHeight: 1.3, opacity: 0.85 }}>
                   15 min de tolerancia
                 </div>
@@ -683,37 +681,42 @@ export default function SessionCountdownBanner({ uid }: { uid: string }) {
                   </button>
                 )}
               </>
-            ) : reschedOpen ? (
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                <textarea value={reschedReason} onChange={(e) => setReschedReason(e.target.value)} placeholder="Motivo del cambio de fecha (opcional)" rows={2}
-                  style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.18)", borderRadius: 8, color: "#fff", fontSize: 13, padding: "8px 10px", resize: "none", fontFamily: "inherit", outline: "none", width: "100%", boxSizing: "border-box" }} />
-                <div style={{ display: "flex", gap: 8 }}>
-                  <button type="button" onClick={handleReschedule} disabled={busy}
-                    style={{ flex: 1, height: 38, borderRadius: 8, border: "none", background: busy ? "rgba(255,255,255,0.10)" : "rgba(255,255,255,0.16)", color: busy ? "rgba(255,255,255,0.35)" : "#fff", fontSize: 14, fontWeight: 600, cursor: busy ? "not-allowed" : "pointer", fontFamily: "inherit" }}>
-                    {busy ? tCommon("processing") : "Confirmar reagenda"}
-                  </button>
-                  <button type="button" onClick={() => setReschedOpen(false)} disabled={busy}
-                    style={{ height: 38, paddingInline: 14, borderRadius: 8, border: "1px solid rgba(255,255,255,0.18)", background: "transparent", color: "rgba(255,255,255,0.60)", fontSize: 13, fontWeight: 500, cursor: "pointer", fontFamily: "inherit" }}>
-                    {tCommon("cancel")}
-                  </button>
-                </div>
-              </div>
             ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                <div style={{ fontSize: 12, color: "#fb923c", lineHeight: 1.4, fontWeight: 500 }}>
-                  El tiempo de tolerancia venció. Elige una opción:
+              <>
+                <div style={{ overflow: "hidden", maxHeight: reschedOpen ? 0 : "120px", opacity: reschedOpen ? 0 : 1, transition: "max-height 0.30s cubic-bezier(0.16,1,0.3,1), opacity 0.18s ease", pointerEvents: reschedOpen ? "none" : "auto" }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    <div style={{ fontSize: 12, color: "#fb923c", lineHeight: 1.4, fontWeight: 500 }}>
+                      El tiempo de tolerancia venció. Elige una opción:
+                    </div>
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <button type="button" onClick={() => setReschedOpen(true)} disabled={busy}
+                        style={{ flex: 1, height: 36, borderRadius: 6, border: "none", background: session!.serviceKind === "meet_greet" ? "#2563eb" : "#be185d", color: "#fff", fontSize: 13, fontWeight: 600, cursor: busy ? "not-allowed" : "pointer", fontFamily: "inherit", opacity: busy ? 0.7 : 1 }}>
+                        Reagendar
+                      </button>
+                      <button type="button" onClick={handleRefund} disabled={busy}
+                        style={{ flex: 1, height: 36, borderRadius: 6, border: "none", background: "rgba(255,255,255,0.10)", color: "rgba(255,255,255,0.70)", fontSize: 13, fontWeight: 500, cursor: busy ? "not-allowed" : "pointer", fontFamily: "inherit", opacity: busy ? 0.7 : 1 }}>
+                        {busy ? tCommon("processing") : "Solicitar devolución"}
+                      </button>
+                    </div>
+                  </div>
                 </div>
-                <div style={{ display: "flex", gap: 8 }}>
-                  <button type="button" onClick={() => setReschedOpen(true)} disabled={busy}
-                    style={{ flex: 1, height: 40, borderRadius: 8, border: "1px solid rgba(255,255,255,0.28)", background: "rgba(255,255,255,0.10)", color: "#fff", fontSize: 14, fontWeight: 600, cursor: busy ? "not-allowed" : "pointer", fontFamily: "inherit", letterSpacing: "-0.02em" }}>
-                    Reagendar
-                  </button>
-                  <button type="button" onClick={handleRefund} disabled={busy}
-                    style={{ flex: 1, height: 40, borderRadius: 8, border: "none", background: busy ? "rgba(255,255,255,0.10)" : "rgba(239,68,68,0.22)", color: busy ? "rgba(255,255,255,0.35)" : "#fca5a5", fontSize: 13, fontWeight: 600, cursor: busy ? "not-allowed" : "pointer", fontFamily: "inherit", letterSpacing: "-0.01em" }}>
-                    {busy ? tCommon("processing") : "Solicitar devolución"}
-                  </button>
+                <div style={{ overflow: "hidden", maxHeight: reschedOpen ? "280px" : 0, opacity: reschedOpen ? 1 : 0, transition: "max-height 0.30s cubic-bezier(0.16,1,0.3,1), opacity 0.18s ease", pointerEvents: reschedOpen ? "auto" : "none" }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8, paddingTop: 2 }}>
+                    <textarea value={reschedReason} onChange={(e) => setReschedReason(e.target.value)} placeholder="Motivo del cambio de fecha (opcional)" rows={3}
+                      style={{ width: "100%", boxSizing: "border-box", background: "rgba(255,255,255,0.06)", border: "none", borderRadius: 12, padding: "10px 12px", color: "#fff", fontSize: 13, fontFamily: "inherit", lineHeight: 1.5, resize: "none", outline: "none" }} />
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <button type="button" onClick={handleReschedule} disabled={busy}
+                        style={{ flex: 1, height: 36, borderRadius: 6, border: "none", background: session!.serviceKind === "meet_greet" ? "#2563eb" : "#be185d", color: "#fff", fontSize: 13, fontWeight: 600, cursor: busy ? "not-allowed" : "pointer", fontFamily: "inherit", opacity: busy ? 0.7 : 1 }}>
+                        {busy ? tCommon("processing") : "Confirmar reagenda"}
+                      </button>
+                      <button type="button" onClick={() => setReschedOpen(false)} disabled={busy}
+                        style={{ flex: 1, height: 36, borderRadius: 6, border: "none", background: "rgba(255,255,255,0.10)", color: "rgba(255,255,255,0.70)", fontSize: 13, fontWeight: 500, cursor: "pointer", fontFamily: "inherit", opacity: busy ? 0.7 : 1 }}>
+                        {tCommon("cancel")}
+                      </button>
+                    </div>
+                  </div>
                 </div>
-              </div>
+              </>
             )}
           </div>
 

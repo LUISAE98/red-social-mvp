@@ -14,7 +14,26 @@ import {
   where,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import {
+  buildSearchPrefixes,
+  tokenizeSearchText,
+} from "@/lib/search/normalize";
 import type { StoryDoc, StoryType } from "./types";
+
+// Construye los prefijos de búsqueda de una historia a partir de su contexto,
+// el nombre del creador y el tipo (saludo/consejo).
+function buildStorySearchPrefixes(
+  instructions: string | undefined,
+  creatorName: string,
+  type: StoryType
+): string[] {
+  const source = `${instructions ?? ""} ${creatorName} ${type}`;
+  return buildSearchPrefixes(tokenizeSearchText(source), {
+    minLength: 2,
+    maxLength: 20,
+    maxPrefixes: 80,
+  });
+}
 
 // Resolves muxPlaybackId for stories that don't have it by reading the
 // greetingRequest doc. Mutates the story objects in-place so the caller
@@ -64,8 +83,46 @@ export async function addStoryFromGreeting(params: {
   source: "profile" | "group";
   groupId: string | null;
 }): Promise<string> {
+  // Creador mostrado = quien grabó el saludo/consejo (A). Denormalizamos su
+  // nombre para buscar por nombre de creador y para mostrarlo en resultados.
+  const showcaseCreatorId = params.greetingCreatorId ?? params.creatorId;
+  let creatorName = "";
+  try {
+    const uSnap = await getDoc(doc(db, "users", showcaseCreatorId));
+    const u = uSnap.data() as Record<string, unknown> | undefined;
+    creatorName =
+      (typeof u?.displayName === "string" && u.displayName.trim()) ||
+      [u?.firstName, u?.lastName]
+        .filter((v): v is string => typeof v === "string" && v.trim().length > 0)
+        .join(" ") ||
+      "";
+  } catch {
+    creatorName = "";
+  }
+
+  // Buscable: perfil siempre; grupo solo si la comunidad es pública.
+  let searchable = params.source === "profile";
+  if (params.source === "group" && params.groupId) {
+    try {
+      const gSnap = await getDoc(doc(db, "groups", params.groupId));
+      searchable =
+        (gSnap.data() as Record<string, unknown> | undefined)?.visibility === "public";
+    } catch {
+      searchable = false;
+    }
+  }
+
+  const searchPrefixes = buildStorySearchPrefixes(
+    params.instructions,
+    creatorName,
+    params.type
+  );
+
   const docRef = await addDoc(collection(db, "stories"), {
     ...params,
+    creatorName,
+    searchable,
+    searchPrefixes,
     createdAt: serverTimestamp(),
   });
   return docRef.id;

@@ -18,6 +18,12 @@ export type StoryDoc = {
   source: "profile" | "group";
   groupId: string | null;
   createdAt: Timestamp | null;
+  /** Nombre del creador que grabó el saludo/consejo (denormalizado para búsqueda y display). */
+  creatorName?: string;
+  /** Si la historia aparece en la búsqueda global: perfil siempre; grupo solo si es público. */
+  searchable?: boolean;
+  /** Prefijos de búsqueda (instructions + nombre del creador + tipo). */
+  searchPrefixes?: string[];
 };
 
 export type StoryViewDoc = {

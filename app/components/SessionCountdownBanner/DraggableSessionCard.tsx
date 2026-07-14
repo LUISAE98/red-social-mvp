@@ -328,7 +328,6 @@ export default function DraggableSessionCard({ uid }: { uid: string }) {
           touchAction: "none",
           cursor: dragging ? "grabbing" : "default",
           borderRadius: 12,
-          boxShadow: "0 8px 40px rgba(0,0,0,0.70)",
           overflow: "hidden",
           animation: slideInFrom
             ? `vibra-slide-from-${slideInFrom} 0.40s cubic-bezier(0.22, 1, 0.36, 1) both`

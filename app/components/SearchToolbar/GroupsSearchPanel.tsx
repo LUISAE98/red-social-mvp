@@ -464,6 +464,10 @@ const previousPathnameRef = useRef<string | null>(null);
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [mounted, setMounted] = useState(false);
   const [isSearchClosing, setIsSearchClosing] = useState(false);
+  // Salida animada del panel de resultados: seguimos montados mientras corre
+  // la animación de cierre y desmontamos al terminar.
+  const [resultsRendered, setResultsRendered] = useState(false);
+  const [resultsClosing, setResultsClosing] = useState(false);
   const [history, setHistory] = useState<SearchHistoryEntry[]>([]);
   const [isFocused, setIsFocused] = useState(false);
   const isFocusedRef = useRef(false);
@@ -478,6 +482,30 @@ const hasSearch = normalizedSearch.length >= MIN_SEARCH_LENGTH;
 const historyVisible = !!user && !hasSearch && isFocused && history.length > 0;
 
 isFocusedRef.current = isFocused;
+
+// Mantener el panel de resultados montado durante la animación de salida.
+// Si al cerrar pasamos a mostrar el historial, hacemos el cambio sin animar
+// para no solapar ambos paneles.
+const resultsOpen = mounted && hasSearch;
+useEffect(() => {
+  if (resultsOpen) {
+    setResultsRendered(true);
+    setResultsClosing(false);
+    return;
+  }
+  if (!resultsRendered) return;
+  if (historyVisible) {
+    setResultsRendered(false);
+    setResultsClosing(false);
+    return;
+  }
+  setResultsClosing(true);
+  const t = window.setTimeout(() => {
+    setResultsRendered(false);
+    setResultsClosing(false);
+  }, 240);
+  return () => window.clearTimeout(t);
+}, [resultsOpen, resultsRendered, historyVisible]);
 
   useEffect(() => {
     setMounted(true);
@@ -777,6 +805,14 @@ const filteredCommunities = useMemo(() => {
     [filteredProfiles]
   );
 
+  // Snapshot del último contenido con resultados, para congelarlo durante el cierre.
+  const lastResultsRef = useRef({
+    isLoading: false,
+    hasAnyResults: false,
+    previewCommunities,
+    previewProfiles,
+  });
+
   async function handleJoinPublic(groupId: string) {
     if (!user) return;
 
@@ -902,17 +938,17 @@ function handleCloseSearch() {
     handleNavigateAndClose(`/groups/${groupId}`);
   }
 
-function handleOpenFullResults() {
-  if (!normalizedSearch) return;
+// Navega a la página de resultados completa con la query dada, guardándola en el
+// historial. Reutilizado por Enter, "ver más" y el clic en un historial de texto.
+function openSearchFor(rawQuery: string) {
+  const trimmed = rawQuery.trim();
+  if (!trimmed) return;
 
-  const trimmed = search.trim();
-  if (trimmed) {
-    const entry: SearchHistoryEntry = { kind: "text", query: trimmed, ts: Date.now() };
-    setHistory((h) => pushToHistory(h, entry));
-  }
+  const entry: SearchHistoryEntry = { kind: "text", query: trimmed, ts: Date.now() };
+  setHistory((h) => pushToHistory(h, entry));
 
   const params = new URLSearchParams();
-  params.set("q", search);
+  params.set("q", rawQuery);
 
   if (filteredProfiles.length > 0 && filteredCommunities.length === 0) {
     params.set("tab", "profiles");
@@ -926,9 +962,25 @@ function handleOpenFullResults() {
   router.push(`/search?${params.toString()}`);
 }
 
+function handleOpenFullResults() {
+  // Usamos el valor EN VIVO (search), no el debounced (normalizedSearch), para
+  // que Enter dispare la búsqueda al instante sin esperar los 300 ms del debounce.
+  openSearchFor(search);
+}
+
   const isLoading = authLoading || communitiesLoading || profilesLoading;
   const hasAnyResults =
     filteredCommunities.length > 0 || filteredProfiles.length > 0;
+
+  // Congelar el contenido del panel mientras se anima el cierre, para no mostrar
+  // un flash de "sin resultados" cuando la búsqueda ya se limpió.
+  if (hasSearch) {
+    lastResultsRef.current = { isLoading, hasAnyResults, previewCommunities, previewProfiles };
+  }
+  const dLoading = resultsClosing ? lastResultsRef.current.isLoading : isLoading;
+  const dHasAnyResults = resultsClosing ? lastResultsRef.current.hasAnyResults : hasAnyResults;
+  const dPreviewCommunities = resultsClosing ? lastResultsRef.current.previewCommunities : previewCommunities;
+  const dPreviewProfiles = resultsClosing ? lastResultsRef.current.previewProfiles : previewProfiles;
 
   return (
     <>
@@ -975,6 +1027,22 @@ from {
 to {
   opacity: 1;
   transform: translateY(0) scaleY(1);
+}
+        }
+
+.search-dropdown-closing {
+  animation: dropdown-exit 0.2s cubic-bezier(0.4, 0, 1, 1) forwards;
+}
+
+@keyframes dropdown-exit {
+from {
+  opacity: 1;
+  transform: translateY(0) scaleY(1);
+}
+
+to {
+  opacity: 0;
+  transform: translateY(-8px) scaleY(0.96);
 }
         }
 
@@ -1493,7 +1561,7 @@ to {
                 key={i}
                 className="result-item"
                 style={{ display: "flex", alignItems: "center", gap: 10 }}
-                onClick={() => setSearch(entry.query)}
+                onClick={() => openSearchFor(entry.query)}
               >
                 <div style={{ width: 36, height: 36, borderRadius: "50%", background: "rgba(255,255,255,0.07)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.55)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -1533,29 +1601,29 @@ to {
   </div>
 )}
 
-{mounted && hasSearch && (
+{resultsRendered && (
   <div
     ref={dropdownRef}
-    className={`search-dropdown${isSearchClosing ? " search-dropdown-closing" : ""}`}
+    className={`search-dropdown${(isSearchClosing || resultsClosing) ? " search-dropdown-closing" : ""}`}
   >
             <div className="search-dropdown-inner">
-              {isLoading && (
+              {dLoading && (
                 <div className="dropdown-helper">
                   {tCommon("loading")}
                 </div>
               )}
 
-              {!isLoading && !hasAnyResults && (
+              {!dLoading && !dHasAnyResults && (
                 <div className="dropdown-helper">
                   {tGroups("noGroupsFound")}
                 </div>
               )}
 
-              {!isLoading && previewCommunities.length > 0 && (
+              {!dLoading && dPreviewCommunities.length > 0 && (
                 <section className="dropdown-section">
                   <h2 className="dropdown-title">{tGroups("title")}</h2>
 
-                  {previewCommunities.map((g) => {
+                  {dPreviewCommunities.map((g) => {
                     const isOwner =
                       !!user && !!g.ownerId && g.ownerId === user.uid;
                     const membershipStatus = isOwner
@@ -1730,11 +1798,11 @@ const visLabel =
                 </section>
               )}
 
-              {!isLoading && previewProfiles.length > 0 && (
+              {!dLoading && dPreviewProfiles.length > 0 && (
                 <section className="dropdown-section">
                   <h2 className="dropdown-title">{tCommon("profiles")}</h2>
 
-                  {previewProfiles.map((p) => {
+                  {dPreviewProfiles.map((p) => {
                     const fullName =
                       p.displayName?.trim() ||
                       `${p.firstName ?? ""} ${p.lastName ?? ""}`.trim() ||
@@ -1791,7 +1859,7 @@ const visLabel =
               )}
             </div>
 
-            {!isLoading && hasSearch && (
+            {!dLoading && (hasSearch || resultsClosing) && (
               <div className="dropdown-footer">
                 <button
                   type="button"

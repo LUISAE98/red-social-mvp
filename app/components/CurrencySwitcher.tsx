@@ -3,7 +3,7 @@
 // Selector de moneda de visualización. Espeja el diseño/comportamiento del
 // LanguageSwitcher (mismas 3 variantes) y se coloca a su lado.
 
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useLocale, useTranslations } from "next-intl";
 import { useCurrency } from "./CurrencyProvider";
@@ -41,12 +41,46 @@ function CurrencyOverlay({
   onSelect: (code: DisplayCurrency) => void;
 }) {
   const [mounted, setMounted] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { setMounted(true); }, []);
   useEffect(() => {
     if (!mounted || !open) return;
     document.body.style.overflow = "hidden";
     return () => { document.body.style.overflow = ""; };
+  }, [mounted, open]);
+  useEffect(() => {
+    if (!mounted || !open) return;
+    const el = scrollRef.current;
+    if (!el) return;
+    el.scrollTop = 0;
+    let rafId: number;
+    let stopped = false;
+
+    function stop() { stopped = true; cancelAnimationFrame(rafId); }
+
+    const startTimer = setTimeout(() => {
+      function step() {
+        if (stopped || !el) return;
+        el.scrollTop += 0.6;
+        if (el.scrollTop < el.scrollHeight - el.clientHeight) {
+          rafId = requestAnimationFrame(step);
+        }
+      }
+      rafId = requestAnimationFrame(step);
+    }, 260);
+
+    el.addEventListener("wheel", stop, { passive: true, once: true });
+    el.addEventListener("touchstart", stop, { passive: true, once: true });
+    el.addEventListener("pointerdown", stop, { passive: true, once: true });
+
+    return () => {
+      clearTimeout(startTimer);
+      cancelAnimationFrame(rafId);
+      el.removeEventListener("wheel", stop);
+      el.removeEventListener("touchstart", stop);
+      el.removeEventListener("pointerdown", stop);
+    };
   }, [mounted, open]);
   if (!mounted || !open) return null;
 
@@ -97,6 +131,7 @@ function CurrencyOverlay({
           }}
         >
           <div
+            ref={scrollRef}
             style={{
               overflowY: "auto",
               overscrollBehavior: "contain",

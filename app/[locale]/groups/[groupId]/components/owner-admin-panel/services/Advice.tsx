@@ -3,6 +3,8 @@
 import React, { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
+import ServiceInfoIcon from "@/components/services/ServiceInfoIcon";
+import ServiceFeaturePreview from "@/components/services/ServiceFeaturePreview";
 
 type Currency = "MXN" | "USD";
 
@@ -76,6 +78,7 @@ type SwitchProps = {
   onChange: (next: boolean) => void;
   disabled?: boolean;
   label?: string;
+  activeColor?: string;
 };
 
 type OverlayModalProps = {
@@ -94,6 +97,8 @@ type Props = {
   saving: boolean;
 
   consejoEmoji: string;
+  /** Color de acento del servicio; activa el ícono info y oculta el emoji cuando está inactivo (solo perfil). */
+  accentColor?: string;
 
   /** Muestra una descripción del servicio bajo el título (solo perfil). */
   showDescription?: boolean;
@@ -121,6 +126,7 @@ export default function Consejos({
   draft,
   saving,
   consejoEmoji,
+  accentColor,
   showDescription = false,
   descriptionStyle,
   panelStyle,
@@ -296,15 +302,28 @@ export default function Consejos({
             gap: 10,
           }}
         >
-          <div style={{ display: "grid", gap: 2, minWidth: 0 }}>
-            <span style={titleStyle}>{consejoEmoji} {tServices("adviceTitle")}</span>
+          <div style={{ display: "grid", gap: 8, minWidth: 0 }}>
+            <span style={titleStyle}>
+              {!accentColor || draft.consejo.enabled ? `${consejoEmoji} ` : ""}
+              {tServices("adviceTitle")}
+            </span>
             {showDescription && (
-              <span style={descriptionStyle ?? subtleStyle}>{tServices("expConsejoDesc")}</span>
+              <span
+                style={
+                  accentColor && !draft.consejo.enabled
+                    ? { ...(descriptionStyle ?? subtleStyle), display: "flex", alignItems: "flex-start", gap: 6 }
+                    : (descriptionStyle ?? subtleStyle)
+                }
+              >
+                {accentColor && !draft.consejo.enabled ? <ServiceInfoIcon color={accentColor} /> : null}
+                <span>{tServices("expConsejoDesc")}</span>
+              </span>
             )}
           </div>
 
           <SwitchComponent
             checked={draft.consejo.enabled}
+            activeColor={accentColor}
             disabled={isBusy}
             onChange={(next) => {
               void handleToggle(next);
@@ -312,6 +331,10 @@ export default function Consejos({
             label={tServices("adviceActivateLabel")}
           />
         </div>
+
+        {accentColor && !draft.consejo.enabled ? (
+          <ServiceFeaturePreview service="consejo" accentColor={accentColor} />
+        ) : null}
 
         {renderSummary()}
       </div>

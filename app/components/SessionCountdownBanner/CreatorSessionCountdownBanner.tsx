@@ -9,11 +9,18 @@ import { setExclusiveSessionPreparing } from "@/lib/exclusiveSession/exclusiveSe
 import {
   rejectMeetGreetRequest,
   requestMeetGreetReschedule,
+  proposeMeetGreetSchedule,
 } from "@/lib/meetGreet/meetGreetRequests";
 import {
   rejectExclusiveSessionRequest,
   requestExclusiveSessionReschedule,
+  proposeExclusiveSessionSchedule,
 } from "@/lib/exclusiveSession/exclusiveSessionRequests";
+import ScheduleDateTimeSelector, {
+  getSchedulePartsFromDate,
+  schedulePartsToIso,
+  type ScheduleParts,
+} from "@/app/(protected)/wallet/components/ScheduleDateTimeSelector";
 import MeetGreetPreparationFullscreen from "@/app/components/meetGreet/MeetGreetPreparationFullscreen";
 
 function formatCountdown(ms: number): string {
@@ -91,11 +98,11 @@ function ActionSessionRow({ session }: { session: CreatorSession }) {
       </div>
       <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
         <button type="button" onClick={handleReschedule} disabled={busy}
-          style={{ height: 26, paddingInline: 8, borderRadius: 6, border: "1px solid rgba(255,255,255,0.22)", background: "rgba(255,255,255,0.08)", color: "#fff", fontSize: 11, fontWeight: 600, cursor: busy ? "not-allowed" : "pointer", fontFamily: "inherit" }}>
+          style={{ height: 26, paddingInline: 8, borderRadius: 6, border: "none", background: busy ? "rgba(255,255,255,0.08)" : session.serviceKind === "meet_greet" ? "#2563eb" : "#be185d", color: busy ? "rgba(255,255,255,0.35)" : "#fff", fontSize: 11, fontWeight: 600, cursor: busy ? "not-allowed" : "pointer", fontFamily: "inherit" }}>
           Reagendar
         </button>
         <button type="button" onClick={handleReject} disabled={busy}
-          style={{ height: 26, paddingInline: 8, borderRadius: 6, border: "none", background: busy ? "rgba(255,255,255,0.06)" : "rgba(239,68,68,0.18)", color: busy ? "rgba(255,255,255,0.30)" : "#fca5a5", fontSize: 11, fontWeight: 600, cursor: busy ? "not-allowed" : "pointer", fontFamily: "inherit" }}>
+          style={{ height: 26, paddingInline: 8, borderRadius: 6, border: "1px solid rgba(255,255,255,0.18)", background: busy ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.10)", color: busy ? "rgba(255,255,255,0.25)" : "rgba(255,255,255,0.70)", fontSize: 11, fontWeight: 600, cursor: busy ? "not-allowed" : "pointer", fontFamily: "inherit" }}>
           Rechazar
         </button>
       </div>
@@ -195,7 +202,7 @@ export default function CreatorSessionCountdownBanner({ uid }: { uid: string }) 
   const [busy, setBusy] = useState(false);
   const [prepOpen, setPrepOpen] = useState(false);
   const [reschedOpen, setReschedOpen] = useState(false);
-  const [reschedReason, setReschedReason] = useState("");
+  const [scheduleParts, setScheduleParts] = useState<ScheduleParts>(() => getSchedulePartsFromDate(null));
   const lateTriggeredRef = useRef<Set<number>>(new Set());
   const [countdown321, setCountdown321] = useState<number | null>(null);
   const countdown321Triggered = useRef(false);
@@ -216,7 +223,7 @@ export default function CreatorSessionCountdownBanner({ uid }: { uid: string }) 
   useEffect(() => {
     lateTriggeredRef.current.clear();
     setReschedOpen(false);
-    setReschedReason("");
+    setScheduleParts(getSchedulePartsFromDate(null));
     countdown321Triggered.current = false;
     setCountdown321(null);
   }, [nextSession?.id]);
@@ -276,7 +283,7 @@ export default function CreatorSessionCountdownBanner({ uid }: { uid: string }) 
 
   const msLeft = nextSession.scheduledAt.getTime() - now;
   const isPastStart = msLeft <= 0;
-  const msLate = isPastStart ? Math.abs(msLeft) : 0;
+  const msLate = isPastStart ? Math.min(Math.abs(msLeft), 15 * 60 * 1000) : 0;
 
   // When startedAt is set, both joined LiveKit — switch to descending session timer
   const sessionInProgress = !!nextSession.startedAt;
@@ -311,6 +318,8 @@ export default function CreatorSessionCountdownBanner({ uid }: { uid: string }) 
     ? "Sesión en curso"
     : countdownFrozen
     ? "En sala"
+    : toleranceExpired
+    ? "Se acabó el tiempo"
     : otherIsLate
     ? `${buyerName} lleva de retraso`
     : isPastStart
@@ -319,7 +328,7 @@ export default function CreatorSessionCountdownBanner({ uid }: { uid: string }) 
   const countdownValue = sessionInProgress
     ? formatCountdown(msRemaining ?? 0)
     : isPastStart
-    ? formatCountdown(Math.abs(msLeft))
+    ? formatCountdown(msLate)
     : formatCountdown(msLeft);
 
   // Pre-session synchronized countdown: starts when both are preparing
@@ -353,12 +362,14 @@ export default function CreatorSessionCountdownBanner({ uid }: { uid: string }) 
 
   async function handleReschedule() {
     if (!nextSession || busy) return;
+    const iso = schedulePartsToIso(scheduleParts);
+    if (!iso) return;
     setBusy(true);
     try {
       if (nextSession.serviceKind === "meet_greet") {
-        await requestMeetGreetReschedule({ requestId: nextSession.id, reason: reschedReason || null });
+        await proposeMeetGreetSchedule({ requestId: nextSession.id, scheduledAt: iso, note: null });
       } else {
-        await requestExclusiveSessionReschedule({ requestId: nextSession.id, reason: reschedReason || null });
+        await proposeExclusiveSessionSchedule({ requestId: nextSession.id, scheduledAt: iso, note: null });
       }
       setReschedOpen(false);
     } catch (e) {
@@ -533,13 +544,13 @@ export default function CreatorSessionCountdownBanner({ uid }: { uid: string }) 
                       color: sessionInProgress
                         ? (msRemaining != null && msRemaining <= 60000 ? "#ef4444" : msRemaining != null && msRemaining <= 300000 ? "#f59e0b" : "#4ade80")
                         : isPastStart ? "#fb923c" : "#fff",
-                      ...(isPastStart && !sessionInProgress ? { animation: "creator-late-pulse 1.6s ease-in-out infinite" } : {}),
+                      ...(isPastStart && !sessionInProgress && !toleranceExpired ? { animation: "creator-late-pulse 1.6s ease-in-out infinite" } : {}),
                     }}
                   >
                     {countdownValue}
                   </div>
                 )}
-                {isPastStart && !sessionInProgress && !countdownFrozen && (
+                {isPastStart && !sessionInProgress && !countdownFrozen && !toleranceExpired && (
                   <div style={{ fontSize: 10, color: "#fb923c", marginTop: 3, lineHeight: 1.3, opacity: 0.85 }}>
                     15 min de tolerancia
                   </div>
@@ -698,42 +709,20 @@ export default function CreatorSessionCountdownBanner({ uid }: { uid: string }) 
               )}
             </>
           ) : reschedOpen ? (
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              <textarea
-                value={reschedReason}
-                onChange={(e) => setReschedReason(e.target.value)}
-                placeholder="Motivo del cambio de fecha (opcional)"
-                rows={2}
-                style={{
-                  background: "rgba(255,255,255,0.08)",
-                  border: "1px solid rgba(255,255,255,0.18)",
-                  borderRadius: 8,
-                  color: "#fff",
-                  fontSize: 13,
-                  padding: "8px 10px",
-                  resize: "none",
-                  fontFamily: "inherit",
-                  outline: "none",
-                  width: "100%",
-                  boxSizing: "border-box",
-                }}
-              />
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <ScheduleDateTimeSelector value={scheduleParts} onChange={setScheduleParts} disabled={busy} />
               <div style={{ display: "flex", gap: 8 }}>
                 <button
                   type="button"
                   onClick={handleReschedule}
-                  disabled={busy}
+                  disabled={busy || !schedulePartsToIso(scheduleParts)}
                   style={{
-                    flex: 1,
-                    height: 38,
-                    borderRadius: 8,
-                    border: "none",
-                    background: busy ? "rgba(255,255,255,0.10)" : "rgba(255,255,255,0.16)",
-                    color: busy ? "rgba(255,255,255,0.35)" : "#fff",
-                    fontSize: 14,
-                    fontWeight: 600,
-                    cursor: busy ? "not-allowed" : "pointer",
+                    flex: 1, height: 36, borderRadius: 6, border: "none",
+                    background: nextSession.serviceKind === "meet_greet" ? "#2563eb" : "#be185d",
+                    color: "#fff", fontSize: 13, fontWeight: 600,
+                    cursor: (busy || !schedulePartsToIso(scheduleParts)) ? "not-allowed" : "pointer",
                     fontFamily: "inherit",
+                    opacity: (busy || !schedulePartsToIso(scheduleParts)) ? 0.7 : 1,
                   }}
                 >
                   {busy ? "Procesando..." : "Confirmar reagenda"}
@@ -743,16 +732,13 @@ export default function CreatorSessionCountdownBanner({ uid }: { uid: string }) 
                   onClick={() => setReschedOpen(false)}
                   disabled={busy}
                   style={{
-                    height: 38,
-                    paddingInline: 14,
-                    borderRadius: 8,
-                    border: "1px solid rgba(255,255,255,0.18)",
-                    background: "transparent",
-                    color: "rgba(255,255,255,0.60)",
-                    fontSize: 13,
-                    fontWeight: 500,
-                    cursor: "pointer",
+                    flex: 1, height: 36, borderRadius: 6, border: "none",
+                    background: "rgba(255,255,255,0.10)",
+                    color: "rgba(255,255,255,0.70)",
+                    fontSize: 13, fontWeight: 500,
+                    cursor: busy ? "not-allowed" : "pointer",
                     fontFamily: "inherit",
+                    opacity: busy ? 0.7 : 1,
                   }}
                 >
                   Cancelar
@@ -771,16 +757,16 @@ export default function CreatorSessionCountdownBanner({ uid }: { uid: string }) 
                   disabled={busy}
                   style={{
                     flex: 1,
-                    height: 40,
-                    borderRadius: 8,
-                    border: "1px solid rgba(255,255,255,0.28)",
-                    background: "rgba(255,255,255,0.10)",
+                    height: 36,
+                    borderRadius: 6,
+                    border: "none",
+                    background: nextSession.serviceKind === "meet_greet" ? "#2563eb" : "#be185d",
                     color: "#fff",
-                    fontSize: 14,
+                    fontSize: 13,
                     fontWeight: 600,
                     cursor: busy ? "not-allowed" : "pointer",
                     fontFamily: "inherit",
-                    letterSpacing: "-0.02em",
+                    opacity: busy ? 0.7 : 1,
                   }}
                 >
                   Reagendar
@@ -791,16 +777,16 @@ export default function CreatorSessionCountdownBanner({ uid }: { uid: string }) 
                   disabled={busy}
                   style={{
                     flex: 1,
-                    height: 40,
-                    borderRadius: 8,
+                    height: 36,
+                    borderRadius: 6,
                     border: "none",
-                    background: busy ? "rgba(255,255,255,0.10)" : "rgba(239,68,68,0.22)",
-                    color: busy ? "rgba(255,255,255,0.35)" : "#fca5a5",
-                    fontSize: 14,
-                    fontWeight: 600,
+                    background: "rgba(255,255,255,0.10)",
+                    color: "rgba(255,255,255,0.70)",
+                    fontSize: 13,
+                    fontWeight: 500,
                     cursor: busy ? "not-allowed" : "pointer",
                     fontFamily: "inherit",
-                    letterSpacing: "-0.01em",
+                    opacity: busy ? 0.7 : 1,
                   }}
                 >
                   {busy ? "Procesando..." : "Rechazar"}

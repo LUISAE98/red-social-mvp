@@ -3,6 +3,8 @@
 import React, { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
+import ServiceInfoIcon from "@/components/services/ServiceInfoIcon";
+import ServiceFeaturePreview from "@/components/services/ServiceFeaturePreview";
 
 type Currency = "MXN" | "USD";
 
@@ -76,6 +78,7 @@ type SwitchProps = {
   onChange: (next: boolean) => void;
   disabled?: boolean;
   label?: string;
+  activeColor?: string;
 };
 
 type OverlayModalProps = {
@@ -94,6 +97,8 @@ type Props = {
   saving: boolean;
 
   meetGreetEmoji: string;
+  /** Color de acento del servicio; activa el ícono info y oculta el emoji cuando está inactivo (solo perfil). */
+  accentColor?: string;
 
   /** Muestra una descripción del servicio bajo el título (solo perfil). */
   showDescription?: boolean;
@@ -124,6 +129,7 @@ export default function MeetGreet({
   draft,
   saving,
   meetGreetEmoji,
+  accentColor,
   showDescription = false,
   descriptionStyle,
   titleOverride,
@@ -313,15 +319,28 @@ export default function MeetGreet({
             gap: 10,
           }}
         >
-          <div style={{ display: "grid", gap: 2, minWidth: 0 }}>
-            <span style={titleStyle}>{meetGreetEmoji} {titleOverride ?? tServices("liveSessionTitle")}</span>
+          <div style={{ display: "grid", gap: 8, minWidth: 0 }}>
+            <span style={titleStyle}>
+              {!accentColor || draft.meetGreet.enabled ? `${meetGreetEmoji} ` : ""}
+              {titleOverride ?? tServices("liveSessionTitle")}
+            </span>
             {showDescription && (
-              <span style={descriptionStyle ?? subtleStyle}>{tServices("expMeetGreetDesc")}</span>
+              <span
+                style={
+                  accentColor && !draft.meetGreet.enabled
+                    ? { ...(descriptionStyle ?? subtleStyle), display: "flex", alignItems: "flex-start", gap: 6 }
+                    : (descriptionStyle ?? subtleStyle)
+                }
+              >
+                {accentColor && !draft.meetGreet.enabled ? <ServiceInfoIcon color={accentColor} /> : null}
+                <span>{tServices("expMeetGreetDesc")}</span>
+              </span>
             )}
           </div>
 
           <SwitchComponent
             checked={draft.meetGreet.enabled}
+            activeColor={accentColor}
             disabled={isBusy}
             onChange={(next) => {
               void handleToggle(next);
@@ -329,6 +348,10 @@ export default function MeetGreet({
             label={tServices("meetGreetActivateLabel")}
           />
         </div>
+
+        {accentColor && !draft.meetGreet.enabled ? (
+          <ServiceFeaturePreview service="meetGreet" accentColor={accentColor} />
+        ) : null}
 
         {renderSummary()}
       </div>

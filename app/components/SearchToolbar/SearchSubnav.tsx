@@ -2,7 +2,7 @@
 
 import { useTranslations } from "next-intl";
 
-type TabType = "groups" | "profiles" | "posts";
+type TabType = "groups" | "profiles" | "posts" | "stories";
 
 type SearchSubnavProps = {
   activeTab: TabType;
@@ -23,6 +23,7 @@ export default function SearchSubnav({
     { key: "groups", label: tNav("searchTabGroups"), emoji: "🌍" },
     { key: "profiles", label: tNav("searchTabProfiles"), emoji: "🧍" },
     { key: "posts", label: tNav("searchTabPosts"), emoji: "📰" },
+    { key: "stories", label: tNav("searchTabStories"), emoji: "🎬" },
   ];
 
   return (
@@ -49,7 +50,7 @@ export default function SearchSubnav({
         .search-subnav {
           width: min(100%, 1040px);
           display: grid;
-          grid-template-columns: repeat(3, minmax(0, 1fr));
+          grid-template-columns: repeat(4, minmax(0, 1fr));
           gap: 0;
           margin: 0 auto 18px;
           padding: 0 10px;

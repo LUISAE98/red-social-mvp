@@ -295,6 +295,16 @@ export default function SessionRequestOverlay({
   const [isDragging, setIsDragging] = useState(false);
   const dragStart = useRef<{ y: number; offset: number } | null>(null);
   const bodyScrollRef = useRef<HTMLDivElement>(null);
+  const scheduleSectionRef = useRef<HTMLDivElement>(null);
+
+  // Al expandir la forma de agendar, revelamos el SELECTOR DE FECHA (arriba de
+  // la forma), no el fondo. Se espera a que termine la animación de expansión
+  // (max-height 0.42s) para que el scroll llegue a la posición correcta.
+  function revealScheduleForm() {
+    setTimeout(() => {
+      scheduleSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 460);
+  }
 
   // Form state
   const [acceptExpanded, setAcceptExpanded] = useState(false);
@@ -626,7 +636,7 @@ export default function SessionRequestOverlay({
           {canAccept && (
             <button
               type="button"
-              onClick={() => !acceptExpanded && setAcceptExpanded(true)}
+              onClick={() => { if (!acceptExpanded) { setAcceptExpanded(true); revealScheduleForm(); } }}
               disabled={acceptExpanded}
               style={{
                 flex: 1,
@@ -675,7 +685,7 @@ export default function SessionRequestOverlay({
       {/* Formulario de agendar (expande al aceptar, poner fecha o reagendar) */}
       {!readOnly && (canAccept || canSchedule) && (
         <div style={{ overflow: "hidden", maxHeight: acceptExpanded ? "700px" : "0", opacity: acceptExpanded ? 1 : 0, transition: "max-height 0.42s cubic-bezier(0.16,1,0.3,1), opacity 0.28s ease" }}>
-        <div style={{ display: "grid", gap: 10, paddingTop: 2 }}>
+        <div ref={scheduleSectionRef} style={{ display: "grid", gap: 10, paddingTop: 2, scrollMarginTop: 12 }}>
           <div style={{ height: 1, background: "rgba(255,255,255,0.08)", margin: "2px 0" }} />
           <button
             type="button"
@@ -751,6 +761,7 @@ export default function SessionRequestOverlay({
                 type="button"
                 onClick={() => {
                   setAcceptExpanded(true);
+                  revealScheduleForm();
                 }}
                 disabled={busy}
                 style={{
@@ -974,11 +985,7 @@ export default function SessionRequestOverlay({
           type="button"
           onClick={() => {
             setAcceptExpanded(true);
-            setTimeout(() => {
-              if (bodyScrollRef.current) {
-                bodyScrollRef.current.scrollTo({ top: bodyScrollRef.current.scrollHeight, behavior: "smooth" });
-              }
-            }, 60);
+            revealScheduleForm();
           }}
           disabled={busy}
           style={{

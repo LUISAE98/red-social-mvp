@@ -128,6 +128,16 @@ const SERVICE_EMOJIS = {
   donation: "🎁",
 };
 
+// Color de acento por servicio. Cuando el servicio está inactivo se muestra un
+// ícono info (i en círculo) con este color en lugar del emoji.
+const SERVICE_COLORS = {
+  saludo: "#b45cff", // morado
+  consejo: "#f7c948", // amarillo
+  meetGreet: "#45b8ff", // azul (tiempo contigo)
+  customClass: "#f472b6", // rosa (sesión exclusiva)
+  donation: "#b23a5b", // vino
+};
+
 // Rangos de duración permitidos (minutos) por tipo de servicio.
 const MEET_GREET_MIN_MINUTES = 5; // Tiempo contigo
 const MEET_GREET_MAX_MINUTES = 25;
@@ -343,11 +353,13 @@ function Switch({
   onChange,
   disabled = false,
   label,
+  activeColor,
 }: {
   checked: boolean;
   onChange: (next: boolean) => void;
   disabled?: boolean;
   label?: string;
+  activeColor?: string;
 }) {
   return (
     <button
@@ -366,9 +378,9 @@ function Switch({
         minHeight: 20,
         maxHeight: 20,
         borderRadius: 999,
-        border: "1px solid rgba(255,255,255,0.18)",
+        border: "none",
         background: checked
-          ? "linear-gradient(100deg, #a855ff, #4f46ff)"
+          ? (activeColor ?? "linear-gradient(100deg, #a855ff, #4f46ff)")
           : "rgba(255,255,255,0.10)",
         padding: 0,
         cursor: disabled ? "not-allowed" : "pointer",
@@ -1146,6 +1158,7 @@ export default function ProfileServicesTab({
         draft={draft}
         saving={saving}
         saludoEmoji={SERVICE_EMOJIS.saludo}
+        accentColor={SERVICE_COLORS.saludo}
         showDescription
         descriptionStyle={descriptionStyle}
         panelStyle={draft.saludo.enabled ? saludoPanelStyle : plainPanelStyle}
@@ -1164,6 +1177,7 @@ export default function ProfileServicesTab({
         draft={draft}
         saving={saving}
         consejoEmoji={SERVICE_EMOJIS.consejo}
+        accentColor={SERVICE_COLORS.consejo}
         showDescription
         descriptionStyle={descriptionStyle}
         panelStyle={draft.consejo.enabled ? consejoPanelStyle : plainPanelStyle}
@@ -1182,6 +1196,7 @@ export default function ProfileServicesTab({
         draft={draft}
         saving={saving}
         meetGreetEmoji={SERVICE_EMOJIS.meetGreet}
+        accentColor={SERVICE_COLORS.meetGreet}
         showDescription
         descriptionStyle={descriptionStyle}
         panelStyle={draft.meetGreet.enabled ? meetGreetPanelStyle : plainPanelStyle}
@@ -1200,6 +1215,7 @@ export default function ProfileServicesTab({
         draft={draft}
         saving={saving}
         customClassEmoji={SERVICE_EMOJIS.customClass}
+        accentColor={SERVICE_COLORS.customClass}
         showDescription
         descriptionStyle={descriptionStyle}
         panelStyle={draft.customClass.enabled ? customClassPanelStyle : plainPanelStyle}
@@ -1219,6 +1235,7 @@ export default function ProfileServicesTab({
         saving={saving}
         profileUserId={profileUserId}
         panelStyle={draft.donationMode !== "none" ? donationPanelStyle : plainPanelStyle}
+        accentColor={SERVICE_COLORS.donation}
         descriptionStyle={descriptionStyle}
         titleStyle={titleStyle}
         subtleStyle={subtleStyle}
