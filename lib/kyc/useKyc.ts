@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { doc, onSnapshot } from "firebase/firestore";
 import { httpsCallable } from "firebase/functions";
-import { db, functions } from "@/lib/firebase";
+import { auth, db, functions } from "@/lib/firebase";
 import type { KycStatus } from "@/types/kyc";
 
 type KycState = {
@@ -38,24 +38,34 @@ export function useKyc(uid: string | null | undefined) {
       return;
     }
     setState((s) => ({ ...s, loading: true }));
-    const unsub = onSnapshot(
-      doc(db, "kyc", uid),
-      (snap) => {
-        const d = snap.data();
-        if (!d) {
-          setState({ status: "not_started", approved: false, reason: null, loading: false });
-          return;
-        }
-        setState({
-          status: (d.status as KycStatus) ?? "not_started",
-          approved: d.kycApproved === true,
-          reason: typeof d.reason === "string" ? d.reason : null,
-          loading: false,
-        });
-      },
-      () => setState((s) => ({ ...s, loading: false }))
-    );
-    return () => unsub();
+    let unsub: (() => void) | null = null;
+    let cancelled = false;
+    // Esperar a que Firebase Auth resuelva el token antes de suscribir; si el
+    // listener arranca antes, request.auth llega null → permission-denied transitorio.
+    auth.authStateReady().then(() => {
+      if (cancelled) return;
+      unsub = onSnapshot(
+        doc(db, "kyc", uid),
+        (snap) => {
+          const d = snap.data();
+          if (!d) {
+            setState({ status: "not_started", approved: false, reason: null, loading: false });
+            return;
+          }
+          setState({
+            status: (d.status as KycStatus) ?? "not_started",
+            approved: d.kycApproved === true,
+            reason: typeof d.reason === "string" ? d.reason : null,
+            loading: false,
+          });
+        },
+        () => setState((s) => ({ ...s, loading: false }))
+      );
+    });
+    return () => {
+      cancelled = true;
+      if (unsub) unsub();
+    };
   }, [uid]);
 
   const startKyc = useCallback(

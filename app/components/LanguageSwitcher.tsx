@@ -1,78 +1,152 @@
 "use client";
 
-import { useState, useTransition, useRef, useEffect } from "react";
+import { useState, useTransition, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useLocale, useTranslations } from "next-intl";
 import { usePathname, useRouter } from "@/i18n/navigation";
 import type { Locale } from "@/i18n/routing";
 
 const LOCALES: { code: Locale; label: string; name: string }[] = [
   { code: "es", label: "ES", name: "Español" },
-  { code: "en", label: "EN", name: "English" },
   { code: "pt-BR", label: "PT", name: "Português" },
+  { code: "en", label: "EN", name: "English" },
 ];
 
 type Variant = "desktop" | "mobile-bubble" | "cover-corner";
 
-const dropdownBase: React.CSSProperties = {
-  background: "rgba(8, 5, 20, 0.97)",
-  border: "1px solid rgba(168, 85, 255, 0.28)",
-  borderRadius: 10,
-  backdropFilter: "blur(14px)",
-  WebkitBackdropFilter: "blur(14px)",
-  boxShadow: "0 8px 28px rgba(0,0,0,0.55)",
-  overflow: "hidden",
-  display: "flex",
-  flexDirection: "column",
-  width: 132,
-};
+const ANIM_CSS = `
+  @keyframes vbSwFadeIn { from { opacity: 0 } to { opacity: 1 } }
+  @keyframes vbSwFadeOut { from { opacity: 1 } to { opacity: 0 } }
+  @keyframes vbSwScaleIn { from { opacity: 0; transform: scale(0.92) } to { opacity: 1; transform: scale(1) } }
+  @keyframes vbSwScaleOut { from { opacity: 1; transform: scale(1) } to { opacity: 0; transform: scale(0.92) } }
+  @keyframes vbFilterCirclePop { 0% { transform: scale(0.5); } 65% { transform: scale(1.3); } 100% { transform: scale(1); } }
+  @keyframes vbFilterCircleUnpop { 0% { transform: scale(1); } 40% { transform: scale(0.7); } 100% { transform: scale(1); } }
+`;
 
-function DropdownItem({
-  locale,
-  current,
+function LangOverlay({
+  open,
+  closing,
+  currentLocale,
+  onClose,
   onSelect,
 }: {
-  locale: (typeof LOCALES)[number];
-  current: string;
+  open: boolean;
+  closing: boolean;
+  currentLocale: Locale;
+  onClose: () => void;
   onSelect: (code: Locale) => void;
 }) {
-  const active = locale.code === current;
-  return (
-    <button
-      key={locale.code}
-      type="button"
-      onClick={() => onSelect(locale.code)}
-      style={{
-        width: "100%",
-        padding: "9px 12px",
-        background: active ? "rgba(168, 85, 255, 0.12)" : "transparent",
-        border: "none",
-        borderBottom: "1px solid rgba(255,255,255,0.05)",
-        color: active ? "#a855ff" : "rgba(255,255,255,0.82)",
-        fontSize: 12,
-        fontWeight: active ? 700 : 500,
-        textAlign: "left",
-        cursor: "pointer",
-        display: "flex",
-        alignItems: "center",
-        gap: 7,
-        fontFamily: "inherit",
-        boxSizing: "border-box",
-      }}
-    >
-      <span
+  const [mounted, setMounted] = useState(false);
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { setMounted(true); }, []);
+  useEffect(() => {
+    if (!mounted || !open) return;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = ""; };
+  }, [mounted, open]);
+  if (!mounted || !open) return null;
+
+  return createPortal(
+    <>
+      <style>{ANIM_CSS}</style>
+      {/* Backdrop */}
+      <div
+        onClick={onClose}
         style={{
-          fontSize: 10,
-          fontWeight: 700,
-          letterSpacing: "0.04em",
-          color: active ? "#a855ff" : "rgba(255,255,255,0.42)",
-          minWidth: 22,
-          flexShrink: 0,
+          position: "fixed",
+          inset: 0,
+          zIndex: 99990,
+          background: "rgba(0,0,0,0.50)",
+          animation: closing ? "vbSwFadeOut 0.15s ease forwards" : "vbSwFadeIn 0.18s ease",
+        }}
+      />
+      {/* Centering container */}
+      <div
+        style={{
+          position: "fixed",
+          inset: 0,
+          zIndex: 99991,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          pointerEvents: "none",
         }}
       >
-        {locale.label}
-      </span>
-      {locale.name}
-    </button>
+        <div
+          role="menu"
+          style={{
+            pointerEvents: "auto",
+            width: "min(320px, 88vw)",
+            background: "rgba(8,9,11,0.985)",
+            borderRadius: 12,
+            border: "1px solid rgba(255,255,255,0.10)",
+            overflow: "hidden",
+            boxShadow: "0 30px 90px rgba(0,0,0,0.56), 0 0 0 1px rgba(255,255,255,0.035)",
+            backdropFilter: "blur(10px)",
+            WebkitBackdropFilter: "blur(10px)",
+            animation: closing
+              ? "vbSwScaleOut 0.15s ease forwards"
+              : "vbSwScaleIn 0.18s ease",
+          }}
+        >
+          {LOCALES.map((locale, i) => {
+            const active = locale.code === currentLocale;
+            return (
+              <button
+                key={locale.code}
+                type="button"
+                role="menuitem"
+                onClick={() => onSelect(locale.code)}
+                style={{
+                  width: "100%",
+                  border: "none",
+                  borderTop: i === 0 ? "none" : "1px solid rgba(255,255,255,0.06)",
+                  background: "transparent",
+                  color: active ? "#fff" : "rgba(255,255,255,0.72)",
+                  fontSize: 14,
+                  fontWeight: active ? 600 : 400,
+                  textAlign: "left",
+                  cursor: "pointer",
+                  minHeight: 48,
+                  padding: "11px 16px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 12,
+                  fontFamily: "inherit",
+                }}
+              >
+                <span>{locale.name}</span>
+                <div
+                  key={String(active)}
+                  style={{
+                    flexShrink: 0,
+                    width: 22,
+                    height: 22,
+                    borderRadius: "50%",
+                    border: active ? "none" : "1.5px solid rgba(255,255,255,0.25)",
+                    background: active ? "#a855ff" : "transparent",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    animation: active
+                      ? "vbFilterCirclePop 0.28s cubic-bezier(0.34,1.56,0.64,1) forwards"
+                      : "vbFilterCircleUnpop 0.18s ease forwards",
+                  }}
+                >
+                  {active && (
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                      <path d="M2 6L5 9L10 3" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  )}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </>,
+    document.body
   );
 }
 
@@ -83,21 +157,23 @@ export default function LanguageSwitcher({ variant = "desktop" }: { variant?: Va
   const router = useRouter();
   const [, startTransition] = useTransition();
   const [open, setOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const [closing, setClosing] = useState(false);
 
-  useEffect(() => {
-    if (!open) return;
-    function onClickOutside(e: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", onClickOutside);
-    return () => document.removeEventListener("mousedown", onClickOutside);
-  }, [open]);
+  function handleOpen() {
+    setOpen(true);
+    setClosing(false);
+  }
+
+  function handleClose() {
+    setClosing(true);
+    setTimeout(() => {
+      setOpen(false);
+      setClosing(false);
+    }, 150);
+  }
 
   function switchLocale(next: Locale) {
-    setOpen(false);
+    handleClose();
     startTransition(() => {
       router.replace(pathname, { locale: next });
     });
@@ -105,12 +181,21 @@ export default function LanguageSwitcher({ variant = "desktop" }: { variant?: Va
 
   const label = LOCALES.find((l) => l.code === currentLocale)?.label ?? currentLocale.slice(0, 2).toUpperCase();
 
+  const overlay = (
+    <LangOverlay
+      open={open}
+      closing={closing}
+      currentLocale={currentLocale}
+      onClose={handleClose}
+      onSelect={switchLocale}
+    />
+  );
+
   if (variant === "mobile-bubble") {
     return (
       <>
         <style>{`.vb-lang-bubble{display:none}@media(max-width:900px){.vb-lang-bubble{display:block}}`}</style>
         <div
-          ref={containerRef}
           className="vb-lang-bubble"
           style={{
             position: "fixed",
@@ -119,23 +204,9 @@ export default function LanguageSwitcher({ variant = "desktop" }: { variant?: Va
             zIndex: 200,
           }}
         >
-          {open && (
-            <div
-              style={{
-                ...dropdownBase,
-                position: "absolute",
-                bottom: "calc(100% + 8px)",
-                right: 0,
-              }}
-            >
-              {LOCALES.map((l) => (
-                <DropdownItem key={l.code} locale={l} current={currentLocale} onSelect={switchLocale} />
-              ))}
-            </div>
-          )}
           <button
             type="button"
-            onClick={() => setOpen((o) => !o)}
+            onClick={open ? handleClose : handleOpen}
             title={tCommon("changeLanguage")}
             aria-label={tCommon("changeLanguage")}
             style={{
@@ -162,6 +233,7 @@ export default function LanguageSwitcher({ variant = "desktop" }: { variant?: Va
             {label}
           </button>
         </div>
+        {overlay}
       </>
     );
   }
@@ -171,13 +243,12 @@ export default function LanguageSwitcher({ variant = "desktop" }: { variant?: Va
       <>
         <style>{`.vb-lang-corner{display:none}@media(max-width:900px){.vb-lang-corner{display:block}}`}</style>
         <div
-          ref={containerRef}
           className="vb-lang-corner"
           style={{ position: "absolute", top: 14, right: 14, zIndex: 40 }}
         >
           <button
             type="button"
-            onClick={(e) => { e.stopPropagation(); setOpen((o) => !o); }}
+            onClick={(e) => { e.stopPropagation(); if (open) { handleClose(); } else { handleOpen(); } }}
             title={tCommon("changeLanguage")}
             aria-label={tCommon("changeLanguage")}
             style={{
@@ -203,41 +274,28 @@ export default function LanguageSwitcher({ variant = "desktop" }: { variant?: Va
           >
             {label}
           </button>
-          {open && (
-            <div
-              style={{
-                ...dropdownBase,
-                position: "absolute",
-                top: "calc(100% + 8px)",
-                right: 0,
-              }}
-            >
-              {LOCALES.map((l) => (
-                <DropdownItem key={l.code} locale={l} current={currentLocale} onSelect={switchLocale} />
-              ))}
-            </div>
-          )}
         </div>
+        {overlay}
       </>
     );
   }
 
   // desktop variant — hidden on mobile via its parent (.desktopHeader display:none at ≤900px)
   return (
-    <div ref={containerRef} style={{ position: "relative" }}>
+    <>
       <button
         type="button"
-        onClick={() => setOpen((o) => !o)}
+        onClick={open ? handleClose : handleOpen}
         title={tCommon("changeLanguage")}
         aria-label={tCommon("changeLanguage")}
         style={{
-          height: 32,
-          padding: "0 11px",
+          height: 38,
+          padding: "0 16px",
           borderRadius: 8,
           background: "transparent",
           border: "none",
           color: "#a855ff",
-          fontSize: 11,
+          fontSize: 13,
           fontWeight: 700,
           letterSpacing: "0.04em",
           cursor: "pointer",
@@ -249,21 +307,7 @@ export default function LanguageSwitcher({ variant = "desktop" }: { variant?: Va
       >
         {label}
       </button>
-      {open && (
-        <div
-          style={{
-            ...dropdownBase,
-            position: "absolute",
-            top: "calc(100% + 6px)",
-            right: 0,
-            zIndex: 200,
-          }}
-        >
-          {LOCALES.map((l) => (
-            <DropdownItem key={l.code} locale={l} current={currentLocale} onSelect={switchLocale} />
-          ))}
-        </div>
-      )}
-    </div>
+      {overlay}
+    </>
   );
 }

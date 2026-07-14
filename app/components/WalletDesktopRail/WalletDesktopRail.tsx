@@ -10,6 +10,9 @@ import {
   VibraNavigationIconsStyles,
   type VibraNavigationIconType,
 } from "@/app/components/VibraServiceIcons/VibraNavigationIcons";
+import { useAuth } from "@/app/providers";
+import { useWalletFinances, selectFinanceView } from "@/lib/wallet/walletFinances";
+import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 
 type WalletRailTab =
   | "finances"
@@ -93,6 +96,10 @@ export default function WalletDesktopRail({
   showWallet: boolean;
 }) {
   const t = useTranslations("nav");
+  const { user } = useAuth();
+  const { summary, loading: walletLoading } = useWalletFinances(user?.uid);
+  const { format } = usePriceFormat();
+  const view = selectFinanceView(summary, "net");
 
   const walletItems: Array<{
     key: WalletRailTab;
@@ -286,14 +293,65 @@ export default function WalletDesktopRail({
 
         .walletToggle {
           display: flex;
-          align-items: center;
-          justify-content: space-between;
+          flex-direction: column;
+          align-items: stretch;
           width: 100%;
           padding: 0;
           border: none;
           background: transparent;
           cursor: pointer;
           text-align: left;
+          gap: 6px;
+        }
+
+        .walletToggleTop {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          width: 100%;
+        }
+
+        .walletTitleGroup {
+          display: flex;
+          align-items: center;
+          gap: 7px;
+        }
+
+        .walletTitleIcon {
+          display: flex;
+          align-items: center;
+          color: rgba(255, 255, 255, 0.7);
+          flex-shrink: 0;
+        }
+
+        .walletBalanceBlock {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 3px;
+          margin-top: 8px;
+        }
+
+        .walletBalanceLabel {
+          font-size: 10px;
+          font-weight: 500;
+          letter-spacing: 0.06em;
+          text-transform: uppercase;
+          color: rgba(255, 255, 255, 0.32);
+          line-height: 1;
+        }
+
+        .walletBalanceAmount {
+          font-size: 22px;
+          font-weight: 700;
+          letter-spacing: -0.03em;
+          line-height: 1;
+          color: #4ade80;
+          transition: color 300ms ease;
+        }
+
+        .walletBalanceAmount.loading {
+          color: rgba(74, 222, 128, 0.35);
         }
 
         .walletToggleIcon {
@@ -588,9 +646,26 @@ export default function WalletDesktopRail({
                 onClick={() => setWalletOpen((o) => !o)}
                 aria-expanded={walletOpen}
               >
-                <h3 className="walletTitle">{t("wallet")}</h3>
-                <span className="walletToggleIcon" aria-hidden="true">
-                  {walletOpen ? "−" : "+"}
+                <span className="walletToggleTop">
+                  <span className="walletTitleGroup">
+                    <span className="walletTitleIcon" aria-hidden="true">
+                      <svg width={17} height={17} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.8} strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M20 12V7H5a2 2 0 0 1 0-4h13v4" />
+                        <path d="M3 5v13a2 2 0 0 0 2 2h15v-5" />
+                        <path d="M17 12a2 2 0 0 0 0 4h3v-4Z" />
+                      </svg>
+                    </span>
+                    <h3 className="walletTitle">{t("wallet")}</h3>
+                  </span>
+                  <span className="walletToggleIcon" aria-hidden="true">
+                    {walletOpen ? "−" : "+"}
+                  </span>
+                </span>
+                <span className="walletBalanceBlock">
+                  <span className="walletBalanceLabel">Disponible</span>
+                  <span className={`walletBalanceAmount${walletLoading ? " loading" : ""}`}>
+                    {walletLoading ? "···" : format(view.available)}
+                  </span>
                 </span>
               </button>
 

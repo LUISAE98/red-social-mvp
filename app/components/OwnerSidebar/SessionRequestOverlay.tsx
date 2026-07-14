@@ -1185,7 +1185,7 @@ export default function SessionRequestOverlay({
               {bodyContent}
             </div>
             {footerNode && (
-              <div className="sro-z2" style={{ flexShrink: 0, borderTop: "1px solid rgba(255,255,255,0.08)", padding: "12px 20px 16px" }}>
+              <div className="sro-z2" style={{ flexShrink: 0, borderTop: "1px solid rgba(255,255,255,0.08)", padding: "12px 20px calc(16px + env(safe-area-inset-bottom))" }}>
                 {footerNode}
               </div>
             )}

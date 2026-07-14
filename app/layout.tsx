@@ -7,6 +7,7 @@ import { NextIntlClientProvider } from "next-intl";
 import "./globals.css";
 import RootChrome from "./RootChrome";
 import VibraGlobalBackground from "./components/VibraGlobalBackground";
+import ServiceWorkerRegister from "./components/ServiceWorkerRegister";
 import DesktopRefreshSplash from "@/components/DesktopRefreshSplash";
 import { CurrencyProvider } from "./components/CurrencyProvider";
 
@@ -18,13 +19,13 @@ const plusJakarta = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "Red Social MVP",
-  description: "Red Social MVP",
+  title: "Vibra",
+  description: "Plataforma social de creadores: comunidades, contenido, video en vivo, servicios y monetización directa.",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "Red Social MVP",
+    title: "Vibra",
   },
 };
 
@@ -187,6 +188,8 @@ export default async function RootLayout({
 <NextIntlClientProvider locale={locale} messages={messages}>
   <AuthProvider>
     <CurrencyProvider>
+      <ServiceWorkerRegister />
+
       <DesktopRefreshSplash />
 
       <VibraGlobalBackground />

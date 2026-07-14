@@ -478,7 +478,7 @@ export default function HomeStoriesRow({ currentUserId }: Props) {
     );
   }
 
-  function renderBubble(group: StoryGroup) {
+  function renderBubble(group: StoryGroup, isRecommended = false) {
     const isGrp = group.source === "group";
     const emoji = isGrp ? "🏘️" : "👤";
     const name = group.info.displayName ?? (isGrp ? tCommon("communityLabel") : tCommon("userLabel"));
@@ -553,19 +553,42 @@ export default function HomeStoriesRow({ currentUserId }: Props) {
         </div>
         <span
           style={{
-            color: "rgba(255,255,255,0.72)",
-            fontSize: 11,
-            fontWeight: 500,
-            lineHeight: 1.4,
-            letterSpacing: "-0.01em",
-            fontFamily: fontStack,
-            maxWidth: 88,
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 1,
           }}
         >
-          {name}
+          <span
+            style={{
+              color: "rgba(255,255,255,0.72)",
+              fontSize: 11,
+              fontWeight: 500,
+              lineHeight: 1.4,
+              letterSpacing: "-0.01em",
+              fontFamily: fontStack,
+              maxWidth: 88,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {name}
+          </span>
+          {isRecommended && (
+            <span
+              style={{
+                fontSize: 9,
+                fontWeight: 500,
+                letterSpacing: "0.02em",
+                color: "rgba(168,85,255,0.65)",
+                fontFamily: fontStack,
+                lineHeight: 1.3,
+              }}
+            >
+              {tCommon("recommended")}
+            </span>
+          )}
         </span>
       </button>
     );
@@ -589,34 +612,7 @@ export default function HomeStoriesRow({ currentUserId }: Props) {
         {liveEntities.map((e) => renderLiveBubble(e))}
         {otherStoryGroups.map((group) => renderBubble(group))}
 
-        {recommendedStoryGroups.length > 0 && (
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "flex-start",
-              flexShrink: 0,
-              gap: 0,
-            }}
-          >
-            <span
-              style={{
-                fontSize: 10,
-                color: "rgba(255,255,255,0.38)",
-                fontFamily: fontStack,
-                fontWeight: 500,
-                letterSpacing: "-0.01em",
-                paddingLeft: 2,
-                paddingBottom: 6,
-              }}
-            >
-              {tCommon("recommended")}
-            </span>
-            <div style={{ display: "flex", gap: 16 }}>
-              {recommendedStoryGroups.map((group) => renderBubble(group))}
-            </div>
-          </div>
-        )}
+        {recommendedStoryGroups.map((group) => renderBubble(group, true))}
       </div>
 
       {/* Desktop: carousel with next-group preview */}

@@ -153,7 +153,7 @@ const PANEL_CSS = `
   .vibra-svc-body::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.18); border-radius: 999px; }
   .vibra-svc-footer {
     flex-shrink: 0;
-    padding: 14px 20px 18px;
+    padding: 14px 20px calc(18px + env(safe-area-inset-bottom));
     border-top: 1px solid rgba(255,255,255,0.12);
     display: grid; gap: 10px;
   }

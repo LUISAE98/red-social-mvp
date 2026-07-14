@@ -580,7 +580,7 @@ export default function ScheduleCalendarOverlay({
           }
 
           .scheduleOverlayBody {
-            padding: 14px 16px 20px;
+            padding: 14px 16px calc(20px + env(safe-area-inset-bottom));
             max-height: calc(90vh - 56px);
           }
 

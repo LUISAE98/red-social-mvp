@@ -1,24 +1,24 @@
 {
-"name": "Red Social MVP",
-"short_name": "RedSocial",
-"description": "Red Social MVP",
-"start_url": "/",
-"display": "standalone",
-"background_color": "#000000",
-"theme_color": "#000000",
-"background_color": "#000000",
-"navigation_bar_color": "#000000",
-"orientation": "portrait",
-"icons": [
-{
-"src": "/icon-192.png",
-"sizes": "192x192",
-"type": "image/png"
-},
-{
-"src": "/icon-512.png",
-"sizes": "512x512",
-"type": "image/png"
-}
-]
+  "id": "/",
+  "name": "Vibra",
+  "short_name": "Vibra",
+  "description": "Plataforma social de creadores: comunidades, contenido, video en vivo, servicios y monetización directa.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
 }
