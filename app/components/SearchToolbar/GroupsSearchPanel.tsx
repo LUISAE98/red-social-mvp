@@ -438,8 +438,8 @@ type GroupsSearchPanelProps = {
   createGroupHref?: string;
   showCloseSearch?: boolean;
   onCloseSearch?: () => void;
-  // Modo página completa (búsqueda móvil deslizable): el preview/historial deja
-  // de ser un dropdown flotante y llena la pantalla debajo del input.
+  // Modo página completa (búsqueda móvil): el preview/historial deja de ser un
+  // dropdown flotante y llena la pantalla debajo del input.
   fullPage?: boolean;
 };
 
@@ -506,7 +506,9 @@ const previousPathnameRef = useRef<string | null>(null);
 const normalizedSearch = debouncedSearch.trim().toLowerCase();
 const hasSearch = normalizedSearch.length >= MIN_SEARCH_LENGTH;
 // Sin sesión iniciada nunca se muestra historial (es privado del usuario).
-const historyVisible = !!user && !hasSearch && isFocused && history.length > 0;
+// En página completa (búsqueda móvil) el historial se muestra siempre que no haya
+// búsqueda activa, sin depender del foco del input.
+const historyVisible = !!user && !hasSearch && (fullPage || isFocused) && history.length > 0;
 
 isFocusedRef.current = isFocused;
 // Mientras el visor de historias está abierto, ignoramos los clics fuera para
@@ -1110,7 +1112,7 @@ function handleOpenFullResults() {
   overflow: visible;
 }
 
-/* ── Modo página completa (búsqueda móvil deslizable) ────────────────────────
+/* ── Modo página completa (búsqueda móvil) ───────────────────────────────────
    El input queda arriba y el preview/historial llena la pantalla debajo como
    una lista normal en flujo (sin dropdown flotante ni animación propia). */
 .search-area-full {

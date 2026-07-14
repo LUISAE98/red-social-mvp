@@ -530,6 +530,8 @@
   },
   "profile": {
     "ariaChangeAvatar": "Cambiar foto de perfil",
+    "ariaLiveView": "Ver la transmisión en vivo de {name}",
+    "ariaStoriesView": "Ver las historias de {name}",
     "ariaChangeCover": "Cambiar portada",
     "blockLoadError": "Error al cargar cuentas bloqueadas",
     "blockedAccountsDesc": "Usuarios que no pueden ver tu contenido ni interactuar contigo",
@@ -1288,7 +1290,7 @@
     "videoExceedsMax": "El video supera el máximo de {max} para este tipo de experiencia.",
     "rejectReasonPlaceholder": "Explica por qué rechazas la solicitud...",
     "downloadExpired": "Ya no puedes descargar esta sesión",
-    "downloadDaysLeft": "{days, plural, one {Te queda # día para descargar la sesión} other {Te quedan # días para descargar la sesión}}",
+    "downloadDaysLeft": "{days, plural, one {Te queda # día para descargar tu sesión} other {Te quedan # días para descargar tu sesión}}",
     "sameSlotError": "No puedes reagendar en la misma fecha y horario",
     "creatorNoShowMessage": "El creador no se conectó dentro de los 15 minutos posteriores a la hora agendada.",
     "buyerNoShowMessage": "No te conectaste dentro de los 15 minutos posteriores a la hora agendada.",

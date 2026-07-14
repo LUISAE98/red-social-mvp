@@ -38,6 +38,18 @@ export default function MeetGreetPreparationFullscreen({
     return () => mql.removeEventListener("change", h);
   }, []);
 
+  // Orientación física del teléfono. Cuando el usuario lo pone de lado
+  // (horizontal), el panel se muestra a pantalla completa sin rotar y la cámara
+  // sale horizontal y derecha. En vertical se conserva el truco de rotar 90°.
+  const [isLandscape, setIsLandscape] = useState(false);
+  useEffect(() => {
+    const mql = window.matchMedia("(orientation: landscape)");
+    setIsLandscape(mql.matches);
+    const h = (e: MediaQueryListEvent) => setIsLandscape(e.matches);
+    mql.addEventListener("change", h);
+    return () => mql.removeEventListener("change", h);
+  }, []);
+
   useEffect(() => {
     if (!open) return;
     function handleEscape(event: KeyboardEvent) {
@@ -123,9 +135,12 @@ export default function MeetGreetPreparationFullscreen({
     touchAction: "none",
   };
 
-  // Desktop: panel 16:9 centrado. Móvil: forzamos orientación horizontal (lateral)
-  // rotando el panel 90°, de modo que la videollamada siempre se vea apaisada
-  // aunque el teléfono esté en vertical.
+  // El panel se rota por CSS solo cuando el teléfono está en vertical (para
+  // simular apaisado). De lado no se rota: la cámara ya es horizontal.
+  const rotateMobile = !isDesktop && !isLandscape;
+
+  // Desktop: panel 16:9 centrado. Móvil de lado: pantalla completa sin rotar.
+  // Móvil vertical: se rota el panel 90° para verse apaisado.
   const panelStyle: CSSProperties = isDesktop
     ? {
         position: "relative",
@@ -135,7 +150,8 @@ export default function MeetGreetPreparationFullscreen({
         overflow: "hidden",
         flexShrink: 0,
       }
-    : {
+    : rotateMobile
+    ? {
         position: "absolute",
         top: 0,
         left: "100dvw",
@@ -143,6 +159,14 @@ export default function MeetGreetPreparationFullscreen({
         height: "100dvw",
         transformOrigin: "top left",
         transform: "rotate(90deg)",
+        overflow: "hidden",
+        flexShrink: 0,
+      }
+    : {
+        position: "absolute",
+        inset: 0,
+        width: "100dvw",
+        height: "100dvh",
         overflow: "hidden",
         flexShrink: 0,
       };
@@ -159,7 +183,7 @@ export default function MeetGreetPreparationFullscreen({
             role={role}
             onLeave={onClose}
             isMobile={!isDesktop}
-            rotated={!isDesktop}
+            rotated={rotateMobile}
             onEndCallRequest={handleEndCallRequest}
             onTimerExpired={handleTimerExpired}
             onTwoMinWarning={handleTwoMinWarning}
@@ -423,6 +447,66 @@ export default function MeetGreetPreparationFullscreen({
         )}
 
       </div>
+
+      {/* Aviso móvil: exige teléfono en horizontal con giro automático activado.
+          Solo aparece cuando el viewport NO está en landscape (incluye el caso de
+          giro bloqueado). Tapa la llamada con fondo translúcido hasta que el
+          usuario gire el dispositivo — que es el único estado donde la cámara y
+          la sala salen bien. Va fuera del panel rotado para leerse derecho. */}
+      {!isDesktop && !isLandscape && (
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            zIndex: 2147483647,
+            background: "rgba(0,0,0,0.82)",
+            backdropFilter: "blur(8px)",
+            WebkitBackdropFilter: "blur(8px)",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 20,
+            padding: 32,
+            textAlign: "center",
+            fontFamily: "inherit",
+          }}
+        >
+          <style>{`
+            @keyframes vibraRotateHint {
+              0%, 55%, 100% { transform: rotate(0deg); }
+              75%, 95% { transform: rotate(-90deg); }
+            }
+          `}</style>
+          <svg
+            width={68}
+            height={68}
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="#a855ff"
+            strokeWidth={1.5}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+            style={{ animation: "vibraRotateHint 2.4s ease-in-out infinite" }}
+          >
+            <rect x="7" y="2" width="10" height="20" rx="2" />
+            <line x1="11" y1="18" x2="13" y2="18" />
+          </svg>
+          <div>
+            <p style={{ color: "#fff", fontSize: 18, fontWeight: 700, margin: "0 0 8px", lineHeight: 1.3, letterSpacing: "-0.01em" }}>
+              Gira tu teléfono
+            </p>
+            <p style={{ color: "rgba(255,255,255,0.65)", fontSize: 14, margin: 0, lineHeight: 1.55, maxWidth: 300 }}>
+              Activa el{" "}
+              <strong style={{ color: "rgba(255,255,255,0.88)" }}>giro automático</strong>{" "}
+              de tu pantalla y pon el teléfono en{" "}
+              <strong style={{ color: "rgba(255,255,255,0.88)" }}>horizontal</strong>{" "}
+              para que la videollamada se vea bien.
+            </p>
+          </div>
+        </div>
+      )}
     </div>,
     document.body,
   );

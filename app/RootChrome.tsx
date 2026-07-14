@@ -34,9 +34,13 @@ const isPublicRoute =
   pathname.startsWith("/groups") ||
   pathname.startsWith("/u/") ||
   pathname.startsWith("/p/") ||
-  pathname.startsWith("/live-overlay/");
+  pathname.startsWith("/live-overlay/") ||
+  pathname.startsWith("/egress/");
 
-const isOverlayRoute = pathname.startsWith("/live-overlay/");
+// Rutas que se renderizan SIN chrome (overlays a pantalla completa y la
+// plantilla de grabación de sesiones, que carga el grabador headless).
+const isOverlayRoute =
+  pathname.startsWith("/live-overlay/") || pathname.startsWith("/egress/");
 
   const isAuthPage =
     pathname === "/login" ||

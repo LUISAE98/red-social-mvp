@@ -530,6 +530,8 @@
   },
   "profile": {
     "ariaChangeAvatar": "Change profile photo",
+    "ariaLiveView": "View {name}'s live",
+    "ariaStoriesView": "View {name}'s stories",
     "ariaChangeCover": "Change cover",
     "blockLoadError": "Error loading blocked accounts",
     "blockedAccountsDesc": "Users who cannot see your content or interact with you",
@@ -1192,7 +1194,7 @@
     "videoExceedsMax": "The video exceeds the maximum of {max} for this experience type.",
     "rejectReasonPlaceholder": "Explain why you are rejecting the request...",
     "downloadExpired": "You can no longer download this session",
-    "downloadDaysLeft": "{days, plural, one {You have # day left to download the session} other {You have # days left to download the session}}",
+    "downloadDaysLeft": "{days, plural, one {You have # day left to download your session} other {You have # days left to download your session}}",
     "sameSlotError": "You cannot reschedule to the same date and time",
     "creatorNoShowMessage": "The creator did not join within 15 minutes of the scheduled time.",
     "buyerNoShowMessage": "You did not join within 15 minutes of the scheduled time.",

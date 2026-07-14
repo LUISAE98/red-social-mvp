@@ -1918,15 +1918,24 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
                 const relTime = completedTs ? getRelativeTime(completedTs, tCommon) : null;
                 const downloadBusy = !!downloadBusyMap[row.id];
                 const downloadError = downloadErrorMap[row.id] ?? null;
+                // Contador descendente 30 → 0 para descargar la grabación de la sesión.
+                const dlRef = toDateSafe(req.scheduledAt);
+                const dlElapsed = dlRef
+                  ? Math.floor((Date.now() - dlRef.getTime()) / (1000 * 60 * 60 * 24))
+                  : 0;
+                const daysLeft = Math.max(0, 30 - dlElapsed);
+                const canDownload = daysLeft > 0;
+                const bgImage = isExclusive ? "/sesionexclusiva.png" : "/encuentroenvivo.png";
 
                 return (
                   <div
                     key={`completed-session-${row.id}`}
                     style={{
                       ...styles.miniItem,
-                      background: "rgba(90,41,174,0.14)",
+                      background: `linear-gradient(90deg, rgba(0,0,0,0.88), rgba(0,0,0,0.72)), center / cover no-repeat url("${bgImage}")`,
                       border: "none",
                       borderRadius: 12,
+                      overflow: "hidden",
                       padding: 10,
                       display: "flex",
                       alignItems: "center",
@@ -1959,11 +1968,25 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
                           {relTime}
                         </div>
                       )}
+                      <div
+                        style={{
+                          color: canDownload ? "#ddd6fe" : "#fca5a5",
+                          fontSize: 10.5,
+                          fontWeight: 600,
+                          marginTop: 6,
+                          lineHeight: 1.3,
+                          textShadow: "0 1px 3px rgba(0,0,0,0.8)",
+                        }}
+                      >
+                        {canDownload
+                          ? tServices("downloadDaysLeft", { days: daysLeft })
+                          : tServices("downloadExpired")}
+                      </div>
                     </div>
                     <div style={{ display: "grid", gap: 4, flexShrink: 0 }}>
                       <button
                         type="button"
-                        disabled={downloadBusy}
+                        disabled={downloadBusy || !canDownload}
                         onClick={async () => {
                           setDownloadBusyMap((prev) => ({ ...prev, [row.id]: true }));
                           setDownloadErrorMap((prev) => ({ ...prev, [row.id]: null }));
@@ -1983,11 +2006,15 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
                           padding: "0 12px",
                           borderRadius: 8,
                           border: "none",
-                          background: "rgba(59,130,246,0.18)",
-                          color: "#93c5fd",
+                          background: canDownload
+                            ? (isExclusive ? "rgba(236,72,153,0.18)" : "rgba(59,130,246,0.18)")
+                            : "rgba(255,255,255,0.08)",
+                          color: canDownload
+                            ? (isExclusive ? "#f9a8d4" : "#93c5fd")
+                            : "rgba(255,255,255,0.3)",
                           fontWeight: 600,
                           fontSize: 11,
-                          cursor: downloadBusy ? "not-allowed" : "pointer",
+                          cursor: !canDownload || downloadBusy ? "not-allowed" : "pointer",
                           opacity: downloadBusy ? 0.7 : 1,
                           whiteSpace: "nowrap",
                         }}

@@ -7,6 +7,7 @@ import Link from "next/link";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { usePathname, useRouter } from "@/i18n/navigation";
+import { motion, AnimatePresence } from "framer-motion";
 import VibraSavedPostIcon from "@/app/components/VibraServiceIcons/VibraSavedPostIcon";
 import { useAuth } from "@/app/providers";
 import OwnerSidebar from "@/app/components/OwnerSidebar/OwnerSidebar";
@@ -717,20 +718,7 @@ const contentAreaClassName = isEmbed
               </div>
             </div>
 
-{mobileSearchOpen ? (
-  <div className="mobileSearchRow">
-    <div className="mobileSearchCol">
-      <GroupsSearchPanel
-        fontStack={fontStack}
-        showCreateGroup={false}
-        createGroupHref="/groups/new"
-        showCloseSearch={true}
-        onCloseSearch={() => setMobileSearchOpen(false)}
-        autoFocusOnMount={true}
-      />
-    </div>
-  </div>
-) : (
+{(
   <div className={`mobileHeaderRow${isGroupDetailPage && contextScrolled ? " mobileHeaderScrolled" : ""}`}>
     {/* Contenido por defecto: logo + acciones */}
     <div className="mobileHeaderDefault">
@@ -807,6 +795,54 @@ const contentAreaClassName = isEmbed
 
        {!isEmbed && <MobileBottomNav showWallet={showWalletRail} />}
       </div>
+
+       {/* Búsqueda móvil: página completa negra que entra deslizándose de derecha
+           a izquierda. Estilos inline (styled-jsx no scopea sobre motion.div). */}
+       <AnimatePresence>
+         {mobileSearchOpen && (
+           <motion.div
+             key="mobile-search-page"
+             initial={{ x: "100%" }}
+             animate={{ x: 0 }}
+             exit={{ x: "100%" }}
+             transition={{ type: "spring", stiffness: 320, damping: 32, mass: 0.9 }}
+             style={{
+               position: "fixed",
+               inset: 0,
+               zIndex: 200,
+               background: "#000",
+               display: "flex",
+               flexDirection: "column",
+               paddingTop: "env(safe-area-inset-top, 0px)",
+               paddingLeft: "env(safe-area-inset-left, 0px)",
+               paddingRight: "env(safe-area-inset-right, 0px)",
+               boxSizing: "border-box",
+               willChange: "transform",
+             }}
+           >
+             <div
+               style={{
+                 flex: 1,
+                 minHeight: 0,
+                 display: "flex",
+                 flexDirection: "column",
+                 padding: "10px 12px calc(12px + env(safe-area-inset-bottom, 0px))",
+                 boxSizing: "border-box",
+               }}
+             >
+               <GroupsSearchPanel
+                 fontStack={fontStack}
+                 showCreateGroup={false}
+                 createGroupHref="/groups/new"
+                 showCloseSearch={true}
+                 onCloseSearch={() => setMobileSearchOpen(false)}
+                 autoFocusOnMount={true}
+                 fullPage
+               />
+             </div>
+           </motion.div>
+         )}
+       </AnimatePresence>
       </MobileHeaderCtx.Provider>
     </>
   );

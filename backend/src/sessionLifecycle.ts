@@ -51,6 +51,12 @@ const FORCE_COMPLETE_STATUSES = new Set(["session_incomplete"]);
 const SESSION_COMPLETE_THRESHOLD_PCT = 0.8;
 const FALLBACK_DURATION_MINUTES = 30;
 
+// Plantilla web pública que compone la grabación (creador grande + comprador
+// PiP). El grabador headless de LiveKit la abre con ?url=&token=&layout=.
+// Debe estar desplegada (Vercel); no funciona contra localhost.
+const EGRESS_TEMPLATE_BASE_URL =
+  process.env.EGRESS_TEMPLATE_BASE_URL ?? "https://vibraon.com/en/egress/session";
+
 function requireAuth(uid?: string): string {
   if (!uid) throw new HttpsError("unauthenticated", "Debes iniciar sesión.");
   return uid;
@@ -107,7 +113,11 @@ async function startRecording(
   let egressInfo: EgressInfo;
   try {
     egressInfo = await egressClient.startRoomCompositeEgress(roomName, fileOutput, {
-      layout: "grid",
+      // Plantilla propia con layout FIJO: creador grande + comprador PiP en la
+      // esquina, horizontal — como lo ve el comprador. (Los layouts nativos
+      // "grid"/"speaker" no permiten fijar quién va en grande.)
+      customBaseUrl: EGRESS_TEMPLATE_BASE_URL,
+      layout: "creator-focus",
       encodingOptions: EncodingOptionsPreset.H264_1080P_30,
     });
   } catch (err: unknown) {
