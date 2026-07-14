@@ -135,6 +135,8 @@ export type RecordEarningParams = {
   channelType?: "profile" | "group";
   /** Id de la comunidad si channelType = "group"; null para perfil. */
   channelId?: string | null;
+  /** Id del post del live si la venta pertenece a una transmisión; null si no. */
+  liveId?: string | null;
 };
 
 /**
@@ -172,6 +174,7 @@ export async function recordEarning(
       buyerId: params.buyerId ?? null,
       channelType: params.channelType ?? "profile",
       channelId: params.channelId ?? null,
+      liveId: params.liveId ?? null,
       createdAt: now,
       occurredAt: toOccurredAt(params.occurredAt),
       earnedAt: status === "earned" ? now : null,

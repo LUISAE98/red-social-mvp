@@ -42,6 +42,8 @@ export type LedgerEntry = {
   channelType: LedgerChannelType;
   /** Id de la comunidad si channelType = "group"; null para perfil. */
   channelId: string | null;
+  /** Id del post del live si la venta pertenece a una transmisión; null si no. */
+  liveId: string | null;
 };
 
 /** Clave de traducción (namespace wallet) para el nombre de cada servicio. */
@@ -123,6 +125,7 @@ function mapLedgerDoc(doc: {
     buyerId: typeof d.buyerId === "string" ? d.buyerId : null,
     channelType: d.channelType === "group" ? "group" : "profile",
     channelId: typeof d.channelId === "string" ? d.channelId : null,
+    liveId: typeof d.liveId === "string" ? d.liveId : null,
   };
 }
 

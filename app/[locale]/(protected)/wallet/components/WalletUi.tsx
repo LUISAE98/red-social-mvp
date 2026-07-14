@@ -1667,6 +1667,7 @@ export function WalletFilterMenu<T extends string>({
   onChange,
   allValue,
   transparent = false,
+  singleSelect = false,
 }: {
   label?: string;
   menuLabel: string;
@@ -1675,6 +1676,8 @@ export function WalletFilterMenu<T extends string>({
   onChange: (value: T[]) => void;
   allValue: T;
   transparent?: boolean;
+  /** Selección única: al tocar una opción se aplica y cierra (sin "Aceptar"). */
+  singleSelect?: boolean;
 }) {
   const tCommon = useTranslations("common");
   const [open, setOpen] = useState(false);
@@ -1688,6 +1691,11 @@ export function WalletFilterMenu<T extends string>({
   }
 
   function toggleOption(opt: T) {
+    if (singleSelect) {
+      onChange([opt]);
+      closeMenu();
+      return;
+    }
     if (opt === allValue) {
       setPending([allValue]);
       return;
@@ -1874,32 +1882,34 @@ export function WalletFilterMenu<T extends string>({
                 );
               })}
 
-              {/* Aceptar */}
-              <div
-                style={{
-                  padding: "4px 16px 8px",
-                  borderTop: "1px solid rgba(255,255,255,0.08)",
-                }}
-              >
-                <button
-                  type="button"
-                  onClick={handleAccept}
+              {/* Aceptar (oculto en selección única: aplica al tocar). */}
+              {!singleSelect && (
+                <div
                   style={{
-                    width: "100%",
-                    border: "none",
-                    borderRadius: 8,
-                    background: "transparent",
-                    color: "rgba(255,255,255,0.88)",
-                    fontSize: 13,
-                    fontWeight: 600,
-                    padding: "7px 16px",
-                    cursor: "pointer",
-                    letterSpacing: "-0.01em",
+                    padding: "4px 16px 8px",
+                    borderTop: "1px solid rgba(255,255,255,0.08)",
                   }}
                 >
-                  {tCommon("accept")}
-                </button>
-              </div>
+                  <button
+                    type="button"
+                    onClick={handleAccept}
+                    style={{
+                      width: "100%",
+                      border: "none",
+                      borderRadius: 8,
+                      background: "transparent",
+                      color: "rgba(255,255,255,0.88)",
+                      fontSize: 13,
+                      fontWeight: 600,
+                      padding: "7px 16px",
+                      cursor: "pointer",
+                      letterSpacing: "-0.01em",
+                    }}
+                  >
+                    {tCommon("accept")}
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </>,

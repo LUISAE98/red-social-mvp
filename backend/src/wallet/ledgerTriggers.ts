@@ -73,6 +73,10 @@ export const onSuperCommentLedger = onDocumentCreated(
     if (!authorId) return;
 
     const hasText = str(data.text) !== null;
+    // Live si el post es una transmisión (tiene liveData). Un supercomment sin
+    // texto (donación) siempre ocurre en un live; uno con texto puede ser en
+    // un post normal, así que revisamos liveData.
+    const isLive = postSnap.get("liveData") != null;
 
     await recordEarning(authorId, {
       type: hasText ? "supercomment" : "live_donation",
@@ -82,6 +86,7 @@ export const onSuperCommentLedger = onDocumentCreated(
       buyerId: str(data.userId) ?? str(data.guestId),
       earnedImmediately: true,
       occurredAt: data.createdAt,
+      liveId: isLive ? postId : null,
       ...channelFromGroupId(str(postSnap.get("groupId"))),
     });
   }
@@ -108,6 +113,8 @@ export const onLiveAccessLedger = onDocumentCreated(
       buyerId: event.params.userId,
       earnedImmediately: true,
       occurredAt: data.createdAt,
+      // El doc guarda el postId real del live; si no, el id del contenedor.
+      liveId: str(data.postId) ?? event.params.liveId,
       ...channelFromGroupId(str(data.groupId)),
     });
   }
@@ -161,6 +168,8 @@ export const onPostAccessLedger = onDocumentWritten(
       buyerId: str(data.buyerId),
       earnedImmediately: true,
       occurredAt: data.createdAt,
+      // VOD = venta de la grabación de un live → atribuir al post del live.
+      liveId: isVod ? postId : null,
       ...channelFromGroupId(groupId),
     });
   }

@@ -248,3 +248,6 @@ export { createKycSession, diditWebhook } from "./kyc";
 
 // Backfill de búsqueda de historias (corrida única, protegida por secret)
 export { backfillStoriesSearch } from "./storiesBackfill";
+
+// Backfill de liveId en el ledger (corrida única, idempotente)
+export { backfillWalletLives } from "./walletLivesBackfill";

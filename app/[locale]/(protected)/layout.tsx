@@ -22,7 +22,6 @@ import WalletDesktopRail from "@/app/components/WalletDesktopRail/WalletDesktopR
 import { MobileHeaderCtx, type MobileHeaderData } from "@/app/contexts/MobileHeaderContext";
 import LanguageSwitcher from "@/app/components/LanguageSwitcher";
 import CurrencySwitcher from "@/app/components/CurrencySwitcher";
-import DraggableSessionCard from "@/app/components/SessionCountdownBanner/DraggableSessionCard";
 
 
 function PublicProfileShell({
@@ -841,7 +840,6 @@ const contentAreaClassName = isEmbed
 
        {!isEmbed && <ScrollToTopFAB />}
        {!isEmbed && <MobileBottomNav showWallet={showWalletRail} />}
-       {!isEmbed && user && <DraggableSessionCard uid={user.uid} />}
       </div>
       </MobileHeaderCtx.Provider>
     </>
@@ -866,7 +864,7 @@ export default function PublicProfileLayout({
     setMounted(true);
   }, []);
 
-  if (!mounted || authTransitionMode === "exiting" || loading) {
+  if ((!mounted && loading) || authTransitionMode === "exiting") {
     return <div style={{ minHeight: "100dvh", background: "#000" }} />;
   }
 

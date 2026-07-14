@@ -11,10 +11,11 @@ import ServiceWorkerRegister from "./components/ServiceWorkerRegister";
 import DesktopRefreshSplash from "@/components/DesktopRefreshSplash";
 import { CurrencyProvider } from "./components/CurrencyProvider";
 
+// Fuente variable (eje wght): permite cualquier peso 200–800, incluidos
+// intermedios como 650, no solo los estáticos.
 const plusJakarta = Plus_Jakarta_Sans({
   variable: "--font-jakarta",
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800"],
   display: "swap",
 });
 

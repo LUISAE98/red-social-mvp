@@ -6,22 +6,21 @@ import { createPortal } from "react-dom";
 import { useCreatorTodaySessions, type CreatorSession } from "@/lib/hooks/useCreatorTodaySessions";
 import { setMeetGreetPreparing } from "@/lib/meetGreet/meetGreetRequests";
 import { setExclusiveSessionPreparing } from "@/lib/exclusiveSession/exclusiveSessionRequests";
-import {
-  rejectMeetGreetRequest,
-  requestMeetGreetReschedule,
-  proposeMeetGreetSchedule,
-} from "@/lib/meetGreet/meetGreetRequests";
-import {
-  rejectExclusiveSessionRequest,
-  requestExclusiveSessionReschedule,
-  proposeExclusiveSessionSchedule,
-} from "@/lib/exclusiveSession/exclusiveSessionRequests";
-import ScheduleDateTimeSelector, {
-  getSchedulePartsFromDate,
-  schedulePartsToIso,
-  type ScheduleParts,
-} from "@/app/(protected)/wallet/components/ScheduleDateTimeSelector";
+import { rejectMeetGreetRequest } from "@/lib/meetGreet/meetGreetRequests";
+import { rejectExclusiveSessionRequest } from "@/lib/exclusiveSession/exclusiveSessionRequests";
+import { OPEN_SESSION_SCHEDULE_EVENT } from "./GlobalSessionScheduleOverlay";
 import MeetGreetPreparationFullscreen from "@/app/components/meetGreet/MeetGreetPreparationFullscreen";
+
+// Abre el panel de reagenda global (mismo SessionRequestOverlay del sidebar).
+// El host GlobalSessionScheduleOverlay escucha este evento, trae el doc y lo abre.
+function openSessionScheduleOverlay(
+  sessionId: string,
+  serviceKind: "meet_greet" | "exclusive_session"
+) {
+  window.dispatchEvent(
+    new CustomEvent(OPEN_SESSION_SCHEDULE_EVENT, { detail: { sessionId, serviceKind } })
+  );
+}
 
 function formatCountdown(ms: number): string {
   if (ms <= 0) return "00:00:00";
@@ -66,19 +65,6 @@ function ActionSessionRow({ session }: { session: CreatorSession }) {
     } catch (e) { console.error(e); } finally { setBusy(false); }
   }
 
-  async function handleReschedule() {
-    if (busy) return;
-    setBusy(true);
-    try {
-      if (session.serviceKind === "meet_greet") {
-        await requestMeetGreetReschedule({ requestId: session.id, reason: null });
-      } else {
-        await requestExclusiveSessionReschedule({ requestId: session.id, reason: null });
-      }
-      setDone(true);
-    } catch (e) { console.error(e); } finally { setBusy(false); }
-  }
-
   if (done) return null;
 
   return (
@@ -97,7 +83,7 @@ function ActionSessionRow({ session }: { session: CreatorSession }) {
         {buyerName}
       </div>
       <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
-        <button type="button" onClick={handleReschedule} disabled={busy}
+        <button type="button" onClick={() => openSessionScheduleOverlay(session.id, session.serviceKind)} disabled={busy}
           style={{ height: 26, paddingInline: 8, borderRadius: 6, border: "none", background: busy ? "rgba(255,255,255,0.08)" : session.serviceKind === "meet_greet" ? "#2563eb" : "#be185d", color: busy ? "rgba(255,255,255,0.35)" : "#fff", fontSize: 11, fontWeight: 600, cursor: busy ? "not-allowed" : "pointer", fontFamily: "inherit" }}>
           Reagendar
         </button>
@@ -201,8 +187,6 @@ export default function CreatorSessionCountdownBanner({ uid }: { uid: string }) 
   const [now, setNow] = useState(() => Date.now());
   const [busy, setBusy] = useState(false);
   const [prepOpen, setPrepOpen] = useState(false);
-  const [reschedOpen, setReschedOpen] = useState(false);
-  const [scheduleParts, setScheduleParts] = useState<ScheduleParts>(() => getSchedulePartsFromDate(null));
   const lateTriggeredRef = useRef<Set<number>>(new Set());
   const [countdown321, setCountdown321] = useState<number | null>(null);
   const countdown321Triggered = useRef(false);
@@ -222,8 +206,6 @@ export default function CreatorSessionCountdownBanner({ uid }: { uid: string }) 
 
   useEffect(() => {
     lateTriggeredRef.current.clear();
-    setReschedOpen(false);
-    setScheduleParts(getSchedulePartsFromDate(null));
     countdown321Triggered.current = false;
     setCountdown321(null);
   }, [nextSession?.id]);
@@ -353,25 +335,6 @@ export default function CreatorSessionCountdownBanner({ uid }: { uid: string }) 
         await setExclusiveSessionPreparing({ requestId: nextSession.id, role: "creator" });
       }
       // Do NOT open prep room here — it opens after the 3-2-1 countdown
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function handleReschedule() {
-    if (!nextSession || busy) return;
-    const iso = schedulePartsToIso(scheduleParts);
-    if (!iso) return;
-    setBusy(true);
-    try {
-      if (nextSession.serviceKind === "meet_greet") {
-        await proposeMeetGreetSchedule({ requestId: nextSession.id, scheduledAt: iso, note: null });
-      } else {
-        await proposeExclusiveSessionSchedule({ requestId: nextSession.id, scheduledAt: iso, note: null });
-      }
-      setReschedOpen(false);
     } catch (e) {
       console.error(e);
     } finally {
@@ -708,43 +671,6 @@ export default function CreatorSessionCountdownBanner({ uid }: { uid: string }) 
                 </button>
               )}
             </>
-          ) : reschedOpen ? (
-            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              <ScheduleDateTimeSelector value={scheduleParts} onChange={setScheduleParts} disabled={busy} />
-              <div style={{ display: "flex", gap: 8 }}>
-                <button
-                  type="button"
-                  onClick={handleReschedule}
-                  disabled={busy || !schedulePartsToIso(scheduleParts)}
-                  style={{
-                    flex: 1, height: 36, borderRadius: 6, border: "none",
-                    background: nextSession.serviceKind === "meet_greet" ? "#2563eb" : "#be185d",
-                    color: "#fff", fontSize: 13, fontWeight: 600,
-                    cursor: (busy || !schedulePartsToIso(scheduleParts)) ? "not-allowed" : "pointer",
-                    fontFamily: "inherit",
-                    opacity: (busy || !schedulePartsToIso(scheduleParts)) ? 0.7 : 1,
-                  }}
-                >
-                  {busy ? "Procesando..." : "Confirmar reagenda"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setReschedOpen(false)}
-                  disabled={busy}
-                  style={{
-                    flex: 1, height: 36, borderRadius: 6, border: "none",
-                    background: "rgba(255,255,255,0.10)",
-                    color: "rgba(255,255,255,0.70)",
-                    fontSize: 13, fontWeight: 500,
-                    cursor: busy ? "not-allowed" : "pointer",
-                    fontFamily: "inherit",
-                    opacity: busy ? 0.7 : 1,
-                  }}
-                >
-                  Cancelar
-                </button>
-              </div>
-            </div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               <div style={{ fontSize: 12, color: "#fb923c", lineHeight: 1.4, fontWeight: 500 }}>
@@ -753,7 +679,7 @@ export default function CreatorSessionCountdownBanner({ uid }: { uid: string }) 
               <div style={{ display: "flex", gap: 8 }}>
                 <button
                   type="button"
-                  onClick={() => setReschedOpen(true)}
+                  onClick={() => openSessionScheduleOverlay(nextSession.id, nextSession.serviceKind)}
                   disabled={busy}
                   style={{
                     flex: 1,

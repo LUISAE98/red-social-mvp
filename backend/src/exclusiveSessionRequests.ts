@@ -850,7 +850,7 @@ export const proposeExclusiveSessionSchedule = onCall(
     ensureCreator(data, uid);
     ensureStatusAllowed(
       data.status as ExclusiveSessionStatus,
-      ["accepted_pending_schedule", "reschedule_requested", "scheduled", "ready_to_prepare", "auto_rejected_no_show"],
+      ["accepted_pending_schedule", "reschedule_requested", "scheduled", "ready_to_prepare", "in_preparation", "auto_rejected_no_show"],
       "proponer fecha"
     );
 
@@ -882,6 +882,15 @@ export const proposeExclusiveSessionSchedule = onCall(
       autoRejectReason: null,
       noShowRole: null,
       rejectionReason: null,
+      // Reagenda = sesión fresca: limpiar preparación/conexión previas para que
+      // el chequeo de no-show del nuevo horario no considere "presente" a nadie.
+      preparingBuyerAt: null,
+      preparingCreatorAt: null,
+      preparationOpenedAt: null,
+      creatorJoinedAt: null,
+      buyerJoinedAt: null,
+      startedAt: null,
+      roomStatus: null,
       updatedAt: nowTs(),
       scheduleHistory: admin.firestore.FieldValue.arrayUnion({
         proposedAt: nowTs(),

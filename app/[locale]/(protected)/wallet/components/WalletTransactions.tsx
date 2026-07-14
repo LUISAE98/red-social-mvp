@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import { WalletCard, WalletFilterMenu } from "./WalletUi";
 import WalletSubscriptions from "./WalletSubscriptions";
 import WalletActiveSubscribers from "./WalletActiveSubscribers";
+import WalletLives from "./WalletLives";
 import WalletChannelFilter from "./WalletChannelFilter";
 import WalletMovementsChart, { type ChartBucket } from "./WalletMovementsChart";
 import { useOwnedChannels } from "@/lib/wallet/walletSubscriptionData";
@@ -48,9 +49,9 @@ function formatDate(date: Date | null): string {
   }
 }
 
-type Filter = "all" | LedgerStatus | "withdrawal" | "subscription";
+type Filter = "all" | LedgerStatus | "withdrawal" | "subscription" | "lives";
 
-const FILTERS: Filter[] = ["all", "withdrawal", "subscription"];
+const FILTERS: Filter[] = ["all", "withdrawal", "subscription", "lives"];
 
 // Paginación: 50 por página; se precargan los siguientes 50 al acercarse
 // a 20 filas del final de la lista visible (≈ fila 30 de 50).
@@ -207,8 +208,8 @@ export default function WalletTransactions({
   ];
 
   const visible = useMemo(() => {
-    // Retiros: aún no se registran en el libro mayor. Suscriptores: panel aparte.
-    if (filter === "withdrawal" || filter === "subscription") return [];
+    // Retiros: aún no se registran en el libro mayor. Suscriptores y Lives: panel aparte.
+    if (filter === "withdrawal" || filter === "subscription" || filter === "lives") return [];
     let list = scopedEntries;
     // Filtro por estado (multi-selección).
     if (!statusFilter.includes("all")) {
@@ -344,7 +345,9 @@ export default function WalletTransactions({
         ? tWallet("txFilterWithdrawals")
         : f === "subscription"
           ? tWallet("txFilterSubscribers")
-          : tWallet(ledgerStatusLabelKey(f));
+          : f === "lives"
+            ? tWallet("txFilterLives")
+            : tWallet(ledgerStatusLabelKey(f));
 
   return (
     <WalletCard transparent>
@@ -549,8 +552,10 @@ export default function WalletTransactions({
         </div>
       ) : null}
 
-      {/* Pestaña Suscriptores: panel de suscripciones + lista de activos. */}
-      {filter === "subscription" ? (
+      {/* Pestaña Lives: lista de transmisiones ordenadas por monetización. */}
+      {filter === "lives" ? (
+        <WalletLives uid={uid} mode={mode} />
+      ) : filter === "subscription" ? (
         <div style={{ marginTop: 22 }}>
           {subChannelState.mode === "message" ? (
             <div

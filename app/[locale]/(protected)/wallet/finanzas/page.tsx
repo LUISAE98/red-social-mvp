@@ -447,7 +447,7 @@ export default function WalletFinanzasPage() {
               <div
                 style={{
                   fontSize: 17,
-                  fontWeight: 600,
+                  fontWeight: 640,
                   letterSpacing: "-0.02em",
                   color: "rgba(255,255,255,0.9)",
                 }}
@@ -480,7 +480,7 @@ export default function WalletFinanzasPage() {
               <div
                 style={{
                   fontSize: 17,
-                  fontWeight: 600,
+                  fontWeight: 640,
                   letterSpacing: "-0.02em",
                   color: "rgba(255,255,255,0.9)",
                 }}
@@ -518,7 +518,7 @@ export default function WalletFinanzasPage() {
               <div
                 style={{
                   fontSize: 17,
-                  fontWeight: 600,
+                  fontWeight: 640,
                   letterSpacing: "-0.02em",
                   color: "rgba(255,255,255,0.9)",
                 }}

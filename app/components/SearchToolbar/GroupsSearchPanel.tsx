@@ -16,9 +16,28 @@ import {
 import { auth, db } from "@/lib/firebase";
 import { searchGroups } from "@/lib/groups/searchGroups";
 import { searchProfiles } from "@/lib/profile/searchProfiles";
+import { searchStories } from "@/lib/stories/searchStories";
+import { searchPosts } from "@/lib/posts/searchPosts";
+import type { StoryDoc } from "@/lib/stories/types";
+import type { Post } from "@/lib/posts/types";
+import StoryViewer from "@/app/components/Stories/StoryViewer";
 import GroupsSearchToolbar from "./GroupsSearchToolbar";
 import LiveRingAvatar from "@/app/components/LiveRing/LiveRingAvatar";
 
+// Aro morado de Vibra para historias (mismo gradiente que el home).
+const VIBRA_STORY_RING = "linear-gradient(135deg, #ec4899 0%, #9333ea 52%, #3b82f6 100%)";
+
+function storyThumb(s: StoryDoc): string | null {
+  if (s.muxPlaybackId) return `https://image.mux.com/${s.muxPlaybackId}/thumbnail.jpg?time=0`;
+  if (s.thumbnailUrl) return s.thumbnailUrl;
+  return null;
+}
+
+function postThumb(p: Post): string | null {
+  const m = Array.isArray(p.media) ? p.media[0] : null;
+  if (!m) return null;
+  return m.thumbnailUrl ?? (m.type === "image" ? m.url : null) ?? null;
+}
 
 export type CommunitySearchMatchType = "exact" | "related" | "suggested";
 const SEARCH_LIMIT = 12;
@@ -449,9 +468,14 @@ const previousPathnameRef = useRef<string | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [communitiesLoading, setCommunitiesLoading] = useState(true);
   const [profilesLoading, setProfilesLoading] = useState(true);
+  const [storiesLoading, setStoriesLoading] = useState(true);
+  const [postsLoading, setPostsLoading] = useState(true);
 
   const [communities, setCommunities] = useState<Community[]>([]);
   const [profiles, setProfiles] = useState<PublicUser[]>([]);
+  const [stories, setStories] = useState<StoryDoc[]>([]);
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [storyViewerIndex, setStoryViewerIndex] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const { toast: searchToast, showToast: showSearchToast } = useVibraToast();
   useEffect(() => { if (error) showSearchToast(error, "error"); }, [error]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -471,10 +495,9 @@ const previousPathnameRef = useRef<string | null>(null);
   const [history, setHistory] = useState<SearchHistoryEntry[]>([]);
   const [isFocused, setIsFocused] = useState(false);
   const isFocusedRef = useRef(false);
+  const storyViewerOpenRef = useRef(false);
 
-  const cardBorder = "1px solid rgba(255,255,255,0.14)";
   const softBorder = "1px solid rgba(255,255,255,0.18)";
-  const shadow = "0 18px 46px rgba(0,0,0,0.42)";
 
 const normalizedSearch = debouncedSearch.trim().toLowerCase();
 const hasSearch = normalizedSearch.length >= MIN_SEARCH_LENGTH;
@@ -482,6 +505,9 @@ const hasSearch = normalizedSearch.length >= MIN_SEARCH_LENGTH;
 const historyVisible = !!user && !hasSearch && isFocused && history.length > 0;
 
 isFocusedRef.current = isFocused;
+// Mientras el visor de historias está abierto, ignoramos los clics fuera para
+// que el preview no se cierre (solo se cierra al abrir post/perfil/comunidad).
+storyViewerOpenRef.current = storyViewerIndex !== null;
 
 // Mantener el panel de resultados montado durante la animación de salida.
 // Si al cerrar pasamos a mostrar el historial, hacemos el cambio sin animar
@@ -542,6 +568,9 @@ useEffect(() => {
   function handlePointerDown(event: PointerEvent) {
     const target = event.target;
     if (!(target instanceof Node)) return;
+
+    // Con el visor de historias abierto no cerramos el preview por clic fuera.
+    if (storyViewerOpenRef.current) return;
 
     if (searchAreaRef.current?.contains(target)) return;
     if (dropdownRef.current?.contains(target)) return;
@@ -662,6 +691,68 @@ useEffect(() => {
     cancelled = true;
   };
 }, [hasSearch, debouncedSearch, user?.uid]);
+
+useEffect(() => {
+  let cancelled = false;
+
+  async function loadStories() {
+    if (!hasSearch) {
+      setStories([]);
+      setStoriesLoading(false);
+      return;
+    }
+    try {
+      setStoriesLoading(true);
+      const result = await searchStories({ search: debouncedSearch, pageSize: 12 });
+      if (cancelled) return;
+      setStories(result);
+    } catch {
+      if (!cancelled) setStories([]);
+    } finally {
+      if (!cancelled) setStoriesLoading(false);
+    }
+  }
+
+  loadStories();
+
+  return () => {
+    cancelled = true;
+  };
+}, [hasSearch, debouncedSearch]);
+
+useEffect(() => {
+  let cancelled = false;
+
+  async function loadPosts() {
+    if (!hasSearch) {
+      setPosts([]);
+      setPostsLoading(false);
+      return;
+    }
+    try {
+      setPostsLoading(true);
+      const result = await searchPosts({ search: debouncedSearch, pageSize: 8, viewerId: user?.uid ?? null });
+      if (cancelled) return;
+      setPosts(result.posts.filter((p) => p.isDeleted !== true));
+    } catch {
+      if (!cancelled) setPosts([]);
+    } finally {
+      if (!cancelled) setPostsLoading(false);
+    }
+  }
+
+  loadPosts();
+
+  return () => {
+    cancelled = true;
+  };
+}, [hasSearch, debouncedSearch, user?.uid]);
+
+// Al cambiar la búsqueda cerramos el visor de historias, para que una nueva
+// búsqueda que reencuentre la misma historia no la reabra sola.
+useEffect(() => {
+  setStoryViewerIndex(null);
+}, [debouncedSearch]);
 
 useEffect(() => {
   let cancelled = false;
@@ -797,20 +888,25 @@ const filteredCommunities = useMemo(() => {
       return (a.name ?? "").localeCompare(b.name ?? "");
     });
 
-    return ordered.slice(0, 4);
+    return ordered.slice(0, 5);
   }, [filteredCommunities, user, memberMap, reqMap]);
 
   const previewProfiles = useMemo(
-    () => filteredProfiles.slice(0, 4),
+    () => filteredProfiles.slice(0, 5),
     [filteredProfiles]
   );
 
+  const previewStories = useMemo(() => stories.slice(0, 6), [stories]);
+  const previewPosts = useMemo(() => posts.slice(0, 4), [posts]);
+
   // Snapshot del último contenido con resultados, para congelarlo durante el cierre.
   const lastResultsRef = useRef({
-    isLoading: false,
-    hasAnyResults: false,
-    previewCommunities,
+    anyLoading: false,
+    hasAnything: false,
+    previewStories,
     previewProfiles,
+    previewCommunities,
+    previewPosts,
   });
 
   async function handleJoinPublic(groupId: string) {
@@ -939,8 +1035,10 @@ function handleCloseSearch() {
   }
 
 // Navega a la página de resultados completa con la query dada, guardándola en el
-// historial. Reutilizado por Enter, "ver más" y el clic en un historial de texto.
-function openSearchFor(rawQuery: string) {
+// historial. Reutilizado por Enter, el "Ver más..." de cada sección y el clic en
+// un historial de texto. tabOverride fuerza la pestaña destino (stories, profiles,
+// groups, posts); si no se pasa, se infiere de los resultados del preview.
+function openSearchFor(rawQuery: string, tabOverride?: "stories" | "profiles" | "groups" | "posts") {
   const trimmed = rawQuery.trim();
   if (!trimmed) return;
 
@@ -950,13 +1048,16 @@ function openSearchFor(rawQuery: string) {
   const params = new URLSearchParams();
   params.set("q", rawQuery);
 
-  if (filteredProfiles.length > 0 && filteredCommunities.length === 0) {
+  if (tabOverride) {
+    params.set("tab", tabOverride);
+  } else if (filteredProfiles.length > 0 && filteredCommunities.length === 0) {
     params.set("tab", "profiles");
   } else {
     params.set("tab", "groups");
   }
 
   setSearch("");
+  setIsFocused(false);
   onCloseSearch?.();
 
   router.push(`/search?${params.toString()}`);
@@ -968,19 +1069,25 @@ function handleOpenFullResults() {
   openSearchFor(search);
 }
 
-  const isLoading = authLoading || communitiesLoading || profilesLoading;
-  const hasAnyResults =
-    filteredCommunities.length > 0 || filteredProfiles.length > 0;
+  const anyLoading =
+    authLoading || storiesLoading || profilesLoading || communitiesLoading || postsLoading;
+  const hasAnything =
+    previewStories.length > 0 ||
+    previewProfiles.length > 0 ||
+    previewCommunities.length > 0 ||
+    previewPosts.length > 0;
 
   // Congelar el contenido del panel mientras se anima el cierre, para no mostrar
   // un flash de "sin resultados" cuando la búsqueda ya se limpió.
   if (hasSearch) {
-    lastResultsRef.current = { isLoading, hasAnyResults, previewCommunities, previewProfiles };
+    lastResultsRef.current = { anyLoading, hasAnything, previewStories, previewProfiles, previewCommunities, previewPosts };
   }
-  const dLoading = resultsClosing ? lastResultsRef.current.isLoading : isLoading;
-  const dHasAnyResults = resultsClosing ? lastResultsRef.current.hasAnyResults : hasAnyResults;
-  const dPreviewCommunities = resultsClosing ? lastResultsRef.current.previewCommunities : previewCommunities;
-  const dPreviewProfiles = resultsClosing ? lastResultsRef.current.previewProfiles : previewProfiles;
+  const dAnyLoading = resultsClosing ? lastResultsRef.current.anyLoading : anyLoading;
+  const dHasAnything = resultsClosing ? lastResultsRef.current.hasAnything : hasAnything;
+  const dStories = resultsClosing ? lastResultsRef.current.previewStories : previewStories;
+  const dProfiles = resultsClosing ? lastResultsRef.current.previewProfiles : previewProfiles;
+  const dCommunities = resultsClosing ? lastResultsRef.current.previewCommunities : previewCommunities;
+  const dPosts = resultsClosing ? lastResultsRef.current.previewPosts : previewPosts;
 
   return (
     <>
@@ -1001,13 +1108,11 @@ function handleOpenFullResults() {
   max-width: 100%;
   margin: 0 auto;
   min-width: 0;
-  border: ${cardBorder};
-  border-radius: 20px;
-  background: rgba(12, 12, 12, 0.97);
-  box-shadow: ${shadow};
+  border: none;
+  border-radius: 18px;
+  background: #0a0a0a;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08), 0 32px 72px rgba(0, 0, 0, 0.9);
   overflow: hidden;
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
   z-index: 9999;
   display: flex;
   flex-direction: column;
@@ -1052,23 +1157,57 @@ to {
           overflow-y: auto;
         }
 
+        .search-dropdown-inner::-webkit-scrollbar {
+          width: 7px;
+          height: 7px;
+        }
+
+        .search-dropdown-inner::-webkit-scrollbar-track {
+          background: transparent;
+        }
+
+        .search-dropdown-inner::-webkit-scrollbar-thumb {
+          background: rgba(255, 255, 255, 0.18);
+          border-radius: 999px;
+        }
+
         .dropdown-section {
           display: grid;
         }
 
         .dropdown-section + .dropdown-section {
-          border-top: 1px solid rgba(255, 255, 255, 0.08);
+          border-top: none;
         }
 
         .dropdown-title {
           margin: 0;
           padding: 12px 14px 8px;
-          font-size: 11px;
-          font-weight: 700;
-          letter-spacing: 0.05em;
+          font-size: 13px;
+          font-weight: 500;
+          color: rgba(255, 255, 255, 0.6);
+          text-transform: lowercase;
+        }
+        .dropdown-title::first-letter {
           text-transform: uppercase;
-          color: rgba(255, 255, 255, 0.58);
-          background: rgba(255, 255, 255, 0.02);
+        }
+
+        .dropdown-section-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+        }
+
+        .section-more {
+          flex-shrink: 0;
+          background: none;
+          border: none;
+          color: #a855ff;
+          font-weight: 600;
+          font-size: 13px;
+          cursor: pointer;
+          font-family: inherit;
+          padding: 12px 14px 8px;
+          white-space: nowrap;
         }
 
         .dropdown-helper {
@@ -1078,31 +1217,143 @@ to {
           line-height: 1.4;
         }
 
+        /* Historias — fila horizontal con aro morado de Vibra */
+        .story-row {
+          display: flex;
+          gap: 12px;
+          overflow-x: auto;
+          padding: 4px 14px 10px;
+          scrollbar-width: none;
+        }
+        .story-row::-webkit-scrollbar { display: none; }
+
+        .story-bubble {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 5px;
+          background: none;
+          border: none;
+          padding: 0;
+          cursor: pointer;
+          flex-shrink: 0;
+          width: 64px;
+          font-family: inherit;
+          -webkit-tap-highlight-color: transparent;
+        }
+
+        .story-ring {
+          width: 60px;
+          height: 60px;
+          border-radius: 50%;
+          background: ${VIBRA_STORY_RING};
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 2.4px;
+          box-sizing: border-box;
+        }
+
+        .story-ring-inner {
+          position: relative;
+          width: 100%;
+          height: 100%;
+          border-radius: 50%;
+          border: 1.5px solid #0a0a0a;
+          overflow: hidden;
+          background: #1a1a2e;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          box-sizing: border-box;
+        }
+
+        .story-emoji { font-size: 20px; line-height: 1; }
+
+        .story-name {
+          max-width: 64px;
+          font-size: 11px;
+          font-weight: 500;
+          color: #fff;
+          line-height: 1.3;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        /* Publicaciones — fila compacta */
+        .post-row {
+          display: flex;
+          gap: 10px;
+          align-items: center;
+          min-width: 0;
+        }
+
+        .post-thumb {
+          position: relative;
+          width: 44px;
+          height: 44px;
+          border-radius: 10px;
+          overflow: hidden;
+          flex-shrink: 0;
+          background: rgba(255, 255, 255, 0.06);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .post-thumb-emoji { font-size: 18px; line-height: 1; }
+
+        .post-body {
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+          min-width: 0;
+          flex: 1;
+        }
+
+        .post-author {
+          font-size: 12px;
+          font-weight: 600;
+          color: rgba(255, 255, 255, 0.9);
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .post-text {
+          font-size: 12.5px;
+          color: rgba(255, 255, 255, 0.6);
+          line-height: 1.35;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
         .dropdown-footer {
           flex: 0 0 auto;
           padding: 10px 12px 12px;
-          border-top: 1px solid rgba(255, 255, 255, 0.08);
-          background: rgba(12, 12, 12, 0.98);
-          backdrop-filter: blur(14px);
-          -webkit-backdrop-filter: blur(14px);
+          background: #0a0a0a;
         }
 
         .more-results-btn {
           width: 100%;
-          min-height: 40px;
-          padding: 9px 12px;
-          border-radius: 12px;
-          border: ${softBorder};
-          background: rgba(255, 255, 255, 0.07);
-          color: #fff;
+          height: 42px;
+          border: none;
+          border-radius: 5px;
+          background: #a855ff;
+          color: rgba(255, 255, 255, 0.98);
           cursor: pointer;
-          font-weight: 600;
-          font-size: 13px;
+          font-weight: 500;
+          font-size: 17px;
+          letter-spacing: -0.02em;
           font-family: ${fontStack};
+          display: grid;
+          place-items: center;
         }
 
         .more-results-btn:hover {
-          background: rgba(255, 255, 255, 0.09);
+          background: #9333ea;
         }
 
         .result-item {
@@ -1580,9 +1831,9 @@ to {
               onClick={() => handleNavigateAndClose(entry.href)}
             >
               {entry.avatarUrl ? (
-                <Image src={entry.avatarUrl} alt="" width={36} height={36} style={{ borderRadius: isProfile ? "50%" : 10, objectFit: "cover", flexShrink: 0 }} />
+                <Image src={entry.avatarUrl} alt="" width={36} height={36} style={{ borderRadius: "50%", objectFit: "cover", flexShrink: 0 }} />
               ) : (
-                <div style={{ width: 36, height: 36, borderRadius: isProfile ? "50%" : 10, background: "rgba(255,255,255,0.1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: "rgba(255,255,255,0.7)", flexShrink: 0 }}>
+                <div style={{ width: 36, height: 36, borderRadius: "50%", background: "rgba(255,255,255,0.1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: "rgba(255,255,255,0.7)", flexShrink: 0 }}>
                   {initialsFromName(entry.name)}
                 </div>
               )}
@@ -1607,23 +1858,122 @@ to {
     className={`search-dropdown${(isSearchClosing || resultsClosing) ? " search-dropdown-closing" : ""}`}
   >
             <div className="search-dropdown-inner">
-              {dLoading && (
+              {dAnyLoading && !dHasAnything && (
                 <div className="dropdown-helper">
                   {tCommon("loading")}
                 </div>
               )}
 
-              {!dLoading && !dHasAnyResults && (
-                <div className="dropdown-helper">
-                  {tGroups("noGroupsFound")}
-                </div>
+              {/* Historias — fila horizontal de avatares con aro morado de Vibra */}
+              {dStories.length > 0 && (
+                <section className="dropdown-section">
+                  <div className="dropdown-section-header">
+                    <h2 className="dropdown-title">Historias</h2>
+                    <button type="button" className="section-more" onClick={() => openSearchFor(search, "stories")}>
+                      Ver más historias
+                    </button>
+                  </div>
+                  <div className="story-row">
+                    {dStories.map((story, i) => {
+                      const thumb = storyThumb(story);
+                      return (
+                        <button
+                          key={story.id}
+                          type="button"
+                          className="story-bubble"
+                          onClick={() => setStoryViewerIndex(i)}
+                        >
+                          <span className="story-ring">
+                            <span className="story-ring-inner">
+                              {thumb ? (
+                                <Image src={thumb} alt={story.creatorName ?? ""} fill sizes="60px" style={{ objectFit: "cover" }} />
+                              ) : (
+                                <span className="story-emoji">{story.type === "consejo" ? "💡" : "👋"}</span>
+                              )}
+                            </span>
+                          </span>
+                          <span className="story-name">{story.creatorName ?? ""}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </section>
               )}
 
-              {!dLoading && dPreviewCommunities.length > 0 && (
+              {/* Perfiles */}
+              {dProfiles.length > 0 && (
                 <section className="dropdown-section">
-                  <h2 className="dropdown-title">{tGroups("title")}</h2>
+                  <div className="dropdown-section-header">
+                    <h2 className="dropdown-title">{tCommon("profiles")}</h2>
+                    <button type="button" className="section-more" onClick={() => openSearchFor(search, "profiles")}>
+                      Ver más perfiles
+                    </button>
+                  </div>
 
-                  {dPreviewCommunities.map((g) => {
+                  {dProfiles.map((p) => {
+                    const fullName =
+                      p.displayName?.trim() ||
+                      `${p.firstName ?? ""} ${p.lastName ?? ""}`.trim() ||
+                      p.handle ||
+                      tCommon("user");
+
+                    const serviceDots = buildSearchServiceDots(p, tServices);
+
+                    return (
+                      <div
+                        key={p.uid}
+                        className="result-item"
+                        onClick={() => {
+                          const entry: SearchHistoryEntry = { kind: "entity", entityType: "profile", id: p.uid, name: fullName, handle: p.handle, avatarUrl: p.photoURL ?? null, href: `/u/${p.handle}`, ts: Date.now() };
+                          setHistory((h) => pushToHistory(h, entry));
+                          handleNavigateAndClose(`/u/${p.handle}`);
+                        }}
+                      >
+                        <div className="result-grid">
+                          <div className="result-main-mobile">
+                            <LiveRingAvatar
+                              entityId={p.uid}
+                              entityType="profile"
+                              currentUserId={user?.uid ?? null}
+                              photoURL={p.photoURL}
+                              displayName={fullName}
+                              size={42}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const entry: SearchHistoryEntry = { kind: "entity", entityType: "profile", id: p.uid, name: fullName, handle: p.handle, avatarUrl: p.photoURL ?? null, href: `/u/${p.handle}`, ts: Date.now() };
+                                setHistory((h) => pushToHistory(h, entry));
+                                handleNavigateAndClose(`/u/${p.handle}`);
+                              }}
+                            />
+                            <div className="result-content">
+                              <h3 className="result-name result-name-with-meta">
+                                <span className="result-name-text">{fullName}</span>
+                                <ServiceDots dots={serviceDots} ariaLabel={tCommon("activeServices")} />
+                              </h3>
+                              <div className="result-meta">
+                                <span className="pill">@{p.handle}</span>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="profile-cta">{tCommon("open")}</div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </section>
+              )}
+
+              {/* Comunidades */}
+              {dCommunities.length > 0 && (
+                <section className="dropdown-section">
+                  <div className="dropdown-section-header">
+                    <h2 className="dropdown-title">{tGroups("title")}</h2>
+                    <button type="button" className="section-more" onClick={() => openSearchFor(search, "groups")}>
+                      Ver más comunidades
+                    </button>
+                  </div>
+
+                  {dCommunities.map((g) => {
                     const isOwner =
                       !!user && !!g.ownerId && g.ownerId === user.uid;
                     const membershipStatus = isOwner
@@ -1798,59 +2148,38 @@ const visLabel =
                 </section>
               )}
 
-              {!dLoading && dPreviewProfiles.length > 0 && (
+              {/* Publicaciones */}
+              {dPosts.length > 0 && (
                 <section className="dropdown-section">
-                  <h2 className="dropdown-title">{tCommon("profiles")}</h2>
+                  <div className="dropdown-section-header">
+                    <h2 className="dropdown-title">Publicaciones</h2>
+                    <button type="button" className="section-more" onClick={() => openSearchFor(search, "posts")}>
+                      Ver más publicaciones
+                    </button>
+                  </div>
 
-                  {dPreviewProfiles.map((p) => {
-                    const fullName =
-                      p.displayName?.trim() ||
-                      `${p.firstName ?? ""} ${p.lastName ?? ""}`.trim() ||
-                      p.handle ||
-                      tCommon("user");
-
-                      const serviceDots = buildSearchServiceDots(p, tServices);
-
+                  {dPosts.map((post) => {
+                    const thumb = postThumb(post);
                     return (
                       <div
-                        key={p.uid}
+                        key={post.id}
                         className="result-item"
-                        onClick={() => {
-                          const entry: SearchHistoryEntry = { kind: "entity", entityType: "profile", id: p.uid, name: fullName, handle: p.handle, avatarUrl: p.photoURL ?? null, href: `/u/${p.handle}`, ts: Date.now() };
-                          setHistory((h) => pushToHistory(h, entry));
-                          handleNavigateAndClose(`/u/${p.handle}`);
-                        }}
+                        onClick={() => handleNavigateAndClose(`/p/${post.id}`)}
                       >
-                        <div className="result-grid">
-<div className="result-main-mobile">
-  <LiveRingAvatar
-    entityId={p.uid}
-    entityType="profile"
-    currentUserId={user?.uid ?? null}
-    photoURL={p.photoURL}
-    displayName={fullName}
-    size={42}
-    onClick={(e) => {
-      e.stopPropagation();
-      const entry: SearchHistoryEntry = { kind: "entity", entityType: "profile", id: p.uid, name: fullName, handle: p.handle, avatarUrl: p.photoURL ?? null, href: `/u/${p.handle}`, ts: Date.now() };
-      setHistory((h) => pushToHistory(h, entry));
-      handleNavigateAndClose(`/u/${p.handle}`);
-    }}
-  />
-
-  <div className="result-content">
-    <h3 className="result-name result-name-with-meta">
-  <span className="result-name-text">{fullName}</span>
-  <ServiceDots dots={serviceDots} ariaLabel={tCommon("activeServices")} />
-</h3>
-
-    <div className="result-meta">
-      <span className="pill">@{p.handle}</span>
-    </div>
-  </div>
-</div>
-
-<div className="profile-cta">{tCommon("open")}</div>
+                        <div className="post-row">
+                          <span className="post-thumb">
+                            {thumb ? (
+                              <Image src={thumb} alt="" fill sizes="44px" style={{ objectFit: "cover" }} />
+                            ) : (
+                              <span className="post-thumb-emoji">📝</span>
+                            )}
+                          </span>
+                          <span className="post-body">
+                            <span className="post-author">
+                              {post.authorName ?? post.authorUsername ?? tCommon("user")}
+                            </span>
+                            <span className="post-text">{post.text}</span>
+                          </span>
                         </div>
                       </div>
                     );
@@ -1859,18 +2188,15 @@ const visLabel =
               )}
             </div>
 
-            {!dLoading && (hasSearch || resultsClosing) && (
-              <div className="dropdown-footer">
-                <button
-                  type="button"
-                  className="more-results-btn"
-                  onClick={handleOpenFullResults}
-                >
-                  {tCommon("viewMore")}
-                </button>
-              </div>
-            )}
           </div>
+        )}
+
+        {storyViewerIndex !== null && previewStories[storyViewerIndex] && (
+          <StoryViewer
+            stories={previewStories}
+            initialIndex={storyViewerIndex}
+            onClose={() => setStoryViewerIndex(null)}
+          />
         )}
 
         <VibraToast toast={searchToast} />

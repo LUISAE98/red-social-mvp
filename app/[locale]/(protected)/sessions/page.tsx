@@ -128,6 +128,8 @@ function canJoin(session: BuyerSession): boolean {
 }
 
 function isActiveStatus(status: string): boolean {
+  // Nota: refund_requested / refund_review NO son activos — caen en "rechazados"
+  // (sección historial), consistente con el panel lateral de saludos/consejos.
   return [
     "pending_creator_response",
     "accepted_pending_schedule",
@@ -135,8 +137,6 @@ function isActiveStatus(status: string): boolean {
     "reschedule_requested",
     "ready_to_prepare",
     "in_preparation",
-    "refund_requested",
-    "refund_review",
   ].includes(status);
 }
 

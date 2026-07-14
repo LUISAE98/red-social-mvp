@@ -445,7 +445,11 @@ export default function SessionRequestOverlay({
   const noShowExpired = isNoShowExpired(req.scheduledAt);
   const canAccept = status === "pending_creator_response";
   const canReject = ["pending_creator_response", "accepted_pending_schedule", "reschedule_requested"].includes(status);
-  const canSchedule = ["accepted_pending_schedule", "reschedule_requested", "scheduled"].includes(status);
+  const canSchedule =
+    ["accepted_pending_schedule", "reschedule_requested", "scheduled", "ready_to_prepare", "auto_rejected_no_show"].includes(status) ||
+    // in_preparation solo se puede reprogramar una vez vencida la tolerancia
+    // (caso no-show); en preparación activa no se ofrece reagenda.
+    (status === "in_preparation" && noShowExpired);
   const canPrepare = ["scheduled", "ready_to_prepare", "in_preparation"].includes(status) && prepareWindowOpen && !noShowExpired;
 
   const _mg = req as MeetGreetRequestDoc;
