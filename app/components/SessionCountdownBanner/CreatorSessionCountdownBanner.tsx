@@ -277,26 +277,18 @@ export default function CreatorSessionCountdownBanner({ uid }: { uid: string }) 
   const msLeft = nextSession.scheduledAt.getTime() - now;
   const isPastStart = msLeft <= 0;
   const msLate = isPastStart ? Math.abs(msLeft) : 0;
-  const toleranceExpired = isPastStart && msLate >= 15 * 60 * 1000;
-  const canPrepare = msLeft <= 15 * 60 * 1000;
 
   // When startedAt is set, both joined LiveKit — switch to descending session timer
   const sessionInProgress = !!nextSession.startedAt;
+
+  // La tolerancia (no-show) y la preparación sólo aplican ANTES de arrancar.
+  const toleranceExpired = isPastStart && !sessionInProgress && msLate >= 15 * 60 * 1000;
+  const canPrepare = !sessionInProgress && msLeft <= 15 * 60 * 1000;
   const durationMs = (nextSession.durationMinutes ?? 30) * 60 * 1000;
   const sessionDeadline = sessionInProgress ? nextSession.startedAt!.getTime() + durationMs : null;
   const msRemaining = sessionDeadline != null ? Math.max(0, sessionDeadline - now) : null;
 
   const buyerName = nextSession.buyerDisplayName ?? "Comprador";
-  const countdownLabel = sessionInProgress
-    ? "Sesión en curso"
-    : isPastStart
-    ? "Llevas de retraso"
-    : "Inicia en";
-  const countdownValue = sessionInProgress
-    ? formatCountdown(msRemaining ?? 0)
-    : isPastStart
-    ? formatCountdown(Math.abs(msLeft))
-    : formatCountdown(msLeft);
   const otherSessions = todaySessions.filter((s) => s.id !== nextSession.id);
   const sessionCountLabel =
     otherSessions.length === 0
@@ -307,6 +299,28 @@ export default function CreatorSessionCountdownBanner({ uid }: { uid: string }) 
 
   const buyerConnected = !!nextSession.preparingBuyerAt;
   const creatorConnected = !!nextSession.preparingCreatorAt;
+
+  // Retraso: el reloj sólo corre contra quien falta. Yo soy el creador.
+  //  · Ambos en sala → el reloj se detiene (sin retraso) hasta que arranca la sesión.
+  //  · Yo en sala y falta el comprador → él lleva el retraso.
+  //  · No estoy en sala y pasó la hora → el retraso es mío.
+  const bothConnected = buyerConnected && creatorConnected;
+  const otherIsLate = isPastStart && creatorConnected && !buyerConnected;
+  const countdownFrozen = !sessionInProgress && bothConnected;
+  const countdownLabel = sessionInProgress
+    ? "Sesión en curso"
+    : countdownFrozen
+    ? "En sala"
+    : otherIsLate
+    ? `${buyerName} lleva de retraso`
+    : isPastStart
+    ? "Llevas de retraso"
+    : "Inicia en";
+  const countdownValue = sessionInProgress
+    ? formatCountdown(msRemaining ?? 0)
+    : isPastStart
+    ? formatCountdown(Math.abs(msLeft))
+    : formatCountdown(msLeft);
 
   // Pre-session synchronized countdown: starts when both are preparing
   const prepT0 =
@@ -503,27 +517,29 @@ export default function CreatorSessionCountdownBanner({ uid }: { uid: string }) 
                     fontWeight: 500,
                     marginBottom: 2,
                     lineHeight: 1.3,
-                    color: sessionInProgress ? "#4ade80" : isPastStart ? "#fb923c" : "rgba(255,255,255,0.65)",
+                    color: sessionInProgress || countdownFrozen ? "#4ade80" : isPastStart ? "#fb923c" : "rgba(255,255,255,0.65)",
                   }}
                 >
                   {countdownLabel}
                 </div>
-                <div
-                  style={{
-                    fontSize: 22,
-                    fontWeight: 500,
-                    letterSpacing: "-0.03em",
-                    fontVariantNumeric: "tabular-nums",
-                    textShadow: "0 1px 8px rgba(0,0,0,0.5)",
-                    color: sessionInProgress
-                      ? (msRemaining != null && msRemaining <= 60000 ? "#ef4444" : msRemaining != null && msRemaining <= 300000 ? "#f59e0b" : "#4ade80")
-                      : isPastStart ? "#fb923c" : "#fff",
-                    ...(isPastStart && !sessionInProgress ? { animation: "creator-late-pulse 1.6s ease-in-out infinite" } : {}),
-                  }}
-                >
-                  {countdownValue}
-                </div>
-                {isPastStart && !sessionInProgress && (
+                {!countdownFrozen && (
+                  <div
+                    style={{
+                      fontSize: 22,
+                      fontWeight: 500,
+                      letterSpacing: "-0.03em",
+                      fontVariantNumeric: "tabular-nums",
+                      textShadow: "0 1px 8px rgba(0,0,0,0.5)",
+                      color: sessionInProgress
+                        ? (msRemaining != null && msRemaining <= 60000 ? "#ef4444" : msRemaining != null && msRemaining <= 300000 ? "#f59e0b" : "#4ade80")
+                        : isPastStart ? "#fb923c" : "#fff",
+                      ...(isPastStart && !sessionInProgress ? { animation: "creator-late-pulse 1.6s ease-in-out infinite" } : {}),
+                    }}
+                  >
+                    {countdownValue}
+                  </div>
+                )}
+                {isPastStart && !sessionInProgress && !countdownFrozen && (
                   <div style={{ fontSize: 10, color: "#fb923c", marginTop: 3, lineHeight: 1.3, opacity: 0.85 }}>
                     15 min de tolerancia
                   </div>
@@ -531,23 +547,9 @@ export default function CreatorSessionCountdownBanner({ uid }: { uid: string }) 
               </div>
             </div>
 
-          {/* Connection status notice */}
+          {/* Connection status notice — sin contenedor, centrado */}
           {canPrepare && (buyerConnected || creatorConnected) && (
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 7,
-                padding: "7px 10px",
-                borderRadius: 8,
-                background: buyerConnected
-                  ? "rgba(34,197,94,0.14)"
-                  : "rgba(255,255,255,0.08)",
-                border: buyerConnected
-                  ? "1px solid rgba(34,197,94,0.28)"
-                  : "1px solid rgba(255,255,255,0.12)",
-              }}
-            >
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
               <div
                 style={{
                   width: 7,
@@ -557,7 +559,7 @@ export default function CreatorSessionCountdownBanner({ uid }: { uid: string }) 
                   background: buyerConnected ? "#4ade80" : "rgba(255,255,255,0.45)",
                 }}
               />
-              <span style={{ fontSize: 12, color: "#fff", fontWeight: 500, lineHeight: 1.3 }}>
+              <span style={{ fontSize: 12, color: "#fff", fontWeight: 500, lineHeight: 1.3, textAlign: "center" }}>
                 {buyerConnected && !creatorConnected
                   ? "Tu comprador ya está en la sala, ¡únete!"
                   : creatorConnected && !buyerConnected

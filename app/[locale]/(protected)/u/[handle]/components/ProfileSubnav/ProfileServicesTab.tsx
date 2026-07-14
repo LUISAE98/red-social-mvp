@@ -128,6 +128,12 @@ const SERVICE_EMOJIS = {
   donation: "🎁",
 };
 
+// Rangos de duración permitidos (minutos) por tipo de servicio.
+const MEET_GREET_MIN_MINUTES = 5; // Tiempo contigo
+const MEET_GREET_MAX_MINUTES = 25;
+const CUSTOM_CLASS_MIN_MINUTES = 5; // Sesión exclusiva
+const CUSTOM_CLASS_MAX_MINUTES = 90;
+
 function createEmptyWeeklyAvailability(): WeeklyAvailabilityDraft {
   return {
     monday: [],
@@ -917,6 +923,19 @@ export default function ProfileServicesTab({
       }
 
       if (
+        workingDraft.meetGreet.enabled &&
+        meetGreetDurationNum != null &&
+        (meetGreetDurationNum < MEET_GREET_MIN_MINUTES ||
+          meetGreetDurationNum > MEET_GREET_MAX_MINUTES)
+      ) {
+        showToast(
+          `⚠️ Tiempo contigo solo permite entre ${MEET_GREET_MIN_MINUTES} y ${MEET_GREET_MAX_MINUTES} minutos.`,
+          "warning"
+        );
+        return;
+      }
+
+      if (
         workingDraft.customClass.enabled &&
         (customClassDurationNum == null ||
           Number.isNaN(customClassDurationNum) ||
@@ -925,6 +944,19 @@ export default function ProfileServicesTab({
       ) {
         setErr(
           "❌ Debes definir una duración válida en minutos para la sesión exclusiva."
+        );
+        return;
+      }
+
+      if (
+        workingDraft.customClass.enabled &&
+        customClassDurationNum != null &&
+        (customClassDurationNum < CUSTOM_CLASS_MIN_MINUTES ||
+          customClassDurationNum > CUSTOM_CLASS_MAX_MINUTES)
+      ) {
+        showToast(
+          `⚠️ La sesión exclusiva solo permite entre ${CUSTOM_CLASS_MIN_MINUTES} y ${CUSTOM_CLASS_MAX_MINUTES} minutos.`,
+          "warning"
         );
         return;
       }

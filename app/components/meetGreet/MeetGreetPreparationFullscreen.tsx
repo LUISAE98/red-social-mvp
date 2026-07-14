@@ -123,14 +123,29 @@ export default function MeetGreetPreparationFullscreen({
     touchAction: "none",
   };
 
-  const panelStyle: CSSProperties = {
-    position: "relative",
-    width: isDesktop ? "min(95dvw, calc(95dvh * 16 / 9))" : "100dvw",
-    height: isDesktop ? "min(95dvh, calc(95dvw * 9 / 16))" : "100dvh",
-    borderRadius: isDesktop ? 20 : 0,
-    overflow: "hidden",
-    flexShrink: 0,
-  };
+  // Desktop: panel 16:9 centrado. Móvil: forzamos orientación horizontal (lateral)
+  // rotando el panel 90°, de modo que la videollamada siempre se vea apaisada
+  // aunque el teléfono esté en vertical.
+  const panelStyle: CSSProperties = isDesktop
+    ? {
+        position: "relative",
+        width: "min(95dvw, calc(95dvh * 16 / 9))",
+        height: "min(95dvh, calc(95dvw * 9 / 16))",
+        borderRadius: 20,
+        overflow: "hidden",
+        flexShrink: 0,
+      }
+    : {
+        position: "absolute",
+        top: 0,
+        left: "100dvw",
+        width: "100dvh",
+        height: "100dvw",
+        transformOrigin: "top left",
+        transform: "rotate(90deg)",
+        overflow: "hidden",
+        flexShrink: 0,
+      };
 
   return createPortal(
     <div role="dialog" aria-modal="true" style={backdropStyle}>
@@ -144,6 +159,7 @@ export default function MeetGreetPreparationFullscreen({
             role={role}
             onLeave={onClose}
             isMobile={!isDesktop}
+            rotated={!isDesktop}
             onEndCallRequest={handleEndCallRequest}
             onTimerExpired={handleTimerExpired}
             onTwoMinWarning={handleTwoMinWarning}

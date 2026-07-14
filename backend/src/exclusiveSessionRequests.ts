@@ -481,8 +481,12 @@ function isNoShowExpired(scheduledAt: TimestampLike): boolean {
 }
 
 function getAutoRejectFields(data: FirebaseFirestore.DocumentData, now: TimestampLike) {
-  const creatorJoined = !!data.preparingCreatorAt;
-  const buyerJoined = !!data.preparingBuyerAt;
+  // Se considera "presente" tanto haber abierto la preparación (preparing*At)
+  // como haberse conectado realmente a LiveKit (*JoinedAt). Así, un participante
+  // que ya está dentro de la sala nunca se marca como no-show aunque el otro
+  // aún no haya pulsado "Prepararse".
+  const creatorJoined = !!data.preparingCreatorAt || !!data.creatorJoinedAt;
+  const buyerJoined = !!data.preparingBuyerAt || !!data.buyerJoinedAt;
 
   if (!creatorJoined && !buyerJoined) {
     return {
@@ -1158,7 +1162,10 @@ export async function expireExclusiveSessionNoShowsHandler() {
 
     if (!scheduledAt) return;
     if (!isNoShowExpired(scheduledAt)) return;
-    if (data.preparingCreatorAt && data.preparingBuyerAt) return;
+    // Presente = preparó ("Prepararse") o ya está conectado a LiveKit (*JoinedAt).
+    const creatorPresent = data.preparingCreatorAt || data.creatorJoinedAt;
+    const buyerPresent = data.preparingBuyerAt || data.buyerJoinedAt;
+    if (creatorPresent && buyerPresent) return;
     if (data.startedAt) return;
 
     batch.update(doc.ref, {

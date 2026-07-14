@@ -506,8 +506,12 @@ function getNoShowExpiration(data: FirebaseFirestore.DocumentData): NoShowExpira
     };
   }
 
-  const missingCreator = !data.preparingCreatorAt;
-  const missingBuyer = !data.preparingBuyerAt;
+  // Se considera "presente" tanto haber abierto la preparación (preparing*At)
+  // como haberse conectado realmente a LiveKit (*JoinedAt). Así, un participante
+  // que ya está dentro de la sala nunca se marca como no-show aunque el otro
+  // aún no haya pulsado "Prepararse".
+  const missingCreator = !data.preparingCreatorAt && !data.creatorJoinedAt;
+  const missingBuyer = !data.preparingBuyerAt && !data.buyerJoinedAt;
 
   if (!missingCreator && !missingBuyer) {
     return {

@@ -372,8 +372,6 @@ export default function SessionCountdownBanner({ uid }: { uid: string }) {
   const msLeft = session!.scheduledAt.getTime() - now;
   const isPastStart = msLeft <= 0;
   const msLate = isPastStart ? Math.abs(msLeft) : 0;
-  const toleranceExpired = isPastStart && msLate >= 15 * 60 * 1000;
-  const canPrepare = msLeft <= 15 * 60 * 1000;
 
   // When startedAt is set, both joined LiveKit — switch to descending session timer
   const sessionInProgress = !!session!.startedAt;
@@ -381,20 +379,37 @@ export default function SessionCountdownBanner({ uid }: { uid: string }) {
   const sessionDeadline = sessionInProgress ? session!.startedAt!.getTime() + durationMs : null;
   const msRemaining = sessionDeadline != null ? Math.max(0, sessionDeadline - now) : null;
 
+  // La tolerancia (no-show) y el flujo de preparación sólo aplican ANTES de que
+  // arranque la sesión. Una vez en curso jamás mostramos reagendar/devolución
+  // ni el aviso de "en sala"; sólo el botón para volver a entrar.
+  const toleranceExpired = isPastStart && !sessionInProgress && msLate >= 15 * 60 * 1000;
+  const canPrepare = !sessionInProgress && msLeft <= 15 * 60 * 1000;
+
   const sessionLabel = "Sesión con";
   const creatorName = session!.creatorDisplayName ?? tSessions("creatorFallback");
   const bgImage = BG_IMAGE[session!.serviceKind];
   const btnBg = BTN_BG[session!.serviceKind];
 
+  const creatorConnected = !!session!.preparingCreatorAt;
+  const buyerConnected = !!session!.preparingBuyerAt;
+
+  // Retraso: el reloj sólo corre contra quien falta. Yo soy el comprador.
+  //  · Ambos en sala → el reloj se detiene (sin retraso) hasta que arranca la sesión.
+  //  · Yo en sala y falta el creador → él lleva el retraso.
+  //  · No estoy en sala y pasó la hora → el retraso es mío.
+  const bothConnected = buyerConnected && creatorConnected;
+  const otherIsLate = isPastStart && buyerConnected && !creatorConnected;
+  const countdownFrozen = !sessionInProgress && bothConnected;
   const countdownLabel = sessionInProgress
     ? "Sesión en curso"
+    : countdownFrozen
+    ? "En sala"
+    : otherIsLate
+    ? `${creatorName} lleva de retraso`
     : isPastStart ? tServices("sessionLate") : tServices("sessionStartsIn");
   const countdownValue = sessionInProgress
     ? formatCountdown(msRemaining ?? 0)
     : isPastStart ? formatCountdown(Math.abs(msLeft)) : formatCountdown(msLeft);
-
-  const creatorConnected = !!session!.preparingCreatorAt;
-  const buyerConnected = !!session!.preparingBuyerAt;
 
   // Pre-session synchronized countdown
   const prepT0 =
@@ -579,13 +594,15 @@ export default function SessionCountdownBanner({ uid }: { uid: string }) {
             </div>
 
             <div style={{ flexShrink: 0, textAlign: "right", maxWidth: "40%" }}>
-              <div style={{ fontSize: 11, fontWeight: 500, marginBottom: 2, lineHeight: 1.3, color: sessionInProgress ? "#4ade80" : isPastStart ? "#fb923c" : "rgba(255,255,255,0.65)" }}>
+              <div style={{ fontSize: 11, fontWeight: 500, marginBottom: 2, lineHeight: 1.3, color: sessionInProgress || countdownFrozen ? "#4ade80" : isPastStart ? "#fb923c" : "rgba(255,255,255,0.65)" }}>
                 {countdownLabel}
               </div>
-              <div style={{ fontSize: 22, fontWeight: 500, letterSpacing: "-0.03em", fontVariantNumeric: "tabular-nums", textShadow: "0 1px 8px rgba(0,0,0,0.5)", color: sessionInProgress ? (msRemaining != null && msRemaining <= 60000 ? "#ef4444" : msRemaining != null && msRemaining <= 300000 ? "#f59e0b" : "#4ade80") : isPastStart ? "#fb923c" : "#fff", ...(isPastStart && !sessionInProgress ? { animation: "session-late-pulse 1.6s ease-in-out infinite" } : {}) }}>
-                {countdownValue}
-              </div>
-              {isPastStart && !sessionInProgress && (
+              {!countdownFrozen && (
+                <div style={{ fontSize: 22, fontWeight: 500, letterSpacing: "-0.03em", fontVariantNumeric: "tabular-nums", textShadow: "0 1px 8px rgba(0,0,0,0.5)", color: sessionInProgress ? (msRemaining != null && msRemaining <= 60000 ? "#ef4444" : msRemaining != null && msRemaining <= 300000 ? "#f59e0b" : "#4ade80") : isPastStart ? "#fb923c" : "#fff", ...(isPastStart && !sessionInProgress ? { animation: "session-late-pulse 1.6s ease-in-out infinite" } : {}) }}>
+                  {countdownValue}
+                </div>
+              )}
+              {isPastStart && !sessionInProgress && !countdownFrozen && (
                 <div style={{ fontSize: 10, color: "#fb923c", marginTop: 3, lineHeight: 1.3, opacity: 0.85 }}>
                   15 min de tolerancia
                 </div>
@@ -609,7 +626,13 @@ export default function SessionCountdownBanner({ uid }: { uid: string }) {
 
           {/* Action area */}
           <div>
-            {!toleranceExpired ? (
+            {sessionInProgress ? (
+              /* Sesión en curso — botón para volver a entrar a la sala */
+              <button type="button" onClick={() => setPrepOpen(true)}
+                style={{ width: "100%", height: 40, borderRadius: 8, border: "none", background: "linear-gradient(135deg, #16a34a 0%, #22c55e 100%)", color: "#fff", fontSize: 15, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", letterSpacing: "-0.02em" }}>
+                Volver a entrar
+              </button>
+            ) : !toleranceExpired ? (
               <>
                 {!canPrepare && (
                   <div style={{ display: "flex", alignItems: "flex-start", gap: 7, marginBottom: 8 }}>

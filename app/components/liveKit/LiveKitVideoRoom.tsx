@@ -27,6 +27,9 @@ type Props = {
   role: "buyer" | "creator";
   onLeave: () => void;
   isMobile?: boolean;
+  // El contenedor padre está rotado 90° (móvil en modo apaisado forzado).
+  // En ese caso el arrastre del PiP se desactiva para no invertir los ejes.
+  rotated?: boolean;
   // Props opcionales — cuando se pasan, el control de fin de sesión y los
   // avisos del timer se delegan al componente padre.
   onEndCallRequest?: () => void;
@@ -64,6 +67,7 @@ export default function LiveKitVideoRoom({
   role,
   onLeave,
   isMobile,
+  rotated,
   onEndCallRequest,
   onTimerExpired,
   onTwoMinWarning,
@@ -128,6 +132,7 @@ export default function LiveKitVideoRoom({
         role={role}
         onLeave={onLeave}
         isMobile={isMobile}
+        rotated={rotated}
         onEndCallRequest={onEndCallRequest}
         onTimerExpired={onTimerExpired}
         onTwoMinWarning={onTwoMinWarning}
@@ -146,6 +151,7 @@ function RoomContent({
   role,
   onLeave,
   isMobile,
+  rotated,
   onEndCallRequest,
   onTimerExpired,
   onTwoMinWarning,
@@ -156,6 +162,7 @@ function RoomContent({
   role: "buyer" | "creator";
   onLeave: () => void;
   isMobile?: boolean;
+  rotated?: boolean;
   onEndCallRequest?: () => void;
   onTimerExpired?: () => void;
   onTwoMinWarning?: () => void;
@@ -369,22 +376,23 @@ function RoomContent({
         </div>
       )}
 
-      {/* PiP local — arrastrable, 16:9 */}
+      {/* PiP local — arrastrable, 16:9. Con el panel rotado (móvil apaisado) se fija
+          en la esquina para no invertir los ejes del arrastre. */}
       <div
-        onPointerDown={handlePipPointerDown}
-        onPointerMove={handlePipPointerMove}
-        onPointerUp={handlePipPointerUp}
-        onPointerCancel={handlePipPointerUp}
+        onPointerDown={rotated ? undefined : handlePipPointerDown}
+        onPointerMove={rotated ? undefined : handlePipPointerMove}
+        onPointerUp={rotated ? undefined : handlePipPointerUp}
+        onPointerCancel={rotated ? undefined : handlePipPointerUp}
         style={{
           position: "absolute",
-          ...(pipPos === null ? { top: 12, right: 12 } : { top: pipPos.y, left: pipPos.x }),
+          ...(rotated || pipPos === null ? { top: 12, right: 12 } : { top: pipPos.y, left: pipPos.x }),
           width: isMobile ? 170 : "clamp(100px, 14%, 160px)",
           aspectRatio: "16/9",
           borderRadius: 10,
           overflow: "hidden",
           background: "#111",
           zIndex: 3,
-          cursor: pipDragRef.current ? "grabbing" : "grab",
+          cursor: rotated ? "default" : pipDragRef.current ? "grabbing" : "grab",
           touchAction: "none",
           userSelect: "none",
         }}
