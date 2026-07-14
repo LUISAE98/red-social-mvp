@@ -251,3 +251,6 @@ export { backfillStoriesSearch } from "./storiesBackfill";
 
 // Backfill de liveId en el ledger (corrida única, idempotente)
 export { backfillWalletLives } from "./walletLivesBackfill";
+
+// Backfill de postId para tickets (premium_post / vod_ticket), corrida única
+export { backfillTicketPostIds } from "./backfillTicketPostIds";

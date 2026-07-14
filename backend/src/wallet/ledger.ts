@@ -137,6 +137,8 @@ export type RecordEarningParams = {
   channelId?: string | null;
   /** Id del post del live si la venta pertenece a una transmisión; null si no. */
   liveId?: string | null;
+  /** Id de la publicación (para tickets: post premium / VOD); null si no aplica. */
+  postId?: string | null;
 };
 
 /**
@@ -175,6 +177,7 @@ export async function recordEarning(
       channelType: params.channelType ?? "profile",
       channelId: params.channelId ?? null,
       liveId: params.liveId ?? null,
+      postId: params.postId ?? null,
       createdAt: now,
       occurredAt: toOccurredAt(params.occurredAt),
       earnedAt: status === "earned" ? now : null,

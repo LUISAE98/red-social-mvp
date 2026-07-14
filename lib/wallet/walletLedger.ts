@@ -44,6 +44,8 @@ export type LedgerEntry = {
   channelId: string | null;
   /** Id del post del live si la venta pertenece a una transmisión; null si no. */
   liveId: string | null;
+  /** Id de la publicación (tickets: post premium / VOD); null si no aplica. */
+  postId: string | null;
 };
 
 /** Clave de traducción (namespace wallet) para el nombre de cada servicio. */
@@ -126,6 +128,7 @@ function mapLedgerDoc(doc: {
     channelType: d.channelType === "group" ? "group" : "profile",
     channelId: typeof d.channelId === "string" ? d.channelId : null,
     liveId: typeof d.liveId === "string" ? d.liveId : null,
+    postId: typeof d.postId === "string" ? d.postId : null,
   };
 }
 

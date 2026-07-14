@@ -438,6 +438,9 @@ type GroupsSearchPanelProps = {
   createGroupHref?: string;
   showCloseSearch?: boolean;
   onCloseSearch?: () => void;
+  // Modo página completa (búsqueda móvil deslizable): el preview/historial deja
+  // de ser un dropdown flotante y llena la pantalla debajo del input.
+  fullPage?: boolean;
 };
 
 function isMobileSearchViewport() {
@@ -451,6 +454,7 @@ export default function GroupsSearchPanel({
   createGroupHref = "/groups/new",
   showCloseSearch = false,
   onCloseSearch,
+  fullPage = false,
 }: GroupsSearchPanelProps) {
   const tGroups = useTranslations("groups");
   const tCommon = useTranslations("common");
@@ -1005,6 +1009,13 @@ const filteredCommunities = useMemo(() => {
 function handleCloseSearch() {
   if (isSearchClosing) return;
 
+  // En página completa el cierre lo maneja el overlay (slide-out); avisamos de
+  // inmediato sin animar el dropdown ni limpiar (el panel se desmonta al cerrar).
+  if (fullPage) {
+    onCloseSearch?.();
+    return;
+  }
+
   if (isMobileSearchViewport()) {
     setIsSearchClosing(true);
 
@@ -1097,6 +1108,35 @@ function handleOpenFullResults() {
   z-index: 60;
   width: 100%;
   overflow: visible;
+}
+
+/* ── Modo página completa (búsqueda móvil deslizable) ────────────────────────
+   El input queda arriba y el preview/historial llena la pantalla debajo como
+   una lista normal en flujo (sin dropdown flotante ni animación propia). */
+.search-area-full {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.search-area-full .search-dropdown {
+  position: relative;
+  top: auto;
+  left: auto;
+  right: auto;
+  width: 100%;
+  max-width: 100%;
+  margin: 8px 0 0;
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+  transform: none;
+  opacity: 1;
+  animation: none;
 }
 
 .search-dropdown {
@@ -1741,7 +1781,7 @@ to {
 }
       `}</style>
 
-      <div ref={searchAreaRef} className="search-area">
+      <div ref={searchAreaRef} className={`search-area${fullPage ? " search-area-full" : ""}`}>
 <GroupsSearchToolbar
   search={search}
   onSearchChange={setSearch}

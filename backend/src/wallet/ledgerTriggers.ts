@@ -170,6 +170,8 @@ export const onPostAccessLedger = onDocumentWritten(
       occurredAt: data.createdAt,
       // VOD = venta de la grabación de un live → atribuir al post del live.
       liveId: isVod ? postId : null,
+      // Publicación de origen (para la pestaña Tickets: premium + VOD).
+      postId,
       ...channelFromGroupId(groupId),
     });
   }

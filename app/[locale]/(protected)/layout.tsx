@@ -6,7 +6,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { consumeNavSlideDir, peekNavSlideDir } from "@/lib/nav-slide";
 import { usePathname, useRouter } from "@/i18n/navigation";
 import VibraSavedPostIcon from "@/app/components/VibraServiceIcons/VibraSavedPostIcon";
@@ -697,10 +697,46 @@ const contentAreaClassName = isEmbed
             gap: 6px;
           }
         }
+
+        /* Página de búsqueda móvil deslizable (entra desde la derecha) */
+        .mobileSearchPage {
+          position: fixed;
+          inset: 0;
+          z-index: 200;
+          background: #000;
+          display: flex;
+          flex-direction: column;
+          padding-top: env(safe-area-inset-top, 0px);
+          padding-left: env(safe-area-inset-left, 0px);
+          padding-right: env(safe-area-inset-right, 0px);
+          box-sizing: border-box;
+          will-change: transform;
+        }
+        .mobileSearchPageInner {
+          flex: 1;
+          min-height: 0;
+          display: flex;
+          flex-direction: column;
+          padding: 10px 12px calc(12px + env(safe-area-inset-bottom, 0px));
+          box-sizing: border-box;
+        }
+        /* Contenido actual se desplaza a la izquierda mientras entra la búsqueda */
+        .layout {
+          transition: transform 340ms cubic-bezier(0.22, 1, 0.36, 1);
+        }
+        @media (max-width: 900px) {
+          .layoutSearchShift {
+            transform: translateX(-25%);
+          }
+        }
+        /* Solo móvil: en desktop nunca debe mostrarse */
+        @media (min-width: 901px) {
+          .mobileSearchPage { display: none; }
+        }
       `}</style>
 
       <MobileHeaderCtx.Provider value={{ ...headerData, setMobileHeader: setHeaderData }}>
-      <div className="layout">
+      <div className={`layout${mobileSearchOpen ? " layoutSearchShift" : ""}`}>
 <div
   ref={safeAreaRef}
   className={`safeAreaHeaderBackdrop${(isHomePage || isWalletPage) && homeHeaderHidden ? " safeAreaHidden" : ""}`}
@@ -744,20 +780,7 @@ const contentAreaClassName = isEmbed
               </div>
             </div>
 
-{mobileSearchOpen ? (
-  <div className="mobileSearchRow">
-    <div className="mobileSearchCol">
-      <GroupsSearchPanel
-        fontStack={fontStack}
-        showCreateGroup={false}
-        createGroupHref="/groups/new"
-        showCloseSearch={true}
-        onCloseSearch={() => setMobileSearchOpen(false)}
-        autoFocusOnMount={true}
-      />
-    </div>
-  </div>
-) : (
+{(
   <div className={`mobileHeaderRow${isProfilePage && contextScrolled ? " mobileHeaderScrolled" : ""}`}>
     {/* Contenido por defecto: logo + acciones */}
     <div className="mobileHeaderDefault">
@@ -841,6 +864,34 @@ const contentAreaClassName = isEmbed
        {!isEmbed && <ScrollToTopFAB />}
        {!isEmbed && <MobileBottomNav showWallet={showWalletRail} />}
       </div>
+
+       {/* Búsqueda móvil: página completa que entra deslizándose desde la derecha
+           mientras el contenido actual se desplaza a la izquierda (mismo spring
+           que el wallet). */}
+       <AnimatePresence>
+         {mobileSearchOpen && (
+           <motion.div
+             key="mobile-search-page"
+             className="mobileSearchPage"
+             initial={{ x: "100%" }}
+             animate={{ x: 0 }}
+             exit={{ x: "100%" }}
+             transition={{ type: "spring", stiffness: 320, damping: 32, mass: 0.9 }}
+           >
+             <div className="mobileSearchPageInner">
+               <GroupsSearchPanel
+                 fontStack={fontStack}
+                 showCreateGroup={false}
+                 createGroupHref="/groups/new"
+                 showCloseSearch={true}
+                 onCloseSearch={() => setMobileSearchOpen(false)}
+                 autoFocusOnMount={true}
+                 fullPage
+               />
+             </div>
+           </motion.div>
+         )}
+       </AnimatePresence>
       </MobileHeaderCtx.Provider>
     </>
   );
