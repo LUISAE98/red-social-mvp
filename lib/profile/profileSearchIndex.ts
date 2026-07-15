@@ -31,10 +31,29 @@ export type BuildProfileSearchIndexInput = {
   lastName?: string | null;
   handle?: string | null;
   username?: string | null;
+  /**
+   * Intereses del perfil (categorías canónicas). Se tokenizan e incluyen en
+   * el índice para que una búsqueda como "viajes" o "autos" también devuelva
+   * perfiles que seleccionaron esa categoría como interés.
+   */
+  interests?: string[] | null;
   isActive?: boolean | null;
   profileSearchable?: boolean | null;
   updatedAt?: unknown | null;
 };
+
+/**
+ * Convierte los intereses canónicos en tokens de búsqueda.
+ * Ej: "moda_belleza" -> ["moda", "belleza"], "viajes" -> ["viajes"].
+ */
+function buildInterestSearchTokens(interests?: string[] | null): string[] {
+  if (!Array.isArray(interests) || interests.length === 0) return [];
+  const text = interests
+    .filter((value): value is string => typeof value === "string" && !!value)
+    .map((value) => value.replace(/_/g, " "))
+    .join(" ");
+  return tokenizeSearchText(text);
+}
 
 export function buildProfileSearchIndex(
   profile: BuildProfileSearchIndexInput
@@ -69,13 +88,15 @@ export function buildProfileSearchIndex(
   const nameTokens = tokenizeSearchText(nameNormalized);
 
   const handleTokens = buildHandleSearchTokens(handleNormalized);
+  const interestTokens = buildInterestSearchTokens(profile.interests);
 
   const tokens = mergeSearchTokens(
     handleTokens,
     displayNameTokens,
     firstNameTokens,
     lastNameTokens,
-    nameTokens
+    nameTokens,
+    interestTokens
   );
 
   const textPrefixes = buildSearchPrefixes(tokens, {

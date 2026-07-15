@@ -283,7 +283,10 @@ const { user, loading: authLoading } = useAuth();
   const [description, setDescription] = useState("");
   const [visibility, setVisibility] = useState<GroupVisibility>("public");
 
-  const [category, setCategory] = useState<CanonicalGroupCategory>("otros");
+  // "otros" ya no es seleccionable; el formulario arranca en la primera categoría real.
+  const [category, setCategory] = useState<CanonicalGroupCategory>(
+    GROUP_CATEGORY_OPTIONS[0].value
+  );
   const [tagsRaw, setTagsRaw] = useState("");
 
   const [greetingsEnabled, setGreetingsEnabled] = useState(false);

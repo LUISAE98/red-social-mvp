@@ -7,6 +7,7 @@ import {
   getDoc,
   getDocs,
   limit,
+  orderBy,
   query,
   setDoc,
   where,
@@ -26,6 +27,16 @@ import type {
   RecommendationProfileCard,
   StoredRecommendationPreferences,
 } from "./types";
+import {
+  fetchPublicPostsByCategories,
+  fetchUserProfilePostsPage,
+} from "@/lib/posts/post-service";
+import type { Post } from "@/lib/posts/types";
+import {
+  getBehaviorCategoryWeights,
+  getSeenPostIds,
+  timeDecayWeight,
+} from "@/lib/discovery/viewSignal";
 
 const STORAGE_KEY_PREFIX = "red-social-mvp:group-recommendations:";
 const RANDOM_SLOT_OPTIONS = [6, 10, 15] as const;
@@ -779,6 +790,44 @@ async function fetchProfilesByGroupOwnership(
   return result;
 }
 
+// Signal A2 (+6 con servicios, +3 sin): perfiles cuyos intereses declarados
+// coinciden con mis categorías. Es la señal de categoría más directa: recomienda
+// creadores afines aunque todavía no hayan creado una comunidad.
+async function fetchProfilesByInterests(
+  categories: CanonicalGroupCategory[],
+  excludeUids: Set<string>
+): Promise<ProfileScored[]> {
+  if (categories.length === 0) return [];
+
+  const result: ProfileScored[] = [];
+  const seen = new Set<string>();
+
+  // array-contains-any acepta hasta 10 valores por consulta
+  for (const chunk of chunkArray(categories, 10)) {
+    try {
+      const snap = await getDocs(
+        query(
+          collection(db, "users"),
+          where("interests", "array-contains-any", chunk),
+          limit(20)
+        )
+      );
+      for (const docSnap of snap.docs) {
+        if (excludeUids.has(docSnap.id) || seen.has(docSnap.id)) continue;
+        const card = toProfileCard(
+          docSnap.id,
+          docSnap.data() as Record<string, unknown>
+        );
+        if (!card) continue;
+        seen.add(docSnap.id);
+        result.push({ card, score: card.hasActiveServices ? 6 : 3 });
+      }
+    } catch {}
+  }
+
+  return result;
+}
+
 // Signal B (+4 con servicios, +1 sin): co-miembros activos en mis comunidades
 async function fetchProfilesFromCoMembers(
   myGroupIds: Set<string>,
@@ -908,22 +957,31 @@ export async function fetchRecommendedProfilesForUser(
 
   const excludeUids = new Set<string>([uid, ...followedProfileIds, ...blockedByIds]);
 
-  const [categoryCreators, coMemberProfiles, generalCreators, fofProfiles] =
-    await Promise.all([
-      categories.length > 0
-        ? fetchProfilesByGroupOwnership(categories, excludeUids)
-        : Promise.resolve([] as ProfileScored[]),
-      memberGroupIds.size > 0
-        ? fetchProfilesFromCoMembers(memberGroupIds, excludeUids)
-        : Promise.resolve([] as ProfileScored[]),
-      fetchActiveCreators(excludeUids),
-      followedProfileIds.length > 0
-        ? fetchFriendsOfFriends(followedProfileIds, excludeUids)
-        : Promise.resolve([] as ProfileScored[]),
-    ]);
+  const [
+    interestCreators,
+    categoryCreators,
+    coMemberProfiles,
+    generalCreators,
+    fofProfiles,
+  ] = await Promise.all([
+    categories.length > 0
+      ? fetchProfilesByInterests(categories, excludeUids)
+      : Promise.resolve([] as ProfileScored[]),
+    categories.length > 0
+      ? fetchProfilesByGroupOwnership(categories, excludeUids)
+      : Promise.resolve([] as ProfileScored[]),
+    memberGroupIds.size > 0
+      ? fetchProfilesFromCoMembers(memberGroupIds, excludeUids)
+      : Promise.resolve([] as ProfileScored[]),
+    fetchActiveCreators(excludeUids),
+    followedProfileIds.length > 0
+      ? fetchFriendsOfFriends(followedProfileIds, excludeUids)
+      : Promise.resolve([] as ProfileScored[]),
+  ]);
 
   const scored = new Map<string, { card: RecommendationProfileCard; score: number }>();
   for (const { card, score } of [
+    ...interestCreators,
     ...categoryCreators,
     ...coMemberProfiles,
     ...generalCreators,
@@ -1147,3 +1205,336 @@ export const recommendationEngineConstants = {
   MIN_ONBOARDING_CATEGORIES,
   RANDOM_SLOT_OPTIONS,
 };
+
+// ===========================================================================
+// Discovery feed (Fase 1, opción B) — posts públicos de comunidades públicas y
+// perfiles que el usuario AÚN NO SIGUE, rankeados por afinidad de categoría.
+//
+// Señales (baratas, sin leer la colección `posts` por documentId → evita el
+// límite de cuota de las reglas `allow list`):
+//   - intereses declarados del perfil / onboarding  (+3)
+//   - categorías de comunidades a las que se unió    (+3, conductual)
+//   - categorías de posts a los que dio like         (+2, vía flame denormalizado)
+// Candidatos: posts de comunidades públicas top y de perfiles afines no seguidos.
+// Score = afinidad·3 + frescura·2 + engagement(log)·0.6.
+// ===========================================================================
+
+type DiscoveryPost = Post;
+
+const DISCOVERY_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutos
+const MAX_DISCOVERY_POSTS = 8;
+const DISCOVERY_TOP_CATEGORIES = 4;
+const DISCOVERY_COMMUNITY_POST_LIMIT = 24;
+const DISCOVERY_PROFILES = 5;
+const DISCOVERY_MAX_PER_AUTHOR = 1;
+const DISCOVERY_MAX_PER_CATEGORY = 3;
+const DISCOVERY_POSTS_PER_PROFILE = 2;
+const DISCOVERY_LIKED_FLAMES_SCANNED = 50;
+const SHOWN_DISCOVERY_KEY_PREFIX = "red-social-mvp:shown-discovery:";
+const SHOWN_DISCOVERY_MAX = 200;
+
+type DiscoveryCacheEntry = { posts: DiscoveryPost[]; cachedAt: number };
+const discoveryCache = new Map<string, DiscoveryCacheEntry>();
+
+export function invalidateDiscoveryCache(uid: string): void {
+  discoveryCache.delete(uid);
+}
+
+function toMillis(value: unknown): number {
+  if (!value) return 0;
+  if (typeof value === "number") return value;
+  if (value instanceof Date) return value.getTime();
+  if (typeof value === "object") {
+    const v = value as { toMillis?: () => number; seconds?: number };
+    if (typeof v.toMillis === "function") return v.toMillis();
+    if (typeof v.seconds === "number") return v.seconds * 1000;
+  }
+  return 0;
+}
+
+function getShownDiscoveryIds(uid: string): Set<string> {
+  if (!uid || typeof window === "undefined") return new Set();
+  try {
+    const raw = window.localStorage.getItem(`${SHOWN_DISCOVERY_KEY_PREFIX}${uid}`);
+    if (!raw) return new Set();
+    const entries = JSON.parse(raw) as { id: string; shownAt: number }[];
+    const cutoff = Date.now() - SHOWN_GROUPS_TTL_MS;
+    return new Set(entries.filter((e) => e.shownAt > cutoff).map((e) => e.id));
+  } catch {
+    return new Set();
+  }
+}
+
+function markDiscoveryShown(uid: string, ids: string[]): void {
+  if (!uid || ids.length === 0 || typeof window === "undefined") return;
+  try {
+    const key = `${SHOWN_DISCOVERY_KEY_PREFIX}${uid}`;
+    const raw = window.localStorage.getItem(key);
+    const existing = raw
+      ? (JSON.parse(raw) as { id: string; shownAt: number }[])
+      : [];
+    const cutoff = Date.now() - SHOWN_GROUPS_TTL_MS;
+    const fresh = existing.filter(
+      (e) => e.shownAt > cutoff && !ids.includes(e.id)
+    );
+    const now = Date.now();
+    const merged = [
+      ...ids.map((id) => ({ id, shownAt: now })),
+      ...fresh,
+    ].slice(0, SHOWN_DISCOVERY_MAX);
+    window.localStorage.setItem(key, JSON.stringify(merged));
+  } catch {}
+}
+
+// Categorías de los posts a los que el usuario dio like (vía el campo
+// `groupCategory` denormalizado en users/{uid}/postFlames). Subcolección propia:
+// lectura barata y siempre permitida, sin tocar la colección `posts`.
+async function fetchLikedCategoryWeights(
+  uid: string
+): Promise<Map<CanonicalGroupCategory, number>> {
+  const weights = new Map<CanonicalGroupCategory, number>();
+  try {
+    const snap = await getDocs(
+      query(
+        collection(db, "users", uid, "postFlames"),
+        orderBy("createdAt", "desc"),
+        limit(DISCOVERY_LIKED_FLAMES_SCANNED)
+      )
+    );
+    const now = Date.now();
+    for (const docSnap of snap.docs) {
+      const data = docSnap.data() as {
+        groupCategory?: unknown;
+        createdAt?: unknown;
+      };
+      const category = normalizeGroupCategory(data.groupCategory);
+      if (!category) continue;
+      // Decaimiento temporal: un like de hoy pesa 1, se enfría en días.
+      const weight = timeDecayWeight(now - toMillis(data.createdAt));
+      if (weight <= 0) continue;
+      weights.set(category, (weights.get(category) ?? 0) + weight);
+    }
+  } catch {
+    return weights;
+  }
+
+  for (const [category, weight] of weights) {
+    weights.set(category, Math.min(weight, 12));
+  }
+  return weights;
+}
+
+async function buildDiscoveryTasteVector(
+  uid: string,
+  preferences: StoredRecommendationPreferences
+): Promise<Map<CanonicalGroupCategory, number>> {
+  const taste = new Map<CanonicalGroupCategory, number>();
+  const add = (categories: CanonicalGroupCategory[], weight: number) => {
+    for (const category of categories) {
+      taste.set(category, (taste.get(category) ?? 0) + weight);
+    }
+  };
+
+  // Señales FIJAS (ancla estable): no decaen.
+  add(uniqueCanonicalCategories(preferences.selectedCategories), 3);
+  add(uniqueCanonicalCategories(preferences.joinedCategories), 3);
+
+  // Señal de LIKE con decaimiento temporal: un like de hoy pesa 2 y se enfría
+  // en días (vida media 2 días, nulo a los 5).
+  for (const [category, weight] of await fetchLikedCategoryWeights(uid)) {
+    taste.set(category, (taste.get(category) ?? 0) + weight * 2);
+  }
+
+  // Señales de comportamiento locales (guardar 2.5, comentar 2, ver 0.3), ya
+  // decaídas y ponderadas. Guardar/comentar son intención fuerte; ver, débil.
+  for (const [category, weight] of getBehaviorCategoryWeights(uid)) {
+    taste.set(category, (taste.get(category) ?? 0) + weight);
+  }
+
+  return taste;
+}
+
+// Bonus por coincidencia de tags (opción A): refina el match DENTRO de una
+// categoría amplia. Ej. en "instituciones", una iglesia (tag `iglesia`) le gana
+// a una alcaldía para un usuario con tags religiosos, sin revolverlas.
+function tagOverlapBonus(
+  post: DiscoveryPost,
+  userTagInterests: Set<string>
+): number {
+  if (userTagInterests.size === 0) return 0;
+  const tags = normalizeGroupTags(post.groupTags);
+  if (tags.length === 0) return 0;
+  let overlap = 0;
+  for (const tag of tags) {
+    if (userTagInterests.has(tag)) overlap += 1;
+  }
+  return Math.min(overlap, 3) * 1.5; // hasta +4.5
+}
+
+// Gate de calidad (#4): descarta posts vacíos o de muy bajo esfuerzo para que
+// lo sugerido sea lo bueno de la categoría, no el primer relleno.
+function isDiscoveryWorthy(post: DiscoveryPost): boolean {
+  if (post.isDeleted === true) return false;
+  const hasMedia = Array.isArray(post.media) && post.media.length > 0;
+  const textLength =
+    typeof post.text === "string" ? post.text.trim().length : 0;
+  const counts = post.counts ?? {};
+  const engagement =
+    (counts.likes ?? 0) + (counts.comments ?? 0) + (counts.saves ?? 0);
+  // Debe tener media, texto con sustancia, o algo de engagement.
+  if (!hasMedia && textLength < 15 && engagement < 1) return false;
+  return true;
+}
+
+function scoreDiscoveryPost(post: DiscoveryPost, categoryAffinity: number): number {
+  const ageDays = (Date.now() - toMillis(post.createdAt)) / (1000 * 60 * 60 * 24);
+  const recency = Math.max(0, 1 - ageDays / 30); // 0..1, decae en ~30 días
+  const counts = post.counts ?? {};
+  const engagementRaw =
+    (counts.likes ?? 0) + 2 * (counts.comments ?? 0) + (counts.saves ?? 0);
+  const engagement = Math.log1p(engagementRaw);
+
+  return categoryAffinity * 3 + recency * 2 + engagement * 0.6;
+}
+
+/**
+ * Devuelve posts de descubrimiento para inyectar en el Home: públicos, de
+ * comunidades públicas y perfiles que el usuario aún no sigue, rankeados por
+ * afinidad. Cacheado en memoria (TTL corto) y con anti-repetición por sesión.
+ */
+export async function fetchDiscoveryPostsForUser(
+  uid: string
+): Promise<DiscoveryPost[]> {
+  if (!uid) return [];
+
+  const cached = discoveryCache.get(uid);
+  if (cached && Date.now() - cached.cachedAt < DISCOVERY_CACHE_TTL_MS) {
+    return cached.posts;
+  }
+
+  const preferences = getStoredRecommendationPreferences(uid);
+  // Tags de interés del usuario (de las comunidades a las que se unió), ya
+  // normalizados igual que los del post → refinan dentro de cada categoría.
+  const userTagInterests = new Set(normalizeGroupTags(preferences.joinedTags));
+
+  const [memberGroupIds, followedProfileIds, blockedByIds, taste] =
+    await Promise.all([
+      fetchUserMembershipGroupIds(uid),
+      fetchFollowedProfileIds(uid),
+      fetchBlockedByProfileIds(uid),
+      buildDiscoveryTasteVector(uid, preferences),
+    ]);
+
+  const topCategories = Array.from(taste.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, DISCOVERY_TOP_CATEGORIES)
+    .map(([category]) => category);
+
+  if (topCategories.length === 0) {
+    discoveryCache.set(uid, { posts: [], cachedAt: Date.now() });
+    return [];
+  }
+
+  const excludeAuthors = new Set<string>([
+    uid,
+    ...followedProfileIds,
+    ...blockedByIds,
+  ]);
+
+  // Candidatos (Fase 2):
+  //   - Comunidades públicas: 1 sola query por categoría (`groupCategory` denormalizado)
+  //   - Perfiles afines (no seguidos): sus posts públicos recientes
+  const [communityPosts, profileScored] = await Promise.all([
+    fetchPublicPostsByCategories({
+      categories: topCategories,
+      viewerUid: uid,
+      excludeGroupIds: memberGroupIds,
+      pageSize: DISCOVERY_COMMUNITY_POST_LIMIT,
+    }),
+    fetchProfilesByInterests(topCategories, excludeAuthors),
+  ]);
+
+  const topProfiles = profileScored
+    .slice(0, DISCOVERY_PROFILES)
+    .map((entry) => entry.card);
+
+  const profilePostGroups = await Promise.all(
+    topProfiles.map(async (profile) => {
+      try {
+        const page = await fetchUserProfilePostsPage({
+          profileUid: profile.uid,
+          viewerUid: uid,
+          pageSize: DISCOVERY_POSTS_PER_PROFILE,
+        });
+        // Afinidad base media: vinieron de un match de interés declarado.
+        return page.posts.map((post) => ({ post, affinity: 2 }));
+      } catch {
+        return [] as { post: DiscoveryPost; affinity: number }[];
+      }
+    })
+  );
+
+  const communityCandidates = communityPosts.map((post) => {
+    const category = normalizeGroupCategory(post.groupCategory);
+    const affinity = category ? taste.get(category) ?? 0 : 0;
+    return { post, affinity };
+  });
+
+  const shownIds = getShownDiscoveryIds(uid);
+  const seenIds = getSeenPostIds(uid);
+  const seen = new Set<string>();
+  const scored: { post: DiscoveryPost; score: number }[] = [];
+
+  for (const { post, affinity } of [
+    ...communityCandidates,
+    ...profilePostGroups.flat(),
+  ]) {
+    if (!post || !post.id) continue;
+    if (seen.has(post.id)) continue;
+    if (post.authorId && excludeAuthors.has(post.authorId)) continue;
+    if (shownIds.has(post.id) || seenIds.has(post.id)) continue;
+    if (!isDiscoveryWorthy(post)) continue; // #4 gate de calidad
+    seen.add(post.id);
+    const score =
+      scoreDiscoveryPost(post, affinity) +
+      tagOverlapBonus(post, userTagInterests);
+    scored.push({ post, score });
+  }
+
+  const rankedScored = scored.sort((a, b) => b.score - a.score);
+
+  // #3 Diversidad: intercala evitando saturar por autor/categoría (máx 1 por
+  // autor, 3 por categoría). Si los topes dejan corto, se rellena sin topes.
+  const perAuthor = new Map<string, number>();
+  const perCategory = new Map<string, number>();
+  const picked: DiscoveryPost[] = [];
+  const pickedIds = new Set<string>();
+
+  for (const { post } of rankedScored) {
+    if (picked.length >= MAX_DISCOVERY_POSTS) break;
+    const author = post.authorId ?? "";
+    const category = normalizeGroupCategory(post.groupCategory) ?? "_none";
+    if ((perAuthor.get(author) ?? 0) >= DISCOVERY_MAX_PER_AUTHOR) continue;
+    if ((perCategory.get(category) ?? 0) >= DISCOVERY_MAX_PER_CATEGORY) continue;
+    perAuthor.set(author, (perAuthor.get(author) ?? 0) + 1);
+    perCategory.set(category, (perCategory.get(category) ?? 0) + 1);
+    picked.push(post);
+    pickedIds.add(post.id);
+  }
+
+  if (picked.length < MAX_DISCOVERY_POSTS) {
+    for (const { post } of rankedScored) {
+      if (picked.length >= MAX_DISCOVERY_POSTS) break;
+      if (pickedIds.has(post.id)) continue;
+      picked.push(post);
+      pickedIds.add(post.id);
+    }
+  }
+
+  if (picked.length > 0) {
+    markDiscoveryShown(uid, picked.map((post) => post.id));
+  }
+
+  discoveryCache.set(uid, { posts: picked, cachedAt: Date.now() });
+  return picked;
+}

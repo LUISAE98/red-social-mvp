@@ -35,6 +35,7 @@ import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import { onAuthStateChanged, sendPasswordResetEmail, type User } from "firebase/auth";
 import { httpsCallable } from "firebase/functions";
 import { updateProfileDisplayName } from "@/lib/profile/updateProfileDisplayName";
+import { updateProfileInterests } from "@/lib/profile/updateProfileInterests";
 import CreatorExperiencesSection from "@/components/services/CreatorExperiencesSection";
 import CreatorServiceModals from "@/components/services/CreatorServiceModals";
 import { buildCurrentPathWithSearch } from "@/lib/auth-redirect";
@@ -48,7 +49,7 @@ import { createMeetGreetRequest } from "@/lib/meetGreet/meetGreetRequests";
 import { registrarCompraGeo } from "@/lib/wallet/registrarCompraGeo";
 import { createExclusiveSessionRequest } from "@/lib/exclusiveSession/exclusiveSessionRequests";
 import { getServiceByType, type NormalizedService } from "@/lib/services/normalizeServices";
-import type { CreatorServiceType } from "@/types/group";
+import type { CreatorServiceType, CanonicalGroupCategory } from "@/types/group";
 import SafeCropper from "@/components/media/SafeCropper";
 import { auth, db, storage, functions } from "@/lib/firebase";
 import { normalizeImageFile } from "@/lib/uploads/image-normalizer";
@@ -144,6 +145,7 @@ type UserDoc = {
   offerings?: import("@/types/group").CreatorService[] | null;
   donation?: Record<string, unknown> | null;
   monetization?: Record<string, unknown> | null;
+  interests?: import("@/types/group").CanonicalGroupCategory[] | null;
   followersCount?: number;
 };
 
@@ -1364,6 +1366,13 @@ async function handleUpdateBio(nextBio: string) {
   setUserDoc((prev) => (prev ? { ...prev, bio: nextBio.trim() } : prev));
 }
 
+async function handleUpdateInterests(next: CanonicalGroupCategory[]) {
+  if (!userDoc || !isOwner) return;
+  // El backend valida, persiste y reconstruye el índice de búsqueda.
+  const saved = await updateProfileInterests(next);
+  setUserDoc((prev) => (prev ? { ...prev, interests: saved } : prev));
+}
+
 async function handleSendPasswordReset() {
   const email = viewer?.email;
 
@@ -2557,6 +2566,8 @@ await createExclusiveSessionRequest({
   onUpdateDisplayName={handleUpdateDisplayName}
   bio={userDoc.bio ?? null}
   onUpdateBio={handleUpdateBio}
+  interests={userDoc.interests ?? null}
+  onUpdateInterests={handleUpdateInterests}
   onSendPasswordReset={handleSendPasswordReset}
 />
               </section>

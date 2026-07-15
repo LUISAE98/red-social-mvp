@@ -85,6 +85,27 @@ export const togglePostFlame = onCall<TogglePostFlameRequest>(
 
       const nextLikes = currentLikes + 1;
 
+      // Denormalizamos la categoría/contexto del post en el doc del flame para
+      // alimentar el feed de descubrimiento (señal "like") sin tener que leer
+      // la colección posts al recomendar (evita el límite de cuota de las reglas
+      // `allow list`). Guardamos la categoría cruda; el cliente la normaliza.
+      const contextType =
+        postData.contextType === "profile" ? "profile" : "group";
+      const groupId =
+        typeof postData.groupId === "string" ? postData.groupId : null;
+
+      let groupCategory: string | null = null;
+      if (contextType === "group" && groupId) {
+        const groupSnap = await transaction.get(
+          db.collection("groups").doc(groupId)
+        );
+        const rawCategory = groupSnap.exists
+          ? groupSnap.data()?.category
+          : null;
+        groupCategory =
+          typeof rawCategory === "string" && rawCategory ? rawCategory : null;
+      }
+
       transaction.set(
         reactionRef,
         {
@@ -103,6 +124,8 @@ export const togglePostFlame = onCall<TogglePostFlameRequest>(
           userId: uid,
           postId,
           createdAt: now,
+          contextType,
+          ...(groupCategory ? { groupCategory } : {}),
         },
         { merge: true }
       );

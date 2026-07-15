@@ -2601,6 +2601,7 @@ const avatarNode = (
                     <GroupRecommendationsRail
                       currentUserId={user.uid}
                       context="group"
+                      suppressOnboarding
                     />
                   </div>
                 ) : null}

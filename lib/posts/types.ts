@@ -1,5 +1,6 @@
 import type { Timestamp } from "firebase/firestore";
 import type { SuperCommentConfig } from "@/lib/liveChat/types";
+import type { CanonicalGroupCategory } from "@/types/group";
 
 export type ActiveSuperComment = {
   id: string;
@@ -340,6 +341,18 @@ export type Post = {
   groupName?: string | null;
   groupAvatarUrl?: string | null;
   groupVisibility?: GroupVisibility | null;
+  /**
+   * Categoría canónica de la comunidad, denormalizada en el post (Fase 2 del
+   * descubrimiento). Permite consultar posts públicos por categoría en una sola
+   * query. `null` en posts de perfil o comunidades sin categoría.
+   */
+  groupCategory?: CanonicalGroupCategory | null;
+  /**
+   * Tags de la comunidad denormalizados en el post (opción A del descubrimiento).
+   * Refinan el match dentro de una categoría amplia (ej. "instituciones" →
+   * `iglesia` vs `gobierno`). Vacío/`null` en posts de perfil.
+   */
+  groupTags?: string[] | null;
 
   profileId?: string | null;
   profileName?: string | null;

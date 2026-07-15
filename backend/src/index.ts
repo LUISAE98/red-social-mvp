@@ -144,7 +144,7 @@ export {
 } from "./subscriptionTransitions";
 
 // Profile settings
-export { updateProfileDisplayName } from "./profileSettings";
+export { updateProfileDisplayName, updateProfileInterests } from "./profileSettings";
 
 // Post reactions
 export { togglePostFlame } from "./postReactions";
@@ -254,3 +254,6 @@ export { backfillWalletLives } from "./walletLivesBackfill";
 
 // Backfill de postId para tickets (premium_post / vod_ticket), corrida única
 export { backfillTicketPostIds } from "./backfillTicketPostIds";
+
+// Backfill de groupCategory en posts (descubrimiento Fase 2), corrida única
+export { backfillPostGroupCategory } from "./backfillPostGroupCategory";

@@ -1356,6 +1356,7 @@ const shellStyle: CSSProperties = {
           <GroupRecommendationsRail
             currentUserId={viewerUid}
             context="profile"
+            suppressOnboarding
           />
         </div>
       )}
@@ -1425,6 +1426,7 @@ const shellStyle: CSSProperties = {
                 <GroupRecommendationsRail
                   currentUserId={viewerUid}
                   context="profile"
+                  suppressOnboarding
                 />
               </div>
             )}
@@ -1450,6 +1452,7 @@ const shellStyle: CSSProperties = {
             <GroupRecommendationsRail
               currentUserId={viewerUid}
               context="profile"
+              suppressOnboarding
             />
           </div>
         )}

@@ -1,7 +1,7 @@
 //HomePostsFeed.tsx
 "use client";
 
-import type { CSSProperties } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { doc, getDoc } from "firebase/firestore";
@@ -25,7 +25,10 @@ import {
 
 import GroupPostCard from "@/app/groups/[groupId]/components/posts/GroupPostCard";
 import GroupRecommendationsRail from "@/app/components/GroupRecommendations/GroupRecommendationsRail";
-import { buildRandomRecommendationSlots } from "@/app/components/GroupRecommendations/recommendation-engine";
+import {
+  buildRandomRecommendationSlots,
+  fetchDiscoveryPostsForUser,
+} from "@/app/components/GroupRecommendations/recommendation-engine";
 import {
   patchPostInAllFeedCaches,
   registerPostFeedCacheListener,
@@ -34,6 +37,13 @@ import {
 import { loadFeedWithRetry } from "@/lib/posts/feed-load-helpers";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
+import {
+  recordPostImpression,
+  recordPostSaveSignal,
+  recordPostCommentSignal,
+} from "@/lib/discovery/viewSignal";
+import { followUser } from "@/lib/social/social-service";
+import { joinGroup } from "@/lib/groups/membership";
 
 type HomePostsFeedProps = {
   currentUserId: string | null;
@@ -77,6 +87,145 @@ function normalizeHomeFeedPost(post: PostWithFlags): PostWithFlags {
       updatedAt: null,
     },
   };
+}
+
+// Observa cuándo un post permanece visible el tiempo suficiente (dwell) y
+// registra la impresión una sola vez. Señal de "visto" (Fase 3 descubrimiento).
+const IMPRESSION_DWELL_MS = 900;
+
+function PostImpressionObserver({
+  uid,
+  postId,
+  category,
+  children,
+}: {
+  uid: string;
+  postId?: string | null;
+  category?: unknown;
+  children: ReactNode;
+}) {
+  const ref = useRef<HTMLDivElement | null>(null);
+  const firedRef = useRef(false);
+
+  useEffect(() => {
+    firedRef.current = false;
+    const el = ref.current;
+    if (!el || !uid || typeof IntersectionObserver === "undefined") return;
+
+    let timer: number | null = null;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        if (!entry) return;
+
+        if (
+          entry.isIntersecting &&
+          entry.intersectionRatio >= 0.5 &&
+          !firedRef.current
+        ) {
+          if (timer == null) {
+            timer = window.setTimeout(() => {
+              firedRef.current = true;
+              recordPostImpression(uid, { postId, category });
+              observer.disconnect();
+            }, IMPRESSION_DWELL_MS);
+          }
+        } else if (timer != null) {
+          window.clearTimeout(timer);
+          timer = null;
+        }
+      },
+      { threshold: [0, 0.5, 1] }
+    );
+
+    observer.observe(el);
+
+    return () => {
+      if (timer != null) window.clearTimeout(timer);
+      observer.disconnect();
+    };
+  }, [uid, postId, category]);
+
+  return <div ref={ref}>{children}</div>;
+}
+
+// CTA de descubrimiento: "Seguir" (si es perfil) o "Unirme" (si es comunidad).
+// Se muestra arriba del post sugerido; el post en sí se ve como uno normal.
+function DiscoveryFollowJoinButton({
+  post,
+  currentUserId,
+}: {
+  post: PostWithFlags;
+  currentUserId: string;
+}) {
+  const tFeed = useTranslations("feed");
+  const [state, setState] = useState<"idle" | "loading" | "done">("idle");
+
+  const isCommunity = post.contextType === "group" && !!post.groupId;
+  const isProfile = post.contextType === "profile";
+  const targetId = isCommunity
+    ? post.groupId ?? null
+    : isProfile
+      ? post.profileId ?? post.authorId ?? null
+      : null;
+
+  if (!targetId || targetId === currentUserId) return null;
+
+  async function handleAction() {
+    if (state !== "idle" || !targetId) return;
+    setState("loading");
+    try {
+      if (isCommunity) {
+        await joinGroup(targetId, currentUserId);
+      } else {
+        await followUser({ currentUserId, targetUserId: targetId });
+      }
+      setState("done");
+    } catch {
+      setState("idle");
+    }
+  }
+
+  const label =
+    state === "loading"
+      ? "…"
+      : state === "done"
+        ? isCommunity
+          ? tFeed("joinedCta")
+          : tFeed("followingCta")
+        : isCommunity
+          ? tFeed("joinCta")
+          : tFeed("followCta");
+
+  const isDone = state === "done";
+
+  return (
+    <button
+      type="button"
+      onClick={handleAction}
+      disabled={state !== "idle"}
+      style={{
+        flexShrink: 0,
+        padding: "6px 16px",
+        borderRadius: 999,
+        border: isDone ? "1px solid rgba(255,255,255,0.18)" : "none",
+        background: isDone
+          ? "rgba(255,255,255,0.10)"
+          : "linear-gradient(135deg, #ec4899, #9333ea)",
+        color: isDone ? "rgba(255,255,255,0.7)" : "#fff",
+        fontSize: 12,
+        fontWeight: 700,
+        letterSpacing: "-0.01em",
+        cursor: state === "idle" ? "pointer" : "default",
+        opacity: state === "loading" ? 0.7 : 1,
+        whiteSpace: "nowrap",
+        fontFamily: "inherit",
+      }}
+    >
+      {label}
+    </button>
+  );
 }
 
 function isVideoPostStillProcessing(post: PostWithFlags): boolean {
@@ -186,6 +335,7 @@ export default function HomePostsFeed({ currentUserId, refreshRef }: HomePostsFe
   const [error, setError] = useState<string | null>(null);
   const { toast: feedToast, showToast: showFeedToast } = useVibraToast();
   useEffect(() => { if (error) showFeedToast(error, "error"); }, [error]); // eslint-disable-line react-hooks/exhaustive-deps
+  const [discoveryPosts, setDiscoveryPosts] = useState<PostWithFlags[]>([]);
   const [loadingInitial, setLoadingInitial] = useState<boolean>(() => !peekFreshCache(currentUserId));
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState<boolean>(() => peekFreshCache(currentUserId)?.hasMore ?? false);
@@ -235,22 +385,23 @@ export default function HomePostsFeed({ currentUserId, refreshRef }: HomePostsFe
     return registerPostFeedCacheListener({
       removePost: (postId) => {
         syncPostsState((prev) => prev.filter((post) => post.id !== postId));
+        setDiscoveryPosts((prev) => prev.filter((post) => post.id !== postId));
       },
       patchPost: (postId, patch) => {
-        syncPostsState((prev) =>
-          prev.map((post) =>
-            post.id === postId
-              ? normalizeHomeFeedPost({
-                  ...post,
-                  ...patch,
-                  counts: {
-                    ...post.counts,
-                    ...patch.counts,
-                  },
-                } as PostWithFlags)
-              : post
-          )
-        );
+        const applyPatch = (post: PostWithFlags): PostWithFlags =>
+          post.id === postId
+            ? normalizeHomeFeedPost({
+                ...post,
+                ...patch,
+                counts: {
+                  ...post.counts,
+                  ...patch.counts,
+                },
+              } as PostWithFlags)
+            : post;
+
+        syncPostsState((prev) => prev.map(applyPatch));
+        setDiscoveryPosts((prev) => prev.map(applyPatch));
       },
       clear: () => {
         if (currentUserId) {
@@ -258,6 +409,7 @@ export default function HomePostsFeed({ currentUserId, refreshRef }: HomePostsFe
         }
 
         setPosts([]);
+        setDiscoveryPosts([]);
         setPageCursor(null);
         setHasMore(false);
         pageCursorRef.current = null;
@@ -282,6 +434,38 @@ export default function HomePostsFeed({ currentUserId, refreshRef }: HomePostsFe
     mediaQuery.addListener(sync);
     return () => mediaQuery.removeListener(sync);
   }, []);
+
+  // ─── Discovery feed: posts públicos afines de perfiles/comunidades no seguidos ───
+  const discoveryLoadedRef = useRef(false);
+  useEffect(() => {
+    if (!currentUserId) {
+      discoveryLoadedRef.current = false;
+      setDiscoveryPosts([]);
+      return;
+    }
+    if (discoveryLoadedRef.current) return;
+    if (posts.length === 0) return; // esperar a que el feed base tenga contenido
+
+    discoveryLoadedRef.current = true;
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const discovered = await fetchDiscoveryPostsForUser(currentUserId);
+        if (cancelled) return;
+        const normalized = discovered
+          .filter((post) => !!post.id)
+          .map((post) => normalizeHomeFeedPost(post as PostWithFlags));
+        setDiscoveryPosts(normalized);
+      } catch {
+        /* silencioso: el descubrimiento es complementario */
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [currentUserId, posts.length]);
 
   const loadPostsPage = useCallback(
     async (mode: "initial" | "more" | "refresh" = "initial") => {
@@ -627,9 +811,16 @@ const handleHomePullRefresh = useCallback(async () => {
 
       const result = await togglePostSave(postId);
 
-      const targetPost = posts.find((post) => post.id === postId);
+      const targetPost =
+        posts.find((post) => post.id === postId) ??
+        discoveryPosts.find((post) => post.id === postId);
       const currentSaves = targetPost?.counts?.saves ?? 0;
       const nextSaves = Math.max(0, currentSaves + result.delta);
+
+      // Señal de descubrimiento: guardar es intención fuerte de esa categoría.
+      if (result.saved && currentUserId) {
+        recordPostSaveSignal(currentUserId, targetPost?.groupCategory);
+      }
 
       patchPostInAllFeedCaches(postId, {
         viewerHasSaved: result.saved,
@@ -691,6 +882,15 @@ const handleHomePullRefresh = useCallback(async () => {
     try {
       setError(null);
       await createPostComment({ postId, text });
+
+      // Señal de descubrimiento: comentar es intención fuerte de esa categoría.
+      if (currentUserId) {
+        const targetPost =
+          posts.find((post) => post.id === postId) ??
+          discoveryPosts.find((post) => post.id === postId);
+        recordPostCommentSignal(currentUserId, targetPost?.groupCategory);
+      }
+
       return await syncPostCommentsCount(postId);
     } catch (e: unknown) {
       setError((e instanceof Error ? e.message : null) ?? t("unknownError"));
@@ -816,6 +1016,27 @@ const shellStyle: CSSProperties = {
     return recommendationSlots.size > 0;
   }, [recommendationSlots]);
 
+  // Slots donde inyectar posts de descubrimiento (uno cada ~4 posts), evitando
+  // chocar con los rails de recomendación y los posts ya presentes en el feed.
+  const discoverySlotMap = useMemo(() => {
+    const map = new Map<number, PostWithFlags>();
+    if (discoveryPosts.length === 0 || posts.length === 0) return map;
+
+    const existingIds = new Set(posts.map((post) => post.id));
+    const available = discoveryPosts.filter((post) => !existingIds.has(post.id));
+    if (available.length === 0) return map;
+
+    let cursor = 0;
+    for (let i = 0; i < posts.length && cursor < available.length; i += 1) {
+      const position = i + 1;
+      if (position % 4 === 0 && !recommendationSlots.has(position)) {
+        map.set(i, available[cursor]);
+        cursor += 1;
+      }
+    }
+    return map;
+  }, [discoveryPosts, posts, recommendationSlots]);
+
   if (!currentUserId) {
     return (
       <section style={shellStyle}>
@@ -829,6 +1050,16 @@ const shellStyle: CSSProperties = {
 return (
   <section style={shellStyle}>
     <VibraToast toast={feedToast} />
+
+    {/* Selector de intereses: UNA sola vez, al inicio del feed. Si el onboarding
+        ya está completo (guardado en la cuenta), no renderiza nada. */}
+    <div style={recommendationWrapperStyle}>
+      <GroupRecommendationsRail
+        currentUserId={currentUserId}
+        context="home"
+        onboardingOnly
+      />
+    </div>
 
     {loadingInitial && posts.length === 0 && (
       <div
@@ -853,6 +1084,7 @@ return (
         <GroupRecommendationsRail
           currentUserId={currentUserId}
           context="home"
+          suppressOnboarding
         />
       </div>
     )}
@@ -863,6 +1095,7 @@ return (
         post.canModerateGroupAuthor === true;
 
       const shouldRenderRecommendations = recommendationSlots.has(index + 1);
+      const discoveryForSlot = discoverySlotMap.get(index);
       const shouldAttachInfiniteScrollTarget =
         hasMore && index === infiniteScrollTriggerIndex;
 
@@ -880,33 +1113,102 @@ return (
             />
           ) : null}
 
-          <GroupPostCard
-            post={post}
-            canDelete={canDeletePost}
-            onDelete={canDeletePost ? handleDeletePost : undefined}
-            onLoadComments={handleLoadComments}
-            onCreateComment={handleCreateComment}
-            onDeleteComment={handleDeleteComment}
-            onLoadReplies={handleLoadReplies}
-            onCreateReply={handleCreateReply}
-            onDeleteReply={handleDeleteReply}
-            onToggleFlame={handleToggleFlame}
-            onToggleSave={handleToggleSave}
-            currentUserId={currentUserId}
-            isOwner={false}
-            viewerIsMember={post.contextType === "group"}
-            isModerator={post.canModerateGroupAuthor === true}
-            showGroupContext={true}
-            canModerateGroupAuthor={post.canModerateGroupAuthor === true}
-            onModerationComplete={loadPosts}
-          />
+          <PostImpressionObserver
+            uid={currentUserId}
+            postId={post.id}
+            category={post.groupCategory}
+          >
+            <GroupPostCard
+              post={post}
+              canDelete={canDeletePost}
+              onDelete={canDeletePost ? handleDeletePost : undefined}
+              onLoadComments={handleLoadComments}
+              onCreateComment={handleCreateComment}
+              onDeleteComment={handleDeleteComment}
+              onLoadReplies={handleLoadReplies}
+              onCreateReply={handleCreateReply}
+              onDeleteReply={handleDeleteReply}
+              onToggleFlame={handleToggleFlame}
+              onToggleSave={handleToggleSave}
+              currentUserId={currentUserId}
+              isOwner={false}
+              viewerIsMember={post.contextType === "group"}
+              isModerator={post.canModerateGroupAuthor === true}
+              showGroupContext={true}
+              canModerateGroupAuthor={post.canModerateGroupAuthor === true}
+              onModerationComplete={loadPosts}
+            />
+          </PostImpressionObserver>
 
           {shouldRenderRecommendations && (
             <div style={recommendationWrapperStyle}>
               <GroupRecommendationsRail
                 currentUserId={currentUserId}
                 context="home"
+                suppressOnboarding
               />
+            </div>
+          )}
+
+          {discoveryForSlot && (
+            <div style={{ ...postItemStyle, marginTop: 12 }}>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 8,
+                  marginBottom: 8,
+                }}
+              >
+                <div
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                    padding: "4px 10px",
+                    borderRadius: 999,
+                    background: "rgba(168, 85, 247, 0.14)",
+                    border: "1px solid rgba(168, 85, 247, 0.35)",
+                    color: "#c084fc",
+                    fontSize: 12,
+                    fontWeight: 600,
+                    letterSpacing: "-0.01em",
+                  }}
+                >
+                  ✨ {tFeed("suggestedForYou")}
+                </div>
+
+                <DiscoveryFollowJoinButton
+                  post={discoveryForSlot}
+                  currentUserId={currentUserId}
+                />
+              </div>
+
+              <PostImpressionObserver
+                uid={currentUserId}
+                postId={discoveryForSlot.id}
+                category={discoveryForSlot.groupCategory}
+              >
+                <GroupPostCard
+                  post={discoveryForSlot}
+                  canDelete={false}
+                  onLoadComments={handleLoadComments}
+                  onCreateComment={handleCreateComment}
+                  onDeleteComment={handleDeleteComment}
+                  onLoadReplies={handleLoadReplies}
+                  onCreateReply={handleCreateReply}
+                  onDeleteReply={handleDeleteReply}
+                  onToggleFlame={handleToggleFlame}
+                  onToggleSave={handleToggleSave}
+                  currentUserId={currentUserId}
+                  isOwner={false}
+                  viewerIsMember={false}
+                  isModerator={false}
+                  showGroupContext={true}
+                  canModerateGroupAuthor={false}
+                />
+              </PostImpressionObserver>
             </div>
           )}
         </div>
@@ -926,6 +1228,7 @@ return (
         <GroupRecommendationsRail
           currentUserId={currentUserId}
           context="home"
+          suppressOnboarding
         />
       </div>
     )}

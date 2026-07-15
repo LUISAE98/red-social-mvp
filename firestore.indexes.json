@@ -1,6 +1,17 @@
 {
   "indexes": [
     {
+      "collectionGroup": "posts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "groupCategory", "order": "ASCENDING" },
+        { "fieldPath": "groupVisibility", "order": "ASCENDING" },
+        { "fieldPath": "isShareable", "order": "ASCENDING" },
+        { "fieldPath": "isDeleted", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "postAccess",
       "queryScope": "COLLECTION",
       "fields": [

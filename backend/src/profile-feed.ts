@@ -384,8 +384,19 @@ export const onProfileFeedGroupUpdated = onDocumentUpdated(
     const activeChanged = beforeData.isActive !== afterData.isActive;
     const avatarChanged = beforeData.avatarUrl !== afterData.avatarUrl;
     const nameChanged = beforeData.name !== afterData.name;
+    const categoryChanged = beforeData.category !== afterData.category;
+    const tagsChanged =
+      JSON.stringify(beforeData.tags ?? null) !==
+      JSON.stringify(afterData.tags ?? null);
 
-    if (!visibilityChanged && !activeChanged && !avatarChanged && !nameChanged) {
+    if (
+      !visibilityChanged &&
+      !activeChanged &&
+      !avatarChanged &&
+      !nameChanged &&
+      !categoryChanged &&
+      !tagsChanged
+    ) {
       return;
     }
 
@@ -395,6 +406,8 @@ export const onProfileFeedGroupUpdated = onDocumentUpdated(
       activeChanged,
       avatarChanged,
       nameChanged,
+      categoryChanged,
+      tagsChanged,
     });
 
     const postsSnap = await db
@@ -403,13 +416,45 @@ export const onProfileFeedGroupUpdated = onDocumentUpdated(
       .where("isDeleted", "==", false)
       .get();
 
-    const writes = postsSnap.docs.map((postDoc) =>
-      upsertProfileFeedEntry({
-        postId: postDoc.id,
-        postData: postDoc.data(),
-      })
-    );
+    // Propaga cambios de categoría/tags a los campos denormalizados del post
+    // (descubrimiento). Se guardan crudos; el cliente normaliza al comparar.
+    if (categoryChanged || tagsChanged) {
+      const denorm: Record<string, unknown> = {};
+      if (categoryChanged) {
+        denorm.groupCategory =
+          typeof afterData.category === "string" && afterData.category
+            ? afterData.category
+            : null;
+      }
+      if (tagsChanged) {
+        denorm.groupTags = Array.isArray(afterData.tags)
+          ? afterData.tags.filter((t): t is string => typeof t === "string")
+          : [];
+      }
 
-    await Promise.all(writes);
+      let batch = db.batch();
+      let batchCount = 0;
+      for (const postDoc of postsSnap.docs) {
+        batch.update(postDoc.ref, denorm);
+        batchCount += 1;
+        if (batchCount >= 400) {
+          await batch.commit();
+          batch = db.batch();
+          batchCount = 0;
+        }
+      }
+      if (batchCount > 0) await batch.commit();
+    }
+
+    if (visibilityChanged || activeChanged || avatarChanged || nameChanged) {
+      const writes = postsSnap.docs.map((postDoc) =>
+        upsertProfileFeedEntry({
+          postId: postDoc.id,
+          postData: postDoc.data(),
+        })
+      );
+
+      await Promise.all(writes);
+    }
   }
 );

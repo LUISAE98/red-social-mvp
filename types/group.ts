@@ -28,6 +28,13 @@ export type CanonicalGroupCategory =
   | "hobbies"
   | "familia_comunidad"
   | "instituciones"
+  | "cine"
+  | "arte"
+  | "salud"
+  | "libros"
+  | "historia"
+  // "otros" se conserva como fallback interno del sistema (default de grupos sin
+  // categoría y destino de categorías legacy). NO se ofrece en la UI de selección.
   | "otros";
 
 
@@ -141,13 +148,18 @@ export const GROUP_CATEGORY_OPTIONS: ReadonlyArray<{
   label: string;
 }> = [
   { value: "entretenimiento", label: "Entretenimiento" },
+  { value: "cine", label: "Cine" },
   { value: "musica", label: "Música" },
   { value: "creadores", label: "Creadores" },
+  { value: "arte", label: "Arte" },
   { value: "gaming", label: "Gaming" },
   { value: "tecnologia", label: "Tecnología" },
   { value: "deportes", label: "Deportes" },
   { value: "fitness_bienestar", label: "Fitness y bienestar" },
+  { value: "salud", label: "Salud" },
   { value: "educacion", label: "Educación" },
+  { value: "libros", label: "Libros" },
+  { value: "historia", label: "Historia" },
   { value: "negocios_finanzas", label: "Negocios y finanzas" },
   { value: "noticias_politica", label: "Noticias y política" },
   { value: "ciencia", label: "Ciencia" },
@@ -158,8 +170,8 @@ export const GROUP_CATEGORY_OPTIONS: ReadonlyArray<{
   { value: "mascotas", label: "Mascotas" },
   { value: "hobbies", label: "Hobbies" },
   { value: "familia_comunidad", label: "Familia y comunidad" },
-  { value: "instituciones", label: "Instituciones" },
-  { value: "otros", label: "Otros" },
+  { value: "instituciones", label: "Instituciones y religión" },
+  // "otros" queda fuera de la UI a propósito (fallback interno).
 ] as const;
 
 /**
@@ -184,7 +196,12 @@ export const GROUP_CATEGORY_LABELS: Record<CanonicalGroupCategory, string> = {
   mascotas: "Mascotas",
   hobbies: "Hobbies",
   familia_comunidad: "Familia y comunidad",
-  instituciones: "Instituciones",
+  instituciones: "Instituciones y religión",
+  cine: "Cine",
+  arte: "Arte",
+  salud: "Salud",
+  libros: "Libros",
+  historia: "Historia",
   otros: "Otros",
 };
 

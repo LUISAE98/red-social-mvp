@@ -45,6 +45,11 @@ import type {
 } from "./types";
 import { httpsCallable } from "firebase/functions";
 import { buildPostSearchIndex } from "./postSearchIndex";
+import {
+  normalizeGroupCategory,
+  normalizeGroupTags,
+  type CanonicalGroupCategory,
+} from "@/types/group";
 import { buildPremiumAccessFields } from "./premium";
 import {
   type PostingMode,
@@ -95,6 +100,8 @@ type PostCreationContext = {
   contextType: PostContextType;
   groupId: string | null;
   groupVisibility: GroupVisibility | null;
+  groupCategory: CanonicalGroupCategory | null;
+  groupTags: string[];
   groupName: string | null;
   groupAvatarUrl: string | null;
   profileId: string | null;
@@ -866,6 +873,8 @@ async function resolvePostCreationContext(params: {
       contextType: "profile",
       groupId: null,
       groupVisibility: null,
+      groupCategory: null,
+      groupTags: [],
       groupName: null,
       groupAvatarUrl: null,
       profileId,
@@ -931,6 +940,8 @@ async function resolvePostCreationContext(params: {
     contextType: "group",
     groupId,
     groupVisibility,
+    groupCategory: normalizeGroupCategory(groupData.category),
+    groupTags: normalizeGroupTags(groupData.tags),
     groupName: readGroupName(groupData),
     groupAvatarUrl: readGroupAvatarUrl(groupData),
     profileId: null,
@@ -948,6 +959,8 @@ function buildPostContextPayload(context: PostCreationContext) {
     groupName: context.groupName,
     groupAvatarUrl: context.groupAvatarUrl,
     groupVisibility: context.groupVisibility,
+    groupCategory: context.groupCategory ?? null,
+    groupTags: context.groupTags ?? [],
     profileId: context.profileId,
     profileName: context.profileName,
     profileAvatarUrl: context.profileAvatarUrl,
@@ -1861,6 +1874,62 @@ export async function fetchGroupPosts(
   });
 
   return page.posts;
+}
+
+/**
+ * Descubrimiento (Fase 2): posts públicos y compartibles de comunidades
+ * PÚBLICAS filtrados por categoría denormalizada (`groupCategory`) en una sola
+ * query. Excluye grupos de los que el viewer ya es miembro. Devuelve posts
+ * hidratados y con el estado de reacción/guardado del viewer.
+ */
+export async function fetchPublicPostsByCategories(params: {
+  categories: CanonicalGroupCategory[];
+  viewerUid?: string | null;
+  excludeGroupIds?: Set<string>;
+  pageSize?: number;
+}): Promise<Post[]> {
+  const categories = Array.from(new Set(params.categories)).slice(0, 10);
+  if (categories.length === 0) return [];
+
+  const safePageSize = Math.max(1, Math.min(params.pageSize ?? 24, 40));
+
+  const postsSnap = await getDocs(
+    query(
+      collection(db, "posts"),
+      where("groupCategory", "in", categories),
+      where("groupVisibility", "==", "public"),
+      where("isShareable", "==", true),
+      where("isDeleted", "==", false),
+      orderBy("createdAt", "desc"),
+      limit(safePageSize)
+    )
+  );
+
+  const rawPosts: Post[] = postsSnap.docs.map((d) => ({
+    id: d.id,
+    ...(d.data() as Omit<Post, "id">),
+  }));
+
+  const excludeGroupIds = params.excludeGroupIds;
+  const filtered = excludeGroupIds
+    ? rawPosts.filter(
+        (post) => !(post.groupId && excludeGroupIds.has(post.groupId))
+      )
+    : rawPosts;
+
+  if (filtered.length === 0) return [];
+
+  const [userMap, groupMap] = await Promise.all([
+    fetchUsersByIds(filtered.map((post) => post.authorId)),
+    fetchGroupsByIds(getPostGroupIds(filtered)),
+  ]);
+
+  const hydratedPosts = filtered.map((post) => {
+    const hydrated = hydratePost(post, userMap, groupMap);
+    return { ...hydrated, isLocked: isPostLocked(hydrated) };
+  });
+
+  return attachViewerPostState(hydratedPosts, params.viewerUid);
 }
 
 function normalizeHomeFeedPostSnapshot(params: {

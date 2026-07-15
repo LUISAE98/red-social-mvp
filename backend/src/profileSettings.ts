@@ -184,11 +184,21 @@ function buildHandlePrefixes(handleNormalized: string): string[] {
   return Array.from(prefixes);
 }
 
+function buildInterestSearchTokens(interests?: unknown): string[] {
+  if (!Array.isArray(interests) || interests.length === 0) return [];
+  const text = interests
+    .filter((value): value is string => typeof value === "string" && !!value)
+    .map((value) => value.replace(/_/g, " "))
+    .join(" ");
+  return tokenizeSearchText(text);
+}
+
 function buildProfileSearchIndex({
   displayName,
   firstName,
   lastName,
   handle,
+  interests,
   isActive,
   profileSearchable,
   updatedAt,
@@ -197,6 +207,7 @@ function buildProfileSearchIndex({
   firstName?: unknown;
   lastName?: unknown;
   handle?: unknown;
+  interests?: unknown;
   isActive?: unknown;
   profileSearchable?: unknown;
   updatedAt: Timestamp;
@@ -229,7 +240,8 @@ function buildProfileSearchIndex({
     tokenizeSearchText(displayNameNormalized),
     tokenizeSearchText(firstNameNormalized),
     tokenizeSearchText(lastNameNormalized),
-    tokenizeSearchText(nameNormalized)
+    tokenizeSearchText(nameNormalized),
+    buildInterestSearchTokens(interests)
   );
 
   const textPrefixes = buildSearchPrefixes(tokens, {
@@ -351,6 +363,7 @@ export const updateProfileDisplayName = onCall(
         firstName: userData.firstName,
         lastName: userData.lastName,
         handle: userData.handle,
+        interests: userData.interests,
         isActive: userData.isActive,
         profileSearchable: userData.profileSearchable,
         updatedAt: now,
@@ -365,6 +378,111 @@ export const updateProfileDisplayName = onCall(
       ok: true,
       displayName: nextDisplayName,
       displayNameLastChangedAt: now.toDate().toISOString(),
+    };
+  }
+);
+
+// Categorías canónicas válidas para intereses de perfil.
+// Debe mantenerse en sincronía con GROUP_CATEGORY_OPTIONS de types/group.ts.
+const CANONICAL_INTEREST_CATEGORIES = new Set<string>([
+  "entretenimiento",
+  "musica",
+  "creadores",
+  "gaming",
+  "tecnologia",
+  "deportes",
+  "fitness_bienestar",
+  "educacion",
+  "negocios_finanzas",
+  "noticias_politica",
+  "ciencia",
+  "moda_belleza",
+  "comida",
+  "viajes",
+  "autos",
+  "mascotas",
+  "hobbies",
+  "familia_comunidad",
+  "instituciones",
+  "cine",
+  "arte",
+  "salud",
+  "libros",
+  "historia",
+  // "otros" se mantiene aceptado por compatibilidad (ya no es seleccionable en UI).
+  "otros",
+]);
+
+const MAX_PROFILE_INTERESTS = 20;
+
+function normalizeInterestsInput(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+
+  const result: string[] = [];
+  const seen = new Set<string>();
+
+  for (const raw of value) {
+    if (typeof raw !== "string") continue;
+    const candidate = raw.trim();
+    if (!CANONICAL_INTEREST_CATEGORIES.has(candidate)) continue;
+    if (seen.has(candidate)) continue;
+    seen.add(candidate);
+    result.push(candidate);
+    if (result.length >= MAX_PROFILE_INTERESTS) break;
+  }
+
+  return result;
+}
+
+/**
+ * Actualiza los intereses del perfil y reconstruye el índice de búsqueda
+ * (incluyendo los tokens de intereses) de forma autoritativa en el servidor,
+ * leyendo los campos de nombre/handle existentes para no perder tokens.
+ */
+export const updateProfileInterests = onCall(
+  {
+    region: "us-central1",
+  },
+  async (request) => {
+    const uid = request.auth?.uid;
+
+    if (!uid) {
+      throw new HttpsError(
+        "unauthenticated",
+        "Debes iniciar sesión para actualizar tus intereses."
+      );
+    }
+
+    const interests = normalizeInterestsInput(request.data?.interests);
+
+    const userRef = db.doc(`users/${uid}`);
+    const userSnap = await userRef.get();
+
+    if (!userSnap.exists) {
+      throw new HttpsError("not-found", "Perfil no encontrado.");
+    }
+
+    const userData = userSnap.data() ?? {};
+    const now = Timestamp.now();
+
+    await userRef.update({
+      interests,
+      updatedAt: now,
+      search: buildProfileSearchIndex({
+        displayName: userData.displayName,
+        firstName: userData.firstName,
+        lastName: userData.lastName,
+        handle: userData.handle,
+        interests,
+        isActive: userData.isActive,
+        profileSearchable: userData.profileSearchable,
+        updatedAt: now,
+      }),
+    });
+
+    return {
+      ok: true,
+      interests,
     };
   }
 );

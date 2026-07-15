@@ -26,7 +26,12 @@ const GROUP_CATEGORY_LABELS: Record<string, string> = {
   mascotas: "Mascotas",
   hobbies: "Hobbies",
   familia_comunidad: "Familia y comunidad",
-  instituciones: "Instituciones",
+  instituciones: "Instituciones y religión",
+  cine: "Cine",
+  arte: "Arte",
+  salud: "Salud",
+  libros: "Libros",
+  historia: "Historia",
   otros: "Otros",
 };
 

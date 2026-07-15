@@ -3,6 +3,7 @@ import type {
   Currency,
   CreatorService,
   GroupDonationSettings,
+  CanonicalGroupCategory,
 } from "./group";
 
 export type ProfileMonetizationSettings = {
@@ -57,6 +58,15 @@ export interface CreatorProfile {
   socialStats?: ProfileSocialStats;
 
   currency?: Currency | null;
+
+  /**
+   * Intereses del perfil (mismas categorías canónicas del sistema de grupos).
+   * Uso interno: NO se muestran en el perfil público; solo alimentan el
+   * buscador (aparecer en resultados por categoría) y las recomendaciones
+   * (recomendar perfiles con intereses afines). Se editan en configuración
+   * y se siembran en el onboarding unificado de categorías.
+   */
+  interests?: CanonicalGroupCategory[] | null;
 
   createdAt?: Timestamp | null;
   updatedAt?: Timestamp | null;
