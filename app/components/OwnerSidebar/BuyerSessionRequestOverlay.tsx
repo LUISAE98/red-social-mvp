@@ -663,6 +663,7 @@ export default function BuyerSessionRequestOverlay({
         style={{
           position: "fixed", inset: 0, width: "100vw", height: "100vh",
           zIndex: 999999, display: "flex", alignItems: "flex-end", justifyContent: "center",
+          padding: "0 0 env(safe-area-inset-bottom)",
           background: "rgba(0,0,0,0.52)", backdropFilter: "blur(10px)",
           WebkitBackdropFilter: "blur(10px)", fontFamily: "inherit",
         }}
@@ -734,7 +735,7 @@ export default function BuyerSessionRequestOverlay({
           </div>
           {/* footer — outside section-wrapper, not subject to rubber band */}
           {footerContent && (
-            <div style={{ flexShrink: 0, borderTop: "1px solid rgba(255,255,255,0.07)", padding: `10px 14px calc(14px + env(safe-area-inset-bottom))` }}>
+            <div style={{ flexShrink: 0, borderTop: "1px solid rgba(255,255,255,0.07)", padding: `10px 14px 14px` }}>
               {footerContent}
             </div>
           )}

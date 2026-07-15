@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { useTranslations, useLocale } from "next-intl";
+import { useTranslations } from "next-intl";
 import { useBuyerNextSession, type BuyerNextSession } from "@/lib/hooks/useBuyerNextSession";
 import { setMeetGreetPreparing } from "@/lib/meetGreet/meetGreetRequests";
 import { setExclusiveSessionPreparing } from "@/lib/exclusiveSession/exclusiveSessionRequests";
@@ -27,14 +27,6 @@ function formatCountdown(ms: number): string {
   return [h, m, s].map((n) => String(n).padStart(2, "0")).join(":");
 }
 
-function fmtScheduledAt(d: Date, locale: string): string {
-  return d.toLocaleString(locale, {
-    day: "numeric",
-    month: "long",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
 
 const BG_IMAGE: Record<string, string> = {
   meet_greet: "/encuentroenvivo.png",
@@ -165,7 +157,6 @@ export default function SessionCountdownBanner({ uid }: { uid: string }) {
   const tServices = useTranslations("services");
   const tCommon = useTranslations("common");
   const tSessions = useTranslations("sessions");
-  const locale = useLocale();
 
   const { session, completedSession, loading } = useBuyerNextSession(uid);
   const [now, setNow] = useState(() => Date.now());
@@ -232,6 +223,27 @@ export default function SessionCountdownBanner({ uid }: { uid: string }) {
     const t = setTimeout(() => setCountdown321((c) => (c !== null ? c - 1 : null)), 1000);
     return () => clearTimeout(t);
   }, [countdown321]);
+
+  // El panel de la videollamada / descarga vive según el estado LOCAL (prepOpen)
+  // de cada quien. Se renderiza en posición estable (primer hijo) en todos los
+  // returns para que NO se desmonte cuando la sesión pasa a "completed" ni cuando
+  // el otro participante cierra su panel. Usa la sesión activa o, tras completarse,
+  // la completada (mismo id → sin remontaje). Cada quien lo cierra cuando quiera.
+  const activeCallSession = session ?? completedSession;
+  const callFullscreen = prepOpen && activeCallSession ? (
+    <MeetGreetPreparationFullscreen
+      open
+      onClose={() => setPrepOpen(false)}
+      role="buyer"
+      sessionId={activeCallSession.id}
+      sessionType={activeCallSession.serviceKind}
+    />
+  ) : null;
+
+  return (
+    <>
+      {callFullscreen}
+      {(() => {
 
   if (loading) return null;
 
@@ -757,16 +769,9 @@ export default function SessionCountdownBanner({ uid }: { uid: string }) {
         </div>,
         document.body
       )}
-
-      <MeetGreetPreparationFullscreen
-        open={prepOpen}
-        onClose={() => setPrepOpen(false)}
-        role="buyer"
-        sessionId={session!.id}
-        sessionType={session!.serviceKind}
-        scheduledAtLabel={fmtScheduledAt(session!.scheduledAt, locale)}
-        durationMinutes={session!.durationMinutes}
-      />
+    </>
+  );
+      })()}
     </>
   );
 }

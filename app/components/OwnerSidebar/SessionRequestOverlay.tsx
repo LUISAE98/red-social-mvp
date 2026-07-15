@@ -1127,7 +1127,7 @@ export default function SessionRequestOverlay({
         <div
           role="dialog"
           aria-modal="true"
-          style={{ position: "fixed", inset: 0, width: "100vw", height: "100vh", zIndex: 999999, display: "flex", alignItems: "flex-end", justifyContent: "center", background: "rgba(0,0,0,0.52)", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", fontFamily: "inherit" } as React.CSSProperties}
+          style={{ position: "fixed", inset: 0, width: "100vw", height: "100vh", zIndex: 999999, display: "flex", alignItems: "flex-end", justifyContent: "center", padding: "0 0 env(safe-area-inset-bottom)", background: "rgba(0,0,0,0.52)", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", fontFamily: "inherit" } as React.CSSProperties}
           onMouseDown={(e) => { if (e.target === e.currentTarget && !busy) onClose(); }}
         >
           <div
@@ -1196,7 +1196,7 @@ export default function SessionRequestOverlay({
               {bodyContent}
             </div>
             {footerNode && (
-              <div className="sro-z2" style={{ flexShrink: 0, borderTop: "1px solid rgba(255,255,255,0.08)", padding: "12px 20px calc(16px + env(safe-area-inset-bottom))" }}>
+              <div className="sro-z2" style={{ flexShrink: 0, borderTop: "1px solid rgba(255,255,255,0.08)", padding: "12px 20px 16px" }}>
                 {footerNode}
               </div>
             )}

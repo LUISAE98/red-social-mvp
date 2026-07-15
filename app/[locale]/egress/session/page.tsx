@@ -194,7 +194,7 @@ function CreatorFocusLayout() {
         if (a <= 0) clearInterval(audioIv);
       }, 60);
       setTimeout(() => setBlack(true), 4000);
-      setTimeout(() => EgressHelper.endRecording(), 9000);
+      setTimeout(() => EgressHelper.endRecording(), 11000);
     } else {
       // Cancelación: a negro directo + "Vibra/vibraon.com" durante 7s.
       setOutro(true);
@@ -254,8 +254,8 @@ function CreatorFocusLayout() {
       {/* Capa translúcida — atenúa la llamada difuminada al iniciar el cierre */}
       <div style={{ position: "absolute", inset: 0, background: "#000", opacity: outro ? 0.42 : 0, transition: "opacity 1.1s ease", pointerEvents: "none" }} />
 
-      {/* Capa negra total — se funde a los 4s */}
-      <div style={{ position: "absolute", inset: 0, background: "#000", opacity: black ? 1 : 0, transition: "opacity 1s ease", pointerEvents: "none" }} />
+      {/* Capa negra total — se funde suave y lento */}
+      <div style={{ position: "absolute", inset: 0, background: "#000", opacity: black ? 1 : 0, transition: "opacity 2.6s cubic-bezier(0.4, 0, 0.2, 1)", pointerEvents: "none" }} />
 
       {/* Letrero "Vibra/vibraon.com" — aparece en t=0, nítido, encima de todo */}
       <div style={{ position: "absolute", inset: 0, zIndex: 30, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>

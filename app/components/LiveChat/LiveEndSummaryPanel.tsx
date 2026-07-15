@@ -247,6 +247,7 @@ export default function LiveEndSummaryPanel({ open, onClose, post }: Props) {
         style={{
           position: "fixed", inset: 0, width: "100vw", height: "100vh",
           zIndex: 999999, display: "flex", alignItems: "flex-end", justifyContent: "center",
+          padding: "0 0 env(safe-area-inset-bottom)",
           background: "rgba(0,0,0,0.52)", backdropFilter: "blur(10px)",
           WebkitBackdropFilter: "blur(10px)", fontFamily: FONT,
           opacity: visible ? 1 : 0, transition: "opacity 260ms",

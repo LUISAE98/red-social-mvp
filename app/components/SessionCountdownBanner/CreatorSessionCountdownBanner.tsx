@@ -36,14 +36,6 @@ function formatTime(d: Date): string {
   return d.toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit", hour12: false });
 }
 
-function fmtScheduledAt(d: Date): string {
-  return d.toLocaleString("es-MX", {
-    day: "numeric",
-    month: "long",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
 
 
 
@@ -249,6 +241,27 @@ export default function CreatorSessionCountdownBanner({ uid }: { uid: string }) 
     const t = setTimeout(() => setCountdown321((c) => (c !== null ? c - 1 : null)), 1000);
     return () => clearTimeout(t);
   }, [countdown321]);
+
+  // El panel de la videollamada / descarga vive según el estado LOCAL (prepOpen)
+  // de cada quien. Se renderiza en posición estable (primer hijo) en todos los
+  // returns para que NO se desmonte cuando la sesión pasa a "completed" ni cuando
+  // el otro participante cierra su panel. Usa la sesión activa o, tras completarse,
+  // la completada (mismo id → sin remontaje). Cada quien lo cierra cuando quiera.
+  const activeCallSession = nextSession ?? completedSession;
+  const callFullscreen = prepOpen && activeCallSession ? (
+    <MeetGreetPreparationFullscreen
+      open
+      onClose={() => setPrepOpen(false)}
+      role="creator"
+      sessionId={activeCallSession.id}
+      sessionType={activeCallSession.serviceKind}
+    />
+  ) : null;
+
+  return (
+    <>
+      {callFullscreen}
+      {(() => {
 
   const noShowSessions = todaySessions.filter((s) => s.status === "auto_rejected_no_show");
 
@@ -869,16 +882,9 @@ export default function CreatorSessionCountdownBanner({ uid }: { uid: string }) 
         </div>,
         document.body
       )}
-
-      <MeetGreetPreparationFullscreen
-        open={prepOpen}
-        onClose={() => setPrepOpen(false)}
-        role="creator"
-        sessionId={nextSession.id}
-        sessionType={nextSession.serviceKind}
-        scheduledAtLabel={fmtScheduledAt(nextSession.scheduledAt)}
-        durationMinutes={nextSession.durationMinutes}
-      />
+    </>
+  );
+      })()}
     </>
   );
 }

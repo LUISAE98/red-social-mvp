@@ -121,6 +121,13 @@ body::after {
   pointer-events: none;
 }
 
+/* Backdrop de bottom-sheet: reserva el safe-area inferior (barra de navegación
+   del sistema) para que el panel no quede oculto tras ella. Aplicar en el
+   backdrop fijo con align-items: flex-end de cualquier panel que suba desde abajo. */
+.vibra-sheet-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
 input,
 textarea,
 select {

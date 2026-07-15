@@ -141,6 +141,7 @@ export default function PostPaymentPanel({
         display: "flex",
         alignItems: "flex-end",
         justifyContent: "center",
+        padding: "0 0 env(safe-area-inset-bottom)",
       }
     : {
         position: "fixed",

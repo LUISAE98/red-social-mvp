@@ -362,6 +362,7 @@ export default function SuperCommentConfigPanel({ open, onClose, postId }: Props
       style={{
         position: "fixed", inset: 0, zIndex: 999999,
         display: "flex", alignItems: "flex-end",
+        padding: "0 0 env(safe-area-inset-bottom)",
         background: "rgba(0,0,0,0.52)", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)",
       }}
       onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}

@@ -565,7 +565,7 @@ export default function ScheduleCalendarOverlay({
         @media (max-width: 720px) {
           .scheduleOverlayBackdrop {
             align-items: flex-end;
-            padding: 0;
+            padding: 0 0 env(safe-area-inset-bottom);
           }
 
           .scheduleOverlayPanel {
@@ -580,7 +580,7 @@ export default function ScheduleCalendarOverlay({
           }
 
           .scheduleOverlayBody {
-            padding: 14px 16px calc(20px + env(safe-area-inset-bottom));
+            padding: 14px 16px 20px;
             max-height: calc(90vh - 56px);
           }
 

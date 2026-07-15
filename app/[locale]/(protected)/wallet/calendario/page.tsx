@@ -703,7 +703,7 @@ function EventsOverlay({
             display: "flex",
             alignItems: "flex-end",
             justifyContent: "center",
-            padding: 0,
+            padding: "0 0 env(safe-area-inset-bottom)",
             background: isClosing ? "rgba(0,0,0,0)" : "rgba(0,0,0,0.52)",
             backdropFilter: "blur(10px)",
             WebkitBackdropFilter: "blur(10px)",
