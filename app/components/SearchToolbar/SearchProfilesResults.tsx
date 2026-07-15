@@ -215,15 +215,29 @@ export default function SearchProfilesResults({
                     <h3 className="result-name result-name-with-meta">
                       <span className="result-name-text">{fullName}</span>
                       {hasExperiences && (
-                        <>
+                        <span className="name-inline-exp">
                           <span className="result-name-dot">·</span>
                           <span className="result-name-experiences">
                             Ofrece experiencias
                           </span>
-                        </>
+                        </span>
                       )}
                     </h3>
-                    <div className="result-handle">@{p.handle}</div>
+                    {/* @handle debajo del nombre. En celular, si el perfil ofrece
+                        servicios se oculta y se muestra "Ofrece experiencias" para
+                        darle más espacio al nombre. */}
+                    <div
+                      className={`result-handle${
+                        hasExperiences ? " handle-hide-mobile" : ""
+                      }`}
+                    >
+                      @{p.handle}
+                    </div>
+                    {hasExperiences && (
+                      <div className="result-name-experiences mobile-exp-line">
+                        Ofrece experiencias
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -395,9 +409,28 @@ export default function SearchProfilesResults({
             white-space: nowrap;
           }
 
+          /* Línea "Ofrece experiencias" bajo el nombre: solo en celular. */
+          .mobile-exp-line {
+            display: none;
+            font-size: 12px;
+            line-height: 1.2;
+          }
+
           @media (max-width: 640px) {
             .result-item {
               padding: 10px 12px;
+            }
+
+            /* En celular con servicios: el nombre ocupa toda su línea; el
+               "Ofrece experiencias" baja debajo y se oculta el @handle. */
+            .name-inline-exp {
+              display: none;
+            }
+            .handle-hide-mobile {
+              display: none;
+            }
+            .mobile-exp-line {
+              display: block;
             }
 
             .result-grid {
