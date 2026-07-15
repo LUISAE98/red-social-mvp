@@ -14,7 +14,11 @@ import { useAuth } from "@/app/providers";
 import SearchSubnav from "@/app/components/SearchToolbar/SearchSubnav";
 import SearchGroupsResults from "@/app/components/SearchToolbar/SearchGroupsResults";
 import SearchProfilesResults from "@/app/components/SearchToolbar/SearchProfilesResults";
-import SearchStoriesResults from "@/app/components/SearchToolbar/SearchStoriesResults";
+import SearchStoriesResults, {
+  type StorySearchFilter,
+} from "@/app/components/SearchToolbar/SearchStoriesResults";
+import { WalletFilterMenu } from "@/app/(protected)/wallet/components/WalletUi";
+import { VibraNavigationIcon } from "@/app/components/VibraServiceIcons/VibraNavigationIcons";
 
 import type {
   CanonicalMemberStatus,
@@ -209,12 +213,16 @@ async function readViewerGroupState(
 
 function SearchPageContent() {
   const tGroups = useTranslations("groups");
+  const tNav = useTranslations("nav");
+  const tCommon = useTranslations("common");
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user } = useAuth();
 
   const queryText = searchParams.get("q") ?? "";
   const urlTab = searchParams.get("tab") as TabType | null;
+  // Post seleccionado desde el preview → se muestra primero en los resultados.
+  const pinnedPostId = searchParams.get("post");
 
   const [activeTab, setActiveTab] = useState<TabType>(
     urlTab === "profiles" || urlTab === "posts" || urlTab === "stories"
@@ -228,6 +236,18 @@ function SearchPageContent() {
   const [memberMap, setMemberMap] = useState<Record<string, CanonicalMemberStatus>>({});
   const [reqMap, setReqMap] = useState<Record<string, boolean>>({});
   const [refreshNonce, setRefreshNonce] = useState(0);
+  const [storyFilter, setStoryFilter] = useState<StorySearchFilter>("all");
+  // Buscador editable en la cabecera de resultados (compartido por las 4 pestañas).
+  const [queryInput, setQueryInput] = useState(queryText);
+
+  const storyFilterOptions: Array<{ value: StorySearchFilter; label: string }> = [
+    { value: "all", label: tNav("searchStoriesAll") },
+    { value: "saludo", label: tNav("searchStoriesGreetings") },
+    { value: "consejo", label: tNav("searchStoriesAdvice") },
+  ];
+  const storyFilterLabel =
+    storyFilterOptions.find((o) => o.value === storyFilter)?.label ??
+    storyFilterOptions[0].label;
 
   const normalizedQuery = useMemo(
     () => normalizeText(debouncedQuery),
@@ -265,6 +285,11 @@ function SearchPageContent() {
     }, SEARCH_DEBOUNCE_MS);
 
     return () => window.clearTimeout(timer);
+  }, [queryText]);
+
+  // El input refleja la búsqueda de la URL cuando cambia desde fuera (navegación, etc.).
+  useEffect(() => {
+    setQueryInput(queryText);
   }, [queryText]);
 
   useEffect(() => {
@@ -404,6 +429,20 @@ function SearchPageContent() {
     router.replace(`/search?${params.toString()}`);
   }
 
+  // Envía la nueva búsqueda a la URL (?q=) → todas las pestañas se actualizan.
+  function handleSubmitQuery() {
+    const next = queryInput.trim();
+    const params = new URLSearchParams(searchParams.toString());
+    if (next) {
+      params.set("q", next);
+    } else {
+      params.delete("q");
+    }
+    // Nueva búsqueda: deja de fijar el post seleccionado desde el preview.
+    params.delete("post");
+    router.replace(`/search?${params.toString()}`);
+  }
+
   function handleNavigate(href: string) {
     router.push(href);
   }
@@ -457,7 +496,44 @@ function SearchPageContent() {
 
       <section className="search-content">
         <div className="search-query">
-          {tGroups("searchResultsFor")} <strong>{queryText.trim() || "—"}</strong>
+          <span className="search-query-text">{tGroups("searchResultsFor")}</span>
+
+          <form
+            className="search-query-field"
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleSubmitQuery();
+            }}
+          >
+            <input
+              className="search-query-input"
+              type="text"
+              value={queryInput}
+              onChange={(e) => setQueryInput(e.target.value)}
+              placeholder={tCommon("searchPlaceholder")}
+              aria-label={tCommon("searchPlaceholder")}
+              enterKeyHint="search"
+            />
+            <button
+              type="submit"
+              className="search-query-lupa"
+              aria-label={tCommon("searchPlaceholder")}
+            >
+              <VibraNavigationIcon type="search" size={20} strokeWidth={2.2} />
+            </button>
+          </form>
+
+          {activeTab === "stories" && (
+            <WalletFilterMenu
+              label={storyFilterLabel}
+              menuLabel="Tipo"
+              value={[storyFilter]}
+              options={storyFilterOptions}
+              onChange={(v) => setStoryFilter(v[0] ?? "all")}
+              allValue="all"
+              singleSelect
+            />
+          )}
         </div>
 
         {activeTab === "groups" && (
@@ -491,11 +567,12 @@ function SearchPageContent() {
             search={debouncedQuery}
             currentUser={user}
             onNavigate={handleNavigate}
+            pinnedPostId={pinnedPostId}
           />
         )}
 
         {activeTab === "stories" && (
-          <SearchStoriesResults search={debouncedQuery} />
+          <SearchStoriesResults search={debouncedQuery} filter={storyFilter} />
         )}
       </section>
 
@@ -531,6 +608,56 @@ function SearchPageContent() {
   line-height: 1.35;
   padding: 0 2px;
   margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 40px;
+}
+
+.search-query-text {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+/* Buscador editable — estilo de campo Vibra (vibra_style.md). Ocupa el espacio
+   entre "Resultados para:" y el botón de filtro, con la lupa dentro al final. */
+.search-query-field {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+  padding: 8px 10px 8px 12px;
+  box-sizing: border-box;
+}
+
+.search-query-input {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #fff;
+  font-size: 13px;
+  font-family: inherit;
+  line-height: 1.5;
+}
+
+.search-query-input::placeholder {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.search-query-lupa {
+  flex-shrink: 0;
+  border: none;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.82);
+  display: grid;
+  place-items: center;
 }
 
 @media (max-width: 768px) {

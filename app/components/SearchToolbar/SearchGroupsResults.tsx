@@ -339,14 +339,17 @@ const shellStyle: CSSProperties = {
   position: "relative",
 };
 
-  const emptyStyle: CSSProperties = {
-    borderRadius: 18,
-    border: "1px solid rgba(255,255,255,0.10)",
-    background: "rgba(255,255,255,0.03)",
-    padding: "15px 16px",
-    color: "rgba(255,255,255,0.78)",
-    fontSize: 14,
-    lineHeight: 1.45,
+  // Sin resultados: solo texto, centrado en la pantalla, sin contenedor.
+  const noResultsStyle: CSSProperties = {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    textAlign: "center",
+    minHeight: "45vh",
+    padding: "0 24px",
+    color: "rgba(255,255,255,0.55)",
+    fontSize: 15,
+    lineHeight: 1.5,
   };
 
   const sectionStyle: CSSProperties = {
@@ -1072,7 +1075,7 @@ const serviceDots = buildSearchServiceDots(group, tServices);
           {renderFiltersPanel()}
         </div>
 
-        <div style={emptyStyle}>
+        <div style={noResultsStyle}>
           {tGroups("noGroupsFound")}
         </div>
 

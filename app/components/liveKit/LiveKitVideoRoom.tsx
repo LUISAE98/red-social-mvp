@@ -151,7 +151,6 @@ function RoomContent({
   role,
   onLeave,
   isMobile,
-  rotated,
   onEndCallRequest,
   onTimerExpired,
   onTwoMinWarning,
@@ -188,38 +187,56 @@ function RoomContent({
   const remoteCameraTrack = cameraTracks.find((t) => !t.participant.isLocal);
   const remoteConnected = participants.some((p) => !p.isLocal);
 
-  // ── Deadline desde Firestore ──────────────────────────────────────────────
-  const [sessionDeadline, setSessionDeadline] = useState<number | null>(null);
+  // ── Contador pausable desde Firestore ─────────────────────────────────────
+  // El backend mantiene timerRemainingMs (restante congelado al pausar) y
+  // timerRunningSince (ISO cuando ambos están conectados; null si pausado). El
+  // contador corre solo con ambos presentes y NUNCA se reinicia. Fallback
+  // legacy: startedAt + duración (comportamiento viejo, sin pausa).
+  const [timer, setTimer] = useState<{ remainingMs: number; runningSince: number | null } | null>(null);
 
   useEffect(() => {
     const ref = doc(db, collectionForType(sessionType), sessionId);
     return onSnapshot(ref, (snap) => {
       if (!snap.exists()) return;
-      const data = snap.data() as { startedAt?: Timestamp | string; durationMinutes?: number };
-      const startedAt = data.startedAt;
-      const dur = data.durationMinutes;
-      if (startedAt && dur != null) {
-        const startedAtMs =
-          typeof startedAt === "string"
-            ? new Date(startedAt).getTime()
-            : startedAt.toMillis();
-        setSessionDeadline(startedAtMs + dur * 60 * 1000);
+      const data = snap.data() as {
+        startedAt?: Timestamp | string;
+        durationMinutes?: number;
+        timerRemainingMs?: number;
+        timerRunningSince?: Timestamp | string | null;
+      };
+      const toMs = (v: Timestamp | string | null | undefined): number | null => {
+        if (!v) return null;
+        return typeof v === "string" ? new Date(v).getTime() : v.toMillis();
+      };
+      if (typeof data.timerRemainingMs === "number") {
+        setTimer({ remainingMs: data.timerRemainingMs, runningSince: toMs(data.timerRunningSince) });
+      } else if (data.startedAt && data.durationMinutes != null) {
+        setTimer({ remainingMs: data.durationMinutes * 60 * 1000, runningSince: toMs(data.startedAt) });
       }
     });
   }, [sessionId, sessionType]);
 
-  const [remaining, setRemaining] = useState<number | null>(null);
+  const [nowTick, setNowTick] = useState(() => Date.now());
   useEffect(() => {
-    if (sessionDeadline == null) return;
-    const update = () => setRemaining(Math.max(0, Math.round((sessionDeadline - Date.now()) / 1000)));
-    update();
-    const id = setInterval(update, 1000);
+    const id = setInterval(() => setNowTick(Date.now()), 1000);
     return () => clearInterval(id);
-  }, [sessionDeadline]);
+  }, []);
+
+  const remaining =
+    timer == null
+      ? null
+      : Math.max(
+          0,
+          Math.round(
+            (timer.runningSince != null
+              ? timer.remainingMs - (nowTick - timer.runningSince)
+              : timer.remainingMs) / 1000
+          )
+        );
 
   // ── Callbacks de timer ────────────────────────────────────────────────────
   useEffect(() => {
-    if (remaining == null || sessionDeadline == null) return;
+    if (remaining == null || timer == null) return;
     if (!twoMinFiredRef.current && remaining <= 120 && remaining > 0) {
       twoMinFiredRef.current = true;
       onTwoMinWarning?.();
@@ -232,7 +249,7 @@ function RoomContent({
         onLeave();
       }
     }
-  }, [remaining, sessionDeadline, onTimerExpired, onTwoMinWarning, onLeave]);
+  }, [remaining, timer, onTimerExpired, onTwoMinWarning, onLeave]);
 
   // ── Join session ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -289,41 +306,6 @@ function RoomContent({
     connectionState === ConnectionState.Connecting ||
     connectionState === ConnectionState.Reconnecting;
 
-  // ── PiP drag ──────────────────────────────────────────────────────────────
-  const [pipPos, setPipPos] = useState<{ x: number; y: number } | null>(null);
-  const pipDragRef = useRef<{
-    sx: number; sy: number; px: number; py: number;
-    cw: number; ch: number; pw: number; ph: number;
-  } | null>(null);
-
-  function handlePipPointerDown(e: React.PointerEvent<HTMLDivElement>) {
-    const root = rootRef.current;
-    if (!root) return;
-    const rootRect = root.getBoundingClientRect();
-    const pipRect = e.currentTarget.getBoundingClientRect();
-    const spx = pipRect.left - rootRect.left;
-    const spy = pipRect.top - rootRect.top;
-    pipDragRef.current = {
-      sx: e.clientX, sy: e.clientY,
-      px: spx, py: spy,
-      cw: rootRect.width, ch: rootRect.height,
-      pw: pipRect.width, ph: pipRect.height,
-    };
-    setPipPos((p) => p ?? { x: spx, y: spy });
-    e.currentTarget.setPointerCapture(e.pointerId);
-    e.preventDefault();
-  }
-
-  function handlePipPointerMove(e: React.PointerEvent<HTMLDivElement>) {
-    if (!pipDragRef.current) return;
-    const { sx, sy, px, py, cw, ch, pw, ph } = pipDragRef.current;
-    const x = Math.max(0, Math.min(cw - pw, px + (e.clientX - sx)));
-    const y = Math.max(0, Math.min(ch - ph, py + (e.clientY - sy)));
-    setPipPos({ x, y });
-  }
-
-  function handlePipPointerUp() { pipDragRef.current = null; }
-
   // ── Layout ─────────────────────────────────────────────────────────────────
   return (
     <div ref={rootRef} style={styles.root}>
@@ -353,7 +335,7 @@ function RoomContent({
       )}
 
       {/* Countdown — top center */}
-      {remoteConnected && remaining != null && sessionDeadline != null && (
+      {remoteConnected && remaining != null && timer != null && (
         <div style={{
           position: "absolute", top: 16, left: "50%", transform: "translateX(-50%)",
           zIndex: 4,
@@ -376,24 +358,19 @@ function RoomContent({
         </div>
       )}
 
-      {/* PiP local — arrastrable, 16:9. Con el panel rotado (móvil apaisado) se fija
-          en la esquina para no invertir los ejes del arrastre. */}
+      {/* PiP local — fijo en la esquina inferior derecha, 16:9, no arrastrable,
+          con margen considerable respecto a los bordes del dispositivo. */}
       <div
-        onPointerDown={rotated ? undefined : handlePipPointerDown}
-        onPointerMove={rotated ? undefined : handlePipPointerMove}
-        onPointerUp={rotated ? undefined : handlePipPointerUp}
-        onPointerCancel={rotated ? undefined : handlePipPointerUp}
         style={{
           position: "absolute",
-          ...(rotated || pipPos === null ? { top: 12, right: 12 } : { top: pipPos.y, left: pipPos.x }),
-          width: isMobile ? 170 : "clamp(100px, 14%, 160px)",
+          bottom: isMobile ? "max(28px, env(safe-area-inset-bottom))" : 28,
+          right: isMobile ? "max(28px, env(safe-area-inset-right))" : 28,
+          width: isMobile ? 221 : "clamp(130px, 18%, 208px)",
           aspectRatio: "16/9",
           borderRadius: 10,
           overflow: "hidden",
           background: "#111",
           zIndex: 3,
-          cursor: rotated ? "default" : pipDragRef.current ? "grabbing" : "grab",
-          touchAction: "none",
           userSelect: "none",
         }}
       >

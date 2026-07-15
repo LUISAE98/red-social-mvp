@@ -5,7 +5,7 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { logger } from "firebase-functions";
 import * as admin from "firebase-admin";
-import { livekitApiKey, livekitApiSecret, createParticipantToken } from "./livekit";
+import { livekitApiKey, livekitApiSecret, createParticipantToken, createRoomServiceClient } from "./livekit";
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -196,6 +196,19 @@ export const getLivekitToken = onCall(
 
     // ── Asegurar roomName persistente ──────────────────────────────────────────
     const roomName = await ensureRoomName(docRef, cleanId, existingRoomName);
+
+    // Crear/asegurar la sala con timeouts generosos: si ambos participantes se
+    // caen unos segundos, la sala (y por lo tanto la grabación) NO se cierra.
+    // createRoom es idempotente: si ya existe, no la altera.
+    try {
+      await createRoomServiceClient().createRoom({
+        name: roomName,
+        emptyTimeout: 300,
+        departureTimeout: 300,
+      });
+    } catch (err: unknown) {
+      logger.info("livekit_room_ensure_noncritical", { roomName, err: String(err) });
+    }
 
     // ── Construir identidad y nombre de display ────────────────────────────────
     // Formato de identidad: role_uid — permite identificar el rol en el dashboard de LiveKit.

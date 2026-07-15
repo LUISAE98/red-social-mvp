@@ -1,12 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useMemo, useState, type CSSProperties } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { motion } from "framer-motion";
-import { collection, doc, getCountFromServer, getDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import { useWalletLedger, ledgerTypeLabelKey } from "@/lib/wallet/walletLedger";
+import { useWalletPosts } from "@/lib/wallet/walletPostCache";
 import type { Post } from "@/lib/posts/types";
 import LiveCreatorPanel from "@/app/components/LiveChat/LiveCreatorPanel";
 import { WalletFilterMenu } from "./WalletUi";
@@ -94,8 +93,6 @@ export default function WalletLives({
   const { format: formatMoney } = usePriceFormat();
   const { entries, loading } = useWalletLedger(uid, LEDGER_WINDOW);
 
-  const [posts, setPosts] = useState<Map<string, Post | null>>(new Map());
-  const [views, setViews] = useState<Map<string, number>>(new Map());
   const [visibleCount, setVisibleCount] = useState(PAGE);
   const [openPost, setOpenPost] = useState<Post | null>(null);
 
@@ -116,6 +113,8 @@ export default function WalletLives({
     return Array.from(s);
   }, [entries]);
 
+  const { posts, views } = useWalletPosts(allLiveIds, { withViews: true });
+
   // Suma monetizada por live, acotada por el filtro de servicio.
   const totals = useMemo(() => {
     const allow = serviceFilter.includes("all") ? null : new Set<string>(serviceFilter);
@@ -128,42 +127,6 @@ export default function WalletLives({
     }
     return m;
   }, [entries, mode, serviceFilter]);
-
-  // Trae los posts y las vistas de todos los lives monetizados (una vez por id).
-  useEffect(() => {
-    let active = true;
-    const missing = allLiveIds.filter((id) => !posts.has(id));
-    if (missing.length === 0) return;
-    Promise.all(
-      missing.map(async (id) => {
-        try {
-          const [postSnap, countSnap] = await Promise.all([
-            getDoc(doc(db, "posts", id)),
-            getCountFromServer(collection(db, "posts", id, "liveUniqueViewers")),
-          ]);
-          const post = postSnap.exists() ? ({ id: postSnap.id, ...postSnap.data() } as Post) : null;
-          return [id, post, countSnap.data().count] as const;
-        } catch {
-          return [id, null, 0] as const;
-        }
-      })
-    ).then((triples) => {
-      if (!active) return;
-      setPosts((prev) => {
-        const next = new Map(prev);
-        for (const [id, p] of triples) next.set(id, p);
-        return next;
-      });
-      setViews((prev) => {
-        const next = new Map(prev);
-        for (const [id, , v] of triples) next.set(id, v);
-        return next;
-      });
-    });
-    return () => {
-      active = false;
-    };
-  }, [allLiveIds, posts]);
 
   const rows = useMemo<LiveRow[]>(() => {
     const allowMonths = monthFilter.includes("all") ? null : new Set(monthFilter);

@@ -11,6 +11,8 @@ import {
 import type { User } from "firebase/auth";
 import type { Comment, CommentReply, Post } from "@/lib/posts/types";
 import { searchPosts } from "@/lib/posts/searchPosts";
+import { db } from "@/lib/firebase";
+import { doc, getDoc } from "firebase/firestore";
 import {
   createPostComment,
   createPostCommentReply,
@@ -40,6 +42,8 @@ type SearchPostsResultsProps = {
   search: string;
   currentUser: User | null;
   onNavigate: (href: string) => void;
+  // Post seleccionado desde el preview → se muestra primero en la lista.
+  pinnedPostId?: string | null;
 };
 
 type MemberStatus = "active" | "muted" | "banned" | "removed" | null;
@@ -101,12 +105,14 @@ export default function SearchPostsResults({
   fontStack,
   search,
   currentUser,
+  pinnedPostId,
 }: SearchPostsResultsProps) {
   const tCommon = useTranslations("common");
   const tPosts = useTranslations("posts");
   const userId = currentUser?.uid ?? null;
 
   const [posts, setPosts] = useState<PostWithFlags[]>([]);
+  const [pinnedPost, setPinnedPost] = useState<PostWithFlags | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshNonce, setRefreshNonce] = useState(0);
@@ -242,6 +248,41 @@ export default function SearchPostsResults({
       active = false;
     };
   }, [normalizedSearch, userId, fromDate, toDate, refreshNonce]);
+
+  // Post seleccionado desde el preview: se trae por id y se muestra primero.
+  useEffect(() => {
+    let active = true;
+
+    async function loadPinned() {
+      if (!pinnedPostId) {
+        setPinnedPost(null);
+        return;
+      }
+      try {
+        const snap = await getDoc(doc(db, "posts", pinnedPostId));
+        if (!active) return;
+        if (!snap.exists()) {
+          setPinnedPost(null);
+          return;
+        }
+        const data = { id: snap.id, ...(snap.data() as object) } as PostWithFlags;
+        if (data.isDeleted === true) {
+          setPinnedPost(null);
+          return;
+        }
+        setPinnedPost(normalizeSearchPost(data));
+      } catch (e) {
+        console.error("pinned post fetch error:", e);
+        if (active) setPinnedPost(null);
+      }
+    }
+
+    loadPinned();
+
+    return () => {
+      active = false;
+    };
+  }, [pinnedPostId, refreshNonce]);
 
   async function handleDeletePost(postId: string) {
     try {
@@ -412,8 +453,11 @@ export default function SearchPostsResults({
   }
 
   const filteredPosts = posts.filter((post) => post.isDeleted !== true);
-  const hasResults = filteredPosts.length > 0;
-  const visiblePosts = filteredPosts;
+  // El post fijado (seleccionado en el preview) va primero, sin duplicarse.
+  const visiblePosts = pinnedPost
+    ? [pinnedPost, ...filteredPosts.filter((p) => p.id !== pinnedPost.id)]
+    : filteredPosts;
+  const hasResults = visiblePosts.length > 0;
 
   const activeFilters = [
     ...(fromDate
@@ -603,14 +647,17 @@ export default function SearchPostsResults({
     border: "1px solid rgba(255,255,255,0.20)",
   };
 
-  const emptyStyle: CSSProperties = {
-    borderRadius: 18,
-    border: "1px solid rgba(255,255,255,0.10)",
-    background: "rgba(255,255,255,0.03)",
-    padding: "15px 16px",
-    color: "rgba(255,255,255,0.78)",
-    fontSize: 14,
-    lineHeight: 1.45,
+  // Sin resultados: solo texto, centrado en la pantalla, sin contenedor.
+  const noResultsStyle: CSSProperties = {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    textAlign: "center",
+    minHeight: "45vh",
+    padding: "0 24px",
+    color: "rgba(255,255,255,0.55)",
+    fontSize: 15,
+    lineHeight: 1.5,
   };
 
   const postItemStyle: CSSProperties = {
@@ -765,7 +812,7 @@ export default function SearchPostsResults({
       </div>
 
       {!hasResults ? (
-        <div style={emptyStyle}>{tCommon("noExactMatches")}</div>
+        <div style={noResultsStyle}>{tCommon("noExactMatches")}</div>
       ) : (
         visiblePosts.map((post) => {
           const canDelete = userId === post.authorId;

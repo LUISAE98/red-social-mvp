@@ -3,7 +3,6 @@
 import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
-import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import { usePathname, useRouter } from "next/navigation";
@@ -14,6 +13,7 @@ import {
 } from "firebase/firestore";
 
 import { auth, db } from "@/lib/firebase";
+import { followUser } from "@/lib/social/social-service";
 import { searchGroups } from "@/lib/groups/searchGroups";
 import { searchProfiles } from "@/lib/profile/searchProfiles";
 import { searchStories } from "@/lib/stories/searchStories";
@@ -33,10 +33,30 @@ function storyThumb(s: StoryDoc): string | null {
   return null;
 }
 
-function postThumb(p: Post): string | null {
-  const m = Array.isArray(p.media) ? p.media[0] : null;
-  if (!m) return null;
-  return m.thumbnailUrl ?? (m.type === "image" ? m.url : null) ?? null;
+// Badge del post/live: premium, live programado, en vivo o VOD.
+type PostBadge = { label: string; ticket: boolean; live?: boolean };
+
+function postBadge(p: Post): PostBadge | null {
+  const isPaid =
+    p.access === "paid" || p.requiresPayment === true || p.requiresSubscription === true;
+  const isLive = p.postType === "live" || p.postType === "scheduled_event";
+
+  if (isLive) {
+    const status = p.liveData?.status ?? p.scheduledData?.status ?? null;
+    if (status === "ended") {
+      // Live terminado → ahora es VOD
+      return { label: isPaid ? "VOD Premium" : "VOD", ticket: false };
+    }
+    if (status === "live") {
+      // Transmitiendo ahora → "En vivo" (en rojo)
+      return { label: "En vivo", ticket: false, live: true };
+    }
+    // Programado: "Live programado"; con 🎫 si es de pago
+    return { label: "Live programado", ticket: isPaid };
+  }
+
+  if (isPaid) return { label: "Post premium", ticket: false };
+  return null;
 }
 
 export type CommunitySearchMatchType = "exact" | "related" | "suggested";
@@ -174,21 +194,6 @@ function getDescriptionPreview(value?: string) {
   return `${clean.slice(0, 80).trim()}...`;
 }
 
-type SearchServiceDot = {
-  key: string;
-  color: string;
-  title: string;
-};
-
-const SEARCH_SERVICE_COLORS = {
-  saludo: "#7DD3FC",
-  consejo: "#FACC15",
-  meetGreet: "#A78BFA",
-  exclusiveSession: "#F472B6",
-  weddingDonation: "#C084FC",
-  generalDonation: "#FB7185",
-};
-
 function getOfferingByType(
   offerings: Array<Record<string, unknown>> | Record<string, unknown> | undefined,
   type: string
@@ -221,136 +226,37 @@ function isVisibleEnabledService(service: Record<string, unknown> | null): boole
   return enabled && visible;
 }
 
-type ServicesDotT = (key: string) => string;
-
-function buildSearchServiceDots(
+// True si la comunidad ofrece saludos, consejos o algún tipo de sesión
+// (meet & greet / clase / sesión exclusiva). No cuenta donaciones.
+function offersExperiences(
   source: {
     offerings?: Array<Record<string, unknown>> | Record<string, unknown>;
-    donation?: Record<string, unknown>;
     monetization?: Record<string, unknown>;
     greetingsEnabled?: boolean;
     adviceEnabled?: boolean;
     digitalMeetGreetEnabled?: boolean;
     customClassEnabled?: boolean;
-  } | undefined,
-  t: ServicesDotT
-): SearchServiceDot[] {
+  } | undefined
+): boolean {
   const offerings = source?.offerings;
-  const donation = source?.donation ?? {};
   const monetization = source?.monetization ?? {};
-
-  const dots: SearchServiceDot[] = [];
-
-  const saludoEnabled =
+  const saludo =
     isVisibleEnabledService(getOfferingByType(offerings, "saludo")) ||
     source?.greetingsEnabled === true ||
     monetization.greetingsEnabled === true;
-
-  const consejoEnabled =
+  const consejo =
     isVisibleEnabledService(getOfferingByType(offerings, "consejo")) ||
     source?.adviceEnabled === true ||
     monetization.adviceEnabled === true;
-
-  const meetGreetEnabled =
+  const meetGreet =
     isVisibleEnabledService(getOfferingByType(offerings, "meet_greet_digital")) ||
     source?.digitalMeetGreetEnabled === true ||
     monetization.digitalMeetGreetEnabled === true;
-
-  const exclusiveSessionEnabled =
+  const session =
     isVisibleEnabledService(getOfferingByType(offerings, "clase_personalizada")) ||
     source?.customClassEnabled === true ||
     monetization.customClassEnabled === true;
-
-  if (saludoEnabled) {
-    dots.push({
-      key: "saludo",
-      color: SEARCH_SERVICE_COLORS.saludo,
-      title: t("requestGreeting"),
-    });
-  }
-
-  if (consejoEnabled) {
-    dots.push({
-      key: "consejo",
-      color: SEARCH_SERVICE_COLORS.consejo,
-      title: t("requestAdvice"),
-    });
-  }
-
-  if (meetGreetEnabled) {
-    dots.push({
-      key: "meet_greet_digital",
-      color: SEARCH_SERVICE_COLORS.meetGreet,
-      title: t("requestMeetGreet"),
-    });
-  }
-
-  if (exclusiveSessionEnabled) {
-    dots.push({
-      key: "clase_personalizada",
-      color: SEARCH_SERVICE_COLORS.exclusiveSession,
-      title: t("requestSession"),
-    });
-  }
-
-  if (
-    donation.enabled === true &&
-    donation.visible !== false &&
-    donation.mode === "wedding"
-  ) {
-    dots.push({
-      key: "wedding_donation",
-      color: SEARCH_SERVICE_COLORS.weddingDonation,
-      title: t("weddingDonation"),
-    });
-  }
-
-  if (
-    donation.enabled === true &&
-    donation.visible !== false &&
-    donation.mode === "general"
-  ) {
-    dots.push({
-      key: "general_donation",
-      color: SEARCH_SERVICE_COLORS.generalDonation,
-      title: t("generalDonation"),
-    });
-  }
-
-  return dots;
-}
-
-function ServiceDots({ dots, ariaLabel }: { dots: SearchServiceDot[]; ariaLabel: string }) {
-  if (dots.length === 0) return null;
-
-  return (
-    <span
-      aria-label={ariaLabel}
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 4,
-        flexShrink: 0,
-      }}
-    >
-      {dots.map((dot) => (
-        <span
-          key={dot.key}
-          title={dot.title}
-          style={{
-            width: 8,
-            height: 8,
-            borderRadius: 999,
-            border: "none",
-            background: dot.color,
-            boxSizing: "border-box",
-            display: "inline-flex",
-            flexShrink: 0,
-          }}
-        />
-      ))}
-    </span>
-  );
+  return saludo || consejo || meetGreet || session;
 }
 
 function getCommunityPreviewPriority(
@@ -458,8 +364,6 @@ export default function GroupsSearchPanel({
 }: GroupsSearchPanelProps) {
   const tGroups = useTranslations("groups");
   const tCommon = useTranslations("common");
-  const tServices = useTranslations("services");
-  const { format: formatMoney } = usePriceFormat();
 
   const router = useRouter();
   const pathname = usePathname();
@@ -488,6 +392,9 @@ const previousPathnameRef = useRef<string | null>(null);
     Record<string, CanonicalMemberStatus>
   >({});
   const [reqMap, setReqMap] = useState<Record<string, boolean>>({});
+  // Seguir a un perfil: uid → ¿ya lo sigues? / ¿en curso?
+  const [followMap, setFollowMap] = useState<Record<string, boolean>>({});
+  const [followBusy, setFollowBusy] = useState<Record<string, boolean>>({});
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [mounted, setMounted] = useState(false);
@@ -501,7 +408,6 @@ const previousPathnameRef = useRef<string | null>(null);
   const isFocusedRef = useRef(false);
   const storyViewerOpenRef = useRef(false);
 
-  const softBorder = "1px solid rgba(255,255,255,0.18)";
 
 const normalizedSearch = debouncedSearch.trim().toLowerCase();
 const hasSearch = normalizedSearch.length >= MIN_SEARCH_LENGTH;
@@ -845,75 +751,68 @@ useEffect(() => {
   };
 }, [user, communities]);
 
-  useEffect(() => {
-    if (previousPathnameRef.current === null) {
-      previousPathnameRef.current = pathname;
+// Carga si el usuario ya sigue a cada perfil del preview.
+useEffect(() => {
+  let cancelled = false;
+
+  async function loadFollowState() {
+    if (!user || profiles.length === 0) {
+      setFollowMap({});
       return;
     }
-
-    if (pathname !== previousPathnameRef.current) {
-      setSearch("");
-      onCloseSearch?.();
-      previousPathnameRef.current = pathname;
+    const uids = Array.from(
+      new Set(
+        profiles
+          .slice(0, SEARCH_LIMIT)
+          .map((p) => p.uid)
+          .filter((id): id is string => !!id && id !== user.uid)
+      )
+    );
+    if (uids.length === 0) {
+      setFollowMap({});
+      return;
     }
-  }, [pathname, onCloseSearch]);
+    try {
+      const entries = await Promise.all(
+        uids.map(async (uid) => {
+          const snap = await getDoc(doc(db, "users", user.uid, "following", uid));
+          return [uid, snap.exists()] as const;
+        })
+      );
+      if (cancelled) return;
+      setFollowMap((prev) => {
+        const merged = { ...prev };
+        entries.forEach(([id, isF]) => {
+          merged[id] = merged[id] || isF;
+        });
+        return merged;
+      });
+    } catch (e) {
+      console.error(e);
+    }
+  }
 
-  const searchableCommunities = useMemo(() => {
-    return communities.filter((group) => {
-      if (group.visibility === "hidden") return false;
-      if (group.isActive === false) return false;
-      if (group.discoverable === false) return false;
-      return true;
-    });
-  }, [communities]);
+  loadFollowState();
 
-const filteredCommunities = useMemo(() => {
-  if (!normalizedSearch) return [];
+  return () => {
+    cancelled = true;
+  };
+}, [user, profiles]);
 
-  return searchableCommunities;
-}, [searchableCommunities, normalizedSearch]);
-
-  const filteredProfiles = useMemo(() => {
-    if (!normalizedSearch) return [];
-
-    const normalizedQuery = normalizeText(search);
-
-    return profiles.filter((p) => {
-      if (!p.handle) return false;
-      if (user?.uid && p.uid === user.uid) return false;
-      return normalizeText(buildUserSearchText(p)).includes(normalizedQuery);
-    });
-  }, [profiles, normalizedSearch, search, user?.uid]);
-
-  const previewCommunities = useMemo(() => {
-    const ordered = [...filteredCommunities].sort((a, b) => {
-      const priorityA = getCommunityPreviewPriority(a, user, memberMap, reqMap);
-      const priorityB = getCommunityPreviewPriority(b, user, memberMap, reqMap);
-
-      if (priorityA !== priorityB) return priorityA - priorityB;
-      return (a.name ?? "").localeCompare(b.name ?? "");
-    });
-
-    return ordered.slice(0, 5);
-  }, [filteredCommunities, user, memberMap, reqMap]);
-
-  const previewProfiles = useMemo(
-    () => filteredProfiles.slice(0, 5),
-    [filteredProfiles]
-  );
-
-  const previewStories = useMemo(() => stories.slice(0, 6), [stories]);
-  const previewPosts = useMemo(() => posts.slice(0, 4), [posts]);
-
-  // Snapshot del último contenido con resultados, para congelarlo durante el cierre.
-  const lastResultsRef = useRef({
-    anyLoading: false,
-    hasAnything: false,
-    previewStories,
-    previewProfiles,
-    previewCommunities,
-    previewPosts,
-  });
+async function handleFollow(uid: string | undefined) {
+  if (!user || !uid || user.uid === uid) return;
+  if (followMap[uid] || followBusy[uid]) return;
+  setFollowBusy((p) => ({ ...p, [uid]: true }));
+  setFollowMap((p) => ({ ...p, [uid]: true })); // optimista
+  try {
+    await followUser({ currentUserId: user.uid, targetUserId: uid });
+  } catch (e) {
+    console.error(e);
+    setFollowMap((p) => ({ ...p, [uid]: false })); // revertir
+  } finally {
+    setFollowBusy((p) => ({ ...p, [uid]: false }));
+  }
+}
 
   async function handleJoinPublic(groupId: string) {
     if (!user) return;
@@ -1008,6 +907,80 @@ const filteredCommunities = useMemo(() => {
     }
   }
 
+  function handleOpenSubscription(groupId: string) {
+    handleNavigateAndClose(`/groups/${groupId}`);
+  }
+
+  useEffect(() => {
+    if (previousPathnameRef.current === null) {
+      previousPathnameRef.current = pathname;
+      return;
+    }
+
+    if (pathname !== previousPathnameRef.current) {
+      setSearch("");
+      onCloseSearch?.();
+      previousPathnameRef.current = pathname;
+    }
+  }, [pathname, onCloseSearch]);
+
+  const searchableCommunities = useMemo(() => {
+    return communities.filter((group) => {
+      if (group.visibility === "hidden") return false;
+      if (group.isActive === false) return false;
+      if (group.discoverable === false) return false;
+      return true;
+    });
+  }, [communities]);
+
+const filteredCommunities = useMemo(() => {
+  if (!normalizedSearch) return [];
+
+  return searchableCommunities;
+}, [searchableCommunities, normalizedSearch]);
+
+  const filteredProfiles = useMemo(() => {
+    if (!normalizedSearch) return [];
+
+    const normalizedQuery = normalizeText(search);
+
+    return profiles.filter((p) => {
+      if (!p.handle) return false;
+      if (user?.uid && p.uid === user.uid) return false;
+      return normalizeText(buildUserSearchText(p)).includes(normalizedQuery);
+    });
+  }, [profiles, normalizedSearch, search, user?.uid]);
+
+  const previewCommunities = useMemo(() => {
+    const ordered = [...filteredCommunities].sort((a, b) => {
+      const priorityA = getCommunityPreviewPriority(a, user, memberMap, reqMap);
+      const priorityB = getCommunityPreviewPriority(b, user, memberMap, reqMap);
+
+      if (priorityA !== priorityB) return priorityA - priorityB;
+      return (a.name ?? "").localeCompare(b.name ?? "");
+    });
+
+    return ordered.slice(0, 5);
+  }, [filteredCommunities, user, memberMap, reqMap]);
+
+  const previewProfiles = useMemo(
+    () => filteredProfiles.slice(0, 5),
+    [filteredProfiles]
+  );
+
+  const previewStories = useMemo(() => stories.slice(0, 6), [stories]);
+  const previewPosts = useMemo(() => posts.slice(0, 4), [posts]);
+
+  // Snapshot del último contenido con resultados, para congelarlo durante el cierre.
+  const lastResultsRef = useRef({
+    anyLoading: false,
+    hasAnything: false,
+    previewStories,
+    previewProfiles,
+    previewCommunities,
+    previewPosts,
+  });
+
 function handleCloseSearch() {
   if (isSearchClosing) return;
 
@@ -1043,15 +1016,16 @@ function handleCloseSearch() {
     router.push(href);
   }
 
-  function handleOpenSubscription(groupId: string) {
-    handleNavigateAndClose(`/groups/${groupId}`);
-  }
 
 // Navega a la página de resultados completa con la query dada, guardándola en el
 // historial. Reutilizado por Enter, el "Ver más..." de cada sección y el clic en
 // un historial de texto. tabOverride fuerza la pestaña destino (stories, profiles,
 // groups, posts); si no se pasa, se infiere de los resultados del preview.
-function openSearchFor(rawQuery: string, tabOverride?: "stories" | "profiles" | "groups" | "posts") {
+function openSearchFor(
+  rawQuery: string,
+  tabOverride?: "stories" | "profiles" | "groups" | "posts",
+  pinPostId?: string
+) {
   const trimmed = rawQuery.trim();
   if (!trimmed) return;
 
@@ -1069,6 +1043,9 @@ function openSearchFor(rawQuery: string, tabOverride?: "stories" | "profiles" | 
     params.set("tab", "groups");
   }
 
+  // Post seleccionado desde el preview → se fija primero en los resultados.
+  if (pinPostId) params.set("post", pinPostId);
+
   setSearch("");
   setIsFocused(false);
   onCloseSearch?.();
@@ -1079,7 +1056,8 @@ function openSearchFor(rawQuery: string, tabOverride?: "stories" | "profiles" | 
 function handleOpenFullResults() {
   // Usamos el valor EN VIVO (search), no el debounced (normalizedSearch), para
   // que Enter dispare la búsqueda al instante sin esperar los 300 ms del debounce.
-  openSearchFor(search);
+  // Enter cae en la pestaña "Experiencias" (stories) por defecto.
+  openSearchFor(search, "stories");
 }
 
   const anyLoading =
@@ -1329,22 +1307,8 @@ to {
           gap: 10px;
           align-items: center;
           min-width: 0;
-        }
-
-        .post-thumb {
-          position: relative;
-          width: 44px;
-          height: 44px;
-          border-radius: 10px;
           overflow: hidden;
-          flex-shrink: 0;
-          background: rgba(255, 255, 255, 0.06);
-          display: flex;
-          align-items: center;
-          justify-content: center;
         }
-
-        .post-thumb-emoji { font-size: 18px; line-height: 1; }
 
         .post-body {
           display: flex;
@@ -1352,9 +1316,18 @@ to {
           gap: 2px;
           min-width: 0;
           flex: 1;
+          overflow: hidden;
+        }
+
+        .post-author-row {
+          display: flex;
+          align-items: baseline;
+          gap: 5px;
+          min-width: 0;
         }
 
         .post-author {
+          min-width: 0;
           font-size: 12px;
           font-weight: 600;
           color: rgba(255, 255, 255, 0.9);
@@ -1363,7 +1336,28 @@ to {
           white-space: nowrap;
         }
 
+        .post-badge-dot {
+          flex-shrink: 0;
+          color: rgba(255, 255, 255, 0.42);
+          font-size: 11px;
+          line-height: 1;
+        }
+
+        .post-badge {
+          flex-shrink: 0;
+          color: rgba(168, 85, 255, 0.85);
+          font-size: 11px;
+          font-weight: 500;
+          white-space: nowrap;
+        }
+
+        .post-badge-live {
+          color: #ef4444;
+        }
+
         .post-text {
+          min-width: 0;
+          max-width: 100%;
           font-size: 12.5px;
           color: rgba(255, 255, 255, 0.6);
           line-height: 1.35;
@@ -1442,6 +1436,7 @@ to {
 
         .result-content {
           min-width: 0;
+          overflow: hidden;
           display: grid;
           gap: 5px;
         }
@@ -1487,6 +1482,25 @@ to {
   white-space: nowrap;
 }
 
+.result-name-experiences {
+  flex-shrink: 0;
+  color: rgba(168, 85, 255, 0.85);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+/* @usuario debajo del nombre, alineado a la izquierda, sin contenedor */
+.result-handle {
+  color: rgba(255, 255, 255, 0.44);
+  font-size: 12px;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .visibility-mobile {
   display: none;
 }
@@ -1518,10 +1532,13 @@ to {
 .service-dots-mobile {
   display: none;
 }
+.result-meta-mobile {
+  display: none;
+}
   .result-description-preview {
   display: block;
   margin: -1px 0 0;
-  max-width: 420px;
+  max-width: 100%;
   overflow: hidden;
   color: rgba(255, 255, 255, 0.5);
   font-size: 11px;
@@ -1575,15 +1592,45 @@ to {
         }
 
         .primary-btn {
+          width: 134px;
+          box-sizing: border-box;
           min-height: 34px;
-          padding: 7px 11px;
-          border-radius: 11px;
-          border: 1px solid rgba(255, 255, 255, 0.22);
-          background: #fff;
-          color: #000;
+          padding: 7px 8px;
+          border-radius: 10px;
+          border: none;
+          background: linear-gradient(135deg, #ec4899, #9333ea);
+          color: #fff;
           cursor: pointer;
           font-weight: 600;
           font-size: 12px;
+          letter-spacing: -0.01em;
+          font-family: ${fontStack};
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          white-space: nowrap;
+        }
+
+        /* Suscribirse (privada de pago) — azul, igual que en las comunidades */
+        .subscribe-btn {
+          background: #70aefb;
+        }
+
+        /* Estado de miembro (Ya perteneces / Suscrito) — accionable:
+           salir del grupo o abrir el panel para cancelar la suscripción. */
+        .member-state {
+          width: 134px;
+          box-sizing: border-box;
+          min-height: 34px;
+          padding: 7px 8px;
+          border-radius: 10px;
+          border: none;
+          background: rgba(255, 255, 255, 0.06);
+          color: rgba(255, 255, 255, 0.5);
+          cursor: pointer;
+          font-weight: 600;
+          font-size: 12px;
+          letter-spacing: -0.01em;
           font-family: ${fontStack};
           display: inline-flex;
           align-items: center;
@@ -1592,16 +1639,22 @@ to {
         }
 
         .secondary-btn {
+          width: 134px;
+          box-sizing: border-box;
           min-height: 34px;
-          padding: 7px 11px;
-          border-radius: 11px;
-          border: ${softBorder};
-          background: rgba(255, 255, 255, 0.06);
-          color: #fff;
+          padding: 7px 8px;
+          border-radius: 10px;
+          border: 1px solid rgba(255, 255, 255, 0.18);
+          background: rgba(255, 255, 255, 0.14);
+          color: rgba(255, 255, 255, 0.7);
           cursor: pointer;
           font-weight: 600;
           font-size: 12px;
+          letter-spacing: -0.01em;
           font-family: ${fontStack};
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
           white-space: nowrap;
         }
 
@@ -1661,12 +1714,12 @@ to {
     display: none;
   }
 
-  .service-dots-mobile {
+  .result-meta-mobile {
     display: inline-flex;
     align-items: center;
     gap: 6px;
     min-height: 14px;
-    margin-top: -1px;
+    margin-top: 1px;
   }
 
   .mobile-service-separator {
@@ -1678,6 +1731,14 @@ to {
 
   .mobile-visibility-label {
     color: rgba(255, 255, 255, 0.48);
+    font-size: 10px;
+    font-weight: 500;
+    line-height: 1.2;
+    white-space: nowrap;
+  }
+
+  .mobile-experiences-label {
+    color: rgba(168, 85, 255, 0.85);
     font-size: 10px;
     font-weight: 500;
     line-height: 1.2;
@@ -1744,9 +1805,11 @@ to {
 
   .primary-btn,
   .secondary-btn,
-  .disabled-btn {
+  .disabled-btn,
+  .member-state {
+    width: 118px;
     min-height: 32px;
-    padding: 6px 10px;
+    padding: 6px 8px;
     font-size: 11px;
   }
 
@@ -1959,7 +2022,9 @@ to {
                       p.handle ||
                       tCommon("user");
 
-                    const serviceDots = buildSearchServiceDots(p, tServices);
+                    const hasExperiences = offersExperiences(p);
+                    const isFollowing = !!p.uid && !!followMap[p.uid];
+                    const isSelf = !!user && p.uid === user.uid;
 
                     return (
                       <div
@@ -1990,14 +2055,35 @@ to {
                             <div className="result-content">
                               <h3 className="result-name result-name-with-meta">
                                 <span className="result-name-text">{fullName}</span>
-                                <ServiceDots dots={serviceDots} ariaLabel={tCommon("activeServices")} />
+                                {hasExperiences && (
+                                  <>
+                                    <span className="result-name-dot">·</span>
+                                    <span className="result-name-experiences">Ofrece experiencias</span>
+                                  </>
+                                )}
                               </h3>
-                              <div className="result-meta">
-                                <span className="pill">@{p.handle}</span>
-                              </div>
+                              <div className="result-handle">@{p.handle}</div>
                             </div>
                           </div>
-                          <div className="profile-cta">{tCommon("open")}</div>
+
+                          {!isSelf && (
+                            <div className="actions-wrap" onClick={(e) => e.stopPropagation()}>
+                              {isFollowing ? (
+                                <span className="member-state" style={{ cursor: "default" }}>
+                                  Siguiendo
+                                </span>
+                              ) : (
+                                <button
+                                  type="button"
+                                  className="primary-btn"
+                                  disabled={!!followBusy[p.uid]}
+                                  onClick={() => void handleFollow(p.uid)}
+                                >
+                                  Seguir
+                                </button>
+                              )}
+                            </div>
+                          )}
                         </div>
                       </div>
                     );
@@ -2037,9 +2123,7 @@ const visLabel =
     : g.visibility === "private"
       ? tGroups("privateLabel")
       : tGroups("hiddenLabel");
-                    const price = g.monetization?.priceMonthly ?? null;
-                    const cur = g.monetization?.currency ?? null;
-                    const serviceDots = buildSearchServiceDots(g, tServices);
+                    const hasExperiences = offersExperiences(g);
 
                     return (
                       <div
@@ -2073,40 +2157,33 @@ const visLabel =
   <span className="result-name-text">
     {g.name ?? tGroups("title")}
   </span>
-<span className="result-name-dot visibility-desktop">·</span>
-<span className="result-name-visibility">
-  <span className="visibility-desktop">{visLabel}</span>
-  <span className="visibility-mobile">
-    {g.visibility === "public"
-      ? tGroups("publicShort")
-      : g.visibility === "private"
-        ? tGroups("privateShort")
-        : tGroups("hiddenShort")}
-  </span>
-</span>
-
-<span className="service-dots-desktop">
-  <ServiceDots dots={serviceDots} ariaLabel={tCommon("activeServices")} />
-</span>
+  {/* Desktop: · Pública/Privada · Ofrece experiencias en la línea del nombre */}
+  <span className="result-name-dot visibility-desktop">·</span>
+  <span className="result-name-visibility visibility-desktop">{visLabel}</span>
+  {hasExperiences && (
+    <>
+      <span className="result-name-dot visibility-desktop">·</span>
+      <span className="result-name-experiences visibility-desktop">Ofrece experiencias</span>
+    </>
+  )}
 </h3>
 
+{/* Desktop: descripción en una sola línea con puntos suspensivos */}
 {getDescriptionPreview(g.description) ? (
   <p className="result-description-preview">
     {getDescriptionPreview(g.description)}
   </p>
 ) : null}
 
-<div className="service-dots-mobile">
-  <span className="mobile-visibility-label">
-    {visLabel}
-  </span>
-
-  {serviceDots.length > 0 ? (
+{/* Móvil: Pública/Privada · Ofrece experiencias debajo del nombre */}
+<div className="result-meta-mobile">
+  <span className="mobile-visibility-label">{visLabel}</span>
+  {hasExperiences && (
     <>
       <span className="mobile-service-separator">·</span>
-      <ServiceDots dots={serviceDots} ariaLabel={tCommon("activeServices")} />
+      <span className="mobile-experiences-label">Ofrece experiencias</span>
     </>
-  ) : null}
+  )}
 </div>
 
 <div className="result-meta">
@@ -2137,11 +2214,10 @@ const visLabel =
                             {!isOwner && !isMember && !isBlocked && paidPrivate && (
 <button
   onClick={() => handleOpenSubscription(g.id)}
-  className="primary-btn"
+  className="primary-btn subscribe-btn"
   type="button"
 >
   💎 {tGroups("subscribe")}
-  {price != null ? ` · ${formatMoney(price, { baseCurrency: cur ?? "MXN" })}` : ""}
 </button>
                             )}
 
@@ -2156,7 +2232,7 @@ const visLabel =
                                       onClick={() =>
                                         void handleRequestPrivate(g.id)
                                       }
-                                      className="secondary-btn"
+                                      className="primary-btn"
                                       type="button"
                                     >
                                       {tGroups("requestAccess")}
@@ -2174,13 +2250,23 @@ const visLabel =
                               )}
 
                             {isMember && !isOwner && (
-                              <button
-                                onClick={() => void handleLeave(g.id, g.ownerId)}
-                                className="secondary-btn"
-                                type="button"
-                              >
-                                {tCommon("leave")}
-                              </button>
+                              membershipStatus === "subscribed" ? (
+                                <button
+                                  type="button"
+                                  className="member-state"
+                                  onClick={() => handleOpenSubscription(g.id)}
+                                >
+                                  Suscrito
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  className="member-state"
+                                  onClick={() => void handleLeave(g.id, g.ownerId)}
+                                >
+                                  Ya perteneces
+                                </button>
+                              )
                             )}
                           </div>
                         </div>
@@ -2201,24 +2287,38 @@ const visLabel =
                   </div>
 
                   {dPosts.map((post) => {
-                    const thumb = postThumb(post);
+                    const badge = postBadge(post);
+                    const authorName = post.authorName ?? post.authorUsername ?? tCommon("user");
                     return (
                       <div
                         key={post.id}
                         className="result-item"
-                        onClick={() => handleNavigateAndClose(`/p/${post.id}`)}
+                        onClick={() => openSearchFor(search, "posts", post.id)}
                       >
                         <div className="post-row">
-                          <span className="post-thumb">
-                            {thumb ? (
-                              <Image src={thumb} alt="" fill sizes="44px" style={{ objectFit: "cover" }} />
-                            ) : (
-                              <span className="post-thumb-emoji">📝</span>
-                            )}
-                          </span>
+                          <LiveRingAvatar
+                            entityId={post.authorId}
+                            entityType="profile"
+                            currentUserId={user?.uid ?? null}
+                            photoURL={post.authorAvatarUrl ?? null}
+                            displayName={authorName}
+                            size={42}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openSearchFor(search, "posts", post.id);
+                            }}
+                          />
                           <span className="post-body">
-                            <span className="post-author">
-                              {post.authorName ?? post.authorUsername ?? tCommon("user")}
+                            <span className="post-author-row">
+                              <span className="post-author">{authorName}</span>
+                              {badge && (
+                                <>
+                                  <span className="post-badge-dot">·</span>
+                                  <span className={`post-badge${badge.live ? " post-badge-live" : ""}`}>
+                                    {badge.label}{badge.ticket ? " 🎫" : ""}
+                                  </span>
+                                </>
+                              )}
                             </span>
                             <span className="post-text">{post.text}</span>
                           </span>

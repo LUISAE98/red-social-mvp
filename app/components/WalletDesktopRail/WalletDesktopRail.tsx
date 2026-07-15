@@ -330,13 +330,14 @@ export default function WalletDesktopRail({
           align-items: center;
           gap: 3px;
           margin-top: 8px;
+          margin-bottom: 8px;
         }
 
         .walletBalanceLabel {
           font-size: 10px;
           font-weight: 500;
           letter-spacing: 0.06em;
-          text-transform: uppercase;
+          text-transform: none;
           color: rgba(255, 255, 255, 0.32);
           line-height: 1;
         }

@@ -250,6 +250,73 @@ async function handleEgressEnded(event: WebhookEvent): Promise<void> {
   });
 }
 
+// Presencia de participantes → pausa/reanuda el contador de la sesión.
+// El contador solo corre mientras AMBOS (creador y comprador) están conectados;
+// nunca se reinicia. Se identifica el rol por el prefijo de identidad.
+async function handleParticipantPresence(
+  event: WebhookEvent,
+  connected: boolean
+): Promise<void> {
+  const roomName = getRoomName(event);
+  const identity = event.participant?.identity;
+  if (!roomName || !identity) return;
+
+  const role: "creator" | "buyer" | null = identity.startsWith("creator_")
+    ? "creator"
+    : identity.startsWith("buyer_")
+    ? "buyer"
+    : null;
+  if (!role) return; // el grabador u otros participantes no cuentan
+
+  const session = await findSessionByRoomName(roomName);
+  if (!session) return;
+
+  const data = session.data;
+  const now = admin.firestore.Timestamp.now();
+  const nowMs = Date.now();
+
+  const creatorConnected = role === "creator" ? connected : !!data.creatorConnected;
+  const buyerConnected = role === "buyer" ? connected : !!data.buyerConnected;
+  const bothNow = creatorConnected && buyerConnected;
+
+  const updates: Record<string, unknown> = {
+    [`${role}Connected`]: connected,
+    updatedAt: now,
+  };
+
+  // Solo gestionar el contador mientras la sesión está activa (arrancó y no terminó).
+  const started = !!data.startedAt;
+  const ended =
+    !!data.endedAt ||
+    ["completed", "session_incomplete", "rejected", "cancelled"].includes(
+      String(data.status)
+    );
+
+  if (started && !ended) {
+    const running = !!data.timerRunningSince;
+    if (bothNow && !running) {
+      // Reanudar: ambos presentes de nuevo.
+      updates.timerRunningSince = new Date().toISOString();
+    } else if (!bothNow && running) {
+      // Pausar: alguien se fue. Congelar el restante.
+      const runningSinceMs = new Date(String(data.timerRunningSince)).getTime();
+      const rem = typeof data.timerRemainingMs === "number" ? data.timerRemainingMs : 0;
+      updates.timerRemainingMs = Math.max(0, rem - (nowMs - runningSinceMs));
+      updates.timerRunningSince = null;
+    }
+  }
+
+  await session.ref.update(updates);
+
+  logger.info("livekit_webhook_participant_presence", {
+    roomName,
+    sessionId: session.ref.id,
+    role,
+    connected,
+    bothNow,
+  });
+}
+
 // ── Función principal ─────────────────────────────────────────────────────────
 
 export const livekitWebhook = onRequest(
@@ -303,8 +370,14 @@ export const livekitWebhook = onRequest(
         case "egress_ended":
           await handleEgressEnded(event);
           break;
+        case "participant_joined":
+          await handleParticipantPresence(event, true);
+          break;
+        case "participant_left":
+          await handleParticipantPresence(event, false);
+          break;
         default:
-          // room_started, participant_*, track_* — no requieren acción
+          // room_started, track_* — no requieren acción
           break;
       }
     } catch (err: unknown) {

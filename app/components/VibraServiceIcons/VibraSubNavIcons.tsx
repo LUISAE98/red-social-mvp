@@ -7,7 +7,9 @@ export type VibraSubnavIconType =
   | "services"
   | "communities"
   | "posts"
-  | "members";
+  | "members"
+  | "profiles"
+  | "stories";
 
 const vibraPurple = "#a855ff";
 const SUBNAV_ICON_CONFIG: Record<
@@ -119,6 +121,41 @@ posts: {
           fill="none"
           stroke={vibraPurple}
         />
+      </svg>
+    ),
+  },
+
+  // Perfiles: círculo con un "monito" (persona) dentro.
+  profiles: {
+    label: "Perfiles",
+    outline: (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="12" cy="12" r="8.4" fill="none" stroke={vibraPurple} />
+        <circle cx="12" cy="9.7" r="2.3" fill="none" stroke={vibraPurple} />
+        <path
+          d="M8 16.7C8.6 14.4 10 13.2 12 13.2C14 13.2 15.4 14.4 16 16.7"
+          fill="none"
+          stroke={vibraPurple}
+        />
+      </svg>
+    ),
+  },
+
+  // Historias: aro de Vibra con sus colores originales (gradiente rosa→morado→azul).
+  // El gradiente se define dentro del propio SVG para que resuelva siempre
+  // (el `url(#vibraIconGradient)` global no pinta en este contexto).
+  stories: {
+    label: "Historias",
+    outline: (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <defs>
+          <linearGradient id="vibraStoryRingGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#ec4899" />
+            <stop offset="52%" stopColor="#9333ea" />
+            <stop offset="100%" stopColor="#3b82f6" />
+          </linearGradient>
+        </defs>
+        <circle cx="12" cy="12" r="8.4" fill="none" stroke="url(#vibraStoryRingGradient)" />
       </svg>
     ),
   },

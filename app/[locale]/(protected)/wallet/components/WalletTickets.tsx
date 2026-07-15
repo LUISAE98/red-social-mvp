@@ -1,12 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useMemo, useState, type CSSProperties } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { motion } from "framer-motion";
-import { doc, getDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import { useWalletLedger } from "@/lib/wallet/walletLedger";
+import { useWalletPosts } from "@/lib/wallet/walletPostCache";
 import type { Post } from "@/lib/posts/types";
 import { WalletFilterMenu } from "./WalletUi";
 
@@ -88,7 +87,6 @@ export default function WalletTickets({
   const { format: formatMoney } = usePriceFormat();
   const { entries, loading } = useWalletLedger(uid, LEDGER_WINDOW);
 
-  const [posts, setPosts] = useState<Map<string, Post | null>>(new Map());
   const [visibleCount, setVisibleCount] = useState(PAGE);
 
   const [monthFilter, setMonthFilter] = useState<string[]>(["all"]);
@@ -109,6 +107,8 @@ export default function WalletTickets({
     return Array.from(s);
   }, [entries]);
 
+  const { posts } = useWalletPosts(allPostIds);
+
   // Suma + tickets vendidos por publicación, acotado por el filtro de tipo.
   const totals = useMemo(() => {
     const allow = typeFilter.includes("all") ? null : new Set<string>(typeFilter);
@@ -125,32 +125,6 @@ export default function WalletTickets({
     }
     return m;
   }, [entries, mode, typeFilter]);
-
-  useEffect(() => {
-    let active = true;
-    const missing = allPostIds.filter((id) => !posts.has(id));
-    if (missing.length === 0) return;
-    Promise.all(
-      missing.map(async (id) => {
-        try {
-          const snap = await getDoc(doc(db, "posts", id));
-          return [id, snap.exists() ? ({ id: snap.id, ...snap.data() } as Post) : null] as const;
-        } catch {
-          return [id, null] as const;
-        }
-      })
-    ).then((pairs) => {
-      if (!active) return;
-      setPosts((prev) => {
-        const next = new Map(prev);
-        for (const [id, p] of pairs) next.set(id, p);
-        return next;
-      });
-    });
-    return () => {
-      active = false;
-    };
-  }, [allPostIds, posts]);
 
   const rows = useMemo<TicketRow[]>(() => {
     const allowMonths = monthFilter.includes("all") ? null : new Set(monthFilter);

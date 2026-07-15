@@ -171,7 +171,7 @@ export const joinSession = onCall(
     if (!snap.exists) throw new HttpsError("not-found", "La sesión no existe.");
 
     const session = snap.data()!;
-    const { creatorId, buyerId, status, creatorJoinedAt, buyerJoinedAt, startedAt, roomName } =
+    const { creatorId, buyerId, status, creatorJoinedAt, buyerJoinedAt, startedAt, roomName, durationMinutes } =
       session;
 
     const isCreator = uid === creatorId;
@@ -191,6 +191,9 @@ export const joinSession = onCall(
     // Registrar join del participante (idempotente)
     if (isCreator && !creatorJoinedAt) updates.creatorJoinedAt = now;
     if (isBuyer && !buyerJoinedAt) updates.buyerJoinedAt = now;
+    // Presencia en vivo (respaldo del webhook participant_joined/left).
+    if (isCreator) updates.creatorConnected = true;
+    if (isBuyer) updates.buyerConnected = true;
 
     const creatorIsJoined = !!creatorJoinedAt || isCreator;
     const buyerIsJoined = !!buyerJoinedAt || isBuyer;
@@ -200,6 +203,13 @@ export const joinSession = onCall(
       // Primera vez que ambos están en la sala
       updates.startedAt = now;
       updates.roomStatus = "in_progress";
+      // Contador pausable: arranca corriendo con la duración completa. El webhook
+      // de participantes lo pausa/reanuda; nunca se reinicia.
+      updates.timerRemainingMs =
+        (typeof durationMinutes === "number" && durationMinutes > 0
+          ? durationMinutes
+          : FALLBACK_DURATION_MINUTES) * 60000;
+      updates.timerRunningSince = now;
 
       // Iniciar grabación si S3 está configurado y tenemos el roomName
       if (roomName) {
