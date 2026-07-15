@@ -1,7 +1,8 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { motion } from "framer-motion";
 import { useRouter, useSearchParams } from "next/navigation";
 import { doc, getDoc } from "firebase/firestore";
 import { useTranslations } from "next-intl";
@@ -12,13 +13,19 @@ import { searchProfiles } from "@/lib/profile/searchProfiles";
 import { useAuth } from "@/app/providers";
 
 import SearchSubnav from "@/app/components/SearchToolbar/SearchSubnav";
-import SearchGroupsResults from "@/app/components/SearchToolbar/SearchGroupsResults";
-import SearchProfilesResults from "@/app/components/SearchToolbar/SearchProfilesResults";
+import SearchGroupsResults, {
+  type CommunitiesSearchFilter,
+} from "@/app/components/SearchToolbar/SearchGroupsResults";
+import SearchProfilesResults, {
+  type ProfilesSearchFilter,
+} from "@/app/components/SearchToolbar/SearchProfilesResults";
 import SearchStoriesResults, {
   type StorySearchFilter,
 } from "@/app/components/SearchToolbar/SearchStoriesResults";
 import { WalletFilterMenu } from "@/app/(protected)/wallet/components/WalletUi";
 import { VibraNavigationIcon } from "@/app/components/VibraServiceIcons/VibraNavigationIcons";
+import SearchDateFilterMenu from "@/app/components/SearchToolbar/SearchDateFilterMenu";
+import type { PostsSearchFilter } from "@/app/components/SearchToolbar/SearchPostsResults";
 
 import type {
   CanonicalMemberStatus,
@@ -27,6 +34,10 @@ import type {
 } from "@/app/components/SearchToolbar/GroupsSearchPanel";
 
 type TabType = "groups" | "profiles" | "posts" | "stories";
+
+// Orden visual del subnav (mismo que SearchSubnav) — define la dirección del
+// deslizamiento del contenido al cambiar de pestaña.
+const SEARCH_TAB_ORDER: TabType[] = ["stories", "profiles", "groups", "posts"];
 
 type ViewerGroupStateCacheEntry = {
   expiresAt: number;
@@ -236,6 +247,11 @@ function SearchPageContent() {
   const [memberMap, setMemberMap] = useState<Record<string, CanonicalMemberStatus>>({});
   const [reqMap, setReqMap] = useState<Record<string, boolean>>({});
   const [refreshNonce, setRefreshNonce] = useState(0);
+  const [tabDir, setTabDir] = useState(0);
+  // Última búsqueda cargada por pestaña (query + nonce): evita recargar al volver
+  // a una pestaña ya cargada, como el cache de wallet.
+  const lastGroupsKeyRef = useRef<string | null>(null);
+  const lastProfilesKeyRef = useRef<string | null>(null);
   const [storyFilter, setStoryFilter] = useState<StorySearchFilter>("all");
   // Buscador editable en la cabecera de resultados (compartido por las 4 pestañas).
   const [queryInput, setQueryInput] = useState(queryText);
@@ -248,6 +264,55 @@ function SearchPageContent() {
   const storyFilterLabel =
     storyFilterOptions.find((o) => o.value === storyFilter)?.label ??
     storyFilterOptions[0].label;
+
+  const [profileFilter, setProfileFilter] = useState<ProfilesSearchFilter>("all");
+  const profileFilterOptions: Array<{ value: ProfilesSearchFilter; label: string }> = [
+    { value: "all", label: "Todos" },
+    { value: "experiences", label: "Ofrecen experiencias" },
+  ];
+  const profileFilterLabel =
+    profileFilterOptions.find((o) => o.value === profileFilter)?.label ??
+    profileFilterOptions[0].label;
+
+  const [communityFilter, setCommunityFilter] = useState<CommunitiesSearchFilter[]>([
+    "all",
+  ]);
+  const communityFilterOptions: Array<{ value: CommunitiesSearchFilter; label: string }> = [
+    { value: "all", label: "Todas" },
+    { value: "public", label: "Públicas" },
+    { value: "private", label: "Privadas" },
+    { value: "subscription", label: "De suscripción" },
+    { value: "free", label: "Gratuitas" },
+    { value: "experiences", label: "Ofrece experiencias" },
+  ];
+  const communityActiveFilters = communityFilter.filter((f) => f !== "all");
+  const communityFilterLabel =
+    communityActiveFilters.length === 0
+      ? "Filtrar"
+      : communityActiveFilters.length === 1
+        ? communityFilterOptions.find((o) => o.value === communityActiveFilters[0])?.label ??
+          "Filtrar"
+        : `Filtros (${communityActiveFilters.length})`;
+
+  const [postFilter, setPostFilter] = useState<PostsSearchFilter[]>(["all"]);
+  const [postDateFrom, setPostDateFrom] = useState("");
+  const [postDateTo, setPostDateTo] = useState("");
+  const postFilterOptions: Array<{ value: PostsSearchFilter; label: string }> = [
+    { value: "all", label: "Todos" },
+    { value: "live", label: "En vivo" },
+    { value: "vod", label: "VOD" },
+    { value: "premium", label: "Post premium" },
+    { value: "free", label: "Gratis" },
+    { value: "video", label: "Videos" },
+    { value: "scheduled", label: "Live programado" },
+  ];
+  const postActiveFilters = postFilter.filter((f) => f !== "all");
+  const postFilterLabel =
+    postActiveFilters.length === 0
+      ? "Filtrar"
+      : postActiveFilters.length === 1
+        ? postFilterOptions.find((o) => o.value === postActiveFilters[0])?.label ?? "Filtrar"
+        : `Filtros (${postActiveFilters.length})`;
 
   const normalizedQuery = useMemo(
     () => normalizeText(debouncedQuery),
@@ -296,10 +361,16 @@ function SearchPageContent() {
     let cancelled = false;
 
     async function loadGroups() {
-      if (activeTab !== "groups" || !canSearch) {
+      if (!canSearch) {
         setCommunities([]);
+        lastGroupsKeyRef.current = null;
         return;
       }
+      // No limpiar al cambiar de pestaña: conservamos los resultados en memoria.
+      if (activeTab !== "groups") return;
+
+      const key = `${debouncedQuery}::${refreshNonce}`;
+      if (lastGroupsKeyRef.current === key) return; // ya cargado para esta búsqueda
 
       const result = await searchGroups({
         term: debouncedQuery,
@@ -310,6 +381,7 @@ function SearchPageContent() {
       if (cancelled) return;
 
       setCommunities(result.groups as Community[]);
+      lastGroupsKeyRef.current = key;
     }
 
     loadGroups().catch((error) => {
@@ -317,6 +389,7 @@ function SearchPageContent() {
 
       if (!cancelled) {
         setCommunities([]);
+        lastGroupsKeyRef.current = null;
       }
     });
 
@@ -329,10 +402,15 @@ function SearchPageContent() {
     let cancelled = false;
 
     async function loadProfiles() {
-      if (activeTab !== "profiles" || !canSearch) {
+      if (!canSearch) {
         setProfiles([]);
+        lastProfilesKeyRef.current = null;
         return;
       }
+      if (activeTab !== "profiles") return;
+
+      const key = `${debouncedQuery}::${user?.uid ?? ""}::${refreshNonce}`;
+      if (lastProfilesKeyRef.current === key) return;
 
       const result = await searchProfiles({
         db,
@@ -351,8 +429,12 @@ function SearchPageContent() {
           firstName: profile.firstName ?? "",
           lastName: profile.lastName ?? "",
           photoURL: profile.photoURL ?? null,
+          offerings: profile.offerings,
+          donation: profile.donation,
+          monetization: profile.monetization,
         }))
       );
+      lastProfilesKeyRef.current = key;
     }
 
     loadProfiles().catch((error) => {
@@ -360,6 +442,7 @@ function SearchPageContent() {
 
       if (!cancelled) {
         setProfiles([]);
+        lastProfilesKeyRef.current = null;
       }
     });
 
@@ -421,6 +504,9 @@ function SearchPageContent() {
   }, [user?.uid, communities, refreshNonce]);
 
   function handleChangeTab(tab: TabType) {
+    const from = SEARCH_TAB_ORDER.indexOf(activeTab);
+    const to = SEARCH_TAB_ORDER.indexOf(tab);
+    setTabDir(to > from ? 1 : to < from ? -1 : 0);
     setActiveTab(tab);
 
     const params = new URLSearchParams(searchParams.toString());
@@ -534,8 +620,59 @@ function SearchPageContent() {
               singleSelect
             />
           )}
+          {activeTab === "profiles" && (
+            <WalletFilterMenu
+              label={profileFilterLabel}
+              menuLabel="Filtrar"
+              value={[profileFilter]}
+              options={profileFilterOptions}
+              onChange={(v) => setProfileFilter(v[0] ?? "all")}
+              allValue="all"
+              singleSelect
+            />
+          )}
+          {activeTab === "groups" && (
+            <WalletFilterMenu
+              label={communityFilterLabel}
+              menuLabel="Filtrar"
+              value={communityFilter}
+              options={communityFilterOptions}
+              onChange={(v) => setCommunityFilter(v.length ? v : ["all"])}
+              allValue="all"
+            />
+          )}
+          {activeTab === "posts" && (
+            <WalletFilterMenu
+              label={postFilterLabel}
+              menuLabel="Filtrar"
+              value={postFilter}
+              options={postFilterOptions}
+              onChange={(v) => setPostFilter(v.length ? v : ["all"])}
+              allValue="all"
+            />
+          )}
         </div>
 
+        {/* Filtro de fechas — debajo de la fila de "Resultados para:" (solo posts). */}
+        {activeTab === "posts" && (
+          <div style={{ display: "flex", justifyContent: "flex-end", padding: "0 2px" }}>
+            <SearchDateFilterMenu
+              fromDate={postDateFrom}
+              toDate={postDateTo}
+              onApply={(from, to) => {
+                setPostDateFrom(from);
+                setPostDateTo(to);
+              }}
+            />
+          </div>
+        )}
+
+        <motion.div
+          key={activeTab}
+          initial={{ x: tabDir > 0 ? 42 : tabDir < 0 ? -42 : 0, opacity: 0.25 }}
+          animate={{ x: 0, opacity: 1 }}
+          transition={{ type: "spring", stiffness: 320, damping: 32, mass: 0.9 }}
+        >
         {activeTab === "groups" && (
 <SearchGroupsResults
   fontStack="inherit"
@@ -549,6 +686,7 @@ function SearchPageContent() {
   onCancelRequest={handleCancelRequest}
   onLeave={handleLeave}
   onRefresh={handleSearchPullRefresh}
+  filter={communityFilter}
 />
         )}
 
@@ -558,6 +696,7 @@ function SearchPageContent() {
             profiles={profiles}
             onNavigate={handleNavigate}
             currentUserId={user?.uid ?? null}
+            filter={profileFilter}
           />
         )}
 
@@ -568,12 +707,16 @@ function SearchPageContent() {
             currentUser={user}
             onNavigate={handleNavigate}
             pinnedPostId={pinnedPostId}
+            filter={postFilter}
+            fromDate={postDateFrom}
+            toDate={postDateTo}
           />
         )}
 
         {activeTab === "stories" && (
           <SearchStoriesResults search={debouncedQuery} filter={storyFilter} />
         )}
+        </motion.div>
       </section>
 
       <style jsx>{`

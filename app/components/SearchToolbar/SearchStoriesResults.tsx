@@ -21,6 +21,11 @@ const STORY_SEARCH_PAGE_SIZE = 40;
 const VIBRA_STORY_RING =
   "linear-gradient(135deg, #ec4899 0%, #9333ea 52%, #3b82f6 100%)";
 
+// Cache module-level: sobrevive a desmontajes (cambios de pestaña) para no
+// recargar los resultados ni los avatares. Se limpia solo al recargar la página.
+const storiesResultCache = new Map<string, StoryDoc[]>();
+const storyAvatarCache = new Map<string, string | null>();
+
 export type StorySearchFilter = "all" | StoryType;
 
 type SearchStoriesResultsProps = {
@@ -50,10 +55,17 @@ export default function SearchStoriesResults({ search, filter }: SearchStoriesRe
   const tCommon = useTranslations("common");
   const { user } = useAuth();
 
-  const [stories, setStories] = useState<StoryDoc[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [stories, setStories] = useState<StoryDoc[]>(
+    () => storiesResultCache.get(search.trim()) ?? []
+  );
+  const [loading, setLoading] = useState(() => {
+    const key = search.trim();
+    return key.length >= MIN_STORY_SEARCH_LENGTH && !storiesResultCache.has(key);
+  });
   // Avatar del creador por uid (no viene denormalizado en la historia).
-  const [avatars, setAvatars] = useState<Record<string, string | null>>({});
+  const [avatars, setAvatars] = useState<Record<string, string | null>>(() =>
+    Object.fromEntries(storyAvatarCache)
+  );
 
   // Visor: agrupamos por creador (como en home). Guardamos un snapshot de grupos
   // + el índice de grupo abierto. Escritorio = carrusel; celular = viewer que
@@ -83,12 +95,19 @@ export default function SearchStoriesResults({ search, filter }: SearchStoriesRe
         setLoading(false);
         return;
       }
+      const cached = storiesResultCache.get(normalizedSearch);
+      if (cached) {
+        setStories(cached);
+        setLoading(false);
+        return;
+      }
       setLoading(true);
       const result = await searchStories({
         search: normalizedSearch,
         pageSize: STORY_SEARCH_PAGE_SIZE,
       });
       if (!active) return;
+      storiesResultCache.set(normalizedSearch, result);
       setStories(result);
       setLoading(false);
     }
@@ -120,6 +139,7 @@ export default function SearchStoriesResults({ search, filter }: SearchStoriesRe
         })
       );
       if (!active) return;
+      for (const [uid, photo] of entries) storyAvatarCache.set(uid, photo);
       setAvatars((prev) => {
         const next = { ...prev };
         for (const [uid, photo] of entries) next[uid] = photo;
@@ -424,11 +444,13 @@ export default function SearchStoriesResults({ search, filter }: SearchStoriesRe
           display: grid;
           grid-template-columns: repeat(auto-fill, minmax(108px, 1fr));
           gap: 10px;
+          max-width: 100%;
         }
-        /* En celular: exactamente 3 historias por fila. */
+        /* En celular: exactamente 3 historias por fila. minmax(0,1fr) evita
+           que las columnas se desborden a la derecha (blowout de grid en iOS). */
         @media (max-width: 768px) {
           .stories-search-grid {
-            grid-template-columns: repeat(3, 1fr);
+            grid-template-columns: repeat(3, minmax(0, 1fr));
           }
         }
       `}</style>

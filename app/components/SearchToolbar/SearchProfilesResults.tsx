@@ -1,17 +1,17 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import {
-  useEffect,
-  useRef,
-  useState,
-  type CSSProperties,
-} from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { doc, getDoc } from "firebase/firestore";
 
+import { db } from "@/lib/firebase";
+import { followUser } from "@/lib/social/social-service";
 import RefreshableArea from "@/components/refresh/RefreshableArea";
 
-import type { PublicUser } from "./GroupsSearchPanel";
+import { offersExperiences, type PublicUser } from "./GroupsSearchPanel";
 import LiveRingAvatar from "@/app/components/LiveRing/LiveRingAvatar";
+
+export type ProfilesSearchFilter = "all" | "experiences";
 
 type SearchProfilesResultsProps = {
   fontStack: string;
@@ -19,6 +19,7 @@ type SearchProfilesResultsProps = {
   onNavigate: (href: string) => void;
   onRefresh?: () => Promise<void> | void;
   currentUserId?: string | null;
+  filter?: ProfilesSearchFilter;
 };
 
 export default function SearchProfilesResults({
@@ -27,62 +28,109 @@ export default function SearchProfilesResults({
   onNavigate,
   onRefresh,
   currentUserId,
+  filter = "all",
 }: SearchProfilesResultsProps) {
   const tCommon = useTranslations("common");
   const [visibleCount, setVisibleCount] = useState(10);
   const [mobileRefreshEnabled, setMobileRefreshEnabled] = useState(false);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
-  const hasResults = profiles.length > 0;
-  const visibleProfiles = profiles.slice(0, visibleCount);
-  const hasMoreProfiles = visibleCount < profiles.length;
+  // Seguir a un perfil: uid → ¿ya lo sigues? / ¿en curso?
+  const [followMap, setFollowMap] = useState<Record<string, boolean>>({});
+  const [followBusy, setFollowBusy] = useState<Record<string, boolean>>({});
+
+  const filteredProfiles =
+    filter === "experiences" ? profiles.filter((p) => offersExperiences(p)) : profiles;
+
+  const hasResults = filteredProfiles.length > 0;
+  const visibleProfiles = filteredProfiles.slice(0, visibleCount);
+  const hasMoreProfiles = visibleCount < filteredProfiles.length;
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setVisibleCount(10);
-  }, [profiles]);
+  }, [profiles, filter]);
 
-    useEffect(() => {
+  useEffect(() => {
     const mediaQuery = window.matchMedia("(max-width: 768px)");
-
-    const syncMobileRefresh = () => {
-      setMobileRefreshEnabled(mediaQuery.matches);
-    };
-
+    const syncMobileRefresh = () => setMobileRefreshEnabled(mediaQuery.matches);
     syncMobileRefresh();
-
     mediaQuery.addEventListener("change", syncMobileRefresh);
-
-    return () => {
-      mediaQuery.removeEventListener("change", syncMobileRefresh);
-    };
+    return () => mediaQuery.removeEventListener("change", syncMobileRefresh);
   }, []);
+
+  // Carga el estado de "siguiendo" de los perfiles visibles.
+  useEffect(() => {
+    let cancelled = false;
+    async function loadFollowState() {
+      if (!currentUserId) {
+        setFollowMap({});
+        return;
+      }
+      const uids = Array.from(
+        new Set(
+          profiles
+            .map((p) => p.uid)
+            .filter((id): id is string => !!id && id !== currentUserId)
+        )
+      );
+      if (uids.length === 0) {
+        setFollowMap({});
+        return;
+      }
+      try {
+        const entries = await Promise.all(
+          uids.map(async (uid) => {
+            const snap = await getDoc(
+              doc(db, "users", currentUserId, "following", uid)
+            );
+            return [uid, snap.exists()] as const;
+          })
+        );
+        if (cancelled) return;
+        setFollowMap((prev) => {
+          const merged = { ...prev };
+          entries.forEach(([id, isF]) => {
+            merged[id] = merged[id] || isF;
+          });
+          return merged;
+        });
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    loadFollowState();
+    return () => {
+      cancelled = true;
+    };
+  }, [currentUserId, profiles]);
+
+  async function handleFollow(uid: string | undefined) {
+    if (!currentUserId || !uid || currentUserId === uid) return;
+    if (followMap[uid] || followBusy[uid]) return;
+    setFollowBusy((p) => ({ ...p, [uid]: true }));
+    setFollowMap((p) => ({ ...p, [uid]: true })); // optimista
+    try {
+      await followUser({ currentUserId, targetUserId: uid });
+    } catch (e) {
+      console.error(e);
+      setFollowMap((p) => ({ ...p, [uid]: false })); // revertir
+    } finally {
+      setFollowBusy((p) => ({ ...p, [uid]: false }));
+    }
+  }
 
   useEffect(() => {
     const target = loadMoreRef.current;
-
     if (!target || !hasMoreProfiles) return;
-
     const observer = new IntersectionObserver(
       (entries) => {
-        const firstEntry = entries[0];
-
-        if (firstEntry?.isIntersecting) {
-          setVisibleCount((prev) => prev + 10);
-        }
+        if (entries[0]?.isIntersecting) setVisibleCount((prev) => prev + 10);
       },
-      {
-        root: null,
-        rootMargin: "120px",
-        threshold: 0.1,
-      }
+      { root: null, rootMargin: "120px", threshold: 0.1 }
     );
-
     observer.observe(target);
-
-    return () => {
-      observer.disconnect();
-    };
+    return () => observer.disconnect();
   }, [hasMoreProfiles, visibleProfiles.length]);
 
   function openProfile(handle?: string | null) {
@@ -111,186 +159,274 @@ export default function SearchProfilesResults({
     lineHeight: 1.5,
   };
 
-  const cardStyle: CSSProperties = {
-    borderRadius: 0,
-    border: "none",
-    borderBottom: "1px solid rgba(255,255,255,0.08)",
-    background: "transparent",
-    padding: "10px 2px",
-    display: "grid",
-    cursor: "pointer",
-  };
-
-  const rowStyle: CSSProperties = {
-    display: "grid",
-    gridTemplateColumns: "auto minmax(0, 1fr) auto",
-    gap: 10,
-    alignItems: "center",
-  };
-
-  const contentStyle: CSSProperties = {
-    minWidth: 0,
-    display: "grid",
-    gap: 4,
-  };
-
-  const titleStyle: CSSProperties = {
-    margin: 0,
-    color: "#fff",
-    fontSize: 14,
-    fontWeight: 600,
-    lineHeight: 1.2,
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-    whiteSpace: "nowrap",
-  };
-
-  const handleStyle: CSSProperties = {
-    color: "rgba(255,255,255,0.48)",
-    fontSize: 11,
-    fontWeight: 500,
-    lineHeight: 1.2,
-    whiteSpace: "nowrap",
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-  };
-
-  const ctaStyle: CSSProperties = {
-    minHeight: 34,
-    padding: "7px 11px",
-    borderRadius: 11,
-    border: "1px solid rgba(255,255,255,0.18)",
-    background: "rgba(255,255,255,0.06)",
-    color: "#fff",
-    cursor: "pointer",
-    fontWeight: 600,
-    fontSize: 12,
-    fontFamily: fontStack,
-    whiteSpace: "nowrap",
-  };
-
   if (!hasResults) {
     return (
-<RefreshableArea
-  onRefresh={mobileRefreshEnabled && onRefresh ? onRefresh : async () => {}}
-  indicatorTop="calc(env(safe-area-inset-top) + 116px)"
->
+      <RefreshableArea
+        onRefresh={mobileRefreshEnabled && onRefresh ? onRefresh : async () => {}}
+        indicatorTop="calc(env(safe-area-inset-top) + 116px)"
+      >
         <section style={shellStyle}>
-          <div style={noResultsStyle}>
-            {tCommon("noProfilesFound")}
-          </div>
+          <div style={noResultsStyle}>{tCommon("noProfilesFound")}</div>
         </section>
       </RefreshableArea>
     );
   }
 
   return (
-<RefreshableArea
-  onRefresh={mobileRefreshEnabled && onRefresh ? onRefresh : async () => {}}
-  indicatorTop="calc(env(safe-area-inset-top) + 116px)"
->
+    <RefreshableArea
+      onRefresh={mobileRefreshEnabled && onRefresh ? onRefresh : async () => {}}
+      indicatorTop="calc(env(safe-area-inset-top) + 116px)"
+    >
       <section style={shellStyle}>
-      {visibleProfiles.map((profile) => {
-        const fullName =
-          profile.displayName?.trim() ||
-          `${profile.firstName ?? ""} ${profile.lastName ?? ""}`.trim() ||
-          profile.handle ||
-          tCommon("user");
+        {visibleProfiles.map((p) => {
+          const fullName =
+            p.displayName?.trim() ||
+            `${p.firstName ?? ""} ${p.lastName ?? ""}`.trim() ||
+            p.handle ||
+            tCommon("user");
 
-        const canOpenProfile = Boolean(profile.handle);
+          const hasExperiences = offersExperiences(p);
+          const isFollowing = !!p.uid && !!followMap[p.uid];
+          const isSelf = !!currentUserId && p.uid === currentUserId;
 
-        return (
-          <article
-            key={profile.uid}
-            style={{
-              ...cardStyle,
-              cursor: canOpenProfile ? "pointer" : "default",
-            }}
-            className="search-profile-item"
-            onClick={() => openProfile(profile.handle)}
-          >
-            <div style={rowStyle} className="search-profile-row">
-              <LiveRingAvatar
-                entityId={profile.uid}
-                entityType="profile"
-                currentUserId={currentUserId}
-                photoURL={profile.photoURL}
-                displayName={fullName}
-                size={42}
-                onClick={(e) => { e.stopPropagation(); openProfile(profile.handle); }}
-              />
+          return (
+            <div
+              key={p.uid}
+              className="result-item"
+              onClick={() => openProfile(p.handle)}
+            >
+              <div className="result-grid">
+                <div className="result-main-mobile">
+                  <LiveRingAvatar
+                    entityId={p.uid}
+                    entityType="profile"
+                    currentUserId={currentUserId}
+                    photoURL={p.photoURL}
+                    displayName={fullName}
+                    size={42}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openProfile(p.handle);
+                    }}
+                  />
+                  <div className="result-content">
+                    <h3 className="result-name result-name-with-meta">
+                      <span className="result-name-text">{fullName}</span>
+                      {hasExperiences && (
+                        <>
+                          <span className="result-name-dot">·</span>
+                          <span className="result-name-experiences">
+                            Ofrece experiencias
+                          </span>
+                        </>
+                      )}
+                    </h3>
+                    <div className="result-handle">@{p.handle}</div>
+                  </div>
+                </div>
 
-              <div style={contentStyle}>
-                <h3 style={titleStyle}>{fullName}</h3>
-
-                {profile.handle ? (
-                  <span style={handleStyle}>@{profile.handle}</span>
-                ) : null}
+                {!isSelf && (
+                  <div className="actions-wrap" onClick={(e) => e.stopPropagation()}>
+                    {isFollowing ? (
+                      <span className="member-state" style={{ cursor: "default" }}>
+                        Siguiendo
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        className="primary-btn"
+                        disabled={!!followBusy[p.uid]}
+                        onClick={() => void handleFollow(p.uid)}
+                      >
+                        Seguir
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
-
-              <button
-                type="button"
-                style={ctaStyle}
-                disabled={!canOpenProfile}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  openProfile(profile.handle);
-                }}
-              >
-                {tCommon("openProfile")}
-              </button>
             </div>
-          </article>
-        );
-      })}
+          );
+        })}
 
-      {hasMoreProfiles ? (
-        <div
-          ref={loadMoreRef}
-          aria-hidden="true"
-          style={{
-            width: "100%",
-            height: 1,
-          }}
-        />
-      ) : null}
+        {hasMoreProfiles ? (
+          <div
+            ref={loadMoreRef}
+            aria-hidden="true"
+            style={{ width: "100%", height: 1 }}
+          />
+        ) : null}
 
-      <style jsx>{`
-        .search-profile-item {
-          transition: background 0.16s ease;
-        }
-
-        .search-profile-item:hover {
-          background: rgba(255, 255, 255, 0.035) !important;
-        }
-
-        .search-profile-row button:disabled {
-          opacity: 0.45;
-          cursor: not-allowed;
-        }
-
-        @media (max-width: 640px) {
-          .search-profile-item {
-            padding: 10px 2px !important;
+        <style jsx>{`
+          .result-item {
+            padding: 10px 14px;
+            transition: background 0.16s ease;
+            cursor: pointer;
           }
 
-          .search-profile-row {
-            grid-template-columns: auto minmax(0, 1fr) auto !important;
-            gap: 8px !important;
+          .result-item:hover {
+            background: rgba(255, 255, 255, 0.035);
           }
 
-          .search-profile-avatar {
-            width: 38px !important;
-            height: 38px !important;
+          .result-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 10px;
+            align-items: center;
           }
 
-          .search-profile-row button {
-            min-height: 32px !important;
-            padding: 6px 10px !important;
-            font-size: 11px !important;
+          .result-main-mobile {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            min-width: 0;
           }
-        }
-      `}</style>
+
+          .result-content {
+            min-width: 0;
+            overflow: hidden;
+            display: grid;
+            gap: 5px;
+          }
+
+          .result-name {
+            margin: 0;
+            font-size: 14px;
+            font-weight: 600;
+            line-height: 1.2;
+            color: #fff;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+          }
+
+          .result-name-with-meta {
+            display: flex;
+            align-items: baseline;
+            gap: 5px;
+            min-width: 0;
+          }
+
+          .result-name-text {
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+          }
+
+          .result-name-dot {
+            flex-shrink: 0;
+            color: rgba(255, 255, 255, 0.42);
+            font-size: 11px;
+            line-height: 1;
+          }
+
+          .result-name-experiences {
+            flex-shrink: 0;
+            color: rgba(168, 85, 255, 0.85);
+            font-size: 11px;
+            font-weight: 500;
+            line-height: 1.2;
+            white-space: nowrap;
+          }
+
+          /* @usuario debajo del nombre, alineado a la izquierda, sin contenedor */
+          .result-handle {
+            color: rgba(255, 255, 255, 0.44);
+            font-size: 12px;
+            line-height: 1.2;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+          }
+
+          .actions-wrap {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 6px;
+            flex-wrap: nowrap;
+            flex-shrink: 0;
+          }
+
+          .primary-btn {
+            width: 134px;
+            box-sizing: border-box;
+            min-height: 34px;
+            padding: 7px 8px;
+            border-radius: 10px;
+            border: none;
+            background: linear-gradient(135deg, #ec4899, #9333ea);
+            color: #fff;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 12px;
+            letter-spacing: -0.01em;
+            font-family: ${fontStack};
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            white-space: nowrap;
+          }
+
+          .primary-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+          }
+
+          /* Estado "Siguiendo" — mismo tamaño que el botón, no accionable */
+          .member-state {
+            width: 134px;
+            box-sizing: border-box;
+            min-height: 34px;
+            padding: 7px 8px;
+            border-radius: 10px;
+            border: none;
+            background: rgba(255, 255, 255, 0.06);
+            color: rgba(255, 255, 255, 0.5);
+            font-weight: 600;
+            font-size: 12px;
+            letter-spacing: -0.01em;
+            font-family: ${fontStack};
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            white-space: nowrap;
+          }
+
+          @media (max-width: 640px) {
+            .result-item {
+              padding: 10px 12px;
+            }
+
+            .result-grid {
+              grid-template-columns: minmax(0, 1fr) auto;
+              gap: 8px;
+              align-items: center;
+            }
+
+            .result-main-mobile {
+              gap: 8px;
+              align-items: center;
+            }
+
+            .result-name {
+              font-size: 13px;
+            }
+
+            .actions-wrap {
+              justify-content: flex-end;
+              width: auto;
+            }
+
+            .primary-btn,
+            .member-state {
+              width: 118px;
+              min-height: 32px;
+              padding: 6px 8px;
+              font-size: 11px;
+            }
+          }
+        `}</style>
       </section>
     </RefreshableArea>
   );

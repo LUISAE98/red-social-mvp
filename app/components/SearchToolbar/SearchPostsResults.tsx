@@ -4,7 +4,6 @@ import {
   useCallback,
   useEffect,
   useMemo,
-  useRef,
   useState,
   type CSSProperties,
 } from "react";
@@ -37,6 +36,16 @@ import { useTranslations } from "next-intl";
 const MIN_POST_SEARCH_LENGTH = 2;
 const SEARCH_POSTS_PAGE_SIZE = 20;
 
+// Filtro multi-select de posts. "all" = sin filtro.
+export type PostsSearchFilter =
+  | "all"
+  | "live"
+  | "vod"
+  | "premium"
+  | "free"
+  | "video"
+  | "scheduled";
+
 type SearchPostsResultsProps = {
   fontStack: string;
   search: string;
@@ -44,7 +53,66 @@ type SearchPostsResultsProps = {
   onNavigate: (href: string) => void;
   // Post seleccionado desde el preview → se muestra primero en la lista.
   pinnedPostId?: string | null;
+  filter?: PostsSearchFilter[];
+  // Rango de fechas (YYYY-MM-DD). Vacío = sin filtro de fecha.
+  fromDate?: string;
+  toDate?: string;
 };
+
+// Detección del tipo de post para el filtro (mismo criterio que los badges).
+function postMatchesFilter(post: Post, filters: PostsSearchFilter[]): boolean {
+  const active = filters.filter((f) => f !== "all");
+  if (active.length === 0) return true;
+
+  const liveStatus = post.liveData?.status ?? null;
+  const isLive = post.postType === "live" && liveStatus === "live";
+  const isVod = post.postType === "live" && liveStatus === "ended";
+  const isScheduled =
+    post.postType === "scheduled_event" ||
+    (post.postType === "live" &&
+      (liveStatus === "scheduled" || liveStatus === "upcoming"));
+  const isVideo = post.postType === "video";
+  const isPremium =
+    post.requiresPayment === true ||
+    post.requiresSubscription === true ||
+    post.accessModel === "one_time_purchase" ||
+    post.access === "paid";
+
+  const contentSel = active.filter(
+    (f) => f === "live" || f === "vod" || f === "video" || f === "scheduled"
+  );
+  if (contentSel.length) {
+    const ok =
+      (contentSel.includes("live") && isLive) ||
+      (contentSel.includes("vod") && isVod) ||
+      (contentSel.includes("video") && isVideo) ||
+      (contentSel.includes("scheduled") && isScheduled);
+    if (!ok) return false;
+  }
+
+  // Acceso: premium / gratis (OR entre ellos si ambos están activos).
+  const accessSel = active.filter((f) => f === "premium" || f === "free");
+  if (accessSel.length) {
+    const ok =
+      (accessSel.includes("premium") && isPremium) ||
+      (accessSel.includes("free") && !isPremium);
+    if (!ok) return false;
+  }
+
+  return true;
+}
+
+function dayStartMs(value?: string): number | null {
+  if (!value) return null;
+  const ms = new Date(`${value}T00:00:00`).getTime();
+  return Number.isNaN(ms) ? null : ms;
+}
+
+function dayEndMs(value?: string): number | null {
+  if (!value) return null;
+  const ms = new Date(`${value}T23:59:59.999`).getTime();
+  return Number.isNaN(ms) ? null : ms;
+}
 
 type MemberStatus = "active" | "muted" | "banned" | "removed" | null;
 
@@ -53,20 +121,6 @@ type PostWithFlags = Post & {
   authorMemberStatus?: MemberStatus;
   authorMutedUntil?: unknown;
 };
-
-function getStartOfDayMs(dateValue: string): number | null {
-  if (!dateValue) return null;
-  const date = new Date(`${dateValue}T00:00:00`);
-  const ms = date.getTime();
-  return Number.isNaN(ms) ? null : ms;
-}
-
-function getEndOfDayMs(dateValue: string): number | null {
-  if (!dateValue) return null;
-  const date = new Date(`${dateValue}T23:59:59.999`);
-  const ms = date.getTime();
-  return Number.isNaN(ms) ? null : ms;
-}
 
 function normalizeSearchPost(post: PostWithFlags): PostWithFlags {
   return {
@@ -101,30 +155,45 @@ function normalizeSearchPost(post: PostWithFlags): PostWithFlags {
   };
 }
 
+// Cache module-level de resultados por búsqueda (+ filtros): sobrevive a
+// desmontajes (cambios de pestaña) para no recargar. Se limpia al recargar la página.
+const postsResultCache = new Map<string, PostWithFlags[]>();
+function postsCacheKey(
+  search: string,
+  uid: string | null,
+  from: string | undefined,
+  to: string | undefined
+): string {
+  return `${search}::${uid ?? ""}::${from ?? ""}::${to ?? ""}`;
+}
+
 export default function SearchPostsResults({
   fontStack,
   search,
   currentUser,
   pinnedPostId,
+  filter,
+  fromDate,
+  toDate,
 }: SearchPostsResultsProps) {
   const tCommon = useTranslations("common");
   const tPosts = useTranslations("posts");
   const userId = currentUser?.uid ?? null;
 
-  const [posts, setPosts] = useState<PostWithFlags[]>([]);
+  const [posts, setPosts] = useState<PostWithFlags[]>(
+    () =>
+      postsResultCache.get(
+        postsCacheKey(search.trim().toLowerCase(), currentUser?.uid ?? null, fromDate, toDate)
+      ) ?? []
+  );
   const [pinnedPost, setPinnedPost] = useState<PostWithFlags | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => {
+    const key = postsCacheKey(search.trim().toLowerCase(), currentUser?.uid ?? null, fromDate, toDate);
+    return search.trim().length >= MIN_POST_SEARCH_LENGTH && !postsResultCache.has(key);
+  });
   const [error, setError] = useState<string | null>(null);
   const [refreshNonce, setRefreshNonce] = useState(0);
   const [mobileRefreshEnabled, setMobileRefreshEnabled] = useState(false);
-
-  const [isFiltersOpen, setIsFiltersOpen] = useState(false);
-  const [draftFromDate, setDraftFromDate] = useState("");
-  const [draftToDate, setDraftToDate] = useState("");
-  const [fromDate, setFromDate] = useState("");
-  const [toDate, setToDate] = useState("");
-
-  const filtersPanelRef = useRef<HTMLDivElement | null>(null);
 
   const normalizedSearch = useMemo(() => search.trim().toLowerCase(), [search]);
     const handlePostsPullRefresh = useCallback(async () => {
@@ -184,23 +253,6 @@ export default function SearchPostsResults({
   }, []);
 
   useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (!filtersPanelRef.current) return;
-      if (!filtersPanelRef.current.contains(event.target as Node)) {
-        setIsFiltersOpen(false);
-      }
-    }
-
-    if (isFiltersOpen) {
-      document.addEventListener("mousedown", handleClickOutside);
-    }
-
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [isFiltersOpen]);
-
-  useEffect(() => {
     let active = true;
 
     async function run() {
@@ -211,12 +263,23 @@ export default function SearchPostsResults({
         return;
       }
 
+      const cacheKey = postsCacheKey(normalizedSearch, userId, fromDate, toDate);
+      // Refresh manual (pull-to-refresh): invalida el cache de esta búsqueda.
+      if (refreshNonce > 0) postsResultCache.delete(cacheKey);
+      const cached = postsResultCache.get(cacheKey);
+      if (cached) {
+        setPosts(cached);
+        setLoading(false);
+        setError(null);
+        return;
+      }
+
       try {
         setLoading(true);
         setError(null);
 
-        const fromMs = getStartOfDayMs(fromDate);
-        const toMs = getEndOfDayMs(toDate);
+        const fromMs = dayStartMs(fromDate);
+        const toMs = dayEndMs(toDate);
 
         const result = await searchPosts({
           search: normalizedSearch,
@@ -228,11 +291,11 @@ export default function SearchPostsResults({
 
         if (!active) return;
 
-        setPosts(
-          result.posts
-            .map((post) => normalizeSearchPost(post as PostWithFlags))
-            .filter((post) => post.isDeleted !== true)
-        );
+        const normalized = result.posts
+          .map((post) => normalizeSearchPost(post as PostWithFlags))
+          .filter((post) => post.isDeleted !== true);
+        postsResultCache.set(cacheKey, normalized);
+        setPosts(normalized);
       } catch (e: unknown) {
         if (!active) return;
         console.error("searchPosts error completo:", e);
@@ -439,52 +502,15 @@ export default function SearchPostsResults({
     return await fetchCommentReplies({ postId, commentId });
   }
 
-  function clearDateFilters() {
-    setDraftFromDate("");
-    setDraftToDate("");
-    setFromDate("");
-    setToDate("");
-  }
-
-  function applyDateFilters() {
-    setFromDate(draftFromDate);
-    setToDate(draftToDate);
-    setIsFiltersOpen(false);
-  }
-
   const filteredPosts = posts.filter((post) => post.isDeleted !== true);
-  // El post fijado (seleccionado en el preview) va primero, sin duplicarse.
-  const visiblePosts = pinnedPost
-    ? [pinnedPost, ...filteredPosts.filter((p) => p.id !== pinnedPost.id)]
+  // El post fijado (seleccionado en el preview) va primero y siempre visible,
+  // sin importar el filtro; el resto se filtra por tipo.
+  const base = pinnedPost
+    ? filteredPosts.filter((p) => p.id !== pinnedPost.id)
     : filteredPosts;
+  const matched = base.filter((p) => postMatchesFilter(p, filter ?? []));
+  const visiblePosts = pinnedPost ? [pinnedPost, ...matched] : matched;
   const hasResults = visiblePosts.length > 0;
-
-  const activeFilters = [
-    ...(fromDate
-      ? [
-          {
-            key: "fromDate",
-            label: `${tCommon("filterFrom")}: ${fromDate}`,
-            onRemove: () => {
-              setDraftFromDate("");
-              setFromDate("");
-            },
-          },
-        ]
-      : []),
-    ...(toDate
-      ? [
-          {
-            key: "toDate",
-            label: `${tCommon("filterUntil")}: ${toDate}`,
-            onRemove: () => {
-              setDraftToDate("");
-              setToDate("");
-            },
-          },
-        ]
-      : []),
-  ];
 
   const shellStyle: CSSProperties = {
     width: "100%",
@@ -497,154 +523,6 @@ export default function SearchPostsResults({
     marginBottom: 18,
     marginTop: -16,
     overflowX: "hidden",
-  };
-
-  const topBarStyle: CSSProperties = {
-    display: "grid",
-    gridTemplateColumns: "minmax(0, 1fr) auto",
-    gap: 8,
-    alignItems: "center",
-    position: "relative",
-    marginBottom: -10,
-    zIndex: 80,
-  };
-
-  const activeFiltersWrapStyle: CSSProperties = {
-    minHeight: 0,
-    display: "flex",
-    alignItems: "center",
-    gap: 8,
-    flexWrap: "wrap",
-    padding: "0 2px",
-  };
-
-  const activeFilterPillStyle: CSSProperties = {
-    display: "inline-flex",
-    alignItems: "center",
-    gap: 8,
-    minHeight: 30,
-    padding: "5px 10px",
-    borderRadius: 999,
-    border: "1px solid rgba(255,255,255,0.14)",
-    background: "rgba(255,255,255,0.05)",
-    color: "#fff",
-    fontSize: 12,
-    fontWeight: 600,
-    lineHeight: 1.2,
-    whiteSpace: "nowrap",
-  };
-
-  const activeFilterRemoveStyle: CSSProperties = {
-    border: "none",
-    background: "transparent",
-    color: "rgba(255,255,255,0.72)",
-    cursor: "pointer",
-    padding: 0,
-    fontSize: 14,
-    lineHeight: 1,
-  };
-
-  const filtersButtonStyle: CSSProperties = {
-    minHeight: 36,
-    padding: "8px 12px",
-    borderRadius: 12,
-    border: "1px solid rgba(255,255,255,0.14)",
-    background: "rgba(10,10,10,0.92)",
-    color: "#fff",
-    cursor: "pointer",
-    fontWeight: 700,
-    fontSize: 12.5,
-    fontFamily: fontStack,
-    display: "inline-flex",
-    alignItems: "center",
-    gap: 8,
-    whiteSpace: "nowrap",
-    transform: "translateY(-12px)",
-    position: "relative",
-    zIndex: 30,
-  };
-
-  const filtersPanelStyle: CSSProperties = {
-    position: "absolute",
-    top: 44,
-    right: 0,
-    width: 280,
-    maxWidth: "calc(100vw - 24px)",
-    borderRadius: 16,
-    border: "1px solid rgba(255,255,255,0.10)",
-    background: "rgba(10,10,10,0.98)",
-    boxShadow: "0 16px 40px rgba(0,0,0,0.45)",
-    padding: 12,
-    display: "grid",
-    gap: 12,
-    zIndex: 20,
-    backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)",
-  };
-
-  const filterBlockStyle: CSSProperties = {
-    display: "grid",
-    gap: 8,
-  };
-
-  const filterBlockTitleStyle: CSSProperties = {
-    margin: 0,
-    fontSize: 11,
-    fontWeight: 700,
-    letterSpacing: "0.04em",
-    textTransform: "uppercase",
-    color: "rgba(255,255,255,0.52)",
-  };
-
-  const dateFieldWrapStyle: CSSProperties = {
-    display: "grid",
-    gap: 6,
-  };
-
-  const dateLabelStyle: CSSProperties = {
-    fontSize: 12,
-    color: "rgba(255,255,255,0.74)",
-    fontWeight: 600,
-  };
-
-  const dateInputStyle: CSSProperties = {
-    width: "100%",
-    minHeight: 38,
-    padding: "8px 10px",
-    borderRadius: 12,
-    border: "1px solid rgba(255,255,255,0.12)",
-    background: "rgba(255,255,255,0.05)",
-    color: "#fff",
-    fontSize: 13,
-    fontFamily: fontStack,
-    outline: "none",
-  };
-
-  const filterActionsRowStyle: CSSProperties = {
-    display: "flex",
-    justifyContent: "space-between",
-    gap: 8,
-    paddingTop: 4,
-  };
-
-  const filterActionSecondaryStyle: CSSProperties = {
-    flex: 1,
-    minHeight: 34,
-    padding: "7px 10px",
-    borderRadius: 11,
-    border: "1px solid rgba(255,255,255,0.14)",
-    background: "rgba(255,255,255,0.04)",
-    color: "#fff",
-    cursor: "pointer",
-    fontSize: 12,
-    fontWeight: 600,
-    fontFamily: fontStack,
-  };
-
-  const filterActionPrimaryStyle: CSSProperties = {
-    ...filterActionSecondaryStyle,
-    background: "#fff",
-    color: "#000",
-    border: "1px solid rgba(255,255,255,0.20)",
   };
 
   // Sin resultados: solo texto, centrado en la pantalla, sin contenedor.
@@ -726,90 +604,6 @@ export default function SearchPostsResults({
       indicatorTop="calc(env(safe-area-inset-top) + 116px)"
     >
       <section style={shellStyle}>
-      <div style={topBarStyle} className="search-posts-topbar">
-        <div style={activeFiltersWrapStyle}>
-          {activeFilters.length > 0
-            ? activeFilters.map((filter) => (
-                <span key={filter.key} style={activeFilterPillStyle}>
-                  {filter.label}
-                  <button
-                    type="button"
-                    style={activeFilterRemoveStyle}
-                    onClick={filter.onRemove}
-                    aria-label={tCommon("removeFilter", { label: filter.label })}
-                  >
-                    ×
-                  </button>
-                </span>
-              ))
-            : null}
-        </div>
-
-        <div ref={filtersPanelRef} className="search-posts-filters-anchor">
-          <button
-            type="button"
-            style={filtersButtonStyle}
-            onClick={() => setIsFiltersOpen((prev) => !prev)}
-          >
-            <span aria-hidden="true">🧮</span>
-            {tCommon("filters")}
-          </button>
-
-          {isFiltersOpen && (
-            <div style={filtersPanelStyle} className="search-posts-filters-panel">
-              <div style={filterBlockStyle}>
-                <p style={filterBlockTitleStyle}>{tCommon("filterDate")}</p>
-
-                <div style={dateFieldWrapStyle}>
-                  <label htmlFor="posts-filter-from" style={dateLabelStyle}>
-                    {tCommon("filterFrom")}
-                  </label>
-                  <input
-                    id="posts-filter-from"
-                    type="date"
-                    value={draftFromDate}
-                    onChange={(e) => setDraftFromDate(e.target.value)}
-                    style={dateInputStyle}
-                    max={draftToDate || undefined}
-                  />
-                </div>
-
-                <div style={dateFieldWrapStyle}>
-                  <label htmlFor="posts-filter-to" style={dateLabelStyle}>
-                    {tCommon("filterUntil")}
-                  </label>
-                  <input
-                    id="posts-filter-to"
-                    type="date"
-                    value={draftToDate}
-                    onChange={(e) => setDraftToDate(e.target.value)}
-                    style={dateInputStyle}
-                    min={draftFromDate || undefined}
-                  />
-                </div>
-              </div>
-
-              <div style={filterActionsRowStyle}>
-                <button
-                  type="button"
-                  style={filterActionSecondaryStyle}
-                  onClick={clearDateFilters}
-                >
-                  {tCommon("clear")}
-                </button>
-
-                <button
-                  type="button"
-                  style={filterActionPrimaryStyle}
-                  onClick={applyDateFilters}
-                >
-                  {tCommon("done")}
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
 
       {!hasResults ? (
         <div style={noResultsStyle}>{tCommon("noExactMatches")}</div>
@@ -842,37 +636,6 @@ export default function SearchPostsResults({
         })
       )}
 
-      <style jsx>{`
-        .search-posts-filters-anchor {
-          position: relative;
-        }
-
-        @media (max-width: 768px) {
-          .search-posts-topbar {
-            grid-template-columns: minmax(0, 1fr) auto !important;
-            align-items: center !important;
-            gap: 8px !important;
-          }
-
-          .search-posts-filters-anchor {
-            width: auto;
-          }
-
-          .search-posts-filters-anchor button {
-            width: auto;
-            justify-content: center;
-          }
-
-          .search-posts-filters-panel {
-            position: absolute !important;
-            top: 40px !important;
-            right: 0 !important;
-            width: 280px !important;
-            max-width: calc(100vw - 24px) !important;
-            margin-top: 0 !important;
-          }
-        }
-      `}</style>
       </section>
     </RefreshableArea>
   );

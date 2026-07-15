@@ -228,7 +228,7 @@ function isVisibleEnabledService(service: Record<string, unknown> | null): boole
 
 // True si la comunidad ofrece saludos, consejos o algún tipo de sesión
 // (meet & greet / clase / sesión exclusiva). No cuenta donaciones.
-function offersExperiences(
+export function offersExperiences(
   source: {
     offerings?: Array<Record<string, unknown>> | Record<string, unknown>;
     monetization?: Record<string, unknown>;

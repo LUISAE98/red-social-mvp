@@ -5,6 +5,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 import { useTranslations } from "next-intl";
 import { createPortal } from "react-dom";
 import Link from "next/link";
+import { useRouter, usePathname } from "next/navigation";
 import { doc, getDoc, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { StoryDoc, StoryType } from "@/lib/stories/types";
@@ -100,6 +101,8 @@ export default function StoryViewer({
   const speechCursorRef = useRef<HTMLSpanElement>(null);
 
   const { user } = useAuth();
+  const router = useRouter();
+  const pathname = usePathname();
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const progressRafRef = useRef<number | null>(null);
@@ -507,6 +510,11 @@ export default function StoryViewer({
   const effectiveType = type ?? story.type;
 
   function handleWantGreeting() {
+    // Solo se puede comprar logueado: si no hay sesión, ir a login.
+    if (!user) {
+      router.push(`/login?next=${encodeURIComponent(pathname)}`);
+      return;
+    }
     setGreetToName("");
     setGreetInstructions("");
     setGreetAllowStory(false);
