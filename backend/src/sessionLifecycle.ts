@@ -26,6 +26,7 @@ import {
   egressS3AccessKey,
   egressS3SecretKey,
   createEgressClient,
+  createRoomServiceClient,
 } from "./livekit";
 
 if (!admin.apps.length) {
@@ -260,7 +261,7 @@ export const endSession = onCall(
     if (!snap.exists) throw new HttpsError("not-found", "La sesión no existe.");
 
     const session = snap.data()!;
-    const { creatorId, buyerId, status, livekitEgressId, recordingStatus, startedAt, creatorJoinedAt, buyerJoinedAt } = session;
+    const { creatorId, buyerId, status, livekitEgressId, recordingStatus, startedAt, creatorJoinedAt, buyerJoinedAt, roomName } = session;
 
     const isCreator = uid === creatorId;
     const isBuyer = uid === buyerId;
@@ -315,11 +316,28 @@ export const endSession = onCall(
 
     updates.status = finalStatus;
 
-    // Detener grabación activa → el webhook de LiveKit (Bloque 9) actualizará a "ready"
+    // No cortamos la grabación de inmediato: señalamos el cierre por metadata de
+    // la sala. La plantilla de grabación reproduce ~6s de negro con el bloque
+    // "Vibra/vibraon.com" (aparece en el segundo 1) y recién ahí detiene el
+    // egress. Si la señal falla, cortamos el egress directo como respaldo.
     if (livekitEgressId && recordingStatus === "recording") {
-      const egressClient = createEgressClient();
-      await stopRecording(egressClient, livekitEgressId as string, cleanId);
-      updates.recordingStatus = "processing";
+      let signaled = false;
+      if (roomName) {
+        try {
+          await createRoomServiceClient().updateRoomMetadata(
+            roomName as string,
+            JSON.stringify({ ended: true })
+          );
+          signaled = true;
+        } catch (err: unknown) {
+          logger.warn("session_end_outro_signal_failed", { sessionId: cleanId, err: String(err) });
+        }
+      }
+      if (!signaled) {
+        const egressClient = createEgressClient();
+        await stopRecording(egressClient, livekitEgressId as string, cleanId);
+        updates.recordingStatus = "processing";
+      }
     }
 
     await docRef.update(updates);

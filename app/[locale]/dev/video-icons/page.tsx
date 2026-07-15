@@ -20,6 +20,7 @@ import {
 } from "@/app/components/VibraServiceIcons/VibraVideoIcons";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
+import { BRAND_DOMAIN } from "@/lib/brand";
 
 // ── Subnav mobile icons ────────────────────────────────────────────────────────
 
@@ -492,8 +493,58 @@ function TriggerBtn({ label, onClick }: { label: string; onClick: () => void }) 
 
 // ── Página ────────────────────────────────────────────────────────────────────
 
+// Réplica EXACTA del overlay que se hornea en la grabación de la sesión
+// (mismos px del cuadro 1080p). Fuente: app/[locale]/egress/session/page.tsx
+function SessionOverlayBadge({
+  avatarUrl,
+  name,
+  type,
+}: {
+  avatarUrl: string | null;
+  name: string;
+  type: "meet_greet" | "exclusive_session";
+}) {
+  const typeLabel = type === "meet_greet" ? "Tiempo contigo" : "Sesión exclusiva";
+  const initials = (name || "?").trim().charAt(0).toUpperCase();
+  const AVATAR = 104;
+  const RING_W = 7;
+  const GAP = 5;
+  const OUTER = AVATAR + 2 * GAP + 2 * RING_W;
+  const r = (OUTER - RING_W) / 2;
+  return (
+    <div style={{ position: "absolute", top: 34, left: 34, display: "flex", alignItems: "center", gap: 16, zIndex: 20 }}>
+      <div style={{ position: "relative", width: OUTER, height: OUTER, flexShrink: 0, filter: "drop-shadow(0 4px 14px rgba(0,0,0,0.5))" }}>
+        <svg width={OUTER} height={OUTER} style={{ position: "absolute", inset: 0, display: "block" }} aria-hidden="true">
+          <defs>
+            <linearGradient id="vibraRingGradDev" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#ec4899" />
+              <stop offset="52%" stopColor="#9333ea" />
+              <stop offset="100%" stopColor="#3b82f6" />
+            </linearGradient>
+          </defs>
+          <circle cx={OUTER / 2} cy={OUTER / 2} r={r} fill="none" stroke="url(#vibraRingGradDev)" strokeWidth={RING_W} />
+        </svg>
+        <div style={{ position: "absolute", top: GAP + RING_W, left: GAP + RING_W, width: AVATAR, height: AVATAR, borderRadius: "50%", overflow: "hidden", background: "#1a1a1a", display: "grid", placeItems: "center" }}>
+          {avatarUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={avatarUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          ) : (
+            <span style={{ color: "#fff", fontWeight: 700, fontSize: Math.round(AVATAR * 0.4) }}>{initials}</span>
+          )}
+        </div>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+        <span style={{ color: "#fff", fontWeight: 700, fontSize: 37, letterSpacing: "-0.01em", textShadow: "0 2px 10px rgba(0,0,0,0.7)", lineHeight: 1.1 }}>{name}</span>
+        <span style={{ color: "rgba(255,255,255,0.88)", fontWeight: 500, fontSize: 27, textShadow: "0 2px 10px rgba(0,0,0,0.7)", lineHeight: 1.1 }}>{typeLabel}</span>
+      </div>
+    </div>
+  );
+}
+
 export default function VideoIconsPreview() {
   const [elapsed, setElapsed] = useState(0);
+  // Cambiar esta key re-monta el bloque y vuelve a disparar la animación de entrada.
+  const [animKey, setAnimKey] = useState(0);
   useEffect(() => {
     const id = setInterval(() => setElapsed((t) => t + 1), 1000);
     return () => clearInterval(id);
@@ -585,6 +636,91 @@ export default function VideoIconsPreview() {
 
   return (
     <div style={{ background: "#0a0a0a", minHeight: "100vh", padding: "40px 32px", fontFamily: "inherit" }}>
+
+      {/* ── Estilo del texto "Vibra" animado (copiado del login) ── */}
+      <style>{`
+        .vibraHeroText {
+          background: linear-gradient(100deg, #ff2fb3 0%, #a855ff 45%, #4f46ff 100%);
+          background-size: 220% 220%;
+          -webkit-background-clip: text;
+          background-clip: text;
+          color: transparent;
+          animation: vibraTextFlow 4.5s ease-in-out infinite;
+        }
+        @keyframes vibraTextFlow {
+          0%, 100% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+        }
+        @keyframes vibraReveal {
+          0%   { opacity: 0; transform: translateY(28px) scale(0.94); filter: blur(12px); }
+          60%  { opacity: 1; }
+          100% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+        }
+      `}</style>
+
+      {/* ══════════════════════════════════════════════════════════════════════ */}
+      {/* LIENZO DE DISEÑO — animación "Vibra" para la descarga de sesión        */}
+      {/* ══════════════════════════════════════════════════════════════════════ */}
+      <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", padding: "24px 0 56px", gap: 24 }}>
+        <div
+          key={animKey}
+          style={{
+            display: "inline-flex",
+            flexDirection: "column",
+            alignItems: "stretch",
+            animation: "vibraReveal 1s cubic-bezier(0.22, 1, 0.36, 1) both",
+            willChange: "transform, opacity, filter",
+          }}
+        >
+          <span
+            className="vibraHeroText"
+            style={{ fontSize: 104, fontWeight: 700, letterSpacing: "-0.045em", lineHeight: 1 }}
+          >
+            Vibra
+          </span>
+          {/* mismo ancho que "Vibra": las letras se reparten de borde a borde */}
+          <span style={{ display: "flex", justifyContent: "space-between", color: "#fff", fontSize: 30, fontWeight: 600, lineHeight: 1, marginTop: -4 }}>
+            {BRAND_DOMAIN.split("").map((ch, i) => (
+              <span key={i}>{ch}</span>
+            ))}
+          </span>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setAnimKey((k) => k + 1)}
+          style={{
+            border: "1px solid rgba(255,255,255,0.16)",
+            background: "rgba(255,255,255,0.06)",
+            color: "rgba(255,255,255,0.85)",
+            borderRadius: 999,
+            padding: "8px 18px",
+            fontSize: 13,
+            fontWeight: 600,
+            cursor: "pointer",
+            fontFamily: "inherit",
+          }}
+        >
+          Repetir animación
+        </button>
+      </div>
+
+      {/* ══════════════════════════════════════════════════════════════════════ */}
+      {/* OVERLAY REAL DE LA SESIÓN — tamaño real (1:1) sobre cuadro 1920×1080    */}
+      {/* ══════════════════════════════════════════════════════════════════════ */}
+      <h2 style={{ color: "#fff", fontSize: 16, fontWeight: 700, margin: "0 0 4px" }}>
+        Overlay de la sesión — tamaño real (1:1 sobre cuadro 1920×1080)
+      </h2>
+      <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 13, marginBottom: 12, lineHeight: 1.6 }}>
+        Exactamente lo que se hornea en la grabación. Desplázate dentro del recuadro para ver el cuadro completo.
+        <br />
+        Medidas reales (px): esquina 34 · avatar Ø104 · aro 7 · hueco transparente 5 · nombre 37/700 · servicio 27/500.
+      </p>
+      <div style={{ overflow: "auto", maxWidth: "100%", maxHeight: 560, border: "1px solid rgba(255,255,255,0.10)", borderRadius: 12, marginBottom: 56 }}>
+        <div style={{ position: "relative", width: 1920, height: 1080, background: "linear-gradient(135deg, #334155 0%, #0f172a 100%)" }}>
+          <SessionOverlayBadge avatarUrl={null} name="Nombre del creador" type="meet_greet" />
+        </div>
+      </div>
 
       <VibraToast toast={toast} />
       <VibraToast toast={demoToast} />

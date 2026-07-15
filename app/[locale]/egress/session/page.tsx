@@ -13,7 +13,7 @@
 // Solo se prueba en producción (Vercel): el grabador vive en la nube y necesita
 // abrir esta URL pública; no alcanza localhost.
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Room, Track } from "livekit-client";
 import EgressHelper from "@livekit/egress-sdk";
 import {
@@ -22,7 +22,9 @@ import {
   VideoTrack,
   useTracks,
   useParticipants,
+  useRoomInfo,
 } from "@livekit/components-react";
+import { BRAND_DOMAIN } from "@/lib/brand";
 
 const TYPE_LABEL: Record<string, string> = {
   meet_greet: "Tiempo contigo",
@@ -44,30 +46,34 @@ function OverlayBadge({
   const typeLabel = TYPE_LABEL[type] ?? "";
   const initials = (name || "?").trim().charAt(0).toUpperCase();
   const AVATAR = 104;
-  const RING = 7;
+  const RING_W = 7;
+  const GAP = 5; // hueco TRANSPARENTE entre el avatar y el aro (deja ver el video)
+  const OUTER = AVATAR + 2 * GAP + 2 * RING_W;
+  const r = (OUTER - RING_W) / 2;
   return (
     <div style={{ position: "absolute", top: 34, left: 34, display: "flex", alignItems: "center", gap: 16, zIndex: 20 }}>
-      <div
-        style={{
-          width: AVATAR + RING * 2,
-          height: AVATAR + RING * 2,
-          borderRadius: "50%",
-          background: "linear-gradient(135deg, #ec4899 0%, #9333ea 52%, #3b82f6 100%)",
-          padding: RING,
-          boxSizing: "border-box",
-          flexShrink: 0,
-          boxShadow: "0 4px 18px rgba(0,0,0,0.45)",
-        }}
-      >
+      <div style={{ position: "relative", width: OUTER, height: OUTER, flexShrink: 0, filter: "drop-shadow(0 4px 14px rgba(0,0,0,0.5))" }}>
+        {/* Aro de Vibra como anillo real: centro y hueco transparentes */}
+        <svg width={OUTER} height={OUTER} style={{ position: "absolute", inset: 0, display: "block" }} aria-hidden="true">
+          <defs>
+            <linearGradient id="vibraRingGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#ec4899" />
+              <stop offset="52%" stopColor="#9333ea" />
+              <stop offset="100%" stopColor="#3b82f6" />
+            </linearGradient>
+          </defs>
+          <circle cx={OUTER / 2} cy={OUTER / 2} r={r} fill="none" stroke="url(#vibraRingGrad)" strokeWidth={RING_W} />
+        </svg>
         <div
           style={{
-            width: "100%",
-            height: "100%",
+            position: "absolute",
+            top: GAP + RING_W,
+            left: GAP + RING_W,
+            width: AVATAR,
+            height: AVATAR,
             borderRadius: "50%",
             overflow: "hidden",
             background: "#1a1a1a",
-            border: "2px solid #000",
-            boxSizing: "border-box",
             display: "grid",
             placeItems: "center",
           }}
@@ -94,9 +100,55 @@ function OverlayBadge({
   );
 }
 
+// Cierre de la grabación: ~6s de negro. En el segundo 1 aparece el bloque
+// "Vibra / vibraon.com" (con animación de entrada) y se queda hasta el final.
+function VibraOutro({ show }: { show: boolean }) {
+  return (
+    <>
+      <style>{`
+        .vibraOutroText {
+          background: linear-gradient(100deg, #ff2fb3 0%, #a855ff 45%, #4f46ff 100%);
+          background-size: 220% 220%;
+          -webkit-background-clip: text;
+          background-clip: text;
+          color: transparent;
+          animation: vibraTextFlow 4.5s ease-in-out infinite;
+        }
+        @keyframes vibraTextFlow { 0%,100%{ background-position:0% 50% } 50%{ background-position:100% 50% } }
+        @keyframes vibraReveal {
+          0%   { opacity:0; transform: translateY(28px) scale(0.94); filter: blur(12px); }
+          60%  { opacity:1; }
+          100% { opacity:1; transform: translateY(0) scale(1); filter: blur(0); }
+        }
+      `}</style>
+      {show ? (
+        <div
+          style={{
+            display: "inline-flex",
+            flexDirection: "column",
+            alignItems: "stretch",
+            animation: "vibraReveal 1s cubic-bezier(0.22, 1, 0.36, 1) both",
+            willChange: "transform, opacity, filter",
+          }}
+        >
+          <span className="vibraOutroText" style={{ fontSize: 135, fontWeight: 700, letterSpacing: "-0.045em", lineHeight: 1 }}>
+            Vibra
+          </span>
+          <span style={{ display: "flex", justifyContent: "space-between", color: "#fff", fontSize: 39, fontWeight: 600, lineHeight: 1, marginTop: -5 }}>
+            {BRAND_DOMAIN.split("").map((ch, i) => (
+              <span key={i}>{ch}</span>
+            ))}
+          </span>
+        </div>
+      ) : null}
+    </>
+  );
+}
+
 function CreatorFocusLayout() {
   const tracks = useTracks([Track.Source.Camera], { onlySubscribed: true });
   const participants = useParticipants();
+  const roomInfo = useRoomInfo();
   const creator = tracks.find((t) => t.participant.identity.startsWith("creator_"));
   const buyer = tracks.find((t) => t.participant.identity.startsWith("buyer_"));
 
@@ -108,6 +160,32 @@ function CreatorFocusLayout() {
       const m = JSON.parse(creatorP.metadata) as { avatarUrl?: string | null; name?: string; type?: string };
       overlay = { avatarUrl: m.avatarUrl ?? null, name: m.name ?? creatorP.name ?? "", type: m.type ?? "" };
     } catch { /* metadata inválida — sin overlay */ }
+  }
+
+  // Cierre: cuando el backend marca la sala como "ended", se corta a negro,
+  // en el segundo 1 aparece el bloque Vibra y a los 6s se detiene la grabación.
+  const [outro, setOutro] = useState(false);
+  const [showVibra, setShowVibra] = useState(false);
+  const outroStartedRef = useRef(false);
+  useEffect(() => {
+    let ended = false;
+    try {
+      ended = !!(roomInfo.metadata && JSON.parse(roomInfo.metadata)?.ended);
+    } catch { /* metadata no-JSON */ }
+    if (!ended || outroStartedRef.current) return;
+    outroStartedRef.current = true;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setOutro(true);
+    setTimeout(() => setShowVibra(true), 1000);
+    setTimeout(() => EgressHelper.endRecording(), 6000);
+  }, [roomInfo.metadata]);
+
+  if (outro) {
+    return (
+      <div style={{ position: "absolute", inset: 0, background: "#000", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <VibraOutro show={showVibra} />
+      </div>
+    );
   }
 
   return (
