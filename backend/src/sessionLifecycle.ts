@@ -11,6 +11,7 @@
 //   - Detiene el Egress activo → recordingStatus "processing".
 
 import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { onDocumentUpdated } from "firebase-functions/v2/firestore";
 import { logger } from "firebase-functions";
 import * as admin from "firebase-admin";
 import {
@@ -355,6 +356,46 @@ export const endSession = onCall(
   }
 );
 
+// ── signalSessionClosing ──────────────────────────────────────────────────────
+// Señala el INICIO del cierre (el contador llegó a 0) para que la plantilla de
+// grabación arranque su outro en t=0. NO cambia el estado de la sesión: la
+// videollamada de los participantes sigue con su gracia de 5s intacta.
+export const signalSessionClosing = onCall(
+  { region: REGION, secrets: ALL_SECRETS },
+  async (request) => {
+    const uid = requireAuth(request.auth?.uid);
+    const { sessionId, sessionType } = request.data ?? {};
+
+    if (typeof sessionId !== "string" || !sessionId.trim()) {
+      throw new HttpsError("invalid-argument", "sessionId es requerido.");
+    }
+
+    const collection = resolveCollection(sessionType);
+    const cleanId = sessionId.trim();
+    const snap = await db.collection(collection).doc(cleanId).get();
+    if (!snap.exists) return { success: true, skipped: true };
+
+    const session = snap.data()!;
+    const { creatorId, buyerId, livekitEgressId, recordingStatus, roomName } = session;
+    if (uid !== creatorId && uid !== buyerId) {
+      throw new HttpsError("permission-denied", "No tienes acceso a esta sesión.");
+    }
+
+    if (livekitEgressId && recordingStatus === "recording" && roomName) {
+      try {
+        await createRoomServiceClient().updateRoomMetadata(
+          roomName as string,
+          JSON.stringify({ closing: true })
+        );
+      } catch (err: unknown) {
+        logger.warn("signal_session_closing_failed", { sessionId: cleanId, err: String(err) });
+      }
+    }
+
+    return { success: true };
+  }
+);
+
 // ── forceCompleteSession ──────────────────────────────────────────────────────
 // Llamado por el comprador o creador cuando confirman que la sesión "Concluyó con éxito"
 // a pesar de no haber alcanzado el umbral del 80%.
@@ -407,5 +448,69 @@ export const forceCompleteSession = onCall(
     });
 
     return { success: true };
+  }
+);
+
+// ── Respaldo: finalizar la grabación ──────────────────────────────────────────
+// La plantilla de grabación reproduce el outro y detiene el egress sola. Por si
+// no lo hace (p.ej. plantilla no desplegada o error), este trigger lo detiene
+// ~12s después de que la sesión pasa a un estado terminal, para garantizar que
+// la grabación quede finalizada y sea DESCARGABLE.
+const TERMINAL_STATUSES = ["completed", "session_incomplete", "rejected"];
+
+async function finalizeRecordingBackstop(
+  before: FirebaseFirestore.DocumentData | undefined,
+  after: FirebaseFirestore.DocumentData | undefined,
+  ref: FirebaseFirestore.DocumentReference
+): Promise<void> {
+  if (!after) return;
+  const beforeStatus = before ? String(before.status ?? "") : "";
+  const afterStatus = String(after.status ?? "");
+
+  // Solo cuando ACABA de pasar a terminal, con grabación activa.
+  if (!TERMINAL_STATUSES.includes(afterStatus) || TERMINAL_STATUSES.includes(beforeStatus)) return;
+  if (after.recordingStatus !== "recording" || !after.livekitEgressId) return;
+
+  // Dar tiempo a que la plantilla reproduzca su outro y cierre el egress sola.
+  await new Promise((r) => setTimeout(r, 12000));
+
+  // Re-leer: si la plantilla ya lo cerró, no hacer nada.
+  const fresh = await ref.get();
+  const data = fresh.data();
+  if (!data || data.recordingStatus !== "recording" || !data.livekitEgressId) return;
+
+  try {
+    await stopRecording(createEgressClient(), data.livekitEgressId as string, ref.id);
+    await ref.update({
+      recordingStatus: "processing",
+      updatedAt: admin.firestore.Timestamp.now(),
+    });
+    logger.info("session_recording_backstop_stopped", { sessionId: ref.id });
+  } catch (err: unknown) {
+    logger.warn("session_recording_backstop_failed", { sessionId: ref.id, err: String(err) });
+  }
+}
+
+export const finalizeMeetGreetRecording = onDocumentUpdated(
+  { document: "meetGreetRequests/{id}", region: REGION, secrets: ALL_SECRETS },
+  async (event) => {
+    if (!event.data) return;
+    await finalizeRecordingBackstop(
+      event.data.before.data(),
+      event.data.after.data(),
+      event.data.after.ref
+    );
+  }
+);
+
+export const finalizeExclusiveSessionRecording = onDocumentUpdated(
+  { document: "exclusiveSessionRequests/{id}", region: REGION, secrets: ALL_SECRETS },
+  async (event) => {
+    if (!event.data) return;
+    await finalizeRecordingBackstop(
+      event.data.before.data(),
+      event.data.after.data(),
+      event.data.after.ref
+    );
   }
 );

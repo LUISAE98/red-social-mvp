@@ -172,25 +172,36 @@ function CreatorFocusLayout() {
   const [audioVol, setAudioVol] = useState(1);
   const outroStartedRef = useRef(false);
   useEffect(() => {
-    let ended = false;
+    // "closing" = el contador llegó a 0 → outro DIFUMINADO (blur→negro→Vibra).
+    // "ended"   = fin/cancelación antes de concluir → CORTE a negro directo + Vibra 7s.
+    let mode: "blur" | "cut" | null = null;
     try {
-      ended = !!(roomInfo.metadata && JSON.parse(roomInfo.metadata)?.ended);
+      const m = roomInfo.metadata ? JSON.parse(roomInfo.metadata) : null;
+      if (m?.closing) mode = "blur";
+      else if (m?.ended) mode = "cut";
     } catch { /* metadata no-JSON */ }
-    if (!ended || outroStartedRef.current) return;
+    if (!mode || outroStartedRef.current) return;
     outroStartedRef.current = true;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setOutro(true);
 
-    // Audio: baja suave a 0 en ~4s.
-    let a = 4000;
-    const audioIv = setInterval(() => {
-      a -= 60;
-      setAudioVol(Math.max(0, a / 4000));
-      if (a <= 0) clearInterval(audioIv);
-    }, 60);
-
-    setTimeout(() => setBlack(true), 4000);
-    setTimeout(() => EgressHelper.endRecording(), 9000);
+    if (mode === "blur") {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setOutro(true);
+      // Audio: baja suave a 0 en ~4s.
+      let a = 4000;
+      const audioIv = setInterval(() => {
+        a -= 60;
+        setAudioVol(Math.max(0, a / 4000));
+        if (a <= 0) clearInterval(audioIv);
+      }, 60);
+      setTimeout(() => setBlack(true), 4000);
+      setTimeout(() => EgressHelper.endRecording(), 9000);
+    } else {
+      // Cancelación: a negro directo + "Vibra/vibraon.com" durante 7s.
+      setOutro(true);
+      setBlack(true);
+      setAudioVol(0);
+      setTimeout(() => EgressHelper.endRecording(), 7000);
+    }
   }, [roomInfo.metadata]);
 
   return (

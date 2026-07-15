@@ -232,7 +232,7 @@ export {
 export { getLivekitToken } from "./livekitTokens";
 
 // LiveKit — ciclo de vida de sesiones (join, end)
-export { joinSession, endSession, forceCompleteSession } from "./sessionLifecycle";
+export { joinSession, endSession, forceCompleteSession, signalSessionClosing, finalizeMeetGreetRecording, finalizeExclusiveSessionRecording } from "./sessionLifecycle";
 
 // LiveKit — webhooks de sala y grabación
 export { livekitWebhook } from "./livekitWebhook";

@@ -16,7 +16,7 @@ import { doc, onSnapshot, type Timestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useLivekitRoom } from "@/lib/liveKit/useLivekitRoom";
 import type { LivekitSessionType, LivekitErrorCode } from "@/lib/liveKit/getLivekitToken";
-import { callJoinSession, callEndSession } from "@/lib/liveKit/sessionLifecycle";
+import { callJoinSession, callEndSession, callSignalSessionClosing } from "@/lib/liveKit/sessionLifecycle";
 import { useTranslations } from "next-intl";
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
@@ -248,15 +248,16 @@ function RoomContent({
     }
     if (!timerExpiredFiredRef.current && remaining === 0) {
       timerExpiredFiredRef.current = true;
-      // Al llegar a 0 disparamos endSession de INMEDIATO: eso marca la sesión como
-      // completada y arranca el cierre de la GRABACIÓN en t=0 (difuminado + Vibra
-      // + audio bajando). Idempotente: el segundo participante que lo dispare es
-      // no-op. En paralelo mantenemos 5s de gracia OCULTA antes de cerrar la
-      // videollamada de los participantes (siguen viéndose, el contador en 00:00).
-      callEndSession({ sessionId, sessionType }).catch((e) =>
-        console.error("endSession on expiry:", e)
-      );
+      // En t=0 solo señalamos el INICIO del cierre a la GRABACIÓN (para que su
+      // outro arranque ya: difuminado + Vibra + audio bajando). Esto NO toca la
+      // sesión: la videollamada y el contador de los participantes siguen intactos.
+      callSignalSessionClosing({ sessionId, sessionType }).catch(() => {});
+      // Gracia OCULTA de 5s: recién entonces finalizamos la sesión (status→completed)
+      // y cerramos la videollamada. Idempotente entre ambos participantes.
       expiryTimeoutRef.current = setTimeout(() => {
+        callEndSession({ sessionId, sessionType }).catch((e) =>
+          console.error("endSession on expiry:", e)
+        );
         if (onTimerExpired) {
           onTimerExpired();
         } else {

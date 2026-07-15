@@ -27,6 +27,16 @@ export async function callEndSession(payload: SessionLifecyclePayload): Promise<
   await fn(payload);
 }
 
+// Señala el INICIO del cierre (contador en 0) a la grabación, SIN cambiar el
+// estado de la sesión: la videollamada de los participantes sigue intacta.
+export async function callSignalSessionClosing(payload: SessionLifecyclePayload): Promise<void> {
+  const fn = httpsCallable<SessionLifecyclePayload, { success: boolean }>(
+    functions,
+    "signalSessionClosing"
+  );
+  await fn(payload);
+}
+
 export async function callForceCompleteSession(payload: SessionLifecyclePayload): Promise<void> {
   const fn = httpsCallable<SessionLifecyclePayload, { success: boolean }>(
     functions,
