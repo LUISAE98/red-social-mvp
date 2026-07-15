@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useTranslations } from "next-intl";
 import Image from "next/image";
 import { doc, getDoc } from "firebase/firestore";
@@ -51,6 +51,249 @@ function showcaseCreatorId(story: StoryDoc): string {
 function creatorInitials(name?: string): string {
   const parts = (name ?? "").trim().split(/\s+/).filter(Boolean);
   return ((parts[0]?.[0] ?? "") + (parts[1]?.[0] ?? "")).toUpperCase() || "?";
+}
+
+// Miniatura de la historia. Las grabadas horizontales se muestran con letterbox
+// (contain + barras negras arriba/abajo); las verticales llenan (cover).
+function StoryThumb({ src }: { src: string }) {
+  const [contain, setContain] = useState(false);
+  return (
+    <Image
+      src={src}
+      alt=""
+      fill
+      sizes="(max-width: 768px) 33vw, 160px"
+      onLoad={(e) => {
+        const img = e.currentTarget;
+        if (img.naturalWidth > 0 && img.naturalWidth > img.naturalHeight) {
+          setContain(true);
+        }
+      }}
+      style={{ objectFit: contain ? "contain" : "cover" }}
+    />
+  );
+}
+
+const HOVER_PREVIEW_DELAY_MS = 350;
+
+type StoryCardProps = {
+  story: StoryDoc;
+  avatar: string | null | undefined;
+  typeLabel: string;
+  /** Solo laptop (pointer:fine) habilita el preview en hover. */
+  enableHoverPreview: boolean;
+  onOpen: (story: StoryDoc, rect: DOMRect | null) => void;
+};
+
+function StoryCard({
+  story,
+  avatar,
+  typeLabel,
+  enableHoverPreview,
+  onOpen,
+}: StoryCardProps) {
+  const thumb = storyThumbnail(story);
+  // Preview en hover (laptop): reproduce la historia en muted, con delay, sin
+  // contar vista, en rendition baja de Mux. Una a la vez (solo la que tiene hover).
+  const [showVideo, setShowVideo] = useState(false);
+  const [videoReady, setVideoReady] = useState(false);
+  const [videoContain, setVideoContain] = useState(false);
+  const hoverTimer = useRef<number | null>(null);
+
+  const canPreview = enableHoverPreview && !!story.muxPlaybackId;
+
+  function handleEnter() {
+    if (!canPreview) return;
+    if (hoverTimer.current) clearTimeout(hoverTimer.current);
+    hoverTimer.current = window.setTimeout(() => setShowVideo(true), HOVER_PREVIEW_DELAY_MS);
+  }
+
+  function handleLeave() {
+    if (hoverTimer.current) {
+      clearTimeout(hoverTimer.current);
+      hoverTimer.current = null;
+    }
+    setShowVideo(false);
+    setVideoReady(false);
+    setVideoContain(false);
+  }
+
+  useEffect(() => {
+    return () => {
+      if (hoverTimer.current) clearTimeout(hoverTimer.current);
+    };
+  }, []);
+
+  return (
+    <>
+    <style jsx>{`
+      /* Overlay (avatar + nombre + tipo). Laptop: oculto hasta hover.
+         Celular: oculto (se ve al abrir la historia). */
+      .story-overlay {
+        position: absolute;
+        top: 6px;
+        left: 6px;
+        right: 6px;
+        opacity: 0;
+        transition: opacity 0.16s ease;
+        pointer-events: none;
+      }
+      .story-card:hover .story-overlay {
+        opacity: 1;
+      }
+      @media (max-width: 768px) {
+        .story-overlay {
+          display: none;
+        }
+      }
+    `}</style>
+    <button
+      type="button"
+      className="story-card"
+      onClick={(e) => onOpen(story, e.currentTarget.getBoundingClientRect())}
+      onMouseEnter={handleEnter}
+      onMouseLeave={handleLeave}
+      style={{
+        position: "relative",
+        aspectRatio: "9 / 16",
+        borderRadius: 0,
+        border: "none",
+        overflow: "hidden",
+        cursor: "pointer",
+        padding: 0,
+        background: thumb ? "#000" : "linear-gradient(160deg, #2a1a4a, #10101a)",
+        fontFamily: "inherit",
+      }}
+    >
+      {thumb ? <StoryThumb src={thumb} /> : null}
+
+      {showVideo && story.muxPlaybackId ? (
+        <video
+          src={`https://stream.mux.com/${story.muxPlaybackId}/low.mp4`}
+          muted
+          autoPlay
+          loop
+          playsInline
+          preload="none"
+          onLoadedMetadata={(e) => {
+            const v = e.currentTarget;
+            if (v.videoWidth > 0 && v.videoWidth > v.videoHeight) setVideoContain(true);
+          }}
+          onPlaying={() => setVideoReady(true)}
+          style={{
+            position: "absolute",
+            inset: 0,
+            width: "100%",
+            height: "100%",
+            objectFit: videoContain ? "contain" : "cover",
+            // Fondo negro (barras del letterbox) y el video se revelan SOLO cuando
+            // ya está reproduciendo → sin parpadeo negro sobre la miniatura.
+            background: videoReady ? "#000" : "transparent",
+            opacity: videoReady ? 1 : 0,
+            transition: "opacity 0.2s ease",
+            zIndex: 1,
+          }}
+        />
+      ) : null}
+
+      {/* Encabezado: avatar + (nombre arriba, tipo debajo).
+          Laptop: oculto hasta hover. Celular: oculto (se ve al abrir). */}
+      <div className="story-overlay" style={{ zIndex: 2 }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            width: "100%",
+            minWidth: 0,
+          }}
+        >
+          {/* Avatar del creador con aro de Vibra (sin sombra, sin negro) */}
+          <span
+            style={{
+              flexShrink: 0,
+              width: 35,
+              height: 35,
+              borderRadius: "50%",
+              background: VIBRA_STORY_RING,
+              padding: 2.2,
+              boxSizing: "border-box",
+              display: "flex",
+            }}
+            aria-hidden="true"
+          >
+            <span
+              style={{
+                position: "relative",
+                width: "100%",
+                height: "100%",
+                borderRadius: "50%",
+                overflow: "hidden",
+                background: "#2a1a4a",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                boxSizing: "border-box",
+              }}
+            >
+              {avatar ? (
+                <Image
+                  src={avatar}
+                  alt={story.creatorName ?? ""}
+                  fill
+                  sizes="35px"
+                  style={{ objectFit: "cover" }}
+                />
+              ) : (
+                <span style={{ color: "#fff", fontSize: 12, fontWeight: 600, lineHeight: 1 }}>
+                  {creatorInitials(story.creatorName)}
+                </span>
+              )}
+            </span>
+          </span>
+
+          {/* Nombre arriba + tipo (saludo/consejo) debajo, más tenue */}
+          <span
+            style={{
+              minWidth: 0,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "flex-start",
+              textAlign: "left",
+              lineHeight: 1.15,
+            }}
+          >
+            <span
+              style={{
+                color: "#fff",
+                fontSize: 12.5,
+                fontWeight: 600,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {story.creatorName || ""}
+            </span>
+            <span
+              style={{
+                color: "rgba(255,255,255,0.7)",
+                fontSize: 10.5,
+                fontWeight: 500,
+                letterSpacing: "0.02em",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {typeLabel}
+            </span>
+          </span>
+        </div>
+      </div>
+    </button>
+    </>
+  );
 }
 
 export default function SearchStoriesResults({ search, filter, indicatorTop }: SearchStoriesResultsProps) {
@@ -322,131 +565,31 @@ export default function SearchStoriesResults({ search, filter, indicatorTop }: S
             <div style={noResultsStyle}>{tCommon("noExactMatches")}</div>
           ) : (
             <div className="stories-search-grid">
-              {filtered.map((story) => {
-                const thumb = storyThumbnail(story);
-                const avatar = avatars[showcaseCreatorId(story)];
-                return (
-                  <button
-                    key={story.id}
-                    type="button"
-                    onClick={(e) => openStory(story, e.currentTarget.getBoundingClientRect())}
-                    style={{
-                      position: "relative",
-                      aspectRatio: "9 / 16",
-                      borderRadius: 14,
-                      border: "none",
-                      overflow: "hidden",
-                      cursor: "pointer",
-                      padding: 0,
-                      background: thumb
-                        ? `center / cover no-repeat url(${thumb})`
-                        : "linear-gradient(160deg, #2a1a4a, #10101a)",
-                      fontFamily: "inherit",
-                    }}
-                  >
-                    {/* Avatar del creador con aro de Vibra (sin sombra, sin negro) */}
-                    <span
-                      style={{
-                        position: "absolute",
-                        top: 6,
-                        left: 6,
-                        width: 32,
-                        height: 32,
-                        borderRadius: "50%",
-                        background: VIBRA_STORY_RING,
-                        padding: 2,
-                        boxSizing: "border-box",
-                        display: "flex",
-                      }}
-                      aria-hidden="true"
-                    >
-                      <span
-                        style={{
-                          position: "relative",
-                          width: "100%",
-                          height: "100%",
-                          borderRadius: "50%",
-                          overflow: "hidden",
-                          background: "#2a1a4a",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          boxSizing: "border-box",
-                        }}
-                      >
-                        {avatar ? (
-                          <Image
-                            src={avatar}
-                            alt={story.creatorName ?? ""}
-                            fill
-                            sizes="32px"
-                            style={{ objectFit: "cover" }}
-                          />
-                        ) : (
-                          <span
-                            style={{
-                              color: "#fff",
-                              fontSize: 11,
-                              fontWeight: 600,
-                              lineHeight: 1,
-                            }}
-                          >
-                            {creatorInitials(story.creatorName)}
-                          </span>
-                        )}
-                      </span>
-                    </span>
-
-                    {/* Tipo (saludo/consejo) a un costado, solo texto blanco */}
-                    <span
-                      style={{
-                        position: "absolute",
-                        top: 8,
-                        right: 8,
-                        color: "#fff",
-                        fontSize: 10,
-                        fontWeight: 600,
-                        letterSpacing: "0.02em",
-                        lineHeight: 1.3,
-                      }}
-                    >
-                      {story.type === "consejo"
-                        ? tCommon("storyTypeConsejo")
-                        : tCommon("storyTypeSaludo")}
-                    </span>
-
-                    {/* Nombre del creador (abajo), solo texto */}
-                    <span
-                      style={{
-                        position: "absolute",
-                        left: 0,
-                        right: 0,
-                        bottom: 0,
-                        padding: "0 8px 7px",
-                        color: "#fff",
-                        fontSize: 11.5,
-                        fontWeight: 600,
-                        textAlign: "left",
-                        lineHeight: 1.2,
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      {story.creatorName || ""}
-                    </span>
-                  </button>
-                );
-              })}
+              {filtered.map((story) => (
+                <StoryCard
+                  key={story.id}
+                  story={story}
+                  avatar={avatars[showcaseCreatorId(story)]}
+                  enableHoverPreview={isDesktop}
+                  typeLabel={
+                    story.type === "consejo"
+                      ? tCommon("storyTypeConsejo")
+                      : tCommon("storyTypeSaludo")
+                  }
+                  onOpen={openStory}
+                />
+              ))}
             </div>
           )}
       </div>
 
       <style jsx>{`
+        /* Estilo "mantel": historias juntas, solo un micromargen transparente
+           y esquinas cuadradas. */
         .stories-search-grid {
           display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(108px, 1fr));
-          gap: 10px;
+          grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
+          gap: 1.6px;
           max-width: 100%;
         }
         /* En celular: exactamente 3 historias por fila. minmax(0,1fr) evita

@@ -127,12 +127,12 @@ export default function GroupsSearchToolbar({
     width 0.32s cubic-bezier(0.22, 1, 0.36, 1),
     transform 0.32s cubic-bezier(0.22, 1, 0.36, 1);
   transform-origin: center;
-  box-shadow: 0 8px 28px rgba(168, 85, 255, 0.16);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
 }
 
 .search-input-wrap:focus-within {
   transform: translateY(-1px);
-  box-shadow: 0 12px 32px rgba(168, 85, 255, 0.24);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.42);
 }
 
 .search-input {

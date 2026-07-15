@@ -131,6 +131,23 @@ export default function WalletDesktopRail({
     showWallet
   );
 
+  const handleWalletToggle = () => {
+    const opening = !walletOpen;
+    setWalletOpen(opening);
+    if (opening) {
+      // Tras expandir (la animación dura 360ms), desliza el rail hacia abajo
+      // para revelar todos los ítems del wallet.
+      window.setTimeout(() => {
+        const el = sidebarScrollRef.current;
+        if (el) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+      }, 380);
+    } else {
+      // Al cerrar, regresa el rail hacia arriba.
+      const el = sidebarScrollRef.current;
+      if (el) el.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  };
+
   return (
     <>
       <VibraNavigationIconsStyles />
@@ -644,7 +661,7 @@ export default function WalletDesktopRail({
               <button
                 type="button"
                 className="walletToggle"
-                onClick={() => setWalletOpen((o) => !o)}
+                onClick={handleWalletToggle}
                 aria-expanded={walletOpen}
               >
                 <span className="walletToggleTop">

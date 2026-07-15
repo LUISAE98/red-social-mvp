@@ -600,8 +600,6 @@ function SearchPageContent() {
 
       <section className="search-content">
         <div className="search-query" ref={searchQueryRef}>
-          <span className="search-query-text">{tGroups("searchResultsFor")}</span>
-
           <form
             className="search-query-field"
             onSubmit={(e) => {
@@ -756,7 +754,7 @@ function SearchPageContent() {
   box-sizing: border-box;
   margin-top: 0;
   /* Evita scroll horizontal en iOS (p. ej. por el desliz del cambio de pestaña). */
-  overflow-x: hidden;
+  overflow-x: clip;
 }
 
 .search-content {
@@ -770,7 +768,7 @@ function SearchPageContent() {
   padding: 0 16px;
   box-sizing: border-box;
   margin-top: 0;
-  overflow-x: hidden;
+  overflow-x: clip;
 }
 
 /* Evita el "grid blowout": los hijos no pueden exceder el ancho del track. */

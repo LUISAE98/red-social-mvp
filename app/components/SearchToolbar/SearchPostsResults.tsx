@@ -524,7 +524,7 @@ export default function SearchPostsResults({
     marginRight: "auto",
     marginBottom: 18,
     marginTop: -16,
-    overflowX: "hidden",
+    overflowX: "clip",
   };
 
   // Sin resultados: solo texto, centrado en la pantalla, sin contenedor.
