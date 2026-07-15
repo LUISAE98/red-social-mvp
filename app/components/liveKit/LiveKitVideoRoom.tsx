@@ -248,16 +248,15 @@ function RoomContent({
     }
     if (!timerExpiredFiredRef.current && remaining === 0) {
       timerExpiredFiredRef.current = true;
-      // Gracia de 5s OCULTA: al llegar a 0 no cortamos de inmediato, esperamos
-      // 5s más (el contador queda en 00:00, sin avisar a nadie) para que la
-      // videollamada no se sienta cortada de golpe.
+      // Al llegar a 0 disparamos endSession de INMEDIATO: eso marca la sesión como
+      // completada y arranca el cierre de la GRABACIÓN en t=0 (difuminado + Vibra
+      // + audio bajando). Idempotente: el segundo participante que lo dispare es
+      // no-op. En paralelo mantenemos 5s de gracia OCULTA antes de cerrar la
+      // videollamada de los participantes (siguen viéndose, el contador en 00:00).
+      callEndSession({ sessionId, sessionType }).catch((e) =>
+        console.error("endSession on expiry:", e)
+      );
       expiryTimeoutRef.current = setTimeout(() => {
-        // Tiempo agotado = fin exitoso: finalizar en el backend (status→completed,
-        // detener grabación) para que la sesión pase a Entregados y sea descargable.
-        // Idempotente: el segundo participante que lo dispare es no-op.
-        callEndSession({ sessionId, sessionType }).catch((e) =>
-          console.error("endSession on expiry:", e)
-        );
         if (onTimerExpired) {
           onTimerExpired();
         } else {

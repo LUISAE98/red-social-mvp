@@ -100,8 +100,7 @@ function OverlayBadge({
   );
 }
 
-// Cierre de la grabación: ~6s de negro. En el segundo 1 aparece el bloque
-// "Vibra / vibraon.com" (con animación de entrada) y se queda hasta el final.
+// Bloque "Vibra / vibraon.com" del cierre (con animación de entrada).
 function VibraOutro({ show }: { show: boolean }) {
   return (
     <>
@@ -162,10 +161,15 @@ function CreatorFocusLayout() {
     } catch { /* metadata inválida — sin overlay */ }
   }
 
-  // Cierre: cuando el backend marca la sala como "ended", se corta a negro,
-  // en el segundo 1 aparece el bloque Vibra y a los 6s se detiene la grabación.
+  // ── Cierre de la grabación ────────────────────────────────────────────────
+  // Se dispara en cuanto la sala se marca "ended" (= el contador llegó a 0):
+  //   t=0  la llamada se difumina + translúcida y aparece "Vibra/vibraon.com";
+  //        el audio baja suave a 0 (~4s).
+  //   t=4  se funde suavemente a negro → solo queda el letrero.
+  //   t=9  se detiene la grabación (5s después del negro).
   const [outro, setOutro] = useState(false);
-  const [showVibra, setShowVibra] = useState(false);
+  const [black, setBlack] = useState(false);
+  const [audioVol, setAudioVol] = useState(1);
   const outroStartedRef = useRef(false);
   useEffect(() => {
     let ended = false;
@@ -176,53 +180,79 @@ function CreatorFocusLayout() {
     outroStartedRef.current = true;
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setOutro(true);
-    setTimeout(() => setShowVibra(true), 1000);
-    setTimeout(() => EgressHelper.endRecording(), 6000);
-  }, [roomInfo.metadata]);
 
-  if (outro) {
-    return (
-      <div style={{ position: "absolute", inset: 0, background: "#000", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <VibraOutro show={showVibra} />
-      </div>
-    );
-  }
+    // Audio: baja suave a 0 en ~4s.
+    let a = 4000;
+    const audioIv = setInterval(() => {
+      a -= 60;
+      setAudioVol(Math.max(0, a / 4000));
+      if (a <= 0) clearInterval(audioIv);
+    }, 60);
+
+    setTimeout(() => setBlack(true), 4000);
+    setTimeout(() => EgressHelper.endRecording(), 9000);
+  }, [roomInfo.metadata]);
 
   return (
     <div style={{ position: "absolute", inset: 0, background: "#000" }}>
-      {/* Creador — siempre grande, llena el cuadro */}
-      {creator ? (
-        <VideoTrack
-          trackRef={creator}
-          style={{ width: "100%", height: "100%", objectFit: "cover" }}
-        />
-      ) : null}
-
-      {/* Comprador — PiP pequeño en la esquina inferior derecha */}
-      {buyer ? (
-        <div
-          style={{
-            position: "absolute",
-            right: "2.5%",
-            bottom: "4%",
-            width: "24%",
-            aspectRatio: "16 / 9",
-            borderRadius: 12,
-            overflow: "hidden",
-            border: "2px solid rgba(255,255,255,0.85)",
-            background: "#111",
-            boxShadow: "0 6px 24px rgba(0,0,0,0.55)",
-          }}
-        >
+      {/* Contenido de la llamada — se difumina suavemente en el cierre */}
+      <div
+        style={{
+          position: "absolute",
+          inset: 0,
+          filter: outro ? "blur(18px)" : "none",
+          transform: outro ? "scale(1.06)" : "none",
+          transition: "filter 1.1s ease, transform 1.1s ease",
+        }}
+      >
+        {/* Creador — siempre grande, llena el cuadro */}
+        {creator ? (
           <VideoTrack
-            trackRef={buyer}
+            trackRef={creator}
             style={{ width: "100%", height: "100%", objectFit: "cover" }}
           />
-        </div>
-      ) : null}
+        ) : null}
 
-      {/* Overlay horneado (avatar + aro + nombre + tipo) */}
-      {overlay ? <OverlayBadge avatarUrl={overlay.avatarUrl} name={overlay.name} type={overlay.type} /> : null}
+        {/* Comprador — PiP pequeño en la esquina inferior derecha */}
+        {buyer ? (
+          <div
+            style={{
+              position: "absolute",
+              right: "2.5%",
+              bottom: "4%",
+              width: "24%",
+              aspectRatio: "16 / 9",
+              borderRadius: 12,
+              overflow: "hidden",
+              border: "2px solid rgba(255,255,255,0.85)",
+              background: "#111",
+              boxShadow: "0 6px 24px rgba(0,0,0,0.55)",
+            }}
+          >
+            <VideoTrack
+              trackRef={buyer}
+              style={{ width: "100%", height: "100%", objectFit: "cover" }}
+            />
+          </div>
+        ) : null}
+
+        {/* Overlay horneado (avatar + aro + nombre + tipo) */}
+        {overlay ? <OverlayBadge avatarUrl={overlay.avatarUrl} name={overlay.name} type={overlay.type} /> : null}
+      </div>
+
+      {/* Capa translúcida — atenúa la llamada difuminada al iniciar el cierre */}
+      <div style={{ position: "absolute", inset: 0, background: "#000", opacity: outro ? 0.42 : 0, transition: "opacity 1.1s ease", pointerEvents: "none" }} />
+
+      {/* Capa negra total — se funde a los 4s */}
+      <div style={{ position: "absolute", inset: 0, background: "#000", opacity: black ? 1 : 0, transition: "opacity 1s ease", pointerEvents: "none" }} />
+
+      {/* Letrero "Vibra/vibraon.com" — aparece en t=0, nítido, encima de todo */}
+      <div style={{ position: "absolute", inset: 0, zIndex: 30, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
+        <VibraOutro show={outro} />
+      </div>
+
+      {/* Audio de la sala — el volumen baja a 0 en el cierre */}
+      <RoomAudioRenderer volume={audioVol} />
     </div>
   );
 }
@@ -272,7 +302,6 @@ export default function EgressSessionPage() {
           style={overlayStyle}
         >
           <CreatorFocusLayout />
-          <RoomAudioRenderer />
         </LiveKitRoom>
       ) : (
         <div style={overlayStyle} />
