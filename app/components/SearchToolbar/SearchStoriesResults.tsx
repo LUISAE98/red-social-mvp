@@ -7,6 +7,7 @@ import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/app/providers";
 import { searchStories } from "@/lib/stories/searchStories";
+import RefreshableArea from "@/components/refresh/RefreshableArea";
 import { recordStoryView } from "@/lib/stories/storyService";
 import type { StoryDoc, StoryType } from "@/lib/stories/types";
 import StoryViewer from "@/app/components/Stories/StoryViewer";
@@ -31,6 +32,7 @@ export type StorySearchFilter = "all" | StoryType;
 type SearchStoriesResultsProps = {
   search: string;
   filter: StorySearchFilter;
+  indicatorTop?: string;
 };
 
 function storyThumbnail(story: StoryDoc): string | null {
@@ -51,7 +53,7 @@ function creatorInitials(name?: string): string {
   return ((parts[0]?.[0] ?? "") + (parts[1]?.[0] ?? "")).toUpperCase() || "?";
 }
 
-export default function SearchStoriesResults({ search, filter }: SearchStoriesResultsProps) {
+export default function SearchStoriesResults({ search, filter, indicatorTop }: SearchStoriesResultsProps) {
   const tCommon = useTranslations("common");
   const { user } = useAuth();
 
@@ -66,6 +68,13 @@ export default function SearchStoriesResults({ search, filter }: SearchStoriesRe
   const [avatars, setAvatars] = useState<Record<string, string | null>>(() =>
     Object.fromEntries(storyAvatarCache)
   );
+
+  // Pull-to-refresh (móvil).
+  const [refreshNonce, setRefreshNonce] = useState(0);
+  const [mobileRefreshEnabled, setMobileRefreshEnabled] = useState(false);
+  const handleStoriesPullRefresh = useCallback(async () => {
+    setRefreshNonce((prev) => prev + 1);
+  }, []);
 
   // Visor: agrupamos por creador (como en home). Guardamos un snapshot de grupos
   // + el índice de grupo abierto. Escritorio = carrusel; celular = viewer que
@@ -84,6 +93,14 @@ export default function SearchStoriesResults({ search, filter }: SearchStoriesRe
     return () => mql.removeEventListener("change", h);
   }, []);
 
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 768px)");
+    const sync = () => setMobileRefreshEnabled(mq.matches);
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, []);
+
   const normalizedSearch = useMemo(() => search.trim(), [search]);
 
   useEffect(() => {
@@ -95,6 +112,8 @@ export default function SearchStoriesResults({ search, filter }: SearchStoriesRe
         setLoading(false);
         return;
       }
+      // Refresh manual (pull-to-refresh): invalida el cache de esta búsqueda.
+      if (refreshNonce > 0) storiesResultCache.delete(normalizedSearch);
       const cached = storiesResultCache.get(normalizedSearch);
       if (cached) {
         setStories(cached);
@@ -116,7 +135,7 @@ export default function SearchStoriesResults({ search, filter }: SearchStoriesRe
     return () => {
       active = false;
     };
-  }, [normalizedSearch]);
+  }, [normalizedSearch, refreshNonce]);
 
   // Carga los avatares de los creadores que aún no tenemos en caché.
   useEffect(() => {
@@ -192,7 +211,7 @@ export default function SearchStoriesResults({ search, filter }: SearchStoriesRe
     (storyId: string) => {
       if (user?.uid) recordStoryView(user.uid, storyId).catch(() => {});
     },
-    [user?.uid]
+    [user]
   );
 
   const closeViewer = useCallback(() => {
@@ -291,6 +310,12 @@ export default function SearchStoriesResults({ search, filter }: SearchStoriesRe
   }
 
   return (
+    <>
+    <RefreshableArea
+      onRefresh={handleStoriesPullRefresh}
+      enabled={mobileRefreshEnabled}
+      indicatorTop={indicatorTop ?? "calc(env(safe-area-inset-top) + 116px)"}
+    >
     <section style={shellStyle}>
       <div>
           {filtered.length === 0 ? (
@@ -417,6 +442,24 @@ export default function SearchStoriesResults({ search, filter }: SearchStoriesRe
           )}
       </div>
 
+      <style jsx>{`
+        .stories-search-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(108px, 1fr));
+          gap: 10px;
+          max-width: 100%;
+        }
+        /* En celular: exactamente 3 historias por fila. minmax(0,1fr) evita
+           que las columnas se desborden a la derecha (blowout de grid en iOS). */
+        @media (max-width: 768px) {
+          .stories-search-grid {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+          }
+        }
+      `}</style>
+    </section>
+    </RefreshableArea>
+
       {openGroups && openGroups[openGroupIdx] ? (
         isDesktop ? (
           <HomeStoryCarouselDesktop
@@ -438,22 +481,6 @@ export default function SearchStoriesResults({ search, filter }: SearchStoriesRe
           />
         )
       ) : null}
-
-      <style jsx>{`
-        .stories-search-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(108px, 1fr));
-          gap: 10px;
-          max-width: 100%;
-        }
-        /* En celular: exactamente 3 historias por fila. minmax(0,1fr) evita
-           que las columnas se desborden a la derecha (blowout de grid en iOS). */
-        @media (max-width: 768px) {
-          .stories-search-grid {
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-          }
-        }
-      `}</style>
-    </section>
+    </>
   );
 }

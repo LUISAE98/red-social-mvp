@@ -20,6 +20,7 @@ type SearchProfilesResultsProps = {
   onRefresh?: () => Promise<void> | void;
   currentUserId?: string | null;
   filter?: ProfilesSearchFilter;
+  indicatorTop?: string;
 };
 
 export default function SearchProfilesResults({
@@ -29,6 +30,7 @@ export default function SearchProfilesResults({
   onRefresh,
   currentUserId,
   filter = "all",
+  indicatorTop,
 }: SearchProfilesResultsProps) {
   const tCommon = useTranslations("common");
   const [visibleCount, setVisibleCount] = useState(10);
@@ -163,7 +165,7 @@ export default function SearchProfilesResults({
     return (
       <RefreshableArea
         onRefresh={mobileRefreshEnabled && onRefresh ? onRefresh : async () => {}}
-        indicatorTop="calc(env(safe-area-inset-top) + 116px)"
+        indicatorTop={indicatorTop ?? "calc(env(safe-area-inset-top) + 116px)"}
       >
         <section style={shellStyle}>
           <div style={noResultsStyle}>{tCommon("noProfilesFound")}</div>
@@ -175,7 +177,7 @@ export default function SearchProfilesResults({
   return (
     <RefreshableArea
       onRefresh={mobileRefreshEnabled && onRefresh ? onRefresh : async () => {}}
-      indicatorTop="calc(env(safe-area-inset-top) + 116px)"
+      indicatorTop={indicatorTop ?? "calc(env(safe-area-inset-top) + 116px)"}
     >
       <section style={shellStyle}>
         {visibleProfiles.map((p) => {

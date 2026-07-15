@@ -39,6 +39,7 @@ type SearchGroupsResultsProps = {
   onCancelRequest: (groupId: string) => Promise<void>;
   onLeave: (groupId: string, ownerId?: string) => Promise<void>;
   onRefresh?: () => Promise<void> | void;
+  indicatorTop?: string;
   filter?: CommunitiesSearchFilter[];
 };
 
@@ -93,6 +94,7 @@ export default function SearchGroupsResults({
   onLeave,
   onRefresh,
   filter,
+  indicatorTop,
 }: SearchGroupsResultsProps) {
   const tGroups = useTranslations("groups");
   const tCommon = useTranslations("common");
@@ -373,7 +375,7 @@ export default function SearchGroupsResults({
       <RefreshableArea
         onRefresh={onRefresh ?? (() => {})}
         enabled={isMobile && Boolean(onRefresh)}
-        indicatorTop="calc(env(safe-area-inset-top) + 116px)"
+        indicatorTop={indicatorTop ?? "calc(env(safe-area-inset-top) + 116px)"}
       >
         <section style={shellStyle}>
           <div style={noResultsStyle}>{tGroups("noGroupsFound")}</div>
@@ -386,7 +388,7 @@ export default function SearchGroupsResults({
     <RefreshableArea
       onRefresh={onRefresh ?? (() => {})}
       enabled={isMobile && Boolean(onRefresh)}
-      indicatorTop="calc(env(safe-area-inset-top) + 116px)"
+      indicatorTop={indicatorTop ?? "calc(env(safe-area-inset-top) + 116px)"}
     >
       <section style={shellStyle} className="sgr-scope">
 {displayGroups.length > 0 && (

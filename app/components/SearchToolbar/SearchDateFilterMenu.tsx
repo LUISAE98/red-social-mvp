@@ -64,26 +64,25 @@ function CalendarIcon() {
   );
 }
 
-// Mismo estilo que los selects de "agendar sesión" (.field en ScheduleDateTimeSelector).
+// Estilo de campo Vibra (vibra_style.md): fondo translúcido, SIN contorno.
 const selectStyle: React.CSSProperties = {
   flex: 1,
   minWidth: 0,
   width: "100%",
   boxSizing: "border-box",
+  background: "rgba(255,255,255,0.06)",
+  border: "none",
   borderRadius: 12,
-  border: "1px solid rgba(255,255,255,0.12)",
-  background: "#111",
+  padding: "10px 12px",
   color: "#fff",
-  outline: "none",
-  padding: "12px 13px",
   fontSize: 13,
-  fontWeight: 600,
-  minHeight: 46,
+  lineHeight: 1.5,
   fontFamily: "inherit",
+  outline: "none",
   cursor: "pointer",
 };
 
-const optionStyle: React.CSSProperties = { background: "#111", color: "#fff" };
+const optionStyle: React.CSSProperties = { background: "#141414", color: "#fff" };
 
 export default function SearchDateFilterMenu({ fromDate, toDate, onApply }: Props) {
   const [open, setOpen] = useState(false);
@@ -100,7 +99,7 @@ export default function SearchDateFilterMenu({ fromDate, toDate, onApply }: Prop
 
   const label =
     fromDate || toDate
-      ? `${fromDate || "…"} → ${toDate || "…"}`
+      ? `${fromDate || "…"} hasta ${toDate || "…"}`
       : "Todas las fechas";
 
   function openMenu() {

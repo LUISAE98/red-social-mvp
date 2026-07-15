@@ -57,6 +57,7 @@ type SearchPostsResultsProps = {
   // Rango de fechas (YYYY-MM-DD). Vacío = sin filtro de fecha.
   fromDate?: string;
   toDate?: string;
+  indicatorTop?: string;
 };
 
 // Detección del tipo de post para el filtro (mismo criterio que los badges).
@@ -175,6 +176,7 @@ export default function SearchPostsResults({
   filter,
   fromDate,
   toDate,
+  indicatorTop,
 }: SearchPostsResultsProps) {
   const tCommon = useTranslations("common");
   const tPosts = useTranslations("posts");
@@ -552,7 +554,7 @@ export default function SearchPostsResults({
       <RefreshableArea
         onRefresh={handlePostsPullRefresh}
         enabled={mobileRefreshEnabled}
-        indicatorTop="calc(env(safe-area-inset-top) + 116px)"
+        indicatorTop={indicatorTop ?? "calc(env(safe-area-inset-top) + 116px)"}
       >
         <div
           style={{
@@ -578,7 +580,7 @@ export default function SearchPostsResults({
       <RefreshableArea
         onRefresh={handlePostsPullRefresh}
         enabled={mobileRefreshEnabled}
-        indicatorTop="calc(env(safe-area-inset-top) + 116px)"
+        indicatorTop={indicatorTop ?? "calc(env(safe-area-inset-top) + 116px)"}
       >
         <div>{error}</div>
       </RefreshableArea>
@@ -590,7 +592,7 @@ export default function SearchPostsResults({
       <RefreshableArea
         onRefresh={handlePostsPullRefresh}
         enabled={mobileRefreshEnabled}
-        indicatorTop="calc(env(safe-area-inset-top) + 116px)"
+        indicatorTop={indicatorTop ?? "calc(env(safe-area-inset-top) + 116px)"}
       >
         <div>{tCommon("writeToSearch")}</div>
       </RefreshableArea>
@@ -601,7 +603,7 @@ export default function SearchPostsResults({
     <RefreshableArea
       onRefresh={handlePostsPullRefresh}
       enabled={mobileRefreshEnabled}
-      indicatorTop="calc(env(safe-area-inset-top) + 116px)"
+      indicatorTop={indicatorTop ?? "calc(env(safe-area-inset-top) + 116px)"}
     >
       <section style={shellStyle}>
 

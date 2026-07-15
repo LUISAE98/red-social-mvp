@@ -252,6 +252,10 @@ function SearchPageContent() {
   // a una pestaña ya cargada, como el cache de wallet.
   const lastGroupsKeyRef = useRef<string | null>(null);
   const lastProfilesKeyRef = useRef<string | null>(null);
+  // Posición del indicador de pull-to-refresh: justo debajo de la barra de
+  // búsqueda secundaria (se mide en runtime para cualquier dispositivo).
+  const searchQueryRef = useRef<HTMLDivElement | null>(null);
+  const [refreshTop, setRefreshTop] = useState("calc(env(safe-area-inset-top) + 116px)");
   const [storyFilter, setStoryFilter] = useState<StorySearchFilter>("all");
   // Buscador editable en la cabecera de resultados (compartido por las 4 pestañas).
   const [queryInput, setQueryInput] = useState(queryText);
@@ -356,6 +360,20 @@ function SearchPageContent() {
   useEffect(() => {
     setQueryInput(queryText);
   }, [queryText]);
+
+  // Mide el fondo de la barra de búsqueda secundaria para colocar el indicador
+  // de refresh justo debajo (móvil).
+  useEffect(() => {
+    const measure = () => {
+      const el = searchQueryRef.current;
+      if (!el) return;
+      const bottom = el.getBoundingClientRect().bottom;
+      if (bottom > 0) setRefreshTop(`${Math.round(bottom + 8)}px`);
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, [activeTab, debouncedQuery]);
 
   useEffect(() => {
     let cancelled = false;
@@ -581,7 +599,7 @@ function SearchPageContent() {
       <SearchSubnav activeTab={activeTab} onChangeTab={handleChangeTab} />
 
       <section className="search-content">
-        <div className="search-query">
+        <div className="search-query" ref={searchQueryRef}>
           <span className="search-query-text">{tGroups("searchResultsFor")}</span>
 
           <form
@@ -686,6 +704,7 @@ function SearchPageContent() {
   onCancelRequest={handleCancelRequest}
   onLeave={handleLeave}
   onRefresh={handleSearchPullRefresh}
+  indicatorTop={refreshTop}
   filter={communityFilter}
 />
         )}
@@ -697,6 +716,8 @@ function SearchPageContent() {
             onNavigate={handleNavigate}
             currentUserId={user?.uid ?? null}
             filter={profileFilter}
+            onRefresh={handleSearchPullRefresh}
+            indicatorTop={refreshTop}
           />
         )}
 
@@ -710,11 +731,12 @@ function SearchPageContent() {
             filter={postFilter}
             fromDate={postDateFrom}
             toDate={postDateTo}
+            indicatorTop={refreshTop}
           />
         )}
 
         {activeTab === "stories" && (
-          <SearchStoriesResults search={debouncedQuery} filter={storyFilter} />
+          <SearchStoriesResults search={debouncedQuery} filter={storyFilter} indicatorTop={refreshTop} />
         )}
         </motion.div>
       </section>
@@ -724,6 +746,7 @@ function SearchPageContent() {
   position: relative;
   z-index: 2;
   width: 100%;
+  max-width: 100%;
   min-height: 100%;
   color: #fff;
   display: grid;
@@ -732,17 +755,28 @@ function SearchPageContent() {
   padding: 0 0 96px;
   box-sizing: border-box;
   margin-top: 0;
+  /* Evita scroll horizontal en iOS (p. ej. por el desliz del cambio de pestaña). */
+  overflow-x: hidden;
 }
 
 .search-content {
   position: relative;
   z-index: 3;
   width: min(100%, 1040px);
+  max-width: 100%;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 8px;
   padding: 0 16px;
   box-sizing: border-box;
   margin-top: 0;
+  overflow-x: hidden;
+}
+
+/* Evita el "grid blowout": los hijos no pueden exceder el ancho del track. */
+.search-content > * {
+  min-width: 0;
+  max-width: 100%;
 }
 
 .search-query {
