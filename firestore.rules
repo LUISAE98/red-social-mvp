@@ -2293,7 +2293,8 @@ function canModeratePostCommentData(data) {
   || canReadPostFromOwnHomeFeed()
   || canReadPostFromOwnSavedPosts();
 
-allow list: if isPlatformMod()
+allow list: if canListOwnAuthoredPost()
+  || isPlatformMod()
   || canReadPost()
   || canReadPostFromOwnHomeFeed()
   || canReadPostFromOwnSavedPosts()
@@ -2301,8 +2302,7 @@ allow list: if isPlatformMod()
   || canListReadableGroupSearchablePost()
   || canListPublicPremiumGroupPost()
   || canListPublicShareableGroupPost()
-  || canListBroadcastPublicLivePost()
-  || canListOwnAuthoredPost();
+  || canListBroadcastPublicLivePost();
 
       allow create: if validCreatePost();
 

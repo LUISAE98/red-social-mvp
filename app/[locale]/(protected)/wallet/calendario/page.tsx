@@ -275,8 +275,8 @@ function CalendarEventCard({
   const { format: formatMoney } = usePriceFormat();
   const initial = (item.buyerDisplayName ?? "U").charAt(0).toUpperCase();
 
-  // Variante para lives: informativa, sin comprador. Muestra "Horario abierto"
-  // (solo fecha) o la hora, y una etiqueta LIVE. No abre overlay de sesión.
+  // Variante para lives: informativa, sin comprador. La portada del live es el
+  // fondo de la card (o /live.png por defecto). No abre overlay de sesión.
   if (item.kind === "live") {
     const dateLabel = item.scheduledAt
       ? (() => {
@@ -293,6 +293,8 @@ function CalendarEventCard({
       : item.scheduledAt
         ? new Intl.DateTimeFormat(locale, { hour: "2-digit", minute: "2-digit" }).format(item.scheduledAt)
         : "";
+    const cover = item.sourceAvatarUrl || "/live.png";
+    const initial = (item.buyerDisplayName ?? "?").charAt(0).toUpperCase();
     return (
       <div
         style={{
@@ -303,21 +305,22 @@ function CalendarEventCard({
           display: "flex",
           alignItems: "center",
           gap: 12,
-          background: "rgba(168,85,247,0.08)",
-          border: "1px solid rgba(168,85,247,0.20)",
+          background: `linear-gradient(rgba(8,8,10,0.72), rgba(8,8,10,0.72)), url(${cover}) center / cover no-repeat`,
         }}
       >
-        {item.sourceAvatarUrl ? (
+        {item.buyerAvatarUrl ? (
           <Image
-            src={item.sourceAvatarUrl}
+            src={item.buyerAvatarUrl}
             alt=""
             width={40}
             height={40}
             style={{
-              borderRadius: 10,
+              borderRadius: "50%",
               objectFit: "cover",
               flexShrink: 0,
-              border: "1px solid rgba(255,255,255,0.14)",
+              border: "1px solid rgba(255,255,255,0.25)",
+              position: "relative",
+              zIndex: 1,
             }}
           />
         ) : (
@@ -325,59 +328,82 @@ function CalendarEventCard({
             style={{
               width: 40,
               height: 40,
-              borderRadius: 10,
+              borderRadius: "50%",
               flexShrink: 0,
-              background: "linear-gradient(135deg, #a855ff, #6d28d9)",
+              background: "rgba(255,255,255,0.14)",
+              border: "1px solid rgba(255,255,255,0.25)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
+              color: "#fff",
+              fontWeight: 700,
+              fontSize: 14,
+              position: "relative",
+              zIndex: 1,
             }}
           >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="#fff" aria-hidden="true">
-              <path d="M8 5v14l11-7z" />
-            </svg>
+            {initial}
           </div>
         )}
-        <div style={{ flex: 1, minWidth: 0, overflow: "hidden" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
-            <span
-              style={{
-                color: "#fff",
-                fontWeight: 600,
-                fontSize: 13,
-                lineHeight: 1.2,
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-                flexShrink: 1,
-              }}
-            >
-              {item.title}
-            </span>
-            <span
-              style={{
-                flexShrink: 0,
-                fontSize: 9.5,
-                fontWeight: 700,
-                letterSpacing: "0.04em",
-                color: "#e9d5ff",
-                background: "rgba(168,85,247,0.22)",
-                borderRadius: 999,
-                padding: "2px 7px",
-              }}
-            >
-              LIVE
-            </span>
+
+        <div style={{ flex: 1, minWidth: 0, overflow: "hidden", position: "relative", zIndex: 1 }}>
+          <div
+            style={{
+              color: "#fff",
+              fontWeight: 600,
+              fontSize: 13,
+              lineHeight: 1.2,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {item.title}
           </div>
           <div
             style={{
-              color: "rgba(255,255,255,0.55)",
+              color: "rgba(255,255,255,0.72)",
               fontSize: 11,
               lineHeight: 1.3,
               marginTop: 3,
             }}
           >
             {[dateLabel, timeLabel].filter(Boolean).join(" · ")}
+          </div>
+        </div>
+
+        <div
+          style={{
+            flexShrink: 0,
+            position: "relative",
+            zIndex: 1,
+            textAlign: "center",
+            textShadow: "0 1px 4px rgba(0,0,0,0.55)",
+          }}
+        >
+          <div
+            style={{
+              color: "#fff",
+              fontWeight: 500,
+              fontSize: 19,
+              letterSpacing: "0.06em",
+              whiteSpace: "nowrap",
+              lineHeight: 1.1,
+            }}
+          >
+            EN VIVO
+          </div>
+          <div
+            style={{
+              color: "#fff",
+              fontWeight: 500,
+              fontSize: 10,
+              letterSpacing: "0.02em",
+              whiteSpace: "nowrap",
+              marginTop: 2,
+            }}
+          >
+            programado
           </div>
         </div>
       </div>

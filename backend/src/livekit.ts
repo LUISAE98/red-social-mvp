@@ -51,9 +51,10 @@ export async function createParticipantToken(params: {
   roomName: string;
   identity: string;
   displayName: string;
+  metadata?: string;
   ttlSeconds?: number;
 }): Promise<string> {
-  const { roomName, identity, displayName, ttlSeconds = 14400 } = params;
+  const { roomName, identity, displayName, metadata, ttlSeconds = 14400 } = params;
 
   const grant: VideoGrant = {
     room: roomName,
@@ -66,6 +67,7 @@ export async function createParticipantToken(params: {
   const token = new AccessToken(livekitApiKey.value(), livekitApiSecret.value(), {
     identity,
     name: displayName,
+    metadata,
     ttl: ttlSeconds,
   });
   token.addGrant(grant);

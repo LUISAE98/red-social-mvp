@@ -147,6 +147,7 @@ export const getLivekitToken = onCall(
       roomName: existingRoomName,
       creatorDisplayName,
       creatorUsername,
+      creatorAvatarUrl,
       buyerDisplayName,
       buyerUsername,
     } = session;
@@ -221,7 +222,16 @@ export const getLivekitToken = onCall(
       : (buyerDisplayName ?? buyerUsername ?? "Fan");
 
     // ── Generar token ──────────────────────────────────────────────────────────
-    const token = await createParticipantToken({ roomName, identity, displayName });
+    // Solo el creador lleva metadata: la plantilla de grabación (egress) la lee
+    // para hornear el overlay (avatar + aro + nombre + tipo) dentro del video.
+    const metadata = isCreator
+      ? JSON.stringify({
+          avatarUrl: creatorAvatarUrl ?? null,
+          name: displayName,
+          type: sessionType,
+        })
+      : undefined;
+    const token = await createParticipantToken({ roomName, identity, displayName, metadata });
 
     // ── Validar configuración de entorno ───────────────────────────────────────
     const livekitUrl = process.env.LIVEKIT_URL;

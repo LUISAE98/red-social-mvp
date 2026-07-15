@@ -677,6 +677,8 @@ export function filterWalletHistoryItems(
 // Devuelve null si el live no debe calendarizarse (sin fecha, o ya terminado).
 type LivePostRowData = {
   liveData?: PostLiveData | null;
+  authorName?: string | null;
+  authorAvatarUrl?: string | null;
   createdAt?: FirestoreTimestampLike;
   updatedAt?: FirestoreTimestampLike;
 };
@@ -711,9 +713,10 @@ function normalizeLiveRow(id: string, data: LivePostRowData): WalletServiceItem 
     profileUsername: null,
     requestSource: null,
     buyerId: "",
-    buyerDisplayName: null,
+    // Para lives reutilizamos estos campos para el avatar/nombre del CREADOR.
+    buyerDisplayName: (typeof data.authorName === "string" && data.authorName.trim()) || null,
     buyerUsername: null,
-    buyerAvatarUrl: null,
+    buyerAvatarUrl: (typeof data.authorAvatarUrl === "string" && data.authorAvatarUrl.trim()) || null,
     sourceAvatarUrl: (live.coverUrl && live.coverUrl.trim()) || null,
     muxPlaybackId: null,
     videoDuration: null,
