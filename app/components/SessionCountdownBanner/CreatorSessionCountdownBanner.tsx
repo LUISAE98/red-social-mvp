@@ -10,6 +10,7 @@ import { rejectMeetGreetRequest } from "@/lib/meetGreet/meetGreetRequests";
 import { rejectExclusiveSessionRequest } from "@/lib/exclusiveSession/exclusiveSessionRequests";
 import { OPEN_SESSION_SCHEDULE_EVENT } from "./GlobalSessionScheduleOverlay";
 import MeetGreetPreparationFullscreen from "@/app/components/meetGreet/MeetGreetPreparationFullscreen";
+import { callGetRecordingDownloadUrl } from "@/lib/liveKit/sessionLifecycle";
 
 // Abre el panel de reagenda global (mismo SessionRequestOverlay del sidebar).
 // El host GlobalSessionScheduleOverlay escucha este evento, trae el doc y lo abre.
@@ -183,7 +184,7 @@ function SessionRow({ session }: { session: CreatorSession }) {
 }
 
 export default function CreatorSessionCountdownBanner({ uid }: { uid: string }) {
-  const { nextSession, todaySessions, loading } = useCreatorTodaySessions(uid);
+  const { nextSession, todaySessions, completedSession, loading } = useCreatorTodaySessions(uid);
   const [now, setNow] = useState(() => Date.now());
   const [busy, setBusy] = useState(false);
   const [prepOpen, setPrepOpen] = useState(false);
@@ -203,6 +204,19 @@ export default function CreatorSessionCountdownBanner({ uid }: { uid: string }) 
       return next;
     });
   }
+
+  // Descarte de la tarjeta de sesión completada (persistido por sesión).
+  const [standaloneCompletedDismissed, setStandaloneCompletedDismissed] = useState(() => {
+    if (!completedSession) return false;
+    try { return localStorage.getItem(`dismissed_session_${completedSession.id}`) === "1"; } catch { return false; }
+  });
+  useEffect(() => {
+    if (!completedSession) return;
+    try {
+      setStandaloneCompletedDismissed(localStorage.getItem(`dismissed_session_${completedSession.id}`) === "1");
+    } catch { /* */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [completedSession?.id]);
 
   useEffect(() => {
     lateTriggeredRef.current.clear();
@@ -237,6 +251,60 @@ export default function CreatorSessionCountdownBanner({ uid }: { uid: string }) 
   }, [countdown321]);
 
   const noShowSessions = todaySessions.filter((s) => s.status === "auto_rejected_no_show");
+
+  // Tarjeta de sesión completada (descarga + tache), cuando ya no hay activa.
+  if (!loading && !nextSession && noShowSessions.length === 0 && completedSession && !standaloneCompletedDismissed) {
+    const cs = completedSession;
+    const daysLeft = Math.max(0, 30 - Math.floor((now - cs.scheduledAt.getTime()) / (1000 * 60 * 60 * 24)));
+    const canDownload = daysLeft > 0;
+    const buyerNm = cs.buyerDisplayName ?? "Comprador";
+    const bg = cs.serviceKind === "exclusive_session" ? "/sesionexclusiva.png" : "/encuentroenvivo.png";
+    const accent = cs.serviceKind === "exclusive_session";
+    async function handleDownloadCompleted() {
+      try {
+        const url = await callGetRecordingDownloadUrl({ sessionId: cs.id, sessionType: cs.serviceKind });
+        window.location.href = url;
+      } catch (e) { console.error(e); }
+    }
+    function dismissCompleted() {
+      try { localStorage.setItem(`dismissed_session_${cs.id}`, "1"); } catch { /* */ }
+      setStandaloneCompletedDismissed(true);
+    }
+    return (
+      <div style={{ width: "100%", position: "relative", borderRadius: 12, overflow: "hidden", marginBottom: 2, boxSizing: "border-box" }}>
+        <div style={{ position: "absolute", inset: 0, backgroundImage: `url(${bg})`, backgroundSize: "cover", backgroundPosition: "center" }} />
+        <div style={{ position: "absolute", inset: 0, background: "linear-gradient(160deg, rgba(0,0,0,0.60) 0%, rgba(0,0,0,0.80) 100%)" }} />
+        <button type="button" onClick={dismissCompleted} style={{ position: "absolute", top: 10, right: 10, border: "none", background: "none", color: "rgba(255,255,255,0.45)", fontSize: 16, cursor: "pointer", padding: "0 2px", zIndex: 2, fontFamily: "inherit", lineHeight: 1 }} aria-label="Cerrar">✕</button>
+        <div style={{ position: "relative", padding: "16px 40px 16px 18px", display: "flex", flexDirection: "column", gap: 10 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <div style={{ width: 44, height: 44, borderRadius: "50%", overflow: "hidden", flexShrink: 0, background: "rgba(255,255,255,0.10)", border: "2px solid rgba(34,197,94,0.50)" }}>
+              {cs.buyerAvatarUrl
+                ? <Image src={cs.buyerAvatarUrl} alt={buyerNm} width={44} height={44} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                : <div style={{ width: "100%", height: "100%", display: "grid", placeItems: "center", fontSize: 18, fontWeight: 700, color: "#fff", textTransform: "uppercase" }}>{buyerNm[0]}</div>
+              }
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.60)", marginBottom: 2 }}>Sesión con</div>
+              <div style={{ fontSize: 16, color: "#fff", fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{buyerNm}</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 3 }}>
+                <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#4ade80", flexShrink: 0 }} />
+                <span style={{ fontSize: 11, color: "#4ade80", fontWeight: 600 }}>Completada</span>
+              </div>
+            </div>
+          </div>
+          <div style={{ fontSize: 12, color: "rgba(255,255,255,0.65)", lineHeight: 1.5, textAlign: "center" }}>
+            {canDownload
+              ? `Descarga la sesión. Tienes ${daysLeft} día${daysLeft === 1 ? "" : "s"} para hacerlo, después ya no se podrá.`
+              : "El enlace de descarga ha expirado (30 días)."}
+          </div>
+          <button type="button" onClick={handleDownloadCompleted} disabled={!canDownload} style={{ width: "100%", height: 38, borderRadius: 8, border: "none", background: !canDownload ? "rgba(255,255,255,0.08)" : accent ? "rgba(236,72,153,0.22)" : "rgba(59,130,246,0.22)", color: !canDownload ? "rgba(255,255,255,0.30)" : accent ? "#f9a8d4" : "#93c5fd", fontSize: 14, fontWeight: 600, cursor: !canDownload ? "not-allowed" : "pointer", fontFamily: "inherit", letterSpacing: "-0.01em" }}>
+            Descargar sesión
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   if (loading || todaySessions.length === 0) return null;
   if (!nextSession && noShowSessions.length === 0) return null;
 
@@ -320,7 +388,7 @@ export default function CreatorSessionCountdownBanner({ uid }: { uid: string }) 
       : null;
   const preSessionSecondsLeft =
     prepT0 !== null && !sessionInProgress && !prepOpen
-      ? Math.max(0, Math.ceil(((prepT0 + 60_000) - now) / 1000))
+      ? Math.max(0, Math.ceil(((prepT0 + 30_000) - now) / 1000))
       : null;
   // Update ref so pre-early-return effects can read these values
   preSessionCtxRef.current = { secondsLeft: preSessionSecondsLeft, inProgress: sessionInProgress };

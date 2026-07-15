@@ -20,10 +20,11 @@ export type CreatorSession = {
 export type UseCreatorTodaySessionsResult = {
   nextSession: CreatorSession | null;
   todaySessions: CreatorSession[];
+  completedSession: CreatorSession | null;
   loading: boolean;
 };
 
-const ACTIVE_STATUSES = ["scheduled", "ready_to_prepare", "in_preparation", "auto_rejected_no_show"];
+const ACTIVE_STATUSES = ["scheduled", "ready_to_prepare", "in_preparation", "completed", "auto_rejected_no_show"];
 
 function toDate(value: unknown): Date | null {
   if (!value) return null;
@@ -73,13 +74,14 @@ export function useCreatorTodaySessions(uid: string | null): UseCreatorTodaySess
   const [result, setResult] = useState<UseCreatorTodaySessionsResult>({
     nextSession: null,
     todaySessions: [],
+    completedSession: null,
     loading: true,
   });
 
   useEffect(() => {
     if (!uid) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
-      setResult({ nextSession: null, todaySessions: [], loading: false });
+      setResult({ nextSession: null, todaySessions: [], completedSession: null, loading: false });
       return;
     }
 
@@ -90,15 +92,20 @@ export function useCreatorTodaySessions(uid: string | null): UseCreatorTodaySess
     function publish() {
       if (!mgLoaded || !esLoaded) return;
       if (!isVisibleNow()) {
-        setResult({ nextSession: null, todaySessions: [], loading: false });
+        setResult({ nextSession: null, todaySessions: [], completedSession: null, loading: false });
         return;
       }
       const today = Array.from(candidates.values())
         .filter((s) => isToday(s.scheduledAt))
         .sort((a, b) => a.scheduledAt.getTime() - b.scheduledAt.getTime());
+      // Las completadas salen de la lista activa y se exponen aparte (para la
+      // tarjeta de descarga del creador).
+      const active = today.filter((s) => s.status !== "completed");
+      const completed = today.filter((s) => s.status === "completed");
       setResult({
-        nextSession: pickNext(today),
-        todaySessions: today,
+        nextSession: pickNext(active),
+        todaySessions: active,
+        completedSession: completed[completed.length - 1] ?? null,
         loading: false,
       });
     }

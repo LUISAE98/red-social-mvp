@@ -105,6 +105,10 @@ export default function LiveKitVideoRoom({
     },
     publishDefaults: {
       videoEncoding: { maxBitrate: 3_500_000, maxFramerate: 30 },
+      // H.264 usa el encoder por HARDWARE del teléfono → mucho menos CPU/calor
+      // y menos latencia en móvil que el default VP8 (por software). No afecta la
+      // grabación (el egress re-codifica a H264 de todos modos).
+      videoCodec: "h264",
       dtx: true,
       red: true,
       simulcast: false,
@@ -180,6 +184,7 @@ function RoomContent({
   const joinCalledRef = useRef(false);
   const timerExpiredFiredRef = useRef(false);
   const twoMinFiredRef = useRef(false);
+  const expiryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
 
   const cameraTracks = useTracks([Track.Source.Camera], { onlySubscribed: false });
@@ -243,13 +248,31 @@ function RoomContent({
     }
     if (!timerExpiredFiredRef.current && remaining === 0) {
       timerExpiredFiredRef.current = true;
-      if (onTimerExpired) {
-        onTimerExpired();
-      } else {
-        onLeave();
-      }
+      // Gracia de 5s OCULTA: al llegar a 0 no cortamos de inmediato, esperamos
+      // 5s más (el contador queda en 00:00, sin avisar a nadie) para que la
+      // videollamada no se sienta cortada de golpe.
+      expiryTimeoutRef.current = setTimeout(() => {
+        // Tiempo agotado = fin exitoso: finalizar en el backend (status→completed,
+        // detener grabación) para que la sesión pase a Entregados y sea descargable.
+        // Idempotente: el segundo participante que lo dispare es no-op.
+        callEndSession({ sessionId, sessionType }).catch((e) =>
+          console.error("endSession on expiry:", e)
+        );
+        if (onTimerExpired) {
+          onTimerExpired();
+        } else {
+          onLeave();
+        }
+      }, 5000);
     }
-  }, [remaining, timer, onTimerExpired, onTwoMinWarning, onLeave]);
+  }, [remaining, timer, onTimerExpired, onTwoMinWarning, onLeave, sessionId, sessionType]);
+
+  // Limpia la gracia de expiración solo al desmontar.
+  useEffect(() => {
+    return () => {
+      if (expiryTimeoutRef.current) clearTimeout(expiryTimeoutRef.current);
+    };
+  }, []);
 
   // ── Join session ──────────────────────────────────────────────────────────
   useEffect(() => {

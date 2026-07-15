@@ -39,6 +39,7 @@ import CreatorExperiencesSection from "@/components/services/CreatorExperiencesS
 import CreatorServiceModals from "@/components/services/CreatorServiceModals";
 import { buildCurrentPathWithSearch } from "@/lib/auth-redirect";
 import CopyLinkButton from "@/components/ui/CopyLinkButton";
+import CoverSearchBar from "@/app/components/CoverSearch/CoverSearchBar";
 import {
   createGreetingRequest,
   type GreetingType,
@@ -178,6 +179,45 @@ const PROFILE_TAB_ORDER: Record<ProfileTabKey, number> = {
 };
 // ──────────────────────────────────────────────────────────────────────────────
 
+// Botón circular de la portada (mismo look que copiar link / cambiar portada).
+const COVER_CIRCLE_BTN_STYLE: React.CSSProperties = {
+  width: 34,
+  height: 34,
+  borderRadius: "50%",
+  border: "none",
+  background:
+    "linear-gradient(135deg, rgb(3,3,6) 0%, rgb(8,5,13) 48%, rgb(0,0,0) 100%)",
+  color: "rgba(168,85,247,0.98)",
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  padding: 0,
+  cursor: "pointer",
+  boxShadow:
+    "inset 0 1px 0 rgba(255,255,255,0.05), inset 0 -1px 0 rgba(255,255,255,0.02), 0 12px 24px rgba(0,0,0,0.5)",
+  backdropFilter: "blur(10px)",
+  WebkitBackdropFilter: "blur(10px)",
+};
+
+function CoverSearchLupaIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      width="17"
+      height="17"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <circle cx="11" cy="11" r="7" />
+      <path d="m21 21-4.3-4.3" />
+    </svg>
+  );
+}
+
 export default function ProfileClient() {
   const tProfile = useTranslations("profile");
   const tCommon = useTranslations("common");
@@ -256,6 +296,38 @@ export default function ProfileClient() {
 
   const [activeTab, setActiveTab] = useState<ProfileTabKey>("posts");
   const tabSwitchScrollY = useRef<number | null>(null);
+
+  // Búsqueda dentro del perfil (lupa en la portada).
+  const [coverSearchOpen, setCoverSearchOpen] = useState(false);
+  const [postSearchQuery, setPostSearchQuery] = useState("");
+  const postsFeedAnchorRef = useRef<HTMLDivElement | null>(null);
+
+  const handleCoverSearchSubmit = useCallback((query: string) => {
+    setPostSearchQuery(query);
+    setActiveTab("posts");
+    // Deja renderizar y hace scroll a donde inician las publicaciones. Si hay
+    // card de donación activo (arriba del feed), baja un poco más para saltarlo.
+    window.setTimeout(() => {
+      const anchor = postsFeedAnchorRef.current;
+      if (!anchor) return;
+      const HEADER_OFFSET = 64;
+      const banner = document.querySelector(
+        '[data-cover-donation-banner="true"]'
+      ) as HTMLElement | null;
+      const donationOffset = banner ? banner.offsetHeight + 12 : 0;
+      const top =
+        window.scrollY +
+        anchor.getBoundingClientRect().top -
+        HEADER_OFFSET +
+        donationOffset;
+      window.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
+    }, 130);
+  }, []);
+
+  const closeCoverSearch = useCallback(() => {
+    setCoverSearchOpen(false);
+    setPostSearchQuery("");
+  }, []);
 
   const handleTabChange = useCallback((tab: ProfileTabKey) => {
     tabSwitchScrollY.current = window.scrollY;
@@ -1763,6 +1835,10 @@ await createExclusiveSessionRequest({
   }}
 />
 
+{/* Misma opacidad que el botón de copiar link (0.65 desktop / 0.85 móvil). */}
+<style>{`.cover-corner-muted{opacity:0.65}@media(max-width:900px){.cover-corner-muted{opacity:0.85}}`}</style>
+
+{!coverSearchOpen && (
 <div
   className="shared-communities-cover"
   aria-label={tProfile("sharedCommunitiesLabel")}
@@ -1772,8 +1848,10 @@ await createExclusiveSessionRequest({
     viewerUid={viewer?.uid ?? null}
   />
 </div>
+)}
 
 
+{!coverSearchOpen && (
 <>
   {!isOwner && !!userDoc && (
     <div
@@ -1789,6 +1867,18 @@ await createExclusiveSessionRequest({
     }}
   >
     {!shouldHideProfileSocialContent && (
+      <button
+        type="button"
+        onClick={() => setCoverSearchOpen(true)}
+        aria-label={tCommon("searchInThisProfile")}
+        title={tCommon("searchInThisProfile")}
+        className="cover-corner-muted"
+        style={{ ...COVER_CIRCLE_BTN_STYLE, color: "#fff" }}
+      >
+        <CoverSearchLupaIcon />
+      </button>
+    )}
+    {!shouldHideProfileSocialContent && (
       <CopyLinkButton
         href={profileShareHref}
         copiedLabel={tCommon("linkCopiedOk")}
@@ -1801,7 +1891,7 @@ await createExclusiveSessionRequest({
           background:
             "linear-gradient(135deg, rgb(3,3,6) 0%, rgb(8,5,13) 48%, rgb(0,0,0) 100%)",
           boxShadow:
-            "inset 0 1px 0 rgba(255,255,255,0.04), inset 0 -1px 0 rgba(255,255,255,0.016), inset 0 0 11px rgba(168,85,255,0.13), inset 0 0 18px rgba(168,85,255,0.085), inset 0 0 26px rgba(126,34,206,0.065), 0 0 7px rgba(168,85,255,0.05), 0 12px 24px rgba(0,0,0,0.5)",
+            "inset 0 1px 0 rgba(255,255,255,0.05), inset 0 -1px 0 rgba(255,255,255,0.02), 0 12px 24px rgba(0,0,0,0.5)",
           backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)",
         }}
       />
@@ -1811,6 +1901,8 @@ await createExclusiveSessionRequest({
       profileUid={userDoc.uid}
       onUnblockSuccess={handleUnblockConfirmed}
       onUnblockError={handleUnblockFailed}
+      buttonClassName="cover-corner-muted"
+      buttonStyle={{ ...COVER_CIRCLE_BTN_STYLE, color: "#fff", fontSize: 20 }}
     />
   </div>
   )}
@@ -1819,6 +1911,48 @@ await createExclusiveSessionRequest({
     <>
     <CurrencySwitcher variant="cover-corner" />
     <LanguageSwitcher variant="cover-corner" />
+    {/* Lupa + copiar perfil (owner). En móvil se corre a la izquierda para no
+        encimar los switchers de moneda/idioma. */}
+    <style>{`.profile-owner-cover-actions{right:14px}@media(max-width:900px){.profile-owner-cover-actions{right:96px}}`}</style>
+    <div
+      className="profile-owner-cover-actions"
+      style={{
+        position: "absolute",
+        top: 14,
+        zIndex: 41,
+        display: "flex",
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 8,
+      }}
+    >
+      <button
+        type="button"
+        onClick={() => setCoverSearchOpen(true)}
+        aria-label={tCommon("searchInThisProfile")}
+        title={tCommon("searchInThisProfile")}
+        className="cover-corner-muted"
+        style={{ ...COVER_CIRCLE_BTN_STYLE, color: "#fff" }}
+      >
+        <CoverSearchLupaIcon />
+      </button>
+      <CopyLinkButton
+        href={profileShareHref}
+        copiedLabel={tCommon("linkCopiedOk")}
+        title={tCommon("copyProfileLink")}
+        style={{
+          width: 34,
+          height: 34,
+          borderRadius: "50%",
+          border: "none",
+          background:
+            "linear-gradient(135deg, rgb(3,3,6) 0%, rgb(8,5,13) 48%, rgb(0,0,0) 100%)",
+          boxShadow:
+            "inset 0 1px 0 rgba(255,255,255,0.05), inset 0 -1px 0 rgba(255,255,255,0.02), 0 12px 24px rgba(0,0,0,0.5)",
+          backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)",
+        }}
+      />
+    </div>
     <button
       onClick={handlePickCover}
       disabled={uploading}
@@ -1844,7 +1978,7 @@ await createExclusiveSessionRequest({
         opacity: uploading ? 0.7 : 1,
         cursor: uploading ? "not-allowed" : "pointer",
         boxShadow:
-          "inset 0 1px 0 rgba(255,255,255,0.04), inset 0 -1px 0 rgba(255,255,255,0.016), inset 0 0 11px rgba(168,85,255,0.13), inset 0 0 18px rgba(168,85,255,0.085), inset 0 0 26px rgba(126,34,206,0.065), 0 0 7px rgba(168,85,255,0.05), 0 12px 24px rgba(0,0,0,0.5)",
+          "inset 0 1px 0 rgba(255,255,255,0.05), inset 0 -1px 0 rgba(255,255,255,0.02), 0 12px 24px rgba(0,0,0,0.5)",
         backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)",
       }}
     >
@@ -1864,6 +1998,15 @@ await createExclusiveSessionRequest({
     </>
   )}
 </>
+)}
+
+{coverSearchOpen && (
+  <CoverSearchBar
+    onSubmit={handleCoverSearchSubmit}
+    onClose={closeCoverSearch}
+    placeholder={tCommon("searchInThisProfile")}
+  />
+)}
             </div>
 
             <div className="profile-content">
@@ -2029,7 +2172,7 @@ await createExclusiveSessionRequest({
                         display: "grid",
                         placeItems: "center",
                         boxShadow:
-                          "inset 0 1px 0 rgba(255,255,255,0.04), inset 0 -1px 0 rgba(255,255,255,0.016), inset 0 0 11px rgba(168,85,255,0.13), inset 0 0 18px rgba(168,85,255,0.085), inset 0 0 26px rgba(126,34,206,0.065), 0 0 7px rgba(168,85,255,0.05), 0 12px 24px rgba(0,0,0,0.5)",
+                          "inset 0 1px 0 rgba(255,255,255,0.05), inset 0 -1px 0 rgba(255,255,255,0.02), 0 12px 24px rgba(0,0,0,0.5)",
                         backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)",
                         zIndex: 200,
                         pointerEvents: "auto",
@@ -2304,6 +2447,7 @@ await createExclusiveSessionRequest({
   </div>
 )}
 
+<div ref={postsFeedAnchorRef} aria-hidden="true" style={{ scrollMarginTop: 72 }} />
 <ProfilePostsFeed
   key={`profile-posts-${userDoc.uid}-${profilePostsRefreshKey}`}
   profileUid={userDoc.uid}
@@ -2312,6 +2456,7 @@ await createExclusiveSessionRequest({
   showPosts={isOwner ? ownerShowPosts : visitorCanSeePosts}
   profileRestricted={profileRestricted}
   commentsEnabled={profileCommentsEnabled}
+  searchQuery={postSearchQuery}
   donation={userDoc.donation as { mode?: string; enabled?: boolean; visible?: boolean; message?: string | null; playbackId?: string | null; suggestedAmounts?: number[] | null; currency?: string | null } | null}
   donationCreatorName={userDoc.displayName ?? userDoc.handle ?? null}
   donationProfilePhoto={userDoc.photoURL ?? null}

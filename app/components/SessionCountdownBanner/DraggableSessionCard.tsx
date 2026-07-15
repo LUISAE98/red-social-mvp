@@ -46,7 +46,7 @@ function formatTabCountdown(ms: number): string {
 }
 
 export default function DraggableSessionCard({ uid }: { uid: string }) {
-  const { nextSession: creatorNextSession, todaySessions, loading: cl } = useCreatorTodaySessions(uid);
+  const { nextSession: creatorNextSession, todaySessions, completedSession: creatorCompletedSession, loading: cl } = useCreatorTodaySessions(uid);
   const { session, completedSession, loading: bl } = useBuyerNextSession(uid);
 
   const [mounted, setMounted] = useState(false);
@@ -104,7 +104,7 @@ export default function DraggableSessionCard({ uid }: { uid: string }) {
     if (!sessionStartedAt) autoSnappedRef.current = false;
   }, [sessionStartedAt]);
 
-  const hasCreator = !cl && todaySessions.length > 0;
+  const hasCreator = !cl && (todaySessions.length > 0 || !!creatorCompletedSession);
   const hasBuyer = !bl && (!!session || !!completedSession);
   const visible = hasCreator || hasBuyer;
 

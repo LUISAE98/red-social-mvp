@@ -2579,6 +2579,7 @@ export async function createLivePost(params: {
   description?: string | null;
   coverUrl?: string | null;
   scheduledStartAt?: Date | null;
+  scheduleHasTime?: boolean | null;
   visibilityMode?: LiveVisibilityMode | null;
   allowLoggedOutViewers?: boolean | null;
   accessType?: "free" | "paid" | null;
@@ -2594,6 +2595,7 @@ export async function createLivePost(params: {
   description?: string | null;
   coverUrl?: string | null;
   scheduledStartAt?: Date | null;
+  scheduleHasTime?: boolean | null;
   visibilityMode?: LiveVisibilityMode | null;
   allowLoggedOutViewers?: boolean | null;
   accessType?: "free" | "paid" | null;
@@ -2610,6 +2612,7 @@ export async function createLivePost(params: {
   description?: string | null;
   coverUrl?: string | null;
   scheduledStartAt?: Date | null;
+  scheduleHasTime?: boolean | null;
   visibilityMode?: LiveVisibilityMode | null;
   allowLoggedOutViewers?: boolean | null;
   accessType?: "free" | "paid" | null;
@@ -2656,6 +2659,7 @@ export async function createLivePost(params: {
     description: params.description?.trim() || null,
     coverUrl: params.coverUrl ?? null,
     scheduledStartAt,
+    scheduleHasTime: scheduledStartAt ? (params.scheduleHasTime ?? true) : null,
     startedAt: null,
     endedAt: null,
     streamProvider: null,
@@ -4384,6 +4388,7 @@ export async function updateLivePost(params: {
   description?: string | null;
   coverUrl?: string | null;
   scheduledStartAt?: Date | null;
+  scheduleHasTime?: boolean | null;
   visibilityMode?: LiveVisibilityMode | null;
   accessType?: "free" | "paid" | null;
   ticketPrice?: number | null;
@@ -4427,6 +4432,7 @@ export async function updateLivePost(params: {
     "liveData.description": params.description?.trim() || null,
     "liveData.coverUrl": params.coverUrl ?? null,
     "liveData.scheduledStartAt": scheduledStartAt,
+    "liveData.scheduleHasTime": scheduledStartAt ? (params.scheduleHasTime ?? true) : null,
     "liveData.visibilityMode": effectiveMode,
     "liveData.allowLoggedOutViewers": effectiveMode === "everyone",
     "liveData.accessType": effectiveAccessType,

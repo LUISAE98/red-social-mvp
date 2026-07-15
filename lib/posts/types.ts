@@ -248,6 +248,9 @@ export type PostLiveData = {
   description?: string | null;
   coverUrl?: string | null;
   scheduledStartAt?: Timestamp | null;
+  // true = el creador fijó hora; false = solo fecha ("Horario abierto"). Sirve
+  // para calendarizar el live en la wallet distinguiendo día vs día+hora.
+  scheduleHasTime?: boolean | null;
   startedAt?: Timestamp | null;
   endedAt?: Timestamp | null;
   streamProvider?: "mux" | "cloudflare" | "custom_hls" | null;

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type CS
 import { createPortal } from "react-dom";
 import LiveKitVideoRoom from "@/app/components/liveKit/LiveKitVideoRoom";
 import type { LivekitSessionType } from "@/lib/liveKit/getLivekitToken";
+import { callGetRecordingDownloadUrl } from "@/lib/liveKit/sessionLifecycle";
 
 type Props = {
   open: boolean;
@@ -80,6 +81,8 @@ export default function MeetGreetPreparationFullscreen({
   const [showTwoMinAlert, setShowTwoMinAlert] = useState(false);
   const [sessionEnded, setSessionEnded] = useState(false);
   const [isEndingSession, setIsEndingSession] = useState(false);
+  const [dlBusy, setDlBusy] = useState(false);
+  const [dlMsg, setDlMsg] = useState<string | null>(null);
   const endSessionRef = useRef<(() => Promise<void>) | null>(null);
   const twoMinTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -102,6 +105,22 @@ export default function MeetGreetPreparationFullscreen({
   const handleTimerExpired = useCallback(() => {
     setMode("expired");
   }, []);
+
+  const handleDownloadRecording = useCallback(async () => {
+    if (dlBusy) return;
+    setDlBusy(true);
+    setDlMsg(null);
+    try {
+      const url = await callGetRecordingDownloadUrl({ sessionId, sessionType });
+      window.location.href = url;
+    } catch {
+      setDlMsg(
+        'La grabación se está procesando. La encontrarás en "Entregadas" en unos minutos.'
+      );
+    } finally {
+      setDlBusy(false);
+    }
+  }, [dlBusy, sessionId, sessionType]);
 
   const handleTwoMinWarning = useCallback(() => {
     setShowTwoMinAlert(true);
@@ -420,16 +439,25 @@ export default function MeetGreetPreparationFullscreen({
 
               <button
                 type="button"
+                onClick={handleDownloadRecording}
+                disabled={dlBusy}
                 style={{
                   width: "100%", height: 42, borderRadius: 5, border: "none",
-                  background: "#a855ff", color: "rgba(255,255,255,0.98)",
+                  background: dlBusy ? "rgba(168,85,255,0.5)" : "#a855ff",
+                  color: "rgba(255,255,255,0.98)",
                   fontSize: 15, fontWeight: 500, fontFamily: "inherit",
-                  cursor: "pointer", letterSpacing: "-0.02em",
+                  cursor: dlBusy ? "not-allowed" : "pointer", letterSpacing: "-0.02em",
                   display: "grid", placeItems: "center",
                 }}
               >
-                Descargar grabación
+                {dlBusy ? "Descargando…" : "Descargar grabación"}
               </button>
+
+              {dlMsg && (
+                <p style={{ color: "rgba(255,255,255,0.55)", fontSize: 12, margin: 0, lineHeight: 1.5 }}>
+                  {dlMsg}
+                </p>
+              )}
 
               <button
                 type="button"

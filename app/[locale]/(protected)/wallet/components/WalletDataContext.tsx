@@ -8,6 +8,7 @@ const defaultValue: OwnerWalletDataResult = {
   error: null,
   all: [],
   calendar: [],
+  lives: [],
   pendingCurrent: [],
   history: [],
 };

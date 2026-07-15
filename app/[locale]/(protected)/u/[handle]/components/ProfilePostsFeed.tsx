@@ -53,6 +53,8 @@ type ProfilePostsFeedProps = {
   showPosts?: boolean;
   profileRestricted?: boolean;
   commentsEnabled?: boolean;
+  /** Búsqueda dentro del perfil: filtra los posts por texto. */
+  searchQuery?: string;
   donation?: DonationData;
   donationCreatorName?: string | null;
   donationProfilePhoto?: string | null;
@@ -384,6 +386,23 @@ function buildStableFeedSeed(
   return hash || 1;
 }
 
+// Búsqueda dentro del perfil: normaliza y matchea por texto del post.
+function normalizeForSearch(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase();
+}
+
+function postMatchesQuery(post: Post, tokens: string[]): boolean {
+  if (tokens.length === 0) return true;
+  const hay = normalizeForSearch(typeof post.text === "string" ? post.text : "");
+  return tokens.every((token) => hay.includes(token));
+}
+
+// Tope de páginas que auto-cargamos al buscar (para no traer un feed enorme).
+const SEARCH_MAX_AUTO_PAGES = 12;
+
 const PROFILE_FEED_PAGE_SIZE = 10;
 const PROFILE_FEED_CACHE_TTL_MS = 1000 * 60 * 5;
 const VIDEO_PROCESSING_POLL_MS = 15_000;
@@ -477,6 +496,7 @@ export default function ProfilePostsFeed({
   showPosts = true,
   profileRestricted = false,
   commentsEnabled = true,
+  searchQuery = "",
   donation,
   donationCreatorName,
   donationProfilePhoto,
@@ -817,10 +837,38 @@ const cacheKey = useMemo(
   loadPostsPage,
 ]);
 
+  // ── Búsqueda dentro del perfil ────────────────────────────────────────────
+  const searchTokens = useMemo(
+    () => normalizeForSearch(searchQuery.trim()).split(/\s+/).filter(Boolean),
+    [searchQuery]
+  );
+  const searchActive = searchTokens.length > 0;
+  const searchKey = searchTokens.join(" ");
+
+  const renderPosts = useMemo(
+    () =>
+      searchActive ? posts.filter((post) => postMatchesQuery(post, searchTokens)) : posts,
+    [posts, searchActive, searchTokens]
+  );
+
+  // Al buscar, auto-cargamos páginas (con tope) para que el filtro cubra más
+  // publicaciones, no solo las ya visibles.
+  const searchAutoPagesRef = useRef(0);
+  useEffect(() => {
+    searchAutoPagesRef.current = 0;
+  }, [searchKey]);
+  useEffect(() => {
+    if (!searchActive) return;
+    if (!hasMore || loadingMore || loadingInitial) return;
+    if (searchAutoPagesRef.current >= SEARCH_MAX_AUTO_PAGES) return;
+    searchAutoPagesRef.current += 1;
+    void loadPostsPage("more");
+  }, [searchActive, searchKey, hasMore, loadingMore, loadingInitial, loadPostsPage]);
+
   const infiniteScrollTriggerIndex = useMemo(() => {
-    if (posts.length <= 5) return posts.length - 1;
-    return Math.max(0, posts.length - 5);
-  }, [posts.length]);
+    if (renderPosts.length <= 5) return renderPosts.length - 1;
+    return Math.max(0, renderPosts.length - 5);
+  }, [renderPosts.length]);
 
 
   const processingVideoPostIdsKey = useMemo(() => {
@@ -1281,7 +1329,7 @@ const shellStyle: CSSProperties = {
       <VibraToast toast={feedToast} />
 
       {showDonationBanner && (
-        <div style={postItemStyle}>
+        <div style={postItemStyle} data-cover-donation-banner="true">
           <DonationFeedBanner
             message={donation?.message ?? null}
             playbackId={donation?.playbackId ?? null}
@@ -1303,7 +1351,7 @@ const shellStyle: CSSProperties = {
 
       {loadingInitial && <div style={noticeStyle}>{tProfile("postsLoading")}</div>}
 
-      {!loadingInitial && posts.length === 0 && viewerUid && !isEmbed && (
+      {!loadingInitial && !searchActive && posts.length === 0 && viewerUid && !isEmbed && (
         <div style={recommendationWrapperStyle}>
           <GroupRecommendationsRail
             currentUserId={viewerUid}
@@ -1312,19 +1360,29 @@ const shellStyle: CSSProperties = {
         </div>
       )}
 
-      {!loadingInitial && posts.length === 0 && !viewerUid && (
+      {!loadingInitial && !searchActive && posts.length === 0 && !viewerUid && (
         <div style={noticeStyle}>
           {tProfile("noPostsVisible")}
         </div>
       )}
 
-      {posts.map((post, index) => {
+      {/* Búsqueda sin coincidencias (cuando ya terminó de auto-cargar). */}
+      {searchActive &&
+        !loadingInitial &&
+        !loadingMore &&
+        !hasMore &&
+        renderPosts.length === 0 && (
+          <div style={noticeStyle}>{t("noExactMatches")}</div>
+        )}
+
+      {renderPosts.map((post, index) => {
         const canDeletePost =
           viewerUid === post.authorId || post.canModerateGroupAuthor === true;
 
-        const shouldRenderRecommendations = recommendationSlots.has(index + 1);
+        const shouldRenderRecommendations =
+          !searchActive && recommendationSlots.has(index + 1);
         const shouldAttachInfiniteScrollTarget =
-          hasMore && index === infiniteScrollTriggerIndex;
+          !searchActive && hasMore && index === infiniteScrollTriggerIndex;
 
         return (
           <div key={post.id} style={postItemStyle}>
@@ -1378,11 +1436,12 @@ const shellStyle: CSSProperties = {
         <div style={noticeStyle}>{tProfile("postsLoadingMore")}</div>
       )}
 
-      {!loadingInitial && !loadingMore && posts.length > 0 && !hasMore && (
+      {!searchActive && !loadingInitial && !loadingMore && posts.length > 0 && !hasMore && (
         <div style={noticeStyle}>{tProfile("allPostsLoaded")}</div>
       )}
 
-      {!loadingInitial &&
+      {!searchActive &&
+        !loadingInitial &&
         posts.length > 0 &&
         !hasInlineRecommendation &&
         viewerUid &&

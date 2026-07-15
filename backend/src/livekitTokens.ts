@@ -197,14 +197,16 @@ export const getLivekitToken = onCall(
     // ── Asegurar roomName persistente ──────────────────────────────────────────
     const roomName = await ensureRoomName(docRef, cleanId, existingRoomName);
 
-    // Crear/asegurar la sala con timeouts generosos: si ambos participantes se
-    // caen unos segundos, la sala (y por lo tanto la grabación) NO se cierra.
+    // Crear/asegurar la sala. departureTimeout corto (20s): si ambos se caen unos
+    // segundos, la sala aguanta y la grabación NO se corta; pero al terminar la
+    // llamada la sala se cierra pronto para no dejar una cola larga de pantalla
+    // negra en la grabación. (Con un solo participante caído la sala ni se vacía.)
     // createRoom es idempotente: si ya existe, no la altera.
     try {
       await createRoomServiceClient().createRoom({
         name: roomName,
-        emptyTimeout: 300,
-        departureTimeout: 300,
+        emptyTimeout: 60,
+        departureTimeout: 20,
       });
     } catch (err: unknown) {
       logger.info("livekit_room_ensure_noncritical", { roomName, err: String(err) });

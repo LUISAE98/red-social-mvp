@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
 import { useSocialRelationship } from "@/lib/social/useSocialRelationship";
@@ -12,9 +12,12 @@ type Props = {
   profileUid: string;
   onUnblockSuccess?: () => void;
   onUnblockError?: () => void;
+  /** Estilo/clase extra para el botón disparador (⋮), p. ej. círculo de portada. */
+  buttonStyle?: CSSProperties;
+  buttonClassName?: string;
 };
 
-export default function ProfileMoreMenu({ viewerUid, profileUid, onUnblockSuccess, onUnblockError }: Props) {
+export default function ProfileMoreMenu({ viewerUid, profileUid, onUnblockSuccess, onUnblockError, buttonStyle, buttonClassName }: Props) {
   const tCommon = useTranslations("common");
   const menuPanelRef = useRef<HTMLDivElement | null>(null);
   const menuButtonRef = useRef<HTMLButtonElement | null>(null);
@@ -109,6 +112,7 @@ export default function ProfileMoreMenu({ viewerUid, profileUid, onUnblockSucces
         aria-expanded={menuOpen}
         onClick={() => setMenuOpen((v) => !v)}
         disabled={loading}
+        className={buttonClassName}
         style={{
           background: "none",
           border: "none",
@@ -117,8 +121,9 @@ export default function ProfileMoreMenu({ viewerUid, profileUid, onUnblockSucces
           fontSize: 20,
           fontWeight: 900,
           lineHeight: 1,
-          opacity: loading ? 0.65 : 1,
           cursor: loading ? "not-allowed" : "pointer",
+          ...(loading ? { opacity: 0.65 } : {}),
+          ...buttonStyle,
         }}
       >
         ⋮

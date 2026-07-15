@@ -259,15 +259,16 @@ export default function LanguageSwitcher({ variant = "desktop" }: { variant?: Va
               border: "none",
               color: "#a855ff",
               fontSize: 11,
-              fontWeight: 800,
+              fontWeight: 600,
               fontFamily: "inherit",
               letterSpacing: "0.04em",
               cursor: "pointer",
+              opacity: 0.85,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               boxShadow:
-                "inset 0 1px 0 rgba(255,255,255,0.04), inset 0 -1px 0 rgba(255,255,255,0.016), inset 0 0 11px rgba(168,85,255,0.13), inset 0 0 18px rgba(168,85,255,0.085), inset 0 0 26px rgba(126,34,206,0.065), 0 0 7px rgba(168,85,255,0.05), 0 12px 24px rgba(0,0,0,0.5)",
+                "inset 0 1px 0 rgba(255,255,255,0.05), inset 0 -1px 0 rgba(255,255,255,0.02), 0 12px 24px rgba(0,0,0,0.5)",
               backdropFilter: "blur(10px)",
               WebkitBackdropFilter: "blur(10px)",
             }}

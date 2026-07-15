@@ -420,7 +420,7 @@ export default function SessionCountdownBanner({ uid }: { uid: string }) {
       : null;
   const preSessionSecondsLeft =
     prepT0 !== null && !sessionInProgress && !prepOpen
-      ? Math.max(0, Math.ceil(((prepT0 + 60_000) - now) / 1000))
+      ? Math.max(0, Math.ceil(((prepT0 + 30_000) - now) / 1000))
       : null;
   preSessionCtxRef.current = { secondsLeft: preSessionSecondsLeft, inProgress: sessionInProgress };
 

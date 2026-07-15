@@ -43,6 +43,7 @@ import DonationFeedBanner from "@/app/components/DonationFeedBanner/DonationFeed
 import SessionCountdownBanner from "@/app/components/SessionCountdownBanner/SessionCountdownBanner";
 import CreatorSessionCountdownBanner from "@/app/components/SessionCountdownBanner/CreatorSessionCountdownBanner";
 import CopyLinkButton from "@/components/ui/CopyLinkButton";
+import CoverSearchBar from "@/app/components/CoverSearch/CoverSearchBar";
 import {
   createGreetingRequest,
   type GreetingType,
@@ -143,6 +144,26 @@ export default function GroupPage() {
   const { user } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
+
+  // Búsqueda dentro de la comunidad (lupa en la portada).
+  const [coverSearchOpen, setCoverSearchOpen] = useState(false);
+  const [postSearchQuery, setPostSearchQuery] = useState("");
+  const groupPostsAnchorRef = useRef<HTMLDivElement | null>(null);
+
+  const handleCoverSearchSubmit = useCallback((query: string) => {
+    setPostSearchQuery(query);
+    window.setTimeout(() => {
+      groupPostsAnchorRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    }, 80);
+  }, []);
+
+  const closeCoverSearch = useCallback(() => {
+    setCoverSearchOpen(false);
+    setPostSearchQuery("");
+  }, []);
 
   const [isEmbed, setIsEmbed] = useState(false);
   useEffect(() => {
@@ -1361,9 +1382,28 @@ const groupRoundIconButtonStyle = {
   justifyContent: "center",
   padding: 0,
   boxShadow:
-    "inset 0 1px 0 rgba(255,255,255,0.04), inset 0 -1px 0 rgba(255,255,255,0.016), inset 0 0 11px rgba(168,85,255,0.13), inset 0 0 18px rgba(168,85,255,0.085), inset 0 0 26px rgba(126,34,206,0.065), 0 0 7px rgba(168,85,255,0.05), 0 12px 24px rgba(0,0,0,0.5)",
+    "inset 0 1px 0 rgba(255,255,255,0.05), inset 0 -1px 0 rgba(255,255,255,0.02), 0 12px 24px rgba(0,0,0,0.5)",
   backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)",
 };
+
+function GroupCoverLupaIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      width="17"
+      height="17"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <circle cx="11" cy="11" r="7" />
+      <path d="m21 21-4.3-4.3" />
+    </svg>
+  );
+}
 
 const groupCoverAuraStyle = {
   position: "absolute" as const,
@@ -1670,20 +1710,46 @@ const avatarNode = (
                 />
 
                 <div style={groupCoverGradientStyle} />
-                {canShareGroup && (
-  <CopyLinkButton
-    href={groupShareHref}
-    copiedLabel={tCommon("groupLinkCopied")}
-    title={tCommon("copyGroupLink")}
-    style={{
-      ...groupRoundIconButtonStyle,
-      position: "absolute",
-      right: 18,
-      top: 18,
-      zIndex: 40,
-    }}
-  />
-)}
+                <style>{`.cover-corner-muted{opacity:0.65}@media(max-width:900px){.cover-corner-muted{opacity:0.85}}`}</style>
+                {!coverSearchOpen && (
+                  <div
+                    style={{
+                      position: "absolute",
+                      right: 18,
+                      top: 18,
+                      zIndex: 40,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                    }}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => setCoverSearchOpen(true)}
+                      aria-label={tCommon("searchInThisCommunity")}
+                      title={tCommon("searchInThisCommunity")}
+                      className="cover-corner-muted"
+                      style={{ ...groupRoundIconButtonStyle, color: "#fff", cursor: "pointer" }}
+                    >
+                      <GroupCoverLupaIcon />
+                    </button>
+                    {canShareGroup && (
+                      <CopyLinkButton
+                        href={groupShareHref}
+                        copiedLabel={tCommon("groupLinkCopied")}
+                        title={tCommon("copyGroupLink")}
+                        style={{ ...groupRoundIconButtonStyle }}
+                      />
+                    )}
+                  </div>
+                )}
+                {coverSearchOpen && (
+                  <CoverSearchBar
+                    onSubmit={handleCoverSearchSubmit}
+                    onClose={closeCoverSearch}
+                    placeholder={tCommon("searchInThisCommunity")}
+                  />
+                )}
               </div>
 
               <div className="group-content">
@@ -1879,6 +1945,7 @@ const avatarNode = (
 
           {!isBanned && (
             <div style={{ paddingTop: 16, width: "100%" }}>
+              <div ref={groupPostsAnchorRef} aria-hidden="true" style={{ scrollMarginTop: 72 }} />
               <GroupPostsFeed
                 key={`group-posts-public-${groupId}`}
                 groupId={groupId}
@@ -1891,6 +1958,7 @@ const avatarNode = (
                 postBlockedReason={user ? "join" : "login"}
                 commentBlockedReason={user ? "join" : "login"}
                 publicPremiumOnly={true}
+                searchQuery={postSearchQuery}
               />
             </div>
           )}
@@ -2221,24 +2289,50 @@ const avatarNode = (
 
 <div style={groupCoverAuraStyle} />
 <div style={groupCoverGradientStyle} />
+<style>{`.cover-corner-muted{opacity:0.65}@media(max-width:900px){.cover-corner-muted{opacity:0.85}}`}</style>
 
-              {canShareGroup && (
-  <CopyLinkButton
-    href={groupShareHref}
-    copiedLabel={tCommon("groupLinkCopied")}
-    title={tCommon("copyGroupLink")}
-    style={{
-      ...groupRoundIconButtonStyle,
-      position: "absolute",
-      right: 18,
-      top: 18,
-      zIndex: 40,
-    }}
-  />
-)}
+              {!coverSearchOpen && (
+                <div
+                  style={{
+                    position: "absolute",
+                    right: 18,
+                    top: 18,
+                    zIndex: 40,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => setCoverSearchOpen(true)}
+                    aria-label={tCommon("searchInThisCommunity")}
+                    title={tCommon("searchInThisCommunity")}
+                    className="cover-corner-muted"
+                    style={{ ...groupRoundIconButtonStyle, color: "#fff", cursor: "pointer" }}
+                  >
+                    <GroupCoverLupaIcon />
+                  </button>
+                  {canShareGroup && (
+                    <CopyLinkButton
+                      href={groupShareHref}
+                      copiedLabel={tCommon("groupLinkCopied")}
+                      title={tCommon("copyGroupLink")}
+                      style={{ ...groupRoundIconButtonStyle }}
+                    />
+                  )}
+                </div>
+              )}
 
+              {coverSearchOpen && (
+                <CoverSearchBar
+                  onSubmit={handleCoverSearchSubmit}
+                  onClose={closeCoverSearch}
+                  placeholder={tCommon("searchInThisCommunity")}
+                />
+              )}
 
-              {isOwner && (
+              {!coverSearchOpen && isOwner && (
                 <button
                   onClick={handlePickCover}
                   disabled={uploading}
@@ -2484,6 +2578,7 @@ const avatarNode = (
                 )}
 
                 <div className="group-feed-item">
+<div ref={groupPostsAnchorRef} aria-hidden="true" style={{ scrollMarginTop: 72 }} />
 <GroupPostsFeed
   key={`group-posts-${groupId}-${groupPageRefreshKey}`}
   groupId={groupId}
@@ -2497,6 +2592,7 @@ const avatarNode = (
   commentBlockedReason={commentBlockedReason}
   broadcastLiveOnly={!canViewPublicFeed}
   readOnly={isEmbed}
+  searchQuery={postSearchQuery}
 />
                 </div>
 

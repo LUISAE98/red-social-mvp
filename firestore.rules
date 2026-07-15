@@ -1936,6 +1936,14 @@ function canListBroadcastPublicLivePost() {
     && resource.data.liveData.allowLoggedOutViewers == true;
 }
 
+// El autor puede listar sus propios posts (p. ej. sus lives para el calendario).
+// Seguro: la cláusula solo pasa por-documento cuando authorId == uid, así que
+// una consulta solo puede traer los posts del propio usuario.
+function canListOwnAuthoredPost() {
+  return signedIn()
+    && resource.data.authorId == request.auth.uid;
+}
+
 function canReadPublicShareableGroupPost() {
   return resource.data.isDeleted == false
     && resource.data.groupId is string
@@ -2293,7 +2301,8 @@ allow list: if isPlatformMod()
   || canListReadableGroupSearchablePost()
   || canListPublicPremiumGroupPost()
   || canListPublicShareableGroupPost()
-  || canListBroadcastPublicLivePost();
+  || canListBroadcastPublicLivePost()
+  || canListOwnAuthoredPost();
 
       allow create: if validCreatePost();
 

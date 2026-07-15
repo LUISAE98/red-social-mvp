@@ -166,6 +166,9 @@ if (isPublicPostRoute || isOverlayRoute) {
           justify-content: flex-end;
           gap: 10px;
           flex-shrink: 0;
+          /* Deja espacio para los switches de moneda/idioma, que van fijos en la
+             esquina superior derecha, para que el botón de login no se encime. */
+          margin-right: 172px;
         }
 
         .rootChromeDesktopAuthLink {

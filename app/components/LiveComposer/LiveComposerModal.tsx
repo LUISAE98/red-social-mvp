@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useState, useEffect, useRef, type CSSProperties } from "react";
+import { useState, useEffect, useMemo, useRef, type CSSProperties } from "react";
 import { useTranslations } from "next-intl";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import { createPortal } from "react-dom";
@@ -13,6 +13,9 @@ import { auth, db, storage } from "@/lib/firebase";
 import { normalizeImageFile } from "@/lib/uploads/image-normalizer";
 import { createLivePost, updateLivePost } from "@/lib/posts/post-service";
 import type { LiveVisibilityMode, Post, PostLiveData } from "@/lib/posts/types";
+import { useAuth } from "@/app/providers";
+import { useOwnerWalletData, getWalletScheduleConflictResult } from "@/lib/wallet/ownerWallet";
+import ScheduleCalendarOverlay from "@/app/(protected)/wallet/components/ScheduleCalendarOverlay";
 
 type GroupForBroadcast = {
   id: string;
@@ -52,21 +55,34 @@ function buildCurrentYears(): number[] {
   return [current, current + 1, current + 2, current + 3];
 }
 
+// Devuelve la fecha de inicio + si el creador fijó hora.
+//  - Sin fecha (incluye "solo hora") → null: no se calendariza.
+//  - Solo fecha → mediodía local (evita saltos de día por zona horaria), hasTime=false.
+//  - Fecha + hora → fecha/hora exacta, hasTime=true.
 function buildScheduledDate(
   day: string, month: string, year: string,
   hour: string, minute: string, period: "AM" | "PM",
   invalidDateTimeMsg: string,
-): Date | null {
-  if (!day && !month && !year && !hour && !minute) return null;
-  if (!day || !month || !year || !hour || !minute) {
-    throw new Error(invalidDateTimeMsg);
+): { date: Date; hasTime: boolean } | null {
+  const hasDate = Boolean(day && month && year);
+  if (!hasDate) return null;
+
+  const startedTime = Boolean(hour || minute);
+  const hasTime = Boolean(hour && minute);
+  // Si empezó a poner hora, deben estar hora y minuto completos.
+  if (startedTime && !hasTime) throw new Error(invalidDateTimeMsg);
+
+  let h = 12;
+  let min = 0;
+  if (hasTime) {
+    h = parseInt(hour);
+    if (period === "PM" && h !== 12) h += 12;
+    if (period === "AM" && h === 12) h = 0;
+    min = parseInt(minute);
   }
-  let h = parseInt(hour);
-  if (period === "PM" && h !== 12) h += 12;
-  if (period === "AM" && h === 12) h = 0;
-  const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day), h, parseInt(minute), 0);
+  const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day), h, min, 0);
   if (isNaN(date.getTime())) throw new Error(invalidDateTimeMsg);
-  return date;
+  return { date, hasTime };
 }
 
 async function uploadLiveCover(file: File, signInMsg: string): Promise<string> {
@@ -225,6 +241,34 @@ export default function LiveComposerModal({
   const { resolveStoredPrice, toDisplayForInput, currency: displayCurrency, formatAnchor } =
     usePriceFormat();
   const [paidAccessMode, setPaidAccessMode] = useState<"everyone_pays" | "members_free_non_members_pay">("everyone_pays");
+  const [calendarOpen, setCalendarOpen] = useState(false);
+
+  const { user } = useAuth();
+  // Calendario del creador (solo mientras el composer está abierto). Se usa para
+  // avisar (guía, no bloqueo) si el live con hora choca con una sesión agendada.
+  const walletCalendar = useOwnerWalletData(open ? (user?.uid ?? null) : null).calendar;
+  const scheduleConflictMsg = useMemo(() => {
+    if (!(day && month && year && hour && minute)) return null;
+    let built: { date: Date; hasTime: boolean } | null = null;
+    try {
+      built = buildScheduledDate(day, month, year, hour, minute, period, "");
+    } catch {
+      return null;
+    }
+    if (!built || !built.hasTime) return null;
+    const sessions = walletCalendar.filter((i) => i.source !== "live");
+    const res = getWalletScheduleConflictResult(
+      { id: editPost?.id, source: "live", scheduledAt: built.date, durationMinutes: 60 },
+      sessions
+    );
+    const conflict = res.conflictItem;
+    if (!res.hasConflict || !conflict || !conflict.scheduledAt) return null;
+    const label = conflict.source === "exclusive_session" ? "sesión exclusiva" : "Tiempo contigo";
+    const time = new Intl.DateTimeFormat("es-MX", { hour: "2-digit", minute: "2-digit" }).format(
+      conflict.scheduledAt
+    );
+    return `Ya tienes una ${label} agendada a las ${time}. Puedes continuar: el horario del live es solo una guía.`;
+  }, [day, month, year, hour, minute, period, walletCalendar, editPost?.id]);
 
   const isHiddenGroup = contextType === "group" && groupVisibility === "hidden";
   const visibilityOptions = getVisibilityOptions(contextType, groupVisibility ?? null, visibilityTranslations);
@@ -409,8 +453,13 @@ export default function LiveComposerModal({
     if (!title.trim()) { showLiveComposerToast(tLive("titleRequired"), "error"); return; }
 
     let scheduledDate: Date | null = null;
+    let scheduleHasTime = false;
     try {
-      scheduledDate = buildScheduledDate(day, month, year, hour, minute, period, tLive("invalidDateTime"));
+      const built = buildScheduledDate(day, month, year, hour, minute, period, tLive("invalidDateTime"));
+      if (built) {
+        scheduledDate = built.date;
+        scheduleHasTime = built.hasTime;
+      }
     } catch (e) {
       showLiveComposerToast(e instanceof Error ? e.message : tLive("invalidDateTime"), "error");
       return;
@@ -453,6 +502,7 @@ export default function LiveComposerModal({
           description: cleanDescription,
           coverUrl: finalCoverUrl,
           scheduledStartAt: scheduledDate,
+          scheduleHasTime: scheduledDate ? scheduleHasTime : null,
           visibilityMode: effectiveMode,
           accessType,
           ticketPrice: finalTicketPrice,
@@ -466,6 +516,7 @@ export default function LiveComposerModal({
           description: cleanDescription,
           coverUrl: finalCoverUrl,
           scheduledStartAt: scheduledDate ? Timestamp.fromDate(scheduledDate) : null,
+          scheduleHasTime: scheduledDate ? scheduleHasTime : null,
           visibilityMode: effectiveMode,
           allowLoggedOutViewers: effectiveMode === "everyone",
           accessType,
@@ -488,6 +539,7 @@ export default function LiveComposerModal({
           description: cleanDescription,
           coverUrl: finalCoverUrl,
           scheduledStartAt: scheduledDate,
+          scheduleHasTime: scheduledDate ? scheduleHasTime : null,
           visibilityMode: effectiveMode,
           accessType,
           ticketPrice: finalTicketPrice,
@@ -502,6 +554,7 @@ export default function LiveComposerModal({
           description: cleanDescription,
           coverUrl: finalCoverUrl,
           scheduledStartAt: scheduledDate,
+          scheduleHasTime: scheduledDate ? scheduleHasTime : null,
           visibilityMode: effectiveMode,
           accessType,
           ticketPrice: finalTicketPrice,
@@ -854,7 +907,27 @@ export default function LiveComposerModal({
       )}
 
       {/* Fecha */}
-      <label style={labelStyle}>Fecha de inicio (opcional)</label>
+      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 10 }}>
+        <label style={labelStyle}>Fecha de inicio (opcional)</label>
+        <button
+          type="button"
+          onClick={() => setCalendarOpen(true)}
+          style={{
+            background: "none",
+            border: "none",
+            padding: 0,
+            cursor: "pointer",
+            fontFamily: "inherit",
+            fontSize: 12,
+            fontWeight: 600,
+            color: "#c084fc",
+            whiteSpace: "nowrap",
+            flexShrink: 0,
+          }}
+        >
+          Ver calendario
+        </button>
+      </div>
       <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
         <SelectWrapper>
           <select value={day} onChange={(e) => setDay(e.target.value)} disabled={saving} style={selectStyle} className="vibra-live-select">
@@ -917,6 +990,46 @@ export default function LiveComposerModal({
           </select>
         </SelectWrapper>
       </div>
+
+      {scheduleConflictMsg && (
+        <div
+          style={{
+            display: "flex",
+            gap: 8,
+            alignItems: "flex-start",
+            padding: "10px 12px",
+            borderRadius: 12,
+            marginBottom: 10,
+            background: "rgba(250, 204, 21, 0.10)",
+            border: "1px solid rgba(250, 204, 21, 0.28)",
+            color: "#fde68a",
+            fontSize: 12.5,
+            lineHeight: 1.4,
+          }}
+        >
+          <span aria-hidden="true">⚠️</span>
+          <span>{scheduleConflictMsg}</span>
+        </div>
+      )}
+
+      <ScheduleCalendarOverlay
+        open={calendarOpen}
+        title="Tu calendario"
+        items={walletCalendar}
+        excludeId={editPost?.id}
+        selectedVariant="pink"
+        selectedDate={
+          day && month && year
+            ? new Date(parseInt(year), parseInt(month) - 1, parseInt(day))
+            : null
+        }
+        onSelectDate={(date) => {
+          setDay(String(date.getDate()));
+          setMonth(String(date.getMonth() + 1));
+          setYear(String(date.getFullYear()));
+        }}
+        onClose={() => setCalendarOpen(false)}
+      />
 
       {/* Broadcast a otras comunidades */}
       {!isHiddenGroup && (() => {

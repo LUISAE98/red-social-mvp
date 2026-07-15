@@ -274,6 +274,116 @@ function CalendarEventCard({
   const locale = useLocale();
   const { format: formatMoney } = usePriceFormat();
   const initial = (item.buyerDisplayName ?? "U").charAt(0).toUpperCase();
+
+  // Variante para lives: informativa, sin comprador. Muestra "Horario abierto"
+  // (solo fecha) o la hora, y una etiqueta LIVE. No abre overlay de sesión.
+  if (item.kind === "live") {
+    const dateLabel = item.scheduledAt
+      ? (() => {
+          const l = new Intl.DateTimeFormat(locale, {
+            weekday: "long",
+            day: "numeric",
+            month: "long",
+          }).format(item.scheduledAt);
+          return l.charAt(0).toUpperCase() + l.slice(1);
+        })()
+      : "";
+    const timeLabel = item.liveOpenSchedule
+      ? "Horario abierto"
+      : item.scheduledAt
+        ? new Intl.DateTimeFormat(locale, { hour: "2-digit", minute: "2-digit" }).format(item.scheduledAt)
+        : "";
+    return (
+      <div
+        style={{
+          position: "relative",
+          overflow: "hidden",
+          borderRadius: 14,
+          padding: "13px 14px",
+          display: "flex",
+          alignItems: "center",
+          gap: 12,
+          background: "rgba(168,85,247,0.08)",
+          border: "1px solid rgba(168,85,247,0.20)",
+        }}
+      >
+        {item.sourceAvatarUrl ? (
+          <Image
+            src={item.sourceAvatarUrl}
+            alt=""
+            width={40}
+            height={40}
+            style={{
+              borderRadius: 10,
+              objectFit: "cover",
+              flexShrink: 0,
+              border: "1px solid rgba(255,255,255,0.14)",
+            }}
+          />
+        ) : (
+          <div
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: 10,
+              flexShrink: 0,
+              background: "linear-gradient(135deg, #a855ff, #6d28d9)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="#fff" aria-hidden="true">
+              <path d="M8 5v14l11-7z" />
+            </svg>
+          </div>
+        )}
+        <div style={{ flex: 1, minWidth: 0, overflow: "hidden" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
+            <span
+              style={{
+                color: "#fff",
+                fontWeight: 600,
+                fontSize: 13,
+                lineHeight: 1.2,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+                flexShrink: 1,
+              }}
+            >
+              {item.title}
+            </span>
+            <span
+              style={{
+                flexShrink: 0,
+                fontSize: 9.5,
+                fontWeight: 700,
+                letterSpacing: "0.04em",
+                color: "#e9d5ff",
+                background: "rgba(168,85,247,0.22)",
+                borderRadius: 999,
+                padding: "2px 7px",
+              }}
+            >
+              LIVE
+            </span>
+          </div>
+          <div
+            style={{
+              color: "rgba(255,255,255,0.55)",
+              fontSize: 11,
+              lineHeight: 1.3,
+              marginTop: 3,
+            }}
+          >
+            {[dateLabel, timeLabel].filter(Boolean).join(" · ")}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const theme = getServiceCardTheme(item.kind);
 
   return (
@@ -1021,9 +1131,10 @@ export default function WalletCalendarioPage() {
   const [feedbackError, setFeedbackError] = useState<string | null>(null);
   const [feedbackSuccess, setFeedbackSuccess] = useState<string | null>(null);
 
+  // Muestra sesiones + lives en el calendario. Los lives son solo guía visual.
   const calendarItems = useMemo(
-    () => sortEventsBySchedule(walletData.calendar),
-    [walletData.calendar]
+    () => sortEventsBySchedule([...walletData.calendar, ...walletData.lives]),
+    [walletData.calendar, walletData.lives]
   );
 
   const currentMonthBase = useMemo(() => startOfMonth(new Date()), []);
@@ -1267,7 +1378,7 @@ export default function WalletCalendarioPage() {
             busy={busy}
             feedbackError={feedbackError}
             feedbackSuccess={feedbackSuccess}
-            ownerCalendarItems={calendarItems}
+            ownerCalendarItems={walletData.calendar}
             getInitials={(name) => name?.charAt(0).toUpperCase() ?? "?"}
             onAccept={() => {}}
             onReject={async () => {}}

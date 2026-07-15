@@ -74,7 +74,20 @@ type GroupPostsFeedProps = {
   publicPremiumOnly?: boolean;
   broadcastLiveOnly?: boolean;
   readOnly?: boolean;
+  /** Búsqueda dentro de la comunidad: filtra los posts por texto. */
+  searchQuery?: string;
 };
+
+// Búsqueda dentro de la comunidad: normaliza y matchea por texto del post.
+function normalizeGroupSearch(value: string): string {
+  return value.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+}
+function groupPostMatchesQuery(post: Post, tokens: string[]): boolean {
+  if (tokens.length === 0) return true;
+  const hay = normalizeGroupSearch(typeof post.text === "string" ? post.text : "");
+  return tokens.every((token) => hay.includes(token));
+}
+const GROUP_SEARCH_MAX_AUTO_PAGES = 12;
 
 type MemberStatus = "active" | "muted" | "banned" | "removed" | null;
 
@@ -427,6 +440,7 @@ export default function GroupPostsFeed({
   publicPremiumOnly = false,
   broadcastLiveOnly = false,
   readOnly = false,
+  searchQuery = "",
 }: GroupPostsFeedProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -776,6 +790,41 @@ export default function GroupPostsFeed({
       active = false;
     };
   }, [groupId, currentUid, cacheKey, loadPostsPage, broadcastLiveOnly]);
+
+  // ── Búsqueda dentro de la comunidad ───────────────────────────────────────
+  const groupSearchTokens = useMemo(
+    () => normalizeGroupSearch(searchQuery.trim()).split(/\s+/).filter(Boolean),
+    [searchQuery]
+  );
+  const groupSearchActive = groupSearchTokens.length > 0;
+  const groupSearchKey = groupSearchTokens.join(" ");
+
+  const groupSearchVisibleCount = useMemo(
+    () =>
+      groupSearchActive
+        ? posts.filter((post) => groupPostMatchesQuery(post, groupSearchTokens)).length
+        : posts.length,
+    [groupSearchActive, posts, groupSearchTokens]
+  );
+
+  const groupSearchAutoPagesRef = useRef(0);
+  useEffect(() => {
+    groupSearchAutoPagesRef.current = 0;
+  }, [groupSearchKey]);
+  useEffect(() => {
+    if (!groupSearchActive) return;
+    if (!hasMore || loadingMore || loadingInitial) return;
+    if (groupSearchAutoPagesRef.current >= GROUP_SEARCH_MAX_AUTO_PAGES) return;
+    groupSearchAutoPagesRef.current += 1;
+    void loadPostsPage("more");
+  }, [
+    groupSearchActive,
+    groupSearchKey,
+    hasMore,
+    loadingMore,
+    loadingInitial,
+    loadPostsPage,
+  ]);
 
   const infiniteScrollTriggerIndex = useMemo(() => {
     if (posts.length <= 5) return posts.length - 1;
@@ -1652,23 +1701,35 @@ const shellStyle: CSSProperties = {
         </div>
       )}
 
-      {!broadcastLiveOnly && !loadingInitial && posts.length === 0 && deletedPosts.length === 0 && !broadcastLive && (
+      {!groupSearchActive && !broadcastLiveOnly && !loadingInitial && posts.length === 0 && deletedPosts.length === 0 && !broadcastLive && (
         <div style={noticeStyle}>
           Todavía no hay publicaciones en esta comunidad.
         </div>
       )}
 
-      {(readOnly
-        ? [...posts, ...deletedPosts].sort(
-            (a, b) => (b.createdAt?.toMillis() ?? 0) - (a.createdAt?.toMillis() ?? 0),
-          )
-        : posts
-      ).map((post, index) => {
+      {groupSearchActive &&
+        !loadingInitial &&
+        !loadingMore &&
+        !hasMore &&
+        groupSearchVisibleCount === 0 && (
+          <div style={noticeStyle}>No se encontraron publicaciones.</div>
+        )}
+
+      {(() => {
+        const baseList = readOnly
+          ? [...posts, ...deletedPosts].sort(
+              (a, b) => (b.createdAt?.toMillis() ?? 0) - (a.createdAt?.toMillis() ?? 0),
+            )
+          : posts;
+        const feedList = groupSearchActive
+          ? baseList.filter((post) => groupPostMatchesQuery(post, groupSearchTokens))
+          : baseList;
+        return feedList.map((post, index) => {
         const canDeletePost =
           isOwner || isModerator || currentUid === post.authorId;
 
         const shouldAttachInfiniteScrollTarget =
-          hasMore && index === infiniteScrollTriggerIndex;
+          !groupSearchActive && hasMore && index === infiniteScrollTriggerIndex;
 
         return (
           <div key={post.id} style={postShellStyle}>
@@ -1714,13 +1775,14 @@ const shellStyle: CSSProperties = {
             />
           </div>
         );
-      })}
+        });
+      })()}
 
       {loadingMore && (
         <div style={noticeStyle}>Cargando más publicaciones...</div>
       )}
 
-      {!loadingInitial && !loadingMore && posts.length > 0 && !hasMore && (
+      {!groupSearchActive && !loadingInitial && !loadingMore && posts.length > 0 && !hasMore && (
         <div style={noticeStyle}>
           Ya viste todas las publicaciones disponibles.
         </div>

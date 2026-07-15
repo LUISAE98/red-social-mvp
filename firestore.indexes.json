@@ -211,6 +211,15 @@
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "authorId", "order": "ASCENDING" },
+        { "fieldPath": "postType", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "posts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "authorId", "order": "ASCENDING" },
         { "fieldPath": "contextType", "order": "ASCENDING" },
         { "fieldPath": "isDeleted", "order": "ASCENDING" },
         { "fieldPath": "groupId", "order": "ASCENDING" },

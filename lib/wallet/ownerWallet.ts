@@ -10,7 +10,7 @@ import {
   where,
   type Timestamp,
 } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { auth, db } from "@/lib/firebase";
 import type {
   LiveKitRoomStatus,
   LiveKitSessionRecordingStatus,
@@ -23,6 +23,7 @@ import {
   getExclusiveSessionStatusLabel,
   type ExclusiveSessionStatus,
 } from "@/lib/exclusiveSession/types";
+import type { PostLiveData } from "@/lib/posts/types";
 
 type FirestoreTimestampLike =
   | Timestamp
@@ -135,7 +136,8 @@ export type WalletServiceKind =
   | "exclusive_session"
   | "saludo"
   | "consejo"
-  | "mensaje";
+  | "mensaje"
+  | "live";
 
 export type WalletServiceItem = {
   id: string;
@@ -167,7 +169,7 @@ rejectionReason: string | null;
   priceSnapshot: number | null;
   currency?: "MXN" | "USD" | null;
   durationMinutes: number | null;
-  source: "meet_greet" | "exclusive_session" | "greeting";
+  source: "meet_greet" | "exclusive_session" | "greeting" | "live";
   scheduledAt: Date | null;
   acceptedAt: Date | null;
   rejectedAt: Date | null;
@@ -188,6 +190,8 @@ rejectionReason: string | null;
   recordingUrl: string | null;
   recordingDurationSeconds: number | null;
   recordingExpiresAt: string | null;
+  /** Solo para lives: true = "Horario abierto" (solo fecha, sin hora). */
+  liveOpenSchedule?: boolean;
 };
 
 export type WalletHistoryFilter =
@@ -204,6 +208,8 @@ export type OwnerWalletDataResult = {
   error: string | null;
   all: WalletServiceItem[];
   calendar: WalletServiceItem[];
+  /** Lives del creador (solo para mostrar en el calendario, no en conflictos). */
+  lives: WalletServiceItem[];
   pendingCurrent: WalletServiceItem[];
   history: WalletServiceItem[];
 };
@@ -315,6 +321,9 @@ export function getWalletScheduleConflictResult(
         return false;
       }
 
+      // Los lives son solo guía: nunca bloquean (no cuentan como conflicto duro).
+      if (row.source === "live") return false;
+
       if (!isCalendarScheduledStatus(row.status)) return false;
       if (shouldTreatAsAutoRejected(row)) return false;
       if (!row.scheduledAt) return false;
@@ -345,7 +354,9 @@ export function getWalletScheduleConflictResult(
   const serviceLabel =
     conflictItem.source === "exclusive_session"
       ? "sesión exclusiva"
-      : "Tiempo contigo";
+      : conflictItem.source === "live"
+        ? "transmisión en vivo"
+        : "Tiempo contigo";
 
   const startLabel = formatWalletTimeOnly(conflictItem.scheduledAt);
   const endLabel = conflictEndAt ? formatWalletTimeOnly(conflictEndAt) : null;
@@ -662,6 +673,150 @@ export function filterWalletHistoryItems(
   return rows.filter((row) => row.kind === filter);
 }
 
+// Mapea un post de tipo live (del propio creador) a un item de calendario.
+// Devuelve null si el live no debe calendarizarse (sin fecha, o ya terminado).
+type LivePostRowData = {
+  liveData?: PostLiveData | null;
+  createdAt?: FirestoreTimestampLike;
+  updatedAt?: FirestoreTimestampLike;
+};
+
+function normalizeLiveRow(id: string, data: LivePostRowData): WalletServiceItem | null {
+  const live = data.liveData ?? null;
+  if (!live) return null;
+
+  const scheduledAt = toDateSafe(live.scheduledStartAt);
+  if (!scheduledAt) return null; // sin fecha (o solo hora) → no se calendariza
+
+  const status = live.status ?? "upcoming";
+  // Solo mientras esté por realizarse o en curso; al terminar/cancelar se cae del calendario.
+  if (status !== "scheduled" && status !== "upcoming" && status !== "live") {
+    return null;
+  }
+
+  const hasTime = live.scheduleHasTime !== false; // undefined (lives viejos) = con hora
+  const title = (live.title && live.title.trim()) || "Transmisión en vivo";
+  const description = (live.description && live.description.trim()) || null;
+  const createdAt = toDateSafe(data.createdAt);
+  const updatedAt = toDateSafe(data.updatedAt);
+
+  return {
+    id,
+    kind: "live",
+    title,
+    groupId: null,
+    groupName: null,
+    profileUserId: null,
+    profileDisplayName: null,
+    profileUsername: null,
+    requestSource: null,
+    buyerId: "",
+    buyerDisplayName: null,
+    buyerUsername: null,
+    buyerAvatarUrl: null,
+    sourceAvatarUrl: (live.coverUrl && live.coverUrl.trim()) || null,
+    muxPlaybackId: null,
+    videoDuration: null,
+    deliveredAt: null,
+    targetName: null,
+    requestText: description,
+    // Se normaliza a "scheduled" para fluir por la lógica de calendario/conflicto.
+    status: "scheduled",
+    statusLabel: "Programado",
+    description,
+    creatorScheduleNote: null,
+    creatorScheduleNoteUpdatedAt: null,
+    rejectionReason: null,
+    refundReason: null,
+    priceSnapshot: typeof live.ticketPrice === "number" ? live.ticketPrice : null,
+    currency: live.currency === "MXN" || live.currency === "USD" ? live.currency : null,
+    // Con hora: 60 min para medir traslape; solo fecha ("Horario abierto"): sin duración → no choca.
+    durationMinutes: hasTime ? 60 : null,
+    source: "live",
+    scheduledAt,
+    acceptedAt: null,
+    rejectedAt: null,
+    preparingBuyerAt: null,
+    preparingCreatorAt: null,
+    preparationOpenedAt: null,
+    noShowRejectAt: null,
+    autoRejectedAt: null,
+    autoRejectReason: null,
+    noShowRole: null,
+    createdAt,
+    updatedAt,
+    creatorScheduleCount: 0,
+    scheduleHistory: [],
+    rescheduleHistory: [],
+    recordingStatus: null,
+    recordingUrl: null,
+    recordingDurationSeconds: null,
+    recordingExpiresAt: null,
+    liveOpenSchedule: !hasTime,
+  };
+}
+
+function useLiveRows(creatorId: string | null | undefined) {
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [rows, setRows] = useState<WalletServiceItem[]>([]);
+
+  useEffect(() => {
+    if (!creatorId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setRows([]);
+      setError(null);
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    let unsub: (() => void) | null = null;
+    let cancelled = false;
+
+    // Esperar a que Auth resuelva el token antes de suscribir; si el listener
+    // arranca antes, request.auth llega null → permission-denied transitorio.
+    auth.authStateReady().then(() => {
+      if (cancelled) return;
+
+      const q = query(
+        collection(db, "posts"),
+        where("authorId", "==", creatorId),
+        where("postType", "==", "live"),
+        orderBy("createdAt", "desc"),
+        limit(100)
+      );
+
+      unsub = onSnapshot(
+        q,
+        (snap) => {
+          setRows(
+            snap.docs
+              .map((d) => normalizeLiveRow(d.id, d.data() as LivePostRowData))
+              .filter((r): r is WalletServiceItem => r !== null)
+          );
+          setError(null);
+          setLoading(false);
+        },
+        (err: FirestoreError) => {
+          setRows([]);
+          setError(err.message ?? "No se pudieron cargar los lives.");
+          setLoading(false);
+        }
+      );
+    });
+
+    return () => {
+      cancelled = true;
+      if (unsub) unsub();
+    };
+  }, [creatorId]);
+
+  return { loading, error, rows };
+}
+
 function useScheduledRows(
   creatorId: string | null | undefined,
   collectionName: "meetGreetRequests" | "exclusiveSessionRequests",
@@ -732,6 +887,8 @@ export function useOwnerWalletData(
     "exclusiveSessionRequests",
     "exclusive_session"
   );
+
+  const live = useLiveRows(creatorId);
 
   const [loadingGreetings, setLoadingGreetings] = useState(true);
   const [greetingError, setGreetingError] = useState<string | null>(null);
@@ -904,6 +1061,12 @@ export function useOwnerWalletData(
       )
       .sort((a, b) => compareAsc(a.scheduledAt, b.scheduledAt));
 
+    // Lives del creador, en su propio array (solo para mostrar en el calendario;
+    // NO entran a la detección de conflicto de sesiones ni a otros flujos).
+    const lives = live.rows
+      .filter((row) => isCalendarScheduledStatus(row.status))
+      .sort((a, b) => compareAsc(a.scheduledAt, b.scheduledAt));
+
     const pendingCurrent = combined
       .filter((row) =>
         row.source === "greeting"
@@ -923,16 +1086,18 @@ export function useOwnerWalletData(
       )
       .sort((a, b) => compareDesc(a.updatedAt, b.updatedAt));
 
-    return { all, calendar, pendingCurrent, history };
-  }, [exclusive.rows, greetingRows, meet.rows]);
+    return { all, calendar, lives, pendingCurrent, history };
+  }, [exclusive.rows, greetingRows, live.rows, meet.rows]);
 
+  // El error de lives NO se propaga: si falla la consulta de lives, el resto del
+  // calendario (sesiones) sigue funcionando; solo no se muestran los lives.
   const error =
     [meet.error, exclusive.error, greetingError]
       .filter(Boolean)
       .join(" ") || null;
 
   return {
-    loading: meet.loading || exclusive.loading || loadingGreetings,
+    loading: meet.loading || exclusive.loading || live.loading || loadingGreetings,
     error,
     ...derived,
   };
