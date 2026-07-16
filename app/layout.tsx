@@ -10,6 +10,7 @@ import VibraGlobalBackground from "./components/VibraGlobalBackground";
 import ServiceWorkerRegister from "./components/ServiceWorkerRegister";
 import DesktopRefreshSplash from "@/components/DesktopRefreshSplash";
 import { CurrencyProvider } from "./components/CurrencyProvider";
+import { buildCollageTiles } from "@/lib/collage";
 
 // Fuente variable (eje wght): permite cualquier peso 200–800, incluidos
 // intermedios como 650, no solo los estáticos.
@@ -19,26 +20,9 @@ const plusJakarta = Plus_Jakarta_Sans({
   display: "swap",
 });
 
-// Collage de fondo del splash — mismo set de imágenes que el login
-// (LoginCollageBackground). Las anchas ocupan dos columnas. Se genera estático
-// aquí porque el splash se pinta antes de hidratar React.
-const SPLASH_IMAGES: { src: string; wide: boolean }[] = [
-  { src: "gaming", wide: false },
-  { src: "desbloquearcontenido", wide: true },
-  { src: "musica", wide: false },
-  { src: "encuentroenvivo", wide: true },
-  { src: "tecnologia", wide: false },
-  { src: "saludo", wide: true },
-  { src: "educacion", wide: false },
-  { src: "live", wide: true },
-  { src: "negocios", wide: false },
-  { src: "sesionexclusiva", wide: true },
-];
-const SPLASH_TILES = Array.from({ length: 50 }, (_, i) => {
-  const len = SPLASH_IMAGES.length;
-  const rotation = Math.floor(i / len) * 3;
-  return SPLASH_IMAGES[((i % len) + rotation) % len];
-});
+// Collage de fondo del splash — mismo set que el login, desde lib/collage.
+// Se genera estático aquí porque el splash se pinta antes de hidratar React.
+const SPLASH_TILES = buildCollageTiles(50);
 
 export const metadata: Metadata = {
   title: "Vibra",

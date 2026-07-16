@@ -6,41 +6,14 @@
 // Ocupa la primera pantalla y se desvanece a negro hacia abajo, para que el
 // contenido que va debajo (fuera de este componente) tenga lienzo limpio.
 
-// Set curado de imágenes. `wide: true` → la imagen es apaisada y ocupa dos
-// columnas de la cuadrícula.
-type CollageImage = { src: string; wide: boolean };
+import { buildCollageTiles } from "@/lib/collage";
 
-const CATEGORY_IMAGES: CollageImage[] = [
-  { src: "gaming", wide: false },
-  { src: "desbloquearcontenido", wide: true },
-  { src: "musica", wide: false },
-  { src: "encuentroenvivo", wide: true },
-  { src: "tecnologia", wide: false },
-  { src: "saludo", wide: true },
-  { src: "educacion", wide: false },
-  { src: "live", wide: true },
-  { src: "negocios", wide: false },
-  { src: "sesionexclusiva", wide: true },
-];
-
-// Cuántas veces repetimos el set para llenar la cuadrícula. Cada repetición se
-// rota un paso para no alinear la misma imagen en columnas contiguas.
-const REPEATS = 5;
-const ROTATE_STEP = 3;
-
-function buildTiles(): CollageImage[] {
-  const tiles: CollageImage[] = [];
-  const len = CATEGORY_IMAGES.length;
-  for (let r = 0; r < REPEATS; r++) {
-    for (let i = 0; i < len; i++) {
-      tiles.push(CATEGORY_IMAGES[(i + r * ROTATE_STEP) % len]);
-    }
-  }
-  return tiles;
-}
+// Nº de tiles para llenar la cuadrícula. El set curado y el reparto viven en
+// lib/collage, compartidos con el splash de carga.
+const TILE_COUNT = 50;
 
 export default function LoginCollageBackground() {
-  const tiles = buildTiles();
+  const tiles = buildCollageTiles(TILE_COUNT);
 
   return (
     <div className="login-collage-root" aria-hidden="true">
