@@ -408,6 +408,8 @@
     "interestsSubtitle": "Selecciona las categorías que más te interesan",
     "interestsFootnote": "Personalizaremos tu experiencia desde el primer momento",
     "interestsMinHint": "Elige al menos una categoría",
+    "interestsSelectedCount": "{count, plural, one {Has seleccionado # categoría} other {Has seleccionado # categorías}}",
+    "interestsGoBack": "Regresar",
     "selectedCount": "Seleccionadas: {count}/{min} mínimo",
     "noCommunitiesAvailable": "Aún no tenemos comunidades disponibles para recomendarte.",
     "createCommunityRailButton": "Crear comunidad",
@@ -1810,7 +1812,7 @@
   "auth": {
     "login": {
       "title": "Iniciar sesión",
-      "subtitle": "Accede con tu correo y contraseña.",
+      "subtitle": "Inicia sesión con tu correo y contraseña.",
       "emailLabel": "Correo",
       "emailPlaceholder": "tucorreo@ejemplo.com",
       "passwordLabel": "Contraseña",
@@ -1847,7 +1849,11 @@
       "featureRealtimeTitle": "Tiempo real",
       "featureRealtimeText": "Chats, lives y experiencias sin límites.",
       "featureMonetizeTitle": "Monetiza",
-      "featureMonetizeText": "Convierte tu pasión en ingresos reales."
+      "featureMonetizeText": "Convierte tu pasión en ingresos reales.",
+      "trustPayments": "Pagos seguros",
+      "trustVerified": "Identidad verificada",
+      "trustTransparent": "Finanzas transparentes",
+      "formContext": "Descubre creadores, únete a comunidades y monetiza tu talento."
     },
     "register": {
       "title": "Crear cuenta",

@@ -168,66 +168,99 @@ export const joinSession = onCall(
     const collection = resolveCollection(sessionType);
     const cleanId = sessionId.trim();
     const docRef = db.collection(collection).doc(cleanId);
-    const snap = await docRef.get();
 
-    if (!snap.exists) throw new HttpsError("not-found", "La sesión no existe.");
+    // El registro de presencia y el ARRANQUE DEL CONTADOR se hacen dentro de una
+    // TRANSACCIÓN para ser inmunes a la carrera cuando ambos entran casi a la vez
+    // (p. ej. con el auto-abrir del 3-2-1). Antes eran lectura+escritura sueltas:
+    // dos joins concurrentes leían el doc antes de que el otro escribiera su
+    // joinedAt → ninguno detectaba bothJoined → nunca se fijaba startedAt +
+    // timerRemainingMs → el contador NUNCA arrancaba, para ambos. Con la
+    // transacción, el segundo commit ve el join del primero y arranca el timer.
+    const now = new Date().toISOString();
+    let bothJoined = false;
+    let isCreator = false;
+    let skipped = false;
+    let startedNow = false;
+    let roomNameForEgress: string | null = null;
 
-    const session = snap.data()!;
-    const { creatorId, buyerId, status, creatorJoinedAt, buyerJoinedAt, startedAt, roomName, durationMinutes } =
-      session;
+    await db.runTransaction(async (tx) => {
+      // Reiniciar en cada intento (la transacción puede reintentarse por conflicto).
+      bothJoined = false;
+      skipped = false;
+      startedNow = false;
+      roomNameForEgress = null;
 
-    const isCreator = uid === creatorId;
-    const isBuyer = uid === buyerId;
-    if (!isCreator && !isBuyer) {
-      throw new HttpsError("permission-denied", "No tienes acceso a esta sesión.");
-    }
+      const snap = await tx.get(docRef);
+      if (!snap.exists) throw new HttpsError("not-found", "La sesión no existe.");
 
-    if (!JOINABLE_STATUSES.has(status)) {
-      logger.warn("session_join_skipped_invalid_status", { cleanId, status });
+      const session = snap.data()!;
+      const { creatorId, buyerId, status, creatorJoinedAt, buyerJoinedAt, startedAt, roomName, durationMinutes } =
+        session;
+
+      isCreator = uid === creatorId;
+      const isBuyer = uid === buyerId;
+      if (!isCreator && !isBuyer) {
+        throw new HttpsError("permission-denied", "No tienes acceso a esta sesión.");
+      }
+
+      if (!JOINABLE_STATUSES.has(status)) {
+        logger.warn("session_join_skipped_invalid_status", { cleanId, status });
+        skipped = true;
+        return;
+      }
+
+      const updates: Record<string, unknown> = { updatedAt: admin.firestore.Timestamp.now() };
+
+      // Registrar join del participante (idempotente)
+      if (isCreator && !creatorJoinedAt) updates.creatorJoinedAt = now;
+      if (isBuyer && !buyerJoinedAt) updates.buyerJoinedAt = now;
+      // Presencia en vivo (respaldo del webhook participant_joined/left).
+      if (isCreator) updates.creatorConnected = true;
+      if (isBuyer) updates.buyerConnected = true;
+
+      const creatorIsJoined = !!creatorJoinedAt || isCreator;
+      const buyerIsJoined = !!buyerJoinedAt || isBuyer;
+      bothJoined = creatorIsJoined && buyerIsJoined;
+
+      if (bothJoined && !startedAt) {
+        // Primera vez que ambos están en la sala
+        updates.startedAt = now;
+        updates.roomStatus = "in_progress";
+        // Contador pausable: arranca corriendo con la duración completa. El webhook
+        // de participantes lo pausa/reanuda; nunca se reinicia.
+        updates.timerRemainingMs =
+          (typeof durationMinutes === "number" && durationMinutes > 0
+            ? durationMinutes
+            : FALLBACK_DURATION_MINUTES) * 60000;
+        updates.timerRunningSince = now;
+        startedNow = true;
+        roomNameForEgress = typeof roomName === "string" ? roomName : null;
+      } else if (!startedAt) {
+        // Solo uno conectado: sala lista, esperando al otro
+        updates.roomStatus = "ready";
+      }
+
+      tx.update(docRef, updates);
+    });
+
+    if (skipped) {
       return { success: true, skipped: true, bothJoined: false };
     }
 
-    const now = new Date().toISOString();
-    const updates: Record<string, unknown> = { updatedAt: admin.firestore.Timestamp.now() };
-
-    // Registrar join del participante (idempotente)
-    if (isCreator && !creatorJoinedAt) updates.creatorJoinedAt = now;
-    if (isBuyer && !buyerJoinedAt) updates.buyerJoinedAt = now;
-    // Presencia en vivo (respaldo del webhook participant_joined/left).
-    if (isCreator) updates.creatorConnected = true;
-    if (isBuyer) updates.buyerConnected = true;
-
-    const creatorIsJoined = !!creatorJoinedAt || isCreator;
-    const buyerIsJoined = !!buyerJoinedAt || isBuyer;
-    const bothJoined = creatorIsJoined && buyerIsJoined;
-
-    if (bothJoined && !startedAt) {
-      // Primera vez que ambos están en la sala
-      updates.startedAt = now;
-      updates.roomStatus = "in_progress";
-      // Contador pausable: arranca corriendo con la duración completa. El webhook
-      // de participantes lo pausa/reanuda; nunca se reinicia.
-      updates.timerRemainingMs =
-        (typeof durationMinutes === "number" && durationMinutes > 0
-          ? durationMinutes
-          : FALLBACK_DURATION_MINUTES) * 60000;
-      updates.timerRunningSince = now;
-
-      // Iniciar grabación si S3 está configurado y tenemos el roomName
-      if (roomName) {
-        const egressClient = createEgressClient();
-        const egressId = await startRecording(egressClient, roomName as string, cleanId);
-        if (egressId) {
-          updates.livekitEgressId = egressId;
-          updates.recordingStatus = "recording";
-        }
+    // La grabación se arranca FUERA de la transacción (I/O externo, no permitido
+    // dentro). Solo el participante que fijó startedAt entra aquí, así que no hay
+    // doble egress: el otro ya ve startedAt puesto y no re-arranca.
+    if (startedNow && roomNameForEgress) {
+      const egressClient = createEgressClient();
+      const egressId = await startRecording(egressClient, roomNameForEgress, cleanId);
+      if (egressId) {
+        await docRef.update({
+          livekitEgressId: egressId,
+          recordingStatus: "recording",
+          updatedAt: admin.firestore.Timestamp.now(),
+        });
       }
-    } else if (!startedAt) {
-      // Solo uno conectado: sala lista, esperando al otro
-      updates.roomStatus = "ready";
     }
-
-    await docRef.update(updates);
 
     logger.info("session_joined", {
       sessionId: cleanId,

@@ -11,6 +11,7 @@ import { db } from "@/lib/firebase";
 import { searchGroups } from "@/lib/groups/searchGroups";
 import { searchProfiles } from "@/lib/profile/searchProfiles";
 import { useAuth } from "@/app/providers";
+import { recordSearchSignal } from "@/lib/discovery/viewSignal";
 
 import SearchSubnav from "@/app/components/SearchToolbar/SearchSubnav";
 import SearchGroupsResults, {
@@ -374,6 +375,14 @@ function SearchPageContent() {
     window.addEventListener("resize", measure);
     return () => window.removeEventListener("resize", measure);
   }, [activeTab, debouncedQuery]);
+
+  // Señal de descubrimiento: buscar es una petición explícita del usuario.
+  // Registra el término (categoría + palabras) para recomendaciones y arranque
+  // en frío. Se dispara una vez por búsqueda (término estabilizado).
+  useEffect(() => {
+    if (!user?.uid || !canSearch) return;
+    recordSearchSignal(user.uid, debouncedQuery);
+  }, [canSearch, debouncedQuery, user?.uid]);
 
   useEffect(() => {
     let cancelled = false;

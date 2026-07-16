@@ -16,16 +16,12 @@ import {
 import { doc, getDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { useRouter, useSearchParams } from "next/navigation";
-import Image from "next/image";
 import Link from "next/link";
 import {
   appendSafeNextParam,
   getNextFromSearchParams,
 } from "@/lib/auth-redirect";
-import {
-  VibraServiceIcon,
-  VibraServiceIconsStyles,
-} from "@/app/components/VibraServiceIcons/VibraServiceIcons";
+import LoginCollageBackground from "./LoginCollageBackground";
 
 const vibraPink = "#ff2fb3";
 const vibraPurple = "#a855ff";
@@ -71,12 +67,14 @@ const [isLeavingLogin, setIsLeavingLogin] = useState(false);
 const { startAuthTransition } = useAuth();
 
 useEffect(() => {
-  document.documentElement.classList.add("loginNoScroll");
-  document.body.classList.add("loginNoScroll");
+  // Fondo negro a nivel de página para que, al scrollear más allá del collage,
+  // el resto de la vista quede en negro (lienzo para el contenido de abajo).
+  document.documentElement.classList.add("loginPageBg");
+  document.body.classList.add("loginPageBg");
 
   return () => {
-    document.documentElement.classList.remove("loginNoScroll");
-    document.body.classList.remove("loginNoScroll");
+    document.documentElement.classList.remove("loginPageBg");
+    document.body.classList.remove("loginPageBg");
   };
 }, []);
 
@@ -203,10 +201,9 @@ router.replace(nextPath);
     'inherit';
 
 const pageStyle: React.CSSProperties = {
-  height: "100dvh",
-  maxHeight: "100dvh",
+  minHeight: "100dvh",
   position: "relative",
-  overflow: "hidden",
+  zIndex: 1,
   background: "transparent",
   color: "#fff",
   fontFamily: fontStack,
@@ -218,87 +215,28 @@ const pageStyle: React.CSSProperties = {
   const shellStyle: React.CSSProperties = {
     width: "100%",
     maxWidth: 380,
-    padding: "24px 36px 34px",
+    padding: "16px 36px 22px",
     borderRadius: 18,
-    border: `1px solid rgba(168, 85, 255, 0.58)`,
-    background: "rgba(10, 7, 28, 0.30)",
-    boxShadow:
-      "0 0 0 1px rgba(255,255,255,0.03) inset, 0 0 28px rgba(168,85,255,0.18)",
-backdropFilter: "blur(16px) saturate(120%)", WebkitBackdropFilter: "blur(16px) saturate(120%)",
+    border: "none",
+    background: "transparent",
+    boxShadow: "none",
     boxSizing: "border-box",
   };
 
-const logoStyle: React.CSSProperties = {
-  width: 142,
-  height: "auto",
-  display: "block",
-  margin: "-15px auto 1px auto",
-};
-
   const rightPaneStyle: React.CSSProperties = {
     width: "100%",
-    minHeight: "100%",
-    display: "grid",
-    placeItems: "center",
+    minHeight: "100dvh",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "flex-start",
+    paddingTop: "clamp(24px, 5vh, 60px)",
+    gap: "clamp(36px, 6.5vh, 66px)",
+    boxSizing: "border-box",
   };
-const heroContentStyle: React.CSSProperties = {
-  position: "relative",
-  zIndex: 1,
-  height: "100%",
-  display: "flex",
-  alignItems: "flex-start",
-  justifyContent: "center",
-  paddingTop: "clamp(86px, 12vh, 118px)",
-  paddingLeft: "clamp(42px, 7vw, 96px)",
-  paddingRight: "clamp(24px, 4vw, 60px)",
-  boxSizing: "border-box",
-};
-
-const heroInnerStyle: React.CSSProperties = {
-  display: "flex",
-  alignItems: "center",
-  gap: 44,
-  width: "100%",
-  maxWidth: 820,
-  transform: "translateY(-24px)",
-};
-
-const heroCopyStyle: React.CSSProperties = {
-  minWidth: 0,
-  width: "min(540px, 100%)",
-  position: "relative",
-};
-
-const heroLogoStyle: React.CSSProperties = {
-  width: "clamp(150px, 13vw, 260px)",
-  height: "auto",
-  flexShrink: 0,
-  position: "relative",
-  zIndex: 1,
-  transform: "scale(1.32)",
-  transformOrigin: "center center",
-};
-
-const heroTitleStyle: React.CSSProperties = {
-  margin: 0,
-  fontSize: "clamp(34px, 3.2vw, 50px)",
-  fontWeight: 700,
-  letterSpacing: "-0.045em",
-  lineHeight: 1.03,
-  whiteSpace: "nowrap",
-};
-
-const heroTextStyle: React.CSSProperties = {
-  margin: "18px 0 0 0",
-  fontSize: "clamp(15px, 1.35vw, 18px)",
-  fontWeight: 400,
-  lineHeight: 1.45,
-  color: "rgba(255,255,255,0.82)",
-  whiteSpace: "nowrap",
-};
 
 const titleStyle: React.CSSProperties = {
-  margin: 0,
+  margin: "0 0 6px",
   fontSize: "clamp(18px, 2vw, 20px)",
   fontWeight: 600,
   letterSpacing: "-0.02em",
@@ -307,9 +245,10 @@ const titleStyle: React.CSSProperties = {
 };
 
 const subtitleStyle: React.CSSProperties = {
-  margin: "6px 0 26px 0",
+  margin: "0 0 16px",
   fontSize: 12,
-  color: "rgba(255,255,255,0.66)",
+  fontWeight: 600,
+  color: vibraPurple,
   lineHeight: 1.35,
   textAlign: "center",
 };
@@ -321,20 +260,19 @@ const subtitleStyle: React.CSSProperties = {
     lineHeight: 1.15,
   };
 
+  // Estilo canónico de campo Vibra (ver vibra_style.md → "Textarea / campo").
   const inputStyle: React.CSSProperties = {
     width: "100%",
-    height: 40,
-    padding: "0 11px",
-    borderRadius: 8,
-    border: "1px solid rgba(168,85,255,0.22)",
-    background: "rgba(255,255,255,0.035)",
-    color: "#fff",
-    outline: "none",
-    fontSize: 12.5,
-    fontWeight: 400,
-    fontFamily: fontStack,
     boxSizing: "border-box",
-    transition: "border-color 0.18s ease, background 0.18s ease",
+    background: "rgba(255,255,255,0.11)",
+    border: "none",
+    borderRadius: 12,
+    padding: "10px 12px",
+    color: "#fff",
+    fontSize: 13,
+    fontFamily: "inherit",
+    lineHeight: 1.5,
+    outline: "none",
     WebkitAppearance: "none",
   };
 
@@ -360,14 +298,14 @@ letterSpacing: "-0.01em",
  const registerLinkStyle: React.CSSProperties = {
   color: vibraPurple,
   textDecoration: "none",
-  fontSize: 10.5,
+  fontSize: 12,
   fontWeight: 600,
 };
 
 const forgotLinkStyle: React.CSSProperties = {
   color: "rgba(255,255,255,0.9)",
   textDecoration: "none",
-  fontSize: 10.5,
+  fontSize: 12,
   fontWeight: 600,
 };
 
@@ -378,7 +316,7 @@ const forgotLinkStyle: React.CSSProperties = {
     gap: 10,
     padding: "8px 10px",
     borderRadius: 10,
-    border: "1px solid rgba(168,85,255,0.18)",
+    border: "none",
     background: "rgba(255,255,255,0.022)",
   };
 
@@ -387,7 +325,7 @@ const forgotLinkStyle: React.CSSProperties = {
     width: 36,
     height: 20,
     borderRadius: 999,
-    border: "1px solid rgba(255,255,255,0.18)",
+    border: "none",
     background: keepSession
       ? `linear-gradient(100deg, ${vibraPurple}, ${vibraBlue})`
       : "rgba(255,255,255,0.10)",
@@ -421,20 +359,30 @@ const forgotLinkStyle: React.CSSProperties = {
 
   return (
     <>
-      <VibraServiceIconsStyles />
+      <LoginCollageBackground />
 
       <style jsx global>{`
 
-html.loginNoScroll,
-body.loginNoScroll {
-  overflow: hidden !important;
-  height: 100%;
-  overscroll-behavior: none;
+html.loginPageBg,
+body.loginPageBg {
+  background: #000;
+  overscroll-behavior-x: none;
 }
 
         .loginSplitPage {
           display: grid;
-          grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+          place-items: center;
+        }
+
+        .loginTagline {
+          margin: 0;
+          font-size: clamp(26px, 3.1vw, 41px);
+          font-weight: 700;
+          letter-spacing: -0.035em;
+          line-height: 1.1;
+          white-space: nowrap;
+          text-align: center;
+          color: #fff;
         }
         .heroVibraGradientText {
   background: linear-gradient(
@@ -451,11 +399,6 @@ body.loginNoScroll {
 }
 
 
-.heroVibraLogoGlow {
-  animation: none;
-  filter: none;
-}
-
 @keyframes vibraTextFlow {
   0%, 100% {
     background-position: 0% 50%;
@@ -466,140 +409,26 @@ body.loginNoScroll {
   }
 }
 
-        .loginLeftPane {
-          min-width: 0;
-        }
-
         .loginRightPane {
           min-width: 0;
           position: relative;
           z-index: 1;
         }
 
-.loginHeroServiceIcons {
-  width: 100%;
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: clamp(18px, 2.2vw, 40px);
-  flex-wrap: nowrap;
-}
-
-.loginHeroServiceIconBlock {
-  width: clamp(104px, 8vw, 132px);
-  display: grid;
-  justify-items: center;
-  text-align: center;
-  flex: 0 0 auto;
-}
-
-.loginHeroServiceIconTitle {
-  margin-top: 12px;
-  font-size: clamp(12px, 0.95vw, 14px);
-  font-weight: 750;
-  line-height: 1.05;
-  letter-spacing: -0.02em;
-  color: rgba(255, 255, 255, 0.94);
-}
-
-.loginHeroServiceIconText {
-  margin-top: 7px;
-  font-size: clamp(10px, 0.78vw, 11.4px);
-  font-weight: 600;
-  line-height: 1.25;
-  letter-spacing: -0.01em;
-  color: rgba(255, 255, 255, 0.72);
-}
 @media (max-width: 900px) {
-  .loginHeroServiceIcons {
-    display: none !important;
-  }
-}
-      @media (max-width: 1180px) {
-  .loginLeftPane {
-    transform: scale(0.82);
-    transform-origin: center center;
-  }
-}
-
-@media (max-width: 1040px) {
-  .loginLeftPane {
-    transform: scale(0.72);
-    transform-origin: center center;
-  }
-}
-@media (max-width: 900px) {
-  .loginSplitPage {
-    grid-template-columns: 1fr;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: flex-start;
+  .loginRightPane {
+    padding: clamp(28px, 8vh, 72px) 4px clamp(32px, 8vh, 64px);
   }
 
-.loginRightPane {
-  width: 100%;
-  order: 1;
-  min-height: auto !important;
-  height: auto !important;
-  padding-top: 8px;
-  align-items: flex-start !important;
-  place-items: start center !important;
-}
-
-.loginLeftPane {
-  order: 2;
-  display: flex;
-  width: 100%;
-  min-height: auto !important;
-  height: auto !important;
-  transform: none;
-  padding: 18px 30px 20px !important;
-  justify-content: flex-start !important;
-  position: relative;
-  z-index: 1;
-}
-
-  .loginLeftPane img {
-    display: none !important;
-  }
-
-  .loginLeftPane > div {
-    width: 100% !important;
-    max-width: none !important;
-    justify-content: flex-start !important;
-    text-align: left;
-    gap: 0 !important;
-    transform: none !important;
-  }
-
-  .loginLeftPane h2 {
-    font-size: 36px !important;
-    line-height: 1.02 !important;
-    letter-spacing: -0.055em !important;
-    text-align: left !important;
-  }
-
-  .loginLeftPane p {
-    font-size: 15px !important;
-    line-height: 1.42 !important;
-    margin-top: 18px !important;
-    text-align: left !important;
+  .loginTagline {
+    font-size: clamp(29px, 8.4vw, 41px);
   }
 }
 
-.loginLeaving .loginLeftPane,
 .loginLeaving .loginRightPane {
   animation: vibraLoginAbsorbOut 520ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
   pointer-events: none;
-}
-
-.loginLeaving .loginLeftPane {
-  transform-origin: 72% 42%;
-}
-
-.loginLeaving .loginRightPane {
-  transform-origin: 42% 50%;
+  transform-origin: 50% 50%;
 }
 
 @keyframes vibraLoginAbsorbOut {
@@ -626,91 +455,14 @@ body.loginNoScroll {
   style={pageStyle}
   className={`loginSplitPage ${isLeavingLogin ? "loginLeaving" : ""}`}
 >
-        <div className="loginLeftPane" style={heroContentStyle}>
-  <div style={heroInnerStyle}>
-<Image
-  src="/logotipo.png"
-  alt="Vibra"
-  className="heroVibraLogoGlow"
-  width={260}
-  height={74}
-  style={heroLogoStyle}
-/>
-
-<div style={heroCopyStyle}>
-  <h2 style={heroTitleStyle}>
-    {t("heroTitle")}
-    <br />
-    <span className="heroVibraGradientText">Vibra.</span>
-  </h2>
-
-  <p style={heroTextStyle}>
-    {t("heroSubtitle1")}
-    <br />
-    {t("heroSubtitle2")}
-  </p>
-
-<div
-  style={{
-    position: "absolute",
-    top: "calc(100% + 58px)",
-    left: "calc(80% - 170px)",
-    transform: "translateX(-50%)",
-    width: "min(620px, calc(100vw - 820px))",
-minWidth: 520,
-    pointerEvents: "none",
-    zIndex: 2,
-  }}
->
- <div className="loginHeroServiceIcons">
-  <div className="loginHeroServiceIconBlock">
-    <VibraServiceIcon type="communities" size={70} showLabel={false} />
-    <div className="loginHeroServiceIconTitle">{t("featureCommunitiesTitle")}</div>
-    <div className="loginHeroServiceIconText">
-      {t("featureCommunitiesText")}
-    </div>
-  </div>
-
-  <div className="loginHeroServiceIconBlock">
-    <VibraServiceIcon type="content" size={70} showLabel={false} />
-    <div className="loginHeroServiceIconTitle">{t("featureContentTitle")}</div>
-    <div className="loginHeroServiceIconText">
-      {t("featureContentText")}
-    </div>
-  </div>
-
-  <div className="loginHeroServiceIconBlock">
-    <VibraServiceIcon type="realTime" size={70} showLabel={false} />
-    <div className="loginHeroServiceIconTitle">{t("featureRealtimeTitle")}</div>
-    <div className="loginHeroServiceIconText">
-      {t("featureRealtimeText")}
-    </div>
-  </div>
-
-  <div className="loginHeroServiceIconBlock">
-    <VibraServiceIcon type="exclusiveSession" size={70} showLabel={false} />
-    <div className="loginHeroServiceIconTitle">{t("featureMonetizeTitle")}</div>
-    <div className="loginHeroServiceIconText">
-      {t("featureMonetizeText")}
-    </div>
-  </div>
-</div>
-  </div>
-</div>
-  </div>
-</div>
-
         <div className="loginRightPane" style={rightPaneStyle}>
+          <p className="loginTagline">
+            {t("heroTitle")}{" "}
+            <span className="heroVibraGradientText">Vibra.</span>
+          </p>
+
           <div style={shellStyle}>
 <div>
-  <Image
-    src="/logotipo.png"
-    alt="Vibra"
-    width={142}
-    height={40}
-    style={logoStyle}
-  />
-
   <h1 style={titleStyle}>{t("title")}</h1>
   <p style={subtitleStyle}>{t("subtitle")}</p>
 </div>
@@ -721,7 +473,7 @@ minWidth: 520,
               </div>
             )}
 
-            <form onSubmit={handleLogin} style={{ display: "grid", gap: 14 }}>
+            <form onSubmit={handleLogin} style={{ display: "grid", gap: 11 }}>
               <label style={{ display: "grid", gap: 4 }}>
                 <span style={labelTextStyle}>{t("emailLabel")}</span>
                 <input
@@ -878,6 +630,18 @@ marginBottom: 6,
           </div>
         </div>
       </main>
+
+      {/* Lienzo para el contenido que va debajo del fold (por definir).
+          Da altura para scrollear y ver el desvanecido a negro del collage. */}
+      <section
+        aria-hidden="true"
+        style={{
+          position: "relative",
+          zIndex: 1,
+          minHeight: "80vh",
+          background: "#000",
+        }}
+      />
     </>
   );
 }

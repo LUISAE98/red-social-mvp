@@ -1,21 +1,25 @@
 "use client";
 
-// Señales de comportamiento del descubrimiento (Fase 3+) — 100% cliente, sin
-// escrituras a Firestore. Al momento de la acción el cliente YA tiene el post
-// (con su `groupCategory`), así que acumulamos peso por categoría en localStorage:
-//   - vista (dwell)   → señal débil
-//   - guardar         → intención fuerte
-//   - comentar        → intención fuerte
-// Todas con marca de tiempo para aplicar decaimiento en días (siguen tu interés
-// ACTUAL). Los likes van aparte (denormalizados en el flame, cross-device).
+// Señales de comportamiento del descubrimiento — 100% cliente, sin escrituras a
+// Firestore. Al momento de la acción el cliente YA tiene el post (categoría, tags
+// y texto), así que acumulamos peso por:
+//   - categoría (cajón)         → alimenta el vector de gustos
+//   - tags de la comunidad (C)  → refina dentro de la categoría
+//   - palabras del texto (A)    → "contenido similar" barato, sin embeddings
+// Todo con decaimiento en días (sigue tu interés ACTUAL). Los likes aportan su
+// categoría vía el flame denormalizado (cross-device); tags/keywords van local.
 
 import {
   normalizeGroupCategory,
+  GROUP_CATEGORY_OPTIONS,
   type CanonicalGroupCategory,
 } from "@/types/group";
+import {
+  extractContentKeywords,
+  normalizeSearchText,
+} from "@/lib/search/normalize";
 
 // Decaimiento temporal (en días): las señales de comportamiento se enfrían solas.
-// Vida media 2 días; se ignora todo lo de más de 5 días.
 export const SIGNAL_HALF_LIFE_MS = 2 * 24 * 60 * 60 * 1000; // 2 días
 export const SIGNAL_MAX_AGE_MS = 5 * 24 * 60 * 60 * 1000; // 5 días (tope)
 
@@ -26,45 +30,95 @@ export function timeDecayWeight(ageMs: number): number {
   return Math.pow(0.5, ageMs / SIGNAL_HALF_LIFE_MS);
 }
 
-type SignalKind = "view" | "save" | "comment";
+type SignalKind = "view" | "save" | "comment" | "search";
+type ActionKind = SignalKind | "like";
 
-// Peso relativo de cada acción en el vector de gustos (por acción, ya decaída).
-const KIND_WEIGHT: Record<SignalKind, number> = {
-  view: 0.3, // ver es la señal más débil/ruidosa
-  save: 2.5, // guardar es intención fuerte (≈ like)
-  comment: 2, // comentar es intención fuerte
+// Peso de cada acción en la señal de CATEGORÍA (vector de gustos).
+// Buscar es una petición EXPLÍCITA ("quiero ver esto") → señal fuerte.
+const CATEGORY_KIND_WEIGHT: Record<SignalKind, number> = {
+  view: 0.3,
+  save: 2.5,
+  comment: 2,
+  search: 2.5,
 };
 
-const SIGNAL_KEY_PREFIX: Record<SignalKind, string> = {
+// Peso de cada acción para tags/keywords (intención de contenido).
+const ACTION_WEIGHT: Record<ActionKind, number> = {
+  view: 0.4,
+  save: 2,
+  comment: 1.5,
+  like: 1.5,
+  search: 2.5,
+};
+
+const CATEGORY_KEY_PREFIX: Record<SignalKind, string> = {
   view: "red-social-mvp:viewed-categories:",
   save: "red-social-mvp:saved-categories:",
   comment: "red-social-mvp:commented-categories:",
+  search: "red-social-mvp:searched-categories:",
 };
 
+// Mapa "texto normalizado → categoría canónica" para detectar cuándo una
+// búsqueda corresponde a una categoría (ej. "viajes", "moda", "autos").
+const CATEGORY_LOOKUP: Map<string, CanonicalGroupCategory> = (() => {
+  const map = new Map<string, CanonicalGroupCategory>();
+  for (const opt of GROUP_CATEGORY_OPTIONS) {
+    if (opt.value === "otros") continue; // demasiado genérico
+    const asWords = opt.value.replace(/_/g, " ");
+    const full = normalizeSearchText(`${asWords} ${opt.label}`);
+    map.set(normalizeSearchText(asWords), opt.value);
+    map.set(normalizeSearchText(opt.label), opt.value);
+    for (const word of full.split(" ")) {
+      if (word.length >= 4 && !map.has(word)) map.set(word, opt.value);
+    }
+  }
+  return map;
+})();
+
+function detectCategoryFromQuery(query: string): CanonicalGroupCategory | null {
+  const normalized = normalizeSearchText(query);
+  if (!normalized) return null;
+  const direct = CATEGORY_LOOKUP.get(normalized);
+  if (direct) return direct;
+  for (const word of normalized.split(" ")) {
+    const hit = CATEGORY_LOOKUP.get(word);
+    if (hit) return hit;
+  }
+  return null;
+}
+const TAG_INTERESTS_KEY_PREFIX = "red-social-mvp:tag-interests:";
+const KEYWORD_INTERESTS_KEY_PREFIX = "red-social-mvp:keyword-interests:";
 const SEEN_POSTS_KEY_PREFIX = "red-social-mvp:seen-posts:";
 
-// Tope del peso decaído acumulado por categoría/acción (evita que una domine).
 const MAX_CATEGORY_WEIGHT = 12;
-// Máximo de marcas de tiempo guardadas por categoría (acota tamaño en storage).
 const MAX_TIMESTAMPS = 40;
+const MAX_TAGS_TRACKED = 60;
+const MAX_TAG_WEIGHT = 8;
+const MAX_KEYWORDS_TRACKED = 150;
+const MAX_KEYWORD_WEIGHT = 6;
+const MAX_KEYWORDS_PER_POST = 12;
+const MIN_KEYWORD_LENGTH = 3;
 const SEEN_POSTS_MAX = 400;
 const SEEN_POSTS_TTL_MS = 14 * 24 * 60 * 60 * 1000; // 14 días (anti-repetición)
 
 type CategoryTimestamps = Record<string, number[]>;
+type AccumEntry = { w: number; t: number };
+type AccumStore = Record<string, AccumEntry>;
 type SeenEntry = { id: string; at: number };
 
-function signalKey(uid: string, kind: SignalKind): string {
-  return `${SIGNAL_KEY_PREFIX[kind]}${uid}`;
+// ── Categorías (modelo de marcas de tiempo por acción) ─────────────────────────
+
+function categoryKey(uid: string, kind: SignalKind): string {
+  return `${CATEGORY_KEY_PREFIX[kind]}${uid}`;
 }
 
-function seenKey(uid: string): string {
-  return `${SEEN_POSTS_KEY_PREFIX}${uid}`;
-}
-
-function readTimestamps(uid: string, kind: SignalKind): CategoryTimestamps {
+function readCategoryTimestamps(
+  uid: string,
+  kind: SignalKind
+): CategoryTimestamps {
   if (typeof window === "undefined") return {};
   try {
-    const raw = window.localStorage.getItem(signalKey(uid, kind));
+    const raw = window.localStorage.getItem(categoryKey(uid, kind));
     if (!raw) return {};
     const parsed = JSON.parse(raw);
     return parsed && typeof parsed === "object"
@@ -73,6 +127,146 @@ function readTimestamps(uid: string, kind: SignalKind): CategoryTimestamps {
   } catch {
     return {};
   }
+}
+
+function recordCategorySignal(
+  uid: string,
+  kind: SignalKind,
+  rawCategory: unknown
+): void {
+  const category = normalizeGroupCategory(rawCategory);
+  if (!category) return;
+  try {
+    const now = Date.now();
+    const cutoff = now - SIGNAL_MAX_AGE_MS;
+    const store = readCategoryTimestamps(uid, kind);
+    const prev = Array.isArray(store[category]) ? store[category] : [];
+    const pruned = prev.filter((t) => typeof t === "number" && t > cutoff);
+    pruned.push(now);
+    store[category] = pruned.slice(-MAX_TIMESTAMPS);
+    window.localStorage.setItem(categoryKey(uid, kind), JSON.stringify(store));
+  } catch {}
+}
+
+// ── Acumulador decaído genérico (tags y keywords) ──────────────────────────────
+
+function readAccum(key: string): AccumStore {
+  if (typeof window === "undefined") return {};
+  try {
+    const raw = window.localStorage.getItem(key);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? (parsed as AccumStore) : {};
+  } catch {
+    return {};
+  }
+}
+
+function recordAccum(
+  key: string,
+  items: string[],
+  addWeight: number,
+  maxWeight: number,
+  maxItems: number
+): void {
+  if (typeof window === "undefined" || items.length === 0) return;
+  try {
+    const now = Date.now();
+    const store = readAccum(key);
+
+    for (const item of items) {
+      const prev = store[item];
+      const base = prev ? prev.w * timeDecayWeight(now - prev.t) : 0;
+      store[item] = { w: Math.min(base + addWeight, maxWeight), t: now };
+    }
+
+    let entries = Object.entries(store);
+    if (entries.length > maxItems) {
+      entries = entries
+        .sort(
+          (a, b) =>
+            b[1].w * timeDecayWeight(now - b[1].t) -
+            a[1].w * timeDecayWeight(now - a[1].t)
+        )
+        .slice(0, maxItems);
+      window.localStorage.setItem(key, JSON.stringify(Object.fromEntries(entries)));
+    } else {
+      window.localStorage.setItem(key, JSON.stringify(store));
+    }
+  } catch {}
+}
+
+function accumWeights(key: string, minWeight: number): Map<string, number> {
+  const map = new Map<string, number>();
+  const now = Date.now();
+  const store = readAccum(key);
+  for (const [item, entry] of Object.entries(store)) {
+    if (!entry || typeof entry.w !== "number" || typeof entry.t !== "number") {
+      continue;
+    }
+    const weight = entry.w * timeDecayWeight(now - entry.t);
+    if (weight >= minWeight) map.set(item, weight);
+  }
+  return map;
+}
+
+function normalizeTagList(tags: unknown): string[] {
+  if (!Array.isArray(tags)) return [];
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const t of tags) {
+    if (typeof t !== "string") continue;
+    const norm = t.trim().toLowerCase();
+    if (!norm || seen.has(norm)) continue;
+    seen.add(norm);
+    out.push(norm);
+  }
+  return out;
+}
+
+function extractKeywords(text: unknown): string[] {
+  return extractContentKeywords(text, {
+    minLength: MIN_KEYWORD_LENGTH,
+    maxKeywords: MAX_KEYWORDS_PER_POST,
+  });
+}
+
+function recordContentSignals(
+  uid: string,
+  action: ActionKind,
+  tags: unknown,
+  text: unknown
+): void {
+  if (!uid || typeof window === "undefined") return;
+  const weight = ACTION_WEIGHT[action];
+
+  const tagList = normalizeTagList(tags);
+  if (tagList.length > 0) {
+    recordAccum(
+      `${TAG_INTERESTS_KEY_PREFIX}${uid}`,
+      tagList,
+      weight,
+      MAX_TAG_WEIGHT,
+      MAX_TAGS_TRACKED
+    );
+  }
+
+  const keywords = extractKeywords(text);
+  if (keywords.length > 0) {
+    recordAccum(
+      `${KEYWORD_INTERESTS_KEY_PREFIX}${uid}`,
+      keywords,
+      weight,
+      MAX_KEYWORD_WEIGHT,
+      MAX_KEYWORDS_TRACKED
+    );
+  }
+}
+
+// ── Seen (anti-repetición) ─────────────────────────────────────────────────────
+
+function seenKey(uid: string): string {
+  return `${SEEN_POSTS_KEY_PREFIX}${uid}`;
 }
 
 function readSeenEntries(uid: string): SeenEntry[] {
@@ -87,61 +281,19 @@ function readSeenEntries(uid: string): SeenEntry[] {
   }
 }
 
-// Acumula una marca de tiempo para la categoría de una acción (con poda por TTL).
-function recordCategorySignal(
-  uid: string,
-  kind: SignalKind,
-  rawCategory: unknown
-): void {
-  if (!uid || typeof window === "undefined") return;
-  const category = normalizeGroupCategory(rawCategory);
-  if (!category) return;
+// ── API pública de registro ────────────────────────────────────────────────────
 
-  try {
-    const now = Date.now();
-    const cutoff = now - SIGNAL_MAX_AGE_MS;
-    const store = readTimestamps(uid, kind);
-    const prev = Array.isArray(store[category]) ? store[category] : [];
-    const pruned = prev.filter((t) => typeof t === "number" && t > cutoff);
-    pruned.push(now);
-    store[category] = pruned.slice(-MAX_TIMESTAMPS);
-    window.localStorage.setItem(signalKey(uid, kind), JSON.stringify(store));
-  } catch {}
-}
+type EngagementInput = {
+  postId?: string | null;
+  category?: unknown;
+  tags?: unknown;
+  text?: unknown;
+};
 
-// Peso decaído por categoría para una acción concreta (capado).
-function decayedWeights(
-  uid: string,
-  kind: SignalKind
-): Map<CanonicalGroupCategory, number> {
-  const map = new Map<CanonicalGroupCategory, number>();
-  const now = Date.now();
-  const store = readTimestamps(uid, kind);
-  for (const [key, value] of Object.entries(store)) {
-    const category = normalizeGroupCategory(key);
-    if (!category || !Array.isArray(value)) continue;
-    let weight = 0;
-    for (const t of value) {
-      if (typeof t !== "number") continue;
-      weight += timeDecayWeight(now - t);
-    }
-    if (weight <= 0) continue;
-    map.set(category, Math.min(weight, MAX_CATEGORY_WEIGHT));
-  }
-  return map;
-}
-
-/**
- * Registra que el usuario vio un post (dwell). Suma peso a su categoría y lo
- * marca como visto (anti-repetición).
- */
-export function recordPostImpression(
-  uid: string,
-  input: { postId?: string | null; category?: unknown }
-): void {
+/** Vista (dwell): categoría + tags + keywords, y marca el post como visto. */
+export function recordPostImpression(uid: string, input: EngagementInput): void {
   if (!uid || typeof window === "undefined") return;
 
-  // Anti-repetición: marcar el id como visto (capado + TTL)
   const postId =
     typeof input.postId === "string" && input.postId ? input.postId : null;
   if (postId) {
@@ -159,22 +311,49 @@ export function recordPostImpression(
   }
 
   recordCategorySignal(uid, "view", input.category);
+  recordContentSignals(uid, "view", input.tags, input.text);
 }
 
-/** Registra que el usuario guardó un post (intención fuerte). */
-export function recordPostSaveSignal(uid: string, category: unknown): void {
-  recordCategorySignal(uid, "save", category);
+/** Guardar (intención fuerte): categoría + tags + keywords. */
+export function recordPostSaveSignal(uid: string, input: EngagementInput): void {
+  recordCategorySignal(uid, "save", input.category);
+  recordContentSignals(uid, "save", input.tags, input.text);
 }
 
-/** Registra que el usuario comentó un post (intención fuerte). */
-export function recordPostCommentSignal(uid: string, category: unknown): void {
-  recordCategorySignal(uid, "comment", category);
+/** Comentar (intención fuerte): categoría + tags + keywords. */
+export function recordPostCommentSignal(
+  uid: string,
+  input: EngagementInput
+): void {
+  recordCategorySignal(uid, "comment", input.category);
+  recordContentSignals(uid, "comment", input.tags, input.text);
+}
+
+/** Like: tags + keywords (la categoría del like va aparte, vía el flame). */
+export function recordPostLikeSignal(uid: string, input: EngagementInput): void {
+  recordContentSignals(uid, "like", input.tags, input.text);
 }
 
 /**
- * Pesos combinados por categoría de TODAS las señales de comportamiento locales
- * (vista + guardar + comentar), ya decaídos y multiplicados por su peso relativo.
- * Listo para sumar directo al vector de gustos.
+ * Búsqueda: petición explícita del usuario. Registra la categoría (si el término
+ * coincide con una) y las palabras del query como señal fuerte. Base ideal para
+ * el arranque en frío: solo mostramos lo que el usuario efectivamente pidió.
+ */
+export function recordSearchSignal(uid: string, query: unknown): void {
+  if (!uid || typeof query !== "string") return;
+  const trimmed = query.trim();
+  if (trimmed.length < 2) return;
+
+  const category = detectCategoryFromQuery(trimmed);
+  if (category) recordCategorySignal(uid, "search", category);
+  recordContentSignals(uid, "search", [], trimmed);
+}
+
+// ── API pública de lectura (para el motor) ─────────────────────────────────────
+
+/**
+ * Pesos combinados por categoría de las señales de comportamiento locales
+ * (vista + guardar + comentar), ya decaídos y ponderados. Suma directa al gusto.
  */
 export function getBehaviorCategoryWeights(
   uid: string
@@ -182,14 +361,37 @@ export function getBehaviorCategoryWeights(
   const combined = new Map<CanonicalGroupCategory, number>();
   if (!uid) return combined;
 
-  (Object.keys(KIND_WEIGHT) as SignalKind[]).forEach((kind) => {
-    const weight = KIND_WEIGHT[kind];
-    for (const [category, value] of decayedWeights(uid, kind)) {
-      combined.set(category, (combined.get(category) ?? 0) + value * weight);
+  (Object.keys(CATEGORY_KIND_WEIGHT) as SignalKind[]).forEach((kind) => {
+    const weight = CATEGORY_KIND_WEIGHT[kind];
+    const now = Date.now();
+    const store = readCategoryTimestamps(uid, kind);
+    for (const [key, value] of Object.entries(store)) {
+      const category = normalizeGroupCategory(key);
+      if (!category || !Array.isArray(value)) continue;
+      let acc = 0;
+      for (const t of value) {
+        if (typeof t !== "number") continue;
+        acc += timeDecayWeight(now - t);
+      }
+      if (acc <= 0) continue;
+      const capped = Math.min(acc, MAX_CATEGORY_WEIGHT);
+      combined.set(category, (combined.get(category) ?? 0) + capped * weight);
     }
   });
 
   return combined;
+}
+
+/** Tags de interés derivados del engagement (C): tag → peso decaído. */
+export function getEngagementTagWeights(uid: string): Map<string, number> {
+  if (!uid) return new Map();
+  return accumWeights(`${TAG_INTERESTS_KEY_PREFIX}${uid}`, 0.6);
+}
+
+/** Palabras de interés derivadas del engagement (A): keyword → peso decaído. */
+export function getKeywordInterests(uid: string): Set<string> {
+  if (!uid) return new Set();
+  return new Set(accumWeights(`${KEYWORD_INTERESTS_KEY_PREFIX}${uid}`, 0.5).keys());
 }
 
 /** Ids de posts ya vistos (para excluirlos como "nuevos" en descubrimiento). */

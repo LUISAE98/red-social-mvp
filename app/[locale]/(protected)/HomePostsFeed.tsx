@@ -41,6 +41,7 @@ import {
   recordPostImpression,
   recordPostSaveSignal,
   recordPostCommentSignal,
+  recordPostLikeSignal,
 } from "@/lib/discovery/viewSignal";
 import { followUser } from "@/lib/social/social-service";
 import { joinGroup } from "@/lib/groups/membership";
@@ -93,15 +94,22 @@ function normalizeHomeFeedPost(post: PostWithFlags): PostWithFlags {
 // registra la impresión una sola vez. Señal de "visto" (Fase 3 descubrimiento).
 const IMPRESSION_DWELL_MS = 900;
 
+// Separador improbable en tags/texto para pasar el arreglo como prop estable.
+const TAGS_PROP_SEP = "";
+
 function PostImpressionObserver({
   uid,
   postId,
   category,
+  tags,
+  text,
   children,
 }: {
   uid: string;
   postId?: string | null;
   category?: unknown;
+  tags?: string;
+  text?: string;
   children: ReactNode;
 }) {
   const ref = useRef<HTMLDivElement | null>(null);
@@ -127,7 +135,12 @@ function PostImpressionObserver({
           if (timer == null) {
             timer = window.setTimeout(() => {
               firedRef.current = true;
-              recordPostImpression(uid, { postId, category });
+              recordPostImpression(uid, {
+                postId,
+                category,
+                tags: tags ? tags.split(TAGS_PROP_SEP) : [],
+                text,
+              });
               observer.disconnect();
             }, IMPRESSION_DWELL_MS);
           }
@@ -145,7 +158,7 @@ function PostImpressionObserver({
       if (timer != null) window.clearTimeout(timer);
       observer.disconnect();
     };
-  }, [uid, postId, category]);
+  }, [uid, postId, category, tags, text]);
 
   return <div ref={ref}>{children}</div>;
 }
@@ -444,7 +457,9 @@ export default function HomePostsFeed({ currentUserId, refreshRef }: HomePostsFe
       return;
     }
     if (discoveryLoadedRef.current) return;
-    if (posts.length === 0) return; // esperar a que el feed base tenga contenido
+    // Esperar a que termine la carga inicial, pero cargar descubrimiento aunque
+    // el feed esté vacío (arranque en frío: se basa en intereses + búsquedas).
+    if (loadingInitial) return;
 
     discoveryLoadedRef.current = true;
     let cancelled = false;
@@ -456,16 +471,19 @@ export default function HomePostsFeed({ currentUserId, refreshRef }: HomePostsFe
         const normalized = discovered
           .filter((post) => !!post.id)
           .map((post) => normalizeHomeFeedPost(post as PostWithFlags));
+        // TEMP DEBUG
+        console.log("[discovery] Home recibió:", normalized.length, "posts");
         setDiscoveryPosts(normalized);
-      } catch {
-        /* silencioso: el descubrimiento es complementario */
+      } catch (e) {
+        // TEMP DEBUG
+        console.error("[discovery] Home ERROR:", e);
       }
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [currentUserId, posts.length]);
+  }, [currentUserId, loadingInitial]);
 
   const loadPostsPage = useCallback(
     async (mode: "initial" | "more" | "refresh" = "initial") => {
@@ -793,6 +811,17 @@ const handleHomePullRefresh = useCallback(async () => {
 
       const result = await togglePostFlame(postId);
 
+      // Señal de descubrimiento: like aporta tags + palabras de esa categoría.
+      if (result.liked && currentUserId) {
+        const likedPost =
+          posts.find((post) => post.id === postId) ??
+          discoveryPosts.find((post) => post.id === postId);
+        recordPostLikeSignal(currentUserId, {
+          tags: likedPost?.groupTags,
+          text: likedPost?.text,
+        });
+      }
+
       patchPostInAllFeedCaches(postId, {
         viewerHasFlamed: result.liked,
         counts: {
@@ -817,9 +846,13 @@ const handleHomePullRefresh = useCallback(async () => {
       const currentSaves = targetPost?.counts?.saves ?? 0;
       const nextSaves = Math.max(0, currentSaves + result.delta);
 
-      // Señal de descubrimiento: guardar es intención fuerte de esa categoría.
+      // Señal de descubrimiento: guardar es intención fuerte (categoría+tags+texto).
       if (result.saved && currentUserId) {
-        recordPostSaveSignal(currentUserId, targetPost?.groupCategory);
+        recordPostSaveSignal(currentUserId, {
+          category: targetPost?.groupCategory,
+          tags: targetPost?.groupTags,
+          text: targetPost?.text,
+        });
       }
 
       patchPostInAllFeedCaches(postId, {
@@ -883,12 +916,16 @@ const handleHomePullRefresh = useCallback(async () => {
       setError(null);
       await createPostComment({ postId, text });
 
-      // Señal de descubrimiento: comentar es intención fuerte de esa categoría.
+      // Señal de descubrimiento: comentar es intención fuerte (categoría+tags+texto).
       if (currentUserId) {
         const targetPost =
           posts.find((post) => post.id === postId) ??
           discoveryPosts.find((post) => post.id === postId);
-        recordPostCommentSignal(currentUserId, targetPost?.groupCategory);
+        recordPostCommentSignal(currentUserId, {
+          category: targetPost?.groupCategory,
+          tags: targetPost?.groupTags,
+          text: targetPost?.text,
+        });
       }
 
       return await syncPostCommentsCount(postId);
@@ -1029,13 +1066,85 @@ const shellStyle: CSSProperties = {
     let cursor = 0;
     for (let i = 0; i < posts.length && cursor < available.length; i += 1) {
       const position = i + 1;
-      if (position % 4 === 0 && !recommendationSlots.has(position)) {
+      // Primer sugerido tras 2 posts, luego cada 3 (evitando choque con rails).
+      if (
+        position >= 2 &&
+        (position - 2) % 3 === 0 &&
+        !recommendationSlots.has(position)
+      ) {
         map.set(i, available[cursor]);
         cursor += 1;
       }
     }
+    // Feed corto: si no se colocó ninguno, poner uno tras el último post.
+    if (cursor === 0) {
+      map.set(posts.length - 1, available[0]);
+    }
     return map;
   }, [discoveryPosts, posts, recommendationSlots]);
+
+  // Tarjeta de descubrimiento "Sugerido para ti" (post normal + CTA arriba).
+  // Se reutiliza en los slots del feed y en el arranque en frío (feed vacío).
+  const renderDiscoveryCard = (disc: PostWithFlags, uid: string) => (
+    <div key={disc.id} style={{ ...postItemStyle, marginTop: 12 }}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 8,
+          marginBottom: 8,
+        }}
+      >
+        <div
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            padding: "4px 10px",
+            borderRadius: 999,
+            background: "rgba(168, 85, 247, 0.14)",
+            border: "1px solid rgba(168, 85, 247, 0.35)",
+            color: "#c084fc",
+            fontSize: 12,
+            fontWeight: 600,
+            letterSpacing: "-0.01em",
+          }}
+        >
+          ✨ {tFeed("suggestedForYou")}
+        </div>
+
+        <DiscoveryFollowJoinButton post={disc} currentUserId={uid} />
+      </div>
+
+      <PostImpressionObserver
+        uid={uid}
+        postId={disc.id}
+        category={disc.groupCategory}
+        tags={(disc.groupTags ?? []).join(TAGS_PROP_SEP)}
+        text={disc.text ?? ""}
+      >
+        <GroupPostCard
+          post={disc}
+          canDelete={false}
+          onLoadComments={handleLoadComments}
+          onCreateComment={handleCreateComment}
+          onDeleteComment={handleDeleteComment}
+          onLoadReplies={handleLoadReplies}
+          onCreateReply={handleCreateReply}
+          onDeleteReply={handleDeleteReply}
+          onToggleFlame={handleToggleFlame}
+          onToggleSave={handleToggleSave}
+          currentUserId={uid}
+          isOwner={false}
+          viewerIsMember={false}
+          isModerator={false}
+          showGroupContext={true}
+          canModerateGroupAuthor={false}
+        />
+      </PostImpressionObserver>
+    </div>
+  );
 
   if (!currentUserId) {
     return (
@@ -1079,6 +1188,12 @@ return (
       </div>
     )}
 
+    {/* Arranque en frío: feed base vacío. Si hay señales (intereses/búsquedas),
+        mostramos descubrimiento; si no, solo el rail. Nunca contenido genérico. */}
+    {!loadingInitial &&
+      posts.length === 0 &&
+      discoveryPosts.map((disc) => renderDiscoveryCard(disc, currentUserId))}
+
     {!loadingInitial && posts.length === 0 && (
       <div style={recommendationWrapperStyle}>
         <GroupRecommendationsRail
@@ -1117,6 +1232,8 @@ return (
             uid={currentUserId}
             postId={post.id}
             category={post.groupCategory}
+            tags={(post.groupTags ?? []).join(TAGS_PROP_SEP)}
+            text={post.text ?? ""}
           >
             <GroupPostCard
               post={post}
@@ -1150,67 +1267,7 @@ return (
             </div>
           )}
 
-          {discoveryForSlot && (
-            <div style={{ ...postItemStyle, marginTop: 12 }}>
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  gap: 8,
-                  marginBottom: 8,
-                }}
-              >
-                <div
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 6,
-                    padding: "4px 10px",
-                    borderRadius: 999,
-                    background: "rgba(168, 85, 247, 0.14)",
-                    border: "1px solid rgba(168, 85, 247, 0.35)",
-                    color: "#c084fc",
-                    fontSize: 12,
-                    fontWeight: 600,
-                    letterSpacing: "-0.01em",
-                  }}
-                >
-                  ✨ {tFeed("suggestedForYou")}
-                </div>
-
-                <DiscoveryFollowJoinButton
-                  post={discoveryForSlot}
-                  currentUserId={currentUserId}
-                />
-              </div>
-
-              <PostImpressionObserver
-                uid={currentUserId}
-                postId={discoveryForSlot.id}
-                category={discoveryForSlot.groupCategory}
-              >
-                <GroupPostCard
-                  post={discoveryForSlot}
-                  canDelete={false}
-                  onLoadComments={handleLoadComments}
-                  onCreateComment={handleCreateComment}
-                  onDeleteComment={handleDeleteComment}
-                  onLoadReplies={handleLoadReplies}
-                  onCreateReply={handleCreateReply}
-                  onDeleteReply={handleDeleteReply}
-                  onToggleFlame={handleToggleFlame}
-                  onToggleSave={handleToggleSave}
-                  currentUserId={currentUserId}
-                  isOwner={false}
-                  viewerIsMember={false}
-                  isModerator={false}
-                  showGroupContext={true}
-                  canModerateGroupAuthor={false}
-                />
-              </PostImpressionObserver>
-            </div>
-          )}
+          {discoveryForSlot && renderDiscoveryCard(discoveryForSlot, currentUserId)}
         </div>
       );
     })}

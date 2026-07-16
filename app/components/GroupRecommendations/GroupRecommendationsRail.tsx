@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, type Variants } from "framer-motion";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import { isDisplayCurrency } from "@/lib/currency/catalog";
 import Link from "next/link";
@@ -91,6 +91,19 @@ type Props = {
 
 const fontStack =
   'inherit';
+
+// Grid del selector de intereses: ancho mínimo de columna y separación.
+// Se usan tanto en el estilo del grid como para calcular columnas por página.
+const INTEREST_GRID_MIN_COL = 130;
+const INTEREST_GRID_GAP = 3;
+
+// Deslizamiento entre páginas del selector: dir = 1 (siguiente) desliza a la
+// izquierda; dir = -1 (regresar) al revés.
+const INTEREST_SLIDE_VARIANTS: Variants = {
+  enter: (dir: number) => ({ x: dir >= 0 ? "100%" : "-100%", opacity: 0 }),
+  center: { x: 0, opacity: 1 },
+  exit: (dir: number) => ({ x: dir >= 0 ? "-100%" : "100%", opacity: 0 }),
+};
 
 const cardStyles = {
   position: "relative" as const,
@@ -1344,9 +1357,16 @@ export default function GroupRecommendationsRail({
   const [loading, setLoading] = useState<boolean>(() => !getCachedResult(currentUserId));
   const [savingOnboarding, setSavingOnboarding] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // Paginación del selector de categorías: 8 por página en laptop, 9 en celular.
+  // Paginación del selector: dos renglones completos por página (columnas × 2),
+  // según cuántas columnas quepan realmente en el grid.
   const [interestsPage, setInterestsPage] = useState(0);
-  const [interestsPerPage, setInterestsPerPage] = useState(8);
+  const [interestsDirection, setInterestsDirection] = useState(1);
+  const [interestsGridEl, setInterestsGridEl] = useState<HTMLDivElement | null>(null);
+  const [interestsColumns, setInterestsColumns] = useState(4);
+  const [interestsContainerWidth, setInterestsContainerWidth] = useState(0);
+  // Animación final: al confirmar, los contenedores elegidos hacen pop y todo
+  // el panel (incluido el título) se "consume".
+  const [celebrating, setCelebrating] = useState(false);
   const [joinStates, setJoinStates] = useState<
     Record<string, RecommendationJoinState>
   >({});
@@ -1481,6 +1501,24 @@ export default function GroupRecommendationsRail({
           .filter((post) => {
             const ld = post.liveData as Record<string, unknown> | null;
             if (!ld || ld.visibilityMode !== "everyone") return false;
+            // Solo EN CURSO: debe haber iniciado (startedAt) y no haber terminado
+            // (endedAt). Excluye programados/"upcoming" y terminados aunque el
+            // status haya quedado en "live".
+            if (!ld.startedAt || ld.endedAt) return false;
+            // Transmisiones directas (browser): exige heartbeat reciente para no
+            // mostrar lives huérfanos que el cleanup aún no haya cerrado.
+            if (ld.broadcastMode === "direct") {
+              const hb = ld.heartbeatAt as
+                | { toMillis?: () => number; seconds?: number }
+                | null;
+              const hbMs =
+                hb && typeof hb.toMillis === "function"
+                  ? hb.toMillis()
+                  : hb && typeof hb.seconds === "number"
+                    ? hb.seconds * 1000
+                    : 0;
+              if (!hbMs || Date.now() - hbMs > 120000) return false;
+            }
             if (post.authorId === currentUserId) return false;
             const gid = post.groupId as string | undefined;
             if (!gid && followingIdsRef.current.has(post.authorId as string)) return false;
@@ -1594,6 +1632,21 @@ export default function GroupRecommendationsRail({
     }
   };
 
+  // Confirmar: dispara la animación de "consumir" y, al terminar, guarda.
+  const handleFinish = () => {
+    if (
+      savingOnboarding ||
+      celebrating ||
+      selectedCategories.length < minCategories
+    ) {
+      return;
+    }
+    setCelebrating(true);
+    window.setTimeout(() => {
+      handleSaveOnboarding();
+    }, 1450);
+  };
+
   const handleJoin = async (group: RecommendationGroupCard) => {
     if (!currentUserId) return;
 
@@ -1705,21 +1758,33 @@ export default function GroupRecommendationsRail({
     return items;
   }, [result, profileCards]);
 
-  // Ajusta el tamaño de página del selector según el viewport (celular vs laptop).
+  // Mide cuántas columnas caben en el grid para paginar en renglones completos.
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    const mq = window.matchMedia("(max-width: 640px)");
-    const apply = () => setInterestsPerPage(mq.matches ? 9 : 8);
-    apply();
-    mq.addEventListener("change", apply);
-    return () => mq.removeEventListener("change", apply);
-  }, []);
+    if (!interestsGridEl || typeof ResizeObserver === "undefined") return;
+    const compute = () => {
+      const w = interestsGridEl.clientWidth;
+      if (w <= 0) return;
+      const cols = Math.max(
+        1,
+        Math.floor(
+          (w + INTEREST_GRID_GAP) / (INTEREST_GRID_MIN_COL + INTEREST_GRID_GAP)
+        )
+      );
+      setInterestsColumns(cols);
+      setInterestsContainerWidth(w);
+    };
+    compute();
+    const ro = new ResizeObserver(compute);
+    ro.observe(interestsGridEl);
+    return () => ro.disconnect();
+  }, [interestsGridEl]);
 
   const showOnboarding = useMemo(() => {
     return !suppressOnboarding && !loading && result && !result.onboardingCompleted;
   }, [suppressOnboarding, loading, result]);
 
-  // Paginación derivada del selector de categorías.
+  // Paginación derivada del selector de categorías (dos renglones por página).
+  const interestsPerPage = Math.max(1, interestsColumns * 2);
   const interestPageCount = Math.ceil(
     GROUP_CATEGORY_OPTIONS.length / interestsPerPage
   );
@@ -1732,6 +1797,23 @@ export default function GroupRecommendationsRail({
     (interestPage + 1) * interestsPerPage
   );
   const isLastInterestPage = interestPage >= interestPageCount - 1;
+
+  // Altura exacta del grid de la página actual (renglones × alto de tarjeta),
+  // para animarla suave cuando la última página tiene menos renglones y así los
+  // botones suben fluido en vez de saltar.
+  const interestRows = Math.max(
+    1,
+    Math.ceil(interestPageOptions.length / interestsColumns)
+  );
+  const interestColWidth =
+    interestsContainerWidth > 0
+      ? (interestsContainerWidth - (interestsColumns - 1) * INTEREST_GRID_GAP) /
+        interestsColumns
+      : 0;
+  const interestsGridHeight =
+    interestColWidth > 0
+      ? interestRows * interestColWidth + (interestRows - 1) * INTEREST_GRID_GAP
+      : undefined;
 
   if (!currentUserId) {
     return null;
@@ -1767,7 +1849,12 @@ export default function GroupRecommendationsRail({
       {loading ? <SkeletonRail /> : null}
 
       {showOnboarding ? (
-        <div style={{ display: "flex", flexDirection: "column", gap: 16, marginTop: 28, marginBottom: 28 }}>
+        <motion.div
+          initial={false}
+          style={{ display: "flex", flexDirection: "column", gap: 16, marginTop: 28, marginBottom: 28, transformOrigin: "center" }}
+          animate={celebrating ? { scale: 0.2, opacity: 0 } : { scale: 1, opacity: 1 }}
+          transition={celebrating ? { delay: 0.9, duration: 0.5, ease: [0.5, 0, 0.75, 0] } : { duration: 0.2 }}
+        >
           <style>{`
             .vibInterestsGradient {
               background: linear-gradient(100deg, #ff2fb3 0%, #a855ff 45%, #4f46ff 100%);
@@ -1812,24 +1899,86 @@ export default function GroupRecommendationsRail({
             </span>
           </div>
 
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(130px, 1fr))",
-              gap: 3,
-              width: "100%",
-            }}
+          {celebrating ? (
+            <div
+              style={{
+                display: "flex",
+                flexWrap: "wrap",
+                gap: 12,
+                justifyContent: "center",
+                width: "100%",
+                padding: "6px 0",
+              }}
+            >
+              {GROUP_CATEGORY_OPTIONS.filter((o) =>
+                selectedCategories.includes(o.value)
+              ).map((option, i) => (
+                <motion.div
+                  key={option.value}
+                  initial={{ scale: 0, opacity: 0 }}
+                  animate={{ scale: [0, 1.18, 1], opacity: 1 }}
+                  transition={{ delay: i * 0.035, duration: 0.5, times: [0, 0.6, 1], ease: "easeOut" }}
+                  style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, width: 82 }}
+                >
+                  <span
+                    style={{
+                      width: 54,
+                      height: 54,
+                      borderRadius: "50%",
+                      background: "rgba(0,0,0,0.72)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      color: "#fff",
+                    }}
+                  >
+                    <CategoryIcon category={option.value} size={26} />
+                  </span>
+                  <span style={{ fontSize: 11, fontWeight: 600, color: "#fff", textAlign: "center", lineHeight: 1.15 }}>
+                    {option.label}
+                  </span>
+                </motion.div>
+              ))}
+            </div>
+          ) : (
+            <>
+          <motion.div
+            ref={setInterestsGridEl}
+            animate={{ height: interestsGridHeight ?? "auto" }}
+            transition={{ height: { duration: 0.42, ease: [0.22, 1, 0.36, 1] } }}
+            style={{ position: "relative", width: "100%", overflow: "hidden" }}
           >
-            {interestPageOptions.map((option) => (
-              <GroupCategoryPill
-                key={option.value}
-                label={option.label}
-                category={option.value}
-                selected={selectedCategories.includes(option.value)}
-                onToggle={() => toggleCategory(option.value)}
-              />
-            ))}
-          </div>
+            <AnimatePresence initial={false} custom={interestsDirection} mode="popLayout">
+              <motion.div
+                key={interestPage}
+                custom={interestsDirection}
+                variants={INTEREST_SLIDE_VARIANTS}
+                initial="enter"
+                animate="center"
+                exit="exit"
+                transition={{
+                  x: { type: "tween", ease: [0.22, 1, 0.36, 1], duration: 0.4 },
+                  opacity: { duration: 0.25 },
+                }}
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: `repeat(auto-fill, minmax(${INTEREST_GRID_MIN_COL}px, 1fr))`,
+                  gap: INTEREST_GRID_GAP,
+                  width: "100%",
+                }}
+              >
+                {interestPageOptions.map((option) => (
+                  <GroupCategoryPill
+                    key={option.value}
+                    label={option.label}
+                    category={option.value}
+                    selected={selectedCategories.includes(option.value)}
+                    onToggle={() => toggleCategory(option.value)}
+                  />
+                ))}
+              </motion.div>
+            </AnimatePresence>
+          </motion.div>
 
           <div
             style={{
@@ -1843,34 +1992,37 @@ export default function GroupRecommendationsRail({
             {interestPage > 0 && (
               <button
                 type="button"
-                onClick={() => setInterestsPage(interestPage - 1)}
+                onClick={() => {
+                  setInterestsDirection(-1);
+                  setInterestsPage(interestPage - 1);
+                }}
                 style={{
-                  border: "1px solid rgba(255,255,255,0.18)",
-                  borderRadius: 10,
-                  padding: "10px 16px",
-                  fontWeight: 600,
-                  fontSize: 14,
-                  color: "rgba(255,255,255,0.82)",
+                  border: "none",
                   background: "transparent",
+                  padding: 0,
+                  color: "#a855ff",
+                  fontSize: 13,
+                  fontWeight: 600,
                   cursor: "pointer",
                   fontFamily: fontStack,
                 }}
               >
-                {tCommon("back")}
+                {tGroups("interestsGoBack")}
               </button>
             )}
 
             {isLastInterestPage ? (
               <button
                 type="button"
-                onClick={handleSaveOnboarding}
+                onClick={handleFinish}
                 disabled={
                   savingOnboarding || selectedCategories.length < minCategories
                 }
                 style={{
+                  marginLeft: "auto",
                   border: "none",
                   borderRadius: 10,
-                  padding: "10px 18px",
+                  padding: "7px 32px",
                   fontWeight: 600,
                   fontSize: 14,
                   letterSpacing: "-0.01em",
@@ -1905,11 +2057,15 @@ export default function GroupRecommendationsRail({
             ) : (
               <button
                 type="button"
-                onClick={() => setInterestsPage(interestPage + 1)}
+                onClick={() => {
+                  setInterestsDirection(1);
+                  setInterestsPage(interestPage + 1);
+                }}
                 style={{
+                  marginLeft: "auto",
                   border: "none",
                   borderRadius: 10,
-                  padding: "10px 18px",
+                  padding: "7px 32px",
                   fontWeight: 600,
                   fontSize: 14,
                   letterSpacing: "-0.01em",
@@ -1928,18 +2084,10 @@ export default function GroupRecommendationsRail({
                 {tCommon("next")}
               </button>
             )}
-
-            <span
-              style={{
-                fontSize: 12,
-                color: "rgba(255,255,255,0.62)",
-                fontFamily: fontStack,
-              }}
-            >
-              {tGroups("selectedCount", { count: selectedCategories.length, min: minCategories })}
-            </span>
           </div>
-        </div>
+            </>
+          )}
+        </motion.div>
       ) : null}
 
       {(!loading && result?.onboardingCompleted && result.groups.length > 0) || liveRecs.length > 0 ? (

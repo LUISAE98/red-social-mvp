@@ -130,9 +130,10 @@ if (isPublicPostRoute || isOverlayRoute) {
 
         .rootChromePublicHeaderInner {
           width: 100%;
+          min-height: 56px;
           padding-left: max(var(--shell-gutter), env(safe-area-inset-left));
           padding-right: max(var(--shell-gutter), env(safe-area-inset-right));
-          padding-top: 8px;
+          padding-top: 18px;
           padding-bottom: 8px;
           box-sizing: border-box;
           position: relative;
@@ -234,7 +235,7 @@ if (isPublicPostRoute || isOverlayRoute) {
         @media (max-width: 900px) {
           .rootChromePublicHeaderInner {
             width: 100%;
-            padding-top: 6px;
+            padding-top: 16px;
             padding-bottom: 6px;
             padding-left: max(12px, env(safe-area-inset-left));
             padding-right: max(12px, env(safe-area-inset-right));

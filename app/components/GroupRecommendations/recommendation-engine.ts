@@ -34,9 +34,12 @@ import {
 import type { Post } from "@/lib/posts/types";
 import {
   getBehaviorCategoryWeights,
+  getEngagementTagWeights,
+  getKeywordInterests,
   getSeenPostIds,
   timeDecayWeight,
 } from "@/lib/discovery/viewSignal";
+import { extractContentKeywords } from "@/lib/search/normalize";
 
 const STORAGE_KEY_PREFIX = "red-social-mvp:group-recommendations:";
 const RANDOM_SLOT_OPTIONS = [6, 10, 15] as const;
@@ -1371,6 +1374,23 @@ function tagOverlapBonus(
   return Math.min(overlap, 3) * 1.5; // hasta +4.5
 }
 
+// Bonus por coincidencia de palabras clave del texto (A): "contenido similar"
+// sin embeddings. Reusa el tokenizado del texto que ya existe. Señal suave.
+function keywordOverlapBonus(
+  post: DiscoveryPost,
+  userKeywords: Set<string>
+): number {
+  if (userKeywords.size === 0) return 0;
+  const tokens = extractContentKeywords(post.text);
+  if (tokens.length === 0) return 0;
+
+  let matches = 0;
+  for (const token of tokens) {
+    if (userKeywords.has(token)) matches += 1;
+  }
+  return Math.min(matches, 5) * 0.4; // hasta +2
+}
+
 // Gate de calidad (#4): descarta posts vacíos o de muy bajo esfuerzo para que
 // lo sugerido sea lo bueno de la categoría, no el primer relleno.
 function isDiscoveryWorthy(post: DiscoveryPost): boolean {
@@ -1387,14 +1407,39 @@ function isDiscoveryWorthy(post: DiscoveryPost): boolean {
 }
 
 function scoreDiscoveryPost(post: DiscoveryPost, categoryAffinity: number): number {
-  const ageDays = (Date.now() - toMillis(post.createdAt)) / (1000 * 60 * 60 * 24);
+  const ageDays = Math.max(
+    0,
+    (Date.now() - toMillis(post.createdAt)) / (1000 * 60 * 60 * 24)
+  );
   const recency = Math.max(0, 1 - ageDays / 30); // 0..1, decae en ~30 días
   const counts = post.counts ?? {};
   const engagementRaw =
     (counts.likes ?? 0) + 2 * (counts.comments ?? 0) + (counts.saves ?? 0);
-  const engagement = Math.log1p(engagementRaw);
 
-  return categoryAffinity * 3 + recency * 2 + engagement * 0.6;
+  // #D Trending: engagement por DÍA de vida (velocidad), no el total histórico.
+  // Un post con 100 likes en 1 día gana a uno con 500 en 60 días.
+  const velocity = engagementRaw / Math.max(ageDays, 0.5);
+  const trending = Math.log1p(velocity);
+
+  return categoryAffinity * 3 + recency * 2 + trending * 0.8;
+}
+
+// Intereses declarados del perfil, leídos de Firestore (users/{uid}.interests).
+// Autoritativo y cross-device: no depende de localStorage.
+async function fetchProfileInterests(
+  uid: string
+): Promise<CanonicalGroupCategory[]> {
+  try {
+    const snap = await getDoc(doc(db, "users", uid));
+    const raw = (snap.data() as { interests?: unknown } | undefined)?.interests;
+    const list = Array.isArray(raw) ? raw : [];
+    const cats = list
+      .map((v) => normalizeGroupCategory(v))
+      .filter((c): c is CanonicalGroupCategory => !!c);
+    return uniqueCanonicalCategories(cats);
+  } catch {
+    return [];
+  }
 }
 
 /**
@@ -1412,25 +1457,59 @@ export async function fetchDiscoveryPostsForUser(
     return cached.posts;
   }
 
-  const preferences = getStoredRecommendationPreferences(uid);
-  // Tags de interés del usuario (de las comunidades a las que se unió), ya
-  // normalizados igual que los del post → refinan dentro de cada categoría.
-  const userTagInterests = new Set(normalizeGroupTags(preferences.joinedTags));
-
-  const [memberGroupIds, followedProfileIds, blockedByIds, taste] =
+  // Prefs locales + Firestore + intereses del perfil → señal robusta y
+  // cross-device (antes solo se leía localStorage y por eso no aparecía nada
+  // en otros navegadores/dispositivos o cuentas sin onboarding local).
+  const localPrefs = getStoredRecommendationPreferences(uid);
+  const [remotePrefs, interests, memberGroupIds, followedProfileIds, blockedByIds] =
     await Promise.all([
+      loadPreferencesFromFirestore(uid),
+      fetchProfileInterests(uid),
       fetchUserMembershipGroupIds(uid),
       fetchFollowedProfileIds(uid),
       fetchBlockedByProfileIds(uid),
-      buildDiscoveryTasteVector(uid, preferences),
     ]);
+
+  const preferences: StoredRecommendationPreferences = {
+    selectedCategories: uniqueCanonicalCategories([
+      ...localPrefs.selectedCategories,
+      ...(remotePrefs?.selectedCategories ?? []),
+      ...interests,
+    ]),
+    joinedCategories: uniqueCanonicalCategories([
+      ...localPrefs.joinedCategories,
+      ...(remotePrefs?.joinedCategories ?? []),
+    ]),
+    joinedTags: uniqueTags([
+      ...localPrefs.joinedTags,
+      ...(remotePrefs?.joinedTags ?? []),
+    ]),
+    onboardingCompleted:
+      localPrefs.onboardingCompleted || !!remotePrefs?.onboardingCompleted,
+    updatedAt: Date.now(),
+  };
+
+  // Tags de interés (C): comunidades a las que te uniste + tags de lo que
+  // likeas/guardas/ves. Todo normalizado igual que los del post.
+  const userTagInterests = new Set<string>([
+    ...normalizeGroupTags(preferences.joinedTags),
+    ...getEngagementTagWeights(uid).keys(),
+  ]);
+  // Palabras de interés (A): del texto de lo que likeas/guardas/ves.
+  const userKeywords = getKeywordInterests(uid);
+
+  const taste = await buildDiscoveryTasteVector(uid, preferences);
 
   const topCategories = Array.from(taste.entries())
     .sort((a, b) => b[1] - a[1])
     .slice(0, DISCOVERY_TOP_CATEGORIES)
     .map(([category]) => category);
 
+  // TEMP DEBUG
+  console.log("[discovery] taste:", Array.from(taste.entries()), "topCategories:", topCategories, "prefs:", preferences.selectedCategories, "interests:", interests);
+
   if (topCategories.length === 0) {
+    console.log("[discovery] SIN topCategories → vacío (no hay señales)");
     discoveryCache.set(uid, { posts: [], cachedAt: Date.now() });
     return [];
   }
@@ -1453,6 +1532,9 @@ export async function fetchDiscoveryPostsForUser(
     }),
     fetchProfilesByInterests(topCategories, excludeAuthors),
   ]);
+
+  // TEMP DEBUG
+  console.log("[discovery] communityPosts:", communityPosts.length, "profileCandidates:", profileScored.length);
 
   const topProfiles = profileScored
     .slice(0, DISCOVERY_PROFILES)
@@ -1483,7 +1565,8 @@ export async function fetchDiscoveryPostsForUser(
   const shownIds = getShownDiscoveryIds(uid);
   const seenIds = getSeenPostIds(uid);
   const seen = new Set<string>();
-  const scored: { post: DiscoveryPost; score: number }[] = [];
+  const scoredFresh: { post: DiscoveryPost; score: number }[] = [];
+  const scoredStale: { post: DiscoveryPost; score: number }[] = [];
 
   for (const { post, affinity } of [
     ...communityCandidates,
@@ -1492,14 +1575,25 @@ export async function fetchDiscoveryPostsForUser(
     if (!post || !post.id) continue;
     if (seen.has(post.id)) continue;
     if (post.authorId && excludeAuthors.has(post.authorId)) continue;
-    if (shownIds.has(post.id) || seenIds.has(post.id)) continue;
     if (!isDiscoveryWorthy(post)) continue; // #4 gate de calidad
     seen.add(post.id);
     const score =
       scoreDiscoveryPost(post, affinity) +
-      tagOverlapBonus(post, userTagInterests);
-    scored.push({ post, score });
+      tagOverlapBonus(post, userTagInterests) +
+      keywordOverlapBonus(post, userKeywords);
+    // Anti-repetición SUAVE: preferimos frescos, pero si hay pocos reusamos los
+    // ya mostrados/vistos (evita que un pool chico se vacíe por 14 días).
+    if (shownIds.has(post.id) || seenIds.has(post.id)) {
+      scoredStale.push({ post, score });
+    } else {
+      scoredFresh.push({ post, score });
+    }
   }
+
+  const scored =
+    scoredFresh.length >= MIN_FRESH_RESULTS
+      ? scoredFresh
+      : [...scoredFresh, ...scoredStale];
 
   const rankedScored = scored.sort((a, b) => b.score - a.score);
 
@@ -1530,6 +1624,21 @@ export async function fetchDiscoveryPostsForUser(
       pickedIds.add(post.id);
     }
   }
+
+  // TEMP DEBUG
+  console.log(
+    "[discovery] scored:",
+    scored.length,
+    "picked (final):",
+    picked.length,
+    picked.map((p) => ({
+      id: p.id,
+      ctx: p.contextType,
+      gid: p.groupId,
+      pid: p.profileId,
+      aid: p.authorId,
+    }))
+  );
 
   if (picked.length > 0) {
     markDiscoveryShown(uid, picked.map((post) => post.id));

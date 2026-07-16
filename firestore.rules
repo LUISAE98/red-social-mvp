@@ -1976,6 +1976,29 @@ function canListPublicShareableGroupPost() {
     );
 }
 
+// Descubrimiento: listar posts públicos+compartibles+gratis de comunidades
+// PÚBLICAS por `groupVisibility` (no por groupId). Cubre la query del feed de
+// descubrimiento que filtra por groupCategory + groupVisibility == "public".
+// Expone el mismo conjunto que canListPublicShareableGroupPost (posts públicos
+// compartibles), solo que asegurado por groupVisibility en vez de groupId.
+function canListPublicDiscoveryPost() {
+  return resource.data.isDeleted == false
+    && resource.data.groupVisibility == "public"
+    && resource.data.isShareable == true
+    && (
+      !("accessModel" in resource.data)
+      || resource.data.accessModel == "free"
+    )
+    && (
+      !("requiresPayment" in resource.data)
+      || resource.data.requiresPayment == false
+    )
+    && (
+      !("requiresSubscription" in resource.data)
+      || resource.data.requiresSubscription == false
+    );
+}
+
 function canReadPost() {
   return resource.data.isDeleted == false
     && (
@@ -2294,6 +2317,7 @@ function canModeratePostCommentData(data) {
   || canReadPostFromOwnSavedPosts();
 
 allow list: if canListOwnAuthoredPost()
+  || canListPublicDiscoveryPost()
   || isPlatformMod()
   || canReadPost()
   || canReadPostFromOwnHomeFeed()

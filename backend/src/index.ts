@@ -257,3 +257,6 @@ export { backfillTicketPostIds } from "./backfillTicketPostIds";
 
 // Backfill de groupCategory en posts (descubrimiento Fase 2), corrida única
 export { backfillPostGroupCategory } from "./backfillPostGroupCategory";
+
+// TEMPORAL — siembra de contenido de prueba para el descubrimiento. Borrar tras usar.
+export { seedDiscovery, cleanupSeedDiscovery } from "./seedDiscovery";

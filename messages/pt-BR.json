@@ -408,6 +408,8 @@
     "interestsSubtitle": "Selecione as categorias que mais te interessam",
     "interestsFootnote": "Personalizaremos sua experiência desde o primeiro momento",
     "interestsMinHint": "Escolha pelo menos uma categoria",
+    "interestsSelectedCount": "{count, plural, one {Você selecionou # categoria} other {Você selecionou # categorias}}",
+    "interestsGoBack": "Voltar",
     "selectedCount": "Selecionadas: {count}/{min} mínimo",
     "noCommunitiesAvailable": "Ainda não temos comunidades disponíveis para recomendar.",
     "createCommunityRailButton": "Criar comunidade",
@@ -1847,7 +1849,11 @@
       "featureRealtimeTitle": "Tempo real",
       "featureRealtimeText": "Chats, lives e experiências sem limites.",
       "featureMonetizeTitle": "Monetize",
-      "featureMonetizeText": "Transforme sua paixão em renda real."
+      "featureMonetizeText": "Transforme sua paixão em renda real.",
+      "trustPayments": "Pagamentos seguros",
+      "trustVerified": "Identidade verificada",
+      "trustTransparent": "Finanças transparentes",
+      "formContext": "Descubra criadores, entre em comunidades e monetize seu talento."
     },
     "register": {
       "title": "Criar conta",
