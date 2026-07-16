@@ -72,9 +72,16 @@ useEffect(() => {
   document.documentElement.classList.add("loginPageBg");
   document.body.classList.add("loginPageBg");
 
+  // Al entrar/refrescar login siempre arriba del scroll. Desactivamos la
+  // restauración automática del navegador (que reponía la posición de abajo).
+  const prevScrollRestoration = window.history.scrollRestoration;
+  window.history.scrollRestoration = "manual";
+  window.scrollTo(0, 0);
+
   return () => {
     document.documentElement.classList.remove("loginPageBg");
     document.body.classList.remove("loginPageBg");
+    window.history.scrollRestoration = prevScrollRestoration;
   };
 }, []);
 
@@ -422,6 +429,12 @@ body.loginPageBg {
 
   .loginTagline {
     font-size: clamp(29px, 8.4vw, 41px);
+    /* En celular: "Conecta. Comparte." en un renglón y "Vibra." debajo. */
+    white-space: normal;
+  }
+
+  .loginTagline .heroVibraGradientText {
+    display: block;
   }
 }
 

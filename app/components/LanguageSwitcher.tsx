@@ -199,7 +199,7 @@ export default function LanguageSwitcher({ variant = "desktop" }: { variant?: Va
           className="vb-lang-bubble"
           style={{
             position: "fixed",
-            bottom: "calc(72px + env(safe-area-inset-bottom))",
+            bottom: "calc(16px + env(safe-area-inset-bottom))",
             right: 16,
             zIndex: 200,
           }}

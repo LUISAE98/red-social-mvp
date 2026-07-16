@@ -223,6 +223,9 @@ export const joinSession = onCall(
       bothJoined = creatorIsJoined && buyerIsJoined;
 
       if (bothJoined && !startedAt) {
+        // ⚠️ ARRANQUE DEL CONTADOR DE LA SESIÓN — NO ELIMINAR NUNCA ⚠️
+        // startedAt + timerRemainingMs alimentan el contador de la videollamada
+        // (feature crítica). Si esto no corre, el contador nunca aparece.
         // Primera vez que ambos están en la sala
         updates.startedAt = now;
         updates.roomStatus = "in_progress";

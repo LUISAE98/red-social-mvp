@@ -162,9 +162,9 @@ export default function LoginCollageBackground() {
           }
 
           .login-collage-grid {
-            grid-template-columns: repeat(4, 1fr);
-            width: 210vw;
-            gap: 12px;
+            grid-template-columns: repeat(6, 1fr);
+            width: 240vw;
+            gap: 10px;
             transform: rotateX(12deg) rotateZ(-9deg) scale(1.12);
           }
         }

@@ -248,6 +248,9 @@ function RoomContent({
     }
     if (!timerExpiredFiredRef.current && remaining === 0) {
       timerExpiredFiredRef.current = true;
+      // ⚠️ NO adelantar el cierre a t=0: eso quita el contador de la llamada en
+      // vivo (ya rompió una vez). En t=0 SOLO se señala la grabación; el cierre
+      // real (endSession + onTimerExpired) va en el setTimeout de 5s de abajo. ⚠️
       // En t=0 solo señalamos el INICIO del cierre a la GRABACIÓN (para que su
       // outro arranque ya: difuminado + Vibra + audio bajando). Esto NO toca la
       // sesión: la videollamada y el contador de los participantes siguen intactos.
@@ -357,6 +360,13 @@ function RoomContent({
         <CenteredLabel>{tLive("participantCameraOff")}</CenteredLabel>
       )}
 
+      {/* ⚠️ CONTADOR DE LA SESIÓN — NO ELIMINAR NI OCULTAR NUNCA ⚠️
+          Este contador (arriba al centro) es una feature crítica pedida
+          explícitamente por el dueño del producto. NO tocar esta condición de
+          render, ni `remaining`, ni `timer`, ni la lógica que los alimenta
+          (joinSession fija startedAt+timerRemainingMs; el webhook pausa/reanuda;
+          la expiración en t=0 SOLO señala la grabación y el cierre real es en
+          t=5). Si un cambio parece requerir modificarlo, DETENERSE y preguntar. */}
       {/* Countdown — top center */}
       {remoteConnected && remaining != null && timer != null && (
         <div style={{

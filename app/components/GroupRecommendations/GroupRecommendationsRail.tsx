@@ -1815,6 +1815,21 @@ export default function GroupRecommendationsRail({
       ? interestRows * interestColWidth + (interestRows - 1) * INTEREST_GRID_GAP
       : undefined;
 
+  // Precarga las imágenes de la página SIGUIENTE mientras se ven las actuales,
+  // para que al deslizar ya estén cargadas (sin parpadeo). `window.Image` porque
+  // aquí `Image` es el componente de next/image.
+  useEffect(() => {
+    if (!showOnboarding || typeof window === "undefined") return;
+    const start = (interestPage + 1) * interestsPerPage;
+    GROUP_CATEGORY_OPTIONS.slice(start, start + interestsPerPage).forEach((o) => {
+      const src = CATEGORY_IMAGE[o.value];
+      if (src) {
+        const img = new window.Image();
+        img.src = src;
+      }
+    });
+  }, [showOnboarding, interestPage, interestsPerPage]);
+
   if (!currentUserId) {
     return null;
   }
@@ -1925,7 +1940,11 @@ export default function GroupRecommendationsRail({
                       width: 54,
                       height: 54,
                       borderRadius: "50%",
-                      background: "rgba(0,0,0,0.72)",
+                      overflow: "hidden",
+                      background: CATEGORY_IMAGE[option.value]
+                        ? `linear-gradient(rgba(0,0,0,0.45), rgba(0,0,0,0.45)), center / cover no-repeat url("${CATEGORY_IMAGE[option.value]}")`
+                        : "rgba(0,0,0,0.72)",
+                      border: "1px solid rgba(255,255,255,0.12)",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",

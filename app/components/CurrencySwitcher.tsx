@@ -277,7 +277,7 @@ export default function CurrencySwitcher({ variant = "desktop" }: { variant?: Va
           className="vb-cur-bubble"
           style={{
             position: "fixed",
-            bottom: "calc(72px + env(safe-area-inset-bottom))",
+            bottom: "calc(16px + env(safe-area-inset-bottom))",
             right: 68,
             zIndex: 200,
           }}

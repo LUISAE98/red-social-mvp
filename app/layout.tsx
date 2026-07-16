@@ -19,6 +19,27 @@ const plusJakarta = Plus_Jakarta_Sans({
   display: "swap",
 });
 
+// Collage de fondo del splash — mismo set de imágenes que el login
+// (LoginCollageBackground). Las anchas ocupan dos columnas. Se genera estático
+// aquí porque el splash se pinta antes de hidratar React.
+const SPLASH_IMAGES: { src: string; wide: boolean }[] = [
+  { src: "gaming", wide: false },
+  { src: "desbloquearcontenido", wide: true },
+  { src: "musica", wide: false },
+  { src: "encuentroenvivo", wide: true },
+  { src: "tecnologia", wide: false },
+  { src: "saludo", wide: true },
+  { src: "educacion", wide: false },
+  { src: "live", wide: true },
+  { src: "negocios", wide: false },
+  { src: "sesionexclusiva", wide: true },
+];
+const SPLASH_TILES = Array.from({ length: 50 }, (_, i) => {
+  const len = SPLASH_IMAGES.length;
+  const rotation = Math.floor(i / len) * 3;
+  return SPLASH_IMAGES[((i % len) + rotation) % len];
+});
+
 export const metadata: Metadata = {
   title: "Vibra",
   description: "Plataforma social de creadores: comunidades, contenido, video en vivo, servicios y monetización directa.",
@@ -62,6 +83,7 @@ export default async function RootLayout({
                 inset: 0;
                 z-index: 2147483647;
                 display: flex;
+                flex-direction: column;
                 align-items: center;
                 justify-content: center;
                 background: #000;
@@ -76,75 +98,153 @@ export default async function RootLayout({
   transition: opacity 220ms ease, visibility 220ms ease;
 }
 
-              .desktop-refresh-aura {
+              /* Fondo de iconos (mismo collage 3D que el login) */
+              .splash-collage {
                 position: absolute;
-                width: min(52vw, 620px);
-                height: min(52vw, 620px);
-                border-radius: 999px;
+                inset: 0;
+                overflow: hidden;
+                z-index: 0;
+              }
+
+              .splash-collage-stage {
+                position: absolute;
+                inset: -22%;
+                perspective: 1400px;
+                display: grid;
+                place-items: center;
+              }
+
+              .splash-collage-grid {
+                display: grid;
+                grid-template-columns: repeat(6, 1fr);
+                grid-auto-flow: row dense;
+                gap: 16px;
+                width: 150vw;
+                transform: rotateX(15deg) rotateZ(-11deg) scale(1.08);
+                filter: saturate(1.02);
+              }
+
+              .splash-tile {
+                grid-column: span 1;
+                aspect-ratio: 1 / 1;
+                overflow: hidden;
+                background: linear-gradient(160deg, #1b1530, #0d0a18);
+                box-shadow: 0 18px 42px rgba(0, 0, 0, 0.55);
+              }
+
+              .splash-tile.is-wide {
+                grid-column: span 2;
+                aspect-ratio: 2 / 1;
+              }
+
+              .splash-tile img {
+                width: 100%;
+                height: 100%;
+                object-fit: cover;
+                display: block;
+                opacity: 0.9;
+              }
+
+              .splash-collage-overlay {
+                position: absolute;
+                inset: 0;
                 background:
-                  radial-gradient(circle, rgba(168, 85, 255, 0.36), transparent 58%),
-                  radial-gradient(circle, rgba(255, 47, 179, 0.18), transparent 64%);
-                filter: blur(34px);
-                animation: desktopRefreshAuraPulse 1.8s ease-in-out infinite alternate;
+                  radial-gradient(
+                    135% 120% at 60% 45%,
+                    rgba(6, 3, 14, 0.4) 0%,
+                    rgba(5, 2, 11, 0.66) 55%,
+                    rgba(3, 1, 8, 0.86) 100%
+                  ),
+                  linear-gradient(
+                    180deg,
+                    rgba(5, 2, 11, 0.56) 0%,
+                    rgba(5, 2, 11, 0.3) 45%,
+                    rgba(3, 1, 8, 0.62) 100%
+                  );
               }
 
-.desktop-refresh-words {
-  position: relative;
-  width: 340px;
-  height: 80px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-family: inherit;
-  font-size: clamp(34px, 3.2vw, 50px);
-  font-weight: 630;
-  letter-spacing: -0.045em;
-  line-height: 1.03;
-  color: #fff;
-  text-shadow:
-    0 0 18px rgba(168, 85, 255, 0.55),
-    0 0 42px rgba(168, 85, 255, 0.28);
-}
-
-              .desktop-refresh-words span {
-                position: absolute;
-                opacity: 0;
-                animation: desktopRefreshWordCycle 0.9s infinite;
+              /* Una sola línea (dos renglones en celular), todo del mismo
+                 tamaño. */
+              .desktop-refresh-words {
+                position: relative;
+                z-index: 1;
+                font-family: inherit;
+                font-size: clamp(26px, 3.4vw, 44px);
+                font-weight: 700;
+                letter-spacing: -0.03em;
+                line-height: 1.08;
+                text-align: center;
+                white-space: nowrap;
+                color: #fff;
+                text-shadow: 0 2px 30px rgba(0, 0, 0, 0.55);
+                padding: 0 16px;
               }
 
-              .desktop-refresh-words span:nth-child(1) {
-                animation-delay: 0s;
+              /* Vibra con el mismo efecto del título de intereses: degradado
+                 rosa→morado→azul que fluye (anima background-position). */
+              .desktop-refresh-words .splash-vibra {
+                background: linear-gradient(100deg, #ff2fb3 0%, #a855ff 45%, #4f46ff 100%);
+                background-size: 220% 220%;
+                -webkit-background-clip: text;
+                background-clip: text;
+                color: transparent;
+                animation: vibSplashFlow 4.5s ease-in-out infinite;
               }
 
-              .desktop-refresh-words span:nth-child(2) {
-                animation-delay: 0.3s;
+              @keyframes vibSplashFlow {
+                0%, 100% { background-position: 0% 50%; }
+                50% { background-position: 100% 50%; }
               }
 
-              .desktop-refresh-words span:nth-child(3) {
-                animation-delay: 0.6s;
+              /* Ruedita cargando — mismo anillo que el pull-to-refresh. */
+              .desktop-refresh-spinner {
+                position: relative;
+                z-index: 1;
+                margin-top: 22px;
+                width: 34px;
+                height: 34px;
+                border-radius: 999px;
+                background: conic-gradient(
+                  #a855ff 0deg 180deg,
+                  transparent 180deg 360deg
+                );
+                box-shadow: 0 0 10px rgba(168, 85, 255, 0.24);
+                -webkit-mask: radial-gradient(
+                  farthest-side,
+                  transparent calc(100% - 4px),
+                  #000 calc(100% - 4px)
+                );
+                mask: radial-gradient(
+                  farthest-side,
+                  transparent calc(100% - 4px),
+                  #000 calc(100% - 4px)
+                );
+                animation: vibSplashSpin 0.75s linear infinite;
               }
 
-              @keyframes desktopRefreshWordCycle {
-                0%, 28% {
-                  opacity: 1;
-                  transform: scale(1);
+              @keyframes vibSplashSpin {
+                from { transform: rotate(0deg); }
+                to { transform: rotate(360deg); }
+              }
+
+              @media (max-width: 900px) {
+                .desktop-refresh-words {
+                  white-space: normal;
+                  font-size: clamp(30px, 8vw, 46px);
                 }
 
-                33%, 100% {
-                  opacity: 0;
-                  transform: scale(0.96);
+                /* En celular "Vibra." baja al segundo renglón. */
+                .desktop-refresh-words .splash-vibra {
+                  display: block;
                 }
               }
 
-              @keyframes desktopRefreshAuraPulse {
-                from {
-                  transform: scale(0.92);
-                  opacity: 0.72;
-                }
-
-                to {
-                  transform: scale(1.08);
-                  opacity: 1;
+              @media (max-width: 900px) {
+                .splash-collage-grid {
+                  grid-template-columns: repeat(6, 1fr);
+                  width: 240vw;
+                  gap: 10px;
+                  transform: rotateX(12deg) rotateZ(-9deg) scale(1.12);
                 }
               }
             `,
@@ -166,13 +266,29 @@ export default async function RootLayout({
           }}
         />
         <div id="desktop-refresh-splash">
-          <div className="desktop-refresh-aura" />
+          <div className="splash-collage" aria-hidden="true">
+            <div className="splash-collage-stage">
+              <div className="splash-collage-grid">
+                {SPLASH_TILES.map((tile, i) => (
+                  <div
+                    key={i}
+                    className={`splash-tile${tile.wide ? " is-wide" : ""}`}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={`/${tile.src}.png`} alt="" />
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="splash-collage-overlay" />
+          </div>
 
           <div className="desktop-refresh-words">
-            <span>Conecta</span>
-            <span>Comparte</span>
-            <span>Vibra</span>
+            Conecta. Comparte.{" "}
+            <span className="splash-vibra">Vibra.</span>
           </div>
+
+          <div className="desktop-refresh-spinner" aria-hidden="true" />
         </div>
 
 {/* SVG sprite: gradient defined once at document root so url(#vibraIconGradient) resolves from any position:fixed context */}
