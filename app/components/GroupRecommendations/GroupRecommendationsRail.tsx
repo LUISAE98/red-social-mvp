@@ -13,6 +13,7 @@ import {
   collection,
   doc,
   documentId,
+  getCountFromServer,
   getDoc,
   getDocs,
   limit,
@@ -33,6 +34,7 @@ import { followUser } from "@/lib/social/social-service";
 import {
   GROUP_CATEGORY_LABELS,
   GROUP_CATEGORY_OPTIONS,
+  normalizeGroupCategory,
   type CanonicalGroupCategory,
   type Group,
 } from "@/types/group";
@@ -45,6 +47,7 @@ import {
   onRecommendationCacheInvalidated,
   recommendationEngineConstants,
   trackGroupRecommendationSignalFromGroup,
+  getUserTasteVector,
 } from "./recommendation-engine";
 import { updateProfileInterests } from "@/lib/profile/updateProfileInterests";
 import type {
@@ -96,6 +99,17 @@ const fontStack =
 // Se usan tanto en el estilo del grid como para calcular columnas por página.
 const INTEREST_GRID_MIN_COL = 130;
 const INTEREST_GRID_GAP = 3;
+
+// Carrusel de recomendaciones: ancho fijo de card (ver cardStyles) y separación.
+// En desktop se pagina mostrando solo las cards completas que quepan.
+const RAIL_CARD_W = 200;
+const RAIL_GAP = 12;
+
+// Card del rail unificada (live / comunidad / perfil), para poder paginar.
+type RailCard =
+  | { kind: "live"; rec: LiveRec }
+  | { kind: "group"; group: RecommendationGroupCard }
+  | { kind: "profile"; profile: RecommendationProfileCard };
 
 // Deslizamiento entre páginas del selector: dir = 1 (siguiente) desliza a la
 // izquierda; dir = -1 (regresar) al revés.
@@ -552,7 +566,7 @@ function JoinButton({
       style={{
         width: "100%",
         borderRadius: 10,
-        padding: "10px 12px",
+        padding: "7px 12px",
         border: isInactive ? "1px solid rgba(255,255,255,0.18)" : "none",
         fontWeight: 600,
         fontSize: 13,
@@ -595,7 +609,7 @@ function FollowButton({
       style={{
         width: "100%",
         borderRadius: 10,
-        padding: "10px 12px",
+        padding: "7px 12px",
         border: isInactive ? "1px solid rgba(255,255,255,0.18)" : "none",
         fontWeight: 600,
         fontSize: 13,
@@ -644,12 +658,11 @@ function ProfileCard({
         style={{
           position: "relative",
           width: "100%",
-          aspectRatio: "9 / 11",
+          aspectRatio: "9 / 10",
           borderRadius: 20,
           overflow: "hidden",
           background: "#0d0d0f",
-          boxShadow:
-            "0 24px 52px rgba(0,0,0,0.42), 0 6px 16px rgba(0,0,0,0.28)",
+          boxShadow: "none",
           transform: "translateZ(0)",
         }}
       >
@@ -668,7 +681,7 @@ function ProfileCard({
             position: "absolute",
             inset: 0,
             background:
-              "linear-gradient(180deg, rgba(0,0,0,0.08) 0%, rgba(0,0,0,0.18) 28%, rgba(0,0,0,0.62) 58%, rgba(0,0,0,0.90) 80%, rgba(0,0,0,0.97) 100%)",
+              "linear-gradient(180deg, rgba(0,0,0,0.08) 0%, rgba(0,0,0,0.18) 28%, rgba(0,0,0,0.62) 58%, rgba(0,0,0,0.70) 80%, rgba(0,0,0,0.80) 100%)",
           }}
         />
         {/* Avatar con aro de historias — fuera del Link para evitar button dentro de <a> */}
@@ -698,7 +711,7 @@ function ProfileCard({
           style={{
             position: "absolute",
             inset: 0,
-            bottom: 60,
+            bottom: 52,
             zIndex: 1,
             display: "flex",
             flexDirection: "column",
@@ -858,12 +871,11 @@ function GroupCard({
         style={{
           position: "relative",
           width: "100%",
-          aspectRatio: "9 / 11",
+          aspectRatio: "9 / 10",
           borderRadius: 20,
           overflow: "hidden",
           background: "#0d0d0f",
-          boxShadow:
-            "0 24px 52px rgba(0,0,0,0.42), 0 6px 16px rgba(0,0,0,0.28)",
+          boxShadow: "none",
           transform: "translateZ(0)",
         }}
       >
@@ -885,7 +897,7 @@ function GroupCard({
             position: "absolute",
             inset: 0,
             background:
-              "linear-gradient(180deg, rgba(0,0,0,0.08) 0%, rgba(0,0,0,0.18) 28%, rgba(0,0,0,0.62) 58%, rgba(0,0,0,0.90) 80%, rgba(0,0,0,0.97) 100%)",
+              "linear-gradient(180deg, rgba(0,0,0,0.08) 0%, rgba(0,0,0,0.18) 28%, rgba(0,0,0,0.62) 58%, rgba(0,0,0,0.70) 80%, rgba(0,0,0,0.80) 100%)",
           }}
         />
 
@@ -917,7 +929,7 @@ function GroupCard({
           style={{
             position: "absolute",
             inset: 0,
-            bottom: 60,
+            bottom: 52,
             zIndex: 1,
             display: "flex",
             flexDirection: "column",
@@ -1052,6 +1064,10 @@ type LiveRec = {
   handle?: string | null;
   groupVisibility?: string | null;
   subscriptionEnabled?: boolean;
+  // Recomendación de lives: categorías (afinidad), inicio (recencia), espectadores.
+  categories?: CanonicalGroupCategory[];
+  startedAtMs?: number;
+  viewers?: number;
 };
 
 type LiveActionState = "none" | "following" | "joined" | "pending";
@@ -1092,7 +1108,7 @@ function LiveCTAButton({
       style={{
         width: "100%",
         borderRadius: 10,
-        padding: "10px 12px",
+        padding: "7px 12px",
         border: inactive ? "1px solid rgba(255,255,255,0.18)" : "none",
         fontWeight: 600,
         fontSize: 13,
@@ -1138,11 +1154,11 @@ function LiveRecommendationCard({
         style={{
           position: "relative",
           width: "100%",
-          aspectRatio: "9 / 11",
+          aspectRatio: "9 / 10",
           borderRadius: 20,
           overflow: "hidden",
           background: "#0d0d0f",
-          boxShadow: "0 24px 52px rgba(0,0,0,0.42), 0 6px 16px rgba(0,0,0,0.28)",
+          boxShadow: "none",
           transform: "translateZ(0)",
         }}
       >
@@ -1163,7 +1179,7 @@ function LiveRecommendationCard({
             position: "absolute",
             inset: 0,
             background:
-              "linear-gradient(180deg, rgba(239,68,68,0.10) 0%, rgba(0,0,0,0.20) 30%, rgba(0,0,0,0.65) 58%, rgba(0,0,0,0.92) 82%, rgba(0,0,0,0.98) 100%)",
+              "linear-gradient(180deg, rgba(239,68,68,0.10) 0%, rgba(0,0,0,0.20) 30%, rgba(0,0,0,0.65) 58%, rgba(0,0,0,0.70) 82%, rgba(0,0,0,0.80) 100%)",
           }}
         />
 
@@ -1196,7 +1212,7 @@ function LiveRecommendationCard({
           style={{
             position: "absolute",
             inset: 0,
-            bottom: 60,
+            bottom: 52,
             zIndex: 1,
             background: "none",
             border: "none",
@@ -1325,7 +1341,7 @@ function SkeletonRail() {
             <div
               style={{
                 width: "100%",
-                aspectRatio: "9 / 11",
+                aspectRatio: "9 / 10",
                 borderRadius: 20,
                 background: "rgba(255,255,255,0.07)",
                 animation: `vibraRecsSkeleton 1.6s ease-in-out ${i * 0.18}s infinite`,
@@ -1367,6 +1383,13 @@ export default function GroupRecommendationsRail({
   // Animación final: al confirmar, los contenedores elegidos hacen pop y todo
   // el panel (incluido el título) se "consume".
   const [celebrating, setCelebrating] = useState(false);
+  // Carrusel de recomendaciones. En desktop se pagina (sin scroll) mostrando
+  // solo las cards completas que quepan; en celular se mantiene el scroll.
+  const [railEl, setRailEl] = useState<HTMLDivElement | null>(null);
+  const [railWidth, setRailWidth] = useState(0);
+  const [railPage, setRailPage] = useState(0);
+  const [railDirection, setRailDirection] = useState(1);
+  const [isDesktopRail, setIsDesktopRail] = useState(false);
   const [joinStates, setJoinStates] = useState<
     Record<string, RecommendationJoinState>
   >({});
@@ -1486,10 +1509,28 @@ export default function GroupRecommendationsRail({
       }
       if (cancelled) return;
 
+      // Vector de gustos (una vez por montaje) para rankear lives por afinidad.
+      let taste: Map<CanonicalGroupCategory, number> = new Map();
+      try {
+        taste = await getUserTasteVector(currentUserId);
+      } catch {
+        // sin señales → ranking por populares
+      }
+      if (cancelled) return;
+
+      const startedMs = (ld: Record<string, unknown>): number => {
+        const s = ld.startedAt as
+          | { toMillis?: () => number; seconds?: number }
+          | null;
+        if (s && typeof s.toMillis === "function") return s.toMillis();
+        if (s && typeof s.seconds === "number") return s.seconds * 1000;
+        return 0;
+      };
+
       const q = query(
         collection(db, "posts"),
         where("liveData.status", "==", "live"),
-        limit(20),
+        limit(40),
       );
 
       unsubLives = onSnapshot(q, async (snap) => {
@@ -1554,6 +1595,8 @@ export default function GroupRecommendationsRail({
           if (gid) {
             const g = (groupMap.get(gid) ?? {}) as Record<string, unknown>;
             const mon = (g.monetization ?? {}) as Record<string, unknown>;
+            // Categoría del live = categoría de la comunidad.
+            const gcat = normalizeGroupCategory(g.category);
             return {
               postId: post.id as string,
               authorId: post.authorId as string,
@@ -1565,9 +1608,17 @@ export default function GroupRecommendationsRail({
               coverUrl: (g.coverUrl as string | null) ?? null,
               groupVisibility: (g.visibility as string | null) ?? null,
               subscriptionEnabled: mon.subscriptionsEnabled === true || mon.isPaid === true,
+              categories: gcat ? [gcat] : [],
+              startedAtMs: startedMs(ld),
             };
           } else {
             const u = (userMap.get(post.authorId as string) ?? {}) as Record<string, unknown>;
+            // Categoría del live = intereses del creador.
+            const ucats = Array.isArray(u.interests)
+              ? (u.interests
+                  .map((v) => normalizeGroupCategory(v))
+                  .filter((c): c is CanonicalGroupCategory => !!c))
+              : [];
             return {
               postId: post.id as string,
               authorId: post.authorId as string,
@@ -1578,14 +1629,54 @@ export default function GroupRecommendationsRail({
               avatarUrl: (u.photoURL as string | null) ?? null,
               coverUrl: (u.coverPhotoURL as string | null) ?? null,
               handle: (u.handle as string | null) ?? null,
+              categories: ucats,
+              startedAtMs: startedMs(ld),
             };
           }
         });
 
-        setLiveRecs(recs);
+        // Espectadores actuales de cada live (para rankear los "calientes").
+        const withViewers = await Promise.all(
+          recs.map(async (r) => {
+            let viewers = 0;
+            try {
+              const c = await getCountFromServer(
+                collection(db, "posts", r.postId, "liveViewers"),
+              );
+              viewers = c.data().count;
+            } catch {
+              // sin conteo → 0
+            }
+            return { ...r, viewers };
+          }),
+        );
+        if (cancelled || myGen !== snapGen) return;
+
+        // Ranking: afinidad de categoría + espectadores + recencia.
+        // Frío total (sin señales) → por más espectadores (populares).
+        const hasTaste = taste.size > 0;
+        const nowMs = Date.now();
+        const ranked = withViewers
+          .map((r) => {
+            let affinity = 0;
+            for (const cat of r.categories ?? []) {
+              affinity = Math.max(affinity, taste.get(cat) ?? 0);
+            }
+            const ageMin = r.startedAtMs ? (nowMs - r.startedAtMs) / 60000 : 999;
+            const recency = Math.max(0, 1 - ageMin / 180); // decae en ~3h
+            const popularity = Math.log1p(r.viewers ?? 0);
+            const score = hasTaste
+              ? affinity * 3 + popularity * 1.5 + recency * 1
+              : popularity * 3 + recency * 1;
+            return { r, score };
+          })
+          .sort((a, b) => b.score - a.score)
+          .map((e) => e.r);
+
+        setLiveRecs(ranked);
         setLiveActionStates((prev) => {
           const next = { ...prev };
-          for (const r of recs) if (!next[r.postId]) next[r.postId] = "none";
+          for (const r of ranked) if (!next[r.postId]) next[r.postId] = "none";
           return next;
         });
       });
@@ -1644,7 +1735,14 @@ export default function GroupRecommendationsRail({
     setCelebrating(true);
     window.setTimeout(() => {
       handleSaveOnboarding();
-    }, 1450);
+    }, 1600);
+  };
+
+  // Desplaza el carrusel de recomendaciones con las flechas (desktop).
+  const scrollRail = (dir: number) => {
+    const el = railRef.current;
+    if (!el) return;
+    el.scrollBy({ left: dir * el.clientWidth * 0.8, behavior: "smooth" });
   };
 
   const handleJoin = async (group: RecommendationGroupCard) => {
@@ -1758,6 +1856,18 @@ export default function GroupRecommendationsRail({
     return items;
   }, [result, profileCards]);
 
+  // Todas las cards del rail en un solo orden (lives primero), para paginar.
+  const allRailCards = useMemo<RailCard[]>(() => {
+    const cards: RailCard[] = liveRecs.map((rec) => ({ kind: "live", rec }));
+    if (!loading && result?.onboardingCompleted) {
+      for (const item of mergedRailItems) {
+        if (item.type === "group") cards.push({ kind: "group", group: item.data });
+        else cards.push({ kind: "profile", profile: item.data });
+      }
+    }
+    return cards;
+  }, [liveRecs, loading, result, mergedRailItems]);
+
   // Mide cuántas columnas caben en el grid para paginar en renglones completos.
   useEffect(() => {
     if (!interestsGridEl || typeof ResizeObserver === "undefined") return;
@@ -1778,6 +1888,29 @@ export default function GroupRecommendationsRail({
     ro.observe(interestsGridEl);
     return () => ro.disconnect();
   }, [interestsGridEl]);
+
+  // El rail se pagina solo en laptop/desktop; en celular queda con scroll.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const mq = window.matchMedia("(min-width: 901px)");
+    const apply = () => setIsDesktopRail(mq.matches);
+    apply();
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
+  }, []);
+
+  // Mide el ancho disponible del rail para calcular cuántas cards completas caben.
+  useEffect(() => {
+    if (!railEl || typeof ResizeObserver === "undefined") return;
+    const compute = () => {
+      const w = railEl.clientWidth;
+      if (w > 0) setRailWidth(w);
+    };
+    compute();
+    const ro = new ResizeObserver(compute);
+    ro.observe(railEl);
+    return () => ro.disconnect();
+  }, [railEl]);
 
   const showOnboarding = useMemo(() => {
     return !suppressOnboarding && !loading && result && !result.onboardingCompleted;
@@ -1866,9 +1999,9 @@ export default function GroupRecommendationsRail({
       {showOnboarding ? (
         <motion.div
           initial={false}
-          style={{ display: "flex", flexDirection: "column", gap: 16, marginTop: 28, marginBottom: 28, transformOrigin: "center" }}
-          animate={celebrating ? { scale: 0.2, opacity: 0 } : { scale: 1, opacity: 1 }}
-          transition={celebrating ? { delay: 0.9, duration: 0.5, ease: [0.5, 0, 0.75, 0] } : { duration: 0.2 }}
+          style={{ display: "flex", flexDirection: "column", gap: 16, marginTop: 28, marginBottom: 28 }}
+          animate={celebrating ? { opacity: 0 } : { opacity: 1 }}
+          transition={celebrating ? { delay: 1.15, duration: 0.4 } : { duration: 0.2 }}
         >
           <style>{`
             .vibInterestsGradient {
@@ -1915,7 +2048,7 @@ export default function GroupRecommendationsRail({
           </div>
 
           {celebrating ? (
-            <div
+            <motion.div
               style={{
                 display: "flex",
                 flexWrap: "wrap",
@@ -1923,7 +2056,10 @@ export default function GroupRecommendationsRail({
                 justifyContent: "center",
                 width: "100%",
                 padding: "6px 0",
+                transformOrigin: "center",
               }}
+              animate={{ scale: [1, 1, 0], rotate: [0, 0, 210], opacity: [1, 1, 0] }}
+              transition={{ duration: 1.4, times: [0, 0.6, 1], ease: "easeInOut" }}
             >
               {GROUP_CATEGORY_OPTIONS.filter((o) =>
                 selectedCategories.includes(o.value)
@@ -1932,7 +2068,7 @@ export default function GroupRecommendationsRail({
                   key={option.value}
                   initial={{ scale: 0, opacity: 0 }}
                   animate={{ scale: [0, 1.18, 1], opacity: 1 }}
-                  transition={{ delay: i * 0.035, duration: 0.5, times: [0, 0.6, 1], ease: "easeOut" }}
+                  transition={{ delay: i * 0.02, duration: 0.42, times: [0, 0.6, 1], ease: "easeOut" }}
                   style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, width: 82 }}
                 >
                   <span
@@ -1958,7 +2094,7 @@ export default function GroupRecommendationsRail({
                   </span>
                 </motion.div>
               ))}
-            </div>
+            </motion.div>
           ) : (
             <>
           <motion.div
@@ -2113,16 +2249,49 @@ export default function GroupRecommendationsRail({
         <>
           <style>{`
             .vibraRecsRail {
-              scrollbar-width: thin;
-              scrollbar-color: rgba(255,255,255,0.20) transparent;
+              scrollbar-width: none;
+              -ms-overflow-style: none;
             }
-            .vibraRecsRail::-webkit-scrollbar { height: 3px; }
-            .vibraRecsRail::-webkit-scrollbar-track { background: transparent; }
-            .vibraRecsRail::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.20); border-radius: 99px; }
-            .vibraRecsRail::-webkit-scrollbar-button { display: none; }
+            .vibraRecsRail::-webkit-scrollbar { display: none; }
+            .vibraRailArrow {
+              position: absolute;
+              top: 44%;
+              transform: translateY(-50%);
+              z-index: 5;
+              width: 34px;
+              height: 34px;
+              border-radius: 50%;
+              border: 1px solid rgba(255,255,255,0.12);
+              background: rgba(10,10,14,0.5);
+              -webkit-backdrop-filter: blur(6px);
+              backdrop-filter: blur(6px);
+              color: rgba(255,255,255,0.85);
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              cursor: pointer;
+              opacity: 0.7;
+              transition: opacity 0.15s ease, background 0.15s ease;
+            }
+            .vibraRailArrow:hover { opacity: 1; background: rgba(20,20,26,0.85); }
+            .vibraRailArrowLeft { left: 2px; }
+            .vibraRailArrowRight { right: 2px; }
+            @media (max-width: 900px) {
+              .vibraRailArrow { display: none; }
+            }
           `}</style>
+          <div style={{ position: "relative" }}>
+          <button
+            type="button"
+            aria-label={tCommon("back")}
+            className="vibraRailArrow vibraRailArrowLeft"
+            onClick={() => scrollRail(-1)}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
+          </button>
           <div
             className="vibraRecsRail"
+            ref={railRef}
             style={{
               display: "flex",
               gap: 12,
@@ -2168,6 +2337,15 @@ export default function GroupRecommendationsRail({
               />
             )
           )}
+          </div>
+          <button
+            type="button"
+            aria-label={tCommon("next")}
+            className="vibraRailArrow vibraRailArrowRight"
+            onClick={() => scrollRail(1)}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6" /></svg>
+          </button>
           </div>
         </>
       ) : null}

@@ -1,4 +1,5 @@
 import type { Timestamp } from "firebase/firestore";
+import type { CanonicalGroupCategory } from "@/types/group";
 
 export type StoryType = "saludo" | "consejo";
 export type StoryGroupKey = "saludo_sent" | "saludo_received" | "consejo_sent" | "consejo_received";
@@ -24,6 +25,13 @@ export type StoryDoc = {
   searchable?: boolean;
   /** Prefijos de búsqueda (instructions + nombre del creador + tipo). */
   searchPrefixes?: string[];
+  /**
+   * Categorías canónicas denormalizadas para recomendar por afinidad:
+   * perfil → intereses del creador; grupo → categoría de la comunidad.
+   */
+  categories?: CanonicalGroupCategory[];
+  /** Vistas únicas acumuladas (lo incrementa un trigger backend). Popularidad. */
+  viewsCount?: number;
 };
 
 export type StoryViewDoc = {

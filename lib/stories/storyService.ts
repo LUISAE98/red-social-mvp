@@ -6,10 +6,13 @@ import {
   doc,
   getDoc,
   getDocs,
+  limit,
   onSnapshot,
+  orderBy,
   query,
   serverTimestamp,
   setDoc,
+  Timestamp,
   updateDoc,
   where,
 } from "firebase/firestore";
@@ -18,7 +21,25 @@ import {
   buildSearchPrefixes,
   tokenizeSearchText,
 } from "@/lib/search/normalize";
+import {
+  normalizeGroupCategory,
+  type CanonicalGroupCategory,
+} from "@/types/group";
 import type { StoryDoc, StoryType } from "./types";
+
+function toCanonicalList(value: unknown): CanonicalGroupCategory[] {
+  if (!Array.isArray(value)) return [];
+  const out: CanonicalGroupCategory[] = [];
+  const seen = new Set<string>();
+  for (const v of value) {
+    const c = normalizeGroupCategory(v);
+    if (c && !seen.has(c)) {
+      seen.add(c);
+      out.push(c);
+    }
+  }
+  return out;
+}
 
 // Construye los prefijos de búsqueda de una historia a partir de su contexto,
 // el nombre del creador y el tipo (saludo/consejo).
@@ -63,6 +84,12 @@ async function patchMissingPlaybackIds(stories: StoryDoc[]): Promise<void> {
   );
 }
 
+function chunkIds<T>(arr: T[], size: number): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+  return out;
+}
+
 function sortByDate(stories: StoryDoc[]): StoryDoc[] {
   return [...stories].sort((a, b) => {
     const at = a.createdAt?.toMillis() ?? 0;
@@ -87,6 +114,8 @@ export async function addStoryFromGreeting(params: {
   // nombre para buscar por nombre de creador y para mostrarlo en resultados.
   const showcaseCreatorId = params.greetingCreatorId ?? params.creatorId;
   let creatorName = "";
+  // Categorías denormalizadas para recomendar por afinidad (D).
+  let categories: CanonicalGroupCategory[] = [];
   try {
     const uSnap = await getDoc(doc(db, "users", showcaseCreatorId));
     const u = uSnap.data() as Record<string, unknown> | undefined;
@@ -96,6 +125,10 @@ export async function addStoryFromGreeting(params: {
         .filter((v): v is string => typeof v === "string" && v.trim().length > 0)
         .join(" ") ||
       "";
+    // Historia de perfil → hereda los intereses del creador.
+    if (params.source === "profile") {
+      categories = toCanonicalList(u?.interests);
+    }
   } catch {
     creatorName = "";
   }
@@ -105,8 +138,11 @@ export async function addStoryFromGreeting(params: {
   if (params.source === "group" && params.groupId) {
     try {
       const gSnap = await getDoc(doc(db, "groups", params.groupId));
-      searchable =
-        (gSnap.data() as Record<string, unknown> | undefined)?.visibility === "public";
+      const g = gSnap.data() as Record<string, unknown> | undefined;
+      searchable = g?.visibility === "public";
+      // Historia de comunidad → hereda la categoría de la comunidad.
+      const cat = normalizeGroupCategory(g?.category);
+      categories = cat ? [cat] : [];
     } catch {
       searchable = false;
     }
@@ -123,6 +159,8 @@ export async function addStoryFromGreeting(params: {
     creatorName,
     searchable,
     searchPrefixes,
+    categories,
+    viewsCount: 0,
     createdAt: serverTimestamp(),
   });
   return docRef.id;
@@ -237,20 +275,32 @@ export function subscribeToStoriesFromCreators(
     callback([]);
     return () => {};
   }
-  // Firestore `in` supports up to 30 items; callers are responsible for batching if needed
-  const ids = creatorIds.slice(0, 30);
-  const q = query(collection(db, "stories"), where("creatorId", "in", ids));
-  return onSnapshot(
-    q,
-    async (snap) => {
-      const docs = snap.docs
-        .map((d) => ({ id: d.id, ...d.data() }) as StoryDoc)
-        .filter((s) => s.source === "profile");
-      await patchMissingPlaybackIds(docs);
-      callback(sortByDate(docs));
-    },
-    (err) => console.error("[subscribeToStoriesFromCreators]", err),
+  // Firestore `in` acepta hasta 30; batcheamos para no truncar a quien sigue a más.
+  const batches = chunkIds(creatorIds, 30);
+  const perBatch: StoryDoc[][] = batches.map(() => []);
+
+  const emit = () => {
+    const merged = new Map<string, StoryDoc>();
+    for (const arr of perBatch) for (const s of arr) merged.set(s.id, s);
+    callback(sortByDate([...merged.values()]));
+  };
+
+  const unsubs = batches.map((ids, idx) =>
+    onSnapshot(
+      query(collection(db, "stories"), where("creatorId", "in", ids)),
+      async (snap) => {
+        const docs = snap.docs
+          .map((d) => ({ id: d.id, ...d.data() }) as StoryDoc)
+          .filter((s) => s.source === "profile");
+        await patchMissingPlaybackIds(docs);
+        perBatch[idx] = docs;
+        emit();
+      },
+      (err) => console.error("[subscribeToStoriesFromCreators]", err),
+    ),
   );
+
+  return () => unsubs.forEach((u) => u());
 }
 
 // Stories from a list of groups (for home feed)
@@ -262,19 +312,31 @@ export function subscribeToStoriesFromGroups(
     callback([]);
     return () => {};
   }
-  const ids = groupIds.slice(0, 30);
-  const q = query(collection(db, "stories"), where("groupId", "in", ids));
-  return onSnapshot(
-    q,
-    async (snap) => {
-      const docs = snap.docs
-        .map((d) => ({ id: d.id, ...d.data() }) as StoryDoc)
-        .filter((s) => s.source === "group");
-      await patchMissingPlaybackIds(docs);
-      callback(sortByDate(docs));
-    },
-    (err) => console.error("[subscribeToStoriesFromGroups]", err),
+  const batches = chunkIds(groupIds, 30);
+  const perBatch: StoryDoc[][] = batches.map(() => []);
+
+  const emit = () => {
+    const merged = new Map<string, StoryDoc>();
+    for (const arr of perBatch) for (const s of arr) merged.set(s.id, s);
+    callback(sortByDate([...merged.values()]));
+  };
+
+  const unsubs = batches.map((ids, idx) =>
+    onSnapshot(
+      query(collection(db, "stories"), where("groupId", "in", ids)),
+      async (snap) => {
+        const docs = snap.docs
+          .map((d) => ({ id: d.id, ...d.data() }) as StoryDoc)
+          .filter((s) => s.source === "group");
+        await patchMissingPlaybackIds(docs);
+        perBatch[idx] = docs;
+        emit();
+      },
+      (err) => console.error("[subscribeToStoriesFromGroups]", err),
+    ),
   );
+
+  return () => unsubs.forEach((u) => u());
 }
 
 // ─── Story cover (portada) ────────────────────────────────────────────────────
@@ -324,6 +386,31 @@ export async function setGroupStoryCoverPhoto(
 // Fetches active profile stories from a specific list of creator UIDs.
 // Used by HomeStoriesRow to load stories from recommended creators without
 // setting up a real-time listener. cutoffMs filters out stories older than 24h.
+// Historias públicas recientes (candidatas para el recomendador de historias).
+// Reglas de stories: `allow read: if true`, así que la query es libre.
+export async function fetchRecentPublicStories(
+  cutoffMs: number,
+  limitN = 60,
+): Promise<StoryDoc[]> {
+  try {
+    const snap = await getDocs(
+      query(
+        collection(db, "stories"),
+        where("searchable", "==", true),
+        where("createdAt", ">=", Timestamp.fromMillis(cutoffMs)),
+        orderBy("createdAt", "desc"),
+        limit(limitN),
+      ),
+    );
+    const docs = snap.docs.map((d) => ({ id: d.id, ...d.data() }) as StoryDoc);
+    await patchMissingPlaybackIds(docs);
+    return docs;
+  } catch (err) {
+    console.error("[fetchRecentPublicStories]", err);
+    return [];
+  }
+}
+
 export async function fetchStoriesFromCreatorIds(
   creatorIds: string[],
   cutoffMs: number,

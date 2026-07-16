@@ -80,7 +80,20 @@ function usePersistentSidebarScroll(key: string, restoreSignal?: unknown) {
     };
   }, [key]);
 
+  // Marca si ya pasamos la "entrada" (inicio de sesión / primera aparición del
+  // rail). Durante la entrada NO restauramos la posición guardada, para no
+  // heredar el scroll hasta abajo que deja el wallet abierto: empezamos arriba.
+  const enteredRef = useRef(false);
+
   useLayoutEffect(() => {
+    if (!enteredRef.current) {
+      const el = scrollRef.current;
+      if (el) el.scrollTop = 0;
+      // La entrada termina cuando el wallet ya se muestra (restoreSignal true);
+      // a partir de ahí la restauración funciona normal en cambios posteriores.
+      if (restoreSignal) enteredRef.current = true;
+      return;
+    }
     restoreScroll();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key, restoreSignal]);

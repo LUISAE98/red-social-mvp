@@ -1443,34 +1443,19 @@ async function fetchProfileInterests(
 }
 
 /**
- * Devuelve posts de descubrimiento para inyectar en el Home: públicos, de
- * comunidades públicas y perfiles que el usuario aún no sigue, rankeados por
- * afinidad. Cacheado en memoria (TTL corto) y con anti-repetición por sesión.
+ * Preferencias combinadas (localStorage + Firestore prefs + intereses del
+ * perfil) → señal robusta y cross-device. Reutilizable por posts e historias.
  */
-export async function fetchDiscoveryPostsForUser(
+export async function getMergedDiscoveryPreferences(
   uid: string
-): Promise<DiscoveryPost[]> {
-  if (!uid) return [];
-
-  const cached = discoveryCache.get(uid);
-  if (cached && Date.now() - cached.cachedAt < DISCOVERY_CACHE_TTL_MS) {
-    return cached.posts;
-  }
-
-  // Prefs locales + Firestore + intereses del perfil → señal robusta y
-  // cross-device (antes solo se leía localStorage y por eso no aparecía nada
-  // en otros navegadores/dispositivos o cuentas sin onboarding local).
+): Promise<StoredRecommendationPreferences> {
   const localPrefs = getStoredRecommendationPreferences(uid);
-  const [remotePrefs, interests, memberGroupIds, followedProfileIds, blockedByIds] =
-    await Promise.all([
-      loadPreferencesFromFirestore(uid),
-      fetchProfileInterests(uid),
-      fetchUserMembershipGroupIds(uid),
-      fetchFollowedProfileIds(uid),
-      fetchBlockedByProfileIds(uid),
-    ]);
+  const [remotePrefs, interests] = await Promise.all([
+    loadPreferencesFromFirestore(uid),
+    fetchProfileInterests(uid),
+  ]);
 
-  const preferences: StoredRecommendationPreferences = {
+  return {
     selectedCategories: uniqueCanonicalCategories([
       ...localPrefs.selectedCategories,
       ...(remotePrefs?.selectedCategories ?? []),
@@ -1488,6 +1473,42 @@ export async function fetchDiscoveryPostsForUser(
       localPrefs.onboardingCompleted || !!remotePrefs?.onboardingCompleted,
     updatedAt: Date.now(),
   };
+}
+
+/**
+ * Vector de gustos por categoría del usuario (mismas señales que el
+ * descubrimiento de posts). Lo usan las historias para rankear por afinidad.
+ */
+export async function getUserTasteVector(
+  uid: string
+): Promise<Map<CanonicalGroupCategory, number>> {
+  if (!uid) return new Map();
+  const preferences = await getMergedDiscoveryPreferences(uid);
+  return buildDiscoveryTasteVector(uid, preferences);
+}
+
+/**
+ * Devuelve posts de descubrimiento para inyectar en el Home: públicos, de
+ * comunidades públicas y perfiles que el usuario aún no sigue, rankeados por
+ * afinidad. Cacheado en memoria (TTL corto) y con anti-repetición por sesión.
+ */
+export async function fetchDiscoveryPostsForUser(
+  uid: string
+): Promise<DiscoveryPost[]> {
+  if (!uid) return [];
+
+  const cached = discoveryCache.get(uid);
+  if (cached && Date.now() - cached.cachedAt < DISCOVERY_CACHE_TTL_MS) {
+    return cached.posts;
+  }
+
+  const [preferences, memberGroupIds, followedProfileIds, blockedByIds] =
+    await Promise.all([
+      getMergedDiscoveryPreferences(uid),
+      fetchUserMembershipGroupIds(uid),
+      fetchFollowedProfileIds(uid),
+      fetchBlockedByProfileIds(uid),
+    ]);
 
   // Tags de interés (C): comunidades a las que te uniste + tags de lo que
   // likeas/guardas/ves. Todo normalizado igual que los del post.

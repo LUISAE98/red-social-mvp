@@ -257,3 +257,6 @@ export { backfillTicketPostIds } from "./backfillTicketPostIds";
 
 // Backfill de groupCategory en posts (descubrimiento Fase 2), corrida única
 export { backfillPostGroupCategory } from "./backfillPostGroupCategory";
+
+// Historias: contador de vistas (trigger) + backfill de categorías/vistas
+export { onStoryViewed, backfillStoryDiscovery } from "./storyDiscovery";

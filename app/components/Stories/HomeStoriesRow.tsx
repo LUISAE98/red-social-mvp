@@ -14,13 +14,12 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import {
-  fetchStoriesFromCreatorIds,
   recordStoryView,
   subscribeToStoriesFromCreators,
   subscribeToStoriesFromGroups,
   subscribeToViewedStories,
 } from "@/lib/stories/storyService";
-import { fetchRecommendedProfilesForUser } from "@/app/components/GroupRecommendations/recommendation-engine";
+import { fetchRecommendedStories } from "@/lib/stories/storyRecommendations";
 import type { StoryDoc } from "@/lib/stories/types";
 import StoryViewer from "./StoryViewer";
 import HomeStoryCarouselDesktop, { type CarouselGroup } from "./HomeStoryCarouselDesktop";
@@ -121,7 +120,7 @@ export default function HomeStoriesRow({ currentUserId }: Props) {
     async function load() {
       try {
         const followingSnap = await getDocs(
-          query(collection(db, "users", currentUserId, "following"), limit(29)),
+          query(collection(db, "users", currentUserId, "following"), limit(200)),
         );
         const ids: string[] = followingSnap.docs.map(
           (d) => (d.data().targetUserId as string) ?? d.id,
@@ -168,17 +167,17 @@ export default function HomeStoriesRow({ currentUserId }: Props) {
     return subscribeToViewedStories(currentUserId, setViewedMap);
   }, [currentUserId]);
 
-  // 4b. One-shot fetch of recommended creator stories (refreshes on every mount / page navigation)
+  // 4b. Historias recomendadas: público reciente (perfiles Y comunidades que no
+  // sigues), rankeado por afinidad + recencia + vistas; frío total → populares.
   useEffect(() => {
     if (!currentUserId) return;
     let cancelled = false;
     async function load() {
       try {
-        const profiles = await fetchRecommendedProfilesForUser(currentUserId, { skipMarkShown: true });
-        if (cancelled || profiles.length === 0) return;
-        const uids = profiles.map((p) => p.uid);
-        const cutoff = Date.now() - TWENTY_FOUR_HOURS_MS;
-        const stories = await fetchStoriesFromCreatorIds(uids, cutoff);
+        const stories = await fetchRecommendedStories(currentUserId, {
+          excludeCreatorIds: creatorIds,
+          excludeGroupIds: groupIds,
+        });
         if (!cancelled) setRecommendedStories(stories);
       } catch (err) {
         console.error("[HomeStoriesRow] loadRecommended", err);
@@ -186,7 +185,7 @@ export default function HomeStoriesRow({ currentUserId }: Props) {
     }
     void load();
     return () => { cancelled = true; };
-  }, [currentUserId]);
+  }, [currentUserId, creatorIds, groupIds]);
 
   // 5a. Subscribe to live status of followed profiles (real-time)
   useEffect(() => {
