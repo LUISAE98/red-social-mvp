@@ -51,10 +51,10 @@ export default function LoginCollageBackground() {
               key={i}
               className={`login-collage-tile${tile.wide ? " is-wide" : ""}`}
             >
-              {/* Decorativo: <img> ligero, no next/image (son PNG pequeños). */}
+              {/* Decorativo: <img> ligero, no next/image (WebP ~20-40 KB). */}
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={`/${tile.src}.png`}
+                src={`/${tile.src}.webp`}
                 alt=""
                 loading="lazy"
                 draggable={false}

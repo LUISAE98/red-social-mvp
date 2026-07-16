@@ -793,8 +793,8 @@ export default function ScheduleCalendarOverlay({
                       <div key={`${item.source}-${item.id}`}>
                         {renderItem ? renderItem(item) : (() => {
                           const bgImg = item.source === "exclusive_session"
-                            ? "/sesionexclusiva.png"
-                            : "/encuentroenvivo.png";
+                            ? "/sesionexclusiva.webp"
+                            : "/encuentroenvivo.webp";
                           const rescheduleColor = item.source === "exclusive_session"
                             ? "rgb(236, 72, 153)"
                             : "rgb(96, 165, 250)";

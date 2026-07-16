@@ -46,6 +46,7 @@ import {
   invalidateRecommendationCache,
   onRecommendationCacheInvalidated,
   recommendationEngineConstants,
+  seededShuffle,
   trackGroupRecommendationSignalFromGroup,
   getUserTasteVector,
 } from "./recommendation-engine";
@@ -90,6 +91,12 @@ type Props = {
    * selector no aparezca repetido.
    */
   suppressOnboarding?: boolean;
+  /**
+   * Orden de esta instancia dentro del feed (0, 1, 2…). Sirve para que cada
+   * aparición del rail NO muestre lo mismo: se toma una ventana distinta de las
+   * recomendaciones y, si no hay suficiente contenido, se cambia el orden.
+   */
+  railIndex?: number;
 };
 
 const fontStack =
@@ -100,10 +107,30 @@ const fontStack =
 const INTEREST_GRID_MIN_COL = 130;
 const INTEREST_GRID_GAP = 3;
 
-// Carrusel de recomendaciones: ancho fijo de card (ver cardStyles) y separación.
-// En desktop se pagina mostrando solo las cards completas que quepan.
+// Carrusel de recomendaciones. RAIL_CARD_W es el ancho de referencia: en celular
+// es el ancho fijo de cada card; en desktop es el mínimo para decidir cuántas
+// caben (luego crecen para cubrir todo el ancho disponible).
 const RAIL_CARD_W = 200;
-const RAIL_GAP = 12;
+const RAIL_GAP = 3;
+// En laptop siempre caben 3 por renglón: las cards se encogen si hace falta,
+// pero nunca crecen más de RAIL_CARD_W.
+const RAIL_PER_PAGE = 3;
+
+// Controles del rail ("Regresar" / "Ver más"): solo texto morado con flecha.
+const railTextButtonStyle: React.CSSProperties = {
+  background: "transparent",
+  border: "none",
+  padding: 0,
+  color: "#a855ff",
+  fontSize: 13,
+  fontWeight: 600,
+  letterSpacing: "-0.01em",
+  cursor: "pointer",
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 6,
+  fontFamily: "inherit",
+};
 
 // Card del rail unificada (live / comunidad / perfil), para poder paginar.
 type RailCard =
@@ -119,12 +146,11 @@ const INTEREST_SLIDE_VARIANTS: Variants = {
   exit: (dir: number) => ({ x: dir >= 0 ? "-100%" : "100%", opacity: 0 }),
 };
 
+// La card llena el ancho de su contenedor: en desktop el contenedor es flexible
+// (las cards crecen para cubrir todo el espacio) y en celular es fijo (scroll).
 const cardStyles = {
   position: "relative" as const,
-  minWidth: 200,
-  maxWidth: 200,
-  flexShrink: 0,
-  scrollSnapAlign: "start" as const,
+  width: "100%",
   color: "#fff",
 };
 
@@ -379,30 +405,30 @@ const CATEGORY_ICON_INNER = {
 // Imagen de fondo por categoría (se van agregando una por una). Si no hay
 // imagen, la tarjeta usa el gris plano de placeholder.
 const CATEGORY_IMAGE: Partial<Record<CanonicalGroupCategory, string>> = {
-  musica: "/musica.png",
-  entretenimiento: "/entretenimiento.png",
-  creadores: "/creadores.png",
-  gaming: "/gaming.png",
-  tecnologia: "/tecnologia.png",
-  deportes: "/deportes.png",
-  fitness_bienestar: "/fitness.png",
-  negocios_finanzas: "/negocios.png",
-  educacion: "/educacion.png",
-  noticias_politica: "/noticias.png",
-  ciencia: "/ciencia.png",
-  moda_belleza: "/moda.png",
-  comida: "/comida.png",
-  viajes: "/viajes.png",
-  autos: "/autos.png",
-  mascotas: "/mascotas.png",
-  hobbies: "/hobbies.png",
-  familia_comunidad: "/familia.png",
-  instituciones: "/instituciones.png",
-  cine: "/cine.png",
-  arte: "/arte.png",
-  salud: "/salud.png",
-  libros: "/libros.png",
-  historia: "/historia.png",
+  musica: "/musica.webp",
+  entretenimiento: "/entretenimiento.webp",
+  creadores: "/creadores.webp",
+  gaming: "/gaming.webp",
+  tecnologia: "/tecnologia.webp",
+  deportes: "/deportes.webp",
+  fitness_bienestar: "/fitness.webp",
+  negocios_finanzas: "/negocios.webp",
+  educacion: "/educacion.webp",
+  noticias_politica: "/noticias.webp",
+  ciencia: "/ciencia.webp",
+  moda_belleza: "/moda.webp",
+  comida: "/comida.webp",
+  viajes: "/viajes.webp",
+  autos: "/autos.webp",
+  mascotas: "/mascotas.webp",
+  hobbies: "/hobbies.webp",
+  familia_comunidad: "/familia.webp",
+  instituciones: "/instituciones.webp",
+  cine: "/cine.webp",
+  arte: "/arte.webp",
+  salud: "/salud.webp",
+  libros: "/libros.webp",
+  historia: "/historia.webp",
 };
 
 function CategoryIcon({
@@ -659,7 +685,7 @@ function ProfileCard({
           position: "relative",
           width: "100%",
           aspectRatio: "9 / 10",
-          borderRadius: 20,
+          borderRadius: 0,
           overflow: "hidden",
           background: "#0d0d0f",
           boxShadow: "none",
@@ -872,7 +898,7 @@ function GroupCard({
           position: "relative",
           width: "100%",
           aspectRatio: "9 / 10",
-          borderRadius: 20,
+          borderRadius: 0,
           overflow: "hidden",
           background: "#0d0d0f",
           boxShadow: "none",
@@ -1155,7 +1181,7 @@ function LiveRecommendationCard({
           position: "relative",
           width: "100%",
           aspectRatio: "9 / 10",
-          borderRadius: 20,
+          borderRadius: 0,
           overflow: "hidden",
           background: "#0d0d0f",
           boxShadow: "none",
@@ -1342,7 +1368,7 @@ function SkeletonRail() {
               style={{
                 width: "100%",
                 aspectRatio: "9 / 10",
-                borderRadius: 20,
+                borderRadius: 0,
                 background: "rgba(255,255,255,0.07)",
                 animation: `vibraRecsSkeleton 1.6s ease-in-out ${i * 0.18}s infinite`,
               }}
@@ -1362,6 +1388,7 @@ export default function GroupRecommendationsRail({
   className,
   onboardingOnly = false,
   suppressOnboarding = false,
+  railIndex = 0,
 }: Props) {
   const router = useRouter();
   const tGroups = useTranslations("groups");
@@ -1385,8 +1412,6 @@ export default function GroupRecommendationsRail({
   const [celebrating, setCelebrating] = useState(false);
   // Carrusel de recomendaciones. En desktop se pagina (sin scroll) mostrando
   // solo las cards completas que quepan; en celular se mantiene el scroll.
-  const [railEl, setRailEl] = useState<HTMLDivElement | null>(null);
-  const [railWidth, setRailWidth] = useState(0);
   const [railPage, setRailPage] = useState(0);
   const [railDirection, setRailDirection] = useState(1);
   const [isDesktopRail, setIsDesktopRail] = useState(false);
@@ -1738,12 +1763,6 @@ export default function GroupRecommendationsRail({
     }, 1600);
   };
 
-  // Desplaza el carrusel de recomendaciones con las flechas (desktop).
-  const scrollRail = (dir: number) => {
-    const el = railRef.current;
-    if (!el) return;
-    el.scrollBy({ left: dir * el.clientWidth * 0.8, behavior: "smooth" });
-  };
 
   const handleJoin = async (group: RecommendationGroupCard) => {
     if (!currentUserId) return;
@@ -1868,6 +1887,18 @@ export default function GroupRecommendationsRail({
     return cards;
   }, [liveRecs, loading, result, mergedRailItems]);
 
+  // Cada aparición del rail en el feed muestra algo distinto: se rota la lista
+  // para que empiece en otro punto; si aún no hay suficiente contenido para una
+  // ventana distinta, se cambia el orden de las cards.
+  const variantRailCards = useMemo(() => {
+    if (railIndex <= 0 || allRailCards.length === 0) return allRailCards;
+    if (allRailCards.length <= RAIL_PER_PAGE) {
+      return seededShuffle(allRailCards, `rail-${railIndex}`);
+    }
+    const offset = (railIndex * RAIL_PER_PAGE) % allRailCards.length;
+    return [...allRailCards.slice(offset), ...allRailCards.slice(0, offset)];
+  }, [allRailCards, railIndex]);
+
   // Mide cuántas columnas caben en el grid para paginar en renglones completos.
   useEffect(() => {
     if (!interestsGridEl || typeof ResizeObserver === "undefined") return;
@@ -1898,19 +1929,6 @@ export default function GroupRecommendationsRail({
     mq.addEventListener("change", apply);
     return () => mq.removeEventListener("change", apply);
   }, []);
-
-  // Mide el ancho disponible del rail para calcular cuántas cards completas caben.
-  useEffect(() => {
-    if (!railEl || typeof ResizeObserver === "undefined") return;
-    const compute = () => {
-      const w = railEl.clientWidth;
-      if (w > 0) setRailWidth(w);
-    };
-    compute();
-    const ro = new ResizeObserver(compute);
-    ro.observe(railEl);
-    return () => ro.disconnect();
-  }, [railEl]);
 
   const showOnboarding = useMemo(() => {
     return !suppressOnboarding && !loading && result && !result.onboardingCompleted;
@@ -1947,6 +1965,106 @@ export default function GroupRecommendationsRail({
     interestColWidth > 0
       ? interestRows * interestColWidth + (interestRows - 1) * INTEREST_GRID_GAP
       : undefined;
+
+  // Paginación del rail en desktop: 3 por renglón.
+  const railPerPage = RAIL_PER_PAGE;
+  const railPageCount = Math.max(
+    1,
+    Math.ceil(variantRailCards.length / railPerPage)
+  );
+  const railPageClamped = Math.min(railPage, railPageCount - 1);
+  const railPageCards = variantRailCards.slice(
+    railPageClamped * railPerPage,
+    (railPageClamped + 1) * railPerPage
+  );
+
+  // Precarga las imágenes de la página SIGUIENTE del rail, para que al avanzar
+  // se vean de inmediato (portada + avatar de cada card).
+  useEffect(() => {
+    if (!isDesktopRail || typeof window === "undefined") return;
+    const start = (railPageClamped + 1) * railPerPage;
+    const next = variantRailCards.slice(start, start + railPerPage);
+    for (const card of next) {
+      const urls =
+        card.kind === "live"
+          ? [card.rec.liveCoverUrl, card.rec.coverUrl, card.rec.avatarUrl]
+          : card.kind === "group"
+            ? [card.group.coverUrl, card.group.avatarUrl]
+            : [card.profile.coverUrl, card.profile.avatarUrl];
+      for (const url of urls) {
+        if (url) {
+          const img = new window.Image();
+          img.src = url;
+        }
+      }
+    }
+  }, [isDesktopRail, railPageClamped, railPerPage, variantRailCards]);
+
+  // "Ver más": desliza a la izquierda y entran nuevas recomendaciones.
+  const handleRailMore = () => {
+    if (railPageClamped >= railPageCount - 1) return;
+    setRailDirection(1);
+    setRailPage(railPageClamped + 1);
+  };
+
+  // "Regresar": vuelve a las sugerencias anteriores (desliza al revés).
+  const handleRailBack = () => {
+    if (railPageClamped <= 0) return;
+    setRailDirection(-1);
+    setRailPage(railPageClamped - 1);
+  };
+
+  const renderRailCard = (card: RailCard) => {
+    // Desktop: se encoge si hace falta para que quepan 3, pero nunca crece más
+    // de RAIL_CARD_W. Celular: ancho fijo + snap (como antes).
+    const wrapperStyle: React.CSSProperties = isDesktopRail
+      ? { flex: "1 1 0", minWidth: 0, maxWidth: RAIL_CARD_W }
+      : {
+          minWidth: RAIL_CARD_W,
+          maxWidth: RAIL_CARD_W,
+          flexShrink: 0,
+          scrollSnapAlign: "start",
+        };
+
+    if (card.kind === "live") {
+      return (
+        <div key={`live-${card.rec.postId}`} style={wrapperStyle}>
+          <LiveRecommendationCard
+            rec={card.rec}
+            currentUserId={currentUserId}
+            actionState={liveActionStates[card.rec.postId] ?? "none"}
+            actionLoading={Boolean(liveActionLoading[card.rec.postId])}
+            onOpenViewer={() => void handleOpenLiveViewer(card.rec.postId)}
+            onAction={() => void handleLiveAction(card.rec)}
+          />
+        </div>
+      );
+    }
+    if (card.kind === "group") {
+      return (
+        <div key={`group-${card.group.id}`} style={wrapperStyle}>
+          <GroupCard
+            group={card.group}
+            joinState={joinStates[card.group.id] ?? "join"}
+            loading={Boolean(joinLoadingByGroup[card.group.id])}
+            onJoin={() => handleJoin(card.group)}
+            currentUserId={currentUserId}
+          />
+        </div>
+      );
+    }
+    return (
+      <div key={`profile-${card.profile.uid}`} style={wrapperStyle}>
+        <ProfileCard
+          profile={card.profile}
+          isFollowing={followStates[card.profile.uid] ?? false}
+          loading={Boolean(followLoadingByProfile[card.profile.uid])}
+          onFollow={() => handleFollow(card.profile)}
+          currentUserId={currentUserId}
+        />
+      </div>
+    );
+  };
 
   // Precarga las imágenes de la página SIGUIENTE mientras se ven las actuales,
   // para que al deslizar ya estén cargadas (sin parpadeo). `window.Image` porque
@@ -2253,100 +2371,88 @@ export default function GroupRecommendationsRail({
               -ms-overflow-style: none;
             }
             .vibraRecsRail::-webkit-scrollbar { display: none; }
-            .vibraRailArrow {
-              position: absolute;
-              top: 44%;
-              transform: translateY(-50%);
-              z-index: 5;
-              width: 34px;
-              height: 34px;
-              border-radius: 50%;
-              border: 1px solid rgba(255,255,255,0.12);
-              background: rgba(10,10,14,0.5);
-              -webkit-backdrop-filter: blur(6px);
-              backdrop-filter: blur(6px);
-              color: rgba(255,255,255,0.85);
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              cursor: pointer;
-              opacity: 0.7;
-              transition: opacity 0.15s ease, background 0.15s ease;
-            }
-            .vibraRailArrow:hover { opacity: 1; background: rgba(20,20,26,0.85); }
-            .vibraRailArrowLeft { left: 2px; }
-            .vibraRailArrowRight { right: 2px; }
-            @media (max-width: 900px) {
-              .vibraRailArrow { display: none; }
-            }
           `}</style>
-          <div style={{ position: "relative" }}>
-          <button
-            type="button"
-            aria-label={tCommon("back")}
-            className="vibraRailArrow vibraRailArrowLeft"
-            onClick={() => scrollRail(-1)}
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
-          </button>
-          <div
-            className="vibraRecsRail"
-            ref={railRef}
-            style={{
-              display: "flex",
-              gap: 12,
-              overflowX: "auto",
-              scrollSnapType: "x mandatory",
-              paddingBottom: 6,
-              paddingLeft: 12,
-              paddingRight: 12,
-              willChange: "transform",
-            }}
-          >
-          {/* Lives públicos activos — siempre primero */}
-          {liveRecs.map((rec) => (
-            <LiveRecommendationCard
-              key={`live-${rec.postId}`}
-              rec={rec}
-              currentUserId={currentUserId}
-              actionState={liveActionStates[rec.postId] ?? "none"}
-              actionLoading={Boolean(liveActionLoading[rec.postId])}
-              onOpenViewer={() => void handleOpenLiveViewer(rec.postId)}
-              onAction={() => void handleLiveAction(rec)}
-            />
-          ))}
 
-          {!loading && result?.onboardingCompleted && mergedRailItems.map((item) =>
-            item.type === "group" ? (
-              <GroupCard
-                key={`group-${item.data.id}`}
-                group={item.data}
-                joinState={joinStates[item.data.id] ?? "join"}
-                loading={Boolean(joinLoadingByGroup[item.data.id])}
-                onJoin={() => handleJoin(item.data)}
-                currentUserId={currentUserId}
-              />
-            ) : (
-              <ProfileCard
-                key={`profile-${item.data.uid}`}
-                profile={item.data}
-                isFollowing={followStates[item.data.uid] ?? false}
-                loading={Boolean(followLoadingByProfile[item.data.uid])}
-                onFollow={() => handleFollow(item.data)}
-                currentUserId={currentUserId}
-              />
-            )
+          {isDesktopRail ? (
+            // Laptop: sin scroll. Solo las cards completas que quepan + "Ver más".
+            <div style={{ width: "100%", overflow: "hidden" }}>
+              <AnimatePresence initial={false} custom={railDirection} mode="popLayout">
+                <motion.div
+                  key={railPageClamped}
+                  custom={railDirection}
+                  variants={INTEREST_SLIDE_VARIANTS}
+                  initial="enter"
+                  animate="center"
+                  exit="exit"
+                  transition={{
+                    x: { type: "tween", ease: [0.22, 1, 0.36, 1], duration: 0.42 },
+                    opacity: { duration: 0.25 },
+                  }}
+                  style={{
+                    display: "flex",
+                    gap: RAIL_GAP,
+                    justifyContent: "center",
+                    paddingBottom: 6,
+                  }}
+                >
+                  {railPageCards.map(renderRailCard)}
+                </motion.div>
+              </AnimatePresence>
+
+              {railPageCount > 1 && (
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 18,
+                    marginTop: 8,
+                  }}
+                >
+                  {railPageClamped > 0 && (
+                    <button
+                      type="button"
+                      onClick={handleRailBack}
+                      style={railTextButtonStyle}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
+                      {tGroups("interestsGoBack")}
+                    </button>
+                  )}
+                  {railPageClamped < railPageCount - 1 && (
+                    <button
+                      type="button"
+                      onClick={handleRailMore}
+                      style={{ ...railTextButtonStyle, marginLeft: "auto" }}
+                    >
+                      {tCommon("viewMore")}
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6" /></svg>
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          ) : (
+            // Celular: se mantiene el scroll horizontal tal como está hoy.
+            <div
+              className="vibraRecsRail"
+              style={{
+                display: "flex",
+                gap: RAIL_GAP,
+                overflowX: "auto",
+                scrollSnapType: "x mandatory",
+                paddingBottom: 6,
+                // Pequeño marco a los lados: el scrollPadding hace que el snap
+                // respete el margen y la primera card no quede pegada al borde.
+                paddingLeft: 14,
+                paddingRight: 14,
+                scrollPaddingLeft: 14,
+                scrollPaddingRight: 14,
+                willChange: "transform",
+              }}
+            >
+              {variantRailCards.map(renderRailCard)}
+            </div>
           )}
-          </div>
-          <button
-            type="button"
-            aria-label={tCommon("next")}
-            className="vibraRailArrow vibraRailArrowRight"
-            onClick={() => scrollRail(1)}
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6" /></svg>
-          </button>
-          </div>
         </>
       ) : null}
 

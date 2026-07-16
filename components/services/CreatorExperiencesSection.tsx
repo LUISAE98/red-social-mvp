@@ -266,12 +266,12 @@ export default function CreatorExperiencesSection({
                 padding: "14px 16px",
                 borderRadius: 16,
                 background: type === "consejo"
-                  ? "linear-gradient(rgba(11,11,15,0.80), rgba(11,11,15,0.80)), url('/consejo.png') center 60%/cover no-repeat"
+                  ? "linear-gradient(rgba(11,11,15,0.80), rgba(11,11,15,0.80)), url('/consejo.webp') center 60%/cover no-repeat"
                   : type === "clase_personalizada"
-                  ? "linear-gradient(rgba(11,11,15,0.80), rgba(11,11,15,0.80)), url('/sesionexclusiva.png') center 75%/cover no-repeat"
+                  ? "linear-gradient(rgba(11,11,15,0.80), rgba(11,11,15,0.80)), url('/sesionexclusiva.webp') center 75%/cover no-repeat"
                   : type === "meet_greet_digital"
-                  ? "linear-gradient(rgba(11,11,15,0.80), rgba(11,11,15,0.80)), url('/encuentroenvivo.png') center 60%/cover no-repeat"
-                  : "linear-gradient(rgba(11,11,15,0.80), rgba(11,11,15,0.80)), url('/saludo.png') center 32%/cover no-repeat",
+                  ? "linear-gradient(rgba(11,11,15,0.80), rgba(11,11,15,0.80)), url('/encuentroenvivo.webp') center 60%/cover no-repeat"
+                  : "linear-gradient(rgba(11,11,15,0.80), rgba(11,11,15,0.80)), url('/saludo.webp') center 32%/cover no-repeat",
                 border: "none",
                 boxShadow: `0 2px 20px rgba(0,0,0,0.38), 0 0 0 1px ${conf.color}10`,
                 textDecoration: "none",
@@ -282,10 +282,10 @@ export default function CreatorExperiencesSection({
               <img
                 className="exp-avatar"
                 src={
-                  type === "saludo" ? "/avatarsaludo.png"
-                  : type === "consejo" ? "/avatarconsejo.png"
-                  : type === "clase_personalizada" ? "/avatarsesion.png"
-                  : "/avatarencuentro.png"
+                  type === "saludo" ? "/avatarsaludo.webp"
+                  : type === "consejo" ? "/avatarconsejo.webp"
+                  : type === "clase_personalizada" ? "/avatarsesion.webp"
+                  : "/avatarencuentro.webp"
                 }
                 alt=""
                 style={{

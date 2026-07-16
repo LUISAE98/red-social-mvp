@@ -563,7 +563,7 @@ export default function DonationFeedBanner({
           <div
             className="dbv-container"
             onClick={onClick}
-            style={{ position: "relative", width: "100%", borderRadius: 16, overflow: "hidden", backgroundColor: "#0a0a0a", backgroundImage: "url(/donacion2.png)", backgroundSize: "cover", backgroundPosition: "center", cursor: onClick ? "pointer" : "default", WebkitTapHighlightColor: "transparent" }}
+            style={{ position: "relative", width: "100%", borderRadius: 16, overflow: "hidden", backgroundColor: "#0a0a0a", backgroundImage: "url(/donacion2.webp)", backgroundSize: "cover", backgroundPosition: "center", cursor: onClick ? "pointer" : "default", WebkitTapHighlightColor: "transparent" }}
           >
             <div style={{ position: "absolute", inset: 0, background: "rgba(10,10,10,0.68)" }} />
             <div style={{ position: "relative", zIndex: 1, display: "flex", flexDirection: "column", alignItems: "center", padding: "22px 18px 18px", gap: 10 }}>
@@ -606,7 +606,7 @@ export default function DonationFeedBanner({
           onClick={onClick}
           style={{ position: "relative", width: "100%", borderRadius: 16, overflow: "hidden", background: "#0a0a0a", cursor: onClick ? "pointer" : "default", aspectRatio: "16 / 8", WebkitTapHighlightColor: "transparent" }}
         >
-          <Image src="/donacion.png" alt={tCommon("donation")} fill sizes="(max-width: 720px) 100vw, 720px" style={{ objectFit: "cover", objectPosition: "center" }} priority />
+          <Image src="/donacion.webp" alt={tCommon("donation")} fill sizes="(max-width: 720px) 100vw, 720px" style={{ objectFit: "cover", objectPosition: "center" }} priority />
           <div style={{ position: "absolute", inset: 0, background: "rgba(10,10,10,0.68)" }} />
 
           {hlsUrl && (
@@ -650,7 +650,7 @@ export default function DonationFeedBanner({
         <div
           className="dbv-container"
           onClick={onClick}
-          style={{ position: "relative", width: "100%", borderRadius: 16, overflow: "hidden", backgroundColor: "#0a0a0a", backgroundImage: "url(/donacion2.png)", backgroundSize: "cover", backgroundPosition: "center", cursor: onClick ? "pointer" : "default", WebkitTapHighlightColor: "transparent" }}
+          style={{ position: "relative", width: "100%", borderRadius: 16, overflow: "hidden", backgroundColor: "#0a0a0a", backgroundImage: "url(/donacion2.webp)", backgroundSize: "cover", backgroundPosition: "center", cursor: onClick ? "pointer" : "default", WebkitTapHighlightColor: "transparent" }}
         >
           <div style={{ position: "absolute", inset: 0, background: "rgba(10,10,10,0.68)" }} />
 

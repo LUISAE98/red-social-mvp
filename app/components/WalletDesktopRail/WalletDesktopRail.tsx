@@ -651,7 +651,7 @@ export default function WalletDesktopRail({
 
           <section className="railSection createCommunitySection" aria-label={t("createCommunityLabel")}>
             <Image
-              src="/Crear-comunidad.png"
+              src="/Crear-comunidad.webp"
               alt=""
               width={280}
               height={187}

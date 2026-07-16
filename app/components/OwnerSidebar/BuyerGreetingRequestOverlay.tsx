@@ -119,7 +119,7 @@ export default function BuyerGreetingRequestOverlay({ item, sourceName, sourceAv
 
   const req = item.data;
   const typeLabel = getTypeLabel(req.type, tWallet);
-  const bgImage = req.type === "consejo" ? "/consejo.png" : "/saludo.png";
+  const bgImage = req.type === "consejo" ? "/consejo.webp" : "/saludo.webp";
   const retryBtnBg = req.type === "consejo" ? "rgba(250,204,21,0.85)" : req.type === "mensaje" ? "rgba(96,165,250,0.85)" : "#a855ff";
   const retryBtnColor = req.type === "consejo" ? "#111" : "#fff";
   const priceColor = req.type === "consejo" ? "#fde047" : req.type === "mensaje" ? "#93c5fd" : "#d8b4fe";

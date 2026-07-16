@@ -461,8 +461,8 @@ export default function CreatorServiceModals({
   const greetGradient = greetType === "consejo"
     ? "linear-gradient(100deg, #f7c948, #f59e0b)"
     : "linear-gradient(100deg, #a855ff, #4f46ff)";
-  const greetBgImage = greetType === "saludo" ? "/saludo.png"
-    : greetType === "consejo" ? "/consejo.png"
+  const greetBgImage = greetType === "saludo" ? "/saludo.webp"
+    : greetType === "consejo" ? "/consejo.webp"
     : undefined;
 
   // ── Greeting modal ────────────────────────────────────────────────────────
@@ -848,7 +848,7 @@ export default function CreatorServiceModals({
       sectionLabel: tServices("meetGreetSectionLabel"),
       showDetailIcons: true,
       maxLength: 700,
-      bgImage: "/encuentroenvivo.png",
+      bgImage: "/encuentroenvivo.webp",
       accentColor: "#3b82f6",
       accentGradient: "linear-gradient(100deg, #3b82f6, #1d4ed8)",
       accentDimColor: "rgba(96,165,250,0.9)",
@@ -880,7 +880,7 @@ export default function CreatorServiceModals({
       sectionLabel: tServices("exclusiveSessionSectionLabel"),
       showDetailIcons: true,
       maxLength: 700,
-      bgImage: "/sesionexclusiva.png",
+      bgImage: "/sesionexclusiva.webp",
       accentColor: "#ec4899",
       accentGradient: "linear-gradient(100deg, #ec4899, #be185d)",
       extraDetailIconSlot: (

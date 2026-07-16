@@ -2271,7 +2271,7 @@ boxShadow:
       style={{
         width: "100%",
         aspectRatio: "16 / 9",
-        backgroundImage: "url('/Crear-comunidad.png')",
+        backgroundImage: "url('/Crear-comunidad.webp')",
         backgroundSize: "cover",
         backgroundPosition: "center",
       }}

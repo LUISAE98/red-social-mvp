@@ -30,7 +30,10 @@ import {
 } from "@/lib/posts/post-feed-cache";
 import GroupPostCard from "@/app/groups/[groupId]/components/posts/GroupPostCard";
 import GroupRecommendationsRail from "@/app/components/GroupRecommendations/GroupRecommendationsRail";
-import { buildRandomRecommendationSlots } from "@/app/components/GroupRecommendations/recommendation-engine";
+import {
+  buildRandomRecommendationSlots,
+  getFeedRailSeed,
+} from "@/app/components/GroupRecommendations/recommendation-engine";
 import DonationFeedBanner from "@/app/components/DonationFeedBanner/DonationFeedBanner";
 import { loadFeedWithRetry } from "@/lib/posts/feed-load-helpers";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
@@ -356,34 +359,6 @@ function isVideoPostStillProcessing(post: PostWithFlags): boolean {
   if (videoStatus === "error") return false;
 
   return true;
-}
-
-function buildStableFeedSeed(
-  baseId: string,
-  posts: Array<{ id?: string; createdAt?: { toMillis: () => number } | null }>
-): number {
-  const raw = [
-    baseId,
-    ...posts.map((post, index) => {
-      const createdAtValue =
-        typeof post?.createdAt?.toMillis === "function"
-          ? String(post.createdAt.toMillis())
-          : typeof post?.createdAt === "number"
-          ? String(post.createdAt)
-          : typeof post?.createdAt === "string"
-          ? post.createdAt
-          : String(index);
-
-      return `${post.id ?? index}-${createdAtValue}`;
-    }),
-  ].join("|");
-
-  let hash = 0;
-  for (let i = 0; i < raw.length; i += 1) {
-    hash = (hash * 31 + raw.charCodeAt(i)) >>> 0;
-  }
-
-  return hash || 1;
 }
 
 // Búsqueda dentro del perfil: normaliza y matchea por texto del post.
@@ -1303,14 +1278,25 @@ const shellStyle: CSSProperties = {
     overflowX: "hidden",
   };
 
+  // Semilla estable durante la sesión: al cargar más posts los slots ya mostrados
+  // no se recalculan, así el rail no salta de altura.
+  const railSeed = useMemo(() => getFeedRailSeed(), []);
+
   const recommendationSlots = useMemo(() => {
     if (!viewerUid || posts.length === 0) {
       return new Set<number>();
     }
+    return buildRandomRecommendationSlots(posts.length, railSeed);
+  }, [viewerUid, posts.length, railSeed]);
 
-    const seed = buildStableFeedSeed(`${profileUid}:${viewerUid}`, posts);
-    return buildRandomRecommendationSlots(posts.length, seed);
-  }, [profileUid, viewerUid, posts]);
+  // Orden de cada rail dentro del feed, para que no repita contenido.
+  const recommendationSlotIndex = useMemo(() => {
+    const map = new Map<number, number>();
+    Array.from(recommendationSlots)
+      .sort((a, b) => a - b)
+      .forEach((pos, i) => map.set(pos, i));
+    return map;
+  }, [recommendationSlots]);
 
   const hasInlineRecommendation = useMemo(() => {
     return recommendationSlots.size > 0;
@@ -1427,6 +1413,7 @@ const shellStyle: CSSProperties = {
                   currentUserId={viewerUid}
                   context="profile"
                   suppressOnboarding
+                  railIndex={recommendationSlotIndex.get(index + 1) ?? 0}
                 />
               </div>
             )}

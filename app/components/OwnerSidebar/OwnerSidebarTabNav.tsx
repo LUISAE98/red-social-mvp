@@ -197,7 +197,7 @@ export default function OwnerSidebarTabNav({
       />
 
       <Image
-        src="/suscomunidades.png"
+        src="/suscomunidades.webp"
         alt=""
         aria-hidden
         width={120} height={28}

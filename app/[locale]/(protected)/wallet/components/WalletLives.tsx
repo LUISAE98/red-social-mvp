@@ -31,7 +31,7 @@ type LiveRow = {
   title: string;
   date: Date | null;
   amount: number;
-  /** Portada del live; si el creador no puso, cae en /live.png. */
+  /** Portada del live; si el creador no puso, cae en /live.webp. */
   cover: string;
   /** Duración en minutos (endedAt − startedAt); null si no se puede calcular. */
   durationMin: number | null;
@@ -147,7 +147,7 @@ export default function WalletLives({
         started && ended
           ? Math.max(0, Math.round((ended.getTime() - started.getTime()) / 60000))
           : null;
-      const cover = (ld.coverUrl && ld.coverUrl.trim()) || "/live.png";
+      const cover = (ld.coverUrl && ld.coverUrl.trim()) || "/live.webp";
       list.push({
         liveId,
         post,
@@ -401,7 +401,7 @@ export default function WalletLives({
                   borderRadius: 14,
                   border: "none",
                   overflow: "hidden",
-                  // Portada del live de fondo (o /live.png) con degradado para legibilidad.
+                  // Portada del live de fondo (o /live.webp) con degradado para legibilidad.
                   background: `linear-gradient(90deg, rgba(0,0,0,0.90), rgba(0,0,0,0.66)), center / cover no-repeat url("${row.cover}")`,
                   cursor: "pointer",
                   fontFamily: "inherit",

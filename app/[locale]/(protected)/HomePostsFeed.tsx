@@ -28,6 +28,7 @@ import GroupRecommendationsRail from "@/app/components/GroupRecommendations/Grou
 import {
   buildRandomRecommendationSlots,
   fetchDiscoveryPostsForUser,
+  getFeedRailSeed,
 } from "@/app/components/GroupRecommendations/recommendation-engine";
 import {
   patchPostInAllFeedCaches,
@@ -256,34 +257,6 @@ function isVideoPostStillProcessing(post: PostWithFlags): boolean {
   if (videoStatus === "error") return false;
 
   return true;
-}
-
-function buildStableFeedSeed(
-  currentUserId: string,
-  posts: Array<{ id?: string; createdAt?: { toMillis: () => number } | null }>
-): number {
-  const raw = [
-    currentUserId,
-    ...posts.map((post, index) => {
-      const createdAtValue =
-        typeof post?.createdAt?.toMillis === "function"
-          ? String(post.createdAt.toMillis())
-          : typeof post?.createdAt === "number"
-          ? String(post.createdAt)
-          : typeof post?.createdAt === "string"
-          ? post.createdAt
-          : String(index);
-
-      return `${post.id ?? index}-${createdAtValue}`;
-    }),
-  ].join("|");
-
-  let hash = 0;
-  for (let i = 0; i < raw.length; i += 1) {
-    hash = (hash * 31 + raw.charCodeAt(i)) >>> 0;
-  }
-
-  return hash || 1;
 }
 
 const HOME_FEED_PAGE_SIZE = 10;
@@ -1037,14 +1010,28 @@ const shellStyle: CSSProperties = {
     overflowX: "hidden",
   };
 
+  // Semilla estable durante toda la sesión. Antes se derivaba de TODOS los posts,
+  // así que al cargar más el seed cambiaba y los rails saltaban de altura. Con un
+  // seed fijo, el recorrido es determinista: los slots ya mostrados se quedan y
+  // solo se agregan nuevos más abajo.
+  const railSeed = useMemo(() => getFeedRailSeed(), []);
+
   const recommendationSlots = useMemo(() => {
     if (!currentUserId || posts.length === 0) {
       return new Set<number>();
     }
+    return buildRandomRecommendationSlots(posts.length, railSeed);
+  }, [currentUserId, posts.length, railSeed]);
 
-    const seed = buildStableFeedSeed(currentUserId, posts);
-    return buildRandomRecommendationSlots(posts.length, seed);
-  }, [currentUserId, posts]);
+  // Orden de cada rail dentro del feed (0, 1, 2…), para que cada aparición
+  // muestre contenido distinto.
+  const recommendationSlotIndex = useMemo(() => {
+    const map = new Map<number, number>();
+    Array.from(recommendationSlots)
+      .sort((a, b) => a - b)
+      .forEach((pos, i) => map.set(pos, i));
+    return map;
+  }, [recommendationSlots]);
 
   const hasInlineRecommendation = useMemo(() => {
     return recommendationSlots.size > 0;
@@ -1233,6 +1220,7 @@ return (
                 currentUserId={currentUserId}
                 context="home"
                 suppressOnboarding
+                railIndex={recommendationSlotIndex.get(index + 1) ?? 0}
               />
             </div>
           )}

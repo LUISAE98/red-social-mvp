@@ -213,7 +213,7 @@ export default function BuyerSessionRequestOverlay({
 
   const req = item.data;
   const isExclusive = item.serviceKind === "exclusive_session";
-  const bgImage = isExclusive ? "/sesionexclusiva.png" : "/encuentroenvivo.png";
+  const bgImage = isExclusive ? "/sesionexclusiva.webp" : "/encuentroenvivo.webp";
   const retryBtnBg = isExclusive ? "rgba(236,72,153,0.85)" : "rgba(59,130,246,0.85)";
   const priceColor = isExclusive ? "#f9a8d4" : "#93c5fd";
   const serviceTitle = isExclusive ? tServices("exclusiveSession") : tServices("liveSession");

@@ -138,8 +138,8 @@ function getServiceCardColors(type: string): { bg: string; expandedBg: string; e
 
 // Imagen de fondo del saludo según su tipo (mensaje no tiene imagen propia).
 function greetingBgImage(type: string): string | null {
-  if (type === "saludo") return "/saludo.png";
-  if (type === "consejo") return "/consejo.png";
+  if (type === "saludo") return "/saludo.webp";
+  if (type === "consejo") return "/consejo.webp";
   return null;
 }
 
@@ -1625,7 +1625,7 @@ const creatorScheduleNote = getCreatorScheduleNote(req);
       const creatorInitial = creatorName.charAt(0).toUpperCase();
       const relTime = req.createdAt ? getRelativeTime(req.createdAt as { toDate: () => Date }, tCommon) : null;
       const cardColors = getServiceCardColors(row.serviceKind);
-      const bgImage = isExclusiveSession ? "/sesionexclusiva.png" : "/encuentroenvivo.png";
+      const bgImage = isExclusiveSession ? "/sesionexclusiva.webp" : "/encuentroenvivo.webp";
 
       return (
         <div
@@ -1703,7 +1703,7 @@ const creatorScheduleNote = getCreatorScheduleNote(req);
         isPrepareWindowOpen(req.scheduledAt) &&
         !noShowExpired2;
       const isRefundCard = getSectionForMeetGreetStatus(req.status) === "rejected";
-      const bgImage2 = isExclusiveSession ? "/sesionexclusiva.png" : "/encuentroenvivo.png";
+      const bgImage2 = isExclusiveSession ? "/sesionexclusiva.webp" : "/encuentroenvivo.webp";
       // Solo en pendientes (no devolución) y con fecha agendada existente.
       const scheduledDate2 = toDateSafe(req.scheduledAt);
       const showScheduled2 = !isRefundCard && !!scheduledDate2;
@@ -1876,7 +1876,7 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
     const buyerInitial = buyerName.charAt(0).toUpperCase();
     const relTime = req.createdAt ? getRelativeTime(req.createdAt as { toDate: () => Date }, tCommon) : null;
     const cardColors = getServiceCardColors(row.serviceKind);
-    const bgImage = isExclusiveSession ? "/sesionexclusiva.png" : "/encuentroenvivo.png";
+    const bgImage = isExclusiveSession ? "/sesionexclusiva.webp" : "/encuentroenvivo.webp";
     const muted = getSectionForMeetGreetStatus(req.status) === "rejected";
 
     return (
@@ -2185,7 +2185,7 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
                   : 0;
                 const daysLeft = Math.max(0, 30 - dlElapsed);
                 const canDownload = daysLeft > 0;
-                const bgImage = isExclusive ? "/sesionexclusiva.png" : "/encuentroenvivo.png";
+                const bgImage = isExclusive ? "/sesionexclusiva.webp" : "/encuentroenvivo.webp";
 
                 const avatarNode = sourceAvatar ? (
                   <Image

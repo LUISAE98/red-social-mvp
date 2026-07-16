@@ -1115,7 +1115,7 @@ export default function SessionRequestOverlay({
     </header>
   );
 
-  const bgImage = isExclusive ? "/sesionexclusiva.png" : "/encuentroenvivo.png";
+  const bgImage = isExclusive ? "/sesionexclusiva.webp" : "/encuentroenvivo.webp";
 
   // ── Render ────────────────────────────────────────────────────────────────
   const panel = (

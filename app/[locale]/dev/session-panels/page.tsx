@@ -46,7 +46,7 @@ function Avt({
 
 function BannerWrap({ kind, children }: { kind: Kind; children: React.ReactNode }) {
   const bg =
-    kind === "meet_greet" ? "/encuentroenvivo.png" : "/sesionexclusiva.png";
+    kind === "meet_greet" ? "/encuentroenvivo.webp" : "/sesionexclusiva.webp";
   return (
     <div
       style={{
@@ -1334,7 +1334,7 @@ export default function SessionPanelsPage() {
           <div
             style={{
               height: 90,
-              backgroundImage: `url(${kind === "meet_greet" ? "/encuentroenvivo.png" : "/sesionexclusiva.png"})`,
+              backgroundImage: `url(${kind === "meet_greet" ? "/encuentroenvivo.webp" : "/sesionexclusiva.webp"})`,
               backgroundSize: "cover",
               backgroundPosition: "center",
               position: "relative",
@@ -2075,7 +2075,7 @@ export default function SessionPanelsPage() {
             position: "relative",
             borderRadius: 12,
             overflow: "hidden",
-            backgroundImage: `url(${kind === "meet_greet" ? "/encuentroenvivo.png" : "/sesionexclusiva.png"})`,
+            backgroundImage: `url(${kind === "meet_greet" ? "/encuentroenvivo.webp" : "/sesionexclusiva.webp"})`,
             backgroundSize: "cover",
             backgroundPosition: "center",
           }}
@@ -2203,7 +2203,7 @@ export default function SessionPanelsPage() {
             position: "relative",
             borderRadius: 12,
             overflow: "hidden",
-            backgroundImage: `url(${kind === "meet_greet" ? "/encuentroenvivo.png" : "/sesionexclusiva.png"})`,
+            backgroundImage: `url(${kind === "meet_greet" ? "/encuentroenvivo.webp" : "/sesionexclusiva.webp"})`,
             backgroundSize: "cover",
             backgroundPosition: "center",
           }}

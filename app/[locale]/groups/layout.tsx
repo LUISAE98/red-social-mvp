@@ -698,7 +698,7 @@ const contentAreaClassName = isEmbed
             <div className="desktopHeader">
               <div className="brandCol">
 <Link href="/" className="brand" aria-label={tNav("goHome")}>
-  <Image src="/logotipo.png" alt="Vibra" width={112} height={32} className="brandLogo" />
+  <Image src="/logotipo.webp" alt="Vibra" width={112} height={32} className="brandLogo" />
 </Link>
               </div>
 
@@ -727,7 +727,7 @@ const contentAreaClassName = isEmbed
         className="mobileBrand mobileBrandVisible"
         aria-label={tNav("goHome")}
       >
-        <Image src="/logotipo.png" alt="Vibra" width={86} height={25} className="mobileBrandLogo" />
+        <Image src="/logotipo.webp" alt="Vibra" width={86} height={25} className="mobileBrandLogo" />
       </Link>
       <div className="mobileActions">
         <button

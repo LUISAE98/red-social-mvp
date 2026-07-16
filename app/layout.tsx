@@ -275,7 +275,7 @@ export default async function RootLayout({
                     className={`splash-tile${tile.wide ? " is-wide" : ""}`}
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={`/${tile.src}.png`} alt="" />
+                    <img src={`/${tile.src}.webp`} alt="" />
                   </div>
                 ))}
               </div>

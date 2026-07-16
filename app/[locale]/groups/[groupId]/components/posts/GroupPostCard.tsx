@@ -2747,7 +2747,7 @@ style={{
           }}
         >
           <Image
-            src={activeLiveData?.coverUrl ?? "/live.png"}
+            src={activeLiveData?.coverUrl ?? "/live.webp"}
             alt={activeLiveData?.title ?? "Live programado"}
             fill
             style={{

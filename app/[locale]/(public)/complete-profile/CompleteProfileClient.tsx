@@ -261,7 +261,7 @@ export default function CompleteProfileClient() {
 
       <main style={pageStyle}>
         <div style={shellStyle}>
-          <Image src="/logotipo.png" alt="Vibra" width={142} height={40} style={logoStyle} />
+          <Image src="/logotipo.webp" alt="Vibra" width={142} height={40} style={logoStyle} />
 
           <h1 style={titleStyle}>{t("title")}</h1>
           <p style={subtitleStyle}>

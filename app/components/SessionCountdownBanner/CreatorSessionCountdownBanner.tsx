@@ -271,7 +271,7 @@ export default function CreatorSessionCountdownBanner({ uid }: { uid: string }) 
     const daysLeft = Math.max(0, 30 - Math.floor((now - cs.scheduledAt.getTime()) / (1000 * 60 * 60 * 24)));
     const canDownload = daysLeft > 0;
     const buyerNm = cs.buyerDisplayName ?? "Comprador";
-    const bg = cs.serviceKind === "exclusive_session" ? "/sesionexclusiva.png" : "/encuentroenvivo.png";
+    const bg = cs.serviceKind === "exclusive_session" ? "/sesionexclusiva.webp" : "/encuentroenvivo.webp";
     const accent = cs.serviceKind === "exclusive_session";
     async function handleDownloadCompleted() {
       try {
@@ -325,7 +325,7 @@ export default function CreatorSessionCountdownBanner({ uid }: { uid: string }) 
   if (!nextSession) {
     return (
       <div style={{ width: "100%", position: "relative", borderRadius: 12, overflow: "hidden", marginBottom: 2, boxSizing: "border-box" }}>
-        <div style={{ position: "absolute", inset: 0, backgroundImage: `url(${noShowSessions[0].serviceKind === "exclusive_session" ? "/sesionexclusiva.png" : "/encuentroenvivo.png"})`, backgroundSize: "cover", backgroundPosition: "center" }} />
+        <div style={{ position: "absolute", inset: 0, backgroundImage: `url(${noShowSessions[0].serviceKind === "exclusive_session" ? "/sesionexclusiva.webp" : "/encuentroenvivo.webp"})`, backgroundSize: "cover", backgroundPosition: "center" }} />
         <div style={{ position: "absolute", inset: 0, background: "linear-gradient(160deg, rgba(0,0,0,0.60) 0%, rgba(0,0,0,0.82) 100%)" }} />
         <div style={{ position: "relative", padding: "16px 18px", display: "flex", flexDirection: "column", gap: 12 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -467,7 +467,7 @@ export default function CreatorSessionCountdownBanner({ uid }: { uid: string }) 
             style={{
               position: "absolute",
               inset: 0,
-              backgroundImage: "url(/encuentroenvivo.png)",
+              backgroundImage: "url(/encuentroenvivo.webp)",
               backgroundSize: "cover",
               backgroundPosition: "center",
               opacity: nextSession.serviceKind === "meet_greet" ? 1 : 0,
@@ -479,7 +479,7 @@ export default function CreatorSessionCountdownBanner({ uid }: { uid: string }) 
             style={{
               position: "absolute",
               inset: 0,
-              backgroundImage: "url(/sesionexclusiva.png)",
+              backgroundImage: "url(/sesionexclusiva.webp)",
               backgroundSize: "cover",
               backgroundPosition: "center",
               opacity: nextSession.serviceKind === "exclusive_session" ? 1 : 0,

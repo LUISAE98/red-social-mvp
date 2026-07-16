@@ -2203,7 +2203,7 @@ export default function GreetingReviewOverlay({
     );
   }
 
-  const reviewBgImage = req.type === "consejo" ? "/consejo.png" : req.type === "saludo" ? "/saludo.png" : null;
+  const reviewBgImage = req.type === "consejo" ? "/consejo.webp" : req.type === "saludo" ? "/saludo.webp" : null;
   const REVIEW_BG_CSS = `
     .grv-bg-img {
       position: absolute; top: 0; right: 0; bottom: 0; left: 0; z-index: 0;

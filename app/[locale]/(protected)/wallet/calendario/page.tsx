@@ -247,15 +247,15 @@ type ServiceCardTheme = {
 function getServiceCardTheme(kind: string): ServiceCardTheme {
   switch (kind) {
     case "saludo":
-      return { bgImage: "/saludo.png", btnBg: "rgba(168,85,247,0.22)", btnColor: "#d8b4fe" };
+      return { bgImage: "/saludo.webp", btnBg: "rgba(168,85,247,0.22)", btnColor: "#d8b4fe" };
     case "consejo":
-      return { bgImage: "/consejo.png", btnBg: "rgba(250,204,21,0.20)", btnColor: "#fde047" };
+      return { bgImage: "/consejo.webp", btnBg: "rgba(250,204,21,0.20)", btnColor: "#fde047" };
     case "mensaje":
       return { bgImage: null, btnBg: "rgba(168,85,247,0.22)", btnColor: "#d8b4fe" };
     case "meet_greet":
-      return { bgImage: "/encuentroenvivo.png", btnBg: "rgba(29,78,216,0.28)", btnColor: "#93c5fd" };
+      return { bgImage: "/encuentroenvivo.webp", btnBg: "rgba(29,78,216,0.28)", btnColor: "#93c5fd" };
     case "exclusive_session":
-      return { bgImage: "/sesionexclusiva.png", btnBg: "rgba(190,24,93,0.28)", btnColor: "#f9a8d4" };
+      return { bgImage: "/sesionexclusiva.webp", btnBg: "rgba(190,24,93,0.28)", btnColor: "#f9a8d4" };
     default:
       return { bgImage: null, btnBg: "rgba(168,85,247,0.22)", btnColor: "#d8b4fe" };
   }
@@ -276,7 +276,7 @@ function CalendarEventCard({
   const initial = (item.buyerDisplayName ?? "U").charAt(0).toUpperCase();
 
   // Variante para lives: informativa, sin comprador. La portada del live es el
-  // fondo de la card (o /live.png por defecto). No abre overlay de sesión.
+  // fondo de la card (o /live.webp por defecto). No abre overlay de sesión.
   if (item.kind === "live") {
     const dateLabel = item.scheduledAt
       ? (() => {
@@ -293,7 +293,7 @@ function CalendarEventCard({
       : item.scheduledAt
         ? new Intl.DateTimeFormat(locale, { hour: "2-digit", minute: "2-digit" }).format(item.scheduledAt)
         : "";
-    const cover = item.sourceAvatarUrl || "/live.png";
+    const cover = item.sourceAvatarUrl || "/live.webp";
     const initial = (item.buyerDisplayName ?? "?").charAt(0).toUpperCase();
     return (
       <div

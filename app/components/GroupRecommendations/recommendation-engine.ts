@@ -256,7 +256,7 @@ function toRecommendationCard(
   };
 }
 
-function seededShuffle<T>(items: T[], seedText: string): T[] {
+export function seededShuffle<T>(items: T[], seedText: string): T[] {
   const arr = [...items];
 
   let seed = 0;
@@ -1179,6 +1179,28 @@ export async function fetchRecommendedGroupsForUser(
   persistResult(uid, result); // I: persist fallback too
   setCachedResult(uid, result);
   return result;
+}
+
+// Semilla de posicionamiento de los rails en el feed.
+// Es ESTABLE durante toda la sesión del navegador: así, al cargar más posts, los
+// slots ya mostrados no se recalculan (el recorrido es determinista y solo se
+// agregan slots nuevos más abajo), y el rail deja de "saltar" de altura.
+// Cambia entre sesiones para que no caiga siempre en la misma altura.
+const FEED_RAIL_SEED_KEY = "vibra-feed-rail-seed";
+
+export function getFeedRailSeed(): number {
+  if (typeof window === "undefined") return 1;
+  try {
+    let raw = window.sessionStorage.getItem(FEED_RAIL_SEED_KEY);
+    if (!raw) {
+      raw = String(Math.floor(Math.random() * 233280) + 1);
+      window.sessionStorage.setItem(FEED_RAIL_SEED_KEY, raw);
+    }
+    const value = Number(raw);
+    return Number.isFinite(value) && value > 0 ? value : 1;
+  } catch {
+    return 1;
+  }
 }
 
 export function buildRandomRecommendationSlots(

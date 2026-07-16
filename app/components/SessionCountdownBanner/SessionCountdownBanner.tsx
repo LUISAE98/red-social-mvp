@@ -29,8 +29,8 @@ function formatCountdown(ms: number): string {
 
 
 const BG_IMAGE: Record<string, string> = {
-  meet_greet: "/encuentroenvivo.png",
-  exclusive_session: "/sesionexclusiva.png",
+  meet_greet: "/encuentroenvivo.webp",
+  exclusive_session: "/sesionexclusiva.webp",
 };
 
 const BTN_BG: Record<string, string> = {

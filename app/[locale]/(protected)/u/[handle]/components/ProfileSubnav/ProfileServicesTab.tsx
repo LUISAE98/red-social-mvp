@@ -761,17 +761,17 @@ export default function ProfileServicesTab({
     background: `linear-gradient(rgba(11,11,15,0.80), rgba(11,11,15,0.80)), url('${image}') ${position}/cover no-repeat`,
   });
 
-  const saludoPanelStyle = makeServicePanelStyle("/saludo.png", "center 32%");
-  const consejoPanelStyle = makeServicePanelStyle("/consejo.png", "center 60%");
+  const saludoPanelStyle = makeServicePanelStyle("/saludo.webp", "center 32%");
+  const consejoPanelStyle = makeServicePanelStyle("/consejo.webp", "center 60%");
   const meetGreetPanelStyle = makeServicePanelStyle(
-    "/encuentroenvivo.png",
+    "/encuentroenvivo.webp",
     "center 60%"
   );
   const customClassPanelStyle = makeServicePanelStyle(
-    "/sesionexclusiva.png",
+    "/sesionexclusiva.webp",
     "center 75%"
   );
-  const donationPanelStyle = makeServicePanelStyle("/donacion.png", "center 50%");
+  const donationPanelStyle = makeServicePanelStyle("/donacion.webp", "center 50%");
 
   // Panel sin imagen de fondo, para servicios aún no activados.
   const plainPanelStyle: React.CSSProperties = {
