@@ -220,7 +220,7 @@ function DiscoveryFollowJoinButton({
       disabled={state !== "idle"}
       style={{
         flexShrink: 0,
-        padding: "6px 16px",
+        padding: "5px 12px",
         borderRadius: 999,
         border: isDone ? "1px solid rgba(255,255,255,0.18)" : "none",
         background: isDone
@@ -471,12 +471,9 @@ export default function HomePostsFeed({ currentUserId, refreshRef }: HomePostsFe
         const normalized = discovered
           .filter((post) => !!post.id)
           .map((post) => normalizeHomeFeedPost(post as PostWithFlags));
-        // TEMP DEBUG
-        console.log("[discovery] Home recibió:", normalized.length, "posts");
         setDiscoveryPosts(normalized);
-      } catch (e) {
-        // TEMP DEBUG
-        console.error("[discovery] Home ERROR:", e);
+      } catch {
+        /* silencioso: el descubrimiento es complementario */
       }
     })();
 
@@ -1087,36 +1084,6 @@ const shellStyle: CSSProperties = {
   // Se reutiliza en los slots del feed y en el arranque en frío (feed vacío).
   const renderDiscoveryCard = (disc: PostWithFlags, uid: string) => (
     <div key={disc.id} style={{ ...postItemStyle, marginTop: 12 }}>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 8,
-          marginBottom: 8,
-        }}
-      >
-        <div
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 6,
-            padding: "4px 10px",
-            borderRadius: 999,
-            background: "rgba(168, 85, 247, 0.14)",
-            border: "1px solid rgba(168, 85, 247, 0.35)",
-            color: "#c084fc",
-            fontSize: 12,
-            fontWeight: 600,
-            letterSpacing: "-0.01em",
-          }}
-        >
-          ✨ {tFeed("suggestedForYou")}
-        </div>
-
-        <DiscoveryFollowJoinButton post={disc} currentUserId={uid} />
-      </div>
-
       <PostImpressionObserver
         uid={uid}
         postId={disc.id}
@@ -1141,6 +1108,9 @@ const shellStyle: CSSProperties = {
           isModerator={false}
           showGroupContext={true}
           canModerateGroupAuthor={false}
+          beforeSaveAction={
+            <DiscoveryFollowJoinButton post={disc} currentUserId={uid} />
+          }
         />
       </PostImpressionObserver>
     </div>

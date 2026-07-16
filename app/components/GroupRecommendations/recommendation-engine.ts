@@ -1505,11 +1505,7 @@ export async function fetchDiscoveryPostsForUser(
     .slice(0, DISCOVERY_TOP_CATEGORIES)
     .map(([category]) => category);
 
-  // TEMP DEBUG
-  console.log("[discovery] taste:", Array.from(taste.entries()), "topCategories:", topCategories, "prefs:", preferences.selectedCategories, "interests:", interests);
-
   if (topCategories.length === 0) {
-    console.log("[discovery] SIN topCategories → vacío (no hay señales)");
     discoveryCache.set(uid, { posts: [], cachedAt: Date.now() });
     return [];
   }
@@ -1532,9 +1528,6 @@ export async function fetchDiscoveryPostsForUser(
     }),
     fetchProfilesByInterests(topCategories, excludeAuthors),
   ]);
-
-  // TEMP DEBUG
-  console.log("[discovery] communityPosts:", communityPosts.length, "profileCandidates:", profileScored.length);
 
   const topProfiles = profileScored
     .slice(0, DISCOVERY_PROFILES)
@@ -1624,21 +1617,6 @@ export async function fetchDiscoveryPostsForUser(
       pickedIds.add(post.id);
     }
   }
-
-  // TEMP DEBUG
-  console.log(
-    "[discovery] scored:",
-    scored.length,
-    "picked (final):",
-    picked.length,
-    picked.map((p) => ({
-      id: p.id,
-      ctx: p.contextType,
-      gid: p.groupId,
-      pid: p.profileId,
-      aid: p.authorId,
-    }))
-  );
 
   if (picked.length > 0) {
     markDiscoveryShown(uid, picked.map((post) => post.id));

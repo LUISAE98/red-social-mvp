@@ -12,6 +12,7 @@ import {
   useRef,
   useState,
   type CSSProperties,
+  type ReactNode,
 } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
@@ -120,6 +121,9 @@ type GroupPostCardProps = {
   canCommentOnPosts?: boolean;
   commentBlockedReason?: InteractionBlockedReason;
   showDeletedBanner?: boolean;
+  /** Acción extra en la barra inferior, justo antes del botón de guardar
+   *  (lo usa el descubrimiento para el botón Seguir/Unirme). */
+  beforeSaveAction?: ReactNode;
 };
 
 type DisplayMediaItem = {
@@ -162,6 +166,7 @@ onToggleProfilePin,
   canCommentOnPosts = true,
   commentBlockedReason = null,
   showDeletedBanner = false,
+  beforeSaveAction = null,
 }: GroupPostCardProps) {
   const tCommon = useTranslations("common");
   const tFeed = useTranslations("feed");
@@ -4145,6 +4150,8 @@ padding: "0 0 2px 0",
       flexShrink: 0,
     }}
   >
+{beforeSaveAction}
+
 <PostSaveButton
   count={optimisticSavesCount}
   saved={optimisticViewerHasSaved}
