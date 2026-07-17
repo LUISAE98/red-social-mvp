@@ -707,14 +707,38 @@ function errorVariant(code: LivekitErrorCode, message: string): AccessErrorVaria
   return "generic";
 }
 
-const ACCESS_ERROR_CONFIG: Record<AccessErrorVariant, { icon: string; titleKey: string; color: string }> = {
-  denied:      { icon: "🔒", titleKey: "errorAccessDenied",  color: "#fca5a5" },
-  "not-found": { icon: "🔍", titleKey: "errorNotFound",      color: "#fcd34d" },
-  schedule:    { icon: "🕐", titleKey: "errorSchedule",      color: "#fcd34d" },
-  cancelled:   { icon: "✕",  titleKey: "errorCancelled",     color: "#fca5a5" },
-  ended:       { icon: "✓",  titleKey: "errorEnded",         color: "rgba(255,255,255,0.55)" },
-  generic:     { icon: "⚠",  titleKey: "errorGeneric",       color: "#fca5a5" },
+const ACCESS_ERROR_CONFIG: Record<
+  AccessErrorVariant,
+  { titleKey: string; iconColor: string; circleBg: string; positive: boolean }
+> = {
+  // `ended` es la única "positiva": la sesión terminó bien / la cerró el otro.
+  // Va con paloma morada + botón morado, igual que el panel de descarga.
+  denied:      { titleKey: "errorAccessDenied", iconColor: "#fca5a5", circleBg: "rgba(248,113,113,0.14)", positive: false },
+  "not-found": { titleKey: "errorNotFound",     iconColor: "#fcd34d", circleBg: "rgba(250,204,21,0.14)",  positive: false },
+  schedule:    { titleKey: "errorSchedule",     iconColor: "#fcd34d", circleBg: "rgba(250,204,21,0.14)",  positive: false },
+  cancelled:   { titleKey: "errorCancelled",    iconColor: "#fca5a5", circleBg: "rgba(248,113,113,0.14)", positive: false },
+  ended:       { titleKey: "errorEnded",        iconColor: "#a855ff", circleBg: "rgba(168,85,255,0.15)",  positive: true },
+  generic:     { titleKey: "errorGeneric",      iconColor: "#fca5a5", circleBg: "rgba(248,113,113,0.14)", positive: false },
 };
+
+// Ícono SVG limpio por variante (reemplaza los emojis "✓ ✕ 🔒 …" que se veían feos).
+function AccessErrorIcon({ variant, color }: { variant: AccessErrorVariant; color: string }) {
+  const p = { width: 28, height: 28, viewBox: "0 0 24 24", fill: "none", stroke: color, strokeWidth: 2, strokeLinecap: "round" as const, strokeLinejoin: "round" as const, "aria-hidden": true };
+  switch (variant) {
+    case "ended":
+      return <svg {...p}><polyline points="20 6 9 17 4 12" /></svg>;
+    case "cancelled":
+      return <svg {...p}><circle cx="12" cy="12" r="10" /><line x1="15" y1="9" x2="9" y2="15" /><line x1="9" y1="9" x2="15" y2="15" /></svg>;
+    case "denied":
+      return <svg {...p}><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>;
+    case "not-found":
+      return <svg {...p}><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>;
+    case "schedule":
+      return <svg {...p}><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>;
+    default:
+      return <svg {...p}><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>;
+  }
+}
 
 function AccessErrorScreen({
   message,
@@ -727,21 +751,55 @@ function AccessErrorScreen({
 }) {
   const tLive = useTranslations("live");
   const variant = errorVariant(errorCode, message);
-  const { icon, titleKey, color } = ACCESS_ERROR_CONFIG[variant];
-  const title = tLive(titleKey as Parameters<typeof tLive>[0]);
+  const cfg = ACCESS_ERROR_CONFIG[variant];
+  const title = tLive(cfg.titleKey as Parameters<typeof tLive>[0]);
 
+  // Mismo lenguaje visual que la tarjeta de descarga: card oscura centrada,
+  // círculo de color con ícono limpio, título, mensaje y botón.
   return (
     <div style={styles.statusScreen}>
-      <span style={{ fontSize: 36, lineHeight: 1 }}>{icon}</span>
-      <p style={{ color, fontSize: 15, fontWeight: 700, margin: "8px 0 0", textAlign: "center" }}>
-        {title}
-      </p>
-      <p style={{ color: "rgba(255,255,255,0.60)", fontSize: 13, textAlign: "center", margin: "6px 0 0", lineHeight: 1.5, maxWidth: 260 }}>
-        {message}
-      </p>
-      <button type="button" onClick={onClose} style={styles.retryButton}>
-        Cerrar
-      </button>
+      <div style={{
+        width: "min(100%, 340px)",
+        borderRadius: 18,
+        background: "#0a0a0a",
+        boxShadow: "0 0 0 1px rgba(255,255,255,0.08), 0 32px 72px rgba(0,0,0,0.9)",
+        overflow: "hidden",
+        padding: "32px 24px 28px",
+        display: "flex", flexDirection: "column", alignItems: "center", gap: 16,
+        textAlign: "center",
+      }}>
+        <div style={{
+          width: 56, height: 56, borderRadius: "50%",
+          background: cfg.circleBg,
+          display: "flex", alignItems: "center", justifyContent: "center",
+        }}>
+          <AccessErrorIcon variant={variant} color={cfg.iconColor} />
+        </div>
+
+        <div>
+          <p style={{ color: "#fff", fontSize: 16, fontWeight: 600, margin: "0 0 8px", lineHeight: 1.3 }}>
+            {title}
+          </p>
+          <p style={{ color: "rgba(255,255,255,0.50)", fontSize: 13, margin: 0, lineHeight: 1.55 }}>
+            {message}
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={onClose}
+          style={{
+            width: "100%", height: 42, borderRadius: 5, border: "none",
+            background: cfg.positive ? "#a855ff" : "rgba(255,255,255,0.10)",
+            color: cfg.positive ? "rgba(255,255,255,0.98)" : "rgba(255,255,255,0.75)",
+            fontSize: 15, fontWeight: 500, fontFamily: "inherit",
+            cursor: "pointer", letterSpacing: "-0.02em",
+            display: "grid", placeItems: "center",
+          }}
+        >
+          Cerrar
+        </button>
+      </div>
     </div>
   );
 }
