@@ -30,6 +30,16 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
+# Logs del Firebase CLI: incluyen URLs firmadas de Cloud Storage, sourceTokens
+# de despliegue y metadata del proyecto. Nunca deben versionarse.
+firebase-debug.log*
+firestore-debug.log*
+database-debug.log*
+pubsub-debug.log*
+ui-debug.log*
+dataconnect-debug.log*
+.firebase/
+
 # env files (can opt-in for committing if needed)
 .env*
 # ...pero la plantilla sin secretos de la raíz sí se versiona
