@@ -29,7 +29,6 @@ const PERK_KEYS = [
   "onboardingPerk2",
   "onboardingPerk3",
   "onboardingPerk4",
-  "onboardingPerk5",
 ] as const;
 
 const FEE_PERK_KEYS = [
@@ -46,6 +45,15 @@ export default function WalletOnboarding() {
   return (
     <>
       <style jsx>{`
+        /* Solo el onboarding se acota: en laptops grandes las filas con
+           space-between se estiraban y quedaban huecas. La wallet activa (otro
+           componente) no pasa por aquí y sigue sin restricción de ancho. */
+        .onboardingRoot {
+          max-width: 768px;
+          margin-left: auto;
+          margin-right: auto;
+        }
+
         .onboarding {
           position: relative;
           isolation: isolate;
@@ -85,14 +93,16 @@ export default function WalletOnboarding() {
           color: #ffffff;
         }
 
-        /* Fila inferior: ventajas a la izquierda, reglas a la derecha. */
+        /* Ventajas + reglas, centradas como grupo con un espacio intermedio
+           controlado. clamp evita que en laptops grandes quede un hueco muerto
+           enorme (tope 64px) y que en angosto se peguen (mínimo 32px). */
         .onboardingColumns {
           align-self: stretch;
           margin-top: 56px;
           display: flex;
-          justify-content: space-between;
+          justify-content: center;
           align-items: center;
-          gap: 32px;
+          gap: clamp(32px, 5vw, 64px);
         }
 
         .onboardingRules {
@@ -157,13 +167,15 @@ export default function WalletOnboarding() {
           display: block;
         }
 
-        /* Sección de comisión, fuera de la tarjeta con imagen. */
+        /* Sección de comisión, fuera de la tarjeta con imagen. Igual que la fila
+           de arriba: centrada como grupo, con espacio intermedio controlado por
+           clamp para no dejar hueco muerto en laptops grandes. */
         .commission {
           margin-top: 40px;
           display: flex;
-          justify-content: space-between;
+          justify-content: center;
           align-items: center;
-          gap: 32px;
+          gap: clamp(32px, 5vw, 64px);
         }
 
         .commissionLeft {
@@ -190,39 +202,47 @@ export default function WalletOnboarding() {
         }
 
         .exampleCard {
-          display: grid;
-          grid-template-columns: auto auto;
-          align-items: baseline;
-          gap: 6px 14px;
+          display: flex;
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 8px;
           padding: 20px 24px;
           border-radius: 16px;
           background: rgba(168, 85, 255, 0.08);
           border: 1px solid rgba(168, 85, 255, 0.28);
         }
 
-        .exampleLabel {
+        /* "Si cobras $1,000 MXN" en una sola línea, misma fuente que el label. */
+        .exampleChargeLine {
           font-size: 14px;
           font-weight: 500;
           color: rgba(255, 255, 255, 0.7);
           white-space: nowrap;
         }
 
-        .exampleCharge {
-          font-size: 22px;
-          font-weight: 700;
-          letter-spacing: -0.02em;
-          color: #ffffff;
+        .exampleDivider {
+          align-self: stretch;
+          height: 1px;
+          background: rgba(168, 85, 255, 0.28);
+          margin: 4px 0;
+        }
+
+        /* "Tú recibes" + monto: centrados dentro de la tarjeta. */
+        .exampleLabel {
+          align-self: center;
+          font-size: 14px;
+          font-weight: 500;
+          color: rgba(255, 255, 255, 0.7);
           white-space: nowrap;
-          text-align: right;
         }
 
         .exampleReceive {
-          font-size: 22px;
-          font-weight: 800;
-          letter-spacing: -0.02em;
+          align-self: center;
+          font-size: 30px;
+          font-weight: 300;
+          letter-spacing: -0.01em;
           color: #22c55e;
           white-space: nowrap;
-          text-align: right;
         }
 
         .commissionTitle {
@@ -245,8 +265,8 @@ export default function WalletOnboarding() {
           letter-spacing: -0.04em;
           font-weight: 500;
           padding-bottom: 0.12em;
-          /* Estirado vertical: crece hacia arriba y abajo desde su centro. */
-          transform: scaleY(1.3);
+          /* Sin estirado vertical: se conserva la altura y se ensancha un poco. */
+          transform: scaleX(1.08);
           transform-origin: left center;
         }
 
@@ -312,6 +332,7 @@ export default function WalletOnboarding() {
         }
       `}</style>
 
+      <div className="onboardingRoot">
       <section className="onboarding">
         {/* Fondo decorativo. styled-jsx no scopea clases sobre <Image>, así que
             el posicionamiento va inline; el aspecto (velo, capas) en las clases
@@ -401,17 +422,32 @@ export default function WalletOnboarding() {
 
         <div className="commissionRight">
           <div className="exampleCard">
-            <span className="exampleLabel">{tWallet("onboardingExampleCharge")}</span>
-            <span className="exampleCharge">
-              {formatPrice(EXAMPLE_CHARGE_MXN, { code: true })}
-            </span>
-            <span className="exampleLabel">{tWallet("onboardingExampleReceive")}</span>
-            <span className="exampleReceive">
-              {formatPrice(EXAMPLE_RECEIVE_MXN, { code: true })}
-            </span>
+            <Image
+              src="/entretenimiento.webp"
+              alt=""
+              fill
+              sizes="(max-width: 900px) 90vw, 260px"
+              style={{ objectFit: "cover", zIndex: 0 }}
+            />
+            <div className="exampleScrim" aria-hidden="true" />
+
+            <div className="exampleCardInner">
+              <span className="exampleChargeLine">
+                {tWallet("onboardingExampleCharge")}{" "}
+                {formatPrice(EXAMPLE_CHARGE_MXN, { code: true })}
+              </span>
+
+              <span className="exampleDivider" aria-hidden="true" />
+
+              <span className="exampleLabel">{tWallet("onboardingExampleReceive")}</span>
+              <span className="exampleReceive">
+                {formatPrice(EXAMPLE_RECEIVE_MXN, { code: true })}
+              </span>
+            </div>
           </div>
         </div>
       </section>
+      </div>
     </>
   );
 }
