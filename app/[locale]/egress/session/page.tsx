@@ -26,80 +26,7 @@ import {
 } from "@livekit/components-react";
 import SessionIntro, { INTRO_FADE_AT, INTRO_TOTAL_MS } from "./SessionIntro";
 import SessionOutro, { type OutroMode } from "./SessionOutro";
-
-const TYPE_LABEL: Record<string, string> = {
-  meet_greet: "Tiempo contigo",
-  exclusive_session: "Sesión exclusiva",
-};
-
-// Overlay "horneado": avatar del creador con aro de Vibra + nombre + tipo de
-// experiencia, arriba a la izquierda. Se renderiza a 1080p nativo (nítido) y el
-// grabador lo captura dentro del video. (Sin marca de vibraon.com.)
-function OverlayBadge({
-  avatarUrl,
-  name,
-  type,
-}: {
-  avatarUrl: string | null;
-  name: string;
-  type: string;
-}) {
-  const typeLabel = TYPE_LABEL[type] ?? "";
-  const initials = (name || "?").trim().charAt(0).toUpperCase();
-  const AVATAR = 104;
-  const RING_W = 7;
-  const GAP = 5; // hueco TRANSPARENTE entre el avatar y el aro (deja ver el video)
-  const OUTER = AVATAR + 2 * GAP + 2 * RING_W;
-  const r = (OUTER - RING_W) / 2;
-  return (
-    <div style={{ position: "absolute", top: 34, left: 34, display: "flex", alignItems: "center", gap: 16, zIndex: 20 }}>
-      <div style={{ position: "relative", width: OUTER, height: OUTER, flexShrink: 0, filter: "drop-shadow(0 4px 14px rgba(0,0,0,0.5))" }}>
-        {/* Aro de Vibra como anillo real: centro y hueco transparentes */}
-        <svg width={OUTER} height={OUTER} style={{ position: "absolute", inset: 0, display: "block" }} aria-hidden="true">
-          <defs>
-            <linearGradient id="vibraRingGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#ec4899" />
-              <stop offset="52%" stopColor="#9333ea" />
-              <stop offset="100%" stopColor="#3b82f6" />
-            </linearGradient>
-          </defs>
-          <circle cx={OUTER / 2} cy={OUTER / 2} r={r} fill="none" stroke="url(#vibraRingGrad)" strokeWidth={RING_W} />
-        </svg>
-        <div
-          style={{
-            position: "absolute",
-            top: GAP + RING_W,
-            left: GAP + RING_W,
-            width: AVATAR,
-            height: AVATAR,
-            borderRadius: "50%",
-            overflow: "hidden",
-            background: "#1a1a1a",
-            display: "grid",
-            placeItems: "center",
-          }}
-        >
-          {avatarUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={avatarUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-          ) : (
-            <span style={{ color: "#fff", fontWeight: 700, fontSize: Math.round(AVATAR * 0.4) }}>{initials}</span>
-          )}
-        </div>
-      </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-        <span style={{ color: "#fff", fontWeight: 700, fontSize: 37, letterSpacing: "-0.01em", textShadow: "0 2px 10px rgba(0,0,0,0.7)", lineHeight: 1.1 }}>
-          {name}
-        </span>
-        {typeLabel ? (
-          <span style={{ color: "rgba(255,255,255,0.88)", fontWeight: 500, fontSize: 27, textShadow: "0 2px 10px rgba(0,0,0,0.7)", lineHeight: 1.1 }}>
-            {typeLabel}
-          </span>
-        ) : null}
-      </div>
-    </div>
-  );
-}
+import SessionOverlay from "./SessionOverlay";
 
 function CreatorFocusLayout() {
   // Cámaras + pantalla compartida (solo el creador puede compartir).
@@ -245,20 +172,20 @@ function CreatorFocusLayout() {
           )}
         </div>
 
-        {/* Overlay horneado (avatar + aro + nombre + tipo).
-            Se desvanece suavemente a falta de 5s para el 0 (fase "overlayOut"). */}
+        {/* Overlay horneado (avatar + aro + nombre + tipo). Entra solo a los
+            11.2s (5s de esquina limpia tras el intro) y sale animado:
+              · cierre por reloj  → con la fase "overlayOut" (t=-5)
+              · cancelación       → al instante, en paralelo con el negro.
+                La cancelación no avisa: no hay un "antes" donde sacarlo. Sale
+                junto con el arranque del fundido, que tarda 2.6s — de sobra
+                para que la salida (~1s) se lea antes de que el negro la tape. */}
         {overlay ? (
-          <div
-            style={{
-              position: "absolute",
-              inset: 0,
-              opacity: overlayOut ? 0 : 1,
-              transition: "opacity 1.6s cubic-bezier(0.4, 0, 0.2, 1)",
-              pointerEvents: "none",
-            }}
-          >
-            <OverlayBadge avatarUrl={overlay.avatarUrl} name={overlay.name} type={overlay.type} />
-          </div>
+          <SessionOverlay
+            avatarUrl={overlay.avatarUrl}
+            name={overlay.name}
+            type={overlay.type}
+            out={overlayOut || outroMode === "cancel"}
+          />
         ) : null}
       </SessionOutro>
 

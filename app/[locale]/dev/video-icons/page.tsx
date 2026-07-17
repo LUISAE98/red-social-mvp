@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import SessionIntro from "@/app/[locale]/egress/session/SessionIntro";
 import SessionOutro, { type OutroMode } from "@/app/[locale]/egress/session/SessionOutro";
+import SessionOverlay from "@/app/[locale]/egress/session/SessionOverlay";
 import {
   GroupCategoryPill,
   CelebrationBurst,
@@ -506,59 +507,6 @@ function TriggerBtn({ label, onClick }: { label: string; onClick: () => void }) 
 
 // ── Página ────────────────────────────────────────────────────────────────────
 
-// Réplica EXACTA del overlay que se hornea en la grabación de la sesión
-// (mismos px del cuadro 1080p). Fuente: app/[locale]/egress/session/page.tsx
-function SessionOverlayBadge({
-  avatarUrl,
-  name,
-  type,
-}: {
-  avatarUrl: string | null;
-  name: string;
-  type: "meet_greet" | "exclusive_session";
-}) {
-  const typeLabel = type === "meet_greet" ? "Tiempo contigo" : "Sesión exclusiva";
-  const initials = (name || "?").trim().charAt(0).toUpperCase();
-  const AVATAR = 104;
-  const RING_W = 7;
-  const GAP = 5;
-  const OUTER = AVATAR + 2 * GAP + 2 * RING_W;
-  const r = (OUTER - RING_W) / 2;
-  return (
-    <div style={{ position: "absolute", top: 34, left: 34, display: "flex", alignItems: "center", gap: 16, zIndex: 20 }}>
-      <div style={{ position: "relative", width: OUTER, height: OUTER, flexShrink: 0, filter: "drop-shadow(0 4px 14px rgba(0,0,0,0.5))" }}>
-        <svg width={OUTER} height={OUTER} style={{ position: "absolute", inset: 0, display: "block" }} aria-hidden="true">
-          <defs>
-            <linearGradient id="vibraRingGradDev" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#ec4899" />
-              <stop offset="52%" stopColor="#9333ea" />
-              <stop offset="100%" stopColor="#3b82f6" />
-            </linearGradient>
-          </defs>
-          <circle cx={OUTER / 2} cy={OUTER / 2} r={r} fill="none" stroke="url(#vibraRingGradDev)" strokeWidth={RING_W} />
-        </svg>
-        <div style={{ position: "absolute", top: GAP + RING_W, left: GAP + RING_W, width: AVATAR, height: AVATAR, borderRadius: "50%", overflow: "hidden", background: "#1a1a1a", display: "grid", placeItems: "center" }}>
-          {avatarUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={avatarUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-          ) : (
-            <span style={{ color: "#fff", fontWeight: 700, fontSize: Math.round(AVATAR * 0.4) }}>{initials}</span>
-          )}
-        </div>
-      </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-        <span style={{ color: "#fff", fontWeight: 700, fontSize: 37, letterSpacing: "-0.01em", textShadow: "0 2px 10px rgba(0,0,0,0.7)", lineHeight: 1.1 }}>{name}</span>
-        <span style={{ color: "rgba(255,255,255,0.88)", fontWeight: 500, fontSize: 27, textShadow: "0 2px 10px rgba(0,0,0,0.7)", lineHeight: 1.1 }}>{typeLabel}</span>
-      </div>
-    </div>
-  );
-}
-
-// Sandbox del onboarding de intereses: misma UI que el rail
-// (GroupRecommendationsRail), pero con estado local — no lee ni escribe Firestore
-// y "Continuar" solo dispara la celebración. Las piezas visuales (GroupCategoryPill,
-// iconos, imágenes, medidas del grid) se importan del rail, así que lo que se ve
-// aquí es lo que se renderiza en producción.
 function InterestsOnboardingSandbox() {
   const tGroups = useTranslations("groups");
   const tCommon = useTranslations("common");
@@ -830,6 +778,9 @@ export default function VideoIconsPreview() {
   // Preview del cierre de la grabación (mismo componente que la plantilla real).
   const [outroKey, setOutroKey] = useState(0);
   const [outroMode, setOutroMode] = useState<OutroMode>(null);
+  // Preview del overlay de la esquina (mismo componente que la plantilla real).
+  const [ovKey, setOvKey] = useState(0);
+  const [ovOut, setOvOut] = useState(false);
   useEffect(() => {
     const id = setInterval(() => setElapsed((t) => t + 1), 1000);
     return () => clearInterval(id);
@@ -1013,6 +964,45 @@ export default function VideoIconsPreview() {
       {/* INTRO DE LA GRABACIÓN — cuadro 1920×1080 completo, a escala            */}
       {/* ══════════════════════════════════════════════════════════════════════ */}
       <h2 style={{ color: "#fff", fontSize: 16, fontWeight: 700, margin: "0 0 4px" }}>
+        Overlay de la esquina — entrada y salida (tamaño real 1:1)
+      </h2>
+      <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 13, marginBottom: 12, lineHeight: 1.6 }}>
+        El mismo componente que se hornea en la grabación (<code>SessionOverlay</code>).
+        <br />
+        <strong style={{ color: "rgba(255,255,255,0.6)" }}>Entrada:</strong> pop del avatar + el aro se dibuja cargando + nombre y tipo entran deslizando.
+        En la grabación real entra hasta el <strong style={{ color: "rgba(255,255,255,0.6)" }}>segundo 11.2</strong> (5s de esquina limpia tras el intro); aquí sin espera para poder iterarla.
+        <br />
+        <strong style={{ color: "rgba(255,255,255,0.6)" }}>Salida:</strong> la entrada al revés — el aro se descarga, los textos salen a la esquina y el avatar se encoge (~1s).
+      </p>
+
+      <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 12, flexWrap: "wrap" }}>
+        <button
+          type="button"
+          onClick={() => { setOvOut(false); setOvKey((k) => k + 1); }}
+          style={{ border: "1px solid rgba(255,255,255,0.16)", background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.85)", borderRadius: 999, padding: "8px 18px", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}
+        >
+          Repetir entrada
+        </button>
+        <button
+          type="button"
+          onClick={() => setOvOut(true)}
+          style={{ border: "1px solid rgba(255,255,255,0.16)", background: ovOut ? "rgba(168,85,255,0.22)" : "rgba(255,255,255,0.06)", color: ovOut ? "#d8b4fe" : "rgba(255,255,255,0.85)", borderRadius: 999, padding: "8px 18px", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}
+        >
+          Reproducir salida
+        </button>
+        <span style={{ color: "rgba(255,255,255,0.32)", fontSize: 12 }}>
+          Medidas reales: esquina 34 · avatar Ø104 · aro 7 · hueco 5 · nombre 37/700 · servicio 27/500.
+        </span>
+      </div>
+
+      <div style={{ overflow: "auto", maxWidth: "100%", maxHeight: 420, border: "1px solid rgba(255,255,255,0.10)", borderRadius: 12, marginBottom: 56 }}>
+        <div style={{ position: "relative", width: 1920, height: 620, background: "linear-gradient(135deg, #334155 0%, #0f172a 100%)" }}>
+          <SessionOverlay key={ovKey} avatarUrl={null} name="Nombre del creador" type="meet_greet" startDelay={300} out={ovOut} />
+        </div>
+      </div>
+
+      {/* ══════════════════════════════════════════════════════════════════════ */}
+      <h2 style={{ color: "#fff", fontSize: 16, fontWeight: 700, margin: "0 0 4px" }}>
         Intro de la grabación — cuadro 1920×1080 completo
       </h2>
       <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 13, marginBottom: 12, lineHeight: 1.6 }}>
@@ -1168,7 +1158,16 @@ export default function VideoIconsPreview() {
             <div style={{ position: "absolute", inset: 0, background: "linear-gradient(135deg, #334155 0%, #0f172a 100%)", display: "grid", placeItems: "center" }}>
               <span style={{ color: "rgba(255,255,255,0.22)", fontSize: 44, fontWeight: 700 }}>(aquí va la sesión)</span>
             </div>
-            <SessionOverlayBadge avatarUrl={null} name="Nombre del creador" type="meet_greet" />
+            {/* El overlay sale junto con el cierre, igual que en la grabación:
+                por reloj con la fase overlayOut (t=-5), en cancelación al
+                instante. Aquí se dispara con el modo para poder verlo. */}
+            <SessionOverlay
+              avatarUrl={null}
+              name="Nombre del creador"
+              type="meet_greet"
+              startDelay={0}
+              out={outroMode !== null}
+            />
           </SessionOutro>
         </div>
       </div>
