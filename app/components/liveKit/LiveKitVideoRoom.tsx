@@ -96,7 +96,11 @@ export default function LiveKitVideoRoom({
 
   const roomOptions: RoomOptions = {
     videoCaptureDefaults: {
-      resolution: VideoPresets.h1080.resolution,
+      // 720p (no 1080p): con simulcast apagado hay una sola capa, y 720p llega a
+      // calidad plena mucho más rápido que 1080p → menos pixeleo al arranque en
+      // redes normales. La grabación se sigue componiendo a 1080p (canvas +
+      // overlays + intro nítidos); solo la cámara entra a 720p re-escalada.
+      resolution: VideoPresets.h720.resolution,
       facingMode: "user",
     },
     audioCaptureDefaults: {
@@ -106,7 +110,7 @@ export default function LiveKitVideoRoom({
       sampleRate: 48000,
     },
     publishDefaults: {
-      videoEncoding: { maxBitrate: 3_500_000, maxFramerate: 30 },
+      videoEncoding: { maxBitrate: 2_000_000, maxFramerate: 30 },
       // H.264 usa el encoder por HARDWARE del teléfono → mucho menos CPU/calor
       // y menos latencia en móvil que el default VP8 (por software). No afecta la
       // grabación (el egress re-codifica a H264 de todos modos).
