@@ -5,8 +5,24 @@
 // a empezar. La condición la decide useWalletVisibility, el mismo gate que
 // muestra u oculta la sección Wallet del rail derecho.
 
+import Image from "next/image";
 import { useTranslations } from "next-intl";
 import VibraGradientText from "@/app/components/VibraGradientText/VibraGradientText";
+import { usePriceFormat } from "@/lib/currency/usePriceFormat";
+import {
+  WALLET_COMMISSION_RATE,
+  WALLET_NET_RATE,
+} from "@/lib/wallet/walletFinances";
+
+// Deriva el porcentaje de la comisión real: si algún día cambia la tasa, este
+// texto de marketing se actualiza con ella en vez de quedar desincronizado.
+const COMMISSION_PCT = Math.round(WALLET_COMMISSION_RATE * 100);
+
+// Cifras del ejemplo, ancladas en MXN (como todo el sistema de precios). El neto
+// se deriva de la tasa real, no se quema, y se pasan a usePriceFormat para que
+// entren al switcheo de moneda de la plataforma.
+const EXAMPLE_CHARGE_MXN = 1000;
+const EXAMPLE_RECEIVE_MXN = Math.round(EXAMPLE_CHARGE_MXN * WALLET_NET_RATE);
 
 const PERK_KEYS = [
   "onboardingPerk1",
@@ -18,15 +34,39 @@ const PERK_KEYS = [
 
 export default function WalletOnboarding() {
   const tWallet = useTranslations("wallet");
+  const { format: formatPrice } = usePriceFormat();
 
   return (
     <>
       <style jsx>{`
         .onboarding {
+          position: relative;
+          isolation: isolate;
+          overflow: hidden;
+          border-radius: 20px;
+          padding: 40px 36px 48px;
+        }
+
+        /* Velo oscuro sobre la imagen: la escena tiene el brillo de la TV que
+           haría ilegible el texto blanco, sobre todo el bloque de la derecha. */
+        .onboardingScrim {
+          position: absolute;
+          inset: 0;
+          z-index: 1;
+          background: linear-gradient(
+            100deg,
+            rgba(8, 5, 16, 0.9) 0%,
+            rgba(8, 5, 16, 0.55) 52%,
+            rgba(8, 5, 16, 0.78) 100%
+          );
+        }
+
+        .onboardingInner {
+          position: relative;
+          z-index: 2;
           display: flex;
           flex-direction: column;
           align-items: flex-start;
-          padding: 32px 0 64px;
         }
 
         .onboardingTitle {
@@ -38,11 +78,18 @@ export default function WalletOnboarding() {
           color: #ffffff;
         }
 
-        /* Bloque alineado a la derecha, contrapeso del título principal */
+        /* Fila inferior: ventajas a la izquierda, reglas a la derecha. */
+        .onboardingColumns {
+          align-self: stretch;
+          margin-top: 56px;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          gap: 32px;
+        }
+
         .onboardingRules {
-          align-self: flex-end;
           text-align: right;
-          margin-top: 80px;
         }
 
         .onboardingRulesTitle {
@@ -63,50 +110,158 @@ export default function WalletOnboarding() {
           color: rgba(255, 255, 255, 0.72);
         }
 
-        /* Lista de ventajas: alineada a la izquierda, contrapeso del bloque de
-           reglas que va a la derecha. */
+        /* Lista de ventajas, alineada a la izquierda de la fila inferior. */
         .onboardingPerks {
           list-style: none;
-          margin: 44px 0 0;
+          margin: 0;
           padding: 0;
           display: flex;
           flex-direction: column;
-          gap: 14px;
+          gap: 9px;
         }
 
         .onboardingPerk {
           display: flex;
           align-items: center;
-          gap: 12px;
-          font-size: 16px;
-          line-height: 1.35;
+          gap: 8px;
+          font-size: 12px;
+          line-height: 1.3;
           font-weight: 500;
-          color: #ffffff;
+          color: rgba(255, 255, 255, 0.92);
         }
 
-        /* Círculo morado tenue + paloma morada sólida: ambos morados, pero con
-           contraste suficiente para que la paloma se vea. */
+        /* Círculo sin relleno, solo contorno morado, con el mismo grosor de trazo
+           que la paloma de adentro. */
         .onboardingPerkCheck {
           flex: 0 0 auto;
-          width: 24px;
-          height: 24px;
+          width: 14px;
+          height: 14px;
           border-radius: 50%;
-          background: rgba(168, 85, 255, 0.18);
-          border: 1.5px solid rgba(168, 85, 255, 0.5);
+          background: transparent;
+          border: 1.4px solid #a855ff;
           display: inline-flex;
           align-items: center;
           justify-content: center;
         }
 
         .onboardingPerkCheck svg {
-          width: 13px;
-          height: 13px;
+          width: 8px;
+          height: 8px;
           display: block;
+        }
+
+        /* Sección de comisión, fuera de la tarjeta con imagen. */
+        .commission {
+          margin-top: 40px;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          gap: 32px;
+        }
+
+        .commissionLeft {
+          flex: 0 1 auto;
+          display: flex;
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 6px;
+        }
+
+        /* Ejemplo, a la derecha de la sección de comisión. */
+        .commissionRight {
+          flex: 0 1 auto;
+          min-width: 0;
+          display: flex;
+          justify-content: flex-end;
+        }
+
+        .exampleCard {
+          display: grid;
+          grid-template-columns: auto auto;
+          align-items: baseline;
+          gap: 6px 14px;
+          padding: 20px 24px;
+          border-radius: 16px;
+          background: rgba(168, 85, 255, 0.08);
+          border: 1px solid rgba(168, 85, 255, 0.28);
+        }
+
+        .exampleLabel {
+          font-size: 14px;
+          font-weight: 500;
+          color: rgba(255, 255, 255, 0.7);
+          white-space: nowrap;
+        }
+
+        .exampleCharge {
+          font-size: 22px;
+          font-weight: 700;
+          letter-spacing: -0.02em;
+          color: #ffffff;
+          white-space: nowrap;
+          text-align: right;
+        }
+
+        .exampleReceive {
+          font-size: 22px;
+          font-weight: 800;
+          letter-spacing: -0.02em;
+          color: #22c55e;
+          white-space: nowrap;
+          text-align: right;
+        }
+
+        .commissionTitle {
+          margin: 0;
+          font-size: 26px;
+          line-height: 1.15;
+          letter-spacing: -0.03em;
+          font-weight: 700;
+          color: #ffffff;
+        }
+
+        .commissionPct {
+          display: inline-block;
+          font-size: 92px;
+          line-height: 0.9;
+          letter-spacing: -0.04em;
+          font-weight: 800;
+          color: #a855ff;
+          /* Estirado vertical: crece hacia arriba y abajo desde su centro. */
+          transform: scaleY(1.35);
+          transform-origin: left center;
+          margin-top: 12px;
         }
 
         @media (max-width: 900px) {
           .onboarding {
-            padding: 24px 0 48px;
+            padding: 28px 20px 36px;
+            border-radius: 16px;
+          }
+
+          /* En angosto: título+23% arriba, ejemplo abajo, ambos a lo ancho. */
+          .commission {
+            margin-top: 32px;
+            flex-direction: column;
+            align-items: stretch;
+            gap: 20px;
+          }
+
+          .commissionTitle {
+            font-size: 22px;
+          }
+
+          .commissionPct {
+            font-size: 72px;
+          }
+
+          .commissionRight {
+            justify-content: flex-start;
+          }
+
+          .exampleCard {
+            width: 100%;
+            justify-content: start;
           }
 
           .onboardingTitle {
@@ -114,8 +269,13 @@ export default function WalletOnboarding() {
             max-width: none;
           }
 
-          .onboardingRules {
-            margin-top: 52px;
+          /* En pantalla angosta las dos columnas no caben lado a lado:
+             se apilan, ventajas arriba y reglas abajo. */
+          .onboardingColumns {
+            margin-top: 36px;
+            flex-direction: column;
+            align-items: stretch;
+            gap: 36px;
           }
 
           .onboardingRulesTitle {
@@ -125,55 +285,83 @@ export default function WalletOnboarding() {
           .onboardingText {
             max-width: none;
           }
-
-          .onboardingPerks {
-            margin-top: 32px;
-            gap: 12px;
-          }
-
-          .onboardingPerk {
-            font-size: 15px;
-          }
         }
       `}</style>
 
       <section className="onboarding">
-        {/* Texto enriquecido: cada idioma decide qué palabra lleva el degradado
-            y en qué punto de la frase cae, en vez de asumir que va al final. */}
-        <h2 className="onboardingTitle">
-          {tWallet.rich("onboardingTitle", {
-            vibra: (chunks) => <VibraGradientText>{chunks}</VibraGradientText>,
-          })}
-        </h2>
+        {/* Fondo decorativo. styled-jsx no scopea clases sobre <Image>, así que
+            el posicionamiento va inline; el aspecto (velo, capas) en las clases
+            de los hermanos, que sí son elementos DOM. */}
+        <Image
+          src="/desbloquearcontenido.webp"
+          alt=""
+          fill
+          priority
+          sizes="(max-width: 900px) 100vw, 860px"
+          style={{ objectFit: "cover", zIndex: 0 }}
+        />
+        <div className="onboardingScrim" aria-hidden="true" />
 
-        <p className="onboardingText">{tWallet("onboardingSubtitle")}</p>
-
-        <ul className="onboardingPerks">
-          {PERK_KEYS.map((key) => (
-            <li key={key} className="onboardingPerk">
-              <span className="onboardingPerkCheck" aria-hidden="true">
-                <svg viewBox="0 0 12 12" fill="none">
-                  <path
-                    d="M2 6.2 4.7 9 10 3.2"
-                    stroke="#a855ff"
-                    strokeWidth="1.8"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              </span>
-              {tWallet(key)}
-            </li>
-          ))}
-        </ul>
-
-        <div className="onboardingRules">
-          <h3 className="onboardingRulesTitle">
-            {tWallet.rich("onboardingRulesTitle", {
+        <div className="onboardingInner">
+          {/* Texto enriquecido: cada idioma decide qué palabra lleva el degradado
+              y en qué punto de la frase cae, en vez de asumir que va al final. */}
+          <h2 className="onboardingTitle">
+            {tWallet.rich("onboardingTitle", {
               vibra: (chunks) => <VibraGradientText>{chunks}</VibraGradientText>,
             })}
-          </h3>
-          <p className="onboardingText">{tWallet("onboardingRulesText")}</p>
+          </h2>
+
+          <div className="onboardingColumns">
+            <ul className="onboardingPerks">
+              {PERK_KEYS.map((key) => (
+                <li key={key} className="onboardingPerk">
+                  <span className="onboardingPerkCheck" aria-hidden="true">
+                    <svg viewBox="0 0 12 12" fill="none">
+                      <path
+                        d="M2 6.2 4.7 9 10 3.2"
+                        stroke="#a855ff"
+                        strokeWidth="1.6"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </span>
+                  {tWallet(key)}
+                </li>
+              ))}
+            </ul>
+
+            <div className="onboardingRules">
+              <h3 className="onboardingRulesTitle">
+                {tWallet.rich("onboardingRulesTitle", {
+                  vibra: (chunks) => <VibraGradientText>{chunks}</VibraGradientText>,
+                })}
+              </h3>
+              <p className="onboardingText">{tWallet("onboardingRulesText")}</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Comisión: fuera de la tarjeta con imagen. Texto a la izquierda; la
+          derecha queda reservada para un ejemplo que se agregará después. */}
+      <section className="commission">
+        <div className="commissionLeft">
+          <h2 className="commissionTitle">{tWallet("onboardingCommissionTitle")}</h2>
+          <span className="commissionPct">{COMMISSION_PCT}%</span>
+        </div>
+
+        <div className="commissionRight">
+          <div className="exampleCard">
+            <span className="exampleLabel">{tWallet("onboardingExampleCharge")}</span>
+            <span className="exampleCharge">
+              {formatPrice(EXAMPLE_CHARGE_MXN, { code: true })}
+            </span>
+            <span className="exampleLabel">{tWallet("onboardingExampleReceive")}</span>
+            <span className="exampleReceive">
+              {formatPrice(EXAMPLE_RECEIVE_MXN, { code: true })}
+            </span>
+          </div>
         </div>
       </section>
     </>

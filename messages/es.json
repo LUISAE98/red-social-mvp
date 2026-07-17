@@ -894,7 +894,6 @@
   },
   "wallet": {
     "onboardingTitle": "Convierte tu pasión en nuevas formas de <vibra>conectar</vibra>",
-    "onboardingSubtitle": "Activa o genera experiencias, define tus condiciones y comienza a generar ingresos con tu comunidad",
     "onboardingRulesTitle": "Tu contenido, <vibra>tus reglas</vibra>",
     "onboardingRulesText": "Tú eliges qué experiencias ofrecer, cuánto cobrar y cuándo estar disponible.",
     "onboardingPerk1": "Sin anuncios incómodos para la audiencia",
@@ -902,6 +901,9 @@
     "onboardingPerk3": "Sin censura política",
     "onboardingPerk4": "Sin desmonetizaciones sin respuesta",
     "onboardingPerk5": "Con soporte humano",
+    "onboardingCommissionTitle": "Una sola comisión, siempre clara.",
+    "onboardingExampleCharge": "Si cobras",
+    "onboardingExampleReceive": "tú recibes",
     "calendarTitle": "Calendario de sesiones",
     "cannotAccept": "No se pudo aceptar.",
     "cannotAcceptAndSchedule": "No se pudo aceptar y agendar.",
