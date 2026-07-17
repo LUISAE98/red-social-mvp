@@ -32,6 +32,13 @@ const PERK_KEYS = [
   "onboardingPerk5",
 ] as const;
 
+const FEE_PERK_KEYS = [
+  "onboardingFeePerk1",
+  "onboardingFeePerk2",
+  "onboardingFeePerk3",
+  "onboardingFeePerk4",
+] as const;
+
 export default function WalletOnboarding() {
   const tWallet = useTranslations("wallet");
   const { format: formatPrice } = usePriceFormat();
@@ -164,7 +171,14 @@ export default function WalletOnboarding() {
           display: flex;
           flex-direction: column;
           align-items: flex-start;
-          gap: 6px;
+          gap: 14px;
+        }
+
+        /* 23% y su lista de garantías, lado a lado. */
+        .commissionFigureRow {
+          display: flex;
+          align-items: center;
+          gap: 22px;
         }
 
         /* Ejemplo, a la derecha de la sección de comisión. */
@@ -220,17 +234,20 @@ export default function WalletOnboarding() {
           color: #ffffff;
         }
 
+        /* El tamaño y el estirado van en este span normal (styled-jsx no scopea
+           clases sobre el componente VibraGradientText); el degradado los hereda.
+           line-height holgado + padding evitan que background-clip:text corte el
+           número por abajo. */
         .commissionPct {
           display: inline-block;
           font-size: 92px;
-          line-height: 0.9;
+          line-height: 1.15;
           letter-spacing: -0.04em;
-          font-weight: 800;
-          color: #a855ff;
+          font-weight: 500;
+          padding-bottom: 0.12em;
           /* Estirado vertical: crece hacia arriba y abajo desde su centro. */
-          transform: scaleY(1.35);
+          transform: scaleY(1.3);
           transform-origin: left center;
-          margin-top: 12px;
         }
 
         @media (max-width: 900px) {
@@ -253,6 +270,13 @@ export default function WalletOnboarding() {
 
           .commissionPct {
             font-size: 72px;
+          }
+
+          /* En angosto el 23% no cabe junto a la lista: se apilan. */
+          .commissionFigureRow {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 18px;
           }
 
           .commissionRight {
@@ -348,7 +372,31 @@ export default function WalletOnboarding() {
       <section className="commission">
         <div className="commissionLeft">
           <h2 className="commissionTitle">{tWallet("onboardingCommissionTitle")}</h2>
-          <span className="commissionPct">{COMMISSION_PCT}%</span>
+
+          <div className="commissionFigureRow">
+            <span className="commissionPct">
+              <VibraGradientText>{COMMISSION_PCT}%</VibraGradientText>
+            </span>
+
+            <ul className="onboardingPerks">
+              {FEE_PERK_KEYS.map((key) => (
+                <li key={key} className="onboardingPerk">
+                  <span className="onboardingPerkCheck" aria-hidden="true">
+                    <svg viewBox="0 0 12 12" fill="none">
+                      <path
+                        d="M2 6.2 4.7 9 10 3.2"
+                        stroke="#a855ff"
+                        strokeWidth="1.6"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </span>
+                  {tWallet(key)}
+                </li>
+              ))}
+            </ul>
+          </div>
         </div>
 
         <div className="commissionRight">
