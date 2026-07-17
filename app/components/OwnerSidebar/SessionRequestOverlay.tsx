@@ -291,6 +291,11 @@ export default function SessionRequestOverlay({
   const [mounted, setMounted] = useState(false);
   const [visible, setVisible] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  // Espejo en ref del breakpoint: el efecto de reset del form NO debe depender
+  // de `isMobile` (si lo hace, al pasar de desktop→móvil tras montar re-resetea
+  // el horario a hoy-00:00 y rompe "confirmar" en celular). Se lee por ref donde
+  // hace falta (delay de cierre) sin meterlo en dependencias.
+  const isMobileRef = useRef(false);
   const [panelOffsetY, setPanelOffsetY] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const dragStart = useRef<{ y: number; offset: number } | null>(null);
@@ -342,7 +347,7 @@ export default function SessionRequestOverlay({
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
     const mq = window.matchMedia("(max-width: 900px)");
-    const sync = () => setIsMobile(mq.matches);
+    const sync = () => { isMobileRef.current = mq.matches; setIsMobile(mq.matches); };
     sync();
     if (typeof mq.addEventListener === "function") mq.addEventListener("change", sync);
     return () => { if (typeof mq.removeEventListener === "function") mq.removeEventListener("change", sync); };
@@ -366,11 +371,11 @@ export default function SessionRequestOverlay({
       setChatTtsState("idle");
       setChatTtsHighlight(null);
       setChatTtsIdx(null);
-      const delay = isMobile ? CLOSE_DELAY_MOBILE : CLOSE_DELAY_DESKTOP;
+      const delay = isMobileRef.current ? CLOSE_DELAY_MOBILE : CLOSE_DELAY_DESKTOP;
       const t = setTimeout(() => setVisible(false), delay);
       return () => clearTimeout(t);
     }
-  }, [open, isMobile, req]);
+  }, [open, req]);
 
   // Cleanup TTS on unmount
   useEffect(() => {
