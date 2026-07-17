@@ -127,11 +127,13 @@ export default function WalletLayout({
       <WalletDataContext.Provider value={walletData}>
         <div className="walletLayout">
           <div ref={headerRef} className="walletHeader">
-            <h1 className="walletTitle">Wallet</h1>
-            {/* Sin monetizar no hay pestañas que ofrecer: no existen datos que
-                ver en estadísticas, calendario, pendientes ni historial. */}
+            {/* En onboarding el encabezado "Wallet" y las pestañas se ocultan:
+                la wallet aún no es un panel sino una invitación a empezar. */}
             {monetizationLoaded && !showOnboarding ? (
-              <WalletSubNav activeTab={activeTab} />
+              <>
+                <h1 className="walletTitle">Wallet</h1>
+                <WalletSubNav activeTab={activeTab} />
+              </>
             ) : null}
           </div>
 
