@@ -183,13 +183,24 @@ function RoomContent({
   const [isEnding, setIsEnding] = useState(false);
   const joinCalledRef = useRef(false);
   const timerExpiredFiredRef = useRef(false);
+  const overlayOutFiredRef = useRef(false);
   const twoMinFiredRef = useRef(false);
   const expiryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
 
-  const cameraTracks = useTracks([Track.Source.Camera], { onlySubscribed: false });
+  // Gracia al llegar a 0: la llamada NO se corta de golpe. Se difumina y corre un
+  // contador de 10→0 al centro para que ambos sepan que SIGUE GRABANDO y no
+  // suelten algo indebido creyendo que ya terminó. A los 10s sí se cierra.
+  const [graceLeft, setGraceLeft] = useState<number | null>(null);
+
+  const allTracks = useTracks([Track.Source.Camera, Track.Source.ScreenShare], {
+    onlySubscribed: false,
+  });
+  const cameraTracks = allTracks.filter((t) => t.source === Track.Source.Camera);
   const localCameraTrack = cameraTracks.find((t) => t.participant.isLocal);
   const remoteCameraTrack = cameraTracks.find((t) => !t.participant.isLocal);
+  // Pantalla compartida: solo la publica el creador (ver botón más abajo).
+  const screenTrack = allTracks.find((t) => t.source === Track.Source.ScreenShare);
   const remoteConnected = participants.some((p) => !p.isLocal);
 
   // ── Contador pausable desde Firestore ─────────────────────────────────────
@@ -246,17 +257,25 @@ function RoomContent({
       twoMinFiredRef.current = true;
       onTwoMinWarning?.();
     }
+    // t=-5: avisamos a la GRABACIÓN que desvanezca el overlay de la esquina.
+    // No toca la sesión ni el contador; es solo cosmético en el archivo grabado.
+    if (!overlayOutFiredRef.current && remaining <= 5 && remaining > 0) {
+      overlayOutFiredRef.current = true;
+      callSignalSessionClosing({ sessionId, sessionType, phase: "overlay_out" }).catch(() => {});
+    }
     if (!timerExpiredFiredRef.current && remaining === 0) {
       timerExpiredFiredRef.current = true;
       // ⚠️ NO adelantar el cierre a t=0: eso quita el contador de la llamada en
       // vivo (ya rompió una vez). En t=0 SOLO se señala la grabación; el cierre
-      // real (endSession + onTimerExpired) va en el setTimeout de 5s de abajo. ⚠️
+      // real (endSession + onTimerExpired) va en el setTimeout de 10s de abajo. ⚠️
       // En t=0 solo señalamos el INICIO del cierre a la GRABACIÓN (para que su
-      // outro arranque ya: difuminado + Vibra + audio bajando). Esto NO toca la
-      // sesión: la videollamada y el contador de los participantes siguen intactos.
-      callSignalSessionClosing({ sessionId, sessionType }).catch(() => {});
-      // Gracia OCULTA de 5s: recién entonces finalizamos la sesión (status→completed)
-      // y cerramos la videollamada. Idempotente entre ambos participantes.
+      // outro arranque). Esto NO toca la sesión: la videollamada y el contador
+      // de los participantes siguen intactos durante la gracia.
+      callSignalSessionClosing({ sessionId, sessionType, phase: "closing" }).catch(() => {});
+      // Gracia VISIBLE de 10s: la llamada se difumina y corre el contador 10→0 al
+      // centro (aviso de que sigue grabando). Recién a los 10s finalizamos la
+      // sesión (status→completed) y cerramos. Idempotente entre ambos.
+      setGraceLeft(10);
       expiryTimeoutRef.current = setTimeout(() => {
         callEndSession({ sessionId, sessionType }).catch((e) =>
           console.error("endSession on expiry:", e)
@@ -266,9 +285,16 @@ function RoomContent({
         } else {
           onLeave();
         }
-      }, 5000);
+      }, 10000);
     }
   }, [remaining, timer, onTimerExpired, onTwoMinWarning, onLeave, sessionId, sessionType]);
+
+  // Cuenta regresiva visible de la gracia (10 → 0) mientras la llamada está borrosa.
+  useEffect(() => {
+    if (graceLeft == null || graceLeft <= 0) return;
+    const t = setTimeout(() => setGraceLeft((g) => (g != null ? g - 1 : null)), 1000);
+    return () => clearTimeout(t);
+  }, [graceLeft]);
 
   // Limpia la gracia de expiración solo al desmontar.
   useEffect(() => {
@@ -328,6 +354,26 @@ function RoomContent({
     localParticipant.setCameraEnabled(!isCameraEnabled);
   }, [localParticipant, isCameraEnabled]);
 
+  // ── Compartir pantalla ────────────────────────────────────────────────────
+  // Solo el CREADOR, y solo donde funciona de verdad: exigimos escritorio Y que
+  // getDisplayMedia exista. (Safari de iOS/iPadOS no lo soporta, y un iPad con
+  // teclado reporta "pointer: fine" — por eso no basta con detectar escritorio.)
+  const canShareScreen =
+    role === "creator" &&
+    !isMobile &&
+    typeof navigator !== "undefined" &&
+    typeof navigator.mediaDevices?.getDisplayMedia === "function";
+  const isSharingScreen = !!screenTrack?.participant.isLocal;
+
+  const toggleScreenShare = useCallback(async () => {
+    if (!canShareScreen) return;
+    try {
+      await localParticipant.setScreenShareEnabled(!isSharingScreen);
+    } catch {
+      // El usuario canceló el diálogo de selección de pantalla — no es un error.
+    }
+  }, [canShareScreen, localParticipant, isSharingScreen]);
+
   const isConnecting =
     connectionState === ConnectionState.Connecting ||
     connectionState === ConnectionState.Reconnecting;
@@ -336,28 +382,93 @@ function RoomContent({
   return (
     <div ref={rootRef} style={styles.root}>
 
-      {/* Video principal — llena todo el contenedor */}
-      {isConnecting ? (
-        <CenteredLabel>{tLive("connecting")}</CenteredLabel>
-      ) : !remoteConnected ? (
-        <CenteredLabel>
-          {role === "creator" ? tLive("waitingParticipant") : tLive("waitingCreator")}
-        </CenteredLabel>
-      ) : remoteCameraTrack ? (
-        <div style={{
+      {/* Video principal — llena todo el contenedor. Si el creador está
+          compartiendo pantalla, ésta toma el cuadro grande. Durante la gracia de
+          cierre (contador en 0) todo se difumina suavemente. */}
+      <div
+        style={{
           position: "absolute",
-          top: 0,
-          bottom: 0,
-          left: isMobile ? "env(safe-area-inset-left, 0px)" : 0,
-          right: isMobile ? "env(safe-area-inset-right, 0px)" : 0,
-        }}>
-          <VideoTrack
-            trackRef={remoteCameraTrack}
-            style={{ width: "100%", height: "100%", objectFit: "cover" }}
-          />
+          inset: 0,
+          filter: graceLeft != null ? "blur(16px)" : "none",
+          transform: graceLeft != null ? "scale(1.04)" : "none",
+          transition: "filter 1.2s ease, transform 1.2s ease",
+        }}
+      >
+        {isConnecting ? (
+          <CenteredLabel>{tLive("connecting")}</CenteredLabel>
+        ) : !remoteConnected ? (
+          <CenteredLabel>
+            {role === "creator" ? tLive("waitingParticipant") : tLive("waitingCreator")}
+          </CenteredLabel>
+        ) : screenTrack || remoteCameraTrack ? (
+          <div style={{
+            position: "absolute",
+            top: 0,
+            bottom: 0,
+            left: isMobile ? "env(safe-area-inset-left, 0px)" : 0,
+            right: isMobile ? "env(safe-area-inset-right, 0px)" : 0,
+          }}>
+            <VideoTrack
+              trackRef={(screenTrack ?? remoteCameraTrack)!}
+              style={{
+                width: "100%",
+                height: "100%",
+                objectFit: screenTrack ? "contain" : "cover",
+                background: screenTrack ? "#000" : undefined,
+              }}
+            />
+          </div>
+        ) : (
+          <CenteredLabel>{tLive("participantCameraOff")}</CenteredLabel>
+        )}
+
+        {/* Cámara del remoto en PiP extra cuando la pantalla ocupa el cuadro grande. */}
+        {screenTrack && remoteCameraTrack ? (
+          <div
+            style={{
+              position: "absolute",
+              left: isMobile ? "max(14px, env(safe-area-inset-left))" : 14,
+              bottom: isMobile ? "max(28px, env(safe-area-inset-bottom))" : 28,
+              width: "18%",
+              aspectRatio: "16 / 9",
+              borderRadius: 8,
+              overflow: "hidden",
+              border: "1.5px solid rgba(255,255,255,0.7)",
+              background: "#111",
+              zIndex: 3,
+            }}
+          >
+            <VideoTrack
+              trackRef={remoteCameraTrack}
+              style={{ width: "100%", height: "100%", objectFit: "cover" }}
+            />
+          </div>
+        ) : null}
+      </div>
+
+      {/* Gracia de cierre — contador 10→0 al centro. Avisa que SIGUE GRABANDO
+          para que nadie crea que ya terminó. Números normales, discretos. */}
+      {graceLeft != null && (
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            zIndex: 5,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 6,
+            pointerEvents: "none",
+          }}
+        >
+          <span style={{ fontSize: 13, fontWeight: 500, color: "rgba(255,255,255,0.75)", letterSpacing: "0.01em" }}>
+            {tLive("stillRecording")}
+          </span>
+          <span style={{ fontSize: 30, fontWeight: 600, color: "#fff", lineHeight: 1, fontVariantNumeric: "tabular-nums" }}>
+            {Math.max(0, graceLeft)}
+          </span>
         </div>
-      ) : (
-        <CenteredLabel>{tLive("participantCameraOff")}</CenteredLabel>
       )}
 
       {/* ⚠️ CONTADOR DE LA SESIÓN — NO ELIMINAR NI OCULTAR NUNCA ⚠️
@@ -366,7 +477,7 @@ function RoomContent({
           render, ni `remaining`, ni `timer`, ni la lógica que los alimenta
           (joinSession fija startedAt+timerRemainingMs; el webhook pausa/reanuda;
           la expiración en t=0 SOLO señala la grabación y el cierre real es en
-          t=5). Si un cambio parece requerir modificarlo, DETENERSE y preguntar. */}
+          t=10). Si un cambio parece requerir modificarlo, DETENERSE y preguntar. */}
       {/* Countdown — top center */}
       {remoteConnected && remaining != null && timer != null && (
         <div style={{
@@ -443,6 +554,23 @@ function RoomContent({
           <CamIcon />
           {!isCameraEnabled && <span style={styles.offBadge}><XSmall /></span>}
         </button>
+
+        {/* Compartir pantalla — solo el creador y solo donde funciona de verdad
+            (escritorio con getDisplayMedia). En iPhone/iPad no se renderiza. */}
+        {canShareScreen && (
+          <button
+            type="button"
+            onClick={toggleScreenShare}
+            aria-label={isSharingScreen ? "Dejar de compartir pantalla" : "Compartir pantalla"}
+            style={{ ...styles.iconButton, color: isSharingScreen ? "#a855ff" : undefined }}
+          >
+            <svg width={26} height={26} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <rect x="2" y="3" width="20" height="14" rx="2" />
+              <line x1="8" y1="21" x2="16" y2="21" />
+              <line x1="12" y1="17" x2="12" y2="21" />
+            </svg>
+          </button>
+        )}
 
         {/* Terminar sesión */}
         {onEndCallRequest ? (

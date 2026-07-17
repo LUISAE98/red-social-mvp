@@ -4,8 +4,10 @@ import { usePathname } from "next/navigation";
 import { useMemo, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import WalletSubNav, { type WalletTabKey } from "./components/WalletSubNav";
+import WalletOnboarding from "./components/WalletOnboarding";
 import { WalletDataContext } from "./components/WalletDataContext";
 import { useOwnerWalletData } from "@/lib/wallet/ownerWallet";
+import { useWalletVisibility } from "@/lib/wallet/useWalletVisibility";
 import { useAuth } from "@/app/providers";
 
 const TAB_ORDER: Record<WalletTabKey, number> = {
@@ -33,6 +35,13 @@ export default function WalletLayout({
 }) {
   const { user } = useAuth();
   const walletData = useOwnerWalletData(user?.uid);
+
+  // Mismo gate que la sección Wallet del rail derecho: sin servicios activos y
+  // sin ninguna solicitud histórica, la wallet no es un reporte sino una
+  // invitación a empezar. `loaded` evita decidir con datos a medias.
+  const { hasWallet: hasMonetization, loaded: monetizationLoaded } =
+    useWalletVisibility(user?.uid);
+  const showOnboarding = monetizationLoaded && !hasMonetization;
 
   const pathname = usePathname();
   const activeTab = pathToTab(pathname);
@@ -119,18 +128,26 @@ export default function WalletLayout({
         <div className="walletLayout">
           <div ref={headerRef} className="walletHeader">
             <h1 className="walletTitle">Wallet</h1>
-            <WalletSubNav activeTab={activeTab} />
+            {/* Sin monetizar no hay pestañas que ofrecer: no existen datos que
+                ver en estadísticas, calendario, pendientes ni historial. */}
+            {monetizationLoaded && !showOnboarding ? (
+              <WalletSubNav activeTab={activeTab} />
+            ) : null}
           </div>
 
           <div className="walletContent">
-            <motion.div
-              key={pathname}
-              initial={{ x: direction > 0 ? "100%" : direction < 0 ? "-100%" : 0 }}
-              animate={{ x: 0 }}
-              transition={{ type: "spring", stiffness: 320, damping: 32, mass: 0.9 }}
-            >
-              {children}
-            </motion.div>
+            {!monetizationLoaded ? null : showOnboarding ? (
+              <WalletOnboarding />
+            ) : (
+              <motion.div
+                key={pathname}
+                initial={{ x: direction > 0 ? "100%" : direction < 0 ? "-100%" : 0 }}
+                animate={{ x: 0 }}
+                transition={{ type: "spring", stiffness: 320, damping: 32, mass: 0.9 }}
+              >
+                {children}
+              </motion.div>
+            )}
           </div>
         </div>
       </WalletDataContext.Provider>

@@ -7,11 +7,6 @@ import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import LogoutButton from "@/app/LogoutButton";
 import BlockedAccountsOverlay from "./BlockedAccountsOverlay";
-import CategoryPillSelector from "@/app/components/CategorySelector/CategoryPillSelector";
-import {
-  GROUP_CATEGORY_LABELS,
-  type CanonicalGroupCategory,
-} from "@/types/group";
 
 type ProfileSettingsTabProps = {
   isSaving?: boolean;
@@ -33,10 +28,6 @@ type ProfileSettingsTabProps = {
   onUpdateDisplayName?: (nextName: string) => Promise<void> | void;
   bio?: string | null;
   onUpdateBio?: (nextBio: string) => Promise<void> | void;
-  interests?: CanonicalGroupCategory[] | null;
-  onUpdateInterests?: (
-    next: CanonicalGroupCategory[]
-  ) => Promise<void> | void;
   onSendPasswordReset?: () => Promise<void> | void;
 };
 
@@ -213,24 +204,17 @@ export default function ProfileSettingsTab({
   onUpdateDisplayName,
   bio = null,
   onUpdateBio,
-  interests = null,
-  onUpdateInterests,
   onSendPasswordReset,
 }: ProfileSettingsTabProps) {
   const [localRestricted, setLocalRestricted] = useState(isRestricted);
   const [localCommentsEnabled, setLocalCommentsEnabled] = useState(commentsEnabled);
   const [editNameOpen, setEditNameOpen] = useState(false);
   const [editBioOpen, setEditBioOpen] = useState(false);
-  const [editInterestsOpen, setEditInterestsOpen] = useState(false);
   const [blockedAccountsOpen, setBlockedAccountsOpen] = useState(false);
   const [draftName, setDraftName] = useState(displayName ?? "");
   const [draftBio, setDraftBio] = useState(bio ?? "");
-  const [draftInterests, setDraftInterests] = useState<CanonicalGroupCategory[]>(
-    interests ?? []
-  );
   const [savingName, setSavingName] = useState(false);
   const [savingBio, setSavingBio] = useState(false);
-  const [savingInterests, setSavingInterests] = useState(false);
   const [sendingPassword, setSendingPassword] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -358,35 +342,6 @@ export default function ProfileSettingsTab({
       setErr((error instanceof Error ? error.message : null) ?? tProfile("descriptionError"));
     } finally {
       setSavingBio(false);
-    }
-  }
-
-  function toggleDraftInterest(value: CanonicalGroupCategory) {
-    setDraftInterests((prev) =>
-      prev.includes(value)
-        ? prev.filter((item) => item !== value)
-        : [...prev, value]
-    );
-  }
-
-  async function handleSaveInterests() {
-    if (!onUpdateInterests) return;
-
-    setSavingInterests(true);
-    setMsg(null);
-    setErr(null);
-
-    try {
-      await onUpdateInterests(draftInterests);
-      setMsg(tProfile("interestsUpdated"));
-      setEditInterestsOpen(false);
-    } catch (error: unknown) {
-      setErr(
-        (error instanceof Error ? error.message : null) ??
-          tProfile("interestsError")
-      );
-    } finally {
-      setSavingInterests(false);
     }
   }
 
@@ -703,46 +658,6 @@ export default function ProfileSettingsTab({
           </div>
         )}
 
-        {onUpdateInterests && (
-          <div className="profile-setting-item" style={item}>
-            <div style={{ minWidth: 0 }}>
-              <div style={labelStyle}>{tProfile("interestsFieldLabel")}</div>
-              <div
-                style={{
-                  ...valueStyle,
-                  fontWeight: 400,
-                  color:
-                    interests && interests.length > 0
-                      ? "rgba(255,255,255,0.82)"
-                      : "rgba(255,255,255,0.38)",
-                  whiteSpace: "normal",
-                  wordBreak: "break-word",
-                }}
-              >
-                {interests && interests.length > 0
-                  ? interests
-                      .map((value) => GROUP_CATEGORY_LABELS[value] ?? value)
-                      .join(" · ")
-                  : tProfile("interestsEmpty")}
-              </div>
-            </div>
-
-            <button
-              className="profile-setting-button"
-              type="button"
-              style={buttonStyle}
-              onClick={() => {
-                setErr(null);
-                setMsg(null);
-                setDraftInterests(interests ?? []);
-                setEditInterestsOpen(true);
-              }}
-            >
-              {tProfile("editLabel")}
-            </button>
-          </div>
-        )}
-
         <div className="profile-setting-item" style={item}>
           <div>
             <div style={labelStyle}>{tProfile("usernameFieldLabel")}</div>
@@ -946,71 +861,6 @@ export default function ProfileSettingsTab({
               }}
             >
               {savingBio ? (
-                <>
-                  <SpinningGear /> {tCommon("saving")}
-                </>
-              ) : (
-                tCommon("save")
-              )}
-            </button>
-          </div>
-        </div>
-      </FullScreenModal>
-
-      <FullScreenModal
-        open={editInterestsOpen}
-        onClose={() => !savingInterests && setEditInterestsOpen(false)}
-      >
-        <div style={modalCard} onClick={(e) => e.stopPropagation()}>
-          <strong style={{ fontSize: 16, color: "#fff", lineHeight: 1.2 }}>
-            {tProfile("interestsFieldLabel")}
-          </strong>
-
-          <div
-            style={{
-              fontSize: 13,
-              color: "rgba(255,255,255,0.55)",
-              lineHeight: 1.5,
-            }}
-          >
-            {tProfile("interestsHelp")}
-          </div>
-
-          <CategoryPillSelector
-            selected={draftInterests}
-            onToggle={toggleDraftInterest}
-            disabled={savingInterests}
-          />
-
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-            <button
-              type="button"
-              onClick={() => !savingInterests && setEditInterestsOpen(false)}
-              disabled={savingInterests}
-              style={{
-                ...buttonStyle,
-                flex: "1 1 140px",
-                opacity: savingInterests ? 0.7 : 1,
-                cursor: savingInterests ? "not-allowed" : "pointer",
-              }}
-            >
-              {tCommon("cancel")}
-            </button>
-
-            <button
-              type="button"
-              onClick={handleSaveInterests}
-              disabled={savingInterests}
-              style={{
-                ...buttonStyle,
-                flex: "1 1 160px",
-                background: savingInterests ? "rgba(255,255,255,0.16)" : "#fff",
-                color: savingInterests ? "#fff" : "#000",
-                opacity: savingInterests ? 0.8 : 1,
-                cursor: savingInterests ? "not-allowed" : "pointer",
-              }}
-            >
-              {savingInterests ? (
                 <>
                   <SpinningGear /> {tCommon("saving")}
                 </>

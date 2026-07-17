@@ -6,7 +6,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
-import { usePathname, useRouter } from "@/i18n/navigation";
+import { usePathname, useRouter, Link as LocaleLink } from "@/i18n/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import VibraSavedPostIcon from "@/app/components/VibraServiceIcons/VibraSavedPostIcon";
 import { useAuth } from "@/app/providers";
@@ -16,8 +16,10 @@ import CurrencySwitcher from "@/app/components/CurrencySwitcher";
 import MobileBottomNav from "@/app/components/MobileBottomNav";
 import GroupsSearchPanel from "@/app/components/SearchToolbar/GroupsSearchPanel";
 import { useWalletVisibility } from "@/lib/wallet/useWalletVisibility";
+import { useWalletFinances, selectFinanceView } from "@/lib/wallet/walletFinances";
+import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import { useMobileHeaderFade } from "@/app/hooks/useMobileHeaderFade";
-import { VibraNavigationIcon } from "@/app/components/VibraServiceIcons/VibraNavigationIcons";
+import { VibraNavigationIcon, VibraNavigationIconsStyles } from "@/app/components/VibraServiceIcons/VibraNavigationIcons";
 import WalletDesktopRail from "@/app/components/WalletDesktopRail/WalletDesktopRail";
 import { MobileHeaderCtx, type MobileHeaderData } from "@/app/contexts/MobileHeaderContext";
 import { consumeNavSlideDir } from "@/lib/nav-slide";
@@ -76,7 +78,18 @@ function AuthenticatedGroupsShell({
   const { user } = useAuth();
 
 const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
-const { hasWallet: showWalletRail } = useWalletVisibility(user?.uid);
+// Solo el rail derecho se condiciona a monetizar (servicios activos en perfil o
+// comunidad, o alguna solicitud histórica). El header y el nav móvil siguen
+// mostrando la wallet a cualquier usuario con sesión.
+const { hasWallet: hasMonetization } = useWalletVisibility(user?.uid);
+// Mismo dato que el rail ("Disponible"): useWalletFinances comparte listener y
+// caché, así que no abre una segunda suscripción a Firestore.
+const { summary: walletSummary, loading: walletLoading } = useWalletFinances(user?.uid);
+const { format: formatPrice } = usePriceFormat();
+const walletAvailable = selectFinanceView(walletSummary, "net").available;
+// Sin saldo (o aún cargando) no se pinta el monto: el icono queda solo y así
+// alinea a la misma altura que el de notificaciones.
+const showWalletAmount = !walletLoading && walletAvailable > 0;
 const { headerRef, safeAreaRef } = useMobileHeaderFade();
 const mainInnerRef = useRef<HTMLDivElement>(null);
 const pendingAnimDirRef = useRef<"left" | "right" | null>(null);
@@ -278,6 +291,62 @@ const contentAreaClassName = isEmbed
           display: flex;
           align-items: center;
           justify-content: flex-end;
+        }
+
+        /* Accesos rápidos (notificaciones / wallet), junto al switch de monedas.
+           margin-right los despega un poco de él, corriéndolos a la izquierda. */
+        .desktopHeaderQuickLinks {
+          display: flex;
+          align-items: center;
+          gap: 18px;
+          margin-right: 28px;
+          flex: 0 0 auto;
+        }
+
+        /* Anclado en el div (styled-jsx no scopea clases sobre componentes como
+           Link) y bajando con :global hasta el <a>. */
+        .desktopHeaderQuickLinks :global(.desktopActionIcon) {
+          height: 38px;
+          padding: 0 6px;
+          border-radius: 8px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 7px;
+          flex: 0 0 auto;
+          opacity: 0.8;
+          transition: opacity 140ms ease, background 140ms ease;
+        }
+
+        /* La wallet apila icono arriba + monto abajo */
+        .desktopHeaderQuickLinks :global(.desktopWalletLink) {
+          flex-direction: column;
+          gap: 2px;
+        }
+
+        /* Monto disponible para retirar, debajo del icono de wallet */
+        .desktopHeaderQuickLinks :global(.desktopWalletAmount) {
+          font-size: 11px;
+          font-weight: 700;
+          line-height: 1;
+          letter-spacing: -0.01em;
+          color: #22c55e;
+          white-space: nowrap;
+        }
+
+        /* Los iconos del set Vibra traen el trazo morado de marca; en el header
+           van en blanco. El CSS gana sobre el atributo stroke del SVG. */
+        .desktopHeaderQuickLinks :global(.desktopActionIcon svg path) {
+          stroke: #ffffff;
+        }
+
+        .desktopHeaderQuickLinks :global(.desktopActionIcon:hover) {
+          opacity: 1;
+          background: rgba(255, 255, 255, 0.10);
+        }
+
+        .desktopHeaderQuickLinks :global(.desktopActionIconActive) {
+          opacity: 1;
         }
 
         .mobileSearchRow {
@@ -710,9 +779,46 @@ const contentAreaClassName = isEmbed
                     createGroupHref="/groups/new"
                   />
                 </div>
+
               </div>
 
               <div className="desktopHeaderActions">
+                <VibraNavigationIconsStyles />
+
+                {user ? (
+                  <div className="desktopHeaderQuickLinks">
+                    {/* LocaleLink (no next/link): arma el prefijo de idioma y
+                        navega del lado del cliente, sin redirect del middleware. */}
+                    <LocaleLink
+                      href="/notifications"
+                      aria-label={tNav("notifications")}
+                      className={[
+                        "desktopActionIcon",
+                        pathname.startsWith("/notifications") ? "desktopActionIconActive" : "",
+                      ].filter(Boolean).join(" ")}
+                    >
+                      <VibraNavigationIcon type="notifications" size={22} strokeWidth={2.2} />
+                    </LocaleLink>
+
+                    <LocaleLink
+                      href="/wallet/finanzas"
+                      aria-label={tNav("wallet")}
+                      className={[
+                        "desktopActionIcon",
+                        "desktopWalletLink",
+                        pathname.startsWith("/wallet") ? "desktopActionIconActive" : "",
+                      ].filter(Boolean).join(" ")}
+                    >
+                      <VibraNavigationIcon type="wallet" size={22} strokeWidth={2.2} />
+                      {showWalletAmount ? (
+                        <span className="desktopWalletAmount">
+                          {formatPrice(walletAvailable)}
+                        </span>
+                      ) : null}
+                    </LocaleLink>
+                  </div>
+                ) : null}
+
                 <CurrencySwitcher variant="desktop" />
                 <LanguageSwitcher variant="desktop" />
               </div>
@@ -787,13 +893,13 @@ const contentAreaClassName = isEmbed
             <div className="walletCol">
               <WalletDesktopRail
                 activePath={pathname}
-                showWallet={showWalletRail}
+                showWallet={hasMonetization}
               />
             </div>
           )}
         </div>
 
-       {!isEmbed && <MobileBottomNav showWallet={showWalletRail} />}
+       {!isEmbed && <MobileBottomNav showWallet={!!user} />}
       </div>
 
        {/* Búsqueda móvil: página completa negra que entra deslizándose de derecha

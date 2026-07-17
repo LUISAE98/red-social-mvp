@@ -22,7 +22,7 @@ const plusJakarta = Plus_Jakarta_Sans({
 
 // Collage de fondo del splash — mismo set que el login, desde lib/collage.
 // Se genera estático aquí porque el splash se pinta antes de hidratar React.
-const SPLASH_TILES = buildCollageTiles(50);
+const SPLASH_TILES = buildCollageTiles();
 
 export const metadata: Metadata = {
   title: "Vibra",
@@ -98,13 +98,18 @@ export default async function RootLayout({
                 place-items: center;
               }
 
+              /* Laptop: 6 columnas. El set reciclado embaldosa sin huecos a 6 (y
+                 a 3 en celular); verificado — a 4, 5, 7 y 8 sí deja huecos.
+                 Sin "dense": rompería el embaldosado. */
               .splash-collage-grid {
                 display: grid;
                 grid-template-columns: repeat(6, 1fr);
-                grid-auto-flow: row dense;
                 gap: 16px;
                 width: 150vw;
-                transform: rotateX(15deg) rotateZ(-11deg) scale(1.08);
+                /* translateX: la rotación -11deg hunde la esquina superior
+                   derecha y dejaba ese lado descubierto, con la izquierda de
+                   sobra. Se corre el mosaico a la derecha para repartirlo. */
+                transform: translateX(9vw) rotateX(15deg) rotateZ(-11deg) scale(1.08);
                 filter: saturate(1.02);
               }
 
@@ -223,12 +228,23 @@ export default async function RootLayout({
                 }
               }
 
+              /* Celular (vertical): 3 columnas. El set reciclado también
+                 embaldosa sin huecos a 3. */
               @media (max-width: 900px) {
                 .splash-collage-grid {
-                  grid-template-columns: repeat(6, 1fr);
-                  width: 240vw;
+                  grid-template-columns: repeat(3, 1fr);
+                  /* El ancho manda el zoom: con 3 columnas cada tile mide
+                     ancho/3. Por debajo de ~130vw la cuadrícula se vuelve más
+                     angosta que lo que la rotación necesita y reaparece el
+                     espacio muerto a la derecha. */
+                  width: 148.5vw;
                   gap: 10px;
-                  transform: rotateX(12deg) rotateZ(-9deg) scale(1.12);
+                  transform: translateX(8vw) rotateX(12deg) rotateZ(-9deg) scale(1.12);
+                }
+
+                /* Espejo horizontal sólo en celular (ver flipMobile en lib/collage). */
+                .splash-tile.is-flip-mobile img {
+                  transform: scaleX(-1);
                 }
               }
             `,
@@ -256,7 +272,9 @@ export default async function RootLayout({
                 {SPLASH_TILES.map((tile, i) => (
                   <div
                     key={i}
-                    className={`splash-tile${tile.wide ? " is-wide" : ""}`}
+                    className={`splash-tile${tile.wide ? " is-wide" : ""}${
+                      tile.flipMobile ? " is-flip-mobile" : ""
+                    }`}
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={`/${tile.src}.webp`} alt="" />

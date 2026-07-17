@@ -393,14 +393,18 @@ export const endSession = onCall(
 );
 
 // ── signalSessionClosing ──────────────────────────────────────────────────────
-// Señala el INICIO del cierre (el contador llegó a 0) para que la plantilla de
-// grabación arranque su outro en t=0. NO cambia el estado de la sesión: la
-// videollamada de los participantes sigue con su gracia de 5s intacta.
+// Señala fases del cierre a la PLANTILLA DE GRABACIÓN vía metadata de la sala.
+// NO cambia el estado de la sesión: la videollamada de los participantes sigue
+// con su gracia intacta (ver ⚠️ del contador en LiveKitVideoRoom).
+//   · phase "overlay_out" (t=-5): la plantilla desvanece el overlay de la esquina.
+//   · phase "closing"     (t=0):  la plantilla arranca su outro de 10s.
+// La metadata es acumulativa: "closing" conserva overlayOut para que la plantilla
+// no revierta el desvanecido si vuelve a leer la metadata.
 export const signalSessionClosing = onCall(
   { region: REGION, secrets: ALL_SECRETS },
   async (request) => {
     const uid = requireAuth(request.auth?.uid);
-    const { sessionId, sessionType } = request.data ?? {};
+    const { sessionId, sessionType, phase } = request.data ?? {};
 
     if (typeof sessionId !== "string" || !sessionId.trim()) {
       throw new HttpsError("invalid-argument", "sessionId es requerido.");
@@ -417,14 +421,23 @@ export const signalSessionClosing = onCall(
       throw new HttpsError("permission-denied", "No tienes acceso a esta sesión.");
     }
 
+    const overlayOutOnly = phase === "overlay_out";
+    const metadata = overlayOutOnly
+      ? { overlayOut: true }
+      : { overlayOut: true, closing: true };
+
     if (livekitEgressId && recordingStatus === "recording" && roomName) {
       try {
         await createRoomServiceClient().updateRoomMetadata(
           roomName as string,
-          JSON.stringify({ closing: true })
+          JSON.stringify(metadata)
         );
       } catch (err: unknown) {
-        logger.warn("signal_session_closing_failed", { sessionId: cleanId, err: String(err) });
+        logger.warn("signal_session_closing_failed", {
+          sessionId: cleanId,
+          phase: overlayOutOnly ? "overlay_out" : "closing",
+          err: String(err),
+        });
       }
     }
 

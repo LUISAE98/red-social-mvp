@@ -7,6 +7,8 @@ export type VibraNavigationIconType =
   | "home"
   | "search"
   | "saved"
+  | "wallet"
+  | "notifications"
   | "finance"
   | "coin"
   | "calendar"
@@ -45,6 +47,27 @@ const NAVIGATION_ICON_CONFIG: Record<
         <path stroke={gradientStroke} d="M3.5 11.2 12 4l8.5 7.2" />
         <path stroke={gradientStroke} d="M5.8 10.2V20h12.4v-9.8" />
         <path stroke={gradientStroke} d="M9.5 20v-5.8h5V20" />
+      </svg>
+    ),
+  },
+
+  wallet: {
+    label: "Wallet",
+    icon: (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path stroke={gradientStroke} d="M20 12V7H5a2 2 0 0 1 0-4h13v4" />
+        <path stroke={gradientStroke} d="M3 5v13a2 2 0 0 0 2 2h15v-5" />
+        <path stroke={gradientStroke} d="M17 12a2 2 0 0 0 0 4h3v-4Z" />
+      </svg>
+    ),
+  },
+
+  notifications: {
+    label: "Notificaciones",
+    icon: (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path stroke={gradientStroke} d="M6 8a6 6 0 0 1 12 0c0 6 3 8 3 8H3s3-2 3-8" />
+        <path stroke={gradientStroke} d="M10.3 20a1.94 1.94 0 0 0 3.4 0" />
       </svg>
     ),
   },
@@ -480,6 +503,8 @@ export function VibraNavigationIcon({
       case "home": return tNav("home");
       case "search": return tCommon("search");
       case "saved": return tNav("saved");
+      case "wallet": return tNav("wallet");
+      case "notifications": return tNav("notifications");
       case "finance": return tNav("finances");
       case "calendar": return tNav("calendar");
       case "pending": return tNav("pending");

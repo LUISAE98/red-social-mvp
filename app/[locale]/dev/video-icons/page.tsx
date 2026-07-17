@@ -1,6 +1,19 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import SessionIntro from "@/app/[locale]/egress/session/SessionIntro";
+import SessionOutro, { type OutroMode } from "@/app/[locale]/egress/session/SessionOutro";
+import {
+  GroupCategoryPill,
+  CelebrationBurst,
+  celebTimings,
+  INTEREST_GRID_MIN_COL,
+  INTEREST_GRID_GAP,
+  INTEREST_SLIDE_VARIANTS,
+} from "@/app/components/GroupRecommendations/GroupRecommendationsRail";
+import { GROUP_CATEGORY_OPTIONS, type CanonicalGroupCategory } from "@/types/group";
+import { motion, AnimatePresence } from "framer-motion";
+import { useTranslations } from "next-intl";
 import {
   VideoSpeedIcon,
   VideoLiveBadge,
@@ -541,10 +554,282 @@ function SessionOverlayBadge({
   );
 }
 
+// Sandbox del onboarding de intereses: misma UI que el rail
+// (GroupRecommendationsRail), pero con estado local — no lee ni escribe Firestore
+// y "Continuar" solo dispara la celebración. Las piezas visuales (GroupCategoryPill,
+// iconos, imágenes, medidas del grid) se importan del rail, así que lo que se ve
+// aquí es lo que se renderiza en producción.
+function InterestsOnboardingSandbox() {
+  const tGroups = useTranslations("groups");
+  const tCommon = useTranslations("common");
+
+  const [selectedCategories, setSelectedCategories] = useState<CanonicalGroupCategory[]>([]);
+  const [interestsPage, setInterestsPage] = useState(0);
+  const [interestsDirection, setInterestsDirection] = useState(0);
+  const [celebrating, setCelebrating] = useState(false);
+  const [interestsGridEl, setInterestsGridEl] = useState<HTMLDivElement | null>(null);
+  const [interestsColumns, setInterestsColumns] = useState(4);
+  const [interestsContainerWidth, setInterestsContainerWidth] = useState(0);
+
+  const minCategories = 1;
+
+  const toggleCategory = (value: CanonicalGroupCategory) =>
+    setSelectedCategories((prev) =>
+      prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value]
+    );
+
+  // Mide cuántas columnas caben en el grid para paginar en renglones completos.
+  useEffect(() => {
+    if (!interestsGridEl || typeof ResizeObserver === "undefined") return;
+    const compute = () => {
+      const w = interestsGridEl.clientWidth;
+      if (w <= 0) return;
+      const cols = Math.max(
+        1,
+        Math.floor((w + INTEREST_GRID_GAP) / (INTEREST_GRID_MIN_COL + INTEREST_GRID_GAP))
+      );
+      setInterestsColumns(cols);
+      setInterestsContainerWidth(w);
+    };
+    compute();
+    const ro = new ResizeObserver(compute);
+    ro.observe(interestsGridEl);
+    return () => ro.disconnect();
+  }, [interestsGridEl]);
+
+  const interestsPerPage = Math.max(1, interestsColumns * 2);
+  const interestPageCount = Math.ceil(GROUP_CATEGORY_OPTIONS.length / interestsPerPage);
+  const interestPage = Math.min(interestsPage, Math.max(0, interestPageCount - 1));
+  const interestPageOptions = GROUP_CATEGORY_OPTIONS.slice(
+    interestPage * interestsPerPage,
+    (interestPage + 1) * interestsPerPage
+  );
+  const isLastInterestPage = interestPage >= interestPageCount - 1;
+
+  const interestRows = Math.max(1, Math.ceil(interestPageOptions.length / interestsColumns));
+  const interestColWidth =
+    interestsContainerWidth > 0
+      ? (interestsContainerWidth - (interestsColumns - 1) * INTEREST_GRID_GAP) / interestsColumns
+      : 0;
+  const interestsGridHeight =
+    interestColWidth > 0
+      ? interestRows * interestColWidth + (interestRows - 1) * INTEREST_GRID_GAP
+      : undefined;
+
+  const reset = () => {
+    setCelebrating(false);
+    setSelectedCategories([]);
+    setInterestsPage(0);
+    setInterestsDirection(0);
+  };
+
+  const selectedOptions = useMemo(
+    () => GROUP_CATEGORY_OPTIONS.filter((o) => selectedCategories.includes(o.value)),
+    [selectedCategories]
+  );
+
+  // El área de la celebración conserva el alto del grid para que nada salte al
+  // entrar; si aún no se midió, un alto razonable de respaldo.
+  const celebHeight = interestsGridHeight ?? 300;
+
+  // El texto y los botones se van justo cuando empiezan a salir los avatares.
+  const chromeFade = celebrating
+    ? { delay: celebTimings(selectedOptions.length).outStart, duration: 0.55, ease: "easeOut" as const }
+    : { duration: 0.2 };
+
+  const gradientBtn = (enabled: boolean): React.CSSProperties => ({
+    marginLeft: "auto",
+    border: "none",
+    borderRadius: 10,
+    padding: "7px 32px",
+    fontWeight: 600,
+    fontSize: 14,
+    letterSpacing: "-0.01em",
+    color: enabled ? "#fff" : "rgba(255,255,255,0.6)",
+    backgroundColor: enabled ? "transparent" : "rgba(255,255,255,0.16)",
+    backgroundImage: enabled
+      ? "linear-gradient(100deg, #ff2fb3 0%, #a855ff 35%, #4f46ff 70%, #ff2fb3 100%)"
+      : "none",
+    backgroundSize: "280% 280%",
+    backgroundPosition: "0% 50%",
+    boxShadow: enabled ? "0 10px 28px rgba(168,85,255,0.22)" : "none",
+    cursor: enabled ? "pointer" : "default",
+    overflow: "hidden",
+    fontFamily: "inherit",
+  });
+
+  return (
+    <>
+      <motion.div initial={false} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        <style>{`
+          .vibInterestsGradient {
+            background: linear-gradient(100deg, #ff2fb3 0%, #a855ff 45%, #4f46ff 100%);
+            background-size: 220% 220%;
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            animation: vibInterestsFlow 4.5s ease-in-out infinite;
+          }
+          @keyframes vibInterestsFlow {
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+          }
+          .vibCatIcon { will-change: transform; }
+          .vibCatCard:hover .vibCatIcon { transform: scale(1.08); }
+        `}</style>
+
+        <motion.div
+          initial={false}
+          animate={celebrating ? { opacity: 0, y: -6 } : { opacity: 1, y: 0 }}
+          transition={chromeFade}
+          style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, textAlign: "center" }}
+        >
+          <span style={{ fontSize: 13, fontWeight: 600, color: "#a855ff", letterSpacing: "0.01em" }}>
+            {tGroups("interestsIntro")}
+          </span>
+          <span style={{ fontSize: 26.4, fontWeight: 665, lineHeight: 1.15, color: "#fff" }}>
+            {tGroups("interestsTitlePre")}{" "}
+            <span className="vibInterestsGradient" style={{ fontWeight: 740 }}>
+              {tGroups("interestsTitleHighlight")}
+            </span>
+          </span>
+          <span style={{ fontSize: 13, fontWeight: 400, color: "rgba(255,255,255,0.6)" }}>
+            {tGroups("interestsSubtitle")}
+          </span>
+          <span style={{ fontSize: 12, fontWeight: 400, color: "rgba(255,255,255,0.45)" }}>
+            {tGroups("interestsFootnote")}
+          </span>
+          <span style={{ fontSize: 11, fontWeight: 500, color: "rgba(168,85,255,0.55)" }}>
+            {tGroups("interestsMinHint")}
+          </span>
+        </motion.div>
+
+        {celebrating ? (
+          <CelebrationBurst
+            categories={selectedOptions}
+            width={interestsContainerWidth}
+            height={celebHeight}
+          />
+        ) : (
+            <motion.div
+              ref={setInterestsGridEl}
+              animate={{ height: interestsGridHeight ?? "auto" }}
+              transition={{ height: { duration: 0.42, ease: [0.22, 1, 0.36, 1] } }}
+              style={{ position: "relative", width: "100%", overflow: "hidden" }}
+            >
+              <AnimatePresence initial={false} custom={interestsDirection} mode="popLayout">
+                <motion.div
+                  key={interestPage}
+                  custom={interestsDirection}
+                  variants={INTEREST_SLIDE_VARIANTS}
+                  initial="enter"
+                  animate="center"
+                  exit="exit"
+                  transition={{
+                    x: { type: "tween", ease: [0.22, 1, 0.36, 1], duration: 0.4 },
+                    opacity: { duration: 0.25 },
+                  }}
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: `repeat(auto-fill, minmax(${INTEREST_GRID_MIN_COL}px, 1fr))`,
+                    gap: INTEREST_GRID_GAP,
+                    width: "100%",
+                  }}
+                >
+                  {interestPageOptions.map((option) => (
+                    <GroupCategoryPill
+                      key={option.value}
+                      label={option.label}
+                      category={option.value}
+                      selected={selectedCategories.includes(option.value)}
+                      onToggle={() => toggleCategory(option.value)}
+                    />
+                  ))}
+                </motion.div>
+              </AnimatePresence>
+            </motion.div>
+        )}
+
+        <motion.div
+          initial={false}
+          animate={celebrating ? { opacity: 0, y: -6 } : { opacity: 1, y: 0 }}
+          transition={chromeFade}
+          style={{
+            display: "flex",
+            gap: 12,
+            flexWrap: "wrap",
+            alignItems: "center",
+            justifyContent: "center",
+            pointerEvents: celebrating ? "none" : "auto",
+          }}
+        >
+              {interestPage > 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setInterestsDirection(-1);
+                    setInterestsPage(interestPage - 1);
+                  }}
+                  style={{
+                    border: "none",
+                    background: "transparent",
+                    padding: 0,
+                    color: "#a855ff",
+                    fontSize: 13,
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    fontFamily: "inherit",
+                  }}
+                >
+                  {tGroups("interestsGoBack")}
+                </button>
+              )}
+
+              {isLastInterestPage ? (
+                <button
+                  type="button"
+                  onClick={() => setCelebrating(true)}
+                  disabled={selectedCategories.length < minCategories}
+                  style={gradientBtn(selectedCategories.length >= minCategories)}
+                >
+                  {tCommon("continue")}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setInterestsDirection(1);
+                    setInterestsPage(interestPage + 1);
+                  }}
+                  style={gradientBtn(true)}
+                >
+                  {tCommon("next")}
+                </button>
+              )}
+        </motion.div>
+      </motion.div>
+
+      <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", marginTop: 18 }}>
+        <TriggerBtn label="Reiniciar" onClick={reset} />
+        <span style={{ color: "rgba(255,255,255,0.32)", fontSize: 12 }}>
+          Página {interestPage + 1}/{interestPageCount} · {interestsColumns} columnas ·{" "}
+          {selectedCategories.length} seleccionados
+        </span>
+      </div>
+    </>
+  );
+}
+
 export default function VideoIconsPreview() {
   const [elapsed, setElapsed] = useState(0);
   // Cambiar esta key re-monta el bloque y vuelve a disparar la animación de entrada.
   const [animKey, setAnimKey] = useState(0);
+  // Preview del intro de la grabación (mismo componente que la plantilla real).
+  const [introKey, setIntroKey] = useState(0);
+  const [introName, setIntroName] = useState("Nombre del creador");
+  // Preview del cierre de la grabación (mismo componente que la plantilla real).
+  const [outroKey, setOutroKey] = useState(0);
+  const [outroMode, setOutroMode] = useState<OutroMode>(null);
   useEffect(() => {
     const id = setInterval(() => setElapsed((t) => t + 1), 1000);
     return () => clearInterval(id);
@@ -706,19 +991,185 @@ export default function VideoIconsPreview() {
       </div>
 
       {/* ══════════════════════════════════════════════════════════════════════ */}
-      {/* OVERLAY REAL DE LA SESIÓN — tamaño real (1:1) sobre cuadro 1920×1080    */}
+      {/* SELECCIONADOR DE INTERESES — el componente real, con estado local      */}
       {/* ══════════════════════════════════════════════════════════════════════ */}
       <h2 style={{ color: "#fff", fontSize: 16, fontWeight: 700, margin: "0 0 4px" }}>
-        Overlay de la sesión — tamaño real (1:1 sobre cuadro 1920×1080)
+        Seleccionador de intereses — onboarding del rail
+      </h2>
+      <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 13, marginBottom: 16, lineHeight: 1.6 }}>
+        Las mismas piezas que se renderizan en el feed (<code>GroupCategoryPill</code>, iconos, imágenes y
+        medidas del grid se importan de <code>GroupRecommendationsRail</code>), con estado local: no lee ni
+        escribe Firestore y &quot;Continuar&quot; solo dispara la celebración.
+        <br />
+        El ancho del contenedor decide las columnas y por lo tanto la paginación (2 renglones por página):
+        angosta la ventana para ver cómo se repagina.
+      </p>
+
+      <div style={{ maxWidth: 720, marginBottom: 56 }}>
+        <InterestsOnboardingSandbox />
+      </div>
+
+      {/* ══════════════════════════════════════════════════════════════════════ */}
+      {/* INTRO DE LA GRABACIÓN — cuadro 1920×1080 completo, a escala            */}
+      {/* ══════════════════════════════════════════════════════════════════════ */}
+      <h2 style={{ color: "#fff", fontSize: 16, fontWeight: 700, margin: "0 0 4px" }}>
+        Intro de la grabación — cuadro 1920×1080 completo
       </h2>
       <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 13, marginBottom: 12, lineHeight: 1.6 }}>
-        Exactamente lo que se hornea en la grabación. Desplázate dentro del recuadro para ver el cuadro completo.
+        El mismo componente que se hornea en la grabación real (<code>SessionIntro</code>), escalado para verlo entero.
         <br />
-        Medidas reales (px): esquina 34 · avatar Ø104 · aro 7 · hueco transparente 5 · nombre 37/700 · servicio 27/500.
+        0.3s título · 1.3s &quot;Tu momento con…&quot; · 2.0s avatar (pop) · 2.4s el aro se carga (1.7s) · 2.7s vibraon.com · 4.4s todo se desvanece y sube el audio · 6.2s queda la sesión.
       </p>
-      <div style={{ overflow: "auto", maxWidth: "100%", maxHeight: 560, border: "1px solid rgba(255,255,255,0.10)", borderRadius: 12, marginBottom: 56 }}>
-        <div style={{ position: "relative", width: 1920, height: 1080, background: "linear-gradient(135deg, #334155 0%, #0f172a 100%)" }}>
-          <SessionOverlayBadge avatarUrl={null} name="Nombre del creador" type="meet_greet" />
+
+      <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 12, flexWrap: "wrap" }}>
+        <button
+          type="button"
+          onClick={() => setIntroKey((k) => k + 1)}
+          style={{
+            border: "1px solid rgba(255,255,255,0.16)",
+            background: "rgba(255,255,255,0.06)",
+            color: "rgba(255,255,255,0.85)",
+            borderRadius: 999,
+            padding: "8px 18px",
+            fontSize: 13,
+            fontWeight: 600,
+            cursor: "pointer",
+            fontFamily: "inherit",
+          }}
+        >
+          Repetir intro
+        </button>
+        <label style={{ display: "flex", alignItems: "center", gap: 8, color: "rgba(255,255,255,0.6)", fontSize: 13 }}>
+          Nombre del creador:
+          <input
+            value={introName}
+            onChange={(e) => setIntroName(e.target.value)}
+            style={{
+              background: "rgba(255,255,255,0.06)",
+              border: "1px solid rgba(255,255,255,0.14)",
+              borderRadius: 8,
+              padding: "6px 10px",
+              color: "#fff",
+              fontSize: 13,
+              fontFamily: "inherit",
+              outline: "none",
+            }}
+          />
+        </label>
+        <span style={{ color: "rgba(255,255,255,0.32)", fontSize: 12 }}>
+          Tras el intro queda transparente: en la grabación real ahí está la sesión.
+        </span>
+      </div>
+
+      {/* Cuadro 1920×1080 escalado a 960×540 (50%) para verlo completo. El
+          contenido interno conserva sus px reales de 1080p. */}
+      <div
+        style={{
+          width: 960,
+          height: 540,
+          maxWidth: "100%",
+          border: "1px solid rgba(255,255,255,0.10)",
+          borderRadius: 12,
+          overflow: "hidden",
+          marginBottom: 56,
+          background: "linear-gradient(135deg, #334155 0%, #0f172a 100%)",
+        }}
+      >
+        <div
+          style={{
+            position: "relative",
+            width: 1920,
+            height: 1080,
+            transform: "scale(0.5)",
+            transformOrigin: "top left",
+          }}
+        >
+          {/* Marcador de "la sesión" que queda debajo del intro */}
+          <div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", color: "rgba(255,255,255,0.22)", fontSize: 44, fontWeight: 700 }}>
+            (aquí va la sesión)
+          </div>
+          <SessionIntro key={introKey} avatarUrl={null} name={introName} />
+        </div>
+      </div>
+
+      {/* ══════════════════════════════════════════════════════════════════════ */}
+      {/* SALIDA DE LA GRABACIÓN — cuadro 1920×1080 completo, a escala           */}
+      {/* ══════════════════════════════════════════════════════════════════════ */}
+      <h2 style={{ color: "#fff", fontSize: 16, fontWeight: 700, margin: "0 0 4px" }}>
+        Salida de la grabación — cuadro 1920×1080 completo
+      </h2>
+      <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 13, marginBottom: 12, lineHeight: 1.6 }}>
+        El mismo componente que se hornea en la grabación real (<code>SessionOutro</code>), escalado para verlo entero.
+        <br />
+        <strong style={{ color: "rgba(255,255,255,0.6)" }}>Por reloj</strong> (llega a 0): 0→3s normal · 3s borroso + Vibra + el audio baja en 7s · 10s corta. <strong style={{ color: "rgba(255,255,255,0.6)" }}>Nunca se va a negro.</strong>
+        <br />
+        <strong style={{ color: "rgba(255,255,255,0.6)" }}>Por cancelación</strong>: negro muy suave + Vibra durante 7s.
+      </p>
+
+      <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 12, flexWrap: "wrap" }}>
+        {([
+          { label: "Reproducir cierre por reloj", mode: "timer" as const },
+          { label: "Reproducir cancelación", mode: "cancel" as const },
+        ]).map((b) => (
+          <button
+            key={b.mode}
+            type="button"
+            onClick={() => {
+              setOutroMode(null);
+              setOutroKey((k) => k + 1);
+              // Deja que se remonte en null antes de disparar el modo.
+              setTimeout(() => setOutroMode(b.mode), 50);
+            }}
+            style={{
+              border: "1px solid rgba(255,255,255,0.16)",
+              background: outroMode === b.mode ? "rgba(168,85,255,0.22)" : "rgba(255,255,255,0.06)",
+              color: outroMode === b.mode ? "#d8b4fe" : "rgba(255,255,255,0.85)",
+              borderRadius: 999,
+              padding: "8px 18px",
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: "pointer",
+              fontFamily: "inherit",
+            }}
+          >
+            {b.label}
+          </button>
+        ))}
+        <span style={{ color: "rgba(255,255,255,0.32)", fontSize: 12 }}>
+          El audio no suena aquí; en la grabación real baja suave a 0.
+        </span>
+      </div>
+
+      {/* Cuadro 1920×1080 escalado a 960×540 (50%). El contenido interno
+          conserva sus px reales de 1080p. */}
+      <div
+        style={{
+          width: 960,
+          height: 540,
+          maxWidth: "100%",
+          border: "1px solid rgba(255,255,255,0.10)",
+          borderRadius: 12,
+          overflow: "hidden",
+          marginBottom: 56,
+          background: "#000",
+        }}
+      >
+        <div
+          style={{
+            position: "relative",
+            width: 1920,
+            height: 1080,
+            transform: "scale(0.5)",
+            transformOrigin: "top left",
+          }}
+        >
+          <SessionOutro key={outroKey} mode={outroMode}>
+            {/* Simulación de la sesión: se difumina igual que el video real */}
+            <div style={{ position: "absolute", inset: 0, background: "linear-gradient(135deg, #334155 0%, #0f172a 100%)", display: "grid", placeItems: "center" }}>
+              <span style={{ color: "rgba(255,255,255,0.22)", fontSize: 44, fontWeight: 700 }}>(aquí va la sesión)</span>
+            </div>
+            <SessionOverlayBadge avatarUrl={null} name="Nombre del creador" type="meet_greet" />
+          </SessionOutro>
         </div>
       </div>
 

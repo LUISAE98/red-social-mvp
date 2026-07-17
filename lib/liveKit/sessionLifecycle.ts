@@ -27,13 +27,17 @@ export async function callEndSession(payload: SessionLifecyclePayload): Promise<
   await fn(payload);
 }
 
-// Señala el INICIO del cierre (contador en 0) a la grabación, SIN cambiar el
-// estado de la sesión: la videollamada de los participantes sigue intacta.
-export async function callSignalSessionClosing(payload: SessionLifecyclePayload): Promise<void> {
-  const fn = httpsCallable<SessionLifecyclePayload, { success: boolean }>(
-    functions,
-    "signalSessionClosing"
-  );
+// Señala fases del cierre a la grabación, SIN cambiar el estado de la sesión:
+// la videollamada de los participantes sigue intacta.
+//   · "overlay_out" (t=-5): desvanece el overlay de la esquina en la grabación.
+//   · "closing"     (t=0):  arranca el outro de 10s de la grabación.
+export async function callSignalSessionClosing(
+  payload: SessionLifecyclePayload & { phase?: "overlay_out" | "closing" }
+): Promise<void> {
+  const fn = httpsCallable<
+    SessionLifecyclePayload & { phase?: "overlay_out" | "closing" },
+    { success: boolean }
+  >(functions, "signalSessionClosing");
   await fn(payload);
 }
 

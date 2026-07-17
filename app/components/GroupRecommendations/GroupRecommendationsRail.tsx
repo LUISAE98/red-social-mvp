@@ -104,8 +104,8 @@ const fontStack =
 
 // Grid del selector de intereses: ancho mínimo de columna y separación.
 // Se usan tanto en el estilo del grid como para calcular columnas por página.
-const INTEREST_GRID_MIN_COL = 130;
-const INTEREST_GRID_GAP = 3;
+export const INTEREST_GRID_MIN_COL = 130;
+export const INTEREST_GRID_GAP = 3;
 
 // Carrusel de recomendaciones. RAIL_CARD_W es el ancho de referencia: en celular
 // es el ancho fijo de cada card; en desktop es el mínimo para decidir cuántas
@@ -140,7 +140,7 @@ type RailCard =
 
 // Deslizamiento entre páginas del selector: dir = 1 (siguiente) desliza a la
 // izquierda; dir = -1 (regresar) al revés.
-const INTEREST_SLIDE_VARIANTS: Variants = {
+export const INTEREST_SLIDE_VARIANTS: Variants = {
   enter: (dir: number) => ({ x: dir >= 0 ? "100%" : "-100%", opacity: 0 }),
   center: { x: 0, opacity: 1 },
   exit: (dir: number) => ({ x: dir >= 0 ? "-100%" : "100%", opacity: 0 }),
@@ -455,7 +455,188 @@ function CategoryIcon({
   );
 }
 
-function GroupCategoryPill({
+// ── Celebración del onboarding de intereses ──────────────────────────────────
+
+// Tiempos (segundos) de la celebración. Cada avatar lleva su propio retraso y
+// su propia duración, ambos al azar: nada de stagger por índice, que es lo que
+// produce la cascada y el patrón de metrónomo.
+const CELEB = {
+  inDurMin: 0.28, // duración del pop de entrada (varía por avatar)
+  inDurMax: 0.52,
+  outDurMin: 0.22, // duración del pop de salida (varía por avatar)
+  outDurMax: 0.44,
+  hold: 0.45, // pausa con todos visibles
+  sizeMin: 38, // rango amplio de tamaño
+  sizeMax: 84,
+  // Cuánto se permite que un avatar invada la celda vecina (0 = nunca se
+  // encima, 1 = se encima de lleno). Bajo a propósito: se rozan, no se tapan.
+  overlap: 0.35,
+};
+
+const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
+
+function shuffled<T>(list: T[]): T[] {
+  const out = [...list];
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+}
+
+// Ventana dentro de la cual entran (o salen) todos los avatares. Crece con la
+// cantidad pero con tope: con 24 seleccionados sigue durando ~1s.
+const celebWindow = (n: number) => clamp(0.13 * n, 0.35, 1.05);
+
+/**
+ * Los límites son deterministas aunque los tiempos de cada avatar sean al azar:
+ * como todo retraso cae dentro de la ventana y toda duración por debajo del
+ * máximo, para `outStart` ya terminaron de aparecer todos. Eso deja que el texto
+ * y los botones sepan cuándo irse, y que `handleFinish` sepa cuándo guardar, sin
+ * depender del sorteo.
+ */
+export function celebTimings(n: number) {
+  const window = celebWindow(n);
+  const outStart = window + CELEB.inDurMax + CELEB.hold;
+  const total = outStart + window + CELEB.outDurMax;
+  return { window, outStart, total };
+}
+
+// Reparte n valores dentro de [0, span) de forma irregular pero sin huecos ni
+// amontonamientos: un slot por valor, slots barajados y azar dentro del slot.
+function scatterTimes(n: number, span: number): number[] {
+  const slots = shuffled(Array.from({ length: n }, (_, i) => i));
+  return slots.map((slot) => ((slot + Math.random()) / n) * span);
+}
+
+type BurstItem = {
+  option: { value: CanonicalGroupCategory; label: string };
+  size: number;
+  x: number;
+  y: number;
+  tIn: number;
+  inDur: number;
+  tOut: number;
+  outDur: number;
+};
+
+/**
+ * Reparte los avatares al azar pero sin amontonarlos: el área se divide en una
+ * rejilla invisible de celdas, se barajan y cada avatar toma una. Así ningún
+ * lado queda más cargado que el otro — dentro de su celda cada avatar sí se
+ * coloca al azar, y puede rozar a su vecino sin llegar a taparlo.
+ */
+function buildBurst(
+  categories: ReadonlyArray<{ value: CanonicalGroupCategory; label: string }>,
+  width: number,
+  height: number
+): BurstItem[] {
+  const n = categories.length;
+  if (n === 0 || width <= 0 || height <= 0) return [];
+
+  // Rejilla proporcional al área, para que las celdas queden lo más cuadradas
+  // posible y el reparto no se estire hacia un eje.
+  const cols = clamp(Math.round(Math.sqrt((n * width) / height)), 1, n);
+  const rows = Math.max(1, Math.ceil(n / cols));
+  const cellW = width / cols;
+  const cellH = height / rows;
+
+  const cells = shuffled(Array.from({ length: cols * rows }, (_, i) => i)).slice(0, n);
+
+  // Entrada y salida se sortean por separado, así que el que aparece primero no
+  // es el que desaparece primero.
+  const { window, outStart } = celebTimings(n);
+  const inTimes = scatterTimes(n, window);
+  const outTimes = scatterTimes(n, window);
+
+  return categories.map((option, i) => {
+    const cell = cells[i];
+    const size = CELEB.sizeMin + Math.random() * (CELEB.sizeMax - CELEB.sizeMin);
+    const cx = ((cell % cols) + 0.5) * cellW;
+    const cy = (Math.floor(cell / cols) + 0.5) * cellH;
+    // Margen de azar dentro de la celda; el overlap le permite asomarse un poco
+    // a la vecina.
+    const spanX = Math.max(0, cellW - size * (1 - CELEB.overlap));
+    const spanY = Math.max(0, cellH - size * (1 - CELEB.overlap));
+    const x = clamp(cx + (Math.random() - 0.5) * spanX, size / 2, width - size / 2);
+    const y = clamp(cy + (Math.random() - 0.5) * spanY, size / 2, height - size / 2);
+    return {
+      option,
+      size,
+      x,
+      y,
+      tIn: inTimes[i],
+      inDur: CELEB.inDurMin + Math.random() * (CELEB.inDurMax - CELEB.inDurMin),
+      tOut: outStart + outTimes[i],
+      outDur: CELEB.outDurMin + Math.random() * (CELEB.outDurMax - CELEB.outDurMin),
+    };
+  });
+}
+
+export function CelebrationBurst({
+  categories,
+  width,
+  height,
+}: {
+  categories: ReadonlyArray<{ value: CanonicalGroupCategory; label: string }>;
+  width: number;
+  height: number;
+}) {
+  const [items, setItems] = useState<BurstItem[]>([]);
+
+  // Se calcula una sola vez al montar: recalcularlo (p. ej. al cambiar el ancho)
+  // rebarajaría las posiciones a media animación.
+  useEffect(() => {
+    setItems(buildBurst(categories, width, height));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const { total } = celebTimings(categories.length);
+
+  return (
+    <div style={{ position: "relative", width: "100%", height, overflow: "hidden" }}>
+      {items.map(({ option, size, x, y, tIn, inDur, tOut, outDur }) => {
+        const times = [
+          0,
+          Math.max(tIn / total, 0.0001),
+          (tIn + inDur * 0.6) / total,
+          (tIn + inDur) / total,
+          tOut / total,
+          (tOut + outDur) / total,
+        ];
+        const bg = CATEGORY_IMAGE[option.value];
+        return (
+          <motion.span
+            key={option.value}
+            initial={{ scale: 0, opacity: 0 }}
+            animate={{ scale: [0, 0, 1.18, 1, 1, 0], opacity: [0, 0, 1, 1, 1, 0] }}
+            transition={{ duration: total, times, ease: "easeOut" }}
+            style={{
+              position: "absolute",
+              left: x - size / 2,
+              top: y - size / 2,
+              width: size,
+              height: size,
+              borderRadius: "50%",
+              overflow: "hidden",
+              background: bg
+                ? `linear-gradient(rgba(0,0,0,0.45), rgba(0,0,0,0.45)), center / cover no-repeat url("${bg}")`
+                : "rgba(0,0,0,0.72)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "#fff",
+            }}
+          >
+            <CategoryIcon category={option.value} size={Math.round(size * 0.46)} />
+          </motion.span>
+        );
+      })}
+    </div>
+  );
+}
+
+export function GroupCategoryPill({
   label,
   category,
   selected,
@@ -1758,9 +1939,14 @@ export default function GroupRecommendationsRail({
       return;
     }
     setCelebrating(true);
-    window.setTimeout(() => {
-      handleSaveOnboarding();
-    }, 1600);
+    // Guarda al terminar la celebración: la duración depende de cuántas
+    // categorías se eligieron, así que sale de celebTimings y no de un número fijo.
+    window.setTimeout(
+      () => {
+        handleSaveOnboarding();
+      },
+      celebTimings(selectedCategories.length).total * 1000
+    );
   };
 
 
@@ -1966,6 +2152,20 @@ export default function GroupRecommendationsRail({
       ? interestRows * interestColWidth + (interestRows - 1) * INTEREST_GRID_GAP
       : undefined;
 
+  const selectedOptions = useMemo(
+    () => GROUP_CATEGORY_OPTIONS.filter((o) => selectedCategories.includes(o.value)),
+    [selectedCategories]
+  );
+
+  // El texto y los botones se van justo cuando empiezan a salir los avatares.
+  const chromeFade = celebrating
+    ? {
+        delay: celebTimings(selectedOptions.length).outStart,
+        duration: 0.55,
+        ease: "easeOut" as const,
+      }
+    : { duration: 0.2 };
+
   // Paginación del rail en desktop: 3 por renglón.
   const railPerPage = RAIL_PER_PAGE;
   const railPageCount = Math.max(
@@ -2118,8 +2318,6 @@ export default function GroupRecommendationsRail({
         <motion.div
           initial={false}
           style={{ display: "flex", flexDirection: "column", gap: 16, marginTop: 28, marginBottom: 28 }}
-          animate={celebrating ? { opacity: 0 } : { opacity: 1 }}
-          transition={celebrating ? { delay: 1.15, duration: 0.4 } : { duration: 0.2 }}
         >
           <style>{`
             .vibInterestsGradient {
@@ -2137,7 +2335,10 @@ export default function GroupRecommendationsRail({
             .vibCatIcon { will-change: transform; }
             .vibCatCard:hover .vibCatIcon { transform: scale(1.08); }
           `}</style>
-          <div
+          <motion.div
+            initial={false}
+            animate={celebrating ? { opacity: 0, y: -6 } : { opacity: 1, y: 0 }}
+            transition={chromeFade}
             style={{
               display: "flex",
               flexDirection: "column",
@@ -2163,103 +2364,65 @@ export default function GroupRecommendationsRail({
             <span style={{ fontSize: 11, fontWeight: 500, color: "rgba(168,85,255,0.55)" }}>
               {tGroups("interestsMinHint")}
             </span>
-          </div>
-
-          {celebrating ? (
-            <motion.div
-              style={{
-                display: "flex",
-                flexWrap: "wrap",
-                gap: 12,
-                justifyContent: "center",
-                width: "100%",
-                padding: "6px 0",
-                transformOrigin: "center",
-              }}
-              animate={{ scale: [1, 1, 0], rotate: [0, 0, 210], opacity: [1, 1, 0] }}
-              transition={{ duration: 1.4, times: [0, 0.6, 1], ease: "easeInOut" }}
-            >
-              {GROUP_CATEGORY_OPTIONS.filter((o) =>
-                selectedCategories.includes(o.value)
-              ).map((option, i) => (
-                <motion.div
-                  key={option.value}
-                  initial={{ scale: 0, opacity: 0 }}
-                  animate={{ scale: [0, 1.18, 1], opacity: 1 }}
-                  transition={{ delay: i * 0.02, duration: 0.42, times: [0, 0.6, 1], ease: "easeOut" }}
-                  style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, width: 82 }}
-                >
-                  <span
-                    style={{
-                      width: 54,
-                      height: 54,
-                      borderRadius: "50%",
-                      overflow: "hidden",
-                      background: CATEGORY_IMAGE[option.value]
-                        ? `linear-gradient(rgba(0,0,0,0.45), rgba(0,0,0,0.45)), center / cover no-repeat url("${CATEGORY_IMAGE[option.value]}")`
-                        : "rgba(0,0,0,0.72)",
-                      border: "1px solid rgba(255,255,255,0.12)",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      color: "#fff",
-                    }}
-                  >
-                    <CategoryIcon category={option.value} size={26} />
-                  </span>
-                  <span style={{ fontSize: 11, fontWeight: 600, color: "#fff", textAlign: "center", lineHeight: 1.15 }}>
-                    {option.label}
-                  </span>
-                </motion.div>
-              ))}
-            </motion.div>
-          ) : (
-            <>
-          <motion.div
-            ref={setInterestsGridEl}
-            animate={{ height: interestsGridHeight ?? "auto" }}
-            transition={{ height: { duration: 0.42, ease: [0.22, 1, 0.36, 1] } }}
-            style={{ position: "relative", width: "100%", overflow: "hidden" }}
-          >
-            <AnimatePresence initial={false} custom={interestsDirection} mode="popLayout">
-              <motion.div
-                key={interestPage}
-                custom={interestsDirection}
-                variants={INTEREST_SLIDE_VARIANTS}
-                initial="enter"
-                animate="center"
-                exit="exit"
-                transition={{
-                  x: { type: "tween", ease: [0.22, 1, 0.36, 1], duration: 0.4 },
-                  opacity: { duration: 0.25 },
-                }}
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: `repeat(auto-fill, minmax(${INTEREST_GRID_MIN_COL}px, 1fr))`,
-                  gap: INTEREST_GRID_GAP,
-                  width: "100%",
-                }}
-              >
-                {interestPageOptions.map((option) => (
-                  <GroupCategoryPill
-                    key={option.value}
-                    label={option.label}
-                    category={option.value}
-                    selected={selectedCategories.includes(option.value)}
-                    onToggle={() => toggleCategory(option.value)}
-                  />
-                ))}
-              </motion.div>
-            </AnimatePresence>
           </motion.div>
 
-          <div
+          {celebrating ? (
+            <CelebrationBurst
+              categories={selectedOptions}
+              width={interestsContainerWidth}
+              height={interestsGridHeight ?? 300}
+            />
+          ) : (
+            <motion.div
+              ref={setInterestsGridEl}
+              animate={{ height: interestsGridHeight ?? "auto" }}
+              transition={{ height: { duration: 0.42, ease: [0.22, 1, 0.36, 1] } }}
+              style={{ position: "relative", width: "100%", overflow: "hidden" }}
+            >
+              <AnimatePresence initial={false} custom={interestsDirection} mode="popLayout">
+                <motion.div
+                  key={interestPage}
+                  custom={interestsDirection}
+                  variants={INTEREST_SLIDE_VARIANTS}
+                  initial="enter"
+                  animate="center"
+                  exit="exit"
+                  transition={{
+                    x: { type: "tween", ease: [0.22, 1, 0.36, 1], duration: 0.4 },
+                    opacity: { duration: 0.25 },
+                  }}
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: `repeat(auto-fill, minmax(${INTEREST_GRID_MIN_COL}px, 1fr))`,
+                    gap: INTEREST_GRID_GAP,
+                    width: "100%",
+                  }}
+                >
+                  {interestPageOptions.map((option) => (
+                    <GroupCategoryPill
+                      key={option.value}
+                      label={option.label}
+                      category={option.value}
+                      selected={selectedCategories.includes(option.value)}
+                      onToggle={() => toggleCategory(option.value)}
+                    />
+                  ))}
+                </motion.div>
+              </AnimatePresence>
+            </motion.div>
+          )}
+
+          <motion.div
+            initial={false}
+            animate={celebrating ? { opacity: 0, y: -6 } : { opacity: 1, y: 0 }}
+            transition={chromeFade}
             style={{
               display: "flex",
               gap: 12,
               flexWrap: "wrap",
               alignItems: "center",
               justifyContent: "center",
+              pointerEvents: celebrating ? "none" : "auto",
             }}
           >
             {interestPage > 0 && (
@@ -2357,9 +2520,7 @@ export default function GroupRecommendationsRail({
                 {tCommon("next")}
               </button>
             )}
-          </div>
-            </>
-          )}
+          </motion.div>
         </motion.div>
       ) : null}
 

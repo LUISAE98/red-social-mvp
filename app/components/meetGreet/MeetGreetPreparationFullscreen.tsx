@@ -210,9 +210,20 @@ export default function MeetGreetPreparationFullscreen({
           />
         )}
 
-        {/* Pantalla negra al terminar la sesión manualmente */}
-        {mode === "call" && sessionEnded && (
-          <div style={{ position: "absolute", inset: 0, background: "#000", zIndex: 7 }} />
+        {/* Cancelación: la pantalla se funde a negro MUY suavemente y se corta en
+            un proceso de ~2s, en vez de cortar de golpe. */}
+        {mode === "call" && (
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              background: "#000",
+              zIndex: 7,
+              opacity: sessionEnded ? 1 : 0,
+              transition: "opacity 1.6s cubic-bezier(0.4, 0, 0.2, 1)",
+              pointerEvents: sessionEnded ? "auto" : "none",
+            }}
+          />
         )}
 
         {/* Aviso 2 minutos */}

@@ -24,7 +24,8 @@ import {
   useParticipants,
   useRoomInfo,
 } from "@livekit/components-react";
-import { BRAND_DOMAIN } from "@/lib/brand";
+import SessionIntro, { INTRO_FADE_AT, INTRO_TOTAL_MS } from "./SessionIntro";
+import SessionOutro, { type OutroMode } from "./SessionOutro";
 
 const TYPE_LABEL: Record<string, string> = {
   meet_greet: "Tiempo contigo",
@@ -100,56 +101,24 @@ function OverlayBadge({
   );
 }
 
-// Bloque "Vibra / vibraon.com" del cierre (con animación de entrada).
-function VibraOutro({ show }: { show: boolean }) {
-  return (
-    <>
-      <style>{`
-        .vibraOutroText {
-          background: linear-gradient(100deg, #ff2fb3 0%, #a855ff 45%, #4f46ff 100%);
-          background-size: 220% 220%;
-          -webkit-background-clip: text;
-          background-clip: text;
-          color: transparent;
-          animation: vibraTextFlow 4.5s ease-in-out infinite;
-        }
-        @keyframes vibraTextFlow { 0%,100%{ background-position:0% 50% } 50%{ background-position:100% 50% } }
-        @keyframes vibraReveal {
-          0%   { opacity:0; transform: translateY(28px) scale(0.94); filter: blur(12px); }
-          60%  { opacity:1; }
-          100% { opacity:1; transform: translateY(0) scale(1); filter: blur(0); }
-        }
-      `}</style>
-      {show ? (
-        <div
-          style={{
-            display: "inline-flex",
-            flexDirection: "column",
-            alignItems: "stretch",
-            animation: "vibraReveal 1s cubic-bezier(0.22, 1, 0.36, 1) both",
-            willChange: "transform, opacity, filter",
-          }}
-        >
-          <span className="vibraOutroText" style={{ fontSize: 135, fontWeight: 700, letterSpacing: "-0.045em", lineHeight: 1 }}>
-            Vibra
-          </span>
-          <span style={{ display: "flex", justifyContent: "space-between", color: "#fff", fontSize: 39, fontWeight: 600, lineHeight: 1, marginTop: -5 }}>
-            {BRAND_DOMAIN.split("").map((ch, i) => (
-              <span key={i}>{ch}</span>
-            ))}
-          </span>
-        </div>
-      ) : null}
-    </>
-  );
-}
-
 function CreatorFocusLayout() {
-  const tracks = useTracks([Track.Source.Camera], { onlySubscribed: true });
+  // Cámaras + pantalla compartida (solo el creador puede compartir).
+  const tracks = useTracks([Track.Source.Camera, Track.Source.ScreenShare], { onlySubscribed: true });
   const participants = useParticipants();
   const roomInfo = useRoomInfo();
-  const creator = tracks.find((t) => t.participant.identity.startsWith("creator_"));
-  const buyer = tracks.find((t) => t.participant.identity.startsWith("buyer_"));
+  const creator = tracks.find(
+    (t) => t.source === Track.Source.Camera && t.participant.identity.startsWith("creator_")
+  );
+  const buyer = tracks.find(
+    (t) => t.source === Track.Source.Camera && t.participant.identity.startsWith("buyer_")
+  );
+  const screen = tracks.find(
+    (t) => t.source === Track.Source.ScreenShare && t.participant.identity.startsWith("creator_")
+  );
+  // Cuando el creador comparte pantalla, ésta toma el cuadro grande y ambas
+  // cámaras bajan a PiP (así la grabación conserva la cara del creador).
+  const bigTrack = screen ?? creator;
+  const pipTracks = screen ? [creator, buyer] : [buyer];
 
   // Datos del overlay desde la metadata del token del creador.
   const creatorP = participants.find((p) => p.identity.startsWith("creator_"));
@@ -162,107 +131,141 @@ function CreatorFocusLayout() {
   }
 
   // ── Cierre de la grabación ────────────────────────────────────────────────
-  // Se dispara en cuanto la sala se marca "ended" (= el contador llegó a 0):
-  //   t=0  la llamada se difumina + translúcida y aparece "Vibra/vibraon.com";
-  //        el audio baja suave a 0 (~4s).
-  //   t=4  se funde suavemente a negro → solo queda el letrero.
-  //   t=9  se detiene la grabación (5s después del negro).
-  const [outro, setOutro] = useState(false);
-  const [black, setBlack] = useState(false);
-  const [audioVol, setAudioVol] = useState(1);
-  const outroStartedRef = useRef(false);
-  useEffect(() => {
-    // "closing" = el contador llegó a 0 → outro DIFUMINADO (blur→negro→Vibra).
-    // "ended"   = fin/cancelación antes de concluir → CORTE a negro directo + Vibra 7s.
-    let mode: "blur" | "cut" | null = null;
-    try {
-      const m = roomInfo.metadata ? JSON.parse(roomInfo.metadata) : null;
-      if (m?.closing) mode = "blur";
-      else if (m?.ended) mode = "cut";
-    } catch { /* metadata no-JSON */ }
-    if (!mode || outroStartedRef.current) return;
-    outroStartedRef.current = true;
+  // Fases señaladas por metadata de la sala (signalSessionClosing / endSession):
+  //
+  //  · "overlayOut" (t=-5, faltan 5s para el 0): el overlay de la esquina
+  //    (avatar + aro + nombre + tipo) se desvanece suavemente.
+  //
+  //  · "closing" (t=0, el contador llegó a 0) → outro POR RELOJ. SIN NEGRO:
+  //      t=0 → t=3   se ve normal (video y audio normales)
+  //      t=3 → t=10  todo borroso + "Vibra / vibraon.com"; el audio baja MUY
+  //                  suave hasta 0 a lo largo de esos 7s
+  //      t=10        se detiene la grabación
+  //
+  //  · "ended" (cancelación antes de concluir) → outro POR CANCELACIÓN:
+  //    se funde MUY suavemente a negro con "Vibra / vibraon.com" durante 7s.
+  const [overlayOut, setOverlayOut] = useState(false);
+  const [outroMode, setOutroMode] = useState<OutroMode>(null);
+  // El intro arranca en silencio y sube el volumen al máximo al desvanecerse.
+  const [audioVol, setAudioVol] = useState(0);
+  const [intro, setIntro] = useState(true);
+  const overlayOutRef = useRef(false);
 
-    if (mode === "blur") {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setOutro(true);
-      // Audio: baja suave a 0 en ~4s.
-      let a = 4000;
-      const audioIv = setInterval(() => {
-        a -= 60;
-        setAudioVol(Math.max(0, a / 4000));
-        if (a <= 0) clearInterval(audioIv);
+  // Intro: al terminar el desvanecido, el audio sube suave de 0 al máximo y la
+  // sesión queda reproduciéndose tal cual. Corre una sola vez, al montar.
+  useEffect(() => {
+    const rise = setTimeout(() => {
+      let v = 0;
+      const iv = setInterval(() => {
+        v += 0.038;
+        setAudioVol(Math.min(1, v));
+        if (v >= 1) clearInterval(iv);
       }, 60);
-      setTimeout(() => setBlack(true), 4000);
-      setTimeout(() => EgressHelper.endRecording(), 11000);
-    } else {
-      // Cancelación: a negro directo + "Vibra/vibraon.com" durante 7s.
-      setOutro(true);
-      setBlack(true);
-      setAudioVol(0);
-      setTimeout(() => EgressHelper.endRecording(), 7000);
+    }, INTRO_FADE_AT);
+    const done = setTimeout(() => setIntro(false), INTRO_TOTAL_MS);
+    return () => {
+      clearTimeout(rise);
+      clearTimeout(done);
+    };
+  }, []);
+  useEffect(() => {
+    let m: { overlayOut?: boolean; closing?: boolean; ended?: boolean } | null = null;
+    try {
+      m = roomInfo.metadata ? JSON.parse(roomInfo.metadata) : null;
+    } catch { /* metadata no-JSON */ }
+    if (!m) return;
+
+    // Fase t=-5: desvanecer el overlay de la esquina. Se "engancha" (latched)
+    // para que no se revierta si la metadata se reemplaza después.
+    if (m.overlayOut && !overlayOutRef.current) {
+      overlayOutRef.current = true;
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setOverlayOut(true);
     }
+
+    // La coreografía del cierre vive en <SessionOutro>; aquí sólo se decide el modo.
+    setOutroMode((prev) => prev ?? (m.closing ? "timer" : m.ended ? "cancel" : null));
   }, [roomInfo.metadata]);
 
   return (
     <div style={{ position: "absolute", inset: 0, background: "#000" }}>
-      {/* Contenido de la llamada — se difumina suavemente en el cierre */}
-      <div
-        style={{
-          position: "absolute",
-          inset: 0,
-          filter: outro ? "blur(18px)" : "none",
-          transform: outro ? "scale(1.06)" : "none",
-          transition: "filter 1.1s ease, transform 1.1s ease",
-        }}
+      {/* El cierre (difuminado, letrero, negro de cancelación y curva de audio)
+          vive en <SessionOutro>, que envuelve el contenido de la llamada. */}
+      <SessionOutro
+        mode={outroMode}
+        onAudioVolume={setAudioVol}
+        onEnded={() => EgressHelper.endRecording()}
       >
-        {/* Creador — siempre grande, llena el cuadro */}
-        {creator ? (
+        {/* Cuadro grande — pantalla compartida del creador si la hay; si no, su
+            cámara. La pantalla va "contain" para no recortar contenido. */}
+        {bigTrack ? (
           <VideoTrack
-            trackRef={creator}
-            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+            trackRef={bigTrack}
+            style={{
+              width: "100%",
+              height: "100%",
+              objectFit: screen ? "contain" : "cover",
+              background: "#000",
+            }}
           />
         ) : null}
 
-        {/* Comprador — PiP pequeño en la esquina inferior derecha */}
-        {buyer ? (
+        {/* PiP(s) en la esquina inferior derecha. Sin compartir: solo el comprador.
+            Compartiendo: cámara del creador + comprador, lado a lado. */}
+        <div
+          style={{
+            position: "absolute",
+            right: "2.5%",
+            bottom: "4%",
+            display: "flex",
+            gap: "1.4%",
+            width: screen ? "42%" : "24%",
+          }}
+        >
+          {pipTracks.map((t, i) =>
+            t ? (
+              <div
+                key={i}
+                style={{
+                  flex: 1,
+                  aspectRatio: "16 / 9",
+                  borderRadius: 12,
+                  overflow: "hidden",
+                  border: "2px solid rgba(255,255,255,0.85)",
+                  background: "#111",
+                  boxShadow: "0 6px 24px rgba(0,0,0,0.55)",
+                }}
+              >
+                <VideoTrack
+                  trackRef={t}
+                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                />
+              </div>
+            ) : null
+          )}
+        </div>
+
+        {/* Overlay horneado (avatar + aro + nombre + tipo).
+            Se desvanece suavemente a falta de 5s para el 0 (fase "overlayOut"). */}
+        {overlay ? (
           <div
             style={{
               position: "absolute",
-              right: "2.5%",
-              bottom: "4%",
-              width: "24%",
-              aspectRatio: "16 / 9",
-              borderRadius: 12,
-              overflow: "hidden",
-              border: "2px solid rgba(255,255,255,0.85)",
-              background: "#111",
-              boxShadow: "0 6px 24px rgba(0,0,0,0.55)",
+              inset: 0,
+              opacity: overlayOut ? 0 : 1,
+              transition: "opacity 1.6s cubic-bezier(0.4, 0, 0.2, 1)",
+              pointerEvents: "none",
             }}
           >
-            <VideoTrack
-              trackRef={buyer}
-              style={{ width: "100%", height: "100%", objectFit: "cover" }}
-            />
+            <OverlayBadge avatarUrl={overlay.avatarUrl} name={overlay.name} type={overlay.type} />
           </div>
         ) : null}
+      </SessionOutro>
 
-        {/* Overlay horneado (avatar + aro + nombre + tipo) */}
-        {overlay ? <OverlayBadge avatarUrl={overlay.avatarUrl} name={overlay.name} type={overlay.type} /> : null}
-      </div>
+      {/* Intro de apertura — se desvanece revelando la sesión ya en curso */}
+      {intro ? <SessionIntro avatarUrl={overlay?.avatarUrl ?? null} name={overlay?.name ?? ""} /> : null}
 
-      {/* Capa translúcida — atenúa la llamada difuminada al iniciar el cierre */}
-      <div style={{ position: "absolute", inset: 0, background: "#000", opacity: outro ? 0.42 : 0, transition: "opacity 1.1s ease", pointerEvents: "none" }} />
-
-      {/* Capa negra total — se funde suave y lento */}
-      <div style={{ position: "absolute", inset: 0, background: "#000", opacity: black ? 1 : 0, transition: "opacity 2.6s cubic-bezier(0.4, 0, 0.2, 1)", pointerEvents: "none" }} />
-
-      {/* Letrero "Vibra/vibraon.com" — aparece en t=0, nítido, encima de todo */}
-      <div style={{ position: "absolute", inset: 0, zIndex: 30, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
-        <VibraOutro show={outro} />
-      </div>
-
-      {/* Audio de la sala — el volumen baja a 0 en el cierre */}
+      {/* Audio de la sala — sube de 0 al máximo tras el intro y baja a 0 en el cierre */}
       <RoomAudioRenderer volume={audioVol} />
     </div>
   );

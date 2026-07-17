@@ -8,12 +8,10 @@
 
 import { buildCollageTiles } from "@/lib/collage";
 
-// Nº de tiles para llenar la cuadrícula. El set curado y el reparto viven en
-// lib/collage, compartidos con el splash de carga.
-const TILE_COUNT = 50;
-
+// El set completo (35 imágenes, sin repetir) y el orden que embaldosa viven en
+// lib/collage, compartidos con el splash y el intro de la grabación.
 export default function LoginCollageBackground() {
-  const tiles = buildCollageTiles(TILE_COUNT);
+  const tiles = buildCollageTiles();
 
   return (
     <div className="login-collage-root" aria-hidden="true">
@@ -22,7 +20,9 @@ export default function LoginCollageBackground() {
           {tiles.map((tile, i) => (
             <div
               key={i}
-              className={`login-collage-tile${tile.wide ? " is-wide" : ""}`}
+              className={`login-collage-tile${tile.wide ? " is-wide" : ""}${
+                tile.flipMobile ? " is-flip-mobile" : ""
+              }`}
             >
               {/* Decorativo: <img> ligero, no next/image (WebP ~20-40 KB). */}
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -61,15 +61,22 @@ export default function LoginCollageBackground() {
           place-items: center;
         }
 
+        /* Laptop: 6 columnas. El set reciclado embaldosa sin huecos a 6 (y a 3 en
+           celular); verificado — a 4, 5, 7 y 8 sí deja huecos. Sin \`dense\`:
+           reacomodaría los tiles y rompería el embaldosado. */
         .login-collage-grid {
           display: grid;
           grid-template-columns: repeat(6, 1fr);
           grid-auto-rows: auto;
-          grid-auto-flow: row dense;
           gap: 16px;
           width: 150vw;
           transform-origin: center;
-          transform: rotateX(15deg) rotateZ(-11deg) scale(1.08);
+          /* translateX: la rotación -11deg hunde la esquina superior derecha y
+             dejaba ese lado descubierto, con la izquierda de sobra. Se corre el
+             mosaico a la derecha para repartirlo. Va también en los keyframes:
+             la animación reescribe el transform completo y si no lo lleva, al
+             arrancar el drift el mosaico brincaría de vuelta al centro. */
+          transform: translateX(9vw) rotateX(15deg) rotateZ(-11deg) scale(1.08);
           filter: saturate(1.02);
           animation: loginCollageDrift 46s ease-in-out infinite alternate;
         }
@@ -88,6 +95,7 @@ export default function LoginCollageBackground() {
           grid-column: span 2;
           aspect-ratio: 2 / 1;
         }
+
 
         .login-collage-tile img {
           width: 100%;
@@ -121,24 +129,59 @@ export default function LoginCollageBackground() {
 
         @keyframes loginCollageDrift {
           from {
-            transform: rotateX(15deg) rotateZ(-11deg) scale(1.08) translateY(0);
+            transform: translateX(9vw) rotateX(15deg) rotateZ(-11deg) scale(1.08)
+              translateY(0);
           }
           to {
-            transform: rotateX(15deg) rotateZ(-11deg) scale(1.08)
+            transform: translateX(9vw) rotateX(15deg) rotateZ(-11deg) scale(1.08)
               translateY(-46px);
           }
         }
 
+        /* Celular (vertical): 3 columnas → 14 filas, sin huecos. */
         @media (max-width: 900px) {
           .login-collage-root {
             height: 118vh;
           }
 
+          /* El contenedor mide 118vh, así que el centro de la cuadrícula caía
+             ~9vh por DEBAJO del centro de la pantalla y dejaba franja muerta
+             arriba. Se sube ese desfase para centrarla en lo que se ve. */
+          .login-collage-stage {
+            transform: translateY(-9vh);
+          }
+
+          /* El ancho manda el zoom: con 3 columnas, cada tile mide ancho/3.
+             148.5vw = 165vw - 10% → tiles 10% más chicos. Por debajo de ~130vw la
+             cuadrícula se vuelve más angosta que lo que la rotación de -9deg
+             necesita y reaparece el espacio muerto a la derecha.
+
+             OJO: hay que cambiar también el nombre de la animación. Los keyframes
+             reescriben el \`transform\` ENTERO y las animaciones pisan al transform
+             base — con los de laptop, este \`transform\` de aquí abajo nunca se
+             aplicaba y el celular acababa usando la rotación de laptop. */
           .login-collage-grid {
-            grid-template-columns: repeat(6, 1fr);
-            width: 240vw;
+            grid-template-columns: repeat(3, 1fr);
+            width: 148.5vw;
             gap: 10px;
-            transform: rotateX(12deg) rotateZ(-9deg) scale(1.12);
+            transform: translateX(8vw) rotateX(12deg) rotateZ(-9deg) scale(1.12);
+            animation-name: loginCollageDriftMobile;
+          }
+
+          /* Espejo horizontal sólo en celular (ver \`flipMobile\` en lib/collage). */
+          .login-collage-tile.is-flip-mobile img {
+            transform: scaleX(-1);
+          }
+        }
+
+        @keyframes loginCollageDriftMobile {
+          from {
+            transform: translateX(8vw) rotateX(12deg) rotateZ(-9deg) scale(1.12)
+              translateY(0);
+          }
+          to {
+            transform: translateX(8vw) rotateX(12deg) rotateZ(-9deg) scale(1.12)
+              translateY(-46px);
           }
         }
 
