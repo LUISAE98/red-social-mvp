@@ -35,6 +35,7 @@ type Props = {
   onEndCallRequest?: () => void;
   onTimerExpired?: () => void;
   onTwoMinWarning?: () => void;
+  onFarewellWarning?: () => void;
   endSessionRef?: { current: (() => Promise<void>) | null };
 };
 
@@ -71,6 +72,7 @@ export default function LiveKitVideoRoom({
   onEndCallRequest,
   onTimerExpired,
   onTwoMinWarning,
+  onFarewellWarning,
   endSessionRef,
 }: Props) {
   const tLive = useTranslations("live");
@@ -140,6 +142,7 @@ export default function LiveKitVideoRoom({
         onEndCallRequest={onEndCallRequest}
         onTimerExpired={onTimerExpired}
         onTwoMinWarning={onTwoMinWarning}
+        onFarewellWarning={onFarewellWarning}
         endSessionRef={endSessionRef}
       />
       <RoomAudioRenderer />
@@ -158,6 +161,7 @@ function RoomContent({
   onEndCallRequest,
   onTimerExpired,
   onTwoMinWarning,
+  onFarewellWarning,
   endSessionRef,
 }: {
   sessionId: string;
@@ -169,6 +173,7 @@ function RoomContent({
   onEndCallRequest?: () => void;
   onTimerExpired?: () => void;
   onTwoMinWarning?: () => void;
+  onFarewellWarning?: () => void;
   endSessionRef?: { current: (() => Promise<void>) | null };
 }) {
   const tLive = useTranslations("live");
@@ -185,6 +190,7 @@ function RoomContent({
   const timerExpiredFiredRef = useRef(false);
   const overlayOutFiredRef = useRef(false);
   const twoMinFiredRef = useRef(false);
+  const farewellFiredRef = useRef(false);
   const expiryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
 
@@ -257,6 +263,11 @@ function RoomContent({
       twoMinFiredRef.current = true;
       onTwoMinWarning?.();
     }
+    // Aviso de despedida a los 20s: mismo estilo que el de 2 min, en el centro.
+    if (!farewellFiredRef.current && remaining <= 20 && remaining > 0) {
+      farewellFiredRef.current = true;
+      onFarewellWarning?.();
+    }
     // t=-5: avisamos a la GRABACIÓN que desvanezca el overlay de la esquina.
     // No toca la sesión ni el contador; es solo cosmético en el archivo grabado.
     if (!overlayOutFiredRef.current && remaining <= 5 && remaining > 0) {
@@ -287,7 +298,7 @@ function RoomContent({
         }
       }, 10000);
     }
-  }, [remaining, timer, onTimerExpired, onTwoMinWarning, onLeave, sessionId, sessionType]);
+  }, [remaining, timer, onTimerExpired, onTwoMinWarning, onFarewellWarning, onLeave, sessionId, sessionType]);
 
   // Cuenta regresiva visible de la gracia (10 → 0) mientras la llamada está borrosa.
   useEffect(() => {

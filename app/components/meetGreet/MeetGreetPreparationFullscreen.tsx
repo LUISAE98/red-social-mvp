@@ -79,12 +79,14 @@ export default function MeetGreetPreparationFullscreen({
   const [endSheet, setEndSheet] = useState<"hidden" | "confirm" | "feedback">("hidden");
   const [feedbackText, setFeedbackText] = useState("");
   const [showTwoMinAlert, setShowTwoMinAlert] = useState(false);
+  const [showFarewellAlert, setShowFarewellAlert] = useState(false);
   const [sessionEnded, setSessionEnded] = useState(false);
   const [isEndingSession, setIsEndingSession] = useState(false);
   const [dlBusy, setDlBusy] = useState(false);
   const [dlMsg, setDlMsg] = useState<string | null>(null);
   const endSessionRef = useRef<(() => Promise<void>) | null>(null);
   const twoMinTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const farewellTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Reset al cerrar/abrir
   useEffect(() => {
@@ -93,6 +95,7 @@ export default function MeetGreetPreparationFullscreen({
       setEndSheet("hidden");
       setFeedbackText("");
       setShowTwoMinAlert(false);
+      setShowFarewellAlert(false);
       setSessionEnded(false);
       setIsEndingSession(false);
     }
@@ -126,6 +129,12 @@ export default function MeetGreetPreparationFullscreen({
     setShowTwoMinAlert(true);
     if (twoMinTimerRef.current) clearTimeout(twoMinTimerRef.current);
     twoMinTimerRef.current = setTimeout(() => setShowTwoMinAlert(false), 4500);
+  }, []);
+
+  const handleFarewellWarning = useCallback(() => {
+    setShowFarewellAlert(true);
+    if (farewellTimerRef.current) clearTimeout(farewellTimerRef.current);
+    farewellTimerRef.current = setTimeout(() => setShowFarewellAlert(false), 4500);
   }, []);
 
   const handleConfirmEnd = useCallback(async () => {
@@ -206,6 +215,7 @@ export default function MeetGreetPreparationFullscreen({
             onEndCallRequest={handleEndCallRequest}
             onTimerExpired={handleTimerExpired}
             onTwoMinWarning={handleTwoMinWarning}
+            onFarewellWarning={handleFarewellWarning}
             endSessionRef={endSessionRef}
           />
         )}
@@ -242,6 +252,27 @@ export default function MeetGreetPreparationFullscreen({
             }}>
               <span style={{ fontSize: 13, fontWeight: 500, color: "rgba(255,255,255,0.85)", letterSpacing: "0.01em" }}>
                 Quedan 2 minutos de sesión
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* Aviso 20 segundos — mismo estilo que el de 2 minutos */}
+        {mode === "call" && showFarewellAlert && (
+          <div style={{
+            position: "absolute", inset: 0, zIndex: 6,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            pointerEvents: "none",
+          }}>
+            <div style={{
+              background: "rgba(0,0,0,0.35)",
+              backdropFilter: "blur(12px)",
+              WebkitBackdropFilter: "blur(12px)",
+              borderRadius: 10,
+              padding: "10px 20px",
+            }}>
+              <span style={{ fontSize: 13, fontWeight: 500, color: "rgba(255,255,255,0.85)", letterSpacing: "0.01em" }}>
+                Es momento de despedirte
               </span>
             </div>
           </div>

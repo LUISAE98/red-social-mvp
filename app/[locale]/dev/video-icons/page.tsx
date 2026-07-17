@@ -970,7 +970,7 @@ export default function VideoIconsPreview() {
         El mismo componente que se hornea en la grabación (<code>SessionOverlay</code>).
         <br />
         <strong style={{ color: "rgba(255,255,255,0.6)" }}>Entrada:</strong> pop del avatar + el aro se dibuja cargando + nombre y tipo entran deslizando.
-        En la grabación real entra hasta el <strong style={{ color: "rgba(255,255,255,0.6)" }}>segundo 11.2</strong> (5s de esquina limpia tras el intro); aquí sin espera para poder iterarla.
+        En la grabación real entra hasta el <strong style={{ color: "rgba(255,255,255,0.6)" }}>segundo 10</strong> (contado desde que arranca la grabación); aquí sin espera para poder iterarla.
         <br />
         <strong style={{ color: "rgba(255,255,255,0.6)" }}>Salida:</strong> la entrada al revés — el aro se descarga, los textos salen a la esquina y el avatar se encoge (~1s).
       </p>

@@ -19,26 +19,28 @@ const TYPE_LABEL: Record<string, string> = {
   exclusive_session: "Sesión exclusiva",
 };
 
-// Cuándo entra el overlay, contado desde que monta la plantilla (= desde que el
-// grabador se conecta, el mismo cero que el intro):
-//   6.2s  termina el intro y se ve la sesión
-//   +5s   la esquina se queda LIMPIA a propósito
-//   11.2s entra el overlay
-export const OVERLAY_IN_AT = 11200;
+// A los 10s de que el grabador se conecta (mismo cero que el intro) la PLANTILLA
+// monta este overlay. La entrada anima al MONTAR (startDelay 0), igual que el
+// intro — que es el patrón que sí funciona en el grabador headless. Antes se
+// montaba cuando llegaba la metadata (tarde e impredecible) y la entrada
+// dependía de un animation-delay enorme desde ese montaje, y no se veía animar
+// en el video real. El padre controla el CUÁNDO montar; aquí sólo el CÓMO anima.
+export const OVERLAY_IN_AT = 10000;
 
 export default function SessionOverlay({
   avatarUrl,
   name,
   type,
   out = false,
-  startDelay = OVERLAY_IN_AT,
+  startDelay = 0,
 }: {
   avatarUrl: string | null;
   name: string;
   type: string;
   // true → toca salir (t=-5 en el cierre por reloj; al instante en cancelación).
   out?: boolean;
-  // Sólo para el lienzo de diseño, que no espera 11s para iterar la animación.
+  // Retraso de la entrada tras montar. En real es 0 (el padre monta al segundo
+  // 10). El lienzo de diseño usa un valor chico para iterar sin esperar.
   startDelay?: number;
 }) {
   const typeLabel = TYPE_LABEL[type] ?? "";
@@ -62,8 +64,8 @@ export default function SessionOverlay({
 
         /* ── ENTRADA ──────────────────────────────────────────────────────
            Mismo lenguaje que el intro: pop con rebote y el aro dibujándose
-           como si cargara. Con \`both\`, antes del delay queda invisible — por
-           eso la esquina se ve limpia los 5s previos. */
+           como si cargara. Anima al montar (el padre monta al segundo 10; antes
+           de eso el componente ni existe, así que la esquina se ve limpia). */
         .vsoAvatar {
           position: relative; flex-shrink: 0;
           filter: drop-shadow(0 4px 14px rgba(0,0,0,0.5));

@@ -26,7 +26,7 @@ import {
 } from "@livekit/components-react";
 import SessionIntro, { INTRO_FADE_AT, INTRO_TOTAL_MS } from "./SessionIntro";
 import SessionOutro, { type OutroMode } from "./SessionOutro";
-import SessionOverlay from "./SessionOverlay";
+import SessionOverlay, { OVERLAY_IN_AT } from "./SessionOverlay";
 
 function CreatorFocusLayout() {
   // Cámaras + pantalla compartida (solo el creador puede compartir).
@@ -76,7 +76,15 @@ function CreatorFocusLayout() {
   // El intro arranca en silencio y sube el volumen al máximo al desvanecerse.
   const [audioVol, setAudioVol] = useState(0);
   const [intro, setIntro] = useState(true);
+  // El overlay de la esquina se MONTA a los 10s (así su entrada anima al montar,
+  // como el intro). Antes se montaba con la metadata y no animaba en el video.
+  const [showOverlay, setShowOverlay] = useState(false);
   const overlayOutRef = useRef(false);
+
+  useEffect(() => {
+    const t = setTimeout(() => setShowOverlay(true), OVERLAY_IN_AT);
+    return () => clearTimeout(t);
+  }, []);
 
   // Intro: al terminar el desvanecido, el audio sube suave de 0 al máximo y la
   // sesión queda reproduciéndose tal cual. Corre una sola vez, al montar.
@@ -172,18 +180,19 @@ function CreatorFocusLayout() {
           )}
         </div>
 
-        {/* Overlay horneado (avatar + aro + nombre + tipo). Entra solo a los
-            11.2s (5s de esquina limpia tras el intro) y sale animado:
+        {/* Overlay horneado (avatar + aro + nombre + tipo). Se MONTA a los 10s
+            (showOverlay), así su entrada anima al montar. Sale animado:
               · cierre por reloj  → con la fase "overlayOut" (t=-5)
               · cancelación       → al instante, en paralelo con el negro.
                 La cancelación no avisa: no hay un "antes" donde sacarlo. Sale
                 junto con el arranque del fundido, que tarda 2.6s — de sobra
                 para que la salida (~1s) se lea antes de que el negro la tape. */}
-        {overlay ? (
+        {showOverlay && overlay ? (
           <SessionOverlay
             avatarUrl={overlay.avatarUrl}
             name={overlay.name}
             type={overlay.type}
+            startDelay={0}
             out={overlayOut || outroMode === "cancel"}
           />
         ) : null}
