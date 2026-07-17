@@ -17,16 +17,21 @@ import { useMemo } from "react";
 import { BRAND_DOMAIN } from "@/lib/brand";
 import { buildCollageTiles } from "@/lib/collage";
 
-// Línea de tiempo:
-//   0.3s  "Conecta. Comparte. Vibra."  (sube + enfoca)
-//   1.3s  "Tu momento con {creador}"   (sube + aparece)
-//   2.0s  avatar del creador           (pop con rebote)
-//   2.4s  aro de Vibra                 (se dibuja como si cargara, 1.7s)
-//   2.7s  vibraon.com                  (sube + aparece)
-//   4.4s  todo + el fondo se desvanecen (1.4s); el consumidor sube el audio aquí
-//   6.2s  el intro se desmonta y queda la sesión tal cual
-export const INTRO_FADE_AT = 4400;
-export const INTRO_TOTAL_MS = 6200;
+// HOLD: se ve SOLO el fondo estos 2s antes de que entre nada. Todos los delays
+// de abajo lo llevan sumado, así que mover este número corre toda la secuencia.
+const HOLD = 2000;
+
+// Línea de tiempo (los tiempos ya incluyen el HOLD de 2s):
+//   0→2s  solo el fondo (collage), sin textos ni avatar
+//   2.3s  "Conecta. Comparte. Vibra."  (sube + enfoca)
+//   3.3s  "Tu momento con {creador}"   (sube + aparece)
+//   4.0s  avatar del creador           (pop con rebote)
+//   4.4s  aro de Vibra                 (se dibuja como si cargara, 1.7s)
+//   4.7s  vibraon.com                  (sube + aparece)
+//   6.4s  todo + el fondo se desvanecen (1.4s); el consumidor sube el audio aquí
+//   8.2s  el intro se desmonta y queda la sesión tal cual
+export const INTRO_FADE_AT = HOLD + 4400;
+export const INTRO_TOTAL_MS = HOLD + 6200;
 
 export default function SessionIntro({
   avatarUrl,
@@ -96,7 +101,7 @@ export default function SessionIntro({
         .introTitle {
           font-size: 62px; font-weight: 700; letter-spacing: -0.03em; line-height: 1.08;
           color: #fff; white-space: nowrap; text-shadow: 0 2px 30px rgba(0,0,0,0.55);
-          animation: introRise 1.1s cubic-bezier(0.22, 1, 0.36, 1) 300ms both;
+          animation: introRise 1.1s cubic-bezier(0.22, 1, 0.36, 1) ${HOLD + 300}ms both;
         }
         .introVibra {
           background: linear-gradient(100deg, #ff2fb3 0%, #a855ff 45%, #4f46ff 100%);
@@ -108,7 +113,7 @@ export default function SessionIntro({
         .introMoment {
           font-size: 31px; font-weight: 500; letter-spacing: -0.01em; color: rgba(255,255,255,0.86);
           text-shadow: 0 2px 18px rgba(0,0,0,0.6);
-          animation: introRise 0.9s cubic-bezier(0.22, 1, 0.36, 1) 1300ms both;
+          animation: introRise 0.9s cubic-bezier(0.22, 1, 0.36, 1) ${HOLD + 1300}ms both;
         }
 
         @keyframes introRise {
@@ -120,7 +125,7 @@ export default function SessionIntro({
         .introAvatar {
           position: relative; flex-shrink: 0;
           filter: drop-shadow(0 10px 34px rgba(0,0,0,0.6));
-          animation: introPop 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) 2000ms both;
+          animation: introPop 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) ${HOLD + 2000}ms both;
         }
         @keyframes introPop {
           from { opacity: 0; transform: scale(0.4); }
@@ -131,7 +136,7 @@ export default function SessionIntro({
         .introRing circle {
           stroke-dasharray: ${C};
           stroke-dashoffset: ${C};
-          animation: introRingDraw 1.7s cubic-bezier(0.65, 0, 0.35, 1) 2400ms both;
+          animation: introRingDraw 1.7s cubic-bezier(0.65, 0, 0.35, 1) ${HOLD + 2400}ms both;
         }
         @keyframes introRingDraw { to { stroke-dashoffset: 0 } }
 
@@ -139,7 +144,7 @@ export default function SessionIntro({
           position: absolute; left: 0; right: 0; bottom: 58px; z-index: 2; text-align: center;
           font-size: 30px; font-weight: 600; color: #fff; letter-spacing: 0.01em;
           text-shadow: 0 2px 18px rgba(0,0,0,0.6);
-          animation: introRise 0.9s cubic-bezier(0.22, 1, 0.36, 1) 2700ms both;
+          animation: introRise 0.9s cubic-bezier(0.22, 1, 0.36, 1) ${HOLD + 2700}ms both;
         }
       `}</style>
 
