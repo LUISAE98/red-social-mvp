@@ -534,7 +534,10 @@ export default function GreetingReviewOverlay({
       setFileDuration(null);
       setRecordPhase("done");
     };
-    mr.start();
+    // timeslice de 1s: en iOS Safari, sin timeslice la pista de VIDEO se congela
+    // a los ~13-15s (el audio sigue). Pedir datos cada segundo mantiene viva la
+    // codificación de video toda la grabación. Los chunks se reensamblan en onstop.
+    mr.start(1000);
     recorderRef.current = mr;
     setRecordPhase("recording");
   };
@@ -1112,7 +1115,10 @@ export default function GreetingReviewOverlay({
     : (sourceInfo?.photoURL ?? null);
 
   function renderSourceChip(topValue: number | string) {
-    if (!sourceName) return null;
+    // Solo tiene sentido cuando el saludo viene de una COMUNIDAD (para saber a
+    // cuál va dirigido). Si viene del perfil (creador sin comunidades, o pedido
+    // directo), decir "solicitado desde tu perfil" es redundante → no se muestra.
+    if (!sourceName || req.source === "profile") return null;
     // Suma el safe-area superior: los hijos absolutos ignoran el padding del
     // contenedor, así que sin esto el chip se mete bajo el notch en celular.
     const safeTop = typeof topValue === "number"
@@ -1121,6 +1127,7 @@ export default function GreetingReviewOverlay({
     return (
       <div style={{
         position: "absolute", top: safeTop, left: "50%", transform: "translateX(-50%)",
+        maxWidth: "calc(100% - 24px)", boxSizing: "border-box",
         background: "rgba(0,0,0,0.55)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)",
         borderRadius: 20, padding: "5px 10px 5px 13px",
         display: "flex", alignItems: "center", gap: 7,
@@ -1129,6 +1136,7 @@ export default function GreetingReviewOverlay({
         <span style={{
           color: "rgba(255,255,255,0.78)", fontSize: 11, fontWeight: 500,
           fontFamily: fontStack, whiteSpace: "nowrap", lineHeight: 1.2,
+          overflow: "hidden", textOverflow: "ellipsis", minWidth: 0,
         }}>
           {`Este ${typeWord} fue solicitado desde ${sourceName}`}
         </span>
