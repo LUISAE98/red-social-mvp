@@ -26,7 +26,6 @@ import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import { useTranslations, useLocale } from "next-intl";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import type { DisplayCurrency } from "@/lib/currency/catalog";
-import { BRAND_DOMAIN } from "@/lib/brand";
 
 const fontStack =
   'inherit';
@@ -83,121 +82,6 @@ function formatDateDisplay(date: Date): string {
   } catch {
     return date.toLocaleString("es-MX");
   }
-}
-
-// ─── Canvas recording helpers ─────────────────────────────────────────────────
-
-function rrect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
-  const cr = Math.min(r, w / 2, h / 2);
-  ctx.beginPath();
-  ctx.moveTo(x + cr, y);
-  ctx.lineTo(x + w - cr, y);
-  ctx.arcTo(x + w, y, x + w, y + cr, cr);
-  ctx.lineTo(x + w, y + h - cr);
-  ctx.arcTo(x + w, y + h, x + w - cr, y + h, cr);
-  ctx.lineTo(x + cr, y + h);
-  ctx.arcTo(x, y + h, x, y + h - cr, cr);
-  ctx.lineTo(x, y + cr);
-  ctx.arcTo(x, y, x + cr, y, cr);
-  ctx.closePath();
-}
-
-// Draws only the overlay elements on a transparent canvas (no video background).
-// Used for server-side compositing: the PNG is sent to the Cloud Function
-// which overlays it on the original Mux video via FFmpeg (no re-encoding quality loss).
-function drawOverlayOnly(
-  ctx: CanvasRenderingContext2D,
-  w: number,
-  h: number,
-  avatarImg: HTMLImageElement | null,
-  creatorName: string,
-  serviceType: string,
-  initials: string,
-): void {
-  ctx.clearRect(0, 0, w, h);
-
-  const base   = Math.min(w, h);
-  const pad    = Math.round(base * 0.032);
-  const aSize  = Math.round(base * 0.099);
-  const gap    = Math.round(base * 0.018);
-  const nameFs = Math.round(base * 0.034);
-  const typeFs = Math.round(base * 0.025);
-  const ringW  = Math.round(base * 0.007);
-  const ax = pad + aSize / 2;
-  const ay = pad + aSize / 2;
-
-  const ringR = aSize / 2 + ringW;
-  const d135  = ringR * Math.SQRT1_2;
-  const ringGrad = ctx.createLinearGradient(ax - d135, ay - d135, ax + d135, ay + d135);
-  ringGrad.addColorStop(0,    "#ec4899");
-  ringGrad.addColorStop(0.52, "#9333ea");
-  ringGrad.addColorStop(1,    "#3b82f6");
-  ctx.save();
-  ctx.strokeStyle = ringGrad;
-  ctx.lineWidth = ringW;
-  ctx.beginPath();
-  ctx.arc(ax, ay, ringR, 0, Math.PI * 2);
-  ctx.stroke();
-  ctx.restore();
-
-  ctx.save();
-  ctx.beginPath();
-  ctx.arc(ax, ay, aSize / 2, 0, Math.PI * 2);
-  ctx.clip();
-  if (avatarImg) {
-    ctx.drawImage(avatarImg, ax - aSize / 2, ay - aSize / 2, aSize, aSize);
-  } else {
-    const g = ctx.createLinearGradient(ax - aSize / 2, ay - aSize / 2, ax + aSize / 2, ay + aSize / 2);
-    g.addColorStop(0, "#3b82f6");
-    g.addColorStop(1, "#8b5cf6");
-    ctx.fillStyle = g;
-    ctx.fillRect(ax - aSize / 2, ay - aSize / 2, aSize, aSize);
-    ctx.fillStyle = "#fff";
-    ctx.font = `700 ${Math.round(aSize * 0.38)}px "Plus Jakarta Sans", sans-serif`;
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText(initials.slice(0, 2), ax, ay);
-    ctx.textAlign = "left";
-    ctx.textBaseline = "alphabetic";
-  }
-  ctx.restore();
-
-  const textX = ax + aSize / 2 + gap + ringW;
-  ctx.save();
-  ctx.fillStyle = "#ffffff";
-  ctx.font = `700 ${nameFs}px "Plus Jakarta Sans", sans-serif`;
-  ctx.textBaseline = "alphabetic";
-  ctx.fillText(creatorName, textX, ay - Math.round(typeFs * 0.3));
-  ctx.fillStyle = "rgba(255,255,255,0.80)";
-  ctx.font = `500 ${typeFs}px "Plus Jakarta Sans", sans-serif`;
-  ctx.fillText(serviceType, textX, ay + typeFs + Math.round(typeFs * 0.1));
-  ctx.restore();
-
-  // Pill — static, always fully visible
-  const urlFs   = Math.round(base * 0.025);
-  const pillPad = Math.round(base * 0.016);
-  const pillH   = Math.round(base * 0.050);
-  const dotR    = Math.round(base * 0.006);
-  ctx.font = `700 ${nameFs}px "Plus Jakarta Sans", sans-serif`;
-  const nameW = ctx.measureText(creatorName).width;
-  ctx.font = `700 ${urlFs}px "Plus Jakarta Sans", sans-serif`;
-  const urlW  = ctx.measureText(BRAND_DOMAIN).width;
-  const pillW = pillPad + dotR * 2 + Math.round(base * 0.011) + urlW + pillPad;
-  const pillX = textX + nameW + Math.round(base * 0.011);
-  const pillY = ay - aSize / 2;
-  ctx.save();
-  ctx.fillStyle = "rgba(37,99,235,0.90)";
-  rrect(ctx, pillX, pillY, pillW, pillH, pillH / 2);
-  ctx.fill();
-  ctx.fillStyle = "rgba(255,255,255,0.9)";
-  ctx.beginPath();
-  ctx.arc(pillX + pillPad + dotR, pillY + pillH / 2, dotR, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillStyle = "#ffffff";
-  ctx.font = `700 ${urlFs}px "Plus Jakarta Sans", sans-serif`;
-  ctx.textBaseline = "middle";
-  ctx.fillText(BRAND_DOMAIN, pillX + pillPad + dotR * 2 + Math.round(base * 0.011), pillY + pillH / 2);
-  ctx.restore();
 }
 
 export default function GreetingReviewOverlay({
@@ -293,7 +177,6 @@ export default function GreetingReviewOverlay({
   const rafRecRef = useRef<number | null>(null);
   const cancelDrawLoopRef = useRef<(() => void) | null>(null);
 
-  const overlayAvatarRef = useRef<HTMLImageElement | null>(null);
   // URL cruda (pública) del avatar — la plantilla de grabación animada la carga directa.
   const overlayAvatarUrlRef = useRef<string | null>(null);
 
@@ -549,10 +432,10 @@ export default function GreetingReviewOverlay({
 
   const cameraTitleText = viewMode ? titleText : `${tServices("readMessage")} ${typeLabel}`;
 
+  // Resuelve la URL pública del avatar del creador para pasarla a la plantilla de
+  // grabación animada (que la carga directa). Prioridad: prop → mapa buyers → Firestore.
   const preloadOverlayAvatar = async () => {
-    overlayAvatarRef.current = null;
     overlayAvatarUrlRef.current = null;
-    // Priority: buyerSourceAvatar prop (already resolved) → buyers map → Firestore
     let url: string | null =
       (typeof buyerSourceAvatar === "string" && buyerSourceAvatar) ? buyerSourceAvatar
       : buyers[req.creatorId]?.photoURL ?? null;
@@ -563,26 +446,10 @@ export default function GreetingReviewOverlay({
         url = (typeof d?.photoURL === "string" && d.photoURL) ? d.photoURL : null;
       } catch { /* best-effort */ }
     }
-    if (!url) return;
-    // URL pública cruda para la plantilla de grabación animada (carga directa).
     overlayAvatarUrlRef.current = url;
-    // Fetch via same-origin proxy → blob URL (blob: is always same-origin, no canvas taint).
-    // Using fetch+blob lets us await completion so the image is ready before recording starts.
-    try {
-      const res = await fetch(`/api/proxy-avatar?url=${encodeURIComponent(url)}`);
-      if (!res.ok) throw new Error(`proxy ${res.status}`);
-      const blob = await res.blob();
-      const blobUrl = URL.createObjectURL(blob);
-      await new Promise<void>((resolve) => {
-        const img = new window.Image();
-        img.onload = () => { overlayAvatarRef.current = img; URL.revokeObjectURL(blobUrl); resolve(); };
-        img.onerror = () => { URL.revokeObjectURL(blobUrl); resolve(); };
-        img.src = blobUrl;
-      });
-    } catch { /* avatar won't show — initials fallback */ }
   };
 
-  // Load avatar on mount — needed for the download overlay (not for recording)
+  // Resuelve la URL del avatar al montar — la usa la descarga animada.
   useEffect(() => {
     preloadOverlayAvatar();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -941,7 +808,7 @@ export default function GreetingReviewOverlay({
     setDownloadProgress(0);
 
     try {
-      // 1. Metadata → dimensiones (orientación para el render animado + tamaño del overlay estático)
+      // 1. Metadata → orientación (horizontal/vertical) para el render animado.
       setDownloadProgress(5);
       const metaEl = document.createElement("video");
       metaEl.preload = "metadata";
@@ -953,103 +820,53 @@ export default function GreetingReviewOverlay({
       const srcW = metaEl.videoWidth || 1920;
       const srcH = metaEl.videoHeight || 1080;
       metaEl.src = "";
+      const orientation = srcH > srcW ? "vertical" : "horizontal";
 
       const creatorDisplayName = req.profileDisplayName ?? req.profileUsername ?? tCommon("creator");
-      const serviceLabel = req.type === "consejo" ? tWallet("typeLabelAdvice") : req.type === "mensaje" ? tWallet("typeLabelMessage") : tWallet("typeLabelGreeting");
-      const initials = getInitials(creatorDisplayName);
 
       // 2. Auth token — forceRefresh:false usa el token en caché si sigue válido
       const user = auth.currentUser;
       if (!user) throw new Error("Not authenticated — no currentUser");
       const idToken = await user.getIdToken(false);
 
-      // ── Intento 1: descarga ANIMADA — hornea intro (6s) + esquina + outro con
-      //    Web Egress de LiveKit. Universal: funciona en TODO dispositivo (incl. iPhone).
-      try {
-        setDownloadProgress(15);
-        const orientation = srcH > srcW ? "vertical" : "horizontal";
-        // Progreso "fake" mientras el grabador renderiza (~intro+video+outro s).
-        let animProgress = 15;
-        const animInterval = setInterval(() => {
-          animProgress = Math.min(80, animProgress + Math.random() * 1.5);
-          setDownloadProgress(Math.round(animProgress));
-        }, 3_000);
-        let animRes: Response;
-        try {
-          animRes = await fetch("https://greetinganimateddownload-zivezlakcq-uc.a.run.app", {
-            method: "POST",
-            headers: { "Content-Type": "application/json", "Authorization": `Bearer ${idToken}` },
-            body: JSON.stringify({
-              playbackId,
-              name: creatorDisplayName,
-              avatar: overlayAvatarUrlRef.current ?? "",
-              type: req.type ?? "saludo",
-              orientation,
-              locale,
-            }),
-          });
-        } finally {
-          clearInterval(animInterval);
-        }
-        if (!animRes.ok) throw new Error(`animated CF ${animRes.status}`);
-        const { url: signedUrl } = (await animRes.json()) as { url?: string };
-        if (!signedUrl) throw new Error("animated CF: no url");
-
-        setDownloadProgress(90);
-        const animBlob = await (await fetch(signedUrl)).blob();
-        setDownloadProgress(99);
-        const objUrl = URL.createObjectURL(animBlob);
-        const a = document.createElement("a");
-        a.href = objUrl;
-        a.download = fileName;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(objUrl);
-        setDownloadProgress(100);
-        return;
-      } catch (animErr) {
-        console.warn("[handleDownload] animated render failed, falling back to static:", animErr);
-        setDownloadProgress(10);
-      }
-
-      // ── Intento 2 (fallback): overlay PNG estático compuesto con FFmpeg (CRF 18). ──
-      const overlayCanvas = document.createElement("canvas");
-      overlayCanvas.width = srcW;
-      overlayCanvas.height = srcH;
-      const overlayCtx = overlayCanvas.getContext("2d")!;
-      drawOverlayOnly(overlayCtx, srcW, srcH, overlayAvatarRef.current, creatorDisplayName, serviceLabel, initials);
-      // toDataURL avoids Blob/FileReader async chain and works without canvas taint issues
-      const overlayBase64 = overlayCanvas.toDataURL("image/png").split(",")[1];
-
-      setDownloadProgress(20);
-      const cfUrl = "https://videooverlaydownload-zivezlakcq-uc.a.run.app";
-      let fakeProgress = 20;
-      const fakeInterval = setInterval(() => {
-        fakeProgress = Math.min(75, fakeProgress + Math.random() * 2);
-        setDownloadProgress(Math.round(fakeProgress));
+      // 3. Descarga ANIMADA: un Web Egress de LiveKit "hornea" intro (6s) + esquina
+      //    + outro sobre el video y sube el MP4 a R2. Universal: funciona en TODO
+      //    dispositivo (incl. iPhone). Devuelve una URL firmada que descargamos.
+      setDownloadProgress(15);
+      // Progreso "fake" mientras el grabador renderiza (~intro+video+outro s).
+      let animProgress = 15;
+      const animInterval = setInterval(() => {
+        animProgress = Math.min(85, animProgress + Math.random() * 1.5);
+        setDownloadProgress(Math.round(animProgress));
       }, 3_000);
-      let cfRes: Response;
+      let animRes: Response;
       try {
-        cfRes = await fetch(cfUrl, {
+        animRes = await fetch("https://greetinganimateddownload-zivezlakcq-uc.a.run.app", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${idToken}`,
-          },
-          body: JSON.stringify({ playbackId, overlayBase64 }),
+          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${idToken}` },
+          body: JSON.stringify({
+            playbackId,
+            name: creatorDisplayName,
+            avatar: overlayAvatarUrlRef.current ?? "",
+            type: req.type ?? "saludo",
+            orientation,
+            locale,
+          }),
         });
       } finally {
-        clearInterval(fakeInterval);
+        clearInterval(animInterval);
       }
-      if (!cfRes.ok) {
-        const errText = await cfRes.text().catch(() => "");
-        throw new Error(`CF ${cfRes.status}: ${errText}`);
+      if (!animRes.ok) {
+        const errText = await animRes.text().catch(() => "");
+        throw new Error(`animated CF ${animRes.status}: ${errText}`);
       }
-      setDownloadProgress(85);
-      const resultBlob = await cfRes.blob();
+      const { url: signedUrl } = (await animRes.json()) as { url?: string };
+      if (!signedUrl) throw new Error("animated CF: no url");
+
+      setDownloadProgress(92);
+      const animBlob = await (await fetch(signedUrl)).blob();
       setDownloadProgress(99);
-      const objUrl = URL.createObjectURL(resultBlob);
+      const objUrl = URL.createObjectURL(animBlob);
       const a = document.createElement("a");
       a.href = objUrl;
       a.download = fileName;
@@ -1060,13 +877,16 @@ export default function GreetingReviewOverlay({
       setDownloadProgress(100);
 
     } catch (err) {
-      console.error("[handleDownload] error:", err);
+      // Último recurso si el render falla (blip de red, egress caído): abrir el
+      // video plano de Mux — SIN el diseño viejo, que ya no existe.
+      console.error("[handleDownload] animated render failed:", err);
+      setUploadError(tServices("errorProcess"));
       window.open(mp4Url, "_blank");
     } finally {
       setDownloading(false);
       setDownloadProgress(0);
     }
-  }, [items, currentIndex, downloading, req, getInitials, locale]);
+  }, [items, currentIndex, downloading, req, locale, tCommon, tServices]);
 
   // ─── TTS functions — must be before any early return ────────────────────────
   const startSpeechFrom = useCallback((charIndex: number) => {

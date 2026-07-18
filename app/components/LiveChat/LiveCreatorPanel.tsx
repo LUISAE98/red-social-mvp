@@ -1149,8 +1149,33 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
       return { x: homeX, y: homeY }; // sin cambio si no hay espacio libre
     }
 
+    // Posiciones finales sin solapamiento. Los tiles con posición guardada (que el
+    // usuario movió) se anclan; los tiles que aparecen NUEVOS a mitad del live (sin
+    // posición guardada) se colocan en la celda libre más cercana a su lugar por
+    // defecto — nunca encima de otro tile ya presente.
+    const resolvedPositions: Record<string, { x: number; y: number }> = (() => {
+      const result: Record<string, { x: number; y: number }> = {};
+      const occupied: Array<{ x: number; y: number; w: number; h: number }> = [];
+      const anchored = tileItems.filter((t) => itemPositions[t.id]);
+      const floating = tileItems.filter((t) => !itemPositions[t.id]);
+      for (const t of anchored) {
+        const p = itemPositions[t.id]!;
+        result[t.id] = { x: p.x, y: p.y };
+        occupied.push({ x: p.x, y: p.y, w: t.width, h: t.height });
+      }
+      for (const t of floating) {
+        const box = { x: t.defaultX, y: t.defaultY, w: t.width, h: t.height };
+        const pos = occupied.some((o) => rectsOverlap(box, o))
+          ? findNearestFreePos(t.defaultX, t.defaultY, t.width, t.height, occupied)
+          : { x: t.defaultX, y: t.defaultY };
+        result[t.id] = pos;
+        occupied.push({ x: pos.x, y: pos.y, w: t.width, h: t.height });
+      }
+      return result;
+    })();
+
     function getEffectivePos(id: string, defaultX: number, defaultY: number, w: number, h: number) {
-      const homePos = getPos(id, defaultX, defaultY);
+      const homePos = resolvedPositions[id] ?? getPos(id, defaultX, defaultY);
       if (!draggingId || !liveDragPos || id === draggingId) return homePos;
       const draggingItem = tileItems.find(i => i.id === draggingId);
       if (!draggingItem) return homePos;
@@ -1160,7 +1185,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
       const occupied: Array<{ x: number; y: number; w: number; h: number }> = [dragBox];
       for (const other of tileItems) {
         if (other.id === id || other.id === draggingId) continue;
-        const p = getPos(other.id, other.defaultX, other.defaultY);
+        const p = resolvedPositions[other.id] ?? getPos(other.id, other.defaultX, other.defaultY);
         occupied.push({ x: p.x, y: p.y, w: other.width, h: other.height });
       }
       return findNearestFreePos(homePos.x, homePos.y, w, h, occupied);
@@ -1169,7 +1194,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
     function onItemDown(e: React.PointerEvent<HTMLDivElement>, id: string, defaultX: number, defaultY: number, w: number, h: number) {
       e.preventDefault();
       e.currentTarget.setPointerCapture(e.pointerId);
-      const pos = getPos(id, defaultX, defaultY);
+      const pos = resolvedPositions[id] ?? getPos(id, defaultX, defaultY);
       statsDragRef.current = { id, startX: e.clientX, startY: e.clientY, origX: pos.x, origY: pos.y, w, h, moved: false };
       setDraggingId(id);
       setLiveDragPos(pos);
@@ -1217,7 +1242,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
         // Add home positions of non-colliding items first
         for (const otherItem of tileItems) {
           if (otherItem.id === id) continue;
-          const homePos = prev[otherItem.id] ?? { x: otherItem.defaultX, y: otherItem.defaultY };
+          const homePos = resolvedPositions[otherItem.id] ?? prev[otherItem.id] ?? { x: otherItem.defaultX, y: otherItem.defaultY };
           if (!rectsOverlap(dragBox, { x: homePos.x, y: homePos.y, w: otherItem.width, h: otherItem.height })) {
             occupied.push({ x: homePos.x, y: homePos.y, w: otherItem.width, h: otherItem.height });
           }
@@ -1225,7 +1250,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
         // Now displace colliding items, each avoiding all already-occupied slots
         for (const otherItem of tileItems) {
           if (otherItem.id === id) continue;
-          const homePos = prev[otherItem.id] ?? { x: otherItem.defaultX, y: otherItem.defaultY };
+          const homePos = resolvedPositions[otherItem.id] ?? prev[otherItem.id] ?? { x: otherItem.defaultX, y: otherItem.defaultY };
           if (rectsOverlap(dragBox, { x: homePos.x, y: homePos.y, w: otherItem.width, h: otherItem.height })) {
             const freePos = findNearestFreePos(homePos.x, homePos.y, otherItem.width, otherItem.height, occupied);
             next[otherItem.id] = freePos;
@@ -1251,7 +1276,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
           {tileItems.map(({ id, defaultX, defaultY, width, height, extra, content }) => {
             const isDragging = id === draggingId;
             const pos = isDragging
-              ? (liveDragPos ?? getPos(id, defaultX, defaultY))
+              ? (liveDragPos ?? resolvedPositions[id] ?? getPos(id, defaultX, defaultY))
               : getEffectivePos(id, defaultX, defaultY, width, height);
             const isChart = id.startsWith("chart_");
             return (

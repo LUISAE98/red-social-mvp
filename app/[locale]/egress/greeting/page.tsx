@@ -49,6 +49,18 @@ function GreetingEgressInner() {
   const endedRef = useRef(false);
   const watchdogRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Fin del video → outro: negro MUY suave (2s) → Vibra 5s → termina la grabación.
+  // Declarada antes del effect porque el watchdog la referencia.
+  function onEnded() {
+    if (endedRef.current) return;
+    endedRef.current = true;
+    if (watchdogRef.current) clearTimeout(watchdogRef.current);
+    setBlack(true);
+    setTimeout(() => setShowVibra(true), 2000);
+    setTimeout(() => setShowVibra(false), 7000);
+    setTimeout(() => EgressHelper.endRecording(), 9000);
+  }
+
   // Arranca la secuencia (grabación + intro) cuando el video está listo, para
   // que no se grabe un frame en blanco. Fallback por si `canplay` no dispara.
   useEffect(() => {
@@ -89,17 +101,6 @@ function GreetingEgressInner() {
       cornerOutRef.current = true;
       setCornerOut(true);
     }
-  }
-
-  // Fin del video → outro: negro MUY suave (2s) → Vibra 5s → termina la grabación.
-  function onEnded() {
-    if (endedRef.current) return;
-    endedRef.current = true;
-    if (watchdogRef.current) clearTimeout(watchdogRef.current);
-    setBlack(true);
-    setTimeout(() => setShowVibra(true), 2000);
-    setTimeout(() => setShowVibra(false), 7000);
-    setTimeout(() => EgressHelper.endRecording(), 9000);
   }
 
   const src = playbackId ? `https://stream.mux.com/${playbackId}/high.mp4` : undefined;

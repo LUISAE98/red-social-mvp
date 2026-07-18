@@ -10,6 +10,7 @@ import { useTranslations } from "next-intl";
 import VibraGradientText from "@/app/components/VibraGradientText/VibraGradientText";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import WalletPhonePreview from "./WalletPhonePreview";
+import WalletOnboardingGlobe from "./WalletOnboardingGlobe";
 import {
   WALLET_COMMISSION_RATE,
   WALLET_NET_RATE,
@@ -355,6 +356,13 @@ export default function WalletOnboarding() {
           color: rgba(255, 255, 255, 0.72);
         }
 
+        /* Ancho grande; el globo llena este contenedor y se encoge solo en móvil. */
+        .clearGlobe {
+          margin-top: 20px;
+          width: min(360px, 100%);
+          align-self: flex-end;
+        }
+
         /* El tamaño y el estirado van en este span normal (styled-jsx no scopea
            clases sobre el componente VibraGradientText); el degradado los hereda.
            line-height holgado + padding evitan que background-clip:text corte el
@@ -407,6 +415,10 @@ export default function WalletOnboarding() {
 
           .clearText {
             max-width: none;
+          }
+
+          .clearGlobe {
+            align-self: center;
           }
 
           .clearTitle {
@@ -590,6 +602,11 @@ export default function WalletOnboarding() {
             })}
           </h2>
           <p className="clearText">{tWallet("onboardingClearText")}</p>
+
+          {/* Planeta 3D blanco (mismo motor que el globo de la wallet). */}
+          <div className="clearGlobe">
+            <WalletOnboardingGlobe />
+          </div>
         </div>
       </section>
       </div>

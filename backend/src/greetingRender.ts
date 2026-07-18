@@ -175,13 +175,16 @@ export const greetingAnimatedDownload = onRequest(
       return;
     }
 
-    // La ubicación del archivo puede tardar un instante en poblarse tras COMPLETE.
-    // Se lee de fileResults (moderno) o del campo legacy `file`, con reintentos.
+    // La ubicación viene en fileResults[] (moderno) o en el oneof `result`
+    // DEPRECADO (case "file"). En el objeto protobuf crudo el oneof se accede como
+    // info.result.value.location — NO como info.file.location. Serializar a JSON
+    // aplana el oneof a `file`, así que leemos de ahí y no dependemos de la forma
+    // interna del protobuf (esto era el bug que mandaba todo al canvas viejo).
     const readLocation = (info: EgressInfo): string => {
-      const fromResults = info.fileResults?.[0]?.location;
-      if (fromResults) return fromResults;
-      const legacy = (info as unknown as { file?: { location?: string } }).file?.location;
-      return legacy ?? "";
+      const plain = JSON.parse(
+        JSON.stringify(info, (_k, v) => (typeof v === "bigint" ? v.toString() : v))
+      ) as { fileResults?: Array<{ location?: string }>; file?: { location?: string } };
+      return plain.fileResults?.[0]?.location || plain.file?.location || "";
     };
 
     let location = readLocation(finalInfo);

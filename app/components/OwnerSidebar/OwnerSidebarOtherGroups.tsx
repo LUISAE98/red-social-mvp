@@ -813,8 +813,53 @@ return (
   leaveLabel={tCommon("leave")}
 />
 
-    {notice && (
-      <div style={noticeStyles(notice.tone, isMobile)}>
+    {notice &&
+      !(notice.closable && legacyBannerDismissedIds.has(g.id)) && (
+      <div
+        style={
+          notice.closable
+            ? {
+                // Banner legado: fondo con la imagen de suscripciones oscurecida
+                // (para no encimarse con el texto), sin contorno, texto blanco.
+                ...noticeStyles(notice.tone, isMobile),
+                position: "relative",
+                paddingRight: 34,
+                border: "none",
+                overflow: "hidden",
+                color: "#fff",
+                background:
+                  "linear-gradient(rgba(8,8,12,0.68), rgba(8,8,12,0.68)), url('/suscripciones.png') center / cover no-repeat",
+              }
+            : noticeStyles(notice.tone, isMobile)
+        }
+      >
+        {notice.closable && (
+          <button
+            type="button"
+            onClick={() => dismissLegacyBanner(g.id)}
+            aria-label={tCommon("close")}
+            title={tCommon("close")}
+            style={{
+              position: "absolute",
+              top: 8,
+              right: 8,
+              width: 22,
+              height: 22,
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: 0,
+              border: "none",
+              background: "transparent",
+              color: "#fff",
+              fontSize: 13,
+              lineHeight: 1,
+              cursor: "pointer",
+            }}
+          >
+            ✕
+          </button>
+        )}
         {notice.title ? (
           <div style={{ fontWeight: 700 }}>
             {notice.title}
@@ -914,12 +959,23 @@ return (
                       legacyBannerDismissedIds.has(g.id)
                     ) && (
                     <div
-                      style={{
-                        ...noticeStyles(accessNotice.tone, isMobile),
-                        ...(accessNotice.closable
-                          ? { position: "relative", paddingRight: 34 }
-                          : null),
-                      }}
+                      style={
+                        accessNotice.closable
+                          ? {
+                              // Banner legado: fondo con la imagen de suscripciones
+                              // oscurecida (para no encimarse con el texto), sin
+                              // contorno y con texto blanco.
+                              ...noticeStyles(accessNotice.tone, isMobile),
+                              position: "relative",
+                              paddingRight: 34,
+                              border: "none",
+                              overflow: "hidden",
+                              color: "#fff",
+                              background:
+                                "linear-gradient(rgba(8,8,12,0.68), rgba(8,8,12,0.68)), url('/suscripciones.png') center / cover no-repeat",
+                            }
+                          : noticeStyles(accessNotice.tone, isMobile)
+                      }
                     >
                       {accessNotice.closable && (
                         <button
@@ -937,11 +993,11 @@ return (
                             alignItems: "center",
                             justifyContent: "center",
                             padding: 0,
-                            borderRadius: 6,
+                            borderRadius: 999,
                             border: "none",
-                            background: "rgba(255,255,255,0.08)",
-                            color: "rgba(255,255,255,0.7)",
-                            fontSize: 14,
+                            background: "rgba(0,0,0,0.45)",
+                            color: "#fff",
+                            fontSize: 13,
                             lineHeight: 1,
                             cursor: "pointer",
                           }}
