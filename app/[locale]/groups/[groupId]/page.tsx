@@ -826,6 +826,13 @@ function redirectToLogin() {
         allowCreatorStory,
       });
 
+      registrarCompraGeo({
+        creatorId: group?.ownerId,
+        serviceType: greetType === "consejo" ? "advice" : "greeting",
+        grossAmount:
+          greetOffering?.memberPrice ?? greetOffering?.publicPrice ?? undefined,
+      });
+
       const successMessage = tGroups("greetSent");
 
       setServiceToast(successMessage);
@@ -891,6 +898,12 @@ function redirectToLogin() {
         durationMinutes: meetGreetDurationMinutes,
       });
 
+      registrarCompraGeo({
+        creatorId: group?.ownerId,
+        serviceType: "live_session",
+        grossAmount: meetGreetPrice ?? undefined,
+      });
+
       const successMessage = tGroups("meetGreetSent");
 
       setMeetGreetOpen(false);
@@ -954,6 +967,12 @@ function redirectToLogin() {
         buyerMessage: exclusiveSessionMessage.trim() || null,
         priceSnapshot: exclusiveSessionPrice,
         durationMinutes: exclusiveSessionDurationMinutes,
+      });
+
+      registrarCompraGeo({
+        creatorId: group?.ownerId,
+        serviceType: "exclusive_session",
+        grossAmount: exclusiveSessionPrice ?? undefined,
       });
 
       const successMessage = tGroups("sessionExclusiveSent");

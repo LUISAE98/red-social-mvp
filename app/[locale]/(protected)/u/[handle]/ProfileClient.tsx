@@ -1467,6 +1467,15 @@ await createGreetingRequest({
   allowCreatorStory,
 });
 
+    registrarCompraGeo({
+      creatorId: userDoc.uid,
+      serviceType: greetType === "consejo" ? "advice" : "greeting",
+      grossAmount: (() => {
+        const s = getProfileService(greetType);
+        return s?.publicPrice ?? s?.memberPrice ?? undefined;
+      })(),
+    });
+
     setGreetOpen(false);
     setToName("");
     setInstructions("");

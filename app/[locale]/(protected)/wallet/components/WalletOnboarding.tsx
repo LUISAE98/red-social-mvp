@@ -42,7 +42,6 @@ const FEE_PERK_KEYS = [
 
 const HERO_LIST_KEYS = [
   "onboardingHeroList1",
-  "onboardingHeroList2",
   "onboardingHeroList3",
   "onboardingHeroList4",
   "onboardingHeroList5",
@@ -394,16 +393,16 @@ export default function WalletOnboarding() {
           align-self: flex-end;
         }
 
-        /* Imagen de estilo de vida, a lo ancho del onboarding. */
+        /* Imagen de estilo de vida, a lo ancho del onboarding. Margen negativo
+           para subir el banner al hueco vacío bajo el globo (evita espacio muerto). */
         .lifestyle {
-          margin-top: 44px;
+          margin-top: -8px;
         }
 
         .lifestyleImageWrap {
           position: relative;
           isolation: isolate;
           width: 100%;
-          min-height: 340px;
           overflow: hidden;
         }
 
@@ -416,24 +415,72 @@ export default function WalletOnboarding() {
           pointer-events: none;
         }
 
-        /* Lista de garantías encima de la imagen (lado izquierdo). */
-        .lifestyleList {
+        /* Fila sobre la imagen: garantías a la izquierda, seguridad a la derecha. */
+        .lifestyleContent {
           position: relative;
           z-index: 2;
+          padding: 30px 34px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: clamp(28px, 5vw, 72px);
+        }
+
+        .lifestyleList {
           list-style: none;
           margin: 0;
-          padding: 36px 40px;
-          max-width: 560px;
+          padding: 0;
+          max-width: 460px;
           display: flex;
           flex-direction: column;
-          gap: 15px;
+          gap: 11px;
+        }
+
+        /* Columna de seguridad (escudo + reconocimiento facial). */
+        .lifestyleSecurity {
+          flex: 0 0 auto;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 22px;
+          max-width: 150px;
+        }
+
+        .securityBadge {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 8px;
+          text-align: center;
+        }
+
+        .securityIcon {
+          width: 58px;
+          height: 58px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .securityIcon svg {
+          width: 100%;
+          height: 100%;
+          display: block;
+        }
+
+        .securityText {
+          font-size: 11px;
+          line-height: 1.3;
+          font-weight: 500;
+          color: rgba(255, 255, 255, 0.92);
+          max-width: 140px;
         }
 
         .lifestyleItem {
           display: flex;
           align-items: center;
-          gap: 11px;
-          font-size: 15px;
+          gap: 8px;
+          font-size: 11px;
           line-height: 1.3;
           font-weight: 500;
           color: #ffffff;
@@ -442,19 +489,19 @@ export default function WalletOnboarding() {
         /* Círculo sin relleno, contorno verde grueso, con la paloma verde. */
         .lifestyleCheck {
           flex: 0 0 auto;
-          width: 19px;
-          height: 19px;
+          width: 14px;
+          height: 14px;
           border-radius: 50%;
           background: transparent;
-          border: 2px solid #22c55e;
+          border: 1.7px solid #22c55e;
           display: inline-flex;
           align-items: center;
           justify-content: center;
         }
 
         .lifestyleCheck svg {
-          width: 11px;
-          height: 11px;
+          width: 8px;
+          height: 8px;
           display: block;
         }
 
@@ -478,6 +525,21 @@ export default function WalletOnboarding() {
           .onboarding {
             padding: 28px 20px 36px;
             border-radius: 16px;
+          }
+
+          /* En angosto: lista arriba y seguridad como fila debajo. */
+          .lifestyleContent {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 22px;
+          }
+
+          .lifestyleSecurity {
+            flex-direction: row;
+            align-self: stretch;
+            max-width: none;
+            justify-content: space-around;
+            gap: 16px;
           }
 
           /* En angosto: título+23% arriba, ejemplo abajo, ambos a lo ancho. */
@@ -720,24 +782,54 @@ export default function WalletOnboarding() {
           />
           <div className="lifestyleScrim" aria-hidden="true" />
 
-          <ul className="lifestyleList">
-            {HERO_LIST_KEYS.map((key) => (
-              <li key={key} className="lifestyleItem">
-                <span className="lifestyleCheck" aria-hidden="true">
-                  <svg viewBox="0 0 12 12" fill="none">
-                    <path
-                      d="M2 6.2 4.7 9 10 3.2"
-                      stroke="#22c55e"
-                      strokeWidth="2.2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
+          <div className="lifestyleContent">
+            <ul className="lifestyleList">
+              {HERO_LIST_KEYS.map((key) => (
+                <li key={key} className="lifestyleItem">
+                  <span className="lifestyleCheck" aria-hidden="true">
+                    <svg viewBox="0 0 12 12" fill="none">
+                      <path
+                        d="M2 6.2 4.7 9 10 3.2"
+                        stroke="#22c55e"
+                        strokeWidth="2.2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </span>
+                  {tWallet(key, { pct: COMMISSION_PCT })}
+                </li>
+              ))}
+            </ul>
+
+            <div className="lifestyleSecurity">
+              <div className="securityBadge">
+                <span className="securityIcon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 2.8 19 5.6v5.1c0 4.6-3 7.8-7 9.4-4-1.6-7-4.8-7-9.4V5.6L12 2.8Z" />
+                    <path d="M8.7 12 11 14.3l4.3-4.6" />
                   </svg>
                 </span>
-                {tWallet(key, { pct: COMMISSION_PCT })}
-              </li>
-            ))}
-          </ul>
+                <span className="securityText">{tWallet("onboardingSecurePayments")}</span>
+              </div>
+
+              <div className="securityBadge">
+                <span className="securityIcon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M4 8.2V6a2 2 0 0 1 2-2h2.2" />
+                    <path d="M15.8 4H18a2 2 0 0 1 2 2v2.2" />
+                    <path d="M20 15.8V18a2 2 0 0 1-2 2h-2.2" />
+                    <path d="M8.2 20H6a2 2 0 0 1-2-2v-2.2" />
+                    <path d="M9.2 9.6v1.2" />
+                    <path d="M14.8 9.6v1.2" />
+                    <path d="M12 9.8v2.8l-1.1.8" />
+                    <path d="M9.4 15c.8.7 1.7 1 2.6 1s1.8-.3 2.6-1" />
+                  </svg>
+                </span>
+                <span className="securityText">{tWallet("onboardingSecureIdentity")}</span>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
       </div>

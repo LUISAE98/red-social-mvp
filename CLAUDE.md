@@ -99,7 +99,13 @@ Nunca asumir que existe una única forma de monetización.
 
 Video y streaming son áreas estratégicas.
 
-Actualmente se utiliza Mux.
+Vibra usa tres motores de video distintos que conviven, cada uno con un propósito separado:
+
+* **Mux** — video bajo demanda (VOD): los videos de las publicaciones. Subida de assets, `assetId`, `playbackId`.
+* **Cloudflare Stream** — live streaming (transmisiones en vivo del creador). Flujo WHIP/WebRTC entrando, HLS saliendo.
+* **LiveKit** — videollamadas 1-a-1 en tiempo real (sesiones exclusivas y meet & greet), incluida su grabación (egress).
+
+No confundir los tres. Los lives (Cloudflare Stream) son un flujo separado de las llamadas 1-a-1 (LiveKit), y ambos son distintos del VOD (Mux).
 
 Mantener compatibilidad con:
 
@@ -161,6 +167,56 @@ Cloud Functions:
 firebase.json utiliza backend como source oficial.
 
 No crear una segunda estructura de Cloud Functions.
+
+---
+
+# Infraestructura / Plataformas
+
+Vibra se apoya en las siguientes plataformas externas. Cada una tiene un rol específico; no mezclar responsabilidades ni asumir que una reemplaza a otra.
+
+## Firebase
+
+Columna vertebral del backend. Cuatro servicios:
+
+* **Firestore** — base de datos principal (perfiles, posts, wallet/ledger, sesiones, grupos).
+* **Storage** — archivos e imágenes.
+* **Auth** — autenticación principal.
+* **Cloud Functions** — backend en `backend/src/index.ts` (source oficial según `firebase.json`).
+
+## LiveKit
+
+Videollamadas 1-a-1 en tiempo real (WebRTC). Motor de las **sesiones exclusivas** y **meet & greet**.
+
+* Salas de video: `app/components/liveKit/LiveKitVideoRoom.tsx`.
+* Tokens, webhooks y ciclo de vida: `backend/src/livekit.ts`, `livekitTokens.ts`, `livekitWebhook.ts`.
+* **Grabación (egress)** con plantilla custom: `app/[locale]/egress/session/` y `app/[locale]/egress/greeting/`.
+
+## Mux
+
+Video bajo demanda (VOD): los videos de las publicaciones (`provider: "mux"`).
+
+## Cloudflare
+
+Cloudflare cumple **dos roles distintos**:
+
+* **Cloudflare Stream** — live streaming (transmisiones en vivo). WHIP/WebRTC → HLS. Ver `backend/src/liveCF.ts`, `app/api/cf-broadcast/`, `cf-viewer-proxy/`, `whip-proxy/`, `backend/src/cfWebhooks.ts`.
+* **Cloudflare R2** — almacenamiento de las **grabaciones de sesiones 1-a-1** (object storage S3-compatible, endpoint `*.r2.cloudflarestorage.com`). LiveKit Egress produce el `.mp4`, pero el archivo vive en R2. La descarga se hace con URL pre-firmada (1 hora) vía `backend/src/recordingDownload.ts`; solo el creador o el comprador de la sesión pueden obtenerla. La clave se guarda en Firestore como `recordingS3Key` (fallback legacy: `recordingUrl`).
+
+## Didit
+
+KYC / verificación de identidad y cumplimiento financiero. Gate para retiros de creadores. Ver Áreas Sensibles.
+
+## Mercado Pago
+
+Procesador de pagos (modelo agregador: todo cae en cuenta MP única de Vibra; el conteo por perfil vive en el ledger interno). Área sensible.
+
+## GitHub
+
+Control de versiones / repositorio (rama principal `main`).
+
+## Vercel
+
+Hosting y deploy del frontend Next.js. Producción en `https://vibraon.com`.
 
 ---
 

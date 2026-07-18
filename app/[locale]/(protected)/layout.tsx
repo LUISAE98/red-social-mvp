@@ -3,10 +3,10 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { motion, AnimatePresence } from "framer-motion";
-import { consumeNavSlideDir, peekNavSlideDir } from "@/lib/nav-slide";
+import { consumeNavSlideDir } from "@/lib/nav-slide";
 import { usePathname, useRouter, Link as LocaleLink } from "@/i18n/navigation";
 import VibraSavedPostIcon from "@/app/components/VibraServiceIcons/VibraSavedPostIcon";
 import { useAuth } from "@/app/providers";
@@ -95,12 +95,13 @@ const walletAvailable = selectFinanceView(walletSummary, "net").available;
 // alinea a la misma altura que el de notificaciones.
 const showWalletAmount = !walletLoading && walletAvailable > 0;
 const { headerRef, safeAreaRef } = useMobileHeaderFade();
-// Peek (no destruye) durante render para que framer-motion reciba el initial correcto
-const slideDir = useMemo(() => {
-  if (typeof window === "undefined") return 0;
-  const d = peekNavSlideDir();
-  return d === "right" ? 1 : d === "left" ? -1 : 0;
-}, [pathname]);
+// Slide de entrada vía atributo CSS aplicado DESPUÉS del paint (no framer-motion).
+// En iOS un transform en render sobre un ancestro crea un containing/stacking
+// context para los `position: fixed` descendientes (OwnerSidebar y sus overlays)
+// antes de que estén pintados, y la animación no corre. Aplicar el transform tras
+// el paint lo evita. Mismo mecanismo que app/[locale]/groups/layout.tsx.
+const mainInnerRef = useRef<HTMLDivElement>(null);
+const pendingAnimDirRef = useRef<"left" | "right" | null>(null);
 
 // Estado para header contextual (avatar + nombre que pasan las páginas hijas)
 const [headerData, setHeaderData] = useState<MobileHeaderData>({ avatarUrl: null, name: null });
@@ -138,12 +139,27 @@ useLayoutEffect(() => {
     setContextScrolled(false);
   }, [pathname]);
 
-  // Restaurar scroll antes del paint + limpiar _dir después de haberlo leído en useMemo
+  // Restaurar scroll antes del paint (sin salto visible) y guardar la dirección
+  // para animar después del paint.
   useLayoutEffect(() => {
     const dir = consumeNavSlideDir();
     if (!dir) return;
     const saved = sessionStorage.getItem(`nav:scroll:${pathname}`);
     window.scrollTo({ top: saved !== null ? parseInt(saved) : 0, behavior: "instant" });
+    pendingAnimDirRef.current = dir;
+  }, [pathname]);
+
+  // Animar después del paint para que los `position: fixed` hijos ya estén en el
+  // DOM cuando iOS crea el stacking context del transform.
+  useEffect(() => {
+    const dir = pendingAnimDirRef.current;
+    pendingAnimDirRef.current = null;
+    if (!dir) return;
+    const mainEl = mainInnerRef.current;
+    if (mainEl) {
+      mainEl.setAttribute("data-nav-enter", dir);
+      mainEl.addEventListener("animationend", () => mainEl.removeAttribute("data-nav-enter"), { once: true });
+    }
   }, [pathname]);
 
   // Scroll listener: comportamiento diferente según la ruta
@@ -947,13 +963,7 @@ const contentAreaClassName = isEmbed
           )}
 
           <main className="mainCol">
-            <motion.div
-              className="mainInner"
-              key={pathname}
-              initial={{ x: slideDir > 0 ? "100%" : slideDir < 0 ? "-100%" : 0 }}
-              animate={{ x: 0 }}
-              transition={{ type: "spring", stiffness: 320, damping: 32, mass: 0.9 }}
-            >{children}</motion.div>
+            <div className="mainInner" ref={mainInnerRef}>{children}</div>
           </main>
 
           {!isEmbed && (
