@@ -913,6 +913,8 @@
     "onboardingPhoneWithdraw": "Withdraw",
     "onboardingPhoneIncome": "Monthly income",
     "onboardingPhoneThisMonth": "This month",
+    "onboardingPhoneTicket": "Premium ticket",
+    "onboardingPhoneSubscription": "New subscription",
     "calendarTitle": "Session calendar",
     "cannotAccept": "Could not accept.",
     "cannotAcceptAndSchedule": "Could not accept and schedule.",

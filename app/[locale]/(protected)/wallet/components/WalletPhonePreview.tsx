@@ -16,17 +16,23 @@ type PhoneTab = "finances" | "statistics";
 // Ingresos de ejemplo por mes (alturas relativas de las barras).
 const STAT_BARS = [42, 58, 50, 72, 63, 88];
 
-// Transacciones de ejemplo: clave de etiqueta + monto mostrado.
-const TX = [
-  { key: "typeLabelGreeting", amount: "+$230" },
-  { key: "typeLabelAdvice", amount: "+$180" },
-  { key: "typeLabelMessage", amount: "+$95" },
-] as const;
-
 export default function WalletPhonePreview() {
   const tNav = useTranslations("nav");
   const tWallet = useTranslations("wallet");
+  const tCommon = useTranslations("common");
+  const tServices = useTranslations("services");
   const [tab, setTab] = useState<PhoneTab>("finances");
+
+  // Transacciones de ejemplo (no reales): etiqueta ya traducida + monto.
+  const TX = [
+    { label: tWallet("typeLabelGreeting"), amount: "+$230" },
+    { label: tWallet("typeLabelAdvice"), amount: "+$180" },
+    { label: tCommon("donation"), amount: "+$120" },
+    { label: tWallet("txTypeSupercomment"), amount: "+$60" },
+    { label: tServices("exclusiveSession"), amount: "+$1,200" },
+    { label: tWallet("onboardingPhoneTicket"), amount: "+$350" },
+    { label: tWallet("onboardingPhoneSubscription"), amount: "+$99" },
+  ];
 
   return (
     <div className="pw">
@@ -85,7 +91,7 @@ export default function WalletPhonePreview() {
           -webkit-tap-highlight-color: transparent;
         }
         .pwTabOn {
-          background: #38bdf8;
+          background: #ffffff;
           color: #0a0810;
         }
 
@@ -119,18 +125,22 @@ export default function WalletPhonePreview() {
           font-weight: 700;
           font-family: inherit;
           color: #0a0810;
-          background: #38bdf8;
+          background: #ffffff;
           cursor: pointer;
           display: inline-flex;
           align-items: center;
           justify-content: center;
           gap: 5px;
         }
+        /* El icono de moneda trae trazo morado de marca; aquí va negro. */
+        .pwWithdraw :global(svg *) {
+          stroke: #000000;
+        }
         .pwTxList {
-          margin-top: 12px;
+          margin-top: 10px;
           display: flex;
           flex-direction: column;
-          gap: 8px;
+          gap: 6px;
         }
         .pwTx {
           display: flex;
@@ -138,21 +148,8 @@ export default function WalletPhonePreview() {
           justify-content: space-between;
           gap: 8px;
         }
-        .pwTxLeft {
-          display: flex;
-          align-items: center;
-          gap: 7px;
-          min-width: 0;
-        }
-        .pwTxDot {
-          width: 22px;
-          height: 22px;
-          border-radius: 50%;
-          background: rgba(168, 85, 255, 0.16);
-          border: 1px solid rgba(168, 85, 255, 0.4);
-          flex-shrink: 0;
-        }
         .pwTxName {
+          min-width: 0;
           font-size: 10.5px;
           font-weight: 500;
           color: rgba(255, 255, 255, 0.9);
@@ -245,11 +242,8 @@ export default function WalletPhonePreview() {
 
             <div className="pwTxList">
               {TX.map((tx) => (
-                <div key={tx.key} className="pwTx">
-                  <div className="pwTxLeft">
-                    <span className="pwTxDot" aria-hidden="true" />
-                    <span className="pwTxName">{tWallet(tx.key)}</span>
-                  </div>
+                <div key={tx.label} className="pwTx">
+                  <span className="pwTxName">{tx.label}</span>
                   <span className="pwTxAmount">{tx.amount}</span>
                 </div>
               ))}

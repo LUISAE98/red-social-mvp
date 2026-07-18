@@ -47,6 +47,7 @@ function GreetingEgressInner() {
   const cornerInRef = useRef(false);
   const cornerOutRef = useRef(false);
   const endedRef = useRef(false);
+  const watchdogRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Arranca la secuencia (grabación + intro) cuando el video está listo, para
   // que no se grabe un frame en blanco. Fallback por si `canplay` no dispara.
@@ -58,7 +59,12 @@ function GreetingEgressInner() {
       // 6s de intro; luego se desvanece y arranca el video con su audio.
       setTimeout(() => {
         setIntro(false);
-        videoRef.current?.play().catch(() => {});
+        const v = videoRef.current;
+        v?.play().catch(() => {});
+        // Watchdog: si el video se atora o nunca termina, forzar el cierre para
+        // no dejar la grabación colgada (dur+15s, o 180s si no se conoce).
+        const capS = v && isFinite(v.duration) && v.duration > 0 ? v.duration + 15 : 180;
+        watchdogRef.current = setTimeout(onEnded, capS * 1000);
       }, GREETING_INTRO_MS);
     }
     const v = videoRef.current;
@@ -89,6 +95,7 @@ function GreetingEgressInner() {
   function onEnded() {
     if (endedRef.current) return;
     endedRef.current = true;
+    if (watchdogRef.current) clearTimeout(watchdogRef.current);
     setBlack(true);
     setTimeout(() => setShowVibra(true), 2000);
     setTimeout(() => setShowVibra(false), 7000);
@@ -105,9 +112,9 @@ function GreetingEgressInner() {
           src={src}
           preload="auto"
           playsInline
-          crossOrigin="anonymous"
           onTimeUpdate={onTimeUpdate}
           onEnded={onEnded}
+          onError={onEnded}
           style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", background: "#000" }}
         />
       ) : null}

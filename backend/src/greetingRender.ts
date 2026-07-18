@@ -175,9 +175,31 @@ export const greetingAnimatedDownload = onRequest(
       return;
     }
 
-    const location = finalInfo.fileResults?.[0]?.location ?? "";
+    // La ubicación del archivo puede tardar un instante en poblarse tras COMPLETE.
+    // Se lee de fileResults (moderno) o del campo legacy `file`, con reintentos.
+    const readLocation = (info: EgressInfo): string => {
+      const fromResults = info.fileResults?.[0]?.location;
+      if (fromResults) return fromResults;
+      const legacy = (info as unknown as { file?: { location?: string } }).file?.location;
+      return legacy ?? "";
+    };
+
+    let location = readLocation(finalInfo);
+    for (let i = 0; i < 5 && !location; i++) {
+      await sleep(1500);
+      try {
+        const l = await egressClient.listEgress({ egressId });
+        if (l[0]) { finalInfo = l[0]; location = readLocation(l[0]); }
+      } catch { /* reintentar */ }
+    }
+
     if (!location) {
-      logger.error("greetingAnimatedDownload_no_output", { egressId });
+      logger.error("greetingAnimatedDownload_no_output", {
+        egressId,
+        status: finalInfo.status,
+        fileResultsLen: finalInfo.fileResults?.length ?? 0,
+        info: JSON.stringify(finalInfo, (_k, v) => (typeof v === "bigint" ? v.toString() : v)).slice(0, 1800),
+      });
       res.status(500).json({ error: "No output produced" });
       return;
     }
