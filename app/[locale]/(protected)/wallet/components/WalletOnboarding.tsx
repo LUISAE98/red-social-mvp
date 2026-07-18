@@ -11,6 +11,7 @@ import VibraGradientText from "@/app/components/VibraGradientText/VibraGradientT
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import WalletPhonePreview from "./WalletPhonePreview";
 import WalletOnboardingGlobe from "./WalletOnboardingGlobe";
+import { buildCollageTiles } from "@/lib/collage";
 import {
   WALLET_COMMISSION_RATE,
   WALLET_NET_RATE,
@@ -57,6 +58,8 @@ export default function WalletOnboarding() {
   // conservando el símbolo de moneda (respeta el switcheo de moneda).
   const formatNoCents = (mxn: number) =>
     formatPrice(mxn, { code: true }).replace(/([.,])00(\D*)$/, "$2");
+  // Mosaico de categorías (fuente compartida con login/splash).
+  const collageTiles = buildCollageTiles();
 
   return (
     <>
@@ -399,15 +402,77 @@ export default function WalletOnboarding() {
           margin-top: 14px;
         }
 
-        /* Título de las 11 formas de generar ingresos. */
+        /* Las 11 formas de generar ingresos. */
+        .ways {
+          margin-top: 56px;
+        }
+
         .waysTitle {
-          margin: 56px 0 0;
+          margin: 0 0 22px;
+          padding-bottom: 4px;
           text-align: center;
           font-size: 30px;
-          line-height: 1.2;
+          line-height: 1.35;
           letter-spacing: -0.03em;
           font-weight: 700;
           color: #ffffff;
+        }
+
+        /* Mosaico de categorías de fondo, con velo para el contenido de encima.
+           Esquinas cuadradas; perspectiva para dar profundidad como en el login. */
+        .waysMosaic {
+          position: relative;
+          isolation: isolate;
+          overflow: hidden;
+          perspective: 1100px;
+        }
+
+        /* Cuadrícula agrandada e inclinada (rotateX = profundidad, rotateZ =
+           diagonal estilo Netflix); overflow del contenedor recorta lo que sobra. */
+        .waysMosaicGrid {
+          position: absolute;
+          top: -14%;
+          left: -18%;
+          width: 136%;
+          z-index: 0;
+          display: grid;
+          grid-template-columns: repeat(6, 1fr);
+          gap: 6px;
+          transform: rotateX(16deg) rotateZ(-9deg) scale(1.1);
+          transform-origin: center 42%;
+        }
+
+        .waysTile {
+          grid-column: span 1;
+          aspect-ratio: 1 / 1;
+          overflow: hidden;
+        }
+
+        .waysTile.isWide {
+          grid-column: span 2;
+          aspect-ratio: 2 / 1;
+        }
+
+        .waysTile img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          display: block;
+        }
+
+        .waysMosaicScrim {
+          position: absolute;
+          inset: 0;
+          z-index: 1;
+          background: rgba(6, 3, 14, 0.62);
+          pointer-events: none;
+        }
+
+        /* Define la altura de la sección; aquí se montará el contenido. */
+        .waysMosaicContent {
+          position: relative;
+          z-index: 2;
+          min-height: 440px;
         }
 
         .lifestyleImageWrap {
@@ -543,6 +608,15 @@ export default function WalletOnboarding() {
             flex-direction: column;
             align-items: flex-start;
             gap: 22px;
+          }
+
+          /* Mosaico a 3 columnas en celular (como el collage del login). */
+          .waysMosaicGrid {
+            grid-template-columns: repeat(3, 1fr);
+          }
+
+          .waysTitle {
+            font-size: 22px;
           }
 
           .lifestyleSecurity {
@@ -844,8 +918,28 @@ export default function WalletOnboarding() {
         </div>
       </section>
 
-      {/* Título de las 11 formas de generar ingresos. */}
-      <h2 className="waysTitle">{tWallet("onboardingWaysTitle")}</h2>
+      {/* Las 11 formas: título + mosaico de categorías de fondo para el contenido. */}
+      <section className="ways">
+        <h2 className="waysTitle">{tWallet("onboardingWaysTitle")}</h2>
+
+        <div className="waysMosaic">
+          <div className="waysMosaicGrid" aria-hidden="true">
+            {collageTiles.map((tile, i) => (
+              <div
+                key={i}
+                className={`waysTile${tile.wide ? " isWide" : ""}`}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={`/${tile.src}.webp`} alt="" loading="lazy" draggable={false} />
+              </div>
+            ))}
+          </div>
+          <div className="waysMosaicScrim" aria-hidden="true" />
+
+          {/* Aquí irá el contenido de las 11 formas. */}
+          <div className="waysMosaicContent" />
+        </div>
+      </section>
       </div>
     </>
   );

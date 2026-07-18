@@ -8,7 +8,7 @@ import { doc, getDoc } from "firebase/firestore";
 
 import { db } from "@/lib/firebase";
 
-import type { Comment, CommentReply, Post } from "@/lib/posts/types";
+import type { Comment, CommentMention, CommentReply, Post } from "@/lib/posts/types";
 import {
   createPostComment,
   createPostCommentReply,
@@ -940,11 +940,12 @@ const handleHomePullRefresh = useCallback(async () => {
 
   async function handleCreateComment(
     postId: string,
-    text: string
+    text: string,
+    mentions?: CommentMention[]
   ): Promise<Comment[]> {
     try {
       setError(null);
-      await createPostComment({ postId, text });
+      await createPostComment({ postId, text, mentions });
 
       // Señal de descubrimiento: comentar es intención fuerte (categoría+tags+texto).
       if (currentUserId) {
@@ -995,11 +996,12 @@ const handleHomePullRefresh = useCallback(async () => {
   async function handleCreateReply(
     postId: string,
     commentId: string,
-    text: string
+    text: string,
+    mentions?: CommentMention[]
   ): Promise<CommentReply[]> {
     try {
       setError(null);
-      await createPostCommentReply({ postId, commentId, text });
+      await createPostCommentReply({ postId, commentId, text, mentions });
 
       await syncPostCommentsCount(postId);
 

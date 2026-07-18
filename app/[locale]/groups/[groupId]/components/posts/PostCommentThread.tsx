@@ -4,16 +4,15 @@ import Image from "next/image";
 import Link from "next/link";
 import { Timestamp, doc, getDoc } from "firebase/firestore";
 import {
-  useCallback,
   useEffect,
-  useRef,
   useState,
   type CSSProperties,
-  type TextareaHTMLAttributes,
 } from "react";
 import { createPortal } from "react-dom";
-import type { Comment, CommentReply } from "@/lib/posts/types";
+import type { Comment, CommentMention, CommentReply } from "@/lib/posts/types";
 import { toggleCommentFlame, updatePostComment, updatePostCommentReply } from "@/lib/posts/post-service";
+import MentionTextarea from "./mentions/MentionTextarea";
+import { renderCommentText } from "./mentions/renderMentions";
 import VibraFlameIcon from "@/app/components/VibraServiceIcons/VibraFlameIcon";
 import { useGroupMemberBlocks } from "@/lib/groups/useGroupMemberBlocks";
 import { db } from "@/lib/firebase";
@@ -40,13 +39,16 @@ type PostCommentThreadProps = {
   canUseGroupMemberBlock?: boolean;
   canModerateGroupAuthor?: boolean;
   isPostAuthor?: boolean;
+  /** true en posts de comunidad oculta: deshabilita la etiquetación con @. */
+  mentionsDisabled?: boolean;
   deletingCommentId: string | null;
   onDeleteComment: (commentId: string) => Promise<void>;
   onLoadReplies: (postId: string, commentId: string) => Promise<CommentReply[]>;
   onCreateReply: (
     postId: string,
     commentId: string,
-    text: string
+    text: string,
+    mentions?: CommentMention[]
   ) => Promise<CommentReply[]>;
   onDeleteReply: (
     postId: string,
@@ -142,27 +144,6 @@ function formatRelativeDate(value?: { toDate?: () => Date } | null, t?: TFunc) {
   if (diffWeeks < 5) return t("dateWeeksAgo", { count: diffWeeks });
   if (diffMonths < 12) return t("dateMonthsAgo", { count: diffMonths });
   return t("dateYearsAgo", { count: diffYears });
-}
-
-const URL_REGEX = /(https?:\/\/[^\s]+)/g;
-
-function renderWithLinks(text: string) {
-  const parts = text.split(URL_REGEX);
-  return parts.map((part, i) =>
-    URL_REGEX.test(part) ? (
-      <a
-        key={i}
-        href={part}
-        target="_blank"
-        rel="noopener noreferrer"
-        style={{ color: "#a855f7", textDecoration: "none" }}
-      >
-        {part}
-      </a>
-    ) : (
-      part
-    )
-  );
 }
 
 function getAuthorInfo(entity: {
@@ -284,57 +265,6 @@ function Avatar({
     >
       {getInitials(name)}
     </div>
-  );
-}
-
-function AutoGrowTextarea({
-  value,
-  maxRows = 3,
-  style,
-  ...props
-}: Omit<TextareaHTMLAttributes<HTMLTextAreaElement>, "style"> & {
-  maxRows?: number;
-  style?: CSSProperties;
-}) {
-  const ref = useRef<HTMLTextAreaElement | null>(null);
-
-  const resize = useCallback(() => {
-    const el = ref.current;
-    if (!el) return;
-
-    el.style.height = "0px";
-
-    const computed = window.getComputedStyle(el);
-    const lineHeight = Number.parseFloat(computed.lineHeight || "20") || 20;
-    const paddingTop = Number.parseFloat(computed.paddingTop || "0") || 0;
-    const paddingBottom = Number.parseFloat(computed.paddingBottom || "0") || 0;
-    const borderTop = Number.parseFloat(computed.borderTopWidth || "0") || 0;
-    const borderBottom = Number.parseFloat(computed.borderBottomWidth || "0") || 0;
-
-    const maxHeight =
-      lineHeight * maxRows + paddingTop + paddingBottom + borderTop + borderBottom;
-
-    const nextHeight = Math.min(el.scrollHeight, maxHeight);
-    el.style.height = `${nextHeight}px`;
-    el.style.overflowY = el.scrollHeight > maxHeight ? "auto" : "hidden";
-  }, [maxRows]);
-
-  useEffect(() => {
-    resize();
-  }, [value, resize]);
-
-  return (
-    <textarea
-      {...props}
-      ref={ref}
-      value={value}
-      rows={1}
-      onInput={(event) => {
-        resize();
-        props.onInput?.(event);
-      }}
-      style={style}
-    />
   );
 }
 
@@ -1005,6 +935,7 @@ export default function PostCommentThread({
   canUseGroupMemberBlock = false,
   canModerateGroupAuthor = false,
   isPostAuthor = false,
+  mentionsDisabled = false,
   deletingCommentId,
   onDeleteComment,
   onLoadReplies,
@@ -1021,6 +952,7 @@ export default function PostCommentThread({
   const [loadingReplies, setLoadingReplies] = useState(false);
   const [replyBoxOpen, setReplyBoxOpen] = useState(false);
   const [replyText, setReplyText] = useState("");
+  const [replyMentions, setReplyMentions] = useState<CommentMention[]>([]);
   const [creatingReply, setCreatingReply] = useState(false);
   const [deletingReplyId, setDeletingReplyId] = useState<string | null>(null);
   const [inlineError, setInlineError] = useState<string | null>(null);
@@ -1038,12 +970,19 @@ export default function PostCommentThread({
 
   const [editingComment, setEditingComment] = useState(false);
   const [editCommentText, setEditCommentText] = useState(comment.text);
+  const [editCommentMentions, setEditCommentMentions] = useState<CommentMention[]>(
+    comment.mentions ?? []
+  );
   const [savingEditComment, setSavingEditComment] = useState(false);
   const [localCommentText, setLocalCommentText] = useState(comment.text);
+  const [localCommentMentions, setLocalCommentMentions] = useState<CommentMention[]>(
+    comment.mentions ?? []
+  );
   const [localCommentEditedAt, setLocalCommentEditedAt] = useState(comment.editedAt ?? null);
 
   const [editingReplyId, setEditingReplyId] = useState<string | null>(null);
   const [editReplyTexts, setEditReplyTexts] = useState<Record<string, string>>({});
+  const [editReplyMentions, setEditReplyMentions] = useState<Record<string, CommentMention[]>>({});
   const [savingEditReplyId, setSavingEditReplyId] = useState<string | null>(null);
 
   // Detect mobile for portal layout
@@ -1099,10 +1038,16 @@ export default function PostCommentThread({
     try {
       setCreatingReply(true);
       setInlineError(null);
-      const nextReplies = await onCreateReply(postId, comment.id, replyText.trim());
+      const nextReplies = await onCreateReply(
+        postId,
+        comment.id,
+        replyText.trim(),
+        replyMentions
+      );
       setReplies(nextReplies);
       setLocalReplyCount(nextReplies.length);
       setReplyText("");
+      setReplyMentions([]);
       setReplyBoxOpen(false);
     } catch (e: unknown) {
       setInlineError((e instanceof Error ? e.message : null) ?? tPosts("errorCreateReply"));
@@ -1130,11 +1075,13 @@ export default function PostCommentThread({
   function handleStartEditComment() {
     setEditingComment(true);
     setEditCommentText(localCommentText);
+    setEditCommentMentions(localCommentMentions);
   }
 
   function handleCancelEditComment() {
     setEditingComment(false);
     setEditCommentText(localCommentText);
+    setEditCommentMentions(localCommentMentions);
   }
 
   async function handleSaveEditComment() {
@@ -1144,8 +1091,14 @@ export default function PostCommentThread({
     try {
       setSavingEditComment(true);
       setInlineError(null);
-      await updatePostComment({ postId, commentId: comment.id, text: trimmed });
+      await updatePostComment({
+        postId,
+        commentId: comment.id,
+        text: trimmed,
+        mentions: editCommentMentions,
+      });
       setLocalCommentText(trimmed);
+      setLocalCommentMentions(editCommentMentions);
       setLocalCommentEditedAt(Timestamp.now());
       setEditingComment(false);
     } catch (e: unknown) {
@@ -1158,6 +1111,8 @@ export default function PostCommentThread({
   function handleStartEditReply(replyId: string, currentText: string) {
     setEditingReplyId(replyId);
     setEditReplyTexts((prev) => ({ ...prev, [replyId]: currentText }));
+    const existing = replies?.find((r) => r.id === replyId);
+    setEditReplyMentions((prev) => ({ ...prev, [replyId]: existing?.mentions ?? [] }));
   }
 
   function handleCancelEditReply() {
@@ -1168,13 +1123,17 @@ export default function PostCommentThread({
     const text = (editReplyTexts[replyId] ?? "").trim();
     if (savingEditReplyId || !text) return;
 
+    const mentions = editReplyMentions[replyId] ?? [];
+
     try {
       setSavingEditReplyId(replyId);
       setInlineError(null);
-      await updatePostCommentReply({ postId, commentId: comment.id, replyId, text });
+      await updatePostCommentReply({ postId, commentId: comment.id, replyId, text, mentions });
       setReplies(
         (prev) =>
-          prev?.map((r) => r.id === replyId ? { ...r, text, editedAt: Timestamp.now() } : r) ?? null,
+          prev?.map((r) =>
+            r.id === replyId ? { ...r, text, mentions, editedAt: Timestamp.now() } : r
+          ) ?? null,
       );
       setEditingReplyId(null);
     } catch (e: unknown) {
@@ -1381,9 +1340,13 @@ export default function PostCommentThread({
 
               {editingComment ? (
                 <div style={{ marginTop: 4 }}>
-                  <AutoGrowTextarea
+                  <MentionTextarea
                     value={editCommentText}
-                    onChange={(e) => setEditCommentText(e.target.value)}
+                    onChange={setEditCommentText}
+                    mentions={editCommentMentions}
+                    onMentionsChange={setEditCommentMentions}
+                    currentUserId={currentUserId}
+                    mentionsDisabled={mentionsDisabled}
                     maxRows={6}
                     style={inputStyle}
                     disabled={savingEditComment}
@@ -1419,7 +1382,7 @@ export default function PostCommentThread({
                     wordBreak: "break-word",
                   }}
                 >
-                  {renderWithLinks(localCommentText)}
+                  {renderCommentText(localCommentText, localCommentMentions)}
                 </div>
               )}
 
@@ -1525,9 +1488,13 @@ export default function PostCommentThread({
           {replyBoxOpen && (
             <div style={{ marginTop: 8, display: "flex", alignItems: "flex-end", gap: 8 }}>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <AutoGrowTextarea
+                <MentionTextarea
                   value={replyText}
-                  onChange={(e) => setReplyText(e.target.value)}
+                  onChange={setReplyText}
+                  mentions={replyMentions}
+                  onMentionsChange={setReplyMentions}
+                  currentUserId={currentUserId}
+                  mentionsDisabled={mentionsDisabled}
                   placeholder={tPosts("replyPlaceholder")}
                   maxRows={3}
                   style={inputStyle}
@@ -1680,11 +1647,17 @@ export default function PostCommentThread({
 
                       {editingReplyId === reply.id ? (
                         <div style={{ marginTop: 4 }}>
-                          <AutoGrowTextarea
+                          <MentionTextarea
                             value={editReplyTexts[reply.id] ?? reply.text}
-                            onChange={(e) =>
-                              setEditReplyTexts((prev) => ({ ...prev, [reply.id]: e.target.value }))
+                            onChange={(next) =>
+                              setEditReplyTexts((prev) => ({ ...prev, [reply.id]: next }))
                             }
+                            mentions={editReplyMentions[reply.id] ?? reply.mentions ?? []}
+                            onMentionsChange={(next) =>
+                              setEditReplyMentions((prev) => ({ ...prev, [reply.id]: next }))
+                            }
+                            currentUserId={currentUserId}
+                            mentionsDisabled={mentionsDisabled}
                             maxRows={6}
                             style={inputStyle}
                             disabled={savingEditReplyId === reply.id}
@@ -1727,7 +1700,7 @@ export default function PostCommentThread({
                             wordBreak: "break-word",
                           }}
                         >
-                          {renderWithLinks(reply.text)}
+                          {renderCommentText(reply.text, reply.mentions)}
                         </div>
                       )}
 

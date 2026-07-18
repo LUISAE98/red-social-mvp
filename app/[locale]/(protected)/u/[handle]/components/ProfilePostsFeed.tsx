@@ -6,7 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { doc, getDoc, Timestamp } from "firebase/firestore";
 
-import type { Comment, CommentReply, Post } from "@/lib/posts/types";
+import type { Comment, CommentMention, CommentReply, Post } from "@/lib/posts/types";
 import {
   createPostComment,
   createPostCommentReply,
@@ -1102,11 +1102,12 @@ async function handleToggleProfilePin(postId: string): Promise<void> {
 
   async function handleCreateComment(
     postId: string,
-    text: string
+    text: string,
+    mentions?: CommentMention[]
   ): Promise<Comment[]> {
     try {
       setError(null);
-      await createPostComment({ postId, text });
+      await createPostComment({ postId, text, mentions });
       return await syncPostCommentsCount(postId);
     } catch (e: unknown) {
       setError((e instanceof Error ? e.message : null) ?? t("unknownError"));
@@ -1144,11 +1145,12 @@ async function handleToggleProfilePin(postId: string): Promise<void> {
   async function handleCreateReply(
     postId: string,
     commentId: string,
-    text: string
+    text: string,
+    mentions?: CommentMention[]
   ): Promise<CommentReply[]> {
     try {
       setError(null);
-      await createPostCommentReply({ postId, commentId, text });
+      await createPostCommentReply({ postId, commentId, text, mentions });
 
       await syncPostCommentsCount(postId);
 

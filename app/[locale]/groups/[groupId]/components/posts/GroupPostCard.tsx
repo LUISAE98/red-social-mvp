@@ -17,7 +17,7 @@ import {
 import { useTranslations, useLocale } from "next-intl";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import { createPortal } from "react-dom";
-import type { Comment, CommentReply, Post, PostLiveData, PostPlayback } from "@/lib/posts/types";
+import type { Comment, CommentMention, CommentReply, Post, PostLiveData, PostPlayback } from "@/lib/posts/types";
 import { db } from "@/lib/firebase";
 import { doc, onSnapshot } from "firebase/firestore";
 import LiveInlinePlayer from "@/app/components/LiveInlinePlayer/LiveInlinePlayer";
@@ -92,13 +92,18 @@ type GroupPostCardProps = {
   canDelete?: boolean;
   onDelete?: (postId: string) => Promise<void>;
   onLoadComments: (postId: string) => Promise<Comment[]>;
-  onCreateComment: (postId: string, text: string) => Promise<Comment[]>;
+  onCreateComment: (
+    postId: string,
+    text: string,
+    mentions?: CommentMention[]
+  ) => Promise<Comment[]>;
   onDeleteComment: (postId: string, commentId: string) => Promise<Comment[]>;
   onLoadReplies: (postId: string, commentId: string) => Promise<CommentReply[]>;
   onCreateReply: (
     postId: string,
     commentId: string,
-    text: string
+    text: string,
+    mentions?: CommentMention[]
   ) => Promise<CommentReply[]>;
   onDeleteReply: (
     postId: string,
@@ -191,6 +196,7 @@ onToggleProfilePin,
   const [desktopVisibleCount, setDesktopVisibleCount] = useState(5);
   const [loadingComments, setLoadingComments] = useState(false);
   const [commentText, setCommentText] = useState("");
+  const [commentMentions, setCommentMentions] = useState<CommentMention[]>([]);
   const [creatingComment, setCreatingComment] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deletingCommentId, setDeletingCommentId] = useState<string | null>(null);
@@ -840,6 +846,10 @@ function handleToggleSave() {
     }
   }
 
+  // En posts de comunidad oculta la etiquetación con @ se deshabilita por
+  // completo (no exponer perfiles/comunidades desde un contexto oculto).
+  const mentionsDisabled = post.groupVisibility === "hidden";
+
   async function handleCreateComment() {
     if (premiumState.isBlocked) {
       setInlineActionError(
@@ -859,9 +869,14 @@ function handleToggleSave() {
     try {
       setCreatingComment(true);
       setInlineActionError(null);
-      const nextComments = await onCreateComment(post.id, commentText.trim());
+      const nextComments = await onCreateComment(
+        post.id,
+        commentText.trim(),
+        mentionsDisabled ? [] : commentMentions
+      );
       setComments(nextComments);
       setCommentText("");
+      setCommentMentions([]);
     } catch (e: unknown) {
       const message = (e instanceof Error ? e.message : null) ?? tFeed("errorComment");
       setInlineActionError(message);
@@ -4519,6 +4534,8 @@ padding: "0 0 2px 0",
       canCommentOnPosts={canCommentOnPosts && !premiumState.isBlocked}
       commentBlockedMessage={commentBlockedMessage}
       commentText={commentText}
+      commentMentions={commentMentions}
+      mentionsDisabled={mentionsDisabled}
       creatingComment={creatingComment}
       deletingCommentId={deletingCommentId}
       inlineError={premiumState.isBlocked ? null : inlineActionError}
@@ -4526,6 +4543,7 @@ padding: "0 0 2px 0",
       canModerateGroupAuthor={canModerateGroupAuthor}
       isPostAuthor={!!currentUserId && currentUserId === postAuthor.authorId}
       onCommentTextChange={setCommentText}
+      onCommentMentionsChange={setCommentMentions}
       onClose={() => setCommentsPanelOpen(false)}
       onCreateComment={handleCreateComment}
       onDeleteComment={handleDeleteComment}
@@ -4556,6 +4574,8 @@ padding: "0 0 2px 0",
       canCommentOnPosts={canCommentOnPosts && !premiumState.isBlocked}
       commentBlockedMessage={commentBlockedMessage}
       commentText={commentText}
+      commentMentions={commentMentions}
+      mentionsDisabled={mentionsDisabled}
       creatingComment={creatingComment}
       deletingCommentId={deletingCommentId}
       inlineError={premiumState.isBlocked ? null : inlineActionError}
@@ -4563,6 +4583,7 @@ padding: "0 0 2px 0",
       canModerateGroupAuthor={canModerateGroupAuthor}
       isPostAuthor={!!currentUserId && currentUserId === postAuthor.authorId}
       onCommentTextChange={setCommentText}
+      onCommentMentionsChange={setCommentMentions}
       onClose={() => setCommentsPanelOpen(false)}
       onCreateComment={handleCreateComment}
       onDeleteComment={handleDeleteComment}
@@ -4602,6 +4623,8 @@ padding: "0 0 2px 0",
   canCommentOnPosts={effectiveCanCommentOnPosts && !premiumState.isBlocked}
   commentBlockedMessage={commentBlockedMessage}
   commentText={commentText}
+  commentMentions={commentMentions}
+  mentionsDisabled={mentionsDisabled}
   creatingComment={creatingComment}
   deletingCommentId={deletingCommentId}
   inlineError={premiumState.isBlocked ? null : inlineActionError}
@@ -4613,6 +4636,7 @@ padding: "0 0 2px 0",
   onLoadMore={isMobile ? undefined : () => setDesktopVisibleCount((c) => c + 5)}
   onCloseDesktop={!isMobile ? handleToggleCommentsDesktop : undefined}
   onCommentTextChange={setCommentText}
+  onCommentMentionsChange={setCommentMentions}
   onClose={() => setCommentsPanelOpen(false)}
   onCreateComment={handleCreateComment}
   onDeleteComment={handleDeleteComment}

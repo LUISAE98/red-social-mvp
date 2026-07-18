@@ -8,7 +8,7 @@ import {
   type CSSProperties,
 } from "react";
 import type { User } from "firebase/auth";
-import type { Comment, CommentReply, Post } from "@/lib/posts/types";
+import type { Comment, CommentMention, CommentReply, Post } from "@/lib/posts/types";
 import { searchPosts } from "@/lib/posts/searchPosts";
 import { db } from "@/lib/firebase";
 import { doc, getDoc } from "firebase/firestore";
@@ -408,8 +408,12 @@ export default function SearchPostsResults({
     return await fetchPostComments(postId);
   }
 
-  async function handleCreateComment(postId: string, text: string) {
-    await createPostComment({ postId, text });
+  async function handleCreateComment(
+    postId: string,
+    text: string,
+    mentions?: CommentMention[]
+  ) {
+    await createPostComment({ postId, text, mentions });
 
     setPosts((prev) =>
       prev.map((post) =>
@@ -459,9 +463,10 @@ export default function SearchPostsResults({
   async function handleCreateReply(
     postId: string,
     commentId: string,
-    text: string
+    text: string,
+    mentions?: CommentMention[]
   ): Promise<CommentReply[]> {
-    await createPostCommentReply({ postId, commentId, text });
+    await createPostCommentReply({ postId, commentId, text, mentions });
 
     setPosts((prev) =>
       prev.map((post) =>

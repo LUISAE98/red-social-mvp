@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { auth } from "@/lib/firebase";
-import type { Comment, CommentReply, Post, PostPremium } from "@/lib/posts/types";
+import type { Comment, CommentMention, CommentReply, Post, PostPremium } from "@/lib/posts/types";
 import {
   createPostComment,
   createPostCommentReply,
@@ -426,14 +426,15 @@ export default function PublicPostPageClient({
   async function handleCreateReply(
     postId: string,
     commentId: string,
-    text: string
+    text: string,
+    mentions?: CommentMention[]
   ): Promise<CommentReply[]> {
     if (!currentUserId) {
       requireLogin("Inicia sesión para responder.");
       return [];
     }
 
-    await createPostCommentReply({ postId, commentId, text });
+    await createPostCommentReply({ postId, commentId, text, mentions });
     await syncPostCommentsCount();
 
     return fetchCommentReplies({ postId, commentId });
@@ -484,7 +485,8 @@ export default function PublicPostPageClient({
 
   async function handleCreateCommentForCard(
     postId: string,
-    text: string
+    text: string,
+    mentions?: CommentMention[]
   ): Promise<Comment[]> {
     if (!currentUserId) {
       requireLogin("Inicia sesión para comentar.");
@@ -497,6 +499,7 @@ export default function PublicPostPageClient({
     await createPostComment({
       postId,
       text: cleanText,
+      mentions,
     });
 
     return await syncPostCommentsCount();

@@ -9,6 +9,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { auth, db, functions } from "@/lib/firebase";
 import type {
   Comment,
+  CommentMention,
   CommentReply,
   Post,
   PostPremium,
@@ -1396,6 +1397,7 @@ const uploadedVideoCovers =
   async function handleCreateComment(
     postId: string,
     text: string,
+    mentions?: CommentMention[],
   ): Promise<Comment[]> {
     if (!guardCreateComment()) {
       throw new Error(buildCommentBlockedMessage(commentBlockedReason));
@@ -1403,7 +1405,7 @@ const uploadedVideoCovers =
 
     try {
       setError(null);
-      await createPostComment({ postId, text });
+      await createPostComment({ postId, text, mentions });
 
       return await syncPostCommentsCount(postId);
     } catch (e: unknown) {
@@ -1455,6 +1457,7 @@ const uploadedVideoCovers =
     postId: string,
     commentId: string,
     text: string,
+    mentions?: CommentMention[],
   ): Promise<CommentReply[]> {
     if (!guardCreateComment()) {
       throw new Error(buildCommentBlockedMessage(commentBlockedReason));
@@ -1462,7 +1465,7 @@ const uploadedVideoCovers =
 
     try {
       setError(null);
-      await createPostCommentReply({ postId, commentId, text });
+      await createPostCommentReply({ postId, commentId, text, mentions });
 
       await syncPostCommentsCount(postId);
 

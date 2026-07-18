@@ -1,18 +1,17 @@
 "use client";
 
 import {
-  useCallback,
   useEffect,
   useRef,
   useState,
   type CSSProperties,
   type PointerEvent as ReactPointerEvent,
-  type TextareaHTMLAttributes,
 } from "react";
 import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
-import type { Comment, CommentReply } from "@/lib/posts/types";
+import type { Comment, CommentMention, CommentReply } from "@/lib/posts/types";
 import PostCommentThread from "./PostCommentThread";
+import MentionTextarea from "./mentions/MentionTextarea";
 
 type PostCommentsPanelProps = {
   open: boolean;
@@ -29,6 +28,9 @@ type PostCommentsPanelProps = {
   canCommentOnPosts: boolean;
   commentBlockedMessage: string | null;
   commentText: string;
+  commentMentions: CommentMention[];
+  /** true en posts de comunidad oculta: deshabilita la etiquetación con @. */
+  mentionsDisabled?: boolean;
   creatingComment: boolean;
   deletingCommentId: string | null;
   inlineError: string | null;
@@ -44,6 +46,7 @@ type PostCommentsPanelProps = {
   /** Desktop only: callback to close the panel (e.g. from heading click). */
   onCloseDesktop?: () => void;
   onCommentTextChange: (value: string) => void;
+  onCommentMentionsChange: (mentions: CommentMention[]) => void;
   onClose: () => void;
   onCreateComment: () => Promise<void>;
   onDeleteComment: (commentId: string) => Promise<void>;
@@ -66,57 +69,6 @@ type PostCommentsPanelProps = {
 const fontStack =
   'inherit';
 
-function AutoGrowTextarea({
-  value,
-  maxRows = 3,
-  style,
-  ...props
-}: Omit<TextareaHTMLAttributes<HTMLTextAreaElement>, "style"> & {
-  maxRows?: number;
-  style?: CSSProperties;
-}) {
-  const ref = useRef<HTMLTextAreaElement | null>(null);
-
-  const resize = useCallback(() => {
-    const el = ref.current;
-    if (!el) return;
-
-    el.style.height = "0px";
-
-    const computed = window.getComputedStyle(el);
-    const lineHeight = Number.parseFloat(computed.lineHeight || "20") || 20;
-    const paddingTop = Number.parseFloat(computed.paddingTop || "0") || 0;
-    const paddingBottom = Number.parseFloat(computed.paddingBottom || "0") || 0;
-    const borderTop = Number.parseFloat(computed.borderTopWidth || "0") || 0;
-    const borderBottom = Number.parseFloat(computed.borderBottomWidth || "0") || 0;
-
-    const maxHeight =
-      lineHeight * maxRows + paddingTop + paddingBottom + borderTop + borderBottom;
-
-    const nextHeight = Math.min(el.scrollHeight, maxHeight);
-    el.style.height = `${nextHeight}px`;
-    el.style.overflowY = el.scrollHeight > maxHeight ? "auto" : "hidden";
-  }, [maxRows]);
-
-  useEffect(() => {
-    resize();
-  }, [value, resize]);
-
-  return (
-    <textarea
-      {...props}
-      ref={ref}
-      value={value}
-      rows={1}
-      onInput={(event) => {
-        resize();
-        props.onInput?.(event);
-      }}
-      style={style}
-    />
-  );
-}
-
 export default function PostCommentsPanel({
   open,
   isMobile,
@@ -131,6 +83,8 @@ export default function PostCommentsPanel({
   canCommentOnPosts,
   commentBlockedMessage,
   commentText,
+  commentMentions,
+  mentionsDisabled = false,
   creatingComment,
   deletingCommentId,
   inlineError,
@@ -142,6 +96,7 @@ export default function PostCommentsPanel({
   onLoadMore,
   onCloseDesktop,
   onCommentTextChange,
+  onCommentMentionsChange,
   onClose,
   onCreateComment,
   onDeleteComment,
@@ -408,6 +363,7 @@ export default function PostCommentsPanel({
                   canUseGroupMemberBlock={canUseGroupMemberBlock}
                   canModerateGroupAuthor={canModerateGroupAuthor}
                   isPostAuthor={isPostAuthor}
+                  mentionsDisabled={mentionsDisabled}
                   deletingCommentId={deletingCommentId}
                   onDeleteComment={onDeleteComment}
                   onLoadReplies={onLoadReplies}
@@ -451,9 +407,13 @@ export default function PostCommentsPanel({
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <div style={pillWrapperStyle}>
                 {canCommentOnPosts ? (
-                  <AutoGrowTextarea
+                  <MentionTextarea
                     value={commentText}
-                    onChange={(e) => onCommentTextChange(e.target.value)}
+                    onChange={onCommentTextChange}
+                    mentions={commentMentions}
+                    onMentionsChange={onCommentMentionsChange}
+                    currentUserId={currentUserId}
+                    mentionsDisabled={mentionsDisabled}
                     placeholder={tPosts("writeComment")}
                     maxRows={2}
                     style={inputStyle}
@@ -693,6 +653,7 @@ export default function PostCommentsPanel({
                     isModerator={isModerator}
                     canCommentOnPosts={canCommentOnPosts}
                     canUseGroupMemberBlock={canUseGroupMemberBlock}
+                    mentionsDisabled={mentionsDisabled}
                     deletingCommentId={deletingCommentId}
                     onDeleteComment={onDeleteComment}
                     onLoadReplies={onLoadReplies}
@@ -721,9 +682,13 @@ export default function PostCommentsPanel({
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <div style={pillWrapperStyle}>
               {canCommentOnPosts ? (
-                <AutoGrowTextarea
+                <MentionTextarea
                   value={commentText}
-                  onChange={(e) => onCommentTextChange(e.target.value)}
+                  onChange={onCommentTextChange}
+                  mentions={commentMentions}
+                  onMentionsChange={onCommentMentionsChange}
+                  currentUserId={currentUserId}
+                  mentionsDisabled={mentionsDisabled}
                   placeholder={tPosts("writeComment")}
                   maxRows={2}
                   style={inputStyle}

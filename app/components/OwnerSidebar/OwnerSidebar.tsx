@@ -2636,6 +2636,25 @@ return (
     max-height: none !important;
   }
 }
+
+/* En móvil real (página de comunidades /groups) OwnerSidebar va EN FLUJO, no
+   position:fixed. Un elemento fixed NO lo arrastra el transform del ancestro
+   (.mainInner) durante la animación de nav-slide en iOS Safari —se queda anclado
+   al viewport—, por eso la pestaña de comunidades no deslizaba en iPhone aunque sí
+   en el simulador de Chrome. En flujo, el slide del layout lo anima igual en iOS y
+   Chrome, y el scroll pasa a ser el nativo de la página. Los paneles internos ya
+   están en flujo por el bloque de 1220px de arriba; aquí solo se resetea la raíz.
+   Bajo 900px el rail de escritorio (.sidebarCol) está display:none, así que esto
+   solo afecta a la página de comunidades. */
+@media (max-width: 900px) {
+  .profile-owner-sidebar-fixed {
+    position: static !important;
+    width: 100% !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+}
       `}</style>
 
 <aside
