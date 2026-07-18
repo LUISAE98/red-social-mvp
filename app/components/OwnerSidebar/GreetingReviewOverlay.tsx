@@ -467,11 +467,15 @@ export default function GreetingReviewOverlay({
     setCameraError(null);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
+        // 1080p@30 con TOPE (max): pedir 4K@60 hacía que el encoder del celular se
+        // saturara y dejara de producir frames de video a mitad de la grabación
+        // (video congelado + audio corriendo). 1080p@30 lo codifica estable en
+        // cualquier teléfono, sin importar la duración.
         video: {
           facingMode: "user",
-          width: { ideal: 3840 },
-          height: { ideal: 2160 },
-          frameRate: { ideal: 60 },
+          width: { ideal: 1920, max: 1920 },
+          height: { ideal: 1080, max: 1080 },
+          frameRate: { ideal: 30, max: 30 },
         },
         audio: {
           echoCancellation: true,
@@ -554,7 +558,8 @@ export default function GreetingReviewOverlay({
     wasUploadedRef.current = false;
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "user", width: { ideal: 3840 }, height: { ideal: 2160 }, frameRate: { ideal: 60 } },
+        // 1080p@30 con tope — ver nota en handleGrabar (4K@60 satura el encoder móvil).
+        video: { facingMode: "user", width: { ideal: 1920, max: 1920 }, height: { ideal: 1080, max: 1080 }, frameRate: { ideal: 30, max: 30 } },
         audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, sampleRate: { ideal: 48000 }, channelCount: { ideal: 2 } },
       });
       streamRef.current = stream;
@@ -764,7 +769,8 @@ export default function GreetingReviewOverlay({
     requestAnimationFrame(() => requestAnimationFrame(() => setSlideState("idle")));
     // Re-open camera for the next greeting
     void navigator.mediaDevices.getUserMedia({
-      video: { facingMode: "user", width: { ideal: 3840 }, height: { ideal: 2160 }, frameRate: { ideal: 60 } },
+      // 1080p@30 con tope — ver nota en handleGrabar (4K@60 satura el encoder móvil).
+      video: { facingMode: "user", width: { ideal: 1920, max: 1920 }, height: { ideal: 1080, max: 1080 }, frameRate: { ideal: 30, max: 30 } },
       audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, sampleRate: { ideal: 48000 }, channelCount: { ideal: 2 } },
     }).then((stream) => {
       streamRef.current = stream;
