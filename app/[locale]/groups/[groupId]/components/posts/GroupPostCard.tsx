@@ -121,9 +121,17 @@ type GroupPostCardProps = {
   canCommentOnPosts?: boolean;
   commentBlockedReason?: InteractionBlockedReason;
   showDeletedBanner?: boolean;
-  /** Acción extra en la barra inferior, justo antes del botón de guardar
-   *  (lo usa el descubrimiento para el botón Seguir/Unirme). */
+  /** Acción extra en la barra inferior, justo antes del botón de guardar. */
   beforeSaveAction?: ReactNode;
+  /** Acción extra en el header, a la izquierda del menú de 3 puntos
+   *  (lo usa el descubrimiento para el botón Seguir/Unirme). */
+  beforeMenuAction?: ReactNode;
+  /** Post sugerido (descubrimiento): habilita el menú de "no me interesa"
+   *  (ocultar / reportar / bloquear al autor) aun en posts de comunidad. */
+  suggestionMode?: boolean;
+  /** Callback tras ocultar/reportar/bloquear un post sugerido: el padre lo
+   *  remueve del feed y alimenta el algoritmo con la señal negativa. */
+  onHidePost?: (reason: "hide" | "report" | "block") => void;
 };
 
 type DisplayMediaItem = {
@@ -167,6 +175,9 @@ onToggleProfilePin,
   commentBlockedReason = null,
   showDeletedBanner = false,
   beforeSaveAction = null,
+  beforeMenuAction = null,
+  suggestionMode = false,
+  onHidePost,
 }: GroupPostCardProps) {
   const tCommon = useTranslations("common");
   const tFeed = useTranslations("feed");
@@ -513,7 +524,7 @@ useEffect(() => {
     (post as unknown as { contextType?: string | null }).contextType === "profile";
 
   const socialTargetUserId =
-    isProfilePost && !isOwnPost && postAuthor.authorId
+    (isProfilePost || suggestionMode) && !isOwnPost && postAuthor.authorId
       ? postAuthor.authorId
       : null;
 
@@ -538,7 +549,7 @@ useEffect(() => {
   }, [groupMemberBlockError]);
 
   const shouldShowSocialBlockAction =
-    isProfilePost &&
+    (isProfilePost || suggestionMode) &&
     !!currentUserId &&
     !!postAuthor.authorId &&
     !isOwnPost &&
@@ -601,6 +612,15 @@ useEffect(() => {
       actions.push("edit_post");
     }
 
+    if (
+      suggestionMode &&
+      !!onHidePost &&
+      !!currentUserId &&
+      post.authorId !== currentUserId
+    ) {
+      actions.push("hide_post");
+    }
+
     if (canDelete && onDelete) {
       actions.push("delete_post");
     }
@@ -620,6 +640,8 @@ useEffect(() => {
     groupMemberBlockRelationship.hasBlocked,
     canModerateAuthor,
     effectiveAuthorStatus,
+    suggestionMode,
+    onHidePost,
     canDelete,
     onDelete,
   ]);
@@ -943,6 +965,9 @@ function handleToggleSave() {
       setInlineActionError(null);
       closeMenu();
       await blockPostAuthor();
+      // Descubrimiento: además del bloqueo (Firestore, cross-device), alimenta la
+      // señal negativa local y remueve el post sugerido al instante.
+      onHidePost?.("block");
     } catch (e: unknown) {
       setInlineActionError((e instanceof Error ? e.message : null) ?? tCommon("errorBlockProfile"));
     }
@@ -1060,6 +1085,12 @@ function handleToggleSave() {
       setMuteDays("7");
       setMuteModalOpen(true);
       closeMenu();
+      return;
+    }
+
+    if (action === "hide_post") {
+      closeMenu();
+      onHidePost?.("hide");
       return;
     }
 
@@ -2273,15 +2304,16 @@ style={{
           </div>
         </div>
 
-        {(isPinned || shouldShowActionsMenu) && (
+        {(isPinned || shouldShowActionsMenu || beforeMenuAction) && (
           <div
             style={{
               display: "flex",
               alignItems: "center",
-              gap: 4,
+              gap: 6,
               flexShrink: 0,
             }}
           >
+            {beforeMenuAction}
             {isPinned && (
               <span
                 style={{
@@ -4597,7 +4629,15 @@ padding: "0 0 2px 0",
   showAdminDetails={showDeletedBanner}
 />
   {reportTarget && (
-    <ReportModal target={reportTarget} onClose={closeReport} />
+    <ReportModal
+      target={reportTarget}
+      onClose={closeReport}
+      onReported={
+        suggestionMode && reportTarget.targetType === "post"
+          ? () => onHidePost?.("report")
+          : undefined
+      }
+    />
   )}
 
   <style>

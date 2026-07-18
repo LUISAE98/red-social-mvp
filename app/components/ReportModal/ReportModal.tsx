@@ -14,6 +14,9 @@ import type { ReportTarget } from "@/lib/moderation/useReport";
 type Props = {
   target: ReportTarget;
   onClose: () => void;
+  /** Se llama tras un envío exitoso (o duplicado). Lo usa el descubrimiento para
+   *  ocultar el post reportado y alimentar el algoritmo con la señal negativa. */
+  onReported?: () => void;
 };
 
 type Step = "select" | "confirm" | "done";
@@ -48,7 +51,7 @@ const cardStyle: React.CSSProperties = {
   boxSizing: "border-box",
 };
 
-export default function ReportModal({ target, onClose }: Props) {
+export default function ReportModal({ target, onClose, onReported }: Props) {
   const tCommon = useTranslations("common");
   const [mounted, setMounted] = useState(false);
   const [step, setStep] = useState<Step>("select");
@@ -82,10 +85,12 @@ export default function ReportModal({ target, onClose }: Props) {
 
       if (result.duplicate) {
         setStep("done");
+        onReported?.();
         return;
       }
 
       setStep("done");
+      onReported?.();
     } catch {
       setError(tCommon("reportSubmitError"));
     } finally {

@@ -33,6 +33,7 @@ export default function SessionOverlay({
   type,
   out = false,
   startDelay = 0,
+  typeLabel: typeLabelOverride,
 }: {
   avatarUrl: string | null;
   name: string;
@@ -42,8 +43,11 @@ export default function SessionOverlay({
   // Retraso de la entrada tras montar. En real es 0 (el padre monta al segundo
   // 10). El lienzo de diseño usa un valor chico para iterar sin esperar.
   startDelay?: number;
+  // Etiqueta explícita (p. ej. "Saludo" / "Consejo"). Si se omite, se resuelve
+  // desde `type` con TYPE_LABEL. Aditivo: las sesiones no lo pasan y no cambian.
+  typeLabel?: string;
 }) {
-  const typeLabel = TYPE_LABEL[type] ?? "";
+  const typeLabel = typeLabelOverride ?? TYPE_LABEL[type] ?? "";
   const initials = (name || "?").trim().charAt(0).toUpperCase();
 
   const AVATAR = 104;

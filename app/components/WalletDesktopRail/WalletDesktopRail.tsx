@@ -205,50 +205,18 @@ export default function WalletDesktopRail({
           padding: 14px 14px;
           box-sizing: border-box;
           border-radius: 12px;
-          border: 1px solid rgba(168, 85, 255, 0.08);
-          background:
-            linear-gradient(
-              135deg,
-              rgb(3, 3, 6) 0%,
-              rgb(8, 5, 13) 48%,
-              rgb(0, 0, 0) 100%
-            );
+          /* Contenedor invisible: sin fondo, borde ni sombra, para que no se note. */
+          border: none;
+          background: transparent;
           backdrop-filter: none;
           -webkit-backdrop-filter: none;
-          box-shadow:
-            inset 0 1px 0 rgba(255, 255, 255, 0.035),
-            inset 0 -1px 0 rgba(255, 255, 255, 0.015),
-            inset 0 0 14px rgba(168, 85, 255, 0.012),
-            0 0 8px rgba(168, 85, 255, 0.022),
-            0 18px 54px rgba(0, 0, 0, 0.68);
+          box-shadow: none;
         }
 
-        .railSection::before {
-          content: "";
-          position: absolute;
-          inset: -38%;
-          border-radius: inherit;
-          pointer-events: none;
-          background:
-            radial-gradient(circle at 18% 10%, rgba(168, 85, 255, 0.045), transparent 34%),
-            radial-gradient(circle at 86% 18%, rgba(126, 34, 206, 0.032), transparent 36%),
-            radial-gradient(circle at 22% 92%, rgba(168, 85, 255, 0.025), transparent 40%);
-          filter: blur(24px);
-          opacity: 0.32;
-          z-index: 0;
-        }
-
+        /* Glow y sombra interna desactivados: el contenedor no debe notarse. */
+        .railSection::before,
         .railSection::after {
-          content: "";
-          position: absolute;
-          inset: 0;
-          border-radius: inherit;
-          pointer-events: none;
-          box-shadow:
-            inset 0 0 18px rgba(79, 70, 255, 0.045),
-            inset 0 0 14px rgba(168, 85, 255, 0.045),
-            inset 0 1px 0 rgba(255, 255, 255, 0.04);
-          z-index: 1;
+          content: none;
         }
 
         .railSection > * {

@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { leaveGroup } from "@/lib/groups/membership";
 import { useTranslations } from "next-intl";
 import { usePriceFormat, type PriceFormatter } from "@/lib/currency/usePriceFormat";
@@ -316,6 +316,8 @@ function buildAccessNotice(
       tone: NoticeTone;
       showSubscribeCta?: boolean;
       showDismissCta?: boolean;
+      /** Banner puramente informativo: puede cerrarse con la ⨯ (persiste local). */
+      closable?: boolean;
     }
   | null {
   const state = resolveAccessState(group);
@@ -385,6 +387,7 @@ function buildAccessNotice(
       tone: "success",
       showSubscribeCta: false,
       showDismissCta: false,
+      closable: true,
     };
   }
 
@@ -573,6 +576,35 @@ onClickCapture={(event) => {
   );
 }
 
+// Banners informativos "Acceso conservado" (legado) cerrados por el usuario.
+// Persisten localmente por grupo: una vez cerrado, no vuelve a abrirse ni al
+// refrescar. Es solo UI (no afecta membresía ni visibilidad del grupo).
+const LEGACY_BANNER_DISMISSED_KEY = "vibra:legacy-access-banner-dismissed";
+
+function readDismissedLegacyBanners(): Set<string> {
+  if (typeof window === "undefined") return new Set();
+  try {
+    const raw = window.localStorage.getItem(LEGACY_BANNER_DISMISSED_KEY);
+    if (!raw) return new Set();
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed)
+      ? new Set(parsed.filter((id): id is string => typeof id === "string"))
+      : new Set();
+  } catch {
+    return new Set();
+  }
+}
+
+function writeDismissedLegacyBanners(ids: Set<string>): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(
+      LEGACY_BANNER_DISMISSED_KEY,
+      JSON.stringify(Array.from(ids))
+    );
+  } catch {}
+}
+
 export default function OwnerSidebarOtherGroups({
   currentUserId,
   loadingCommunities,
@@ -605,6 +637,27 @@ export default function OwnerSidebarOtherGroups({
   const [dismissingGroupIds, setDismissingGroupIds] = useState<Set<string>>(
     () => new Set()
   );
+
+  // Banners "Acceso conservado" cerrados (por grupo), hidratados desde
+  // localStorage tras el montaje para no romper el render del servidor.
+  const [legacyBannerDismissedIds, setLegacyBannerDismissedIds] = useState<
+    Set<string>
+  >(() => new Set());
+
+  useEffect(() => {
+    setLegacyBannerDismissedIds(readDismissedLegacyBanners());
+  }, []);
+
+  function dismissLegacyBanner(groupId: string) {
+    if (!groupId.trim()) return;
+    setLegacyBannerDismissedIds((prev) => {
+      if (prev.has(groupId)) return prev;
+      const next = new Set(prev);
+      next.add(groupId);
+      writeDismissedLegacyBanners(next);
+      return next;
+    });
+  }
 
   const [leaveTargetGroup, setLeaveTargetGroup] = useState<GroupDocLite | null>(
   null
@@ -855,8 +908,47 @@ return (
                     </button>
                   </div>
 
-                  {accessNotice && (
-                    <div style={noticeStyles(accessNotice.tone, isMobile)}>
+                  {accessNotice &&
+                    !(
+                      accessNotice.closable &&
+                      legacyBannerDismissedIds.has(g.id)
+                    ) && (
+                    <div
+                      style={{
+                        ...noticeStyles(accessNotice.tone, isMobile),
+                        ...(accessNotice.closable
+                          ? { position: "relative", paddingRight: 34 }
+                          : null),
+                      }}
+                    >
+                      {accessNotice.closable && (
+                        <button
+                          type="button"
+                          onClick={() => dismissLegacyBanner(g.id)}
+                          aria-label={tCommon("close")}
+                          title={tCommon("close")}
+                          style={{
+                            position: "absolute",
+                            top: 8,
+                            right: 8,
+                            width: 22,
+                            height: 22,
+                            display: "inline-flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            padding: 0,
+                            borderRadius: 6,
+                            border: "none",
+                            background: "rgba(255,255,255,0.08)",
+                            color: "rgba(255,255,255,0.7)",
+                            fontSize: 14,
+                            lineHeight: 1,
+                            cursor: "pointer",
+                          }}
+                        >
+                          ✕
+                        </button>
+                      )}
                       {accessNotice.title ? (
                         <div style={{ fontWeight: 700 }}>
                           {accessNotice.title}

@@ -2,7 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import Image from "next/image";
-import type { CSSProperties } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import type { TopView } from "./OwnerSidebar";
 import {
   SidebarFollowingIcon,
@@ -12,8 +12,10 @@ import {
 } from "@/app/components/VibraServiceIcons/OwnerSidebarNavIcons/OwnerSidebarNavIcons";
 
 type Props = {
-  activeView: TopView;
-  onChange: (view: TopView) => void;
+  /** Sección desplegada, o null si todas están cerradas. */
+  openKey: TopView | null;
+  /** Clic en una pestaña: abre esa sección o, si ya estaba abierta, la cierra. */
+  onToggle: (view: TopView) => void;
   requestedCount?: number;
   deliveredCount?: number;
   joinRequestsCount?: number;
@@ -22,11 +24,13 @@ type Props = {
   joinedGroupsCount?: number;
   loadingFollowing?: boolean;
   loadingGroups?: boolean;
+  /** Contenido de cada sección; se despliega (acordeón) bajo su pestaña activa. */
+  contentByKey?: Partial<Record<TopView, ReactNode>>;
 };
 
 export default function OwnerSidebarTabNav({
-  activeView,
-  onChange,
+  openKey,
+  onToggle,
   requestedCount = 0,
   deliveredCount = 0,
   joinRequestsCount = 0,
@@ -35,6 +39,7 @@ export default function OwnerSidebarTabNav({
   joinedGroupsCount = 0,
   loadingFollowing = false,
   loadingGroups = false,
+  contentByKey,
 }: Props) {
   const tNav = useTranslations("nav");
 
@@ -92,16 +97,6 @@ export default function OwnerSidebarTabNav({
         ]
       : []),
   ];
-
-  const tabKeys = new Set(tabs.map((t) => t.key));
-  const safeActiveView = tabKeys.has(activeView)
-    ? activeView
-    : (tabs[0]?.key ?? "following");
-
-  const activeIndex = Math.max(
-    0,
-    tabs.findIndex((tab) => tab.key === safeActiveView)
-  );
 
   const badgeText = requestedCount > 99 ? "99+" : String(requestedCount);
   const joinBadgeText = joinRequestsCount > 99 ? "99+" : String(joinRequestsCount);
@@ -178,73 +173,77 @@ export default function OwnerSidebarTabNav({
 
   return (
     <div style={wrapStyle}>
-      <div
-        aria-hidden
-        style={{
-          position: "absolute",
-          left: 2,
-          right: 2,
-          top: 4,
-          height: 39,
-          borderRadius: 10,
-          background: "rgba(255,255,255,0.035)",
-          pointerEvents: "none",
-          transform: `translate3d(0, ${activeIndex * 41}px, 0)`,
-          transition: "transform 420ms cubic-bezier(0.2, 0.9, 0.2, 1)",
-          willChange: "transform",
-          zIndex: 1,
-        }}
-      />
-
-      <Image
-        src="/suscomunidades.webp"
-        alt=""
-        aria-hidden
-        width={120} height={28}
-        style={{
-          position: "absolute",
-          right: 10,
-          top: 12,
-          height: 28,
-          width: "auto",
-          objectFit: "contain",
-          pointerEvents: "none",
-          userSelect: "none",
-          transform: `translate3d(0, ${activeIndex * 41}px, 0)`,
-          transition: "transform 420ms cubic-bezier(0.2, 0.9, 0.2, 1)",
-          willChange: "transform",
-          zIndex: 4,
-        }}
-      />
-
       {tabs.map((tab) => {
-        const active = safeActiveView === tab.key;
+        const active = openKey === tab.key;
+        const content = contentByKey?.[tab.key];
 
         return (
-          <button
-            key={tab.key}
-            type="button"
-            onClick={() => onChange(tab.key)}
-            aria-pressed={active}
-            aria-label={tab.title}
-            title={tab.title}
-            style={{
-              ...itemBase,
-              ...(active ? activeStyle : null),
-            }}
-          >
-            <span style={{ display: "flex", alignItems: "center", gap: 8, flex: 1, minWidth: 0, opacity: active ? 1 : 0.55 }}>
-              {tab.icon}
-              <span style={labelStyle}>{tab.label}</span>
-            </span>
-
-            {tab.showBadge ? (
-              <span style={badgeStyle}>
-                {tab.key === "owned" ? joinBadgeText : badgeText}
+          <div key={tab.key} style={{ display: "grid" }}>
+            <button
+              type="button"
+              onClick={() => onToggle(tab.key)}
+              aria-pressed={active}
+              aria-expanded={active}
+              aria-label={tab.title}
+              title={tab.title}
+              style={{
+                ...itemBase,
+                ...(active ? activeStyle : null),
+                background: active ? "rgba(255,255,255,0.05)" : "transparent",
+              }}
+            >
+              <span style={{ display: "flex", alignItems: "center", gap: 8, flex: 1, minWidth: 0, opacity: active ? 1 : 0.55 }}>
+                {tab.icon}
+                <span style={labelStyle}>{tab.label}</span>
               </span>
-            ) : null}
 
-          </button>
+              {tab.showBadge ? (
+                <span style={badgeStyle}>
+                  {tab.key === "owned" ? joinBadgeText : badgeText}
+                </span>
+              ) : null}
+
+              {/* Planeta: siempre montado (invisible en las cerradas) para que
+                  entre y salga con transición en vez de aparecer/desaparecer de golpe. */}
+              <Image
+                src="/suscomunidades.webp"
+                alt=""
+                aria-hidden
+                width={26}
+                height={26}
+                style={{
+                  flexShrink: 0,
+                  width: 26,
+                  height: 26,
+                  objectFit: "contain",
+                  userSelect: "none",
+                  opacity: active ? 1 : 0,
+                  transform: active ? "scale(1)" : "scale(0.2)",
+                  // Rebote marcado: la curva se pasa de tamaño y regresa (pop).
+                  transition: "opacity 180ms ease, transform 420ms cubic-bezier(0.34,1.8,0.5,1)",
+                }}
+              />
+            </button>
+
+            {/* Contenido de la sección: se despliega hacia abajo bajo su pestaña.
+                grid-template-rows 0fr→1fr anima hasta la altura real del contenido,
+                sin tope fijo que recorte listas largas. */}
+            {content != null && (
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateRows: active ? "1fr" : "0fr",
+                  opacity: active ? 1 : 0,
+                  transition:
+                    "grid-template-rows 380ms cubic-bezier(0.4,0,0.2,1), opacity 240ms ease",
+                }}
+              >
+                <div style={{ overflow: "hidden" }}>
+                  <div style={{ paddingTop: 6 }}>{content}</div>
+                </div>
+              </div>
+            )}
+          </div>
         );
       })}
     </div>

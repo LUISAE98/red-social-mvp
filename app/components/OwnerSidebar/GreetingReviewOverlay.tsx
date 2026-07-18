@@ -23,7 +23,7 @@ import {
 } from "@/app/components/VibraServiceIcons/VibraVideoIcons";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import type { DisplayCurrency } from "@/lib/currency/catalog";
 import { BRAND_DOMAIN } from "@/lib/brand";
@@ -217,6 +217,7 @@ export default function GreetingReviewOverlay({
   const tCommon = useTranslations("common");
   const tServices = useTranslations("services");
   const tWallet = useTranslations("wallet");
+  const locale = useLocale();
   const { format: formatMoney } = usePriceFormat();
   const [mounted, setMounted] = useState(false);
   const [earningFormatted, setEarningFormatted] = useState<string | null>(null);
@@ -293,6 +294,8 @@ export default function GreetingReviewOverlay({
   const cancelDrawLoopRef = useRef<(() => void) | null>(null);
 
   const overlayAvatarRef = useRef<HTMLImageElement | null>(null);
+  // URL cruda (pública) del avatar — la plantilla de grabación animada la carga directa.
+  const overlayAvatarUrlRef = useRef<string | null>(null);
 
   // ─── Playback video custom controls ──────────────────────────────────────────
   const playbackVideoRef = useRef<HTMLVideoElement | null>(null);
@@ -548,6 +551,7 @@ export default function GreetingReviewOverlay({
 
   const preloadOverlayAvatar = async () => {
     overlayAvatarRef.current = null;
+    overlayAvatarUrlRef.current = null;
     // Priority: buyerSourceAvatar prop (already resolved) → buyers map → Firestore
     let url: string | null =
       (typeof buyerSourceAvatar === "string" && buyerSourceAvatar) ? buyerSourceAvatar
@@ -560,6 +564,8 @@ export default function GreetingReviewOverlay({
       } catch { /* best-effort */ }
     }
     if (!url) return;
+    // URL pública cruda para la plantilla de grabación animada (carga directa).
+    overlayAvatarUrlRef.current = url;
     // Fetch via same-origin proxy → blob URL (blob: is always same-origin, no canvas taint).
     // Using fetch+blob lets us await completion so the image is ready before recording starts.
     try {
@@ -935,7 +941,7 @@ export default function GreetingReviewOverlay({
     setDownloadProgress(0);
 
     try {
-      // 1. Load only metadata to get video dimensions (no full download)
+      // 1. Metadata → dimensiones (orientación para el render animado + tamaño del overlay estático)
       setDownloadProgress(5);
       const metaEl = document.createElement("video");
       metaEl.preload = "metadata";
@@ -948,36 +954,81 @@ export default function GreetingReviewOverlay({
       const srcH = metaEl.videoHeight || 1080;
       metaEl.src = "";
 
-      // 2. Render overlay-only PNG at video dimensions on a transparent canvas
-      setDownloadProgress(10);
-      const overlayCanvas = document.createElement("canvas");
-      overlayCanvas.width = srcW;
-      overlayCanvas.height = srcH;
-      const overlayCtx = overlayCanvas.getContext("2d")!;
       const creatorDisplayName = req.profileDisplayName ?? req.profileUsername ?? tCommon("creator");
       const serviceLabel = req.type === "consejo" ? tWallet("typeLabelAdvice") : req.type === "mensaje" ? tWallet("typeLabelMessage") : tWallet("typeLabelGreeting");
       const initials = getInitials(creatorDisplayName);
-      drawOverlayOnly(overlayCtx, srcW, srcH, overlayAvatarRef.current, creatorDisplayName, serviceLabel, initials);
-      // toDataURL avoids Blob/FileReader async chain and works without canvas taint issues
-      const overlayBase64 = overlayCanvas.toDataURL("image/png").split(",")[1];
 
-      // 3. Auth token — forceRefresh:false uses cached token if still valid
-      setDownloadProgress(15);
+      // 2. Auth token — forceRefresh:false usa el token en caché si sigue válido
       const user = auth.currentUser;
       if (!user) throw new Error("Not authenticated — no currentUser");
       const idToken = await user.getIdToken(false);
 
-      // 4. Send to Cloud Function as JSON — server downloads from Mux, composites with FFmpeg (CRF 18)
+      // ── Intento 1: descarga ANIMADA — hornea intro (6s) + esquina + outro con
+      //    Web Egress de LiveKit. Universal: funciona en TODO dispositivo (incl. iPhone).
+      try {
+        setDownloadProgress(15);
+        const orientation = srcH > srcW ? "vertical" : "horizontal";
+        // Progreso "fake" mientras el grabador renderiza (~intro+video+outro s).
+        let animProgress = 15;
+        const animInterval = setInterval(() => {
+          animProgress = Math.min(80, animProgress + Math.random() * 1.5);
+          setDownloadProgress(Math.round(animProgress));
+        }, 3_000);
+        let animRes: Response;
+        try {
+          animRes = await fetch("https://greetinganimateddownload-zivezlakcq-uc.a.run.app", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "Authorization": `Bearer ${idToken}` },
+            body: JSON.stringify({
+              playbackId,
+              name: creatorDisplayName,
+              avatar: overlayAvatarUrlRef.current ?? "",
+              type: req.type ?? "saludo",
+              orientation,
+              locale,
+            }),
+          });
+        } finally {
+          clearInterval(animInterval);
+        }
+        if (!animRes.ok) throw new Error(`animated CF ${animRes.status}`);
+        const { url: signedUrl } = (await animRes.json()) as { url?: string };
+        if (!signedUrl) throw new Error("animated CF: no url");
+
+        setDownloadProgress(90);
+        const animBlob = await (await fetch(signedUrl)).blob();
+        setDownloadProgress(99);
+        const objUrl = URL.createObjectURL(animBlob);
+        const a = document.createElement("a");
+        a.href = objUrl;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(objUrl);
+        setDownloadProgress(100);
+        return;
+      } catch (animErr) {
+        console.warn("[handleDownload] animated render failed, falling back to static:", animErr);
+        setDownloadProgress(10);
+      }
+
+      // ── Intento 2 (fallback): overlay PNG estático compuesto con FFmpeg (CRF 18). ──
+      const overlayCanvas = document.createElement("canvas");
+      overlayCanvas.width = srcW;
+      overlayCanvas.height = srcH;
+      const overlayCtx = overlayCanvas.getContext("2d")!;
+      drawOverlayOnly(overlayCtx, srcW, srcH, overlayAvatarRef.current, creatorDisplayName, serviceLabel, initials);
+      // toDataURL avoids Blob/FileReader async chain and works without canvas taint issues
+      const overlayBase64 = overlayCanvas.toDataURL("image/png").split(",")[1];
+
       setDownloadProgress(20);
       const cfUrl = "https://videooverlaydownload-zivezlakcq-uc.a.run.app";
-
-      // Fake progress while CF processes (can take 1-3 min for long videos)
       let fakeProgress = 20;
       const fakeInterval = setInterval(() => {
         fakeProgress = Math.min(75, fakeProgress + Math.random() * 2);
         setDownloadProgress(Math.round(fakeProgress));
       }, 3_000);
-
       let cfRes: Response;
       try {
         cfRes = await fetch(cfUrl, {
@@ -995,12 +1046,9 @@ export default function GreetingReviewOverlay({
         const errText = await cfRes.text().catch(() => "");
         throw new Error(`CF ${cfRes.status}: ${errText}`);
       }
-
-      // 5. Download the result
       setDownloadProgress(85);
       const resultBlob = await cfRes.blob();
       setDownloadProgress(99);
-
       const objUrl = URL.createObjectURL(resultBlob);
       const a = document.createElement("a");
       a.href = objUrl;
@@ -1018,7 +1066,7 @@ export default function GreetingReviewOverlay({
       setDownloading(false);
       setDownloadProgress(0);
     }
-  }, [items, currentIndex, downloading, req, getInitials]);
+  }, [items, currentIndex, downloading, req, getInitials, locale]);
 
   // ─── TTS functions — must be before any early return ────────────────────────
   const startSpeechFrom = useCallback((charIndex: number) => {

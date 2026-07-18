@@ -9,6 +9,7 @@ import Image from "next/image";
 import { useTranslations } from "next-intl";
 import VibraGradientText from "@/app/components/VibraGradientText/VibraGradientText";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
+import WalletPhonePreview from "./WalletPhonePreview";
 import {
   WALLET_COMMISSION_RATE,
   WALLET_NET_RATE,
@@ -171,10 +172,10 @@ export default function WalletOnboarding() {
            de arriba: centrada como grupo, con espacio intermedio controlado por
            clamp para no dejar hueco muerto en laptops grandes. */
         .commission {
-          margin-top: 40px;
+          margin-top: 16px;
           display: flex;
           justify-content: center;
-          align-items: center;
+          align-items: stretch;
           gap: clamp(32px, 5vw, 64px);
         }
 
@@ -201,20 +202,45 @@ export default function WalletOnboarding() {
           justify-content: flex-end;
         }
 
+        /* Tarjeta con imagen de fondo (entretenimiento) en vez del contenedor
+           morado. styled-jsx no scopea clases sobre <Image>: el posicionamiento
+           va inline; velo y contenido en clases de hermanos (elementos DOM). */
+        /* Ancho por contenido; sin redondeo (esquinas cuadradas). La altura la
+           toma del estirado de la fila (align-items: stretch), igualando al
+           bloque de la izquierda para acercar su borde superior al banner. */
         .exampleCard {
+          position: relative;
+          isolation: isolate;
+          overflow: hidden;
+        }
+
+        .exampleScrim {
+          position: absolute;
+          inset: 0;
+          z-index: 1;
+          background: linear-gradient(
+            160deg,
+            rgba(8, 5, 16, 0.82) 0%,
+            rgba(8, 5, 16, 0.62) 100%
+          );
+        }
+
+        .exampleCardInner {
+          position: relative;
+          z-index: 2;
+          height: 100%;
+          box-sizing: border-box;
           display: flex;
           flex-direction: column;
           align-items: flex-start;
-          gap: 8px;
-          padding: 20px 24px;
-          border-radius: 16px;
-          background: rgba(168, 85, 255, 0.08);
-          border: 1px solid rgba(168, 85, 255, 0.28);
+          justify-content: center;
+          gap: 10px;
+          padding: 26px 32px;
         }
 
         /* "Si cobras $1,000 MXN" en una sola línea, misma fuente que el label. */
         .exampleChargeLine {
-          font-size: 14px;
+          font-size: 18px;
           font-weight: 500;
           color: rgba(255, 255, 255, 0.7);
           white-space: nowrap;
@@ -230,7 +256,7 @@ export default function WalletOnboarding() {
         /* "Tú recibes" + monto: centrados dentro de la tarjeta. */
         .exampleLabel {
           align-self: center;
-          font-size: 14px;
+          font-size: 18px;
           font-weight: 500;
           color: rgba(255, 255, 255, 0.7);
           white-space: nowrap;
@@ -238,10 +264,10 @@ export default function WalletOnboarding() {
 
         .exampleReceive {
           align-self: center;
-          font-size: 30px;
-          font-weight: 300;
+          font-size: 39px;
+          font-weight: 500;
           letter-spacing: -0.01em;
-          color: #22c55e;
+          color: #a855ff;
           white-space: nowrap;
         }
 
@@ -252,6 +278,81 @@ export default function WalletOnboarding() {
           letter-spacing: -0.03em;
           font-weight: 700;
           color: #ffffff;
+        }
+
+        /* Bloque de transparencia, alineado a la derecha. */
+        /* Fila: mockup de celular a la izquierda, texto a la derecha.
+           align-items flex-start sube el texto a la altura donde arranca el celular. */
+        .clearSection {
+          margin-top: 48px;
+          display: flex;
+          align-items: flex-start;
+          justify-content: center;
+          gap: clamp(24px, 5vw, 56px);
+        }
+
+        .clearTextBlock {
+          display: flex;
+          flex-direction: column;
+          align-items: flex-end;
+          text-align: right;
+        }
+
+        /* Mockup de celular (marco). La pantalla queda lista para su contenido. */
+        .phoneMock {
+          flex-shrink: 0;
+          width: 190px;
+          aspect-ratio: 9 / 19;
+          border-radius: 30px;
+          padding: 7px;
+          box-sizing: border-box;
+          background: linear-gradient(155deg, #16131c 0%, #0a0810 100%);
+          border: 1px solid rgba(255, 255, 255, 0.12);
+          box-shadow:
+            0 24px 60px rgba(0, 0, 0, 0.55),
+            inset 0 1px 0 rgba(255, 255, 255, 0.06);
+          position: relative;
+        }
+
+        /* Notch superior */
+        .phoneMock::before {
+          content: "";
+          position: absolute;
+          top: 10px;
+          left: 50%;
+          transform: translateX(-50%);
+          width: 46px;
+          height: 6px;
+          border-radius: 999px;
+          background: rgba(255, 255, 255, 0.14);
+          z-index: 2;
+        }
+
+        .phoneScreen {
+          width: 100%;
+          height: 100%;
+          border-radius: 24px;
+          overflow: hidden;
+          background: #05040a;
+          position: relative;
+        }
+
+        .clearTitle {
+          margin: 0;
+          font-size: 26px;
+          line-height: 1.15;
+          letter-spacing: -0.03em;
+          font-weight: 700;
+          color: #ffffff;
+        }
+
+        .clearText {
+          margin: 14px 0 0;
+          max-width: 40ch;
+          font-size: 15px;
+          line-height: 1.5;
+          font-weight: 400;
+          color: rgba(255, 255, 255, 0.72);
         }
 
         /* El tamaño y el estirado van en este span normal (styled-jsx no scopea
@@ -288,6 +389,30 @@ export default function WalletOnboarding() {
             font-size: 22px;
           }
 
+          /* En angosto: celular arriba, texto abajo, centrados. */
+          .clearSection {
+            margin-top: 36px;
+            flex-direction: column;
+            gap: 26px;
+          }
+
+          .phoneMock {
+            width: 158px;
+          }
+
+          .clearTextBlock {
+            align-items: center;
+            text-align: center;
+          }
+
+          .clearText {
+            max-width: none;
+          }
+
+          .clearTitle {
+            font-size: 22px;
+          }
+
           .commissionPct {
             font-size: 72px;
           }
@@ -305,7 +430,8 @@ export default function WalletOnboarding() {
 
           .exampleCard {
             width: 100%;
-            justify-content: start;
+            /* Un cuadrado a ancho completo sería altísimo en el teléfono. */
+            aspect-ratio: 16 / 10;
           }
 
           .onboardingTitle {
@@ -445,6 +571,25 @@ export default function WalletOnboarding() {
               </span>
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* Transparencia: título + descripción, alineados a la derecha. */}
+      <section className="clearSection">
+        {/* Simulador de celular con una wallet activa demo (Finanzas / Estadísticas). */}
+        <div className="phoneMock">
+          <div className="phoneScreen">
+            <WalletPhonePreview />
+          </div>
+        </div>
+
+        <div className="clearTextBlock">
+          <h2 className="clearTitle">
+            {tWallet.rich("onboardingClearTitle", {
+              vibra: (chunks) => <span style={{ color: "#22c55e" }}>{chunks}</span>,
+            })}
+          </h2>
+          <p className="clearText">{tWallet("onboardingClearText")}</p>
         </div>
       </section>
       </div>

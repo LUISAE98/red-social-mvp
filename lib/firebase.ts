@@ -12,7 +12,7 @@ import {
   getFirestore,
   initializeFirestore,
   persistentLocalCache,
-  persistentMultipleTabManager,
+  persistentSingleTabManager,
   type Firestore,
 } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
@@ -58,8 +58,13 @@ export const db = (function createFirestore(): Firestore {
   }
   try {
     return initializeFirestore(app, {
+      // Single-tab en lugar de multi-tab: el coordinador multi-pestaña (vía
+      // IndexedDB compartido) es el disparador principal del assertion interno
+      // del watch stream ("Unexpected state / ve:-1") cuando muchos listeners
+      // onSnapshot se montan/desmontan rápido (Home abre ~15+). forceOwnership
+      // evita el bloqueo si otra pestaña ya tomó la caché.
       localCache: persistentLocalCache({
-        tabManager: persistentMultipleTabManager(),
+        tabManager: persistentSingleTabManager({ forceOwnership: true }),
       }),
     });
   } catch {

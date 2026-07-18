@@ -12,7 +12,7 @@ import {
   setDoc,
   where,
 } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { auth, db } from "@/lib/firebase";
 import {
   GROUP_CATEGORY_OPTIONS,
   normalizeGroupCategory,
@@ -37,6 +37,10 @@ import {
   getEngagementTagWeights,
   getKeywordInterests,
   getSeenPostIds,
+  getHiddenPostIds,
+  getSuppressedAuthorIds,
+  getSuppressedCategoryWeights,
+  getSuppressedTags,
   timeDecayWeight,
 } from "@/lib/discovery/viewSignal";
 import { extractContentKeywords } from "@/lib/search/normalize";
@@ -412,19 +416,27 @@ function syncPreferencesToFirestore(
   prefs: StoredRecommendationPreferences
 ): void {
   if (!uid) return;
-  void setDoc(
-    FIRESTORE_PREFS_PATH(uid),
-    {
-      selectedCategories: prefs.selectedCategories,
-      joinedCategories: prefs.joinedCategories,
-      joinedTags: prefs.joinedTags,
-      onboardingCompleted: prefs.onboardingCompleted,
-      updatedAt: prefs.updatedAt,
-    },
-    { merge: true }
-  ).catch(() => {
-    // silent — localStorage is the source of truth for this session
-  });
+  // Espera a que Auth resuelva el token antes de escribir: sin esto, request.auth
+  // puede llegar null al servidor (aunque auth.currentUser exista en el cliente),
+  // la regla deniega la escritura y el onboarding NO persiste cross-device.
+  void auth
+    .authStateReady()
+    .then(() =>
+      setDoc(
+        FIRESTORE_PREFS_PATH(uid),
+        {
+          selectedCategories: prefs.selectedCategories,
+          joinedCategories: prefs.joinedCategories,
+          joinedTags: prefs.joinedTags,
+          onboardingCompleted: prefs.onboardingCompleted,
+          updatedAt: prefs.updatedAt,
+        },
+        { merge: true }
+      )
+    )
+    .catch(() => {
+      // silent — localStorage is the source of truth for this session
+    });
 }
 
 async function fetchUserMembershipGroupIds(uid: string): Promise<Set<string>> {
@@ -526,6 +538,18 @@ async function fetchBlockedByProfileIds(uid: string): Promise<string[]> {
   if (!uid) return [];
   try {
     const snap = await getDocs(collection(db, "users", uid, "blockedByUsers"));
+    return snap.docs.map((d) => d.id);
+  } catch {
+    return [];
+  }
+}
+
+// Fetch UIDs the current user has blocked (so we don't recommend them either).
+// El feed seguido ya los excluye vía Cloud Function; descubrimiento no lo hacía.
+async function fetchBlockedProfileIds(uid: string): Promise<string[]> {
+  if (!uid) return [];
+  try {
+    const snap = await getDocs(collection(db, "users", uid, "blockedUsers"));
     return snap.docs.map((d) => d.id);
   } catch {
     return [];
@@ -1050,13 +1074,42 @@ export async function fetchRecommendedGroupsForUser(
 
   let preferences = getStoredRecommendationPreferences(uid);
 
-  // If localStorage shows no completed onboarding, try Firestore as cross-device fallback
+  // If localStorage shows no completed onboarding, consult Firestore as a
+  // cross-device fallback. Se leen DOS fuentes en paralelo:
+  //   - preferences/recommendations: escrito best-effort desde el cliente.
+  //   - users/{uid}.interests: escrito de forma AUTORITATIVA por el Cloud
+  //     Function updateProfileInterests. Es la señal garantizada cross-device,
+  //     así que si existe basta para dar el onboarding por completado, aunque la
+  //     escritura best-effort de preferences haya fallado en el otro dispositivo.
   if (!preferences.onboardingCompleted) {
-    const remote = await loadPreferencesFromFirestore(uid);
-    if (remote && remote.onboardingCompleted) {
+    const [remote, interests] = await Promise.all([
+      loadPreferencesFromFirestore(uid),
+      fetchProfileInterests(uid),
+    ]);
+
+    const completedRemotely =
+      (remote && remote.onboardingCompleted) ||
+      interests.length >= MIN_ONBOARDING_CATEGORIES;
+
+    if (completedRemotely) {
+      const merged: StoredRecommendationPreferences = {
+        selectedCategories: uniqueCanonicalCategories([
+          ...(remote?.selectedCategories ?? []),
+          ...interests,
+        ]),
+        joinedCategories: uniqueCanonicalCategories(remote?.joinedCategories ?? []),
+        joinedTags: uniqueTags(remote?.joinedTags ?? []),
+        onboardingCompleted: true,
+        updatedAt: remote?.updatedAt ?? Date.now(),
+      };
       // Sync back to localStorage so future reads are instant
-      window.localStorage.setItem(getStorageKey(uid), JSON.stringify(remote));
-      preferences = remote;
+      window.localStorage.setItem(getStorageKey(uid), JSON.stringify(merged));
+      // Si la señal autoritativa (interests) existía pero el doc best-effort no,
+      // re-sincroniza preferences para dejar ambas fuentes consistentes.
+      if (!remote || !remote.onboardingCompleted) {
+        syncPreferencesToFirestore(uid, merged);
+      }
+      preferences = merged;
     }
   }
 
@@ -1376,6 +1429,14 @@ async function buildDiscoveryTasteVector(
     taste.set(category, (taste.get(category) ?? 0) + weight);
   }
 
+  // Señales NEGATIVAS (ocultar/reportar/bloquear): penalización suave y decaída.
+  // No baja de 0 para no invertir un interés declarado; solo lo atenúa.
+  for (const [category, penalty] of getSuppressedCategoryWeights(uid)) {
+    const current = taste.get(category);
+    if (current === undefined) continue;
+    taste.set(category, Math.max(0, current - penalty));
+  }
+
   return taste;
 }
 
@@ -1524,20 +1585,34 @@ export async function fetchDiscoveryPostsForUser(
     return cached.posts;
   }
 
-  const [preferences, memberGroupIds, followedProfileIds, blockedByIds] =
-    await Promise.all([
-      getMergedDiscoveryPreferences(uid),
-      fetchUserMembershipGroupIds(uid),
-      fetchFollowedProfileIds(uid),
-      fetchBlockedByProfileIds(uid),
-    ]);
+  const [
+    preferences,
+    memberGroupIds,
+    followedProfileIds,
+    blockedByIds,
+    blockedIds,
+  ] = await Promise.all([
+    getMergedDiscoveryPreferences(uid),
+    fetchUserMembershipGroupIds(uid),
+    fetchFollowedProfileIds(uid),
+    fetchBlockedByProfileIds(uid),
+    fetchBlockedProfileIds(uid),
+  ]);
+
+  // Señales negativas locales (ocultar/reportar/bloquear): instantáneas y sin red.
+  const suppressedAuthorIds = getSuppressedAuthorIds(uid);
+  const hiddenPostIds = getHiddenPostIds(uid);
 
   // Tags de interés (C): comunidades a las que te uniste + tags de lo que
-  // likeas/guardas/ves. Todo normalizado igual que los del post.
-  const userTagInterests = new Set<string>([
-    ...normalizeGroupTags(preferences.joinedTags),
-    ...getEngagementTagWeights(uid).keys(),
-  ]);
+  // likeas/guardas/ves. Todo normalizado igual que los del post. Se restan los
+  // tags suprimidos (ocultar/reportar/bloquear) para bajar contenido relacionado.
+  const suppressedTags = getSuppressedTags(uid);
+  const userTagInterests = new Set<string>(
+    [
+      ...normalizeGroupTags(preferences.joinedTags),
+      ...getEngagementTagWeights(uid).keys(),
+    ].filter((tag) => !suppressedTags.has(tag))
+  );
   // Palabras de interés (A): del texto de lo que likeas/guardas/ves.
   const userKeywords = getKeywordInterests(uid);
 
@@ -1557,6 +1632,8 @@ export async function fetchDiscoveryPostsForUser(
     uid,
     ...followedProfileIds,
     ...blockedByIds,
+    ...blockedIds,
+    ...suppressedAuthorIds,
   ]);
 
   // Candidatos (Fase 2):
@@ -1610,6 +1687,7 @@ export async function fetchDiscoveryPostsForUser(
   ]) {
     if (!post || !post.id) continue;
     if (seen.has(post.id)) continue;
+    if (hiddenPostIds.has(post.id)) continue; // ocultado/reportado por el usuario
     if (post.authorId && excludeAuthors.has(post.authorId)) continue;
     if (!isDiscoveryWorthy(post)) continue; // #4 gate de calidad
     seen.add(post.id);

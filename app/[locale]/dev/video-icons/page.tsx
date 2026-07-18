@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from "react"
 import SessionIntro from "@/app/[locale]/egress/session/SessionIntro";
 import SessionOutro, { type OutroMode } from "@/app/[locale]/egress/session/SessionOutro";
 import SessionOverlay from "@/app/[locale]/egress/session/SessionOverlay";
+import GreetingDownloadPreview from "./GreetingDownloadPreview";
 import {
   GroupCategoryPill,
   CelebrationBurst,
@@ -780,6 +781,10 @@ export default function VideoIconsPreview() {
   const [outroMode, setOutroMode] = useState<OutroMode>(null);
   // Preview del overlay de la esquina (mismo componente que la plantilla real).
   const [ovKey, setOvKey] = useState(0);
+  // Simulación de descarga animada de saludo/consejo (horizontal + vertical).
+  const [greetKey, setGreetKey] = useState(0);
+  const [greetName, setGreetName] = useState("Nombre del creador");
+  const [greetLabel, setGreetLabel] = useState("Saludo");
   const [ovOut, setOvOut] = useState(false);
   useEffect(() => {
     const id = setInterval(() => setElapsed((t) => t + 1), 1000);
@@ -958,6 +963,70 @@ export default function VideoIconsPreview() {
 
       <div style={{ maxWidth: 720, marginBottom: 56 }}>
         <InterestsOnboardingSandbox />
+      </div>
+
+      {/* ══════════════════════════════════════════════════════════════════════ */}
+      {/* SIMULACIÓN — DESCARGA ANIMADA DE SALUDO / CONSEJO (horizontal + vertical) */}
+      {/* ══════════════════════════════════════════════════════════════════════ */}
+      <h2 style={{ color: "#fff", fontSize: 16, fontWeight: 700, margin: "0 0 4px" }}>
+        Descarga animada de saludo / consejo — SIMULACIÓN
+      </h2>
+      <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 13, marginBottom: 12, lineHeight: 1.6 }}>
+        Solo simulación — <strong style={{ color: "rgba(255,255,255,0.6)" }}>no toca el sistema real de descarga</strong>. Es para aprobar el look antes de implementarlo.
+        <br />
+        0–6s intro (fondo del splash + Conecta·Comparte·Vibra + nombre + avatar con aro + vibraon.com) · a los 5s del contenido entra la esquina · sale 5s antes de terminar · cierre a negro suave + Vibra 5s.
+        <br />
+        <span style={{ color: "rgba(255,255,255,0.32)" }}>El contenido aquí dura ~14s (en real es la duración del video). Dale &quot;Reproducir&quot; y espera la secuencia completa (~29s).</span>
+      </p>
+
+      <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 14, flexWrap: "wrap" }}>
+        <button
+          type="button"
+          onClick={() => setGreetKey((k) => k + 1)}
+          style={{ border: "1px solid rgba(255,255,255,0.16)", background: "rgba(168,85,255,0.22)", color: "#d8b4fe", borderRadius: 999, padding: "8px 18px", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}
+        >
+          ▶ Reproducir simulación
+        </button>
+        {(["Saludo", "Consejo", "Mensaje"] as const).map((l) => (
+          <button
+            key={l}
+            type="button"
+            onClick={() => { setGreetLabel(l); setGreetKey((k) => k + 1); }}
+            style={{ border: "1px solid rgba(255,255,255,0.16)", background: greetLabel === l ? "rgba(255,255,255,0.14)" : "rgba(255,255,255,0.05)", color: greetLabel === l ? "#fff" : "rgba(255,255,255,0.6)", borderRadius: 999, padding: "8px 14px", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}
+          >
+            {l}
+          </button>
+        ))}
+        <label style={{ display: "flex", alignItems: "center", gap: 8, color: "rgba(255,255,255,0.6)", fontSize: 13 }}>
+          Creador:
+          <input
+            value={greetName}
+            onChange={(e) => setGreetName(e.target.value)}
+            style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.14)", borderRadius: 8, padding: "6px 10px", color: "#fff", fontSize: 13, fontFamily: "inherit", outline: "none" }}
+          />
+        </label>
+      </div>
+
+      <div style={{ display: "flex", gap: 24, flexWrap: "wrap", marginBottom: 56 }}>
+        {/* Horizontal 1920×1080 → escala 0.35 (672×378) */}
+        <div>
+          <div style={{ color: "rgba(255,255,255,0.4)", fontSize: 12, marginBottom: 6 }}>Horizontal · 1920×1080</div>
+          <div style={{ width: 672, height: 378, borderRadius: 12, overflow: "hidden", border: "1px solid rgba(255,255,255,0.10)", background: "#000" }}>
+            <div style={{ position: "relative", width: 1920, height: 1080, transform: "scale(0.35)", transformOrigin: "top left" }}>
+              <GreetingDownloadPreview key={`h-${greetKey}`} orientation="horizontal" name={greetName} serviceLabel={greetLabel} />
+            </div>
+          </div>
+        </div>
+
+        {/* Vertical 1080×1920 → escala 0.30 (324×576) */}
+        <div>
+          <div style={{ color: "rgba(255,255,255,0.4)", fontSize: 12, marginBottom: 6 }}>Vertical · 1080×1920</div>
+          <div style={{ width: 324, height: 576, borderRadius: 12, overflow: "hidden", border: "1px solid rgba(255,255,255,0.10)", background: "#000" }}>
+            <div style={{ position: "relative", width: 1080, height: 1920, transform: "scale(0.3)", transformOrigin: "top left" }}>
+              <GreetingDownloadPreview key={`v-${greetKey}`} orientation="vertical" name={greetName} serviceLabel={greetLabel} />
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* ══════════════════════════════════════════════════════════════════════ */}

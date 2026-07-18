@@ -29,7 +29,7 @@ const COLLECTION_BY_TYPE: Record<SessionType, string> = {
 //   "https://endpoint/bucket/key" → egress con endpoint personalizado (R2, MinIO)
 //   "bucket/key"                  → algunas versiones del SDK
 //   "key"                         → clave directa
-function extractS3Key(location: string, bucket: string): string {
+export function extractS3Key(location: string, bucket: string): string {
   // Formato s3://: "s3://bucket-name/path/to/file" → "path/to/file"
   if (location.startsWith("s3://")) {
     const withoutProtocol = location.slice(5);

@@ -2,7 +2,6 @@
 
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
@@ -250,18 +249,54 @@ const contentAreaClassName = isEmbed
           text-decoration: none;
         }
 
+        /* Wordmark "Vibra" con el degradado de marca animado (mismo efecto que
+           VibraGradientText / el hero del login). */
         .brandLogo {
-  display: block;
-  width: 112px;
-  height: auto;
-  object-fit: contain;
+  display: inline-block;
+  margin-left: 10px;
+  font-size: 35px;
+  font-weight: 680;
+  letter-spacing: -0.035em;
+  line-height: 1;
+  background: linear-gradient(100deg, #ff2fb3 0%, #a855ff 45%, #4f46ff 100%);
+  background-size: 220% 220%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: vibraTextFlow 4.5s ease-in-out infinite;
 }
 
 .mobileBrandLogo {
-  display: block;
-  width: 86px;
-  height: auto;
-  object-fit: contain;
+  display: inline-block;
+  margin-left: 8px;
+  font-size: 29px;
+  font-weight: 680;
+  letter-spacing: -0.035em;
+  line-height: 1;
+  background: linear-gradient(100deg, #ff2fb3 0%, #a855ff 45%, #4f46ff 100%);
+  background-size: 220% 220%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: vibraTextFlow 4.5s ease-in-out infinite;
+}
+
+@keyframes vibraTextFlow {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .brandLogo,
+  .mobileBrandLogo {
+    animation: none;
+    background-position: 50% 50%;
+  }
 }
 
 .desktopMainCluster {
@@ -580,9 +615,9 @@ const contentAreaClassName = isEmbed
 
 .walletCol {
   position: fixed;
-  top: calc(env(safe-area-inset-top) + 90px);
+  top: calc(env(safe-area-inset-top) + 64px);
   right: max(var(--shell-gutter), env(safe-area-inset-right));
-  bottom: calc(24px + env(safe-area-inset-bottom));
+  bottom: calc(8px + env(safe-area-inset-bottom));
   width: var(--wallet-rail-width);
   min-width: 0;
 
@@ -767,7 +802,7 @@ const contentAreaClassName = isEmbed
             <div className="desktopHeader">
               <div className="brandCol">
 <Link href="/" className="brand" aria-label={tNav("goHome")}>
-  <Image src="/logotipo.webp" alt="Vibra" width={112} height={32} className="brandLogo" />
+  <span className="brandLogo">Vibra</span>
 </Link>
               </div>
 
@@ -833,7 +868,7 @@ const contentAreaClassName = isEmbed
         className="mobileBrand mobileBrandVisible"
         aria-label={tNav("goHome")}
       >
-        <Image src="/logotipo.webp" alt="Vibra" width={86} height={25} className="mobileBrandLogo" />
+        <span className="mobileBrandLogo">Vibra</span>
       </Link>
       <div className="mobileActions">
         <button

@@ -21,6 +21,7 @@ export type ModerationAction =
   | "unblock_user"
   | "block_in_group"
   | "unblock_in_group"
+  | "hide_post"
   | "delete_post";
 
 export function getDateFromTimestamp(value?: { toDate?: () => Date } | null) {
@@ -312,6 +313,7 @@ export function buildActionLabel(action: ModerationAction) {
   if (action === "unblock_user") return "Desbloquear de mi perfil";
   if (action === "block_in_group") return "Bloquear en este grupo";
   if (action === "unblock_in_group") return "Desbloquear en este grupo";
+  if (action === "hide_post") return "Ocultar publicación";
   return "Eliminar publicación";
 }
 

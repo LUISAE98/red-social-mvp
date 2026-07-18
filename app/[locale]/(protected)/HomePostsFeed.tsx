@@ -43,6 +43,8 @@ import {
   recordPostSaveSignal,
   recordPostCommentSignal,
   recordPostLikeSignal,
+  recordPostNotInterested,
+  getHiddenPostIds,
 } from "@/lib/discovery/viewSignal";
 import { followUser } from "@/lib/social/social-service";
 import { joinGroup } from "@/lib/groups/membership";
@@ -166,6 +168,12 @@ function PostImpressionObserver({
 
 // CTA de descubrimiento: "Seguir" (si es perfil) o "Unirme" (si es comunidad).
 // Se muestra arriba del post sugerido; el post en sí se ve como uno normal.
+//
+// El post SABE si el viewer ya sigue al autor / ya es miembro de la comunidad:
+// consulta el estado real (following / members) y se oculta si ya está conectado
+// (la ausencia del botón = "ya lo sigues"). La comunidad se detecta por la
+// PRESENCIA de `groupId`, no por `contextType` (un post de comunidad con un
+// `profileId` denormalizado se reclasifica como "profile" y perdía el botón).
 function DiscoveryFollowJoinButton({
   post,
   currentUserId,
@@ -175,16 +183,50 @@ function DiscoveryFollowJoinButton({
 }) {
   const tFeed = useTranslations("feed");
   const [state, setState] = useState<"idle" | "loading" | "done">("idle");
+  // null = aún no sabemos; true = ya sigue/es miembro; false = no conectado.
+  const [connected, setConnected] = useState<boolean | null>(null);
 
-  const isCommunity = post.contextType === "group" && !!post.groupId;
-  const isProfile = post.contextType === "profile";
+  const isCommunity = !!post.groupId;
   const targetId = isCommunity
     ? post.groupId ?? null
-    : isProfile
-      ? post.profileId ?? post.authorId ?? null
-      : null;
+    : post.profileId ?? post.authorId ?? null;
 
-  if (!targetId || targetId === currentUserId) return null;
+  const invalidTarget = !targetId || targetId === currentUserId;
+
+  // Estado real de la relación: ¿ya sigue al autor / ya es miembro del grupo?
+  useEffect(() => {
+    if (invalidTarget || !targetId || !currentUserId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const ref = isCommunity
+          ? doc(db, "groups", targetId, "members", currentUserId)
+          : doc(db, "users", currentUserId, "following", targetId);
+        const snap = await getDoc(ref);
+        const isConnected = isCommunity
+          ? snap.exists() &&
+            ((snap.data() as { status?: string } | undefined)?.status ??
+              "active") === "active"
+          : snap.exists();
+        if (!cancelled) setConnected(isConnected);
+      } catch {
+        if (!cancelled) setConnected(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [invalidTarget, isCommunity, targetId, currentUserId]);
+
+  if (invalidTarget || !targetId) return null;
+  // Aún cargando el estado real → no mostramos nada (evita el flash de "Unirme"
+  // en un post que en realidad ya sigues).
+  if (connected === null && state === "idle") return null;
+
+  // Ya sigue / ya es miembro al cargar → sin botón (el CTA solo tiene sentido en
+  // recomendaciones que aún no sigues). El estado "done" (recién unido) se maneja
+  // más abajo mostrando el texto morado.
+  if (connected === true) return null;
 
   async function handleAction() {
     if (state !== "idle" || !targetId) return;
@@ -201,43 +243,60 @@ function DiscoveryFollowJoinButton({
     }
   }
 
-  const label =
-    state === "loading"
-      ? "…"
-      : state === "done"
-        ? isCommunity
-          ? tFeed("joinedCta")
-          : tFeed("followingCta")
-        : isCommunity
-          ? tFeed("joinCta")
-          : tFeed("followCta");
+  // Compacto para el header (izquierda del menú de 3 puntos): bajito y rosa.
+  const baseStyle: React.CSSProperties = {
+    flexShrink: 0,
+    boxSizing: "border-box",
+    padding: "5px 11px",
+    borderRadius: 5,
+    border: "none",
+    fontSize: 11,
+    fontWeight: 600,
+    lineHeight: 1.4,
+    letterSpacing: "-0.01em",
+    whiteSpace: "nowrap",
+    fontFamily: "inherit",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+  };
 
-  const isDone = state === "done";
+  // Recién unido / seguido → texto morado (Siguiendo / Unido), sin botón.
+  if (state === "done") {
+    return (
+      <span
+        style={{
+          ...baseStyle,
+          background: "transparent",
+          color: "#a855ff",
+          fontWeight: 700,
+          cursor: "default",
+        }}
+      >
+        {isCommunity ? tFeed("joinedCta") : tFeed("followingCta")}
+      </span>
+    );
+  }
 
+  // No conectado → CTA morado sólido (Unirme / Seguir).
   return (
     <button
       type="button"
       onClick={handleAction}
       disabled={state !== "idle"}
       style={{
-        flexShrink: 0,
-        padding: "5px 12px",
-        borderRadius: 999,
-        border: isDone ? "1px solid rgba(255,255,255,0.18)" : "none",
-        background: isDone
-          ? "rgba(255,255,255,0.10)"
-          : "linear-gradient(135deg, #ec4899, #9333ea)",
-        color: isDone ? "rgba(255,255,255,0.7)" : "#fff",
-        fontSize: 12,
-        fontWeight: 700,
-        letterSpacing: "-0.01em",
+        ...baseStyle,
+        background: "#a855ff",
+        color: "#fff",
         cursor: state === "idle" ? "pointer" : "default",
         opacity: state === "loading" ? 0.7 : 1,
-        whiteSpace: "nowrap",
-        fontFamily: "inherit",
       }}
     >
-      {label}
+      {state === "loading"
+        ? "…"
+        : isCommunity
+          ? tFeed("joinCta")
+          : tFeed("followCta")}
     </button>
   );
 }
@@ -494,9 +553,10 @@ export default function HomePostsFeed({ currentUserId, refreshRef }: HomePostsFe
           return;
         }
 
+        const hiddenIds = getHiddenPostIds(currentUserId);
         const normalizedPosts = result.posts
           .map((post) => normalizeHomeFeedPost(post as PostWithFlags))
-          .filter((post) => post.isDeleted !== true);
+          .filter((post) => post.isDeleted !== true && !hiddenIds.has(post.id));
 
         const nextCursor = result.cursor;
         const nextHasMore = result.hasMore;
@@ -1067,6 +1127,26 @@ const shellStyle: CSSProperties = {
     return map;
   }, [discoveryPosts, posts, recommendationSlots]);
 
+  // Ocultar / reportar / bloquear un post lo remueve del feed al instante (de
+  // ambas listas: base y descubrimiento) y alimenta el algoritmo con la señal
+  // negativa (categoría/autor). El bloqueo además persiste en Firestore
+  // (cross-device) por su propio flujo.
+  const handleHidePost = useCallback(
+    (post: PostWithFlags, reason: "hide" | "report" | "block") => {
+      if (!currentUserId) return;
+      recordPostNotInterested(currentUserId, {
+        postId: post.id,
+        authorId: post.authorId,
+        category: post.groupCategory,
+        tags: post.groupTags,
+        reason,
+      });
+      setDiscoveryPosts((prev) => prev.filter((p) => p.id !== post.id));
+      setPosts((prev) => prev.filter((p) => p.id !== post.id));
+    },
+    [currentUserId]
+  );
+
   // Tarjeta de descubrimiento "Sugerido para ti" (post normal + CTA arriba).
   // Se reutiliza en los slots del feed y en el arranque en frío (feed vacío).
   const renderDiscoveryCard = (disc: PostWithFlags, uid: string) => (
@@ -1095,7 +1175,9 @@ const shellStyle: CSSProperties = {
           isModerator={false}
           showGroupContext={true}
           canModerateGroupAuthor={false}
-          beforeSaveAction={
+          suggestionMode={true}
+          onHidePost={(reason) => handleHidePost(disc, reason)}
+          beforeMenuAction={
             <DiscoveryFollowJoinButton post={disc} currentUserId={uid} />
           }
         />
@@ -1211,6 +1293,8 @@ return (
               showGroupContext={true}
               canModerateGroupAuthor={post.canModerateGroupAuthor === true}
               onModerationComplete={loadPosts}
+              suggestionMode={post.authorId !== currentUserId}
+              onHidePost={(reason) => handleHidePost(post, reason)}
             />
           </PostImpressionObserver>
 

@@ -90,6 +90,16 @@ const TAG_INTERESTS_KEY_PREFIX = "red-social-mvp:tag-interests:";
 const KEYWORD_INTERESTS_KEY_PREFIX = "red-social-mvp:keyword-interests:";
 const SEEN_POSTS_KEY_PREFIX = "red-social-mvp:seen-posts:";
 
+// Señales NEGATIVAS del descubrimiento (ocultar / reportar / bloquear). A
+// diferencia del engagement positivo, estas persisten más tiempo: "no me
+// muestres esto de nuevo" debe pegar. El post oculto y el autor suprimido se
+// excluyen duro; la categoría solo recibe una penalización suave y decaída
+// (ocultar un post no debe borrar un interés que el usuario eligió).
+const HIDDEN_POSTS_KEY_PREFIX = "red-social-mvp:hidden-posts:";
+const SUPPRESSED_AUTHORS_KEY_PREFIX = "red-social-mvp:suppressed-authors:";
+const SUPPRESSED_CATEGORY_KEY_PREFIX = "red-social-mvp:suppressed-categories:";
+const SUPPRESSED_TAGS_KEY_PREFIX = "red-social-mvp:suppressed-tags:";
+
 const MAX_CATEGORY_WEIGHT = 12;
 const MAX_TIMESTAMPS = 40;
 const MAX_TAGS_TRACKED = 60;
@@ -100,6 +110,12 @@ const MAX_KEYWORDS_PER_POST = 12;
 const MIN_KEYWORD_LENGTH = 3;
 const SEEN_POSTS_MAX = 400;
 const SEEN_POSTS_TTL_MS = 14 * 24 * 60 * 60 * 1000; // 14 días (anti-repetición)
+
+const HIDDEN_POSTS_MAX = 600;
+const HIDDEN_POSTS_TTL_MS = 90 * 24 * 60 * 60 * 1000; // 90 días
+const SUPPRESSED_AUTHORS_MAX = 400;
+const SUPPRESSED_AUTHORS_TTL_MS = 60 * 24 * 60 * 60 * 1000; // 60 días
+const MAX_SUPPRESSED_CATEGORY_WEIGHT = 8;
 
 type CategoryTimestamps = Record<string, number[]>;
 type AccumEntry = { w: number; t: number };
@@ -402,5 +418,167 @@ export function getSeenPostIds(uid: string): Set<string> {
     readSeenEntries(uid)
       .filter((entry) => entry.at > cutoff)
       .map((entry) => entry.id)
+  );
+}
+
+// ── Señales negativas (ocultar / reportar / bloquear) ──────────────────────────
+
+type IdListEntry = { id: string; at: number };
+
+function readIdList(key: string): IdListEntry[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(key);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as IdListEntry[];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function pushIdList(
+  key: string,
+  id: string,
+  ttlMs: number,
+  max: number
+): void {
+  if (typeof window === "undefined" || !id) return;
+  try {
+    const cutoff = Date.now() - ttlMs;
+    const existing = readIdList(key).filter(
+      (entry) => entry.at > cutoff && entry.id !== id
+    );
+    const merged = [{ id, at: Date.now() }, ...existing].slice(0, max);
+    window.localStorage.setItem(key, JSON.stringify(merged));
+  } catch {}
+}
+
+function idListToSet(key: string, ttlMs: number): Set<string> {
+  const cutoff = Date.now() - ttlMs;
+  return new Set(
+    readIdList(key)
+      .filter((entry) => entry.at > cutoff)
+      .map((entry) => entry.id)
+  );
+}
+
+export type NegativeSignalReason = "hide" | "report" | "block";
+
+// Penalización de categoría por acción negativa (magnitud positiva; el motor la
+// RESTA del vector de gustos). Reportar/bloquear pesan más que ocultar.
+const NEGATIVE_CATEGORY_WEIGHT: Record<NegativeSignalReason, number> = {
+  hide: 1,
+  report: 1.5,
+  block: 1.5,
+};
+
+type NegativeSignalInput = {
+  postId?: string | null;
+  authorId?: string | null;
+  category?: unknown;
+  tags?: unknown;
+  reason?: NegativeSignalReason;
+};
+
+/**
+ * Registra desinterés explícito sobre un post sugerido. Efectos en el algoritmo:
+ *   - El post se oculta (nunca vuelve a aparecer en descubrimiento).
+ *   - Reportar/bloquear suprimen también al autor (se excluye de sugerencias).
+ *     Ocultar NO suprime al autor: solo esconde ese post.
+ *   - La categoría recibe una penalización suave y decaída (no borra intereses).
+ *   - Los tags del post se suprimen: dejan de dar bonus de "contenido similar",
+ *     así se evitan cosas RELACIONADAS con lo que no le gustó (no solo el post).
+ */
+export function recordPostNotInterested(
+  uid: string,
+  input: NegativeSignalInput
+): void {
+  if (!uid || typeof window === "undefined") return;
+  const reason: NegativeSignalReason = input.reason ?? "hide";
+
+  const postId =
+    typeof input.postId === "string" && input.postId ? input.postId : null;
+  if (postId) {
+    pushIdList(
+      `${HIDDEN_POSTS_KEY_PREFIX}${uid}`,
+      postId,
+      HIDDEN_POSTS_TTL_MS,
+      HIDDEN_POSTS_MAX
+    );
+  }
+
+  const authorId =
+    typeof input.authorId === "string" && input.authorId ? input.authorId : null;
+  if (authorId && authorId !== uid && (reason === "report" || reason === "block")) {
+    pushIdList(
+      `${SUPPRESSED_AUTHORS_KEY_PREFIX}${uid}`,
+      authorId,
+      SUPPRESSED_AUTHORS_TTL_MS,
+      SUPPRESSED_AUTHORS_MAX
+    );
+  }
+
+  const category = normalizeGroupCategory(input.category);
+  if (category) {
+    recordAccum(
+      `${SUPPRESSED_CATEGORY_KEY_PREFIX}${uid}`,
+      [category],
+      NEGATIVE_CATEGORY_WEIGHT[reason],
+      MAX_SUPPRESSED_CATEGORY_WEIGHT,
+      GROUP_CATEGORY_OPTIONS.length
+    );
+  }
+
+  // Suprime los tags del post (contenido similar). No excluye duro: neutraliza
+  // el bonus de afinidad por tag para bajar lo relacionado.
+  const tagList = normalizeTagList(input.tags);
+  if (tagList.length > 0) {
+    recordAccum(
+      `${SUPPRESSED_TAGS_KEY_PREFIX}${uid}`,
+      tagList,
+      NEGATIVE_CATEGORY_WEIGHT[reason],
+      MAX_TAG_WEIGHT,
+      MAX_TAGS_TRACKED
+    );
+  }
+}
+
+/** Ids de posts que el usuario ocultó/reportó (excluir de descubrimiento). */
+export function getHiddenPostIds(uid: string): Set<string> {
+  if (!uid) return new Set();
+  return idListToSet(`${HIDDEN_POSTS_KEY_PREFIX}${uid}`, HIDDEN_POSTS_TTL_MS);
+}
+
+/** Ids de autores suprimidos vía reportar/bloquear (excluir de descubrimiento). */
+export function getSuppressedAuthorIds(uid: string): Set<string> {
+  if (!uid) return new Set();
+  return idListToSet(
+    `${SUPPRESSED_AUTHORS_KEY_PREFIX}${uid}`,
+    SUPPRESSED_AUTHORS_TTL_MS
+  );
+}
+
+/** Penalización por categoría (magnitud positiva a RESTAR del vector de gustos). */
+export function getSuppressedCategoryWeights(
+  uid: string
+): Map<CanonicalGroupCategory, number> {
+  const map = new Map<CanonicalGroupCategory, number>();
+  if (!uid) return map;
+  for (const [key, weight] of accumWeights(
+    `${SUPPRESSED_CATEGORY_KEY_PREFIX}${uid}`,
+    0.3
+  )) {
+    const category = normalizeGroupCategory(key);
+    if (category) map.set(category, weight);
+  }
+  return map;
+}
+
+/** Tags suprimidos (ocultar/reportar/bloquear): quitar del interés de contenido. */
+export function getSuppressedTags(uid: string): Set<string> {
+  if (!uid) return new Set();
+  return new Set(
+    accumWeights(`${SUPPRESSED_TAGS_KEY_PREFIX}${uid}`, 0.3).keys()
   );
 }

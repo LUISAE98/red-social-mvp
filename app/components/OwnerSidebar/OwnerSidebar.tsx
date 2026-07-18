@@ -616,6 +616,9 @@ const handleOwnerSidebarPullRefresh = useCallback(async () => {
   const [activeView, setActiveView] = useState<TopView>(
     () => ownerSidebarCache?.activeView ?? "owned"
   );
+  // Acordeón: qué sección está desplegada. activeView marca la seleccionada;
+  // accordionOpen permite además cerrarla (ninguna abierta) al re-clicarla.
+  const [accordionOpen, setAccordionOpen] = useState(true);
 
   const [openCommunities, setOpenCommunities] = useState<
     Record<string, boolean>
@@ -718,8 +721,8 @@ const handleOwnerSidebarPullRefresh = useCallback(async () => {
 
 const ui = {
   sidebarWidth: 300,
-  sidebarTop: 90,
-  sidebarBottom: 16,
+  sidebarTop: 64,
+  sidebarBottom: 4,
 };
 
   const styles: Record<string, CSSProperties> = {
@@ -932,12 +935,42 @@ miniItem: {
   ]);
 
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (u) => {
+    const unsub = onAuthStateChanged(auth, async (u) => {
+      if (u) {
+        // Fuerza un ID token válido ANTES de exponer `viewer`: los ~10 listeners
+        // onSnapshot del sidebar se gatillan en cuanto viewer.uid cambia, y en un
+        // dispositivo recién logueado pueden salir sin token → el servidor ve
+        // request.auth == null y deniega ("missing or insufficient permissions").
+        // Un permission-denied en onSnapshot es terminal, así que evitamos la carrera.
+        try {
+          await auth.authStateReady();
+          await u.getIdToken();
+        } catch {
+          /* si falla, continuamos: el SDK reintentará adjuntar el token */
+        }
+      }
       setViewer(u);
       setAuthReady(true);
     });
     return () => unsub();
   }, []);
+
+  // Red de seguridad: si algún listener alcanzó a fallar con permission-denied
+  // transitorio (token aún no propagado), re-suscribe UNA vez tras un pequeño
+  // margen. El guard por ref evita bucles si el error fuese permanente.
+  const permissionRetriedRef = useRef(false);
+  useEffect(() => {
+    if (!groupsErr || permissionRetriedRef.current) return;
+    if (!/insufficient permissions|permission-denied/i.test(groupsErr)) return;
+
+    permissionRetriedRef.current = true;
+    const timer = window.setTimeout(() => {
+      ownerSidebarCache = null;
+      setGroupsErr(null);
+      setOwnerSidebarRefreshKey((value) => value + 1);
+    }, 900);
+    return () => window.clearTimeout(timer);
+  }, [groupsErr]);
 
 
   useEffect(() => {
@@ -2034,6 +2067,7 @@ const groupsForSeen = [
     prevGreetingsTotalRef.current = total;
     if (total > 0 && prev === 0) {
       setActiveView("greetings");
+      setAccordionOpen(true);
     }
   }, [pendingCount, buyerDelivered.length]);
 
@@ -2432,53 +2466,21 @@ return (
   padding: 10px;
   box-sizing: border-box;
   border-radius: 12px;
-  border: 1px solid rgba(168, 85, 255, 0.08);
-  background:
-    linear-gradient(
-      135deg,
-      rgb(3, 3, 6) 0%,
-      rgb(8, 5, 13) 48%,
-      rgb(0, 0, 0) 100%
-    );
+  /* Contenedor invisible: sin fondo, borde ni sombra, para que no se note. */
+  border: none;
+  background: transparent;
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.035),
-    inset 0 -1px 0 rgba(255, 255, 255, 0.015),
-    inset 0 0 14px rgba(168, 85, 255, 0.012),
-    0 0 8px rgba(168, 85, 255, 0.022),
-    0 18px 54px rgba(0, 0, 0, 0.68);
+  box-shadow: none;
   transition:
     max-height 320ms ease,
     background 180ms ease;
 }
 
-.profile-owner-sidebar-panel::before {
-  content: "";
-  position: absolute;
-  inset: -38%;
-  border-radius: inherit;
-  pointer-events: none;
-  background:
-    radial-gradient(circle at 18% 10%, rgba(168, 85, 255, 0.045), transparent 34%),
-    radial-gradient(circle at 86% 18%, rgba(126, 34, 206, 0.032), transparent 36%),
-    radial-gradient(circle at 22% 92%, rgba(168, 85, 255, 0.025), transparent 40%);
-  filter: blur(24px);
-  opacity: 0.32;
-  z-index: 0;
-}
-
+/* Glow y sombra interna desactivados: el contenedor no debe notarse. */
+.profile-owner-sidebar-panel::before,
 .profile-owner-sidebar-panel::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  border-radius: inherit;
-  box-shadow:
-    inset 0 0 18px rgba(79, 70, 255, 0.045),
-    inset 0 0 14px rgba(168, 85, 255, 0.045),
-    inset 0 1px 0 rgba(255, 255, 255, 0.04);
-  z-index: 1;
+  content: none;
 }
 
 .profile-owner-sidebar-content {
@@ -2710,8 +2712,16 @@ newPostsCounts={newPostsCounts}
 )}
 
           <OwnerSidebarTabNav
-            activeView={activeView}
-            onChange={setActiveView}
+            openKey={accordionOpen ? activeView : null}
+            onToggle={(key) => {
+              // Re-clic en la sección abierta la cierra; clic en otra la abre.
+              if (accordionOpen && key === activeView) {
+                setAccordionOpen(false);
+              } else {
+                setActiveView(key);
+                setAccordionOpen(true);
+              }
+            }}
             requestedCount={pendingCount}
             deliveredCount={buyerDelivered.length}
             joinRequestsCount={totalPendingJoinRequests}
@@ -2720,114 +2730,104 @@ newPostsCounts={newPostsCounts}
             joinedGroupsCount={joinedGroups.length}
             loadingFollowing={loadingFollowing}
             loadingGroups={loadingGroups}
+            contentByKey={{
+              following: (
+                <OwnerSidebarFollowedProfiles
+                  loadingFollowing={loadingFollowing}
+                  followedProfiles={sortedFollowedProfiles}
+                  styles={styles}
+                  onOpenProfile={(handle) => router.push(`/u/${handle}`)}
+                  onProfileVisit={(uid) => incrementVisit(uid)}
+                  isMobile={isMobile}
+                  currentUserId={viewer?.uid ?? null}
+                  newPostsCounts={newPostsCounts}
+                />
+              ),
+              owned: (
+                <OwnerSidebarMyGroups
+                  loadingGroups={loadingGroups}
+                  myGroups={myGroups}
+                  meetGreetsByGroup={meetGreetsByGroup}
+                  exclusiveSessionsByGroup={exclusiveSessionsByGroup}
+                  ownedGrouped={sortedOwnedGrouped}
+                  openCommunities={openCommunities}
+                  joinRequestsByGroup={joinRequestsByGroup}
+                  greetingsByGroup={greetingsByGroup}
+                  greetingSectionOpen={greetingSectionOpen}
+                  joinSectionOpen={joinSectionOpen}
+                  seenCountsByGroup={seenCountsByGroup}
+                  userMiniMap={userMiniMap}
+                  styles={styles}
+                  getInitials={getInitials}
+                  renderUserLink={renderUserLink}
+                  setOpenCommunities={setOpenCommunities}
+                  setSeenCountsByGroup={setSeenCountsByGroup}
+                  setJoinSectionOpen={setJoinSectionOpen}
+                  setGreetingSectionOpen={setGreetingSectionOpen}
+                  handleApproveJoin={handleApproveJoin}
+                  handleRejectJoin={handleRejectJoin}
+                  handleGreetingAction={handleGreetingAction}
+                  onCreateCommunity={() => router.push("/groups/new")}
+                  joinBusyKey={joinBusyKey}
+                  greetingBusyId={greetingBusyId}
+                  newPostsCounts={newPostsCounts}
+                />
+              ),
+              communities: (
+                <OwnerSidebarOtherGroups
+                  currentUserId={viewer?.uid ?? null}
+                  loadingCommunities={loadingCommunities}
+                  joinedGroups={joinedGroups}
+                  pendingJoinRequestsSent={pendingJoinRequestsSent}
+                  browseGroups={browseGroups}
+                  joinedGrouped={sortedJoinedGrouped}
+                  subscriptionPendingGroups={subscriptionPendingGroups}
+                  browseGrouped={browseGrouped}
+                  groupMetaMap={groupMetaMap}
+                  styles={styles}
+                  fmtDate={fmtDate}
+                  renderCommunityCard={renderCommunityCard}
+                  joinRequestsByGroup={joinRequestsByGroup}
+                  joinSectionOpen={joinSectionOpen}
+                  setJoinSectionOpen={setJoinSectionOpen}
+                  handleApproveJoin={handleApproveJoin}
+                  handleRejectJoin={handleRejectJoin}
+                  joinBusyKey={joinBusyKey}
+                  userMiniMap={userMiniMap}
+                  getInitials={getInitials}
+                  renderUserLink={renderUserLink}
+                  onCreateCommunity={() => router.push("/groups/new")}
+                  newPostsCounts={newPostsCounts}
+                />
+              ),
+              greetings:
+                pendingCount > 0 || buyerDelivered.length > 0 || buyerRejectedGreetings.length > 0 ? (
+                  <OwnerSidebarGreetings
+                    buyerPending={buyerPending}
+                    buyerDelivered={buyerDelivered}
+                    buyerRejectedGreetings={buyerRejectedGreetings}
+                    buyerExclusiveSessions={buyerExclusiveSessions}
+                    exclusiveSessionsByGroup={{}}
+                    groupMetaMap={groupMetaMap}
+                    userMiniMap={userMiniMap}
+                    styles={styles}
+                    typeLabel={(type) => {
+                      if (type === "saludo") return tWallet("typeLabelGreeting");
+                      if (type === "consejo") return tWallet("typeLabelAdvice");
+                      if (type === "mensaje") return tWallet("typeLabelMessage");
+                      if (type === "meet_greet_digital") return tSessions("meetGreetTitle");
+                      if (type === "exclusive_session" || type === "clase_personalizada" || type === "digital_exclusive_session") return tServices("exclusiveSession");
+                      return type;
+                    }}
+                    fmtDate={fmtDate}
+                    renderUserLink={renderUserLink}
+                    router={router}
+                    buyerMeetGreets={buyerMeetGreets}
+                    meetGreetsByGroup={{}}
+                  />
+                ) : null,
+            }}
           />
-{activeView === "owned" && (
-  <div className="owner-sidebar-view-transition" key="owned">
-    <OwnerSidebarMyGroups
-              loadingGroups={loadingGroups}
-              myGroups={myGroups}
-              meetGreetsByGroup={meetGreetsByGroup}
-              exclusiveSessionsByGroup={exclusiveSessionsByGroup}
-              ownedGrouped={sortedOwnedGrouped}
-              openCommunities={openCommunities}
-              joinRequestsByGroup={joinRequestsByGroup}
-              greetingsByGroup={greetingsByGroup}
-              greetingSectionOpen={greetingSectionOpen}
-              joinSectionOpen={joinSectionOpen}
-              seenCountsByGroup={seenCountsByGroup}
-              userMiniMap={userMiniMap}
-              styles={styles}
-              getInitials={getInitials}
-              renderUserLink={renderUserLink}
-              setOpenCommunities={setOpenCommunities}
-              setSeenCountsByGroup={setSeenCountsByGroup}
-              setJoinSectionOpen={setJoinSectionOpen}
-              setGreetingSectionOpen={setGreetingSectionOpen}
-              handleApproveJoin={handleApproveJoin}
-              handleRejectJoin={handleRejectJoin}
-handleGreetingAction={handleGreetingAction}
-onCreateCommunity={() => router.push("/groups/new")}
-joinBusyKey={joinBusyKey}
-greetingBusyId={greetingBusyId}
-newPostsCounts={newPostsCounts}
-     />
-  </div>
-)}
-
-{activeView === "communities" && (
-  <div className="owner-sidebar-view-transition" key="communities">
-    <>
-<OwnerSidebarOtherGroups
-  currentUserId={viewer?.uid ?? null}
-  loadingCommunities={loadingCommunities}
-      joinedGroups={joinedGroups}
-      pendingJoinRequestsSent={pendingJoinRequestsSent}
-      browseGroups={browseGroups}
-      joinedGrouped={sortedJoinedGrouped}
-      subscriptionPendingGroups={subscriptionPendingGroups}
-      browseGrouped={browseGrouped}
-      groupMetaMap={groupMetaMap}
-      styles={styles}
-      fmtDate={fmtDate}
-      renderCommunityCard={renderCommunityCard}
-      joinRequestsByGroup={joinRequestsByGroup}
-      joinSectionOpen={joinSectionOpen}
-      setJoinSectionOpen={setJoinSectionOpen}
-      handleApproveJoin={handleApproveJoin}
-      handleRejectJoin={handleRejectJoin}
-      joinBusyKey={joinBusyKey}
-userMiniMap={userMiniMap}
-getInitials={getInitials}
-renderUserLink={renderUserLink}
-onCreateCommunity={() => router.push("/groups/new")}
-newPostsCounts={newPostsCounts}
-    />
-   </>
-  </div>
-)}
-
-{activeView === "following" && (
-  <div className="owner-sidebar-view-transition" key="following">
-    <OwnerSidebarFollowedProfiles
-      loadingFollowing={loadingFollowing}
-      followedProfiles={sortedFollowedProfiles}
-      styles={styles}
-      onOpenProfile={(handle) => router.push(`/u/${handle}`)}
-      onProfileVisit={(uid) => incrementVisit(uid)}
-      isMobile={isMobile}
-      currentUserId={viewer?.uid ?? null}
-      newPostsCounts={newPostsCounts}
-    />
-  </div>
-)}
-
-{activeView === "greetings" && (pendingCount > 0 || buyerDelivered.length > 0 || buyerRejectedGreetings.length > 0) && (
-  <div className="owner-sidebar-view-transition" key="greetings">
-    <OwnerSidebarGreetings
-              buyerPending={buyerPending}
-              buyerDelivered={buyerDelivered}
-              buyerRejectedGreetings={buyerRejectedGreetings}
-              buyerExclusiveSessions={buyerExclusiveSessions}
-              exclusiveSessionsByGroup={{}}
-              groupMetaMap={groupMetaMap}
-              userMiniMap={userMiniMap}
-              styles={styles}
-              typeLabel={(type) => {
-                if (type === "saludo") return tWallet("typeLabelGreeting");
-                if (type === "consejo") return tWallet("typeLabelAdvice");
-                if (type === "mensaje") return tWallet("typeLabelMessage");
-                if (type === "meet_greet_digital") return tSessions("meetGreetTitle");
-                if (type === "exclusive_session" || type === "clase_personalizada" || type === "digital_exclusive_session") return tServices("exclusiveSession");
-                return type;
-              }}
-              fmtDate={fmtDate}
-              renderUserLink={renderUserLink}
-              router={router}
-              buyerMeetGreets={buyerMeetGreets}
-              meetGreetsByGroup={{}}
-    />
-  </div>
-)}
 {isMobile && (
   <div style={{
     flexShrink: 0,

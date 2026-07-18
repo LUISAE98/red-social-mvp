@@ -202,6 +202,9 @@ export { checkRateLimitPost, checkRateLimitComment } from "./rateLimiter";
 // Video overlay download
 export { videoOverlayDownload } from "./videoOverlay";
 
+// Descarga animada de saludos/consejos (Web Egress "hornea" intro + esquina + outro)
+export { greetingAnimatedDownload } from "./greetingRender";
+
 // Live streams (Mux — OBS/RTMP flow)
 export { createMuxLiveStream } from "./liveMux";
 

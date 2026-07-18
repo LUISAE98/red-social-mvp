@@ -12,10 +12,17 @@ import type { ReactNode } from "react";
 export default function VibraGradientText({
   children,
   className,
+  gradient,
 }: {
   children: ReactNode;
   /** Clase extra del consumidor (tamaño, peso, etc.). El degradado no se toca. */
   className?: string;
+  /**
+   * Degradado alternativo (CSS `linear-gradient(...)`). Por defecto usa el de
+   * marca. Se aplica como `background-image` para conservar el background-size
+   * y la animación de la clase; usar el shorthand `background` los reiniciaría.
+   */
+  gradient?: string;
 }) {
   return (
     <>
@@ -54,7 +61,10 @@ export default function VibraGradientText({
         }
       `}</style>
 
-      <span className={["vibraGradientText", className].filter(Boolean).join(" ")}>
+      <span
+        className={["vibraGradientText", className].filter(Boolean).join(" ")}
+        style={gradient ? { backgroundImage: gradient } : undefined}
+      >
         {children}
       </span>
     </>
