@@ -178,7 +178,11 @@ useLayoutEffect(() => {
       }
 
       if (isProfilePage) {
-        setContextScrolled(y > 80);
+        // Histéresis: se activa al pasar el nombre (>80) y NO vuelve al header
+        // original hasta llegar arriba (y<=4). Así, al subir, el header mini se
+        // mantiene hasta el tope en vez de revertir apenas bajas de 80.
+        if (y > 80) setContextScrolled(true);
+        else if (y <= 4) setContextScrolled(false);
       }
 
       lastY = y;

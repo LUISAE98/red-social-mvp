@@ -467,6 +467,24 @@ export type CommentEditEntry = {
   editedBy?: string;
 };
 
+/**
+ * Perfil o comunidad etiquetada dentro del texto de un comentario o respuesta.
+ * `token` es la subcadena literal insertada en el texto (ej. "@handle" o
+ * "@Mi Comunidad"); el render enlaza la primera aparición de ese token.
+ * Las comunidades ocultas nunca se sugieren ni se persisten como mención.
+ */
+export type CommentMention = {
+  type: "profile" | "group";
+  /** uid del perfil o groupId de la comunidad. */
+  id: string;
+  /** Etiqueta visible (displayName del perfil o nombre de la comunidad). */
+  label: string;
+  /** Subcadena literal insertada en el texto, ej. "@handle". */
+  token: string;
+  /** Solo perfiles: handle estable para construir el link /u/{handle}. */
+  handle?: string | null;
+};
+
 export type CommentReactionType = "flame";
 
 export type CommentReaction = {
@@ -493,6 +511,9 @@ export type Comment = {
   authorUsername?: string | null;
 
   counts?: CommentCounts;
+
+  /** Perfiles/comunidades etiquetados con @ dentro del texto. */
+  mentions?: CommentMention[];
 
   /**
    * Estado calculado para la UI del usuario actual.
@@ -526,6 +547,9 @@ export type CommentReply = {
   authorName?: string;
   authorAvatarUrl?: string | null;
   authorUsername?: string | null;
+
+  /** Perfiles/comunidades etiquetados con @ dentro del texto. */
+  mentions?: CommentMention[];
 
   viewerHasBlockedAuthorInGroup?: boolean;
   viewerIsBlockedByAuthorInGroup?: boolean;

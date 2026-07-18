@@ -33,6 +33,7 @@ import {
 import type {
   Comment,
   CommentEditEntry,
+  CommentMention,
   CommentReply,
   GroupMemberBlockRelationship,
   GroupVisibility,
@@ -3534,9 +3535,66 @@ export async function fetchPostComments(postId: string): Promise<Comment[]> {
   return commentsWithViewerState;
 }
 
+const MAX_COMMENT_MENTIONS = 20;
+
+/**
+ * Normaliza y valida las menciones que llegan del cliente antes de persistirlas.
+ * - Descarta entradas mal formadas.
+ * - Solo conserva menciones cuyo `token` realmente aparece en el texto final
+ *   (evita persistir menciones de tokens que el autor borró al editar).
+ * - Deduplica por (type,id) y limita la cantidad.
+ * Devuelve `null` cuando no queda ninguna mención válida, para no escribir el
+ * campo en Firestore innecesariamente.
+ */
+function sanitizeCommentMentions(
+  input: unknown,
+  text: string
+): CommentMention[] | null {
+  if (!Array.isArray(input)) return null;
+
+  const seen = new Set<string>();
+  const result: CommentMention[] = [];
+
+  for (const raw of input) {
+    if (!raw || typeof raw !== "object") continue;
+
+    const candidate = raw as Record<string, unknown>;
+    const type = candidate.type;
+    const id = typeof candidate.id === "string" ? candidate.id.trim() : "";
+    const label =
+      typeof candidate.label === "string" ? candidate.label.trim() : "";
+    const token =
+      typeof candidate.token === "string" ? candidate.token.trim() : "";
+
+    if (type !== "profile" && type !== "group") continue;
+    if (!id || !label || !token) continue;
+    if (!token.startsWith("@")) continue;
+    if (!text.includes(token)) continue;
+
+    const dedupeKey = `${type}:${id}`;
+    if (seen.has(dedupeKey)) continue;
+    seen.add(dedupeKey);
+
+    const mention: CommentMention = { type, id, label, token };
+
+    if (type === "profile") {
+      const handle =
+        typeof candidate.handle === "string" ? candidate.handle.trim() : "";
+      mention.handle = handle || null;
+    }
+
+    result.push(mention);
+
+    if (result.length >= MAX_COMMENT_MENTIONS) break;
+  }
+
+  return result.length > 0 ? result : null;
+}
+
 export async function createPostComment(params: {
   postId: string;
   text: string;
+  mentions?: CommentMention[];
 }): Promise<void> {
   assertValidId(params.postId, "postId");
 
@@ -3585,6 +3643,8 @@ export async function createPostComment(params: {
     }
   }
 
+const cleanMentions = sanitizeCommentMentions(params.mentions, cleanText);
+
 await addDoc(collection(db, "posts", params.postId, "comments"), {
   authorId: author.uid,
   authorName: author.authorName,
@@ -3597,6 +3657,7 @@ await addDoc(collection(db, "posts", params.postId, "comments"), {
     replies: 0,
     likes: 0,
   },
+  ...(cleanMentions ? { mentions: cleanMentions } : {}),
   ...(authorIsGroupMember !== undefined ? { authorIsGroupMember } : {}),
 });
 
@@ -3741,6 +3802,7 @@ export async function createPostCommentReply(params: {
   postId: string;
   commentId: string;
   text: string;
+  mentions?: CommentMention[];
 }): Promise<void> {
   assertValidId(params.postId, "postId");
   assertValidId(params.commentId, "commentId");
@@ -3749,6 +3811,8 @@ export async function createPostCommentReply(params: {
   if (!cleanText) {
     throw new Error("Escribe una respuesta antes de enviar.");
   }
+
+  const cleanMentions = sanitizeCommentMentions(params.mentions, cleanText);
 
   const author = await getCurrentAuthorSnapshot();
 
@@ -3864,6 +3928,7 @@ export async function createPostCommentReply(params: {
       text: cleanText,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
+      ...(cleanMentions ? { mentions: cleanMentions } : {}),
       ...(replyAuthorIsGroupMember !== undefined
         ? { authorIsGroupMember: replyAuthorIsGroupMember }
         : {}),
@@ -4522,6 +4587,7 @@ export async function updatePostComment(params: {
   postId: string;
   commentId: string;
   text: string;
+  mentions?: CommentMention[];
 }): Promise<void> {
   assertValidId(params.postId, "postId");
   assertValidId(params.commentId, "commentId");
@@ -4529,6 +4595,8 @@ export async function updatePostComment(params: {
   const cleanText = params.text.trim();
   if (!cleanText) throw new Error("El comentario no puede estar vacío.");
   if (cleanText.length > 2000) throw new Error("El comentario es demasiado largo.");
+
+  const cleanMentions = sanitizeCommentMentions(params.mentions, cleanText);
 
   const author = auth.currentUser;
   if (!author) throw new Error("Debes iniciar sesión para editar comentarios.");
@@ -4554,6 +4622,7 @@ export async function updatePostComment(params: {
 
   await updateDoc(commentRef, {
     text: cleanText,
+    mentions: cleanMentions ?? [],
     editedAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
@@ -4566,6 +4635,7 @@ export async function updatePostCommentReply(params: {
   commentId: string;
   replyId: string;
   text: string;
+  mentions?: CommentMention[];
 }): Promise<void> {
   assertValidId(params.postId, "postId");
   assertValidId(params.commentId, "commentId");
@@ -4574,6 +4644,8 @@ export async function updatePostCommentReply(params: {
   const cleanText = params.text.trim();
   if (!cleanText) throw new Error("La respuesta no puede estar vacía.");
   if (cleanText.length > 2000) throw new Error("La respuesta es demasiado larga.");
+
+  const cleanMentions = sanitizeCommentMentions(params.mentions, cleanText);
 
   const author = auth.currentUser;
   if (!author) throw new Error("Debes iniciar sesión para editar respuestas.");
@@ -4610,6 +4682,7 @@ export async function updatePostCommentReply(params: {
 
   await updateDoc(replyRef, {
     text: cleanText,
+    mentions: cleanMentions ?? [],
     editedAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });

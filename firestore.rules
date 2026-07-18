@@ -2539,7 +2539,7 @@ allow list: if canListOwnAuthoredPost()
           return signedIn()
             && resource.data.authorId == request.auth.uid
             && resource.data.get('isDeleted', false) != true
-            && request.resource.data.diff(resource.data).changedKeys().hasOnly(["text", "editedAt", "updatedAt"])
+            && request.resource.data.diff(resource.data).changedKeys().hasOnly(["text", "mentions", "editedAt", "updatedAt"])
             && request.resource.data.authorId == resource.data.authorId
             && request.resource.data.text is string
             && request.resource.data.text.size() >= 1
@@ -2547,7 +2547,7 @@ allow list: if canListOwnAuthoredPost()
             && request.resource.data.editedAt is timestamp
             && request.resource.data.updatedAt is timestamp;
         }
-        
+
         function currentReplyCount() {
   return ("counts" in resource.data)
     && resource.data.counts is map
@@ -2641,7 +2641,7 @@ function canUpdateReplyCount(delta) {
           function canEditReply() {
             return signedIn()
               && resource.data.authorId == request.auth.uid
-              && request.resource.data.diff(resource.data).changedKeys().hasOnly(["text", "editedAt", "updatedAt"])
+              && request.resource.data.diff(resource.data).changedKeys().hasOnly(["text", "mentions", "editedAt", "updatedAt"])
               && request.resource.data.authorId == resource.data.authorId
               && request.resource.data.text is string
               && request.resource.data.text.size() >= 1

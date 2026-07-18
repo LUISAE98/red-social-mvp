@@ -396,7 +396,18 @@ export default function WalletOnboarding() {
         /* Imagen de estilo de vida, a lo ancho del onboarding. Margen negativo
            para subir el banner al hueco vacío bajo el globo (evita espacio muerto). */
         .lifestyle {
-          margin-top: -8px;
+          margin-top: 14px;
+        }
+
+        /* Título de las 11 formas de generar ingresos. */
+        .waysTitle {
+          margin: 56px 0 0;
+          text-align: center;
+          font-size: 30px;
+          line-height: 1.2;
+          letter-spacing: -0.03em;
+          font-weight: 700;
+          color: #ffffff;
         }
 
         .lifestyleImageWrap {
@@ -419,7 +430,7 @@ export default function WalletOnboarding() {
         .lifestyleContent {
           position: relative;
           z-index: 2;
-          padding: 30px 34px;
+          padding: 20px 34px;
           display: flex;
           align-items: center;
           justify-content: center;
@@ -832,6 +843,9 @@ export default function WalletOnboarding() {
           </div>
         </div>
       </section>
+
+      {/* Título de las 11 formas de generar ingresos. */}
+      <h2 className="waysTitle">{tWallet("onboardingWaysTitle")}</h2>
       </div>
     </>
   );

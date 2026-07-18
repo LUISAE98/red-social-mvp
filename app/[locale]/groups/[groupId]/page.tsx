@@ -1424,17 +1424,6 @@ function GroupCoverLupaIcon() {
   );
 }
 
-const groupCoverAuraStyle = {
-  position: "absolute" as const,
-  inset: 0,
-  zIndex: 8,
-  pointerEvents: "none" as const,
-  background:
-    "radial-gradient(circle at 18% 10%, rgba(168,85,255,0.075), transparent 34%), radial-gradient(circle at 86% 18%, rgba(126,34,206,0.055), transparent 36%), radial-gradient(circle at 22% 92%, rgba(168,85,255,0.045), transparent 40%)",
-  boxShadow:
-    "inset 0 0 24px rgba(79,70,255,0.07), inset 0 0 20px rgba(168,85,255,0.065), inset 0 1px 0 rgba(255,255,255,0.05)",
-};
-
 const groupCoverGradientStyle = {
   position: "absolute" as const,
   left: 0,
@@ -2306,7 +2295,6 @@ const avatarNode = (
                 style={{ objectFit: "cover", opacity: 0.96 }}
               />
 
-<div style={groupCoverAuraStyle} />
 <div style={groupCoverGradientStyle} />
 <style>{`.cover-corner-muted{opacity:0.65}@media(max-width:900px){.cover-corner-muted{opacity:0.85}}`}</style>
 
