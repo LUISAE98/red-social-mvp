@@ -291,26 +291,13 @@ export default function GreetingReviewOverlay({
   const formatTime = (s: number) =>
     `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 
-  // Los blobs de MediaRecorder (sobre todo en CELULAR) reportan `duration: Infinity`,
-  // lo que deja el preview congelado en el primer frame (el audio sí avanza). Se
-  // fuerza el cálculo de la duración real saltando al final y volviendo a 0.
+  // Lee la duración del preview grabado. NO se hace el "salto a 1e101" para forzar
+  // la duración: en iOS ese truco dejaba el video en negro. Si la duración viene
+  // Infinity (algunos móviles) el scrubber muestra --:-- pero el video sí reproduce.
   function fixPreviewDuration(v: HTMLVideoElement) {
     const d = v.duration;
-    if (Number.isFinite(d) && d > 0) {
-      setVpDuration(d);
-      setVpReady(true);
-      return;
-    }
-    const onTime = () => {
-      v.removeEventListener("timeupdate", onTime);
-      v.currentTime = 0;
-      const real = v.duration;
-      setVpDuration(Number.isFinite(real) && real > 0 ? real : 0);
-      setVpReady(true);
-    };
-    v.addEventListener("timeupdate", onTime);
-    // Salto enorme → el navegador clampa al final real y recalcula la duración.
-    try { v.currentTime = 1e101; } catch { /* algunos navegadores lanzan; ignora */ }
+    setVpDuration(Number.isFinite(d) && d > 0 ? d : 0);
+    setVpReady(true);
   }
 
   function handleVPPlayPause() {
@@ -519,20 +506,23 @@ export default function GreetingReviewOverlay({
     mimeTypeRef.current = mimeType;
 
     const cameraStream = streamRef.current;
-    const videoTrack = cameraStream.getVideoTracks()[0];
-    const { width: vw = 1280, height: vh = 720 } = videoTrack?.getSettings() ?? {};
-    const pixelCount = (vw || 1280) * (vh || 720);
-    const videoBitsPerSecond = Math.min(Math.round(pixelCount * 0.004), 20_000_000);
+    // NO forzar videoBitsPerSecond: el cálculo anterior (pixelCount * 0.004) daba
+    // ~8 kbps para 1080p. Chrome (laptop) lo ignora y usa su default, pero iOS
+    // Safari lo respeta literal y codifica casi solo el primer keyframe → video
+    // congelado + audio. Dejamos que el navegador elija un bitrate de video sano.
     const mrOptions = (mimeType
-      ? { mimeType, videoBitsPerSecond, audioBitsPerSecond: 192_000 }
-      : { videoBitsPerSecond, audioBitsPerSecond: 192_000 }) as MediaRecorderOptions;
+      ? { mimeType, audioBitsPerSecond: 192_000 }
+      : { audioBitsPerSecond: 192_000 }) as MediaRecorderOptions;
 
     const mr = new MediaRecorder(cameraStream, mrOptions);
+    // Tipo REAL que usa el grabador (iOS puede ignorar el pedido y usar otro);
+    // así el Blob no queda mal etiquetado y el preview decodifica el video.
+    mimeTypeRef.current = mr.mimeType || mimeType;
     mr.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
     mr.onstop = () => {
       cameraStream.getTracks().forEach((t) => t.stop());
       streamRef.current = null;
-      const blob = new Blob(chunksRef.current, { type: mimeTypeRef.current || "video/webm" });
+      const blob = new Blob(chunksRef.current, { type: mimeTypeRef.current || "video/mp4" });
       uploadBlobRef.current = blob;
       const url = URL.createObjectURL(blob);
       blobUrlRef.current = url;
