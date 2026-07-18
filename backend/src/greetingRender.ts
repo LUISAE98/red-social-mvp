@@ -20,7 +20,7 @@ import { logger } from "firebase-functions";
 import {
   EncodedFileOutput,
   S3Upload,
-  EncodingOptionsPreset,
+  EncodingOptions,
   EgressStatus,
   type EgressInfo,
 } from "livekit-server-sdk";
@@ -121,10 +121,16 @@ export const greetingAnimatedDownload = onRequest(
       output: { case: "s3", value: s3 },
     });
 
-    const preset =
-      orientation === "vertical"
-        ? EncodingOptionsPreset.PORTRAIT_H264_1080P_30
-        : EncodingOptionsPreset.H264_1080P_30;
+    // Calidad alta: 1080p a 6 Mbps (bien por encima del preset ~3-4.5 Mbps) para
+    // conservar al máximo el video de Mux, que ya viene comprimido. keyFrame cada 2s.
+    const encoding = new EncodingOptions({
+      width: orientation === "vertical" ? 1080 : 1920,
+      height: orientation === "vertical" ? 1920 : 1080,
+      framerate: 30,
+      videoBitrate: 6000,
+      audioBitrate: 128,
+      keyFrameInterval: 2,
+    });
 
     const egressClient = createEgressClient();
 
@@ -134,7 +140,7 @@ export const greetingAnimatedDownload = onRequest(
         // Espera a que la plantilla llame EgressHelper.startRecording() cuando el
         // video de Mux esté cargado — así no se graba un frame en blanco al inicio.
         awaitStartSignal: true,
-        encodingOptions: preset,
+        encodingOptions: encoding,
       });
       egressId = info.egressId;
       logger.info("greetingAnimatedDownload_started", { uid, playbackId, orientation, egressId });

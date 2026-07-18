@@ -47,6 +47,8 @@ import {
   subscribeToAverageWatchTime,
   subscribeToNewFollowersDuringLive,
   subscribeToVodViewCount,
+  saveViewerHistory,
+  fetchViewerHistory,
 } from "@/lib/liveKit/liveViewers";
 import { playEdgeTTS, TTS_MIN_DURATION_SECS } from "@/lib/tts/edge-tts-client";
 import type { EdgeTTSHandle } from "@/lib/tts/edge-tts-client";
@@ -171,6 +173,10 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
   const [avgWatchSeconds, setAvgWatchSeconds] = useState(0);
   const [newFollowers, setNewFollowers] = useState(0);
   const [viewerHistory, setViewerHistory] = useState<{ t: number; v: number }[]>([]);
+  const viewerHistoryRef = useRef<{ t: number; v: number }[]>([]);
+  // Reloj que avanza cada segundo para el contador de "Duración" (solo mientras
+  // el live está activo; al terminar se congela en endedAt − startedAt).
+  const [nowMs, setNowMs] = useState<number>(() => Date.now());
   const [chatTimestamps, setChatTimestamps] = useState<number[]>([]);
   const [ticketRevenue, setTicketRevenue] = useState(0);
   const [ticketCount, setTicketCount] = useState(0);
@@ -376,6 +382,14 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
     (liveData?.playbackId ? `https://stream.mux.com/${liveData.playbackId}.m3u8` : null);
   const isEnded = liveStatus === "ended";
   const broadcastMode = liveData?.broadcastMode ?? null;
+
+  // Duración del live: cuenta desde startedAt; al terminar se congela en
+  // endedAt − startedAt (endedAt lo persiste el backend, así queda guardada).
+  const startedAtMs = liveData?.startedAt ? liveData.startedAt.toMillis() : null;
+  const liveEndedAtMs = liveData?.endedAt ? liveData.endedAt.toMillis() : null;
+  const durationEndMs = isEnded ? (liveEndedAtMs ?? nowMs) : nowMs;
+  const liveDurationMs =
+    startedAtMs != null ? Math.max(0, durationEndMs - startedAtMs) : 0;
   const streamProvider = liveData?.streamProvider ?? null;
   const isCFStream = streamProvider === "cloudflare";
   const showDirectBroadcast = broadcastMode === "direct" && !isEnded;
@@ -450,20 +464,50 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
     return subscribeToNewFollowersDuringLive(post.authorId, liveData.startedAt, setNewFollowers);
   }, [open, post.authorId, liveData?.startedAt]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Muestrea el viewerCount cada 30 s para la gráfica histórica.
-  // Usa ref para leer el valor más reciente sin que el intervalo se reinicie.
+  // Historial de espectadores para la gráfica. Se SIEMBRA desde Firestore (para
+  // conservar la gráfica cuando el live ya terminó) y, mientras el live sigue
+  // activo, se muestrea cada 30 s y se PERSISTE. Si ya terminó, solo se siembra:
+  // no se muestrea (evita ensuciar la gráfica con ceros) ni se sobrescribe.
   useEffect(() => {
     if (!open || !post.id) return;
-    const addPoint = () =>
-      setViewerHistory((prev) => {
-        const point = { t: Date.now(), v: viewerCountRef.current };
-        const next = [...prev, point];
-        return next.length > 240 ? next.slice(-240) : next;
-      });
-    addPoint();
-    const id = window.setInterval(addPoint, 30_000);
+    let cancelled = false;
+    let intervalId: number | null = null;
+
+    (async () => {
+      const persisted = await fetchViewerHistory(post.id);
+      if (cancelled) return;
+      if (persisted.length > 0) {
+        viewerHistoryRef.current = persisted;
+        setViewerHistory(persisted);
+      }
+      if (isEnded) return; // live terminado → conservar lo guardado, no muestrear
+
+      const addPoint = () => {
+        const next = [
+          ...viewerHistoryRef.current,
+          { t: Date.now(), v: viewerCountRef.current },
+        ].slice(-240);
+        viewerHistoryRef.current = next;
+        setViewerHistory(next);
+        void saveViewerHistory(post.id, next).catch(() => {});
+      };
+      addPoint();
+      intervalId = window.setInterval(addPoint, 30_000);
+    })();
+
+    return () => {
+      cancelled = true;
+      if (intervalId !== null) window.clearInterval(intervalId);
+    };
+  }, [open, post.id, isEnded]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Contador de "Duración": avanza cada segundo mientras el live está activo.
+  // Al terminar (isEnded) no tickea; la duración queda fija en endedAt−startedAt.
+  useEffect(() => {
+    if (!open || isEnded) return;
+    const id = window.setInterval(() => setNowMs(Date.now()), 1000);
     return () => window.clearInterval(id);
-  }, [open, post.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [open, isEnded]);
 
   useEffect(() => {
     if (!open || !post.id) return;
@@ -678,6 +722,15 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
     return s > 0 ? `${m}m ${s}s` : `${m}m`;
   }
 
+  // Duración en formato H:MM:SS (siempre muestra horas, minutos y segundos).
+  function formatDuration(ms: number): string {
+    const total = Math.max(0, Math.floor(ms / 1000));
+    const h = Math.floor(total / 3600);
+    const m = Math.floor((total % 3600) / 60);
+    const s = total % 60;
+    return `${h}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+  }
+
   function renderViewerChart() {
     const W = 300; const H = 72;
     const data = viewerHistory;
@@ -697,12 +750,16 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
     const maxT = data[data.length - 1].t;
     const rangeT = maxT - minT || 1;
 
-    const toX = (t: number) => ((t - minT) / rangeT) * W;
+    // Margen lateral (en unidades del viewBox) para que el punto del extremo no
+    // se corte contra el borde del contenedor.
+    const PAD = 5;
+    const toX = (t: number) => PAD + ((t - minT) / rangeT) * (W - 2 * PAD);
     const toY = (v: number) => H - 4 - (v / maxV) * (H - 8);
 
     const linePts = data.map((d) => `${toX(d.t).toFixed(1)},${toY(d.v).toFixed(1)}`).join(" ");
+    const firstX = toX(data[0].t).toFixed(1);
     const lastX = toX(data[data.length - 1].t).toFixed(1);
-    const areaPts = `0,${H} ${linePts} ${lastX},${H}`;
+    const areaPts = `${firstX},${H} ${linePts} ${lastX},${H}`;
 
     // Format elapsed time label for X-axis ends
     const elapsedMin = Math.round((maxT - minT) / 60_000);
@@ -789,27 +846,33 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
       return `${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`;
     };
 
+    // Gráfica LINEAL (misma técnica que la de espectadores): viewBox + margen
+    // lateral (PAD) para que el punto del extremo no se corte contra el borde.
+    const W = 300; const H = 72;
+    const PAD = 5;
+    const denom = Math.max(1, bucketCount - 1);
+    const toX = (i: number) => PAD + (i / denom) * (W - 2 * PAD);
+    const toY = (c: number) => H - 4 - (c / maxCount) * (H - 8);
+    const linePts = counts.map((c, i) => `${toX(i).toFixed(1)},${toY(c).toFixed(1)}`).join(" ");
+    const firstX = toX(0).toFixed(1);
+    const lastX = toX(bucketCount - 1).toFixed(1);
+    const areaPts = `${firstX},${H} ${linePts} ${lastX},${H}`;
+    const lastC = counts[counts.length - 1] ?? 0;
+
     return (
       <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
-        <div style={{ display: "flex", gap: 2, alignItems: "flex-end", flex: 1, minHeight: 0 }}>
-          {counts.map((c, i) => {
-            const heat = c / maxCount;
-            const barH = `${Math.max(5, Math.round(heat * 100))}%`;
-            const alpha = heat < 0.01 ? 0.08 : 0.15 + heat * 0.85;
-            return (
-              <div
-                key={i}
-                style={{
-                  flex: 1,
-                  height: barH,
-                  minWidth: 0,
-                  borderRadius: 3,
-                  background: `rgba(168,85,247,${alpha.toFixed(2)})`,
-                  alignSelf: "flex-end",
-                }}
-              />
-            );
-          })}
+        <div style={{ position: "relative", flex: 1, minHeight: 0 }}>
+          <svg width="100%" height="100%" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ display: "block" }}>
+            <defs>
+              <linearGradient id="lcp-ag" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#a855f7" stopOpacity="0.35" />
+                <stop offset="100%" stopColor="#a855f7" stopOpacity="0.02" />
+              </linearGradient>
+            </defs>
+            <polygon points={areaPts} fill="url(#lcp-ag)" />
+            <polyline points={linePts} fill="none" stroke="#a855f7" strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
+            <circle cx={lastX} cy={toY(lastC).toFixed(1)} r="3" fill="#a855f7" />
+          </svg>
         </div>
         <div style={{ display: "flex", justifyContent: "space-between", marginTop: 5 }}>
           <span style={{ fontSize: 9, color: "rgba(255,255,255,0.25)", fontFamily: FONT }}>
@@ -963,6 +1026,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
       { id: "seguids",  value: newFollowers > 0 ? newFollowers.toLocaleString("es-MX") : "—",               label: tLive("statNewFollowers") },
       { id: "mensajes", value: totalChatMessages > 0 ? totalChatMessages.toLocaleString("es-MX") : "—",     label: tLive("statChatMessages") },
       { id: "tvisto",   value: avgWatchSeconds > 0 ? formatWatchTime(avgWatchSeconds) : "—",                label: tLive("statAvgWatchTime") },
+      { id: "duracion", value: formatDuration(liveDurationMs),                                             label: "Duración" },
       ...(donationCount > 0 ? [{ id: "donaciones",  value: fmtMoney(net(donationRevenue)), sub: tLive("donationCount", { count: donationCount }), label: tLive("statDonations") }] : []),
       ...(superCount > 0    ? [{ id: "supercoment", value: fmtMoney(net(superRevenue)),    sub: `${superCount} SC`,                               label: tLive("superComments") }] : []),
       ...(isPaidLive && ticketCount > 0  ? [{ id: "tickets", value: fmtMoney(net(ticketRevenue)), sub: tLive("boughtCount", { count: ticketCount }),   label: tLive("statAccessTickets") }] : []),
@@ -1083,6 +1147,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
       { id: "seguids",  defaultX: tx(3), defaultY: R0, width: TILE2W, height: TILE, content: <><span style={val}>{newFollowers > 0 ? newFollowers.toLocaleString("es-MX") : "—"}</span><span style={lbl}>{tLive("statNewFollowers")}</span></> },
       { id: "mensajes", defaultX: tx(4), defaultY: R0, width: TILE2W, height: TILE, content: <><span style={val}>{totalChatMessages > 0 ? totalChatMessages.toLocaleString("es-MX") : "—"}</span><span style={lbl}>{tLive("statChatMessages")}</span></> },
       { id: "tvisto",   defaultX: tx(5), defaultY: R0, width: TILE2W, height: TILE, content: <><span style={val}>{avgWatchSeconds > 0 ? formatWatchTime(avgWatchSeconds) : "—"}</span><span style={lbl}>{tLive("statAvgWatchTime")}</span></> },
+      { id: "duracion", defaultX: tx(6), defaultY: R0, width: TILE2W, height: TILE, content: <><span style={val}>{formatDuration(liveDurationMs)}</span><span style={lbl}>Duración</span></> },
       ...(donationCount > 0 ? [{ id: "donaciones",  defaultX: tx(0), defaultY: R1, width: TILE2W, height: TILE, content: <><span style={val}>{fmtMoney(net(donationRevenue))}</span><span style={sub}>{tLive("donationCount", { count: donationCount })}</span><span style={lbl}>{tLive("statDonations")}</span></> }] : []),
       ...(superCount > 0    ? [{ id: "supercoment", defaultX: tx(6), defaultY: R0, width: TILE2W, height: TILE, content: <><span style={val}>{fmtMoney(net(superRevenue))}</span><span style={sub}>{superCount} SC</span><span style={lbl}>{tLive("superComments")}</span></> }] : []),
       ...(isPaidLive && ticketCount > 0 ? [{ id: "tickets", defaultX: tx(7), defaultY: R0, width: TILE2W, height: TILE, content: <><span style={val}>{fmtMoney(net(ticketRevenue))}</span><span style={sub}>{tLive("boughtCount", { count: ticketCount })}</span><span style={lbl}>{tLive("statAccessTickets")}</span></> }] : []),

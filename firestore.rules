@@ -2491,6 +2491,13 @@ allow list: if canListOwnAuthoredPost()
         allow write: if false;
       }
 
+      // Estadísticas históricas del live (ej. historial de espectadores) — solo el
+      // autor las lee/escribe (la gráfica es exclusiva del panel del creador).
+      match /liveStats/{doc} {
+        allow read, write: if signedIn()
+          && get(/databases/$(database)/documents/posts/$(postId)).data.authorId == request.auth.uid;
+      }
+
       match /editHistory/{historyId} {
         allow create: if signedIn()
           && get(/databases/$(database)/documents/posts/$(postId)).data.authorId == request.auth.uid

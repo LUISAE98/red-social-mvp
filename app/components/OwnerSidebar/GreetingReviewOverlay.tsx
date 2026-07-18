@@ -291,6 +291,28 @@ export default function GreetingReviewOverlay({
   const formatTime = (s: number) =>
     `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 
+  // Los blobs de MediaRecorder (sobre todo en CELULAR) reportan `duration: Infinity`,
+  // lo que deja el preview congelado en el primer frame (el audio sí avanza). Se
+  // fuerza el cálculo de la duración real saltando al final y volviendo a 0.
+  function fixPreviewDuration(v: HTMLVideoElement) {
+    const d = v.duration;
+    if (Number.isFinite(d) && d > 0) {
+      setVpDuration(d);
+      setVpReady(true);
+      return;
+    }
+    const onTime = () => {
+      v.removeEventListener("timeupdate", onTime);
+      v.currentTime = 0;
+      const real = v.duration;
+      setVpDuration(Number.isFinite(real) && real > 0 ? real : 0);
+      setVpReady(true);
+    };
+    v.addEventListener("timeupdate", onTime);
+    // Salto enorme → el navegador clampa al final real y recalcula la duración.
+    try { v.currentTime = 1e101; } catch { /* algunos navegadores lanzan; ignora */ }
+  }
+
   function handleVPPlayPause() {
     const v = playbackVideoRef.current;
     if (!v) return;
@@ -800,9 +822,8 @@ export default function GreetingReviewOverlay({
   const handleDownload = useCallback(async () => {
     const playbackId = items[currentIndex]?.data.muxPlaybackId;
     if (!playbackId || downloading) return;
+    // Video crudo de Mux — solo se usa como último recurso si el render falla.
     const mp4Url = `https://stream.mux.com/${playbackId}/high.mp4`;
-    const itemData = items[currentIndex]?.data;
-    const fileName = `vibra-${itemData?.type ?? "video"}-${(itemData?.toName ?? "").replace(/\s+/g, "-")}.mp4`;
 
     setDownloading(true);
     setDownloadProgress(0);
@@ -863,18 +884,12 @@ export default function GreetingReviewOverlay({
       const { url: signedUrl } = (await animRes.json()) as { url?: string };
       if (!signedUrl) throw new Error("animated CF: no url");
 
-      setDownloadProgress(92);
-      const animBlob = await (await fetch(signedUrl)).blob();
-      setDownloadProgress(99);
-      const objUrl = URL.createObjectURL(animBlob);
-      const a = document.createElement("a");
-      a.href = objUrl;
-      a.download = fileName;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(objUrl);
+      // La URL firmada de R2 ya trae Content-Disposition: attachment (con el nombre
+      // del archivo), así que navegar a ella descarga el MP4 sin salir de la página.
+      // NO usar fetch()+blob: R2 no manda cabeceras CORS y el navegador lo bloquea
+      // (igual que la descarga de grabaciones de sesión, que también usa este R2).
       setDownloadProgress(100);
+      window.location.href = signedUrl;
 
     } catch (err) {
       // Último recurso si el render falla (blip de red, egress caído): abrir el
@@ -1102,9 +1117,14 @@ export default function GreetingReviewOverlay({
 
   function renderSourceChip(topValue: number | string) {
     if (!sourceName) return null;
+    // Suma el safe-area superior: los hijos absolutos ignoran el padding del
+    // contenedor, así que sin esto el chip se mete bajo el notch en celular.
+    const safeTop = typeof topValue === "number"
+      ? `calc(${topValue}px + env(safe-area-inset-top, 0px))`
+      : topValue;
     return (
       <div style={{
-        position: "absolute", top: topValue, left: "50%", transform: "translateX(-50%)",
+        position: "absolute", top: safeTop, left: "50%", transform: "translateX(-50%)",
         background: "rgba(0,0,0,0.55)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)",
         borderRadius: 20, padding: "5px 10px 5px 13px",
         display: "flex", alignItems: "center", gap: 7,
@@ -1593,7 +1613,7 @@ export default function GreetingReviewOverlay({
                     playsInline
                     disablePictureInPicture
                     onContextMenu={(e) => e.preventDefault()}
-                    onLoadedMetadata={(e) => { const d = e.currentTarget.duration; setVpDuration(Number.isFinite(d) && d > 0 ? d : 0); setVpReady(true); }}
+                    onLoadedMetadata={(e) => fixPreviewDuration(e.currentTarget)}
                     onLoadedData={() => setVpReady(true)}
                     onTimeUpdate={(e) => setVpCurrentTime(e.currentTarget.currentTime)}
                     onPlay={() => setVpPlaying(true)}
@@ -1607,7 +1627,7 @@ export default function GreetingReviewOverlay({
               {/* Timer */}
               {recordPhase === "recording" && (
                 <div style={{
-                  position: "absolute", top: 16,
+                  position: "absolute", top: "calc(16px + env(safe-area-inset-top, 0px))",
                   left: "50%", transform: "translateX(-50%)",
                   background: "rgba(0,0,0,0.55)", borderRadius: 20, padding: "4px 14px",
                   display: "flex", alignItems: "center", gap: 7,
@@ -2022,7 +2042,7 @@ export default function GreetingReviewOverlay({
                       playsInline
                       disablePictureInPicture
                       onContextMenu={(e) => e.preventDefault()}
-                      onLoadedMetadata={(e) => { const d = e.currentTarget.duration; setVpDuration(Number.isFinite(d) && d > 0 ? d : 0); setVpReady(true); }}
+                      onLoadedMetadata={(e) => fixPreviewDuration(e.currentTarget)}
                       onLoadedData={() => setVpReady(true)}
                       onTimeUpdate={(e) => setVpCurrentTime(e.currentTarget.currentTime)}
                       onPlay={() => setVpPlaying(true)}
@@ -2039,7 +2059,7 @@ export default function GreetingReviewOverlay({
                   )}
                   {recordPhase === "recording" && (
                     <div style={{
-                      position: "absolute", top: 14, left: "50%", transform: "translateX(-50%)",
+                      position: "absolute", top: "calc(14px + env(safe-area-inset-top, 0px))", left: "50%", transform: "translateX(-50%)",
                       background: "rgba(0,0,0,0.55)", borderRadius: 20, padding: "4px 14px",
                       display: "flex", alignItems: "center", gap: 7,
                       color: "#fff", fontWeight: 600, fontSize: 14, fontFamily: fontStack,

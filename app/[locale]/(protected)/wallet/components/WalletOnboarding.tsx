@@ -43,6 +43,10 @@ const FEE_PERK_KEYS = [
 export default function WalletOnboarding() {
   const tWallet = useTranslations("wallet");
   const { format: formatPrice } = usePriceFormat();
+  // Cifras demo sin centavos: quita el ".00"/",00" cuando el monto es redondo,
+  // conservando el símbolo de moneda (respeta el switcheo de moneda).
+  const formatNoCents = (mxn: number) =>
+    formatPrice(mxn, { code: true }).replace(/([.,])00(\D*)$/, "$2");
 
   return (
     <>
@@ -157,7 +161,7 @@ export default function WalletOnboarding() {
           height: 14px;
           border-radius: 50%;
           background: transparent;
-          border: 1.4px solid #a855ff;
+          border: 1.9px solid #a855ff;
           display: inline-flex;
           align-items: center;
           justify-content: center;
@@ -233,10 +237,18 @@ export default function WalletOnboarding() {
           box-sizing: border-box;
           display: flex;
           flex-direction: column;
-          align-items: flex-start;
+          align-items: center;
           justify-content: center;
           gap: 10px;
           padding: 26px 32px;
+          text-align: center;
+        }
+
+        .exampleChargeGroup {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 2px;
         }
 
         /* "Si cobras $1,000 MXN" en una sola línea, misma fuente que el label. */
@@ -244,6 +256,14 @@ export default function WalletOnboarding() {
           font-size: 18px;
           font-weight: 500;
           color: rgba(255, 255, 255, 0.7);
+          white-space: nowrap;
+        }
+
+        /* Nota sutil debajo del monto cobrado. */
+        .exampleBeforeTax {
+          font-size: 10px;
+          font-weight: 400;
+          color: rgba(255, 255, 255, 0.4);
           white-space: nowrap;
         }
 
@@ -358,9 +378,30 @@ export default function WalletOnboarding() {
 
         /* Ancho grande; el globo llena este contenedor y se encoge solo en móvil. */
         .clearGlobe {
-          margin-top: 20px;
-          width: min(360px, 100%);
+          margin-top: -14px;
+          width: min(430px, 100%);
           align-self: flex-end;
+        }
+
+        /* Imagen de estilo de vida, a lo ancho del onboarding. */
+        .lifestyle {
+          margin-top: 44px;
+        }
+
+        .lifestyleImageWrap {
+          position: relative;
+          width: 100%;
+          aspect-ratio: 16 / 9;
+          overflow: hidden;
+        }
+
+        /* Velo oscuro sobre la imagen. */
+        .lifestyleImageWrap::after {
+          content: "";
+          position: absolute;
+          inset: 0;
+          background: rgba(8, 5, 16, 0.45);
+          pointer-events: none;
         }
 
         /* El tamaño y el estirado van en este span normal (styled-jsx no scopea
@@ -503,7 +544,7 @@ export default function WalletOnboarding() {
                       <path
                         d="M2 6.2 4.7 9 10 3.2"
                         stroke="#a855ff"
-                        strokeWidth="1.6"
+                        strokeWidth="2.1"
                         strokeLinecap="round"
                         strokeLinejoin="round"
                       />
@@ -545,7 +586,7 @@ export default function WalletOnboarding() {
                       <path
                         d="M2 6.2 4.7 9 10 3.2"
                         stroke="#a855ff"
-                        strokeWidth="1.6"
+                        strokeWidth="2.1"
                         strokeLinecap="round"
                         strokeLinejoin="round"
                       />
@@ -570,16 +611,19 @@ export default function WalletOnboarding() {
             <div className="exampleScrim" aria-hidden="true" />
 
             <div className="exampleCardInner">
-              <span className="exampleChargeLine">
-                {tWallet("onboardingExampleCharge")}{" "}
-                {formatPrice(EXAMPLE_CHARGE_MXN, { code: true })}
+              <span className="exampleChargeGroup">
+                <span className="exampleChargeLine">
+                  {tWallet("onboardingExampleCharge")}{" "}
+                  {formatNoCents(EXAMPLE_CHARGE_MXN)}
+                </span>
+                <span className="exampleBeforeTax">{tWallet("onboardingBeforeTax")}</span>
               </span>
 
               <span className="exampleDivider" aria-hidden="true" />
 
               <span className="exampleLabel">{tWallet("onboardingExampleReceive")}</span>
               <span className="exampleReceive">
-                {formatPrice(EXAMPLE_RECEIVE_MXN, { code: true })}
+                {formatNoCents(EXAMPLE_RECEIVE_MXN)}
               </span>
             </div>
           </div>
@@ -607,6 +651,19 @@ export default function WalletOnboarding() {
           <div className="clearGlobe">
             <WalletOnboardingGlobe />
           </div>
+        </div>
+      </section>
+
+      {/* Imagen de estilo de vida, a lo ancho. Debajo irá más contenido. */}
+      <section className="lifestyle">
+        <div className="lifestyleImageWrap">
+          <Image
+            src="/wallet.webp"
+            alt=""
+            fill
+            sizes="(max-width: 900px) 100vw, 768px"
+            style={{ objectFit: "cover" }}
+          />
         </div>
       </section>
       </div>

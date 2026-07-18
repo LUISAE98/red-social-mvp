@@ -42,6 +42,7 @@ function GreetingEgressInner() {
   const [cornerOut, setCornerOut] = useState(false);
   const [black, setBlack] = useState(false);
   const [showVibra, setShowVibra] = useState(false);
+  const [vibraOut, setVibraOut] = useState(false);
 
   const startedRef = useRef(false);
   const cornerInRef = useRef(false);
@@ -49,16 +50,30 @@ function GreetingEgressInner() {
   const endedRef = useRef(false);
   const watchdogRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Fin del video → outro: negro MUY suave (2s) → Vibra 5s → termina la grabación.
+  // Chrome (el grabador headless) ofrece traducir la página porque el texto está
+  // en español y el `lang` no; ese panel de Google Translate tapaba la esquina.
+  // Lo desactivamos con translate="no" + meta notranslate al montar.
+  useEffect(() => {
+    const html = document.documentElement;
+    html.setAttribute("translate", "no");
+    html.classList.add("notranslate");
+    const meta = document.createElement("meta");
+    meta.name = "google";
+    meta.content = "notranslate";
+    document.head.appendChild(meta);
+  }, []);
+
+  // Fin del video → outro breve (~5s): negro MUY suave → entra "Vibra/vibraon.com"
+  // → se desvanece bonito (no de golpe) → termina la grabación.
   // Declarada antes del effect porque el watchdog la referencia.
   function onEnded() {
     if (endedRef.current) return;
     endedRef.current = true;
     if (watchdogRef.current) clearTimeout(watchdogRef.current);
     setBlack(true);
-    setTimeout(() => setShowVibra(true), 2000);
-    setTimeout(() => setShowVibra(false), 7000);
-    setTimeout(() => EgressHelper.endRecording(), 9000);
+    setTimeout(() => setShowVibra(true), 1500);   // entra cuando ya está negro
+    setTimeout(() => setVibraOut(true), 4000);     // salida animada (fade + drift + blur)
+    setTimeout(() => EgressHelper.endRecording(), 5200);
   }
 
   // Arranca la secuencia (grabación + intro) cuando el video está listo, para
@@ -125,10 +140,19 @@ function GreetingEgressInner() {
         <SessionOverlay avatarUrl={avatarUrl} name={name} type="meet_greet" typeLabel={typeLabel} startDelay={0} out={cornerOut} />
       ) : null}
 
-      {/* Cierre: negro MUY suave + "Vibra/vibraon.com". */}
+      {/* Cierre: negro MUY suave + "Vibra/vibraon.com" con entrada y SALIDA suaves. */}
       <div style={{ position: "absolute", inset: 0, background: "#000", zIndex: 30, opacity: black ? 1 : 0, transition: "opacity 2s cubic-bezier(0.4,0,0.2,1)", pointerEvents: "none" }} />
-      <div style={{ position: "absolute", inset: 0, zIndex: 31, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
-        <VibraOutro show={showVibra} />
+      <div
+        style={{
+          position: "absolute", inset: 0, zIndex: 31,
+          display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none",
+          opacity: vibraOut ? 0 : 1,
+          transform: vibraOut ? "translateY(-16px) scale(0.96)" : "none",
+          filter: vibraOut ? "blur(10px)" : "none",
+          transition: "opacity 1s ease, transform 1s ease, filter 1s ease",
+        }}
+      >
+        {showVibra ? <VibraOutro show /> : null}
       </div>
 
       {/* Intro (6s) encima de todo hasta que se desvanece. */}

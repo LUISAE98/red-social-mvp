@@ -1,6 +1,7 @@
 import {
   collection,
   doc,
+  getDoc,
   setDoc,
   deleteDoc,
   updateDoc,
@@ -12,6 +13,8 @@ import {
   type Timestamp,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+
+export type ViewerSample = { t: number; v: number };
 
 /** Registers the user as an active viewer of the live. */
 export function joinLivePresence(postId: string, uid: string): Promise<void> {
@@ -114,6 +117,36 @@ export function subscribeToNewFollowersDuringLive(
     (snap) => onCount(snap.size),
     (err) => onError?.(err),
   );
+}
+
+/**
+ * Persiste el historial de espectadores (muestras tiempo→cantidad) para conservar
+ * la gráfica después de que el live termina. Se guarda en una subcolección propia
+ * (NO en el doc del post) para no disparar el fan-out de home-feed en cada muestra.
+ */
+export function saveViewerHistory(
+  postId: string,
+  points: ViewerSample[],
+): Promise<void> {
+  return setDoc(doc(db, "posts", postId, "liveStats", "viewerHistory"), {
+    points,
+    updatedAt: serverTimestamp(),
+  });
+}
+
+/** Lee el historial de espectadores persistido (vacío si aún no existe). */
+export async function fetchViewerHistory(postId: string): Promise<ViewerSample[]> {
+  try {
+    const snap = await getDoc(doc(db, "posts", postId, "liveStats", "viewerHistory"));
+    const pts = snap.exists() ? (snap.data() as { points?: unknown }).points : null;
+    if (!Array.isArray(pts)) return [];
+    return pts.filter(
+      (p): p is ViewerSample =>
+        !!p && typeof p.t === "number" && typeof p.v === "number",
+    );
+  } catch {
+    return [];
+  }
 }
 
 /** Updates the recorded peak concurrent viewer count for the live. */
