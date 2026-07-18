@@ -40,6 +40,17 @@ const FEE_PERK_KEYS = [
   "onboardingFeePerk4",
 ] as const;
 
+const HERO_LIST_KEYS = [
+  "onboardingHeroList1",
+  "onboardingHeroList2",
+  "onboardingHeroList3",
+  "onboardingHeroList4",
+  "onboardingHeroList5",
+  "onboardingHeroList6",
+  "onboardingHeroList7",
+  "onboardingHeroList8",
+] as const;
+
 export default function WalletOnboarding() {
   const tWallet = useTranslations("wallet");
   const { format: formatPrice } = usePriceFormat();
@@ -390,18 +401,61 @@ export default function WalletOnboarding() {
 
         .lifestyleImageWrap {
           position: relative;
+          isolation: isolate;
           width: 100%;
-          aspect-ratio: 16 / 9;
+          min-height: 340px;
           overflow: hidden;
         }
 
-        /* Velo oscuro sobre la imagen. */
-        .lifestyleImageWrap::after {
-          content: "";
+        /* Velo oscuro sobre la imagen, para que la lista se lea. */
+        .lifestyleScrim {
           position: absolute;
           inset: 0;
-          background: rgba(8, 5, 16, 0.45);
+          z-index: 1;
+          background: rgba(8, 5, 16, 0.55);
           pointer-events: none;
+        }
+
+        /* Lista de garantías encima de la imagen (lado izquierdo). */
+        .lifestyleList {
+          position: relative;
+          z-index: 2;
+          list-style: none;
+          margin: 0;
+          padding: 36px 40px;
+          max-width: 560px;
+          display: flex;
+          flex-direction: column;
+          gap: 15px;
+        }
+
+        .lifestyleItem {
+          display: flex;
+          align-items: center;
+          gap: 11px;
+          font-size: 15px;
+          line-height: 1.3;
+          font-weight: 500;
+          color: #ffffff;
+        }
+
+        /* Círculo sin relleno, contorno verde grueso, con la paloma verde. */
+        .lifestyleCheck {
+          flex: 0 0 auto;
+          width: 19px;
+          height: 19px;
+          border-radius: 50%;
+          background: transparent;
+          border: 2px solid #22c55e;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .lifestyleCheck svg {
+          width: 11px;
+          height: 11px;
+          display: block;
         }
 
         /* El tamaño y el estirado van en este span normal (styled-jsx no scopea
@@ -654,16 +708,36 @@ export default function WalletOnboarding() {
         </div>
       </section>
 
-      {/* Imagen de estilo de vida, a lo ancho. Debajo irá más contenido. */}
+      {/* Imagen de estilo de vida con la lista de garantías encima. */}
       <section className="lifestyle">
         <div className="lifestyleImageWrap">
           <Image
-            src="/wallet.webp"
+            src="/wallet-hero.webp"
             alt=""
             fill
             sizes="(max-width: 900px) 100vw, 768px"
-            style={{ objectFit: "cover" }}
+            style={{ objectFit: "cover", zIndex: 0 }}
           />
+          <div className="lifestyleScrim" aria-hidden="true" />
+
+          <ul className="lifestyleList">
+            {HERO_LIST_KEYS.map((key) => (
+              <li key={key} className="lifestyleItem">
+                <span className="lifestyleCheck" aria-hidden="true">
+                  <svg viewBox="0 0 12 12" fill="none">
+                    <path
+                      d="M2 6.2 4.7 9 10 3.2"
+                      stroke="#22c55e"
+                      strokeWidth="2.2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </span>
+                {tWallet(key, { pct: COMMISSION_PCT })}
+              </li>
+            ))}
+          </ul>
         </div>
       </section>
       </div>

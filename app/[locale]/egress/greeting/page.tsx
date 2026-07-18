@@ -16,25 +16,28 @@
 
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import EgressHelper from "@livekit/egress-sdk";
 import GreetingIntro, { GREETING_INTRO_MS } from "./GreetingIntro";
 import SessionOverlay from "../session/SessionOverlay";
 import { VibraOutro } from "../session/SessionOutro";
 
-const TYPE_LABEL: Record<string, string> = {
-  saludo: "Saludo",
-  consejo: "Consejo",
-  mensaje: "Mensaje",
+// Mapea el tipo de saludo a su clave de traducción (idioma del locale de la URL).
+const TYPE_KEY: Record<string, string> = {
+  saludo: "typeLabelGreeting",
+  consejo: "typeLabelAdvice",
+  mensaje: "typeLabelMessage",
 };
 
 function GreetingEgressInner() {
   const params = useSearchParams();
+  const tWallet = useTranslations("wallet");
   const playbackId = params.get("playbackId") ?? "";
   const name = params.get("name") ?? "";
   const avatarUrl = params.get("avatar") || null;
   const type = params.get("type") ?? "saludo";
   const orientation = params.get("orientation") === "vertical" ? "vertical" : "horizontal";
-  const typeLabel = TYPE_LABEL[type] ?? "Saludo";
+  const typeLabel = tWallet(TYPE_KEY[type] ?? "typeLabelGreeting");
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const [intro, setIntro] = useState(true);
@@ -121,7 +124,7 @@ function GreetingEgressInner() {
   const src = playbackId ? `https://stream.mux.com/${playbackId}/high.mp4` : undefined;
 
   return (
-    <div style={{ position: "absolute", inset: 0, background: "#000" }}>
+    <div translate="no" className="notranslate" style={{ position: "absolute", inset: 0, background: "#000" }}>
       {src ? (
         <video
           ref={videoRef}

@@ -11,8 +11,12 @@ type SessionLifecyclePayload = {
   sessionType: LivekitSessionType;
 };
 
-export async function callJoinSession(payload: SessionLifecyclePayload): Promise<void> {
-  const fn = httpsCallable<SessionLifecyclePayload, { success: boolean }>(
+// joinSession acepta además el `locale` de la plataforma para que la grabación
+// hornee los textos (eslogan, tipo de sesión) en ese idioma.
+export async function callJoinSession(
+  payload: SessionLifecyclePayload & { locale?: string }
+): Promise<void> {
+  const fn = httpsCallable<SessionLifecyclePayload & { locale?: string }, { success: boolean }>(
     functions,
     "joinSession"
   );

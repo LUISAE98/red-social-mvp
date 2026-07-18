@@ -56,8 +56,12 @@ const FALLBACK_DURATION_MINUTES = 30;
 // Plantilla web pública que compone la grabación (creador grande + comprador
 // PiP). El grabador headless de LiveKit la abre con ?url=&token=&layout=.
 // Debe estar desplegada (Vercel); no funciona contra localhost.
-const EGRESS_TEMPLATE_BASE_URL =
-  process.env.EGRESS_TEMPLATE_BASE_URL ?? "https://vibraon.com/en/egress/session";
+// Host donde vive la plantilla del egress de sesión. La ruta incluye el locale
+// (/{locale}/egress/session) para que los textos horneados salgan en el idioma
+// de la plataforma en el momento de la grabación.
+const EGRESS_SESSION_HOST =
+  process.env.EGRESS_SESSION_HOST ?? "https://vibraon.com";
+const EGRESS_LOCALES = new Set(["es", "en", "pt-BR"]);
 
 function requireAuth(uid?: string): string {
   if (!uid) throw new HttpsError("unauthenticated", "Debes iniciar sesión.");
@@ -81,7 +85,8 @@ function resolveCollection(sessionType: unknown): string {
 async function startRecording(
   egressClient: EgressClient,
   roomName: string,
-  sessionId: string
+  sessionId: string,
+  locale?: string
 ): Promise<string | null> {
   const bucket = process.env.LIVEKIT_EGRESS_S3_BUCKET;
   const region = process.env.LIVEKIT_EGRESS_S3_REGION;
@@ -118,7 +123,7 @@ async function startRecording(
       // Plantilla propia con layout FIJO: creador grande + comprador PiP en la
       // esquina, horizontal — como lo ve el comprador. (Los layouts nativos
       // "grid"/"speaker" no permiten fijar quién va en grande.)
-      customBaseUrl: EGRESS_TEMPLATE_BASE_URL,
+      customBaseUrl: `${EGRESS_SESSION_HOST}/${EGRESS_LOCALES.has(locale ?? "") ? locale : "en"}/egress/session`,
       layout: "creator-focus",
       encodingOptions: EncodingOptionsPreset.H264_1080P_30,
     });
@@ -255,7 +260,9 @@ export const joinSession = onCall(
     // doble egress: el otro ya ve startedAt puesto y no re-arranca.
     if (startedNow && roomNameForEgress) {
       const egressClient = createEgressClient();
-      const egressId = await startRecording(egressClient, roomNameForEgress, cleanId);
+      // Locale del cliente que completó la unión → textos horneados en ese idioma.
+      const joinLocale = (request.data as { locale?: string } | undefined)?.locale;
+      const egressId = await startRecording(egressClient, roomNameForEgress, cleanId, joinLocale);
       if (egressId) {
         await docRef.update({
           livekitEgressId: egressId,

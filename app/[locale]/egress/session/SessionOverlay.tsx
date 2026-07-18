@@ -1,5 +1,7 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+
 // Overlay "horneado" de la grabación: avatar del creador con aro de Vibra +
 // nombre + tipo de experiencia, arriba a la izquierda.
 //
@@ -14,9 +16,10 @@
 // Se renderiza a 1080p nativo (px absolutos, nítido) y el grabador lo captura
 // dentro del video. Sin marca de vibraon.com: ésa va en el cierre.
 
-const TYPE_LABEL: Record<string, string> = {
-  meet_greet: "Tiempo contigo",
-  exclusive_session: "Sesión exclusiva",
+// Clave de traducción por tipo de sesión (idioma del locale de la URL del egress).
+const TYPE_KEY: Record<string, string> = {
+  meet_greet: "filterLiveSession",
+  exclusive_session: "filterExclusiveSession",
 };
 
 // A los 10s de que el grabador se conecta (mismo cero que el intro) la PLANTILLA
@@ -47,7 +50,9 @@ export default function SessionOverlay({
   // desde `type` con TYPE_LABEL. Aditivo: las sesiones no lo pasan y no cambian.
   typeLabel?: string;
 }) {
-  const typeLabel = typeLabelOverride ?? TYPE_LABEL[type] ?? "";
+  const tWallet = useTranslations("wallet");
+  const typeKey = TYPE_KEY[type];
+  const typeLabel = typeLabelOverride ?? (typeKey ? tWallet(typeKey) : "");
   const initials = (name || "?").trim().charAt(0).toUpperCase();
 
   const AVATAR = 104;

@@ -17,7 +17,7 @@ import { db } from "@/lib/firebase";
 import { useLivekitRoom } from "@/lib/liveKit/useLivekitRoom";
 import type { LivekitSessionType, LivekitErrorCode } from "@/lib/liveKit/getLivekitToken";
 import { callJoinSession, callEndSession, callSignalSessionClosing } from "@/lib/liveKit/sessionLifecycle";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -182,6 +182,7 @@ function RoomContent({
 }) {
   const tLive = useTranslations("live");
   const tCommon = useTranslations("common");
+  const locale = useLocale();
   const connectionState = useConnectionState();
   const participants = useParticipants();
   const { localParticipant, isMicrophoneEnabled, isCameraEnabled } = useLocalParticipant();
@@ -322,7 +323,7 @@ function RoomContent({
   useEffect(() => {
     if (connectionState !== ConnectionState.Connected || joinCalledRef.current) return;
     joinCalledRef.current = true;
-    callJoinSession({ sessionId, sessionType }).catch((err: unknown) => {
+    callJoinSession({ sessionId, sessionType, locale }).catch((err: unknown) => {
       console.warn("joinSession error:", err);
     });
   }, [connectionState, sessionId, sessionType]);

@@ -14,6 +14,7 @@
 // absolutos, no responsive: el grabador headless siempre corre a 1080p).
 
 import { useMemo } from "react";
+import { useTranslations } from "next-intl";
 import { BRAND_DOMAIN } from "@/lib/brand";
 import { buildCollageTiles } from "@/lib/collage";
 
@@ -41,6 +42,7 @@ export default function SessionIntro({
   name: string;
 }) {
   const tiles = useMemo(() => buildCollageTiles(), []);
+  const t = useTranslations("wallet");
   const initials = (name || "?").trim().charAt(0).toUpperCase();
 
   // Aro que se "carga": se dibuja animando stroke-dashoffset de C → 0.
@@ -162,7 +164,7 @@ export default function SessionIntro({
 
       <div className="introContent">
         <div className="introTitle">
-          Conecta. Comparte. <span className="introVibra">Vibra.</span>
+          {t("egressTaglinePrefix")} <span className="introVibra">Vibra.</span>
         </div>
 
         <div className="introMoment">Tu momento con {name}</div>

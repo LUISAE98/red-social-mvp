@@ -16,6 +16,7 @@
 // vertical usa 3 columnas (look de celular). Sin inventar valores.
 
 import { useMemo } from "react";
+import { useTranslations } from "next-intl";
 import { BRAND_DOMAIN } from "@/lib/brand";
 import { buildCollageTiles } from "@/lib/collage";
 
@@ -35,6 +36,7 @@ export default function GreetingIntro({
 }) {
   const vertical = orientation === "vertical";
   const tiles = useMemo(() => buildCollageTiles(), []);
+  const t = useTranslations("wallet");
 
   const AV = vertical ? 168 : 190;
   const RW = vertical ? 8 : 10;
@@ -113,7 +115,7 @@ export default function GreetingIntro({
         @keyframes giRingDraw { from { stroke-dashoffset: 100 } to { stroke-dashoffset: 0 } }
         .giDomain {
           font-size: ${vertical ? 32 : 30}px; font-weight:600; color:#fff; letter-spacing:0.01em;
-          text-shadow:0 2px 18px rgba(0,0,0,0.6); margin-top: ${vertical ? 40 : 34}px;
+          text-shadow:0 2px 18px rgba(0,0,0,0.6); margin-top: ${vertical ? 110 : 92}px;
           animation: giRise 0.9s cubic-bezier(0.22,1,0.36,1) 3400ms both;
         }
       `}</style>
@@ -131,7 +133,7 @@ export default function GreetingIntro({
       <div className="giVignette" />
 
       <div className="giContent">
-        <div className="giTitle">Conecta. Comparte. <span className="giVibra">Vibra.</span></div>
+        <div className="giTitle">{t("egressTaglinePrefix")} <span className="giVibra">Vibra.</span></div>
         <div className="giName">{name}</div>
         <div className="giAvatar" style={{ width: OUTER, height: OUTER }}>
           <svg className="giRing" width={OUTER} height={OUTER} style={{ position: "absolute", inset: 0, display: "block", transform: "rotate(-90deg)" }} aria-hidden="true">
