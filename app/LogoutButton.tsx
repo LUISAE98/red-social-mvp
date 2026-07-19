@@ -7,7 +7,7 @@ import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
 import { useAuth } from "@/app/providers";
 
-type LogoutButtonVariant = "icon" | "settings";
+type LogoutButtonVariant = "icon" | "settings" | "headerIcon";
 
 type LogoutButtonProps = {
   variant?: LogoutButtonVariant;
@@ -90,6 +90,53 @@ const overlay =
         document.body
       )
     : null;
+
+  if (variant === "headerIcon") {
+    // Solo el icono (puerta abierta + flecha hacia afuera), en blanco, para el
+    // header de escritorio. Misma lógica de cierre de sesión que las demás.
+    return (
+      <>
+        {overlay}
+        <button
+          onClick={handleLogout}
+          disabled={loading}
+          aria-label={loading ? tCommon("loggingOut") : tCommon("logout")}
+          title={loading ? tCommon("loggingOut") : tCommon("logout")}
+          className={className}
+          type="button"
+          style={{
+            border: "none",
+            color: "#ffffff",
+            cursor: loading ? "not-allowed" : "pointer",
+            padding: 6,
+            borderRadius: 8,
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            opacity: loading ? 0.6 : 1,
+            WebkitTapHighlightColor: "transparent",
+            ...style,
+          }}
+        >
+          <svg
+            width="22"
+            height="22"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+            <polyline points="16 17 21 12 16 7" />
+            <line x1="21" y1="12" x2="9" y2="12" />
+          </svg>
+        </button>
+      </>
+    );
+  }
 
   if (variant === "settings") {
     return (

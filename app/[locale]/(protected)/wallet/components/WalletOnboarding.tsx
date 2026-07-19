@@ -6,7 +6,12 @@
 // muestra u oculta la sección Wallet del rail derecho.
 
 import Image from "next/image";
+import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import { Link } from "@/i18n/navigation";
+import { useAuth } from "@/app/providers";
 import VibraGradientText from "@/app/components/VibraGradientText/VibraGradientText";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import WalletPhonePreview from "./WalletPhonePreview";
@@ -83,14 +88,22 @@ const SERVICE_PREVIEW_KEY: Record<
   | "liveAccess"
   | "subscription"
   | "superComments"
+  | "liveDonation"
+  | "profileDonation"
+  | "vodUnlock"
+  | "premiumPost"
 > = {
   1: "saludo",
   2: "consejo",
   3: "customClass", // "Sesión exclusiva"
   4: "meetGreet", // "Tiempo contigo"
   5: "superComments", // "Supercomentarios"
+  6: "liveDonation", // "Donaciones en vivo"
+  7: "profileDonation", // "Donaciones en tu perfil"
   8: "subscription", // "Suscripciones a tu comunidad"
   9: "liveAccess", // "Acceso a transmisiones en vivo"
+  10: "vodUnlock", // "Acceso a videos exclusivos"
+  11: "premiumPost", // "Publicaciones premium"
 };
 
 // Color de acento de los íconos de cada tarjeta de servicio, por id de servicio.
@@ -100,13 +113,45 @@ const SERVICE_ACCENT: Record<number, string> = {
   3: "#ec4899", // sesiones → rosa
   4: "#3b82f6", // tiempo contigo → azul
   5: "#a855ff", // supercomentarios → morado
+  6: "#fdba74", // donaciones en vivo → naranja claro
+  7: "#38bdf8", // donaciones en el perfil → azul celeste
   8: "#3b82f6", // suscripciones → azul
   9: "#a855ff", // acceso a lives → morado
+  10: "#a855ff", // videos exclusivos → morado
+  11: "#a855ff", // publicaciones premium → morado
+};
+
+// Servicios que se activan desde la pestaña de experiencias del PERFIL. El botón
+// "Comenzar ahora" del card lleva al dueño a su perfil con esa card centrada.
+// (Los demás servicios se configuran en otro flujo; por eso no tienen entrada.)
+const SERVICE_ACTIVATE_KEY: Record<number, string> = {
+  1: "saludo",
 };
 
 export default function WalletOnboarding() {
   const tWallet = useTranslations("wallet");
   const { format: formatPrice } = usePriceFormat();
+  const { user } = useAuth();
+  // Handle del creador para armar el enlace a su propio perfil ("Comenzar ahora").
+  const [handle, setHandle] = useState<string | null>(null);
+  useEffect(() => {
+    const uid = user?.uid;
+    if (!uid) {
+      setHandle(null);
+      return;
+    }
+    let cancelled = false;
+    getDoc(doc(db, "users", uid))
+      .then((snap) => {
+        if (cancelled) return;
+        const h = snap.data()?.handle;
+        setHandle(typeof h === "string" && h.trim() ? h.trim() : null);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.uid]);
   // Cifras demo sin centavos: quita el ".00"/",00" cuando el monto es redondo,
   // conservando el símbolo de moneda (respeta el switcheo de moneda).
   const formatNoCents = (mxn: number) =>
@@ -1093,6 +1138,35 @@ export default function WalletOnboarding() {
                   <div className="wayScrim" aria-hidden="true" />
                   {/* Difuminado a negro en el borde inferior (aparece al abrir). */}
                   <div className="wayMainFade" aria-hidden="true" />
+
+                  {/* CTA: lleva al dueño a activar el servicio en su perfil. */}
+                  {SERVICE_ACTIVATE_KEY[svc] && handle ? (
+                    <Link
+                      href={`/u/${handle}?configure=${SERVICE_ACTIVATE_KEY[svc]}`}
+                      style={{
+                        position: "absolute",
+                        top: 14,
+                        right: 16,
+                        zIndex: 4,
+                        display: "inline-flex",
+                        alignItems: "center",
+                        padding: "7px 14px",
+                        borderRadius: 999,
+                        background: "rgba(168,85,255,0.16)",
+                        border: "1px solid rgba(168,85,255,0.6)",
+                        color: "#d7b3ff",
+                        fontSize: 13,
+                        fontWeight: 600,
+                        lineHeight: 1,
+                        textDecoration: "none",
+                        whiteSpace: "nowrap",
+                        backdropFilter: "blur(4px)",
+                        WebkitBackdropFilter: "blur(4px)",
+                      }}
+                    >
+                      {tWallet("onboardingStartNow")}
+                    </Link>
+                  ) : null}
 
                   <span className="wayNum" aria-hidden="true">{pos}</span>
                   <div className="wayText">

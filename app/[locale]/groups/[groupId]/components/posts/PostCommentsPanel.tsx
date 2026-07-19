@@ -37,6 +37,8 @@ type PostCommentsPanelProps = {
   canUseGroupMemberBlock?: boolean;
   canModerateGroupAuthor?: boolean;
   isPostAuthor?: boolean;
+  /** Deep-link de notificaciones: comentario a enfocar (scroll + resaltado). */
+  focusCommentId?: string | null;
   /** Desktop only: how many comments to show (sliced from newest). */
   visibleCount?: number;
   /** Desktop only: whether there are older comments not yet shown. */
@@ -91,6 +93,7 @@ export default function PostCommentsPanel({
   canUseGroupMemberBlock = false,
   canModerateGroupAuthor = false,
   isPostAuthor = false,
+  focusCommentId = null,
   visibleCount,
   hasMore = false,
   onLoadMore,
@@ -367,6 +370,7 @@ export default function PostCommentsPanel({
                   canUseGroupMemberBlock={canUseGroupMemberBlock}
                   canModerateGroupAuthor={canModerateGroupAuthor}
                   isPostAuthor={isPostAuthor}
+                  focusCommentId={focusCommentId}
                   mentionsDisabled={mentionsDisabled}
                   deletingCommentId={deletingCommentId}
                   onDeleteComment={onDeleteComment}
@@ -657,6 +661,7 @@ export default function PostCommentsPanel({
                     isModerator={isModerator}
                     canCommentOnPosts={canCommentOnPosts}
                     canUseGroupMemberBlock={canUseGroupMemberBlock}
+                    focusCommentId={focusCommentId}
                     mentionsDisabled={mentionsDisabled}
                     deletingCommentId={deletingCommentId}
                     onDeleteComment={onDeleteComment}

@@ -1364,9 +1364,9 @@ const shellStyle: CSSProperties = {
           viewerUid={viewerUid}
           onOpenTile={(tile) => {
             const openUrl = tile.mediaUrl ?? tile.post.media?.[0]?.url ?? null;
-            // Los tiles de live (transmisión/VOD) siempre abren: el card resuelve
-            // internamente la URL del VOD o el modal en vivo.
-            if (!tile.isLive && !openUrl) return;
+            // Los tiles de live (transmisión/VOD) y los bloqueados siempre abren:
+            // el card resuelve el VOD, el modal en vivo o el flujo de desbloqueo.
+            if (!tile.isLive && !tile.isLocked && !openUrl) return;
             setLightboxTile(tile);
           }}
         />
@@ -1540,6 +1540,7 @@ const shellStyle: CSSProperties = {
             }
             autoOpenLive={lightboxTile.isLiveNow}
             autoOpenVod={lightboxTile.isLive && !lightboxTile.isLiveNow}
+            autoOpenUnlock={lightboxTile.isLocked}
             onViewerClosed={() => setLightboxTile(null)}
           />
         </div>

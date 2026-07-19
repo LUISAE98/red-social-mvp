@@ -834,6 +834,48 @@ function getPostGroupIds(posts: Post[]): string[] {
     );
 }
 
+/**
+ * Lee UNA publicación por id, hidratada con el mismo pipeline que los feeds
+ * (autor, grupo, `isLocked`, y estado por-viewer: `viewerHasFlamed`,
+ * `viewerHasSaved`, bloqueos de miembro). Devuelve `null` si no existe, está
+ * borrada, o el viewer no puede leerla (reglas / bloqueo). Usada por la página
+ * de post individual y el deep-link de notificaciones.
+ */
+export async function fetchPostByIdForViewer(
+  postId: string,
+  viewerUid?: string | null
+): Promise<Post | null> {
+  if (!postId) return null;
+
+  let snap;
+  try {
+    snap = await getDoc(doc(db, "posts", postId));
+  } catch {
+    return null; // permiso denegado / post inaccesible
+  }
+  if (!snap.exists()) return null;
+
+  const raw: Post = { id: snap.id, ...(snap.data() as Omit<Post, "id">) };
+  if (raw.isDeleted === true) return null;
+
+  const [userMap, groupMap] = await Promise.all([
+    fetchUsersByIds([raw.authorId]),
+    fetchGroupsByIds(getPostGroupIds([raw])),
+  ]);
+
+  const hydrated = hydratePost(raw, userMap, groupMap);
+  const withLock = { ...hydrated, isLocked: isPostLocked(hydrated) };
+
+  try {
+    const [withViewerState] = await attachViewerPostState([withLock], viewerUid ?? undefined);
+    // attachViewerPostState filtra posts de autores que bloquearon al viewer:
+    // si desaparece, no está disponible para este viewer.
+    return withViewerState ?? null;
+  } catch {
+    return withLock;
+  }
+}
+
 
 async function fetchProfileById(profileId: string): Promise<ProfileLookup> {
   const snap = await getDoc(doc(db, "users", profileId));
@@ -1858,6 +1900,25 @@ async function buildMediaPageResult(params: {
     cursor: hasMore && lastDoc ? { lastDoc } : null,
     hasMore,
   };
+}
+
+/**
+ * Registra una vista ÚNICA del viewer para un video/VOD. Idempotente: escribe
+ * `posts/{postId}/views/{uid}`; la Cloud Function `onPostViewed` incrementa
+ * `viewsCount` solo en la primera vez (onCreate). Fire-and-forget.
+ */
+export async function registerPostView(postId: string): Promise<void> {
+  const uid = auth.currentUser?.uid;
+  if (!uid || !postId) return;
+  try {
+    await setDoc(
+      doc(db, "posts", postId, "views", uid),
+      { viewedAt: serverTimestamp() },
+      { merge: true }
+    );
+  } catch {
+    // No es crítico: si falla, simplemente no se cuenta esta vista.
+  }
 }
 
 /**

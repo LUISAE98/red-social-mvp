@@ -422,6 +422,12 @@ export type Post = {
   counts?: PostCounts;
 
   /**
+   * Vistas únicas por usuario (videos y VODs). Denormalizado: lo incrementa la
+   * Cloud Function `onPostViewed` al crearse `posts/{id}/views/{uid}`.
+   */
+  viewsCount?: number;
+
+  /**
    * Estado calculado para la UI del usuario actual.
    * No es obligatorio que exista en Firestore.
    */

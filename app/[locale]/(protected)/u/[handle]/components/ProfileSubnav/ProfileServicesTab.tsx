@@ -1154,6 +1154,7 @@ export default function ProfileServicesTab({
         Configura tus experiencias
       </h2>
 
+      <div id="exp-saludo" style={{ scrollMarginTop: 80 }}>
       <Greetings
         draft={draft}
         saving={saving}
@@ -1172,6 +1173,7 @@ export default function ProfileServicesTab({
         OverlayModalComponent={OverlayModal}
         onSaveDraft={(d) => saveServicesFromDraft(d as unknown as ServiceDraft)}
       />
+      </div>
 
       <Advice
         draft={draft}

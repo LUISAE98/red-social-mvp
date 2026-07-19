@@ -1008,6 +1008,22 @@ function handleUnblockFailed() {
 // eslint-disable-next-line react-hooks/exhaustive-deps
 }, [authReady, searchParams, userDoc, viewer]);
 
+// Deep-link desde el onboarding de la Wallet ("Comenzar ahora"): abre la
+// pestaña de servicios y centra en pantalla la card del servicio indicado para
+// animar a activarlo. Solo aplica al dueño de su propio perfil.
+useEffect(() => {
+  if (!authReady || !userDoc || !isOwner) return;
+  const configure = searchParams.get("configure");
+  if (!configure) return;
+  setActiveTab("services");
+  const timer = window.setTimeout(() => {
+    const el = document.getElementById(`exp-${configure}`);
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, 320);
+  return () => window.clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [authReady, userDoc, isOwner, searchParams]);
+
   useEffect(() => {
     setAvatarRenderUrl(userDoc?.photoURL ?? null);
     setCoverRenderUrl(userDoc?.coverUrl ?? null);

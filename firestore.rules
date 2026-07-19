@@ -2724,6 +2724,15 @@ function canUpdateReplyCount(delta) {
 
         allow create, update, delete: if false;
       }
+
+      // Vistas únicas por usuario (videos/VODs). Cada usuario escribe su propia
+      // vista; el contador `viewsCount` lo incrementa la Cloud Function
+      // onPostViewed (el cliente no puede tocar viewsCount del post).
+      match /views/{userId} {
+        allow create, update: if signedIn() && request.auth.uid == userId;
+        allow get: if signedIn() && request.auth.uid == userId;
+        allow list, delete: if false;
+      }
     }
 
     match /postAccess/{accessId} {

@@ -264,6 +264,9 @@ export { backfillPostGroupCategory } from "./backfillPostGroupCategory";
 // Historias: contador de vistas (trigger) + backfill de categorías/vistas
 export { onStoryViewed, backfillStoryDiscovery } from "./storyDiscovery";
 
+// Posts: contador de vistas únicas por usuario (videos y VODs)
+export { onPostViewed } from "./postViews";
+
 // Notificaciones sociales — triggers que alimentan la campanita (agregadas)
 export {
   onPostReactionCreated,

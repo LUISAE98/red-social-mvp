@@ -104,6 +104,16 @@ function pickThumb(...vals: Array<string | null | undefined>): string | null {
   return null;
 }
 
+/** Formato compacto de vistas: 999, 1.2K, 3.4M. */
+function formatViews(n: number): string {
+  if (!Number.isFinite(n) || n <= 0) return "0";
+  if (n < 1000) return String(Math.floor(n));
+  if (n < 1_000_000) {
+    return `${(n / 1000).toFixed(n < 10_000 ? 1 : 0).replace(/\.0$/, "")}K`;
+  }
+  return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, "")}M`;
+}
+
 function tilesFromPosts(
   posts: Post[],
   kind: MediaGalleryKind,
@@ -184,6 +194,7 @@ function tilesFromPosts(
         isLiveNow: !!isLiveNow,
         isLive: true,
         isCarousel: false,
+        isLocked,
       });
     }
   }
@@ -195,6 +206,7 @@ export default function MediaGallery({
   source,
   kind,
   viewerUid = null,
+  viewerHasMembership = false,
   onOpenTile,
 }: MediaGalleryProps) {
   const tPosts = useTranslations("posts");
@@ -333,7 +345,10 @@ export default function MediaGallery({
     return () => observer.disconnect();
   }, [loadMore]);
 
-  const tiles = useMemo(() => tilesFromPosts(posts, kind), [posts, kind]);
+  const tiles = useMemo(
+    () => tilesFromPosts(posts, kind, viewerUid, viewerHasMembership),
+    [posts, kind, viewerUid, viewerHasMembership]
+  );
 
   // Con filtrado en cliente una página puede traer 0 tiles; auto-rellena hasta un
   // mínimo o agotar resultados (el IntersectionObserver no re-dispara si el
@@ -375,10 +390,19 @@ export default function MediaGallery({
                 style={{
                   ...tileImageStyle,
                   backgroundImage: `url("${tile.thumbnailUrl}")`,
+                  ...(tile.isLocked ? lockedImageStyle : null),
                 }}
               />
             ) : (
               <span style={{ ...tileImageStyle, background: "rgba(255,255,255,0.06)" }} />
+            )}
+
+            {tile.isLocked && <span style={lockedScrimStyle} aria-hidden="true" />}
+
+            {tile.isLocked && (
+              <span style={lockedCrownStyle} aria-hidden="true">
+                <VibraNavigationIcon type="premiumCrown" size={44} />
+              </span>
             )}
 
             {tile.isCarousel && (
@@ -402,11 +426,22 @@ export default function MediaGallery({
             {tile.isLiveNow && <span style={liveBadgeStyle}>{tPosts("mediaLiveBadge")}</span>}
 
             {tile.isVideo && !tile.isLiveNow && (
-              <span style={playOverlayStyle} aria-hidden="true">
-                <svg width="34" height="34" viewBox="0 0 24 24" fill="rgba(255,255,255,0.92)">
-                  <path d="M8 5v14l11-7z" />
+              <span
+                style={{
+                  ...viewsChipStyle,
+                  ...(tile.isLocked ? viewsChipLockedStyle : null),
+                }}
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" />
+                  <circle cx="12" cy="12" r="3" />
                 </svg>
+                {formatViews(tile.post.viewsCount ?? 0)}
               </span>
+            )}
+
+            {tile.isLocked && (
+              <span className="vibra-media-unlock">{tPosts("mediaUnlock")}</span>
             )}
           </button>
         ))}
@@ -436,6 +471,30 @@ const MEDIA_GRID_CSS = `
     grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   }
 }
+.vibra-media-unlock {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 34px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #4f46ff, #a855ff, #ff2fb3);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  pointer-events: none;
+}
+@media (max-width: 767px) {
+  .vibra-media-unlock {
+    height: 27px;
+    font-size: 11px;
+    border-radius: 9px;
+  }
+}
 `;
 
 const tileStyle: CSSProperties = {
@@ -460,14 +519,28 @@ const tileImageStyle: CSSProperties = {
   backgroundRepeat: "no-repeat",
 };
 
-const playOverlayStyle: CSSProperties = {
+// Contenido de pago bloqueado: imagen borrosa + scrim + botón Desbloquear.
+const lockedImageStyle: CSSProperties = {
+  filter: "blur(16px)",
+  transform: "scale(1.15)",
+};
+
+const lockedScrimStyle: CSSProperties = {
+  position: "absolute",
+  inset: 0,
+  background: "rgba(0,0,0,0.28)",
+  pointerEvents: "none",
+};
+
+// Corona grande centrada en el card bloqueado.
+const lockedCrownStyle: CSSProperties = {
   position: "absolute",
   inset: 0,
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
-  background: "rgba(0,0,0,0.14)",
   pointerEvents: "none",
+  filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.55))",
 };
 
 const liveBadgeStyle: CSSProperties = {
@@ -482,6 +555,29 @@ const liveBadgeStyle: CSSProperties = {
   fontWeight: 800,
   letterSpacing: "0.06em",
   pointerEvents: "none",
+};
+
+// Contador de vistas (videos/VODs): esquina inferior izquierda, sin contenedor
+// (transparente), con sombra para leerse sobre cualquier fondo.
+const viewsChipStyle: CSSProperties = {
+  position: "absolute",
+  bottom: 6,
+  left: 6,
+  display: "flex",
+  alignItems: "center",
+  gap: 4,
+  color: "#fff",
+  fontSize: 11,
+  fontWeight: 700,
+  lineHeight: 1,
+  pointerEvents: "none",
+  filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.7))",
+};
+
+// En posts bloqueados el contador sube por encima del botón de desbloquear.
+const viewsChipLockedStyle: CSSProperties = {
+  bottom: 44,
+  left: 10,
 };
 
 // Icono blanco de carrusel (arriba-izquierda). Drop-shadow para verse en

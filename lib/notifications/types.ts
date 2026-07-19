@@ -71,6 +71,13 @@ export function notificationHref(n: AppNotification): string {
     case "group_new_member":
       return n.target.groupId ? `/groups/${n.target.groupId}` : "/notifications";
     default:
+      // post_like / comment / reply / comment_like / mention → post individual,
+      // con ?c= para enfocar el comentario/respuesta relacionado.
+      if (n.target.postId) {
+        return n.target.commentId
+          ? `/post/${n.target.postId}?c=${n.target.commentId}`
+          : `/post/${n.target.postId}`;
+      }
       if (n.target.groupId) return `/groups/${n.target.groupId}`;
       if (n.target.handle) return `/u/${n.target.handle}`;
       return "/notifications";

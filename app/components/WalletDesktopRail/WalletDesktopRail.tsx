@@ -4,7 +4,6 @@ import Image from "next/image";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
-import LogoutButton from "@/app/LogoutButton";
 import {
   VibraNavigationIcon,
   VibraNavigationIconsStyles,
@@ -246,19 +245,6 @@ export default function WalletDesktopRail({
           background: rgba(255, 255, 255, 0.1);
         }
 
-        .logoutSection {
-          width: 100%;
-          margin-top: 14px;
-        }
-
-        .logoutSection :global(button) {
-          width: 100%;
-          height: 40px;
-          min-height: 40px;
-          filter: saturate(0.84) brightness(0.93);
-          box-shadow: 0 7px 18px rgba(168, 85, 255, 0.11);
-        }
-
         @media (max-height: 760px) {
           .createCommunitySection {
             transform: none;
@@ -296,11 +282,6 @@ export default function WalletDesktopRail({
             height: 36px;
             min-height: 36px;
           }
-
-          .logoutSection :global(button) {
-            height: 38px;
-            min-height: 38px;
-          }
         }
 
         .walletToggle {
@@ -314,6 +295,24 @@ export default function WalletDesktopRail({
           cursor: pointer;
           text-align: left;
           gap: 6px;
+        }
+
+        /* Entrada simple de wallet (sin servicios activos): icono + título EN FILA.
+           :global porque va sobre un <Link> (componente): styled-jsx no scopea la
+           clase en componentes, así que sin :global no aplicaba el flex y el título
+           caía debajo del icono. */
+        :global(.walletEntryLink) {
+          display: flex;
+          align-items: center;
+          gap: 7px;
+          width: 100%;
+          text-decoration: none;
+          border-radius: 8px;
+          transition: opacity 140ms ease;
+        }
+
+        :global(.walletEntryLink:hover) {
+          opacity: 0.82;
         }
 
         .walletToggleTop {
@@ -657,26 +656,6 @@ export default function WalletDesktopRail({
 
           <div className="railDivider" aria-hidden="true" />
 
-          <section className="railSection createCommunitySection" aria-label={t("createCommunityLabel")}>
-            <Image
-              src="/Crear-comunidad.webp"
-              alt=""
-              width={280}
-              height={187}
-              className="createCommunityImage"
-              aria-hidden="true"
-            />
-
-            <div className="createCommunityCopy">
-              <strong>{t("createCommunityTitle")}</strong>
-              <span>{t("createCommunitySubtitle")}</span>
-            </div>
-
-            <Link href="/groups/new" className="createCommunityButton">
-              {t("createCommunityButton")}
-            </Link>
-          </section>
-
           {showWallet ? (
             <section className="railSection" aria-label={t("wallet")}>
               <button
@@ -771,10 +750,44 @@ export default function WalletDesktopRail({
                 </nav>
               </div>
             </section>
-          ) : null}
+          ) : (
+            /* Sin servicios activos: no se despliega ni muestra cifra. Solo
+               "Wallet" + icono; al hacer clic va a la presentación de onboarding. */
+            <section className="railSection" aria-label={t("wallet")}>
+              <Link href="/wallet/finanzas" className="walletEntryLink">
+                <span className="walletTitleIcon" aria-hidden="true">
+                  <svg width={17} height={17} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.8} strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M20 12V7H5a2 2 0 0 1 0-4h13v4" />
+                    <path d="M3 5v13a2 2 0 0 0 2 2h15v-5" />
+                    <path d="M17 12a2 2 0 0 0 0 4h3v-4Z" />
+                  </svg>
+                </span>
+                <h3 className="walletTitle">{t("wallet")}</h3>
+              </Link>
+            </section>
+          )}
 
-          <section className="logoutSection" aria-label={t("profile")}>
-            <LogoutButton variant="settings" />
+          {/* División propia del botón de wallet (tanto activa como no activa). */}
+          <div className="railDivider" aria-hidden="true" />
+
+          <section className="railSection createCommunitySection" aria-label={t("createCommunityLabel")}>
+            <Image
+              src="/Crear-comunidad.webp"
+              alt=""
+              width={280}
+              height={187}
+              className="createCommunityImage"
+              aria-hidden="true"
+            />
+
+            <div className="createCommunityCopy">
+              <strong>{t("createCommunityTitle")}</strong>
+              <span>{t("createCommunitySubtitle")}</span>
+            </div>
+
+            <Link href="/groups/new" className="createCommunityButton">
+              {t("createCommunityButton")}
+            </Link>
           </section>
         </div>
       </aside>

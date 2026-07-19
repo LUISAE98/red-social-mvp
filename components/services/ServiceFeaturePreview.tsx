@@ -17,7 +17,11 @@ type ServiceKey =
   | "customClass"
   | "liveAccess"
   | "subscription"
-  | "superComments";
+  | "superComments"
+  | "liveDonation"
+  | "profileDonation"
+  | "vodUnlock"
+  | "premiumPost";
 
 function IconWrap({ children, color }: { children: React.ReactNode; color: string }) {
   return (
@@ -245,14 +249,53 @@ export default function ServiceFeaturePreview({
         <FeatureCell icon="check" color={accentColor} title={t("subscriptionPreviewPriceLabel")} description={t("subscriptionPreviewPriceDesc")} />
       </>
     );
-  } else {
-    // superComments (supercomentarios)
+  } else if (service === "superComments") {
+    // supercomentarios
     cells = (
       <>
         <FeatureCell icon="star" color={accentColor} title={t("superCommentsPreviewTiersLabel")} description={t("superCommentsPreviewTiersDesc")} />
         <FeatureCell icon="focus" color={accentColor} title={t("superCommentsPreviewPinLabel")} description={t("superCommentsPreviewPinDesc")} />
         <FeatureCell icon="camera" color={accentColor} title={t("superCommentsPreviewLiveLabel")} description={t("superCommentsPreviewLiveDesc")} />
         <FeatureCell icon="check" color={accentColor} title={t("superCommentsPreviewPriceLabel")} description={t("superCommentsPreviewPriceDesc")} />
+      </>
+    );
+  } else if (service === "liveDonation") {
+    // donaciones en vivo
+    cells = (
+      <>
+        <FeatureCell icon="heart" color={accentColor} title={t("liveDonationPreviewSupportLabel")} description={t("liveDonationPreviewSupportDesc")} />
+        <FeatureCell icon="focus" color={accentColor} title={t("liveDonationPreviewShowLabel")} description={t("liveDonationPreviewShowDesc")} />
+        <FeatureCell icon="includes" color={accentColor} title={t("liveDonationPreviewAnyoneLabel")} description={t("liveDonationPreviewAnyoneDesc")} />
+      </>
+    );
+  } else if (service === "profileDonation") {
+    // donaciones en tu perfil
+    cells = (
+      <>
+        <FeatureCell icon="heart" color={accentColor} title={t("profileDonationPreviewAnytimeLabel")} description={t("profileDonationPreviewAnytimeDesc")} />
+        <FeatureCell icon="star" color={accentColor} title={t("profileDonationPreviewMessageLabel")} description={t("profileDonationPreviewMessageDesc")} />
+        <FeatureCell icon="camera" color={accentColor} title={t("profileDonationPreviewVideoLabel")} description={t("profileDonationPreviewVideoDesc")} />
+        <FeatureCell icon="check" color={accentColor} title={t("profileDonationPreviewMinLabel")} description={t("profileDonationPreviewMinDesc")} />
+      </>
+    );
+  } else if (service === "vodUnlock") {
+    // acceso a videos exclusivos
+    cells = (
+      <>
+        <FeatureCell icon="lock" color={accentColor} title={t("vodUnlockPreviewOneTimeLabel")} description={t("vodUnlockPreviewOneTimeDesc")} />
+        <FeatureCell icon="camera" color={accentColor} title={t("vodUnlockPreviewLongLabel")} description={t("vodUnlockPreviewLongDesc")} />
+        <FeatureCell icon="star" color={accentColor} title={t("vodUnlockPreviewSubsLabel")} description={t("vodUnlockPreviewSubsDesc")} />
+        <FeatureCell icon="check" color={accentColor} title={t("vodUnlockPreviewPriceLabel")} description={t("vodUnlockPreviewPriceDesc")} />
+      </>
+    );
+  } else {
+    // premiumPost (publicaciones premium)
+    cells = (
+      <>
+        <FeatureCell icon="lock" color={accentColor} title={t("premiumPostPreviewUnlockLabel")} description={t("premiumPostPreviewUnlockDesc")} />
+        <FeatureCell icon="camera" color={accentColor} title={t("premiumPostPreviewFeedLabel")} description={t("premiumPostPreviewFeedDesc")} />
+        <FeatureCell icon="star" color={accentColor} title={t("premiumPostPreviewSubsLabel")} description={t("premiumPostPreviewSubsDesc")} />
+        <FeatureCell icon="check" color={accentColor} title={t("premiumPostPreviewPriceLabel")} description={t("premiumPostPreviewPriceDesc")} />
       </>
     );
   }

@@ -34,7 +34,7 @@ import PremiumVideoTeaser from "./PremiumVideoTeaser";
 import { VideoPlayIcon } from "@/app/components/VibraServiceIcons/VibraVideoIcons";
 import { usePostTempUnlock } from "@/lib/posts/usePostTempUnlock";
 import { checkLiveAccess } from "@/lib/liveAccess/live-access-service";
-import { fetchPostFlameUsers, updatePost } from "@/lib/posts/post-service";
+import { fetchPostFlameUsers, registerPostView, updatePost } from "@/lib/posts/post-service";
 import { uploadPostImage } from "@/lib/posts/image-upload";
 import PostShareButton from "@/components/ui/PostShareButton";
 import PostSaveButton from "@/components/ui/PostSaveButton";
@@ -148,8 +148,14 @@ type GroupPostCardProps = {
   autoOpenLive?: boolean;
   /** Abre el VOD (grabación de una transmisión) usando la URL HLS interna del card. */
   autoOpenVod?: boolean;
+  /** Abre el flujo de desbloqueo/compra (panel de pago premium o ticket de live/VOD). */
+  autoOpenUnlock?: boolean;
   /** Se dispara cuando el visor auto-abierto se cierra (para desmontar el lightbox). */
   onViewerClosed?: () => void;
+  /** Deep-link de notificaciones: al montar abre el panel de comentarios. */
+  autoOpenComments?: boolean;
+  /** Deep-link de notificaciones: comentario a enfocar (scroll + resaltado). */
+  focusCommentId?: string | null;
 };
 
 type DisplayMediaItem = {
@@ -199,7 +205,10 @@ onToggleProfilePin,
   autoOpenMediaUrl = null,
   autoOpenLive = false,
   autoOpenVod = false,
+  autoOpenUnlock = false,
   onViewerClosed,
+  autoOpenComments = false,
+  focusCommentId = null,
 }: GroupPostCardProps) {
   const tCommon = useTranslations("common");
   const tFeed = useTranslations("feed");
@@ -696,6 +705,13 @@ useEffect(() => {
 
     setSelectedMediaUrl(mediaUrl);
     if (!isMobile) void handleOpenCommentsPanel();
+
+    // Vista única del viewer para videos/VODs (no cuenta fotos).
+    const postHasVideo =
+      post.postType === "live" ||
+      post.liveData != null ||
+      (Array.isArray(post.media) && post.media.some((m) => m.type === "video"));
+    if (postHasVideo) void registerPostView(post.id);
   }
 
   function closeMediaViewer() {
@@ -729,7 +745,12 @@ useEffect(() => {
   const autoOpenedRef = useRef(false);
   useEffect(() => {
     if (autoOpenedRef.current) return;
-    if (autoOpenLive) {
+    if (autoOpenUnlock) {
+      // Flujo de desbloqueo/compra: panel de pago (premium) o ticket vía live viewer.
+      autoOpenedRef.current = true;
+      if (post.premium?.enabled === true) setPaymentPanelOpen(true);
+      else setLiveViewerOpen(true);
+    } else if (autoOpenLive) {
       // Transmisión en curso → modal de live.
       autoOpenedRef.current = true;
       setLiveViewerOpen(true);
@@ -747,7 +768,28 @@ useEffect(() => {
       else onViewerClosed?.();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoOpenMediaUrl, autoOpenLive, autoOpenVod]);
+  }, [autoOpenMediaUrl, autoOpenLive, autoOpenVod, autoOpenUnlock]);
+
+  // Deep-link de notificaciones: al montar, abre el panel de comentarios.
+  const autoOpenedCommentsRef = useRef(false);
+  useEffect(() => {
+    if (autoOpenedCommentsRef.current) return;
+    if (!autoOpenComments) return;
+    autoOpenedCommentsRef.current = true;
+    void handleOpenCommentsPanel();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoOpenComments]);
+
+  // Deep-link: asegura que el comentario enfocado quede dentro del slice visible
+  // de escritorio (los comentarios se cargan enteros; solo hay que revelarlo).
+  useEffect(() => {
+    if (!focusCommentId || comments === null) return;
+    const idx = comments.findIndex((c) => c.id === focusCommentId);
+    if (idx >= 0) {
+      setDesktopVisibleCount((c) => Math.max(c, comments.length - idx));
+    }
+  }, [focusCommentId, comments]);
+
   async function refreshAfterModeration() {
     await onModerationComplete?.();
   }
@@ -4115,7 +4157,10 @@ padding: "0 0 2px 0",
   currentUserId={currentUserId}
   isMobile={isMobile}
   onPay={applyTempUnlock}
-  onClose={() => setPaymentPanelOpen(false)}
+  onClose={() => {
+    setPaymentPanelOpen(false);
+    if (onViewerClosed) window.setTimeout(() => onViewerClosed(), 200);
+  }}
 />
 {editModalOpen && (
   <GroupPostComposer
@@ -4690,6 +4735,7 @@ padding: "0 0 2px 0",
   canUseGroupMemberBlock={canUseGroupMemberBlock}
   canModerateGroupAuthor={canModerateGroupAuthor}
   isPostAuthor={!!currentUserId && currentUserId === postAuthor.authorId}
+  focusCommentId={focusCommentId}
   visibleCount={isMobile ? undefined : desktopVisibleCount}
   hasMore={!isMobile && comments !== null && comments.length > desktopVisibleCount}
   onLoadMore={isMobile ? undefined : () => setDesktopVisibleCount((c) => c + 5)}

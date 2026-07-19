@@ -38,24 +38,28 @@ no desde el cliente (las Firestore Rules no deben permitir que un usuario escrib
 
 ## 1. Acciones sociales
 
-| Acción | Punto de disparo (archivo:función) | Destinatario | Datos disponibles |
-|---|---|---|---|
-| Like a post | `backend/src/postReactions.ts` `togglePostFlame` | autor del post (`postData.authorId`) | `uid`, `postId`, `authorId`, `contextType`, `groupId` |
-| Like a comentario | `backend/src/postComments.ts` `toggleCommentFlame` | autor del comentario (`commentData.authorId`) | `uid`, `postId`, `commentId` |
-| Comentario en post | `lib/posts/post-service.ts` `createPostComment` (3742) | autor del post / dueño perfil | `author.uid`, `postId`, `authorId`/`profileId`, `mentions` |
-| Respuesta a comentario | `lib/posts/post-service.ts` `createPostCommentReply` (3949) | autor del comentario padre (`commentAuthorId`) | `author.uid`, `postId`, `commentId` |
-| Mención @ (comentario/respuesta) | `post-service.ts` (3808/4079/4773/4833) | usuario mencionado (`mention.id`, `type==="profile"`) | `mentions[]`, `author.uid`, `postId`/`commentId` |
-| Follow / seguir | `lib/social/social-service.ts` `followUser` (286) | usuario seguido (`targetUserId`) | `currentUserId`, `targetUserId` |
-| Solicitud de unirse a comunidad | `lib/groups/joinRequests.ts` `requestToJoin` (33) + `inviteLinks.ts` (private) | owner/mods del grupo (`group.ownerId`) | `uid`, `groupId`, `ownerId` |
-| Aprobar/rechazar membresía | `backend/src/joinRequests.ts` `approveJoinRequest`/`rejectJoinRequest` (176/258) | solicitante (`userId`) | `userId`, `groupId`, `callerUid` |
-| Unirse directo (público/hidden) | `lib/groups/membership.ts` `joinGroup*` (157) + `inviteLinks.ts` (hidden) | owner del grupo | `uid`, `groupId`, `ownerId` |
-| Consumo de invitación | `backend/src/inviteLinks.ts` `consumeInviteLink` (326) | owner del grupo | `callerUid`, `groupId`, `ownerId`, `outcome` |
-| Nuevo post (fan-out) | `post-service.ts` `createTextPost`/`createImagePost`/`createMediaPost`/`createVideoPost`/`createLivePost` | seguidores (perfil) / miembros (grupo) | `author.uid`, `groupId`/`profileId`, `postId` |
-| ~~Guardar post~~ (**NO notificar** — decisión de producto 2026-07-18: acción privada, genera ruido) | `backend/src/postSaves.ts` `togglePostSave` (289) | — | — |
-| Pin de un post | `backend/src/postPins.ts` `toggleGroupPostPin`/`toggleProfilePostPin` | autor del post fijado | `postId`, actor mod/owner |
-| Moderación de grupo (mute/ban/kick) | `backend/src/groupModeration.ts` | miembro afectado | `groupId`, `targetUid` |
-| Advertencia de moderación | `backend/src/moderation.ts` `warnUser` (445) | usuario advertido | ya notifica hoy (único) |
-| Compartir | metadata en post (`buildShareMetadata` 1070) | — sin destinatario capturable | (no hay doc por-share) |
+> Estado: ✅ integrada (fase 1, 2026-07-18) · ⬜ pendiente · ➖ descartada.
+> Los triggers de fase 1 viven en `backend/src/notifications.ts` (7 triggers `onDocumentCreated` con agregación).
+
+| Estado | Acción | Punto de disparo (archivo:función) | Destinatario | Datos disponibles |
+|---|---|---|---|---|
+| ✅ | Like a post | `backend/src/postReactions.ts` `togglePostFlame` → trigger `onPostReactionCreated` | autor del post (`postData.authorId`) | `uid`, `postId`, `authorId`, `contextType`, `groupId` |
+| ✅ | Like a comentario | `backend/src/postComments.ts` `toggleCommentFlame` → trigger `onCommentReactionCreated` | autor del comentario (`commentData.authorId`) | `uid`, `postId`, `commentId` |
+| ✅ | Comentario en post | `lib/posts/post-service.ts` `createPostComment` → trigger `onPostCommentCreated` | autor del post / dueño perfil | `author.uid`, `postId`, `authorId`/`profileId`, `mentions` |
+| ✅ | Respuesta a comentario | `lib/posts/post-service.ts` `createPostCommentReply` → trigger `onPostCommentReplyCreated` | autor del comentario padre (`commentAuthorId`) | `author.uid`, `postId`, `commentId` |
+| ✅ | Mención @ (comentario/respuesta) | `post-service.ts` (3808/4079) → triggers de comentario/respuesta | usuario mencionado (`mention.id`, `type==="profile"`) | `mentions[]`, `author.uid`, `postId`/`commentId` |
+| ✅ | Follow / seguir | `lib/social/social-service.ts` `followUser` → trigger `onFollowerCreated` | usuario seguido (`targetUserId`) | `currentUserId`, `targetUserId` |
+| ✅ | Solicitud de unirse a comunidad | `lib/groups/joinRequests.ts` `requestToJoin` + `inviteLinks.ts` (private) → trigger `onJoinRequestCreated` | owner/mods del grupo (`group.ownerId`) | `uid`, `groupId`, `ownerId` |
+| ✅ | Aprobar membresía | `backend/src/joinRequests.ts` `approveJoinRequest` → trigger `onGroupMemberCreated` (rama `approvedBy`) | solicitante (`userId`) | `userId`, `groupId`, `callerUid` |
+| ⬜ | Rechazar membresía | `backend/src/joinRequests.ts` `rejectJoinRequest` (258) — borra el joinRequest, sin trigger de notificación | solicitante (`userId`) | `userId`, `groupId`, `callerUid` |
+| ✅ | Unirse directo (público/hidden) | `lib/groups/membership.ts` `joinGroup*` + `inviteLinks.ts` (hidden) → trigger `onGroupMemberCreated` (rama directa) | owner del grupo | `uid`, `groupId`, `ownerId` |
+| ✅ | Consumo de invitación | `backend/src/inviteLinks.ts` `consumeInviteLink` (326) → cubierto por `onJoinRequestCreated` / `onGroupMemberCreated` | owner del grupo | `callerUid`, `groupId`, `ownerId`, `outcome` |
+| ⬜ | Nuevo post (fan-out) | `post-service.ts` `createTextPost`/`createImagePost`/`createMediaPost`/`createVideoPost`/`createLivePost` | seguidores (perfil) / miembros (grupo) | `author.uid`, `groupId`/`profileId`, `postId` |
+| ➖ | ~~Guardar post~~ (**NO notificar** — decisión de producto 2026-07-18: acción privada, genera ruido) | `backend/src/postSaves.ts` `togglePostSave` (289) | — | — |
+| ⬜ | Pin de un post | `backend/src/postPins.ts` `toggleGroupPostPin`/`toggleProfilePostPin` | autor del post fijado | `postId`, actor mod/owner |
+| ⬜ | Moderación de grupo (mute/ban/kick) | `backend/src/groupModeration.ts` | miembro afectado | `groupId`, `targetUid` |
+| ✅ | Advertencia de moderación | `backend/src/moderation.ts` `warnUser` (445) — ya escribía; ahora con `updatedAt` para salir en la campanita | usuario advertido | — |
+| ➖ | Compartir | metadata en post (`buildShareMetadata` 1070) | — sin destinatario capturable | (no hay doc por-share) |
 
 ## 2. Monetización (todo converge en el ledger)
 

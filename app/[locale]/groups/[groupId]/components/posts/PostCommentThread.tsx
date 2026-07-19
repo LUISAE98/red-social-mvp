@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Timestamp, doc, getDoc } from "firebase/firestore";
 import {
   useEffect,
+  useRef,
   useState,
   type CSSProperties,
 } from "react";
@@ -58,6 +59,9 @@ type PostCommentThreadProps = {
   onGroupMemberBlockComplete?: () => Promise<void> | void;
   onModerationComplete?: () => Promise<void> | void;
   showAdminDetails?: boolean;
+  /** Deep-link de notificaciones: si coincide con este comentario, se enfoca
+   *  (scroll + resaltado) y se auto-expanden sus respuestas. */
+  focusCommentId?: string | null;
 };
 
 const fontStack =
@@ -944,6 +948,7 @@ export default function PostCommentThread({
   onGroupMemberBlockComplete,
   onModerationComplete,
   showAdminDetails = false,
+  focusCommentId = null,
 }: PostCommentThreadProps) {
   const tCommon = useTranslations("common");
   const tPosts = useTranslations("posts");
@@ -962,6 +967,11 @@ export default function PostCommentThread({
   const [commentFlameBusy, setCommentFlameBusy] = useState(false);
   const [showExactCommentDate, setShowExactCommentDate] = useState(false);
   const [exactReplyDates, setExactReplyDates] = useState<Record<string, boolean>>({});
+
+  // Deep-link de notificaciones: enfoque de este comentario.
+  const rootRef = useRef<HTMLDivElement>(null);
+  const [deepLinkHighlight, setDeepLinkHighlight] = useState(false);
+  const focusedRef = useRef(false);
 
   // Comment actions menu (⋯)
   const [commentMenuOpen, setCommentMenuOpen] = useState(false);
@@ -1008,6 +1018,23 @@ export default function PostCommentThread({
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
   }, [replyActionsMenuOpenId]);
+
+  // Deep-link de notificaciones: si este comentario es el enfocado, hace scroll,
+  // lo resalta unos segundos y auto-expande sus respuestas (por si la actividad
+  // notificada fueron respuestas).
+  useEffect(() => {
+    if (focusedRef.current) return;
+    if (!focusCommentId || focusCommentId !== comment.id) return;
+    focusedRef.current = true;
+    if (replyCount > 0) void handleLoadReplies();
+    const timer = setTimeout(() => {
+      rootRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      setDeepLinkHighlight(true);
+      setTimeout(() => setDeepLinkHighlight(false), 2600);
+    }, 220);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusCommentId, comment.id]);
 
   const author = getAuthorInfo(comment, tCommon("user"));
   const isOwnComment = currentUserId === comment.authorId;
@@ -1246,7 +1273,26 @@ export default function PostCommentThread({
       (!isOwner && !isModerator && !!currentUserId && !isOwnComment));
 
   return (
-    <div style={{ display: "grid", gap: 8 }}>
+    <div
+      ref={rootRef}
+      data-comment-id={comment.id}
+      style={{
+        display: "grid",
+        gap: 8,
+        ...(deepLinkHighlight
+          ? {
+              borderRadius: 10,
+              background: "rgba(168,85,255,0.12)",
+              boxShadow: "0 0 0 2px rgba(168,85,255,0.55)",
+              padding: 8,
+              margin: -8,
+              transition: "background 400ms ease, box-shadow 400ms ease",
+            }
+          : {
+              transition: "background 400ms ease, box-shadow 400ms ease",
+            }),
+      }}
+    >
       {showAdminDetails && comment.isDeleted === true && (
         <div style={{
           background: "rgba(26,5,5,0.9)",

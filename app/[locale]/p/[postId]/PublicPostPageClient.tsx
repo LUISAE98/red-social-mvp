@@ -125,6 +125,14 @@ export default function PublicPostPageClient({
     return () => unsub();
   }, []);
 
+  // Con sesión iniciada, esta página de "compartir" (pública, con muro de login)
+  // no aplica: llevamos al usuario a la vista interna e interactiva del post.
+  useEffect(() => {
+    if (currentUserId) {
+      router.replace(`/post/${post.id}`);
+    }
+  }, [currentUserId, post.id, router]);
+
   useEffect(() => {
     if (!inlineError) return;
 
