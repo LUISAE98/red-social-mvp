@@ -3568,7 +3568,6 @@ function sanitizeCommentMentions(
 
     if (type !== "profile" && type !== "group") continue;
     if (!id || !label || !token) continue;
-    if (!token.startsWith("@")) continue;
     if (!text.includes(token)) continue;
 
     const dedupeKey = `${type}:${id}`;

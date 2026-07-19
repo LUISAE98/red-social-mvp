@@ -469,9 +469,9 @@ export type CommentEditEntry = {
 
 /**
  * Perfil o comunidad etiquetada dentro del texto de un comentario o respuesta.
- * `token` es la subcadena literal insertada en el texto (ej. "@handle" o
- * "@Mi Comunidad"); el render enlaza la primera aparición de ese token.
- * Las comunidades ocultas nunca se sugieren ni se persisten como mención.
+ * `token` es la subcadena literal insertada en el texto — el NOMBRE visible sin
+ * "@" (ej. "Ana López", "Mi Comunidad"); el render enlaza la primera aparición
+ * de ese token. Las comunidades ocultas nunca se sugieren ni se persisten.
  */
 export type CommentMention = {
   type: "profile" | "group";
@@ -479,7 +479,7 @@ export type CommentMention = {
   id: string;
   /** Etiqueta visible (displayName del perfil o nombre de la comunidad). */
   label: string;
-  /** Subcadena literal insertada en el texto, ej. "@handle". */
+  /** Subcadena literal insertada en el texto (el nombre, sin "@"). */
   token: string;
   /** Solo perfiles: handle estable para construir el link /u/{handle}. */
   handle?: string | null;

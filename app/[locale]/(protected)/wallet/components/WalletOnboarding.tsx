@@ -11,7 +11,6 @@ import VibraGradientText from "@/app/components/VibraGradientText/VibraGradientT
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import WalletPhonePreview from "./WalletPhonePreview";
 import WalletOnboardingGlobe from "./WalletOnboardingGlobe";
-import { buildCollageTiles } from "@/lib/collage";
 import {
   WALLET_COMMISSION_RATE,
   WALLET_NET_RATE,
@@ -51,6 +50,9 @@ const HERO_LIST_KEYS = [
   "onboardingHeroList8",
 ] as const;
 
+// Los 11 servicios monetizables (nombre + descripción corta).
+const SERVICE_NUMS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11] as const;
+
 export default function WalletOnboarding() {
   const tWallet = useTranslations("wallet");
   const { format: formatPrice } = usePriceFormat();
@@ -58,8 +60,6 @@ export default function WalletOnboarding() {
   // conservando el símbolo de moneda (respeta el switcheo de moneda).
   const formatNoCents = (mxn: number) =>
     formatPrice(mxn, { code: true }).replace(/([.,])00(\D*)$/, "$2");
-  // Mosaico de categorías (fuente compartida con login/splash).
-  const collageTiles = buildCollageTiles();
 
   return (
     <>
@@ -418,61 +418,64 @@ export default function WalletOnboarding() {
           color: #ffffff;
         }
 
-        /* Mosaico de categorías de fondo, con velo para el contenido de encima.
-           Esquinas cuadradas; perspectiva para dar profundidad como en el login. */
-        .waysMosaic {
-          position: relative;
-          isolation: isolate;
-          overflow: hidden;
-          perspective: 1100px;
+        /* Lista de servicios: número grande intercalado izquierda/derecha. */
+        .waysList {
+          list-style: none;
+          margin: 8px 0 0;
+          padding: 0;
+          display: flex;
+          flex-direction: column;
+          gap: 34px;
         }
 
-        /* Cuadrícula agrandada e inclinada (rotateX = profundidad, rotateZ =
-           diagonal estilo Netflix); overflow del contenedor recorta lo que sobra. */
-        .waysMosaicGrid {
-          position: absolute;
-          top: -14%;
-          left: -18%;
-          width: 136%;
-          z-index: 0;
-          display: grid;
-          grid-template-columns: repeat(6, 1fr);
+        .wayRow {
+          display: flex;
+          align-items: center;
+          gap: 26px;
+        }
+
+        /* Filas pares: número a la derecha, texto a la izquierda. */
+        .wayRow.isRight {
+          flex-direction: row-reverse;
+        }
+
+        .wayNum {
+          flex: 0 0 auto;
+          min-width: 96px;
+          text-align: center;
+          font-size: 84px;
+          line-height: 0.9;
+          font-weight: 800;
+          letter-spacing: -0.04em;
+          color: #22c55e;
+        }
+
+        .wayText {
+          flex: 1;
+          min-width: 0;
+          display: flex;
+          flex-direction: column;
           gap: 6px;
-          transform: rotateX(16deg) rotateZ(-9deg) scale(1.1);
-          transform-origin: center 42%;
         }
 
-        .waysTile {
-          grid-column: span 1;
-          aspect-ratio: 1 / 1;
-          overflow: hidden;
+        /* En las pares el texto se alinea hacia el número (derecha). */
+        .wayRow.isRight .wayText {
+          text-align: right;
+          align-items: flex-end;
         }
 
-        .waysTile.isWide {
-          grid-column: span 2;
-          aspect-ratio: 2 / 1;
+        .wayName {
+          font-size: 21px;
+          font-weight: 700;
+          letter-spacing: -0.02em;
+          color: #ffffff;
         }
 
-        .waysTile img {
-          width: 100%;
-          height: 100%;
-          object-fit: cover;
-          display: block;
-        }
-
-        .waysMosaicScrim {
-          position: absolute;
-          inset: 0;
-          z-index: 1;
-          background: rgba(6, 3, 14, 0.62);
-          pointer-events: none;
-        }
-
-        /* Define la altura de la sección; aquí se montará el contenido. */
-        .waysMosaicContent {
-          position: relative;
-          z-index: 2;
-          min-height: 440px;
+        .wayDesc {
+          max-width: 46ch;
+          font-size: 14px;
+          line-height: 1.45;
+          color: rgba(255, 255, 255, 0.72);
         }
 
         .lifestyleImageWrap {
@@ -610,13 +613,25 @@ export default function WalletOnboarding() {
             gap: 22px;
           }
 
-          /* Mosaico a 3 columnas en celular (como el collage del login). */
-          .waysMosaicGrid {
-            grid-template-columns: repeat(3, 1fr);
-          }
-
           .waysTitle {
             font-size: 22px;
+          }
+
+          .wayRow {
+            gap: 16px;
+          }
+
+          .wayNum {
+            min-width: 60px;
+            font-size: 56px;
+          }
+
+          .wayName {
+            font-size: 18px;
+          }
+
+          .wayDesc {
+            font-size: 13px;
           }
 
           .lifestyleSecurity {
@@ -922,23 +937,18 @@ export default function WalletOnboarding() {
       <section className="ways">
         <h2 className="waysTitle">{tWallet("onboardingWaysTitle")}</h2>
 
-        <div className="waysMosaic">
-          <div className="waysMosaicGrid" aria-hidden="true">
-            {collageTiles.map((tile, i) => (
-              <div
-                key={i}
-                className={`waysTile${tile.wide ? " isWide" : ""}`}
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={`/${tile.src}.webp`} alt="" loading="lazy" draggable={false} />
+        {/* Los 11 servicios: número grande intercalado izquierda/derecha. */}
+        <ol className="waysList">
+          {SERVICE_NUMS.map((n) => (
+            <li key={n} className={`wayRow${n % 2 === 0 ? " isRight" : ""}`}>
+              <span className="wayNum" aria-hidden="true">{n}</span>
+              <div className="wayText">
+                <span className="wayName">{tWallet(`onboardingSvc${n}Name`)}</span>
+                <span className="wayDesc">{tWallet(`onboardingSvc${n}Desc`)}</span>
               </div>
-            ))}
-          </div>
-          <div className="waysMosaicScrim" aria-hidden="true" />
-
-          {/* Aquí irá el contenido de las 11 formas. */}
-          <div className="waysMosaicContent" />
-        </div>
+            </li>
+          ))}
+        </ol>
       </section>
       </div>
     </>

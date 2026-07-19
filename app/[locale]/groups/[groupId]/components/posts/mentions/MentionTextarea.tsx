@@ -108,6 +108,9 @@ export default function MentionTextarea({
 
   const fetchTokenRef = useRef(0);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Último query buscado: evita re-fetch al mover el caret sin cambiar el query
+  // (si no, el debounce resetearía activeIndex y rompería la navegación ↑/↓).
+  const lastQueryRef = useRef<string | null>(null);
 
   // ── Autogrow ──────────────────────────────────────────────────────────────
   const resize = useCallback(() => {
@@ -142,6 +145,7 @@ export default function MentionTextarea({
     setTrigger(null);
     setSuggestions([]);
     setActiveIndex(0);
+    lastQueryRef.current = null;
     fetchTokenRef.current += 1;
     if (debounceRef.current) clearTimeout(debounceRef.current);
   }, []);
@@ -175,6 +179,10 @@ export default function MentionTextarea({
         return;
       }
       setTrigger(next);
+      // Solo re-buscar cuando el query cambió; mover el caret dentro del mismo
+      // token preserva las sugerencias y el índice activo (navegación ↑/↓).
+      if (next.query === lastQueryRef.current) return;
+      lastQueryRef.current = next.query;
       runFetch(next.query);
     },
     [mentionsDisabled, disabled, closePopover, runFetch]

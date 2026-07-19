@@ -22,7 +22,11 @@ export default function GroupsMobilePage() {
       style={{
         maxWidth: 720,
         margin: "0 auto",
-        padding: "16px 16px 120px",
+        // Sin padding lateral aquí: OwnerSidebar ya trae sus propios 10px de panel.
+        // Antes iba position:fixed de borde a borde (ignoraba este wrapper); ahora
+        // en flujo, sumar padding lateral estrechaba el contenido. Se conserva el
+        // ancho previo (~full width) dejando solo el padding vertical.
+        padding: "16px 0 120px",
         color: "#fff",
       }}
     >

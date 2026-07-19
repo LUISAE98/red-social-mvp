@@ -20,12 +20,14 @@ export type MentionSuggestion = {
   following: boolean;
 };
 
-/** Construye la subcadena literal insertada en el texto para una sugerencia. */
+/**
+ * Construye la subcadena literal insertada en el texto para una sugerencia.
+ * Se etiqueta el NOMBRE visible (displayName del perfil o nombre de la
+ * comunidad), SIN "@": el arroba solo dispara el popover, no queda en el texto.
+ * El link se resuelve aparte con `mention.handle` / `mention.id`.
+ */
 export function buildMentionToken(suggestion: MentionSuggestion): string {
-  if (suggestion.type === "profile" && suggestion.handle) {
-    return `@${suggestion.handle}`;
-  }
-  return `@${suggestion.label}`;
+  return suggestion.label;
 }
 
 /** Convierte una sugerencia seleccionada en la mención persistible. */
