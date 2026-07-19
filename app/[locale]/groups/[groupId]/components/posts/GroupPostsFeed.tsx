@@ -2,8 +2,9 @@
 
 "use client";
 
-import type { CSSProperties } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { motion } from "framer-motion";
 import { collection, doc, getDoc, onSnapshot, orderBy, query, Timestamp, where } from "firebase/firestore";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { auth, db, functions } from "@/lib/firebase";
@@ -36,6 +37,8 @@ import {
 } from "@/lib/posts/post-service";
 import GroupPostCard from "./GroupPostCard";
 import GroupPostComposer from "./GroupPostComposer";
+import PostsMediaSubnav, { MEDIA_TAB_ORDER, type MediaTabKey } from "./PostsMediaSubnav";
+import MediaGallery, { clearMediaGalleryCache, type GalleryTile } from "./MediaGallery";
 import LiveComposerModal from "@/app/components/LiveComposer/LiveComposerModal";
 import { buildCurrentPathWithSearch } from "@/lib/auth-redirect";
 import { uploadPostImages } from "@/lib/posts/image-upload";
@@ -77,6 +80,13 @@ type GroupPostsFeedProps = {
   readOnly?: boolean;
   /** Búsqueda dentro de la comunidad: filtra los posts por texto. */
   searchQuery?: string;
+  /** Reporta la sub-pestaña de media activa (para que el padre oculte el rail
+   *  de recomendaciones en Fotos/Videos/En vivo). */
+  onMediaTabChange?: (tab: MediaTabKey) => void;
+  /** Contenido que va al inicio del panel "Publicaciones", debajo del sub-subnav
+   *  y dentro del slide (ej. banner de donaciones y de sesiones). Se oculta en
+   *  las pestañas de galería. */
+  feedLeadingContent?: ReactNode;
 };
 
 // Búsqueda dentro de la comunidad: normaliza y matchea por texto del post.
@@ -442,6 +452,8 @@ export default function GroupPostsFeed({
   broadcastLiveOnly = false,
   readOnly = false,
   searchQuery = "",
+  onMediaTabChange,
+  feedLeadingContent = null,
 }: GroupPostsFeedProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -450,6 +462,14 @@ export default function GroupPostsFeed({
   const [broadcastLive, setBroadcastLive] = useState<Post | null>(null);
   const [posts, setPosts] = useState<PostWithAuthorState[]>([]);
   const [deletedPosts, setDeletedPosts] = useState<PostWithAuthorState[]>([]);
+  // Sub-subnav de media (Publicaciones/Fotos/Videos/En vivo) + lightbox de galería.
+  const [mediaTab, setMediaTab] = useState<MediaTabKey>("feed");
+  const [lightboxTile, setLightboxTile] = useState<GalleryTile | null>(null);
+  // Pestaña previa para la dirección del slide (mismo patrón que Wallet).
+  const prevMediaTabRef = useRef<MediaTabKey>("feed");
+  useEffect(() => {
+    prevMediaTabRef.current = mediaTab;
+  }, [mediaTab]);
   const [error, setError] = useState<string | null>(null);
   const { toast: feedToast, showToast: showFeedToast } = useVibraToast();
   useEffect(() => { if (error) showFeedToast(error, "error"); }, [error]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -734,6 +754,7 @@ export default function GroupPostsFeed({
   }, [loadPostsPage]);
 
   const handleGroupPullRefresh = useCallback(async () => {
+    clearMediaGalleryCache();
     await loadPostsPage("refresh");
 
     if (
@@ -969,6 +990,8 @@ export default function GroupPostsFeed({
     loadingInitial,
     infiniteScrollTriggerIndex,
     loadPostsPage,
+    // Reobservar el target al volver del panel de galería (remonta el subárbol).
+    mediaTab,
   ]);
 
   function redirectToLogin() {
@@ -1589,6 +1612,30 @@ const shellStyle: CSSProperties = {
     paddingBottom: 12,
   };
 
+  // Sub-subnav de media: solo en el feed real de miembros (no en preview público,
+  // admin, broadcast-only ni durante una búsqueda).
+  const showMediaTabs =
+    !readOnly && !broadcastLiveOnly && !groupSearchActive && (viewerIsMember || isOwner);
+  const effectiveMediaTab: MediaTabKey = showMediaTabs ? mediaTab : "feed";
+
+  const canDeleteLightboxPost = lightboxTile
+    ? isOwner || isModerator || currentUid === lightboxTile.post.authorId
+    : false;
+
+  const prevMediaTab = prevMediaTabRef.current;
+  const mediaSlideDir =
+    prevMediaTab === effectiveMediaTab
+      ? 0
+      : MEDIA_TAB_ORDER[effectiveMediaTab] > MEDIA_TAB_ORDER[prevMediaTab]
+        ? 1
+        : -1;
+
+  // Reporta al padre (page.tsx) la sub-pestaña activa para ocultar el rail de
+  // recomendaciones cuando se está en Fotos/Videos/En vivo.
+  useEffect(() => {
+    onMediaTabChange?.(effectiveMediaTab);
+  }, [effectiveMediaTab, onMediaTabChange]);
+
   return (
     <RefreshableArea onRefresh={handleGroupPullRefresh}>
       <section style={shellStyle}>
@@ -1674,6 +1721,37 @@ const shellStyle: CSSProperties = {
       {composerError && <div style={composerErrorStyle}>{composerError}</div>}
 
       <VibraToast toast={feedToast} />
+
+      {showMediaTabs && (
+        <PostsMediaSubnav active={mediaTab} onChange={setMediaTab} />
+      )}
+
+      <div style={{ overflow: "hidden", width: "100%", minWidth: 0 }}>
+      <motion.div
+        key={effectiveMediaTab}
+        initial={{ x: mediaSlideDir > 0 ? "100%" : mediaSlideDir < 0 ? "-100%" : 0 }}
+        animate={{ x: 0 }}
+        transition={{ type: "spring", stiffness: 320, damping: 32, mass: 0.9 }}
+        style={{ width: "100%", minWidth: 0 }}
+      >
+
+      {effectiveMediaTab !== "feed" ? (
+        <MediaGallery
+          source={{ type: "group", groupId }}
+          kind={effectiveMediaTab}
+          viewerUid={currentUid}
+          onOpenTile={(tile) => {
+            const openUrl = tile.mediaUrl ?? tile.post.media?.[0]?.url ?? null;
+            // Los tiles de live (transmisión/VOD) siempre abren: el card resuelve
+            // internamente la URL del VOD o el modal en vivo.
+            if (!tile.isLive && !openUrl) return;
+            setLightboxTile(tile);
+          }}
+        />
+      ) : (
+      <>
+
+      {feedLeadingContent}
 
       {loadingInitial && (
         <div style={noticeStyle}>Cargando publicaciones...</div>
@@ -1788,6 +1866,58 @@ const shellStyle: CSSProperties = {
       {!groupSearchActive && !loadingInitial && !loadingMore && posts.length > 0 && !hasMore && (
         <div style={noticeStyle}>
           Ya viste todas las publicaciones disponibles.
+        </div>
+      )}
+
+      </>
+      )}
+
+      </motion.div>
+      </div>
+
+      {/* Lightbox de galería: tarjeta headless (0×0) que solo abre el visor. */}
+      {lightboxTile && (
+        <div
+          aria-hidden="true"
+          style={{ position: "fixed", left: 0, top: 0, width: 0, height: 0, overflow: "hidden" }}
+        >
+          <GroupPostCard
+            post={lightboxTile.post}
+            groupId={groupId}
+            canDelete={readOnly ? false : canDeleteLightboxPost}
+            onDelete={
+              readOnly ? undefined : canDeleteLightboxPost ? handleDeletePost : undefined
+            }
+            onLoadComments={readOnly ? handleLoadCommentsAdmin : handleLoadComments}
+            onCreateComment={readOnly ? async () => [] : handleCreateComment}
+            onDeleteComment={readOnly ? async () => [] : handleDeleteComment}
+            onLoadReplies={readOnly ? handleLoadRepliesAdmin : handleLoadReplies}
+            onCreateReply={readOnly ? async () => [] : handleCreateReply}
+            onDeleteReply={readOnly ? async () => [] : handleDeleteReply}
+            onToggleFlame={readOnly ? undefined : handleToggleFlame}
+            onToggleSave={readOnly ? undefined : handleToggleSave}
+            onToggleGroupPin={readOnly ? undefined : handleToggleGroupPin}
+            onToggleProfilePin={readOnly ? undefined : handleToggleProfilePin}
+            currentUserId={currentUid}
+            isOwner={readOnly ? false : isOwner}
+            isModerator={readOnly ? false : isModerator}
+            viewerIsMember={viewerIsMember}
+            showGroupContext={false}
+            canModerateGroupAuthor={readOnly ? false : isOwner || isModerator}
+            canUseGroupMemberBlock={readOnly ? false : !isOwner && viewerIsMember}
+            onModerationComplete={readOnly ? undefined : loadPosts}
+            onGroupMemberBlockComplete={
+              readOnly ? undefined : handleGroupMemberBlockComplete
+            }
+            canCommentOnPosts={readOnly ? false : canCommentOnPosts}
+            commentBlockedReason={readOnly ? null : commentBlockedReason}
+            autoOpenMediaUrl={
+              lightboxTile.mediaUrl ?? lightboxTile.post.media?.[0]?.url ?? null
+            }
+            autoOpenLive={lightboxTile.isLiveNow}
+            autoOpenVod={lightboxTile.isLive && !lightboxTile.isLiveNow}
+            onViewerClosed={() => setLightboxTile(null)}
+          />
         </div>
       )}
       </section>

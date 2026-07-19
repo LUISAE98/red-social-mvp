@@ -2455,6 +2455,13 @@ if (!viewer) return null;
 const isProfileTopOpen =
   profileBucketKey ? openCommunities[profileBucketKey] === true : false;
 
+// ¿Hay al menos una pestaña visible en el menú? (misma lógica que OwnerSidebarTabNav)
+// Se usa para pintar el separador de cierre solo si realmente hay pestañas.
+const hasMenuTabs =
+  loadingFollowing || followedProfiles.length > 0 ||
+  loadingGroups || myGroups.length > 0 || joinedGroups.length > 0 ||
+  pendingCount > 0 || buyerDelivered.length > 0;
+
 return (
     <>
       <style jsx>{`
@@ -2521,6 +2528,15 @@ return (
 }
 .profile-owner-sidebar-scroll::-webkit-scrollbar {
   display: none;
+}
+
+/* Líneas divisoras del sidebar: separan "mi perfil" del menú (arriba) y el menú
+   del contenido que va debajo de la última pestaña (abajo). Mismo look. */
+.owner-sidebar-profile-divider,
+.owner-sidebar-menu-divider {
+  height: 1px;
+  margin: 8px 6px;
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .mini-vertical-scroll {
@@ -2730,6 +2746,10 @@ newPostsCounts={newPostsCounts}
   </div>
 )}
 
+{profileSidebarGroup && (
+  <div className="owner-sidebar-profile-divider" aria-hidden="true" />
+)}
+
           <OwnerSidebarTabNav
             openKey={accordionOpen ? activeView : null}
             onToggle={(key) => {
@@ -2847,6 +2867,10 @@ newPostsCounts={newPostsCounts}
                 ) : null,
             }}
           />
+
+{hasMenuTabs && (
+  <div className="owner-sidebar-menu-divider" aria-hidden="true" />
+)}
 {isMobile && (
   <div style={{
     flexShrink: 0,

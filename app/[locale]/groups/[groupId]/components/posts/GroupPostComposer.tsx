@@ -991,18 +991,21 @@ export default function GroupPostComposer({
     backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)",
   };
 
+// Estilo de campo/placeholder canónico de Vibra (vibra_style.md → "Textarea"):
+// fondo rgba(255,255,255,0.06), sin borde, radio 12, padding 10px 12px, fontSize 13,
+// lineHeight 1.5. El texto tecleado va en #fff; el placeholder queda atenuado.
 const launcherButtonStyle: CSSProperties = {
   width: "100%",
   minHeight: 42,
-  padding: "10px 16px",
-  borderRadius: 999,
-  border: "1px solid rgba(255,255,255,0.10)",
-  background: "rgba(255,255,255,0.035)",
+  padding: "10px 12px",
+  borderRadius: 12,
+  border: "none",
+  background: "rgba(255,255,255,0.06)",
   color: text.trim().length > 0 ? "#fff" : "rgba(255,255,255,0.42)",
   outline: "none",
   fontSize: 13,
   fontWeight: 300,
-  lineHeight: "20px",
+  lineHeight: 1.5,
   fontFamily: fontStack,
   boxSizing: "border-box",
   textAlign: "left",

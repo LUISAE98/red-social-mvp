@@ -10,6 +10,7 @@ import { doc, getDoc } from "firebase/firestore";
 
 import { useAuth } from "@/app/providers";
 import { db } from "@/lib/firebase";
+import { useNotifications } from "@/lib/hooks/useNotifications";
 
 type NavIconKey = "home" | "groups" | "notifications" | "wallet";
 
@@ -164,6 +165,7 @@ export default function MobileBottomNav({
   const pathname = usePathname();
   const router = useRouter();
   const { user } = useAuth();
+  const { unreadCount } = useNotifications(user?.uid ?? null);
 
   const [handle, setHandle] = useState<string | null>(null);
   const [photoURL, setPhotoURL] = useState<string | null>(null);
@@ -373,9 +375,28 @@ export default function MobileBottomNav({
         }
 
         .iconPop {
+          position: relative;
           display: inline-flex;
           align-items: center;
           justify-content: center;
+        }
+
+        .navBadge {
+          position: absolute;
+          top: -5px;
+          right: -8px;
+          min-width: 16px;
+          height: 16px;
+          padding: 0 4px;
+          border-radius: 999px;
+          background: #ec4899;
+          color: #ffffff;
+          font-size: 10px;
+          font-weight: 800;
+          line-height: 16px;
+          text-align: center;
+          box-shadow: 0 0 0 2px #000000;
+          box-sizing: border-box;
         }
 
         @keyframes navPop {
@@ -491,7 +512,12 @@ export default function MobileBottomNav({
                     ) : item.iconKey === "home" ? (
                       isActive ? <NavHomeIconFilled /> : <NavHomeIcon />
                     ) : item.iconKey === "notifications" ? (
-                      isActive ? <NavBellIconFilled /> : <NavBellIcon />
+                      <>
+                        {isActive ? <NavBellIconFilled /> : <NavBellIcon />}
+                        {unreadCount > 0 ? (
+                          <span className="navBadge">{unreadCount > 99 ? "99+" : unreadCount}</span>
+                        ) : null}
+                      </>
                     ) : item.iconKey === "wallet" ? (
                       isActive ? <NavWalletIconFilled /> : <NavWalletIcon />
                     ) : (

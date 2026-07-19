@@ -459,5 +459,6 @@ async function warnUser(
         "Tu contenido fue revisado por nuestro equipo y recibiste una advertencia por violar las normas de la comunidad.",
       read: false,
       createdAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
     });
 }

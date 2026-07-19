@@ -39,6 +39,11 @@ import {
 } from "./PostImageViewer.utils";
 import { Avatar } from "./PostImageViewer.components";
 
+// Z-index base de los overlays del viewer. Se deja apenas por debajo del máximo
+// (2147483647) para reservar cabecera al menú de acciones del post, que debe
+// poder mostrarse POR ENCIMA del viewer cuando se abre desde sus 3 puntos.
+const VIEWER_OVERLAY_Z = 2147480000;
+
 type ImageMedia = {
   url: string;
   altText?: string | null;
@@ -99,6 +104,10 @@ type PostImageViewerProps = {
   initialVideoTime?: number;
   onVideoClose?: (currentTime: number) => void;
   externalVideoElement?: HTMLVideoElement | null;
+  /** Muestra el botón de 3 puntos (menú de acciones del post) dentro del viewer. */
+  showActionsMenu?: boolean;
+  /** Abre el mismo menú de "..." del post, por encima del viewer. */
+  onOpenActionsMenu?: () => void;
 };
 
 export default function PostImageViewer({
@@ -130,6 +139,8 @@ export default function PostImageViewer({
   initialVideoTime,
   onVideoClose,
   externalVideoElement = null,
+  showActionsMenu = false,
+  onOpenActionsMenu,
 }: PostImageViewerProps) {
   const tPosts = useTranslations("posts");
   const tCommon = useTranslations("common");
@@ -930,7 +941,7 @@ const previousMedia =
   const overlayStyle: CSSProperties = {
     position: "fixed",
     inset: 0,
-    zIndex: 2147483647,
+    zIndex: VIEWER_OVERLAY_Z,
     background: useMobileLayout ? "#000" : "rgba(0,0,0,0.82)",
     color: "#fff",
     fontFamily: fontStack,
@@ -1311,7 +1322,7 @@ const previewUrl = media.url;
     <div
       style={{
         position: "fixed",
-        zIndex: 2147483647,
+        zIndex: VIEWER_OVERLAY_Z,
         display: "flex",
         flexDirection: "column",
         fontFamily: fontStack,
@@ -1572,7 +1583,23 @@ const previewUrl = media.url;
             transition: controlsTransition,
           }}
         >
-          {/* PiP · AirPlay — izquierda (video only) */}
+          {/* ⋮ menú de acciones del post + PiP · AirPlay — izquierda */}
+          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+          {showActionsMenu && onOpenActionsMenu && (
+            <button
+              type="button"
+              onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); onOpenActionsMenu(); }}
+              onClick={(e) => { e.stopPropagation(); onOpenActionsMenu(); }}
+              aria-label={tPosts("moreOptions")}
+              style={liveBtnStyle}
+            >
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <circle cx="12" cy="5" r="2" />
+                <circle cx="12" cy="12" r="2" />
+                <circle cx="12" cy="19" r="2" />
+              </svg>
+            </button>
+          )}
           {isCurrentVideo && !mobileVideoTrueFullscreen ? (
             <div style={{ display: "flex", alignItems: "center", gap: 4, opacity: mobileChromeVisible ? 1 : 0, transition: "opacity 220ms ease", pointerEvents: mobileChromeVisible ? "auto" : "none" }}>
               <button
@@ -1596,9 +1623,8 @@ const previewUrl = media.url;
                 </button>
               )}
             </div>
-          ) : (
-            <span />
-          )}
+          ) : null}
+          </div>
 
           {/* Derecha: mute + expand + × */}
           <div style={{ display: "flex", alignItems: "center" }}>
@@ -1915,7 +1941,7 @@ const previewUrl = media.url;
           style={{
             position: "fixed",
             inset: 0,
-            zIndex: 2147483647,
+            zIndex: VIEWER_OVERLAY_Z,
             background: "rgba(0,0,0,0.54)",
             display: "flex",
             alignItems: "flex-end",
@@ -1946,7 +1972,7 @@ const previewUrl = media.url;
       {mounted && mobileSpeedMenuOpen && createPortal(
         <>
           <div
-            style={{ position: "fixed", inset: 0, zIndex: 2147483647, background: "rgba(0,0,0,0.52)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)" }}
+            style={{ position: "fixed", inset: 0, zIndex: VIEWER_OVERLAY_Z, background: "rgba(0,0,0,0.52)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)" }}
             onClick={() => setMobileSpeedMenuOpen(false)}
           />
           <div
@@ -1955,7 +1981,7 @@ const previewUrl = media.url;
               top: "50%",
               left: "50%",
               transform: "translate(-50%, -50%)",
-              zIndex: 2147483647,
+              zIndex: VIEWER_OVERLAY_Z,
               background: "rgba(18,18,20,0.98)",
               border: "1px solid rgba(255,255,255,0.10)",
               borderRadius: 18,
@@ -2012,7 +2038,7 @@ const previewUrl = media.url;
       style={{
         position: "fixed",
         inset: 0,
-        zIndex: 2147483647,
+        zIndex: VIEWER_OVERLAY_Z,
         background: "rgba(0,0,0,0.86)",
         backdropFilter: "blur(12px)",
         WebkitBackdropFilter: "blur(12px)",
@@ -2343,7 +2369,9 @@ const previewUrl = media.url;
         <aside
           onClick={(e) => e.stopPropagation()}
           style={{
-            width: "min(304px, 27vw)",
+            // Un poco más ancho cuando el post es de comunidad: así el badge de
+            // comunidad tras el nombre y el botón de 3 puntos caben sin apretarse.
+            width: group ? "min(340px, 30vw)" : "min(304px, 27vw)",
             height: "min(72dvh, 688px)",
             flexShrink: 0,
             minHeight: 0,
@@ -2503,6 +2531,35 @@ const previewUrl = media.url;
                 {showExactDate ? exactDate : relativeDate}
               </button>
             </div>
+
+            {showActionsMenu && onOpenActionsMenu && (
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); onOpenActionsMenu(); }}
+                aria-label={tPosts("moreOptions")}
+                style={{
+                  flexShrink: 0,
+                  alignSelf: "flex-start",
+                  marginTop: -2,
+                  border: "none",
+                  background: "transparent",
+                  color: "rgba(255,255,255,0.6)",
+                  cursor: "pointer",
+                  padding: 4,
+                  borderRadius: 8,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  WebkitTapHighlightColor: "transparent",
+                }}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <circle cx="12" cy="5" r="2" />
+                  <circle cx="12" cy="12" r="2" />
+                  <circle cx="12" cy="19" r="2" />
+                </svg>
+              </button>
+            )}
           </div>
 
           <div

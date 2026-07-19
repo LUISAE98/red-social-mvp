@@ -619,6 +619,17 @@ match /hiddenGroupTransitions/{groupId} {
           && request.resource.data.tiers.size() <= 10;
       }
 
+      // Notificaciones in-app (campanita). Las escribe SOLO el backend (Admin SDK);
+      // el dueño puede leerlas y marcar como leída (solo el campo `read`).
+      match /notifications/{notifId} {
+        allow get, list: if signedIn() && request.auth.uid == uid;
+        allow update: if signedIn()
+          && request.auth.uid == uid
+          && request.resource.data.diff(resource.data).changedKeys().hasOnly(["read"])
+          && request.resource.data.read is bool;
+        allow create, delete: if false;
+      }
+
       allow delete: if false;
     }
 

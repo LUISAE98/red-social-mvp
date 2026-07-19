@@ -11,6 +11,7 @@ import VibraGradientText from "@/app/components/VibraGradientText/VibraGradientT
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import WalletPhonePreview from "./WalletPhonePreview";
 import WalletOnboardingGlobe from "./WalletOnboardingGlobe";
+import ServiceFeaturePreview from "@/components/services/ServiceFeaturePreview";
 import {
   WALLET_COMMISSION_RATE,
   WALLET_NET_RATE,
@@ -50,8 +51,58 @@ const HERO_LIST_KEYS = [
   "onboardingHeroList8",
 ] as const;
 
-// Los 11 servicios monetizables (nombre + descripción corta).
-const SERVICE_NUMS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11] as const;
+// Orden de aparición de los 11 servicios (cada valor es el id del servicio; el
+// número que se muestra es la posición). El 9 va a la posición 5 y el 8 a la 6.
+const SERVICE_ORDER = [1, 2, 3, 4, 9, 8, 5, 6, 7, 10, 11] as const;
+
+// Imagen de fondo por servicio (webp en /public). Los que faltan usan un fondo
+// neutro por ahora; se agregarán cuando se suban sus imágenes.
+const SERVICE_IMAGES: Record<number, string> = {
+  1: "saludo",
+  2: "consejo",
+  3: "sesionexclusiva",
+  4: "encuentroenvivo", // "Tiempo contigo"
+  5: "supercomentarios",
+  6: "donacionesenvivo", // "Donaciones"
+  7: "donacion-perfil", // "Donaciones en perfil"
+  8: "suscripciones",
+  9: "live", // "Ticket por entrar a en vivo"
+  10: "desbloquearvod", // "Ticket por ver VOD"
+  11: "desbloquearcontenido", // "Ticket por post premium"
+};
+
+// Solo los 4 servicios de experiencia tienen items informativos en el perfil.
+// Mapea el id de servicio a la clave de ServiceFeaturePreview (reutiliza sus
+// iconos, estructura de item y textos exactos). El resto no revela detalle.
+const SERVICE_PREVIEW_KEY: Record<
+  number,
+  | "saludo"
+  | "consejo"
+  | "meetGreet"
+  | "customClass"
+  | "liveAccess"
+  | "subscription"
+  | "superComments"
+> = {
+  1: "saludo",
+  2: "consejo",
+  3: "customClass", // "Sesión exclusiva"
+  4: "meetGreet", // "Tiempo contigo"
+  5: "superComments", // "Supercomentarios"
+  8: "subscription", // "Suscripciones a tu comunidad"
+  9: "liveAccess", // "Acceso a transmisiones en vivo"
+};
+
+// Color de acento de los íconos de cada tarjeta de servicio, por id de servicio.
+const SERVICE_ACCENT: Record<number, string> = {
+  1: "#a855ff", // saludos → morado
+  2: "#eab308", // consejos → amarillo
+  3: "#ec4899", // sesiones → rosa
+  4: "#3b82f6", // tiempo contigo → azul
+  5: "#a855ff", // supercomentarios → morado
+  8: "#3b82f6", // suscripciones → azul
+  9: "#a855ff", // acceso a lives → morado
+};
 
 export default function WalletOnboarding() {
   const tWallet = useTranslations("wallet");
@@ -77,7 +128,6 @@ export default function WalletOnboarding() {
           position: relative;
           isolation: isolate;
           overflow: hidden;
-          border-radius: 20px;
           padding: 40px 36px 48px;
         }
 
@@ -425,18 +475,68 @@ export default function WalletOnboarding() {
           padding: 0;
           display: flex;
           flex-direction: column;
-          gap: 34px;
+          gap: 5px;
         }
 
+        /* Cada servicio es una tarjeta con la imagen de su categoría de fondo. */
+        /* La tarjeta es una columna: parte visible (imagen) + panel desplegable.
+           El fondo es negro; la imagen vive solo en .wayMain (tamaño fijo). */
         .wayRow {
+          position: relative;
+          display: flex;
+          flex-direction: column;
+          background: #05040a;
+        }
+
+        /* Parte siempre visible: número + texto sobre la imagen de tamaño fijo. */
+        .wayMain {
+          position: relative;
+          isolation: isolate;
+          overflow: hidden;
+          min-height: 150px;
+          padding: 22px 28px;
           display: flex;
           align-items: center;
           gap: 26px;
         }
 
-        /* Filas pares: número a la derecha, texto a la izquierda. */
-        .wayRow.isRight {
+        .wayRow.isRight .wayMain {
           flex-direction: row-reverse;
+        }
+
+        /* Velo oscuro sobre la imagen, para que número y texto se lean. */
+        .wayScrim {
+          position: absolute;
+          inset: 0;
+          z-index: 1;
+          background: rgba(6, 3, 14, 0.7);
+          pointer-events: none;
+        }
+
+        /* Difuminado a negro en el borde inferior de la imagen. Invisible hasta
+           que se abre el panel: entonces la imagen se funde con el fondo negro. */
+        .wayMainFade {
+          position: absolute;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          height: 55%;
+          z-index: 1;
+          background: linear-gradient(to bottom, rgba(5, 4, 10, 0), #05040a);
+          opacity: 0;
+          transition: opacity 320ms ease;
+          pointer-events: none;
+        }
+
+        .wayRow:hover .wayMainFade,
+        .wayRow:focus-within .wayMainFade {
+          opacity: 1;
+        }
+
+        .wayMain .wayNum,
+        .wayMain .wayText {
+          position: relative;
+          z-index: 2;
         }
 
         .wayNum {
@@ -445,9 +545,9 @@ export default function WalletOnboarding() {
           text-align: center;
           font-size: 84px;
           line-height: 0.9;
-          font-weight: 800;
+          font-weight: 600;
           letter-spacing: -0.04em;
-          color: #22c55e;
+          color: #ffffff;
         }
 
         .wayText {
@@ -472,10 +572,35 @@ export default function WalletOnboarding() {
         }
 
         .wayDesc {
-          max-width: 46ch;
+          max-width: 60ch;
           font-size: 14px;
           line-height: 1.45;
           color: rgba(255, 255, 255, 0.72);
+        }
+
+        /* Panel desplegable (fondo negro de .wayRow): se abre hacia abajo al hover
+           sin tocar el tamaño de la imagen. */
+        .wayInfo {
+          display: grid;
+          grid-template-rows: 0fr;
+          opacity: 0;
+          transition:
+            grid-template-rows 380ms cubic-bezier(0.4, 0, 0.2, 1),
+            opacity 300ms ease;
+        }
+
+        .wayRow:hover .wayInfo,
+        .wayRow:focus-within .wayInfo {
+          grid-template-rows: 1fr;
+          opacity: 1;
+        }
+
+        .wayInfoInner {
+          overflow: hidden;
+        }
+
+        .wayInfoContent {
+          padding: 4px 28px 24px;
         }
 
         .lifestyleImageWrap {
@@ -603,7 +728,6 @@ export default function WalletOnboarding() {
         @media (max-width: 900px) {
           .onboarding {
             padding: 28px 20px 36px;
-            border-radius: 16px;
           }
 
           /* En angosto: lista arriba y seguridad como fila debajo. */
@@ -617,8 +741,12 @@ export default function WalletOnboarding() {
             font-size: 22px;
           }
 
-          .wayRow {
+          .wayMain {
             gap: 16px;
+          }
+
+          .wayInfoContent {
+            padding: 4px 18px 20px;
           }
 
           .wayNum {
@@ -937,17 +1065,65 @@ export default function WalletOnboarding() {
       <section className="ways">
         <h2 className="waysTitle">{tWallet("onboardingWaysTitle")}</h2>
 
-        {/* Los 11 servicios: número grande intercalado izquierda/derecha. */}
+        {/* Los 11 servicios: número grande intercalado izquierda/derecha, cada
+            uno con la imagen de su categoría de fondo. */}
         <ol className="waysList">
-          {SERVICE_NUMS.map((n) => (
-            <li key={n} className={`wayRow${n % 2 === 0 ? " isRight" : ""}`}>
-              <span className="wayNum" aria-hidden="true">{n}</span>
-              <div className="wayText">
-                <span className="wayName">{tWallet(`onboardingSvc${n}Name`)}</span>
-                <span className="wayDesc">{tWallet(`onboardingSvc${n}Desc`)}</span>
-              </div>
-            </li>
-          ))}
+          {SERVICE_ORDER.map((svc, i) => {
+            const pos = i + 1;
+            const img = SERVICE_IMAGES[svc];
+            const previewKey = SERVICE_PREVIEW_KEY[svc];
+            return (
+              <li
+                key={svc}
+                className={`wayRow${pos % 2 === 0 ? " isRight" : ""}${
+                  previewKey ? " hasInfo" : ""
+                }`}
+              >
+                {/* Parte visible: imagen (tamaño fijo) + número + texto. */}
+                <div className="wayMain">
+                  {img ? (
+                    <Image
+                      src={`/${img}.webp`}
+                      alt=""
+                      fill
+                      sizes="(max-width: 900px) 100vw, 768px"
+                      style={{ objectFit: "cover", zIndex: 0 }}
+                    />
+                  ) : null}
+                  <div className="wayScrim" aria-hidden="true" />
+                  {/* Difuminado a negro en el borde inferior (aparece al abrir). */}
+                  <div className="wayMainFade" aria-hidden="true" />
+
+                  <span className="wayNum" aria-hidden="true">{pos}</span>
+                  <div className="wayText">
+                    <span className="wayName">{tWallet(`onboardingSvc${svc}Name`)}</span>
+                    <span className="wayDesc">{tWallet(`onboardingSvc${svc}Desc`)}</span>
+                  </div>
+                </div>
+
+                {/* Panel que se despliega hacia abajo (fondo negro, no la imagen). */}
+                {previewKey ? (
+                  <div className="wayInfo">
+                    <div className="wayInfoInner">
+                      <div className="wayInfoContent">
+                        <ServiceFeaturePreview
+                          service={previewKey}
+                          accentColor={SERVICE_ACCENT[svc] ?? "#22c55e"}
+                          durationDescription={
+                            svc === 3
+                              ? tWallet("onboardingSvc3Duration")
+                              : svc === 4
+                                ? tWallet("onboardingSvc4Duration")
+                                : undefined
+                          }
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
+              </li>
+            );
+          })}
         </ol>
       </section>
       </div>

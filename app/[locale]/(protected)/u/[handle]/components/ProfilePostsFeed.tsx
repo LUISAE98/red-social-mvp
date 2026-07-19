@@ -3,6 +3,7 @@
 
 import type { CSSProperties } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { motion } from "framer-motion";
 import { useTranslations } from "next-intl";
 import { doc, getDoc, Timestamp } from "firebase/firestore";
 
@@ -29,6 +30,8 @@ import {
   removePostFromAllFeedCaches,
 } from "@/lib/posts/post-feed-cache";
 import GroupPostCard from "@/app/groups/[groupId]/components/posts/GroupPostCard";
+import PostsMediaSubnav, { MEDIA_TAB_ORDER, type MediaTabKey } from "@/app/groups/[groupId]/components/posts/PostsMediaSubnav";
+import MediaGallery, { type GalleryTile } from "@/app/groups/[groupId]/components/posts/MediaGallery";
 import GroupRecommendationsRail from "@/app/components/GroupRecommendations/GroupRecommendationsRail";
 import {
   buildRandomRecommendationSlots,
@@ -509,6 +512,14 @@ export default function ProfilePostsFeed({
   const [posts, setPosts] = useState<PostWithFlags[]>(
     () => _initCacheSnap ? _initCacheSnap.posts.filter((p) => !p.isDeleted) : []
   );
+  // Sub-subnav de media (Publicaciones/Fotos/Videos/En vivo) + lightbox de galería.
+  const [mediaTab, setMediaTab] = useState<MediaTabKey>("feed");
+  const [lightboxTile, setLightboxTile] = useState<GalleryTile | null>(null);
+  // Pestaña previa para la dirección del slide (mismo patrón que Wallet/Perfil).
+  const prevMediaTabRef = useRef<MediaTabKey>("feed");
+  useEffect(() => {
+    prevMediaTabRef.current = mediaTab;
+  }, [mediaTab]);
   const [error, setError] = useState<string | null>(null);
   const { toast: feedToast, showToast: showFeedToast } = useVibraToast();
   useEffect(() => { if (error) showFeedToast(error, "error"); }, [error]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -988,6 +999,8 @@ const cacheKey = useMemo(
   isOwner,
   infiniteScrollTriggerIndex,
   loadPostsPage,
+  // Reobservar el target al volver del panel de galería (se remonta el subárbol).
+  mediaTab,
 ]);
 
   async function handleToggleFlame(postId: string): Promise<void> {
@@ -1312,10 +1325,55 @@ const shellStyle: CSSProperties = {
     );
   }
 
+  // Sub-subnav de media: fuera de búsqueda y de contextos embed.
+  const showMediaTabs = !searchActive && !isEmbed;
+  const effectiveMediaTab: MediaTabKey = showMediaTabs ? mediaTab : "feed";
+  const canDeleteLightboxPost = lightboxTile
+    ? viewerUid === lightboxTile.post.authorId
+    : false;
+
+  const prevMediaTab = prevMediaTabRef.current;
+  const mediaSlideDir =
+    prevMediaTab === effectiveMediaTab
+      ? 0
+      : MEDIA_TAB_ORDER[effectiveMediaTab] > MEDIA_TAB_ORDER[prevMediaTab]
+        ? 1
+        : -1;
+
   return (
     <section style={shellStyle}>
       <VibraToast toast={feedToast} />
 
+      {showMediaTabs && (
+        <PostsMediaSubnav active={mediaTab} onChange={setMediaTab} />
+      )}
+
+      <div style={{ overflow: "hidden", width: "100%", minWidth: 0 }}>
+      <motion.div
+        key={effectiveMediaTab}
+        initial={{ x: mediaSlideDir > 0 ? "100%" : mediaSlideDir < 0 ? "-100%" : 0 }}
+        animate={{ x: 0 }}
+        transition={{ type: "spring", stiffness: 320, damping: 32, mass: 0.9 }}
+        style={{ width: "100%", minWidth: 0 }}
+      >
+
+      {effectiveMediaTab !== "feed" ? (
+        <MediaGallery
+          source={{ type: "profile", profileUid }}
+          kind={effectiveMediaTab}
+          viewerUid={viewerUid}
+          onOpenTile={(tile) => {
+            const openUrl = tile.mediaUrl ?? tile.post.media?.[0]?.url ?? null;
+            // Los tiles de live (transmisión/VOD) siempre abren: el card resuelve
+            // internamente la URL del VOD o el modal en vivo.
+            if (!tile.isLive && !openUrl) return;
+            setLightboxTile(tile);
+          }}
+        />
+      ) : (
+      <>
+
+      {/* Donaciones: parte del panel de Publicaciones, debajo del sub-subnav. */}
       {showDonationBanner && (
         <div style={postItemStyle} data-cover-donation-banner="true">
           <DonationFeedBanner
@@ -1445,6 +1503,47 @@ const shellStyle: CSSProperties = {
             />
           </div>
         )}
+
+      </>
+      )}
+
+      </motion.div>
+      </div>
+
+      {/* Lightbox de galería: tarjeta headless (0×0) que solo abre el visor. */}
+      {lightboxTile && (
+        <div
+          aria-hidden="true"
+          style={{ position: "fixed", left: 0, top: 0, width: 0, height: 0, overflow: "hidden" }}
+        >
+          <GroupPostCard
+            post={lightboxTile.post}
+            canDelete={canDeleteLightboxPost}
+            onDelete={canDeleteLightboxPost ? handleDeletePost : undefined}
+            onLoadComments={handleLoadComments}
+            onCreateComment={handleCreateComment}
+            onDeleteComment={handleDeleteComment}
+            onLoadReplies={handleLoadReplies}
+            onCreateReply={handleCreateReply}
+            onDeleteReply={handleDeleteReply}
+            onToggleFlame={handleToggleFlame}
+            onToggleSave={handleToggleSave}
+            onToggleProfilePin={isOwner ? handleToggleProfilePin : undefined}
+            currentUserId={viewerUid}
+            isOwner={isOwner && viewerUid === lightboxTile.post.authorId}
+            showGroupContext={true}
+            canCommentOnPosts={
+              !lightboxTile.post.groupId ? isOwner || commentsEnabled : undefined
+            }
+            autoOpenMediaUrl={
+              lightboxTile.mediaUrl ?? lightboxTile.post.media?.[0]?.url ?? null
+            }
+            autoOpenLive={lightboxTile.isLiveNow}
+            autoOpenVod={lightboxTile.isLive && !lightboxTile.isLiveNow}
+            onViewerClosed={() => setLightboxTile(null)}
+          />
+        </div>
+      )}
     </section>
   );
 }

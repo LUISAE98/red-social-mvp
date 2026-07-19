@@ -51,7 +51,7 @@ export const COLLAGE_IMAGES: CollageImage[] = [
   { src: "gaming", wide: false },
 
   { src: "sesionexclusiva", wide: true },
-  { src: "donacion", wide: false },
+  { src: "donacion-perfil", wide: false },
   { src: "consejo", wide: true },
   { src: "tecnologia", wide: false },
 

@@ -552,6 +552,10 @@ const canRequestMeetGreet =
   const [groupDonationViewerOpen, setGroupDonationViewerOpen] = useState(false);
 
   const [activeTab, setActiveTab] = useState<GroupTabKey>("feed");
+  // Sub-pestaña de media del feed (Publicaciones/Fotos/Videos/En vivo) reportada
+  // por GroupPostsFeed; se usa para ocultar el rail de recomendaciones fuera de
+  // "Publicaciones".
+  const [feedMediaTab, setFeedMediaTab] = useState<string>("feed");
 
   // Cambio de pestaña preservando el scroll (misma UX que Wallet/Perfil).
   const tabSwitchScrollY = useRef<number | null>(null);
@@ -2553,37 +2557,6 @@ const avatarNode = (
             >
             {activeTab === "feed" && (
               <section className="group-tab-panel group-feed-wrap" style={{ marginTop: 12 }}>
-                {normalizedCurrentDonation?.mode === "general" && normalizedCurrentDonation?.enabled === true && normalizedCurrentDonation?.visible !== false && (
-                  <div className="group-feed-item" style={{ marginBottom: 12 }}>
-                    <DonationFeedBanner
-                      message={normalizedCurrentDonation.message ?? null}
-                      playbackId={normalizedCurrentDonation.playbackId ?? null}
-                      creatorName={group.name ?? null}
-                      profilePhoto={group.avatarUrl ?? null}
-                      donationMode={normalizedCurrentDonation.mode ?? null}
-                      goalLabel={normalizedCurrentDonation.goalLabel ?? null}
-                      expanded={groupDonationViewerOpen}
-                      onClick={normalizedCurrentDonation.playbackId ? () => setGroupDonationViewerOpen(true) : undefined}
-                      onClose={() => setGroupDonationViewerOpen(false)}
-                      suggestedAmounts={normalizedCurrentDonation.suggestedAmounts ?? null}
-                      currency={normalizedCurrentDonation.currency ?? null}
-                      viewerIsCreator={isOwner}
-                    />
-                  </div>
-                )}
-
-                {user?.uid && isOwner && (
-                  <div className="group-feed-item" style={{ marginBottom: 12 }}>
-                    <CreatorSessionCountdownBanner uid={user.uid} />
-                  </div>
-                )}
-
-                {user?.uid && (
-                  <div className="group-feed-item" style={{ marginBottom: 12 }}>
-                    <SessionCountdownBanner uid={user.uid} />
-                  </div>
-                )}
-
                 <div className="group-feed-item">
 <div ref={groupPostsAnchorRef} aria-hidden="true" style={{ scrollMarginTop: 72 }} />
 <GroupPostsFeed
@@ -2600,10 +2573,45 @@ const avatarNode = (
   broadcastLiveOnly={!canViewPublicFeed}
   readOnly={isEmbed}
   searchQuery={postSearchQuery}
+  onMediaTabChange={setFeedMediaTab}
+  feedLeadingContent={
+    <>
+      {normalizedCurrentDonation?.mode === "general" && normalizedCurrentDonation?.enabled === true && normalizedCurrentDonation?.visible !== false && (
+        <div className="group-feed-item" style={{ marginBottom: 12 }}>
+          <DonationFeedBanner
+            message={normalizedCurrentDonation.message ?? null}
+            playbackId={normalizedCurrentDonation.playbackId ?? null}
+            creatorName={group.name ?? null}
+            profilePhoto={group.avatarUrl ?? null}
+            donationMode={normalizedCurrentDonation.mode ?? null}
+            goalLabel={normalizedCurrentDonation.goalLabel ?? null}
+            expanded={groupDonationViewerOpen}
+            onClick={normalizedCurrentDonation.playbackId ? () => setGroupDonationViewerOpen(true) : undefined}
+            onClose={() => setGroupDonationViewerOpen(false)}
+            suggestedAmounts={normalizedCurrentDonation.suggestedAmounts ?? null}
+            currency={normalizedCurrentDonation.currency ?? null}
+            viewerIsCreator={isOwner}
+          />
+        </div>
+      )}
+
+      {user?.uid && isOwner && (
+        <div className="group-feed-item" style={{ marginBottom: 12 }}>
+          <CreatorSessionCountdownBanner uid={user.uid} />
+        </div>
+      )}
+
+      {user?.uid && (
+        <div className="group-feed-item" style={{ marginBottom: 12 }}>
+          <SessionCountdownBanner uid={user.uid} />
+        </div>
+      )}
+    </>
+  }
 />
                 </div>
 
-                {user?.uid && !isEmbed ? (
+                {user?.uid && !isEmbed && feedMediaTab === "feed" ? (
                   <div className="group-feed-item">
                     <GroupRecommendationsRail
                       currentUserId={user.uid}

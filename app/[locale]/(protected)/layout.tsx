@@ -16,9 +16,12 @@ import ScrollToTopFAB from "@/app/components/ScrollToTopFAB/ScrollToTopFAB";
 import GroupsSearchPanel from "@/app/components/SearchToolbar/GroupsSearchPanel";
 import { useWalletVisibility } from "@/lib/wallet/useWalletVisibility";
 import { useWalletFinances, selectFinanceView } from "@/lib/wallet/walletFinances";
+import { useBalanceHidden, toggleBalanceHidden } from "@/lib/wallet/useBalanceHidden";
+import MaskedAmount from "@/app/components/MaskedAmount";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import { useMobileHeaderFade } from "@/app/hooks/useMobileHeaderFade";
 import { VibraNavigationIcon, VibraNavigationIconsStyles } from "@/app/components/VibraServiceIcons/VibraNavigationIcons";
+import NotificationBell from "@/app/components/Notifications/NotificationBell";
 import WalletDesktopRail from "@/app/components/WalletDesktopRail/WalletDesktopRail";
 import { MobileHeaderCtx, type MobileHeaderData } from "@/app/contexts/MobileHeaderContext";
 import LanguageSwitcher from "@/app/components/LanguageSwitcher";
@@ -94,6 +97,8 @@ const walletAvailable = selectFinanceView(walletSummary, "net").available;
 // Sin saldo (o aún cargando) no se pinta el monto: el icono queda solo y así
 // alinea a la misma altura que el de notificaciones.
 const showWalletAmount = !walletLoading && walletAvailable > 0;
+// Toggle de privacidad (compartido con el rail derecho): oculta el saldo.
+const balanceHidden = useBalanceHidden();
 const { headerRef, safeAreaRef } = useMobileHeaderFade();
 // Slide de entrada vía atributo CSS aplicado DESPUÉS del paint (no framer-motion).
 // En iOS un transform en render sobre un ancestro crea un containing/stacking
@@ -271,7 +276,72 @@ const contentAreaClassName = isEmbed
           display: flex;
           align-items: center;
           justify-content: flex-start;
+          gap: 16px;
         }
+
+/* Wallet movida a la izquierda (junto al logo): icono + monto EN FILA, el monto
+   a la derecha del icono. Reglas propias porque las de .desktopHeaderQuickLinks
+   apilaban icono/monto en columna. */
+.brandCol :global(.brandWalletLink) {
+  height: 38px;
+  padding: 0 8px;
+  border-radius: 8px;
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 7px;
+  flex: 0 0 auto;
+  opacity: 1;
+  transition: opacity 140ms ease, background 140ms ease;
+}
+
+.brandCol :global(.brandWalletLink svg path) {
+  stroke: #ffffff;
+}
+
+.brandCol :global(.brandWalletLink:hover) {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.10);
+}
+
+.brandCol :global(.brandWalletLink.desktopActionIconActive) {
+  opacity: 1;
+}
+
+.brandCol :global(.brandWalletAmount) {
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: #4ade80;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Cartera izquierda + ojito para ocultar el saldo. */
+.brandCol :global(.brandWallet) {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.brandCol :global(.brandWalletEye) {
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.55);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 140ms ease, background 140ms ease;
+}
+
+.brandCol :global(.brandWalletEye:hover) {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.10);
+}
 
         .brand {
           font-weight: 700;
@@ -383,25 +453,10 @@ const contentAreaClassName = isEmbed
   justify-content: center;
   gap: 7px;
   flex: 0 0 auto;
-  opacity: 0.8;
+  opacity: 1;
   transition: opacity 140ms ease, background 140ms ease;
 }
 
-/* La wallet apila icono arriba + monto abajo */
-.desktopHeaderQuickLinks :global(.desktopWalletLink) {
-  flex-direction: column;
-  gap: 2px;
-}
-
-/* Monto disponible para retirar, debajo del icono de wallet */
-.desktopHeaderQuickLinks :global(.desktopWalletAmount) {
-  font-size: 11px;
-  font-weight: 700;
-  line-height: 1;
-  letter-spacing: -0.01em;
-  color: #22c55e;
-  white-space: nowrap;
-}
 
 /* Los iconos del set Vibra traen el trazo morado de marca; en el header van en
    blanco. El CSS gana sobre el atributo stroke del SVG. */
@@ -850,6 +905,51 @@ const contentAreaClassName = isEmbed
 <Link href="/" className="brand" aria-label={tNav("goHome")}>
   <span className="brandLogo">Vibra</span>
 </Link>
+
+{user ? (
+  <div className="brandWallet">
+    <LocaleLink
+      href="/wallet/finanzas"
+      aria-label={tNav("wallet")}
+      className={[
+        "brandWalletLink",
+        isWalletPage ? "desktopActionIconActive" : "",
+      ].filter(Boolean).join(" ")}
+    >
+      <VibraNavigationIcon type="wallet" size={22} strokeWidth={2.2} />
+      {showWalletAmount ? (
+        <span className="brandWalletAmount">
+          {balanceHidden ? (
+            <MaskedAmount formatted={formatPrice(walletAvailable)} />
+          ) : (
+            formatPrice(walletAvailable)
+          )}
+        </span>
+      ) : null}
+    </LocaleLink>
+    {showWalletAmount ? (
+      <button
+        type="button"
+        className="brandWalletEye"
+        onClick={toggleBalanceHidden}
+        aria-label={balanceHidden ? tNav("showAmount") : tNav("hideAmount")}
+        aria-pressed={balanceHidden}
+      >
+        {balanceHidden ? (
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+            <line x1="1" y1="1" x2="23" y2="23"/>
+          </svg>
+        ) : (
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+            <circle cx="12" cy="12" r="3"/>
+          </svg>
+        )}
+      </button>
+    ) : null}
+  </div>
+) : null}
               </div>
 
               <div className="desktopMainCluster">
@@ -868,35 +968,9 @@ const contentAreaClassName = isEmbed
 
                 {user ? (
                   <div className="desktopHeaderQuickLinks">
-                    {/* LocaleLink (no next/link): arma el prefijo de idioma y
-                        navega del lado del cliente, sin redirect del middleware. */}
-                    <LocaleLink
-                      href="/notifications"
-                      aria-label={tNav("notifications")}
-                      className={[
-                        "desktopActionIcon",
-                        pathname.startsWith("/notifications") ? "desktopActionIconActive" : "",
-                      ].filter(Boolean).join(" ")}
-                    >
-                      <VibraNavigationIcon type="notifications" size={22} strokeWidth={2.2} />
-                    </LocaleLink>
-
-                    <LocaleLink
-                      href="/wallet/finanzas"
-                      aria-label={tNav("wallet")}
-                      className={[
-                        "desktopActionIcon",
-                        "desktopWalletLink",
-                        isWalletPage ? "desktopActionIconActive" : "",
-                      ].filter(Boolean).join(" ")}
-                    >
-                      <VibraNavigationIcon type="wallet" size={22} strokeWidth={2.2} />
-                      {showWalletAmount ? (
-                        <span className="desktopWalletAmount">
-                          {formatPrice(walletAvailable)}
-                        </span>
-                      ) : null}
-                    </LocaleLink>
+                    {/* Campanita: abre un panel flotante con las notificaciones
+                        agregadas (likes, comentarios, follows, comunidades). */}
+                    <NotificationBell active={pathname.startsWith("/notifications")} />
                   </div>
                 ) : null}
 

@@ -70,6 +70,7 @@ import { createMediaPost, createTextPost } from "@/lib/posts/post-service";
 import { uploadPostImages } from "@/lib/posts/image-upload";
 import { clearAllPostFeedCaches } from "@/lib/posts/post-feed-cache";
 import RefreshableArea from "@/components/refresh/RefreshableArea";
+import { clearMediaGalleryCache } from "@/app/groups/[groupId]/components/posts/MediaGallery";
 import type { Post, PostMedia, PostPremium } from "@/lib/posts/types";
 import dynamic from "next/dynamic";
 import { motion } from "framer-motion";
@@ -502,6 +503,7 @@ function openFollowersOverlay() {
 
 const handleProfilePullRefresh = useCallback(async () => {
   clearAllPostFeedCaches();
+  clearMediaGalleryCache();
   setProfilePostsRefreshKey((value) => value + 1);
   router.refresh();
 }, [router]);

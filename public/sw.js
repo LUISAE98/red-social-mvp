@@ -12,7 +12,7 @@
 //
 // Al cambiar VERSION se limpian los caches viejos automáticamente.
 
-const VERSION = "v1";
+const VERSION = "v2";
 const STATIC_CACHE = `vibra-static-${VERSION}`;
 const RUNTIME_CACHE = `vibra-runtime-${VERSION}`;
 

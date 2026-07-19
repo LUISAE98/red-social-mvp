@@ -137,6 +137,19 @@ type GroupPostCardProps = {
   /** Callback tras ocultar/reportar/bloquear un post sugerido: el padre lo
    *  remueve del feed y alimenta el algoritmo con la señal negativa. */
   onHidePost?: (reason: "hide" | "report" | "block") => void;
+  /**
+   * Modo "solo visor" para el lightbox de galerías: al montar, abre
+   * automáticamente el visor de medios en esta URL. El cuerpo de la tarjeta se
+   * oculta desde el padre (contenedor 0×0); solo se muestran los portales
+   * (visor, menú, modales) que van a document.body.
+   */
+  autoOpenMediaUrl?: string | null;
+  /** Como autoOpenMediaUrl pero abre el visor de la transmisión en vivo. */
+  autoOpenLive?: boolean;
+  /** Abre el VOD (grabación de una transmisión) usando la URL HLS interna del card. */
+  autoOpenVod?: boolean;
+  /** Se dispara cuando el visor auto-abierto se cierra (para desmontar el lightbox). */
+  onViewerClosed?: () => void;
 };
 
 type DisplayMediaItem = {
@@ -183,6 +196,10 @@ onToggleProfilePin,
   beforeMenuAction = null,
   suggestionMode = false,
   onHidePost,
+  autoOpenMediaUrl = null,
+  autoOpenLive = false,
+  autoOpenVod = false,
+  onViewerClosed,
 }: GroupPostCardProps) {
   const tCommon = useTranslations("common");
   const tFeed = useTranslations("feed");
@@ -232,6 +249,8 @@ onToggleProfilePin,
   const [liveEditOpen, setLiveEditOpen] = useState(false);
   const [liveSetupOpen, setLiveSetupOpen] = useState(false);
   const [liveViewerOpen, setLiveViewerOpen] = useState(false);
+  // URL HLS del VOD (se asigna en render); la usa el auto-open de galería.
+  const liveVodUrlRef = useRef<string | null>(null);
   const [liveCreatorOpen, setLiveCreatorOpen] = useState(false);
   const [liveTicketShake, setLiveTicketShake] = useState(false);
   const [hasLiveTicketAccess, setHasLiveTicketAccess] = useState(false);
@@ -702,7 +721,33 @@ useEffect(() => {
     viewerVideoTimeRef.current = 0;
     setSelectedMediaUrl(null);
     setCommentsPanelOpen(false);
+    // Modo lightbox de galería: avisa al padre para desmontar la tarjeta headless.
+    if (onViewerClosed) window.setTimeout(() => onViewerClosed(), 280);
   }
+
+  // Lightbox de galerías: al montar en modo headless, abre el visor solo.
+  const autoOpenedRef = useRef(false);
+  useEffect(() => {
+    if (autoOpenedRef.current) return;
+    if (autoOpenLive) {
+      // Transmisión en curso → modal de live.
+      autoOpenedRef.current = true;
+      setLiveViewerOpen(true);
+    } else if (autoOpenVod) {
+      // VOD → visor de medios con la URL HLS del VOD (igual que el feed).
+      autoOpenedRef.current = true;
+      const vodUrl = liveVodUrlRef.current ?? autoOpenMediaUrl;
+      // Si no hay grabación reproducible o el contenido está bloqueado (de pago
+      // sin comprar — flujo de ticket pendiente), se desmonta el lightbox.
+      if (vodUrl && !premiumState.isBlocked) openMediaViewer(vodUrl, null);
+      else onViewerClosed?.();
+    } else if (autoOpenMediaUrl) {
+      autoOpenedRef.current = true;
+      if (!premiumState.isBlocked) openMediaViewer(autoOpenMediaUrl, null);
+      else onViewerClosed?.();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoOpenMediaUrl, autoOpenLive, autoOpenVod]);
   async function refreshAfterModeration() {
     await onModerationComplete?.();
   }
@@ -1088,6 +1133,9 @@ function handleToggleSave() {
   async function handleModerationAction(action: ModerationAction) {
     if (action === "edit_post") {
       closeMenu();
+      // El modal de edición vive por debajo del viewer; si el menú se abrió
+      // desde el viewer, hay que cerrarlo para que el editor sea visible.
+      if (selectedMediaUrl !== null) closeMediaViewer();
       if (post.postType === "live") {
         setLiveEditOpen(true);
       } else {
@@ -1098,6 +1146,7 @@ function handleToggleSave() {
 
     if (action === "mute") {
       setMuteDays("7");
+      if (selectedMediaUrl !== null) closeMediaViewer();
       setMuteModalOpen(true);
       closeMenu();
       return;
@@ -1586,6 +1635,7 @@ function renderBlurredMediaBackdrop(
   const liveVodUrl = activeLiveData?.status === "ended"
     ? (effectivePlayback?.hlsUrl ?? (activeLiveData?.vodStatus === "ready" ? (activeLiveData?.hlsUrl ?? null) : null))
     : null;
+  liveVodUrlRef.current = liveVodUrl;
   const isCFLive = activeLiveData?.streamProvider === "cloudflare";
   // CF streams: VOD visible as soon as URL is ready. Mux: requires creator confirmation.
   const liveVodReady = !!liveVodUrl && (
@@ -4109,7 +4159,10 @@ padding: "0 0 2px 0",
 {liveViewerOpen && (
   <LiveViewerModal
     open={liveViewerOpen}
-    onClose={() => setLiveViewerOpen(false)}
+    onClose={() => {
+      setLiveViewerOpen(false);
+      if (onViewerClosed) window.setTimeout(() => onViewerClosed(), 200);
+    }}
     post={{ ...post, liveData: activeLiveData ?? post.liveData }}
     onManage={currentUserId === post.authorId ? () => { setLiveViewerOpen(false); setLiveCreatorOpen(true); } : undefined}
     initialPortrait={isLivePortrait}
@@ -4258,7 +4311,8 @@ padding: "0 0 2px 0",
               style={{
                 position: "fixed",
                 inset: 0,
-                zIndex: 99990,
+                // Sobre el viewer de medios cuando se abre desde sus 3 puntos.
+                zIndex: selectedMediaUrl !== null ? 2147483646 : 99990,
                 background: "rgba(0,0,0,0.50)",
                 animation: menuClosing
                   ? "vbActionsMenuFadeOut 0.15s ease forwards"
@@ -4272,7 +4326,7 @@ padding: "0 0 2px 0",
               style={{
                 position: "fixed",
                 inset: 0,
-                zIndex: 99991,
+                zIndex: selectedMediaUrl !== null ? 2147483647 : 99991,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -4387,6 +4441,9 @@ padding: "0 0 2px 0",
                         role="menuitem"
                         onClick={() => {
                           closeMenu();
+                          // ReportModal vive por debajo del viewer; si venimos
+                          // desde el viewer, cerrarlo para que sea visible.
+                          if (selectedMediaUrl !== null) closeMediaViewer();
                           openReport({
                             targetType: "post",
                             targetId: post.id,
@@ -4609,6 +4666,8 @@ padding: "0 0 2px 0",
   isSaved={optimisticViewerHasSaved}
   saveBusy={saveBusy}
   savesCount={optimisticSavesCount}
+  showActionsMenu={shouldShowActionsMenu}
+  onOpenActionsMenu={() => setMenuOpen(true)}
 />
 <PostCommentsPanel
   open={commentsPanelOpen}

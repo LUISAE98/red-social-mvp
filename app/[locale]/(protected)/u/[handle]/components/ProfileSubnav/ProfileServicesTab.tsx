@@ -771,7 +771,7 @@ export default function ProfileServicesTab({
     "/sesionexclusiva.webp",
     "center 75%"
   );
-  const donationPanelStyle = makeServicePanelStyle("/donacion.webp", "center 50%");
+  const donationPanelStyle = makeServicePanelStyle("/donacion-perfil.webp", "center 50%");
 
   // Panel sin imagen de fondo, para servicios aún no activados.
   const plainPanelStyle: React.CSSProperties = {

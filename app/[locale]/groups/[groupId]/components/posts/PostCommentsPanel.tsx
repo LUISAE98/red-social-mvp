@@ -219,10 +219,11 @@ export default function PostCommentsPanel({
     paddingRight: isMobile ? 2 : 0,
   };
 
+  // Sin minHeight/maxHeight aquí: la altura la controla el autogrow de
+  // MentionTextarea (arranca en 1 renglón y crece hasta maxRows=4; a partir de ahí
+  // scrollea dentro). El padding del campo lo aporta pillWrapperStyle.
   const inputStyle: CSSProperties = {
     width: "100%",
-    minHeight: 24,
-    maxHeight: 44,
     padding: 0,
     border: "none",
     background: "transparent",
@@ -232,18 +233,21 @@ export default function PostCommentsPanel({
     overflowY: "auto",
     fontSize: 13,
     fontWeight: 300,
-    lineHeight: "22px",
+    lineHeight: 1.5,
     fontFamily: fontStack,
     boxSizing: "border-box",
   };
 
+  // Estilo de campo/placeholder canónico de Vibra (vibra_style.md → "Textarea"):
+  // fondo rgba(255,255,255,0.06), sin borde, radio 12, padding 10px 12px. El input
+  // interno va transparente (padding 0) y el fondo/padding lo aporta este contenedor.
   const pillWrapperStyle: CSSProperties = {
     flex: 1,
     minWidth: 0,
-    borderRadius: 14,
-    border: "1px solid rgba(255,255,255,0.15)",
-    background: "transparent",
-    padding: "5px 14px",
+    borderRadius: 12,
+    border: "none",
+    background: "rgba(255,255,255,0.06)",
+    padding: "7px 12px",
     display: "flex",
     alignItems: "center",
   };
@@ -415,7 +419,7 @@ export default function PostCommentsPanel({
                     currentUserId={currentUserId}
                     mentionsDisabled={mentionsDisabled}
                     placeholder={tPosts("writeComment")}
-                    maxRows={2}
+                    maxRows={4}
                     style={inputStyle}
                   />
                 ) : (
@@ -690,7 +694,7 @@ export default function PostCommentsPanel({
                   currentUserId={currentUserId}
                   mentionsDisabled={mentionsDisabled}
                   placeholder={tPosts("writeComment")}
-                  maxRows={2}
+                  maxRows={4}
                   style={inputStyle}
                 />
               ) : (

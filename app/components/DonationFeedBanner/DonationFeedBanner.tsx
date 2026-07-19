@@ -385,7 +385,7 @@ export default function DonationFeedBanner({
         <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: "40%", background: "linear-gradient(to top, rgba(0,0,0,0.85) 0%, transparent 100%)", pointerEvents: "none", zIndex: 8 }} />
         <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "0 14px", paddingBottom: btnPadBottom, zIndex: 10 }}>
           <button type="button" onTouchStart={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); handleContributeClick(); }}
-            style={{ width: "100%", padding: sz === 20 ? "8px 10px" : "11px 10px", borderRadius: 10, border: "none", background: "#ec4899", color: "#fff", fontSize: sz === 20 ? 12 : 14, fontWeight: 600, cursor: "pointer", letterSpacing: "-0.01em", display: "flex", alignItems: "center", justifyContent: "center", gap: 7 }}
+            style={{ width: "100%", padding: sz === 20 ? "8px 10px" : "11px 10px", borderRadius: 10, border: "none", background: "#38bdf8", color: "#fff", fontSize: sz === 20 ? 12 : 14, fontWeight: 600, cursor: "pointer", letterSpacing: "-0.01em", display: "flex", alignItems: "center", justifyContent: "center", gap: 7 }}
           >
             <svg width={sz === 20 ? 12 : 14} height={sz === 20 ? 12 : 14} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" style={{ flexShrink: 0 }}>
               <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.27 2 8.5 2 5.41 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.08C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.41 22 8.5c0 3.77-3.4 6.86-8.55 11.53L12 21.35z" />
@@ -488,16 +488,16 @@ export default function DonationFeedBanner({
   const donateRow = (
     <>
       <div style={{ display: "flex", alignItems: "center", gap: 5, width: "86%", overflow: "hidden" }}>
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#ec4899" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
           <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
         </svg>
-        <span style={{ fontSize: 11, color: "#ec4899", lineHeight: 1.3, overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis", minWidth: 0 }}>
+        <span style={{ fontSize: 11, color: "#38bdf8", lineHeight: 1.3, overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis", minWidth: 0 }}>
           {tCommon("voluntaryContribution")}
         </span>
       </div>
       <button type="button"
         onClick={(e) => { e.stopPropagation(); handleContributeClick(); }}
-        style={{ width: "86%", padding: "10px 0", justifyContent: "center", borderRadius: 10, border: "none", background: "#ec4899", color: "#fff", fontSize: 14, fontWeight: 600, letterSpacing: "-0.01em", cursor: "pointer", fontFamily: "inherit", WebkitTapHighlightColor: "transparent", display: "flex", alignItems: "center", gap: 7 }}
+        style={{ width: "86%", padding: "10px 0", justifyContent: "center", borderRadius: 10, border: "none", background: "#38bdf8", color: "#fff", fontSize: 14, fontWeight: 600, letterSpacing: "-0.01em", cursor: "pointer", fontFamily: "inherit", WebkitTapHighlightColor: "transparent", display: "flex", alignItems: "center", gap: 7 }}
       >
         <svg width="16" height="16" viewBox="0 0 24 24" fill="white">
           <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
@@ -563,7 +563,7 @@ export default function DonationFeedBanner({
           <div
             className="dbv-container"
             onClick={onClick}
-            style={{ position: "relative", width: "100%", borderRadius: 16, overflow: "hidden", backgroundColor: "#0a0a0a", backgroundImage: "url(/donacion2.webp)", backgroundSize: "cover", backgroundPosition: "center", cursor: onClick ? "pointer" : "default", WebkitTapHighlightColor: "transparent" }}
+            style={{ position: "relative", width: "100%", borderRadius: 16, overflow: "hidden", backgroundColor: "#0a0a0a", backgroundImage: "url(/donacion-perfil-vertical.webp)", backgroundSize: "cover", backgroundPosition: "center", cursor: onClick ? "pointer" : "default", WebkitTapHighlightColor: "transparent" }}
           >
             <div style={{ position: "absolute", inset: 0, background: "rgba(10,10,10,0.68)" }} />
             <div style={{ position: "relative", zIndex: 1, display: "flex", flexDirection: "column", alignItems: "center", padding: "22px 18px 18px", gap: 10 }}>
@@ -606,7 +606,7 @@ export default function DonationFeedBanner({
           onClick={onClick}
           style={{ position: "relative", width: "100%", borderRadius: 16, overflow: "hidden", background: "#0a0a0a", cursor: onClick ? "pointer" : "default", aspectRatio: "16 / 8", WebkitTapHighlightColor: "transparent" }}
         >
-          <Image src="/donacion.webp" alt={tCommon("donation")} fill sizes="(max-width: 720px) 100vw, 720px" style={{ objectFit: "cover", objectPosition: "center" }} priority />
+          <Image src="/donacion-perfil.webp" alt={tCommon("donation")} fill sizes="(max-width: 720px) 100vw, 720px" style={{ objectFit: "cover", objectPosition: "center" }} priority />
           <div style={{ position: "absolute", inset: 0, background: "rgba(10,10,10,0.68)" }} />
 
           {hlsUrl && (
@@ -650,7 +650,7 @@ export default function DonationFeedBanner({
         <div
           className="dbv-container"
           onClick={onClick}
-          style={{ position: "relative", width: "100%", borderRadius: 16, overflow: "hidden", backgroundColor: "#0a0a0a", backgroundImage: "url(/donacion2.webp)", backgroundSize: "cover", backgroundPosition: "center", cursor: onClick ? "pointer" : "default", WebkitTapHighlightColor: "transparent" }}
+          style={{ position: "relative", width: "100%", borderRadius: 16, overflow: "hidden", backgroundColor: "#0a0a0a", backgroundImage: "url(/donacion-perfil-vertical.webp)", backgroundSize: "cover", backgroundPosition: "center", cursor: onClick ? "pointer" : "default", WebkitTapHighlightColor: "transparent" }}
         >
           <div style={{ position: "absolute", inset: 0, background: "rgba(10,10,10,0.68)" }} />
 

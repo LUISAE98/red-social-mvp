@@ -10,7 +10,14 @@ import { useTranslations } from "next-intl";
  * hacia el CREADOR ("tu seguidor…", "tú propondrás…") en vez de hacia el comprador.
  */
 
-type ServiceKey = "saludo" | "consejo" | "meetGreet" | "customClass";
+type ServiceKey =
+  | "saludo"
+  | "consejo"
+  | "meetGreet"
+  | "customClass"
+  | "liveAccess"
+  | "subscription"
+  | "superComments";
 
 function IconWrap({ children, color }: { children: React.ReactNode; color: string }) {
   return (
@@ -82,6 +89,16 @@ const ICONS: Record<string, (color: string) => React.ReactNode> = {
       <path d="M8 12.5l3 3 5-5" />
     </IconWrap>
   ),
+  star: (c) => (
+    <IconWrap color={c}>
+      <path d="M12 3.5l2.6 5.27 5.82.85-4.21 4.1.99 5.79L12 16.77l-5.2 2.73.99-5.79-4.21-4.1 5.82-.85L12 3.5Z" />
+    </IconWrap>
+  ),
+  heart: (c) => (
+    <IconWrap color={c}>
+      <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78Z" />
+    </IconWrap>
+  ),
 };
 
 const rowStyle: React.CSSProperties = {
@@ -108,7 +125,7 @@ function FeatureCell({
   return (
     <div style={rowStyle}>
       {ICONS[icon](color)}
-      <div style={{ display: "flex", flexDirection: "column", gap: 9, minWidth: 0 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
         <span style={titleTextStyle}>{title}</span>
         <span style={descTextStyle}>{description}</span>
       </div>
@@ -119,11 +136,20 @@ function FeatureCell({
 export default function ServiceFeaturePreview({
   service,
   accentColor,
+  durationDescription,
 }: {
   service: ServiceKey;
   accentColor: string;
+  /**
+   * Texto del item "Duración" (solo aplica a meetGreet y customClass). Si se
+   * omite, se usa la descripción genérica. El wallet onboarding lo usa para
+   * mostrar el rango de minutos; el perfil lo deja vacío a propósito, porque
+   * ahí el creador configura su propia duración.
+   */
+  durationDescription?: string;
 }) {
   const t = useTranslations("services");
+  const durationDesc = durationDescription ?? t("featurePreviewDurationDesc");
 
   const includesItems = [
     t("defaultIncludeConversation"),
@@ -182,22 +208,51 @@ export default function ServiceFeaturePreview({
   } else if (service === "meetGreet") {
     cells = (
       <>
-        <FeatureCell icon="clock" color={accentColor} title={t("duration")} description={t("featurePreviewDurationDesc")} />
+        <FeatureCell icon="clock" color={accentColor} title={t("duration")} description={durationDesc} />
         <FeatureCell icon="camera" color={accentColor} title={t("modalityLabel")} description={t("fromAnywhereDesc")} />
         {IncludesCell}
         <FeatureCell icon="calendar" color={accentColor} title={t("scheduleDateTimeLabel")} description={t("featurePreviewScheduleDesc")} />
       </>
     );
-  } else {
-    // customClass (sesión exclusiva)
+  } else if (service === "customClass") {
+    // sesión exclusiva
     cells = (
       <>
-        <FeatureCell icon="clock" color={accentColor} title={t("duration")} description={t("featurePreviewDurationDesc")} />
+        <FeatureCell icon="clock" color={accentColor} title={t("duration")} description={durationDesc} />
         <FeatureCell icon="camera" color={accentColor} title={t("modalityLabel")} description={t("fromAnywhereDesc")} />
         <FeatureCell icon="focus" color={accentColor} title={t("exclusiveSessionFocusedLabel")} description={t("featurePreviewFocusedDesc")} />
         <FeatureCell icon="lock" color={accentColor} title={t("exclusiveSessionPrivateLabel")} description={t("exclusiveSessionPrivateDesc")} />
         {IncludesCell}
         <FeatureCell icon="calendar" color={accentColor} title={t("scheduleDateTimeLabel")} description={t("featurePreviewScheduleDesc")} />
+      </>
+    );
+  } else if (service === "liveAccess") {
+    // acceso a transmisiones en vivo
+    cells = (
+      <>
+        <FeatureCell icon="lock" color={accentColor} title={t("liveAccessTicketLabel")} description={t("liveAccessTicketDesc")} />
+        <FeatureCell icon="star" color={accentColor} title={t("liveAccessSuperLabel")} description={t("liveAccessSuperDesc")} />
+        <FeatureCell icon="heart" color={accentColor} title={t("liveAccessDonationLabel")} description={t("liveAccessDonationDesc")} />
+      </>
+    );
+  } else if (service === "subscription") {
+    // suscripciones a tu comunidad
+    cells = (
+      <>
+        <FeatureCell icon="calendar" color={accentColor} title={t("subscriptionPreviewRecurringLabel")} description={t("subscriptionPreviewRecurringDesc")} />
+        <FeatureCell icon="star" color={accentColor} title={t("subscriptionPreviewExclusiveLabel")} description={t("subscriptionPreviewExclusiveDesc")} />
+        <FeatureCell icon="heart" color={accentColor} title={t("subscriptionPreviewBenefitsLabel")} description={t("subscriptionPreviewBenefitsDesc")} />
+        <FeatureCell icon="check" color={accentColor} title={t("subscriptionPreviewPriceLabel")} description={t("subscriptionPreviewPriceDesc")} />
+      </>
+    );
+  } else {
+    // superComments (supercomentarios)
+    cells = (
+      <>
+        <FeatureCell icon="star" color={accentColor} title={t("superCommentsPreviewTiersLabel")} description={t("superCommentsPreviewTiersDesc")} />
+        <FeatureCell icon="focus" color={accentColor} title={t("superCommentsPreviewPinLabel")} description={t("superCommentsPreviewPinDesc")} />
+        <FeatureCell icon="camera" color={accentColor} title={t("superCommentsPreviewLiveLabel")} description={t("superCommentsPreviewLiveDesc")} />
+        <FeatureCell icon="check" color={accentColor} title={t("superCommentsPreviewPriceLabel")} description={t("superCommentsPreviewPriceDesc")} />
       </>
     );
   }
