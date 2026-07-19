@@ -150,6 +150,8 @@ type GroupPostCardProps = {
   autoOpenVod?: boolean;
   /** Abre el flujo de desbloqueo/compra (panel de pago premium o ticket de live/VOD). */
   autoOpenUnlock?: boolean;
+  /** Se dispara al desbloquear (comprar) el post — para que la galería lo refleje. */
+  onPostUnlocked?: (postId: string) => void;
   /** Se dispara cuando el visor auto-abierto se cierra (para desmontar el lightbox). */
   onViewerClosed?: () => void;
   /** Deep-link de notificaciones: al montar abre el panel de comentarios. */
@@ -206,6 +208,7 @@ onToggleProfilePin,
   autoOpenLive = false,
   autoOpenVod = false,
   autoOpenUnlock = false,
+  onPostUnlocked,
   onViewerClosed,
   autoOpenComments = false,
   focusCommentId = null,
@@ -4156,7 +4159,10 @@ padding: "0 0 2px 0",
   post={post}
   currentUserId={currentUserId}
   isMobile={isMobile}
-  onPay={applyTempUnlock}
+  onPay={() => {
+    void applyTempUnlock();
+    onPostUnlocked?.(post.id);
+  }}
   onClose={() => {
     setPaymentPanelOpen(false);
     if (onViewerClosed) window.setTimeout(() => onViewerClosed(), 200);

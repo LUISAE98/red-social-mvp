@@ -2467,6 +2467,8 @@ return (
       <style jsx>{`
 .profile-owner-sidebar-panel {
   position: relative;
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
   width: 100%;
   max-height: calc(100vh - 100px);
@@ -2496,6 +2498,7 @@ return (
   display: flex;
   flex-direction: column;
   gap: 10px;
+  flex: 1 1 auto;
   min-height: 0;
   max-height: 100%;
 }
@@ -2525,6 +2528,21 @@ return (
   scrollbar-width: none;
   -ms-overflow-style: none;
   -webkit-overflow-scrolling: touch;
+  /* Difumina el contenido en los bordes al hacer scroll, en vez de cortarlo. */
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    #000 20px,
+    #000 calc(100% - 20px),
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    #000 20px,
+    #000 calc(100% - 20px),
+    transparent 100%
+  );
 }
 .profile-owner-sidebar-scroll::-webkit-scrollbar {
   display: none;
@@ -2634,6 +2652,9 @@ return (
     overflow: visible !important;
     max-height: none !important;
     height: auto !important;
+    /* En móvil el sidebar va en flujo (scroll de página), no interno: sin máscara. */
+    -webkit-mask-image: none !important;
+    mask-image: none !important;
   }
 }
 
@@ -2701,14 +2722,9 @@ className="profile-owner-sidebar-fixed"
           {msg && <div style={styles.message}>{msg}</div>}
           {groupsErr && <div style={styles.message}>{groupsErr}</div>}
 
-<div
-  className="profile-owner-sidebar-scroll"
-  style={{
-    height: `calc(100vh - ${ui.sidebarTop + ui.sidebarBottom + 20}px)`,
-  }}
->
+{/* Fijo: "mi perfil" no scrollea, se queda arriba. */}
 {profileSidebarGroup && (
-  <div style={{ display: "grid", gap: 8 }}>
+  <div style={{ display: "grid", gap: 8, flexShrink: 0 }}>
     <OwnerSidebarMyGroups
     loadingGroups={false}
     myGroups={[profileSidebarGroup]}
@@ -2747,9 +2763,11 @@ newPostsCounts={newPostsCounts}
 )}
 
 {profileSidebarGroup && (
-  <div className="owner-sidebar-profile-divider" aria-hidden="true" />
+  <div className="owner-sidebar-profile-divider" aria-hidden="true" style={{ flexShrink: 0 }} />
 )}
 
+{/* Solo el menú de abajo scrollea, con difuminado en los bordes. */}
+<div className="profile-owner-sidebar-scroll">
           <OwnerSidebarTabNav
             openKey={accordionOpen ? activeView : null}
             onToggle={(key) => {

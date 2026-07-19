@@ -18,35 +18,46 @@ import {
 } from "@/lib/posts/post-service";
 import { VibraNavigationIcon } from "@/app/components/VibraServiceIcons/VibraNavigationIcons";
 
-/**
- * ¿El tile es contenido de pago que este viewer aún no puede ver? (aproximación:
- * el autor y, en comunidad, los miembros con acceso gratis, sí lo ven). El
- * estado real de compra se resuelve al abrir el flujo de desbloqueo.
- */
-function isPaidLockedPost(
-  post: Post,
-  viewerUid: string | null,
-  hasMembership: boolean
-): boolean {
-  if (viewerUid && post.authorId === viewerUid) return false; // autor
-
-  // Post premium.
-  if (post.premium?.enabled === true) {
-    if (post.premium.freeFor === "members_and_subscribers" && hasMembership) return false;
-    return true;
-  }
-
-  // Post / VOD de pago por ticket.
-  const paid =
+/** ¿El post es contenido de pago (premium o ticket), independiente del viewer? */
+function isPaidContentPost(post: Post): boolean {
+  return (
+    post.premium?.enabled === true ||
     post.accessModel === "one_time_purchase" ||
     post.requiresPayment === true ||
-    post.liveData?.accessType === "paid";
-  if (!paid) return false;
+    post.liveData?.accessType === "paid"
+  );
+}
 
-  if (post.liveData?.paidAccessMode === "members_free_non_members_pay" && hasMembership) {
-    return false;
+/**
+ * ¿El viewer YA puede ver este contenido de pago? El autor, los miembros con
+ * acceso gratis, y los posts desbloqueados en esta sesión (`unlocked`).
+ */
+function hasPaidAccess(
+  post: Post,
+  viewerUid: string | null,
+  hasMembership: boolean,
+  unlocked: ReadonlySet<string>
+): boolean {
+  if (viewerUid && post.authorId === viewerUid) return true; // autor
+  if (unlocked.has(post.id)) return true; // desbloqueado en esta sesión
+  // Desbloqueo persistente en este navegador (misma llave que usePostTempUnlock).
+  try {
+    if (
+      typeof window !== "undefined" &&
+      window.localStorage.getItem(`vibra_post_unlocked_${post.id}`) === "1"
+    ) {
+      return true;
+    }
+  } catch {
+    // localStorage no disponible; ignorar.
   }
-  return true;
+
+  if (post.premium?.enabled === true) {
+    return post.premium.freeFor === "members_and_subscribers" && hasMembership;
+  }
+  return (
+    post.liveData?.paidAccessMode === "members_free_non_members_pay" && hasMembership
+  );
 }
 
 export type GalleryTile = {
@@ -63,6 +74,8 @@ export type GalleryTile = {
   isCarousel: boolean;
   /** Contenido de pago que el viewer aún no puede ver: se muestra borroso + Desbloquear. */
   isLocked: boolean;
+  /** Contenido de pago al que el viewer SÍ tiene acceso: corona chica abajo-derecha. */
+  isPremiumUnlocked: boolean;
 };
 
 type MediaGallerySource =
@@ -75,10 +88,14 @@ type MediaGalleryProps = {
   viewerUid?: string | null;
   /** El viewer tiene acceso por membresía (comunidad) — para no bloquear contenido members-free. */
   viewerHasMembership?: boolean;
+  /** Posts desbloqueados (comprados) en esta sesión — dejan de mostrarse bloqueados. */
+  unlockedPostIds?: ReadonlySet<string>;
   onOpenTile: (tile: GalleryTile) => void;
 };
 
 const PAGE_SIZE = 24;
+
+const EMPTY_UNLOCKED: ReadonlySet<string> = new Set();
 
 type MediaGalleryCacheEntry = {
   posts: Post[];
@@ -118,7 +135,8 @@ function tilesFromPosts(
   posts: Post[],
   kind: MediaGalleryKind,
   viewerUid: string | null,
-  hasMembership: boolean
+  hasMembership: boolean,
+  unlocked: ReadonlySet<string>
 ): GalleryTile[] {
   const tiles: GalleryTile[] = [];
 
@@ -127,7 +145,10 @@ function tilesFromPosts(
     // Carrusel = el post trae más de un medio (fotos, videos o mixto).
     const isCarousel =
       media.filter((m) => m.type === "image" || m.type === "video").length > 1;
-    const isLocked = isPaidLockedPost(post, viewerUid, hasMembership);
+    const isPaid = isPaidContentPost(post);
+    const hasAccess = isPaid && hasPaidAccess(post, viewerUid, hasMembership, unlocked);
+    const isLocked = isPaid && !hasAccess;
+    const isPremiumUnlocked = isPaid && hasAccess;
 
     if (kind === "photos") {
       // Un solo tile por post: la PRIMERA foto (aunque sea carrusel o mixto).
@@ -145,6 +166,7 @@ function tilesFromPosts(
         isLive: false,
         isCarousel,
         isLocked,
+        isPremiumUnlocked,
       });
     } else if (kind === "videos") {
       // Un solo tile por post: el PRIMER video (aunque sea carrusel o mixto).
@@ -167,6 +189,7 @@ function tilesFromPosts(
         isLive: false,
         isCarousel,
         isLocked,
+        isPremiumUnlocked,
       });
     } else {
       // lives (un tile por post ya)
@@ -195,6 +218,7 @@ function tilesFromPosts(
         isLive: true,
         isCarousel: false,
         isLocked,
+        isPremiumUnlocked,
       });
     }
   }
@@ -207,6 +231,7 @@ export default function MediaGallery({
   kind,
   viewerUid = null,
   viewerHasMembership = false,
+  unlockedPostIds = EMPTY_UNLOCKED,
   onOpenTile,
 }: MediaGalleryProps) {
   const tPosts = useTranslations("posts");
@@ -346,8 +371,8 @@ export default function MediaGallery({
   }, [loadMore]);
 
   const tiles = useMemo(
-    () => tilesFromPosts(posts, kind, viewerUid, viewerHasMembership),
-    [posts, kind, viewerUid, viewerHasMembership]
+    () => tilesFromPosts(posts, kind, viewerUid, viewerHasMembership, unlockedPostIds),
+    [posts, kind, viewerUid, viewerHasMembership, unlockedPostIds]
   );
 
   // Con filtrado en cliente una página puede traer 0 tiles; auto-rellena hasta un
@@ -400,8 +425,14 @@ export default function MediaGallery({
             {tile.isLocked && <span style={lockedScrimStyle} aria-hidden="true" />}
 
             {tile.isLocked && (
-              <span style={lockedCrownStyle} aria-hidden="true">
+              <span className="vibra-media-crown" aria-hidden="true">
                 <VibraNavigationIcon type="premiumCrown" size={44} />
+              </span>
+            )}
+
+            {tile.isPremiumUnlocked && (
+              <span className="vibra-media-crown-sm" aria-hidden="true">
+                <VibraNavigationIcon type="premiumCrown" size={17} />
               </span>
             )}
 
@@ -426,12 +457,7 @@ export default function MediaGallery({
             {tile.isLiveNow && <span style={liveBadgeStyle}>{tPosts("mediaLiveBadge")}</span>}
 
             {tile.isVideo && !tile.isLiveNow && (
-              <span
-                style={{
-                  ...viewsChipStyle,
-                  ...(tile.isLocked ? viewsChipLockedStyle : null),
-                }}
-              >
+              <span className={tile.isLocked ? "vibra-media-views locked" : "vibra-media-views"}>
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                   <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" />
                   <circle cx="12" cy="12" r="3" />
@@ -495,6 +521,51 @@ const MEDIA_GRID_CSS = `
     border-radius: 9px;
   }
 }
+.vibra-media-crown {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  filter: drop-shadow(0 2px 6px rgba(0,0,0,0.55));
+}
+@media (max-width: 767px) {
+  .vibra-media-crown {
+    transform: translateY(-9px) scale(0.8);
+  }
+}
+.vibra-media-crown-sm {
+  position: absolute;
+  bottom: 6px;
+  right: 6px;
+  display: flex;
+  pointer-events: none;
+  filter: drop-shadow(0 1px 3px rgba(0,0,0,0.6));
+}
+.vibra-media-views {
+  position: absolute;
+  bottom: 6px;
+  left: 6px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  pointer-events: none;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.7));
+}
+.vibra-media-views.locked {
+  bottom: 44px;
+  left: 10px;
+}
+@media (min-width: 768px) {
+  .vibra-media-views.locked {
+    bottom: 54px;
+  }
+}
 `;
 
 const tileStyle: CSSProperties = {
@@ -532,17 +603,6 @@ const lockedScrimStyle: CSSProperties = {
   pointerEvents: "none",
 };
 
-// Corona grande centrada en el card bloqueado.
-const lockedCrownStyle: CSSProperties = {
-  position: "absolute",
-  inset: 0,
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  pointerEvents: "none",
-  filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.55))",
-};
-
 const liveBadgeStyle: CSSProperties = {
   position: "absolute",
   top: 6,
@@ -555,29 +615,6 @@ const liveBadgeStyle: CSSProperties = {
   fontWeight: 800,
   letterSpacing: "0.06em",
   pointerEvents: "none",
-};
-
-// Contador de vistas (videos/VODs): esquina inferior izquierda, sin contenedor
-// (transparente), con sombra para leerse sobre cualquier fondo.
-const viewsChipStyle: CSSProperties = {
-  position: "absolute",
-  bottom: 6,
-  left: 6,
-  display: "flex",
-  alignItems: "center",
-  gap: 4,
-  color: "#fff",
-  fontSize: 11,
-  fontWeight: 700,
-  lineHeight: 1,
-  pointerEvents: "none",
-  filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.7))",
-};
-
-// En posts bloqueados el contador sube por encima del botón de desbloquear.
-const viewsChipLockedStyle: CSSProperties = {
-  bottom: 44,
-  left: 10,
 };
 
 // Icono blanco de carrusel (arriba-izquierda). Drop-shadow para verse en

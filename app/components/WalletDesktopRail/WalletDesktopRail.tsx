@@ -192,6 +192,23 @@ export default function WalletDesktopRail({
           overflow-x: hidden;
           padding-bottom: 18px;
           scrollbar-width: none;
+          /* Difumina el contenido en los bordes superior e inferior en vez de
+             cortarlo de golpe al hacer scroll. La máscara se aplica sobre el área
+             visible, así el contenido se desvanece al pasar por los extremos. */
+          -webkit-mask-image: linear-gradient(
+            to bottom,
+            transparent 0,
+            #000 22px,
+            #000 calc(100% - 22px),
+            transparent 100%
+          );
+          mask-image: linear-gradient(
+            to bottom,
+            transparent 0,
+            #000 22px,
+            #000 calc(100% - 22px),
+            transparent 100%
+          );
         }
 
         .walletRailCenter::-webkit-scrollbar {

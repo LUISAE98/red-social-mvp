@@ -338,3 +338,18 @@ body::-webkit-scrollbar-button {
 [data-nav-enter="left"] {
   animation: nav-enter-from-left 280ms ease-out both;
 }
+
+/* Deep-link de notificaciones: resalta el comentario enfocado con un morado
+   sutil (mismo tono #a855ff que las notificaciones). El resaltado PERSISTE hasta
+   que el comentario entra en el viewport del usuario (lo ve); solo entonces se
+   añade la clase fade y el color se desvanece suavemente. */
+.notifCommentFocus {
+  background-color: rgba(168, 85, 255, 0.15);
+  border-radius: 10px;
+  margin: -6px -8px;
+  padding: 6px 8px;
+  transition: background-color 1100ms ease;
+}
+.notifCommentFocus.notifCommentFocusFade {
+  background-color: rgba(168, 85, 255, 0);
+}

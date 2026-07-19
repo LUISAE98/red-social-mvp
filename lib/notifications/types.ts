@@ -71,15 +71,20 @@ export function notificationHref(n: AppNotification): string {
     case "group_new_member":
       return n.target.groupId ? `/groups/${n.target.groupId}` : "/notifications";
     default:
-      // post_like / comment / reply / comment_like / mention → post individual,
-      // con ?c= para enfocar el comentario/respuesta relacionado.
-      if (n.target.postId) {
-        return n.target.commentId
-          ? `/post/${n.target.postId}?c=${n.target.commentId}`
-          : `/post/${n.target.postId}`;
-      }
+      // post_like / comment / reply / comment_like / mention → post individual.
+      // El comentario a enfocar viaja aparte (ver notificationQuery), como query
+      // objeto, porque el Link de next-intl no preserva el query en href string.
+      if (n.target.postId) return `/post/${n.target.postId}`;
       if (n.target.groupId) return `/groups/${n.target.groupId}`;
       if (n.target.handle) return `/u/${n.target.handle}`;
       return "/notifications";
   }
+}
+
+/** Query string (objeto) para el deep-link: enfoca un comentario dentro del post. */
+export function notificationQuery(n: AppNotification): Record<string, string> | undefined {
+  if (n.target.postId && n.target.commentId) {
+    return { c: n.target.commentId };
+  }
+  return undefined;
 }

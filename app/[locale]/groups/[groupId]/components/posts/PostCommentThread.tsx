@@ -970,7 +970,7 @@ export default function PostCommentThread({
 
   // Deep-link de notificaciones: enfoque de este comentario.
   const rootRef = useRef<HTMLDivElement>(null);
-  const [deepLinkHighlight, setDeepLinkHighlight] = useState(false);
+  const [focusState, setFocusState] = useState<"idle" | "hold" | "fade">("idle");
   const focusedRef = useRef(false);
 
   // Comment actions menu (⋯)
@@ -1022,19 +1022,44 @@ export default function PostCommentThread({
   // Deep-link de notificaciones: si este comentario es el enfocado, hace scroll,
   // lo resalta unos segundos y auto-expande sus respuestas (por si la actividad
   // notificada fueron respuestas).
+  // Al enfocar: resalta y mantiene el color (sin scroll automático).
   useEffect(() => {
     if (focusedRef.current) return;
     if (!focusCommentId || focusCommentId !== comment.id) return;
     focusedRef.current = true;
     if (replyCount > 0) void handleLoadReplies();
-    const timer = setTimeout(() => {
-      rootRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-      setDeepLinkHighlight(true);
-      setTimeout(() => setDeepLinkHighlight(false), 2600);
-    }, 220);
-    return () => clearTimeout(timer);
+    setFocusState("hold");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focusCommentId, comment.id]);
+
+  // El resaltado persiste hasta que el comentario entra en el viewport (el
+  // usuario scrollea y lo ve); recién entonces se desvanece.
+  useEffect(() => {
+    if (focusState !== "hold") return;
+    const el = rootRef.current;
+    if (!el || typeof IntersectionObserver === "undefined") return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          observer.disconnect();
+          // Un instante para que registre el color antes de desvanecer.
+          setTimeout(() => setFocusState("fade"), 700);
+        }
+      },
+      // Requiere que quede dentro del 80% central del viewport para contar
+      // como "visto" (no un pixel asomando en el borde).
+      { rootMargin: "-10% 0px -10% 0px", threshold: 0 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [focusState]);
+
+  // Tras arrancar el fade, limpia el estado cuando termina la transición.
+  useEffect(() => {
+    if (focusState !== "fade") return;
+    const t = setTimeout(() => setFocusState("idle"), 1200);
+    return () => clearTimeout(t);
+  }, [focusState]);
 
   const author = getAuthorInfo(comment, tCommon("user"));
   const isOwnComment = currentUserId === comment.authorId;
@@ -1276,22 +1301,14 @@ export default function PostCommentThread({
     <div
       ref={rootRef}
       data-comment-id={comment.id}
-      style={{
-        display: "grid",
-        gap: 8,
-        ...(deepLinkHighlight
-          ? {
-              borderRadius: 10,
-              background: "rgba(168,85,255,0.12)",
-              boxShadow: "0 0 0 2px rgba(168,85,255,0.55)",
-              padding: 8,
-              margin: -8,
-              transition: "background 400ms ease, box-shadow 400ms ease",
-            }
-          : {
-              transition: "background 400ms ease, box-shadow 400ms ease",
-            }),
-      }}
+      className={
+        focusState === "hold"
+          ? "notifCommentFocus"
+          : focusState === "fade"
+            ? "notifCommentFocus notifCommentFocusFade"
+            : undefined
+      }
+      style={{ display: "grid", gap: 8 }}
     >
       {showAdminDetails && comment.isDeleted === true && (
         <div style={{

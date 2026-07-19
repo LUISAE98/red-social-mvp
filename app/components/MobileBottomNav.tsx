@@ -389,7 +389,7 @@ export default function MobileBottomNav({
           height: 16px;
           padding: 0 4px;
           border-radius: 999px;
-          background: #ec4899;
+          background: #ff3b30;
           color: #ffffff;
           font-size: 10px;
           font-weight: 800;

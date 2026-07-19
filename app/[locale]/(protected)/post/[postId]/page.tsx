@@ -213,7 +213,7 @@ export default function SinglePostPage() {
   return (
     <div className="postPage">
       <button type="button" className="postBack" onClick={() => router.back()}>
-        ← {tCommon("back")}
+        {tCommon("back")}
       </button>
 
       {state === "loading" ? (

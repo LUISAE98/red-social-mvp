@@ -126,6 +126,9 @@ const SERVICE_ACCENT: Record<number, string> = {
 // (Los demás servicios se configuran en otro flujo; por eso no tienen entrada.)
 const SERVICE_ACTIVATE_KEY: Record<number, string> = {
   1: "saludo",
+  2: "consejo",
+  3: "customClass", // sesión exclusiva
+  4: "meetGreet", // tiempo contigo
 };
 
 export default function WalletOnboarding() {
@@ -1117,6 +1120,21 @@ export default function WalletOnboarding() {
             const pos = i + 1;
             const img = SERVICE_IMAGES[svc];
             const previewKey = SERVICE_PREVIEW_KEY[svc];
+            // CTA del card: los servicios de perfil scrollean a su card de
+            // activación; los lives abren el composer para crear la transmisión.
+            const cta = !handle
+              ? null
+              : SERVICE_ACTIVATE_KEY[svc]
+                ? {
+                    label: tWallet("onboardingStartNow"),
+                    href: `/u/${handle}?configure=${SERVICE_ACTIVATE_KEY[svc]}`,
+                  }
+                : svc === 9
+                  ? {
+                      label: tWallet("onboardingCreateLive"),
+                      href: `/u/${handle}?compose=live`,
+                    }
+                  : null;
             return (
               <li
                 key={svc}
@@ -1139,32 +1157,24 @@ export default function WalletOnboarding() {
                   {/* Difuminado a negro en el borde inferior (aparece al abrir). */}
                   <div className="wayMainFade" aria-hidden="true" />
 
-                  {/* CTA: lleva al dueño a activar el servicio en su perfil. */}
-                  {SERVICE_ACTIVATE_KEY[svc] && handle ? (
+                  {/* CTA: lleva al dueño a activar el servicio (o crear un live). */}
+                  {cta ? (
                     <Link
-                      href={`/u/${handle}?configure=${SERVICE_ACTIVATE_KEY[svc]}`}
+                      href={cta.href}
                       style={{
                         position: "absolute",
-                        top: 14,
-                        right: 16,
+                        top: 16,
+                        right: 18,
                         zIndex: 4,
-                        display: "inline-flex",
-                        alignItems: "center",
-                        padding: "7px 14px",
-                        borderRadius: 999,
-                        background: "rgba(168,85,255,0.16)",
-                        border: "1px solid rgba(168,85,255,0.6)",
-                        color: "#d7b3ff",
+                        color: SERVICE_ACCENT[svc] ?? "#c99bff",
                         fontSize: 13,
                         fontWeight: 600,
                         lineHeight: 1,
                         textDecoration: "none",
                         whiteSpace: "nowrap",
-                        backdropFilter: "blur(4px)",
-                        WebkitBackdropFilter: "blur(4px)",
                       }}
                     >
-                      {tWallet("onboardingStartNow")}
+                      {cta.label}
                     </Link>
                   ) : null}
 

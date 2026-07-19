@@ -6,6 +6,7 @@ import {
   AppNotification,
   KNOWN_NOTIFICATION_TYPES,
   notificationHref,
+  notificationQuery,
 } from "@/lib/notifications/types";
 
 const LOCALE_MAP: Record<string, string> = {
@@ -99,11 +100,13 @@ export default function NotificationList({
         const others = n.actorCount > 1 ? t("andOthers", { count: n.actorCount - 1 }) : "";
         // Tipos sin plantilla enriquecida (ej. moderación) muestran `message`.
         const isGeneric = !KNOWN_NOTIFICATION_TYPES.has(n.type);
+        const query = notificationQuery(n);
+        const href = query ? { pathname: notificationHref(n), query } : notificationHref(n);
 
         return (
           <li key={n.id} className={n.read ? "notifItem" : "notifItem notifUnread"}>
             <Link
-              href={notificationHref(n)}
+              href={href}
               className="notifLink"
               onClick={() => onItemClick?.(n)}
             >

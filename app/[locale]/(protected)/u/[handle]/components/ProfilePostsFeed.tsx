@@ -515,6 +515,8 @@ export default function ProfilePostsFeed({
   // Sub-subnav de media (Publicaciones/Fotos/Videos/En vivo) + lightbox de galería.
   const [mediaTab, setMediaTab] = useState<MediaTabKey>("feed");
   const [lightboxTile, setLightboxTile] = useState<GalleryTile | null>(null);
+  // Posts desbloqueados (comprados) en esta sesión desde la galería.
+  const [unlockedPostIds, setUnlockedPostIds] = useState<Set<string>>(() => new Set());
   // Pestaña previa para la dirección del slide (mismo patrón que Wallet/Perfil).
   const prevMediaTabRef = useRef<MediaTabKey>("feed");
   useEffect(() => {
@@ -1362,6 +1364,7 @@ const shellStyle: CSSProperties = {
           source={{ type: "profile", profileUid }}
           kind={effectiveMediaTab}
           viewerUid={viewerUid}
+          unlockedPostIds={unlockedPostIds}
           onOpenTile={(tile) => {
             const openUrl = tile.mediaUrl ?? tile.post.media?.[0]?.url ?? null;
             // Los tiles de live (transmisión/VOD) y los bloqueados siempre abren:
@@ -1541,6 +1544,9 @@ const shellStyle: CSSProperties = {
             autoOpenLive={lightboxTile.isLiveNow}
             autoOpenVod={lightboxTile.isLive && !lightboxTile.isLiveNow}
             autoOpenUnlock={lightboxTile.isLocked}
+            onPostUnlocked={(id) =>
+              setUnlockedPostIds((prev) => new Set(prev).add(id))
+            }
             onViewerClosed={() => setLightboxTile(null)}
           />
         </div>

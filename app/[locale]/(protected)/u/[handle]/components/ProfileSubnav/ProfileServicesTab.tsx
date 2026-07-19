@@ -1175,6 +1175,7 @@ export default function ProfileServicesTab({
       />
       </div>
 
+      <div id="exp-consejo" style={{ scrollMarginTop: 80 }}>
       <Advice
         draft={draft}
         saving={saving}
@@ -1193,7 +1194,9 @@ export default function ProfileServicesTab({
         OverlayModalComponent={OverlayModal}
         onSaveDraft={(d) => saveServicesFromDraft(d as unknown as ServiceDraft)}
       />
+      </div>
 
+      <div id="exp-meetGreet" style={{ scrollMarginTop: 80 }}>
       <MeetGreet
         draft={draft}
         saving={saving}
@@ -1212,7 +1215,9 @@ export default function ProfileServicesTab({
         OverlayModalComponent={OverlayModal}
         onSaveDraft={(d) => saveServicesFromDraft(d as unknown as ServiceDraft)}
       />
+      </div>
 
+      <div id="exp-customClass" style={{ scrollMarginTop: 80 }}>
       <CustomClass
         draft={draft}
         saving={saving}
@@ -1231,6 +1236,7 @@ export default function ProfileServicesTab({
         OverlayModalComponent={OverlayModal}
         onSaveDraft={(d) => saveServicesFromDraft(d as unknown as ServiceDraft)}
       />
+      </div>
 
       <ProfileDonation
         draft={draft}
@@ -1248,6 +1254,11 @@ export default function ProfileServicesTab({
         OverlayModalComponent={OverlayModal}
         onSaveDraft={(d) => saveServicesFromDraft(d as ServiceDraft)}
       />
+
+      {/* Espacio al final para que el deep-link "Comenzar ahora" pueda centrar
+          en pantalla incluso las últimas cards (si no, el scroll se topa con el
+          fondo de la página y las de abajo se quedan cortas). */}
+      <div aria-hidden="true" style={{ height: "45vh" }} />
 
       <VibraToast toast={toast} />
     </div>

@@ -1016,10 +1016,52 @@ useEffect(() => {
   const configure = searchParams.get("configure");
   if (!configure) return;
   setActiveTab("services");
-  const timer = window.setTimeout(() => {
+
+  // La pestaña se monta tras el cambio de estado (con animación de slide) y las
+  // cards de arriba pueden cambiar de alto tras la primera medición. Por eso no
+  // basta un solo scroll: sondeamos hasta que exista el ancla y luego
+  // re-centramos varias veces (recalculando la posición) para converger al
+  // centro aunque haya reflujo de layout. Usamos scroll de ventana porque el
+  // contenedor de pestañas es overflow:hidden y scrollIntoView es poco fiable.
+  let cancelled = false;
+  const timers: number[] = [];
+  const centerOnce = () => {
+    if (cancelled) return;
     const el = document.getElementById(`exp-${configure}`);
-    if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
-  }, 320);
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const top =
+      window.scrollY + rect.top - window.innerHeight / 2 + rect.height / 2;
+    window.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
+  };
+  let tries = 0;
+  const waitForCard = () => {
+    if (cancelled) return;
+    if (document.getElementById(`exp-${configure}`)) {
+      // Encontrada: centra ahora y corrige tras el reflujo/animación.
+      centerOnce();
+      [250, 550, 900].forEach((d) =>
+        timers.push(window.setTimeout(centerOnce, d))
+      );
+      return;
+    }
+    if (tries++ < 40) timers.push(window.setTimeout(waitForCard, 100));
+  };
+  timers.push(window.setTimeout(waitForCard, 150));
+  return () => {
+    cancelled = true;
+    timers.forEach((t) => window.clearTimeout(t));
+  };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [authReady, userDoc, isOwner, searchParams]);
+
+// Deep-link "Crea tu primera transmisión" desde el onboarding: abre el composer
+// de live del perfil. El modal vive en la pestaña de posts (la predeterminada).
+useEffect(() => {
+  if (!authReady || !userDoc || !isOwner) return;
+  if (searchParams.get("compose") !== "live") return;
+  setActiveTab("posts");
+  const timer = window.setTimeout(() => setIsProfileLiveModalOpen(true), 180);
   return () => window.clearTimeout(timer);
   // eslint-disable-next-line react-hooks/exhaustive-deps
 }, [authReady, userDoc, isOwner, searchParams]);
