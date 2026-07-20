@@ -68,31 +68,39 @@ export default function WalletPhonePreview() {
           letter-spacing: -0.02em;
         }
 
+        /* Switch angosto y centrado: solo íconos (el texto se salía en celular). */
         .pwTabs {
           display: flex;
           gap: 4px;
-          margin: 0 12px 10px;
+          width: fit-content;
+          margin: 0 auto 10px;
           padding: 3px;
           border-radius: 999px;
           background: rgba(255, 255, 255, 0.06);
         }
         .pwTab {
-          flex: 1;
+          flex: 0 0 auto;
           border: none;
           border-radius: 999px;
-          padding: 6px 0;
-          font-size: 10px;
-          font-weight: 700;
+          padding: 6px 18px;
           font-family: inherit;
-          color: rgba(255, 255, 255, 0.6);
+          /* El ícono usa currentColor: negro en el activo (fondo blanco),
+             claro en el inactivo (fondo oscuro) para que se vea. */
+          color: rgba(255, 255, 255, 0.55);
           background: transparent;
           cursor: pointer;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
           transition: background 200ms ease, color 200ms ease;
           -webkit-tap-highlight-color: transparent;
         }
+        .pwTab svg {
+          display: block;
+        }
         .pwTabOn {
           background: #ffffff;
-          color: #0a0810;
+          color: #000000;
         }
 
         .pwBody {
@@ -218,15 +226,27 @@ export default function WalletPhonePreview() {
           type="button"
           className={`pwTab${tab === "finances" ? " pwTabOn" : ""}`}
           onClick={() => setTab("finances")}
+          aria-label={tNav("finances")}
         >
-          {tNav("finances")}
+          {/* Moneda ($) */}
+          <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="9" />
+            <path d="M12 7v10" />
+            <path d="M14.6 9.2c-.6-.8-1.6-1.2-2.6-1.2-1.4 0-2.5.8-2.5 1.9s1.1 1.6 2.5 1.9 2.6.8 2.6 2-1.1 1.9-2.6 1.9c-1.1 0-2.1-.5-2.7-1.2" />
+          </svg>
         </button>
         <button
           type="button"
           className={`pwTab${tab === "statistics" ? " pwTabOn" : ""}`}
           onClick={() => setTab("statistics")}
+          aria-label={tNav("statistics")}
         >
-          {tNav("statistics")}
+          {/* Barras (estadísticas) */}
+          <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M5 20v-6" />
+            <path d="M12 20V5" />
+            <path d="M19 20v-9" />
+          </svg>
         </button>
       </div>
 

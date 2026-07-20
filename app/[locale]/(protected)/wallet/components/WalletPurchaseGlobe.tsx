@@ -9,7 +9,7 @@ import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 
 type GlobeComponent = typeof import("react-globe.gl").default;
 
-// Propiedades que marcan un hexágono como "compra" (morado) dentro de la
+// Propiedades que marcan un hexágono como "compra" (azul) dentro de la
 // misma capa hexPolygons que los grises.
 type PurchaseFeatureProps = {
   __purchase: true;
@@ -37,7 +37,7 @@ function darkTexture(): string | null {
   c.height = 8;
   const ctx = c.getContext("2d");
   if (!ctx) return null;
-  ctx.fillStyle = "#161235";
+  ctx.fillStyle = "#101a38";
   ctx.fillRect(0, 0, 8, 8);
   return c.toDataURL();
 }
@@ -129,7 +129,7 @@ export default function WalletPurchaseGlobe({
 
   // Una sola capa de hexágonos: países (grises) + compras (moradas, mismo plano).
   // Cada compra se mapea a su celda H3 (misma rejilla que los grises); si varias
-  // caen en la misma celda, se acumulan en un solo hexágono morado.
+  // caen en la misma celda, se acumulan en un solo hexágono azul.
   // Además genero un punto invisible por celda (blanco de hover para el tooltip).
   const { hexData, hoverPoints } = useMemo(() => {
     const byCell = new Map<
@@ -215,14 +215,14 @@ export default function WalletPurchaseGlobe({
             height={frameH}
             backgroundColor="rgba(0,0,0,0)"
             globeImageUrl={img ?? undefined}
-            atmosphereColor="#a855ff"
+            atmosphereColor="#3b82f6"
             atmosphereAltitude={0.16}
             hexPolygonsData={hexData}
             hexPolygonResolution={3}
             hexPolygonMargin={0.4}
             hexPolygonColor={(d) => {
               const f = d as { properties?: { __purchase?: boolean } };
-              return f.properties?.__purchase ? "#a855ff" : "rgba(255,255,255,0.22)";
+              return f.properties?.__purchase ? "#3b82f6" : "rgba(255,255,255,0.22)";
             }}
             pointsData={hoverPoints}
             pointLat={(d) => (d as { lat: number }).lat}
@@ -241,7 +241,7 @@ export default function WalletPurchaseGlobe({
                 <div style="font-family:inherit;text-align:left;white-space:nowrap;">
                   <div style="font-size:12.5px;font-weight:700;color:#fff;margin-bottom:2px;">${label}</div>
                   <div style="font-size:11px;color:rgba(255,255,255,0.85);">${tWallet("globeTooltipPurchases", { count: p.purchases })}</div>
-                  <div style="font-size:11px;color:#c4a3ff;">${tWallet("globeTooltipGross", { amount: formatMoney(p.grossSum) })}</div>
+                  <div style="font-size:11px;color:#93c5fd;">${tWallet("globeTooltipGross", { amount: formatMoney(p.grossSum) })}</div>
                 </div>`;
             }}
           />

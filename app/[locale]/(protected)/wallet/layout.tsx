@@ -113,6 +113,13 @@ export default function WalletLayout({
             box-sizing: border-box;
           }
 
+          /* El onboarding va a pantalla completa en celular (sin márgenes negros
+             a los lados); sus secciones ya tienen su propio padding interno. */
+          .walletLayout.walletLayoutFull {
+            padding-left: 0;
+            padding-right: 0;
+          }
+
           .walletHeader {
             gap: 6px;
             margin-bottom: 4px;
@@ -125,7 +132,7 @@ export default function WalletLayout({
       `}</style>
 
       <WalletDataContext.Provider value={walletData}>
-        <div className="walletLayout">
+        <div className={`walletLayout${showOnboarding ? " walletLayoutFull" : ""}`}>
           <div ref={headerRef} className="walletHeader">
             {/* En onboarding el encabezado "Wallet" y las pestañas se ocultan:
                 la wallet aún no es un panel sino una invitación a empezar. */}

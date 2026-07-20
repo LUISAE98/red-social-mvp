@@ -247,7 +247,7 @@ export default function WalletIncomeChart({
                 cursor: "pointer",
                 fontSize: 10.5,
                 fontWeight: 600,
-                color: "rgba(168,85,255,0.95)",
+                color: "rgba(59,130,246,0.95)",
                 textAlign: "right",
               }}
             >
@@ -305,15 +305,15 @@ export default function WalletIncomeChart({
             >
               <defs>
                 <linearGradient id="walletIncomeArea" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#a855ff" stopOpacity="0.28" />
-                  <stop offset="100%" stopColor="#a855ff" stopOpacity="0" />
+                  <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.28" />
+                  <stop offset="100%" stopColor="#3b82f6" stopOpacity="0" />
                 </linearGradient>
               </defs>
               <path d={areaPath} fill="url(#walletIncomeArea)" />
               <polyline
                 points={linePoints}
                 fill="none"
-                stroke="#a855ff"
+                stroke="#3b82f6"
                 strokeWidth={2.5}
                 vectorEffect="non-scaling-stroke"
                 strokeLinejoin="round"
@@ -344,7 +344,7 @@ export default function WalletIncomeChart({
                     width: 8,
                     height: 8,
                     borderRadius: "50%",
-                    background: "#c084fc",
+                    background: "#60a5fa",
                     border: "2px solid #0a071c",
                     pointerEvents: "none",
                   }}
@@ -356,7 +356,7 @@ export default function WalletIncomeChart({
                     top: `${(yAt(hovered.amount) / H) * 100}%`,
                     transform: "translate(-50%, calc(-100% - 12px))",
                     background: "rgba(20,14,40,0.96)",
-                    border: "1px solid rgba(168,85,255,0.35)",
+                    border: "1px solid rgba(59,130,246,0.35)",
                     borderRadius: 8,
                     padding: "5px 9px",
                     whiteSpace: "nowrap",

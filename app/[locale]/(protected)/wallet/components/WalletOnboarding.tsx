@@ -1170,8 +1170,23 @@ export default function WalletOnboarding() {
             font-size: 18px;
           }
 
+          /* Más espacio arriba para que el botón (esquina superior derecha) no
+             quede pegado al título. */
           .wayMain {
             gap: 16px;
+            padding: 42px 20px 22px;
+          }
+
+          /* Difuminado más fuerte y alto: en celular imágenes oscuras (saludos)
+             casi no se fundían. */
+          .wayMainFade {
+            height: 70%;
+            background: linear-gradient(
+              to bottom,
+              rgba(5, 4, 10, 0) 0%,
+              rgba(5, 4, 10, 0.85) 55%,
+              #05040a 100%
+            );
           }
 
           .wayInfoContent {
@@ -1275,13 +1290,13 @@ export default function WalletOnboarding() {
 
           .exampleCard {
             width: 100%;
-            /* Un cuadrado a ancho completo sería altísimo en el teléfono. */
-            aspect-ratio: 16 / 10;
+            /* Más alto para dar margen arriba/abajo al texto grande. */
+            aspect-ratio: 4 / 3;
           }
           /* Texto mucho más grande en celular: hay bastante espacio en la tarjeta. */
           .exampleCardInner {
-            gap: 14px;
-            padding: 26px;
+            gap: 16px;
+            padding: 36px 26px;
           }
           .exampleChargeLine,
           .exampleLabel {

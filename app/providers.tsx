@@ -10,6 +10,7 @@ import {
 } from "react";
 import { onAuthStateChanged, User } from "firebase/auth";
 import { auth } from "@/lib/firebase";
+import { useSessionRegistry } from "@/lib/sessions/useSessionRegistry";
 
 type AuthTransitionMode = "idle" | "checking" | "entering" | "exiting";
 
@@ -72,6 +73,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Registro de sesiones activas de este dispositivo (heartbeat + auto-logout
+  // remoto). Se activa mientras haya usuario autenticado.
+  useSessionRegistry(user);
 
   const startAuthTransition = (mode: "entering" | "exiting") => {
     setAuthTransitionMode(mode);

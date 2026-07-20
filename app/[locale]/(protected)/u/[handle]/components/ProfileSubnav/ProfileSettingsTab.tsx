@@ -7,6 +7,7 @@ import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import LogoutButton from "@/app/LogoutButton";
 import BlockedAccountsOverlay from "./BlockedAccountsOverlay";
+import SessionsOverlay from "./SessionsOverlay";
 
 type ProfileSettingsTabProps = {
   isSaving?: boolean;
@@ -211,6 +212,7 @@ export default function ProfileSettingsTab({
   const [editNameOpen, setEditNameOpen] = useState(false);
   const [editBioOpen, setEditBioOpen] = useState(false);
   const [blockedAccountsOpen, setBlockedAccountsOpen] = useState(false);
+  const [sessionsOpen, setSessionsOpen] = useState(false);
   const [draftName, setDraftName] = useState(displayName ?? "");
   const [draftBio, setDraftBio] = useState(bio ?? "");
   const [savingName, setSavingName] = useState(false);
@@ -732,6 +734,38 @@ export default function ProfileSettingsTab({
           </button>
         </div>
 
+        <div className="profile-setting-item" style={item}>
+          <div>
+            <div style={labelStyle}>{tProfile("sessionsLabel")}</div>
+            <div style={valueStyle}>{tProfile("sessionsValue")}</div>
+
+            <div
+              style={{
+                marginTop: 5,
+                fontSize: 11.5,
+                color: "rgba(255,255,255,0.58)",
+                lineHeight: 1.4,
+                maxWidth: 620,
+              }}
+            >
+              {tProfile("sessionsHint")}
+            </div>
+          </div>
+
+          <button
+            className="profile-setting-button"
+            type="button"
+            style={buttonStyle}
+            onClick={() => {
+              setErr(null);
+              setMsg(null);
+              setSessionsOpen(true);
+            }}
+          >
+            {tCommon("viewLabel")}
+          </button>
+        </div>
+
         <div
           className="profile-logout-wrap"
           style={{
@@ -876,6 +910,12 @@ export default function ProfileSettingsTab({
         open={blockedAccountsOpen}
         currentUserId={uid}
         onClose={() => setBlockedAccountsOpen(false)}
+      />
+
+      <SessionsOverlay
+        open={sessionsOpen}
+        currentUserId={uid}
+        onClose={() => setSessionsOpen(false)}
       />
     </section>
   );
