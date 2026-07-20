@@ -7,13 +7,13 @@ import { useNotifications } from "@/lib/hooks/useNotifications";
 import { useSelfHandle } from "@/lib/hooks/useSelfHandle";
 import NotificationList from "@/app/components/Notifications/NotificationList";
 import { AppNotification } from "@/lib/notifications/types";
+import RefreshableArea from "@/components/refresh/RefreshableArea";
 
 export default function NotificationsPage() {
   const t = useTranslations("notifications");
   const { user } = useAuth();
-  const { items, loading, unreadCount, markSeen, markAllRead, markRead } = useNotifications(
-    user?.uid ?? null
-  );
+  const { items, loading, unreadCount, markSeen, markAllRead, markRead, refresh } =
+    useNotifications(user?.uid ?? null);
   const selfHandle = useSelfHandle(user?.uid ?? null);
 
   // Abrir la página cuenta como "ver" el contenedor → baja el badge del nav.
@@ -26,6 +26,7 @@ export default function NotificationsPage() {
   };
 
   return (
+    <RefreshableArea onRefresh={refresh}>
     <div className="notifPage">
       <div className="notifPageHead">
         <h1 className="notifPageTitle">{t("title")}</h1>
@@ -81,5 +82,6 @@ export default function NotificationsPage() {
         }
       `}</style>
     </div>
+    </RefreshableArea>
   );
 }

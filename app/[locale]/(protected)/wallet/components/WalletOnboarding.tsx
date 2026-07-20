@@ -395,6 +395,13 @@ export default function WalletOnboarding() {
           line-height: 1.3;
           font-weight: 500;
           color: rgba(255, 255, 255, 0.92);
+          transform-origin: left center;
+          transition: transform 0.2s ease;
+          cursor: default;
+        }
+        /* Micro-zoom al pasar el mouse por cada punto; vuelve solo al salir. */
+        .onboardingPerk:hover {
+          transform: scale(1.2);
         }
 
         /* Círculo sin relleno, solo contorno morado, con el mismo grosor de trazo
@@ -1067,6 +1074,11 @@ export default function WalletOnboarding() {
           align-items: center;
           gap: 8px;
           text-align: center;
+          transition: transform 0.2s ease;
+          cursor: default;
+        }
+        .securityBadge:hover {
+          transform: scale(1.2);
         }
 
         .securityIcon {
@@ -1099,6 +1111,12 @@ export default function WalletOnboarding() {
           line-height: 1.3;
           font-weight: 500;
           color: #ffffff;
+          transform-origin: left center;
+          transition: transform 0.2s ease;
+          cursor: default;
+        }
+        .lifestyleItem:hover {
+          transform: scale(1.2);
         }
 
         /* Círculo sin relleno, contorno verde grueso, con la paloma verde. */
@@ -1191,30 +1209,42 @@ export default function WalletOnboarding() {
 
           .commissionTitle {
             font-size: 22px;
+            text-align: center;
           }
 
-          /* En angosto: celular arriba, texto abajo, centrados. */
+          /* Centra el contenido de la columna izquierda (título + 23% + lista). */
+          .commissionLeft {
+            align-items: center;
+          }
+
+          /* En celular: teléfono a la izquierda, texto (título + descripción) a
+             su derecha. */
           .clearSection {
             margin-top: 36px;
-            flex-direction: column;
-            gap: 26px;
+            flex-direction: row;
+            align-items: flex-start;
+            gap: 16px;
           }
 
           .phoneMock {
-            width: 158px;
+            width: 140px;
           }
 
           .clearTextBlock {
-            align-items: center;
-            text-align: center;
+            flex: 1;
+            min-width: 0;
+            align-items: flex-start;
+            text-align: left;
           }
 
           .clearText {
             max-width: none;
+            margin-top: 10px;
+            font-size: 13.5px;
           }
 
           .clearGlobe {
-            align-self: center;
+            align-self: flex-start;
           }
 
           .clearTitle {
@@ -1225,11 +1255,18 @@ export default function WalletOnboarding() {
             font-size: 72px;
           }
 
-          /* En angosto el 23% no cabe junto a la lista: se apilan. */
+          /* En angosto el 23% no cabe junto a la lista: se apilan, centrados.
+             La lista se corre al centro (queda a la altura de la primera lista). */
           .commissionFigureRow {
             flex-direction: column;
-            align-items: flex-start;
+            align-items: center;
             gap: 18px;
+          }
+          .commissionFigureRow .onboardingPerks {
+            align-items: flex-start;
+            align-self: center;
+            width: fit-content;
+            max-width: 100%;
           }
 
           .commissionRight {
@@ -1240,6 +1277,21 @@ export default function WalletOnboarding() {
             width: 100%;
             /* Un cuadrado a ancho completo sería altísimo en el teléfono. */
             aspect-ratio: 16 / 10;
+          }
+          /* Texto mucho más grande en celular: hay bastante espacio en la tarjeta. */
+          .exampleCardInner {
+            gap: 14px;
+            padding: 26px;
+          }
+          .exampleChargeLine,
+          .exampleLabel {
+            font-size: 24px;
+          }
+          .exampleBeforeTax {
+            font-size: 13px;
+          }
+          .exampleReceive {
+            font-size: 62px;
           }
 
           .onboardingTitle {

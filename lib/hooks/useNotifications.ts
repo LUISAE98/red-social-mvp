@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   collection,
   doc,
+  getDocs,
   limit,
   onSnapshot,
   orderBy,
@@ -91,6 +92,8 @@ export interface UseNotificationsResult {
   markSeen: () => void;
   markAllRead: () => Promise<void>;
   markRead: (id: string) => Promise<void>;
+  /** Lectura fresca puntual (para pull-to-refresh); resuelve al terminar. */
+  refresh: () => Promise<void>;
 }
 
 /**
@@ -161,6 +164,28 @@ export function useNotifications(uid: string | null | undefined): UseNotificatio
     writeSeenAt(uid, Math.max(Date.now(), latestMsRef.current));
   }, [uid]);
 
+  // Lectura fresca puntual para el pull-to-refresh. El listener onSnapshot ya
+  // mantiene la bandeja al día; esto sólo fuerza una relectura que resuelve al
+  // terminar, para que el spinner del gesto tenga una acción real.
+  const refresh = useCallback(async () => {
+    if (!uid) return;
+    try {
+      const snap = await getDocs(
+        query(
+          collection(db, "users", uid, "notifications"),
+          orderBy("updatedAt", "desc"),
+          limit(FEED_LIMIT)
+        )
+      );
+      const mapped = snap.docs
+        .map((d) => mapDoc(d.id, d.data() as Record<string, unknown>))
+        .filter((n): n is AppNotification => n !== null);
+      setItems(mapped);
+    } catch {
+      /* no crítico: el listener sigue vivo */
+    }
+  }, [uid]);
+
   const markRead = async (id: string) => {
     if (!uid) return;
     try {
@@ -185,5 +210,5 @@ export function useNotifications(uid: string | null | undefined): UseNotificatio
     }
   };
 
-  return { items, unreadCount, badgeCount, loading, markSeen, markAllRead, markRead };
+  return { items, unreadCount, badgeCount, loading, markSeen, markAllRead, markRead, refresh };
 }
