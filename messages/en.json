@@ -1906,6 +1906,8 @@
     "requestRejected": "Declined",
     "actionError": "Couldn't complete",
     "aCommunity": "a community",
+    "inviteMaxed": "Your invite link to {group} reached its max uses",
+    "inviteExpired": "Your invite link to {group} expired",
     "andOthers": "and {count, plural, one {# other} other {# others}}",
     "verb": {
       "post_like": "reacted to your post",

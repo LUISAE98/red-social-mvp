@@ -15,6 +15,7 @@ export type NotificationType =
   | "join_request"
   | "join_approved"
   | "group_new_member"
+  | "invite_expired"
   | "moderation_warning";
 
 export interface NotificationActor {
@@ -32,6 +33,8 @@ export interface NotificationTarget {
   handle?: string | null;
   preview?: string | null;
   imageUrl?: string | null;
+  /** invite_expired: motivo ("max_uses" | "expired"). */
+  reason?: string | null;
 }
 
 /** Notificación ya normalizada para la UI. */
@@ -61,6 +64,7 @@ export const KNOWN_NOTIFICATION_TYPES: ReadonlySet<NotificationType> = new Set([
   "join_request",
   "join_approved",
   "group_new_member",
+  "invite_expired",
 ]);
 
 /**
@@ -78,6 +82,7 @@ export function notificationHref(n: AppNotification, selfHandle?: string | null)
     case "join_request":
     case "join_approved":
     case "group_new_member":
+    case "invite_expired":
       return n.target.groupId ? `/groups/${n.target.groupId}` : "/notifications";
     default:
       // post_like / comment / reply / comment_like / mention → post individual.

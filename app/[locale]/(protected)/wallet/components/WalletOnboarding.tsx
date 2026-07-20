@@ -300,12 +300,40 @@ export default function WalletOnboarding() {
           opacity: 1;
           transform: none;
         }
+        /* Cada punto de las listas entra con un "pop" al aparecer en pantalla.
+           Usamos animación (no transición) con fill-mode backwards: el delay del
+           stagger no afecta al hover-zoom (que es transición) y no se queda
+           pegada al terminar (así el hover sigue funcionando). */
+        .revealPop {
+          opacity: 0;
+        }
+        .revealPop.is-in {
+          opacity: 1;
+          animation: onbPopIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
+        }
+        @keyframes onbPopIn {
+          0% {
+            opacity: 0;
+            transform: scale(0.5);
+          }
+          100% {
+            opacity: 1;
+            transform: none;
+          }
+        }
+
         /* Respeta a quien pidió menos movimiento: todo visible, sin animación. */
         @media (prefers-reduced-motion: reduce) {
           .reveal {
             opacity: 1;
             transform: none;
             transition: none;
+          }
+          .revealPop {
+            opacity: 1;
+          }
+          .revealPop.is-in {
+            animation: none;
           }
         }
 
@@ -1271,11 +1299,12 @@ export default function WalletOnboarding() {
             align-items: center;
           }
 
-          /* En celular: teléfono centrado arriba y el texto (título + descripción)
-             centrado debajo; sin planeta. */
+          /* En celular: primero el texto (título + descripción) centrado y el
+             teléfono debajo; sin planeta. (column-reverse porque en el DOM el
+             teléfono va antes.) */
           .clearSection {
             margin-top: 48px;
-            flex-direction: column;
+            flex-direction: column-reverse;
             align-items: center;
             gap: 22px;
           }
@@ -1285,9 +1314,11 @@ export default function WalletOnboarding() {
             margin-top: 6px;
           }
 
+          /* Texto a lo ancho, alineado a la izquierda (título y descripción). */
           .clearTextBlock {
-            align-items: center;
-            text-align: center;
+            align-self: stretch;
+            align-items: flex-start;
+            text-align: left;
           }
 
           .clearText {
@@ -1400,8 +1431,12 @@ export default function WalletOnboarding() {
 
           <div className="onboardingColumns">
             <ul className="onboardingPerks">
-              {PERK_KEYS.map((key) => (
-                <li key={key} className="onboardingPerk">
+              {PERK_KEYS.map((key, i) => (
+                <li
+                  key={key}
+                  className="onboardingPerk revealPop"
+                  style={{ animationDelay: `${i * 70}ms` }}
+                >
                   <span className="onboardingPerkCheck" aria-hidden="true">
                     <svg viewBox="0 0 12 12" fill="none">
                       <path
@@ -1444,8 +1479,12 @@ export default function WalletOnboarding() {
             </span>
 
             <ul className="onboardingPerks">
-              {FEE_PERK_KEYS.map((key) => (
-                <li key={key} className="onboardingPerk">
+              {FEE_PERK_KEYS.map((key, i) => (
+                <li
+                  key={key}
+                  className="onboardingPerk revealPop"
+                  style={{ animationDelay: `${i * 70}ms` }}
+                >
                   <span className="onboardingPerkCheck" aria-hidden="true">
                     <svg viewBox="0 0 12 12" fill="none">
                       <path
@@ -1535,8 +1574,12 @@ export default function WalletOnboarding() {
 
           <div className="lifestyleContent">
             <ul className="lifestyleList">
-              {HERO_LIST_KEYS.map((key) => (
-                <li key={key} className="lifestyleItem">
+              {HERO_LIST_KEYS.map((key, i) => (
+                <li
+                  key={key}
+                  className="lifestyleItem revealPop"
+                  style={{ animationDelay: `${i * 70}ms` }}
+                >
                   <span className="lifestyleCheck" aria-hidden="true">
                     <svg viewBox="0 0 12 12" fill="none">
                       <path

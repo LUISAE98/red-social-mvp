@@ -1906,6 +1906,8 @@
     "requestRejected": "Rechazada",
     "actionError": "No se pudo completar",
     "aCommunity": "una comunidad",
+    "inviteMaxed": "Tu enlace de invitación a {group} alcanzó el máximo de usos",
+    "inviteExpired": "Tu enlace de invitación a {group} caducó",
     "andOthers": "y {count, plural, one {# persona más} other {# personas más}}",
     "verb": {
       "post_like": "{count, plural, one {reaccionó} other {reaccionaron}} a tu publicación",

@@ -4,11 +4,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   collection,
   doc,
+  getDoc,
   getDocs,
   limit,
   onSnapshot,
   orderBy,
   query,
+  setDoc,
   updateDoc,
   writeBatch,
 } from "firebase/firestore";
@@ -26,8 +28,11 @@ const FEED_LIMIT = 40;
 // ── "Visto" (badge) vs "leído" (por ítem) ────────────────────────────────────
 // Abrir el contenedor de notificaciones baja el badge de la campanita a 0 (todo
 // "visto"), pero NO marca las notificaciones como leídas: cada ítem sigue
-// marcado como no leído hasta que se abre. `seenAt` se guarda por usuario en
-// localStorage y se comparte entre la campanita y el nav móvil vía un pub/sub.
+// marcado como no leído hasta que se abre.
+// `seenAt` se persiste en Firestore (`users/{uid}/meta/notifications.seenAt`)
+// como fuente de verdad — así sobrevive logout, cierre de app y cambio de
+// dispositivo. localStorage es solo una caché instantánea (y pub/sub entre la
+// campanita y el nav móvil dentro de la misma pestaña).
 const SEEN_KEY_PREFIX = "vibra:notifSeenAt:";
 const seenListeners = new Set<() => void>();
 
@@ -133,15 +138,31 @@ export function useNotifications(uid: string | null | undefined): UseNotificatio
     return unsub;
   }, [uid]);
 
-  // Sincroniza `seenAt` desde localStorage (y ante cambios de otra pestaña o del
-  // otro componente que use el hook).
+  // Carga `seenAt`: optimista desde localStorage y luego la fuente de verdad
+  // desde Firestore (persiste tras logout/cierre). Se queda con el mayor.
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (!uid) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setSeenAt(0);
+      return;
+    }
     setSeenAt(readSeenAt(uid));
-    const l = () => setSeenAt(readSeenAt(uid));
+    let alive = true;
+    getDoc(doc(db, "users", uid, "meta", "notifications"))
+      .then((snap) => {
+        if (!alive) return;
+        const remote = snap.exists() ? Number(snap.get("seenAt")) || 0 : 0;
+        if (remote > 0) {
+          setSeenAt((cur) => Math.max(cur, remote));
+          if (remote > readSeenAt(uid)) writeSeenAt(uid, remote); // sincroniza caché
+        }
+      })
+      .catch(() => {});
+    const l = () => setSeenAt((cur) => Math.max(cur, readSeenAt(uid)));
     seenListeners.add(l);
     window.addEventListener("storage", l);
     return () => {
+      alive = false;
       seenListeners.delete(l);
       window.removeEventListener("storage", l);
     };
@@ -161,7 +182,12 @@ export function useNotifications(uid: string | null | undefined): UseNotificatio
   const markSeen = useCallback(() => {
     if (!uid) return;
     // max(now, última actualización) evita quedar por debajo del reloj del server.
-    writeSeenAt(uid, Math.max(Date.now(), latestMsRef.current));
+    const ms = Math.max(Date.now(), latestMsRef.current);
+    writeSeenAt(uid, ms); // localStorage + notifica listeners (actualiza estado)
+    // Persiste server-side para que el badge no reaparezca tras logout/cierre.
+    setDoc(doc(db, "users", uid, "meta", "notifications"), { seenAt: ms }, { merge: true }).catch(
+      () => {}
+    );
   }, [uid]);
 
   // Lectura fresca puntual para el pull-to-refresh. El listener onSnapshot ya

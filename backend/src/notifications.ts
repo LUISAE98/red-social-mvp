@@ -10,7 +10,12 @@
  * contador. Al llegar un actor nuevo se antepone a la lista, se incrementa el
  * contador y la notificación vuelve a marcarse como no leída (re-emerge arriba).
  */
-import { onDocumentCreated, onDocumentDeleted } from "firebase-functions/v2/firestore";
+import {
+  onDocumentCreated,
+  onDocumentDeleted,
+  onDocumentUpdated,
+} from "firebase-functions/v2/firestore";
+import { onSchedule } from "firebase-functions/v2/scheduler";
 import * as admin from "firebase-admin";
 
 if (admin.apps.length === 0) {
@@ -504,5 +509,98 @@ export const onGroupMemberCreated = onDocumentCreated(
       actor,
       target: { groupId, groupName },
     });
+  }
+);
+
+// ---------------------------------------------------------------------------
+// Enlace de invitación caducado → avisa al owner que lo creó.
+//   - "max_uses": alcanzó el máximo de usos (evento al consumirse).
+//   - "expired": venció por tiempo (cron horario).
+// ---------------------------------------------------------------------------
+async function emitInviteEnded(
+  groupId: string,
+  inviteId: string,
+  createdBy: string,
+  reason: "max_uses" | "expired"
+): Promise<void> {
+  if (!createdBy) return;
+  const group = await db.collection("groups").doc(groupId).get();
+  const groupName = str(group.get("name"));
+  // La comunidad hace de "actor" (avatar + nombre); no hay una persona.
+  const groupActor: Actor = {
+    id: groupId,
+    name: groupName ?? "Comunidad",
+    avatarUrl: str(group.get("avatarUrl")) ?? str(group.get("photoURL")) ?? str(group.get("imageUrl")),
+    handle: null,
+  };
+  const now = admin.firestore.FieldValue.serverTimestamp();
+  const ref = db
+    .collection("users")
+    .doc(createdBy)
+    .collection("notifications")
+    .doc(`invite_expired_${inviteId}`);
+  const existing = await ref.get();
+  await ref.set(
+    {
+      type: "invite_expired",
+      groupKey: `invite_expired_${inviteId}`,
+      actors: [groupActor],
+      actorIds: [groupId],
+      actorCount: 1,
+      target: { groupId, groupName, reason },
+      read: false,
+      updatedAt: now,
+      ...(existing.exists ? {} : { createdAt: now }),
+    },
+    { merge: true }
+  );
+}
+
+// Máximo de usos: `isActive` pasa de true→false por agotarse (no por revocar).
+export const onInviteLinkUpdated = onDocumentUpdated(
+  { document: "groups/{groupId}/inviteLinks/{inviteId}", region: REGION },
+  async (event) => {
+    const before = event.data?.before.data();
+    const after = event.data?.after.data();
+    if (!before || !after) return;
+    const { groupId, inviteId } = event.params;
+
+    const becameInactive = before.isActive === true && after.isActive === false;
+    if (!becameInactive) return;
+    if (after.revokedAt) return; // revocado manualmente → sin aviso
+    const maxUses = typeof after.maxUses === "number" ? after.maxUses : null;
+    const usedCount = typeof after.usedCount === "number" ? after.usedCount : 0;
+    if (maxUses === null || usedCount < maxUses) return; // no fue por máximo
+
+    const createdBy = str(after.createdBy);
+    if (createdBy) await emitInviteEnded(groupId, inviteId, createdBy, "max_uses");
+  }
+);
+
+// Vencimiento por tiempo: el paso del tiempo no dispara evento, así que un cron
+// horario busca links activos ya vencidos, avisa al owner y los desactiva.
+export const expireInviteLinks = onSchedule(
+  { schedule: "every 1 hours", timeZone: "America/Mexico_City", region: REGION },
+  async () => {
+    const now = admin.firestore.Timestamp.now();
+    const snap = await db
+      .collectionGroup("inviteLinks")
+      .where("isActive", "==", true)
+      .where("expiresAt", "<=", now)
+      .limit(300)
+      .get();
+
+    for (const doc of snap.docs) {
+      const d = doc.data();
+      if (!d.revokedAt) {
+        const groupId = str(d.groupId);
+        const createdBy = str(d.createdBy);
+        if (groupId && createdBy) {
+          await emitInviteEnded(groupId, doc.id, createdBy, "expired");
+        }
+      }
+      // Desactiva (revocado o no) para no re-procesarlo y reflejar la realidad.
+      await doc.ref.update({ isActive: false }).catch(() => {});
+    }
   }
 );

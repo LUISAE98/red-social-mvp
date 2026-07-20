@@ -630,6 +630,13 @@ match /hiddenGroupTransitions/{groupId} {
         allow create, delete: if false;
       }
 
+      // Meta del usuario (p. ej. `notifications.seenAt` para el badge de la
+      // campanita). El dueño la lee y la escribe.
+      match /meta/{docId} {
+        allow get, list: if signedIn() && request.auth.uid == uid;
+        allow write: if signedIn() && request.auth.uid == uid;
+      }
+
       // Sesiones activas (dispositivos con la sesión abierta). Solo el propio
       // usuario lee y escribe su subcolección: registra su dispositivo, refresca
       // el heartbeat y marca como `revoked` cualquier sesión (la suya o la de

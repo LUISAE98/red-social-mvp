@@ -280,4 +280,6 @@ export {
   onJoinRequestCreated,
   onJoinRequestRemoved,
   onGroupMemberCreated,
+  onInviteLinkUpdated,
+  expireInviteLinks,
 } from "./notifications";

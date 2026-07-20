@@ -249,6 +249,18 @@ export default function NotificationList({
                   </div>
                 ) : null}
               </div>
+            ) : n.type === "invite_expired" ? (
+              <Link href={href} className="notifLink" onClick={() => onItemClick?.(n)}>
+                <Avatar n={n} />
+                <span className="notifBody">
+                  <span className="notifText">
+                    {t(n.target.reason === "max_uses" ? "inviteMaxed" : "inviteExpired", {
+                      group,
+                    })}
+                  </span>
+                  <span className="notifTime">{timeAgo(n.updatedAtMs)}</span>
+                </span>
+              </Link>
             ) : (
               <Link
                 href={href}
