@@ -7,6 +7,7 @@ import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import {
   clearStoredSessionId,
+  enrichSessionLocation,
   getOrCreateSessionId,
   registerSession,
   subscribeOwnSessionRevoked,
@@ -55,7 +56,13 @@ export function useSessionRegistry(user: User | null) {
         await auth.authStateReady();
         if (cancelled) return;
 
-        await registerSession(uid, sessionId);
+        const { created } = await registerSession(uid, sessionId);
+
+        // Solo resolvemos la geo-IP cuando la sesión es nueva (no en cada
+        // recarga/heartbeat), para minimizar llamadas al backend.
+        if (created && !cancelled) {
+          void enrichSessionLocation(sessionId);
+        }
       } catch {
         // Si el registro falla (permisos/red), no bloqueamos la app.
       }

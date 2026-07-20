@@ -22,11 +22,15 @@ export type UserSession = {
   /** Zona horaria IANA del navegador, ej. "America/Mexico_City". */
   timezone: string | null;
   /**
-   * Ubicación aproximada mostrable. En v1 se deriva de la zona horaria del
-   * navegador; el Bloque 6 (Cloud Function con geo-IP) puede sobrescribirla
-   * con la ciudad/país real del request.
+   * Ubicación aproximada mostrable. Al registrar se deriva de la zona horaria
+   * del navegador; la Cloud Function de geo-IP la sobrescribe con la
+   * ciudad/país reales del request.
    */
   locationLabel: string | null;
+  /** Ciudad resuelta por geo-IP (Cloud Function). null si no se resolvió. */
+  city: string | null;
+  /** País resuelto por geo-IP (Cloud Function). null si no se resolvió. */
+  country: string | null;
   /**
    * Marca de cierre remoto. Cuando otro dispositivo la pone en `true`, el
    * dispositivo dueño de esta sesión cierra sesión automáticamente al detectarlo.

@@ -11,8 +11,9 @@ import {
   type Timestamp,
   type Unsubscribe,
 } from "firebase/firestore";
+import { httpsCallable } from "firebase/functions";
 
-import { db } from "@/lib/firebase";
+import { db, functions } from "@/lib/firebase";
 import {
   buildApproxLocationLabel,
   buildDeviceLabel,
@@ -95,7 +96,7 @@ function collectDeviceMetadata() {
 export async function registerSession(
   uid: string,
   sessionId: string
-): Promise<void> {
+): Promise<{ created: boolean }> {
   const ref = sessionDoc(uid, sessionId);
   const metadata = collectDeviceMetadata();
 
@@ -109,7 +110,7 @@ export async function registerSession(
       revoked: false,
       revokedAt: null,
     });
-    return;
+    return { created: true };
   }
 
   await updateDoc(ref, {
@@ -118,6 +119,21 @@ export async function registerSession(
     revoked: false,
     revokedAt: null,
   });
+  return { created: false };
+}
+
+/**
+ * Pide al backend que resuelva la ubicación real (geo-IP) de esta sesión y
+ * actualice el documento. Best-effort: cualquier fallo se ignora en silencio
+ * (la etiqueta por zona horaria ya quedó puesta al registrar).
+ */
+export async function enrichSessionLocation(sessionId: string): Promise<void> {
+  try {
+    const callable = httpsCallable(functions, "enrichSessionLocation");
+    await callable({ sessionId });
+  } catch {
+    // ignorar: la ubicación es información complementaria.
+  }
 }
 
 /** Actualiza únicamente el heartbeat (lastSeenAt) de esta sesión. */
@@ -182,6 +198,8 @@ function mapSession(id: string, data: Record<string, unknown>): UserSession {
     timezone: typeof data.timezone === "string" ? data.timezone : null,
     locationLabel:
       typeof data.locationLabel === "string" ? data.locationLabel : null,
+    city: typeof data.city === "string" ? data.city : null,
+    country: typeof data.country === "string" ? data.country : null,
     revoked: data.revoked === true,
     revokedAt: toTimestamp(data.revokedAt),
   };

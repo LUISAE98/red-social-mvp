@@ -204,10 +204,9 @@ export default function NotificationList({
         const isGeneric = !KNOWN_NOTIFICATION_TYPES.has(n.type);
         const path = notificationHref(n, selfHandle);
         const query = notificationQuery(n);
-        // Adjunta el query solo cuando el destino lo admite: comentario en /post,
-        // o lista de seguidores en el perfil propio (/u/...).
+        // Adjunta el query salvo que el destino sea el fallback /notifications.
         const href =
-          query && (query.c || path.startsWith("/u/")) ? { pathname: path, query } : path;
+          query && path !== "/notifications" ? { pathname: path, query } : path;
 
         // Solicitud de unión: item especializado con Aceptar/Rechazar inline.
         const jrGroupId = n.target.groupId;

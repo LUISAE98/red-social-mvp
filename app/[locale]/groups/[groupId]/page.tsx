@@ -1131,6 +1131,19 @@ function redirectToLogin() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, isOwner, isModerator, searchParams]);
 
+  // Deep-link `?tab=members` desde la notificación de nuevo miembro: abre la
+  // pestaña Integrantes (la lista de miembros).
+  useEffect(() => {
+    if (!user) return;
+    if (searchParams.get("tab") !== "members") return;
+    setActiveTab("members");
+    const nextParams = new URLSearchParams(searchParams.toString());
+    nextParams.delete("tab");
+    const nextHref = nextParams.toString() ? `${pathname}?${nextParams.toString()}` : pathname;
+    router.replace(nextHref, { scroll: false });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, searchParams]);
+
   // Deep-link "Comenzar ahora" de suscripciones (onboarding de la Wallet): abre
   // la pestaña de servicios de la comunidad y centra la card de suscripción.
   useEffect(() => {

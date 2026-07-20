@@ -630,6 +630,16 @@ match /hiddenGroupTransitions/{groupId} {
         allow create, delete: if false;
       }
 
+      // Sesiones activas (dispositivos con la sesión abierta). Solo el propio
+      // usuario lee y escribe su subcolección: registra su dispositivo, refresca
+      // el heartbeat y marca como `revoked` cualquier sesión (la suya o la de
+      // otro dispositivo del mismo usuario) para cerrarla remotamente. La Cloud
+      // Function de geo-IP usa Admin SDK y no pasa por estas reglas.
+      match /sessions/{sessionId} {
+        allow get, list: if signedIn() && request.auth.uid == uid;
+        allow create, update, delete: if signedIn() && request.auth.uid == uid;
+      }
+
       allow delete: if false;
     }
 

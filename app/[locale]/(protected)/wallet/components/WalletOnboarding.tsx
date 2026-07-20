@@ -203,6 +203,8 @@ export default function WalletOnboarding() {
   // lo mandamos ahí a configurarla; si no tiene ninguna, a crear comunidad.
   const [subGroupId, setSubGroupId] = useState<string | null>(null);
   const [groupsLoaded, setGroupsLoaded] = useState(false);
+  // Card de comunidad abierta por tap (celular/touch); en laptop manda el hover.
+  const [openCommunity, setOpenCommunity] = useState<number | null>(null);
   useEffect(() => {
     const uid = user?.uid;
     if (!uid) {
@@ -243,7 +245,9 @@ export default function WalletOnboarding() {
   useEffect(() => {
     const root = rootRef.current;
     if (!root) return;
-    const els = Array.from(root.querySelectorAll<HTMLElement>(".reveal"));
+    const els = Array.from(
+      root.querySelectorAll<HTMLElement>(".reveal, .revealPop")
+    );
     if (els.length === 0) return;
     if (typeof IntersectionObserver === "undefined") {
       els.forEach((el) => el.classList.add("is-in"));
@@ -770,9 +774,12 @@ export default function WalletOnboarding() {
           transition: gap 0.45s ease;
         }
         /* Al pasar el mouse por el renglón, el gap desaparece para que la card
-           expandida ocupe todo el ancho sin huecos de las colapsadas. */
-        .communityCards:hover {
-          gap: 0;
+           expandida ocupe todo el ancho sin huecos de las colapsadas.
+           Solo en dispositivos con mouse; en touch el control es por tap. */
+        @media (hover: hover) {
+          .communityCards:hover {
+            gap: 0;
+          }
         }
 
         .communityCard {
@@ -799,13 +806,15 @@ export default function WalletOnboarding() {
             background 0.3s ease,
             border-color 0.3s ease;
         }
-        /* Las NO señaladas se colapsan y se ocultan. */
-        .communityCards:hover .communityCard:not(:hover) {
-          flex-grow: 0;
-          flex-basis: 0;
-          padding-left: 0;
-          padding-right: 0;
-          opacity: 0;
+        /* Las NO señaladas se colapsan y se ocultan (solo mouse). */
+        @media (hover: hover) {
+          .communityCards:hover .communityCard:not(:hover) {
+            flex-grow: 0;
+            flex-basis: 0;
+            padding-left: 0;
+            padding-right: 0;
+            opacity: 0;
+          }
         }
 
         .communityHead {
@@ -864,10 +873,35 @@ export default function WalletOnboarding() {
           line-height: 1.4;
           color: rgba(255, 255, 255, 0.45);
         }
-        .communityCard:hover .communityDesc {
-          max-width: 520px;
-          margin-left: 22px;
-          opacity: 1;
+        @media (hover: hover) {
+          .communityCard:hover .communityDesc {
+            max-width: 520px;
+            margin-left: 22px;
+            opacity: 1;
+          }
+        }
+
+        /* Touch (celular): abrir/cerrar por TAP. El JS marca la card con .isOpen;
+           esa se expande y las otras se colapsan (mismo efecto que el hover). */
+        @media (hover: none) {
+          .communityCard {
+            cursor: pointer;
+          }
+          .communityCards:has(.communityCard.isOpen) {
+            gap: 0;
+          }
+          .communityCards:has(.communityCard.isOpen) .communityCard:not(.isOpen) {
+            flex-grow: 0;
+            flex-basis: 0;
+            padding-left: 0;
+            padding-right: 0;
+            opacity: 0;
+          }
+          .communityCard.isOpen .communityDesc {
+            max-width: 520px;
+            margin-left: 22px;
+            opacity: 1;
+          }
         }
 
         .waysTitle {
@@ -1170,6 +1204,11 @@ export default function WalletOnboarding() {
             font-size: 18px;
           }
 
+          /* En celular el título de comunidades va centrado (en laptop, derecha). */
+          .communitiesTitle .waysTitle {
+            text-align: center;
+          }
+
           /* Más espacio arriba para que el botón (esquina superior derecha) no
              quede pegado al título. */
           .wayMain {
@@ -1232,34 +1271,34 @@ export default function WalletOnboarding() {
             align-items: center;
           }
 
-          /* En celular: teléfono a la izquierda, texto (título + descripción) a
-             su derecha. */
+          /* En celular: teléfono centrado arriba y el texto (título + descripción)
+             centrado debajo; sin planeta. */
           .clearSection {
-            margin-top: 36px;
-            flex-direction: row;
-            align-items: flex-start;
-            gap: 16px;
+            margin-top: 48px;
+            flex-direction: column;
+            align-items: center;
+            gap: 22px;
           }
 
           .phoneMock {
-            width: 140px;
+            width: 150px;
+            margin-top: 6px;
           }
 
           .clearTextBlock {
-            flex: 1;
-            min-width: 0;
-            align-items: flex-start;
-            text-align: left;
+            align-items: center;
+            text-align: center;
           }
 
           .clearText {
             max-width: none;
-            margin-top: 10px;
-            font-size: 13.5px;
+            margin-top: 12px;
+            font-size: 14px;
           }
 
+          /* Quita el planeta 3D en celular. */
           .clearGlobe {
-            align-self: flex-start;
+            display: none;
           }
 
           .clearTitle {
@@ -1702,8 +1741,14 @@ export default function WalletOnboarding() {
         </h2>
 
         <div className="communityCards">
-          {COMMUNITY_TYPES.map((c) => (
-            <div key={c.key} className="communityCard">
+          {COMMUNITY_TYPES.map((c, i) => (
+            <div
+              key={c.key}
+              className={`communityCard${openCommunity === i ? " isOpen" : ""}`}
+              onClick={() =>
+                setOpenCommunity((prev) => (prev === i ? null : i))
+              }
+            >
               <div className="communityHead">
                 <span className="communityIcon" style={{ color: c.color }} aria-hidden="true">
                   {c.icon}

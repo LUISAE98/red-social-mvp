@@ -99,5 +99,9 @@ export function notificationQuery(n: AppNotification): Record<string, string> | 
   if (n.type === "follow" && n.actorCount > 1) {
     return { followers: "1" };
   }
+  // Nuevo miembro se unió → abre la pestaña Integrantes (la lista de miembros).
+  if (n.type === "group_new_member" && n.target.groupId) {
+    return { tab: "members" };
+  }
   return undefined;
 }

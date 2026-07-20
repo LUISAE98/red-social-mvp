@@ -712,11 +712,13 @@ useEffect(() => {
 
     setSelectedMediaUrl(mediaUrl);
     // Lee el viewport en vivo: el auto-open del lightbox puede correr antes de que
-    // el estado `isMobile` se estabilice (arranca en false). En celular NO se
-    // auto-abre el panel de comentarios de escritorio sobre el visor.
+    // el estado `isMobile` se estabilice (arranca en false). En móvil NO se
+    // auto-abre el panel de comentarios de escritorio sobre el visor. Usa 900px
+    // (mismo breakpoint móvil que el layout y las galerías); con 640px, los
+    // dispositivos/viewports de 641–900px caían en "escritorio" y sí lo abrían.
     const isMobileNow =
       typeof window !== "undefined" &&
-      window.matchMedia("(max-width: 640px)").matches;
+      window.matchMedia("(max-width: 900px)").matches;
     if (!isMobileNow) void handleOpenCommentsPanel();
 
     // Vista única del viewer para videos/VODs (no cuenta fotos).

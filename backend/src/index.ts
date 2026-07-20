@@ -146,6 +146,9 @@ export {
 // Profile settings
 export { updateProfileDisplayName, updateProfileInterests } from "./profileSettings";
 
+// Sesiones activas — geo-IP para etiquetar la ubicación de cada dispositivo
+export { enrichSessionLocation } from "./sessions";
+
 // Post reactions
 export { togglePostFlame } from "./postReactions";
 
