@@ -212,6 +212,14 @@ async function upsertProfileFeedEntry(params: {
 
   const groupData = await getGroupData(groupId);
 
+  // Seguridad: NO materializar posts de comunidades OCULTAS en el profileFeed —
+  // su copia denormalizada (nombre/avatar/texto) no debe exponerse a no-miembros.
+  // Si el grupo pasó a oculto, elimina cualquier entrada previa.
+  if (groupData?.visibility === "hidden") {
+    await deleteProfileFeedEntry({ postId, authorId }).catch(() => {});
+    return;
+  }
+
   const payload = buildProfileFeedPayload({
     postId,
     postData,

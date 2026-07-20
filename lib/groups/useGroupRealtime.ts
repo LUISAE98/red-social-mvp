@@ -71,23 +71,40 @@ export function useGroupRealtime({
 
     const unsubGroup = onSnapshot(
       gref,
+      { includeMetadataChanges: true },
       (gsnap) => {
-        if (!gsnap.exists()) {
+        const data = gsnap.exists()
+          ? (gsnap.data() as Omit<GroupDoc, "id"> & { visibility?: string })
+          : null;
+
+        // Seguridad: los grupos OCULTOS no se pintan desde el cache local sin
+        // confirmación del servidor. Si saliste de un grupo oculto, su doc puede
+        // seguir en el cache de Firestore; esperamos al server (que aplica la
+        // regla y denegará) en vez de mostrar portada/avatar del cache.
+        if (gsnap.metadata.fromCache && data?.visibility === "hidden") {
+          return;
+        }
+
+        if (!gsnap.exists() || !data) {
           setGroup(null);
           setError("Comunidad no encontrada.");
           setLoading(false);
           return;
         }
 
-        setGroup({
-          id: gsnap.id,
-          ...(gsnap.data() as Omit<GroupDoc, "id">),
-        });
-
+        setGroup({ id: gsnap.id, ...(data as Omit<GroupDoc, "id">) });
+        setError(null);
         setLoading(false);
       },
       (e) => {
-        setError(e.message);
+        // Acceso revocado (p. ej. saliste de un grupo oculto) → el server niega.
+        // Limpiamos el grupo para NO mostrar la copia en cache local.
+        if ((e as { code?: string }).code === "permission-denied") {
+          setGroup(null);
+          setError("Esta comunidad no está disponible.");
+        } else {
+          setError(e.message);
+        }
         setLoading(false);
       }
     );

@@ -471,8 +471,11 @@ match /homeFeed/{postId} {
 }
 
 match /profileFeed/{postId} {
+  // Seguridad: excluye posts de comunidades OCULTAS (su copia denormalizada no
+  // debe ser legible por no-miembros). Los supermoderadores sí ven todo.
   allow get, list: if resource.data.authorId == uid
-    && resource.data.isDeleted == false;
+    && resource.data.isDeleted == false
+    && (resource.data.groupVisibility != "hidden" || isPlatformMod());
 
   allow create, update, delete: if false;
 }
@@ -1941,6 +1944,7 @@ function canReadPublicSharedPost() {
 function canReadPublicPremiumGroupPost() {
   return resource.data.isDeleted == false
     && isGroupPostData(resource.data)
+    && resource.data.groupVisibility != "hidden"
     && resource.data.isShareable == true
     && "premium" in resource.data
     && resource.data.premium is map
@@ -1951,6 +1955,7 @@ function canReadPublicPremiumGroupPost() {
 function canListPublicPremiumGroupPost() {
   return resource.data.isDeleted == false
     && resource.data.groupId is string
+    && resource.data.groupVisibility != "hidden"
     && resource.data.isShareable == true
     && "premium" in resource.data
     && resource.data.premium is map
@@ -1960,6 +1965,7 @@ function canListPublicPremiumGroupPost() {
 
 function canListBroadcastPublicLivePost() {
   return resource.data.isDeleted == false
+    && resource.data.groupVisibility != "hidden"
     && resource.data.liveData.status == "live"
     && resource.data.liveData.allowLoggedOutViewers == true;
 }
@@ -1975,6 +1981,7 @@ function canListOwnAuthoredPost() {
 function canReadPublicShareableGroupPost() {
   return resource.data.isDeleted == false
     && resource.data.groupId is string
+    && resource.data.groupVisibility != "hidden"
     && resource.data.isShareable == true
     && (
       !("accessModel" in resource.data)
@@ -1993,6 +2000,7 @@ function canReadPublicShareableGroupPost() {
 function canListPublicShareableGroupPost() {
   return resource.data.isDeleted == false
     && resource.data.groupId is string
+    && resource.data.groupVisibility != "hidden"
     && resource.data.isShareable == true
     && (
       !("accessModel" in resource.data)

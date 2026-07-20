@@ -602,6 +602,16 @@ export default function WalletOnboarding() {
           text-align: right;
         }
 
+        /* Contenedor del teléfono. En laptop solo lleva el teléfono (los badges
+           están ocultos, viven en la sección lifestyle). */
+        .clearPhoneRow {
+          display: flex;
+          align-items: center;
+        }
+        .clearBadges {
+          display: none;
+        }
+
         /* Mockup de celular (marco). La pantalla queda lista para su contenido. */
         .phoneMock {
           flex-shrink: 0;
@@ -1299,26 +1309,58 @@ export default function WalletOnboarding() {
             align-items: center;
           }
 
-          /* En celular: primero el texto (título + descripción) centrado y el
-             teléfono debajo; sin planeta. (column-reverse porque en el DOM el
-             teléfono va antes.) */
+          /* En celular: texto (título + descripción) arriba, y debajo una fila
+             con el teléfono a la izquierda y los 2 badges a la derecha. */
           .clearSection {
             margin-top: 48px;
             flex-direction: column-reverse;
-            align-items: center;
+            align-items: stretch;
             gap: 22px;
+          }
+
+          /* Fila teléfono + badges, agrupados y centrados (sin hueco muerto en
+             medio). Padding lateral porque no es imagen. */
+          .clearPhoneRow {
+            flex-direction: row;
+            align-items: center;
+            justify-content: center;
+            gap: 24px;
+            padding: 0 16px;
           }
 
           .phoneMock {
             width: 150px;
-            margin-top: 6px;
           }
 
-          /* Texto a lo ancho, alineado a la izquierda (título y descripción). */
+          /* Badges apilados (uno arriba del otro) a la derecha del teléfono, más
+             chicos para que su columna nunca supere el alto del teléfono. */
+          .clearBadges {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+          }
+          .clearBadges .securityIcon {
+            width: 40px;
+            height: 40px;
+          }
+          .clearBadges .securityText {
+            font-size: 10px;
+          }
+
+          /* Los badges de la sección lifestyle se ocultan en celular (aquí van
+             junto al teléfono). */
+          .lifestyleSecurity {
+            display: none;
+          }
+
+          /* Texto a lo ancho, alineado a la izquierda, con margen lateral. */
           .clearTextBlock {
             align-self: stretch;
             align-items: flex-start;
             text-align: left;
+            padding: 0 16px;
           }
 
           .clearText {
@@ -1337,21 +1379,18 @@ export default function WalletOnboarding() {
           }
 
           .commissionPct {
-            font-size: 72px;
+            font-size: 58px;
           }
 
-          /* En angosto el 23% no cabe junto a la lista: se apilan, centrados.
-             La lista se corre al centro (queda a la altura de la primera lista). */
+          /* En celular: 23% a la izquierda y la lista a la derecha, misma fila. */
           .commissionFigureRow {
-            flex-direction: column;
+            flex-direction: row;
             align-items: center;
-            gap: 18px;
+            justify-content: center;
+            gap: 16px;
           }
           .commissionFigureRow .onboardingPerks {
             align-items: flex-start;
-            align-self: center;
-            width: fit-content;
-            max-width: 100%;
           }
 
           .commissionRight {
@@ -1536,10 +1575,42 @@ export default function WalletOnboarding() {
 
       {/* Transparencia: título + descripción, alineados a la derecha. */}
       <section className="clearSection reveal">
-        {/* Simulador de celular con una wallet activa demo (Finanzas / Estadísticas). */}
-        <div className="phoneMock">
-          <div className="phoneScreen">
-            <WalletPhonePreview />
+        {/* En celular: teléfono a la izquierda y los 2 badges de seguridad a la
+            derecha (apilados). En laptop: solo el teléfono (los badges viven en
+            la sección lifestyle). */}
+        <div className="clearPhoneRow">
+          {/* Simulador de celular con una wallet activa demo. */}
+          <div className="phoneMock">
+            <div className="phoneScreen">
+              <WalletPhonePreview />
+            </div>
+          </div>
+          <div className="clearBadges">
+            <div className="securityBadge">
+              <span className="securityIcon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 2.8 19 5.6v5.1c0 4.6-3 7.8-7 9.4-4-1.6-7-4.8-7-9.4V5.6L12 2.8Z" />
+                  <path d="M8.7 12 11 14.3l4.3-4.6" />
+                </svg>
+              </span>
+              <span className="securityText">{tWallet("onboardingSecurePayments")}</span>
+            </div>
+
+            <div className="securityBadge">
+              <span className="securityIcon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M4 8.2V6a2 2 0 0 1 2-2h2.2" />
+                  <path d="M15.8 4H18a2 2 0 0 1 2 2v2.2" />
+                  <path d="M20 15.8V18a2 2 0 0 1-2 2h-2.2" />
+                  <path d="M8.2 20H6a2 2 0 0 1-2-2v-2.2" />
+                  <path d="M9.2 9.6v1.2" />
+                  <path d="M14.8 9.6v1.2" />
+                  <path d="M12 9.8v2.8l-1.1.8" />
+                  <path d="M9.4 15c.8.7 1.7 1 2.6 1s1.8-.3 2.6-1" />
+                </svg>
+              </span>
+              <span className="securityText">{tWallet("onboardingSecureIdentity")}</span>
+            </div>
           </div>
         </div>
 
