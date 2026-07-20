@@ -28,14 +28,12 @@ export default function OwnerSidebarFollowedProfiles({
   currentUserId,
   newPostsCounts,
 }: Props) {
-  const tNav = useTranslations("nav");
   const tCommon = useTranslations("common");
   const pathname = usePathname();
 
   if (loadingFollowing) {
     return (
-      <div style={{ ...styles.sectionPanel, background: "transparent" }}>
-        <div style={styles.sectionTitle}>{tNav("sidebarFollowedProfiles")}</div>
+      <div style={{ ...styles.sectionPanel, background: "transparent", padding: 0 }}>
         <div style={styles.subtle}>{tCommon("loadingProfiles")}</div>
       </div>
     );
@@ -43,19 +41,14 @@ export default function OwnerSidebarFollowedProfiles({
 
   if (followedProfiles.length === 0) {
     return (
-      <div style={{ ...styles.sectionPanel, background: "transparent" }}>
-        <div style={styles.sectionTitle}>{tNav("sidebarFollowedProfiles")}</div>
+      <div style={{ ...styles.sectionPanel, background: "transparent", padding: 0 }}>
         <div style={styles.subtle}>{tCommon("noFollowedProfiles")}</div>
       </div>
     );
   }
 
   return (
-    <div style={{ ...styles.sectionPanel, background: "transparent" }}>
-      <div style={styles.sectionHeaderRow}>
-        <div style={styles.sectionTitle}>{tNav("sidebarFollowedProfiles")}</div>
-      </div>
-
+    <div style={{ ...styles.sectionPanel, background: "transparent", padding: 0 }}>
       <div style={{ display: "grid", gap: 6 }}>
         {followedProfiles.map((profile) => {
           const displayName = profile.displayName || tCommon("user");

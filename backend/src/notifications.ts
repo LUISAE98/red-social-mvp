@@ -10,7 +10,7 @@
  * contador. Al llegar un actor nuevo se antepone a la lista, se incrementa el
  * contador y la notificación vuelve a marcarse como no leída (re-emerge arriba).
  */
-import { onDocumentCreated } from "firebase-functions/v2/firestore";
+import { onDocumentCreated, onDocumentDeleted } from "firebase-functions/v2/firestore";
 import * as admin from "firebase-admin";
 
 if (admin.apps.length === 0) {
@@ -346,23 +346,120 @@ export const onFollowerCreated = onDocumentCreated(
 // ---------------------------------------------------------------------------
 // 6. Solicitud de unirse a una comunidad → owner del grupo
 // ---------------------------------------------------------------------------
+// Umbral: hasta 5 solicitudes pendientes se muestran como notificaciones
+// INDIVIDUALES (con Aceptar/Rechazar inline). A partir de 6 se colapsan en UNA
+// sola notificación agregada (bulk) que solo lleva a "Ver todas las solicitudes".
+const JOIN_REQUEST_BULK_THRESHOLD = 5;
+
+/**
+ * Reconcilia las notificaciones de solicitud de unión del owner a partir del
+ * estado real de solicitudes pendientes del grupo. Idempotente: maneja las
+ * transiciones individual↔agregada sin duplicar ni dejar huérfanas.
+ */
+async function reconcileJoinRequestNotifications(groupId: string): Promise<void> {
+  const group = await db.collection("groups").doc(groupId).get();
+  if (!group.exists) return;
+  const ownerId = str(group.get("ownerId"));
+  if (!ownerId) return;
+  const groupName = str(group.get("name"));
+  const notifs = db.collection("users").doc(ownerId).collection("notifications");
+  const aggRef = notifs.doc(`join_request_${groupId}`);
+
+  const pendingSnap = await db
+    .collection("groups")
+    .doc(groupId)
+    .collection("joinRequests")
+    .where("status", "==", "pending")
+    .get();
+  const pending = pendingSnap.docs
+    .map((d) => ({
+      id: str(d.get("userId")) ?? d.id,
+      ms: (d.get("createdAt") as { toMillis?: () => number } | undefined)?.toMillis?.() ?? 0,
+    }))
+    .filter((p) => p.id !== ownerId);
+  const count = pending.length;
+  const now = admin.firestore.FieldValue.serverTimestamp();
+
+  if (count === 0) {
+    await aggRef.delete().catch(() => {});
+    return;
+  }
+
+  if (count > JOIN_REQUEST_BULK_THRESHOLD) {
+    // BULK: una sola notificación, sin acciones inline.
+    await Promise.all(
+      pending.map((p) => notifs.doc(`join_request_${groupId}_${p.id}`).delete().catch(() => {}))
+    );
+    const recent = [...pending].sort((a, b) => b.ms - a.ms).slice(0, MAX_VISIBLE_ACTORS);
+    const actors = await Promise.all(recent.map((p) => resolveActor(p.id)));
+    const existing = await aggRef.get();
+    await aggRef.set(
+      {
+        type: "join_request",
+        groupKey: `join_request_${groupId}`,
+        bulk: true,
+        actors,
+        actorIds: pending.map((p) => p.id).slice(0, MAX_DEDUPE_IDS),
+        actorCount: count,
+        target: { groupId, groupName },
+        read: false,
+        updatedAt: now,
+        ...(existing.exists ? {} : { createdAt: now }),
+      },
+      { merge: true }
+    );
+    return;
+  }
+
+  // ≤ umbral: individuales. Borra la agregada y asegura una notif por solicitante.
+  await aggRef.delete().catch(() => {});
+  await Promise.all(
+    pending.map(async (p) => {
+      const ref = notifs.doc(`join_request_${groupId}_${p.id}`);
+      const existing = await ref.get();
+      if (existing.exists) return; // preserva read/createdAt; no re-emitir
+      const actor = await resolveActor(p.id);
+      await ref.set({
+        type: "join_request",
+        groupKey: ref.id,
+        bulk: false,
+        actors: [actor],
+        actorIds: [p.id],
+        actorCount: 1,
+        target: { groupId, groupName },
+        read: false,
+        createdAt: now,
+        updatedAt: now,
+      });
+    })
+  );
+}
+
 export const onJoinRequestCreated = onDocumentCreated(
+  { document: "groups/{groupId}/joinRequests/{requesterId}", region: REGION },
+  async (event) => {
+    await reconcileJoinRequestNotifications(event.params.groupId);
+  }
+);
+
+// Al resolverse (aprobar/rechazar) o cancelarse, el doc se borra → limpiamos la
+// notificación individual de ese solicitante y reconciliamos el resto.
+export const onJoinRequestRemoved = onDocumentDeleted(
   { document: "groups/{groupId}/joinRequests/{requesterId}", region: REGION },
   async (event) => {
     const { groupId, requesterId } = event.params;
     const group = await db.collection("groups").doc(groupId).get();
-    if (!group.exists) return;
-    const ownerId = str(group.get("ownerId"));
-    if (!ownerId || ownerId === requesterId) return;
-
-    const actor = await resolveActor(requesterId);
-    await emit({
-      recipientId: ownerId,
-      groupKey: `join_request_${groupId}`,
-      type: "join_request",
-      actor,
-      target: { groupId, groupName: str(group.get("name")) },
-    });
+    const ownerId = group.exists ? str(group.get("ownerId")) : null;
+    if (ownerId) {
+      await db
+        .collection("users")
+        .doc(ownerId)
+        .collection("notifications")
+        .doc(`join_request_${groupId}_${requesterId}`)
+        .delete()
+        .catch(() => {});
+    }
+    await reconcileJoinRequestNotifications(groupId);
   }
 );
 

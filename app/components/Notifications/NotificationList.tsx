@@ -1,7 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
+import { approveJoinRequest, rejectJoinRequest } from "@/lib/groups/joinRequests.admin";
 import {
   AppNotification,
   KNOWN_NOTIFICATION_TYPES,
@@ -69,11 +71,110 @@ function Avatar({ n }: { n: AppNotification }) {
   );
 }
 
+/** Botones Aceptar/Rechazar inline para la notificación de solicitud de unión. */
+function JoinRequestActions({ groupId, userId }: { groupId: string; userId: string }) {
+  const t = useTranslations("notifications");
+  const [status, setStatus] = useState<"idle" | "working" | "approved" | "rejected" | "error">(
+    "idle"
+  );
+
+  const act = async (kind: "approve" | "reject") => {
+    if (status === "working") return;
+    setStatus("working");
+    try {
+      if (kind === "approve") await approveJoinRequest(groupId, userId);
+      else await rejectJoinRequest(groupId, userId);
+      setStatus(kind === "approve" ? "approved" : "rejected");
+    } catch {
+      setStatus("error");
+    }
+  };
+
+  if (status === "approved" || status === "rejected") {
+    return (
+      <span className="jrDone">
+        {status === "approved" ? t("requestAccepted") : t("requestRejected")}
+        <style jsx>{`
+          .jrDone {
+            font-size: 13px;
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.6);
+          }
+        `}</style>
+      </span>
+    );
+  }
+
+  return (
+    <div className="jrActions">
+      <button
+        type="button"
+        className="jrBtn jrApprove"
+        disabled={status === "working"}
+        onClick={() => act("approve")}
+      >
+        {t("accept")}
+      </button>
+      <button
+        type="button"
+        className="jrBtn jrReject"
+        disabled={status === "working"}
+        onClick={() => act("reject")}
+      >
+        {t("reject")}
+      </button>
+      {status === "error" ? <span className="jrError">{t("actionError")}</span> : null}
+
+      <style jsx>{`
+        .jrActions {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+        .jrBtn {
+          flex: 0 0 auto;
+          padding: 7px 16px;
+          border-radius: 8px;
+          font-size: 13px;
+          font-weight: 700;
+          cursor: pointer;
+          border: none;
+          transition: opacity 120ms ease, background 120ms ease;
+        }
+        .jrBtn:disabled {
+          opacity: 0.5;
+          cursor: default;
+        }
+        .jrApprove {
+          background: #a855ff;
+          color: #fff;
+        }
+        .jrApprove:hover:not(:disabled) {
+          background: #9333ea;
+        }
+        .jrReject {
+          background: rgba(255, 255, 255, 0.1);
+          color: #f2f2f2;
+        }
+        .jrReject:hover:not(:disabled) {
+          background: rgba(255, 255, 255, 0.18);
+        }
+        .jrError {
+          font-size: 12px;
+          color: #ef4444;
+        }
+      `}</style>
+    </div>
+  );
+}
+
 interface NotificationListProps {
   items: AppNotification[];
   loading: boolean;
   onItemClick?: (n: AppNotification) => void;
   variant?: "panel" | "page";
+  /** Handle del usuario actual: para el link al perfil propio (follows colectivos). */
+  selfHandle?: string | null;
 }
 
 export default function NotificationList({
@@ -81,6 +182,7 @@ export default function NotificationList({
   loading,
   onItemClick,
   variant = "panel",
+  selfHandle = null,
 }: NotificationListProps) {
   const t = useTranslations("notifications");
   const timeAgo = useTimeAgo();
@@ -100,44 +202,118 @@ export default function NotificationList({
         const others = n.actorCount > 1 ? t("andOthers", { count: n.actorCount - 1 }) : "";
         // Tipos sin plantilla enriquecida (ej. moderación) muestran `message`.
         const isGeneric = !KNOWN_NOTIFICATION_TYPES.has(n.type);
+        const path = notificationHref(n, selfHandle);
         const query = notificationQuery(n);
-        const href = query ? { pathname: notificationHref(n), query } : notificationHref(n);
+        // Adjunta el query solo cuando el destino lo admite: comentario en /post,
+        // o lista de seguidores en el perfil propio (/u/...).
+        const href =
+          query && (query.c || path.startsWith("/u/")) ? { pathname: path, query } : path;
+
+        // Solicitud de unión: item especializado con Aceptar/Rechazar inline.
+        const jrGroupId = n.target.groupId;
+        const jrUserId = n.actors[0]?.id;
 
         return (
           <li key={n.id} className={n.read ? "notifItem" : "notifItem notifUnread"}>
-            <Link
-              href={href}
-              className="notifLink"
-              onClick={() => onItemClick?.(n)}
-            >
-              <Avatar n={n} />
-              <span className="notifBody">
-                <span className="notifText">
-                  {isGeneric ? (
-                    n.message
-                  ) : (
-                    <>
+            {n.type === "join_request" && jrGroupId ? (
+              <div className="notifJoinItem">
+                <div className="notifJoinTop">
+                  <Avatar n={n} />
+                  <span className="notifBody">
+                    <span className="notifText">
                       <strong>{primaryName}</strong>
                       {others ? <span> {others}</span> : null}{" "}
-                      {t(`verb.${n.type}`, { count: n.actorCount, group })}
-                    </>
-                  )}
-                </span>
-                {n.target.preview && !isGeneric ? (
-                  <span className="notifPreview">{n.target.preview}</span>
+                      {t("verb.join_request", { count: n.actorCount, group })}
+                    </span>
+                    {n.bulk ? (
+                      <Link
+                        href={{ pathname: `/groups/${jrGroupId}`, query: { requests: "1" } }}
+                        className="notifViewRequests"
+                        onClick={() => onItemClick?.(n)}
+                      >
+                        {t("viewAllRequests")}
+                      </Link>
+                    ) : null}
+                    <span className="notifTime">{timeAgo(n.updatedAtMs)}</span>
+                  </span>
+                </div>
+                {!n.bulk && jrUserId ? (
+                  <div className="notifJoinActions">
+                    <JoinRequestActions groupId={jrGroupId} userId={jrUserId} />
+                    <Link
+                      href={{ pathname: `/groups/${jrGroupId}`, query: { requests: "1" } }}
+                      className="notifViewRequests"
+                      onClick={() => onItemClick?.(n)}
+                    >
+                      {t("viewAllRequests")}
+                    </Link>
+                  </div>
                 ) : null}
-                <span className="notifTime">{timeAgo(n.updatedAtMs)}</span>
-              </span>
-              {n.target.imageUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img className="notifThumb" src={n.target.imageUrl} alt="" />
-              ) : null}
-              {!n.read ? <span className="notifDot" aria-hidden /> : null}
-            </Link>
+              </div>
+            ) : (
+              <Link
+                href={href}
+                className="notifLink"
+                onClick={() => onItemClick?.(n)}
+              >
+                <Avatar n={n} />
+                <span className="notifBody">
+                  <span className="notifText">
+                    {isGeneric ? (
+                      n.message
+                    ) : (
+                      <>
+                        <strong>{primaryName}</strong>
+                        {others ? <span> {others}</span> : null}{" "}
+                        {t(`verb.${n.type}`, { count: n.actorCount, group })}
+                      </>
+                    )}
+                  </span>
+                  {n.target.preview && !isGeneric ? (
+                    <span className="notifPreview">{n.target.preview}</span>
+                  ) : null}
+                  <span className="notifTime">{timeAgo(n.updatedAtMs)}</span>
+                </span>
+                {n.target.imageUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img className="notifThumb" src={n.target.imageUrl} alt="" />
+                ) : null}
+              </Link>
+            )}
 
             <style jsx>{`
               .notifItem {
                 list-style: none;
+              }
+              .notifJoinItem {
+                display: flex;
+                flex-direction: column;
+                gap: 10px;
+                padding: 12px 16px;
+              }
+              .notifUnread .notifJoinItem {
+                background: rgba(168, 85, 255, 0.08);
+              }
+              .notifJoinTop {
+                display: flex;
+                align-items: flex-start;
+                gap: 12px;
+              }
+              .notifJoinActions {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                flex-wrap: wrap;
+              }
+              .notifItem :global(.notifViewRequests) {
+                font-size: 13px;
+                font-weight: 600;
+                color: #a855ff;
+                text-decoration: none;
+                width: fit-content;
+              }
+              .notifItem :global(.notifViewRequests:hover) {
+                text-decoration: underline;
               }
               .notifItem :global(.notifLink) {
                 display: flex;
@@ -188,14 +364,6 @@ export default function NotificationList({
                 height: 44px;
                 border-radius: 8px;
                 object-fit: cover;
-              }
-              .notifDot {
-                flex: 0 0 auto;
-                width: 9px;
-                height: 9px;
-                border-radius: 50%;
-                background: #a855ff;
-                margin-top: 6px;
               }
             `}</style>
           </li>

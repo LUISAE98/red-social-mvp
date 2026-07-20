@@ -1981,6 +1981,7 @@ export default function OwnerAdminServices({
 
   return (
     <div style={contentStyle}>
+      <div id="admin-subscription" style={{ scrollMarginTop: 80 }}>
       <Subscription
         draft={draft}
         savedDraft={savedDraft}
@@ -2004,6 +2005,7 @@ export default function OwnerAdminServices({
         onSaveDraft={saveServicesFromDraft}
         onRemoveLegacyMembers={handleConfirmRemoveLegacyFreeMembersLater}
       />
+      </div>
 
       <Greetings
         draft={draft}

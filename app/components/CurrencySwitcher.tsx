@@ -223,7 +223,17 @@ function CurrencyOverlay({
   );
 }
 
-export default function CurrencySwitcher({ variant = "desktop" }: { variant?: Variant }) {
+export default function CurrencySwitcher({
+  variant = "desktop",
+  color,
+  scale = 1,
+}: {
+  variant?: Variant;
+  /** Override del color del texto en el variant desktop (por defecto morado). */
+  color?: string;
+  /** Escala del botón en el variant desktop (1 = tamaño base). */
+  scale?: number;
+}) {
   const tCommon = useTranslations("common");
   const locale = useLocale();
   const { currency, setCurrency } = useCurrency();
@@ -371,13 +381,13 @@ export default function CurrencySwitcher({ variant = "desktop" }: { variant?: Va
         title={tCommon("changeCurrency")}
         aria-label={tCommon("changeCurrency")}
         style={{
-          height: 38,
-          padding: "0 16px",
+          height: 38 * scale,
+          padding: `0 ${16 * scale}px`,
           borderRadius: 8,
           background: "transparent",
           border: "none",
-          color: "#a855ff",
-          fontSize: 13,
+          color: color ?? "#a855ff",
+          fontSize: 13 * scale,
           fontWeight: 700,
           letterSpacing: "0.03em",
           cursor: "pointer",

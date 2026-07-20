@@ -1851,20 +1851,14 @@ function postMatchesMediaKind(post: Post, kind: MediaGalleryKind): boolean {
   return !isLive && media.some((m) => m.type === "video");
 }
 
-async function buildMediaPageResult(params: {
-  docs: QueryDocumentSnapshot<DocumentData>[];
-  kind: MediaGalleryKind;
-  viewerUid?: string | null;
-  safePageSize: number;
-}): Promise<GroupPostsPageResult> {
-  const { docs, kind, viewerUid, safePageSize } = params;
-
-  const pageDocs = docs.slice(0, safePageSize);
-  const rawPosts: Post[] = pageDocs.map((d) => ({
-    id: d.id,
-    ...(d.data() as Omit<Post, "id">),
-  }));
-
+// Hidrata posts crudos, filtra por tipo de media (foto/video/live), ordena los
+// lives (en curso arriba) y adjunta el estado del viewer. Compartido por todas
+// las galerías: comunidad, perfil y guardados.
+async function processMediaPosts(
+  rawPosts: Post[],
+  kind: MediaGalleryKind,
+  viewerUid?: string | null
+): Promise<Post[]> {
   const [userMap, groupMap] = await Promise.all([
     fetchUsersByIds(rawPosts.map((post) => post.authorId)),
     fetchGroupsByIds(getPostGroupIds(rawPosts)),
@@ -1887,10 +1881,24 @@ async function buildMediaPageResult(params: {
     });
   }
 
-  const postsWithViewerState = await attachViewerPostState(
-    hydratedPosts,
-    viewerUid
-  );
+  return attachViewerPostState(hydratedPosts, viewerUid);
+}
+
+async function buildMediaPageResult(params: {
+  docs: QueryDocumentSnapshot<DocumentData>[];
+  kind: MediaGalleryKind;
+  viewerUid?: string | null;
+  safePageSize: number;
+}): Promise<GroupPostsPageResult> {
+  const { docs, kind, viewerUid, safePageSize } = params;
+
+  const pageDocs = docs.slice(0, safePageSize);
+  const rawPosts: Post[] = pageDocs.map((d) => ({
+    id: d.id,
+    ...(d.data() as Omit<Post, "id">),
+  }));
+
+  const postsWithViewerState = await processMediaPosts(rawPosts, kind, viewerUid);
 
   const hasMore = docs.length > safePageSize;
   const lastDoc = pageDocs[pageDocs.length - 1] ?? null;
@@ -1995,6 +2003,91 @@ export async function fetchProfileMediaPage(params: {
     viewerUid: params.viewerUid,
     safePageSize,
   });
+}
+
+/**
+ * Galería de GUARDADOS: fotos/videos/lives de los posts que el usuario guardó.
+ * Pagina la subcolección `savedPosts` (por savedAt), hace batch-fetch de los posts
+ * por id y filtra el tipo de media en cliente — mismo pipeline que perfil/comunidad.
+ * El cursor de guardados es el doc de `savedPosts`; se reutiliza el campo `lastDoc`.
+ */
+export async function fetchSavedMediaPage(params: {
+  userUid: string;
+  kind: MediaGalleryKind;
+  viewerUid?: string | null;
+  pageSize?: number;
+  cursor?: GroupPostsPageCursor | null;
+}): Promise<GroupPostsPageResult> {
+  assertValidId(params.userUid, "userUid");
+
+  const safePageSize = Math.max(1, Math.min(params.pageSize ?? 24, 40));
+  const previousLastSavedDoc = params.cursor?.lastDoc ?? null;
+
+  const savedSnap = await getDocs(
+    query(
+      collection(db, "users", params.userUid, "savedPosts"),
+      orderBy("savedAt", "desc"),
+      ...(previousLastSavedDoc ? [startAfter(previousLastSavedDoc)] : []),
+      limit(safePageSize)
+    )
+  );
+
+  if (savedSnap.empty) {
+    return { posts: [], cursor: null, hasMore: false };
+  }
+
+  const savedPostIds = savedSnap.docs
+    .map((savedDoc) => {
+      const data = savedDoc.data() as Record<string, unknown>;
+      const postIdFromData =
+        typeof data.postId === "string" && data.postId.trim().length > 0
+          ? data.postId.trim()
+          : null;
+      return postIdFromData || savedDoc.id;
+    })
+    .filter((postId) => postId.trim().length > 0);
+
+  const postsByIdMap = new Map<string, Post>();
+  await Promise.all(
+    chunkArray(savedPostIds, 30).map(async (chunk) => {
+      try {
+        const snap = await getDocs(
+          query(collection(db, "posts"), where(documentId(), "in", chunk))
+        );
+        snap.docs.forEach((postDoc) => {
+          const post = {
+            id: postDoc.id,
+            ...(postDoc.data() as Omit<Post, "id">),
+          } as Post;
+          if (post.isDeleted !== true) postsByIdMap.set(postDoc.id, post);
+        });
+      } catch {
+        // Si un chunk falla, se omite silenciosamente.
+      }
+    })
+  );
+
+  // Preservar el orden por savedAt del cursor.
+  const orderedPosts = savedPostIds
+    .map((postId) => postsByIdMap.get(postId) ?? null)
+    .filter((post): post is Post => Boolean(post));
+
+  const postsWithViewerState = await processMediaPosts(
+    orderedPosts,
+    params.kind,
+    params.viewerUid
+  );
+
+  const lastSavedDoc = savedSnap.docs[savedSnap.docs.length - 1] ?? null;
+  // hasMore se basa en si hay más `savedPosts` (no en cuántos tiles quedaron tras
+  // filtrar): la MediaGallery auto-rellena si una página deja pocos tiles.
+  const hasMore = savedSnap.docs.length === safePageSize;
+
+  return {
+    posts: postsWithViewerState,
+    cursor: hasMore && lastSavedDoc ? { lastDoc: lastSavedDoc } : null,
+    hasMore,
+  };
 }
 
 export async function fetchGroupPublicPremiumPostsPage(params: {

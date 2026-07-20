@@ -1018,36 +1018,39 @@ useEffect(() => {
   setActiveTab("services");
 
   // La pestaña se monta tras el cambio de estado (con animación de slide) y las
-  // cards de arriba pueden cambiar de alto tras la primera medición. Por eso no
-  // basta un solo scroll: sondeamos hasta que exista el ancla y luego
-  // re-centramos varias veces (recalculando la posición) para converger al
-  // centro aunque haya reflujo de layout. Usamos scroll de ventana porque el
-  // contenedor de pestañas es overflow:hidden y scrollIntoView es poco fiable.
+  // cards pueden cambiar de alto tras la primera medición (data async, la última
+  // card sobre todo). Por eso hacemos un bucle CONVERGENTE: recalculamos la
+  // posición cada ~120ms y re-centramos hasta que el objetivo se estabilice.
+  // Usamos scroll de ventana porque el contenedor de pestañas es overflow:hidden
+  // y scrollIntoView es poco fiable ahí.
   let cancelled = false;
   const timers: number[] = [];
-  const centerOnce = () => {
+  let lastTop = -1;
+  let stable = 0;
+  let attempts = 0;
+  const tick = () => {
     if (cancelled) return;
+    attempts++;
     const el = document.getElementById(`exp-${configure}`);
-    if (!el) return;
-    const rect = el.getBoundingClientRect();
-    const top =
-      window.scrollY + rect.top - window.innerHeight / 2 + rect.height / 2;
-    window.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
-  };
-  let tries = 0;
-  const waitForCard = () => {
-    if (cancelled) return;
-    if (document.getElementById(`exp-${configure}`)) {
-      // Encontrada: centra ahora y corrige tras el reflujo/animación.
-      centerOnce();
-      [250, 550, 900].forEach((d) =>
-        timers.push(window.setTimeout(centerOnce, d))
+    if (el) {
+      const rect = el.getBoundingClientRect();
+      const target = Math.max(
+        0,
+        window.scrollY + rect.top - window.innerHeight / 2 + rect.height / 2
       );
+      if (Math.abs(target - lastTop) > 2) {
+        window.scrollTo({ top: target, behavior: "smooth" });
+        lastTop = target;
+        stable = 0;
+      } else {
+        stable++;
+      }
+      if (stable < 4 && attempts < 60) timers.push(window.setTimeout(tick, 120));
       return;
     }
-    if (tries++ < 40) timers.push(window.setTimeout(waitForCard, 100));
+    if (attempts < 60) timers.push(window.setTimeout(tick, 120));
   };
-  timers.push(window.setTimeout(waitForCard, 150));
+  timers.push(window.setTimeout(tick, 150));
   return () => {
     cancelled = true;
     timers.forEach((t) => window.clearTimeout(t));
@@ -1063,6 +1066,25 @@ useEffect(() => {
   setActiveTab("posts");
   const timer = window.setTimeout(() => setIsProfileLiveModalOpen(true), 180);
   return () => window.clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [authReady, userDoc, isOwner, searchParams]);
+
+// Deep-link "Crea tu primera publicación premium": asegura la pestaña de posts
+// para que el composer (que abre premium por su prop autoOpenPremium) esté montado.
+useEffect(() => {
+  if (!authReady || !userDoc || !isOwner) return;
+  if (searchParams.get("compose") !== "premium") return;
+  setActiveTab("posts");
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [authReady, userDoc, isOwner, searchParams]);
+
+// Deep-link desde la notificación colectiva de nuevos seguidores: abre la lista
+// de seguidores (solo el dueño puede verla) y limpia la URL.
+useEffect(() => {
+  if (!authReady || !userDoc || !isOwner) return;
+  if (searchParams.get("followers") !== "1") return;
+  setFollowersOverlayOpen(true);
+  router.replace(pathname || `/u/${handle}`, { scroll: false });
   // eslint-disable-next-line react-hooks/exhaustive-deps
 }, [authReady, userDoc, isOwner, searchParams]);
 
@@ -2444,6 +2466,8 @@ await createExclusiveSessionRequest({
       contextType="profile"
       onSubmit={handleCreateProfilePost}
       onLiveClick={() => setIsProfileLiveModalOpen(true)}
+      isOwner={isOwner}
+      autoOpenPremium={isOwner && searchParams.get("compose") === "premium"}
     />
 
     <LiveComposerModal

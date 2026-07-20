@@ -514,12 +514,10 @@ export default function OwnerSidebarMyGroups({
   myGroups,
   ownedGrouped,
   openCommunities,
-  joinRequestsByGroup,
   greetingsByGroup,
   meetGreetsByGroup,
   exclusiveSessionsByGroup,
   greetingSectionOpen,
-  joinSectionOpen,
   seenCountsByGroup,
   userMiniMap,
   styles,
@@ -529,11 +527,8 @@ export default function OwnerSidebarMyGroups({
   setSeenCountsByGroup,
   setJoinSectionOpen,
   setGreetingSectionOpen,
-  handleApproveJoin,
-  handleRejectJoin,
   handleGreetingAction,
   onCreateCommunity,
-  joinBusyKey,
   greetingBusyId,
   newPostsCounts = {},
 }: Props) {
@@ -1406,7 +1401,6 @@ const isSelectedGroup = (isProfileCard
   : pathname === `/groups/${g.id}`)
   || (isMobile && isOpen);
 
-            const joinRequests = joinRequestsByGroup[g.id] ?? [];
             const greetings = greetingsByGroup[g.id] ?? [];
             const meetGreets = meetGreetsByGroup[g.id] ?? [];
             const exclusiveSessions = exclusiveSessionsByGroup[g.id] ?? [];
@@ -1467,7 +1461,7 @@ const copyTitle = isProfileCard
 
             const totalServiceCount =
                   greetingServiceCount + scheduledServiceRequestCount;
-            const cardBadgeCount = totalServiceCount + joinRequests.length;
+            const cardBadgeCount = totalServiceCount;
 
             const sortedGreetings = [...greetings].sort((a, b) => {
               const aTime = toDateSafe(a.data.createdAt)?.getTime() ?? 0;
@@ -1483,16 +1477,12 @@ const copyTitle = isProfileCard
               return aTime - bTime;
             });
 
-            const showJoinSection = !isPublic && joinRequests.length > 0;
             const showGreetingsSection = totalServiceCount > 0;
             const showUpcomingSection = upcomingServiceCount > 0;
 
             const greetingListOpen = greetingSectionOpen[g.id] === true;
-            const joinListOpen = joinSectionOpen[g.id] === true;
 
             const hasPreparingAlert = upcomingServiceCount > 0;
-
-            const currentJoinCount = showJoinSection ? joinRequests.length : 0;
 
             const currentGreetingCount = showGreetingsSection
               ? greetings.length + scheduledServiceRequests.length
@@ -1503,14 +1493,11 @@ const copyTitle = isProfileCard
               greeting: 0,
             };
 
-            const hasNewJoin = currentJoinCount > seen.join;
             const hasNewGreeting = currentGreetingCount > seen.greeting;
 
             const hasOwnerSidebarAlerts =
-  showJoinSection ||
   showGreetingsSection ||
   showUpcomingSection ||
-  hasNewJoin ||
   hasNewGreeting ||
   hasPreparingAlert;
 
@@ -1521,7 +1508,7 @@ const copyTitle = isProfileCard
                 setSeenCountsByGroup((prev) => ({
                   ...prev,
                   [g.id]: {
-                    join: currentJoinCount,
+                    join: 0,
                     greeting: currentGreetingCount,
                   },
                 }));
@@ -1597,7 +1584,12 @@ boxShadow:
                         currentUserId={null}
                         photoURL={g.avatarUrl ?? null}
                         displayName={communityName}
-                        size={isMobile ? 43 : 36}
+                        /* Avatar de "mi perfil" 20% más grande que el de comunidades. */
+                        size={
+                          g.visibility === "profile"
+                            ? (isMobile ? 52 : 43)
+                            : (isMobile ? 43 : 36)
+                        }
                         style={{ flexShrink: 0 }}
                       />
                                             <div
@@ -1789,192 +1781,6 @@ boxShadow:
                             >
                               {tGroups("generateInviteLink")}
                             </button>
-                          </div>
-                        </div>
-                      )}
-                                            {showJoinSection && (
-                        <div style={{ ...styles.sectionPanel, gap: 0 }}>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const opening = !joinSectionOpen[g.id];
-                              setJoinSectionOpen((prev) => ({ ...prev, [g.id]: opening }));
-                              if (opening) {
-                                setGreetingSectionOpen((prev) => ({ ...prev, [g.id]: false }));
-                                setMeetGreetSectionOpen((prev) => ({ ...prev, [g.id]: false }));
-                              }
-                            }}
-                            style={{
-                              background: "transparent",
-                              border: "none",
-                              padding: "0 6px 0 0",
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "space-between",
-                              gap: 10,
-                              width: "100%",
-                              color: "#fff",
-                              cursor: "pointer",
-                              textAlign: "left",
-                            }}
-                          >
-                            <span
-                              style={{
-                                fontSize: 12,
-                                color: "rgba(255,255,255,0.94)",
-                                fontWeight: 550,
-                              }}
-                            >
-                              {tGroups("joinRequestSectionTitle")}
-                            </span>
-
-                            <CountBadge count={joinRequests.length} tone="pink" />
-                          </button>
-
-                          <div
-                            style={{
-                              maxHeight: joinListOpen ? "600px" : "0",
-                              overflow: "hidden",
-                              opacity: joinListOpen ? 1 : 0,
-                              transition: "max-height 360ms cubic-bezier(0.4,0,0.2,1), opacity 220ms ease",
-                            }}
-                          >
-                            <div className="mini-vertical-scroll" style={{ paddingTop: 8 }}>
-                              <div style={{ display: "grid", gap: 7 }}>
-                                {joinRequests.map((r) => {
-                                  const approveKey = `${g.id}:${r.userId}:approve`;
-                                  const rejectKey = `${g.id}:${r.userId}:reject`;
-                                  const busy =
-                                    joinBusyKey === approveKey ||
-                                    joinBusyKey === rejectKey;
-
-                                  const requester = userMiniMap[r.userId] ?? null;
-                                  const letter = getInitials(
-                                    requester?.displayName
-                                  );
-
-                                  return (
-                                    <div key={r.id} style={styles.miniItem}>
-                                      <div
-                                        style={{
-                                          display: "flex",
-                                          alignItems: "center",
-                                          gap: 8,
-                                          minWidth: 0,
-                                        }}
-                                      >
-                                        {requester?.photoURL ? (
-                                          <Image
-                                            src={requester.photoURL}
-                                            alt={requester.displayName}
-                                            width={28} height={28}
-                                            style={{
-                                              borderRadius: 10,
-                                              objectFit: "cover",
-                                              border: "1px solid rgba(255,255,255,0.12)",
-                                              flexShrink: 0,
-                                            }}
-                                          />
-                                        ) : (
-                                          <div
-                                            style={{
-                                              width: 28,
-                                              height: 28,
-                                              borderRadius: 10,
-                                              background:
-                                                "rgba(255,255,255,0.05)",
-                                              border:
-                                                "1px solid rgba(255,255,255,0.12)",
-                                              display: "flex",
-                                              alignItems: "center",
-                                              justifyContent: "center",
-                                              fontWeight: 700,
-                                              fontSize: 11,
-                                              color: "#fff",
-                                              flexShrink: 0,
-                                            }}
-                                          >
-                                            {letter}
-                                          </div>
-                                        )}
-
-                                        <div style={{ minWidth: 0 }}>
-                                          <div
-                                            style={{
-                                              display: "flex",
-                                              alignItems: "center",
-                                              gap: 6,
-                                              minWidth: 0,
-                                              flexWrap: "wrap",
-                                            }}
-                                          >
-                                            {renderUserLink(r.userId)}
-                                          </div>
-
-                                          <div style={styles.subtle}>
-                                            {tGroups("joinRequestPending")}
-                                          </div>
-                                        </div>
-                                      </div>
-
-                                      <div
-                                        style={{
-                                          display: "flex",
-                                          gap: 6,
-                                          width: "100%",
-                                        }}
-                                      >
-                                        <button
-                                          type="button"
-                                          onClick={() =>
-                                            handleApproveJoin(g.id, r.userId)
-                                          }
-                                          disabled={busy}
-                                          style={{
-                                            flex: 1,
-                                            height: 30,
-                                            borderRadius: 8,
-                                            border: "none",
-                                            background: "rgba(59,130,246,0.18)",
-                                            color: "#93c5fd",
-                                            fontWeight: 520,
-                                            fontSize: 12,
-                                            cursor: busy ? "not-allowed" : "pointer",
-                                            fontFamily: "inherit",
-                                            opacity: busy ? 0.6 : 1,
-                                          }}
-                                        >
-                                          {busy ? tCommon("processing") : tGroups("approveButton")}
-                                        </button>
-
-                                        <button
-                                          type="button"
-                                          onClick={() =>
-                                            handleRejectJoin(g.id, r.userId)
-                                          }
-                                          disabled={busy}
-                                          style={{
-                                            flex: 1,
-                                            height: 30,
-                                            borderRadius: 8,
-                                            border: "none",
-                                            background: "rgba(239,68,68,0.15)",
-                                            color: "#fca5a5",
-                                            fontWeight: 520,
-                                            fontSize: 12,
-                                            cursor: busy ? "not-allowed" : "pointer",
-                                            fontFamily: "inherit",
-                                            opacity: busy ? 0.6 : 1,
-                                          }}
-                                        >
-                                          {busy ? "..." : tCommon("reject")}
-                                        </button>
-                                      </div>
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            </div>
                           </div>
                         </div>
                       )}

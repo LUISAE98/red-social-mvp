@@ -31,6 +31,10 @@ import {
 } from "@/lib/posts/post-feed-cache";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
+import { VibraNavigationIcon } from "@/app/components/VibraServiceIcons/VibraNavigationIcons";
+import { motion } from "framer-motion";
+import PostsMediaSubnav, { MEDIA_TAB_ORDER, type MediaTabKey } from "@/app/groups/[groupId]/components/posts/PostsMediaSubnav";
+import MediaGallery, { clearMediaGalleryCache, type GalleryTile } from "@/app/groups/[groupId]/components/posts/MediaGallery";
 
 const SAVED_POSTS_PAGE_SIZE = 10;
 const SAVED_POSTS_CACHE_TTL_MS = 5 * 60 * 1000;
@@ -139,6 +143,16 @@ export default function SavedPostsFeed() {
   const [isMobile, setIsMobile] = useState(false);
   const [searchInput, setSearchInput] = useState("");
   const [activeSearch, setActiveSearch] = useState("");
+  // Sub-subnav de media (Publicaciones/Fotos/Videos/En vivo) + lightbox de galería.
+  const [mediaTab, setMediaTab] = useState<MediaTabKey>("feed");
+  const [lightboxTile, setLightboxTile] = useState<GalleryTile | null>(null);
+  // Posts desbloqueados (comprados) en esta sesión desde la galería.
+  const [unlockedPostIds, setUnlockedPostIds] = useState<Set<string>>(() => new Set());
+  // Pestaña previa, para la dirección del slide (mismo patrón que perfil/comunidad).
+  const prevMediaTabRef = useRef<MediaTabKey>("feed");
+  useEffect(() => {
+    prevMediaTabRef.current = mediaTab;
+  }, [mediaTab]);
 
 
   const loadingMoreRef = useRef(false);
@@ -329,6 +343,7 @@ const syncPostsState = useCallback(
   }, [currentUserId, loadPostsPage]);
 
   const handleSavedPullRefresh = useCallback(async () => {
+  clearMediaGalleryCache();
   await refreshPosts();
 }, [refreshPosts]);
 
@@ -778,37 +793,26 @@ const shellStyle: CSSProperties = {
     gap: 8,
   };
 
+  // Estilo de campo/placeholder canónico de Vibra (vibra_style.md → "Textarea"):
+  // fondo rgba(255,255,255,0.06), sin borde, radio 12, fontSize 13, fontFamily
+  // inherit. El color del placeholder lo deja el navegador por defecto.
+  // Estilo de campo/placeholder canónico de Vibra (vibra_style.md → "Textarea").
+  // La lupa va DENTRO (izquierda) → paddingLeft deja espacio para ella; el
+  // paddingRight se amplía en el render cuando aparece el botón × de limpiar.
   const searchInputStyle: CSSProperties = {
-    flex: 1,
+    width: "100%",
     minWidth: 0,
     height: 38,
-    borderRadius: 999,
-    border: "1px solid rgba(255,255,255,0.12)",
-    background: "rgba(255,255,255,0.04)",
+    borderRadius: 12,
+    border: "none",
+    background: "rgba(255,255,255,0.06)",
     color: "#fff",
-    padding: "0 14px",
+    paddingLeft: 12,
+    paddingRight: 38,
     fontSize: 13,
+    fontFamily: "inherit",
     outline: "none",
     boxSizing: "border-box",
-  };
-
-  const searchButtonStyle: CSSProperties = {
-    width: 38,
-    height: 38,
-    borderRadius: 999,
-    border: "1px solid rgba(255,255,255,0.12)",
-    background: "rgba(255,255,255,0.04)",
-    color: "#fff",
-    display: "grid",
-    placeItems: "center",
-    cursor: "pointer",
-    flexShrink: 0,
-    fontSize: 16,
-  };
-
-  const clearSearchButtonStyle: CSSProperties = {
-    ...searchButtonStyle,
-    fontSize: 14,
   };
 
   const postItemStyle: CSSProperties = {
@@ -851,6 +855,20 @@ const visiblePosts = useMemo(() => {
     );
   }
 
+  // Sub-subnav de media: se oculta al buscar (igual que perfil/comunidad).
+  const showMediaTabs = !activeSearch;
+  const effectiveMediaTab: MediaTabKey = showMediaTabs ? mediaTab : "feed";
+  const canDeleteLightboxPost = lightboxTile
+    ? currentUserId === lightboxTile.post.authorId
+    : false;
+  const prevMediaTab = prevMediaTabRef.current;
+  const mediaSlideDir =
+    prevMediaTab === effectiveMediaTab
+      ? 0
+      : MEDIA_TAB_ORDER[effectiveMediaTab] > MEDIA_TAB_ORDER[prevMediaTab]
+        ? 1
+        : -1;
+
 return (
   <RefreshableArea onRefresh={handleSavedPullRefresh}>
     <section style={shellStyle}>
@@ -860,6 +878,38 @@ return (
         </div>
       </div>
 
+      <VibraToast toast={feedToast} />
+
+      {showMediaTabs && (
+        <PostsMediaSubnav active={mediaTab} onChange={setMediaTab} />
+      )}
+
+      <div style={{ overflow: "hidden", width: "100%", minWidth: 0 }}>
+      <motion.div
+        key={effectiveMediaTab}
+        initial={{ x: mediaSlideDir > 0 ? "100%" : mediaSlideDir < 0 ? "-100%" : 0 }}
+        animate={{ x: 0 }}
+        transition={{ type: "spring", stiffness: 320, damping: 32, mass: 0.9 }}
+        style={{ width: "100%", minWidth: 0 }}
+      >
+
+      {effectiveMediaTab !== "feed" ? (
+        <MediaGallery
+          source={{ type: "saved", userUid: currentUserId }}
+          kind={effectiveMediaTab}
+          viewerUid={currentUserId}
+          unlockedPostIds={unlockedPostIds}
+          onOpenTile={(tile) => {
+            const openUrl = tile.mediaUrl ?? tile.post.media?.[0]?.url ?? null;
+            // Los tiles de live y los bloqueados siempre abren (el card resuelve el
+            // VOD, el modal en vivo o el flujo de desbloqueo).
+            if (!tile.isLive && !tile.isLocked && !openUrl) return;
+            setLightboxTile(tile);
+          }}
+        />
+      ) : (
+      <>
+
       <form
         style={searchFormStyle}
         onSubmit={(event) => {
@@ -867,38 +917,69 @@ return (
           handleSubmitSearch();
         }}
       >
-        <input
-          type="search"
-          value={searchInput}
-          onChange={(event) => setSearchInput(event.target.value)}
-          placeholder={tSaved("searchPlaceholder")}
-          style={searchInputStyle}
-          aria-label={tSaved("searchPlaceholder")}
-        />
+        <div style={{ position: "relative", flex: 1, minWidth: 0 }}>
+          <input
+            type="text"
+            value={searchInput}
+            onChange={(event) => setSearchInput(event.target.value)}
+            placeholder={tSaved("searchPlaceholder")}
+            style={{ ...searchInputStyle, paddingRight: activeSearch ? 62 : 38 }}
+            aria-label={tSaved("searchPlaceholder")}
+          />
 
-        {activeSearch ? (
+          {/* Limpiar (×): a la izquierda de la lupa, solo con búsqueda activa. */}
+          {activeSearch ? (
+            <button
+              type="button"
+              onClick={handleClearSearch}
+              aria-label={tSaved("clearSearch")}
+              title={tSaved("clearSearch")}
+              style={{
+                position: "absolute",
+                right: 36,
+                top: "50%",
+                transform: "translateY(-50%)",
+                width: 24,
+                height: 24,
+                border: "none",
+                background: "transparent",
+                color: "rgba(255,255,255,0.55)",
+                cursor: "pointer",
+                display: "grid",
+                placeItems: "center",
+                fontSize: 18,
+                lineHeight: 1,
+                padding: 0,
+              }}
+            >
+              ×
+            </button>
+          ) : null}
+
+          {/* Lupa: dispara la búsqueda (submit). Con Enter o clic. Siempre visible. */}
           <button
-            type="button"
-            onClick={handleClearSearch}
-            style={clearSearchButtonStyle}
-            aria-label={tSaved("clearSearch")}
-            title={tSaved("clearSearch")}
+            type="submit"
+            aria-label={tSaved("search")}
+            title={tSaved("search")}
+            style={{
+              position: "absolute",
+              right: 6,
+              top: "50%",
+              transform: "translateY(-50%)",
+              width: 26,
+              height: 26,
+              border: "none",
+              background: "transparent",
+              cursor: "pointer",
+              display: "grid",
+              placeItems: "center",
+              padding: 0,
+            }}
           >
-            ×
+            <VibraNavigationIcon type="search" size={18} strokeWidth={2.2} />
           </button>
-        ) : null}
-
-        <button
-          type="submit"
-          style={searchButtonStyle}
-          aria-label={tSaved("search")}
-          title={tSaved("search")}
-        >
-          🔎
-        </button>
+        </div>
       </form>
-
-      <VibraToast toast={feedToast} />
 
       {loadingInitial && posts.length === 0 && (
         <div
@@ -966,6 +1047,49 @@ return (
 
       {!loadingInitial && !loadingMore && posts.length > 0 && !hasMore && (
         <div style={noticeStyle}>{tSaved("allLoaded")}</div>
+      )}
+
+      </>
+      )}
+
+      </motion.div>
+      </div>
+
+      {/* Lightbox de galería: tarjeta headless (0×0) que solo abre el visor. */}
+      {lightboxTile && (
+        <div
+          aria-hidden="true"
+          style={{ position: "fixed", left: 0, top: 0, width: 0, height: 0, overflow: "hidden" }}
+        >
+          <GroupPostCard
+            post={lightboxTile.post}
+            canDelete={canDeleteLightboxPost}
+            onDelete={canDeleteLightboxPost ? handleDeletePost : undefined}
+            onLoadComments={handleLoadComments}
+            onCreateComment={handleCreateComment}
+            onDeleteComment={handleDeleteComment}
+            onLoadReplies={handleLoadReplies}
+            onCreateReply={handleCreateReply}
+            onDeleteReply={handleDeleteReply}
+            onToggleFlame={handleToggleFlame}
+            onToggleSave={handleToggleSave}
+            currentUserId={currentUserId}
+            isOwner={false}
+            showGroupContext={true}
+            onModerationComplete={refreshPosts}
+            autoOpenMediaUrl={
+              lightboxTile.mediaUrl ?? lightboxTile.post.media?.[0]?.url ?? null
+            }
+            autoOpenLive={lightboxTile.isLiveNow}
+            autoOpenVod={lightboxTile.isLive && !lightboxTile.isLiveNow}
+            autoOpenUnlock={lightboxTile.isLocked}
+            forceUnlocked={lightboxTile.isPremiumUnlocked}
+            onPostUnlocked={(id) =>
+              setUnlockedPostIds((prev) => new Set(prev).add(id))
+            }
+            onViewerClosed={() => setLightboxTile(null)}
+          />
+        </div>
       )}
     </section>
   </RefreshableArea>

@@ -46,6 +46,8 @@ export interface AppNotification {
   updatedAtMs: number | null;
   /** Texto genérico para tipos sin plantilla propia (ej. moderación). */
   message?: string | null;
+  /** join_request agregada (>5 solicitudes): sin acciones inline, solo "Ver todas". */
+  bulk?: boolean;
 }
 
 /** Tipos que la campanita sabe renderizar de forma enriquecida. */
@@ -61,10 +63,17 @@ export const KNOWN_NOTIFICATION_TYPES: ReadonlySet<NotificationType> = new Set([
   "group_new_member",
 ]);
 
-/** Ruta relativa (sin prefijo de idioma) a la que lleva una notificación. */
-export function notificationHref(n: AppNotification): string {
+/**
+ * Ruta relativa (sin prefijo de idioma) a la que lleva una notificación.
+ * `selfHandle` = handle del usuario actual, necesario para la notificación
+ * colectiva de nuevos seguidores (lleva al perfil propio).
+ */
+export function notificationHref(n: AppNotification, selfHandle?: string | null): string {
   switch (n.type) {
     case "follow":
+      // Un solo seguidor → su perfil. Varios (colectiva) → mi perfil + lista de
+      // seguidores (ver notificationQuery → { followers: "1" }).
+      if (n.actorCount > 1) return selfHandle ? `/u/${selfHandle}` : "/notifications";
       return n.actors[0]?.handle ? `/u/${n.actors[0].handle}` : "/notifications";
     case "join_request":
     case "join_approved":
@@ -81,10 +90,14 @@ export function notificationHref(n: AppNotification): string {
   }
 }
 
-/** Query string (objeto) para el deep-link: enfoca un comentario dentro del post. */
+/** Query string (objeto) para el deep-link: comentario a enfocar, o abrir la
+ *  lista de seguidores en el perfil propio (notificación colectiva de follows). */
 export function notificationQuery(n: AppNotification): Record<string, string> | undefined {
   if (n.target.postId && n.target.commentId) {
     return { c: n.target.commentId };
+  }
+  if (n.type === "follow" && n.actorCount > 1) {
+    return { followers: "1" };
   }
   return undefined;
 }

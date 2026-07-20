@@ -59,6 +59,8 @@ type GroupPostComposerProps = {
   isOwner?: boolean;
   editPost?: Post | null;
   onEditClose?: () => void;
+  /** Deep-link: al montar, abre el overlay del composer con premium activado. */
+  autoOpenPremium?: boolean;
 };
 
 type SelectedMediaItem = ComposerMediaItem & {
@@ -260,6 +262,7 @@ export default function GroupPostComposer({
   isOwner = false,
   editPost,
   onEditClose,
+  autoOpenPremium = false,
 }: GroupPostComposerProps) {
   const tCommon = useTranslations("common");
   const tPosts = useTranslations("posts");
@@ -470,6 +473,18 @@ export default function GroupPostComposer({
     if (creating) return;
     setIsComposerOverlayOpen(true);
   }
+
+  // Deep-link "Crea tu primera publicación premium": abre el overlay y deja el
+  // toggle de monetización (premium) activado para que el creador solo suba su
+  // video y ponga precio. Solo una vez al montar.
+  const autoPremiumDone = useRef(false);
+  useEffect(() => {
+    if (!autoOpenPremium || autoPremiumDone.current) return;
+    autoPremiumDone.current = true;
+    setIsComposerOverlayOpen(true);
+    composerPremium.setPremiumEnabled(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoOpenPremium]);
 
   function handleOpenMediaPicker() {
     if (creating || isPreparingImages) return;

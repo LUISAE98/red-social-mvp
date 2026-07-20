@@ -554,6 +554,22 @@ const contentAreaClassName = isEmbed
           flex-shrink: 0;
         }
 
+        /* Campanita del panel en el header móvil: solo aparece en el rango de
+           laptop angosto (769–900px). El header móvil ya está oculto >900px; aquí
+           la ocultamos ≤768px para no duplicar con el nav inferior en celular. */
+        .mobileNotifBell {
+          display: inline-flex;
+          align-items: center;
+        }
+        .mobileNotifBell :global(svg path) {
+          stroke: #ffffff;
+        }
+        @media (max-width: 768px) {
+          .mobileNotifBell {
+            display: none;
+          }
+        }
+
 .mobileSearchIconButton {
   width: 32px;
   height: 32px;
@@ -882,6 +898,14 @@ const contentAreaClassName = isEmbed
         <span className="mobileBrandLogo">Vibra</span>
       </Link>
       <div className="mobileActions">
+        {/* Campanita del panel para el rango de laptop angosto (769–900px), donde
+            el header de escritorio se oculta. En celular (≤768px) se oculta y las
+            notificaciones se ven en el nav inferior (que va al page). */}
+        {user ? (
+          <span className="mobileNotifBell">
+            <NotificationBell active={pathname.startsWith("/notifications")} />
+          </span>
+        ) : null}
         <button
           type="button"
           onClick={() => router.push("/saved")}
@@ -1017,6 +1041,7 @@ export default function PublicProfileLayout({
   // No cambia la lógica de autenticación.
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
   }, []);
 

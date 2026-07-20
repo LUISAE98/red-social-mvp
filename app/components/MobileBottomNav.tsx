@@ -165,7 +165,7 @@ export default function MobileBottomNav({
   const pathname = usePathname();
   const router = useRouter();
   const { user } = useAuth();
-  const { unreadCount } = useNotifications(user?.uid ?? null);
+  const { badgeCount } = useNotifications(user?.uid ?? null);
 
   const [handle, setHandle] = useState<string | null>(null);
   const [photoURL, setPhotoURL] = useState<string | null>(null);
@@ -514,8 +514,8 @@ export default function MobileBottomNav({
                     ) : item.iconKey === "notifications" ? (
                       <>
                         {isActive ? <NavBellIconFilled /> : <NavBellIcon />}
-                        {unreadCount > 0 ? (
-                          <span className="navBadge">{unreadCount > 99 ? "99+" : unreadCount}</span>
+                        {badgeCount > 0 ? (
+                          <span className="navBadge">{badgeCount > 99 ? "99+" : badgeCount}</span>
                         ) : null}
                       </>
                     ) : item.iconKey === "wallet" ? (

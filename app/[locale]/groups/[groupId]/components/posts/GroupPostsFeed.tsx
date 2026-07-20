@@ -1921,6 +1921,7 @@ const shellStyle: CSSProperties = {
             autoOpenLive={lightboxTile.isLiveNow}
             autoOpenVod={lightboxTile.isLive && !lightboxTile.isLiveNow}
             autoOpenUnlock={lightboxTile.isLocked}
+            forceUnlocked={lightboxTile.isPremiumUnlocked}
             onPostUnlocked={(id) =>
               setUnlockedPostIds((prev) => new Set(prev).add(id))
             }

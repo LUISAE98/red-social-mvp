@@ -13,6 +13,7 @@ import type { Post } from "@/lib/posts/types";
 import {
   fetchGroupMediaPage,
   fetchProfileMediaPage,
+  fetchSavedMediaPage,
   type GroupPostsPageCursor,
   type MediaGalleryKind,
 } from "@/lib/posts/post-service";
@@ -80,7 +81,8 @@ export type GalleryTile = {
 
 type MediaGallerySource =
   | { type: "group"; groupId: string }
-  | { type: "profile"; profileUid: string };
+  | { type: "profile"; profileUid: string }
+  | { type: "saved"; userUid: string };
 
 type MediaGalleryProps = {
   source: MediaGallerySource;
@@ -247,13 +249,26 @@ export default function MediaGallery({
   const loadingRef = useRef(false);
 
   const sourceKey =
-    source.type === "group" ? `group:${source.groupId}` : `profile:${source.profileUid}`;
+    source.type === "group"
+      ? `group:${source.groupId}`
+      : source.type === "profile"
+        ? `profile:${source.profileUid}`
+        : `saved:${source.userUid}`;
 
   const fetchPage = useCallback(
     (pageCursor: GroupPostsPageCursor | null) => {
       if (source.type === "group") {
         return fetchGroupMediaPage({
           groupId: source.groupId,
+          kind,
+          viewerUid,
+          cursor: pageCursor,
+          pageSize: PAGE_SIZE,
+        });
+      }
+      if (source.type === "saved") {
+        return fetchSavedMediaPage({
+          userUid: source.userUid,
           kind,
           viewerUid,
           cursor: pageCursor,
@@ -432,7 +447,7 @@ export default function MediaGallery({
 
             {tile.isPremiumUnlocked && (
               <span className="vibra-media-crown-sm" aria-hidden="true">
-                <VibraNavigationIcon type="premiumCrown" size={17} />
+                <VibraNavigationIcon type="premiumCrown" size={23} />
               </span>
             )}
 

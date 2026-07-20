@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   collection,
   doc,
@@ -21,6 +21,30 @@ import {
 } from "@/lib/notifications/types";
 
 const FEED_LIMIT = 40;
+
+// ── "Visto" (badge) vs "leído" (por ítem) ────────────────────────────────────
+// Abrir el contenedor de notificaciones baja el badge de la campanita a 0 (todo
+// "visto"), pero NO marca las notificaciones como leídas: cada ítem sigue
+// marcado como no leído hasta que se abre. `seenAt` se guarda por usuario en
+// localStorage y se comparte entre la campanita y el nav móvil vía un pub/sub.
+const SEEN_KEY_PREFIX = "vibra:notifSeenAt:";
+const seenListeners = new Set<() => void>();
+
+function seenKey(uid: string): string {
+  return SEEN_KEY_PREFIX + uid;
+}
+
+function readSeenAt(uid: string | null | undefined): number {
+  if (!uid || typeof window === "undefined") return 0;
+  const raw = window.localStorage.getItem(seenKey(uid));
+  return raw ? Number(raw) || 0 : 0;
+}
+
+function writeSeenAt(uid: string, ms: number): void {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(seenKey(uid), String(ms));
+  seenListeners.forEach((l) => l());
+}
 
 function toMs(value: unknown): number | null {
   if (value && typeof (value as { toMillis?: () => number }).toMillis === "function") {
@@ -52,13 +76,19 @@ function mapDoc(id: string, data: Record<string, unknown>): AppNotification | nu
     createdAtMs: toMs(data.createdAt),
     updatedAtMs: toMs(data.updatedAt) ?? toMs(data.createdAt),
     message,
+    bulk: data.bulk === true,
   };
 }
 
 export interface UseNotificationsResult {
   items: AppNotification[];
+  /** No leídas (estado por ítem) — para el estilo de cada notificación. */
   unreadCount: number;
+  /** Nuevas desde la última vez que se abrió el contenedor — para el badge. */
+  badgeCount: number;
   loading: boolean;
+  /** Marca todo como "visto" (baja el badge a 0) sin marcar como leído. */
+  markSeen: () => void;
   markAllRead: () => Promise<void>;
   markRead: (id: string) => Promise<void>;
 }
@@ -66,11 +96,12 @@ export interface UseNotificationsResult {
 /**
  * Suscribe la bandeja `users/{uid}/notifications` en tiempo real, ordenada por
  * `updatedAt desc` (las notificaciones agregadas re-emergen al recibir actividad
- * nueva). Deriva el conteo de no leídas del mismo snapshot: sin índices extra.
+ * nueva). Deriva conteos del mismo snapshot: sin índices extra.
  */
 export function useNotifications(uid: string | null | undefined): UseNotificationsResult {
   const [items, setItems] = useState<AppNotification[]>([]);
   const [loading, setLoading] = useState(true);
+  const [seenAt, setSeenAt] = useState(0);
 
   useEffect(() => {
     if (!uid) {
@@ -99,7 +130,36 @@ export function useNotifications(uid: string | null | undefined): UseNotificatio
     return unsub;
   }, [uid]);
 
+  // Sincroniza `seenAt` desde localStorage (y ante cambios de otra pestaña o del
+  // otro componente que use el hook).
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setSeenAt(readSeenAt(uid));
+    const l = () => setSeenAt(readSeenAt(uid));
+    seenListeners.add(l);
+    window.addEventListener("storage", l);
+    return () => {
+      seenListeners.delete(l);
+      window.removeEventListener("storage", l);
+    };
+  }, [uid]);
+
+  const latestMsRef = useRef(0);
+  useEffect(() => {
+    latestMsRef.current = items.reduce((m, n) => Math.max(m, n.updatedAtMs ?? 0), 0);
+  }, [items]);
+
   const unreadCount = useMemo(() => items.filter((n) => !n.read).length, [items]);
+  const badgeCount = useMemo(
+    () => items.filter((n) => (n.updatedAtMs ?? 0) > seenAt).length,
+    [items, seenAt]
+  );
+
+  const markSeen = useCallback(() => {
+    if (!uid) return;
+    // max(now, última actualización) evita quedar por debajo del reloj del server.
+    writeSeenAt(uid, Math.max(Date.now(), latestMsRef.current));
+  }, [uid]);
 
   const markRead = async (id: string) => {
     if (!uid) return;
@@ -125,5 +185,5 @@ export function useNotifications(uid: string | null | undefined): UseNotificatio
     }
   };
 
-  return { items, unreadCount, loading, markAllRead, markRead };
+  return { items, unreadCount, badgeCount, loading, markSeen, markAllRead, markRead };
 }

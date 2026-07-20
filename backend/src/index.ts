@@ -275,5 +275,6 @@ export {
   onCommentReactionCreated,
   onFollowerCreated,
   onJoinRequestCreated,
+  onJoinRequestRemoved,
   onGroupMemberCreated,
 } from "./notifications";

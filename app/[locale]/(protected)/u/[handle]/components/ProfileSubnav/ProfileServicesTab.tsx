@@ -1238,6 +1238,7 @@ export default function ProfileServicesTab({
       />
       </div>
 
+      <div id="exp-donation" style={{ scrollMarginTop: 80 }}>
       <ProfileDonation
         draft={draft}
         saving={saving}
@@ -1254,11 +1255,12 @@ export default function ProfileServicesTab({
         OverlayModalComponent={OverlayModal}
         onSaveDraft={(d) => saveServicesFromDraft(d as ServiceDraft)}
       />
+      </div>
 
       {/* Espacio al final para que el deep-link "Comenzar ahora" pueda centrar
           en pantalla incluso las últimas cards (si no, el scroll se topa con el
           fondo de la página y las de abajo se quedan cortas). */}
-      <div aria-hidden="true" style={{ height: "45vh" }} />
+      <div aria-hidden="true" style={{ height: "55vh" }} />
 
       <VibraToast toast={toast} />
     </div>

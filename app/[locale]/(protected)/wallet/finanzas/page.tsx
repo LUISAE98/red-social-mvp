@@ -14,6 +14,7 @@ import { useWalletLedger } from "@/lib/wallet/walletLedger";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import { useBalanceHidden, toggleBalanceHidden } from "@/lib/wallet/useBalanceHidden";
 import MaskedAmount from "@/app/components/MaskedAmount";
+import CurrencySwitcher from "@/app/components/CurrencySwitcher";
 import { useKyc } from "@/lib/kyc/useKyc";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
@@ -249,7 +250,9 @@ export default function WalletFinanzasPage() {
             paddingTop: 4,
           }}
         >
-          {/* Controles: switch neto/bruto (izq) + botón Retirar (der) */}
+          {/* Controles: switch neto/bruto (izq) + moneda (centro) + Retirar (der).
+              La moneda va centrada (flex:1 a los lados) y se mantiene en medio
+              aunque el botón Retirar no esté presente. */}
           <div
             style={{
               display: "flex",
@@ -258,31 +261,40 @@ export default function WalletFinanzasPage() {
               gap: 10,
             }}
           >
-            {toggle}
-            {kyc.approved ? (
-              <button
-                type="button"
-                onClick={handleWithdrawClick}
-                disabled={!canWithdrawNow}
-                style={{
-                  border: "none",
-                  borderRadius: 10,
-                  padding: "7px 16px",
-                  fontSize: 12.5,
-                  fontWeight: 700,
-                  letterSpacing: "-0.01em",
-                  whiteSpace: "nowrap",
-                  color: canWithdrawNow ? "#052e16" : "rgba(255,255,255,0.4)",
-                  background: canWithdrawNow
-                    ? "linear-gradient(135deg, #4ade80, #16a34a)"
-                    : "rgba(255,255,255,0.06)",
-                  cursor: canWithdrawNow ? "pointer" : "not-allowed",
-                  transition: "background 150ms ease, color 150ms ease",
-                }}
-              >
-                {tWallet("withdrawButton")}
-              </button>
-            ) : null}
+            <div style={{ flex: 1, minWidth: 0, display: "flex", justifyContent: "flex-start" }}>
+              {toggle}
+            </div>
+
+            {/* Moneda actual en blanco: recuerda en qué moneda ves las cantidades
+                y abre el panel de monedas al hacer clic. */}
+            <CurrencySwitcher color="#fff" scale={1.3} />
+
+            <div style={{ flex: 1, minWidth: 0, display: "flex", justifyContent: "flex-end" }}>
+              {kyc.approved ? (
+                <button
+                  type="button"
+                  onClick={handleWithdrawClick}
+                  disabled={!canWithdrawNow}
+                  style={{
+                    border: "none",
+                    borderRadius: 10,
+                    padding: "7px 16px",
+                    fontSize: 12.5,
+                    fontWeight: 700,
+                    letterSpacing: "-0.01em",
+                    whiteSpace: "nowrap",
+                    color: canWithdrawNow ? "#052e16" : "rgba(255,255,255,0.4)",
+                    background: canWithdrawNow
+                      ? "linear-gradient(135deg, #4ade80, #16a34a)"
+                      : "rgba(255,255,255,0.06)",
+                    cursor: canWithdrawNow ? "pointer" : "not-allowed",
+                    transition: "background 150ms ease, color 150ms ease",
+                  }}
+                >
+                  {tWallet("withdrawButton")}
+                </button>
+              ) : null}
+            </div>
           </div>
 
           {/* Disponible para retirar */}

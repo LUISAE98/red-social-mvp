@@ -31,12 +31,15 @@ import {
   unbanGroupMember,
   unmuteGroupMember,
 } from "../../../../../lib/groups/groupModeration";
+import GroupJoinRequestsSection from "./GroupJoinRequestsSection";
 
 type GroupMembersTabProps = {
   groupId: string;
   isOwner: boolean;
   isModerator?: boolean;
   canMembersViewList: boolean;
+  /** Abre automáticamente la lista de solicitudes (deep-link `?requests=1`). */
+  initialShowRequests?: boolean;
 };
 
 type MemberDoc = {
@@ -248,6 +251,7 @@ export default function GroupMembersTab({
   isOwner,
   isModerator = false,
   canMembersViewList,
+  initialShowRequests = false,
 }: GroupMembersTabProps) {
   const currentUid = auth.currentUser?.uid ?? null;
   const tGroups = useTranslations("groups");
@@ -1200,6 +1204,14 @@ export default function GroupMembersTab({
               ? tGroups("ownerMembersHelper")
               : tGroups("modMembersHelper")}
           </p>
+        )}
+
+        {(isOwner || isModerator) && (
+          <GroupJoinRequestsSection
+            groupId={groupId}
+            canManage={isOwner || isModerator}
+            defaultOpen={initialShowRequests}
+          />
         )}
 
         {actionMessage && <div style={actionNoticeStyle}>{actionMessage}</div>}

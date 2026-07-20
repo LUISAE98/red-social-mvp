@@ -1,15 +1,25 @@
 "use client";
 
+import { useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { useAuth } from "@/app/providers";
 import { useNotifications } from "@/lib/hooks/useNotifications";
+import { useSelfHandle } from "@/lib/hooks/useSelfHandle";
 import NotificationList from "@/app/components/Notifications/NotificationList";
 import { AppNotification } from "@/lib/notifications/types";
 
 export default function NotificationsPage() {
   const t = useTranslations("notifications");
   const { user } = useAuth();
-  const { items, loading, unreadCount, markAllRead, markRead } = useNotifications(user?.uid ?? null);
+  const { items, loading, unreadCount, markSeen, markAllRead, markRead } = useNotifications(
+    user?.uid ?? null
+  );
+  const selfHandle = useSelfHandle(user?.uid ?? null);
+
+  // Abrir la página cuenta como "ver" el contenedor → baja el badge del nav.
+  useEffect(() => {
+    markSeen();
+  }, [markSeen]);
 
   const handleItemClick = (n: AppNotification) => {
     if (!n.read) markRead(n.id);
@@ -31,6 +41,7 @@ export default function NotificationsPage() {
         loading={loading}
         onItemClick={handleItemClick}
         variant="page"
+        selfHandle={selfHandle}
       />
 
       <style jsx>{`

@@ -778,7 +778,8 @@ sectionTitle: {
   fontSize: 11,
   fontWeight: isMobile ? 600 : 550,
   color: "rgba(254, 254, 254, 0.22)",
-  textTransform: "uppercase",
+  // Sentence case: solo la primera letra en mayúscula (el texto base ya viene así).
+  textTransform: "none",
   letterSpacing: 0.65,
 },
 
@@ -2029,13 +2030,6 @@ const groupsForSeen = [
     };
   }, [relevantUserIds, userMiniMap]);
 
-  const totalPendingJoinRequests = useMemo(() => {
-    return Object.values(joinRequestsByGroup).reduce(
-      (sum, rows) => sum + rows.length,
-      0
-    );
-  }, [joinRequestsByGroup]);
-
   const pendingCount = useMemo(() => {
     let total = buyerPending.length;
 
@@ -2497,7 +2491,7 @@ return (
   z-index: 2;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 6px;
   flex: 1 1 auto;
   min-height: 0;
   max-height: 100%;
@@ -2528,6 +2522,11 @@ return (
   scrollbar-width: none;
   -ms-overflow-style: none;
   -webkit-overflow-scrolling: touch;
+  /* Sube el scroll (aprovecha el espacio de arriba) y deja padding para que el
+     difuminado caiga en espacio vacío, no sobre la primera/última pestaña. */
+  margin-top: -12px;
+  padding-top: 20px;
+  padding-bottom: 20px;
   /* Difumina el contenido en los bordes al hacer scroll, en vez de cortarlo. */
   -webkit-mask-image: linear-gradient(
     to bottom,
@@ -2548,9 +2547,15 @@ return (
   display: none;
 }
 
-/* Líneas divisoras del sidebar: separan "mi perfil" del menú (arriba) y el menú
-   del contenido que va debajo de la última pestaña (abajo). Mismo look. */
-.owner-sidebar-profile-divider,
+/* Líneas divisoras del sidebar. El divisor de "mi perfil" no lleva margen
+   vertical propio (el gap de la columna ya da el espacio) para no acumular
+   espacio muerto entre el perfil y el menú. */
+.owner-sidebar-profile-divider {
+  height: 1px;
+  margin: 0 6px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
 .owner-sidebar-menu-divider {
   height: 1px;
   margin: 8px 6px;
@@ -2652,9 +2657,13 @@ return (
     overflow: visible !important;
     max-height: none !important;
     height: auto !important;
-    /* En móvil el sidebar va en flujo (scroll de página), no interno: sin máscara. */
+    /* En móvil el sidebar va en flujo (scroll de página), no interno: sin máscara
+       ni los ajustes de padding/margin que solo aplican al scroll de escritorio. */
     -webkit-mask-image: none !important;
     mask-image: none !important;
+    margin-top: 0 !important;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
   }
 }
 
@@ -2781,7 +2790,7 @@ newPostsCounts={newPostsCounts}
             }}
             requestedCount={pendingCount}
             deliveredCount={buyerDelivered.length}
-            joinRequestsCount={totalPendingJoinRequests}
+            joinRequestsCount={0}
             followedCount={followedProfiles.length}
             myGroupsCount={myGroups.length}
             joinedGroupsCount={joinedGroups.length}

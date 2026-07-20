@@ -7,12 +7,13 @@
 // Este componente existe para no seguir multiplicando esa copia; el contrato
 // (ángulo, paradas de color, background-size y timing) es idéntico al del login.
 
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 
 export default function VibraGradientText({
   children,
   className,
   gradient,
+  style,
 }: {
   children: ReactNode;
   /** Clase extra del consumidor (tamaño, peso, etc.). El degradado no se toca. */
@@ -23,6 +24,8 @@ export default function VibraGradientText({
    * y la animación de la clase; usar el shorthand `background` los reiniciaría.
    */
   gradient?: string;
+  /** Estilos extra (p. ej. `fontSize`) para el span. Se fusionan con el degradado. */
+  style?: CSSProperties;
 }) {
   return (
     <>
@@ -63,7 +66,7 @@ export default function VibraGradientText({
 
       <span
         className={["vibraGradientText", className].filter(Boolean).join(" ")}
-        style={gradient ? { backgroundImage: gradient } : undefined}
+        style={{ ...(gradient ? { backgroundImage: gradient } : {}), ...style }}
       >
         {children}
       </span>

@@ -6,9 +6,9 @@
 // muestra u oculta la sección Wallet del rail derecho.
 
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
-import { doc, getDoc } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Link } from "@/i18n/navigation";
 import { useAuth } from "@/app/providers";
@@ -17,6 +17,7 @@ import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import WalletPhonePreview from "./WalletPhonePreview";
 import WalletOnboardingGlobe from "./WalletOnboardingGlobe";
 import ServiceFeaturePreview from "@/components/services/ServiceFeaturePreview";
+import { buildCollageTiles } from "@/lib/collage";
 import {
   WALLET_COMMISSION_RATE,
   WALLET_NET_RATE,
@@ -129,7 +130,48 @@ const SERVICE_ACTIVATE_KEY: Record<number, string> = {
   2: "consejo",
   3: "customClass", // sesión exclusiva
   4: "meetGreet", // tiempo contigo
+  7: "donation", // donaciones en tu perfil
 };
+
+// Los 3 tipos de comunidad, con su ícono y color de acento. El texto vive en
+// i18n (onboardingCommunity{Public|Private|Hidden}{Name|Desc}).
+const COMMUNITY_TYPES = [
+  {
+    key: "Public",
+    color: "#a855ff",
+    icon: (
+      <svg width={26} height={26} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <circle cx="12" cy="12" r="9" />
+        <path d="M3 12h18M12 3c2.6 2.7 2.6 15.3 0 18M12 3c-2.6 2.7-2.6 15.3 0 18" />
+      </svg>
+    ),
+  },
+  {
+    key: "Private",
+    color: "#a855ff",
+    icon: (
+      <svg width={26} height={26} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <rect x="5" y="11" width="14" height="10" rx="2" />
+        <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+      </svg>
+    ),
+  },
+  {
+    key: "Hidden",
+    color: "#a855ff",
+    icon: (
+      <svg width={26} height={26} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M3 3l18 18" />
+        <path d="M10.6 6.1A9 9 0 0 1 12 6c5 0 9 6 9 6a13 13 0 0 1-2.2 2.6M6.3 8.3A13 13 0 0 0 3 12s4 6 9 6a8.5 8.5 0 0 0 3.3-.65" />
+        <path d="M9.9 9.9a3 3 0 0 0 4.2 4.2" />
+      </svg>
+    ),
+  },
+] as const;
+
+// Tapete de categorías (mismo set del login) para el fondo con profundidad de
+// la sección de comunidades. Determinista → se calcula una vez.
+const COLLAGE_TILES = buildCollageTiles();
 
 export default function WalletOnboarding() {
   const tWallet = useTranslations("wallet");
@@ -155,6 +197,73 @@ export default function WalletOnboarding() {
       cancelled = true;
     };
   }, [user?.uid]);
+
+  // Comunidades del creador, para el CTA de "Suscripciones": si tiene una
+  // comunidad (preferimos privada/oculta, donde sí se puede cobrar suscripción)
+  // lo mandamos ahí a configurarla; si no tiene ninguna, a crear comunidad.
+  const [subGroupId, setSubGroupId] = useState<string | null>(null);
+  const [groupsLoaded, setGroupsLoaded] = useState(false);
+  useEffect(() => {
+    const uid = user?.uid;
+    if (!uid) {
+      setSubGroupId(null);
+      setGroupsLoaded(false);
+      return;
+    }
+    let cancelled = false;
+    getDocs(query(collection(db, "groups"), where("ownerId", "==", uid)))
+      .then((snap) => {
+        if (cancelled) return;
+        const owned = snap.docs
+          .map((d) => ({
+            id: d.id,
+            visibility:
+              (d.data() as { visibility?: unknown }).visibility ?? null,
+            isDeleted: (d.data() as { isDeleted?: unknown }).isDeleted === true,
+          }))
+          .filter((g) => !g.isDeleted);
+        const preferred =
+          owned.find(
+            (g) => g.visibility === "private" || g.visibility === "hidden"
+          ) ?? owned[0];
+        setSubGroupId(preferred?.id ?? null);
+        setGroupsLoaded(true);
+      })
+      .catch(() => {
+        if (!cancelled) setGroupsLoaded(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.uid]);
+
+  // Entrada por scroll: cada elemento con la clase `reveal` hace fade + rise
+  // cuando entra al viewport (una sola vez). Estilo sobrio, no PowerPoint.
+  const rootRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root) return;
+    const els = Array.from(root.querySelectorAll<HTMLElement>(".reveal"));
+    if (els.length === 0) return;
+    if (typeof IntersectionObserver === "undefined") {
+      els.forEach((el) => el.classList.add("is-in"));
+      return;
+    }
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          if (e.isIntersecting) {
+            e.target.classList.add("is-in");
+            io.unobserve(e.target);
+          }
+        }
+      },
+      { rootMargin: "0px 0px -10% 0px", threshold: 0.12 }
+    );
+    els.forEach((el) => io.observe(el));
+    return () => io.disconnect();
+  }, []);
+
   // Cifras demo sin centavos: quita el ".00"/",00" cuando el monto es redondo,
   // conservando el símbolo de moneda (respeta el switcheo de moneda).
   const formatNoCents = (mxn: number) =>
@@ -170,6 +279,30 @@ export default function WalletOnboarding() {
           max-width: 768px;
           margin-left: auto;
           margin-right: auto;
+        }
+
+        /* Entrada por scroll: fade + rise sutil, easing suave, una sola vez.
+           El estado inicial (oculto) lo aplica el CSS; el observer añade
+           .is-in al entrar al viewport. */
+        .reveal {
+          opacity: 0;
+          transform: translateY(22px);
+          transition:
+            opacity 0.6s cubic-bezier(0.22, 1, 0.36, 1),
+            transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+          will-change: opacity, transform;
+        }
+        .reveal.is-in {
+          opacity: 1;
+          transform: none;
+        }
+        /* Respeta a quien pidió menos movimiento: todo visible, sin animación. */
+        @media (prefers-reduced-motion: reduce) {
+          .reveal {
+            opacity: 1;
+            transform: none;
+            transition: none;
+          }
         }
 
         .onboarding {
@@ -505,15 +638,245 @@ export default function WalletOnboarding() {
           margin-top: 56px;
         }
 
+        .communitiesTitle {
+          position: relative;
+          margin-top: 14px;
+          padding: 44px 26px 48px;
+          border-radius: 0;
+          overflow: hidden;
+          isolation: isolate;
+          /* Contenedor de consulta: la descripción se mide contra el ancho REAL
+             de este panel (no del viewport), para no desbordar en laptops con
+             rieles laterales donde el panel es más angosto que la pantalla. */
+          container-type: inline-size;
+        }
+
+        /* Tapete de fondo con profundidad. */
+        .communitiesBg {
+          position: absolute;
+          inset: 0;
+          z-index: 0;
+          overflow: hidden;
+          background: #07030f;
+          pointer-events: none;
+        }
+        .communitiesBgStage {
+          position: absolute;
+          inset: -30%;
+          perspective: 1400px;
+          display: grid;
+          place-items: center;
+        }
+        .communitiesBgGrid {
+          display: grid;
+          grid-template-columns: repeat(10, 1fr);
+          grid-auto-rows: auto;
+          gap: 8px;
+          width: 160%;
+          transform-origin: center;
+          transform: rotateX(18deg) rotateZ(-10deg) scale(0.9);
+        }
+        .communitiesBgTile {
+          grid-column: span 1;
+          aspect-ratio: 1 / 1;
+          overflow: hidden;
+          border-radius: 0;
+          background: linear-gradient(160deg, #1b1530, #0d0a18);
+          box-shadow: 0 16px 34px rgba(0, 0, 0, 0.5);
+        }
+        .communitiesBgTile.is-wide {
+          grid-column: span 2;
+          aspect-ratio: 2 / 1;
+        }
+        .communitiesBgTile img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          display: block;
+          opacity: 0.62;
+        }
+        /* Oscurecido + viñeta para que el texto se lea sobre el tapete. */
+        .communitiesBgOverlay {
+          position: absolute;
+          inset: 0;
+          background:
+            radial-gradient(
+              130% 130% at 50% 45%,
+              rgba(6, 3, 14, 0.42) 0%,
+              rgba(5, 2, 11, 0.66) 55%,
+              rgba(3, 1, 8, 0.8) 100%
+            ),
+            linear-gradient(
+              180deg,
+              rgba(5, 2, 11, 0.6) 0%,
+              rgba(5, 2, 11, 0.5) 50%,
+              rgba(3, 1, 8, 0.7) 100%
+            );
+        }
+
+        /* El contenido va por encima del tapete. */
+        .communitiesTitle > .waysTitle,
+        .communitiesTitle > .communityCards {
+          position: relative;
+          z-index: 1;
+        }
+
+        /* Cierre. */
+        .closeSection {
+          margin-top: 20px;
+          padding: 0 8px;
+          text-align: center;
+        }
+        .closeTitle {
+          margin: 0 0 14px;
+          font-size: 27px;
+          line-height: 1.3;
+          letter-spacing: -0.03em;
+          font-weight: 700;
+          color: #ffffff;
+        }
+        .closeText {
+          max-width: 560px;
+          margin: 0 auto;
+          font-size: 15px;
+          line-height: 1.6;
+          color: rgba(255, 255, 255, 0.72);
+        }
+        @media (max-width: 900px) {
+          .closeSection {
+            margin-top: 16px;
+          }
+          .closeTitle {
+            font-size: 22px;
+          }
+          .closeText {
+            font-size: 14px;
+          }
+        }
+
+        .communityCards {
+          margin-top: 18px;
+          display: flex;
+          flex-direction: row;
+          align-items: stretch;
+          gap: 12px;
+          transition: gap 0.45s ease;
+        }
+        /* Al pasar el mouse por el renglón, el gap desaparece para que la card
+           expandida ocupe todo el ancho sin huecos de las colapsadas. */
+        .communityCards:hover {
+          gap: 0;
+        }
+
+        .communityCard {
+          flex: 1 1 0;
+          min-width: 0;
+          /* Fila: [ícono+título] a la izq, descripción a la der. El alto lo fija
+             el bloque ícono+título y NO cambia al abrir la descripción, así la
+             expansión es solo horizontal (sin mover el scroll vertical). */
+          display: flex;
+          flex-direction: row;
+          align-items: center;
+          justify-content: center;
+          padding: 24px 14px;
+          border-radius: 16px;
+          background: transparent;
+          border: none;
+          overflow: hidden;
+          cursor: default;
+          transition:
+            flex-grow 0.45s ease,
+            flex-basis 0.45s ease,
+            padding 0.45s ease,
+            opacity 0.3s ease,
+            background 0.3s ease,
+            border-color 0.3s ease;
+        }
+        /* Las NO señaladas se colapsan y se ocultan. */
+        .communityCards:hover .communityCard:not(:hover) {
+          flex-grow: 0;
+          flex-basis: 0;
+          padding-left: 0;
+          padding-right: 0;
+          opacity: 0;
+        }
+
+        .communityHead {
+          flex-shrink: 0;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 12px;
+          text-align: center;
+        }
+
+        .communityIcon {
+          display: inline-flex;
+        }
+
+        .communityName {
+          font-size: 16px;
+          font-weight: 600;
+          letter-spacing: -0.01em;
+          color: #ffffff;
+          white-space: nowrap;
+        }
+
+        /* Capa externa: solo recorta el ancho (se despliega hacia el lado). El
+           texto vive en un inner de ancho FIJO, así su alto es estable y la card
+           nunca crece de alto (cero movimiento en Y). */
+        .communityDesc {
+          flex-shrink: 0;
+          max-width: 0;
+          margin-left: 0;
+          opacity: 0;
+          overflow: hidden;
+          transition:
+            max-width 0.5s ease,
+            margin-left 0.5s ease,
+            opacity 0.35s ease;
+        }
+        .communityDescInner {
+          display: block;
+          /* Ancho definido (alto estable) pero relativo al ANCHO DEL PANEL (cqw),
+             así se encoge cuando el panel es angosto y nunca desborda. */
+          width: min(500px, 58cqw);
+          text-align: left;
+          font-size: 13.5px;
+          line-height: 1.5;
+          color: rgba(255, 255, 255, 0.9);
+        }
+
+        /* Nota sutil (ícono ⓘ + texto) debajo de la descripción de "Pública". */
+        .communityNote {
+          display: flex;
+          align-items: flex-start;
+          gap: 7px;
+          margin-top: 10px;
+          font-size: 12px;
+          line-height: 1.4;
+          color: rgba(255, 255, 255, 0.45);
+        }
+        .communityCard:hover .communityDesc {
+          max-width: 520px;
+          margin-left: 22px;
+          opacity: 1;
+        }
+
         .waysTitle {
           margin: 0 0 22px;
           padding-bottom: 4px;
           text-align: center;
-          font-size: 30px;
+          font-size: 24px;
           line-height: 1.35;
           letter-spacing: -0.03em;
           font-weight: 700;
           color: #ffffff;
+        }
+
+        /* El título de comunidades va alineado a la derecha. */
+        .communitiesTitle .waysTitle {
+          text-align: right;
         }
 
         /* Lista de servicios: número grande intercalado izquierda/derecha. */
@@ -614,7 +977,7 @@ export default function WalletOnboarding() {
 
         .wayName {
           font-size: 21px;
-          font-weight: 700;
+          font-weight: 600;
           letter-spacing: -0.02em;
           color: #ffffff;
         }
@@ -786,7 +1149,7 @@ export default function WalletOnboarding() {
           }
 
           .waysTitle {
-            font-size: 22px;
+            font-size: 18px;
           }
 
           .wayMain {
@@ -903,8 +1266,8 @@ export default function WalletOnboarding() {
         }
       `}</style>
 
-      <div className="onboardingRoot">
-      <section className="onboarding">
+      <div className="onboardingRoot" ref={rootRef}>
+      <section className="onboarding reveal">
         {/* Fondo decorativo. styled-jsx no scopea clases sobre <Image>, así que
             el posicionamiento va inline; el aspecto (velo, capas) en las clases
             de los hermanos, que sí son elementos DOM. */}
@@ -923,7 +1286,9 @@ export default function WalletOnboarding() {
               y en qué punto de la frase cae, en vez de asumir que va al final. */}
           <h2 className="onboardingTitle">
             {tWallet.rich("onboardingTitle", {
-              vibra: (chunks) => <VibraGradientText>{chunks}</VibraGradientText>,
+              vibra: (chunks) => (
+                <VibraGradientText style={{ fontSize: "1.12em" }}>{chunks}</VibraGradientText>
+              ),
             })}
           </h2>
 
@@ -950,7 +1315,9 @@ export default function WalletOnboarding() {
             <div className="onboardingRules">
               <h3 className="onboardingRulesTitle">
                 {tWallet.rich("onboardingRulesTitle", {
-                  vibra: (chunks) => <VibraGradientText>{chunks}</VibraGradientText>,
+                  vibra: (chunks) => (
+                    <VibraGradientText style={{ fontSize: "1.25em" }}>{chunks}</VibraGradientText>
+                  ),
                 })}
               </h3>
               <p className="onboardingText">{tWallet("onboardingRulesText")}</p>
@@ -961,7 +1328,7 @@ export default function WalletOnboarding() {
 
       {/* Comisión: fuera de la tarjeta con imagen. Texto a la izquierda; la
           derecha queda reservada para un ejemplo que se agregará después. */}
-      <section className="commission">
+      <section className="commission reveal">
         <div className="commissionLeft">
           <h2 className="commissionTitle">{tWallet("onboardingCommissionTitle")}</h2>
 
@@ -1023,7 +1390,7 @@ export default function WalletOnboarding() {
       </section>
 
       {/* Transparencia: título + descripción, alineados a la derecha. */}
-      <section className="clearSection">
+      <section className="clearSection reveal">
         {/* Simulador de celular con una wallet activa demo (Finanzas / Estadísticas). */}
         <div className="phoneMock">
           <div className="phoneScreen">
@@ -1034,7 +1401,9 @@ export default function WalletOnboarding() {
         <div className="clearTextBlock">
           <h2 className="clearTitle">
             {tWallet.rich("onboardingClearTitle", {
-              vibra: (chunks) => <span style={{ color: "#22c55e" }}>{chunks}</span>,
+              vibra: (chunks) => (
+                <span style={{ color: "#22c55e", fontSize: "1.12em" }}>{chunks}</span>
+              ),
             })}
           </h2>
           <p className="clearText">{tWallet("onboardingClearText")}</p>
@@ -1047,7 +1416,7 @@ export default function WalletOnboarding() {
       </section>
 
       {/* Imagen de estilo de vida con la lista de garantías encima. */}
-      <section className="lifestyle">
+      <section className="lifestyle reveal">
         <div className="lifestyleImageWrap">
           <Image
             src="/wallet-hero.webp"
@@ -1111,7 +1480,18 @@ export default function WalletOnboarding() {
 
       {/* Las 11 formas: título + mosaico de categorías de fondo para el contenido. */}
       <section className="ways">
-        <h2 className="waysTitle">{tWallet("onboardingWaysTitle")}</h2>
+        <h2 className="waysTitle reveal">
+          {tWallet.rich("onboardingWaysTitle", {
+            vibra: (chunks) => (
+              <VibraGradientText
+                gradient="linear-gradient(100deg, #c084fc 0%, #a855ff 45%, #7c3aed 100%)"
+                style={{ fontSize: "1.25em" }}
+              >
+                {chunks}
+              </VibraGradientText>
+            ),
+          })}
+        </h2>
 
         {/* Los 11 servicios: número grande intercalado izquierda/derecha, cada
             uno con la imagen de su categoría de fondo. */}
@@ -1122,23 +1502,36 @@ export default function WalletOnboarding() {
             const previewKey = SERVICE_PREVIEW_KEY[svc];
             // CTA del card: los servicios de perfil scrollean a su card de
             // activación; los lives abren el composer para crear la transmisión.
-            const cta = !handle
-              ? null
-              : SERVICE_ACTIVATE_KEY[svc]
+            const cta =
+              handle && SERVICE_ACTIVATE_KEY[svc]
                 ? {
                     label: tWallet("onboardingStartNow"),
                     href: `/u/${handle}?configure=${SERVICE_ACTIVATE_KEY[svc]}`,
                   }
-                : svc === 9
+                : (svc === 9 || svc === 5 || svc === 6 || svc === 10) && handle
                   ? {
                       label: tWallet("onboardingCreateLive"),
                       href: `/u/${handle}?compose=live`,
                     }
-                  : null;
+                  : svc === 11 && handle
+                    ? {
+                        label: tWallet("onboardingCreatePremium"),
+                        href: `/u/${handle}?compose=premium`,
+                      }
+                  : // Suscripciones: a una comunidad propia (a configurar) o a
+                    // crear comunidad si aún no tiene ninguna.
+                    svc === 8 && groupsLoaded
+                    ? {
+                        label: tWallet("onboardingStartNow"),
+                        href: subGroupId
+                          ? `/groups/${subGroupId}?configure=subscription`
+                          : "/groups/new",
+                      }
+                    : null;
             return (
               <li
                 key={svc}
-                className={`wayRow${pos % 2 === 0 ? " isRight" : ""}${
+                className={`wayRow reveal${pos % 2 === 0 ? " isRight" : ""}${
                   previewKey ? " hasInfo" : ""
                 }`}
               >
@@ -1209,6 +1602,85 @@ export default function WalletOnboarding() {
             );
           })}
         </ol>
+      </section>
+
+      {/* Título: crea 3 tipos de comunidades ("comunidades" con el degradado de
+          marca, igual que "conectar" en el título principal). */}
+      <section className="communitiesTitle reveal">
+        {/* Tapete de categorías con profundidad (perspectiva 3D), puramente
+            decorativo, detrás del título y las tarjetas. */}
+        <div className="communitiesBg" aria-hidden="true">
+          <div className="communitiesBgStage">
+            <div className="communitiesBgGrid">
+              {COLLAGE_TILES.map((tile, i) => (
+                <div
+                  key={i}
+                  className={`communitiesBgTile${tile.wide ? " is-wide" : ""}`}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={`/${tile.src}.webp`} alt="" loading="lazy" draggable={false} />
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="communitiesBgOverlay" />
+        </div>
+
+        <h2 className="waysTitle">
+          {tWallet.rich("onboardingCommunitiesTitle", {
+            vibra: (chunks) => (
+              <VibraGradientText style={{ fontSize: "1.25em" }}>{chunks}</VibraGradientText>
+            ),
+          })}
+        </h2>
+
+        <div className="communityCards">
+          {COMMUNITY_TYPES.map((c) => (
+            <div key={c.key} className="communityCard">
+              <div className="communityHead">
+                <span className="communityIcon" style={{ color: c.color }} aria-hidden="true">
+                  {c.icon}
+                </span>
+                <span className="communityName">
+                  {tWallet(`onboardingCommunity${c.key}Name`)}
+                </span>
+              </div>
+              <span className="communityDesc">
+                <span className="communityDescInner">
+                  {tWallet(`onboardingCommunity${c.key}Desc`)}
+                  {c.key === "Public" || c.key === "Private" || c.key === "Hidden" ? (
+                    <span className="communityNote">
+                      <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ flexShrink: 0, marginTop: 1, color: "#a855ff" }}>
+                        <circle cx="12" cy="12" r="9" />
+                        <path d="M12 11v5" />
+                        <path d="M12 7.6h0" />
+                      </svg>
+                      <span>{tWallet(`onboardingCommunity${c.key}Note`)}</span>
+                    </span>
+                  ) : null}
+                </span>
+              </span>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Cierre: invitación final + aclaración de que activar experiencias es
+          gratis y reversible cuando el creador quiera. */}
+      <section className="closeSection reveal">
+        <h2 className="closeTitle">
+          {tWallet.rich("onboardingCloseTitle", {
+            vibra: (chunks) => (
+              <VibraGradientText
+                gradient="linear-gradient(100deg, #c084fc 0%, #a855ff 45%, #7c3aed 100%)"
+                style={{ fontSize: "1.25em" }}
+              >
+                {chunks}
+              </VibraGradientText>
+            ),
+          })}
+        </h2>
+        <p className="closeText">{tWallet("onboardingCloseText")}</p>
       </section>
       </div>
     </>

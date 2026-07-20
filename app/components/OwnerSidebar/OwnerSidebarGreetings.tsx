@@ -539,23 +539,6 @@ function StatusPill({ children, style }: { children: ReactNode; style: React.CSS
   );
 }
 
-function SectionHeading({ children }: { children: ReactNode }) {
-  return (
-    <div
-      style={{
-        fontSize: 11,
-        fontWeight: 700,
-        color: "rgba(255,255,255,0.42)",
-        textTransform: "uppercase",
-        letterSpacing: 0.5,
-        padding: "2px 2px 0",
-      }}
-    >
-      {children}
-    </div>
-  );
-}
-
 function CleanServiceCard({
   id,
   type,
@@ -1960,8 +1943,6 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
   return (
     <>
     <div style={{ display: "grid", gap: 8 }}>
-      <SectionHeading>{tGroups("myServices")}</SectionHeading>
-
       <SectionBlock
         sectionKey="requested"
         count={requestedRows.length}

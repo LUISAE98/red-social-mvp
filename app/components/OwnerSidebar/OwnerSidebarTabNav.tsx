@@ -59,7 +59,7 @@ export default function OwnerSidebarTabNav({
             label: tNav("tabFollowing"),
             title: tNav("tabFollowing"),
             showBadge: false,
-            icon: <SidebarFollowingIcon size={25} strokeWidth={1.6} />,
+            icon: <SidebarFollowingIcon size={28} strokeWidth={1.6} />,
           },
         ]
       : []),
@@ -70,7 +70,7 @@ export default function OwnerSidebarTabNav({
             label: tNav("tabOwnedCommunities"),
             title: tNav("tabOwnedCommunities"),
             showBadge: joinRequestsCount > 0,
-            icon: <SidebarMyCommunitiesIcon size={25} strokeWidth={1.6} />,
+            icon: <SidebarMyCommunitiesIcon size={28} strokeWidth={1.6} />,
           },
         ]
       : []),
@@ -81,7 +81,7 @@ export default function OwnerSidebarTabNav({
             label: tNav("tabJoinedCommunities"),
             title: tNav("tabJoinedCommunities"),
             showBadge: false,
-            icon: <SidebarOtherCommunitiesIcon size={25} strokeWidth={1.6} />,
+            icon: <SidebarOtherCommunitiesIcon size={28} strokeWidth={1.6} />,
           },
         ]
       : []),
@@ -92,7 +92,7 @@ export default function OwnerSidebarTabNav({
             label: tNav("tabExperiences"),
             title: tNav("tabExperiences"),
             showBadge: false,
-            icon: <SidebarExperiencesIcon size={25} strokeWidth={1.6} />,
+            icon: <SidebarExperiencesIcon size={28} strokeWidth={1.6} />,
           },
         ]
       : []),
@@ -135,14 +135,15 @@ export default function OwnerSidebarTabNav({
     color: "rgba(255,255,255,0.95)",
   };
 
+  // Mismo estilo que los labels del menú derecho (WalletDesktopRail): fuente
+  // heredada 13px, sin letter-spacing; el color y el peso los decide `active`
+  // en el render (0.74/400 inactivo · #fff/700 activo).
   const labelStyle: CSSProperties = {
     position: "relative",
     zIndex: 2,
     fontSize: 13,
-    fontWeight: 560,
     fontFamily: fontStack,
     lineHeight: 1.15,
-    letterSpacing: "-0.08px",
     whiteSpace: "nowrap",
     overflow: "hidden",
     textOverflow: "ellipsis",
@@ -192,9 +193,17 @@ export default function OwnerSidebarTabNav({
                 background: active ? "rgba(255,255,255,0.05)" : "transparent",
               }}
             >
-              <span style={{ display: "flex", alignItems: "center", gap: 8, flex: 1, minWidth: 0, opacity: active ? 1 : 0.55 }}>
-                {tab.icon}
-                <span style={labelStyle}>{tab.label}</span>
+              <span style={{ display: "flex", alignItems: "center", gap: 8, flex: 1, minWidth: 0 }}>
+                <span style={{ display: "inline-flex", opacity: active ? 1 : 0.55 }}>{tab.icon}</span>
+                <span
+                  style={{
+                    ...labelStyle,
+                    color: active ? "#ffffff" : "rgba(255,255,255,0.74)",
+                    fontWeight: active ? 700 : 400,
+                  }}
+                >
+                  {tab.label}
+                </span>
               </span>
 
               {tab.showBadge ? (

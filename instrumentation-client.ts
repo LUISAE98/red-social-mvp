@@ -4,24 +4,25 @@
 
 import * as Sentry from "@sentry/nextjs";
 
+// En desarrollo apagamos Session Replay, tracing y logs de Sentry: Replay
+// descarga un segmento pesado cada ~5 min por el tunnelRoute (/monitoring), lo
+// que satura/tumba el server local. En producción se mantiene todo igual.
+const isProd = process.env.NODE_ENV === "production";
+
 Sentry.init({
   dsn: "https://289313405740d90f3478c3bb08a949f5@o4510942250205184.ingest.us.sentry.io/4510942269145088",
 
-  // Add optional integrations for additional features
-  integrations: [Sentry.replayIntegration()],
+  // Replay solo en producción.
+  integrations: isProd ? [Sentry.replayIntegration()] : [],
 
-  // Define how likely traces are sampled. Adjust this value in production, or use tracesSampler for greater control.
-  tracesSampleRate: 1,
-  // Enable logs to be sent to Sentry
-  enableLogs: true,
+  // Trazado 100% solo en producción (en dev pesa mucho en memoria).
+  tracesSampleRate: isProd ? 1 : 0,
+  // Logs a Sentry solo en producción.
+  enableLogs: isProd,
 
-  // Define how likely Replay events are sampled.
-  // This sets the sample rate to be 10%. You may want this to be 100% while
-  // in development and sample at a lower rate in production
-  replaysSessionSampleRate: 0.1,
-
-  // Define how likely Replay events are sampled when an error occurs.
-  replaysOnErrorSampleRate: 1.0,
+  // Replay solo en producción.
+  replaysSessionSampleRate: isProd ? 0.1 : 0,
+  replaysOnErrorSampleRate: isProd ? 1.0 : 0,
 
   // Enable sending user PII (Personally Identifiable Information)
   // https://docs.sentry.io/platforms/javascript/guides/nextjs/configuration/options/#sendDefaultPii

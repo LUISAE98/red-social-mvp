@@ -556,6 +556,9 @@ const canRequestMeetGreet =
   // por GroupPostsFeed; se usa para ocultar el rail de recomendaciones fuera de
   // "Publicaciones".
   const [feedMediaTab, setFeedMediaTab] = useState<string>("feed");
+  // Deep-link `?requests=1` desde la notificación de solicitud de unión: abre la
+  // lista de solicitudes dentro de Integrantes.
+  const [requestsDeepLinkOpen, setRequestsDeepLinkOpen] = useState(false);
 
   // Cambio de pestaña preservando el scroll (misma UX que Wallet/Perfil).
   const tabSwitchScrollY = useRef<number | null>(null);
@@ -1113,6 +1116,57 @@ function redirectToLogin() {
   isOwner,
   isSubscriptionGroup,
 ]);
+
+  // Deep-link desde la notificación de solicitud de unión: abre la pestaña
+  // Integrantes y despliega la lista de solicitudes pendientes. Solo owner/mods.
+  useEffect(() => {
+    if (!user || !(isOwner || isModerator)) return;
+    if (searchParams.get("requests") !== "1") return;
+    setActiveTab("members");
+    setRequestsDeepLinkOpen(true);
+    const nextParams = new URLSearchParams(searchParams.toString());
+    nextParams.delete("requests");
+    const nextHref = nextParams.toString() ? `${pathname}?${nextParams.toString()}` : pathname;
+    router.replace(nextHref, { scroll: false });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, isOwner, isModerator, searchParams]);
+
+  // Deep-link "Comenzar ahora" de suscripciones (onboarding de la Wallet): abre
+  // la pestaña de servicios de la comunidad y centra la card de suscripción.
+  useEffect(() => {
+    if (!user || !isOwner) return;
+    if (searchParams.get("configure") !== "subscription") return;
+    setActiveTab("services");
+    let cancelled = false;
+    const timers: number[] = [];
+    const centerOnce = () => {
+      if (cancelled) return;
+      const el = document.getElementById("admin-subscription");
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      const top =
+        window.scrollY + rect.top - window.innerHeight / 2 + rect.height / 2;
+      window.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
+    };
+    let tries = 0;
+    const waitForCard = () => {
+      if (cancelled) return;
+      if (document.getElementById("admin-subscription")) {
+        centerOnce();
+        [250, 550, 900].forEach((d) =>
+          timers.push(window.setTimeout(centerOnce, d))
+        );
+        return;
+      }
+      if (tries++ < 40) timers.push(window.setTimeout(waitForCard, 100));
+    };
+    timers.push(window.setTimeout(waitForCard, 150));
+    return () => {
+      cancelled = true;
+      timers.forEach((t) => window.clearTimeout(t));
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, isOwner, searchParams]);
 
   useEffect(() => {
     if (!serviceToast) return;
@@ -2630,6 +2684,7 @@ const avatarNode = (
                   isOwner={isOwner}
                   isModerator={isModerator}
                   canMembersViewList={isEmbed || canMembersViewList}
+                  initialShowRequests={requestsDeepLinkOpen}
                 />
               </div>
             )}

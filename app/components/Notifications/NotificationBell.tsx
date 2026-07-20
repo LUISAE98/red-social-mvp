@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { useAuth } from "@/app/providers";
 import { useNotifications } from "@/lib/hooks/useNotifications";
+import { useSelfHandle } from "@/lib/hooks/useSelfHandle";
 import { VibraNavigationIcon } from "@/app/components/VibraServiceIcons/VibraNavigationIcons";
 import { AppNotification } from "@/lib/notifications/types";
 import NotificationList from "./NotificationList";
@@ -30,7 +31,9 @@ interface PanelPos {
 export default function NotificationBell({ active }: NotificationBellProps) {
   const t = useTranslations("notifications");
   const { user } = useAuth();
-  const { items, unreadCount, loading, markAllRead, markRead } = useNotifications(user?.uid ?? null);
+  const { items, unreadCount, badgeCount, loading, markSeen, markAllRead, markRead } =
+    useNotifications(user?.uid ?? null);
+  const selfHandle = useSelfHandle(user?.uid ?? null);
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [pos, setPos] = useState<PanelPos>({ top: 64, right: 16 });
@@ -39,6 +42,12 @@ export default function NotificationBell({ active }: NotificationBellProps) {
 
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => setMounted(true), []);
+
+  // Abrir el contenedor marca todo como "visto" → baja el badge a 0 (sin marcar
+  // como leído: cada ítem sigue no-leído hasta abrirlo).
+  useEffect(() => {
+    if (open) markSeen();
+  }, [open, markSeen]);
 
   const reposition = () => {
     const el = btnRef.current;
@@ -83,7 +92,7 @@ export default function NotificationBell({ active }: NotificationBellProps) {
     setOpen(false);
   };
 
-  const badge = unreadCount > 99 ? "99+" : String(unreadCount);
+  const badge = badgeCount > 99 ? "99+" : String(badgeCount);
 
   return (
     <div className="notifBellWrap">
@@ -99,7 +108,7 @@ export default function NotificationBell({ active }: NotificationBellProps) {
         onClick={() => setOpen((v) => !v)}
       >
         <VibraNavigationIcon type="notifications" size={22} strokeWidth={2.2} />
-        {unreadCount > 0 ? <span className="notifBadge">{badge}</span> : null}
+        {badgeCount > 0 ? <span className="notifBadge">{badge}</span> : null}
       </button>
 
       {mounted && open
@@ -120,7 +129,12 @@ export default function NotificationBell({ active }: NotificationBellProps) {
                 ) : null}
               </div>
               <div className="notifPanelScroll">
-                <NotificationList items={items} loading={loading} onItemClick={handleItemClick} />
+                <NotificationList
+                  items={items}
+                  loading={loading}
+                  onItemClick={handleItemClick}
+                  selfHandle={selfHandle}
+                />
               </div>
               <Link href="/notifications" className="notifViewAll" onClick={() => setOpen(false)}>
                 {t("viewAll")}

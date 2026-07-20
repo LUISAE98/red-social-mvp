@@ -152,6 +152,9 @@ type GroupPostCardProps = {
   autoOpenUnlock?: boolean;
   /** Se dispara al desbloquear (comprar) el post — para que la galería lo refleje. */
   onPostUnlocked?: (postId: string) => void;
+  /** Trata el post como ya desbloqueado desde el montaje (la galería sabe que el
+   *  viewer tiene acceso) — evita el race con la carga async de isTempUnlocked. */
+  forceUnlocked?: boolean;
   /** Se dispara cuando el visor auto-abierto se cierra (para desmontar el lightbox). */
   onViewerClosed?: () => void;
   /** Deep-link de notificaciones: al montar abre el panel de comentarios. */
@@ -209,6 +212,7 @@ onToggleProfilePin,
   autoOpenVod = false,
   autoOpenUnlock = false,
   onPostUnlocked,
+  forceUnlocked = false,
   onViewerClosed,
   autoOpenComments = false,
   focusCommentId = null,
@@ -707,7 +711,13 @@ useEffect(() => {
     }
 
     setSelectedMediaUrl(mediaUrl);
-    if (!isMobile) void handleOpenCommentsPanel();
+    // Lee el viewport en vivo: el auto-open del lightbox puede correr antes de que
+    // el estado `isMobile` se estabilice (arranca en false). En celular NO se
+    // auto-abre el panel de comentarios de escritorio sobre el visor.
+    const isMobileNow =
+      typeof window !== "undefined" &&
+      window.matchMedia("(max-width: 640px)").matches;
+    if (!isMobileNow) void handleOpenCommentsPanel();
 
     // Vista única del viewer para videos/VODs (no cuenta fotos).
     const postHasVideo =
@@ -1731,7 +1741,8 @@ function renderBlurredMediaBackdrop(
       post,
       currentUserId,
       viewerIsMember: isOwner || viewerIsMember,
-      viewerAccess: isTempUnlocked ? ({ status: "active" } as PostAccess) : null,
+      viewerAccess:
+        isTempUnlocked || forceUnlocked ? ({ status: "active" } as PostAccess) : null,
     },
     // Precio en la moneda del viewer (mismo hook que el resto de la UI).
     (price, currency) =>
