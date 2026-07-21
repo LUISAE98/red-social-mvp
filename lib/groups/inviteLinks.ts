@@ -30,6 +30,9 @@ export type InviteLinkPreviewResult = {
     avatarUrl: string | null;
     coverUrl: string | null;
     isActive: boolean;
+    requiresSubscription: boolean;
+    subscriptionPrice: number | null;
+    subscriptionCurrency: string | null;
   };
   invite: {
     isActive: boolean;
@@ -84,6 +87,54 @@ export async function consumeInviteLink(
   );
 
   const res = await fn({ token });
+  return res.data;
+}
+
+export type InviteLinkListItem = {
+  id: string;
+  token: string;
+  path: string;
+  usedCount: number;
+  maxUses: number | null;
+  expiresAt: string | null;
+  expiresAtMs: number | null;
+  createdAtMs: number | null;
+};
+
+export type ListInviteLinksResult = {
+  success: boolean;
+  groupId: string;
+  links: InviteLinkListItem[];
+};
+
+export type RevokeInviteLinkResult = {
+  success: boolean;
+  groupId: string;
+  inviteLinkId: string;
+};
+
+export async function listInviteLinks(
+  groupId: string
+): Promise<ListInviteLinksResult> {
+  const fn = httpsCallable<{ groupId: string }, ListInviteLinksResult>(
+    functions,
+    "listInviteLinks"
+  );
+
+  const res = await fn({ groupId });
+  return res.data;
+}
+
+export async function revokeInviteLink(input: {
+  groupId: string;
+  inviteLinkId: string;
+}): Promise<RevokeInviteLinkResult> {
+  const fn = httpsCallable<typeof input, RevokeInviteLinkResult>(
+    functions,
+    "revokeInviteLink"
+  );
+
+  const res = await fn(input);
   return res.data;
 }
 

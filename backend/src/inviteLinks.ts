@@ -3,6 +3,7 @@ import { logger } from "firebase-functions";
 import { getFirestore, FieldValue, Timestamp } from "firebase-admin/firestore";
 import * as admin from "firebase-admin";
 import { randomBytes } from "crypto";
+import { notifyGroupNewMemberFromInvite } from "./notifications";
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -42,6 +43,45 @@ function isRestrictedMemberStatus(status: MemberStatus) {
 
 function isReadableMemberStatus(status: MemberStatus) {
   return status === "active" || status === "muted";
+}
+
+type GroupSubscriptionConfig = {
+  requiresSubscription: boolean;
+  price: number | null;
+  currency: string | null;
+};
+
+/** Lee la config de suscripción desde `group.monetization` (server-side). */
+function readGroupSubscription(groupData: unknown): GroupSubscriptionConfig {
+  const monetization =
+    groupData && typeof groupData === "object"
+      ? ((groupData as { monetization?: unknown }).monetization as
+          | {
+              subscriptionsEnabled?: unknown;
+              subscriptionPriceMonthly?: unknown;
+              priceMonthly?: unknown;
+              subscriptionCurrency?: unknown;
+              currency?: unknown;
+            }
+          | undefined)
+      : undefined;
+
+  if (monetization?.subscriptionsEnabled !== true) {
+    return { requiresSubscription: false, price: null, currency: null };
+  }
+
+  const priceRaw =
+    monetization?.subscriptionPriceMonthly ?? monetization?.priceMonthly ?? null;
+  const price =
+    typeof priceRaw === "number" && Number.isFinite(priceRaw) ? priceRaw : null;
+
+  const currency =
+    (typeof monetization?.subscriptionCurrency === "string" &&
+      monetization.subscriptionCurrency) ||
+    (typeof monetization?.currency === "string" && monetization.currency) ||
+    "MXN";
+
+  return { requiresSubscription: true, price, currency };
 }
 
 function buildInviteDocData(args: {
@@ -174,6 +214,24 @@ export const createInviteLink = onCall(async (request) => {
     );
   }
 
+  // Tope de 2 links vigentes por comunidad. Se cuentan solo los que siguen
+  // válidos (isActive y no expirados); los revocados/agotados/expirados no cuentan.
+  const nowForLimit = Date.now();
+  const activeLinksSnap = await groupRef
+    .collection("inviteLinks")
+    .where("isActive", "==", true)
+    .get();
+  const activeLinksCount = activeLinksSnap.docs.filter((d) => {
+    const exp = d.get("expiresAt") as Timestamp | undefined;
+    return !!exp && exp.toMillis() > nowForLimit;
+  }).length;
+  if (activeLinksCount >= 2) {
+    throw new HttpsError(
+      "failed-precondition",
+      "Ya tienes 2 links activos. Mata uno antes de crear otro."
+    );
+  }
+
   const token = generateInviteToken();
   const nowMs = Date.now();
   const expiresAt = Timestamp.fromMillis(
@@ -267,7 +325,13 @@ export const getInviteLinkPreview = onCall(async (request) => {
     isActive?: boolean;
     avatarUrl?: string | null;
     coverUrl?: string | null;
+    monetization?: unknown;
   };
+
+  // Solo las comunidades ocultas de suscripción piden "Suscribirme" + pago simulado.
+  const subscription = readGroupSubscription(groupData);
+  const requiresSubscription =
+    groupData?.visibility === "hidden" && subscription.requiresSubscription;
 
   const expiresAt = inviteData?.expiresAt ?? null;
   const isExpired = !expiresAt || expiresAt.toMillis() <= Date.now();
@@ -302,6 +366,9 @@ export const getInviteLinkPreview = onCall(async (request) => {
       avatarUrl: groupData?.avatarUrl ?? null,
       coverUrl: groupData?.coverUrl ?? null,
       isActive: groupActive,
+      requiresSubscription,
+      subscriptionPrice: requiresSubscription ? subscription.price : null,
+      subscriptionCurrency: requiresSubscription ? subscription.currency : null,
     },
     invite: {
       isActive: active,
@@ -356,6 +423,10 @@ export const consumeInviteLink = onCall(async (request) => {
       callerUid,
       invitePath: inviteRef.path,
     });
+
+    // Capturado dentro de la transacción para diferenciar el aviso al owner
+    // (nuevo suscriptor vs miembro gratuito) al notificar tras el commit.
+    let joinedAsSubscriber = false;
 
     const result = await db.runTransaction(async (tx) => {
       const inviteSnap = await tx.get(inviteRef);
@@ -499,16 +570,8 @@ export const consumeInviteLink = onCall(async (request) => {
       }
 
       if (isReadableMemberStatus(memberStatus)) {
-        tx.update(inviteRef, {
-          usedCount: FieldValue.increment(1),
-          lastUsedAt: FieldValue.serverTimestamp(),
-          lastUsedBy: callerUid,
-          updatedAt: FieldValue.serverTimestamp(),
-          ...(maxUses !== null && usedCount + 1 >= maxUses
-            ? { isActive: false }
-            : {}),
-        });
-
+        // Miembro existente que reabre el link: NO consume un uso. El uso solo
+        // cuenta cuando alguien se vuelve miembro/suscriptor por primera vez.
         tx.delete(userJoinRequestSentRef);
 
         return {
@@ -551,14 +614,36 @@ export const consumeInviteLink = onCall(async (request) => {
         const groupCategory =
           typeof groupData?.category === "string" ? groupData.category : null;
 
+        // Comunidad oculta de suscripción → membresía suscrita (equivalente al
+        // pago simulado); gratuita → membresía estándar directa.
+        const subscription = readGroupSubscription(groupData);
+        joinedAsSubscriber = subscription.requiresSubscription;
+        const membershipCore = subscription.requiresSubscription
+          ? {
+              status: "subscribed",
+              accessType: "subscription",
+              requiresSubscription: true,
+              subscriptionActive: true,
+              subscriptionPriceMonthly: subscription.price,
+              subscriptionCurrency: subscription.currency ?? "MXN",
+              subscribedAt: FieldValue.serverTimestamp(),
+            }
+          : {
+              status: "active",
+              accessType: "standard",
+              requiresSubscription: false,
+              subscriptionActive: false,
+            };
+
         const memberPatch = {
           userId: callerUid,
           roleInGroup: "member",
           role: "member",
-          status: "active",
-          accessType: "standard",
-          requiresSubscription: false,
-          subscriptionActive: false,
+          ...membershipCore,
+          // Marca para que onGroupMemberCreated omita esta unión: la notificación
+          // al owner se emite server-side tras el commit (el merge-set puede ser
+          // update y no dispararía el trigger de creación).
+          joinSource: "invite_link",
           joinedAt: FieldValue.serverTimestamp(),
           updatedAt: FieldValue.serverTimestamp(),
         };
@@ -573,10 +658,7 @@ export const consumeInviteLink = onCall(async (request) => {
 
             roleInGroup: "member",
             role: "member",
-            status: "active",
-            accessType: "standard",
-            requiresSubscription: false,
-            subscriptionActive: false,
+            ...membershipCore,
 
             groupName,
             groupDescription,
@@ -632,15 +714,20 @@ export const consumeInviteLink = onCall(async (request) => {
         }
       }
 
-      tx.update(inviteRef, {
-        usedCount: FieldValue.increment(1),
-        lastUsedAt: FieldValue.serverTimestamp(),
-        lastUsedBy: callerUid,
-        updatedAt: FieldValue.serverTimestamp(),
-        ...(maxUses !== null && usedCount + 1 >= maxUses
-          ? { isActive: false }
-          : {}),
-      });
+      // El uso se cuenta SOLO cuando alguien se vuelve miembro/suscriptor:
+      // comunidad oculta → membresía directa (o suscripción). En privada se crea
+      // una solicitud pendiente (aún no es miembro), así que NO consume uso.
+      if (groupData?.visibility === "hidden") {
+        tx.update(inviteRef, {
+          usedCount: FieldValue.increment(1),
+          lastUsedAt: FieldValue.serverTimestamp(),
+          lastUsedBy: callerUid,
+          updatedAt: FieldValue.serverTimestamp(),
+          ...(maxUses !== null && usedCount + 1 >= maxUses
+            ? { isActive: false }
+            : {}),
+        });
+      }
 
       return {
         success: true,
@@ -662,6 +749,24 @@ export const consumeInviteLink = onCall(async (request) => {
       visibility: result.visibility ?? null,
     });
 
+    // Unión oculta efectiva → notificar al owner (server-side, ver memberPatch.joinSource).
+    if (result.outcome === "joined" && result.visibility === "hidden") {
+      try {
+        await notifyGroupNewMemberFromInvite(
+          result.groupId,
+          callerUid,
+          joinedAsSubscriber
+        );
+      } catch (notifyErr: unknown) {
+        logger.error("consumeInviteLink notify owner failed", {
+          callerUid,
+          groupId: result.groupId,
+          message:
+            notifyErr instanceof Error ? notifyErr.message : "Error desconocido",
+        });
+      }
+    }
+
     return result;
   } catch (err: unknown) {
     const errObj = err as { code?: unknown; message?: unknown; stack?: unknown } | null;
@@ -682,4 +787,113 @@ export const consumeInviteLink = onCall(async (request) => {
       (err instanceof Error ? err.message : null) ?? "Ocurrió un error interno al consumir el link."
     );
   }
+});
+
+/**
+ * REVOKE INVITE LINK ("Matar link")
+ * - Solo el owner del grupo.
+ * - Marca el link como inactivo/revocado de inmediato (corta su vigencia ya).
+ */
+export const revokeInviteLink = onCall(async (request) => {
+  const callerUid = request.auth?.uid;
+  if (!callerUid) {
+    throw new HttpsError("unauthenticated", "Debes estar autenticado.");
+  }
+
+  const groupId = String(request.data?.groupId ?? "").trim();
+  const inviteLinkId = String(request.data?.inviteLinkId ?? "").trim();
+
+  if (!groupId || !inviteLinkId) {
+    throw new HttpsError(
+      "invalid-argument",
+      "groupId e inviteLinkId son requeridos."
+    );
+  }
+
+  const groupRef = db.collection("groups").doc(groupId);
+  const groupSnap = await groupRef.get();
+  if (!groupSnap.exists) {
+    throw new HttpsError("not-found", "Comunidad no existe.");
+  }
+  if ((groupSnap.data() as { ownerId?: string })?.ownerId !== callerUid) {
+    throw new HttpsError("permission-denied", "Solo el owner puede matar links.");
+  }
+
+  const inviteRef = groupRef.collection("inviteLinks").doc(inviteLinkId);
+  const inviteSnap = await inviteRef.get();
+  if (!inviteSnap.exists) {
+    throw new HttpsError("not-found", "El link no existe.");
+  }
+
+  await inviteRef.update({
+    isActive: false,
+    revokedAt: FieldValue.serverTimestamp(),
+    revokedBy: callerUid,
+    revokedReason: "manual",
+    updatedAt: FieldValue.serverTimestamp(),
+  });
+
+  logger.info("revokeInviteLink success", { callerUid, groupId, inviteLinkId });
+
+  return { success: true, groupId, inviteLinkId };
+});
+
+/**
+ * LIST INVITE LINKS
+ * - Solo el owner.
+ * - Devuelve los links VIGENTES (activos y no expirados) del grupo con su token,
+ *   usos, límite y expiración, para pintarlos en la UI del dueño.
+ */
+export const listInviteLinks = onCall(async (request) => {
+  const callerUid = request.auth?.uid;
+  if (!callerUid) {
+    throw new HttpsError("unauthenticated", "Debes estar autenticado.");
+  }
+
+  const groupId = String(request.data?.groupId ?? "").trim();
+  if (!groupId) {
+    throw new HttpsError("invalid-argument", "groupId es requerido.");
+  }
+
+  const groupRef = db.collection("groups").doc(groupId);
+  const groupSnap = await groupRef.get();
+  if (!groupSnap.exists) {
+    throw new HttpsError("not-found", "Comunidad no existe.");
+  }
+  if ((groupSnap.data() as { ownerId?: string })?.ownerId !== callerUid) {
+    throw new HttpsError(
+      "permission-denied",
+      "Solo el owner puede ver los links."
+    );
+  }
+
+  const nowMs = Date.now();
+  const snap = await groupRef
+    .collection("inviteLinks")
+    .where("isActive", "==", true)
+    .get();
+
+  const links = snap.docs
+    .map((d) => {
+      const data = d.data();
+      const expiresAt = data.expiresAt as Timestamp | undefined;
+      const createdAt = data.createdAt as Timestamp | undefined;
+      const token = String(data.token ?? "");
+      return {
+        id: d.id,
+        token,
+        path: `/invite/${token}`,
+        usedCount: Number(data.usedCount ?? 0),
+        maxUses: (data.maxUses ?? null) as number | null,
+        expiresAt: serializeTimestamp(expiresAt),
+        expiresAtMs: expiresAt ? expiresAt.toMillis() : null,
+        createdAtMs: createdAt ? createdAt.toMillis() : null,
+      };
+    })
+    // Solo vigentes (no expirados aún, aunque el cron no los haya apagado).
+    .filter((l) => l.expiresAtMs !== null && l.expiresAtMs > nowMs)
+    // Más recientes primero.
+    .sort((a, b) => (b.createdAtMs ?? 0) - (a.createdAtMs ?? 0));
+
+  return { success: true, groupId, links };
 });

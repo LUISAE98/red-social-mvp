@@ -26,6 +26,9 @@ type InvitePreview = {
     avatarUrl: string | null;
     coverUrl: string | null;
     isActive: boolean;
+    requiresSubscription: boolean;
+    subscriptionPrice: number | null;
+    subscriptionCurrency: string | null;
   };
   invite: {
     isActive: boolean;
@@ -55,6 +58,8 @@ const { user } = useAuth();
   const [data, setData] = useState<InvitePreview | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [consuming, setConsuming] = useState(false);
+  // Paso de pago simulado (solo comunidades ocultas de suscripción).
+  const [payOpen, setPayOpen] = useState(false);
 
   const fontStack =
     'inherit';
@@ -223,12 +228,7 @@ const { user } = useAuth();
   router.push(`/login?next=${encodeURIComponent(nextPath)}`);
 }
 
-  async function handleJoin() {
-    if (!user) {
-      redirectToLogin();
-      return;
-    }
-
+  async function consumeAndRedirect() {
     setConsuming(true);
     setError(null);
 
@@ -237,9 +237,25 @@ const { user } = useAuth();
       router.replace(`/groups/${res.groupId}`);
     } catch (e: unknown) {
       setError((e instanceof Error ? e.message : null) ?? "Error al usar invitación");
-    } finally {
       setConsuming(false);
     }
+  }
+
+  // CTA principal. Para comunidad oculta de suscripción abre el pago simulado;
+  // para gratuita entra directo.
+  function handlePrimaryAction() {
+    if (!user) {
+      redirectToLogin();
+      return;
+    }
+
+    if (data?.group.requiresSubscription === true) {
+      setError(null);
+      setPayOpen(true);
+      return;
+    }
+
+    consumeAndRedirect();
   }
 
   const disabled = useMemo(() => {
@@ -307,6 +323,26 @@ const { user } = useAuth();
   const { group, invite } = data;
   const showGroupInfo = !disabled;
   const isHidden = group.visibility === "hidden";
+  const requiresSubscription = group.requiresSubscription === true;
+
+  const subscriptionPriceLabel = (() => {
+    if (typeof group.subscriptionPrice !== "number") return null;
+    const currency = group.subscriptionCurrency ?? "MXN";
+    try {
+      return new Intl.NumberFormat("es-MX", {
+        style: "currency",
+        currency,
+      }).format(group.subscriptionPrice);
+    } catch {
+      return `${currency} ${group.subscriptionPrice.toFixed(2)}`;
+    }
+  })();
+
+  const primaryLabel = consuming
+    ? "Procesando..."
+    : requiresSubscription
+    ? "Suscribirme"
+    : "Entrar a la comunidad";
 
   return (
     <main style={pageWrap}>
@@ -506,7 +542,11 @@ const { user } = useAuth();
                   {!showGroupInfo && "Este enlace expiró, fue revocado o ya no está disponible."}
                   {showGroupInfo &&
                     !error &&
-                    (isHidden
+                    (requiresSubscription
+                      ? subscriptionPriceLabel
+                        ? `Esta comunidad es de suscripción (${subscriptionPriceLabel}/mes). Suscríbete para entrar.`
+                        : "Esta comunidad es de suscripción. Suscríbete para entrar."
+                      : isHidden
                       ? "Esta invitación te permitirá entrar directamente a la comunidad."
                       : "Esta invitación te permitirá solicitar acceso a la comunidad.")}
                 </div>
@@ -529,7 +569,7 @@ const { user } = useAuth();
                   ) : (
                     <>
                       <button
-                        onClick={handleJoin}
+                        onClick={handlePrimaryAction}
                         disabled={consuming}
                         style={{
                           ...primaryButton,
@@ -537,7 +577,7 @@ const { user } = useAuth();
                           cursor: consuming ? "not-allowed" : "pointer",
                         }}
                       >
-                        {consuming ? "Procesando..." : "Entrar a la comunidad"}
+                        {primaryLabel}
                       </button>
 
                       {!user && (
@@ -570,6 +610,81 @@ const { user } = useAuth();
           </div>
         </section>
       </div>
+
+      {payOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          onClick={() => {
+            if (!consuming) setPayOpen(false);
+          }}
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 1000,
+            display: "grid",
+            placeItems: "center",
+            padding: 16,
+            background: "rgba(0,0,0,0.72)",
+            backdropFilter: "blur(4px)",
+            WebkitBackdropFilter: "blur(4px)",
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: "100%",
+              maxWidth: 380,
+              ...cardStyle,
+              padding: 20,
+              display: "grid",
+              gap: 14,
+            }}
+          >
+            <div style={{ ...titleStyle, textAlign: "center", fontSize: 17, maxWidth: "none", padding: 0 }}>
+              Suscripción a {group.name}
+            </div>
+
+            <div style={{ ...panelStyle, display: "grid", gap: 6, textAlign: "center" }}>
+              <div style={microText}>Suscripción mensual</div>
+              <div style={{ fontSize: 24, fontWeight: 700, color: "#fff" }}>
+                {subscriptionPriceLabel ?? "—"}
+              </div>
+              <div style={{ ...microText, color: "rgba(255,255,255,0.6)" }}>
+                Pago simulado · sin cargo real
+              </div>
+            </div>
+
+            {error && <div style={messageBox}>{error}</div>}
+
+            <div style={{ display: "grid", gap: 10 }}>
+              <button
+                onClick={consumeAndRedirect}
+                disabled={consuming}
+                style={{
+                  ...primaryButton,
+                  opacity: consuming ? 0.75 : 1,
+                  cursor: consuming ? "not-allowed" : "pointer",
+                }}
+              >
+                {consuming ? "Procesando..." : "Pagar y suscribirme"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setPayOpen(false)}
+                disabled={consuming}
+                style={{
+                  ...secondaryButton,
+                  opacity: consuming ? 0.75 : 1,
+                  cursor: consuming ? "not-allowed" : "pointer",
+                }}
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

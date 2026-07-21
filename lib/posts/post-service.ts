@@ -3053,6 +3053,9 @@ export async function createLivePost(params: {
   const effectiveMode: LiveVisibilityMode = params.visibilityMode ?? "everyone";
   const effectiveAccessType = params.accessType ?? "free";
   const isPaidLive = effectiveAccessType === "paid";
+  // Seguridad: un live en comunidad OCULTA nunca es compartible ni visible para
+  // deslogueados (no debe filtrarse fuera de la comunidad).
+  const isHiddenGroupLive = context.groupVisibility === "hidden";
 
   const cleanBroadcastIds = (params.broadcastGroupIds ?? []).filter(
     (id) => typeof id === "string" && id.trim().length > 0 && id !== (params.groupId ?? ""),
@@ -3074,7 +3077,7 @@ export async function createLivePost(params: {
     ingestUrl: null,
     createdFrom,
     visibilityMode: effectiveMode,
-    allowLoggedOutViewers: effectiveMode === "everyone",
+    allowLoggedOutViewers: effectiveMode === "everyone" && !isHiddenGroupLive,
     accessType: effectiveAccessType,
     ticketPrice: isPaidLive ? (params.ticketPrice ?? null) : null,
     currency: isPaidLive ? (params.currency ?? "MXN") : null,
@@ -3107,7 +3110,7 @@ export async function createLivePost(params: {
     isPinnedOnProfile: isProfileLive,
     profilePinnedAt: isProfileLive ? pinnedAt : null,
     profilePinnedBy: isProfileLive ? author.uid : null,
-    isShareable: effectiveMode !== "members_only",
+    isShareable: effectiveMode !== "members_only" && !isHiddenGroupLive,
     publicSlug: null,
     shareTitle: cleanTitle,
     shareDescription: params.description?.trim() || null,
@@ -4881,6 +4884,9 @@ export async function updateLivePost(params: {
   const effectiveMode: LiveVisibilityMode = params.visibilityMode ?? "everyone";
   const effectiveAccessType = params.accessType ?? "free";
   const isPaidLive = effectiveAccessType === "paid";
+  // Seguridad: un live en comunidad OCULTA nunca es compartible ni visible para
+  // deslogueados (no debe filtrarse fuera de la comunidad).
+  const isHiddenGroupLive = postData.groupVisibility === "hidden";
   const scheduledStartAt = params.scheduledStartAt
     ? Timestamp.fromDate(params.scheduledStartAt)
     : null;
@@ -4890,7 +4896,7 @@ export async function updateLivePost(params: {
     shareTitle: cleanTitle,
     shareDescription: params.description?.trim() || null,
     shareImageUrl: params.coverUrl ?? null,
-    isShareable: effectiveMode !== "members_only",
+    isShareable: effectiveMode !== "members_only" && !isHiddenGroupLive,
     requiresPayment: isPaidLive,
     accessModel: isPaidLive ? "paid" : "free",
     oneTimePrice: isPaidLive ? (params.ticketPrice ?? null) : null,
@@ -4902,7 +4908,7 @@ export async function updateLivePost(params: {
     "liveData.scheduledStartAt": scheduledStartAt,
     "liveData.scheduleHasTime": scheduledStartAt ? (params.scheduleHasTime ?? true) : null,
     "liveData.visibilityMode": effectiveMode,
-    "liveData.allowLoggedOutViewers": effectiveMode === "everyone",
+    "liveData.allowLoggedOutViewers": effectiveMode === "everyone" && !isHiddenGroupLive,
     "liveData.accessType": effectiveAccessType,
     "liveData.ticketPrice": isPaidLive ? (params.ticketPrice ?? null) : null,
     "liveData.currency": isPaidLive ? (params.currency ?? "MXN") : null,

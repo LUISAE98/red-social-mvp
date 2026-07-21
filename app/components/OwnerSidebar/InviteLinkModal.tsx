@@ -10,6 +10,8 @@ import { useVibraToast } from "@/lib/hooks/useVibraToast";
 type Props = {
   groupId: string;
   onClose: () => void;
+  /** Se dispara tras crear un link con éxito, para refrescar la lista del dueño. */
+  onCreated?: () => void;
 };
 
 type Unit = "minutes" | "hours" | "days";
@@ -58,7 +60,7 @@ async function copyToClipboardWithFallback(text: string) {
   }
 }
 
-export default function InviteLinkModal({ groupId, onClose }: Props) {
+export default function InviteLinkModal({ groupId, onClose, onCreated }: Props) {
   const tGroups = useTranslations("groups");
   const tCommon = useTranslations("common");
     const [mounted, setMounted] = useState(false);
@@ -145,6 +147,7 @@ export default function InviteLinkModal({ groupId, onClose }: Props) {
 
       setLink(`${window.location.origin}/invite/${res.token}`);
       showInviteToast(tGroups("linkGeneratedSuccess"), "success");
+      onCreated?.();
     } catch (e: unknown) {
       console.error(e);
       showInviteToast((e instanceof Error ? e.message : null) ?? tGroups("linkCreateError"), "error");

@@ -4,6 +4,93 @@
 > deberían generar una notificación, su punto de disparo en el código, el destinatario y los
 > datos disponibles. Base para la implementación del sistema de notificaciones.
 
+---
+
+## ✅ Lista maestra por bloques (checklist vivo — act. 2026-07-21)
+
+> ✅ en producción · ⬜ pendiente · ➖ descartada. Los tipos internos viven en
+> `backend/src/notifications.ts` y `lib/notifications/types.ts`.
+
+### Bloque 1 — Sociales (interacción con contenido)
+1. ✅ Like a tu post (`post_like`)
+2. ✅ Like a tu comentario (`comment_like`)
+3. ✅ Comentario en tu post (`comment`)
+4. ✅ Respuesta a tu comentario (`reply`)
+5. ✅ Mención (@) en comentario/respuesta (`mention`)
+6. ✅ Nuevo post de quien sigues / de tu comunidad — fan-out (`new_post`, vía Cloud Tasks)
+7. ✅ Nuevo seguidor (`follow`)
+8. ➖ Guardar post — acción privada, ruido
+9. ➖ Compartir — sin destinatario capturable
+10. ➖ Pin de post — descartada
+
+### Bloque 2 — Comunidades (membresía + moderación)
+1. ✅ Solicitud de unión a tu comunidad (`join_request`, con aceptar/rechazar inline)
+2. ✅ Aprobaron tu solicitud (`join_approved`)
+3. ✅ Rechazaron tu solicitud (`join_rejected`)
+4. ✅ Nuevo miembro gratuito (`group_new_member`)
+5. ✅ Nuevo suscriptor (`group_new_subscriber`)
+6. ✅ Tu link de invitación caducó — tiempo/usos (`invite_expired`)
+7. ✅ Te silenciaron (`group_moderation` action=muted)
+8. ✅ Te expulsaron (`group_moderation` action=kicked)
+9. ✅ Te bloquearon/ban (`group_moderation` action=banned)
+10. ✅ Advertencia de moderación de plataforma (`moderation_warning`)
+
+### Bloque 3 — Monetización / compra-venta ⬜ *(espera Mercado Pago)*
+1. ⬜ Vendiste post premium / VOD *(→ vendedor)*
+2. ⬜ Recibo de tu compra de post premium / VOD *(→ comprador)*
+3. ⬜ Nueva suscripción a tu comunidad como venta *(→ owner)*
+4. ⬜ Recibo de tu suscripción *(→ comprador)*
+5. ⬜ Baja/churn de suscriptor *(→ owner)*
+6. ⬜ Renovación de suscripción *(→ ambos, cuando exista cobro recurrente)*
+7. ⬜ Te compraron un supercomentario *(→ vendedor)*
+8. ⬜ Donación en tu live *(→ vendedor)*
+9. ⬜ Donación en tu perfil *(→ vendedor + recibo comprador)*
+10. ⬜ Te compraron un ticket de live *(→ vendedor + comprador)*
+
+### Bloque 4 — Servicios "request" (saludo, consejo, sesión exclusiva, meet & greet) ⬜
+1. ⬜ Nueva solicitud de servicio *(→ creador)*
+2. ⬜ Aceptaron tu solicitud *(→ comprador)*
+3. ⬜ Rechazaron tu solicitud *(→ comprador)*
+4. ⬜ Te propusieron / agendaron fecha *(→ comprador)*
+5. ⬜ El comprador pidió reagenda *(→ creador)*
+6. ⬜ El creador declinó la reagenda *(→ comprador)*
+7. ⬜ Servicio entregado — video de saludo/consejo listo *(→ comprador)*
+8. ⬜ Reembolso solicitado / procesado *(→ ambos)*
+9. ⬜ Tu solicitud pendiente expiró (2 meses) *(→ comprador)*
+
+### Bloque 5 — Sesiones 1-a-1 en vivo (LiveKit) ⬜
+1. ⬜ Recordatorio pre-sesión *(→ ambos)*
+2. ⬜ La otra parte está lista / en preparación *(→ la otra parte)*
+3. ⬜ La otra parte se unió — arranca contador *(→ la otra parte)*
+4. ⬜ La sesión terminó / quedó incompleta *(→ ambos)*
+5. ⬜ No-show / auto-rechazo *(→ afectado)*
+6. ⬜ Tu grabación está lista para descargar *(→ ambos)*
+7. ⬜ La grabación falló *(→ creador)*
+
+### Bloque 6 — Lives / Streaming (Cloudflare Stream) ⬜
+1. ⬜ "{Creador} está en vivo" *(→ seguidores + miembros)*
+2. ⬜ El live terminó *(→ espectadores, opcional)*
+3. ⬜ El VOD del live ya está listo *(→ creador + compradores/seguidores)*
+
+### Bloque 7 — KYC / Verificación (Didit) ✅
+1. ✅ KYC aprobado — retiros habilitados (`kyc_update` action=approved)
+2. ✅ KYC rechazado + motivo (`kyc_update` action=declined)
+3. ✅ KYC en revisión manual (`kyc_update` action=in_review)
+4. ✅ KYC pendiente / reintento (`kyc_update` action=pending)
+> Disparo: `kyc.ts` `diditWebhook` → `notifyKycStatus` (solo si cambia el estado). Clic → `/wallet/finanzas`.
+
+### Bloque 8 — Wallet / Finanzas ⬜ *(dependen de Mercado Pago / features por construir)*
+1. ⬜ Recarga de saldo exitosa — top-up *(→ comprador)*
+2. ⬜ Retiro solicitado *(→ creador/admin)*
+3. ⬜ Retiro aprobado / procesado *(→ creador)*
+4. ⬜ Retiro rechazado *(→ creador)*
+5. ⬜ Pago acreditado en tu wallet *(genérico MP)*
+
+**Estado:** ✅ 21 implementadas (bloques 1, 2 y 7) · ⬜ ~34 pendientes (bloques 3–6, 8) · ➖ 3 descartadas.
+Bloques 3 y 8 dependen de Mercado Pago; 4/5/6 pausados hasta tener MP estable.
+
+---
+
 ## Estado actual (punto de partida)
 
 **No existe un sistema de notificaciones real.** Solo hay piezas sueltas:
@@ -51,13 +138,15 @@ no desde el cliente (las Firestore Rules no deben permitir que un usuario escrib
 | ✅ | Follow / seguir | `lib/social/social-service.ts` `followUser` → trigger `onFollowerCreated` | usuario seguido (`targetUserId`) | `currentUserId`, `targetUserId` |
 | ✅ | Solicitud de unirse a comunidad | `lib/groups/joinRequests.ts` `requestToJoin` + `inviteLinks.ts` (private) → trigger `onJoinRequestCreated` | owner/mods del grupo (`group.ownerId`) | `uid`, `groupId`, `ownerId` |
 | ✅ | Aprobar membresía | `backend/src/joinRequests.ts` `approveJoinRequest` → trigger `onGroupMemberCreated` (rama `approvedBy`) | solicitante (`userId`) | `userId`, `groupId`, `callerUid` |
-| ⬜ | Rechazar membresía | `backend/src/joinRequests.ts` `rejectJoinRequest` (258) — borra el joinRequest, sin trigger de notificación | solicitante (`userId`) | `userId`, `groupId`, `callerUid` |
+| ✅ | Rechazar membresía (`join_rejected`) | `backend/src/joinRequests.ts` `rejectJoinRequest` → `notifyJoinRejected` (server-side, la comunidad hace de actor) | solicitante (`userId`) | `userId`, `groupId`, `callerUid` |
 | ✅ | Unirse directo (público/hidden) | `lib/groups/membership.ts` `joinGroup*` + `inviteLinks.ts` (hidden) → trigger `onGroupMemberCreated` (rama directa) | owner del grupo | `uid`, `groupId`, `ownerId` |
+| ✅ | Nuevo suscriptor (`group_new_subscriber`) | `inviteLinks.ts` (hidden+sub) + `joinGroupWithSubscription` → `onGroupMemberCreated` detecta `accessType:"subscription"` | owner del grupo | `uid`, `groupId`, `accessType` |
 | ✅ | Consumo de invitación | `backend/src/inviteLinks.ts` `consumeInviteLink` (326) → cubierto por `onJoinRequestCreated` / `onGroupMemberCreated` | owner del grupo | `callerUid`, `groupId`, `ownerId`, `outcome` |
-| ⬜ | Nuevo post (fan-out) | `post-service.ts` `createTextPost`/`createImagePost`/`createMediaPost`/`createVideoPost`/`createLivePost` | seguidores (perfil) / miembros (grupo) | `author.uid`, `groupId`/`profileId`, `postId` |
+| ✅ | Nuevo post (fan-out) (`new_post`) | trigger `onPostCreated` (`posts/{postId}`) → fan-out a seguidores/miembros; agregado por autor; omite lives y borrados | seguidores (perfil) / miembros (grupo) | `authorId`, `contextType`, `groupId`, `postId` |
 | ➖ | ~~Guardar post~~ (**NO notificar** — decisión de producto 2026-07-18: acción privada, genera ruido) | `backend/src/postSaves.ts` `togglePostSave` (289) | — | — |
-| ⬜ | Pin de un post | `backend/src/postPins.ts` `toggleGroupPostPin`/`toggleProfilePostPin` | autor del post fijado | `postId`, actor mod/owner |
-| ⬜ | Moderación de grupo (mute/ban/kick) | `backend/src/groupModeration.ts` | miembro afectado | `groupId`, `targetUid` |
+| ➖ | ~~Pin de un post~~ (**NO notificar** — decisión de producto 2026-07-20) | `backend/src/postPins.ts` | — | — |
+| ✅ | Moderación de grupo (mute/kick/ban) (`group_moderation`) | `backend/src/groupModeration.ts` `muteGroupMember`/`removeGroupMember`/`banGroupMember` → `notifyGroupModeration` con `action` | miembro afectado | `groupId`, `targetUid`, `action` |
+| ✅ | Link de invitación caducó (`invite_expired`) | `onInviteLinkUpdated` (max_uses) + cron `expireInviteLinks` (tiempo) → `emitInviteEnded` | owner que creó el link | `groupId`, `inviteId`, `createdBy`, `reason` |
 | ✅ | Advertencia de moderación | `backend/src/moderation.ts` `warnUser` (445) — ya escribía; ahora con `updatedAt` para salir en la campanita | usuario advertido | — |
 | ➖ | Compartir | metadata en post (`buildShareMetadata` 1070) | — sin destinatario capturable | (no hay doc por-share) |
 
@@ -131,14 +220,18 @@ Ciclo compartido: `handleRequestLifecycle` en `ledgerTriggers.ts:298`. Cierre/se
 | Saludo entregado / video listo | `muxWebhooks.ts` `markGreetingAssetReady` (`asset.ready`) | comprador |
 | Solicitud expiró (2 meses) | `autoExpirePendingGreetingRequestsHandler` (591) | comprador |
 
-### KYC (Didit) — `backend/src/kyc.ts` `diditWebhook` (286)
+### KYC (Didit) — `backend/src/kyc.ts` `diditWebhook` (286) — ✅ IMPLEMENTADO
 
-| Evento | Estado | Destinatario |
-|---|---|---|
-| KYC aprobado (habilita retiros) | `approved`, `kycApproved:true` | creador |
-| KYC rechazado | `declined` (+ `reason`) | creador |
-| KYC en revisión manual | `in_review` | creador |
-| KYC pendiente / reintento | `pending`/`not_started` | creador |
+> Tipo `kyc_update` (un solo doc por usuario, refleja el último estado). Emite
+> `notifyKycStatus` tras persistir, solo si el estado cambió y no es `not_started`.
+> Clic → `/wallet/finanzas`.
+
+| Evento | Estado | Destinatario | ✅ |
+|---|---|---|---|
+| KYC aprobado (habilita retiros) | `approved`, `kycApproved:true` | creador | ✅ |
+| KYC rechazado | `declined` (+ `reason`) | creador | ✅ |
+| KYC en revisión manual | `in_review` | creador | ✅ |
+| KYC pendiente / reintento | `pending` | creador | ✅ |
 
 ## 4. Huecos (features aún inexistentes — notificar cuando se construyan)
 

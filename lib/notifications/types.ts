@@ -14,7 +14,12 @@ export type NotificationType =
   | "follow"
   | "join_request"
   | "join_approved"
+  | "join_rejected"
   | "group_new_member"
+  | "group_new_subscriber"
+  | "group_moderation"
+  | "new_post"
+  | "kyc_update"
   | "invite_expired"
   | "moderation_warning";
 
@@ -35,6 +40,11 @@ export interface NotificationTarget {
   imageUrl?: string | null;
   /** invite_expired: motivo ("max_uses" | "expired"). */
   reason?: string | null;
+  /**
+   * group_moderation: acción ("muted" | "kicked" | "banned").
+   * kyc_update: estado ("approved" | "declined" | "in_review" | "pending").
+   */
+  action?: string | null;
 }
 
 /** Notificación ya normalizada para la UI. */
@@ -63,7 +73,12 @@ export const KNOWN_NOTIFICATION_TYPES: ReadonlySet<NotificationType> = new Set([
   "follow",
   "join_request",
   "join_approved",
+  "join_rejected",
   "group_new_member",
+  "group_new_subscriber",
+  "group_moderation",
+  "new_post",
+  "kyc_update",
   "invite_expired",
 ]);
 
@@ -79,9 +94,20 @@ export function notificationHref(n: AppNotification, selfHandle?: string | null)
       // seguidores (ver notificationQuery → { followers: "1" }).
       if (n.actorCount > 1) return selfHandle ? `/u/${selfHandle}` : "/notifications";
       return n.actors[0]?.handle ? `/u/${n.actors[0].handle}` : "/notifications";
+    case "kyc_update":
+      // Cualquier estado de KYC → finanzas del wallet (donde se gestionan retiros).
+      return "/wallet/finanzas";
+    case "group_moderation":
+      // Silenciado → puede volver a la comunidad. Expulsado/baneado → ya no tiene
+      // acceso, así que es informativa (sin destino).
+      return n.target.action === "muted" && n.target.groupId
+        ? `/groups/${n.target.groupId}`
+        : "/notifications";
     case "join_request":
     case "join_approved":
+    case "join_rejected":
     case "group_new_member":
+    case "group_new_subscriber":
     case "invite_expired":
       return n.target.groupId ? `/groups/${n.target.groupId}` : "/notifications";
     default:
@@ -104,8 +130,11 @@ export function notificationQuery(n: AppNotification): Record<string, string> | 
   if (n.type === "follow" && n.actorCount > 1) {
     return { followers: "1" };
   }
-  // Nuevo miembro se unió → abre la pestaña Integrantes (la lista de miembros).
-  if (n.type === "group_new_member" && n.target.groupId) {
+  // Nuevo miembro / suscriptor → abre la pestaña Integrantes (la lista de miembros).
+  if (
+    (n.type === "group_new_member" || n.type === "group_new_subscriber") &&
+    n.target.groupId
+  ) {
     return { tab: "members" };
   }
   return undefined;

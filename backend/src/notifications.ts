@@ -16,7 +16,10 @@ import {
   onDocumentUpdated,
 } from "firebase-functions/v2/firestore";
 import { onSchedule } from "firebase-functions/v2/scheduler";
+import { onTaskDispatched } from "firebase-functions/v2/tasks";
+import { logger } from "firebase-functions";
 import * as admin from "firebase-admin";
+import { getFunctions } from "firebase-admin/functions";
 
 if (admin.apps.length === 0) {
   admin.initializeApp();
@@ -38,7 +41,13 @@ type NotificationType =
   | "follow"
   | "join_request"
   | "join_approved"
-  | "group_new_member";
+  | "join_rejected"
+  | "group_new_member"
+  | "group_new_subscriber"
+  | "group_moderation"
+  | "new_post"
+  | "kyc_update"
+  | "invite_expired";
 
 interface Actor {
   id: string;
@@ -55,6 +64,10 @@ interface Target {
   handle?: string | null;
   preview?: string | null;
   imageUrl?: string | null;
+  /** invite_expired: "max_uses" | "expired". */
+  reason?: string | null;
+  /** group_moderation: "muted" | "kicked" | "banned". */
+  action?: string | null;
 }
 
 function str(value: unknown): string | null {
@@ -75,6 +88,19 @@ async function resolveActor(uid: string): Promise<Actor> {
   } catch {
     return { id: uid, name: "Alguien", avatarUrl: null, handle: null };
   }
+}
+
+/** La comunidad como "actor" (avatar + nombre) cuando no hay una persona detrás. */
+function groupActorOf(group: admin.firestore.DocumentSnapshot): Actor {
+  return {
+    id: group.id,
+    name: str(group.get("name")) ?? "una comunidad",
+    avatarUrl:
+      str(group.get("avatarUrl")) ??
+      str(group.get("photoURL")) ??
+      str(group.get("imageUrl")),
+    handle: null,
+  };
 }
 
 /** Construye el `target` a partir del documento del post. */
@@ -473,12 +499,134 @@ export const onJoinRequestRemoved = onDocumentDeleted(
 //    - aprobación (tiene approvedBy) → se notifica al solicitante aceptado
 //    - unión directa (tiene accessType) → se notifica al owner del grupo
 // ---------------------------------------------------------------------------
+/** ¿El doc de miembro corresponde a un suscriptor de pago (no gratuito)? */
+function isSubscriberMember(data: Record<string, unknown>): boolean {
+  return (
+    str(data.accessType) === "subscription" ||
+    str(data.status) === "subscribed" ||
+    data.subscriptionActive === true ||
+    data.requiresSubscription === true
+  );
+}
+
+/**
+ * Avisa al owner que alguien se unió. Diferencia suscriptor de pago
+ * (`group_new_subscriber`) de miembro gratuito (`group_new_member`): distinto
+ * tipo y distinta clave de agregación, para que no se mezclen en la campanita.
+ */
+async function emitGroupJoin(
+  group: admin.firestore.DocumentSnapshot,
+  memberUid: string,
+  isSubscriber: boolean
+): Promise<void> {
+  const ownerId = str(group.get("ownerId"));
+  if (!ownerId || ownerId === memberUid) return;
+  const groupId = group.id;
+  const groupName = str(group.get("name"));
+  const actor = await resolveActor(memberUid);
+  await emit({
+    recipientId: ownerId,
+    groupKey: isSubscriber
+      ? `group_new_subscriber_${groupId}`
+      : `group_new_member_${groupId}`,
+    type: isSubscriber ? "group_new_subscriber" : "group_new_member",
+    actor,
+    target: { groupId, groupName },
+  });
+}
+
+/**
+ * Notifica al owner que alguien se unió, invocado server-side desde
+ * `consumeInviteLink`. Se emite aquí (y no solo vía trigger) porque la unión por
+ * invite usa `set(..., { merge: true })`: si el miembro ya tenía un doc con un
+ * status intermedio (p.ej. `subscribed`), el merge es un *update* y el trigger
+ * `onGroupMemberCreated` no dispararía. El miembro lleva `joinSource:"invite_link"`
+ * para que ese trigger omita estas uniones y no se duplique el aviso.
+ */
+export async function notifyGroupNewMemberFromInvite(
+  groupId: string,
+  memberUid: string,
+  isSubscriber: boolean
+): Promise<void> {
+  const group = await db.collection("groups").doc(groupId).get();
+  if (!group.exists) return;
+  await emitGroupJoin(group, memberUid, isSubscriber);
+}
+
+/**
+ * Avisa al solicitante que su solicitud de unión fue rechazada. Invocado
+ * server-side desde `rejectJoinRequest` (el joinRequest se borra, no hay trigger).
+ * La comunidad hace de actor. Clic → la comunidad.
+ */
+export async function notifyJoinRejected(
+  groupId: string,
+  userId: string
+): Promise<void> {
+  const group = await db.collection("groups").doc(groupId).get();
+  if (!group.exists) return;
+  await emit({
+    recipientId: userId,
+    groupKey: `join_rejected_${groupId}`,
+    type: "join_rejected",
+    actor: groupActorOf(group),
+    target: { groupId, groupName: str(group.get("name")) },
+  });
+}
+
+/**
+ * Avisa al miembro afectado por una acción de moderación de comunidad.
+ * `action`: "muted" (silenciado) | "kicked" (expulsado) | "banned" (bloqueado).
+ * Un solo tipo `group_moderation`; el texto y el destino de clic dependen de
+ * `action`. Invocado server-side desde `groupModeration.ts` tras aplicar la acción.
+ */
+export async function notifyGroupModeration(
+  groupId: string,
+  targetUserId: string,
+  action: "muted" | "kicked" | "banned"
+): Promise<void> {
+  const group = await db.collection("groups").doc(groupId).get();
+  if (!group.exists) return;
+  await emit({
+    recipientId: targetUserId,
+    groupKey: `group_moderation_${groupId}`,
+    type: "group_moderation",
+    actor: groupActorOf(group),
+    target: { groupId, groupName: str(group.get("name")), action },
+  });
+}
+
+/**
+ * Avisa al creador de un cambio de estado de su verificación KYC (Didit).
+ * Un solo tipo `kyc_update` con `action` = "approved" | "declined" | "in_review"
+ * | "pending" (siempre la misma clave → refleja el estado más reciente).
+ * La plataforma hace de actor (no hay persona). Clic → wallet/finanzas.
+ * Invocado server-side desde `kyc.ts` `diditWebhook` tras persistir el estado.
+ */
+export async function notifyKycStatus(
+  uid: string,
+  status: "approved" | "declined" | "in_review" | "pending"
+): Promise<void> {
+  if (!uid) return;
+  await emit({
+    recipientId: uid,
+    groupKey: "kyc_update",
+    type: "kyc_update",
+    actor: { id: "kyc", name: "Verificación", avatarUrl: null, handle: null },
+    target: { action: status },
+  });
+}
+
 export const onGroupMemberCreated = onDocumentCreated(
   { document: "groups/{groupId}/members/{userId}", region: REGION },
   async (event) => {
     const data = event.data?.data();
     if (!data) return;
     const { groupId, userId } = event.params;
+
+    // Uniones por invite link: la notificación la emite consumeInviteLink
+    // (server-side), porque el merge-set puede ser update y no dispararía este
+    // trigger. Omitir aquí evita el doble aviso.
+    if (str(data.joinSource) === "invite_link") return;
 
     const group = await db.collection("groups").doc(groupId).get();
     if (!group.exists) return;
@@ -498,16 +646,197 @@ export const onGroupMemberCreated = onDocumentCreated(
       return;
     }
 
-    // Unión directa (grupo público / invite hidden) → avisar al owner.
-    const ownerId = str(group.get("ownerId"));
-    if (!ownerId || ownerId === userId) return;
-    const actor = await resolveActor(userId);
-    await emit({
-      recipientId: ownerId,
-      groupKey: `group_new_member_${groupId}`,
-      type: "group_new_member",
-      actor,
-      target: { groupId, groupName },
+    // Unión directa (grupo público / suscripción vía group page) → avisar al owner.
+    await emitGroupJoin(group, userId, isSubscriberMember(data));
+  }
+);
+
+// ---------------------------------------------------------------------------
+// Nuevo post (fan-out) → seguidores (perfil) / miembros (comunidad).
+//   - Agregado por autor + contexto: varios posts del mismo autor colapsan en
+//     una sola notificación cuyo contador (`actorCount`) = nº de posts.
+//   - Se omiten posts borrados y lives (los lives tienen su propia noti).
+//   - PRODUCCIÓN / VOLUMEN: el reparto NO se hace inline. El trigger encola la
+//     primera página en Cloud Tasks; `fanoutNewPostTask` procesa una página de
+//     destinatarios (paginada por cursor sobre el id de documento), escribe sus
+//     notificaciones en lote y se auto-encola para la siguiente página. Así cada
+//     invocación queda acotada (sin lectura masiva en memoria ni riesgo de
+//     timeout con audiencias grandes) y la cola reintenta/limita el ritmo.
+// ---------------------------------------------------------------------------
+const FANOUT_PAGE = 450; // destinatarios por tarea (< 500 del límite de batch)
+const FANOUT_TASK = "fanoutNewPostTask";
+
+type FanoutSource = "followers" | "members";
+
+interface FanoutTaskData {
+  jobId: string; // = postId, estable → dedupe de tareas encadenadas
+  source: FanoutSource;
+  sourceId: string; // authorId (followers) | groupId (members)
+  authorId: string; // se excluye de los destinatarios
+  groupKey: string;
+  actor: Actor;
+  target: Target;
+  startAfter: string | null; // cursor: id del último doc de la página previa
+}
+
+/** Encola una página del reparto. `id` determinista → Cloud Tasks deduplica. */
+async function enqueueFanoutPage(data: FanoutTaskData): Promise<void> {
+  const taskId = `${data.jobId}_${data.source}_${data.startAfter ?? "start"}`;
+  await getFunctions()
+    .taskQueue(FANOUT_TASK)
+    .enqueue(data, { id: taskId });
+}
+
+export const onPostCreated = onDocumentCreated(
+  { document: "posts/{postId}", region: REGION },
+  async (event) => {
+    const snap = event.data;
+    if (!snap) return;
+    const data = snap.data();
+    if (!data) return;
+
+    if (data.isDeleted === true) return;
+    // Los lives tienen (o tendrán) su propia notificación "X está en vivo".
+    if (str(data.postType) === "live" || data.liveData != null) return;
+
+    const authorId = str(data.authorId);
+    if (!authorId) return;
+
+    const postId = event.params.postId;
+    const contextType = str(data.contextType);
+
+    const actor: Actor = {
+      id: authorId,
+      name: str(data.authorName) ?? str(data.authorUsername) ?? "Alguien",
+      avatarUrl: str(data.authorAvatarUrl),
+      handle: str(data.authorUsername),
+    };
+
+    const media = data.media;
+    let imageUrl: string | null = null;
+    if (Array.isArray(media) && media.length > 0) {
+      imageUrl = str(media[0]?.thumbnailUrl) ?? str(media[0]?.url);
+    }
+    if (!imageUrl) imageUrl = str(data.shareImageUrl);
+
+    const preview = str(data.text)?.slice(0, 120) ?? null;
+    const handle = str(data.authorUsername);
+
+    const isGroup = contextType === "group";
+    const groupId = isGroup ? str(data.groupId) : null;
+    if (isGroup && !groupId) return;
+
+    const target: Target = {
+      postId,
+      groupId: isGroup ? groupId : null,
+      groupName: isGroup ? str(data.groupName) : null,
+      handle,
+      preview,
+      imageUrl,
+    };
+
+    try {
+      await enqueueFanoutPage({
+        jobId: postId,
+        source: isGroup ? "members" : "followers",
+        sourceId: isGroup ? (groupId as string) : authorId,
+        authorId,
+        groupKey: isGroup
+          ? `new_post_group_${groupId}_${authorId}`
+          : `new_post_profile_${authorId}`,
+        actor,
+        target,
+        startAfter: null,
+      });
+    } catch (err: unknown) {
+      // Causa típica: la SA de la función no tiene `roles/cloudtasks.enqueuer`.
+      logger.error("onPostCreated fan-out enqueue failed", {
+        postId,
+        source: isGroup ? "members" : "followers",
+        message: err instanceof Error ? err.message : "Error desconocido",
+      });
+    }
+  }
+);
+
+/**
+ * Procesa UNA página del fan-out y encadena la siguiente. Reintentable: en el
+ * peor caso (reintento tras commit) recuenta una página (contador cosmético);
+ * el `id` determinista evita clonar tareas de páginas siguientes.
+ */
+export const fanoutNewPostTask = onTaskDispatched<FanoutTaskData>(
+  {
+    region: REGION,
+    retryConfig: { maxAttempts: 5, minBackoffSeconds: 5 },
+    rateLimits: { maxConcurrentDispatches: 6 },
+  },
+  async (req) => {
+    const { source, sourceId, authorId, groupKey, actor, target, startAfter } =
+      req.data;
+
+    const col =
+      source === "followers"
+        ? db.collection("users").doc(sourceId).collection("followers")
+        : db.collection("groups").doc(sourceId).collection("members");
+
+    let query = col
+      .orderBy(admin.firestore.FieldPath.documentId())
+      .limit(FANOUT_PAGE);
+    if (startAfter) query = query.startAfter(startAfter);
+    if (source === "members") query = query.select("status");
+    else query = query.select();
+
+    const pageSnap = await query.get();
+    if (pageSnap.empty) return;
+
+    const now = admin.firestore.FieldValue.serverTimestamp();
+    const batch = db.batch();
+    let writes = 0;
+
+    for (const doc of pageSnap.docs) {
+      const uid = doc.id;
+      if (uid === authorId) continue;
+      if (source === "members") {
+        const s = str(doc.get("status")) ?? "active";
+        if (s !== "active" && s !== "muted") continue;
+      }
+      const ref = db
+        .collection("users")
+        .doc(uid)
+        .collection("notifications")
+        .doc(groupKey);
+      batch.set(
+        ref,
+        {
+          type: "new_post",
+          groupKey,
+          actors: [actor],
+          actorIds: [actor.id],
+          actorCount: admin.firestore.FieldValue.increment(1),
+          target,
+          read: false,
+          createdAt: now,
+          updatedAt: now,
+        },
+        { merge: true }
+      );
+      writes += 1;
+    }
+
+    if (writes > 0) await batch.commit();
+
+    // ¿Página llena? Encadena la siguiente desde el último id leído.
+    if (pageSnap.size === FANOUT_PAGE) {
+      const lastId = pageSnap.docs[pageSnap.docs.length - 1].id;
+      await enqueueFanoutPage({ ...req.data, startAfter: lastId });
+    }
+
+    logger.info("fanoutNewPostTask page done", {
+      source,
+      sourceId,
+      writes,
+      pageSize: pageSnap.size,
+      chained: pageSnap.size === FANOUT_PAGE,
     });
   }
 );

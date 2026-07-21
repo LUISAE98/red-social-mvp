@@ -42,6 +42,63 @@ function IconWrap({ children, color }: { children: React.ReactNode; color: strin
   );
 }
 
+// Claves cuya redacción está en voz de CREADOR ("tu seguidor…", "tú fijas…") y
+// tienen una variante dirigida al fan (misma clave + "User"). El resolver las
+// intercambia cuando audience === "user"; las claves neutrales (títulos como
+// "Duración", "Descargable") no están aquí y se usan igual para ambos.
+// Fuente de las variantes: messages/*.json → services.*User.
+const SVC_USER_KEYS = new Set([
+  "featurePreviewDurationDesc",
+  "featurePreviewIncludeDQ",
+  "featurePreviewIncludeAttention",
+  "featurePreviewSaludoCheckDesc",
+  "featurePreviewConsejoCheckDesc",
+  "featurePreviewDownloadSaludoDesc",
+  "featurePreviewDownloadConsejoDesc",
+  "featurePreviewScheduleDesc",
+  "featurePreviewFocusedDesc",
+  "liveAccessTicketDesc",
+  "liveAccessSuperDesc",
+  "liveAccessDonationDesc",
+  "subscriptionPreviewRecurringLabel",
+  "subscriptionPreviewRecurringDesc",
+  "subscriptionPreviewExclusiveDesc",
+  "subscriptionPreviewBenefitsDesc",
+  "subscriptionPreviewPriceLabel",
+  "subscriptionPreviewPriceDesc",
+  "superCommentsPreviewTiersLabel",
+  "superCommentsPreviewTiersDesc",
+  "superCommentsPreviewPinLabel",
+  "superCommentsPreviewPinDesc",
+  "superCommentsPreviewLiveLabel",
+  "superCommentsPreviewLiveDesc",
+  "superCommentsPreviewPriceLabel",
+  "superCommentsPreviewPriceDesc",
+  "liveDonationPreviewSupportDesc",
+  "liveDonationPreviewShowLabel",
+  "liveDonationPreviewShowDesc",
+  "profileDonationPreviewAnytimeLabel",
+  "profileDonationPreviewAnytimeDesc",
+  "profileDonationPreviewMessageLabel",
+  "profileDonationPreviewMessageDesc",
+  "profileDonationPreviewVideoDesc",
+  "profileDonationPreviewMinLabel",
+  "profileDonationPreviewMinDesc",
+  "vodUnlockPreviewOneTimeDesc",
+  "vodUnlockPreviewLongDesc",
+  "vodUnlockPreviewSubsLabel",
+  "vodUnlockPreviewSubsDesc",
+  "vodUnlockPreviewPriceLabel",
+  "vodUnlockPreviewPriceDesc",
+  "premiumPostPreviewUnlockDesc",
+  "premiumPostPreviewFeedLabel",
+  "premiumPostPreviewFeedDesc",
+  "premiumPostPreviewSubsLabel",
+  "premiumPostPreviewSubsDesc",
+  "premiumPostPreviewPriceLabel",
+  "premiumPostPreviewPriceDesc",
+]);
+
 const ICONS: Record<string, (color: string) => React.ReactNode> = {
   check: (c) => (
     <IconWrap color={c}>
@@ -141,6 +198,7 @@ export default function ServiceFeaturePreview({
   service,
   accentColor,
   durationDescription,
+  audience = "creator",
 }: {
   service: ServiceKey;
   accentColor: string;
@@ -151,8 +209,17 @@ export default function ServiceFeaturePreview({
    * ahí el creador configura su propia duración.
    */
   durationDescription?: string;
+  /**
+   * A quién se dirige el copy. "creator" (default) mantiene la redacción hacia el
+   * creador (paneles de admin, tarjetas del perfil). "user" redirige las claves
+   * con voz de creador a su variante de fan (onboarding de usuario en el login).
+   */
+  audience?: "creator" | "user";
 }) {
-  const t = useTranslations("services");
+  const rawT = useTranslations("services");
+  // Intercambia por la variante de usuario ("<clave>User") cuando aplica.
+  const t = (key: string, values?: Parameters<typeof rawT>[1]) =>
+    rawT(audience === "user" && SVC_USER_KEYS.has(key) ? `${key}User` : key, values);
   const durationDesc = durationDescription ?? t("featurePreviewDurationDesc");
 
   const includesItems = [

@@ -19,6 +19,7 @@ import { logger } from "firebase-functions";
 import { defineSecret } from "firebase-functions/params";
 import { onCall, onRequest, HttpsError } from "firebase-functions/v2/https";
 import { checkAndRecord } from "./rateLimiter";
+import { notifyKycStatus } from "./notifications";
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -331,10 +332,20 @@ export const diditWebhook = onRequest(
       reasonCode = extractDeclineReason(event) ?? (await fetchDeclineReason(sessionId));
     }
 
+    // Solo se notifica si el estado realmente cambió (evita spam por webhooks
+    // repetidos) y si no es "not_started". Se captura dentro de la transacción.
+    let notifyStatus:
+      | "approved"
+      | "declined"
+      | "in_review"
+      | "pending"
+      | null = null;
+
     try {
       await db.runTransaction(async (tx) => {
         const snap = await tx.get(kycRef);
         const cur = snap.data();
+        notifyStatus = null;
 
         // Idempotencia / orden: ignora eventos de una sesión antigua distinta
         // a la vigente (evita que un "Expired" tardío pise un "pending" nuevo).
@@ -371,6 +382,10 @@ export const diditWebhook = onRequest(
           },
           { merge: true }
         );
+
+        if (cur?.status !== mapped && mapped !== "not_started") {
+          notifyStatus = mapped;
+        }
       });
     } catch (err) {
       logger.error("diditWebhook update_failed", {
@@ -379,6 +394,18 @@ export const diditWebhook = onRequest(
       });
       res.status(500).json({ error: "Processing failed" });
       return;
+    }
+
+    // Notificación al creador (server-side; no tumba el webhook si falla).
+    if (notifyStatus) {
+      try {
+        await notifyKycStatus(uid, notifyStatus);
+      } catch (err) {
+        logger.error("diditWebhook notify_failed", {
+          uid,
+          err: err instanceof Error ? err.message : String(err),
+        });
+      }
     }
 
     logger.info("diditWebhook processed", { uid, sessionId, rawStatus, mapped });

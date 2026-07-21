@@ -71,6 +71,31 @@ function Avatar({ n }: { n: AppNotification }) {
   );
 }
 
+/** Escudo de verificación (KYC): verde aprobado, rojo rechazado, morado en proceso. */
+function KycAvatar({ status }: { status?: string | null }) {
+  const color =
+    status === "approved" ? "#22c55e" : status === "declined" ? "#ef4444" : "#a855ff";
+  return (
+    <span
+      style={{
+        position: "relative",
+        flex: "0 0 auto",
+        width: 44,
+        height: 44,
+        borderRadius: "50%",
+        background: "#1a1a1a",
+        display: "grid",
+        placeItems: "center",
+      }}
+    >
+      <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true" style={{ display: "block" }}>
+        <path fill={color} d="M12 2 4 5v6c0 5 3.4 8.5 8 10 4.6-1.5 8-5 8-10V5l-8-3Z" />
+        <path fill="#0e0e12" d="m10.6 14.6-2.1-2.1-1.1 1.1 3.2 3.2 5.3-5.3-1.1-1.1-4.2 4.2Z" />
+      </svg>
+    </span>
+  );
+}
+
 /** Botones Aceptar/Rechazar inline para la notificación de solicitud de unión. */
 function JoinRequestActions({ groupId, userId }: { groupId: string; userId: string }) {
   const t = useTranslations("notifications");
@@ -260,6 +285,47 @@ export default function NotificationList({
                   </span>
                   <span className="notifTime">{timeAgo(n.updatedAtMs)}</span>
                 </span>
+              </Link>
+            ) : n.type === "kyc_update" ? (
+              <Link href={href} className="notifLink" onClick={() => onItemClick?.(n)}>
+                <KycAvatar status={n.target.action} />
+                <span className="notifBody">
+                  <span className="notifText">
+                    {t(`kyc.${n.target.action ?? "pending"}`)}
+                  </span>
+                  <span className="notifTime">{timeAgo(n.updatedAtMs)}</span>
+                </span>
+              </Link>
+            ) : n.type === "group_moderation" ? (
+              <Link href={href} className="notifLink" onClick={() => onItemClick?.(n)}>
+                <Avatar n={n} />
+                <span className="notifBody">
+                  <span className="notifText">
+                    {t(`moderation.${n.target.action ?? "muted"}`, { group })}
+                  </span>
+                  <span className="notifTime">{timeAgo(n.updatedAtMs)}</span>
+                </span>
+              </Link>
+            ) : n.type === "new_post" ? (
+              <Link href={href} className="notifLink" onClick={() => onItemClick?.(n)}>
+                <Avatar n={n} />
+                <span className="notifBody">
+                  <span className="notifText">
+                    <strong>{primaryName}</strong>{" "}
+                    {t(n.target.groupId ? "verb.new_post_group" : "verb.new_post", {
+                      count: n.actorCount,
+                      group,
+                    })}
+                  </span>
+                  {n.target.preview ? (
+                    <span className="notifPreview">{n.target.preview}</span>
+                  ) : null}
+                  <span className="notifTime">{timeAgo(n.updatedAtMs)}</span>
+                </span>
+                {n.target.imageUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img className="notifThumb" src={n.target.imageUrl} alt="" />
+                ) : null}
               </Link>
             ) : (
               <Link

@@ -88,6 +88,8 @@ export {
   createInviteLink,
   getInviteLinkPreview,
   consumeInviteLink,
+  revokeInviteLink,
+  listInviteLinks,
 } from "./inviteLinks";
 
 // Sidebar groups
@@ -280,6 +282,8 @@ export {
   onJoinRequestCreated,
   onJoinRequestRemoved,
   onGroupMemberCreated,
+  onPostCreated,
+  fanoutNewPostTask,
   onInviteLinkUpdated,
   expireInviteLinks,
 } from "./notifications";

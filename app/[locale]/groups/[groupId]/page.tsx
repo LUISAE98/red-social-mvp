@@ -44,6 +44,8 @@ import SessionCountdownBanner from "@/app/components/SessionCountdownBanner/Sess
 import CreatorSessionCountdownBanner from "@/app/components/SessionCountdownBanner/CreatorSessionCountdownBanner";
 import CopyLinkButton from "@/components/ui/CopyLinkButton";
 import CoverSearchBar from "@/app/components/CoverSearch/CoverSearchBar";
+import InviteLinkModal from "@/app/components/OwnerSidebar/InviteLinkModal";
+import InviteLinksList from "@/app/components/OwnerSidebar/InviteLinksList";
 import {
   createGreetingRequest,
   type GreetingType,
@@ -550,6 +552,10 @@ const canRequestMeetGreet =
   const [subscriptionError, setSubscriptionError] = useState<string | null>(null);
 
   const [groupDonationViewerOpen, setGroupDonationViewerOpen] = useState(false);
+  // Modal para crear/mostrar el enlace de invitación (solo owner de comunidad oculta).
+  const [inviteOpen, setInviteOpen] = useState(false);
+  // Se incrementa al crear un link para forzar el re-fetch de la lista del dueño.
+  const [inviteRefreshKey, setInviteRefreshKey] = useState(0);
 
   const [activeTab, setActiveTab] = useState<GroupTabKey>("feed");
   // Sub-pestaña de media del feed (Publicaciones/Fotos/Videos/En vivo) reportada
@@ -2410,6 +2416,69 @@ const avatarNode = (
                 />
               )}
 
+              {!coverSearchOpen && isOwner && group.visibility === "hidden" && (
+                <div
+                  style={{
+                    position: "absolute",
+                    left: 18,
+                    top: 18,
+                    zIndex: 40,
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "flex-start",
+                    gap: 8,
+                    maxWidth: "calc(100% - 36px)",
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => setInviteOpen(true)}
+                    className="cover-corner-muted"
+                    title={tGroups("createInviteLink")}
+                    aria-label={tGroups("createInviteLink")}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 6,
+                      padding: "8px 13px",
+                      borderRadius: 8,
+                      border: "none",
+                      background: "rgba(20,10,35,0.55)",
+                      backdropFilter: "blur(8px)",
+                      WebkitBackdropFilter: "blur(8px)",
+                      color: "#fff",
+                      fontSize: 13,
+                      fontWeight: 700,
+                      lineHeight: 1,
+                      cursor: "pointer",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    <span aria-hidden="true" style={{ fontSize: 14, lineHeight: 1 }}>
+                      +
+                    </span>
+                    {tGroups("createInviteLink")}
+                    <svg
+                      aria-hidden="true"
+                      focusable="false"
+                      width="15"
+                      height="15"
+                      viewBox="0 0 24 24"
+                      style={{ display: "block", flexShrink: 0 }}
+                    >
+                      <path
+                        fill="currentColor"
+                        d="M12 2a7 7 0 0 0-7 7V20l2.33-2 2.34 2 2.33-2 2.33 2 2.34-2 2.33 2V9a7 7 0 0 0-7-7Z"
+                      />
+                      <circle cx="9.5" cy="10.5" r="1.15" fill="#170c27" />
+                      <circle cx="14.5" cy="10.5" r="1.15" fill="#170c27" />
+                    </svg>
+                  </button>
+
+                  <InviteLinksList groupId={groupId} refreshKey={inviteRefreshKey} />
+                </div>
+              )}
+
               {!coverSearchOpen && isOwner && (
                 <button
                   onClick={handlePickCover}
@@ -2442,6 +2511,14 @@ const avatarNode = (
                 </button>
               )}
             </div>
+
+            {inviteOpen && (
+              <InviteLinkModal
+                groupId={groupId}
+                onClose={() => setInviteOpen(false)}
+                onCreated={() => setInviteRefreshKey((k) => k + 1)}
+              />
+            )}
 
             <div className="group-content">
               {avatarNode}

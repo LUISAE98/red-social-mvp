@@ -7,6 +7,25 @@ import {
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import * as logger from "firebase-functions/logger";
+import { notifyGroupModeration } from "./notifications";
+
+/** Notifica al miembro afectado sin tumbar la acción si el aviso falla. */
+async function safeNotifyModeration(
+  groupId: string,
+  targetUserId: string,
+  action: "muted" | "kicked" | "banned"
+) {
+  try {
+    await notifyGroupModeration(groupId, targetUserId, action);
+  } catch (err: unknown) {
+    logger.error("group moderation notify failed", {
+      groupId,
+      targetUserId,
+      action,
+      message: err instanceof Error ? err.message : "Error desconocido",
+    });
+  }
+}
 
 if (!getApps().length) {
   initializeApp();
@@ -337,6 +356,8 @@ export const muteGroupMember = onCall(async (request) => {
 
   await batch.commit();
 
+  await safeNotifyModeration(groupId, targetUserId, "muted");
+
   return {
     ok: true,
     mutedUntil: mutedUntilDate.toISOString(),
@@ -418,6 +439,8 @@ export const banGroupMember = onCall(async (request) => {
   batch.delete(userJoinRequestSentRef);
 
   await batch.commit();
+
+  await safeNotifyModeration(groupId, targetUserId, "banned");
 
   return { ok: true };
 });
@@ -507,6 +530,8 @@ export const removeGroupMember = onCall(async (request) => {
   batch.delete(userMembershipRef);
   batch.delete(userJoinRequestSentRef);
   await batch.commit();
+
+  await safeNotifyModeration(groupId, targetUserId, "kicked");
 
   return { ok: true };
 });

@@ -1,6 +1,8 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import * as admin from "firebase-admin";
+import { logger } from "firebase-functions";
+import { notifyJoinRejected } from "./notifications";
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -288,6 +290,17 @@ export const rejectJoinRequest = onCall(async (request) => {
     tx.delete(userJoinRequestRef);
     tx.delete(joinRequestRef);
   });
+
+  // Avisar al solicitante que su solicitud fue rechazada (server-side).
+  try {
+    await notifyJoinRejected(groupId, userId);
+  } catch (err: unknown) {
+    logger.error("rejectJoinRequest notify failed", {
+      groupId,
+      userId,
+      message: err instanceof Error ? err.message : "Error desconocido",
+    });
+  }
 
   return { success: true };
 });

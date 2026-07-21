@@ -22,6 +22,7 @@ import {
   getNextFromSearchParams,
 } from "@/lib/auth-redirect";
 import LoginCollageBackground from "./LoginCollageBackground";
+import WalletOnboarding from "@/app/[locale]/(protected)/wallet/components/WalletOnboarding";
 
 const vibraPink = "#ff2fb3";
 const vibraPurple = "#a855ff";
@@ -64,6 +65,8 @@ export default function LoginClient() {
 const [msg, setMsg] = useState<string | null>(null);
 const [loading, setLoading] = useState(false);
 const [isLeavingLogin, setIsLeavingLogin] = useState(false);
+// Switch del contenido debajo del fold: creadores (izq) / usuarios (der).
+const [audience, setAudience] = useState<"creators" | "users">("creators");
 const { startAuthTransition } = useAuth();
 
 useEffect(() => {
@@ -208,14 +211,13 @@ router.replace(nextPath);
     'inherit';
 
 const pageStyle: React.CSSProperties = {
-  minHeight: "100dvh",
   position: "relative",
   zIndex: 1,
   background: "transparent",
   color: "#fff",
   fontFamily: fontStack,
   padding:
-    "clamp(12px, 2.2vw, 18px) clamp(12px, 2.2vw, 18px) clamp(44px, 6vw, 72px)",
+    "clamp(12px, 2.2vw, 18px) clamp(12px, 2.2vw, 18px) clamp(8px, 1.4vw, 14px)",
   boxSizing: "border-box",
 };
 
@@ -232,7 +234,6 @@ const pageStyle: React.CSSProperties = {
 
   const rightPaneStyle: React.CSSProperties = {
     width: "100%",
-    minHeight: "100dvh",
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
@@ -379,6 +380,55 @@ body.loginPageBg {
         .loginSplitPage {
           display: grid;
           place-items: center;
+        }
+
+        /* Contenido debajo del fold. El fondo empieza transparente para dejar ver
+           el collage y se DESVANECE a negro (el difuminado del login), antes de
+           quedar en negro sólido para el contenido. */
+        .loginBelowFold {
+          position: relative;
+          z-index: 1;
+          background: linear-gradient(
+            to bottom,
+            rgba(0, 0, 0, 0) 0%,
+            rgba(0, 0, 0, 0.55) 90px,
+            #000 240px
+          );
+          padding: 34px 0 80px;
+        }
+        .audienceSwitch {
+          position: relative;
+          display: flex;
+          gap: 4px;
+          width: fit-content;
+          margin: 0 auto 34px;
+          padding: 4px;
+          border-radius: 999px;
+          /* Fondo con blur para que el switch se lea sobre el collage. */
+          background: rgba(6, 3, 14, 0.5);
+          border: 1px solid rgba(255, 255, 255, 0.14);
+          backdrop-filter: blur(8px);
+          -webkit-backdrop-filter: blur(8px);
+        }
+        .audienceTab {
+          border: none;
+          border-radius: 999px;
+          padding: 9px 24px;
+          font-size: 14px;
+          font-weight: 600;
+          font-family: inherit;
+          letter-spacing: -0.01em;
+          color: rgba(255, 255, 255, 0.62);
+          background: transparent;
+          cursor: pointer;
+          transition: background 200ms ease, color 200ms ease;
+        }
+        .audienceTab.isOn {
+          background: #ffffff;
+          color: #0a0810;
+        }
+        .usersPlaceholder {
+          min-height: 40vh;
         }
 
         .loginTagline {
@@ -644,17 +694,39 @@ marginBottom: 6,
         </div>
       </main>
 
-      {/* Lienzo para el contenido que va debajo del fold (por definir).
-          Da altura para scrollear y ver el desvanecido a negro del collage. */}
-      <section
-        aria-hidden="true"
-        style={{
-          position: "relative",
-          zIndex: 1,
-          minHeight: "80vh",
-          background: "#000",
-        }}
-      />
+      {/* Contenido debajo del fold: switch Creadores/Usuarios. Para creadores se
+          reutiliza la info de la wallet (sin los botones de los 11 servicios,
+          porque la sesión está cerrada). Para usuarios, aún por definir. */}
+      <section className="loginBelowFold">
+        <div className="audienceSwitch" role="tablist" aria-label="Público">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={audience === "creators"}
+            className={`audienceTab${audience === "creators" ? " isOn" : ""}`}
+            onClick={() => setAudience("creators")}
+          >
+            {t("audienceCreators")}
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={audience === "users"}
+            className={`audienceTab${audience === "users" ? " isOn" : ""}`}
+            onClick={() => setAudience("users")}
+          >
+            {t("audienceUsers")}
+          </button>
+        </div>
+
+        <div className="audiencePanel">
+          {audience === "creators" ? (
+            <WalletOnboarding showCtas={false} twoColumn />
+          ) : (
+            <WalletOnboarding showCtas={false} twoColumn audience="users" />
+          )}
+        </div>
+      </section>
     </>
   );
 }
