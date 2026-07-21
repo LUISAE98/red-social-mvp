@@ -13,25 +13,15 @@ import { db } from "@/lib/firebase";
 import { Link } from "@/i18n/navigation";
 import { useAuth } from "@/app/providers";
 import VibraGradientText from "@/app/components/VibraGradientText/VibraGradientText";
-import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import WalletPhonePreview from "./WalletPhonePreview";
 import WalletOnboardingGlobe from "./WalletOnboardingGlobe";
 import ServiceFeaturePreview from "@/components/services/ServiceFeaturePreview";
 import { buildCollageTiles } from "@/lib/collage";
-import {
-  WALLET_COMMISSION_RATE,
-  WALLET_NET_RATE,
-} from "@/lib/wallet/walletFinances";
+import { WALLET_COMMISSION_RATE } from "@/lib/wallet/walletFinances";
 
 // Deriva el porcentaje de la comisión real: si algún día cambia la tasa, este
 // texto de marketing se actualiza con ella en vez de quedar desincronizado.
 const COMMISSION_PCT = Math.round(WALLET_COMMISSION_RATE * 100);
-
-// Cifras del ejemplo, ancladas en MXN (como todo el sistema de precios). El neto
-// se deriva de la tasa real, no se quema, y se pasan a usePriceFormat para que
-// entren al switcheo de moneda de la plataforma.
-const EXAMPLE_CHARGE_MXN = 1000;
-const EXAMPLE_RECEIVE_MXN = Math.round(EXAMPLE_CHARGE_MXN * WALLET_NET_RATE);
 
 const PERK_KEYS = [
   "onboardingPerk1",
@@ -60,6 +50,53 @@ const HERO_LIST_KEYS = [
 // Orden de aparición de los 11 servicios (cada valor es el id del servicio; el
 // número que se muestra es la posición). El 9 va a la posición 5 y el 8 a la 6.
 const SERVICE_ORDER = [1, 2, 3, 4, 9, 8, 5, 6, 7, 10, 11] as const;
+
+// Para el fan (audience "users") algunas experiencias se unifican en una sola
+// card (mismo orden que SERVICE_ORDER). Cada entrada es uno o más ids de
+// servicio; con más de uno se muestra como card combinada (nombre/desc propios
+// en wallet.onboardingUMerge*, y el panel apila la vista previa de cada uno).
+// El usuario no necesita ver las 11 por separado: 7+8 (supercomentarios +
+// donaciones en vivo) y 10+11 (videos exclusivos + publicaciones premium).
+const USER_SERVICE_ENTRIES: number[][] = [
+  [1],
+  [2],
+  [3],
+  [4],
+  [9],
+  [8],
+  [5, 6],
+  [7],
+  [11, 10],
+];
+// La prioridad (primer id del grupo) define la imagen de fondo y el orden del
+// panel: 5+6 lidera con supercomentarios (5); 11+10 lidera con publicaciones (11).
+// `previewSvcs` acota qué vistas previas se muestran en el panel (por defecto,
+// todas las del grupo). `firstCell` reemplaza la primera celda de la vista previa
+// principal (usado en 5+6 para poner la donación —corazón morado— arriba).
+type MergeMeta = {
+  nameKey: string;
+  descKey: string;
+  previewSvcs?: number[];
+  firstCell?: { icon: string; color: string; titleKey: string; descKey: string };
+};
+const MERGE_META: Record<string, MergeMeta> = {
+  "5,6": {
+    nameKey: "onboardingUMerge56Name",
+    descKey: "onboardingUMerge56Desc",
+    previewSvcs: [5],
+    firstCell: {
+      icon: "heart",
+      color: "#a855ff",
+      titleKey: "liveDonationPreviewSupportLabel",
+      descKey: "mergeDonationSupportDesc",
+    },
+  },
+  "11,10": {
+    nameKey: "onboardingUMerge1011Name",
+    descKey: "onboardingUMerge1011Desc",
+    previewSvcs: [11],
+  },
+};
 
 // Claves con copy alterno dirigido al usuario/fan (en vez del creador). El
 // resolvedor de traducciones las usa cuando audience === "users"; cualquier
@@ -252,7 +289,6 @@ export default function WalletOnboarding({
         rawWallet.rich(resolveKey(key), values),
     },
   );
-  const { format: formatPrice } = usePriceFormat();
   const { user } = useAuth();
   // Handle del creador para armar el enlace a su propio perfil ("Comenzar ahora").
   const [handle, setHandle] = useState<string | null>(null);
@@ -283,7 +319,7 @@ export default function WalletOnboarding({
   // Card de comunidad abierta por tap (celular/touch); en laptop manda el hover.
   const [openCommunity, setOpenCommunity] = useState<number | null>(null);
   // Card de servicio (de los 11) abierto por tap en celular; en laptop, hover.
-  const [openService, setOpenService] = useState<number | null>(null);
+  const [openService, setOpenService] = useState<string | null>(null);
   useEffect(() => {
     const uid = user?.uid;
     if (!uid) {
@@ -324,12 +360,10 @@ export default function WalletOnboarding({
   useEffect(() => {
     const root = rootRef.current;
     if (!root) return;
-    const els = Array.from(
-      root.querySelectorAll<HTMLElement>(".reveal, .revealPop")
-    );
-    if (els.length === 0) return;
     if (typeof IntersectionObserver === "undefined") {
-      els.forEach((el) => el.classList.add("is-in"));
+      root
+        .querySelectorAll<HTMLElement>(".reveal, .revealPop")
+        .forEach((el) => el.classList.add("is-in"));
       return;
     }
     const io = new IntersectionObserver(
@@ -343,14 +377,28 @@ export default function WalletOnboarding({
       },
       { rootMargin: "0px 0px -10% 0px", threshold: 0.12 }
     );
-    els.forEach((el) => io.observe(el));
-    return () => io.disconnect();
-  }, []);
-
-  // Cifras demo sin centavos: quita el ".00"/",00" cuando el monto es redondo,
-  // conservando el símbolo de moneda (respeta el switcheo de moneda).
-  const formatNoCents = (mxn: number) =>
-    formatPrice(mxn, { code: true }).replace(/([.,])00(\D*)$/, "$2");
+    // Observa los reveal aún ocultos. Se re-escanea en los siguientes frames
+    // porque algunos nodos (p. ej. las cards combinadas del grid de usuario) no
+    // están en su posición final justo al montar; si se observan demasiado
+    // pronto el IO no dispara y se quedan en opacity:0. `:not(.is-in)` hace el
+    // re-escaneo idempotente. También se re-ejecuta cuando groupsLoaded asienta.
+    const scan = () =>
+      root
+        .querySelectorAll<HTMLElement>(".reveal:not(.is-in), .revealPop:not(.is-in)")
+        .forEach((el) => io.observe(el));
+    scan();
+    const r1 = requestAnimationFrame(scan);
+    const r2 = requestAnimationFrame(() => requestAnimationFrame(scan));
+    return () => {
+      cancelAnimationFrame(r1);
+      cancelAnimationFrame(r2);
+      io.disconnect();
+    };
+    // `audience` es clave: el login reutiliza la misma instancia al cambiar de
+    // pestaña (mismo componente y posición), así que al pasar creador→usuario
+    // aparecen cards combinadas nuevas (keys "5,6"/"11,10") que el observer del
+    // montaje inicial nunca vio. Re-ejecutar aquí las vuelve a observar.
+  }, [audience, groupsLoaded]);
 
   return (
     <>
@@ -439,15 +487,27 @@ export default function WalletOnboarding({
             grid-column: 1 / -1;
             grid-row: 3;
           }
-          /* Los cards, 2 por renglón. */
-          .onboardingRoot.twoCol.audienceUsers .waysList {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
+          /* Dos columnas INDEPENDIENTES (cada una fluye por su cuenta): al
+             expandir un card solo empuja su propia columna, no la de al lado. */
+          .onboardingRoot.twoCol.audienceUsers .waysCols {
+            flex-direction: row;
             gap: 18px;
+            align-items: flex-start;
           }
-          /* Total impar → el último card abarca el renglón completo. */
-          .onboardingRoot.twoCol.audienceUsers .waysList > .wayRow:last-child:nth-child(odd) {
-            grid-column: 1 / -1;
+          .onboardingRoot.twoCol.audienceUsers .waysCol {
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+            flex: 1 1 0;
+            min-width: 0;
+          }
+          /* La celda de cierre crece para centrarse junto a la última card. */
+          .onboardingRoot.twoCol.audienceUsers .waysCol > .closeCell {
+            flex: 1 1 auto;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 0 24px;
           }
         }
 
@@ -637,15 +697,16 @@ export default function WalletOnboarding({
           flex: 0 1 auto;
           display: flex;
           flex-direction: column;
-          align-items: flex-start;
+          align-items: center;
           gap: 14px;
         }
 
-        /* 23% y su lista de garantías, lado a lado. */
+        /* 23% y su lista de garantías, lado a lado, con un espacio intermedio
+           equilibrado (ni pegados ni exagerado). */
         .commissionFigureRow {
           display: flex;
           align-items: center;
-          gap: 22px;
+          gap: clamp(40px, 4.5vw, 60px);
         }
 
         /* Ejemplo, a la derecha de la sección de comisión. */
@@ -748,6 +809,7 @@ export default function WalletOnboarding({
           letter-spacing: -0.03em;
           font-weight: 700;
           color: #ffffff;
+          text-align: center;
         }
 
         /* Bloque de transparencia, alineado a la derecha. */
@@ -969,6 +1031,18 @@ export default function WalletOnboarding({
           }
         }
 
+        /* Celda de cierre dentro del grid de experiencias (solo usuarios). En
+           celular va a lo ancho al final de las cards; en laptop se coloca en la
+           columna derecha, junto a la última experiencia, centrada en vertical. */
+        .closeCell {
+          text-align: center;
+        }
+        @media (max-width: 900px) {
+          .closeCell {
+            margin-top: 16px;
+          }
+        }
+
         .communityCards {
           margin-top: 18px;
           display: flex;
@@ -1124,7 +1198,7 @@ export default function WalletOnboarding({
           text-align: right;
         }
 
-        /* Lista de servicios: número grande intercalado izquierda/derecha. */
+        /* Lista de servicios (creador): número grande intercalado izq/der. */
         .waysList {
           list-style: none;
           margin: 8px 0 0;
@@ -1132,6 +1206,19 @@ export default function WalletOnboarding({
           display: flex;
           flex-direction: column;
           gap: 5px;
+        }
+
+        /* Contenedor de las 2 columnas (usuario). Mobile-first: una sola columna
+           —las columnas usan display:contents y los cards se secuencian por
+           order (1..N)—. En laptop pasa a 2 columnas reales (ver @media). */
+        .waysCols {
+          margin: 8px 0 0;
+          display: flex;
+          flex-direction: column;
+          gap: 5px;
+        }
+        .waysCol {
+          display: contents;
         }
 
         /* Cada servicio es una tarjeta con la imagen de su categoría de fondo. */
@@ -1145,12 +1232,13 @@ export default function WalletOnboarding({
         }
 
         /* Parte siempre visible: número + texto sobre la imagen de tamaño fijo. */
+        /* Cerrado, el card hugea su contenido (número + título) sin espacio
+           muerto; la altura extra la aportan la descripción y el panel al abrir. */
         .wayMain {
           position: relative;
           isolation: isolate;
           overflow: hidden;
-          min-height: 150px;
-          padding: 22px 28px;
+          padding: 16px 28px;
           display: flex;
           align-items: center;
           gap: 26px;
@@ -1229,7 +1317,20 @@ export default function WalletOnboarding({
           color: #ffffff;
         }
 
+        /* La descripción arranca COLAPSADA (solo se ve el título) y se revela al
+           abrir el card, empujando el título hacia arriba. Mismo truco de colapso
+           que el panel: grid 0fr→1fr con un inner de overflow hidden. */
         .wayDesc {
+          display: grid;
+          grid-template-rows: 0fr;
+          opacity: 0;
+          transition:
+            grid-template-rows 380ms cubic-bezier(0.4, 0, 0.2, 1),
+            opacity 300ms ease;
+        }
+        .wayDescInner {
+          overflow: hidden;
+          min-height: 0;
           max-width: 60ch;
           font-size: 14px;
           line-height: 1.45;
@@ -1249,20 +1350,45 @@ export default function WalletOnboarding({
 
         @media (hover: hover) {
           .wayRow:hover .wayInfo,
-          .wayRow:focus-within .wayInfo {
+          .wayRow:focus-within .wayInfo,
+          .wayRow:hover .wayDesc,
+          .wayRow:focus-within .wayDesc {
             grid-template-rows: 1fr;
             opacity: 1;
           }
         }
-        /* Touch (celular): el card se abre/cierra por TAP (.isOpen), no por hover
-           —así el scroll no lo abre por accidente. */
+        /* Touch (celular): el card se abre/cierra por TAP (data-open), no por
+           hover —así el scroll no lo abre por accidente. */
         @media (hover: none) {
-          .wayRow.isOpen .wayInfo {
+          .wayRow[data-open] .wayInfo,
+          .wayRow[data-open] .wayDesc {
             grid-template-rows: 1fr;
             opacity: 1;
           }
-          .wayRow.isOpen .wayMainFade {
+          .wayRow[data-open] .wayMainFade {
             opacity: 1;
+          }
+        }
+
+        /* CTA (esquina superior derecha, solo wallet): oculto por defecto y
+           aparece/desaparece suave al abrir/cerrar el card. Es un <Link> (hijo),
+           así que styled-jsx no lo scopea → :global dentro del .wayRow scopeado. */
+        .wayRow :global(.wayCta) {
+          opacity: 0;
+          pointer-events: none;
+          transition: opacity 300ms ease;
+        }
+        @media (hover: hover) {
+          .wayRow:hover :global(.wayCta),
+          .wayRow:focus-within :global(.wayCta) {
+            opacity: 1;
+            pointer-events: auto;
+          }
+        }
+        @media (hover: none) {
+          .wayRow[data-open] :global(.wayCta) {
+            opacity: 1;
+            pointer-events: auto;
           }
         }
 
@@ -1428,11 +1554,9 @@ export default function WalletOnboarding({
             text-align: center;
           }
 
-          /* Más espacio arriba para que el botón (esquina superior derecha) no
-             quede pegado al título. */
           .wayMain {
             gap: 16px;
-            padding: 42px 20px 22px;
+            padding: 18px 20px;
           }
 
           /* Difuminado más fuerte y alto: en celular imágenes oscuras (saludos)
@@ -1460,7 +1584,7 @@ export default function WalletOnboarding({
             font-size: 18px;
           }
 
-          .wayDesc {
+          .wayDescInner {
             font-size: 13px;
           }
 
@@ -1563,12 +1687,13 @@ export default function WalletOnboarding({
             font-size: 58px;
           }
 
-          /* En celular: 23% a la izquierda y la lista a la derecha, misma fila. */
+          /* En celular: 23% a la izquierda y la lista a la derecha, misma fila,
+             con un espacio intermedio equilibrado. */
           .commissionFigureRow {
             flex-direction: row;
             align-items: center;
             justify-content: center;
-            gap: 16px;
+            gap: 30px;
           }
           .commissionFigureRow .onboardingPerks {
             align-items: flex-start;
@@ -1730,36 +1855,6 @@ export default function WalletOnboarding({
             </ul>
           </div>
         </div>
-
-        <div className="commissionRight">
-          <div className="exampleCard">
-            <Image
-              src="/entretenimiento.webp"
-              alt=""
-              fill
-              sizes="(max-width: 900px) 90vw, 260px"
-              style={{ objectFit: "cover", zIndex: 0 }}
-            />
-            <div className="exampleScrim" aria-hidden="true" />
-
-            <div className="exampleCardInner">
-              <span className="exampleChargeGroup">
-                <span className="exampleChargeLine">
-                  {tWallet("onboardingExampleCharge")}{" "}
-                  {formatNoCents(EXAMPLE_CHARGE_MXN)}
-                </span>
-                <span className="exampleBeforeTax">{tWallet("onboardingBeforeTax")}</span>
-              </span>
-
-              <span className="exampleDivider" aria-hidden="true" />
-
-              <span className="exampleLabel">{tWallet("onboardingExampleReceive")}</span>
-              <span className="exampleReceive">
-                {formatNoCents(EXAMPLE_RECEIVE_MXN)}
-              </span>
-            </div>
-          </div>
-        </div>
       </section>
       )}
 
@@ -1913,33 +2008,51 @@ export default function WalletOnboarding({
 
         {/* Los 11 servicios: número grande intercalado izquierda/derecha, cada
             uno con la imagen de su categoría de fondo. */}
-        <ol className="waysList">
-          {SERVICE_ORDER.map((svc, i) => {
+        {(() => {
+          const serviceEntries =
+            audience === "users"
+              ? USER_SERVICE_ENTRIES
+              : SERVICE_ORDER.map((s) => [s]);
+          const cardEls = serviceEntries.map((group, i) => {
             const pos = i + 1;
-            const img = SERVICE_IMAGES[svc];
-            const previewKey = SERVICE_PREVIEW_KEY[svc];
+            const primary = group[0];
+            const isMerge = group.length > 1;
+            const rowId = group.join(",");
+            const meta = isMerge ? MERGE_META[rowId] : undefined;
+            const img = SERVICE_IMAGES[primary];
+            // Servicios con vista previa (panel desplegable). En una card
+            // combinada se apila la de cada servicio; `previewSvcs` (de MERGE_META)
+            // puede acotar cuáles se muestran. El subtítulo por servicio solo se
+            // pone cuando hay más de una vista previa.
+            const previewSvcs = (meta?.previewSvcs ?? group).filter(
+              (s) => SERVICE_PREVIEW_KEY[s]
+            );
+            const hasInfo = previewSvcs.length > 0;
+            const showPreviewLabels = previewSvcs.length > 1;
             // CTA del card: los servicios de perfil scrollean a su card de
             // activación; los lives abren el composer para crear la transmisión.
+            // (En el fan showCtas es false → las cards combinadas no tienen CTA;
+            // se calcula sobre el servicio principal.)
             const cta = !showCtas
               ? null
-              : handle && SERVICE_ACTIVATE_KEY[svc]
+              : handle && SERVICE_ACTIVATE_KEY[primary]
                 ? {
                     label: tWallet("onboardingStartNow"),
-                    href: `/u/${handle}?configure=${SERVICE_ACTIVATE_KEY[svc]}`,
+                    href: `/u/${handle}?configure=${SERVICE_ACTIVATE_KEY[primary]}`,
                   }
-                : (svc === 9 || svc === 5 || svc === 6 || svc === 10) && handle
+                : (primary === 9 || primary === 5 || primary === 6 || primary === 10) && handle
                   ? {
                       label: tWallet("onboardingCreateLive"),
                       href: `/u/${handle}?compose=live`,
                     }
-                  : svc === 11 && handle
+                  : primary === 11 && handle
                     ? {
                         label: tWallet("onboardingCreatePremium"),
                         href: `/u/${handle}?compose=premium`,
                       }
                   : // Suscripciones: a una comunidad propia (a configurar) o a
                     // crear comunidad si aún no tiene ninguna.
-                    svc === 8 && groupsLoaded
+                    primary === 8 && groupsLoaded
                     ? {
                         label: tWallet("onboardingStartNow"),
                         href: subGroupId
@@ -1948,13 +2061,22 @@ export default function WalletOnboarding({
                       }
                     : null;
             return (
-              <li
-                key={svc}
+              <div
+                key={rowId}
+                // El estado "abierto" va como atributo data-open, NO en className:
+                // el observer de scroll añade `is-in` con classList (fuera de
+                // React), y si React reescribiera el className al togglear (por el
+                // isOpen) borraría ese `is-in` → el card quedaría transparente. Con
+                // data-open React togglea el atributo sin tocar el className.
                 className={`wayRow reveal${pos % 2 === 0 ? " isRight" : ""}${
-                  previewKey ? " hasInfo" : ""
-                }${openService === svc ? " isOpen" : ""}`}
+                  hasInfo ? " hasInfo" : ""
+                }`}
+                data-open={openService === rowId ? "" : undefined}
+                // `order` sirve en celular: ahí las columnas usan display:contents
+                // y los cards se secuencian 1..N por este order.
+                style={{ order: pos }}
                 onClick={() =>
-                  setOpenService((prev) => (prev === svc ? null : svc))
+                  setOpenService((prev) => (prev === rowId ? null : rowId))
                 }
               >
                 {/* Parte visible: imagen (tamaño fijo) + número + texto. */}
@@ -1972,17 +2094,23 @@ export default function WalletOnboarding({
                   {/* Difuminado a negro en el borde inferior (aparece al abrir). */}
                   <div className="wayMainFade" aria-hidden="true" />
 
-                  {/* CTA: lleva al dueño a activar el servicio (o crear un live). */}
+                  {/* CTA: lleva al dueño a activar el servicio (o crear un live).
+                      Aparece/desaparece suave al abrir/cerrar el card (la opacidad
+                      la controla el CSS por .wayCta; el color va inline por servicio). */}
                   {cta ? (
                     <Link
                       href={cta.href}
+                      className="wayCta"
                       onClick={(e) => e.stopPropagation()}
                       style={{
                         position: "absolute",
                         top: 16,
-                        right: 18,
+                        // Lado OPUESTO al número (que alterna con isRight, pos par):
+                        // número a la derecha → CTA a la izquierda, y viceversa,
+                        // para que no se estorben.
+                        [pos % 2 === 0 ? "left" : "right"]: 18,
                         zIndex: 4,
-                        color: SERVICE_ACCENT[svc] ?? "#c99bff",
+                        color: SERVICE_ACCENT[primary] ?? "#c99bff",
                         fontSize: 13,
                         fontWeight: 600,
                         lineHeight: 1,
@@ -1996,36 +2124,113 @@ export default function WalletOnboarding({
 
                   <span className="wayNum" aria-hidden="true">{pos}</span>
                   <div className="wayText">
-                    <span className="wayName">{tWallet(`onboardingSvc${svc}Name`)}</span>
-                    <span className="wayDesc">{tWallet(`onboardingSvc${svc}Desc`)}</span>
+                    <span className="wayName">
+                      {isMerge
+                        ? tWallet(MERGE_META[rowId].nameKey)
+                        : tWallet(`onboardingSvc${primary}Name`)}
+                    </span>
+                    {/* La descripción está colapsada por defecto (solo se ve el
+                        título) y se revela al hover/tap, empujando el título hacia
+                        arriba. El truco grid 0fr→1fr necesita un inner con
+                        overflow hidden. */}
+                    <span className="wayDesc">
+                      <span className="wayDescInner">
+                        {isMerge
+                          ? tWallet(MERGE_META[rowId].descKey)
+                          : tWallet(`onboardingSvc${primary}Desc`)}
+                      </span>
+                    </span>
                   </div>
                 </div>
 
-                {/* Panel que se despliega hacia abajo (fondo negro, no la imagen). */}
-                {previewKey ? (
+                {/* Panel que se despliega hacia abajo (fondo negro, no la imagen).
+                    En una card combinada se apila la vista previa de cada
+                    servicio, cada una con su nombre como subtítulo. */}
+                {hasInfo ? (
                   <div className="wayInfo">
                     <div className="wayInfoInner">
                       <div className="wayInfoContent">
-                        <ServiceFeaturePreview
-                          service={previewKey}
-                          accentColor={SERVICE_ACCENT[svc] ?? "#22c55e"}
-                          audience={audience === "users" ? "user" : "creator"}
-                          durationDescription={
-                            svc === 3
-                              ? tWallet("onboardingSvc3Duration")
-                              : svc === 4
-                                ? tWallet("onboardingSvc4Duration")
-                                : undefined
-                          }
-                        />
+                        {previewSvcs.map((s, idx) => (
+                          <div key={s} style={{ marginTop: idx > 0 ? 16 : 0 }}>
+                            {showPreviewLabels ? (
+                              <span
+                                style={{
+                                  display: "block",
+                                  fontSize: 12,
+                                  fontWeight: 700,
+                                  letterSpacing: "-0.01em",
+                                  color: "#fff",
+                                  marginBottom: 2,
+                                }}
+                              >
+                                {tWallet(`onboardingSvc${s}Name`)}
+                              </span>
+                            ) : null}
+                            <ServiceFeaturePreview
+                              service={SERVICE_PREVIEW_KEY[s]!}
+                              accentColor={SERVICE_ACCENT[s] ?? "#22c55e"}
+                              audience={audience === "users" ? "user" : "creator"}
+                              durationDescription={
+                                s === 3
+                                  ? tWallet("onboardingSvc3Duration")
+                                  : s === 4
+                                    ? tWallet("onboardingSvc4Duration")
+                                    : undefined
+                              }
+                              firstCell={idx === 0 ? meta?.firstCell : undefined}
+                            />
+                          </div>
+                        ))}
                       </div>
                     </div>
                   </div>
                 ) : null}
-              </li>
+              </div>
             );
-          })}
-        </ol>
+          });
+          // En usuarios, la frase de cierre va como celda de la 2ª columna, a la
+          // derecha de la última experiencia.
+          const closeCell =
+            audience === "users" ? (
+              <div
+                key="close"
+                className="closeCell reveal"
+                style={{ order: 100 }}
+              >
+                <h2 className="closeTitle">
+                  {tWallet.rich("onboardingCloseTitle", {
+                    vibra: (chunks) => (
+                      <VibraGradientText
+                        gradient="linear-gradient(100deg, #c084fc 0%, #a855ff 45%, #7c3aed 100%)"
+                        style={{ fontSize: "1.25em" }}
+                      >
+                        {chunks}
+                      </VibraGradientText>
+                    ),
+                  })}
+                </h2>
+                <p className="closeText">{tWallet("onboardingCloseText")}</p>
+              </div>
+            ) : null;
+          // Creador: una sola columna apilada. Usuario: dos columnas INDEPENDIENTES
+          // —al expandir un card solo empuja su propia columna, no la de al lado—.
+          // En celular las columnas usan display:contents y todo se reordena 1..N
+          // por `order`, quedando una sola columna secuencial.
+          if (audience !== "users") {
+            return <div className="waysList">{cardEls}</div>;
+          }
+          return (
+            <div className="waysCols">
+              <div className="waysCol">
+                {cardEls.filter((_, i) => i % 2 === 0)}
+              </div>
+              <div className="waysCol">
+                {cardEls.filter((_, i) => i % 2 === 1)}
+                {closeCell}
+              </div>
+            </div>
+          );
+        })()}
       </section>
 
       {/* Título: crea 3 tipos de comunidades ("comunidades" con el degradado de
@@ -2096,7 +2301,10 @@ export default function WalletOnboarding({
       </section>
 
       {/* Cierre: invitación final + aclaración de que activar experiencias es
-          gratis y reversible cuando el creador quiera. */}
+          gratis y reversible cuando el creador quiera. En usuarios este cierre
+          se renderiza como celda dentro del grid de experiencias (ver arriba),
+          así que aquí solo va para creador. */}
+      {audience !== "users" && (
       <section className="closeSection reveal">
         <h2 className="closeTitle">
           {tWallet.rich("onboardingCloseTitle", {
@@ -2112,6 +2320,7 @@ export default function WalletOnboarding({
         </h2>
         <p className="closeText">{tWallet("onboardingCloseText")}</p>
       </section>
+      )}
       </div>
     </>
   );

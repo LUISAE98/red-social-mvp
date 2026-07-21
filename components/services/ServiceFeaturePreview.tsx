@@ -199,6 +199,7 @@ export default function ServiceFeaturePreview({
   accentColor,
   durationDescription,
   audience = "creator",
+  firstCell,
 }: {
   service: ServiceKey;
   accentColor: string;
@@ -215,6 +216,13 @@ export default function ServiceFeaturePreview({
    * con voz de creador a su variante de fan (onboarding de usuario en el login).
    */
   audience?: "creator" | "user";
+  /**
+   * Reemplaza la PRIMERA celda de la vista previa por una personalizada (icono,
+   * color y textos por clave del namespace `services`). Lo usa el onboarding de
+   * usuario para poner la donación (corazón morado) al inicio de supercomentarios.
+   * Solo tiene efecto en el servicio `superComments`.
+   */
+  firstCell?: { icon: string; color: string; titleKey: string; descKey: string };
 }) {
   const rawT = useTranslations("services");
   // Intercambia por la variante de usuario ("<clave>User") cuando aplica.
@@ -320,7 +328,16 @@ export default function ServiceFeaturePreview({
     // supercomentarios
     cells = (
       <>
-        <FeatureCell icon="star" color={accentColor} title={t("superCommentsPreviewTiersLabel")} description={t("superCommentsPreviewTiersDesc")} />
+        {firstCell ? (
+          <FeatureCell
+            icon={firstCell.icon}
+            color={firstCell.color}
+            title={t(firstCell.titleKey)}
+            description={t(firstCell.descKey)}
+          />
+        ) : (
+          <FeatureCell icon="star" color={accentColor} title={t("superCommentsPreviewTiersLabel")} description={t("superCommentsPreviewTiersDesc")} />
+        )}
         <FeatureCell icon="focus" color={accentColor} title={t("superCommentsPreviewPinLabel")} description={t("superCommentsPreviewPinDesc")} />
         <FeatureCell icon="camera" color={accentColor} title={t("superCommentsPreviewLiveLabel")} description={t("superCommentsPreviewLiveDesc")} />
         <FeatureCell icon="check" color={accentColor} title={t("superCommentsPreviewPriceLabel")} description={t("superCommentsPreviewPriceDesc")} />
