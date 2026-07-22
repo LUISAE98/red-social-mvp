@@ -319,7 +319,10 @@ export default function WalletOnboarding({
   // Card de comunidad abierta por tap (celular/touch); en laptop manda el hover.
   const [openCommunity, setOpenCommunity] = useState<number | null>(null);
   // Card de servicio (de los 11) abierto por tap en celular; en laptop, hover.
-  const [openService, setOpenService] = useState<string | null>(null);
+  // Arranca con la primera experiencia "abierta" (rowId "1"): en CELULAR eso la
+  // muestra desplegada de entrada —enseña el patrón de que las cards abren/cierran—
+  // y en laptop no tiene efecto (ahí data-open se ignora; manda el hover).
+  const [openService, setOpenService] = useState<string | null>("1");
   useEffect(() => {
     const uid = user?.uid;
     if (!uid) {
@@ -429,8 +432,10 @@ export default function WalletOnboarding({
             grid-column: 1;
           }
           /* Los 11 servicios abarcan TODAS las filas de la izquierda (span
-             amplio) para no inflar una sola fila: así cada sección izquierda
-             conserva su altura natural y no se abre un hueco entre ellas. */
+             amplio) para no inflar una sola fila: cada sección izquierda conserva
+             su altura natural. El cierre de login-creador NO va aquí como celda
+             del grid (quedaba atado a la altura de la columna izquierda); se
+             renderiza dentro de esta columna, debajo de la card 11. */
           .onboardingRoot.twoCol > .ways {
             grid-column: 2;
             grid-row: 1 / span 50;
@@ -468,15 +473,19 @@ export default function WalletOnboarding({
            es impar, el último ocupa el renglón completo. El cierre va al final, a
            lo ancho. Gana por especificidad al grid genérico .twoCol de arriba. */
         @media (min-width: 901px) {
+          /* Hero (izq) y comunidades (der) comparten fila: se estiran a la misma
+             altura (la del más alto) para que el primer módulo de cada columna
+             quede parejo. */
           .onboardingRoot.twoCol.audienceUsers > .onboarding {
             grid-column: 1;
             grid-row: 1;
+            align-self: stretch;
           }
           .onboardingRoot.twoCol.audienceUsers > .communitiesTitle {
             grid-column: 2;
             grid-row: 1;
             margin-top: 0;
-            align-self: start;
+            align-self: stretch;
           }
           .onboardingRoot.twoCol.audienceUsers > .ways {
             grid-column: 1 / -1;
@@ -568,6 +577,10 @@ export default function WalletOnboarding({
           isolation: isolate;
           overflow: hidden;
           padding: 40px 36px 48px;
+          /* Cuando el hero se estira (login, para igualar altura con comunidades),
+             que su contenido interno pueda repartir el alto sobrante. */
+          display: flex;
+          flex-direction: column;
         }
 
         /* Velo oscuro sobre la imagen: la escena tiene el brillo de la TV que
@@ -587,6 +600,7 @@ export default function WalletOnboarding({
         .onboardingInner {
           position: relative;
           z-index: 2;
+          flex: 1;
           display: flex;
           flex-direction: column;
           align-items: flex-start;
@@ -607,9 +621,13 @@ export default function WalletOnboarding({
         .onboardingColumns {
           align-self: stretch;
           margin-top: 56px;
+          /* Crece para ocupar el alto sobrante del hero estirado y alinea su
+             contenido hacia ABAJO, así el bloque de reglas ("Tu conexión…") baja
+             y llena el espacio muerto en vez de quedar centrado con hueco abajo. */
+          flex: 1;
           display: flex;
           justify-content: center;
-          align-items: center;
+          align-items: flex-end;
           gap: clamp(32px, 5vw, 64px);
         }
 
@@ -1274,8 +1292,12 @@ export default function WalletOnboarding({
 
         @media (hover: hover) {
           .wayRow:hover .wayMainFade,
-          .wayRow:focus-within .wayMainFade {
+          .wayRow:focus-within .wayMainFade,
+          .wayRow.firstCard .wayMainFade {
             opacity: 1;
+          }
+          .ways:has(.wayRow:hover) .wayRow.firstCard:not(:hover) .wayMainFade {
+            opacity: 0;
           }
         }
 
@@ -1349,12 +1371,25 @@ export default function WalletOnboarding({
         }
 
         @media (hover: hover) {
+          /* En laptop se revela al pasar el cursor; además, la PRIMERA card
+             arranca abierta (.firstCard) para enseñar el patrón —igual que en
+             celular, pero aquí basta el hover para el resto—. */
           .wayRow:hover .wayInfo,
           .wayRow:focus-within .wayInfo,
+          .wayRow.firstCard .wayInfo,
           .wayRow:hover .wayDesc,
-          .wayRow:focus-within .wayDesc {
+          .wayRow:focus-within .wayDesc,
+          .wayRow.firstCard .wayDesc {
             grid-template-rows: 1fr;
             opacity: 1;
+          }
+          /* Pero en cuanto se hoverea CUALQUIER otra card, la primera se cierra
+             (solo una abierta a la vez). Si se hoverea la primera misma, sigue
+             abierta por el :not(:hover). */
+          .ways:has(.wayRow:hover) .wayRow.firstCard:not(:hover) .wayInfo,
+          .ways:has(.wayRow:hover) .wayRow.firstCard:not(:hover) .wayDesc {
+            grid-template-rows: 0fr;
+            opacity: 0;
           }
         }
         /* Touch (celular): el card se abre/cierra por TAP (data-open), no por
@@ -1389,6 +1424,46 @@ export default function WalletOnboarding({
           .wayRow[data-open] :global(.wayCta) {
             opacity: 1;
             pointer-events: auto;
+          }
+        }
+
+        /* Chevron indicador (laptop y celular). Sutil, en la esquina inferior
+           OPUESTA al número grande (número izq → abajo-derecha; número der/isRight
+           → abajo-izquierda). Rota 180° cuando el card está abierto: en laptop por
+           hover o por ser la primera card; en celular por tap (data-open). */
+        .wayChevron {
+          position: absolute;
+          bottom: 8px;
+          right: 16px;
+          width: 16px;
+          height: 16px;
+          z-index: 3;
+          color: rgba(255, 255, 255, 0.34);
+          transition: transform 320ms cubic-bezier(0.4, 0, 0.2, 1);
+          pointer-events: none;
+        }
+        .wayRow.isRight .wayChevron {
+          right: auto;
+          left: 16px;
+        }
+        .wayChevron svg {
+          display: block;
+          width: 100%;
+          height: 100%;
+        }
+        @media (hover: hover) {
+          .wayRow:hover .wayChevron,
+          .wayRow:focus-within .wayChevron,
+          .wayRow.firstCard .wayChevron {
+            transform: rotate(180deg);
+          }
+          .ways:has(.wayRow:hover) .wayRow.firstCard:not(:hover) .wayChevron {
+            transform: none;
+          }
+        }
+        @media (hover: none) {
+          .wayRow[data-open] .wayChevron {
+            transform: rotate(180deg);
           }
         }
 
@@ -1556,7 +1631,8 @@ export default function WalletOnboarding({
 
           .wayMain {
             gap: 16px;
-            padding: 18px 20px;
+            /* Más padding abajo para el chevron indicador (borde inferior). */
+            padding: 18px 20px 26px;
           }
 
           /* Difuminado más fuerte y alto: en celular imágenes oscuras (saludos)
@@ -2070,7 +2146,7 @@ export default function WalletOnboarding({
                 // data-open React togglea el atributo sin tocar el className.
                 className={`wayRow reveal${pos % 2 === 0 ? " isRight" : ""}${
                   hasInfo ? " hasInfo" : ""
-                }`}
+                }${pos === 1 ? " firstCard" : ""}`}
                 data-open={openService === rowId ? "" : undefined}
                 // `order` sirve en celular: ahí las columnas usan display:contents
                 // y los cards se secuencian 1..N por este order.
@@ -2141,6 +2217,21 @@ export default function WalletOnboarding({
                       </span>
                     </span>
                   </div>
+
+                  {/* Chevron (solo celular): pista de que el card se toca para
+                      abrir/cerrar; rota 180° al abrir. En laptop no se muestra
+                      —ahí el hover ya revela el contenido—. */}
+                  <span className="wayChevron" aria-hidden="true">
+                    <svg viewBox="0 0 16 16" fill="none">
+                      <path
+                        d="M4 6l4 4 4-4"
+                        stroke="currentColor"
+                        strokeWidth="1.6"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </span>
                 </div>
 
                 {/* Panel que se despliega hacia abajo (fondo negro, no la imagen).
@@ -2217,7 +2308,35 @@ export default function WalletOnboarding({
           // En celular las columnas usan display:contents y todo se reordena 1..N
           // por `order`, quedando una sola columna secuencial.
           if (audience !== "users") {
-            return <div className="waysList">{cardEls}</div>;
+            // Creador: una sola columna apilada. En login (twoColumn) el cierre va
+            // DENTRO de esta columna, justo debajo de la card 11 (independiente de
+            // la altura de la columna izquierda). En wallet (columna única) el
+            // cierre se renderiza como sección aparte al final.
+            return (
+              <div className="waysList">
+                {cardEls}
+                {twoColumn ? (
+                  <div
+                    className="closeCell reveal"
+                    style={{ order: 100, marginTop: 40 }}
+                  >
+                    <h2 className="closeTitle">
+                      {tWallet.rich("onboardingCloseTitle", {
+                        vibra: (chunks) => (
+                          <VibraGradientText
+                            gradient="linear-gradient(100deg, #c084fc 0%, #a855ff 45%, #7c3aed 100%)"
+                            style={{ fontSize: "1.25em" }}
+                          >
+                            {chunks}
+                          </VibraGradientText>
+                        ),
+                      })}
+                    </h2>
+                    <p className="closeText">{tWallet("onboardingCloseText")}</p>
+                  </div>
+                ) : null}
+              </div>
+            );
           }
           return (
             <div className="waysCols">
@@ -2300,11 +2419,10 @@ export default function WalletOnboarding({
         </div>
       </section>
 
-      {/* Cierre: invitación final + aclaración de que activar experiencias es
-          gratis y reversible cuando el creador quiera. En usuarios este cierre
-          se renderiza como celda dentro del grid de experiencias (ver arriba),
-          así que aquí solo va para creador. */}
-      {audience !== "users" && (
+      {/* Cierre: invitación final. En usuarios va como celda del grid, y en
+          login-creador (twoColumn) va dentro de la columna de servicios (ambos
+          arriba). Aquí solo se renderiza para la WALLET (columna única). */}
+      {audience !== "users" && !twoColumn && (
       <section className="closeSection reveal">
         <h2 className="closeTitle">
           {tWallet.rich("onboardingCloseTitle", {

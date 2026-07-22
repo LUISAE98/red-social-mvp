@@ -396,39 +396,85 @@ body.loginPageBg {
           );
           padding: 34px 0 80px;
         }
+        /* Switch transparente: sin fondo ni contorno. El indicador del tab activo
+           es una pastilla blanca que se DESLIZA entre los dos tabs. */
         .audienceSwitch {
           position: relative;
           display: flex;
-          gap: 4px;
           width: fit-content;
           margin: 0 auto 34px;
           padding: 4px;
           border-radius: 999px;
-          /* Fondo con blur para que el switch se lea sobre el collage. */
-          background: rgba(6, 3, 14, 0.5);
-          border: 1px solid rgba(255, 255, 255, 0.14);
-          backdrop-filter: blur(8px);
-          -webkit-backdrop-filter: blur(8px);
+          background: transparent;
+          border: none;
         }
+        .audienceSwitchPill {
+          position: absolute;
+          top: 4px;
+          bottom: 4px;
+          left: 4px;
+          width: calc(50% - 4px);
+          border-radius: 999px;
+          background: #ffffff;
+          transition: transform 340ms cubic-bezier(0.22, 1, 0.36, 1);
+        }
+        .audienceSwitch[data-audience="users"] .audienceSwitchPill {
+          transform: translateX(100%);
+        }
+        /* El texto usa mix-blend-mode: difference → sale NEGRO sobre la pastilla
+           blanca y CLARO sobre el fondo oscuro, sea cual sea la posición de la
+           pastilla. Así no hay desfase de color durante el deslizamiento (el
+           problema de "a veces no se pone negro"). Los tabs se pintan después de
+           la pastilla (orden del DOM), así que se mezclan con ella. */
         .audienceTab {
+          position: relative;
+          width: 124px;
+          text-align: center;
           border: none;
           border-radius: 999px;
-          padding: 9px 24px;
+          padding: 9px 8px;
           font-size: 14px;
           font-weight: 600;
           font-family: inherit;
           letter-spacing: -0.01em;
-          color: rgba(255, 255, 255, 0.62);
+          color: #ffffff;
+          mix-blend-mode: difference;
           background: transparent;
           cursor: pointer;
-          transition: background 200ms ease, color 200ms ease;
         }
-        .audienceTab.isOn {
-          background: #ffffff;
-          color: #0a0810;
+
+        /* El panel de contenido entra deslizándose: usuarios (tab derecho) entra
+           desde la DERECHA; creadores (tab izquierdo) desde la IZQUIERDA. Al
+           cambiar de audiencia cambia la clase → la animación se re-dispara.
+           overflow-x: clip recorta el desborde del slide sin crear scroll. */
+        .audiencePanel {
+          overflow-x: clip;
         }
-        .usersPlaceholder {
-          min-height: 40vh;
+        .audiencePanel--users {
+          animation: audienceSlideFromRight 440ms cubic-bezier(0.22, 1, 0.36, 1);
+        }
+        .audiencePanel--creators {
+          animation: audienceSlideFromLeft 440ms cubic-bezier(0.22, 1, 0.36, 1);
+        }
+        @keyframes audienceSlideFromRight {
+          from {
+            opacity: 0;
+            transform: translateX(48px);
+          }
+          to {
+            opacity: 1;
+            transform: translateX(0);
+          }
+        }
+        @keyframes audienceSlideFromLeft {
+          from {
+            opacity: 0;
+            transform: translateX(-48px);
+          }
+          to {
+            opacity: 1;
+            transform: translateX(0);
+          }
         }
 
         .loginTagline {
@@ -474,7 +520,14 @@ body.loginPageBg {
 
 @media (max-width: 900px) {
   .loginRightPane {
-    padding: clamp(28px, 8vh, 72px) 4px clamp(32px, 8vh, 64px);
+    /* Menos padding abajo para que el switch de audiencia quede cerca del botón
+       de "Continuar con Google" (antes quedaba muy lejos). */
+    padding: clamp(28px, 8vh, 72px) 4px 8px;
+  }
+
+  /* Y menos espacio arriba del switch, para acercarlo aún más al fold. */
+  .loginBelowFold {
+    padding-top: 8px;
   }
 
   .loginTagline {
@@ -509,7 +562,8 @@ body.loginPageBg {
 
 @media (max-width: 420px) {
   .loginRightPane > div {
-    padding: 28px 24px !important;
+    /* Menos padding abajo de la tarjeta para acercar el switch al botón. */
+    padding: 28px 24px 16px !important;
   }
 }
       `}</style>
@@ -698,7 +752,14 @@ marginBottom: 6,
           reutiliza la info de la wallet (sin los botones de los 11 servicios,
           porque la sesión está cerrada). Para usuarios, aún por definir. */}
       <section className="loginBelowFold">
-        <div className="audienceSwitch" role="tablist" aria-label="Público">
+        <div
+          className="audienceSwitch"
+          data-audience={audience}
+          role="tablist"
+          aria-label="Público"
+        >
+          {/* Pastilla blanca que se desliza al tab activo (indicador). */}
+          <span className="audienceSwitchPill" aria-hidden="true" />
           <button
             type="button"
             role="tab"
@@ -719,7 +780,7 @@ marginBottom: 6,
           </button>
         </div>
 
-        <div className="audiencePanel">
+        <div className={`audiencePanel audiencePanel--${audience}`}>
           {audience === "creators" ? (
             <WalletOnboarding showCtas={false} twoColumn />
           ) : (
