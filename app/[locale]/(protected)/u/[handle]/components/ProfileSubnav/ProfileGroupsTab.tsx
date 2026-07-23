@@ -522,11 +522,9 @@ export default function ProfileGroupsTab({
             style={{
               fontSize: 13,
               lineHeight: 1.45,
-              color: "rgba(255,255,255,0.72)",
-              border: "1px solid rgba(255,255,255,0.10)",
-              background: "rgba(255,255,255,0.03)",
-              borderRadius: 14,
-              padding: 14,
+              color: "rgba(255,255,255,0.6)",
+              textAlign: "center",
+              marginTop: 48,
             }}
           >
             {msg}

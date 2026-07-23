@@ -45,7 +45,7 @@ type ServiceConfig = {
 const COLORS: Record<string, string> = {
   saludo: "#b45cff",
   consejo: "#f7c948",
-  meet_greet_digital: "#45b8ff",
+  meet_greet_digital: "#2563eb",
   clase_personalizada: "#f472b6",
 };
 

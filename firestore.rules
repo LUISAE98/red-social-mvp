@@ -336,6 +336,17 @@ service cloud.firestore {
             && request.resource.data.preferredCurrency.size() >= 3
             && request.resource.data.preferredCurrency.size() <= 4
           )
+          ||
+          (
+            request.resource.data.diff(resource.data).changedKeys().hasOnly([
+              "bio",
+              "updatedAt"
+            ])
+            && (!("bio" in request.resource.data)
+              || request.resource.data.bio == null
+              || (request.resource.data.bio is string
+                && request.resource.data.bio.size() <= 300))
+          )
             )
           )
           ||

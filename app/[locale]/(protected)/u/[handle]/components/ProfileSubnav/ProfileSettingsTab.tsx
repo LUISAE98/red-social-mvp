@@ -1,13 +1,22 @@
 "use client";
 
 import { CSSProperties, useEffect, useState } from "react";
-import { createPortal } from "react-dom";
 import { useTranslations, useLocale } from "next-intl";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import LogoutButton from "@/app/LogoutButton";
+import VibraResponsivePanel from "@/components/ui/VibraResponsivePanel";
 import BlockedAccountsOverlay from "./BlockedAccountsOverlay";
 import SessionsOverlay from "./SessionsOverlay";
+
+// Cooldown de cliente para el correo de cambio de contraseña. Firebase ya tiene
+// su propio throttling server-side, pero además bloqueamos el reenvío 60s desde
+// el cliente (persistido en localStorage para que sobreviva recargas).
+const PWD_RESET_COOLDOWN_S = 60;
+
+function pwdResetKey(id: string | null | undefined) {
+  return `vibra:pwdResetSentAt:${id || "anon"}`;
+}
 
 type ProfileSettingsTabProps = {
   isSaving?: boolean;
@@ -85,70 +94,19 @@ function SpinningGear() {
   );
 }
 
-function FullScreenModal({
-  open,
-  children,
-  onClose,
-}: {
-  open: boolean;
-  children: React.ReactNode;
-  onClose: () => void;
-}) {
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setMounted(true);
-  }, []);
-
-  useEffect(() => {
-    if (!open) return;
-
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-
-    return () => {
-      document.body.style.overflow = previousOverflow;
-    };
-  }, [open]);
-
-  if (!open || !mounted || typeof document === "undefined") return null;
-
-  return createPortal(
-    <div
-      role="dialog"
-      aria-modal="true"
-      onClick={onClose}
-      style={{
-        position: "fixed",
-        inset: 0,
-        zIndex: 999999,
-        background: "rgba(0,0,0,0.76)",
-        backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding:
-          "max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom))",
-        boxSizing: "border-box",
-      }}
-    >
-      {children}
-    </div>,
-    document.body
-  );
-}
 
 function Switch({
   checked,
   onChange,
   disabled = false,
   label,
+  activeColor,
 }: {
   checked: boolean;
   onChange: (next: boolean) => void;
   disabled?: boolean;
   label?: string;
+  activeColor?: string;
 }) {
   return (
     <button
@@ -159,29 +117,36 @@ function Switch({
       aria-label={label}
       title={label}
       style={{
-        width: 40,
-        height: 22,
+        position: "relative",
+        width: 36,
+        minWidth: 36,
+        maxWidth: 36,
+        height: 20,
+        minHeight: 20,
+        maxHeight: 20,
         borderRadius: 999,
-        border: "1px solid rgba(255,255,255,0.14)",
-        background: checked ? "#ffffff" : "rgba(255,255,255,0.08)",
-        padding: 2,
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: checked ? "flex-end" : "flex-start",
+        border: "none",
+        background: checked
+          ? (activeColor ?? "linear-gradient(100deg, #a855ff, #4f46ff)")
+          : "rgba(255,255,255,0.10)",
+        padding: 0,
         cursor: disabled ? "not-allowed" : "pointer",
         opacity: disabled ? 0.55 : 1,
-        transition: "all 160ms ease",
+        transition: "all 0.2s ease",
         flexShrink: 0,
+        boxSizing: "border-box",
       }}
     >
       <span
         style={{
-          width: 16,
-          height: 16,
+          position: "absolute",
+          top: 2,
+          left: checked ? 18 : 2,
+          width: 14,
+          height: 14,
           borderRadius: "50%",
-          background: checked ? "#000" : "#fff",
-          boxShadow: "0 2px 8px rgba(0,0,0,0.35)",
-          transition: "all 160ms ease",
+          background: "#fff",
+          transition: "all 0.2s ease",
         }}
       />
     </button>
@@ -218,6 +183,8 @@ export default function ProfileSettingsTab({
   const [savingName, setSavingName] = useState(false);
   const [savingBio, setSavingBio] = useState(false);
   const [sendingPassword, setSendingPassword] = useState(false);
+  const [passwordSent, setPasswordSent] = useState(false);
+  const [pwdCooldown, setPwdCooldown] = useState(0);
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const { toast: settingsToast, showToast: showSettingsToast } = useVibraToast();
@@ -225,6 +192,35 @@ export default function ProfileSettingsTab({
   const tProfile = useTranslations("profile");
   const locale = useLocale();
   useEffect(() => { if (err) showSettingsToast(err, "error"); }, [err]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Los mensajes de éxito salen como VibraToast (no como letrero al fondo).
+  useEffect(() => { if (msg) showSettingsToast(msg, "success"); }, [msg]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Recalcula el cooldown del correo de contraseña cada segundo, leyendo el
+  // timestamp persistido (sobrevive recargas). Fuente de verdad: localStorage.
+  useEffect(() => {
+    const key = pwdResetKey(uid ?? email);
+    const compute = () => {
+      const raw =
+        typeof window !== "undefined" ? window.localStorage.getItem(key) : null;
+      const sentAt = raw ? Number(raw) || 0 : 0;
+      if (!sentAt) {
+        setPwdCooldown(0);
+        return;
+      }
+      const remaining = Math.ceil(
+        (sentAt + PWD_RESET_COOLDOWN_S * 1000 - Date.now()) / 1000
+      );
+      if (remaining > 0) {
+        setPwdCooldown(remaining);
+        setPasswordSent(true);
+      } else {
+        setPwdCooldown(0);
+      }
+    };
+    compute();
+    const id = window.setInterval(compute, 1000);
+    return () => window.clearInterval(id);
+  }, [uid, email]);
 
   useEffect(() => {
     setLocalRestricted(isRestricted);
@@ -348,6 +344,8 @@ export default function ProfileSettingsTab({
   }
 
   async function handlePasswordReset() {
+    if (sendingPassword || pwdCooldown > 0) return;
+
     if (!onSendPasswordReset) {
       setErr(tProfile("passwordEmailConnectError"));
       return;
@@ -359,7 +357,14 @@ export default function ProfileSettingsTab({
 
     try {
       await onSendPasswordReset();
-      setMsg(tProfile("passwordEmailSent"));
+      // Marca el envío y arranca el cooldown (persistido para sobrevivir recargas).
+      try {
+        window.localStorage.setItem(pwdResetKey(uid ?? email), String(Date.now()));
+      } catch {
+        /* localStorage no disponible: el cooldown vivirá solo en memoria */
+      }
+      setPasswordSent(true);
+      setPwdCooldown(PWD_RESET_COOLDOWN_S);
     } catch (error: unknown) {
       setErr((error instanceof Error ? error.message : null) ?? tProfile("passwordEmailError"));
     } finally {
@@ -377,7 +382,7 @@ export default function ProfileSettingsTab({
   const titleStyle: CSSProperties = {
     margin: 0,
     fontSize: 16,
-    fontWeight: 700,
+    fontWeight: 600,
     lineHeight: 1.2,
     color: "#fff",
   };
@@ -398,7 +403,7 @@ export default function ProfileSettingsTab({
     gap: 10,
     alignItems: "center",
     padding: "12px 0",
-    borderBottom: "1px solid rgba(255,255,255,0.08)",
+    position: "relative",
   };
 
   const labelStyle: CSSProperties = {
@@ -417,72 +422,105 @@ export default function ProfileSettingsTab({
     overflowWrap: "anywhere",
   };
 
-  const buttonStyle: CSSProperties = {
-    minHeight: 36,
-    padding: "8px 12px",
-    borderRadius: 999,
-    border: "1px solid rgba(255,255,255,0.14)",
-    background: "rgba(255,255,255,0.07)",
-    color: "#fff",
-    fontSize: 12,
-    fontWeight: 700,
+  // Mismo estilo que el botón de desbloquear/cerrar sesión (gris neutro), pero
+  // cubriendo todo el renglón.
+  const logoutButtonStyle: CSSProperties = {
+    width: "100%",
+    minHeight: 40,
+    borderRadius: 6,
+    border: "none",
+    background: "rgba(255,255,255,0.10)",
+    color: "rgba(255,255,255,0.70)",
+    fontWeight: 500,
+    fontSize: 13,
     fontFamily: fontStack,
     cursor: "pointer",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
     whiteSpace: "nowrap",
   };
 
-  const logoutButtonStyle: CSSProperties = {
-    ...buttonStyle,
-    width: "100%",
-    justifyContent: "center",
-  };
-
+  // Campo de texto canónico de Vibra (vibra_style.md → "Textarea"): sin borde,
+  // fondo rgba(255,255,255,0.06), radio 12, fontSize 13, lineHeight 1.5.
   const inputStyle: CSSProperties = {
     width: "100%",
     minHeight: 46,
-    padding: "0 12px",
+    padding: "10px 12px",
     borderRadius: 12,
-    border: "1px solid rgba(255,255,255,0.14)",
+    border: "none",
     background: "rgba(255,255,255,0.06)",
     color: "#fff",
     outline: "none",
-    fontSize: 14,
+    fontSize: 13,
+    lineHeight: 1.5,
     fontFamily: fontStack,
     boxSizing: "border-box",
     WebkitAppearance: "none",
     appearance: "none",
   };
 
-  const noticeStyle: CSSProperties = {
-    borderRadius: 10,
-    border: "1px solid rgba(255,255,255,0.10)",
-    background: "rgba(255,255,255,0.05)",
-    padding: "9px 11px",
-    fontSize: 12,
-    lineHeight: 1.4,
-    color: "rgba(255,255,255,0.84)",
+
+  // Botones del footer de los paneles (estilo canónico vibra_style.md).
+  const panelPrimaryBtn: CSSProperties = {
+    flex: 1,
+    minHeight: 42,
+    borderRadius: 5,
+    border: "none",
+    background: "#a855ff",
+    color: "rgba(255,255,255,0.98)",
+    fontSize: 16,
+    fontWeight: 500,
+    fontFamily: fontStack,
+    letterSpacing: "-0.02em",
+    cursor: "pointer",
+    display: "grid",
+    placeItems: "center",
   };
 
-  const modalCard: CSSProperties = {
-    width: "min(560px, calc(100vw - 32px))",
-    maxHeight: "calc(100dvh - 32px)",
-    overflowY: "auto",
-    borderRadius: 20,
-    border: "1px solid rgba(255,255,255,0.16)",
-    background:
-      "linear-gradient(180deg, rgba(18,18,18,0.98), rgba(8,8,8,0.98))",
+  const panelPrimaryBtnDisabled: CSSProperties = {
+    ...panelPrimaryBtn,
+    background: "rgba(255,255,255,0.1)",
+    color: "rgba(255,255,255,0.36)",
+    cursor: "not-allowed",
+  };
+
+  const panelSecondaryBtn: CSSProperties = {
+    flex: "0 0 auto",
+    minHeight: 42,
+    padding: "0 16px",
+    borderRadius: 5,
+    border: "none",
+    background: "rgba(255,255,255,0.08)",
     color: "#fff",
-    boxShadow: "0 24px 90px rgba(0,0,0,0.78)",
-    padding: 18,
-    display: "grid",
-    gap: 14,
+    fontSize: 15,
+    fontWeight: 500,
     fontFamily: fontStack,
-    boxSizing: "border-box",
+    cursor: "pointer",
   };
 
   return (
     <section style={outer}>
       <style jsx>{`
+        /* Placeholder canónico de Vibra (vibra_style.md → "Textarea"): atenuado
+           en rgba(255,255,255,0.42). opacity:1 evita que Firefox lo baje más. */
+        .vibra-panel-input::placeholder {
+          color: rgba(255, 255, 255, 0.42);
+          opacity: 1;
+        }
+
+        /* Línea sutil bajo cada opción, igual a la de la pestaña de experiencias
+           (.owner-sidebar-menu-divider): 1px, inset 6px, rgba(255,255,255,0.1). */
+        .profile-setting-item::after {
+          content: "";
+          position: absolute;
+          left: 6px;
+          right: 6px;
+          bottom: 0;
+          height: 1px;
+          background: rgba(255, 255, 255, 0.1);
+        }
+
         .profile-logout-button {
           min-height: 36px;
           padding: 8px 12px;
@@ -507,13 +545,27 @@ export default function ProfileSettingsTab({
         }
 
         .profile-logout-wrap {
-          width: 180px;
+          width: 100%;
           max-width: 100%;
         }
 
         @media (max-width: 520px) {
           .profile-setting-item {
             grid-template-columns: 1fr !important;
+          }
+
+          /* Las filas con switch (restringido y comentarios) mantienen el switch
+             a la derecha, inline con el texto, igual que en experiencias. */
+          .profile-setting-item--switch,
+          .profile-setting-item--action {
+            grid-template-columns: minmax(0, 1fr) auto !important;
+          }
+
+          /* Nombre y Descripción se quedan en un mismo renglón (dos columnas)
+             también en celular: nombre a la izquierda, descripción a la derecha. */
+          .profile-setting-item--split {
+            grid-template-columns: 1fr 1fr !important;
+            gap: 12px !important;
           }
 
           .profile-setting-button,
@@ -527,7 +579,7 @@ export default function ProfileSettingsTab({
       <h3 style={titleStyle}>{tProfile("settingsTitle")}</h3>
 
       <div style={panel}>
-        <div className="profile-setting-item" style={item}>
+        <div className="profile-setting-item profile-setting-item--switch" style={item}>
           <div>
             <div style={labelStyle}>{tProfile("restricted")}</div>
             <div style={valueStyle}>
@@ -560,7 +612,7 @@ export default function ProfileSettingsTab({
         </div>
 
         {onToggleCommentsEnabled && (
-          <div className="profile-setting-item" style={item}>
+          <div className="profile-setting-item profile-setting-item--switch" style={item}>
             <div>
               <div style={labelStyle}>{tProfile("commentsLabel")}</div>
               <div style={valueStyle}>
@@ -592,35 +644,67 @@ export default function ProfileSettingsTab({
           </div>
         )}
 
-        <div className="profile-setting-item" style={item}>
-          <div>
-            <div style={labelStyle}>{tProfile("nameFieldLabel")}</div>
-            <div style={valueStyle}>{resolvedDisplayName}</div>
-            {!canChangeName && (
-              <div style={{ marginTop: 4, fontSize: 11, color: "rgba(255,255,255,0.50)" }}>
-                {tProfile("nameAvailableIn", { days: remainingDays })}
+        <div
+          className="profile-setting-item profile-setting-item--split"
+          style={{
+            ...item,
+            gridTemplateColumns: "1fr 1fr",
+            gap: 16,
+            alignItems: "start",
+          }}
+        >
+          {/* Nombre — columna izquierda (contenido centrado) */}
+          <div style={{ display: "grid", gap: 8, minWidth: 0, justifyItems: "center", textAlign: "center" }}>
+            <div>
+              <div style={labelStyle}>{tProfile("nameFieldLabel")}</div>
+              <div style={valueStyle}>{resolvedDisplayName}</div>
+            </div>
+
+            {canChangeName ? (
+              <button
+                type="button"
+                style={{
+                  justifySelf: "center",
+                  border: "none",
+                  background: "transparent",
+                  padding: 0,
+                  color: "#a855ff",
+                  fontSize: 12,
+                  fontWeight: 700,
+                  fontFamily: fontStack,
+                  cursor: "pointer",
+                  whiteSpace: "nowrap",
+                }}
+                onClick={() => {
+                  setErr(null);
+                  setMsg(null);
+                  setDraftName(resolvedDisplayName === unavailableText ? "" : resolvedDisplayName);
+                  setEditNameOpen(true);
+                }}
+              >
+                {tProfile("changeNameLabel")}
+              </button>
+            ) : (
+              <div
+                style={{
+                  justifySelf: "center",
+                  fontSize: 10,
+                  fontWeight: 400,
+                  lineHeight: 1.35,
+                  color: "rgba(255,255,255,0.38)",
+                  maxWidth: 220,
+                }}
+              >
+                {tProfile("nameChangeCountdown", { days: remainingDays })}
               </div>
             )}
           </div>
 
-          <button
-            className="profile-setting-button"
-            type="button"
-            style={{
-              ...buttonStyle,
-              opacity: canChangeName ? 1 : 0.55,
-              cursor: canChangeName ? "pointer" : "not-allowed",
-            }}
-            disabled={!canChangeName}
-            onClick={() => {
-              setErr(null);
-              setMsg(null);
-              setDraftName(resolvedDisplayName === unavailableText ? "" : resolvedDisplayName);
-              setEditNameOpen(true);
-            }}
-          >
-            {tProfile("editLabel")}
-          </button>
+          {/* Usuario — columna derecha (contenido centrado) */}
+          <div style={{ minWidth: 0, textAlign: "center" }}>
+            <div style={labelStyle}>{tProfile("usernameFieldLabel")}</div>
+            <div style={valueStyle}>{resolvedUsername}</div>
+          </div>
         </div>
 
         {onUpdateBio && (
@@ -643,9 +727,20 @@ export default function ProfileSettingsTab({
             </div>
 
             <button
-              className="profile-setting-button"
               type="button"
-              style={buttonStyle}
+              style={{
+                justifySelf: "center",
+                alignSelf: "center",
+                border: "none",
+                background: "transparent",
+                padding: 0,
+                color: "#a855ff",
+                fontSize: 12,
+                fontWeight: 700,
+                fontFamily: fontStack,
+                cursor: "pointer",
+                whiteSpace: "nowrap",
+              }}
               onClick={() => {
                 setErr(null);
                 setMsg(null);
@@ -658,49 +753,89 @@ export default function ProfileSettingsTab({
           </div>
         )}
 
-        <div className="profile-setting-item" style={item}>
-          <div>
-            <div style={labelStyle}>{tProfile("usernameFieldLabel")}</div>
-            <div style={valueStyle}>{resolvedUsername}</div>
-          </div>
-        </div>
-
-        <div className="profile-setting-item" style={item}>
+        <div className="profile-setting-item profile-setting-item--action" style={item}>
           <div>
             <div style={labelStyle}>{tProfile("emailFieldLabel")}</div>
             <div style={valueStyle}>{resolvedEmail}</div>
           </div>
 
-          <button
-            className="profile-setting-button"
-            type="button"
+          <div
             style={{
-              ...buttonStyle,
-              opacity: sendingPassword ? 0.7 : 1,
-              cursor: sendingPassword ? "not-allowed" : "pointer",
+              display: "grid",
+              gap: 6,
+              justifyItems: passwordSent ? "center" : "end",
+              minWidth: 0,
             }}
-            disabled={sendingPassword}
-            onClick={handlePasswordReset}
           >
-            {sendingPassword ? tCommon("sending") : tProfile("changePasswordLabel")}
-          </button>
-        </div>
+            {passwordSent && (
+              <div
+                style={{
+                  fontSize: 10.5,
+                  fontWeight: 400,
+                  lineHeight: 1.35,
+                  color: "rgba(255,255,255,0.42)",
+                  textAlign: "center",
+                  maxWidth: 240,
+                }}
+              >
+                {tProfile("passwordEmailSentLegend", { email: resolvedEmail })}
+              </div>
+            )}
 
-        <div className="profile-setting-item" style={item}>
-          <div>
-            <div style={labelStyle}>{tProfile("birthDateFieldLabel")}</div>
-            <div style={valueStyle}>{resolvedBirthDate}</div>
+            <button
+              type="button"
+              style={{
+                justifySelf: passwordSent ? "center" : "end",
+                alignSelf: "center",
+                border: "none",
+                background: "transparent",
+                padding: 0,
+                color: "#a855ff",
+                fontSize: 12,
+                fontWeight: 700,
+                fontFamily: fontStack,
+                cursor:
+                  sendingPassword || pwdCooldown > 0 ? "not-allowed" : "pointer",
+                opacity: sendingPassword || pwdCooldown > 0 ? 0.6 : 1,
+                whiteSpace: "nowrap",
+              }}
+              disabled={sendingPassword || pwdCooldown > 0}
+              onClick={handlePasswordReset}
+            >
+              {sendingPassword
+                ? tCommon("sending")
+                : pwdCooldown > 0
+                ? tProfile("resendEmailIn", { seconds: pwdCooldown })
+                : passwordSent
+                ? tProfile("sendNewEmail")
+                : tProfile("changePasswordLabel")}
+            </button>
           </div>
         </div>
 
-        <div className="profile-setting-item" style={item}>
-          <div>
+        <div
+          className="profile-setting-item profile-setting-item--split"
+          style={{
+            ...item,
+            gridTemplateColumns: "1fr 1fr",
+            gap: 16,
+            alignItems: "start",
+          }}
+        >
+          {/* Fecha de nacimiento — columna izquierda (centrada) */}
+          <div style={{ minWidth: 0, textAlign: "center" }}>
+            <div style={labelStyle}>{tProfile("birthDateFieldLabel")}</div>
+            <div style={valueStyle}>{resolvedBirthDate}</div>
+          </div>
+
+          {/* Fecha de creación — columna derecha (centrada) */}
+          <div style={{ minWidth: 0, textAlign: "center" }}>
             <div style={labelStyle}>{tProfile("creationDateFieldLabel")}</div>
             <div style={valueStyle}>{resolvedAppCreatedAt}</div>
           </div>
         </div>
 
-        <div className="profile-setting-item" style={item}>
+        <div className="profile-setting-item profile-setting-item--action" style={item}>
           <div>
             <div style={labelStyle}>{tProfile("blockedAccountsLabel")}</div>
             <div style={valueStyle}>{tProfile("profilesAndCommunities")}</div>
@@ -719,9 +854,20 @@ export default function ProfileSettingsTab({
           </div>
 
           <button
-            className="profile-setting-button"
             type="button"
-            style={buttonStyle}
+            style={{
+              justifySelf: "center",
+              alignSelf: "center",
+              border: "none",
+              background: "transparent",
+              padding: 0,
+              color: "#a855ff",
+              fontSize: 12,
+              fontWeight: 700,
+              fontFamily: fontStack,
+              cursor: "pointer",
+              whiteSpace: "nowrap",
+            }}
             onClick={() => {
               setErr(null);
               setMsg(null);
@@ -732,7 +878,7 @@ export default function ProfileSettingsTab({
           </button>
         </div>
 
-        <div className="profile-setting-item" style={item}>
+        <div className="profile-setting-item profile-setting-item--action" style={item}>
           <div>
             <div style={labelStyle}>{tProfile("sessionsLabel")}</div>
             <div style={valueStyle}>{tProfile("sessionsValue")}</div>
@@ -751,9 +897,20 @@ export default function ProfileSettingsTab({
           </div>
 
           <button
-            className="profile-setting-button"
             type="button"
-            style={buttonStyle}
+            style={{
+              justifySelf: "center",
+              alignSelf: "center",
+              border: "none",
+              background: "transparent",
+              padding: 0,
+              color: "#a855ff",
+              fontSize: 12,
+              fontWeight: 700,
+              fontFamily: fontStack,
+              cursor: "pointer",
+              whiteSpace: "nowrap",
+            }}
             onClick={() => {
               setErr(null);
               setMsg(null);
@@ -781,53 +938,29 @@ export default function ProfileSettingsTab({
         </div>
 
         <VibraToast toast={settingsToast} />
-        {msg && <div style={noticeStyle}>{msg}</div>}
       </div>
 
-      <FullScreenModal open={editNameOpen} onClose={() => !savingName && setEditNameOpen(false)}>
-        <div style={modalCard} onClick={(e) => e.stopPropagation()}>
-          <strong style={{ fontSize: 16, color: "#fff", lineHeight: 1.2 }}>
-            {tProfile("editNameTitle")}
-          </strong>
-
-          <input
-            style={inputStyle}
-            value={draftName}
-            onChange={(e) => setDraftName(e.target.value)}
-            placeholder={tProfile("namePlaceholder")}
-          />
-
-          <div style={{ fontSize: 12, color: "rgba(255,255,255,0.62)", lineHeight: 1.4 }}>
-            {tProfile("nameChangeNote")}
-          </div>
-
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+      <VibraResponsivePanel
+        open={editNameOpen}
+        onClose={() => !savingName && setEditNameOpen(false)}
+        title={tProfile("editNameTitle")}
+        closeAriaLabel={tCommon("closeAriaLabel")}
+        maxWidthDesktop={440}
+        footer={
+          <div style={{ display: "flex", gap: 10 }}>
             <button
               type="button"
               onClick={() => !savingName && setEditNameOpen(false)}
               disabled={savingName}
-              style={{
-                ...buttonStyle,
-                flex: "1 1 140px",
-                opacity: savingName ? 0.7 : 1,
-                cursor: savingName ? "not-allowed" : "pointer",
-              }}
+              style={{ ...panelSecondaryBtn, opacity: savingName ? 0.7 : 1, cursor: savingName ? "not-allowed" : "pointer" }}
             >
               {tCommon("cancel")}
             </button>
-
             <button
               type="button"
               onClick={handleSaveName}
               disabled={savingName}
-              style={{
-                ...buttonStyle,
-                flex: "1 1 160px",
-                background: savingName ? "rgba(255,255,255,0.16)" : "#fff",
-                color: savingName ? "#fff" : "#000",
-                opacity: savingName ? 0.8 : 1,
-                cursor: savingName ? "not-allowed" : "pointer",
-              }}
+              style={savingName ? panelPrimaryBtnDisabled : panelPrimaryBtn}
             >
               {savingName ? (
                 <>
@@ -838,16 +971,73 @@ export default function ProfileSettingsTab({
               )}
             </button>
           </div>
+        }
+      >
+        <div style={{ display: "grid", gap: 12 }}>
+          <input
+            className="vibra-panel-input"
+            style={inputStyle}
+            value={draftName}
+            onChange={(e) => setDraftName(e.target.value)}
+            placeholder={tProfile("namePlaceholder")}
+          />
+
+          <div style={{ fontSize: 12, color: "rgba(255,255,255,0.62)", lineHeight: 1.4 }}>
+            {tProfile("nameChangeNote")}
+          </div>
         </div>
-      </FullScreenModal>
+      </VibraResponsivePanel>
 
-      <FullScreenModal open={editBioOpen} onClose={() => !savingBio && setEditBioOpen(false)}>
-        <div style={modalCard} onClick={(e) => e.stopPropagation()}>
-          <strong style={{ fontSize: 16, color: "#fff", lineHeight: 1.2 }}>
-            {tProfile("bioFieldLabel")}
-          </strong>
-
+      <VibraResponsivePanel
+        open={editBioOpen}
+        onClose={() => !savingBio && setEditBioOpen(false)}
+        title={tProfile("bioFieldLabel")}
+        closeAriaLabel={tCommon("closeAriaLabel")}
+        maxWidthDesktop={440}
+        footer={
+          <div style={{ display: "flex", gap: 10 }}>
+            <button
+              type="button"
+              onClick={handleSaveBio}
+              disabled={savingBio}
+              style={savingBio ? panelPrimaryBtnDisabled : panelPrimaryBtn}
+            >
+              {savingBio ? (
+                <>
+                  <SpinningGear /> {tCommon("saving")}
+                </>
+              ) : (
+                tCommon("save")
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={() => !savingBio && setEditBioOpen(false)}
+              disabled={savingBio}
+              style={{
+                flex: 1,
+                minHeight: 42,
+                borderRadius: 5,
+                border: "none",
+                background: "rgba(255,255,255,0.10)",
+                color: "rgba(255,255,255,0.70)",
+                fontWeight: 500,
+                fontSize: 13,
+                fontFamily: fontStack,
+                display: "grid",
+                placeItems: "center",
+                cursor: savingBio ? "not-allowed" : "pointer",
+                opacity: savingBio ? 0.7 : 1,
+              }}
+            >
+              {tCommon("cancel")}
+            </button>
+          </div>
+        }
+      >
+        <div style={{ display: "grid", gap: 8 }}>
           <textarea
+            className="vibra-panel-input"
             style={{
               ...inputStyle,
               minHeight: 110,
@@ -863,46 +1053,8 @@ export default function ProfileSettingsTab({
           <div style={{ fontSize: 11, color: "rgba(255,255,255,0.42)", textAlign: "right" }}>
             {draftBio.length}/300
           </div>
-
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-            <button
-              type="button"
-              onClick={() => !savingBio && setEditBioOpen(false)}
-              disabled={savingBio}
-              style={{
-                ...buttonStyle,
-                flex: "1 1 140px",
-                opacity: savingBio ? 0.7 : 1,
-                cursor: savingBio ? "not-allowed" : "pointer",
-              }}
-            >
-              {tCommon("cancel")}
-            </button>
-
-            <button
-              type="button"
-              onClick={handleSaveBio}
-              disabled={savingBio}
-              style={{
-                ...buttonStyle,
-                flex: "1 1 160px",
-                background: savingBio ? "rgba(255,255,255,0.16)" : "#fff",
-                color: savingBio ? "#fff" : "#000",
-                opacity: savingBio ? 0.8 : 1,
-                cursor: savingBio ? "not-allowed" : "pointer",
-              }}
-            >
-              {savingBio ? (
-                <>
-                  <SpinningGear /> {tCommon("saving")}
-                </>
-              ) : (
-                tCommon("save")
-              )}
-            </button>
-          </div>
         </div>
-      </FullScreenModal>
+      </VibraResponsivePanel>
 
       <BlockedAccountsOverlay
         open={blockedAccountsOpen}

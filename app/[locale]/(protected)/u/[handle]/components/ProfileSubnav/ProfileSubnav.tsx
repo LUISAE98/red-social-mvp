@@ -1,6 +1,6 @@
 "use client";
 
-import { CSSProperties, useEffect, useState } from "react";
+import { CSSProperties } from "react";
 import { useTranslations } from "next-intl";
 import {
   VibraSubnavIcon,
@@ -32,18 +32,9 @@ export default function ProfileSubnav({
   const tGroups = useTranslations("groups");
   const fontStack = 'inherit';
 
-  const [isDesktop, setIsDesktop] = useState(false);
-  useEffect(() => {
-    const mq = window.matchMedia("(min-width: 769px)");
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setIsDesktop(mq.matches);
-    const handler = (e: MediaQueryListEvent) => setIsDesktop(e.matches);
-    mq.addEventListener("change", handler);
-    return () => mq.removeEventListener("change", handler);
-  }, []);
-
-  const iconSize = isDesktop ? 26 : 34;
-
+  // El texto y el tamaño del icono se controlan por CONTAINER QUERY (el ancho
+  // real del subnav), no por el viewport: así en laptops pequeñas queda
+  // icon-only, igual que el subnav de wallet.
   const tabs: {
     key: ProfileTabKey;
     title: string;
@@ -163,6 +154,12 @@ export default function ProfileSubnav({
   return (
     <>
       <style jsx>{`
+        /* El subnav se mide a sí mismo (container query), no al viewport. */
+        .profile-subnav-container {
+          width: 100%;
+          container-type: inline-size;
+        }
+
         @media (max-width: 768px) {
           .profile-subnav-mobile-full {
             width: 100vw !important;
@@ -176,7 +173,9 @@ export default function ProfileSubnav({
           }
         }
 
-        @media (min-width: 769px) {
+        /* Con ancho suficiente en el propio subnav: se muestra el texto y el
+           icono normal. Debajo de ese ancho queda icon-only, como en celular. */
+        @container (min-width: 760px) {
           .subnav-item-inner {
             display: flex !important;
             flex-direction: row !important;
@@ -198,8 +197,23 @@ export default function ProfileSubnav({
         }
       `}</style>
 
+      <style jsx global>{`
+        /* Icono grande en modo solo-icono; se reduce cuando aparece el texto. */
+        .profileSubnavIconSized .vibraSubnavIconSvg {
+          width: 34px !important;
+          height: 34px !important;
+        }
+        @container (min-width: 760px) {
+          .profileSubnavIconSized .vibraSubnavIconSvg {
+            width: 26px !important;
+            height: 26px !important;
+          }
+        }
+      `}</style>
+
       <VibraSubnavIconsStyles />
 
+      <div className="profile-subnav-container">
       <div className="profile-subnav-mobile-full" style={wrapStyle}>
         <span style={indicatorStyle}>
           <span
@@ -236,10 +250,10 @@ export default function ProfileSubnav({
               }}
             >
               <span style={itemInner} className="subnav-item-inner">
-                <span className="subnav-icon-wrap">
+                <span className="subnav-icon-wrap profileSubnavIconSized">
                   <VibraSubnavIcon
                     type={tab.iconType}
-                    size={iconSize}
+                    size={26}
                     strokeWidth={2.25}
                   />
                 </span>
@@ -250,6 +264,7 @@ export default function ProfileSubnav({
             </button>
           );
         })}
+      </div>
       </div>
     </>
   );

@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { CSSProperties, useEffect, useMemo, useState } from "react";
-import { createPortal } from "react-dom";
 
+import VibraResponsivePanel from "@/components/ui/VibraResponsivePanel";
 import {
   type BlockedGroupAccount,
   type BlockedProfileAccount,
@@ -112,7 +112,6 @@ export default function BlockedAccountsOverlay({
   const tProfile = useTranslations("profile");
   const tCommon = useTranslations("common");
 
-  const [mounted, setMounted] = useState(false);
   const [activeTab, setActiveTab] = useState<ActiveTab>("profile");
   const [profileBlocks, setProfileBlocks] = useState<BlockedProfileAccount[]>(
     []
@@ -123,21 +122,6 @@ export default function BlockedAccountsOverlay({
   const [error, setError] = useState<string | null>(null);
 
   const uid = currentUserId?.trim() || "";
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  useEffect(() => {
-    if (!open) return;
-
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-
-    return () => {
-      document.body.style.overflow = previousOverflow;
-    };
-  }, [open]);
 
   useEffect(() => {
     if (!open || !uid) {
@@ -211,173 +195,123 @@ export default function BlockedAccountsOverlay({
     }
   }
 
-  if (!open || !mounted || typeof document === "undefined") return null;
-
   const fontStack =
     'inherit';
 
-  const buttonStyle: CSSProperties = {
-    minHeight: 34,
-    padding: "8px 12px",
-    borderRadius: 999,
-    border: "1px solid rgba(255,255,255,0.14)",
-    background: "rgba(255,255,255,0.07)",
-    color: "#fff",
-    fontSize: 12,
-    fontWeight: 800,
-    fontFamily: fontStack,
-    cursor: "pointer",
-    whiteSpace: "nowrap",
-  };
-
-  const tabButton = (tab: ActiveTab): CSSProperties => ({
-    ...buttonStyle,
-    background: activeTab === tab ? "#fff" : "rgba(255,255,255,0.07)",
-    color: activeTab === tab ? "#000" : "#fff",
-  });
-
-  const cardStyle: CSSProperties = {
-    width: "min(760px, calc(100vw - 28px))",
-    maxHeight: "calc(100dvh - 28px)",
-    overflow: "hidden",
-    borderRadius: 22,
-    border: "1px solid rgba(255,255,255,0.16)",
-    background:
-      "linear-gradient(180deg, rgba(18,18,18,0.98), rgba(8,8,8,0.98))",
-    color: "#fff",
-    boxShadow: "0 24px 90px rgba(0,0,0,0.78)",
-    fontFamily: fontStack,
-    boxSizing: "border-box",
-    display: "grid",
-    gridTemplateRows: "auto auto minmax(0, 1fr)",
-  };
-
   const dateUnavailable = tProfile("dateUnavailable");
 
-  return createPortal(
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label={tProfile("blockedAccountsTitle")}
-      onClick={onClose}
-      style={{
-        position: "fixed",
-        inset: 0,
-        zIndex: 999999,
-        background: "rgba(0,0,0,0.76)",
-        backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding:
-          "max(14px, env(safe-area-inset-top)) 14px max(14px, env(safe-area-inset-bottom))",
-        boxSizing: "border-box",
-      }}
+  return (
+    <VibraResponsivePanel
+      open={open}
+      onClose={onClose}
+      title={tProfile("blockedAccountsTitle")}
+      subtitle={tProfile("blockedAccountsDesc")}
+      closeAriaLabel={tCommon("closeAriaLabel")}
+      maxWidthDesktop={480}
+      contentPadding="0"
     >
-      <div style={cardStyle} onClick={(event) => event.stopPropagation()}>
-        <style jsx>{`
-          @media (max-width: 560px) {
-            .blocked-account-row {
-              grid-template-columns: 1fr !important;
-            }
-
-            .blocked-account-action {
-              width: 100%;
-            }
-
-            .blocked-account-tabs {
-              grid-template-columns: 1fr !important;
-            }
-          }
-        `}</style>
-
-        <header
-          style={{
-            display: "flex",
-            alignItems: "flex-start",
-            justifyContent: "space-between",
-            gap: 12,
-            padding: 18,
-            borderBottom: "1px solid rgba(255,255,255,0.08)",
-          }}
-        >
-          <div style={{ minWidth: 0 }}>
-            <h2
-              style={{
-                margin: 0,
-                fontSize: 18,
-                lineHeight: 1.2,
-                fontWeight: 850,
-                color: "#fff",
-              }}
-            >
-              {tProfile("blockedAccountsTitle")}
-            </h2>
-
-            <p
-              style={{
-                margin: "6px 0 0",
-                fontSize: 12.5,
-                lineHeight: 1.45,
-                color: "rgba(255,255,255,0.58)",
-              }}
-            >
-              {tProfile("blockedAccountsDesc")}
-            </p>
-          </div>
-
-          <button
-            type="button"
-            onClick={onClose}
-            style={{
-              ...buttonStyle,
-              minWidth: 38,
-              padding: "8px 10px",
-              fontSize: 16,
-              lineHeight: 1,
-            }}
-            aria-label={tCommon("closeAriaLabel")}
-          >
-            ×
-          </button>
-        </header>
-
+      <div>
         <div
-          className="blocked-account-tabs"
           style={{
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr",
-            gap: 8,
-            padding: 14,
+            position: "sticky",
+            top: 0,
+            zIndex: 1,
+            background: "rgba(8,9,11,0.96)",
             borderBottom: "1px solid rgba(255,255,255,0.08)",
           }}
         >
-          <button
-            type="button"
-            style={tabButton("profile")}
-            onClick={() => setActiveTab("profile")}
+          <div
+            style={{
+              position: "relative",
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              padding: "0 8px",
+            }}
           >
-            {tProfile("blockedProfiles")} ({profileBlocks.length})
-          </button>
+            {/* Indicador deslizante bajo la pestaña activa */}
+            <span
+              aria-hidden="true"
+              style={{
+                position: "absolute",
+                left: 8,
+                bottom: 0,
+                width: "calc((100% - 16px) / 2)",
+                height: 2,
+                pointerEvents: "none",
+                transform: `translate3d(${activeTab === "profile" ? 0 : 100}%, 0, 0)`,
+                transition: "transform 360ms cubic-bezier(0.2, 0.9, 0.2, 1)",
+                willChange: "transform",
+                zIndex: 2,
+              }}
+            >
+              <span
+                style={{
+                  position: "absolute",
+                  left: "50%",
+                  transform: "translateX(-50%)",
+                  width: "72%",
+                  height: 2,
+                  borderRadius: 999,
+                  background: "#fff",
+                }}
+              />
+            </span>
 
-          <button
-            type="button"
-            style={tabButton("groups")}
-            onClick={() => setActiveTab("groups")}
-          >
-            {tProfile("blockedInCommunities")} ({groupBlocks.length})
-          </button>
+            {(["profile", "groups"] as ActiveTab[]).map((tab) => {
+              const active = activeTab === tab;
+              return (
+                <button
+                  key={tab}
+                  type="button"
+                  onClick={() => setActiveTab(tab)}
+                  aria-pressed={active}
+                  style={{
+                    position: "relative",
+                    zIndex: 1,
+                    minHeight: 38,
+                    border: "none",
+                    background: "transparent",
+                    cursor: "pointer",
+                    fontSize: 13,
+                    fontWeight: 500,
+                    fontFamily: fontStack,
+                    letterSpacing: "-0.01em",
+                    color: active ? "#fff" : "rgba(255,255,255,0.45)",
+                    transition: "color 0.2s ease",
+                    padding: "10px 6px 5px",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {tab === "profile"
+                    ? tProfile("blockedProfiles")
+                    : tProfile("blockedInCommunities")}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         <main
           style={{
-            overflowY: "auto",
             padding: 14,
             display: "grid",
             gap: 10,
             minHeight: 0,
           }}
         >
+          {uid && !loading && !error && activeItems.length > 0 && (
+            <div
+              style={{
+                fontSize: 11.5,
+                fontWeight: 500,
+                color: "rgba(255,255,255,0.42)",
+                padding: "0 2px",
+              }}
+            >
+              {tProfile("blockedCountLabel", { count: activeItems.length })}
+            </div>
+          )}
+
           {!uid && (
             <EmptyState text={tProfile("blockedLoginRequired")} />
           )}
@@ -402,14 +336,20 @@ export default function BlockedAccountsOverlay({
             </div>
           )}
 
-          {uid && !loading && activeItems.length === 0 && (
-            <EmptyState
-              text={
-                activeTab === "profile"
-                  ? tProfile("noBlockedProfiles")
-                  : tProfile("noBlockedInCommunities")
-              }
-            />
+          {uid && !loading && !error && activeItems.length === 0 && (
+            <div
+              style={{
+                minHeight: 280,
+                display: "grid",
+                placeItems: "center",
+                fontSize: 13,
+                lineHeight: 1.45,
+                color: "rgba(255,255,255,0.6)",
+                textAlign: "center",
+              }}
+            >
+              {tProfile("noBlockedUsers")}
+            </div>
           )}
 
           {activeTab === "profile" &&
@@ -427,9 +367,9 @@ export default function BlockedAccountsOverlay({
                     gap: 12,
                     alignItems: "center",
                     borderRadius: 16,
-                    border: "1px solid rgba(255,255,255,0.09)",
-                    background: "rgba(255,255,255,0.04)",
-                    padding: 12,
+                    border: "1px solid transparent",
+                    background: "transparent",
+                    padding: "12px 2px",
                   }}
                 >
                   <div
@@ -451,7 +391,7 @@ export default function BlockedAccountsOverlay({
     href={`/u/${account.user.handle}`}
     style={{
       fontSize: 14,
-      fontWeight: 800,
+      fontWeight: 500,
       color: "#fff",
       overflow: "hidden",
       textOverflow: "ellipsis",
@@ -466,7 +406,7 @@ export default function BlockedAccountsOverlay({
   <div
     style={{
       fontSize: 14,
-      fontWeight: 800,
+      fontWeight: 500,
       color: "#fff",
       overflow: "hidden",
       textOverflow: "ellipsis",
@@ -487,10 +427,9 @@ export default function BlockedAccountsOverlay({
                           whiteSpace: "nowrap",
                         }}
                       >
-                        {account.user.handle
-                          ? `@${account.user.handle}`
-                          : tProfile("blockedProfileFallback")}{" "}
-                        · {formatBlockedDate(account.createdAt, dateUnavailable)}
+                        {tProfile("blockedOnDate", {
+                          date: formatBlockedDate(account.createdAt, dateUnavailable),
+                        })}
                       </div>
                     </div>
                   </div>
@@ -501,11 +440,18 @@ export default function BlockedAccountsOverlay({
                     disabled={isBusy}
                     onClick={() => handleUnblockProfile(account)}
                     style={{
-                      ...buttonStyle,
-                      background: isBusy ? "rgba(255,255,255,0.12)" : "#fff",
-                      color: isBusy ? "#fff" : "#000",
-                      opacity: isBusy ? 0.75 : 1,
+                      height: 36,
+                      padding: "0 16px",
+                      borderRadius: 6,
+                      border: "none",
+                      background: "rgba(255,255,255,0.10)",
+                      color: "rgba(255,255,255,0.70)",
+                      fontWeight: 500,
+                      fontSize: 13,
+                      fontFamily: fontStack,
+                      opacity: isBusy ? 0.7 : 1,
                       cursor: isBusy ? "not-allowed" : "pointer",
+                      whiteSpace: "nowrap",
                     }}
                   >
                     {isBusy ? tProfile("unblockingLabel") : tProfile("unblockLabel")}
@@ -529,9 +475,9 @@ export default function BlockedAccountsOverlay({
                     gap: 12,
                     alignItems: "center",
                     borderRadius: 16,
-                    border: "1px solid rgba(255,255,255,0.09)",
-                    background: "rgba(255,255,255,0.04)",
-                    padding: 12,
+                    border: "1px solid transparent",
+                    background: "transparent",
+                    padding: "12px 2px",
                   }}
                 >
                   <div
@@ -548,40 +494,86 @@ export default function BlockedAccountsOverlay({
                     />
 
                     <div style={{ minWidth: 0 }}>
-{account.user.handle ? (
-  <Link
-    href={`/u/${account.user.handle}`}
-    style={{
-      fontSize: 14,
-      fontWeight: 800,
-      color: "#fff",
-      overflow: "hidden",
-      textOverflow: "ellipsis",
-      whiteSpace: "nowrap",
-      textDecoration: "none",
-      display: "block",
-    }}
-  >
-    {account.user.displayName}
-  </Link>
-) : (
-  <div
-    style={{
-      fontSize: 14,
-      fontWeight: 800,
-      color: "#fff",
-      overflow: "hidden",
-      textOverflow: "ellipsis",
-      whiteSpace: "nowrap",
-    }}
-  >
-    {account.user.displayName}
-  </div>
-)}
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 8,
+                          minWidth: 0,
+                        }}
+                      >
+                        {account.user.handle ? (
+                          <Link
+                            href={`/u/${account.user.handle}`}
+                            style={{
+                              fontSize: 14,
+                              fontWeight: 500,
+                              color: "#fff",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                              textDecoration: "none",
+                              flex: "0 1 auto",
+                              minWidth: 0,
+                            }}
+                          >
+                            {account.user.displayName}
+                          </Link>
+                        ) : (
+                          <div
+                            style={{
+                              fontSize: 14,
+                              fontWeight: 500,
+                              color: "#fff",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                              flex: "0 1 auto",
+                              minWidth: 0,
+                            }}
+                          >
+                            {account.user.displayName}
+                          </div>
+                        )}
+
+                        <Link
+                          href={`/groups/${account.groupId}`}
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 6,
+                            minWidth: 0,
+                            flexShrink: 0,
+                            textDecoration: "none",
+                            color: "rgba(255,255,255,0.64)",
+                          }}
+                        >
+                          <InitialAvatar
+                            label={account.group.name}
+                            imageUrl={account.group.avatarUrl ?? account.group.imageUrl}
+                            size={16}
+                          />
+                          <span
+                            style={{
+                              minWidth: 0,
+                              maxWidth: 130,
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                              fontSize: 10.5,
+                              fontWeight: 500,
+                              letterSpacing: "-0.01em",
+                              color: "rgba(255,255,255,0.64)",
+                            }}
+                          >
+                            {account.group.name}
+                          </span>
+                        </Link>
+                      </div>
 
                       <div
                         style={{
-                          marginTop: 3,
+                          marginTop: 4,
                           fontSize: 12,
                           color: "rgba(255,255,255,0.56)",
                           overflow: "hidden",
@@ -589,46 +581,10 @@ export default function BlockedAccountsOverlay({
                           whiteSpace: "nowrap",
                         }}
                       >
-                        {account.user.handle
-                          ? `@${account.user.handle}`
-                          : tProfile("blockedUserFallback")}{" "}
-                        · {formatBlockedDate(account.createdAt, dateUnavailable)}
+                        {tProfile("blockedOnDate", {
+                          date: formatBlockedDate(account.createdAt, dateUnavailable),
+                        })}
                       </div>
-
-<Link
-  href={`/groups/${account.groupId}`}
-  style={{
-    marginTop: 8,
-    display: "inline-flex",
-    alignItems: "center",
-    gap: 7,
-    minWidth: 0,
-    maxWidth: "100%",
-    borderRadius: 999,
-    border: "1px solid rgba(255,255,255,0.10)",
-    background: "rgba(255,255,255,0.05)",
-    padding: "5px 8px",
-    fontSize: 11.5,
-    color: "rgba(255,255,255,0.72)",
-    textDecoration: "none",
-  }}
->
-  <InitialAvatar
-    label={account.group.name}
-    imageUrl={account.group.avatarUrl ?? account.group.imageUrl}
-    size={20}
-  />
-  <span
-    style={{
-      minWidth: 0,
-      overflow: "hidden",
-      textOverflow: "ellipsis",
-      whiteSpace: "nowrap",
-    }}
-  >
-    {account.group.name}
-  </span>
-</Link>
                     </div>
                   </div>
 
@@ -638,11 +594,18 @@ export default function BlockedAccountsOverlay({
                     disabled={isBusy}
                     onClick={() => handleUnblockGroup(account)}
                     style={{
-                      ...buttonStyle,
-                      background: isBusy ? "rgba(255,255,255,0.12)" : "#fff",
-                      color: isBusy ? "#fff" : "#000",
-                      opacity: isBusy ? 0.75 : 1,
+                      height: 36,
+                      padding: "0 16px",
+                      borderRadius: 6,
+                      border: "none",
+                      background: "rgba(255,255,255,0.10)",
+                      color: "rgba(255,255,255,0.70)",
+                      fontWeight: 500,
+                      fontSize: 13,
+                      fontFamily: fontStack,
+                      opacity: isBusy ? 0.7 : 1,
                       cursor: isBusy ? "not-allowed" : "pointer",
+                      whiteSpace: "nowrap",
                     }}
                   >
                     {isBusy ? tProfile("unblockingLabel") : tProfile("unblockLabel")}
@@ -652,7 +615,6 @@ export default function BlockedAccountsOverlay({
             })}
         </main>
       </div>
-    </div>,
-    document.body
+    </VibraResponsivePanel>
   );
 }

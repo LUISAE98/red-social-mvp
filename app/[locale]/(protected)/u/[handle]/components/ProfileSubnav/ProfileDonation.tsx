@@ -45,6 +45,7 @@ type OverlayModalProps = {
   confirmLabel?: string;
   cancelLabel?: string;
   loading?: boolean;
+  confirmDisabled?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
 };
@@ -64,7 +65,7 @@ type Props = {
   SwitchComponent: React.ComponentType<SwitchProps>;
   DonationModeButtonComponent: React.ComponentType<ModeButtonProps>;
   OverlayModalComponent: React.ComponentType<OverlayModalProps>;
-  onSaveDraft: (nextDraft: AnyDraft) => Promise<void>;
+  onSaveDraft: (nextDraft: AnyDraft) => Promise<boolean | void>;
 };
 
 type OverlayMode = null | "activate" | "edit";
@@ -353,6 +354,21 @@ export default function ProfileDonation({
   const savedPlaybackId = draft.donationPlaybackId as string;
   const overlayPlaybackId = overlayDraft.donationPlaybackId as string;
 
+  // Estados del flujo de subida del video de donación:
+  //  - isUploadingVideo: subiendo (0–100) o procesando en Mux → "Subiendo tu video..."
+  //  - videoReady: ya hay video listo → "Tu video está listo..."
+  //  - (ninguno): estado inicial → invitación a subir
+  const isUploadingVideo = uploadProgress !== null || uploadPending;
+  const videoReady = Boolean(overlayPlaybackId || savedPlaybackId);
+
+  // Solo se puede publicar la experiencia cuando están los tres requisitos:
+  // mensaje, monto mínimo válido y video listo (y no se está subiendo).
+  const canPublishDonation =
+    (overlayDraft.donationMessage as string).trim().length > 0 &&
+    Number(overlayDraft.donationMinimumAmount) > 0 &&
+    videoReady &&
+    !isUploadingVideo;
+
   return (
     <>
       <div className="serviceActivationPanel" style={panelStyle}>
@@ -396,7 +412,9 @@ export default function ProfileDonation({
       <OverlayModalComponent
         open={overlayMode !== null}
         title={tProfile("donationConfigTitle")}
-        loading={isBusy}
+        loading={saving}
+        confirmDisabled={!canPublishDonation}
+        confirmLabel={tProfile("donationPublishExperience")}
         onCancel={closeOverlay}
         onConfirm={() => void confirmOverlaySave()}
       >
@@ -412,15 +430,15 @@ export default function ProfileDonation({
             maxLength={160}
             style={{ ...inputStyle, width: "100%", resize: "vertical" }}
           />
-          <div style={{ ...subtleStyle, textAlign: "right", marginTop: 4 }}>
+          <div style={{ ...subtleStyle, textAlign: "right", marginTop: 2 }}>
             {(overlayDraft.donationMessage as string).length} / 160
           </div>
         </div>
 
         {/* Amount + currency */}
-        <div>
-          <div style={{ ...subtleStyle, marginBottom: 8 }}>{tProfile("donationMinAmount")}</div>
-          <div style={{ display: "flex", gap: 8 }}>
+        <div style={{ marginTop: -6 }}>
+          <div style={{ ...subtleStyle, marginBottom: 6 }}>{tProfile("donationMinAmountLegend")}</div>
+          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
             <input
               type="number"
               min="1"
@@ -433,12 +451,11 @@ export default function ProfileDonation({
             />
             <span
               style={{
-                ...inputStyle,
-                width: 90,
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                opacity: 0.75,
+                color: "#7dd3fc",
+                fontSize: 20,
+                fontWeight: 700,
+                letterSpacing: "-0.01em",
+                whiteSpace: "nowrap",
               }}
             >
               {displayCurrency}
@@ -451,46 +468,139 @@ export default function ProfileDonation({
               = {formatAnchor(resolveStoredPrice(Number(overlayDraft.donationMinimumAmount)).price)}
             </div>
           ) : null}
+          {(overlayDraft.donationMinimumAmount as string) &&
+          Number(overlayDraft.donationMinimumAmount) > 0 ? (
+            <div style={{ ...subtleStyle, marginTop: 4 }}>
+              {tProfile.rich("donationEarningsLegend", {
+                // Monto neto = mínimo − 23% de comisión de Vibra, en la moneda del creador.
+                net: formatMoney(Number(overlayDraft.donationMinimumAmount) * 0.77, {
+                  baseCurrency: displayCurrency,
+                }),
+                amount: (chunks) => (
+                  <span style={{ color: "#7dd3fc", fontWeight: 700 }}>{chunks}</span>
+                ),
+              })}
+            </div>
+          ) : null}
         </div>
 
-        {/* Video upload */}
+        {/* Video upload — sin botón: texto celeste clicable + barra de progreso */}
         <div>
-          <div style={{ ...subtleStyle, marginBottom: 8 }}>{tProfile("donationVideoLabel")}</div>
+          <style jsx>{`
+            @keyframes donationDotBlink {
+              0%,
+              80%,
+              100% {
+                opacity: 0.2;
+              }
+              40% {
+                opacity: 1;
+              }
+            }
+            .donationUploadDots span {
+              animation: donationDotBlink 1.4s infinite both;
+            }
+            .donationUploadDots span:nth-child(2) {
+              animation-delay: 0.2s;
+            }
+            .donationUploadDots span:nth-child(3) {
+              animation-delay: 0.4s;
+            }
+          `}</style>
 
-          {/* Already has a ready playbackId */}
-          {overlayPlaybackId && !uploadPending && uploadProgress === null && (
-            <div style={{ ...subtleStyle, color: "#a3e635", marginBottom: 8 }}>{tProfile("donationVideoReady")}</div>
-          )}
-
-          {/* Saved playbackId from draft but overlayDraft hasn't picked it up yet */}
-          {!overlayPlaybackId && savedPlaybackId && !uploadPending && uploadProgress === null && (
-            <div style={{ ...subtleStyle, color: "#a3e635", marginBottom: 8 }}>{tProfile("donationVideoReady")}</div>
-          )}
-
-          {/* Upload in progress */}
-          {uploadProgress !== null && (
-            <div style={{ ...subtleStyle, marginBottom: 8 }}>{tProfile("donationUploading", { progress: uploadProgress })}</div>
-          )}
-
-          {/* Pending processing */}
-          {uploadPending && uploadProgress === null && (
-            <div style={{ ...subtleStyle, color: "rgba(255,200,80,0.9)", marginBottom: 8 }}>
-              {tProfile("donationProcessing")}
-            </div>
-          )}
-
-          {uploadProgress === null && (
+          {isUploadingVideo ? (
+            <>
+              <div style={{ color: "#7dd3fc", fontSize: 13, fontWeight: 600, textAlign: "center" }}>
+                {tProfile("donationVideoUploadingLabel")}
+                <span className="donationUploadDots" aria-hidden="true">
+                  <span>.</span>
+                  <span>.</span>
+                  <span>.</span>
+                </span>
+              </div>
+              <div
+                style={{
+                  height: 3,
+                  borderRadius: 999,
+                  background: "rgba(255,255,255,0.12)",
+                  overflow: "hidden",
+                  marginTop: 8,
+                }}
+              >
+                <div
+                  style={{
+                    height: "100%",
+                    width: `${uploadProgress ?? 100}%`,
+                    background: "#fff",
+                    borderRadius: 999,
+                    transition: "width 200ms ease",
+                  }}
+                />
+              </div>
+            </>
+          ) : videoReady ? (
+            <>
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isBusy}
+                style={{
+                  background: "none",
+                  border: "none",
+                  padding: 0,
+                  margin: 0,
+                  width: "100%",
+                  color: "#7dd3fc",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  lineHeight: 1.4,
+                  textAlign: "center",
+                  fontFamily: "inherit",
+                  cursor: isBusy ? "not-allowed" : "pointer",
+                }}
+              >
+                {tProfile("donationVideoReadyCta")}
+              </button>
+              {/* La barra se queda cargada al 100% hasta que se cambie el video. */}
+              <div
+                style={{
+                  height: 3,
+                  borderRadius: 999,
+                  background: "rgba(255,255,255,0.12)",
+                  overflow: "hidden",
+                  marginTop: 8,
+                }}
+              >
+                <div
+                  style={{
+                    height: "100%",
+                    width: "100%",
+                    background: "#fff",
+                    borderRadius: 999,
+                  }}
+                />
+              </div>
+            </>
+          ) : (
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
               disabled={isBusy}
               style={{
-                ...buttonSecondaryStyle,
-                opacity: isBusy ? 0.6 : 1,
+                background: "none",
+                border: "none",
+                padding: 0,
+                margin: 0,
+                color: "#7dd3fc",
+                fontSize: 13,
+                fontWeight: 600,
+                lineHeight: 1.4,
+                textAlign: "left",
+                fontFamily: "inherit",
                 cursor: isBusy ? "not-allowed" : "pointer",
               }}
             >
-              {overlayPlaybackId || savedPlaybackId ? tProfile("donationChangeVideo") : tProfile("donationUploadVideo")}
+              {tProfile("donationVideoUploadCta")}
             </button>
           )}
 

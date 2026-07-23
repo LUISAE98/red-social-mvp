@@ -2,8 +2,8 @@
 
 import { useTranslations } from "next-intl";
 import { CSSProperties, useEffect, useMemo, useState } from "react";
-import { createPortal } from "react-dom";
 
+import VibraResponsivePanel from "@/components/ui/VibraResponsivePanel";
 import type { UserSession } from "@/types/session";
 import {
   getOrCreateSessionId,
@@ -44,7 +44,18 @@ function formatRelative(
   return labels.days(days);
 }
 
-function DeviceGlyph() {
+// Distingue celular vs. ordenador a partir del user agent (o de la etiqueta
+// legible como fallback). Sirve para elegir el ícono del dispositivo.
+function isMobileSession(session: UserSession): boolean {
+  const ua = session.userAgent ?? "";
+  const label = session.deviceLabel ?? "";
+  return (
+    /Mobi|Android|iPhone|iPod|Windows Phone|iPad/i.test(ua) ||
+    /Android|iOS|iPhone|iPad|iPod/i.test(label)
+  );
+}
+
+function DeviceGlyph({ mobile }: { mobile: boolean }) {
   return (
     <div
       aria-hidden="true"
@@ -53,27 +64,45 @@ function DeviceGlyph() {
         height: 42,
         borderRadius: 12,
         flex: "0 0 auto",
-        border: "1px solid rgba(255,255,255,0.12)",
-        background: "rgba(255,255,255,0.08)",
+        border: "1px solid transparent",
+        background: "transparent",
         display: "grid",
         placeItems: "center",
         color: "#fff",
       }}
     >
-      <svg
-        width="20"
-        height="20"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <rect x="2" y="3" width="20" height="14" rx="2" />
-        <line x1="8" y1="21" x2="16" y2="21" />
-        <line x1="12" y1="17" x2="12" y2="21" />
-      </svg>
+      {mobile ? (
+        // Celular: teléfono vertical
+        <svg
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <rect x="6" y="2" width="12" height="20" rx="2.5" />
+          <line x1="10" y1="18.5" x2="14" y2="18.5" />
+        </svg>
+      ) : (
+        // Ordenador: monitor
+        <svg
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <rect x="2" y="3" width="20" height="14" rx="2" />
+          <line x1="8" y1="21" x2="16" y2="21" />
+          <line x1="12" y1="17" x2="12" y2="21" />
+        </svg>
+      )}
     </div>
   );
 }
@@ -105,7 +134,6 @@ export default function SessionsOverlay({
   const tProfile = useTranslations("profile");
   const tCommon = useTranslations("common");
 
-  const [mounted, setMounted] = useState(false);
   const [sessions, setSessions] = useState<UserSession[]>([]);
   const [loading, setLoading] = useState(false);
   const [busyKey, setBusyKey] = useState<string | null>(null);
@@ -115,20 +143,8 @@ export default function SessionsOverlay({
   const uid = currentUserId?.trim() || "";
 
   useEffect(() => {
-    setMounted(true);
     setCurrentSessionId(getOrCreateSessionId());
   }, []);
-
-  useEffect(() => {
-    if (!open) return;
-
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-
-    return () => {
-      document.body.style.overflow = previousOverflow;
-    };
-  }, [open]);
 
   useEffect(() => {
     if (!open || !uid) {
@@ -209,128 +225,21 @@ export default function SessionsOverlay({
     }
   }
 
-  if (!open || !mounted || typeof document === "undefined") return null;
-
   const fontStack = "inherit";
 
-  const buttonStyle: CSSProperties = {
-    minHeight: 34,
-    padding: "8px 12px",
-    borderRadius: 999,
-    border: "1px solid rgba(255,255,255,0.14)",
-    background: "rgba(255,255,255,0.07)",
-    color: "#fff",
-    fontSize: 12,
-    fontWeight: 800,
-    fontFamily: fontStack,
-    cursor: "pointer",
-    whiteSpace: "nowrap",
-  };
-
-  const cardStyle: CSSProperties = {
-    width: "min(680px, calc(100vw - 28px))",
-    maxHeight: "calc(100dvh - 28px)",
-    overflow: "hidden",
-    borderRadius: 22,
-    border: "1px solid rgba(255,255,255,0.16)",
-    background: "linear-gradient(180deg, rgba(18,18,18,0.98), rgba(8,8,8,0.98))",
-    color: "#fff",
-    boxShadow: "0 24px 90px rgba(0,0,0,0.78)",
-    fontFamily: fontStack,
-    boxSizing: "border-box",
-    display: "grid",
-    gridTemplateRows: "auto minmax(0, 1fr)",
-  };
-
-  return createPortal(
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label={tProfile("sessionsTitle")}
-      onClick={onClose}
-      style={{
-        position: "fixed",
-        inset: 0,
-        zIndex: 999999,
-        background: "rgba(0,0,0,0.76)",
-        backdropFilter: "blur(12px)",
-        WebkitBackdropFilter: "blur(12px)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding:
-          "max(14px, env(safe-area-inset-top)) 14px max(14px, env(safe-area-inset-bottom))",
-        boxSizing: "border-box",
-      }}
+  return (
+    <VibraResponsivePanel
+      open={open}
+      onClose={onClose}
+      title={tProfile("sessionsTitle")}
+      subtitle={tProfile("sessionsDesc")}
+      closeAriaLabel={tCommon("closeAriaLabel")}
+      maxWidthDesktop={480}
+      contentPadding="14px"
     >
-      <div style={cardStyle} onClick={(event) => event.stopPropagation()}>
-        <style jsx>{`
-          @media (max-width: 560px) {
-            .session-row {
-              grid-template-columns: 1fr !important;
-            }
-
-            .session-action {
-              width: 100%;
-            }
-          }
-        `}</style>
-
-        <header
-          style={{
-            display: "flex",
-            alignItems: "flex-start",
-            justifyContent: "space-between",
-            gap: 12,
-            padding: 18,
-            borderBottom: "1px solid rgba(255,255,255,0.08)",
-          }}
-        >
-          <div style={{ minWidth: 0 }}>
-            <h2
-              style={{
-                margin: 0,
-                fontSize: 18,
-                lineHeight: 1.2,
-                fontWeight: 850,
-                color: "#fff",
-              }}
-            >
-              {tProfile("sessionsTitle")}
-            </h2>
-
-            <p
-              style={{
-                margin: "6px 0 0",
-                fontSize: 12.5,
-                lineHeight: 1.45,
-                color: "rgba(255,255,255,0.58)",
-              }}
-            >
-              {tProfile("sessionsDesc")}
-            </p>
-          </div>
-
-          <button
-            type="button"
-            onClick={onClose}
-            style={{
-              ...buttonStyle,
-              minWidth: 38,
-              padding: "8px 10px",
-              fontSize: 16,
-              lineHeight: 1,
-            }}
-            aria-label={tCommon("closeAriaLabel")}
-          >
-            ×
-          </button>
-        </header>
-
+      <div>
         <main
           style={{
-            overflowY: "auto",
-            padding: 14,
             display: "grid",
             gap: 10,
             minHeight: 0,
@@ -369,16 +278,21 @@ export default function SessionsOverlay({
               disabled={busyKey === "__others__"}
               onClick={handleRevokeOthers}
               style={{
-                ...buttonStyle,
                 width: "100%",
+                height: 36,
+                borderRadius: 6,
+                border: "none",
+                background: "rgba(239,68,68,0.16)",
+                color: "#ff6b6b",
+                fontWeight: 500,
+                fontSize: 13,
+                fontFamily: fontStack,
+                display: "flex",
+                alignItems: "center",
                 justifyContent: "center",
-                background:
-                  busyKey === "__others__"
-                    ? "rgba(255,255,255,0.12)"
-                    : "rgba(255,90,90,0.14)",
-                border: "1px solid rgba(255,90,90,0.30)",
-                opacity: busyKey === "__others__" ? 0.75 : 1,
+                opacity: busyKey === "__others__" ? 0.7 : 1,
                 cursor: busyKey === "__others__" ? "not-allowed" : "pointer",
+                whiteSpace: "nowrap",
               }}
             >
               {busyKey === "__others__"
@@ -403,13 +317,9 @@ export default function SessionsOverlay({
                   gap: 12,
                   alignItems: "center",
                   borderRadius: 16,
-                  border: isCurrent
-                    ? "1px solid rgba(120,200,140,0.35)"
-                    : "1px solid rgba(255,255,255,0.09)",
-                  background: isCurrent
-                    ? "rgba(120,200,140,0.07)"
-                    : "rgba(255,255,255,0.04)",
-                  padding: 12,
+                  border: "1px solid transparent",
+                  background: "transparent",
+                  padding: "12px 2px",
                 }}
               >
                 <div
@@ -420,7 +330,7 @@ export default function SessionsOverlay({
                     minWidth: 0,
                   }}
                 >
-                  <DeviceGlyph />
+                  <DeviceGlyph mobile={isMobileSession(session)} />
 
                   <div style={{ minWidth: 0 }}>
                     <div
@@ -434,7 +344,7 @@ export default function SessionsOverlay({
                       <span
                         style={{
                           fontSize: 14,
-                          fontWeight: 800,
+                          fontWeight: 500,
                           color: "#fff",
                           overflow: "hidden",
                           textOverflow: "ellipsis",
@@ -449,12 +359,11 @@ export default function SessionsOverlay({
                           style={{
                             flex: "0 0 auto",
                             fontSize: 10.5,
-                            fontWeight: 800,
+                            fontWeight: 500,
                             color: "#bfe9c8",
-                            border: "1px solid rgba(120,200,140,0.4)",
-                            background: "rgba(120,200,140,0.12)",
-                            borderRadius: 999,
-                            padding: "2px 8px",
+                            border: "1px solid transparent",
+                            background: "transparent",
+                            padding: 0,
                           }}
                         >
                           {tProfile("sessionThisDevice")}
@@ -485,11 +394,18 @@ export default function SessionsOverlay({
                     disabled={isBusy}
                     onClick={() => handleRevokeOne(session)}
                     style={{
-                      ...buttonStyle,
-                      background: isBusy ? "rgba(255,255,255,0.12)" : "#fff",
-                      color: isBusy ? "#fff" : "#000",
-                      opacity: isBusy ? 0.75 : 1,
+                      height: 36,
+                      padding: "0 16px",
+                      borderRadius: 6,
+                      border: "none",
+                      background: "rgba(255,255,255,0.10)",
+                      color: "rgba(255,255,255,0.70)",
+                      fontWeight: 500,
+                      fontSize: 13,
+                      fontFamily: fontStack,
+                      opacity: isBusy ? 0.7 : 1,
                       cursor: isBusy ? "not-allowed" : "pointer",
+                      whiteSpace: "nowrap",
                     }}
                   >
                     {isBusy
@@ -502,7 +418,6 @@ export default function SessionsOverlay({
           })}
         </main>
       </div>
-    </div>,
-    document.body
+    </VibraResponsivePanel>
   );
 }

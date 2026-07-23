@@ -1864,18 +1864,17 @@ await createExclusiveSessionRequest({
   padding: 0 12px 8px;
 }
 
-/* Solo la pestaña de experiencias: márgenes laterales un poco más angostos en
-   celular. Se hace REDUCIENDO el padding de .profile-content (12px → 8px): un
-   padding menor solo ensancha el área de contenido, nunca desborda. El subnav
-   (que vive dentro de .profile-content) se compensa con +4px para que NO se mueva
-   —así solo el contenido del tab queda más ancho—. */
+/* Solo la pestaña de experiencias (celular): el área de contenido va SIN padding
+   lateral aquí; el margen lo da un contenedor transparente dentro de la propia
+   pestaña (.services-tab-margins), que es la única fuente del margen simétrico y
+   centrado. El subnav se re-alinea a ese mismo margen para que quede parejo. */
 .profile-content--services {
-  padding-left: 8px;
-  padding-right: 8px;
+  padding-left: 0;
+  padding-right: 0;
 }
 .profile-content--services .profile-subnav-wrap {
-  padding-left: 4px;
-  padding-right: 4px;
+  padding-left: 10px;
+  padding-right: 10px;
 }
 
 .shared-communities-cover {
@@ -2376,10 +2375,14 @@ await createExclusiveSessionRequest({
                   {shouldHideProfileSocialContent ? (
                     <div
                       style={{
-                        ...styles.message,
                         marginTop: 18,
+                        marginLeft: "auto",
+                        marginRight: "auto",
                         textAlign: "center",
-                        maxWidth: 520,
+                        maxWidth: 460,
+                        fontSize: 12.5,
+                        lineHeight: 1.5,
+                        color: "rgba(255,255,255,0.6)",
                       }}
                     >
                       {checkingProfileBlock

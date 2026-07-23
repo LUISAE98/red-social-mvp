@@ -1,11 +1,10 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useState } from "react";
-import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import type { SharedCommunity } from "@/lib/social/sharedCommunities";
+import VibraResponsivePanel from "@/components/ui/VibraResponsivePanel";
 
 type SharedCommunitiesOverlayProps = {
   isOpen: boolean;
@@ -44,100 +43,60 @@ export default function SharedCommunitiesOverlay({
   const tGroups = useTranslations("groups");
   const tCommon = useTranslations("common");
 
-  const [mounted, setMounted] = useState(false);
+  return (
+    <VibraResponsivePanel
+      open={isOpen}
+      onClose={onClose}
+      title={tProfile("sharedCommunitiesTitle")}
+      subtitle={
+        communities.length === 1
+          ? tProfile("sharesCommunity")
+          : tProfile("sharesCommunities", { count: communities.length })
+      }
+      closeAriaLabel={tCommon("closeAriaLabel")}
+      maxWidthDesktop={440}
+      contentPadding="10px 12px calc(12px + env(safe-area-inset-bottom))"
+    >
+      <div style={{ display: "grid", gap: 2 }}>
+        {communities.map((community) => {
+          const imageUrl = getCommunityImage(community);
+          const visibilityLabel = getVisibilityLabel(community.visibility, tGroups);
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setMounted(true);
-  }, []);
+          return (
+            <Link
+              key={community.id}
+              href={`/groups/${community.id}`}
+              className="flex items-center gap-3 rounded-2xl px-3 py-3 transition hover:bg-white/5"
+              onClick={onClose}
+            >
+              <span className="relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white/8 text-sm font-bold text-white/75 ring-1 ring-white/10">
+                {imageUrl ? (
+                  <Image
+                    src={imageUrl}
+                    alt={community.name}
+                    fill
+                    style={{ objectFit: "cover" }}
+                  />
+                ) : (
+                  getInitial(community.name)
+                )}
+              </span>
 
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-
-    return () => {
-      document.body.style.overflow = previousOverflow;
-    };
-  }, [isOpen]);
-
-  if (!mounted || !isOpen) return null;
-
-  return createPortal(
-    <div className="fixed inset-0 z-[2147483647] flex items-end justify-center bg-black/80 px-4 py-4 backdrop-blur-md sm:items-center">
-      <button
-        type="button"
-        className="absolute inset-0 cursor-default"
-        aria-label={tProfile("sharedCommunitiesTitle")}
-        onClick={onClose}
-      />
-
-      <section className="relative z-[2147483647] w-full max-w-md overflow-hidden rounded-3xl border border-white/10 bg-[#07030d]/95 text-white shadow-[0_24px_80px_rgba(0,0,0,0.72)] backdrop-blur-xl">
-        <header className="flex items-start justify-between gap-4 border-b border-white/10 px-5 py-4">
-          <div>
-            <h2 className="text-base font-bold text-white">
-              {tProfile("sharedCommunitiesTitle")}
-            </h2>
-            <p className="mt-1 text-sm text-white/45">
-              {communities.length === 1
-                ? tProfile("sharesCommunity")
-                : tProfile("sharesCommunities", { count: communities.length })}
-            </p>
-          </div>
-
-          <button
-            type="button"
-            className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/5 text-lg font-bold text-white/70 transition hover:bg-white/10 hover:text-white"
-            aria-label={tCommon("closeAriaLabel")}
-            onClick={onClose}
-          >
-            ×
-          </button>
-        </header>
-
-        <div className="max-h-[70vh] overflow-y-auto px-3 py-3">
-          {communities.map((community) => {
-            const imageUrl = getCommunityImage(community);
-            const visibilityLabel = getVisibilityLabel(community.visibility, tGroups);
-
-            return (
-              <Link
-                key={community.id}
-                href={`/groups/${community.id}`}
-                className="flex items-center gap-3 rounded-2xl px-3 py-3 transition hover:bg-white/5"
-                onClick={onClose}
-              >
-                <span className="relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white/8 text-sm font-bold text-white/75 ring-1 ring-white/10">
-                  {imageUrl ? (
-                    <Image
-                      src={imageUrl}
-                      alt={community.name}
-                      fill
-                      style={{ objectFit: "cover" }}
-                    />
-                  ) : (
-                    getInitial(community.name)
-                  )}
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-semibold text-white">
+                  {community.name}
                 </span>
 
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-semibold text-white">
-                    {community.name}
+                {visibilityLabel ? (
+                  <span className="mt-0.5 block text-xs text-white/45">
+                    {visibilityLabel}
                   </span>
-
-                  {visibilityLabel ? (
-                    <span className="mt-0.5 block text-xs text-white/45">
-                      {visibilityLabel}
-                    </span>
-                  ) : null}
-                </span>
-              </Link>
-            );
-          })}
-        </div>
-      </section>
-    </div>,
-    document.body
+                ) : null}
+              </span>
+            </Link>
+          );
+        })}
+      </div>
+    </VibraResponsivePanel>
   );
 }

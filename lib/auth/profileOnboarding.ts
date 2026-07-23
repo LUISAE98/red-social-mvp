@@ -143,6 +143,11 @@ if (!email) {
       provider: "google",
       authProvider: "google.com",
       profileReserved: false,
+      // Defaults de privacidad para usuarios nuevos:
+      // - perfil NO restringido → todos pueden ver sus publicaciones.
+      // - comentarios habilitados → todos pueden comentar.
+      profileRestricted: false,
+      profileCommentsEnabled: true,
       isActive: true,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
