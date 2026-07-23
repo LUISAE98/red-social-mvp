@@ -4,7 +4,7 @@ import React, { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import ServiceInfoIcon from "@/components/services/ServiceInfoIcon";
-import ServiceFeaturePreview from "@/components/services/ServiceFeaturePreview";
+import ServicePreviewReveal from "@/components/services/ServicePreviewReveal";
 
 type Currency = "MXN" | "USD";
 
@@ -293,7 +293,7 @@ export default function Consejos({
 
   return (
     <>
-      <div style={panelStyle}>
+      <div className="serviceActivationPanel" style={panelStyle}>
         <div
           style={{
             display: "flex",
@@ -333,7 +333,7 @@ export default function Consejos({
         </div>
 
         {accentColor && !draft.consejo.enabled ? (
-          <ServiceFeaturePreview service="consejo" accentColor={accentColor} />
+          <ServicePreviewReveal service="consejo" accentColor={accentColor} />
         ) : null}
 
         {renderSummary()}

@@ -19,7 +19,7 @@ import { useAuth } from "@/app/providers";
 
 
 const VIBRA_RING = "linear-gradient(135deg, #ec4899 0%, #9333ea 52%, #3b82f6 100%)";
-const VIEW_THRESHOLD_MS = 15_000;
+const VIEW_THRESHOLD_MS = 2_000;
 const FONT =
   'inherit';
 

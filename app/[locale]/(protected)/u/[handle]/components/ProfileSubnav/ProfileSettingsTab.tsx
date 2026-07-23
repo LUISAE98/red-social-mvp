@@ -383,10 +383,8 @@ export default function ProfileSettingsTab({
   };
 
   const panel: CSSProperties = {
-    borderRadius: 16,
-    border: "1px solid rgba(255,255,255,0.08)",
-    background: "rgba(255,255,255,0.03)",
-    padding: 12,
+    background: "transparent",
+    padding: 0,
     display: "grid",
     gap: 10,
     width: "100%",

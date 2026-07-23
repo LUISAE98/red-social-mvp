@@ -800,6 +800,14 @@ export default function ProfileServicesTab({
     fontWeight: 500,
   };
 
+  // Línea sutil para separar cada experiencia, igual a la del sidebar derecho
+  // (.owner-sidebar-menu-divider). El espaciado vertical lo da el gap del grid.
+  const dividerStyle: React.CSSProperties = {
+    height: 1,
+    margin: "0 6px",
+    background: "rgba(255,255,255,0.1)",
+  };
+
   const inputStyle: React.CSSProperties = {
     padding: "8px 10px",
     borderRadius: 10,
@@ -1175,6 +1183,8 @@ export default function ProfileServicesTab({
       />
       </div>
 
+      <div aria-hidden="true" style={dividerStyle} />
+
       <div id="exp-consejo" style={{ scrollMarginTop: 80 }}>
       <Advice
         draft={draft}
@@ -1195,6 +1205,8 @@ export default function ProfileServicesTab({
         onSaveDraft={(d) => saveServicesFromDraft(d as unknown as ServiceDraft)}
       />
       </div>
+
+      <div aria-hidden="true" style={dividerStyle} />
 
       <div id="exp-meetGreet" style={{ scrollMarginTop: 80 }}>
       <MeetGreet
@@ -1217,6 +1229,8 @@ export default function ProfileServicesTab({
       />
       </div>
 
+      <div aria-hidden="true" style={dividerStyle} />
+
       <div id="exp-customClass" style={{ scrollMarginTop: 80 }}>
       <CustomClass
         draft={draft}
@@ -1237,6 +1251,8 @@ export default function ProfileServicesTab({
         onSaveDraft={(d) => saveServicesFromDraft(d as unknown as ServiceDraft)}
       />
       </div>
+
+      <div aria-hidden="true" style={dividerStyle} />
 
       <div id="exp-donation" style={{ scrollMarginTop: 80 }}>
       <ProfileDonation

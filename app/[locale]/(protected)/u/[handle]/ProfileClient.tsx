@@ -1864,6 +1864,20 @@ await createExclusiveSessionRequest({
   padding: 0 12px 8px;
 }
 
+/* Solo la pestaña de experiencias: márgenes laterales un poco más angostos en
+   celular. Se hace REDUCIENDO el padding de .profile-content (12px → 8px): un
+   padding menor solo ensancha el área de contenido, nunca desborda. El subnav
+   (que vive dentro de .profile-content) se compensa con +4px para que NO se mueva
+   —así solo el contenido del tab queda más ancho—. */
+.profile-content--services {
+  padding-left: 8px;
+  padding-right: 8px;
+}
+.profile-content--services .profile-subnav-wrap {
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
 .shared-communities-cover {
   left: 12px;
   top: 12px;
@@ -2101,7 +2115,11 @@ await createExclusiveSessionRequest({
 )}
             </div>
 
-            <div className="profile-content">
+            <div
+              className={`profile-content${
+                activeTab === "services" ? " profile-content--services" : ""
+              }`}
+            >
               <div
                 style={{
                   position: "absolute",
@@ -2419,7 +2437,7 @@ await createExclusiveSessionRequest({
 )}
 
 {shouldShowSubnav && (
-  <div style={{ marginTop: 8 }}>
+  <div className="profile-subnav-wrap" style={{ marginTop: 8 }}>
     <ProfileSubnav
                 activeTab={activeTab}
                 onChange={handleTabChange}
@@ -2632,7 +2650,17 @@ await createExclusiveSessionRequest({
             {activeTab === "settings" && isOwner && (
 <section
   className="profile-tab-panel"
-  style={{ ...styles.tabPlaceholder, marginTop: 8 }}
+  style={{
+    ...styles.tabPlaceholder,
+    marginTop: 8,
+    border: "none",
+    background: "transparent",
+    boxShadow: "none",
+    backdropFilter: "none",
+    WebkitBackdropFilter: "none",
+    borderRadius: 0,
+    padding: "0 16px",
+  }}
 >
                 <ProfileSettingsTab
   isSaving={savingProfileRestricted}

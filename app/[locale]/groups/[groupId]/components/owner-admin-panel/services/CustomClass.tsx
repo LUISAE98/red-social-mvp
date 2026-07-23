@@ -4,7 +4,7 @@ import React, { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import ServiceInfoIcon from "@/components/services/ServiceInfoIcon";
-import ServiceFeaturePreview from "@/components/services/ServiceFeaturePreview";
+import ServicePreviewReveal from "@/components/services/ServicePreviewReveal";
 
 type Currency = "MXN" | "USD";
 
@@ -306,7 +306,7 @@ export default function CustomClass({
 
   return (
     <>
-      <div style={panelStyle}>
+      <div className="serviceActivationPanel" style={panelStyle}>
         <div
           style={{
             display: "flex",
@@ -346,7 +346,7 @@ export default function CustomClass({
         </div>
 
         {accentColor && !draft.customClass.enabled ? (
-          <ServiceFeaturePreview service="customClass" accentColor={accentColor} />
+          <ServicePreviewReveal service="customClass" accentColor={accentColor} />
         ) : null}
 
         {renderSummary()}

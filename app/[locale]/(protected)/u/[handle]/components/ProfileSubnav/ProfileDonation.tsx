@@ -7,6 +7,7 @@ import { httpsCallable } from "firebase/functions";
 import { db, functions } from "@/lib/firebase";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import ServiceInfoIcon from "@/components/services/ServiceInfoIcon";
+import ServicePreviewReveal from "@/components/services/ServicePreviewReveal";
 
 type Currency = "MXN" | "USD";
 type DonationMode = "none" | "general" | "wedding";
@@ -354,7 +355,7 @@ export default function ProfileDonation({
 
   return (
     <>
-      <div style={panelStyle}>
+      <div className="serviceActivationPanel" style={panelStyle}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
           <div style={{ display: "grid", gap: 8, minWidth: 0 }}>
             <span style={titleStyle}>
@@ -369,7 +370,7 @@ export default function ProfileDonation({
                   : (descriptionStyle ?? subtleStyle)
               }
             >
-              {accentColor && !isEnabled ? <ServiceInfoIcon color={accentColor} /> : null}
+              {accentColor && !isEnabled ? <ServiceInfoIcon color="#7dd3fc" /> : null}
               <span>{tProfile("donationDesc")}</span>
             </span>
           </div>
@@ -381,6 +382,14 @@ export default function ProfileDonation({
             label={tProfile("donationEnableLabel")}
           />
         </div>
+
+        {/* Cuando está inactivo, resumen de lo que ofrece (igual que los demás
+            servicios). Iconos en azul celeste. Se descubre por hover (laptop) o
+            botón "Ver más" (celular). */}
+        {!isEnabled && (
+          <ServicePreviewReveal service="profileDonation" accentColor="#7dd3fc" />
+        )}
+
         {renderSummary()}
       </div>
 
