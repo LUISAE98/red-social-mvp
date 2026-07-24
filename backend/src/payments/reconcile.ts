@@ -64,9 +64,60 @@ export async function upsertPaymentIntentStatus(
 }
 
 /**
- * Aplica un pago APROBADO al documento de origen (voltea su bandera de pago).
- * Idempotente y defensivo: solo actúa si el doc sigue en "awaiting_payment"
- * (no pisa un estado ya pagado/reembolsado). Por ahora solo saludos/consejos.
+ * Materializa el documento de dominio a partir del payload guardado en el
+ * paymentIntent (campo `pendingField`). Idempotente: si el doc ya existe (el
+ * webhook y la respuesta síncrona compiten), no hace nada. Helper interno; el
+ * despacho por servicio es explícito en applyApprovedPaymentToSource.
+ */
+async function materializeFromIntent(
+  externalReference: string,
+  targetCollection: string,
+  sourceId: string,
+  pendingField: string,
+  meta: { mpOrderId?: string | null; mpPaymentId?: string | null }
+): Promise<void> {
+  const targetRef = db.doc(`${targetCollection}/${sourceId}`);
+  const intentRef = db.collection("paymentIntents").doc(externalReference);
+
+  await db.runTransaction(async (tx) => {
+    const [targetSnap, intentSnap] = await Promise.all([
+      tx.get(targetRef),
+      tx.get(intentRef),
+    ]);
+
+    if (targetSnap.exists) return; // ya materializado (idempotente)
+
+    const pending = intentSnap.exists
+      ? (intentSnap.data()?.[pendingField] as Record<string, unknown> | undefined)
+      : undefined;
+    if (!pending || typeof pending !== "object") {
+      logger.warn("reconcile: sin payload para materializar", {
+        externalReference,
+        pendingField,
+      });
+      return;
+    }
+
+    const now = FieldValue.serverTimestamp();
+    tx.set(targetRef, {
+      ...pending,
+      paymentStatus: "paid",
+      mpOrderId: meta.mpOrderId ?? null,
+      mpPaymentId: meta.mpPaymentId ?? null,
+      paidAt: now,
+      createdAt: now,
+      updatedAt: now,
+    });
+  });
+}
+
+/**
+ * Aplica un pago APROBADO al documento de origen. Idempotente.
+ *
+ * Pagar-luego-crear: el documento de dominio NO existe hasta que el pago
+ * aprueba; aquí se MATERIALIZA a partir del paymentIntent. El despacho es
+ * EXPLÍCITO por servicio (cada uno con su colección y su campo pending), para
+ * poder manejar diferencias por servicio sin una abstracción prematura.
  */
 export async function applyApprovedPaymentToSource(
   externalReference: string,
@@ -81,22 +132,12 @@ export async function applyApprovedPaymentToSource(
   const sourceId = externalReference.slice(sep + 2);
 
   if (sourceType === "greetingRequest") {
-    const ref = db.doc(`greetingRequests/${sourceId}`);
-    await db.runTransaction(async (tx) => {
-      const snap = await tx.get(ref);
-      if (!snap.exists) return;
-      const d = snap.data() ?? {};
-      if (d.paymentStatus === "paid") return; // ya aplicado (idempotente)
-      if (d.paymentStatus !== "awaiting_payment") return; // no pisar otros estados
-      tx.update(ref, {
-        paymentStatus: "paid",
-        paymentMode: "mercadopago",
-        mpOrderId: meta.mpOrderId ?? null,
-        mpPaymentId: meta.mpPaymentId ?? null,
-        paidAt: FieldValue.serverTimestamp(),
-        updatedAt: FieldValue.serverTimestamp(),
-      });
-    });
+    await materializeFromIntent(externalReference, "greetingRequests", sourceId, "pendingGreeting", meta);
+    return;
+  }
+
+  if (sourceType === "exclusiveSessionRequest") {
+    await materializeFromIntent(externalReference, "exclusiveSessionRequests", sourceId, "pendingSession", meta);
     return;
   }
 

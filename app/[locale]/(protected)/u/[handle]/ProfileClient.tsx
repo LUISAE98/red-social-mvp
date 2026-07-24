@@ -44,7 +44,9 @@ import {
   createGreetingRequest,
   type GreetingType,
 } from "@/lib/greetings/greetingRequests";
-import GreetingPaymentModal from "@/components/payments/GreetingPaymentModal";
+import ServicePaymentModal from "@/components/payments/ServicePaymentModal";
+import { payGreeting } from "@/lib/payments/payGreeting";
+import { payExclusiveSession } from "@/lib/payments/payExclusiveSession";
 import { createMeetGreetRequest } from "@/lib/meetGreet/meetGreetRequests";
 import { registrarCompraGeo } from "@/lib/wallet/registrarCompraGeo";
 import { createExclusiveSessionRequest } from "@/lib/exclusiveSession/exclusiveSessionRequests";
@@ -364,6 +366,11 @@ const [payGreetOpen, setPayGreetOpen] = useState(false);
 const [payGreetId, setPayGreetId] = useState<string | null>(null);
 const [payGreetAmount, setPayGreetAmount] = useState<number | null>(null);
 const [payGreetLabel, setPayGreetLabel] = useState<string | undefined>(undefined);
+// Pago de sesión exclusiva (segundo modal con el Payment Brick).
+const [paySessionOpen, setPaySessionOpen] = useState(false);
+const [paySessionId, setPaySessionId] = useState<string | null>(null);
+const [paySessionAmount, setPaySessionAmount] = useState<number | null>(null);
+const [paySessionLabel, setPaySessionLabel] = useState<string | undefined>(undefined);
 const [greetType, setGreetType] = useState<GreetingType>("saludo");
 const [toName, setToName] = useState("");
 const [instructions, setInstructions] = useState("");
@@ -1621,7 +1628,7 @@ async function handleSubmitExclusiveSession() {
   try {
     const service = getProfileService("clase_personalizada");
 
-await createExclusiveSessionRequest({
+const res = (await createExclusiveSessionRequest({
   source: "profile",
   requestSource: "profile",
   profileUserId: userDoc.uid,
@@ -1630,17 +1637,18 @@ await createExclusiveSessionRequest({
   buyerMessage: exclusiveSessionMessage,
   priceSnapshot: service?.publicPrice ?? service?.memberPrice ?? null,
   durationMinutes: (service as (NormalizedService & { durationMinutes?: number }) | null)?.durationMinutes ?? null,
-});
+})) as { requestId: string; priceSnapshot?: number | null };
 
-    registrarCompraGeo({
-      creatorId: userDoc.uid,
-      serviceType: "exclusive_session",
-      grossAmount: service?.publicPrice ?? service?.memberPrice ?? undefined,
-    });
+    // Sesión en awaiting_payment → abrir el segundo modal (Brick) para cobrar.
+    const amount = res.priceSnapshot ?? service?.publicPrice ?? service?.memberPrice ?? null;
+    const currency = service?.currency ?? "MXN";
 
     setExclusiveSessionOpen(false);
     setExclusiveSessionMessage("");
-    setServiceToast(tProfile("sessionSent"));
+    setPaySessionId(res.requestId);
+    setPaySessionAmount(amount);
+    setPaySessionLabel(typeof amount === "number" ? formatMoney(amount, currency) : undefined);
+    setPaySessionOpen(true);
   } catch (e: unknown) {
     setExclusiveSessionError((e instanceof Error ? e.message : null) ?? tServices("requestError"));
   } finally {
@@ -2730,10 +2738,10 @@ await createExclusiveSessionRequest({
   onClose={() => setFollowersOverlayOpen(false)}
 />
 
-<GreetingPaymentModal
+<ServicePaymentModal
   open={payGreetOpen}
-  greetingRequestId={payGreetId}
   amount={payGreetAmount}
+  pay={(c) => payGreeting({ greetingRequestId: payGreetId ?? "", ...c })}
   priceLabel={payGreetLabel}
   title={tServices("continueToPayment")}
   onClose={() => setPayGreetOpen(false)}
@@ -2745,6 +2753,24 @@ await createExclusiveSessionRequest({
       grossAmount: payGreetAmount ?? undefined,
     });
     setServiceToast(tServices("requestSent"));
+  }}
+/>
+
+<ServicePaymentModal
+  open={paySessionOpen}
+  amount={paySessionAmount}
+  pay={(c) => payExclusiveSession({ requestId: paySessionId ?? "", ...c })}
+  priceLabel={paySessionLabel}
+  title={tServices("continueToPayment")}
+  onClose={() => setPaySessionOpen(false)}
+  onPaid={() => {
+    setPaySessionOpen(false);
+    registrarCompraGeo({
+      creatorId: userDoc.uid,
+      serviceType: "exclusive_session",
+      grossAmount: paySessionAmount ?? undefined,
+    });
+    setServiceToast(tProfile("sessionSent"));
   }}
 />
 

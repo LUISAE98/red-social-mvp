@@ -273,20 +273,22 @@ export function resolveEffectiveMemberStatus(rawStatus: unknown, mutedUntil: unk
   return "active";
 }
 
-export function buildCommentBlockedMessage(reason: InteractionBlockedReason): string {
+export function buildCommentBlockedMessage(
+  reason: InteractionBlockedReason,
+  isProfile = false
+): string {
+  const place = isProfile ? "este perfil" : "esta comunidad";
+
   if (reason === "login") {
-    return "Inicia sesión para comentar en esta comunidad.";
+    return "Inicia sesión para comentar";
   }
 
   if (reason === "join") {
-    return "Debes unirte a esta comunidad para comentar.";
+    return isProfile ? "Sigue este perfil para comentar" : "Únete para comentar";
   }
 
-  if (reason === "restricted") {
-    return "No puedes comentar en esta comunidad por la configuración actual o por tu estado dentro de la comunidad.";
-  }
-
-  return "No puedes comentar en esta comunidad en este momento.";
+  // restricted / default → leyenda corta (sin explicaciones largas).
+  return `No puedes comentar en ${place}`;
 }
 
 export function truncatePostText(text: string, maxLength: number) {

@@ -2,18 +2,16 @@
 
 // Modal de pago compartido (Payment Brick de Mercado Pago).
 //
-// Segundo modal que se abre tras crear un saludo/consejo (`awaiting_payment`).
-// Renderiza el Payment Brick: el número de tarjeta lo tokeniza MP en el cliente
-// (PCI); nosotros solo recibimos el token y llamamos `payGreeting`.
-//
-// Reusado por los 3 call sites (perfil, comunidad, historias). Sienta el patrón
-// que después reutilizaremos para supercomentarios in-live.
+// Es UI reutilizable: renderiza el Payment Brick (el número de tarjeta lo
+// tokeniza MP en el cliente, PCI) y entrega los datos de tarjeta a la función
+// `pay` que le pase el padre. NO conoce el servicio: cada call site inyecta su
+// propia `pay` (payGreeting, payExclusiveSession, …), así el backend sigue
+// siendo servicio-por-servicio.
 
 import { createPortal } from "react-dom";
 import { useEffect, useRef, useState } from "react";
 import { loadMercadoPago } from "@mercadopago/sdk-js";
 import { MP_PUBLIC_KEY } from "@/lib/payments/mpConfig";
-import { payGreeting } from "@/lib/payments/payGreeting";
 
 // El global que inyecta el SDK de MP. Tipado mínimo (el SDK no trae tipos).
 type BrickController = { unmount: () => void };
@@ -40,24 +38,36 @@ type BrickSubmitData = {
   };
 };
 
-const CONTAINER_ID = "vibra-greeting-payment-brick";
+/** Datos de tarjeta que el Brick entrega y que la función `pay` recibe. */
+export type PaymentCardData = {
+  token: string;
+  paymentMethodId: string;
+  paymentType: string;
+  installments?: number;
+  payerEmail?: string;
+};
+
+export type PaymentResult = { status: string };
+
+const CONTAINER_ID = "vibra-service-payment-brick";
 
 type Props = {
   open: boolean;
-  greetingRequestId: string | null;
   amount: number | null;
+  /** Ejecuta el cobro con el callable del servicio. Debe resolver con {status}. */
+  pay: (card: PaymentCardData) => Promise<PaymentResult>;
   /** Etiqueta de precio ya formateada para el encabezado (ej. "$120 MXN"). */
   priceLabel?: string;
   title?: string;
   locale?: string;
-  onClose: () => void; // el usuario cancela (el saludo queda awaiting_payment)
+  onClose: () => void; // el usuario cancela
   onPaid: () => void; // pago aprobado
 };
 
-export default function GreetingPaymentModal({
+export default function ServicePaymentModal({
   open,
-  greetingRequestId,
   amount,
+  pay,
   priceLabel,
   title,
   locale = "es-MX",
@@ -69,12 +79,14 @@ export default function GreetingPaymentModal({
   const [error, setError] = useState<string | null>(null);
   const controllerRef = useRef<BrickController | null>(null);
 
-  // onPaid en un ref: evita que el efecto (y el Brick) se re-monten cuando el
-  // padre re-renderiza y pasa un closure nuevo.
+  // onPaid/pay en refs: evita que el efecto (y el Brick) se re-monten cuando el
+  // padre re-renderiza y pasa closures nuevos.
   const onPaidRef = useRef(onPaid);
+  const payRef = useRef(pay);
   useEffect(() => {
     onPaidRef.current = onPaid;
-  }, [onPaid]);
+    payRef.current = pay;
+  }, [onPaid, pay]);
 
   useEffect(() => {
     setMounted(true);
@@ -83,7 +95,7 @@ export default function GreetingPaymentModal({
   // Crea el Brick cuando el modal abre; lo desmonta al cerrar.
   useEffect(() => {
     if (!open) return;
-    if (!greetingRequestId || !amount || amount <= 0) {
+    if (!amount || amount <= 0) {
       setError("No se pudo determinar el precio de este servicio.");
       setLoading(false);
       return;
@@ -113,29 +125,45 @@ export default function GreetingPaymentModal({
           initialization: { amount },
           customization: {
             paymentMethods: { creditCard: "all", debitCard: "all" },
-            visual: { style: { theme: "dark" } },
+            // Formulario CLARO (fondo blanco, texto oscuro): garantiza contraste
+            // en los campos seguros (número/vencimiento/CVV), que MP pinta según
+            // estas variables, no según el CSS del modal.
+            visual: {
+              style: {
+                customVariables: {
+                  formBackgroundColor: "#ffffff",
+                  inputBackgroundColor: "#ffffff",
+                  textPrimaryColor: "#111111",
+                  textSecondaryColor: "#4b4b4b",
+                  baseColor: "#7c3aed",
+                  outlinePrimaryColor: "#d4d4d8",
+                  borderRadius: "10px",
+                },
+              },
+            },
           },
           callbacks: {
             onReady: () => {
               if (!cancelled) setLoading(false);
             },
             onSubmit: ({ selectedPaymentMethod, formData }: BrickSubmitData) => {
-              return payGreeting({
-                greetingRequestId,
-                token: formData.token ?? "",
-                paymentMethodId: formData.payment_method_id ?? "",
-                paymentType: selectedPaymentMethod,
-                installments: formData.installments,
-                payerEmail: formData.payer?.email,
-              }).then((res) => {
-                if (res.status === "approved" || res.status === "pending") {
-                  // "pending" = MP aún revisa; lo tratamos como éxito de flujo
-                  // (el webhook confirmará y el creador lo verá al aprobar).
-                  onPaidRef.current();
-                  return;
-                }
-                throw new Error("rejected");
-              });
+              return payRef
+                .current({
+                  token: formData.token ?? "",
+                  paymentMethodId: formData.payment_method_id ?? "",
+                  paymentType: selectedPaymentMethod,
+                  installments: formData.installments,
+                  payerEmail: formData.payer?.email,
+                })
+                .then((res) => {
+                  if (res.status === "approved" || res.status === "pending") {
+                    // "pending" = MP aún revisa; lo tratamos como éxito de flujo
+                    // (el webhook confirmará al aprobar).
+                    onPaidRef.current();
+                    return;
+                  }
+                  throw new Error("rejected");
+                });
             },
             onError: (err: unknown) => {
               if (cancelled) return;
@@ -154,7 +182,7 @@ export default function GreetingPaymentModal({
         if (cancelled) return;
         setError("No se pudo cargar el pago. Intenta de nuevo.");
         setLoading(false);
-        console.error("GreetingPaymentModal init failed", err);
+        console.error("ServicePaymentModal init failed", err);
       }
     })();
 
@@ -167,7 +195,7 @@ export default function GreetingPaymentModal({
       }
       controllerRef.current = null;
     };
-  }, [open, greetingRequestId, amount, locale]);
+  }, [open, amount, locale]);
 
   if (!mounted || !open) return null;
 
@@ -265,8 +293,17 @@ export default function GreetingPaymentModal({
                   Cargando pago seguro…
                 </p>
               )}
-              {/* Contenedor donde el SDK monta el Brick. */}
-              <div id={CONTAINER_ID} />
+              {/* Contenedor donde el SDK monta el Brick. Fondo blanco para que el
+                  formulario claro se lea nítido dentro del modal oscuro. */}
+              <div
+                id={CONTAINER_ID}
+                style={{
+                  background: "#fff",
+                  borderRadius: 12,
+                  padding: 12,
+                  visibility: loading ? "hidden" : "visible",
+                }}
+              />
             </>
           )}
         </div>

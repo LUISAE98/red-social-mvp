@@ -10,7 +10,8 @@ import { doc, getDoc, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { StoryDoc, StoryType } from "@/lib/stories/types";
 import { createGreetingRequest } from "@/lib/greetings/greetingRequests";
-import GreetingPaymentModal from "@/components/payments/GreetingPaymentModal";
+import ServicePaymentModal from "@/components/payments/ServicePaymentModal";
+import { payGreeting } from "@/lib/payments/payGreeting";
 import { registrarCompraGeo } from "@/lib/wallet/registrarCompraGeo";
 import CreatorServiceModals from "@/components/services/CreatorServiceModals";
 import { getMutePreference, setMutePreference } from "@/lib/utils/mutePreference";
@@ -1001,10 +1002,10 @@ export default function StoryViewer({
       serviceModalCardStyle={{ width: "min(720px, calc(100vw - 28px))", maxHeight: "calc(100dvh - 28px)", overflowY: "auto", background: "linear-gradient(180deg, rgba(18,18,18,0.98), rgba(8,8,8,0.98))", border: "1px solid rgba(255,255,255,0.16)", borderRadius: 18, overflow: "hidden", boxShadow: "0 24px 80px rgba(0,0,0,0.72)", color: "#fff" }}
       serviceToastStyle={{ position: "fixed", left: "50%", bottom: "calc(24px + env(safe-area-inset-bottom))", transform: "translateX(-50%)", zIndex: 100002, maxWidth: "min(520px, calc(100vw - 28px))", padding: "10px 12px", borderRadius: 999, border: "1px solid rgba(255,255,255,0.16)", background: "rgba(12,12,12,0.94)", color: "#fff", fontSize: 13, fontWeight: 600, fontFamily: FONT }}
     />
-    <GreetingPaymentModal
+    <ServicePaymentModal
       open={payGreetOpen}
-      greetingRequestId={payGreetId}
       amount={payGreetAmount}
+      pay={(c) => payGreeting({ greetingRequestId: payGreetId ?? "", ...c })}
       priceLabel={payGreetAmount != null ? `$${payGreetAmount} MXN` : undefined}
       title={tServices("continueToPayment")}
       onClose={() => setPayGreetOpen(false)}

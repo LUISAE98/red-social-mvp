@@ -706,7 +706,12 @@ export default function PostCommentsPanel({
                 <input
                   type="text"
                   disabled
-                  placeholder={commentBlockedMessage ?? tPosts("commentsBlockedGroup")}
+                  placeholder={
+                    commentBlockedMessage ??
+                    (groupId
+                      ? tPosts("commentsBlockedGroup")
+                      : tPosts("ownerOnlyComment"))
+                  }
                   style={{
                     ...inputStyle,
                     color: "rgba(255,255,255,0.46)",

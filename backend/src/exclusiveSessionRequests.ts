@@ -710,8 +710,9 @@ if (source === "profile") {
       preparingCreatorAt: null,
       preparationOpenedAt: null,
 
-      paymentMode: "simulated_no_real_payment",
-      paymentStatus: "simulated_paid",
+      // Pago real con Mercado Pago. paymentStatus/createdAt/updatedAt los pone
+      // reconcile al materializar (cuando el pago aprueba).
+      paymentMode: "mercadopago",
 
       // Campos LiveKit — se populan cuando se crea/gestiona la sala de videollamada
       roomName: null,
@@ -725,14 +726,41 @@ if (source === "profile") {
       recordingStatus: "not_started",
       recordingUrl: null,
       recordingDurationSeconds: null,
-
-      createdAt: nowTs(),
-      updatedAt: nowTs(),
     };
 
-    await docRef.set(payload);
+    // Pagar-luego-crear: la sesión NO se crea aquí. Exige precio > 0 y guarda la
+    // compra (con el payload dentro) en un paymentIntent; la sesión se
+    // materializa SOLO cuando el pago aprueba (ver reconcile.ts). Así, intentos
+    // de pago fallidos/abandonados no dejan solicitudes huérfanas.
+    if (
+      typeof resolvedPriceSnapshot !== "number" ||
+      resolvedPriceSnapshot <= 0
+    ) {
+      throw new HttpsError(
+        "failed-precondition",
+        "Este servicio no tiene un precio configurado."
+      );
+    }
 
-    logger.info("exclusive_session_request_created", {
+    const externalReference = `exclusiveSessionRequest__${docRef.id}`;
+    await db.collection("paymentIntents").doc(externalReference).set({
+      externalReference,
+      serviceType: "exclusive_session",
+      sourceType: "exclusiveSessionRequest",
+      sourceId: docRef.id,
+      buyerId: uid,
+      creatorId,
+      grossAmount: resolvedPriceSnapshot,
+      currency: offeringCurrency,
+      status: "awaiting_payment",
+      pendingSession: payload,
+      mpOrderId: null,
+      mpPaymentId: null,
+      createdAt: nowTs(),
+      updatedAt: nowTs(),
+    });
+
+    logger.info("exclusive_session_intent_created", {
   requestId: docRef.id,
   groupId,
   profileUserId,
@@ -746,6 +774,7 @@ if (source === "profile") {
       requestId: docRef.id,
       status: payload.status,
       creatorId,
+      priceSnapshot: resolvedPriceSnapshot,
       source,
       requestSource: source,
       groupId: source === "group" ? groupId : null,

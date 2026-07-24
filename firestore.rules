@@ -829,39 +829,34 @@ match /hiddenGroupTransitions/{groupId} {
         );
     }
 
+    // Normaliza el status a partir del doc de miembro ya leído. Recibe el `.data`
+    // del member doc para NO releerlo por cada rama (antes esta lógica llamaba
+    // `rawMemberStatus`/`memberDoc` ~6 veces, y al evaluarse en varias reglas a la
+    // vez excedía el límite de accesos de Firestore Rules, denegando a suscritos).
+    function normalizeMemberStatus(m) {
+      let raw = ("status" in m) && (m.status is string) ? m.status : "active";
+      return raw == "banned"
+        ? "banned"
+        : (raw == "removed" || raw == "kicked" || raw == "expelled")
+        ? "removed"
+        : (
+            raw == "muted"
+            && (
+              !("mutedUntil" in m)
+              || m.mutedUntil == null
+              || m.mutedUntil > request.time
+            )
+          )
+        ? "muted"
+        : raw == "subscribed"
+        ? "subscribed"
+        : "active";
+    }
+
     function effectiveMemberStatus(groupId, uid) {
       return !signedIn() || !memberExists(groupId, uid)
         ? null
-        : (
-          rawMemberStatus(groupId, uid) == "banned"
-            ? "banned"
-            : (
-              rawMemberStatus(groupId, uid) == "removed"
-                ? "removed"
-                : (
-                  rawMemberStatus(groupId, uid) == "kicked"
-                    ? "removed"
-                    : (
-                      rawMemberStatus(groupId, uid) == "expelled"
-                        ? "removed"
-                        : (
-                          rawMemberStatus(groupId, uid) == "muted"
-                          && (
-                            !("mutedUntil" in memberDoc(groupId, uid).data)
-                            || memberDoc(groupId, uid).data.mutedUntil == null
-                            || memberDoc(groupId, uid).data.mutedUntil > request.time
-                          )
-                            ? "muted"
-                            : (
-                              rawMemberStatus(groupId, uid) == "subscribed"
-                                ? "subscribed"
-                                : "active"
-                            )
-                        )
-                    )
-                )
-            )
-        );
+        : normalizeMemberStatus(memberDoc(groupId, uid).data);
     }
 
     function isReadableMemberStatus(status) {
@@ -883,6 +878,17 @@ match /hiddenGroupTransitions/{groupId} {
     function isSubscribedMember(groupId) {
       return signedIn()
         && effectiveMemberStatus(groupId, request.auth.uid) == "subscribed";
+    }
+
+    // Miembro que puede comentar (activo o suscrito), resolviendo el status UNA
+    // sola vez. `isActiveMember(...) || isSubscribedMember(...)` evaluaba
+    // `effectiveMemberStatus` dos veces para suscritos (isActiveMember falla y
+    // fuerza isSubscribedMember), y esa función es tan cara (relee el member doc
+    // muchas veces) que la doble evaluación excedía el límite de accesos de las
+    // reglas y denegaba a los suscritos. Con un solo `let` se evita.
+    function isActiveOrSubscribedMember(groupId) {
+      let st = effectiveMemberStatus(groupId, request.auth.uid);
+      return signedIn() && (st == "active" || st == "subscribed");
     }
 
     function isMutedMember(groupId) {
@@ -990,12 +996,13 @@ function canReadGroupContent(groupId) {
 function canWriteGroupComment(groupId) {
   return signedIn()
     && groupIsActive(groupId)
-    && commentsEnabled(groupId)
     && (
       isOwner(groupId)
       || isModerator(groupId)
-      || isActiveMember(groupId)
-      || isSubscribedMember(groupId)
+      || (
+        commentsEnabled(groupId)
+        && isActiveOrSubscribedMember(groupId)
+      )
     );
 }
     // ==========================
@@ -2258,7 +2265,10 @@ function canUpdateCommentCount(delta) {
       "updatedAt"
     ])
     && request.resource.data.authorId == resource.data.authorId
-    && request.resource.data.text == resource.data.text
+    && (
+      !("text" in resource.data)
+      || request.resource.data.text == resource.data.text
+    )
     && request.resource.data.isDeleted == resource.data.isDeleted
     && request.resource.data.counts is map
     && request.resource.data.counts.comments is int
@@ -2342,9 +2352,9 @@ function canReadPostCommentsData(data) {
           canReadGroupContent(data.groupId)
           || (
             data.isShareable == true
-            && data.premium != null
-            && data.premium.enabled == true
-            && data.premium.accessMode == "public"
+            && data.premium is map
+            && data.premium.get("enabled", false) == true
+            && data.premium.get("accessMode", "") == "public"
           )
           || (
             data.get('postType', '') == "live"
@@ -2368,13 +2378,14 @@ function hasPostAccess(postId) {
 function viewerHasPremiumPostAccess(data, postId) {
   return !("premium" in data)
     || data.premium == null
-    || data.premium.enabled != true
+    || !(data.premium is map)
+    || data.premium.get("enabled", false) != true
     || data.authorId == request.auth.uid
     || !(data.groupId is string)
     || isOwner(data.groupId)
     || (
-      data.premium.freeFor == "members_and_subscribers"
-      && (isActiveMember(data.groupId) || isSubscribedMember(data.groupId))
+      data.premium.get("freeFor", "") == "members_and_subscribers"
+      && isActiveOrSubscribedMember(data.groupId)
     )
     || hasPostAccess(postId);
 }

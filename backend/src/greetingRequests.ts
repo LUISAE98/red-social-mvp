@@ -257,22 +257,30 @@ const profileUserId =
 
     const result = await db.runTransaction(async (tx) => {
   const now = admin.firestore.FieldValue.serverTimestamp();
-  const requestRef = db.collection("greetingRequests").doc();
+  // Pagar-luego-crear: el saludo NO se crea aquí. Pre-generamos su id y
+  // guardamos la compra en un paymentIntent (con los datos del saludo dentro).
+  // El saludo se materializa SOLO cuando el pago aprueba (ver reconcile.ts).
+  // Así, intentos de pago fallidos/abandonados no dejan saludos huérfanos.
+  const greetingId = db.collection("greetingRequests").doc().id;
+  const externalReference = `greetingRequest__${greetingId}`;
+  const intentRef = db.collection("paymentIntents").doc(externalReference);
+
+  let creatorId: string;
+  let priceSnapshot: number | null;
+  let greetingBase: Record<string, unknown>;
 
   if (source === "profile") {
     if (!profileUserId) {
       throw new HttpsError("invalid-argument", "profileUserId is required.");
     }
 
-    const profileRef = db.doc(`users/${profileUserId}`);
-    const profileSnap = await tx.get(profileRef);
-
+    const profileSnap = await tx.get(db.doc(`users/${profileUserId}`));
     if (!profileSnap.exists) {
       throw new HttpsError("not-found", "Profile not found.");
     }
 
     const profile = (profileSnap.data() ?? {}) as UserShape;
-    const creatorId = profileUserId;
+    creatorId = profileUserId;
 
     if (buyerId === creatorId) {
       throw new HttpsError(
@@ -281,17 +289,15 @@ const profileUserId =
       );
     }
 
-    const serviceEnabled = isProfileGreetingServiceEnabled(profile, type);
-    if (!serviceEnabled) {
+    if (!isProfileGreetingServiceEnabled(profile, type)) {
       throw new HttpsError(
         "failed-precondition",
         "This service is not enabled for this profile."
       );
     }
 
-    const profilePriceSnapshot = getOfferingPrice(profile.offerings, type);
-
-    tx.set(requestRef, {
+    priceSnapshot = getOfferingPrice(profile.offerings, type);
+    greetingBase = {
       groupId: null,
       profileUserId,
       profileDisplayName: buildUserDisplayName(profile, profileUserId),
@@ -304,94 +310,107 @@ const profileUserId =
       source,
       requestSource: "profile",
       status: "pending" as GreetingStatus,
-      priceSnapshot: profilePriceSnapshot,
+      priceSnapshot,
       currency: "MXN",
       paymentMode: "mercadopago",
-      paymentStatus: "awaiting_payment",
       allowCreatorStory,
-      createdAt: now,
-      updatedAt: now,
-    });
+    };
+  } else {
+    if (!groupId) {
+      throw new HttpsError("invalid-argument", "groupId is required.");
+    }
 
-    return { requestId: requestRef.id, creatorId, priceSnapshot: profilePriceSnapshot };
+    const [groupSnap, memberSnap] = await Promise.all([
+      tx.get(db.doc(`groups/${groupId}`)),
+      tx.get(db.doc(`groups/${groupId}/members/${buyerId}`)),
+    ]);
+
+    if (!groupSnap.exists) {
+      throw new HttpsError("not-found", "Group not found.");
+    }
+
+    const group = (groupSnap.data() ?? {}) as GroupShape;
+    const ownerId = group?.ownerId;
+
+    if (!ownerId) {
+      throw new HttpsError("failed-precondition", "Group has no ownerId.");
+    }
+
+    if (buyerId === ownerId) {
+      throw new HttpsError(
+        "failed-precondition",
+        "Owner cannot purchase own greeting."
+      );
+    }
+
+    if (!memberSnap.exists) {
+      throw new HttpsError(
+        "permission-denied",
+        "You must be a member of the group to request a greeting."
+      );
+    }
+
+    if (!canBuyerRequestByMembership(memberSnap.data())) {
+      throw new HttpsError(
+        "permission-denied",
+        "Your membership status does not allow requesting this service."
+      );
+    }
+
+    if (!isGreetingServiceEnabled(group, type)) {
+      throw new HttpsError(
+        "failed-precondition",
+        "This service is not enabled for this group."
+      );
+    }
+
+    creatorId = ownerId;
+    priceSnapshot = getOfferingPrice(group.offerings, type);
+    greetingBase = {
+      groupId,
+      profileUserId: null,
+      creatorId,
+      buyerId,
+      type,
+      toName,
+      instructions,
+      source,
+      requestSource: "group",
+      status: "pending" as GreetingStatus,
+      priceSnapshot,
+      currency: "MXN",
+      paymentMode: "mercadopago",
+      allowCreatorStory,
+    };
   }
 
-  if (!groupId) {
-    throw new HttpsError("invalid-argument", "groupId is required.");
-  }
-
-  const groupRef = db.doc(`groups/${groupId}`);
-  const memberRef = db.doc(`groups/${groupId}/members/${buyerId}`);
-
-  const [groupSnap, memberSnap] = await Promise.all([
-    tx.get(groupRef),
-    tx.get(memberRef),
-  ]);
-
-  if (!groupSnap.exists) {
-    throw new HttpsError("not-found", "Group not found.");
-  }
-
-  const group = (groupSnap.data() ?? {}) as GroupShape;
-  const creatorId = group?.ownerId;
-
-  if (!creatorId) {
-    throw new HttpsError("failed-precondition", "Group has no ownerId.");
-  }
-
-  if (buyerId === creatorId) {
+  // El cobro exige un precio positivo (servicio monetizado).
+  if (typeof priceSnapshot !== "number" || priceSnapshot <= 0) {
     throw new HttpsError(
       "failed-precondition",
-      "Owner cannot purchase own greeting."
+      "Este servicio no tiene un precio configurado."
     );
   }
 
-  if (!memberSnap.exists) {
-    throw new HttpsError(
-      "permission-denied",
-      "You must be a member of the group to request a greeting."
-    );
-  }
-
-  const memberData = memberSnap.data();
-  if (!canBuyerRequestByMembership(memberData)) {
-    throw new HttpsError(
-      "permission-denied",
-      "Your membership status does not allow requesting this service."
-    );
-  }
-
-  const serviceEnabled = isGreetingServiceEnabled(group, type);
-  if (!serviceEnabled) {
-    throw new HttpsError(
-      "failed-precondition",
-      "This service is not enabled for this group."
-    );
-  }
-
-  const groupPriceSnapshot = getOfferingPrice(group.offerings, type);
-
-  tx.set(requestRef, {
-    groupId,
-    profileUserId: null,
-    creatorId,
+  tx.set(intentRef, {
+    externalReference,
+    serviceType: type === "consejo" ? "advice" : "greeting",
+    sourceType: "greetingRequest",
+    sourceId: greetingId,
     buyerId,
-    type,
-    toName,
-    instructions,
-    source,
-    requestSource: "group",
-    status: "pending" as GreetingStatus,
-    priceSnapshot: groupPriceSnapshot,
+    creatorId,
+    grossAmount: priceSnapshot,
     currency: "MXN",
-    paymentMode: "mercadopago",
-    paymentStatus: "awaiting_payment",
-    allowCreatorStory,
+    status: "awaiting_payment",
+    // Datos del saludo a materializar cuando el pago apruebe.
+    pendingGreeting: greetingBase,
+    mpOrderId: null,
+    mpPaymentId: null,
     createdAt: now,
     updatedAt: now,
   });
 
-  return { requestId: requestRef.id, creatorId, priceSnapshot: groupPriceSnapshot };
+  return { requestId: greetingId, creatorId, priceSnapshot };
 });
 
   logger.info("createGreetingRequest created", {

@@ -561,8 +561,11 @@ useEffect(() => {
     !!currentUserId &&
     postAuthor.authorId !== currentUserId;
 
+  // Un post de perfil se distingue por NO tener groupId (además del contextType,
+  // que no siempre viaja en el objeto que arma el feed de perfil).
   const isProfilePost =
-    (post as unknown as { contextType?: string | null }).contextType === "profile";
+    (post as unknown as { contextType?: string | null }).contextType === "profile" ||
+    !(post as unknown as { groupId?: string | null }).groupId;
 
   const socialTargetUserId =
     (isProfilePost || suggestionMode) && !isOwnPost && postAuthor.authorId
@@ -962,7 +965,7 @@ function handleToggleSave() {
       return;
     }
     if (!effectiveCanCommentOnPosts) {
-      setInlineActionError(buildCommentBlockedMessage(commentBlockedReason));
+      setInlineActionError(buildCommentBlockedMessage(commentBlockedReason, isProfilePost));
       return;
     }
 
@@ -1753,10 +1756,14 @@ function renderBlurredMediaBackdrop(
         : null
   );
 
+  // Comentar en un post premium exige lo MISMO que en cualquier otro
+  // (`canCommentOnPosts`: miembro/owner + comentarios abiertos) Y además tener
+  // acceso al contenido premium (no estar bloqueado). Antes se forzaba `true`
+  // en premium desbloqueado, ignorando la restricción de comentarios y
+  // desalineándose de las reglas (que sí exigen ambos gates) → "insufficient
+  // permissions". Así queda estable e igual para todo tipo de post.
   const effectiveCanCommentOnPosts =
-    premiumState.isPremium && !premiumState.isBlocked && !!currentUserId
-      ? true
-      : canCommentOnPosts;
+    canCommentOnPosts && !premiumState.isBlocked;
 
   const commentBlockedMessage =
     premiumState.isBlocked && !currentUserId
@@ -1764,7 +1771,7 @@ function renderBlurredMediaBackdrop(
       : premiumState.isBlocked
       ? tFeed("unlockToComment")
       : !effectiveCanCommentOnPosts
-      ? buildCommentBlockedMessage(commentBlockedReason)
+      ? buildCommentBlockedMessage(commentBlockedReason, isProfilePost)
       : null;
 
   const mediaFromPost = Array.isArray(localMedia ?? post.media)
@@ -4652,7 +4659,7 @@ padding: "0 0 2px 0",
       currentUserId={currentUserId}
       isOwner={isOwner}
       isModerator={isModerator}
-      canCommentOnPosts={canCommentOnPosts && !premiumState.isBlocked}
+      canCommentOnPosts={effectiveCanCommentOnPosts}
       commentBlockedMessage={commentBlockedMessage}
       commentText={commentText}
       commentMentions={commentMentions}
@@ -4692,7 +4699,7 @@ padding: "0 0 2px 0",
       currentUserId={currentUserId}
       isOwner={isOwner}
       isModerator={isModerator}
-      canCommentOnPosts={canCommentOnPosts && !premiumState.isBlocked}
+      canCommentOnPosts={effectiveCanCommentOnPosts}
       commentBlockedMessage={commentBlockedMessage}
       commentText={commentText}
       commentMentions={commentMentions}
@@ -4743,7 +4750,7 @@ padding: "0 0 2px 0",
   currentUserId={currentUserId}
   isOwner={isOwner}
   isModerator={isModerator}
-  canCommentOnPosts={effectiveCanCommentOnPosts && !premiumState.isBlocked}
+  canCommentOnPosts={effectiveCanCommentOnPosts}
   commentBlockedMessage={commentBlockedMessage}
   commentText={commentText}
   commentMentions={commentMentions}

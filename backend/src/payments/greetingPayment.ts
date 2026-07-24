@@ -12,7 +12,7 @@ import * as crypto from "crypto";
 import * as admin from "firebase-admin";
 import { logger } from "firebase-functions";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
-import { mpAccessToken, mpFetch, MP_CURRENCY } from "./mpClient";
+import { mpAccessToken, mpFetch } from "./mpClient";
 import {
   normalizeOrderPaymentStatus,
   upsertPaymentIntentStatus,
@@ -24,7 +24,6 @@ if (admin.apps.length === 0) {
 }
 
 const db = admin.firestore();
-const FieldValue = admin.firestore.FieldValue;
 const REGION = "us-central1";
 
 /** MP espera el monto como string con 2 decimales ("100.00"). */
@@ -67,43 +66,33 @@ export const payGreeting = onCall(
       throw new HttpsError("invalid-argument", "Falta el correo del pagador.");
     }
 
-    const ref = db.doc(`greetingRequests/${greetingRequestId}`);
-    const snap = await ref.get();
-    if (!snap.exists) throw new HttpsError("not-found", "Solicitud no encontrada.");
-    const gr = snap.data() ?? {};
-
-    if (gr.buyerId !== uid) {
-      throw new HttpsError("permission-denied", "No eres el comprador de esta solicitud.");
-    }
-    if (gr.paymentStatus === "paid") {
-      throw new HttpsError("failed-precondition", "Esta solicitud ya está pagada.");
-    }
-    if (gr.paymentStatus !== "awaiting_payment") {
-      throw new HttpsError("failed-precondition", "Esta solicitud no está lista para pago.");
-    }
-
-    const gross = Number(gr.priceSnapshot);
-    if (!Number.isFinite(gross) || gross <= 0) {
-      throw new HttpsError("failed-precondition", "Precio inválido para esta solicitud.");
-    }
-
     const externalReference = `greetingRequest__${greetingRequestId}`;
 
-    // Registra el intento (pending) ANTES de llamar a MP, para no perder rastro
-    // si algo falla a mitad.
-    await upsertPaymentIntentStatus(externalReference, {
-      serviceType: gr.type === "consejo" ? "advice" : "greeting",
-      sourceType: "greetingRequest",
-      sourceId: greetingRequestId,
-      buyerId: uid,
-      creatorId: gr.creatorId ?? null,
-      grossAmount: gross,
-      currency: MP_CURRENCY,
-      status: "pending",
-      mpOrderId: null,
-      mpPaymentId: null,
-      createdAt: FieldValue.serverTimestamp(),
-    });
+    // Pagar-luego-crear: el saludo aún NO existe; la compra vive en el
+    // paymentIntent creado por createGreetingRequest.
+    const intentRef = db.collection("paymentIntents").doc(externalReference);
+    const intentSnap = await intentRef.get();
+    if (!intentSnap.exists) {
+      throw new HttpsError("not-found", "Compra no encontrada.");
+    }
+    const intent = intentSnap.data() ?? {};
+
+    if (intent.buyerId !== uid) {
+      throw new HttpsError("permission-denied", "No eres el comprador de esta solicitud.");
+    }
+    // Si ya se aprobó/materializó, no re-cobrar.
+    if (intent.status === "approved" || intent.status === "paid") {
+      throw new HttpsError("failed-precondition", "Esta compra ya está pagada.");
+    }
+
+    const gross = Number(intent.grossAmount);
+    if (!Number.isFinite(gross) || gross <= 0) {
+      throw new HttpsError("failed-precondition", "Precio inválido para esta compra.");
+    }
+
+    // Marca el intent como "pending" (en proceso) antes de llamar a MP. Merge:
+    // NO toca `pendingGreeting`.
+    await upsertPaymentIntentStatus(externalReference, { status: "pending" });
 
     // Idempotency key por intento: evita doble cargo si el cliente reintenta la
     // MISMA llamada por red. (Un pago ya aprobado se bloquea antes, arriba.)

@@ -261,6 +261,9 @@ export { mpHealthcheck } from "./payments/mpHealthcheck";
 export { payGreeting } from "./payments/greetingPayment";
 export { mpWebhook } from "./payments/mpWebhook";
 
+// Pagos — sesión exclusiva (pagar-luego-crear, servicio propio).
+export { payExclusiveSession } from "./payments/exclusiveSessionPayment";
+
 // Backfill de búsqueda de historias (corrida única, protegida por secret)
 export { backfillStoriesSearch } from "./storiesBackfill";
 
