@@ -63,10 +63,12 @@ function buildContent(type: string, data: Data): { title: string; body: string }
       return { title: name, body: `se unió a ${group}` };
     case "group_new_subscriber":
       return { title: name, body: `se suscribió a ${group}` };
+    // El texto (cuerpo) espeja EXACTAMENTE el de la campanita in-app (mismos
+    // strings que messages/es.json). El título es el "quién" (o la entidad).
     case "join_approved":
-      return { title: vibra, body: `Aprobaron tu solicitud para unirte a ${group}` };
+      return { title: name, body: `aprobó tu solicitud para unirte a ${group}` };
     case "join_rejected":
-      return { title: vibra, body: `Rechazaron tu solicitud para unirte a ${group}` };
+      return { title: name, body: `rechazó tu solicitud para unirte a ${group}` };
     case "group_moderation": {
       const a = s(target.action);
       const body =
@@ -75,29 +77,32 @@ function buildContent(type: string, data: Data): { title: string; body: string }
           : a === "banned"
           ? `Fuiste bloqueado en ${group}`
           : `Fuiste silenciado en ${group}`;
-      return { title: vibra, body };
+      return { title: group, body };
     }
     case "invite_expired":
       return {
-        title: vibra,
+        title: group,
         body:
           s(target.reason) === "max_uses"
-            ? `Tu link de invitación a ${group} alcanzó el máximo de usos`
-            : `Tu link de invitación a ${group} caducó`,
+            ? `Tu enlace de invitación a ${group} alcanzó el máximo de usos`
+            : `Tu enlace de invitación a ${group} caducó`,
       };
     case "moderation_warning":
-      return { title: vibra, body: s(data.message) || "Recibiste una advertencia de moderación" };
+      return {
+        title: "Moderación",
+        body: s(data.message) || "Recibiste una advertencia de moderación",
+      };
     case "kyc_update": {
       const a = s(target.action);
       const body =
         a === "approved"
-          ? "Tu verificación fue aprobada. Ya puedes retirar."
+          ? "Tu verificación de identidad fue aprobada. Ya puedes retirar."
           : a === "declined"
-          ? "Tu verificación fue rechazada. Toca para reintentar."
+          ? "Tu verificación de identidad fue rechazada. Toca para reintentar."
           : a === "in_review"
-          ? "Tu verificación está en revisión."
-          : "Tu verificación está pendiente.";
-      return { title: vibra, body };
+          ? "Tu verificación de identidad está en revisión."
+          : "Tu verificación de identidad está pendiente. Toca para continuar.";
+      return { title: "Verificación", body };
     }
     default:
       return { title: vibra, body: "Tienes una nueva notificación" };

@@ -1,44 +1,40 @@
 "use client";
 
-// Modal de pago compartido (Payment Brick de Mercado Pago).
+// Panel de pago de Vibra — Mercado Pago "Secure Fields".
 //
-// Es UI reutilizable: renderiza el Payment Brick (el número de tarjeta lo
-// tokeniza MP en el cliente, PCI) y entrega los datos de tarjeta a la función
-// `pay` que le pase el padre. NO conoce el servicio: cada call site inyecta su
-// propia `pay` (payGreeting, payExclusiveSession, …), así el backend sigue
-// siendo servicio-por-servicio.
+// MP nos entrega SOLO los 3 campos sensibles (número, vencimiento, CVV) como
+// iframes PCI; el resto del formulario y todo el diseño son NUESTROS. Esta es la
+// base de diseño para el pago de todos los servicios.
+//
+// Cada call site inyecta su función `pay` (payGreeting, payExclusiveSession, …):
+// el panel no conoce el servicio.
 
 import { createPortal } from "react-dom";
 import { useEffect, useRef, useState } from "react";
 import { loadMercadoPago } from "@mercadopago/sdk-js";
 import { MP_PUBLIC_KEY } from "@/lib/payments/mpConfig";
 
-// El global que inyecta el SDK de MP. Tipado mínimo (el SDK no trae tipos).
-type BrickController = { unmount: () => void };
-type BrickBuilder = {
-  create: (
-    brick: "payment",
-    containerId: string,
-    settings: unknown
-  ) => Promise<BrickController>;
+// ── Tipado mínimo del SDK (no trae tipos) ────────────────────────────────────
+type MpField = {
+  mount: (containerId: string) => void;
+  unmount: () => void;
+  on: (event: string, cb: (data: unknown) => void) => void;
 };
-type MercadoPagoInstance = { bricks: () => BrickBuilder };
+type MpFields = {
+  create: (type: string, options?: unknown) => MpField;
+  createCardToken: (data: { cardholderName: string }) => Promise<{ id?: string }>;
+};
+type MpInstance = {
+  fields: MpFields;
+  getPaymentMethods: (args: { bin: string }) => Promise<{
+    results?: Array<{ id?: string; payment_type_id?: string }>;
+  }>;
+};
 type MercadoPagoCtor = new (
   publicKey: string,
   options?: { locale?: string }
-) => MercadoPagoInstance;
+) => MpInstance;
 
-type BrickSubmitData = {
-  selectedPaymentMethod: string;
-  formData: {
-    token?: string;
-    payment_method_id?: string;
-    installments?: number;
-    payer?: { email?: string };
-  };
-};
-
-/** Datos de tarjeta que el Brick entrega y que la función `pay` recibe. */
 export type PaymentCardData = {
   token: string;
   paymentMethodId: string;
@@ -46,22 +42,29 @@ export type PaymentCardData = {
   installments?: number;
   payerEmail?: string;
 };
-
 export type PaymentResult = { status: string };
 
-const CONTAINER_ID = "vibra-service-payment-brick";
+const ID_NUMBER = "vibra-mp-card-number";
+const ID_EXP = "vibra-mp-card-exp";
+const ID_CVV = "vibra-mp-card-cvv";
+
+// Estilo del texto DENTRO de los iframes seguros (lo pinta MP con estas vars).
+const FIELD_STYLE = {
+  height: "100%",
+  fontSize: "15px",
+  color: "#ffffff",
+  placeholderColor: "rgba(255,255,255,0.32)",
+};
 
 type Props = {
   open: boolean;
   amount: number | null;
-  /** Ejecuta el cobro con el callable del servicio. Debe resolver con {status}. */
   pay: (card: PaymentCardData) => Promise<PaymentResult>;
-  /** Etiqueta de precio ya formateada para el encabezado (ej. "$120 MXN"). */
   priceLabel?: string;
   title?: string;
   locale?: string;
-  onClose: () => void; // el usuario cancela
-  onPaid: () => void; // pago aprobado
+  onClose: () => void;
+  onPaid: () => void;
 };
 
 export default function ServicePaymentModal({
@@ -77,10 +80,15 @@ export default function ServicePaymentModal({
   const [mounted, setMounted] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const controllerRef = useRef<BrickController | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [cardName, setCardName] = useState("");
+  const [email, setEmail] = useState("");
 
-  // onPaid/pay en refs: evita que el efecto (y el Brick) se re-monten cuando el
-  // padre re-renderiza y pasa closures nuevos.
+  const mpRef = useRef<MpInstance | null>(null);
+  const fieldsRef = useRef<MpField[]>([]);
+  const paymentMethodIdRef = useRef<string | null>(null);
+  const paymentTypeRef = useRef<string>("credit_card");
+
   const onPaidRef = useRef(onPaid);
   const payRef = useRef(pay);
   useEffect(() => {
@@ -92,7 +100,7 @@ export default function ServicePaymentModal({
     setMounted(true);
   }, []);
 
-  // Crea el Brick cuando el modal abre; lo desmonta al cerrar.
+  // Monta los Secure Fields al abrir; los desmonta al cerrar.
   useEffect(() => {
     if (!open) return;
     if (!amount || amount <= 0) {
@@ -109,6 +117,7 @@ export default function ServicePaymentModal({
     let cancelled = false;
     setLoading(true);
     setError(null);
+    paymentMethodIdRef.current = null;
 
     (async () => {
       try {
@@ -119,65 +128,45 @@ export default function ServicePaymentModal({
         if (!Ctor) throw new Error("SDK de Mercado Pago no disponible.");
 
         const mp = new Ctor(MP_PUBLIC_KEY, { locale });
-        const builder = mp.bricks();
+        mpRef.current = mp;
 
-        const controller = await builder.create("payment", CONTAINER_ID, {
-          initialization: { amount },
-          customization: {
-            paymentMethods: { creditCard: "all", debitCard: "all" },
-            // Formulario CLARO (fondo blanco, texto oscuro): garantiza contraste
-            // en los campos seguros (número/vencimiento/CVV), que MP pinta según
-            // estas variables, no según el CSS del modal.
-            visual: {
-              style: {
-                customVariables: {
-                  formBackgroundColor: "#ffffff",
-                  inputBackgroundColor: "#ffffff",
-                  textPrimaryColor: "#111111",
-                  textSecondaryColor: "#4b4b4b",
-                  baseColor: "#7c3aed",
-                  outlinePrimaryColor: "#d4d4d8",
-                  borderRadius: "10px",
-                },
-              },
-            },
-          },
-          callbacks: {
-            onReady: () => {
-              if (!cancelled) setLoading(false);
-            },
-            onSubmit: ({ selectedPaymentMethod, formData }: BrickSubmitData) => {
-              return payRef
-                .current({
-                  token: formData.token ?? "",
-                  paymentMethodId: formData.payment_method_id ?? "",
-                  paymentType: selectedPaymentMethod,
-                  installments: formData.installments,
-                  payerEmail: formData.payer?.email,
-                })
-                .then((res) => {
-                  if (res.status === "approved" || res.status === "pending") {
-                    // "pending" = MP aún revisa; lo tratamos como éxito de flujo
-                    // (el webhook confirmará al aprobar).
-                    onPaidRef.current();
-                    return;
-                  }
-                  throw new Error("rejected");
-                });
-            },
-            onError: (err: unknown) => {
-              if (cancelled) return;
-              setError("No se pudo procesar el pago. Revisa los datos e intenta de nuevo.");
-              console.error("Brick error", err);
-            },
-          },
+        const numberField = mp.fields.create("cardNumber", {
+          placeholder: "1234 1234 1234 1234",
+          style: FIELD_STYLE,
+        });
+        const expField = mp.fields.create("expirationDate", {
+          placeholder: "MM/AA",
+          style: FIELD_STYLE,
+        });
+        const cvvField = mp.fields.create("securityCode", {
+          placeholder: "CVV",
+          style: FIELD_STYLE,
         });
 
-        if (cancelled) {
-          controller.unmount();
-          return;
-        }
-        controllerRef.current = controller;
+        // Detecta la marca/método de pago a partir del BIN (primeros dígitos).
+        numberField.on("binChange", async (data) => {
+          const bin = (data as { bin?: string } | null)?.bin;
+          if (!bin) {
+            paymentMethodIdRef.current = null;
+            return;
+          }
+          try {
+            const res = await mp.getPaymentMethods({ bin });
+            const pm = res?.results?.[0];
+            paymentMethodIdRef.current = pm?.id ?? null;
+            paymentTypeRef.current =
+              pm?.payment_type_id === "debit_card" ? "debit_card" : "credit_card";
+          } catch {
+            paymentMethodIdRef.current = null;
+          }
+        });
+
+        numberField.mount(ID_NUMBER);
+        expField.mount(ID_EXP);
+        cvvField.mount(ID_CVV);
+        fieldsRef.current = [numberField, expField, cvvField];
+
+        if (!cancelled) setLoading(false);
       } catch (err) {
         if (cancelled) return;
         setError("No se pudo cargar el pago. Intenta de nuevo.");
@@ -188,23 +177,103 @@ export default function ServicePaymentModal({
 
     return () => {
       cancelled = true;
-      try {
-        controllerRef.current?.unmount();
-      } catch {
-        // no-op
+      for (const f of fieldsRef.current) {
+        try {
+          f.unmount();
+        } catch {
+          // no-op
+        }
       }
-      controllerRef.current = null;
+      fieldsRef.current = [];
+      mpRef.current = null;
     };
   }, [open, amount, locale]);
 
+  async function handlePay() {
+    if (submitting) return;
+    const mp = mpRef.current;
+    if (!mp) return;
+    if (!cardName.trim()) {
+      setError("Escribe el nombre como aparece en la tarjeta.");
+      return;
+    }
+    if (!email.trim()) {
+      setError("Escribe un correo para el comprobante.");
+      return;
+    }
+
+    setSubmitting(true);
+    setError(null);
+    try {
+      const token = await mp.fields.createCardToken({
+        cardholderName: cardName.trim(),
+      });
+      if (!token?.id) throw new Error("no_token");
+
+      if (!paymentMethodIdRef.current) {
+        throw new Error("no_payment_method");
+      }
+
+      const res = await payRef.current({
+        token: token.id,
+        paymentMethodId: paymentMethodIdRef.current,
+        paymentType: paymentTypeRef.current,
+        installments: 1,
+        payerEmail: email.trim(),
+      });
+
+      if (res.status === "approved" || res.status === "pending") {
+        onPaidRef.current();
+        return;
+      }
+      throw new Error("rejected");
+    } catch (err) {
+      const code = err instanceof Error ? err.message : "";
+      setError(
+        code === "no_payment_method"
+          ? "Revisa el número de tarjeta."
+          : "No se pudo procesar el pago. Revisa los datos e intenta de nuevo."
+      );
+      console.error("createCardToken/pay failed", err);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   if (!mounted || !open) return null;
+
+  const boxStyle: React.CSSProperties = {
+    height: 46,
+    borderRadius: 10,
+    border: "1px solid rgba(255,255,255,0.14)",
+    background: "rgba(255,255,255,0.05)",
+    padding: "0 12px",
+    display: "flex",
+    alignItems: "center",
+    boxSizing: "border-box",
+  };
+  const labelStyle: React.CSSProperties = {
+    fontSize: 12,
+    fontWeight: 600,
+    color: "rgba(255,255,255,0.72)",
+    marginBottom: 6,
+    display: "block",
+  };
+  const textInputStyle: React.CSSProperties = {
+    ...boxStyle,
+    width: "100%",
+    color: "#fff",
+    fontSize: 15,
+    outline: "none",
+    fontFamily: "inherit",
+  };
 
   return createPortal(
     <div
       role="dialog"
       aria-modal="true"
       onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose();
+        if (e.target === e.currentTarget && !submitting) onClose();
       }}
       style={{
         position: "fixed",
@@ -220,43 +289,40 @@ export default function ServicePaymentModal({
       <div
         onClick={(e) => e.stopPropagation()}
         style={{
-          width: "min(100%, 480px)",
-          maxHeight: "90vh",
+          width: "min(100%, 440px)",
+          maxHeight: "92vh",
           overflowY: "auto",
-          background: "#0a0a0a",
-          borderRadius: 18,
+          background: "#0b0b0d",
+          borderRadius: 20,
           boxShadow: "0 0 0 1px rgba(255,255,255,0.08), 0 32px 72px rgba(0,0,0,0.9)",
           color: "#fff",
         }}
       >
+        {/* Header */}
         <div
           style={{
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
             padding: "16px 18px",
-            borderBottom: "1px solid rgba(255,255,255,0.12)",
+            borderBottom: "1px solid rgba(255,255,255,0.1)",
           }}
         >
           <div style={{ display: "grid", gap: 2 }}>
-            <strong style={{ fontSize: 16, fontWeight: 600 }}>
-              {title ?? "Pago"}
-            </strong>
+            <strong style={{ fontSize: 16, fontWeight: 600 }}>{title ?? "Pago"}</strong>
             {priceLabel && (
-              <span style={{ fontSize: 13, color: "rgba(255,255,255,0.6)" }}>
-                {priceLabel}
-              </span>
+              <span style={{ fontSize: 13, color: "rgba(255,255,255,0.55)" }}>{priceLabel}</span>
             )}
           </div>
           <button
             type="button"
-            onClick={onClose}
+            onClick={() => { if (!submitting) onClose(); }}
             aria-label="Cerrar"
             style={{
               border: "none",
               background: "none",
               color: "rgba(255,255,255,0.86)",
-              cursor: "pointer",
+              cursor: submitting ? "not-allowed" : "pointer",
               fontSize: 26,
               lineHeight: 1,
               padding: 4,
@@ -266,112 +332,129 @@ export default function ServicePaymentModal({
           </button>
         </div>
 
-        <div style={{ padding: 16 }}>
-          {/* Franja de confianza — seguridad + marca del procesador (verídico). */}
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: 8,
-              padding: "9px 12px",
-              marginBottom: 14,
-              borderRadius: 10,
-              background: "rgba(0,177,234,0.08)",
-              border: "1px solid rgba(0,177,234,0.28)",
-            }}
-          >
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 7 }}>
-              <svg
-                width={15}
-                height={15}
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="#00b1ea"
-                strokeWidth={2}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden="true"
-              >
-                <rect x="4" y="11" width="16" height="10" rx="2" />
-                <path d="M8 11V7a4 4 0 0 1 8 0v4" />
-              </svg>
-              <span style={{ fontSize: 12.5, fontWeight: 600, color: "rgba(255,255,255,0.9)" }}>
-                Pago seguro y cifrado
-              </span>
-            </span>
-            <span style={{ fontSize: 12, fontWeight: 700, color: "#00b1ea", letterSpacing: "-0.01em" }}>
-              Mercado Pago
-            </span>
-          </div>
+        <div style={{ padding: 18 }}>
+          {error && (
+            <p
+              style={{
+                margin: "0 0 14px",
+                padding: "10px 12px",
+                borderRadius: 10,
+                background: "rgba(248,113,113,0.12)",
+                border: "1px solid rgba(248,113,113,0.3)",
+                color: "#fca5a5",
+                fontSize: 13,
+              }}
+            >
+              {error}
+            </p>
+          )}
 
-          {error ? (
-            <div style={{ display: "grid", gap: 12 }}>
-              <p style={{ margin: 0, color: "#f87171", fontSize: 14 }}>{error}</p>
+          {loading ? (
+            <p style={{ margin: "8px 0", color: "rgba(255,255,255,0.6)", fontSize: 14 }}>
+              Cargando pago seguro…
+            </p>
+          ) : (
+            <div style={{ display: "grid", gap: 14 }}>
+              {/* Número de tarjeta */}
+              <div>
+                <label style={labelStyle}>Número de tarjeta</label>
+                <div id={ID_NUMBER} style={boxStyle} />
+              </div>
+
+              {/* Vencimiento + CVV */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                <div>
+                  <label style={labelStyle}>Vencimiento</label>
+                  <div id={ID_EXP} style={boxStyle} />
+                </div>
+                <div>
+                  <label style={labelStyle}>CVV</label>
+                  <div id={ID_CVV} style={boxStyle} />
+                </div>
+              </div>
+
+              {/* Nombre en la tarjeta */}
+              <div>
+                <label style={labelStyle}>Nombre en la tarjeta</label>
+                <input
+                  value={cardName}
+                  onChange={(e) => setCardName(e.target.value)}
+                  placeholder="Como aparece en la tarjeta"
+                  autoComplete="cc-name"
+                  disabled={submitting}
+                  style={textInputStyle}
+                />
+              </div>
+
+              {/* Correo */}
+              <div>
+                <label style={labelStyle}>Correo electrónico</label>
+                <input
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="tucorreo@ejemplo.com"
+                  type="email"
+                  autoComplete="email"
+                  disabled={submitting}
+                  style={textInputStyle}
+                />
+              </div>
+
+              {/* Botón de pago */}
               <button
                 type="button"
-                onClick={onClose}
+                onClick={handlePay}
+                disabled={submitting}
                 style={{
-                  height: 42,
-                  borderRadius: 8,
+                  height: 48,
+                  marginTop: 4,
+                  borderRadius: 12,
                   border: "none",
-                  background: "rgba(255,255,255,0.1)",
+                  background: submitting
+                    ? "rgba(255,255,255,0.12)"
+                    : "linear-gradient(100deg, #a855ff, #4f46ff)",
                   color: "#fff",
-                  cursor: "pointer",
-                  fontSize: 14,
+                  fontSize: 15,
+                  fontWeight: 600,
+                  fontFamily: "inherit",
+                  cursor: submitting ? "not-allowed" : "pointer",
                 }}
               >
-                Cerrar
+                {submitting ? "Procesando…" : priceLabel ? `Pagar ${priceLabel}` : "Pagar"}
               </button>
-            </div>
-          ) : (
-            <>
-              {loading && (
-                <p style={{ margin: "8px 0 16px", color: "rgba(255,255,255,0.6)", fontSize: 14 }}>
-                  Cargando pago seguro…
-                </p>
-              )}
-              {/* Contenedor donde el SDK monta el Brick. Fondo blanco para que el
-                  formulario claro se lea nítido dentro del modal oscuro. */}
+
+              {/* Sello de seguridad / procesador */}
               <div
-                id={CONTAINER_ID}
                 style={{
-                  background: "#fff",
-                  borderRadius: 12,
-                  padding: 12,
-                  visibility: loading ? "hidden" : "visible",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 6,
+                  marginTop: 2,
+                  fontSize: 11,
+                  color: "rgba(255,255,255,0.5)",
                 }}
-              />
-              {!loading && (
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: 6,
-                    marginTop: 12,
-                    fontSize: 11,
-                    color: "rgba(255,255,255,0.48)",
-                  }}
+              >
+                <svg
+                  width={12}
+                  height={12}
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
                 >
-                  <svg
-                    width={11}
-                    height={11}
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth={2}
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    aria-hidden="true"
-                  >
-                    <rect x="4" y="11" width="16" height="10" rx="2" />
-                    <path d="M8 11V7a4 4 0 0 1 8 0v4" />
-                  </svg>
-                  <span>Procesado de forma segura por Mercado Pago</span>
-                </div>
-              )}
-            </>
+                  <rect x="4" y="11" width="16" height="10" rx="2" />
+                  <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+                </svg>
+                <span>
+                  Pago cifrado · Procesado por{" "}
+                  <span style={{ color: "#00b1ea", fontWeight: 700 }}>Mercado Pago</span>
+                </span>
+              </div>
+            </div>
           )}
         </div>
       </div>
