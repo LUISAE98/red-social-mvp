@@ -108,6 +108,10 @@ type Props = {
   /** Estilo para la descripción (solo perfil). */
   descriptionStyle?: React.CSSProperties;
 
+  /** Rango de duración permitido (minutos). Default 5–90. */
+  durationMin?: number;
+  durationMax?: number;
+
   panelStyle: React.CSSProperties;
   titleStyle: React.CSSProperties;
   subtleStyle: React.CSSProperties;
@@ -135,6 +139,8 @@ export default function CustomClass({
   accentColor,
   showDescription = false,
   descriptionStyle,
+  durationMin = 5,
+  durationMax = 90,
   panelStyle,
   titleStyle,
   subtleStyle,
@@ -165,6 +171,17 @@ export default function CustomClass({
   const overlayCustomClassCalc = useMemo(() => {
     return calcNetAmount(overlayDraft.customClass.price);
   }, [overlayDraft.customClass.price, calcNetAmount]);
+
+  // Validación del rango de duración (minutos) mientras escribe.
+  const durationRaw = overlayDraft.customClass.durationMinutes;
+  const durationNum = Number(durationRaw);
+  const durationHasValue = durationRaw.trim() !== "";
+  const durationValid =
+    durationHasValue &&
+    Number.isInteger(durationNum) &&
+    durationNum >= durationMin &&
+    durationNum <= durationMax;
+  const durationOutOfRange = durationHasValue && !durationValid;
 
   const isBusy = saving;
 
@@ -338,7 +355,7 @@ export default function CustomClass({
         >
           <div style={{ display: "grid", gap: 8, minWidth: 0 }}>
             <span style={titleStyle}>
-              {!accentColor || draft.customClass.enabled ? `${customClassEmoji} ` : ""}
+              {!accentColor ? `${customClassEmoji} ` : ""}
               {tServices("exclusiveSessionTitle")}
             </span>
             {showDescription && (
@@ -378,10 +395,7 @@ export default function CustomClass({
         title={tServices("customClassConfigTitle")}
         loading={saving}
         confirmDisabled={
-          !(
-            Number(overlayDraft.customClass.price) > 0 &&
-            Number(overlayDraft.customClass.durationMinutes) > 0
-          )
+          !(Number(overlayDraft.customClass.price) > 0 && durationValid)
         }
         confirmLabel={tServices("publishExperience")}
         hideFooter={published}
@@ -467,13 +481,21 @@ export default function CustomClass({
           </div>
         ) : null}
 
-        <div style={{ ...subtleStyle, marginTop: 6, marginBottom: 2 }}>
-          {tServices("durationLegend")}
+        <div
+          style={{
+            ...subtleStyle,
+            marginTop: 6,
+            marginBottom: 2,
+            color: durationOutOfRange ? "#ef4444" : subtleStyle.color,
+          }}
+        >
+          {tServices("durationLegendRange", { min: durationMin, max: durationMax })}
         </div>
         <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
           <input
             type="number"
-            min="1"
+            min={durationMin}
+            max={durationMax}
             step="1"
             value={overlayDraft.customClass.durationMinutes}
             onChange={(e) =>
@@ -489,7 +511,13 @@ export default function CustomClass({
               }))
             }
             placeholder={tServices("durationPlaceholder")}
-            style={{ ...inputStyle, width: 160, flex: "1 1 180px" }}
+            style={{
+              ...inputStyle,
+              width: 160,
+              flex: "1 1 180px",
+              color: durationOutOfRange ? "#ef4444" : inputStyle.color,
+              fontWeight: durationOutOfRange ? 700 : undefined,
+            }}
           />
         </div>
         </>

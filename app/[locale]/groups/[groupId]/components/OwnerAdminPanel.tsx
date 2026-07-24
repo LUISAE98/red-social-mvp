@@ -63,16 +63,14 @@ export default function OwnerAdminPanel({
   const titleStyle: React.CSSProperties = {
     margin: 0,
     fontSize: 16,
-    fontWeight: 700,
+    fontWeight: 600,
     lineHeight: 1.2,
     color: "#fff",
   };
 
   const panelStyle: React.CSSProperties = {
-    borderRadius: 16,
-    border: "1px solid rgba(255,255,255,0.08)",
-    background: "rgba(255,255,255,0.03)",
-    padding: 12,
+    background: "transparent",
+    padding: 0,
     width: "100%",
     minWidth: 0,
   };

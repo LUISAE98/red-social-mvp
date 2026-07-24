@@ -2794,7 +2794,17 @@ const avatarNode = (
             )}
 
             {activeTab === "settings" && isOwner && user && group.ownerId && (
-              <section className="group-tab-panel" style={{ ...panelStyle, marginTop: 12 }}>
+              <section
+                className="group-tab-panel"
+                style={{
+                  ...panelStyle,
+                  marginTop: 12,
+                  border: "none",
+                  background: "transparent",
+                  borderRadius: 0,
+                  padding: "0 16px",
+                }}
+              >
                 <OwnerAdminPanel
                   groupId={groupId}
                   ownerId={group.ownerId}

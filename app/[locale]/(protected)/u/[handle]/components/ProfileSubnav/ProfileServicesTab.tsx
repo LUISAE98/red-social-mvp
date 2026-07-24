@@ -1440,6 +1440,8 @@ export default function ProfileServicesTab({
         SwitchComponent={Switch}
         OverlayModalComponent={MeetGreetOverlay}
         publishSuccess={publishSuccessConfig}
+        durationMin={MEET_GREET_MIN_MINUTES}
+        durationMax={MEET_GREET_MAX_MINUTES}
         onSaveDraft={(d) => saveServicesFromDraft(d as unknown as ServiceDraft)}
       />
       </div>
@@ -1464,6 +1466,8 @@ export default function ProfileServicesTab({
         SwitchComponent={Switch}
         OverlayModalComponent={CustomClassOverlay}
         publishSuccess={publishSuccessConfig}
+        durationMin={CUSTOM_CLASS_MIN_MINUTES}
+        durationMax={CUSTOM_CLASS_MAX_MINUTES}
         onSaveDraft={(d) => saveServicesFromDraft(d as unknown as ServiceDraft)}
       />
       </div>
@@ -1485,6 +1489,7 @@ export default function ProfileServicesTab({
         SwitchComponent={Switch}
         DonationModeButtonComponent={DonationModeButton}
         OverlayModalComponent={DonationOverlay}
+        publishSuccess={publishSuccessConfig}
         onSaveDraft={(d) => saveServicesFromDraft(d as ServiceDraft)}
       />
       </div>

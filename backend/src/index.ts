@@ -254,6 +254,13 @@ export { submitReport, claimReport, resolveReport } from "./moderation";
 // KYC — verificación de identidad con Didit (habilita retiros del creador)
 export { createKycSession, diditWebhook } from "./kyc";
 
+// Pagos (Mercado Pago — modelo agregador). Bloque 1: smoke test de credenciales.
+export { mpHealthcheck } from "./payments/mpHealthcheck";
+
+// Pagos — Bloque 2a: cobro de saludos/consejos + webhook de órdenes.
+export { payGreeting } from "./payments/greetingPayment";
+export { mpWebhook } from "./payments/mpWebhook";
+
 // Backfill de búsqueda de historias (corrida única, protegida por secret)
 export { backfillStoriesSearch } from "./storiesBackfill";
 
@@ -287,3 +294,6 @@ export {
   onInviteLinkUpdated,
   expireInviteLinks,
 } from "./notifications";
+
+// Push del sistema (FCM) para todas las notificaciones in-app
+export { onNotificationWritten } from "./push";

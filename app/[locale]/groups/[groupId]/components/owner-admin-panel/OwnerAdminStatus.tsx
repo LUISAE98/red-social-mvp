@@ -64,10 +64,7 @@ function PermissionSwitchRow({
   return (
     <div
       style={{
-        borderRadius: 12,
-        border: "1px solid rgba(255,255,255,0.10)",
-        background: "rgba(255,255,255,0.035)",
-        padding: 12,
+        padding: "12px 2px",
         display: "grid",
         gap: 10,
       }}
@@ -327,6 +324,13 @@ export default function OwnerAdminStatus({
     letterSpacing: "-0.01em",
   };
 
+  // Línea sutil para separar opciones, igual a la de la pestaña de experiencias.
+  const dividerStyle: React.CSSProperties = {
+    height: 1,
+    margin: "0 6px",
+    background: "rgba(255,255,255,0.1)",
+  };
+
   const primaryButtonStyle: React.CSSProperties = {
     minHeight: 36,
     padding: "8px 12px",
@@ -361,15 +365,11 @@ export default function OwnerAdminStatus({
 
   return (
     <div style={contentStyle}>
-      <div style={subtleTextStyle}>
-        Aquí controlas el estado general de la comunidad y las reglas base de
-        publicación/comentarios.
-      </div>
-
       <div
         style={{
           display: "grid",
           gap: 10,
+          marginTop: 10,
         }}
       >
         <h4 style={sectionTitleStyle}>Permisos de la comunidad</h4>
@@ -398,6 +398,8 @@ export default function OwnerAdminStatus({
           onToggle={() => saveCommentsEnabled(!commentsEnabled)}
         />
       </div>
+
+      <div aria-hidden="true" style={dividerStyle} />
 
       <div
         style={{

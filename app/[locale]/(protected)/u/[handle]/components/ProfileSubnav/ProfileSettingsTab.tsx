@@ -8,6 +8,7 @@ import LogoutButton from "@/app/LogoutButton";
 import VibraResponsivePanel from "@/components/ui/VibraResponsivePanel";
 import BlockedAccountsOverlay from "./BlockedAccountsOverlay";
 import SessionsOverlay from "./SessionsOverlay";
+import { usePushNotifications } from "@/lib/hooks/usePushNotifications";
 
 // Cooldown de cliente para el correo de cambio de contraseña. Firebase ya tiene
 // su propio throttling server-side, pero además bloqueamos el reenvío 60s desde
@@ -191,6 +192,21 @@ export default function ProfileSettingsTab({
   const tCommon = useTranslations("common");
   const tProfile = useTranslations("profile");
   const locale = useLocale();
+  const push = usePushNotifications(uid);
+
+  async function handlePushChange(nextValue: boolean) {
+    if (push.busy) return;
+    setMsg(null);
+    setErr(null);
+    const res = await push.toggle(nextValue);
+    if (nextValue && !res.ok) {
+      if (res.reason === "denied") setErr(tProfile("pushDenied"));
+      else if (res.reason === "unsupported") setErr(tProfile("pushUnsupported"));
+      else if (res.reason !== "dismissed") setErr(tProfile("pushError"));
+      return;
+    }
+    if (res.ok) setMsg(nextValue ? tProfile("pushEnabledMsg") : tProfile("pushDisabledMsg"));
+  }
   useEffect(() => { if (err) showSettingsToast(err, "error"); }, [err]); // eslint-disable-line react-hooks/exhaustive-deps
   // Los mensajes de éxito salen como VibraToast (no como letrero al fondo).
   useEffect(() => { if (msg) showSettingsToast(msg, "success"); }, [msg]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -640,6 +656,37 @@ export default function ProfileSettingsTab({
                   ? tProfile("restrictComments")
                   : tProfile("openComments")
               }
+            />
+          </div>
+        )}
+
+        {push.supported === true && (
+          <div className="profile-setting-item profile-setting-item--switch" style={item}>
+            <div>
+              <div style={labelStyle}>{tProfile("pushLabel")}</div>
+              <div style={valueStyle}>
+                {push.enabled ? tProfile("pushOn") : tProfile("pushOff")}
+              </div>
+              <div
+                style={{
+                  marginTop: 5,
+                  fontSize: 11.5,
+                  color: "rgba(255,255,255,0.58)",
+                  lineHeight: 1.4,
+                  maxWidth: 620,
+                }}
+              >
+                {push.permission === "denied"
+                  ? tProfile("pushDeniedHint")
+                  : tProfile("pushHint")}
+              </div>
+            </div>
+
+            <Switch
+              checked={push.enabled}
+              disabled={push.busy || push.permission === "denied"}
+              onChange={handlePushChange}
+              label={push.enabled ? tProfile("disablePush") : tProfile("enablePush")}
             />
           </div>
         )}

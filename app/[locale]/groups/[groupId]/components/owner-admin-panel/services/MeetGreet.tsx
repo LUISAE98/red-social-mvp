@@ -111,6 +111,10 @@ type Props = {
   /** Título alternativo para el servicio (solo perfil). */
   titleOverride?: string;
 
+  /** Rango de duración permitido (minutos). Default 5–25. */
+  durationMin?: number;
+  durationMax?: number;
+
   panelStyle: React.CSSProperties;
   titleStyle: React.CSSProperties;
   subtleStyle: React.CSSProperties;
@@ -139,6 +143,8 @@ export default function MeetGreet({
   showDescription = false,
   descriptionStyle,
   titleOverride,
+  durationMin = 5,
+  durationMax = 25,
   panelStyle,
   titleStyle,
   subtleStyle,
@@ -169,6 +175,17 @@ export default function MeetGreet({
   const overlayMeetGreetCalc = useMemo(() => {
     return calcNetAmount(overlayDraft.meetGreet.price);
   }, [overlayDraft.meetGreet.price, calcNetAmount]);
+
+  // Validación del rango de duración (minutos) mientras escribe.
+  const durationRaw = overlayDraft.meetGreet.durationMinutes;
+  const durationNum = Number(durationRaw);
+  const durationHasValue = durationRaw.trim() !== "";
+  const durationValid =
+    durationHasValue &&
+    Number.isInteger(durationNum) &&
+    durationNum >= durationMin &&
+    durationNum <= durationMax;
+  const durationOutOfRange = durationHasValue && !durationValid;
 
   const isBusy = saving;
 
@@ -342,7 +359,7 @@ export default function MeetGreet({
         >
           <div style={{ display: "grid", gap: 8, minWidth: 0 }}>
             <span style={titleStyle}>
-              {!accentColor || draft.meetGreet.enabled ? `${meetGreetEmoji} ` : ""}
+              {!accentColor ? `${meetGreetEmoji} ` : ""}
               {titleOverride ?? tServices("liveSessionTitle")}
             </span>
             {showDescription && (
@@ -382,10 +399,7 @@ export default function MeetGreet({
         title={tServices("meetGreetConfigTitle")}
         loading={saving}
         confirmDisabled={
-          !(
-            Number(overlayDraft.meetGreet.price) > 0 &&
-            Number(overlayDraft.meetGreet.durationMinutes) > 0
-          )
+          !(Number(overlayDraft.meetGreet.price) > 0 && durationValid)
         }
         confirmLabel={tServices("publishExperience")}
         hideFooter={published}
@@ -471,13 +485,21 @@ export default function MeetGreet({
           </div>
         ) : null}
 
-        <div style={{ ...subtleStyle, marginTop: 6, marginBottom: 2 }}>
-          {tServices("durationLegend")}
+        <div
+          style={{
+            ...subtleStyle,
+            marginTop: 6,
+            marginBottom: 2,
+            color: durationOutOfRange ? "#ef4444" : subtleStyle.color,
+          }}
+        >
+          {tServices("durationLegendRange", { min: durationMin, max: durationMax })}
         </div>
         <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
           <input
             type="number"
-            min="1"
+            min={durationMin}
+            max={durationMax}
             step="1"
             value={overlayDraft.meetGreet.durationMinutes}
             onChange={(e) =>
@@ -493,7 +515,13 @@ export default function MeetGreet({
               }))
             }
             placeholder={tServices("durationPlaceholder")}
-            style={{ ...inputStyle, width: 160, flex: "1 1 180px" }}
+            style={{
+              ...inputStyle,
+              width: 160,
+              flex: "1 1 180px",
+              color: durationOutOfRange ? "#ef4444" : inputStyle.color,
+              fontWeight: durationOutOfRange ? 700 : undefined,
+            }}
           />
         </div>
         </>

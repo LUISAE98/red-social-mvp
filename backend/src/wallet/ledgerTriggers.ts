@@ -313,10 +313,16 @@ async function handleRequestLifecycle(params: {
   const beforeStatus = before ? String(before.status ?? "") : "";
   const afterStatus = String(after.status ?? "");
 
-  // 1) Creado y pagado → registrar pendiente.
+  // 1) Pagado → registrar pendiente. Con MP real el pago se confirma DESPUÉS de
+  //    crear la solicitud (awaiting_payment → paid vía webhook), así que también
+  //    disparamos en la transición a pagado, no solo al crear ya-pagado (legacy
+  //    simulado). recordEarning es idempotente → nunca dobla la ganancia.
   const isPaid =
     after.paymentStatus === "simulated_paid" || after.paymentStatus === "paid";
-  if (!before && isPaid) {
+  const wasPaid = before
+    ? before.paymentStatus === "simulated_paid" || before.paymentStatus === "paid"
+    : false;
+  if (isPaid && !wasPaid) {
     const gross = num(after.priceSnapshot);
     if (gross > 0) {
       await recordEarning(creatorId, {

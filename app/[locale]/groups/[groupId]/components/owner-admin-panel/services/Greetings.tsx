@@ -331,7 +331,7 @@ export default function Saludos({
         >
           <div style={{ display: "grid", gap: 8, minWidth: 0 }}>
             <span style={titleStyle}>
-              {!accentColor || draft.saludo.enabled ? `${saludoEmoji} ` : ""}
+              {!accentColor ? `${saludoEmoji} ` : ""}
               {tServices("greetingsTitle")}
             </span>
             {showDescription && (

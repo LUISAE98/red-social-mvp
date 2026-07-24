@@ -227,6 +227,30 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // ==========================
+    // PAGOS (Mercado Pago — modelo agregador)
+    // ==========================
+
+    // Intentos de pago (puente compra ↔ orden de MP). El comprador lee el suyo
+    // para sondear el estado del cobro; TODO lo escribe el backend (onCall que
+    // crea la orden + webhook que confirma el pago). Nunca el cliente.
+    match /paymentIntents/{externalReference} {
+      allow get: if signedIn()
+        && resource.data.buyerId == request.auth.uid;
+      allow list, create, update, delete: if false;
+    }
+
+    // Solicitudes de retiro. El creador ve las suyas; el moderador de plataforma
+    // ve todas (panel de aprobación con intervención humana). La ESCRITURA es
+    // solo backend (onCall que captura banderas + revisión manual + money-out).
+    match /withdrawalRequests/{requestId} {
+      allow get: if signedIn()
+        && (resource.data.creatorId == request.auth.uid || isPlatformMod());
+      allow list: if signedIn()
+        && (request.auth.uid == resource.data.creatorId || isPlatformMod());
+      allow create, update, delete: if false;
+    }
+
     match /users/{uid} {
       allow get, list: if true;
 
@@ -507,6 +531,26 @@ match /walletSummary/{docId} {
   allow create, update, delete: if false;
 }
 
+// Cuenta de retiro del creador (CLABE). Dato financiero sensible: el dueño la
+// lee; la ESCRITURA es solo backend (onCall que coteja el titular contra el
+// nombre verificado por Didit antes de aprobar). Nunca la escribe el cliente.
+match /payoutAccounts/{accountId} {
+  allow get, list: if signedIn()
+    && request.auth.uid == uid;
+
+  allow create, update, delete: if false;
+}
+
+// Métodos de pago guardados del comprador. La tarjeta la tokeniza y custodia
+// Mercado Pago (Customers & Cards, PCI); aquí solo viven referencias no
+// sensibles (últimos 4, marca). El dueño las lee; solo el backend las escribe.
+match /paymentMethods/{cardId} {
+  allow get, list: if signedIn()
+    && request.auth.uid == uid;
+
+  allow create, update, delete: if false;
+}
+
 // Geo agregada de compras (mapa): el dueño la lee; solo el servidor la escribe
 // (Route Handler con firebase-admin). Nunca desde el cliente.
 match /purchaseGeo/{cellId} {
@@ -657,6 +701,14 @@ match /hiddenGroupTransitions/{groupId} {
       // otro dispositivo del mismo usuario) para cerrarla remotamente. La Cloud
       // Function de geo-IP usa Admin SDK y no pasa por estas reglas.
       match /sessions/{sessionId} {
+        allow get, list: if signedIn() && request.auth.uid == uid;
+        allow create, update, delete: if signedIn() && request.auth.uid == uid;
+      }
+
+      // Tokens FCM de push por dispositivo. El dueño registra/borra los suyos
+      // (activar/desactivar notificaciones, limpiar dispositivos). El envío de
+      // push usa Admin SDK (Cloud Function) y no pasa por estas reglas.
+      match /fcmTokens/{token} {
         allow get, list: if signedIn() && request.auth.uid == uid;
         allow create, update, delete: if signedIn() && request.auth.uid == uid;
       }

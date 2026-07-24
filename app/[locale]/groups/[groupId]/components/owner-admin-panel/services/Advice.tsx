@@ -325,7 +325,7 @@ export default function Consejos({
         >
           <div style={{ display: "grid", gap: 8, minWidth: 0 }}>
             <span style={titleStyle}>
-              {!accentColor || draft.consejo.enabled ? `${consejoEmoji} ` : ""}
+              {!accentColor ? `${consejoEmoji} ` : ""}
               {tServices("adviceTitle")}
             </span>
             {showDescription && (

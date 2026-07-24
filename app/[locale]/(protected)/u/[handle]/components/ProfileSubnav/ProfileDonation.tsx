@@ -8,6 +8,7 @@ import { db, functions } from "@/lib/firebase";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import ServiceInfoIcon from "@/components/services/ServiceInfoIcon";
 import ServicePreviewReveal from "@/components/services/ServicePreviewReveal";
+import ServicePublishedSuccess from "@/components/services/ServicePublishedSuccess";
 
 type Currency = "MXN" | "USD";
 type DonationMode = "none" | "general" | "wedding";
@@ -46,6 +47,7 @@ type OverlayModalProps = {
   cancelLabel?: string;
   loading?: boolean;
   confirmDisabled?: boolean;
+  hideFooter?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
 };
@@ -65,6 +67,8 @@ type Props = {
   SwitchComponent: React.ComponentType<SwitchProps>;
   DonationModeButtonComponent: React.ComponentType<ModeButtonProps>;
   OverlayModalComponent: React.ComponentType<OverlayModalProps>;
+  /** Si se provee, al publicar con éxito muestra la vista de éxito (no cierra). */
+  publishSuccess?: { shareUrl: string; entityKind: "profile" | "community" };
   onSaveDraft: (nextDraft: AnyDraft) => Promise<boolean | void>;
 };
 
@@ -97,10 +101,12 @@ export default function ProfileDonation({
   SwitchComponent,
   DonationModeButtonComponent,
   OverlayModalComponent,
+  publishSuccess,
   onSaveDraft,
 }: Props) {
   const tProfile = useTranslations("profile");
   const tCommon = useTranslations("common");
+  const tServices = useTranslations("services");
   const { format: formatMoney, resolveStoredPrice, toDisplayForInput, currency: displayCurrency, formatAnchor } =
     usePriceFormat();
 
@@ -108,6 +114,8 @@ export default function ProfileDonation({
 
   const [overlayMode, setOverlayMode] = useState<OverlayMode>(null);
   const [overlayDraft, setOverlayDraft] = useState<AnyDraft>(draft);
+  // Vista de éxito tras publicar (panel abierto, sin formulario).
+  const [published, setPublished] = useState(false);
 
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [uploadPending, setUploadPending] = useState(false); // uploaded but playbackId not yet arrived
@@ -158,6 +166,7 @@ export default function ProfileDonation({
             ) / 100
           )
         : stored;
+    setPublished(false);
     setOverlayMode(mode);
     setOverlayDraft({ ...src, donationMinimumAmount: shown });
     setUploadErr(null);
@@ -167,6 +176,7 @@ export default function ProfileDonation({
   function closeOverlay() {
     if (isBusy) return;
     stopPlaybackListener();
+    setPublished(false);
     setOverlayMode(null);
     setOverlayDraft(draft);
   }
@@ -206,9 +216,13 @@ export default function ProfileDonation({
       donationCurrency: currency,
     };
 
-    await onSaveDraft(toSave);
+    const ok = await onSaveDraft(toSave);
     stopPlaybackListener();
-    setOverlayMode(null);
+    if (ok && publishSuccess?.shareUrl) {
+      setPublished(true);
+    } else {
+      setOverlayMode(null);
+    }
   }
 
   async function handleToggle(next: boolean) {
@@ -375,7 +389,7 @@ export default function ProfileDonation({
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
           <div style={{ display: "grid", gap: 8, minWidth: 0 }}>
             <span style={titleStyle}>
-              {accentColor && !isEnabled
+              {accentColor
                 ? tProfile("donationTitle").replace(/^[^\p{L}]+/u, "")
                 : tProfile("donationTitle")}
             </span>
@@ -415,9 +429,29 @@ export default function ProfileDonation({
         loading={saving}
         confirmDisabled={!canPublishDonation}
         confirmLabel={tProfile("donationPublishExperience")}
+        hideFooter={published}
         onCancel={closeOverlay}
         onConfirm={() => void confirmOverlaySave()}
       >
+        {published && publishSuccess ? (
+          <ServicePublishedSuccess
+            shareUrl={publishSuccess.shareUrl}
+            copyLabel={
+              publishSuccess.entityKind === "community"
+                ? tCommon("copyGroupLink")
+                : tCommon("copyProfileLink")
+            }
+            copiedLabel={tCommon("linkCopied")}
+            message={tServices("publishedSuccessMessage", {
+              service: tServices("donationNoun"),
+              entity:
+                publishSuccess.entityKind === "community"
+                  ? tServices("entityCommunity")
+                  : tServices("entityProfile"),
+            })}
+          />
+        ) : (
+        <>
         {/* Message */}
         <div>
           <div style={{ ...subtleStyle, marginBottom: 8 }}>{tProfile("donationMessageLabel")}</div>
@@ -485,7 +519,7 @@ export default function ProfileDonation({
         </div>
 
         {/* Video upload — sin botón: texto celeste clicable + barra de progreso */}
-        <div>
+        <div style={{ containerType: "inline-size" }}>
           <style jsx>{`
             @keyframes donationDotBlink {
               0%,
@@ -505,6 +539,39 @@ export default function ProfileDonation({
             }
             .donationUploadDots span:nth-child(3) {
               animation-delay: 0.4s;
+            }
+
+            /* CTA de video: texto celeste, centrado. */
+            .donationVideoCta {
+              display: block;
+              width: 100%;
+              margin: 0;
+              padding: 0;
+              border: none;
+              background: none;
+              color: #7dd3fc;
+              font-weight: 600;
+              font-family: inherit;
+              line-height: 1.4;
+              text-align: center;
+              cursor: pointer;
+            }
+            .donationVideoCta:disabled {
+              cursor: not-allowed;
+            }
+            /* Celular: hasta dos renglones, centrados. */
+            @media (hover: none) {
+              .donationVideoCta {
+                white-space: normal;
+                font-size: 13px;
+              }
+            }
+            /* Laptop: un solo renglón; la fuente se ajusta al ancho del panel. */
+            @media (hover: hover) {
+              .donationVideoCta {
+                white-space: nowrap;
+                font-size: clamp(8px, 2.3cqw, 13px);
+              }
             }
           `}</style>
 
@@ -542,22 +609,9 @@ export default function ProfileDonation({
             <>
               <button
                 type="button"
+                className="donationVideoCta"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isBusy}
-                style={{
-                  background: "none",
-                  border: "none",
-                  padding: 0,
-                  margin: 0,
-                  width: "100%",
-                  color: "#7dd3fc",
-                  fontSize: 13,
-                  fontWeight: 600,
-                  lineHeight: 1.4,
-                  textAlign: "center",
-                  fontFamily: "inherit",
-                  cursor: isBusy ? "not-allowed" : "pointer",
-                }}
               >
                 {tProfile("donationVideoReadyCta")}
               </button>
@@ -584,21 +638,9 @@ export default function ProfileDonation({
           ) : (
             <button
               type="button"
+              className="donationVideoCta"
               onClick={() => fileInputRef.current?.click()}
               disabled={isBusy}
-              style={{
-                background: "none",
-                border: "none",
-                padding: 0,
-                margin: 0,
-                color: "#7dd3fc",
-                fontSize: 13,
-                fontWeight: 600,
-                lineHeight: 1.4,
-                textAlign: "left",
-                fontFamily: "inherit",
-                cursor: isBusy ? "not-allowed" : "pointer",
-              }}
             >
               {tProfile("donationVideoUploadCta")}
             </button>
@@ -619,6 +661,8 @@ export default function ProfileDonation({
 
         {saveErr && (
           <div style={{ color: "rgba(255,120,120,0.95)", fontSize: 13, fontWeight: 600 }}>{saveErr}</div>
+        )}
+        </>
         )}
       </OverlayModalComponent>
     </>
