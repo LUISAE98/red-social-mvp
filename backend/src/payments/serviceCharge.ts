@@ -10,7 +10,7 @@ import * as crypto from "crypto";
 import * as admin from "firebase-admin";
 import { logger } from "firebase-functions";
 import { HttpsError } from "firebase-functions/v2/https";
-import { mpFetch } from "./mpClient";
+import { mpFetch, MP_SANDBOX, SANDBOX_PAYER_EMAIL } from "./mpClient";
 import {
   normalizeOrderPaymentStatus,
   upsertPaymentIntentStatus,
@@ -93,6 +93,9 @@ export async function chargeServiceIntent(
       ? Math.floor(card.installments as number)
       : 1;
 
+  // En sandbox el email debe terminar en @testuser.com; en prod usamos el real.
+  const effectiveEmail = MP_SANDBOX ? SANDBOX_PAYER_EMAIL : card.payerEmail ?? "";
+
   // Arma el pagador y el método según sea tarjeta GUARDADA o NUEVA.
   let payer: Record<string, unknown>;
   let paymentMethodId: string;
@@ -107,10 +110,10 @@ export async function chargeServiceIntent(
     if (!card.paymentMethodId) {
       throw new HttpsError("invalid-argument", "Falta el método de pago.");
     }
-    if (!card.payerEmail) {
+    if (!effectiveEmail) {
       throw new HttpsError("invalid-argument", "Falta el correo del pagador.");
     }
-    payer = { email: card.payerEmail };
+    payer = { email: effectiveEmail };
     paymentMethodId = card.paymentMethodId;
   }
 
@@ -172,9 +175,9 @@ export async function chargeServiceIntent(
 
     // Guarda la tarjeta NUEVA si el comprador lo pidió (best-effort; no tumba el
     // pago si falla). Solo con tarjeta nueva (no re-guarda una ya guardada).
-    if (card.saveToken && card.payerEmail && !card.savedCardId) {
+    if (card.saveToken && effectiveEmail && !card.savedCardId) {
       try {
-        await saveCardForBuyer(uid, card.payerEmail, card.saveToken);
+        await saveCardForBuyer(uid, effectiveEmail, card.saveToken);
       } catch (err) {
         logger.warn("chargeServiceIntent save_card_failed", {
           externalReference,

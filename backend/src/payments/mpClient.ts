@@ -28,6 +28,12 @@ export const mpWebhookSecret = defineSecret("MP_WEBHOOK_SECRET");
 /** Toda la contabilidad y el cobro viven en MXN (ancla del catálogo de monedas). */
 export const MP_CURRENCY = "MXN" as const;
 
+// ⚠️ SANDBOX: MP exige que el email del pagador termine en "@testuser.com".
+// En pruebas forzamos un email de test; en el CORTE A PRODUCCIÓN poner
+// MP_SANDBOX = false para usar el email real del comprador.
+export const MP_SANDBOX = true;
+export const SANDBOX_PAYER_EMAIL = "test@testuser.com";
+
 export type MpFetchResult<T> =
   | { ok: true; status: number; data: T }
   | { ok: false; status: number; error: string };
