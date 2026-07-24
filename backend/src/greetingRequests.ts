@@ -313,7 +313,7 @@ const profileUserId =
       updatedAt: now,
     });
 
-    return { requestId: requestRef.id, creatorId };
+    return { requestId: requestRef.id, creatorId, priceSnapshot: profilePriceSnapshot };
   }
 
   if (!groupId) {
@@ -391,7 +391,7 @@ const profileUserId =
     updatedAt: now,
   });
 
-  return { requestId: requestRef.id, creatorId };
+  return { requestId: requestRef.id, creatorId, priceSnapshot: groupPriceSnapshot };
 });
 
   logger.info("createGreetingRequest created", {
@@ -407,6 +407,7 @@ const profileUserId =
       ok: true,
       requestId: result.requestId,
       creatorId: result.creatorId,
+      priceSnapshot: result.priceSnapshot ?? null,
       source,
       requestSource: source,
       groupId,

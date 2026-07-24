@@ -10,6 +10,7 @@ import { doc, getDoc, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { StoryDoc, StoryType } from "@/lib/stories/types";
 import { createGreetingRequest } from "@/lib/greetings/greetingRequests";
+import GreetingPaymentModal from "@/components/payments/GreetingPaymentModal";
 import { registrarCompraGeo } from "@/lib/wallet/registrarCompraGeo";
 import CreatorServiceModals from "@/components/services/CreatorServiceModals";
 import { getMutePreference, setMutePreference } from "@/lib/utils/mutePreference";
@@ -79,6 +80,10 @@ export default function StoryViewer({
   const [greetSubmitting, setGreetSubmitting] = useState(false);
   const [greetError, setGreetError] = useState<string | null>(null);
   const [greetSuccess, setGreetSuccess] = useState<string | null>(null);
+  // Pago del saludo (segundo modal con el Payment Brick de MP).
+  const [payGreetOpen, setPayGreetOpen] = useState(false);
+  const [payGreetId, setPayGreetId] = useState<string | null>(null);
+  const [payGreetAmount, setPayGreetAmount] = useState<number | null>(null);
   const [muted, setMuted] = useState(() =>
     typeof window !== "undefined" && getMutePreference()
   );
@@ -535,7 +540,7 @@ export default function StoryViewer({
     setGreetSubmitting(true);
     setGreetError(null);
     try {
-      await createGreetingRequest({
+      const res = await createGreetingRequest({
         creatorId: greetingAuthorUid,
         profileUserId: greetingAuthorUid,
         type: effectiveType,
@@ -545,11 +550,10 @@ export default function StoryViewer({
         groupId: story.source === "group" ? story.groupId : null,
         allowCreatorStory: greetAllowStory,
       });
-      registrarCompraGeo({
-        creatorId: greetingAuthorUid,
-        serviceType: effectiveType === "consejo" ? "advice" : "greeting",
-      });
-      setGreetSuccess(tServices("greetRequestSuccess"));
+      // Saludo en awaiting_payment → abrir el segundo modal (Brick) para cobrar.
+      setPayGreetId(res.requestId);
+      setPayGreetAmount(res.priceSnapshot ?? null);
+      setPayGreetOpen(true);
     } catch (err: unknown) {
       setGreetError(err instanceof Error ? err.message : tWallet("requestError"));
     } finally {
@@ -949,6 +953,7 @@ export default function StoryViewer({
 
   // ── Shared: greeting purchase modal (renders above everything via its own portal) ──
   const greetModal = (
+    <>
     <CreatorServiceModals
       greetOpen={greetOpen}
       greetSubmitting={greetSubmitting}
@@ -996,6 +1001,24 @@ export default function StoryViewer({
       serviceModalCardStyle={{ width: "min(720px, calc(100vw - 28px))", maxHeight: "calc(100dvh - 28px)", overflowY: "auto", background: "linear-gradient(180deg, rgba(18,18,18,0.98), rgba(8,8,8,0.98))", border: "1px solid rgba(255,255,255,0.16)", borderRadius: 18, overflow: "hidden", boxShadow: "0 24px 80px rgba(0,0,0,0.72)", color: "#fff" }}
       serviceToastStyle={{ position: "fixed", left: "50%", bottom: "calc(24px + env(safe-area-inset-bottom))", transform: "translateX(-50%)", zIndex: 100002, maxWidth: "min(520px, calc(100vw - 28px))", padding: "10px 12px", borderRadius: 999, border: "1px solid rgba(255,255,255,0.16)", background: "rgba(12,12,12,0.94)", color: "#fff", fontSize: 13, fontWeight: 600, fontFamily: FONT }}
     />
+    <GreetingPaymentModal
+      open={payGreetOpen}
+      greetingRequestId={payGreetId}
+      amount={payGreetAmount}
+      priceLabel={payGreetAmount != null ? `$${payGreetAmount} MXN` : undefined}
+      title={tServices("continueToPayment")}
+      onClose={() => setPayGreetOpen(false)}
+      onPaid={() => {
+        setPayGreetOpen(false);
+        registrarCompraGeo({
+          creatorId: greetingAuthorUid,
+          serviceType: effectiveType === "consejo" ? "advice" : "greeting",
+          grossAmount: payGreetAmount ?? undefined,
+        });
+        setGreetSuccess(tServices("greetRequestSuccess"));
+      }}
+    />
+    </>
   );
 
   // ── Contained mode (used by HomeStoryCarousel) ────────────────────────────

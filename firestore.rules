@@ -2342,6 +2342,7 @@ function canReadPostCommentsData(data) {
           canReadGroupContent(data.groupId)
           || (
             data.isShareable == true
+            && data.premium != null
             && data.premium.enabled == true
             && data.premium.accessMode == "public"
           )
@@ -2366,6 +2367,7 @@ function hasPostAccess(postId) {
 
 function viewerHasPremiumPostAccess(data, postId) {
   return !("premium" in data)
+    || data.premium == null
     || data.premium.enabled != true
     || data.authorId == request.auth.uid
     || !(data.groupId is string)

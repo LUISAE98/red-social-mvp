@@ -1546,6 +1546,8 @@ miniItem: {
           const data = d.data() as GreetingRequestDoc;
 
           if (data.status !== "pending") return;
+          // No mostrar al creador saludos sin pagar (esperando pago en MP).
+          if ((data as { paymentStatus?: string }).paymentStatus === "awaiting_payment") return;
 
           const bucketKey = getServiceBucketKey(data);
 
@@ -1569,10 +1571,16 @@ miniItem: {
     const unsubBuyer = onSnapshot(
       buyerQ,
       async (snap) => {
-        const rows = snap.docs.map((d) => ({
-          id: d.id,
-          data: d.data() as GreetingRequestDoc,
-        }));
+        const rows = snap.docs
+          .map((d) => ({
+            id: d.id,
+            data: d.data() as GreetingRequestDoc,
+          }))
+          // Ocultar solicitudes propias sin pagar (esperando pago en MP).
+          .filter(
+            (r) =>
+              (r.data as { paymentStatus?: string }).paymentStatus !== "awaiting_payment"
+          );
 
         setBuyerPending(rows);
 

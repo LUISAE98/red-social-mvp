@@ -50,6 +50,7 @@ import {
   createGreetingRequest,
   type GreetingType,
 } from "@/lib/greetings/greetingRequests";
+import GreetingPaymentModal from "@/components/payments/GreetingPaymentModal";
 import { createMeetGreetRequest } from "@/lib/meetGreet/meetGreetRequests";
 import { createExclusiveSessionRequest } from "@/lib/exclusiveSession/exclusiveSessionRequests";
 import {
@@ -522,6 +523,11 @@ const canRequestMeetGreet =
   const [greetSubmitting, setGreetSubmitting] = useState(false);
   const [greetError, setGreetError] = useState<string | null>(null);
   const [greetSuccess, setGreetSuccess] = useState<string | null>(null);
+  // Pago del saludo (segundo modal con el Payment Brick de MP).
+  const [payGreetOpen, setPayGreetOpen] = useState(false);
+  const [payGreetId, setPayGreetId] = useState<string | null>(null);
+  const [payGreetAmount, setPayGreetAmount] = useState<number | null>(null);
+  const [payGreetLabel, setPayGreetLabel] = useState<string | undefined>(undefined);
 
   const [meetGreetOpen, setMeetGreetOpen] = useState(false);
   const [meetGreetMessage, setMeetGreetMessage] = useState("");
@@ -830,7 +836,7 @@ function redirectToLogin() {
     setGreetSuccess(null);
 
     try {
-      await createGreetingRequest({
+      const res = await createGreetingRequest({
         groupId,
         type: greetType,
         toName: toName.trim(),
@@ -839,27 +845,22 @@ function redirectToLogin() {
         allowCreatorStory,
       });
 
-      registrarCompraGeo({
-        creatorId: group?.ownerId,
-        serviceType: greetType === "consejo" ? "advice" : "greeting",
-        grossAmount:
-          greetOffering?.memberPrice ?? greetOffering?.publicPrice ?? undefined,
-      });
+      // Saludo en awaiting_payment → abrir el segundo modal (Brick) para cobrar.
+      const amount =
+        res.priceSnapshot ??
+        greetOffering?.memberPrice ??
+        greetOffering?.publicPrice ??
+        null;
 
-      const successMessage = tGroups("greetSent");
-
-      setServiceToast(successMessage);
       setGreetOpen(false);
       setToName("");
       setInstructions("");
       setGreetSuccess(null);
       clearServiceQuery();
-
-      window.setTimeout(() => {
-        setServiceToast((current) =>
-          current === successMessage ? null : current
-        );
-      }, 4000);
+      setPayGreetId(res.requestId);
+      setPayGreetAmount(amount);
+      setPayGreetLabel(greetPriceLabel);
+      setPayGreetOpen(true);
     } catch (e: unknown) {
       setGreetError((e instanceof Error ? e.message : null) ?? tGroups("greetRequestError"));
     } finally {
@@ -2850,6 +2851,24 @@ const avatarNode = (
         </div>
         </main>
       </RefreshableArea>
+
+      <GreetingPaymentModal
+        open={payGreetOpen}
+        greetingRequestId={payGreetId}
+        amount={payGreetAmount}
+        priceLabel={payGreetLabel}
+        title={tServices("continueToPayment")}
+        onClose={() => setPayGreetOpen(false)}
+        onPaid={() => {
+          setPayGreetOpen(false);
+          registrarCompraGeo({
+            creatorId: group?.ownerId,
+            serviceType: greetType === "consejo" ? "advice" : "greeting",
+            grossAmount: payGreetAmount ?? undefined,
+          });
+          setServiceToast(tGroups("greetSent"));
+        }}
+      />
 
       <CreatorServiceModals
         greetOpen={greetOpen}

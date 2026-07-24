@@ -22,6 +22,8 @@ type CreateGreetingRequestResult = {
   ok: true;
   requestId: string;
   creatorId: string;
+  /** Precio autoritativo del servidor (para cobrar exactamente esto en el Brick). */
+  priceSnapshot?: number | null;
   source: GreetingSource;
   requestSource?: GreetingSource;
   groupId?: string | null;

@@ -13,6 +13,7 @@
   "dependencies": {
     "@livekit/components-react": "^2.9.21",
     "@livekit/egress-sdk": "^0.2.1",
+    "@mercadopago/sdk-js": "^0.0.3",
     "@sentry/nextjs": "^10.40.0",
     "firebase": "^12.7.0",
     "firebase-admin": "^13.7.0",
@@ -32,6 +33,7 @@
     "three": "^0.185.1"
   },
   "devDependencies": {
+    "@firebase/rules-unit-testing": "^5.0.1",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
