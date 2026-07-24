@@ -319,6 +319,27 @@ export const onPostCommentReplyCreated = onDocumentCreated(
         target,
       });
     }
+
+    // El dueño del post también recibe aviso de la nueva actividad (respuesta) en
+    // su publicación, aunque la respuesta no sea a su comentario. Se agrega bajo
+    // la misma clave que los comentarios del post (actividad de comentarios). Se
+    // evita duplicar: no si es quien responde, el autor del comentario (que ya
+    // recibió su aviso de respuesta) o alguien ya mencionado.
+    const postAuthorId = post.exists ? str(post.get("authorId")) : null;
+    if (
+      postAuthorId &&
+      postAuthorId !== actor.id &&
+      postAuthorId !== commentAuthorId &&
+      !mentionedIds.has(postAuthorId)
+    ) {
+      await emit({
+        recipientId: postAuthorId,
+        groupKey: `post_comment_${postId}`,
+        type: "comment",
+        actor,
+        target,
+      });
+    }
   }
 );
 

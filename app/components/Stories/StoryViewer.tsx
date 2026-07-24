@@ -1007,7 +1007,9 @@ export default function StoryViewer({
       amount={payGreetAmount}
       pay={(c) => payGreeting({ greetingRequestId: payGreetId ?? "", ...c })}
       priceLabel={payGreetAmount != null ? `$${payGreetAmount} MXN` : undefined}
-      title={tServices("continueToPayment")}
+      productType={effectiveType === "consejo" ? "Consejo" : "Saludo"}
+      providerName={greetingAuthorName ?? undefined}
+      avatarUrl={creator?.photo ?? null}
       onClose={() => setPayGreetOpen(false)}
       onPaid={() => {
         setPayGreetOpen(false);

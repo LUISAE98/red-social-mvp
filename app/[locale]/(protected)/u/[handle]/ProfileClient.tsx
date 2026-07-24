@@ -2750,7 +2750,9 @@ const res = (await createExclusiveSessionRequest({
   amount={payGreetAmount}
   pay={(c) => payGreeting({ greetingRequestId: payGreetId ?? "", ...c })}
   priceLabel={payGreetLabel}
-  title={tServices("continueToPayment")}
+  productType={greetType === "consejo" ? "Consejo" : "Saludo"}
+  providerName={fullName}
+  avatarUrl={userDoc.photoURL}
   onClose={() => setPayGreetOpen(false)}
   onPaid={() => {
     setPayGreetOpen(false);
@@ -2768,7 +2770,9 @@ const res = (await createExclusiveSessionRequest({
   amount={paySessionAmount}
   pay={(c) => payExclusiveSession({ requestId: paySessionId ?? "", ...c })}
   priceLabel={paySessionLabel}
-  title={tServices("continueToPayment")}
+  productType="Sesión exclusiva"
+  providerName={fullName}
+  avatarUrl={userDoc.photoURL}
   onClose={() => setPaySessionOpen(false)}
   onPaid={() => {
     setPaySessionOpen(false);
@@ -2786,7 +2790,9 @@ const res = (await createExclusiveSessionRequest({
   amount={payMeetAmount}
   pay={(c) => payMeetGreet({ requestId: payMeetId ?? "", ...c })}
   priceLabel={payMeetLabel}
-  title={tServices("continueToPayment")}
+  productType="Tiempo contigo"
+  providerName={fullName}
+  avatarUrl={userDoc.photoURL}
   onClose={() => setPayMeetOpen(false)}
   onPaid={() => {
     setPayMeetOpen(false);

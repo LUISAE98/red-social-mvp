@@ -2858,7 +2858,9 @@ const avatarNode = (
         amount={payGreetAmount}
         pay={(c) => payGreeting({ greetingRequestId: payGreetId ?? "", ...c })}
         priceLabel={payGreetLabel}
-        title={tServices("continueToPayment")}
+        productType={greetType === "consejo" ? "Consejo" : "Saludo"}
+        providerName={group?.name}
+        avatarUrl={group?.avatarUrl ?? null}
         onClose={() => setPayGreetOpen(false)}
         onPaid={() => {
           setPayGreetOpen(false);
@@ -2876,7 +2878,9 @@ const avatarNode = (
         amount={paySessionAmount}
         pay={(c) => payExclusiveSession({ requestId: paySessionId ?? "", ...c })}
         priceLabel={paySessionLabel}
-        title={tServices("continueToPayment")}
+        productType="Sesión exclusiva"
+        providerName={group?.name}
+        avatarUrl={group?.avatarUrl ?? null}
         onClose={() => setPaySessionOpen(false)}
         onPaid={() => {
           setPaySessionOpen(false);
@@ -2894,7 +2898,9 @@ const avatarNode = (
         amount={payMeetAmount}
         pay={(c) => payMeetGreet({ requestId: payMeetId ?? "", ...c })}
         priceLabel={payMeetLabel}
-        title={tServices("continueToPayment")}
+        productType="Tiempo contigo"
+        providerName={group?.name}
+        avatarUrl={group?.avatarUrl ?? null}
         onClose={() => setPayMeetOpen(false)}
         onPaid={() => {
           setPayMeetOpen(false);

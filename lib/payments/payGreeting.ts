@@ -6,14 +6,17 @@ import { functions } from "@/lib/firebase";
 
 export type PayGreetingInput = {
   greetingRequestId: string;
-  /** Token de tarjeta generado por el Payment Brick (nunca el número). */
+  /** Token de tarjeta (nunca el número). */
   token: string;
-  /** Marca/método (ej. "visa", "master") que devuelve el Brick. */
-  paymentMethodId: string;
-  /** "credit_card" | "debit_card" (selectedPaymentMethod del Brick). */
+  /** Marca/método (ej. "visa", "master"). */
+  paymentMethodId?: string;
   paymentType?: string;
   installments?: number;
   payerEmail?: string;
+  /** Segundo token para guardar la tarjeta nueva. */
+  saveToken?: string;
+  /** Id de la tarjeta guardada, si se paga con una. */
+  savedCardId?: string;
 };
 
 export type PayGreetingResult = {

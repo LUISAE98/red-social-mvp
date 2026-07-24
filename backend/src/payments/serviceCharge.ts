@@ -16,6 +16,7 @@ import {
   upsertPaymentIntentStatus,
   applyApprovedPaymentToSource,
 } from "./reconcile";
+import { saveCardForBuyer, getSavedCardRef } from "./savedCards";
 
 if (admin.apps.length === 0) {
   admin.initializeApp();
@@ -30,10 +31,14 @@ function money(n: number): string {
 
 export type ServiceCardData = {
   token: string;
-  paymentMethodId: string;
+  paymentMethodId?: string;
   paymentType?: string;
   installments?: number;
-  payerEmail: string;
+  payerEmail?: string;
+  /** Token de guardado (segundo token de la tarjeta nueva) para guardarla. */
+  saveToken?: string;
+  /** Si se cobra con una tarjeta YA guardada: su mpCardId. */
+  savedCardId?: string;
 };
 
 type OrderResponse = {
@@ -60,11 +65,8 @@ export async function chargeServiceIntent(
   uid: string,
   card: ServiceCardData
 ): Promise<ChargeResult> {
-  if (!card.token || !card.paymentMethodId) {
+  if (!card.token) {
     throw new HttpsError("invalid-argument", "Faltan datos de pago.");
-  }
-  if (!card.payerEmail) {
-    throw new HttpsError("invalid-argument", "Falta el correo del pagador.");
   }
 
   const intentRef = db.collection("paymentIntents").doc(externalReference);
@@ -91,6 +93,27 @@ export async function chargeServiceIntent(
       ? Math.floor(card.installments as number)
       : 1;
 
+  // Arma el pagador y el método según sea tarjeta GUARDADA o NUEVA.
+  let payer: Record<string, unknown>;
+  let paymentMethodId: string;
+  if (card.savedCardId) {
+    const ref = await getSavedCardRef(uid, card.savedCardId);
+    if (!ref) {
+      throw new HttpsError("failed-precondition", "Tarjeta guardada no encontrada.");
+    }
+    payer = { customer_id: ref.mpCustomerId };
+    paymentMethodId = ref.paymentMethodId;
+  } else {
+    if (!card.paymentMethodId) {
+      throw new HttpsError("invalid-argument", "Falta el método de pago.");
+    }
+    if (!card.payerEmail) {
+      throw new HttpsError("invalid-argument", "Falta el correo del pagador.");
+    }
+    payer = { email: card.payerEmail };
+    paymentMethodId = card.paymentMethodId;
+  }
+
   await upsertPaymentIntentStatus(externalReference, { status: "pending" });
 
   const res = await mpFetch<OrderResponse>("/v1/orders", {
@@ -101,13 +124,13 @@ export async function chargeServiceIntent(
       processing_mode: "automatic",
       total_amount: money(gross),
       external_reference: externalReference,
-      payer: { email: card.payerEmail },
+      payer,
       transactions: {
         payments: [
           {
             amount: money(gross),
             payment_method: {
-              id: card.paymentMethodId,
+              id: paymentMethodId,
               type: card.paymentType ?? "credit_card",
               token: card.token,
               installments,
@@ -146,6 +169,19 @@ export async function chargeServiceIntent(
       mpOrderId: order?.id ?? null,
       mpPaymentId: payment?.id ?? null,
     });
+
+    // Guarda la tarjeta NUEVA si el comprador lo pidió (best-effort; no tumba el
+    // pago si falla). Solo con tarjeta nueva (no re-guarda una ya guardada).
+    if (card.saveToken && card.payerEmail && !card.savedCardId) {
+      try {
+        await saveCardForBuyer(uid, card.payerEmail, card.saveToken);
+      } catch (err) {
+        logger.warn("chargeServiceIntent save_card_failed", {
+          externalReference,
+          err: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }
   }
 
   logger.info("chargeServiceIntent processed", { externalReference, normalized });

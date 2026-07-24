@@ -13,6 +13,7 @@ import {
   isValidHandle,
   normalizeHandle,
 } from "@/lib/auth/profileOnboarding";
+import { enablePush, isPushSupported } from "@/lib/push/fcm";
 
 const vibraPink = "#ff2fb3";
 const vibraPurple = "#a855ff";
@@ -34,6 +35,20 @@ export default function CompleteProfileClient() {
 
   const [msg, setMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  // Notificaciones: activadas por defecto en la creación de la cuenta.
+  const [notifOn, setNotifOn] = useState(true);
+  const [pushSupported, setPushSupported] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    void isPushSupported().then((ok) => {
+      if (alive) setPushSupported(ok);
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   useEffect(() => {
     document.documentElement.classList.add("loginNoScroll");
@@ -114,6 +129,16 @@ export default function CompleteProfileClient() {
         firstName: cleanedFirstName,
         lastName: cleanedLastName,
       });
+
+      // Si dejó activadas las notificaciones, pide permiso y registra el token
+      // de este dispositivo (dentro del gesto del submit). No bloquea el alta.
+      if (notifOn && pushSupported) {
+        try {
+          await enablePush(currentUser.uid);
+        } catch {
+          /* si el navegador niega el permiso, seguimos con el alta igual */
+        }
+      }
 
       router.replace(nextPath);
     } catch (err: unknown) {
@@ -306,6 +331,72 @@ export default function CompleteProfileClient() {
                 />
               </label>
             </div>
+
+            {pushSupported && (
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  padding: "9px 11px",
+                  borderRadius: 10,
+                  border: "1px solid rgba(168,85,255,0.22)",
+                  background: "rgba(255,255,255,0.035)",
+                }}
+              >
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <div style={{ ...labelTextStyle, fontWeight: 600 }}>
+                    {t("notifLabel")}
+                  </div>
+                  <div
+                    style={{
+                      fontSize: 10,
+                      color: "rgba(255,255,255,0.6)",
+                      lineHeight: 1.3,
+                      marginTop: 2,
+                    }}
+                  >
+                    {t("notifHint")}
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={notifOn}
+                  aria-label={t("notifLabel")}
+                  onClick={() => setNotifOn((v) => !v)}
+                  style={{
+                    position: "relative",
+                    width: 40,
+                    minWidth: 40,
+                    height: 22,
+                    borderRadius: 999,
+                    border: "none",
+                    background: notifOn
+                      ? "linear-gradient(100deg, #a855ff, #4f46ff)"
+                      : "rgba(255,255,255,0.14)",
+                    cursor: "pointer",
+                    padding: 0,
+                    flexShrink: 0,
+                    transition: "background 0.2s ease",
+                  }}
+                >
+                  <span
+                    style={{
+                      position: "absolute",
+                      top: 2,
+                      left: notifOn ? 20 : 2,
+                      width: 18,
+                      height: 18,
+                      borderRadius: "50%",
+                      background: "#fff",
+                      transition: "left 0.2s ease",
+                    }}
+                  />
+                </button>
+              </div>
+            )}
 
             <button
               type="submit"

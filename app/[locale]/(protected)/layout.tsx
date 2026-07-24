@@ -23,6 +23,7 @@ import { MobileHeaderCtx, type MobileHeaderData } from "@/app/contexts/MobileHea
 import LanguageSwitcher from "@/app/components/LanguageSwitcher";
 import CurrencySwitcher from "@/app/components/CurrencySwitcher";
 import LogoutButton from "@/app/LogoutButton";
+import PushEnablePrompt from "@/app/components/PushEnablePrompt";
 
 
 function PublicProfileShell({
@@ -971,6 +972,7 @@ const contentAreaClassName = isEmbed
 
        {!isEmbed && <ScrollToTopFAB />}
        {!isEmbed && <MobileBottomNav showWallet={!!user} />}
+       {!isEmbed && <PushEnablePrompt />}
       </div>
 
        {/* Búsqueda móvil: página completa negra que entra deslizándose de derecha

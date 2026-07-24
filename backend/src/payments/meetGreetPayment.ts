@@ -29,6 +29,8 @@ export const payMeetGreet = onCall(
       paymentType: String(data.paymentType ?? "credit_card").trim(),
       installments: Number(data.installments),
       payerEmail: String(data.payerEmail ?? request.auth?.token?.email ?? "").trim(),
+      saveToken: data.saveToken ? String(data.saveToken).trim() : undefined,
+      savedCardId: data.savedCardId ? String(data.savedCardId).trim() : undefined,
     });
   }
 );

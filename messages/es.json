@@ -2033,7 +2033,16 @@
     "errorInvalidHandle": "El username debe tener entre 3 y 20 caracteres: letras, números o guion bajo.",
     "errorFirstNameRequired": "Escribe tu nombre.",
     "errorLastNameRequired": "Escribe tu apellido.",
-    "errorGeneric": "No se pudo completar tu perfil. Intenta nuevamente."
+    "errorGeneric": "No se pudo completar tu perfil. Intenta nuevamente.",
+    "notifLabel": "Activar notificaciones",
+    "notifHint": "Te avisamos de likes, comentarios y actividad aunque no estés en la app."
+  },
+  "notifPrompt": {
+    "title": "Activa las notificaciones",
+    "body": "Recibe avisos de likes, comentarios y actividad aunque tengas Vibra cerrada.",
+    "enable": "Activar",
+    "enabling": "Activando…",
+    "later": "Ahora no"
   },
   "notifications": {
     "placeholder": "Aquí irán las notificaciones",

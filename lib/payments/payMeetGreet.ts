@@ -6,10 +6,12 @@ import { functions } from "@/lib/firebase";
 export type PayMeetGreetInput = {
   requestId: string;
   token: string;
-  paymentMethodId: string;
+  paymentMethodId?: string;
   paymentType?: string;
   installments?: number;
   payerEmail?: string;
+  saveToken?: string;
+  savedCardId?: string;
 };
 
 export type PayMeetGreetResult = {
