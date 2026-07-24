@@ -179,6 +179,13 @@ export const onNotificationWritten = onDocumentWritten(
     const { title, body } = buildContent(type, after);
     const link = buildLink(type, after);
 
+    // Ícono = avatar de quien genera la noti (su cara, como en la app); si no
+    // hay, el logo de Vibra. Imagen grande = miniatura del post (Android/desktop;
+    // iOS no la muestra). Badge = ícono monocromo para la barra de estado Android.
+    const actor = Array.isArray(after.actors) ? after.actors[0] : null;
+    const actorAvatar = actor ? s(actor.avatarUrl) : null;
+    const targetImage = s((after.target as Data)?.imageUrl);
+
     const resp = await admin.messaging().sendEachForMulticast({
       tokens,
       data: {
@@ -186,7 +193,9 @@ export const onNotificationWritten = onDocumentWritten(
         body,
         link,
         tag: groupKey,
-        icon: "/icon-192.png",
+        icon: actorAvatar ?? "/icon-192.png",
+        badge: "/icon-192.png",
+        ...(targetImage ? { image: targetImage } : {}),
       },
     });
 

@@ -267,6 +267,44 @@ export default function ServicePaymentModal({
         </div>
 
         <div style={{ padding: 16 }}>
+          {/* Franja de confianza — seguridad + marca del procesador (verídico). */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 8,
+              padding: "9px 12px",
+              marginBottom: 14,
+              borderRadius: 10,
+              background: "rgba(0,177,234,0.08)",
+              border: "1px solid rgba(0,177,234,0.28)",
+            }}
+          >
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 7 }}>
+              <svg
+                width={15}
+                height={15}
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="#00b1ea"
+                strokeWidth={2}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <rect x="4" y="11" width="16" height="10" rx="2" />
+                <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+              </svg>
+              <span style={{ fontSize: 12.5, fontWeight: 600, color: "rgba(255,255,255,0.9)" }}>
+                Pago seguro y cifrado
+              </span>
+            </span>
+            <span style={{ fontSize: 12, fontWeight: 700, color: "#00b1ea", letterSpacing: "-0.01em" }}>
+              Mercado Pago
+            </span>
+          </div>
+
           {error ? (
             <div style={{ display: "grid", gap: 12 }}>
               <p style={{ margin: 0, color: "#f87171", fontSize: 14 }}>{error}</p>
@@ -304,6 +342,35 @@ export default function ServicePaymentModal({
                   visibility: loading ? "hidden" : "visible",
                 }}
               />
+              {!loading && (
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 6,
+                    marginTop: 12,
+                    fontSize: 11,
+                    color: "rgba(255,255,255,0.48)",
+                  }}
+                >
+                  <svg
+                    width={11}
+                    height={11}
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                  >
+                    <rect x="4" y="11" width="16" height="10" rx="2" />
+                    <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+                  </svg>
+                  <span>Procesado de forma segura por Mercado Pago</span>
+                </div>
+              )}
             </>
           )}
         </div>

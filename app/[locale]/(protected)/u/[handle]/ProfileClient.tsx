@@ -47,6 +47,7 @@ import {
 import ServicePaymentModal from "@/components/payments/ServicePaymentModal";
 import { payGreeting } from "@/lib/payments/payGreeting";
 import { payExclusiveSession } from "@/lib/payments/payExclusiveSession";
+import { payMeetGreet } from "@/lib/payments/payMeetGreet";
 import { createMeetGreetRequest } from "@/lib/meetGreet/meetGreetRequests";
 import { registrarCompraGeo } from "@/lib/wallet/registrarCompraGeo";
 import { createExclusiveSessionRequest } from "@/lib/exclusiveSession/exclusiveSessionRequests";
@@ -371,6 +372,11 @@ const [paySessionOpen, setPaySessionOpen] = useState(false);
 const [paySessionId, setPaySessionId] = useState<string | null>(null);
 const [paySessionAmount, setPaySessionAmount] = useState<number | null>(null);
 const [paySessionLabel, setPaySessionLabel] = useState<string | undefined>(undefined);
+// Pago de "Tiempo contigo" (segundo modal con el Payment Brick).
+const [payMeetOpen, setPayMeetOpen] = useState(false);
+const [payMeetId, setPayMeetId] = useState<string | null>(null);
+const [payMeetAmount, setPayMeetAmount] = useState<number | null>(null);
+const [payMeetLabel, setPayMeetLabel] = useState<string | undefined>(undefined);
 const [greetType, setGreetType] = useState<GreetingType>("saludo");
 const [toName, setToName] = useState("");
 const [instructions, setInstructions] = useState("");
@@ -1592,7 +1598,7 @@ async function handleSubmitMeetGreet() {
   try {
     const service = getProfileService("meet_greet_digital");
 
-await createMeetGreetRequest({
+const res = (await createMeetGreetRequest({
   source: "profile",
   requestSource: "profile",
   profileUserId: userDoc.uid,
@@ -1601,17 +1607,18 @@ await createMeetGreetRequest({
   buyerMessage: meetGreetMessage,
   priceSnapshot: service?.publicPrice ?? service?.memberPrice ?? null,
   durationMinutes: (service as (NormalizedService & { durationMinutes?: number }) | null)?.durationMinutes ?? null,
-});
+})) as { requestId: string; priceSnapshot?: number | null };
 
-    registrarCompraGeo({
-      creatorId: userDoc.uid,
-      serviceType: "live_session",
-      grossAmount: service?.publicPrice ?? service?.memberPrice ?? undefined,
-    });
+    // Solicitud en awaiting_payment → abrir el segundo modal (Brick) para cobrar.
+    const amount = res.priceSnapshot ?? service?.publicPrice ?? service?.memberPrice ?? null;
+    const currency = service?.currency ?? "MXN";
 
     setMeetGreetOpen(false);
     setMeetGreetMessage("");
-    setServiceToast(tProfile("meetGreetSent"));
+    setPayMeetId(res.requestId);
+    setPayMeetAmount(amount);
+    setPayMeetLabel(typeof amount === "number" ? formatMoney(amount, currency) : undefined);
+    setPayMeetOpen(true);
   } catch (e: unknown) {
     setMeetGreetError((e instanceof Error ? e.message : null) ?? tServices("requestError"));
   } finally {
@@ -2771,6 +2778,24 @@ const res = (await createExclusiveSessionRequest({
       grossAmount: paySessionAmount ?? undefined,
     });
     setServiceToast(tProfile("sessionSent"));
+  }}
+/>
+
+<ServicePaymentModal
+  open={payMeetOpen}
+  amount={payMeetAmount}
+  pay={(c) => payMeetGreet({ requestId: payMeetId ?? "", ...c })}
+  priceLabel={payMeetLabel}
+  title={tServices("continueToPayment")}
+  onClose={() => setPayMeetOpen(false)}
+  onPaid={() => {
+    setPayMeetOpen(false);
+    registrarCompraGeo({
+      creatorId: userDoc.uid,
+      serviceType: "live_session",
+      grossAmount: payMeetAmount ?? undefined,
+    });
+    setServiceToast(tProfile("meetGreetSent"));
   }}
 />
 

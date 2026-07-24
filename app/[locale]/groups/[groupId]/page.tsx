@@ -53,6 +53,7 @@ import {
 import ServicePaymentModal from "@/components/payments/ServicePaymentModal";
 import { payGreeting } from "@/lib/payments/payGreeting";
 import { payExclusiveSession } from "@/lib/payments/payExclusiveSession";
+import { payMeetGreet } from "@/lib/payments/payMeetGreet";
 import { createMeetGreetRequest } from "@/lib/meetGreet/meetGreetRequests";
 import { createExclusiveSessionRequest } from "@/lib/exclusiveSession/exclusiveSessionRequests";
 import {
@@ -535,6 +536,11 @@ const canRequestMeetGreet =
   const [paySessionId, setPaySessionId] = useState<string | null>(null);
   const [paySessionAmount, setPaySessionAmount] = useState<number | null>(null);
   const [paySessionLabel, setPaySessionLabel] = useState<string | undefined>(undefined);
+  // Pago de "Tiempo contigo" (segundo modal con el Payment Brick).
+  const [payMeetOpen, setPayMeetOpen] = useState(false);
+  const [payMeetId, setPayMeetId] = useState<string | null>(null);
+  const [payMeetAmount, setPayMeetAmount] = useState<number | null>(null);
+  const [payMeetLabel, setPayMeetLabel] = useState<string | undefined>(undefined);
 
   const [meetGreetOpen, setMeetGreetOpen] = useState(false);
   const [meetGreetMessage, setMeetGreetMessage] = useState("");
@@ -912,31 +918,25 @@ function redirectToLogin() {
     setMeetGreetError(null);
 
     try {
-      await createMeetGreetRequest({
+      const res = (await createMeetGreetRequest({
         groupId,
         buyerMessage: meetGreetMessage.trim() || null,
         priceSnapshot: meetGreetPrice,
         durationMinutes: meetGreetDurationMinutes,
-      });
+      })) as { requestId: string; priceSnapshot?: number | null };
 
-      registrarCompraGeo({
-        creatorId: group?.ownerId,
-        serviceType: "live_session",
-        grossAmount: meetGreetPrice ?? undefined,
-      });
-
-      const successMessage = tGroups("meetGreetSent");
+      // Solicitud en awaiting_payment → abrir el segundo modal (Brick) para cobrar.
+      const amount = res.priceSnapshot ?? meetGreetPrice ?? null;
 
       setMeetGreetOpen(false);
       setMeetGreetMessage("");
-      setServiceToast(successMessage);
       clearServiceQuery();
-
-      window.setTimeout(() => {
-        setServiceToast((current) =>
-          current === successMessage ? null : current
-        );
-      }, 4000);
+      setPayMeetId(res.requestId);
+      setPayMeetAmount(amount);
+      setPayMeetLabel(
+        typeof amount === "number" ? formatMoney(amount, meetGreetCurrency) : undefined
+      );
+      setPayMeetOpen(true);
     } catch (e: unknown) {
       setMeetGreetError(
         (e instanceof Error ? e.message : null) ?? tGroups("meetGreetError")
@@ -2886,6 +2886,24 @@ const avatarNode = (
             grossAmount: paySessionAmount ?? undefined,
           });
           setServiceToast(tGroups("sessionExclusiveSent"));
+        }}
+      />
+
+      <ServicePaymentModal
+        open={payMeetOpen}
+        amount={payMeetAmount}
+        pay={(c) => payMeetGreet({ requestId: payMeetId ?? "", ...c })}
+        priceLabel={payMeetLabel}
+        title={tServices("continueToPayment")}
+        onClose={() => setPayMeetOpen(false)}
+        onPaid={() => {
+          setPayMeetOpen(false);
+          registrarCompraGeo({
+            creatorId: group?.ownerId,
+            serviceType: "live_session",
+            grossAmount: payMeetAmount ?? undefined,
+          });
+          setServiceToast(tGroups("meetGreetSent"));
         }}
       />
 

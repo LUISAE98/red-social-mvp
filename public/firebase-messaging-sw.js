@@ -39,7 +39,9 @@ if (firebaseConfig.apiKey && firebaseConfig.projectId) {
     self.registration.showNotification(title, {
       body: d.body || "",
       icon: d.icon || "/icon-192.png",
-      badge: "/icon-192.png",
+      badge: d.badge || "/icon-192.png",
+      // Imagen grande bajo el cuerpo (miniatura del post) — Android/desktop.
+      image: d.image || undefined,
       tag: d.tag || undefined,
       // renotify default false: al reemplazar por tag no re-vibra en cada update.
       data: { link: d.link || "/" },

@@ -141,5 +141,10 @@ export async function applyApprovedPaymentToSource(
     return;
   }
 
+  if (sourceType === "meetGreetRequest") {
+    await materializeFromIntent(externalReference, "meetGreetRequests", sourceId, "pendingMeetGreet", meta);
+    return;
+  }
+
   logger.info("reconcile: sourceType no manejado aún", { sourceType, externalReference });
 }

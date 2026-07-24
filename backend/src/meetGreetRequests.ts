@@ -760,8 +760,9 @@ if (source === "profile") {
       noShowMissingCreator: false,
       noShowMissingBuyer: false,
 
-      paymentMode: "simulated_no_real_payment",
-      paymentStatus: "simulated_paid",
+      // Pago real con Mercado Pago. paymentStatus/createdAt/updatedAt los pone
+      // reconcile al materializar (cuando el pago aprueba).
+      paymentMode: "mercadopago",
 
       // Campos LiveKit — se populan cuando se crea/gestiona la sala de videollamada
       roomName: null,
@@ -775,14 +776,40 @@ if (source === "profile") {
       recordingStatus: "not_started",
       recordingUrl: null,
       recordingDurationSeconds: null,
-
-      createdAt: nowTs(),
-      updatedAt: nowTs(),
     };
 
-    await docRef.set(payload);
+    // Pagar-luego-crear: la solicitud NO se crea aquí. Exige precio > 0 y guarda
+    // la compra (con el payload dentro) en un paymentIntent; se materializa SOLO
+    // cuando el pago aprueba (ver reconcile.ts). Cero solicitudes huérfanas.
+    if (
+      typeof resolvedPriceSnapshot !== "number" ||
+      resolvedPriceSnapshot <= 0
+    ) {
+      throw new HttpsError(
+        "failed-precondition",
+        "Este servicio no tiene un precio configurado."
+      );
+    }
 
-    logger.info("meet_greet_request_created", {
+    const externalReference = `meetGreetRequest__${docRef.id}`;
+    await db.collection("paymentIntents").doc(externalReference).set({
+      externalReference,
+      serviceType: "live_session",
+      sourceType: "meetGreetRequest",
+      sourceId: docRef.id,
+      buyerId: uid,
+      creatorId,
+      grossAmount: resolvedPriceSnapshot,
+      currency: offeringCurrency,
+      status: "awaiting_payment",
+      pendingMeetGreet: payload,
+      mpOrderId: null,
+      mpPaymentId: null,
+      createdAt: nowTs(),
+      updatedAt: nowTs(),
+    });
+
+    logger.info("meet_greet_intent_created", {
       requestId: docRef.id,
       groupId,
       profileUserId,
@@ -796,6 +823,7 @@ return {
   requestId: docRef.id,
   status: payload.status,
   creatorId,
+  priceSnapshot: resolvedPriceSnapshot,
   source,
   requestSource: source,
   groupId: source === "group" ? groupId : null,

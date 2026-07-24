@@ -264,6 +264,9 @@ export { mpWebhook } from "./payments/mpWebhook";
 // Pagos — sesión exclusiva (pagar-luego-crear, servicio propio).
 export { payExclusiveSession } from "./payments/exclusiveSessionPayment";
 
+// Pagos — tiempo contigo / meet & greet (pagar-luego-crear, servicio propio).
+export { payMeetGreet } from "./payments/meetGreetPayment";
+
 // Backfill de búsqueda de historias (corrida única, protegida por secret)
 export { backfillStoriesSearch } from "./storiesBackfill";
 
