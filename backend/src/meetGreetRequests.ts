@@ -1,6 +1,7 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { logger } from "firebase-functions";
 import * as admin from "firebase-admin";
+import { notifySessionEvent } from "./notifications";
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -1200,6 +1201,26 @@ export const setMeetGreetPreparing = onCall(
 
     await ref.update(updates);
 
+    // "La otra parte está lista": al abrir preparación por primera vez.
+    const wasPreparing = role === "buyer" ? !!data.preparingBuyerAt : !!data.preparingCreatorAt;
+    if (!wasPreparing) {
+      const otherId = role === "buyer" ? data.creatorId : data.buyerId;
+      try {
+        await notifySessionEvent({
+          action: "partner_ready",
+          sessionId: requestId,
+          sessionType: "meet_greet",
+          recipientIds: [typeof otherId === "string" ? otherId : null],
+          actorUid: uid,
+        });
+      } catch (e) {
+        logger.error("session partner_ready notify failed", {
+          sessionId: requestId,
+          err: e instanceof Error ? e.message : String(e),
+        });
+      }
+    }
+
     logger.info("meet_greet_preparation_opened", {
       requestId,
       role,
@@ -1240,6 +1261,11 @@ export async function expireMeetGreetNoShowsHandler() {
 
   const batch = db.batch();
   let expiredCount = 0;
+  const toNotify: Array<{
+    action: "no_show" | "no_show_both";
+    recipientIds: Array<string | null>;
+    sessionId: string;
+  }> = [];
 
   docsById.forEach((doc) => {
     const data = doc.data();
@@ -1260,10 +1286,36 @@ export async function expireMeetGreetNoShowsHandler() {
     });
 
     expiredCount += 1;
+
+    // Aviso de no-show al afectado (el que sí llegó); si faltaron ambos, a ambos.
+    const creatorId = typeof data.creatorId === "string" ? data.creatorId : null;
+    const buyerId = typeof data.buyerId === "string" ? data.buyerId : null;
+    if (expiration.missingCreator && expiration.missingBuyer) {
+      toNotify.push({ action: "no_show_both", recipientIds: [creatorId, buyerId], sessionId: doc.id });
+    } else if (expiration.missingCreator) {
+      toNotify.push({ action: "no_show", recipientIds: [buyerId], sessionId: doc.id });
+    } else {
+      toNotify.push({ action: "no_show", recipientIds: [creatorId], sessionId: doc.id });
+    }
   });
 
   if (expiredCount > 0) {
     await batch.commit();
+    for (const n of toNotify) {
+      try {
+        await notifySessionEvent({
+          action: n.action,
+          sessionId: n.sessionId,
+          sessionType: "meet_greet",
+          recipientIds: n.recipientIds,
+        });
+      } catch (e) {
+        logger.error("session no_show notify failed", {
+          sessionId: n.sessionId,
+          err: e instanceof Error ? e.message : String(e),
+        });
+      }
+    }
   }
 
   logger.info("meet_greet_no_shows_expired_handler", {

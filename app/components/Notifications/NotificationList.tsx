@@ -296,6 +296,16 @@ export default function NotificationList({
                   <span className="notifTime">{timeAgo(n.updatedAtMs)}</span>
                 </span>
               </Link>
+            ) : n.type === "session_event" ? (
+              <Link href={href} className="notifLink" onClick={() => onItemClick?.(n)}>
+                <Avatar n={n} />
+                <span className="notifBody">
+                  <span className="notifText">
+                    {t(`session.${n.target.action ?? "reminder"}`, { name: primaryName })}
+                  </span>
+                  <span className="notifTime">{timeAgo(n.updatedAtMs)}</span>
+                </span>
+              </Link>
             ) : n.type === "group_moderation" ? (
               <Link href={href} className="notifLink" onClick={() => onItemClick?.(n)}>
                 <Avatar n={n} />
@@ -305,6 +315,35 @@ export default function NotificationList({
                   </span>
                   <span className="notifTime">{timeAgo(n.updatedAtMs)}</span>
                 </span>
+              </Link>
+            ) : n.type === "live_vod_ready" && n.target.action === "self" ? (
+              <Link href={href} className="notifLink" onClick={() => onItemClick?.(n)}>
+                <Avatar n={n} />
+                <span className="notifBody">
+                  <span className="notifText">{t("liveVodReadySelf")}</span>
+                  <span className="notifTime">{timeAgo(n.updatedAtMs)}</span>
+                </span>
+                {n.target.imageUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img className="notifThumb" src={n.target.imageUrl} alt="" />
+                ) : null}
+              </Link>
+            ) : n.type === "live_started" || n.type === "live_vod_ready" ? (
+              <Link href={href} className="notifLink" onClick={() => onItemClick?.(n)}>
+                <Avatar n={n} />
+                <span className="notifBody">
+                  <span className="notifText">
+                    <strong>{primaryName}</strong> {t(`verb.${n.type}`)}
+                  </span>
+                  {n.target.preview ? (
+                    <span className="notifPreview">{n.target.preview}</span>
+                  ) : null}
+                  <span className="notifTime">{timeAgo(n.updatedAtMs)}</span>
+                </span>
+                {n.target.imageUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img className="notifThumb" src={n.target.imageUrl} alt="" />
+                ) : null}
               </Link>
             ) : n.type === "new_post" ? (
               <Link href={href} className="notifLink" onClick={() => onItemClick?.(n)}>

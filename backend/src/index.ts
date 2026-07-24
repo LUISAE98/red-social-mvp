@@ -8,6 +8,7 @@ import { expireMeetGreetNoShowsHandler, autoExpirePendingMeetGreetRequestsHandle
 import { expireExclusiveSessionNoShowsHandler, autoExpirePendingExclusiveSessionRequestsHandler } from "./exclusiveSessionRequests";
 import { autoExpirePendingGreetingRequestsHandler } from "./greetingRequests";
 import { updateExchangeRatesHandler } from "./exchangeRates";
+import { sessionRemindersHandler } from "./sessionLifecycle";
 
 // Healthcheck público
 export const healthcheck = onRequest(
@@ -63,6 +64,20 @@ export const autoExpirePendingServiceRequests = onSchedule(
     ]);
 
     logger.info("autoExpirePendingServiceRequests finished");
+  }
+);
+
+// Recordatorio pre-sesión (sesiones 1-a-1): avisa a ambas partes ~15 min antes.
+export const sessionPreSessionReminders = onSchedule(
+  {
+    schedule: "every 5 minutes",
+    timeZone: "America/Mexico_City",
+    region: "us-central1",
+  },
+  async () => {
+    logger.info("sessionPreSessionReminders started");
+    await sessionRemindersHandler();
+    logger.info("sessionPreSessionReminders finished");
   }
 );
 

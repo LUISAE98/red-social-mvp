@@ -59,6 +59,20 @@ match /posts/{groupId}/{uid}/{folder}/{fileName} {
     && isImage()
     && maxSize(10 * 1024 * 1024);
 }
+
+    // ==============================
+    // COMMENT IMAGES (imagen adjunta a comentarios/respuestas)
+    // Path dedicado para poder gobernarlas aparte (moderación/limpieza).
+    // ==============================
+    match /commentImages/{postId}/{uid}/{folder}/{fileName} {
+      allow read: if true;
+
+      allow write: if isSignedIn()
+        && request.auth.uid == uid
+        && (folder == "images" || folder == "thumbnails")
+        && isImage()
+        && maxSize(10 * 1024 * 1024);
+    }
     // ==============================
     // STORY COVERS (foto portada)
     // ==============================

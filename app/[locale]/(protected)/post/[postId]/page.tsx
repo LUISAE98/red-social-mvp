@@ -21,7 +21,7 @@ import {
   toggleProfilePostPin,
   softDeletePost,
 } from "@/lib/posts/post-service";
-import type { Post, Comment, CommentMention } from "@/lib/posts/types";
+import type { Post, Comment, CommentImage, CommentMention } from "@/lib/posts/types";
 
 interface ViewerContext {
   isProfilePost: boolean;
@@ -122,8 +122,8 @@ export default function SinglePostPage() {
   const handleLoadComments = useCallback((pid: string) => fetchPostComments(pid), []);
 
   const handleCreateComment = useCallback(
-    async (pid: string, text: string, mentions?: CommentMention[]) => {
-      await createPostComment({ postId: pid, text, mentions });
+    async (pid: string, text: string, mentions?: CommentMention[], image?: CommentImage | null) => {
+      await createPostComment({ postId: pid, text, mentions, image });
       return reloadComments(pid);
     },
     [reloadComments]
@@ -143,8 +143,8 @@ export default function SinglePostPage() {
   );
 
   const handleCreateReply = useCallback(
-    async (pid: string, commentId: string, text: string, mentions?: CommentMention[]) => {
-      await createPostCommentReply({ postId: pid, commentId, text, mentions });
+    async (pid: string, commentId: string, text: string, mentions?: CommentMention[], image?: CommentImage | null) => {
+      await createPostCommentReply({ postId: pid, commentId, text, mentions, image });
       await reloadComments(pid);
       return fetchCommentReplies({ postId: pid, commentId });
     },

@@ -88,6 +88,12 @@ export async function chargeServiceIntent(
     throw new HttpsError("failed-precondition", "Precio inválido para esta compra.");
   }
 
+  logger.info("chargeServiceIntent start", {
+    externalReference,
+    hasSaveToken: !!card.saveToken,
+    savedCardId: card.savedCardId ?? null,
+  });
+
   const installments =
     Number.isFinite(card.installments) && (card.installments as number) > 0
       ? Math.floor(card.installments as number)

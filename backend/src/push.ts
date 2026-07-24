@@ -104,6 +104,34 @@ function buildContent(type: string, data: Data): { title: string; body: string }
           : "Tu verificación de identidad está pendiente. Toca para continuar.";
       return { title: "Verificación", body };
     }
+    case "session_event": {
+      const a = s(target.action);
+      if (a === "partner_ready") return { title: name, body: "ya está listo para tu sesión" };
+      if (a === "partner_joined") return { title: name, body: "entró a la sesión" };
+      const body =
+        a === "reminder"
+          ? "Tu sesión está por comenzar"
+          : a === "ended"
+          ? "Tu sesión terminó"
+          : a === "incomplete"
+          ? "Tu sesión quedó incompleta"
+          : a === "no_show"
+          ? "La otra parte no se presentó; la sesión se canceló"
+          : a === "no_show_both"
+          ? "La sesión se canceló: no se presentó nadie"
+          : a === "recording_ready"
+          ? "La grabación de tu sesión ya está lista"
+          : a === "recording_failed"
+          ? "La grabación de tu sesión falló"
+          : "Tienes una novedad en tu sesión";
+      return { title: "Sesión", body };
+    }
+    case "live_started":
+      return { title: name, body: "está en vivo" };
+    case "live_vod_ready":
+      return s(target.action) === "self"
+        ? { title: "Tu live", body: "El VOD de tu live ya está listo" }
+        : { title: name, body: "subió la repetición de su live" };
     default:
       return { title: vibra, body: "Tienes una nueva notificación" };
   }

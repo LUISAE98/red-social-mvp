@@ -17,6 +17,12 @@ import {
   type WebhookEvent,
 } from "livekit-server-sdk";
 import { livekitApiKey, livekitApiSecret } from "./livekit";
+import { notifySessionEvent } from "./notifications";
+
+/** Deriva el tipo de sesión (para las notificaciones) desde la colección del doc. */
+function sessionTypeOfRef(ref: admin.firestore.DocumentReference): string {
+  return ref.parent.id === "meetGreetRequests" ? "meet_greet" : "exclusive_session";
+}
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -184,6 +190,33 @@ async function handleEgressUpdated(event: WebhookEvent): Promise<void> {
       egressId: egressInfo.egressId,
       sessionId: session.ref.id,
     });
+
+    // Grabación falló → avisar al creador.
+    await notifyRecording(session, "recording_failed", true);
+  }
+}
+
+/** Notifica el resultado de la grabación (ready → ambos; failed → creador). */
+async function notifyRecording(
+  session: { ref: admin.firestore.DocumentReference; data: admin.firestore.DocumentData },
+  action: "recording_ready" | "recording_failed",
+  onlyCreator: boolean
+): Promise<void> {
+  try {
+    const creatorId = typeof session.data.creatorId === "string" ? session.data.creatorId : null;
+    const buyerId = typeof session.data.buyerId === "string" ? session.data.buyerId : null;
+    await notifySessionEvent({
+      action,
+      sessionId: session.ref.id,
+      sessionType: sessionTypeOfRef(session.ref),
+      recipientIds: onlyCreator ? [creatorId] : [creatorId, buyerId],
+    });
+  } catch (e) {
+    logger.error("session recording notify failed", {
+      sessionId: session.ref.id,
+      action,
+      err: e instanceof Error ? e.message : String(e),
+    });
   }
 }
 
@@ -204,6 +237,7 @@ async function handleEgressEnded(event: WebhookEvent): Promise<void> {
   const failed = egressInfo.status === EgressStatus.EGRESS_FAILED;
 
   if (failed) {
+    const wasFailed = session.data.recordingStatus === "failed";
     await session.ref.update({
       recordingStatus: "failed",
       updatedAt: admin.firestore.Timestamp.now(),
@@ -215,6 +249,9 @@ async function handleEgressEnded(event: WebhookEvent): Promise<void> {
       sessionId: session.ref.id,
       error: egressInfo.error,
     });
+
+    // Grabación falló → avisar al creador (solo en la transición).
+    if (!wasFailed) await notifyRecording(session, "recording_failed", true);
     return;
   }
 
@@ -232,6 +269,7 @@ async function handleEgressEnded(event: WebhookEvent): Promise<void> {
   const expiresAt = new Date();
   expiresAt.setDate(expiresAt.getDate() + RECORDING_TTL_DAYS);
 
+  const wasReady = session.data.recordingStatus === "ready";
   await session.ref.update({
     recordingStatus: "ready",
     recordingS3Key: rawLocation,
@@ -240,6 +278,9 @@ async function handleEgressEnded(event: WebhookEvent): Promise<void> {
     recordingExpiresAt: expiresAt.toISOString(),
     updatedAt: admin.firestore.Timestamp.now(),
   });
+
+  // Grabación lista → avisar a ambos (solo en la transición).
+  if (!wasReady) await notifyRecording(session, "recording_ready", false);
 
   logger.info("livekit_webhook_egress_ended_ready", {
     roomName,

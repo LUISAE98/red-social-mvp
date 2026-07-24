@@ -491,6 +491,25 @@ export type CommentMention = {
   handle?: string | null;
 };
 
+/**
+ * Imagen adjunta a un comentario o respuesta. Una sola por comentario.
+ * Es un subconjunto de {@link PostMedia}: solo lo necesario para el render
+ * cuadrado (miniatura) y para abrir el original en el lightbox. La imagen es
+ * inmutable tras crear el comentario (para quitarla, se borra el comentario).
+ */
+export type CommentImage = {
+  /** Original a resolución completa. Se abre en el lightbox. */
+  url: string;
+  /** Miniatura 720px. Se usa para el render cuadrado en el hilo. */
+  thumbnailUrl: string;
+  /** Ruta en Storage del original (para limpieza/moderación futura). */
+  path: string;
+  /** Ruta en Storage de la miniatura. */
+  thumbnailPath: string;
+  width?: number;
+  height?: number;
+};
+
 export type CommentReactionType = "flame";
 
 export type CommentReaction = {
@@ -520,6 +539,9 @@ export type Comment = {
 
   /** Perfiles/comunidades etiquetados con @ dentro del texto. */
   mentions?: CommentMention[];
+
+  /** Imagen adjunta (una sola). Inmutable tras crear el comentario. */
+  image?: CommentImage | null;
 
   /**
    * Estado calculado para la UI del usuario actual.
@@ -556,6 +578,9 @@ export type CommentReply = {
 
   /** Perfiles/comunidades etiquetados con @ dentro del texto. */
   mentions?: CommentMention[];
+
+  /** Imagen adjunta (una sola). Inmutable tras crear la respuesta. */
+  image?: CommentImage | null;
 
   viewerHasBlockedAuthorInGroup?: boolean;
   viewerIsBlockedByAuthorInGroup?: boolean;

@@ -20,6 +20,7 @@ import { loadMercadoPago } from "@mercadopago/sdk-js";
 import { doc, getDoc, collection, onSnapshot } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { MP_PUBLIC_KEY } from "@/lib/payments/mpConfig";
+import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 
 // ── Tipado mínimo del SDK (no trae tipos) ────────────────────────────────────
 type MpField = {
@@ -131,6 +132,9 @@ export default function ServicePaymentModal({
   // Animación de entrada/salida (no de golpe).
   const [render, setRender] = useState(false);
   const [entered, setEntered] = useState(false);
+
+  // Formateo de moneda: MXN es lo que se cobra; la local es solo referencia (≈).
+  const pf = usePriceFormat();
 
   const isNewCard = selectedMethod === "credit" || selectedMethod === "debit";
   const savedCardId = selectedMethod?.startsWith("saved:")
@@ -781,6 +785,15 @@ export default function ServicePaymentModal({
     </div>
   );
 
+  // Cobro real = MXN; moneda local = referencia (≈). Solo se muestra el
+  // aproximado + aviso cuando la moneda del comprador NO es MXN.
+  const showApprox = amount != null && amount > 0 && pf.currency !== "MXN";
+  // `formatCurrency` de Vibra solo pone el símbolo (no el código ISO). Aquí, al
+  // mostrar dos monedas juntas, pegamos el código a mano para que quede claro
+  // cuál es cuál (el "$" lo comparten MXN, USD, ARS…).
+  const localApprox = amount != null ? `${pf.format(amount)} ${pf.currency}` : "";
+  const mxnTotal = amount != null ? `${pf.formatAnchor(amount)} MXN` : priceLabel ?? "";
+
   const rightColumn = (
     <div
       style={{
@@ -800,8 +813,8 @@ export default function ServicePaymentModal({
         <img src="/mercadopago.webp" alt="Mercado Pago" style={{ height: 30, width: "auto" }} />
       </div>
 
-      {/* Creador (más abajo) */}
-      <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 10 }}>
+      {/* Creador */}
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: -20 }}>
         <div
           style={{
             width: 48,
@@ -842,15 +855,22 @@ export default function ServicePaymentModal({
         </div>
       </div>
 
+      {/* Empuja el total y el botón hasta abajo del panel. */}
+      <div style={{ flex: 1, minHeight: 16 }} />
+
+      {showApprox && (
+        <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between" }}>
+          <span style={{ fontSize: 12, color: "#9aa0a8" }}>Aproximado en tu moneda</span>
+          <span style={{ fontSize: 13, color: "#6b7280", fontWeight: 600 }}>{localApprox}</span>
+        </div>
+      )}
+
       <div style={{ height: 1, background: "#e6e8ec" }} />
 
       <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between" }}>
         <span style={{ fontSize: 13, color: "#6b7280", fontWeight: 600 }}>Total a pagar</span>
-        <span style={{ fontSize: 22, fontWeight: 800, color: "#3a3f4a" }}>{priceLabel ?? ""}</span>
+        <span style={{ fontSize: 17, fontWeight: 600, color: "#3a3f4a" }}>{mxnTotal}</span>
       </div>
-
-      {/* Empuja el botón hacia abajo para llenar el alto del panel. */}
-      <div style={{ flex: 1, minHeight: 12 }} />
 
       {error && (
         <p
@@ -873,18 +893,18 @@ export default function ServicePaymentModal({
         onClick={handlePay}
         disabled={submitting || loading}
         style={{
-          height: 48,
+          height: 40,
           borderRadius: 10,
           border: "none",
           background: submitting || loading ? "#9fd8f2" : MP_BLUE,
           color: "#fff",
           fontSize: 15,
-          fontWeight: 700,
+          fontWeight: 600,
           fontFamily: "inherit",
           cursor: submitting || loading ? "not-allowed" : "pointer",
         }}
       >
-        {submitting ? "Procesando…" : priceLabel ? `Pagar ${priceLabel}` : "Pagar"}
+        {submitting ? "Procesando…" : "Pagar"}
       </button>
 
       <div
@@ -895,26 +915,42 @@ export default function ServicePaymentModal({
           gap: 6,
           fontSize: 11,
           color: "#8a8f99",
+          marginTop: -13,
         }}
       >
         <svg
-          width={12}
-          height={12}
+          width={13}
+          height={13}
           viewBox="0 0 24 24"
           fill="none"
-          stroke="currentColor"
+          stroke={MP_BLUE}
           strokeWidth={2}
           strokeLinecap="round"
           strokeLinejoin="round"
           aria-hidden="true"
         >
-          <rect x="4" y="11" width="16" height="10" rx="2" />
-          <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+          <path d="M12 3l7 3v5c0 4.5-3 7.6-7 9-4-1.4-7-4.5-7-9V6l7-3z" />
+          <path d="M9 12l2 2 4-4" />
         </svg>
         <span>
-          Pago cifrado · <span style={{ color: MP_BLUE, fontWeight: 700 }}>Mercado Pago</span>
+          Tu pago está protegido por{" "}
+          <span style={{ color: MP_BLUE, fontWeight: 700 }}>Mercado Pago</span>
         </span>
       </div>
+
+      {showApprox && (
+        <p
+          style={{
+            margin: 0,
+            fontSize: 10,
+            color: "#9aa0a8",
+            textAlign: "center",
+            lineHeight: 1.4,
+          }}
+        >
+          El cobro se realiza en MXN. Tu banco podría aplicar una comisión por cambio de divisa.
+        </p>
+      )}
     </div>
   );
 

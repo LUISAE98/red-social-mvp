@@ -58,19 +58,23 @@
 8. ⬜ Reembolso solicitado / procesado *(→ ambos)*
 9. ⬜ Tu solicitud pendiente expiró (2 meses) *(→ comprador)*
 
-### Bloque 5 — Sesiones 1-a-1 en vivo (LiveKit) ⬜
-1. ⬜ Recordatorio pre-sesión *(→ ambos)*
-2. ⬜ La otra parte está lista / en preparación *(→ la otra parte)*
-3. ⬜ La otra parte se unió — arranca contador *(→ la otra parte)*
-4. ⬜ La sesión terminó / quedó incompleta *(→ ambos)*
-5. ⬜ No-show / auto-rechazo *(→ afectado)*
-6. ⬜ Tu grabación está lista para descargar *(→ ambos)*
-7. ⬜ La grabación falló *(→ creador)*
+### Bloque 5 — Sesiones 1-a-1 en vivo (LiveKit) ✅
+> Un solo tipo `session_event` con `action`. Helper `notifySessionEvent`. Cubre exclusive_session y meet_greet. **Clic (todas) → `/sessions`** (panel existente: entrar, descargar grabación, ver estado).
 
-### Bloque 6 — Lives / Streaming (Cloudflare Stream) ⬜
-1. ⬜ "{Creador} está en vivo" *(→ seguidores + miembros)*
-2. ⬜ El live terminó *(→ espectadores, opcional)*
-3. ⬜ El VOD del live ya está listo *(→ creador + compradores/seguidores)*
+| # | Notificación (`action`) | A quién | Disparo | Clic |
+|---|---|---|---|---|
+| 1 | Recordatorio pre-sesión (`reminder`) | Ambos | Cron `sessionPreSessionReminders` (~15 min antes; marca `reminderSentAt`) | `/sessions` |
+| 2 | La otra parte está lista (`partner_ready`) | La otra parte | `setExclusiveSessionPreparing` / `setMeetGreetPreparing` | `/sessions` |
+| 3 | La otra parte se unió (`partner_joined`) | La otra parte | `joinSession` (al entrar la 1ª parte) | `/sessions` |
+| 4 | Sesión terminó / incompleta (`ended`/`incomplete`) | Ambos | `endSession` + `forceCompleteSession` | `/sessions` |
+| 5 | No-show / auto-rechazo (`no_show`/`no_show_both`) | Afectado(s) | Handlers de no-show (crons) | `/sessions` |
+| 6 | Grabación lista (`recording_ready`) | Ambos | `livekitWebhook` egress_ended | `/sessions` |
+| 7 | Grabación falló (`recording_failed`) | Creador | `livekitWebhook` egress failed | `/sessions` |
+
+### Bloque 6 — Lives / Streaming (Cloudflare Stream)
+1. ✅ "{Creador} está en vivo" (`live_started`) → seguidores (live de perfil) / miembros (live de comunidad + `broadcastGroupIds`). Fan-out vía Cloud Tasks. Disparo: `cfWebhooks.ts` rama `live-inprogress`.
+2. ➖ El live terminó — descartada (2026-07-24)
+3. ✅ El VOD del live ya está listo (`live_vod_ready`) → creador (aviso directo) + seguidores/miembros (fan-out). Disparo: `cfWebhooks.ts` rama `ready` (vodStatus→ready).
 
 ### Bloque 7 — KYC / Verificación (Didit) ✅
 1. ✅ KYC aprobado — retiros habilitados (`kyc_update` action=approved)

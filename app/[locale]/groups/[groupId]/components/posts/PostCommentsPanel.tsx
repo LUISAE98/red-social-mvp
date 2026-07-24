@@ -9,9 +9,15 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
-import type { Comment, CommentMention, CommentReply } from "@/lib/posts/types";
+import type {
+  Comment,
+  CommentImage,
+  CommentMention,
+  CommentReply,
+} from "@/lib/posts/types";
 import PostCommentThread from "./PostCommentThread";
 import MentionTextarea from "./mentions/MentionTextarea";
+import { CommentAttachButton } from "./CommentImageUI";
 
 type PostCommentsPanelProps = {
   open: boolean;
@@ -29,6 +35,8 @@ type PostCommentsPanelProps = {
   commentBlockedMessage: string | null;
   commentText: string;
   commentMentions: CommentMention[];
+  /** Imagen adjunta seleccionada para el comentario nuevo (aún sin subir). */
+  commentImageFile: File | null;
   /** true en posts de comunidad oculta: deshabilita la etiquetación con @. */
   mentionsDisabled?: boolean;
   creatingComment: boolean;
@@ -49,6 +57,10 @@ type PostCommentsPanelProps = {
   onCloseDesktop?: () => void;
   onCommentTextChange: (value: string) => void;
   onCommentMentionsChange: (mentions: CommentMention[]) => void;
+  onCommentImageSelect: (file: File) => void;
+  onCommentImageClear: () => void;
+  /** Abre el lightbox con la imagen de un comentario/respuesta (anima desde su miniatura). */
+  onOpenCommentImage: (image: CommentImage, rect: DOMRect | null) => void;
   onClose: () => void;
   onCreateComment: () => Promise<void>;
   onDeleteComment: (commentId: string) => Promise<void>;
@@ -56,7 +68,9 @@ type PostCommentsPanelProps = {
   onCreateReply: (
     postId: string,
     commentId: string,
-    text: string
+    text: string,
+    mentions?: CommentMention[],
+    image?: CommentImage | null
   ) => Promise<CommentReply[]>;
   onDeleteReply: (
     postId: string,
@@ -86,6 +100,7 @@ export default function PostCommentsPanel({
   commentBlockedMessage,
   commentText,
   commentMentions,
+  commentImageFile,
   mentionsDisabled = false,
   creatingComment,
   deletingCommentId,
@@ -100,6 +115,9 @@ export default function PostCommentsPanel({
   onCloseDesktop,
   onCommentTextChange,
   onCommentMentionsChange,
+  onCommentImageSelect,
+  onCommentImageClear,
+  onOpenCommentImage,
   onClose,
   onCreateComment,
   onDeleteComment,
@@ -377,6 +395,7 @@ export default function PostCommentsPanel({
                   onLoadReplies={onLoadReplies}
                   onCreateReply={onCreateReply}
                   onDeleteReply={onDeleteReply}
+                  onOpenCommentImage={onOpenCommentImage}
                   onGroupMemberBlockComplete={onGroupMemberBlockComplete}
                   onModerationComplete={onModerationComplete}
                   showAdminDetails={showAdminDetails}
@@ -448,10 +467,25 @@ export default function PostCommentsPanel({
                 )}
               </div>
 
+              {canCommentOnPosts && (
+                <CommentAttachButton
+                  file={commentImageFile}
+                  onSelect={onCommentImageSelect}
+                  onClear={onCommentImageClear}
+                  disabled={creatingComment}
+                />
+              )}
+
               <button
                 type="button"
-                onClick={() => { if (commentText.trim().length > 0) onCreateComment(); }}
-                disabled={!canCommentOnPosts || creatingComment}
+                onClick={() => {
+                  if (commentText.trim().length > 0 || commentImageFile) onCreateComment();
+                }}
+                disabled={
+                  !canCommentOnPosts ||
+                  creatingComment ||
+                  (commentText.trim().length === 0 && !commentImageFile)
+                }
                 style={primaryButtonStyle}
               >
                 {creatingComment ? tPosts("commentingLabel") : tPosts("commentButton")}
@@ -668,6 +702,7 @@ export default function PostCommentsPanel({
                     onLoadReplies={onLoadReplies}
                     onCreateReply={onCreateReply}
                     onDeleteReply={onDeleteReply}
+                    onOpenCommentImage={onOpenCommentImage}
                     onGroupMemberBlockComplete={onGroupMemberBlockComplete}
                     showAdminDetails={showAdminDetails}
                   />
@@ -724,13 +759,22 @@ export default function PostCommentsPanel({
               )}
             </div>
 
+            {canCommentOnPosts && (
+              <CommentAttachButton
+                file={commentImageFile}
+                onSelect={onCommentImageSelect}
+                onClear={onCommentImageClear}
+                disabled={creatingComment}
+              />
+            )}
+
             <button
               type="button"
               onClick={onCreateComment}
               disabled={
                 !canCommentOnPosts ||
                 creatingComment ||
-                commentText.trim().length === 0
+                (commentText.trim().length === 0 && !commentImageFile)
               }
               style={primaryButtonStyle}
             >

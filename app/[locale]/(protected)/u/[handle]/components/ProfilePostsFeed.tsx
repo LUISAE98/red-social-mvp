@@ -7,7 +7,7 @@ import { motion } from "framer-motion";
 import { useTranslations } from "next-intl";
 import { doc, getDoc, Timestamp } from "firebase/firestore";
 
-import type { Comment, CommentMention, CommentReply, Post } from "@/lib/posts/types";
+import type { Comment, CommentImage, CommentMention, CommentReply, Post } from "@/lib/posts/types";
 import {
   createPostComment,
   createPostCommentReply,
@@ -1118,11 +1118,12 @@ async function handleToggleProfilePin(postId: string): Promise<void> {
   async function handleCreateComment(
     postId: string,
     text: string,
-    mentions?: CommentMention[]
+    mentions?: CommentMention[],
+    image?: CommentImage | null
   ): Promise<Comment[]> {
     try {
       setError(null);
-      await createPostComment({ postId, text, mentions });
+      await createPostComment({ postId, text, mentions, image });
       return await syncPostCommentsCount(postId);
     } catch (e: unknown) {
       setError((e instanceof Error ? e.message : null) ?? t("unknownError"));
@@ -1161,11 +1162,12 @@ async function handleToggleProfilePin(postId: string): Promise<void> {
     postId: string,
     commentId: string,
     text: string,
-    mentions?: CommentMention[]
+    mentions?: CommentMention[],
+    image?: CommentImage | null
   ): Promise<CommentReply[]> {
     try {
       setError(null);
-      await createPostCommentReply({ postId, commentId, text, mentions });
+      await createPostCommentReply({ postId, commentId, text, mentions, image });
 
       await syncPostCommentsCount(postId);
 

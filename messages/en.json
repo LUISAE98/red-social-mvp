@@ -2074,7 +2074,9 @@
       "group_new_subscriber": "subscribed to {group}",
       "join_rejected": "declined your request to join {group}",
       "new_post": "{count, plural, one {shared a new post} other {shared # new posts}}",
-      "new_post_group": "{count, plural, one {posted in} other {posted # times in}} {group}"
+      "new_post_group": "{count, plural, one {posted in} other {posted # times in}} {group}",
+      "live_started": "is live",
+      "live_vod_ready": "posted their live replay"
     },
     "moderation": {
       "muted": "You were muted in {group}",
@@ -2086,6 +2088,18 @@
       "declined": "Your identity verification was declined. Tap to retry.",
       "in_review": "Your identity verification is under review.",
       "pending": "Your identity verification is pending. Tap to continue."
+    },
+    "liveVodReadySelf": "Your live replay is ready",
+    "session": {
+      "reminder": "Your session is about to start",
+      "partner_ready": "{name} is ready for your session",
+      "partner_joined": "{name} joined the session",
+      "ended": "Your session ended",
+      "incomplete": "Your session was left incomplete",
+      "no_show": "The other party didn't show up; the session was canceled",
+      "no_show_both": "The session was canceled: nobody showed up",
+      "recording_ready": "Your session recording is ready",
+      "recording_failed": "Your session recording failed"
     }
   },
   "saved": {

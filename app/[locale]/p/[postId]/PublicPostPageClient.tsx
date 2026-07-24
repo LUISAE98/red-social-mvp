@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { auth } from "@/lib/firebase";
-import type { Comment, CommentMention, CommentReply, Post, PostPremium } from "@/lib/posts/types";
+import type { Comment, CommentImage, CommentMention, CommentReply, Post, PostPremium } from "@/lib/posts/types";
 import {
   createPostComment,
   createPostCommentReply,
@@ -435,14 +435,15 @@ export default function PublicPostPageClient({
     postId: string,
     commentId: string,
     text: string,
-    mentions?: CommentMention[]
+    mentions?: CommentMention[],
+    image?: CommentImage | null
   ): Promise<CommentReply[]> {
     if (!currentUserId) {
       requireLogin("Inicia sesión para responder.");
       return [];
     }
 
-    await createPostCommentReply({ postId, commentId, text, mentions });
+    await createPostCommentReply({ postId, commentId, text, mentions, image });
     await syncPostCommentsCount();
 
     return fetchCommentReplies({ postId, commentId });
@@ -494,7 +495,8 @@ export default function PublicPostPageClient({
   async function handleCreateCommentForCard(
     postId: string,
     text: string,
-    mentions?: CommentMention[]
+    mentions?: CommentMention[],
+    image?: CommentImage | null
   ): Promise<Comment[]> {
     if (!currentUserId) {
       requireLogin("Inicia sesión para comentar.");
@@ -502,12 +504,13 @@ export default function PublicPostPageClient({
     }
 
     const cleanText = text.trim();
-    if (!cleanText) return comments ?? [];
+    if (!cleanText && !image) return comments ?? [];
 
     await createPostComment({
       postId,
       text: cleanText,
       mentions,
+      image,
     });
 
     return await syncPostCommentsCount();

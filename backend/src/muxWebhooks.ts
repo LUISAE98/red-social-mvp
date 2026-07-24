@@ -12,6 +12,11 @@ import { logger } from "firebase-functions";
 import { defineSecret } from "firebase-functions/params";
 import { onRequest } from "firebase-functions/v2/https";
 import { createMuxClient, muxTokenId, muxTokenSecret } from "./mux";
+import {
+  enqueueAudienceFanout,
+  notifyLiveVodReadyOwner,
+  liveAudience,
+} from "./notifications";
 
 if (!getApps().length) {
   initializeApp();
@@ -666,12 +671,39 @@ async function markAssetReady(event: MuxWebhookEvent) {
   // After transaction: for live recordings mark the VOD as ready inside liveData
   if (isLiveRecording && playbackId) {
     try {
+      const snap = await postRef.get();
+      const pdata = snap.exists ? snap.data() ?? {} : {};
+      const prevVod = (pdata.liveData as Record<string, unknown> | undefined)?.vodStatus;
+
       await postRef.update({
         "liveData.vodStatus": "ready",
         createdAt: now,
         updatedAt: now,
       });
       logger.info("muxWebhook live recording ready → vodStatus=ready", { postId, assetId, playbackId });
+
+      // Aviso "VOD listo": creador + fan-out a la audiencia. Solo la primera vez.
+      if (prevVod !== "ready") {
+        const a = liveAudience(pdata, postRef.id);
+        if (a.authorId) {
+          await enqueueAudienceFanout({
+            notifType: "live_vod_ready",
+            postId: postRef.id,
+            authorId: a.authorId,
+            actor: a.actor,
+            target: a.target,
+            groupIds: a.groupIds,
+            includeFollowers: a.includeFollowers,
+          });
+          await notifyLiveVodReadyOwner({
+            postId: postRef.id,
+            authorId: a.authorId,
+            creatorName: a.creatorName,
+            creatorAvatar: a.creatorAvatar,
+            target: a.target,
+          });
+        }
+      }
     } catch (err) {
       logger.warn("muxWebhook vodStatus update failed", { postId, err });
     }
@@ -924,6 +956,29 @@ async function handleLiveStreamActive(event: MuxWebhookEvent) {
   }
 
   await Promise.all(updates);
+
+  // Aviso "está en vivo" a la audiencia — solo al pasar A live (evita duplicar
+  // si el webhook se repite estando ya en vivo). Mismo flujo que Cloudflare.
+  const prevStatus = (result.data.liveData as Record<string, unknown> | undefined)?.status;
+  if (authorId && prevStatus !== "live") {
+    try {
+      const a = liveAudience(result.data, postId);
+      await enqueueAudienceFanout({
+        notifType: "live_started",
+        postId,
+        authorId,
+        actor: a.actor,
+        target: a.target,
+        groupIds: a.groupIds,
+        includeFollowers: a.includeFollowers,
+      });
+    } catch (notifErr) {
+      logger.error("muxWebhook live_started notify failed", {
+        postId,
+        err: notifErr instanceof Error ? notifErr.message : String(notifErr),
+      });
+    }
+  }
 
   // Ensure reconnect_window is 0 on every live activation so existing streams
   // (created before this setting was added) also behave correctly.

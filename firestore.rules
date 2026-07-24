@@ -2630,12 +2630,32 @@ allow list: if canListOwnAuthoredPost()
           return canReadPostCommentsData(parentPost().data);
         }
 
+        // Imagen adjunta (una sola) de comentarios/respuestas. Si el campo
+        // `image` está presente debe ser un map con url y thumbnailUrl no vacíos.
+        // El archivo ya fue validado (tamaño/tipo/autor) por las Storage Rules.
+        function commentImagePresent() {
+          return ("image" in request.resource.data)
+            && request.resource.data.image is map;
+        }
+
+        function commentImageValidIfPresent() {
+          return !("image" in request.resource.data)
+            || (
+              request.resource.data.image is map
+              && request.resource.data.image.url is string
+              && request.resource.data.image.url.size() > 0
+              && request.resource.data.image.thumbnailUrl is string
+              && request.resource.data.image.thumbnailUrl.size() > 0
+            );
+        }
+
         function canCreateComment() {
           return signedIn()
             && request.resource.data.authorId == request.auth.uid
             && request.resource.data.text is string
-            && request.resource.data.text.size() >= 1
             && request.resource.data.text.size() <= 2000
+            && (request.resource.data.text.size() >= 1 || commentImagePresent())
+            && commentImageValidIfPresent()
             && canWritePostCommentData(parentPost().data, postId);
         }
 
@@ -2737,8 +2757,9 @@ function canUpdateReplyCount(delta) {
             return signedIn()
               && request.resource.data.authorId == request.auth.uid
               && request.resource.data.text is string
-              && request.resource.data.text.size() >= 1
               && request.resource.data.text.size() <= 2000
+              && (request.resource.data.text.size() >= 1 || commentImagePresent())
+              && commentImageValidIfPresent()
               && canWritePostCommentData(parentPost().data, postId);
           }
 

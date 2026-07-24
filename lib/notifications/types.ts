@@ -19,6 +19,9 @@ export type NotificationType =
   | "group_new_subscriber"
   | "group_moderation"
   | "new_post"
+  | "live_started"
+  | "live_vod_ready"
+  | "session_event"
   | "kyc_update"
   | "invite_expired"
   | "moderation_warning";
@@ -78,6 +81,9 @@ export const KNOWN_NOTIFICATION_TYPES: ReadonlySet<NotificationType> = new Set([
   "group_new_subscriber",
   "group_moderation",
   "new_post",
+  "live_started",
+  "live_vod_ready",
+  "session_event",
   "kyc_update",
   "invite_expired",
 ]);
@@ -97,6 +103,9 @@ export function notificationHref(n: AppNotification, selfHandle?: string | null)
     case "kyc_update":
       // Cualquier estado de KYC → finanzas del wallet (donde se gestionan retiros).
       return "/wallet/finanzas";
+    case "session_event":
+      // Sesiones 1-a-1 → el panel de sesiones (ya existe).
+      return "/sessions";
     case "group_moderation":
       // Silenciado → puede volver a la comunidad. Expulsado/baneado → ya no tiene
       // acceso, así que es informativa (sin destino).

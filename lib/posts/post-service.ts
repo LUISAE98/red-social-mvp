@@ -33,6 +33,7 @@ import {
 import type {
   Comment,
   CommentEditEntry,
+  CommentImage,
   CommentMention,
   CommentReply,
   GroupMemberBlockRelationship,
@@ -3928,16 +3929,56 @@ function sanitizeCommentMentions(
   return result.length > 0 ? result : null;
 }
 
+/**
+ * Valida el shape de la imagen adjunta que envía el cliente antes de
+ * persistirla. Devuelve `null` si falta la URL/miniatura (para no escribir el
+ * campo en Firestore). No confía en el cliente: las reglas de Storage ya
+ * limitaron tamaño/tipo al subir, y aquí solo copiamos strings/números.
+ */
+function sanitizeCommentImage(input: unknown): CommentImage | null {
+  if (!input || typeof input !== "object") return null;
+
+  const candidate = input as Record<string, unknown>;
+  const url = typeof candidate.url === "string" ? candidate.url.trim() : "";
+  const thumbnailUrl =
+    typeof candidate.thumbnailUrl === "string"
+      ? candidate.thumbnailUrl.trim()
+      : "";
+  const path = typeof candidate.path === "string" ? candidate.path.trim() : "";
+  const thumbnailPath =
+    typeof candidate.thumbnailPath === "string"
+      ? candidate.thumbnailPath.trim()
+      : "";
+
+  if (!url || !thumbnailUrl) return null;
+
+  const image: CommentImage = { url, thumbnailUrl, path, thumbnailPath };
+
+  if (typeof candidate.width === "number" && Number.isFinite(candidate.width)) {
+    image.width = candidate.width;
+  }
+  if (
+    typeof candidate.height === "number" &&
+    Number.isFinite(candidate.height)
+  ) {
+    image.height = candidate.height;
+  }
+
+  return image;
+}
+
 export async function createPostComment(params: {
   postId: string;
   text: string;
   mentions?: CommentMention[];
+  image?: CommentImage | null;
 }): Promise<void> {
   assertValidId(params.postId, "postId");
 
   const cleanText = params.text.trim();
-  if (!cleanText) {
-    throw new Error("Escribe un comentario antes de enviar.");
+  const cleanImage = sanitizeCommentImage(params.image);
+  if (!cleanText && !cleanImage) {
+    throw new Error("Escribe un comentario o adjunta una imagen antes de enviar.");
   }
 
   const author = await getCurrentAuthorSnapshot();
@@ -3995,6 +4036,7 @@ await addDoc(collection(db, "posts", params.postId, "comments"), {
     likes: 0,
   },
   ...(cleanMentions ? { mentions: cleanMentions } : {}),
+  ...(cleanImage ? { image: cleanImage } : {}),
   ...(authorIsGroupMember !== undefined ? { authorIsGroupMember } : {}),
 });
 
@@ -4140,13 +4182,15 @@ export async function createPostCommentReply(params: {
   commentId: string;
   text: string;
   mentions?: CommentMention[];
+  image?: CommentImage | null;
 }): Promise<void> {
   assertValidId(params.postId, "postId");
   assertValidId(params.commentId, "commentId");
 
   const cleanText = params.text.trim();
-  if (!cleanText) {
-    throw new Error("Escribe una respuesta antes de enviar.");
+  const cleanImage = sanitizeCommentImage(params.image);
+  if (!cleanText && !cleanImage) {
+    throw new Error("Escribe una respuesta o adjunta una imagen antes de enviar.");
   }
 
   const cleanMentions = sanitizeCommentMentions(params.mentions, cleanText);
@@ -4266,6 +4310,7 @@ export async function createPostCommentReply(params: {
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
       ...(cleanMentions ? { mentions: cleanMentions } : {}),
+      ...(cleanImage ? { image: cleanImage } : {}),
       ...(replyAuthorIsGroupMember !== undefined
         ? { authorIsGroupMember: replyAuthorIsGroupMember }
         : {}),

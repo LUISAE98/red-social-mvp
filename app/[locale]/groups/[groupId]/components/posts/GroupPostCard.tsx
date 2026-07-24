@@ -17,7 +17,7 @@ import {
 import { useTranslations, useLocale } from "next-intl";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import { createPortal } from "react-dom";
-import type { Comment, CommentMention, CommentReply, Post, PostLiveData, PostPlayback } from "@/lib/posts/types";
+import type { Comment, CommentImage, CommentMention, CommentReply, Post, PostLiveData, PostPlayback } from "@/lib/posts/types";
 import { db } from "@/lib/firebase";
 import { doc, onSnapshot } from "firebase/firestore";
 import LiveInlinePlayer from "@/app/components/LiveInlinePlayer/LiveInlinePlayer";
@@ -35,7 +35,8 @@ import { VideoPlayIcon } from "@/app/components/VibraServiceIcons/VibraVideoIcon
 import { usePostTempUnlock } from "@/lib/posts/usePostTempUnlock";
 import { checkLiveAccess } from "@/lib/liveAccess/live-access-service";
 import { fetchPostFlameUsers, registerPostView, updatePost } from "@/lib/posts/post-service";
-import { uploadPostImage } from "@/lib/posts/image-upload";
+import { uploadCommentImage, uploadPostImage } from "@/lib/posts/image-upload";
+import { CommentImageLightbox } from "./CommentImageUI";
 import PostShareButton from "@/components/ui/PostShareButton";
 import PostSaveButton from "@/components/ui/PostSaveButton";
 import VibraFlameIcon from "@/app/components/VibraServiceIcons/VibraFlameIcon";
@@ -95,7 +96,8 @@ type GroupPostCardProps = {
   onCreateComment: (
     postId: string,
     text: string,
-    mentions?: CommentMention[]
+    mentions?: CommentMention[],
+    image?: CommentImage | null
   ) => Promise<Comment[]>;
   onDeleteComment: (postId: string, commentId: string) => Promise<Comment[]>;
   onLoadReplies: (postId: string, commentId: string) => Promise<CommentReply[]>;
@@ -103,7 +105,8 @@ type GroupPostCardProps = {
     postId: string,
     commentId: string,
     text: string,
-    mentions?: CommentMention[]
+    mentions?: CommentMention[],
+    image?: CommentImage | null
   ) => Promise<CommentReply[]>;
   onDeleteReply: (
     postId: string,
@@ -230,6 +233,11 @@ onToggleProfilePin,
   const [loadingComments, setLoadingComments] = useState(false);
   const [commentText, setCommentText] = useState("");
   const [commentMentions, setCommentMentions] = useState<CommentMention[]>([]);
+  const [commentImageFile, setCommentImageFile] = useState<File | null>(null);
+  const [commentLightbox, setCommentLightbox] = useState<{
+    image: CommentImage;
+    rect: DOMRect | null;
+  } | null>(null);
   const [creatingComment, setCreatingComment] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deletingCommentId, setDeletingCommentId] = useState<string | null>(null);
@@ -969,19 +977,26 @@ function handleToggleSave() {
       return;
     }
 
-    if (creatingComment || commentText.trim().length === 0) return;
+    if (creatingComment) return;
+    if (commentText.trim().length === 0 && !commentImageFile) return;
 
     try {
       setCreatingComment(true);
       setInlineActionError(null);
+      let image: CommentImage | null = null;
+      if (commentImageFile) {
+        image = await uploadCommentImage({ postId: post.id, file: commentImageFile });
+      }
       const nextComments = await onCreateComment(
         post.id,
         commentText.trim(),
-        mentionsDisabled ? [] : commentMentions
+        mentionsDisabled ? [] : commentMentions,
+        image
       );
       setComments(nextComments);
       setCommentText("");
       setCommentMentions([]);
+      setCommentImageFile(null);
     } catch (e: unknown) {
       const message = (e instanceof Error ? e.message : null) ?? tFeed("errorComment");
       setInlineActionError(message);
@@ -4672,6 +4687,10 @@ padding: "0 0 2px 0",
       isPostAuthor={!!currentUserId && currentUserId === postAuthor.authorId}
       onCommentTextChange={setCommentText}
       onCommentMentionsChange={setCommentMentions}
+      commentImageFile={commentImageFile}
+      onCommentImageSelect={setCommentImageFile}
+      onCommentImageClear={() => setCommentImageFile(null)}
+      onOpenCommentImage={(image, rect) => setCommentLightbox({ image, rect })}
       onClose={() => setCommentsPanelOpen(false)}
       onCreateComment={handleCreateComment}
       onDeleteComment={handleDeleteComment}
@@ -4712,6 +4731,10 @@ padding: "0 0 2px 0",
       isPostAuthor={!!currentUserId && currentUserId === postAuthor.authorId}
       onCommentTextChange={setCommentText}
       onCommentMentionsChange={setCommentMentions}
+      commentImageFile={commentImageFile}
+      onCommentImageSelect={setCommentImageFile}
+      onCommentImageClear={() => setCommentImageFile(null)}
+      onOpenCommentImage={(image, rect) => setCommentLightbox({ image, rect })}
       onClose={() => setCommentsPanelOpen(false)}
       onCreateComment={handleCreateComment}
       onDeleteComment={handleDeleteComment}
@@ -4768,6 +4791,10 @@ padding: "0 0 2px 0",
   onCloseDesktop={!isMobile ? handleToggleCommentsDesktop : undefined}
   onCommentTextChange={setCommentText}
   onCommentMentionsChange={setCommentMentions}
+  commentImageFile={commentImageFile}
+  onCommentImageSelect={setCommentImageFile}
+  onCommentImageClear={() => setCommentImageFile(null)}
+  onOpenCommentImage={(image, rect) => setCommentLightbox({ image, rect })}
   onClose={() => setCommentsPanelOpen(false)}
   onCreateComment={handleCreateComment}
   onDeleteComment={handleDeleteComment}
@@ -4783,6 +4810,10 @@ padding: "0 0 2px 0",
   }}
   showAdminDetails={showDeletedBanner}
 />
+  <CommentImageLightbox
+    target={commentLightbox}
+    onClose={() => setCommentLightbox(null)}
+  />
   {reportTarget && (
     <ReportModal
       target={reportTarget}

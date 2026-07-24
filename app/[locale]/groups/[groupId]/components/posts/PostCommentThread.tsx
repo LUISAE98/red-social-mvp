@@ -10,10 +10,12 @@ import {
   type CSSProperties,
 } from "react";
 import { createPortal } from "react-dom";
-import type { Comment, CommentMention, CommentReply } from "@/lib/posts/types";
+import type { Comment, CommentImage, CommentMention, CommentReply } from "@/lib/posts/types";
 import { toggleCommentFlame, updatePostComment, updatePostCommentReply } from "@/lib/posts/post-service";
+import { uploadCommentImage } from "@/lib/posts/image-upload";
 import MentionTextarea from "./mentions/MentionTextarea";
 import { renderCommentText } from "./mentions/renderMentions";
+import { CommentAttachButton, CommentImageThumb } from "./CommentImageUI";
 import VibraFlameIcon from "@/app/components/VibraServiceIcons/VibraFlameIcon";
 import { useGroupMemberBlocks } from "@/lib/groups/useGroupMemberBlocks";
 import { db } from "@/lib/firebase";
@@ -49,7 +51,8 @@ type PostCommentThreadProps = {
     postId: string,
     commentId: string,
     text: string,
-    mentions?: CommentMention[]
+    mentions?: CommentMention[],
+    image?: CommentImage | null
   ) => Promise<CommentReply[]>;
   onDeleteReply: (
     postId: string,
@@ -58,6 +61,8 @@ type PostCommentThreadProps = {
   ) => Promise<CommentReply[]>;
   onGroupMemberBlockComplete?: () => Promise<void> | void;
   onModerationComplete?: () => Promise<void> | void;
+  /** Abre el lightbox con la imagen de un comentario/respuesta (anima desde su miniatura). */
+  onOpenCommentImage: (image: CommentImage, rect: DOMRect | null) => void;
   showAdminDetails?: boolean;
   /** Deep-link de notificaciones: si coincide con este comentario, se enfoca
    *  (scroll + resaltado) y se auto-expanden sus respuestas. */
@@ -947,6 +952,7 @@ export default function PostCommentThread({
   onDeleteReply,
   onGroupMemberBlockComplete,
   onModerationComplete,
+  onOpenCommentImage,
   showAdminDetails = false,
   focusCommentId = null,
 }: PostCommentThreadProps) {
@@ -958,6 +964,7 @@ export default function PostCommentThread({
   const [replyBoxOpen, setReplyBoxOpen] = useState(false);
   const [replyText, setReplyText] = useState("");
   const [replyMentions, setReplyMentions] = useState<CommentMention[]>([]);
+  const [replyImageFile, setReplyImageFile] = useState<File | null>(null);
   const [creatingReply, setCreatingReply] = useState(false);
   const [deletingReplyId, setDeletingReplyId] = useState<string | null>(null);
   const [inlineError, setInlineError] = useState<string | null>(null);
@@ -1085,21 +1092,28 @@ export default function PostCommentThread({
   }
 
   async function handleCreateReply() {
-    if (!canCommentOnPosts || creatingReply || replyText.trim().length === 0) return;
+    if (!canCommentOnPosts || creatingReply) return;
+    if (replyText.trim().length === 0 && !replyImageFile) return;
 
     try {
       setCreatingReply(true);
       setInlineError(null);
+      let image: CommentImage | null = null;
+      if (replyImageFile) {
+        image = await uploadCommentImage({ postId, file: replyImageFile });
+      }
       const nextReplies = await onCreateReply(
         postId,
         comment.id,
         replyText.trim(),
-        replyMentions
+        replyMentions,
+        image
       );
       setReplies(nextReplies);
       setLocalReplyCount(nextReplies.length);
       setReplyText("");
       setReplyMentions([]);
+      setReplyImageFile(null);
       setReplyBoxOpen(false);
     } catch (e: unknown) {
       setInlineError((e instanceof Error ? e.message : null) ?? tPosts("errorCreateReply"));
@@ -1449,6 +1463,10 @@ export default function PostCommentThread({
                 </div>
               )}
 
+              {comment.image && (
+                <CommentImageThumb image={comment.image} onOpen={onOpenCommentImage} />
+              )}
+
               {showAdminDetails && comment.editHistory && comment.editHistory.length > 0 && (
                 <div style={{ marginTop: 8, display: "grid", gap: 4 }}>
                   <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(251,191,36,0.65)", letterSpacing: "0.05em" }}>
@@ -1564,12 +1582,24 @@ export default function PostCommentThread({
                   disabled={!canCommentOnPosts}
                 />
               </div>
+              <CommentAttachButton
+                file={replyImageFile}
+                onSelect={setReplyImageFile}
+                onClear={() => setReplyImageFile(null)}
+                disabled={!canCommentOnPosts || creatingReply}
+              />
               <button
                 type="button"
                 onClick={handleCreateReply}
-                disabled={!canCommentOnPosts || creatingReply || replyText.trim().length === 0}
+                disabled={
+                  !canCommentOnPosts ||
+                  creatingReply ||
+                  (replyText.trim().length === 0 && !replyImageFile)
+                }
                 style={
-                  !canCommentOnPosts || creatingReply || replyText.trim().length === 0
+                  !canCommentOnPosts ||
+                  creatingReply ||
+                  (replyText.trim().length === 0 && !replyImageFile)
                     ? disabledButtonStyle
                     : primaryButtonStyle
                 }
@@ -1765,6 +1795,10 @@ export default function PostCommentThread({
                         >
                           {renderCommentText(reply.text, reply.mentions)}
                         </div>
+                      )}
+
+                      {reply.image && (
+                        <CommentImageThumb image={reply.image} onOpen={onOpenCommentImage} />
                       )}
 
                       {showAdminDetails && reply.editHistory && reply.editHistory.length > 0 && (

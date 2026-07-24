@@ -6,7 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { doc, getDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
-import type { Comment, CommentMention, CommentReply, Post } from "@/lib/posts/types";
+import type { Comment, CommentImage, CommentMention, CommentReply, Post } from "@/lib/posts/types";
 import {
   createPostComment,
   createPostCommentReply,
@@ -625,11 +625,12 @@ if (!trigger.isConnected) return;
   async function handleCreateComment(
     postId: string,
     text: string,
-    mentions?: CommentMention[]
+    mentions?: CommentMention[],
+    image?: CommentImage | null
   ): Promise<Comment[]> {
     try {
       setError(null);
-      await createPostComment({ postId, text, mentions });
+      await createPostComment({ postId, text, mentions, image });
       return await syncPostCommentsCount(postId);
     } catch (e: unknown) {
       setError((e instanceof Error ? e.message : null) ?? tSaved("commentCreateError"));
@@ -668,11 +669,12 @@ if (!trigger.isConnected) return;
     postId: string,
     commentId: string,
     text: string,
-    mentions?: CommentMention[]
+    mentions?: CommentMention[],
+    image?: CommentImage | null
   ): Promise<CommentReply[]> {
     try {
       setError(null);
-      await createPostCommentReply({ postId, commentId, text, mentions });
+      await createPostCommentReply({ postId, commentId, text, mentions, image });
       await syncPostCommentsCount(postId);
       return await fetchCommentReplies({ postId, commentId });
     } catch (e: unknown) {

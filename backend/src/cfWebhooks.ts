@@ -4,6 +4,11 @@ import { FieldValue, getFirestore } from "firebase-admin/firestore";
 import { logger } from "firebase-functions";
 import { defineSecret } from "firebase-functions/params";
 import { onRequest } from "firebase-functions/v2/https";
+import {
+  enqueueAudienceFanout,
+  notifyLiveVodReadyOwner,
+  liveAudience,
+} from "./notifications";
 
 if (!getApps().length) initializeApp();
 
@@ -171,6 +176,29 @@ export const cfWebhook = onRequest(
           }
           await Promise.all(updates);
           logger.info("cfWebhook live-inprogress", { liveInputId, postId });
+
+          // Aviso "está en vivo" a la audiencia — solo al pasar A live (evita
+          // duplicar si el webhook se repite estando ya en vivo).
+          const prevStatus = (result.data.liveData as Record<string, unknown> | undefined)?.status;
+          if (authorId && prevStatus !== "live") {
+            try {
+              const a = liveAudience(result.data, postId);
+              await enqueueAudienceFanout({
+                notifType: "live_started",
+                postId,
+                authorId,
+                actor: a.actor,
+                target: a.target,
+                groupIds: a.groupIds,
+                includeFollowers: a.includeFollowers,
+              });
+            } catch (notifErr) {
+              logger.error("cfWebhook live_started notify failed", {
+                postId,
+                err: notifErr instanceof Error ? notifErr.message : String(notifErr),
+              });
+            }
+          }
         } else {
           logger.warn("cfWebhook live-inprogress: post not found", { liveInputId });
         }
@@ -323,6 +351,7 @@ export const cfWebhook = onRequest(
         const result = await findPostByLiveInput(resolvedInputId, event.meta?.name);
         if (result) {
           const liveStatus = (result.data.liveData as Record<string, unknown> | undefined)?.status;
+          const prevVod = (result.data.liveData as Record<string, unknown> | undefined)?.vodStatus;
           if (liveStatus === "ended") {
             const updatePayload: Record<string, unknown> = {
               "liveData.vodStatus": "ready",
@@ -330,6 +359,37 @@ export const cfWebhook = onRequest(
             };
             await result.ref.update(updatePayload);
             logger.info("cfWebhook recording ready → vodStatus=ready", { videoUid, resolvedInputId, vodHlsUrl });
+
+            // Aviso "VOD listo": al creador + fan-out a la audiencia. Solo la
+            // primera vez que el VOD queda listo (evita duplicar si se repite).
+            if (prevVod !== "ready") {
+              const a = liveAudience(result.data, result.ref.id);
+              if (a.authorId) {
+                try {
+                  await enqueueAudienceFanout({
+                    notifType: "live_vod_ready",
+                    postId: result.ref.id,
+                    authorId: a.authorId,
+                    actor: a.actor,
+                    target: a.target,
+                    groupIds: a.groupIds,
+                    includeFollowers: a.includeFollowers,
+                  });
+                  await notifyLiveVodReadyOwner({
+                    postId: result.ref.id,
+                    authorId: a.authorId,
+                    creatorName: a.creatorName,
+                    creatorAvatar: a.creatorAvatar,
+                    target: a.target,
+                  });
+                } catch (notifErr) {
+                  logger.error("cfWebhook live_vod_ready notify failed", {
+                    postId: result.ref.id,
+                    err: notifErr instanceof Error ? notifErr.message : String(notifErr),
+                  });
+                }
+              }
+            }
           } else {
             logger.warn("cfWebhook state=ready but liveStatus not ended", { resolvedInputId, liveStatus });
           }

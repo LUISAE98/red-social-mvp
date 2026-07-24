@@ -2074,7 +2074,9 @@
       "group_new_subscriber": "{count, plural, one {assinou} other {assinaram}} {group}",
       "join_rejected": "recusou seu pedido para entrar em {group}",
       "new_post": "{count, plural, one {publicou uma novidade} other {publicou # novidades}}",
-      "new_post_group": "{count, plural, one {publicou em} other {publicou # vezes em}} {group}"
+      "new_post_group": "{count, plural, one {publicou em} other {publicou # vezes em}} {group}",
+      "live_started": "está ao vivo",
+      "live_vod_ready": "publicou a repetição da live"
     },
     "moderation": {
       "muted": "Você foi silenciado em {group}",
@@ -2086,6 +2088,18 @@
       "declined": "Sua verificação de identidade foi recusada. Toque para tentar de novo.",
       "in_review": "Sua verificação de identidade está em análise.",
       "pending": "Sua verificação de identidade está pendente. Toque para continuar."
+    },
+    "liveVodReadySelf": "A repetição da sua live está pronta",
+    "session": {
+      "reminder": "Sua sessão está prestes a começar",
+      "partner_ready": "{name} já está pronto para sua sessão",
+      "partner_joined": "{name} entrou na sessão",
+      "ended": "Sua sessão terminou",
+      "incomplete": "Sua sessão ficou incompleta",
+      "no_show": "A outra parte não compareceu; a sessão foi cancelada",
+      "no_show_both": "A sessão foi cancelada: ninguém compareceu",
+      "recording_ready": "A gravação da sua sessão está pronta",
+      "recording_failed": "A gravação da sua sessão falhou"
     }
   },
   "saved": {

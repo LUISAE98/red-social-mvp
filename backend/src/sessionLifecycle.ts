@@ -29,6 +29,7 @@ import {
   createEgressClient,
   createRoomServiceClient,
 } from "./livekit";
+import { notifySessionEvent } from "./notifications";
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -187,6 +188,10 @@ export const joinSession = onCall(
     let skipped = false;
     let startedNow = false;
     let roomNameForEgress: string | null = null;
+    // Para el aviso "la otra parte se unió".
+    let justJoined = false;
+    let otherPartyId: string | null = null;
+    let otherAlreadyJoined = false;
 
     await db.runTransaction(async (tx) => {
       // Reiniciar en cada intento (la transacción puede reintentarse por conflicto).
@@ -226,6 +231,13 @@ export const joinSession = onCall(
       const creatorIsJoined = !!creatorJoinedAt || isCreator;
       const buyerIsJoined = !!buyerJoinedAt || isBuyer;
       bothJoined = creatorIsJoined && buyerIsJoined;
+
+      // ¿Esta parte se une por primera vez y la otra aún no está?
+      justJoined = isCreator ? !creatorJoinedAt : !buyerJoinedAt;
+      otherAlreadyJoined = isCreator ? !!buyerJoinedAt : !!creatorJoinedAt;
+      otherPartyId = isCreator
+        ? (typeof buyerId === "string" ? buyerId : null)
+        : (typeof creatorId === "string" ? creatorId : null);
 
       if (bothJoined && !startedAt) {
         // ⚠️ ARRANQUE DEL CONTADOR DE LA SESIÓN — NO ELIMINAR NUNCA ⚠️
@@ -268,6 +280,25 @@ export const joinSession = onCall(
           livekitEgressId: egressId,
           recordingStatus: "recording",
           updatedAt: admin.firestore.Timestamp.now(),
+        });
+      }
+    }
+
+    // "La otra parte se unió": si esta parte acaba de entrar y la otra aún no
+    // está, avisarle para que entre (arranca el contador cuando ambos estén).
+    if (justJoined && !otherAlreadyJoined && otherPartyId) {
+      try {
+        await notifySessionEvent({
+          action: "partner_joined",
+          sessionId: cleanId,
+          sessionType: typeof sessionType === "string" ? sessionType : "",
+          recipientIds: [otherPartyId],
+          actorUid: uid,
+        });
+      } catch (e) {
+        logger.error("session partner_joined notify failed", {
+          sessionId: cleanId,
+          err: e instanceof Error ? e.message : String(e),
         });
       }
     }
@@ -386,6 +417,24 @@ export const endSession = onCall(
 
     await docRef.update(updates);
 
+    // Aviso a ambos: la sesión terminó (o quedó incompleta).
+    try {
+      await notifySessionEvent({
+        action: finalStatus === "completed" ? "ended" : "incomplete",
+        sessionId: cleanId,
+        sessionType: typeof sessionType === "string" ? sessionType : "",
+        recipientIds: [
+          typeof creatorId === "string" ? creatorId : null,
+          typeof buyerId === "string" ? buyerId : null,
+        ],
+      });
+    } catch (e) {
+      logger.error("session ended notify failed", {
+        sessionId: cleanId,
+        err: e instanceof Error ? e.message : String(e),
+      });
+    }
+
     logger.info("session_ended", {
       sessionId: cleanId,
       sessionType,
@@ -496,6 +545,23 @@ export const forceCompleteSession = onCall(
       updatedAt: admin.firestore.Timestamp.now(),
     });
 
+    try {
+      await notifySessionEvent({
+        action: "ended",
+        sessionId: cleanId,
+        sessionType: typeof sessionType === "string" ? sessionType : "",
+        recipientIds: [
+          typeof creatorId === "string" ? creatorId : null,
+          typeof buyerId === "string" ? buyerId : null,
+        ],
+      });
+    } catch (e) {
+      logger.error("session force_completed notify failed", {
+        sessionId: cleanId,
+        err: e instanceof Error ? e.message : String(e),
+      });
+    }
+
     logger.info("session_force_completed", {
       sessionId: cleanId,
       sessionType,
@@ -506,6 +572,65 @@ export const forceCompleteSession = onCall(
     return { success: true };
   }
 );
+
+// ── Recordatorio pre-sesión ───────────────────────────────────────────────────
+// Cron (cada 5 min): avisa a AMBAS partes que su sesión agendada está por
+// empezar. Se marca `reminderSentAt` para no repetir.
+const REMINDER_LEAD_MS = 15 * 60 * 1000; // 15 min antes
+const REMINDER_SCHEDULED_STATUSES = new Set([
+  "scheduled",
+  "ready_to_prepare",
+  "in_preparation",
+]);
+const REMINDER_COLLECTIONS: Array<{ name: string; type: string }> = [
+  { name: "exclusiveSessionRequests", type: "exclusive_session" },
+  { name: "meetGreetRequests", type: "meet_greet" },
+];
+
+export async function sessionRemindersHandler(): Promise<number> {
+  const nowMs = Date.now();
+  const nowTs = admin.firestore.Timestamp.fromMillis(nowMs);
+  const cutoff = admin.firestore.Timestamp.fromMillis(nowMs + REMINDER_LEAD_MS);
+  let sent = 0;
+
+  for (const c of REMINDER_COLLECTIONS) {
+    const snap = await db
+      .collection(c.name)
+      .where("scheduledAt", ">=", nowTs)
+      .where("scheduledAt", "<=", cutoff)
+      .limit(200)
+      .get();
+
+    for (const doc of snap.docs) {
+      const data = doc.data();
+      if (data.reminderSentAt) continue;
+      if (!REMINDER_SCHEDULED_STATUSES.has(String(data.status ?? ""))) continue;
+
+      const creatorId = typeof data.creatorId === "string" ? data.creatorId : null;
+      const buyerId = typeof data.buyerId === "string" ? data.buyerId : null;
+
+      // Marca ANTES de notificar para no duplicar si el cron se solapa.
+      await doc.ref.update({ reminderSentAt: admin.firestore.Timestamp.now() });
+      try {
+        await notifySessionEvent({
+          action: "reminder",
+          sessionId: doc.id,
+          sessionType: c.type,
+          recipientIds: [creatorId, buyerId],
+        });
+        sent += 1;
+      } catch (e) {
+        logger.error("session reminder notify failed", {
+          sessionId: doc.id,
+          err: e instanceof Error ? e.message : String(e),
+        });
+      }
+    }
+  }
+
+  logger.info("session_reminders_handler", { sent });
+  return sent;
+}
 
 // ── Respaldo: finalizar la grabación ──────────────────────────────────────────
 // La plantilla de grabación reproduce el outro y detiene el egress sola. Por si

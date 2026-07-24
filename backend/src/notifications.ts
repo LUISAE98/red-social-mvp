@@ -46,6 +46,9 @@ type NotificationType =
   | "group_new_subscriber"
   | "group_moderation"
   | "new_post"
+  | "live_started"
+  | "live_vod_ready"
+  | "session_event"
   | "kyc_update"
   | "invite_expired";
 
@@ -66,8 +69,11 @@ interface Target {
   imageUrl?: string | null;
   /** invite_expired: "max_uses" | "expired". */
   reason?: string | null;
-  /** group_moderation: "muted" | "kicked" | "banned". */
+  /** group_moderation / kyc_update / session_event: acción/estado. */
   action?: string | null;
+  /** session_event: id y tipo de la sesión 1-a-1. */
+  sessionId?: string | null;
+  sessionType?: string | null;
 }
 
 function str(value: unknown): string | null {
@@ -247,7 +253,17 @@ export const onPostCommentCreated = onDocumentCreated(
     if (!post.exists) return;
     const authorId = str(post.get("authorId"));
     const base = buildPostTarget(postId, post);
-    const target: Target = { ...base, commentId, preview: str(data.text)?.slice(0, 120) ?? null };
+    const commentPreview = str(data.text)?.slice(0, 120) ?? null;
+    const target: Target = {
+      ...base,
+      commentId,
+      preview:
+        commentPreview && commentPreview.trim().length > 0
+          ? commentPreview
+          : data.image
+            ? "📷 Foto"
+            : null,
+    };
 
     // Menciones primero, para no duplicar aviso al autor si además fue mencionado.
     const mentionedIds = new Set<string>();
@@ -291,7 +307,17 @@ export const onPostCommentReplyCreated = onDocumentCreated(
 
     const post = await db.collection("posts").doc(postId).get();
     const base = post.exists ? buildPostTarget(postId, post) : { postId };
-    const target: Target = { ...base, commentId, preview: str(data.text)?.slice(0, 120) ?? null };
+    const replyPreview = str(data.text)?.slice(0, 120) ?? null;
+    const target: Target = {
+      ...base,
+      commentId,
+      preview:
+        replyPreview && replyPreview.trim().length > 0
+          ? replyPreview
+          : data.image
+            ? "📷 Foto"
+            : null,
+    };
 
     const comment = await db
       .collection("posts")
@@ -637,6 +663,54 @@ export async function notifyKycStatus(
   });
 }
 
+/** Acciones del ciclo de vida de una sesión 1-a-1 (LiveKit). */
+export type SessionEventAction =
+  | "reminder"
+  | "partner_ready"
+  | "partner_joined"
+  | "ended"
+  | "incomplete"
+  | "no_show"
+  | "no_show_both"
+  | "recording_ready"
+  | "recording_failed";
+
+/**
+ * Avisa de un evento de sesión 1-a-1 (exclusiva o meet & greet) a uno o varios
+ * destinatarios. `actorUid` = la otra parte (para "está listo"/"se unió"); si no
+ * hay persona detrás (fin, no-show, grabación, recordatorio) se usa un actor
+ * neutro "Sesión" y así todos los destinatarios lo reciben. Un `groupKey` por
+ * (sesión, acción) para no pisar eventos distintos de la misma sesión.
+ */
+export async function notifySessionEvent(opts: {
+  action: SessionEventAction;
+  sessionId: string;
+  sessionType: string;
+  recipientIds: Array<string | null | undefined>;
+  actorUid?: string | null;
+}): Promise<void> {
+  const actor: Actor = opts.actorUid
+    ? await resolveActor(opts.actorUid)
+    : { id: "session", name: "Sesión", avatarUrl: null, handle: null };
+
+  const seen = new Set<string>();
+  for (const rid of opts.recipientIds) {
+    if (!rid || seen.has(rid)) continue;
+    seen.add(rid);
+    await emit({
+      recipientId: rid,
+      groupKey: `session_${opts.sessionId}_${opts.action}`,
+      type: "session_event",
+      actor,
+      target: {
+        action: opts.action,
+        sessionId: opts.sessionId,
+        sessionType: opts.sessionType,
+      },
+    });
+  }
+}
+
 export const onGroupMemberCreated = onDocumentCreated(
   { document: "groups/{groupId}/members/{userId}", region: REGION },
   async (event) => {
@@ -698,14 +772,117 @@ interface FanoutTaskData {
   actor: Actor;
   target: Target;
   startAfter: string | null; // cursor: id del último doc de la página previa
+  /** Tipo de notificación a escribir (por defecto "new_post"). */
+  notifType?: NotificationType;
 }
 
 /** Encola una página del reparto. `id` determinista → Cloud Tasks deduplica. */
 async function enqueueFanoutPage(data: FanoutTaskData): Promise<void> {
-  const taskId = `${data.jobId}_${data.source}_${data.startAfter ?? "start"}`;
+  const kind = data.notifType ?? "new_post";
+  const taskId = `${kind}_${data.jobId}_${data.source}_${data.startAfter ?? "start"}`;
   await getFunctions()
     .taskQueue(FANOUT_TASK)
     .enqueue(data, { id: taskId });
+}
+
+/**
+ * Fan-out de un aviso a la audiencia (seguidores del creador o miembros de las
+ * comunidades donde ocurre). Reutiliza la cola de Cloud Tasks. Un `groupKey` por
+ * evento (`${notifType}_${postId}`), así los destinatarios que estén en varias
+ * fuentes (p.ej. seguidor Y miembro) reciben una sola notificación.
+ */
+export async function enqueueAudienceFanout(opts: {
+  notifType: NotificationType;
+  postId: string;
+  authorId: string;
+  actor: Actor;
+  target: Target;
+  groupIds: string[];
+  includeFollowers: boolean;
+}): Promise<void> {
+  const base = {
+    jobId: opts.postId,
+    authorId: opts.authorId,
+    groupKey: `${opts.notifType}_${opts.postId}`,
+    actor: opts.actor,
+    target: opts.target,
+    notifType: opts.notifType,
+    startAfter: null as string | null,
+  };
+  if (opts.includeFollowers) {
+    await enqueueFanoutPage({ ...base, source: "followers", sourceId: opts.authorId });
+  }
+  for (const gid of opts.groupIds) {
+    if (gid) await enqueueFanoutPage({ ...base, source: "members", sourceId: gid });
+  }
+}
+
+/**
+ * Audiencia de un aviso de live a partir del doc del post: seguidores (live de
+ * perfil) o miembros de la comunidad + `broadcastGroupIds` (live de comunidad).
+ * Compartido por los webhooks de Cloudflare (`cfWebhooks`) y Mux (`muxWebhooks`).
+ */
+export function liveAudience(
+  data: admin.firestore.DocumentData,
+  postId: string
+) {
+  const authorId = str(data.authorId);
+  const groupId = str(data.groupId);
+  const live = (data.liveData as admin.firestore.DocumentData | undefined) ?? {};
+  const broadcast: string[] = Array.isArray(live.broadcastGroupIds)
+    ? (live.broadcastGroupIds as unknown[]).filter(
+        (id): id is string => typeof id === "string" && !!id
+      )
+    : [];
+  const groupIds = [groupId, ...broadcast].filter(
+    (id): id is string => typeof id === "string" && !!id
+  );
+  const name = str(data.authorName) ?? "Alguien";
+  const avatar = str(data.authorAvatarUrl);
+  const username = str(data.authorUsername);
+  const image = str(data.shareImageUrl);
+  const text = str(data.text)?.slice(0, 120) ?? null;
+
+  return {
+    authorId,
+    groupId,
+    groupIds,
+    includeFollowers: !groupId, // perfil → seguidores; comunidad → miembros
+    actor: { id: authorId ?? "", name, avatarUrl: avatar, handle: username } as Actor,
+    creatorName: name,
+    creatorAvatar: avatar,
+    target: {
+      postId,
+      groupId: groupId ?? null,
+      handle: username,
+      preview: text,
+      imageUrl: image,
+    } as Target,
+  };
+}
+
+/** VOD del live listo → aviso directo al creador (además del fan-out a la audiencia). */
+export async function notifyLiveVodReadyOwner(opts: {
+  postId: string;
+  authorId: string;
+  creatorName: string;
+  creatorAvatar: string | null;
+  target: Target;
+}): Promise<void> {
+  if (!opts.authorId) return;
+  await emit({
+    recipientId: opts.authorId,
+    groupKey: `live_vod_ready_${opts.postId}`,
+    type: "live_vod_ready",
+    // Actor sintético (id ≠ creador) para que `emit` no lo omita como auto-aviso.
+    actor: {
+      id: `live_${opts.postId}`,
+      name: opts.creatorName || "Tu live",
+      avatarUrl: opts.creatorAvatar,
+      handle: null,
+    },
+    target: { ...opts.target, action: "self" },
+  });
 }
 
 export const onPostCreated = onDocumentCreated(
@@ -794,6 +971,7 @@ export const fanoutNewPostTask = onTaskDispatched<FanoutTaskData>(
   async (req) => {
     const { source, sourceId, authorId, groupKey, actor, target, startAfter } =
       req.data;
+    const notifType = req.data.notifType ?? "new_post";
 
     const col =
       source === "followers"
@@ -829,7 +1007,7 @@ export const fanoutNewPostTask = onTaskDispatched<FanoutTaskData>(
       batch.set(
         ref,
         {
-          type: "new_post",
+          type: notifType,
           groupKey,
           actors: [actor],
           actorIds: [actor.id],
