@@ -2,6 +2,7 @@
 
 import { createPortal } from "react-dom";
 import { useEffect, useRef, useState } from "react";
+import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import { useTranslations } from "next-intl";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
@@ -431,6 +432,8 @@ export default function CreatorServiceModals({
   useEffect(() => { if (exclusiveSessionError) showServiceModalToast(exclusiveSessionError, "error"); }, [exclusiveSessionError]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (serviceToast) showServiceModalToast(serviceToast, serviceToast.startsWith("No puedes") ? "warning" : "success"); }, [serviceToast]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  useBodyScrollLock(greetOpen || meetGreetOpen || exclusiveSessionOpen);
+
   useEffect(() => {
     const anyOpen = greetOpen || meetGreetOpen || exclusiveSessionOpen;
     if (!anyOpen) return;
@@ -440,15 +443,9 @@ export default function CreatorServiceModals({
       if (meetGreetOpen && !meetGreetSubmitting) onCloseMeetGreet();
       if (exclusiveSessionOpen && !exclusiveSessionSubmitting) onCloseExclusiveSession();
     }
-    const prevBodyOverflow = document.body.style.overflow;
-    const prevHtmlOverflow = document.documentElement.style.overflow;
     document.addEventListener("keydown", handleEscape);
-    document.body.style.overflow = "hidden";
-    document.documentElement.style.overflow = "hidden";
     return () => {
       document.removeEventListener("keydown", handleEscape);
-      document.body.style.overflow = prevBodyOverflow;
-      document.documentElement.style.overflow = prevHtmlOverflow;
     };
   }, [greetOpen, greetSubmitting, meetGreetOpen, meetGreetSubmitting, exclusiveSessionOpen, exclusiveSessionSubmitting, onCloseGreeting, onCloseMeetGreet, onCloseExclusiveSession]);
 

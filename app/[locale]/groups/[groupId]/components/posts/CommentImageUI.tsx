@@ -11,6 +11,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import type { CommentImage } from "@/lib/posts/types";
+import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 
 /**
  * UI compartida para la imagen adjunta de comentarios/respuestas:
@@ -263,18 +264,18 @@ export function CommentImageLightbox({
     closingRef.current = false;
   }, [url]);
 
-  // Escape para cerrar + bloqueo de scroll del body.
+  // Bloqueo de scroll del fondo mientras el lightbox está abierto.
+  useBodyScrollLock(!!target);
+
+  // Escape para cerrar.
   useEffect(() => {
     if (!target) return;
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") startClose(false);
     }
     document.addEventListener("keydown", onKey);
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
     return () => {
       document.removeEventListener("keydown", onKey);
-      document.body.style.overflow = prev;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [target]);

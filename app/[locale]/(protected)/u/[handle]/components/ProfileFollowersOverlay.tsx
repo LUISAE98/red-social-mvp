@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
+import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import { useTranslations } from "next-intl";
 import { createPortal } from "react-dom";
 
@@ -121,12 +122,7 @@ export default function ProfileFollowersOverlay({
   }, []);
 
   // Bloquear scroll del body mientras el panel está abierto
-  useEffect(() => {
-    if (!shouldRender) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => { document.body.style.overflow = prev; };
-  }, [shouldRender]);
+  useBodyScrollLock(shouldRender);
 
   // Load followers
   useEffect(() => {

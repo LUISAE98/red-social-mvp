@@ -12,6 +12,7 @@ import {
   type RefObject,
   type SetStateAction,
 } from "react";
+import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import { createPortal } from "react-dom";
 
 import { VibraNavigationIcon } from "@/app/components/VibraServiceIcons/VibraNavigationIcons";
@@ -256,11 +257,11 @@ export default function PostComposerMobileOverlay({
     return () => window.clearTimeout(timer);
   }, [open]);
 
+  useBodyScrollLock(open);
+
   useEffect(() => {
     if (!open) return;
 
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
 
     const timer = window.setTimeout(() => {
       textareaRef.current?.focus();
@@ -275,7 +276,6 @@ export default function PostComposerMobileOverlay({
     return () => {
       window.clearTimeout(timer);
       window.removeEventListener("keydown", handleKeyDown);
-      document.body.style.overflow = previousOverflow;
     };
   }, [open]);
 

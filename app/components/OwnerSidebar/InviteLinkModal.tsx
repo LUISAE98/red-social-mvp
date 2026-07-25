@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
+import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import { useTranslations } from "next-intl";
 import { createInviteLink } from "@/lib/groups/inviteLinks";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
@@ -316,6 +317,8 @@ export default function InviteLinkModal({ groupId, onClose, onCreated }: Props) 
     fontFamily: fontStack,
     cursor: "pointer",
   };
+
+  useBodyScrollLock(true);
 
   if (!mounted) return null;
     return createPortal(

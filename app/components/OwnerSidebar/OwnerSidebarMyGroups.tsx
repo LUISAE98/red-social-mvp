@@ -482,10 +482,11 @@ function isPreparationVisibleWindow(value: unknown): boolean {
 }
 
 function isServiceRequestAlertStatus(status?: string | null): boolean {
+  // `reschedule_requested` (el comprador pidió reagendar) ya NO se muestra en el
+  // sidebar: ahora esa solicitud llega a la pestaña Experiencias de notificaciones.
   return (
     status === "pending_creator_response" ||
-    status === "accepted_pending_schedule" ||
-    status === "reschedule_requested"
+    status === "accepted_pending_schedule"
   );
 }
 
@@ -1401,7 +1402,11 @@ const isSelectedGroup = (isProfileCard
   : pathname === `/groups/${g.id}`)
   || (isMobile && isOpen);
 
-            const greetings = greetingsByGroup[g.id] ?? [];
+            // Saludos/consejos ya NO se muestran en el sidebar (ni en perfil ni en
+            // comunidades): ahora viven en la pestaña Experiencias de notificaciones.
+            // Se fuerzan a vacío para que su sección y sus contadores desaparezcan
+            // aquí, sin afectar en nada a las sesiones (tiempo contigo / exclusiva).
+            const greetings: (typeof greetingsByGroup)[string] = [];
             const meetGreets = meetGreetsByGroup[g.id] ?? [];
             const exclusiveSessions = exclusiveSessionsByGroup[g.id] ?? [];
 

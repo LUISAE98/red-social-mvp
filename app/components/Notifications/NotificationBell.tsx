@@ -13,6 +13,7 @@ import { VibraNavigationIcon } from "@/app/components/VibraServiceIcons/VibraNav
 import { AppNotification, isExperienceNotification } from "@/lib/notifications/types";
 import NotificationList from "./NotificationList";
 import NotificationTabs, { type NotifTab } from "./NotificationTabs";
+import ExperienceRequestsInbox from "./ExperienceRequestsInbox";
 
 interface NotificationBellProps {
   active?: boolean;
@@ -44,6 +45,7 @@ export default function NotificationBell({ active }: NotificationBellProps) {
   const { hasPending } = usePendingExperiences(hasWallet ? user?.uid ?? null : null);
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<NotifTab | null>(null);
+  const [slideDir, setSlideDir] = useState<"left" | "right" | null>(null);
   const [mounted, setMounted] = useState(false);
   const [pos, setPos] = useState<PanelPos>({ top: 64, right: 16 });
   const btnRef = useRef<HTMLButtonElement>(null);
@@ -113,6 +115,14 @@ export default function NotificationBell({ active }: NotificationBellProps) {
     return items;
   }, [items, showSubnav, activeTab]);
 
+  // Cambiar de pestaña desliza el contenido (mismas keyframes que el nav de rutas).
+  const changeTab = (next: NotifTab) => {
+    if (next === activeTab) return;
+    const order: NotifTab[] = ["experiences", "social"];
+    setSlideDir(order.indexOf(next) > order.indexOf(activeTab) ? "right" : "left");
+    setTab(next);
+  };
+
   return (
     <div className="notifBellWrap">
       <button
@@ -148,20 +158,28 @@ export default function NotificationBell({ active }: NotificationBellProps) {
                 ) : null}
               </div>
               {showSubnav ? (
-                <NotificationTabs activeTab={activeTab} onChange={setTab} compact />
+                <NotificationTabs activeTab={activeTab} onChange={changeTab} compact />
               ) : null}
               <div className="notifPanelScroll">
-                <NotificationList
-                  items={visibleItems}
-                  loading={loading}
-                  onItemClick={handleItemClick}
-                  selfHandle={selfHandle}
-                  emptyLabel={
-                    showSubnav && activeTab === "experiences"
-                      ? t("emptyExperiences")
-                      : undefined
-                  }
-                />
+                <div
+                  className="notifPanelSlide"
+                  key={activeTab}
+                  data-nav-enter={showSubnav && slideDir ? slideDir : undefined}
+                >
+                  {showSubnav && activeTab === "experiences" ? (
+                    <ExperienceRequestsInbox
+                      uid={user?.uid ?? null}
+                      emptyLabel={t("emptyExperiences")}
+                    />
+                  ) : (
+                    <NotificationList
+                      items={visibleItems}
+                      loading={loading}
+                      onItemClick={handleItemClick}
+                      selfHandle={selfHandle}
+                    />
+                  )}
+                </div>
               </div>
               <Link href="/notifications" className="notifViewAll" onClick={() => setOpen(false)}>
                 {t("viewAll")}
@@ -237,6 +255,7 @@ export default function NotificationBell({ active }: NotificationBellProps) {
         .notifPanelScroll {
           max-height: min(60vh, 460px);
           overflow-y: auto;
+          overflow-x: hidden;
         }
         .notifPanel :global(.notifState) {
           padding: 32px 16px;

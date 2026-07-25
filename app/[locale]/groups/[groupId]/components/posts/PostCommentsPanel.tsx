@@ -7,6 +7,8 @@ import {
   type CSSProperties,
   type PointerEvent as ReactPointerEvent,
 } from "react";
+import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
+import { useKeyboardInset } from "@/lib/hooks/useKeyboardInset";
 import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
 import type {
@@ -173,12 +175,10 @@ export default function PostCommentsPanel({
     return () => window.clearTimeout(timer);
   }, [open, isMobile]);
 
-  useEffect(() => {
-    if (!open || !isMobile) return;
-    const previous = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => { document.body.style.overflow = previous; };
-  }, [open, isMobile]);
+  useBodyScrollLock(open && isMobile);
+  // iOS: empuja el sheet por encima del teclado (visualViewport) para que no se
+  // vea el fondo en la franja de sugerencias al escribir.
+  const keyboardInset = useKeyboardInset();
 
   const PANEL_CLOSE_THRESHOLD = 130;
 
@@ -528,7 +528,7 @@ export default function PostCommentsPanel({
         display: "flex",
         alignItems: "flex-end",
         justifyContent: "center",
-        padding: "0 0 env(safe-area-inset-bottom)",
+        padding: `0 0 calc(env(safe-area-inset-bottom, 0px) + ${keyboardInset}px)`,
         background: "rgba(0,0,0,0.52)",
         backdropFilter: "blur(10px)",
         WebkitBackdropFilter: "blur(10px)",

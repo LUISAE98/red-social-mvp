@@ -1910,8 +1910,9 @@ const groupsForSeen = [
 
       for (const groupId of groupsForSeen) {
         const joinCount = (joinRequestsByGroup[groupId] ?? []).length;
+        // Los saludos/consejos ya no se muestran en el sidebar (viven en la
+        // pestaña Experiencias), así que no cuentan para el indicador "nuevo".
         const greetingCount =
-          (greetingsByGroup[groupId] ?? []).length +
           (meetGreetsByGroup[groupId] ?? []).length +
           (exclusiveSessionsByGroup[groupId] ?? []).length;
 

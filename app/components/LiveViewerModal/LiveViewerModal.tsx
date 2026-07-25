@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import { useTranslations } from "next-intl";
 import { createPortal } from "react-dom";
 import Hls from "hls.js";
@@ -733,12 +734,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
     return () => window.clearTimeout(t);
   }, [open]);
 
-  useEffect(() => {
-    if (!open) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => { document.body.style.overflow = prev; };
-  }, [open]);
+  useBodyScrollLock(open);
 
   // ── WebRTC viewer for Cloudflare live streams ─────────────────────────────
   // WHIP → /webRTC/play works instantly. HLS (/manifest/video.m3u8) requires CF
@@ -2398,6 +2394,19 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
     />
   );
 
+  // Franja del safe-area inferior (home-indicator) pintada de blanco mientras el panel
+  // de donación está abierto. Va `position: fixed` al viewport real (no a un contenedor)
+  // con z-index por encima del modal, porque en iOS/PWA la franja del home-indicator
+  // muestra el fondo del documento y un elemento "contenido" no la cubre. Con
+  // viewport-fit=cover (ya activo) esto pinta la franja en iOS y Android.
+  const liveDonateSafeAreaFill = liveDonateOpen ? (
+    <div aria-hidden style={{
+      position: "fixed", left: 0, right: 0, bottom: 0,
+      height: "env(safe-area-inset-bottom, 0px)",
+      background: "#fff", zIndex: 10001, pointerEvents: "none",
+    }} />
+  ) : null;
+
   async function handleToggleLike() {
     if (flameBusyRef.current) return;
     if (!user) return;
@@ -2877,6 +2886,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
         </div>
         {donationPanel}
         {renderLiveDonationSheet(portraitDonateRef.current)}
+        {liveDonateSafeAreaFill}
       </>,
       document.body
     );
@@ -2923,7 +2933,10 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
           // exactamente al final de la zona de grabación).
           borderTop: liveDonateOpen ? "none" : "1px solid rgba(255,255,255,0.06)",
           overflow: "hidden",
-          paddingBottom: "env(safe-area-inset-bottom)",
+          // Sin padding inferior con el panel abierto: así el sheet (inset:0) llena hasta
+          // el borde físico y CUBRE el safe-area (se ve del color del panel, no negro).
+          // Con el chat normal, el padding mantiene el contenido sobre el home-indicator.
+          paddingBottom: liveDonateOpen ? 0 : "env(safe-area-inset-bottom)",
         }}>
           {renderCreatorInfo()}
           <div style={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
@@ -2933,6 +2946,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
       </div>
       {donationPanel}
       {renderLiveDonationSheet(belowVideoRef.current)}
+      {liveDonateSafeAreaFill}
       {reportTarget && <ReportModal target={reportTarget} onClose={closeReport} />}
     </>,
     document.body

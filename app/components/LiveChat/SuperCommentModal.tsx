@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
@@ -135,6 +136,8 @@ export default function SuperCommentModal({
     setGuestNickname(trimmed);
     setStep("compose");
   }
+
+  useBodyScrollLock(open);
 
   if (!shouldRender || !mounted) return null;
 

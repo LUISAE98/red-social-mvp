@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useRef, type ReactNode } from "react";
+import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import { createPortal } from "react-dom";
 import { useTranslations, useLocale } from "next-intl";
 import type { WalletServiceItem } from "@/lib/wallet/ownerWallet";
@@ -216,6 +217,8 @@ export default function ScheduleCalendarOverlay({
     };
   }, []);
 
+  useBodyScrollLock(open);
+
   useEffect(() => {
     if (!open) return;
 
@@ -223,13 +226,9 @@ export default function ScheduleCalendarOverlay({
       if (event.key === "Escape") onClose();
     }
 
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-
     window.addEventListener("keydown", handleKeyDown);
 
     return () => {
-      document.body.style.overflow = previousOverflow;
       window.removeEventListener("keydown", handleKeyDown);
     };
   }, [open, onClose]);

@@ -24,6 +24,7 @@ export default function NotificationTabs({
 }: NotificationTabsProps) {
   const t = useTranslations("notifications");
   const tabs: NotifTab[] = ["experiences", "social"];
+  const activeIndex = Math.max(0, tabs.indexOf(activeTab));
 
   return (
     <div
@@ -44,8 +45,16 @@ export default function NotificationTabs({
         </button>
       ))}
 
+      {/* Barra selectora única que desliza entre pestañas (como el subnav de wallet). */}
+      <span
+        className="ntabIndicator"
+        style={{ transform: `translateX(${activeIndex * 100}%)` }}
+        aria-hidden="true"
+      />
+
       <style jsx>{`
         .ntabs {
+          position: relative;
           display: flex;
           padding: 0 16px;
           border-bottom: 1px solid rgba(255, 255, 255, 0.08);
@@ -67,26 +76,22 @@ export default function NotificationTabs({
           font-size: 13px;
           padding: 9px 2px 6px;
         }
-        .ntab::after {
-          content: "";
-          position: absolute;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          height: 2px;
-          border-radius: 2px;
-          background: #fff;
-          opacity: 0;
-          transition: opacity 140ms ease;
-        }
         .ntab:hover:not(.ntabActive) {
           color: rgba(255, 255, 255, 0.8);
         }
         .ntabActive {
           color: #fff;
         }
-        .ntabActive::after {
-          opacity: 1;
+        .ntabIndicator {
+          position: absolute;
+          bottom: 0;
+          left: 16px;
+          width: calc((100% - 32px) / 2);
+          height: 2px;
+          border-radius: 2px;
+          background: #fff;
+          transition: transform 280ms cubic-bezier(0.4, 0, 0.2, 1);
+          pointer-events: none;
         }
       `}</style>
     </div>

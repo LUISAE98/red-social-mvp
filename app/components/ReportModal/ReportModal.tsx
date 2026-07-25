@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import { useTranslations } from "next-intl";
 import { createPortal } from "react-dom";
 import { submitReport } from "@/lib/moderation/reportService";
@@ -62,11 +63,9 @@ export default function ReportModal({ target, onClose, onReported }: Props) {
 
   useEffect(() => {
     setMounted(true);
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = "";
-    };
   }, []);
+
+  useBodyScrollLock(true);
 
   async function handleSubmit() {
     if (!selectedReason) return;

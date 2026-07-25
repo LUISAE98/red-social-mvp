@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import Link from "next/link";
 import { doc, getDoc } from "firebase/firestore";
 import { db, auth } from "@/lib/firebase";
@@ -976,6 +977,8 @@ export default function GreetingReviewOverlay({
     }
     startSpeechFrom(charIndex);
   }, [startSpeechFrom]);
+
+  useBodyScrollLock(true);
 
   if (!mounted) return null;
 

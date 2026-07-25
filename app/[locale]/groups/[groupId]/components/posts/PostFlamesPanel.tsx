@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import { createPortal } from "react-dom";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
@@ -141,12 +142,7 @@ export default function PostFlamesPanel({
   }, [open, mounted]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Block body scroll while open
-  useEffect(() => {
-    if (!visible) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => { document.body.style.overflow = prev; };
-  }, [visible]);
+  useBodyScrollLock(visible);
 
   // Escape key
   useEffect(() => {

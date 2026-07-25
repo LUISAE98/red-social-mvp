@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { createPortal } from "react-dom";
+import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import {
@@ -162,6 +163,8 @@ export default function PostEditModal({
 
   const images = mediaItems.filter((m) => !isVideoMedia(m));
   const videos = mediaItems.filter((m) => isVideoMedia(m));
+
+  useBodyScrollLock(true);
 
   if (typeof document === "undefined") return null;
 

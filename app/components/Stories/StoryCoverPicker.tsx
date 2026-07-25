@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
+import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import { useTranslations } from "next-intl";
 import { createPortal } from "react-dom";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
@@ -269,6 +270,8 @@ export default function StoryCoverPicker({
     try { await deleteStory(storyId); }
     finally { setProcessingId(null); }
   };
+
+  useBodyScrollLock(true);
 
   if (!mounted) return null;
 

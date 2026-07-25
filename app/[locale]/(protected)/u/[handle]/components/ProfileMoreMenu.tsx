@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
+import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
 import { useSocialRelationship } from "@/lib/social/useSocialRelationship";
@@ -62,6 +63,8 @@ export default function ProfileMoreMenu({ viewerUid, profileUid, onUnblockSucces
       document.removeEventListener("keydown", handleEscape);
     };
   }, [menuOpen, closeMenu]);
+
+  useBodyScrollLock(menuOpen);
 
   if (!viewerUid || isOwnProfile || relationship.isBlockedBy) return null;
 

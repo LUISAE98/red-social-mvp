@@ -4,6 +4,7 @@
 // LanguageSwitcher (mismas 3 variantes) y se coloca a su lado.
 
 import { useMemo, useState, useEffect, useRef } from "react";
+import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import { createPortal } from "react-dom";
 import { useLocale, useTranslations } from "next-intl";
 import { useCurrency } from "./CurrencyProvider";
@@ -44,11 +45,7 @@ function CurrencyOverlay({
   const scrollRef = useRef<HTMLDivElement>(null);
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { setMounted(true); }, []);
-  useEffect(() => {
-    if (!mounted || !open) return;
-    document.body.style.overflow = "hidden";
-    return () => { document.body.style.overflow = ""; };
-  }, [mounted, open]);
+  useBodyScrollLock(mounted && open);
   useEffect(() => {
     if (!mounted || !open) return;
     const el = scrollRef.current;

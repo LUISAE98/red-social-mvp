@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import { useTranslations } from "next-intl";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
@@ -70,12 +71,7 @@ export default function LiveEndSummaryPanel({ open, onClose, post }: Props) {
     }
   }, [open, isMobile]);
 
-  useEffect(() => {
-    if (open) {
-      document.body.style.overflow = "hidden";
-      return () => { document.body.style.overflow = ""; };
-    }
-  }, [open]);
+  useBodyScrollLock(open);
 
   function handlePanelPointerDown(e: React.PointerEvent) {
     if ((e.target as HTMLElement).closest("button")) return;

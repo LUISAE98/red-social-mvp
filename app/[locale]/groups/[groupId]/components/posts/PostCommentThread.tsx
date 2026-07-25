@@ -15,6 +15,7 @@ import { toggleCommentFlame, updatePostComment, updatePostCommentReply } from "@
 import { uploadCommentImage } from "@/lib/posts/image-upload";
 import MentionTextarea from "./mentions/MentionTextarea";
 import { renderCommentText } from "./mentions/renderMentions";
+import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import { CommentAttachButton, CommentImageThumb } from "./CommentImageUI";
 import VibraFlameIcon from "@/app/components/VibraServiceIcons/VibraFlameIcon";
 import { useGroupMemberBlocks } from "@/lib/groups/useGroupMemberBlocks";
@@ -984,6 +985,8 @@ export default function PostCommentThread({
   const [commentMenuOpen, setCommentMenuOpen] = useState(false);
   // Reply actions menu (⋯) — tracks which reply's menu is open
   const [replyActionsMenuOpenId, setReplyActionsMenuOpenId] = useState<string | null>(null);
+  // Bloquea el scroll del fondo mientras un menú ⋯ (de comentario o respuesta) está abierto.
+  useBodyScrollLock(commentMenuOpen || replyActionsMenuOpenId !== null);
 
   const [editingComment, setEditingComment] = useState(false);
   const [editCommentText, setEditCommentText] = useState(comment.text);

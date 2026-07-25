@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import { createPortal } from "react-dom";
 import Hls from "hls.js";
 import { useTranslations } from "next-intl";
@@ -250,12 +251,7 @@ export default function DonationFeedBanner({
   }, [muted]);
 
   // Body scroll lock
-  useEffect(() => {
-    if (!expanded) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => { document.body.style.overflow = prev; };
-  }, [expanded]);
+  useBodyScrollLock(expanded);
 
   // Progress rAF
   useEffect(() => {

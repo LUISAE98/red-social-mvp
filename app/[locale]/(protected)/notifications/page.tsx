@@ -9,6 +9,7 @@ import { useWalletVisibility } from "@/lib/wallet/useWalletVisibility";
 import { usePendingExperiences } from "@/lib/wallet/usePendingExperiences";
 import NotificationList from "@/app/components/Notifications/NotificationList";
 import NotificationTabs, { type NotifTab } from "@/app/components/Notifications/NotificationTabs";
+import ExperienceRequestsInbox from "@/app/components/Notifications/ExperienceRequestsInbox";
 import { AppNotification, isExperienceNotification } from "@/lib/notifications/types";
 import RefreshableArea from "@/components/refresh/RefreshableArea";
 
@@ -35,8 +36,18 @@ export default function NotificationsPage() {
   // Experiencias: cuando aparece, es la pestaña activa por defecto. `tab === null`
   // = sin elección manual → se resuelve automáticamente según `showSubnav`.
   const [tab, setTab] = useState<NotifTab | null>(null);
+  const [slideDir, setSlideDir] = useState<"left" | "right" | null>(null);
   const showSubnav = hasPending;
   const activeTab: NotifTab = tab ?? (showSubnav ? "experiences" : "social");
+
+  // Cambiar de pestaña desliza el contenido (mismas keyframes que el nav de
+  // rutas): a la pestaña de la derecha entra desde la derecha, y viceversa.
+  const changeTab = (next: NotifTab) => {
+    if (next === activeTab) return;
+    const order: NotifTab[] = ["experiences", "social"];
+    setSlideDir(order.indexOf(next) > order.indexOf(activeTab) ? "right" : "left");
+    setTab(next);
+  };
 
   // Sociales = TODAS las notificaciones. Experiencias = solo las del bloque 4.
   const visibleItems = useMemo(() => {
@@ -63,19 +74,31 @@ export default function NotificationsPage() {
       </div>
 
       {showSubnav ? (
-        <NotificationTabs activeTab={activeTab} onChange={setTab} />
+        <NotificationTabs activeTab={activeTab} onChange={changeTab} />
       ) : null}
 
-      <NotificationList
-        items={visibleItems}
-        loading={loading}
-        onItemClick={handleItemClick}
-        variant="page"
-        selfHandle={selfHandle}
-        emptyLabel={
-          showSubnav && activeTab === "experiences" ? t("emptyExperiences") : undefined
-        }
-      />
+      <div className="notifSlideWrap">
+        <div
+          className="notifSlide"
+          key={activeTab}
+          data-nav-enter={showSubnav && slideDir ? slideDir : undefined}
+        >
+          {showSubnav && activeTab === "experiences" ? (
+            <ExperienceRequestsInbox
+              uid={user?.uid ?? null}
+              emptyLabel={t("emptyExperiences")}
+            />
+          ) : (
+            <NotificationList
+              items={visibleItems}
+              loading={loading}
+              onItemClick={handleItemClick}
+              variant="page"
+              selfHandle={selfHandle}
+            />
+          )}
+        </div>
+      </div>
 
       <style jsx>{`
         .notifPage {
@@ -105,6 +128,9 @@ export default function NotificationsPage() {
         }
         .notifPageMarkAll:hover {
           text-decoration: underline;
+        }
+        .notifSlideWrap {
+          overflow-x: hidden;
         }
         .notifPage :global(.notifState) {
           padding: 56px 16px;

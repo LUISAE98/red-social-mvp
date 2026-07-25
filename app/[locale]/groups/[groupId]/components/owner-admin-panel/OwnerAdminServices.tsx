@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
@@ -732,22 +733,7 @@ function buildManualLegacyRemovalSuccessMessage(params: {
   return `✅ Se retiró a ${removedMembers} miembro(s) gratuito(s) y se generó el recordatorio correspondiente para ${reminderMembers} cuenta(s). Omitidos: ${skippedMembers}.`;
 }
 
-function useLockBodyScroll(active: boolean) {
-  useEffect(() => {
-    if (!active || typeof document === "undefined") return;
-
-    const previousOverflow = document.body.style.overflow;
-    const previousTouchAction = document.body.style.touchAction;
-
-    document.body.style.overflow = "hidden";
-    document.body.style.touchAction = "none";
-
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      document.body.style.touchAction = previousTouchAction;
-    };
-  }, [active]);
-}
+const useLockBodyScroll = useBodyScrollLock;
 
 function useCloseOnEscape(active: boolean, onClose: () => void, disabled = false) {
   useEffect(() => {

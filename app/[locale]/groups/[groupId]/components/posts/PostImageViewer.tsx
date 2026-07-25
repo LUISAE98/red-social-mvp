@@ -13,6 +13,7 @@ import {
   type CSSProperties,
   type ReactNode,
 } from "react";
+import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import { createPortal } from "react-dom";
 import type { Post } from "@/lib/posts/types";
 import PostPinchZoomImage from "./PostPinchZoomImage";
@@ -719,16 +720,16 @@ const previousMedia =
     }
 
     document.addEventListener("keydown", handleKeyDown);
-    document.body.style.overflow = "hidden";
 
     return () => {
       document.removeEventListener("keydown", handleKeyDown);
-      document.body.style.overflow = "";
       clearMobileSingleTapTimer();
       mobileLastVideoTapRef.current = null;
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clearChromeTimer, clearDesktopControlsTimer, open, onClose, totalMedia]);
+
+  useBodyScrollLock(open);
 
   // Insert external video into viewer slot synchronously before first paint
   useLayoutEffect(() => {

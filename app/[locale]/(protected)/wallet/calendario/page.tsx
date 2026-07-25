@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import { createPortal } from "react-dom";
 import { useTranslations, useLocale } from "next-intl";
 import { useAuth } from "@/app/providers";
@@ -623,16 +624,15 @@ function EventsOverlay({
     }
   }, [open, mounted]);
 
+  useBodyScrollLock(open);
+
   useEffect(() => {
     if (!open) return;
     function handleKeyDown(e: KeyboardEvent) {
       if (e.key === "Escape") onClose();
     }
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
     window.addEventListener("keydown", handleKeyDown);
     return () => {
-      document.body.style.overflow = prev;
       window.removeEventListener("keydown", handleKeyDown);
     };
   }, [open, onClose]);

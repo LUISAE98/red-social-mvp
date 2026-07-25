@@ -16,6 +16,7 @@
 
 import { createPortal } from "react-dom";
 import { useEffect, useRef, useState } from "react";
+import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import { loadMercadoPago } from "@mercadopago/sdk-js";
 import { doc, getDoc, collection, onSnapshot } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
@@ -268,17 +269,7 @@ export default function ServicePaymentModal({
 
   // Bloquea el scroll del fondo mientras el panel está abierto. En modo "sheet"
   // el panel vive dentro de otro modal (que ya maneja su scroll) → no lo tocamos.
-  useEffect(() => {
-    if (!open || isSheet) return;
-    const prevBody = document.body.style.overflow;
-    const prevHtml = document.documentElement.style.overflow;
-    document.body.style.overflow = "hidden";
-    document.documentElement.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = prevBody;
-      document.documentElement.style.overflow = prevHtml;
-    };
-  }, [open, isSheet]);
+  useBodyScrollLock(open && !isSheet);
 
   // Carga el perfil del comprador (nombre + avatar) para el saludo.
   useEffect(() => {

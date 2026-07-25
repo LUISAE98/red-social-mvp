@@ -1436,6 +1436,7 @@
     "requestError": "Error sending request",
     "requestSent": "Request sent",
     "reschedule": "Reschedule",
+    "viewInSessions": "View in sessions",
     "rescheduleError": "Error rescheduling",
     "saveDate": "Save date",
     "schedule": "Schedule",

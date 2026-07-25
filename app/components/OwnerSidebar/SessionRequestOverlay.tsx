@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
+import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import { useTranslations, useLocale } from "next-intl";
 import { playEdgeTTS } from "@/lib/tts/edge-tts-client";
 import type { EdgeTTSHandle } from "@/lib/tts/edge-tts-client";
@@ -478,6 +479,8 @@ export default function SessionRequestOverlay({
     : isRescheduleRequested
     ? `${tServices("reschedule")} ${sessionTypeLabel}`
     : `${tServices("schedule")} ${sessionTypeLabel}`;
+
+  useBodyScrollLock(visible);
 
   if (!mounted || !visible) return null;
 

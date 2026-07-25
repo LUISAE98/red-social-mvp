@@ -1400,6 +1400,7 @@
     "requestError": "Error al enviar la solicitud",
     "requestSent": "Solicitud enviada",
     "reschedule": "Reagendar",
+    "viewInSessions": "Ver en sesiones",
     "rescheduleError": "Error al reagendar",
     "saveDate": "Guardar fecha",
     "schedule": "Agendar",

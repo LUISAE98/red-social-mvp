@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 
 /**
  * Panel responsivo canónico de Vibra (ver `vibra_style.md`).
@@ -128,14 +129,7 @@ export default function VibraResponsivePanel({
   }, []);
 
   // Bloquea el scroll del body mientras el panel está abierto
-  useEffect(() => {
-    if (!shouldRender) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = prev;
-    };
-  }, [shouldRender]);
+  useBodyScrollLock(shouldRender);
 
   function handlePointerDown(e: React.PointerEvent<HTMLDivElement>) {
     if ((e.target as HTMLElement).closest("button")) return;

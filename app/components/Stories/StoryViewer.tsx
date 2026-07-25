@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import { useTranslations } from "next-intl";
 import { createPortal } from "react-dom";
 import Link from "next/link";
@@ -510,6 +511,8 @@ export default function StoryViewer({
     },
     [onClose, onGroupFinished, onPrevGroup, contained, greetOpen, heroActive],
   );
+
+  useBodyScrollLock(!!story);
 
   if (!mounted || !story) return null;
 

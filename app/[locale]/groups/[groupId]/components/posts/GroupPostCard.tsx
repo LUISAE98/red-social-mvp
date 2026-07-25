@@ -6,6 +6,7 @@ import Image from "next/image";
 import Hls from "hls.js";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import {
   useCallback,
   useEffect,
@@ -257,6 +258,8 @@ onToggleProfilePin,
   const [menuActionTexts, setMenuActionTexts] = useState<{ loading: string; done: string } | null>(null);
   const [moderationBusy, setModerationBusy] = useState(false);
   const [muteModalOpen, setMuteModalOpen] = useState(false);
+  // Bloquea el scroll del fondo mientras el menú (⋯) o el modal de silenciar están abiertos.
+  useBodyScrollLock(menuOpen || muteModalOpen);
   const [muteDays, setMuteDays] = useState("7");
   const [inlineActionError, setInlineActionError] = useState<string | null>(null);
   const [flameBusy, setFlameBusy] = useState(false);
