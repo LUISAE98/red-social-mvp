@@ -435,7 +435,7 @@ export default function PostComposerMobileOverlay({
         position: "fixed",
         inset: 0,
         width: "100vw",
-        height: "100vh",
+        height: "100dvh",
         zIndex: 999999,
         display: "flex",
         alignItems: "flex-end",
@@ -544,8 +544,8 @@ export default function PostComposerMobileOverlay({
 <section
   style={{
     width: "100%",
-    height: "calc(100vh - 72px)",
-    maxHeight: "calc(100vh - 72px)",
+    height: "calc(100dvh - 72px)",
+    maxHeight: "calc(100dvh - 72px)",
     borderRadius: "22px 22px 0 0",
     border: "1px solid transparent",
     borderBottom: "1px solid transparent",

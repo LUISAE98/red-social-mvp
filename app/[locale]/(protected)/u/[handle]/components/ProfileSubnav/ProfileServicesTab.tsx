@@ -578,7 +578,7 @@ function OverlayModal({
           position: "fixed",
           inset: 0,
           width: "100vw",
-          height: "100vh",
+          height: "100dvh",
           zIndex: 999999,
           display: "flex",
           alignItems: "center",

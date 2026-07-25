@@ -2152,7 +2152,7 @@ export default function GreetingReviewOverlay({
         <div style={{
           position: "fixed", bottom: 0, left: 0, right: 0,
           zIndex: 10051,
-          maxHeight: "calc(100vh - 72px)",
+          maxHeight: "calc(100dvh - 72px)",
           display: "flex", flexDirection: "column",
           borderRadius: "22px 22px 0 0",
           background: "#0a0a0a",

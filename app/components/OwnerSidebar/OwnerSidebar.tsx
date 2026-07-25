@@ -2473,7 +2473,7 @@ return (
   flex-direction: column;
   overflow: hidden;
   width: 100%;
-  max-height: calc(100vh - 100px);
+  max-height: calc(100dvh - 100px);
   padding: 10px;
   box-sizing: border-box;
   border-radius: 12px;
@@ -2718,7 +2718,7 @@ className="profile-owner-sidebar-fixed"
     left: 18,
     top: ui.sidebarTop,
     width: ui.sidebarWidth,
-    maxHeight: `calc(100vh - ${ui.sidebarTop + ui.sidebarBottom}px)`,
+    maxHeight: `calc(100dvh - ${ui.sidebarTop + ui.sidebarBottom}px)`,
     zIndex: 9998,
     fontFamily: fontStack,
     color: "#fff",

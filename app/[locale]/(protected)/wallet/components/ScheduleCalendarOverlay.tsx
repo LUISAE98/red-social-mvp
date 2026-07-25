@@ -283,7 +283,7 @@ export default function ScheduleCalendarOverlay({
           position: fixed;
           inset: 0;
           width: 100vw;
-          height: 100vh;
+          height: 100dvh;
           z-index: 999999;
           display: flex;
           align-items: center;

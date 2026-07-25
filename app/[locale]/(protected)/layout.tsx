@@ -202,7 +202,7 @@ const contentAreaClassName = isEmbed
           --desktop-search-gap: 8px;
           --desktop-create-size: 35px;
 
-          min-height: 100vh;
+          min-height: 100dvh;
           min-height: 100dvh;
           background: transparent;
           color: #fff;

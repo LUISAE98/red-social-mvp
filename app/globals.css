@@ -142,7 +142,7 @@ select {
 }
 
 body {
-  min-height: 100vh;
+  min-height: 100dvh;
   background: var(--background);
   color: var(--foreground);
   overflow-x: clip;

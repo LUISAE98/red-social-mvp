@@ -43,7 +43,7 @@ export default function GroupsHome() {
 const pageWrap: CSSProperties = {
   padding: "0 0 calc(118px + env(safe-area-inset-bottom))",
   background: "transparent",
-  minHeight: "100vh",
+  minHeight: "100dvh",
   color: "#fff",
   fontFamily: fontStack,
   width: "100%",

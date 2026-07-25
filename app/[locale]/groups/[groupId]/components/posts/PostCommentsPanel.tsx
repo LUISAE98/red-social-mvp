@@ -523,7 +523,7 @@ export default function PostCommentsPanel({
         position: "fixed",
         inset: 0,
         width: "100vw",
-        height: "100vh",
+        height: "100dvh",
         zIndex: 2147483647,
         display: "flex",
         alignItems: "flex-end",
@@ -555,7 +555,7 @@ export default function PostCommentsPanel({
       <div
         style={{
           width: "100%",
-          maxHeight: "calc(100vh - 72px)",
+          maxHeight: "calc(100dvh - 72px)",
           display: "flex",
           flexDirection: "column",
           background: "rgba(8,9,11,0.96)",
@@ -579,7 +579,7 @@ export default function PostCommentsPanel({
         >
           <section
             style={{
-              maxHeight: "calc(100vh - 140px)",
+              maxHeight: "calc(100dvh - 140px)",
               borderRadius: "22px 22px 0 0",
               background: "rgba(8,9,11,0.96)",
               boxShadow: "0 -24px 80px rgba(0,0,0,0.56)",

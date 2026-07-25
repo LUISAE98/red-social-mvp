@@ -118,7 +118,7 @@ const PANEL_CSS = `
   @keyframes vibraSvcMobileOut  { from { transform:translateY(0);    } to { transform:translateY(100%); } }
 
   .vibra-svc-backdrop {
-    position: fixed; inset: 0; width: 100vw; height: 100vh;
+    position: fixed; inset: 0; width: 100vw; height: 100dvh;
     z-index: 2147483646;
     display: flex; align-items: center; justify-content: center;
     padding: 24px;
@@ -193,7 +193,7 @@ const PANEL_CSS = `
       backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
     }
     .vibra-svc-panel {
-      width: 100%; max-height: calc(100vh - 72px);
+      width: 100%; max-height: calc(100dvh - 72px);
       border-radius: 22px 22px 0 0;
       box-shadow: 0 -24px 80px rgba(0,0,0,0.56);
     }

@@ -683,7 +683,7 @@ const onCropComplete = useCallback(
     <>
       <div
         style={{
-          minHeight: "100vh",
+          minHeight: "100dvh",
           background: "#000",
           color: "#fff",
           fontFamily: fontStack,

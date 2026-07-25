@@ -329,7 +329,7 @@ export default function ProfileFollowersOverlay({
             left: 0,
             right: 0,
             zIndex: 99981,
-            maxHeight: "calc(100vh - 72px)",
+            maxHeight: "calc(100dvh - 72px)",
             borderRadius: "22px 22px 0 0",
             border: "1px solid transparent",
             background: "rgba(8,9,11,0.96)",

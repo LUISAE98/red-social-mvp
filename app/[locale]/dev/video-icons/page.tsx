@@ -706,7 +706,7 @@ export default function VideoIconsPreview() {
   const [animKey, setAnimKey] = useState(0);
 
   return (
-    <div style={{ background: "#0a0a0a", minHeight: "100vh", padding: "40px 32px", fontFamily: "inherit" }}>
+    <div style={{ background: "#0a0a0a", minHeight: "100dvh", padding: "40px 32px", fontFamily: "inherit" }}>
 
       {/* ── Estilo del texto "Vibra" animado (copiado del login) ── */}
       <style>{`

@@ -111,7 +111,7 @@ if (isPublicPostRoute || isOverlayRoute) {
       <style jsx global>{`
         .rootChromePublicLayout {
           --shell-gutter: 16px;
-          min-height: 100vh;
+          min-height: 100dvh;
           min-height: 100dvh;
           background: transparent;
           color: #ffffff;
