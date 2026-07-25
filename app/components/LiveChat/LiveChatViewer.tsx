@@ -593,8 +593,8 @@ function HeartButton({ onClick }: { onClick: () => void }) {
 }
 
 function SendButton({ onClick, active }: { onClick: () => void; active: boolean }) {
-  // Flecha morada rellena y redondeada, sin contenedor. Se atenúa si no hay texto.
-  const color = active ? "#a855f7" : "rgba(255,255,255,0.25)";
+  // Flecha morada rellena y redondeada, sin contenedor. Siempre morada (no se apaga).
+  const color = "#a855f7";
   return (
     <button
       type="button"

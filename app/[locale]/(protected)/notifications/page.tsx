@@ -6,11 +6,11 @@ import { useAuth } from "@/app/providers";
 import { useNotifications } from "@/lib/hooks/useNotifications";
 import { useSelfHandle } from "@/lib/hooks/useSelfHandle";
 import { useWalletVisibility } from "@/lib/wallet/useWalletVisibility";
+import { usePendingExperiences } from "@/lib/wallet/usePendingExperiences";
 import NotificationList from "@/app/components/Notifications/NotificationList";
+import NotificationTabs, { type NotifTab } from "@/app/components/Notifications/NotificationTabs";
 import { AppNotification, isExperienceNotification } from "@/lib/notifications/types";
 import RefreshableArea from "@/components/refresh/RefreshableArea";
-
-type NotifTab = "experiences" | "social";
 
 export default function NotificationsPage() {
   const t = useTranslations("notifications");
@@ -19,9 +19,12 @@ export default function NotificationsPage() {
     useNotifications(user?.uid ?? null);
   const selfHandle = useSelfHandle(user?.uid ?? null);
 
-  // "Vende experiencias" = servicios activos en perfil/comunidad o alguna
-  // solicitud histórica. Solo entonces mostramos el subnav de dos pestañas.
-  const { hasWallet: sellsExperiences } = useWalletVisibility(user?.uid ?? null);
+  // El subnav aparece SOLO mientras haya experiencias vivas (por atender o
+  // agendadas). `useWalletVisibility` (barato, cacheado) filtra primero a quien
+  // vende experiencias, para no abrir listeners a quien no; el conteo real de
+  // pendientes decide si el subnav se muestra y vuelve a desaparecer al atender.
+  const { hasWallet } = useWalletVisibility(user?.uid ?? null);
+  const { hasPending } = usePendingExperiences(hasWallet ? user?.uid ?? null : null);
 
   // Abrir la página cuenta como "ver" el contenedor → baja el badge del nav.
   useEffect(() => {
@@ -32,7 +35,7 @@ export default function NotificationsPage() {
   // Experiencias: cuando aparece, es la pestaña activa por defecto. `tab === null`
   // = sin elección manual → se resuelve automáticamente según `showSubnav`.
   const [tab, setTab] = useState<NotifTab | null>(null);
-  const showSubnav = sellsExperiences;
+  const showSubnav = hasPending;
   const activeTab: NotifTab = tab ?? (showSubnav ? "experiences" : "social");
 
   // Sociales = TODAS las notificaciones. Experiencias = solo las del bloque 4.
@@ -60,26 +63,7 @@ export default function NotificationsPage() {
       </div>
 
       {showSubnav ? (
-        <div className="notifTabs" role="tablist" aria-label={t("title")}>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={activeTab === "experiences"}
-            className={activeTab === "experiences" ? "notifTab notifTabActive" : "notifTab"}
-            onClick={() => setTab("experiences")}
-          >
-            {t("tabs.experiences")}
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={activeTab === "social"}
-            className={activeTab === "social" ? "notifTab notifTabActive" : "notifTab"}
-            onClick={() => setTab("social")}
-          >
-            {t("tabs.social")}
-          </button>
-        </div>
+        <NotificationTabs activeTab={activeTab} onChange={setTab} />
       ) : null}
 
       <NotificationList
@@ -121,44 +105,6 @@ export default function NotificationsPage() {
         }
         .notifPageMarkAll:hover {
           text-decoration: underline;
-        }
-        .notifTabs {
-          display: flex;
-          gap: 24px;
-          padding: 4px 20px 0;
-          border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-        }
-        .notifTab {
-          position: relative;
-          padding: 10px 2px 12px;
-          border: none;
-          background: transparent;
-          color: rgba(255, 255, 255, 0.5);
-          font-size: 15px;
-          font-weight: 500;
-          cursor: pointer;
-          transition: color 140ms ease;
-        }
-        .notifTab::after {
-          content: "";
-          position: absolute;
-          left: 0;
-          right: 0;
-          bottom: -1px;
-          height: 2px;
-          border-radius: 2px;
-          background: #a855ff;
-          opacity: 0;
-          transition: opacity 140ms ease;
-        }
-        .notifTab:hover:not(.notifTabActive) {
-          color: rgba(255, 255, 255, 0.8);
-        }
-        .notifTabActive {
-          color: #fff;
-        }
-        .notifTabActive::after {
-          opacity: 1;
         }
         .notifPage :global(.notifState) {
           padding: 56px 16px;

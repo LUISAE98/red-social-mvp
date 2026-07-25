@@ -359,7 +359,9 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
   const [donationOpen, setDonationOpen] = useState(false);
   // Gateway MP real de donación en vivo (caso 1: móvil-horizontal, usuario autenticado).
   const [liveDonateOpen, setLiveDonateOpen] = useState(false);
-  const belowVideoRef = useRef<HTMLDivElement>(null);
+  const belowVideoRef = useRef<HTMLDivElement>(null);        // caso 1: área bajo el video
+  const portraitDonateRef = useRef<HTMLDivElement>(null);    // caso 2: fullscreen del live vertical
+  const desktopChatCardRef = useRef<HTMLDivElement>(null);   // ordenador: card de comentarios
   const liveDonatePaidAmountRef = useRef<number | null>(null);
 
   // ── VOD playback controls ──────────────────────────────────────────────────
@@ -1909,10 +1911,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
   // ── Overlay cuando el live terminó pero el VOD no está disponible aún ──
   function renderEndedOverlay() {
     if (!isEnded) return null;
-    // Se oculta solo cuando hay un VOD real y reproducible (entonces se ve el
-    // video + controles). Para un live CF directo (sin grabación) NO hay VOD →
-    // este overlay muestra el estado "finalizado" en vez de controles inútiles.
-    if (hasEndedVod) return null;
+    if (vodReady) return null;
 
     const isCF = liveData?.streamProvider === "cloudflare";
     const confirmed = !isCF && liveData?.vodSettingsConfirmed === true;
@@ -1946,18 +1945,6 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
             </svg>
             <span style={{ fontSize: 14, fontWeight: 600, color: "rgba(255,255,255,0.72)", textAlign: "center", padding: "0 28px" }}>
               El creador aún no sube el video
-            </span>
-          </>
-        ) : isCF && liveData?.broadcastMode === "direct" ? (
-          // CF directo (WHIP): no se graba → estado final, sin spinner (no hay VOD en camino).
-          <>
-            <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.6)"
-              strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="10" />
-              <path d="m9 12 2 2 4-4" />
-            </svg>
-            <span style={{ fontSize: 14, fontWeight: 600, color: "rgba(255,255,255,0.72)", textAlign: "center", padding: "0 28px" }}>
-              La transmisión ha finalizado
             </span>
           </>
         ) : (
@@ -2374,15 +2361,20 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
   ) : null;
 
   // Gateway MP real de donación en vivo (pago real → super-comentario al aprobar →
-  // earning live_donation + mensaje destacado en el chat). Se presenta como panel
-  // contenido que se desliza dentro del área BAJO el video (caso 1). Se renderiza
-  // siempre (open controla la visibilidad) para animar la salida.
+  // earning live_donation + mensaje destacado en el chat). Panel `sheet` que se
+  // desliza dentro de `container` (distinto por layout: bajo el video en caso 1,
+  // fullscreen en vertical, card de comentarios en desktop). Se renderiza SIEMPRE
+  // (open controla la visibilidad) para animar la salida.
   const liveDonationName = post.authorName ?? post.authorUsername ?? tCommon("donation");
-  const liveDonationSheet = (
+  const renderLiveDonationSheet = (container: HTMLElement | null) => (
     <ServicePaymentModal
       open={liveDonateOpen}
       presentation="sheet"
-      container={belowVideoRef.current}
+      container={container}
+      hideBuyerGreeting
+      logoLeft
+      paymentHeading="¿Cómo quieres hacer tu aportación?"
+      payButtonLabel="Hacer aportación"
       amount={1}
       amountEditable
       pay={(c, amt) => {
@@ -2458,16 +2450,13 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
             }
           </div>
           <div style={{ minWidth: 0, flex: 1, display: "flex", flexDirection: "column", gap: 1 }}>
-            <span style={{
-              fontSize: 14, fontWeight: 600, color: "#fff", fontFamily: FONT,
-              overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-              lineHeight: "1.2",
-            }}>
-              {name}
-            </span>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-              <span style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", fontWeight: 400, lineHeight: "1.2" }}>
-                En vivo
+              <span style={{
+                fontSize: 14, fontWeight: 600, color: "#fff", fontFamily: FONT,
+                overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                lineHeight: "1.2", flex: 1, minWidth: 0,
+              }}>
+                {name}
               </span>
               <button
                 onClick={handleToggleLike}
@@ -2486,6 +2475,9 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
                 )}
               </button>
             </div>
+            <span style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", fontWeight: 400, lineHeight: "1.2" }}>
+              En vivo
+            </span>
           </div>
           <div style={{ flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 5 }}>
             {showFollowBtn && (
@@ -2715,9 +2707,11 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
             {renderViewerBadge("bottom-left", badgeLift)}
 
           </div>
-          {/* Card de chat */}
+          {/* Card de chat (contenedor del sheet de donación — desktop) */}
           <div
+            ref={desktopChatCardRef}
             style={{
+              position: "relative",
               width: CHAT_FLOAT_W, height: hh,
               background: "rgba(10,10,10,0.97)",
               borderRadius: 18, overflow: "hidden", flexShrink: 0,
@@ -2728,11 +2722,12 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
           >
             {renderCreatorInfo()}
             <div style={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
-              <LiveChatViewer liveId={post.id} authorId={post.authorId} chatEnabled={chatEnabled} liveEnded={isEnded} isMuted={isMuted} mode="panel" broadcastMode={liveData?.broadcastMode} superCommentConfig={liveData?.superCommentConfig} onDonate={!isEnded && (!user || post.authorId !== user.uid) ? () => setDonationOpen(true) : undefined} />
+              <LiveChatViewer liveId={post.id} authorId={post.authorId} chatEnabled={chatEnabled} liveEnded={isEnded} isMuted={isMuted} mode="panel" broadcastMode={liveData?.broadcastMode} superCommentConfig={liveData?.superCommentConfig} onDonate={!isEnded && (!user || post.authorId !== user.uid) ? () => { if (user) setLiveDonateOpen(true); else setDonationOpen(true); } : undefined} />
             </div>
           </div>
         </div>
         {donationPanel}
+        {renderLiveDonationSheet(desktopChatCardRef.current)}
       </>,
       document.body
     );
@@ -2831,6 +2826,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
           paddingTop: "env(safe-area-inset-top, 0px)",
         }}>
           <div
+            ref={portraitDonateRef}
             style={{ position: "relative", flex: 1, minHeight: 0 }}
             onClick={() => {
               if (hasEndedVod) toggleVodControls();
@@ -2868,7 +2864,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
                 <LiveChatViewer
                   liveId={post.id} authorId={post.authorId} chatEnabled={chatEnabled} liveEnded={isEnded} isMuted={isMuted}
                   mode="overlay" broadcastMode={liveData?.broadcastMode} superCommentConfig={liveData?.superCommentConfig}
-                  onDonate={!isEnded && (!user || post.authorId !== user.uid) ? () => setDonationOpen(true) : undefined}
+                  onDonate={!isEnded && (!user || post.authorId !== user.uid) ? () => { if (user) setLiveDonateOpen(true); else setDonationOpen(true); } : undefined}
                   onFollow={showFollowBtn ? follow : undefined}
                   onLike={handleToggleLike} liked={liked} likesCount={likesCount}
                 />
@@ -2880,6 +2876,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
           </div>
         </div>
         {donationPanel}
+        {renderLiveDonationSheet(portraitDonateRef.current)}
       </>,
       document.body
     );
@@ -2935,7 +2932,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
         </div>
       </div>
       {donationPanel}
-      {liveDonationSheet}
+      {renderLiveDonationSheet(belowVideoRef.current)}
       {reportTarget && <ReportModal target={reportTarget} onClose={closeReport} />}
     </>,
     document.body

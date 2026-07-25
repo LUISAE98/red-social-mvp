@@ -8,15 +8,15 @@ import { useAuth } from "@/app/providers";
 import { useNotifications } from "@/lib/hooks/useNotifications";
 import { useSelfHandle } from "@/lib/hooks/useSelfHandle";
 import { useWalletVisibility } from "@/lib/wallet/useWalletVisibility";
+import { usePendingExperiences } from "@/lib/wallet/usePendingExperiences";
 import { VibraNavigationIcon } from "@/app/components/VibraServiceIcons/VibraNavigationIcons";
 import { AppNotification, isExperienceNotification } from "@/lib/notifications/types";
 import NotificationList from "./NotificationList";
+import NotificationTabs, { type NotifTab } from "./NotificationTabs";
 
 interface NotificationBellProps {
   active?: boolean;
 }
-
-type NotifTab = "experiences" | "social";
 
 interface PanelPos {
   top: number;
@@ -37,8 +37,11 @@ export default function NotificationBell({ active }: NotificationBellProps) {
   const { items, unreadCount, badgeCount, loading, markSeen, markAllRead, markRead } =
     useNotifications(user?.uid ?? null);
   const selfHandle = useSelfHandle(user?.uid ?? null);
-  // "Vende experiencias" → habilita el subnav de dos pestañas (prioridad a Experiencias).
-  const { hasWallet: sellsExperiences } = useWalletVisibility(user?.uid ?? null);
+  // El subnav aparece solo mientras haya experiencias vivas (por atender o
+  // agendadas). `useWalletVisibility` (cacheado) filtra a los vendedores antes de
+  // abrir listeners; el conteo de pendientes decide mostrarlo/ocultarlo.
+  const { hasWallet } = useWalletVisibility(user?.uid ?? null);
+  const { hasPending } = usePendingExperiences(hasWallet ? user?.uid ?? null : null);
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<NotifTab | null>(null);
   const [mounted, setMounted] = useState(false);
@@ -100,8 +103,8 @@ export default function NotificationBell({ active }: NotificationBellProps) {
 
   const badge = badgeCount > 99 ? "99+" : String(badgeCount);
 
-  // Subnav: solo si vende experiencias; Experiencias es la pestaña por defecto.
-  const showSubnav = sellsExperiences;
+  // Subnav: solo si hay experiencias pendientes; Experiencias es la pestaña por defecto.
+  const showSubnav = hasPending;
   const activeTab: NotifTab = tab ?? (showSubnav ? "experiences" : "social");
   const visibleItems = useMemo(() => {
     if (showSubnav && activeTab === "experiences") {
@@ -145,34 +148,7 @@ export default function NotificationBell({ active }: NotificationBellProps) {
                 ) : null}
               </div>
               {showSubnav ? (
-                <div className="notifPanelTabs" role="tablist" aria-label={t("title")}>
-                  <button
-                    type="button"
-                    role="tab"
-                    aria-selected={activeTab === "experiences"}
-                    className={
-                      activeTab === "experiences"
-                        ? "notifPanelTab notifPanelTabActive"
-                        : "notifPanelTab"
-                    }
-                    onClick={() => setTab("experiences")}
-                  >
-                    {t("tabs.experiences")}
-                  </button>
-                  <button
-                    type="button"
-                    role="tab"
-                    aria-selected={activeTab === "social"}
-                    className={
-                      activeTab === "social"
-                        ? "notifPanelTab notifPanelTabActive"
-                        : "notifPanelTab"
-                    }
-                    onClick={() => setTab("social")}
-                  >
-                    {t("tabs.social")}
-                  </button>
-                </div>
+                <NotificationTabs activeTab={activeTab} onChange={setTab} compact />
               ) : null}
               <div className="notifPanelScroll">
                 <NotificationList
@@ -257,44 +233,6 @@ export default function NotificationBell({ active }: NotificationBellProps) {
         }
         .notifMarkAll:hover {
           text-decoration: underline;
-        }
-        .notifPanelTabs {
-          display: flex;
-          gap: 20px;
-          padding: 0 16px;
-          border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-        }
-        .notifPanelTab {
-          position: relative;
-          padding: 9px 2px 11px;
-          border: none;
-          background: transparent;
-          color: rgba(255, 255, 255, 0.5);
-          font-size: 13px;
-          font-weight: 500;
-          cursor: pointer;
-          transition: color 140ms ease;
-        }
-        .notifPanelTab::after {
-          content: "";
-          position: absolute;
-          left: 0;
-          right: 0;
-          bottom: -1px;
-          height: 2px;
-          border-radius: 2px;
-          background: #a855ff;
-          opacity: 0;
-          transition: opacity 140ms ease;
-        }
-        .notifPanelTab:hover:not(.notifPanelTabActive) {
-          color: rgba(255, 255, 255, 0.8);
-        }
-        .notifPanelTabActive {
-          color: #fff;
-        }
-        .notifPanelTabActive::after {
-          opacity: 1;
         }
         .notifPanelScroll {
           max-height: min(60vh, 460px);

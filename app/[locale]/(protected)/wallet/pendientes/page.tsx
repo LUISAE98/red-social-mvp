@@ -4,7 +4,11 @@ import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import type { Timestamp } from "firebase/firestore";
 import { useAuth } from "@/app/providers";
-import { type WalletServiceItem } from "@/lib/wallet/ownerWallet";
+import {
+  type WalletServiceItem,
+  isSafePendingStatus,
+  isExpiredScheduledService,
+} from "@/lib/wallet/ownerWallet";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import { useWalletData } from "../components/WalletDataContext";
 import WalletSectionShell from "../components/WalletSectionShell";
@@ -42,42 +46,6 @@ type PendingFilter =
   | "saludo"
   | "consejo";
 
-
-function isSafePendingStatus(status: string): boolean {
-  return ![
-    "rejected",
-    "refund_requested",
-    "refund_review",
-    "cancelled",
-    "completed",
-  ].includes(status);
-}
-
-function isNoShowExpired(value: Date | null): boolean {
-  if (!value) return false;
-  const rejectAt = value.getTime() + 15 * 60 * 1000;
-  return Date.now() >= rejectAt;
-}
-
-function isExpiredScheduledService(item: {
-  kind: string;
-  scheduledAt: Date | null;
-  preparingCreatorAt?: Date | null;
-  preparingBuyerAt?: Date | null;
-  status?: string;
-}): boolean {
-  const isScheduledService =
-    item.kind === "meet_greet" || item.kind === "exclusive_session";
-  if (!isScheduledService) return false;
-  if (
-    item.status !== "scheduled" &&
-    item.status !== "ready_to_prepare" &&
-    item.status !== "in_preparation"
-  ) {
-    return false;
-  }
-  return isNoShowExpired(item.scheduledAt);
-}
 
 function rowToGreetingDoc(row: WalletServiceItem, creatorId: string): GreetingRequestDoc {
   return {

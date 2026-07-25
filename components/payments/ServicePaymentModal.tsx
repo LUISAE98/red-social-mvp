@@ -114,6 +114,14 @@ type Props = {
   presentation?: "dialog" | "sheet";
   /** Contenedor del portal en modo "sheet". Si se omite, usa document.body. */
   container?: HTMLElement | null;
+  /** Oculta el saludo al comprador (avatar + "Bienvenido" + nombre). Ej: donación en vivo. */
+  hideBuyerGreeting?: boolean;
+  /** Encabezado de métodos de pago. Default "¿Cómo quieres pagar?". */
+  paymentHeading?: string;
+  /** Texto del botón de pago. Default "Pagar". */
+  payButtonLabel?: string;
+  /** Alinea el logo de Mercado Pago a la izquierda (en móvil). Default centrado. */
+  logoLeft?: boolean;
   onClose: () => void;
   onPaid: () => void;
 };
@@ -134,6 +142,10 @@ export default function ServicePaymentModal({
   locale = "es-MX",
   presentation = "dialog",
   container,
+  hideBuyerGreeting = false,
+  paymentHeading = "¿Cómo quieres pagar?",
+  payButtonLabel = "Pagar",
+  logoLeft = false,
   onClose,
   onPaid,
 }: Props) {
@@ -876,15 +888,16 @@ export default function ServicePaymentModal({
         ×
       </button>
 
-      {/* En móvil, Mercado Pago va arriba centrado (empuja el contenido). */}
+      {/* En móvil, Mercado Pago va arriba (centrado, o a la izquierda si logoLeft). */}
       {isNarrow && (
-        <div style={{ marginBottom: 16, display: "flex", justifyContent: "center" }}>
+        <div style={{ marginBottom: 16, display: "flex", justifyContent: logoLeft ? "flex-start" : "center" }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/mercadopago.webp" alt="Mercado Pago" style={{ height: 30, width: "auto" }} />
         </div>
       )}
 
-      {/* Saludo al comprador */}
+      {/* Saludo al comprador (se oculta en contextos como la donación en vivo) */}
+      {!hideBuyerGreeting && (
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
         <div
           style={{
@@ -923,10 +936,11 @@ export default function ServicePaymentModal({
           )}
         </div>
       </div>
+      )}
 
       <div style={{ marginBottom: 16 }}>
         <h4 style={{ margin: 0, fontSize: 15, fontWeight: 600, color: "#3a3f4a" }}>
-          ¿Cómo quieres pagar?
+          {paymentHeading}
         </h4>
         <p style={{ margin: "3px 0 0", fontSize: 12.5, color: "#9aa0a8", fontWeight: 400 }}>
           Elige tu forma de pago
@@ -1194,7 +1208,7 @@ export default function ServicePaymentModal({
             }}
           />
         )}
-        <span style={{ position: "relative" }}>{submitting ? "Procesando…" : "Pagar"}</span>
+        <span style={{ position: "relative" }}>{submitting ? "Procesando…" : payButtonLabel}</span>
       </button>
 
       <div

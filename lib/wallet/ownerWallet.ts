@@ -417,7 +417,7 @@ function getAutoRejectedFallbackReason(noShowRole: WalletServiceItem["noShowRole
   return "El creador no se conectó dentro de los 15 minutos posteriores a la hora agendada.";
 }
 
-function shouldTreatAsAutoRejected(
+export function shouldTreatAsAutoRejected(
   row: Pick<
     WalletServiceItem,
     | "status"
@@ -628,7 +628,7 @@ function isCalendarScheduledStatus(status: string): boolean {
   );
 }
 
-function isPendingCurrentScheduledStatus(status: string): boolean {
+export function isPendingCurrentScheduledStatus(status: string): boolean {
   return [
     "pending_creator_response",
     "accepted_pending_schedule",
@@ -637,6 +637,43 @@ function isPendingCurrentScheduledStatus(status: string): boolean {
     "ready_to_prepare",
     "in_preparation",
   ].includes(status);
+}
+
+/**
+ * Estado "seguro" de una experiencia pendiente: aún requiere atención y no está
+ * cerrada (rechazada / reembolsada / cancelada / completada). Fuente única para
+ * la bandeja de pendientes y para el gate del subnav de notificaciones.
+ */
+export function isSafePendingStatus(status: string): boolean {
+  return ![
+    "rejected",
+    "refund_requested",
+    "refund_review",
+    "cancelled",
+    "completed",
+  ].includes(status);
+}
+
+/**
+ * Una sesión agendada cuyo margen de no-show (15 min tras la hora) ya venció se
+ * considera "no pendiente": el cron la auto-rechazará. Evita que una sesión
+ * caduca mantenga vivo el subnav / la bandeja.
+ */
+export function isExpiredScheduledService(
+  item: Pick<WalletServiceItem, "source" | "status" | "scheduledAt">
+): boolean {
+  const isScheduledService =
+    item.source === "meet_greet" || item.source === "exclusive_session";
+  if (!isScheduledService) return false;
+  if (
+    item.status !== "scheduled" &&
+    item.status !== "ready_to_prepare" &&
+    item.status !== "in_preparation"
+  ) {
+    return false;
+  }
+  if (!item.scheduledAt) return false;
+  return Date.now() >= item.scheduledAt.getTime() + 15 * 60 * 1000;
 }
 
 function isHistoryScheduledStatus(status: string): boolean {
@@ -820,7 +857,7 @@ function useLiveRows(creatorId: string | null | undefined) {
   return { loading, error, rows };
 }
 
-function useScheduledRows(
+export function useScheduledRows(
   creatorId: string | null | undefined,
   collectionName: "meetGreetRequests" | "exclusiveSessionRequests",
   source: "meet_greet" | "exclusive_session"
