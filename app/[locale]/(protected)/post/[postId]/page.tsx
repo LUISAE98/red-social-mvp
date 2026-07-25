@@ -22,6 +22,7 @@ import {
   softDeletePost,
 } from "@/lib/posts/post-service";
 import type { Post, Comment, CommentImage, CommentMention } from "@/lib/posts/types";
+import { useUnlockedPostIds } from "@/lib/posts/useUnlockedPostIds";
 
 interface ViewerContext {
   isProfilePost: boolean;
@@ -76,6 +77,8 @@ export default function SinglePostPage() {
   const search = useSearchParams();
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
+  // Desbloqueo premium persistente del viewer (cualquier dispositivo).
+  const unlockedPostIds = useUnlockedPostIds(user?.uid ?? null);
 
   const postId = Array.isArray(params?.postId) ? params.postId[0] : (params?.postId as string);
   const focusCommentId = search.get("c");
@@ -241,6 +244,7 @@ export default function SinglePostPage() {
             !ctx.isProfilePost && (ctx.isOwner || ctx.isModerator) ? handleToggleGroupPin : undefined
           }
           currentUserId={user?.uid ?? null}
+          forceUnlocked={unlockedPostIds.has(post.id)}
           isOwner={ctx.isOwner}
           isModerator={ctx.isModerator}
           viewerIsMember={ctx.isProfilePost ? undefined : ctx.viewerIsMember}

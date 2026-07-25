@@ -3,6 +3,7 @@
 
 import type { CSSProperties } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useUnlockedPostIds } from "@/lib/posts/useUnlockedPostIds";
 import { useTranslations } from "next-intl";
 import { doc, getDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
@@ -146,8 +147,14 @@ export default function SavedPostsFeed() {
   // Sub-subnav de media (Publicaciones/Fotos/Videos/En vivo) + lightbox de galería.
   const [mediaTab, setMediaTab] = useState<MediaTabKey>("feed");
   const [lightboxTile, setLightboxTile] = useState<GalleryTile | null>(null);
-  // Posts desbloqueados (comprados) en esta sesión desde la galería.
-  const [unlockedPostIds, setUnlockedPostIds] = useState<Set<string>>(() => new Set());
+  // Desbloqueos de esta sesión (reflejo instantáneo) ∪ postAccess real del viewer
+  // (persistente en cualquier dispositivo) — unificados para feed y galerías.
+  const [sessionUnlockedIds, setSessionUnlockedIds] = useState<Set<string>>(() => new Set());
+  const remoteUnlockedIds = useUnlockedPostIds(currentUserId);
+  const unlockedPostIds = useMemo(
+    () => new Set<string>([...remoteUnlockedIds, ...sessionUnlockedIds]),
+    [remoteUnlockedIds, sessionUnlockedIds],
+  );
   // Pestaña previa, para la dirección del slide (mismo patrón que perfil/comunidad).
   const prevMediaTabRef = useRef<MediaTabKey>("feed");
   useEffect(() => {
@@ -1036,6 +1043,10 @@ return (
               showGroupContext={true}
               canModerateGroupAuthor={post.canModerateGroupAuthor === true}
               onModerationComplete={refreshPosts}
+              forceUnlocked={unlockedPostIds.has(post.id)}
+              onPostUnlocked={(id) =>
+                setSessionUnlockedIds((prev) => new Set(prev).add(id))
+              }
             />
           </div>
         );
@@ -1087,7 +1098,7 @@ return (
             autoOpenUnlock={lightboxTile.isLocked}
             forceUnlocked={lightboxTile.isPremiumUnlocked}
             onPostUnlocked={(id) =>
-              setUnlockedPostIds((prev) => new Set(prev).add(id))
+              setSessionUnlockedIds((prev) => new Set(prev).add(id))
             }
             onViewerClosed={() => setLightboxTile(null)}
           />

@@ -536,11 +536,13 @@ const canRequestMeetGreet =
   const [paySessionId, setPaySessionId] = useState<string | null>(null);
   const [paySessionAmount, setPaySessionAmount] = useState<number | null>(null);
   const [paySessionLabel, setPaySessionLabel] = useState<string | undefined>(undefined);
+  const [paySessionDuration, setPaySessionDuration] = useState<number | null>(null);
   // Pago de "Tiempo contigo" (segundo modal con el Payment Brick).
   const [payMeetOpen, setPayMeetOpen] = useState(false);
   const [payMeetId, setPayMeetId] = useState<string | null>(null);
   const [payMeetAmount, setPayMeetAmount] = useState<number | null>(null);
   const [payMeetLabel, setPayMeetLabel] = useState<string | undefined>(undefined);
+  const [payMeetDuration, setPayMeetDuration] = useState<number | null>(null);
 
   const [meetGreetOpen, setMeetGreetOpen] = useState(false);
   const [meetGreetMessage, setMeetGreetMessage] = useState("");
@@ -936,6 +938,7 @@ function redirectToLogin() {
       setPayMeetLabel(
         typeof amount === "number" ? formatMoney(amount, meetGreetCurrency) : undefined
       );
+      setPayMeetDuration(meetGreetDurationMinutes ?? null);
       setPayMeetOpen(true);
     } catch (e: unknown) {
       setMeetGreetError(
@@ -1001,6 +1004,7 @@ function redirectToLogin() {
       setPaySessionLabel(
         typeof amount === "number" ? formatMoney(amount, exclusiveSessionCurrency) : undefined
       );
+      setPaySessionDuration(exclusiveSessionDurationMinutes ?? null);
       setPaySessionOpen(true);
     } catch (e: unknown) {
       setExclusiveSessionError(
@@ -2861,15 +2865,20 @@ const avatarNode = (
         productType={greetType === "consejo" ? "Consejo" : "Saludo"}
         providerName={group?.name}
         avatarUrl={group?.avatarUrl ?? null}
+        description={tServices(greetType === "consejo" ? "payDescConsejo" : "payDescSaludo", {
+          name: group?.name ?? tServices("creatorFallback"),
+        })}
+        successMessage={tServices(greetType === "consejo" ? "paySuccessConsejo" : "paySuccessSaludo", {
+          name: group?.name ?? tServices("creatorFallback"),
+        })}
         onClose={() => setPayGreetOpen(false)}
         onPaid={() => {
-          setPayGreetOpen(false);
+          // El panel NO se cierra: muestra la pantalla de éxito. Solo registramos la compra.
           registrarCompraGeo({
             creatorId: group?.ownerId,
             serviceType: greetType === "consejo" ? "advice" : "greeting",
             grossAmount: payGreetAmount ?? undefined,
           });
-          setServiceToast(tGroups("greetSent"));
         }}
       />
 
@@ -2881,15 +2890,16 @@ const avatarNode = (
         productType="Sesión exclusiva"
         providerName={group?.name}
         avatarUrl={group?.avatarUrl ?? null}
+        durationMinutes={paySessionDuration}
+        successMessage={tServices("paySuccessScheduled", { name: group?.name ?? tServices("creatorFallback") })}
         onClose={() => setPaySessionOpen(false)}
         onPaid={() => {
-          setPaySessionOpen(false);
+          // El panel NO se cierra: muestra la pantalla de éxito. Solo registramos la compra.
           registrarCompraGeo({
             creatorId: group?.ownerId,
             serviceType: "exclusive_session",
             grossAmount: paySessionAmount ?? undefined,
           });
-          setServiceToast(tGroups("sessionExclusiveSent"));
         }}
       />
 
@@ -2901,15 +2911,16 @@ const avatarNode = (
         productType="Tiempo contigo"
         providerName={group?.name}
         avatarUrl={group?.avatarUrl ?? null}
+        durationMinutes={payMeetDuration}
+        successMessage={tServices("paySuccessScheduled", { name: group?.name ?? tServices("creatorFallback") })}
         onClose={() => setPayMeetOpen(false)}
         onPaid={() => {
-          setPayMeetOpen(false);
+          // El panel NO se cierra: muestra la pantalla de éxito. Solo registramos la compra.
           registrarCompraGeo({
             creatorId: group?.ownerId,
             serviceType: "live_session",
             grossAmount: payMeetAmount ?? undefined,
           });
-          setServiceToast(tGroups("meetGreetSent"));
         }}
       />
 

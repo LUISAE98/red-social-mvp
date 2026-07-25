@@ -428,6 +428,13 @@ export type Post = {
   viewsCount?: number;
 
   /**
+   * Veces que la publicación premium/VOD ha sido desbloqueada (compras únicas).
+   * Denormalizado: lo incrementa la Cloud Function `onPremiumUnlockCount` al
+   * entrar en "active" el doc `postAccess/{accessId}`.
+   */
+  premiumUnlockCount?: number;
+
+  /**
    * Estado calculado para la UI del usuario actual.
    * No es obligatorio que exista en Firestore.
    */

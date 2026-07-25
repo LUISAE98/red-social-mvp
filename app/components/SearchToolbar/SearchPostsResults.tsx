@@ -10,6 +10,7 @@ import {
 import type { User } from "firebase/auth";
 import type { Comment, CommentImage, CommentMention, CommentReply, Post } from "@/lib/posts/types";
 import { searchPosts } from "@/lib/posts/searchPosts";
+import { useUnlockedPostIds } from "@/lib/posts/useUnlockedPostIds";
 import { db } from "@/lib/firebase";
 import { doc, getDoc } from "firebase/firestore";
 import {
@@ -181,6 +182,8 @@ export default function SearchPostsResults({
   const tCommon = useTranslations("common");
   const tPosts = useTranslations("posts");
   const userId = currentUser?.uid ?? null;
+  // Desbloqueo premium persistente del viewer (cualquier dispositivo).
+  const unlockedPostIds = useUnlockedPostIds(userId);
 
   const [posts, setPosts] = useState<PostWithFlags[]>(
     () =>
@@ -635,6 +638,7 @@ export default function SearchPostsResults({
                 onToggleFlame={handleToggleFlame}
                 onToggleSave={handleToggleSave}
                 currentUserId={userId}
+                forceUnlocked={unlockedPostIds.has(post.id)}
                 isOwner={false}
                 isModerator={false}
                 showGroupContext={true}

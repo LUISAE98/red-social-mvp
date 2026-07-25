@@ -6,11 +6,12 @@ import { createPortal } from "react-dom";
 import Hls from "hls.js";
 import { useTranslations } from "next-intl";
 import { getMutePreference, setMutePreference } from "@/lib/utils/mutePreference";
-import { createProfileDonation } from "@/lib/donations/profileDonations";
 import { registrarCompraGeo } from "@/lib/wallet/registrarCompraGeo";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import DonationPanel from "./DonationPanel";
+import ServicePaymentModal from "@/components/payments/ServicePaymentModal";
+import { payProfileDonation } from "@/lib/payments/payProfileDonation";
 
 type Props = {
   message?: string | null;
@@ -57,6 +58,10 @@ export default function DonationFeedBanner({
   const isSelfContribution =
     viewerIsCreator === true ||
     (!!creatorId && !!buyerId && creatorId === buyerId);
+  const [donationPanelOpen, setDonationPanelOpen] = useState(false);
+  // Monto elegido en DonationPanel → abre la pasarela de pago con ese monto.
+  const [payAmount, setPayAmount] = useState<number | null>(null);
+  const [payOpen, setPayOpen] = useState(false);
   const handleContributeClick = useCallback(() => {
     if (isSelfContribution) {
       showToast(tCommon("ownContributionError"), "error");
@@ -71,7 +76,6 @@ export default function DonationFeedBanner({
   const [isDesktop, setIsDesktop] = useState(false);
   const [progress, setProgress] = useState(0);
   const [dragY, setDragY] = useState(0);
-  const [donationPanelOpen, setDonationPanelOpen] = useState(false);
 
   // Banner video — callback ref so HLS re-initializes when the element is replaced
   // (happens when orientation flips after dims loads)
@@ -518,13 +522,40 @@ export default function DonationFeedBanner({
         currency={currency}
         onContribute={(amount) => {
           if (!creatorId || !buyerId) return;
-          void createProfileDonation({ creatorId, buyerId, amount, currency });
-          registrarCompraGeo({
-            creatorId,
-            serviceType: "profile_donation",
-            grossAmount: amount,
-          });
+          // Cierra el selector de monto y abre la pasarela de pago con ese monto.
+          setPayAmount(amount);
+          setDonationPanelOpen(false);
+          setPayOpen(true);
         }}
+      />
+
+      <ServicePaymentModal
+        open={payOpen}
+        amount={payAmount}
+        pay={(c) =>
+          payProfileDonation({
+            creatorId: creatorId ?? "",
+            amount: payAmount ?? 0,
+            currency: currency ?? "MXN",
+            ...c,
+          })
+        }
+        productType={tCommon("payDonationProductType")}
+        providerName={creatorName ?? undefined}
+        avatarUrl={profilePhoto}
+        description={tCommon("payDonationDescription", { name: creatorName ?? tCommon("donation") })}
+        successMessage={tCommon("payDonationSuccess", { name: creatorName ?? tCommon("donation") })}
+        onPaid={() => {
+          // La donación real la crea el backend al aprobar; solo registramos la geo.
+          if (creatorId) {
+            registrarCompraGeo({
+              creatorId,
+              serviceType: "profile_donation",
+              grossAmount: payAmount ?? undefined,
+            });
+          }
+        }}
+        onClose={() => setPayOpen(false)}
       />
       <style>{`
         .dbv-video-wrap { position: absolute; z-index: 2; border-radius: 10px; overflow: hidden; background: #000; }

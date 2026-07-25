@@ -3,6 +3,7 @@
 import { useMemo, useState, type CSSProperties } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { motion } from "framer-motion";
+import { Link } from "@/i18n/navigation";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import { useWalletLedger } from "@/lib/wallet/walletLedger";
 import { useWalletPosts } from "@/lib/wallet/walletPostCache";
@@ -352,8 +353,12 @@ export default function WalletTickets({
         <>
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {visible.map((row) => (
-              <motion.div
+              <Link
                 key={row.postId}
+                href={`/post/${row.postId}`}
+                style={{ textDecoration: "none", color: "inherit", display: "block" }}
+              >
+              <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.28, ease: [0.4, 0, 0.2, 1] }}
@@ -366,6 +371,7 @@ export default function WalletTickets({
                   padding: "16px 14px",
                   borderRadius: 14,
                   overflow: "hidden",
+                  cursor: "pointer",
                   background: row.cover
                     ? `linear-gradient(90deg, rgba(0,0,0,0.90), rgba(0,0,0,0.66)), center / cover no-repeat url("${row.cover}")`
                     : "linear-gradient(120deg, #2a1a4a, #10101a)",
@@ -429,6 +435,7 @@ export default function WalletTickets({
                   </span>
                 </div>
               </motion.div>
+              </Link>
             ))}
           </div>
 

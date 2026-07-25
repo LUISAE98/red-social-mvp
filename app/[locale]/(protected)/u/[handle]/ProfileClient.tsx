@@ -372,11 +372,13 @@ const [paySessionOpen, setPaySessionOpen] = useState(false);
 const [paySessionId, setPaySessionId] = useState<string | null>(null);
 const [paySessionAmount, setPaySessionAmount] = useState<number | null>(null);
 const [paySessionLabel, setPaySessionLabel] = useState<string | undefined>(undefined);
+const [paySessionDuration, setPaySessionDuration] = useState<number | null>(null);
 // Pago de "Tiempo contigo" (segundo modal con el Payment Brick).
 const [payMeetOpen, setPayMeetOpen] = useState(false);
 const [payMeetId, setPayMeetId] = useState<string | null>(null);
 const [payMeetAmount, setPayMeetAmount] = useState<number | null>(null);
 const [payMeetLabel, setPayMeetLabel] = useState<string | undefined>(undefined);
+const [payMeetDuration, setPayMeetDuration] = useState<number | null>(null);
 const [greetType, setGreetType] = useState<GreetingType>("saludo");
 const [toName, setToName] = useState("");
 const [instructions, setInstructions] = useState("");
@@ -1618,6 +1620,9 @@ const res = (await createMeetGreetRequest({
     setPayMeetId(res.requestId);
     setPayMeetAmount(amount);
     setPayMeetLabel(typeof amount === "number" ? formatMoney(amount, currency) : undefined);
+    setPayMeetDuration(
+      (service as (NormalizedService & { durationMinutes?: number }) | null)?.durationMinutes ?? null
+    );
     setPayMeetOpen(true);
   } catch (e: unknown) {
     setMeetGreetError((e instanceof Error ? e.message : null) ?? tServices("requestError"));
@@ -1655,6 +1660,9 @@ const res = (await createExclusiveSessionRequest({
     setPaySessionId(res.requestId);
     setPaySessionAmount(amount);
     setPaySessionLabel(typeof amount === "number" ? formatMoney(amount, currency) : undefined);
+    setPaySessionDuration(
+      (service as (NormalizedService & { durationMinutes?: number }) | null)?.durationMinutes ?? null
+    );
     setPaySessionOpen(true);
   } catch (e: unknown) {
     setExclusiveSessionError((e instanceof Error ? e.message : null) ?? tServices("requestError"));
@@ -2753,15 +2761,16 @@ const res = (await createExclusiveSessionRequest({
   productType={greetType === "consejo" ? "Consejo" : "Saludo"}
   providerName={fullName}
   avatarUrl={userDoc.photoURL}
+  description={tServices(greetType === "consejo" ? "payDescConsejo" : "payDescSaludo", { name: fullName })}
+  successMessage={tServices(greetType === "consejo" ? "paySuccessConsejo" : "paySuccessSaludo", { name: fullName })}
   onClose={() => setPayGreetOpen(false)}
   onPaid={() => {
-    setPayGreetOpen(false);
+    // El panel NO se cierra: muestra la pantalla de éxito. Solo registramos la compra.
     registrarCompraGeo({
       creatorId: userDoc.uid,
       serviceType: greetType === "consejo" ? "advice" : "greeting",
       grossAmount: payGreetAmount ?? undefined,
     });
-    setServiceToast(tServices("requestSent"));
   }}
 />
 
@@ -2773,15 +2782,16 @@ const res = (await createExclusiveSessionRequest({
   productType="Sesión exclusiva"
   providerName={fullName}
   avatarUrl={userDoc.photoURL}
+  durationMinutes={paySessionDuration}
+  successMessage={tServices("paySuccessScheduled", { name: fullName })}
   onClose={() => setPaySessionOpen(false)}
   onPaid={() => {
-    setPaySessionOpen(false);
+    // El panel NO se cierra: muestra la pantalla de éxito. Solo registramos la compra.
     registrarCompraGeo({
       creatorId: userDoc.uid,
       serviceType: "exclusive_session",
       grossAmount: paySessionAmount ?? undefined,
     });
-    setServiceToast(tProfile("sessionSent"));
   }}
 />
 
@@ -2793,15 +2803,16 @@ const res = (await createExclusiveSessionRequest({
   productType="Tiempo contigo"
   providerName={fullName}
   avatarUrl={userDoc.photoURL}
+  durationMinutes={payMeetDuration}
+  successMessage={tServices("paySuccessScheduled", { name: fullName })}
   onClose={() => setPayMeetOpen(false)}
   onPaid={() => {
-    setPayMeetOpen(false);
+    // El panel NO se cierra: muestra la pantalla de éxito. Solo registramos la compra.
     registrarCompraGeo({
       creatorId: userDoc.uid,
       serviceType: "live_session",
       grossAmount: payMeetAmount ?? undefined,
     });
-    setServiceToast(tProfile("meetGreetSent"));
   }}
 />
 

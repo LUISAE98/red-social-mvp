@@ -27,6 +27,8 @@ export function PremiumPostPanel({
   overlay = false,
   oneTimePrice,
   currency,
+  unlockCount = 0,
+  countWhenLocked = false,
   isMobile = false,
 }: {
   state: PostPremiumStateResult;
@@ -34,12 +36,20 @@ export function PremiumPostPanel({
   overlay?: boolean;
   oneTimePrice?: number | null;
   currency?: string | null;
+  unlockCount?: number;
+  /** Solo en público + pago simple el subtítulo bloqueado es redundante con el
+   *  botón; ahí lo sustituimos por el contador. En "solo miembros"/"miembros
+   *  gratis" conservamos ese mensaje de contexto. */
+  countWhenLocked?: boolean;
   isMobile?: boolean;
 }) {
   const tPosts = useTranslations("posts");
   const priceFmt = usePriceFormat();
   const isUnlocked = !state.isBlocked;
   const isAuthor = state.state === "unlocked_author";
+  // El dueño siempre ve el contador; el visitante bloqueado solo cuando su
+  // subtítulo sería el mensaje de precio redundante con el botón.
+  const showUnlockCount = isAuthor || (state.isBlocked && countWhenLocked);
 
   let statusText: string | null = null;
   if (isAuthor) statusText = tPosts("premiumBelongsToYou");
@@ -96,9 +106,11 @@ export function PremiumPostPanel({
             fontFamily: fontStack,
           }}
         >
-          {isUnlocked
-            ? (statusText ?? tPosts("premiumDefaultAccessText"))
-            : (state.panelMessage ?? tPosts("premiumDefaultLockedText"))}
+          {showUnlockCount
+            ? tPosts("premiumUnlockCount", { count: unlockCount })
+            : isUnlocked
+              ? (statusText ?? tPosts("premiumDefaultAccessText"))
+              : (state.panelMessage ?? tPosts("premiumDefaultLockedText"))}
         </div>
       </div>
 

@@ -2861,17 +2861,15 @@ function canUpdateReplyCount(delta) {
       // El comprador puede leer su propio acceso
       allow get: if signedIn()
         && resource.data.buyerId == request.auth.uid;
-      // El creador del post puede listar todos los accesos (para estadísticas de ingresos VOD)
+      // El creador lista todos los accesos (ingresos VOD); el comprador lista los
+      // suyos (para reflejar el desbloqueo en cualquier dispositivo).
       allow list: if signedIn()
-        && resource.data.creatorId == request.auth.uid;
+        && (resource.data.creatorId == request.auth.uid
+          || resource.data.buyerId == request.auth.uid);
 
-      allow create: if signedIn()
-        && request.resource.data.buyerId == request.auth.uid
-        && request.resource.data.status == "active"
-        && request.resource.data.postId is string
-        && accessId == (request.auth.uid + '_' + request.resource.data.postId);
-
-      allow update, delete: if false;
+      // El acceso lo concede SOLO el backend tras un pago aprobado (payPremiumPost
+      // → reconcile). El cliente ya no puede auto-otorgarse acceso.
+      allow create, update, delete: if false;
     }
 
     // ==========================
@@ -2885,16 +2883,9 @@ function canUpdateReplyCount(delta) {
       allow list: if signedIn()
         && resource.data.creatorId == request.auth.uid;
 
-      // Solo el comprador crea su donación simulada, a otro usuario.
-      allow create: if signedIn()
-        && request.resource.data.buyerId == request.auth.uid
-        && request.resource.data.creatorId is string
-        && request.resource.data.creatorId != request.auth.uid
-        && request.resource.data.amount is number
-        && request.resource.data.amount > 0
-        && request.resource.data.paymentStatus == "simulated_paid";
-
-      allow update, delete: if false;
+      // La donación la crea SOLO el backend tras un pago aprobado (payProfileDonation
+      // → reconcile). El cliente ya no puede crear donaciones simuladas.
+      allow create, update, delete: if false;
     }
 
     // ==========================

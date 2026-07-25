@@ -3,6 +3,7 @@
 
 import type { CSSProperties } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useUnlockedPostIds } from "@/lib/posts/useUnlockedPostIds";
 import { motion } from "framer-motion";
 import { useTranslations } from "next-intl";
 import { doc, getDoc, Timestamp } from "firebase/firestore";
@@ -515,8 +516,14 @@ export default function ProfilePostsFeed({
   // Sub-subnav de media (Publicaciones/Fotos/Videos/En vivo) + lightbox de galería.
   const [mediaTab, setMediaTab] = useState<MediaTabKey>("feed");
   const [lightboxTile, setLightboxTile] = useState<GalleryTile | null>(null);
-  // Posts desbloqueados (comprados) en esta sesión desde la galería.
-  const [unlockedPostIds, setUnlockedPostIds] = useState<Set<string>>(() => new Set());
+  // Desbloqueos de esta sesión (reflejo instantáneo) ∪ postAccess real del viewer
+  // (persistente en cualquier dispositivo) — unificados para feed y galerías.
+  const [sessionUnlockedIds, setSessionUnlockedIds] = useState<Set<string>>(() => new Set());
+  const remoteUnlockedIds = useUnlockedPostIds(viewerUid);
+  const unlockedPostIds = useMemo(
+    () => new Set<string>([...remoteUnlockedIds, ...sessionUnlockedIds]),
+    [remoteUnlockedIds, sessionUnlockedIds],
+  );
   // Pestaña previa para la dirección del slide (mismo patrón que Wallet/Perfil).
   const prevMediaTabRef = useRef<MediaTabKey>("feed");
   useEffect(() => {
@@ -1470,6 +1477,10 @@ const shellStyle: CSSProperties = {
               canModerateGroupAuthor={post.canModerateGroupAuthor === true}
               onModerationComplete={loadPosts}
               canCommentOnPosts={!post.groupId ? (isOwner || commentsEnabled) : undefined}
+              forceUnlocked={unlockedPostIds.has(post.id)}
+              onPostUnlocked={(id) =>
+                setSessionUnlockedIds((prev) => new Set(prev).add(id))
+              }
             />
 
             {shouldRenderRecommendations && viewerUid && !isEmbed && (
@@ -1548,7 +1559,7 @@ const shellStyle: CSSProperties = {
             autoOpenUnlock={lightboxTile.isLocked}
             forceUnlocked={lightboxTile.isPremiumUnlocked}
             onPostUnlocked={(id) =>
-              setUnlockedPostIds((prev) => new Set(prev).add(id))
+              setSessionUnlockedIds((prev) => new Set(prev).add(id))
             }
             onViewerClosed={() => setLightboxTile(null)}
           />

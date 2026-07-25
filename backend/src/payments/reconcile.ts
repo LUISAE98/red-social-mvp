@@ -146,5 +146,19 @@ export async function applyApprovedPaymentToSource(
     return;
   }
 
+  if (sourceType === "postAccess") {
+    // Desbloqueo de post premium / VOD: materializa postAccess/{buyerId}_{postId}
+    // en "active" (dispara ledger + contador de desbloqueos).
+    await materializeFromIntent(externalReference, "postAccess", sourceId, "pendingPostAccess", meta);
+    return;
+  }
+
+  if (sourceType === "profileDonation") {
+    // Donación a perfil: materializa profileDonations/{donationId} (paymentStatus
+    // "paid" → dispara onProfileDonationLedger).
+    await materializeFromIntent(externalReference, "profileDonations", sourceId, "pendingProfileDonation", meta);
+    return;
+  }
+
   logger.info("reconcile: sourceType no manejado aún", { sourceType, externalReference });
 }

@@ -282,6 +282,12 @@ export { payExclusiveSession } from "./payments/exclusiveSessionPayment";
 // Pagos — tiempo contigo / meet & greet (pagar-luego-crear, servicio propio).
 export { payMeetGreet } from "./payments/meetGreetPayment";
 
+// Pagos — desbloqueo de post premium / VOD (pagar-luego-conceder acceso).
+export { payPremiumPost } from "./payments/premiumPostPayment";
+
+// Pagos — donación / contribución a un perfil (pagar-luego-crear).
+export { payProfileDonation } from "./payments/profileDonationPayment";
+
 // Backfill de búsqueda de historias (corrida única, protegida por secret)
 export { backfillStoriesSearch } from "./storiesBackfill";
 
@@ -299,6 +305,9 @@ export { onStoryViewed, backfillStoryDiscovery } from "./storyDiscovery";
 
 // Posts: contador de vistas únicas por usuario (videos y VODs)
 export { onPostViewed } from "./postViews";
+
+// Posts: contador de desbloqueos (compras únicas) de premium / VOD
+export { onPremiumUnlockCount } from "./premiumUnlockCount";
 
 // Notificaciones sociales — triggers que alimentan la campanita (agregadas)
 export {

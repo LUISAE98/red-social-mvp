@@ -9,6 +9,7 @@ import {
   type CSSProperties,
 } from "react";
 import { useTranslations } from "next-intl";
+import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import type { Post } from "@/lib/posts/types";
 import {
   fetchGroupMediaPage,
@@ -31,7 +32,8 @@ function isPaidContentPost(post: Post): boolean {
 
 /**
  * ¿El viewer YA puede ver este contenido de pago? El autor, los miembros con
- * acceso gratis, y los posts desbloqueados en esta sesión (`unlocked`).
+ * acceso gratis, y los posts que el viewer ya desbloqueó (`unlocked` = postAccess
+ * real del viewer ∪ desbloqueos de esta sesión; ver useUnlockedPostIds).
  */
 function hasPaidAccess(
   post: Post,
@@ -40,18 +42,7 @@ function hasPaidAccess(
   unlocked: ReadonlySet<string>
 ): boolean {
   if (viewerUid && post.authorId === viewerUid) return true; // autor
-  if (unlocked.has(post.id)) return true; // desbloqueado en esta sesión
-  // Desbloqueo persistente en este navegador (misma llave que usePostTempUnlock).
-  try {
-    if (
-      typeof window !== "undefined" &&
-      window.localStorage.getItem(`vibra_post_unlocked_${post.id}`) === "1"
-    ) {
-      return true;
-    }
-  } catch {
-    // localStorage no disponible; ignorar.
-  }
+  if (unlocked.has(post.id)) return true; // ya desbloqueado (real o de sesión)
 
   if (post.premium?.enabled === true) {
     return post.premium.freeFor === "members_and_subscribers" && hasMembership;
@@ -237,6 +228,7 @@ export default function MediaGallery({
   onOpenTile,
 }: MediaGalleryProps) {
   const tPosts = useTranslations("posts");
+  const { format: formatMoney } = usePriceFormat();
 
   const [posts, setPosts] = useState<Post[]>([]);
   const [cursor, setCursor] = useState<GroupPostsPageCursor | null>(null);
@@ -482,7 +474,12 @@ export default function MediaGallery({
             )}
 
             {tile.isLocked && (
-              <span className="vibra-media-unlock">{tPosts("mediaUnlock")}</span>
+              <span className="vibra-media-unlock">
+                {formatMoney(tile.post.oneTimePrice ?? 0, {
+                  baseCurrency: tile.post.currency ?? "MXN",
+                  code: true,
+                })}
+              </span>
             )}
           </button>
         ))}
@@ -499,18 +496,13 @@ export default function MediaGallery({
   );
 }
 
-// Grid responsivo: en celular ~3 columnas (tamaño actual), en laptop columnas
-// más anchas (cuadros más grandes). Gap mínimo = poco margen alrededor.
+// Grid fijo: siempre 3 columnas por fila en cualquier dispositivo. Gap mínimo =
+// poco margen alrededor.
 const MEDIA_GRID_CSS = `
 .vibra-media-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
+  grid-template-columns: repeat(3, 1fr);
   gap: 2px;
-}
-@media (min-width: 768px) {
-  .vibra-media-grid {
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  }
 }
 .vibra-media-unlock {
   position: absolute;

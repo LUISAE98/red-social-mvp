@@ -51,6 +51,7 @@ import {
 } from "@/lib/posts/post-feed-cache";
 import RefreshableArea from "@/components/refresh/RefreshableArea";
 import { loadFeedWithRetry } from "@/lib/posts/feed-load-helpers";
+import { useUnlockedPostIds } from "@/lib/posts/useUnlockedPostIds";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
 
@@ -463,8 +464,9 @@ export default function GroupPostsFeed({
   // Sub-subnav de media (Publicaciones/Fotos/Videos/En vivo) + lightbox de galería.
   const [mediaTab, setMediaTab] = useState<MediaTabKey>("feed");
   const [lightboxTile, setLightboxTile] = useState<GalleryTile | null>(null);
-  // Posts desbloqueados (comprados) en esta sesión desde la galería.
-  const [unlockedPostIds, setUnlockedPostIds] = useState<Set<string>>(() => new Set());
+  // Posts desbloqueados (comprados) en esta sesión — se reflejan al instante
+  // antes de que la suscripción a postAccess los traiga.
+  const [sessionUnlockedIds, setSessionUnlockedIds] = useState<Set<string>>(() => new Set());
   // Pestaña previa para la dirección del slide (mismo patrón que Wallet).
   const prevMediaTabRef = useRef<MediaTabKey>("feed");
   useEffect(() => {
@@ -489,6 +491,13 @@ export default function GroupPostsFeed({
   );
   const [currentUid, setCurrentUid] = useState<string | null>(
     auth.currentUser?.uid ?? null,
+  );
+  // Desbloqueo persistente (postAccess real del viewer) ∪ desbloqueos de sesión,
+  // unificados para todo el feed y las galerías (fotos/videos/en vivo).
+  const remoteUnlockedIds = useUnlockedPostIds(currentUid);
+  const unlockedPostIds = useMemo(
+    () => new Set<string>([...remoteUnlockedIds, ...sessionUnlockedIds]),
+    [remoteUnlockedIds, sessionUnlockedIds],
   );
   const infiniteScrollTargetRef = useRef<HTMLDivElement | null>(null);
   const loadingMoreRef = useRef(false);
@@ -1851,6 +1860,10 @@ const shellStyle: CSSProperties = {
               canCommentOnPosts={readOnly ? false : canCommentOnPosts}
               commentBlockedReason={readOnly ? null : commentBlockedReason}
               showDeletedBanner={readOnly && post.isDeleted === true}
+              forceUnlocked={unlockedPostIds.has(post.id)}
+              onPostUnlocked={(id) =>
+                setSessionUnlockedIds((prev) => new Set(prev).add(id))
+              }
             />
           </div>
         );
@@ -1917,7 +1930,7 @@ const shellStyle: CSSProperties = {
             autoOpenUnlock={lightboxTile.isLocked}
             forceUnlocked={lightboxTile.isPremiumUnlocked}
             onPostUnlocked={(id) =>
-              setUnlockedPostIds((prev) => new Set(prev).add(id))
+              setSessionUnlockedIds((prev) => new Set(prev).add(id))
             }
             onViewerClosed={() => setLightboxTile(null)}
           />

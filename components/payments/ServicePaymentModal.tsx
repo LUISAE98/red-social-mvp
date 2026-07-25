@@ -73,6 +73,7 @@ const ID_CVV = "vibra-mp-card-cvv";
 const ID_SAVED_CVV = "vibra-mp-saved-cvv";
 
 const MP_BLUE = "#009ee3";
+const MP_GREEN = "#00a650";
 
 // Placeholder sutil (mismo gris del panel), como el campo de mensaje al creador.
 // backgroundColor transparente: el iframe de MP trae fondo blanco por defecto;
@@ -94,6 +95,13 @@ type Props = {
   providerName?: string;
   avatarUrl?: string | null;
   payerEmail?: string;
+  /** Descripción del servicio (bajo el avatar). Para servicios sin agenda (saludo/consejo). */
+  description?: string | null;
+  /** Mensaje de la pantalla de éxito. Si se pasa, al aprobarse el pago el panel
+   *  NO se cierra: muestra la confirmación (verde + avatar + paloma + este texto). */
+  successMessage?: string | null;
+  /** Duración en minutos (servicios agendados: sesión exclusiva / tiempo contigo). */
+  durationMinutes?: number | null;
   locale?: string;
   onClose: () => void;
   onPaid: () => void;
@@ -108,6 +116,9 @@ export default function ServicePaymentModal({
   providerName,
   avatarUrl,
   payerEmail,
+  description,
+  successMessage,
+  durationMinutes,
   locale = "es-MX",
   onClose,
   onPaid,
@@ -117,6 +128,9 @@ export default function ServicePaymentModal({
   const [sdkReady, setSdkReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  // Pago aprobado → arranca la secuencia de éxito (fade del formulario + pantalla verde).
+  const [paid, setPaid] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
   const [cardName, setCardName] = useState("");
   // Guardar tarjeta para futuras compras (activo por defecto). El guardado real
   // se conecta en el Bloque 3 (MP Customers & Cards).
@@ -127,6 +141,16 @@ export default function ServicePaymentModal({
   const [savedCards, setSavedCards] = useState<SavedCard[]>([]);
   // "credit" | "debit" (tarjeta nueva) | "saved:<id>" | null
   const [selectedMethod, setSelectedMethod] = useState<string | null>(null);
+  // Sigue a selectedMethod, pero al CERRAR se queda ~320ms para animar la salida.
+  const [renderedMethod, setRenderedMethod] = useState<string | null>(null);
+  // Validez de cada Secure Field (evento validityChange de MP). El botón "Pagar"
+  // solo se habilita cuando los datos requeridos están completos y válidos.
+  const [cardValid, setCardValid] = useState({
+    number: false,
+    exp: false,
+    cvv: false,
+    savedCvv: false,
+  });
   const [isNarrow, setIsNarrow] = useState(false);
   const [buyer, setBuyer] = useState<{ name: string; photo: string | null } | null>(null);
   // Animación de entrada/salida (no de golpe).
@@ -140,6 +164,15 @@ export default function ServicePaymentModal({
   const savedCardId = selectedMethod?.startsWith("saved:")
     ? selectedMethod.slice(6)
     : null;
+
+  // El botón "Pagar" se habilita solo con los datos completos y válidos:
+  //   · Tarjeta nueva  → número + vencimiento + CVV válidos + nombre escrito.
+  //   · Tarjeta guardada → solo el CVV válido.
+  const canPay = isNewCard
+    ? cardValid.number && cardValid.exp && cardValid.cvv && cardName.trim().length > 0
+    : savedCardId
+      ? cardValid.savedCvv
+      : false;
 
   const mpRef = useRef<MpInstance | null>(null);
   const fieldsRef = useRef<MpField[]>([]);
@@ -263,6 +296,8 @@ export default function ServicePaymentModal({
     setSdkReady(false);
     setSelectedMethod(null);
     setCardBrandThumb(null);
+    setPaid(false);
+    setShowSuccess(false);
     paymentMethodIdRef.current = null;
 
     (async () => {
@@ -300,6 +335,12 @@ export default function ServicePaymentModal({
     if (!mp) return;
 
     let localFields: MpField[] = [];
+    // Campos recién montados arrancan vacíos → inválidos.
+    setCardValid({ number: false, exp: false, cvv: false, savedCvv: false });
+    const isValid = (d: unknown) => {
+      const errs = (d as { errorMessages?: unknown[] } | null)?.errorMessages;
+      return Array.isArray(errs) && errs.length === 0;
+    };
     try {
       if (isNewCard) {
         const numberField = mp.fields.create("cardNumber", {
@@ -335,6 +376,10 @@ export default function ServicePaymentModal({
           }
         });
 
+        numberField.on("validityChange", (d) => setCardValid((v) => ({ ...v, number: isValid(d) })));
+        expField.on("validityChange", (d) => setCardValid((v) => ({ ...v, exp: isValid(d) })));
+        cvvField.on("validityChange", (d) => setCardValid((v) => ({ ...v, cvv: isValid(d) })));
+
         numberField.mount(ID_NUMBER);
         expField.mount(ID_EXP);
         cvvField.mount(ID_CVV);
@@ -345,6 +390,7 @@ export default function ServicePaymentModal({
           placeholder: "CVV",
           style: FIELD_STYLE,
         });
+        cvvField.on("validityChange", (d) => setCardValid((v) => ({ ...v, savedCvv: isValid(d) })));
         cvvField.mount(ID_SAVED_CVV);
         localFields = [cvvField];
       }
@@ -365,6 +411,18 @@ export default function ServicePaymentModal({
       if (fieldsRef.current === localFields) fieldsRef.current = [];
     };
   }, [open, sdkReady, isNewCard, savedCardId]);
+
+  // (B.2) Al CERRAR (selectedMethod → null) mantiene el cuerpo del acordeón
+  // montado ~320ms, para que la animación de altura (0fr) tenga contenido y no
+  // colapse "de golpe". Al abrir/cambiar se actualiza al instante.
+  useEffect(() => {
+    if (selectedMethod) {
+      setRenderedMethod(selectedMethod);
+      return;
+    }
+    const t = window.setTimeout(() => setRenderedMethod(null), 320);
+    return () => window.clearTimeout(t);
+  }, [selectedMethod]);
 
   function toggleMethod(id: string) {
     setSelectedMethod((prev) => (prev === id ? null : id));
@@ -425,7 +483,15 @@ export default function ServicePaymentModal({
 
       const res = await payRef.current(card);
       if (res.status === "approved" || res.status === "pending") {
-        onPaidRef.current();
+        if (successMessage) {
+          // Servicios con pantalla de éxito (saludo/consejo): NO cerrar el panel.
+          // Se desvanece el formulario y luego entra la confirmación verde.
+          setPaid(true);
+          onPaidRef.current(); // efectos colaterales (geo). El caller NO debe cerrar.
+          window.setTimeout(() => setShowSuccess(true), 300);
+        } else {
+          onPaidRef.current(); // flujo legacy: el caller cierra el panel.
+        }
         return;
       }
       throw new Error("rejected");
@@ -647,7 +713,7 @@ export default function ServicePaymentModal({
           <div
             style={{ overflow: "hidden", opacity: active ? 1 : 0, transition: "opacity 260ms ease" }}
           >
-            {active && cardFields}
+            {(active || renderedMethod === kind) && cardFields}
           </div>
         </div>
       </div>
@@ -686,7 +752,7 @@ export default function ServicePaymentModal({
           >
             <div style={{ display: "grid", gap: 6, padding: "6px 2px 18px", maxWidth: 140 }}>
               <label style={label}>Código de seguridad</label>
-              {active && <div id={ID_SAVED_CVV} style={box} />}
+              {(active || renderedMethod === id) && <div id={ID_SAVED_CVV} style={box} />}
             </div>
           </div>
         </div>
@@ -723,6 +789,14 @@ export default function ServicePaymentModal({
       >
         ×
       </button>
+
+      {/* En móvil, Mercado Pago va arriba centrado (empuja el contenido). */}
+      {isNarrow && (
+        <div style={{ marginBottom: 16, display: "flex", justifyContent: "center" }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/mercadopago.webp" alt="Mercado Pago" style={{ height: 30, width: "auto" }} />
+        </div>
+      )}
 
       {/* Saludo al comprador */}
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
@@ -797,24 +871,32 @@ export default function ServicePaymentModal({
   const rightColumn = (
     <div
       style={{
-        padding: isNarrow ? "16px 18px 20px" : 24,
+        position: "relative",
+        // Deja arriba el espacio que ocupaba el logo (ahora absoluto), para que el
+        // contenido quede donde estaba y el logo se pueda bajar sin empujarlo.
+        padding: isNarrow ? "16px 18px 20px" : "48px 24px 24px",
         background: "#f6f7f9",
         borderLeft: isNarrow ? "none" : "1px solid #eaecef",
         borderTop: isNarrow ? "1px solid #eaecef" : "none",
         display: "flex",
         flexDirection: "column",
-        gap: 16,
+        justifyContent: "flex-start",
+        gap: 12,
         minWidth: 0,
       }}
     >
-      {/* Mercado Pago — arriba pegado a la derecha */}
-      <div style={{ display: "flex", justifyContent: "flex-end" }}>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/mercadopago.webp" alt="Mercado Pago" style={{ height: 30, width: "auto" }} />
-      </div>
+      {/* Mercado Pago — absoluto arriba-der (no empuja el contenido). Solo laptop. */}
+      {!isNarrow && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src="/mercadopago.webp"
+          alt="Mercado Pago"
+          style={{ position: "absolute", top: 22, right: 24, height: 30, width: "auto" }}
+        />
+      )}
 
       {/* Creador */}
-      <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: -20 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 0 }}>
         <div
           style={{
             width: 48,
@@ -855,33 +937,56 @@ export default function ServicePaymentModal({
         </div>
       </div>
 
-      {/* Empuja el total y el botón hasta abajo del panel. */}
-      <div style={{ flex: 1, minHeight: 16 }} />
-
-      {showApprox && (
-        <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between" }}>
-          <span style={{ fontSize: 12, color: "#9aa0a8" }}>Aproximado en tu moneda</span>
-          <span style={{ fontSize: 13, color: "#6b7280", fontWeight: 600 }}>{localApprox}</span>
+      {durationMinutes ? (
+        <div style={{ display: "grid", gap: 10, marginTop: 2 }}>
+          <div style={{ height: 1, background: "#e6e8ec" }} />
+          <div style={{ display: "grid", gap: 6 }}>
+            <span style={{ fontSize: 12.5, color: "#5b616e", lineHeight: 1.4 }}>
+              <strong style={{ fontWeight: 600, color: "#3a3f4a" }}>Duración:</strong>{" "}
+              {durationMinutes} minutos
+            </span>
+            <span style={{ fontSize: 12.5, color: "#5b616e", lineHeight: 1.4 }}>
+              <strong style={{ fontWeight: 600, color: "#3a3f4a" }}>Modalidad:</strong> En línea,
+              desde cualquier parte del mundo
+            </span>
+          </div>
         </div>
+      ) : description ? (
+        <div style={{ display: "grid", gap: 10, marginTop: 2 }}>
+          <div style={{ height: 1, background: "#e6e8ec" }} />
+          <p style={{ margin: 0, fontSize: 12.5, color: "#5b616e", lineHeight: 1.5 }}>{description}</p>
+        </div>
+      ) : null}
+
+      {showApprox ? (
+        <>
+          <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between" }}>
+            <span style={{ fontSize: 12, color: "#9aa0a8" }}>Tu banco cobrará</span>
+            <span style={{ fontSize: 13, color: "#6b7280", fontWeight: 600 }}>{mxnTotal}</span>
+          </div>
+          <div style={{ height: 1, background: "#e6e8ec" }} />
+          <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between" }}>
+            <span style={{ fontSize: 13, color: "#6b7280", fontWeight: 600 }}>Total aproximado</span>
+            <span style={{ fontSize: 17, fontWeight: 600, color: "#3a3f4a" }}>{localApprox}</span>
+          </div>
+        </>
+      ) : (
+        <>
+          <div style={{ height: 1, background: "#e6e8ec" }} />
+          <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between" }}>
+            <span style={{ fontSize: 13, color: "#6b7280", fontWeight: 600 }}>Total a pagar</span>
+            <span style={{ fontSize: 17, fontWeight: 600, color: "#3a3f4a" }}>{mxnTotal}</span>
+          </div>
+        </>
       )}
-
-      <div style={{ height: 1, background: "#e6e8ec" }} />
-
-      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between" }}>
-        <span style={{ fontSize: 13, color: "#6b7280", fontWeight: 600 }}>Total a pagar</span>
-        <span style={{ fontSize: 17, fontWeight: 600, color: "#3a3f4a" }}>{mxnTotal}</span>
-      </div>
 
       {error && (
         <p
           style={{
             margin: 0,
-            padding: "9px 11px",
-            borderRadius: 9,
-            background: "#fdecea",
-            border: "1px solid #f5c2c0",
             color: "#c0392b",
-            fontSize: 12.5,
+            fontSize: 11,
+            textAlign: "center",
           }}
         >
           {error}
@@ -891,20 +996,35 @@ export default function ServicePaymentModal({
       <button
         type="button"
         onClick={handlePay}
-        disabled={submitting || loading}
+        disabled={submitting || loading || !canPay}
         style={{
+          position: "relative",
+          overflow: "hidden",
           height: 40,
           borderRadius: 10,
           border: "none",
-          background: submitting || loading ? "#9fd8f2" : MP_BLUE,
+          // Al procesar se mantiene azul (la barra clara de progreso "llena" encima).
+          background: loading || (!canPay && !submitting) ? "#9fd8f2" : MP_BLUE,
           color: "#fff",
           fontSize: 15,
           fontWeight: 600,
           fontFamily: "inherit",
-          cursor: submitting || loading ? "not-allowed" : "pointer",
+          cursor: submitting || loading || !canPay ? "not-allowed" : "pointer",
         }}
       >
-        {submitting ? "Procesando…" : "Pagar"}
+        {submitting && (
+          <span
+            aria-hidden="true"
+            style={{
+              position: "absolute",
+              inset: 0,
+              background: "rgba(255,255,255,0.28)",
+              transformOrigin: "left center",
+              animation: "vibraBtnFill 2400ms ease-out forwards",
+            }}
+          />
+        )}
+        <span style={{ position: "relative" }}>{submitting ? "Procesando…" : "Pagar"}</span>
       </button>
 
       <div
@@ -915,7 +1035,7 @@ export default function ServicePaymentModal({
           gap: 6,
           fontSize: 11,
           color: "#8a8f99",
-          marginTop: -13,
+          marginTop: -6,
         }}
       >
         <svg
@@ -953,6 +1073,182 @@ export default function ServicePaymentModal({
       )}
     </div>
   );
+
+  // ── Pantalla de éxito (verde 2/3 + avatar + paloma + mensaje) ────────────────
+  // Fecha de compra = ahora (la pantalla se muestra justo al aprobarse el pago).
+  const purchaseDate = new Date().toLocaleDateString(locale, {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+  const successView = (
+    <div style={{ height: isNarrow ? 480 : 440, display: "flex", flexDirection: "column", position: "relative" }}>
+      <button
+        type="button"
+        onClick={onClose}
+        aria-label="Cerrar"
+        style={{
+          position: "absolute",
+          top: 10,
+          right: 16,
+          zIndex: 2,
+          border: "none",
+          background: "transparent",
+          color: "#fff",
+          fontSize: 32,
+          lineHeight: 1,
+          padding: 2,
+          cursor: "pointer",
+        }}
+      >
+        ×
+      </button>
+
+      {/* Fecha de compra — arriba, centrada */}
+      <div
+        style={{
+          position: "absolute",
+          top: 16,
+          left: 0,
+          right: 0,
+          zIndex: 2,
+          textAlign: "center",
+          color: "rgba(255,255,255,0.85)",
+          fontSize: 13,
+          fontWeight: 500,
+          pointerEvents: "none",
+          animation: "vibraFade 300ms ease both",
+        }}
+      >
+        {purchaseDate}
+      </div>
+
+      {/* Verde — dos tercios superiores */}
+      <div
+        style={{
+          flex: 2,
+          background: MP_GREEN,
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "flex-start",
+          gap: 7,
+          padding: "88px 24px 14px",
+          animation: "vibraFade 300ms ease both",
+        }}
+      >
+        {avatarUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={avatarUrl}
+            alt={providerName ?? ""}
+            style={{
+              width: 128,
+              height: 128,
+              borderRadius: "50%",
+              objectFit: "cover",
+              boxShadow: "0 8px 24px rgba(0,0,0,0.18)",
+              animation: "vibraPop 460ms cubic-bezier(0.2,0.9,0.2,1.2) both",
+              animationDelay: "120ms",
+            }}
+          />
+        ) : null}
+        {providerName ? (
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
+            <span
+              style={{
+                color: "#fff",
+                fontSize: 20,
+                fontWeight: 600,
+                textAlign: "center",
+                animation: "vibraFade 360ms ease both",
+                animationDelay: "260ms",
+              }}
+            >
+              {providerName}
+            </span>
+            {productType ? (
+              <span
+                style={{
+                  color: "rgba(255,255,255,0.75)",
+                  fontSize: 15,
+                  fontWeight: 500,
+                  textAlign: "center",
+                  animation: "vibraFade 360ms ease both",
+                  animationDelay: "340ms",
+                }}
+              >
+                {productType}
+              </span>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
+
+      {/* Blanco — tercio inferior */}
+      <div
+        style={{
+          flex: 1,
+          background: "#fff",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 14,
+          padding: "18px 28px 26px",
+        }}
+      >
+        <p
+          style={{
+            margin: 0,
+            fontSize: 13.5,
+            color: "#5b616e",
+            textAlign: "center",
+            lineHeight: 1.5,
+            maxWidth: 380,
+            animation: "vibraFadeUp 420ms ease both",
+            animationDelay: "420ms",
+          }}
+        >
+          {successMessage}
+        </p>
+        <div
+          style={{
+            width: 38,
+            height: 38,
+            borderRadius: "50%",
+            background: MP_GREEN,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            animation: "vibraPop 480ms cubic-bezier(0.2,0.9,0.2,1.25) both",
+            animationDelay: "560ms",
+          }}
+        >
+          <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth={2.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M5 12.5l4.2 4.2L19 7" />
+          </svg>
+        </div>
+      </div>
+    </div>
+  );
+
+  const successKeyframes = `
+    @keyframes vibraPop {
+      0% { transform: scale(0); opacity: 0; }
+      60% { transform: scale(1.08); opacity: 1; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    @keyframes vibraFade { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes vibraFadeUp {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes vibraBtnFill {
+      0% { transform: scaleX(0); }
+      100% { transform: scaleX(1); }
+    }
+  `;
 
   return createPortal(
     <div
@@ -992,16 +1288,22 @@ export default function ServicePaymentModal({
           willChange: "opacity, transform",
         }}
       >
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: isNarrow ? "1fr" : "1.05fr 1fr",
-            minHeight: isNarrow ? undefined : 500,
-          }}
-        >
-          {leftColumn}
-          {rightColumn}
-        </div>
+        <style>{successKeyframes}</style>
+        {showSuccess ? (
+          successView
+        ) : (
+          <div style={{ opacity: paid ? 0 : 1, transition: "opacity 280ms ease" }}>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: isNarrow ? "1fr" : "1.05fr 1fr",
+              }}
+            >
+              {leftColumn}
+              {rightColumn}
+            </div>
+          </div>
+        )}
       </div>
     </div>,
     document.body

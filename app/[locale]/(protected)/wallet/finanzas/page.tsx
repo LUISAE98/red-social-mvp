@@ -513,7 +513,11 @@ export default function WalletFinanzasPage() {
                   color: "rgba(255,255,255,0.9)",
                 }}
               >
-                {formatMoney(view.pending)}
+                {balanceHidden ? (
+                  <MaskedAmount formatted={formatMoney(view.pending)} />
+                ) : (
+                  formatMoney(view.pending)
+                )}
               </div>
             </div>
 
@@ -546,7 +550,11 @@ export default function WalletFinanzasPage() {
                   color: "rgba(255,255,255,0.9)",
                 }}
               >
-                {formatMoney(bestMonth?.amount ?? 0)}
+                {balanceHidden ? (
+                  <MaskedAmount formatted={formatMoney(bestMonth?.amount ?? 0)} />
+                ) : (
+                  formatMoney(bestMonth?.amount ?? 0)
+                )}
               </div>
               {bestMonth ? (
                 <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.4)" }}>
@@ -584,7 +592,11 @@ export default function WalletFinanzasPage() {
                   color: "rgba(255,255,255,0.9)",
                 }}
               >
-                {formatMoney(view.lifetime)}
+                {balanceHidden ? (
+                  <MaskedAmount formatted={formatMoney(view.lifetime)} />
+                ) : (
+                  formatMoney(view.lifetime)
+                )}
               </div>
             </div>
           </div>

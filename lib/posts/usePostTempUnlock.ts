@@ -1,19 +1,17 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { doc, setDoc, serverTimestamp } from "firebase/firestore";
-import { db } from "@/lib/firebase";
 import { registrarCompraGeo } from "@/lib/wallet/registrarCompraGeo";
 
 const STORAGE_PREFIX = "vibra_post_unlocked_";
 
 /**
- * Temporary unlock for premium posts.
- * - Logged-in users: writes a real postAccess doc to Firestore so Firestore rules
- *   verify the access and comments/likes are enabled.
- * - Guests: localStorage only (no comments/likes — shown as a warning).
+ * Reflejo local del desbloqueo de un post premium en ESTE dispositivo.
  *
- * Replace the Firestore write with the real Mercado Pago confirmation when integrated.
+ * El acceso real (postAccess) lo concede el backend tras el pago aprobado
+ * (payPremiumPost → reconcile); el cliente ya NO escribe ese doc. Aquí solo
+ * marcamos un flag en localStorage para desbloquear el contenido de inmediato
+ * sin esperar a recargar, y registramos la geo de la compra.
  */
 export function usePostTempUnlock(
   postId: string,
@@ -39,22 +37,13 @@ export function usePostTempUnlock(
     setIsTempUnlocked(true);
 
     if (currentUserId) {
-      const accessId = `${currentUserId}_${postId}`;
-      await setDoc(doc(db, "postAccess", accessId), {
-        postId,
-        buyerId: currentUserId,
-        ...(creatorId ? { creatorId } : {}),
-        ...(typeof price === "number" ? { price } : {}),
-        status: "active",
-        createdAt: serverTimestamp(),
-      });
       registrarCompraGeo({
         creatorId,
         serviceType: "premium_post",
         grossAmount: price,
       });
     }
-  }, [key, postId, currentUserId, creatorId, price]);
+  }, [key, currentUserId, creatorId, price]);
 
   return { isTempUnlocked, unlock };
 }

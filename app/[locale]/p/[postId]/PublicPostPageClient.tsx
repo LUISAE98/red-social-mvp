@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { auth } from "@/lib/firebase";
 import type { Comment, CommentImage, CommentMention, CommentReply, Post, PostPremium } from "@/lib/posts/types";
+import { useUnlockedPostIds } from "@/lib/posts/useUnlockedPostIds";
 import {
   createPostComment,
   createPostCommentReply,
@@ -99,6 +100,8 @@ export default function PublicPostPageClient({
   const [currentUserId, setCurrentUserId] = useState<string | null>(
     auth.currentUser?.uid ?? null
   );
+  // Desbloqueo premium persistente del viewer (cualquier dispositivo).
+  const unlockedPostIds = useUnlockedPostIds(currentUserId);
   const [likesCount, setLikesCount] = useState(post.counts.likes);
   const [commentsCount, setCommentsCount] = useState(post.counts.comments);
   const [viewerHasFlamed, setViewerHasFlamed] = useState(false);
@@ -564,6 +567,7 @@ export default function PublicPostPageClient({
             onToggleFlame={handleToggleFlameForCard}
             onToggleSave={handleToggleSaveForCard}
             currentUserId={currentUserId}
+            forceUnlocked={unlockedPostIds.has(post.id)}
             isOwner={currentUserId === post.authorId}
             isModerator={false}
             showGroupContext={!isProfilePost}

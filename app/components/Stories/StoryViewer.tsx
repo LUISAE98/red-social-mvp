@@ -1010,15 +1010,20 @@ export default function StoryViewer({
       productType={effectiveType === "consejo" ? "Consejo" : "Saludo"}
       providerName={greetingAuthorName ?? undefined}
       avatarUrl={creator?.photo ?? null}
+      description={tServices(effectiveType === "consejo" ? "payDescConsejo" : "payDescSaludo", {
+        name: greetingAuthorName ?? tServices("creatorFallback"),
+      })}
+      successMessage={tServices(effectiveType === "consejo" ? "paySuccessConsejo" : "paySuccessSaludo", {
+        name: greetingAuthorName ?? tServices("creatorFallback"),
+      })}
       onClose={() => setPayGreetOpen(false)}
       onPaid={() => {
-        setPayGreetOpen(false);
+        // El panel NO se cierra: muestra la pantalla de éxito. Solo registramos la compra.
         registrarCompraGeo({
           creatorId: greetingAuthorUid,
           serviceType: effectiveType === "consejo" ? "advice" : "greeting",
           grossAmount: payGreetAmount ?? undefined,
         });
-        setGreetSuccess(tServices("greetRequestSuccess"));
       }}
     />
     </>

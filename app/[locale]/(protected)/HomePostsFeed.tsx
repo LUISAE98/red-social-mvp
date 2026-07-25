@@ -35,6 +35,7 @@ import {
   registerPostFeedCacheListener,
   removePostFromAllFeedCaches,
 } from "@/lib/posts/post-feed-cache";
+import { useUnlockedPostIds } from "@/lib/posts/useUnlockedPostIds";
 import { loadFeedWithRetry } from "@/lib/posts/feed-load-helpers";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
@@ -373,6 +374,8 @@ export default function HomePostsFeed({ currentUserId, refreshRef }: HomePostsFe
   const t = useTranslations("common");
   const tFeed = useTranslations("feed");
   const tProfile = useTranslations("profile");
+  // Desbloqueos premium persistentes del viewer (cualquier dispositivo).
+  const unlockedPostIds = useUnlockedPostIds(currentUserId);
   const [posts, setPosts] = useState<PostWithFlags[]>(() => {
     const c = peekFreshCache(currentUserId);
     return c ? c.posts.filter((p) => p.isDeleted !== true) : [];
@@ -1174,6 +1177,7 @@ const shellStyle: CSSProperties = {
           onToggleFlame={handleToggleFlame}
           onToggleSave={handleToggleSave}
           currentUserId={uid}
+          forceUnlocked={unlockedPostIds.has(disc.id)}
           isOwner={false}
           viewerIsMember={false}
           isModerator={false}
@@ -1291,6 +1295,7 @@ return (
               onToggleFlame={handleToggleFlame}
               onToggleSave={handleToggleSave}
               currentUserId={currentUserId}
+              forceUnlocked={unlockedPostIds.has(post.id)}
               isOwner={false}
               viewerIsMember={post.contextType === "group"}
               isModerator={post.canModerateGroupAuthor === true}

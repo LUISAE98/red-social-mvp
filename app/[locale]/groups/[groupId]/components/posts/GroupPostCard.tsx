@@ -29,7 +29,8 @@ import LiveStreamSetup from "@/app/components/LiveStreamSetup/LiveStreamSetup";
 import PostCommentsPanel from "./PostCommentsPanel";
 import GroupPostComposer, { type GroupPostComposerSubmitPayload } from "./GroupPostComposer";
 import PostImageViewer from "./PostImageViewer";
-import PostPaymentPanel from "./PostPaymentPanel";
+import ServicePaymentModal from "@/components/payments/ServicePaymentModal";
+import { payPremiumPost } from "@/lib/payments/payPremiumPost";
 import PremiumVideoTeaser from "./PremiumVideoTeaser";
 import { VideoPlayIcon } from "@/app/components/VibraServiceIcons/VibraVideoIcons";
 import { usePostTempUnlock } from "@/lib/posts/usePostTempUnlock";
@@ -4186,15 +4187,25 @@ padding: "0 0 2px 0",
     onOpenPayment={() => setPaymentPanelOpen(true)}
     oneTimePrice={post.oneTimePrice}
     currency={post.currency}
+    unlockCount={post.premiumUnlockCount ?? 0}
+    countWhenLocked={
+      post.premium?.accessMode === "public" && post.premium?.freeFor === "none"
+    }
     isMobile={isMobile}
   />
 )}
-<PostPaymentPanel
+<ServicePaymentModal
   open={paymentPanelOpen}
-  post={post}
-  currentUserId={currentUserId}
-  isMobile={isMobile}
-  onPay={() => {
+  amount={post.premium?.price ?? post.oneTimePrice ?? null}
+  pay={(c) => payPremiumPost({ postId: post.id, ...c })}
+  productType={tPosts("premiumPayProductType")}
+  providerName={postAuthor.authorName}
+  avatarUrl={postAuthor.avatarUrl}
+  description={tPosts("premiumPayDescription")}
+  successMessage={tPosts("premiumUnlockSuccess")}
+  onPaid={() => {
+    // El postAccess real lo concede el backend al aprobar el pago; aquí solo
+    // reflejamos el desbloqueo en este dispositivo (flag local) y avisamos.
     void applyTempUnlock();
     onPostUnlocked?.(post.id);
   }}
