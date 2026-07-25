@@ -226,11 +226,13 @@ export default function ServicePaymentModal({
   // teclado). Se dispara al terminar la animación de entrada.
   const amountInputRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
-    if (open && entered && amountEditable && !showSuccess) {
+    // En modo "sheet" (dentro del live) NO enfocamos: abrir el teclado de golpe
+    // reflowea el layout de iOS y se revuelve todo. El usuario toca el monto cuando quiere.
+    if (open && entered && amountEditable && !showSuccess && !isSheet) {
       const t = window.setTimeout(() => amountInputRef.current?.focus(), 80);
       return () => window.clearTimeout(t);
     }
-  }, [open, entered, amountEditable, showSuccess]);
+  }, [open, entered, amountEditable, showSuccess, isSheet]);
 
   useEffect(() => {
     setMounted(true);
@@ -1088,7 +1090,7 @@ export default function ServicePaymentModal({
               <span style={{ fontSize: 22, fontWeight: 700, color: "#3a3f4a" }}>$</span>
               <input
                 ref={amountInputRef}
-                autoFocus
+                autoFocus={!isSheet}
                 type="number"
                 inputMode="decimal"
                 min={1}
@@ -1465,9 +1467,13 @@ export default function ServicePaymentModal({
                 position: "relative",
                 width: "100%",
                 height: "100%",
+                boxSizing: "border-box",
                 overflowY: "auto",
                 background: "#fff",
                 color: "#3a3f4a",
+                // La card blanca llena el safe-area inferior; el padding evita que el
+                // contenido quede debajo del home-indicator.
+                paddingBottom: "env(safe-area-inset-bottom)",
                 transform: entered ? "translateY(0)" : "translateY(100%)",
                 transition: "transform 240ms cubic-bezier(0.2, 0.8, 0.2, 1)",
                 willChange: "transform",

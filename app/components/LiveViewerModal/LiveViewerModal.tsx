@@ -304,7 +304,9 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
   const { user } = useAuth();
   const { relationship, follow } = useSocialRelationship(user?.uid ?? null, post.authorId ?? null);
   const showFollowBtn = !!user && !!post.authorId && user.uid !== post.authorId && !relationship.isFollowing;
-  const { reportTarget, openReport, closeReport } = useReport();
+  // Reporte de live desactivado por ahora (botón retirado). Se conserva la
+  // infraestructura (ReportModal) para reactivarlo fácil cuando toque.
+  const { reportTarget, closeReport } = useReport();
   const [mounted, setMounted] = useState(false);
   const [shouldRender, setShouldRender] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -593,6 +595,12 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
       ? (liveData?.vodStatus === "ready" || !liveData?.vodStatus)
       : !!vodHlsUrl && liveData?.vodSettingsConfirmed === true && !liveData?.vodHidden
   );
+  // VOD real y REPRODUCIBLE tras terminar el live: además de vodReady, exige que
+  // exista una URL HLS. Un live CF directo (WHIP) no se graba → vodReady puede ser
+  // true pero hlsUrl es null; en ese caso NO hay video y no deben mostrarse los
+  // controles de reproducción (scrubber/play/pausa). Solo los lives con grabación
+  // (Mux, o CF vía RTMP/OBS con vodStatus="ready") tienen VOD.
+  const hasEndedVod = isEnded && vodReady && !!hlsUrl;
 
   // For Cloudflare WHIP streams, HLS (204) only becomes available after transcoding warms up.
   // The WebRTC playback endpoint (/webRTC/play) works instantly — same pipeline the CF dashboard uses.
@@ -1505,7 +1513,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
 
   // ── renderVodControls — overlay personalizado para el VOD post-live ────────
   function renderVodControls(inSafeZone = false, showGradient = true) {
-    if (!isEnded || !vodReady) return null;
+    if (!hasEndedVod) return null;
 
     const skipSz = isDesktop ? 32 : 36;
     const playSz = isDesktop ? 36 : 40;
@@ -1901,7 +1909,10 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
   // ── Overlay cuando el live terminó pero el VOD no está disponible aún ──
   function renderEndedOverlay() {
     if (!isEnded) return null;
-    if (vodReady) return null;
+    // Se oculta solo cuando hay un VOD real y reproducible (entonces se ve el
+    // video + controles). Para un live CF directo (sin grabación) NO hay VOD →
+    // este overlay muestra el estado "finalizado" en vez de controles inútiles.
+    if (hasEndedVod) return null;
 
     const isCF = liveData?.streamProvider === "cloudflare";
     const confirmed = !isCF && liveData?.vodSettingsConfirmed === true;
@@ -1935,6 +1946,18 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
             </svg>
             <span style={{ fontSize: 14, fontWeight: 600, color: "rgba(255,255,255,0.72)", textAlign: "center", padding: "0 28px" }}>
               El creador aún no sube el video
+            </span>
+          </>
+        ) : isCF && liveData?.broadcastMode === "direct" ? (
+          // CF directo (WHIP): no se graba → estado final, sin spinner (no hay VOD en camino).
+          <>
+            <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.6)"
+              strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <path d="m9 12 2 2 4-4" />
+            </svg>
+            <span style={{ fontSize: 14, fontWeight: 600, color: "rgba(255,255,255,0.72)", textAlign: "center", padding: "0 28px" }}>
+              La transmisión ha finalizado
             </span>
           </>
         ) : (
@@ -2068,7 +2091,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
           playsInline
           onTimeUpdate={() => {
             const v = videoRef.current;
-            if (!v || !isEnded || !vodReady) return;
+            if (!v || !hasEndedVod) return;
             if (isFinite(v.currentTime)) setVodCurrentTime(v.currentTime);
             if (
               !vodViewRecordedRef.current &&
@@ -2082,16 +2105,16 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
           }}
           onDurationChange={() => {
             const v = videoRef.current;
-            if (!v || !isEnded || !vodReady) return;
+            if (!v || !hasEndedVod) return;
             if (isFinite(v.duration) && v.duration > 0) setVodDuration(v.duration);
           }}
-          onPlay={() => { if ((isEnded && vodReady) || (!isEnded && dvrAvailable)) setVodPlaying(true); }}
-          onPause={() => { if ((isEnded && vodReady) || (!isEnded && dvrAvailable)) setVodPlaying(false); }}
-          onEnded={() => { if ((isEnded && vodReady) || (!isEnded && dvrAvailable)) setVodPlaying(false); }}
+          onPlay={() => { if (hasEndedVod || (!isEnded && dvrAvailable)) setVodPlaying(true); }}
+          onPause={() => { if (hasEndedVod || (!isEnded && dvrAvailable)) setVodPlaying(false); }}
+          onEnded={() => { if (hasEndedVod || (!isEnded && dvrAvailable)) setVodPlaying(false); }}
           onClick={(e) => {
             if (horizontal) {
               e.stopPropagation();
-              if (isEnded && vodReady) {
+              if (hasEndedVod) {
                 toggleVodControls();
               } else if (!isEnded && dvrAvailable) {
                 toggleVodControls();
@@ -2490,23 +2513,6 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
                 Gestionar
               </button>
             )}
-            {user && post.authorId && user.uid !== post.authorId && (
-              <button
-                onClick={() => openReport({
-                  targetType: "live",
-                  targetId: post.id,
-                  targetOwnerId: post.authorId,
-                })}
-                style={{
-                  background: "none", border: "none",
-                  color: "#fff", fontSize: 11, fontWeight: 600,
-                  fontFamily: FONT, cursor: "pointer", padding: "2px 0",
-                  letterSpacing: "0.01em",
-                }}
-              >
-                Reportar live
-              </button>
-            )}
           </div>
         </div>
 
@@ -2582,7 +2588,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
             style={{ position: "relative", width: "100%", height: "100%" }}
             onClick={(e) => {
               e.stopPropagation();
-              if (isEnded && vodReady) toggleVodControls();
+              if (hasEndedVod) toggleVodControls();
               else if (!isEnded && dvrAvailable) toggleVodControls();
             }}
           >
@@ -2630,7 +2636,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
             }}
             onClick={(e) => {
               e.stopPropagation();
-              if (isEnded && vodReady) toggleVodControls();
+              if (hasEndedVod) toggleVodControls();
               else if (!isEnded && dvrAvailable) toggleVodControls();
             }}
           >
@@ -2694,7 +2700,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
             }}
             onClick={(e) => {
               e.stopPropagation();
-              if (isEnded && vodReady) toggleVodControls();
+              if (hasEndedVod) toggleVodControls();
               else if (!isEnded && dvrAvailable) toggleVodControls();
             }}
           >
@@ -2772,7 +2778,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
             className={screenIsPortrait ? "lvm-hz-inner" : undefined}
             style={screenIsPortrait ? { background: "#000" } : { position: "absolute", inset: 0 }}
             onClick={() => {
-              if (isEnded && vodReady) toggleVodControls();
+              if (hasEndedVod) toggleVodControls();
               else if (!isEnded && dvrAvailable) toggleVodControls();
             }}
           >
@@ -2827,7 +2833,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
           <div
             style={{ position: "relative", flex: 1, minHeight: 0 }}
             onClick={() => {
-              if (isEnded && vodReady) toggleVodControls();
+              if (hasEndedVod) toggleVodControls();
               else if (!isEnded && dvrAvailable) toggleVodControls();
               else if (!isEnded) setControlsVisible(v => !v);
             }}
@@ -2896,7 +2902,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
         <div
           style={{ position: "relative", width: "100%", aspectRatio: "16 / 9", background: "#000", flexShrink: 0 }}
           onClick={() => {
-            if (isEnded && vodReady) toggleVodControls();
+            if (hasEndedVod) toggleVodControls();
             else if (!isEnded && dvrAvailable) toggleVodControls();
           }}
         >
@@ -2915,7 +2921,10 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
         <div ref={belowVideoRef} style={{
           position: "relative",
           flex: 1, minHeight: 0, display: "flex", flexDirection: "column",
-          borderTop: "1px solid rgba(255,255,255,0.06)",
+          // Con el panel de donación abierto quitamos el borde de 1px: el sheet (inset:0)
+          // arranca dentro del borde y, si no, deja esa línea oscura arriba (no llega
+          // exactamente al final de la zona de grabación).
+          borderTop: liveDonateOpen ? "none" : "1px solid rgba(255,255,255,0.06)",
           overflow: "hidden",
           paddingBottom: "env(safe-area-inset-bottom)",
         }}>
