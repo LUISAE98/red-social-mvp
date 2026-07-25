@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
+import { setNavSlideDir } from "@/lib/nav-slide";
 import { approveJoinRequest, rejectJoinRequest } from "@/lib/groups/joinRequests.admin";
 import {
   AppNotification,
@@ -212,6 +213,16 @@ export default function NotificationList({
   const t = useTranslations("notifications");
   const timeAgo = useTimeAgo();
 
+  // Al tocar una notificación, el destino (post/perfil/comunidad) entra
+  // deslizando de derecha a izquierda, con el mismo sistema del nav inferior y
+  // los subnav (setNavSlideDir → el layout aplica data-nav-enter al cambiar de
+  // ruta). Se omite cuando el destino es el propio fallback /notifications, para
+  // no dejar una dirección "colgada" que animaría la siguiente navegación.
+  function handleItemClick(n: AppNotification, dest: string) {
+    if (dest !== "/notifications") setNavSlideDir("right");
+    onItemClick?.(n);
+  }
+
   if (loading) {
     return <div className="notifState">{t("loading")}</div>;
   }
@@ -253,7 +264,7 @@ export default function NotificationList({
                       <Link
                         href={{ pathname: `/groups/${jrGroupId}`, query: { requests: "1" } }}
                         className="notifViewRequests"
-                        onClick={() => onItemClick?.(n)}
+                        onClick={() => handleItemClick(n, path)}
                       >
                         {t("viewAllRequests")}
                       </Link>
@@ -267,7 +278,7 @@ export default function NotificationList({
                     <Link
                       href={{ pathname: `/groups/${jrGroupId}`, query: { requests: "1" } }}
                       className="notifViewRequests"
-                      onClick={() => onItemClick?.(n)}
+                      onClick={() => handleItemClick(n, path)}
                     >
                       {t("viewAllRequests")}
                     </Link>
@@ -275,7 +286,7 @@ export default function NotificationList({
                 ) : null}
               </div>
             ) : n.type === "invite_expired" ? (
-              <Link href={href} className="notifLink" onClick={() => onItemClick?.(n)}>
+              <Link href={href} className="notifLink" onClick={() => handleItemClick(n, path)}>
                 <Avatar n={n} />
                 <span className="notifBody">
                   <span className="notifText">
@@ -287,7 +298,7 @@ export default function NotificationList({
                 </span>
               </Link>
             ) : n.type === "kyc_update" ? (
-              <Link href={href} className="notifLink" onClick={() => onItemClick?.(n)}>
+              <Link href={href} className="notifLink" onClick={() => handleItemClick(n, path)}>
                 <KycAvatar status={n.target.action} />
                 <span className="notifBody">
                   <span className="notifText">
@@ -297,7 +308,7 @@ export default function NotificationList({
                 </span>
               </Link>
             ) : n.type === "session_event" ? (
-              <Link href={href} className="notifLink" onClick={() => onItemClick?.(n)}>
+              <Link href={href} className="notifLink" onClick={() => handleItemClick(n, path)}>
                 <Avatar n={n} />
                 <span className="notifBody">
                   <span className="notifText">
@@ -307,7 +318,7 @@ export default function NotificationList({
                 </span>
               </Link>
             ) : n.type === "group_moderation" ? (
-              <Link href={href} className="notifLink" onClick={() => onItemClick?.(n)}>
+              <Link href={href} className="notifLink" onClick={() => handleItemClick(n, path)}>
                 <Avatar n={n} />
                 <span className="notifBody">
                   <span className="notifText">
@@ -317,7 +328,7 @@ export default function NotificationList({
                 </span>
               </Link>
             ) : n.type === "live_vod_ready" && n.target.action === "self" ? (
-              <Link href={href} className="notifLink" onClick={() => onItemClick?.(n)}>
+              <Link href={href} className="notifLink" onClick={() => handleItemClick(n, path)}>
                 <Avatar n={n} />
                 <span className="notifBody">
                   <span className="notifText">{t("liveVodReadySelf")}</span>
@@ -329,7 +340,7 @@ export default function NotificationList({
                 ) : null}
               </Link>
             ) : n.type === "live_started" || n.type === "live_vod_ready" ? (
-              <Link href={href} className="notifLink" onClick={() => onItemClick?.(n)}>
+              <Link href={href} className="notifLink" onClick={() => handleItemClick(n, path)}>
                 <Avatar n={n} />
                 <span className="notifBody">
                   <span className="notifText">
@@ -346,7 +357,7 @@ export default function NotificationList({
                 ) : null}
               </Link>
             ) : n.type === "new_post" ? (
-              <Link href={href} className="notifLink" onClick={() => onItemClick?.(n)}>
+              <Link href={href} className="notifLink" onClick={() => handleItemClick(n, path)}>
                 <Avatar n={n} />
                 <span className="notifBody">
                   <span className="notifText">
@@ -370,7 +381,7 @@ export default function NotificationList({
               <Link
                 href={href}
                 className="notifLink"
-                onClick={() => onItemClick?.(n)}
+                onClick={() => handleItemClick(n, path)}
               >
                 <Avatar n={n} />
                 <span className="notifBody">

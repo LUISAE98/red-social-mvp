@@ -160,5 +160,19 @@ export async function applyApprovedPaymentToSource(
     return;
   }
 
+  if (sourceType === "liveAccess") {
+    // Ticket de en vivo: sourceId = `${liveId}_${userId}`. Materializa el doc
+    // anidado liveAccess/{liveId}/users/{userId} (status "paid" → dispara ledger).
+    const sep2 = sourceId.indexOf("_");
+    if (sep2 < 0) {
+      logger.warn("reconcile: liveAccess sourceId sin separador", { externalReference });
+      return;
+    }
+    const liveId = sourceId.slice(0, sep2);
+    const userId = sourceId.slice(sep2 + 1);
+    await materializeFromIntent(externalReference, `liveAccess/${liveId}/users`, userId, "pendingLiveAccess", meta);
+    return;
+  }
+
   logger.info("reconcile: sourceType no manejado aún", { sourceType, externalReference });
 }

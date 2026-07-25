@@ -198,6 +198,16 @@ export default function ServicePaymentModal({
     payRef.current = pay;
   }, [onPaid, pay]);
 
+  // Donación: al abrir, enfoca el input del monto (cursor listo; en móvil abre el
+  // teclado). Se dispara al terminar la animación de entrada.
+  const amountInputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (open && entered && amountEditable && !showSuccess) {
+      const t = window.setTimeout(() => amountInputRef.current?.focus(), 80);
+      return () => window.clearTimeout(t);
+    }
+  }, [open, entered, amountEditable, showSuccess]);
+
   useEffect(() => {
     setMounted(true);
     const check = () => setIsNarrow(window.innerWidth <= 720);
@@ -881,9 +891,10 @@ export default function ServicePaymentModal({
 
   // Cobro real = MXN; moneda local = referencia (≈). Solo se muestra el
   // aproximado + aviso cuando la moneda del comprador NO es MXN.
-  // Monto efectivo: en modo donación es el elegido por el comprador.
+  // Monto efectivo: en modo donación es el elegido por el comprador (ya en MXN).
   const effectiveAmount = amountEditable ? chosenAmount : amount;
-  const showApprox = effectiveAmount != null && effectiveAmount > 0 && pf.currency !== "MXN";
+  const isNonMxn = pf.currency !== "MXN";
+  const showApprox = effectiveAmount != null && effectiveAmount > 0 && isNonMxn;
   // `formatCurrency` de Vibra solo pone el símbolo (no el código ISO). Aquí, al
   // mostrar dos monedas juntas, pegamos el código a mano para que quede claro
   // cuál es cuál (el "$" lo comparten MXN, USD, ARS…).
@@ -980,51 +991,65 @@ export default function ServicePaymentModal({
         <div style={{ display: "grid", gap: 10, marginTop: 2 }}>
           <div style={{ height: 1, background: "#e6e8ec" }} />
           <p style={{ margin: 0, fontSize: 12.5, color: "#5b616e", lineHeight: 1.5 }}>{description}</p>
+          {amountEditable && isNonMxn && (
+            // Cobro real en MXN, convertido en tiempo real desde el monto que escribe.
+            <p style={{ margin: 0, fontSize: 12.5, color: "#6b7280", textAlign: "center", fontWeight: 600 }}>
+              Tu banco cobrará{" "}
+              <span style={{ color: "#3a3f4a", fontWeight: 700 }}>
+                {pf.formatAnchor(chosenAmount ?? 0)} MXN
+              </span>
+            </p>
+          )}
         </div>
       ) : null}
 
       {amountEditable ? (
         <>
           <div style={{ height: 1, background: "#e6e8ec" }} />
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-            <span style={{ fontSize: 13, color: "#6b7280", fontWeight: 600 }}>Total a pagar</span>
-            <span style={{ display: "inline-flex", alignItems: "baseline", gap: 3 }}>
-              <span style={{ fontSize: 17, fontWeight: 600, color: "#3a3f4a" }}>$</span>
+          <div style={{ display: "grid", gap: 6, justifyItems: "center", marginTop: 2 }}>
+            <span style={{ fontSize: 12.5, color: "#6b7280", fontWeight: 600 }}>
+              {isNonMxn ? "Aproximado total" : "Total a pagar"}
+            </span>
+            <div style={{ display: "flex", alignItems: "baseline", justifyContent: "center", gap: 4 }}>
+              <span style={{ fontSize: 22, fontWeight: 700, color: "#3a3f4a" }}>$</span>
               <input
+                ref={amountInputRef}
+                autoFocus
                 type="number"
                 inputMode="decimal"
                 min={1}
+                className="vibra-amount-input"
                 value={customAmount}
                 onChange={(e) => {
                   const v = e.target.value;
                   setCustomAmount(v);
                   const n = Math.floor(Number(v));
-                  setChosenAmount(Number.isFinite(n) && n > 0 ? n : null);
+                  if (Number.isFinite(n) && n > 0) {
+                    // Escribe en su moneda → convertimos a MXN (lo que se cobra).
+                    const mxn = isNonMxn ? pf.toAnchor(n) : n;
+                    setChosenAmount(mxn != null ? Math.round(mxn) : null);
+                  } else {
+                    setChosenAmount(null);
+                  }
                 }}
                 placeholder="0"
                 style={{
-                  width: 90,
+                  width: 120,
                   border: "none",
-                  borderBottom: `1.5px solid ${MP_BLUE}`,
+                  borderBottom: "1px solid #eceef1",
                   background: "transparent",
-                  fontSize: 17,
-                  fontWeight: 600,
+                  fontSize: 22,
+                  fontWeight: 700,
                   color: "#3a3f4a",
-                  textAlign: "right",
+                  textAlign: "center",
                   outline: "none",
                   fontFamily: "inherit",
-                  padding: "0 2px 3px",
+                  padding: "0 2px 4px",
                 }}
               />
-              <span style={{ fontSize: 12, color: "#9aa0a8", fontWeight: 600 }}>MXN</span>
-            </span>
-          </div>
-          {showApprox && (
-            <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between" }}>
-              <span style={{ fontSize: 12, color: "#9aa0a8" }}>Aproximado en tu moneda</span>
-              <span style={{ fontSize: 13, color: "#6b7280", fontWeight: 600 }}>{localApprox}</span>
+              <span style={{ fontSize: 13, color: "#9aa0a8", fontWeight: 600 }}>{pf.currency}</span>
             </div>
-          )}
+          </div>
         </>
       ) : showApprox ? (
         <>
@@ -1126,7 +1151,7 @@ export default function ServicePaymentModal({
         </span>
       </div>
 
-      {showApprox && (
+      {(showApprox || (amountEditable && isNonMxn)) && (
         <p
           style={{
             margin: 0,
@@ -1316,6 +1341,10 @@ export default function ServicePaymentModal({
       0% { transform: scaleX(0); }
       100% { transform: scaleX(1); }
     }
+    /* Input de monto (donación): sin flechitas de subir/bajar. */
+    .vibra-amount-input::-webkit-outer-spin-button,
+    .vibra-amount-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    .vibra-amount-input { -moz-appearance: textfield; appearance: textfield; }
   `;
 
   return createPortal(

@@ -46,7 +46,7 @@ function desktopPanelSize() {
 export default function DonationFeedBanner({
   message, playbackId, creatorName, profilePhoto, profileHandle,
   donationMode, goalLabel,
-  expanded, onClose, onDonate, onClick,
+  expanded, onClose,
   currency,
   creatorId, buyerId, viewerIsCreator,
 }: Props) {
@@ -579,8 +579,8 @@ export default function DonationFeedBanner({
         <div className="dbv-landscape-wrap">
           <div
             className="dbv-container"
-            onClick={onClick}
-            style={{ position: "relative", width: "100%", borderRadius: 16, overflow: "hidden", backgroundColor: "#0a0a0a", backgroundImage: "url(/donacion-perfil-vertical.webp)", backgroundSize: "cover", backgroundPosition: "center", cursor: onClick ? "pointer" : "default", WebkitTapHighlightColor: "transparent" }}
+            onClick={handleContributeClick}
+            style={{ position: "relative", width: "100%", borderRadius: 16, overflow: "hidden", backgroundColor: "#0a0a0a", backgroundImage: "url(/donacion-perfil-vertical.webp)", backgroundSize: "cover", backgroundPosition: "center", cursor: "pointer", WebkitTapHighlightColor: "transparent" }}
           >
             <div style={{ position: "absolute", inset: 0, background: "rgba(10,10,10,0.68)" }} />
             <div style={{ position: "relative", zIndex: 1, display: "flex", flexDirection: "column", alignItems: "center", padding: "22px 18px 18px", gap: 10 }}>
@@ -620,8 +620,8 @@ export default function DonationFeedBanner({
         /* ── PORTRAIT card: fixed aspect ratio, video top-right ── */
         <div
           className="dbv-container"
-          onClick={onClick}
-          style={{ position: "relative", width: "100%", borderRadius: 16, overflow: "hidden", background: "#0a0a0a", cursor: onClick ? "pointer" : "default", aspectRatio: "16 / 8", WebkitTapHighlightColor: "transparent" }}
+          onClick={handleContributeClick}
+          style={{ position: "relative", width: "100%", borderRadius: 16, overflow: "hidden", background: "#0a0a0a", cursor: "pointer", aspectRatio: "16 / 8", WebkitTapHighlightColor: "transparent" }}
         >
           <Image src="/donacion-perfil.webp" alt={tCommon("donation")} fill sizes="(max-width: 720px) 100vw, 720px" style={{ objectFit: "cover", objectPosition: "center" }} priority />
           <div style={{ position: "absolute", inset: 0, background: "rgba(10,10,10,0.68)" }} />
@@ -666,8 +666,8 @@ export default function DonationFeedBanner({
         <div className="dbv-landscape-wrap">
         <div
           className="dbv-container"
-          onClick={onClick}
-          style={{ position: "relative", width: "100%", borderRadius: 16, overflow: "hidden", backgroundColor: "#0a0a0a", backgroundImage: "url(/donacion-perfil-vertical.webp)", backgroundSize: "cover", backgroundPosition: "center", cursor: onClick ? "pointer" : "default", WebkitTapHighlightColor: "transparent" }}
+          onClick={handleContributeClick}
+          style={{ position: "relative", width: "100%", borderRadius: 16, overflow: "hidden", backgroundColor: "#0a0a0a", backgroundImage: "url(/donacion-perfil-vertical.webp)", backgroundSize: "cover", backgroundPosition: "center", cursor: "pointer", WebkitTapHighlightColor: "transparent" }}
         >
           <div style={{ position: "absolute", inset: 0, background: "rgba(10,10,10,0.68)" }} />
 

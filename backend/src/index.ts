@@ -288,6 +288,9 @@ export { payPremiumPost } from "./payments/premiumPostPayment";
 // Pagos — donación / contribución a un perfil (pagar-luego-crear).
 export { payProfileDonation } from "./payments/profileDonationPayment";
 
+// Pagos — ticket de acceso a un en vivo (pagar-luego-conceder acceso).
+export { payLiveAccess } from "./payments/liveAccessPayment";
+
 // Backfill de búsqueda de historias (corrida única, protegida por secret)
 export { backfillStoriesSearch } from "./storiesBackfill";
 

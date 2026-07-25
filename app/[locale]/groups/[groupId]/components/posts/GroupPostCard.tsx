@@ -5,6 +5,7 @@
 import Image from "next/image";
 import Hls from "hls.js";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   useCallback,
   useEffect,
@@ -31,6 +32,8 @@ import GroupPostComposer, { type GroupPostComposerSubmitPayload } from "./GroupP
 import PostImageViewer from "./PostImageViewer";
 import ServicePaymentModal from "@/components/payments/ServicePaymentModal";
 import { payPremiumPost } from "@/lib/payments/payPremiumPost";
+import { payLiveAccess } from "@/lib/payments/payLiveAccess";
+import { registrarCompraGeo } from "@/lib/wallet/registrarCompraGeo";
 import PremiumVideoTeaser from "./PremiumVideoTeaser";
 import { VideoPlayIcon } from "@/app/components/VibraServiceIcons/VibraVideoIcons";
 import { usePostTempUnlock } from "@/lib/posts/usePostTempUnlock";
@@ -227,6 +230,7 @@ onToggleProfilePin,
   const tPosts = useTranslations("posts");
   const locale = useLocale();
   const priceFmt = usePriceFormat();
+  const router = useRouter();
 
   const [comments, setComments] = useState<Comment[] | null>(null);
   const [commentsPanelOpen, setCommentsPanelOpen] = useState(false);
@@ -279,6 +283,9 @@ onToggleProfilePin,
   const [liveCreatorOpen, setLiveCreatorOpen] = useState(false);
   const [liveTicketShake, setLiveTicketShake] = useState(false);
   const [hasLiveTicketAccess, setHasLiveTicketAccess] = useState(false);
+  // Pasarela de pago del ticket de en vivo (mismo patrón que premium/VOD).
+  const [livePayOpen, setLivePayOpen] = useState(false);
+  const livePaidRef = useRef(false);
 
   useEffect(() => {
     if (!post.requiresPayment || !currentUserId) return;
@@ -2329,7 +2336,7 @@ const shouldClampFeedPostText =
             photoURL={postAuthor.avatarUrl}
             displayName={postAuthor.authorName}
             size={38}
-            onClick={() => { window.location.href = postAuthor.profileHref; }}
+            onClick={() => { router.push(postAuthor.profileHref); }}
           />
 
           <div style={{ minWidth: 0, flex: 1, paddingTop: 3 }}>
@@ -3063,7 +3070,7 @@ style={{
               ticketPrice={post.oneTimePrice ?? activeLiveData?.ticketPrice ?? null}
               currency={post.currency ?? activeLiveData?.currency ?? null}
               isAuthor={isOwnPost || isOwner}
-              onBuyTicket={() => setLiveViewerOpen(true)}
+              onBuyTicket={() => { livePaidRef.current = false; setLivePayOpen(true); }}
               overlay
               highlighted={liveTicketShake}
               paid={hasLiveTicketAccess}
@@ -4212,6 +4219,33 @@ padding: "0 0 2px 0",
   onClose={() => {
     setPaymentPanelOpen(false);
     if (onViewerClosed) window.setTimeout(() => onViewerClosed(), 200);
+  }}
+/>
+<ServicePaymentModal
+  open={livePayOpen}
+  amount={post.oneTimePrice ?? activeLiveData?.ticketPrice ?? null}
+  pay={(c) => payLiveAccess({ postId: post.id, ...c })}
+  productType={tPosts("liveTicketProductType")}
+  providerName={postAuthor.authorName}
+  avatarUrl={postAuthor.avatarUrl}
+  description={tPosts("liveTicketPayDescription")}
+  successMessage={tPosts("liveTicketPaySuccess")}
+  onPaid={() => {
+    // El acceso lo concede el backend al aprobar; registramos la geo y marcamos
+    // que pagó para abrir el visor al cerrar la pantalla de éxito.
+    livePaidRef.current = true;
+    registrarCompraGeo({
+      creatorId: post.authorId,
+      serviceType: "live_access",
+      grossAmount: post.oneTimePrice ?? activeLiveData?.ticketPrice ?? undefined,
+    });
+  }}
+  onClose={() => {
+    setLivePayOpen(false);
+    if (livePaidRef.current) {
+      livePaidRef.current = false;
+      setLiveViewerOpen(true);
+    }
   }}
 />
 {editModalOpen && (
