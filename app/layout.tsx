@@ -41,6 +41,12 @@ export const viewport: Viewport = {
   maximumScale: 1,
   userScalable: false,
   viewportFit: "cover",
+  // Al abrir el teclado, encoge el viewport de LAYOUT (no solo el visual). Así los
+  // paneles/pestañas `position: fixed; bottom: 0` (bottom sheets, overlays) quedan
+  // anclados justo arriba del teclado y cubren toda la pantalla, sin dejar el hueco
+  // en la franja de sugerencias donde se veía el feed de fondo. Soportado en
+  // Chrome/Android y Safari/iOS modernos.
+  interactiveWidget: "resizes-content",
   colorScheme: "dark",
   themeColor: [
     { media: "(prefers-color-scheme: dark)", color: "#000000" },
