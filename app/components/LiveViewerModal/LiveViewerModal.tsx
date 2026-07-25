@@ -322,6 +322,13 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
   const [liked, setLiked] = useState<boolean>(post.viewerHasFlamed === true);
   const [likesCount, setLikesCount] = useState<number>(post.counts?.likes ?? 0);
   const flameBusyRef = useRef(false);
+  // Sincroniza el estado optimista del like con el post. DEBE ir aquí, con los demás
+  // hooks y ANTES de cualquier `return` temprano (p. ej. el de línea ~1067), o React
+  // detecta un cambio en el orden de hooks y truena el modal al abrir el live.
+  useEffect(() => {
+    setLiked(post.viewerHasFlamed === true);
+    setLikesCount(post.counts?.likes ?? 0);
+  }, [post.viewerHasFlamed, post.counts?.likes]);
   const [controlsVisible, setControlsVisible] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [mobileFsHorizontal, setMobileFsHorizontal] = useState(false);
@@ -2375,12 +2382,6 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
       onClose={() => setLiveDonateOpen(false)}
     />
   );
-
-  // Sincroniza el estado optimista del like con el post (por si llega una actualización externa)
-  useEffect(() => {
-    setLiked(post.viewerHasFlamed === true);
-    setLikesCount(post.counts?.likes ?? 0);
-  }, [post.viewerHasFlamed, post.counts?.likes]);
 
   async function handleToggleLike() {
     if (flameBusyRef.current) return;

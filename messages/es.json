@@ -597,6 +597,7 @@
     "public": "Público",
     "restricted": "Restringido",
     "sharesCommunity": "Comunidad compartida",
+    "sharesCommunities": "{count} comunidades compartidas",
     "sharedCommunitiesBadgeAriaLabel": "Ver comunidades compartidas",
     "sharedCommunitiesLabel": "Comunidades en común",
     "sharedCommunitiesTitle": "Comunidades compartidas",
