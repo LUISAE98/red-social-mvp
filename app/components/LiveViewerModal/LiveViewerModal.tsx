@@ -27,6 +27,8 @@ import { useSocialRelationship } from "@/lib/social/useSocialRelationship";
 import { useReport } from "@/lib/moderation/useReport";
 import ReportModal from "@/app/components/ReportModal/ReportModal";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
+import ServicePaymentModal from "@/components/payments/ServicePaymentModal";
+import { payLiveDonation } from "@/lib/payments/payLiveDonation";
 
 const FONT =
   'inherit';
@@ -346,6 +348,10 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
   const [hzControlsVisible, setHzControlsVisible] = useState(false);
   const [videoPaused, setVideoPaused] = useState(false);
   const [donationOpen, setDonationOpen] = useState(false);
+  // Gateway MP real de donación en vivo (caso 1: móvil-horizontal, usuario autenticado).
+  const [liveDonateOpen, setLiveDonateOpen] = useState(false);
+  const belowVideoRef = useRef<HTMLDivElement>(null);
+  const liveDonatePaidAmountRef = useRef<number | null>(null);
 
   // ── VOD playback controls ──────────────────────────────────────────────────
   const [vodCurrentTime, setVodCurrentTime] = useState(0);
@@ -2337,6 +2343,39 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
     )
   ) : null;
 
+  // Gateway MP real de donación en vivo (pago real → super-comentario al aprobar →
+  // earning live_donation + mensaje destacado en el chat). Se presenta como panel
+  // contenido que se desliza dentro del área BAJO el video (caso 1). Se renderiza
+  // siempre (open controla la visibilidad) para animar la salida.
+  const liveDonationName = post.authorName ?? post.authorUsername ?? tCommon("donation");
+  const liveDonationSheet = (
+    <ServicePaymentModal
+      open={liveDonateOpen}
+      presentation="sheet"
+      container={belowVideoRef.current}
+      amount={1}
+      amountEditable
+      pay={(c, amt) => {
+        liveDonatePaidAmountRef.current = amt ?? null;
+        return payLiveDonation({ postId: post.id, amount: amt ?? 0, currency: "MXN", ...c });
+      }}
+      productType={tCommon("payDonationProductType")}
+      providerName={post.authorName ?? post.authorUsername ?? undefined}
+      avatarUrl={post.authorAvatarUrl ?? null}
+      payerEmail={user?.email ?? undefined}
+      description={tCommon("payDonationDescription", { name: liveDonationName })}
+      successMessage={tCommon("payDonationSuccess", { name: liveDonationName })}
+      onPaid={() => {
+        registrarCompraGeo({
+          creatorId: post.authorId,
+          serviceType: "live_donation",
+          grossAmount: liveDonatePaidAmountRef.current ?? undefined,
+        });
+      }}
+      onClose={() => setLiveDonateOpen(false)}
+    />
+  );
+
   // Sincroniza el estado optimista del like con el post (por si llega una actualización externa)
   useEffect(() => {
     setLiked(post.viewerHasFlamed === true);
@@ -2871,8 +2910,9 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
           {renderViewerBadge("bottom-left", badgeLift, 0, true)}
         </div>
 
-        {/* Panel: creator info + chat */}
-        <div style={{
+        {/* Panel: creator info + chat (contenedor del sheet de donación — caso 1) */}
+        <div ref={belowVideoRef} style={{
+          position: "relative",
           flex: 1, minHeight: 0, display: "flex", flexDirection: "column",
           borderTop: "1px solid rgba(255,255,255,0.06)",
           overflow: "hidden",
@@ -2880,11 +2920,12 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
         }}>
           {renderCreatorInfo()}
           <div style={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
-            <LiveChatViewer liveId={post.id} authorId={post.authorId} chatEnabled={chatEnabled} liveEnded={isEnded} isMuted={isMuted} mode="panel" broadcastMode={liveData?.broadcastMode} superCommentConfig={liveData?.superCommentConfig} onDonate={!isEnded && (!user || post.authorId !== user.uid) ? () => setDonationOpen(true) : undefined} />
+            <LiveChatViewer liveId={post.id} authorId={post.authorId} chatEnabled={chatEnabled} liveEnded={isEnded} isMuted={isMuted} mode="panel" broadcastMode={liveData?.broadcastMode} superCommentConfig={liveData?.superCommentConfig} onDonate={!isEnded && (!user || post.authorId !== user.uid) ? () => { if (user) setLiveDonateOpen(true); else setDonationOpen(true); } : undefined} />
           </div>
         </div>
       </div>
       {donationPanel}
+      {liveDonationSheet}
       {reportTarget && <ReportModal target={reportTarget} onClose={closeReport} />}
     </>,
     document.body

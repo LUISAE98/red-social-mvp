@@ -74,6 +74,8 @@ const ID_SAVED_CVV = "vibra-mp-saved-cvv";
 
 const MP_BLUE = "#009ee3";
 const MP_GREEN = "#00a650";
+// Montos sugeridos de donación: anclas en MXN; se muestran/convierten a la moneda del usuario.
+const DONATION_PRESETS_MXN = [30, 70, 140, 240];
 
 // Placeholder sutil (mismo gris del panel), como el campo de mensaje al creador.
 // backgroundColor transparente: el iframe de MP trae fondo blanco por defecto;
@@ -107,6 +109,11 @@ type Props = {
   /** Duración en minutos (servicios agendados: sesión exclusiva / tiempo contigo). */
   durationMinutes?: number | null;
   locale?: string;
+  /** Presentación: "dialog" (default, diálogo centrado a pantalla completa) o
+   *  "sheet" (panel contenido que se desliza desde abajo dentro de `container`). */
+  presentation?: "dialog" | "sheet";
+  /** Contenedor del portal en modo "sheet". Si se omite, usa document.body. */
+  container?: HTMLElement | null;
   onClose: () => void;
   onPaid: () => void;
 };
@@ -125,9 +132,12 @@ export default function ServicePaymentModal({
   successMessage,
   durationMinutes,
   locale = "es-MX",
+  presentation = "dialog",
+  container,
   onClose,
   onPaid,
 }: Props) {
+  const isSheet = presentation === "sheet";
   const [mounted, setMounted] = useState(false);
   const [loading, setLoading] = useState(true);
   const [sdkReady, setSdkReady] = useState(false);
@@ -139,6 +149,8 @@ export default function ServicePaymentModal({
   // Modo donación: monto elegido por el comprador dentro del panel.
   const [chosenAmount, setChosenAmount] = useState<number | null>(null);
   const [customAmount, setCustomAmount] = useState("");
+  // Preset de donación elegido (monto MXN), o null si el usuario escribió un monto libre.
+  const [selectedPreset, setSelectedPreset] = useState<number | null>(null);
   const [cardName, setCardName] = useState("");
   // Guardar tarjeta para futuras compras (activo por defecto). El guardado real
   // se conecta en el Bloque 3 (MP Customers & Cards).
@@ -240,9 +252,10 @@ export default function ServicePaymentModal({
     return () => window.clearTimeout(t);
   }, [open]);
 
-  // Bloquea el scroll del fondo mientras el panel está abierto.
+  // Bloquea el scroll del fondo mientras el panel está abierto. En modo "sheet"
+  // el panel vive dentro de otro modal (que ya maneja su scroll) → no lo tocamos.
   useEffect(() => {
-    if (!open) return;
+    if (!open || isSheet) return;
     const prevBody = document.body.style.overflow;
     const prevHtml = document.documentElement.style.overflow;
     document.body.style.overflow = "hidden";
@@ -251,7 +264,7 @@ export default function ServicePaymentModal({
       document.body.style.overflow = prevBody;
       document.documentElement.style.overflow = prevHtml;
     };
-  }, [open]);
+  }, [open, isSheet]);
 
   // Carga el perfil del comprador (nombre + avatar) para el saludo.
   useEffect(() => {
@@ -337,6 +350,7 @@ export default function ServicePaymentModal({
     // el monto viene fijo por prop.
     setChosenAmount(amountEditable ? null : amount ?? null);
     setCustomAmount("");
+    setSelectedPreset(null);
     paymentMethodIdRef.current = null;
 
     (async () => {
@@ -1046,9 +1060,29 @@ export default function ServicePaymentModal({
       {amountEditable ? (
         <>
           <div style={{ height: 1, background: "#e6e8ec" }} />
+          {/* 4 montos sugeridos (anclas MXN → moneda del usuario). Al elegir uno se pone en "Otro monto". */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
+            {DONATION_PRESETS_MXN.map((mxn) => {
+              const selected = selectedPreset === mxn;
+              return (
+                <button
+                  key={mxn}
+                  type="button"
+                  onClick={() => {
+                    setSelectedPreset(mxn);
+                    setChosenAmount(mxn);
+                    setCustomAmount(String(Math.round(pf.toDisplayForInput(mxn, "MXN"))));
+                  }}
+                  style={{ padding: "9px 2px", borderRadius: 10, border: "none", background: selected ? "#eaf6fd" : "transparent", color: selected ? MP_BLUE : "#3a3f4a", fontSize: 12.5, fontWeight: 600, fontFamily: "inherit", cursor: "pointer", whiteSpace: "nowrap" }}
+                >
+                  {pf.format(mxn, { code: true })}
+                </button>
+              );
+            })}
+          </div>
           <div style={{ display: "grid", gap: 6, justifyItems: "center", marginTop: 2 }}>
             <span style={{ fontSize: 12.5, color: "#6b7280", fontWeight: 600 }}>
-              {isNonMxn ? "Aproximado total" : "Total a pagar"}
+              Otro monto
             </span>
             <div style={{ display: "flex", alignItems: "baseline", justifyContent: "center", gap: 4 }}>
               <span style={{ fontSize: 22, fontWeight: 700, color: "#3a3f4a" }}>$</span>
@@ -1063,6 +1097,7 @@ export default function ServicePaymentModal({
                 onChange={(e) => {
                   const v = e.target.value;
                   setCustomAmount(v);
+                  setSelectedPreset(null);
                   const n = Math.floor(Number(v));
                   if (Number.isFinite(n) && n > 0) {
                     // Escribe en su moneda → convertimos a MXN (lo que se cobra).
@@ -1394,36 +1429,64 @@ export default function ServicePaymentModal({
       onMouseDown={(e) => {
         if (e.target === e.currentTarget && !submitting) onClose();
       }}
-      style={{
-        position: "fixed",
-        inset: 0,
-        zIndex: 2147483647,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: 20,
-        background: "rgba(0,0,0,0.55)",
-        opacity: entered ? 1 : 0,
-        transition: "opacity 220ms ease",
-        willChange: "opacity",
-      }}
+      style={
+        isSheet
+          ? {
+              // Panel contenido: llena el contenedor (que debe ser position:relative)
+              // y se desliza desde abajo, sin backdrop oscuro (cubre todo el área).
+              position: "absolute",
+              inset: 0,
+              zIndex: 60,
+              display: "flex",
+              alignItems: "stretch",
+              justifyContent: "stretch",
+              background: "transparent",
+            }
+          : {
+              position: "fixed",
+              inset: 0,
+              zIndex: 2147483647,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: 20,
+              background: "rgba(0,0,0,0.55)",
+              opacity: entered ? 1 : 0,
+              transition: "opacity 220ms ease",
+              willChange: "opacity",
+            }
+      }
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        style={{
-          position: "relative",
-          width: isNarrow ? "min(100%, 440px)" : "min(100%, 660px)",
-          maxHeight: "92vh",
-          overflowY: "auto",
-          background: "#fff",
-          borderRadius: 16,
-          boxShadow: "0 24px 72px rgba(0,0,0,0.4)",
-          color: "#3a3f4a",
-          opacity: entered ? 1 : 0,
-          transform: entered ? "translateY(0) scale(1)" : "translateY(10px) scale(0.985)",
-          transition: "opacity 220ms ease, transform 240ms cubic-bezier(0.2, 0.8, 0.2, 1)",
-          willChange: "opacity, transform",
-        }}
+        style={
+          isSheet
+            ? {
+                position: "relative",
+                width: "100%",
+                height: "100%",
+                overflowY: "auto",
+                background: "#fff",
+                color: "#3a3f4a",
+                transform: entered ? "translateY(0)" : "translateY(100%)",
+                transition: "transform 240ms cubic-bezier(0.2, 0.8, 0.2, 1)",
+                willChange: "transform",
+              }
+            : {
+                position: "relative",
+                width: isNarrow ? "min(100%, 440px)" : "min(100%, 660px)",
+                maxHeight: "92vh",
+                overflowY: "auto",
+                background: "#fff",
+                borderRadius: 16,
+                boxShadow: "0 24px 72px rgba(0,0,0,0.4)",
+                color: "#3a3f4a",
+                opacity: entered ? 1 : 0,
+                transform: entered ? "translateY(0) scale(1)" : "translateY(10px) scale(0.985)",
+                transition: "opacity 220ms ease, transform 240ms cubic-bezier(0.2, 0.8, 0.2, 1)",
+                willChange: "opacity, transform",
+              }
+        }
       >
         <style>{successKeyframes}</style>
         {showSuccess ? (
@@ -1444,6 +1507,6 @@ export default function ServicePaymentModal({
         )}
       </div>
     </div>,
-    document.body
+    (isSheet ? container : null) ?? document.body
   );
 }

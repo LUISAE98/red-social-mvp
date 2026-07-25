@@ -290,6 +290,7 @@ export { payProfileDonation } from "./payments/profileDonationPayment";
 
 // Pagos — ticket de acceso a un en vivo (pagar-luego-conceder acceso).
 export { payLiveAccess } from "./payments/liveAccessPayment";
+export { payLiveDonation } from "./payments/liveDonationPayment";
 
 // Backfill de búsqueda de historias (corrida única, protegida por secret)
 export { backfillStoriesSearch } from "./storiesBackfill";

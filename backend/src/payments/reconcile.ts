@@ -174,5 +174,20 @@ export async function applyApprovedPaymentToSource(
     return;
   }
 
+  if (sourceType === "liveDonation") {
+    // Donación en vivo: sourceId = `${postId}_${donationId}`. Materializa el super-
+    // comentario posts/{postId}/superComments/{donationId} (status "paid" → dispara
+    // onSuperCommentLedger con earning live_donation, y lo muestra en el chat del live).
+    const sep2 = sourceId.indexOf("_");
+    if (sep2 < 0) {
+      logger.warn("reconcile: liveDonation sourceId sin separador", { externalReference });
+      return;
+    }
+    const postId = sourceId.slice(0, sep2);
+    const donationId = sourceId.slice(sep2 + 1);
+    await materializeFromIntent(externalReference, `posts/${postId}/superComments`, donationId, "pendingLiveDonation", meta);
+    return;
+  }
+
   logger.info("reconcile: sourceType no manejado aún", { sourceType, externalReference });
 }
