@@ -2062,7 +2062,12 @@
   "notifications": {
     "placeholder": "Notifications will appear here",
     "title": "Notifications",
+    "tabs": {
+      "experiences": "Experiences",
+      "social": "Social"
+    },
     "empty": "You have no notifications yet",
+    "emptyExperiences": "You have no experience notifications yet",
     "loading": "Loading…",
     "markAllRead": "Mark all as read",
     "viewAll": "View all",

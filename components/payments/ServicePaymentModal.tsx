@@ -159,6 +159,8 @@ export default function ServicePaymentModal({
     cvv: false,
     savedCvv: false,
   });
+  // Si un cobro de tarjeta guardada SIN CVV falla (rechazo/3DS), forzamos re-pedirlo.
+  const [forceSavedCvv, setForceSavedCvv] = useState(false);
   const [isNarrow, setIsNarrow] = useState(false);
   const [buyer, setBuyer] = useState<{ name: string; photo: string | null } | null>(null);
   // Animación de entrada/salida (no de golpe).
@@ -173,9 +175,19 @@ export default function ServicePaymentModal({
     ? selectedMethod.slice(6)
     : null;
 
+  // Monto efectivo en MXN (lo que se cobra): en donación es el elegido; si no, el fijo.
+  const mxnAmount = amountEditable ? chosenAmount : (amount ?? null);
+  // Un clic sin CVV para tarjeta guardada hasta este umbral (MXN). Arriba del umbral
+  // —o si un intento sin CVV falló (forceSavedCvv)— se vuelve a pedir el CVV.
+  const CVV_LESS_MAX_MXN = 800;
+  const savedCvvRequired = forceSavedCvv || mxnAmount == null || mxnAmount > CVV_LESS_MAX_MXN;
+  // Solo dispara re-montaje de campos cuando hay tarjeta guardada seleccionada, para
+  // NO remontar (y borrar) los campos de tarjeta nueva al cambiar el monto de donación.
+  const savedCvvMount = !!savedCardId && savedCvvRequired;
+
   // El botón "Pagar" se habilita solo con los datos completos y válidos:
   //   · Tarjeta nueva  → número + vencimiento + CVV válidos + nombre escrito.
-  //   · Tarjeta guardada → solo el CVV válido.
+  //   · Tarjeta guardada → un clic si el monto ≤ umbral; si no, el CVV re-capturado.
   // En modo donación el monto elegido debe ser válido para poder pagar.
   const amountOk = !amountEditable || (chosenAmount != null && chosenAmount > 0);
   const canPay =
@@ -183,7 +195,7 @@ export default function ServicePaymentModal({
     (isNewCard
       ? cardValid.number && cardValid.exp && cardValid.cvv && cardName.trim().length > 0
       : savedCardId
-        ? cardValid.savedCvv
+        ? (savedCvvRequired ? cardValid.savedCvv : true)
         : false);
 
   const mpRef = useRef<MpInstance | null>(null);
@@ -318,6 +330,7 @@ export default function ServicePaymentModal({
     setSdkReady(false);
     setSelectedMethod(null);
     setCardBrandThumb(null);
+    setForceSavedCvv(false);
     setPaid(false);
     setShowSuccess(false);
     // En donación arranca vacío (placeholder listo para escribir); en el resto,
@@ -354,7 +367,8 @@ export default function ServicePaymentModal({
 
   // (B) Monta los Secure Fields del método seleccionado:
   //   · Tarjeta nueva  → número + vencimiento + CVV.
-  //   · Tarjeta guardada → SOLO el CVV (MP exige re-capturarlo).
+  //   · Tarjeta guardada → CVV SOLO si el monto supera el umbral (o tras un fallo);
+  //     hasta el umbral se paga de un clic sin montar CVV.
   useEffect(() => {
     if (!open || !sdkReady || (!isNewCard && !savedCardId)) return;
     const mp = mpRef.current;
@@ -410,8 +424,8 @@ export default function ServicePaymentModal({
         expField.mount(ID_EXP);
         cvvField.mount(ID_CVV);
         localFields = [numberField, expField, cvvField];
-      } else {
-        // Tarjeta guardada: solo el CVV.
+      } else if (savedCvvMount) {
+        // Tarjeta guardada arriba del umbral (o tras un intento sin CVV fallido): re-pedir CVV.
         const cvvField = mp.fields.create("securityCode", {
           placeholder: "CVV",
           style: FIELD_STYLE,
@@ -436,7 +450,7 @@ export default function ServicePaymentModal({
       }
       if (fieldsRef.current === localFields) fieldsRef.current = [];
     };
-  }, [open, sdkReady, isNewCard, savedCardId]);
+  }, [open, sdkReady, isNewCard, savedCardId, savedCvvMount]);
 
   // (B.2) Al CERRAR (selectedMethod → null) mantiene el cuerpo del acordeón
   // montado ~320ms, para que la animación de altura (0fr) tenga contenido y no
@@ -453,6 +467,8 @@ export default function ServicePaymentModal({
   function toggleMethod(id: string) {
     setSelectedMethod((prev) => (prev === id ? null : id));
     setError(null);
+    // Al cambiar de método, un nuevo intento arranca como un-clic (sin CVV forzado).
+    setForceSavedCvv(false);
   }
 
   async function handlePay() {
@@ -470,9 +486,24 @@ export default function ServicePaymentModal({
       let card: PaymentCardData;
 
       if (savedCardId) {
-        // Tarjeta guardada: token a partir del cardId + CVV re-capturado.
-        const token = await mp.fields.createCardToken({ cardId: savedCardId });
-        if (!token?.id) throw new Error("no_cvv");
+        // Tarjeta guardada: token desde el cardId. Con monto ≤ umbral va SIN CVV
+        // (un clic); arriba del umbral el SDK lee el CVV re-capturado.
+        let token: { id?: string } | null = null;
+        try {
+          token = await mp.fields.createCardToken({ cardId: savedCardId });
+        } catch {
+          token = null;
+        }
+        if (!token?.id) {
+          // Sin CVV no se pudo tokenizar → pedimos CVV y que reintente.
+          if (!savedCvvRequired) {
+            setForceSavedCvv(true);
+            setError("Confirma tu compra escribiendo el CVV de tu tarjeta.");
+            setSubmitting(false);
+            return;
+          }
+          throw new Error("no_cvv");
+        }
         card = {
           token: token.id,
           savedCardId,
@@ -519,6 +550,13 @@ export default function ServicePaymentModal({
         } else {
           onPaidRef.current(); // flujo legacy: el caller cierra el panel.
         }
+        return;
+      }
+      // Rechazado: si fue un clic sin CVV, MP pudo exigirlo (o 3DS). Pedimos CVV y reintento.
+      if (savedCardId && !savedCvvRequired) {
+        setForceSavedCvv(true);
+        setError("No pudimos procesar el pago. Confirma con el CVV de tu tarjeta e intenta de nuevo.");
+        setSubmitting(false);
         return;
       }
       throw new Error("rejected");
@@ -780,10 +818,12 @@ export default function ServicePaymentModal({
           <div
             style={{ overflow: "hidden", opacity: active ? 1 : 0, transition: "opacity 260ms ease" }}
           >
-            <div style={{ display: "grid", gap: 6, padding: "6px 2px 18px", maxWidth: 140 }}>
-              <label style={label}>Código de seguridad</label>
-              {(active || renderedMethod === id) && <div id={ID_SAVED_CVV} style={box} />}
-            </div>
+            {savedCvvRequired && (
+              <div style={{ display: "grid", gap: 6, padding: "6px 2px 18px", maxWidth: 140 }}>
+                <label style={label}>Código de seguridad</label>
+                {(active || renderedMethod === id) && <div id={ID_SAVED_CVV} style={box} />}
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -855,7 +895,7 @@ export default function ServicePaymentModal({
             <div
               style={{
                 fontSize: 15,
-                fontWeight: 500,
+                fontWeight: 600,
                 color: "#3a3f4a",
                 whiteSpace: "nowrap",
                 overflow: "hidden",
@@ -957,7 +997,7 @@ export default function ServicePaymentModal({
             <div
               style={{
                 fontSize: 14,
-                fontWeight: 500,
+                fontWeight: 600,
                 color: "#3a3f4a",
                 whiteSpace: "nowrap",
                 overflow: "hidden",

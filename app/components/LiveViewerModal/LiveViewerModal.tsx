@@ -9,6 +9,8 @@ import { doc, getDoc, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/app/providers";
 import type { Post, PostLiveData, PostPlayback } from "@/lib/posts/types";
+import { togglePostFlame } from "@/lib/posts/post-service";
+import VibraFlameIcon from "@/app/components/VibraServiceIcons/VibraFlameIcon";
 import LiveChatViewer from "@/app/components/LiveChat/LiveChatViewer";
 import { checkLiveAccess, grantSimulatedLiveAccess } from "@/lib/liveAccess/live-access-service";
 import { joinLivePresence, leaveLivePresence, subscribeToViewerCount, registerUniqueViewer, addWatchTime, recordVodView } from "@/lib/liveKit/liveViewers";
@@ -314,6 +316,10 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
   // Usar la orientación detectada por el feed. El modal la corrige en el evento canplay
   // si el video aún no había cargado cuando el usuario abrió el modal.
   const [isPortrait, setIsPortrait] = useState(initialPortrait);
+  // Like del live = flama del post (mismo contador; el live ES un post)
+  const [liked, setLiked] = useState<boolean>(post.viewerHasFlamed === true);
+  const [likesCount, setLikesCount] = useState<number>(post.counts?.likes ?? 0);
+  const flameBusyRef = useRef(false);
   const [controlsVisible, setControlsVisible] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [mobileFsHorizontal, setMobileFsHorizontal] = useState(false);
@@ -2331,6 +2337,33 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
     )
   ) : null;
 
+  // Sincroniza el estado optimista del like con el post (por si llega una actualización externa)
+  useEffect(() => {
+    setLiked(post.viewerHasFlamed === true);
+    setLikesCount(post.counts?.likes ?? 0);
+  }, [post.viewerHasFlamed, post.counts?.likes]);
+
+  async function handleToggleLike() {
+    if (flameBusyRef.current) return;
+    if (!user) return;
+    flameBusyRef.current = true;
+    const prevLiked = liked;
+    const prevCount = likesCount;
+    // Optimista
+    setLiked(!prevLiked);
+    setLikesCount(Math.max(0, prevCount + (prevLiked ? -1 : 1)));
+    try {
+      const res = await togglePostFlame(post.id);
+      setLiked(res.liked);
+      setLikesCount(res.likes);
+    } catch {
+      setLiked(prevLiked);
+      setLikesCount(prevCount);
+    } finally {
+      flameBusyRef.current = false;
+    }
+  }
+
   // ── Info del creador + título + descripción — aparece en el panel del chat ──
   function renderCreatorInfo() {
     const name = post.authorName ?? post.authorUsername ?? "Creador";
@@ -2341,7 +2374,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
     return (
       <div style={{
         padding: "14px 16px 12px",
-        borderBottom: "1px solid rgba(255,255,255,0.07)",
+        borderBottom: "1px solid transparent",
         display: "flex", flexDirection: "column", gap: 10,
         flexShrink: 0,
       }}>
@@ -2369,9 +2402,27 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
             }}>
               {name}
             </span>
-            <span style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", fontWeight: 400, lineHeight: "1.2" }}>
-              En vivo
-            </span>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+              <span style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", fontWeight: 400, lineHeight: "1.2" }}>
+                En vivo
+              </span>
+              <button
+                onClick={handleToggleLike}
+                aria-label="Me gusta"
+                style={{
+                  display: "flex", alignItems: "center", gap: 5,
+                  background: "none", border: "none", padding: 0,
+                  cursor: "pointer", flexShrink: 0,
+                }}
+              >
+                <VibraFlameIcon size={18} active={liked} />
+                {likesCount > 0 && (
+                  <span style={{ fontSize: 12, fontWeight: 600, color: "rgba(255,255,255,0.9)", fontFamily: FONT }}>
+                    {likesCount.toLocaleString("es-MX")}
+                  </span>
+                )}
+              </button>
+            </div>
           </div>
           <div style={{ flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 5 }}>
             {showFollowBtn && (
@@ -2387,7 +2438,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
                 Seguir
               </button>
             )}
-            {onManage ? (
+            {onManage && (
               <button
                 onClick={onManage}
                 style={{
@@ -2398,19 +2449,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
               >
                 Gestionar
               </button>
-            ) : (!isEnded && (!user || post.authorId !== user.uid) && (
-              <button
-                onClick={() => setDonationOpen(true)}
-                style={{
-                  background: DONATE_BLUE, border: "none",
-                  color: "#fff", borderRadius: 20, padding: "6px 13px",
-                  fontSize: 12, fontWeight: 700, fontFamily: FONT, cursor: "pointer",
-                  letterSpacing: "0.01em",
-                }}
-              >
-                Donar +
-              </button>
-            ))}
+            )}
             {user && post.authorId && user.uid !== post.authorId && (
               <button
                 onClick={() => openReport({
@@ -2480,6 +2519,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
 
         </div>/* fin grupo título+descripción */
         )}
+
       </div>
     );
   }
@@ -2578,7 +2618,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
           >
             {renderCreatorInfo()}
             <div style={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
-              <LiveChatViewer liveId={post.id} authorId={post.authorId} chatEnabled={chatEnabled} liveEnded={isEnded} isMuted={isMuted} mode="panel" broadcastMode={liveData?.broadcastMode} superCommentConfig={liveData?.superCommentConfig} />
+              <LiveChatViewer liveId={post.id} authorId={post.authorId} chatEnabled={chatEnabled} liveEnded={isEnded} isMuted={isMuted} mode="panel" broadcastMode={liveData?.broadcastMode} superCommentConfig={liveData?.superCommentConfig} onDonate={!isEnded && (!user || post.authorId !== user.uid) ? () => setDonationOpen(true) : undefined} />
             </div>
           </div>
         </div>
@@ -2642,7 +2682,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
           >
             {renderCreatorInfo()}
             <div style={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
-              <LiveChatViewer liveId={post.id} authorId={post.authorId} chatEnabled={chatEnabled} liveEnded={isEnded} isMuted={isMuted} mode="panel" broadcastMode={liveData?.broadcastMode} superCommentConfig={liveData?.superCommentConfig} />
+              <LiveChatViewer liveId={post.id} authorId={post.authorId} chatEnabled={chatEnabled} liveEnded={isEnded} isMuted={isMuted} mode="panel" broadcastMode={liveData?.broadcastMode} superCommentConfig={liveData?.superCommentConfig} onDonate={!isEnded && (!user || post.authorId !== user.uid) ? () => setDonationOpen(true) : undefined} />
             </div>
           </div>
         </div>
@@ -2784,6 +2824,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
                   mode="overlay" broadcastMode={liveData?.broadcastMode} superCommentConfig={liveData?.superCommentConfig}
                   onDonate={!isEnded && (!user || post.authorId !== user.uid) ? () => setDonationOpen(true) : undefined}
                   onFollow={showFollowBtn ? follow : undefined}
+                  onLike={handleToggleLike} liked={liked} likesCount={likesCount}
                 />
               </div>
             )}
@@ -2839,7 +2880,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
         }}>
           {renderCreatorInfo()}
           <div style={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
-            <LiveChatViewer liveId={post.id} authorId={post.authorId} chatEnabled={chatEnabled} liveEnded={isEnded} isMuted={isMuted} mode="panel" broadcastMode={liveData?.broadcastMode} superCommentConfig={liveData?.superCommentConfig} />
+            <LiveChatViewer liveId={post.id} authorId={post.authorId} chatEnabled={chatEnabled} liveEnded={isEnded} isMuted={isMuted} mode="panel" broadcastMode={liveData?.broadcastMode} superCommentConfig={liveData?.superCommentConfig} onDonate={!isEnded && (!user || post.authorId !== user.uid) ? () => setDonationOpen(true) : undefined} />
           </div>
         </div>
       </div>

@@ -66,6 +66,26 @@ export interface AppNotification {
   bulk?: boolean;
 }
 
+/**
+ * Notificaciones de "Experiencias" (Bloque 4: servicios/servicios request).
+ * Son el ciclo de compra-venta de servicios del creador (saludo, consejo,
+ * sesión exclusiva, meet & greet): solicitud, aceptación, agenda, entrega, etc.
+ *
+ * El subnav de la vista de notificaciones separa Experiencias de Sociales; en
+ * Sociales aparecen TODAS las notificaciones, en Experiencias solo estas.
+ *
+ * TODO(bloque-4): agregar aquí los tipos de servicios cuando se implementen.
+ * Por ahora está vacío a propósito (solo diseñamos el subnav).
+ */
+export const EXPERIENCE_NOTIFICATION_TYPES: ReadonlySet<NotificationType> = new Set<NotificationType>([
+  // "service_request", "service_accepted", "service_scheduled", ...
+]);
+
+/** ¿Esta notificación pertenece a la pestaña "Experiencias"? */
+export function isExperienceNotification(n: AppNotification): boolean {
+  return EXPERIENCE_NOTIFICATION_TYPES.has(n.type);
+}
+
 /** Tipos que la campanita sabe renderizar de forma enriquecida. */
 export const KNOWN_NOTIFICATION_TYPES: ReadonlySet<NotificationType> = new Set([
   "post_like",

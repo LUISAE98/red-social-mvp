@@ -201,6 +201,8 @@ interface NotificationListProps {
   variant?: "panel" | "page";
   /** Handle del usuario actual: para el link al perfil propio (follows colectivos). */
   selfHandle?: string | null;
+  /** Texto del estado vacío (por defecto `t("empty")`). La pestaña Experiencias usa otro. */
+  emptyLabel?: string;
 }
 
 export default function NotificationList({
@@ -209,6 +211,7 @@ export default function NotificationList({
   onItemClick,
   variant = "panel",
   selfHandle = null,
+  emptyLabel,
 }: NotificationListProps) {
   const t = useTranslations("notifications");
   const timeAgo = useTimeAgo();
@@ -227,7 +230,7 @@ export default function NotificationList({
     return <div className="notifState">{t("loading")}</div>;
   }
   if (items.length === 0) {
-    return <div className="notifState">{t("empty")}</div>;
+    return <div className="notifState">{emptyLabel ?? t("empty")}</div>;
   }
 
   return (

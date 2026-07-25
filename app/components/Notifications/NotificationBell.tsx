@@ -1,19 +1,22 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { useAuth } from "@/app/providers";
 import { useNotifications } from "@/lib/hooks/useNotifications";
 import { useSelfHandle } from "@/lib/hooks/useSelfHandle";
+import { useWalletVisibility } from "@/lib/wallet/useWalletVisibility";
 import { VibraNavigationIcon } from "@/app/components/VibraServiceIcons/VibraNavigationIcons";
-import { AppNotification } from "@/lib/notifications/types";
+import { AppNotification, isExperienceNotification } from "@/lib/notifications/types";
 import NotificationList from "./NotificationList";
 
 interface NotificationBellProps {
   active?: boolean;
 }
+
+type NotifTab = "experiences" | "social";
 
 interface PanelPos {
   top: number;
@@ -34,7 +37,10 @@ export default function NotificationBell({ active }: NotificationBellProps) {
   const { items, unreadCount, badgeCount, loading, markSeen, markAllRead, markRead } =
     useNotifications(user?.uid ?? null);
   const selfHandle = useSelfHandle(user?.uid ?? null);
+  // "Vende experiencias" → habilita el subnav de dos pestañas (prioridad a Experiencias).
+  const { hasWallet: sellsExperiences } = useWalletVisibility(user?.uid ?? null);
   const [open, setOpen] = useState(false);
+  const [tab, setTab] = useState<NotifTab | null>(null);
   const [mounted, setMounted] = useState(false);
   const [pos, setPos] = useState<PanelPos>({ top: 64, right: 16 });
   const btnRef = useRef<HTMLButtonElement>(null);
@@ -94,6 +100,16 @@ export default function NotificationBell({ active }: NotificationBellProps) {
 
   const badge = badgeCount > 99 ? "99+" : String(badgeCount);
 
+  // Subnav: solo si vende experiencias; Experiencias es la pestaña por defecto.
+  const showSubnav = sellsExperiences;
+  const activeTab: NotifTab = tab ?? (showSubnav ? "experiences" : "social");
+  const visibleItems = useMemo(() => {
+    if (showSubnav && activeTab === "experiences") {
+      return items.filter(isExperienceNotification);
+    }
+    return items;
+  }, [items, showSubnav, activeTab]);
+
   return (
     <div className="notifBellWrap">
       <button
@@ -128,12 +144,47 @@ export default function NotificationBell({ active }: NotificationBellProps) {
                   </button>
                 ) : null}
               </div>
+              {showSubnav ? (
+                <div className="notifPanelTabs" role="tablist" aria-label={t("title")}>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={activeTab === "experiences"}
+                    className={
+                      activeTab === "experiences"
+                        ? "notifPanelTab notifPanelTabActive"
+                        : "notifPanelTab"
+                    }
+                    onClick={() => setTab("experiences")}
+                  >
+                    {t("tabs.experiences")}
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={activeTab === "social"}
+                    className={
+                      activeTab === "social"
+                        ? "notifPanelTab notifPanelTabActive"
+                        : "notifPanelTab"
+                    }
+                    onClick={() => setTab("social")}
+                  >
+                    {t("tabs.social")}
+                  </button>
+                </div>
+              ) : null}
               <div className="notifPanelScroll">
                 <NotificationList
-                  items={items}
+                  items={visibleItems}
                   loading={loading}
                   onItemClick={handleItemClick}
                   selfHandle={selfHandle}
+                  emptyLabel={
+                    showSubnav && activeTab === "experiences"
+                      ? t("emptyExperiences")
+                      : undefined
+                  }
                 />
               </div>
               <Link href="/notifications" className="notifViewAll" onClick={() => setOpen(false)}>
@@ -206,6 +257,44 @@ export default function NotificationBell({ active }: NotificationBellProps) {
         }
         .notifMarkAll:hover {
           text-decoration: underline;
+        }
+        .notifPanelTabs {
+          display: flex;
+          gap: 20px;
+          padding: 0 16px;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .notifPanelTab {
+          position: relative;
+          padding: 9px 2px 11px;
+          border: none;
+          background: transparent;
+          color: rgba(255, 255, 255, 0.5);
+          font-size: 13px;
+          font-weight: 500;
+          cursor: pointer;
+          transition: color 140ms ease;
+        }
+        .notifPanelTab::after {
+          content: "";
+          position: absolute;
+          left: 0;
+          right: 0;
+          bottom: -1px;
+          height: 2px;
+          border-radius: 2px;
+          background: #a855ff;
+          opacity: 0;
+          transition: opacity 140ms ease;
+        }
+        .notifPanelTab:hover:not(.notifPanelTabActive) {
+          color: rgba(255, 255, 255, 0.8);
+        }
+        .notifPanelTabActive {
+          color: #fff;
+        }
+        .notifPanelTabActive::after {
+          opacity: 1;
         }
         .notifPanelScroll {
           max-height: min(60vh, 460px);

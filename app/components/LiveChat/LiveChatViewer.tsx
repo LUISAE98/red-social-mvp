@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
+import VibraFlameIcon from "@/app/components/VibraServiceIcons/VibraFlameIcon";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -33,6 +34,10 @@ type Props = {
   onDonate?: () => void;
   /** Solo overlay mode: llamado al presionar "Seguir". Si undefined, no se muestra el botón. */
   onFollow?: () => void;
+  /** Solo overlay mode: like del live (flama del post). Si undefined, no se muestra el botón. */
+  onLike?: () => void;
+  liked?: boolean;
+  likesCount?: number;
 };
 
 type SenderInfo = { username: string; avatarUrl: string | null };
@@ -48,6 +53,9 @@ export default function LiveChatViewer({
   superCommentConfig,
   onDonate,
   onFollow,
+  onLike,
+  liked = false,
+  likesCount = 0,
 }: Props) {
   const tLive = useTranslations("live");
   const { format: formatMoney } = usePriceFormat();
@@ -57,6 +65,8 @@ export default function LiveChatViewer({
   const [text, setText] = useState("");
   const [senderInfo, setSenderInfo] = useState<SenderInfo | null>(null);
   const [superCommentOpen, setSuperCommentOpen] = useState(false);
+  // Al enfocar el input, el botón de supercomentario se colapsa y el campo se estira.
+  const [chatFocused, setChatFocused] = useState(false);
   const [visibleSuperComments, setVisibleSuperComments] = useState<SuperComment[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const isAtBottomRef = useRef(true);
@@ -223,20 +233,41 @@ export default function LiveChatViewer({
             }}
           >
             <div style={{ flex: 1 }} />
-            {onFollow && (
-              <div style={{ display: "flex", justifyContent: "flex-end", paddingBottom: 8 }}>
-                <button
-                  type="button"
-                  onClick={(e) => { e.stopPropagation(); onFollow(); }}
-                  style={{
-                    background: "rgba(255,255,255,0.92)", border: "none",
-                    color: "#000", borderRadius: 20, padding: "5px 16px",
-                    fontSize: 12, fontWeight: 700, cursor: "pointer",
-                    letterSpacing: "0.01em",
-                  }}
-                >
-                  Seguir
-                </button>
+            {(onLike || onFollow) && (
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingBottom: 8 }}>
+                {onLike ? (
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); onLike(); }}
+                    aria-label="Me gusta"
+                    style={{
+                      display: "flex", alignItems: "center", gap: 5,
+                      background: "none", border: "none", padding: 0,
+                      cursor: "pointer", flexShrink: 0,
+                    }}
+                  >
+                    <VibraFlameIcon size={18} active={liked} />
+                    {likesCount > 0 && (
+                      <span style={{ fontSize: 12, fontWeight: 600, color: "rgba(255,255,255,0.9)" }}>
+                        {likesCount.toLocaleString("es-MX")}
+                      </span>
+                    )}
+                  </button>
+                ) : <span />}
+                {onFollow && (
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); onFollow(); }}
+                    style={{
+                      background: "rgba(255,255,255,0.92)", border: "none",
+                      color: "#000", borderRadius: 20, padding: "5px 16px",
+                      fontSize: 12, fontWeight: 700, cursor: "pointer",
+                      letterSpacing: "0.01em",
+                    }}
+                  >
+                    Seguir
+                  </button>
+                )}
               </div>
             )}
             {feed.map((item) =>
@@ -295,34 +326,43 @@ export default function LiveChatViewer({
                   </div>
                 ) : (
                   <>
-                    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                      {showSuperCommentBtn && (
-                        <BillButton onClick={() => setSuperCommentOpen(true)} />
-                      )}
-                      <input
-                        value={text}
-                        onChange={(e) => setText(e.target.value)}
-                        onKeyDown={handleKeyDown}
-                        placeholder={tLive("chatPlaceholder")}
-                        style={{
-                          flex: 1, background: "rgba(255,255,255,0.13)",
-                          border: "1px solid rgba(255,255,255,0.18)", borderRadius: 20,
-                          padding: "8px 13px", color: "#fff", fontSize: 12.5,
-                          fontFamily: FONT, outline: "none",
-                        }}
-                      />
-                      {onDonate && (
-                        <button
-                          onClick={(e) => { e.stopPropagation(); onDonate(); }}
+                    <div style={{ display: "flex", alignItems: "center" }}>
+                      {/* Campo con la flecha de enviar DENTRO (mismo sistema que el panel) */}
+                      <div style={{ position: "relative", flex: 1 }}>
+                        <input
+                          value={text}
+                          onChange={(e) => setText(e.target.value)}
+                          onKeyDown={handleKeyDown}
+                          onFocus={() => setChatFocused(true)}
+                          onBlur={() => setChatFocused(false)}
+                          maxLength={50}
+                          className="vibra-chat-ph"
+                          placeholder={tLive("chatPlaceholder")}
                           style={{
-                            width: 34, height: 34, borderRadius: "50%", flexShrink: 0,
-                            background: "#3b82f6", border: "none", color: "#fff",
-                            fontSize: 20, fontWeight: 700, cursor: "pointer",
-                            display: "flex", alignItems: "center", justifyContent: "center",
+                            width: "100%", boxSizing: "border-box",
+                            background: "rgba(255,255,255,0.06)",
+                            border: "none", borderRadius: 12,
+                            padding: "10px 36px 10px 12px", color: "#fff", fontSize: 13,
+                            fontFamily: FONT, lineHeight: 1.5, outline: "none",
                           }}
-                        >+</button>
-                      )}
-                      <SendButton onClick={handleSend} active={!!text.trim()} />
+                        />
+                        <div style={{ position: "absolute", right: 6, top: "50%", transform: "translateY(-50%)" }}>
+                          <SendButton onClick={handleSend} active={!!text.trim()} />
+                        </div>
+                      </div>
+                      {/* Moneda + corazón — se colapsan al enfocar */}
+                      {(showSuperCommentBtn || onDonate) && (() => {
+                        const n = (showSuperCommentBtn ? 1 : 0) + (onDonate ? 1 : 0);
+                        const w = n * 24 + (n - 1) * 8;
+                        return (
+                          <div style={{ overflow: "hidden", flexShrink: 0, width: chatFocused ? 0 : w, marginLeft: chatFocused ? 0 : 10, opacity: chatFocused ? 0 : 1, transition: "width 0.25s ease, margin 0.25s ease, opacity 0.2s ease" }}>
+                            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                              {showSuperCommentBtn && <BillButton onClick={() => setSuperCommentOpen(true)} />}
+                              {onDonate && <HeartButton onClick={onDonate} />}
+                            </div>
+                          </div>
+                        );
+                      })()}
                     </div>
                   </>
                 )}
@@ -354,7 +394,7 @@ export default function LiveChatViewer({
   return (
     <>
       <VibraToast toast={chatToast} />
-      <style>{`.lvc-panel::-webkit-scrollbar{display:none}`}</style>
+      <style>{`.lvc-panel::-webkit-scrollbar{display:none}.vibra-chat-ph::placeholder{color:rgba(255,255,255,0.32)}`}</style>
       <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
 
         <div
@@ -408,7 +448,7 @@ export default function LiveChatViewer({
           <div ref={messagesEndRef} />
         </div>
 
-        <div style={{ padding: "8px 10px", borderTop: "1px solid rgba(255,255,255,0.06)", flexShrink: 0 }}>
+        <div style={{ padding: "8px 10px", borderTop: "1px solid transparent", flexShrink: 0 }}>
           {liveEnded ? (
             <div style={{ textAlign: "center", fontSize: 12, color: "rgba(255,255,255,0.25)", fontFamily: FONT, padding: "4px 0" }}>
               {tLive("liveEnded")}
@@ -432,23 +472,43 @@ export default function LiveChatViewer({
             </div>
           ) : (
             <>
-              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                {showSuperCommentBtn && (
-                  <BillButton onClick={() => setSuperCommentOpen(true)} />
-                )}
-                <input
-                  value={text}
-                  onChange={(e) => setText(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder={tLive("chatPlaceholder")}
-                  style={{
-                    flex: 1, background: "rgba(255,255,255,0.07)",
-                    border: "1px solid rgba(255,255,255,0.09)", borderRadius: 18,
-                    padding: "7px 12px", color: "#fff", fontSize: 12.5,
-                    fontFamily: FONT, outline: "none",
-                  }}
-                />
-                <SendButton onClick={handleSend} active={!!text.trim()} />
+              <div style={{ display: "flex", alignItems: "center" }}>
+                {/* Campo con la flecha de enviar DENTRO */}
+                <div style={{ position: "relative", flex: 1 }}>
+                  <input
+                    value={text}
+                    onChange={(e) => setText(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    onFocus={() => setChatFocused(true)}
+                    onBlur={() => setChatFocused(false)}
+                    maxLength={50}
+                    className="vibra-chat-ph"
+                    placeholder={tLive("chatPlaceholder")}
+                    style={{
+                      width: "100%", boxSizing: "border-box",
+                      background: "rgba(255,255,255,0.06)",
+                      border: "none", borderRadius: 12,
+                      padding: "10px 36px 10px 12px", color: "#fff", fontSize: 13,
+                      fontFamily: FONT, lineHeight: 1.5, outline: "none",
+                    }}
+                  />
+                  <div style={{ position: "absolute", right: 6, top: "50%", transform: "translateY(-50%)" }}>
+                    <SendButton onClick={handleSend} active={!!text.trim()} />
+                  </div>
+                </div>
+                {/* Moneda (supercomentario) + corazón (aportación) — se colapsan al enfocar */}
+                {(showSuperCommentBtn || onDonate) && (() => {
+                  const n = (showSuperCommentBtn ? 1 : 0) + (onDonate ? 1 : 0);
+                  const w = n * 24 + (n - 1) * 8;
+                  return (
+                    <div style={{ overflow: "hidden", flexShrink: 0, width: chatFocused ? 0 : w, marginLeft: chatFocused ? 0 : 10, opacity: chatFocused ? 0 : 1, transition: "width 0.25s ease, margin 0.25s ease, opacity 0.2s ease" }}>
+                      <div style={{ display: "flex", gap: 8 }}>
+                        {showSuperCommentBtn && <BillButton onClick={() => setSuperCommentOpen(true)} />}
+                        {onDonate && <HeartButton onClick={onDonate} />}
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
             </>
           )}
@@ -498,38 +558,58 @@ function BillButton({ onClick }: { onClick: () => void }) {
       onClick={onClick}
       title={tLive("superComment")}
       style={{
-        width: 32, height: 32, borderRadius: "50%", border: "none",
-        background: "rgba(234,179,8,0.18)",
-        color: "#eab308", cursor: "pointer",
-        display: "grid", placeItems: "center", flexShrink: 0,
-        transition: "background 0.15s ease",
+        background: "none", border: "none", padding: 0,
+        color: "#fff", cursor: "pointer",
+        display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
       }}
     >
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-        <rect x="2" y="6" width="20" height="12" rx="2" />
-        <path d="M6 10h.01M10 10h8M6 14h.01M10 14h8" />
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="8.2" />
+        <path d="M12 7.4v9.2" />
+        <path d="M14.3 9.4c-.5-.7-1.3-1.1-2.3-1.1-1.4 0-2.4.7-2.4 1.8 0 2.5 4.9 1.2 4.9 3.8 0 1.1-1 1.8-2.5 1.8-1 0-1.9-.4-2.4-1.2" />
+      </svg>
+    </button>
+  );
+}
+
+// Corazón (hacer aportación) — solo el ícono, sin contenedor.
+function HeartButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label="Hacer aportación"
+      style={{
+        background: "none", border: "none", padding: 0,
+        color: "#fff", cursor: "pointer",
+        display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+      }}
+    >
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
       </svg>
     </button>
   );
 }
 
 function SendButton({ onClick, active }: { onClick: () => void; active: boolean }) {
+  // Flecha morada rellena y redondeada, sin contenedor. Se atenúa si no hay texto.
+  const color = active ? "#a855f7" : "rgba(255,255,255,0.25)";
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={!active}
+      aria-label="Enviar"
       style={{
-        width: 32, height: 32, borderRadius: "50%", border: "none",
-        background: active ? "#ef4444" : "rgba(255,255,255,0.07)",
-        color: "#fff", cursor: active ? "pointer" : "default",
-        display: "grid", placeItems: "center", flexShrink: 0,
-        transition: "background 0.15s ease",
+        background: "none", border: "none", padding: 0,
+        cursor: active ? "pointer" : "default",
+        display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+        transition: "opacity 0.15s ease",
       }}
     >
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-        <line x1="22" y1="2" x2="11" y2="13" />
-        <polygon points="22 2 15 22 11 13 2 9 22 2" />
+      <svg width="18" height="18" viewBox="0 0 24 24" fill={color} stroke={color} strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" style={{ transform: "rotate(-20deg)" }} aria-hidden="true">
+        <path d="M3.4 20.4l17.45-7.48a1 1 0 0 0 0-1.84L3.4 3.6a.993.993 0 0 0-1.39.91L2 9.12c0 .5.37.93.87.99L17 12 2.87 13.88c-.5.07-.87.5-.87 1l.01 4.61c0 .71.73 1.2 1.39.91z" />
       </svg>
     </button>
   );

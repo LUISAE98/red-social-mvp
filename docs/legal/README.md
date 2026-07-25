@@ -36,7 +36,7 @@ que avanzamos uno.
 
 | # | Documento | Estado | Audiencia | Dónde vive en la app | Archivo |
 |---|-----------|:------:|:---------:|----------------------|---------|
-| 1 | **Términos y Condiciones de Servicio** | ⬜ | 🌐 | Pie del **rail izquierdo** (`OwnerSidebar`) + checkbox en `/register` | `01-terminos-y-condiciones.md` |
+| 1 | **Términos y Condiciones de Servicio** | 🟨 | 🌐 | Pie del **rail izquierdo** (`OwnerSidebar`) + checkbox en `/register` | [`01-terminos-y-condiciones.md`](./01-terminos-y-condiciones.md) |
 | 2 | **Acuerdo de Creador / Monetización** | ⬜ | ⭐ | Al activar monetización (`ProfileServicesTab`) + antes del 1er retiro | `02-acuerdo-de-creador.md` |
 | 3 | **Aviso de Privacidad Integral** | ⬜ | 🌐 | Pie del rail izquierdo + enlace en `/register` y `/complete-profile` | `03-aviso-privacidad-integral.md` |
 | 4 | **Aviso de Privacidad Simplificado (corto)** | ⬜ | 🌐 | Pegado al formulario de `/register` y `/complete-profile` | `04-aviso-privacidad-corto.md` |
@@ -107,3 +107,5 @@ Agrupado por dependencia (no por número). Construimos de arriba hacia abajo.
 | Fecha | Documento | Cambio |
 |-------|-----------|--------|
 | 2026-07-24 | — | Creado el índice maestro. Footer legal decidido: pie del rail izquierdo (`OwnerSidebar`). Todos los documentos en estado ⬜ Pendiente. |
+| 2026-07-25 | #1 T&C | Borrador v0.1 generado (🟨). Incluye §14 Moderación/Superadmin basada en el sistema real (`moderation.ts`: rol `moderator`, acciones warn/remove/block/report, bitácora `adminAuditLog`) + facultades mutear/banear/eliminar/avisar autoridades. Estructura comparada con YouTube/Patreon. Pendiente: datos de entidad y revisión de abogado. |
+| 2026-07-25 | #1 T&C | Ampliado a **v0.2** (83 secciones en 13 partes). Añade: reglas detalladas por tipo de Servicio (Parte VII), pagos/contracargos/AML/sanciones (Parte VI), moderación ampliada con DSA/apelación/preservación (Parte VIII), DMCA + art. 17 UE + reincidentes (Parte IX), servicios de terceros, fuerza mayor, comunicaciones electrónicas, y disposiciones legales completas. Anexo B lista decisiones pendientes. |

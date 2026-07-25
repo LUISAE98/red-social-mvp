@@ -2062,7 +2062,12 @@
   "notifications": {
     "placeholder": "Aquí irán las notificaciones",
     "title": "Notificaciones",
+    "tabs": {
+      "experiences": "Experiencias",
+      "social": "Sociales"
+    },
     "empty": "Todavía no tienes notificaciones",
+    "emptyExperiences": "Todavía no tienes notificaciones de experiencias",
     "loading": "Cargando…",
     "markAllRead": "Marcar todas como leídas",
     "viewAll": "Ver todas",
