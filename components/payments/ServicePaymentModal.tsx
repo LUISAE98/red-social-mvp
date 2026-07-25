@@ -187,6 +187,9 @@ export default function ServicePaymentModal({
   // Si un cobro de tarjeta guardada SIN CVV falla (rechazo/3DS), forzamos re-pedirlo.
   const [forceSavedCvv, setForceSavedCvv] = useState(false);
   const [isNarrow, setIsNarrow] = useState(false);
+  // Layout apilado (una columna): en móvil por ancho, o SIEMPRE en modo "sheet"
+  // (el panel del live vive en un contenedor angosto → nunca dos columnas).
+  const stacked = isNarrow || isSheet;
   const [buyer, setBuyer] = useState<{ name: string; photo: string | null } | null>(null);
   // Animación de entrada/salida (no de golpe).
   const [render, setRender] = useState(false);
@@ -853,7 +856,7 @@ export default function ServicePaymentModal({
     <div
       style={{
         position: "relative",
-        padding: isNarrow ? "24px 18px 4px" : "28px 24px 24px",
+        padding: stacked ? "24px 18px 4px" : "28px 24px 24px",
         minWidth: 0,
       }}
     >
@@ -879,8 +882,8 @@ export default function ServicePaymentModal({
         ×
       </button>
 
-      {/* En móvil, Mercado Pago va arriba (centrado, o a la izquierda si logoLeft). */}
-      {isNarrow && (
+      {/* En móvil/sheet, Mercado Pago va arriba (centrado, o a la izquierda si logoLeft). */}
+      {stacked && (
         <div style={{ marginBottom: 16, display: "flex", justifyContent: logoLeft ? "flex-start" : "center" }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/mercadopago.webp" alt="Mercado Pago" style={{ height: 30, width: "auto" }} />
@@ -968,13 +971,13 @@ export default function ServicePaymentModal({
         position: "relative",
         // Deja arriba el espacio que ocupaba el logo (ahora absoluto), para que el
         // contenido quede donde estaba y el logo se pueda bajar sin empujarlo.
-        padding: isNarrow ? "16px 18px 20px" : "48px 24px 24px",
+        padding: stacked ? "16px 18px 20px" : "48px 24px 24px",
         // Panel todo blanco (sin fondo gris): la línea divisoria separa las
         // columnas en desktop, o el resumen del formulario al apilarse en móvil.
         background: "#fff",
         // Separación entre columnas: línea vertical en desktop; al apilarse en
         // móvil, la separación es por espacio (sin línea entre métodos y avatar).
-        borderLeft: isNarrow ? "none" : "1px solid #eaecef",
+        borderLeft: stacked ? "none" : "1px solid #eaecef",
         display: "flex",
         flexDirection: "column",
         justifyContent: "flex-start",
@@ -982,8 +985,8 @@ export default function ServicePaymentModal({
         minWidth: 0,
       }}
     >
-      {/* Mercado Pago — absoluto arriba-der (no empuja el contenido). Solo laptop. */}
-      {!isNarrow && (
+      {/* Mercado Pago — absoluto arriba-der (no empuja el contenido). Solo laptop (dos columnas). */}
+      {!stacked && (
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src="/mercadopago.webp"
@@ -1257,7 +1260,7 @@ export default function ServicePaymentModal({
     year: "numeric",
   });
   const successView = (
-    <div style={{ height: isNarrow ? 480 : 440, display: "flex", flexDirection: "column", position: "relative" }}>
+    <div style={{ height: stacked ? 480 : 440, display: "flex", flexDirection: "column", position: "relative" }}>
       <button
         type="button"
         onClick={onClose}
@@ -1507,7 +1510,7 @@ export default function ServicePaymentModal({
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: isNarrow ? "1fr" : "1.05fr 1fr",
+                gridTemplateColumns: stacked ? "1fr" : "1.05fr 1fr",
                 alignItems: "stretch",
               }}
             >

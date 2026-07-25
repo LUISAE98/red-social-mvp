@@ -1402,13 +1402,13 @@ const isSelectedGroup = (isProfileCard
   : pathname === `/groups/${g.id}`)
   || (isMobile && isOpen);
 
-            // Saludos/consejos ya NO se muestran en el sidebar (ni en perfil ni en
-            // comunidades): ahora viven en la pestaña Experiencias de notificaciones.
-            // Se fuerzan a vacío para que su sección y sus contadores desaparezcan
-            // aquí, sin afectar en nada a las sesiones (tiempo contigo / exclusiva).
+            // Las EXPERIENCIAS ya NO se muestran en el sidebar (ni en perfil ni en
+            // comunidades): saludos/consejos, tiempo contigo y sesión exclusiva
+            // ahora viven en la pestaña Experiencias de notificaciones. Se fuerzan
+            // a vacío para que sus secciones y contadores desaparezcan aquí.
             const greetings: (typeof greetingsByGroup)[string] = [];
-            const meetGreets = meetGreetsByGroup[g.id] ?? [];
-            const exclusiveSessions = exclusiveSessionsByGroup[g.id] ?? [];
+            const meetGreets: (typeof meetGreetsByGroup)[string] = [];
+            const exclusiveSessions: (typeof exclusiveSessionsByGroup)[string] = [];
 
 const canShowLinkAction = true;
 const copyHref = isProfileCard
