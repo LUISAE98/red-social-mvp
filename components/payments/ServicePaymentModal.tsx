@@ -89,7 +89,11 @@ const FIELD_STYLE = {
 type Props = {
   open: boolean;
   amount: number | null;
-  pay: (card: PaymentCardData) => Promise<PaymentResult>;
+  /** El segundo argumento es el monto efectivo (útil en modo `amountEditable`). */
+  pay: (card: PaymentCardData, amount?: number) => Promise<PaymentResult>;
+  /** Modo donación: el comprador escribe el monto dentro del panel (el total se
+   *  vuelve un input). `amount` es solo un valor inicial válido para abrir. */
+  amountEditable?: boolean;
   priceLabel?: string;
   productType?: string;
   providerName?: string;
@@ -111,6 +115,7 @@ export default function ServicePaymentModal({
   open,
   amount,
   pay,
+  amountEditable = false,
   priceLabel,
   productType,
   providerName,
@@ -131,6 +136,9 @@ export default function ServicePaymentModal({
   // Pago aprobado → arranca la secuencia de éxito (fade del formulario + pantalla verde).
   const [paid, setPaid] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  // Modo donación: monto elegido por el comprador dentro del panel.
+  const [chosenAmount, setChosenAmount] = useState<number | null>(null);
+  const [customAmount, setCustomAmount] = useState("");
   const [cardName, setCardName] = useState("");
   // Guardar tarjeta para futuras compras (activo por defecto). El guardado real
   // se conecta en el Bloque 3 (MP Customers & Cards).
@@ -168,11 +176,15 @@ export default function ServicePaymentModal({
   // El botón "Pagar" se habilita solo con los datos completos y válidos:
   //   · Tarjeta nueva  → número + vencimiento + CVV válidos + nombre escrito.
   //   · Tarjeta guardada → solo el CVV válido.
-  const canPay = isNewCard
-    ? cardValid.number && cardValid.exp && cardValid.cvv && cardName.trim().length > 0
-    : savedCardId
-      ? cardValid.savedCvv
-      : false;
+  // En modo donación el monto elegido debe ser válido para poder pagar.
+  const amountOk = !amountEditable || (chosenAmount != null && chosenAmount > 0);
+  const canPay =
+    amountOk &&
+    (isNewCard
+      ? cardValid.number && cardValid.exp && cardValid.cvv && cardName.trim().length > 0
+      : savedCardId
+        ? cardValid.savedCvv
+        : false);
 
   const mpRef = useRef<MpInstance | null>(null);
   const fieldsRef = useRef<MpField[]>([]);
@@ -298,6 +310,10 @@ export default function ServicePaymentModal({
     setCardBrandThumb(null);
     setPaid(false);
     setShowSuccess(false);
+    // En donación arranca vacío (placeholder listo para escribir); en el resto,
+    // el monto viene fijo por prop.
+    setChosenAmount(amountEditable ? null : amount ?? null);
+    setCustomAmount("");
     paymentMethodIdRef.current = null;
 
     (async () => {
@@ -481,7 +497,8 @@ export default function ServicePaymentModal({
         };
       }
 
-      const res = await payRef.current(card);
+      const payAmount = (amountEditable ? chosenAmount : amount) ?? undefined;
+      const res = await payRef.current(card, payAmount);
       if (res.status === "approved" || res.status === "pending") {
         if (successMessage) {
           // Servicios con pantalla de éxito (saludo/consejo): NO cerrar el panel.
@@ -687,6 +704,9 @@ export default function ServicePaymentModal({
     cursor: "pointer",
     fontFamily: "inherit",
   };
+  // Divisor debajo de cada opción → separa opciones consecutivas y cierra la
+  // lista con una línea bajo el último método (NO hay línea sobre el contenedor
+  // ni en la columna derecha, así no aparece la doble línea hacia el avatar).
   const rowDivider: React.CSSProperties = { borderBottom: "1px solid #eceef1" };
 
   // Fila-acordeón de tarjeta NUEVA (crédito/débito). Radio a la derecha.
@@ -850,7 +870,7 @@ export default function ServicePaymentModal({
       {loading ? (
         <p style={{ color: "#8a8f99", fontSize: 14 }}>Cargando pago seguro…</p>
       ) : (
-        <div style={{ display: "grid", borderTop: "1px solid #eceef1" }}>
+        <div style={{ display: "grid" }}>
           {newCardRow("credit", "Tarjeta de crédito")}
           {newCardRow("debit", "Tarjeta de débito")}
           {savedCards.map((c) => savedCardRow(c))}
@@ -861,12 +881,14 @@ export default function ServicePaymentModal({
 
   // Cobro real = MXN; moneda local = referencia (≈). Solo se muestra el
   // aproximado + aviso cuando la moneda del comprador NO es MXN.
-  const showApprox = amount != null && amount > 0 && pf.currency !== "MXN";
+  // Monto efectivo: en modo donación es el elegido por el comprador.
+  const effectiveAmount = amountEditable ? chosenAmount : amount;
+  const showApprox = effectiveAmount != null && effectiveAmount > 0 && pf.currency !== "MXN";
   // `formatCurrency` de Vibra solo pone el símbolo (no el código ISO). Aquí, al
   // mostrar dos monedas juntas, pegamos el código a mano para que quede claro
   // cuál es cuál (el "$" lo comparten MXN, USD, ARS…).
-  const localApprox = amount != null ? `${pf.format(amount)} ${pf.currency}` : "";
-  const mxnTotal = amount != null ? `${pf.formatAnchor(amount)} MXN` : priceLabel ?? "";
+  const localApprox = effectiveAmount != null ? `${pf.format(effectiveAmount)} ${pf.currency}` : "";
+  const mxnTotal = effectiveAmount != null ? `${pf.formatAnchor(effectiveAmount)} MXN` : priceLabel ?? "";
 
   const rightColumn = (
     <div
@@ -875,9 +897,12 @@ export default function ServicePaymentModal({
         // Deja arriba el espacio que ocupaba el logo (ahora absoluto), para que el
         // contenido quede donde estaba y el logo se pueda bajar sin empujarlo.
         padding: isNarrow ? "16px 18px 20px" : "48px 24px 24px",
-        background: "#f6f7f9",
+        // Panel todo blanco (sin fondo gris): la línea divisoria separa las
+        // columnas en desktop, o el resumen del formulario al apilarse en móvil.
+        background: "#fff",
+        // Separación entre columnas: línea vertical en desktop; al apilarse en
+        // móvil, la separación es por espacio (sin línea entre métodos y avatar).
         borderLeft: isNarrow ? "none" : "1px solid #eaecef",
-        borderTop: isNarrow ? "1px solid #eaecef" : "none",
         display: "flex",
         flexDirection: "column",
         justifyContent: "flex-start",
@@ -958,7 +983,50 @@ export default function ServicePaymentModal({
         </div>
       ) : null}
 
-      {showApprox ? (
+      {amountEditable ? (
+        <>
+          <div style={{ height: 1, background: "#e6e8ec" }} />
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+            <span style={{ fontSize: 13, color: "#6b7280", fontWeight: 600 }}>Total a pagar</span>
+            <span style={{ display: "inline-flex", alignItems: "baseline", gap: 3 }}>
+              <span style={{ fontSize: 17, fontWeight: 600, color: "#3a3f4a" }}>$</span>
+              <input
+                type="number"
+                inputMode="decimal"
+                min={1}
+                value={customAmount}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setCustomAmount(v);
+                  const n = Math.floor(Number(v));
+                  setChosenAmount(Number.isFinite(n) && n > 0 ? n : null);
+                }}
+                placeholder="0"
+                style={{
+                  width: 90,
+                  border: "none",
+                  borderBottom: `1.5px solid ${MP_BLUE}`,
+                  background: "transparent",
+                  fontSize: 17,
+                  fontWeight: 600,
+                  color: "#3a3f4a",
+                  textAlign: "right",
+                  outline: "none",
+                  fontFamily: "inherit",
+                  padding: "0 2px 3px",
+                }}
+              />
+              <span style={{ fontSize: 12, color: "#9aa0a8", fontWeight: 600 }}>MXN</span>
+            </span>
+          </div>
+          {showApprox && (
+            <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between" }}>
+              <span style={{ fontSize: 12, color: "#9aa0a8" }}>Aproximado en tu moneda</span>
+              <span style={{ fontSize: 13, color: "#6b7280", fontWeight: 600 }}>{localApprox}</span>
+            </div>
+          )}
+        </>
+      ) : showApprox ? (
         <>
           <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between" }}>
             <span style={{ fontSize: 12, color: "#9aa0a8" }}>Tu banco cobrará</span>
@@ -1297,6 +1365,7 @@ export default function ServicePaymentModal({
               style={{
                 display: "grid",
                 gridTemplateColumns: isNarrow ? "1fr" : "1.05fr 1fr",
+                alignItems: "stretch",
               }}
             >
               {leftColumn}
