@@ -318,7 +318,7 @@ export default function LiveChatViewer({
                 paddingTop: 7,
                 paddingLeft: 14,
                 paddingRight: 14,
-                paddingBottom: "calc(10px + env(safe-area-inset-bottom))",
+                paddingBottom: "max(10px, env(safe-area-inset-bottom))",
               }}>
                 {isMuted ? (
                   <div style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", fontFamily: FONT }}>
@@ -369,7 +369,7 @@ export default function LiveChatViewer({
               </div>
             ) : (
               <div style={{
-                paddingTop: 8, paddingBottom: "calc(8px + env(safe-area-inset-bottom))",
+                paddingTop: 8, paddingBottom: "max(8px, env(safe-area-inset-bottom))",
                 display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
                 paddingLeft: 14, paddingRight: 14,
               }}>
@@ -382,7 +382,7 @@ export default function LiveChatViewer({
               </div>
             )
           ) : (
-            <div style={{ height: "calc(8px + env(safe-area-inset-bottom))" }} />
+            <div style={{ height: "max(8px, env(safe-area-inset-bottom))" }} />
           )}
         </div>
         {superCommentModal}
