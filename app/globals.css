@@ -108,7 +108,11 @@ html::-webkit-scrollbar-thumb {
   background: transparent;
 }
 
-/* Cubre el safe area inferior en Android con gesture navigation */
+/* Cubre el safe area inferior (barra de gestos Android / home-indicator) en la
+   BASE de la app. z-index bajo (1): es una capa de fondo que CUALQUIER overlay,
+   modal o panel (live, donación, sheets…) cubre por encima, así cada pantalla
+   controla el color de su propio safe-area. Antes estaba en 99998 y tapaba de
+   negro el safe-area de todos los paneles (incluido el del live). */
 body::after {
   content: "";
   position: fixed;
@@ -117,7 +121,7 @@ body::after {
   right: 0;
   height: env(safe-area-inset-bottom, 0px);
   background-color: #000000;
-  z-index: 99998;
+  z-index: 1;
   pointer-events: none;
 }
 

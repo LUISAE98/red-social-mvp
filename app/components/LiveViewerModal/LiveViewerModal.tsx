@@ -2933,10 +2933,9 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
           // exactamente al final de la zona de grabación).
           borderTop: liveDonateOpen ? "none" : "1px solid rgba(255,255,255,0.06)",
           overflow: "hidden",
-          // Sin padding inferior con el panel abierto: así el sheet (inset:0) llena hasta
-          // el borde físico y CUBRE el safe-area (se ve del color del panel, no negro).
-          // Con el chat normal, el padding mantiene el contenido sobre el home-indicator.
-          paddingBottom: liveDonateOpen ? 0 : "env(safe-area-inset-bottom)",
+          // SIN padding inferior aquí: el safe-area lo maneja el propio input del chat
+          // (LiveChatViewer usa calc(8px + env(safe-area-inset-bottom))) o el sheet de
+          // donación. Duplicarlo aquí hacía que el safe-area se viera "muy grueso".
         }}>
           {renderCreatorInfo()}
           <div style={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
