@@ -4,14 +4,21 @@ import { useState, useEffect, useRef } from "react";
 import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
-import { submitSuperComment, submitSuperCommentAsGuest } from "@/lib/liveChat/super-comment-service";
+import { submitSuperCommentAsGuest } from "@/lib/liveChat/super-comment-service";
 import { registrarCompraGeo } from "@/lib/wallet/registrarCompraGeo";
 import { getSavedGuestNickname, saveGuestNickname } from "@/lib/guest-id";
 import { auth, db } from "@/lib/firebase";
 import { collection, onSnapshot } from "firebase/firestore";
+import { loadMercadoPago } from "@mercadopago/sdk-js";
+import { MP_PUBLIC_KEY } from "@/lib/payments/mpConfig";
+import { paySuperComment } from "@/lib/payments/paySuperComment";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
-import ServicePaymentModal, { type SavedCard } from "@/components/payments/ServicePaymentModal";
+import ServicePaymentModal, { type SavedCard, type PaymentCardData, type PaymentResult } from "@/components/payments/ServicePaymentModal";
 import type { SuperCommentConfig, SuperCommentTier } from "@/lib/liveChat/types";
+
+// Tipado mínimo del SDK de MP (solo lo que usamos para el un-clic con tarjeta guardada).
+type MpTokenizer = { fields: { createCardToken: (d: { cardId?: string }) => Promise<{ id?: string }> } };
+type MercadoPagoCtor = new (key: string, opts?: { locale?: string }) => MpTokenizer;
 
 const FONT = 'inherit';
 
@@ -68,6 +75,8 @@ export default function SuperCommentModal({
   const [submitting, setSubmitting] = useState(false);
   const [sent, setSent] = useState(false);
   const payBtnRef = useRef<HTMLButtonElement>(null);
+  // Instancia del SDK de MP (memoizada) para tokenizar la tarjeta guardada en el un-clic.
+  const mpRef = useRef<MpTokenizer | null>(null);
 
   // Tarjetas guardadas del comprador. Si hay ≥1, el pago es "un clic" directo
   // (sin pasarela); si no hay ninguna, Enviar abre la pasarela (primera compra).
@@ -152,62 +161,121 @@ export default function SuperCommentModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  // Envío del supercomentario. Se usa como `pay` de la pasarela: hace el envío y
-  // devuelve el estado que la pasarela espera. (El cargo real de MP se conectará
-  // después; por ahora usa el flujo de envío existente.)
-  async function sendSuperComment(): Promise<{ status: string }> {
+  // Marca el supercomentario como enviado y cierra tras la confirmación.
+  function markSentAndClose() {
+    setSent(true);
+    window.setTimeout(() => {
+      onClose();
+      setSent(false);
+      setText("");
+      setSelectedTier(null);
+    }, 1800);
+  }
+
+  // Cobro REAL por pasarela (tarjeta nueva, o guardada con CVV). Se pasa como `pay`
+  // de ServicePaymentModal: recibe la tarjeta tokenizada y cobra vía paySuperComment.
+  async function payViaGateway(card: PaymentCardData): Promise<PaymentResult> {
     if (!selectedTier || !text.trim()) return { status: "rejected" };
-    setSubmitting(true);
     try {
-      if (isGuest && guestId) {
-        await submitSuperCommentAsGuest({
-          postId,
-          guestId,
-          username: guestNickname.trim(),
-          text: text.trim(),
-          tier: selectedTier,
-        });
-      } else if (userId) {
-        await submitSuperComment({
-          postId,
-          userId,
-          username: username ?? tLive("defaultViewer"),
-          avatarUrl: avatarUrl ?? null,
-          text: text.trim(),
-          tier: selectedTier,
-        });
-      }
-      registrarCompraGeo({
-        creatorId: authorId,
-        serviceType: "supercomment",
-        grossAmount: selectedTier.price,
+      const r = await paySuperComment({
+        postId,
+        tierId: selectedTier.id,
+        text: text.trim(),
+        token: card.token,
+        paymentMethodId: card.paymentMethodId,
+        paymentType: card.paymentType,
+        installments: card.installments,
+        payerEmail: card.payerEmail,
+        saveToken: card.saveToken,
+        savedCardId: card.savedCardId,
       });
-      return { status: "approved" };
+      return { status: r.status };
     } catch {
       return { status: "rejected" };
+    }
+  }
+
+  // Carga (memoizada) del SDK de MP para tokenizar la tarjeta guardada en el un-clic.
+  async function getMpTokenizer(): Promise<MpTokenizer | null> {
+    if (mpRef.current) return mpRef.current;
+    if (!MP_PUBLIC_KEY) return null;
+    try {
+      await loadMercadoPago();
+      const Ctor = (window as unknown as { MercadoPago?: MercadoPagoCtor }).MercadoPago;
+      if (!Ctor) return null;
+      mpRef.current = new Ctor(MP_PUBLIC_KEY, { locale: "es-MX" });
+      return mpRef.current;
+    } catch {
+      return null;
+    }
+  }
+
+  // Cobro REAL de un clic con la tarjeta guardada: tokeniza sin CVV (los tiers ≤ tope
+  // están bajo el umbral) y cobra sin abrir la pasarela. Si MP exige CVV/3DS (no
+  // tokeniza), cae a la pasarela; si el banco rechaza, muestra la leyenda roja.
+  async function handleDirectSend() {
+    if (!selectedTier || !text.trim() || !selectedCardId) return;
+    setDirectError(null);
+    setSubmitting(true);
+    try {
+      const mp = await getMpTokenizer();
+      if (!mp) { setPayStep(true); return; } // sin SDK → completar en pasarela
+
+      let token: { id?: string } | null = null;
+      try {
+        token = await mp.fields.createCardToken({ cardId: selectedCardId });
+      } catch {
+        token = null;
+      }
+      if (!token?.id) {
+        // No tokenizó sin CVV → MP pide CVV/3DS: completar en la pasarela.
+        setPayStep(true);
+        return;
+      }
+
+      const r = await paySuperComment({
+        postId,
+        tierId: selectedTier.id,
+        text: text.trim(),
+        token: token.id,
+        savedCardId: selectedCardId,
+        paymentType: "credit_card",
+        installments: 1,
+        payerEmail: auth.currentUser?.email ?? undefined,
+      });
+
+      if (r.status === "approved" || r.status === "pending") {
+        registrarCompraGeo({ creatorId: authorId, serviceType: "supercomment", grossAmount: selectedTier.price });
+        markSentAndClose();
+      } else {
+        setDirectError(tLive("scPaymentDeclined"));
+      }
+    } catch {
+      setDirectError(tLive("scPaymentDeclined"));
     } finally {
       setSubmitting(false);
     }
   }
 
-  // Pago directo (un clic) con la tarjeta guardada seleccionada: no abre la
-  // pasarela, envía y muestra la confirmación. (El cargo real de MP se conectará
-  // después; por ahora reutiliza el envío existente.)
-  async function handleDirectSend() {
-    if (!selectedTier || !text.trim()) return;
+  // Invitado (sin sesión): pago aún no integrado → envío simulado por ahora
+  // (se conectará cuando integremos pagos para invitados).
+  async function handleGuestSend() {
+    if (!selectedTier || !text.trim() || !guestId) return;
     setDirectError(null);
-    const r = await sendSuperComment();
-    if (r.status === "approved") {
-      setSent(true);
-      window.setTimeout(() => {
-        onClose();
-        setSent(false);
-        setText("");
-        setSelectedTier(null);
-      }, 1800);
-    } else {
-      // Pago rechazado (fondos, banco, etc.): leyenda roja sobre el botón.
+    setSubmitting(true);
+    try {
+      await submitSuperCommentAsGuest({
+        postId,
+        guestId,
+        username: guestNickname.trim(),
+        text: text.trim(),
+        tier: selectedTier,
+      });
+      markSentAndClose();
+    } catch {
       setDirectError(tLive("scPaymentDeclined"));
+    } finally {
+      setSubmitting(false);
     }
   }
 
@@ -554,8 +622,9 @@ export default function SuperCommentModal({
                     type="button"
                     onClick={() => {
                       if (!selectedTier || !text.trim()) return;
-                      if (hasSavedCard) handleDirectSend();
-                      else setPayStep(true);
+                      if (isGuest) handleGuestSend();          // invitado: simulado (por ahora)
+                      else if (hasSavedCard) handleDirectSend(); // un-clic real con tarjeta guardada
+                      else setPayStep(true);                     // pasarela real (tarjeta nueva)
                     }}
                     disabled={submitting || !text.trim() || !selectedTier}
                     style={{
@@ -602,14 +671,18 @@ export default function SuperCommentModal({
         paymentHeading={tLive("scPaymentHeading")}
         payButtonLabel={tLive("scPayButtonLabel")}
         amount={selectedTier?.price ?? 0}
-        pay={() => sendSuperComment()}
+        pay={payViaGateway}
         productType={tCommon("paySupercommentProductType")}
         providerName={creatorName ?? undefined}
         avatarUrl={creatorAvatarUrl ?? null}
         payerEmail={auth.currentUser?.email ?? undefined}
         description={tCommon("paySupercommentDescription", { name: creatorLabel })}
         successMessage={tCommon("paySupercommentSuccess", { name: creatorLabel })}
-        onPaid={() => {}}
+        onPaid={() => registrarCompraGeo({
+          creatorId: authorId,
+          serviceType: "supercomment",
+          grossAmount: selectedTier?.price,
+        })}
         onClose={() => {
           setPayStep(false);
           onClose();

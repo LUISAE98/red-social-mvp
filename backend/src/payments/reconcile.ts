@@ -189,5 +189,20 @@ export async function applyApprovedPaymentToSource(
     return;
   }
 
+  if (sourceType === "superComment") {
+    // Supercomentario en vivo: sourceId = `${postId}_${scId}`. Materializa el super-
+    // comentario posts/{postId}/superComments/{scId} (status "paid" → dispara
+    // onSuperCommentLedger con earning `supercomment`, y lo muestra en el chat del live).
+    const sep2 = sourceId.indexOf("_");
+    if (sep2 < 0) {
+      logger.warn("reconcile: superComment sourceId sin separador", { externalReference });
+      return;
+    }
+    const postId = sourceId.slice(0, sep2);
+    const scId = sourceId.slice(sep2 + 1);
+    await materializeFromIntent(externalReference, `posts/${postId}/superComments`, scId, "pendingSuperComment", meta);
+    return;
+  }
+
   logger.info("reconcile: sourceType no manejado aún", { sourceType, externalReference });
 }
