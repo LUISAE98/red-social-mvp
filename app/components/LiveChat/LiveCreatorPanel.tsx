@@ -172,6 +172,9 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
   const [totalChatMessages, setTotalChatMessages] = useState(0);
   const [avgWatchSeconds, setAvgWatchSeconds] = useState(0);
   const [newFollowers, setNewFollowers] = useState(0);
+  // Likes del live = flamas del post (el live ES un post). Se siembra con el
+  // contador actual y se actualiza en vivo con onSnapshot del doc del post.
+  const [likesCount, setLikesCount] = useState(post.counts?.likes ?? 0);
   const [viewerHistory, setViewerHistory] = useState<{ t: number; v: number }[]>([]);
   const viewerHistoryRef = useRef<{ t: number; v: number }[]>([]);
   // Reloj que avanza cada segundo para el contador de "Duración" (solo mientras
@@ -452,6 +455,16 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
   useEffect(() => {
     if (!open || !post.id) return;
     return subscribeToTotalChatMessages(post.id, setTotalChatMessages);
+  }, [open, post.id]);
+
+  // Likes en tiempo real: el contador vive denormalizado en el doc del post
+  // (`counts.likes`), mantenido por la Cloud Function `togglePostFlame`.
+  useEffect(() => {
+    if (!open || !post.id) return;
+    return onSnapshot(doc(db, "posts", post.id), (snap) => {
+      const likes = (snap.data()?.counts as { likes?: number } | undefined)?.likes;
+      if (typeof likes === "number") setLikesCount(likes);
+    });
   }, [open, post.id]);
 
   useEffect(() => {
@@ -1025,6 +1038,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
       { id: "unicos",   value: uniqueViewerCount > 0 ? uniqueViewerCount.toLocaleString("es-MX") : "—",     label: tLive("statUniqueViewers") },
       { id: "seguids",  value: newFollowers > 0 ? newFollowers.toLocaleString("es-MX") : "—",               label: tLive("statNewFollowers") },
       { id: "mensajes", value: totalChatMessages > 0 ? totalChatMessages.toLocaleString("es-MX") : "—",     label: tLive("statChatMessages") },
+      { id: "likes",    value: likesCount.toLocaleString("es-MX"),                                           label: "Likes" },
       { id: "tvisto",   value: avgWatchSeconds > 0 ? formatWatchTime(avgWatchSeconds) : "—",                label: tLive("statAvgWatchTime") },
       { id: "duracion", value: formatDuration(liveDurationMs),                                             label: "Duración" },
       ...(donationCount > 0 ? [{ id: "donaciones",  value: fmtMoney(net(donationRevenue)), sub: tLive("donationCount", { count: donationCount }), label: tLive("statDonations") }] : []),
@@ -1146,6 +1160,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
       { id: "unicos",   defaultX: tx(2), defaultY: R0, width: TILE2W, height: TILE, content: <><span style={val}>{uniqueViewerCount > 0 ? uniqueViewerCount.toLocaleString("es-MX") : "—"}</span><span style={lbl}>{tLive("statUniqueViewers")}</span></> },
       { id: "seguids",  defaultX: tx(3), defaultY: R0, width: TILE2W, height: TILE, content: <><span style={val}>{newFollowers > 0 ? newFollowers.toLocaleString("es-MX") : "—"}</span><span style={lbl}>{tLive("statNewFollowers")}</span></> },
       { id: "mensajes", defaultX: tx(4), defaultY: R0, width: TILE2W, height: TILE, content: <><span style={val}>{totalChatMessages > 0 ? totalChatMessages.toLocaleString("es-MX") : "—"}</span><span style={lbl}>{tLive("statChatMessages")}</span></> },
+      { id: "likes",    defaultX: tx(7), defaultY: R0, width: TILE2W, height: TILE, content: <><span style={val}>{likesCount.toLocaleString("es-MX")}</span><span style={lbl}>Likes</span></> },
       { id: "tvisto",   defaultX: tx(5), defaultY: R0, width: TILE2W, height: TILE, content: <><span style={val}>{avgWatchSeconds > 0 ? formatWatchTime(avgWatchSeconds) : "—"}</span><span style={lbl}>{tLive("statAvgWatchTime")}</span></> },
       { id: "duracion", defaultX: tx(6), defaultY: R0, width: TILE2W, height: TILE, content: <><span style={val}>{formatDuration(liveDurationMs)}</span><span style={lbl}>Duración</span></> },
       ...(donationCount > 0 ? [{ id: "donaciones",  defaultX: tx(0), defaultY: R1, width: TILE2W, height: TILE, content: <><span style={val}>{fmtMoney(net(donationRevenue))}</span><span style={sub}>{tLive("donationCount", { count: donationCount })}</span><span style={lbl}>{tLive("statDonations")}</span></> }] : []),

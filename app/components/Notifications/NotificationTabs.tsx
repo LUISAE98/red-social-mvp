@@ -9,6 +9,8 @@ interface NotificationTabsProps {
   onChange: (tab: NotifTab) => void;
   /** Variante compacta para el panel de la campanita (fuente/altura menores). */
   compact?: boolean;
+  /** Conteo por pestaña, mostrado tras el título (se omite si es 0). */
+  counts?: Partial<Record<NotifTab, number>>;
 }
 
 /**
