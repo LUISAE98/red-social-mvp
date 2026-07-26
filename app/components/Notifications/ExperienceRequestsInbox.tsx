@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
@@ -129,9 +129,13 @@ const styles: Record<string, CSSProperties> = {
 export default function ExperienceRequestsInbox({
   uid,
   emptyLabel,
+  onDetailOpenChange,
 }: {
   uid: string | null | undefined;
   emptyLabel: string;
+  /** Avisa cuándo se abre/cierra un overlay de detalle (para que el panel
+   *  contenedor —la campanita— se cierre y no estorbe la interacción). */
+  onDetailOpenChange?: (open: boolean) => void;
 }) {
   const router = useRouter();
   const tWallet = useTranslations("wallet");
@@ -164,6 +168,16 @@ export default function ExperienceRequestsInbox({
   const [busy, setBusy] = useState(false);
   const [feedbackError, setFeedbackError] = useState<string | null>(null);
   const [feedbackSuccess, setFeedbackSuccess] = useState<string | null>(null);
+
+  // Notifica al contenedor cuando se abre/cierra un overlay de detalle.
+  const detailOpen = reviewState !== null || sessionOpen;
+  const prevDetailOpen = useRef(false);
+  useEffect(() => {
+    if (prevDetailOpen.current !== detailOpen) {
+      prevDetailOpen.current = detailOpen;
+      onDetailOpenChange?.(detailOpen);
+    }
+  }, [detailOpen, onDetailOpenChange]);
 
   const relativeTime = (value: unknown): string => {
     const date = toDateSafe(value);

@@ -48,6 +48,9 @@ export default function NotificationBell({ active }: NotificationBellProps) {
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<NotifTab | null>(null);
   const [slideDir, setSlideDir] = useState<"left" | "right" | null>(null);
+  // Un overlay de detalle (saludo/sesión) abierto desde Experiencias: ocultamos
+  // el panel para no estorbar, pero sin desmontarlo (el overlay vive dentro).
+  const [detailOpen, setDetailOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [pos, setPos] = useState<PanelPos>({ top: 64, right: 16 });
   const btnRef = useRef<HTMLButtonElement>(null);
@@ -85,11 +88,15 @@ export default function NotificationBell({ active }: NotificationBellProps) {
   useEffect(() => {
     if (!open) return;
     const onDown = (e: MouseEvent) => {
+      // Con un overlay de detalle abierto, el panel está oculto: no cerrar por
+      // clics fuera (serían clics dentro del overlay) para no desmontarlo.
+      if (detailOpen) return;
       const target = e.target as Node;
       if (btnRef.current?.contains(target) || panelRef.current?.contains(target)) return;
       setOpen(false);
     };
     const onKey = (e: KeyboardEvent) => {
+      if (detailOpen) return;
       if (e.key === "Escape") setOpen(false);
     };
     document.addEventListener("mousedown", onDown);
@@ -98,7 +105,7 @@ export default function NotificationBell({ active }: NotificationBellProps) {
       document.removeEventListener("mousedown", onDown);
       document.removeEventListener("keydown", onKey);
     };
-  }, [open]);
+  }, [open, detailOpen]);
 
   const handleItemClick = (n: AppNotification) => {
     if (!n.read) markRead(n.id);
@@ -149,7 +156,11 @@ export default function NotificationBell({ active }: NotificationBellProps) {
               className="notifPanel"
               role="dialog"
               aria-label={t("title")}
-              style={{ top: pos.top, right: pos.right }}
+              style={{
+                top: pos.top,
+                right: pos.right,
+                ...(detailOpen ? { display: "none" } : {}),
+              }}
             >
               <div className="notifPanelHead">
                 <span className="notifPanelTitle">{t("title")}</span>
@@ -177,6 +188,15 @@ export default function NotificationBell({ active }: NotificationBellProps) {
                     <ExperienceRequestsInbox
                       uid={user?.uid ?? null}
                       emptyLabel={t("emptyExperiences")}
+                      onDetailOpenChange={(isOpen) => {
+                        if (isOpen) {
+                          setDetailOpen(true);
+                        } else {
+                          // Al cerrar el overlay, cerramos también el panel.
+                          setDetailOpen(false);
+                          setOpen(false);
+                        }
+                      }}
                     />
                   ) : (
                     <NotificationList
