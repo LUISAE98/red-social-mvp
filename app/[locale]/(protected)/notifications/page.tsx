@@ -25,7 +25,9 @@ export default function NotificationsPage() {
   // vende experiencias, para no abrir listeners a quien no; el conteo real de
   // pendientes decide si el subnav se muestra y vuelve a desaparecer al atender.
   const { hasWallet } = useWalletVisibility(user?.uid ?? null);
-  const { hasPending } = usePendingExperiences(hasWallet ? user?.uid ?? null : null);
+  const { hasPending, count: experienceCount } = usePendingExperiences(
+    hasWallet ? user?.uid ?? null : null
+  );
 
   // Abrir la página cuenta como "ver" el contenedor → baja el badge del nav.
   useEffect(() => {
@@ -74,7 +76,11 @@ export default function NotificationsPage() {
       </div>
 
       {showSubnav ? (
-        <NotificationTabs activeTab={activeTab} onChange={changeTab} />
+        <NotificationTabs
+          activeTab={activeTab}
+          onChange={changeTab}
+          counts={{ social: unreadCount, experiences: experienceCount }}
+        />
       ) : null}
 
       <div className="notifSlideWrap">

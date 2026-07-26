@@ -23,6 +23,7 @@ export default function NotificationTabs({
   activeTab,
   onChange,
   compact = false,
+  counts,
 }: NotificationTabsProps) {
   const t = useTranslations("notifications");
   const tabs: NotifTab[] = ["experiences", "social"];
@@ -34,18 +35,24 @@ export default function NotificationTabs({
       role="tablist"
       aria-label={t("title")}
     >
-      {tabs.map((tab) => (
-        <button
-          key={tab}
-          type="button"
-          role="tab"
-          aria-selected={activeTab === tab}
-          className={activeTab === tab ? "ntab ntabActive" : "ntab"}
-          onClick={() => onChange(tab)}
-        >
-          {t(`tabs.${tab}`)}
-        </button>
-      ))}
+      {tabs.map((tab) => {
+        const count = counts?.[tab] ?? 0;
+        return (
+          <button
+            key={tab}
+            type="button"
+            role="tab"
+            aria-selected={activeTab === tab}
+            className={activeTab === tab ? "ntab ntabActive" : "ntab"}
+            onClick={() => onChange(tab)}
+          >
+            {t(`tabs.${tab}`)}
+            {count > 0 ? (
+              <span className="ntabCount">{count > 99 ? "99+" : count}</span>
+            ) : null}
+          </button>
+        );
+      })}
 
       {/* Barra selectora única que desliza entre pestañas (como el subnav de wallet). */}
       <span
@@ -77,6 +84,11 @@ export default function NotificationTabs({
         .ntabsCompact .ntab {
           font-size: 13px;
           padding: 9px 2px 6px;
+        }
+        .ntabCount {
+          margin-left: 6px;
+          font-weight: inherit;
+          color: inherit;
         }
         .ntab:hover:not(.ntabActive) {
           color: rgba(255, 255, 255, 0.8);

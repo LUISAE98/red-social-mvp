@@ -42,7 +42,9 @@ export default function NotificationBell({ active }: NotificationBellProps) {
   // agendadas). `useWalletVisibility` (cacheado) filtra a los vendedores antes de
   // abrir listeners; el conteo de pendientes decide mostrarlo/ocultarlo.
   const { hasWallet } = useWalletVisibility(user?.uid ?? null);
-  const { hasPending } = usePendingExperiences(hasWallet ? user?.uid ?? null : null);
+  const { hasPending, count: experienceCount } = usePendingExperiences(
+    hasWallet ? user?.uid ?? null : null
+  );
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<NotifTab | null>(null);
   const [slideDir, setSlideDir] = useState<"left" | "right" | null>(null);
@@ -158,7 +160,12 @@ export default function NotificationBell({ active }: NotificationBellProps) {
                 ) : null}
               </div>
               {showSubnav ? (
-                <NotificationTabs activeTab={activeTab} onChange={changeTab} compact />
+                <NotificationTabs
+                  activeTab={activeTab}
+                  onChange={changeTab}
+                  compact
+                  counts={{ social: unreadCount, experiences: experienceCount }}
+                />
               ) : null}
               <div className="notifPanelScroll">
                 <div
