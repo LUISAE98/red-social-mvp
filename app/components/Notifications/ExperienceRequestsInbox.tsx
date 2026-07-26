@@ -2,7 +2,6 @@
 
 import Image from "next/image";
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
@@ -44,14 +43,6 @@ function isServiceRequestAlertStatus(status?: string | null): boolean {
     status === "reschedule_requested"
   );
 }
-function isUpcomingServiceStatus(status?: string | null): boolean {
-  return (
-    status === "scheduled" ||
-    status === "ready_to_prepare" ||
-    status === "in_preparation"
-  );
-}
-
 function toDateSafe(value: unknown): Date | null {
   if (!value) return null;
   if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value;
@@ -137,7 +128,6 @@ export default function ExperienceRequestsInbox({
    *  contenedor —la campanita— se cierre y no estorbe la interacción). */
   onDetailOpenChange?: (open: boolean) => void;
 }) {
-  const router = useRouter();
   const tWallet = useTranslations("wallet");
   const tServices = useTranslations("services");
   const tCommon = useTranslations("common");
@@ -244,12 +234,9 @@ export default function ExperienceRequestsInbox({
               (toDateSafe(a.data.createdAt)?.getTime() ?? 0) -
               (toDateSafe(b.data.createdAt)?.getTime() ?? 0)
           );
-        const upcoming = sessions.filter((s) =>
-          isUpcomingServiceStatus(s.data.status)
-        );
-        return { key, greetings, alerts, upcoming };
+        return { key, greetings, alerts };
       })
-      .filter((b) => b.greetings.length + b.alerts.length + b.upcoming.length > 0)
+      .filter((b) => b.greetings.length + b.alerts.length > 0)
       .sort((a, b) => {
         const ap = a.key.startsWith("profile:") ? 0 : 1;
         const bp = b.key.startsWith("profile:") ? 0 : 1;
@@ -417,7 +404,7 @@ export default function ExperienceRequestsInbox({
 
   return (
     <div className="expInbox">
-      {buckets.map(({ key, greetings, alerts, upcoming }) => {
+      {buckets.map(({ key, greetings, alerts }) => {
         const meta = groupMetaMap[key];
         const isProfile = key.startsWith("profile:");
         const name = meta?.name ?? (isProfile ? "Mi perfil" : tCommon("user"));
@@ -595,60 +582,6 @@ export default function ExperienceRequestsInbox({
               );
             })}
 
-            {/* Agendadas → se gestionan en /sessions (opción A) */}
-            {upcoming.map((r) => {
-              const req = r.data;
-              return (
-                <div key={`up-${r.kind}-${r.id}`} style={styles.miniItem}>
-                  <div style={styles.row}>
-                    {req.buyerAvatarUrl ? (
-                      <Image
-                        src={req.buyerAvatarUrl}
-                        alt={req.buyerDisplayName ?? ""}
-                        width={28}
-                        height={28}
-                        style={{
-                          borderRadius: "50%",
-                          objectFit: "cover",
-                          border: "1px solid rgba(255,255,255,0.12)",
-                          flexShrink: 0,
-                        }}
-                      />
-                    ) : (
-                      <div style={styles.avatarFallback}>
-                        {getInitials(req.buyerDisplayName)}
-                      </div>
-                    )}
-                    <div style={{ minWidth: 0, flex: 1, overflow: "hidden" }}>
-                      <span style={{ color: "#fff", fontWeight: 600, fontSize: 12, lineHeight: 1.2, display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        {req.buyerDisplayName ?? tCommon("user")}
-                      </span>
-                      <span style={{ display: "block", color: "rgba(255,255,255,0.42)", fontSize: 11, lineHeight: 1.3 }}>
-                        {req.scheduledAt ? relativeTime(req.createdAt) : ""}
-                      </span>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => router.push("/sessions")}
-                    style={{
-                      width: "100%",
-                      height: 30,
-                      borderRadius: 8,
-                      border: "1px solid rgba(255,255,255,0.14)",
-                      background: "transparent",
-                      color: "rgba(255,255,255,0.82)",
-                      fontWeight: 520,
-                      fontSize: 12,
-                      cursor: "pointer",
-                      fontFamily: "inherit",
-                    }}
-                  >
-                    {tServices("viewInSessions")}
-                  </button>
-                </div>
-              );
-            })}
           </div>
         );
       })}
@@ -684,7 +617,7 @@ export default function ExperienceRequestsInbox({
           onReject={handleReject}
           onSchedule={handleSchedule}
           onAcceptAndSchedule={handleAcceptAndSchedule}
-          onPrepare={() => router.push("/sessions")}
+          onPrepare={closeSession}
           onReschedule={handleReschedule}
           onKeepSchedule={handleKeepSchedule}
         />

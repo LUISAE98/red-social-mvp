@@ -38,6 +38,12 @@ type Props = {
   onLike?: () => void;
   liked?: boolean;
   likesCount?: number;
+  /** Si se pasa, el panel de supercomentario abre CONTENIDO en este contenedor
+   *  (área bajo el video), sin oscurecer el live. Si no, abre a pantalla completa. */
+  superCommentContainer?: HTMLElement | null;
+  /** Creador del live — se muestra en la pasarela de pago del supercomentario. */
+  creatorName?: string | null;
+  creatorAvatarUrl?: string | null;
 };
 
 type SenderInfo = { username: string; avatarUrl: string | null };
@@ -56,6 +62,9 @@ export default function LiveChatViewer({
   onLike,
   liked = false,
   likesCount = 0,
+  superCommentContainer,
+  creatorName,
+  creatorAvatarUrl,
 }: Props) {
   const tLive = useTranslations("live");
   const { format: formatMoney } = usePriceFormat();
@@ -198,6 +207,10 @@ export default function LiveChatViewer({
       username={senderInfo?.username ?? user?.displayName ?? undefined}
       avatarUrl={senderInfo?.avatarUrl ?? user?.photoURL ?? null}
       config={effectiveConfig}
+      presentation={superCommentContainer ? "sheet" : "dialog"}
+      container={superCommentContainer}
+      creatorName={creatorName}
+      creatorAvatarUrl={creatorAvatarUrl}
     />
   ) : null;
 
@@ -448,7 +461,7 @@ export default function LiveChatViewer({
           <div ref={messagesEndRef} />
         </div>
 
-        <div style={{ padding: "8px 10px", borderTop: "1px solid transparent", flexShrink: 0 }}>
+        <div style={{ paddingTop: 8, paddingLeft: 10, paddingRight: 10, paddingBottom: "max(8px, env(safe-area-inset-bottom))", borderTop: "1px solid transparent", flexShrink: 0 }}>
           {liveEnded ? (
             <div style={{ textAlign: "center", fontSize: 12, color: "rgba(255,255,255,0.25)", fontFamily: FONT, padding: "4px 0" }}>
               {tLive("liveEnded")}

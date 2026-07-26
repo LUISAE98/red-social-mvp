@@ -264,11 +264,81 @@ function DonationGatewayMockup({ narrow, onClose }: { narrow: boolean; onClose: 
   );
 }
 
+// ── Mockup: panel de compra de supercomentario (réplica de SuperCommentModal) ──
+//    Se abre al presionar la moneda. Header + selección de nivel + mensaje + pagar.
+const SC_TIERS = [
+  { id: "t1", name: "Chispa",    maxChars: 60,  price: 15,  color: "#a855f7" },
+  { id: "t2", name: "Llama",     maxChars: 120, price: 35,  color: "#f72fbe" },
+  { id: "t3", name: "Fuego",     maxChars: 240, price: 75,  color: "#3b82f6" },
+  { id: "t4", name: "Explosión", maxChars: 400, price: 150, color: "#facc15" },
+  { id: "t5", name: "Volcán",    maxChars: 600, price: 300, color: "#4ade80" },
+];
+
+function SuperCommentMockup({ onClose }: { onClose: () => void }) {
+  const [selected, setSelected] = useState(SC_TIERS[0]);
+  const [text, setText] = useState("");
+  const maxChars = selected.maxChars;
+  const remaining = maxChars - text.length;
+  return (
+    <>
+      {/* Header */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
+          <div style={{ width: 28, height: 28, borderRadius: 8, background: "rgba(234,179,8,0.15)", border: "1px solid rgba(234,179,8,0.3)", display: "grid", placeItems: "center" }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#eab308" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="2" y="6" width="20" height="12" rx="2" /><path d="M6 10h.01M10 10h8M6 14h.01M10 14h8" />
+            </svg>
+          </div>
+          <span style={{ fontSize: 14, fontWeight: 600, color: "#fff" }}>Supercomentario</span>
+        </div>
+        <button type="button" onClick={onClose} style={{ width: 26, height: 26, borderRadius: "50%", border: "none", background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.5)", cursor: "pointer", fontSize: 15, display: "grid", placeItems: "center" }}>×</button>
+      </div>
+
+      {/* Elige tu nivel */}
+      <div style={{ fontSize: 10.5, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", color: "rgba(255,255,255,0.35)", marginBottom: 9 }}>Elige tu nivel</div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 7, marginBottom: 16 }}>
+        {SC_TIERS.map((tier) => {
+          const isSel = selected.id === tier.id;
+          return (
+            <button key={tier.id} type="button" onClick={() => { setSelected(tier); setText((p) => p.slice(0, tier.maxChars)); }}
+              style={{ display: "flex", alignItems: "center", gap: 11, padding: "9px 12px", borderRadius: 10, border: `1px solid ${isSel ? tier.color + "80" : "rgba(255,255,255,0.08)"}`, background: isSel ? tier.color + "18" : "rgba(255,255,255,0.03)", cursor: "pointer", textAlign: "left" }}>
+              <div style={{ width: 10, height: 10, borderRadius: "50%", background: tier.color, flexShrink: 0, boxShadow: isSel ? `0 0 8px ${tier.color}` : "none" }} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <span style={{ fontSize: 12.5, fontWeight: 600, color: isSel ? "#fff" : "rgba(255,255,255,0.7)" }}>{tier.name}</span>
+                <span style={{ fontSize: 10.5, color: "rgba(255,255,255,0.35)", marginLeft: 7 }}>hasta {tier.maxChars} caracteres</span>
+              </div>
+              <span style={{ fontSize: 13, fontWeight: 700, color: isSel ? tier.color : "rgba(255,255,255,0.5)", flexShrink: 0 }}>${tier.price} MXN</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Tu mensaje */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 7 }}>
+        <div style={{ fontSize: 10.5, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", color: "rgba(255,255,255,0.35)" }}>Tu mensaje</div>
+        <span style={{ fontSize: 10.5, color: remaining < 20 ? "#f87171" : "rgba(255,255,255,0.3)" }}>{remaining} restantes</span>
+      </div>
+      <textarea value={text} onChange={(e) => setText(e.target.value.slice(0, maxChars))} placeholder={`Escribe tu supercomentario (máx. ${maxChars} caracteres)...`} rows={3}
+        style={{ width: "100%", boxSizing: "border-box", background: "rgba(255,255,255,0.05)", border: `1px solid ${text.trim() ? selected.color + "50" : "rgba(255,255,255,0.1)"}`, borderRadius: 10, padding: "9px 11px", color: "#fff", fontSize: 12.5, fontFamily: "inherit", resize: "none", outline: "none", lineHeight: 1.5, marginBottom: 16 }} />
+
+      {/* Pagar y enviar */}
+      <button type="button" disabled={!text.trim()}
+        style={{ width: "100%", padding: "12px 20px", borderRadius: 10, border: "none", background: text.trim() ? "#a855f7" : "rgba(255,255,255,0.07)", color: "#fff", fontSize: 13.5, fontWeight: 600, fontFamily: "inherit", cursor: text.trim() ? "pointer" : "not-allowed" }}>
+        Pagar y enviar ${selected.price} MXN
+      </button>
+      <p style={{ margin: "10px 0 0", fontSize: 10.5, color: "rgba(255,255,255,0.25)", textAlign: "center" }}>El creador recibirá el 77% del monto.</p>
+    </>
+  );
+}
+
 function LiveSpectatorMockup() {
   const [chatFocused, setChatFocused] = useState(false);
   const [donateOpen, setDonateOpen] = useState(false);
   const [donateClosing, setDonateClosing] = useState(false);
   const closeDonate = () => setDonateClosing(true);
+  const [superOpen, setSuperOpen] = useState(false);
+  const [superClosing, setSuperClosing] = useState(false);
+  const closeSuper = () => setSuperClosing(true);
   const headerBtn: React.CSSProperties = { background: "none", border: "none", color: "rgba(255,255,255,0.9)", padding: "0 5px", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" };
   return (
     <div style={{ position: "relative", display: "flex", flexDirection: "column", height: "100%", background: "#0a0a0a", paddingTop: 42, overflow: "hidden" }}>
@@ -386,7 +456,7 @@ function LiveSpectatorMockup() {
         <div style={{ overflow: "hidden", flexShrink: 0, width: chatFocused ? 0 : 56, marginLeft: chatFocused ? 0 : 10, opacity: chatFocused ? 0 : 1, transition: "width 0.25s ease, margin 0.25s ease, opacity 0.2s ease" }}>
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             {/* Supercomentario — moneda */}
-            <button style={{ background: "none", border: "none", padding: 0, color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }} aria-label="Supercomentario">
+            <button onClick={() => setSuperOpen(true)} style={{ background: "none", border: "none", padding: 0, color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }} aria-label="Supercomentario">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="12" cy="12" r="8.2" />
                 <path d="M12 7.4v9.2" />
@@ -411,6 +481,23 @@ function LiveSpectatorMockup() {
         >
           <style>{`@keyframes dgUp{from{transform:translateY(100%)}to{transform:translateY(0)}}@keyframes dgDown{from{transform:translateY(0)}to{transform:translateY(100%)}}`}</style>
           <DonationGatewayMockup narrow onClose={closeDonate} />
+        </div>
+      )}
+
+      {/* ── Panel de supercomentario — bottom sheet oscuro que sube desde abajo (réplica de SuperCommentModal) ── */}
+      {superOpen && (
+        <div
+          onClick={closeSuper}
+          style={{ position: "absolute", inset: 0, zIndex: 110, background: "rgba(0,0,0,0.65)", display: "flex", alignItems: "flex-end", justifyContent: "center", animation: `${superClosing ? "scFadeOut" : "scFadeIn"} 0.2s ease forwards` }}
+        >
+          <style>{`@keyframes scUp{from{transform:translateY(100%)}to{transform:translateY(0)}}@keyframes scDown{from{transform:translateY(0)}to{transform:translateY(100%)}}@keyframes scFadeIn{from{opacity:0}to{opacity:1}}@keyframes scFadeOut{from{opacity:1}to{opacity:0}}`}</style>
+          <div
+            onClick={(e) => e.stopPropagation()}
+            onAnimationEnd={() => { if (superClosing) { setSuperOpen(false); setSuperClosing(false); } }}
+            style={{ width: "100%", maxHeight: "92%", overflowY: "auto", borderRadius: "16px 16px 0 0", background: "rgba(10,5,20,0.98)", border: "1px solid rgba(168,85,255,0.25)", borderBottom: "none", padding: "18px 18px 22px", animation: `${superClosing ? "scDown" : "scUp"} 0.2s ease forwards` }}
+          >
+            <SuperCommentMockup onClose={closeSuper} />
+          </div>
         </div>
       )}
       </div>

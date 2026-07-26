@@ -57,7 +57,7 @@ export default async function RootLayout({
   const messages = await getMessages();
 
   return (
-    <html lang={locale} style={{ backgroundColor: "#000000" }}>
+    <html lang={locale} style={{ backgroundColor: "#000000" }} suppressHydrationWarning>
       <head>
         <style
           dangerouslySetInnerHTML={{
@@ -252,7 +252,7 @@ export default async function RootLayout({
         />
       </head>
 
-      <body className={`${plusJakarta.variable} antialiased`}>
+      <body className={`${plusJakarta.variable} antialiased`} suppressHydrationWarning>
         <script
           dangerouslySetInnerHTML={{
             __html: `

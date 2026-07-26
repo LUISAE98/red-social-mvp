@@ -262,8 +262,14 @@ export default function ServicePaymentModal({
   useEffect(() => {
     if (open) {
       setRender(true);
-      const id = requestAnimationFrame(() => setEntered(true));
-      return () => cancelAnimationFrame(id);
+      // Doble rAF: garantiza que el navegador PINTE el estado inicial
+      // (translateY(100%)) antes de pasar a translateY(0); con un solo rAF la
+      // 1ª apertura salta de golpe (no hay estado "desde" que transicionar).
+      let raf2 = 0;
+      const raf1 = requestAnimationFrame(() => {
+        raf2 = requestAnimationFrame(() => setEntered(true));
+      });
+      return () => { cancelAnimationFrame(raf1); cancelAnimationFrame(raf2); };
     }
     setEntered(false);
     const t = window.setTimeout(() => setRender(false), 240);

@@ -59,12 +59,6 @@ export default function NotificationBell({ active }: NotificationBellProps) {
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => setMounted(true), []);
 
-  // Abrir el contenedor marca todo como "visto" → baja el badge a 0 (sin marcar
-  // como leído: cada ítem sigue no-leído hasta abrirlo).
-  useEffect(() => {
-    if (open) markSeen();
-  }, [open, markSeen]);
-
   const reposition = () => {
     const el = btnRef.current;
     if (!el) return;
@@ -117,6 +111,14 @@ export default function NotificationBell({ active }: NotificationBellProps) {
   // Subnav: solo si hay experiencias pendientes; Experiencias es la pestaña por defecto.
   const showSubnav = hasPending;
   const activeTab: NotifTab = tab ?? (showSubnav ? "experiences" : "social");
+
+  // Ver la pestaña Sociales (con el panel abierto) marca lo social como "visto":
+  // baja el badge y el contador de Sociales a 0, sin marcar como leído. Si el
+  // panel abre en Experiencias, lo social sigue contando hasta que lo veas.
+  useEffect(() => {
+    if (open && activeTab === "social") markSeen();
+  }, [open, activeTab, markSeen]);
+
   const visibleItems = useMemo(() => {
     if (showSubnav && activeTab === "experiences") {
       return items.filter(isExperienceNotification);
@@ -175,7 +177,7 @@ export default function NotificationBell({ active }: NotificationBellProps) {
                   activeTab={activeTab}
                   onChange={changeTab}
                   compact
-                  counts={{ social: unreadCount, experiences: experienceCount }}
+                  counts={{ social: badgeCount, experiences: experienceCount }}
                 />
               ) : null}
               <div className="notifPanelScroll">

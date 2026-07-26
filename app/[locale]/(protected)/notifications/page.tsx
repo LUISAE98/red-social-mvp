@@ -16,7 +16,7 @@ import RefreshableArea from "@/components/refresh/RefreshableArea";
 export default function NotificationsPage() {
   const t = useTranslations("notifications");
   const { user } = useAuth();
-  const { items, loading, unreadCount, markSeen, markAllRead, markRead, refresh } =
+  const { items, loading, unreadCount, badgeCount, markSeen, markAllRead, markRead, refresh } =
     useNotifications(user?.uid ?? null);
   const selfHandle = useSelfHandle(user?.uid ?? null);
 
@@ -29,11 +29,6 @@ export default function NotificationsPage() {
     hasWallet ? user?.uid ?? null : null
   );
 
-  // Abrir la página cuenta como "ver" el contenedor → baja el badge del nav.
-  useEffect(() => {
-    markSeen();
-  }, [markSeen]);
-
   // El subnav solo existe si el usuario vende experiencias. Con prioridad a
   // Experiencias: cuando aparece, es la pestaña activa por defecto. `tab === null`
   // = sin elección manual → se resuelve automáticamente según `showSubnav`.
@@ -41,6 +36,14 @@ export default function NotificationsPage() {
   const [slideDir, setSlideDir] = useState<"left" | "right" | null>(null);
   const showSubnav = hasPending;
   const activeTab: NotifTab = tab ?? (showSubnav ? "experiences" : "social");
+
+  // Ver la pestaña Sociales marca las notificaciones como "vistas" (baja el badge
+  // del nav/campanita y el contador de Sociales a 0), sin marcarlas como leídas.
+  // Solo al ENTRAR a Sociales: si el creador se queda en Experiencias, sus
+  // sociales siguen contando hasta que las vea; y una noti nueva vuelve a sumar.
+  useEffect(() => {
+    if (activeTab === "social") markSeen();
+  }, [activeTab, markSeen]);
 
   // Cambiar de pestaña desliza el contenido (mismas keyframes que el nav de
   // rutas): a la pestaña de la derecha entra desde la derecha, y viceversa.
@@ -79,7 +82,7 @@ export default function NotificationsPage() {
         <NotificationTabs
           activeTab={activeTab}
           onChange={changeTab}
-          counts={{ social: unreadCount, experiences: experienceCount }}
+          counts={{ social: badgeCount, experiences: experienceCount }}
         />
       ) : null}
 

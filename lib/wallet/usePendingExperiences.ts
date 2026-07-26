@@ -5,24 +5,30 @@ import { collection, limit, onSnapshot, query, where } from "firebase/firestore"
 import { db, auth } from "@/lib/firebase";
 import {
   useScheduledRows,
-  isPendingCurrentScheduledStatus,
   isSafePendingStatus,
-  isExpiredScheduledService,
   shouldTreatAsAutoRejected,
 } from "./ownerWallet";
+
+// Estados de sesión ACCIONABLES en Experiencias (por atender / agendar / reagendar).
+// Las agendadas/en curso ya NO cuentan: se ven en el historial del wallet.
+const ACTIONABLE_SESSION_STATUSES = [
+  "pending_creator_response",
+  "accepted_pending_schedule",
+  "reschedule_requested",
+];
 
 /**
  * ¿El creador tiene experiencias pendientes por atender o agendadas activas?
  *
  * Es el gate del subnav de notificaciones: el subnav aparece SOLO mientras haya
- * experiencias vivas (saludos/consejos por grabar, o sesiones/tiempo contigo por
- * atender, agendar o agendadas). Cuando el creador atiende todo, vuelve a
- * desaparecer.
+ * experiencias ACCIONABLES (saludos/consejos por grabar, o sesiones/tiempo
+ * contigo por atender, agendar o reagendar). Las agendadas/en curso/entregadas
+ * NO cuentan —se ven en el historial del wallet—, así que el subnav desaparece
+ * cuando el creador atiende todo lo pendiente.
  *
- * Reusa la MISMA definición de "pendiente" que la bandeja de pendientes del
- * wallet (`pendingCurrent` + `isSafePendingStatus` + no expiradas) para no
- * divergir. Es una versión ligera: solo 3 listeners (tiempo contigo + sesión
- * exclusiva + saludos), sin lives ni el fetch de datos del comprador.
+ * Es una versión ligera: solo 3 listeners (tiempo contigo + sesión exclusiva +
+ * saludos), sin lives ni el fetch de datos del comprador. Debe coincidir con lo
+ * que muestra `ExperienceRequestsInbox`.
  *
  * Pásale `null` cuando el usuario no vende experiencias (ver `useWalletVisibility`)
  * para no abrir listeners de más: con `null` no se suscribe a nada.
@@ -41,6 +47,7 @@ export function usePendingExperiences(creatorId: string | null | undefined) {
 
   useEffect(() => {
     if (!creatorId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setPendingGreetings(0);
       setLoadingGreetings(false);
       return;
@@ -81,10 +88,9 @@ export function usePendingExperiences(creatorId: string | null | undefined) {
   const scheduledPending = useMemo(() => {
     return [...meet.rows, ...exclusive.rows].filter(
       (row) =>
-        isPendingCurrentScheduledStatus(row.status) &&
+        ACTIONABLE_SESSION_STATUSES.includes(row.status) &&
         !shouldTreatAsAutoRejected(row) &&
-        isSafePendingStatus(row.status) &&
-        !isExpiredScheduledService(row)
+        isSafePendingStatus(row.status)
     ).length;
   }, [meet.rows, exclusive.rows]);
 
