@@ -9,6 +9,7 @@ import { expireExclusiveSessionNoShowsHandler, autoExpirePendingExclusiveSession
 import { autoExpirePendingGreetingRequestsHandler } from "./greetingRequests";
 import { updateExchangeRatesHandler } from "./exchangeRates";
 import { sessionRemindersHandler } from "./sessionLifecycle";
+import { expireGroupSubscriptionsHandler } from "./payments/groupSubscription";
 
 // Healthcheck público
 export const healthcheck = onRequest(
@@ -81,10 +82,13 @@ export const sessionPreSessionReminders = onSchedule(
   }
 );
 
-// Tasas de cambio: actualiza el doc config/exchangeRates cada 6 horas.
+// Tasas de cambio (dLocal/FX): una sola llamada DIARIA a la fuente (open.er-api.com,
+// base USD) que persiste en config/exchangeRates. TODO el frontend lee ese doc
+// cacheado vía un listener compartido — nunca se llama la API por carga de página.
+// El margen FX (buffer ~1.5%) se aplica al mostrar/cobrar, no aquí.
 export const updateExchangeRates = onSchedule(
   {
-    schedule: "every 6 hours",
+    schedule: "every 24 hours",
     timeZone: "America/Mexico_City",
     region: "us-central1",
   },
@@ -92,6 +96,21 @@ export const updateExchangeRates = onSchedule(
     logger.info("updateExchangeRates started");
     await updateExchangeRatesHandler();
     logger.info("updateExchangeRates finished");
+  }
+);
+
+// Suscripciones a comunidades: da de baja el acceso cuando el periodo pagado (o la
+// gracia) venció. Corre a diario.
+export const expireGroupSubscriptions = onSchedule(
+  {
+    schedule: "every 24 hours",
+    timeZone: "America/Mexico_City",
+    region: "us-central1",
+  },
+  async () => {
+    logger.info("expireGroupSubscriptions started");
+    await expireGroupSubscriptionsHandler();
+    logger.info("expireGroupSubscriptions finished");
   }
 );
 
@@ -292,6 +311,12 @@ export { payProfileDonation } from "./payments/profileDonationPayment";
 export { payLiveAccess } from "./payments/liveAccessPayment";
 export { payLiveDonation } from "./payments/liveDonationPayment";
 export { paySuperComment } from "./payments/superCommentPayment";
+
+// Migración única MXN → USD (cambio de ancla de precios a dLocal). Idempotente.
+export { migrateCurrencyMxnToUsd } from "./migrateCurrency";
+
+// Suscripción a comunidades (Mercado Pago preapproval — auto-renovación).
+export { payGroupSubscription, cancelGroupSubscription } from "./payments/groupSubscription";
 
 // Backfill de búsqueda de historias (corrida única, protegida por secret)
 export { backfillStoriesSearch } from "./storiesBackfill";

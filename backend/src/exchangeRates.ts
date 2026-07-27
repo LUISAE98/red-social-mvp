@@ -1,6 +1,6 @@
 // Tasas de cambio reales: una tarea programada trae las tasas de una fuente
 // gratuita (sin API key) y las guarda en un solo doc `config/exchangeRates` que
-// todo el frontend lee. Base = MXN (ancla). rates[X] = unidades de X por 1 MXN.
+// todo el frontend lee. Base = USD (ancla). rates[X] = unidades de X por 1 USD.
 
 import * as admin from "firebase-admin";
 import { logger } from "firebase-functions";
@@ -10,39 +10,29 @@ if (admin.apps.length === 0) {
 }
 const db = admin.firestore();
 
-// Las 26 monedas de visualización del lanzamiento (continente americano, sin SRD).
+// Las 15 monedas de los 17 países de lanzamiento (EC/SV/PA comparten USD).
+// Debe empatar con DISPLAY_CURRENCIES de lib/currency/catalog.ts.
 const DISPLAY_CURRENCIES = [
   "MXN",
   "ARS",
+  "BOB",
   "BRL",
   "CLP",
   "COP",
-  "PEN",
-  "UYU",
-  "USD",
-  "CAD",
-  "BSD",
-  "BBD",
-  "BZD",
-  "BOB",
   "CRC",
-  "CUP",
-  "XCD",
   "GTQ",
-  "GYD",
-  "HTG",
   "HNL",
-  "JMD",
   "NIO",
+  "PEN",
   "PYG",
   "DOP",
-  "TTD",
-  "VES",
+  "UYU",
+  "USD",
 ];
 
-// Fuente gratuita y sin clave. Devuelve { result, base_code: "MXN", rates: { USD: n, ... } }
-// donde rates[X] = cuántas unidades de X equivalen a 1 MXN (justo lo que guardamos).
-const RATES_URL = "https://open.er-api.com/v6/latest/MXN";
+// Fuente gratuita y sin clave. Devuelve { result, base_code: "USD", rates: { MXN: n, ... } }
+// donde rates[X] = cuántas unidades de X equivalen a 1 USD (justo lo que guardamos).
+const RATES_URL = "https://open.er-api.com/v6/latest/USD";
 
 export async function updateExchangeRatesHandler(): Promise<void> {
   const res = await fetch(RATES_URL);
@@ -65,11 +55,11 @@ export async function updateExchangeRatesHandler(): Promise<void> {
       rates[code] = r;
     }
   }
-  rates.MXN = 1; // el ancla siempre vale 1
+  rates.USD = 1; // el ancla siempre vale 1
 
   await db.doc("config/exchangeRates").set(
     {
-      base: "MXN",
+      base: "USD",
       rates,
       source: "live",
       provider: "open.er-api.com",

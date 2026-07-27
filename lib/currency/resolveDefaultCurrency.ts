@@ -5,12 +5,12 @@
 //   1. Preferencia guardada del usuario autenticado (preferredCurrency).
 //   2. Preferencia guardada en cookie (usuario no autenticado o sesión anterior).
 //   3. País detectado por IP.
-//   4. Fallback: MXN.
+//   4. Fallback: USD (el ancla).
 //
 // La detección por IP solo debe usarse cuando NO exista preferencia previa; una
 // selección manual nunca se sobrescribe automáticamente.
 
-import { displayCurrencyForCountry, isDisplayCurrency, type DisplayCurrency } from "./catalog";
+import { ANCHOR_CURRENCY, displayCurrencyForCountry, isDisplayCurrency, type DisplayCurrency } from "./catalog";
 
 export function resolveDefaultCurrency(input: {
   userPreferred?: string | null;
@@ -20,5 +20,5 @@ export function resolveDefaultCurrency(input: {
   if (isDisplayCurrency(input.userPreferred)) return input.userPreferred;
   if (isDisplayCurrency(input.cookie)) return input.cookie;
   if (input.country) return displayCurrencyForCountry(input.country);
-  return "MXN";
+  return ANCHOR_CURRENCY;
 }

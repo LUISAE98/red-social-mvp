@@ -1504,7 +1504,7 @@ const onCropComplete = useCallback(
                       onChange={(e) => setPriceMonthly(e.target.value)}
                       placeholder={tGroups("priceExample")}
                     />
-                    {displayCurrency !== "MXN" &&
+                    {displayCurrency !== "USD" &&
                     priceMonthly &&
                     Number(priceMonthly) > 0 ? (
                       <div

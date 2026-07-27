@@ -20,6 +20,7 @@ import {
   upsertPaymentIntentStatus,
   applyApprovedPaymentToSource,
 } from "./reconcile";
+import { reconcileMpSubscription } from "./groupSubscription";
 
 const REGION = "us-central1";
 
@@ -120,6 +121,14 @@ export const mpWebhook = onRequest(
     if (!validSignature) {
       logger.warn("mpWebhook invalid_signature", { type, dataId });
       res.status(401).json({ error: "Invalid signature" });
+      return;
+    }
+
+    // Suscripciones (preapproval): topics propios. Se reconcilian aparte.
+    if ((type === "subscription_preapproval" || type === "subscription_authorized_payment") && dataId) {
+      await reconcileMpSubscription(type, dataId);
+      logger.info("mpWebhook subscription processed", { type, dataId });
+      res.status(200).json({ received: true });
       return;
     }
 

@@ -75,8 +75,8 @@ const ID_SAVED_CVV = "vibra-mp-saved-cvv";
 
 const MP_BLUE = "#009ee3";
 const MP_GREEN = "#00a650";
-// Montos sugeridos de donación: anclas en MXN; se muestran/convierten a la moneda del usuario.
-const DONATION_PRESETS_MXN = [30, 70, 140, 240];
+// Montos sugeridos de donación: anclas en USD; se muestran/convierten a la moneda del usuario.
+const DONATION_PRESETS_USD = [2, 5, 10, 20];
 
 // Placeholder sutil (mismo gris del panel), como el campo de mensaje al creador.
 // backgroundColor transparente: el iframe de MP trae fondo blanco por defecto;
@@ -98,6 +98,9 @@ type Props = {
    *  vuelve un input). `amount` es solo un valor inicial válido para abrir. */
   amountEditable?: boolean;
   priceLabel?: string;
+  /** Si se pasa (p.ej. "mes"), el total se muestra como "$X / mes" y el rótulo
+   *  cambia a "Cobro mensual" (suscripciones recurrentes). */
+  pricePeriodLabel?: string;
   productType?: string;
   providerName?: string;
   avatarUrl?: string | null;
@@ -133,6 +136,7 @@ export default function ServicePaymentModal({
   pay,
   amountEditable = false,
   priceLabel,
+  pricePeriodLabel,
   productType,
   providerName,
   avatarUrl,
@@ -963,8 +967,8 @@ export default function ServicePaymentModal({
   // aproximado + aviso cuando la moneda del comprador NO es MXN.
   // Monto efectivo: en modo donación es el elegido por el comprador (ya en MXN).
   const effectiveAmount = amountEditable ? chosenAmount : amount;
-  const isNonMxn = pf.currency !== "MXN";
-  const showApprox = effectiveAmount != null && effectiveAmount > 0 && isNonMxn;
+  const isNonAnchor = pf.currency !== "USD";
+  const showApprox = effectiveAmount != null && effectiveAmount > 0 && isNonAnchor;
   // `formatCurrency` de Vibra solo pone el símbolo (no el código ISO). Aquí, al
   // mostrar dos monedas juntas, pegamos el código a mano para que quede claro
   // cuál es cuál (el "$" lo comparten MXN, USD, ARS…).
@@ -1061,15 +1065,6 @@ export default function ServicePaymentModal({
         <div style={{ display: "grid", gap: 10, marginTop: 2 }}>
           <div style={{ height: 1, background: "#e6e8ec" }} />
           <p style={{ margin: 0, fontSize: 12.5, color: "#5b616e", lineHeight: 1.5 }}>{description}</p>
-          {amountEditable && isNonMxn && (
-            // Cobro real en MXN, convertido en tiempo real desde el monto que escribe.
-            <p style={{ margin: 0, fontSize: 12.5, color: "#6b7280", textAlign: "center", fontWeight: 600 }}>
-              Tu banco cobrará{" "}
-              <span style={{ color: "#3a3f4a", fontWeight: 700 }}>
-                {pf.formatAnchor(chosenAmount ?? 0)} MXN
-              </span>
-            </p>
-          )}
         </div>
       ) : null}
 
@@ -1078,20 +1073,20 @@ export default function ServicePaymentModal({
           <div style={{ height: 1, background: "#e6e8ec" }} />
           {/* 4 montos sugeridos (anclas MXN → moneda del usuario). Al elegir uno se pone en "Otro monto". */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
-            {DONATION_PRESETS_MXN.map((mxn) => {
-              const selected = selectedPreset === mxn;
+            {DONATION_PRESETS_USD.map((usd) => {
+              const selected = selectedPreset === usd;
               return (
                 <button
-                  key={mxn}
+                  key={usd}
                   type="button"
                   onClick={() => {
-                    setSelectedPreset(mxn);
-                    setChosenAmount(mxn);
-                    setCustomAmount(String(Math.round(pf.toDisplayForInput(mxn, "MXN"))));
+                    setSelectedPreset(usd);
+                    setChosenAmount(usd);
+                    setCustomAmount(String(Math.round(pf.toDisplayForInput(usd, "USD"))));
                   }}
                   style={{ padding: "9px 2px", borderRadius: 10, border: "none", background: selected ? "#eaf6fd" : "transparent", color: selected ? MP_BLUE : "#3a3f4a", fontSize: 12.5, fontWeight: 600, fontFamily: "inherit", cursor: "pointer", whiteSpace: "nowrap" }}
                 >
-                  {pf.format(mxn, { code: true })}
+                  {pf.format(usd, { code: true })}
                 </button>
               );
             })}
@@ -1117,7 +1112,7 @@ export default function ServicePaymentModal({
                   const n = Math.floor(Number(v));
                   if (Number.isFinite(n) && n > 0) {
                     // Escribe en su moneda → convertimos a MXN (lo que se cobra).
-                    const mxn = isNonMxn ? pf.toAnchor(n) : n;
+                    const mxn = isNonAnchor ? pf.toAnchor(n) : n;
                     setChosenAmount(mxn != null ? Math.round(mxn) : null);
                   } else {
                     setChosenAmount(null);
@@ -1158,8 +1153,12 @@ export default function ServicePaymentModal({
         <>
           <div style={{ height: 1, background: "#e6e8ec" }} />
           <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between" }}>
-            <span style={{ fontSize: 13, color: "#6b7280", fontWeight: 600 }}>Total a pagar</span>
-            <span style={{ fontSize: 17, fontWeight: 600, color: "#3a3f4a" }}>{mxnTotal}</span>
+            <span style={{ fontSize: 13, color: "#6b7280", fontWeight: 600 }}>
+              {pricePeriodLabel ? "Cobro mensual" : "Total a pagar"}
+            </span>
+            <span style={{ fontSize: 17, fontWeight: 600, color: "#3a3f4a" }}>
+              {mxnTotal}{pricePeriodLabel ? ` / ${pricePeriodLabel}` : ""}
+            </span>
           </div>
         </>
       )}
@@ -1242,7 +1241,7 @@ export default function ServicePaymentModal({
         </span>
       </div>
 
-      {(showApprox || (amountEditable && isNonMxn)) && (
+      {(showApprox || (amountEditable && isNonAnchor)) && (
         <p
           style={{
             margin: 0,
@@ -1252,7 +1251,7 @@ export default function ServicePaymentModal({
             lineHeight: 1.4,
           }}
         >
-          El cobro se realiza en MXN. Tu banco podría aplicar una comisión por cambio de divisa.
+          El precio está referenciado en USD; se te muestra y cobra el equivalente en tu moneda local.
         </p>
       )}
     </div>

@@ -7,6 +7,7 @@ import { useNotifications } from "@/lib/hooks/useNotifications";
 import { useSelfHandle } from "@/lib/hooks/useSelfHandle";
 import { useWalletVisibility } from "@/lib/wallet/useWalletVisibility";
 import { usePendingExperiences } from "@/lib/wallet/usePendingExperiences";
+import { useExperiencesSeen } from "@/lib/experiences/useExperiencesSeen";
 import NotificationList from "@/app/components/Notifications/NotificationList";
 import NotificationTabs, { type NotifTab } from "@/app/components/Notifications/NotificationTabs";
 import ExperienceRequestsInbox from "@/app/components/Notifications/ExperienceRequestsInbox";
@@ -25,25 +26,57 @@ export default function NotificationsPage() {
   // vende experiencias, para no abrir listeners a quien no; el conteo real de
   // pendientes decide si el subnav se muestra y vuelve a desaparecer al atender.
   const { hasWallet } = useWalletVisibility(user?.uid ?? null);
-  const { hasPending, count: experienceCount } = usePendingExperiences(
+  const {
+    hasPending,
+    count: experienceCount,
+    latestMs: expLatestMs,
+    loading: expLoading,
+  } = usePendingExperiences(hasWallet ? user?.uid ?? null : null);
+  const { seenAt: expSeenAt, markSeen: markExpSeen } = useExperiencesSeen(
     hasWallet ? user?.uid ?? null : null
   );
 
-  // El subnav solo existe si el usuario vende experiencias. Con prioridad a
-  // Experiencias: cuando aparece, es la pestaña activa por defecto. `tab === null`
-  // = sin elección manual → se resuelve automáticamente según `showSubnav`.
+  // ¿Hay experiencias NUEVAS desde la última vez que se vio la pestaña?
+  const hasNewExperiences = experienceCount > 0 && expLatestMs > expSeenAt;
+
+  // El subnav solo existe si el usuario vende experiencias.
   const [tab, setTab] = useState<NotifTab | null>(null);
   const [slideDir, setSlideDir] = useState<"left" | "right" | null>(null);
   const showSubnav = hasPending;
-  const activeTab: NotifTab = tab ?? (showSubnav ? "experiences" : "social");
+
+  // Pestaña por defecto, decidida UNA vez (al cargar los datos), por prioridad:
+  // hay experiencias nuevas → Experiencias (prioridad); si no, hay sociales
+  // nuevas → Sociales; si no hay nada nuevo → Experiencias. Se congela para que
+  // marcar "visto" no la haga saltar sola. La elección manual (`tab`) manda.
+  const [decidedTab, setDecidedTab] = useState<NotifTab | null>(null);
+  useEffect(() => {
+    if (decidedTab !== null) return;
+    if (loading || (hasWallet && expLoading)) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setDecidedTab(
+      !hasPending
+        ? "social"
+        : hasNewExperiences
+          ? "experiences"
+          : badgeCount > 0
+            ? "social"
+            : "experiences"
+    );
+  }, [decidedTab, loading, hasWallet, expLoading, hasPending, hasNewExperiences, badgeCount]);
+
+  const activeTab: NotifTab = tab ?? decidedTab ?? (showSubnav ? "experiences" : "social");
 
   // Ver la pestaña Sociales marca las notificaciones como "vistas" (baja el badge
   // del nav/campanita y el contador de Sociales a 0), sin marcarlas como leídas.
-  // Solo al ENTRAR a Sociales: si el creador se queda en Experiencias, sus
-  // sociales siguen contando hasta que las vea; y una noti nueva vuelve a sumar.
   useEffect(() => {
     if (activeTab === "social") markSeen();
   }, [activeTab, markSeen]);
+
+  // Ver la pestaña Experiencias marca las experiencias como "vistas" (para que no
+  // vuelvan a forzar esa pestaña por defecto hasta que llegue una nueva).
+  useEffect(() => {
+    if (activeTab === "experiences") markExpSeen();
+  }, [activeTab, markExpSeen]);
 
   // Cambiar de pestaña desliza el contenido (mismas keyframes que el nav de
   // rutas): a la pestaña de la derecha entra desde la derecha, y viceversa.

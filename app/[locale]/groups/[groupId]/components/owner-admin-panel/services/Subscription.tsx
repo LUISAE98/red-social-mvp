@@ -642,7 +642,7 @@ function handleModify() {
             {displayCurrency}
           </span>
         </div>
-        {displayCurrency !== "MXN" &&
+        {displayCurrency !== "USD" &&
         overlayDraft.subscription.price &&
         Number(overlayDraft.subscription.price) > 0 ? (
           <div style={subtleStyle}>

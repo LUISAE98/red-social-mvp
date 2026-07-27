@@ -193,6 +193,11 @@ export const onGroupSubscriptionLedger = onDocumentWritten(
       data.accessType === "subscription" && data.subscriptionActive === true;
     if (!isActiveSub) return;
 
+    // Suscripciones reales por MP (preapproval): el earning lo registra el webhook
+    // `subscription_authorized_payment` por CADA cobro mensual. Aquí no se cuenta
+    // (evita doble contabilidad). Solo el flujo simulado legacy pasa por este trigger.
+    if (data.mpManaged === true) return;
+
     // Solo cuando la suscripción se activa (no en cada escritura del miembro).
     const before = event.data?.before?.data() as Record<string, unknown> | undefined;
     const wasActiveSub =

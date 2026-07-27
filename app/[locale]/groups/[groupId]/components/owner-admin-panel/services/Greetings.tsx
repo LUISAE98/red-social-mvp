@@ -432,7 +432,7 @@ export default function Saludos({
             {displayCurrency}
           </span>
         </div>
-        {displayCurrency !== "MXN" &&
+        {displayCurrency !== "USD" &&
         overlayDraft.saludo.price &&
         Number(overlayDraft.saludo.price) > 0 ? (
           <div style={subtleStyle}>

@@ -462,7 +462,7 @@ export default function MeetGreet({
             {displayCurrency}
           </span>
         </div>
-        {displayCurrency !== "MXN" &&
+        {displayCurrency !== "USD" &&
         overlayDraft.meetGreet.price &&
         Number(overlayDraft.meetGreet.price) > 0 ? (
           <div style={subtleStyle}>

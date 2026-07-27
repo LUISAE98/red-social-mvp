@@ -857,7 +857,7 @@ export default function LiveComposerModal({
               {displayCurrency}
             </div>
           </div>
-          {displayCurrency !== "MXN" && ticketPrice && Number(ticketPrice) > 0 ? (
+          {displayCurrency !== "USD" && ticketPrice && Number(ticketPrice) > 0 ? (
             <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", marginTop: -4, marginBottom: 8, fontFamily: fontStack }}>
               = {formatAnchor(resolveStoredPrice(Number(ticketPrice)).price)}
             </div>

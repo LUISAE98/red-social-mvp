@@ -426,7 +426,7 @@ export default function Consejos({
             {displayCurrency}
           </span>
         </div>
-        {displayCurrency !== "MXN" &&
+        {displayCurrency !== "USD" &&
         overlayDraft.consejo.price &&
         Number(overlayDraft.consejo.price) > 0 ? (
           <div style={subtleStyle}>

@@ -27,7 +27,8 @@ service cloud.firestore {
     }
 
     function validCurrency(c) {
-      return c in ["MXN", "USD"];
+      // Las 15 monedas de los 17 países de lanzamiento (EC/SV/PA → USD).
+      return c in ["MXN", "ARS", "BOB", "BRL", "CLP", "COP", "CRC", "GTQ", "HNL", "NIO", "PEN", "PYG", "DOP", "UYU", "USD"];
     }
 
     function validBirthDate(b) {
@@ -238,6 +239,18 @@ service cloud.firestore {
       allow get: if signedIn()
         && resource.data.buyerId == request.auth.uid;
       allow list, create, update, delete: if false;
+    }
+
+    // Suscripción a comunidad (preapproval de Mercado Pago). El suscriptor lee la
+    // suya (para mostrar "Suscrito hasta …"); el dueño de la comunidad lee las de
+    // su comunidad. La ESCRITURA es SOLO backend: el cliente nunca puede fabricar
+    // una suscripción ni activar el earning.
+    match /groupSubscriptions/{subId} {
+      allow get: if signedIn()
+        && (resource.data.uid == request.auth.uid || resource.data.ownerId == request.auth.uid);
+      allow list: if signedIn()
+        && (request.auth.uid == resource.data.uid || request.auth.uid == resource.data.ownerId);
+      allow create, update, delete: if false;
     }
 
     // Solicitudes de retiro. El creador ve las suyas; el moderador de plataforma

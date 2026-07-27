@@ -101,7 +101,7 @@ type SummaryData = {
 
 function emptySummary(): SummaryData {
   return {
-    currency: "MXN",
+    currency: "USD",
     lifetimeEarnedGross: 0,
     lifetimeEarnedNet: 0,
     withdrawnGross: 0,
@@ -170,7 +170,7 @@ export async function recordEarning(
       grossAmount: gross,
       netAmount: net,
       commissionRate: WALLET_COMMISSION_RATE,
-      currency: "MXN",
+      currency: "USD",
       sourceType: params.sourceType,
       sourceId: params.sourceId,
       buyerId: params.buyerId ?? null,
@@ -193,7 +193,7 @@ export async function recordEarning(
       s.pendingNet = round2(s.pendingNet + net);
     }
 
-    tx.set(sRef, { ...s, currency: "MXN", updatedAt: now }, { merge: true });
+    tx.set(sRef, { ...s, currency: "USD", updatedAt: now }, { merge: true });
   });
 }
 
@@ -266,7 +266,7 @@ export async function settleEarning(
     s.lifetimeEarnedGross = round2(s.lifetimeEarnedGross + e.grossAmount);
     s.lifetimeEarnedNet = round2(s.lifetimeEarnedNet + e.netAmount);
 
-    tx.set(sRef, { ...s, currency: "MXN", updatedAt: now }, { merge: true });
+    tx.set(sRef, { ...s, currency: "USD", updatedAt: now }, { merge: true });
   });
 }
 
@@ -308,6 +308,6 @@ export async function reverseEarning(
       s.rejectedNet = round2(s.rejectedNet + e.netAmount);
     }
 
-    tx.set(sRef, { ...s, currency: "MXN", updatedAt: now }, { merge: true });
+    tx.set(sRef, { ...s, currency: "USD", updatedAt: now }, { merge: true });
   });
 }

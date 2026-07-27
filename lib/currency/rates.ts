@@ -15,9 +15,9 @@ import { db } from "@/lib/firebase";
 import { type RateMap } from "./format";
 
 export type ExchangeRates = {
-  /** Ancla de las tasas. Siempre MXN. */
-  base: "MXN";
-  /** Unidades de la moneda por 1 MXN. */
+  /** Ancla de las tasas. Siempre USD. */
+  base: "USD";
+  /** Unidades de la moneda por 1 USD. */
   rates: RateMap;
   /** "live" = doc real de Firestore; "mock" = placeholder (no usar para cobros). */
   source: "live" | "mock";
@@ -25,41 +25,30 @@ export type ExchangeRates = {
 };
 
 /**
- * Tasas MOCK (placeholder aproximado) — 1 MXN = X moneda.
+ * Tasas MOCK (placeholder aproximado) — 1 USD = X moneda.
  * NO son definitivas ni sirven para cobros reales; se reemplazan por el doc
- * `config/exchangeRates`. Los valores volátiles (ARS, VES, CUP) son solo relleno.
+ * `config/exchangeRates`. Los valores volátiles (ARS) son solo relleno.
  */
 const MOCK: RateMap = {
-  MXN: 1,
-  USD: 0.054,
-  CAD: 0.074,
-  ARS: 54,
-  BRL: 0.3,
-  CLP: 51,
-  COP: 220,
-  PEN: 0.2,
-  UYU: 2.2,
-  BSD: 0.054,
-  BBD: 0.108,
-  BZD: 0.108,
-  BOB: 0.37,
-  CRC: 27,
-  CUP: 1.3,
-  XCD: 0.145,
-  GTQ: 0.42,
-  GYD: 11.3,
-  HTG: 7.2,
-  HNL: 1.35,
-  JMD: 8.5,
-  NIO: 2,
-  PYG: 400,
-  DOP: 3.3,
-  TTD: 0.37,
-  VES: 5,
+  USD: 1,
+  MXN: 18.5,
+  ARS: 1000,
+  BOB: 6.9,
+  BRL: 5.5,
+  CLP: 950,
+  COP: 4000,
+  CRC: 510,
+  GTQ: 7.8,
+  HNL: 25,
+  NIO: 37,
+  PEN: 3.7,
+  PYG: 7400,
+  DOP: 60,
+  UYU: 40,
 };
 
 const MOCK_RATES: ExchangeRates = {
-  base: "MXN",
+  base: "USD",
   rates: MOCK,
   source: "mock",
   updatedAt: null,
@@ -96,7 +85,7 @@ function ensureSub() {
       const rates = d && typeof d === "object" ? (d.rates as RateMap | undefined) : undefined;
       store.data =
         rates && typeof rates === "object"
-          ? { base: "MXN", rates, source: "live", updatedAt: toDate(d?.updatedAt) }
+          ? { base: "USD", rates, source: "live", updatedAt: toDate(d?.updatedAt) }
           : MOCK_RATES;
       notify();
     },

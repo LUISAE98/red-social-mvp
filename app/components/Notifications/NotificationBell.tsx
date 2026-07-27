@@ -9,6 +9,7 @@ import { useNotifications } from "@/lib/hooks/useNotifications";
 import { useSelfHandle } from "@/lib/hooks/useSelfHandle";
 import { useWalletVisibility } from "@/lib/wallet/useWalletVisibility";
 import { usePendingExperiences } from "@/lib/wallet/usePendingExperiences";
+import { useExperiencesSeen } from "@/lib/experiences/useExperiencesSeen";
 import { VibraNavigationIcon } from "@/app/components/VibraServiceIcons/VibraNavigationIcons";
 import { AppNotification, isExperienceNotification } from "@/lib/notifications/types";
 import NotificationList from "./NotificationList";
@@ -42,11 +43,15 @@ export default function NotificationBell({ active }: NotificationBellProps) {
   // agendadas). `useWalletVisibility` (cacheado) filtra a los vendedores antes de
   // abrir listeners; el conteo de pendientes decide mostrarlo/ocultarlo.
   const { hasWallet } = useWalletVisibility(user?.uid ?? null);
-  const { hasPending, count: experienceCount } = usePendingExperiences(
+  const { hasPending, count: experienceCount, latestMs: expLatestMs } =
+    usePendingExperiences(hasWallet ? user?.uid ?? null : null);
+  const { seenAt: expSeenAt, markSeen: markExpSeen } = useExperiencesSeen(
     hasWallet ? user?.uid ?? null : null
   );
+  const hasNewExperiences = experienceCount > 0 && expLatestMs > expSeenAt;
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<NotifTab | null>(null);
+  const [decidedTab, setDecidedTab] = useState<NotifTab | null>(null);
   const [slideDir, setSlideDir] = useState<"left" | "right" | null>(null);
   // Un overlay de detalle (saludo/sesión) abierto desde Experiencias: ocultamos
   // el panel para no estorbar, pero sin desmontarlo (el overlay vive dentro).
@@ -108,16 +113,44 @@ export default function NotificationBell({ active }: NotificationBellProps) {
 
   const badge = badgeCount > 99 ? "99+" : String(badgeCount);
 
-  // Subnav: solo si hay experiencias pendientes; Experiencias es la pestaña por defecto.
+  // Subnav: solo si hay experiencias pendientes.
   const showSubnav = hasPending;
-  const activeTab: NotifTab = tab ?? (showSubnav ? "experiences" : "social");
 
-  // Ver la pestaña Sociales (con el panel abierto) marca lo social como "visto":
-  // baja el badge y el contador de Sociales a 0, sin marcar como leído. Si el
-  // panel abre en Experiencias, lo social sigue contando hasta que lo veas.
+  // Al abrir el panel se decide la pestaña por prioridad (una vez): hay
+  // experiencias nuevas → Experiencias (prioridad); si no, hay sociales nuevas →
+  // Sociales; si no hay nada nuevo → Experiencias. Se resetea al cerrar para que
+  // el próximo abrir vuelva a decidir. La elección manual (`tab`) manda.
+  useEffect(() => {
+    if (!open) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setDecidedTab(null);
+      setTab(null);
+      return;
+    }
+    if (decidedTab !== null) return;
+    setDecidedTab(
+      !hasPending
+        ? "social"
+        : hasNewExperiences
+          ? "experiences"
+          : badgeCount > 0
+            ? "social"
+            : "experiences"
+    );
+  }, [open, decidedTab, hasPending, hasNewExperiences, badgeCount]);
+
+  const activeTab: NotifTab = tab ?? decidedTab ?? (showSubnav ? "experiences" : "social");
+
+  // Ver la pestaña Sociales (con el panel abierto) marca lo social como "visto".
   useEffect(() => {
     if (open && activeTab === "social") markSeen();
   }, [open, activeTab, markSeen]);
+
+  // Ver la pestaña Experiencias (con el panel abierto) marca las experiencias
+  // como "vistas" (para no volver a forzar esa pestaña hasta que llegue una nueva).
+  useEffect(() => {
+    if (open && activeTab === "experiences") markExpSeen();
+  }, [open, activeTab, markExpSeen]);
 
   const visibleItems = useMemo(() => {
     if (showSubnav && activeTab === "experiences") {

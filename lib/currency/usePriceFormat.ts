@@ -2,9 +2,9 @@
 
 // Formateador central de precios de cara al usuario.
 //
-// Recibe SIEMPRE un monto en MXN (el ancla en que se guarda todo) y lo muestra en
-// la moneda de visualización elegida. Marca "≈" cuando la moneda mostrada no es la
-// moneda de cobro real del ítem (hoy el cobro es MXN → todo lo no-MXN va con "≈").
+// Recibe SIEMPRE un monto en USD (el ancla de referencia en que se guarda todo) y
+// lo muestra en la moneda local del usuario. Con dLocal el comprador paga en su
+// moneda local; el USD es solo la referencia interna del precio.
 //
 // Nunca se usa para cálculos de dinero: solo para MOSTRAR.
 
@@ -12,7 +12,7 @@ import { useCallback } from "react";
 import { useLocale } from "next-intl";
 import { useCurrency } from "@/app/components/CurrencyProvider";
 import { useExchangeRates } from "./rates";
-import { convertFromAnchor, convertToAnchor, formatCurrency } from "./format";
+import { buyerPrice, convertFromAnchor, convertToAnchor, formatCurrency } from "./format";
 import {
   ANCHOR_CURRENCY,
   isDisplayCurrency,
@@ -48,10 +48,10 @@ export type PriceFormatter = {
   /** Formatea un monto ya en MXN, siempre en MXN (para el "= $X MXN (precio real)"). */
   formatAnchor: (mxnAmount: number, opts?: { code?: boolean }) => string;
   /**
-   * Input del creador → cómo guardar. El creador teclea en su moneda y se guarda
-   * en MXN (ancla). Devuelve { price: MXN, currency: "MXN" }.
+   * Input del creador → cómo guardar. El creador teclea en SU moneda local y se
+   * guarda en USD (ancla de referencia). Devuelve { price: USD, currency: "USD" }.
    */
-  resolveStoredPrice: (amount: number) => { price: number; currency: "MXN" };
+  resolveStoredPrice: (amount: number) => { price: number; currency: "USD" };
   /** Convierte un precio guardado (en su moneda) a la del creador, para editarlo. */
   toDisplayForInput: (storedPrice: number, storedCurrency: string) => number;
 };
@@ -67,22 +67,19 @@ export function usePriceFormat(): PriceFormatter {
       const base: DisplayCurrency = isDisplayCurrency(opts.baseCurrency)
         ? opts.baseCurrency
         : ANCHOR_CURRENCY;
-      const charge: ChargeCurrency = opts.chargeCurrency ?? ANCHOR_CURRENCY;
-      // Normalizamos a MXN (ancla) si el monto viene en otra moneda base.
-      const mxn = base === ANCHOR_CURRENCY ? amount : convertToAnchor(amount, base, rates.rates);
-      if (mxn == null) {
+      // Normalizamos a USD (ancla) si el monto viene en otra moneda base (ítems legados).
+      const usd = base === ANCHOR_CURRENCY ? amount : convertToAnchor(amount, base, rates.rates);
+      if (usd == null) {
         // Sin tasa para la base: mostramos el valor tal cual en su moneda base.
         return formatCurrency(amount, base, locale, { code });
       }
-      const converted = convertFromAnchor(mxn, currency, rates.rates);
-      if (converted == null) {
-        // Sin tasa para la mostrada: mostramos el valor real en MXN (nunca inventamos).
-        return formatCurrency(mxn, ANCHOR_CURRENCY, locale, { code });
+      // Precio de cara al comprador: su moneda local con margen FX + redondeo bonito.
+      const local = buyerPrice(usd, currency, rates.rates);
+      if (local == null) {
+        // Sin tasa para la mostrada: mostramos el valor real en USD (nunca inventamos).
+        return formatCurrency(usd, ANCHOR_CURRENCY, locale, { code });
       }
-      return formatCurrency(converted, currency, locale, {
-        approx: currency !== charge,
-        code,
-      });
+      return formatCurrency(local, currency, locale, { code });
     },
     [locale, currency, rates]
   );
@@ -99,13 +96,13 @@ export function usePriceFormat(): PriceFormatter {
   );
 
   const resolveStoredPrice = useCallback(
-    (amount: number): { price: number; currency: "MXN" } => {
-      // El creador teclea en su moneda; se guarda en MXN (ancla).
-      const mxn =
+    (amount: number): { price: number; currency: "USD" } => {
+      // El creador teclea en su moneda local; se guarda en USD (ancla de referencia).
+      const usd =
         currency === ANCHOR_CURRENCY
           ? amount
           : convertToAnchor(amount, currency, rates.rates) ?? amount;
-      return { price: Math.round(mxn * 100) / 100, currency: "MXN" };
+      return { price: Math.round(usd * 100) / 100, currency: "USD" };
     },
     [currency, rates]
   );

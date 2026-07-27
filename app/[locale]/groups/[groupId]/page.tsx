@@ -5,7 +5,7 @@ import CreatorServiceModals from "@/components/services/CreatorServiceModals";
 import GroupImageCropModal from "./components/GroupImageCropModal";
 import OwnerAdminServices from "./components/owner-admin-panel/OwnerAdminServices";
 
-import { collection, doc, getCountFromServer, updateDoc } from "firebase/firestore";
+import { collection, doc, getCountFromServer, onSnapshot, updateDoc } from "firebase/firestore";
 import {
   useEffect,
   useLayoutEffect,
@@ -27,7 +27,6 @@ import { db, storage } from "@/lib/firebase";
 import { useAuth } from "@/app/providers";
 import {
   joinGroup,
-  joinGroupWithSubscription,
   leaveGroup,
 } from "@/lib/groups/membership";
 import { requestToJoin, cancelJoinRequest } from "@/lib/groups/joinRequests";
@@ -51,6 +50,7 @@ import {
   type GreetingType,
 } from "@/lib/greetings/greetingRequests";
 import ServicePaymentModal from "@/components/payments/ServicePaymentModal";
+import { payGroupSubscription, cancelGroupSubscription } from "@/lib/payments/payGroupSubscription";
 import { payGreeting } from "@/lib/payments/payGreeting";
 import { payExclusiveSession } from "@/lib/payments/payExclusiveSession";
 import { payMeetGreet } from "@/lib/payments/payMeetGreet";
@@ -209,6 +209,30 @@ const [joining, setJoining] = useState(false);
 const [actionError, setActionError] = useState<string | null>(null);
 const [leaveOverlayOpen, setLeaveOverlayOpen] = useState(false);
 const [leaving, setLeaving] = useState(false);
+// Estado de MI suscripción a esta comunidad (preapproval MP): fecha de acceso y
+// si ya está cancelada. Alimenta el botón "Suscrito hasta {fecha}" + cancelar.
+const [mySub, setMySub] = useState<{ accessUntil: Date | null; status: string; cancelAtPeriodEnd: boolean } | null>(null);
+const [cancelSubOpen, setCancelSubOpen] = useState(false);
+const [cancellingSub, setCancellingSub] = useState(false);
+
+useEffect(() => {
+  if (!user?.uid) { setMySub(null); return; }
+  const ref = doc(db, "groupSubscriptions", `${groupId}_${user.uid}`);
+  const unsub = onSnapshot(
+    ref,
+    (snap) => {
+      if (!snap.exists()) { setMySub(null); return; }
+      const d = snap.data();
+      const au = (d.accessUntil && typeof d.accessUntil.toDate === "function") ? d.accessUntil.toDate() as Date : null;
+      setMySub({ accessUntil: au, status: String(d.status ?? ""), cancelAtPeriodEnd: d.cancelAtPeriodEnd === true });
+    },
+    () => setMySub(null)
+  );
+  return () => unsub();
+}, [user?.uid, groupId]);
+
+const formatSubDate = (d: Date) =>
+  d.toLocaleDateString(undefined, { day: "numeric", month: "long", year: "numeric" });
 const [leaveError, setLeaveError] = useState<string | null>(null);
 const [mobileRefreshEnabled, setMobileRefreshEnabled] = useState(false);
 const [groupPageRefreshKey, setGroupPageRefreshKey] = useState(0);
@@ -570,6 +594,8 @@ const canRequestMeetGreet =
 
   const [subscriptionOpen, setSubscriptionOpen] = useState(false);
   const [subscriptionSubmitting, setSubscriptionSubmitting] = useState(false);
+  // Pasarela de pago real de la suscripción (preapproval MP).
+  const [subscriptionPayOpen, setSubscriptionPayOpen] = useState(false);
   const [subscriptionError, setSubscriptionError] = useState<string | null>(null);
 
   const [groupDonationViewerOpen, setGroupDonationViewerOpen] = useState(false);
@@ -646,15 +672,24 @@ function redirectToLogin() {
     router.replace(nextHref, { scroll: false });
   }
 
+  // "Suscribirme" abre DIRECTO la pasarela de pago real (sin paso de confirmación).
   function openSubscriptionModal() {
     if (!user) {
       redirectToLogin();
       return;
     }
-
+    if (!group) return;
+    if (group.visibility !== "private" && group.visibility !== "hidden") {
+      setSubscriptionError(tGroups("subscriptionOnlyPrivate"));
+      return;
+    }
+    if (!subscriptionEnabled) {
+      setSubscriptionError(tGroups("subscriptionNotActive"));
+      return;
+    }
     setSubscriptionError(null);
     setServiceToast(null);
-    setSubscriptionOpen(true);
+    setSubscriptionPayOpen(true);
   }
 
   function closeSubscriptionModal() {
@@ -664,58 +699,63 @@ function redirectToLogin() {
     clearServiceQuery();
   }
 
-  async function handleSubscriptionCheckout() {
+  // Del modal de confirmación pasa a la PASARELA de pago real (preapproval MP).
+  // El cobro y la activación de la membresía los hace el backend; aquí solo se
+  // abre la pasarela que tokeniza la tarjeta.
+  function handleSubscriptionCheckout() {
     if (!user) {
       redirectToLogin();
       return;
     }
-
     if (!group) return;
-
     if (group.visibility !== "private" && group.visibility !== "hidden") {
       setSubscriptionError(tGroups("subscriptionOnlyPrivate"));
       return;
     }
-
     if (!subscriptionEnabled) {
       setSubscriptionError(tGroups("subscriptionNotActive"));
       return;
     }
-
-    setSubscriptionSubmitting(true);
     setSubscriptionError(null);
     setActionError(null);
-
-    try {
-      await joinGroupWithSubscription(groupId, user.uid, {
-        priceMonthly: subscriptionPrice ?? undefined,
-        currency: subscriptionCurrency,
-      });
-
-      registrarCompraGeo({
-        creatorId: group?.ownerId,
-        serviceType: "subscription",
-        grossAmount: subscriptionPrice ?? undefined,
-      });
-
-      const successMessage = tGroups("subscriptionProcessed");
-      setSubscriptionOpen(false);
-      setServiceToast(successMessage);
-      clearServiceQuery();
-
-      window.setTimeout(() => {
-        setServiceToast((current) =>
-          current === successMessage ? null : current
-        );
-      }, 4000);
-    } catch (e: unknown) {
-      setSubscriptionError(
-        (e instanceof Error ? e.message : null) ?? tGroups("subscriptionSubmitError")
-      );
-    } finally {
-      setSubscriptionSubmitting(false);
-    }
+    setSubscriptionOpen(false);
+    setSubscriptionPayOpen(true);
   }
+
+  // Pasarela de suscripción real (preapproval MP). Se monta TANTO en el landing
+  // restringido (no-miembros, que salen por return anticipado) COMO en el render
+  // principal, porque son ramas mutuamente excluyentes. El backend crea el
+  // preapproval y activa la membresía; `authorized` → `approved` para la pantalla
+  // de éxito de la pasarela.
+  const subscriptionGateway = (
+    <ServicePaymentModal
+      open={subscriptionPayOpen}
+      amount={subscriptionPrice}
+      pricePeriodLabel="mes"
+      pay={async (c) => {
+        const r = await payGroupSubscription({
+          groupId,
+          token: c.token,
+          payerEmail: user?.email ?? undefined,
+        });
+        return { status: r.status === "authorized" ? "approved" : r.status };
+      }}
+      productType={tGroups("subscriptionProductType")}
+      providerName={group?.name}
+      avatarUrl={group?.avatarUrl ?? null}
+      payButtonLabel={tGroups("subscribeAction")}
+      description={tGroups("subscribeGatewayDescription", { name: group?.name ?? tServices("creatorFallback") })}
+      successMessage={tGroups("subscriptionProcessed")}
+      onClose={() => setSubscriptionPayOpen(false)}
+      onPaid={() => {
+        registrarCompraGeo({
+          creatorId: group?.ownerId,
+          serviceType: "subscription",
+          grossAmount: subscriptionPrice ?? undefined,
+        });
+      }}
+    />
+  );
 
   async function handleJoinPublic() {
     if (!user) {
@@ -751,6 +791,28 @@ function redirectToLogin() {
       setLeaveError((e instanceof Error ? e.message : null) ?? tGroups("leaveError"));
     } finally {
       setLeaving(false);
+    }
+  }
+
+  // Cancela la suscripción (preapproval MP). Conserva acceso hasta fin del periodo;
+  // la baja real la aplica el job programado cuando `accessUntil` vence.
+  async function handleCancelSubscription() {
+    if (!user || cancellingSub) return;
+    setCancellingSub(true);
+    setActionError(null);
+    try {
+      await cancelGroupSubscription(groupId);
+      setCancelSubOpen(false);
+      const until = mySub?.accessUntil ? formatSubDate(mySub.accessUntil) : "";
+      const msg = tGroups("cancelSubscriptionDone", { date: until });
+      setServiceToast(msg);
+      window.setTimeout(() => {
+        setServiceToast((current) => (current === msg ? null : current));
+      }, 5000);
+    } catch (e: unknown) {
+      setActionError((e instanceof Error ? e.message : null) ?? tGroups("cancelSubscriptionError"));
+    } finally {
+      setCancellingSub(false);
     }
   }
 
@@ -2120,6 +2182,10 @@ const avatarNode = (
           ) : null,
           document.body
         )}
+
+        {/* Pasarela de suscripción: los no-miembros salen por aquí (return
+            anticipado), así que DEBE montarse en esta rama para poder abrirse. */}
+        {subscriptionGateway}
       </>
     );
   }
@@ -2588,10 +2654,19 @@ const avatarNode = (
                       effectiveIsMember ? (
                         <button
                           type="button"
-                          onClick={() => setLeaveOverlayOpen(true)}
+                          onClick={() => {
+                            // Suscriptor MP → abre cancelación (conserva acceso hasta fin de mes);
+                            // miembro normal/legacy → salir de la comunidad.
+                            if (membershipRequiresSubscription && mySub) setCancelSubOpen(true);
+                            else setLeaveOverlayOpen(true);
+                          }}
                           style={{ ...primaryButton }}
                         >
-                          {membershipRequiresSubscription ? tGroups("subscribedLabel") : tGroups("alreadyMemberLabel")}
+                          {membershipRequiresSubscription
+                            ? mySub?.accessUntil
+                              ? tGroups("subscribedUntil", { date: formatSubDate(mySub.accessUntil) })
+                              : tGroups("subscribedLabel")
+                            : tGroups("alreadyMemberLabel")}
                         </button>
                       ) : (
                         group.visibility === "public" && memberStatus !== "banned" ? (
@@ -2923,6 +2998,47 @@ const avatarNode = (
           });
         }}
       />
+
+      {/* Suscripción a la comunidad — pasarela real (definida arriba, reutilizada). */}
+      {subscriptionGateway}
+
+      {/* Confirmación de cancelación de suscripción (conserva acceso hasta fin de mes). */}
+      {cancelSubOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          onClick={() => { if (!cancellingSub) setCancelSubOpen(false); }}
+          style={{ position: "fixed", inset: 0, zIndex: 1000, display: "grid", placeItems: "center", padding: 16, background: "rgba(0,0,0,0.72)", backdropFilter: "blur(4px)", WebkitBackdropFilter: "blur(4px)" }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{ width: "100%", maxWidth: 380, background: "#111", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 16, padding: 20, display: "grid", gap: 14, color: "#fff", fontFamily: "inherit" }}
+          >
+            <div style={{ fontSize: 17, fontWeight: 700, textAlign: "center" }}>{tGroups("cancelSubscriptionTitle")}</div>
+            <p style={{ margin: 0, fontSize: 13, lineHeight: 1.5, color: "rgba(255,255,255,0.7)", textAlign: "center" }}>
+              {tGroups("cancelSubscriptionBody", { date: mySub?.accessUntil ? formatSubDate(mySub.accessUntil) : "—" })}
+            </p>
+            <div style={{ display: "grid", gap: 10 }}>
+              <button
+                type="button"
+                onClick={handleCancelSubscription}
+                disabled={cancellingSub}
+                style={{ padding: "12px 20px", borderRadius: 10, border: "none", background: "#dc2626", color: "#fff", fontSize: 14, fontWeight: 600, fontFamily: "inherit", cursor: cancellingSub ? "not-allowed" : "pointer", opacity: cancellingSub ? 0.75 : 1 }}
+              >
+                {cancellingSub ? tFeed("processing") : tGroups("cancelSubscriptionConfirm")}
+              </button>
+              <button
+                type="button"
+                onClick={() => setCancelSubOpen(false)}
+                disabled={cancellingSub}
+                style={{ padding: "12px 20px", borderRadius: 10, border: "1px solid rgba(255,255,255,0.15)", background: "transparent", color: "#fff", fontSize: 14, fontWeight: 600, fontFamily: "inherit", cursor: "pointer" }}
+              >
+                {tGroups("cancelSubscriptionKeep")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <CreatorServiceModals
         greetOpen={greetOpen}

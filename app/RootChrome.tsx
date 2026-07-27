@@ -6,7 +6,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 // de next-intl), para que la detección de rutas del guardián de auth funcione
 // tras la migración i18n sin inestabilidad ni problemas de hidratación.
 import { stripLocalePrefix } from "@/lib/localePath";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/app/providers";
 import GroupsSearchPanel from "@/app/components/SearchToolbar/GroupsSearchPanel";
 import { buildCurrentPathWithSearch, getNextFromSearchParams } from "@/lib/auth-redirect";
@@ -23,6 +23,14 @@ export default function RootChrome({
   const router = useRouter();
   const searchParams = useSearchParams();
   const isPublicPostRoute = pathname.startsWith("/p/");
+
+  // El servidor no conoce la sesión (Firebase Auth es cliente) → siempre rinde
+  // el shell "logged-out". Firebase resuelve la sesión en el cliente ANTES de que
+  // React hidrate, así que sin este flag el primer render del cliente ramifica a
+  // "logged-in" y no coincide con el servidor → error de hidratación. Tratamos al
+  // usuario como null hasta hidratar; tras el efecto ya usamos el real.
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => { setHydrated(true); }, []);
 
 const isPublicRoute =
   pathname === "/" ||
@@ -75,6 +83,10 @@ const isOverlayRoute =
 
   const fontStack =
     'inherit';
+
+    // Auth solo para el render (el primer render del cliente = servidor). Los
+    // efectos de arriba siguen usando el `user` real para redirigir.
+    const renderUser = hydrated ? user : null;
     if (authTransitionMode === "exiting") {
   // Pantalla negra CONTINUA durante el cierre de sesión (en vez de null).
   // Como RootChrome vive en el layout raíz y no se desmonta al navegar, este
@@ -94,11 +106,11 @@ const isOverlayRoute =
     />
   );
 }
-if (user && isAuthPage) {
+if (renderUser && isAuthPage) {
   return null;
 }
 
-if (user) {
+if (renderUser) {
   return <>{children}</>;
 }
 

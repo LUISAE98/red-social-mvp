@@ -43,12 +43,15 @@ export function usePendingExperiences(creatorId: string | null | undefined) {
 
   // Saludos/consejos por atender = status "pending" (misma regla que pendingCurrent).
   const [pendingGreetings, setPendingGreetings] = useState(0);
+  // Timestamp del saludo/consejo pendiente más reciente (para "hay nuevos").
+  const [latestGreetingMs, setLatestGreetingMs] = useState(0);
   const [loadingGreetings, setLoadingGreetings] = useState(true);
 
   useEffect(() => {
     if (!creatorId) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setPendingGreetings(0);
+      setLatestGreetingMs(0);
       setLoadingGreetings(false);
       return;
     }
@@ -67,13 +70,22 @@ export function usePendingExperiences(creatorId: string | null | undefined) {
       unsub = onSnapshot(
         q,
         (snap) => {
-          setPendingGreetings(
-            snap.docs.filter((d) => (d.data().status ?? "") === "pending").length
-          );
+          let count = 0;
+          let latest = 0;
+          snap.docs.forEach((d) => {
+            const data = d.data();
+            if ((data.status ?? "") !== "pending") return;
+            count += 1;
+            const ms = toMs(data.updatedAt) ?? toMs(data.createdAt) ?? 0;
+            if (ms > latest) latest = ms;
+          });
+          setPendingGreetings(count);
+          setLatestGreetingMs(latest);
           setLoadingGreetings(false);
         },
         () => {
           setPendingGreetings(0);
+          setLatestGreetingMs(0);
           setLoadingGreetings(false);
         }
       );
@@ -85,20 +97,36 @@ export function usePendingExperiences(creatorId: string | null | undefined) {
     };
   }, [creatorId]);
 
-  const scheduledPending = useMemo(() => {
-    return [...meet.rows, ...exclusive.rows].filter(
+  const sessions = useMemo(() => {
+    const actionable = [...meet.rows, ...exclusive.rows].filter(
       (row) =>
         ACTIONABLE_SESSION_STATUSES.includes(row.status) &&
         !shouldTreatAsAutoRejected(row) &&
         isSafePendingStatus(row.status)
-    ).length;
+    );
+    const latest = actionable.reduce(
+      (m, r) => Math.max(m, r.updatedAt?.getTime() ?? r.createdAt?.getTime() ?? 0),
+      0
+    );
+    return { count: actionable.length, latest };
   }, [meet.rows, exclusive.rows]);
 
-  const count = scheduledPending + pendingGreetings;
+  const count = sessions.count + pendingGreetings;
+  // Timestamp de la experiencia accionable más reciente (para decidir si hay
+  // experiencias NUEVAS desde la última vez que se vio la pestaña).
+  const latestMs = Math.max(sessions.latest, latestGreetingMs);
 
   return {
     count,
     hasPending: count > 0,
+    latestMs,
     loading: meet.loading || exclusive.loading || loadingGreetings,
   };
+}
+
+function toMs(value: unknown): number | null {
+  if (value && typeof (value as { toMillis?: () => number }).toMillis === "function") {
+    return (value as { toMillis: () => number }).toMillis();
+  }
+  return null;
 }

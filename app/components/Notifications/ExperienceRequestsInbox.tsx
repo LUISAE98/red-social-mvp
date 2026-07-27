@@ -439,8 +439,23 @@ export default function ExperienceRequestsInbox({
               const req = r.data;
               const buyer = userMiniMap[req.buyerId] ?? null;
               const earning = earningOf(req.priceSnapshot, req.currency);
+              // Saludo: tarjeta con la imagen de fondo (+ degradado para legibilidad).
+              const isSaludo = req.type === "saludo";
+              const cardStyle: CSSProperties = isSaludo
+                ? {
+                    ...styles.miniItem,
+                    background: undefined,
+                    backgroundImage:
+                      "linear-gradient(155deg, rgba(0,0,0,0.28) 0%, rgba(0,0,0,0.70) 82%), url('/saludo.webp')",
+                    backgroundSize: "cover",
+                    backgroundPosition: "center",
+                    padding: 12,
+                    minHeight: 104,
+                    justifyContent: "space-between",
+                  }
+                : styles.miniItem;
               return (
-                <div key={r.id} style={styles.miniItem}>
+                <div key={r.id} style={cardStyle}>
                   <div style={styles.row}>
                     {buyer?.photoURL ? (
                       <Image
@@ -498,20 +513,36 @@ export default function ExperienceRequestsInbox({
                         startIndex: startIndex >= 0 ? startIndex : 0,
                       });
                     }}
-                    style={{
-                      width: "100%",
-                      height: 30,
-                      borderRadius: 8,
-                      border: "none",
-                      background: "rgba(168,85,255,0.18)",
-                      color: "#d8b4fe",
-                      fontWeight: 520,
-                      fontSize: 12,
-                      cursor: "pointer",
-                      fontFamily: "inherit",
-                    }}
+                    style={
+                      isSaludo
+                        ? {
+                            width: "100%",
+                            height: 34,
+                            borderRadius: 8,
+                            border: "1px solid rgba(255,255,255,0.28)",
+                            background: "rgba(255,255,255,0.16)",
+                            color: "#fff",
+                            fontWeight: 700,
+                            fontSize: 12,
+                            cursor: "pointer",
+                            fontFamily: "inherit",
+                            backdropFilter: "blur(2px)",
+                          }
+                        : {
+                            width: "100%",
+                            height: 30,
+                            borderRadius: 8,
+                            border: "none",
+                            background: "rgba(168,85,255,0.18)",
+                            color: "#d8b4fe",
+                            fontWeight: 520,
+                            fontSize: 12,
+                            cursor: "pointer",
+                            fontFamily: "inherit",
+                          }
+                    }
                   >
-                    {greetingTypeLabel(req.type)}
+                    {tServices("viewRequest")}
                   </button>
                 </div>
               );

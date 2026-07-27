@@ -31,7 +31,7 @@ type CurrencyCtx = {
 };
 
 const CurrencyContext = createContext<CurrencyCtx>({
-  currency: "MXN",
+  currency: "USD",
   setCurrency: () => {},
 });
 
@@ -54,7 +54,7 @@ function readCookie(): DisplayCurrency | null {
 }
 
 export function CurrencyProvider({
-  initial = "MXN",
+  initial = "USD",
   children,
 }: {
   /** Moneda inicial (opcional). Por defecto MXN, estable para SSR/hidratación. */

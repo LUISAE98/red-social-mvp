@@ -236,7 +236,7 @@ export default function SuperCommentConfigPanel({ open, onClose, postId }: Props
                       }}
                     />
                   </div>
-                  {displayCurrency !== "MXN" && anchorPrice > 0 ? (
+                  {displayCurrency !== "USD" && anchorPrice > 0 ? (
                     <p style={{ margin: "4px 0 0", fontSize: 10.5, color: "rgba(255,255,255,0.4)", fontFamily: FONT, textAlign: "left" as const, lineHeight: 1.4 }}>
                       = {formatAnchor(anchorPrice)}
                     </p>

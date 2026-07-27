@@ -1047,7 +1047,12 @@ export default function PublicProfileLayout({
     setMounted(true);
   }, []);
 
-  if ((!mounted && loading) || authTransitionMode === "exiting") {
+  // El primer render del cliente DEBE ser idéntico al del servidor. En el
+  // servidor `loading` se queda en true (no hay onAuthStateChanged) → placeholder.
+  // Gateamos con `!mounted` (no solo `loading`) porque en el cliente Firebase
+  // resuelve la sesión antes de hidratar y `loading` ya sería false en el 1er
+  // render → ramificaría al shell autenticado y no coincidiría con el servidor.
+  if (!mounted || loading || authTransitionMode === "exiting") {
     return <div style={{ minHeight: "100dvh", background: "#000" }} />;
   }
 

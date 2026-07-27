@@ -219,7 +219,7 @@ export default function LiveEndSummaryPanel({ open, onClose, post }: Props) {
                 />
                 <span style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", fontFamily: FONT }}>{displayCurrency}</span>
               </div>
-              {displayCurrency !== "MXN" &&
+              {displayCurrency !== "USD" &&
               priceInput !== "" &&
               Number(priceInput) > 0 ? (
                 <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", fontFamily: FONT, marginTop: 6 }}>

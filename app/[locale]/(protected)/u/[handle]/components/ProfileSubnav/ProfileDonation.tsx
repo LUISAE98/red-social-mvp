@@ -495,7 +495,7 @@ export default function ProfileDonation({
               {displayCurrency}
             </span>
           </div>
-          {displayCurrency !== "MXN" &&
+          {displayCurrency !== "USD" &&
           (overlayDraft.donationMinimumAmount as string) &&
           Number(overlayDraft.donationMinimumAmount) > 0 ? (
             <div style={{ ...subtleStyle, marginTop: 4 }}>

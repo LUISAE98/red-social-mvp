@@ -32,7 +32,7 @@ export type WalletSummary = {
 };
 
 export const EMPTY_WALLET_SUMMARY: WalletSummary = {
-  currency: "MXN",
+  currency: "USD",
   lifetimeEarnedGross: 0,
   lifetimeEarnedNet: 0,
   withdrawnGross: 0,
@@ -51,7 +51,7 @@ function toNumber(value: unknown): number {
 
 function normalizeSummary(data: Record<string, unknown>): WalletSummary {
   return {
-    currency: typeof data.currency === "string" ? data.currency : "MXN",
+    currency: typeof data.currency === "string" ? data.currency : "USD",
     lifetimeEarnedGross: toNumber(data.lifetimeEarnedGross),
     lifetimeEarnedNet: toNumber(data.lifetimeEarnedNet),
     withdrawnGross: toNumber(data.withdrawnGross),

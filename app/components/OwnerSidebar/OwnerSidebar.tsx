@@ -2265,10 +2265,18 @@ backdropFilter: "none",
 WebkitBackdropFilter: "none",
 }}
   >
-<button
-  type="button"
+<div
+  role="button"
+  tabIndex={0}
   className="owner-sidebar-community-card-main"
   onClick={() => { incrementVisit(g.id); router.push(isProfileCard ? g.profileHref! : `/groups/${g.id}`); }}
+  onKeyDown={(e) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      incrementVisit(g.id);
+      router.push(isProfileCard ? g.profileHref! : `/groups/${g.id}`);
+    }
+  }}
           style={{
             background: "transparent",
             border: "none",
@@ -2327,7 +2335,7 @@ color: "rgba(255,255,255,0.94)",
               </div>
             ) : null}
           </div>
-        </button>
+        </div>
 
 {canCopyLink && (
   <CopyLinkButton

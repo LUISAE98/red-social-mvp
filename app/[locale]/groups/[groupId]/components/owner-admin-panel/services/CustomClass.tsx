@@ -458,7 +458,7 @@ export default function CustomClass({
             {displayCurrency}
           </span>
         </div>
-        {displayCurrency !== "MXN" &&
+        {displayCurrency !== "USD" &&
         overlayDraft.customClass.price &&
         Number(overlayDraft.customClass.price) > 0 ? (
           <div style={subtleStyle}>

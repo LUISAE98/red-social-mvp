@@ -14,6 +14,8 @@ import {
 } from "@/lib/groups/inviteLinks";
 import { useAuth } from "@/app/providers";
 import { buildCurrentPathWithSearch } from "@/lib/auth-redirect";
+import ServicePaymentModal from "@/components/payments/ServicePaymentModal";
+import { payGroupSubscription } from "@/lib/payments/payGroupSubscription";
 
 type InvitePreview = {
   success: boolean;
@@ -611,80 +613,34 @@ const { user } = useAuth();
         </section>
       </div>
 
-      {payOpen && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          onClick={() => {
-            if (!consuming) setPayOpen(false);
-          }}
-          style={{
-            position: "fixed",
-            inset: 0,
-            zIndex: 1000,
-            display: "grid",
-            placeItems: "center",
-            padding: 16,
-            background: "rgba(0,0,0,0.72)",
-            backdropFilter: "blur(4px)",
-            WebkitBackdropFilter: "blur(4px)",
-          }}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              width: "100%",
-              maxWidth: 380,
-              ...cardStyle,
-              padding: 20,
-              display: "grid",
-              gap: 14,
-            }}
-          >
-            <div style={{ ...titleStyle, textAlign: "center", fontSize: 17, maxWidth: "none", padding: 0 }}>
-              Suscripción a {group.name}
-            </div>
-
-            <div style={{ ...panelStyle, display: "grid", gap: 6, textAlign: "center" }}>
-              <div style={microText}>Suscripción mensual</div>
-              <div style={{ fontSize: 24, fontWeight: 700, color: "#fff" }}>
-                {subscriptionPriceLabel ?? "—"}
-              </div>
-              <div style={{ ...microText, color: "rgba(255,255,255,0.6)" }}>
-                Pago simulado · sin cargo real
-              </div>
-            </div>
-
-            {error && <div style={messageBox}>{error}</div>}
-
-            <div style={{ display: "grid", gap: 10 }}>
-              <button
-                onClick={consumeAndRedirect}
-                disabled={consuming}
-                style={{
-                  ...primaryButton,
-                  opacity: consuming ? 0.75 : 1,
-                  cursor: consuming ? "not-allowed" : "pointer",
-                }}
-              >
-                {consuming ? "Procesando..." : "Pagar y suscribirme"}
-              </button>
-              <button
-                type="button"
-                onClick={() => setPayOpen(false)}
-                disabled={consuming}
-                style={{
-                  ...secondaryButton,
-                  opacity: consuming ? 0.75 : 1,
-                  cursor: consuming ? "not-allowed" : "pointer",
-                }}
-              >
-                Cancelar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Suscripción por invitación — pasarela REAL (preapproval MP). El backend
+          valida la invitación (invite-only), crea el preapproval mensual y activa
+          la membresía; al aprobar redirige a la comunidad. */}
+      <ServicePaymentModal
+        open={payOpen}
+        amount={group.subscriptionPrice}
+        pricePeriodLabel="mes"
+        pay={async (c) => {
+          const r = await payGroupSubscription({
+            groupId: group.id,
+            token: c.token,
+            payerEmail: user?.email ?? undefined,
+            inviteToken: token,
+          });
+          return { status: r.status === "authorized" ? "approved" : r.status };
+        }}
+        productType="Suscripción mensual"
+        providerName={group.name}
+        avatarUrl={group.avatarUrl}
+        payButtonLabel="Suscribirme"
+        description={`Tu suscripción a ${group.name} se renueva sola cada mes. Puedes cancelar cuando quieras.`}
+        successMessage="✅ ¡Listo! Ya formas parte de la comunidad."
+        onClose={() => setPayOpen(false)}
+        onPaid={() => {
+          // Membresía activada server-side → mostrar éxito y entrar a la comunidad.
+          window.setTimeout(() => router.replace(`/groups/${group.id}`), 1600);
+        }}
+      />
     </main>
   );
 }

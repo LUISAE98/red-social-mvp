@@ -509,7 +509,7 @@ export default function ComposerPremiumPanel({
             </span>
           </div>
 
-          {displayCurrency !== "MXN" && anchorPrice != null ? (
+          {displayCurrency !== "USD" && anchorPrice != null ? (
             <span
               style={{
                 color: "rgba(196,168,255,0.65)",

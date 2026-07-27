@@ -489,7 +489,7 @@ export default function Donation({
               {displayCurrency}
             </span>
           </div>
-          {displayCurrency !== "MXN" &&
+          {displayCurrency !== "USD" &&
           overlayDraft.donationMinimumAmount &&
           Number(overlayDraft.donationMinimumAmount) > 0 ? (
             <div style={{ ...subtleStyle, marginTop: 6 }}>
