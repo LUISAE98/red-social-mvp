@@ -10,13 +10,17 @@
 //   · groups/{id}.monetization  (subscriptionPriceMonthly + priceMonthly legacy)
 //   · groups/{id}.offerings[]   (memberPrice, publicPrice)
 //   · groups/{id}.donation      (suggestedAmounts[])
+//   · users/{uid}                (donationMinimumAmount — donación de perfil)
 //   · users/{uid}/settings/superCommentConfig.tiers[].price
+//   · posts/{id}.premium        (price)
+//   · posts/{id}.liveData        (ticketPrice + superCommentConfig.tiers[].price)
 //
 // Gate: solo el dueño de la plataforma (email) puede ejecutarla.
 
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
 import { logger } from "firebase-functions";
+import { updateExchangeRatesHandler } from "./exchangeRates";
 
 if (admin.apps.length === 0) {
   admin.initializeApp();
@@ -54,12 +58,24 @@ function alreadyUsd(currency: unknown): boolean {
 }
 
 export const migrateCurrencyMxnToUsd = onCall(
-  { region: REGION },
+  { region: REGION, timeoutSeconds: 540, memory: "512MiB" },
   async (request) => {
     if (request.auth?.token?.email !== OWNER_EMAIL) {
       throw new HttpsError("permission-denied", "Solo el dueño de la plataforma puede ejecutar la migración.");
     }
     const dryRun = request.data?.dryRun === true;
+
+    // Refresca las tasas a base USD (config/exchangeRates) para que el frontend
+    // convierta bien tras el cutover. Solo en corrida real (no en dryRun).
+    if (!dryRun) {
+      try {
+        await updateExchangeRatesHandler();
+      } catch (err) {
+        logger.warn("migrateCurrency: no se pudieron refrescar las tasas", {
+          err: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }
 
     const mxnPerUsd = await fetchMxnPerUsd();
     const toUsd = (mxn: unknown): number | null => {
@@ -68,7 +84,11 @@ export const migrateCurrencyMxnToUsd = onCall(
       return round2(n / mxnPerUsd);
     };
 
-    const stats = { groups: 0, offerings: 0, donations: 0, superCommentConfigs: 0, tiers: 0 };
+    const stats = {
+      groups: 0, offerings: 0, donations: 0,
+      superCommentConfigs: 0, tiers: 0,
+      profiles: 0, premiumPosts: 0, liveTickets: 0, liveConfigs: 0,
+    };
 
     // ── groups/{id}: monetization + offerings + donation ─────────────────────
     const groupsSnap = await db.collection("groups").get();
@@ -151,6 +171,66 @@ export const migrateCurrencyMxnToUsd = onCall(
       if (changed) {
         stats.superCommentConfigs += 1;
         if (!dryRun) await doc.ref.set({ tiers: nextTiers, currency: "USD" }, { merge: true });
+      }
+    }
+
+    // ── users/{uid}: donación de perfil (donationMinimumAmount) ──────────────
+    const usersSnap = await db.collection("users").get();
+    for (const doc of usersSnap.docs) {
+      const u = doc.data() as Record<string, unknown>;
+      if (alreadyUsd(u.donationCurrency)) continue;
+      const amt = toUsd(u.donationMinimumAmount);
+      if (amt == null) continue;
+      stats.profiles += 1;
+      if (!dryRun) {
+        await doc.ref.set({ donationMinimumAmount: amt, donationCurrency: "USD" }, { merge: true });
+      }
+    }
+
+    // ── posts/{id}: premium.price + liveData (ticketPrice + superCommentConfig) ─
+    const postsSnap = await db.collection("posts").get();
+    for (const doc of postsSnap.docs) {
+      const p = doc.data() as Record<string, unknown>;
+      const patch: Record<string, unknown> = {};
+
+      const premium = (p.premium ?? null) as Record<string, unknown> | null;
+      if (premium && !alreadyUsd(premium.currency)) {
+        const price = toUsd(premium.price);
+        if (price != null) {
+          patch.premium = { ...premium, price, currency: "USD" };
+          stats.premiumPosts += 1;
+        }
+      }
+
+      const liveData = (p.liveData ?? null) as Record<string, unknown> | null;
+      if (liveData) {
+        let nextLive: Record<string, unknown> | null = null;
+        if (!alreadyUsd(liveData.currency)) {
+          const ticket = toUsd(liveData.ticketPrice);
+          if (ticket != null) {
+            nextLive = { ...(nextLive ?? liveData), ticketPrice: ticket, currency: "USD" };
+            stats.liveTickets += 1;
+          }
+        }
+        const scc = (liveData.superCommentConfig ?? null) as Record<string, unknown> | null;
+        if (scc && !alreadyUsd(scc.currency) && Array.isArray(scc.tiers)) {
+          let changed = false;
+          const nextTiers = (scc.tiers as Record<string, unknown>[]).map((t) => {
+            const pr = toUsd(t.price);
+            if (pr == null) return t;
+            changed = true;
+            return { ...t, price: pr };
+          });
+          if (changed) {
+            nextLive = { ...(nextLive ?? liveData), superCommentConfig: { ...scc, tiers: nextTiers, currency: "USD" } };
+            stats.liveConfigs += 1;
+          }
+        }
+        if (nextLive) patch.liveData = nextLive;
+      }
+
+      if (Object.keys(patch).length && !dryRun) {
+        await doc.ref.set(patch, { merge: true });
       }
     }
 

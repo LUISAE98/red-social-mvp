@@ -963,17 +963,14 @@ export default function ServicePaymentModal({
     </div>
   );
 
-  // Cobro real = MXN; moneda local = referencia (≈). Solo se muestra el
-  // aproximado + aviso cuando la moneda del comprador NO es MXN.
-  // Monto efectivo: en modo donación es el elegido por el comprador (ya en MXN).
+  // Con dLocal el comprador paga en SU moneda local. El total se muestra ya en su
+  // moneda (con margen FX + redondeo, vía pf.format); no hay "cobro en MXN" ni
+  // "aproximado". Monto efectivo: en donación el elegido, si no el precio fijo (USD ancla).
   const effectiveAmount = amountEditable ? chosenAmount : amount;
   const isNonAnchor = pf.currency !== "USD";
-  const showApprox = effectiveAmount != null && effectiveAmount > 0 && isNonAnchor;
-  // `formatCurrency` de Vibra solo pone el símbolo (no el código ISO). Aquí, al
-  // mostrar dos monedas juntas, pegamos el código a mano para que quede claro
-  // cuál es cuál (el "$" lo comparten MXN, USD, ARS…).
-  const localApprox = effectiveAmount != null ? `${pf.format(effectiveAmount)} ${pf.currency}` : "";
-  const mxnTotal = effectiveAmount != null ? `${pf.formatAnchor(effectiveAmount)} MXN` : priceLabel ?? "";
+  // Pegamos el código ISO a mano (el "$" lo comparten USD, MXN, ARS…).
+  const totalLabel =
+    effectiveAmount != null ? `${pf.format(effectiveAmount)} ${pf.currency}` : priceLabel ?? "";
 
   const rightColumn = (
     <div
@@ -1137,18 +1134,6 @@ export default function ServicePaymentModal({
             </div>
           </div>
         </>
-      ) : showApprox ? (
-        <>
-          <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between" }}>
-            <span style={{ fontSize: 12, color: "#9aa0a8" }}>Tu banco cobrará</span>
-            <span style={{ fontSize: 13, color: "#6b7280", fontWeight: 600 }}>{mxnTotal}</span>
-          </div>
-          <div style={{ height: 1, background: "#e6e8ec" }} />
-          <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between" }}>
-            <span style={{ fontSize: 13, color: "#6b7280", fontWeight: 600 }}>Total aproximado</span>
-            <span style={{ fontSize: 17, fontWeight: 600, color: "#3a3f4a" }}>{localApprox}</span>
-          </div>
-        </>
       ) : (
         <>
           <div style={{ height: 1, background: "#e6e8ec" }} />
@@ -1157,7 +1142,7 @@ export default function ServicePaymentModal({
               {pricePeriodLabel ? "Cobro mensual" : "Total a pagar"}
             </span>
             <span style={{ fontSize: 17, fontWeight: 600, color: "#3a3f4a" }}>
-              {mxnTotal}{pricePeriodLabel ? ` / ${pricePeriodLabel}` : ""}
+              {totalLabel}{pricePeriodLabel ? ` / ${pricePeriodLabel}` : ""}
             </span>
           </div>
         </>
@@ -1241,19 +1226,6 @@ export default function ServicePaymentModal({
         </span>
       </div>
 
-      {(showApprox || (amountEditable && isNonAnchor)) && (
-        <p
-          style={{
-            margin: 0,
-            fontSize: 10,
-            color: "#9aa0a8",
-            textAlign: "center",
-            lineHeight: 1.4,
-          }}
-        >
-          El precio está referenciado en USD; se te muestra y cobra el equivalente en tu moneda local.
-        </p>
-      )}
     </div>
   );
 

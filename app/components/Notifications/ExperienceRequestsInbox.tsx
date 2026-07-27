@@ -440,30 +440,37 @@ export default function ExperienceRequestsInbox({
               const buyer = userMiniMap[req.buyerId] ?? null;
               const earning = earningOf(req.priceSnapshot, req.currency);
               // Saludo: tarjeta con la imagen de fondo (+ degradado para legibilidad).
+              // Layout horizontal: info a la izquierda, botón "Ver solicitud" a la derecha.
               const isSaludo = req.type === "saludo";
-              const cardStyle: CSSProperties = isSaludo
-                ? {
-                    ...styles.miniItem,
-                    background: undefined,
-                    backgroundImage:
-                      "linear-gradient(155deg, rgba(0,0,0,0.28) 0%, rgba(0,0,0,0.70) 82%), url('/saludo.webp')",
-                    backgroundSize: "cover",
-                    backgroundPosition: "center",
-                    padding: 12,
-                    minHeight: 104,
-                    justifyContent: "space-between",
-                  }
-                : styles.miniItem;
+              const cardStyle: CSSProperties = {
+                borderRadius: 12,
+                padding: isSaludo ? 12 : 9,
+                minWidth: 0,
+                boxSizing: "border-box",
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                ...(isSaludo
+                  ? {
+                      backgroundImage:
+                        "linear-gradient(155deg, rgba(0,0,0,0.64) 0%, rgba(0,0,0,0.92) 82%), url('/saludo.webp')",
+                      backgroundSize: "cover",
+                      backgroundPosition: "center",
+                    }
+                  : { background: "rgba(255,255,255,0.03)" }),
+              };
               return (
                 <div key={r.id} style={cardStyle}>
-                  <div style={styles.row}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, flex: 1 }}>
                     {buyer?.photoURL ? (
                       <Image
                         src={buyer.photoURL}
                         alt={buyer.displayName}
-                        width={28}
-                        height={28}
+                        width={44}
+                        height={44}
                         style={{
+                          width: 44,
+                          height: 44,
                           borderRadius: "50%",
                           objectFit: "cover",
                           border: "1px solid rgba(255,255,255,0.12)",
@@ -471,7 +478,7 @@ export default function ExperienceRequestsInbox({
                         }}
                       />
                     ) : (
-                      <div style={styles.avatarFallback}>
+                      <div style={{ ...styles.avatarFallback, width: 44, height: 44, fontSize: 16 }}>
                         {getInitials(buyer?.displayName)}
                       </div>
                     )}
@@ -482,8 +489,8 @@ export default function ExperienceRequestsInbox({
                           style={{
                             color: "#fff",
                             fontWeight: 600,
-                            fontSize: 12,
-                            lineHeight: 1.2,
+                            fontSize: 15,
+                            lineHeight: 1.25,
                             textDecoration: "none",
                             display: "block",
                             overflow: "hidden",
@@ -494,56 +501,52 @@ export default function ExperienceRequestsInbox({
                           {buyer.displayName}
                         </Link>
                       ) : (
-                        <span style={{ color: "#fff", fontWeight: 600, fontSize: 12, lineHeight: 1.2 }}>
+                        <span style={{ color: "#fff", fontWeight: 600, fontSize: 15, lineHeight: 1.25 }}>
                           {buyer?.displayName ?? tCommon("user")}
                         </span>
                       )}
-                      <span style={{ display: "block", color: "rgba(255,255,255,0.42)", fontSize: 11, lineHeight: 1.3 }}>
+                      <span style={{ display: "block", color: "rgba(255,255,255,0.55)", fontSize: 13, lineHeight: 1.3 }}>
                         {relativeTime(req.createdAt)}
                       </span>
                     </div>
-                    {earning ? <span style={styles.earning}>{earning}</span> : null}
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const startIndex = allSortedGreetings.findIndex((x) => x.id === r.id);
-                      setReviewState({
-                        items: allSortedGreetings,
-                        startIndex: startIndex >= 0 ? startIndex : 0,
-                      });
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "flex-end",
+                      gap: 6,
+                      flexShrink: 0,
                     }}
-                    style={
-                      isSaludo
-                        ? {
-                            width: "100%",
-                            height: 34,
-                            borderRadius: 8,
-                            border: "1px solid rgba(255,255,255,0.28)",
-                            background: "rgba(255,255,255,0.16)",
-                            color: "#fff",
-                            fontWeight: 700,
-                            fontSize: 12,
-                            cursor: "pointer",
-                            fontFamily: "inherit",
-                            backdropFilter: "blur(2px)",
-                          }
-                        : {
-                            width: "100%",
-                            height: 30,
-                            borderRadius: 8,
-                            border: "none",
-                            background: "rgba(168,85,255,0.18)",
-                            color: "#d8b4fe",
-                            fontWeight: 520,
-                            fontSize: 12,
-                            cursor: "pointer",
-                            fontFamily: "inherit",
-                          }
-                    }
                   >
-                    {tServices("viewRequest")}
-                  </button>
+                    {earning ? (
+                      <span style={{ ...styles.earning, fontSize: 12.1 }}>{earning}</span>
+                    ) : null}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const startIndex = allSortedGreetings.findIndex((x) => x.id === r.id);
+                        setReviewState({
+                          items: allSortedGreetings,
+                          startIndex: startIndex >= 0 ? startIndex : 0,
+                        });
+                      }}
+                      style={{
+                        height: 30,
+                        padding: "0 14px",
+                        borderRadius: 8,
+                        border: "none",
+                        background: "rgba(168,85,255,0.18)",
+                        color: "#d8b4fe",
+                        fontWeight: 520,
+                        fontSize: 12,
+                        cursor: "pointer",
+                        fontFamily: "inherit",
+                      }}
+                    >
+                      {tServices("viewRequest")}
+                    </button>
+                  </div>
                 </div>
               );
             })}
