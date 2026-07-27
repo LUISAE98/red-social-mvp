@@ -28,6 +28,7 @@ import { useSocialRelationship } from "@/lib/social/useSocialRelationship";
 import { useReport } from "@/lib/moderation/useReport";
 import ReportModal from "@/app/components/ReportModal/ReportModal";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
+import TaxNote from "@/components/payments/TaxNote";
 import ServicePaymentModal from "@/components/payments/ServicePaymentModal";
 import { payLiveDonation } from "@/lib/payments/payLiveDonation";
 
@@ -1249,12 +1250,14 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
 
         {/* Precio */}
         <div style={{
-          display: "flex", alignItems: "baseline", gap: 6,
+          display: "flex", flexDirection: "column", alignItems: "center", gap: 2,
           marginBottom: 28,
         }}>
           <span style={{ fontSize: 36, fontWeight: 800, color: "#a855f7", letterSpacing: "-0.02em" }}>
             {formatMoney(ticketPrice, { baseCurrency: currency, code: true })}
           </span>
+          {/* 🧾 IVA — "+ impuestos" (solo compradores en México). */}
+          <TaxNote color="rgba(255,255,255,0.4)" align="center" />
         </div>
 
         {/* CTA */}

@@ -90,6 +90,7 @@ import {
 } from "@/lib/groups/groupAdapters";
 
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
+import TaxNote from "@/components/payments/TaxNote";
 import { useGroupRealtime } from "@/lib/groups/useGroupRealtime";
 import { useLiveRingState } from "@/lib/live/useLiveRingState";
 import { setLastVisitTimestamp } from "@/lib/utils/visitTimestamps";
@@ -2152,6 +2153,8 @@ const avatarNode = (
                         ? formatMoney(subscriptionPrice, subscriptionCurrency)
                         : tServices("priceNotAvailable", { currency: subscriptionCurrency })}
                     </div>
+                    {/* 🧾 IVA — "+ impuestos" (solo compradores en México). */}
+                    <TaxNote color="rgba(255,255,255,0.4)" style={{ marginTop: 4 }} />
                   </div>
                   {subscriptionError && (
                     <div style={{ fontSize: 13, color: "#f87171", padding: "10px 14px", borderRadius: 10, background: "rgba(248,113,113,0.1)", border: "1px solid rgba(248,113,113,0.2)" }}>
@@ -3127,6 +3130,8 @@ const avatarNode = (
                       ? formatMoney(subscriptionPrice, subscriptionCurrency)
                       : tServices("priceNotAvailable", { currency: subscriptionCurrency })}
                   </div>
+                  {/* 🧾 IVA — "+ impuestos" (solo compradores en México). */}
+                  <TaxNote color="rgba(255,255,255,0.4)" style={{ marginTop: 4 }} />
                 </div>
                 {subscriptionError && (
                   <div style={{ fontSize: 13, color: "#f87171", padding: "10px 14px", borderRadius: 10, background: "rgba(248,113,113,0.1)", border: "1px solid rgba(248,113,113,0.2)" }}>

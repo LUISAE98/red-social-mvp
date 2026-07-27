@@ -263,16 +263,14 @@ sin excepción de turista.
 - `middleware.ts` — fija/**refresca** `vibra_country` por IP (rastrea ubicación actual, no preferencia; por eso el turista en MX paga IVA).
 - `lib/currency/usePriceFormat.ts` — `formatWithTax()` devuelve Subtotal / IVA / Total.
 - `components/payments/ServicePaymentModal.tsx` — desglose Subtotal / IVA / Total en el panel de pago.
-- `components/payments/TaxNote.tsx` — nota "+ impuestos" bajo los precios de navegación (conectada en `CreatorExperiencesSection`; pendiente propagar a los demás price tags).
+- `components/payments/TaxNote.tsx` — nota "+ impuestos" bajo los precios mostrados. Conectada en: tarjetas de experiencias (`CreatorExperiencesSection`), precio de ticket de live (`LiveViewerModal`) y precio de suscripción a comunidad (`groups/[groupId]/page`). El resto de compras pasan por el panel de pago, que ya muestra el desglose completo.
 
 **⚠️ Marcadores `🔁 DLOCAL-MIGRATION` (lo que debe rehacerse al migrar de Mercado Pago a dLocal):**
 - El impuesto hoy se estima y se **multiplica en el CLIENTE** (`ServicePaymentModal.tsx` → `handlePay`) sobre el monto que se cobra. Es un estimado por IP.
 - Al integrar dLocal, la **determinación fiscal autoritativa** (país por IP del request + país de la tarjeta) y el **registro del desglose** (`base`, `iva`, `taxCountry`, tasa e indicios 18-C en el `paymentIntent`) deben vivir en el **backend** — ver marcador en `backend/src/payments/serviceCharge.ts`.
 - Solo así se puede calcular la **retención (50%/100%)** y emitir el **CFDI de retención**.
 
-**Pendiente de decisión de producto:**
-- **Propinas/donaciones** (`live_donation`, `advice`, `profile_donation` y el modo donación del panel): hoy **NO** se les suma IVA en la UI (el tratamiento inclusivo-vs-sumado de una "donación" es ambiguo). Legalmente son gravadas (§6.1); definir si el IVA va sumado o incluido.
-- Propagar `TaxNote` al resto de price tags (supercomentario, premium/VOD, ticket de live, suscripción, story viewer).
+**Propinas/donaciones (decidido 2026-07-27):** se les **suma IVA igual que todo** (son contraprestación gravada, §6.1). El modo donación del panel de pago muestra el desglose Subtotal / IVA / Total sobre el monto que elige el fan, y el cobro se multiplica por (1+tasa). Con esto, la feature "+impuestos" (visualización + cobro coherente) queda **completa**; lo que resta es la determinación autoritativa en backend (Fase 2/dLocal) y el desglose del Wallet (Fase 3).
 
 ---
 
