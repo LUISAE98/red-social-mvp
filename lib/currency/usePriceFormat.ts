@@ -19,6 +19,8 @@ import {
   type ChargeCurrency,
   type DisplayCurrency,
 } from "./catalog";
+import { useBuyerCountry } from "@/lib/tax/useBuyerCountry";
+import { computeConsumptionTax, taxRateForCountry } from "@/lib/tax/config";
 
 export type PriceFormatOptions = {
   /**
@@ -34,9 +36,39 @@ export type PriceFormatOptions = {
   code?: boolean;
 };
 
+/**
+ * Precio con impuesto SUMADO (IVA), ya resuelto en la moneda local del comprador.
+ * `base`/`tax`/`total` son cadenas formateadas listas para mostrar; los `*Local`
+ * son los números por si el caller los necesita. `applies` = hay impuesto que
+ * mostrar (según el país del comprador). Ver lib/tax/config.ts.
+ */
+export type TaxedPrice = {
+  applies: boolean;
+  rate: number;
+  taxName: string | null;
+  taxCountry: string | null;
+  baseLocal: number;
+  taxLocal: number;
+  totalLocal: number;
+  currency: DisplayCurrency;
+  base: string;
+  tax: string;
+  total: string;
+};
+
 export type PriceFormatter = {
   /** Formatea un monto en MXN en la moneda de visualización. */
   format: (mxnAmount: number, opts?: PriceFormatOptions) => string;
+  /**
+   * Como `format`, pero devuelve el desglose base / impuesto / total según el país
+   * del comprador (IVA sumado encima). Si el país no tiene impuesto, `applies=false`
+   * y base==total. Para MOSTRAR; el cobro autoritativo se hará en el backend (dLocal).
+   */
+  formatWithTax: (amount: number, opts?: PriceFormatOptions) => TaxedPrice;
+  /** País del comprador por IP (ISO-2), o null si aún no se conoce. */
+  buyerCountry: string | null;
+  /** Tasa de impuesto del comprador (0 si no aplica). Útil para el cobro (base * (1+rate)). */
+  taxRate: number;
   /** Moneda de visualización activa. */
   currency: DisplayCurrency;
   /** Locale activo. */
@@ -60,28 +92,56 @@ export function usePriceFormat(): PriceFormatter {
   const locale = useLocale();
   const { currency } = useCurrency();
   const rates = useExchangeRates();
+  const buyerCountry = useBuyerCountry();
+
+  // Resuelve un monto (en su moneda base, default USD ancla) a la moneda local del
+  // comprador. Devuelve el número local y la moneda efectiva mostrada (para fallbacks
+  // sin tasa). Reutilizado por `format` y `formatWithTax`.
+  const resolveLocal = useCallback(
+    (amount: number, opts: PriceFormatOptions = {}): { value: number; currency: DisplayCurrency } => {
+      const base: DisplayCurrency = isDisplayCurrency(opts.baseCurrency)
+        ? opts.baseCurrency
+        : ANCHOR_CURRENCY;
+      const usd = base === ANCHOR_CURRENCY ? amount : convertToAnchor(amount, base, rates.rates);
+      if (usd == null) return { value: amount, currency: base };
+      const local = buyerPrice(usd, currency, rates.rates);
+      if (local == null) return { value: usd, currency: ANCHOR_CURRENCY };
+      return { value: local, currency };
+    },
+    [currency, rates]
+  );
 
   const format = useCallback(
     (amount: number, opts: PriceFormatOptions = {}): string => {
       const code = opts.code ?? false;
-      const base: DisplayCurrency = isDisplayCurrency(opts.baseCurrency)
-        ? opts.baseCurrency
-        : ANCHOR_CURRENCY;
-      // Normalizamos a USD (ancla) si el monto viene en otra moneda base (ítems legados).
-      const usd = base === ANCHOR_CURRENCY ? amount : convertToAnchor(amount, base, rates.rates);
-      if (usd == null) {
-        // Sin tasa para la base: mostramos el valor tal cual en su moneda base.
-        return formatCurrency(amount, base, locale, { code });
-      }
-      // Precio de cara al comprador: su moneda local con margen FX + redondeo bonito.
-      const local = buyerPrice(usd, currency, rates.rates);
-      if (local == null) {
-        // Sin tasa para la mostrada: mostramos el valor real en USD (nunca inventamos).
-        return formatCurrency(usd, ANCHOR_CURRENCY, locale, { code });
-      }
-      return formatCurrency(local, currency, locale, { code });
+      const { value, currency: cur } = resolveLocal(amount, opts);
+      return formatCurrency(value, cur, locale, { code });
     },
-    [locale, currency, rates]
+    [locale, resolveLocal]
+  );
+
+  const formatWithTax = useCallback(
+    (amount: number, opts: PriceFormatOptions = {}): TaxedPrice => {
+      const { value: baseLocal, currency: cur } = resolveLocal(amount, opts);
+      // El impuesto se calcula sobre la base YA en moneda local, así base+impuesto=total
+      // exacto (sin drift). Ver docs/legal/fiscal-iva-isr-plataforma.md.
+      const bd = computeConsumptionTax(baseLocal, buyerCountry);
+      const fmt = (n: number) => formatCurrency(n, cur, locale, { code: false });
+      return {
+        applies: bd.applies,
+        rate: bd.rate,
+        taxName: bd.taxName,
+        taxCountry: bd.taxCountry,
+        baseLocal: bd.base,
+        taxLocal: bd.tax,
+        totalLocal: bd.total,
+        currency: cur,
+        base: fmt(bd.base),
+        tax: fmt(bd.tax),
+        total: fmt(bd.total),
+      };
+    },
+    [locale, resolveLocal, buyerCountry]
   );
 
   const toAnchor = useCallback(
@@ -124,6 +184,9 @@ export function usePriceFormat(): PriceFormatter {
 
   return {
     format,
+    formatWithTax,
+    buyerCountry,
+    taxRate: taxRateForCountry(buyerCountry),
     currency,
     locale,
     ratesSource: rates.source,

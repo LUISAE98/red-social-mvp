@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import type { CreatorService, CreatorServiceType } from "@/types/group";
 import { getVisibleServices } from "@/lib/services/normalizeServices";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
+import TaxNote from "@/components/payments/TaxNote";
 
 type ViewerMembershipStatus =
   | "active"
@@ -346,18 +347,22 @@ export default function CreatorExperiencesSection({
                   </span>
                 )}
                 {priceData.hasPrice ? (
-                  <span style={{ display: "flex", alignItems: "baseline", gap: 4, whiteSpace: "nowrap" }}>
-                    <span
-                      style={{
-                        fontSize: 22,
-                        fontWeight: 600,
-                        color: conf.color,
-                        lineHeight: 1,
-                        fontVariantNumeric: "tabular-nums",
-                      }}
-                    >
-                      {priceData.numberPart}
+                  <span style={{ display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
+                    <span style={{ display: "flex", alignItems: "baseline", gap: 4, whiteSpace: "nowrap" }}>
+                      <span
+                        style={{
+                          fontSize: 22,
+                          fontWeight: 600,
+                          color: conf.color,
+                          lineHeight: 1,
+                          fontVariantNumeric: "tabular-nums",
+                        }}
+                      >
+                        {priceData.numberPart}
+                      </span>
                     </span>
+                    {/* 🧾 IVA — "+ impuestos" bajo el precio (solo compradores en México). */}
+                    <TaxNote color="rgba(255,255,255,0.5)" style={{ marginTop: 2 }} />
                   </span>
                 ) : (
                   <span

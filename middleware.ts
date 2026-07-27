@@ -8,6 +8,11 @@ const intlMiddleware = createMiddleware(routing);
 
 const LOCALE_COOKIE = "NEXT_LOCALE";
 const CURRENCY_COOKIE = "vibra_currency";
+// País por IP para fines de IMPUESTOS (IVA). A diferencia de la moneda (preferencia
+// pegajosa), este se REFRESCA en cada visita para reflejar dónde está el comprador
+// AHORA: un extranjero de viaje en México debe reportar MX y pagar IVA (Art. 18-C).
+// Ver lib/tax/useBuyerCountry.ts y docs/legal/fiscal-iva-isr-plataforma.md.
+const COUNTRY_COOKIE = "vibra_country";
 const ONE_YEAR = 60 * 60 * 24 * 365;
 
 export default function middleware(request: NextRequest) {
@@ -45,6 +50,20 @@ export default function middleware(request: NextRequest) {
       path: "/",
       sameSite: "lax",
     });
+  }
+
+  // País por IP para impuestos: se REFRESCA si cambió (rastrea la ubicación actual,
+  // no una preferencia). Solo escribimos cuando hay cabecera de geo y difiere de la
+  // cookie, para no reescribir en cada request innecesariamente.
+  if (country) {
+    const iso = country.toUpperCase();
+    if (request.cookies.get(COUNTRY_COOKIE)?.value !== iso) {
+      response.cookies.set(COUNTRY_COOKIE, iso, {
+        maxAge: ONE_YEAR,
+        path: "/",
+        sameSite: "lax",
+      });
+    }
   }
 
   return response;

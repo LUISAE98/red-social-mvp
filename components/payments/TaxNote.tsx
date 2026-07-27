@@ -1,0 +1,44 @@
+"use client";
+
+// Nota "+ impuestos" (chica, tenue) que se muestra DEBAJO de un precio SOLO cuando
+// el país del comprador tiene impuesto configurado (hoy únicamente México = IVA 16%).
+//
+// El impuesto va SUMADO sobre el precio del creador; el desglose exacto
+// (Subtotal / IVA / Total) aparece en el panel de pago (ServicePaymentModal).
+//
+// El texto va en español a propósito: hoy el impuesto solo aplica a compradores
+// ubicados en México, que son hispanohablantes. Cuando se activen más países se
+// deberá internacionalizar. Ver docs/legal/fiscal-iva-isr-plataforma.md.
+
+import type React from "react";
+import { usePriceFormat } from "@/lib/currency/usePriceFormat";
+
+type Props = {
+  /** Color del texto (ajústalo al fondo: claro sobre tarjetas oscuras). */
+  color?: string;
+  /** Alineación del texto. Default "left". */
+  align?: "left" | "center" | "right";
+  /** Estilos extra (margen, etc.). */
+  style?: React.CSSProperties;
+};
+
+export default function TaxNote({ color = "#9aa0a8", align = "left", style }: Props) {
+  const { taxRate } = usePriceFormat();
+  // Sin impuesto para el país del comprador (o aún no se conoce) → no se muestra nada.
+  if (taxRate <= 0) return null;
+  return (
+    <span
+      style={{
+        display: "block",
+        fontSize: 11,
+        fontWeight: 500,
+        color,
+        textAlign: align,
+        lineHeight: 1.2,
+        ...style,
+      }}
+    >
+      + impuestos
+    </span>
+  );
+}

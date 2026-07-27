@@ -88,6 +88,17 @@ export async function chargeServiceIntent(
     throw new HttpsError("failed-precondition", "Precio inválido para esta compra.");
   }
 
+  // 🧾 IVA + 🔁 DLOCAL-MIGRATION — HOY: `grossAmount` ya viene con el impuesto SUMADO
+  // (base * (1+tasa)) porque el CLIENTE lo multiplicó (estimado por país de IP) antes
+  // de crear el intent. Ver components/payments/ServicePaymentModal.tsx (handlePay).
+  // PENDIENTE al integrar dLocal (mover al backend, autoritativo):
+  //   1. Determinar el país fiscal aquí (IP del request + país de la tarjeta por BIN),
+  //      no confiar en el cliente. Regla Art. 18-C: basta 1 señal hacia México → IVA.
+  //   2. Calcular y GUARDAR el desglose en el intent: { base, iva, taxCountry, tasa,
+  //      indicios 18-C } para la retención (50%/100%) y el CFDI de retención.
+  //   3. El creador recibe SIEMPRE sobre la base (el IVA no es suyo: se entera al SAT).
+  // Matriz completa y fundamentos: docs/legal/fiscal-iva-isr-plataforma.md.
+
   logger.info("chargeServiceIntent start", {
     externalReference,
     hasSaveToken: !!card.saveToken,

@@ -250,6 +250,32 @@ con independencia del resultado de ISR.  ⇒ Asimetría: IVA sí, ISR frecuentem
 
 ---
 
+## Anexo A — Estado de integración en el sistema (2026-07-27)
+
+Se empezó a integrar el cobro de IVA en la UI. Decisiones de producto aplicadas:
+**el IVA se SUMA sobre el precio base del creador** (el creador recibe siempre sobre la
+base) y **se cobra según la ubicación del comprador al comprar** (IP + método de pago),
+sin excepción de turista.
+
+**Hecho (Fase 0 + 1 — infraestructura y visualización):**
+- `lib/tax/config.ts` — tabla de tasas por país. **Solo MX = IVA 16%** está activo; los otros 16 países quedan sin impuesto hasta configurarse uno por uno.
+- `lib/tax/useBuyerCountry.ts` — señal del país del comprador (cookie `vibra_country`).
+- `middleware.ts` — fija/**refresca** `vibra_country` por IP (rastrea ubicación actual, no preferencia; por eso el turista en MX paga IVA).
+- `lib/currency/usePriceFormat.ts` — `formatWithTax()` devuelve Subtotal / IVA / Total.
+- `components/payments/ServicePaymentModal.tsx` — desglose Subtotal / IVA / Total en el panel de pago.
+- `components/payments/TaxNote.tsx` — nota "+ impuestos" bajo los precios de navegación (conectada en `CreatorExperiencesSection`; pendiente propagar a los demás price tags).
+
+**⚠️ Marcadores `🔁 DLOCAL-MIGRATION` (lo que debe rehacerse al migrar de Mercado Pago a dLocal):**
+- El impuesto hoy se estima y se **multiplica en el CLIENTE** (`ServicePaymentModal.tsx` → `handlePay`) sobre el monto que se cobra. Es un estimado por IP.
+- Al integrar dLocal, la **determinación fiscal autoritativa** (país por IP del request + país de la tarjeta) y el **registro del desglose** (`base`, `iva`, `taxCountry`, tasa e indicios 18-C en el `paymentIntent`) deben vivir en el **backend** — ver marcador en `backend/src/payments/serviceCharge.ts`.
+- Solo así se puede calcular la **retención (50%/100%)** y emitir el **CFDI de retención**.
+
+**Pendiente de decisión de producto:**
+- **Propinas/donaciones** (`live_donation`, `advice`, `profile_donation` y el modo donación del panel): hoy **NO** se les suma IVA en la UI (el tratamiento inclusivo-vs-sumado de una "donación" es ambiguo). Legalmente son gravadas (§6.1); definir si el IVA va sumado o incluido.
+- Propagar `TaxNote` al resto de price tags (supercomentario, premium/VOD, ticket de live, suscripción, story viewer).
+
+---
+
 ## Fuentes
 
 **Leyes y reglamento (texto vigente, Cámara de Diputados):**

@@ -570,7 +570,19 @@ export default function ServicePaymentModal({
         };
       }
 
-      const payAmount = (amountEditable ? chosenAmount : amount) ?? undefined;
+      // 🧾 IVA + 🔁 DLOCAL-MIGRATION — El monto cobrado incluye el impuesto SUMADO
+      // (base * (1+tasa)) para que el cargo coincida con el "Total a pagar" mostrado.
+      // Solo precio fijo (no donación) y solo si el país del comprador tiene impuesto
+      // (hoy solo MX = 16%). ⚠️ Esto es un ESTIMADO del CLIENTE (país por IP): la
+      // determinación fiscal AUTORITATIVA (IP del request + país de la tarjeta) y el
+      // registro del desglose (base / IVA / taxCountry en el paymentIntent para la
+      // retención y el CFDI) DEBEN moverse al BACKEND al integrar dLocal.
+      // Ver backend/src/payments/serviceCharge.ts y docs/legal/fiscal-iva-isr-plataforma.md.
+      const baseAmount = (amountEditable ? chosenAmount : amount) ?? undefined;
+      const payAmount =
+        baseAmount != null && !amountEditable && pf.taxRate > 0
+          ? Math.round(baseAmount * (1 + pf.taxRate) * 100) / 100
+          : baseAmount;
       const res = await payRef.current(card, payAmount);
       if (res.status === "approved" || res.status === "pending") {
         if (successMessage) {
@@ -972,6 +984,14 @@ export default function ServicePaymentModal({
   const totalLabel =
     effectiveAmount != null ? `${pf.format(effectiveAmount)} ${pf.currency}` : priceLabel ?? "";
 
+  // 🧾 IVA — Desglose de impuesto para PRECIO FIJO (no donación). El impuesto se
+  // SUMA sobre la base según el país del comprador (hoy solo MX = 16%). En donación
+  // (amountEditable) NO se aplica aún: el tratamiento fiscal de propinas/donaciones
+  // es una decisión de producto pendiente (ver doc fiscal §6.1). Ver también el
+  // cobro más abajo, donde el monto enviado a la pasarela se multiplica por (1+tasa).
+  const taxed =
+    !amountEditable && effectiveAmount != null ? pf.formatWithTax(effectiveAmount) : null;
+
   const rightColumn = (
     <div
       style={{
@@ -1137,14 +1157,36 @@ export default function ServicePaymentModal({
       ) : (
         <>
           <div style={{ height: 1, background: "#e6e8ec" }} />
-          <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between" }}>
-            <span style={{ fontSize: 13, color: "#6b7280", fontWeight: 600 }}>
-              {pricePeriodLabel ? "Cobro mensual" : "Total a pagar"}
-            </span>
-            <span style={{ fontSize: 17, fontWeight: 600, color: "#3a3f4a" }}>
-              {totalLabel}{pricePeriodLabel ? ` / ${pricePeriodLabel}` : ""}
-            </span>
-          </div>
+          {taxed?.applies ? (
+            // 🧾 IVA — Desglose Subtotal / impuesto / Total (el impuesto va SUMADO).
+            <div style={{ display: "grid", gap: 6 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, color: "#8a8f99" }}>
+                <span>Subtotal</span>
+                <span>{taxed.base} {taxed.currency}</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, color: "#8a8f99" }}>
+                <span>{taxed.taxName} ({Math.round(taxed.rate * 100)}%)</span>
+                <span>{taxed.tax} {taxed.currency}</span>
+              </div>
+              <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between" }}>
+                <span style={{ fontSize: 13, color: "#6b7280", fontWeight: 600 }}>
+                  {pricePeriodLabel ? "Cobro mensual" : "Total a pagar"}
+                </span>
+                <span style={{ fontSize: 17, fontWeight: 600, color: "#3a3f4a" }}>
+                  {taxed.total} {taxed.currency}{pricePeriodLabel ? ` / ${pricePeriodLabel}` : ""}
+                </span>
+              </div>
+            </div>
+          ) : (
+            <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between" }}>
+              <span style={{ fontSize: 13, color: "#6b7280", fontWeight: 600 }}>
+                {pricePeriodLabel ? "Cobro mensual" : "Total a pagar"}
+              </span>
+              <span style={{ fontSize: 17, fontWeight: 600, color: "#3a3f4a" }}>
+                {totalLabel}{pricePeriodLabel ? ` / ${pricePeriodLabel}` : ""}
+              </span>
+            </div>
+          )}
         </>
       )}
 
