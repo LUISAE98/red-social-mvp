@@ -27,8 +27,29 @@ jobs:
         with:
           node-version: 20
 
+      - name: Setup Java (emulador de Firestore)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
       - name: Install dependencies
         run: npm install
+
+      - name: Unit tests (frontend — dinero puro)
+        run: npm test
+
+      - name: Install backend dependencies
+        run: npm install --prefix backend
+
+      - name: Unit tests (backend — ledger, firma MP, reconcile)
+        run: npm test --prefix backend
+
+      - name: Install firebase-tools
+        run: npm install -g firebase-tools@15
+
+      - name: Integration tests (emulador — idempotencia del ledger)
+        run: npm run test:emulator
 
       - name: Build project
         run: npm run build

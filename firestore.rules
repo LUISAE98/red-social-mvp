@@ -2121,6 +2121,15 @@ function canListPublicDiscoveryPost() {
 function canReadPost() {
   return resource.data.isDeleted == false
     && (
+      // El AUTOR siempre puede leer su propio post, sin importar el tipo ni si le
+      // faltan campos (posts antiguos sin contextType/profileId). Evita el falso
+      // "publicación no disponible" al abrir la notificación de reacción/comentario
+      // en el propio post.
+      (
+        signedIn()
+        && resource.data.authorId == request.auth.uid
+      )
+      ||
       (
         isGroupPostData(resource.data)
         && (
@@ -2128,10 +2137,6 @@ function canReadPost() {
           || canReadPublicPremiumGroupPost()
           || canReadPublicShareableGroupPost()
           || canReadGroupContent(resource.data.groupId)
-          || (
-            signedIn()
-            && resource.data.authorId == request.auth.uid
-          )
         )
       )
       ||

@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
@@ -396,7 +396,19 @@ export default function ExperienceRequestsInbox({
   };
 
   if (loading && buckets.length === 0) {
-    return <div className="expInboxState">{tCommon("loading")}</div>;
+    return (
+      <div
+        className="expInboxState"
+        style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: 150 }}
+      >
+        <span
+          className="vibraPullRefreshSpinner refreshing"
+          style={{ display: "block", width: 32, height: 32 }}
+          aria-label={tCommon("loading")}
+          role="status"
+        />
+      </div>
+    );
   }
   if (buckets.length === 0) {
     return <div className="expInboxState">{emptyLabel}</div>;
@@ -410,50 +422,73 @@ export default function ExperienceRequestsInbox({
         const name = meta?.name ?? (isProfile ? "Mi perfil" : tCommon("user"));
         const avatarUrl = meta?.avatarUrl ?? null;
 
-        return (
-          <div key={key} style={styles.section}>
-            <div style={styles.header}>
-              {avatarUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={avatarUrl}
-                  alt=""
-                  style={{
-                    width: 32,
-                    height: 32,
-                    borderRadius: "50%",
-                    objectFit: "cover",
-                    flexShrink: 0,
-                  }}
-                />
-              ) : (
-                <div style={{ ...styles.avatarFallback, width: 32, height: 32 }}>
-                  {getInitials(name)}
-                </div>
-              )}
-              <span style={styles.headerName}>{name}</span>
-            </div>
+        // Línea vertical + avatar del perfil/comunidad desde donde compraron la
+        // experiencia (se muestra junto a la hora, en cada tarjeta del bucket).
+        const sourceNode = (
+          <>
+            <span
+              aria-hidden="true"
+              style={{ width: 1, height: 12, background: "rgba(255,255,255,0.28)", flexShrink: 0 }}
+            />
+            {avatarUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={avatarUrl}
+                alt=""
+                title={name}
+                style={{ width: 17, height: 17, borderRadius: "50%", objectFit: "cover", flexShrink: 0 }}
+              />
+            ) : (
+              <span
+                title={name}
+                style={{
+                  width: 17,
+                  height: 17,
+                  borderRadius: "50%",
+                  background: "rgba(255,255,255,0.10)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 9,
+                  fontWeight: 700,
+                  color: "#fff",
+                  flexShrink: 0,
+                }}
+              >
+                {getInitials(name)}
+              </span>
+            )}
+          </>
+        );
 
+        return (
+          <Fragment key={key}>
             {/* Saludos / consejos */}
             {greetings.map((r) => {
               const req = r.data;
               const buyer = userMiniMap[req.buyerId] ?? null;
               const earning = earningOf(req.priceSnapshot, req.currency);
-              // Saludo: tarjeta con la imagen de fondo (+ degradado para legibilidad).
-              // Layout horizontal: info a la izquierda, botón "Ver solicitud" a la derecha.
-              const isSaludo = req.type === "saludo";
+              // Tarjeta con imagen de fondo (+ degradado para legibilidad) y layout
+              // horizontal: info a la izquierda, monto + botón "Ver solicitud" a la
+              // derecha. Cada tipo tiene su imagen y su color de botón.
+              const cardImage =
+                req.type === "saludo"
+                  ? "/saludo.webp"
+                  : req.type === "consejo"
+                    ? "/consejo.webp"
+                    : null;
+              const isConsejo = req.type === "consejo";
               const cardStyle: CSSProperties = {
                 borderRadius: 12,
-                padding: isSaludo ? 12 : 9,
+                padding: cardImage ? 12 : 9,
                 minWidth: 0,
                 boxSizing: "border-box",
                 display: "flex",
                 alignItems: "center",
                 gap: 10,
-                ...(isSaludo
+                ...(cardImage
                   ? {
-                      backgroundImage:
-                        "linear-gradient(155deg, rgba(0,0,0,0.64) 0%, rgba(0,0,0,0.92) 82%), url('/saludo.webp')",
+                      backgroundImage: `linear-gradient(to bottom, rgba(0,0,0,0.58) 0%, rgba(0,0,0,0.82) 55%, rgba(0,0,0,0.97) 92%, rgba(0,0,0,1) 100%), url('${cardImage}')`,
                       backgroundSize: "cover",
                       backgroundPosition: "center",
                     }
@@ -505,9 +540,12 @@ export default function ExperienceRequestsInbox({
                           {buyer?.displayName ?? tCommon("user")}
                         </span>
                       )}
-                      <span style={{ display: "block", color: "rgba(255,255,255,0.55)", fontSize: 13, lineHeight: 1.3 }}>
-                        {relativeTime(req.createdAt)}
-                      </span>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 1 }}>
+                        <span style={{ color: "rgba(255,255,255,0.55)", fontSize: 13, lineHeight: 1.3, whiteSpace: "nowrap" }}>
+                          {relativeTime(req.createdAt)}
+                        </span>
+                        {sourceNode}
+                      </div>
                     </div>
                   </div>
                   <div
@@ -536,8 +574,8 @@ export default function ExperienceRequestsInbox({
                         padding: "0 14px",
                         borderRadius: 8,
                         border: "none",
-                        background: "rgba(168,85,255,0.18)",
-                        color: "#d8b4fe",
+                        background: isConsejo ? "rgba(250,204,21,0.18)" : "rgba(168,85,255,0.18)",
+                        color: isConsejo ? "#fde047" : "#d8b4fe",
                         fontWeight: 520,
                         fontSize: 12,
                         cursor: "pointer",
@@ -555,16 +593,40 @@ export default function ExperienceRequestsInbox({
             {alerts.map((r) => {
               const req = r.data;
               const earning = earningOf(req.priceSnapshot, req.currency);
+              // Mismo estilo que saludo/consejo: imagen de fondo por tipo + layout
+              // horizontal. El botón conserva su texto de proceso (agendar/reagendar).
+              const cardImage =
+                r.kind === "exclusive_session"
+                  ? "/sesionexclusiva.webp"
+                  : "/encuentroenvivo.webp";
+              const cardStyle: CSSProperties = {
+                borderRadius: 12,
+                padding: 12,
+                minWidth: 0,
+                boxSizing: "border-box",
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                backgroundImage: `linear-gradient(to bottom, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.74) 55%, rgba(0,0,0,0.90) 100%), url('${cardImage}')`,
+                // Tamaño por capa: el degradado cubre EXACTO la tarjeta (100% 100%)
+                // para que su borde inferior oscuro caiga justo en el borde; la
+                // imagen va en cover. Con "cover" a secas, el degradado se
+                // escalaba de más y dejaba una línea clara abajo.
+                backgroundSize: "100% 100%, cover",
+                backgroundPosition: "center",
+              };
               return (
-                <div key={`${r.kind}-${r.id}`} style={styles.miniItem}>
-                  <div style={styles.row}>
+                <div key={`${r.kind}-${r.id}`} style={cardStyle}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, flex: 1 }}>
                     {req.buyerAvatarUrl ? (
                       <Image
                         src={req.buyerAvatarUrl}
                         alt={req.buyerDisplayName ?? ""}
-                        width={28}
-                        height={28}
+                        width={44}
+                        height={44}
                         style={{
+                          width: 44,
+                          height: 44,
                           borderRadius: "50%",
                           objectFit: "cover",
                           border: "1px solid rgba(255,255,255,0.12)",
@@ -572,51 +634,68 @@ export default function ExperienceRequestsInbox({
                         }}
                       />
                     ) : (
-                      <div style={styles.avatarFallback}>
+                      <div style={{ ...styles.avatarFallback, width: 44, height: 44, fontSize: 16 }}>
                         {getInitials(req.buyerDisplayName)}
                       </div>
                     )}
                     <div style={{ minWidth: 0, flex: 1, overflow: "hidden" }}>
-                      <span style={{ color: "#fff", fontWeight: 600, fontSize: 12, lineHeight: 1.2, display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      <span style={{ color: "#fff", fontWeight: 600, fontSize: 15, lineHeight: 1.25, display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                         {req.buyerDisplayName ?? tCommon("user")}
                       </span>
-                      <span style={{ display: "block", color: "rgba(255,255,255,0.42)", fontSize: 11, lineHeight: 1.3 }}>
-                        {relativeTime(req.createdAt)}
-                      </span>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 1 }}>
+                        <span style={{ color: "rgba(255,255,255,0.55)", fontSize: 13, lineHeight: 1.3, whiteSpace: "nowrap" }}>
+                          {relativeTime(req.createdAt)}
+                        </span>
+                        {sourceNode}
+                      </div>
                     </div>
-                    {earning ? <span style={styles.earning}>{earning}</span> : null}
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSessionOverlay({ id: r.id, req, serviceKind: r.kind });
-                      setSessionOpen(true);
-                      setFeedbackError(null);
-                      setFeedbackSuccess(null);
-                      setBusy(false);
-                    }}
+                  <div
                     style={{
-                      width: "100%",
-                      height: 30,
-                      borderRadius: 8,
-                      border: "none",
-                      background: "rgba(59,130,246,0.18)",
-                      color: "#93c5fd",
-                      fontWeight: 520,
-                      fontSize: 12,
-                      cursor: "pointer",
-                      fontFamily: "inherit",
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "flex-end",
+                      gap: 6,
+                      flexShrink: 0,
                     }}
                   >
-                    {req.status === "reschedule_requested"
-                      ? tServices("reschedule")
-                      : tServices("schedule")}
-                  </button>
+                    {earning ? (
+                      <span style={{ ...styles.earning, fontSize: 12.1 }}>{earning}</span>
+                    ) : null}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSessionOverlay({ id: r.id, req, serviceKind: r.kind });
+                        setSessionOpen(true);
+                        setFeedbackError(null);
+                        setFeedbackSuccess(null);
+                        setBusy(false);
+                      }}
+                      style={{
+                        height: 30,
+                        padding: "0 14px",
+                        borderRadius: 8,
+                        border: "none",
+                        background:
+                          r.kind === "exclusive_session"
+                            ? "rgba(236,72,153,0.18)"
+                            : "rgba(59,130,246,0.18)",
+                        color: r.kind === "exclusive_session" ? "#f9a8d4" : "#93c5fd",
+                        fontWeight: 520,
+                        fontSize: 12,
+                        cursor: "pointer",
+                        fontFamily: "inherit",
+                      }}
+                    >
+                      {req.status === "reschedule_requested"
+                        ? tServices("reschedule")
+                        : tServices("schedule")}
+                    </button>
+                  </div>
                 </div>
               );
             })}
-
-          </div>
+          </Fragment>
         );
       })}
 

@@ -848,16 +848,41 @@ export async function fetchPostByIdForViewer(
 ): Promise<Post | null> {
   if (!postId) return null;
 
+  // Espera a que el SDK adjunte el token de auth ANTES del getDoc: al abrir un
+  // deep-link de notificación en frío, `request.auth` puede llegar null al
+  // servidor (aunque haya sesión) y las reglas niegan la lectura → falso
+  // "publicación no disponible" incluso en el propio post del autor.
+  try {
+    await auth.authStateReady();
+  } catch {
+    /* si falla, seguimos: el SDK reintentará adjuntar el token */
+  }
+
   let snap;
   try {
     snap = await getDoc(doc(db, "posts", postId));
-  } catch {
+  } catch (e) {
+    // DIAGNÓSTICO TEMPORAL: por qué el post no está disponible.
+    // currentUid = uid REAL del SDK de Firebase (el que ven las reglas).
+    // Si difiere de viewerUid, la sesión no es la que cree el cliente.
+    console.warn("[fetchPostByIdForViewer] getDoc FALLÓ", {
+      postId,
+      viewerUid,
+      currentUid: auth.currentUser?.uid ?? null,
+      error: e,
+    });
     return null; // permiso denegado / post inaccesible
   }
-  if (!snap.exists()) return null;
+  if (!snap.exists()) {
+    console.warn("[fetchPostByIdForViewer] el post NO EXISTE", { postId });
+    return null;
+  }
 
   const raw: Post = { id: snap.id, ...(snap.data() as Omit<Post, "id">) };
-  if (raw.isDeleted === true) return null;
+  if (raw.isDeleted === true) {
+    console.warn("[fetchPostByIdForViewer] el post está BORRADO (isDeleted)", { postId });
+    return null;
+  }
 
   const [userMap, groupMap] = await Promise.all([
     fetchUsersByIds([raw.authorId]),
@@ -871,6 +896,9 @@ export async function fetchPostByIdForViewer(
     const [withViewerState] = await attachViewerPostState([withLock], viewerUid ?? undefined);
     // attachViewerPostState filtra posts de autores que bloquearon al viewer:
     // si desaparece, no está disponible para este viewer.
+    if (!withViewerState) {
+      console.warn("[fetchPostByIdForViewer] filtrado por attachViewerPostState", { postId });
+    }
     return withViewerState ?? null;
   } catch {
     return withLock;

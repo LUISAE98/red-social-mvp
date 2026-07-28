@@ -227,7 +227,19 @@ export default function NotificationList({
   }
 
   if (loading) {
-    return <div className="notifState">{t("loading")}</div>;
+    return (
+      <div
+        className="notifState"
+        style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: 150 }}
+      >
+        <span
+          className="vibraPullRefreshSpinner refreshing"
+          style={{ display: "block", width: 32, height: 32 }}
+          aria-label={t("loading")}
+          role="status"
+        />
+      </div>
+    );
   }
   if (items.length === 0) {
     return <div className="notifState">{emptyLabel ?? t("empty")}</div>;

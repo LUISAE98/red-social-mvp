@@ -19,6 +19,33 @@ if (admin.apps.length === 0) {
 const db = admin.firestore();
 const FieldValue = admin.firestore.FieldValue;
 
+/**
+ * Parte un `external_reference` con forma `{sourceType}__{sourceId}` por el
+ * PRIMER "__". Devuelve null si no trae separador. Puro (testeable sin Firestore).
+ */
+export function parseExternalReference(
+  externalReference: string
+): { sourceType: string; sourceId: string } | null {
+  const sep = externalReference.indexOf("__");
+  if (sep < 0) return null;
+  return {
+    sourceType: externalReference.slice(0, sep),
+    sourceId: externalReference.slice(sep + 2),
+  };
+}
+
+/**
+ * Parte un id compuesto `{head}_{tail}` por el PRIMER "_". Lo usan liveAccess,
+ * liveDonation y superComment, cuyo `sourceId` embebe dos ids. null si no hay "_".
+ */
+export function splitCompoundId(
+  id: string
+): { head: string; tail: string } | null {
+  const sep = id.indexOf("_");
+  if (sep < 0) return null;
+  return { head: id.slice(0, sep), tail: id.slice(sep + 1) };
+}
+
 /** Estado de pago normalizado (independiente de las cadenas exactas de MP). */
 export type MpNormalizedStatus =
   | "approved"
@@ -123,13 +150,12 @@ export async function applyApprovedPaymentToSource(
   externalReference: string,
   meta: { mpOrderId?: string | null; mpPaymentId?: string | null }
 ): Promise<void> {
-  const sep = externalReference.indexOf("__");
-  if (sep < 0) {
+  const parsed = parseExternalReference(externalReference);
+  if (!parsed) {
     logger.warn("reconcile: external_reference sin separador", { externalReference });
     return;
   }
-  const sourceType = externalReference.slice(0, sep);
-  const sourceId = externalReference.slice(sep + 2);
+  const { sourceType, sourceId } = parsed;
 
   if (sourceType === "greetingRequest") {
     await materializeFromIntent(externalReference, "greetingRequests", sourceId, "pendingGreeting", meta);
@@ -163,13 +189,13 @@ export async function applyApprovedPaymentToSource(
   if (sourceType === "liveAccess") {
     // Ticket de en vivo: sourceId = `${liveId}_${userId}`. Materializa el doc
     // anidado liveAccess/{liveId}/users/{userId} (status "paid" → dispara ledger).
-    const sep2 = sourceId.indexOf("_");
-    if (sep2 < 0) {
+    const split = splitCompoundId(sourceId);
+    if (!split) {
       logger.warn("reconcile: liveAccess sourceId sin separador", { externalReference });
       return;
     }
-    const liveId = sourceId.slice(0, sep2);
-    const userId = sourceId.slice(sep2 + 1);
+    const liveId = split.head;
+    const userId = split.tail;
     await materializeFromIntent(externalReference, `liveAccess/${liveId}/users`, userId, "pendingLiveAccess", meta);
     return;
   }
@@ -178,13 +204,13 @@ export async function applyApprovedPaymentToSource(
     // Donación en vivo: sourceId = `${postId}_${donationId}`. Materializa el super-
     // comentario posts/{postId}/superComments/{donationId} (status "paid" → dispara
     // onSuperCommentLedger con earning live_donation, y lo muestra en el chat del live).
-    const sep2 = sourceId.indexOf("_");
-    if (sep2 < 0) {
+    const split = splitCompoundId(sourceId);
+    if (!split) {
       logger.warn("reconcile: liveDonation sourceId sin separador", { externalReference });
       return;
     }
-    const postId = sourceId.slice(0, sep2);
-    const donationId = sourceId.slice(sep2 + 1);
+    const postId = split.head;
+    const donationId = split.tail;
     await materializeFromIntent(externalReference, `posts/${postId}/superComments`, donationId, "pendingLiveDonation", meta);
     return;
   }
@@ -193,13 +219,13 @@ export async function applyApprovedPaymentToSource(
     // Supercomentario en vivo: sourceId = `${postId}_${scId}`. Materializa el super-
     // comentario posts/{postId}/superComments/{scId} (status "paid" → dispara
     // onSuperCommentLedger con earning `supercomment`, y lo muestra en el chat del live).
-    const sep2 = sourceId.indexOf("_");
-    if (sep2 < 0) {
+    const split = splitCompoundId(sourceId);
+    if (!split) {
       logger.warn("reconcile: superComment sourceId sin separador", { externalReference });
       return;
     }
-    const postId = sourceId.slice(0, sep2);
-    const scId = sourceId.slice(sep2 + 1);
+    const postId = split.head;
+    const scId = split.tail;
     await materializeFromIntent(externalReference, `posts/${postId}/superComments`, scId, "pendingSuperComment", meta);
     return;
   }
