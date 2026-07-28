@@ -12,8 +12,12 @@ export default defineConfig({
     environment: "node",
     testTimeout: 20000,
     hookTimeout: 20000,
-    // Sin paralelismo entre archivos: comparten la misma instancia de
-    // firebase-admin y el emulador, así que corren en serie.
-    fileParallelism: false,
+    // Cada archivo en su propio proceso aislado (pool forks, isolate). Así cada
+    // uno inicializa su propia instancia de firebase-admin / firebase-functions-test
+    // sin interferir con los demás. Los tests usan ids únicos, así que compartir el
+    // emulador no genera colisiones. Evita el "failed to find the runner" que
+    // aparecía intermitentemente al reusar un worker compartido.
+    pool: "forks",
+    isolate: true,
   },
 });
