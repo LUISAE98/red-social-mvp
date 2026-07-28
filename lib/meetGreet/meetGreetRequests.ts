@@ -1,5 +1,6 @@
 import { httpsCallable } from "firebase/functions";
 import { functions } from "@/lib/firebase";
+import { captureError } from "@/lib/observability/captureError";
 
 export type MeetGreetUserRole = "buyer" | "creator";
 export type MeetGreetSource = "group" | "profile";
@@ -158,6 +159,10 @@ function normalizeCallableError(error: unknown): Error {
 
   const message = String(rawMessage).replace(/^FirebaseError:\s*/i, "");
 
+  captureError(error, {
+    scope: "meet_greet",
+    code: (error as { code?: string } | null)?.code,
+  });
   return new Error(message);
 }
 

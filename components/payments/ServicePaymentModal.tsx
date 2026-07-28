@@ -21,6 +21,7 @@ import { loadMercadoPago } from "@mercadopago/sdk-js";
 import { doc, getDoc, collection, onSnapshot } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { MP_PUBLIC_KEY } from "@/lib/payments/mpConfig";
+import { captureError } from "@/lib/observability/captureError";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 
 // ── Tipado mínimo del SDK (no trae tipos) ────────────────────────────────────
@@ -615,7 +616,11 @@ export default function ServicePaymentModal({
               ? "Revisa el número de tarjeta."
               : "No se pudo procesar el pago. Revisa los datos e intenta de nuevo."
       );
-      console.error("createCardToken/pay failed", err);
+      // Reportar solo fallos reales (SDK/tokenización/cobro), no las validaciones
+      // de input del usuario ni un rechazo esperado de la tarjeta.
+      if (!["no_name", "no_cvv", "no_payment_method", "rejected"].includes(code)) {
+        captureError(err, { scope: "payments", extra: { where: "handlePay" } });
+      }
     } finally {
       setSubmitting(false);
     }

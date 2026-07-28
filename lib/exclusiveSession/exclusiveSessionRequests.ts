@@ -1,5 +1,6 @@
 import { httpsCallable } from "firebase/functions";
 import { functions } from "@/lib/firebase";
+import { captureError } from "@/lib/observability/captureError";
 import type { ExclusiveSessionUserRole } from "./types";
 
 type CallablePayload = Record<string, unknown>;
@@ -17,6 +18,10 @@ function normalizeCallableError(error: unknown): Error {
 
   const message = String(rawMessage).replace(/^FirebaseError:\s*/i, "");
 
+  captureError(error, {
+    scope: "exclusive_session",
+    code: (error as { code?: string } | null)?.code,
+  });
   return new Error(message);
 }
 

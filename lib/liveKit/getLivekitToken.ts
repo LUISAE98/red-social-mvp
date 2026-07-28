@@ -3,6 +3,7 @@
 
 import { httpsCallable, type FunctionsError } from "firebase/functions";
 import { functions } from "@/lib/firebase";
+import { captureError } from "@/lib/observability/captureError";
 import type { LiveKitTokenResponse } from "@/lib/liveKit/types";
 
 export type LivekitSessionType = "exclusive_session" | "meet_greet";
@@ -56,6 +57,8 @@ function normalizeCallableError(error: unknown): LivekitAccessError {
   const message =
     fErr?.message?.replace(/^FirebaseError:\s*/i, "") ??
     "Ocurrió un error al obtener el token de videollamada.";
+  // El comprador no pudo entrar a la sala que pagó: reportar con el código.
+  captureError(error, { scope: "livekit", code });
   return new LivekitAccessError(code, message);
 }
 

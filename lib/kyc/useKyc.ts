@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { doc, onSnapshot } from "firebase/firestore";
 import { httpsCallable } from "firebase/functions";
 import { auth, db, functions } from "@/lib/firebase";
+import { captureError } from "@/lib/observability/captureError";
 import type { KycStatus } from "@/types/kyc";
 
 type KycState = {
@@ -59,7 +60,10 @@ export function useKyc(uid: string | null | undefined) {
             loading: false,
           });
         },
-        () => setState((s) => ({ ...s, loading: false }))
+        (err) => {
+          captureError(err, { scope: "kyc", extra: { where: "kyc_snapshot" } });
+          setState((s) => ({ ...s, loading: false }));
+        }
       );
     });
     return () => {
@@ -83,6 +87,14 @@ export function useKyc(uid: string | null | undefined) {
           window.location.href = res.data.url;
         }
         return res.data;
+      } catch (err) {
+        // El usuario no pudo iniciar su verificación (gate de retiros): reportar.
+        captureError(err, {
+          scope: "kyc",
+          code: (err as { code?: string } | null)?.code,
+          extra: { where: "startKyc" },
+        });
+        throw err;
       } finally {
         setStarting(false);
       }

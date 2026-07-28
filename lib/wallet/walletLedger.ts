@@ -9,6 +9,7 @@ import {
   query,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { captureError } from "@/lib/observability/captureError";
 
 export type LedgerServiceType =
   | "supercomment"
@@ -170,7 +171,9 @@ function ensureLedgerSub(uid: string, wantLimit: number) {
       s.loaded = true;
       notify();
     },
-    () => {
+    (err) => {
+      // Falló la lectura del libro mayor (dinero): no dejarlo pasar en silencio.
+      captureError(err, { scope: "wallet", extra: { where: "walletLedger_snapshot" } });
       s.loaded = true;
       notify();
     }
