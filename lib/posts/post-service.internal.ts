@@ -602,3 +602,15 @@ export async function fetchProfileById(profileId: string): Promise<ProfileLookup
   };
 }
 
+
+// ─── Estado de acceso de un post (compartido por queries y saved) ─────────────
+export function isPostLocked(post: Post): boolean {
+  if (!post.accessModel) return false;
+  if (post.accessModel === "free") {
+    return false;
+  }
+  if (post.accessModel === "one_time_purchase") {
+    return true;
+  }
+  return false;
+}
