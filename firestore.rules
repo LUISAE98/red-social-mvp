@@ -1563,6 +1563,12 @@ function validMemberCreateShape(groupId, userId) {
               !("accessType" in request.resource.data)
               || request.resource.data.accessType == "subscription"
             )
+            // Comprobante de pago server-authoritative: solo el backend (Admin SDK)
+            // crea `groupSubscriptions/{groupId}_{userId}` (colección backend-only,
+            // create:if false). Sin ese doc, un cliente NO puede auto-concederse una
+            // membresía de pago sin pagar. El flujo legítimo escribe la membresía con
+            // Admin SDK (que ignora estas reglas), así que esta condición no lo afecta.
+            && exists(/databases/$(database)/documents/groupSubscriptions/$(groupId + "_" + userId))
           )
         )
       )

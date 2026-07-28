@@ -51,5 +51,8 @@ jobs:
       - name: Integration tests (emulador — idempotencia del ledger)
         run: npm run test:emulator
 
+      - name: Rules tests (emulador — seguridad de membresías)
+        run: npm run test:rules
+
       - name: Build project
         run: npm run build

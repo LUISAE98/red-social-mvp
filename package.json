@@ -11,7 +11,8 @@
     "lint": "eslint",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:emulator": "firebase emulators:exec --only firestore --project demo-vibra \"npm --prefix backend run test:emulator:run\""
+    "test:emulator": "firebase emulators:exec --only firestore --project demo-vibra \"npm --prefix backend run test:emulator:run\"",
+    "test:rules": "firebase emulators:exec --only firestore --project demo-vibra \"vitest run --config vitest.rules.config.ts\""
   },
   "dependencies": {
     "@livekit/components-react": "^2.9.21",
@@ -36,6 +37,7 @@
     "three": "^0.185.1"
   },
   "devDependencies": {
+    "@firebase/rules-unit-testing": "^5.0.1",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
