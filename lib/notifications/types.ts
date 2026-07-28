@@ -24,7 +24,8 @@ export type NotificationType =
   | "session_event"
   | "kyc_update"
   | "invite_expired"
-  | "moderation_warning";
+  | "moderation_warning"
+  | "donation";
 
 export interface NotificationActor {
   id: string;
@@ -48,6 +49,8 @@ export interface NotificationTarget {
    * kyc_update: estado ("approved" | "declined" | "in_review" | "pending").
    */
   action?: string | null;
+  /** donation: id de la donación individual (detalle por separado, futuro). */
+  donationId?: string | null;
 }
 
 /** Notificación ya normalizada para la UI. */
@@ -106,6 +109,7 @@ export const KNOWN_NOTIFICATION_TYPES: ReadonlySet<NotificationType> = new Set([
   "session_event",
   "kyc_update",
   "invite_expired",
+  "donation",
 ]);
 
 /**
@@ -126,6 +130,10 @@ export function notificationHref(n: AppNotification, selfHandle?: string | null)
     case "session_event":
       // Sesiones 1-a-1 → el panel de sesiones (ya existe).
       return "/sessions";
+    case "donation":
+      // Donaciones → finanzas del wallet (donde vive el ingreso). El detalle
+      // "ver cada donación por separado" se definirá después.
+      return "/wallet/finanzas";
     case "group_moderation":
       // Silenciado → puede volver a la comunidad. Expulsado/baneado → ya no tiene
       // acceso, así que es informativa (sin destino).

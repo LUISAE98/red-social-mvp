@@ -265,10 +265,20 @@ sin excepción de turista.
 - `components/payments/ServicePaymentModal.tsx` — desglose Subtotal / IVA / Total en el panel de pago.
 - `components/payments/TaxNote.tsx` — nota "+ impuestos" bajo los precios mostrados. Conectada en: tarjetas de experiencias (`CreatorExperiencesSection`), precio de ticket de live (`LiveViewerModal`) y precio de suscripción a comunidad (`groups/[groupId]/page`). El resto de compras pasan por el panel de pago, que ya muestra el desglose completo.
 
-**⚠️ Marcadores `🔁 DLOCAL-MIGRATION` (lo que debe rehacerse al migrar de Mercado Pago a dLocal):**
-- El impuesto hoy se estima y se **multiplica en el CLIENTE** (`ServicePaymentModal.tsx` → `handlePay`) sobre el monto que se cobra. Es un estimado por IP.
-- Al integrar dLocal, la **determinación fiscal autoritativa** (país por IP del request + país de la tarjeta) y el **registro del desglose** (`base`, `iva`, `taxCountry`, tasa e indicios 18-C en el `paymentIntent`) deben vivir en el **backend** — ver marcador en `backend/src/payments/serviceCharge.ts`.
-- Solo así se puede calcular la **retención (50%/100%)** y emitir el **CFDI de retención**.
+**Hecho (Fase 3a — cobro del IVA en el BACKEND, verificado con type-check):**
+- El **cobro del IVA vive en el backend** (`backend/src/payments/serviceCharge.ts` → `chargeServiceIntent`): recibe la BASE, le suma el IVA según el país del comprador y cobra el total. El cliente ya **no** multiplica (revertido). Config en `backend/src/tax/config.ts`.
+- El intent guarda el **desglose fiscal** (`baseAmount`, `taxCountry`, `taxRate`, `taxAmount`, `chargedAmount`) como registro.
+- **Las ganancias del creador NO cambian:** el ledger las calcula sobre la **base** (desde los docs de dominio), no sobre lo cobrado. El IVA es de Vibra hacia el SAT. Suscripción (Preapproval): cobra base+IVA mensual pero registra la ganancia sobre la base.
+- El país fiscal lo manda el cliente (`card.taxCountry`, por IP) en las 9 vías de pago (8 vía `chargeServiceIntent` + suscripción).
+
+**⚠️ Marcadores `🔁 DLOCAL-MIGRATION` (lo que falta / debe rehacerse al migrar a dLocal):**
+- **Determinación fiscal autoritativa en backend:** hoy el país viene del cliente (IP). Con dLocal debe determinarlo el servidor (IP del request + país de la tarjeta por BIN) y conservar los **indicios 18-C**.
+- **Split de retención + CFDI:** calcular la retención (50%/100% IVA, ISR 2.5%/20%) y emitir el **CFDI de retención**. Requiere capturar RFC/residencia del creador (Fase 3b-2/3b-3/3b-4, con fiscalista y proveedor de timbrado PAC).
+
+**Hecho (Fase 3b-1 — "IVA cobrado" en el Wallet, verificado con type-check):**
+- El IVA se propaga del `paymentIntent` al ledger: `reconcile.materializeFromIntent` copia `taxCountry`/`taxAmount` al doc de dominio → los triggers lo pasan a `recordEarning` → se guarda por venta y se acumula en `walletSummary.lifetimeTaxCollected` (suma al ganar, resta al reembolsar). Suscripción: se pasa el IVA de cada cobro mensual.
+- El Wallet (finanzas) muestra "**IVA cobrado (va al SAT)**" como línea de transparencia (solo si hubo ventas con impuesto). NO suma a ganancias ni al saldo retirable. i18n en es/en/pt-BR.
+- **Las ganancias siguen sobre la base** (el IVA nunca infla el neto del creador).
 
 **Propinas/donaciones (decidido 2026-07-27):** se les **suma IVA igual que todo** (son contraprestación gravada, §6.1). El modo donación del panel de pago muestra el desglose Subtotal / IVA / Total sobre el monto que elige el fan, y el cobro se multiplica por (1+tasa). Con esto, la feature "+impuestos" (visualización + cobro coherente) queda **completa**; lo que resta es la determinación autoritativa en backend (Fase 2/dLocal) y el desglose del Wallet (Fase 3).
 

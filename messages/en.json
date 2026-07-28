@@ -1140,6 +1140,8 @@
     "financesLifetime": "Lifetime earnings",
     "financesPendingRelease": "You have {amount} waiting for you: it will be added to your earnings once you complete your pending experiences.",
     "financesRefunded": "Refunded",
+    "financesTaxCollected": "Tax collected (goes to the SAT)",
+    "financesTaxCollectedHint": "Tax your buyers paid. It is not part of your earnings: Vibra remits it to the SAT.",
     "financesRejectedLost": "Lost to rejections",
     "yourEarning": "Your earning",
     "pendingSchedule": "To be scheduled",
@@ -2127,6 +2129,10 @@
       "declined": "Your identity verification was declined. Tap to retry.",
       "in_review": "Your identity verification is under review.",
       "pending": "Your identity verification is pending. Tap to continue."
+    },
+    "donation": {
+      "fromProfile": "donated from your profile",
+      "fromGroup": "donated from {group}"
     },
     "liveVodReadySelf": "Your live replay is ready",
     "session": {

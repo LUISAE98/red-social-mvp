@@ -1140,6 +1140,8 @@
     "financesLifetime": "Ganado histórico",
     "financesPendingRelease": "Tienes {amount} esperándote: se sumarán a tus ganancias cuando completes tus experiencias pendientes.",
     "financesRefunded": "Reembolsado",
+    "financesTaxCollected": "IVA cobrado (va al SAT)",
+    "financesTaxCollectedHint": "Impuesto que pagaron tus compradores. No es parte de tus ganancias: Vibra lo entera al SAT.",
     "financesRejectedLost": "Perdido en rechazados",
     "yourEarning": "Tu ganancia",
     "pendingSchedule": "Por agendar",
@@ -2127,6 +2129,10 @@
       "declined": "Tu verificación de identidad fue rechazada. Toca para reintentar.",
       "in_review": "Tu verificación de identidad está en revisión.",
       "pending": "Tu verificación de identidad está pendiente. Toca para continuar."
+    },
+    "donation": {
+      "fromProfile": "{count, plural, one {donó} other {donaron}} desde tu perfil",
+      "fromGroup": "{count, plural, one {donó} other {donaron}} desde {group}"
     },
     "liveVodReadySelf": "El VOD de tu live ya está listo",
     "session": {

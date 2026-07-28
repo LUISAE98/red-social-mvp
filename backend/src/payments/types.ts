@@ -32,9 +32,26 @@ export type PaymentIntent = {
   sourceId: string;
   buyerId: string;
   creatorId: string;
-  /** Monto bruto en MXN (lo que paga el comprador). */
+  /**
+   * BASE de la venta (precio del creador, SIN impuesto). Es lo que cuenta como
+   * ganancia del creador (el ledger la registra desde los docs de dominio). El IVA
+   * se SUMA aparte al cobrar; no infla esta base.
+   */
   grossAmount: number;
   currency: "MXN";
+  // 🧾 IVA — Desglose fiscal estampado por chargeServiceIntent al cobrar (registro
+  // para conciliación / futuro CFDI). Ausente hasta que se cobra. El creador NUNCA
+  // recibe el IVA (es de Vibra hacia el SAT). Ver docs/legal/fiscal-iva-isr-plataforma.md.
+  /** Base sin impuesto (= grossAmount al momento del cobro). */
+  baseAmount?: number;
+  /** País fiscal del comprador (ISO-2) o null si no aplica impuesto. */
+  taxCountry?: string | null;
+  /** Tasa aplicada (0 si no aplica). */
+  taxRate?: number;
+  /** Impuesto (IVA) sumado sobre la base. */
+  taxAmount?: number;
+  /** Total efectivamente cobrado al comprador (base + IVA). */
+  chargedAmount?: number;
   status: MpPaymentStatus;
   /** Id de la orden/pago en MP (se llena cuando MP responde). */
   mpOrderId: string | null;

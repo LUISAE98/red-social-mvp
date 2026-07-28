@@ -63,6 +63,12 @@ export type PaymentCardData = {
   saveToken?: string;
   /** Id de la tarjeta guardada, si se paga con una. */
   savedCardId?: string;
+  /**
+   * 🧾 IVA — País fiscal del comprador (ISO-2, ej. "MX"), detectado por IP. Se manda
+   * al backend, que SUMA el IVA al cobro. No es dato de tarjeta; viaja aquí para que
+   * los call sites que hacen `{...card}` lo reenvíen sin cambios. Ver lib/tax.
+   */
+  taxCountry?: string | null;
 };
 export type PaymentResult = { status: string };
 
@@ -542,6 +548,7 @@ export default function ServicePaymentModal({
           savedCardId,
           paymentType: "credit_card",
           installments: 1,
+          taxCountry: pf.buyerCountry ?? null,
         };
       } else {
         // Tarjeta nueva.
@@ -568,22 +575,15 @@ export default function ServicePaymentModal({
           installments: 1,
           payerEmail: payerEmail || undefined,
           saveToken,
+          taxCountry: pf.buyerCountry ?? null,
         };
       }
 
-      // 🧾 IVA + 🔁 DLOCAL-MIGRATION — El monto cobrado incluye el impuesto SUMADO
-      // (base * (1+tasa)) para que el cargo coincida con el "Total a pagar" mostrado.
-      // Aplica a precio fijo Y a donaciones/propinas, si el país del comprador tiene
-      // impuesto (hoy solo MX = 16%). ⚠️ Esto es un ESTIMADO del CLIENTE (país por IP):
-      // la determinación fiscal AUTORITATIVA (IP del request + país de la tarjeta) y el
-      // registro del desglose (base / IVA / taxCountry en el paymentIntent para la
-      // retención y el CFDI) DEBEN moverse al BACKEND al integrar dLocal.
-      // Ver backend/src/payments/serviceCharge.ts y docs/legal/fiscal-iva-isr-plataforma.md.
-      const baseAmount = (amountEditable ? chosenAmount : amount) ?? undefined;
-      const payAmount =
-        baseAmount != null && pf.taxRate > 0
-          ? Math.round(baseAmount * (1 + pf.taxRate) * 100) / 100
-          : baseAmount;
+      // 🧾 IVA — Se manda la BASE (sin impuesto). El BACKEND suma el IVA al cobro
+      // según `card.taxCountry` (ver backend/src/payments/serviceCharge.ts), para que
+      // el dinero autoritativo lo determine el servidor, no el cliente. El desglose que
+      // se MUESTRA (Subtotal / IVA / Total) se calcula aparte con pf.formatWithTax.
+      const payAmount = (amountEditable ? chosenAmount : amount) ?? undefined;
       const res = await payRef.current(card, payAmount);
       if (res.status === "approved" || res.status === "pending") {
         if (successMessage) {

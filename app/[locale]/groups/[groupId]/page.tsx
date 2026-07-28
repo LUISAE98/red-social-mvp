@@ -738,6 +738,7 @@ function redirectToLogin() {
           groupId,
           token: c.token,
           payerEmail: user?.email ?? undefined,
+          taxCountry: c.taxCountry, // 🧾 IVA — el backend suma el impuesto al cobro mensual.
         });
         return { status: r.status === "authorized" ? "approved" : r.status };
       }}
@@ -2818,6 +2819,10 @@ const avatarNode = (
             onClose={() => setGroupDonationViewerOpen(false)}
             suggestedAmounts={normalizedCurrentDonation.suggestedAmounts ?? null}
             currency={normalizedCurrentDonation.currency ?? null}
+            creatorId={group?.ownerId ?? null}
+            buyerId={user?.uid ?? null}
+            groupId={normalizedCurrentDonation.sourceScope === "group" ? groupId : null}
+            groupName={normalizedCurrentDonation.sourceScope === "group" ? (group?.name ?? null) : null}
             viewerIsCreator={isOwner}
           />
         </div>

@@ -81,6 +81,8 @@ export const onSuperCommentLedger = onDocumentCreated(
     await recordEarning(authorId, {
       type: hasText ? "supercomment" : "live_donation",
       grossAmount: gross,
+      taxCountry: str(data.taxCountry),
+      taxAmount: num(data.taxAmount),
       sourceType: "superComment",
       sourceId: `${postId}_${scId}`,
       buyerId: str(data.userId) ?? str(data.guestId),
@@ -108,6 +110,8 @@ export const onLiveAccessLedger = onDocumentCreated(
     await recordEarning(authorId, {
       type: "live_ticket",
       grossAmount: gross,
+      taxCountry: str(data.taxCountry),
+      taxAmount: num(data.taxAmount),
       sourceType: "liveAccess",
       sourceId: `${event.params.liveId}_${event.params.userId}`,
       buyerId: event.params.userId,
@@ -163,6 +167,8 @@ export const onPostAccessLedger = onDocumentWritten(
     await recordEarning(creatorId, {
       type: isVod ? "vod_ticket" : "premium_post",
       grossAmount: gross,
+      taxCountry: str(data.taxCountry),
+      taxAmount: num(data.taxAmount),
       sourceType: "postAccess",
       sourceId: event.params.accessId,
       buyerId: str(data.buyerId),
@@ -283,6 +289,8 @@ export const onProfileDonationLedger = onDocumentCreated(
     await recordEarning(creatorId, {
       type: "profile_donation",
       grossAmount: gross,
+      taxCountry: str(data.taxCountry),
+      taxAmount: num(data.taxAmount),
       sourceType: "profileDonation",
       sourceId: event.params.donationId,
       buyerId,
@@ -333,6 +341,8 @@ async function handleRequestLifecycle(params: {
       await recordEarning(creatorId, {
         type: params.resolveType(after),
         grossAmount: gross,
+        taxCountry: str(after.taxCountry),
+        taxAmount: num(after.taxAmount),
         sourceType: params.sourceType,
         sourceId: params.requestId,
         buyerId: str(after.buyerId),

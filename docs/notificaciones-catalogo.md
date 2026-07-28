@@ -35,19 +35,30 @@
 9. ✅ Te bloquearon/ban (`group_moderation` action=banned)
 10. ✅ Advertencia de moderación de plataforma (`moderation_warning`)
 
-### Bloque 3 — Monetización / compra-venta ⬜ *(espera Mercado Pago)*
-1. ⬜ Vendiste post premium / VOD *(→ vendedor)*
+### Bloque 3 — Monetización / compra-venta 🟡 *(pausado hasta integrar pagos — dLocal)*
+> Donaciones YA hechas (ítem 9). El resto **en pausa** hasta integrar monetización.
+> **Reglas de agregación acordadas (2026-07-27)** — documentadas aquí para cuando se retome:
+> - **Post premium / VOD:** UNA tarjeta **por post**, juntando desbloqueos → "{X} y N más han desbloqueado tu post" (igual VOD y premium normal). Sin monto.
+> - **Suscripciones:** juntar TODAS en UNA tarjeta con **ventana de 3 días**; se acumulan 3 días y luego el contador **reinicia desde 0** (nuevo ciclo/tarjeta).
+> - **Ticket de live:** regla de agregación **por definir**.
+1. ⬜ Vendiste post premium / VOD *(→ vendedor)* — agregada por post (ver regla arriba)
 2. ⬜ Recibo de tu compra de post premium / VOD *(→ comprador)*
-3. ⬜ Nueva suscripción a tu comunidad como venta *(→ owner)*
+3. ⬜ Nueva suscripción a tu comunidad *(→ owner)* — agregada, ventana 3 días (ver regla arriba)
 4. ⬜ Recibo de tu suscripción *(→ comprador)*
 5. ⬜ Baja/churn de suscriptor *(→ owner)*
 6. ⬜ Renovación de suscripción *(→ ambos, cuando exista cobro recurrente)*
 7. ⬜ Te compraron un supercomentario *(→ vendedor)*
-8. ⬜ Donación en tu live *(→ vendedor)*
-9. ⬜ Donación en tu perfil *(→ vendedor + recibo comprador)*
-10. ⬜ Te compraron un ticket de live *(→ vendedor + comprador)*
+8. ➖ Donación en tu live — **NO** cuenta como donación (decisión 2026-07-27)
+9. ✅ **Donación en perfil / comunidad** (`donation`) → creador, en **Sociales**. Agregación por canal: **≤3 separadas, >3 en una sola tarjeta por canal** (perfil/comunidad); sin monto (pendiente de ubicar). Trigger `onDonationNotify` sobre `profileDonations` (con `groupId` para comunidad); fondo `/donacion-perfil.webp`. (2026-07-27)
+10. ⬜ Te compraron un ticket de live *(→ vendedor + comprador)* — agregación por definir
 
-### Bloque 4 — Servicios "request" (saludo, consejo, sesión exclusiva, meet & greet) ⬜
+### Bloque 4 — Servicios "request" (saludo, consejo, sesión exclusiva, meet & greet) 🟡
+> ⚠️ **El tab "Experiencias"** (en notificaciones) ya muestra las solicitudes **ENTRANTES al creador**
+> (saludo, consejo, sesión exclusiva, tiempo contigo) como **inbox EN VIVO** —no docs de notificación—,
+> reusando el pipeline del sidebar: `lib/experiences/useExperienceRequestsInbox.ts` +
+> `app/components/Notifications/ExperienceRequestsInbox.tsx` + overlays (`GreetingReviewOverlay`,
+> `SessionRequestOverlay`). El subnav Experiencias/Sociales aparece solo si hay pendientes vivas.
+> Las 9 notificaciones de abajo son las **CARA-COMPRADOR** (avisos al comprador), que **siguen pendientes**.
 1. ⬜ Nueva solicitud de servicio *(→ creador)*
 2. ⬜ Aceptaron tu solicitud *(→ comprador)*
 3. ⬜ Rechazaron tu solicitud *(→ comprador)*
@@ -90,12 +101,21 @@
 4. ⬜ Retiro rechazado *(→ creador)*
 5. ⬜ Pago acreditado en tu wallet *(genérico MP)*
 
-**Estado:** ✅ 21 implementadas (bloques 1, 2 y 7) · ⬜ ~34 pendientes (bloques 3–6, 8) · ➖ 3 descartadas.
-Bloques 3 y 8 dependen de Mercado Pago; 4/5/6 pausados hasta tener MP estable.
+**Estado (act. 2026-07-27):**
+- ✅ **Hechos:** Bloques 1, 2, 5, 6, 7 + **donaciones perfil/comunidad** (Sociales) + **push FCM** (entrega OS + activación).
+- 🟡 **Experiencias:** tab creador-facing en vivo (saludo/consejo/sesión exclusiva/tiempo contigo). Falta el ciclo **cara-comprador** (Bloque 4).
+- ⬜ **Pendientes, PAUSADOS hasta integrar pagos (dLocal):** resto del Bloque 3 (premium post/VOD, suscripciones, supercomentario, ticket) y Bloque 8 (wallet: recargas, retiros).
+- 🗒️ Reglas de agregación de monetización ya acordadas y documentadas arriba (premium/VOD por post; suscripciones ventana 3 días).
+
+> **Notificaciones EN PAUSA** (decisión 2026-07-27): se retoman cuando esté integrada la monetización con **dLocal**.
 
 ---
 
 ## Estado actual (punto de partida)
+
+> 🕰️ **HISTÓRICO (2026-07-18).** Ya NO aplica: el sistema de notificaciones se construyó
+> (hook `useNotifications`, `NotificationBell`, badge, tipos TS, FCM/push, subnav Experiencias/Sociales,
+> regla `match /users/{uid}/notifications`). Se conserva como registro del punto de partida.
 
 **No existe un sistema de notificaciones real.** Solo hay piezas sueltas:
 
@@ -170,7 +190,7 @@ premium_post, greeting, advice, exclusive_session, live_session, subscription, v
 | Renovación de suscripción | — (no hay ciclo recurrente aún) | — | No |
 | Super comentario | `onSuperCommentLedger` (59) | vendedor (autor) | No |
 | Donación en vivo | `onSuperCommentLedger` (sin texto) / live | vendedor | No |
-| Donación en perfil | `onProfileDonationLedger` (261) | vendedor (+ recibo comprador) | No |
+| Donación en perfil / comunidad | trigger `onDonationNotify` sobre `profileDonations` (con `groupId`) | creador (vendedor) | **Sí** ✅ — en Sociales, agregada por canal (≤3 sep., >3 juntas) |
 | Ticket de acceso a live | `onLiveAccessLedger` (96) | ambos | No |
 
 ### Servicios "request" (pagan → pending → earned al entregar) — alta densidad de eventos

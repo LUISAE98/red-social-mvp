@@ -332,6 +332,31 @@ export default function NotificationList({
                   <span className="notifTime">{timeAgo(n.updatedAtMs)}</span>
                 </span>
               </Link>
+            ) : n.type === "donation" ? (
+              <Link
+                href={href}
+                className="notifLink notifDonation"
+                onClick={() => handleItemClick(n, path)}
+                style={{
+                  backgroundImage:
+                    "linear-gradient(90deg, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0.55) 100%), url('/donacion-perfil.webp')",
+                  backgroundSize: "100% 100%, cover",
+                  backgroundPosition: "center",
+                }}
+              >
+                <Avatar n={n} />
+                <span className="notifBody">
+                  <span className="notifText">
+                    <strong>{primaryName}</strong>
+                    {others ? <span> {others}</span> : null}{" "}
+                    {t(n.target.groupId ? "donation.fromGroup" : "donation.fromProfile", {
+                      count: n.actorCount,
+                      group,
+                    })}
+                  </span>
+                  <span className="notifTime">{timeAgo(n.updatedAtMs)}</span>
+                </span>
+              </Link>
             ) : n.type === "group_moderation" ? (
               <Link href={href} className="notifLink" onClick={() => handleItemClick(n, path)}>
                 <Avatar n={n} />

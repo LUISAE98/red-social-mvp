@@ -8,6 +8,9 @@ export type PayProfileDonationInput = {
   creatorId: string;
   amount: number;
   currency?: string;
+  /** Canal comunidad: si se dona desde una comunidad (metadatos para atribuir). */
+  groupId?: string | null;
+  groupName?: string | null;
   /** Token de tarjeta (nunca el número). */
   token: string;
   /** Marca/método (ej. "visa", "master"). */

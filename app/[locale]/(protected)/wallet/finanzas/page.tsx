@@ -636,6 +636,29 @@ export default function WalletFinanzasPage() {
               </span>
             </div>
           ) : null}
+
+          {/* 🧾 IVA cobrado (transparencia): NO es del creador, Vibra lo entera al SAT.
+              Solo aparece si hubo ventas con impuesto (hoy solo compradores en México). */}
+          {summary.taxCollected > 0 ? (
+            <div
+              title={tWallet("financesTaxCollectedHint")}
+              style={{
+                display: "flex",
+                flexWrap: "wrap",
+                gap: "4px 18px",
+                fontSize: 12,
+                color: "rgba(255,255,255,0.52)",
+                paddingTop: 2,
+              }}
+            >
+              <span>
+                {tWallet("financesTaxCollected")}:{" "}
+                <strong style={{ color: "rgba(255,255,255,0.7)", fontWeight: 600 }}>
+                  {formatMoney(summary.taxCollected, { code: true })}
+                </strong>
+              </span>
+            </div>
+          ) : null}
         </div>
       </WalletCard>
 

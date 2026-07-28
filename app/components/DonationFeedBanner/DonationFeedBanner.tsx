@@ -30,6 +30,9 @@ type Props = {
   /** Creador que recibe la donación y comprador que la hace (para persistirla). */
   creatorId?: string | null;
   buyerId?: string | null;
+  /** Canal comunidad: cuando el banner vive en una comunidad, atribuye la donación. */
+  groupId?: string | null;
+  groupName?: string | null;
   /** El que ve el banner es el dueño/creador: no puede contribuirse a sí mismo. */
   viewerIsCreator?: boolean;
 };
@@ -49,7 +52,7 @@ export default function DonationFeedBanner({
   donationMode, goalLabel,
   expanded, onClose,
   currency,
-  creatorId, buyerId, viewerIsCreator,
+  creatorId, buyerId, groupId, groupName, viewerIsCreator,
 }: Props) {
   const tCommon = useTranslations("common");
   const { toast, showToast } = useVibraToast();
@@ -519,6 +522,8 @@ export default function DonationFeedBanner({
             creatorId: creatorId ?? "",
             amount: amt ?? 0,
             currency: currency ?? "MXN",
+            groupId: groupId ?? null,
+            groupName: groupName ?? null,
             ...c,
           });
         }}

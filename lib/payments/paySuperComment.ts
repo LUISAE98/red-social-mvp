@@ -23,6 +23,8 @@ export type PaySuperCommentInput = {
   saveToken?: string;
   /** Id de la tarjeta guardada, si se paga con una. */
   savedCardId?: string;
+  /** 🧾 IVA — país fiscal del comprador (por IP); el backend suma el IVA al cobro. */
+  taxCountry?: string | null;
 };
 
 export type PaySuperCommentResult = {

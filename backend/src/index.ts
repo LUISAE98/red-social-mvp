@@ -353,6 +353,7 @@ export {
   fanoutNewPostTask,
   onInviteLinkUpdated,
   expireInviteLinks,
+  onDonationNotify,
 } from "./notifications";
 
 // Push del sistema (FCM) para todas las notificaciones in-app

@@ -17,6 +17,7 @@ import {
   applyApprovedPaymentToSource,
 } from "./reconcile";
 import { saveCardForBuyer, getSavedCardRef } from "./savedCards";
+import { applyConsumptionTax } from "../tax/config";
 
 if (admin.apps.length === 0) {
   admin.initializeApp();
@@ -39,6 +40,12 @@ export type ServiceCardData = {
   saveToken?: string;
   /** Si se cobra con una tarjeta YA guardada: su mpCardId. */
   savedCardId?: string;
+  /**
+   * 🧾 IVA — País fiscal del comprador (ISO-2, ej. "MX"), detectado por IP en el
+   * cliente. Determina el impuesto SUMADO al cobro. 🔁 DLOCAL-MIGRATION: debe pasar
+   * a determinarse de forma autoritativa en el backend (IP del request + tarjeta).
+   */
+  taxCountry?: string | null;
 };
 
 type OrderResponse = {
@@ -83,21 +90,33 @@ export async function chargeServiceIntent(
     throw new HttpsError("failed-precondition", "Esta compra ya está pagada.");
   }
 
-  const gross = Number(intent.grossAmount);
-  if (!Number.isFinite(gross) || gross <= 0) {
+  const base = Number(intent.grossAmount);
+  if (!Number.isFinite(base) || base <= 0) {
     throw new HttpsError("failed-precondition", "Precio inválido para esta compra.");
   }
 
-  // 🧾 IVA + 🔁 DLOCAL-MIGRATION — HOY: `grossAmount` ya viene con el impuesto SUMADO
-  // (base * (1+tasa)) porque el CLIENTE lo multiplicó (estimado por país de IP) antes
-  // de crear el intent. Ver components/payments/ServicePaymentModal.tsx (handlePay).
-  // PENDIENTE al integrar dLocal (mover al backend, autoritativo):
-  //   1. Determinar el país fiscal aquí (IP del request + país de la tarjeta por BIN),
-  //      no confiar en el cliente. Regla Art. 18-C: basta 1 señal hacia México → IVA.
-  //   2. Calcular y GUARDAR el desglose en el intent: { base, iva, taxCountry, tasa,
-  //      indicios 18-C } para la retención (50%/100%) y el CFDI de retención.
-  //   3. El creador recibe SIEMPRE sobre la base (el IVA no es suyo: se entera al SAT).
-  // Matriz completa y fundamentos: docs/legal/fiscal-iva-isr-plataforma.md.
+  // 🧾 IVA — El comprador paga base + IVA (SUMADO). El `grossAmount` del intent es la
+  // BASE (precio del creador, SIN impuesto) y NO se toca: así las ganancias del creador
+  // —que el ledger calcula sobre la base, a partir de los docs de dominio— siguen
+  // correctas. El IVA es de Vibra hacia el SAT, no del creador. Guardamos el desglose
+  // fiscal en el intent (baseAmount / taxAmount / taxCountry) como registro.
+  // 🔁 DLOCAL-MIGRATION: hoy el país fiscal viene del CLIENTE (card.taxCountry, por IP).
+  // Al migrar, determinarlo aquí de forma autoritativa (IP del request + país de la
+  // tarjeta) y calcular el split de retención (50%/100% IVA + ISR) + CFDI de retención.
+  // Matriz y fundamentos: docs/legal/fiscal-iva-isr-plataforma.md.
+  const tax = applyConsumptionTax(base, card.taxCountry);
+  const charged = tax.chargedAmount;
+
+  await db.collection("paymentIntents").doc(externalReference).set(
+    {
+      baseAmount: tax.baseAmount,
+      taxCountry: tax.taxCountry,
+      taxRate: tax.taxRate,
+      taxAmount: tax.taxAmount,
+      chargedAmount: charged,
+    },
+    { merge: true }
+  );
 
   logger.info("chargeServiceIntent start", {
     externalReference,
@@ -142,13 +161,13 @@ export async function chargeServiceIntent(
     body: {
       type: "online",
       processing_mode: "automatic",
-      total_amount: money(gross),
+      total_amount: money(charged),
       external_reference: externalReference,
       payer,
       transactions: {
         payments: [
           {
-            amount: money(gross),
+            amount: money(charged),
             payment_method: {
               id: paymentMethodId,
               type: card.paymentType ?? "credit_card",

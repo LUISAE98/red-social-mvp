@@ -13,6 +13,8 @@ export type PayGroupSubscriptionInput = {
   payerEmail?: string;
   /** Token de invitación — obligatorio para comunidades ocultas (invite-only). */
   inviteToken?: string;
+  /** 🧾 IVA — país fiscal del comprador (por IP); el backend suma el IVA al cobro mensual. */
+  taxCountry?: string | null;
 };
 
 export type PayGroupSubscriptionResult = {

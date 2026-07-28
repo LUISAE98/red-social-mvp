@@ -114,9 +114,8 @@ async function materializeFromIntent(
 
     if (targetSnap.exists) return; // ya materializado (idempotente)
 
-    const pending = intentSnap.exists
-      ? (intentSnap.data()?.[pendingField] as Record<string, unknown> | undefined)
-      : undefined;
+    const intentData = intentSnap.exists ? intentSnap.data() : undefined;
+    const pending = intentData?.[pendingField] as Record<string, unknown> | undefined;
     if (!pending || typeof pending !== "object") {
       logger.warn("reconcile: sin payload para materializar", {
         externalReference,
@@ -129,6 +128,11 @@ async function materializeFromIntent(
     tx.set(targetRef, {
       ...pending,
       paymentStatus: "paid",
+      // 🧾 IVA — Copiamos el desglose fiscal del intent al doc de dominio para que el
+      // trigger del ledger lo registre y el creador vea "IVA cobrado (va al SAT)". El
+      // IVA NO es del creador; su ganancia sigue calculándose sobre la base (amount).
+      taxCountry: (intentData?.taxCountry as string | null) ?? null,
+      taxAmount: typeof intentData?.taxAmount === "number" ? intentData.taxAmount : 0,
       mpOrderId: meta.mpOrderId ?? null,
       mpPaymentId: meta.mpPaymentId ?? null,
       paidAt: now,

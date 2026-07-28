@@ -97,6 +97,12 @@ type SummaryData = {
   refundedNet: number;
   rejectedGross: number;
   rejectedNet: number;
+  /**
+   * 🧾 IVA — Total de impuesto COBRADO al comprador en ventas ya ganadas (va al SAT,
+   * NO es del creador). Solo informativo/transparencia; no suma a las ganancias.
+   * Se acumula al ganar y se resta al reembolsar, en paralelo a lifetimeEarnedNet.
+   */
+  lifetimeTaxCollected: number;
 };
 
 function emptySummary(): SummaryData {
@@ -112,6 +118,7 @@ function emptySummary(): SummaryData {
     refundedNet: 0,
     rejectedGross: 0,
     rejectedNet: 0,
+    lifetimeTaxCollected: 0,
   };
 }
 
@@ -139,6 +146,10 @@ export type RecordEarningParams = {
   liveId?: string | null;
   /** Id de la publicación (para tickets: post premium / VOD); null si no aplica. */
   postId?: string | null;
+  /** 🧾 IVA — País fiscal del comprador (ISO-2) o null. Solo registro/transparencia. */
+  taxCountry?: string | null;
+  /** 🧾 IVA — Impuesto COBRADO al comprador (va al SAT, NO es del creador). Default 0. */
+  taxAmount?: number;
 };
 
 /**
@@ -150,6 +161,8 @@ export async function recordEarning(
 ): Promise<void> {
   const gross = round2(params.grossAmount);
   const net = netFromGross(gross);
+  // 🧾 IVA — Impuesto cobrado al comprador (informativo; no es del creador).
+  const taxAmount = round2(params.taxAmount ?? 0);
   const status: LedgerStatus = params.earnedImmediately ? "earned" : "pending";
   const entryRef = ledgerCollection(creatorId).doc(
     deterministicEntryId(params.sourceType, params.sourceId)
@@ -170,6 +183,9 @@ export async function recordEarning(
       grossAmount: gross,
       netAmount: net,
       commissionRate: WALLET_COMMISSION_RATE,
+      // 🧾 IVA — desglose fiscal por venta (informativo; el IVA va al SAT, no al creador).
+      taxCountry: params.taxCountry ?? null,
+      taxAmount,
       currency: "USD",
       sourceType: params.sourceType,
       sourceId: params.sourceId,
@@ -188,6 +204,8 @@ export async function recordEarning(
     if (status === "earned") {
       s.lifetimeEarnedGross = round2(s.lifetimeEarnedGross + gross);
       s.lifetimeEarnedNet = round2(s.lifetimeEarnedNet + net);
+      // 🧾 IVA — el impuesto se cobra al ganar (venta inmediata). En pending se cuenta al liberar.
+      s.lifetimeTaxCollected = round2((s.lifetimeTaxCollected ?? 0) + taxAmount);
     } else {
       s.pendingGross = round2(s.pendingGross + gross);
       s.pendingNet = round2(s.pendingNet + net);
@@ -253,7 +271,7 @@ export async function settleEarning(
   await db.runTransaction(async (tx) => {
     const [entrySnap, sSnap] = await Promise.all([tx.get(entryRef), tx.get(sRef)]);
     if (!entrySnap.exists) return;
-    const e = entrySnap.data() as { status: LedgerStatus; grossAmount: number; netAmount: number };
+    const e = entrySnap.data() as { status: LedgerStatus; grossAmount: number; netAmount: number; taxAmount?: number };
     if (e.status !== "pending") return; // solo pending -> earned
 
     const s = sSnap.exists ? (sSnap.data() as SummaryData) : emptySummary();
@@ -265,6 +283,8 @@ export async function settleEarning(
     s.pendingNet = round2(s.pendingNet - e.netAmount);
     s.lifetimeEarnedGross = round2(s.lifetimeEarnedGross + e.grossAmount);
     s.lifetimeEarnedNet = round2(s.lifetimeEarnedNet + e.netAmount);
+    // 🧾 IVA — al liberar (entregado) se cuenta el impuesto cobrado de esta venta.
+    s.lifetimeTaxCollected = round2((s.lifetimeTaxCollected ?? 0) + (e.taxAmount ?? 0));
 
     tx.set(sRef, { ...s, currency: "USD", updatedAt: now }, { merge: true });
   });
@@ -288,7 +308,7 @@ export async function reverseEarning(
   await db.runTransaction(async (tx) => {
     const [entrySnap, sSnap] = await Promise.all([tx.get(entryRef), tx.get(sRef)]);
     if (!entrySnap.exists) return;
-    const e = entrySnap.data() as { status: LedgerStatus; grossAmount: number; netAmount: number };
+    const e = entrySnap.data() as { status: LedgerStatus; grossAmount: number; netAmount: number; taxAmount?: number };
     if (e.status !== "earned" && e.status !== "pending") return; // ya revertido
 
     const s = sSnap.exists ? (sSnap.data() as SummaryData) : emptySummary();
@@ -298,6 +318,8 @@ export async function reverseEarning(
       tx.update(entryRef, { status: "refunded", reversedAt: now });
       s.lifetimeEarnedGross = round2(s.lifetimeEarnedGross - e.grossAmount);
       s.lifetimeEarnedNet = round2(s.lifetimeEarnedNet - e.netAmount);
+      // 🧾 IVA — al reembolsar una venta ganada, se descuenta el IVA que se había cobrado.
+      s.lifetimeTaxCollected = round2((s.lifetimeTaxCollected ?? 0) - (e.taxAmount ?? 0));
       s.refundedGross = round2(s.refundedGross + e.grossAmount);
       s.refundedNet = round2(s.refundedNet + e.netAmount);
     } else {

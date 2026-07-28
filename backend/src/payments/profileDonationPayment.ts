@@ -42,6 +42,12 @@ export const payProfileDonation = onCall(
 
     const currency = String(data.currency ?? "MXN");
 
+    // Canal de la donación: perfil (default) o comunidad. `groupId`/`groupName`
+    // son metadatos (el dinero sigue yendo al creatorId, igual que en perfil);
+    // sirven para atribuir la donación a la comunidad en la notificación.
+    const groupId = typeof data.groupId === "string" && data.groupId.trim() ? data.groupId.trim() : null;
+    const groupName = typeof data.groupName === "string" && data.groupName.trim() ? data.groupName.trim() : null;
+
     // Id único por donación (se puede donar varias veces al mismo creador).
     const donationId = db.collection("profileDonations").doc().id;
     const externalReference = `profileDonation__${donationId}`;
@@ -58,7 +64,9 @@ export const payProfileDonation = onCall(
         buyerId: uid,
         amount,
         currency,
-        source: "profile",
+        source: groupId ? "group" : "profile",
+        groupId,
+        groupName,
       },
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -72,6 +80,8 @@ export const payProfileDonation = onCall(
       payerEmail: String(data.payerEmail ?? request.auth?.token?.email ?? "").trim(),
       saveToken: data.saveToken ? String(data.saveToken).trim() : undefined,
       savedCardId: data.savedCardId ? String(data.savedCardId).trim() : undefined,
+      // 🧾 IVA — país fiscal del comprador (por IP en el cliente); el backend suma el IVA.
+      taxCountry: data.taxCountry ? String(data.taxCountry).trim().toUpperCase() : null,
     });
   }
 );

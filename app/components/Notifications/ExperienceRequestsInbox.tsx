@@ -488,8 +488,10 @@ export default function ExperienceRequestsInbox({
                 gap: 10,
                 ...(cardImage
                   ? {
-                      backgroundImage: `linear-gradient(to bottom, rgba(0,0,0,0.58) 0%, rgba(0,0,0,0.82) 55%, rgba(0,0,0,0.97) 92%, rgba(0,0,0,1) 100%), url('${cardImage}')`,
-                      backgroundSize: "cover",
+                      backgroundImage: `linear-gradient(to bottom, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.74) 55%, rgba(0,0,0,0.90) 100%), url('${cardImage}')`,
+                      // Degradado EXACTO al tamaño de la tarjeta (no escalado por
+                      // "cover"), para que cubra el borde inferior por completo.
+                      backgroundSize: "100% calc(100% + 2px), cover",
                       backgroundPosition: "center",
                     }
                   : { background: "rgba(255,255,255,0.03)" }),
@@ -612,7 +614,7 @@ export default function ExperienceRequestsInbox({
                 // para que su borde inferior oscuro caiga justo en el borde; la
                 // imagen va en cover. Con "cover" a secas, el degradado se
                 // escalaba de más y dejaba una línea clara abajo.
-                backgroundSize: "100% 100%, cover",
+                backgroundSize: "100% calc(100% + 2px), cover",
                 backgroundPosition: "center",
               };
               return (

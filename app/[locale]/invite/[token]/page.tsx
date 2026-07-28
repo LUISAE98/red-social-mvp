@@ -626,6 +626,7 @@ const { user } = useAuth();
             token: c.token,
             payerEmail: user?.email ?? undefined,
             inviteToken: token,
+            taxCountry: c.taxCountry, // 🧾 IVA — el backend suma el impuesto al cobro mensual.
           });
           return { status: r.status === "authorized" ? "approved" : r.status };
         }}

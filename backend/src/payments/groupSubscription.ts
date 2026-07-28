@@ -19,6 +19,7 @@ import * as admin from "firebase-admin";
 import { logger } from "firebase-functions";
 import { mpAccessToken, mpFetch, MP_SANDBOX, SANDBOX_PAYER_EMAIL, MP_CURRENCY } from "./mpClient";
 import { recordEarning } from "../wallet/ledger";
+import { applyConsumptionTax } from "../tax/config";
 
 if (admin.apps.length === 0) {
   admin.initializeApp();
@@ -227,6 +228,12 @@ export const payGroupSubscription = onCall(
     const externalReference = `groupSub__${groupId}_${uid}`;
     const groupName = String(group.name ?? "la comunidad");
 
+    // 🧾 IVA — La suscripción es recurrente: el comprador paga base + IVA cada mes.
+    // `sub.price` es la BASE (la ganancia del creador se registra sobre la base más
+    // abajo, NO sobre lo cobrado). El Preapproval cobra base + IVA.
+    // 🔁 DLOCAL-MIGRATION: país fiscal por IP del cliente; hacerlo autoritativo al migrar.
+    const subTax = applyConsumptionTax(sub.price, String(data.taxCountry ?? "") || null);
+
     const res = await mpFetch<MpPreapproval>("/preapproval", {
       method: "POST",
       idempotencyKey: crypto.randomUUID(),
@@ -238,7 +245,7 @@ export const payGroupSubscription = onCall(
         auto_recurring: {
           frequency: 1,
           frequency_type: "months",
-          transaction_amount: Math.round((sub.price + Number.EPSILON) * 100) / 100,
+          transaction_amount: subTax.chargedAmount,
           currency_id: MP_CURRENCY,
         },
         back_url: `${BACK_URL_BASE}/${groupId}`,
@@ -266,7 +273,12 @@ export const payGroupSubscription = onCall(
         groupName,
         mpPreapprovalId: preapprovalId,
         status: authorized ? "authorized" : "pending",
-        priceMonthly: sub.price,
+        priceMonthly: sub.price, // BASE mensual (ganancia del creador se calcula sobre esto)
+        // 🧾 IVA — desglose del cobro mensual (base + IVA). Registro fiscal.
+        taxCountry: subTax.taxCountry,
+        taxRate: subTax.taxRate,
+        taxMonthly: subTax.taxAmount,
+        chargedMonthly: subTax.chargedAmount,
         currency: sub.currency,
         currentPeriodEnd: Timestamp.fromDate(periodEnd),
         accessUntil: Timestamp.fromDate(periodEnd),
@@ -393,11 +405,18 @@ export async function reconcileMpSubscription(type: string, dataId: string): Pro
       }
 
       // Earning por ESTE cobro (idempotente por el id del pago autorizado).
-      const gross = num(ap.transaction_amount) || num(sub.priceMonthly);
+      // 🧾 IVA — Se registra sobre la BASE (sub.priceMonthly), NO sobre lo cobrado
+      // (ap.transaction_amount = base + IVA). El IVA es de Vibra hacia el SAT, no del
+      // creador. El fallback a transaction_amount es solo para suscripciones legacy
+      // sin priceMonthly (creadas antes de guardar la base).
+      const gross = num(sub.priceMonthly) || num(ap.transaction_amount);
       if (ownerId && ownerId !== uid && gross > 0) {
         await recordEarning(ownerId, {
           type: "subscription",
           grossAmount: gross,
+          // 🧾 IVA — impuesto de ESTE cobro mensual (informativo; va al SAT, no al creador).
+          taxCountry: str(sub.taxCountry),
+          taxAmount: num(sub.taxMonthly),
           sourceType: "groupSubscription",
           sourceId: `${groupId}_${uid}_${String(ap.id ?? dataId)}`,
           buyerId: uid,

@@ -50,7 +50,8 @@ type NotificationType =
   | "live_vod_ready"
   | "session_event"
   | "kyc_update"
-  | "invite_expired";
+  | "invite_expired"
+  | "donation";
 
 interface Actor {
   id: string;
@@ -74,6 +75,8 @@ interface Target {
   /** session_event: id y tipo de la sesión 1-a-1. */
   sessionId?: string | null;
   sessionType?: string | null;
+  /** donation: id de la donación individual (para el detalle por separado, futuro). */
+  donationId?: string | null;
 }
 
 function str(value: unknown): string | null {
@@ -512,6 +515,107 @@ async function reconcileJoinRequestNotifications(groupId: string): Promise<void>
     })
   );
 }
+
+/**
+ * Notificación de DONACIÓN (Sociales). Se dispara cuando una donación queda
+ * pagada (`profileDonations/{id}` con paymentStatus paid/simulated).
+ *
+ * Canal = perfil (sin `groupId`) o comunidad (`groupId`/`groupName`). Agregación
+ * POR CANAL con umbral 3:
+ *  - Donaciones 1–3 → tarjetas separadas (`donation_{donationId}`).
+ *  - A partir de la 4ª → se colapsan en UNA sola (`donation_agg_{canal}`, bulk),
+ *    borrando las 3 individuales. Sin monto (se define después).
+ *
+ * Un doc-bucket por canal (`users/{uid}/donationBuckets/{canal}`) lleva la cuenta
+ * y los ids, y hace la transición idempotente.
+ */
+export const onDonationNotify = onDocumentCreated(
+  { document: "profileDonations/{donationId}", region: REGION },
+  async (event) => {
+    const snap = event.data;
+    if (!snap) return;
+    const d = snap.data() ?? {};
+    const status = str(d.paymentStatus);
+    if (status !== "paid" && status !== "simulated_paid") return;
+
+    const creatorId = str(d.creatorId);
+    const buyerId = str(d.buyerId);
+    if (!creatorId || !buyerId || creatorId === buyerId) return;
+
+    const donationId = event.params.donationId as string;
+    const groupId = str(d.groupId);
+    const groupName = str(d.groupName);
+    const actor = await resolveActor(buyerId);
+
+    const channelKey = groupId ? `g_${groupId}` : "p";
+    const target: Target = { groupId: groupId ?? null, groupName: groupName ?? null };
+
+    const notifsRef = db.collection("users").doc(creatorId).collection("notifications");
+    const bucketRef = db.collection("users").doc(creatorId).collection("donationBuckets").doc(channelKey);
+    const aggRef = notifsRef.doc(`donation_agg_${channelKey}`);
+
+    await db.runTransaction(async (tx) => {
+      const bucketSnap = await tx.get(bucketRef);
+      const bucket = bucketSnap.exists ? bucketSnap.data() ?? {} : {};
+      const prevIds: string[] = Array.isArray(bucket.donationIds) ? bucket.donationIds : [];
+      if (prevIds.includes(donationId)) return; // idempotente
+
+      const prevActors: Actor[] = Array.isArray(bucket.actors) ? bucket.actors : [];
+      const count = (typeof bucket.count === "number" ? bucket.count : prevIds.length) + 1;
+
+      const now = admin.firestore.FieldValue.serverTimestamp();
+      const nextActors = [actor, ...prevActors.filter((a) => a?.id !== actor.id)].slice(0, MAX_VISIBLE_ACTORS);
+      const nextIds = [donationId, ...prevIds].slice(0, MAX_DEDUPE_IDS);
+
+      if (count <= 3) {
+        // Tarjeta separada por donación.
+        tx.set(notifsRef.doc(`donation_${donationId}`), {
+          type: "donation",
+          groupKey: `donation_${donationId}`,
+          actors: [actor],
+          actorIds: [actor.id],
+          actorCount: 1,
+          target: { ...target, donationId },
+          read: false,
+          createdAt: now,
+          updatedAt: now,
+        });
+      } else if (count === 4) {
+        // Colapsar: borra las 3 individuales previas y crea la agregada.
+        for (const id of prevIds) tx.delete(notifsRef.doc(`donation_${id}`));
+        tx.set(aggRef, {
+          type: "donation",
+          groupKey: `donation_agg_${channelKey}`,
+          actors: nextActors,
+          actorIds: nextIds,
+          actorCount: count,
+          target,
+          bulk: true,
+          read: false,
+          createdAt: now,
+          updatedAt: now,
+        });
+      } else {
+        // Ya agregada: bump.
+        tx.set(
+          aggRef,
+          {
+            actors: nextActors,
+            actorIds: nextIds,
+            actorCount: count,
+            target,
+            bulk: true,
+            read: false,
+            updatedAt: now,
+          },
+          { merge: true }
+        );
+      }
+
+      tx.set(bucketRef, { donationIds: nextIds, actors: nextActors, count, updatedAt: now });
+    });
+  }
+);
 
 export const onJoinRequestCreated = onDocumentCreated(
   { document: "groups/{groupId}/joinRequests/{requesterId}", region: REGION },

@@ -188,6 +188,7 @@ export default function SuperCommentModal({
         payerEmail: card.payerEmail,
         saveToken: card.saveToken,
         savedCardId: card.savedCardId,
+        taxCountry: card.taxCountry, // 🧾 IVA — el backend suma el impuesto según el país.
       });
       return { status: r.status };
     } catch {

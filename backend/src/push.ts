@@ -52,6 +52,13 @@ function buildContent(type: string, data: Data): { title: string; body: string }
       return { title: name, body: "te mencionó" };
     case "follow":
       return { title: name, body: "empezó a seguirte" };
+    case "donation": {
+      const channel = target.groupId ? `desde ${group}` : "desde tu perfil";
+      const count = typeof data.actorCount === "number" ? data.actorCount : 1;
+      return count > 1
+        ? { title: name, body: `y ${count - 1} más donaron ${channel}` }
+        : { title: name, body: `donó ${channel}` };
+    }
     case "new_post":
       return {
         title: name,

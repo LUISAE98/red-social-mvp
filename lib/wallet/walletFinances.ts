@@ -29,6 +29,11 @@ export type WalletSummary = {
   /** Rechazado / no entregado (dinero perdido). */
   rejectedGross: number;
   rejectedNet: number;
+  /**
+   * 🧾 IVA cobrado al comprador en ventas ganadas (va al SAT, NO es del creador).
+   * Solo transparencia; no forma parte de las ganancias ni del saldo retirable.
+   */
+  taxCollected: number;
 };
 
 export const EMPTY_WALLET_SUMMARY: WalletSummary = {
@@ -43,6 +48,7 @@ export const EMPTY_WALLET_SUMMARY: WalletSummary = {
   refundedNet: 0,
   rejectedGross: 0,
   rejectedNet: 0,
+  taxCollected: 0,
 };
 
 function toNumber(value: unknown): number {
@@ -62,6 +68,8 @@ function normalizeSummary(data: Record<string, unknown>): WalletSummary {
     refundedNet: toNumber(data.refundedNet),
     rejectedGross: toNumber(data.rejectedGross),
     rejectedNet: toNumber(data.rejectedNet),
+    // El backend lo guarda como lifetimeTaxCollected; aquí lo exponemos como taxCollected.
+    taxCollected: toNumber(data.lifetimeTaxCollected),
   };
 }
 

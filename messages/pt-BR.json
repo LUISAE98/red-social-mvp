@@ -1140,6 +1140,8 @@
     "financesLifetime": "Ganhos históricos",
     "financesPendingRelease": "Você tem {amount} esperando por você: será somado aos seus ganhos quando você concluir suas experiências pendentes.",
     "financesRefunded": "Reembolsado",
+    "financesTaxCollected": "Imposto cobrado (vai para o SAT)",
+    "financesTaxCollectedHint": "Imposto que seus compradores pagaram. Não faz parte dos seus ganhos: a Vibra o repassa ao SAT.",
     "financesRejectedLost": "Perdido em recusados",
     "yourEarning": "Seu ganho",
     "pendingSchedule": "A agendar",
@@ -2127,6 +2129,10 @@
       "declined": "Sua verificação de identidade foi recusada. Toque para tentar de novo.",
       "in_review": "Sua verificação de identidade está em análise.",
       "pending": "Sua verificação de identidade está pendente. Toque para continuar."
+    },
+    "donation": {
+      "fromProfile": "{count, plural, one {doou} other {doaram}} do seu perfil",
+      "fromGroup": "{count, plural, one {doou} other {doaram}} de {group}"
     },
     "liveVodReadySelf": "A repetição da sua live está pronta",
     "session": {
