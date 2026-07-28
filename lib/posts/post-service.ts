@@ -84,6 +84,12 @@ import {
   fetchGroupsByIds,
   getPostGroupIds,
   fetchProfileById,
+  type AuthorSnapshot,
+  type UserProfileLookup,
+  type GroupLookup,
+  type ProfileLookup,
+} from "./post-service.internal";
+import {
   hydratePost,
   hydrateComment,
   hydrateCommentReply,
@@ -91,6 +97,8 @@ import {
   attachViewerFlameState,
   attachViewerPostState,
   attachViewerCommentFlameState,
+} from "./post-service.hydration";
+import {
   resolveEffectiveMembershipStatus,
   fetchOwnedGroupIds,
   fetchMemberGroupIds,
@@ -98,11 +106,7 @@ import {
   fetchAccessibleGroupIds,
   assertMembershipCanInteract,
   ensureUserCanCommentOnPost,
-  type AuthorSnapshot,
-  type UserProfileLookup,
-  type GroupLookup,
-  type ProfileLookup,
-} from "./post-service.internal";
+} from "./post-service.access";
 
 type PostCreationContext = {
   contextType: PostContextType;
