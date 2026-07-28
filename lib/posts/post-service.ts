@@ -109,9 +109,10 @@ import {
   ensureUserCanCommentOnPost,
 } from "./post-service.access";
 
-// Queries / feeds extraídos a su propio módulo; se re-exportan (barrel) para no
-// cambiar los imports de los consumidores.
+// Queries / feeds y galerías de media extraídos a sus propios módulos; se
+// re-exportan (barrel) para no cambiar los imports de los consumidores.
 export * from "./post-service.queries";
+export * from "./post-service.media";
 
 type PostCreationContext = {
   contextType: PostContextType;
