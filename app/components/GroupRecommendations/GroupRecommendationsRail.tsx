@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { useTranslations } from "next-intl";
 import LiveRingAvatar from "@/app/components/LiveRing/LiveRingAvatar";
+import { Button } from "@/components/ui";
 import {
   collection,
   doc,
@@ -1154,8 +1155,9 @@ export default function GroupRecommendationsRail({
           </p>
 
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-            <button
-              type="button"
+            <Button
+              variant="primary"
+              style={{ padding: "10px 14px", fontFamily: fontStack }}
               onClick={() => {
                 if (onCreateGroup) {
                   onCreateGroup();
@@ -1163,19 +1165,9 @@ export default function GroupRecommendationsRail({
                 }
                 router.push("/groups/new");
               }}
-              style={{
-                border: "none",
-                borderRadius: 12,
-                padding: "10px 14px",
-                background: "#ffffff",
-                color: "#08111d",
-                fontWeight: 700,
-                cursor: "pointer",
-                fontFamily: fontStack,
-              }}
             >
               {tGroups("createCommunityRailButton")}
-            </button>
+            </Button>
 
             <button
               type="button"

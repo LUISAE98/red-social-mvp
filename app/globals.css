@@ -393,3 +393,25 @@ body::-webkit-scrollbar-button {
 .notifCommentFocus.notifCommentFocusFade {
   background-color: rgba(168, 85, 255, 0);
 }
+
+/* ── Primitivos de UI (components/ui) ──────────────────────────────────────
+   Hover/active/foco que los estilos inline no pueden expresar. El anillo de
+   foco visible es requisito de accesibilidad (#14). */
+.vibra-btn {
+  -webkit-tap-highlight-color: transparent;
+}
+.vibra-btn:not(:disabled):hover {
+  filter: brightness(1.08);
+}
+.vibra-btn:not(:disabled):active {
+  filter: brightness(0.94);
+}
+.vibra-btn:focus-visible,
+.vibra-field:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+.vibra-field:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(168, 85, 247, 0.45);
+}

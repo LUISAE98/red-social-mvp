@@ -5,6 +5,44 @@ Referencia obligatoria antes de crear cualquier nuevo componente visual.
 
 ---
 
+## Primitivos de UI (`components/ui`) — USAR ANTES QUE COPIAR ESTILO
+
+Los estilos de más abajo ahora están encapsulados en primitivos reutilizables.
+**Antes de escribir un `<button>`/`<input>`/avatar/modal a mano, usa el primitivo.**
+Los especímenes de estilo que siguen quedan como referencia de diseño (y para
+casos verdaderamente a la medida), pero la vía por defecto es:
+
+```tsx
+import { Button, Input, TextArea, Avatar, Modal } from "@/components/ui";
+
+<Button variant="primary">Crear comunidad</Button>
+<Button variant="brand" fullWidth loading={saving}>Guardar</Button>
+<Button variant="gradient">Suscribirme</Button>
+<Button variant="ghost" size="sm">Cancelar</Button>
+<Button variant="danger">Eliminar</Button>
+
+<Input placeholder="Título" invalid={!!error} />
+<TextArea placeholder="Escribe aquí..." rows={4} />
+
+<Avatar src={user.avatarUrl} name={user.name} size={44} />
+<Avatar name="Ana Torres" size={40} ringColor="var(--brand)" />
+
+// Modal = VibraResponsivePanel (bottom sheet móvil / panel centrado desktop)
+<Modal open={open} onClose={close} title="Título">…</Modal>
+```
+
+- **Button** — variantes `primary | brand | gradient | secondary | ghost | danger`,
+  tamaños `sm | md | lg`, más `fullWidth`, `loading`, `leftIcon`/`rightIcon`.
+  Consume los tokens de color (`var(--brand)`, etc.). Hover/active/foco en `.vibra-btn`.
+- **Input / TextArea** — estilo de campo canónico; foco visible vía `.vibra-field`.
+- **Avatar** — imagen circular con fallback de iniciales determinista + `ringColor`.
+- **Modal** — alias de `VibraResponsivePanel`.
+
+Los tokens de color viven en `:root` de `app/globals.css` y se consumen como
+`var(--brand)`, `var(--pink)`, `var(--success)`, etc. (ver #6).
+
+---
+
 ## Botones
 
 ### Estilo botón principal
@@ -199,7 +237,7 @@ Usados en `borderBottom` del header y `borderTop` del footer.
 ```tsx
 // Activo
 { width: "100%", height: 42, borderRadius: 5, border: "none",
-  background: "#a855ff", color: "rgba(255,255,255,0.98)",
+  background: "var(--brand)", color: "rgba(255,255,255,0.98)",
   fontSize: 17, fontWeight: 500, fontFamily: "inherit",
   cursor: "pointer", letterSpacing: "-0.02em",
   display: "grid", placeItems: "center" }
