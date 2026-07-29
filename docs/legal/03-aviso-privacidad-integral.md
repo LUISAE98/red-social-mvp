@@ -47,9 +47,10 @@ Según tu uso de la Plataforma, podemos tratar las siguientes categorías:
 - **Datos de edad:** fecha de nacimiento o confirmación de mayoría de edad (18+).
 - **Contenido y actividad:** publicaciones, fotos, videos/VOD, historias, transmisiones en vivo, comentarios, reacciones, menciones, mensajes, seguidores, membresías y comunidades.
 - **Datos de verificación de identidad (KYC):** documento de identidad e **imagen facial / datos biométricos** procesados con nuestro proveedor de verificación (Didit). **(Datos sensibles — ver §4.)**
-- **Grabaciones de sesiones 1‑a‑1:** audio y video de las videollamadas exclusivas / meet & greet, que **se graban**, y que incluyen **datos biométricos**. **(Datos sensibles — ver §4.)**
-- **Datos de pago y facturación:** método de pago tokenizado por el Proveedor de Pagos (no almacenamos el número completo de tarjeta), historial de transacciones, saldo del monedero interno (Wallet), y, para Creadores, datos fiscales (p. ej. RFC, datos para CFDI/constancias).
-- **Datos de ubicación aproximada:** ubicación aproximada derivada de la dirección IP (a nivel de celda de ~10 km) asociada a ciertas compras, para prevención de fraude y estadística; **no recabamos tu ubicación fina.**
+- **Grabaciones de videollamadas 1‑a‑1:** audio y video de los productos de videollamada 1‑a‑1 (*Sesión exclusiva* y *Tiempo contigo*), **no ofrecidos actualmente**; **cuando se habiliten**, se grabarán e incluirán **datos biométricos**. **(Datos sensibles — ver §4.)**
+- **Datos de pago y facturación:** método de pago tokenizado por el Proveedor de Pagos (no almacenamos el número completo de tarjeta), historial de transacciones, saldo del monedero interno (Wallet), y datos fiscales (para Creadores‑proveedores: RFC/identificación fiscal, residencia fiscal, datos para CFDI/constancias; para Compradores que solicitan factura: sus datos fiscales).
+- **Datos para determinación del impuesto de la venta:** como **Vibra vende directamente** y debe determinar el impuesto según el **país del Comprador**, tratamos indicios de residencia/consumo (país inferido por IP, país del medio de pago/banco emisor, domicilio de facturación y código telefónico), que **conservamos por transacción como evidencia fiscal**.
+- **Datos de ubicación aproximada:** ubicación aproximada derivada de la dirección IP (a nivel de celda de ~10 km) asociada a ciertas compras, para prevención de fraude, determinación fiscal y estadística; **no recabamos tu ubicación fina.**
 - **Datos técnicos y de uso:** dirección IP, identificadores de dispositivo, tipo de navegador, páginas y funciones utilizadas, cookies y tecnologías similares (ver [Política de Cookies](./05-politica-cookies.md) (#5)).
 - **Comunicaciones y soporte:** mensajes con nuestro equipo, reportes de moderación, solicitudes de derechos.
 
@@ -82,10 +83,11 @@ el servicio principal).
 
 - Crear y administrar tu cuenta, autenticarte y gestionar tus sesiones y dispositivos.
 - Prestar las funciones de la Plataforma (perfiles, comunidades, contenido, VOD, transmisiones, videollamadas, mensajería).
-- Procesar compras y monetización, operar la Wallet (ledger interno), calcular comisiones y gestionar retiros.
+- Procesar tus compras **como vendedora**, operar la Wallet (ledger interno), calcular el reparto con el Creador‑proveedor y gestionar retiros.
+- **Determinar el impuesto de la venta según tu país** (como Comprador), cobrarlo y **emitir el comprobante o factura**, conservando los indicios de residencia/consumo como evidencia fiscal.
 - **Verificar tu identidad (KYC)** cuando corresponda, como condición para monetizar y retirar.
-- **Grabar las sesiones 1‑a‑1** contratadas y ponerlas a disposición de las partes autorizadas.
-- Emitir comprobantes y cumplir obligaciones **fiscales** (incluida la retención y entero de impuestos y la emisión de constancias/CFDI cuando aplique).
+- **Grabar las videollamadas 1‑a‑1** contratadas y ponerlas a disposición de las partes autorizadas.
+- Cumplir obligaciones **fiscales** de Vibra como vendedora y, respecto del Creador‑proveedor, retener y documentar su pago según su residencia/régimen (cálculo independiente).
 - **Prevención de fraude, seguridad, moderación** de contenido y **cumplimiento legal** (incluida la prevención de lavado de dinero y la atención de requerimientos de autoridad).
 - Atender tus solicitudes de soporte, quejas y ejercicio de derechos.
 - Enviarte **comunicaciones de servicio** (transaccionales, de seguridad, legales y operativas).
@@ -119,7 +121,7 @@ instrucciones** (encargados), bajo obligaciones de confidencialidad y seguridad,
 - **Cloudflare** (transmisiones en vivo y almacenamiento de grabaciones).
 - **LiveKit** (videollamadas 1‑a‑1 y su grabación).
 - **Didit** (verificación de identidad / KYC).
-- **Mercado Pago** (procesamiento de pagos), en lo que actúe como encargado.
+- **El procesador de pagos** que Vibra habilite (procesamiento de pagos), en lo que actúe como encargado.
 
 Estas **remisiones**, conforme a la LFPDPPP, **no requieren tu consentimiento** adicional.
 

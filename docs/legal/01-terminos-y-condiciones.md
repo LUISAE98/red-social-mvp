@@ -1,6 +1,14 @@
 # Términos y Condiciones de Servicio de Vibra
 
-> **BORRADOR v0.3 — 2026-07-26. Documento de trabajo extenso; NO sustituye la revisión de un abogado.**
+> **⚠️ CAMBIO DE MODELO (2026-07-28): VENDEDOR DIRECTO.** Vibra dejó de ser *intermediario* y ahora es
+> **VENDEDOR DIRECTO (seller of record)**: el Comprador contrata **con Vibra**, y Vibra fija el precio,
+> cobra, factura, da acceso y **responde frente al consumidor** (reembolsos, cancelaciones, contracargos,
+> PROFECO). El **Creador es PROVEEDOR de Vibra** (le suministra contenido/ejecución), no vendedor frente
+> al fan. Este cambio **traslada a Vibra la responsabilidad del consumidor** y debe validarse por abogado
+> y fiscalista. Ver [fiscal-iva-isr-plataforma.md §0](./fiscal-iva-isr-plataforma.md). Servicios
+> **BLOQUEADOS** (sin términos aún): *Sesión exclusiva* y *Tiempo contigo*.
+>
+> **BORRADOR v0.4 — 2026-07-28. Documento de trabajo extenso; NO sustituye la revisión de un abogado.**
 > Se redactó para ser lo más completo y protector posible como *plantilla*. Dos cosas siguen siendo
 > indispensables antes de publicarlo: **(1)** completar los datos de la entidad y contactos
 > (`[[placeholders]]`), que solo tú/tu abogado pueden aportar, y **(2)** la **validación y firma de un
@@ -88,23 +96,23 @@ documento específico respecto de la materia que regula, salvo disposición lega
 
 - **Usuario:** toda persona que accede o usa la Plataforma.
 - **Cuenta:** el registro personal mediante el cual el Usuario accede a la Plataforma.
-- **Creador:** Usuario que activa la monetización para ofrecer Contenido o Servicios a cambio de una contraprestación.
-- **Fan / Comprador:** Usuario que sigue, interactúa o adquiere Contenido o Servicios de un Creador.
+- **Creador:** Usuario que activa la monetización y actúa como **proveedor de Vibra**, suministrando Contenido y/o ejecución que Vibra comercializa y vende a los Compradores a cambio de una participación económica (ver §16 y [Acuerdo de Creador](./02-acuerdo-de-creador.md) (#2)).
+- **Fan / Comprador:** Usuario que sigue e interactúa con Creadores y que **adquiere Contenido o Servicios directamente de Vibra**.
 - **Contenido:** todo material publicado, transmitido o intercambiado (texto, imágenes, fotos, video bajo demanda ("VOD"), historias, transmisiones en vivo, comentarios, reacciones, mensajes, grabaciones).
 - **Contenido de Usuario:** el Contenido creado o subido por Usuarios, distinto del Contenido y elementos propios de Vibra.
-- **Servicios de Creador** (o "**Servicios**"): las funciones monetizables descritas en la Parte VII.
+- **Servicios** (o "**Servicios de Vibra**"): las funciones monetizables descritas en la Parte VII, que **Vibra vende al Comprador** y que se nutren del Contenido/ejecución que los Creadores le suministran como proveedores.
 - **Comunidad:** grupo dentro de la Plataforma; puede ser **pública**, **privada** u **oculta**.
 - **Membresía:** suscripción de renovación automática que da acceso a una Comunidad o a contenido exclusivo.
-- **Sesión 1‑a‑1:** videollamada en tiempo real entre un Creador y un Comprador ("sesión exclusiva" o "meet & greet"), que **se graba**.
+- **Sesión 1‑a‑1:** videollamada en tiempo real entre un Creador y un Comprador, que **se graba**. Los productos de sesión 1‑a‑1 (*Sesión exclusiva* y *Tiempo contigo*, este último antes denominado "meet & greet") **no se ofrecen actualmente** (§47.3).
 - **Saludo / Consejo / Mensaje:** contenido personalizado a solicitud, entregado por el Creador.
 - **Propina / Donación:** aportación voluntaria del Fan al Creador.
 - **Wallet:** el registro contable interno donde se refleja el Saldo del Usuario dentro de la Plataforma.
 - **Saldo:** el crédito interno reflejado en la Wallet; **no constituye dinero electrónico, depósito ni instrumento de pago** (ver §39).
 - **Retiro:** solicitud del Creador para recibir su Saldo disponible a través del Proveedor de Pagos.
-- **Proveedor de Pagos:** la entidad que procesa y/o custodia los pagos (Mercado Pago y las entidades financieras autorizadas aplicables).
+- **Proveedor de Pagos:** el procesador de pagos externo que Vibra habilite para procesar y/o liquidar los pagos, junto con las entidades financieras autorizadas aplicables.
 - **KYC:** el proceso de verificación de identidad (operado con el proveedor Didit).
 - **Moderador / Superadministrador:** personal autorizado por Vibra con funciones de moderación y cumplimiento (Parte VIII).
-- **Servicios de Terceros:** servicios de infraestructura de proveedores externos (p. ej. Mux, Cloudflare, LiveKit, Mercado Pago, Didit, Firebase, Vercel).
+- **Servicios de Terceros:** servicios de infraestructura de proveedores externos (p. ej. Mux, Cloudflare, LiveKit, el procesador de pagos, Didit, Firebase, Vercel).
 
 ## 5. Modificaciones a los Términos y a la Plataforma
 
@@ -200,17 +208,27 @@ Creadores, para ofrecer sus Servicios.
 
 15.2. No adquieres derecho de propiedad alguno sobre la Plataforma ni sus componentes.
 
-## 16. Rol de Vibra como intermediario
+## 16. Rol de Vibra como vendedor directo (seller of record)
 
-16.1. Respecto de los Servicios de Creador, **Vibra actúa como intermediario tecnológico y facilitador
-de pagos**, no como prestador del servicio ni como parte del contrato entre Fan y Creador.
+16.1. **Vibra vende directamente al Comprador.** Respecto de los Servicios, **Vibra actúa como vendedora
+(seller of record)**: fija el precio final, cobra, determina y aplica el impuesto indirecto que
+corresponda, emite el comprobante o factura, concede el acceso o coordina la entrega, y **responde frente
+al Comprador** por cancelaciones, reembolsos, contracargos y reclamaciones de consumo.
 
-16.2. El contrato de compra se celebra **directamente entre el Fan y el Creador**. El Creador es el
-único responsable de entregar el Servicio conforme a lo ofrecido y de cumplir sus obligaciones legales,
-fiscales y de calidad.
+16.2. **El contrato de compra se celebra entre el Comprador y Vibra.** El **Creador es proveedor de
+Vibra**: le suministra el Contenido y/o la ejecución contratada y le otorga los derechos necesarios para
+comercializarlos, alojarlos, transmitirlos y entregarlos (ver §30–§35 y el
+[Acuerdo de Creador](./02-acuerdo-de-creador.md) (#2)). El Creador **no vende directamente al Comprador**
+ni es parte del contrato de compra.
 
-16.3. Vibra no hace suyo el Contenido de los Usuarios ni garantiza su calidad, veracidad o legalidad,
-sin perjuicio de sus funciones de moderación (Parte VIII).
+16.3. **Responsabilidad del Contenido.** Vibra comercializa el Contenido que el Creador le suministra bajo
+las declaraciones y licencias del Creador (§25 y Acuerdo de Creador). Sin perjuicio de su responsabilidad
+como vendedora frente al Comprador y de sus funciones de moderación (Parte VIII), Vibra podrá **repetir
+contra el Creador** por el incumplimiento de sus obligaciones como proveedor.
+
+> **⚠️ Validar por abogado/fiscalista:** la asunción por Vibra de la **responsabilidad del consumidor**
+> como vendedora directa; la caracterización **creador = proveedor/licenciante**; y su alcance en materia
+> de consumo (PROFECO/LFPC), civil y fiscal.
 
 ## 17. Reglas de conducta y uso aceptable
 
@@ -361,31 +379,39 @@ cumplimiento (incluido el fiscal) necesarios para ofrecer sus Servicios.
 32.1. Vibra **no garantiza** ingresos, audiencia, ventas, visibilidad ni resultado alguno al Creador.
 Las estimaciones, métricas o proyecciones son referenciales y no vinculantes.
 
-## 33. Relación entre Creador y Fan
+## 33. Relación entre las partes
 
-33.1. El Creador ofrece sus Servicios en nombre propio y debe describirlos con veracidad, entregarlos
-conforme a lo ofrecido y atender solicitudes y reclamaciones de sus Fans.
+33.1. El Comprador contrata **con Vibra**; el Creador suministra a Vibra el Contenido/ejecución como
+**proveedor**. El Creador debe describir con veracidad lo que ofrece a Vibra y cumplir en tiempo y forma,
+para que Vibra pueda cumplir frente al Comprador.
 
-33.2. El Creador **no debe redirigir los pagos fuera de la Plataforma** para evadir comisiones,
-verificaciones o controles, cuando el Servicio se ofrezca a través de Vibra.
+33.2. El Creador **no debe redirigir los pagos fuera de la Plataforma** ni contratar directamente con el
+Comprador para eludir a Vibra, sus controles o su reparto, cuando el Servicio se ofrezca a través de Vibra.
 
 ## 34. Precios y presentación de los Servicios
 
-34.1. El Creador fija precios dentro de los rangos y reglas de la Plataforma. El **precio total** se
-muestra al Fan **antes de la compra**, incluyendo, en su caso, impuestos y comisiones aplicables.
+34.1. **Vibra fija o aprueba el precio final** de venta al Comprador; el Creador puede proponer precios
+dentro de los rangos y reglas de la Plataforma. El **precio total** (incluidos los impuestos que
+correspondan según el país del Comprador) se muestra al Comprador **antes de la compra**.
 
-## 35. Comisiones de la Plataforma
+## 35. Reparto económico con el Creador‑proveedor
 
-35.1. Vibra cobra comisiones por sus Servicios de monetización, informadas en el
+35.1. Del **precio base** de cada venta, Vibra paga al Creador‑proveedor su **participación** (con
+carácter orientativo, ≈77%) y retiene su **margen** (≈23%). **El impuesto cobrado al Comprador NO forma
+parte del precio base ni se reparte.** Los porcentajes, condiciones y su cálculo se detallan en el
 [Acuerdo de Creador](./02-acuerdo-de-creador.md) (#2) y en la
-[Política de Pagos, Comisiones y Retiros](./09-pagos-comisiones-retiros.md) (#9). Pueden variar por tipo
-de Servicio y se comunican antes de su aplicación.
+[Política de Pagos, Comisiones y Retiros](./09-pagos-comisiones-retiros.md) (#9), y pueden variar por tipo
+de Servicio.
 
-## 36. Obligaciones fiscales del Creador
+## 36. Obligaciones fiscales del Creador‑proveedor
 
-36.1. El Creador es responsable de sus obligaciones fiscales. Cuando la ley lo exija, Vibra podrá
-**retener y enterar impuestos** (p. ej. ISR e IVA bajo el régimen de plataformas tecnológicas) y
-**emitir constancias o comprobantes** respecto de sus ingresos (§43).
+36.1. La participación que Vibra paga al Creador es la contraprestación por su suministro como proveedor.
+El Creador es responsable de sus obligaciones fiscales por ese ingreso. Según su residencia y régimen,
+Vibra podrá **retener** los impuestos aplicables y **emitir o solicitar los comprobantes** que correspondan
+sobre esa relación proveedor‑Vibra (ver §43 y el [Acuerdo de Creador](./02-acuerdo-de-creador.md) (#2)).
+
+> **⚠️ Validar por fiscalista:** documentación y retención del pago al creador‑proveedor según su
+> residencia/régimen — cálculo **independiente** del impuesto de la venta al Comprador (§43).
 
 ---
 
@@ -393,8 +419,8 @@ de Servicio y se comunican antes de su aplicación.
 
 ## 37. Procesamiento de pagos
 
-37.1. Los pagos se procesan a través del **Proveedor de Pagos** (Mercado Pago) bajo un **modelo
-agregador**. Al pagar, autorizas el cargo por el monto total mostrado.
+37.1. Los pagos se procesan a través del **Proveedor de Pagos** que Vibra habilite. Al pagar, **contratas
+con Vibra** y autorizas el cargo por el monto total mostrado.
 
 37.2. Podemos permitir **guardar métodos de pago**; el almacenamiento y tokenización de los datos de
 tarjeta lo realiza el Proveedor de Pagos conforme a sus estándares (p. ej. PCI‑DSS). Vibra **no
@@ -437,17 +463,27 @@ retención de Saldos relacionados.
 42.2. Podemos **retener, revertir o compensar** importes en caso de fraude, error, contracargo o
 reclamación fundada.
 
-## 43. Impuestos
+## 43. Impuestos de la venta
 
-43.1. Los precios pueden o no incluir impuestos, según se indique. Cuando la ley lo exija, Vibra
-retendrá y enterará los impuestos aplicables y emitirá los comprobantes correspondientes. Cada Usuario
-es responsable de sus propias obligaciones fiscales.
+43.1. Como vendedora, **Vibra determina el impuesto indirecto (IVA/VAT/IGV o equivalente) aplicable a
+cada venta según el país del Comprador**, lo incluye en el precio total mostrado, lo cobra y emite el
+comprobante o factura al Comprador. El impuesto de la venta es **independiente** de la documentación y
+retención del pago al Creador‑proveedor (§36).
+
+43.2. La lista de países y tasas es **abierta** y depende de los países que habilite el procesador de
+pagos aprobado y de la validación fiscal país por país; solo **México (16%)** está confirmado para
+arranque.
+
+> **⚠️ Validar por fiscalista:** matriz de impuestos por país del Comprador, rol del procesador
+> (¿recauda/remite el impuesto o solo procesa?) y evidencia de residencia/consumo del Comprador. Ver
+> [fiscal-iva-isr-plataforma.md](./fiscal-iva-isr-plataforma.md). **No** aplicar 0% automático por
+> Comprador extranjero.
 
 ## 44. Comisiones, deducciones y compensación (set‑off)
 
-44.1. Vibra puede **deducir o compensar** del Saldo del Creador las comisiones, impuestos retenidos,
-reembolsos, contracargos, importes cobrados por error y ajustes que correspondan, de forma transparente
-y trazable en el historial de la Wallet.
+44.1. Vibra puede **deducir o compensar** de la participación o del Saldo del Creador los impuestos
+retenidos sobre su pago, los reembolsos, contracargos, importes pagados por error y ajustes que
+correspondan, de forma transparente y trazable en el historial de la Wallet.
 
 ## 45. Retiros
 
@@ -482,12 +518,22 @@ encontrarte en dichas listas o territorios ni actuar por cuenta de quien lo est�
 
 ## 47. Catálogo de Servicios
 
-47.1. La Plataforma habilita, de forma enunciativa, los siguientes Servicios monetizables: **(1)
-publicaciones/contenido premium**, **(2) acceso de pago a VOD**, **(3) membresías/suscripciones**, **(4)
-saludos, consejos y mensajes personalizados**, **(5) sesiones exclusivas y meet & greet 1‑a‑1
-(grabadas)**, **(6) sesiones y eventos en vivo de pago y entradas**, **(7) supercomentarios**, **(8)
-propinas al perfil**, y **(9) donaciones en vivo**, además de otros que Vibra habilite. Vibra puede
-agregar, modificar o retirar tipos de Servicio.
+47.1. Vibra vende, de forma enunciativa, los siguientes Servicios: **(1) publicaciones/contenido
+premium**, **(2) acceso de pago a VOD**, **(3) membresías/suscripciones**, **(4) saludos, consejos y
+mensajes personalizados**, **(5) entradas a sesiones/eventos en vivo**, **(6) supercomentarios**, **(7)
+propinas al perfil**, y **(8) donaciones en vivo**, además de otros que Vibra habilite. Vibra puede
+agregar, modificar o retirar tipos de Servicio. Los productos de **videollamada 1‑a‑1 grabada**
+(*Sesión exclusiva* y *Tiempo contigo*) **no se ofrecen** actualmente (§47.3).
+
+47.2. **Licencia al Comprador.** Salvo que se indique lo contrario, al adquirir Contenido o un acceso,
+**Vibra te otorga una licencia personal, limitada, revocable, no exclusiva y no transferible**, para uso
+**personal y no comercial**. **No adquieres la titularidad** del Contenido ni derecho a redistribuirlo,
+revenderlo o difundirlo. La titularidad permanece en el Creador y/o en Vibra según corresponda.
+
+47.3. **Servicios no disponibles (términos pendientes).** Los servicios *Sesión exclusiva* y *Tiempo
+contigo* **no se ofrecen actualmente** y **sus términos y condiciones están pendientes de definición**;
+nada en estos Términos debe interpretarse como su oferta o regulación hasta que Vibra publique sus
+condiciones específicas.
 
 ## 48. Contenido premium y accesos de pago (VOD)
 
@@ -513,30 +559,23 @@ entonces, salvo que la ley o la Política de Reembolsos dispongan otra cosa.
 50.2. **Plazo de entrega.** El Creador debe entregarlo dentro del plazo ofrecido. Si no lo cumple o lo
 rechaza, procede el **reembolso** (Política de Reembolsos (#7)).
 
-50.3. **Licencia.** Salvo acuerdo distinto, el contenido se entrega para **uso personal y no comercial**
-del Comprador; el Creador conserva los derechos de autor.
+50.3. **Licencia.** Se entrega para **uso personal y no comercial** del Comprador bajo la licencia de la
+§47.2; el Creador conserva la titularidad de los derechos de autor y otorga a Vibra los derechos para
+comercializarlo y entregarlo.
 
 50.4. El contenido solicitado no puede infringir la ley ni las Normas de Comunidad; el Creador puede
 negarse a solicitudes que las violen.
 
-## 51. Sesiones exclusivas y meet & greet (videollamadas 1‑a‑1)
+## 51. Videollamadas 1‑a‑1 grabadas (servicios no disponibles)
 
-51.1. Videollamadas 1‑a‑1 en tiempo real por la duración contratada.
+51.1. Los productos de **videollamada 1‑a‑1 grabada** —**Sesión exclusiva** y **Tiempo contigo** (este
+último antes denominado "meet & greet")— **no se ofrecen actualmente** y **sus términos y condiciones
+están pendientes de definición** (§47.3). Nada en estos Términos debe interpretarse como su oferta.
 
-51.2. **Grabación obligatoria y consentimiento bilateral.** **Estas sesiones se graban.** El acceso
-requiere que **ambas partes otorguen su consentimiento expreso de grabación** antes de iniciar,
-conforme al [Consentimiento de Grabación](./10-consentimiento-grabacion.md) (#10) y §76.
-
-51.3. **Puntualidad y no‑show.** Si el Creador no se presenta o cancela sin causa, procede reembolso. Si
-el Comprador no se presenta dentro de la tolerancia indicada, el Servicio puede considerarse prestado
-(Política de Reembolsos (#7)).
-
-51.4. **Conducta.** Aplican las Normas de Comunidad; la conducta ilícita o abusiva puede terminar la
-sesión y derivar en moderación.
-
-51.5. **Uso de la grabación.** Solo puede ser descargada por las partes autorizadas y por los plazos
-indicados. **Está prohibido redistribuir o difundir la grabación sin el consentimiento de las personas
-que aparecen en ella.**
+51.2. **Cuando Vibra los habilite**, la videollamada **se grabará** y el acceso requerirá el
+**consentimiento expreso de grabación de ambas partes** antes de iniciar, conforme al
+[Consentimiento de Grabación](./10-consentimiento-grabacion.md) (#10) y §77, además de las reglas de
+puntualidad, no‑show, conducta y uso de la grabación que se publicarán entonces.
 
 ## 52. Sesiones y eventos en vivo de pago; entradas (tickets)
 
@@ -564,12 +603,19 @@ se deba a un incumplimiento del Usuario.
 
 ## 55. Propinas al perfil y donaciones en vivo
 
-55.1. Las Propinas y las donaciones en vivo son **aportaciones voluntarias** del Fan al Creador, sin
-contraprestación adicional específica. **No son donativos deducibles ni tienen carácter de caridad**;
-constituyen contraprestación y, para el Creador, **ingreso gravable**.
+55.1. Las Propinas y las donaciones en vivo son **apoyos voluntarios** del Comprador al Creador que **no
+otorgan por sí mismos un derecho o acceso exigible** y **no garantizan ninguna contraprestación**. Al
+enviarlas, **reconoces y aceptas expresamente** esta condición (texto de aceptación recabado en el flujo
+de pago). **No son donativos deducibles ni tienen carácter de caridad.**
 
-55.2. Salvo error, **no son reembolsables**. Está prohibido usar el lenguaje de "donación" para sugerir
+55.2. Si un pago **desbloquea acceso, contenido o un derecho exigible**, **no se comercializa como
+"donación"** sino como el Servicio que corresponda (p. ej. contenido premium, entrada o supercomentario),
+con su precio, impuestos y reglas.
+
+55.3. Salvo error, **no son reembolsables**. Está prohibido usar el lenguaje de "donación" para sugerir
 deducibilidad fiscal.
+
+> **⚠️ Validar por fiscalista (D‑05):** tratamiento de apoyos/donaciones y su distinción de la venta.
 
 ## 56. Eventos y experiencias
 
@@ -766,10 +812,12 @@ Privacidad.
 
 ## 77. Grabaciones y consentimiento
 
-77.1. **Las sesiones 1‑a‑1 se graban.** Antes de iniciar, **ambas partes deben otorgar su consentimiento
-expreso** conforme al [Consentimiento de Grabación](./10-consentimiento-grabacion.md) (#10). La grabación
-se conserva y puede descargarse solo por las partes autorizadas, en los plazos indicados. Está prohibido
-difundirla sin el consentimiento de las personas que aparecen en ella.
+77.1. Los productos de **videollamada 1‑a‑1 grabada** (*Sesión exclusiva* y *Tiempo contigo*) **no se
+ofrecen actualmente** (§47.3, §51). **Cuando se habiliten**, la sesión **se grabará** y, antes de iniciar,
+**ambas partes deberán otorgar su consentimiento expreso** conforme al
+[Consentimiento de Grabación](./10-consentimiento-grabacion.md) (#10); la grabación se conservará y solo
+podrán descargarla las partes autorizadas, en los plazos indicados, prohibiéndose difundirla sin el
+consentimiento de las personas que aparecen en ella.
 
 ## 78. Cookies y tecnologías de rastreo
 

@@ -241,6 +241,16 @@ service cloud.firestore {
       allow list, create, update, delete: if false;
     }
 
+    // Perfil fiscal del creador-proveedor (facturación, modelo vendedor directo).
+    // Datos fiscales (RFC, régimen, CP) + estado del CSD/organización de Facturapi.
+    // El dueño LEE el suyo (para ver su estado de alta); la ESCRITURA es SOLO backend
+    // (callable validada `saveCreatorTaxProfile` + subida de CSD). Nunca el cliente.
+    // El CSD y archivos sensibles NO viven aquí (viven en Facturapi).
+    match /creatorTaxProfiles/{uid} {
+      allow get: if signedIn() && request.auth.uid == uid;
+      allow list, create, update, delete: if false;
+    }
+
     // Suscripción a comunidad (preapproval de Mercado Pago). El suscriptor lee la
     // suya (para mostrar "Suscrito hasta …"); el dueño de la comunidad lee las de
     // su comunidad. La ESCRITURA es SOLO backend: el cliente nunca puede fabricar

@@ -1,6 +1,12 @@
 # Política de Reembolsos y Cancelaciones de Vibra
 
-> **BORRADOR v0.1 — 2026-07-26. Documento de trabajo; NO sustituye la revisión de un abogado.**
+> **⚠️ CAMBIO DE MODELO (2026-07-28): VENDEDOR DIRECTO.** Vibra es la **vendedora (seller of record)** y
+> **responde directamente al Comprador** por reembolsos, cancelaciones y contracargos. El Creador es
+> proveedor de Vibra; los reembolsos se resuelven entre **Vibra y el Comprador**, y Vibra ajusta después
+> la participación del Creador. Validar con abogado (asunción de responsabilidad de consumo). Ver
+> [T&C §16](./01-terminos-y-condiciones.md) y [fiscal-iva-isr-plataforma.md §0](./fiscal-iva-isr-plataforma.md).
+>
+> **BORRADOR v0.2 — 2026-07-28. Documento de trabajo; NO sustituye la revisión de un abogado.**
 > Regula reembolsos, cancelaciones y el derecho de desistimiento por tipo de Servicio. Debe mostrarse
 > **en cada checkout** (antes de pagar) y enlazarse en el pie del rail izquierdo. Base: LFPC/PROFECO
 > (México), Directiva 2011/83 + 2019/770 (UE, con la **excepción de contenido digital**), y reglas de
@@ -16,8 +22,9 @@
 
 ## 1. Marco general
 
-1.1. Vibra actúa como **intermediario**: el Servicio lo presta el Creador. Esta política define cuándo
-procede un reembolso o cancelación y cómo solicitarlo.
+1.1. **Vibra es la vendedora** de los Servicios y **responde frente al Comprador** por reembolsos y
+cancelaciones. El Creador suministra el Contenido/ejecución como proveedor de Vibra. Esta política define
+cuándo procede un reembolso o cancelación y cómo solicitarlo **directamente a Vibra**.
 
 1.2. **Naturaleza digital.** La mayoría de los Servicios son de **contenido/servicios digitales de
 ejecución inmediata**. Para ellos, cuando la ley reconoce un derecho de desistimiento, este **se pierde**
@@ -33,11 +40,11 @@ normas imperativas de la UE/EEUU reconozcan al consumidor.
 - Una vez **entregado conforme a lo solicitado**, no procede reembolso por arrepentimiento.
 - Si lo entregado no corresponde a lo solicitado o incumple, procede reembolso o corrección.
 
-### 2.2. Sesiones exclusivas y meet & greet (1‑a‑1)
-- **No‑show del Creador** o cancelación sin causa: **reembolso total** o reprogramación.
-- **No‑show del Comprador** tras la tolerancia de `[[TOLERANCIA NO‑SHOW]]`: el Servicio puede considerarse
-  prestado y **no reembolsable**.
-- Falla técnica imputable a la Plataforma que impida la sesión: reembolso o reprogramación.
+### 2.2. Videollamadas 1‑a‑1 grabadas — *no disponibles*
+- Los productos **Sesión exclusiva** y **Tiempo contigo** (este último antes "meet & greet") **no se
+  ofrecen** y sus reglas de reembolso quedan **pendientes de definición** (T&C §47.3, §51). Cuando se
+  habiliten: no‑show del Creador → reembolso/reprogramación; no‑show del Comprador tras tolerancia →
+  posible no reembolsable; falla técnica de la Plataforma → reembolso/reprogramación.
 
 ### 2.3. Membresías / suscripciones (renovación automática)
 - Puedes **cancelar en cualquier momento**, de forma **tan sencilla como te suscribiste**; conservas el
@@ -82,10 +89,11 @@ en un plazo aproximado de `[[PLAZO REEMBOLSO]]`, sujeto a los tiempos del Provee
 indebido de contracargos ("fraude amistoso") puede derivar en suspensión de la cuenta y retención de
 Saldos relacionados (T&C §42).
 
-## 6. Efecto de los reembolsos en el Creador
+## 6. Efecto de los reembolsos en el Creador‑proveedor
 
-6.1. Un reembolso puede implicar el **ajuste o descuento** del importe correspondiente en el Saldo del
-Creador y de las comisiones asociadas (T&C §44).
+6.1. Vibra asume el reembolso frente al Comprador y puede **ajustar, descontar o compensar** la
+participación correspondiente del Creador‑proveedor en su Saldo (T&C §44), incluido el impuesto de la
+venta que se revierta.
 
 ## 7. Cambios
 

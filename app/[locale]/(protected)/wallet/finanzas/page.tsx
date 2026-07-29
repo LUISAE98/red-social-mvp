@@ -18,6 +18,7 @@ import CurrencySwitcher from "@/app/components/CurrencySwitcher";
 import { useKyc } from "@/lib/kyc/useKyc";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
+import WithdrawFiscalPanel from "../components/WithdrawFiscalPanel";
 
 // Mapeo de códigos de motivo (risk) de Didit → clave de traducción amigable.
 const KYC_REASON_KEY: Record<string, string> = {
@@ -75,6 +76,7 @@ export default function WalletFinanzasPage() {
   const { summary } = useWalletFinances(user?.uid);
   const kyc = useKyc(user?.uid);
   const [mode, setMode] = useState<"net" | "gross">("net");
+  const [withdrawPanelOpen, setWithdrawPanelOpen] = useState(false);
   const { toast: walletToast, showToast: showWalletToast } = useVibraToast();
 
   // ── CTA de KYC: solo mientras la identidad NO está verificada ──────────────
@@ -156,18 +158,13 @@ export default function WalletFinanzasPage() {
 
   const view = selectFinanceView(summary, mode);
 
-  // Botón Retirar: se habilita al llegar la fecha de disponibilidad (último día
-  // del mes, igual que la etiqueta "Disponible el…"). El flujo de retiro real es
-  // un ticket aparte; por ahora el botón solo refleja el estado.
-  const canWithdrawNow = useMemo(() => {
-    const now = new Date();
-    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-    return now.getDate() >= lastDay && view.available > 0;
-  }, [view.available]);
+  // Botón Retirar: habilitado siempre que haya saldo. (Se quitó el candado de fin
+  // de mes; más adelante se ofrecerán retiros QUINCENALES, no mensuales.)
+  const canWithdrawNow = view.available > 0;
 
   function handleWithdrawClick() {
     if (!canWithdrawNow) return;
-    showWalletToast(tWallet("withdrawComingSoon"), "warning");
+    setWithdrawPanelOpen(true);
   }
 
   // La opción de registrar KYC solo aparece cuando ya hay saldo por retirar
@@ -663,6 +660,15 @@ export default function WalletFinanzasPage() {
       </WalletCard>
 
       <WalletTransactions uid={user?.uid} mode={mode} />
+
+      {/* Panel fiscal del retiro (creador mexicano). 🔁 El creador EXTRANJERO pasará
+          directo a pago sin este panel cuando se determine su país fiscal. */}
+      <WithdrawFiscalPanel
+        open={withdrawPanelOpen}
+        onClose={() => setWithdrawPanelOpen(false)}
+        uid={user?.uid}
+        availableLabel={formatMoney(view.available, { code: true })}
+      />
     </WalletSectionShell>
   );
 }

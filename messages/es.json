@@ -3,6 +3,21 @@
     "locale": "es",
     "language": "Español"
   },
+  "legal": {
+    "footerAriaLabel": "Enlaces legales",
+    "inProgressTitle": "Documento en preparación",
+    "inProgressBody": "Este documento está en revisión legal y estará disponible muy pronto.",
+    "close": "Cerrar",
+    "docs": {
+      "terms": "Términos y Condiciones",
+      "privacy": "Aviso de Privacidad",
+      "cookies": "Política de Cookies",
+      "community": "Normas de Comunidad",
+      "refunds": "Reembolsos y Cancelaciones",
+      "ip": "Propiedad Intelectual / DMCA",
+      "age": "Verificación de Edad"
+    }
+  },
   "nav": {
     "home": "Inicio",
     "saved": "Guardados",

@@ -23,6 +23,7 @@ import {
 } from "@/lib/auth-redirect";
 import LoginCollageBackground from "./LoginCollageBackground";
 import WalletOnboarding from "@/app/[locale]/(protected)/wallet/components/WalletOnboarding";
+import LegalLinksFooter from "@/app/components/legal/LegalLinksFooter";
 
 const vibraPink = "#ff2fb3";
 const vibraPurple = "#a855ff";
@@ -394,7 +395,7 @@ body.loginPageBg {
             rgba(0, 0, 0, 0.55) 90px,
             #000 240px
           );
-          padding: 34px 0 80px;
+          padding: 34px 0 24px;
         }
         /* Switch transparente: sin fondo ni contorno. El indicador del tab activo
            es una pastilla blanca que se DESLIZA entre los dos tabs. */
@@ -788,6 +789,11 @@ marginBottom: 6,
           )}
         </div>
       </section>
+
+      {/* Enlaces legales (Términos, Privacidad, Cookies, etc.). Hoy abren un
+          panel placeholder; el contenido real llega cuando cada documento se
+          valide (ver docs/legal/README.md). */}
+      <LegalLinksFooter />
     </>
   );
 }

@@ -291,6 +291,19 @@ export { createKycSession, diditWebhook } from "./kyc";
 // Pagos (Mercado Pago — modelo agregador). Bloque 1: smoke test de credenciales.
 export { mpHealthcheck } from "./payments/mpHealthcheck";
 
+// Facturación (Facturapi — CFDI, modelo vendedor directo). Bloque 0: smoke test de
+// credenciales (org de Vibra + multi-tenant). No emite CFDI ni toca el ledger.
+export { facturapiHealthcheck } from "./facturacion/facturapiHealthcheck";
+
+// Facturación — Bloque 1a: captura de datos fiscales del creador-proveedor
+// (RFC/régimen/CP) + consentimiento de auto-facturación (self-billing).
+export { saveCreatorTaxProfile } from "./facturacion/creatorTaxProfile";
+
+// Facturación — Bloque 1b: subida del CSD → crea/actualiza la organización del
+// creador en Facturapi (habilita el self-billing automático). El CSD vive en
+// Facturapi, no en Firestore.
+export { uploadCreatorCsd } from "./facturacion/uploadCreatorCsd";
+
 // Pagos — Bloque 2a: cobro de saludos/consejos + webhook de órdenes.
 export { payGreeting } from "./payments/greetingPayment";
 export { mpWebhook } from "./payments/mpWebhook";
