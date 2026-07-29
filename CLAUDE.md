@@ -250,6 +250,19 @@ Evita duplicación.
 
 ---
 
+# Convención de Nombres
+
+Regla descriptiva de lo dominante en el repo (no un mandato de renombrado masivo; se aplica a código nuevo y de forma oportunista al que se toque).
+
+* **Componentes React** → `PascalCase.tsx` (`GroupPostCard.tsx`, `RouteError.tsx`). Es la norma abrumadora.
+* **Hooks** → `camelCase` con prefijo `use` (`useMediaQuery.ts`, `useBodyScrollLock.ts`).
+* **Módulos de lógica** (servicios, stores, utilidades `.ts`) → `camelCase` (`ownerWallet.ts`, `storyService.ts`). Domina 104 a 32 sobre kebab-case.
+* **Carpetas de dominio en `lib/`** → `camelCase` (`liveKit`, `meetGreet`, `exclusiveSession`).
+* **Carpetas de ruta en `app/`** → `kebab-case` para segmentos legibles (`owner-admin-panel`) y la sintaxis de Next para dinámicos/grupos (`[groupId]`, `(protected)`).
+* **Excepción tolerada**: una familia de archivos ya existente en kebab-case (p. ej. `post-service.ts` y sus hermanos `post-service.internal.ts`, `post-service.queries.ts`) mantiene su estilo por consistencia local; prima la coherencia con los hermanos sobre la regla global.
+
+---
+
 # Seguridad
 
 Nunca debilitar:
