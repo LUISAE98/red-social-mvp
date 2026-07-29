@@ -8,17 +8,18 @@
 // La lógica de creación de cuenta (validación + transacción Firestore que crea el
 // usuario y reserva el handle) vive AQUÍ, en un solo lugar (sin duplicar).
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import {
   createUserWithEmailAndPassword,
   sendEmailVerification,
-  signOut,
 } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { createUserProfileDoc } from "@/lib/auth/profileOnboarding";
 import { enablePush, isPushSupported } from "@/lib/push/fcm";
+import ImageCropperModal from "@/components/media/ImageCropperModal";
+import { uploadProfileImage } from "@/lib/storage/uploadProfileImage";
 
 const vibraPink = "#ff2fb3";
 const vibraPurple = "#a855ff";
@@ -175,6 +176,50 @@ export default function RegisterPanel({
     };
   }, []);
 
+  // Avatar: se recorta ANTES de que exista la cuenta; guardamos el blob y lo
+  // subimos tras crear el usuario (dentro del gesto del submit).
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [avatarBlob, setAvatarBlob] = useState<Blob | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [cropSrc, setCropSrc] = useState<string | null>(null);
+  const [cropOpen, setCropOpen] = useState(false);
+
+  // Revoca las object URLs al desmontar para no filtrar memoria.
+  const avatarPreviewRef = useRef<string | null>(null);
+  avatarPreviewRef.current = avatarPreview;
+  const cropSrcRef = useRef<string | null>(null);
+  cropSrcRef.current = cropSrc;
+  useEffect(
+    () => () => {
+      if (avatarPreviewRef.current) URL.revokeObjectURL(avatarPreviewRef.current);
+      if (cropSrcRef.current) URL.revokeObjectURL(cropSrcRef.current);
+    },
+    []
+  );
+
+  function onAvatarFileSelected(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // permite reelegir el mismo archivo
+    if (!file) return;
+    setCropSrc(URL.createObjectURL(file));
+    setCropOpen(true);
+  }
+
+  function closeCrop() {
+    setCropOpen(false);
+    if (cropSrc) {
+      URL.revokeObjectURL(cropSrc);
+      setCropSrc(null);
+    }
+  }
+
+  function handleCropConfirm(blob: Blob) {
+    if (avatarPreview) URL.revokeObjectURL(avatarPreview);
+    setAvatarBlob(blob);
+    setAvatarPreview(URL.createObjectURL(blob));
+    closeCrop();
+  }
+
   const handle = useMemo(() => normalizeHandle(handleRaw), [handleRaw]);
 
   const passwordsMatch = useMemo(() => {
@@ -254,6 +299,17 @@ export default function RegisterPanel({
       const cred = await createUserWithEmailAndPassword(auth, email.trim(), password);
       const uid = cred.user.uid;
 
+      // Sube la foto (si eligió una) mientras la cuenta recién creada está
+      // autenticada; la foto es opcional, si falla seguimos el alta sin ella.
+      let photoURL: string | null = null;
+      if (avatarBlob) {
+        try {
+          photoURL = await uploadProfileImage(uid, "avatar", avatarBlob);
+        } catch {
+          /* opcional: continuamos sin foto */
+        }
+      }
+
       // Fuente única de creación de perfil (mismos campos + índice `search` que
       // el alta por Google). La transacción interna vuelve a validar el handle.
       await createUserProfileDoc(db, {
@@ -264,6 +320,7 @@ export default function RegisterPanel({
         birthDate,
         sex,
         provider: "password",
+        photoURL,
       });
 
       await sendEmailVerification(cred.user);
@@ -279,7 +336,8 @@ export default function RegisterPanel({
         }
       }
 
-      await signOut(auth);
+      // NO cerramos sesión: el usuario sigue autenticado y pasa al onboarding
+      // (portada/bio/tags). El correo de verificación ya se envió arriba.
       onRegistered();
     } catch (err: unknown) {
       const errCode = (err as { code?: string } | null)?.code;
@@ -437,6 +495,80 @@ export default function RegisterPanel({
       </div>
 
       <form onSubmit={handleRegister} style={{ display: "grid", gap: 8 }}>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 6,
+            marginBottom: 2,
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            aria-label={avatarPreview ? t("photoChange") : t("photoAdd")}
+            style={{
+              width: 88,
+              height: 88,
+              borderRadius: "50%",
+              border: avatarPreview ? "none" : "1px dashed rgba(168,85,255,0.5)",
+              background: "rgba(255,255,255,0.06)",
+              display: "grid",
+              placeItems: "center",
+              overflow: "hidden",
+              cursor: "pointer",
+              padding: 0,
+              color: "#a855ff",
+            }}
+          >
+            {avatarPreview ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={avatarPreview}
+                alt=""
+                style={{ width: "100%", height: "100%", objectFit: "cover" }}
+              />
+            ) : (
+              <svg
+                width="26"
+                height="26"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M14.5 4h-5L8 6H4a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h16a1 1 0 0 0 1-1V7a1 1 0 0 0-1-1h-4l-1.5-2Z" />
+                <circle cx="12" cy="13" r="3.2" />
+              </svg>
+            )}
+          </button>
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            style={{
+              ...registerLinkStyle,
+              background: "transparent",
+              border: "none",
+              padding: 0,
+              cursor: "pointer",
+              fontFamily: "inherit",
+            }}
+          >
+            {avatarPreview ? t("photoChange") : t("photoAdd")}
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            onChange={onAvatarFileSelected}
+            style={{ display: "none" }}
+          />
+        </div>
+
         <label style={{ display: "grid", gap: 4 }}>
           <span style={labelTextStyle}>{t("emailLabel")}</span>
           <input
@@ -713,6 +845,17 @@ export default function RegisterPanel({
       </form>
 
       {msg ? <div style={noticeStyle}>{msg}</div> : null}
+
+      <ImageCropperModal
+        open={cropOpen}
+        title={t("cropPhotoTitle")}
+        hint={t("cropPhotoHint")}
+        imageSrc={cropSrc}
+        aspect={1}
+        cropShape="round"
+        onClose={closeCrop}
+        onConfirm={handleCropConfirm}
+      />
     </>
   );
 }

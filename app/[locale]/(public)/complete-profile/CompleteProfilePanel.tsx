@@ -1,25 +1,39 @@
 "use client";
 
-// Panel presentacional de "Completar perfil". Solo UI (shell, logo, campos,
-// toggle de notificaciones, botones). NO tiene lógica de auth ni de guardado:
-// recibe todo por props. Lo usan dos lugares:
-//   - CompleteProfileClient (flujo real, tras entrar con Google).
-//   - dev/complete-profile-preview (simulador para iterar el diseño sin sesión).
-// Así, al pulir aquí, se actualizan ambos.
+// Panel presentacional del onboarding de perfil. Solo UI; la lógica (auth,
+// guardado) vive en quien lo monta (CompleteProfileClient real, o el simulador
+// dev). Maneja internamente el recorte de PORTADA (con ImageCropperModal) y
+// entrega el blob por `onCoverBlobChange`; el resto son valores controlados.
+// Identidad (handle/nombre) se muestra solo cuando `showIdentity` es true
+// (usuario nuevo de Google que aún no tiene doc). Estilos = iniciar sesión.
 
+import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
+import ImageCropperModal from "@/components/media/ImageCropperModal";
+import { GROUP_CATEGORY_LABELS, type CanonicalGroupCategory } from "@/types/group";
 
 const vibraPink = "#ff2fb3";
 const vibraPurple = "#a855ff";
 const vibraBlue = "#4f46ff";
 
+// Categorías ofrecidas como tags (todas menos "otros", que es fallback interno).
+const TAG_CATEGORIES = (
+  Object.keys(GROUP_CATEGORY_LABELS) as CanonicalGroupCategory[]
+).filter((c) => c !== "otros");
+
 export default function CompleteProfilePanel({
+  showIdentity,
   handle,
   firstName,
   lastName,
   onHandleChange,
   onFirstNameChange,
   onLastNameChange,
+  onCoverBlobChange,
+  bio,
+  onBioChange,
+  selectedTags,
+  onToggleTag,
   notifOn,
   onToggleNotif,
   pushSupported,
@@ -28,12 +42,19 @@ export default function CompleteProfilePanel({
   onSubmit,
   onCancel,
 }: {
+  showIdentity: boolean;
   handle: string;
   firstName: string;
   lastName: string;
   onHandleChange: (value: string) => void;
   onFirstNameChange: (value: string) => void;
   onLastNameChange: (value: string) => void;
+  /** Entrega el blob de portada recortado (o null si se quita). */
+  onCoverBlobChange: (blob: Blob | null) => void;
+  bio: string;
+  onBioChange: (value: string) => void;
+  selectedTags: CanonicalGroupCategory[];
+  onToggleTag: (category: CanonicalGroupCategory) => void;
   notifOn: boolean;
   onToggleNotif: () => void;
   pushSupported: boolean;
@@ -44,6 +65,47 @@ export default function CompleteProfilePanel({
 }) {
   const t = useTranslations("completeProfile");
   const fontStack = "inherit";
+
+  // Recorte de portada (interno al panel; entrega el blob al padre).
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [coverPreview, setCoverPreview] = useState<string | null>(null);
+  const [cropSrc, setCropSrc] = useState<string | null>(null);
+  const [cropOpen, setCropOpen] = useState(false);
+
+  const coverPreviewRef = useRef<string | null>(null);
+  coverPreviewRef.current = coverPreview;
+  const cropSrcRef = useRef<string | null>(null);
+  cropSrcRef.current = cropSrc;
+  useEffect(
+    () => () => {
+      if (coverPreviewRef.current) URL.revokeObjectURL(coverPreviewRef.current);
+      if (cropSrcRef.current) URL.revokeObjectURL(cropSrcRef.current);
+    },
+    []
+  );
+
+  function onCoverFileSelected(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setCropSrc(URL.createObjectURL(file));
+    setCropOpen(true);
+  }
+
+  function closeCrop() {
+    setCropOpen(false);
+    if (cropSrc) {
+      URL.revokeObjectURL(cropSrc);
+      setCropSrc(null);
+    }
+  }
+
+  function handleCropConfirm(blob: Blob) {
+    if (coverPreview) URL.revokeObjectURL(coverPreview);
+    setCoverPreview(URL.createObjectURL(blob));
+    onCoverBlobChange(blob);
+    closeCrop();
+  }
 
   const pageStyle: React.CSSProperties = {
     minHeight: "100dvh",
@@ -56,8 +118,7 @@ export default function CompleteProfilePanel({
     boxSizing: "border-box",
   };
 
-  // Sin contenedor: la tarjeta va transparente (sin fondo, borde, sombra ni
-  // blur). Se conserva el ancho máximo y el padding para el ritmo del contenido.
+  // Sin contenedor: la tarjeta va transparente.
   const shellStyle: React.CSSProperties = {
     width: "100%",
     maxWidth: 420,
@@ -68,7 +129,6 @@ export default function CompleteProfilePanel({
     boxSizing: "border-box",
   };
 
-  // Título y subtítulo idénticos a los de iniciar sesión / crear cuenta.
   const titleStyle: React.CSSProperties = {
     margin: "0 0 6px",
     fontSize: "clamp(18px, 2vw, 20px)",
@@ -94,7 +154,6 @@ export default function CompleteProfilePanel({
     lineHeight: 1.15,
   };
 
-  // Input idéntico al de iniciar sesión / crear cuenta.
   const inputStyle: React.CSSProperties = {
     width: "100%",
     boxSizing: "border-box",
@@ -155,42 +214,141 @@ export default function CompleteProfilePanel({
           <p style={subtitleStyle}>{t("subtitle")}</p>
 
           <form onSubmit={onSubmit} style={{ display: "grid", gap: 13 }}>
-            <label style={{ display: "grid", gap: 4 }}>
-              <span style={labelTextStyle}>{t("usernameLabel")}</span>
+            {showIdentity && (
+              <>
+                <label style={{ display: "grid", gap: 4 }}>
+                  <span style={labelTextStyle}>{t("usernameLabel")}</span>
+                  <input
+                    value={handle}
+                    onChange={(e) => onHandleChange(e.target.value)}
+                    style={inputStyle}
+                    placeholder={t("usernamePlaceholder")}
+                    autoComplete="username"
+                  />
+                </label>
+
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                  <label style={{ display: "grid", gap: 4 }}>
+                    <span style={labelTextStyle}>{t("firstNameLabel")}</span>
+                    <input
+                      value={firstName}
+                      onChange={(e) => onFirstNameChange(e.target.value)}
+                      style={inputStyle}
+                      placeholder={t("firstNamePlaceholder")}
+                      autoComplete="given-name"
+                    />
+                  </label>
+
+                  <label style={{ display: "grid", gap: 4 }}>
+                    <span style={labelTextStyle}>{t("lastNameLabel")}</span>
+                    <input
+                      value={lastName}
+                      onChange={(e) => onLastNameChange(e.target.value)}
+                      style={inputStyle}
+                      placeholder={t("lastNamePlaceholder")}
+                      autoComplete="family-name"
+                    />
+                  </label>
+                </div>
+              </>
+            )}
+
+            {/* Portada */}
+            <div style={{ display: "grid", gap: 4 }}>
+              <span style={labelTextStyle}>{t("coverLabel")}</span>
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                aria-label={coverPreview ? t("coverChange") : t("coverAdd")}
+                style={{
+                  position: "relative",
+                  width: "100%",
+                  aspectRatio: "16 / 9",
+                  borderRadius: 12,
+                  border: coverPreview ? "none" : "1px dashed rgba(168,85,255,0.5)",
+                  background: "rgba(255,255,255,0.06)",
+                  overflow: "hidden",
+                  cursor: "pointer",
+                  padding: 0,
+                  color: "#a855ff",
+                  display: "grid",
+                  placeItems: "center",
+                }}
+              >
+                {coverPreview ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={coverPreview}
+                    alt=""
+                    style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                  />
+                ) : (
+                  <span style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+                    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <rect x="3" y="5" width="18" height="14" rx="2" />
+                      <circle cx="9" cy="10" r="1.6" />
+                      <path d="m4 17 4.5-4.5a2 2 0 0 1 2.8 0L16 17M14 14l1.5-1.5a2 2 0 0 1 2.8 0L21 15" />
+                    </svg>
+                    <span style={{ fontSize: 11, fontWeight: 600 }}>{t("coverAdd")}</span>
+                  </span>
+                )}
+              </button>
               <input
-                className="completeProfileInput"
-                value={handle}
-                onChange={(e) => onHandleChange(e.target.value)}
-                style={inputStyle}
-                placeholder={t("usernamePlaceholder")}
-                autoComplete="username"
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={onCoverFileSelected}
+                style={{ display: "none" }}
+              />
+            </div>
+
+            {/* Bio */}
+            <label style={{ display: "grid", gap: 4 }}>
+              <span style={labelTextStyle}>{t("bioLabel")}</span>
+              <textarea
+                value={bio}
+                onChange={(e) => onBioChange(e.target.value.slice(0, 300))}
+                style={{ ...inputStyle, minHeight: 74, resize: "vertical", lineHeight: 1.45 }}
+                placeholder={t("bioPlaceholder")}
+                maxLength={300}
               />
             </label>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-              <label style={{ display: "grid", gap: 4 }}>
-                <span style={labelTextStyle}>{t("firstNameLabel")}</span>
-                <input
-                  className="completeProfileInput"
-                  value={firstName}
-                  onChange={(e) => onFirstNameChange(e.target.value)}
-                  style={inputStyle}
-                  placeholder={t("firstNamePlaceholder")}
-                  autoComplete="given-name"
-                />
-              </label>
-
-              <label style={{ display: "grid", gap: 4 }}>
-                <span style={labelTextStyle}>{t("lastNameLabel")}</span>
-                <input
-                  className="completeProfileInput"
-                  value={lastName}
-                  onChange={(e) => onLastNameChange(e.target.value)}
-                  style={inputStyle}
-                  placeholder={t("lastNamePlaceholder")}
-                  autoComplete="family-name"
-                />
-              </label>
+            {/* Tags / intereses */}
+            <div style={{ display: "grid", gap: 6 }}>
+              <span style={labelTextStyle}>{t("tagsLabel")}</span>
+              <span style={{ fontSize: 10, color: "rgba(255,255,255,0.6)", lineHeight: 1.3 }}>
+                {t("tagsHint")}
+              </span>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 7, marginTop: 2 }}>
+                {TAG_CATEGORIES.map((cat) => {
+                  const on = selectedTags.includes(cat);
+                  return (
+                    <button
+                      key={cat}
+                      type="button"
+                      onClick={() => onToggleTag(cat)}
+                      aria-pressed={on}
+                      style={{
+                        padding: "6px 11px",
+                        borderRadius: 999,
+                        border: on ? "none" : "1px solid rgba(168,85,255,0.3)",
+                        background: on
+                          ? "linear-gradient(100deg, #a855ff, #4f46ff)"
+                          : "rgba(255,255,255,0.06)",
+                        color: on ? "#fff" : "rgba(255,255,255,0.82)",
+                        fontSize: 12,
+                        fontWeight: 600,
+                        fontFamily: "inherit",
+                        cursor: "pointer",
+                        transition: "background 0.15s ease",
+                      }}
+                    >
+                      {GROUP_CATEGORY_LABELS[cat]}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
             {pushSupported && (
@@ -207,14 +365,7 @@ export default function CompleteProfilePanel({
               >
                 <div style={{ minWidth: 0, flex: 1 }}>
                   <div style={{ ...labelTextStyle, fontWeight: 600 }}>{t("notifLabel")}</div>
-                  <div
-                    style={{
-                      fontSize: 10,
-                      color: "rgba(255,255,255,0.6)",
-                      lineHeight: 1.3,
-                      marginTop: 2,
-                    }}
-                  >
+                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.6)", lineHeight: 1.3, marginTop: 2 }}>
                     {t("notifHint")}
                   </div>
                 </div>
@@ -287,6 +438,17 @@ export default function CompleteProfilePanel({
           {msg && <div style={noticeStyle}>{msg}</div>}
         </div>
       </main>
+
+      <ImageCropperModal
+        open={cropOpen}
+        title={t("cropCoverTitle")}
+        hint={t("cropCoverHint")}
+        imageSrc={cropSrc}
+        aspect={16 / 9}
+        cropShape="rect"
+        onClose={closeCrop}
+        onConfirm={handleCropConfirm}
+      />
     </>
   );
 }

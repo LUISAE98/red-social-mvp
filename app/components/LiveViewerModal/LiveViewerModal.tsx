@@ -39,6 +39,7 @@ import {
 
 export default function LiveViewerModal({ open, onClose, post, onManage, initialPortrait = false, initialStream }: Props) {
   const tCommon = useTranslations("common");
+  const tLive = useTranslations("live");
   const { format: formatMoney } = usePriceFormat();
   const { user } = useAuth();
   const { relationship, follow } = useSocialRelationship(user?.uid ?? null, post.authorId ?? null);
@@ -1217,7 +1218,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
               {sc.username}
             </div>
             <div style={{ fontSize: 11, fontFamily: FONT }}>
-              <span style={{ color: "rgba(255,255,255,0.5)", fontWeight: 400 }}>donó </span>
+              <span style={{ color: "rgba(255,255,255,0.5)", fontWeight: 400 }}>{tLive("donated")} </span>
               <span style={{ color: "#4ade80", fontWeight: 700 }}>{formatMoney(sc.amount, { code: true })}</span>
             </div>
           </div>
@@ -1698,7 +1699,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
               <path d="M12 2a10 10 0 0 1 10 10" stroke="rgba(255,255,255,0.65)" />
             </svg>
             <span style={{ fontSize: 14, fontWeight: 600, color: "rgba(255,255,255,0.72)", textAlign: "center", padding: "0 28px" }}>
-              {isCF ? "La transmisión ha finalizado" : "Preparando grabación…"}
+              {isCF ? tLive("broadcastHasFinished") : tLive("preparingRecording")}
             </span>
           </>
         )}
@@ -1812,7 +1813,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
             justifyContent: "center", color: "rgba(255,255,255,0.35)", fontFamily: FONT,
             fontSize: 13, textAlign: "center", padding: "0 24px",
           }}>
-            {isEnded ? "La transmisión ha finalizado." : "El stream aún no ha comenzado."}
+            {isEnded ? tLive("broadcastHasFinished") : tLive("streamNotStarted")}
           </div>
         )}
         <video
@@ -2116,8 +2117,8 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
       container={container}
       hideBuyerGreeting
       logoLeft
-      paymentHeading="¿Cómo quieres hacer tu aportación?"
-      payButtonLabel="Hacer aportación"
+      paymentHeading={tLive("donationPaymentHeading")}
+      payButtonLabel={tLive("makeDonation")}
       amount={1}
       amountEditable
       pay={(c, amt) => {

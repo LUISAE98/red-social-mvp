@@ -73,7 +73,11 @@ const FIELD: React.CSSProperties = {
 
 export default function WithdrawFiscalPanel({ open, onClose, uid, availableLabel, ivaLabel, totalLabel }: Props) {
   const { profile, loading, hasData, csdReady } = useCreatorTaxProfile(uid);
-  useBodyScrollLock(open);
+  // Desmontado diferido para animar la SALIDA (vibra_style.md): al cerrar, se
+  // reproduce la animación de salida y se desmonta 180ms después.
+  const [rendered, setRendered] = useState(open);
+  const [closing, setClosing] = useState(false);
+  useBodyScrollLock(rendered);
 
   const [view, setView] = useState<View>("method");
   const [error, setError] = useState<string | null>(null);
@@ -87,6 +91,12 @@ export default function WithdrawFiscalPanel({ open, onClose, uid, availableLabel
   const [regimenQuery, setRegimenQuery] = useState(""); // texto visible del buscador de régimen
   const [regimenOpen, setRegimenOpen] = useState(false);
   const [zip, setZip] = useState("");
+  // Errores de validación POR CAMPO (texto rojo bajo cada campo, sin contenedor).
+  const [taxIdError, setTaxIdError] = useState<string | null>(null);
+  const [legalNameError, setLegalNameError] = useState<string | null>(null);
+  const [taxSystemError, setTaxSystemError] = useState<string | null>(null);
+  const [zipError, setZipError] = useState<string | null>(null);
+  const cpRef = useRef<HTMLInputElement>(null);
 
   const [cer, setCer] = useState<File | null>(null);
   const [keyFile, setKeyFile] = useState<File | null>(null);
@@ -140,6 +150,10 @@ export default function WithdrawFiscalPanel({ open, onClose, uid, availableLabel
     setXmlError(null);
     setShowPass(false);
     setCopied(false);
+    setTaxIdError(null);
+    setLegalNameError(null);
+    setTaxSystemError(null);
+    setZipError(null);
     if (profile) {
       setTaxId(profile.taxId ?? "");
       setLegalName(profile.legalName ?? "");
@@ -161,23 +175,36 @@ export default function WithdrawFiscalPanel({ open, onClose, uid, availableLabel
     return () => window.clearTimeout(t);
   }, [copied]);
 
+  // Abrir = montar y animar entrada; cerrar = animar salida y desmontar a los 180ms.
+  useEffect(() => {
+    if (open) {
+      setRendered(true);
+      setClosing(false);
+      return;
+    }
+    setClosing(true);
+    const t = window.setTimeout(() => setRendered(false), 180);
+    return () => window.clearTimeout(t);
+  }, [open]);
+
   const canClose = !busy;
   function handleClose() {
     if (canClose) onClose();
   }
 
-  function validateData(): string | null {
-    if (!/^[A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3}$/.test(taxId.trim().toUpperCase())) return "RFC inválido.";
-    if (!legalName.trim()) return "Falta tu nombre o razón social.";
-    if (!taxSystem) return "Selecciona tu régimen fiscal.";
-    if (!/^\d{5}$/.test(zip.trim())) return "CP fiscal inválido (5 dígitos).";
-    return null;
+  // Valida los campos fiscales y pone el error rojo DEBAJO de cada uno. Devuelve ok.
+  function validateFiscalFields(): boolean {
+    let ok = true;
+    if (!/^[A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3}$/.test(taxId.trim().toUpperCase())) { setTaxIdError("RFC inválido."); ok = false; } else setTaxIdError(null);
+    if (!legalName.trim()) { setLegalNameError("Falta tu nombre o razón social."); ok = false; } else setLegalNameError(null);
+    if (!taxSystem) { setTaxSystemError("Selecciona tu régimen fiscal."); ok = false; } else setTaxSystemError(null);
+    if (!/^\d{5}$/.test(zip.trim())) { setZipError("CP inválido (5 dígitos)."); ok = false; } else setZipError(null);
+    return ok;
   }
 
   async function submitAuto() {
     setError(null);
-    const dv = validateData();
-    if (dv) return setError(dv);
+    if (!validateFiscalFields()) return;
     if (!cer || !keyFile || !csdPass) return setError("Sube tu .cer, tu .key y escribe la contraseña.");
     if (!consent) return setError("Debes aceptar la auto-facturación para usar la opción automática.");
     setBusy(true);
@@ -244,20 +271,24 @@ export default function WithdrawFiscalPanel({ open, onClose, uid, availableLabel
     <div style={{ display: "grid", gap: 12 }}>
       <div>
         <div style={LABEL}>RFC</div>
-        <input style={FIELD} value={taxId} onChange={(e) => setTaxId(e.target.value)} maxLength={13} />
+        <input style={FIELD} value={taxId} maxLength={13}
+          onChange={(e) => { setTaxId(e.target.value); if (taxIdError) setTaxIdError(null); }} />
+        {taxIdError && <div style={redNote}>{taxIdError}</div>}
       </div>
       <div>
         <div style={LABEL}>Nombre o razón social (como en tu Constancia)</div>
-        <input style={FIELD} value={legalName} onChange={(e) => setLegalName(e.target.value)} />
+        <input style={FIELD} value={legalName}
+          onChange={(e) => { setLegalName(e.target.value); if (legalNameError) setLegalNameError(null); }} />
+        {legalNameError && <div style={redNote}>{legalNameError}</div>}
       </div>
-      <div style={{ display: "flex", gap: 10 }}>
+      <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
         <div style={{ flex: 2, position: "relative" }}>
           <div style={LABEL}>Régimen fiscal</div>
           <input
             style={FIELD}
             value={regimenQuery}
             autoComplete="off"
-            onChange={(e) => { setRegimenQuery(e.target.value); setTaxSystem(""); setRegimenOpen(true); }}
+            onChange={(e) => { setRegimenQuery(e.target.value); setTaxSystem(""); setRegimenOpen(true); if (taxSystemError) setTaxSystemError(null); }}
             onFocus={() => setRegimenOpen(true)}
             onBlur={() => window.setTimeout(() => setRegimenOpen(false), 150)}
           />
@@ -267,7 +298,7 @@ export default function WithdrawFiscalPanel({ open, onClose, uid, availableLabel
                 <div
                   key={r.value}
                   onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => { setTaxSystem(r.value); setRegimenQuery(r.label); setRegimenOpen(false); }}
+                  onClick={() => { setTaxSystem(r.value); setRegimenQuery(r.label); setRegimenOpen(false); setTaxSystemError(null); }}
                   style={SUGGEST_ITEM}
                 >
                   {r.label}
@@ -275,10 +306,20 @@ export default function WithdrawFiscalPanel({ open, onClose, uid, availableLabel
               ))}
             </div>
           )}
+          {taxSystemError && <div style={redNote}>{taxSystemError}</div>}
         </div>
         <div style={{ flex: 1 }}>
           <div style={LABEL}>CP fiscal</div>
-          <input style={FIELD} value={zip} onChange={(e) => setZip(e.target.value)} maxLength={5} inputMode="numeric" />
+          <input
+            ref={cpRef}
+            style={FIELD}
+            value={zip}
+            maxLength={5}
+            inputMode="numeric"
+            onChange={(e) => { setZip(e.target.value); if (zipError) setZipError(null); }}
+            onFocus={() => window.setTimeout(() => cpRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }), 50)}
+          />
+          {zipError && <div style={redNote}>{zipError}</div>}
         </div>
       </div>
     </div>
@@ -487,9 +528,9 @@ export default function WithdrawFiscalPanel({ open, onClose, uid, availableLabel
       </div>
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [view, loading, busy, hasData, manualSaved, taxId, legalName, taxSystem, regimenQuery, regimenOpen, zip, cer, keyFile, cerError, keyError, pdf, xml, pdfError, xmlError, csdPass, showPass, consent, copied, availableLabel, ivaLabel, totalLabel, profile]);
+  }, [view, loading, busy, hasData, manualSaved, taxId, legalName, taxSystem, regimenQuery, regimenOpen, zip, taxIdError, legalNameError, taxSystemError, zipError, cer, keyFile, cerError, keyError, pdf, xml, pdfError, xmlError, csdPass, showPass, consent, copied, availableLabel, ivaLabel, totalLabel, profile]);
 
-  if (!open) return null;
+  if (!rendered) return null;
   if (typeof document === "undefined") return null;
 
   return createPortal(
@@ -499,15 +540,17 @@ export default function WithdrawFiscalPanel({ open, onClose, uid, availableLabel
         position: "fixed", inset: 0, width: "100vw", height: "100vh", zIndex: 999999,
         display: "flex", alignItems: "center", justifyContent: "center", padding: 24,
         background: "rgba(0,0,0,0.88)", fontFamily: "inherit",
+        animation: closing ? "vibraFiscalBackdropOut 180ms ease-in forwards" : "vibraFiscalBackdropIn 180ms ease-out",
       }}
     >
-      <style>{`@keyframes vibraFiscalPanelIn{from{opacity:0;transform:scale(0.94) translateY(10px)}to{opacity:1;transform:scale(1) translateY(0)}}@keyframes vibraCheckPop{0%{transform:scale(0)}60%{transform:scale(1.25)}100%{transform:scale(1)}}`}</style>
+      <style>{`@keyframes vibraFiscalPanelIn{from{opacity:0;transform:scale(0.94) translateY(10px)}to{opacity:1;transform:scale(1) translateY(0)}}@keyframes vibraFiscalPanelOut{from{opacity:1;transform:scale(1) translateY(0)}to{opacity:0;transform:scale(0.94) translateY(10px)}}@keyframes vibraFiscalBackdropIn{from{background:rgba(0,0,0,0)}to{background:rgba(0,0,0,0.88)}}@keyframes vibraFiscalBackdropOut{from{background:rgba(0,0,0,0.88)}to{background:rgba(0,0,0,0)}}@keyframes vibraCheckPop{0%{transform:scale(0)}60%{transform:scale(1.25)}100%{transform:scale(1)}}`}</style>
       <section
         style={{
           width: "min(100%, 540px)", maxHeight: "min(88vh, 680px)", display: "flex", flexDirection: "column",
           borderRadius: 18, background: "#0a0a0a",
           boxShadow: "0 0 0 1px rgba(255,255,255,0.08), 0 32px 72px rgba(0,0,0,0.9)",
-          color: "#fff", overflow: "hidden", animation: "vibraFiscalPanelIn 180ms ease-out",
+          color: "#fff", overflow: "hidden",
+          animation: closing ? "vibraFiscalPanelOut 180ms ease-in forwards" : "vibraFiscalPanelIn 180ms ease-out",
         }}
       >
         {/* Header: [vacío | título centrado | X] */}

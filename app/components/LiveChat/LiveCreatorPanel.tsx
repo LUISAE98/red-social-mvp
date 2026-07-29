@@ -851,7 +851,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
   function comingSoon() {
     return (
       <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <span style={{ fontSize: 12, color: "rgba(255,255,255,0.12)", fontFamily: FONT }}>Próximamente</span>
+        <span style={{ fontSize: 12, color: "rgba(255,255,255,0.12)", fontFamily: FONT }}>{tLive("comingSoon")}</span>
       </div>
     );
   }
@@ -971,13 +971,13 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
       { id: "mensajes", value: totalChatMessages > 0 ? totalChatMessages.toLocaleString("es-MX") : "—",     label: tLive("statChatMessages") },
       { id: "likes",    value: likesCount.toLocaleString("es-MX"),                                           label: "Likes" },
       { id: "tvisto",   value: avgWatchSeconds > 0 ? formatWatchTime(avgWatchSeconds) : "—",                label: tLive("statAvgWatchTime") },
-      { id: "duracion", value: formatDuration(liveDurationMs),                                             label: "Duración" },
+      { id: "duracion", value: formatDuration(liveDurationMs),                                             label: tLive("duration") },
       ...(donationCount > 0 ? [{ id: "donaciones",  value: fmtMoney(net(donationRevenue)), sub: tLive("donationCount", { count: donationCount }), label: tLive("statDonations") }] : []),
       ...(superCount > 0    ? [{ id: "supercoment", value: fmtMoney(net(superRevenue)),    sub: `${superCount} SC`,                               label: tLive("superComments") }] : []),
       ...(isPaidLive && ticketCount > 0  ? [{ id: "tickets", value: fmtMoney(net(ticketRevenue)), sub: tLive("boughtCount", { count: ticketCount }),   label: tLive("statAccessTickets") }] : []),
       ...(hasVod && vodBuyerCount > 0    ? [{ id: "vod",     value: fmtMoney(net(vodRevenue)),    sub: tLive("boughtCount", { count: vodBuyerCount }), label: tLive("statVodRevenue") }] : []),
       ...(hasVod && vodViewCount > 0     ? [{ id: "vodviews", value: vodViewCount.toLocaleString("es-MX"),                                              label: tLive("statVodViews") }] : []),
-      ...(totalRevenue > 0  ? [{ id: "total", value: fmtMoney(net(totalRevenue)), sub: displayPeak > 0 ? `Récord ${fmtMoney(displayPeak)}` : undefined, label: tLive("statNetRevenue"), green: true }] : []),
+      ...(totalRevenue > 0  ? [{ id: "total", value: fmtMoney(net(totalRevenue)), sub: displayPeak > 0 ? `${tLive("statRecord")} ${fmtMoney(displayPeak)}` : undefined, label: tLive("statNetRevenue"), green: true }] : []),
     ];
 
     return (
@@ -1093,15 +1093,15 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
       { id: "mensajes", defaultX: tx(4), defaultY: R0, width: TILE2W, height: TILE, content: <><span style={val}>{totalChatMessages > 0 ? totalChatMessages.toLocaleString("es-MX") : "—"}</span><span style={lbl}>{tLive("statChatMessages")}</span></> },
       { id: "likes",    defaultX: tx(7), defaultY: R0, width: TILE2W, height: TILE, content: <><span style={val}>{likesCount.toLocaleString("es-MX")}</span><span style={lbl}>Likes</span></> },
       { id: "tvisto",   defaultX: tx(5), defaultY: R0, width: TILE2W, height: TILE, content: <><span style={val}>{avgWatchSeconds > 0 ? formatWatchTime(avgWatchSeconds) : "—"}</span><span style={lbl}>{tLive("statAvgWatchTime")}</span></> },
-      { id: "duracion", defaultX: tx(6), defaultY: R0, width: TILE2W, height: TILE, content: <><span style={val}>{formatDuration(liveDurationMs)}</span><span style={lbl}>Duración</span></> },
+      { id: "duracion", defaultX: tx(6), defaultY: R0, width: TILE2W, height: TILE, content: <><span style={val}>{formatDuration(liveDurationMs)}</span><span style={lbl}>{tLive("duration")}</span></> },
       ...(donationCount > 0 ? [{ id: "donaciones",  defaultX: tx(0), defaultY: R1, width: TILE2W, height: TILE, content: <><span style={val}>{fmtMoney(net(donationRevenue))}</span><span style={sub}>{tLive("donationCount", { count: donationCount })}</span><span style={lbl}>{tLive("statDonations")}</span></> }] : []),
       ...(superCount > 0    ? [{ id: "supercoment", defaultX: tx(6), defaultY: R0, width: TILE2W, height: TILE, content: <><span style={val}>{fmtMoney(net(superRevenue))}</span><span style={sub}>{superCount} SC</span><span style={lbl}>{tLive("superComments")}</span></> }] : []),
       ...(isPaidLive && ticketCount > 0 ? [{ id: "tickets", defaultX: tx(7), defaultY: R0, width: TILE2W, height: TILE, content: <><span style={val}>{fmtMoney(net(ticketRevenue))}</span><span style={sub}>{tLive("boughtCount", { count: ticketCount })}</span><span style={lbl}>{tLive("statAccessTickets")}</span></> }] : []),
       ...(hasVod && vodBuyerCount > 0   ? [{ id: "vod",     defaultX: tx(8), defaultY: R0, width: TILE2W, height: TILE, content: <><span style={val}>{fmtMoney(net(vodRevenue))}</span><span style={sub}>{tLive("boughtCount", { count: vodBuyerCount })}</span><span style={lbl}>{tLive("statVodRevenue")}</span></> }] : []),
       ...(hasVod && vodViewCount > 0    ? [{ id: "vodviews", defaultX: CELL*16 + OFFSET, defaultY: R1, width: TILE2W, height: TILE, content: <><span style={val}>{vodViewCount.toLocaleString("es-MX")}</span><span style={lbl}>{tLive("statVodViews")}</span></> }] : []),
-      ...(totalRevenue > 0  ? [{ id: "total", defaultX: tx(9), defaultY: R0, width: TILE2W, height: TILE, content: (() => { const displayPeak = peakRevenue > 0 ? peakRevenue : net(totalRevenue); return <><span style={{ ...val, color: "#4ade80" }}>{fmtMoney(net(totalRevenue))}</span>{displayPeak > 0 && <span style={sub}>Récord {fmtMoney(displayPeak)}</span>}<span style={{ ...lbl, color: "#4ade80" }}>{tLive("statNetRevenue")}</span></>; })() }] : []),
-      { id: "chart_espect", defaultX: CELL*2 + OFFSET, defaultY: R1, width: CELL*7, height: CELL*2, content: <><span style={{ display: "block", ...lbl, marginBottom: 3 }}>Espectadores</span>{renderViewerChart()}</> },
-      { id: "chart_activ",  defaultX: CELL*9 + OFFSET, defaultY: R1, width: CELL*7, height: CELL*2, content: <><span style={{ display: "block", ...lbl, marginBottom: 3 }}>Actividad general de tu audiencia</span>{renderHeatmap()}</> },
+      ...(totalRevenue > 0  ? [{ id: "total", defaultX: tx(9), defaultY: R0, width: TILE2W, height: TILE, content: (() => { const displayPeak = peakRevenue > 0 ? peakRevenue : net(totalRevenue); return <><span style={{ ...val, color: "#4ade80" }}>{fmtMoney(net(totalRevenue))}</span>{displayPeak > 0 && <span style={sub}>{tLive("statRecord")} {fmtMoney(displayPeak)}</span>}<span style={{ ...lbl, color: "#4ade80" }}>{tLive("statNetRevenue")}</span></>; })() }] : []),
+      { id: "chart_espect", defaultX: CELL*2 + OFFSET, defaultY: R1, width: CELL*7, height: CELL*2, content: <><span style={{ display: "block", ...lbl, marginBottom: 3 }}>{tLive("viewersChartLabel")}</span>{renderViewerChart()}</> },
+      { id: "chart_activ",  defaultX: CELL*9 + OFFSET, defaultY: R1, width: CELL*7, height: CELL*2, content: <><span style={{ display: "block", ...lbl, marginBottom: 3 }}>{tLive("audienceActivityLabel")}</span>{renderHeatmap()}</> },
     ];
 
     function getPos(id: string, defaultX: number, defaultY: number) {
@@ -1904,7 +1904,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
                   {playingOverlay.text.slice(ttsReadIndex)}
                 </>
               ) : (
-                <span style={{ color: "rgba(255,255,255,0.35)", fontStyle: "italic" }}>Donación {formatMoney(playingOverlay.amount, { code: true })}</span>
+                <span style={{ color: "rgba(255,255,255,0.35)", fontStyle: "italic" }}>{tLive("donationAmount", { amount: formatMoney(playingOverlay.amount, { code: true }) })}</span>
               )}
             </div>
             {/* Botones */}
@@ -2127,7 +2127,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
                   </>
                 ) : (
                   <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                    <span style={{ fontSize: 12, color: "rgba(255,255,255,0.2)", fontFamily: FONT }}>Sin transmisión activa</span>
+                    <span style={{ fontSize: 12, color: "rgba(255,255,255,0.2)", fontFamily: FONT }}>{tLive("noActiveBroadcast")}</span>
                   </div>
                 )}
                 {liveStatus === "live" && isBroadcasting && (
@@ -2200,7 +2200,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
               </div>
             ) : (
               <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <span style={{ fontSize: 12, color: "rgba(255,255,255,0.2)", fontFamily: FONT }}>Sin transmisión activa</span>
+                <span style={{ fontSize: 12, color: "rgba(255,255,255,0.2)", fontFamily: FONT }}>{tLive("noActiveBroadcast")}</span>
               </div>
             )}
           </div>
@@ -2294,7 +2294,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
               </div>
             ) : (
               <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <span style={{ fontSize: 12, color: "rgba(255,255,255,0.2)", fontFamily: FONT }}>Sin transmisión activa</span>
+                <span style={{ fontSize: 12, color: "rgba(255,255,255,0.2)", fontFamily: FONT }}>{tLive("noActiveBroadcast")}</span>
               </div>
             )}
           </div>

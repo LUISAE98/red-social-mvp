@@ -101,7 +101,7 @@ export default function LiveComposerModal({
     );
     const conflict = res.conflictItem;
     if (!res.hasConflict || !conflict || !conflict.scheduledAt) return null;
-    const label = conflict.source === "exclusive_session" ? "sesión exclusiva" : "Tiempo contigo";
+    const label = conflict.source === "exclusive_session" ? tLive("conflictExclusiveSession") : tLive("conflictMeetGreet");
     const time = new Intl.DateTimeFormat("es-MX", { hour: "2-digit", minute: "2-digit" }).format(
       conflict.scheduledAt
     );
@@ -670,7 +670,7 @@ export default function LiveComposerModal({
 
       {accessType === "paid" && (
         <>
-          <label style={labelStyle}>Precio del ticket *</label>
+          <label style={labelStyle}>{tLive("composerTicketPriceLabel")}</label>
           <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
             <div style={{ flex: 1, position: "relative" as const }}>
               <input
@@ -891,7 +891,7 @@ export default function LiveComposerModal({
         return (
           <>
             <div style={{ height: 1, background: "rgba(255,255,255,0.07)", margin: "14px 0 14px" }} />
-            <label style={labelStyle}>Transmitir también en</label>
+            <label style={labelStyle}>{tLive("composerAlsoBroadcastOn")}</label>
 
             {broadcastHasPublicDest && (
               <div style={{

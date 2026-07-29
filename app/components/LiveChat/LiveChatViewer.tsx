@@ -294,7 +294,7 @@ export default function LiveChatViewer({
                   <div style={{ flex: 1, minWidth: 0, fontFamily: FONT }}>
                     <div style={{ display: "flex", alignItems: "baseline", flexWrap: "wrap", gap: 4, marginBottom: 3 }}>
                       <span style={{ fontSize: 13, fontWeight: 700, color: "#fff" }}>{item.username}</span>
-                      <span style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", fontWeight: 400 }}>donó</span>
+                      <span style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", fontWeight: 400 }}>{tLive("donated")}</span>
                       <span style={{ fontSize: 13, fontWeight: 700, color: "#4ade80" }}>{formatMoney(item.amount, { code: true })}</span>
                     </div>
                     {item.text ? (
@@ -434,7 +434,7 @@ export default function LiveChatViewer({
                 <div style={{ minWidth: 0, flex: 1, fontFamily: FONT }}>
                   <div style={{ display: "flex", alignItems: "baseline", flexWrap: "wrap", gap: 4, marginBottom: 3 }}>
                     <span style={{ fontSize: 13, fontWeight: 700, color: "#fff" }}>{item.username}</span>
-                    <span style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", fontWeight: 400 }}>donó</span>
+                    <span style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", fontWeight: 400 }}>{tLive("donated")}</span>
                     <span style={{ fontSize: 13, fontWeight: 700, color: "#4ade80" }}>{formatMoney(item.amount, { code: true })}</span>
                   </div>
                   {item.text ? (
@@ -587,11 +587,12 @@ function BillButton({ onClick }: { onClick: () => void }) {
 
 // Corazón (hacer aportación) — solo el ícono, sin contenedor.
 function HeartButton({ onClick }: { onClick: () => void }) {
+  const tLive = useTranslations("live");
   return (
     <button
       type="button"
       onClick={onClick}
-      aria-label="Hacer aportación"
+      aria-label={tLive("makeDonation")}
       style={{
         background: "none", border: "none", padding: 0,
         color: "#fff", cursor: "pointer",

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { useTranslations } from "next-intl";
 import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import { createPortal } from "react-dom";
 import { getAuth } from "firebase/auth";
@@ -27,6 +28,7 @@ type Props = {
 };
 
 export default function SuperCommentConfigPanel({ open, onClose, postId }: Props) {
+  const tLive = useTranslations("live");
   const {
     format: formatMoney,
     resolveStoredPrice,
@@ -191,13 +193,13 @@ export default function SuperCommentConfigPanel({ open, onClose, postId }: Props
       {/* Tiers */}
       {loadingConfig ? (
         <div style={{ textAlign: "center", padding: "16px 0", fontSize: 12, color: "rgba(255,255,255,0.35)", fontFamily: FONT }}>
-          Cargando configuración...
+          {tLive("scConfigLoading")}
         </div>
       ) : (
         <>
           <div style={{ marginBottom: 16 }}>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 10, padding: "0 2px" }}>
-              {["Caracteres por msg.", `Fan paga (${displayCurrency})`].map((h) => (
+              {[tLive("scConfigCharsPerMsg"), tLive("scConfigFanPays", { currency: displayCurrency })].map((h) => (
                 <span key={h} style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.05em", color: "rgba(255,255,255,0.35)", fontFamily: FONT, textAlign: "center" as const }}>
                   {h}
                 </span>
@@ -242,7 +244,7 @@ export default function SuperCommentConfigPanel({ open, onClose, postId }: Props
                     </p>
                   ) : null}
                   <p style={{ margin: "5px 0 0", fontSize: 10.5, color: tier.color, fontFamily: FONT, textAlign: "left" as const, lineHeight: 1.4 }}>
-                    Por cada comentario que un fan pague tú cobrarás{" "}
+                    {tLive("scConfigEarnNote")}{" "}
                     <span style={{ color: "#86efac", fontWeight: 600 }}>{creatorEarns}</span>
                   </p>
                 </div>
@@ -250,7 +252,7 @@ export default function SuperCommentConfigPanel({ open, onClose, postId }: Props
             })}
           </div>
           <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", fontFamily: FONT, marginBottom: 20, lineHeight: 1.5 }}>
-            La configuración guardada se usará en todos tus próximos lives.
+            {tLive("scConfigSavedNote")}
           </div>
         </>
       )}
@@ -287,7 +289,7 @@ export default function SuperCommentConfigPanel({ open, onClose, postId }: Props
             cursor: "pointer", border: "none",
           }}
         >
-          Guardar configuración
+          {tLive("scConfigSaveButton")}
         </button>
       )}
     </div>
@@ -332,7 +334,7 @@ export default function SuperCommentConfigPanel({ open, onClose, postId }: Props
           }}>
             <div />
             <span style={{ fontSize: 17, fontWeight: 500, color: "#fff", textAlign: "center", letterSpacing: "-0.02em" }}>
-              Supercomentarios
+              {tLive("superComments")}
             </span>
             <button
               type="button"
@@ -398,7 +400,7 @@ export default function SuperCommentConfigPanel({ open, onClose, postId }: Props
             >
               <div aria-hidden="true" />
               <h3 style={{ margin: 0, textAlign: "center", fontSize: 17, fontWeight: 500, letterSpacing: "-0.02em", lineHeight: 1.2, color: "#fff" }}>
-                Supercomentarios
+                {tLive("superComments")}
               </h3>
               <button
                 type="button"

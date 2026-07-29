@@ -205,7 +205,7 @@ export default function LiveDirectBroadcast({
 
       setHasMedia(true);
     } catch {
-      setError("No se pudo acceder a la cámara o micrófono. Verifica los permisos del navegador.");
+      setError(tLive("errorCameraAccess"));
     }
   }, [onOrientationChange, startDrawLoop]);
 
@@ -313,7 +313,7 @@ export default function LiveDirectBroadcast({
 
     try {
       const currentUser = getAuth().currentUser;
-      if (!currentUser) throw new Error("Debes iniciar sesión para transmitir.");
+      if (!currentUser) throw new Error(tLive("errorSignInToBroadcast"));
       const idToken = await currentUser.getIdToken();
 
       // Notify server to set activeLivePostId immediately (live ring appears)
@@ -336,7 +336,7 @@ export default function LiveDirectBroadcast({
       const rawVideoTrack = cameraStreamRef.current?.getVideoTracks()[0] ?? null;
       const audioTrack = micTrackRef.current;
       if (!rawVideoTrack || !audioTrack) {
-        throw new Error("Tracks de cámara o micrófono no disponibles.");
+        throw new Error(tLive("errorTracksUnavailable"));
       }
 
       // Both tracks must share the same MediaStream. If each track gets its own stream,
@@ -384,7 +384,7 @@ export default function LiveDirectBroadcast({
           stopBroadcastCleanup();
           releaseTracks();
           setStatus("error");
-          setError("No se pudo conectar con el servidor de video. Verifica tu conexión y vuelve a intentarlo.");
+          setError(tLive("errorVideoServer"));
           initCamera();
         }
       }, 20000);
@@ -421,7 +421,7 @@ export default function LiveDirectBroadcast({
             wakeLockRef.current = null;
             releaseTracks();
             setStatus("error");
-            setError("Conexión interrumpida. Puedes reconectar para continuar el live.");
+            setError(tLive("errorConnectionLostReconnect"));
             initCamera();
           }
         }
@@ -451,7 +451,7 @@ export default function LiveDirectBroadcast({
             wakeLockRef.current = null;
             releaseTracks();
             setStatus("error");
-            setError("Conexión interrumpida. Verifica tu conexión y vuelve a intentarlo.");
+            setError(tLive("errorConnectionLostRetry"));
             initCamera();
           }
         }

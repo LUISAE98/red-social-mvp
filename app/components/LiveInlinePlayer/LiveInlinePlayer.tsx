@@ -108,6 +108,7 @@ export default function LiveInlinePlayer({
   onStreamReady,
 }: Props) {
   const tCommon = useTranslations("common");
+  const tLive = useTranslations("live");
   const { format: formatMoney } = usePriceFormat();
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -638,7 +639,7 @@ export default function LiveInlinePlayer({
                 {activeSC.username}
               </div>
               <div style={{ fontSize: 10, fontFamily: FONT }}>
-                <span style={{ color: "rgba(255,255,255,0.5)", fontWeight: 400 }}>donó </span>
+                <span style={{ color: "rgba(255,255,255,0.5)", fontWeight: 400 }}>{tLive("donated")} </span>
                 <span style={{ color: "#4ade80", fontWeight: 700 }}>{formatMoney(activeSC.amount, { code: true })}</span>
               </div>
             </div>

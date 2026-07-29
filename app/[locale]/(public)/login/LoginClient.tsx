@@ -80,7 +80,6 @@ const [isLeavingLogin, setIsLeavingLogin] = useState(false);
 // (deslizando desde la derecha).
 const [mode, setMode] = useState<"login" | "reset" | "register">("login");
 const [swapped, setSwapped] = useState(false);
-const [justRegistered, setJustRegistered] = useState(false);
 const [resetMsg, setResetMsg] = useState<string | null>(null);
 const [resetLoading, setResetLoading] = useState(false);
 // Switch del contenido debajo del fold: creadores (izq) / usuarios (der).
@@ -241,7 +240,6 @@ async function handleReset(e: React.FormEvent) {
 
 function goTo(next: "login" | "reset" | "register") {
   setSwapped(true);
-  if (next !== "login") setJustRegistered(false);
   setMode(next);
 }
 
@@ -258,12 +256,10 @@ function backToLogin() {
   goTo("login");
 }
 
-// Registro exitoso desde la tarjeta: volvemos al panel de login mostrando el
-// aviso de "cuenta creada" (mismo que llega por ?registered=1).
+// Registro exitoso desde la tarjeta: el usuario queda logueado y pasa al
+// onboarding de perfil (portada/bio/tags), igual que el alta por Google.
 function handleRegistered() {
-  setSwapped(true);
-  setJustRegistered(true);
-  setMode("login");
+  router.replace(`/complete-profile?next=${encodeURIComponent(nextPath)}`);
 }
 
   const fontStack =
@@ -684,7 +680,7 @@ body.loginPageBg {
   <p style={subtitleStyle}>{t("subtitle")}</p>
 </div>
 
-            {(registered || justRegistered) && (
+            {registered && (
               <div style={noticeStyle}>
                 {t("accountCreated")}
               </div>

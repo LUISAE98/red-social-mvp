@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { onAuthStateChanged, signOut, type User } from "firebase/auth";
 import { auth, db } from "@/lib/firebase";
+import { doc, getDoc, serverTimestamp, updateDoc } from "firebase/firestore";
 import { useRouter, useSearchParams } from "next/navigation";
 import { getNextFromSearchParams } from "@/lib/auth-redirect";
 import {
@@ -13,6 +14,9 @@ import {
   normalizeHandle,
 } from "@/lib/auth/profileOnboarding";
 import { enablePush, isPushSupported } from "@/lib/push/fcm";
+import { uploadProfileImage } from "@/lib/storage/uploadProfileImage";
+import { updateProfileInterests } from "@/lib/profile/updateProfileInterests";
+import type { CanonicalGroupCategory } from "@/types/group";
 import CompleteProfilePanel from "./CompleteProfilePanel";
 
 export default function CompleteProfileClient() {
@@ -24,15 +28,20 @@ export default function CompleteProfileClient() {
 
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [checkingAuth, setCheckingAuth] = useState(true);
+  // ¿El usuario YA tiene doc de perfil? (alta por email) → solo onboarding
+  // (portada/bio/tags). Si NO (Google nuevo) → además pide handle/nombre y crea.
+  const [hasProfile, setHasProfile] = useState(false);
 
   const [handle, setHandle] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
+  const [bio, setBio] = useState("");
+  const [selectedTags, setSelectedTags] = useState<CanonicalGroupCategory[]>([]);
+  const [coverBlob, setCoverBlob] = useState<Blob | null>(null);
 
   const [msg, setMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // Notificaciones: activadas por defecto en la creación de la cuenta.
   const [notifOn, setNotifOn] = useState(true);
   const [pushSupported, setPushSupported] = useState(false);
 
@@ -49,7 +58,6 @@ export default function CompleteProfileClient() {
   useEffect(() => {
     document.documentElement.classList.add("loginNoScroll");
     document.body.classList.add("loginNoScroll");
-
     return () => {
       document.documentElement.classList.remove("loginNoScroll");
       document.body.classList.remove("loginNoScroll");
@@ -73,20 +81,49 @@ export default function CompleteProfileClient() {
         return;
       }
 
+      // ¿Ya existe el doc? (alta por email lo creó en el registro.)
+      try {
+        const snap = await getDoc(doc(db, "users", user.uid));
+        if (snap.exists()) {
+          const data = snap.data() as {
+            bio?: string;
+            interests?: CanonicalGroupCategory[];
+          };
+          setHasProfile(true);
+          setBio((prev) => prev || data.bio || "");
+          setSelectedTags((prev) =>
+            prev.length ? prev : (data.interests ?? [])
+          );
+        } else {
+          // Usuario nuevo de Google: prellenamos identidad con lo de Google.
+          setHasProfile(false);
+          const displayName = user.displayName?.trim() || "";
+          const parts = displayName.split(/\s+/).filter(Boolean);
+          if (parts[0]) setFirstName((prev) => prev || parts[0]);
+          if (parts.length > 1) {
+            setLastName((prev) => prev || parts.slice(1).join(" "));
+          }
+          const emailPrefix = user.email?.split("@")[0] || "";
+          if (emailPrefix) setHandle((prev) => prev || normalizeHandle(emailPrefix));
+        }
+      } catch {
+        // Si falla la lectura, asumimos usuario nuevo (pide identidad).
+        setHasProfile(false);
+      }
+
       setCheckingAuth(false);
-
-      const displayName = user.displayName?.trim() || "";
-      const parts = displayName.split(/\s+/).filter(Boolean);
-
-      if (parts[0]) setFirstName((prev) => prev || parts[0]);
-      if (parts.length > 1) setLastName((prev) => prev || parts.slice(1).join(" "));
-
-      const emailPrefix = user.email?.split("@")[0] || "";
-      if (emailPrefix) setHandle((prev) => prev || normalizeHandle(emailPrefix));
     });
 
     return () => unsubscribe();
   }, [nextPath, router]);
+
+  function toggleTag(category: CanonicalGroupCategory) {
+    setSelectedTags((prev) =>
+      prev.includes(category)
+        ? prev.filter((c) => c !== category)
+        : [...prev, category]
+    );
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -96,43 +133,73 @@ export default function CompleteProfileClient() {
       setMsg(t("errorSessionExpired"));
       return;
     }
+    const uid = currentUser.uid;
 
-    const normalizedHandle = normalizeHandle(handle);
-    const cleanedFirstName = cleanName(firstName);
-    const cleanedLastName = cleanName(lastName);
+    // Validación de identidad solo cuando se pide (Google nuevo).
+    if (!hasProfile) {
+      const normalizedHandle = normalizeHandle(handle);
+      const fn = cleanName(firstName);
+      const ln = cleanName(lastName);
 
-    if (!isValidHandle(normalizedHandle)) {
-      setMsg(t("errorInvalidHandle"));
-      return;
-    }
-
-    if (!cleanedFirstName) {
-      setMsg(t("errorFirstNameRequired"));
-      return;
-    }
-
-    if (!cleanedLastName) {
-      setMsg(t("errorLastNameRequired"));
-      return;
+      if (!isValidHandle(normalizedHandle)) {
+        setMsg(t("errorInvalidHandle"));
+        return;
+      }
+      if (!fn) {
+        setMsg(t("errorFirstNameRequired"));
+        return;
+      }
+      if (!ln) {
+        setMsg(t("errorLastNameRequired"));
+        return;
+      }
     }
 
     setLoading(true);
 
     try {
-      await completeGoogleProfile(db, {
-        user: currentUser,
-        handle: normalizedHandle,
-        firstName: cleanedFirstName,
-        lastName: cleanedLastName,
-      });
+      if (!hasProfile) {
+        // Crea el doc (misma fuente unificada, vía completeGoogleProfile).
+        await completeGoogleProfile(db, {
+          user: currentUser,
+          handle: normalizeHandle(handle),
+          firstName: cleanName(firstName),
+          lastName: cleanName(lastName),
+          bio,
+        });
+      } else {
+        // Ya existe (alta por email): solo actualizamos la bio.
+        await updateDoc(doc(db, "users", uid), {
+          bio: bio.trim(),
+          updatedAt: serverTimestamp(),
+        });
+      }
 
-      // Si dejó activadas las notificaciones, pide permiso y registra el token
-      // de este dispositivo (dentro del gesto del submit). No bloquea el alta.
+      // Portada: subir + guardar coverUrl (el doc ya existe en ambos caminos).
+      if (coverBlob) {
+        try {
+          const coverUrl = await uploadProfileImage(uid, "cover", coverBlob);
+          await updateDoc(doc(db, "users", uid), { coverUrl });
+        } catch {
+          /* portada opcional */
+        }
+      }
+
+      // Intereses (tags): callable que valida y reconstruye el índice de búsqueda.
+      if (selectedTags.length > 0) {
+        try {
+          await updateProfileInterests(selectedTags);
+        } catch {
+          /* no bloquear el onboarding si falla */
+        }
+      }
+
+      // Notificaciones push (dentro del gesto del submit).
       if (notifOn && pushSupported) {
         try {
-          await enablePush(currentUser.uid);
+          await enablePush(uid);
         } catch {
-          /* si el navegador niega el permiso, seguimos con el alta igual */
+          /* permiso denegado: seguimos */
         }
       }
 
@@ -169,12 +236,18 @@ export default function CompleteProfileClient() {
       `}</style>
 
       <CompleteProfilePanel
+        showIdentity={!hasProfile}
         handle={handle}
         firstName={firstName}
         lastName={lastName}
         onHandleChange={(v) => setHandle(normalizeHandle(v))}
         onFirstNameChange={setFirstName}
         onLastNameChange={setLastName}
+        onCoverBlobChange={setCoverBlob}
+        bio={bio}
+        onBioChange={setBio}
+        selectedTags={selectedTags}
+        onToggleTag={toggleTag}
         notifOn={notifOn}
         onToggleNotif={() => setNotifOn((v) => !v)}
         pushSupported={pushSupported}
