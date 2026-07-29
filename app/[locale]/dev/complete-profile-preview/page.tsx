@@ -3,10 +3,10 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // PÁGINA DEV TEMPORAL — simulador del panel de onboarding de perfil REAL sin sesión.
 //
-// Monta el CompleteProfilePanel de producción con estado local (mock), para poder
-// ITERAR su diseño sin entrar con Google ni crear cuenta. El submit/cancel NO hacen
-// nada real. Una barra dev alterna estados: identidad (Google nuevo vs. email),
-// toggle de notificaciones, "cargando" y un mensaje de error de muestra.
+// Monta el CompleteProfilePanel de producción con estado local (mock), para iterar
+// su diseño sin entrar con Google. El submit/cancel NO hacen nada real. Una barra
+// dev alterna estados: identidad (Google nuevo vs. email), foto de Google presente
+// o no, toggle de notificaciones, "cargando" y un mensaje de error de muestra.
 //
 // ⚠️ BORRAR esta carpeta cuando terminemos de pulir. No es parte de producción.
 // ─────────────────────────────────────────────────────────────────────────────
@@ -14,34 +14,25 @@
 import { useState } from "react";
 import CompleteProfilePanel from "@/app/[locale]/(public)/complete-profile/CompleteProfilePanel";
 import { normalizeHandle } from "@/lib/auth/profileOnboarding";
-import type { CanonicalGroupCategory } from "@/types/group";
 
 export default function CompleteProfilePreviewDevPage() {
   const [handle, setHandle] = useState("mariana_g");
   const [firstName, setFirstName] = useState("Mariana");
   const [lastName, setLastName] = useState("García");
   const [bio, setBio] = useState("");
-  const [selectedTags, setSelectedTags] = useState<CanonicalGroupCategory[]>([]);
   const [notifOn, setNotifOn] = useState(true);
 
   // Controles del simulador (no existen en el flujo real).
   const [showIdentity, setShowIdentity] = useState(true);
+  const [hasGooglePhoto, setHasGooglePhoto] = useState(false);
   const [pushSupported, setPushSupported] = useState(true);
   const [loading, setLoading] = useState(false);
   const [showError, setShowError] = useState(false);
 
-  function toggleTag(category: CanonicalGroupCategory) {
-    setSelectedTags((prev) =>
-      prev.includes(category)
-        ? prev.filter((c) => c !== category)
-        : [...prev, category]
-    );
-  }
-
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     // eslint-disable-next-line no-console
-    console.log("[dev] submit simulado", { handle, firstName, lastName, bio, selectedTags, notifOn });
+    console.log("[dev] submit simulado", { handle, firstName, lastName, bio, notifOn });
   }
 
   const chip: React.CSSProperties = {
@@ -76,7 +67,7 @@ export default function CompleteProfilePreviewDevPage() {
           background: "rgba(8,5,20,0.85)",
           border: "1px solid rgba(255,255,255,0.1)",
           backdropFilter: "blur(8px)",
-          maxWidth: "min(92vw, 620px)",
+          maxWidth: "min(92vw, 640px)",
         }}
       >
         <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 11, fontWeight: 700, letterSpacing: "0.04em" }}>
@@ -84,6 +75,9 @@ export default function CompleteProfilePreviewDevPage() {
         </span>
         <button type="button" style={chip} onClick={() => setShowIdentity((v) => !v)}>
           Identidad: {showIdentity ? "ON (Google nuevo)" : "OFF (email)"}
+        </button>
+        <button type="button" style={chip} onClick={() => setHasGooglePhoto((v) => !v)}>
+          Foto Google: {hasGooglePhoto ? "SÍ" : "NO"}
         </button>
         <button type="button" style={chip} onClick={() => setPushSupported((v) => !v)}>
           Notificaciones: {pushSupported ? "ON" : "OFF"}
@@ -97,6 +91,7 @@ export default function CompleteProfilePreviewDevPage() {
       </div>
 
       <CompleteProfilePanel
+        key={hasGooglePhoto ? "with-photo" : "no-photo"}
         showIdentity={showIdentity}
         handle={handle}
         firstName={firstName}
@@ -104,13 +99,15 @@ export default function CompleteProfilePreviewDevPage() {
         onHandleChange={(v) => setHandle(normalizeHandle(v))}
         onFirstNameChange={setFirstName}
         onLastNameChange={setLastName}
+        initialPhotoUrl={hasGooglePhoto ? "/logotipo.webp" : null}
+        onAvatarBlobChange={() => {
+          /* dev: se ignora */
+        }}
         onCoverBlobChange={() => {
-          /* dev: se ignora el blob */
+          /* dev: se ignora */
         }}
         bio={bio}
         onBioChange={setBio}
-        selectedTags={selectedTags}
-        onToggleTag={toggleTag}
         notifOn={notifOn}
         onToggleNotif={() => setNotifOn((v) => !v)}
         pushSupported={pushSupported}
