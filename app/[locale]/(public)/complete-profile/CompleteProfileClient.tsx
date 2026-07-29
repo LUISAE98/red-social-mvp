@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { onAuthStateChanged, signOut, type User } from "firebase/auth";
@@ -14,10 +13,7 @@ import {
   normalizeHandle,
 } from "@/lib/auth/profileOnboarding";
 import { enablePush, isPushSupported } from "@/lib/push/fcm";
-
-const vibraPink = "#ff2fb3";
-const vibraPurple = "#a855ff";
-const vibraBlue = "#4f46ff";
+import CompleteProfilePanel from "./CompleteProfilePanel";
 
 export default function CompleteProfileClient() {
   const t = useTranslations("completeProfile");
@@ -157,116 +153,8 @@ export default function CompleteProfileClient() {
     router.replace("/login");
   }
 
-  const fontStack =
-    'inherit';
-
-  const pageStyle: React.CSSProperties = {
-    minHeight: "100dvh",
-    display: "grid",
-    placeItems: "center",
-    background: "transparent",
-    color: "#fff",
-    fontFamily: fontStack,
-    padding: 18,
-    boxSizing: "border-box",
-  };
-
-  const shellStyle: React.CSSProperties = {
-    width: "100%",
-    maxWidth: 420,
-    padding: "28px 34px 34px",
-    borderRadius: 18,
-    border: "1px solid rgba(168, 85, 255, 0.58)",
-    background: "rgba(10, 7, 28, 0.34)",
-    boxShadow:
-      "0 0 0 1px rgba(255,255,255,0.03) inset, 0 0 28px rgba(168,85,255,0.18)",
-    backdropFilter: "blur(16px) saturate(120%)", WebkitBackdropFilter: "blur(16px) saturate(120%)",
-    boxSizing: "border-box",
-  };
-
-  const logoStyle: React.CSSProperties = {
-    width: 142,
-    height: "auto",
-    display: "block",
-    margin: "-15px auto 1px auto",
-  };
-
-  const titleStyle: React.CSSProperties = {
-    margin: 0,
-    fontSize: 21,
-    fontWeight: 650,
-    letterSpacing: "-0.03em",
-    lineHeight: 1.1,
-    textAlign: "center",
-  };
-
-  const subtitleStyle: React.CSSProperties = {
-    margin: "7px 0 24px",
-    fontSize: 12,
-    color: "rgba(255,255,255,0.66)",
-    lineHeight: 1.4,
-    textAlign: "center",
-  };
-
-  const labelTextStyle: React.CSSProperties = {
-    fontSize: 10.5,
-    fontWeight: 500,
-    color: "rgba(255,255,255,0.88)",
-    lineHeight: 1.15,
-  };
-
-  const inputStyle: React.CSSProperties = {
-    width: "100%",
-    height: 40,
-    padding: "0 11px",
-    borderRadius: 8,
-    border: "1px solid rgba(168,85,255,0.22)",
-    background: "rgba(255,255,255,0.035)",
-    color: "#fff",
-    outline: "none",
-    fontSize: 12.5,
-    fontWeight: 400,
-    fontFamily: fontStack,
-    boxSizing: "border-box",
-  };
-
-  const primaryButtonStyle: React.CSSProperties = {
-    width: "100%",
-    minHeight: 40,
-    padding: "8px 14px",
-    borderRadius: 10,
-    border: "none",
-    backgroundImage: `linear-gradient(100deg, ${vibraPink} 0%, ${vibraPurple} 35%, ${vibraBlue} 70%, ${vibraPink} 100%)`,
-    backgroundSize: "280% 280%",
-    backgroundPosition: "0% 50%",
-    color: "#fff",
-    fontSize: 14,
-    fontWeight: 600,
-    letterSpacing: "-0.01em",
-    fontFamily: fontStack,
-    cursor: "pointer",
-    boxShadow: "0 10px 28px rgba(168,85,255,0.22)",
-  };
-
-  const secondaryButtonStyle: React.CSSProperties = {
-    ...primaryButtonStyle,
-    background: "rgba(255,255,255,0.08)",
-    boxShadow: "none",
-  };
-
-  const noticeStyle: React.CSSProperties = {
-    marginTop: 10,
-    borderRadius: 9,
-    border: "1px solid rgba(255, 80, 80, 0.45)",
-    background: "rgba(255, 40, 40, 0.10)",
-    padding: "7px 9px",
-    fontSize: 10.5,
-    lineHeight: 1.35,
-    color: "rgba(255, 190, 190, 0.95)",
-  };
-
   if (checkingAuth) {
-    return <main style={pageStyle} />;
+    return <main style={{ minHeight: "100dvh", background: "transparent" }} />;
   }
 
   return (
@@ -278,156 +166,23 @@ export default function CompleteProfileClient() {
           height: 100%;
           overscroll-behavior: none;
         }
-
-        .completeProfileInput::placeholder {
-          color: rgba(255, 255, 255, 0.36);
-        }
       `}</style>
 
-      <main style={pageStyle}>
-        <div style={shellStyle}>
-          <Image src="/logotipo.webp" alt="Vibra" width={142} height={40} style={logoStyle} />
-
-          <h1 style={titleStyle}>{t("title")}</h1>
-          <p style={subtitleStyle}>
-            {t("subtitle")}
-          </p>
-
-          <form onSubmit={handleSubmit} style={{ display: "grid", gap: 13 }}>
-            <label style={{ display: "grid", gap: 4 }}>
-              <span style={labelTextStyle}>{t("usernameLabel")}</span>
-              <input
-                className="completeProfileInput"
-                value={handle}
-                onChange={(e) => setHandle(normalizeHandle(e.target.value))}
-                style={inputStyle}
-                placeholder={t("usernamePlaceholder")}
-                autoComplete="username"
-              />
-            </label>
-
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-              <label style={{ display: "grid", gap: 4 }}>
-                <span style={labelTextStyle}>{t("firstNameLabel")}</span>
-                <input
-                  className="completeProfileInput"
-                  value={firstName}
-                  onChange={(e) => setFirstName(e.target.value)}
-                  style={inputStyle}
-                  placeholder={t("firstNamePlaceholder")}
-                  autoComplete="given-name"
-                />
-              </label>
-
-              <label style={{ display: "grid", gap: 4 }}>
-                <span style={labelTextStyle}>{t("lastNameLabel")}</span>
-                <input
-                  className="completeProfileInput"
-                  value={lastName}
-                  onChange={(e) => setLastName(e.target.value)}
-                  style={inputStyle}
-                  placeholder={t("lastNamePlaceholder")}
-                  autoComplete="family-name"
-                />
-              </label>
-            </div>
-
-            {pushSupported && (
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 10,
-                  padding: "9px 11px",
-                  borderRadius: 10,
-                  border: "1px solid rgba(168,85,255,0.22)",
-                  background: "rgba(255,255,255,0.035)",
-                }}
-              >
-                <div style={{ minWidth: 0, flex: 1 }}>
-                  <div style={{ ...labelTextStyle, fontWeight: 600 }}>
-                    {t("notifLabel")}
-                  </div>
-                  <div
-                    style={{
-                      fontSize: 10,
-                      color: "rgba(255,255,255,0.6)",
-                      lineHeight: 1.3,
-                      marginTop: 2,
-                    }}
-                  >
-                    {t("notifHint")}
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={notifOn}
-                  aria-label={t("notifLabel")}
-                  onClick={() => setNotifOn((v) => !v)}
-                  style={{
-                    position: "relative",
-                    width: 40,
-                    minWidth: 40,
-                    height: 22,
-                    borderRadius: 999,
-                    border: "none",
-                    background: notifOn
-                      ? "linear-gradient(100deg, #a855ff, #4f46ff)"
-                      : "rgba(255,255,255,0.14)",
-                    cursor: "pointer",
-                    padding: 0,
-                    flexShrink: 0,
-                    transition: "background 0.2s ease",
-                  }}
-                >
-                  <span
-                    style={{
-                      position: "absolute",
-                      top: 2,
-                      left: notifOn ? 20 : 2,
-                      width: 18,
-                      height: 18,
-                      borderRadius: "50%",
-                      background: "#fff",
-                      transition: "left 0.2s ease",
-                    }}
-                  />
-                </button>
-              </div>
-            )}
-
-            <button
-              type="submit"
-              disabled={loading}
-              style={{
-                ...primaryButtonStyle,
-                marginTop: 4,
-                opacity: loading ? 0.84 : 1,
-                cursor: loading ? "not-allowed" : "pointer",
-              }}
-            >
-              {loading ? t("submitting") : t("submit")}
-            </button>
-
-            <button
-              type="button"
-              disabled={loading}
-              onClick={handleCancel}
-              style={{
-                ...secondaryButtonStyle,
-                opacity: loading ? 0.6 : 1,
-                cursor: loading ? "not-allowed" : "pointer",
-              }}
-            >
-              {t("cancel")}
-            </button>
-          </form>
-
-          {msg && <div style={noticeStyle}>{msg}</div>}
-        </div>
-      </main>
+      <CompleteProfilePanel
+        handle={handle}
+        firstName={firstName}
+        lastName={lastName}
+        onHandleChange={(v) => setHandle(normalizeHandle(v))}
+        onFirstNameChange={setFirstName}
+        onLastNameChange={setLastName}
+        notifOn={notifOn}
+        onToggleNotif={() => setNotifOn((v) => !v)}
+        pushSupported={pushSupported}
+        loading={loading}
+        msg={msg}
+        onSubmit={handleSubmit}
+        onCancel={handleCancel}
+      />
     </>
   );
 }

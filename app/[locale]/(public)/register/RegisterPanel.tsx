@@ -8,16 +8,17 @@
 // La lógica de creación de cuenta (validación + transacción Firestore que crea el
 // usuario y reserva el handle) vive AQUÍ, en un solo lugar (sin duplicar).
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import {
   createUserWithEmailAndPassword,
   sendEmailVerification,
   signOut,
 } from "firebase/auth";
-import { doc, getDoc, runTransaction, serverTimestamp } from "firebase/firestore";
+import { doc, getDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
-import { buildProfileSearchIndex } from "@/lib/profile/profileSearchIndex";
+import { createUserProfileDoc } from "@/lib/auth/profileOnboarding";
+import { enablePush, isPushSupported } from "@/lib/push/fcm";
 
 const vibraPink = "#ff2fb3";
 const vibraPurple = "#a855ff";
@@ -143,6 +144,9 @@ export default function RegisterPanel({
   onRegistered: () => void;
 }) {
   const t = useTranslations("auth.register");
+  // El copy del switch de notificaciones se reutiliza del panel de completar
+  // perfil (misma feature, mismo texto) en vez de duplicar claves.
+  const tNotif = useTranslations("completeProfile");
   const locale = useLocale();
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -155,6 +159,21 @@ export default function RegisterPanel({
   const [password2, setPassword2] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  // Notificaciones: activadas por defecto al crear la cuenta (igual que en
+  // completar perfil). El bloque solo se muestra si el navegador las soporta.
+  const [notifOn, setNotifOn] = useState(true);
+  const [pushSupported, setPushSupported] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    void isPushSupported().then((ok) => {
+      if (alive) setPushSupported(ok);
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   const handle = useMemo(() => normalizeHandle(handleRaw), [handleRaw]);
 
@@ -235,42 +254,31 @@ export default function RegisterPanel({
       const cred = await createUserWithEmailAndPassword(auth, email.trim(), password);
       const uid = cred.user.uid;
 
-      const userRef = doc(db, "users", uid);
-      const displayName = `${fn} ${ln}`.trim();
-
-      await runTransaction(db, async (tx) => {
-        const existing = await tx.get(handleRef);
-        if (existing.exists()) throw new Error("HANDLE_TAKEN");
-
-        tx.set(handleRef, {
-          uid,
-          createdAt: serverTimestamp(),
-        });
-
-        tx.set(userRef, {
-          uid,
-          handle,
-          displayName,
-          firstName: fn,
-          lastName: ln,
-          birthDate,
-          sex,
-          photoURL: null,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-          search: buildProfileSearchIndex({
-            handle,
-            displayName,
-            firstName: fn,
-            lastName: ln,
-            isActive: true,
-            profileSearchable: true,
-            updatedAt: serverTimestamp(),
-          }),
-        });
+      // Fuente única de creación de perfil (mismos campos + índice `search` que
+      // el alta por Google). La transacción interna vuelve a validar el handle.
+      await createUserProfileDoc(db, {
+        user: cred.user,
+        handle,
+        firstName: fn,
+        lastName: ln,
+        birthDate,
+        sex,
+        provider: "password",
       });
 
       await sendEmailVerification(cred.user);
+
+      // Si dejó el switch activado y el navegador soporta push, pide permiso y
+      // registra el token de este dispositivo (dentro del gesto del submit,
+      // mientras la cuenta recién creada sigue autenticada). No bloquea el alta.
+      if (notifOn && pushSupported) {
+        try {
+          await enablePush(uid);
+        } catch {
+          /* si el navegador niega el permiso, seguimos con el alta igual */
+        }
+      }
+
       await signOut(auth);
       onRegistered();
     } catch (err: unknown) {
@@ -610,6 +618,70 @@ export default function RegisterPanel({
             <span style={errorTextStyle}>{t("passwordMismatch")}</span>
           ) : null}
         </label>
+
+        {pushSupported && (
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              padding: "9px 11px",
+              borderRadius: 10,
+              border: "none",
+              background: "rgba(255,255,255,0.035)",
+            }}
+          >
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <div style={{ ...labelTextStyle, fontWeight: 600 }}>{tNotif("notifLabel")}</div>
+              <div
+                style={{
+                  fontSize: 10,
+                  color: "rgba(255,255,255,0.6)",
+                  lineHeight: 1.3,
+                  marginTop: 2,
+                }}
+              >
+                {tNotif("notifHint")}
+              </div>
+            </div>
+
+            <button
+              type="button"
+              role="switch"
+              aria-checked={notifOn}
+              aria-label={tNotif("notifLabel")}
+              onClick={() => setNotifOn((v) => !v)}
+              style={{
+                position: "relative",
+                width: 40,
+                minWidth: 40,
+                height: 22,
+                borderRadius: 999,
+                border: "none",
+                background: notifOn
+                  ? "linear-gradient(100deg, #a855ff, #4f46ff)"
+                  : "rgba(255,255,255,0.14)",
+                cursor: "pointer",
+                padding: 0,
+                flexShrink: 0,
+                transition: "background 0.2s ease",
+              }}
+            >
+              <span
+                style={{
+                  position: "absolute",
+                  top: 2,
+                  left: notifOn ? 20 : 2,
+                  width: 18,
+                  height: 18,
+                  borderRadius: "50%",
+                  background: "#fff",
+                  transition: "left 0.2s ease",
+                }}
+              />
+            </button>
+          </div>
+        )}
 
         <div
           style={{

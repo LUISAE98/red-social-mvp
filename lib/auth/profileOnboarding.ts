@@ -5,6 +5,7 @@ import {
   type Firestore,
 } from "firebase/firestore";
 import type { User } from "firebase/auth";
+import { buildProfileSearchIndex } from "@/lib/profile/profileSearchIndex";
 
 export const MONTHS = [
   { value: "1", label: "Enero" },
@@ -78,7 +79,8 @@ export function calculateAgeFromBirthDate(birthDate: string | null) {
   return age;
 }
 
-type CompleteGoogleProfileInput = {
+type CreateUserProfileInput = {
+  /** Usuario ya autenticado (recién creado por email o por Google). */
   user: User;
   handle: string;
   firstName: string;
@@ -86,29 +88,36 @@ type CompleteGoogleProfileInput = {
   birthDate?: string | null;
   sex?: string | null;
   bio?: string;
+  /** Método de alta: define provider/authProvider. */
+  provider: "password" | "google";
+  /** URL de foto ya subida; si se omite, usa la del proveedor (Google). */
+  photoURL?: string | null;
 };
 
-export async function completeGoogleProfile(
+// Fuente ÚNICA de la creación del documento de perfil. La usan los dos flujos de
+// alta (registro por email y onboarding de Google) para que ambos escriban EXACTO
+// el mismo conjunto de campos —incluido el índice `search`— y no queden perfiles
+// a medias según por dónde entró el usuario. Lanza errores con sentinel estable
+// (HANDLE_TAKEN / PROFILE_EXISTS / HANDLE_INVALID) que cada caller traduce.
+export async function createUserProfileDoc(
   db: Firestore,
-  input: CompleteGoogleProfileInput
+  input: CreateUserProfileInput
 ) {
-const normalizedHandle = normalizeHandle(input.handle);
-const firstName = cleanName(input.firstName);
-const lastName = cleanName(input.lastName);
-const displayName = `${firstName} ${lastName}`.trim();
-const email = input.user.email;
-const photoURL = input.user.photoURL;
+  const normalizedHandle = normalizeHandle(input.handle);
+  const firstName = cleanName(input.firstName);
+  const lastName = cleanName(input.lastName);
+  const displayName = `${firstName} ${lastName}`.trim();
+  const email = input.user.email;
+  const photoURL = input.photoURL ?? input.user.photoURL ?? null;
 
   if (!input.user.uid) {
     throw new Error("No se encontró el usuario autenticado.");
   }
-
-if (!email) {
-  throw new Error("Tu cuenta de Google no tiene correo disponible.");
-}
-
+  if (!email) {
+    throw new Error("La cuenta no tiene correo disponible.");
+  }
   if (!isValidHandle(normalizedHandle)) {
-    throw new Error("El username no tiene un formato válido.");
+    throw new Error("HANDLE_INVALID");
   }
 
   const userRef = doc(db, "users", input.user.uid);
@@ -119,18 +128,19 @@ if (!email) {
     const existingHandleSnap = await transaction.get(handleRef);
 
     if (existingUserSnap.exists()) {
-      throw new Error("Este perfil ya existe.");
+      throw new Error("PROFILE_EXISTS");
+    }
+    if (existingHandleSnap.exists()) {
+      throw new Error("HANDLE_TAKEN");
     }
 
-    if (existingHandleSnap.exists()) {
-      throw new Error("Ese username ya está ocupado.");
-    }
+    const updatedAt = serverTimestamp();
 
     transaction.set(userRef, {
       uid: input.user.uid,
       email,
       emailLower: email.toLowerCase(),
-      photoURL: photoURL || null,
+      photoURL,
       handle: normalizedHandle,
       username: normalizedHandle,
       displayName,
@@ -140,8 +150,8 @@ if (!email) {
       sex: input.sex ?? null,
       bio: input.bio?.trim() ?? "",
       role: "user",
-      provider: "google",
-      authProvider: "google.com",
+      provider: input.provider,
+      authProvider: input.provider === "google" ? "google.com" : "password",
       profileReserved: false,
       // Defaults de privacidad para usuarios nuevos:
       // - perfil NO restringido → todos pueden ver sus publicaciones.
@@ -150,7 +160,18 @@ if (!email) {
       profileCommentsEnabled: true,
       isActive: true,
       createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
+      updatedAt,
+      // Índice de búsqueda: ambos flujos lo escriben ahora (antes el de Google
+      // lo omitía y esos perfiles no salían en el buscador hasta editar algo).
+      search: buildProfileSearchIndex({
+        handle: normalizedHandle,
+        displayName,
+        firstName,
+        lastName,
+        isActive: true,
+        profileSearchable: true,
+        updatedAt,
+      }),
     });
 
     transaction.set(handleRef, {
@@ -159,4 +180,33 @@ if (!email) {
       createdAt: serverTimestamp(),
     });
   });
+}
+
+type CompleteGoogleProfileInput = {
+  user: User;
+  handle: string;
+  firstName: string;
+  lastName: string;
+  birthDate?: string | null;
+  sex?: string | null;
+  bio?: string;
+};
+
+// Onboarding de Google: delega en la fuente única y traduce los sentinels a los
+// mensajes que ya mostraba este flujo (para no cambiar su UI de errores).
+export async function completeGoogleProfile(
+  db: Firestore,
+  input: CompleteGoogleProfileInput
+) {
+  try {
+    await createUserProfileDoc(db, { ...input, provider: "google" });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : "";
+    if (msg === "HANDLE_TAKEN") throw new Error("Ese username ya está ocupado.");
+    if (msg === "PROFILE_EXISTS") throw new Error("Este perfil ya existe.");
+    if (msg === "HANDLE_INVALID") {
+      throw new Error("El username no tiene un formato válido.");
+    }
+    throw err;
+  }
 }

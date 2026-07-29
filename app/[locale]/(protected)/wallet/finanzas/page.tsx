@@ -668,6 +668,10 @@ export default function WalletFinanzasPage() {
         onClose={() => setWithdrawPanelOpen(false)}
         uid={user?.uid}
         availableLabel={formatMoney(view.available, { code: true })}
+        // IVA 16% (creador mexicano). Las retenciones se agregarán cuando se defina
+        // el modelo fiscal con la API de pagos elegida.
+        ivaLabel={formatMoney(view.available * 0.16, { code: true })}
+        totalLabel={formatMoney(view.available * 1.16, { code: true })}
       />
     </WalletSectionShell>
   );

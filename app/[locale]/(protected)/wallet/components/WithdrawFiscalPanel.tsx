@@ -10,7 +10,7 @@
 // El creador EXTRANJERO no ve este panel: pasa directo a pago (impuestos aparte).
 
 import { createPortal } from "react-dom";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import {
   useCreatorTaxProfile,
@@ -46,7 +46,7 @@ const REGIMENES: Array<{ value: string; label: string }> = [
 // entidad fiscal definitiva (persona física → moral).
 const VIBRA_RECEPTOR = {
   rfc: "EIRG710515LI9",
-  name: "Vibra",
+  name: "María Guadalupe Espinosa Rojas", // 🔁 cambiar a la razón social moral cuando exista
   zip: "54769",
   usoCfdi: "G03 · Gastos en general",
 };
@@ -55,7 +55,9 @@ type Props = {
   open: boolean;
   onClose: () => void;
   uid: string | null | undefined;
-  availableLabel: string;
+  availableLabel: string; // subtotal (lo que gana el creador)
+  ivaLabel: string; // IVA 16% sobre el subtotal
+  totalLabel: string; // subtotal + IVA
 };
 
 type View = "method" | "auto" | "manual" | "done";
@@ -68,9 +70,8 @@ const FIELD: React.CSSProperties = {
   border: "none", borderRadius: 12, padding: "10px 12px", color: "#fff",
   fontSize: 14, fontFamily: "inherit", lineHeight: 1.5, outline: "none",
 };
-const CARD_BG = "rgba(255,255,255,0.04)";
 
-export default function WithdrawFiscalPanel({ open, onClose, uid, availableLabel }: Props) {
+export default function WithdrawFiscalPanel({ open, onClose, uid, availableLabel, ivaLabel, totalLabel }: Props) {
   const { profile, loading, hasData, csdReady } = useCreatorTaxProfile(uid);
   useBodyScrollLock(open);
 
@@ -78,6 +79,7 @@ export default function WithdrawFiscalPanel({ open, onClose, uid, availableLabel
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [manualSaved, setManualSaved] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const [taxId, setTaxId] = useState("");
   const [legalName, setLegalName] = useState("");
@@ -88,13 +90,56 @@ export default function WithdrawFiscalPanel({ open, onClose, uid, availableLabel
 
   const [cer, setCer] = useState<File | null>(null);
   const [keyFile, setKeyFile] = useState<File | null>(null);
+  const [cerError, setCerError] = useState<string | null>(null);
+  const [keyError, setKeyError] = useState<string | null>(null);
   const [csdPass, setCsdPass] = useState("");
+  const [showPass, setShowPass] = useState(false);
   const [consent, setConsent] = useState(false);
+  const cerInputRef = useRef<HTMLInputElement>(null);
+  const keyInputRef = useRef<HTMLInputElement>(null);
+
+  function pickCer(f: File | null) {
+    if (!f) return;
+    if (!/\.cer$/i.test(f.name)) { setCer(null); setCerError("Ese no es un archivo .cer. Sube el certificado con extensión .cer."); return; }
+    setCerError(null); setCer(f);
+  }
+  function pickKey(f: File | null) {
+    if (!f) return;
+    if (!/\.key$/i.test(f.name)) { setKeyFile(null); setKeyError("Ese no es un archivo .key. Sube la llave con extensión .key."); return; }
+    setKeyError(null); setKeyFile(f);
+  }
+
+  // Ruta MANUAL: el creador sube el PDF y el XML de su factura ya emitida.
+  const [pdf, setPdf] = useState<File | null>(null);
+  const [xml, setXml] = useState<File | null>(null);
+  const [pdfError, setPdfError] = useState<string | null>(null);
+  const [xmlError, setXmlError] = useState<string | null>(null);
+  const pdfInputRef = useRef<HTMLInputElement>(null);
+  const xmlInputRef = useRef<HTMLInputElement>(null);
+
+  function pickPdf(f: File | null) {
+    if (!f) return;
+    if (!/\.pdf$/i.test(f.name)) { setPdf(null); setPdfError("Ese no es un archivo .pdf. Sube el PDF de tu factura."); return; }
+    setPdfError(null); setPdf(f);
+  }
+  function pickXml(f: File | null) {
+    if (!f) return;
+    if (!/\.xml$/i.test(f.name)) { setXml(null); setXmlError("Ese no es un archivo .xml. Sube el XML de tu factura."); return; }
+    setXmlError(null); setXml(f);
+  }
 
   useEffect(() => {
     if (!open || loading) return;
     setError(null);
     setManualSaved(false);
+    setCerError(null);
+    setKeyError(null);
+    setPdf(null);
+    setXml(null);
+    setPdfError(null);
+    setXmlError(null);
+    setShowPass(false);
+    setCopied(false);
     if (profile) {
       setTaxId(profile.taxId ?? "");
       setLegalName(profile.legalName ?? "");
@@ -108,6 +153,13 @@ export default function WithdrawFiscalPanel({ open, onClose, uid, availableLabel
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setView(csdReady ? "done" : "method");
   }, [open, loading, csdReady, profile]);
+
+  // "Copiado" vuelve a su estado normal a los 2s.
+  useEffect(() => {
+    if (!copied) return;
+    const t = window.setTimeout(() => setCopied(false), 2000);
+    return () => window.clearTimeout(t);
+  }, [copied]);
 
   const canClose = !busy;
   function handleClose() {
@@ -142,18 +194,43 @@ export default function WithdrawFiscalPanel({ open, onClose, uid, availableLabel
     }
   }
 
-  async function submitManualData() {
+  function submitManualInvoice() {
     setError(null);
-    const dv = validateData();
-    if (dv) return setError(dv);
-    setBusy(true);
+    if (!pdf || !xml) return setError("Sube el PDF y el XML de tu factura.");
+    // El envío/validación real (leer el XML, cotejar receptor y montos) es del Bloque 3.
+    setManualSaved(true);
+  }
+
+  // Copia TODOS los datos de facturación en texto ordenado (para pegar en WhatsApp, etc.).
+  async function handleCopyBilling() {
+    const text = [
+      "Datos de facturación (Vibra)",
+      `RFC: ${VIBRA_RECEPTOR.rfc}`,
+      `Razón social: ${VIBRA_RECEPTOR.name}`,
+      `CP: ${VIBRA_RECEPTOR.zip}`,
+      `Uso de CFDI: ${VIBRA_RECEPTOR.usoCfdi}`,
+      `Subtotal: ${availableLabel}`,
+      `IVA (16%): ${ivaLabel}`,
+      `Total a facturar: ${totalLabel}`,
+    ].join("\n");
     try {
-      await saveCreatorTaxProfile({ taxId: taxId.trim().toUpperCase(), legalName: legalName.trim(), taxSystem, zip: zip.trim() });
-      setManualSaved(true);
-    } catch (e) {
-      setError(errMsg(e));
-    } finally {
-      setBusy(false);
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+    } catch {
+      try {
+        const ta = document.createElement("textarea");
+        ta.value = text;
+        ta.style.position = "fixed";
+        ta.style.opacity = "0";
+        ta.style.left = "-9999px";
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        document.body.removeChild(ta);
+        setCopied(true);
+      } catch {
+        setError("No se pudo copiar. Copia los datos manualmente.");
+      }
     }
   }
 
@@ -252,30 +329,81 @@ export default function WithdrawFiscalPanel({ open, onClose, uid, availableLabel
           {fiscalFields}
           <div style={{ height: 1, background: "rgba(255,255,255,0.1)" }} />
           <p style={{ fontSize: 12.5, color: "rgba(255,255,255,0.6)", lineHeight: 1.5, margin: 0 }}>
-            Sube tu Certificado de Sello Digital (CSD). Se guarda seguro en nuestro proveedor de facturación, nunca en la app.
+            Sube tu Certificado de Sello Digital (CSD). Se guarda seguro en nuestro proveedor de facturación, nunca en la plataforma.
           </p>
+
+          {/* Subida del .cer: el texto morado ES el botón que abre el explorador. */}
           <div>
-            <div style={LABEL}>Archivo .cer</div>
-            <input type="file" accept=".cer" onChange={(e) => setCer(e.target.files?.[0] ?? null)} style={{ color: "rgba(255,255,255,0.7)", fontSize: 13 }} />
+            <input ref={cerInputRef} type="file" accept=".cer" style={{ display: "none" }} onChange={(e) => pickCer(e.target.files?.[0] ?? null)} />
+            <button type="button" onClick={() => cerInputRef.current?.click()} style={uploadLink}>
+              {cer ? <FileChosen name={cer.name} /> : "Da clic aquí para subir tu archivo .cer"}
+            </button>
+            {cerError && <div style={redNote}>{cerError}</div>}
           </div>
+
+          {/* Subida del .key: explicación + texto morado (botón). */}
           <div>
-            <div style={LABEL}>Archivo .key</div>
-            <input type="file" accept=".key" onChange={(e) => setKeyFile(e.target.files?.[0] ?? null)} style={{ color: "rgba(255,255,255,0.7)", fontSize: 13 }} />
+            <p style={{ fontSize: 12.5, color: "rgba(255,255,255,0.6)", lineHeight: 1.5, margin: "0 0 6px" }}>
+              Ahora sube tu archivo .key (la llave privada de tu CSD).
+            </p>
+            <input ref={keyInputRef} type="file" accept=".key" style={{ display: "none" }} onChange={(e) => pickKey(e.target.files?.[0] ?? null)} />
+            <button type="button" onClick={() => keyInputRef.current?.click()} style={uploadLink}>
+              {keyFile ? <FileChosen name={keyFile.name} /> : "Da clic aquí para subir tu archivo .key"}
+            </button>
+            {keyError && <div style={redNote}>{keyError}</div>}
           </div>
           <div>
             <div style={LABEL}>Contraseña de la clave privada</div>
-            <input style={FIELD} type="password" value={csdPass} onChange={(e) => setCsdPass(e.target.value)} placeholder="••••••••" />
+            <div style={{ position: "relative" }}>
+              <input
+                style={{ ...FIELD, paddingRight: 42 }}
+                type={showPass ? "text" : "password"}
+                value={csdPass}
+                onChange={(e) => setCsdPass(e.target.value)}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPass((v) => !v)}
+                aria-label={showPass ? "Ocultar contraseña" : "Mostrar contraseña"}
+                style={{
+                  position: "absolute", top: "50%", right: 10, transform: "translateY(-50%)",
+                  background: "none", border: "none", padding: 4, cursor: "pointer",
+                  color: "rgba(255,255,255,0.55)", display: "grid", placeItems: "center", lineHeight: 0,
+                }}
+              >
+                {showPass ? EYE_ICON : EYE_OFF_ICON}
+              </button>
+            </div>
           </div>
-          <label style={{ display: "flex", gap: 10, alignItems: "flex-start", cursor: "pointer", fontSize: 12.5, color: "rgba(255,255,255,0.72)", lineHeight: 1.5 }}>
-            <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} style={{ marginTop: 2 }} />
-            <span>Autorizo a Vibra a emitir mis CFDIs por mi cuenta (auto-facturación).</span>
-          </label>
-          <div style={{ display: "flex", gap: 10 }}>
-            <button type="button" onClick={() => setView("method")} disabled={busy} style={secondaryBtn}>Atrás</button>
-            <button type="button" onClick={submitAuto} disabled={busy} style={primaryBtn(busy)}>
-              {busy ? "Validando CSD…" : "Activar y guardar"}
+          <div style={{ display: "flex", gap: 14, alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: 12.5, color: "rgba(255,255,255,0.72)", lineHeight: 1.5 }}>
+              Autorizo a Vibra a emitir mis CFDIs por mi cuenta (auto-facturación).
+            </span>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={consent}
+              aria-label="Autorizo la auto-facturación"
+              onClick={() => setConsent((v) => !v)}
+              style={{
+                position: "relative", width: 40, height: 22, borderRadius: 999, border: "none",
+                padding: 0, flexShrink: 0, cursor: "pointer",
+                background: consent ? "#a855ff" : "rgba(255,255,255,0.2)",
+                transition: "background 180ms ease",
+              }}
+            >
+              <span
+                style={{
+                  position: "absolute", top: 2, left: consent ? 20 : 2, width: 18, height: 18,
+                  borderRadius: "50%", background: "#fff", transition: "left 180ms ease",
+                  boxShadow: "0 1px 2px rgba(0,0,0,0.25)",
+                }}
+              />
             </button>
           </div>
+          <button type="button" onClick={submitAuto} disabled={busy} style={primaryBtn(busy)}>
+            {busy ? "Validando CSD…" : "Activar y guardar"}
+          </button>
         </div>
       );
     }
@@ -283,32 +411,65 @@ export default function WithdrawFiscalPanel({ open, onClose, uid, availableLabel
     if (view === "manual") {
       return (
         <div style={{ display: "grid", gap: 14 }}>
-          {fiscalFields}
-          <div style={{ height: 1, background: "rgba(255,255,255,0.1)" }} />
-          <p style={{ fontSize: 12.5, color: "rgba(255,255,255,0.6)", lineHeight: 1.5, margin: 0 }}>
-            Emite tu CFDI a Vibra con estos datos:
+          <p style={{ fontSize: 12.5, color: "rgba(255,255,255,0.6)", lineHeight: 1.5, margin: 0, textAlign: "center" }}>
+            Genera tu factura (CFDI) a nombre de Vibra con estos datos y sube el PDF y el XML
           </p>
-          <div style={{ background: CARD_BG, border: DIVIDER, borderRadius: 12, padding: 14, display: "grid", gap: 6, fontSize: 12.5 }}>
+
+          {/* Copiar TODOS los datos de facturación (texto ordenado, para WhatsApp, etc.). */}
+          <button type="button" onClick={handleCopyBilling} style={copyRow}>
+            <span style={{ fontSize: 12.5, fontWeight: 500, lineHeight: 1.4, color: copied ? "#86efac" : "#c084fc" }}>
+              {copied ? "¡Información copiada!" : "Da clic aquí para copiar la información al portapapeles"}
+            </span>
+            <span style={{ display: "inline-flex", flexShrink: 0, color: copied ? "#22c55e" : "#c084fc" }}>
+              {copied ? CHECK_ICON : COPY_ICON}
+            </span>
+          </button>
+
+          <div style={{ display: "grid", gap: 6, fontSize: 12.5 }}>
             <Row k="Receptor (RFC)" v={VIBRA_RECEPTOR.rfc} />
             <Row k="Razón social" v={VIBRA_RECEPTOR.name} />
             <Row k="CP" v={VIBRA_RECEPTOR.zip} />
             <Row k="Uso de CFDI" v={VIBRA_RECEPTOR.usoCfdi} />
-            <Row k="Importe" v={`${availableLabel} (subtotal + IVA − retenciones)`} />
           </div>
+
+          {/* Importe, desglosado clarito: subtotal + IVA = total. (Sin retenciones aún.) */}
+          <div style={{ display: "grid", gap: 8, fontSize: 12.5 }}>
+            <Row k="Subtotal" v={availableLabel} />
+            <Row k="IVA (16%)" v={ivaLabel} />
+            <div style={{ height: 1, background: "rgba(255,255,255,0.1)" }} />
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 10, fontSize: 13.5, fontWeight: 700 }}>
+              <span style={{ color: "rgba(255,255,255,0.85)" }}>Total a facturar</span>
+              <span style={{ color: "#fff" }}>{totalLabel}</span>
+            </div>
+          </div>
+
+          {/* Subida del PDF (texto morado = botón). */}
+          <div>
+            <input ref={pdfInputRef} type="file" accept=".pdf,application/pdf" style={{ display: "none" }} onChange={(e) => pickPdf(e.target.files?.[0] ?? null)} />
+            <button type="button" onClick={() => pdfInputRef.current?.click()} style={uploadLink}>
+              {pdf ? <FileChosen name={pdf.name} /> : "Da clic aquí para subir el PDF de tu factura"}
+            </button>
+            {pdfError && <div style={redNote}>{pdfError}</div>}
+          </div>
+
+          {/* Subida del XML (texto morado = botón). */}
+          <div>
+            <input ref={xmlInputRef} type="file" accept=".xml,text/xml,application/xml" style={{ display: "none" }} onChange={(e) => pickXml(e.target.files?.[0] ?? null)} />
+            <button type="button" onClick={() => xmlInputRef.current?.click()} style={uploadLink}>
+              {xml ? <FileChosen name={xml.name} /> : "Da clic aquí para subir el XML de tu factura"}
+            </button>
+            {xmlError && <div style={redNote}>{xmlError}</div>}
+          </div>
+
           {manualSaved && (
             <div style={{ fontSize: 12.5, color: "#86efac", background: "rgba(74,222,128,0.1)", border: "1px solid rgba(74,222,128,0.25)", borderRadius: 12, padding: "10px 12px" }}>
-              ✓ Datos guardados. La subida y validación de tu CFDI se habilita en el siguiente bloque.
+              ✓ Archivos listos. La validación de tu factura y el pago se habilitan en el siguiente bloque.
             </div>
           )}
-          <p style={{ fontSize: 11.5, color: "rgba(255,255,255,0.42)", lineHeight: 1.5, margin: 0 }}>
-            Los montos exactos (IVA y retenciones) según tu régimen se muestran aquí cuando quede confirmado el cálculo fiscal.
-          </p>
-          <div style={{ display: "flex", gap: 10 }}>
-            <button type="button" onClick={() => setView("method")} disabled={busy} style={secondaryBtn}>Atrás</button>
-            <button type="button" onClick={submitManualData} disabled={busy} style={primaryBtn(busy)}>
-              {busy ? "Guardando…" : "Guardar datos"}
-            </button>
-          </div>
+
+          <button type="button" onClick={submitManualInvoice} disabled={busy} style={primaryBtn(busy)}>
+            Enviar factura
+          </button>
         </div>
       );
     }
@@ -326,7 +487,7 @@ export default function WithdrawFiscalPanel({ open, onClose, uid, availableLabel
       </div>
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [view, loading, busy, hasData, manualSaved, taxId, legalName, taxSystem, regimenQuery, regimenOpen, zip, cer, keyFile, csdPass, consent, availableLabel, profile]);
+  }, [view, loading, busy, hasData, manualSaved, taxId, legalName, taxSystem, regimenQuery, regimenOpen, zip, cer, keyFile, cerError, keyError, pdf, xml, pdfError, xmlError, csdPass, showPass, consent, copied, availableLabel, ivaLabel, totalLabel, profile]);
 
   if (!open) return null;
   if (typeof document === "undefined") return null;
@@ -340,7 +501,7 @@ export default function WithdrawFiscalPanel({ open, onClose, uid, availableLabel
         background: "rgba(0,0,0,0.88)", fontFamily: "inherit",
       }}
     >
-      <style>{`@keyframes vibraFiscalPanelIn{from{opacity:0;transform:scale(0.94) translateY(10px)}to{opacity:1;transform:scale(1) translateY(0)}}`}</style>
+      <style>{`@keyframes vibraFiscalPanelIn{from{opacity:0;transform:scale(0.94) translateY(10px)}to{opacity:1;transform:scale(1) translateY(0)}}@keyframes vibraCheckPop{0%{transform:scale(0)}60%{transform:scale(1.25)}100%{transform:scale(1)}}`}</style>
       <section
         style={{
           width: "min(100%, 540px)", maxHeight: "min(88vh, 680px)", display: "flex", flexDirection: "column",
@@ -351,7 +512,19 @@ export default function WithdrawFiscalPanel({ open, onClose, uid, availableLabel
       >
         {/* Header: [vacío | título centrado | X] */}
         <div style={{ height: 56, display: "grid", gridTemplateColumns: "48px 1fr 48px", alignItems: "center", padding: "0 12px", borderBottom: DIVIDER, flexShrink: 0 }}>
-          <div aria-hidden="true" />
+          {view === "auto" || view === "manual" ? (
+            <button
+              type="button" onClick={() => setView("method")} disabled={busy} aria-label="Regresar"
+              style={{ border: "none", background: "none", color: "#fff", cursor: busy ? "default" : "pointer", display: "grid", placeItems: "center", justifySelf: "start", padding: 4 }}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12" />
+                <polyline points="12 19 5 12 12 5" />
+              </svg>
+            </button>
+          ) : (
+            <div aria-hidden="true" />
+          )}
           <span style={{ fontSize: 17, fontWeight: 500, color: "#fff", lineHeight: 1.2, textAlign: "center", letterSpacing: "-0.02em" }}>
             Retirar {availableLabel}
           </span>
@@ -381,6 +554,42 @@ export default function WithdrawFiscalPanel({ open, onClose, uid, availableLabel
   );
 }
 
+// Ojo (contraseña visible) y ojo tachado (oculta). Trazo currentColor.
+const EYE_ICON = (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" />
+    <circle cx="12" cy="12" r="3" />
+  </svg>
+);
+const EYE_OFF_ICON = (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-6.5 0-10-8-10-8a18.5 18.5 0 0 1 5.06-5.94" />
+    <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c6.5 0 10 8 10 8a18.5 18.5 0 0 1-2.16 3.19" />
+    <path d="M14.12 14.12a3 3 0 1 1-4.24-4.24" />
+    <line x1="2" y1="2" x2="22" y2="22" />
+  </svg>
+);
+
+// Archivo elegido: nombre en morado + paloma blanca en círculo verde (pop).
+function FileChosen({ name }: { name: string }) {
+  return (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 6, minWidth: 0 }}>
+      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 300 }}>{name}</span>
+      <span
+        style={{
+          flexShrink: 0, display: "inline-flex", alignItems: "center", justifyContent: "center",
+          width: 16, height: 16, borderRadius: "50%", background: "#16a34a",
+          animation: "vibraCheckPop 260ms cubic-bezier(0.34,1.56,0.64,1)",
+        }}
+      >
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth={4} strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="20 6 9 17 4 12" />
+        </svg>
+      </span>
+    </span>
+  );
+}
+
 function Row({ k, v }: { k: string; v: string }) {
   return (
     <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
@@ -398,20 +607,13 @@ function errMsg(e: unknown): string {
 // Botón primario del panel base (vibra_style.md): #a855ff, alto 42, radio 5.
 function primaryBtn(busy: boolean): React.CSSProperties {
   return {
-    flex: 1, height: 42, borderRadius: 5, border: "none",
+    width: "100%", height: 42, borderRadius: 5, border: "none",
     background: busy ? "rgba(255,255,255,0.1)" : "#a855ff",
     color: busy ? "rgba(255,255,255,0.36)" : "rgba(255,255,255,0.98)",
     fontSize: 17, fontWeight: 500, fontFamily: "inherit", letterSpacing: "-0.02em",
     cursor: busy ? "not-allowed" : "pointer", display: "grid", placeItems: "center",
   };
 }
-
-const secondaryBtn: React.CSSProperties = {
-  height: 42, borderRadius: 5, border: "1px solid rgba(255,255,255,0.18)",
-  background: "rgba(255,255,255,0.06)", color: "#fff",
-  fontSize: 15, fontWeight: 500, fontFamily: "inherit",
-  cursor: "pointer", padding: "0 18px", whiteSpace: "nowrap",
-};
 
 // Card de método: fila [ícono morado | texto]. Contorno gris MUY ligero para que
 // se note que son botones; el ícono va centrado a la altura total (alignItems: center).
@@ -431,6 +633,38 @@ const SUGGEST_BOX: React.CSSProperties = {
 const SUGGEST_ITEM: React.CSSProperties = {
   padding: "9px 12px", fontSize: 12.5, color: "rgba(255,255,255,0.85)",
   cursor: "pointer", lineHeight: 1.35,
+};
+
+// Ícono de copiar (dos hojas) y paloma, en currentColor.
+const COPY_ICON = (
+  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <rect x="9" y="9" width="13" height="13" rx="2" />
+    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+  </svg>
+);
+const CHECK_ICON = (
+  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <polyline points="20 6 9 17 4 12" />
+  </svg>
+);
+
+// Fila (botón) para copiar los datos de facturación: centrada, sin fondo.
+const copyRow: React.CSSProperties = {
+  display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+  background: "none", border: "none", padding: 0, cursor: "pointer",
+  fontFamily: "inherit", width: "100%",
+};
+
+// Texto morado que actúa como botón de subida de archivo.
+const uploadLink: React.CSSProperties = {
+  background: "none", border: "none", padding: 0, margin: 0, cursor: "pointer",
+  fontFamily: "inherit", fontSize: 14, fontWeight: 500, color: "#c084fc",
+  textAlign: "left", display: "inline-flex", alignItems: "center", maxWidth: "100%",
+};
+
+// Nota corta en rojo si el archivo no corresponde.
+const redNote: React.CSSProperties = {
+  marginTop: 4, fontSize: 11.5, color: "#fca5a5", lineHeight: 1.4,
 };
 
 const ICON_WRAP: React.CSSProperties = { flexShrink: 0, lineHeight: 0 };
