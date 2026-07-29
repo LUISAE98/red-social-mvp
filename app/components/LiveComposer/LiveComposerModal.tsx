@@ -268,7 +268,7 @@ export default function LiveComposerModal({
     const time = new Intl.DateTimeFormat("es-MX", { hour: "2-digit", minute: "2-digit" }).format(
       conflict.scheduledAt
     );
-    return `Ya tienes una ${label} agendada a las ${time}. Puedes continuar: el horario del live es solo una guía.`;
+    return tLive("composerScheduleConflict", { item: label, time });
   }, [day, month, year, hour, minute, period, walletCalendar, editPost?.id]);
 
   const isHiddenGroup = contextType === "group" && groupVisibility === "hidden";
@@ -655,7 +655,7 @@ export default function LiveComposerModal({
         style={{ display: "none" }}
         onChange={handleCoverFileChange}
       />
-      <label style={labelStyle}>Portada (opcional)</label>
+      <label style={labelStyle}>{tLive("composerCoverLabel")}</label>
       <button
         type="button"
         onClick={handleCoverClick}
@@ -696,12 +696,12 @@ export default function LiveComposerModal({
       </button>
 
       {/* Título */}
-      <label style={labelStyle}>Título *</label>
+      <label style={labelStyle}>{tLive("composerTitleLabel")}</label>
       <input
         type="text"
         value={title}
         onChange={(e) => setTitle(e.target.value)}
-        placeholder="¿De qué va a tratar tu live?"
+        placeholder={tLive("composerTitlePlaceholder")}
         disabled={saving}
         maxLength={120}
         style={inputStyle}
@@ -709,7 +709,7 @@ export default function LiveComposerModal({
       />
 
       {/* Descripción */}
-      <label style={labelStyle}>Descripción (opcional)</label>
+      <label style={labelStyle}>{tLive("composerDescriptionLabel")}</label>
       <textarea
         value={description}
         onChange={(e) => setDescription(e.target.value)}
@@ -721,7 +721,7 @@ export default function LiveComposerModal({
       />
 
       {/* Visibilidad */}
-      <label style={{ ...labelStyle, marginTop: 2 }}>¿Quién puede ver este live?</label>
+      <label style={{ ...labelStyle, marginTop: 2 }}>{tLive("composerVisibilityLabel")}</label>
       {isHiddenGroup ? (
         <div style={{
           display: "flex", alignItems: "center", gap: 10,
@@ -735,10 +735,10 @@ export default function LiveComposerModal({
           </svg>
           <div>
             <div style={{ fontSize: 13, fontWeight: 600, color: "rgba(255,255,255,0.6)", fontFamily: fontStack }}>
-              Solo miembros de la comunidad
+              {tLive("composerMembersOnly")}
             </div>
             <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", fontFamily: fontStack, marginTop: 1 }}>
-              Las comunidades ocultas no pueden tener lives públicos
+              {tLive("composerHiddenNoPublic")}
             </div>
           </div>
         </div>
@@ -904,7 +904,7 @@ export default function LiveComposerModal({
 
       {/* Fecha */}
       <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 10 }}>
-        <label style={labelStyle}>Fecha de inicio (opcional)</label>
+        <label style={labelStyle}>{tLive("composerStartDateLabel")}</label>
         <button
           type="button"
           onClick={() => setCalendarOpen(true)}
@@ -921,13 +921,13 @@ export default function LiveComposerModal({
             flexShrink: 0,
           }}
         >
-          Ver calendario
+          {tLive("composerViewCalendar")}
         </button>
       </div>
       <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
         <SelectWrapper>
           <select value={day} onChange={(e) => setDay(e.target.value)} disabled={saving} style={selectStyle} className="vibra-live-select">
-            <option value="">Día</option>
+            <option value="">{tLive("composerDay")}</option>
             {Array.from({ length: daysInMonth }, (_, i) => i + 1).map((d) => (
               <option key={d} value={String(d)}>{d}</option>
             ))}
@@ -944,7 +944,7 @@ export default function LiveComposerModal({
             style={selectStyle}
             className="vibra-live-select"
           >
-            <option value="">Mes</option>
+            <option value="">{tLive("composerMonth")}</option>
             {MONTHS.map((name, i) => (
               <option key={i + 1} value={String(i + 1)}>{name}</option>
             ))}
@@ -952,7 +952,7 @@ export default function LiveComposerModal({
         </SelectWrapper>
         <SelectWrapper>
           <select value={year} onChange={(e) => setYear(e.target.value)} disabled={saving} style={selectStyle} className="vibra-live-select">
-            <option value="">Año</option>
+            <option value="">{tLive("composerYear")}</option>
             {years.map((y) => (
               <option key={y} value={String(y)}>{y}</option>
             ))}
@@ -961,11 +961,11 @@ export default function LiveComposerModal({
       </div>
 
       {/* Hora */}
-      <label style={labelStyle}>Hora de inicio (opcional)</label>
+      <label style={labelStyle}>{tLive("composerStartTimeLabel")}</label>
       <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
         <SelectWrapper>
           <select value={hour} onChange={(e) => setHour(e.target.value)} disabled={saving} style={selectStyle} className="vibra-live-select">
-            <option value="">Hora</option>
+            <option value="">{tLive("composerHour")}</option>
             {Array.from({ length: 12 }, (_, i) => i + 1).map((h) => (
               <option key={h} value={String(h)}>{h}</option>
             ))}
@@ -973,7 +973,7 @@ export default function LiveComposerModal({
         </SelectWrapper>
         <SelectWrapper>
           <select value={minute} onChange={(e) => setMinute(e.target.value)} disabled={saving} style={selectStyle} className="vibra-live-select">
-            <option value="">Min</option>
+            <option value="">{tLive("composerMin")}</option>
             {["00","05","10","15","20","25","30","35","40","45","50","55"].map((m) => (
               <option key={m} value={m}>{m}</option>
             ))}
@@ -1010,7 +1010,7 @@ export default function LiveComposerModal({
 
       <ScheduleCalendarOverlay
         open={calendarOpen}
-        title="Tu calendario"
+        title={tLive("composerYourCalendar")}
         items={walletCalendar}
         excludeId={editPost?.id}
         selectedVariant="pink"
@@ -1068,7 +1068,7 @@ export default function LiveComposerModal({
                   <line x1="12" y1="17" x2="12.01" y2="17" />
                 </svg>
                 <span style={{ fontSize: 11, color: "#eab308", lineHeight: 1.5, fontFamily: fontStack }}>
-                  Al transmitir en un perfil o comunidad pública, tu live será visible para todos. La visibilidad se ha actualizado automáticamente.
+                  {tLive("composerPublicNotice")}
                 </span>
               </div>
             )}
