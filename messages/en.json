@@ -2067,7 +2067,18 @@
     "composerStartTimeLabel": "Start time (optional)",
     "composerYourCalendar": "Your calendar",
     "composerPublicNotice": "When broadcasting on a public profile or community, your live will be visible to everyone. Visibility was updated automatically.",
-    "composerScheduleConflict": "You already have {item} scheduled at {time}. You can continue: the live time is only a guide."
+    "composerScheduleConflict": "You already have {item} scheduled at {time}. You can continue: the live time is only a guide.",
+    "setupHowToBroadcast": "How do you want to broadcast this live?",
+    "setupFromVibra": "Broadcast from Vibra",
+    "setupUseDevice": "Use this device's camera and microphone",
+    "setupPreparing": "Preparing broadcast...",
+    "setupOpenControlPanel": "Open control panel to start broadcasting",
+    "setupHowToObs": "How to set up OBS",
+    "setupConfigure": "Set up broadcast",
+    "setupError": "Error setting up the broadcast.",
+    "reveal": "Show",
+    "hide": "Hide",
+    "setupCredsError": "Could not load the credentials."
   },
   "completeProfile": {
     "title": "Complete your profile",

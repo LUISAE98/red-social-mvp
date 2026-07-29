@@ -2067,7 +2067,18 @@
     "composerStartTimeLabel": "Hora de inicio (opcional)",
     "composerYourCalendar": "Tu calendario",
     "composerPublicNotice": "Al transmitir en un perfil o comunidad pública, tu live será visible para todos. La visibilidad se ha actualizado automáticamente.",
-    "composerScheduleConflict": "Ya tienes {item} agendada a las {time}. Puedes continuar: el horario del live es solo una guía."
+    "composerScheduleConflict": "Ya tienes {item} agendada a las {time}. Puedes continuar: el horario del live es solo una guía.",
+    "setupHowToBroadcast": "¿Cómo quieres transmitir este live?",
+    "setupFromVibra": "Transmitir desde Vibra",
+    "setupUseDevice": "Usa la cámara y el micrófono de este dispositivo",
+    "setupPreparing": "Preparando transmisión...",
+    "setupOpenControlPanel": "Abrir panel de control para iniciar transmisión",
+    "setupHowToObs": "Cómo configurar OBS",
+    "setupConfigure": "Configurar transmisión",
+    "setupError": "Error al configurar la transmisión.",
+    "reveal": "Ver",
+    "hide": "Ocultar",
+    "setupCredsError": "No se pudieron cargar las credenciales."
   },
   "completeProfile": {
     "title": "Completa tu perfil",

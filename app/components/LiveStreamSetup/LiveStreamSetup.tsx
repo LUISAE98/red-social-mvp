@@ -33,6 +33,7 @@ type Credentials = {
 };
 
 function CopyButton({ value }: { value: string }) {
+  const tLive = useTranslations("live");
   const [copied, setCopied] = useState(false);
 
   async function handleCopy() {
@@ -64,12 +65,13 @@ function CopyButton({ value }: { value: string }) {
         whiteSpace: "nowrap",
       }}
     >
-      {copied ? "¡Copiado!" : "Copiar"}
+      {copied ? tLive("copied") : tLive("copy")}
     </button>
   );
 }
 
 function CredentialRow({ label, value, secret }: { label: string; value: string; secret?: boolean }) {
+  const tLive = useTranslations("live");
   const [revealed, setRevealed] = useState(!secret);
 
   return (
@@ -108,7 +110,7 @@ function CredentialRow({ label, value, secret }: { label: string; value: string;
                 fontSize: 12, fontFamily: fontStack, cursor: "pointer",
               }}
             >
-              {revealed ? "Ocultar" : "Ver"}
+              {revealed ? tLive("hide") : tLive("reveal")}
             </button>
           )}
           <CopyButton value={value} />
@@ -128,6 +130,7 @@ export default function LiveStreamSetup({
   onOpenCreatorPanel,
 }: Props) {
   const tCommon = useTranslations("common");
+  const tLive = useTranslations("live");
   const [mounted, setMounted] = useState(false);
   const [shouldRender, setShouldRender] = useState(open);
   const [isDesktop, setIsDesktop] = useState(false);
@@ -194,7 +197,7 @@ export default function LiveStreamSetup({
       const creds = await fetchLiveStreamCredentials(postId);
       setCredentials(creds);
     } catch {
-      setError("No se pudieron cargar las credenciales.");
+      setError(tLive("setupCredsError"));
     } finally {
       setLoadingCreds(false);
     }
@@ -220,7 +223,7 @@ export default function LiveStreamSetup({
         await loadCredentials();
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Error al configurar la transmisión.");
+      setError(e instanceof Error ? e.message : tLive("setupError"));
       setSelectedMode(null);
     } finally {
       setCreating(false);
@@ -293,7 +296,7 @@ export default function LiveStreamSetup({
             pointerEvents: creating ? "none" : "auto",
           }}>
             <p style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", fontFamily: fontStack, marginBottom: 16, lineHeight: 1.5 }}>
-              ¿Cómo quieres transmitir este live?
+              {tLive("setupHowToBroadcast")}
             </p>
 
             <button
@@ -320,8 +323,8 @@ export default function LiveStreamSetup({
                 </svg>
               </div>
               <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: 14, fontWeight: 600, color: "#fff", fontFamily: fontStack }}>Transmitir desde Vibra</div>
-                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", fontFamily: fontStack, marginTop: 2 }}>Usa la cámara y el micrófono de este dispositivo</div>
+                <div style={{ fontSize: 14, fontWeight: 600, color: "#fff", fontFamily: fontStack }}>{tLive("setupFromVibra")}</div>
+                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", fontFamily: fontStack, marginTop: 2 }}>{tLive("setupUseDevice")}</div>
               </div>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.3)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginLeft: "auto" }}>
                 <polyline points="9 18 15 12 9 6" />
@@ -373,7 +376,7 @@ export default function LiveStreamSetup({
             }}>
               <div className="vibraPullRefreshSpinner refreshing" style={{ width: 40, height: 40 }} />
               <span style={{ fontSize: 13, color: "rgba(255,255,255,0.45)", fontFamily: fontStack }}>
-                Preparando transmisión...
+                {tLive("setupPreparing")}
               </span>
             </div>
           )}
@@ -415,7 +418,7 @@ export default function LiveStreamSetup({
                   color: "#fff", fontSize: 14, fontWeight: 600, fontFamily: fontStack, cursor: "pointer",
                 }}
               >
-                Abrir panel de control para iniciar transmisión
+                {tLive("setupOpenControlPanel")}
               </button>
             )}
             <button
@@ -477,7 +480,7 @@ export default function LiveStreamSetup({
               <div style={{ borderTop: "1px solid rgba(255,255,255,0.07)", margin: "20px 0" }} />
               <div style={{ marginBottom: 4 }}>
                 <p style={{ fontSize: 12, fontWeight: 600, letterSpacing: "0.04em", textTransform: "uppercase", color: "rgba(255,255,255,0.35)", fontFamily: fontStack, marginBottom: 14 }}>
-                  Cómo configurar OBS
+                  {tLive("setupHowToObs")}
                 </p>
                 {[
                   "Abre OBS.",
@@ -513,7 +516,7 @@ export default function LiveStreamSetup({
                     color: "#fff", fontSize: 14, fontWeight: 600, fontFamily: fontStack, cursor: "pointer",
                   }}
                 >
-                  Abrir panel de control para iniciar transmisión
+                  {tLive("setupOpenControlPanel")}
                 </button>
               )}
             </>
@@ -610,7 +613,7 @@ export default function LiveStreamSetup({
                 fontSize: 17, fontWeight: 500, color: "#fff",
                 lineHeight: 1.2, textAlign: "center", letterSpacing: "-0.02em",
               }}>
-                Configurar transmisión
+                {tLive("setupConfigure")}
               </span>
               <button
                 type="button"
@@ -700,7 +703,7 @@ export default function LiveStreamSetup({
                     lineHeight: 1.2,
                     color: "#fff",
                   }}>
-                    Configurar transmisión
+                    {tLive("setupConfigure")}
                   </h3>
                   <button
                     type="button"
