@@ -51,7 +51,7 @@ export default function PostSaveButton({
       ].join(" ")}
     >
       <span aria-hidden="true" className="inline-flex leading-none">
-        <VibraSavedPostIcon saved={saved} size={20} color="#a855ff" />
+        <VibraSavedPostIcon saved={saved} size={20} color="#a855f7" />
       </span>
 
       <span className="min-w-[1ch] tabular-nums text-neutral-400">

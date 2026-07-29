@@ -118,7 +118,7 @@ export default function GroupsSearchToolbar({
   background: linear-gradient(
     100deg,
     #ff2fb3 0%,
-    #a855ff 45%,
+    #a855f7 45%,
     #4f46ff 100%
   );
   background-size: 220% 220%;
@@ -206,7 +206,7 @@ export default function GroupsSearchToolbar({
           padding: 0;
           border-radius: 10px;
           border: none;
-          background: linear-gradient(100deg, #ff2fb3 0%, #a855ff 52%, #4f46ff 100%);
+          background: linear-gradient(100deg, #ff2fb3 0%, #a855f7 52%, #4f46ff 100%);
           color: #fff;
           cursor: pointer;
           font-weight: 600;

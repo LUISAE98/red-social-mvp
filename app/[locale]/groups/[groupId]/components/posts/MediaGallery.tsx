@@ -514,7 +514,7 @@ const MEDIA_GRID_CSS = `
   justify-content: center;
   height: 34px;
   border-radius: 10px;
-  background: linear-gradient(135deg, #4f46ff, #a855ff, #ff2fb3);
+  background: linear-gradient(135deg, #4f46ff, #a855f7, #ff2fb3);
   color: #fff;
   font-size: 12px;
   font-weight: 600;

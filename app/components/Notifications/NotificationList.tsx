@@ -63,7 +63,7 @@ function Avatar({ n }: { n: AppNotification }) {
           object-fit: cover;
         }
         .notifAvatarFallback {
-          color: #a855ff;
+          color: #a855f7;
           font-weight: 800;
           font-size: 18px;
         }
@@ -75,7 +75,7 @@ function Avatar({ n }: { n: AppNotification }) {
 /** Escudo de verificación (KYC): verde aprobado, rojo rechazado, morado en proceso. */
 function KycAvatar({ status }: { status?: string | null }) {
   const color =
-    status === "approved" ? "#22c55e" : status === "declined" ? "#ef4444" : "#a855ff";
+    status === "approved" ? "#22c55e" : status === "declined" ? "#ef4444" : "#a855f7";
   return (
     <span
       style={{
@@ -172,7 +172,7 @@ function JoinRequestActions({ groupId, userId }: { groupId: string; userId: stri
           cursor: default;
         }
         .jrApprove {
-          background: #a855ff;
+          background: #a855f7;
           color: #fff;
         }
         .jrApprove:hover:not(:disabled) {
@@ -475,7 +475,7 @@ export default function NotificationList({
               .notifItem :global(.notifViewRequests) {
                 font-size: 13px;
                 font-weight: 600;
-                color: #a855ff;
+                color: #a855f7;
                 text-decoration: none;
                 width: fit-content;
               }

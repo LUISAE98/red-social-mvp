@@ -904,7 +904,7 @@ to {
           flex-shrink: 0;
           background: none;
           border: none;
-          color: #a855ff;
+          color: #a855f7;
           font-weight: 600;
           font-size: 13px;
           cursor: pointer;
@@ -1060,7 +1060,7 @@ to {
           height: 42px;
           border: none;
           border-radius: 5px;
-          background: #a855ff;
+          background: #a855f7;
           color: rgba(255, 255, 255, 0.98);
           cursor: pointer;
           font-weight: 500;

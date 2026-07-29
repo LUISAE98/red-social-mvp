@@ -12,7 +12,7 @@ import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 
 const btnPrimary: React.CSSProperties = {
   width: "100%", height: 42, borderRadius: 5, border: "none",
-  background: "#a855ff", color: "rgba(255,255,255,0.98)",
+  background: "#a855f7", color: "rgba(255,255,255,0.98)",
   fontSize: 17, fontWeight: 500, cursor: "pointer",
   fontFamily: "inherit", letterSpacing: "-0.02em", display: "grid", placeItems: "center",
 };
@@ -121,7 +121,7 @@ export default function BuyerGreetingRequestOverlay({ item, sourceName, sourceAv
   const req = item.data;
   const typeLabel = getTypeLabel(req.type, tWallet);
   const bgImage = req.type === "consejo" ? "/consejo.webp" : "/saludo.webp";
-  const retryBtnBg = req.type === "consejo" ? "rgba(250,204,21,0.85)" : req.type === "mensaje" ? "rgba(96,165,250,0.85)" : "#a855ff";
+  const retryBtnBg = req.type === "consejo" ? "rgba(250,204,21,0.85)" : req.type === "mensaje" ? "rgba(96,165,250,0.85)" : "#a855f7";
   const retryBtnColor = req.type === "consejo" ? "#111" : "#fff";
   const priceColor = req.type === "consejo" ? "#fde047" : req.type === "mensaje" ? "#93c5fd" : "#d8b4fe";
   const createdAt = req.createdAt as { toDate: () => Date } | undefined;

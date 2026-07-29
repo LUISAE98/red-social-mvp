@@ -450,7 +450,7 @@ export default function LiveStreamSetup({
                 disabled={creating}
                 style={{
                   padding: "12px 28px", borderRadius: 10, border: "none",
-                  background: creating ? "rgba(168,85,255,0.35)" : "linear-gradient(135deg,#a855ff,#7c3aed)",
+                  background: creating ? "rgba(168,85,255,0.35)" : "linear-gradient(135deg,#a855f7,#7c3aed)",
                   color: "#fff", fontSize: 14, fontWeight: 600, fontFamily: fontStack,
                   cursor: creating ? "not-allowed" : "pointer",
                 }}

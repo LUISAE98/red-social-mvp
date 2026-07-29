@@ -393,8 +393,8 @@ export default function PostComposerMobileOverlay({
             height: 22px;
             border-radius: 999px;
             border: 2px solid rgba(168,85,255,0.22);
-            border-top-color: #a855ff;
-            border-right-color: #a855ff;
+            border-top-color: #a855f7;
+            border-right-color: #a855f7;
             animation: vibra-publish-spinner-spin 760ms linear infinite;
             box-sizing: border-box;
           }
@@ -509,7 +509,7 @@ export default function PostComposerMobileOverlay({
             ? "transparent"
             : disabledPublish
               ? "rgba(255,255,255,0.1)"
-              : "#a855ff",
+              : "#a855f7",
         color:
           disabledPublish && !isPublishIconState
             ? "rgba(255,255,255,0.36)"
@@ -693,7 +693,7 @@ export default function PostComposerMobileOverlay({
                     borderRadius: 0,
                     border: "none",
                     background: "transparent",
-                    color: "#a855ff",
+                    color: "#a855f7",
                     display: "grid",
                     placeItems: "center",
                     cursor: creating || isPreparingImages ? "not-allowed" : "pointer",
@@ -721,7 +721,7 @@ export default function PostComposerMobileOverlay({
                       borderRadius: 0,
                       border: "none",
                       background: "transparent",
-                      color: "#a855ff",
+                      color: "#a855f7",
                       display: "grid",
                       placeItems: "center",
                       cursor: creating ? "not-allowed" : "pointer",
@@ -748,7 +748,7 @@ export default function PostComposerMobileOverlay({
                       border: "none",
                       borderRadius: 5,
                       padding: "0 13px",
-                      background: "linear-gradient(135deg, #4f46ff, #a855ff, #ff2fb3)",
+                      background: "linear-gradient(135deg, #4f46ff, #a855f7, #ff2fb3)",
                       color: "#fff",
                       fontSize: 13,
                       fontWeight: 500,
@@ -965,7 +965,7 @@ export default function PostComposerMobileOverlay({
                                   padding: "0 8px",
                                   borderRadius: 0,
                                   border: "none",
-                                  background: "#a855ff",
+                                  background: "#a855f7",
                                   color: "rgba(255,255,255,0.98)",
                                   fontSize: 12,
                                   fontWeight: 500,

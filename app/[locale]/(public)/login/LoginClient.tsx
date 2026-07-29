@@ -24,7 +24,7 @@ import LegalLinksFooter from "@/app/components/legal/LegalLinksFooter";
 import RegisterPanel from "@/app/[locale]/(public)/register/RegisterPanel";
 
 const vibraPink = "#ff2fb3";
-const vibraPurple = "#a855ff";
+const vibraPurple = "#a855f7";
 const vibraBlue = "#4f46ff";
 
 function friendlyAuthErrorKey(err: unknown): string {
@@ -256,10 +256,11 @@ function backToLogin() {
   goTo("login");
 }
 
-// Registro exitoso desde la tarjeta: el usuario queda logueado y pasa al
-// onboarding de perfil (portada/bio/tags), igual que el alta por Google.
+// Registro exitoso desde la tarjeta: el alta captura todo en un paso (foto,
+// portada, bio, tags) y el usuario queda logueado → directo al feed.
 function handleRegistered() {
-  router.replace(`/complete-profile?next=${encodeURIComponent(nextPath)}`);
+  startAuthTransition("entering");
+  router.replace(nextPath);
 }
 
   const fontStack =
@@ -546,7 +547,7 @@ body.loginPageBg {
   background: linear-gradient(
     100deg,
     #ff2fb3 0%,
-    #a855ff 45%,
+    #a855f7 45%,
     #4f46ff 100%
   );
   background-size: 220% 220%;

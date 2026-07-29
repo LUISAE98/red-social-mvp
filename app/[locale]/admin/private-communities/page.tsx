@@ -257,7 +257,7 @@ export default function PrivateCommunitiesPage() {
             style={{
               padding: "5px 12px",
               borderRadius: 6,
-              border: `1px solid ${tab === t.key ? (t.key === "deleted" ? "#7c1d1d" : "#a855ff") : "#2a2a2a"}`,
+              border: `1px solid ${tab === t.key ? (t.key === "deleted" ? "#7c1d1d" : "#a855f7") : "#2a2a2a"}`,
               background: tab === t.key ? (t.key === "deleted" ? "#1a0505" : "#1a0a2a") : "transparent",
               color: tab === t.key ? (t.key === "deleted" ? "#fca5a5" : "#d8b4fe") : "#555",
               fontSize: 12,

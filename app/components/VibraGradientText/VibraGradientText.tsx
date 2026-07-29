@@ -34,7 +34,7 @@ export default function VibraGradientText({
           background: linear-gradient(
             100deg,
             #ff2fb3 0%,
-            #a855ff 45%,
+            #a855f7 45%,
             #4f46ff 100%
           );
           background-size: 220% 220%;

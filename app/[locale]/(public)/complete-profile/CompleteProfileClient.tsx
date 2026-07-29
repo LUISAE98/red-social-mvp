@@ -15,8 +15,6 @@ import {
 } from "@/lib/auth/profileOnboarding";
 import { enablePush, isPushSupported } from "@/lib/push/fcm";
 import { uploadProfileImage } from "@/lib/storage/uploadProfileImage";
-import { updateProfileInterests } from "@/lib/profile/updateProfileInterests";
-import type { CanonicalGroupCategory } from "@/types/group";
 import CompleteProfilePanel from "./CompleteProfilePanel";
 
 export default function CompleteProfileClient() {
@@ -28,15 +26,15 @@ export default function CompleteProfileClient() {
 
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [checkingAuth, setCheckingAuth] = useState(true);
-  // ¿El usuario YA tiene doc de perfil? (alta por email) → solo onboarding
-  // (portada/bio/tags). Si NO (Google nuevo) → además pide handle/nombre y crea.
+  // ¿El usuario YA tiene doc? (defensivo). El flujo normal a este panel es
+  // "Google nuevo sin doc" → crear. Si ya existe, solo actualiza.
   const [hasProfile, setHasProfile] = useState(false);
 
   const [handle, setHandle] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [bio, setBio] = useState("");
-  const [selectedTags, setSelectedTags] = useState<CanonicalGroupCategory[]>([]);
+  const [avatarBlob, setAvatarBlob] = useState<Blob | null>(null);
   const [coverBlob, setCoverBlob] = useState<Blob | null>(null);
 
   const [msg, setMsg] = useState<string | null>(null);
@@ -81,19 +79,12 @@ export default function CompleteProfileClient() {
         return;
       }
 
-      // ¿Ya existe el doc? (alta por email lo creó en el registro.)
       try {
         const snap = await getDoc(doc(db, "users", user.uid));
         if (snap.exists()) {
-          const data = snap.data() as {
-            bio?: string;
-            interests?: CanonicalGroupCategory[];
-          };
+          const data = snap.data() as { bio?: string };
           setHasProfile(true);
           setBio((prev) => prev || data.bio || "");
-          setSelectedTags((prev) =>
-            prev.length ? prev : (data.interests ?? [])
-          );
         } else {
           // Usuario nuevo de Google: prellenamos identidad con lo de Google.
           setHasProfile(false);
@@ -107,7 +98,6 @@ export default function CompleteProfileClient() {
           if (emailPrefix) setHandle((prev) => prev || normalizeHandle(emailPrefix));
         }
       } catch {
-        // Si falla la lectura, asumimos usuario nuevo (pide identidad).
         setHasProfile(false);
       }
 
@@ -116,14 +106,6 @@ export default function CompleteProfileClient() {
 
     return () => unsubscribe();
   }, [nextPath, router]);
-
-  function toggleTag(category: CanonicalGroupCategory) {
-    setSelectedTags((prev) =>
-      prev.includes(category)
-        ? prev.filter((c) => c !== category)
-        : [...prev, category]
-    );
-  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -135,7 +117,6 @@ export default function CompleteProfileClient() {
     }
     const uid = currentUser.uid;
 
-    // Validación de identidad solo cuando se pide (Google nuevo).
     if (!hasProfile) {
       const normalizedHandle = normalizeHandle(handle);
       const fn = cleanName(firstName);
@@ -158,39 +139,47 @@ export default function CompleteProfileClient() {
     setLoading(true);
 
     try {
+      // Sube foto/portada (opcionales) mientras la cuenta está autenticada.
+      let photoURL: string | undefined;
+      let coverUrl: string | null = null;
+      if (avatarBlob) {
+        try {
+          photoURL = await uploadProfileImage(uid, "avatar", avatarBlob);
+        } catch {
+          /* opcional */
+        }
+      }
+      if (coverBlob) {
+        try {
+          coverUrl = await uploadProfileImage(uid, "cover", coverBlob);
+        } catch {
+          /* opcional */
+        }
+      }
+
       if (!hasProfile) {
-        // Crea el doc (misma fuente unificada, vía completeGoogleProfile).
+        // Crea el doc. Si no subió foto, createUserProfileDoc usa la de Google.
         await completeGoogleProfile(db, {
           user: currentUser,
           handle: normalizeHandle(handle),
           firstName: cleanName(firstName),
           lastName: cleanName(lastName),
           bio,
+          photoURL,
+          coverUrl,
         });
       } else {
-        // Ya existe (alta por email): solo actualizamos la bio.
+        // Ya existe: actualizamos en updates SEPARADOS (las reglas validan cada
+        // grupo de campos por separado: bio | photoURL+coverUrl).
         await updateDoc(doc(db, "users", uid), {
           bio: bio.trim(),
           updatedAt: serverTimestamp(),
         });
-      }
-
-      // Portada: subir + guardar coverUrl (el doc ya existe en ambos caminos).
-      if (coverBlob) {
-        try {
-          const coverUrl = await uploadProfileImage(uid, "cover", coverBlob);
-          await updateDoc(doc(db, "users", uid), { coverUrl });
-        } catch {
-          /* portada opcional */
-        }
-      }
-
-      // Intereses (tags): callable que valida y reconstruye el índice de búsqueda.
-      if (selectedTags.length > 0) {
-        try {
-          await updateProfileInterests(selectedTags);
-        } catch {
-          /* no bloquear el onboarding si falla */
+        if (photoURL || coverUrl) {
+          const imgUpdate: Record<string, unknown> = { updatedAt: serverTimestamp() };
+          if (photoURL) imgUpdate.photoURL = photoURL;
+          if (coverUrl) imgUpdate.coverUrl = coverUrl;
+          await updateDoc(doc(db, "users", uid), imgUpdate);
         }
       }
 
@@ -243,11 +232,11 @@ export default function CompleteProfileClient() {
         onHandleChange={(v) => setHandle(normalizeHandle(v))}
         onFirstNameChange={setFirstName}
         onLastNameChange={setLastName}
+        initialPhotoUrl={currentUser?.photoURL ?? null}
+        onAvatarBlobChange={setAvatarBlob}
         onCoverBlobChange={setCoverBlob}
         bio={bio}
         onBioChange={setBio}
-        selectedTags={selectedTags}
-        onToggleTag={toggleTag}
         notifOn={notifOn}
         onToggleNotif={() => setNotifOn((v) => !v)}
         pushSupported={pushSupported}

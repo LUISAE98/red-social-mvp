@@ -95,7 +95,7 @@ function Switch({
         borderRadius: 999,
         border: "1px solid rgba(255,255,255,0.18)",
         background: checked
-          ? "linear-gradient(100deg, #a855ff, #4f46ff)"
+          ? "linear-gradient(100deg, #a855f7, #4f46ff)"
           : "rgba(255,255,255,0.10)",
         padding: 0,
         cursor: disabled ? "not-allowed" : "pointer",
@@ -484,13 +484,13 @@ export default function ProfileGroupsTab({
                     cx="12"
                     cy="12"
                     r="9"
-                    stroke="#a855ff"
+                    stroke="#a855f7"
                     strokeWidth="2"
                   />
-                  <circle cx="12" cy="8" r="1.25" fill="#a855ff" />
+                  <circle cx="12" cy="8" r="1.25" fill="#a855f7" />
                   <path
                     d="M12 11.25v5"
-                    stroke="#a855ff"
+                    stroke="#a855f7"
                     strokeWidth="2"
                     strokeLinecap="round"
                   />

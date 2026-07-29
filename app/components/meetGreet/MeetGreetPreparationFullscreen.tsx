@@ -413,7 +413,7 @@ export default function MeetGreetPreparationFullscreen({
                         }}
                         style={{
                           width: "100%", height: 42, borderRadius: 5, border: "none",
-                          background: "#a855ff", color: "rgba(255,255,255,0.98)",
+                          background: "#a855f7", color: "rgba(255,255,255,0.98)",
                           fontSize: 15, fontWeight: 500, fontFamily: "inherit",
                           cursor: "pointer", letterSpacing: "-0.02em",
                           display: "grid", placeItems: "center",
@@ -452,7 +452,7 @@ export default function MeetGreetPreparationFullscreen({
                 background: "rgba(168,85,255,0.15)",
                 display: "flex", alignItems: "center", justifyContent: "center",
               }}>
-                <svg width={28} height={28} viewBox="0 0 24 24" fill="none" stroke="#a855ff" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <svg width={28} height={28} viewBox="0 0 24 24" fill="none" stroke="#a855f7" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                   <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
                   <polyline points="7 10 12 15 17 10"/>
                   <line x1="12" y1="15" x2="12" y2="3"/>
@@ -476,7 +476,7 @@ export default function MeetGreetPreparationFullscreen({
                 disabled={dlBusy}
                 style={{
                   width: "100%", height: 42, borderRadius: 5, border: "none",
-                  background: dlBusy ? "rgba(168,85,255,0.5)" : "#a855ff",
+                  background: dlBusy ? "rgba(168,85,255,0.5)" : "#a855f7",
                   color: "rgba(255,255,255,0.98)",
                   fontSize: 15, fontWeight: 500, fontFamily: "inherit",
                   cursor: dlBusy ? "not-allowed" : "pointer", letterSpacing: "-0.02em",
@@ -544,7 +544,7 @@ export default function MeetGreetPreparationFullscreen({
             height={68}
             viewBox="0 0 24 24"
             fill="none"
-            stroke="#a855ff"
+            stroke="#a855f7"
             strokeWidth={1.5}
             strokeLinecap="round"
             strokeLinejoin="round"

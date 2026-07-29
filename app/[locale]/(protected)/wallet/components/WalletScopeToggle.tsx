@@ -52,7 +52,7 @@ export default function WalletScopeToggle({
                 whiteSpace: "nowrap",
                 color: active ? "#fff" : "rgba(255,255,255,0.6)",
                 background: active
-                  ? "linear-gradient(135deg, #4f46ff, #a855ff)"
+                  ? "linear-gradient(135deg, #4f46ff, #a855f7)"
                   : "transparent",
                 transition: "color 150ms ease, background 150ms ease",
               }}

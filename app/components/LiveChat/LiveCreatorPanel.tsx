@@ -1531,7 +1531,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
               aria-hidden="true"
               style={{
                 width: 40, height: 22, borderRadius: 11,
-                background: scEnabled ? "#a855ff" : "transparent",
+                background: scEnabled ? "#a855f7" : "transparent",
                 boxShadow: scEnabled ? "none" : "inset 0 0 0 1.5px rgba(168,85,255,0.3)",
                 position: "relative", display: "inline-block",
                 transition: "background 0.18s",
@@ -1783,7 +1783,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
               aria-hidden="true"
               style={{
                 width: 40, height: 22, borderRadius: 11,
-                background: chatEnabled ? "#a855ff" : "transparent",
+                background: chatEnabled ? "#a855f7" : "transparent",
                 boxShadow: chatEnabled ? "none" : "inset 0 0 0 1.5px rgba(168,85,255,0.3)",
                 position: "relative", display: "inline-block",
                 transition: "background 0.18s",

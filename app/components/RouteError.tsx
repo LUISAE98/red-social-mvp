@@ -67,7 +67,7 @@ export default function RouteError({ error, reset, scope = "route" }: Props) {
           fontSize: 14,
           fontWeight: 600,
           color: "#fff",
-          background: "linear-gradient(100deg, #ff2fb3 0%, #a855ff 45%, #4f46ff 100%)",
+          background: "linear-gradient(100deg, #ff2fb3 0%, #a855f7 45%, #4f46ff 100%)",
           border: "none",
           borderRadius: 999,
           cursor: "pointer",

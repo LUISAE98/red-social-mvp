@@ -11,7 +11,7 @@ type VibraSavedPostIconProps = {
 export default function VibraSavedPostIcon({
   saved = false,
   size = 20,
-  color = "#a855ff",
+  color = "#a855f7",
   className,
   style,
 }: VibraSavedPostIconProps) {

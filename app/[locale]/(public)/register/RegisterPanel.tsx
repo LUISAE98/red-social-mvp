@@ -22,7 +22,7 @@ import ImageCropperModal from "@/components/media/ImageCropperModal";
 import { uploadProfileImage } from "@/lib/storage/uploadProfileImage";
 
 const vibraPink = "#ff2fb3";
-const vibraPurple = "#a855ff";
+const vibraPurple = "#a855f7";
 const vibraBlue = "#4f46ff";
 
 type Sex = "male" | "female" | "other" | "prefer_not_say";
@@ -147,7 +147,7 @@ export default function RegisterPanel({
   const t = useTranslations("auth.register");
   // El copy del switch de notificaciones se reutiliza del panel de completar
   // perfil (misma feature, mismo texto) en vez de duplicar claves.
-  const tNotif = useTranslations("completeProfile");
+  const tCP = useTranslations("completeProfile");
   const locale = useLocale();
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -163,7 +163,7 @@ export default function RegisterPanel({
 
   // Notificaciones: activadas por defecto al crear la cuenta (igual que en
   // completar perfil). El bloque solo se muestra si el navegador las soporta.
-  const [notifOn, setNotifOn] = useState(true);
+  const [notifOn, setCPOn] = useState(true);
   const [pushSupported, setPushSupported] = useState(false);
 
   useEffect(() => {
@@ -176,31 +176,45 @@ export default function RegisterPanel({
     };
   }, []);
 
-  // Avatar: se recorta ANTES de que exista la cuenta; guardamos el blob y lo
-  // subimos tras crear el usuario (dentro del gesto del submit).
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  // Foto y portada: se recortan ANTES de que exista la cuenta; guardamos los
+  // blobs y los subimos tras crear el usuario (dentro del gesto del submit).
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+  const coverInputRef = useRef<HTMLInputElement>(null);
   const [avatarBlob, setAvatarBlob] = useState<Blob | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [coverBlob, setCoverBlob] = useState<Blob | null>(null);
+  const [coverPreview, setCoverPreview] = useState<string | null>(null);
   const [cropSrc, setCropSrc] = useState<string | null>(null);
   const [cropOpen, setCropOpen] = useState(false);
+  const [cropMode, setCropMode] = useState<"avatar" | "cover">("avatar");
+
+  // Bio (opcional): se guarda al crear la cuenta.
+  const [bio, setBio] = useState("");
 
   // Revoca las object URLs al desmontar para no filtrar memoria.
   const avatarPreviewRef = useRef<string | null>(null);
   avatarPreviewRef.current = avatarPreview;
+  const coverPreviewRef = useRef<string | null>(null);
+  coverPreviewRef.current = coverPreview;
   const cropSrcRef = useRef<string | null>(null);
   cropSrcRef.current = cropSrc;
   useEffect(
     () => () => {
       if (avatarPreviewRef.current) URL.revokeObjectURL(avatarPreviewRef.current);
+      if (coverPreviewRef.current) URL.revokeObjectURL(coverPreviewRef.current);
       if (cropSrcRef.current) URL.revokeObjectURL(cropSrcRef.current);
     },
     []
   );
 
-  function onAvatarFileSelected(e: React.ChangeEvent<HTMLInputElement>) {
+  function onPickImage(
+    e: React.ChangeEvent<HTMLInputElement>,
+    mode: "avatar" | "cover"
+  ) {
     const file = e.target.files?.[0];
     e.target.value = ""; // permite reelegir el mismo archivo
     if (!file) return;
+    setCropMode(mode);
     setCropSrc(URL.createObjectURL(file));
     setCropOpen(true);
   }
@@ -214,9 +228,15 @@ export default function RegisterPanel({
   }
 
   function handleCropConfirm(blob: Blob) {
-    if (avatarPreview) URL.revokeObjectURL(avatarPreview);
-    setAvatarBlob(blob);
-    setAvatarPreview(URL.createObjectURL(blob));
+    if (cropMode === "avatar") {
+      if (avatarPreview) URL.revokeObjectURL(avatarPreview);
+      setAvatarBlob(blob);
+      setAvatarPreview(URL.createObjectURL(blob));
+    } else {
+      if (coverPreview) URL.revokeObjectURL(coverPreview);
+      setCoverBlob(blob);
+      setCoverPreview(URL.createObjectURL(blob));
+    }
     closeCrop();
   }
 
@@ -299,14 +319,22 @@ export default function RegisterPanel({
       const cred = await createUserWithEmailAndPassword(auth, email.trim(), password);
       const uid = cred.user.uid;
 
-      // Sube la foto (si eligió una) mientras la cuenta recién creada está
-      // autenticada; la foto es opcional, si falla seguimos el alta sin ella.
+      // Sube foto y portada (opcionales) mientras la cuenta recién creada está
+      // autenticada; si falla alguna, seguimos el alta sin ella.
       let photoURL: string | null = null;
+      let coverUrl: string | null = null;
       if (avatarBlob) {
         try {
           photoURL = await uploadProfileImage(uid, "avatar", avatarBlob);
         } catch {
-          /* opcional: continuamos sin foto */
+          /* opcional */
+        }
+      }
+      if (coverBlob) {
+        try {
+          coverUrl = await uploadProfileImage(uid, "cover", coverBlob);
+        } catch {
+          /* opcional */
         }
       }
 
@@ -321,6 +349,8 @@ export default function RegisterPanel({
         sex,
         provider: "password",
         photoURL,
+        coverUrl,
+        bio,
       });
 
       await sendEmailVerification(cred.user);
@@ -336,8 +366,8 @@ export default function RegisterPanel({
         }
       }
 
-      // NO cerramos sesión: el usuario sigue autenticado y pasa al onboarding
-      // (portada/bio/tags). El correo de verificación ya se envió arriba.
+      // NO cerramos sesión: el usuario queda autenticado. Como capturamos todo
+      // aquí (foto, portada, bio, tags), onRegistered va directo al feed.
       onRegistered();
     } catch (err: unknown) {
       const errCode = (err as { code?: string } | null)?.code;
@@ -462,6 +492,9 @@ export default function RegisterPanel({
     ? { border: "1px solid rgba(255,107,107,0.72)" }
     : {};
 
+  // Asterisco morado para marcar los campos obligatorios.
+  const req = <span style={{ color: vibraPurple }}> *</span>;
+
   return (
     <>
       <style jsx>{`
@@ -495,82 +528,76 @@ export default function RegisterPanel({
       </div>
 
       <form onSubmit={handleRegister} style={{ display: "grid", gap: 8 }}>
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            gap: 6,
-            marginBottom: 2,
-          }}
-        >
+        {/* Portada + foto de perfil (acomodo tipo Crear comunidad; estilo
+            placeholder: fondo translúcido sin borde). Ambos opcionales. */}
+        <div style={{ position: "relative", width: "100%", marginBottom: 46 }}>
           <button
             type="button"
-            onClick={() => fileInputRef.current?.click()}
-            aria-label={avatarPreview ? t("photoChange") : t("photoAdd")}
+            onClick={() => coverInputRef.current?.click()}
+            aria-label={coverPreview ? tCP("coverChange") : tCP("coverAdd")}
             style={{
-              width: 88,
-              height: 88,
-              borderRadius: "50%",
-              border: avatarPreview ? "none" : "1px dashed rgba(168,85,255,0.5)",
-              background: "rgba(255,255,255,0.06)",
-              display: "grid",
-              placeItems: "center",
+              position: "relative",
+              width: "100%",
+              height: 110,
+              borderRadius: 12,
+              border: "none",
+              background: "rgba(255,255,255,0.11)",
               overflow: "hidden",
               cursor: "pointer",
               padding: 0,
-              color: "#a855ff",
+              display: "grid",
+              placeItems: "center",
+              color: "#a855f7",
+            }}
+          >
+            {coverPreview ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={coverPreview} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            ) : (
+              <span style={{ fontSize: 11, fontWeight: 600 }}>{tCP("coverAdd")}</span>
+            )}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => avatarInputRef.current?.click()}
+            aria-label={avatarPreview ? t("photoChange") : t("photoAdd")}
+            style={{
+              position: "absolute",
+              left: "50%",
+              top: 66,
+              transform: "translateX(-50%)",
+              width: 84,
+              height: 84,
+              borderRadius: "50%",
+              border: "3px solid #0a0710",
+              background: "rgba(255,255,255,0.11)",
+              overflow: "hidden",
+              cursor: "pointer",
+              padding: 0,
+              display: "grid",
+              placeItems: "center",
+              color: "#a855f7",
+              boxShadow: "0 8px 20px rgba(0,0,0,0.35)",
             }}
           >
             {avatarPreview ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={avatarPreview}
-                alt=""
-                style={{ width: "100%", height: "100%", objectFit: "cover" }}
-              />
+              <img src={avatarPreview} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
             ) : (
-              <svg
-                width="26"
-                height="26"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden="true"
-              >
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <path d="M14.5 4h-5L8 6H4a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h16a1 1 0 0 0 1-1V7a1 1 0 0 0-1-1h-4l-1.5-2Z" />
                 <circle cx="12" cy="13" r="3.2" />
               </svg>
             )}
           </button>
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            style={{
-              ...registerLinkStyle,
-              background: "transparent",
-              border: "none",
-              padding: 0,
-              cursor: "pointer",
-              fontFamily: "inherit",
-            }}
-          >
-            {avatarPreview ? t("photoChange") : t("photoAdd")}
-          </button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            onChange={onAvatarFileSelected}
-            style={{ display: "none" }}
-          />
+
+          <input ref={coverInputRef} type="file" accept="image/*" onChange={(e) => onPickImage(e, "cover")} style={{ display: "none" }} />
+          <input ref={avatarInputRef} type="file" accept="image/*" onChange={(e) => onPickImage(e, "avatar")} style={{ display: "none" }} />
         </div>
 
         <label style={{ display: "grid", gap: 4 }}>
-          <span style={labelTextStyle}>{t("emailLabel")}</span>
+          <span style={labelTextStyle}>{t("emailLabel")}{req}</span>
           <input
             type="email"
             required
@@ -584,7 +611,7 @@ export default function RegisterPanel({
 
         <div className="reg-two-col">
           <label style={{ display: "grid", gap: 4 }}>
-            <span style={labelTextStyle}>{t("firstNameLabel")}</span>
+            <span style={labelTextStyle}>{t("firstNameLabel")}{req}</span>
             <input
               type="text"
               required
@@ -597,7 +624,7 @@ export default function RegisterPanel({
           </label>
 
           <label style={{ display: "grid", gap: 4 }}>
-            <span style={labelTextStyle}>{t("lastNameLabel")}</span>
+            <span style={labelTextStyle}>{t("lastNameLabel")}{req}</span>
             <input
               type="text"
               required
@@ -611,7 +638,7 @@ export default function RegisterPanel({
         </div>
 
         <label style={{ display: "grid", gap: 4 }}>
-          <span style={labelTextStyle}>{t("usernameLabel")}</span>
+          <span style={labelTextStyle}>{t("usernameLabel")}{req}</span>
           <input
             type="text"
             required
@@ -627,7 +654,7 @@ export default function RegisterPanel({
         </label>
 
         <div style={{ display: "grid", gap: 4 }}>
-          <span style={labelTextStyle}>{t("birthdateLabel")}</span>
+          <span style={labelTextStyle}>{t("birthdateLabel")}{req}</span>
 
           <div className="reg-birthdate-grid">
             <select
@@ -718,7 +745,7 @@ export default function RegisterPanel({
         </label>
 
         <label style={{ display: "grid", gap: 4 }}>
-          <span style={labelTextStyle}>{t("passwordLabel")}</span>
+          <span style={labelTextStyle}>{t("passwordLabel")}{req}</span>
           <input
             type="password"
             required
@@ -731,7 +758,7 @@ export default function RegisterPanel({
         </label>
 
         <label style={{ display: "grid", gap: 4 }}>
-          <span style={labelTextStyle}>{t("confirmPasswordLabel")}</span>
+          <span style={labelTextStyle}>{t("confirmPasswordLabel")}{req}</span>
           <input
             type="password"
             required
@@ -751,6 +778,18 @@ export default function RegisterPanel({
           ) : null}
         </label>
 
+        {/* Bio (opcional) */}
+        <label style={{ display: "grid", gap: 4 }}>
+          <span style={labelTextStyle}>{tCP("bioLabel")}</span>
+          <textarea
+            value={bio}
+            onChange={(e) => setBio(e.target.value.slice(0, 300))}
+            style={{ ...inputStyle, minHeight: 74, resize: "vertical", lineHeight: 1.45 }}
+            placeholder={tCP("bioPlaceholder")}
+            maxLength={300}
+          />
+        </label>
+
         {pushSupported && (
           <div
             style={{
@@ -764,7 +803,7 @@ export default function RegisterPanel({
             }}
           >
             <div style={{ minWidth: 0, flex: 1 }}>
-              <div style={{ ...labelTextStyle, fontWeight: 600 }}>{tNotif("notifLabel")}</div>
+              <div style={{ ...labelTextStyle, fontWeight: 600 }}>{tCP("notifLabel")}</div>
               <div
                 style={{
                   fontSize: 10,
@@ -773,7 +812,7 @@ export default function RegisterPanel({
                   marginTop: 2,
                 }}
               >
-                {tNotif("notifHint")}
+                {tCP("notifHint")}
               </div>
             </div>
 
@@ -781,8 +820,8 @@ export default function RegisterPanel({
               type="button"
               role="switch"
               aria-checked={notifOn}
-              aria-label={tNotif("notifLabel")}
-              onClick={() => setNotifOn((v) => !v)}
+              aria-label={tCP("notifLabel")}
+              onClick={() => setCPOn((v) => !v)}
               style={{
                 position: "relative",
                 width: 40,
@@ -791,7 +830,7 @@ export default function RegisterPanel({
                 borderRadius: 999,
                 border: "none",
                 background: notifOn
-                  ? "linear-gradient(100deg, #a855ff, #4f46ff)"
+                  ? "linear-gradient(100deg, #a855f7, #4f46ff)"
                   : "rgba(255,255,255,0.14)",
                 cursor: "pointer",
                 padding: 0,
@@ -848,11 +887,11 @@ export default function RegisterPanel({
 
       <ImageCropperModal
         open={cropOpen}
-        title={t("cropPhotoTitle")}
-        hint={t("cropPhotoHint")}
+        title={cropMode === "avatar" ? t("cropPhotoTitle") : tCP("cropCoverTitle")}
+        hint={cropMode === "avatar" ? t("cropPhotoHint") : tCP("cropCoverHint")}
         imageSrc={cropSrc}
-        aspect={1}
-        cropShape="round"
+        aspect={cropMode === "avatar" ? 1 : 16 / 9}
+        cropShape={cropMode === "avatar" ? "round" : "rect"}
         onClose={closeCrop}
         onConfirm={handleCropConfirm}
       />

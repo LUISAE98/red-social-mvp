@@ -578,7 +578,7 @@ function RoomContent({
             type="button"
             onClick={toggleScreenShare}
             aria-label={isSharingScreen ? "Dejar de compartir pantalla" : "Compartir pantalla"}
-            style={{ ...styles.iconButton, color: isSharingScreen ? "#a855ff" : undefined }}
+            style={{ ...styles.iconButton, color: isSharingScreen ? "#a855f7" : undefined }}
           >
             <svg width={26} height={26} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <rect x="2" y="3" width="20" height="14" rx="2" />
@@ -718,7 +718,7 @@ const ACCESS_ERROR_CONFIG: Record<
   "not-found": { titleKey: "errorNotFound",     iconColor: "#fcd34d", circleBg: "rgba(250,204,21,0.14)",  positive: false },
   schedule:    { titleKey: "errorSchedule",     iconColor: "#fcd34d", circleBg: "rgba(250,204,21,0.14)",  positive: false },
   cancelled:   { titleKey: "errorCancelled",    iconColor: "#fca5a5", circleBg: "rgba(248,113,113,0.14)", positive: false },
-  ended:       { titleKey: "errorEnded",        iconColor: "#a855ff", circleBg: "rgba(168,85,255,0.15)",  positive: true },
+  ended:       { titleKey: "errorEnded",        iconColor: "#a855f7", circleBg: "rgba(168,85,255,0.15)",  positive: true },
   generic:     { titleKey: "errorGeneric",      iconColor: "#fca5a5", circleBg: "rgba(248,113,113,0.14)", positive: false },
 };
 
@@ -791,7 +791,7 @@ function AccessErrorScreen({
           onClick={onClose}
           style={{
             width: "100%", height: 42, borderRadius: 5, border: "none",
-            background: cfg.positive ? "#a855ff" : "rgba(255,255,255,0.10)",
+            background: cfg.positive ? "#a855f7" : "rgba(255,255,255,0.10)",
             color: cfg.positive ? "rgba(255,255,255,0.98)" : "rgba(255,255,255,0.75)",
             fontSize: 15, fontWeight: 500, fontFamily: "inherit",
             cursor: "pointer", letterSpacing: "-0.02em",

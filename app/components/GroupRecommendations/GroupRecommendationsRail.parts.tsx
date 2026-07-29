@@ -123,7 +123,7 @@ export const railTextButtonStyle: React.CSSProperties = {
   background: "transparent",
   border: "none",
   padding: 0,
-  color: "#a855ff",
+  color: "#a855f7",
   fontSize: 13,
   fontWeight: 600,
   letterSpacing: "-0.01em",
@@ -665,7 +665,7 @@ export function GroupCategoryPill({
         width: "100%",
         aspectRatio: "1 / 1",
         border: selected
-          ? "2px solid #a855ff"
+          ? "2px solid #a855f7"
           : "1px solid rgba(255,255,255,0.08)",
         // Imagen de fondo si existe; si no, gris plano de placeholder.
         background: bgImage
@@ -695,7 +695,7 @@ export function GroupCategoryPill({
               width: 22,
               height: 22,
               borderRadius: "50%",
-              background: "#a855ff",
+              background: "#a855f7",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",

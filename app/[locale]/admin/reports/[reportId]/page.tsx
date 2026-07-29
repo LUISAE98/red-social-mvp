@@ -153,7 +153,7 @@ export default function ReportDetailPage() {
         <div style={{ color: "#f87171", fontSize: 14, marginBottom: 16 }}>
           Reporte no encontrado.
         </div>
-        <Link href="/admin/reports" style={{ color: "#a855ff", fontSize: 13 }}>
+        <Link href="/admin/reports" style={{ color: "#a855f7", fontSize: 13 }}>
           ← Volver
         </Link>
       </div>

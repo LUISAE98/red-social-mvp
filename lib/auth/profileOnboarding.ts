@@ -92,6 +92,8 @@ type CreateUserProfileInput = {
   provider: "password" | "google";
   /** URL de foto ya subida; si se omite, usa la del proveedor (Google). */
   photoURL?: string | null;
+  /** URL de portada ya subida (opcional). */
+  coverUrl?: string | null;
 };
 
 // Fuente ÚNICA de la creación del documento de perfil. La usan los dos flujos de
@@ -141,6 +143,7 @@ export async function createUserProfileDoc(
       email,
       emailLower: email.toLowerCase(),
       photoURL,
+      coverUrl: input.coverUrl ?? null,
       handle: normalizedHandle,
       username: normalizedHandle,
       displayName,
@@ -190,6 +193,10 @@ type CompleteGoogleProfileInput = {
   birthDate?: string | null;
   sex?: string | null;
   bio?: string;
+  /** Foto/portada ya subidas en el onboarding (opcionales). Si no se pasa
+   *  photoURL, createUserProfileDoc usa la foto del proveedor (Google). */
+  photoURL?: string | null;
+  coverUrl?: string | null;
 };
 
 // Onboarding de Google: delega en la fuente única y traduce los sentinels a los

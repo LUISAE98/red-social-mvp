@@ -464,7 +464,7 @@ export default function WalletOnboarding({
           height: 14px;
           border-radius: 50%;
           background: transparent;
-          border: 1.9px solid #a855ff;
+          border: 1.9px solid #a855f7;
           display: inline-flex;
           align-items: center;
           justify-content: center;
@@ -592,7 +592,7 @@ export default function WalletOnboarding({
           font-size: 39px;
           font-weight: 500;
           letter-spacing: -0.01em;
-          color: #a855ff;
+          color: #a855f7;
           white-space: nowrap;
         }
 
@@ -1643,7 +1643,7 @@ export default function WalletOnboarding({
                     <svg viewBox="0 0 12 12" fill="none">
                       <path
                         d="M2 6.2 4.7 9 10 3.2"
-                        stroke="#a855ff"
+                        stroke="#a855f7"
                         strokeWidth="2.1"
                         strokeLinecap="round"
                         strokeLinejoin="round"
@@ -1694,7 +1694,7 @@ export default function WalletOnboarding({
                     <svg viewBox="0 0 12 12" fill="none">
                       <path
                         d="M2 6.2 4.7 9 10 3.2"
-                        stroke="#a855ff"
+                        stroke="#a855f7"
                         strokeWidth="2.1"
                         strokeLinecap="round"
                         strokeLinejoin="round"
@@ -1849,7 +1849,7 @@ export default function WalletOnboarding({
           {tWallet.rich("onboardingWaysTitle", {
             vibra: (chunks) => (
               <VibraGradientText
-                gradient="linear-gradient(100deg, #c084fc 0%, #a855ff 45%, #7c3aed 100%)"
+                gradient="linear-gradient(100deg, #c084fc 0%, #a855f7 45%, #7c3aed 100%)"
                 style={{ fontSize: "1.25em" }}
               >
                 {chunks}
@@ -2068,7 +2068,7 @@ export default function WalletOnboarding({
                   {tWallet.rich("onboardingCloseTitle", {
                     vibra: (chunks) => (
                       <VibraGradientText
-                        gradient="linear-gradient(100deg, #c084fc 0%, #a855ff 45%, #7c3aed 100%)"
+                        gradient="linear-gradient(100deg, #c084fc 0%, #a855f7 45%, #7c3aed 100%)"
                         style={{ fontSize: "1.25em" }}
                       >
                         {chunks}
@@ -2100,7 +2100,7 @@ export default function WalletOnboarding({
                       {tWallet.rich("onboardingCloseTitle", {
                         vibra: (chunks) => (
                           <VibraGradientText
-                            gradient="linear-gradient(100deg, #c084fc 0%, #a855ff 45%, #7c3aed 100%)"
+                            gradient="linear-gradient(100deg, #c084fc 0%, #a855f7 45%, #7c3aed 100%)"
                             style={{ fontSize: "1.25em" }}
                           >
                             {chunks}
@@ -2180,7 +2180,7 @@ export default function WalletOnboarding({
                   {tWallet(`onboardingCommunity${c.key}Desc`)}
                   {c.key === "Public" || c.key === "Private" || c.key === "Hidden" ? (
                     <span className="communityNote">
-                      <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ flexShrink: 0, marginTop: 1, color: "#a855ff" }}>
+                      <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ flexShrink: 0, marginTop: 1, color: "#a855f7" }}>
                         <circle cx="12" cy="12" r="9" />
                         <path d="M12 11v5" />
                         <path d="M12 7.6h0" />
@@ -2204,7 +2204,7 @@ export default function WalletOnboarding({
           {tWallet.rich("onboardingCloseTitle", {
             vibra: (chunks) => (
               <VibraGradientText
-                gradient="linear-gradient(100deg, #c084fc 0%, #a855ff 45%, #7c3aed 100%)"
+                gradient="linear-gradient(100deg, #c084fc 0%, #a855f7 45%, #7c3aed 100%)"
                 style={{ fontSize: "1.25em" }}
               >
                 {chunks}

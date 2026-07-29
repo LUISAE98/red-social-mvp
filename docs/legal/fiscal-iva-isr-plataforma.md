@@ -111,6 +111,12 @@ Como Vibra es **vendedor directo**, la facturación se reduce a **2 comprobantes
 | **4 · Comprobante de pago** | Recibo no fiscal para compras sin factura | Se construye ya |
 | **5 · Multi-país + factura global** | Tasas por país (config versionada) + factura global mensual | Conforme se habilita país/procesadora |
 | **6 · Cutover producción** | CSD/keys reales + procesadora en vivo | Al final |
+| **7 · Comprobante internacional** | Comprobante de pago para creadores EXTRANJEROS (cuando se les envía dinero fuera de México) | Pendiente — hasta tener retiros + API de pagos |
+
+**Estado de avance (2026-07-29):**
+- ✅ **Listos:** Bloque 0, 1a, 1b (CSD probado end-to-end) + toda la **UI del panel de retiro** (Auto con CSD, Manual con subida PDF/XML, copiar datos, animaciones, validación inline).
+- ❌ **Faltan:** Bloque 2 (factura Vibra→comprador, **siguiente**), 1c (datos del comprador), 4 (comprobante de pago), **backend del Bloque 3** (timbrado real creador→Vibra self-billing + validación del XML manual; requiere resolver la API key por organización — el `401` del `GET /test-api-key`), 5 (multi-país + factura global), 6 (cutover), y 7 (comprobante internacional).
+- El **sistema de retiros / payout (money-out)** sigue pendiente de la **API de pagos** elegida.
 
 ### 0.7 Flujo de retiro con gate fiscal (dónde vive la facturación en la UI)
 

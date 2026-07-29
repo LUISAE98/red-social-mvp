@@ -405,7 +405,7 @@ export default function WalletTransactions({
               top: 0,
               bottom: 0,
               borderRadius: 999,
-              background: "linear-gradient(135deg, #4f46ff, #a855ff)",
+              background: "linear-gradient(135deg, #4f46ff, #a855f7)",
               transition:
                 "left 0.28s cubic-bezier(0.4,0,0.2,1), width 0.28s cubic-bezier(0.4,0,0.2,1)",
               pointerEvents: "none",

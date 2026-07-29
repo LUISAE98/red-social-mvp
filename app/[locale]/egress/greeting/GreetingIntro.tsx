@@ -87,7 +87,7 @@ export default function GreetingIntro({
           animation: giRise 1.0s cubic-bezier(0.22,1,0.36,1) 2000ms both;
         }
         .giVibra {
-          background: linear-gradient(100deg,#ff2fb3 0%,#a855ff 45%,#4f46ff 100%);
+          background: linear-gradient(100deg,#ff2fb3 0%,#a855f7 45%,#4f46ff 100%);
           background-size:220% 220%; -webkit-background-clip:text; background-clip:text; color:transparent;
           animation: giVibraFlow 4.5s ease-in-out infinite;
         }

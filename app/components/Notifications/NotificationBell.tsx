@@ -306,7 +306,7 @@ export default function NotificationBell({ active }: NotificationBellProps) {
         .notifMarkAll {
           background: transparent;
           border: none;
-          color: #a855ff;
+          color: #a855f7;
           font-size: 13px;
           font-weight: 600;
           cursor: pointer;

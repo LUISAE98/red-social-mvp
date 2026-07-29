@@ -242,7 +242,7 @@ export default function HiddenCommunitiesPage() {
             style={{
               padding: "5px 12px",
               borderRadius: 6,
-              border: `1px solid ${tab === t ? "#a855ff" : "#2a2a2a"}`,
+              border: `1px solid ${tab === t ? "#a855f7" : "#2a2a2a"}`,
               background: tab === t ? "#1a0a2a" : "transparent",
               color: tab === t ? "#d8b4fe" : "#555",
               fontSize: 12,

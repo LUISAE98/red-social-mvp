@@ -137,7 +137,7 @@ export default function DonationPanel({ open, onClose, creatorName, suggestedAmo
   const contentBlock = success ? (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 14, padding: "32px 20px" }}>
       <div style={{ width: 56, height: 56, borderRadius: "50%", background: "rgba(168,85,247,0.18)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#a855ff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#a855f7" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
           <polyline points="20 6 9 17 4 12" />
         </svg>
       </div>
@@ -170,9 +170,9 @@ export default function DonationPanel({ open, onClose, creatorName, suggestedAmo
                 minWidth: 64,
                 padding: "10px 4px",
                 borderRadius: 10,
-                border: active ? "1.5px solid #a855ff" : "1.5px solid rgba(255,255,255,0.12)",
+                border: active ? "1.5px solid #a855f7" : "1.5px solid rgba(255,255,255,0.12)",
                 background: active ? "rgba(168,85,247,0.14)" : "rgba(255,255,255,0.04)",
-                color: active ? "#a855ff" : "rgba(255,255,255,0.85)",
+                color: active ? "#a855f7" : "rgba(255,255,255,0.85)",
                 fontSize: 15,
                 fontWeight: 600,
                 cursor: "pointer",
@@ -224,7 +224,7 @@ export default function DonationPanel({ open, onClose, creatorName, suggestedAmo
       onClick={handleSubmit}
       style={{
         width: "100%", height: 42, borderRadius: 5, border: "none",
-        background: !canSubmit ? "rgba(255,255,255,0.1)" : "#a855ff",
+        background: !canSubmit ? "rgba(255,255,255,0.1)" : "#a855f7",
         color: !canSubmit ? "rgba(255,255,255,0.36)" : "rgba(255,255,255,0.98)",
         fontSize: 17, fontWeight: 500, fontFamily: "inherit",
         cursor: !canSubmit ? "not-allowed" : "pointer",

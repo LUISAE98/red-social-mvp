@@ -106,7 +106,7 @@ export default function WalletMonthComparison({
               borderRadius: 999,
               background: beaten
                 ? "linear-gradient(90deg, #4ade80, #22c55e)"
-                : "linear-gradient(90deg, #a855ff, #4f46ff)",
+                : "linear-gradient(90deg, #a855f7, #4f46ff)",
               transition: "width 400ms ease",
             }}
           />

@@ -172,7 +172,7 @@ export default async function RootLayout({
               /* Vibra con el mismo efecto del título de intereses: degradado
                  rosa→morado→azul que fluye (anima background-position). */
               .desktop-refresh-words .splash-vibra {
-                background: linear-gradient(100deg, #ff2fb3 0%, #a855ff 45%, #4f46ff 100%);
+                background: linear-gradient(100deg, #ff2fb3 0%, #a855f7 45%, #4f46ff 100%);
                 background-size: 220% 220%;
                 -webkit-background-clip: text;
                 background-clip: text;
@@ -194,7 +194,7 @@ export default async function RootLayout({
                 height: 34px;
                 border-radius: 999px;
                 background: conic-gradient(
-                  #a855ff 0deg 180deg,
+                  #a855f7 0deg 180deg,
                   transparent 180deg 360deg
                 );
                 box-shadow: 0 0 10px rgba(168, 85, 255, 0.24);

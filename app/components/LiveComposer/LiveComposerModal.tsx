@@ -1007,7 +1007,7 @@ export default function LiveComposerModal({
         disabled={saving}
         style={{
           width: "100%", height: 42, borderRadius: 5, border: "none",
-          background: saving ? "rgba(255,255,255,0.1)" : "#a855ff",
+          background: saving ? "rgba(255,255,255,0.1)" : "#a855f7",
           color: saving ? "rgba(255,255,255,0.36)" : "rgba(255,255,255,0.98)",
           fontSize: 17, fontWeight: 500, fontFamily: fontStack,
           cursor: saving ? "not-allowed" : "pointer",

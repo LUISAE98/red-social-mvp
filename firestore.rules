@@ -251,6 +251,14 @@ service cloud.firestore {
       allow list, create, update, delete: if false;
     }
 
+    // Datos fiscales del COMPRADOR (receptor). El comprador NO sube CSD; solo sus
+    // datos de receptor para que Vibra timbre su factura de venta. El dueño LEE el
+    // suyo; la ESCRITURA es SOLO backend (callable `saveBuyerTaxProfile`).
+    match /buyerTaxProfiles/{uid} {
+      allow get: if signedIn() && request.auth.uid == uid;
+      allow list, create, update, delete: if false;
+    }
+
     // Suscripción a comunidad (preapproval de Mercado Pago). El suscriptor lee la
     // suya (para mostrar "Suscrito hasta …"); el dueño de la comunidad lee las de
     // su comunidad. La ESCRITURA es SOLO backend: el cliente nunca puede fabricar

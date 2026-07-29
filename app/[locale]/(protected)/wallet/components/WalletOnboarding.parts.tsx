@@ -88,7 +88,7 @@ export const MERGE_META: Record<string, MergeMeta> = {
     previewSvcs: [5],
     firstCell: {
       icon: "heart",
-      color: "#a855ff",
+      color: "#a855f7",
       titleKey: "liveDonationPreviewSupportLabel",
       descKey: "mergeDonationSupportDesc",
     },
@@ -193,17 +193,17 @@ export const SERVICE_PREVIEW_KEY: Record<
 
 // Color de acento de los íconos de cada tarjeta de servicio, por id de servicio.
 export const SERVICE_ACCENT: Record<number, string> = {
-  1: "#a855ff", // saludos → morado
+  1: "#a855f7", // saludos → morado
   2: "#eab308", // consejos → amarillo
   3: "#ec4899", // sesiones → rosa
   4: "#3b82f6", // tiempo contigo → azul
-  5: "#a855ff", // supercomentarios → morado
+  5: "#a855f7", // supercomentarios → morado
   6: "#fdba74", // donaciones en vivo → naranja claro
   7: "#38bdf8", // donaciones en el perfil → azul celeste
   8: "#3b82f6", // suscripciones → azul
-  9: "#a855ff", // acceso a lives → morado
-  10: "#a855ff", // videos exclusivos → morado
-  11: "#a855ff", // publicaciones premium → morado
+  9: "#a855f7", // acceso a lives → morado
+  10: "#a855f7", // videos exclusivos → morado
+  11: "#a855f7", // publicaciones premium → morado
 };
 
 // Servicios que se activan desde la pestaña de experiencias del PERFIL. El botón
@@ -222,7 +222,7 @@ export const SERVICE_ACTIVATE_KEY: Record<number, string> = {
 export const COMMUNITY_TYPES = [
   {
     key: "Public",
-    color: "#a855ff",
+    color: "#a855f7",
     icon: (
       <svg width={26} height={26} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
         <circle cx="12" cy="12" r="9" />
@@ -232,7 +232,7 @@ export const COMMUNITY_TYPES = [
   },
   {
     key: "Private",
-    color: "#a855ff",
+    color: "#a855f7",
     icon: (
       <svg width={26} height={26} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
         <rect x="5" y="11" width="14" height="10" rx="2" />
@@ -242,7 +242,7 @@ export const COMMUNITY_TYPES = [
   },
   {
     key: "Hidden",
-    color: "#a855ff",
+    color: "#a855f7",
     icon: (
       <svg width={26} height={26} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
         <path d="M3 3l18 18" />

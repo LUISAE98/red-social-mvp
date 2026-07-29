@@ -90,7 +90,7 @@ export function PremiumPostPanel({
           style={{
             fontSize: 12.5,
             fontWeight: 600,
-            color: "#a855ff",
+            color: "#a855f7",
             lineHeight: 1.3,
             fontFamily: fontStack,
           }}
@@ -157,7 +157,7 @@ export function PremiumPostPanel({
             padding: "0 10px",
             border: "none",
             borderRadius: 6,
-            background: "linear-gradient(135deg, #4f46ff, #a855ff, #ff2fb3)",
+            background: "linear-gradient(135deg, #4f46ff, #a855f7, #ff2fb3)",
             color: "#fff",
             fontSize: 11,
             fontWeight: 600,
@@ -212,7 +212,7 @@ export function LiveTicketPanel({
   const bgColor = isPaid
     ? "rgba(20,5,5,0.88)"
     : "rgba(10,5,25,0.82)";
-  const iconStroke = isPaid ? "#fca5a5" : "#a855ff";
+  const iconStroke = isPaid ? "#fca5a5" : "#a855f7";
   const titleColor = isPaid ? "#fca5a5" : "#d8b4fe";
 
   return (
@@ -286,7 +286,7 @@ export function LiveTicketPanel({
             padding: "0 10px",
             border: "none",
             borderRadius: 6,
-            background: "linear-gradient(135deg, #4f46ff, #a855ff, #ff2fb3)",
+            background: "linear-gradient(135deg, #4f46ff, #a855f7, #ff2fb3)",
             color: "#fff",
             fontSize: 11,
             fontWeight: 600,

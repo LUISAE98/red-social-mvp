@@ -2,7 +2,7 @@
 
 // Panel fiscal del retiro (creador MEXICANO). Se abre al dar "Retirar".
 // Estilo: panel base de vibra_style.md (backdrop 0.88, contenedor #0a0a0a r18,
-// header 56px con título centrado + X, botón primario #a855ff r5).
+// header 56px con título centrado + X, botón primario #a855f7 r5).
 //
 // Flujo (docs/legal/fiscal-iva-isr-plataforma.md §0.7):
 //   1. PRIMERO las dos opciones: AUTOMÁTICO (CSD → self-billing) o MANUAL.
@@ -429,7 +429,7 @@ export default function WithdrawFiscalPanel({ open, onClose, uid, availableLabel
               style={{
                 position: "relative", width: 40, height: 22, borderRadius: 999, border: "none",
                 padding: 0, flexShrink: 0, cursor: "pointer",
-                background: consent ? "#a855ff" : "rgba(255,255,255,0.2)",
+                background: consent ? "#a855f7" : "rgba(255,255,255,0.2)",
                 transition: "background 180ms ease",
               }}
             >
@@ -647,11 +647,11 @@ function errMsg(e: unknown): string {
   return m.replace(/^FirebaseError:\s*/, "").replace(/\(functions\/[^)]+\)\s*/, "");
 }
 
-// Botón primario del panel base (vibra_style.md): #a855ff, alto 42, radio 5.
+// Botón primario del panel base (vibra_style.md): #a855f7, alto 42, radio 5.
 function primaryBtn(busy: boolean): React.CSSProperties {
   return {
     width: "100%", height: 42, borderRadius: 5, border: "none",
-    background: busy ? "rgba(255,255,255,0.1)" : "#a855ff",
+    background: busy ? "rgba(255,255,255,0.1)" : "#a855f7",
     color: busy ? "rgba(255,255,255,0.36)" : "rgba(255,255,255,0.98)",
     fontSize: 17, fontWeight: 500, fontFamily: "inherit", letterSpacing: "-0.02em",
     cursor: busy ? "not-allowed" : "pointer", display: "grid", placeItems: "center",
@@ -712,15 +712,15 @@ const redNote: React.CSSProperties = {
 
 const ICON_WRAP: React.CSSProperties = { flexShrink: 0, lineHeight: 0 };
 
-// Íconos diseñados en morado (sin emojis). Trazo #a855ff.
+// Íconos diseñados en morado (sin emojis). Trazo #a855f7.
 const AUTO_ICON = (
-  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#a855ff" strokeWidth={1.8} strokeLinejoin="round" strokeLinecap="round" aria-hidden="true">
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#a855f7" strokeWidth={1.8} strokeLinejoin="round" strokeLinecap="round" aria-hidden="true">
     <path d="M13 2 4 14h6l-1 8 9-12h-6l1-8z" />
   </svg>
 );
 
 const MANUAL_ICON = (
-  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#a855ff" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#a855f7" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
     <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
     <path d="M14 3v5h5" />
     <line x1="9" y1="13" x2="15" y2="13" />

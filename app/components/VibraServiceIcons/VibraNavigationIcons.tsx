@@ -369,7 +369,7 @@ premiumUnlocked: {
 
 
         <path
-          stroke="#a855ff"
+          stroke="#a855f7"
           d="
             M8.1 4.1
             H12.9
@@ -379,7 +379,7 @@ premiumUnlocked: {
         />
 
         <path
-          stroke="#a855ff"
+          stroke="#a855f7"
           d="
             M5.5 14.3
             V6.7
@@ -388,7 +388,7 @@ premiumUnlocked: {
         />
 
         <path
-          stroke="#a855ff"
+          stroke="#a855f7"
           d="
             M5.5 14.3
             Q5.5 16.9 8.1 16.9
@@ -397,7 +397,7 @@ premiumUnlocked: {
         />
 
         <rect
-          stroke="#a855ff"
+          stroke="#a855f7"
           x="8.5"
           y="7.1"
           width="10"
@@ -428,7 +428,7 @@ publish: {
           Q2.4 12.2 3.8 10.8
           Z
         "
-        fill="#a855ff"
+        fill="#a855f7"
       />
 
       <path
@@ -588,7 +588,7 @@ export function VibraNavigationIconsStyles() {
         background: linear-gradient(
           100deg,
           #ff2fb3 0%,
-          #a855ff 45%,
+          #a855f7 45%,
           #4f46ff 100%
         );
         -webkit-background-clip: text;

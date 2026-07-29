@@ -1,25 +1,18 @@
 "use client";
 
-// Panel presentacional del onboarding de perfil. Solo UI; la lógica (auth,
-// guardado) vive en quien lo monta (CompleteProfileClient real, o el simulador
-// dev). Maneja internamente el recorte de PORTADA (con ImageCropperModal) y
-// entrega el blob por `onCoverBlobChange`; el resto son valores controlados.
-// Identidad (handle/nombre) se muestra solo cuando `showIdentity` es true
-// (usuario nuevo de Google que aún no tiene doc). Estilos = iniciar sesión.
+// Panel presentacional del onboarding de perfil (alta por Google). Mismo acomodo
+// que "Crear cuenta": bloque portada + foto (estilo placeholder), luego los
+// campos. Maneja internamente el recorte de foto y portada y entrega los blobs
+// por callback; el resto son valores controlados. Identidad (handle/nombre) se
+// muestra solo cuando `showIdentity` es true (usuario nuevo sin doc).
 
 import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import ImageCropperModal from "@/components/media/ImageCropperModal";
-import { GROUP_CATEGORY_LABELS, type CanonicalGroupCategory } from "@/types/group";
 
 const vibraPink = "#ff2fb3";
-const vibraPurple = "#a855ff";
+const vibraPurple = "#a855f7";
 const vibraBlue = "#4f46ff";
-
-// Categorías ofrecidas como tags (todas menos "otros", que es fallback interno).
-const TAG_CATEGORIES = (
-  Object.keys(GROUP_CATEGORY_LABELS) as CanonicalGroupCategory[]
-).filter((c) => c !== "otros");
 
 export default function CompleteProfilePanel({
   showIdentity,
@@ -29,11 +22,11 @@ export default function CompleteProfilePanel({
   onHandleChange,
   onFirstNameChange,
   onLastNameChange,
+  initialPhotoUrl,
+  onAvatarBlobChange,
   onCoverBlobChange,
   bio,
   onBioChange,
-  selectedTags,
-  onToggleTag,
   notifOn,
   onToggleNotif,
   pushSupported,
@@ -49,12 +42,12 @@ export default function CompleteProfilePanel({
   onHandleChange: (value: string) => void;
   onFirstNameChange: (value: string) => void;
   onLastNameChange: (value: string) => void;
-  /** Entrega el blob de portada recortado (o null si se quita). */
+  /** Foto del proveedor (Google) para prellenar el avatar; null si no tiene. */
+  initialPhotoUrl?: string | null;
+  onAvatarBlobChange: (blob: Blob | null) => void;
   onCoverBlobChange: (blob: Blob | null) => void;
   bio: string;
   onBioChange: (value: string) => void;
-  selectedTags: CanonicalGroupCategory[];
-  onToggleTag: (category: CanonicalGroupCategory) => void;
   notifOn: boolean;
   onToggleNotif: () => void;
   pushSupported: boolean;
@@ -66,28 +59,42 @@ export default function CompleteProfilePanel({
   const t = useTranslations("completeProfile");
   const fontStack = "inherit";
 
-  // Recorte de portada (interno al panel; entrega el blob al padre).
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  // Recorte de foto/portada (interno; entrega blobs al padre).
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+  const coverInputRef = useRef<HTMLInputElement>(null);
+  // El avatar arranca con la foto de Google (URL remota) si existe.
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(initialPhotoUrl ?? null);
   const [coverPreview, setCoverPreview] = useState<string | null>(null);
   const [cropSrc, setCropSrc] = useState<string | null>(null);
   const [cropOpen, setCropOpen] = useState(false);
+  const [cropMode, setCropMode] = useState<"avatar" | "cover">("avatar");
 
+  const avatarPreviewRef = useRef<string | null>(null);
+  avatarPreviewRef.current = avatarPreview;
   const coverPreviewRef = useRef<string | null>(null);
   coverPreviewRef.current = coverPreview;
   const cropSrcRef = useRef<string | null>(null);
   cropSrcRef.current = cropSrc;
   useEffect(
     () => () => {
+      // Solo revocamos object URLs (blob:), no la foto remota de Google.
+      if (avatarPreviewRef.current?.startsWith("blob:")) {
+        URL.revokeObjectURL(avatarPreviewRef.current);
+      }
       if (coverPreviewRef.current) URL.revokeObjectURL(coverPreviewRef.current);
       if (cropSrcRef.current) URL.revokeObjectURL(cropSrcRef.current);
     },
     []
   );
 
-  function onCoverFileSelected(e: React.ChangeEvent<HTMLInputElement>) {
+  function onPickImage(
+    e: React.ChangeEvent<HTMLInputElement>,
+    mode: "avatar" | "cover"
+  ) {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
+    setCropMode(mode);
     setCropSrc(URL.createObjectURL(file));
     setCropOpen(true);
   }
@@ -101,9 +108,15 @@ export default function CompleteProfilePanel({
   }
 
   function handleCropConfirm(blob: Blob) {
-    if (coverPreview) URL.revokeObjectURL(coverPreview);
-    setCoverPreview(URL.createObjectURL(blob));
-    onCoverBlobChange(blob);
+    if (cropMode === "avatar") {
+      if (avatarPreview?.startsWith("blob:")) URL.revokeObjectURL(avatarPreview);
+      setAvatarPreview(URL.createObjectURL(blob));
+      onAvatarBlobChange(blob);
+    } else {
+      if (coverPreview) URL.revokeObjectURL(coverPreview);
+      setCoverPreview(URL.createObjectURL(blob));
+      onCoverBlobChange(blob);
+    }
     closeCrop();
   }
 
@@ -118,7 +131,6 @@ export default function CompleteProfilePanel({
     boxSizing: "border-box",
   };
 
-  // Sin contenedor: la tarjeta va transparente.
   const shellStyle: React.CSSProperties = {
     width: "100%",
     maxWidth: 420,
@@ -206,6 +218,9 @@ export default function CompleteProfilePanel({
     color: "rgba(255, 190, 190, 0.95)",
   };
 
+  // Asterisco morado para marcar campos obligatorios.
+  const req = <span style={{ color: vibraPurple }}> *</span>;
+
   return (
     <>
       <main style={pageStyle}>
@@ -214,10 +229,84 @@ export default function CompleteProfilePanel({
           <p style={subtitleStyle}>{t("subtitle")}</p>
 
           <form onSubmit={onSubmit} style={{ display: "grid", gap: 13 }}>
+            {/* Portada + foto de perfil (mismo acomodo/estilo que crear cuenta). */}
+            <div style={{ position: "relative", width: "100%", marginBottom: 46 }}>
+              <button
+                type="button"
+                onClick={() => coverInputRef.current?.click()}
+                aria-label={coverPreview ? t("coverChange") : t("coverAdd")}
+                style={{
+                  position: "relative",
+                  width: "100%",
+                  height: 110,
+                  borderRadius: 12,
+                  border: "none",
+                  background: "rgba(255,255,255,0.11)",
+                  overflow: "hidden",
+                  cursor: "pointer",
+                  padding: 0,
+                  display: "grid",
+                  placeItems: "center",
+                  color: "#a855f7",
+                }}
+              >
+                {coverPreview ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={coverPreview} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                ) : (
+                  <span style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 5 }}>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <rect x="3" y="5" width="18" height="14" rx="2" />
+                      <circle cx="9" cy="10" r="1.6" />
+                      <path d="m4 17 4.5-4.5a2 2 0 0 1 2.8 0L16 17M14 14l1.5-1.5a2 2 0 0 1 2.8 0L21 15" />
+                    </svg>
+                    <span style={{ fontSize: 11, fontWeight: 600 }}>{t("coverAdd")}</span>
+                  </span>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => avatarInputRef.current?.click()}
+                aria-label={avatarPreview ? t("photoChange") : t("photoAdd")}
+                style={{
+                  position: "absolute",
+                  left: "50%",
+                  top: 66,
+                  transform: "translateX(-50%)",
+                  width: 84,
+                  height: 84,
+                  borderRadius: "50%",
+                  border: "3px solid #0a0710",
+                  background: "rgba(255,255,255,0.11)",
+                  overflow: "hidden",
+                  cursor: "pointer",
+                  padding: 0,
+                  display: "grid",
+                  placeItems: "center",
+                  color: "#a855f7",
+                  boxShadow: "0 8px 20px rgba(0,0,0,0.35)",
+                }}
+              >
+                {avatarPreview ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={avatarPreview} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                ) : (
+                  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M14.5 4h-5L8 6H4a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h16a1 1 0 0 0 1-1V7a1 1 0 0 0-1-1h-4l-1.5-2Z" />
+                    <circle cx="12" cy="13" r="3.2" />
+                  </svg>
+                )}
+              </button>
+
+              <input ref={coverInputRef} type="file" accept="image/*" onChange={(e) => onPickImage(e, "cover")} style={{ display: "none" }} />
+              <input ref={avatarInputRef} type="file" accept="image/*" onChange={(e) => onPickImage(e, "avatar")} style={{ display: "none" }} />
+            </div>
+
             {showIdentity && (
               <>
                 <label style={{ display: "grid", gap: 4 }}>
-                  <span style={labelTextStyle}>{t("usernameLabel")}</span>
+                  <span style={labelTextStyle}>{t("usernameLabel")}{req}</span>
                   <input
                     value={handle}
                     onChange={(e) => onHandleChange(e.target.value)}
@@ -229,7 +318,7 @@ export default function CompleteProfilePanel({
 
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                   <label style={{ display: "grid", gap: 4 }}>
-                    <span style={labelTextStyle}>{t("firstNameLabel")}</span>
+                    <span style={labelTextStyle}>{t("firstNameLabel")}{req}</span>
                     <input
                       value={firstName}
                       onChange={(e) => onFirstNameChange(e.target.value)}
@@ -240,7 +329,7 @@ export default function CompleteProfilePanel({
                   </label>
 
                   <label style={{ display: "grid", gap: 4 }}>
-                    <span style={labelTextStyle}>{t("lastNameLabel")}</span>
+                    <span style={labelTextStyle}>{t("lastNameLabel")}{req}</span>
                     <input
                       value={lastName}
                       onChange={(e) => onLastNameChange(e.target.value)}
@@ -253,56 +342,7 @@ export default function CompleteProfilePanel({
               </>
             )}
 
-            {/* Portada */}
-            <div style={{ display: "grid", gap: 4 }}>
-              <span style={labelTextStyle}>{t("coverLabel")}</span>
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                aria-label={coverPreview ? t("coverChange") : t("coverAdd")}
-                style={{
-                  position: "relative",
-                  width: "100%",
-                  aspectRatio: "16 / 9",
-                  borderRadius: 12,
-                  border: coverPreview ? "none" : "1px dashed rgba(168,85,255,0.5)",
-                  background: "rgba(255,255,255,0.06)",
-                  overflow: "hidden",
-                  cursor: "pointer",
-                  padding: 0,
-                  color: "#a855ff",
-                  display: "grid",
-                  placeItems: "center",
-                }}
-              >
-                {coverPreview ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={coverPreview}
-                    alt=""
-                    style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                  />
-                ) : (
-                  <span style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
-                    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                      <rect x="3" y="5" width="18" height="14" rx="2" />
-                      <circle cx="9" cy="10" r="1.6" />
-                      <path d="m4 17 4.5-4.5a2 2 0 0 1 2.8 0L16 17M14 14l1.5-1.5a2 2 0 0 1 2.8 0L21 15" />
-                    </svg>
-                    <span style={{ fontSize: 11, fontWeight: 600 }}>{t("coverAdd")}</span>
-                  </span>
-                )}
-              </button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                onChange={onCoverFileSelected}
-                style={{ display: "none" }}
-              />
-            </div>
-
-            {/* Bio */}
+            {/* Bio (opcional) */}
             <label style={{ display: "grid", gap: 4 }}>
               <span style={labelTextStyle}>{t("bioLabel")}</span>
               <textarea
@@ -313,43 +353,6 @@ export default function CompleteProfilePanel({
                 maxLength={300}
               />
             </label>
-
-            {/* Tags / intereses */}
-            <div style={{ display: "grid", gap: 6 }}>
-              <span style={labelTextStyle}>{t("tagsLabel")}</span>
-              <span style={{ fontSize: 10, color: "rgba(255,255,255,0.6)", lineHeight: 1.3 }}>
-                {t("tagsHint")}
-              </span>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 7, marginTop: 2 }}>
-                {TAG_CATEGORIES.map((cat) => {
-                  const on = selectedTags.includes(cat);
-                  return (
-                    <button
-                      key={cat}
-                      type="button"
-                      onClick={() => onToggleTag(cat)}
-                      aria-pressed={on}
-                      style={{
-                        padding: "6px 11px",
-                        borderRadius: 999,
-                        border: on ? "none" : "1px solid rgba(168,85,255,0.3)",
-                        background: on
-                          ? "linear-gradient(100deg, #a855ff, #4f46ff)"
-                          : "rgba(255,255,255,0.06)",
-                        color: on ? "#fff" : "rgba(255,255,255,0.82)",
-                        fontSize: 12,
-                        fontWeight: 600,
-                        fontFamily: "inherit",
-                        cursor: "pointer",
-                        transition: "background 0.15s ease",
-                      }}
-                    >
-                      {GROUP_CATEGORY_LABELS[cat]}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
 
             {pushSupported && (
               <div
@@ -384,7 +387,7 @@ export default function CompleteProfilePanel({
                     borderRadius: 999,
                     border: "none",
                     background: notifOn
-                      ? "linear-gradient(100deg, #a855ff, #4f46ff)"
+                      ? "linear-gradient(100deg, #a855f7, #4f46ff)"
                       : "rgba(255,255,255,0.14)",
                     cursor: "pointer",
                     padding: 0,
@@ -441,11 +444,11 @@ export default function CompleteProfilePanel({
 
       <ImageCropperModal
         open={cropOpen}
-        title={t("cropCoverTitle")}
-        hint={t("cropCoverHint")}
+        title={cropMode === "avatar" ? t("cropPhotoTitle") : t("cropCoverTitle")}
+        hint={cropMode === "avatar" ? t("cropPhotoHint") : t("cropCoverHint")}
         imageSrc={cropSrc}
-        aspect={16 / 9}
-        cropShape="rect"
+        aspect={cropMode === "avatar" ? 1 : 16 / 9}
+        cropShape={cropMode === "avatar" ? "round" : "rect"}
         onClose={closeCrop}
         onConfirm={handleCropConfirm}
       />

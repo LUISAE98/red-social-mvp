@@ -3,6 +3,30 @@
 :root {
   --background: #000000;
   --foreground: #ffffff;
+
+  /* ── Marca (morado) — fuente única de verdad, consumible en estilos inline ── */
+  --brand:         #a855f7;
+  --brand-strong:  #9333ea;
+  --brand-deep:    #7c3aed;
+  --brand-light:   #c084fc;
+  --brand-lighter: #d8b4fe;
+
+  /* ── Rosa ── */
+  --pink:        #ec4899;
+  --pink-bright: #ff2fb3;
+  --pink-soft:   #f9a8d4;
+  --pink-mid:    #f472b6;
+  --pink-deep:   #be185d;
+
+  /* ── Semánticos ── */
+  --success:         #22c55e;
+  --success-light:   #4ade80;
+  --success-lighter: #86efac;
+  --error:           #ef4444;
+  --error-light:     #f87171;
+  --error-lighter:   #fca5a5;
+  --warning:         #f59e0b;
+  --warning-bright:  #fb923c;
 }
 
 @theme inline {
@@ -15,12 +39,19 @@
   --color-foreground: var(--foreground);
 
   /* ── Colores de marca ── */
-  --color-brand:        #a855f7;
-  --color-brand-light:  #c084fc;
+  --color-brand:         var(--brand);
+  --color-brand-strong:  var(--brand-strong);
+  --color-brand-deep:    var(--brand-deep);
+  --color-brand-light:   var(--brand-light);
+  --color-brand-lighter: var(--brand-lighter);
   --color-brand-dim:    rgba(168, 85, 247, 0.15);
   --color-brand-glow:   rgba(168, 85, 247, 0.35);
-  --color-pink:         #f02fae;
-  --color-pink-dim:     rgba(240, 47, 174, 0.15);
+  --color-pink:         var(--pink);
+  --color-pink-bright:  var(--pink-bright);
+  --color-pink-soft:    var(--pink-soft);
+  --color-pink-mid:     var(--pink-mid);
+  --color-pink-deep:    var(--pink-deep);
+  --color-pink-dim:     rgba(236, 72, 153, 0.15);
 
   /* ── Escala de grises ── */
   --color-surface:      #0f0f0f;
@@ -32,11 +63,16 @@
   --color-subtle:       rgba(255, 255, 255, 0.2);
 
   /* ── Colores semánticos ── */
-  --color-success:      #22c55e;
+  --color-success:         var(--success);
+  --color-success-light:   var(--success-light);
+  --color-success-lighter: var(--success-lighter);
   --color-success-dim:  rgba(34, 197, 94, 0.15);
-  --color-error:        #ef4444;
+  --color-error:           var(--error);
+  --color-error-light:     var(--error-light);
+  --color-error-lighter:   var(--error-lighter);
   --color-error-dim:    rgba(239, 68, 68, 0.15);
-  --color-warning:      #f59e0b;
+  --color-warning:         var(--warning);
+  --color-warning-bright:  var(--warning-bright);
   --color-warning-dim:  rgba(245, 158, 11, 0.15);
 
   /* ── Border radius ── */
@@ -195,10 +231,10 @@ main,
   position: relative;
   border-radius: 999px;
   background: conic-gradient(
-    #a855ff 0deg 180deg,
+    var(--brand) 0deg 180deg,
     transparent 180deg 360deg
   );
-  box-shadow: 0 0 10px rgba(168, 85, 255, 0.24);
+  box-shadow: 0 0 10px rgba(168, 85, 247, 0.24);
 
   -webkit-mask: radial-gradient(
     farthest-side,
@@ -267,7 +303,7 @@ main,
   font-size: 13px;
   font-weight: 700;
   letter-spacing: -0.02em;
-  background: linear-gradient(100deg, #ff2fb3 0%, #a855ff 45%, #4f46ff 100%);
+  background: linear-gradient(100deg, var(--pink-bright) 0%, var(--brand) 45%, #4f46ff 100%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -344,11 +380,11 @@ body::-webkit-scrollbar-button {
 }
 
 /* Deep-link de notificaciones: resalta el comentario enfocado con un morado
-   sutil (mismo tono #a855ff que las notificaciones). El resaltado PERSISTE hasta
+   sutil (mismo tono #a855f7 que las notificaciones). El resaltado PERSISTE hasta
    que el comentario entra en el viewport del usuario (lo ve); solo entonces se
    añade la clase fade y el color se desvanece suavemente. */
 .notifCommentFocus {
-  background-color: rgba(168, 85, 255, 0.15);
+  background-color: rgba(168, 85, 247, 0.15);
   border-radius: 10px;
   margin: -6px -8px;
   padding: 6px 8px;

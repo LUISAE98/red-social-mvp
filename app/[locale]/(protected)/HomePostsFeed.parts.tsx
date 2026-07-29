@@ -272,7 +272,7 @@ export function DiscoveryFollowJoinButton({
         style={{
           ...baseStyle,
           background: "transparent",
-          color: "#a855ff",
+          color: "#a855f7",
           fontWeight: 700,
           cursor: "default",
         }}
@@ -290,7 +290,7 @@ export function DiscoveryFollowJoinButton({
       disabled={state !== "idle"}
       style={{
         ...baseStyle,
-        background: "#a855ff",
+        background: "#a855f7",
         color: "#fff",
         cursor: state === "idle" ? "pointer" : "default",
         opacity: state === "loading" ? 0.7 : 1,

@@ -304,6 +304,10 @@ export { saveCreatorTaxProfile } from "./facturacion/creatorTaxProfile";
 // Facturapi, no en Firestore.
 export { uploadCreatorCsd } from "./facturacion/uploadCreatorCsd";
 
+// Facturación — Bloque 1c: datos fiscales del COMPRADOR (receptor). No sube CSD;
+// solo guardamos sus datos para que Vibra timbre su factura de venta (Bloque 2).
+export { saveBuyerTaxProfile } from "./facturacion/buyerTaxProfile";
+
 // Pagos — Bloque 2a: cobro de saludos/consejos + webhook de órdenes.
 export { payGreeting } from "./payments/greetingPayment";
 export { mpWebhook } from "./payments/mpWebhook";

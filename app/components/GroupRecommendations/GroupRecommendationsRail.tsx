@@ -829,7 +829,7 @@ export default function GroupRecommendationsRail({
         >
           <style>{`
             .vibInterestsGradient {
-              background: linear-gradient(100deg, #ff2fb3 0%, #a855ff 45%, #4f46ff 100%);
+              background: linear-gradient(100deg, #ff2fb3 0%, #a855f7 45%, #4f46ff 100%);
               background-size: 220% 220%;
               -webkit-background-clip: text;
               background-clip: text;
@@ -856,7 +856,7 @@ export default function GroupRecommendationsRail({
               fontFamily: fontStack,
             }}
           >
-            <span style={{ fontSize: 13, fontWeight: 600, color: "#a855ff", letterSpacing: "0.01em" }}>
+            <span style={{ fontSize: 13, fontWeight: 600, color: "#a855f7", letterSpacing: "0.01em" }}>
               {tGroups("interestsIntro")}
             </span>
             <span style={{ fontSize: 26.4, fontWeight: 665, lineHeight: 1.15, color: "#fff" }}>
@@ -944,7 +944,7 @@ export default function GroupRecommendationsRail({
                   border: "none",
                   background: "transparent",
                   padding: 0,
-                  color: "#a855ff",
+                  color: "#a855f7",
                   fontSize: 13,
                   fontWeight: 600,
                   cursor: "pointer",
@@ -981,7 +981,7 @@ export default function GroupRecommendationsRail({
                   backgroundImage:
                     savingOnboarding || selectedCategories.length < minCategories
                       ? "none"
-                      : "linear-gradient(100deg, #ff2fb3 0%, #a855ff 35%, #4f46ff 70%, #ff2fb3 100%)",
+                      : "linear-gradient(100deg, #ff2fb3 0%, #a855f7 35%, #4f46ff 70%, #ff2fb3 100%)",
                   backgroundSize: "280% 280%",
                   backgroundPosition: "0% 50%",
                   boxShadow:
@@ -1016,7 +1016,7 @@ export default function GroupRecommendationsRail({
                   color: "#fff",
                   backgroundColor: "transparent",
                   backgroundImage:
-                    "linear-gradient(100deg, #ff2fb3 0%, #a855ff 35%, #4f46ff 70%, #ff2fb3 100%)",
+                    "linear-gradient(100deg, #ff2fb3 0%, #a855f7 35%, #4f46ff 70%, #ff2fb3 100%)",
                   backgroundSize: "280% 280%",
                   backgroundPosition: "0% 50%",
                   boxShadow: "0 10px 28px rgba(168,85,255,0.22)",

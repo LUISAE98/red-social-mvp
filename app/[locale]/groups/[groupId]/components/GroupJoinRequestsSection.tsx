@@ -211,7 +211,7 @@ export default function GroupJoinRequestsSection({
           height: 20px;
           padding: 0 6px;
           border-radius: 999px;
-          background: #a855ff;
+          background: #a855f7;
           color: #fff;
           font-size: 12px;
           font-weight: 800;
@@ -264,7 +264,7 @@ export default function GroupJoinRequestsSection({
           object-fit: cover;
         }
         .jrAvatarFallback {
-          color: #a855ff;
+          color: #a855f7;
           font-weight: 800;
         }
         .jrInfo {
@@ -301,7 +301,7 @@ export default function GroupJoinRequestsSection({
           cursor: default;
         }
         .jrApprove {
-          background: #a855ff;
+          background: #a855f7;
           color: #fff;
         }
         .jrReject {

@@ -114,7 +114,7 @@ export default function PushEnablePrompt() {
         >
           <svg width="20" height="20" viewBox="0 0 24 24" style={{ display: "block" }}>
             <path
-              fill="#a855ff"
+              fill="#a855f7"
               d="M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22Zm7-5v-1l-1.6-1.6V9a5.4 5.4 0 0 0-4-5.2V3a1.4 1.4 0 0 0-2.8 0v.8A5.4 5.4 0 0 0 6.6 9v5.4L5 16v1Z"
             />
           </svg>
@@ -153,7 +153,7 @@ export default function PushEnablePrompt() {
             padding: "8px 16px",
             borderRadius: 9,
             border: "none",
-            background: "linear-gradient(100deg, #a855ff, #4f46ff)",
+            background: "linear-gradient(100deg, #a855f7, #4f46ff)",
             color: "#fff",
             fontSize: 13,
             fontWeight: 700,

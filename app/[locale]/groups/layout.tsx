@@ -255,7 +255,7 @@ const contentAreaClassName = isEmbed
   font-weight: 680;
   letter-spacing: -0.035em;
   line-height: 1;
-  background: linear-gradient(100deg, #ff2fb3 0%, #a855ff 45%, #4f46ff 100%);
+  background: linear-gradient(100deg, #ff2fb3 0%, #a855f7 45%, #4f46ff 100%);
   background-size: 220% 220%;
   -webkit-background-clip: text;
   background-clip: text;
@@ -270,7 +270,7 @@ const contentAreaClassName = isEmbed
   font-weight: 680;
   letter-spacing: -0.035em;
   line-height: 1;
-  background: linear-gradient(100deg, #ff2fb3 0%, #a855ff 45%, #4f46ff 100%);
+  background: linear-gradient(100deg, #ff2fb3 0%, #a855f7 45%, #4f46ff 100%);
   background-size: 220% 220%;
   -webkit-background-clip: text;
   background-clip: text;
@@ -439,7 +439,7 @@ const contentAreaClassName = isEmbed
   justify-content: center;
   font-size: 11px;
   font-weight: 700;
-  color: #a855ff;
+  color: #a855f7;
   border: 1.5px solid rgba(168, 85, 255, 0.3);
 }
 
@@ -542,7 +542,7 @@ const contentAreaClassName = isEmbed
   border: none;
   border-radius: 0;
   background: transparent;
-  color: #a855ff;
+  color: #a855f7;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -868,7 +868,7 @@ const contentAreaClassName = isEmbed
           aria-label={tNav("viewSaved")}
           className="mobileSearchIconButton"
         >
-          <VibraSavedPostIcon size={22} color="#a855ff" />
+          <VibraSavedPostIcon size={22} color="#a855f7" />
         </button>
         <button
           type="button"

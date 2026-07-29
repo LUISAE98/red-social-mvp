@@ -235,8 +235,8 @@ export default function AdminLayout({
           }
 
           .navItemActive {
-            color: #a855ff;
-            border-left-color: #a855ff;
+            color: #a855f7;
+            border-left-color: #a855f7;
             background: #130a1f;
           }
 

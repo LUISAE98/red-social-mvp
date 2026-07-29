@@ -134,7 +134,7 @@ export default function ReportModal({ target, onClose, onReported }: Props) {
                     justifyContent: "space-between",
                     padding: "13px 16px",
                     borderRadius: 12,
-                    border: `1.5px solid ${selectedReason === reason ? "#a855ff" : "rgba(255,255,255,0.08)"}`,
+                    border: `1.5px solid ${selectedReason === reason ? "#a855f7" : "rgba(255,255,255,0.08)"}`,
                     background:
                       selectedReason === reason
                         ? "rgba(168,85,255,0.12)"
@@ -149,7 +149,7 @@ export default function ReportModal({ target, onClose, onReported }: Props) {
                 >
                   {REPORT_REASON_LABELS[reason]}
                   {selectedReason === reason && (
-                    <span style={{ color: "#a855ff", fontSize: 16 }}>✓</span>
+                    <span style={{ color: "#a855f7", fontSize: 16 }}>✓</span>
                   )}
                 </button>
               ))}
@@ -213,7 +213,7 @@ export default function ReportModal({ target, onClose, onReported }: Props) {
                   background:
                     !selectedReason || loading
                       ? "rgba(168,85,255,0.3)"
-                      : "#a855ff",
+                      : "#a855f7",
                   color: "#fff",
                   fontSize: 14,
                   fontWeight: 700,
@@ -242,7 +242,7 @@ export default function ReportModal({ target, onClose, onReported }: Props) {
                 padding: "13px 32px",
                 borderRadius: 12,
                 border: "none",
-                background: "#a855ff",
+                background: "#a855f7",
                 color: "#fff",
                 fontSize: 14,
                 fontWeight: 700,

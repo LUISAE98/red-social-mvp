@@ -449,7 +449,7 @@ style={{
         borderRadius: 0,
         border: "none",
         background: "transparent",
-        color: "#a855ff",
+        color: "#a855f7",
         display: "grid",
         placeItems: "center",
         cursor: creating || isPreparingImages ? "not-allowed" : "pointer",
@@ -477,7 +477,7 @@ style={{
           borderRadius: 0,
           border: "none",
           background: "transparent",
-          color: "#a855ff",
+          color: "#a855f7",
           display: "grid",
           placeItems: "center",
           cursor: creating ? "not-allowed" : "pointer",
@@ -504,7 +504,7 @@ style={{
           border: "none",
           borderRadius: 5,
           padding: "0 13px",
-          background: "linear-gradient(135deg, #4f46ff, #a855ff, #ff2fb3)",
+          background: "linear-gradient(135deg, #4f46ff, #a855f7, #ff2fb3)",
           color: "#fff",
           fontSize: 13,
           fontWeight: 500,
@@ -713,7 +713,7 @@ style={{
                                   padding: "0 8px",
                                   borderRadius: 0,
                                   border: "none",
-                                  background: "#a855ff",
+                                  background: "#a855f7",
                                   color: "rgba(255,255,255,0.98)",
                                   fontSize: 12,
                                   fontWeight: 500,
@@ -891,7 +891,7 @@ style={{
   border: "none",
   background: disabledPublish
     ? "rgba(255,255,255,0.1)"
-    : "#a855ff",
+    : "#a855f7",
   color: disabledPublish
     ? "rgba(255,255,255,0.36)"
     : "rgba(255,255,255,0.98)",

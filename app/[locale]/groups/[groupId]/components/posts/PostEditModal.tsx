@@ -527,7 +527,7 @@ export default function PostEditModal({
                 borderRadius: 10,
                 background: busy
                   ? "rgba(168,85,247,0.4)"
-                  : "linear-gradient(135deg, #4f46ff, #a855ff, #ff2fb3)",
+                  : "linear-gradient(135deg, #4f46ff, #a855f7, #ff2fb3)",
                 color: "#fff",
                 fontSize: 14,
                 fontFamily: fontStack,

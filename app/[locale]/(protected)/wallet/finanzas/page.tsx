@@ -224,7 +224,7 @@ export default function WalletFinanzasPage() {
               letterSpacing: "-0.01em",
               color: active ? "#fff" : "rgba(255,255,255,0.6)",
               background: active
-                ? "linear-gradient(135deg, #4f46ff, #a855ff)"
+                ? "linear-gradient(135deg, #4f46ff, #a855f7)"
                 : "transparent",
               transition: "color 150ms ease, background 150ms ease",
             }}
@@ -282,7 +282,7 @@ export default function WalletFinanzasPage() {
                     whiteSpace: "nowrap",
                     color: canWithdrawNow ? "#fff" : "rgba(255,255,255,0.4)",
                     background: canWithdrawNow
-                      ? "linear-gradient(135deg, #a855ff, #ec4899)"
+                      ? "linear-gradient(135deg, #a855f7, #ec4899)"
                       : "rgba(255,255,255,0.06)",
                     cursor: canWithdrawNow ? "pointer" : "not-allowed",
                     transition: "background 150ms ease, color 150ms ease",

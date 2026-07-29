@@ -130,7 +130,7 @@ export function Switch({
         borderRadius: 999,
         border: "none",
         background: checked
-          ? (activeColor ?? "linear-gradient(100deg, #a855ff, #4f46ff)")
+          ? (activeColor ?? "linear-gradient(100deg, #a855f7, #4f46ff)")
           : "rgba(255,255,255,0.10)",
         padding: 0,
         cursor: disabled ? "not-allowed" : "pointer",

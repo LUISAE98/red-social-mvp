@@ -11,7 +11,7 @@ export type VibraSubnavIconType =
   | "profiles"
   | "stories";
 
-const vibraPurple = "#a855ff";
+const vibraPurple = "#a855f7";
 const SUBNAV_ICON_CONFIG: Record<
   VibraSubnavIconType,
   {

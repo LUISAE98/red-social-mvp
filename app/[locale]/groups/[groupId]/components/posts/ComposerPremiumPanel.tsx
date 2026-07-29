@@ -131,7 +131,7 @@ function OptionRow<TValue extends string>({
           width: 40,
           height: 22,
           borderRadius: 11,
-          background: selected ? "#a855ff" : "transparent",
+          background: selected ? "#a855f7" : "transparent",
           boxShadow: selected
             ? "none"
             : "inset 0 0 0 1.5px rgba(168,85,255,0.3)",
@@ -266,7 +266,7 @@ export default function ComposerPremiumPanel({
       <div style={{ display: "grid", gap: 4 }}>
         <div
           style={{
-            color: "#a855ff",
+            color: "#a855f7",
             fontSize: 17,
             fontWeight: 500,
             letterSpacing: "-0.02em",
@@ -463,7 +463,7 @@ export default function ComposerPremiumPanel({
           >
             <span
               style={{
-                color: "#a855ff",
+                color: "#a855f7",
                 fontSize: 15,
                 fontWeight: 700,
                 flexShrink: 0,
@@ -532,7 +532,7 @@ export default function ComposerPremiumPanel({
               }}
             >
               {tPosts("premiumEarningsPerUnlock")}{" "}
-              <strong style={{ color: "#a855ff", fontWeight: 600 }}>
+              <strong style={{ color: "#a855f7", fontWeight: 600 }}>
                 {creatorEarnings}
               </strong>
             </span>

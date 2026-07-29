@@ -370,7 +370,7 @@ const s = {
   } as CSSProperties,
   primaryBtn: {
     width: "100%", height: 42, borderRadius: 5, border: "none",
-    background: "#a855ff", color: "rgba(255,255,255,0.98)",
+    background: "#a855f7", color: "rgba(255,255,255,0.98)",
     fontSize: 15, fontWeight: 500, fontFamily: "inherit",
     cursor: "pointer", letterSpacing: "-0.02em",
     display: "flex", alignItems: "center", justifyContent: "center",
@@ -457,7 +457,7 @@ export default function CreatorServiceModals({
   const greetAccentDim = greetType === "consejo" ? "rgba(247,201,72,0.78)" : "rgba(168,85,247,0.78)";
   const greetGradient = greetType === "consejo"
     ? "linear-gradient(100deg, #f7c948, #f59e0b)"
-    : "linear-gradient(100deg, #a855ff, #4f46ff)";
+    : "linear-gradient(100deg, #a855f7, #4f46ff)";
   const greetBgImage = greetType === "saludo" ? "/saludo.webp"
     : greetType === "consejo" ? "/consejo.webp"
     : undefined;
@@ -664,7 +664,7 @@ export default function CreatorServiceModals({
     const remaining = maxLen - params.message.length;
     const hasTerms = typeof params.termsAccepted === "boolean";
     const isDisabled = params.submitting || (hasTerms && !params.termsAccepted);
-    const btnBg = params.accentGradient ?? "#a855ff";
+    const btnBg = params.accentGradient ?? "#a855f7";
 
     return (
       <Panel
@@ -810,7 +810,7 @@ export default function CreatorServiceModals({
                 position: "relative", flexShrink: 0,
                 width: 36, height: 20, borderRadius: 999, padding: 0,
                 border: "1px solid rgba(255,255,255,0.18)",
-                background: params.termsAccepted ? (params.accentGradient ?? "#a855ff") : "rgba(255,255,255,0.10)",
+                background: params.termsAccepted ? (params.accentGradient ?? "#a855f7") : "rgba(255,255,255,0.10)",
                 cursor: params.submitting ? "not-allowed" : "pointer",
                 transition: "all 0.2s ease",
               }}

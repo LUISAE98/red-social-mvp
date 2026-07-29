@@ -513,7 +513,7 @@ export default function WalletDesktopRail({
           background-image: linear-gradient(
             100deg,
             #ff2fb3 0%,
-            #a855ff 35%,
+            #a855f7 35%,
             #4f46ff 70%,
             #ff2fb3 100%
           );
@@ -579,7 +579,7 @@ export default function WalletDesktopRail({
         }
 
         :global(.walletLinkActive) .walletIcon {
-          color: #a855ff;
+          color: #a855f7;
           opacity: 1;
           filter: saturate(1) brightness(1);
         }

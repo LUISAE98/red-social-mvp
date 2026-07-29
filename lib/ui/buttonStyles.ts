@@ -24,7 +24,7 @@ export const btnPrimary: CSSProperties = {
 export const btnAuth: CSSProperties = {
   ...BASE,
   background:
-    "linear-gradient(100deg, #ff2fb3 0%, #a855ff 35%, #4f46ff 70%, #ff2fb3 100%)",
+    "linear-gradient(100deg, #ff2fb3 0%, #a855f7 35%, #4f46ff 70%, #ff2fb3 100%)",
 };
 
 // BLUE — Donar/Apoyar, Contexto en historias

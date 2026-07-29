@@ -40,7 +40,7 @@ export default function LegalLinksFooter() {
           font-size: 12px;
           font-weight: 500;
           line-height: 1.3;
-          color: #a855ff;
+          color: #a855f7;
           cursor: pointer;
           border-radius: 6px;
           transition: color 140ms ease, background 140ms ease;

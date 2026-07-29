@@ -36,7 +36,7 @@ export function VibraOutro({ show }: { show: boolean }) {
     <>
       <style>{`
         .vibraOutroText {
-          background: linear-gradient(100deg, #ff2fb3 0%, #a855ff 45%, #4f46ff 100%);
+          background: linear-gradient(100deg, #ff2fb3 0%, #a855f7 45%, #4f46ff 100%);
           background-size: 220% 220%;
           -webkit-background-clip: text;
           background-clip: text;

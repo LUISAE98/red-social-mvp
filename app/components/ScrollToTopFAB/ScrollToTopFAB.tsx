@@ -119,7 +119,7 @@ export default function ScrollToTopFAB() {
     width: INNER_SIZE,
     height: INNER_SIZE,
     borderRadius: "50%",
-    background: "linear-gradient(135deg, #a855ff, #7c3aed)",
+    background: "linear-gradient(135deg, #a855f7, #7c3aed)",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
@@ -192,7 +192,7 @@ export default function ScrollToTopFAB() {
                 cy={cy}
                 r={RING_R}
                 fill="none"
-                stroke="#a855ff"
+                stroke="#a855f7"
                 strokeWidth={STROKE}
                 strokeLinecap="round"
                 strokeDasharray={CIRCUMFERENCE}

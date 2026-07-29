@@ -138,7 +138,7 @@ export default function LiveEndSummaryPanel({ open, onClose, post }: Props) {
           style={{
             padding: "7px 14px", border: "none", cursor: "pointer", fontFamily: FONT,
             fontSize: 13, fontWeight: value ? 600 : 400,
-            background: value ? "#a855ff" : "transparent",
+            background: value ? "#a855f7" : "transparent",
             color: value ? "#fff" : "rgba(255,255,255,0.45)",
             transition: "background 0.15s, color 0.15s",
           }}
@@ -149,7 +149,7 @@ export default function LiveEndSummaryPanel({ open, onClose, post }: Props) {
           style={{
             padding: "7px 14px", border: "none", cursor: "pointer", fontFamily: FONT,
             fontSize: 13, fontWeight: !value ? 600 : 400,
-            background: !value ? "#a855ff" : "transparent",
+            background: !value ? "#a855f7" : "transparent",
             color: !value ? "#fff" : "rgba(255,255,255,0.45)",
             transition: "background 0.15s, color 0.15s",
           }}
@@ -309,7 +309,7 @@ export default function LiveEndSummaryPanel({ open, onClose, post }: Props) {
               disabled={saving}
               style={{
                 width: "100%", height: 42, borderRadius: 5, border: "none",
-                background: saving ? "rgba(255,255,255,0.1)" : "#a855ff",
+                background: saving ? "rgba(255,255,255,0.1)" : "#a855f7",
                 color: saving ? "rgba(255,255,255,0.36)" : "rgba(255,255,255,0.98)",
                 fontSize: 17, fontWeight: 500, fontFamily: FONT,
                 cursor: saving ? "not-allowed" : "pointer",
@@ -377,7 +377,7 @@ export default function LiveEndSummaryPanel({ open, onClose, post }: Props) {
             disabled={saving}
             style={{
               width: "100%", height: 42, borderRadius: 5, border: "none",
-              background: saving ? "rgba(255,255,255,0.1)" : "#a855ff",
+              background: saving ? "rgba(255,255,255,0.1)" : "#a855f7",
               color: saving ? "rgba(255,255,255,0.36)" : "rgba(255,255,255,0.98)",
               fontSize: 17, fontWeight: 500, fontFamily: FONT,
               cursor: saving ? "not-allowed" : "pointer",
