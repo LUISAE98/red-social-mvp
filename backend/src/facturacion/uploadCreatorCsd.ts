@@ -16,6 +16,7 @@ import {
   getOrganization,
 } from "./facturapiOrganizations";
 import { facturapiTestKey, facturapiUserKey } from "./facturapiClient";
+import { SELF_BILLING_CONSENT_VERSION } from "./creatorTaxProfile";
 
 if (admin.apps.length === 0) {
   admin.initializeApp();
@@ -33,8 +34,13 @@ export const uploadCreatorCsd = onCall(
     const cerBase64 = String(data.cerBase64 ?? "").trim();
     const keyBase64 = String(data.keyBase64 ?? "").trim();
     const password = String(data.password ?? "");
+    const acceptSelfBilling = data.acceptSelfBilling === true;
     if (!cerBase64 || !keyBase64 || !password) {
       throw new HttpsError("invalid-argument", "Faltan los archivos del CSD o la contraseña.");
+    }
+    // Subir el CSD = habilitar el self-billing (Vibra emite sus CFDIs por él).
+    if (!acceptSelfBilling) {
+      throw new HttpsError("failed-precondition", "Debes aceptar la auto-facturación para usar la opción automática.");
     }
 
     const ref = db.collection("creatorTaxProfiles").doc(uid);
@@ -78,6 +84,12 @@ export const uploadCreatorCsd = onCall(
           csdStatus: "valid",
           csdExpiresAt: cert.expiresAt,
           csdSerialNumber: cert.serialNumber,
+          // Consentimiento de self-billing: se otorga al habilitar la ruta automática.
+          selfBillingConsent: {
+            accepted: true,
+            version: SELF_BILLING_CONSENT_VERSION,
+            acceptedAt: now,
+          },
           status: "ready",
           updatedAt: now,
         },

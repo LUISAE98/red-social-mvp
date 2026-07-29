@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { useAuth } from "@/app/providers";
 import {
   signInWithEmailAndPassword,
+  sendPasswordResetEmail,
   setPersistence,
   browserLocalPersistence,
   browserSessionPersistence,
@@ -16,14 +17,11 @@ import {
 import { doc, getDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { useRouter, useSearchParams } from "next/navigation";
-import Link from "next/link";
-import {
-  appendSafeNextParam,
-  getNextFromSearchParams,
-} from "@/lib/auth-redirect";
+import { getNextFromSearchParams } from "@/lib/auth-redirect";
 import LoginCollageBackground from "./LoginCollageBackground";
 import WalletOnboarding from "@/app/[locale]/(protected)/wallet/components/WalletOnboarding";
 import LegalLinksFooter from "@/app/components/legal/LegalLinksFooter";
+import RegisterPanel from "@/app/[locale]/(public)/register/RegisterPanel";
 
 const vibraPink = "#ff2fb3";
 const vibraPurple = "#a855ff";
@@ -45,6 +43,15 @@ function friendlyAuthErrorKey(err: unknown): string {
   return "errUnexpected";
 }
 
+function friendlyResetErrorKey(err: unknown): string {
+  const code = (err as { code?: string } | null)?.code;
+  if (code === "auth/invalid-email") return "errInvalidEmail";
+  if (code === "auth/user-not-found") return "errUserNotFound";
+  if (code === "auth/too-many-requests") return "errTooManyRequests";
+  if (code === "auth/network-request-failed") return "errNetworkFailed";
+  return "errUnexpected";
+}
+
 async function applyAuthPersistence(keepSession: boolean) {
   if (!keepSession) {
     await setPersistence(auth, browserSessionPersistence);
@@ -60,12 +67,22 @@ async function applyAuthPersistence(keepSession: boolean) {
 
 export default function LoginClient() {
   const t = useTranslations("auth.login");
+  const tReset = useTranslations("auth.resetPassword");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [keepSession, setKeepSession] = useState(true);
 const [msg, setMsg] = useState<string | null>(null);
 const [loading, setLoading] = useState(false);
 const [isLeavingLogin, setIsLeavingLogin] = useState(false);
+// Swap in-place entre los 3 paneles de auth (login ↔ recuperar ↔ crear cuenta),
+// sin cambiar de página. `swapped` arranca en false para NO animar el primer
+// render; cualquier cambio de panel lo pone en true y todos entran igual
+// (deslizando desde la derecha).
+const [mode, setMode] = useState<"login" | "reset" | "register">("login");
+const [swapped, setSwapped] = useState(false);
+const [justRegistered, setJustRegistered] = useState(false);
+const [resetMsg, setResetMsg] = useState<string | null>(null);
+const [resetLoading, setResetLoading] = useState(false);
 // Switch del contenido debajo del fold: creadores (izq) / usuarios (der).
 const [audience, setAudience] = useState<"creators" | "users">("creators");
 const { startAuthTransition } = useAuth();
@@ -94,7 +111,6 @@ useEffect(() => {
 
   const registered = searchParams.get("registered") === "1";
   const nextPath = getNextFromSearchParams(searchParams, "/");
-  const registerHref = appendSafeNextParam("/register", nextPath);
 
 async function createSessionFromUser(user: User) {
   const idToken = await user.getIdToken(true);
@@ -206,6 +222,48 @@ router.replace(nextPath);
   } finally {
     setLoading(false);
   }
+}
+
+async function handleReset(e: React.FormEvent) {
+  e.preventDefault();
+  setResetMsg(null);
+  setResetLoading(true);
+
+  try {
+    await sendPasswordResetEmail(auth, email.trim());
+    setResetMsg(tReset("successMsg"));
+  } catch (err: unknown) {
+    setResetMsg(tReset(friendlyResetErrorKey(err) as Parameters<typeof tReset>[0]));
+  } finally {
+    setResetLoading(false);
+  }
+}
+
+function goTo(next: "login" | "reset" | "register") {
+  setSwapped(true);
+  if (next !== "login") setJustRegistered(false);
+  setMode(next);
+}
+
+function openReset() {
+  setResetMsg(null);
+  goTo("reset");
+}
+
+function openRegister() {
+  goTo("register");
+}
+
+function backToLogin() {
+  goTo("login");
+}
+
+// Registro exitoso desde la tarjeta: volvemos al panel de login mostrando el
+// aviso de "cuenta creada" (mismo que llega por ?registered=1).
+function handleRegistered() {
+  setSwapped(true);
+  setJustRegistered(true);
+  setMode("login");
 }
 
   const fontStack =
@@ -519,6 +577,40 @@ body.loginPageBg {
           z-index: 1;
         }
 
+        /* Swap entre los 3 paneles de auth (login ↔ recuperar ↔ crear cuenta)
+           dentro de la misma tarjeta. TODOS entran igual: deslizando desde la
+           derecha. overflow-x: clip recorta el desborde del slide sin scroll. */
+        .authSwap {
+          overflow-x: clip;
+        }
+        /* Hint de composición: reservamos la capa GPU desde que el panel monta
+           (no en plena primera animación), y aislamos el pintado del subárbol
+           con contain. Esto quita el "tirón" de los primeros intentos, cuando el
+           navegador tenía que crear la capa en caliente. */
+        .authPanel {
+          will-change: transform, opacity;
+          backface-visibility: hidden;
+          contain: paint;
+        }
+        .authFromRight {
+          animation: authSwapFromRight 400ms cubic-bezier(0.22, 1, 0.36, 1);
+        }
+        @keyframes authSwapFromRight {
+          from {
+            opacity: 0;
+            transform: translateX(42px);
+          }
+          to {
+            opacity: 1;
+            transform: none;
+          }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .authFromRight {
+            animation: none;
+          }
+        }
+
 @media (max-width: 900px) {
   .loginRightPane {
     /* Menos padding abajo para que el switch de audiencia quede cerca del botón
@@ -580,12 +672,19 @@ body.loginPageBg {
           </p>
 
           <div style={shellStyle}>
+            <div className="authSwap">
+              <div
+                key={mode}
+                className={`authPanel${swapped ? " authFromRight" : ""}`}
+              >
+                {mode === "login" && (
+                  <>
 <div>
   <h1 style={titleStyle}>{t("title")}</h1>
   <p style={subtitleStyle}>{t("subtitle")}</p>
 </div>
 
-            {registered && (
+            {(registered || justRegistered) && (
               <div style={noticeStyle}>
                 {t("accountCreated")}
               </div>
@@ -655,13 +754,35 @@ marginBottom: 6,
                   flexWrap: "wrap",
                 }}
               >
-<Link href={registerHref} style={registerLinkStyle}>
+<button
+  type="button"
+  onClick={openRegister}
+  style={{
+    ...registerLinkStyle,
+    background: "transparent",
+    border: "none",
+    padding: 0,
+    cursor: "pointer",
+    fontFamily: "inherit",
+  }}
+>
   {t("createAccount")}
-</Link>
+</button>
 
-<Link href="/reset-password" style={forgotLinkStyle}>
+<button
+  type="button"
+  onClick={openReset}
+  style={{
+    ...forgotLinkStyle,
+    background: "transparent",
+    border: "none",
+    padding: 0,
+    cursor: "pointer",
+    fontFamily: "inherit",
+  }}
+>
   {t("forgotPassword")}
-</Link>
+</button>
               </div>
 
 <button
@@ -745,6 +866,110 @@ marginBottom: 6,
     {msg}
   </div>
 )}
+                  </>
+                )}
+
+                {mode === "reset" && (
+                  <>
+                  <div>
+                    <h1 style={titleStyle}>{tReset("title")}</h1>
+                    <p style={subtitleStyle}>{tReset("subtitle")}</p>
+                  </div>
+
+                  <form onSubmit={handleReset} style={{ display: "grid", gap: 11 }}>
+                    <label style={{ display: "grid", gap: 4 }}>
+                      <span style={labelTextStyle}>{tReset("emailLabel")}</span>
+                      <input
+                        type="email"
+                        required
+                        autoComplete="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        style={inputStyle}
+                        placeholder={tReset("emailPlaceholder")}
+                      />
+                    </label>
+
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        gap: 8,
+                        marginTop: 4,
+                        marginBottom: 6,
+                        flexWrap: "wrap",
+                      }}
+                    >
+                      <button
+                        type="button"
+                        onClick={backToLogin}
+                        style={{
+                          ...forgotLinkStyle,
+                          background: "transparent",
+                          border: "none",
+                          padding: 0,
+                          cursor: "pointer",
+                          fontFamily: "inherit",
+                        }}
+                      >
+                        {tReset("backToLogin")}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={openRegister}
+                        style={{
+                          ...registerLinkStyle,
+                          background: "transparent",
+                          border: "none",
+                          padding: 0,
+                          cursor: "pointer",
+                          fontFamily: "inherit",
+                        }}
+                      >
+                        {tReset("createAccount")}
+                      </button>
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={resetLoading}
+                      style={{
+                        ...primaryButtonStyle,
+                        marginTop: 2,
+                        opacity: resetLoading ? 0.84 : 1,
+                        cursor: resetLoading ? "not-allowed" : "pointer",
+                        filter: resetLoading ? "grayscale(0.15)" : "none",
+                      }}
+                    >
+                      {resetLoading ? tReset("submitting") : tReset("submit")}
+                    </button>
+                  </form>
+
+                  {resetMsg && (
+                    <div
+                      style={{
+                        ...noticeStyle,
+                        marginTop: 10,
+                        marginBottom: 0,
+                      }}
+                    >
+                      {resetMsg}
+                    </div>
+                  )}
+                  </>
+                )}
+
+                {mode === "register" && (
+                  <RegisterPanel
+                    email={email}
+                    onEmailChange={setEmail}
+                    onSwitchToLogin={backToLogin}
+                    onRegistered={handleRegistered}
+                  />
+                )}
+              </div>
+            </div>
           </div>
         </div>
       </main>

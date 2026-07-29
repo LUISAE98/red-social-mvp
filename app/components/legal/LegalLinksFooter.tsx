@@ -40,7 +40,7 @@ export default function LegalLinksFooter() {
           font-size: 12px;
           font-weight: 500;
           line-height: 1.3;
-          color: rgba(255, 255, 255, 0.5);
+          color: #a855ff;
           cursor: pointer;
           border-radius: 6px;
           transition: color 140ms ease, background 140ms ease;
@@ -48,7 +48,7 @@ export default function LegalLinksFooter() {
         }
         .legalLink:hover {
           color: #c8a8ff;
-          background: rgba(255, 255, 255, 0.05);
+          background: rgba(168, 85, 255, 0.1);
         }
         .legalLink:focus-visible {
           outline: 2px solid rgba(168, 85, 255, 0.6);

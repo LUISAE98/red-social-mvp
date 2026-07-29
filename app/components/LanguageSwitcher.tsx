@@ -207,24 +207,27 @@ export default function LanguageSwitcher({ variant = "desktop" }: { variant?: Va
             title={tCommon("changeLanguage")}
             aria-label={tCommon("changeLanguage")}
             style={{
-              width: 44,
-              height: 44,
+              width: 53,
+              height: 53,
               borderRadius: "50%",
-              background: open ? "rgba(168, 85, 255, 0.18)" : "rgba(8, 5, 20, 0.88)",
-              border: "1.5px solid rgba(168, 85, 255, 0.5)",
-              boxShadow: "0 4px 16px rgba(0,0,0,0.5), 0 0 0 1px rgba(168, 85, 255, 0.1)",
-              backdropFilter: "blur(12px)",
-              WebkitBackdropFilter: "blur(12px)",
+              // Sin contenedor: fondo y contorno transparentes (sin sombra ni
+              // blur). Solo queda el texto morado; un text-shadow sutil lo
+              // mantiene legible sobre el collage sin volver a crear una "caja".
+              background: "transparent",
+              border: "none",
+              boxShadow: "none",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               cursor: "pointer",
               color: "#a855ff",
-              fontSize: 11,
+              fontSize: 13,
               fontWeight: 800,
               fontFamily: "inherit",
               letterSpacing: "0.04em",
-              transition: "background 140ms ease",
+              textShadow: "0 1px 3px rgba(0,0,0,0.6)",
+              opacity: open ? 0.75 : 1,
+              transition: "opacity 140ms ease",
             }}
           >
             {label}

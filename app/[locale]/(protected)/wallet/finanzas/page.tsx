@@ -274,15 +274,15 @@ export default function WalletFinanzasPage() {
                   disabled={!canWithdrawNow}
                   style={{
                     border: "none",
-                    borderRadius: 10,
+                    borderRadius: 7,
                     padding: "7px 16px",
                     fontSize: 12.5,
                     fontWeight: 700,
                     letterSpacing: "-0.01em",
                     whiteSpace: "nowrap",
-                    color: canWithdrawNow ? "#052e16" : "rgba(255,255,255,0.4)",
+                    color: canWithdrawNow ? "#fff" : "rgba(255,255,255,0.4)",
                     background: canWithdrawNow
-                      ? "linear-gradient(135deg, #4ade80, #16a34a)"
+                      ? "linear-gradient(135deg, #a855ff, #ec4899)"
                       : "rgba(255,255,255,0.06)",
                     cursor: canWithdrawNow ? "pointer" : "not-allowed",
                     transition: "background 150ms ease, color 150ms ease",

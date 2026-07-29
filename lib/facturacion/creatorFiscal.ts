@@ -16,7 +16,6 @@ export type SaveCreatorTaxProfileInput = {
   legalName: string; // razón social / nombre fiscal
   taxSystem: string; // clave de régimen SAT (ej. "626")
   zip: string; // CP fiscal
-  acceptSelfBilling: boolean;
 };
 
 export async function saveCreatorTaxProfile(
@@ -35,6 +34,8 @@ export type UploadCreatorCsdInput = {
   cerBase64: string;
   keyBase64: string;
   password: string;
+  /** Consentimiento de auto-facturación (self-billing): obligatorio para la ruta auto. */
+  acceptSelfBilling: boolean;
 };
 
 export async function uploadCreatorCsd(

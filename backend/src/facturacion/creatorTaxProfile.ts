@@ -38,7 +38,6 @@ export const saveCreatorTaxProfile = onCall(
     const legalName = String(data.legalName ?? "").trim();
     const taxSystem = String(data.taxSystem ?? "").trim(); // clave de régimen SAT (ej. "626")
     const zip = String(data.zip ?? "").trim();
-    const acceptSelfBilling = data.acceptSelfBilling === true;
 
     if (!RFC_RE.test(taxId)) {
       throw new HttpsError("invalid-argument", "RFC inválido.");
@@ -52,10 +51,9 @@ export const saveCreatorTaxProfile = onCall(
     if (!ZIP_RE.test(zip)) {
       throw new HttpsError("invalid-argument", "Código postal fiscal inválido.");
     }
-    if (!acceptSelfBilling) {
-      // Sin consentimiento no podemos emitir sus CFDIs por él (self-billing).
-      throw new HttpsError("failed-precondition", "Debes aceptar la auto-facturación para poder cobrar.");
-    }
+    // El consentimiento de self-billing NO se pide aquí: aplica solo a la ruta
+    // AUTOMÁTICA y se captura al subir el CSD (uploadCreatorCsd). Estos datos los
+    // usa también la ruta manual (el creador emite su propio CFDI a Vibra).
 
     const ref = db.collection("creatorTaxProfiles").doc(uid);
     const now = admin.firestore.FieldValue.serverTimestamp();
@@ -70,11 +68,6 @@ export const saveCreatorTaxProfile = onCall(
         legalName,
         taxSystem,
         zip,
-        selfBillingConsent: {
-          accepted: true,
-          version: SELF_BILLING_CONSENT_VERSION,
-          acceptedAt: now,
-        },
         // Estado del alta: datos completos, pero aún SIN CSD (eso lo habilita el cobro real).
         // `facturapiOrgId`/`csdStatus` los pone el Bloque 1b al subir el CSD.
         facturapiOrgId: prev.facturapiOrgId ?? null,
