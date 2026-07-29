@@ -114,6 +114,7 @@ import {
 export * from "./post-service.queries";
 export * from "./post-service.media";
 export * from "./post-service.create";
+export * from "./post-service.create-media";
 export * from "./post-service.comments";
 
 
