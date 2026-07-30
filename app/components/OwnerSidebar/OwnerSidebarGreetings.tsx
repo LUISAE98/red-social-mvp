@@ -51,7 +51,7 @@ import {
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import {
-  ScheduledCountdown, ScheduledRow, SectionBlock,
+  ScheduledRow, SectionBlock,
   displayRowStatus, fmtScheduledSplit, getCreatorScheduleNote,
   getMeetGreetStatusLabel, getRelativeTime, getSectionForMeetGreetStatus,
   getServiceCardColors, greetingBgImage, isNoShowExpired, isPrepareWindowOpen,
@@ -102,7 +102,6 @@ export default function OwnerSidebarGreetings({
   const [deliveredSubOpen, setDeliveredSubOpen] = useState<"sessions" | "greetings" | null>(null);
   // Submenú de rechazados abierto: solo uno a la vez ("rejected" | "refund" | null).
   const [rejectedSubOpen, setRejectedSubOpen] = useState<"rejected" | "refund" | null>(null);
-  const [pendingVisibleCount, setPendingVisibleCount] = useState(6);
   const [openItemKey, setOpenItemKey] = useState<string | null>(null);
   const [rejectOpenMap, setRejectOpenMap] = useState<ToggleMap>({});
   const [scheduleOpenMap, setScheduleOpenMap] = useState<ToggleMap>({});
@@ -932,73 +931,112 @@ const creatorScheduleNote = getCreatorScheduleNote(req);
         !noShowExpired2;
       const isRefundCard = getSectionForMeetGreetStatus(req.status) === "rejected";
       const bgImage2 = isExclusiveSession ? "/sesionexclusiva.webp" : "/encuentroenvivo.webp";
-      // Solo en pendientes (no devolución) y con fecha agendada existente.
-      const scheduledDate2 = toDateSafe(req.scheduledAt);
-      const showScheduled2 = !isRefundCard && !!scheduledDate2;
-      const scheduledSplit2 = showScheduled2 ? fmtScheduledSplit(req.scheduledAt) : null;
-      const priceColor2 = isExclusiveSession ? "#f9a8d4" : "#93c5fd";
-      return (
-        <div key={itemKey} style={{
-          ...styles.miniItem,
-          ...serviceCardBackgroundStyle(bgImage2, cardColors2.bg, isRefundCard),
-          border: "none", borderRadius: 12, overflow: "hidden", padding: 10,
-          display: "flex", flexDirection: "column", gap: 8,
-        }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            {creatorAvatar2 ? (
-              <Image src={creatorAvatar2} alt={creatorName2} width={36} height={36}
-                style={{ borderRadius: "50%", objectFit: "cover", flexShrink: 0, border: "1px solid rgba(255,255,255,0.10)" }} />
-            ) : (
-              <div style={{
-                width: 36, height: 36, borderRadius: "50%", flexShrink: 0,
-                background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.10)",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                fontWeight: 700, fontSize: 14, color: "#fff",
-              }}>{creatorInitial2}</div>
-            )}
+
+      const avatar2 = creatorAvatar2 ? (
+        <Image src={creatorAvatar2} alt={creatorName2} width={36} height={36}
+          style={{ borderRadius: "50%", objectFit: "cover", flexShrink: 0, border: "1px solid rgba(255,255,255,0.10)" }} />
+      ) : (
+        <div style={{
+          width: 36, height: 36, borderRadius: "50%", flexShrink: 0,
+          background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.10)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          fontWeight: 700, fontSize: 14, color: "#fff",
+        }}>{creatorInitial2}</div>
+      );
+
+      const viewBtn2 = (
+        <button
+          type="button"
+          onClick={() => setViewSessionItem({ row, creatorName: creatorName2, creatorAvatar: creatorAvatar2 })}
+          style={{
+            flexShrink: 0, height: 30, padding: "0 14px", borderRadius: 8, border: "none",
+            background: cardColors2.btnBg, color: cardColors2.btnColor,
+            fontWeight: 600, fontSize: 11, cursor: "pointer", whiteSpace: "nowrap",
+          }}
+        >
+          {canPrepareCard ? tServices("prepare") : tServices("viewDetails")}
+        </button>
+      );
+
+      // Devolución / cancelado: conserva el diseño anterior (fila simple atenuada).
+      if (isRefundCard) {
+        return (
+          <div key={itemKey} style={{
+            ...styles.miniItem,
+            ...serviceCardBackgroundStyle(bgImage2, cardColors2.bg, true),
+            border: "none", borderRadius: 12, overflow: "hidden", padding: 10,
+            display: "flex", alignItems: "center", gap: 10,
+          }}>
+            {avatar2}
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ color: "#fff", fontWeight: 600, fontSize: 13, lineHeight: 1.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 {creatorName2}
               </div>
-              {(req.status === "rejected" || req.status === "refund_requested" || req.status === "refund_review" || relTime2) && (
+              {(req.status === "refund_requested" || req.status === "refund_review" || relTime2) && (
                 <div style={{ color: "rgba(255,255,255,0.45)", fontSize: 11, marginTop: 2 }}>
-                  {req.status === "rejected" ? tSessions("statusRejected") : (req.status === "refund_requested" || req.status === "refund_review") ? tServices("statusRefundInProgress") : relTime2}
+                  {(req.status === "refund_requested" || req.status === "refund_review") ? tServices("statusRefundInProgress") : relTime2}
                 </div>
               )}
             </div>
-            <button
-              type="button"
-              onClick={() => setViewSessionItem({ row, creatorName: creatorName2, creatorAvatar: creatorAvatar2 })}
-              style={{
-                flexShrink: 0, height: 28, padding: "0 12px", borderRadius: 8, border: "none",
-                background: cardColors2.btnBg, color: cardColors2.btnColor,
-                fontWeight: 600, fontSize: 11, cursor: "pointer", whiteSpace: "nowrap",
-              }}
-            >
-              {canPrepareCard ? tServices("prepare") : tServices("viewDetails")}
-            </button>
+            {viewBtn2}
           </div>
-          {showScheduled2 && (
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
-              {scheduledDate2 && <ScheduledCountdown target={scheduledDate2} />}
+        );
+      }
+
+      // Pendiente: 3 partes centradas de altura, separadas por línea vertical sutil:
+      // (1) creador + hace cuánto se compró · (2) fecha agendada · (3) botón.
+      const scheduledSplit2 = fmtScheduledSplit(req.scheduledAt);
+      const dateAccent2 = isExclusiveSession ? "#f9a8d4" : "#93c5fd";
+      const divider2 = (
+        <span aria-hidden="true" style={{ alignSelf: "stretch", width: 1, background: "rgba(255,255,255,0.14)", flexShrink: 0, margin: "3px 0" }} />
+      );
+
+      return (
+        <div key={itemKey} style={{
+          ...styles.miniItem,
+          ...serviceCardBackgroundStyle(bgImage2, cardColors2.bg, false),
+          border: "none", borderRadius: 12, overflow: "hidden", padding: "12px 10px",
+          display: "flex", alignItems: "center", gap: 10,
+        }}>
+          {/* 1 · Creador + hace cuánto se compró */}
+          <div style={{ flex: "1 1 0", minWidth: 0, display: "flex", alignItems: "center", gap: 9 }}>
+            {avatar2}
+            <div style={{ minWidth: 0 }}>
+              <div style={{ color: "#fff", fontWeight: 600, fontSize: 13, lineHeight: 1.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {creatorName2}
+              </div>
+              {relTime2 && (
+                <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 11, marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {relTime2}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {divider2}
+
+          {/* 2 · Fecha agendada (mismo ícono y formato de antes; o estado si no hay fecha) */}
+          <div style={{ flex: "1 1 0", minWidth: 0, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 4px" }}>
+            {scheduledSplit2 ? (
               <div style={{ display: "flex", flexDirection: "row", alignItems: "flex-start", justifyContent: "center", gap: 8 }}>
-                <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke={priceColor2} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ flexShrink: 0, marginTop: 1 }}>
+                <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke={dateAccent2} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ flexShrink: 0, marginTop: 1 }}>
                   <path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
                 </svg>
                 <div style={{ display: "flex", flexDirection: "column", gap: 1, minWidth: 0 }}>
                   <span style={{ color: "#fff", fontSize: 11, fontWeight: 600, lineHeight: 1.2, textShadow: "0 1px 3px rgba(0,0,0,0.8)" }}>{tServices("scheduledDateLabel")}</span>
-                  {scheduledSplit2 ? (
-                    <>
-                      <span style={{ color: "#fff", fontSize: 12.5, fontWeight: 400, lineHeight: 1.25, textShadow: "0 1px 3px rgba(0,0,0,0.8)" }}>{scheduledSplit2.dayTime}</span>
-                      <span style={{ color: "rgba(255,255,255,0.85)", fontSize: 11.5, fontWeight: 400, lineHeight: 1.25, textShadow: "0 1px 3px rgba(0,0,0,0.8)" }}>{scheduledSplit2.dateStr}</span>
-                    </>
-                  ) : (
-                    <span style={{ color: "#fff", fontSize: 12.5, fontWeight: 400, lineHeight: 1.25 }}>{tServices("noDateLabel")}</span>
-                  )}
+                  <span style={{ color: "#fff", fontSize: 12.5, fontWeight: 400, lineHeight: 1.25, textShadow: "0 1px 3px rgba(0,0,0,0.8)" }}>{scheduledSplit2.dayTime}</span>
+                  <span style={{ color: "rgba(255,255,255,0.85)", fontSize: 11.5, fontWeight: 400, lineHeight: 1.25, textShadow: "0 1px 3px rgba(0,0,0,0.8)" }}>{scheduledSplit2.dateStr}</span>
                 </div>
               </div>
-            </div>
-          )}
+            ) : (
+              <span style={{ color: dateAccent2, fontSize: 11.5, fontWeight: 600, lineHeight: 1.25, textAlign: "center" }}>
+                {getMeetGreetStatusLabel(req.status, tSessions)}
+              </span>
+            )}
+          </div>
+
+          {/* 3 · Botón */}
+          {viewBtn2}
         </div>
       );
     }
@@ -1195,22 +1233,12 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
         open={!!activeSection || openSectionKey === "requested"}
         onToggle={() => toggleSection("requested")}
         styles={styles}
+        hideHeader={!!activeSection}
       >
         <div className="mini-vertical-scroll" style={{ display: "grid", gap: 8, overflow: "hidden", minWidth: 0 }}>
-          {requestedRows.slice(0, pendingVisibleCount).map(renderDisplayRow)}
-          {requestedRows.length > pendingVisibleCount && (
-            <button
-              type="button"
-              onClick={() => setPendingVisibleCount((v) => v + 6)}
-              style={{
-                width: "100%", height: 36, borderRadius: 8, border: "none",
-                background: "rgba(168,85,255,0.18)", color: "#d8b4fe",
-                fontWeight: 600, fontSize: 12, cursor: "pointer",
-              }}
-            >
-              {tCommon("viewMore")}
-            </button>
-          )}
+          {/* Se cargan todos los pendientes de una vez (sin paginar): rara vez
+              alguien tiene muchos. */}
+          {requestedRows.map(renderDisplayRow)}
         </div>
       </SectionBlock>
       )}
@@ -1222,6 +1250,7 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
         open={!!activeSection || openSectionKey === "rejected"}
         onToggle={() => toggleSection("rejected")}
         styles={styles}
+        hideHeader={!!activeSection}
       >
         <div className="mini-vertical-scroll" style={{ display: "grid", gap: 8, overflow: "hidden", minWidth: 0 }}>
           {/* Submenú: Rechazados */}
@@ -1284,6 +1313,7 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
         open={!!activeSection || openSectionKey === "refund"}
         onToggle={() => toggleSection("refund")}
         styles={styles}
+        hideHeader={!!activeSection}
       >
         <div className="mini-vertical-scroll" style={{ display: "grid", gap: 8, overflow: "hidden", minWidth: 0 }}>
           {refundRows.map(renderDisplayRow)}
@@ -1304,6 +1334,7 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
             transition: "background 0.25s ease, box-shadow 0.25s ease",
           }}
         >
+          {!activeSection && (
           <button
             type="button"
             onClick={() => {
@@ -1351,21 +1382,22 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
             </span>
             <span style={{ fontSize: 13, fontWeight: 700, color: "rgba(255,255,255,0.8)" }}>{buyerDelivered.length + completedBuyerScheduledRows.length}</span>
           </button>
+          )}
 
           <div
             style={{
               display: "grid",
-              gridTemplateRows: deliveredSectionOpen ? "1fr" : "0fr",
-              opacity: deliveredSectionOpen ? 1 : 0,
+              gridTemplateRows: activeSection || deliveredSectionOpen ? "1fr" : "0fr",
+              opacity: activeSection || deliveredSectionOpen ? 1 : 0,
               transition: "grid-template-rows 360ms cubic-bezier(0.4,0,0.2,1), opacity 220ms ease",
             }}
           >
             <div style={{ overflow: "hidden", minHeight: 0 }}>
             <div
               style={{
-                marginTop: 9,
-                paddingTop: 9,
-                borderTop: "1px solid rgba(255,255,255,0.06)",
+                marginTop: activeSection ? 0 : 9,
+                paddingTop: activeSection ? 0 : 9,
+                borderTop: activeSection ? "none" : "1px solid rgba(255,255,255,0.06)",
                 display: "grid",
                 gap: 8,
               }}

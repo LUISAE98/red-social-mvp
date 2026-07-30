@@ -210,10 +210,9 @@ router.replace(nextPath);
     const userRef = doc(db, "users", credential.user.uid);
     const userSnap = await getDoc(userRef);
 
-    setIsLeavingLogin(true);
-    startAuthTransition("entering");
-
     if (userSnap.exists()) {
+      setIsLeavingLogin(true);
+      startAuthTransition("entering");
       router.replace(nextPath);
       return;
     }
@@ -221,11 +220,17 @@ router.replace(nextPath);
     // Moderadores no pasan por onboarding — van directo al panel
     const tokenResult = await credential.user.getIdTokenResult();
     if (tokenResult.claims["role"] === "moderator") {
+      setIsLeavingLogin(true);
+      startAuthTransition("entering");
       router.replace("/admin");
       return;
     }
 
-    router.replace(`/complete-profile?next=${encodeURIComponent(nextPath)}`);
+    // Usuario nuevo de Google → completar perfil en el MISMO card (4º panel),
+    // sin cambiar de página. Queda autenticado.
+    setGoogleUser(credential.user);
+    setSwapped(true);
+    setMode("complete");
 } catch (err: unknown) {
   setIsLeavingLogin(false);
 
@@ -987,6 +992,24 @@ marginBottom: 6,
                     onRegistered={handleRegistered}
                   />
                 )}
+
+                {mode === "complete" && (
+                  <CompleteProfilePanel
+                    {...onboarding.panel}
+                    onSubmit={(e) =>
+                      onboarding.submit(e, () => {
+                        setIsLeavingLogin(true);
+                        startAuthTransition("entering");
+                        router.replace(nextPath);
+                      })
+                    }
+                    onCancel={async () => {
+                      await signOut(auth);
+                      setGoogleUser(null);
+                      backToLogin();
+                    }}
+                  />
+                )}
               </div>
             </div>
           </div>
@@ -995,7 +1018,10 @@ marginBottom: 6,
 
       {/* Contenido debajo del fold: switch Creadores/Usuarios. Para creadores se
           reutiliza la info de la wallet (sin los botones de los 11 servicios,
-          porque la sesión está cerrada). Para usuarios, aún por definir. */}
+          porque la sesión está cerrada). Para usuarios, aún por definir.
+          En "completar perfil" (usuario ya autenticado) NO va el pitch de
+          marketing, así que se oculta. */}
+      {mode !== "complete" && (
       <section className="loginBelowFold">
         <div
           className="audienceSwitch"
@@ -1033,6 +1059,7 @@ marginBottom: 6,
           )}
         </div>
       </section>
+      )}
 
       {/* Enlaces legales (Términos, Privacidad, Cookies, etc.). Hoy abren un
           panel placeholder; el contenido real llega cuando cada documento se

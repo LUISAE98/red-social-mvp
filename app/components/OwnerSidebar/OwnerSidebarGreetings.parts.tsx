@@ -709,6 +709,7 @@ export function SectionBlock({
   onToggle,
   children,
   styles,
+  hideHeader = false,
 }: {
   sectionKey: ServiceSectionKey;
   count: number;
@@ -716,6 +717,9 @@ export function SectionBlock({
   onToggle: () => void;
   children: ReactNode;
   styles: Record<string, React.CSSProperties>;
+  /** Oculta el encabezado (ícono + título + count) y deja el contenido siempre
+   *  visible. Se usa en la página /experiencias, donde el subnav ya hace de título. */
+  hideHeader?: boolean;
 }) {
   const tWallet = useTranslations("wallet");
   const visual = getSectionVisual(sectionKey);
@@ -747,8 +751,10 @@ export function SectionBlock({
             ? "inset 0 1px 0 rgba(255,255,255,0.04), 0 10px 24px rgba(0,0,0,0.22)"
             : "none",
         transition: "background 0.25s ease, box-shadow 0.25s ease",
+        ...(hideHeader ? { padding: 0, background: "transparent", boxShadow: "none" } : null),
       }}
     >
+      {!hideHeader && (
       <button
         type="button"
         onClick={onToggle}
@@ -800,20 +806,21 @@ export function SectionBlock({
 
         <span style={{ fontSize: 13, fontWeight: 700, color: "rgba(255,255,255,0.8)" }}>{count}</span>
       </button>
+      )}
 
       <div
         style={{
-          maxHeight: open ? "1200px" : "0",
-          overflow: "hidden",
-          opacity: open ? 1 : 0,
+          maxHeight: hideHeader ? "none" : open ? "1200px" : "0",
+          overflow: hideHeader ? "visible" : "hidden",
+          opacity: hideHeader || open ? 1 : 0,
           transition: "max-height 360ms cubic-bezier(0.4,0,0.2,1), opacity 220ms ease",
         }}
       >
         <div
           style={{
-            marginTop: 8,
-            paddingTop: 8,
-            borderTop: "1px solid rgba(255,255,255,0.06)",
+            marginTop: hideHeader ? 0 : 8,
+            paddingTop: hideHeader ? 0 : 8,
+            borderTop: hideHeader ? "none" : "1px solid rgba(255,255,255,0.06)",
             display: "grid",
             gap: 8,
           }}

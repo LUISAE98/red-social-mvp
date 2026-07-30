@@ -5,31 +5,64 @@
 // los íconos reloj / tache / paloma. Reusa OwnerSidebarGreetings (con activeSection)
 // alimentado por el hook autocontenido useMyExperiences. Ver docs de experiencias.
 
-import { useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/app/providers";
 import OwnerSidebarGreetings from "@/app/components/OwnerSidebar/OwnerSidebarGreetings";
 import { buildDisplayName, fmtDate } from "@/app/components/OwnerSidebar/OwnerSidebar.utils";
+import { getSectionForMeetGreetStatus } from "@/app/components/OwnerSidebar/OwnerSidebarGreetings.parts";
+import { WalletFilterMenu } from "@/app/(protected)/wallet/components/WalletUi";
 import { useMyExperiences } from "@/lib/experiences/useMyExperiences";
 
 type Tab = "requested" | "rejected" | "delivered";
 
-// Íconos del subnav (mismos que las secciones): reloj / tache / paloma.
+const TAB_ORDER: Tab[] = ["requested", "rejected", "delivered"];
+
+// Valores del filtro por tipo de experiencia (solo en Pendientes).
+type ExpTypeFilter = "all" | "exclusive_session" | "saludo" | "consejo" | "meet_greet";
+
+// Íconos del subnav = los mismos "chips" que eran el título interno de cada
+// sección (círculo de color + ícono blanco): reloj/morado, tache/rojo, paloma/verde.
+function IconChip({ bg, children }: { bg: string; children: ReactNode }) {
+  return (
+    <span
+      style={{
+        width: 26,
+        height: 26,
+        borderRadius: "50%",
+        background: bg,
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        flexShrink: 0,
+      }}
+    >
+      {children}
+    </span>
+  );
+}
+
 const CLOCK_ICON = (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" />
-  </svg>
+  <IconChip bg="#7c3aed">
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.92)" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="8.2" /><path d="M12 7.5V12.5" /><path d="M12 12.5L15.2 14.3" />
+    </svg>
+  </IconChip>
 );
 const X_ICON = (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <line x1="6" y1="6" x2="18" y2="18" /><line x1="18" y1="6" x2="6" y2="18" />
-  </svg>
+  <IconChip bg="#ef4444">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.92)" strokeWidth="2.6" strokeLinecap="round" aria-hidden="true">
+      <path d="M8 8L16 16" /><path d="M16 8L8 16" />
+    </svg>
+  </IconChip>
 );
 const CHECK_ICON = (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <path d="M5 12l5 5L19 8" />
-  </svg>
+  <IconChip bg="#22c55e">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.92)" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M5 12L10 17L19 8" />
+    </svg>
+  </IconChip>
 );
 
 // Subset de `styles` que consume OwnerSidebarGreetings (replicado del sidebar, sin
@@ -59,6 +92,52 @@ export default function ExperienciasPage() {
   const { user } = useAuth();
   const exp = useMyExperiences(user?.uid);
   const [tab, setTab] = useState<Tab>("requested");
+
+  const navRef = useRef<HTMLDivElement | null>(null);
+  const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const contentRef = useRef<HTMLDivElement | null>(null);
+  const interactedRef = useRef(false);
+  const [indicator, setIndicator] = useState<{ left: number; width: number } | null>(null);
+  const [slideDir, setSlideDir] = useState<"left" | "right">("right");
+
+  // Barra indicadora blanca: mide la pestaña activa y la coloca justo debajo.
+  useEffect(() => {
+    function measure() {
+      const i = TAB_ORDER.indexOf(tab);
+      const el = tabRefs.current[i];
+      const nav = navRef.current;
+      if (!el || !nav) return;
+      const r = el.getBoundingClientRect();
+      const nr = nav.getBoundingClientRect();
+      const w = Math.min(64, r.width - 16);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setIndicator({ left: r.left - nr.left + (r.width - w) / 2, width: w });
+    }
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, [tab]);
+
+  // Deslizamiento del contenido al cambiar de pestaña (mismo efecto que el subnav
+  // de wallet): reutiliza las keyframes globales `[data-nav-enter]` y quita el
+  // atributo en `animationend` para no dejar un transform residual.
+  useEffect(() => {
+    const el = contentRef.current;
+    if (!el || !interactedRef.current) return;
+    el.removeAttribute("data-nav-enter");
+    void el.offsetWidth; // reflow: reinicia la animación en cambios rápidos
+    el.setAttribute("data-nav-enter", slideDir);
+    const onEnd = () => el.removeAttribute("data-nav-enter");
+    el.addEventListener("animationend", onEnd, { once: true });
+    return () => el.removeEventListener("animationend", onEnd);
+  }, [tab, slideDir]);
+
+  function goTab(next: Tab) {
+    if (next === tab) return;
+    interactedRef.current = true;
+    setSlideDir(TAB_ORDER.indexOf(next) > TAB_ORDER.indexOf(tab) ? "right" : "left");
+    setTab(next);
+  }
 
   function renderUserLink(uid: string): ReactNode {
     const u = exp.userMiniMap[uid];
@@ -93,59 +172,163 @@ export default function ExperienciasPage() {
     { key: "delivered", label: tCommon("delivered"), icon: CHECK_ICON, color: "#22c55e" },
   ];
 
+  // Filtro por tipo de experiencia (solo en Pendientes). Mismo componente/estilo
+  // que el filtro del feed de Movimientos del wallet (WalletFilterMenu).
+  const [typeFilter, setTypeFilter] = useState<ExpTypeFilter[]>(["all"]);
+  const typeOptions: Array<{ value: ExpTypeFilter; label: string }> = [
+    { value: "all", label: tWallet("filterTypeAllValue") },
+    { value: "exclusive_session", label: tServices("exclusiveSession") },
+    { value: "saludo", label: tWallet("typeLabelGreeting") },
+    { value: "consejo", label: tWallet("typeLabelAdvice") },
+    { value: "meet_greet", label: tSessions("meetGreetTitle") },
+  ];
+  const typeSelLabel = typeFilter.includes("all")
+    ? tWallet("filterTypeAllValue")
+    : typeOptions
+        .filter((o) => o.value !== "all" && typeFilter.includes(o.value))
+        .map((o) => o.label)
+        .join(", ");
+
+  // El filtro solo aplica en Pendientes; en otras pestañas se ignora.
+  const applyTypeFilter = tab === "requested" && !typeFilter.includes("all");
+  const filteredPending = applyTypeFilter
+    ? exp.buyerPending.filter((r) => {
+        const t = (r.data as { type?: string }).type;
+        return (
+          (t === "saludo" && typeFilter.includes("saludo")) ||
+          (t === "consejo" && typeFilter.includes("consejo"))
+        );
+      })
+    : exp.buyerPending;
+  const filteredMeet =
+    applyTypeFilter && !typeFilter.includes("meet_greet") ? [] : exp.buyerMeetGreets;
+  const filteredExclusive =
+    applyTypeFilter && !typeFilter.includes("exclusive_session") ? [] : exp.buyerExclusiveSessions;
+
+  // Cantidad total de pendientes de la persona (no depende del filtro): saludos/
+  // consejos + sesiones/tiempo contigo que estén "por atender".
+  const pendingCount =
+    exp.buyerPending.length +
+    [...exp.buyerMeetGreets, ...exp.buyerExclusiveSessions].filter(
+      (r) => r.data.status !== "completed" && getSectionForMeetGreetStatus(r.data.status) === "requested"
+    ).length;
+
   return (
     <div style={{ maxWidth: 640, margin: "0 auto", padding: "16px 12px 48px", width: "100%", boxSizing: "border-box" }}>
       <h1 style={{ fontSize: 20, fontWeight: 700, color: "#fff", margin: "4px 2px 14px", letterSpacing: "-0.02em" }}>
         {tNav("tabExperiences")}
       </h1>
 
-      {/* Subnav de pestañas */}
-      <div role="tablist" style={{ display: "flex", gap: 6, marginBottom: 18 }}>
-        {tabs.map((t) => {
+      {/* Subnav: sin contenedor (ni fondo ni contorno) + barra blanca deslizante. */}
+      <style jsx>{`
+        .expSubnav {
+          position: relative;
+          display: flex;
+          margin-bottom: 16px;
+        }
+        .expTab {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 6px;
+          padding: 2px 6px 7px;
+          background: transparent;
+          border: none;
+          cursor: pointer;
+          font-family: inherit;
+          -webkit-tap-highlight-color: transparent;
+        }
+        .expTabLabel {
+          font-size: 12px;
+          font-weight: 600;
+          line-height: 1;
+          transition: color 150ms ease;
+        }
+        .expIndicator {
+          position: absolute;
+          bottom: 0;
+          height: 2.5px;
+          border-radius: 999px;
+          background: #ffffff;
+          transition: left 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+                      width 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .expSlideClip {
+          overflow-x: clip;
+        }
+      `}</style>
+
+      <div role="tablist" ref={navRef} className="expSubnav">
+        {tabs.map((t, i) => {
           const active = tab === t.key;
           return (
             <button
               key={t.key}
+              ref={(el) => { tabRefs.current[i] = el; }}
               type="button"
               role="tab"
               aria-selected={active}
-              onClick={() => setTab(t.key)}
-              style={{
-                flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 5,
-                padding: "10px 6px", borderRadius: 12, cursor: "pointer", fontFamily: "inherit",
-                border: active ? `1px solid ${t.color}` : "1px solid rgba(255,255,255,0.10)",
-                background: active ? "rgba(255,255,255,0.05)" : "transparent",
-                color: active ? t.color : "rgba(255,255,255,0.55)",
-                transition: "color 150ms ease, border-color 150ms ease, background 150ms ease",
-              }}
+              onClick={() => goTab(t.key)}
+              className="expTab"
             >
               <span style={{ display: "inline-flex" }}>{t.icon}</span>
-              <span style={{ fontSize: 12, fontWeight: 600, color: active ? "#fff" : "rgba(255,255,255,0.55)" }}>{t.label}</span>
+              <span className="expTabLabel" style={{ color: active ? "#fff" : "rgba(255,255,255,0.55)" }}>
+                {t.label}
+              </span>
             </button>
           );
         })}
+        {indicator ? (
+          <span className="expIndicator" style={{ left: indicator.left, width: indicator.width }} />
+        ) : null}
       </div>
+
+      {/* Filtro por tipo (solo en Pendientes), idéntico al del feed de Movimientos.
+          A la derecha, el número de pendientes de la persona. */}
+      {tab === "requested" && !exp.loading ? (
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 6 }}>
+          <div style={{ minWidth: 0, overflow: "hidden" }}>
+            <WalletFilterMenu
+              label={typeSelLabel}
+              menuLabel={tWallet("filterTypeMenu")}
+              value={typeFilter}
+              options={typeOptions}
+              onChange={setTypeFilter}
+              allValue="all"
+              transparent
+            />
+          </div>
+          <span style={{ flexShrink: 0, color: "#ffffff", fontSize: 15, fontWeight: 700, lineHeight: 1, paddingRight: 4 }}>
+            {pendingCount}
+          </span>
+        </div>
+      ) : null}
 
       {exp.loading ? (
         <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 13, textAlign: "center", padding: "24px 0" }}>{tCommon("loading")}</p>
       ) : (
-        <OwnerSidebarGreetings
-          activeSection={tab}
-          buyerPending={exp.buyerPending}
-          buyerDelivered={exp.buyerDelivered}
-          buyerRejectedGreetings={exp.buyerRejectedGreetings}
-          buyerMeetGreets={exp.buyerMeetGreets}
-          buyerExclusiveSessions={exp.buyerExclusiveSessions}
-          exclusiveSessionsByGroup={{}}
-          meetGreetsByGroup={{}}
-          groupMetaMap={exp.groupMetaMap}
-          userMiniMap={exp.userMiniMap}
-          styles={styles}
-          typeLabel={typeLabel}
-          fmtDate={fmtDate}
-          renderUserLink={renderUserLink}
-          router={router}
-        />
+        <div className="expSlideClip">
+          <div ref={contentRef}>
+            <OwnerSidebarGreetings
+              activeSection={tab}
+              buyerPending={filteredPending}
+              buyerDelivered={exp.buyerDelivered}
+              buyerRejectedGreetings={exp.buyerRejectedGreetings}
+              buyerMeetGreets={filteredMeet}
+              buyerExclusiveSessions={filteredExclusive}
+              exclusiveSessionsByGroup={{}}
+              meetGreetsByGroup={{}}
+              groupMetaMap={exp.groupMetaMap}
+              userMiniMap={exp.userMiniMap}
+              styles={styles}
+              typeLabel={typeLabel}
+              fmtDate={fmtDate}
+              renderUserLink={renderUserLink}
+              router={router}
+            />
+          </div>
+        </div>
       )}
     </div>
   );

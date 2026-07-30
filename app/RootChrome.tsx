@@ -18,7 +18,7 @@ export default function RootChrome({
   children: React.ReactNode;
 }) {
   const tCommon = useTranslations("common");
-  const { user, loading, authTransitionMode, startAuthTransition } = useAuth();
+  const { user, loading, hasProfile, authTransitionMode, startAuthTransition } = useAuth();
   const pathname = stripLocalePrefix(usePathname());
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -75,11 +75,12 @@ const isOverlayRoute =
       // User signed out while on any page (including public routes like /u/ or /groups/)
       startAuthTransition("exiting");
       router.replace("/login");
-    } else if (user && isAuthPage) {
-      // Already authenticated — send to next param or home
+    } else if (user && isAuthPage && hasProfile === true) {
+      // Ya autenticado Y con perfil → al feed. Un usuario autenticado SIN perfil
+      // (onboarding de Google) se queda: el login muestra el panel de completar.
       router.replace(getNextFromSearchParams(searchParams, "/"));
     }
-  }, [loading, user, isPublicRoute, isAuthPage, router, startAuthTransition, searchParams]);
+  }, [loading, user, hasProfile, isPublicRoute, isAuthPage, router, startAuthTransition, searchParams]);
 
   const fontStack =
     'inherit';
@@ -106,7 +107,7 @@ const isOverlayRoute =
     />
   );
 }
-if (renderUser && isAuthPage) {
+if (renderUser && isAuthPage && hasProfile === true) {
   return null;
 }
 

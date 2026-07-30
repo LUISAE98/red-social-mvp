@@ -9,7 +9,8 @@ import {
   useState,
 } from "react";
 import { onAuthStateChanged, User } from "firebase/auth";
-import { auth } from "@/lib/firebase";
+import { doc, getDoc } from "firebase/firestore";
+import { auth, db } from "@/lib/firebase";
 import { useSessionRegistry } from "@/lib/sessions/useSessionRegistry";
 
 type AuthTransitionMode = "idle" | "checking" | "entering" | "exiting";
@@ -17,6 +18,10 @@ type AuthTransitionMode = "idle" | "checking" | "entering" | "exiting";
 type AuthCtx = {
   user: User | null;
   loading: boolean;
+  // ¿El usuario autenticado ya tiene doc de perfil? null = aún resolviendo (o
+  // sin sesión). Sirve para distinguir "logueado con perfil" de "logueado en
+  // onboarding" (Google recién autenticado, sin perfil todavía).
+  hasProfile: boolean | null;
   authTransitionMode: AuthTransitionMode;
   startAuthTransition: (mode: "entering" | "exiting") => void;
 };
@@ -24,6 +29,7 @@ type AuthCtx = {
 const AuthContext = createContext<AuthCtx>({
   user: null,
   loading: true,
+  hasProfile: null,
   authTransitionMode: "checking",
   startAuthTransition: () => {},
 });
@@ -33,6 +39,7 @@ const AUTH_TRANSITION_MS = 1100;
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [hasProfile, setHasProfile] = useState<boolean | null>(null);
   const [authTransitionMode, setAuthTransitionMode] =
     useState<AuthTransitionMode>("checking");
 
@@ -57,6 +64,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   useEffect(() => {
+    let cancelled = false;
     const unsub = onAuthStateChanged(auth, (u) => {
       setUser(u);
       setLoading(false);
@@ -65,9 +73,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!(u === null && authTransitionModeRef.current === "exiting")) {
         scheduleIdle();
       }
+
+      // Resolver si el usuario ya tiene perfil (para el guardián de rutas auth).
+      if (!u) {
+        setHasProfile(null);
+        return;
+      }
+      setHasProfile(null); // reset mientras resuelve
+      const uid = u.uid;
+      getDoc(doc(db, "users", uid))
+        .then((snap) => {
+          if (cancelled) return;
+          // Solo aplica si sigue siendo el mismo usuario autenticado.
+          if (auth.currentUser?.uid === uid) setHasProfile(snap.exists());
+        })
+        .catch(() => {
+          if (!cancelled) setHasProfile(null);
+        });
     });
 
     return () => {
+      cancelled = true;
       clearTransitionTimer();
       unsub();
     };
@@ -91,11 +117,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     () => ({
       user,
       loading,
+      hasProfile,
       authTransitionMode,
       startAuthTransition,
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [user, loading, authTransitionMode]
+    [user, loading, hasProfile, authTransitionMode]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
