@@ -30,6 +30,44 @@ function money(n: number): string {
   return (Math.round((n + Number.EPSILON) * 100) / 100).toFixed(2);
 }
 
+function round2(n: number): number {
+  return Math.round((n + Number.EPSILON) * 100) / 100;
+}
+
+/**
+ * La cuenta de Mercado Pago liquida SIEMPRE en MXN, pero desde la migración de
+ * moneda el precio del servicio (grossAmount) se guarda en la moneda ancla (USD)
+ * o en la del intent. Convertimos el monto a MXN con la tasa vigente
+ * (`config/exchangeRates`, base USD, rates[X] = unidades de X por 1 USD) ANTES de
+ * cobrar. Si no hay tasa válida, NO cobramos: es preferible fallar a mandar un
+ * monto en la escala equivocada (lo que MP rechaza como invalid_transaction_amount).
+ */
+async function toMxnSettlement(
+  amount: number,
+  sourceCurrency: unknown
+): Promise<{ amountMXN: number; fxRate: number; sourceCurrency: string }> {
+  const src = String(sourceCurrency || "MXN").toUpperCase();
+  if (src === "MXN") {
+    return { amountMXN: round2(amount), fxRate: 1, sourceCurrency: "MXN" };
+  }
+  const snap = await db.doc("config/exchangeRates").get();
+  const rates = (snap.data()?.rates ?? {}) as Record<string, number>;
+  const rMxn = rates.MXN;
+  const rSrc = rates[src];
+  if (
+    !Number.isFinite(rMxn) || rMxn <= 0 ||
+    !Number.isFinite(rSrc) || rSrc <= 0
+  ) {
+    throw new HttpsError(
+      "failed-precondition",
+      "No se pudo obtener la tasa de cambio para procesar el pago. Intenta de nuevo en unos minutos."
+    );
+  }
+  // amount(src) → USD (÷rSrc) → MXN (×rMxn).
+  const amountMXN = round2((amount / rSrc) * rMxn);
+  return { amountMXN, fxRate: round2((rMxn / rSrc) * 1e6) / 1e6, sourceCurrency: src };
+}
+
 export type ServiceCardData = {
   token: string;
   paymentMethodId?: string;
@@ -107,6 +145,12 @@ export async function chargeServiceIntent(
   const tax = applyConsumptionTax(base, card.taxCountry);
   const charged = tax.chargedAmount;
 
+  // MP liquida en MXN; `charged` está en la moneda del intent (USD ancla u otra).
+  // Convertimos a MXN para el cobro real. NO tocamos base/tax/charged (siguen en
+  // la moneda ancla, que es lo que lee el ledger): solo agregamos el registro de
+  // liquidación en MXN. Si no hay tasa, esto lanza y no se cobra.
+  const settlement = await toMxnSettlement(charged, intent.currency);
+
   await db.collection("paymentIntents").doc(externalReference).set(
     {
       baseAmount: tax.baseAmount,
@@ -114,6 +158,10 @@ export async function chargeServiceIntent(
       taxRate: tax.taxRate,
       taxAmount: tax.taxAmount,
       chargedAmount: charged,
+      settlementCurrency: "MXN",
+      settlementAmount: settlement.amountMXN,
+      settlementFxRate: settlement.fxRate,
+      settlementSourceCurrency: settlement.sourceCurrency,
     },
     { merge: true }
   );
@@ -161,13 +209,13 @@ export async function chargeServiceIntent(
     body: {
       type: "online",
       processing_mode: "automatic",
-      total_amount: money(charged),
+      total_amount: money(settlement.amountMXN),
       external_reference: externalReference,
       payer,
       transactions: {
         payments: [
           {
-            amount: money(charged),
+            amount: money(settlement.amountMXN),
             payment_method: {
               id: paymentMethodId,
               type: card.paymentType ?? "credit_card",
