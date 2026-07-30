@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useAuth } from "@/app/providers";
 import {
@@ -20,7 +20,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { getNextFromSearchParams } from "@/lib/auth-redirect";
 import LoginCollageBackground from "./LoginCollageBackground";
 import WalletOnboarding from "@/app/[locale]/(protected)/wallet/components/WalletOnboarding";
-import LegalLinksFooter from "@/app/components/legal/LegalLinksFooter";
+import LegalLinksFooter from "@/components/legal/LegalLinksFooter";
 import RegisterPanel from "@/app/[locale]/(public)/register/RegisterPanel";
 
 const vibraPink = "#ff2fb3";
@@ -80,6 +80,8 @@ const [isLeavingLogin, setIsLeavingLogin] = useState(false);
 // (deslizando desde la derecha).
 const [mode, setMode] = useState<"login" | "reset" | "register">("login");
 const [swapped, setSwapped] = useState(false);
+// Tarjeta de auth: para llevar el scroll a su inicio al cambiar de panel.
+const cardRef = useRef<HTMLDivElement | null>(null);
 const [resetMsg, setResetMsg] = useState<string | null>(null);
 const [resetLoading, setResetLoading] = useState(false);
 // Switch del contenido debajo del fold: creadores (izq) / usuarios (der).
@@ -104,6 +106,18 @@ useEffect(() => {
     window.history.scrollRestoration = prevScrollRestoration;
   };
 }, []);
+
+// Al cambiar de panel (login ↔ recuperar ↔ crear cuenta), llevar el scroll al
+// inicio de la tarjeta para que el panel destino quede a la vista (ni muy
+// arriba ni muy abajo). Solo tras un swap real, no en el primer render.
+useEffect(() => {
+  if (!swapped) return;
+  const el = cardRef.current;
+  if (!el) return;
+  // Dejamos más aire arriba de la tarjeta (se alcanza a ver el tagline).
+  const y = el.getBoundingClientRect().top + window.scrollY - 96;
+  window.scrollTo({ top: Math.max(0, y), behavior: "smooth" });
+}, [mode, swapped]);
 
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -280,7 +294,7 @@ const pageStyle: React.CSSProperties = {
   const shellStyle: React.CSSProperties = {
     width: "100%",
     maxWidth: 380,
-    padding: "16px 36px 22px",
+    padding: "16px clamp(16px, 4vw, 36px) 22px",
     borderRadius: 18,
     border: "none",
     background: "transparent",
@@ -652,8 +666,10 @@ body.loginPageBg {
 
 @media (max-width: 420px) {
   .loginRightPane > div {
-    /* Menos padding abajo de la tarjeta para acercar el switch al botón. */
-    padding: 28px 24px 16px !important;
+    /* En celular, top/bottom más compactos; el lateral lo maneja el clamp
+       del padding inline de la tarjeta (16px en celular → 36px en laptop). */
+    padding-top: 12px !important;
+    padding-bottom: 16px !important;
   }
 }
       `}</style>
@@ -668,7 +684,7 @@ body.loginPageBg {
             <span className="heroVibraGradientText">Vibra.</span>
           </p>
 
-          <div style={shellStyle}>
+          <div ref={cardRef} style={shellStyle}>
             <div className="authSwap">
               <div
                 key={mode}

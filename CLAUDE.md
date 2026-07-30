@@ -263,6 +263,22 @@ Regla descriptiva de lo dominante en el repo (no un mandato de renombrado masivo
 
 ---
 
+# Ubicación de Componentes
+
+Regla única para decidir dónde vive un componente (aplica a código nuevo y de forma oportunista al que se toque; **no** es un mandato de mudanza masiva).
+
+Decide con esta pregunta: **¿lo usa una sola ruta, o se comparte entre rutas?**
+
+* **Específico de una ruta** → co-ubicado en `<ruta>/components/` junto a esa ruta (p. ej. `app/[locale]/groups/[groupId]/components/`). Es la norma ya dominante (~95 archivos). Si deja de ser de una sola ruta, promuévelo al árbol compartido.
+* **Compartido entre rutas** → **`components/` en la raíz** (el árbol canónico), organizado por dominio:
+  * `components/ui/` → primitivos transversales (`Button`, `Input`, `TextArea`, `Avatar`, `Modal`; ver `vibra_style.md`).
+  * `components/<dominio>/` → compartidos de un dominio (`components/payments/`, `components/services/`, `components/media/`, `components/legal/`, …).
+* **`app/components/` está DEPRECADO como destino.** No agregues componentes nuevos ahí. Su contenido (compartido) se migra a `components/` de forma **gradual y oportunista**: al tocar un componente de `app/components/`, muévelo a `components/<dominio>/` y actualiza sus imports (`@/app/components/...` → `@/components/...`). No hacer un big-bang.
+
+Import: usar el alias `@/components/...` (raíz) para compartidos y rutas relativas `./components/...` para co-ubicados.
+
+---
+
 # Seguridad
 
 Nunca debilitar:
