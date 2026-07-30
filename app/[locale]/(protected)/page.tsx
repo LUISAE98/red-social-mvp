@@ -8,6 +8,7 @@ import HomePostsFeed from "./HomePostsFeed";
 import HomeStoriesRow, { invalidateStoriesCache } from "@/app/components/Stories/HomeStoriesRow";
 import RefreshableArea from "@/components/refresh/RefreshableArea";
 import { invalidateRecommendationCache } from "@/app/components/GroupRecommendations/recommendation-engine";
+import { useScreenReady } from "@/lib/useScreenReady";
 
 const SESSION_UID_KEY = "vibra:uid";
 
@@ -21,6 +22,10 @@ export default function GroupsHome() {
     if (typeof window === "undefined") return null;
     return sessionStorage.getItem(SESSION_UID_KEY);
   });
+
+  // Avisa al splash de arranque cuando el feed ya tiene con qué renderizar
+  // (usuario o uid en caché). Si es anónimo, redirige a login y ahí se avisa.
+  useScreenReady(!!cachedUid || !!user);
 
   useEffect(() => {
     if (loading) return;

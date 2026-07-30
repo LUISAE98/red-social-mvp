@@ -25,6 +25,7 @@ import {
 } from "next/navigation";
 import { db, storage } from "@/lib/firebase";
 import { useAuth } from "@/app/providers";
+import { useScreenReady } from "@/lib/useScreenReady";
 import {
   joinGroup,
   leaveGroup,
@@ -237,6 +238,8 @@ const formatSubDate = (d: Date) =>
 const [leaveError, setLeaveError] = useState<string | null>(null);
 const [mobileRefreshEnabled, setMobileRefreshEnabled] = useState(false);
 const [groupPageRefreshKey, setGroupPageRefreshKey] = useState(0);
+// Avisa al splash de arranque que la pantalla de comunidad ya está montada.
+useScreenReady();
   const [memberCount, setMemberCount] = useState<number | null>(null);
 
 useEffect(() => {

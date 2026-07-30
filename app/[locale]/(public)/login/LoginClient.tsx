@@ -24,6 +24,7 @@ import LegalLinksFooter from "@/components/legal/LegalLinksFooter";
 import RegisterPanel from "@/app/[locale]/(public)/register/RegisterPanel";
 import CompleteProfilePanel from "@/app/[locale]/(public)/complete-profile/CompleteProfilePanel";
 import { useProfileOnboarding } from "@/app/[locale]/(public)/complete-profile/useProfileOnboarding";
+import { useScreenReady } from "@/lib/useScreenReady";
 
 const vibraPink = "#ff2fb3";
 const vibraPurple = "#a855f7";
@@ -93,6 +94,8 @@ const [audience, setAudience] = useState<"creators" | "users">("creators");
 const { startAuthTransition } = useAuth();
 // Lógica del panel "completar perfil" (4º panel); activa cuando hay googleUser.
 const onboarding = useProfileOnboarding(googleUser);
+// Avisa al splash de arranque que la pantalla de login ya está pintada.
+useScreenReady();
 
 useEffect(() => {
   // Fondo negro a nivel de página para que, al scrollear más allá del collage,

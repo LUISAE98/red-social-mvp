@@ -2,6 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
+import { useScreenReady } from "@/lib/useScreenReady";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import Image from "next/image";
 import {
@@ -255,6 +256,9 @@ export default function ProfileClient() {
     return !(cached && Date.now() - cached.updatedAt < PROFILE_CACHE_TTL);
   });
   const [msg, setMsg] = useState<string | null>(null);
+
+  // Avisa al splash de arranque cuando el perfil ya tiene datos para pintar.
+  useScreenReady(!!userDoc);
   const { toast: profileToast, showToast: showProfileToast } = useVibraToast();
 
   const [profileBlockedByViewer, setProfileBlockedByViewer] = useState<boolean>(() => {
