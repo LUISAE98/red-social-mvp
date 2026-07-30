@@ -13,6 +13,15 @@ import { useEffect, useState } from "react";
  * arriba (`bottom: keyboardInset`) y que quede justo sobre el teclado, sin hueco.
  * Devuelve 0 cuando no hay teclado.
  */
+
+// En móvil real, `innerHeight - visualViewport.height` casi nunca es 0 aunque el
+// teclado esté cerrado: la barra del navegador (URL/pestañas) y los redondeos
+// dejan una diferencia de ~40–80px. Si eso se aplicara como inset, aparecería una
+// "barra negra" fantasma sobre el safe area. Un teclado real (con su franja de
+// sugerencias) siempre es bastante más alto, así que ignoramos todo lo menor a
+// este umbral y lo tratamos como "sin teclado".
+const MIN_KEYBOARD_PX = 120;
+
 export function useKeyboardInset(): number {
   const [inset, setInset] = useState(0);
 
@@ -25,7 +34,7 @@ export function useKeyboardInset(): number {
       if (!viewport) return;
       // Espacio del layout viewport que queda tapado por abajo = teclado.
       const kb = window.innerHeight - viewport.height - viewport.offsetTop;
-      setInset(kb > 1 ? kb : 0);
+      setInset(kb > MIN_KEYBOARD_PX ? kb : 0);
     }
 
     update();

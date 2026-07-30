@@ -528,6 +528,77 @@ Estilo canónico para todos los `<textarea>` de Vibra dentro de paneles y overla
 
 ---
 
+## Skeletons de carga (base canónica)
+
+Base de **estilo y animación para TODOS los skeletons de la plataforma**. Cualquier
+skeleton nuevo (comentarios, servicios, wallet, listas, etc.) se construye sobre
+esta misma clase base `.vb-skel` y la misma onda `vbSkelWave`. La forma (avatar,
+líneas, bloque de media) se adapta al contenido; el **relleno y la animación no cambian**.
+
+**Referencia:** `app/components/PostSkeleton/PostSkeleton.tsx` (skeleton de post) +
+`app/components/PostSkeleton/PostReveal.tsx` (revelado con fade-in).
+
+### Relleno base + onda shimmer
+
+Gradiente diagonal sutil que se desplaza en bucle. Mismo color que el skeleton de
+historias del home (`rgba(255,255,255,0.05→0.11)`).
+
+```css
+.vb-skel {
+  background: linear-gradient(
+    100deg,
+    rgba(255, 255, 255, 0.05) 30%,
+    rgba(255, 255, 255, 0.11) 50%,
+    rgba(255, 255, 255, 0.05) 70%
+  );
+  background-size: 300% 100%;
+  animation: vbSkelWave 1.6s ease-in-out infinite;
+}
+@keyframes vbSkelWave {
+  0%   { background-position: 180% 0; }
+  100% { background-position: -80% 0; }
+}
+/* Sin animación si el usuario reduce movimiento: relleno plano */
+@media (prefers-reduced-motion: reduce) {
+  .vb-skel {
+    animation: none;
+    background: rgba(255, 255, 255, 0.07);
+  }
+}
+```
+
+| Propiedad          | Valor                                            |
+|--------------------|--------------------------------------------------|
+| color base         | `rgba(255,255,255,0.05)` → `0.11` → `0.05`       |
+| `background-size`  | `300% 100%`                                       |
+| animación          | `vbSkelWave 1.6s ease-in-out infinite`           |
+| dirección onda     | `180% 0` → `-80% 0` (izq→der, diagonal `100deg`) |
+| reduced-motion     | sin animación, relleno plano `0.07`              |
+| `border-radius`    | por forma: círculos `50%`, líneas `6`, media `16`|
+
+Se combina con una clase de forma: `<div className="vb-skel vb-skel-avatar" />`,
+`vb-skel-line`, `vb-skel-media`, etc. Cada skeleton nuevo define sus formas pero
+reutiliza `.vb-skel` tal cual (mismo relleno + `vbSkelWave`). Scoped con styled-jsx.
+
+### Revelado del contenido real (fade-in)
+
+Cuando el contenido real llega, **no aparece de golpe**: se envuelve en un revelador
+que mantiene `opacity: 0` hasta que sus imágenes (avatar + media) asientan (load o
+error), y entonces hace fade-in. Fallback de seguridad por si alguna imagen es lazy
+o se cuelga.
+
+```tsx
+{ opacity: ready ? 1 : 0, transition: "opacity 380ms ease", willChange: "opacity" }
+// ready = true cuando todos los <img> internos dispararon load/error
+// (img.complete cuenta como asentado); fallback ~4s.
+```
+
+Patrón por feed: mostrar `<Skeleton />` mientras carga (sin spinner ni texto de
+"Cargando…"), y envolver cada ítem real en el revelador. Ver `PostReveal` como
+implementación genérica reutilizable (inspecciona los `<img>` que contiene).
+
+---
+
 ## Animación
 
 Regla única (aplica a código nuevo y de forma oportunista al que se toque):

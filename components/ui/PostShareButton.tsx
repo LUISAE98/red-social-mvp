@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { buildPublicPostUrl } from "@/lib/posts/share-url";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
+import VibraShareIcon from "@/app/components/VibraServiceIcons/VibraShareIcon";
 
 type PostShareButtonProps = {
   postId: string;
@@ -87,7 +88,7 @@ export default function PostShareButton({ postId }: PostShareButtonProps) {
         title={copied ? tCommon("linkCopied") : tCommon("sharePost")}
         style={buttonStyle}
       >
-        <span aria-hidden="true">{copied ? "✅" : "🔗"}</span>
+        <VibraShareIcon size={20} color="#a855f7" />
       </button>
       <VibraToast toast={shareToast} />
     </>

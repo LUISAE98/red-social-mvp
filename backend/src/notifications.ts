@@ -785,6 +785,13 @@ export type SessionEventAction =
  * hay persona detrás (fin, no-show, grabación, recordatorio) se usa un actor
  * neutro "Sesión" y así todos los destinatarios lo reciben. Un `groupKey` por
  * (sesión, acción) para no pisar eventos distintos de la misma sesión.
+ *
+ * `counterpartByRecipient` mapea cada destinatario → uid de la OTRA parte, y a
+ * cada uno se le muestra a su contraparte como actor (avatar/nombre). Se usa en
+ * eventos que van a ambas partes pero donde cada quien debe ver la cara del otro
+ * (recordatorio): el comprador ve al creador y el creador al comprador. Tiene
+ * prioridad sobre `actorUid`; si un destinatario no está en el mapa cae al actor
+ * compartido.
  */
 export async function notifySessionEvent(opts: {
   action: SessionEventAction;
@@ -792,15 +799,27 @@ export async function notifySessionEvent(opts: {
   sessionType: string;
   recipientIds: Array<string | null | undefined>;
   actorUid?: string | null;
+  counterpartByRecipient?: Record<string, string | null | undefined>;
 }): Promise<void> {
-  const actor: Actor = opts.actorUid
+  const sharedActor: Actor = opts.actorUid
     ? await resolveActor(opts.actorUid)
     : { id: "session", name: "Sesión", avatarUrl: null, handle: null };
+
+  const actorCache = new Map<string, Actor>();
 
   const seen = new Set<string>();
   for (const rid of opts.recipientIds) {
     if (!rid || seen.has(rid)) continue;
     seen.add(rid);
+
+    let actor = sharedActor;
+    const counterpartUid = opts.counterpartByRecipient?.[rid];
+    if (counterpartUid) {
+      const cached = actorCache.get(counterpartUid);
+      actor = cached ?? (await resolveActor(counterpartUid));
+      actorCache.set(counterpartUid, actor);
+    }
+
     await emit({
       recipientId: rid,
       groupKey: `session_${opts.sessionId}_${opts.action}`,

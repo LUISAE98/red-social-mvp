@@ -23,6 +23,8 @@ import {
 } from "@/lib/posts/post-service";
 
 import GroupPostCard from "@/app/groups/[groupId]/components/posts/GroupPostCard";
+import { PostSkeletonList } from "@/app/components/PostSkeleton/PostSkeleton";
+import PostReveal from "@/app/components/PostSkeleton/PostReveal";
 import RefreshableArea from "@/components/refresh/RefreshableArea";
 import { loadFeedWithRetry } from "@/lib/posts/feed-load-helpers";
 import {
@@ -751,6 +753,20 @@ const shellStyle: CSSProperties = {
     overflowX: "hidden",
   };
 
+  const endOfFeedStyle: CSSProperties = {
+    width: "100%",
+    maxWidth: "100%",
+    minWidth: 0,
+    boxSizing: "border-box",
+    textAlign: "center",
+    padding: "4px 14px",
+    marginTop: 22,
+    marginBottom: 28,
+    fontSize: 13,
+    lineHeight: 1.45,
+    color: "rgba(255,255,255,0.5)",
+  };
+
 const visiblePosts = useMemo(() => {
   return activeSearch
     ? posts.filter((post) => {
@@ -910,23 +926,7 @@ return (
         </div>
       </form>
 
-      {loadingInitial && posts.length === 0 && (
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 16,
-            minHeight: "50vh",
-          }}
-        >
-          <div className="vibraPullRefreshSpinner refreshing" style={{ width: 32, height: 32 }} />
-          <span style={{ fontSize: 13, color: "rgba(255,255,255,0.32)", letterSpacing: "0.01em" }}>
-            {tSaved("loading")}
-          </span>
-        </div>
-      )}
+      {loadingInitial && posts.length === 0 && <PostSkeletonList count={4} />}
 
       {!loadingInitial && posts.length === 0 && (
         <div style={noticeStyle}>{tSaved("empty")}</div>
@@ -945,6 +945,7 @@ return (
 
         return (
           <div key={post.id} style={postItemStyle}>
+            <PostReveal>
             <GroupPostCard
               post={post}
               canDelete={canDeletePost}
@@ -968,18 +969,17 @@ return (
                 setSessionUnlockedIds((prev) => new Set(prev).add(id))
               }
             />
+            </PostReveal>
           </div>
         );
       })}
 
       <div ref={loadMoreTriggerRef} style={{ width: "100%", height: 1 }} />
 
-      {loadingMore && (
-        <div style={noticeStyle}>{tSaved("loadingMore")}</div>
-      )}
+      {loadingMore && <PostSkeletonList count={2} />}
 
       {!loadingInitial && !loadingMore && posts.length > 0 && !hasMore && (
-        <div style={noticeStyle}>{tSaved("allLoaded")}</div>
+        <div style={endOfFeedStyle}>{tSaved("allLoaded")}</div>
       )}
 
       </>

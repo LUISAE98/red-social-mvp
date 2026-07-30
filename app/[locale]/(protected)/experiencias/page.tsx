@@ -11,7 +11,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/app/providers";
 import OwnerSidebarGreetings from "@/app/components/OwnerSidebar/OwnerSidebarGreetings";
 import { buildDisplayName, fmtDate } from "@/app/components/OwnerSidebar/OwnerSidebar.utils";
-import { getSectionForMeetGreetStatus } from "@/app/components/OwnerSidebar/OwnerSidebarGreetings.parts";
+import { getSectionForMeetGreetStatus, isRefundStatus } from "@/app/components/OwnerSidebar/OwnerSidebarGreetings.parts";
 import { WalletFilterMenu } from "@/app/(protected)/wallet/components/WalletUi";
 import { useMyExperiences } from "@/lib/experiences/useMyExperiences";
 
@@ -19,8 +19,11 @@ type Tab = "requested" | "rejected" | "delivered";
 
 const TAB_ORDER: Tab[] = ["requested", "rejected", "delivered"];
 
-// Valores del filtro por tipo de experiencia (solo en Pendientes).
+// Valores del filtro por tipo de experiencia (Pendientes y Rechazados).
 type ExpTypeFilter = "all" | "exclusive_session" | "saludo" | "consejo" | "meet_greet";
+// Valores del filtro combinado de Rechazados: tipo de experiencia + estatus
+// (en devolución / rechazado) en un solo menú.
+type RejFilter = "all" | "exclusive_session" | "saludo" | "consejo" | "meet_greet" | "refund" | "rejected";
 
 // Íconos del subnav = los mismos "chips" que eran el título interno de cada
 // sección (círculo de color + ícono blanco): reloj/morado, tache/rojo, paloma/verde.
@@ -172,9 +175,12 @@ export default function ExperienciasPage() {
     { key: "delivered", label: tCommon("delivered"), icon: CHECK_ICON, color: "#22c55e" },
   ];
 
-  // Filtro por tipo de experiencia (solo en Pendientes). Mismo componente/estilo
-  // que el filtro del feed de Movimientos del wallet (WalletFilterMenu).
+  // ── Filtros (mismo componente/estilo que el feed de Movimientos: WalletFilterMenu) ──
+  // Pendientes: por tipo. Rechazados: por tipo + por estatus (devolución / rechazado).
   const [typeFilter, setTypeFilter] = useState<ExpTypeFilter[]>(["all"]);
+  // Rechazados: un solo filtro que combina tipo de experiencia y estatus.
+  const [rejFilter, setRejFilter] = useState<RejFilter[]>(["all"]);
+
   const typeOptions: Array<{ value: ExpTypeFilter; label: string }> = [
     { value: "all", label: tWallet("filterTypeAllValue") },
     { value: "exclusive_session", label: tServices("exclusiveSession") },
@@ -182,28 +188,67 @@ export default function ExperienciasPage() {
     { value: "consejo", label: tWallet("typeLabelAdvice") },
     { value: "meet_greet", label: tSessions("meetGreetTitle") },
   ];
-  const typeSelLabel = typeFilter.includes("all")
-    ? tWallet("filterTypeAllValue")
-    : typeOptions
-        .filter((o) => o.value !== "all" && typeFilter.includes(o.value))
-        .map((o) => o.label)
-        .join(", ");
+  const rejOptions: Array<{ value: RejFilter; label: string }> = [
+    { value: "all", label: tWallet("filterTypeAllValue") },
+    { value: "exclusive_session", label: tServices("exclusiveSession") },
+    { value: "saludo", label: tWallet("typeLabelGreeting") },
+    { value: "consejo", label: tWallet("typeLabelAdvice") },
+    { value: "meet_greet", label: tSessions("meetGreetTitle") },
+    { value: "refund", label: tServices("refundGroup") },
+    { value: "rejected", label: tServices("rejectedGroup") },
+  ];
 
-  // El filtro solo aplica en Pendientes; en otras pestañas se ignora.
+  // Etiqueta resumen del botón del filtro (todos, o la lista seleccionada).
+  function selLabelOf<T extends string>(value: T[], options: Array<{ value: T; label: string }>): string {
+    if (value.includes("all" as T)) return tWallet("filterTypeAllValue");
+    return options.filter((o) => o.value !== "all" && value.includes(o.value)).map((o) => o.label).join(", ");
+  }
+  const typeSelLabel = selLabelOf(typeFilter, typeOptions);
+  const rejSelLabel = selLabelOf(rejFilter, rejOptions);
+
+  // Un saludo/consejo pasa el filtro de tipo si su tipo está seleccionado.
+  const greetingPassesType = (t: string | undefined, filter: ExpTypeFilter[]) =>
+    (t === "saludo" && filter.includes("saludo")) || (t === "consejo" && filter.includes("consejo"));
+
+  // ── Pendientes ──
   const applyTypeFilter = tab === "requested" && !typeFilter.includes("all");
   const filteredPending = applyTypeFilter
-    ? exp.buyerPending.filter((r) => {
-        const t = (r.data as { type?: string }).type;
-        return (
-          (t === "saludo" && typeFilter.includes("saludo")) ||
-          (t === "consejo" && typeFilter.includes("consejo"))
-        );
-      })
+    ? exp.buyerPending.filter((r) => greetingPassesType((r.data as { type?: string }).type, typeFilter))
     : exp.buyerPending;
-  const filteredMeet =
-    applyTypeFilter && !typeFilter.includes("meet_greet") ? [] : exp.buyerMeetGreets;
-  const filteredExclusive =
-    applyTypeFilter && !typeFilter.includes("exclusive_session") ? [] : exp.buyerExclusiveSessions;
+  const pendingMeet = applyTypeFilter && !typeFilter.includes("meet_greet") ? [] : exp.buyerMeetGreets;
+  const pendingExclusive = applyTypeFilter && !typeFilter.includes("exclusive_session") ? [] : exp.buyerExclusiveSessions;
+
+  // ── Rechazados: un filtro combinado. Las selecciones de tipo se aplican entre sí
+  // como OR y las de estatus como OR, y entre ambas dimensiones como AND. ──
+  const rejActive = tab === "rejected" && !rejFilter.includes("all");
+  const rejTypes = rejFilter.filter(
+    (v) => v === "exclusive_session" || v === "saludo" || v === "consejo" || v === "meet_greet"
+  );
+  const rejStatuses = rejFilter.filter((v) => v === "refund" || v === "rejected");
+  const passesRejStatus = (status: string) =>
+    !rejActive || rejStatuses.length === 0 ||
+    (isRefundStatus(status) ? rejStatuses.includes("refund") : rejStatuses.includes("rejected"));
+  const passesRejGreetingType = (t: string | undefined) =>
+    !rejActive || rejTypes.length === 0 ||
+    (t === "saludo" && rejTypes.includes("saludo")) || (t === "consejo" && rejTypes.includes("consejo"));
+  const passesRejSessionType = (kind: "meet_greet" | "exclusive_session") =>
+    !rejActive || rejTypes.length === 0 || rejTypes.includes(kind);
+
+  const filteredRejGreetings = exp.buyerRejectedGreetings.filter(
+    (r) => passesRejGreetingType((r.data as { type?: string }).type) && passesRejStatus(r.data.status)
+  );
+  const rejMeet = exp.buyerMeetGreets.filter(
+    (r) => passesRejSessionType("meet_greet") && passesRejStatus(r.data.status)
+  );
+  const rejExclusive = exp.buyerExclusiveSessions.filter(
+    (r) => passesRejSessionType("exclusive_session") && passesRejStatus(r.data.status)
+  );
+
+  // Arrays finales según la pestaña activa.
+  const outPending = tab === "requested" ? filteredPending : exp.buyerPending;
+  const outRejGreetings = tab === "rejected" ? filteredRejGreetings : exp.buyerRejectedGreetings;
+  const outMeet = tab === "requested" ? pendingMeet : tab === "rejected" ? rejMeet : exp.buyerMeetGreets;
+  const outExclusive = tab === "requested" ? pendingExclusive : tab === "rejected" ? rejExclusive : exp.buyerExclusiveSessions;
 
   // Cantidad total de pendientes de la persona (no depende del filtro): saludos/
   // consejos + sesiones/tiempo contigo que estén "por atender".
@@ -305,6 +350,21 @@ export default function ExperienciasPage() {
         </div>
       ) : null}
 
+      {/* Filtro único en Rechazados: combina tipo de experiencia y estatus. */}
+      {tab === "rejected" && !exp.loading ? (
+        <div style={{ maxWidth: "100%", minWidth: 0, overflow: "hidden", marginBottom: 6 }}>
+          <WalletFilterMenu
+            label={rejSelLabel}
+            menuLabel={tWallet("filterTypeMenu")}
+            value={rejFilter}
+            options={rejOptions}
+            onChange={setRejFilter}
+            allValue="all"
+            transparent
+          />
+        </div>
+      ) : null}
+
       {exp.loading ? (
         <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 13, textAlign: "center", padding: "24px 0" }}>{tCommon("loading")}</p>
       ) : (
@@ -312,11 +372,11 @@ export default function ExperienciasPage() {
           <div ref={contentRef}>
             <OwnerSidebarGreetings
               activeSection={tab}
-              buyerPending={filteredPending}
+              buyerPending={outPending}
               buyerDelivered={exp.buyerDelivered}
-              buyerRejectedGreetings={exp.buyerRejectedGreetings}
-              buyerMeetGreets={filteredMeet}
-              buyerExclusiveSessions={filteredExclusive}
+              buyerRejectedGreetings={outRejGreetings}
+              buyerMeetGreets={outMeet}
+              buyerExclusiveSessions={outExclusive}
               exclusiveSessionsByGroup={{}}
               meetGreetsByGroup={{}}
               groupMetaMap={exp.groupMetaMap}

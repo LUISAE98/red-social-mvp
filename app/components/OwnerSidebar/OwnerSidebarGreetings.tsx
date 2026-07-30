@@ -53,7 +53,8 @@ import VibraToast from "@/app/components/VibraToast/VibraToast";
 import {
   ScheduledRow, SectionBlock,
   displayRowStatus, fmtScheduledSplit, getCreatorScheduleNote,
-  getMeetGreetStatusLabel, getRelativeTime, getSectionForMeetGreetStatus, greetingResponseDaysLeft,
+  getMeetGreetStatusLabel, getRelativeTime, getSectionForMeetGreetStatus,
+  GREETING_RESPONSE_DAYS, SESSION_RESPONSE_DAYS, responseDaysLeft,
   getServiceCardColors, greetingBgImage, isNoShowExpired, isPrepareWindowOpen,
   isProfileRequest, isRefundStatus, remainingReschedules, serviceCardBackground,
   serviceCardBackgroundStyle, sortDisplayRows, sortResolvedDesc, toDateSafe,
@@ -172,6 +173,25 @@ export default function OwnerSidebarGreetings({
         toDateSafe(r.data.createdAt))?.getTime() ?? 0;
     return [...buyerDelivered].sort((a, b) => ts(b) - ts(a));
   }, [buyerDelivered]);
+
+  // Todos los entregados en una sola lista, del más nuevo al más viejo,
+  // intercalando sesiones y saludos/consejos. Se usa en la página de experiencias
+  // (sin acordeones).
+  const deliveredAll = useMemo(() => {
+    type DeliveredItem =
+      | { kind: "session"; row: ScheduledRow; ts: number }
+      | { kind: "greeting"; row: { id: string; data: GreetingRequestDoc }; ts: number };
+    const items: DeliveredItem[] = [];
+    deliveredSessions.forEach((row) => {
+      const ts = (toDateSafe(row.data.updatedAt) ?? toDateSafe(row.data.scheduledAt) ?? toDateSafe(row.data.createdAt))?.getTime() ?? 0;
+      items.push({ kind: "session", row, ts });
+    });
+    deliveredGreetings.forEach((row) => {
+      const ts = (toDateSafe(row.data.deliveredAt) ?? toDateSafe(row.data.updatedAt) ?? toDateSafe(row.data.createdAt))?.getTime() ?? 0;
+      items.push({ kind: "greeting", row, ts });
+    });
+    return items.sort((a, b) => b.ts - a.ts);
+  }, [deliveredSessions, deliveredGreetings]);
 
   // Estilo del encabezado de cada submenú de entregados.
   const submenuHeaderStyle: React.CSSProperties = {
@@ -818,7 +838,7 @@ async function handleCreatorSchedule(
 
     // Pendiente: 3 partes centradas de altura, con línea vertical del lado del
     // avatar. En medio, los días que le quedan al creador para responder.
-    const daysLeft = greetingResponseDaysLeft(req.createdAt);
+    const daysLeft = responseDaysLeft(req.createdAt, GREETING_RESPONSE_DAYS);
     const gDivider = (
       <span aria-hidden="true" style={{ alignSelf: "stretch", width: 1, background: "rgba(255,255,255,0.14)", flexShrink: 0, margin: "3px 0" }} />
     );
@@ -1036,6 +1056,7 @@ const creatorScheduleNote = getCreatorScheduleNote(req);
       // (1) creador + hace cuánto se compró · (2) fecha agendada · (3) botón.
       const scheduledSplit2 = fmtScheduledSplit(req.scheduledAt);
       const dateAccent2 = isExclusiveSession ? "#f9a8d4" : "#93c5fd";
+      const sessionDaysLeft = responseDaysLeft(req.createdAt, SESSION_RESPONSE_DAYS);
       const divider2 = (
         <span aria-hidden="true" style={{ alignSelf: "stretch", width: 1, background: "rgba(255,255,255,0.14)", flexShrink: 0, margin: "3px 0" }} />
       );
@@ -1076,6 +1097,15 @@ const creatorScheduleNote = getCreatorScheduleNote(req);
                   <span style={{ color: "#fff", fontSize: 12.5, fontWeight: 400, lineHeight: 1.25, textShadow: "0 1px 3px rgba(0,0,0,0.8)" }}>{scheduledSplit2.dayTime}</span>
                   <span style={{ color: "rgba(255,255,255,0.85)", fontSize: 11.5, fontWeight: 400, lineHeight: 1.25, textShadow: "0 1px 3px rgba(0,0,0,0.8)" }}>{scheduledSplit2.dateStr}</span>
                 </div>
+              </div>
+            ) : req.status === "pending_creator_response" ? (
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center", gap: 2 }}>
+                <span style={{ color: "#fff", fontSize: 13, fontWeight: 700, lineHeight: 1.15, textShadow: "0 1px 3px rgba(0,0,0,0.8)" }}>
+                  {tServices("greetingDaysToRespond", { days: sessionDaysLeft ?? 0 })}
+                </span>
+                <span style={{ color: "rgba(255,255,255,0.7)", fontSize: 10.5, fontWeight: 500, lineHeight: 1.2, textShadow: "0 1px 3px rgba(0,0,0,0.8)" }}>
+                  {tServices("toRespondLabel")}
+                </span>
               </div>
             ) : (
               <span style={{ color: dateAccent2, fontSize: 11.5, fontWeight: 600, lineHeight: 1.25, textAlign: "center" }}>
@@ -1272,6 +1302,243 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
     return renderIncomingScheduledServiceCard(row.row, row.id);
   }
 
+  // Tarjeta de sesión/tiempo contigo ENTREGADA (con descarga de grabación).
+  function renderDeliveredSessionCard(row: ScheduledRow) {
+    const req = row.data;
+    const isExclusive = row.serviceKind === "exclusive_session";
+    const sessionType = isExclusive ? "exclusive_session" : "meet_greet";
+    const creator = userMiniMap[req.creatorId] ?? null;
+    const group = req.groupId ? groupMetaMap[req.groupId] ?? null : null;
+    const sourceName = req.profileDisplayName ?? creator?.displayName ?? (group?.name ?? tCommon("creator"));
+    const sourceAvatar = creator?.photoURL ?? group?.avatarUrl ?? null;
+    const sourceInitial = sourceName.charAt(0).toUpperCase();
+    const completedTs = req.updatedAt as { toDate: () => Date } | undefined;
+    const relTime = completedTs ? getRelativeTime(completedTs, tCommon) : null;
+    const downloadBusy = !!downloadBusyMap[row.id];
+    const downloadError = downloadErrorMap[row.id] ?? null;
+    // Contador descendente 30 → 0 para descargar la grabación de la sesión.
+    const dlRef = toDateSafe(req.scheduledAt);
+    const dlElapsed = dlRef
+      ? Math.floor((Date.now() - dlRef.getTime()) / (1000 * 60 * 60 * 24))
+      : 0;
+    const daysLeft = Math.max(0, 30 - dlElapsed);
+    const canDownload = daysLeft > 0;
+    const bgImage = isExclusive ? "/sesionexclusiva.webp" : "/encuentroenvivo.webp";
+
+    const avatarNode = sourceAvatar ? (
+      <Image
+        src={sourceAvatar}
+        alt={sourceName}
+        width={36} height={36}
+        style={{ borderRadius: 999, objectFit: "cover", flexShrink: 0, border: "1px solid rgba(255,255,255,0.10)" }}
+      />
+    ) : (
+      <div style={{
+        width: 36, height: 36, borderRadius: 999, flexShrink: 0,
+        background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.10)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        fontWeight: 700, fontSize: 14, color: "#fff",
+      }}>
+        {sourceInitial}
+      </div>
+    );
+
+    const downloadButton = (
+      <button
+        type="button"
+        disabled={downloadBusy || !canDownload}
+        onClick={async () => {
+          setDownloadBusyMap((prev) => ({ ...prev, [row.id]: true }));
+          setDownloadErrorMap((prev) => ({ ...prev, [row.id]: null }));
+          try {
+            const url = await callGetRecordingDownloadUrl({ sessionId: row.id, sessionType });
+            window.location.href = url;
+          } catch {
+            setDownloadErrorMap((prev) => ({ ...prev, [row.id]: tCommon("generalError") }));
+          } finally {
+            setDownloadBusyMap((prev) => ({ ...prev, [row.id]: false }));
+          }
+        }}
+        style={{
+          flexShrink: 0,
+          height: 28,
+          padding: "0 12px",
+          borderRadius: 8,
+          border: "none",
+          background: canDownload
+            ? (isExclusive ? "rgba(244,114,182,0.18)" : "rgba(96,165,250,0.18)")
+            : "rgba(255,255,255,0.08)",
+          color: canDownload
+            ? (isExclusive ? "#f9a8d4" : "#93c5fd")
+            : "rgba(255,255,255,0.3)",
+          fontWeight: 600,
+          fontSize: 11,
+          cursor: !canDownload || downloadBusy ? "not-allowed" : "pointer",
+          opacity: downloadBusy ? 0.7 : 1,
+          whiteSpace: "nowrap",
+          fontFamily: "inherit",
+        }}
+      >
+        {downloadBusy ? tCommon("loading") : tServices("downloadSession")}
+      </button>
+    );
+
+    return (
+      <div
+        key={`completed-session-${row.id}`}
+        style={{
+          background: `linear-gradient(rgba(0,0,0,0.62), rgba(0,0,0,0.62)), center / cover no-repeat url("${bgImage}")`,
+          border: "none",
+          borderRadius: 12,
+          overflow: "hidden",
+          padding: 12,
+          display: "flex",
+          flexDirection: "column",
+          gap: 10,
+        }}
+      >
+        {/* Fila superior: avatar + nombre/tiempo (+ botón en celular). */}
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          {avatarNode}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ color: "#fff", fontWeight: 600, fontSize: 13, lineHeight: 1.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textShadow: "0 1px 3px rgba(0,0,0,0.8)" }}>
+              {sourceName}
+            </div>
+            {relTime && (
+              <div style={{ color: "rgba(255,255,255,0.7)", fontSize: 11, marginTop: 2, textShadow: "0 1px 3px rgba(0,0,0,0.8)" }}>
+                {relTime}
+              </div>
+            )}
+          </div>
+          {canDownload && (
+            <div className="vb-dels-btn-mobile" style={{ flexShrink: 0 }}>
+              {downloadButton}
+            </div>
+          )}
+        </div>
+
+        {/* Contador centrado. */}
+        {canDownload ? (
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", gap: 1 }}>
+            <span style={{ color: "#fff", fontSize: 11, fontWeight: 500, textShadow: "0 1px 3px rgba(0,0,0,0.85)" }}>
+              {tServices("downloadLeftPre", { days: daysLeft })}
+            </span>
+            <span style={{ color: "#fff", fontSize: 30, fontWeight: 600, lineHeight: 1.05, textShadow: "0 1px 5px rgba(0,0,0,0.9)" }}>
+              {daysLeft}
+            </span>
+            <span style={{ color: "#fff", fontSize: 11, fontWeight: 500, textShadow: "0 1px 3px rgba(0,0,0,0.85)" }}>
+              {tServices("downloadLeftPost", { days: daysLeft })}
+            </span>
+          </div>
+        ) : (
+          <div style={{ textAlign: "center", color: "#fca5a5", fontSize: 12, fontWeight: 600, textShadow: "0 1px 3px rgba(0,0,0,0.85)" }}>
+            {tServices("downloadExpired")}
+          </div>
+        )}
+
+        {/* Botón abajo de todo (laptop). */}
+        {canDownload && (
+          <div className="vb-dels-btn-desktop">
+            {downloadButton}
+          </div>
+        )}
+
+        {downloadError && (
+          <div style={{ fontSize: 10, color: "#fca5a5", textAlign: "center", textShadow: "0 1px 3px rgba(0,0,0,0.8)" }}>{downloadError}</div>
+        )}
+      </div>
+    );
+  }
+
+  // Tarjeta de saludo/consejo ENTREGADO.
+  function renderDeliveredGreetingCard(row: { id: string; data: GreetingRequestDoc }) {
+    const req = row.data;
+    const itemKey = `delivered-${row.id}`;
+    const isProfile = req.source === "profile";
+    const group = req.groupId ? groupMetaMap[req.groupId] ?? null : null;
+    const creator = userMiniMap[req.creatorId] ?? null;
+
+    const sourceName = isProfile
+      ? (req.profileDisplayName ?? creator?.displayName ?? tCommon("profile"))
+      : (group?.name ?? tCommon("community"));
+    const sourceAvatar = isProfile
+      ? (creator?.photoURL ?? null)
+      : (group?.avatarUrl ?? null);
+    const sourceInitial = sourceName.charAt(0).toUpperCase();
+
+    const deliveredTs = req.deliveredAt as { toDate: () => Date } | undefined;
+    const relTime = deliveredTs ? getRelativeTime(deliveredTs, tCommon) : null;
+
+    const btnLabel = req.type === "consejo" ? tServices("viewAdvice") : req.type === "mensaje" ? tServices("viewMessage") : tServices("viewGreeting");
+    const bgImage = greetingBgImage(req.type);
+    const cardColors = getServiceCardColors(req.type);
+
+    return (
+      <div
+        key={itemKey}
+        style={{
+          ...styles.miniItem,
+          background: serviceCardBackground(bgImage, "rgba(90,41,174,0.14)"),
+          border: "none",
+          borderRadius: 12,
+          overflow: "hidden",
+          padding: 10,
+          display: "flex",
+          alignItems: "center",
+          gap: 10,
+        }}
+      >
+        {sourceAvatar ? (
+          <Image
+            src={sourceAvatar}
+            alt={sourceName}
+            width={36} height={36}
+            style={{ borderRadius: 999, objectFit: "cover", flexShrink: 0, border: "1px solid rgba(255,255,255,0.10)" }}
+          />
+        ) : (
+          <div style={{
+            width: 36, height: 36, borderRadius: 999, flexShrink: 0,
+            background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.10)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontWeight: 700, fontSize: 14, color: "#fff",
+          }}>
+            {sourceInitial}
+          </div>
+        )}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ color: "#fff", fontWeight: 600, fontSize: 13, lineHeight: 1.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {sourceName}
+          </div>
+          {relTime && (
+            <div style={{ color: "rgba(255,255,255,0.45)", fontSize: 11, marginTop: 2 }}>
+              {relTime}
+            </div>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={() => setViewDeliveredItem({ item: row, sourceName, sourceAvatar })}
+          style={{
+            flexShrink: 0,
+            width: 112,
+            height: 28,
+            padding: "0 12px",
+            borderRadius: 8,
+            border: "none",
+            background: cardColors.btnBg,
+            color: cardColors.btnColor,
+            fontWeight: 600,
+            fontSize: 11,
+            cursor: "pointer",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {btnLabel}
+        </button>
+      </div>
+    );
+  }
+
   return (
     <>
     <div style={{ display: "grid", gap: 8 }}>
@@ -1302,54 +1569,85 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
         hideHeader={!!activeSection}
       >
         <div className="mini-vertical-scroll" style={{ display: "grid", gap: 8, overflow: "hidden", minWidth: 0 }}>
-          {/* Submenú: Rechazados */}
-          {rejectedOnlyRows.length > 0 && (
-          <div>
-            <button
-              type="button"
-              onClick={() => setRejectedSubOpen((v) => (v === "rejected" ? null : "rejected"))}
-              aria-expanded={rejectedSubOpen === "rejected"}
-              style={submenuHeaderStyle}
-            >
-              <span style={{ fontSize: 13, fontWeight: 600, color: "#fff" }}>{tServices("rejectedGroup")}</span>
-              <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={{ fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,0.7)" }}>{rejectedOnlyRows.length}</span>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.7)" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ transition: "transform 0.25s ease", transform: rejectedSubOpen === "rejected" ? "rotate(180deg)" : "none" }} aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
-              </span>
-            </button>
-            <div style={{ display: "grid", gridTemplateRows: rejectedSubOpen === "rejected" ? "1fr" : "0fr", opacity: rejectedSubOpen === "rejected" ? 1 : 0, transition: "grid-template-rows 320ms cubic-bezier(0.4,0,0.2,1), opacity 200ms ease" }}>
-              <div style={{ overflow: "hidden", minHeight: 0 }}>
-                <div style={{ display: "grid", gap: 8, paddingTop: 8 }}>
-                  {rejectedOnlyRows.map(renderDisplayRow)}
+          {activeSection ? (
+            <>
+              {/* En devolución (arriba): siempre visible, sin acordeón. */}
+              {refundOnlyRows.length > 0 && (
+                <div>
+                  <div style={{ ...submenuHeaderStyle, cursor: "default", background: "transparent" }}>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: "#fff" }}>{tServices("refundGroup")}</span>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,0.7)" }}>{refundOnlyRows.length}</span>
+                  </div>
+                  <div style={{ display: "grid", gap: 8, paddingTop: 8 }}>
+                    {refundOnlyRows.map(renderDisplayRow)}
+                  </div>
+                </div>
+              )}
+              {/* Rechazados (abajo): siempre visible, sin acordeón. */}
+              {rejectedOnlyRows.length > 0 && (
+                <div>
+                  <div style={{ ...submenuHeaderStyle, cursor: "default", background: "transparent" }}>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: "#fff" }}>{tServices("rejectedGroup")}</span>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,0.7)" }}>{rejectedOnlyRows.length}</span>
+                  </div>
+                  <div style={{ display: "grid", gap: 8, paddingTop: 8 }}>
+                    {rejectedOnlyRows.map(renderDisplayRow)}
+                  </div>
+                </div>
+              )}
+            </>
+          ) : (
+            <>
+              {/* Submenú: Rechazados */}
+              {rejectedOnlyRows.length > 0 && (
+              <div>
+                <button
+                  type="button"
+                  onClick={() => setRejectedSubOpen((v) => (v === "rejected" ? null : "rejected"))}
+                  aria-expanded={rejectedSubOpen === "rejected"}
+                  style={submenuHeaderStyle}
+                >
+                  <span style={{ fontSize: 13, fontWeight: 600, color: "#fff" }}>{tServices("rejectedGroup")}</span>
+                  <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,0.7)" }}>{rejectedOnlyRows.length}</span>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.7)" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ transition: "transform 0.25s ease", transform: rejectedSubOpen === "rejected" ? "rotate(180deg)" : "none" }} aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
+                  </span>
+                </button>
+                <div style={{ display: "grid", gridTemplateRows: rejectedSubOpen === "rejected" ? "1fr" : "0fr", opacity: rejectedSubOpen === "rejected" ? 1 : 0, transition: "grid-template-rows 320ms cubic-bezier(0.4,0,0.2,1), opacity 200ms ease" }}>
+                  <div style={{ overflow: "hidden", minHeight: 0 }}>
+                    <div style={{ display: "grid", gap: 8, paddingTop: 8 }}>
+                      {rejectedOnlyRows.map(renderDisplayRow)}
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
-          </div>
-          )}
+              )}
 
-          {/* Submenú: En devolución */}
-          {refundOnlyRows.length > 0 && (
-          <div>
-            <button
-              type="button"
-              onClick={() => setRejectedSubOpen((v) => (v === "refund" ? null : "refund"))}
-              aria-expanded={rejectedSubOpen === "refund"}
-              style={submenuHeaderStyle}
-            >
-              <span style={{ fontSize: 13, fontWeight: 600, color: "#fff" }}>{tServices("refundGroup")}</span>
-              <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={{ fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,0.7)" }}>{refundOnlyRows.length}</span>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.7)" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ transition: "transform 0.25s ease", transform: rejectedSubOpen === "refund" ? "rotate(180deg)" : "none" }} aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
-              </span>
-            </button>
-            <div style={{ display: "grid", gridTemplateRows: rejectedSubOpen === "refund" ? "1fr" : "0fr", opacity: rejectedSubOpen === "refund" ? 1 : 0, transition: "grid-template-rows 320ms cubic-bezier(0.4,0,0.2,1), opacity 200ms ease" }}>
-              <div style={{ overflow: "hidden", minHeight: 0 }}>
-                <div style={{ display: "grid", gap: 8, paddingTop: 8 }}>
-                  {refundOnlyRows.map(renderDisplayRow)}
+              {/* Submenú: En devolución */}
+              {refundOnlyRows.length > 0 && (
+              <div>
+                <button
+                  type="button"
+                  onClick={() => setRejectedSubOpen((v) => (v === "refund" ? null : "refund"))}
+                  aria-expanded={rejectedSubOpen === "refund"}
+                  style={submenuHeaderStyle}
+                >
+                  <span style={{ fontSize: 13, fontWeight: 600, color: "#fff" }}>{tServices("refundGroup")}</span>
+                  <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,0.7)" }}>{refundOnlyRows.length}</span>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.7)" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ transition: "transform 0.25s ease", transform: rejectedSubOpen === "refund" ? "rotate(180deg)" : "none" }} aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
+                  </span>
+                </button>
+                <div style={{ display: "grid", gridTemplateRows: rejectedSubOpen === "refund" ? "1fr" : "0fr", opacity: rejectedSubOpen === "refund" ? 1 : 0, transition: "grid-template-rows 320ms cubic-bezier(0.4,0,0.2,1), opacity 200ms ease" }}>
+                  <div style={{ overflow: "hidden", minHeight: 0 }}>
+                    <div style={{ display: "grid", gap: 8, paddingTop: 8 }}>
+                      {refundOnlyRows.map(renderDisplayRow)}
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
-          </div>
+              )}
+            </>
           )}
         </div>
       </SectionBlock>
@@ -1460,6 +1758,16 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
                 }
               `}</style>
 
+              {activeSection ? (
+                <>
+                  {deliveredAll.map((it) =>
+                    it.kind === "session"
+                      ? renderDeliveredSessionCard(it.row)
+                      : renderDeliveredGreetingCard(it.row)
+                  )}
+                </>
+              ) : (
+              <>
               {/* Submenú: Sesiones */}
               {deliveredSessions.length > 0 && (
               <div>
@@ -1478,152 +1786,7 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
                 <div style={{ display: "grid", gridTemplateRows: deliveredSubOpen === "sessions" ? "1fr" : "0fr", opacity: deliveredSubOpen === "sessions" ? 1 : 0, transition: "grid-template-rows 320ms cubic-bezier(0.4,0,0.2,1), opacity 200ms ease" }}>
                   <div style={{ overflow: "hidden", minHeight: 0 }}>
                     <div style={{ display: "grid", gap: 8, paddingTop: 8 }}>
-              {deliveredSessions.map((row) => {
-                const req = row.data;
-                const isExclusive = row.serviceKind === "exclusive_session";
-                const sessionType = isExclusive ? "exclusive_session" : "meet_greet";
-                const creator = userMiniMap[req.creatorId] ?? null;
-                const group = req.groupId ? groupMetaMap[req.groupId] ?? null : null;
-                const sourceName = req.profileDisplayName ?? creator?.displayName ?? (group?.name ?? tCommon("creator"));
-                const sourceAvatar = creator?.photoURL ?? group?.avatarUrl ?? null;
-                const sourceInitial = sourceName.charAt(0).toUpperCase();
-                const completedTs = req.updatedAt as { toDate: () => Date } | undefined;
-                const relTime = completedTs ? getRelativeTime(completedTs, tCommon) : null;
-                const downloadBusy = !!downloadBusyMap[row.id];
-                const downloadError = downloadErrorMap[row.id] ?? null;
-                // Contador descendente 30 → 0 para descargar la grabación de la sesión.
-                const dlRef = toDateSafe(req.scheduledAt);
-                const dlElapsed = dlRef
-                  ? Math.floor((Date.now() - dlRef.getTime()) / (1000 * 60 * 60 * 24))
-                  : 0;
-                const daysLeft = Math.max(0, 30 - dlElapsed);
-                const canDownload = daysLeft > 0;
-                const bgImage = isExclusive ? "/sesionexclusiva.webp" : "/encuentroenvivo.webp";
-
-                const avatarNode = sourceAvatar ? (
-                  <Image
-                    src={sourceAvatar}
-                    alt={sourceName}
-                    width={36} height={36}
-                    style={{ borderRadius: 999, objectFit: "cover", flexShrink: 0, border: "1px solid rgba(255,255,255,0.10)" }}
-                  />
-                ) : (
-                  <div style={{
-                    width: 36, height: 36, borderRadius: 999, flexShrink: 0,
-                    background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.10)",
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    fontWeight: 700, fontSize: 14, color: "#fff",
-                  }}>
-                    {sourceInitial}
-                  </div>
-                );
-
-                const downloadButton = (
-                  <button
-                    type="button"
-                    disabled={downloadBusy || !canDownload}
-                    onClick={async () => {
-                      setDownloadBusyMap((prev) => ({ ...prev, [row.id]: true }));
-                      setDownloadErrorMap((prev) => ({ ...prev, [row.id]: null }));
-                      try {
-                        const url = await callGetRecordingDownloadUrl({ sessionId: row.id, sessionType });
-                        window.location.href = url;
-                      } catch {
-                        setDownloadErrorMap((prev) => ({ ...prev, [row.id]: tCommon("generalError") }));
-                      } finally {
-                        setDownloadBusyMap((prev) => ({ ...prev, [row.id]: false }));
-                      }
-                    }}
-                    style={{
-                      flexShrink: 0,
-                      height: 28,
-                      padding: "0 12px",
-                      borderRadius: 8,
-                      border: "none",
-                      background: canDownload
-                        ? (isExclusive ? "rgba(244,114,182,0.18)" : "rgba(96,165,250,0.18)")
-                        : "rgba(255,255,255,0.08)",
-                      color: canDownload
-                        ? (isExclusive ? "#f9a8d4" : "#93c5fd")
-                        : "rgba(255,255,255,0.3)",
-                      fontWeight: 600,
-                      fontSize: 11,
-                      cursor: !canDownload || downloadBusy ? "not-allowed" : "pointer",
-                      opacity: downloadBusy ? 0.7 : 1,
-                      whiteSpace: "nowrap",
-                      fontFamily: "inherit",
-                    }}
-                  >
-                    {downloadBusy ? tCommon("loading") : tServices("downloadSession")}
-                  </button>
-                );
-
-                return (
-                  <div
-                    key={`completed-session-${row.id}`}
-                    style={{
-                      background: `linear-gradient(rgba(0,0,0,0.62), rgba(0,0,0,0.62)), center / cover no-repeat url("${bgImage}")`,
-                      border: "none",
-                      borderRadius: 12,
-                      overflow: "hidden",
-                      padding: 12,
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: 10,
-                    }}
-                  >
-                    {/* Fila superior: avatar + nombre/tiempo (+ botón en celular). */}
-                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      {avatarNode}
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ color: "#fff", fontWeight: 600, fontSize: 13, lineHeight: 1.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textShadow: "0 1px 3px rgba(0,0,0,0.8)" }}>
-                          {sourceName}
-                        </div>
-                        {relTime && (
-                          <div style={{ color: "rgba(255,255,255,0.7)", fontSize: 11, marginTop: 2, textShadow: "0 1px 3px rgba(0,0,0,0.8)" }}>
-                            {relTime}
-                          </div>
-                        )}
-                      </div>
-                      {canDownload && (
-                        <div className="vb-dels-btn-mobile" style={{ flexShrink: 0 }}>
-                          {downloadButton}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Contador centrado. */}
-                    {canDownload ? (
-                      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", gap: 1 }}>
-                        <span style={{ color: "#fff", fontSize: 11, fontWeight: 500, textShadow: "0 1px 3px rgba(0,0,0,0.85)" }}>
-                          {tServices("downloadLeftPre", { days: daysLeft })}
-                        </span>
-                        <span style={{ color: "#fff", fontSize: 30, fontWeight: 600, lineHeight: 1.05, textShadow: "0 1px 5px rgba(0,0,0,0.9)" }}>
-                          {daysLeft}
-                        </span>
-                        <span style={{ color: "#fff", fontSize: 11, fontWeight: 500, textShadow: "0 1px 3px rgba(0,0,0,0.85)" }}>
-                          {tServices("downloadLeftPost", { days: daysLeft })}
-                        </span>
-                      </div>
-                    ) : (
-                      <div style={{ textAlign: "center", color: "#fca5a5", fontSize: 12, fontWeight: 600, textShadow: "0 1px 3px rgba(0,0,0,0.85)" }}>
-                        {tServices("downloadExpired")}
-                      </div>
-                    )}
-
-                    {/* Botón abajo de todo (laptop). */}
-                    {canDownload && (
-                      <div className="vb-dels-btn-desktop">
-                        {downloadButton}
-                      </div>
-                    )}
-
-                    {downloadError && (
-                      <div style={{ fontSize: 10, color: "#fca5a5", textAlign: "center", textShadow: "0 1px 3px rgba(0,0,0,0.8)" }}>{downloadError}</div>
-                    )}
-                  </div>
-                );
-              })}
+              {deliveredSessions.map(renderDeliveredSessionCard)}
                     </div>
                   </div>
                 </div>
@@ -1648,97 +1811,13 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
                 <div style={{ display: "grid", gridTemplateRows: deliveredSubOpen === "greetings" ? "1fr" : "0fr", opacity: deliveredSubOpen === "greetings" ? 1 : 0, transition: "grid-template-rows 320ms cubic-bezier(0.4,0,0.2,1), opacity 200ms ease" }}>
                   <div style={{ overflow: "hidden", minHeight: 0 }}>
                     <div style={{ display: "grid", gap: 8, paddingTop: 8 }}>
-              {deliveredGreetings.map((row) => {
-                const req = row.data;
-                const itemKey = `delivered-${row.id}`;
-                const isProfile = req.source === "profile";
-                const group = req.groupId ? groupMetaMap[req.groupId] ?? null : null;
-                const creator = userMiniMap[req.creatorId] ?? null;
-
-                const sourceName = isProfile
-                  ? (req.profileDisplayName ?? creator?.displayName ?? tCommon("profile"))
-                  : (group?.name ?? tCommon("community"));
-                const sourceAvatar = isProfile
-                  ? (creator?.photoURL ?? null)
-                  : (group?.avatarUrl ?? null);
-                const sourceInitial = sourceName.charAt(0).toUpperCase();
-
-                const deliveredTs = req.deliveredAt as { toDate: () => Date } | undefined;
-                const relTime = deliveredTs ? getRelativeTime(deliveredTs, tCommon) : null;
-
-                const btnLabel = req.type === "consejo" ? tServices("viewAdvice") : req.type === "mensaje" ? tServices("viewMessage") : tServices("viewGreeting");
-                const bgImage = greetingBgImage(req.type);
-                const cardColors = getServiceCardColors(req.type);
-
-                return (
-                  <div
-                    key={itemKey}
-                    style={{
-                      ...styles.miniItem,
-                      background: serviceCardBackground(bgImage, "rgba(90,41,174,0.14)"),
-                      border: "none",
-                      borderRadius: 12,
-                      overflow: "hidden",
-                      padding: 10,
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 10,
-                    }}
-                  >
-                    {sourceAvatar ? (
-                      <Image
-                        src={sourceAvatar}
-                        alt={sourceName}
-                        width={36} height={36}
-                        style={{ borderRadius: 999, objectFit: "cover", flexShrink: 0, border: "1px solid rgba(255,255,255,0.10)" }}
-                      />
-                    ) : (
-                      <div style={{
-                        width: 36, height: 36, borderRadius: 999, flexShrink: 0,
-                        background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.10)",
-                        display: "flex", alignItems: "center", justifyContent: "center",
-                        fontWeight: 700, fontSize: 14, color: "#fff",
-                      }}>
-                        {sourceInitial}
-                      </div>
-                    )}
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ color: "#fff", fontWeight: 600, fontSize: 13, lineHeight: 1.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        {sourceName}
-                      </div>
-                      {relTime && (
-                        <div style={{ color: "rgba(255,255,255,0.45)", fontSize: 11, marginTop: 2 }}>
-                          {relTime}
-                        </div>
-                      )}
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setViewDeliveredItem({ item: row, sourceName, sourceAvatar })}
-                      style={{
-                        flexShrink: 0,
-                        width: 112,
-                        height: 28,
-                        padding: "0 12px",
-                        borderRadius: 8,
-                        border: "none",
-                        background: cardColors.btnBg,
-                        color: cardColors.btnColor,
-                        fontWeight: 600,
-                        fontSize: 11,
-                        cursor: "pointer",
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      {btnLabel}
-                    </button>
-                  </div>
-                );
-              })}
+              {deliveredGreetings.map(renderDeliveredGreetingCard)}
                     </div>
                   </div>
                 </div>
               </div>
+              )}
+              </>
               )}
             </div>
             </div>

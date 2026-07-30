@@ -617,6 +617,12 @@ export async function sessionRemindersHandler(): Promise<number> {
           sessionId: doc.id,
           sessionType: c.type,
           recipientIds: [creatorId, buyerId],
+          // Cada parte ve la cara de la otra: el comprador ve al creador y
+          // el creador al comprador.
+          counterpartByRecipient: {
+            ...(creatorId ? { [creatorId]: buyerId } : {}),
+            ...(buyerId ? { [buyerId]: creatorId } : {}),
+          },
         });
         sent += 1;
       } catch (e) {

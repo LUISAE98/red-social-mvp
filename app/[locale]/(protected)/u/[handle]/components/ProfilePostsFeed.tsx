@@ -31,6 +31,8 @@ import {
   removePostFromAllFeedCaches,
 } from "@/lib/posts/post-feed-cache";
 import GroupPostCard from "@/app/groups/[groupId]/components/posts/GroupPostCard";
+import { PostSkeletonList } from "@/app/components/PostSkeleton/PostSkeleton";
+import PostReveal from "@/app/components/PostSkeleton/PostReveal";
 import PostsMediaSubnav, { MEDIA_TAB_ORDER, type MediaTabKey } from "@/app/groups/[groupId]/components/posts/PostsMediaSubnav";
 import MediaGallery, { type GalleryTile } from "@/app/groups/[groupId]/components/posts/MediaGallery";
 import GroupRecommendationsRail from "@/app/components/GroupRecommendations/GroupRecommendationsRail";
@@ -881,6 +883,20 @@ const shellStyle: CSSProperties = {
     overflowX: "hidden",
   };
 
+  const endOfFeedStyle: CSSProperties = {
+    width: "100%",
+    maxWidth: "100%",
+    minWidth: 0,
+    boxSizing: "border-box",
+    textAlign: "center",
+    padding: "4px 14px",
+    marginTop: 22,
+    marginBottom: 28,
+    fontSize: 13,
+    lineHeight: 1.45,
+    color: "rgba(255,255,255,0.5)",
+  };
+
   const recommendationWrapperStyle: CSSProperties = {
     width: "100%",
     maxWidth: "100%",
@@ -991,7 +1007,7 @@ const shellStyle: CSSProperties = {
         </div>
       )}
 
-      {loadingInitial && <div style={noticeStyle}>{tProfile("postsLoading")}</div>}
+      {loadingInitial && renderPosts.length === 0 && <PostSkeletonList count={4} />}
 
       {!loadingInitial && !searchActive && posts.length === 0 && viewerUid && !isEmbed && (
         <div style={recommendationWrapperStyle}>
@@ -1041,6 +1057,7 @@ const shellStyle: CSSProperties = {
               />
             ) : null}
 
+            <PostReveal>
             <GroupPostCard
               post={post}
               canDelete={canDeletePost}
@@ -1066,6 +1083,7 @@ const shellStyle: CSSProperties = {
                 setSessionUnlockedIds((prev) => new Set(prev).add(id))
               }
             />
+            </PostReveal>
 
             {shouldRenderRecommendations && viewerUid && !isEmbed && (
               <div style={recommendationWrapperStyle}>
@@ -1081,13 +1099,7 @@ const shellStyle: CSSProperties = {
         );
       })}
 
-      {loadingMore && (
-        <div style={noticeStyle}>{tProfile("postsLoadingMore")}</div>
-      )}
-
-      {!searchActive && !loadingInitial && !loadingMore && posts.length > 0 && !hasMore && (
-        <div style={noticeStyle}>{tProfile("allPostsLoaded")}</div>
-      )}
+      {loadingMore && <PostSkeletonList count={2} />}
 
       {!searchActive &&
         !loadingInitial &&
@@ -1103,6 +1115,10 @@ const shellStyle: CSSProperties = {
             />
           </div>
         )}
+
+      {!searchActive && !loadingInitial && !loadingMore && posts.length > 0 && !hasMore && (
+        <div style={endOfFeedStyle}>{tProfile("allPostsLoaded")}</div>
+      )}
 
       </>
       )}

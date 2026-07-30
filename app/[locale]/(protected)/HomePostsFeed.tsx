@@ -24,6 +24,8 @@ import {
 } from "@/lib/posts/post-service";
 
 import GroupPostCard from "@/app/groups/[groupId]/components/posts/GroupPostCard";
+import { PostSkeletonList } from "@/app/components/PostSkeleton/PostSkeleton";
+import PostReveal from "@/app/components/PostSkeleton/PostReveal";
 import GroupRecommendationsRail from "@/app/components/GroupRecommendations/GroupRecommendationsRail";
 import {
   buildRandomRecommendationSlots,
@@ -758,6 +760,20 @@ const shellStyle: CSSProperties = {
     overflowX: "hidden",
   };
 
+  const endOfFeedStyle: CSSProperties = {
+    width: "100%",
+    maxWidth: "100%",
+    minWidth: 0,
+    boxSizing: "border-box",
+    textAlign: "center",
+    padding: "4px 14px",
+    marginTop: 22,
+    marginBottom: 28,
+    fontSize: 13,
+    lineHeight: 1.45,
+    color: "rgba(255,255,255,0.5)",
+  };
+
   const recommendationWrapperStyle: CSSProperties = {
     width: "100%",
     maxWidth: "100%",
@@ -905,23 +921,7 @@ return (
       />
     </div>
 
-    {loadingInitial && posts.length === 0 && (
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: 16,
-          minHeight: "50vh",
-        }}
-      >
-        <div className="vibraPullRefreshSpinner refreshing" style={{ width: 32, height: 32 }} />
-        <span style={{ fontSize: 13, color: "rgba(255,255,255,0.32)", letterSpacing: "0.01em" }}>
-          {tProfile("postsLoading")}
-        </span>
-      </div>
-    )}
+    {loadingInitial && posts.length === 0 && <PostSkeletonList count={4} />}
 
     {/* Arranque en frío: feed base vacío. Si hay señales (intereses/búsquedas),
         mostramos descubrimiento; si no, solo el rail. Nunca contenido genérico. */}
@@ -963,6 +963,7 @@ return (
             />
           ) : null}
 
+          <PostReveal>
           <PostImpressionObserver
             uid={currentUserId}
             postId={post.id}
@@ -994,6 +995,7 @@ return (
               onHidePost={(reason) => handleHidePost(post, reason)}
             />
           </PostImpressionObserver>
+          </PostReveal>
 
           {shouldRenderRecommendations && (
             <div style={recommendationWrapperStyle}>
@@ -1011,13 +1013,7 @@ return (
       );
     })}
 
-    {loadingMore && (
-      <div style={noticeStyle}>{tProfile("postsLoadingMore")}</div>
-    )}
-
-    {!loadingInitial && !loadingMore && posts.length > 0 && !hasMore && (
-      <div style={noticeStyle}>{tProfile("allPostsLoaded")}</div>
-    )}
+    {loadingMore && <PostSkeletonList count={2} />}
 
     {!loadingInitial && posts.length > 0 && !hasInlineRecommendation && (
       <div style={recommendationWrapperStyle}>
@@ -1027,6 +1023,10 @@ return (
           suppressOnboarding
         />
       </div>
+    )}
+
+    {!loadingInitial && !loadingMore && posts.length > 0 && !hasMore && (
+      <div style={endOfFeedStyle}>{tProfile("allPostsLoaded")}</div>
     )}
   </section>
 );

@@ -515,29 +515,7 @@ export default function PostCommentsPanel({
 
   // ── Mobile path (portal bottom-sheet) ────────────────────────────────────
   const content = (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label={tPosts("commentsTitle")}
-      style={{
-        position: "fixed",
-        inset: 0,
-        width: "100vw",
-        height: "100dvh",
-        zIndex: 2147483647,
-        display: "flex",
-        alignItems: "flex-end",
-        justifyContent: "center",
-        padding: `0 0 calc(env(safe-area-inset-bottom, 0px) + ${keyboardInset}px)`,
-        background: "rgba(0,0,0,0.52)",
-        backdropFilter: "blur(10px)",
-        WebkitBackdropFilter: "blur(10px)",
-        fontFamily: fontStack,
-      }}
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget) onClose();
-      }}
-    >
+    <>
       <style>{`
         .vibra-comments-mobile-scroll::-webkit-scrollbar { width: 7px; height: 7px; }
         .vibra-comments-mobile-scroll::-webkit-scrollbar-track { background: transparent; }
@@ -545,7 +523,49 @@ export default function PostCommentsPanel({
           background: rgba(255,255,255,0.18);
           border-radius: 999px;
         }
+        @keyframes vbCommentsBdIn  { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes vbCommentsBdOut { from { opacity: 1; } to { opacity: 0; } }
       `}</style>
+
+      {/*
+        Backdrop en CAPA PROPIA (hermana del panel, no su contenedor):
+        - Se desvanece al entrar y al salir (antes aparecía/desaparecía de golpe).
+        - Al no envolver al panel que se desliza, el compositor no recalcula el
+          blur en cada frame → se acaba el deslizamiento escalonado.
+      */}
+      <div
+        onClick={onClose}
+        aria-hidden="true"
+        style={{
+          position: "fixed",
+          inset: 0,
+          zIndex: 2147483646,
+          background: "rgba(0,0,0,0.52)",
+          backdropFilter: "blur(10px)",
+          WebkitBackdropFilter: "blur(10px)",
+          animation: open
+            ? "vbCommentsBdIn 200ms ease forwards"
+            : "vbCommentsBdOut 200ms ease forwards",
+        }}
+      />
+
+      {/* Contenedor: no captura toques; solo el panel sí. Los toques fuera caen al backdrop. */}
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={tPosts("commentsTitle")}
+        style={{
+          position: "fixed",
+          inset: 0,
+          zIndex: 2147483647,
+          display: "flex",
+          alignItems: "flex-end",
+          justifyContent: "center",
+          padding: `0 0 calc(env(safe-area-inset-bottom, 0px) + ${keyboardInset}px)`,
+          pointerEvents: "none",
+          fontFamily: fontStack,
+        }}
+      >
 
       {/*
         Panel outer: auto-height, entry/exit y close drag.
@@ -559,6 +579,7 @@ export default function PostCommentsPanel({
           display: "flex",
           flexDirection: "column",
           background: "rgba(8,9,11,0.96)",
+          pointerEvents: "auto",
           transform: open
             ? `translateY(${Math.max(0, panelOffsetY)}px)`
             : "translateY(100%)",
@@ -566,6 +587,7 @@ export default function PostCommentsPanel({
             ? "none"
             : "transform 260ms cubic-bezier(0.22, 1, 0.36, 1)",
           willChange: "transform",
+          backfaceVisibility: "hidden",
         }}
       >
         {/* Section wrapper: solo aplica el rubber band hacia arriba */}
@@ -783,7 +805,8 @@ export default function PostCommentsPanel({
           </div>
         </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 
   if (typeof document !== "undefined") {

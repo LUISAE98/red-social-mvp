@@ -37,6 +37,8 @@ import {
   type GroupPostsPageCursor,
 } from "@/lib/posts/post-service";
 import GroupPostCard from "./GroupPostCard";
+import { PostSkeletonList } from "@/app/components/PostSkeleton/PostSkeleton";
+import PostReveal from "@/app/components/PostSkeleton/PostReveal";
 import GroupPostComposer from "./GroupPostComposer";
 import PostsMediaSubnav, { MEDIA_TAB_ORDER, type MediaTabKey } from "./PostsMediaSubnav";
 import MediaGallery, { clearMediaGalleryCache, type GalleryTile } from "./MediaGallery";
@@ -1267,6 +1269,20 @@ const shellStyle: CSSProperties = {
     paddingBottom: 12,
   };
 
+  const endOfFeedStyle: CSSProperties = {
+    width: "100%",
+    maxWidth: "100%",
+    minWidth: 0,
+    boxSizing: "border-box",
+    textAlign: "center",
+    padding: "4px 14px",
+    marginTop: 22,
+    marginBottom: 28,
+    fontSize: 13,
+    lineHeight: 1.45,
+    color: "rgba(255,255,255,0.5)",
+  };
+
   // Sub-subnav de media: solo en el feed real de miembros (no en preview público,
   // admin, broadcast-only ni durante una búsqueda).
   const showMediaTabs =
@@ -1404,9 +1420,7 @@ const shellStyle: CSSProperties = {
 
       {feedLeadingContent}
 
-      {loadingInitial && (
-        <div style={noticeStyle}>Cargando publicaciones...</div>
-      )}
+      {loadingInitial && posts.length === 0 && <PostSkeletonList count={4} />}
 
       {/* Live broadcasting into this community from another context */}
       {broadcastLive && (
@@ -1477,6 +1491,7 @@ const shellStyle: CSSProperties = {
               />
             ) : null}
 
+            <PostReveal>
             <GroupPostCard
               post={post}
               groupId={groupId}
@@ -1509,17 +1524,16 @@ const shellStyle: CSSProperties = {
                 setSessionUnlockedIds((prev) => new Set(prev).add(id))
               }
             />
+            </PostReveal>
           </div>
         );
         });
       })()}
 
-      {loadingMore && (
-        <div style={noticeStyle}>Cargando más publicaciones...</div>
-      )}
+      {loadingMore && <PostSkeletonList count={2} />}
 
       {!groupSearchActive && !loadingInitial && !loadingMore && posts.length > 0 && !hasMore && (
-        <div style={noticeStyle}>
+        <div style={endOfFeedStyle}>
           Ya viste todas las publicaciones disponibles.
         </div>
       )}

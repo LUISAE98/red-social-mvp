@@ -26,6 +26,8 @@ import {
 } from "@/lib/posts/post-service";
 
 import GroupPostCard from "@/app/groups/[groupId]/components/posts/GroupPostCard";
+import { PostSkeletonList } from "@/app/components/PostSkeleton/PostSkeleton";
+import PostReveal from "@/app/components/PostSkeleton/PostReveal";
 import {
   patchPostInAllFeedCaches,
   registerPostFeedCacheListener,
@@ -566,21 +568,9 @@ export default function SearchPostsResults({
         enabled={mobileRefreshEnabled}
         indicatorTop={indicatorTop ?? "calc(env(safe-area-inset-top) + 116px)"}
       >
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 16,
-            minHeight: "40vh",
-          }}
-        >
-          <div className="vibraPullRefreshSpinner refreshing" style={{ width: 32, height: 32 }} />
-          <span style={{ fontSize: 13, color: "rgba(255,255,255,0.32)", letterSpacing: "0.01em" }}>
-            {tCommon("searchingPosts")}
-          </span>
-        </div>
+        <section style={shellStyle}>
+          <PostSkeletonList count={4} />
+        </section>
       </RefreshableArea>
     );
   }
@@ -625,6 +615,7 @@ export default function SearchPostsResults({
 
           return (
             <div key={post.id} style={postItemStyle}>
+              <PostReveal>
               <GroupPostCard
                 post={post}
                 canDelete={canDelete}
@@ -644,6 +635,7 @@ export default function SearchPostsResults({
                 showGroupContext={true}
                 canModerateGroupAuthor={false}
               />
+              </PostReveal>
             </div>
           );
         })

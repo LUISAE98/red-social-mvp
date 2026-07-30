@@ -1278,10 +1278,15 @@ export async function expireExclusiveSessionNoShowsHandler() {
   return expiredCount;
 }
 
+// Días que tiene el creador para responder una solicitud de sesión exclusiva antes
+// de que expire. Debe coincidir con el frontend (SESSION_RESPONSE_DAYS en
+// OwnerSidebarGreetings.parts) y con el handler de meet & greet.
+export const SESSION_RESPONSE_DAYS = 90;
+
 export async function autoExpirePendingExclusiveSessionRequestsHandler(): Promise<number> {
-  const twoMonthsAgo = new Date();
-  twoMonthsAgo.setMonth(twoMonthsAgo.getMonth() - 2);
-  const cutoff = admin.firestore.Timestamp.fromDate(twoMonthsAgo);
+  const cutoffDate = new Date();
+  cutoffDate.setDate(cutoffDate.getDate() - SESSION_RESPONSE_DAYS);
+  const cutoff = admin.firestore.Timestamp.fromDate(cutoffDate);
 
   const snap = await db
     .collection(EXCLUSIVE_SESSION_COLLECTION)
@@ -1295,11 +1300,14 @@ export async function autoExpirePendingExclusiveSessionRequestsHandler(): Promis
   const now = admin.firestore.Timestamp.now();
   const batch = db.batch();
 
+  // Al expirar pasa a "rejected" (no a devolución directa): cae en Rechazados y
+  // desde ahí el comprador decide si pedir devolución o intentarlo de nuevo.
   snap.docs.forEach((doc) => {
     batch.update(doc.ref, {
-      status: "refund_requested" as ExclusiveSessionStatus,
-      rejectionReason: "El creador no respondió la solicitud.",
+      status: "rejected" as ExclusiveSessionStatus,
+      rejectionReason: "El creador no respondió a tiempo la solicitud.",
       autoExpiredAt: now,
+      rejectedAt: now,
       updatedAt: now,
     });
   });

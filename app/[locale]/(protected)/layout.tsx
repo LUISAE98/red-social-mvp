@@ -888,7 +888,7 @@ const contentAreaClassName = isEmbed
                         aria-label={tNav("tabExperiences")}
                         style={{ display: "inline-grid", placeItems: "center", width: 36, height: 36, borderRadius: 10, color: "#fff" }}
                       >
-                        <svg width="27" height="27" viewBox="0 0 24 24" fill={pathname.startsWith("/experiencias") ? "currentColor" : "none"} stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <svg width="27" height="27" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                           <path d="M12 3.2l2.7 5.47 6.03.88-4.36 4.25 1.03 6.0L12 17.9l-5.4 2.84 1.03-6.0L3.27 9.55l6.03-.88z" />
                         </svg>
                       </Link>
@@ -931,7 +931,7 @@ const contentAreaClassName = isEmbed
               aria-label={tNav("tabExperiences")}
               style={{ display: "inline-grid", placeItems: "center", width: 36, height: 36, borderRadius: 10, color: "#fff" }}
             >
-              <svg width="27" height="27" viewBox="0 0 24 24" fill={pathname.startsWith("/experiencias") ? "currentColor" : "none"} stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <svg width="27" height="27" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <path d="M12 3.2l2.7 5.47 6.03.88-4.36 4.25 1.03 6.0L12 17.9l-5.4 2.84 1.03-6.0L3.27 9.55l6.03-.88z" />
               </svg>
             </Link>

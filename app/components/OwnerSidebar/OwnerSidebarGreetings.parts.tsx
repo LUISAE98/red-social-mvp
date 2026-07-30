@@ -192,16 +192,18 @@ export function fmtScheduledSplit(ts: unknown): { dayTime: string; dateStr: stri
   };
 }
 
-// Días que tiene el creador para responder una solicitud de saludo/consejo antes
-// de que se marque como rechazada automáticamente. Debe coincidir con el backend
-// (GREETING_RESPONSE_DAYS en greetingRequests.ts).
+// Días que tiene el creador para responder una solicitud antes de que expire.
+// Deben coincidir con los handlers de auto-expirar del backend (greetingRequests.ts
+// y meet & greet / sesión exclusiva).
 export const GREETING_RESPONSE_DAYS = 90;
+export const SESSION_RESPONSE_DAYS = 90;
 
-// Días restantes (>= 0) para que el creador responda, contados desde createdAt.
-export function greetingResponseDaysLeft(createdAt: unknown): number | null {
+// Días restantes (>= 0) para responder, contados desde createdAt sobre una ventana
+// de `days` días.
+export function responseDaysLeft(createdAt: unknown, days: number): number | null {
   const d = toDateSafe(createdAt);
   if (!d) return null;
-  const ms = d.getTime() + GREETING_RESPONSE_DAYS * 86400000 - Date.now();
+  const ms = d.getTime() + days * 86400000 - Date.now();
   return Math.max(0, Math.ceil(ms / 86400000));
 }
 
