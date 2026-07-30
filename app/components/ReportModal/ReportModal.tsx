@@ -30,7 +30,7 @@ const overlayStyle: React.CSSProperties = {
   display: "flex",
   alignItems: "flex-end",
   justifyContent: "center",
-  padding: "0 0 env(safe-area-inset-bottom)",
+  padding: 0,
   boxSizing: "border-box",
   backdropFilter: "blur(6px)",
   WebkitBackdropFilter: "blur(6px)",
@@ -48,7 +48,8 @@ const cardStyle: React.CSSProperties = {
   color: "#fff",
   boxShadow: "0 -8px 40px rgba(0,0,0,0.55)",
   overflowY: "auto",
-  padding: "20px 20px 32px",
+  // safe-area interno: el fondo de la card llena el home-indicator sin barra negra.
+  padding: "20px 20px calc(32px + env(safe-area-inset-bottom))",
   boxSizing: "border-box",
 };
 

@@ -409,7 +409,9 @@ export default function BuyerGreetingRequestOverlay({ item, sourceName, sourceAv
         style={{
           position: "fixed", inset: 0, width: "100vw", height: "100dvh",
           zIndex: 999999, display: "flex", alignItems: "flex-end", justifyContent: "center",
-          padding: "0 0 env(safe-area-inset-bottom)",
+          // safe-area como padding interno del panel (abajo), no aquí: así el fondo
+          // del panel llena el home-indicator sin dejar el backdrop como barra negra.
+          padding: 0,
           background: "rgba(0,0,0,0.52)", backdropFilter: "blur(10px)",
           WebkitBackdropFilter: "blur(10px)", fontFamily: "inherit",
         }}
@@ -420,6 +422,7 @@ export default function BuyerGreetingRequestOverlay({ item, sourceName, sourceAv
           width: "100%", maxHeight: "calc(100dvh - 72px)",
           display: "flex", flexDirection: "column",
           background: "rgba(8,9,11,0.96)",
+          paddingBottom: "env(safe-area-inset-bottom)",
           transform: `translateY(${Math.max(0, panelOffsetY)}px)`,
           transition: isPanelDragging ? "none" : "transform 260ms cubic-bezier(0.22, 1, 0.36, 1)",
           willChange: "transform",

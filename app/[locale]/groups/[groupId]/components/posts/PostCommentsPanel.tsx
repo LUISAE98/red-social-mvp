@@ -561,7 +561,10 @@ export default function PostCommentsPanel({
           display: "flex",
           alignItems: "flex-end",
           justifyContent: "center",
-          padding: `0 0 calc(env(safe-area-inset-bottom, 0px) + ${keyboardInset}px)`,
+          // Solo se eleva por el teclado. El safe-area NO va aquí (eso elevaría el
+          // panel y dejaría el backdrop visible como "barra negra"): va como padding
+          // interno del composer para que el propio fondo del panel llene el safe-area.
+          padding: `0 0 ${keyboardInset}px`,
           pointerEvents: "none",
           fontFamily: fontStack,
         }}
@@ -733,12 +736,18 @@ export default function PostCommentsPanel({
           </section>
         </div>
 
-        {/* Composer — fuera del section-wrapper, no sube con el rubber band */}
+        {/* Composer — fuera del section-wrapper, no sube con el rubber band.
+            El safe-area se reserva AQUÍ (padding interno) para que el fondo del panel
+            llene el hueco del home-indicator sin dejar una barra del backdrop. Con el
+            teclado abierto no hace falta (el home-indicator queda tapado por él). */}
         <div
           style={{
             flexShrink: 0,
             borderTop: "1px solid rgba(255,255,255,0.07)",
-            padding: "10px 14px 14px",
+            padding:
+              keyboardInset > 0
+                ? "10px 14px 14px"
+                : "10px 14px calc(14px + env(safe-area-inset-bottom, 0px))",
             display: "grid",
             gap: 8,
           }}

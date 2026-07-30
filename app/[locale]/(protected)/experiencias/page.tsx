@@ -19,6 +19,10 @@ type Tab = "requested" | "rejected" | "delivered";
 
 const TAB_ORDER: Tab[] = ["requested", "rejected", "delivered"];
 
+// Segundo subnav dentro de Entregados: "Experiencias" | "Todo" ("Todo" vacío por ahora).
+type DeliveredSub = "experiencias" | "todo";
+const DELIVERED_SUB_ORDER: DeliveredSub[] = ["experiencias", "todo"];
+
 // Valores del filtro por tipo de experiencia (Pendientes y Rechazados).
 type ExpTypeFilter = "all" | "exclusive_session" | "saludo" | "consejo" | "meet_greet";
 // Valores del filtro combinado de Rechazados: tipo de experiencia + estatus
@@ -142,6 +146,53 @@ export default function ExperienciasPage() {
     setTab(next);
   }
 
+  // ── Segundo subnav (dentro de Entregados): misma animación que el principal. ──
+  const [deliveredSub, setDeliveredSub] = useState<DeliveredSub>("experiencias");
+  const subNavRef = useRef<HTMLDivElement | null>(null);
+  const subTabRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const subContentRef = useRef<HTMLDivElement | null>(null);
+  const subInteractedRef = useRef(false);
+  const [subIndicator, setSubIndicator] = useState<{ left: number; width: number } | null>(null);
+  const [subSlideDir, setSubSlideDir] = useState<"left" | "right">("right");
+
+  // Barra indicadora del segundo subnav (solo mide cuando Entregados está activo).
+  useEffect(() => {
+    if (tab !== "delivered") return;
+    function measure() {
+      const i = DELIVERED_SUB_ORDER.indexOf(deliveredSub);
+      const el = subTabRefs.current[i];
+      const nav = subNavRef.current;
+      if (!el || !nav) return;
+      const r = el.getBoundingClientRect();
+      const nr = nav.getBoundingClientRect();
+      const w = Math.min(80, r.width - 16);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setSubIndicator({ left: r.left - nr.left + (r.width - w) / 2, width: w });
+    }
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, [tab, deliveredSub]);
+
+  // Deslizamiento del contenido del segundo subnav al cambiar entre Experiencias/Todo.
+  useEffect(() => {
+    const el = subContentRef.current;
+    if (!el || !subInteractedRef.current) return;
+    el.removeAttribute("data-nav-enter");
+    void el.offsetWidth;
+    el.setAttribute("data-nav-enter", subSlideDir);
+    const onEnd = () => el.removeAttribute("data-nav-enter");
+    el.addEventListener("animationend", onEnd, { once: true });
+    return () => el.removeEventListener("animationend", onEnd);
+  }, [deliveredSub, subSlideDir]);
+
+  function goDeliveredSub(next: DeliveredSub) {
+    if (next === deliveredSub) return;
+    subInteractedRef.current = true;
+    setSubSlideDir(DELIVERED_SUB_ORDER.indexOf(next) > DELIVERED_SUB_ORDER.indexOf(deliveredSub) ? "right" : "left");
+    setDeliveredSub(next);
+  }
+
   function renderUserLink(uid: string): ReactNode {
     const u = exp.userMiniMap[uid];
     const label = u?.displayName ?? buildDisplayName(null, uid, tCommon("user"));
@@ -258,6 +309,26 @@ export default function ExperienciasPage() {
       (r) => r.data.status !== "completed" && getSectionForMeetGreetStatus(r.data.status) === "requested"
     ).length;
 
+  const greetingsNode = (
+    <OwnerSidebarGreetings
+      activeSection={tab}
+      buyerPending={outPending}
+      buyerDelivered={exp.buyerDelivered}
+      buyerRejectedGreetings={outRejGreetings}
+      buyerMeetGreets={outMeet}
+      buyerExclusiveSessions={outExclusive}
+      exclusiveSessionsByGroup={{}}
+      meetGreetsByGroup={{}}
+      groupMetaMap={exp.groupMetaMap}
+      userMiniMap={exp.userMiniMap}
+      styles={styles}
+      typeLabel={typeLabel}
+      fmtDate={fmtDate}
+      renderUserLink={renderUserLink}
+      router={router}
+    />
+  );
+
   return (
     <div style={{ maxWidth: 640, margin: "0 auto", padding: "16px 12px 48px", width: "100%", boxSizing: "border-box" }}>
       <h1 style={{ fontSize: 20, fontWeight: 700, color: "#fff", margin: "4px 2px 14px", letterSpacing: "-0.02em" }}>
@@ -277,7 +348,7 @@ export default function ExperienciasPage() {
           flex-direction: column;
           align-items: center;
           gap: 6px;
-          padding: 2px 6px 7px;
+          padding: 2px 6px 12px;
           background: transparent;
           border: none;
           cursor: pointer;
@@ -370,23 +441,43 @@ export default function ExperienciasPage() {
       ) : (
         <div className="expSlideClip">
           <div ref={contentRef}>
-            <OwnerSidebarGreetings
-              activeSection={tab}
-              buyerPending={outPending}
-              buyerDelivered={exp.buyerDelivered}
-              buyerRejectedGreetings={outRejGreetings}
-              buyerMeetGreets={outMeet}
-              buyerExclusiveSessions={outExclusive}
-              exclusiveSessionsByGroup={{}}
-              meetGreetsByGroup={{}}
-              groupMetaMap={exp.groupMetaMap}
-              userMiniMap={exp.userMiniMap}
-              styles={styles}
-              typeLabel={typeLabel}
-              fmtDate={fmtDate}
-              renderUserLink={renderUserLink}
-              router={router}
-            />
+            {tab === "delivered" ? (
+              <>
+                {/* Segundo subnav dentro de Entregados: Experiencias | Todo. */}
+                <div role="tablist" ref={subNavRef} className="expSubnav" style={{ marginBottom: 12 }}>
+                  {DELIVERED_SUB_ORDER.map((k, i) => {
+                    const active = deliveredSub === k;
+                    const label = k === "experiencias" ? tNav("tabExperiences") : tNav("tabAll");
+                    return (
+                      <button
+                        key={k}
+                        ref={(el) => { subTabRefs.current[i] = el; }}
+                        type="button"
+                        role="tab"
+                        aria-selected={active}
+                        onClick={() => goDeliveredSub(k)}
+                        className="expTab"
+                      >
+                        <span className="expTabLabel" style={{ color: active ? "#fff" : "rgba(255,255,255,0.55)" }}>
+                          {label}
+                        </span>
+                      </button>
+                    );
+                  })}
+                  {subIndicator ? (
+                    <span className="expIndicator" style={{ left: subIndicator.left, width: subIndicator.width }} />
+                  ) : null}
+                </div>
+
+                <div className="expSlideClip">
+                  <div ref={subContentRef}>
+                    {deliveredSub === "experiencias" ? greetingsNode : <div style={{ minHeight: 40 }} />}
+                  </div>
+                </div>
+              </>
+            ) : (
+              greetingsNode
+            )}
           </div>
         </div>
       )}

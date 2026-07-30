@@ -562,6 +562,15 @@ match /walletSummary/{docId} {
   allow create, update, delete: if false;
 }
 
+// Compras del COMPRADOR (espejo del ledger): el dueño lista/lee las suyas; solo
+// el backend (trigger mirrorLedgerToBuyerPurchase) escribe. Ver buyerPurchases.ts.
+match /purchases/{purchaseId} {
+  allow get, list: if signedIn()
+    && request.auth.uid == uid;
+
+  allow create, update, delete: if false;
+}
+
 // Cuenta de retiro del creador (CLABE). Dato financiero sensible: el dueño la
 // lee; la ESCRITURA es solo backend (onCall que coteja el titular contra el
 // nombre verificado por Didit antes de aprobar). Nunca la escribe el cliente.

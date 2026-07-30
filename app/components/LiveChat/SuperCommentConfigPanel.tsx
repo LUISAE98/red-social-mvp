@@ -360,7 +360,7 @@ export default function SuperCommentConfigPanel({ open, onClose, postId }: Props
       style={{
         position: "fixed", inset: 0, zIndex: 999999,
         display: "flex", alignItems: "flex-end",
-        padding: "0 0 env(safe-area-inset-bottom)",
+        padding: 0,
         background: "rgba(0,0,0,0.52)", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)",
       }}
       onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
@@ -370,6 +370,7 @@ export default function SuperCommentConfigPanel({ open, onClose, postId }: Props
         width: "100%", maxHeight: "calc(100dvh - 72px)",
         display: "flex", flexDirection: "column",
         background: "rgba(8,9,11,0.96)",
+        paddingBottom: "env(safe-area-inset-bottom)",
         transform: open ? `translateY(${Math.max(0, panelOffsetY)}px)` : "translateY(100%)",
         transition: isPanelDragging ? "none" : "transform 260ms cubic-bezier(0.22, 1, 0.36, 1)",
         willChange: "transform",

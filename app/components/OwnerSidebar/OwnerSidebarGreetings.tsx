@@ -1391,57 +1391,55 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
           border: "none",
           borderRadius: 12,
           overflow: "hidden",
-          padding: 12,
+          padding: "12px 10px",
           display: "flex",
           flexDirection: "column",
-          gap: 10,
+          gap: 8,
         }}
       >
-        {/* Fila superior: avatar + nombre/tiempo (+ botón en celular). */}
+        {/* 3 partes centradas: creador+tiempo · descarga · botón (línea del lado del avatar). */}
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          {avatarNode}
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ color: "#fff", fontWeight: 600, fontSize: 13, lineHeight: 1.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textShadow: "0 1px 3px rgba(0,0,0,0.8)" }}>
-              {sourceName}
-            </div>
-            {relTime && (
-              <div style={{ color: "rgba(255,255,255,0.7)", fontSize: 11, marginTop: 2, textShadow: "0 1px 3px rgba(0,0,0,0.8)" }}>
-                {relTime}
+          {/* 1 · Creador + hace cuánto */}
+          <div style={{ flex: "1 1 0", minWidth: 0, display: "flex", alignItems: "center", gap: 9 }}>
+            {avatarNode}
+            <div style={{ minWidth: 0 }}>
+              <div style={{ color: "#fff", fontWeight: 600, fontSize: 13, lineHeight: 1.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textShadow: "0 1px 3px rgba(0,0,0,0.8)" }}>
+                {sourceName}
               </div>
+              {relTime && (
+                <div style={{ color: "rgba(255,255,255,0.7)", fontSize: 11, marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textShadow: "0 1px 3px rgba(0,0,0,0.8)" }}>
+                  {relTime}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <span aria-hidden="true" style={{ alignSelf: "stretch", width: 1, background: "rgba(255,255,255,0.14)", flexShrink: 0, margin: "3px 0" }} />
+
+          {/* 2 · Descarga: contador de días o expirado */}
+          <div style={{ flex: "1 1 0", minWidth: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center", gap: 0 }}>
+            {canDownload ? (
+              <>
+                <span style={{ color: "#fff", fontSize: 10.5, fontWeight: 500, lineHeight: 1.15, textShadow: "0 1px 3px rgba(0,0,0,0.85)" }}>
+                  {tServices("downloadLeftPre", { days: daysLeft })}
+                </span>
+                <span style={{ color: "#fff", fontSize: 22, fontWeight: 600, lineHeight: 1.1, textShadow: "0 1px 5px rgba(0,0,0,0.9)" }}>
+                  {daysLeft}
+                </span>
+                <span style={{ color: "#fff", fontSize: 10.5, fontWeight: 500, lineHeight: 1.15, textShadow: "0 1px 3px rgba(0,0,0,0.85)" }}>
+                  {tServices("downloadLeftPost", { days: daysLeft })}
+                </span>
+              </>
+            ) : (
+              <span style={{ color: "#fca5a5", fontSize: 12, fontWeight: 600, lineHeight: 1.25, textShadow: "0 1px 3px rgba(0,0,0,0.85)" }}>
+                {tServices("downloadExpired")}
+              </span>
             )}
           </div>
-          {canDownload && (
-            <div className="vb-dels-btn-mobile" style={{ flexShrink: 0 }}>
-              {downloadButton}
-            </div>
-          )}
+
+          {/* 3 · Botón */}
+          {canDownload && downloadButton}
         </div>
-
-        {/* Contador centrado. */}
-        {canDownload ? (
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", gap: 1 }}>
-            <span style={{ color: "#fff", fontSize: 11, fontWeight: 500, textShadow: "0 1px 3px rgba(0,0,0,0.85)" }}>
-              {tServices("downloadLeftPre", { days: daysLeft })}
-            </span>
-            <span style={{ color: "#fff", fontSize: 30, fontWeight: 600, lineHeight: 1.05, textShadow: "0 1px 5px rgba(0,0,0,0.9)" }}>
-              {daysLeft}
-            </span>
-            <span style={{ color: "#fff", fontSize: 11, fontWeight: 500, textShadow: "0 1px 3px rgba(0,0,0,0.85)" }}>
-              {tServices("downloadLeftPost", { days: daysLeft })}
-            </span>
-          </div>
-        ) : (
-          <div style={{ textAlign: "center", color: "#fca5a5", fontSize: 12, fontWeight: 600, textShadow: "0 1px 3px rgba(0,0,0,0.85)" }}>
-            {tServices("downloadExpired")}
-          </div>
-        )}
-
-        {/* Botón abajo de todo (laptop). */}
-        {canDownload && (
-          <div className="vb-dels-btn-desktop">
-            {downloadButton}
-          </div>
-        )}
 
         {downloadError && (
           <div style={{ fontSize: 10, color: "#fca5a5", textAlign: "center", textShadow: "0 1px 3px rgba(0,0,0,0.8)" }}>{downloadError}</div>
@@ -1749,15 +1747,6 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
                 gap: 8,
               }}
             >
-              <style>{`
-                .vb-dels-btn-desktop { display: flex; justify-content: center; }
-                .vb-dels-btn-mobile { display: none; }
-                @media (max-width: 900px) {
-                  .vb-dels-btn-desktop { display: none; }
-                  .vb-dels-btn-mobile { display: block; }
-                }
-              `}</style>
-
               {activeSection ? (
                 <>
                   {deliveredAll.map((it) =>

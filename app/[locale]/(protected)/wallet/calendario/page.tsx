@@ -703,7 +703,7 @@ function EventsOverlay({
             display: "flex",
             alignItems: "flex-end",
             justifyContent: "center",
-            padding: "0 0 env(safe-area-inset-bottom)",
+            padding: 0,
             background: isClosing ? "rgba(0,0,0,0)" : "rgba(0,0,0,0.52)",
             backdropFilter: "blur(10px)",
             WebkitBackdropFilter: "blur(10px)",
@@ -719,6 +719,7 @@ function EventsOverlay({
               display: "flex",
               flexDirection: "column",
               background: "rgba(8,9,11,0.96)",
+              paddingBottom: "env(safe-area-inset-bottom)",
               transform: isClosing
                 ? "translateY(100%)"
                 : `translateY(${Math.max(0, panelOffsetY)}px)`,

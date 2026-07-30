@@ -270,6 +270,9 @@ export {
   onMeetGreetLedger,
 } from "./wallet/ledgerTriggers";
 
+// Wallet — espejo de compras del comprador (users/{buyerId}/purchases)
+export { mirrorLedgerToBuyerPurchase } from "./wallet/buyerPurchases";
+
 // LiveKit — tokens de videollamada para sesiones exclusivas y meet & greet
 export { getLivekitToken } from "./livekitTokens";
 

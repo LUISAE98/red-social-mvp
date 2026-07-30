@@ -309,7 +309,10 @@ export default function PostComposerMobileOverlay({
         display: "flex",
         alignItems: "flex-end",
         justifyContent: "center",
-        padding: "0 0 env(safe-area-inset-bottom)",
+        // El safe-area NO va aquí (elevaría el panel y dejaría el backdrop como
+        // "barra negra"): va como padding interno del contenido para que el fondo
+        // del panel llene el hueco del home-indicator sin franja del backdrop.
+        padding: 0,
         background: "rgba(0,0,0,0.52)",
         backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)",
         fontFamily: fontStack,
@@ -553,7 +556,7 @@ export default function PostComposerMobileOverlay({
             overflowY: "auto",
           }}
         >
-          <div style={{ padding: "18px 20px 8px" }}>
+          <div style={{ padding: "18px 20px calc(8px + env(safe-area-inset-bottom, 0px))" }}>
             <div
               style={
                 premiumComposer.premiumEnabled
