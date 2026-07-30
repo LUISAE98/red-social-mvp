@@ -1,5 +1,3 @@
-"use client";
-
 /**
  * Fondo animado, filtro de color y partículas del login RETIRADOS por decisión
  * de producto (rendimiento y estética): las 86 partículas animadas causaban

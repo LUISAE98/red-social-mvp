@@ -1,5 +1,3 @@
-"use client";
-
 // Collage de imágenes de categorías/servicios con profundidad (perspectiva 3D)
 // estilo Netflix, para el fondo del login. Es puramente decorativo.
 //

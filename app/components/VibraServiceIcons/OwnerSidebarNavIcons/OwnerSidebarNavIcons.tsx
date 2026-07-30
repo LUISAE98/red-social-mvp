@@ -1,5 +1,3 @@
-"use client";
-
 // Iconos del subnav del OwnerSidebar con gradiente Vibra (#ec4899 → #9333ea → #3b82f6)
 
 type IconProps = {

@@ -1,5 +1,3 @@
-"use client";
-
 import LanguageSwitcher from "@/app/components/LanguageSwitcher";
 import CurrencySwitcher from "@/app/components/CurrencySwitcher";
 

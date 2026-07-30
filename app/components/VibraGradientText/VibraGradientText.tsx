@@ -1,5 +1,3 @@
-"use client";
-
 // Texto con el degradado de marca animado — el efecto de la palabra "Vibra".
 //
 // El original vive inline en LoginClient.tsx (.heroVibraGradientText) y fue

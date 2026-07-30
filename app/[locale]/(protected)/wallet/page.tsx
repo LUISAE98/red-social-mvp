@@ -1,14 +1,7 @@
-"use client";
+import { redirect } from "next/navigation";
 
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
-
+// Server Component: redirección directa (307) sin JS de cliente ni parpadeo.
+// El destino gestiona su propia auth.
 export default function WalletIndexPage() {
-  const router = useRouter();
-
-  useEffect(() => {
-    router.replace("/wallet/finanzas");
-  }, [router]);
-
-  return null;
+  redirect("/wallet/finanzas");
 }
