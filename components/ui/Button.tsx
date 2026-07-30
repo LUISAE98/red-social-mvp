@@ -82,7 +82,8 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
     justifyContent: "center",
     gap: 8,
     whiteSpace: "nowrap",
-    transition: "filter 150ms ease, opacity 150ms ease",
+    transition:
+      "filter var(--duration-fast) var(--ease-smooth), opacity var(--duration-fast) var(--ease-smooth)",
     ...SIZES[size],
     ...VARIANTS[variant],
     ...(fullWidth ? { width: "100%" } : null),

@@ -525,3 +525,17 @@ Estilo canónico para todos los `<textarea>` de Vibra dentro de paneles y overla
 | `width`        | `"100%"` + `boxSizing: "border-box"` |
 
 > El color del placeholder lo controla el navegador por defecto. No se sobreescribe con CSS inline.
+
+---
+
+## Animación
+
+Regla única (aplica a código nuevo y de forma oportunista al que se toque):
+
+* **Por defecto: CSS** (transitions / `@keyframes`) usando los **tokens** de tiempo, nunca ms mágicos:
+  * Duraciones: `var(--duration-instant)` 80ms · `var(--duration-fast)` 150ms · `var(--duration-normal)` 250ms · `var(--duration-slow)` 400ms.
+  * Easings: `var(--ease-smooth)` · `var(--ease-spring)` · `var(--ease-out)` · `var(--ease-in)`.
+  * Viven en `:root` de `app/globals.css`, así que resuelven en CSS y en estilos inline (`transition: "opacity var(--duration-fast) var(--ease-smooth)"`).
+* **`framer-motion` SOLO cuando CSS no alcanza**: animaciones de **salida** (montar/desmontar vía `AnimatePresence`) y animaciones de **layout** (`layout`/`layoutId`). Para entradas simples (fade/slide) usa CSS + tokens, no `motion`.
+* No introducir nuevas duraciones hardcodeadas (`180ms`, `260ms`, …). Si una existente se toca, acércala al token más próximo.
+* El patrón de montar/desmontar con salida en CSS puro ya está resuelto en `VibraResponsivePanel` (estado `isClosing` + `setTimeout`); reúsalo como referencia.
