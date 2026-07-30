@@ -1807,7 +1807,9 @@ export function WalletFilterMenu<T extends string>({
                   : "vbFilterScaleIn 0.18s ease forwards",
               }}
             >
-              {/* Items */}
+              {/* Items — lista scrolleable con tope de altura cuando hay muchas
+                  opciones (no crece de más); el botón Aceptar queda fijo debajo. */}
+              <div style={{ maxHeight: "min(46vh, 320px)", overflowY: "auto" }}>
               {options.map((option, index) => {
                 const isSelected = pending.includes(option.value);
                 return (
@@ -1881,6 +1883,7 @@ export function WalletFilterMenu<T extends string>({
                   </button>
                 );
               })}
+              </div>
 
               {/* Aceptar (oculto en selección única: aplica al tocar). */}
               {!singleSelect && (

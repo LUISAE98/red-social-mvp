@@ -561,10 +561,10 @@ export default function PostCommentsPanel({
           display: "flex",
           alignItems: "flex-end",
           justifyContent: "center",
-          // Solo se eleva por el teclado. El safe-area NO va aquí (eso elevaría el
-          // panel y dejaría el backdrop visible como "barra negra"): va como padding
-          // interno del composer para que el propio fondo del panel llene el safe-area.
-          padding: `0 0 ${keyboardInset}px`,
+          // El panel se ancla SIEMPRE al borde inferior (sin lift). Tanto el safe-area
+          // (reposo) como el hueco del teclado se resuelven UNA sola vez, dentro del
+          // composer. Así nunca se duplica el inset ni queda espacio muerto abajo.
+          padding: 0,
           pointerEvents: "none",
           fontFamily: fontStack,
         }}
@@ -747,12 +747,13 @@ export default function PostCommentsPanel({
           style={{
             flexShrink: 0,
             borderTop: "1px solid rgba(255,255,255,0.07)",
-            // Abajo del input SOLO el inset real del dispositivo (sin padding extra
-            // que lo haga ver "demasiado alto"). Con teclado abierto el home-indicator
-            // queda tapado por él, así que basta un respiro mínimo.
+            // Único lugar donde se aplica el espacio inferior:
+            // - Reposo: SOLO el inset real del dispositivo (home-indicator).
+            // - Teclado abierto: se levanta el input justo por encima del teclado
+            //   (keyboardInset) sin elevar el panel; el home-indicator queda tapado.
             padding:
               keyboardInset > 0
-                ? "10px 14px 10px"
+                ? `10px 14px ${keyboardInset + 8}px`
                 : "10px 14px max(10px, env(safe-area-inset-bottom, 0px))",
             display: "grid",
             gap: 8,

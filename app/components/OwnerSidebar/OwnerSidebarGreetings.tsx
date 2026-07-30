@@ -1574,7 +1574,7 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
                 <div>
                   <div style={{ ...submenuHeaderStyle, cursor: "default", background: "transparent" }}>
                     <span style={{ fontSize: 13, fontWeight: 600, color: "#fff" }}>{tServices("refundGroup")}</span>
-                    <span style={{ fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,0.7)" }}>{refundOnlyRows.length}</span>
+                    <span style={{ fontSize: 15, fontWeight: 700, color: "#ffffff" }}>{refundOnlyRows.length}</span>
                   </div>
                   <div style={{ display: "grid", gap: 8, paddingTop: 8 }}>
                     {refundOnlyRows.map(renderDisplayRow)}
@@ -1586,7 +1586,7 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
                 <div>
                   <div style={{ ...submenuHeaderStyle, cursor: "default", background: "transparent" }}>
                     <span style={{ fontSize: 13, fontWeight: 600, color: "#fff" }}>{tServices("rejectedGroup")}</span>
-                    <span style={{ fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,0.7)" }}>{rejectedOnlyRows.length}</span>
+                    <span style={{ fontSize: 15, fontWeight: 700, color: "#ffffff" }}>{rejectedOnlyRows.length}</span>
                   </div>
                   <div style={{ display: "grid", gap: 8, paddingTop: 8 }}>
                     {rejectedOnlyRows.map(renderDisplayRow)}

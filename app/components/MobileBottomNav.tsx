@@ -460,6 +460,13 @@ export default function MobileBottomNav({
             display: block;
           }
         }
+
+        /* Con un modal/overlay abierto (marca de useBodyScrollLock), el nav se oculta:
+           es negro fijo con z-index alto y, si no, se transparenta bajo los backdrops
+           translúcidos simulando una "doble" safe-area inferior. */
+        :global(body.vb-modal-open) .wrap {
+          display: none;
+        }
       `}</style>
 
       <nav className="wrap" aria-label={t("mobileNavLabel")}>

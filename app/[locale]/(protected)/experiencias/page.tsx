@@ -232,6 +232,8 @@ export default function ExperienciasPage() {
   const [typeFilter, setTypeFilter] = useState<ExpTypeFilter[]>(["all"]);
   // Rechazados: un solo filtro que combina tipo de experiencia y estatus.
   const [rejFilter, setRejFilter] = useState<RejFilter[]>(["all"]);
+  // Entregados · sub "Experiencias": por tipo (los 4).
+  const [delExpFilter, setDelExpFilter] = useState<ExpTypeFilter[]>(["all"]);
 
   const typeOptions: Array<{ value: ExpTypeFilter; label: string }> = [
     { value: "all", label: tWallet("filterTypeAllValue") },
@@ -257,6 +259,7 @@ export default function ExperienciasPage() {
   }
   const typeSelLabel = selLabelOf(typeFilter, typeOptions);
   const rejSelLabel = selLabelOf(rejFilter, rejOptions);
+  const delExpSelLabel = selLabelOf(delExpFilter, typeOptions);
 
   // Un saludo/consejo pasa el filtro de tipo si su tipo está seleccionado.
   const greetingPassesType = (t: string | undefined, filter: ExpTypeFilter[]) =>
@@ -296,11 +299,19 @@ export default function ExperienciasPage() {
     (r) => passesRejSessionType("exclusive_session") && passesRejStatus(r.data.status)
   );
 
+  // ── Entregados · sub "Experiencias": por tipo (los 4). ──
+  const delActive = tab === "delivered" && deliveredSub === "experiencias" && !delExpFilter.includes("all");
+  const outBuyerDelivered = delActive
+    ? exp.buyerDelivered.filter((r) => greetingPassesType((r.data as { type?: string }).type, delExpFilter))
+    : exp.buyerDelivered;
+  const delMeet = delActive && !delExpFilter.includes("meet_greet") ? [] : exp.buyerMeetGreets;
+  const delExclusive = delActive && !delExpFilter.includes("exclusive_session") ? [] : exp.buyerExclusiveSessions;
+
   // Arrays finales según la pestaña activa.
   const outPending = tab === "requested" ? filteredPending : exp.buyerPending;
   const outRejGreetings = tab === "rejected" ? filteredRejGreetings : exp.buyerRejectedGreetings;
-  const outMeet = tab === "requested" ? pendingMeet : tab === "rejected" ? rejMeet : exp.buyerMeetGreets;
-  const outExclusive = tab === "requested" ? pendingExclusive : tab === "rejected" ? rejExclusive : exp.buyerExclusiveSessions;
+  const outMeet = tab === "requested" ? pendingMeet : tab === "rejected" ? rejMeet : tab === "delivered" ? delMeet : exp.buyerMeetGreets;
+  const outExclusive = tab === "requested" ? pendingExclusive : tab === "rejected" ? rejExclusive : tab === "delivered" ? delExclusive : exp.buyerExclusiveSessions;
 
   // Cantidad total de pendientes de la persona (no depende del filtro): saludos/
   // consejos + sesiones/tiempo contigo que estén "por atender".
@@ -310,11 +321,18 @@ export default function ExperienciasPage() {
       (r) => r.data.status !== "completed" && getSectionForMeetGreetStatus(r.data.status) === "requested"
     ).length;
 
+  // Cantidad total de entregados (saludos/consejos entregados + sesiones completadas).
+  const deliveredCount =
+    exp.buyerDelivered.length +
+    [...exp.buyerMeetGreets, ...exp.buyerExclusiveSessions].filter(
+      (r) => r.data.status === "completed"
+    ).length;
+
   const greetingsNode = (
     <OwnerSidebarGreetings
       activeSection={tab}
       buyerPending={outPending}
-      buyerDelivered={exp.buyerDelivered}
+      buyerDelivered={outBuyerDelivered}
       buyerRejectedGreetings={outRejGreetings}
       buyerMeetGreets={outMeet}
       buyerExclusiveSessions={outExclusive}
@@ -472,7 +490,29 @@ export default function ExperienciasPage() {
 
                 <div className="expSlideClip">
                   <div ref={subContentRef}>
-                    {deliveredSub === "experiencias" ? greetingsNode : <PurchasesTodoList uid={user?.uid} />}
+                    {deliveredSub === "experiencias" ? (
+                      <>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 6 }}>
+                          <div style={{ minWidth: 0, overflow: "hidden" }}>
+                            <WalletFilterMenu
+                              label={delExpSelLabel}
+                              menuLabel={tWallet("filterTypeMenu")}
+                              value={delExpFilter}
+                              options={typeOptions}
+                              onChange={setDelExpFilter}
+                              allValue="all"
+                              transparent
+                            />
+                          </div>
+                          <span style={{ flexShrink: 0, color: "#ffffff", fontSize: 15, fontWeight: 700, lineHeight: 1, paddingRight: 4 }}>
+                            {deliveredCount}
+                          </span>
+                        </div>
+                        {greetingsNode}
+                      </>
+                    ) : (
+                      <PurchasesTodoList uid={user?.uid} />
+                    )}
                   </div>
                 </div>
               </>

@@ -6,22 +6,47 @@
 // comunidad + monto + fecha + estado).
 
 import Image from "next/image";
+import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import {
   ledgerStatusColor,
   ledgerStatusLabelKey,
   ledgerTypeLabelKey,
+  type LedgerServiceType,
   type LedgerStatus,
 } from "@/lib/wallet/walletLedger";
+import { WalletFilterMenu } from "@/app/(protected)/wallet/components/WalletUi";
 import { getRelativeTime } from "@/app/components/OwnerSidebar/OwnerSidebarGreetings.parts";
 import { useAllPurchases } from "@/lib/experiences/useAllPurchases";
+
+type TodoTypeFilter = LedgerServiceType | "all";
 
 export default function PurchasesTodoList({ uid }: { uid: string | null | undefined }) {
   const tCommon = useTranslations("common");
   const tWallet = useTranslations("wallet");
   const { format: formatMoney } = usePriceFormat();
   const { purchases, userMiniMap, groupMetaMap, loading } = useAllPurchases(uid);
+
+  // Filtro por servicio: solo se ofrecen los tipos presentes (sin filtros vacíos).
+  const [typeFilter, setTypeFilter] = useState<TodoTypeFilter[]>(["all"]);
+  const presentTypes = useMemo(() => {
+    const set = new Set<LedgerServiceType>();
+    purchases.forEach((r) => set.add(r.data.type));
+    return Array.from(set);
+  }, [purchases]);
+  const typeOptions = useMemo(
+    () => [
+      { value: "all" as TodoTypeFilter, label: tWallet("filterTypeAllValue") },
+      ...presentTypes.map((t) => ({ value: t as TodoTypeFilter, label: tWallet(ledgerTypeLabelKey(t)) })),
+    ],
+    [presentTypes, tWallet]
+  );
+  const typeSelLabel = typeFilter.includes("all")
+    ? tWallet("filterTypeAllValue")
+    : typeOptions.filter((o) => o.value !== "all" && typeFilter.includes(o.value)).map((o) => o.label).join(", ");
+  const filterActive = !typeFilter.includes("all");
+  const visible = filterActive ? purchases.filter((r) => typeFilter.includes(r.data.type)) : purchases;
 
   if (loading) {
     return (
@@ -41,7 +66,23 @@ export default function PurchasesTodoList({ uid }: { uid: string | null | undefi
 
   return (
     <div style={{ display: "grid", gap: 8 }}>
-      {purchases.map((r) => {
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+        <div style={{ minWidth: 0, overflow: "hidden" }}>
+          <WalletFilterMenu
+            label={typeSelLabel}
+            menuLabel={tWallet("filterTypeMenu")}
+            value={typeFilter}
+            options={typeOptions}
+            onChange={setTypeFilter}
+            allValue="all"
+            transparent
+          />
+        </div>
+        <span style={{ flexShrink: 0, color: "#ffffff", fontSize: 15, fontWeight: 700, lineHeight: 1, paddingRight: 4 }}>
+          {purchases.length}
+        </span>
+      </div>
+      {visible.map((r) => {
         const d = r.data;
         const isGroup = d.channelType === "group" && !!d.channelId;
         const group = isGroup ? groupMetaMap[d.channelId as string] ?? null : null;
@@ -63,8 +104,8 @@ export default function PurchasesTodoList({ uid }: { uid: string | null | undefi
               gap: 10,
               padding: 10,
               borderRadius: 12,
-              background: "rgba(255,255,255,0.03)",
-              border: "1px solid rgba(255,255,255,0.06)",
+              background: "transparent",
+              border: "none",
             }}
           >
             {avatar ? (
