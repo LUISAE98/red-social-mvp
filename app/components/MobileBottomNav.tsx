@@ -12,7 +12,7 @@ import { useAuth } from "@/app/providers";
 import { db } from "@/lib/firebase";
 import { useNotifications } from "@/lib/hooks/useNotifications";
 
-type NavIconKey = "home" | "groups" | "notifications" | "wallet";
+type NavIconKey = "home" | "groups" | "notifications" | "wallet" | "experiences";
 
 type MobileNavItem = {
   key: string;
@@ -109,6 +109,22 @@ function NavGroupsIconFilled() {
   );
 }
 
+function NavStarIcon() {
+  return (
+    <svg width={30} height={30} viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M12 3.2l2.7 5.47 6.03.88-4.36 4.25 1.03 6.0L12 17.9l-5.4 2.84 1.03-6.0L3.27 9.55l6.03-.88z" />
+    </svg>
+  );
+}
+
+function NavStarIconFilled() {
+  return (
+    <svg width={30} height={30} viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path fill="white" d="M12 3.2l2.7 5.47 6.03.88-4.36 4.25 1.03 6.0L12 17.9l-5.4 2.84 1.03-6.0L3.27 9.55l6.03-.88z" />
+    </svg>
+  );
+}
+
 function ProfileAvatarIcon({
   src,
   active,
@@ -158,8 +174,11 @@ function ProfileAvatarIcon({
 
 export default function MobileBottomNav({
   showWallet = false,
+  showExperiences = false,
 }: {
   showWallet?: boolean;
+  /** Estrella "Mis experiencias": solo para quien compró alguna experiencia. */
+  showExperiences?: boolean;
 }) {
   const t = useTranslations("nav");
   const pathname = usePathname();
@@ -288,6 +307,19 @@ export default function MobileBottomNav({
       iconKey: "notifications",
     });
 
+    // Experiencias (compras del usuario): estrella junto a notificaciones.
+    // Solo aparece si el usuario ya compró alguna experiencia.
+    if (showExperiences) {
+      items.push({
+        key: "experiences",
+        href: "/experiencias",
+        active: pathname.startsWith("/experiencias"),
+        label: t("tabExperiences"),
+        type: "icon",
+        iconKey: "experiences",
+      });
+    }
+
     if (showWallet) {
       items.push({
         key: "wallet",
@@ -308,7 +340,7 @@ export default function MobileBottomNav({
     });
 
     return items;
-  }, [pathname, profileHref, showWallet]);
+  }, [pathname, profileHref, showWallet, showExperiences]);
 
   return (
     <>
@@ -520,6 +552,8 @@ export default function MobileBottomNav({
                       </>
                     ) : item.iconKey === "wallet" ? (
                       isActive ? <NavWalletIconFilled /> : <NavWalletIcon />
+                    ) : item.iconKey === "experiences" ? (
+                      isActive ? <NavStarIconFilled /> : <NavStarIcon />
                     ) : (
                       isActive ? <NavGroupsIconFilled /> : <NavGroupsIcon />
                     )}

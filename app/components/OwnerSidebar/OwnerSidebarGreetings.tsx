@@ -75,6 +75,7 @@ export default function OwnerSidebarGreetings({
   fmtDate,
   renderUserLink,
   router,
+  activeSection,
 }: Props) {
   const tCommon = useTranslations("common");
   const tServices = useTranslations("services");
@@ -1187,10 +1188,11 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
   return (
     <>
     <div style={{ display: "grid", gap: 8 }}>
+      {(!activeSection || activeSection === "requested") && (
       <SectionBlock
         sectionKey="requested"
         count={requestedRows.length}
-        open={openSectionKey === "requested"}
+        open={!!activeSection || openSectionKey === "requested"}
         onToggle={() => toggleSection("requested")}
         styles={styles}
       >
@@ -1211,11 +1213,13 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
           )}
         </div>
       </SectionBlock>
+      )}
 
+      {(!activeSection || activeSection === "rejected") && (
       <SectionBlock
         sectionKey="rejected"
         count={rejectedRows.length}
-        open={openSectionKey === "rejected"}
+        open={!!activeSection || openSectionKey === "rejected"}
         onToggle={() => toggleSection("rejected")}
         styles={styles}
       >
@@ -1271,11 +1275,13 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
           )}
         </div>
       </SectionBlock>
+      )}
 
+      {(!activeSection || activeSection === "rejected") && (
       <SectionBlock
         sectionKey="refund"
         count={refundRows.length}
-        open={openSectionKey === "refund"}
+        open={!!activeSection || openSectionKey === "refund"}
         onToggle={() => toggleSection("refund")}
         styles={styles}
       >
@@ -1283,8 +1289,9 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
           {refundRows.map(renderDisplayRow)}
         </div>
       </SectionBlock>
+      )}
 
-      {(buyerDelivered.length > 0 || completedBuyerScheduledRows.length > 0) && (
+      {(!activeSection || activeSection === "delivered") && (buyerDelivered.length > 0 || completedBuyerScheduledRows.length > 0) && (
         <div
           style={{
             ...styles.card,

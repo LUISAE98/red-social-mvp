@@ -83,6 +83,12 @@ export type Props = {
   fmtDate: (ts?: Timestamp | null) => string;
   renderUserLink: (uid: string) => React.ReactNode;
   router: { push: (href: string) => void };
+  /**
+   * Si se pasa, muestra SOLO esa sección (forzada abierta) — para la página
+   * /experiencias con subnav de pestañas. Si se omite, muestra todas apiladas
+   * (comportamiento del sidebar). "rejected" incluye también la de devoluciones.
+   */
+  activeSection?: "requested" | "rejected" | "delivered";
 };
 
 export type BusyMap = Record<string, boolean>;

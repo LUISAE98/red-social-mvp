@@ -22,6 +22,8 @@ import LoginCollageBackground from "./LoginCollageBackground";
 import WalletOnboarding from "@/app/[locale]/(protected)/wallet/components/WalletOnboarding";
 import LegalLinksFooter from "@/components/legal/LegalLinksFooter";
 import RegisterPanel from "@/app/[locale]/(public)/register/RegisterPanel";
+import CompleteProfilePanel from "@/app/[locale]/(public)/complete-profile/CompleteProfilePanel";
+import { useProfileOnboarding } from "@/app/[locale]/(public)/complete-profile/useProfileOnboarding";
 
 const vibraPink = "#ff2fb3";
 const vibraPurple = "#a855f7";
@@ -78,8 +80,10 @@ const [isLeavingLogin, setIsLeavingLogin] = useState(false);
 // sin cambiar de página. `swapped` arranca en false para NO animar el primer
 // render; cualquier cambio de panel lo pone en true y todos entran igual
 // (deslizando desde la derecha).
-const [mode, setMode] = useState<"login" | "reset" | "register">("login");
+const [mode, setMode] = useState<"login" | "reset" | "register" | "complete">("login");
 const [swapped, setSwapped] = useState(false);
+// Usuario autenticado por Google que aún debe completar perfil (4º panel).
+const [googleUser, setGoogleUser] = useState<User | null>(null);
 // Tarjeta de auth: para llevar el scroll a su inicio al cambiar de panel.
 const cardRef = useRef<HTMLDivElement | null>(null);
 const [resetMsg, setResetMsg] = useState<string | null>(null);
@@ -87,6 +91,8 @@ const [resetLoading, setResetLoading] = useState(false);
 // Switch del contenido debajo del fold: creadores (izq) / usuarios (der).
 const [audience, setAudience] = useState<"creators" | "users">("creators");
 const { startAuthTransition } = useAuth();
+// Lógica del panel "completar perfil" (4º panel); activa cuando hay googleUser.
+const onboarding = useProfileOnboarding(googleUser);
 
 useEffect(() => {
   // Fondo negro a nivel de página para que, al scrollear más allá del collage,

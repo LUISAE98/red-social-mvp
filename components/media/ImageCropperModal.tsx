@@ -2,11 +2,11 @@
 
 // Modal de recorte reutilizable. Recibe una imagen, deja recortarla con
 // SafeCropper (mismo motor que el perfil) y devuelve un Blob por onConfirm; NO
-// sube nada — de la subida se encarga quien lo monta (así el registro puede
-// recortar antes de que exista la cuenta y subir después). El look replica el
-// modal de recorte del perfil (inline, tema Vibra), sin introducir estilos nuevos.
+// sube nada — de la subida se encarga quien lo monta. El estilo sigue el
+// "Panel base (modal/overlay)" canónico de vibra_style.md.
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
 import SafeCropper from "@/components/media/SafeCropper";
 import { cropImageToBlob } from "@/lib/storage/cropImage";
@@ -46,6 +46,10 @@ export default function ImageCropperModal({
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<CropArea | null>(null);
   const [processing, setProcessing] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  // Montaje en cliente: createPortal necesita document (evita desajuste SSR).
+  const [mounted, setMounted] = useState(false);
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => setMounted(true), []);
 
   useBodyScrollLock(open);
 
@@ -94,97 +98,188 @@ export default function ImageCropperModal({
     }
   }, [imageSrc, croppedAreaPixels, outputMime, onConfirm]);
 
-  if (!open) return null;
+  if (!open || !mounted) return null;
 
-  const buttonSecondary: React.CSSProperties = {
-    padding: "8px 14px",
-    borderRadius: 10,
-    border: "1px solid rgba(255,255,255,0.18)",
-    background: "transparent",
-    color: "#fff",
-    fontSize: 13,
-    fontWeight: 600,
-    fontFamily: "inherit",
-    cursor: disabled ? "not-allowed" : "pointer",
-    opacity: disabled ? 0.6 : 1,
-  };
+  const primaryButtonStyle: React.CSSProperties = canConfirm
+    ? {
+        width: "100%",
+        height: 42,
+        borderRadius: 5,
+        border: "none",
+        background: "#a855ff",
+        color: "rgba(255,255,255,0.98)",
+        fontSize: 17,
+        fontWeight: 500,
+        fontFamily: "inherit",
+        cursor: "pointer",
+        letterSpacing: "-0.02em",
+        display: "grid",
+        placeItems: "center",
+      }
+    : {
+        width: "100%",
+        height: 42,
+        borderRadius: 5,
+        border: "none",
+        background: "rgba(255,255,255,0.1)",
+        color: "rgba(255,255,255,0.36)",
+        fontSize: 17,
+        fontWeight: 500,
+        fontFamily: "inherit",
+        cursor: "not-allowed",
+        letterSpacing: "-0.02em",
+        display: "grid",
+        placeItems: "center",
+      };
 
-  const buttonPrimary: React.CSSProperties = {
-    padding: "8px 14px",
-    borderRadius: 10,
-    border: "none",
-    background: disabled ? "rgba(255,255,255,0.15)" : "#fff",
-    color: disabled ? "#fff" : "#000",
-    fontSize: 13,
-    fontWeight: 700,
-    fontFamily: "inherit",
-    cursor: canConfirm ? "pointer" : "not-allowed",
-    opacity: canConfirm ? 1 : 0.8,
-  };
-
-  return (
+  return createPortal(
     <div
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget && !disabled) onClose();
+      }}
       style={{
         position: "fixed",
         inset: 0,
-        zIndex: 10000,
-        background: "rgba(0,0,0,0.72)",
-        display: "grid",
-        placeItems: "center",
-        paddingTop: "max(14px, env(safe-area-inset-top, 0px))",
-        paddingBottom: 14,
-        paddingLeft: 14,
-        paddingRight: 14,
+        width: "100vw",
+        height: "100vh",
+        zIndex: 999999,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 24,
+        background: "rgba(0,0,0,0.88)",
         fontFamily: "inherit",
-      }}
-      onClick={() => {
-        if (!disabled) onClose();
+        boxSizing: "border-box",
       }}
     >
-      <div
+      <style>{`
+        @keyframes vibraComposerDesktopIn {
+          from { opacity: 0; transform: scale(0.94) translateY(10px); }
+          to   { opacity: 1; transform: scale(1)    translateY(0);     }
+        }
+        /* Slider de zoom fino (track delgado + thumb pequeño). */
+        .vibra-crop-zoom {
+          -webkit-appearance: none;
+          appearance: none;
+          height: 14px;
+          background: transparent;
+          cursor: pointer;
+        }
+        .vibra-crop-zoom::-webkit-slider-runnable-track {
+          height: 3px;
+          border-radius: 999px;
+          background: rgba(255,255,255,0.2);
+        }
+        .vibra-crop-zoom::-moz-range-track {
+          height: 3px;
+          border-radius: 999px;
+          background: rgba(255,255,255,0.2);
+        }
+        .vibra-crop-zoom::-webkit-slider-thumb {
+          -webkit-appearance: none;
+          appearance: none;
+          width: 13px;
+          height: 13px;
+          margin-top: -5px;
+          border-radius: 50%;
+          background: #a855ff;
+          border: none;
+        }
+        .vibra-crop-zoom::-moz-range-thumb {
+          width: 13px;
+          height: 13px;
+          border-radius: 50%;
+          background: #a855ff;
+          border: none;
+        }
+        .vibra-crop-zoom:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+      `}</style>
+
+      <section
         style={{
-          width: "min(560px, 92vw)",
-          background: "#0f0b18",
-          border: "1px solid rgba(255,255,255,0.10)",
-          borderRadius: 14,
-          overflow: "hidden",
-          boxShadow: "0 30px 90px rgba(0,0,0,0.6)",
+          width: "min(100%, 540px)",
+          maxHeight: "min(88vh, 680px)",
+          display: "flex",
+          flexDirection: "column",
+          borderRadius: 18,
+          background: "#0a0a0a",
+          boxShadow: "0 0 0 1px rgba(255,255,255,0.08), 0 32px 72px rgba(0,0,0,0.9)",
           color: "#fff",
-          backdropFilter: "blur(10px)",
-          WebkitBackdropFilter: "blur(10px)",
+          overflow: "hidden",
+          animation: "vibraComposerDesktopIn 180ms ease-out",
         }}
-        onClick={(e) => e.stopPropagation()}
       >
+        {/* Header: [vacío | título centrado | cerrar] */}
         <div
           style={{
-            padding: "10px 12px",
-            display: "flex",
+            height: 56,
+            display: "grid",
+            gridTemplateColumns: "48px 1fr 48px",
             alignItems: "center",
-            justifyContent: "space-between",
-            gap: 12,
-            borderBottom: "1px solid rgba(255,255,255,0.10)",
-            background: "rgba(255,255,255,0.06)",
+            padding: "0 12px",
+            borderBottom: "1px solid rgba(255,255,255,0.12)",
+            flexShrink: 0,
           }}
         >
-          <div style={{ fontSize: 14, fontWeight: 600, color: "rgba(255,255,255,0.9)" }}>
+          <div aria-hidden="true" />
+          <span
+            style={{
+              fontSize: 17,
+              fontWeight: 500,
+              color: "#fff",
+              lineHeight: 1.2,
+              textAlign: "center",
+              letterSpacing: "-0.02em",
+            }}
+          >
             {title}
-          </div>
-          <button type="button" onClick={() => !disabled && onClose()} style={buttonSecondary}>
-            {tCommon("close")}
+          </span>
+          <button
+            type="button"
+            onClick={() => !disabled && onClose()}
+            aria-label={tCommon("close")}
+            style={{
+              border: "none",
+              background: "none",
+              color: "#fff",
+              cursor: disabled ? "not-allowed" : "pointer",
+              display: "grid",
+              placeItems: "center",
+              justifySelf: "end",
+              padding: 4,
+            }}
+          >
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
           </button>
         </div>
 
-        <div style={{ padding: 12 }}>
+        {/* Contenido */}
+        <div style={{ flex: 1, overflowY: "auto", minHeight: 0, padding: "18px 20px 8px" }}>
           {err && (
             <div
               style={{
-                marginBottom: 12,
-                borderRadius: 9,
-                border: "1px solid rgba(255, 80, 80, 0.45)",
-                background: "rgba(255, 40, 40, 0.10)",
-                padding: "7px 9px",
-                fontSize: 11,
-                color: "rgba(255, 190, 190, 0.95)",
+                marginBottom: 14,
+                borderRadius: 13,
+                border: "1px solid rgba(255,90,90,0.24)",
+                background: "rgba(120,18,18,0.28)",
+                color: "#ffdada",
+                padding: "10px 12px",
+                fontSize: 13,
+                lineHeight: 1.4,
               }}
             >
               {err}
@@ -195,7 +290,7 @@ export default function ImageCropperModal({
             style={{
               position: "relative",
               width: "100%",
-              height: cropShape === "round" ? 300 : 240,
+              height: cropShape === "round" ? 320 : 260,
               background: "#050505",
               borderRadius: 12,
               overflow: "hidden",
@@ -221,46 +316,44 @@ export default function ImageCropperModal({
             ) : null}
           </div>
 
-          <div
-            style={{
-              marginTop: 12,
-              display: "flex",
-              alignItems: "center",
-              gap: 12,
-              flexWrap: "wrap",
-            }}
-          >
-            <label style={{ fontSize: 11, color: "rgba(255,255,255,0.7)" }}>
+          <div style={{ marginTop: 14, display: "flex", alignItems: "center", gap: 12 }}>
+            <label style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>
               {tCommon("zoom")}
             </label>
             <input
+              className="vibra-crop-zoom"
               type="range"
               min={1}
               max={3}
               step={0.05}
               value={zoom}
               onChange={(e) => setZoom(Number(e.target.value))}
-              style={{ width: 200 }}
+              style={{ flex: 1 }}
               disabled={disabled}
             />
-
-            <div style={{ marginLeft: "auto", display: "flex", gap: 10, flexWrap: "wrap" }}>
-              <button type="button" onClick={() => !disabled && onClose()} style={buttonSecondary}>
-                {tCommon("cancel")}
-              </button>
-              <button type="button" onClick={handleConfirm} disabled={!canConfirm} style={buttonPrimary}>
-                {busy ? tCommon("uploading") : tCommon("save")}
-              </button>
-            </div>
           </div>
 
           {hint && (
-            <div style={{ marginTop: 10, fontSize: 11, color: "rgba(255,255,255,0.5)", lineHeight: 1.4 }}>
+            <div style={{ marginTop: 10, fontSize: 12, color: "rgba(255,255,255,0.5)", lineHeight: 1.4 }}>
               {hint}
             </div>
           )}
         </div>
-      </div>
-    </div>
+
+        {/* Footer: botón primario (Guardar) */}
+        <div
+          style={{
+            padding: "14px 20px 18px",
+            borderTop: "1px solid rgba(255,255,255,0.12)",
+            flexShrink: 0,
+          }}
+        >
+          <button type="button" onClick={handleConfirm} disabled={!canConfirm} style={primaryButtonStyle}>
+            {busy ? tCommon("uploading") : tCommon("save")}
+          </button>
+        </div>
+      </section>
+    </div>,
+    document.body
   );
 }

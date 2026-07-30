@@ -8,7 +8,6 @@ import {
   SidebarFollowingIcon,
   SidebarMyCommunitiesIcon,
   SidebarOtherCommunitiesIcon,
-  SidebarExperiencesIcon,
 } from "@/app/components/VibraServiceIcons/OwnerSidebarNavIcons/OwnerSidebarNavIcons";
 
 type Props = {
@@ -46,7 +45,6 @@ export default function OwnerSidebarTabNav({
   const fontStack =
     'inherit';
 
-  const hasRequests = requestedCount > 0 || deliveredCount > 0;
   const showFollowing = loadingFollowing || followedCount > 0;
   const showMyGroups = loadingGroups || myGroupsCount > 0;
   const showOtherGroups = loadingGroups || joinedGroupsCount > 0;
@@ -85,17 +83,8 @@ export default function OwnerSidebarTabNav({
           },
         ]
       : []),
-    ...(hasRequests
-      ? [
-          {
-            key: "greetings" as const,
-            label: tNav("tabExperiences"),
-            title: tNav("tabExperiences"),
-            showBadge: false,
-            icon: <SidebarExperiencesIcon size={28} strokeWidth={1.6} />,
-          },
-        ]
-      : []),
+    // "Experiencias" (estrella) se movió a la página /experiencias, accesible
+    // desde el ícono junto a notificaciones. Ya no vive en el sidebar.
   ];
 
   const badgeText = requestedCount > 99 ? "99+" : String(requestedCount);

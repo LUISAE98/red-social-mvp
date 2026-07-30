@@ -15,6 +15,7 @@ import MobileBottomNav from "@/app/components/MobileBottomNav";
 import ScrollToTopFAB from "@/app/components/ScrollToTopFAB/ScrollToTopFAB";
 import GroupsSearchPanel from "@/app/components/SearchToolbar/GroupsSearchPanel";
 import { useWalletVisibility } from "@/lib/wallet/useWalletVisibility";
+import { useHasPurchasedExperiences } from "@/lib/experiences/useHasPurchasedExperiences";
 import { useMobileHeaderFade } from "@/app/hooks/useMobileHeaderFade";
 import { VibraNavigationIcon, VibraNavigationIconsStyles } from "@/app/components/VibraServiceIcons/VibraNavigationIcons";
 import NotificationBell from "@/app/components/Notifications/NotificationBell";
@@ -87,6 +88,9 @@ const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
 // comunidad, o alguna solicitud histórica). El header y el nav móvil siguen
 // mostrando la wallet a cualquier usuario con sesión.
 const { hasWallet: hasMonetization } = useWalletVisibility(user?.uid);
+// La estrella "Mis experiencias" solo aparece para quien COMPRÓ alguna experiencia
+// (no a quien solo vende ni a quien solo navega). Ver useHasPurchasedExperiences.
+const hasPurchasedExperiences = useHasPurchasedExperiences(user?.uid);
 const { headerRef, safeAreaRef } = useMobileHeaderFade();
 // Slide de entrada vía atributo CSS aplicado DESPUÉS del paint (no framer-motion).
 // En iOS un transform en render sobre un ancestro crea un containing/stacking
@@ -372,7 +376,7 @@ const contentAreaClassName = isEmbed
   display: flex;
   align-items: center;
   gap: 18px;
-  margin-right: 72px;
+  margin-right: 18px;
   flex: 0 0 auto;
 }
 
@@ -876,6 +880,19 @@ const contentAreaClassName = isEmbed
                     {/* Campanita: abre un panel flotante con las notificaciones
                         agregadas (likes, comentarios, follows, comunidades). */}
                     <NotificationBell active={pathname.startsWith("/notifications")} />
+                    {/* Experiencias: estrella a la DERECHA de la campana. Solo para
+                        quien ya compró alguna experiencia. */}
+                    {hasPurchasedExperiences ? (
+                      <Link
+                        href="/experiencias"
+                        aria-label={tNav("tabExperiences")}
+                        style={{ display: "inline-grid", placeItems: "center", width: 36, height: 36, borderRadius: 10, color: "#fff" }}
+                      >
+                        <svg width="27" height="27" viewBox="0 0 24 24" fill={pathname.startsWith("/experiencias") ? "currentColor" : "none"} stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                          <path d="M12 3.2l2.7 5.47 6.03.88-4.36 4.25 1.03 6.0L12 17.9l-5.4 2.84 1.03-6.0L3.27 9.55l6.03-.88z" />
+                        </svg>
+                      </Link>
+                    ) : null}
                   </div>
                 ) : null}
 
@@ -905,6 +922,19 @@ const contentAreaClassName = isEmbed
         {user ? (
           <span className="mobileNotifBell">
             <NotificationBell active={pathname.startsWith("/notifications")} />
+          </span>
+        ) : null}
+        {user && hasPurchasedExperiences ? (
+          <span className="mobileNotifBell">
+            <Link
+              href="/experiencias"
+              aria-label={tNav("tabExperiences")}
+              style={{ display: "inline-grid", placeItems: "center", width: 36, height: 36, borderRadius: 10, color: "#fff" }}
+            >
+              <svg width="27" height="27" viewBox="0 0 24 24" fill={pathname.startsWith("/experiencias") ? "currentColor" : "none"} stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M12 3.2l2.7 5.47 6.03.88-4.36 4.25 1.03 6.0L12 17.9l-5.4 2.84 1.03-6.0L3.27 9.55l6.03-.88z" />
+              </svg>
+            </Link>
           </span>
         ) : null}
         <button
@@ -971,7 +1001,7 @@ const contentAreaClassName = isEmbed
         </div>
 
        {!isEmbed && <ScrollToTopFAB />}
-       {!isEmbed && <MobileBottomNav showWallet={!!user} />}
+       {!isEmbed && <MobileBottomNav showWallet={!!user} showExperiences={hasPurchasedExperiences} />}
        {!isEmbed && <PushEnablePrompt />}
       </div>
 

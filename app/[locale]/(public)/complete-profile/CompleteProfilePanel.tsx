@@ -120,27 +120,6 @@ export default function CompleteProfilePanel({
     closeCrop();
   }
 
-  const pageStyle: React.CSSProperties = {
-    minHeight: "100dvh",
-    display: "grid",
-    placeItems: "center",
-    background: "transparent",
-    color: "#fff",
-    fontFamily: fontStack,
-    padding: 18,
-    boxSizing: "border-box",
-  };
-
-  const shellStyle: React.CSSProperties = {
-    width: "100%",
-    maxWidth: 420,
-    padding: "28px 34px 34px",
-    border: "none",
-    background: "transparent",
-    boxShadow: "none",
-    boxSizing: "border-box",
-  };
-
   const titleStyle: React.CSSProperties = {
     margin: "0 0 6px",
     fontSize: "clamp(18px, 2vw, 20px)",
@@ -223,14 +202,12 @@ export default function CompleteProfilePanel({
 
   return (
     <>
-      <main style={pageStyle}>
-        <div style={shellStyle}>
-          <h1 style={titleStyle}>{t("title")}</h1>
-          <p style={subtitleStyle}>{t("subtitle")}</p>
+      <h1 style={titleStyle}>{t("title")}</h1>
+      <p style={subtitleStyle}>{t("subtitle")}</p>
 
           <form onSubmit={onSubmit} style={{ display: "grid", gap: 13 }}>
             {/* Portada + foto de perfil (mismo acomodo/estilo que crear cuenta). */}
-            <div style={{ position: "relative", width: "100%", marginBottom: 46 }}>
+            <div style={{ position: "relative", width: "100%", marginBottom: 66 }}>
               <button
                 type="button"
                 onClick={() => coverInputRef.current?.click()}
@@ -254,13 +231,13 @@ export default function CompleteProfilePanel({
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={coverPreview} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                 ) : (
-                  <span style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 5 }}>
+                  <span style={{ position: "absolute", top: 14, left: 0, right: 0, display: "flex", flexDirection: "column", alignItems: "center", gap: 5 }}>
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                       <rect x="3" y="5" width="18" height="14" rx="2" />
                       <circle cx="9" cy="10" r="1.6" />
                       <path d="m4 17 4.5-4.5a2 2 0 0 1 2.8 0L16 17M14 14l1.5-1.5a2 2 0 0 1 2.8 0L21 15" />
                     </svg>
-                    <span style={{ fontSize: 11, fontWeight: 600 }}>{t("coverAdd")}</span>
+                    <span style={{ fontSize: 11, fontWeight: 600, color: "#fff" }}>{t("coverAdd")}</span>
                   </span>
                 )}
               </button>
@@ -278,7 +255,7 @@ export default function CompleteProfilePanel({
                   height: 84,
                   borderRadius: "50%",
                   border: "3px solid #0a0710",
-                  background: "rgba(255,255,255,0.11)",
+                  background: "#d9d9de",
                   overflow: "hidden",
                   cursor: "pointer",
                   padding: 0,
@@ -290,13 +267,36 @@ export default function CompleteProfilePanel({
               >
                 {avatarPreview ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={avatarPreview} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  <img src={avatarPreview} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "50%" }} />
                 ) : (
                   <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                     <path d="M14.5 4h-5L8 6H4a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h16a1 1 0 0 0 1-1V7a1 1 0 0 0-1-1h-4l-1.5-2Z" />
                     <circle cx="12" cy="13" r="3.2" />
                   </svg>
                 )}
+              </button>
+
+              {/* Texto: agregar / cambiar foto de perfil (debajo del avatar). */}
+              <button
+                type="button"
+                onClick={() => avatarInputRef.current?.click()}
+                style={{
+                  position: "absolute",
+                  left: 0,
+                  right: 0,
+                  top: 156,
+                  background: "transparent",
+                  border: "none",
+                  padding: 0,
+                  cursor: "pointer",
+                  fontFamily: "inherit",
+                  color: "#fff",
+                  fontSize: 12,
+                  fontWeight: 600,
+                  textAlign: "center",
+                }}
+              >
+                {avatarPreview ? t("photoChange") : t("photoAdd")}
               </button>
 
               <input ref={coverInputRef} type="file" accept="image/*" onChange={(e) => onPickImage(e, "cover")} style={{ display: "none" }} />
@@ -439,8 +439,6 @@ export default function CompleteProfilePanel({
           </form>
 
           {msg && <div style={noticeStyle}>{msg}</div>}
-        </div>
-      </main>
 
       <ImageCropperModal
         open={cropOpen}
