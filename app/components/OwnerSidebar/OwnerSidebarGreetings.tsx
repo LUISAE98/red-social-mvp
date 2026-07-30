@@ -53,7 +53,7 @@ import VibraToast from "@/app/components/VibraToast/VibraToast";
 import {
   ScheduledRow, SectionBlock,
   displayRowStatus, fmtScheduledSplit, getCreatorScheduleNote,
-  getMeetGreetStatusLabel, getRelativeTime, getSectionForMeetGreetStatus,
+  getMeetGreetStatusLabel, getRelativeTime, getSectionForMeetGreetStatus, greetingResponseDaysLeft,
   getServiceCardColors, greetingBgImage, isNoShowExpired, isPrepareWindowOpen,
   isProfileRequest, isRefundStatus, remainingReschedules, serviceCardBackground,
   serviceCardBackgroundStyle, sortDisplayRows, sortResolvedDesc, toDateSafe,
@@ -756,67 +756,116 @@ async function handleCreatorSchedule(
     const cardColors = getServiceCardColors(req.type);
     const bgImage = greetingBgImage(req.type);
 
+    const gAvatar = sourceAvatar ? (
+      <Image
+        src={sourceAvatar}
+        alt={sourceName}
+        width={36} height={36}
+        style={{ borderRadius: "50%", objectFit: "cover", flexShrink: 0, border: "1px solid rgba(255,255,255,0.10)" }}
+      />
+    ) : (
+      <div style={{
+        width: 36, height: 36, borderRadius: "50%", flexShrink: 0,
+        background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.10)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        fontWeight: 700, fontSize: 14, color: "#fff",
+      }}>
+        {sourceInitial}
+      </div>
+    );
+
+    const gViewBtn = (
+      <button
+        type="button"
+        onClick={() => setViewItem({ item: row, sourceName, sourceAvatar })}
+        style={{
+          flexShrink: 0, height: 30, padding: "0 14px", borderRadius: 8, border: "none",
+          background: cardColors.btnBg, color: cardColors.btnColor,
+          fontWeight: 600, fontSize: 11, cursor: "pointer", whiteSpace: "nowrap",
+        }}
+      >
+        {tServices("viewRequest")}
+      </button>
+    );
+
+    // Rechazado / en devolución: layout simple atenuado (sin cambios).
+    if (req.status !== "pending") {
+      return (
+        <div
+          key={itemKey}
+          style={{
+            ...styles.miniItem,
+            ...serviceCardBackgroundStyle(bgImage, cardColors.bg, true),
+            border: "none", borderRadius: 12, overflow: "hidden", padding: 10,
+            display: "flex", alignItems: "center", gap: 10,
+          }}
+        >
+          {gAvatar}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ color: "#fff", fontWeight: 600, fontSize: 13, lineHeight: 1.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {sourceName}
+            </div>
+            {(req.status === "rejected" || req.status === "refund_requested" || req.status === "refund_review" || relTime) && (
+              <div style={{ color: "rgba(255,255,255,0.45)", fontSize: 11, marginTop: 2 }}>
+                {req.status === "rejected" ? tSessions("statusRejected") : (req.status === "refund_requested" || req.status === "refund_review") ? tServices("statusRefundInProgress") : relTime}
+              </div>
+            )}
+          </div>
+          {gViewBtn}
+        </div>
+      );
+    }
+
+    // Pendiente: 3 partes centradas de altura, con línea vertical del lado del
+    // avatar. En medio, los días que le quedan al creador para responder.
+    const daysLeft = greetingResponseDaysLeft(req.createdAt);
+    const gDivider = (
+      <span aria-hidden="true" style={{ alignSelf: "stretch", width: 1, background: "rgba(255,255,255,0.14)", flexShrink: 0, margin: "3px 0" }} />
+    );
+
     return (
       <div
         key={itemKey}
         style={{
           ...styles.miniItem,
-          ...serviceCardBackgroundStyle(bgImage, cardColors.bg, getSectionForMeetGreetStatus(req.status) === "rejected"),
-          border: "none",
-          borderRadius: 12,
-          overflow: "hidden",
-          padding: 10,
-          display: "flex",
-          alignItems: "center",
-          gap: 10,
+          ...serviceCardBackgroundStyle(bgImage, cardColors.bg, false),
+          border: "none", borderRadius: 12, overflow: "hidden", padding: "12px 10px",
+          display: "flex", alignItems: "center", gap: 10,
         }}
       >
-        {sourceAvatar ? (
-          <Image
-            src={sourceAvatar}
-            alt={sourceName}
-            width={36} height={36}
-            style={{ borderRadius: "50%", objectFit: "cover", flexShrink: 0, border: "1px solid rgba(255,255,255,0.10)" }}
-          />
-        ) : (
-          <div style={{
-            width: 36, height: 36, borderRadius: "50%", flexShrink: 0,
-            background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.10)",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            fontWeight: 700, fontSize: 14, color: "#fff",
-          }}>
-            {sourceInitial}
-          </div>
-        )}
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ color: "#fff", fontWeight: 600, fontSize: 13, lineHeight: 1.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-            {sourceName}
-          </div>
-          {(req.status === "rejected" || req.status === "refund_requested" || req.status === "refund_review" || relTime) && (
-            <div style={{ color: "rgba(255,255,255,0.45)", fontSize: 11, marginTop: 2 }}>
-              {req.status === "rejected" ? tSessions("statusRejected") : (req.status === "refund_requested" || req.status === "refund_review") ? tServices("statusRefundInProgress") : relTime}
+        {/* 1 · Fuente + hace cuánto se compró */}
+        <div style={{ flex: "1 1 0", minWidth: 0, display: "flex", alignItems: "center", gap: 9 }}>
+          {gAvatar}
+          <div style={{ minWidth: 0 }}>
+            <div style={{ color: "#fff", fontWeight: 600, fontSize: 13, lineHeight: 1.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {sourceName}
             </div>
-          )}
+            {relTime && (
+              <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 11, marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {relTime}
+              </div>
+            )}
+          </div>
         </div>
-        <button
-          type="button"
-          onClick={() => setViewItem({ item: row, sourceName, sourceAvatar })}
-          style={{
-            flexShrink: 0,
-            height: 28,
-            padding: "0 12px",
-            borderRadius: 8,
-            border: "none",
-            background: cardColors.btnBg,
-            color: cardColors.btnColor,
-            fontWeight: 600,
-            fontSize: 11,
-            cursor: "pointer",
-            whiteSpace: "nowrap",
-          }}
-        >
-          {tServices("viewRequest")}
-        </button>
+
+        {gDivider}
+
+        {/* 2 · Días que le quedan al creador para responder */}
+        <div style={{ flex: "1 1 0", minWidth: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center", gap: 2, padding: "0 4px" }}>
+          {daysLeft != null ? (
+            <>
+              <span style={{ color: "#fff", fontSize: 13, fontWeight: 700, lineHeight: 1.15, textShadow: "0 1px 3px rgba(0,0,0,0.8)" }}>
+                {tServices("greetingDaysToRespond", { days: daysLeft })}
+              </span>
+              <span style={{ color: "rgba(255,255,255,0.7)", fontSize: 10.5, fontWeight: 500, lineHeight: 1.2, textShadow: "0 1px 3px rgba(0,0,0,0.8)" }}>
+                {tServices("toRespondLabel")}
+              </span>
+            </>
+          ) : null}
+        </div>
+
+        {/* 3 · Botón */}
+        {gViewBtn}
       </div>
     );
   }

@@ -506,7 +506,11 @@ useEffect(() => {
   const showPostsTab = isOwner ? true : visitorCanSeePosts;
   const showGroupsTab = isOwner ? true : visitorCanSeeGroups;
 
-  const shouldShowSubnav = isOwner ? true : showPostsTab || showGroupsTab;
+  // El usuario NO logueado no ve el subnav de secciones (ni "Sus comunidades"):
+  // solo publicaciones + el sub-subnav de medios (posts/fotos/videos/lives).
+  const shouldShowSubnav = isOwner
+    ? true
+    : !!viewer && (showPostsTab || showGroupsTab);
 
   const followersCount =
     typeof userDoc?.followersCount === "number" && userDoc.followersCount > 0
@@ -536,6 +540,12 @@ const handleProfilePullRefresh = useCallback(async () => {
       if (activeTab !== "posts") {
         setActiveTab("posts");
       }
+      return;
+    }
+
+    // Usuario NO logueado: solo publicaciones (sin subnav ni comunidades).
+    if (!viewer) {
+      if (activeTab !== "posts") setActiveTab("posts");
       return;
     }
 
@@ -575,6 +585,7 @@ const handleProfilePullRefresh = useCallback(async () => {
   }, [
     activeTab,
     isOwner,
+    viewer,
     shouldHideProfileSocialContent,
     showPostsTab,
     showGroupsTab,
@@ -2434,33 +2445,6 @@ const res = (await createExclusiveSessionRequest({
 ) : null}
                 </div>
               </div>
-
-              {authReady && !viewer && !shouldHideProfileSocialContent && (
-                <div className="profile-actions-wrap">
-                  <div style={styles.ctaCard}>
-                    <div
-                      style={{
-                        ...styles.microText,
-                        color: "rgba(255,255,255,0.82)",
-                        textAlign: "center",
-                      }}
-                    >
-                      {tProfile("guestCta")}
-                    </div>
-
-                    <div className="profile-actions-row" style={{ marginTop: 14 }}>
-                      <button
-                        type="button"
-                        onClick={redirectToLogin}
-                        style={styles.buttonPrimary}
-                      >
-                        {tCommon("login")}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-
 
             </div>
           </div>

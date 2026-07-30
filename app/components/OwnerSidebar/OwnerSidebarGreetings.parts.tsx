@@ -192,6 +192,19 @@ export function fmtScheduledSplit(ts: unknown): { dayTime: string; dateStr: stri
   };
 }
 
+// Días que tiene el creador para responder una solicitud de saludo/consejo antes
+// de que se marque como rechazada automáticamente. Debe coincidir con el backend
+// (GREETING_RESPONSE_DAYS en greetingRequests.ts).
+export const GREETING_RESPONSE_DAYS = 90;
+
+// Días restantes (>= 0) para que el creador responda, contados desde createdAt.
+export function greetingResponseDaysLeft(createdAt: unknown): number | null {
+  const d = toDateSafe(createdAt);
+  if (!d) return null;
+  const ms = d.getTime() + GREETING_RESPONSE_DAYS * 86400000 - Date.now();
+  return Math.max(0, Math.ceil(ms / 86400000));
+}
+
 // Contador regresivo en vivo hacia una fecha objetivo, como frase.
 export function ScheduledCountdown({ target }: { target: Date }) {
   const [now, setNow] = useState(() => Date.now());

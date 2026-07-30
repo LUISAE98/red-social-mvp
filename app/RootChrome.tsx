@@ -11,6 +11,8 @@ import { useAuth } from "@/app/providers";
 import GroupsSearchPanel from "@/app/components/SearchToolbar/GroupsSearchPanel";
 import { buildCurrentPathWithSearch, getNextFromSearchParams } from "@/lib/auth-redirect";
 import { useTranslations } from "next-intl";
+import LanguageSwitcher from "@/app/components/LanguageSwitcher";
+import CurrencySwitcher from "@/app/components/CurrencySwitcher";
 
 export default function RootChrome({
   children,
@@ -55,6 +57,12 @@ const isOverlayRoute =
     pathname === "/register" ||
     pathname === "/forgot-password" ||
     pathname === "/reset-password";
+
+  // Perfil público o comunidad pública → muestran un CTA de login FIJO en celular
+  // (abajo, centrado). Excluye /groups/new (crear comunidad).
+  const isProfileOrCommunity =
+    pathname.startsWith("/u/") ||
+    (pathname.startsWith("/groups/") && pathname !== "/groups/new");
 
   // Track previous auth state to detect sign-out on public routes
   const prevUserRef = useRef<typeof user | undefined>(undefined);
@@ -119,6 +127,13 @@ if (isPublicPostRoute || isOverlayRoute) {
   return <>{children}</>;
 }
 
+// Páginas de auth (login, etc.): su propio (public)/layout ya pone el chrome
+// (switches de moneda/idioma). RootChrome NO debe renderizar su header público
+// aquí, o los switches (y la búsqueda) saldrían duplicados.
+if (isAuthPage) {
+  return <>{children}</>;
+}
+
   return (
     <>
       <style jsx global>{`
@@ -178,18 +193,15 @@ if (isPublicPostRoute || isOverlayRoute) {
           display: flex;
           align-items: center;
           justify-content: flex-end;
-          gap: 10px;
+          gap: 8px;
           flex-shrink: 0;
-          /* Deja espacio para los switches de moneda/idioma, que van fijos en la
-             esquina superior derecha, para que el botón de login no se encime. */
-          margin-right: 172px;
         }
 
         .rootChromeDesktopAuthLink {
           width: auto;
-          min-height: 40px;
-          padding: 8px 14px;
-          border-radius: 10px;
+          min-height: 34px;
+          padding: 0 14px;
+          border-radius: 9px;
           border: none;
           background-image: linear-gradient(
             100deg,
@@ -201,12 +213,12 @@ if (isPublicPostRoute || isOverlayRoute) {
           background-size: 280% 280%;
           background-position: 0% 50%;
           color: #fff;
-          font-size: 14px;
+          font-size: 13px;
           font-weight: 600;
           letter-spacing: -0.01em;
           font-family: inherit;
           cursor: pointer;
-          box-shadow: 0 10px 28px rgba(168, 85, 255, 0.22);
+          box-shadow: 0 6px 16px rgba(168, 85, 255, 0.25);
           overflow: hidden;
           text-decoration: none;
           display: inline-flex;
@@ -224,6 +236,46 @@ if (isPublicPostRoute || isOverlayRoute) {
           transform: translateY(-1px);
           filter: brightness(1.06);
           box-shadow: 0 14px 34px rgba(168, 85, 255, 0.3);
+        }
+
+        /* CTA de login FIJO en celular (perfil/comunidad públicos). Mismo estilo
+           estético que el botón del header en laptop; oculto en laptop. */
+        .rootChromeMobileAuthCta {
+          display: none;
+        }
+        @media (max-width: 900px) {
+          .rootChromeMobileAuthCta {
+            position: fixed;
+            left: 50%;
+            transform: translateX(-50%);
+            bottom: calc(16px + env(safe-area-inset-bottom));
+            z-index: 200;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 42px;
+            padding: 0 24px;
+            border-radius: 9px;
+            border: none;
+            background-image: linear-gradient(
+              100deg,
+              #ff2fb3 0%,
+              #a855f7 35%,
+              #4f46ff 70%,
+              #ff2fb3 100%
+            );
+            background-size: 280% 280%;
+            background-position: 0% 50%;
+            color: #fff;
+            font-size: 14px;
+            font-weight: 600;
+            letter-spacing: -0.01em;
+            font-family: inherit;
+            line-height: 1;
+            white-space: nowrap;
+            text-decoration: none;
+            box-shadow: 0 8px 24px rgba(168, 85, 255, 0.38);
+          }
         }
 
         .rootChromeMobileSearchRow {
@@ -291,6 +343,8 @@ if (isPublicPostRoute || isOverlayRoute) {
                     {tCommon("login")}
                   </Link>
                 ) : null}
+                <CurrencySwitcher variant="desktop" />
+                <LanguageSwitcher variant="desktop" />
               </div>
             </div>
 
@@ -308,6 +362,23 @@ if (isPublicPostRoute || isOverlayRoute) {
         </header>
 
         <main className="rootChromePageContent">{children}</main>
+
+        {/* CTA de login FIJO en celular, solo en perfil/comunidad públicos. */}
+        {isProfileOrCommunity && pathname !== "/login" && (
+          <Link
+            href={`/login?next=${encodeURIComponent(buildCurrentPathWithSearch(pathname, searchParams))}`}
+            className="rootChromeMobileAuthCta"
+            onClick={() => startAuthTransition("entering")}
+          >
+            {tCommon("login")}
+          </Link>
+        )}
+
+        {/* En celular, los switches de moneda/idioma van como burbujas flotantes
+            (mismo patrón que el layout de auth), disponibles en cualquier página
+            pública. */}
+        <CurrencySwitcher variant="mobile-bubble" />
+        <LanguageSwitcher variant="mobile-bubble" />
       </div>
     </>
   );

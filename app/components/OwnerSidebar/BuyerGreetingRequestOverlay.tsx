@@ -350,7 +350,7 @@ export default function BuyerGreetingRequestOverlay({ item, sourceName, sourceAv
         <circle cx="12" cy="8" r="0.5" fill={priceColor} />
       </svg>
       <p style={{ margin: 0, fontSize: 12, color: "rgba(255,255,255,0.5)", lineHeight: 1.5 }}>
-        {tServices("creatorResponseNotice")}
+        {tServices("greetingResponseNotice")}
       </p>
     </div>
   ) : null;

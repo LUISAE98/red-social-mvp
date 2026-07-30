@@ -608,10 +608,15 @@ export const respondGreetingRequest = onCall(
   }
 );
 
+// Días que tiene el creador para responder una solicitud de saludo/consejo antes
+// de que se marque como RECHAZADA automáticamente. Debe coincidir con el frontend
+// (GREETING_RESPONSE_DAYS en OwnerSidebarGreetings.parts).
+export const GREETING_RESPONSE_DAYS = 90;
+
 export async function autoExpirePendingGreetingRequestsHandler(): Promise<number> {
-  const twoMonthsAgo = new Date();
-  twoMonthsAgo.setMonth(twoMonthsAgo.getMonth() - 2);
-  const cutoff = admin.firestore.Timestamp.fromDate(twoMonthsAgo);
+  const cutoffDate = new Date();
+  cutoffDate.setDate(cutoffDate.getDate() - GREETING_RESPONSE_DAYS);
+  const cutoff = admin.firestore.Timestamp.fromDate(cutoffDate);
 
   const snap = await db
     .collection("greetingRequests")
@@ -625,11 +630,14 @@ export async function autoExpirePendingGreetingRequestsHandler(): Promise<number
   const now = admin.firestore.Timestamp.now();
   const batch = db.batch();
 
+  // Al expirar pasa a "rejected" (no a devolución directa): cae en Rechazados y
+  // desde ahí el comprador decide si pedir devolución o intentarlo de nuevo.
   snap.docs.forEach((doc) => {
     batch.update(doc.ref, {
-      status: "refund_requested" as GreetingStatus,
-      rejectionReason: "El creador no respondió la solicitud.",
+      status: "rejected" as GreetingStatus,
+      rejectionReason: "El creador no respondió a tiempo la solicitud.",
       autoExpiredAt: now,
+      rejectedAt: now,
       updatedAt: now,
     });
   });
