@@ -127,13 +127,6 @@ if (isPublicPostRoute || isOverlayRoute) {
   return <>{children}</>;
 }
 
-// Páginas de auth (login, etc.): su propio (public)/layout ya pone el chrome
-// (switches de moneda/idioma). RootChrome NO debe renderizar su header público
-// aquí, o los switches (y la búsqueda) saldrían duplicados.
-if (isAuthPage) {
-  return <>{children}</>;
-}
-
   return (
     <>
       <style jsx global>{`
@@ -343,8 +336,14 @@ if (isAuthPage) {
                     {tCommon("login")}
                   </Link>
                 ) : null}
-                <CurrencySwitcher variant="desktop" />
-                <LanguageSwitcher variant="desktop" />
+                {/* En auth los switches los pone el (public)/layout; aquí solo
+                    para páginas públicas fuera de auth (evita duplicados). */}
+                {!isAuthPage && (
+                  <>
+                    <CurrencySwitcher variant="desktop" />
+                    <LanguageSwitcher variant="desktop" />
+                  </>
+                )}
               </div>
             </div>
 
@@ -375,10 +374,14 @@ if (isAuthPage) {
         )}
 
         {/* En celular, los switches de moneda/idioma van como burbujas flotantes
-            (mismo patrón que el layout de auth), disponibles en cualquier página
-            pública. */}
-        <CurrencySwitcher variant="mobile-bubble" />
-        <LanguageSwitcher variant="mobile-bubble" />
+            (mismo patrón que el layout de auth), disponibles en páginas públicas
+            fuera de auth (en auth los pone el (public)/layout → evita duplicados). */}
+        {!isAuthPage && (
+          <>
+            <CurrencySwitcher variant="mobile-bubble" />
+            <LanguageSwitcher variant="mobile-bubble" />
+          </>
+        )}
       </div>
     </>
   );
