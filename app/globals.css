@@ -164,6 +164,14 @@ body::after {
   pointer-events: none;
 }
 
+/* Con un modal/overlay abierto (marca puesta por useBodyScrollLock), el modal es
+   dueño de su propio safe-area inferior. Ocultamos la franja base para que su negro
+   sólido no se transparente bajo los backdrops translúcidos y se vea como una doble
+   franja de safe-area. Así el inset inferior se aplica UNA sola vez: en el modal. */
+body.vb-modal-open::after {
+  display: none;
+}
+
 /* Backdrop de bottom-sheet: reserva el safe-area inferior (barra de navegación
    del sistema) para que el panel no quede oculto tras ella. Aplicar en el
    backdrop fijo con align-items: flex-end de cualquier panel que suba desde abajo. */

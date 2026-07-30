@@ -99,6 +99,7 @@
     "linkCopyError": "No se pudo copiar el link.",
     "loadError": "Error al cargar",
     "loading": "Cargando...",
+    "noPurchasesYet": "Aún no tienes compras.",
     "login": "Iniciar sesión",
     "makeContribution": "Hacer contribución",
     "payDonationProductType": "Contribución",

@@ -64,6 +64,12 @@ function applyLock() {
   body.style.width = "100%";
   body.style.overflow = "hidden";
   html.style.overscrollBehavior = "none";
+
+  // Mientras haya un modal/overlay abierto, el modal controla su propio safe-area
+  // inferior. Ocultamos la franja base `body::after` (ver globals.css) para que su
+  // negro sólido no se transparente por debajo de los backdrops translúcidos y
+  // aparezca como una "doble" franja de safe-area. Fuente ÚNICA del inset: el modal.
+  body.classList.add("vb-modal-open");
 }
 
 function releaseLock() {
@@ -79,6 +85,7 @@ function releaseLock() {
   body.style.width = saved.width;
   body.style.paddingRight = saved.paddingRight;
   html.style.overscrollBehavior = saved.htmlOverscroll;
+  body.classList.remove("vb-modal-open");
   saved = null;
 
   // Restaura la posición de scroll (el body fijo la había "perdido").

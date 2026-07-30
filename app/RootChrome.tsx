@@ -211,7 +211,6 @@ if (isPublicPostRoute || isOverlayRoute) {
           letter-spacing: -0.01em;
           font-family: inherit;
           cursor: pointer;
-          box-shadow: 0 6px 16px rgba(168, 85, 255, 0.25);
           overflow: hidden;
           text-decoration: none;
           display: inline-flex;
@@ -219,16 +218,11 @@ if (isPublicPostRoute || isOverlayRoute) {
           justify-content: center;
           line-height: 1;
           white-space: nowrap;
-          transition:
-            transform 0.18s ease,
-            box-shadow 0.18s ease,
-            filter 0.18s ease;
+          transition: transform 0.18s ease;
         }
 
         .rootChromeDesktopAuthLink:hover {
           transform: translateY(-1px);
-          filter: brightness(1.06);
-          box-shadow: 0 14px 34px rgba(168, 85, 255, 0.3);
         }
 
         /* CTA de login FIJO en celular (perfil/comunidad públicos). Mismo estilo
@@ -267,7 +261,6 @@ if (isPublicPostRoute || isOverlayRoute) {
             line-height: 1;
             white-space: nowrap;
             text-decoration: none;
-            box-shadow: 0 8px 24px rgba(168, 85, 255, 0.38);
           }
         }
 

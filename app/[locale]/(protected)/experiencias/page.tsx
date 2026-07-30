@@ -13,6 +13,7 @@ import OwnerSidebarGreetings from "@/app/components/OwnerSidebar/OwnerSidebarGre
 import { buildDisplayName, fmtDate } from "@/app/components/OwnerSidebar/OwnerSidebar.utils";
 import { getSectionForMeetGreetStatus, isRefundStatus } from "@/app/components/OwnerSidebar/OwnerSidebarGreetings.parts";
 import { WalletFilterMenu } from "@/app/(protected)/wallet/components/WalletUi";
+import PurchasesTodoList from "./PurchasesTodoList";
 import { useMyExperiences } from "@/lib/experiences/useMyExperiences";
 
 type Tab = "requested" | "rejected" | "delivered";
@@ -471,7 +472,7 @@ export default function ExperienciasPage() {
 
                 <div className="expSlideClip">
                   <div ref={subContentRef}>
-                    {deliveredSub === "experiencias" ? greetingsNode : <div style={{ minHeight: 40 }} />}
+                    {deliveredSub === "experiencias" ? greetingsNode : <PurchasesTodoList uid={user?.uid} />}
                   </div>
                 </div>
               </>

@@ -99,6 +99,7 @@
     "linkCopyError": "Could not copy the link.",
     "loadError": "Error loading",
     "loading": "Loading...",
+    "noPurchasesYet": "You have no purchases yet.",
     "login": "Log in",
     "makeContribution": "Make a contribution",
     "payDonationProductType": "Contribution",

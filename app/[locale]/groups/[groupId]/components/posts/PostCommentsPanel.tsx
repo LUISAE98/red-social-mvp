@@ -676,7 +676,10 @@ export default function PostCommentsPanel({
             <div
               className="vibra-comments-mobile-scroll"
               style={{
-                flex: 1,
+                // No crecer: el panel abraza su contenido (sin dead space entre el
+                // mensaje/últimos comentarios y el input). Con muchos comentarios la
+                // sección topa su maxHeight y esta lista scrollea (shrink + overflow).
+                flex: "0 1 auto",
                 overflowY: "auto",
                 padding: "12px 14px 8px",
                 display: "grid",
@@ -744,10 +747,13 @@ export default function PostCommentsPanel({
           style={{
             flexShrink: 0,
             borderTop: "1px solid rgba(255,255,255,0.07)",
+            // Abajo del input SOLO el inset real del dispositivo (sin padding extra
+            // que lo haga ver "demasiado alto"). Con teclado abierto el home-indicator
+            // queda tapado por él, así que basta un respiro mínimo.
             padding:
               keyboardInset > 0
-                ? "10px 14px 14px"
-                : "10px 14px calc(14px + env(safe-area-inset-bottom, 0px))",
+                ? "10px 14px 10px"
+                : "10px 14px max(10px, env(safe-area-inset-bottom, 0px))",
             display: "grid",
             gap: 8,
           }}
