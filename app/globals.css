@@ -415,3 +415,14 @@ body::-webkit-scrollbar-button {
   outline: none;
   box-shadow: 0 0 0 2px rgba(168, 85, 247, 0.45);
 }
+
+/* Base de foco de teclado accesible (#14): anillo de marca en TODO elemento
+   interactivo al navegar con teclado. :focus-visible solo dispara con teclado,
+   nunca con clic de mouse, así que no cambia nada visual para el mouse.
+   Specificity 0 (:where) para que cualquier estilo propio lo pueda ajustar; los
+   elementos con `outline:none` inline lo anulan (deuda residual a migrar a los
+   primitivos de components/ui, que sí traen anillo). */
+:where(a[href], button, input, textarea, select, [tabindex]:not([tabindex="-1"])):focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 
@@ -69,6 +69,11 @@ export default function VibraResponsivePanel({
   const closeAnimTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const openAnimRafRef = useRef<number | null>(null);
 
+  // --- Accesibilidad de foco (#14) ---
+  const titleId = useId();
+  const panelRef = useRef<HTMLElement | null>(null);
+  const previouslyFocusedRef = useRef<HTMLElement | null>(null);
+
   useEffect(() => {
     const mq = window.matchMedia("(max-width: 639px)");
     const handler = (e: MediaQueryListEvent) => {
@@ -131,6 +136,59 @@ export default function VibraResponsivePanel({
   // Bloquea el scroll del body mientras el panel está abierto
   useBodyScrollLock(shouldRender);
 
+  // --- Foco (#14): mover el foco al panel al abrir y devolverlo al cerrar ---
+  useEffect(() => {
+    if (!shouldRender) return;
+    previouslyFocusedRef.current =
+      (document.activeElement as HTMLElement | null) ?? null;
+    // Enfoca el contenedor del diálogo para que los lectores de pantalla
+    // anuncien el título y el foco de teclado quede dentro del panel.
+    const raf = requestAnimationFrame(() => panelRef.current?.focus());
+    return () => {
+      cancelAnimationFrame(raf);
+      // Devuelve el foco al elemento que lo tenía antes de abrir.
+      previouslyFocusedRef.current?.focus?.();
+    };
+  }, [shouldRender]);
+
+  // --- Esc para cerrar ---
+  useEffect(() => {
+    if (!shouldRender) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        e.stopPropagation();
+        onClose();
+      }
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [shouldRender, onClose]);
+
+  // --- Focus trap: Tab/Shift+Tab ciclan dentro del panel ---
+  function handleTrapKeyDown(e: React.KeyboardEvent<HTMLElement>) {
+    if (e.key !== "Tab") return;
+    const root = panelRef.current;
+    if (!root) return;
+    const focusables = root.querySelectorAll<HTMLElement>(
+      'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])',
+    );
+    if (focusables.length === 0) {
+      e.preventDefault();
+      root.focus();
+      return;
+    }
+    const first = focusables[0];
+    const last = focusables[focusables.length - 1];
+    const active = document.activeElement;
+    if (e.shiftKey && (active === first || active === root)) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && active === last) {
+      e.preventDefault();
+      first.focus();
+    }
+  }
+
   function handlePointerDown(e: React.PointerEvent<HTMLDivElement>) {
     if ((e.target as HTMLElement).closest("button")) return;
     dragStartYRef.current = e.clientY;
@@ -161,6 +219,7 @@ export default function VibraResponsivePanel({
   const titleEl = (
     <div style={{ minWidth: 0, textAlign: "center" }}>
       <h2
+        id={titleId}
         style={{
           margin: 0,
           fontSize: 17,
@@ -245,12 +304,19 @@ export default function VibraResponsivePanel({
       {isMobile ? (
         /* ── Celular: pestaña deslizable desde abajo ── */
         <div
+          ref={panelRef as React.RefObject<HTMLDivElement>}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby={titleId}
+          tabIndex={-1}
+          onKeyDown={handleTrapKeyDown}
           style={{
             position: "fixed",
             bottom: 0,
             left: 0,
             right: 0,
             zIndex: 999991,
+            outline: "none",
             maxHeight: "calc(100dvh - 72px)",
             borderRadius: "22px 22px 0 0",
             border: "1px solid transparent",
@@ -347,11 +413,18 @@ export default function VibraResponsivePanel({
           }}
         >
           <section
+            ref={panelRef as React.RefObject<HTMLElement>}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={titleId}
+            tabIndex={-1}
+            onKeyDown={handleTrapKeyDown}
             onClick={(e) => e.stopPropagation()}
             style={{
               pointerEvents: "auto",
               width: `min(${maxWidthDesktop}px, calc(100vw - 28px))`,
               maxHeight: "calc(100dvh - 28px)",
+              outline: "none",
               overflow: "hidden",
               display: "flex",
               flexDirection: "column",
