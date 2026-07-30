@@ -8,7 +8,6 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from "react";
 import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
-import { useKeyboardInset } from "@/lib/hooks/useKeyboardInset";
 import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
 import type {
@@ -176,9 +175,6 @@ export default function PostCommentsPanel({
   }, [open, isMobile]);
 
   useBodyScrollLock(open && isMobile);
-  // iOS: empuja el sheet por encima del teclado (visualViewport) para que no se
-  // vea el fondo en la franja de sugerencias al escribir.
-  const keyboardInset = useKeyboardInset();
 
   const PANEL_CLOSE_THRESHOLD = 130;
 
@@ -747,14 +743,10 @@ export default function PostCommentsPanel({
           style={{
             flexShrink: 0,
             borderTop: "1px solid rgba(255,255,255,0.07)",
-            // Único lugar donde se aplica el espacio inferior:
-            // - Reposo: SOLO el inset real del dispositivo (home-indicator).
-            // - Teclado abierto: se levanta el input justo por encima del teclado
-            //   (keyboardInset) sin elevar el panel; el home-indicator queda tapado.
-            padding:
-              keyboardInset > 0
-                ? `10px 14px ${keyboardInset + 8}px`
-                : "10px 14px max(10px, env(safe-area-inset-bottom, 0px))",
+            // Sin espacio inferior de safe-area: el input queda pegado al borde.
+            // (Esto puede reexponer el fondo tras las sugerencias del teclado; se
+            // corrige aparte, según lo acordado.)
+            padding: "10px 14px 10px",
             display: "grid",
             gap: 8,
           }}

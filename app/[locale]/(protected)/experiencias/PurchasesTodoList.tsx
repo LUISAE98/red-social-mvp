@@ -19,6 +19,7 @@ import {
 import { WalletFilterMenu } from "@/app/(protected)/wallet/components/WalletUi";
 import { getRelativeTime } from "@/app/components/OwnerSidebar/OwnerSidebarGreetings.parts";
 import { useAllPurchases } from "@/lib/experiences/useAllPurchases";
+import BuyerInvoicePanel, { type InvoiceConcept } from "./BuyerInvoicePanel";
 
 type TodoTypeFilter = LedgerServiceType | "all";
 
@@ -48,6 +49,67 @@ export default function PurchasesTodoList({ uid }: { uid: string | null | undefi
   const filterActive = !typeFilter.includes("all");
   const visible = filterActive ? purchases.filter((r) => typeFilter.includes(r.data.type)) : purchases;
 
+  // ── Modo selección para facturar ──────────────────────────────────────────
+  // Al dar "Da clic aquí para facturar" se entra en selección: cada card se puede
+  // marcar (aro morado en el avatar) y "Listo" abre el panel de facturación con
+  // los movimientos elegidos.
+  const [selecting, setSelecting] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [panelOpen, setPanelOpen] = useState(false);
+
+  // Solo son facturables las compras pagadas (no reembolsadas/rechazadas).
+  const selectableIds = useMemo(
+    () => visible.filter((r) => r.data.status === "paid").map((r) => r.id),
+    [visible]
+  );
+  const allSelected = selectableIds.length > 0 && selectableIds.every((id) => selectedIds.has(id));
+
+  function enterSelection() {
+    setSelecting(true);
+    setSelectedIds(new Set());
+  }
+  function toggleSelect(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+  function toggleSelectAll() {
+    setSelectedIds((prev) => (selectableIds.every((id) => prev.has(id)) ? new Set() : new Set(selectableIds)));
+  }
+  function handleListo() {
+    if (selectedIds.size > 0) setPanelOpen(true);
+    else setSelecting(false); // sin selección, "Listo" solo sale del modo selección
+  }
+  // Generación del CFDI (timbrado Facturapi). Se conecta en el siguiente bloque.
+  function handleGenerate() {
+    // TODO(facturación): timbrar el CFDI del comprador con los conceptos seleccionados.
+  }
+
+  // Conceptos seleccionados → panel de facturación (base + IVA por compra).
+  const selectedConcepts: InvoiceConcept[] = useMemo(
+    () =>
+      purchases
+        .filter((r) => selectedIds.has(r.id))
+        .map((r) => {
+          const d = r.data;
+          const isGroup = d.channelType === "group" && !!d.channelId;
+          const group = isGroup ? groupMetaMap[d.channelId as string] ?? null : null;
+          const creator = userMiniMap[d.creatorId] ?? null;
+          const name = isGroup ? (group?.name ?? tCommon("community")) : (creator?.displayName ?? tCommon("creator"));
+          return {
+            id: r.id,
+            name,
+            typeLabel: tWallet(ledgerTypeLabelKey(d.type)),
+            base: d.grossAmount || 0,
+            tax: d.taxAmount || 0,
+          };
+        }),
+    [purchases, selectedIds, groupMetaMap, userMiniMap, tCommon, tWallet]
+  );
+
   if (loading) {
     return (
       <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 13, textAlign: "center", padding: "24px 0" }}>
@@ -66,6 +128,8 @@ export default function PurchasesTodoList({ uid }: { uid: string | null | undefi
 
   return (
     <div style={{ display: "grid", gap: 8 }}>
+      {/* Header: filtro (izq) + contador (der). El botón "facturar" vive a la
+          izquierda del contador; al activarlo se entra en modo selección. */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
         <div style={{ minWidth: 0, overflow: "hidden" }}>
           <WalletFilterMenu
@@ -78,10 +142,60 @@ export default function PurchasesTodoList({ uid }: { uid: string | null | undefi
             transparent
           />
         </div>
-        <span style={{ flexShrink: 0, color: "#ffffff", fontSize: 15, fontWeight: 700, lineHeight: 1, paddingRight: 4 }}>
-          {purchases.length}
-        </span>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+          {!selecting && (
+            <button
+              type="button"
+              onClick={enterSelection}
+              style={{
+                background: "transparent", border: "none", padding: 0, margin: 0,
+                color: "#a855f7", cursor: "pointer", fontSize: 12, fontWeight: 600,
+                fontFamily: "inherit", lineHeight: 1, whiteSpace: "nowrap",
+              }}
+            >
+              {tWallet("invoiceCta")}
+            </button>
+          )}
+          <span style={{ color: "#ffffff", fontSize: 15, fontWeight: 700, lineHeight: 1, paddingRight: 4 }}>
+            {purchases.length}
+          </span>
+        </div>
       </div>
+
+      {/* Modo selección: instrucción morada + fila "Seleccionar todo" / "Listo". */}
+      {selecting && (
+        <div style={{ display: "grid", gap: 8, marginTop: -2 }}>
+          <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 12.5, fontWeight: 500, lineHeight: 1.4 }}>
+            {tWallet("invoiceSelectInstruction")}
+          </div>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+            <button
+              type="button"
+              onClick={toggleSelectAll}
+              disabled={selectableIds.length === 0}
+              style={{
+                background: "transparent", border: "none", padding: 0, margin: 0,
+                color: selectableIds.length === 0 ? "rgba(168,85,247,0.4)" : "#a855f7",
+                cursor: selectableIds.length === 0 ? "default" : "pointer",
+                fontSize: 12.5, fontWeight: 600, fontFamily: "inherit", lineHeight: 1, whiteSpace: "nowrap",
+              }}
+            >
+              {allSelected ? tWallet("invoiceSelectNone") : tWallet("invoiceSelectAll")}
+            </button>
+            <button
+              type="button"
+              onClick={handleListo}
+              style={{
+                background: "transparent", border: "none", padding: 0, margin: 0,
+                color: "#ffffff", cursor: "pointer", fontSize: 12.5, fontWeight: 700,
+                fontFamily: "inherit", lineHeight: 1, whiteSpace: "nowrap",
+              }}
+            >
+              {tWallet("invoiceDone")}
+            </button>
+          </div>
+        </div>
+      )}
       {visible.map((r) => {
         const d = r.data;
         const isGroup = d.channelType === "group" && !!d.channelId;
@@ -94,10 +208,16 @@ export default function PurchasesTodoList({ uid }: { uid: string | null | undefi
         const relTime = tsForRel ? getRelativeTime(tsForRel as { toDate: () => Date }, tCommon) : null;
         const typeLabel = tWallet(ledgerTypeLabelKey(d.type));
         const refunded = d.status !== "paid";
+        // Solo las compras pagadas son facturables/seleccionables.
+        const selectable = selecting && !refunded;
+        const selected = selectedIds.has(r.id);
 
         return (
           <div
             key={r.id}
+            role={selectable ? "button" : undefined}
+            aria-pressed={selectable ? selected : undefined}
+            onClick={selectable ? () => toggleSelect(r.id) : undefined}
             style={{
               display: "flex",
               alignItems: "center",
@@ -106,26 +226,44 @@ export default function PurchasesTodoList({ uid }: { uid: string | null | undefi
               borderRadius: 12,
               background: "transparent",
               border: "none",
+              cursor: selectable ? "pointer" : "default",
+              opacity: selecting && refunded ? 0.5 : 1,
+              WebkitTapHighlightColor: "transparent",
+              transition: "opacity 160ms ease",
             }}
           >
-            {avatar ? (
-              <Image
-                src={avatar}
-                alt={name}
-                width={36}
-                height={36}
-                style={{ borderRadius: 999, objectFit: "cover", flexShrink: 0, border: "1px solid rgba(255,255,255,0.10)" }}
+            {/* Avatar con aro de selección (aparece/desaparece con animación). */}
+            <div style={{ position: "relative", width: 36, height: 36, flexShrink: 0 }}>
+              {avatar ? (
+                <Image
+                  src={avatar}
+                  alt={name}
+                  width={36}
+                  height={36}
+                  style={{ borderRadius: 999, objectFit: "cover", border: "1px solid rgba(255,255,255,0.10)" }}
+                />
+              ) : (
+                <div style={{
+                  width: 36, height: 36, borderRadius: 999,
+                  background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.10)",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  fontWeight: 700, fontSize: 14, color: "#fff",
+                }}>
+                  {initial}
+                </div>
+              )}
+              <span
+                aria-hidden="true"
+                style={{
+                  position: "absolute", inset: -3, borderRadius: 999,
+                  border: "2px solid #a855f7", boxShadow: "0 0 0 2px rgba(168,85,247,0.22)",
+                  opacity: selected ? 1 : 0,
+                  transform: selected ? "scale(1)" : "scale(0.6)",
+                  transition: "opacity 160ms ease, transform 220ms cubic-bezier(0.34,1.56,0.64,1)",
+                  pointerEvents: "none",
+                }}
               />
-            ) : (
-              <div style={{
-                width: 36, height: 36, borderRadius: 999, flexShrink: 0,
-                background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.10)",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                fontWeight: 700, fontSize: 14, color: "#fff",
-              }}>
-                {initial}
-              </div>
-            )}
+            </div>
 
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ color: "#fff", fontWeight: 600, fontSize: 13, lineHeight: 1.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
@@ -149,6 +287,14 @@ export default function PurchasesTodoList({ uid }: { uid: string | null | undefi
           </div>
         );
       })}
+
+      <BuyerInvoicePanel
+        open={panelOpen}
+        onClose={() => setPanelOpen(false)}
+        concepts={selectedConcepts}
+        formatMoney={formatMoney}
+        onConfirm={handleGenerate}
+      />
     </div>
   );
 }

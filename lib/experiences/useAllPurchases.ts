@@ -19,7 +19,8 @@ type TS = { toMillis?: () => number; toDate?: () => Date } | null | undefined;
 export type PurchaseData = {
   type: LedgerServiceType;
   status: "paid" | "refunded" | "rejected";
-  grossAmount: number;
+  grossAmount: number; // base (precio del creador); sobre esto va la comisión
+  taxAmount?: number; // 🧾 IVA cobrado al comprador ENCIMA de la base (va al SAT). Legacy: ausente → 0
   currency: string;
   creatorId: string;
   channelType: "profile" | "group";

@@ -147,30 +147,12 @@ html::-webkit-scrollbar-thumb {
   background: transparent;
 }
 
-/* Cubre el safe area inferior (barra de gestos Android / home-indicator) en la
-   BASE de la app. z-index bajo (1): es una capa de fondo que CUALQUIER overlay,
-   modal o panel (live, donación, sheets…) cubre por encima, así cada pantalla
-   controla el color de su propio safe-area. Antes estaba en 99998 y tapaba de
-   negro el safe-area de todos los paneles (incluido el del live). */
-body::after {
-  content: "";
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: env(safe-area-inset-bottom, 0px);
-  background-color: #000000;
-  z-index: 1;
-  pointer-events: none;
-}
-
-/* Con un modal/overlay abierto (marca puesta por useBodyScrollLock), el modal es
-   dueño de su propio safe-area inferior. Ocultamos la franja base para que su negro
-   sólido no se transparente bajo los backdrops translúcidos y se vea como una doble
-   franja de safe-area. Así el inset inferior se aplica UNA sola vez: en el modal. */
-body.vb-modal-open::after {
-  display: none;
-}
+/* NOTA: antes había un `body::after` que pintaba una franja negra fija de altura
+   `env(safe-area-inset-bottom)` en el fondo. Se ELIMINÓ: era una segunda capa de
+   safe-area que, al ser negro sólido con position:fixed, se transparentaba bajo los
+   backdrops translúcidos de los modales y hacía ver el safe-area "engrosado/doble".
+   El safe-area base ya lo da el fondo `#000` del <html> (y el `.safeArea` del nav en
+   las pantallas que lo muestran). Así el inset inferior se aplica UNA sola vez. */
 
 /* Backdrop de bottom-sheet: reserva el safe-area inferior (barra de navegación
    del sistema) para que el panel no quede oculto tras ella. Aplicar en el

@@ -14,6 +14,9 @@ import { buildDisplayName, fmtDate } from "@/app/components/OwnerSidebar/OwnerSi
 import { getSectionForMeetGreetStatus, isRefundStatus } from "@/app/components/OwnerSidebar/OwnerSidebarGreetings.parts";
 import { WalletFilterMenu } from "@/app/(protected)/wallet/components/WalletUi";
 import PurchasesTodoList from "./PurchasesTodoList";
+import { useAllPurchases } from "@/lib/experiences/useAllPurchases";
+import { useBuyerExperiencesSeen } from "@/lib/experiences/useBuyerExperiencesSeen";
+import { computeCategoryLatest, isCategoryNew } from "@/lib/experiences/experienceActivity";
 import { useMyExperiences } from "@/lib/experiences/useMyExperiences";
 
 type Tab = "requested" | "rejected" | "delivered";
@@ -102,29 +105,11 @@ export default function ExperienciasPage() {
   const [tab, setTab] = useState<Tab>("requested");
 
   const navRef = useRef<HTMLDivElement | null>(null);
-  const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const tabRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const contentRef = useRef<HTMLDivElement | null>(null);
   const interactedRef = useRef(false);
   const [indicator, setIndicator] = useState<{ left: number; width: number } | null>(null);
   const [slideDir, setSlideDir] = useState<"left" | "right">("right");
-
-  // Barra indicadora blanca: mide la pestaña activa y la coloca justo debajo.
-  useEffect(() => {
-    function measure() {
-      const i = TAB_ORDER.indexOf(tab);
-      const el = tabRefs.current[i];
-      const nav = navRef.current;
-      if (!el || !nav) return;
-      const r = el.getBoundingClientRect();
-      const nr = nav.getBoundingClientRect();
-      const w = Math.min(64, r.width - 16);
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setIndicator({ left: r.left - nr.left + (r.width - w) / 2, width: w });
-    }
-    measure();
-    window.addEventListener("resize", measure);
-    return () => window.removeEventListener("resize", measure);
-  }, [tab]);
 
   // Deslizamiento del contenido al cambiar de pestaña (mismo efecto que el subnav
   // de wallet): reutiliza las keyframes globales `[data-nav-enter]` y quita el
@@ -145,6 +130,7 @@ export default function ExperienciasPage() {
     interactedRef.current = true;
     setSlideDir(TAB_ORDER.indexOf(next) > TAB_ORDER.indexOf(tab) ? "right" : "left");
     setTab(next);
+    markExpSeen(next); // ver una pestaña apaga su badge
   }
 
   // ── Segundo subnav (dentro de Entregados): misma animación que el principal. ──
@@ -328,6 +314,94 @@ export default function ExperienciasPage() {
       (r) => r.data.status === "completed"
     ).length;
 
+  // Compras completas (Todo) — solo el conteo/loading aquí, para decidir el subnav.
+  const allPurchases = useAllPurchases(user?.uid);
+
+  // Rechazados: saludos/consejos rechazados o en devolución + sesiones en esa sección.
+  const rejectedCount =
+    exp.buyerRejectedGreetings.length +
+    [...exp.buyerMeetGreets, ...exp.buyerExclusiveSessions].filter(
+      (r) => getSectionForMeetGreetStatus(r.data.status) === "rejected"
+    ).length;
+
+  // ── Disponibilidad de las pestañas del subnav principal ────────────────────
+  const dataLoading = exp.loading || allPurchases.loading;
+  const hasPending = pendingCount > 0;
+  const hasRejected = rejectedCount > 0;
+  const hasDeliveredExp = deliveredCount > 0; // experiencias entregadas (las 4)
+  // "Entregados" existe si hay experiencias entregadas O cualquier compra en Todo.
+  const hasDelivered = hasDeliveredExp || allPurchases.purchases.length > 0;
+  const availableTabs = TAB_ORDER.filter((t) =>
+    t === "requested" ? hasPending : t === "rejected" ? hasRejected : hasDelivered
+  );
+  // Default: pendientes; si no hay, entregados; luego rechazados.
+  const defaultTab: Tab = hasPending ? "requested" : hasDelivered ? "delivered" : hasRejected ? "rejected" : "requested";
+  const visibleTabs = tabs.filter((t) => availableTabs.includes(t.key));
+
+  // ── Notificaciones: "nuevo" por categoría (última actividad vs. "visto") ─────
+  const { seen: expSeen, markSeen: markExpSeen } = useBuyerExperiencesSeen(user?.uid);
+  const catLatest = computeCategoryLatest({
+    pendingGreetings: exp.buyerPending,
+    deliveredGreetings: exp.buyerDelivered,
+    rejectedGreetings: exp.buyerRejectedGreetings,
+    sessions: [...exp.buyerMeetGreets, ...exp.buyerExclusiveSessions],
+  });
+  const isNew: Record<Tab, boolean> = {
+    requested: isCategoryNew(catLatest.requested, expSeen.requested),
+    rejected: isCategoryNew(catLatest.rejected, expSeen.rejected),
+    delivered: isCategoryNew(catLatest.delivered, expSeen.delivered),
+  };
+  // Categoría a abrir: la NUEVA más reciente (entre las disponibles); si ninguna es
+  // nueva, el default por contenido.
+  const newestNewTab = availableTabs
+    .filter((t) => isNew[t])
+    .reduce<Tab | null>((best, t) => (best === null || catLatest[t] >= catLatest[best] ? t : best), null);
+  const openTarget: Tab = newestNewTab ?? defaultTab;
+  const didAutoOpenRef = useRef(false);
+
+  // Si la pestaña activa dejó de existir (o arranca vacía), caer al default válido.
+  useEffect(() => {
+    if (dataLoading) return;
+    if (!availableTabs.includes(tab)) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setTab(defaultTab);
+      markExpSeen(defaultTab);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dataLoading, hasPending, hasRejected, hasDelivered, tab]);
+
+  // Auto-apertura (una sola vez, al cargar): caer en la categoría NUEVA más
+  // reciente; si ninguna es nueva, en el default. Marca esa categoría como vista.
+  useEffect(() => {
+    if (dataLoading || didAutoOpenRef.current) return;
+    didAutoOpenRef.current = true;
+    if (availableTabs.includes(openTarget)) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      if (openTarget !== tab) setTab(openTarget);
+      markExpSeen(openTarget);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dataLoading]);
+
+  // Barra indicadora blanca: mide la pestaña activa. Se re-mide también cuando el
+  // subnav aparece/cambia de composición (al cargar datos o cambiar disponibilidad).
+  useEffect(() => {
+    function measure() {
+      const el = tabRefs.current[tab];
+      const nav = navRef.current;
+      if (!el || !nav) return;
+      const r = el.getBoundingClientRect();
+      const nr = nav.getBoundingClientRect();
+      const w = Math.min(64, r.width - 16);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setIndicator({ left: r.left - nr.left + (r.width - w) / 2, width: w });
+    }
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, dataLoading, availableTabs.length]);
+
   const greetingsNode = (
     <OwnerSidebarGreetings
       activeSection={tab}
@@ -394,20 +468,28 @@ export default function ExperienciasPage() {
         }
       `}</style>
 
+      {/* Subnav principal: solo pestañas con contenido. Si queda una sola, no se
+          muestra (se ve directo esa sección). */}
+      {!dataLoading && availableTabs.length >= 2 ? (
       <div role="tablist" ref={navRef} className="expSubnav">
-        {tabs.map((t, i) => {
+        {visibleTabs.map((t) => {
           const active = tab === t.key;
           return (
             <button
               key={t.key}
-              ref={(el) => { tabRefs.current[i] = el; }}
+              ref={(el) => { tabRefs.current[t.key] = el; }}
               type="button"
               role="tab"
               aria-selected={active}
               onClick={() => goTab(t.key)}
               className="expTab"
             >
-              <span style={{ display: "inline-flex" }}>{t.icon}</span>
+              <span style={{ display: "inline-flex", position: "relative" }}>
+                {t.icon}
+                {isNew[t.key] ? (
+                  <span aria-hidden="true" style={{ position: "absolute", top: -2, right: -2, width: 9, height: 9, borderRadius: 999, background: "#ff3b30", border: "2px solid #000" }} />
+                ) : null}
+              </span>
               <span className="expTabLabel" style={{ color: active ? "#fff" : "rgba(255,255,255,0.55)" }}>
                 {t.label}
               </span>
@@ -418,10 +500,11 @@ export default function ExperienciasPage() {
           <span className="expIndicator" style={{ left: indicator.left, width: indicator.width }} />
         ) : null}
       </div>
+      ) : null}
 
       {/* Filtro por tipo (solo en Pendientes), idéntico al del feed de Movimientos.
           A la derecha, el número de pendientes de la persona. */}
-      {tab === "requested" && !exp.loading ? (
+      {tab === "requested" && !dataLoading && hasPending ? (
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 6 }}>
           <div style={{ minWidth: 0, overflow: "hidden" }}>
             <WalletFilterMenu
@@ -441,7 +524,7 @@ export default function ExperienciasPage() {
       ) : null}
 
       {/* Filtro único en Rechazados: combina tipo de experiencia y estatus. */}
-      {tab === "rejected" && !exp.loading ? (
+      {tab === "rejected" && !dataLoading && hasRejected ? (
         <div style={{ maxWidth: "100%", minWidth: 0, overflow: "hidden", marginBottom: 6 }}>
           <WalletFilterMenu
             label={rejSelLabel}
@@ -455,12 +538,15 @@ export default function ExperienciasPage() {
         </div>
       ) : null}
 
-      {exp.loading ? (
+      {dataLoading ? (
         <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 13, textAlign: "center", padding: "24px 0" }}>{tCommon("loading")}</p>
+      ) : availableTabs.length === 0 ? (
+        <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 13, textAlign: "center", padding: "24px 0" }}>{tCommon("noPurchasesYet")}</p>
       ) : (
         <div className="expSlideClip">
           <div ref={contentRef}>
             {tab === "delivered" ? (
+              hasDeliveredExp ? (
               <>
                 {/* Segundo subnav dentro de Entregados: Experiencias | Todo. */}
                 <div role="tablist" ref={subNavRef} className="expSubnav" style={{ marginBottom: 12 }}>
@@ -516,6 +602,9 @@ export default function ExperienciasPage() {
                   </div>
                 </div>
               </>
+              ) : (
+                <PurchasesTodoList uid={user?.uid} />
+              )
             ) : (
               greetingsNode
             )}
