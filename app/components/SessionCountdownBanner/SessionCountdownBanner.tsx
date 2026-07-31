@@ -195,17 +195,16 @@ export default function SessionCountdownBanner({ uid }: { uid: string }) {
     setCountdown321(null);
   }, [session?.id]);
 
-  // La confirmación de devolución SOLO se limpia cuando llega una sesión NUEVA
-  // (id distinto). No al pasar la sesión a null tras solicitar la devolución, para
-  // que la card de éxito persista hasta que el usuario la cierre.
+  // La confirmación de devolución persiste hasta que el usuario la cierre. PERO si
+  // YA hay otra sesión en fila (id distinto), dejamos la palomita ~5 s y lanzamos
+  // el cierre animado para transicionar con estética a la siguiente sesión. Si no
+  // hay siguiente, la card se queda hasta que el usuario la cierre con el tache.
   useEffect(() => {
-    if (session?.id && refundInfo && session.id !== refundInfo.sessionId) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setRefundInfo(null);
-      setRefundClosing(false);
-      setRefundClosed(false);
-    }
-  }, [session?.id, refundInfo]);
+    if (!refundInfo || refundClosing || refundClosed) return;
+    if (!session?.id || session.id === refundInfo.sessionId) return;
+    const t = setTimeout(() => setRefundClosing(true), 5000);
+    return () => clearTimeout(t);
+  }, [session?.id, refundInfo, refundClosing, refundClosed]);
 
   useEffect(() => {
     if (!completedSession) return;
@@ -264,6 +263,7 @@ export default function SessionCountdownBanner({ uid }: { uid: string }) {
 
   // ── Confirmación de devolución solicitada (reemplaza todo el card) ──────────
   if (refundInfo && !refundClosed) {
+    const bgImage = BG_IMAGE[refundInfo.serviceKind];
     return (
       <div
         style={{
@@ -273,19 +273,23 @@ export default function SessionCountdownBanner({ uid }: { uid: string }) {
           overflow: "hidden",
           marginBottom: 2,
           boxSizing: "border-box",
-          background: "linear-gradient(160deg, rgba(22,22,26,0.97) 0%, rgba(10,10,12,0.98) 100%)",
-          border: "1px solid rgba(255,255,255,0.08)",
+          backgroundImage: `url(${bgImage})`,
+          backgroundSize: "cover",
+          backgroundPosition: "center",
           animation: refundClosing
-            ? "vibra-refund-out 0.32s ease forwards"
+            ? "vibra-refund-out 0.45s cubic-bezier(0.4,0,0.2,1) forwards"
             : "vibra-refund-in 0.42s cubic-bezier(0.16,1,0.3,1) both",
         }}
         onAnimationEnd={() => { if (refundClosing) setRefundClosed(true); }}
       >
         <style>{`
           @keyframes vibra-refund-in { from { opacity: 0; transform: translateY(6px) scale(0.98); } to { opacity: 1; transform: none; } }
-          @keyframes vibra-refund-out { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateY(-8px) scale(0.96); } }
-          @keyframes vibra-refund-pop { 0% { transform: scale(0); } 60% { transform: scale(1.25); } 100% { transform: scale(1); } }
+          @keyframes vibra-refund-out { from { opacity: 1; transform: scale(1); } to { opacity: 0; transform: scale(0.94); } }
+          @keyframes vibra-refund-pop { 0% { transform: scale(0); } 60% { transform: scale(1.2); } 100% { transform: scale(1); } }
         `}</style>
+
+        {/* Fondo normal de la sesión, con el mismo overlay oscuro del card original. */}
+        <div style={{ position: "absolute", inset: 0, background: "linear-gradient(160deg, rgba(0,0,0,0.60) 0%, rgba(0,0,0,0.80) 100%)" }} />
 
         {/* Cerrar: tache blanco sencillo, sin card, esquina superior derecha. */}
         <button
@@ -299,23 +303,22 @@ export default function SessionCountdownBanner({ uid }: { uid: string }) {
           </svg>
         </button>
 
-        <div style={{ padding: "26px 22px 22px", display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", gap: 14 }}>
-          {/* Palomita blanca en círculo verde con pop. */}
+        <div style={{ position: "relative", padding: "24px 22px 20px", display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", gap: 13 }}>
+          {/* Palomita blanca en círculo verde con pop (sin brillo, más pequeña). */}
           <div
             style={{
-              width: 56, height: 56, borderRadius: "50%", background: "#22c55e",
+              width: 40, height: 40, borderRadius: "50%", background: "#22c55e",
               display: "grid", placeItems: "center",
-              boxShadow: "0 8px 24px rgba(34,197,94,0.35)",
               animation: refundClosing ? undefined : "vibra-refund-pop 0.5s cubic-bezier(0.34,1.56,0.64,1) both",
               animationDelay: "0.12s",
             }}
           >
-            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M5 12.5L10 17.5L19 7" />
             </svg>
           </div>
 
-          <div style={{ color: "rgba(255,255,255,0.9)", fontSize: 13.5, lineHeight: 1.5, fontWeight: 500, maxWidth: 260 }}>
+          <div style={{ color: "rgba(255,255,255,0.92)", fontSize: 13.5, lineHeight: 1.5, fontWeight: 500, maxWidth: 260 }}>
             Tu solicitud de devolución fue enviada y será procesada. Puedes revisar el estatus en{" "}
             <span style={{ color: "#fff", fontWeight: 700 }}>Experiencias → Rechazados → Devolución</span>.
           </div>
@@ -552,6 +555,8 @@ export default function SessionCountdownBanner({ uid }: { uid: string }) {
       }
       // Éxito: el backend ya movió la solicitud a "en devolución" (comprador y
       // creador). Mostramos la confirmación (check verde) hasta que se cierre.
+      setRefundClosing(false);
+      setRefundClosed(false);
       setRefundInfo({ serviceKind: session.serviceKind, sessionId: session.id });
     } catch (e) { console.error(e); } finally { setBusy(false); }
   }

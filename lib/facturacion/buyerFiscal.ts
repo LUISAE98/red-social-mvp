@@ -56,8 +56,8 @@ export type GenerateBuyerInvoiceInput = {
 
 export async function generateBuyerInvoice(
   input: GenerateBuyerInvoiceInput
-): Promise<{ ok: boolean; invoiceId: string; uuid: string | null; total: number | null }> {
-  const fn = httpsCallable<GenerateBuyerInvoiceInput, { ok: boolean; invoiceId: string; uuid: string | null; total: number | null }>(
+): Promise<{ ok: boolean; invoiceId: string; uuid: string | null; total: number | null; email: string | null }> {
+  const fn = httpsCallable<GenerateBuyerInvoiceInput, { ok: boolean; invoiceId: string; uuid: string | null; total: number | null; email: string | null }>(
     functions,
     "generateBuyerInvoice"
   );

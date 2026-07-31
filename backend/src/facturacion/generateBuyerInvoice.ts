@@ -14,6 +14,7 @@
 // escritura solo backend). Cada compra facturada se marca `invoiced: true`.
 
 import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { logger } from "firebase-functions";
 import * as admin from "firebase-admin";
 import { facturapiFetch, facturapiTestKey } from "./facturapiClient";
 import { productForType } from "./satProductCatalog";
@@ -127,7 +128,21 @@ export const generateBuyerInvoice = onCall(
     }
     const inv = res.data;
 
-    // 5) Guardar el CFDI y marcar las compras como facturadas.
+    // 5) Enviar la factura por correo al comprador (PDF + XML) si capturó correo.
+    // Si el envío falla, NO tiramos: la factura ya está timbrada; solo lo registramos.
+    const email = String(prof.email ?? "").trim();
+    let emailSentTo: string | null = null;
+    if (email) {
+      const mailRes = await facturapiFetch(`/invoices/${inv.id}/email`, {
+        method: "POST",
+        body: { email: [email] },
+        auth: "secret",
+      });
+      if (mailRes.ok) emailSentTo = email;
+      else logger.warn("generateBuyerInvoice email_failed", { invoiceId: inv.id, error: String(mailRes.error).slice(0, 200) });
+    }
+
+    // 6) Guardar el CFDI y marcar las compras como facturadas.
     const now = admin.firestore.FieldValue.serverTimestamp();
     await db.collection("users").doc(uid).collection("invoices").doc(inv.id).set({
       buyerId: uid,
@@ -139,6 +154,7 @@ export const generateBuyerInvoice = onCall(
       purchaseIds: usedPurchaseIds,
       billingProfileId,
       verificationUrl: inv.verification_url ?? null,
+      sentTo: emailSentTo,
       createdAt: now,
     });
 
@@ -152,6 +168,6 @@ export const generateBuyerInvoice = onCall(
     }
     await batch.commit();
 
-    return { ok: true, invoiceId: inv.id, uuid: inv.uuid ?? null, total: typeof inv.total === "number" ? inv.total : null };
+    return { ok: true, invoiceId: inv.id, uuid: inv.uuid ?? null, total: typeof inv.total === "number" ? inv.total : null, email: emailSentTo };
   }
 );

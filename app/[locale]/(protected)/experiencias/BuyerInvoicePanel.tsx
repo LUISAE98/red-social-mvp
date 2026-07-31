@@ -85,8 +85,8 @@ export default function BuyerInvoicePanel({ open, onClose, uid, concepts, format
 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // Resultado del timbrado (vista de éxito con el folio fiscal).
-  const [doneInfo, setDoneInfo] = useState<{ uuid: string | null; total: number | null } | null>(null);
+  // Resultado del timbrado (vista de éxito con el folio fiscal + correo de envío).
+  const [doneInfo, setDoneInfo] = useState<{ uuid: string | null; total: number | null; email: string | null } | null>(null);
 
   useEffect(() => {
     if (open) {
@@ -185,7 +185,7 @@ export default function BuyerInvoicePanel({ open, onClose, uid, concepts, format
         billingProfileId: profileId!,
       });
       onConfirm?.();
-      setDoneInfo({ uuid: r.uuid, total: r.total });
+      setDoneInfo({ uuid: r.uuid, total: r.total, email: r.email });
     } catch (e) {
       setError(errMsg(e));
     } finally {
@@ -237,12 +237,14 @@ export default function BuyerInvoicePanel({ open, onClose, uid, concepts, format
         <div style={{ flex: 1, overflowY: "auto", minHeight: 0, padding: "18px 20px 20px" }} className="vibraInvoiceScroll">
           {doneInfo ? (
             <div style={{ display: "grid", gap: 14, textAlign: "center", padding: "16px 0" }}>
-              <div style={{ width: 56, height: 56, borderRadius: "50%", background: "#16a34a", display: "grid", placeItems: "center", margin: "0 auto" }}>
-                <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+              <div style={{ width: 38, height: 38, borderRadius: "50%", background: "#16a34a", display: "grid", placeItems: "center", margin: "0 auto" }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
               </div>
               <div style={{ fontSize: 16, fontWeight: 700, color: "#fff" }}>Factura generada</div>
               <p style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", lineHeight: 1.5, margin: 0 }}>
-                Tu CFDI se timbró correctamente.
+                {doneInfo.email
+                  ? <>Tu factura ha sido enviada a <span style={{ color: "#fff", fontWeight: 600 }}>{doneInfo.email}</span></>
+                  : "Tu CFDI se timbró correctamente."}
               </p>
               {doneInfo.uuid && (
                 <div style={{ fontSize: 11.5, color: "rgba(255,255,255,0.5)", lineHeight: 1.5, wordBreak: "break-all" }}>

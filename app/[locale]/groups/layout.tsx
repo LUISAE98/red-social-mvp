@@ -15,6 +15,10 @@ import CurrencySwitcher from "@/app/components/CurrencySwitcher";
 import MobileBottomNav from "@/app/components/MobileBottomNav";
 import GroupsSearchPanel from "@/app/components/SearchToolbar/GroupsSearchPanel";
 import { useWalletVisibility } from "@/lib/wallet/useWalletVisibility";
+import { useHasPurchasedExperiences } from "@/lib/experiences/useHasPurchasedExperiences";
+import { useBuyerExperienceActivity } from "@/lib/experiences/useBuyerExperienceActivity";
+import { useBuyerExperiencesSeen } from "@/lib/experiences/useBuyerExperiencesSeen";
+import { isCategoryNew } from "@/lib/experiences/experienceActivity";
 import { useMobileHeaderFade } from "@/app/hooks/useMobileHeaderFade";
 import { VibraNavigationIcon, VibraNavigationIconsStyles } from "@/app/components/VibraServiceIcons/VibraNavigationIcons";
 import NotificationBell from "@/app/components/Notifications/NotificationBell";
@@ -81,6 +85,16 @@ const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
 // comunidad, o alguna solicitud histórica). El header y el nav móvil siguen
 // mostrando la wallet a cualquier usuario con sesión.
 const { hasWallet: hasMonetization } = useWalletVisibility(user?.uid);
+// Estrella "Mis experiencias" (a la derecha de la campana): visible en cualquier
+// ruta autenticada para quien ya compró alguna experiencia. Badge = hay algo nuevo.
+const hasPurchasedExperiences = useHasPurchasedExperiences(user?.uid);
+const expActivity = useBuyerExperienceActivity(user?.uid);
+const { seen: expSeen } = useBuyerExperiencesSeen(user?.uid);
+const experiencesBadge =
+  hasPurchasedExperiences &&
+  (isCategoryNew(expActivity.requested, expSeen.requested) ||
+    isCategoryNew(expActivity.rejected, expSeen.rejected) ||
+    isCategoryNew(expActivity.delivered, expSeen.delivered));
 const { headerRef, safeAreaRef } = useMobileHeaderFade();
 const mainInnerRef = useRef<HTMLDivElement>(null);
 const pendingAnimDirRef = useRef<"left" | "right" | null>(null);
@@ -831,6 +845,22 @@ const contentAreaClassName = isEmbed
                     {/* Campanita: abre un panel flotante con las notificaciones
                         agregadas (mismo componente que el header de home). */}
                     <NotificationBell active={pathname.startsWith("/notifications")} />
+                    {/* Experiencias: estrella a la DERECHA de la campana. Solo para
+                        quien ya compró alguna experiencia. */}
+                    {hasPurchasedExperiences ? (
+                      <Link
+                        href="/experiencias"
+                        aria-label={tNav("tabExperiences")}
+                        style={{ position: "relative", display: "inline-grid", placeItems: "center", width: 36, height: 36, borderRadius: 10, color: "#fff" }}
+                      >
+                        <svg width="27" height="27" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                          <path d="M12 3.2l2.7 5.47 6.03.88-4.36 4.25 1.03 6.0L12 17.9l-5.4 2.84 1.03-6.0L3.27 9.55l6.03-.88z" />
+                        </svg>
+                        {experiencesBadge ? (
+                          <span aria-hidden="true" style={{ position: "absolute", top: 5, right: 5, width: 8, height: 8, borderRadius: 999, background: "#ff3b30", boxShadow: "0 0 0 2px rgba(0,0,0,0.55)" }} />
+                        ) : null}
+                      </Link>
+                    ) : null}
                   </div>
                 ) : null}
 
@@ -859,6 +889,22 @@ const contentAreaClassName = isEmbed
         {user ? (
           <span className="mobileNotifBell">
             <NotificationBell active={pathname.startsWith("/notifications")} />
+          </span>
+        ) : null}
+        {user && hasPurchasedExperiences ? (
+          <span className="mobileNotifBell">
+            <Link
+              href="/experiencias"
+              aria-label={tNav("tabExperiences")}
+              style={{ position: "relative", display: "inline-grid", placeItems: "center", width: 36, height: 36, borderRadius: 10, color: "#fff" }}
+            >
+              <svg width="27" height="27" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M12 3.2l2.7 5.47 6.03.88-4.36 4.25 1.03 6.0L12 17.9l-5.4 2.84 1.03-6.0L3.27 9.55l6.03-.88z" />
+              </svg>
+              {experiencesBadge ? (
+                <span aria-hidden="true" style={{ position: "absolute", top: 5, right: 5, width: 8, height: 8, borderRadius: 999, background: "#ff3b30", boxShadow: "0 0 0 2px rgba(0,0,0,0.55)" }} />
+              ) : null}
+            </Link>
           </span>
         ) : null}
         <button
@@ -924,7 +970,7 @@ const contentAreaClassName = isEmbed
           )}
         </div>
 
-       {!isEmbed && <MobileBottomNav showWallet={!!user} />}
+       {!isEmbed && <MobileBottomNav showWallet={!!user} showExperiences={hasPurchasedExperiences} experiencesBadge={experiencesBadge} />}
       </div>
 
        {/* Búsqueda móvil: página completa negra que entra deslizándose de derecha
