@@ -630,9 +630,12 @@ export default function PostCommentsPanel({
           position: "fixed",
           inset: 0,
           zIndex: 2147483646,
-          background: "rgba(0,0,0,0.52)",
-          backdropFilter: "blur(10px)",
-          WebkitBackdropFilter: "blur(10px)",
+          // Más oscuro y borroso: así el contenido brillante de atrás (que asomaba
+          // en la franja del teclado) queda difuminado y pasa desapercibido, igual
+          // que la parte superior del panel.
+          background: "rgba(0,0,0,0.74)",
+          backdropFilter: "blur(24px)",
+          WebkitBackdropFilter: "blur(24px)",
           animation: open
             ? "vbCommentsBdIn 200ms ease forwards"
             : "vbCommentsBdOut 200ms ease forwards",
