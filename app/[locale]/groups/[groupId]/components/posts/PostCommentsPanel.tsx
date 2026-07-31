@@ -8,7 +8,7 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from "react";
 import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
-import { useKeyboardInset } from "@/lib/hooks/useKeyboardInset";
+import { useVisualViewport } from "@/lib/hooks/useVisualViewport";
 import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
 import type {
@@ -229,11 +229,16 @@ export default function PostCommentsPanel({
 
   useBodyScrollLock(open && isMobile);
 
-  // Altura del teclado (visualViewport). Con teclado abierto empujamos el panel
-  // hacia arriba para que el composer quede pegado sobre el teclado y no asome el
-  // fondo. Capa aparte: no toca el safe-area ni el scroll-lock.
-  const keyboardInset = useKeyboardInset();
-  const keyboardOpen = keyboardInset > 0;
+  // Geometría del viewport visual. Con el teclado abierto, en vez de anclar el
+  // contenedor a `inset: 0` (que en iOS queda detrás del teclado y asoma el fondo),
+  // lo posicionamos para que calce EXACTO con el área visible (arriba del teclado):
+  // top = offsetTop, height = height. Capa aparte: no toca el safe-area ni el lock.
+  const vv = useVisualViewport();
+  const keyboardPx =
+    vv != null && typeof window !== "undefined"
+      ? Math.max(0, Math.round(window.innerHeight - vv.height))
+      : 0;
+  const keyboardOpen = keyboardPx > 120;
 
   const PANEL_CLOSE_THRESHOLD = 130;
 
@@ -641,16 +646,23 @@ export default function PostCommentsPanel({
         aria-label={tPosts("commentsTitle")}
         style={{
           position: "fixed",
-          inset: 0,
+          // Con teclado: calza EXACTO el área visible (arriba del teclado) usando el
+          // viewport visual → el panel (flex-end) queda pegado sobre el teclado sin
+          // asomar el fondo. Sin teclado: `inset: 0` normal (borde a borde).
+          ...(keyboardOpen && vv
+            ? {
+                top: vv.offsetTop,
+                left: 0,
+                right: 0,
+                height: vv.height,
+                bottom: "auto" as const,
+              }
+            : { inset: 0 }),
           zIndex: 2147483647,
           display: "flex",
           alignItems: "flex-end",
           justifyContent: "center",
-          // Con `flex-end`, el padding inferior sube el panel. Con el teclado abierto
-          // lo empujamos su altura exacta (visualViewport) para que el composer quede
-          // pegado sobre el teclado y no asome el fondo. En reposo (0) queda al borde.
-          padding: `0 0 ${keyboardInset}px`,
-          transition: "padding-bottom 0.18s ease-out",
+          padding: 0,
           pointerEvents: "none",
           fontFamily: fontStack,
         }}
@@ -664,7 +676,7 @@ export default function PostCommentsPanel({
       <div
         style={{
           width: "100%",
-          maxHeight: `calc(100dvh - 72px - ${keyboardInset}px)`,
+          maxHeight: `calc(100dvh - 72px - ${keyboardPx}px)`,
           display: "flex",
           flexDirection: "column",
           background: "rgba(8,9,11,0.96)",
@@ -690,7 +702,7 @@ export default function PostCommentsPanel({
         >
           <section
             style={{
-              maxHeight: `calc(100dvh - 140px - ${keyboardInset}px)`,
+              maxHeight: `calc(100dvh - 140px - ${keyboardPx}px)`,
               borderRadius: "22px 22px 0 0",
               background: "rgba(8,9,11,0.96)",
               boxShadow: "0 -24px 80px rgba(0,0,0,0.56)",
