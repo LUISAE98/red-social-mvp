@@ -294,6 +294,9 @@ export { createKycSession, diditWebhook } from "./kyc";
 // Pagos (Mercado Pago — modelo agregador). Bloque 1: smoke test de credenciales.
 export { mpHealthcheck } from "./payments/mpHealthcheck";
 
+// Pagos (Stripe — migración MP→Stripe). S1: smoke test de credenciales.
+export { stripeHealthcheck } from "./payments/stripe/stripeHealthcheck";
+
 // Facturación (Facturapi — CFDI, modelo vendedor directo). Bloque 0: smoke test de
 // credenciales (org de Vibra + multi-tenant). No emite CFDI ni toca el ledger.
 export { facturapiHealthcheck } from "./facturacion/facturapiHealthcheck";

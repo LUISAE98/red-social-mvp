@@ -3,9 +3,32 @@
 > Última actualización: 2026-07-30. Fuente de verdad del avance de facturación (CFDI 4.0, Facturapi).
 > Modelo: **Vibra VENDEDOR DIRECTO** (seller of record). Detalle fiscal en `docs/legal/fiscal-iva-isr-plataforma.md`.
 
+## Actualización Stripe (2026-07-30)
+
+**Migración: 100% de Mercado Pago → Stripe** (confirmado). Es el proyecto grande sobre el que va la facturación.
+
+- **Modelo aceptado** por Stripe (streaming + creadores, sin contenido sexual). Usaremos **Stripe Connect, plan "Tú controlas los precios"**, con **Vibra como vendedor directo** (Merchant of Record).
+- **Flujo de dinero (Opción B, agregador):** todo cae en Vibra; Vibra paga al creador (1–2 payouts/mes).
+- **Costos Stripe:** cobro 3.6% + 3 MXN (+0.5% si internacional); cuenta activa de creador **35 MXN/mes**; transferencia (payout) **0.25% + 12 MXN**. Total ≈ **<5% + fijos** (los fijos pegan en volumen bajo).
+- **Mínimo de retiro: $2,000 MXN** (para que los fijos no se coman el payout).
+- **⚠️ DECISIÓN PENDIENTE — quién absorbe el ~5% de Stripe:** ¿el 23% de Vibra (neto ≈18%), se pasa al comprador, o se descuenta al creador? Define cómo el ledger registra el neto.
+- **Liquidación en MXN** (Stripe Adaptive Pricing muestra moneda local al comprador). El CFDI del comprador sigue en MXN.
+- **Países / payouts:** en LatAm Stripe solo paga **local en México y Brasil**. Resto de LatAm: el creador abre **Wallbit o Takenos** y cobra en **USD**. → Los creadores se parten en: **mexicano** (CFDI + retenciones MX, Bloques 3/4/5) vs **extranjero** (USD, sin CFDI, **Bloque 8** aplica también a CREADORES).
+- **Stripe Tax:** solo calcula/recauda el **IVA de la venta (al comprador)** y valida RFC. **NO** hace retenciones ISR/IVA al creador, **NO** emite CFDI, **NO** reporta al SAT → las **retenciones (Bloque 5) siguen siendo de Vibra + fiscalista**.
+- **KYC:** Stripe Connect trae **KYC/KYB del creador gratis** → probablemente se **elimina Didit** (confirmar si Didit hace también verificación de edad u otro uso).
+- **Reservas/holds de Stripe:** no preguntado aún (otra reunión).
+- **Suscripciones recurrentes:** soportadas (Stripe Billing) para membresías de comunidad.
+- **Cuenta de prueba (sandbox):** disponible.
+
+**Márgenes (estimado):** 23% comisión − ~5% Stripe − ~8% infra (Mux, CF, Firebase, LiveKit, Vercel, Facturapi) ≈ **~10% neto del GMV**. Los costos de infra son por USO (no % fijo); el riesgo es el video/live/llamadas por peso vendido (rango realista infra ~6–15%).
+
+**Orden al retomar:** 1) integrar Stripe (cobros + Connect + payouts + suscripciones + webhooks), 2) retenciones/fiscal (Bloque 5, con fiscalista), 3) facturas del creador (Bloques 3, 4 y 8).
+
+---
+
 ## Dependencia principal
 
-**La pasarela de pago (procesadora) todavía no está definida** (dLocal rechazó; se evalúa Pagsmile/EBANX). De ella dependen el **modelo fiscal real** (IVA, ISR, **retenciones**) y los **pagos internacionales**. Por eso la mayoría de los bloques pendientes **esperan a la pasarela** — no es que falte el código, es que aún no sabemos las reglas fiscales/monto exactas.
+**La pasarela es Stripe** (decidido; migración completa MP → Stripe, ver arriba). Lo que aún falta para destrabar la facturación del creador es: **(1) integrar Stripe** (cobros + Connect + payouts) y **(2) definir el modelo de retenciones ISR/IVA con un fiscalista** (Stripe NO lo hace). De eso dependen el monto/IVA/retenciones de la factura del creador.
 
 Modo actual: **Facturapi en PRUEBA (`sk_test`)** → todo lo que se timbra es de prueba, **aún no fiscal**.
 

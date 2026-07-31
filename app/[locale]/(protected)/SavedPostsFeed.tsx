@@ -103,11 +103,9 @@ export default function SavedPostsFeed() {
     width: number;
   } | null>(null);
 
-  // Wrapper del contenido (feed/galería) y captura al cambiar de pestaña: al
-  // remontar la nueva pestaña la página se encogería y el scroll saltaría al
-  // título; guardamos scroll+alto para preservarlos.
-  const contentWrapRef = useRef<HTMLDivElement | null>(null);
-  const tabSwitchRef = useRef<{ scrollY: number; height: number } | null>(null);
+  // Señal de "cambio de pestaña pendiente": al remontar la nueva pestaña llevamos
+  // el scroll al punto donde el subnav queda fijo (no hasta el título).
+  const pendingTabScrollRef = useRef(false);
 
   useEffect(() => {
     const unsub = auth.onAuthStateChanged((user) => {
@@ -176,72 +174,31 @@ export default function SavedPostsFeed() {
     };
   }, [isMobile, currentUserId, activeSearch]);
 
-  // Cambio de pestaña del subnav: captura scroll + alto ANTES de remontar, para
-  // que el layout effect de abajo evite el salto al título.
+  // Cambio de pestaña del subnav: marca pendiente para reposicionar el scroll.
   const handleMediaTabChange = useCallback(
     (key: MediaTabKey) => {
       if (key === mediaTab) return;
-      const el = contentWrapRef.current;
-      tabSwitchRef.current = {
-        scrollY: window.scrollY,
-        height: el ? el.offsetHeight : 0,
-      };
+      pendingTabScrollRef.current = true;
       setMediaTab(key);
     },
     [mediaTab]
   );
 
-  // Preserva la posición de scroll al cambiar de pestaña. Sin esto, la nueva
-  // pestaña monta más corta (skeletons/carga), el documento se encoge y el
-  // navegador recorta el scroll hasta arriba → aparece el título. Reservamos el
-  // alto previo (min-height) para que no colapse, mantenemos el scroll (nunca
-  // por encima del umbral que revelaría el título) y liberamos cuando el nuevo
-  // contenido alcanza altura suficiente.
+  // Al cambiar de pestaña, lleva el scroll al punto donde el subnav queda fijo
+  // (umbral ≈ alto del bloque del título), NO hasta el título. El contenedor del
+  // contenido tiene min-height: 100dvh, así que la página nunca colapsa al
+  // remontar la nueva pestaña y el navegador nunca recorta el scroll al título;
+  // aquí solo lo afinamos al umbral. Si el usuario estaba por encima del umbral
+  // (viendo el título), no lo forzamos hacia abajo.
   useLayoutEffect(() => {
-    const cap = tabSwitchRef.current;
-    if (!cap) return;
-    tabSwitchRef.current = null;
+    if (!pendingTabScrollRef.current) return;
+    pendingTabScrollRef.current = false;
 
-    const wrap = contentWrapRef.current;
-    if (!wrap) return;
-
-    // Umbral: scroll a partir del cual el subnav ya está fijo (≈ alto del bloque
-    // del título). Por debajo de esto se vería el título.
     const tw = titleWrapRef.current;
-    const threshold = tw ? tw.offsetHeight + 10 : 0; // +10 = marginBottom del título
+    if (!tw) return;
 
-    if (cap.height > 0) wrap.style.minHeight = `${cap.height}px`;
-
-    const target = Math.max(threshold, cap.scrollY);
-    window.scrollTo(0, target);
-
-    // Libera el min-height cuando el contenido real crece lo suficiente (o tras
-    // ~2s como tope). Si quedó más corto, reclampa el scroll sin mostrar título.
-    let raf = 0;
-    let tries = 0;
-    const settle = () => {
-      tries += 1;
-      const inner = wrap.firstElementChild as HTMLElement | null;
-      const naturalH = inner ? inner.offsetHeight : 0;
-
-      if (naturalH >= cap.height || tries > 120) {
-        wrap.style.minHeight = "";
-        const maxScroll = Math.max(
-          0,
-          document.documentElement.scrollHeight - window.innerHeight
-        );
-        const finalTarget = Math.min(
-          Math.max(threshold, cap.scrollY),
-          Math.max(threshold, maxScroll)
-        );
-        window.scrollTo(0, finalTarget);
-        return;
-      }
-      raf = requestAnimationFrame(settle);
-    };
-    raf = requestAnimationFrame(settle);
-
-    return () => cancelAnimationFrame(raf);
+    const threshold = tw.offsetHeight + 12; // +margen del título (10) y holgura
+    if (window.scrollY > threshold) window.scrollTo(0, threshold);
   }, [mediaTab]);
 
 const syncPostsState = useCallback(
@@ -1023,7 +980,9 @@ return (
     <section ref={shellRef} style={shellStyle}>
       <VibraToast toast={feedToast} />
 
-      <div ref={contentWrapRef} style={{ overflow: "hidden", width: "100%", minWidth: 0 }}>
+      {/* min-height: 100dvh → la página nunca colapsa al remontar la pestaña,
+          así el scroll no se recorta hasta el título. */}
+      <div style={{ overflow: "hidden", width: "100%", minWidth: 0, minHeight: "100dvh" }}>
       <motion.div
         key={effectiveMediaTab}
         initial={{ x: mediaSlideDir > 0 ? "100%" : mediaSlideDir < 0 ? "-100%" : 0 }}
