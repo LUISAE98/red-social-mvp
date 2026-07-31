@@ -249,7 +249,7 @@ export default function DonationPanel({ open, onClose, creatorName, suggestedAmo
           @keyframes vibraDonationPanelOut { from { opacity:1; transform:scale(1) translateY(0); } to { opacity:0; transform:scale(0.94) translateY(10px); } }
         `}</style>
         <div
-          style={{ position: "fixed", inset: 0, width: "100vw", height: "100dvh", zIndex: 1000000, display: "flex", alignItems: "center", justifyContent: "center", padding: 24, background: "rgba(0,0,0,0.88)", fontFamily: "inherit" }}
+          style={{ position: "fixed", inset: 0, zIndex: 1000000, display: "flex", alignItems: "center", justifyContent: "center", padding: 24, background: "rgba(0,0,0,0.88)", fontFamily: "inherit" }}
           onMouseDown={(e) => { if (e.target === e.currentTarget) handleClose(); }}
         >
           <section style={{
@@ -287,7 +287,7 @@ export default function DonationPanel({ open, onClose, creatorName, suggestedAmo
   // ── Mobile bottom sheet ────────────────────────────────────────────────────
   return createPortal(
     <div
-      style={{ position: "fixed", inset: 0, width: "100vw", height: "100dvh", zIndex: 1000000, display: "flex", alignItems: "flex-end", justifyContent: "center", padding: 0, background: "rgba(0,0,0,0.52)", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", fontFamily: "inherit" }}
+      style={{ position: "fixed", inset: 0, zIndex: 1000000, display: "flex", alignItems: "flex-end", justifyContent: "center", padding: 0, background: "rgba(0,0,0,0.52)", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", fontFamily: "inherit" }}
       onMouseDown={(e) => { if (e.target === e.currentTarget) handleClose(); }}
     >
       {/* panel-outer — handles entry/exit animation + close drag */}

@@ -912,7 +912,7 @@ export default function SessionRequestOverlay({
         <div
           role="dialog"
           aria-modal="true"
-          style={{ position: "fixed", inset: 0, width: "100vw", height: "100dvh", zIndex: 999999, display: "flex", alignItems: "flex-end", justifyContent: "center", padding: 0, background: "rgba(0,0,0,0.52)", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", fontFamily: "inherit" } as React.CSSProperties}
+          style={{ position: "fixed", inset: 0, zIndex: 999999, display: "flex", alignItems: "flex-end", justifyContent: "center", padding: 0, background: "rgba(0,0,0,0.52)", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", fontFamily: "inherit" } as React.CSSProperties}
           onMouseDown={(e) => { if (e.target === e.currentTarget && !busy) onClose(); }}
         >
           <div
@@ -955,7 +955,7 @@ export default function SessionRequestOverlay({
         <div
           role="dialog"
           aria-modal="true"
-          style={{ position: "fixed", inset: 0, width: "100vw", height: "100dvh", zIndex: 999999, display: "flex", alignItems: "center", justifyContent: "center", padding: 24, background: "rgba(0,0,0,0.88)", fontFamily: "inherit" } as React.CSSProperties}
+          style={{ position: "fixed", inset: 0, zIndex: 999999, display: "flex", alignItems: "center", justifyContent: "center", padding: 24, background: "rgba(0,0,0,0.88)", fontFamily: "inherit" } as React.CSSProperties}
           onMouseDown={(e) => { if (e.target === e.currentTarget && !busy) onClose(); }}
         >
           <section

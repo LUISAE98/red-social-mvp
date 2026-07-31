@@ -224,7 +224,7 @@ export default function BuyerInvoicePanel({ open, onClose, uid, concepts, format
     <div
       onMouseDown={(e) => { if (e.target === e.currentTarget && !busy) onClose(); }}
       style={{
-        position: "fixed", inset: 0, width: "100vw", height: "100vh", zIndex: 999999,
+        position: "fixed", inset: 0, zIndex: 999999,
         display: "flex", alignItems: "center", justifyContent: "center", padding: 24,
         background: "rgba(0,0,0,0.88)", fontFamily: "inherit",
         animation: closing ? "vibraInvoiceBackdropOut 180ms ease-in forwards" : "vibraInvoiceBackdropIn 180ms ease-out",

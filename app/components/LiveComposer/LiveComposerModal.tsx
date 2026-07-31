@@ -1047,8 +1047,6 @@ export default function LiveComposerModal({
         style={{
           position: "fixed",
           inset: 0,
-          width: "100vw",
-          height: "100dvh",
           zIndex: 999999,
           display: "flex",
           alignItems: isDesktop ? "center" : "flex-end",

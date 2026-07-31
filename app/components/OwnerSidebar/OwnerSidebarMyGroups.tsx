@@ -1793,7 +1793,7 @@ maxWidth: 220,
 
         return (
           <div style={{
-            position: "fixed", inset: 0, width: "100vw", height: "100dvh",
+            position: "fixed", inset: 0,
             zIndex: 1000001, display: "flex", alignItems: "center", justifyContent: "center",
             padding: 24, background: "rgba(0,0,0,0.88)", fontFamily: "inherit",
           }}>

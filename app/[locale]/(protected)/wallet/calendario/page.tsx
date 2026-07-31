@@ -696,8 +696,6 @@ function EventsOverlay({
           style={{
             position: "fixed",
             inset: 0,
-            width: "100vw",
-            height: "100dvh",
             zIndex: 2147483647,
             display: "flex",
             alignItems: "flex-end",
@@ -831,8 +829,6 @@ function EventsOverlay({
           style={{
             position: "fixed",
             inset: 0,
-            width: "100vw",
-            height: "100dvh",
             zIndex: 2147483647,
             background: "rgba(0,0,0,0.88)",
             display: "flex",

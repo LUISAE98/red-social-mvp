@@ -118,7 +118,7 @@ const PANEL_CSS = `
   @keyframes vibraSvcMobileOut  { from { transform:translateY(0);    } to { transform:translateY(100%); } }
 
   .vibra-svc-backdrop {
-    position: fixed; inset: 0; width: 100vw; height: 100dvh;
+    position: fixed; inset: 0;
     z-index: 2147483646;
     display: flex; align-items: center; justify-content: center;
     padding: 24px;

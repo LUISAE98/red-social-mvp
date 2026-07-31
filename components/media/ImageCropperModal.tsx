@@ -140,8 +140,6 @@ export default function ImageCropperModal({
       style={{
         position: "fixed",
         inset: 0,
-        width: "100vw",
-        height: "100vh",
         zIndex: 999999,
         display: "flex",
         alignItems: "center",

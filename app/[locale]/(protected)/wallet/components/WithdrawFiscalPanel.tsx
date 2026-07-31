@@ -537,7 +537,7 @@ export default function WithdrawFiscalPanel({ open, onClose, uid, availableLabel
     <div
       onMouseDown={(e) => { if (e.target === e.currentTarget) handleClose(); }}
       style={{
-        position: "fixed", inset: 0, width: "100vw", height: "100vh", zIndex: 999999,
+        position: "fixed", inset: 0, zIndex: 999999,
         display: "flex", alignItems: "center", justifyContent: "center", padding: 24,
         background: "rgba(0,0,0,0.88)", fontFamily: "inherit",
         animation: closing ? "vibraFiscalBackdropOut 180ms ease-in forwards" : "vibraFiscalBackdropIn 180ms ease-out",

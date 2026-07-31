@@ -303,8 +303,6 @@ export default function PostComposerMobileOverlay({
       style={{
         position: "fixed",
         inset: 0,
-        width: "100vw",
-        height: "100dvh",
         zIndex: 999999,
         display: "flex",
         alignItems: "flex-end",

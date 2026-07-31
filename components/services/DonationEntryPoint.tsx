@@ -213,8 +213,6 @@ export default function DonationEntryPoint({
   const overlayStyle: React.CSSProperties = {
     position: "fixed",
     inset: 0,
-    width: "100vw",
-    height: "100dvh",
     background: "rgba(0,0,0,0.72)",
     zIndex: 2147483647,
     display: "grid",

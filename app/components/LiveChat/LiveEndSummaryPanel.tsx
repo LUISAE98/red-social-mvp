@@ -241,7 +241,7 @@ export default function LiveEndSummaryPanel({ open, onClose, post }: Props) {
       <div
         onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
         style={{
-          position: "fixed", inset: 0, width: "100vw", height: "100dvh",
+          position: "fixed", inset: 0,
           zIndex: 999999, display: "flex", alignItems: "flex-end", justifyContent: "center",
           padding: 0,
           background: "rgba(0,0,0,0.52)", backdropFilter: "blur(10px)",
@@ -330,7 +330,7 @@ export default function LiveEndSummaryPanel({ open, onClose, post }: Props) {
     <div
       onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
       style={{
-        position: "fixed", inset: 0, width: "100vw", height: "100dvh",
+        position: "fixed", inset: 0,
         zIndex: 999999, display: "flex", alignItems: "center", justifyContent: "center",
         padding: 24, background: "rgba(0,0,0,0.88)", fontFamily: FONT,
       }}
