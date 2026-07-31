@@ -8,6 +8,7 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from "react";
 import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
+import { useKeyboardInset } from "@/lib/hooks/useKeyboardInset";
 import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
 import type {
@@ -227,6 +228,12 @@ export default function PostCommentsPanel({
   }, [open, isMobile]);
 
   useBodyScrollLock(open && isMobile);
+
+  // Altura del teclado (visualViewport). Con teclado abierto empujamos el panel
+  // hacia arriba para que el composer quede pegado sobre el teclado y no asome el
+  // fondo. Capa aparte: no toca el safe-area ni el scroll-lock.
+  const keyboardInset = useKeyboardInset();
+  const keyboardOpen = keyboardInset > 0;
 
   const PANEL_CLOSE_THRESHOLD = 130;
 
@@ -639,10 +646,11 @@ export default function PostCommentsPanel({
           display: "flex",
           alignItems: "flex-end",
           justifyContent: "center",
-          // El panel se ancla SIEMPRE al borde inferior (sin lift). Tanto el safe-area
-          // (reposo) como el hueco del teclado se resuelven UNA sola vez, dentro del
-          // composer. Así nunca se duplica el inset ni queda espacio muerto abajo.
-          padding: 0,
+          // Con `flex-end`, el padding inferior sube el panel. Con el teclado abierto
+          // lo empujamos su altura exacta (visualViewport) para que el composer quede
+          // pegado sobre el teclado y no asome el fondo. En reposo (0) queda al borde.
+          padding: `0 0 ${keyboardInset}px`,
+          transition: "padding-bottom 0.18s ease-out",
           pointerEvents: "none",
           fontFamily: fontStack,
         }}
@@ -656,7 +664,7 @@ export default function PostCommentsPanel({
       <div
         style={{
           width: "100%",
-          maxHeight: "calc(100dvh - 72px)",
+          maxHeight: `calc(100dvh - 72px - ${keyboardInset}px)`,
           display: "flex",
           flexDirection: "column",
           background: "rgba(8,9,11,0.96)",
@@ -682,7 +690,7 @@ export default function PostCommentsPanel({
         >
           <section
             style={{
-              maxHeight: "calc(100dvh - 140px)",
+              maxHeight: `calc(100dvh - 140px - ${keyboardInset}px)`,
               borderRadius: "22px 22px 0 0",
               background: "rgba(8,9,11,0.96)",
               boxShadow: "0 -24px 80px rgba(0,0,0,0.56)",
@@ -837,7 +845,10 @@ export default function PostCommentsPanel({
             flexShrink: 0,
             borderTop: "1px solid rgba(255,255,255,0.07)",
             // Safe-area inferior constante solo logueado (var = 20px, 0 sin sesión).
-            padding: "10px 14px calc(10px + var(--vb-safe-bottom, 0px))",
+            // Con el teclado abierto sobra (el teclado tapa esa zona) → 0.
+            padding: keyboardOpen
+              ? "10px 14px 10px"
+              : "10px 14px calc(10px + var(--vb-safe-bottom, 0px))",
             display: "grid",
             gap: 8,
           }}
