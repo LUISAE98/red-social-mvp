@@ -93,7 +93,6 @@ function Avatar({
           width: "100%",
           height: "100%",
           borderRadius: "50%",
-          border: "1.5px solid #0a0a0e",
           overflow: "hidden",
           display: "flex",
           alignItems: "center",

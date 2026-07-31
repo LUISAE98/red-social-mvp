@@ -1727,7 +1727,8 @@ const res = (await createExclusiveSessionRequest({
           minHeight: "100dvh",
           background: "#000",
           color: "#fff",
-          padding: "0 0 calc(108px + var(--vb-safe-bottom, 0px))",
+          // Clearance del bottom-nav lo aporta `.mainCol` del layout; no duplicar.
+          padding: "0 0 var(--vb-safe-bottom, 0px)",
           fontFamily: fontStack,
         }}
       >
@@ -1778,7 +1779,8 @@ const res = (await createExclusiveSessionRequest({
 <main
   style={{
     minHeight: "calc(100dvh - 70px)",
-    padding: "0 0 calc(120px + var(--vb-safe-bottom, 0px))",
+    // Clearance del bottom-nav lo aporta `.mainCol` del layout; no duplicar.
+    padding: "0 0 var(--vb-safe-bottom, 0px)",
     background: "transparent",
     color: "#fff",
     fontFamily: fontStack,

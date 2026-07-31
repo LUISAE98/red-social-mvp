@@ -814,7 +814,7 @@ const contentAreaClassName = isEmbed
             width: 100%;
             min-width: 0;
             overflow-x: clip;
-            padding-bottom: calc(100px + var(--vb-safe-bottom, 0px));
+            padding-bottom: calc(84px + var(--vb-safe-bottom, 0px));
           }
 
           .mainInner {
