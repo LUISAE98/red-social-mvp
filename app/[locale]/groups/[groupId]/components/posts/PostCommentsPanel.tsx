@@ -836,10 +836,8 @@ export default function PostCommentsPanel({
           style={{
             flexShrink: 0,
             borderTop: "1px solid rgba(255,255,255,0.07)",
-            // El fondo del composer rellena la zona del home-indicator en la PWA
-            // (var(--vb-safe-bottom) = env solo en standalone; 0 en Safari), así el
-            // input la libera y no aparece la franja negra que subía el panel.
-            padding: "10px 14px calc(10px + var(--vb-safe-bottom, 0px))",
+            // Placeholder pegado abajo (edge-to-edge): sin lift de safe-area.
+            padding: "10px 14px 10px",
             display: "grid",
             gap: 8,
           }}

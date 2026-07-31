@@ -2,7 +2,7 @@
 "use client";
 
 import type { CSSProperties } from "react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useUnlockedPostIds } from "@/lib/posts/useUnlockedPostIds";
 import { useTranslations } from "next-intl";
 import { doc, getDoc } from "firebase/firestore";
@@ -89,6 +89,26 @@ export default function SavedPostsFeed() {
   const videoProcessingPollsRef = useRef<Record<string, number>>({});
   const feedRequestIdRef = useRef(0);
 
+  // Medición de la cabecera para anclar el subnav fijo y la tapa negra:
+  //  - `top`   = altura real del header del layout (posición absoluta del título
+  //              en el documento = suma de lo que hay encima; es independiente
+  //              del scroll porque el header es sticky y ocupa esa franja).
+  //  - `left`/`width` = bordes horizontales de la columna del feed (<section>),
+  //              para que la tapa negra fija cubra justo esa columna.
+  const titleWrapRef = useRef<HTMLDivElement | null>(null);
+  const shellRef = useRef<HTMLElement | null>(null);
+  const [headMetrics, setHeadMetrics] = useState<{
+    top: number;
+    left: number;
+    width: number;
+  } | null>(null);
+
+  // Wrapper del contenido (feed/galería) y captura al cambiar de pestaña: al
+  // remontar la nueva pestaña la página se encogería y el scroll saltaría al
+  // título; guardamos scroll+alto para preservarlos.
+  const contentWrapRef = useRef<HTMLDivElement | null>(null);
+  const tabSwitchRef = useRef<{ scrollY: number; height: number } | null>(null);
+
   useEffect(() => {
     const unsub = auth.onAuthStateChanged((user) => {
       setCurrentUserId(user?.uid ?? null);
@@ -113,6 +133,116 @@ export default function SavedPostsFeed() {
     mediaQuery.addListener(sync);
     return () => mediaQuery.removeListener(sync);
   }, []);
+
+  // Mide la cabecera (altura del header + bordes de la columna) y la recalcula
+  // en resize / cambios de layout. `top` = pos. absoluta del título en el doc
+  // (getBoundingClientRect().top + scrollY), estable frente al scroll.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const measure = () => {
+      const tw = titleWrapRef.current;
+      const sh = shellRef.current;
+      if (!tw || !sh) return;
+      const twRect = tw.getBoundingClientRect();
+      const shRect = sh.getBoundingClientRect();
+      const next = {
+        top: Math.max(0, Math.round(twRect.top + window.scrollY)),
+        left: Math.round(shRect.left),
+        width: Math.round(shRect.width),
+      };
+      // Evita re-render si no cambió (el ResizeObserver también dispara al crecer
+      // el contenido, pero estos valores no dependen del alto).
+      setHeadMetrics((prev) =>
+        prev &&
+        prev.top === next.top &&
+        prev.left === next.left &&
+        prev.width === next.width
+          ? prev
+          : next
+      );
+    };
+
+    measure();
+
+    const ro = new ResizeObserver(measure);
+    if (titleWrapRef.current) ro.observe(titleWrapRef.current);
+    if (shellRef.current) ro.observe(shellRef.current);
+    window.addEventListener("resize", measure);
+
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", measure);
+    };
+  }, [isMobile, currentUserId, activeSearch]);
+
+  // Cambio de pestaña del subnav: captura scroll + alto ANTES de remontar, para
+  // que el layout effect de abajo evite el salto al título.
+  const handleMediaTabChange = useCallback(
+    (key: MediaTabKey) => {
+      if (key === mediaTab) return;
+      const el = contentWrapRef.current;
+      tabSwitchRef.current = {
+        scrollY: window.scrollY,
+        height: el ? el.offsetHeight : 0,
+      };
+      setMediaTab(key);
+    },
+    [mediaTab]
+  );
+
+  // Preserva la posición de scroll al cambiar de pestaña. Sin esto, la nueva
+  // pestaña monta más corta (skeletons/carga), el documento se encoge y el
+  // navegador recorta el scroll hasta arriba → aparece el título. Reservamos el
+  // alto previo (min-height) para que no colapse, mantenemos el scroll (nunca
+  // por encima del umbral que revelaría el título) y liberamos cuando el nuevo
+  // contenido alcanza altura suficiente.
+  useLayoutEffect(() => {
+    const cap = tabSwitchRef.current;
+    if (!cap) return;
+    tabSwitchRef.current = null;
+
+    const wrap = contentWrapRef.current;
+    if (!wrap) return;
+
+    // Umbral: scroll a partir del cual el subnav ya está fijo (≈ alto del bloque
+    // del título). Por debajo de esto se vería el título.
+    const tw = titleWrapRef.current;
+    const threshold = tw ? tw.offsetHeight + 10 : 0; // +10 = marginBottom del título
+
+    if (cap.height > 0) wrap.style.minHeight = `${cap.height}px`;
+
+    const target = Math.max(threshold, cap.scrollY);
+    window.scrollTo(0, target);
+
+    // Libera el min-height cuando el contenido real crece lo suficiente (o tras
+    // ~2s como tope). Si quedó más corto, reclampa el scroll sin mostrar título.
+    let raf = 0;
+    let tries = 0;
+    const settle = () => {
+      tries += 1;
+      const inner = wrap.firstElementChild as HTMLElement | null;
+      const naturalH = inner ? inner.offsetHeight : 0;
+
+      if (naturalH >= cap.height || tries > 120) {
+        wrap.style.minHeight = "";
+        const maxScroll = Math.max(
+          0,
+          document.documentElement.scrollHeight - window.innerHeight
+        );
+        const finalTarget = Math.min(
+          Math.max(threshold, cap.scrollY),
+          Math.max(threshold, maxScroll)
+        );
+        window.scrollTo(0, finalTarget);
+        return;
+      }
+      raf = requestAnimationFrame(settle);
+    };
+    raf = requestAnimationFrame(settle);
+
+    return () => cancelAnimationFrame(raf);
+  }, [mediaTab]);
 
 const syncPostsState = useCallback(
   (
@@ -673,18 +803,27 @@ const shellStyle: CSSProperties = {
     minWidth: 0,
   };
 
-  // Cabecera fija (título + subnav): se queda pegada justo debajo del header del
-  // layout mientras el contenido scrollea por detrás. Va FUERA del <section>
-  // porque su `overflowX: hidden` convierte al section en contenedor de scroll y
-  // rompería el `position: sticky`. El offset replica la convención del layout:
-  // en móvil, bajo el backdrop opaco (safe-area + 56px); en escritorio, la misma
-  // altura que usa `.sidebarCol` (safe-area + 90px). Fondo negro sólido para
-  // tapar el contenido y que NO se vea por detrás del título/subnav.
-  const stickyHeadStyle: CSSProperties = {
+  // Bloque del título: va en flujo normal y SE VA con el scroll (no fijo). Al
+  // subir, entra en la franja del header y queda oculto por la tapa negra.
+  const titleWrapStyle: CSSProperties = {
+    width: "100%",
+    maxWidth: 720,
+    minWidth: 0,
+    marginLeft: "auto",
+    marginRight: "auto",
+    boxSizing: "border-box",
+    paddingTop: 8,
+    marginBottom: 10,
+  };
+
+  // Subnav FIJO: es lo único que se queda pegado (sticky) justo debajo del
+  // header del layout. Fondo negro sólido → el contenido que sube desaparece
+  // SECO (sin difuminado) al pasar por debajo. `headMetrics.top` = altura real
+  // del header (medida); si aún no se mide, cae al valor por breakpoint.
+  // Va FUERA del <section> porque su `overflowX: hidden` rompería el sticky.
+  const stickySubnavStyle: CSSProperties = {
     position: "sticky",
-    top: isMobile
-      ? "calc(env(safe-area-inset-top, 0px) + 56px)"
-      : "calc(env(safe-area-inset-top, 0px) + 90px)",
+    top: headMetrics ? headMetrics.top : isMobile ? 56 : 90,
     zIndex: 3,
     width: "100%",
     maxWidth: 720,
@@ -693,42 +832,25 @@ const shellStyle: CSSProperties = {
     marginRight: "auto",
     boxSizing: "border-box",
     background: "#000",
-    display: "flex",
-    flexDirection: "column",
-    gap: 12,
-    paddingTop: 8,
   };
 
-  // Tapa negra de la franja superior: en escritorio el header del layout es
-  // transparente, así que sin esto el feed se vería subiendo por detrás del
-  // header (por encima del subnav fijo). Se ancla al borde superior de la
-  // cabecera fija y se extiende hacia arriba hasta el tope de la ventana,
-  // cubriendo exactamente la altura del header (misma que usa el offset sticky).
-  // En móvil NO se renderiza: el layout ya pinta ahí su backdrop negro opaco.
-  const topCoverStyle: CSSProperties = {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: "100%",
-    height: "calc(env(safe-area-inset-top, 0px) + 90px)",
-    background: "#000",
-    pointerEvents: "none",
-  };
-
-  // Desvanecido bajo el subnav: el contenido que sube se difumina (negro →
-  // transparente) antes de quedar totalmente oculto por la cabecera. Se ancla al
-  // borde inferior de la cabecera fija y se traslada hacia abajo para solaparse
-  // con el inicio del contenido.
-  const stickyFadeStyle: CSSProperties = {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    transform: "translateY(100%)",
-    height: 20,
-    background: "linear-gradient(to bottom, #000 0%, rgba(0,0,0,0) 100%)",
-    pointerEvents: "none",
-  };
+  // Tapa negra de la franja del header: fija al viewport, cubre exactamente la
+  // altura del header (`headMetrics.top`) y el ancho de la columna del feed
+  // (`left`/`width` medidos del <section>). Oculta el título y el contenido que
+  // suben por detrás del header (transparente en escritorio). Debajo del header
+  // del layout (z-index 80) y encima del feed.
+  const topCoverStyle: CSSProperties | null = headMetrics
+    ? {
+        position: "fixed",
+        top: 0,
+        left: headMetrics.left,
+        width: headMetrics.width,
+        height: headMetrics.top,
+        background: "#000",
+        zIndex: 40,
+        pointerEvents: "none",
+      }
+    : null;
 
   const titleStyle: CSSProperties = {
     margin: 0,
@@ -872,30 +994,36 @@ const visiblePosts = useMemo(() => {
         : -1;
 
 return (
-  <RefreshableArea onRefresh={handleSavedPullRefresh}>
-    {/* Cabecera fija: título + subnav se quedan pegados bajo el header del
-        layout; el contenido se desvanece al pasar por debajo. Fuera del
-        <section> a propósito (su overflowX:hidden rompería el sticky). */}
-    <div style={stickyHeadStyle}>
-      {!isMobile && <div aria-hidden="true" style={topCoverStyle} />}
+  <>
+    {/* Tapa negra fija de la franja del header (cubre lo que sube por detrás del
+        header). Fuera de RefreshableArea a propósito: su hijo tiene
+        `will-change: transform`, que rompería el `position: fixed`. */}
+    {topCoverStyle && <div aria-hidden="true" style={topCoverStyle} />}
 
+  <RefreshableArea onRefresh={handleSavedPullRefresh}>
+    {/* Título: en flujo normal → SE VA con el scroll. Fuera del <section>
+        (su overflowX:hidden convertiría a la sección en scroller y rompería el
+        sticky del subnav que va debajo). */}
+    <div ref={titleWrapRef} style={titleWrapStyle}>
       <div style={headerStyle}>
         <div style={titleRowStyle}>
           <h2 style={titleStyle}>{tSaved("title")}</h2>
         </div>
       </div>
-
-      {showMediaTabs && (
-        <PostsMediaSubnav active={mediaTab} onChange={setMediaTab} />
-      )}
-
-      <div aria-hidden="true" style={stickyFadeStyle} />
     </div>
 
-    <section style={shellStyle}>
+    {/* Subnav: ÚNICO elemento fijo. Se queda pegado bajo el header; el feed
+        desaparece seco al pasar por detrás (fondo negro sólido). */}
+    {showMediaTabs && (
+      <div style={stickySubnavStyle}>
+        <PostsMediaSubnav active={mediaTab} onChange={handleMediaTabChange} />
+      </div>
+    )}
+
+    <section ref={shellRef} style={shellStyle}>
       <VibraToast toast={feedToast} />
 
-      <div style={{ overflow: "hidden", width: "100%", minWidth: 0 }}>
+      <div ref={contentWrapRef} style={{ overflow: "hidden", width: "100%", minWidth: 0 }}>
       <motion.div
         key={effectiveMediaTab}
         initial={{ x: mediaSlideDir > 0 ? "100%" : mediaSlideDir < 0 ? "-100%" : 0 }}
@@ -1092,5 +1220,6 @@ return (
       )}
     </section>
   </RefreshableArea>
+  </>
   );
 }
