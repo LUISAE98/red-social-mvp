@@ -47,6 +47,18 @@
   --ease-in:     cubic-bezier(0.4, 0, 1, 1);
 }
 
+/* En la PWA INSTALADA (standalone) sí existe el home-indicator físico de iOS abajo.
+   Ahí restauramos el safe-area para que los paneles/nav rellenen esa zona con su
+   propio fondo (sin franja negra que "suba" el sheet) y el contenido la libere.
+   En Safari/navegador se queda en 0px (edge-to-edge, el look que se quiere ahí, y
+   se evita el parpadeo del env cuando la toolbar de Safari se colapsa al hacer
+   scroll). Debe ir DESPUÉS del `:root` base para ganar la cascada cuando aplica. */
+@media all and (display-mode: standalone) {
+  :root {
+    --vb-safe-bottom: env(safe-area-inset-bottom, 0px);
+  }
+}
+
 @theme inline {
   /* ── Tipografía ── */
   --font-sans: var(--font-jakarta);

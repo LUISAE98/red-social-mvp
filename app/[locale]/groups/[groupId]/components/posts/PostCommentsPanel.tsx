@@ -836,10 +836,10 @@ export default function PostCommentsPanel({
           style={{
             flexShrink: 0,
             borderTop: "1px solid rgba(255,255,255,0.07)",
-            // Sin espacio inferior de safe-area: el input queda pegado al borde.
-            // (Esto puede reexponer el fondo tras las sugerencias del teclado; se
-            // corrige aparte, según lo acordado.)
-            padding: "10px 14px 10px",
+            // El fondo del composer rellena la zona del home-indicator en la PWA
+            // (var(--vb-safe-bottom) = env solo en standalone; 0 en Safari), así el
+            // input la libera y no aparece la franja negra que subía el panel.
+            padding: "10px 14px calc(10px + var(--vb-safe-bottom, 0px))",
             display: "grid",
             gap: 8,
           }}

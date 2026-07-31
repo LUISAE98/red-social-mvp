@@ -772,7 +772,8 @@ const contentAreaClassName = isEmbed
             width: 100%;
             min-width: 0;
             overflow-x: clip;
-            padding-bottom: calc(84px + var(--vb-safe-bottom, 0px));
+            /* Clearance del nav: FIJO (ver nota en (protected)/layout.tsx). */
+            padding-bottom: 84px;
           }
 
           .mainInner {

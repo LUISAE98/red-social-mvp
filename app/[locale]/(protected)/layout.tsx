@@ -814,7 +814,9 @@ const contentAreaClassName = isEmbed
             width: 100%;
             min-width: 0;
             overflow-x: clip;
-            padding-bottom: calc(84px + var(--vb-safe-bottom, 0px));
+            /* Clearance del nav: FIJO (el nav ya cubre la zona del home-indicator
+               en standalone; sumar el safe-area aquí re-infla el hueco). */
+            padding-bottom: 84px;
           }
 
           .mainInner {

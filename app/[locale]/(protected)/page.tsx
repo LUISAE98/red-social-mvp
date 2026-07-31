@@ -49,7 +49,7 @@ const pageWrap: CSSProperties = {
   // El clearance del bottom-nav lo aporta UNA sola vez `.mainCol` en el layout
   // protegido; aquí NO se vuelve a sumar (antes se duplicaba → ~218px de hueco
   // muerto al fondo para un nav de 70px).
-  padding: "0 0 var(--vb-safe-bottom, 0px)",
+  padding: "0 0 0",
   background: "transparent",
   minHeight: "100dvh",
   color: "#fff",

@@ -822,7 +822,6 @@ const onCropComplete = useCallback(
                   style={fieldInput}
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder={tGroups("nameExample")}
                 />
               </div>
 
@@ -834,7 +833,6 @@ const onCropComplete = useCallback(
                   style={{ ...fieldInput, minHeight: 110, resize: "vertical" }}
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Describe tu comunidad..."
                   rows={4}
                 />
               </div>
@@ -1164,7 +1162,6 @@ const onCropComplete = useCallback(
                   style={fieldInput}
                   value={tagsRaw}
                   onChange={(e) => setTagsRaw(e.target.value)}
-                  placeholder={tGroups("tagsExample")}
                 />
                 <p
                   style={{
@@ -1215,7 +1212,6 @@ const onCropComplete = useCallback(
                     style={{ ...fieldInput, minHeight: 90, resize: "vertical" }}
                     value={welcomeMessage}
                     onChange={(e) => setWelcomeMessage(e.target.value)}
-                    placeholder={tGroups("welcomeMessageExample")}
                     rows={3}
                   />
                 </div>
@@ -1231,7 +1227,6 @@ const onCropComplete = useCallback(
                     style={fieldInput}
                     value={ageMin}
                     onChange={(e) => setAgeMin(e.target.value)}
-                    placeholder="18"
                   />
                 </div>
 
@@ -1244,7 +1239,6 @@ const onCropComplete = useCallback(
                     style={fieldInput}
                     value={ageMax}
                     onChange={(e) => setAgeMax(e.target.value)}
-                    placeholder="99"
                   />
                 </div>
               </div>
@@ -1373,7 +1367,6 @@ const onCropComplete = useCallback(
                       }}
                       value={priceMonthly}
                       onChange={(e) => setPriceMonthly(e.target.value)}
-                      placeholder={tGroups("priceExample")}
                     />
                     {displayCurrency !== "USD" &&
                     priceMonthly &&
