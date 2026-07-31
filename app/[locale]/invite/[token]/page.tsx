@@ -87,7 +87,7 @@ const { user } = useAuth();
 
   const pageWrap: React.CSSProperties = {
     minHeight: "calc(100dvh - 70px)",
-    padding: "12px 0 calc(120px + env(safe-area-inset-bottom))",
+    padding: "12px 0 calc(120px + var(--vb-safe-bottom, 0px))",
     background: "#000",
     color: "#fff",
     fontFamily: fontStack,

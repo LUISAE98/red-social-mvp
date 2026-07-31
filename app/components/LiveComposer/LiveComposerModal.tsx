@@ -996,7 +996,7 @@ export default function LiveComposerModal({
     <div style={{
       paddingTop: isDesktop ? 14 : 10,
       paddingRight: 20,
-      paddingBottom: isDesktop ? 18 : "calc(14px + env(safe-area-inset-bottom))" as CSSProperties["paddingBottom"],
+      paddingBottom: isDesktop ? 18 : "calc(14px + var(--vb-safe-bottom, 0px))" as CSSProperties["paddingBottom"],
       paddingLeft: 20,
       borderTop: `1px solid rgba(255,255,255,${isDesktop ? "0.12" : "0.07"})`,
       flexShrink: 0,

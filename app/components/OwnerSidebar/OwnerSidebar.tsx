@@ -2538,7 +2538,7 @@ newPostsCounts={newPostsCounts}
 {isMobile && (
   <div style={{
     flexShrink: 0,
-    height: "calc(72px + env(safe-area-inset-bottom, 0px))",
+    height: "calc(72px + var(--vb-safe-bottom, 0px))",
     background: "linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.85) 55%)",
     pointerEvents: "none",
   }} />

@@ -84,7 +84,7 @@ const screen: CSSProperties = {
   flexDirection: "column",
   paddingTop: "env(safe-area-inset-top)",
   paddingRight: "env(safe-area-inset-right)",
-  paddingBottom: "env(safe-area-inset-bottom)",
+  paddingBottom: "var(--vb-safe-bottom, 0px)",
   paddingLeft: "env(safe-area-inset-left)",
   boxSizing: "border-box",
 };
@@ -113,7 +113,7 @@ const videoWrapper: CSSProperties = {
   minHeight: 0,
   display: "flex",
   flexDirection: "column",
-  padding: "12px 16px max(12px,env(safe-area-inset-bottom))",
+  padding: "12px 16px max(12px,var(--vb-safe-bottom, 0px))",
   overflow: "hidden",
   boxSizing: "border-box",
 };

@@ -375,7 +375,7 @@ export default function VibraResponsivePanel({
             style={{
               padding:
                 contentPadding ??
-                "14px 14px calc(14px + env(safe-area-inset-bottom))",
+                "14px 14px calc(14px + var(--vb-safe-bottom, 0px))",
               overflowY: "auto",
               flex: 1,
               minHeight: 0,
@@ -389,7 +389,7 @@ export default function VibraResponsivePanel({
               style={{
                 flexShrink: 0,
                 borderTop: "1px solid rgba(255,255,255,0.08)",
-                padding: "12px 14px calc(14px + env(safe-area-inset-bottom))",
+                padding: "12px 14px calc(14px + var(--vb-safe-bottom, 0px))",
               }}
             >
               {footer}

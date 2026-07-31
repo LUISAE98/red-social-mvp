@@ -198,7 +198,7 @@ export default function LanguageSwitcher({ variant = "desktop" }: { variant?: Va
             position: "fixed",
             // Centro alineado con el CTA "Iniciar sesión" (42px de alto @ bottom:16):
             // la burbuja mide 53px, así que baja 5.5px para que sus centros coincidan.
-            bottom: "calc(10.5px + env(safe-area-inset-bottom))",
+            bottom: "calc(10.5px + var(--vb-safe-bottom, 0px))",
             right: 16,
             zIndex: 200,
           }}

@@ -56,7 +56,7 @@ function PublicProfileShell({
           min-width: 0;
           margin: 0 auto;
           padding-top: 24px;
-          padding-bottom: calc(48px + env(safe-area-inset-bottom));
+          padding-bottom: calc(48px + var(--vb-safe-bottom, 0px));
           box-sizing: border-box;
         }
 
@@ -64,7 +64,7 @@ function PublicProfileShell({
           .contentArea {
             width: 100%;
             padding-top: 10px;
-            padding-bottom: calc(32px + env(safe-area-inset-bottom));
+            padding-bottom: calc(32px + var(--vb-safe-bottom, 0px));
           }
         }
       `}</style>
@@ -630,7 +630,7 @@ const contentAreaClassName = isEmbed
   padding-left: var(--shell-gutter);
   padding-right: var(--shell-gutter);
   padding-top: 0;
-  padding-bottom: calc(24px + env(safe-area-inset-bottom));
+  padding-bottom: calc(24px + var(--vb-safe-bottom, 0px));
   box-sizing: border-box;
   align-items: start;
 }
@@ -675,7 +675,7 @@ const contentAreaClassName = isEmbed
   position: fixed;
   top: calc(env(safe-area-inset-top) + 64px);
   right: max(var(--shell-gutter), env(safe-area-inset-right));
-  bottom: calc(8px + env(safe-area-inset-bottom));
+  bottom: calc(8px + var(--vb-safe-bottom, 0px));
   width: var(--wallet-rail-width);
   min-width: 0;
 
@@ -690,7 +690,7 @@ const contentAreaClassName = isEmbed
 .walletLogoutWrap {
   width: 250px;
   margin: clamp(18px, 3vh, 34px) auto 0;
-  padding-bottom: calc(8px + env(safe-area-inset-bottom));
+  padding-bottom: calc(8px + var(--vb-safe-bottom, 0px));
   flex-shrink: 0;
   box-sizing: border-box;
 }
@@ -802,7 +802,7 @@ const contentAreaClassName = isEmbed
             padding-left: 0;
             padding-right: 0;
             padding-top: 10px;
-            padding-bottom: calc(16px + env(safe-area-inset-bottom));
+            padding-bottom: calc(16px + var(--vb-safe-bottom, 0px));
           }
 
           .sidebarCol,
@@ -814,7 +814,7 @@ const contentAreaClassName = isEmbed
             width: 100%;
             min-width: 0;
             overflow-x: clip;
-            padding-bottom: calc(100px + env(safe-area-inset-bottom));
+            padding-bottom: calc(100px + var(--vb-safe-bottom, 0px));
           }
 
           .mainInner {
@@ -1053,7 +1053,7 @@ const contentAreaClassName = isEmbed
                  minHeight: 0,
                  display: "flex",
                  flexDirection: "column",
-                 padding: "10px 12px calc(12px + env(safe-area-inset-bottom, 0px))",
+                 padding: "10px 12px calc(12px + var(--vb-safe-bottom, 0px))",
                  boxSizing: "border-box",
                }}
              >

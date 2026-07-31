@@ -718,7 +718,7 @@ function EventsOverlay({
               display: "flex",
               flexDirection: "column",
               background: "rgba(8,9,11,0.96)",
-              paddingBottom: "env(safe-area-inset-bottom)",
+              paddingBottom: "var(--vb-safe-bottom, 0px)",
               transform: isClosing
                 ? "translateY(100%)"
                 : `translateY(${Math.max(0, panelOffsetY)}px)`,

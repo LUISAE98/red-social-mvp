@@ -1360,7 +1360,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
           bottom: inSafeZone ? 14 : 0,
           left: inSafeZone ? 14 : 14,
           right: inSafeZone ? 14 : 14,
-          paddingBottom: inSafeZone ? 0 : "max(14px, env(safe-area-inset-bottom))",
+          paddingBottom: inSafeZone ? 0 : "max(14px, var(--vb-safe-bottom, 0px))",
           pointerEvents: "auto",
         }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
@@ -1550,8 +1550,8 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
           bottom: inSafeZone
             ? (liftPx > 0 ? `${14 + liftPx}px` : "14px")
             : (liftPx > 0
-                ? `calc(max(14px, env(safe-area-inset-bottom)) + ${liftPx}px)`
-                : "max(14px, env(safe-area-inset-bottom))"),
+                ? `calc(max(14px, var(--vb-safe-bottom, 0px)) + ${liftPx}px)`
+                : "max(14px, var(--vb-safe-bottom, 0px))"),
           right: inSafeZone
             ? "14px"
             : (sidePx > 0
@@ -1617,8 +1617,8 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
           bottom: inSafeZone
             ? (liftPx > 0 ? `${14 + liftPx}px` : "14px")
             : (liftPx > 0
-                ? `calc(max(14px, env(safe-area-inset-bottom)) + ${liftPx}px)`
-                : "max(14px, env(safe-area-inset-bottom))"),
+                ? `calc(max(14px, var(--vb-safe-bottom, 0px)) + ${liftPx}px)`
+                : "max(14px, var(--vb-safe-bottom, 0px))"),
           left: inSafeZone
             ? "14px"
             : (sidePx > 0
@@ -1909,7 +1909,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
     return (
       <div style={{
         position: "absolute",
-        bottom: inSafeZone ? "14px" : "max(14px, env(safe-area-inset-bottom))",
+        bottom: inSafeZone ? "14px" : "max(14px, var(--vb-safe-bottom, 0px))",
         left: 14, right: 14, zIndex: 7,
         display: "flex", flexDirection: "column", gap: 4,
         opacity: visible ? 1 : 0,
@@ -2025,7 +2025,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
           position: "absolute",
           bottom: inSafeZone ? 14 + extraBottom : extraBottom,
           left: 14, right: 14,
-          paddingBottom: inSafeZone ? 0 : "max(14px, env(safe-area-inset-bottom))",
+          paddingBottom: inSafeZone ? 0 : "max(14px, var(--vb-safe-bottom, 0px))",
           pointerEvents: "auto",
         }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
@@ -2150,7 +2150,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
   const liveDonateSafeAreaFill = liveDonateOpen ? (
     <div aria-hidden style={{
       position: "fixed", left: 0, right: 0, bottom: 0,
-      height: "env(safe-area-inset-bottom, 0px)",
+      height: "var(--vb-safe-bottom, 0px)",
       background: "#fff", zIndex: 10001, pointerEvents: "none",
     }} />
   ) : null;
@@ -2497,7 +2497,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
   //
   // Safe zone: cuando el interior está rotado 90° CW, los ejes cambian:
   //   content LEFT  = physical TOP  (notch)   → usa env(safe-area-inset-top)
-  //   content RIGHT = physical BOTTOM (home)  → usa env(safe-area-inset-bottom)
+  //   content RIGHT = physical BOTTOM (home)  → usa var(--vb-safe-bottom, 0px)
   //   content TOP   = physical RIGHT (≈0)     → usa env(safe-area-inset-right)
   //   content BOTTOM= physical LEFT  (≈0)     → usa env(safe-area-inset-left)
   // En landscape natural los ejes coinciden con el sistema normal.
@@ -2508,11 +2508,11 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
       top: "env(safe-area-inset-right)",
       bottom: "env(safe-area-inset-left)",
       left: "env(safe-area-inset-top)",
-      right: "env(safe-area-inset-bottom)",
+      right: "var(--vb-safe-bottom, 0px)",
     } : {
       position: "absolute",
       top: "env(safe-area-inset-top)",
-      bottom: "env(safe-area-inset-bottom)",
+      bottom: "var(--vb-safe-bottom, 0px)",
       left: "env(safe-area-inset-left)",
       right: "env(safe-area-inset-right)",
     };
@@ -2682,7 +2682,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
           borderTop: liveDonateOpen ? "none" : "1px solid rgba(255,255,255,0.06)",
           overflow: "hidden",
           // SIN padding inferior aquí: el safe-area lo maneja el propio input del chat
-          // (LiveChatViewer usa calc(8px + env(safe-area-inset-bottom))) o el sheet de
+          // (LiveChatViewer usa calc(8px + var(--vb-safe-bottom, 0px))) o el sheet de
           // donación. Duplicarlo aquí hacía que el safe-area se viera "muy grueso".
         }}>
           {renderCreatorInfo()}

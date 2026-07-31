@@ -401,7 +401,7 @@ export default function ProfileFollowersOverlay({
             </div>
           </div>
 
-          <div style={{ padding: "14px 14px calc(14px + env(safe-area-inset-bottom))", overflowY: "auto", flex: 1, minHeight: 0 }}>
+          <div style={{ padding: "14px 14px calc(14px + var(--vb-safe-bottom, 0px))", overflowY: "auto", flex: 1, minHeight: 0 }}>
             {listEl}
           </div>
         </div>

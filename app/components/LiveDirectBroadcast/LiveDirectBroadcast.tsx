@@ -615,7 +615,7 @@ export default function LiveDirectBroadcast({
         paddingTop: 10,
         paddingLeft: "max(12px, env(safe-area-inset-left))",
         paddingRight: "max(12px, env(safe-area-inset-right))",
-        paddingBottom: "max(10px, env(safe-area-inset-bottom))",
+        paddingBottom: "max(10px, var(--vb-safe-bottom, 0px))",
         background: "rgba(0,0,0,0.85)",
         borderTop: "1px solid rgba(255,255,255,0.08)",
       }}>

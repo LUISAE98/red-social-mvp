@@ -178,7 +178,7 @@ export function DonationPanel({ onClose, postId, authorId, userId, username, ava
           background: "#111827",
           borderRadius: "20px 20px 0 0",
           padding: "24px 20px",
-          paddingBottom: "calc(24px + env(safe-area-inset-bottom))",
+          paddingBottom: "calc(24px + var(--vb-safe-bottom, 0px))",
           width: "100%", maxWidth: 480,
           boxShadow: "0 -20px 60px rgba(0,0,0,0.8)",
           animation: "dpIn 0.25s ease",

@@ -22,7 +22,7 @@ export default function LegalLinksFooter() {
         .legalFooter {
           width: 100%;
           box-sizing: border-box;
-          padding: 22px 16px calc(30px + env(safe-area-inset-bottom));
+          padding: 22px 16px calc(30px + var(--vb-safe-bottom, 0px));
           display: flex;
           flex-wrap: wrap;
           align-items: center;

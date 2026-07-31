@@ -83,7 +83,7 @@ export default function PushEnablePrompt() {
         position: "fixed",
         left: "50%",
         transform: "translateX(-50%)",
-        bottom: "calc(86px + env(safe-area-inset-bottom, 0px))",
+        bottom: "calc(86px + var(--vb-safe-bottom, 0px))",
         zIndex: 150,
         width: "min(420px, calc(100vw - 24px))",
         boxSizing: "border-box",

@@ -491,7 +491,7 @@ export default function PostEditModal({
             style={{
               display: "flex",
               gap: 10,
-              padding: "14px 20px calc(14px + env(safe-area-inset-bottom))",
+              padding: "14px 20px calc(14px + var(--vb-safe-bottom, 0px))",
               borderTop: "1px solid rgba(255,255,255,0.07)",
               flexShrink: 0,
             }}

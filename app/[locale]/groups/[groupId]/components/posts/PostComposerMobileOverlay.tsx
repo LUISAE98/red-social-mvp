@@ -556,7 +556,7 @@ export default function PostComposerMobileOverlay({
             overflowY: "auto",
           }}
         >
-          <div style={{ padding: "18px 20px calc(8px + env(safe-area-inset-bottom, 0px))" }}>
+          <div style={{ padding: "18px 20px calc(8px + var(--vb-safe-bottom, 0px))" }}>
             <div
               style={
                 premiumComposer.premiumEnabled

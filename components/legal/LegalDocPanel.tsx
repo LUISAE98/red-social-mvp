@@ -53,7 +53,7 @@ export default function LegalDocPanel({
           align-items: center;
           justify-content: center;
           padding: calc(16px + env(safe-area-inset-top)) 16px
-            calc(16px + env(safe-area-inset-bottom));
+            calc(16px + var(--vb-safe-bottom, 0px));
           background: rgba(0, 0, 0, 0.72);
           backdrop-filter: blur(6px);
           -webkit-backdrop-filter: blur(6px);

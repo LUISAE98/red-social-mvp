@@ -120,7 +120,7 @@ export function ConfirmModal({
           alignItems: "center",
           justifyContent: "center",
           padding:
-            "max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom))",
+            "max(16px, env(safe-area-inset-top)) 16px max(16px, var(--vb-safe-bottom, 0px))",
           overscrollBehavior: "contain",
         }}
         onClick={loading ? undefined : onCancel}
@@ -282,7 +282,7 @@ export function OverlayModal({
           alignItems: "center",
           justifyContent: "center",
           padding:
-            "max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom))",
+            "max(16px, env(safe-area-inset-top)) 16px max(16px, var(--vb-safe-bottom, 0px))",
           overscrollBehavior: "contain",
         }}
         onClick={loading ? undefined : onCancel}

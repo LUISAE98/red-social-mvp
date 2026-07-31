@@ -1748,7 +1748,7 @@ const previewUrl = media.url;
             left: 0,
             right: 0,
             background: "linear-gradient(to top, rgba(0,0,0,0.84) 0%, rgba(0,0,0,0.54) 58%, transparent 100%)",
-            paddingBottom: "calc(8px + env(safe-area-inset-bottom))",
+            paddingBottom: "calc(8px + var(--vb-safe-bottom, 0px))",
             zIndex: 5,
             opacity: controlsOpacity,
             transition: controlsTransition,
@@ -1958,7 +1958,7 @@ const previewUrl = media.url;
               background: "rgba(12,12,12,0.98)",
               border: "1px solid rgba(255,255,255,0.10)",
               borderBottom: "none",
-              padding: "10px 12px calc(12px + env(safe-area-inset-bottom))",
+              padding: "10px 12px calc(12px + var(--vb-safe-bottom, 0px))",
               overflowY: "auto",
               boxSizing: "border-box",
             }}

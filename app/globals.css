@@ -4,6 +4,12 @@
   --background: #000000;
   --foreground: #ffffff;
 
+  /* Safe-area inferior CENTRALIZADO. Toda la plataforma consume var(--vb-safe-bottom)
+     en vez de env(safe-area-inset-bottom). En 0px = sin safe-area (edge-to-edge, look
+     que pidió el usuario). Para reactivar el respeto al home-indicator, cambiar a
+     `env(safe-area-inset-bottom, 0px)`. */
+  --vb-safe-bottom: 0px;
+
   /* ── Marca (morado) — fuente única de verdad, consumible en estilos inline ── */
   --brand:         #a855f7;
   --brand-strong:  #9333ea;
@@ -154,11 +160,10 @@ html::-webkit-scrollbar-thumb {
    El safe-area base ya lo da el fondo `#000` del <html> (y el `.safeArea` del nav en
    las pantallas que lo muestran). Así el inset inferior se aplica UNA sola vez. */
 
-/* Backdrop de bottom-sheet: reserva el safe-area inferior (barra de navegación
-   del sistema) para que el panel no quede oculto tras ella. Aplicar en el
-   backdrop fijo con align-items: flex-end de cualquier panel que suba desde abajo. */
+/* Backdrop de bottom-sheet: reserva el safe-area inferior. Centralizado en
+   var(--vb-safe-bottom) (0px = sin safe-area, edge-to-edge). */
 .vibra-sheet-safe {
-  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-bottom: var(--vb-safe-bottom, 0px);
 }
 
 input,

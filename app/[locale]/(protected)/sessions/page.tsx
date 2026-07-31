@@ -578,7 +578,7 @@ const fontStack =
 const pageWrapper: CSSProperties = {
   maxWidth: 640,
   margin: "0 auto",
-  padding: "28px 16px max(24px, env(safe-area-inset-bottom))",
+  padding: "28px 16px max(24px, var(--vb-safe-bottom, 0px))",
   fontFamily: fontStack,
   color: "#fff",
   minHeight: "100dvh",

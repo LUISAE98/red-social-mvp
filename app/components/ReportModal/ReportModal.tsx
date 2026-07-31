@@ -49,7 +49,7 @@ const cardStyle: React.CSSProperties = {
   boxShadow: "0 -8px 40px rgba(0,0,0,0.55)",
   overflowY: "auto",
   // safe-area interno: el fondo de la card llena el home-indicator sin barra negra.
-  padding: "20px 20px calc(32px + env(safe-area-inset-bottom))",
+  padding: "20px 20px calc(32px + var(--vb-safe-bottom, 0px))",
   boxSizing: "border-box",
 };
 

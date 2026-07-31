@@ -1727,7 +1727,7 @@ const res = (await createExclusiveSessionRequest({
           minHeight: "100dvh",
           background: "#000",
           color: "#fff",
-          padding: "0 0 calc(108px + env(safe-area-inset-bottom))",
+          padding: "0 0 calc(108px + var(--vb-safe-bottom, 0px))",
           fontFamily: fontStack,
         }}
       >
@@ -1778,7 +1778,7 @@ const res = (await createExclusiveSessionRequest({
 <main
   style={{
     minHeight: "calc(100dvh - 70px)",
-    padding: "0 0 calc(120px + env(safe-area-inset-bottom))",
+    padding: "0 0 calc(120px + var(--vb-safe-bottom, 0px))",
     background: "transparent",
     color: "#fff",
     fontFamily: fontStack,
@@ -2966,7 +2966,7 @@ const res = (await createExclusiveSessionRequest({
   serviceToastStyle={{
     position: "fixed",
     left: "50%",
-    bottom: "calc(24px + env(safe-area-inset-bottom))",
+    bottom: "calc(24px + var(--vb-safe-bottom, 0px))",
     transform: "translateX(-50%)",
     zIndex: 11000,
     maxWidth: "min(520px, calc(100vw - 28px))",

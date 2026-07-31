@@ -46,7 +46,7 @@ export default function GroupsHome() {
     'inherit';
 
 const pageWrap: CSSProperties = {
-  padding: "0 0 calc(118px + env(safe-area-inset-bottom))",
+  padding: "0 0 calc(118px + var(--vb-safe-bottom, 0px))",
   background: "transparent",
   minHeight: "100dvh",
   color: "#fff",

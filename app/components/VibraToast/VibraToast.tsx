@@ -64,7 +64,7 @@ export default function VibraToast({ toast }: Props) {
       <div
         style={{
           position: "fixed",
-          bottom: "calc(88px + env(safe-area-inset-bottom, 0px))",
+          bottom: "calc(88px + var(--vb-safe-bottom, 0px))",
           left: "50%",
           transform: "translateX(-50%)",
           zIndex: 2147483647,

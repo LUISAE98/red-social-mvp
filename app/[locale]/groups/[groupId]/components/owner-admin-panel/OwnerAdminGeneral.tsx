@@ -134,7 +134,7 @@ function FullScreenModal({
         alignItems: "center",
         justifyContent: "center",
         padding:
-          "max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom))",
+          "max(16px, env(safe-area-inset-top)) 16px max(16px, var(--vb-safe-bottom, 0px))",
         boxSizing: "border-box",
       }}
     >

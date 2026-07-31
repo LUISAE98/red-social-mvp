@@ -29,7 +29,9 @@ export function PostSkeleton() {
           gap: 7px;
         }
         .vb-skel {
-          background: linear-gradient(
+          /* Color base sólido POR SI el gradiente/animación no pinta (fallback). */
+          background-color: rgba(255, 255, 255, 0.08);
+          background-image: linear-gradient(
             100deg,
             rgba(255, 255, 255, 0.05) 30%,
             rgba(255, 255, 255, 0.11) 50%,
@@ -70,6 +72,8 @@ export function PostSkeleton() {
         .vb-skel-media {
           width: 100%;
           aspect-ratio: 16 / 10;
+          /* Fallback si aspect-ratio no aplica (iOS viejo): alto mínimo garantizado. */
+          min-height: 200px;
           border-radius: 16px;
           margin-top: 4px;
         }

@@ -254,7 +254,7 @@ export default function LiveEndSummaryPanel({ open, onClose, post }: Props) {
           width: "100%", maxHeight: "calc(100dvh - 72px)",
           display: "flex", flexDirection: "column",
           background: "rgba(8,9,11,0.96)",
-          paddingBottom: "env(safe-area-inset-bottom)",
+          paddingBottom: "var(--vb-safe-bottom, 0px)",
           transform: visible ? `translateY(${Math.max(0, panelOffsetY)}px)` : "translateY(100%)",
           transition: isPanelDragging ? "none" : "transform 260ms cubic-bezier(0.22,1,0.36,1)",
           willChange: "transform",

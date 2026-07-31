@@ -501,7 +501,7 @@ export const VideoPreview = memo(function VideoPreview({ hlsUrl, fill, objectFit
         aria-label={tLive("goToLive")}
         style={{
           position: "absolute",
-          bottom: "max(14px, env(safe-area-inset-bottom))",
+          bottom: "max(14px, var(--vb-safe-bottom, 0px))",
           right: "max(14px, env(safe-area-inset-right))",
           zIndex: 10,
           display: "inline-flex", alignItems: "center", gap: 6,
@@ -658,7 +658,7 @@ export const VideoPreview = memo(function VideoPreview({ hlsUrl, fill, objectFit
             bottom: 0,
             left: 0, right: 0,
             padding: "0 14px",
-            paddingBottom: "max(14px, env(safe-area-inset-bottom))",
+            paddingBottom: "max(14px, var(--vb-safe-bottom, 0px))",
             paddingLeft: "max(14px, env(safe-area-inset-left))",
             paddingRight: "max(14px, env(safe-area-inset-right))",
             pointerEvents: "auto",

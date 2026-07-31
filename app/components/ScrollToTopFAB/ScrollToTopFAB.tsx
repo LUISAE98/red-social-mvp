@@ -101,7 +101,7 @@ export default function ScrollToTopFAB() {
 
   const fabWrap: CSSProperties = {
     position: "fixed",
-    bottom: "calc(54px + env(safe-area-inset-bottom))",
+    bottom: "calc(54px + var(--vb-safe-bottom, 0px))",
     left: "50%",
     zIndex: 8000,
     width: RING_SIZE,

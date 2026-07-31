@@ -926,7 +926,7 @@ export default function SessionRequestOverlay({
               borderRadius: "22px 22px 0 0",
               boxShadow: "0 -24px 80px rgba(0,0,0,0.56)",
               overflow: "hidden",
-              paddingBottom: "env(safe-area-inset-bottom)",
+              paddingBottom: "var(--vb-safe-bottom, 0px)",
               transform: open ? `translateY(${Math.max(0, panelOffsetY)}px)` : "translateY(100%)",
               transition: isDragging ? "none" : "transform 260ms cubic-bezier(0.22, 1, 0.36, 1)",
               willChange: "transform",

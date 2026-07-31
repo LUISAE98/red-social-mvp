@@ -204,7 +204,7 @@ export default function PostFlamesPanel({
   );
 
   const bodyEl = (
-    <div style={{ padding: "8px 14px calc(16px + env(safe-area-inset-bottom))", overflowY: "auto", flex: 1, minHeight: 0 }}>
+    <div style={{ padding: "8px 14px calc(16px + var(--vb-safe-bottom, 0px))", overflowY: "auto", flex: 1, minHeight: 0 }}>
       {loading && <p style={stateStyle}>{tCommon("loading")}</p>}
 
       <VibraToast toast={flameToast} />

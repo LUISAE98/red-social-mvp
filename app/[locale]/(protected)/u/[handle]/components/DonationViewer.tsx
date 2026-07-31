@@ -454,7 +454,7 @@ export default function DonationViewer({ open, donation, profileName, profilePho
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
     >
-      {renderPanel("env(safe-area-inset-top, 0px)", true, "env(safe-area-inset-bottom, 0px)", 24)}
+      {renderPanel("env(safe-area-inset-top, 0px)", true, "var(--vb-safe-bottom, 0px)", 24)}
     </div>,
     document.body,
   );

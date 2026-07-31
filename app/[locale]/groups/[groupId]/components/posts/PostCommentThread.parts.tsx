@@ -323,7 +323,7 @@ export function ActionsPortal({
             border: "1px solid rgba(255,255,255,0.10)",
             borderBottom: "none",
             paddingTop: 12,
-            paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 20px)",
+            paddingBottom: "calc(var(--vb-safe-bottom, 0px) + 20px)",
             display: "grid",
             gap: 0,
             overflow: "hidden",

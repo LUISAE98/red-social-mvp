@@ -444,7 +444,7 @@ function RoomContent({
             style={{
               position: "absolute",
               left: isMobile ? "max(14px, env(safe-area-inset-left))" : 14,
-              bottom: isMobile ? "max(28px, env(safe-area-inset-bottom))" : 28,
+              bottom: isMobile ? "max(28px, var(--vb-safe-bottom, 0px))" : 28,
               width: "18%",
               aspectRatio: "16 / 9",
               borderRadius: 8,
@@ -523,7 +523,7 @@ function RoomContent({
       <div
         style={{
           position: "absolute",
-          bottom: isMobile ? "max(28px, env(safe-area-inset-bottom))" : 28,
+          bottom: isMobile ? "max(28px, var(--vb-safe-bottom, 0px))" : 28,
           right: isMobile ? "max(28px, env(safe-area-inset-right))" : 28,
           width: isMobile ? 221 : "clamp(130px, 18%, 208px)",
           aspectRatio: "16/9",
@@ -852,7 +852,7 @@ const styles: Record<string, CSSProperties> = {
     gap: 28,
     justifyContent: "center",
     alignItems: "center",
-    padding: "20px max(16px,env(safe-area-inset-right)) max(24px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left))",
+    padding: "20px max(16px,env(safe-area-inset-right)) max(24px,var(--vb-safe-bottom, 0px)) max(16px,env(safe-area-inset-left))",
     zIndex: 4,
     flexWrap: "wrap",
   },

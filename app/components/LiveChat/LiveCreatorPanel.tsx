@@ -2255,13 +2255,13 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
                 transition: isPortraitDragging ? "none" : "transform 0.3s ease",
                 willChange: "transform",
               }}>
-                <div style={{ width: "33.333%", height: "100%", overflow: "hidden", display: "flex", flexDirection: "column", paddingBottom: "env(safe-area-inset-bottom, 0px)", paddingRight: "env(safe-area-inset-right, 0px)" }}>
+                <div style={{ width: "33.333%", height: "100%", overflow: "hidden", display: "flex", flexDirection: "column", paddingBottom: "var(--vb-safe-bottom, 0px)", paddingRight: "env(safe-area-inset-right, 0px)" }}>
                   {renderSuperCommentsSection()}
                 </div>
-                <div style={{ width: "33.333%", height: "100%", overflow: "hidden", display: "flex", flexDirection: "column", paddingBottom: "env(safe-area-inset-bottom, 0px)", paddingRight: "env(safe-area-inset-right, 0px)" }}>
+                <div style={{ width: "33.333%", height: "100%", overflow: "hidden", display: "flex", flexDirection: "column", paddingBottom: "var(--vb-safe-bottom, 0px)", paddingRight: "env(safe-area-inset-right, 0px)" }}>
                   {renderChatSection(true)}
                 </div>
-                <div style={{ width: "33.333%", height: "100%", overflow: "hidden", display: "flex", flexDirection: "column", paddingBottom: "env(safe-area-inset-bottom, 0px)", paddingRight: "env(safe-area-inset-right, 0px)" }}>
+                <div style={{ width: "33.333%", height: "100%", overflow: "hidden", display: "flex", flexDirection: "column", paddingBottom: "var(--vb-safe-bottom, 0px)", paddingRight: "env(safe-area-inset-right, 0px)" }}>
                   {renderMobileStatsSection(3)}
                 </div>
               </div>
@@ -2364,15 +2364,15 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
                 willChange: "transform",
               }}>
                 {/* Supercomentarios */}
-                <div style={{ width: "33.333%", height: "100%", overflow: "hidden", display: "flex", flexDirection: "column", paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
+                <div style={{ width: "33.333%", height: "100%", overflow: "hidden", display: "flex", flexDirection: "column", paddingBottom: "var(--vb-safe-bottom, 0px)" }}>
                   {renderSuperCommentsSection()}
                 </div>
                 {/* Chat */}
-                <div style={{ width: "33.333%", height: "100%", overflow: "hidden", display: "flex", flexDirection: "column", paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
+                <div style={{ width: "33.333%", height: "100%", overflow: "hidden", display: "flex", flexDirection: "column", paddingBottom: "var(--vb-safe-bottom, 0px)" }}>
                   {renderChatSection(true)}
                 </div>
                 {/* Estadísticas */}
-                <div style={{ width: "33.333%", height: "100%", overflow: "hidden", display: "flex", flexDirection: "column", paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
+                <div style={{ width: "33.333%", height: "100%", overflow: "hidden", display: "flex", flexDirection: "column", paddingBottom: "var(--vb-safe-bottom, 0px)" }}>
                   {renderMobileStatsSection()}
                 </div>
               </div>

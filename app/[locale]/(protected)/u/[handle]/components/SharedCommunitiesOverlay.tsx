@@ -55,7 +55,7 @@ export default function SharedCommunitiesOverlay({
       }
       closeAriaLabel={tCommon("closeAriaLabel")}
       maxWidthDesktop={440}
-      contentPadding="10px 12px calc(12px + env(safe-area-inset-bottom))"
+      contentPadding="10px 12px calc(12px + var(--vb-safe-bottom, 0px))"
     >
       <div style={{ display: "grid", gap: 2 }}>
         {communities.map((community) => {

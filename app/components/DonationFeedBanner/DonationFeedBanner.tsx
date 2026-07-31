@@ -452,7 +452,7 @@ export default function DonationFeedBanner({
           onTouchEnd={handleTouchEnd}
         >
           <div style={{ position: "relative", width: "100%", height: "100%" }}>
-            {renderControls("env(safe-area-inset-top, 0px)", 24, "env(safe-area-inset-bottom, 0px)")}
+            {renderControls("env(safe-area-inset-top, 0px)", 24, "var(--vb-safe-bottom, 0px)")}
           </div>
         </div>
       </>,

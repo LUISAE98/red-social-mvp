@@ -187,7 +187,7 @@ export default function InviteLinkModal({ groupId, onClose, onCreated }: Props) 
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    padding: "16px 16px calc(16px + env(safe-area-inset-bottom))",
+    padding: "16px 16px calc(16px + var(--vb-safe-bottom, 0px))",
     boxSizing: "border-box",
     fontFamily: fontStack,
     minHeight: "100dvh",

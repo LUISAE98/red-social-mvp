@@ -1687,7 +1687,7 @@ export default function GreetingReviewOverlay({
           </div>
 
           {/* Scrollable content */}
-          <div style={{ overflowY: "auto", padding: "0 16px", paddingBottom: "calc(14px + env(safe-area-inset-bottom))", display: "flex", flexDirection: "column", gap: 12 }}>
+          <div style={{ overflowY: "auto", padding: "0 16px", paddingBottom: "calc(14px + var(--vb-safe-bottom, 0px))", display: "flex", flexDirection: "column", gap: 12 }}>
             <div style={{ display: "flex", flexDirection: "column", gap: 12, ...slideStyle }}>
               {divider}
               {infoSection}
@@ -2187,7 +2187,7 @@ export default function GreetingReviewOverlay({
           </div>
 
           {/* Scrollable content + actions inline */}
-          <div className="grv-z2" style={{ flex: 1, overflowY: "auto", minHeight: 0, padding: "0 18px", paddingBottom: "calc(20px + env(safe-area-inset-bottom))" }}>
+          <div className="grv-z2" style={{ flex: 1, overflowY: "auto", minHeight: 0, padding: "0 18px", paddingBottom: "calc(20px + var(--vb-safe-bottom, 0px))" }}>
             <div style={{ display: "flex", flexDirection: "column", gap: 14, ...slideStyle }}>
               {infoSection}
               {readOnly ? (

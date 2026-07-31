@@ -331,7 +331,7 @@ export default function LiveChatViewer({
                 paddingTop: 7,
                 paddingLeft: 14,
                 paddingRight: 14,
-                paddingBottom: "max(10px, env(safe-area-inset-bottom))",
+                paddingBottom: "max(10px, var(--vb-safe-bottom, 0px))",
               }}>
                 {isMuted ? (
                   <div style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", fontFamily: FONT }}>
@@ -382,7 +382,7 @@ export default function LiveChatViewer({
               </div>
             ) : (
               <div style={{
-                paddingTop: 8, paddingBottom: "max(8px, env(safe-area-inset-bottom))",
+                paddingTop: 8, paddingBottom: "max(8px, var(--vb-safe-bottom, 0px))",
                 display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
                 paddingLeft: 14, paddingRight: 14,
               }}>
@@ -395,7 +395,7 @@ export default function LiveChatViewer({
               </div>
             )
           ) : (
-            <div style={{ height: "max(8px, env(safe-area-inset-bottom))" }} />
+            <div style={{ height: "max(8px, var(--vb-safe-bottom, 0px))" }} />
           )}
         </div>
         {superCommentModal}
@@ -461,7 +461,7 @@ export default function LiveChatViewer({
           <div ref={messagesEndRef} />
         </div>
 
-        <div style={{ paddingTop: 8, paddingLeft: 10, paddingRight: 10, paddingBottom: "max(8px, env(safe-area-inset-bottom))", borderTop: "1px solid transparent", flexShrink: 0 }}>
+        <div style={{ paddingTop: 8, paddingLeft: 10, paddingRight: 10, paddingBottom: "max(8px, var(--vb-safe-bottom, 0px))", borderTop: "1px solid transparent", flexShrink: 0 }}>
           {liveEnded ? (
             <div style={{ textAlign: "center", fontSize: 12, color: "rgba(255,255,255,0.25)", fontFamily: FONT, padding: "4px 0" }}>
               {tLive("liveEnded")}
