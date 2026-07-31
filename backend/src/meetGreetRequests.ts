@@ -1107,6 +1107,18 @@ export const requestMeetGreetRefund = onCall(
 
     const { ref, data } = await getMeetGreetOrThrow(requestId);
     ensureBuyer(data, uid);
+
+    // No-show: si la sesión seguía agendada pero ya venció la tolerancia (el cron
+    // que la auto-rechaza corre cada 5 min y aún no pasó), la auto-rechazamos aquí
+    // mismo para poder procesar la devolución sin esperar. Mismo estado terminal
+    // que produciría el cron: auto_rejected_no_show.
+    if (
+      ["scheduled", "ready_to_prepare", "in_preparation"].includes(data.status as MeetGreetStatus) &&
+      (await rejectNoShowIfExpired(ref, data, nowTs()))
+    ) {
+      data.status = "auto_rejected_no_show" as MeetGreetStatus;
+    }
+
     ensureStatusAllowed(
       data.status as MeetGreetStatus,
       ["rejected", "auto_rejected_no_show"],

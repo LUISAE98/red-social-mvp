@@ -175,10 +175,13 @@ function ProfileAvatarIcon({
 export default function MobileBottomNav({
   showWallet = false,
   showExperiences = false,
+  experiencesBadge = false,
 }: {
   showWallet?: boolean;
   /** Estrella "Mis experiencias": solo para quien compró alguna experiencia. */
   showExperiences?: boolean;
+  /** Punto de notificación en la estrella: hay algo nuevo sin ver. */
+  experiencesBadge?: boolean;
 }) {
   const t = useTranslations("nav");
   const pathname = usePathname();
@@ -431,6 +434,17 @@ export default function MobileBottomNav({
           box-sizing: border-box;
         }
 
+        .navDot {
+          position: absolute;
+          top: -3px;
+          right: -3px;
+          width: 9px;
+          height: 9px;
+          border-radius: 999px;
+          background: #ff3b30;
+          box-shadow: 0 0 0 2px #000000;
+        }
+
         @keyframes navPop {
           0%   { transform: scale(1); }
           40%  { transform: scale(1.26); }
@@ -560,7 +574,10 @@ export default function MobileBottomNav({
                     ) : item.iconKey === "wallet" ? (
                       isActive ? <NavWalletIconFilled /> : <NavWalletIcon />
                     ) : item.iconKey === "experiences" ? (
-                      isActive ? <NavStarIconFilled /> : <NavStarIcon />
+                      <>
+                        {isActive ? <NavStarIconFilled /> : <NavStarIcon />}
+                        {experiencesBadge ? <span className="navDot" aria-hidden="true" /> : null}
+                      </>
                     ) : (
                       isActive ? <NavGroupsIconFilled /> : <NavGroupsIcon />
                     )}

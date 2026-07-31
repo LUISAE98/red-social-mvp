@@ -18,6 +18,7 @@ import { renderCommentText } from "./mentions/renderMentions";
 import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import { CommentAttachButton, CommentImageThumb } from "./CommentImageUI";
 import VibraFlameIcon from "@/app/components/VibraServiceIcons/VibraFlameIcon";
+import VibraSendIcon from "@/app/components/VibraServiceIcons/VibraSendIcon";
 import { useGroupMemberBlocks } from "@/lib/groups/useGroupMemberBlocks";
 import { db } from "@/lib/firebase";
 import { useSocialRelationship } from "@/lib/social/useSocialRelationship";
@@ -671,10 +672,20 @@ export default function PostCommentThread({
             )}
           </div>
 
-          {/* Reply box */}
+          {/* Reply box — botones (adjuntar + enviar) DENTRO del propio campo. */}
           {replyBoxOpen && (
-            <div style={{ marginTop: 8, display: "flex", alignItems: "flex-end", gap: 8 }}>
-              <div style={{ flex: 1, minWidth: 0 }}>
+            <div
+              style={{
+                marginTop: 8,
+                borderRadius: 12,
+                background: "rgba(255,255,255,0.06)",
+                padding: "4px 6px 4px 12px",
+                display: "flex",
+                alignItems: "center",
+                gap: 4,
+              }}
+            >
+              <div style={{ flex: 1, minWidth: 0, transform: "translateY(2px)" }}>
                 <MentionTextarea
                   value={replyText}
                   onChange={setReplyText}
@@ -684,7 +695,7 @@ export default function PostCommentThread({
                   mentionsDisabled={mentionsDisabled}
                   placeholder={tPosts("replyPlaceholder")}
                   maxRows={3}
-                  style={inputStyle}
+                  style={{ ...inputStyle, borderBottom: "none", minHeight: 22 }}
                   disabled={!canCommentOnPosts}
                 />
               </div>
@@ -694,24 +705,35 @@ export default function PostCommentThread({
                 onClear={() => setReplyImageFile(null)}
                 disabled={!canCommentOnPosts || creatingReply}
               />
-              <button
-                type="button"
-                onClick={handleCreateReply}
-                disabled={
+              {(() => {
+                const disabled =
                   !canCommentOnPosts ||
                   creatingReply ||
-                  (replyText.trim().length === 0 && !replyImageFile)
-                }
-                style={
-                  !canCommentOnPosts ||
-                  creatingReply ||
-                  (replyText.trim().length === 0 && !replyImageFile)
-                    ? disabledButtonStyle
-                    : primaryButtonStyle
-                }
-              >
-                {creatingReply ? tCommon("sending") : tPosts("reply")}
-              </button>
+                  (replyText.trim().length === 0 && !replyImageFile);
+                return (
+                  <button
+                    type="button"
+                    onClick={handleCreateReply}
+                    disabled={disabled}
+                    aria-label={tPosts("reply")}
+                    title={tPosts("reply")}
+                    style={{
+                      background: "none",
+                      border: "none",
+                      padding: "4px 6px",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      flexShrink: 0,
+                      cursor: disabled ? "default" : "pointer",
+                      opacity: disabled ? 0.4 : 1,
+                      transform: "translateY(-2px)",
+                    }}
+                  >
+                    <VibraSendIcon size={21} />
+                  </button>
+                );
+              })()}
             </div>
           )}
 

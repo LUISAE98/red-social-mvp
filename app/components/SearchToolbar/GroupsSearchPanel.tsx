@@ -658,6 +658,10 @@ const filteredCommunities = useMemo(() => {
   const lastResultsRef = useRef({
     anyLoading: false,
     hasAnything: false,
+    storiesLoading: true,
+    profilesLoading: true,
+    communitiesLoading: true,
+    postsLoading: true,
     previewStories,
     previewProfiles,
     previewCommunities,
@@ -754,14 +758,31 @@ function handleOpenFullResults() {
   // Congelar el contenido del panel mientras se anima el cierre, para no mostrar
   // un flash de "sin resultados" cuando la búsqueda ya se limpió.
   if (hasSearch) {
-    lastResultsRef.current = { anyLoading, hasAnything, previewStories, previewProfiles, previewCommunities, previewPosts };
+    lastResultsRef.current = {
+      anyLoading, hasAnything,
+      storiesLoading, profilesLoading, communitiesLoading, postsLoading,
+      previewStories, previewProfiles, previewCommunities, previewPosts,
+    };
   }
-  const dAnyLoading = resultsClosing ? lastResultsRef.current.anyLoading : anyLoading;
-  const dHasAnything = resultsClosing ? lastResultsRef.current.hasAnything : hasAnything;
   const dStories = resultsClosing ? lastResultsRef.current.previewStories : previewStories;
   const dProfiles = resultsClosing ? lastResultsRef.current.previewProfiles : previewProfiles;
   const dCommunities = resultsClosing ? lastResultsRef.current.previewCommunities : previewCommunities;
   const dPosts = resultsClosing ? lastResultsRef.current.previewPosts : previewPosts;
+  // Loading por categoría (congelado durante el cierre) para el skeleton de cada tipo.
+  const dStoriesLoading = resultsClosing ? lastResultsRef.current.storiesLoading : storiesLoading;
+  const dProfilesLoading = resultsClosing ? lastResultsRef.current.profilesLoading : profilesLoading;
+  const dCommunitiesLoading = resultsClosing ? lastResultsRef.current.communitiesLoading : communitiesLoading;
+  const dPostsLoading = resultsClosing ? lastResultsRef.current.postsLoading : postsLoading;
+  // Con resultados = mostrar contenido; sin resultados (ya cargado) = colapsar la card
+  // suavemente. Mientras carga o mientras colapsa, se sigue viendo el skeleton (sin saltos).
+  const storiesHasResults = !dStoriesLoading && dStories.length > 0;
+  const profilesHasResults = !dProfilesLoading && dProfiles.length > 0;
+  const communitiesHasResults = !dCommunitiesLoading && dCommunities.length > 0;
+  const postsHasResults = !dPostsLoading && dPosts.length > 0;
+  const storiesEmpty = !dStoriesLoading && dStories.length === 0;
+  const profilesEmpty = !dProfilesLoading && dProfiles.length === 0;
+  const communitiesEmpty = !dCommunitiesLoading && dCommunities.length === 0;
+  const postsEmpty = !dPostsLoading && dPosts.length === 0;
 
   return (
     <>
@@ -918,6 +939,63 @@ to {
           color: rgba(255, 255, 255, 0.76);
           font-size: 13px;
           line-height: 1.4;
+        }
+
+        /* Skeletons de búsqueda — base de vibra_style.md (.vb-skel + vbSkelWave). */
+        .vb-skel {
+          background: linear-gradient(
+            100deg,
+            rgba(255, 255, 255, 0.05) 30%,
+            rgba(255, 255, 255, 0.11) 50%,
+            rgba(255, 255, 255, 0.05) 70%
+          );
+          background-size: 300% 100%;
+          animation: vbSkelWave 1.6s ease-in-out infinite;
+        }
+        @keyframes vbSkelWave {
+          0% { background-position: 180% 0; }
+          100% { background-position: -80% 0; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .vb-skel { animation: none; background: rgba(255, 255, 255, 0.07); }
+        }
+        /* Historias: burbujas skeleton que cubren el renglón. */
+        .story-skel-bubble {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 6px;
+          flex-shrink: 0;
+          width: 64px;
+        }
+        .story-skel-ring { width: 60px; height: 60px; border-radius: 50%; }
+        .story-skel-name { width: 42px; height: 9px; border-radius: 5px; }
+        /* Perfiles/comunidades/posts: un solo skeleton (avatar + 2 líneas). */
+        .dropdown-skel-row {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          padding: 6px 14px 12px;
+        }
+        .dropdown-skel-avatar { width: 44px; height: 44px; border-radius: 50%; flex-shrink: 0; }
+        .dropdown-skel-lines { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 7px; }
+        .dropdown-skel-line { height: 11px; border-radius: 6px; }
+        /* Colapso suave de la card cuando ese tipo no tiene resultados: la sección
+           se desvanece y su alto colapsa (grid-template-rows 1fr → 0fr). */
+        .dropdown-section-wrap {
+          display: grid;
+          grid-template-rows: 1fr;
+          opacity: 1;
+          transition: grid-template-rows 320ms ease, opacity 280ms ease;
+        }
+        .dropdown-section-wrap.collapsed {
+          grid-template-rows: 0fr;
+          opacity: 0;
+          pointer-events: none;
+        }
+        .dropdown-section-wrap-inner {
+          overflow: hidden;
+          min-height: 0;
         }
 
         /* Historias — fila horizontal con aro morado de Vibra */
@@ -1646,21 +1724,19 @@ to {
     className={`search-dropdown${(isSearchClosing || resultsClosing) ? " search-dropdown-closing" : ""}`}
   >
             <div className="search-dropdown-inner">
-              {dAnyLoading && !dHasAnything && (
-                <div className="dropdown-helper">
-                  {tCommon("loading")}
-                </div>
-              )}
-
               {/* Historias — fila horizontal de avatares con aro morado de Vibra */}
-              {dStories.length > 0 && (
-                <section className="dropdown-section">
-                  <div className="dropdown-section-header">
-                    <h2 className="dropdown-title">Historias</h2>
+              <div className={`dropdown-section-wrap${storiesEmpty ? " collapsed" : ""}`}>
+              <div className="dropdown-section-wrap-inner">
+              <section className="dropdown-section">
+                <div className="dropdown-section-header">
+                  <h2 className="dropdown-title">Historias</h2>
+                  {storiesHasResults && (
                     <button type="button" className="section-more" onClick={() => openSearchFor(search, "stories")}>
                       Ver más historias
                     </button>
-                  </div>
+                  )}
+                </div>
+                {storiesHasResults ? (
                   <div className="story-row">
                     {dStories.map((story, i) => {
                       const thumb = storyThumb(story);
@@ -1685,20 +1761,35 @@ to {
                       );
                     })}
                   </div>
-                </section>
-              )}
+                ) : (
+                  <div className="story-row">
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <div className="story-skel-bubble" key={`story-skel-${i}`}>
+                        <span className="vb-skel story-skel-ring" />
+                        <span className="vb-skel story-skel-name" />
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </section>
+              </div>
+              </div>
 
               {/* Perfiles */}
-              {dProfiles.length > 0 && (
-                <section className="dropdown-section">
+              <div className={`dropdown-section-wrap${profilesEmpty ? " collapsed" : ""}`}>
+              <div className="dropdown-section-wrap-inner">
+              <section className="dropdown-section">
                   <div className="dropdown-section-header">
                     <h2 className="dropdown-title">{tCommon("profiles")}</h2>
-                    <button type="button" className="section-more" onClick={() => openSearchFor(search, "profiles")}>
-                      Ver más perfiles
-                    </button>
+                    {profilesHasResults && (
+                      <button type="button" className="section-more" onClick={() => openSearchFor(search, "profiles")}>
+                        Ver más perfiles
+                      </button>
+                    )}
                   </div>
 
-                  {dProfiles.map((p) => {
+                  {profilesHasResults ? (
+                  dProfiles.map((p) => {
                     const fullName =
                       p.displayName?.trim() ||
                       `${p.firstName ?? ""} ${p.lastName ?? ""}`.trim() ||
@@ -1770,21 +1861,35 @@ to {
                         </div>
                       </div>
                     );
-                  })}
+                  })
+                  ) : (
+                    <div className="dropdown-skel-row">
+                      <span className="vb-skel dropdown-skel-avatar" />
+                      <div className="dropdown-skel-lines">
+                        <span className="vb-skel dropdown-skel-line" style={{ width: "48%" }} />
+                        <span className="vb-skel dropdown-skel-line" style={{ width: "30%" }} />
+                      </div>
+                    </div>
+                  )}
                 </section>
-              )}
+              </div>
+              </div>
 
               {/* Comunidades */}
-              {dCommunities.length > 0 && (
-                <section className="dropdown-section">
+              <div className={`dropdown-section-wrap${communitiesEmpty ? " collapsed" : ""}`}>
+              <div className="dropdown-section-wrap-inner">
+              <section className="dropdown-section">
                   <div className="dropdown-section-header">
                     <h2 className="dropdown-title">{tGroups("title")}</h2>
-                    <button type="button" className="section-more" onClick={() => openSearchFor(search, "groups")}>
-                      Ver más comunidades
-                    </button>
+                    {communitiesHasResults && (
+                      <button type="button" className="section-more" onClick={() => openSearchFor(search, "groups")}>
+                        Ver más comunidades
+                      </button>
+                    )}
                   </div>
 
-                  {dCommunities.map((g) => {
+                  {communitiesHasResults ? (
+                  dCommunities.map((g) => {
                     const isOwner =
                       !!user && !!g.ownerId && g.ownerId === user.uid;
                     const membershipStatus = isOwner
@@ -1955,21 +2060,35 @@ const visLabel =
                         </div>
                       </div>
                     );
-                  })}
+                  })
+                  ) : (
+                    <div className="dropdown-skel-row">
+                      <span className="vb-skel dropdown-skel-avatar" />
+                      <div className="dropdown-skel-lines">
+                        <span className="vb-skel dropdown-skel-line" style={{ width: "52%" }} />
+                        <span className="vb-skel dropdown-skel-line" style={{ width: "34%" }} />
+                      </div>
+                    </div>
+                  )}
                 </section>
-              )}
+              </div>
+              </div>
 
               {/* Publicaciones */}
-              {dPosts.length > 0 && (
-                <section className="dropdown-section">
+              <div className={`dropdown-section-wrap${postsEmpty ? " collapsed" : ""}`}>
+              <div className="dropdown-section-wrap-inner">
+              <section className="dropdown-section">
                   <div className="dropdown-section-header">
                     <h2 className="dropdown-title">Publicaciones</h2>
-                    <button type="button" className="section-more" onClick={() => openSearchFor(search, "posts")}>
-                      Ver más publicaciones
-                    </button>
+                    {postsHasResults && (
+                      <button type="button" className="section-more" onClick={() => openSearchFor(search, "posts")}>
+                        Ver más publicaciones
+                      </button>
+                    )}
                   </div>
 
-                  {dPosts.map((post) => {
+                  {postsHasResults ? (
+                  dPosts.map((post) => {
                     const badge = postBadge(post);
                     const authorName = post.authorName ?? post.authorUsername ?? tCommon("user");
                     return (
@@ -2008,9 +2127,19 @@ const visLabel =
                         </div>
                       </div>
                     );
-                  })}
+                  })
+                  ) : (
+                    <div className="dropdown-skel-row">
+                      <span className="vb-skel dropdown-skel-avatar" />
+                      <div className="dropdown-skel-lines">
+                        <span className="vb-skel dropdown-skel-line" style={{ width: "44%" }} />
+                        <span className="vb-skel dropdown-skel-line" style={{ width: "66%" }} />
+                      </div>
+                    </div>
+                  )}
                 </section>
-              )}
+              </div>
+              </div>
             </div>
 
           </div>

@@ -42,6 +42,7 @@ import PostReveal from "@/app/components/PostSkeleton/PostReveal";
 import GroupPostComposer from "./GroupPostComposer";
 import PostsMediaSubnav, { MEDIA_TAB_ORDER, type MediaTabKey } from "./PostsMediaSubnav";
 import MediaGallery, { clearMediaGalleryCache, type GalleryTile } from "./MediaGallery";
+import { useMediaSlideReservedHeight } from "./useMediaSlideReservedHeight";
 import LiveComposerModal from "@/app/components/LiveComposer/LiveComposerModal";
 import { buildCurrentPathWithSearch } from "@/lib/auth-redirect";
 import { uploadPostImages } from "@/lib/posts/image-upload";
@@ -1283,11 +1284,14 @@ const shellStyle: CSSProperties = {
     color: "rgba(255,255,255,0.5)",
   };
 
-  // Sub-subnav de media: solo en el feed real de miembros (no en preview público,
-  // admin, broadcast-only ni durante una búsqueda).
-  const showMediaTabs =
-    !readOnly && !broadcastLiveOnly && !groupSearchActive && (viewerIsMember || isOwner);
+  // Sub-subnav de media (Publicaciones / Fotos / Videos / En vivo): en el feed real
+  // de la comunidad, incluidos visitantes públicos y anónimos. Se excluye solo en
+  // preview de admin (readOnly), broadcast-only o durante una búsqueda.
+  const showMediaTabs = !readOnly && !broadcastLiveOnly && !groupSearchActive;
   const effectiveMediaTab: MediaTabKey = showMediaTabs ? mediaTab : "feed";
+  // Reserva de altura (galería más alta) para que el slide no salte de altura.
+  const { contentRef: mediaSlideRef, minHeight: mediaSlideMinHeight } =
+    useMediaSlideReservedHeight(effectiveMediaTab !== "feed");
 
   const canDeleteLightboxPost = lightboxTile
     ? isOwner || isModerator || currentUid === lightboxTile.post.authorId
@@ -1377,7 +1381,9 @@ const shellStyle: CSSProperties = {
             </div>
           ) : null}
         </div>
-      ) : postBlockedReason !== null ? (
+      ) : postBlockedReason !== null && postBlockedReason !== "login" ? (
+        // El aviso "Inicia sesión para publicar…" NO se muestra a visitantes
+        // anónimos (login); sí se conservan los avisos de join/restricted.
         <div style={interactionHintStyle}>
           {buildPostBlockedMessage(postBlockedReason)}
         </div>
@@ -1391,8 +1397,9 @@ const shellStyle: CSSProperties = {
         <PostsMediaSubnav active={mediaTab} onChange={setMediaTab} />
       )}
 
-      <div style={{ overflow: "hidden", width: "100%", minWidth: 0 }}>
+      <div style={{ overflow: "hidden", width: "100%", minWidth: 0, minHeight: mediaSlideMinHeight }}>
       <motion.div
+        ref={mediaSlideRef}
         key={effectiveMediaTab}
         initial={{ x: mediaSlideDir > 0 ? "100%" : mediaSlideDir < 0 ? "-100%" : 0 }}
         animate={{ x: 0 }}

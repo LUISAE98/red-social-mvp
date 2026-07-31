@@ -4733,6 +4733,7 @@ padding: "0 0 2px 0",
       canUseGroupMemberBlock={canUseGroupMemberBlock}
       canModerateGroupAuthor={canModerateGroupAuthor}
       isPostAuthor={!!currentUserId && currentUserId === postAuthor.authorId}
+      commentCount={post.counts?.comments ?? 0}
       onCommentTextChange={setCommentText}
       onCommentMentionsChange={setCommentMentions}
       commentImageFile={commentImageFile}
@@ -4777,6 +4778,7 @@ padding: "0 0 2px 0",
       canUseGroupMemberBlock={canUseGroupMemberBlock}
       canModerateGroupAuthor={canModerateGroupAuthor}
       isPostAuthor={!!currentUserId && currentUserId === postAuthor.authorId}
+      commentCount={post.counts?.comments ?? 0}
       onCommentTextChange={setCommentText}
       onCommentMentionsChange={setCommentMentions}
       commentImageFile={commentImageFile}
@@ -4833,6 +4835,7 @@ padding: "0 0 2px 0",
   canModerateGroupAuthor={canModerateGroupAuthor}
   isPostAuthor={!!currentUserId && currentUserId === postAuthor.authorId}
   focusCommentId={focusCommentId}
+  commentCount={post.counts?.comments ?? 0}
   visibleCount={isMobile ? undefined : desktopVisibleCount}
   hasMore={!isMobile && comments !== null && comments.length > desktopVisibleCount}
   onLoadMore={isMobile ? undefined : () => setDesktopVisibleCount((c) => c + 5)}

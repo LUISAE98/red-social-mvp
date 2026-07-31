@@ -173,6 +173,11 @@ export default function SessionCountdownBanner({ uid }: { uid: string }) {
   const [forceCompleting, setForceCompleting] = useState(false);
   const [forceCompleted, setForceCompleted] = useState(false);
 
+  // Devolución solicitada: card de confirmación (check verde) hasta que se cierra.
+  const [refundInfo, setRefundInfo] = useState<{ serviceKind: "meet_greet" | "exclusive_session"; sessionId: string } | null>(null);
+  const [refundClosing, setRefundClosing] = useState(false);
+  const [refundClosed, setRefundClosed] = useState(false);
+
   // Track whether the standalone completed card was dismissed (only when there's no active session)
   const [standaloneCompletedDismissed, setStandaloneCompletedDismissed] = useState(() => {
     if (!completedSession) return false;
@@ -189,6 +194,18 @@ export default function SessionCountdownBanner({ uid }: { uid: string }) {
     countdown321Triggered.current = false;
     setCountdown321(null);
   }, [session?.id]);
+
+  // La confirmación de devolución SOLO se limpia cuando llega una sesión NUEVA
+  // (id distinto). No al pasar la sesión a null tras solicitar la devolución, para
+  // que la card de éxito persista hasta que el usuario la cierre.
+  useEffect(() => {
+    if (session?.id && refundInfo && session.id !== refundInfo.sessionId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setRefundInfo(null);
+      setRefundClosing(false);
+      setRefundClosed(false);
+    }
+  }, [session?.id, refundInfo]);
 
   useEffect(() => {
     if (!completedSession) return;
@@ -244,6 +261,68 @@ export default function SessionCountdownBanner({ uid }: { uid: string }) {
     <>
       {callFullscreen}
       {(() => {
+
+  // ── Confirmación de devolución solicitada (reemplaza todo el card) ──────────
+  if (refundInfo && !refundClosed) {
+    return (
+      <div
+        style={{
+          width: "100%",
+          position: "relative",
+          borderRadius: 12,
+          overflow: "hidden",
+          marginBottom: 2,
+          boxSizing: "border-box",
+          background: "linear-gradient(160deg, rgba(22,22,26,0.97) 0%, rgba(10,10,12,0.98) 100%)",
+          border: "1px solid rgba(255,255,255,0.08)",
+          animation: refundClosing
+            ? "vibra-refund-out 0.32s ease forwards"
+            : "vibra-refund-in 0.42s cubic-bezier(0.16,1,0.3,1) both",
+        }}
+        onAnimationEnd={() => { if (refundClosing) setRefundClosed(true); }}
+      >
+        <style>{`
+          @keyframes vibra-refund-in { from { opacity: 0; transform: translateY(6px) scale(0.98); } to { opacity: 1; transform: none; } }
+          @keyframes vibra-refund-out { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateY(-8px) scale(0.96); } }
+          @keyframes vibra-refund-pop { 0% { transform: scale(0); } 60% { transform: scale(1.25); } 100% { transform: scale(1); } }
+        `}</style>
+
+        {/* Cerrar: tache blanco sencillo, sin card, esquina superior derecha. */}
+        <button
+          type="button"
+          aria-label="Cerrar"
+          onClick={() => setRefundClosing(true)}
+          style={{ position: "absolute", top: 8, right: 8, width: 28, height: 28, padding: 0, border: "none", background: "transparent", cursor: "pointer", display: "grid", placeItems: "center", zIndex: 2, WebkitTapHighlightColor: "transparent" }}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth={2.2} strokeLinecap="round" aria-hidden="true">
+            <path d="M6 6L18 18" /><path d="M18 6L6 18" />
+          </svg>
+        </button>
+
+        <div style={{ padding: "26px 22px 22px", display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", gap: 14 }}>
+          {/* Palomita blanca en círculo verde con pop. */}
+          <div
+            style={{
+              width: 56, height: 56, borderRadius: "50%", background: "#22c55e",
+              display: "grid", placeItems: "center",
+              boxShadow: "0 8px 24px rgba(34,197,94,0.35)",
+              animation: refundClosing ? undefined : "vibra-refund-pop 0.5s cubic-bezier(0.34,1.56,0.64,1) both",
+              animationDelay: "0.12s",
+            }}
+          >
+            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M5 12.5L10 17.5L19 7" />
+            </svg>
+          </div>
+
+          <div style={{ color: "rgba(255,255,255,0.9)", fontSize: 13.5, lineHeight: 1.5, fontWeight: 500, maxWidth: 260 }}>
+            Tu solicitud de devolución fue enviada y será procesada. Puedes revisar el estatus en{" "}
+            <span style={{ color: "#fff", fontWeight: 700 }}>Experiencias → Rechazados → Devolución</span>.
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) return null;
 
@@ -471,6 +550,9 @@ export default function SessionCountdownBanner({ uid }: { uid: string }) {
       } else {
         await requestExclusiveSessionRefund({ requestId: session.id, refundReason: null });
       }
+      // Éxito: el backend ya movió la solicitud a "en devolución" (comprador y
+      // creador). Mostramos la confirmación (check verde) hasta que se cierre.
+      setRefundInfo({ serviceKind: session.serviceKind, sessionId: session.id });
     } catch (e) { console.error(e); } finally { setBusy(false); }
   }
 

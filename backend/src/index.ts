@@ -311,6 +311,12 @@ export { uploadCreatorCsd } from "./facturacion/uploadCreatorCsd";
 // solo guardamos sus datos para que Vibra timbre su factura de venta (Bloque 2).
 export { saveBuyerTaxProfile } from "./facturacion/buyerTaxProfile";
 
+// Facturación — perfiles de facturación del comprador (varios, tipo tarjetas).
+export { saveBuyerBillingProfile, deleteBuyerBillingProfile } from "./facturacion/buyerBillingProfiles";
+
+// Facturación — Bloque 2: emisión del CFDI Vibra → comprador (org de Vibra).
+export { generateBuyerInvoice } from "./facturacion/generateBuyerInvoice";
+
 // Pagos — Bloque 2a: cobro de saludos/consejos + webhook de órdenes.
 export { payGreeting } from "./payments/greetingPayment";
 export { mpWebhook } from "./payments/mpWebhook";

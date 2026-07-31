@@ -16,6 +16,9 @@ import ScrollToTopFAB from "@/app/components/ScrollToTopFAB/ScrollToTopFAB";
 import GroupsSearchPanel from "@/app/components/SearchToolbar/GroupsSearchPanel";
 import { useWalletVisibility } from "@/lib/wallet/useWalletVisibility";
 import { useHasPurchasedExperiences } from "@/lib/experiences/useHasPurchasedExperiences";
+import { useBuyerExperienceActivity } from "@/lib/experiences/useBuyerExperienceActivity";
+import { useBuyerExperiencesSeen } from "@/lib/experiences/useBuyerExperiencesSeen";
+import { isCategoryNew } from "@/lib/experiences/experienceActivity";
 import { useMobileHeaderFade } from "@/app/hooks/useMobileHeaderFade";
 import { VibraNavigationIcon, VibraNavigationIconsStyles } from "@/app/components/VibraServiceIcons/VibraNavigationIcons";
 import NotificationBell from "@/app/components/Notifications/NotificationBell";
@@ -91,6 +94,14 @@ const { hasWallet: hasMonetization } = useWalletVisibility(user?.uid);
 // La estrella "Mis experiencias" solo aparece para quien COMPRÓ alguna experiencia
 // (no a quien solo vende ni a quien solo navega). Ver useHasPurchasedExperiences.
 const hasPurchasedExperiences = useHasPurchasedExperiences(user?.uid);
+// Badge de la estrella: hay algo NUEVO sin ver (pendiente/rechazado/entregado).
+const expActivity = useBuyerExperienceActivity(user?.uid);
+const { seen: expSeen } = useBuyerExperiencesSeen(user?.uid);
+const experiencesBadge =
+  hasPurchasedExperiences &&
+  (isCategoryNew(expActivity.requested, expSeen.requested) ||
+    isCategoryNew(expActivity.rejected, expSeen.rejected) ||
+    isCategoryNew(expActivity.delivered, expSeen.delivered));
 const { headerRef, safeAreaRef } = useMobileHeaderFade();
 // Slide de entrada vía atributo CSS aplicado DESPUÉS del paint (no framer-motion).
 // En iOS un transform en render sobre un ancestro crea un containing/stacking
@@ -886,11 +897,14 @@ const contentAreaClassName = isEmbed
                       <Link
                         href="/experiencias"
                         aria-label={tNav("tabExperiences")}
-                        style={{ display: "inline-grid", placeItems: "center", width: 36, height: 36, borderRadius: 10, color: "#fff" }}
+                        style={{ position: "relative", display: "inline-grid", placeItems: "center", width: 36, height: 36, borderRadius: 10, color: "#fff" }}
                       >
                         <svg width="27" height="27" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                           <path d="M12 3.2l2.7 5.47 6.03.88-4.36 4.25 1.03 6.0L12 17.9l-5.4 2.84 1.03-6.0L3.27 9.55l6.03-.88z" />
                         </svg>
+                        {experiencesBadge ? (
+                          <span aria-hidden="true" style={{ position: "absolute", top: 5, right: 5, width: 8, height: 8, borderRadius: 999, background: "#ff3b30", boxShadow: "0 0 0 2px rgba(0,0,0,0.55)" }} />
+                        ) : null}
                       </Link>
                     ) : null}
                   </div>
@@ -929,11 +943,14 @@ const contentAreaClassName = isEmbed
             <Link
               href="/experiencias"
               aria-label={tNav("tabExperiences")}
-              style={{ display: "inline-grid", placeItems: "center", width: 36, height: 36, borderRadius: 10, color: "#fff" }}
+              style={{ position: "relative", display: "inline-grid", placeItems: "center", width: 36, height: 36, borderRadius: 10, color: "#fff" }}
             >
               <svg width="27" height="27" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <path d="M12 3.2l2.7 5.47 6.03.88-4.36 4.25 1.03 6.0L12 17.9l-5.4 2.84 1.03-6.0L3.27 9.55l6.03-.88z" />
               </svg>
+              {experiencesBadge ? (
+                <span aria-hidden="true" style={{ position: "absolute", top: 5, right: 5, width: 8, height: 8, borderRadius: 999, background: "#ff3b30", boxShadow: "0 0 0 2px rgba(0,0,0,0.55)" }} />
+              ) : null}
             </Link>
           </span>
         ) : null}
@@ -1001,7 +1018,7 @@ const contentAreaClassName = isEmbed
         </div>
 
        {!isEmbed && <ScrollToTopFAB />}
-       {!isEmbed && <MobileBottomNav showWallet={!!user} showExperiences={hasPurchasedExperiences} />}
+       {!isEmbed && <MobileBottomNav showWallet={!!user} showExperiences={hasPurchasedExperiences} experiencesBadge={experiencesBadge} />}
        {!isEmbed && <PushEnablePrompt />}
       </div>
 

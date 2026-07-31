@@ -35,6 +35,9 @@ import { subscribeToMySidebarGroups } from "@/lib/groups/sidebarGroups";
 import { respondGreetingRequest } from "@/lib/greetings/greetingRequests";
 import LiveRingAvatar from "@/app/components/LiveRing/LiveRingAvatar";
 import OwnerSidebarTabNav from "./OwnerSidebarTabNav";
+import CreatorSessionCountdownBanner from "@/app/components/SessionCountdownBanner/CreatorSessionCountdownBanner";
+import SessionCountdownBanner from "@/app/components/SessionCountdownBanner/SessionCountdownBanner";
+import { useIsCompact } from "@/lib/hooks/useMediaQuery";
 import OwnerSidebarMyGroups from "./OwnerSidebarMyGroups";
 import OwnerSidebarOtherGroups from "./OwnerSidebarOtherGroups";
 import OwnerSidebarFollowedProfiles from "./OwnerSidebarFollowedProfiles";
@@ -123,6 +126,10 @@ const handleOwnerSidebarPullRefresh = useCallback(async () => {
   const [viewer, setViewer] = useState<User | null>(
     () => ownerSidebarCache?.viewer ?? null
   );
+
+  // En laptop (>900px) el card de sesión se muestra aquí en el sidebar (arriba de
+  // las pestañas); en celular vive en el flotante (GlobalSessionCard).
+  const isLaptop = !useIsCompact();
 
   const { counts: visitCounts, increment: incrementVisit } = useSidebarVisitCounts(
     viewer?.uid ?? null
@@ -2154,6 +2161,21 @@ return (
   background: rgba(255, 255, 255, 0.1);
 }
 
+.owner-sidebar-session-divider {
+  height: 1px;
+  margin: 10px 6px 4px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* Sin sesión activa los banners no renderan → el panel queda vacío; ocultamos el
+   panel y su línea para no dejar una separación suelta. */
+.owner-sidebar-session-panel:empty {
+  display: none;
+}
+.owner-sidebar-session-panel:empty + .owner-sidebar-session-divider {
+  display: none;
+}
+
 .owner-sidebar-menu-divider {
   height: 1px;
   margin: 8px 6px;
@@ -2372,6 +2394,23 @@ newPostsCounts={newPostsCounts}
 {profileSidebarGroup && (
   <div className="owner-sidebar-profile-divider" aria-hidden="true" style={{ flexShrink: 0 }} />
 )}
+
+{/* Card de sesión (solo laptop): arriba de las pestañas, empujándolas hacia abajo.
+    En celular vive en el flotante (GlobalSessionCard). Los banners se ocultan
+    solos si no hay sesión activa. */}
+{isLaptop && viewer?.uid ? (
+  <>
+    {/* Margen negativo para recuperar el padding (10px) del panel y que el card use
+        todo el ancho del sidebar (menos apretado el botón de devolución y el nombre). */}
+    <div className="owner-sidebar-session-panel" style={{ flexShrink: 0, minWidth: 0, marginLeft: -10, marginRight: -10 }}>
+      <CreatorSessionCountdownBanner uid={viewer.uid} />
+      <SessionCountdownBanner uid={viewer.uid} />
+    </div>
+    {/* Línea que separa el timer de las pestañas (3er módulo). Se oculta con el
+        panel cuando no hay sesión (regla :empty). */}
+    <div className="owner-sidebar-session-divider" aria-hidden="true" style={{ flexShrink: 0 }} />
+  </>
+) : null}
 
 {/* Solo el menú de abajo scrollea, con difuminado en los bordes. */}
 <div className="profile-owner-sidebar-scroll">

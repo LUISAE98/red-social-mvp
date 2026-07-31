@@ -97,6 +97,16 @@ const onboarding = useProfileOnboarding(googleUser);
 // Avisa al splash de arranque que la pantalla de login ya está pintada.
 useScreenReady();
 
+// Transición al entrar a login desde una acción de invitado (comprar, iniciar
+// sesión, etc.): en LAPTOP se re-muestra el splash de marca; en CELULAR la página
+// entra deslizando desde la derecha (animación CSS de `.loginSplitPage`). Se activa
+// al montar /login, así funciona venga de donde venga la navegación.
+useEffect(() => {
+  if (typeof window === "undefined") return;
+  const isMobile = window.matchMedia("(max-width: 900px)").matches;
+  if (!isMobile) window.dispatchEvent(new Event("vibra:auth-splash"));
+}, []);
+
 useEffect(() => {
   // Fondo negro a nivel de página para que, al scrollear más allá del collage,
   // el resto de la vista quede en negro (lienzo para el contenido de abajo).
@@ -684,6 +694,24 @@ body.loginPageBg {
        del padding inline de la tarjeta (16px en celular → 36px en laptop). */
     padding-top: 12px !important;
     padding-bottom: 16px !important;
+  }
+}
+
+/* Celular: al navegar a login (desde cualquier acción de invitado), la página
+   entra deslizando desde la derecha. En laptop la transición es el splash. */
+@keyframes vibraLoginSlideInRight {
+  from { transform: translateX(100%); }
+  to   { transform: translateX(0); }
+}
+@media (max-width: 900px) {
+  .loginSplitPage {
+    animation: vibraLoginSlideInRight 360ms cubic-bezier(0.22, 1, 0.36, 1);
+    will-change: transform;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .loginSplitPage {
+    animation: none;
   }
 }
       `}</style>

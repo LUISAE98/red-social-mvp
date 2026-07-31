@@ -1057,6 +1057,25 @@ export const requestExclusiveSessionRefund = onCall(
 
     const { ref, data } = await getExclusiveSessionOrThrow(requestId);
     ensureBuyer(data, uid);
+
+    // No-show: si la sesión seguía agendada pero ya venció la tolerancia (el cron
+    // que la auto-rechaza corre cada 5 min y aún no pasó), la auto-rechazamos aquí
+    // mismo para poder procesar la devolución sin esperar. Mismo estado terminal
+    // que produciría el cron (auto_rejected_no_show o rejected según el rol).
+    const refundScheduledAt = data.scheduledAt as TimestampLike | null | undefined;
+    if (
+      ["scheduled", "ready_to_prepare", "in_preparation"].includes(
+        data.status as ExclusiveSessionStatus
+      ) &&
+      refundScheduledAt &&
+      isNoShowExpired(refundScheduledAt) &&
+      !data.startedAt
+    ) {
+      const autoRejectFields = getAutoRejectFields(data, nowTs());
+      await ref.update(autoRejectFields);
+      data.status = autoRejectFields.status;
+    }
+
     ensureStatusAllowed(
       data.status as ExclusiveSessionStatus,
       ["rejected", "auto_rejected_no_show"],

@@ -571,6 +571,25 @@ match /purchases/{purchaseId} {
   allow create, update, delete: if false;
 }
 
+// Perfiles de facturación guardados del comprador (varios, tipo "tarjetas"). El
+// dueño los LEE; la ESCRITURA es solo backend (callables saveBuyerBillingProfile
+// / deleteBuyerBillingProfile, que validan contra el SAT vía Facturapi).
+match /billingProfiles/{profileId} {
+  allow get, list: if signedIn()
+    && request.auth.uid == uid;
+
+  allow create, update, delete: if false;
+}
+
+// CFDIs emitidos al comprador (Vibra → comprador). El dueño los LEE; la emisión y
+// escritura es solo backend (callable generateBuyerInvoice, timbra en Facturapi).
+match /invoices/{invoiceId} {
+  allow get, list: if signedIn()
+    && request.auth.uid == uid;
+
+  allow create, update, delete: if false;
+}
+
 // Cuenta de retiro del creador (CLABE). Dato financiero sensible: el dueño la
 // lee; la ESCRITURA es solo backend (onCall que coteja el titular contra el
 // nombre verificado por Didit antes de aprobar). Nunca la escribe el cliente.

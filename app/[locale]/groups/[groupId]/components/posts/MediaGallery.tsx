@@ -88,6 +88,9 @@ type MediaGalleryProps = {
 
 const PAGE_SIZE = 24;
 
+// Cuántos skeletons se pintan mientras carga la primera página de la galería.
+const SKELETON_COUNT = 9;
+
 const EMPTY_UNLOCKED: ReadonlySet<string> = new Set();
 
 type MediaGalleryCacheEntry = {
@@ -219,6 +222,118 @@ function tilesFromPosts(
   return tiles;
 }
 
+// Un tile de la galería. Aparece SUAVE: arranca en opacity 0 y se revela cuando su
+// miniatura ya cargó (precarga con `new Image()`; si no hay miniatura, de inmediato).
+function MediaTile({
+  tile,
+  onOpen,
+  liveBadgeLabel,
+  formatLockedPrice,
+}: {
+  tile: GalleryTile;
+  onOpen: (tile: GalleryTile) => void;
+  liveBadgeLabel: string;
+  formatLockedPrice: (post: Post) => string;
+}) {
+  const [ready, setReady] = useState(!tile.thumbnailUrl);
+
+  useEffect(() => {
+    if (!tile.thumbnailUrl) {
+      setReady(true);
+      return;
+    }
+    let done = false;
+    const finish = () => {
+      if (!done) {
+        done = true;
+        setReady(true);
+      }
+    };
+    const img = new Image();
+    img.onload = finish;
+    img.onerror = finish;
+    img.src = tile.thumbnailUrl;
+    if (img.complete) finish();
+    return () => {
+      img.onload = null;
+      img.onerror = null;
+    };
+  }, [tile.thumbnailUrl]);
+
+  return (
+    <button
+      type="button"
+      onClick={() => onOpen(tile)}
+      style={{
+        ...tileStyle,
+        opacity: ready ? 1 : 0,
+        transition: "opacity 400ms ease",
+      }}
+      aria-label={tile.isLiveNow ? liveBadgeLabel : undefined}
+    >
+      {tile.thumbnailUrl ? (
+        <span
+          style={{
+            ...tileImageStyle,
+            backgroundImage: `url("${tile.thumbnailUrl}")`,
+            ...(tile.isLocked ? lockedImageStyle : null),
+          }}
+        />
+      ) : (
+        <span style={{ ...tileImageStyle, background: "rgba(255,255,255,0.06)" }} />
+      )}
+
+      {tile.isLocked && <span style={lockedScrimStyle} aria-hidden="true" />}
+
+      {tile.isLocked && (
+        <span className="vibra-media-crown" aria-hidden="true">
+          <VibraNavigationIcon type="premiumCrown" size={44} />
+        </span>
+      )}
+
+      {tile.isPremiumUnlocked && (
+        <span className="vibra-media-crown-sm" aria-hidden="true">
+          <VibraNavigationIcon type="premiumCrown" size={23} />
+        </span>
+      )}
+
+      {tile.isCarousel && (
+        <span style={carouselIconStyle} aria-hidden="true">
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="#fff"
+            strokeWidth="2.2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <rect x="8" y="8" width="12" height="12" rx="2" />
+            <path d="M4 16V6a2 2 0 0 1 2-2h10" />
+          </svg>
+        </span>
+      )}
+
+      {tile.isLiveNow && <span style={liveBadgeStyle}>{liveBadgeLabel}</span>}
+
+      {tile.isVideo && !tile.isLiveNow && (
+        <span className={tile.isLocked ? "vibra-media-views locked" : "vibra-media-views"}>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" />
+            <circle cx="12" cy="12" r="3" />
+          </svg>
+          {formatViews(tile.post.viewsCount ?? 0)}
+        </span>
+      )}
+
+      {tile.isLocked && (
+        <span className="vibra-media-unlock">{formatLockedPrice(tile.post)}</span>
+      )}
+    </button>
+  );
+}
+
 export default function MediaGallery({
   source,
   kind,
@@ -236,6 +351,8 @@ export default function MediaGallery({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [initialLoaded, setInitialLoaded] = useState(false);
+  // Los skeletons de carga se mantienen montados hasta que su fade-out termina.
+  const [skeletonsMounted, setSkeletonsMounted] = useState(true);
 
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const loadingRef = useRef(false);
@@ -391,7 +508,24 @@ export default function MediaGallery({
     }
   }, [initialLoaded, loading, hasMore, tiles.length, loadMore]);
 
-  if (initialLoaded && tiles.length === 0 && !loading) {
+  // Al terminar la carga inicial, los skeletons hacen fade-out (opacity → 0) y se
+  // desmontan cuando el fade termina. Si vuelve a cargar (cambia fuente/tipo), se
+  // remontan.
+  useEffect(() => {
+    if (!initialLoaded) {
+      setSkeletonsMounted(true);
+      return;
+    }
+    const t = window.setTimeout(() => setSkeletonsMounted(false), 460);
+    return () => window.clearTimeout(t);
+  }, [initialLoaded]);
+
+  const trailingSkeletons = skeletonsMounted
+    ? Math.max(0, SKELETON_COUNT - tiles.length)
+    : 0;
+
+  // "Vacío" solo cuando ya no hay skeletons en fade (para no cortar su salida).
+  if (initialLoaded && tiles.length === 0 && !loading && !skeletonsMounted) {
     const emptyKey =
       kind === "photos"
         ? "mediaEmptyPhotos"
@@ -405,83 +539,36 @@ export default function MediaGallery({
     );
   }
 
+  const liveBadgeLabel = tPosts("mediaLiveBadge");
+  const formatLockedPrice = (post: Post) =>
+    formatMoney(post.oneTimePrice ?? 0, {
+      baseCurrency: post.currency ?? "MXN",
+      code: true,
+    });
+
   return (
     <div>
       <style>{MEDIA_GRID_CSS}</style>
       <div className="vibra-media-grid">
         {tiles.map((tile) => (
-          <button
+          <MediaTile
             key={tile.key}
-            type="button"
-            onClick={() => onOpenTile(tile)}
-            style={tileStyle}
-            aria-label={tile.isLiveNow ? tPosts("mediaLiveBadge") : undefined}
-          >
-            {tile.thumbnailUrl ? (
-              <span
-                style={{
-                  ...tileImageStyle,
-                  backgroundImage: `url("${tile.thumbnailUrl}")`,
-                  ...(tile.isLocked ? lockedImageStyle : null),
-                }}
-              />
-            ) : (
-              <span style={{ ...tileImageStyle, background: "rgba(255,255,255,0.06)" }} />
-            )}
+            tile={tile}
+            onOpen={onOpenTile}
+            liveBadgeLabel={liveBadgeLabel}
+            formatLockedPrice={formatLockedPrice}
+          />
+        ))}
 
-            {tile.isLocked && <span style={lockedScrimStyle} aria-hidden="true" />}
-
-            {tile.isLocked && (
-              <span className="vibra-media-crown" aria-hidden="true">
-                <VibraNavigationIcon type="premiumCrown" size={44} />
-              </span>
-            )}
-
-            {tile.isPremiumUnlocked && (
-              <span className="vibra-media-crown-sm" aria-hidden="true">
-                <VibraNavigationIcon type="premiumCrown" size={23} />
-              </span>
-            )}
-
-            {tile.isCarousel && (
-              <span style={carouselIconStyle} aria-hidden="true">
-                <svg
-                  width="18"
-                  height="18"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="#fff"
-                  strokeWidth="2.2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <rect x="8" y="8" width="12" height="12" rx="2" />
-                  <path d="M4 16V6a2 2 0 0 1 2-2h10" />
-                </svg>
-              </span>
-            )}
-
-            {tile.isLiveNow && <span style={liveBadgeStyle}>{tPosts("mediaLiveBadge")}</span>}
-
-            {tile.isVideo && !tile.isLiveNow && (
-              <span className={tile.isLocked ? "vibra-media-views locked" : "vibra-media-views"}>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" />
-                  <circle cx="12" cy="12" r="3" />
-                </svg>
-                {formatViews(tile.post.viewsCount ?? 0)}
-              </span>
-            )}
-
-            {tile.isLocked && (
-              <span className="vibra-media-unlock">
-                {formatMoney(tile.post.oneTimePrice ?? 0, {
-                  baseCurrency: tile.post.currency ?? "MXN",
-                  code: true,
-                })}
-              </span>
-            )}
-          </button>
+        {/* Skeletons de carga: rellenan hasta 9 mientras carga; los sobrantes hacen
+            fade-out cuando llega el contenido y se desmontan al terminar. */}
+        {Array.from({ length: trailingSkeletons }).map((_, i) => (
+          <div
+            key={`skel-${i}`}
+            className="vibra-media-skel vb-skel"
+            style={{ opacity: initialLoaded ? 0 : 1 }}
+            aria-hidden="true"
+          />
         ))}
       </div>
 
@@ -489,7 +576,8 @@ export default function MediaGallery({
 
       <div ref={sentinelRef} style={{ height: 1 }} />
 
-      {loading && (
+      {/* Indicador de paginación (no en la carga inicial: ahí van los skeletons). */}
+      {loading && initialLoaded && (
         <div style={{ ...emptyStyle, opacity: 0.6 }}>···</div>
       )}
     </div>
@@ -503,6 +591,32 @@ const MEDIA_GRID_CSS = `
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 2px;
+}
+/* Skeleton de tile (mismo estilo/animación base de vibra_style.md). */
+.vibra-media-skel {
+  aspect-ratio: 1 / 1;
+  width: 100%;
+  transition: opacity 420ms ease;
+}
+.vb-skel {
+  background: linear-gradient(
+    100deg,
+    rgba(255, 255, 255, 0.05) 30%,
+    rgba(255, 255, 255, 0.11) 50%,
+    rgba(255, 255, 255, 0.05) 70%
+  );
+  background-size: 300% 100%;
+  animation: vbSkelWave 1.6s ease-in-out infinite;
+}
+@keyframes vbSkelWave {
+  0% { background-position: 180% 0; }
+  100% { background-position: -80% 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .vb-skel {
+    animation: none;
+    background: rgba(255, 255, 255, 0.07);
+  }
 }
 .vibra-media-unlock {
   position: absolute;

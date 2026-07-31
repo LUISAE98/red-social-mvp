@@ -35,6 +35,7 @@ import { PostSkeletonList } from "@/app/components/PostSkeleton/PostSkeleton";
 import PostReveal from "@/app/components/PostSkeleton/PostReveal";
 import PostsMediaSubnav, { MEDIA_TAB_ORDER, type MediaTabKey } from "@/app/groups/[groupId]/components/posts/PostsMediaSubnav";
 import MediaGallery, { type GalleryTile } from "@/app/groups/[groupId]/components/posts/MediaGallery";
+import { useMediaSlideReservedHeight } from "@/app/groups/[groupId]/components/posts/useMediaSlideReservedHeight";
 import GroupRecommendationsRail from "@/app/components/GroupRecommendations/GroupRecommendationsRail";
 import {
   buildRandomRecommendationSlots,
@@ -928,6 +929,11 @@ const shellStyle: CSSProperties = {
     return recommendationSlots.size > 0;
   }, [recommendationSlots]);
 
+  // Reserva de altura (galería más alta) para que el slide no salte de altura.
+  // Se llama ANTES del early return de abajo para no romper el orden de hooks.
+  const { contentRef: mediaSlideRef, minHeight: mediaSlideMinHeight } =
+    useMediaSlideReservedHeight(!searchActive && !isEmbed && mediaTab !== "feed");
+
   if ((!showPosts || profileRestricted) && !isOwner) {
     return (
       <section style={shellStyle}>
@@ -959,8 +965,9 @@ const shellStyle: CSSProperties = {
         <PostsMediaSubnav active={mediaTab} onChange={setMediaTab} />
       )}
 
-      <div style={{ overflow: "hidden", width: "100%", minWidth: 0 }}>
+      <div style={{ overflow: "hidden", width: "100%", minWidth: 0, minHeight: mediaSlideMinHeight }}>
       <motion.div
+        ref={mediaSlideRef}
         key={effectiveMediaTab}
         initial={{ x: mediaSlideDir > 0 ? "100%" : mediaSlideDir < 0 ? "-100%" : 0 }}
         animate={{ x: 0 }}

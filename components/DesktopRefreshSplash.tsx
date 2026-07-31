@@ -3,19 +3,23 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/app/providers";
 
+// Duración mínima que el splash permanece visible (carga inicial y transición a
+// login), para que sea un momento de marca y no un parpadeo.
+const SPLASH_MIN_MS = 700;
+
 export default function DesktopRefreshSplash() {
   const { loading, authTransitionMode } = useAuth();
   const [minimumTimeDone, setMinimumTimeDone] = useState(false);
   // La pantalla-destino (login/feed/perfil/comunidad) avisó que ya se pintó.
   const [screenReady, setScreenReady] = useState(false);
 
+  // Min-time. Se REINICIA cuando el splash se vuelve a mostrar por una transición
+  // a login (al poner minimumTimeDone en false).
   useEffect(() => {
-    const timer = window.setTimeout(() => {
-      setMinimumTimeDone(true);
-    }, 800);
-
+    if (minimumTimeDone) return;
+    const timer = window.setTimeout(() => setMinimumTimeDone(true), SPLASH_MIN_MS);
     return () => window.clearTimeout(timer);
-  }, []);
+  }, [minimumTimeDone]);
 
   useEffect(() => {
     const onReady = () => setScreenReady(true);
@@ -27,6 +31,23 @@ export default function DesktopRefreshSplash() {
       window.removeEventListener("vibra:screen-ready", onReady);
       window.clearTimeout(fallback);
     };
+  }, []);
+
+  // Transición a login (solo laptop): LoginClient dispara este evento al montar.
+  // Volvemos a mostrar el splash al instante y esperamos a que login se pinte
+  // (nuevo `vibra:screen-ready`) para desvanecerlo.
+  useEffect(() => {
+    function onAuthSplash() {
+      const splash = document.getElementById("desktop-refresh-splash");
+      if (!splash) return;
+      splash.classList.remove("desktop-refresh-splash-hidden"); // cubrir al instante
+      setScreenReady(false);
+      setMinimumTimeDone(false);
+      // Safety por si login no avisara: no dejar el splash colgado.
+      window.setTimeout(() => setScreenReady(true), 4000);
+    }
+    window.addEventListener("vibra:auth-splash", onAuthSplash);
+    return () => window.removeEventListener("vibra:auth-splash", onAuthSplash);
   }, []);
 
   useEffect(() => {

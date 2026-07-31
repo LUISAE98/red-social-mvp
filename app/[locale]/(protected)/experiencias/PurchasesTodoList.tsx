@@ -182,13 +182,18 @@ export default function PurchasesTodoList({ uid }: { uid: string | null | undefi
             >
               {allSelected ? tWallet("invoiceSelectNone") : tWallet("invoiceSelectAll")}
             </button>
+            {/* "Listo" con el estilo del botón "Entrar" del login: píldora con
+                gradiente rosa→morado→azul, para que resalte como acción. */}
             <button
               type="button"
               onClick={handleListo}
               style={{
-                background: "transparent", border: "none", padding: 0, margin: 0,
-                color: "#ffffff", cursor: "pointer", fontSize: 12.5, fontWeight: 700,
-                fontFamily: "inherit", lineHeight: 1, whiteSpace: "nowrap",
+                border: "none", padding: "7px 20px", borderRadius: 6,
+                backgroundImage: "linear-gradient(100deg, #ff2fb3 0%, #a855f7 35%, #4f46ff 70%, #ff2fb3 100%)",
+                backgroundSize: "280% 280%", backgroundPosition: "0% 50%",
+                color: "#fff", cursor: "pointer", fontSize: 13, fontWeight: 600,
+                letterSpacing: "-0.01em", fontFamily: "inherit", lineHeight: 1.2,
+                whiteSpace: "nowrap", boxShadow: "0 10px 28px rgba(168,85,255,0.22)",
               }}
             >
               {tWallet("invoiceDone")}
@@ -291,6 +296,7 @@ export default function PurchasesTodoList({ uid }: { uid: string | null | undefi
       <BuyerInvoicePanel
         open={panelOpen}
         onClose={() => setPanelOpen(false)}
+        uid={uid}
         concepts={selectedConcepts}
         formatMoney={formatMoney}
         onConfirm={handleGenerate}

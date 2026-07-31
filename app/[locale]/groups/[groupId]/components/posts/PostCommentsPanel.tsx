@@ -19,6 +19,9 @@ import type {
 import PostCommentThread from "./PostCommentThread";
 import MentionTextarea from "./mentions/MentionTextarea";
 import { CommentAttachButton } from "./CommentImageUI";
+import { CommentSkeletonList } from "@/app/components/PostSkeleton/CommentSkeleton";
+import PostReveal from "@/app/components/PostSkeleton/PostReveal";
+import VibraSendIcon from "@/app/components/VibraServiceIcons/VibraSendIcon";
 
 type PostCommentsPanelProps = {
   open: boolean;
@@ -48,6 +51,9 @@ type PostCommentsPanelProps = {
   isPostAuthor?: boolean;
   /** Deep-link de notificaciones: comentario a enfocar (scroll + resaltado). */
   focusCommentId?: string | null;
+  /** Contador real de comentarios (denormalizado del post): dimensiona el skeleton
+      de carga a cuántos hay realmente, con tope por vista. */
+  commentCount?: number;
   /** Desktop only: how many comments to show (sliced from newest). */
   visibleCount?: number;
   /** Desktop only: whether there are older comments not yet shown. */
@@ -110,6 +116,7 @@ export default function PostCommentsPanel({
   canModerateGroupAuthor = false,
   isPostAuthor = false,
   focusCommentId = null,
+  commentCount = 0,
   visibleCount,
   hasMore = false,
   onLoadMore,
@@ -153,6 +160,51 @@ export default function PostCommentsPanel({
   const panelCloseOffsetRef = useRef(
     typeof window === "undefined" ? 900 : window.innerHeight,
   );
+
+  // Celular: scroll infinito por ventana (sin botón "ver más"). Se muestra una
+  // primera tanda y, al llegar al final, un skeleton "carga" 8 más.
+  const MOBILE_COMMENTS_STEP = 8;
+  const [mobileVisibleCount, setMobileVisibleCount] = useState(MOBILE_COMMENTS_STEP);
+  const [loadingMoreMobile, setLoadingMoreMobile] = useState(false);
+  const mobileScrollRef = useRef<HTMLDivElement>(null);
+  const mobileSentinelRef = useRef<HTMLDivElement>(null);
+
+  // Reinicia la ventana al abrir el panel o cambiar de post.
+  useEffect(() => {
+    if (open && isMobile) {
+      setMobileVisibleCount(MOBILE_COMMENTS_STEP);
+      setLoadingMoreMobile(false);
+    }
+  }, [open, isMobile, postId]);
+
+  const totalComments = comments?.length ?? 0;
+  const hasMoreMobile = isMobile && mobileVisibleCount < totalComments;
+
+  // Al llegar el sentinel al viewport del scroll, dispara la "carga" de más.
+  useEffect(() => {
+    if (!isMobile || !shouldRender || !hasMoreMobile || loadingMoreMobile) return;
+    const root = mobileScrollRef.current;
+    const sentinel = mobileSentinelRef.current;
+    if (!root || !sentinel) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) setLoadingMoreMobile(true);
+      },
+      { root, rootMargin: "140px" },
+    );
+    io.observe(sentinel);
+    return () => io.disconnect();
+  }, [isMobile, shouldRender, hasMoreMobile, loadingMoreMobile]);
+
+  // Muestra el skeleton un instante y luego revela la siguiente tanda.
+  useEffect(() => {
+    if (!loadingMoreMobile) return;
+    const t = window.setTimeout(() => {
+      setMobileVisibleCount((c) => c + MOBILE_COMMENTS_STEP);
+      setLoadingMoreMobile(false);
+    }, 350);
+    return () => window.clearTimeout(t);
+  }, [loadingMoreMobile]);
 
   useEffect(() => {
     if (!isMobile) return;
@@ -255,18 +307,28 @@ export default function PostCommentsPanel({
     boxSizing: "border-box",
   };
 
-  // Estilo de campo/placeholder canónico de Vibra (vibra_style.md → "Textarea"):
-  // fondo rgba(255,255,255,0.06), sin borde, radio 12, padding 10px 12px. El input
-  // interno va transparente (padding 0) y el fondo/padding lo aporta este contenedor.
+  // Campo del comentario (vibra_style.md → "Textarea"): fondo rgba(255,255,255,0.06),
+  // sin borde, radio 12. Ahora es una barra flex que contiene el textarea + los
+  // botones (adjuntar imagen y enviar) DENTRO del propio placeholder. `align-end`
+  // deja los botones abajo-derecha cuando el textarea crece a varias líneas.
   const pillWrapperStyle: CSSProperties = {
     flex: 1,
     minWidth: 0,
     borderRadius: 12,
     border: "none",
     background: "rgba(255,255,255,0.06)",
-    padding: "7px 12px",
+    padding: "5px 6px 5px 12px",
     display: "flex",
     alignItems: "center",
+    gap: 4,
+  };
+
+  // Envuelve el textarea para que ocupe el espacio y los botones no lo empujen.
+  // translateY baja un poco el texto para que quede a la misma altura que los iconos.
+  const pillFieldStyle: CSSProperties = {
+    flex: 1,
+    minWidth: 0,
+    transform: "translateY(2px)",
   };
 
   const disabledTextareaStyle: CSSProperties = {
@@ -289,11 +351,18 @@ export default function PostCommentsPanel({
     whiteSpace: "nowrap",
   };
 
-  const primaryButtonStyle: CSSProperties = {
-    ...subtleButtonStyle,
-    background: "#a855f7",
-    color: "#fff",
+  // Botón de comentar = solo el icono morado de enviar (mismo del chat live), sin
+  // contenedor. Se atenúa cuando no se puede enviar. translateY sube un poco la
+  // flecha para que quede a la misma altura que el texto.
+  const sendButtonStyle: CSSProperties = {
+    background: "none",
     border: "none",
+    padding: "4px 6px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+    transform: "translateY(-2px)",
   };
 
   const disabledButtonStyle: CSSProperties = {
@@ -312,6 +381,12 @@ export default function PostCommentsPanel({
     fontSize: 12,
     lineHeight: 1.4,
   };
+
+  // Cuántos skeletons pintar mientras carga: según el contador real, con tope por
+  // vista (desktop pagina de a `visibleCount`≈5; en celular un máximo que llena la
+  // pantalla). Mínimo 1 para que siempre haya señal de carga.
+  const skeletonMax = isMobile ? 8 : visibleCount ?? 5;
+  const skeletonCount = Math.max(1, Math.min(skeletonMax, commentCount));
 
   // ── Desktop path ──────────────────────────────────────────────────────────
   if (!isMobile) {
@@ -347,11 +422,7 @@ export default function PostCommentsPanel({
 
           {/* Comment list */}
           <div style={listStyle}>
-            {loading && (
-              <p style={{ margin: 0, fontSize: 12, color: "rgba(255,255,255,0.58)" }}>
-                {tPosts("loadingComments")}
-              </p>
-            )}
+            {loading && <CommentSkeletonList count={skeletonCount} />}
 
             {!loading && comments !== null && comments.length === 0 && (
               <div
@@ -372,30 +443,31 @@ export default function PostCommentsPanel({
 
             {!loading &&
               displayedComments?.map((comment) => (
-                <PostCommentThread
-                  key={comment.id}
-                  postId={postId}
-                  groupId={groupId}
-                  comment={comment}
-                  currentUserId={currentUserId}
-                  isOwner={isOwner}
-                  isModerator={isModerator}
-                  canCommentOnPosts={canCommentOnPosts}
-                  canUseGroupMemberBlock={canUseGroupMemberBlock}
-                  canModerateGroupAuthor={canModerateGroupAuthor}
-                  isPostAuthor={isPostAuthor}
-                  focusCommentId={focusCommentId}
-                  mentionsDisabled={mentionsDisabled}
-                  deletingCommentId={deletingCommentId}
-                  onDeleteComment={onDeleteComment}
-                  onLoadReplies={onLoadReplies}
-                  onCreateReply={onCreateReply}
-                  onDeleteReply={onDeleteReply}
-                  onOpenCommentImage={onOpenCommentImage}
-                  onGroupMemberBlockComplete={onGroupMemberBlockComplete}
-                  onModerationComplete={onModerationComplete}
-                  showAdminDetails={showAdminDetails}
-                />
+                <PostReveal key={comment.id}>
+                  <PostCommentThread
+                    postId={postId}
+                    groupId={groupId}
+                    comment={comment}
+                    currentUserId={currentUserId}
+                    isOwner={isOwner}
+                    isModerator={isModerator}
+                    canCommentOnPosts={canCommentOnPosts}
+                    canUseGroupMemberBlock={canUseGroupMemberBlock}
+                    canModerateGroupAuthor={canModerateGroupAuthor}
+                    isPostAuthor={isPostAuthor}
+                    focusCommentId={focusCommentId}
+                    mentionsDisabled={mentionsDisabled}
+                    deletingCommentId={deletingCommentId}
+                    onDeleteComment={onDeleteComment}
+                    onLoadReplies={onLoadReplies}
+                    onCreateReply={onCreateReply}
+                    onDeleteReply={onDeleteReply}
+                    onOpenCommentImage={onOpenCommentImage}
+                    onGroupMemberBlockComplete={onGroupMemberBlockComplete}
+                    onModerationComplete={onModerationComplete}
+                    showAdminDetails={showAdminDetails}
+                  />
+                </PostReveal>
               ))}
 
             {/* Load more (older comments) */}
@@ -427,8 +499,8 @@ export default function PostCommentsPanel({
           <div style={{ display: "grid", gap: 8 }}>
             {inlineError && <div style={inlineErrorStyle}>{inlineError}</div>}
 
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <div style={pillWrapperStyle}>
+            <div style={pillWrapperStyle}>
+              <div style={pillFieldStyle}>
                 {canCommentOnPosts ? (
                   <MentionTextarea
                     value={commentText}
@@ -472,20 +544,30 @@ export default function PostCommentsPanel({
                 />
               )}
 
-              <button
-                type="button"
-                onClick={() => {
-                  if (commentText.trim().length > 0 || commentImageFile) onCreateComment();
-                }}
-                disabled={
+              {(() => {
+                const disabled =
                   !canCommentOnPosts ||
                   creatingComment ||
-                  (commentText.trim().length === 0 && !commentImageFile)
-                }
-                style={primaryButtonStyle}
-              >
-                {creatingComment ? tPosts("commentingLabel") : tPosts("commentButton")}
-              </button>
+                  (commentText.trim().length === 0 && !commentImageFile);
+                return (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (commentText.trim().length > 0 || commentImageFile) onCreateComment();
+                    }}
+                    disabled={disabled}
+                    aria-label={tPosts("commentButton")}
+                    title={tPosts("commentButton")}
+                    style={{
+                      ...sendButtonStyle,
+                      cursor: disabled ? "default" : "pointer",
+                      opacity: disabled ? 0.4 : 1,
+                    }}
+                  >
+                    <VibraSendIcon size={23} />
+                  </button>
+                );
+              })()}
             </div>
           </div>
         </section>
@@ -670,6 +752,7 @@ export default function PostCommentsPanel({
 
             {/* Comments list */}
             <div
+              ref={mobileScrollRef}
               className="vibra-comments-mobile-scroll"
               style={{
                 // No crecer: el panel abraza su contenido (sin dead space entre el
@@ -684,11 +767,7 @@ export default function PostCommentsPanel({
                 minHeight: 0,
               }}
             >
-              {loading && (
-                <p style={{ margin: 0, fontSize: 12, color: "rgba(255,255,255,0.58)" }}>
-                  {tPosts("loadingComments")}
-                </p>
-              )}
+              {loading && <CommentSkeletonList count={skeletonCount} />}
 
               {!loading && comments !== null && comments.length === 0 && (
                 <div
@@ -708,29 +787,43 @@ export default function PostCommentsPanel({
               )}
 
               {!loading &&
-                comments?.map((comment) => (
-                  <PostCommentThread
-                    key={comment.id}
-                    postId={postId}
-                    groupId={groupId}
-                    comment={comment}
-                    currentUserId={currentUserId}
-                    isOwner={isOwner}
-                    isModerator={isModerator}
-                    canCommentOnPosts={canCommentOnPosts}
-                    canUseGroupMemberBlock={canUseGroupMemberBlock}
-                    focusCommentId={focusCommentId}
-                    mentionsDisabled={mentionsDisabled}
-                    deletingCommentId={deletingCommentId}
-                    onDeleteComment={onDeleteComment}
-                    onLoadReplies={onLoadReplies}
-                    onCreateReply={onCreateReply}
-                    onDeleteReply={onDeleteReply}
-                    onOpenCommentImage={onOpenCommentImage}
-                    onGroupMemberBlockComplete={onGroupMemberBlockComplete}
-                    showAdminDetails={showAdminDetails}
-                  />
+                comments?.slice(0, mobileVisibleCount).map((comment) => (
+                  <PostReveal key={comment.id}>
+                    <PostCommentThread
+                      postId={postId}
+                      groupId={groupId}
+                      comment={comment}
+                      currentUserId={currentUserId}
+                      isOwner={isOwner}
+                      isModerator={isModerator}
+                      canCommentOnPosts={canCommentOnPosts}
+                      canUseGroupMemberBlock={canUseGroupMemberBlock}
+                      focusCommentId={focusCommentId}
+                      mentionsDisabled={mentionsDisabled}
+                      deletingCommentId={deletingCommentId}
+                      onDeleteComment={onDeleteComment}
+                      onLoadReplies={onLoadReplies}
+                      onCreateReply={onCreateReply}
+                      onDeleteReply={onDeleteReply}
+                      onOpenCommentImage={onOpenCommentImage}
+                      onGroupMemberBlockComplete={onGroupMemberBlockComplete}
+                      showAdminDetails={showAdminDetails}
+                    />
+                  </PostReveal>
                 ))}
+
+              {/* Scroll infinito: sentinel + skeleton de la siguiente tanda. */}
+              {!loading && hasMoreMobile && (
+                <div ref={mobileSentinelRef} aria-hidden="true" style={{ height: 1 }} />
+              )}
+              {!loading && loadingMoreMobile && (
+                <CommentSkeletonList
+                  count={Math.min(
+                    MOBILE_COMMENTS_STEP,
+                    totalComments - mobileVisibleCount,
+                  )}
+                />
+              )}
             </div>
           </section>
         </div>
@@ -753,8 +846,8 @@ export default function PostCommentsPanel({
         >
           {inlineError && <div style={inlineErrorStyle}>{inlineError}</div>}
 
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <div style={pillWrapperStyle}>
+          <div style={pillWrapperStyle}>
+            <div style={pillFieldStyle}>
               {canCommentOnPosts ? (
                 <MentionTextarea
                   value={commentText}
@@ -798,18 +891,28 @@ export default function PostCommentsPanel({
               />
             )}
 
-            <button
-              type="button"
-              onClick={onCreateComment}
-              disabled={
+            {(() => {
+              const disabled =
                 !canCommentOnPosts ||
                 creatingComment ||
-                (commentText.trim().length === 0 && !commentImageFile)
-              }
-              style={primaryButtonStyle}
-            >
-              {creatingComment ? tPosts("commentingLabel") : tPosts("commentButton")}
-            </button>
+                (commentText.trim().length === 0 && !commentImageFile);
+              return (
+                <button
+                  type="button"
+                  onClick={onCreateComment}
+                  disabled={disabled}
+                  aria-label={tPosts("commentButton")}
+                  title={tPosts("commentButton")}
+                  style={{
+                    ...sendButtonStyle,
+                    cursor: disabled ? "default" : "pointer",
+                    opacity: disabled ? 0.4 : 1,
+                  }}
+                >
+                  <VibraSendIcon size={23} />
+                </button>
+              );
+            })()}
           </div>
         </div>
       </div>
