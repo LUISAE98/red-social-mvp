@@ -35,6 +35,8 @@ let saved: {
   bodyPaddingRight: string;
   htmlOverscroll: string;
   bodyOverscroll: string;
+  htmlTouchAction: string;
+  bodyTouchAction: string;
 } | null = null;
 
 // Respaldo para iOS: `overflow: hidden` no siempre frena el scroll por inercia.
@@ -70,6 +72,8 @@ function applyLock() {
     bodyPaddingRight: body.style.paddingRight,
     htmlOverscroll: html.style.overscrollBehavior,
     bodyOverscroll: body.style.overscrollBehavior,
+    htmlTouchAction: html.style.touchAction,
+    bodyTouchAction: body.style.touchAction,
   };
 
   // Compensa la scrollbar (escritorio) para evitar el salto horizontal.
@@ -82,6 +86,11 @@ function applyLock() {
   body.style.overflow = "hidden";
   html.style.overscrollBehavior = "none";
   body.style.overscrollBehavior = "none";
+  // `touch-action: none` frena de forma fiable el gesto de scroll del documento en
+  // iOS (donde `overflow: hidden` no basta). Los scrollers internos del modal
+  // (overflow:auto) mantienen su propio scroll porque su touch-action sigue en auto.
+  html.style.touchAction = "none";
+  body.style.touchAction = "none";
   document.addEventListener("touchmove", preventBackgroundTouchMove, {
     passive: false,
   });
@@ -99,6 +108,8 @@ function releaseLock() {
   body.style.paddingRight = saved.bodyPaddingRight;
   html.style.overscrollBehavior = saved.htmlOverscroll;
   body.style.overscrollBehavior = saved.bodyOverscroll;
+  html.style.touchAction = saved.htmlTouchAction;
+  body.style.touchAction = saved.bodyTouchAction;
   document.removeEventListener("touchmove", preventBackgroundTouchMove);
   body.classList.remove("vb-modal-open");
   saved = null;

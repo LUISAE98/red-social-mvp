@@ -630,10 +630,10 @@ export default function PostCommentsPanel({
           position: "fixed",
           inset: 0,
           zIndex: 2147483646,
-          // Más oscuro y borroso: así el contenido brillante de atrás (que asomaba
-          // en la franja del teclado) queda difuminado y pasa desapercibido, igual
-          // que la parte superior del panel.
-          background: "rgba(0,0,0,0.74)",
+          // Oscuro y borroso: así el contenido brillante de atrás (que asomaba en la
+          // franja del teclado) queda difuminado y pasa desapercibido. El 0.85 de
+          // negro asegura el oscurecimiento aunque iOS no aplique el backdrop-filter.
+          background: "rgba(0,0,0,0.85)",
           backdropFilter: "blur(24px)",
           WebkitBackdropFilter: "blur(24px)",
           animation: open
