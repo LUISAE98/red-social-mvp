@@ -836,8 +836,8 @@ export default function PostCommentsPanel({
           style={{
             flexShrink: 0,
             borderTop: "1px solid rgba(255,255,255,0.07)",
-            // Placeholder pegado abajo (edge-to-edge): sin lift de safe-area.
-            padding: "10px 14px 10px",
+            // Safe-area inferior constante solo logueado (var = 20px, 0 sin sesión).
+            padding: "10px 14px calc(10px + var(--vb-safe-bottom, 0px))",
             display: "grid",
             gap: 8,
           }}

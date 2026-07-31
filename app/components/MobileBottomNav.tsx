@@ -375,7 +375,8 @@ export default function MobileBottomNav({
           display: grid;
           grid-template-columns: repeat(var(--mobile-nav-count), minmax(0, 1fr));
           align-items: center;
-          padding: 8px 6px 8px;
+          /* Safe-area inferior constante solo logueado (var = 20px con body.vb-authed, 0 sin sesión). */
+          padding: 8px 6px calc(8px + var(--vb-safe-bottom, 0px));
           background: #000000;
           box-sizing: border-box;
           transform: translateZ(0);

@@ -47,6 +47,14 @@
   --ease-in:     cubic-bezier(0.4, 0, 1, 1);
 }
 
+/* Safe-area inferior SOLO estando logueado (body.vb-authed lo pone RootChrome).
+   Tamaño FIJO en px (nunca env(), que cambia según dispositivo/toolbar) → nunca
+   cambia de tamaño. Sin sesión queda en 0px (edge-to-edge). Lo consumen el
+   bottom-nav y los composers/footers de los modales vía var(--vb-safe-bottom). */
+body.vb-authed {
+  --vb-safe-bottom: 20px;
+}
+
 @theme inline {
   /* ── Tipografía ── */
   --font-sans: var(--font-jakarta);

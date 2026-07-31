@@ -34,6 +34,15 @@ export default function RootChrome({
   const [hydrated, setHydrated] = useState(false);
   useEffect(() => { setHydrated(true); }, []);
 
+  // Marca el <body> cuando hay sesión → habilita un safe-area inferior CONSTANTE
+  // (tamaño fijo, nunca env()) solo estando logueado. Ver `body.vb-authed` en
+  // globals.css. Sin sesión: 0 (edge-to-edge).
+  useEffect(() => {
+    const authed = hydrated && !!user;
+    document.body.classList.toggle("vb-authed", authed);
+    return () => { document.body.classList.remove("vb-authed"); };
+  }, [hydrated, user]);
+
 const isPublicRoute =
   pathname === "/" ||
   pathname === "/login" ||

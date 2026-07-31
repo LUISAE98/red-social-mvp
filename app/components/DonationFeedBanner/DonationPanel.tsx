@@ -326,7 +326,7 @@ export default function DonationPanel({ open, onClose, creatorName, suggestedAmo
         </div>
         {/* Footer — anchored outside section-wrapper, no rubber band */}
         {actionBtn && (
-          <div style={{ flexShrink: 0, borderTop: "1px solid rgba(255,255,255,0.07)", padding: "10px 14px 14px" }}>
+          <div style={{ flexShrink: 0, borderTop: "1px solid rgba(255,255,255,0.07)", padding: "10px 14px calc(14px + var(--vb-safe-bottom, 0px))" }}>
             {actionBtn}
           </div>
         )}
