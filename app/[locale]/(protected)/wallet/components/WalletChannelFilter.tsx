@@ -9,6 +9,7 @@ import type { WalletChannel } from "@/lib/wallet/walletSubscriptionData";
 const VIBRA_RING = "linear-gradient(135deg, #ec4899 0%, #9333ea 52%, #3b82f6 100%)";
 const AVATAR = 60; // diámetro del avatar (+30%)
 const RING_PAD = 2.4; // grosor del aro de Vibra (+20% sobre 2)
+const RING_GAP = 2.5; // hueco invisible (color del fondo) entre el aro y la foto
 const STACK_OVERLAP = 44; // encimado de los avatares de "Todos" (más angosto)
 const STACK_MAX = 4; // avatares visibles en el grupo "Todos"
 const LAPTOP_MIN_WIDTH = 820;
@@ -26,7 +27,8 @@ function Avatar({
 }) {
   const [error, setError] = useState(false);
   const showImg = Boolean(src) && !error;
-  const inner = ring ? size - Math.round(RING_PAD * 2 + 3) : size;
+  // Con aro: se descuenta el grosor del aro + el hueco invisible.
+  const inner = ring ? size - Math.round(RING_PAD * 2 + RING_GAP * 2) : size;
 
   const media = showImg ? (
     <Image
@@ -88,19 +90,34 @@ function Avatar({
         boxSizing: "border-box",
       }}
     >
+      {/* Hueco invisible (color del fondo de la página) entre el aro y la foto,
+          hecho con padding — NO con un borde dibujado sobre la foto. */}
       <div
         style={{
           width: "100%",
           height: "100%",
           borderRadius: "50%",
-          overflow: "hidden",
+          background: "#000",
+          padding: RING_GAP,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
           boxSizing: "border-box",
         }}
       >
-        {media}
+        <div
+          style={{
+            width: "100%",
+            height: "100%",
+            borderRadius: "50%",
+            overflow: "hidden",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          {media}
+        </div>
       </div>
     </div>
   );

@@ -673,6 +673,63 @@ const shellStyle: CSSProperties = {
     minWidth: 0,
   };
 
+  // Cabecera fija (título + subnav): se queda pegada justo debajo del header del
+  // layout mientras el contenido scrollea por detrás. Va FUERA del <section>
+  // porque su `overflowX: hidden` convierte al section en contenedor de scroll y
+  // rompería el `position: sticky`. El offset replica la convención del layout:
+  // en móvil, bajo el backdrop opaco (safe-area + 56px); en escritorio, la misma
+  // altura que usa `.sidebarCol` (safe-area + 90px). Fondo negro sólido para
+  // tapar el contenido y que NO se vea por detrás del título/subnav.
+  const stickyHeadStyle: CSSProperties = {
+    position: "sticky",
+    top: isMobile
+      ? "calc(env(safe-area-inset-top, 0px) + 56px)"
+      : "calc(env(safe-area-inset-top, 0px) + 90px)",
+    zIndex: 3,
+    width: "100%",
+    maxWidth: 720,
+    minWidth: 0,
+    marginLeft: "auto",
+    marginRight: "auto",
+    boxSizing: "border-box",
+    background: "#000",
+    display: "flex",
+    flexDirection: "column",
+    gap: 12,
+    paddingTop: 8,
+  };
+
+  // Tapa negra de la franja superior: en escritorio el header del layout es
+  // transparente, así que sin esto el feed se vería subiendo por detrás del
+  // header (por encima del subnav fijo). Se ancla al borde superior de la
+  // cabecera fija y se extiende hacia arriba hasta el tope de la ventana,
+  // cubriendo exactamente la altura del header (misma que usa el offset sticky).
+  // En móvil NO se renderiza: el layout ya pinta ahí su backdrop negro opaco.
+  const topCoverStyle: CSSProperties = {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: "100%",
+    height: "calc(env(safe-area-inset-top, 0px) + 90px)",
+    background: "#000",
+    pointerEvents: "none",
+  };
+
+  // Desvanecido bajo el subnav: el contenido que sube se difumina (negro →
+  // transparente) antes de quedar totalmente oculto por la cabecera. Se ancla al
+  // borde inferior de la cabecera fija y se traslada hacia abajo para solaparse
+  // con el inicio del contenido.
+  const stickyFadeStyle: CSSProperties = {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    transform: "translateY(100%)",
+    height: 20,
+    background: "linear-gradient(to bottom, #000 0%, rgba(0,0,0,0) 100%)",
+    pointerEvents: "none",
+  };
+
   const titleStyle: CSSProperties = {
     margin: 0,
     maxWidth: "100%",
@@ -816,18 +873,27 @@ const visiblePosts = useMemo(() => {
 
 return (
   <RefreshableArea onRefresh={handleSavedPullRefresh}>
-    <section style={shellStyle}>
+    {/* Cabecera fija: título + subnav se quedan pegados bajo el header del
+        layout; el contenido se desvanece al pasar por debajo. Fuera del
+        <section> a propósito (su overflowX:hidden rompería el sticky). */}
+    <div style={stickyHeadStyle}>
+      {!isMobile && <div aria-hidden="true" style={topCoverStyle} />}
+
       <div style={headerStyle}>
         <div style={titleRowStyle}>
           <h2 style={titleStyle}>{tSaved("title")}</h2>
         </div>
       </div>
 
-      <VibraToast toast={feedToast} />
-
       {showMediaTabs && (
         <PostsMediaSubnav active={mediaTab} onChange={setMediaTab} />
       )}
+
+      <div aria-hidden="true" style={stickyFadeStyle} />
+    </div>
+
+    <section style={shellStyle}>
+      <VibraToast toast={feedToast} />
 
       <div style={{ overflow: "hidden", width: "100%", minWidth: 0 }}>
       <motion.div

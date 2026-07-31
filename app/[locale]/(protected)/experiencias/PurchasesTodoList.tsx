@@ -131,8 +131,7 @@ export default function PurchasesTodoList({ uid }: { uid: string | null | undefi
 
   return (
     <div style={{ display: "grid", gap: 8 }}>
-      {/* Header: filtro (izq) + contador (der). El botón "facturar" vive a la
-          izquierda del contador; al activarlo se entra en modo selección. */}
+      {/* Renglón de filtros: filtro (izq) + contador (der). */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
         <div style={{ minWidth: 0, overflow: "hidden" }}>
           <WalletFilterMenu
@@ -145,25 +144,27 @@ export default function PurchasesTodoList({ uid }: { uid: string | null | undefi
             transparent
           />
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
-          {!selecting && (
-            <button
-              type="button"
-              onClick={enterSelection}
-              style={{
-                background: "transparent", border: "none", padding: 0, margin: 0,
-                color: "#a855f7", cursor: "pointer", fontSize: 12, fontWeight: 600,
-                fontFamily: "inherit", lineHeight: 1, whiteSpace: "nowrap",
-              }}
-            >
-              {tWallet("invoiceCta")}
-            </button>
-          )}
-          <span style={{ color: "#ffffff", fontSize: 15, fontWeight: 700, lineHeight: 1, paddingRight: 4 }}>
-            {purchases.length}
-          </span>
-        </div>
+        <span style={{ color: "#ffffff", fontSize: 15, fontWeight: 700, lineHeight: 1, paddingRight: 4, flexShrink: 0 }}>
+          {purchases.length}
+        </span>
       </div>
+
+      {/* Botón para facturar: en su propio renglón, DEBAJO de los filtros, para
+          que no se salga del margen derecho en celular. */}
+      {!selecting && (
+        <button
+          type="button"
+          onClick={enterSelection}
+          style={{
+            justifySelf: "start",
+            background: "transparent", border: "none", padding: 0, margin: 0,
+            color: "#a855f7", cursor: "pointer", fontSize: 12, fontWeight: 600,
+            fontFamily: "inherit", lineHeight: 1.3, textAlign: "left",
+          }}
+        >
+          {tWallet("invoiceCta")}
+        </button>
+      )}
 
       {/* Modo selección: instrucción morada + fila "Seleccionar todo" / "Listo". */}
       {selecting && (

@@ -171,18 +171,21 @@ function SelectField({
         onChange={(e) => onChange(e.target.value)}
         style={{
           width: "100%",
-          borderRadius: 9,
-          border: "1px solid rgba(255,255,255,0.14)",
-          backgroundColor: "rgba(255,255,255,0.04)",
-          color: "#ffffff",
-          padding: "9px 36px 9px 11px",
+          borderRadius: 12,
+          border: "none",
+          backgroundColor: "rgba(255,255,255,0.11)",
+          color: "rgba(255,255,255,0.85)",
+          padding: "10px 36px 10px 12px",
           fontSize: 13,
           fontWeight: 400,
+          fontFamily: "inherit",
+          lineHeight: 1.5,
           outline: "none",
           appearance: "none",
           WebkitAppearance: "none",
           MozAppearance: "none",
           boxSizing: "border-box",
+          cursor: disabled ? "not-allowed" : "pointer",
           opacity: disabled ? 0.55 : 1,
         }}
       >
@@ -274,6 +277,60 @@ const { user, loading: authLoading } = useAuth();
       fontWeight: 500,
       color: "rgba(255,255,255,0.90)",
     } as React.CSSProperties,
+  };
+
+  // Estilos espejo del formulario de crear cuenta (RegisterPanel): inputs con
+  // fondo translúcido SIN borde, labels chicos, botón píldora con gradiente. El
+  // formulario ya no usa contenedores (secciones con borde/sombra).
+  const fieldInput: React.CSSProperties = {
+    width: "100%",
+    boxSizing: "border-box",
+    background: "rgba(255,255,255,0.11)",
+    border: "none",
+    borderRadius: 12,
+    padding: "10px 12px",
+    color: "#fff",
+    fontSize: 13,
+    fontFamily: "inherit",
+    lineHeight: 1.5,
+    outline: "none",
+    WebkitAppearance: "none",
+  };
+  const fieldLabel: React.CSSProperties = {
+    display: "block",
+    marginBottom: 5,
+    fontSize: 10.5,
+    fontWeight: 500,
+    color: "rgba(255,255,255,0.88)",
+    lineHeight: 1.15,
+  };
+  const helperText: React.CSSProperties = {
+    margin: "6px 0 0 0",
+    fontSize: 10,
+    fontWeight: 400,
+    color: "rgba(255,255,255,0.60)",
+    lineHeight: 1.35,
+  };
+  const sectionGroup: React.CSSProperties = { display: "grid", gap: 12 };
+  const primaryButton: React.CSSProperties = {
+    width: "100%",
+    minHeight: 40,
+    padding: "10px 14px",
+    borderRadius: 10,
+    border: "none",
+    backgroundImage:
+      "linear-gradient(100deg, #ff2fb3 0%, #a855f7 35%, #4f46ff 70%, #ff2fb3 100%)",
+    backgroundSize: "280% 280%",
+    backgroundPosition: "0% 50%",
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: 600,
+    letterSpacing: "-0.01em",
+    fontFamily: fontStack,
+    cursor: "pointer",
+    boxShadow: "0 10px 28px rgba(168,85,255,0.22)",
+    overflow: "hidden",
+    WebkitTapHighlightColor: "transparent",
   };
 
   const avatarInputRef = useRef<HTMLInputElement | null>(null);
@@ -756,41 +813,13 @@ const onCropComplete = useCallback(
           )}
 
           <form onSubmit={onSubmit} style={{ display: "grid", gap: 14 }}>
-            <section
-              style={{
-                borderRadius: 14,
-                border: "1px solid rgba(255,255,255,0.18)",
-                background: "rgba(12,12,12,0.92)",
-                boxShadow: "0 18px 48px rgba(0,0,0,0.55)",
-                padding: 16,
-                display: "grid",
-                gap: 12,
-              }}
-            >
+            <div style={sectionGroup}>
               <div>
-                <label
-                  style={{
-                    display: "block",
-                    marginBottom: 6,
-                    fontSize: 12,
-                    fontWeight: 500,
-                    color: "rgba(255,255,255,0.92)",
-                  }}
-                >
+                <label style={fieldLabel}>
                   {tGroups("name")}
                 </label>
                 <input
-                  style={{
-                    width: "100%",
-                    borderRadius: 9,
-                    border: "1px solid rgba(255,255,255,0.14)",
-                    background: "rgba(255,255,255,0.04)",
-                    color: "#fff",
-                    padding: "9px 11px",
-                    fontSize: 13,
-                    outline: "none",
-                    boxSizing: "border-box",
-                  }}
+                  style={fieldInput}
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder={tGroups("nameExample")}
@@ -798,31 +827,11 @@ const onCropComplete = useCallback(
               </div>
 
               <div>
-                <label
-                  style={{
-                    display: "block",
-                    marginBottom: 6,
-                    fontSize: 12,
-                    fontWeight: 500,
-                    color: "rgba(255,255,255,0.92)",
-                  }}
-                >
+                <label style={fieldLabel}>
                   {tGroups("groupDescription")}
                 </label>
                 <textarea
-                  style={{
-                    width: "100%",
-                    borderRadius: 9,
-                    border: "1px solid rgba(255,255,255,0.14)",
-                    background: "rgba(255,255,255,0.04)",
-                    color: "#fff",
-                    padding: "9px 11px",
-                    fontSize: 13,
-                    outline: "none",
-                    minHeight: 110,
-                    resize: "vertical",
-                    boxSizing: "border-box",
-                  }}
+                  style={{ ...fieldInput, minHeight: 110, resize: "vertical" }}
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder="Describe tu comunidad..."
@@ -831,15 +840,7 @@ const onCropComplete = useCallback(
               </div>
 
               <div>
-                <label
-                  style={{
-                    display: "block",
-                    marginBottom: 6,
-                    fontSize: 12,
-                    fontWeight: 500,
-                    color: "rgba(255,255,255,0.92)",
-                  }}
-                >
+                <label style={fieldLabel}>
                   {tGroups("visibility")}
                 </label>
                 <SelectField
@@ -851,19 +852,9 @@ const onCropComplete = useCallback(
                   <option value="hidden">{tGroups("visibilityHidden")}</option>
                 </SelectField>
               </div>
-            </section>
+            </div>
 
-            <section
-              style={{
-                borderRadius: 14,
-                border: "1px solid rgba(255,255,255,0.18)",
-                background: "rgba(12,12,12,0.92)",
-                boxShadow: "0 18px 48px rgba(0,0,0,0.55)",
-                padding: 16,
-                display: "grid",
-                gap: 12,
-              }}
-            >
+            <div style={sectionGroup}>
               <div
                 style={{
                   display: "flex",
@@ -882,8 +873,8 @@ const onCropComplete = useCallback(
               <div
                 style={{
                   borderRadius: 14,
-                  border: "1px solid rgba(255,255,255,0.10)",
-                  background: "rgba(255,255,255,0.03)",
+                  border: "none",
+                  background: "rgba(255,255,255,0.05)",
                   overflow: "hidden",
                 }}
               >
@@ -1146,29 +1137,11 @@ const onCropComplete = useCallback(
               >
                 {tGroups("avatarPreviewInfo")}
               </p>
-            </section>
+            </div>
 
-            <section
-              style={{
-                borderRadius: 14,
-                border: "1px solid rgba(255,255,255,0.18)",
-                background: "rgba(12,12,12,0.92)",
-                boxShadow: "0 18px 48px rgba(0,0,0,0.55)",
-                padding: 16,
-                display: "grid",
-                gap: 12,
-              }}
-            >
+            <div style={sectionGroup}>
               <div>
-                <label
-                  style={{
-                    display: "block",
-                    marginBottom: 6,
-                    fontSize: 12,
-                    fontWeight: 500,
-                    color: "rgba(255,255,255,0.92)",
-                  }}
-                >
+                <label style={fieldLabel}>
                   {tGroups("category")}
                 </label>
                 <SelectField
@@ -1184,29 +1157,11 @@ const onCropComplete = useCallback(
               </div>
 
               <div>
-                <label
-                  style={{
-                    display: "block",
-                    marginBottom: 6,
-                    fontSize: 12,
-                    fontWeight: 500,
-                    color: "rgba(255,255,255,0.92)",
-                  }}
-                >
+                <label style={fieldLabel}>
                   {tGroups("tagsLabel")}
                 </label>
                 <input
-                  style={{
-                    width: "100%",
-                    borderRadius: 9,
-                    border: "1px solid rgba(255,255,255,0.14)",
-                    background: "rgba(255,255,255,0.04)",
-                    color: "#fff",
-                    padding: "9px 11px",
-                    fontSize: 13,
-                    outline: "none",
-                    boxSizing: "border-box",
-                  }}
+                  style={fieldInput}
                   value={tagsRaw}
                   onChange={(e) => setTagsRaw(e.target.value)}
                   placeholder={tGroups("tagsExample")}
@@ -1229,8 +1184,8 @@ const onCropComplete = useCallback(
                   justifyContent: "space-between",
                   gap: 12,
                   borderRadius: 12,
-                  border: "1px solid rgba(255,255,255,0.10)",
-                  background: "rgba(255,255,255,0.03)",
+                  border: "none",
+                  background: "rgba(255,255,255,0.04)",
                   padding: "10px 12px",
                 }}
               >
@@ -1253,31 +1208,11 @@ const onCropComplete = useCallback(
 
               {greetingsEnabled && (
                 <div>
-                  <label
-                    style={{
-                      display: "block",
-                      marginBottom: 6,
-                      fontSize: 12,
-                      fontWeight: 500,
-                      color: "rgba(255,255,255,0.92)",
-                    }}
-                  >
+                  <label style={fieldLabel}>
                     {tGroups("welcomeMessageLabel")}
                   </label>
                   <textarea
-                    style={{
-                      width: "100%",
-                      borderRadius: 9,
-                      border: "1px solid rgba(255,255,255,0.14)",
-                      background: "rgba(255,255,255,0.04)",
-                      color: "#fff",
-                      padding: "9px 11px",
-                      fontSize: 13,
-                      outline: "none",
-                      minHeight: 90,
-                      resize: "vertical",
-                      boxSizing: "border-box",
-                    }}
+                    style={{ ...fieldInput, minHeight: 90, resize: "vertical" }}
                     value={welcomeMessage}
                     onChange={(e) => setWelcomeMessage(e.target.value)}
                     placeholder={tGroups("welcomeMessageExample")}
@@ -1288,30 +1223,12 @@ const onCropComplete = useCallback(
 
               <div style={{ display: "grid", gap: 10 }}>
                 <div>
-                  <label
-                    style={{
-                      display: "block",
-                      marginBottom: 6,
-                      fontSize: 12,
-                      fontWeight: 500,
-                      color: "rgba(255,255,255,0.92)",
-                    }}
-                  >
+                  <label style={fieldLabel}>
                     {tGroups("ageMin")}
                   </label>
                   <input
                     type="number"
-                    style={{
-                      width: "100%",
-                      borderRadius: 9,
-                      border: "1px solid rgba(255,255,255,0.14)",
-                      background: "rgba(255,255,255,0.04)",
-                      color: "#fff",
-                      padding: "9px 11px",
-                      fontSize: 13,
-                      outline: "none",
-                      boxSizing: "border-box",
-                    }}
+                    style={fieldInput}
                     value={ageMin}
                     onChange={(e) => setAgeMin(e.target.value)}
                     placeholder="18"
@@ -1319,59 +1236,23 @@ const onCropComplete = useCallback(
                 </div>
 
                 <div>
-                  <label
-                    style={{
-                      display: "block",
-                      marginBottom: 6,
-                      fontSize: 12,
-                      fontWeight: 500,
-                      color: "rgba(255,255,255,0.92)",
-                    }}
-                  >
+                  <label style={fieldLabel}>
                     {tGroups("ageMax")}
                   </label>
                   <input
                     type="number"
-                    style={{
-                      width: "100%",
-                      borderRadius: 9,
-                      border: "1px solid rgba(255,255,255,0.14)",
-                      background: "rgba(255,255,255,0.04)",
-                      color: "#fff",
-                      padding: "9px 11px",
-                      fontSize: 13,
-                      outline: "none",
-                      boxSizing: "border-box",
-                    }}
+                    style={fieldInput}
                     value={ageMax}
                     onChange={(e) => setAgeMax(e.target.value)}
                     placeholder="99"
                   />
                 </div>
               </div>
-            </section>
+            </div>
 
-            <section
-              style={{
-                borderRadius: 14,
-                border: "1px solid rgba(255,255,255,0.18)",
-                background: "rgba(12,12,12,0.92)",
-                boxShadow: "0 18px 48px rgba(0,0,0,0.55)",
-                padding: 16,
-                display: "grid",
-                gap: 12,
-              }}
-            >
+            <div style={sectionGroup}>
               <div>
-                <label
-                  style={{
-                    display: "block",
-                    marginBottom: 6,
-                    fontSize: 12,
-                    fontWeight: 500,
-                    color: "rgba(255,255,255,0.92)",
-                  }}
-                >
+                <label style={fieldLabel}>
                   {tGroups("whoCanPost")}
                 </label>
                 <SelectField
@@ -1390,8 +1271,8 @@ const onCropComplete = useCallback(
                   justifyContent: "space-between",
                   gap: 12,
                   borderRadius: 12,
-                  border: "1px solid rgba(255,255,255,0.10)",
-                  background: "rgba(255,255,255,0.03)",
+                  border: "none",
+                  background: "rgba(255,255,255,0.04)",
                   padding: "10px 12px",
                 }}
               >
@@ -1411,19 +1292,9 @@ const onCropComplete = useCallback(
                 </div>
                 <ToggleSwitch checked={commentsEnabled} onChange={setCommentsEnabled} />
               </div>
-            </section>
+            </div>
 
-            <section
-              style={{
-                borderRadius: 14,
-                border: "1px solid rgba(255,255,255,0.18)",
-                background: "rgba(12,12,12,0.92)",
-                boxShadow: "0 18px 48px rgba(0,0,0,0.55)",
-                padding: 16,
-                display: "grid",
-                gap: 12,
-              }}
-            >
+            <div style={sectionGroup}>
               <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>{tCommon("monetization")}</h2>
 
               {!subscriptionAllowed && (
@@ -1535,11 +1406,11 @@ const onCropComplete = useCallback(
                       style={{
                         display: "inline-flex",
                         alignItems: "center",
-                        borderRadius: 9,
-                        border: "1px solid rgba(255,255,255,0.14)",
-                        background: "rgba(255,255,255,0.04)",
+                        borderRadius: 12,
+                        border: "none",
+                        background: "rgba(255,255,255,0.11)",
                         color: "#fff",
-                        padding: "9px 11px",
+                        padding: "10px 12px",
                         fontSize: 13,
                         boxSizing: "border-box",
                       }}
@@ -1549,26 +1420,17 @@ const onCropComplete = useCallback(
                   </div>
                 </div>
               )}
-            </section>
+            </div>
             
             <button
               type="submit"
               disabled={loading}
               style={{
-                width: "100%",
-                padding: "10px 12px",
-                borderRadius: 10,
-                border: "none",
-                background: "linear-gradient(135deg, #f472b6, #a855f7)",
-                color: "#fff",
-                fontSize: 14,
-                fontWeight: 600,
-                letterSpacing: "-0.01em",
+                ...primaryButton,
+                marginTop: 2,
+                opacity: loading ? 0.82 : 1,
                 cursor: loading ? "not-allowed" : "pointer",
-                opacity: loading ? 0.72 : 1,
-                fontFamily: fontStack,
-                WebkitTapHighlightColor: "transparent",
-                transition: "opacity 150ms ease",
+                filter: loading ? "grayscale(0.15)" : "none",
               }}
             >
               {loading ? tGroups("creating") : tGroups("createCommunity")}
