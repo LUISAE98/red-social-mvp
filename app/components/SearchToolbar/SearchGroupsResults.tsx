@@ -11,12 +11,15 @@ import { useTranslations } from "next-intl";
 import type { User } from "firebase/auth";
 import RefreshableArea from "@/components/refresh/RefreshableArea";
 import LiveRingAvatar from "@/app/components/LiveRing/LiveRingAvatar";
+import { SearchRowSkeletonList } from "./SearchResultSkeleton";
 
 import {
   offersExperiences,
   type CanonicalMemberStatus,
   type Community,
 } from "./GroupsSearchPanel";
+
+const GROUP_SKELETON_COUNT = 14;
 
 // Filtro multi-select de comunidades. "all" = sin filtro.
 export type CommunitiesSearchFilter =
@@ -31,6 +34,7 @@ type SearchGroupsResultsProps = {
   fontStack: string;
   currentUser: User | null;
   communities: Community[];
+  loading?: boolean;
   memberMap: Record<string, CanonicalMemberStatus>;
   reqMap: Record<string, boolean>;
   onNavigate: (href: string) => void;
@@ -85,6 +89,7 @@ export default function SearchGroupsResults({
   fontStack,
   currentUser,
   communities,
+  loading = false,
   memberMap,
   reqMap,
   onNavigate,
@@ -101,6 +106,7 @@ export default function SearchGroupsResults({
 
   const [isMobile, setIsMobile] = useState(false);
   const [visibleCount, setVisibleCount] = useState(10);
+  const [skeletonsMounted, setSkeletonsMounted] = useState(true);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -169,6 +175,21 @@ export default function SearchGroupsResults({
   }, [filteredByUi, visibleCount]);
 
   const hasMoreGroups = visibleCount < filteredByUi.length;
+
+  useEffect(() => {
+    if (loading) {
+      setSkeletonsMounted(true);
+      return;
+    }
+    const t = window.setTimeout(() => setSkeletonsMounted(false), 480);
+    return () => window.clearTimeout(t);
+  }, [loading]);
+
+  const trailingSkeletons = skeletonsMounted
+    ? loading
+      ? GROUP_SKELETON_COUNT
+      : Math.max(0, GROUP_SKELETON_COUNT - filteredByUi.length)
+    : 0;
 
   useEffect(() => {
     setVisibleCount(10);
@@ -370,7 +391,8 @@ export default function SearchGroupsResults({
     );
   }
 
-  if (filteredByUi.length === 0) {
+  // "Sin resultados" solo cuando ya cargó y los skeletons terminaron su fade.
+  if (!loading && filteredByUi.length === 0 && !skeletonsMounted) {
     return (
       <RefreshableArea
         onRefresh={onRefresh ?? (() => {})}
@@ -384,6 +406,8 @@ export default function SearchGroupsResults({
     );
   }
 
+  const showResults = !loading && filteredByUi.length > 0;
+
   return (
     <RefreshableArea
       onRefresh={onRefresh ?? (() => {})}
@@ -391,11 +415,11 @@ export default function SearchGroupsResults({
       indicatorTop={indicatorTop ?? "calc(env(safe-area-inset-top) + 116px)"}
     >
       <section style={shellStyle} className="sgr-scope">
-{displayGroups.length > 0 && (
+{showResults && displayGroups.length > 0 && (
   <div>{displayGroups.map(renderGroupCard)}</div>
 )}
 
-{hasMoreGroups ? (
+{showResults && hasMoreGroups ? (
   <div
     ref={loadMoreRef}
     aria-hidden="true"
@@ -405,6 +429,11 @@ export default function SearchGroupsResults({
     }}
   />
 ) : null}
+
+{/* Skeletons: 14 mientras carga; los sobrantes se desvanecen al terminar. */}
+{trailingSkeletons > 0 && (
+  <div><SearchRowSkeletonList count={trailingSkeletons} fading={!loading} /></div>
+)}
 
       {/* Global + prefijado con .sgr-scope: renderGroupCard es una función anidada
           y styled-jsx no le aplica el scope; con global se garantiza el estilo. */}
@@ -417,6 +446,14 @@ export default function SearchGroupsResults({
           padding: 10px 14px;
           transition: background 0.16s ease;
           cursor: pointer;
+          animation: sgrRowIn 340ms ease both;
+        }
+        @keyframes sgrRowIn {
+          from { opacity: 0; transform: translateY(4px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .sgr-scope .result-item { animation: none; }
         }
 
         .sgr-scope .result-item:hover {

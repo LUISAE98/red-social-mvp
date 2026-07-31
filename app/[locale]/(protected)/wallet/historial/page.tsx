@@ -9,12 +9,12 @@ import { useWalletData } from "../components/WalletDataContext";
 import WalletSectionShell from "../components/WalletSectionShell";
 import WalletMonthlyStats from "../components/WalletMonthlyStats";
 import {
-  EmptyRows,
   WalletCard,
   WalletErrorBox,
   WalletFilterMenu,
   WalletList,
 } from "../components/WalletUi";
+import { WalletCardsSkeleton } from "../components/WalletListSkeleton";
 import GreetingReviewOverlay from "@/app/components/OwnerSidebar/GreetingReviewOverlay";
 import type { GreetingRequestDoc, UserMini } from "@/app/components/OwnerSidebar/OwnerSidebar";
 import SessionRequestOverlay from "@/app/components/OwnerSidebar/SessionRequestOverlay";
@@ -235,46 +235,14 @@ const filteredItems = useMemo(() => {
         }
       >
         <>
-          <style jsx>{`
-            @keyframes skelPulseH {
-              0%, 100% { opacity: 0.5; }
-              50%       { opacity: 1; }
-            }
-            .skelH {
-              background: rgba(255,255,255,0.10);
-              border-radius: 6px;
-              animation: skelPulseH 1.4s ease-in-out infinite;
-            }
-            .skelCardH {
-              display: flex;
-              align-items: center;
-              gap: 12px;
-              padding: 13px 14px;
-              border-radius: 14px;
-              background: rgba(255,255,255,0.04);
-            }
-          `}</style>
-
           {walletData.loading ? (
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {[0, 1, 2, 3].map((i) => (
-                <div key={i} className="skelCardH">
-                  <div className="skelH" style={{ width: 40, height: 40, borderRadius: "50%", flexShrink: 0 }} />
-                  <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
-                    <div className="skelH" style={{ width: "50%", height: 13, borderRadius: 5 }} />
-                    <div className="skelH" style={{ width: "35%", height: 11, borderRadius: 5 }} />
-                  </div>
-                  <div className="skelH" style={{ width: 90, height: 32, borderRadius: 8, flexShrink: 0 }} />
-                </div>
-              ))}
-            </div>
+            <WalletCardsSkeleton count={4} />
           ) : filteredItems.length > 0 ? (
             <WalletList items={filteredItems} mode="history" onView={setViewRow} />
           ) : (
-            <EmptyRows
-              title={tWallet("emptyHistorial")}
-              subtitle={tWallet("emptyHistorialSubtitle")}
-            />
+            <div style={{ textAlign: "center", color: "rgba(255,255,255,0.5)", fontSize: 13, padding: "18px 0" }}>
+              {tWallet("emptyHistorial")}
+            </div>
           )}
         </>
       </WalletCard>

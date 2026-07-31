@@ -141,6 +141,35 @@ export async function facturapiUpload<T = unknown>(
   }
 }
 
+/**
+ * Descarga un endpoint BINARIO de Facturapi (PDF/XML de una factura) y lo devuelve
+ * en base64. `facturapiFetch` no sirve aquí porque parsea texto/JSON.
+ */
+export async function facturapiDownload(
+  path: string,
+  init: { auth?: FacturapiAuth } = {}
+): Promise<FacturapiFetchResult<string>> {
+  const auth = init.auth ?? "secret";
+  const key = keyFor(auth);
+  if (!key) {
+    return { ok: false, status: 0, error: `Falta el secreto de Facturapi (${auth === "user" ? "FACTURAPI_USER_KEY" : "FACTURAPI_TEST_KEY"}).` };
+  }
+  const url = path.startsWith("http") ? path : `${FACTURAPI_API_BASE}${path}`;
+  try {
+    const res = await fetch(url, { method: "GET", headers: { Authorization: basicAuthHeader(key) } });
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      logger.error("facturapiDownload error", { path, status: res.status, text: text.slice(0, 500) });
+      return { ok: false, status: res.status, error: text };
+    }
+    const buf = Buffer.from(await res.arrayBuffer());
+    return { ok: true, status: res.status, data: buf.toString("base64") };
+  } catch (err) {
+    logger.error("facturapiDownload failed", { path, err: err instanceof Error ? err.message : String(err) });
+    return { ok: false, status: 0, error: err instanceof Error ? err.message : String(err) };
+  }
+}
+
 /** true si la secret key de la organización es de PRUEBA (sk_test_...). */
 export function isFacturapiTestMode(): boolean {
   return keyFor("secret").startsWith("sk_test");

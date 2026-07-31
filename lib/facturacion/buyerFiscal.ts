@@ -65,6 +65,17 @@ export async function generateBuyerInvoice(
   return res.data;
 }
 
+export async function downloadBuyerInvoice(
+  invoiceId: string
+): Promise<{ ok: boolean; pdfBase64: string; filename: string }> {
+  const fn = httpsCallable<{ invoiceId: string }, { ok: boolean; pdfBase64: string; filename: string }>(
+    functions,
+    "downloadBuyerInvoice"
+  );
+  const res = await fn({ invoiceId });
+  return res.data;
+}
+
 // ── Hook: perfiles de facturación del comprador (lectura en vivo) ────────────
 export function useBuyerBillingProfiles(uid: string | null | undefined) {
   const [profiles, setProfiles] = useState<BuyerBillingProfile[]>([]);

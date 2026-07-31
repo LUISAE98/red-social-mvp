@@ -17,7 +17,6 @@ import SessionRequestOverlay from "@/app/components/OwnerSidebar/SessionRequestO
 import type { MeetGreetRequestDoc } from "@/app/components/OwnerSidebar/OwnerSidebar";
 import WalletSectionShell from "../components/WalletSectionShell";
 import {
-  EmptyRows,
   WalletCard,
   WalletErrorBox,
 } from "../components/WalletUi";
@@ -1342,10 +1341,16 @@ export default function WalletCalendarioPage() {
               ))}
             </div>
           ) : calendarItems.length === 0 ? (
-            <EmptyRows
-              title={tWalletPage("noEvents")}
-              subtitle={tWalletPage("noEventsDesc")}
-            />
+            <div
+              style={{
+                textAlign: "center",
+                color: "rgba(255,255,255,0.5)",
+                fontSize: 13,
+                padding: "18px 0",
+              }}
+            >
+              {tWalletPage("noEvents")}
+            </div>
           ) : viewMode === "list" ? (
             <div style={{ display: "grid", gap: 8 }}>
               {calendarItems.map((item) => (

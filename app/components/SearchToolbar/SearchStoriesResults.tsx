@@ -18,6 +18,9 @@ import HomeStoryCarouselDesktop, {
 const MIN_STORY_SEARCH_LENGTH = 2;
 const STORY_SEARCH_PAGE_SIZE = 40;
 
+// Cuántos skeletons (rectángulos verticales) mientras carga la búsqueda.
+const STORY_SKELETON_COUNT = 12;
+
 // Aro morado de Vibra (mismo gradiente que StoryRingAvatar / preview de historias).
 const VIBRA_STORY_RING =
   "linear-gradient(135deg, #ec4899 0%, #9333ea 52%, #3b82f6 100%)";
@@ -127,6 +130,17 @@ function StoryCard({
   return (
     <>
     <style jsx>{`
+      /* Aparición suave de la tarjeta al cargar los resultados. */
+      .story-card {
+        animation: storyCardIn 360ms ease both;
+      }
+      @keyframes storyCardIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .story-card { animation: none; }
+      }
       /* Overlay (avatar + nombre + tipo). Laptop: oculto hasta hover.
          Celular: oculto (se ve al abrir la historia). */
       .story-overlay {
@@ -311,6 +325,8 @@ export default function SearchStoriesResults({ search, filter, indicatorTop }: S
   const [avatars, setAvatars] = useState<Record<string, string | null>>(() =>
     Object.fromEntries(storyAvatarCache)
   );
+  // Los skeletons se mantienen montados hasta que su fade-out termina.
+  const [skeletonsMounted, setSkeletonsMounted] = useState(true);
 
   // Pull-to-refresh (móvil).
   const [refreshNonce, setRefreshNonce] = useState(0);
@@ -418,6 +434,24 @@ export default function SearchStoriesResults({ search, filter, indicatorTop }: S
     () => (filter === "all" ? stories : stories.filter((s) => s.type === filter)),
     [stories, filter]
   );
+
+  // Al terminar la carga, los skeletons hacen fade-out y se desmontan.
+  useEffect(() => {
+    if (loading) {
+      setSkeletonsMounted(true);
+      return;
+    }
+    const t = window.setTimeout(() => setSkeletonsMounted(false), 480);
+    return () => window.clearTimeout(t);
+  }, [loading]);
+
+  // Mientras carga: 12 skeletons. Ya cargado: los "sobrantes" (12 − resultados)
+  // hacen fade-out y se desmontan.
+  const trailingSkeletons = skeletonsMounted
+    ? loading
+      ? STORY_SKELETON_COUNT
+      : Math.max(0, STORY_SKELETON_COUNT - filtered.length)
+    : 0;
 
   // Agrupa los resultados por creador (mismo criterio que el card). El orden de
   // grupos sigue la grilla (primera aparición); dentro del grupo, por fecha asc.
@@ -535,22 +569,8 @@ export default function SearchStoriesResults({ search, filter, indicatorTop }: S
     );
   }
 
-  if (loading) {
-    return (
-      <section style={shellStyle}>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            minHeight: "30vh",
-          }}
-        >
-          <div className="vibraPullRefreshSpinner refreshing" style={{ width: 32, height: 32 }} />
-        </div>
-      </section>
-    );
-  }
+  const showResults = !loading && filtered.length > 0;
+  const isEmpty = !loading && filtered.length === 0;
 
   return (
     <>
@@ -561,22 +581,34 @@ export default function SearchStoriesResults({ search, filter, indicatorTop }: S
     >
     <section style={shellStyle}>
       <div>
-          {filtered.length === 0 ? (
+          {isEmpty && !skeletonsMounted ? (
             <div style={noResultsStyle}>{tCommon("noExactMatches")}</div>
           ) : (
             <div className="stories-search-grid">
-              {filtered.map((story) => (
-                <StoryCard
-                  key={story.id}
-                  story={story}
-                  avatar={avatars[showcaseCreatorId(story)]}
-                  enableHoverPreview={isDesktop}
-                  typeLabel={
-                    story.type === "consejo"
-                      ? tCommon("storyTypeConsejo")
-                      : tCommon("storyTypeSaludo")
-                  }
-                  onOpen={openStory}
+              {showResults &&
+                filtered.map((story) => (
+                  <StoryCard
+                    key={story.id}
+                    story={story}
+                    avatar={avatars[showcaseCreatorId(story)]}
+                    enableHoverPreview={isDesktop}
+                    typeLabel={
+                      story.type === "consejo"
+                        ? tCommon("storyTypeConsejo")
+                        : tCommon("storyTypeSaludo")
+                    }
+                    onOpen={openStory}
+                  />
+                ))}
+
+              {/* Skeletons verticales: 12 mientras carga; los sobrantes se
+                  desvanecen al terminar. */}
+              {Array.from({ length: trailingSkeletons }).map((_, i) => (
+                <div
+                  key={`story-skel-${i}`}
+                  className="vb-skel story-skel"
+                  style={{ opacity: loading ? 1 : 0 }}
+                  aria-hidden="true"
                 />
               ))}
             </div>
@@ -598,6 +630,29 @@ export default function SearchStoriesResults({ search, filter, indicatorTop }: S
           .stories-search-grid {
             grid-template-columns: repeat(3, minmax(0, 1fr));
           }
+        }
+        /* Skeleton = rectángulo vertical (mismo ratio que las historias). */
+        .story-skel {
+          aspect-ratio: 9 / 16;
+          width: 100%;
+          transition: opacity 420ms ease;
+        }
+        .vb-skel {
+          background: linear-gradient(
+            100deg,
+            rgba(255, 255, 255, 0.05) 30%,
+            rgba(255, 255, 255, 0.11) 50%,
+            rgba(255, 255, 255, 0.05) 70%
+          );
+          background-size: 300% 100%;
+          animation: vbSkelWave 1.6s ease-in-out infinite;
+        }
+        @keyframes vbSkelWave {
+          0% { background-position: 180% 0; }
+          100% { background-position: -80% 0; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .vb-skel { animation: none; background: rgba(255, 255, 255, 0.07); }
         }
       `}</style>
     </section>

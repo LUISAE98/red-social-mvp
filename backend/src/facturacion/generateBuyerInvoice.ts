@@ -16,7 +16,7 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { logger } from "firebase-functions";
 import * as admin from "firebase-admin";
-import { facturapiFetch, facturapiTestKey } from "./facturapiClient";
+import { facturapiFetch, facturapiDownload, facturapiTestKey } from "./facturapiClient";
 import { productForType } from "./satProductCatalog";
 
 if (admin.apps.length === 0) {
@@ -169,5 +169,27 @@ export const generateBuyerInvoice = onCall(
     await batch.commit();
 
     return { ok: true, invoiceId: inv.id, uuid: inv.uuid ?? null, total: typeof inv.total === "number" ? inv.total : null, email: emailSentTo };
+  }
+);
+
+// Descarga el PDF de una factura del comprador (base64) para bajarla desde el panel.
+export const downloadBuyerInvoice = onCall(
+  { region: REGION, cors: true, secrets: [facturapiTestKey] },
+  async (request) => {
+    const uid = request.auth?.uid;
+    if (!uid) throw new HttpsError("unauthenticated", "Debes iniciar sesión.");
+    const invoiceId = String((request.data as { invoiceId?: unknown })?.invoiceId ?? "").trim();
+    if (!invoiceId) throw new HttpsError("invalid-argument", "Falta la factura a descargar.");
+
+    // El dueño solo baja SUS facturas.
+    const snap = await db.doc(`users/${uid}/invoices/${invoiceId}`).get();
+    if (!snap.exists) throw new HttpsError("not-found", "Factura no encontrada.");
+    const facturapiId = String(snap.data()?.facturapiInvoiceId ?? invoiceId);
+    const uuid = String(snap.data()?.uuid ?? invoiceId);
+
+    const res = await facturapiDownload(`/invoices/${facturapiId}/pdf`, { auth: "secret" });
+    if (!res.ok) throw new HttpsError("failed-precondition", `No se pudo descargar la factura: ${facturapiErrorMessage(res.error)}`);
+
+    return { ok: true, pdfBase64: res.data, filename: `factura-${uuid}.pdf` };
   }
 );

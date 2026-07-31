@@ -294,6 +294,9 @@ export default function ProfileClient() {
 
   const [avatarRenderUrl, setAvatarRenderUrl] = useState<string | null>(null);
   const [coverRenderUrl, setCoverRenderUrl] = useState<string | null>(null);
+  // Skeleton mientras cargan la portada y la foto (se ocultan al onLoad de la imagen).
+  const [coverLoaded, setCoverLoaded] = useState(false);
+  const [avatarLoaded, setAvatarLoaded] = useState(false);
 
   // Alimentar el header contextual del layout con avatar y nombre del perfil
   const mobileHeaderAvatar = avatarRenderUrl || userDoc?.photoURL || null;
@@ -1129,6 +1132,15 @@ useEffect(() => {
     setCoverRenderUrl(userDoc?.coverUrl ?? null);
   }, [userDoc?.photoURL, userDoc?.coverUrl]);
 
+  // Re-mostrar el skeleton cuando cambia la fuente de la portada/foto (carga inicial
+  // o subida de una nueva); se oculta con el onLoad de la <Image>.
+  useEffect(() => {
+    setCoverLoaded(false);
+  }, [coverRenderUrl, userDoc?.coverUrl]);
+  useEffect(() => {
+    setAvatarLoaded(false);
+  }, [avatarRenderUrl, userDoc?.photoURL]);
+
   const openCropWithFile = useCallback(
     async (mode: CropMode, file: File) => {
       if (!isOwner) return;
@@ -1962,12 +1974,47 @@ const res = (await createExclusiveSessionRequest({
                 background: "#0b0b0b",
               }}
             >
+              {/* Base de skeleton (vibra_style.md) para portada y foto de perfil. */}
+              <style>{`
+                .vb-skel {
+                  background: linear-gradient(
+                    100deg,
+                    rgba(255, 255, 255, 0.05) 30%,
+                    rgba(255, 255, 255, 0.11) 50%,
+                    rgba(255, 255, 255, 0.05) 70%
+                  );
+                  background-size: 300% 100%;
+                  animation: vbSkelWave 1.6s ease-in-out infinite;
+                }
+                @keyframes vbSkelWave {
+                  0% { background-position: 180% 0; }
+                  100% { background-position: -80% 0; }
+                }
+                @media (prefers-reduced-motion: reduce) {
+                  .vb-skel { animation: none; background: rgba(255, 255, 255, 0.07); }
+                }
+              `}</style>
               <Image
                 key={coverSrc}
                 src={coverSrc}
                 alt="cover"
                 fill
+                onLoad={() => setCoverLoaded(true)}
                 style={{ objectFit: "cover", opacity: 0.96 }}
+              />
+
+              {/* Skeleton mientras carga la portada (se desvanece al cargar). */}
+              <div
+                className="vb-skel"
+                aria-hidden="true"
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  zIndex: 1,
+                  opacity: coverLoaded ? 0 : 1,
+                  transition: "opacity 380ms ease",
+                  pointerEvents: "none",
+                }}
               />
 
 
@@ -2279,13 +2326,28 @@ const res = (await createExclusiveSessionRequest({
                     title={isOwner && !profileIsLive && profileRing === "none" ? tProfile("ariaChangeAvatar") : undefined}
                   >
                     {avatarSrc ? (
-                      <Image
-                        key={avatarSrc}
-                        src={avatarSrc}
-                        alt="avatar"
-                        fill
-                        style={{ objectFit: "cover" }}
-                      />
+                      <>
+                        <Image
+                          key={avatarSrc}
+                          src={avatarSrc}
+                          alt="avatar"
+                          fill
+                          onLoad={() => setAvatarLoaded(true)}
+                          style={{ objectFit: "cover" }}
+                        />
+                        {/* Skeleton mientras carga la foto (se desvanece al cargar). */}
+                        <span
+                          className="vb-skel"
+                          aria-hidden="true"
+                          style={{
+                            position: "absolute",
+                            inset: 0,
+                            opacity: avatarLoaded ? 0 : 1,
+                            transition: "opacity 380ms ease",
+                            pointerEvents: "none",
+                          }}
+                        />
+                      </>
                     ) : (
                       <span
                         style={{

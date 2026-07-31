@@ -13,12 +13,13 @@ import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import { useWalletData } from "../components/WalletDataContext";
 import WalletSectionShell from "../components/WalletSectionShell";
 import {
-  EmptyRows,
   WalletCard,
   WalletErrorBox,
   WalletFilterMenu,
   WalletList,
 } from "../components/WalletUi";
+import WalletFigureSkeleton from "../components/WalletFigureSkeleton";
+import { WalletCardsSkeleton } from "../components/WalletListSkeleton";
 import GreetingReviewOverlay from "@/app/components/OwnerSidebar/GreetingReviewOverlay";
 import SessionRequestOverlay from "@/app/components/OwnerSidebar/SessionRequestOverlay";
 import type {
@@ -273,110 +274,89 @@ export default function WalletPendientesPage() {
     <WalletSectionShell activeTab="pending">
       {walletData.error ? <WalletErrorBox message={walletData.error} /> : null}
 
-      <WalletCard transparent>
+      {/* Cifra "Total a liberar" — arriba de la card (como WalletMonthlyStats en
+          historial), para que el título quede DEBAJO de la cifra. */}
+      {walletData.loading ? (
+        <div
+          style={{
+            marginTop: 14,
+            marginBottom: 2,
+            textAlign: "center",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 8,
+          }}
+        >
+          {/* Etiqueta estática inmediata; skeleton solo en las cifras. */}
+          <span style={{ fontSize: 12, fontWeight: 500, color: "rgba(255,255,255,0.5)" }}>
+            {tWallet("totalToRelease")}
+          </span>
+          <WalletFigureSkeleton width={170} height={28} />
+          <WalletFigureSkeleton width={110} height={13} />
+        </div>
+      ) : totalPendingCount === 0 ? (
+        <div style={{ marginTop: 14, marginBottom: 2, textAlign: "center" }}>
+          <p style={{ margin: "0 0 4px", fontSize: 12, color: "rgba(255,255,255,0.50)", fontFamily: "inherit", fontWeight: 500 }}>
+            {tWallet("totalToRelease")}
+          </p>
+          <p style={{ margin: 0, fontSize: 28, fontWeight: 700, lineHeight: 1, letterSpacing: "-0.03em", color: "rgba(255,255,255,0.25)", fontFamily: "inherit" }}>
+            {formatMoney(0)}
+          </p>
+        </div>
+      ) : totalPendingAmount != null ? (
+        <div style={{ marginTop: 14, marginBottom: 2, textAlign: "center" }}>
+          <p style={{ margin: "0 0 4px", fontSize: 12, color: "rgba(255,255,255,0.50)", fontFamily: "inherit", fontWeight: 500 }}>
+            {tWallet("totalToRelease")}
+          </p>
+          <p style={{ margin: "0 0 8px", fontSize: 28, fontWeight: 700, lineHeight: 1, letterSpacing: "-0.03em", color: "#86efac", fontFamily: "inherit" }}>
+            {formatMoney(Math.round(totalPendingAmount * 100) / 100, { code: true })}
+          </p>
+          <p style={{ margin: 0, fontSize: 13, color: "#fff", fontFamily: "inherit", fontWeight: 500 }}>
+            {tWallet("pendingCount", { count: totalPendingCount })}
+          </p>
+        </div>
+      ) : null}
+
+      <WalletCard
+        title={tWallet("pendientesTitle")}
+        transparent
+        headerRight={
+          !walletData.loading && totalPendingCount > 0 ? (
+            <WalletFilterMenu
+              label={tWallet("filterLabel")}
+              menuLabel={tWallet("filterPendingMenu")}
+              value={filter}
+              options={FILTER_OPTIONS}
+              onChange={setFilter}
+              allValue="all"
+            />
+          ) : undefined
+        }
+      >
         <>
-          <style jsx>{`
-            @keyframes skelPulse {
-              0%, 100% { opacity: 0.5; }
-              50%       { opacity: 1; }
-            }
-            .skel {
-              background: rgba(255,255,255,0.10);
-              border-radius: 6px;
-              animation: skelPulse 1.4s ease-in-out infinite;
-            }
-            .skelCard {
-              display: flex;
-              align-items: center;
-              gap: 12px;
-              padding: 13px 14px;
-              border-radius: 14px;
-              background: rgba(255,255,255,0.04);
-            }
-          `}</style>
-
-          {/* ── Loading skeletons ── */}
           {walletData.loading ? (
-            <>
-              <div style={{ marginTop: -8, marginBottom: 14, textAlign: "center" }}>
-                <div className="skel" style={{ width: 120, height: 11, borderRadius: 5, margin: "0 auto 8px" }} />
-                <div className="skel" style={{ width: 180, height: 32, borderRadius: 8, margin: "0 auto 10px" }} />
-                <div className="skel" style={{ width: 100, height: 13, borderRadius: 5, margin: "0 auto" }} />
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                {[0, 1, 2].map((i) => (
-                  <div key={i} className="skelCard">
-                    <div className="skel" style={{ width: 40, height: 40, borderRadius: "50%", flexShrink: 0 }} />
-                    <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
-                      <div className="skel" style={{ width: "55%", height: 13, borderRadius: 5 }} />
-                      <div className="skel" style={{ width: "38%", height: 11, borderRadius: 5 }} />
-                    </div>
-                    <div className="skel" style={{ width: 90, height: 32, borderRadius: 8, flexShrink: 0 }} />
-                  </div>
-                ))}
-              </div>
-            </>
-
-          /* ── Sin pendientes ── */
+            <WalletCardsSkeleton count={3} />
           ) : totalPendingCount === 0 ? (
-            <div style={{ marginTop: -8, marginBottom: 0, textAlign: "center" }}>
-              <p style={{ margin: "0 0 4px", fontSize: 12, color: "rgba(255,255,255,0.50)", fontFamily: "inherit", fontWeight: 500 }}>
-                {tWallet("totalToRelease")}
-              </p>
-              <p style={{ margin: "0 0 8px", fontSize: 28, fontWeight: 700, lineHeight: 1, letterSpacing: "-0.03em", color: "rgba(255,255,255,0.25)", fontFamily: "inherit" }}>
-                {formatMoney(0)}
-              </p>
-              <p style={{ margin: 0, fontSize: 13, color: "rgba(255,255,255,0.45)", fontFamily: "inherit", fontWeight: 400 }}>
-                {tWallet("noPending")}
-              </p>
+            <div style={{ textAlign: "center", color: "rgba(255,255,255,0.5)", fontSize: 13, padding: "18px 0" }}>
+              {tWallet("noPending")}
             </div>
-
-          /* ── Con pendientes ── */
+          ) : filteredCount > 0 ? (
+            <WalletList
+              items={filteredItems}
+              calendarItems={walletData.calendar}
+              onRecord={setRecordRow}
+              onView={(row) => {
+                setViewItem(row);
+                setFeedbackError(null);
+                setFeedbackSuccess(null);
+                setBusy(false);
+              }}
+            />
           ) : (
-            <>
-              {totalPendingAmount != null && (
-                <div style={{ marginTop: -8, marginBottom: 14, textAlign: "center" }}>
-                  <p style={{ margin: "0 0 4px", fontSize: 12, color: "rgba(255,255,255,0.50)", fontFamily: "inherit", fontWeight: 500 }}>
-                    {tWallet("totalToRelease")}
-                  </p>
-                  <p style={{ margin: "0 0 8px", fontSize: 28, fontWeight: 700, lineHeight: 1, letterSpacing: "-0.03em", color: "#86efac", fontFamily: "inherit" }}>
-                    {formatMoney(Math.round(totalPendingAmount * 100) / 100, { code: true })}
-                  </p>
-                  <p style={{ margin: 0, fontSize: 13, color: "#fff", fontFamily: "inherit", fontWeight: 500 }}>
-                    {tWallet("pendingCount", { count: totalPendingCount })}
-                  </p>
-                </div>
-              )}
-              <div style={{ display: "flex", justifyContent: "flex-end" }}>
-                <WalletFilterMenu
-                  label={tWallet("filterLabel")}
-                  menuLabel={tWallet("filterPendingMenu")}
-                  value={filter}
-                  options={FILTER_OPTIONS}
-                  onChange={setFilter}
-                  allValue="all"
-                  transparent
-                />
-              </div>
-              {filteredCount > 0 ? (
-                <WalletList
-                  items={filteredItems}
-                  calendarItems={walletData.calendar}
-                  onRecord={setRecordRow}
-                  onView={(row) => {
-                    setViewItem(row);
-                    setFeedbackError(null);
-                    setFeedbackSuccess(null);
-                    setBusy(false);
-                  }}
-                />
-              ) : (
-                <EmptyRows
-                  title={tWallet("noFilterResults")}
-                  subtitle={tWallet("noFilterResultsSubtitle")}
-                />
-              )}
-            </>
+            <div style={{ textAlign: "center", color: "rgba(255,255,255,0.5)", fontSize: 13, padding: "18px 0" }}>
+              {tWallet("noFilterResults")}
+            </div>
           )}
         </>
       </WalletCard>

@@ -10,6 +10,7 @@ import WalletLives from "./WalletLives";
 import WalletTickets from "./WalletTickets";
 import WalletChannelFilter from "./WalletChannelFilter";
 import WalletMovementsChart, { type ChartBucket } from "./WalletMovementsChart";
+import { useMediaSlideReservedHeight } from "@/app/[locale]/groups/[groupId]/components/posts/useMediaSlideReservedHeight";
 import { useOwnedChannels } from "@/lib/wallet/walletSubscriptionData";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import {
@@ -306,6 +307,14 @@ export default function WalletTransactions({
   const [pill, setPill] = useState<{ left: number; width: number } | null>(null);
   const [tabDir, setTabDir] = useState(0);
 
+  // Reserva de altura del área de pestañas para que, al cambiar a una con poco
+  // contenido, el contenedor no colapse ni "salte" durante el deslizamiento (mismo
+  // sistema que el sub-subnav de medios en perfil/comunidad). "Todos" es la lista
+  // paginada grande → NO infla el piso; las demás (retiros/suscriptores/lives/
+  // tickets) sí. El piso se aplica a todas.
+  const { contentRef: tabContentRef, minHeight: tabMinHeight } =
+    useMediaSlideReservedHeight(filter !== "all");
+
   const selectFilter = (f: Filter) => {
     const from = FILTERS.indexOf(filter as Filter);
     const to = FILTERS.indexOf(f);
@@ -444,9 +453,11 @@ export default function WalletTransactions({
         })}
       </div>
 
-      {/* Contenido de la pestaña: se desliza hacia el lado correspondiente al cambiar. */}
-      <div style={{ overflow: "hidden" }}>
+      {/* Contenido de la pestaña: se desliza hacia el lado correspondiente al cambiar.
+          minHeight reservado para que las pestañas con poco contenido no colapsen. */}
+      <div style={{ overflow: "hidden", minHeight: tabMinHeight }}>
         <motion.div
+          ref={tabContentRef}
           key={filter}
           initial={{ x: tabDir > 0 ? 42 : tabDir < 0 ? -42 : 0, opacity: 0.25 }}
           animate={{ x: 0, opacity: 1 }}

@@ -370,12 +370,6 @@ export default function MobileBottomNav({
           background: #000000;
         }
 
-        .safeArea {
-          width: 100%;
-          background: #000000;
-          height: env(safe-area-inset-bottom, 0px);
-        }
-
         .nav {
           width: 100%;
           display: grid;
@@ -588,7 +582,6 @@ export default function MobileBottomNav({
             })}
           </div>
         </div>
-        <div className="safeArea" />
       </nav>
     </>
   );

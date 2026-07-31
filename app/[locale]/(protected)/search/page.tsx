@@ -245,6 +245,9 @@ function SearchPageContent() {
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [communities, setCommunities] = useState<Community[]>([]);
   const [profiles, setProfiles] = useState<PublicUser[]>([]);
+  // Loading por pestaña (para los skeletons de resultados).
+  const [communitiesLoading, setCommunitiesLoading] = useState(false);
+  const [profilesLoading, setProfilesLoading] = useState(false);
   const [memberMap, setMemberMap] = useState<Record<string, CanonicalMemberStatus>>({});
   const [reqMap, setReqMap] = useState<Record<string, boolean>>({});
   const [refreshNonce, setRefreshNonce] = useState(0);
@@ -350,11 +353,18 @@ function SearchPageContent() {
   }, [urlTab]);
 
   useEffect(() => {
+    // Marca loading del tab activo EN CUANTO cambia la query (antes de que termine
+    // el debounce) para que el skeleton se vea de inmediato, sin parpadeo invisible.
+    if (normalizeText(queryText).length >= MIN_SEARCH_LENGTH) {
+      if (activeTab === "groups") setCommunitiesLoading(true);
+      else if (activeTab === "profiles") setProfilesLoading(true);
+    }
     const timer = window.setTimeout(() => {
       setDebouncedQuery(queryText);
     }, SEARCH_DEBOUNCE_MS);
 
     return () => window.clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [queryText]);
 
   // El input refleja la búsqueda de la URL cuando cambia desde fuera (navegación, etc.).
@@ -390,6 +400,7 @@ function SearchPageContent() {
     async function loadGroups() {
       if (!canSearch) {
         setCommunities([]);
+        setCommunitiesLoading(false);
         lastGroupsKeyRef.current = null;
         return;
       }
@@ -397,8 +408,12 @@ function SearchPageContent() {
       if (activeTab !== "groups") return;
 
       const key = `${debouncedQuery}::${refreshNonce}`;
-      if (lastGroupsKeyRef.current === key) return; // ya cargado para esta búsqueda
+      if (lastGroupsKeyRef.current === key) {
+        setCommunitiesLoading(false); // ya cargado (caché): sin skeleton
+        return;
+      }
 
+      setCommunitiesLoading(true);
       const result = await searchGroups({
         term: debouncedQuery,
         pageSize: SEARCH_LIMIT,
@@ -409,6 +424,7 @@ function SearchPageContent() {
 
       setCommunities(result.groups as Community[]);
       lastGroupsKeyRef.current = key;
+      setCommunitiesLoading(false);
     }
 
     loadGroups().catch((error) => {
@@ -416,6 +432,7 @@ function SearchPageContent() {
 
       if (!cancelled) {
         setCommunities([]);
+        setCommunitiesLoading(false);
         lastGroupsKeyRef.current = null;
       }
     });
@@ -431,14 +448,19 @@ function SearchPageContent() {
     async function loadProfiles() {
       if (!canSearch) {
         setProfiles([]);
+        setProfilesLoading(false);
         lastProfilesKeyRef.current = null;
         return;
       }
       if (activeTab !== "profiles") return;
 
       const key = `${debouncedQuery}::${user?.uid ?? ""}::${refreshNonce}`;
-      if (lastProfilesKeyRef.current === key) return;
+      if (lastProfilesKeyRef.current === key) {
+        setProfilesLoading(false); // ya cargado (caché): sin skeleton
+        return;
+      }
 
+      setProfilesLoading(true);
       const result = await searchProfiles({
         db,
         rawQuery: debouncedQuery,
@@ -462,6 +484,7 @@ function SearchPageContent() {
         }))
       );
       lastProfilesKeyRef.current = key;
+      setProfilesLoading(false);
     }
 
     loadProfiles().catch((error) => {
@@ -469,6 +492,7 @@ function SearchPageContent() {
 
       if (!cancelled) {
         setProfiles([]);
+        setProfilesLoading(false);
         lastProfilesKeyRef.current = null;
       }
     });
@@ -703,6 +727,7 @@ function SearchPageContent() {
   fontStack="inherit"
   currentUser={user}
   communities={communities}
+  loading={communitiesLoading}
   memberMap={memberMap}
   reqMap={reqMap}
   onNavigate={handleNavigate}
@@ -720,6 +745,7 @@ function SearchPageContent() {
           <SearchProfilesResults
             fontStack="inherit"
             profiles={profiles}
+            loading={profilesLoading}
             onNavigate={handleNavigate}
             currentUserId={user?.uid ?? null}
             filter={profileFilter}

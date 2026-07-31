@@ -14,6 +14,7 @@ import { useWalletLedger } from "@/lib/wallet/walletLedger";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import { useBalanceHidden, toggleBalanceHidden } from "@/lib/wallet/useBalanceHidden";
 import MaskedAmount from "@/app/components/MaskedAmount";
+import WalletFigureSkeleton from "../components/WalletFigureSkeleton";
 import CurrencySwitcher from "@/app/components/CurrencySwitcher";
 import { useKyc } from "@/lib/kyc/useKyc";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
@@ -73,7 +74,7 @@ export default function WalletFinanzasPage() {
   // Ocultar saldo: mismo estado compartido y persistente que el rail derecho.
   const balanceHidden = useBalanceHidden();
   const { user } = useAuth();
-  const { summary } = useWalletFinances(user?.uid);
+  const { summary, loading: summaryLoading } = useWalletFinances(user?.uid);
   const kyc = useKyc(user?.uid);
   const [mode, setMode] = useState<"net" | "gross">("net");
   const [withdrawPanelOpen, setWithdrawPanelOpen] = useState(false);
@@ -158,6 +159,10 @@ export default function WalletFinanzasPage() {
 
   const view = selectFinanceView(summary, mode);
 
+  // Skeleton de las cifras variables mientras cargan. Incluye `!user?.uid` para
+  // cubrir también la ventana en la que el auth aún no resuelve el usuario.
+  const loadingAmounts = summaryLoading || !user?.uid;
+
   // Botón Retirar: habilitado siempre que haya saldo. (Se quitó el candado de fin
   // de mes; más adelante se ofrecerán retiros QUINCENALES, no mensuales.)
   const canWithdrawNow = view.available > 0;
@@ -172,7 +177,8 @@ export default function WalletFinanzasPage() {
   const showKycCta = view.available > 0 || kyc.status !== "not_started";
 
   // Mejor mes: mes calendario con más ganancias (entradas "earned").
-  const { entries } = useWalletLedger(user?.uid, 365);
+  const { entries, loading: ledgerLoading } = useWalletLedger(user?.uid, 365);
+  const loadingBestMonth = ledgerLoading || !user?.uid;
   const bestMonth = useMemo(() => {
     const byMonth = new Map<string, { year: number; month: number; amount: number }>();
     for (const e of entries) {
@@ -267,7 +273,9 @@ export default function WalletFinanzasPage() {
             <CurrencySwitcher color="#fff" scale={1.3} />
 
             <div style={{ flex: 1, minWidth: 0, display: "flex", justifyContent: "flex-end" }}>
-              {kyc.approved ? (
+              {kyc.loading ? (
+                <WalletFigureSkeleton width={88} height={30} />
+              ) : kyc.approved ? (
                 <button
                   type="button"
                   onClick={handleWithdrawClick}
@@ -335,7 +343,9 @@ export default function WalletFinanzasPage() {
                   fontVariantNumeric: "tabular-nums",
                 }}
               >
-                {balanceHidden ? (
+                {loadingAmounts ? (
+                  <WalletFigureSkeleton width={170} height={32} />
+                ) : balanceHidden ? (
                   <MaskedAmount formatted={formatMoney(view.available, { code: true })} />
                 ) : (
                   formatMoney(view.available, { code: true })
@@ -374,8 +384,10 @@ export default function WalletFinanzasPage() {
             </div>
           </div>
 
-          {/* KYC: CTA mientras no está verificado; celebración al verificar. */}
-          {kyc.approved ? (
+          {/* KYC: CTA mientras no está verificado; celebración al verificar.
+              Espera a que `kyc.loading` termine antes de decidir, para no mostrar
+              (y quitar en seguida) la leyenda de KYC al entrar ya estando verificado. */}
+          {kyc.loading ? null : kyc.approved ? (
             kycCelebrate ? (
               <>
                 <style jsx global>{`
@@ -510,7 +522,9 @@ export default function WalletFinanzasPage() {
                   color: "rgba(255,255,255,0.9)",
                 }}
               >
-                {balanceHidden ? (
+                {loadingAmounts ? (
+                  <WalletFigureSkeleton width={66} height={17} />
+                ) : balanceHidden ? (
                   <MaskedAmount formatted={formatMoney(view.pending)} />
                 ) : (
                   formatMoney(view.pending)
@@ -547,13 +561,19 @@ export default function WalletFinanzasPage() {
                   color: "rgba(255,255,255,0.9)",
                 }}
               >
-                {balanceHidden ? (
+                {loadingBestMonth ? (
+                  <WalletFigureSkeleton width={66} height={17} />
+                ) : balanceHidden ? (
                   <MaskedAmount formatted={formatMoney(bestMonth?.amount ?? 0)} />
                 ) : (
                   formatMoney(bestMonth?.amount ?? 0)
                 )}
               </div>
-              {bestMonth ? (
+              {loadingBestMonth ? (
+                <div style={{ textAlign: "center" }}>
+                  <WalletFigureSkeleton width={44} height={9} />
+                </div>
+              ) : bestMonth ? (
                 <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.4)" }}>
                   {formatMonthLabel(bestMonth.year, bestMonth.month)}
                 </div>
@@ -589,7 +609,9 @@ export default function WalletFinanzasPage() {
                   color: "rgba(255,255,255,0.9)",
                 }}
               >
-                {balanceHidden ? (
+                {loadingAmounts ? (
+                  <WalletFigureSkeleton width={66} height={17} />
+                ) : balanceHidden ? (
                   <MaskedAmount formatted={formatMoney(view.lifetime)} />
                 ) : (
                   formatMoney(view.lifetime)

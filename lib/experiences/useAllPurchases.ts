@@ -22,6 +22,8 @@ export type PurchaseData = {
   grossAmount: number; // base (precio del creador); sobre esto va la comisión
   taxAmount?: number; // 🧾 IVA cobrado al comprador ENCIMA de la base (va al SAT). Legacy: ausente → 0
   currency: string;
+  invoiced?: boolean; // true si ya se generó su CFDI (generateBuyerInvoice)
+  invoiceId?: string | null;
   creatorId: string;
   channelType: "profile" | "group";
   channelId: string | null;

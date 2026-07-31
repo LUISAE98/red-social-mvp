@@ -10,12 +10,16 @@ import RefreshableArea from "@/components/refresh/RefreshableArea";
 
 import { offersExperiences, type PublicUser } from "./GroupsSearchPanel";
 import LiveRingAvatar from "@/app/components/LiveRing/LiveRingAvatar";
+import { SearchRowSkeletonList } from "./SearchResultSkeleton";
 
 export type ProfilesSearchFilter = "all" | "experiences";
+
+const PROFILE_SKELETON_COUNT = 14;
 
 type SearchProfilesResultsProps = {
   fontStack: string;
   profiles: PublicUser[];
+  loading?: boolean;
   onNavigate: (href: string) => void;
   onRefresh?: () => Promise<void> | void;
   currentUserId?: string | null;
@@ -26,6 +30,7 @@ type SearchProfilesResultsProps = {
 export default function SearchProfilesResults({
   fontStack,
   profiles,
+  loading = false,
   onNavigate,
   onRefresh,
   currentUserId,
@@ -34,6 +39,8 @@ export default function SearchProfilesResults({
 }: SearchProfilesResultsProps) {
   const tCommon = useTranslations("common");
   const [visibleCount, setVisibleCount] = useState(10);
+  // Los skeletons se mantienen montados hasta que su fade-out termina.
+  const [skeletonsMounted, setSkeletonsMounted] = useState(true);
   const [mobileRefreshEnabled, setMobileRefreshEnabled] = useState(false);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
@@ -47,6 +54,24 @@ export default function SearchProfilesResults({
   const hasResults = filteredProfiles.length > 0;
   const visibleProfiles = filteredProfiles.slice(0, visibleCount);
   const hasMoreProfiles = visibleCount < filteredProfiles.length;
+
+  // Al terminar la carga, los skeletons hacen fade-out y se desmontan.
+  useEffect(() => {
+    if (loading) {
+      setSkeletonsMounted(true);
+      return;
+    }
+    const t = window.setTimeout(() => setSkeletonsMounted(false), 480);
+    return () => window.clearTimeout(t);
+  }, [loading]);
+
+  // Mientras carga: 14 skeletons. Ya cargado: los que "sobran" (14 − resultados)
+  // hacen fade-out y se desmontan; si hay ≥14 resultados, ninguno.
+  const trailingSkeletons = skeletonsMounted
+    ? loading
+      ? PROFILE_SKELETON_COUNT
+      : Math.max(0, PROFILE_SKELETON_COUNT - filteredProfiles.length)
+    : 0;
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -161,7 +186,8 @@ export default function SearchProfilesResults({
     lineHeight: 1.5,
   };
 
-  if (!hasResults) {
+  // "Sin resultados" solo cuando ya cargó y los skeletons terminaron su fade.
+  if (!loading && !hasResults && !skeletonsMounted) {
     return (
       <RefreshableArea
         onRefresh={mobileRefreshEnabled && onRefresh ? onRefresh : async () => {}}
@@ -174,13 +200,15 @@ export default function SearchProfilesResults({
     );
   }
 
+  const showResults = !loading && hasResults;
+
   return (
     <RefreshableArea
       onRefresh={mobileRefreshEnabled && onRefresh ? onRefresh : async () => {}}
       indicatorTop={indicatorTop ?? "calc(env(safe-area-inset-top) + 116px)"}
     >
       <section style={shellStyle}>
-        {visibleProfiles.map((p) => {
+        {showResults && visibleProfiles.map((p) => {
           const fullName =
             p.displayName?.trim() ||
             `${p.firstName ?? ""} ${p.lastName ?? ""}`.trim() ||
@@ -264,7 +292,7 @@ export default function SearchProfilesResults({
           );
         })}
 
-        {hasMoreProfiles ? (
+        {showResults && hasMoreProfiles ? (
           <div
             ref={loadMoreRef}
             aria-hidden="true"
@@ -272,11 +300,22 @@ export default function SearchProfilesResults({
           />
         ) : null}
 
+        {/* Skeletons: 14 mientras carga; los sobrantes se desvanecen al terminar. */}
+        <SearchRowSkeletonList count={trailingSkeletons} fading={!loading} />
+
         <style jsx>{`
           .result-item {
             padding: 10px 14px;
             transition: background 0.16s ease;
             cursor: pointer;
+            animation: searchRowIn 340ms ease both;
+          }
+          @keyframes searchRowIn {
+            from { opacity: 0; transform: translateY(4px); }
+            to { opacity: 1; transform: translateY(0); }
+          }
+          @media (prefers-reduced-motion: reduce) {
+            .result-item { animation: none; }
           }
 
           .result-item:hover {

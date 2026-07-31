@@ -26,8 +26,8 @@ const TABS: WalletTabItem[] = [
   { key: "finances", href: "/wallet/finanzas", icon: "coin" },
   { key: "statistics", href: "/wallet/estadisticas", icon: "finance" },
   { key: "calendar", href: "/wallet/calendario", icon: "calendar" },
-  { key: "pending", href: "/wallet/pendientes", icon: "pending" },
-  { key: "history", href: "/wallet/historial", icon: "history" },
+  { key: "pending", href: "/wallet/pendientes", icon: "history" },
+  { key: "history", href: "/wallet/historial", icon: "pending" },
 ];
 
 export default function WalletSubNav({

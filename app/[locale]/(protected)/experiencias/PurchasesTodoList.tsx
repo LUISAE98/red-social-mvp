@@ -57,9 +57,9 @@ export default function PurchasesTodoList({ uid }: { uid: string | null | undefi
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [panelOpen, setPanelOpen] = useState(false);
 
-  // Solo son facturables las compras pagadas (no reembolsadas/rechazadas).
+  // Solo son facturables las compras pagadas y NO facturadas aún.
   const selectableIds = useMemo(
-    () => visible.filter((r) => r.data.status === "paid").map((r) => r.id),
+    () => visible.filter((r) => r.data.status === "paid" && r.data.invoiced !== true).map((r) => r.id),
     [visible]
   );
   const allSelected = selectableIds.length > 0 && selectableIds.every((id) => selectedIds.has(id));
@@ -83,9 +83,12 @@ export default function PurchasesTodoList({ uid }: { uid: string | null | undefi
     if (selectedIds.size > 0) setPanelOpen(true);
     else setSelecting(false); // sin selección, "Listo" solo sale del modo selección
   }
-  // Generación del CFDI (timbrado Facturapi). Se conecta en el siguiente bloque.
+  // Al facturar con éxito: salir del modo selección y limpiar la selección, para
+  // volver a "Da clic aquí para facturar". Las compras facturadas se actualizan
+  // solas por el snapshot (quedan marcadas invoiced=true y muestran "· Facturado").
   function handleGenerate() {
-    // TODO(facturación): timbrar el CFDI del comprador con los conceptos seleccionados.
+    setSelecting(false);
+    setSelectedIds(new Set());
   }
 
   // Conceptos seleccionados → panel de facturación (base + IVA por compra).
@@ -213,8 +216,9 @@ export default function PurchasesTodoList({ uid }: { uid: string | null | undefi
         const relTime = tsForRel ? getRelativeTime(tsForRel as { toDate: () => Date }, tCommon) : null;
         const typeLabel = tWallet(ledgerTypeLabelKey(d.type));
         const refunded = d.status !== "paid";
-        // Solo las compras pagadas son facturables/seleccionables.
-        const selectable = selecting && !refunded;
+        const invoiced = d.invoiced === true;
+        // Facturable/seleccionable solo si está pagada y NO facturada aún.
+        const selectable = selecting && !refunded && !invoiced;
         const selected = selectedIds.has(r.id);
 
         return (
@@ -232,7 +236,7 @@ export default function PurchasesTodoList({ uid }: { uid: string | null | undefi
               background: "transparent",
               border: "none",
               cursor: selectable ? "pointer" : "default",
-              opacity: selecting && refunded ? 0.5 : 1,
+              opacity: selecting && (refunded || invoiced) ? 0.45 : 1,
               WebkitTapHighlightColor: "transparent",
               transition: "opacity 160ms ease",
             }}
@@ -271,8 +275,15 @@ export default function PurchasesTodoList({ uid }: { uid: string | null | undefi
             </div>
 
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ color: "#fff", fontWeight: 600, fontSize: 13, lineHeight: 1.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                {name}
+              <div style={{ display: "flex", alignItems: "center", gap: 5, minWidth: 0 }}>
+                <span style={{ color: "#fff", fontWeight: 600, fontSize: 13, lineHeight: 1.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}>
+                  {name}
+                </span>
+                {invoiced && (
+                  <span style={{ color: "#a855f7", fontWeight: 600, fontSize: 12, lineHeight: 1.2, whiteSpace: "nowrap", flexShrink: 0 }}>
+                    · Facturado
+                  </span>
+                )}
               </div>
               <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 11, marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 {typeLabel}{relTime ? ` · ${relTime}` : ""}

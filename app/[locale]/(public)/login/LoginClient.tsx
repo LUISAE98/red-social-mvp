@@ -25,6 +25,8 @@ import RegisterPanel from "@/app/[locale]/(public)/register/RegisterPanel";
 import CompleteProfilePanel from "@/app/[locale]/(public)/complete-profile/CompleteProfilePanel";
 import { useProfileOnboarding } from "@/app/[locale]/(public)/complete-profile/useProfileOnboarding";
 import { useScreenReady } from "@/lib/useScreenReady";
+import CurrencySwitcher from "@/app/components/CurrencySwitcher";
+import LanguageSwitcher from "@/app/components/LanguageSwitcher";
 
 const vibraPink = "#ff2fb3";
 const vibraPurple = "#a855f7";
@@ -651,6 +653,9 @@ body.loginPageBg {
     /* Menos padding abajo para que el switch de audiencia quede cerca del botón
        de "Continuar con Google" (antes quedaba muy lejos). */
     padding: clamp(28px, 8vh, 72px) 4px 8px;
+    /* Celular: acerca el panel al tagline (los switches arriba del título añadían
+       altura y lo separaban de "Conecta. Comparte. Vibra."). */
+    gap: clamp(16px, 3vh, 34px) !important;
   }
 
   /* Y menos espacio arriba del switch, para acercarlo aún más al fold. */
@@ -714,6 +719,21 @@ body.loginPageBg {
     animation: none;
   }
 }
+
+/* Switches de moneda/idioma dentro del login: SOLO celular (en laptop van arriba
+   a la derecha vía (public)/layout). */
+.loginMobileSwitches {
+  display: none;
+}
+@media (max-width: 900px) {
+  .loginMobileSwitches {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    margin: 0 0 6px;
+  }
+}
       `}</style>
 
      <main
@@ -734,6 +754,13 @@ body.loginPageBg {
               >
                 {mode === "login" && (
                   <>
+{/* Solo CELULAR: switches de moneda/idioma arriba del título "Iniciar sesión".
+    En laptop van arriba a la derecha (los pone el (public)/layout). */}
+<div className="loginMobileSwitches">
+  <CurrencySwitcher variant="desktop" />
+  <LanguageSwitcher variant="desktop" />
+</div>
+
 <div>
   <h1 style={titleStyle}>{t("title")}</h1>
   <p style={subtitleStyle}>{t("subtitle")}</p>

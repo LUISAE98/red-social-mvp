@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { useWalletFinances } from "@/lib/wallet/walletFinances";
 import { useWalletLedger } from "@/lib/wallet/walletLedger";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
+import WalletFigureSkeleton from "./WalletFigureSkeleton";
 
 /**
  * Fila de 2 cifras (Ganado · Rechazado). Al dar clic en cualquiera
@@ -17,9 +18,10 @@ export default function WalletMonthlyStats({
 }) {
   const tWallet = useTranslations("wallet");
   const { format: formatMoney } = usePriceFormat();
-  const { summary } = useWalletFinances(uid);
-  const { entries } = useWalletLedger(uid, 365);
+  const { summary, loading: summaryLoading } = useWalletFinances(uid);
+  const { entries, loading: ledgerLoading } = useWalletLedger(uid, 365);
   const [scope, setScope] = useState<"month" | "all">("month");
+  const loading = !uid || summaryLoading || ledgerLoading;
 
   const month = useMemo(() => {
     const now = new Date();
@@ -106,7 +108,11 @@ export default function WalletMonthlyStats({
               color: col.color,
             }}
           >
-            {formatMoney(col.amount)}
+            {loading ? (
+              <WalletFigureSkeleton width={72} height={16} />
+            ) : (
+              formatMoney(col.amount)
+            )}
           </span>
         </button>
       ))}

@@ -9,6 +9,8 @@ import { useWalletLedger } from "@/lib/wallet/walletLedger";
 import { useWalletPosts } from "@/lib/wallet/walletPostCache";
 import type { Post } from "@/lib/posts/types";
 import { WalletFilterMenu } from "./WalletUi";
+import WalletFigureSkeleton from "./WalletFigureSkeleton";
+import { WalletCardsSkeleton } from "./WalletListSkeleton";
 
 const LEDGER_WINDOW = 1000;
 const PAGE = 10;
@@ -184,15 +186,9 @@ export default function WalletTickets({
   const visible = rows.slice(0, visibleCount);
   const hasMore = visibleCount < rows.length;
 
-  if (isLoading) {
-    return (
-      <div style={{ marginTop: 22, display: "flex", justifyContent: "center", padding: "24px 0" }}>
-        <div className="vibraPullRefreshSpinner refreshing" style={{ width: 30, height: 30 }} />
-      </div>
-    );
-  }
-
-  if (allPostIds.length === 0) {
+  // Sin publicaciones con ticket (ya cargado): mensaje simple, sin filtros.
+  // Mientras carga sí mostramos filtros + skeletons (abajo).
+  if (!isLoading && allPostIds.length === 0) {
     return (
       <div
         style={{
@@ -330,24 +326,38 @@ export default function WalletTickets({
         <div style={statColStyle}>
           <span style={statLabelStyle}>{tWallet("ticketsGeneratedLabel")}</span>
           <span style={{ ...statValueStyle, color: "#4ade80" }}>
-            {formatMoney(totalMoney, { code: true })}
+            {isLoading ? (
+              <WalletFigureSkeleton width={72} height={16} />
+            ) : (
+              formatMoney(totalMoney, { code: true })
+            )}
           </span>
         </div>
         <div style={statColStyle}>
           <span style={statLabelStyle}>{tWallet("ticketsPostsLabel")}</span>
           <span style={{ ...statValueStyle, color: "rgba(255,255,255,0.9)" }}>
-            {rows.length.toLocaleString(locale)}
+            {isLoading ? (
+              <WalletFigureSkeleton width={50} height={16} />
+            ) : (
+              rows.length.toLocaleString(locale)
+            )}
           </span>
         </div>
         <div style={statColStyle}>
           <span style={statLabelStyle}>{tWallet("ticketsSoldLabel")}</span>
           <span style={{ ...statValueStyle, color: "rgba(255,255,255,0.9)" }}>
-            {totalTickets.toLocaleString(locale)}
+            {isLoading ? (
+              <WalletFigureSkeleton width={50} height={16} />
+            ) : (
+              totalTickets.toLocaleString(locale)
+            )}
           </span>
         </div>
       </div>
 
-      {rows.length === 0 ? (
+      {isLoading ? (
+        <WalletCardsSkeleton count={4} />
+      ) : rows.length === 0 ? (
         <div style={emptyStyle}>{tWallet("livesFilteredEmpty")}</div>
       ) : (
         <>

@@ -297,6 +297,7 @@ export { mpHealthcheck } from "./payments/mpHealthcheck";
 // Facturación (Facturapi — CFDI, modelo vendedor directo). Bloque 0: smoke test de
 // credenciales (org de Vibra + multi-tenant). No emite CFDI ni toca el ledger.
 export { facturapiHealthcheck } from "./facturacion/facturapiHealthcheck";
+export { facturapiOrgKeyProbe } from "./facturacion/facturapiOrgKeyProbe";
 
 // Facturación — Bloque 1a: captura de datos fiscales del creador-proveedor
 // (RFC/régimen/CP) + consentimiento de auto-facturación (self-billing).
@@ -315,7 +316,7 @@ export { saveBuyerTaxProfile } from "./facturacion/buyerTaxProfile";
 export { saveBuyerBillingProfile, deleteBuyerBillingProfile } from "./facturacion/buyerBillingProfiles";
 
 // Facturación — Bloque 2: emisión del CFDI Vibra → comprador (org de Vibra).
-export { generateBuyerInvoice } from "./facturacion/generateBuyerInvoice";
+export { generateBuyerInvoice, downloadBuyerInvoice } from "./facturacion/generateBuyerInvoice";
 
 // Pagos — Bloque 2a: cobro de saludos/consejos + webhook de órdenes.
 export { payGreeting } from "./payments/greetingPayment";

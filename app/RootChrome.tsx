@@ -366,15 +366,9 @@ if (isPublicPostRoute || isOverlayRoute) {
           </Link>
         )}
 
-        {/* En celular, los switches de moneda/idioma van como burbujas flotantes
-            (mismo patrón que el layout de auth), disponibles en páginas públicas
-            fuera de auth (en auth los pone el (public)/layout → evita duplicados). */}
-        {!isAuthPage && (
-          <>
-            <CurrencySwitcher variant="mobile-bubble" />
-            <LanguageSwitcher variant="mobile-bubble" />
-          </>
-        )}
+        {/* En CELULAR los switches de moneda/idioma solo se muestran en /login
+            (arriba del botón), no en el resto de páginas públicas. En LAPTOP siguen
+            en el header de escritorio (arriba). */}
       </div>
     </>
   );

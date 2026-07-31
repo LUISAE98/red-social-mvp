@@ -20,6 +20,7 @@ import {
   useBuyerBillingProfiles,
   saveBuyerBillingProfile,
   generateBuyerInvoice,
+  downloadBuyerInvoice,
   type BuyerBillingProfile,
 } from "@/lib/facturacion/buyerFiscal";
 
@@ -86,7 +87,7 @@ export default function BuyerInvoicePanel({ open, onClose, uid, concepts, format
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // Resultado del timbrado (vista de éxito con el folio fiscal + correo de envío).
-  const [doneInfo, setDoneInfo] = useState<{ uuid: string | null; total: number | null; email: string | null } | null>(null);
+  const [doneInfo, setDoneInfo] = useState<{ invoiceId: string; uuid: string | null; total: number | null; email: string | null } | null>(null);
 
   useEffect(() => {
     if (open) {
@@ -185,10 +186,33 @@ export default function BuyerInvoicePanel({ open, onClose, uid, concepts, format
         billingProfileId: profileId!,
       });
       onConfirm?.();
-      setDoneInfo({ uuid: r.uuid, total: r.total, email: r.email });
+      setDoneInfo({ invoiceId: r.invoiceId, uuid: r.uuid, total: r.total, email: r.email });
     } catch (e) {
       setError(errMsg(e));
     } finally {
+      setBusy(false);
+    }
+  }
+
+  // Descarga el PDF de la factura (base64 → blob) y cierra el panel.
+  async function handleDownload() {
+    if (!doneInfo?.invoiceId) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const r = await downloadBuyerInvoice(doneInfo.invoiceId);
+      const bytes = Uint8Array.from(atob(r.pdfBase64), (c) => c.charCodeAt(0));
+      const url = URL.createObjectURL(new Blob([bytes], { type: "application/pdf" }));
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = r.filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      onClose();
+    } catch (e) {
+      setError(errMsg(e));
       setBusy(false);
     }
   }
@@ -252,7 +276,22 @@ export default function BuyerInvoicePanel({ open, onClose, uid, concepts, format
                   <div style={{ color: "rgba(255,255,255,0.85)", marginTop: 2 }}>{doneInfo.uuid}</div>
                 </div>
               )}
-              <button type="button" onClick={onClose} style={{ marginTop: 6, width: "100%", height: 42, borderRadius: 5, border: "none", background: "#a855f7", color: "rgba(255,255,255,0.98)", fontSize: 17, fontWeight: 500, fontFamily: "inherit", letterSpacing: "-0.02em", cursor: "pointer", display: "grid", placeItems: "center" }}>Listo</button>
+              <button type="button" onClick={onClose} disabled={busy} style={{ marginTop: 6, width: "100%", height: 42, borderRadius: 5, border: "none", background: "#a855f7", color: "rgba(255,255,255,0.98)", fontSize: 17, fontWeight: 500, fontFamily: "inherit", letterSpacing: "-0.02em", cursor: busy ? "default" : "pointer", display: "grid", placeItems: "center" }}>Listo</button>
+
+              {/* Descargar el PDF de la factura y cerrar. 🔁 CUTOVER: hoy es CFDI de
+                  PRUEBA (llave sk_test), aún no fiscal; en producción será el CFDI real. */}
+              <button
+                type="button"
+                onClick={handleDownload}
+                disabled={busy}
+                style={{
+                  background: "none", border: "none", padding: 0, margin: 0,
+                  color: "#c084fc", cursor: busy ? "default" : "pointer",
+                  fontSize: 13, fontWeight: 600, fontFamily: "inherit", lineHeight: 1.4,
+                }}
+              >
+                {busy ? "Descargando…" : "Da clic aquí para descargar tu factura"}
+              </button>
             </div>
           ) : (
           <>

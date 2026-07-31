@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import Image from "next/image";
 import { useActiveSubscribers } from "@/lib/wallet/walletSubscriptionData";
+import { WalletSubscriberRowsSkeleton } from "./WalletListSkeleton";
 
 const DAY = 86400000;
 
@@ -73,8 +74,6 @@ export default function WalletActiveSubscribers({
     return tWallet("subTenureYears", { count: Math.floor(months / 12) });
   };
 
-  if (!loaded) return null;
-
   return (
     <div style={{ marginTop: 18 }}>
       <span
@@ -100,7 +99,9 @@ export default function WalletActiveSubscribers({
         />
       </span>
 
-      {subscribers.length === 0 ? (
+      {!loaded ? (
+        <WalletSubscriberRowsSkeleton count={5} />
+      ) : subscribers.length === 0 ? (
         <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 13, padding: "12px 0" }}>
           {tWallet("subsActiveEmpty")}
         </div>

@@ -9,6 +9,8 @@ import { useWalletPosts } from "@/lib/wallet/walletPostCache";
 import type { Post } from "@/lib/posts/types";
 import LiveCreatorPanel from "@/app/components/LiveChat/LiveCreatorPanel";
 import { WalletFilterMenu } from "./WalletUi";
+import WalletFigureSkeleton from "./WalletFigureSkeleton";
+import { WalletCardsSkeleton } from "./WalletListSkeleton";
 
 // Ventana amplia del ledger para agregar por live (mismo criterio que Suscriptores).
 const LEDGER_WINDOW = 1000;
@@ -207,16 +209,9 @@ export default function WalletLives({
   const visible = rows.slice(0, visibleCount);
   const hasMore = visibleCount < rows.length;
 
-  if (isLoading) {
-    return (
-      <div style={{ marginTop: 22, display: "flex", justifyContent: "center", padding: "24px 0" }}>
-        <div className="vibraPullRefreshSpinner refreshing" style={{ width: 30, height: 30 }} />
-      </div>
-    );
-  }
-
-  // Sin ningún live monetizado: mensaje simple, sin filtros.
-  if (allLiveIds.length === 0) {
+  // Sin ningún live monetizado (ya cargado): mensaje simple, sin filtros.
+  // Mientras carga sí mostramos filtros + skeletons (abajo).
+  if (!isLoading && allLiveIds.length === 0) {
     return (
       <div
         style={{
@@ -361,24 +356,38 @@ export default function WalletLives({
         <div style={statColStyle}>
           <span style={statLabelStyle}>{tWallet("livesGeneratedLabel")}</span>
           <span style={{ ...statValueStyle, color: "#4ade80" }}>
-            {formatMoney(totalMoney, { code: true })}
+            {isLoading ? (
+              <WalletFigureSkeleton width={72} height={16} />
+            ) : (
+              formatMoney(totalMoney, { code: true })
+            )}
           </span>
         </div>
         <div style={statColStyle}>
           <span style={statLabelStyle}>{tWallet("livesBroadcastLabel")}</span>
           <span style={{ ...statValueStyle, color: "rgba(255,255,255,0.9)" }}>
-            {tWallet("livesTimesCount", { count: rows.length })}
+            {isLoading ? (
+              <WalletFigureSkeleton width={50} height={16} />
+            ) : (
+              tWallet("livesTimesCount", { count: rows.length })
+            )}
           </span>
         </div>
         <div style={statColStyle}>
           <span style={statLabelStyle}>{tWallet("livesViewsLabel")}</span>
           <span style={{ ...statValueStyle, color: "rgba(255,255,255,0.9)" }}>
-            {totalViews.toLocaleString(locale)}
+            {isLoading ? (
+              <WalletFigureSkeleton width={50} height={16} />
+            ) : (
+              totalViews.toLocaleString(locale)
+            )}
           </span>
         </div>
       </div>
 
-      {rows.length === 0 ? (
+      {isLoading ? (
+        <WalletCardsSkeleton count={4} />
+      ) : rows.length === 0 ? (
         <div style={emptyStyle}>{tWallet("livesFilteredEmpty")}</div>
       ) : (
         <>
