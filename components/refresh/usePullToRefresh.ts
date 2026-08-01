@@ -31,6 +31,11 @@ export function usePullToRefresh({
   const containerRef = useRef<HTMLDivElement | null>(null);
 
   const startYRef = useRef<number | null>(null);
+  const startXRef = useRef<number | null>(null);
+  // Eje bloqueado del gesto: "x" (scroll horizontal, p.ej. el filtro de canales) o
+  // "y" (pull vertical). Se decide en el primer movimiento claro y no cambia hasta
+  // soltar → si arrastras en X no se mueve la página en Y, y viceversa.
+  const axisRef = useRef<"x" | "y" | null>(null);
   const pullingRef = useRef(false);
   const refreshingRef = useRef(false);
   const readyToRefreshRef = useRef(false);
@@ -40,6 +45,8 @@ export function usePullToRefresh({
 
   const reset = useCallback(() => {
     startYRef.current = null;
+    startXRef.current = null;
+    axisRef.current = null;
     pullingRef.current = false;
     readyToRefreshRef.current = false;
     setPullDistance(0);
@@ -92,6 +99,8 @@ const canStartPull = () => {
       if (!canStartPull()) return;
 
       startYRef.current = event.touches[0]?.clientY ?? null;
+      startXRef.current = event.touches[0]?.clientX ?? null;
+      axisRef.current = null;
       pullingRef.current = startYRef.current !== null;
       readyToRefreshRef.current = false;
     };
@@ -102,7 +111,18 @@ const canStartPull = () => {
       if (refreshingRef.current) return;
 
       const currentY = event.touches[0]?.clientY ?? 0;
+      const currentX = event.touches[0]?.clientX ?? 0;
       const rawDistance = currentY - startYRef.current;
+      const dx = Math.abs(currentX - (startXRef.current ?? currentX));
+      const dy = Math.abs(rawDistance);
+
+      // Axis-lock: en el primer movimiento claro (>6px) decide el eje. Si el gesto
+      // es horizontal (scroll del filtro/carrusel), NO es pull → no tocar la página
+      // en Y. Una vez bloqueado, no cambia hasta soltar.
+      if (axisRef.current === null && Math.max(dx, dy) > 6) {
+        axisRef.current = dx > dy ? "x" : "y";
+      }
+      if (axisRef.current === "x") return;
 
       if (rawDistance <= 0) return;
 

@@ -332,6 +332,9 @@ export default function WalletChannelFilter({
           -webkit-overflow-scrolling: touch;
           scrollbar-width: none;
           padding: 2px 2px 0;
+          /* Solo scroll horizontal: el navegador no dispara scroll/refresh vertical
+             al arrastrar aquí (axis-lock también en usePullToRefresh). */
+          touch-action: pan-x;
         }
         .chf-scroller::-webkit-scrollbar {
           display: none;
