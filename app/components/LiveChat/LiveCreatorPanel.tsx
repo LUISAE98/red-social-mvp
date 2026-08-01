@@ -47,7 +47,6 @@ import {
   subscribeToAverageWatchTime,
   subscribeToNewFollowersDuringLive,
   subscribeToVodViewCount,
-  saveViewerHistory,
   fetchViewerHistory,
 } from "@/lib/liveKit/liveViewers";
 import { playEdgeTTS, TTS_MIN_DURATION_SECS } from "@/lib/tts/edge-tts-client";
@@ -58,6 +57,7 @@ import { subscribeToPeakRevenue, updatePeakRevenueIfRecord } from "@/lib/liveCre
 import { onSnapshot, doc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
+import { WALLET_NET_RATE } from "@/lib/wallet/walletFinances";
 import {
   OBSBrowserSourceBanner, ChatMessageRow, ScAvatar, ModActionBtn,
   MuxLivePlaceholder, VideoPreview, DIV, FONT,
@@ -408,10 +408,13 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
     return subscribeToNewFollowersDuringLive(post.authorId, liveData.startedAt, setNewFollowers);
   }, [open, post.authorId, liveData?.startedAt]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Historial de espectadores para la gráfica. Se SIEMBRA desde Firestore (para
-  // conservar la gráfica cuando el live ya terminó) y, mientras el live sigue
-  // activo, se muestrea cada 30 s y se PERSISTE. Si ya terminó, solo se siembra:
-  // no se muestrea (evita ensuciar la gráfica con ceros) ni se sobrescribe.
+  // Historial de espectadores para la gráfica. Se SIEMBRA desde Firestore, que es
+  // la fuente PERSISTIDA (la escribe la Cloud Function `liveViewerSampler` cada 1
+  // min server-side → la gráfica sobrevive aunque el creador no tenga el panel
+  // abierto). Mientras el live sigue activo y el panel está abierto, además se
+  // muestrea localmente cada 30 s SOLO para el refresco en tiempo real (NO se
+  // persiste; el servidor es el único que escribe el doc). Si ya terminó, solo se
+  // siembra (no se muestrea, para no ensuciar la gráfica con ceros).
   useEffect(() => {
     if (!open || !post.id) return;
     let cancelled = false;
@@ -433,7 +436,8 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
         ].slice(-240);
         viewerHistoryRef.current = next;
         setViewerHistory(next);
-        void saveViewerHistory(post.id, next).catch(() => {});
+        // No se persiste desde el cliente: el doc lo escribe `liveViewerSampler`
+        // (server-side). Esto es solo refresco local en tiempo real.
       };
       addPoint();
       intervalId = window.setInterval(addPoint, 30_000);
@@ -488,7 +492,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
   // Actualiza el récord en tiempo real si se rompe durante el live
   useEffect(() => {
     if (!open || !post.authorId) return;
-    const CREATOR_SHARE = 0.77;
+    const CREATOR_SHARE = WALLET_NET_RATE;
     const paidSCs = superComments.filter(sc => sc.status === "paid" && !sc.isDeleted);
     const grossTotal = paidSCs.reduce((sum, sc) => sum + sc.amount, 0) + ticketRevenue + vodRevenue;
     const netTotal = grossTotal * CREATOR_SHARE;
@@ -937,7 +941,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
   }
 
   function renderMobileStatsSection(cols: 2 | 3 = 2) {
-    const CREATOR_SHARE = 0.77;
+    const CREATOR_SHARE = WALLET_NET_RATE;
     const paidSuperComments = superComments.filter(sc => sc.status === "paid" && !sc.isDeleted);
     const donations    = paidSuperComments.filter(sc => !sc.text);
     const actualSCs    = paidSuperComments.filter(sc => !!sc.text);
@@ -1036,7 +1040,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
       { label: "VOD",             amount: vodRevenue,       color: "#60a5fa" },
     ].filter((s) => s.amount > 0);
 
-    const CREATOR_SHARE = 0.77; // plataforma retiene 23%
+    const CREATOR_SHARE = WALLET_NET_RATE; // plataforma retiene 25%
     const net = (amount: number) => amount * CREATOR_SHARE;
     const fmtMoney = (amount: number) =>
       formatMoney(amount, { baseCurrency: currency, code: true });
@@ -1639,7 +1643,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
                         <span style={{ fontSize: 9, fontWeight: 700, color: "#ef4444", background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 3, padding: "0px 4px", flexShrink: 0 }}>BAN</span>
                       )}
                       <span style={{ fontSize: 12, fontWeight: 700, color: "#86efac", fontFamily: FONT, flexShrink: 0 }}>
-                        +{formatMoney(sc.amount * 0.77, { code: true })}
+                        +{formatMoney(sc.amount * WALLET_NET_RATE, { code: true })}
                       </span>
                       <button
                         type="button"
@@ -1886,7 +1890,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
                     {playingOverlay.username}
                   </span>
                   <span style={{ fontSize: 13, fontWeight: 700, color: "#86efac", fontFamily: FONT }}>
-                    +{formatMoney(playingOverlay.amount * 0.77, { code: true })}
+                    +{formatMoney(playingOverlay.amount * WALLET_NET_RATE, { code: true })}
                   </span>
                 </div>
               </div>

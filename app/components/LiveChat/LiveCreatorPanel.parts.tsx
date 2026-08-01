@@ -49,7 +49,6 @@ import {
   subscribeToAverageWatchTime,
   subscribeToNewFollowersDuringLive,
   subscribeToVodViewCount,
-  saveViewerHistory,
   fetchViewerHistory,
 } from "@/lib/liveKit/liveViewers";
 import { playEdgeTTS, TTS_MIN_DURATION_SECS } from "@/lib/tts/edge-tts-client";

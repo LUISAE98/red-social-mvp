@@ -256,6 +256,7 @@ export { cleanupLiveViewersOnEnd } from "./liveViewersCleanup";
 
 // Live heartbeat cleanup — termina lives CF directos huérfanos (browser cerrado sin detener)
 export { liveHeartbeatCleanup } from "./liveHeartbeatCleanup";
+export { liveViewerSampler } from "./liveViewerSampler";
 
 // Wallet — triggers que alimentan el libro mayor de ganancias (Fase 2)
 export {
@@ -302,6 +303,8 @@ export { createStripeCheckoutSession } from "./payments/stripe/stripeCheckout";
 export { createStripePaymentIntent } from "./payments/stripe/createPaymentIntent";
 // S4: webhook de Stripe (pago aprobado, reembolso…). Reemplaza a mpWebhook.
 export { stripeWebhook } from "./payments/stripe/stripeWebhook";
+// Primer servicio real cableado a Stripe: saludo/consejo.
+export { createGreetingStripeIntent } from "./payments/stripe/greetingStripeIntent";
 
 // Facturación (Facturapi — CFDI, modelo vendedor directo). Bloque 0: smoke test de
 // credenciales (org de Vibra + multi-tenant). No emite CFDI ni toca el ledger.
