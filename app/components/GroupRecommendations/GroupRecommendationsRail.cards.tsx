@@ -775,7 +775,7 @@ export function SkeletonRail() {
         .vibra-recs-skel-block {
           width: 100%;
           height: 224px;
-          border-radius: 14px;
+          border-radius: 0;
         }
         @media (min-width: 901px) {
           .vibra-recs-skel-row { padding: 0 0 6px; justify-content: center; }
