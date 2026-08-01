@@ -349,8 +349,21 @@ export default function HomeStoriesRow({ currentUserId }: Props) {
   );
 
   const storyGroups = buildStoryGroups(profileStories, groupStories, viewedMap, displayInfoMap);
-  const recommendedStoryGroups = buildStoryGroups(recommendedStories, [], viewedMap, displayInfoMap);
-  const allGroups = [...storyGroups, ...recommendedStoryGroups];
+  // Ocultar los contenedores donde ya viste TODO (sin historias sin ver): antes
+  // seguían ahí con aro gris; ahora desaparecen. Excepción: tu propia historia
+  // siempre se muestra. Cuando llega una nueva historia sin ver, el grupo reaparece
+  // y el viewer arranca en la primera sin ver (startIndex), pudiendo regresar a las
+  // ya vistas si se quiere.
+  const visibleFollowed = storyGroups.filter(
+    (g) => g.key === currentUserId || g.hasUnviewed,
+  );
+  const recommendedStoryGroups = buildStoryGroups(
+    recommendedStories,
+    [],
+    viewedMap,
+    displayInfoMap,
+  ).filter((g) => g.hasUnviewed);
+  const allGroups = [...visibleFollowed, ...recommendedStoryGroups];
   // Keep refs in sync after every render so mobile callbacks always see current data
   useLayoutEffect(() => {
     storyGroupsRef.current = allGroups;
@@ -365,8 +378,8 @@ export default function HomeStoriesRow({ currentUserId }: Props) {
   ];
 
   // Current user's story goes first; live entities second; others third
-  const myStoryGroup = storyGroups.find((g) => g.key === currentUserId);
-  const otherStoryGroups = storyGroups.filter((g) => g.key !== currentUserId);
+  const myStoryGroup = visibleFollowed.find((g) => g.key === currentUserId);
+  const otherStoryGroups = visibleFollowed.filter((g) => g.key !== currentUserId);
 
   // Mobile: when the last story in a group is exhausted (or swipe-left), advance to next unread group
   function handleMobileGroupFinished() {
