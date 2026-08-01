@@ -400,6 +400,43 @@ export default function HomeStoriesRow({ currentUserId }: Props) {
           overflowX: "hidden",
         }}
       >
+        {/* Skeleton canónico de Vibra (vibra_style.md): misma onda .vb-skel/vbSkelWave. */}
+        <style jsx>{`
+          .vb-skel {
+            background: linear-gradient(
+              100deg,
+              rgba(255, 255, 255, 0.05) 30%,
+              rgba(255, 255, 255, 0.11) 50%,
+              rgba(255, 255, 255, 0.05) 70%
+            );
+            background-size: 300% 100%;
+            animation: vbSkelWave 1.6s ease-in-out infinite;
+          }
+          @keyframes vbSkelWave {
+            0% {
+              background-position: 180% 0;
+            }
+            100% {
+              background-position: -80% 0;
+            }
+          }
+          @media (prefers-reduced-motion: reduce) {
+            .vb-skel {
+              animation: none;
+              background: rgba(255, 255, 255, 0.07);
+            }
+          }
+          .vb-skel-circle {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+          }
+          .vb-skel-label {
+            width: 52px;
+            height: 16px;
+            border-radius: 6px;
+          }
+        `}</style>
         {[0, 1, 2, 3, 4].map((i) => (
           <div
             key={i}
@@ -411,22 +448,8 @@ export default function HomeStoriesRow({ currentUserId }: Props) {
               flexShrink: 0,
             }}
           >
-            <div
-              style={{
-                width: 80,
-                height: 80,
-                borderRadius: "50%",
-                background: "rgba(255,255,255,0.07)",
-              }}
-            />
-            <div
-              style={{
-                width: 52,
-                height: 16,
-                borderRadius: 6,
-                background: "rgba(255,255,255,0.07)",
-              }}
-            />
+            <div className="vb-skel vb-skel-circle" />
+            <div className="vb-skel vb-skel-label" />
           </div>
         ))}
       </div>
