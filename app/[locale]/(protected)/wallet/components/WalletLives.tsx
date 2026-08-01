@@ -4,6 +4,7 @@ import { useMemo, useState, type CSSProperties } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { motion } from "framer-motion";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
+import { SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
 import { useWalletLedger, ledgerTypeLabelKey } from "@/lib/wallet/walletLedger";
 import { useWalletPosts } from "@/lib/wallet/walletPostCache";
 import type { Post } from "@/lib/posts/types";
@@ -359,7 +360,7 @@ export default function WalletLives({
             {isLoading ? (
               <WalletFigureSkeleton width={72} height={16} />
             ) : (
-              formatMoney(totalMoney, { code: true })
+              formatMoney(totalMoney, { code: true, baseCurrency: SETTLEMENT_CURRENCY })
             )}
           </span>
         </div>
@@ -461,7 +462,7 @@ export default function WalletLives({
                       textShadow: "0 1px 3px rgba(0,0,0,0.75)",
                     }}
                   >
-                    {formatMoney(row.amount)}
+                    {formatMoney(row.amount, { baseCurrency: SETTLEMENT_CURRENCY })}
                   </span>
                   <div
                     style={{

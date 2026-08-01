@@ -10,10 +10,11 @@ import {
 import { WalletCard } from "./WalletUi";
 import WalletScopeToggle, { type StatScope } from "./WalletScopeToggle";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
+import { WALLET_NET_RATE } from "@/lib/wallet/walletFinances";
 
 const DAY = 86400000;
-// El creador recibe el neto (precio menos la comisión de la plataforma, 23%).
-const NET_RATE = 0.77;
+// El creador recibe el neto (precio menos la comisión de la plataforma, 25%).
+const NET_RATE = WALLET_NET_RATE;
 
 
 /**

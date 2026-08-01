@@ -17,6 +17,7 @@ import {
   type SuperCommentTier,
 } from "@/lib/liveChat/types";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
+import { WALLET_NET_RATE } from "@/lib/wallet/walletFinances";
 
 const FONT = "inherit";
 const PANEL_CLOSE_THRESHOLD = 130;
@@ -209,7 +210,7 @@ export default function SuperCommentConfigPanel({ open, onClose, postId }: Props
               // tier.price está en la moneda del creador; el monto real (MXN) es el ancla.
               const anchorPrice =
                 tier.price > 0 ? resolveStoredPrice(tier.price).price : 0;
-              const creatorEarns = formatMoney(anchorPrice * 0.77, { code: true });
+              const creatorEarns = formatMoney(anchorPrice * WALLET_NET_RATE, { code: true });
               return (
                 <div key={tier.id} style={{ marginBottom: 14 }}>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, alignItems: "center" }}>

@@ -13,6 +13,7 @@ import WalletMovementsChart, { type ChartBucket } from "./WalletMovementsChart";
 import { useMediaSlideReservedHeight } from "@/app/[locale]/groups/[groupId]/components/posts/useMediaSlideReservedHeight";
 import { useOwnedChannels } from "@/lib/wallet/walletSubscriptionData";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
+import { SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
 import {
   useWalletLedger,
   ledgerTypeLabelKey,
@@ -565,7 +566,7 @@ export default function WalletTransactions({
                   color: "#fff",
                 }}
               >
-                {formatMoney(col.amount)}
+                {formatMoney(col.amount, { baseCurrency: SETTLEMENT_CURRENCY })}
               </span>
             </div>
           ))}
@@ -664,7 +665,7 @@ export default function WalletTransactions({
                       textDecoration: negative ? "line-through" : "none",
                     }}
                   >
-                    {formatMoney(amount)}
+                    {formatMoney(amount, { baseCurrency: entry.currency ?? "MXN" })}
                   </span>
                   <span
                     style={{

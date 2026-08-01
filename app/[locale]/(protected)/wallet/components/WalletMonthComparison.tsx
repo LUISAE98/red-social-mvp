@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { useTranslations } from "next-intl";
 import { useWalletLedger } from "@/lib/wallet/walletLedger";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
+import { SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
 
 function formatMonthLabel(year: number, month: number): string {
   try {
@@ -84,7 +85,7 @@ export default function WalletMonthComparison({
       </span>
 
       <span style={{ fontSize: 30, fontWeight: 700, letterSpacing: "-0.03em", lineHeight: 1, color: "#fff" }}>
-        {formatMoney(current)}
+        {formatMoney(current, { baseCurrency: SETTLEMENT_CURRENCY })}
       </span>
 
       {target > 0 ? (
@@ -123,12 +124,12 @@ export default function WalletMonthComparison({
             {tWallet("goalRecordBeaten")} 🎉
           </span>
           <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>
-            {tWallet("goalPrevRecord", { amount: formatMoney(target) })}
+            {tWallet("goalPrevRecord", { amount: formatMoney(target, { baseCurrency: SETTLEMENT_CURRENCY }) })}
           </span>
         </div>
       ) : (
         <span style={{ fontSize: 12.5, fontWeight: 600, color: "rgba(255,255,255,0.75)", lineHeight: 1.4 }}>
-          {tWallet("goalRemaining", { amount: formatMoney(remaining), best: formatMoney(target) })}
+          {tWallet("goalRemaining", { amount: formatMoney(remaining, { baseCurrency: SETTLEMENT_CURRENCY }), best: formatMoney(target, { baseCurrency: SETTLEMENT_CURRENCY }) })}
           <br />
           <span style={{ fontSize: 10.5, fontWeight: 500, color: "rgba(255,255,255,0.4)" }}>
             {tWallet("goalBestMonth", { month: bestLabel })}

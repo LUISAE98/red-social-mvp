@@ -144,8 +144,8 @@ export type Area = {
   height: number;
 };
 
-export function isGreetingType(t: string): t is "saludo" | "consejo" | "mensaje" {
-  return t === "saludo" || t === "consejo" || t === "mensaje";
+export function isGreetingType(t: string): t is "saludo" | "consejo" {
+  return t === "saludo" || t === "consejo";
 }
 
 export function clamp(n: number, min: number, max: number) {

@@ -20,9 +20,11 @@ export type SavedCard = { id: string; brand?: string; brandName?: string; lastFo
 
 type Props = {
   open: boolean;
-  amount: number | null; // MXN base (sin IVA)
-  /** Crea el PaymentIntent y devuelve su client_secret. */
-  createIntent: (args: { amount: number; saveCard: boolean }) => Promise<{ clientSecret: string }>;
+  amount: number | null; // monto base (sin IVA), en la moneda `amountCurrency`
+  /** Moneda del `amount`: "MXN" (precios de servicios) o "USD" (donaciones/ancla). Default USD. */
+  amountCurrency?: "USD" | "MXN";
+  /** Crea el PaymentIntent y devuelve su client_secret. `taxCountry` = país fiscal del comprador (por IP). */
+  createIntent: (args: { amount: number; saveCard: boolean; taxCountry: string | null }) => Promise<{ clientSecret: string }>;
   amountEditable?: boolean;
   priceLabel?: string;
   pricePeriodLabel?: string;
@@ -61,6 +63,7 @@ const STRIPE_STYLE = {
 export default function StripePaymentModal({
   open,
   amount,
+  amountCurrency = "USD",
   createIntent,
   amountEditable = false,
   priceLabel,
@@ -270,7 +273,7 @@ export default function StripePaymentModal({
       const numberEl = numberElRef.current;
       if (!numberEl) throw new Error("no_element");
 
-      const { clientSecret } = await createIntentRef.current({ amount: payAmount, saveCard });
+      const { clientSecret } = await createIntentRef.current({ amount: payAmount, saveCard, taxCountry: pf.buyerCountry ?? null });
       const result = await stripe.confirmCardPayment(clientSecret, {
         payment_method: { card: numberEl, billing_details: { name: cardName.trim() } },
       });
@@ -420,8 +423,8 @@ export default function StripePaymentModal({
 
   const effectiveAmount = amountEditable ? chosenAmount : amount;
   const isNonAnchor = pf.currency !== "USD";
-  const totalLabel = effectiveAmount != null ? `${pf.format(effectiveAmount)} ${pf.currency}` : priceLabel ?? "";
-  const taxed = effectiveAmount != null ? pf.formatWithTax(effectiveAmount) : null;
+  const totalLabel = effectiveAmount != null ? `${pf.format(effectiveAmount, { baseCurrency: amountCurrency })} ${pf.currency}` : priceLabel ?? "";
+  const taxed = effectiveAmount != null ? pf.formatWithTax(effectiveAmount, { baseCurrency: amountCurrency }) : null;
 
   const rightColumn = (
     <div style={{ position: "relative", padding: stacked ? "16px 18px 20px" : "48px 24px 24px", background: "#fff", borderLeft: stacked ? "none" : "1px solid #eaecef", display: "flex", flexDirection: "column", justifyContent: "flex-start", gap: 12, minWidth: 0 }}>

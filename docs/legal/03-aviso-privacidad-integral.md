@@ -46,7 +46,7 @@ Según tu uso de la Plataforma, podemos tratar las siguientes categorías:
 - **Datos de la cuenta y autenticación:** credenciales, identificadores de cuenta, sesiones y dispositivos con sesión abierta.
 - **Datos de edad:** fecha de nacimiento o confirmación de mayoría de edad (18+).
 - **Contenido y actividad:** publicaciones, fotos, videos/VOD, historias, transmisiones en vivo, comentarios, reacciones, menciones, mensajes, seguidores, membresías y comunidades.
-- **Datos de verificación de identidad (KYC):** documento de identidad e **imagen facial / datos biométricos** procesados con nuestro proveedor de verificación (Didit). **(Datos sensibles — ver §4.)**
+- **Datos de verificación de identidad (KYC):** documento de identidad e **imagen facial / datos biométricos** procesados con nuestro proveedor de verificación (actualmente **Didit**; se prevé su reemplazo por **Stripe** antes de producción). **(Datos sensibles — ver §4.)**
 - **Grabaciones de videollamadas 1‑a‑1:** audio y video de los productos de videollamada 1‑a‑1 (*Sesión exclusiva* y *Tiempo contigo*), **no ofrecidos actualmente**; **cuando se habiliten**, se grabarán e incluirán **datos biométricos**. **(Datos sensibles — ver §4.)**
 - **Datos de pago y facturación:** método de pago tokenizado por el Proveedor de Pagos (no almacenamos el número completo de tarjeta), historial de transacciones, saldo del monedero interno (Wallet), y datos fiscales (para Creadores‑proveedores: RFC/identificación fiscal, residencia fiscal, datos para CFDI/constancias; para Compradores que solicitan factura: sus datos fiscales).
 - **Datos para determinación del impuesto de la venta:** como **Vibra vende directamente** y debe determinar el impuesto según el **país del Comprador**, tratamos indicios de residencia/consumo (país inferido por IP, país del medio de pago/banco emisor, domicilio de facturación y código telefónico), que **conservamos por transacción como evidencia fiscal**.
@@ -120,8 +120,8 @@ instrucciones** (encargados), bajo obligaciones de confidencialidad y seguridad,
 - **Mux** (procesamiento y entrega de video/VOD).
 - **Cloudflare** (transmisiones en vivo y almacenamiento de grabaciones).
 - **LiveKit** (videollamadas 1‑a‑1 y su grabación).
-- **Didit** (verificación de identidad / KYC).
-- **El procesador de pagos** que Vibra habilite (procesamiento de pagos), en lo que actúe como encargado.
+- **Didit** (verificación de identidad / KYC). *Se prevé su reemplazo por la verificación de identidad de **Stripe** antes del lanzamiento a producción; el aviso se actualizará entonces.*
+- **Stripe** (Stripe Connect — procesamiento de pagos y liquidación de retiros; **en el futuro también verificación de identidad**, ver §4), en lo que actúe como encargado.
 
 Estas **remisiones**, conforme a la LFPDPPP, **no requieren tu consentimiento** adicional.
 

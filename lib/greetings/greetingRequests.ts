@@ -2,7 +2,7 @@
 import { httpsCallable } from "firebase/functions";
 import { functions } from "@/lib/firebase";
 
-export type GreetingType = "saludo" | "consejo" | "mensaje";
+export type GreetingType = "saludo" | "consejo";
 export type GreetingSource = "group" | "profile";
 export type GreetingStatus = "pending" | "accepted" | "rejected";
 

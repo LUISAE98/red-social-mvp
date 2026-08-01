@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
+import { WALLET_NET_RATE } from "@/lib/wallet/walletFinances";
 import {
   acceptMeetGreetRequest,
   proposeMeetGreetSchedule,
@@ -1467,7 +1468,7 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
     const deliveredTs = req.deliveredAt as { toDate: () => Date } | undefined;
     const relTime = deliveredTs ? getRelativeTime(deliveredTs, tCommon) : null;
 
-    const btnLabel = req.type === "consejo" ? tServices("viewAdvice") : req.type === "mensaje" ? tServices("viewMessage") : tServices("viewGreeting");
+    const btnLabel = req.type === "consejo" ? tServices("viewAdvice") : tServices("viewGreeting");
     const bgImage = greetingBgImage(req.type);
     const cardColors = getServiceCardColors(req.type);
 
@@ -1850,7 +1851,7 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
         onReject={() => {}}
         onClose={() => setViewDeliveredItem(null)}
         getInitials={(name) => (name ?? "?").charAt(0).toUpperCase()}
-        typeLabel={(t) => t === "consejo" ? tWallet("typeLabelAdvice") : t === "mensaje" ? tWallet("typeLabelMessage") : tWallet("typeLabelGreeting")}
+        typeLabel={(t) => t === "consejo" ? tWallet("typeLabelAdvice") : tWallet("typeLabelGreeting")}
       />
     )}
     {viewSessionItem && (() => {
@@ -1921,7 +1922,7 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
         serviceKind={incomingSessionOverlayData.serviceKind}
         earning={
           incomingSessionOverlayData.req.priceSnapshot != null && incomingSessionOverlayData.req.priceSnapshot > 0
-            ? formatMoney(incomingSessionOverlayData.req.priceSnapshot * 0.77, { code: true })
+            ? formatMoney(incomingSessionOverlayData.req.priceSnapshot * WALLET_NET_RATE, { baseCurrency: incomingSessionOverlayData.req.currency ?? "MXN", code: true })
             : null
         }
         busy={!!busyMap[incomingSessionOverlayData.id]}

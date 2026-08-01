@@ -703,9 +703,9 @@ export default function WalletDesktopRail({
                       {walletLoading ? (
                         "···"
                       ) : balanceHidden && view.available > 0 ? (
-                        <MaskedAmount formatted={format(view.available)} />
+                        <MaskedAmount formatted={format(view.available, { baseCurrency: summary.currency ?? "MXN" })} />
                       ) : (
-                        format(view.available)
+                        format(view.available, { baseCurrency: summary.currency ?? "MXN" })
                       )}
                     </span>
                     {!walletLoading && view.available > 0 ? (

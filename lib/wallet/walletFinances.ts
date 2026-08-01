@@ -5,8 +5,8 @@ import { doc, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
 /** Comisión de la plataforma (debe coincidir con backend/src/wallet/ledger.ts). */
-export const WALLET_COMMISSION_RATE = 0.23;
-export const WALLET_NET_RATE = 1 - WALLET_COMMISSION_RATE; // 0.77
+export const WALLET_COMMISSION_RATE = 0.25;
+export const WALLET_NET_RATE = 1 - WALLET_COMMISSION_RATE; // 0.75
 
 /**
  * Resumen agregado del wallet del creador. Lo mantiene el backend de forma
@@ -37,7 +37,7 @@ export type WalletSummary = {
 };
 
 export const EMPTY_WALLET_SUMMARY: WalletSummary = {
-  currency: "USD",
+  currency: "MXN",
   lifetimeEarnedGross: 0,
   lifetimeEarnedNet: 0,
   withdrawnGross: 0,
@@ -57,7 +57,7 @@ function toNumber(value: unknown): number {
 
 function normalizeSummary(data: Record<string, unknown>): WalletSummary {
   return {
-    currency: typeof data.currency === "string" ? data.currency : "USD",
+    currency: typeof data.currency === "string" ? data.currency : "MXN",
     lifetimeEarnedGross: toNumber(data.lifetimeEarnedGross),
     lifetimeEarnedNet: toNumber(data.lifetimeEarnedNet),
     withdrawnGross: toNumber(data.withdrawnGross),

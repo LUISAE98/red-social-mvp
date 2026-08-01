@@ -8,7 +8,10 @@
 > y fiscalista. Ver [fiscal-iva-isr-plataforma.md §0](./fiscal-iva-isr-plataforma.md). Servicios
 > **BLOQUEADOS** (sin términos aún): *Sesión exclusiva* y *Tiempo contigo*.
 >
-> **BORRADOR v0.4 — 2026-07-28. Documento de trabajo extenso; NO sustituye la revisión de un abogado.**
+> **Procesadora: Stripe** (Stripe Connect; Vibra = Merchant of Record). **Reparto: 75% Creador / 25% Vibra**
+> sobre el precio base. Ver `docs/stripe-integracion.md` y `docs/modelo-financiero.md`.
+>
+> **BORRADOR v0.5 — 2026-07-31. Documento de trabajo extenso; NO sustituye la revisión de un abogado.**
 > Se redactó para ser lo más completo y protector posible como *plantilla*. Dos cosas siguen siendo
 > indispensables antes de publicarlo: **(1)** completar los datos de la entidad y contactos
 > (`[[placeholders]]`), que solo tú/tu abogado pueden aportar, y **(2)** la **validación y firma de un
@@ -109,10 +112,10 @@ documento específico respecto de la materia que regula, salvo disposición lega
 - **Wallet:** el registro contable interno donde se refleja el Saldo del Usuario dentro de la Plataforma.
 - **Saldo:** el crédito interno reflejado en la Wallet; **no constituye dinero electrónico, depósito ni instrumento de pago** (ver §39).
 - **Retiro:** solicitud del Creador para recibir su Saldo disponible a través del Proveedor de Pagos.
-- **Proveedor de Pagos:** el procesador de pagos externo que Vibra habilite para procesar y/o liquidar los pagos, junto con las entidades financieras autorizadas aplicables.
+- **Proveedor de Pagos:** **Stripe** (Stripe Connect), el procesador de pagos que Vibra utiliza para procesar los cobros y liquidar los pagos, junto con las entidades financieras autorizadas aplicables.
 - **KYC:** el proceso de verificación de identidad (operado con el proveedor Didit).
 - **Moderador / Superadministrador:** personal autorizado por Vibra con funciones de moderación y cumplimiento (Parte VIII).
-- **Servicios de Terceros:** servicios de infraestructura de proveedores externos (p. ej. Mux, Cloudflare, LiveKit, el procesador de pagos, Didit, Firebase, Vercel).
+- **Servicios de Terceros:** servicios de infraestructura de proveedores externos (p. ej. Mux, Cloudflare, LiveKit, Stripe, Didit, Firebase, Vercel).
 
 ## 5. Modificaciones a los Términos y a la Plataforma
 
@@ -394,11 +397,15 @@ Comprador para eludir a Vibra, sus controles o su reparto, cuando el Servicio se
 dentro de los rangos y reglas de la Plataforma. El **precio total** (incluidos los impuestos que
 correspondan según el país del Comprador) se muestra al Comprador **antes de la compra**.
 
+34.2. **Cargos incluidos en el precio.** El precio total puede incluir un **cargo fijo de servicio** y,
+para Compradores que pagan en otra moneda, la **conversión de moneda** aplicable (el precio se presenta en
+tu moneda local antes de pagar). Todo se muestra desglosado o incluido en el total **antes de confirmar**.
+
 ## 35. Reparto económico con el Creador‑proveedor
 
-35.1. Del **precio base** de cada venta, Vibra paga al Creador‑proveedor su **participación** (con
-carácter orientativo, ≈77%) y retiene su **margen** (≈23%). **El impuesto cobrado al Comprador NO forma
-parte del precio base ni se reparte.** Los porcentajes, condiciones y su cálculo se detallan en el
+35.1. Del **precio base** de cada venta, Vibra paga al Creador‑proveedor su **participación (75%)** y
+retiene su **margen (25%)**. **El impuesto cobrado al Comprador NO forma parte del precio base ni se
+reparte.** Los porcentajes, condiciones y su cálculo se detallan en el
 [Acuerdo de Creador](./02-acuerdo-de-creador.md) (#2) y en la
 [Política de Pagos, Comisiones y Retiros](./09-pagos-comisiones-retiros.md) (#9), y pueden variar por tipo
 de Servicio.
@@ -419,8 +426,8 @@ sobre esa relación proveedor‑Vibra (ver §43 y el [Acuerdo de Creador](./02-a
 
 ## 37. Procesamiento de pagos
 
-37.1. Los pagos se procesan a través del **Proveedor de Pagos** que Vibra habilite. Al pagar, **contratas
-con Vibra** y autorizas el cargo por el monto total mostrado.
+37.1. Los pagos se procesan a través de **Stripe** (Proveedor de Pagos). Al pagar, **contratas con Vibra**
+y autorizas el cargo por el monto total mostrado.
 
 37.2. Podemos permitir **guardar métodos de pago**; el almacenamiento y tokenización de los datos de
 tarjeta lo realiza el Proveedor de Pagos conforme a sus estándares (p. ej. PCI‑DSS). Vibra **no
@@ -445,9 +452,10 @@ institución financiera.** Los términos completos están en los
 
 ## 40. Monedas y tipo de cambio
 
-40.1. La moneda base de operación es `[[MONEDA BASE = MXN]]`. Cuando se muestren o cobren importes en
-otra moneda, podrán aplicarse conversiones y comisiones del Proveedor de Pagos o de las redes de
-tarjetas, informadas cuando sea posible.
+40.1. La moneda base de liquidación es **MXN**. A los Compradores en otra moneda se les puede **presentar
+el precio en su moneda local** con el tipo de cambio aplicable ya incluido (p. ej. mediante la función de
+conversión de Stripe) **antes de pagar**; pueden aplicarse conversiones y comisiones del Proveedor de
+Pagos o de las redes de tarjetas.
 
 ## 41. Confirmación de compra y comprobantes
 

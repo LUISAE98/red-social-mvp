@@ -45,6 +45,8 @@ export function usePendingExperiences(creatorId: string | null | undefined) {
   const [pendingGreetings, setPendingGreetings] = useState(0);
   // Timestamp del saludo/consejo pendiente más reciente (para "hay nuevos").
   const [latestGreetingMs, setLatestGreetingMs] = useState(0);
+  // Timestamp de CADA saludo/consejo pendiente (para contar cuántos son nuevos).
+  const [greetingMsList, setGreetingMsList] = useState<number[]>([]);
   const [loadingGreetings, setLoadingGreetings] = useState(true);
 
   useEffect(() => {
@@ -72,20 +74,24 @@ export function usePendingExperiences(creatorId: string | null | undefined) {
         (snap) => {
           let count = 0;
           let latest = 0;
+          const msList: number[] = [];
           snap.docs.forEach((d) => {
             const data = d.data();
             if ((data.status ?? "") !== "pending") return;
             count += 1;
             const ms = toMs(data.updatedAt) ?? toMs(data.createdAt) ?? 0;
+            msList.push(ms);
             if (ms > latest) latest = ms;
           });
           setPendingGreetings(count);
           setLatestGreetingMs(latest);
+          setGreetingMsList(msList);
           setLoadingGreetings(false);
         },
         () => {
           setPendingGreetings(0);
           setLatestGreetingMs(0);
+          setGreetingMsList([]);
           setLoadingGreetings(false);
         }
       );
@@ -104,22 +110,29 @@ export function usePendingExperiences(creatorId: string | null | undefined) {
         !shouldTreatAsAutoRejected(row) &&
         isSafePendingStatus(row.status)
     );
-    const latest = actionable.reduce(
-      (m, r) => Math.max(m, r.updatedAt?.getTime() ?? r.createdAt?.getTime() ?? 0),
-      0
+    const msList = actionable.map(
+      (r) => r.updatedAt?.getTime() ?? r.createdAt?.getTime() ?? 0
     );
-    return { count: actionable.length, latest };
+    const latest = msList.reduce((m, ms) => Math.max(m, ms), 0);
+    return { count: actionable.length, latest, msList };
   }, [meet.rows, exclusive.rows]);
 
   const count = sessions.count + pendingGreetings;
   // Timestamp de la experiencia accionable más reciente (para decidir si hay
   // experiencias NUEVAS desde la última vez que se vio la pestaña).
   const latestMs = Math.max(sessions.latest, latestGreetingMs);
+  // Timestamp de CADA experiencia pendiente (sesiones + saludos): permite contar
+  // cuántas son NUEVAS (ms > visto), no solo el total.
+  const pendingMsList = useMemo(
+    () => [...sessions.msList, ...greetingMsList],
+    [sessions.msList, greetingMsList]
+  );
 
   return {
     count,
     hasPending: count > 0,
     latestMs,
+    pendingMsList,
     loading: meet.loading || exclusive.loading || loadingGreetings,
   };
 }

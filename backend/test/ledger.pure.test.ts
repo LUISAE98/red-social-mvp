@@ -7,24 +7,24 @@ import {
 
 // Aritmética del dinero. Una regresión aquí se traduce directo en creadores que
 // cobran de más o de menos, así que estos tests FIJAN el contrato.
-describe("wallet/ledger — netFromGross (comisión del 23%)", () => {
-  it("el contrato de comisión es 0.23 (neto 0.77)", () => {
+describe("wallet/ledger — netFromGross (comisión del 25%)", () => {
+  it("el contrato de comisión es 0.25 (neto 0.75)", () => {
     // Si alguien cambia la comisión sin querer, este test falla en rojo.
-    expect(WALLET_COMMISSION_RATE).toBe(0.23);
-    expect(WALLET_NET_RATE).toBeCloseTo(0.77, 10);
+    expect(WALLET_COMMISSION_RATE).toBe(0.25);
+    expect(WALLET_NET_RATE).toBeCloseTo(0.75, 10);
   });
 
-  it("neto de 100 = 77.00 exacto", () => {
-    expect(netFromGross(100)).toBe(77);
+  it("neto de 100 = 75.00 exacto", () => {
+    expect(netFromGross(100)).toBe(75);
   });
 
   it("redondea a 2 decimales sin arrastre de flotante", () => {
-    // 10.1 * 0.77 = 7.777 -> 7.78
-    expect(netFromGross(10.1)).toBe(7.78);
-    // 0.07 * 0.77 = 0.0539 -> 0.05
+    // 10.1 * 0.75 = 7.5749… (flotante) -> 7.57
+    expect(netFromGross(10.1)).toBe(7.57);
+    // 0.07 * 0.75 = 0.0525 -> 0.05
     expect(netFromGross(0.07)).toBe(0.05);
-    // 99.99 * 0.77 = 76.9923 -> 76.99
-    expect(netFromGross(99.99)).toBe(76.99);
+    // 99.99 * 0.75 = 74.9925 -> 74.99
+    expect(netFromGross(99.99)).toBe(74.99);
   });
 
   it("nunca devuelve más de 2 decimales", () => {

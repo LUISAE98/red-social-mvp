@@ -1,14 +1,16 @@
 # Acuerdo de Creador / Monetización de Vibra
 
-> **BORRADOR v0.1 — 2026-07-28. Documento de trabajo; NO sustituye la revisión de un abogado.**
+> **BORRADOR v0.2 — 2026-07-31. Documento de trabajo; NO sustituye la revisión de un abogado.**
+> **Procesadora: Stripe** (Stripe Connect; Vibra = Merchant of Record). **Reparto definido: 75% Creador /
+> 25% Vibra** sobre precio base (`docs/modelo-financiero.md`).
 > Redactado bajo el **MODELO DE VENDEDOR DIRECTO** (ver [fiscal-iva-isr-plataforma.md §0](./fiscal-iva-isr-plataforma.md)
 > y [T&C §16](./01-terminos-y-condiciones.md)): **Vibra vende al Comprador** y el **Creador es proveedor/
 > licenciante de Vibra**. Este Acuerdo complementa los [Términos y Condiciones](./01-terminos-y-condiciones.md)
 > (#1). Debe validarlo un **abogado (consumo/civil/mercantil)** y un **fiscalista** (retención y
 > documentación del pago al proveedor). Ver [README.md](./README.md).
 >
-> **Placeholders:** `[[RAZÓN SOCIAL]]`, `[[% PARTICIPACIÓN CREADOR = ~77]]`, `[[% MARGEN VIBRA = ~23]]`,
-> `[[MÍNIMO DE RETIRO]]`, `[[PLAZO DE PAGO/RETIRO]]`, `[[CORREO DE CREADORES]]`, `[[FECHA DE PUBLICACIÓN]]`.
+> **Placeholders:** `[[RAZÓN SOCIAL]]`, `[[MÍNIMO DE RETIRO]]`, `[[PLAZO DE PAGO/RETIRO]]`,
+> `[[CORREO DE CREADORES]]`, `[[FECHA DE PUBLICACIÓN]]`.
 >
 > **⚠️ Puntos que un abogado/fiscalista DEBE validar** (destacados en el texto con ⚠️):
 > (1) la **caracterización creador = proveedor/licenciante** (no vendedor frente al fan) y su solidez
@@ -85,8 +87,7 @@ contra el Creador** los costos, reembolsos, sanciones o daños que resulten impu
 ## 6. Reparto económico
 
 6.1. **Base de cálculo.** El reparto se calcula sobre el **precio base** de venta (sin el impuesto de la
-venta). Del precio base, el Creador recibe su **participación** (orientativa, `[[% PARTICIPACIÓN CREADOR = ~77]]`%)
-y Vibra retiene su **margen** (`[[% MARGEN VIBRA = ~23]]`%).
+venta). Del precio base, el Creador recibe su **participación (75%)** y Vibra retiene su **margen (25%)**.
 
 6.2. **El impuesto cobrado al Comprador NO es ingreso del Creador ni base de reparto.** Lo determina y
 entera Vibra según el país del Comprador (T&C §43).
@@ -124,11 +125,17 @@ biométrica) conforme al [Consentimiento Biométrico](./11-consentimiento-biomet
 
 9.2. El Creador se sujeta a los controles de **prevención de lavado de dinero y de sanciones** (T&C §46).
 
+9.3. **Proveedor de KYC.** Actualmente el KYC lo opera **Didit**; **antes del lanzamiento a producción se
+prevé su reemplazo por la verificación de identidad de Stripe (Stripe Connect)**, que además condiciona la
+habilitación de pagos y retiros. Didit podría conservarse para funciones específicas (verificación de edad
+y detección de duplicados). ⚠️ Cambio de proveedor pendiente de ejecutar.
+
 ## 10. Pagos y retiros
 
 10.1. La participación del Creador se refleja en su **Saldo** (registro contable interno; no es dinero
-electrónico — T&C §39). El Creador puede solicitar **retiros** sujeto a KYC, revisión, mínimos y plazos
-(`[[MÍNIMO DE RETIRO]]`, `[[PLAZO DE PAGO/RETIRO]]`) y a los controles de la
+electrónico — T&C §39). El Creador puede solicitar **retiros** (ejecutados como una **transferencia de
+Stripe**) sujeto a KYC, revisión, mínimos y plazos (`[[MÍNIMO DE RETIRO]]`, `[[PLAZO DE PAGO/RETIRO]]`) y a
+los controles de la
 [Política de Pagos, Comisiones y Retiros](./09-pagos-comisiones-retiros.md) (#9).
 
 10.2. Vibra puede **retener, aplazar o rechazar** pagos/retiros ante fraude, contracargos, reclamaciones,
@@ -188,8 +195,8 @@ Parte XIII). Contacto para Creadores: `[[CORREO DE CREADORES]]`.
    **primer retiro**; guardar versión + timestamp de aceptación (brecha **G4**).
 2. **Depende de #9** (Pagos/Comisiones/Retiros) y de la **matriz fiscal** (D‑02/D‑06). Los `[[%]]` y
    mínimos deben cuadrar con el sistema (el ledger calcula la ganancia sobre la **base**).
-3. **Reparto 100/77/23** tomado del [documento fiscal §0](./fiscal-iva-isr-plataforma.md); confirmar los
-   porcentajes finales con Luis.
-4. **No hardcodear procesador:** dLocal quedó descartado; se evalúa Pagsmile/EBANX. Usar "el procesador de
-   pagos".
+3. **Reparto 100/75/25** (confirmado 2026-07-31; comisión de Vibra 25%). Ver `docs/modelo-financiero.md`.
+4. **Procesadora = Stripe** (Stripe Connect, Merchant of Record; `docs/stripe-integracion.md`). Payout
+   local MX/BR; resto de LatAm cobra en USD vía Wallbit/Takenos. Mínimo de retiro estándar $10,000 MXN
+   (anticipado desde $2,000, con el creador absorbiendo el % más alto).
 5. Reelaborar si cambia la clasificación de los servicios bloqueados (D‑03/D‑04).

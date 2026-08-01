@@ -40,6 +40,15 @@ export type ChargeCurrency = DisplayCurrency;
 /** Moneda ancla: el precio de referencia se guarda aquí (USD). */
 export const ANCHOR_CURRENCY: DisplayCurrency = "USD";
 
+/**
+ * Moneda de LIQUIDACIÓN de Vibra: en la que se guarda el ledger y se cobra en Stripe.
+ * Hoy MXN (billetera Stripe en MXN). ⚠️ ÚNICO punto para cambiar a "USD" en el frontend
+ * (mantener en sync con SETTLEMENT_CURRENCY del backend en backend/src/wallet/ledger.ts).
+ * El comprador siempre ve su moneda local vía Adaptive Pricing (Stripe) + pf (UI).
+ * Es el default de `baseCurrency` para montos del wallet/compras (que están en esta moneda).
+ */
+export const SETTLEMENT_CURRENCY: DisplayCurrency = "MXN";
+
 const CHARGE_SET: ReadonlySet<string> = new Set(CHARGE_CURRENCIES);
 const DISPLAY_SET: ReadonlySet<string> = new Set(DISPLAY_CURRENCIES);
 

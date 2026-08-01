@@ -165,7 +165,7 @@ export default function Saludos({
   }, [draft.saludo.enabled, draft.saludo.price, calcNetAmount]);
 
   // Neto que gana el creador con el precio que está escribiendo en el overlay
-  // (precio bruto − 23% de comisión de Vibra).
+  // (precio bruto − 25% de comisión de Vibra).
   const overlaySaludoCalc = useMemo(() => {
     return calcNetAmount(overlayDraft.saludo.price);
   }, [overlayDraft.saludo.price, calcNetAmount]);

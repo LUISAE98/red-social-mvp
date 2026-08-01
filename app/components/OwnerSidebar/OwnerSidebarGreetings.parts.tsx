@@ -119,7 +119,6 @@ export type DisplayRow = BuyerGreetingRow | BuyerScheduledRow | IncomingSchedule
 export function getServiceEmoji(type: string): string {
   if (type === "saludo") return "👋";
   if (type === "consejo") return "💡";
-  if (type === "mensaje") return "💬";
   if (type === "meet_greet_digital") return "🤝";
   if (
     type === "digital_exclusive_session" ||
@@ -135,7 +134,7 @@ export function getServiceCardColors(type: string): { bg: string; expandedBg: st
   if (type === "consejo") {
     return { bg: "rgba(250,204,21,0.14)", expandedBg: "rgba(250,204,21,0.08)", expandedBorder: "rgba(250,204,21,0.18)", btnBg: "rgba(250,204,21,0.18)", btnColor: "#fde047" };
   }
-  if (type === "mensaje" || type === "meet_greet" || type === "meet_greet_digital") {
+  if (type === "meet_greet" || type === "meet_greet_digital") {
     return { bg: "rgba(96,165,250,0.14)", expandedBg: "rgba(96,165,250,0.08)", expandedBorder: "rgba(96,165,250,0.18)", btnBg: "rgba(96,165,250,0.18)", btnColor: "#93c5fd" };
   }
   if (type === "exclusive_session" || type === "digital_exclusive_session" || type === "clase_personalizada") {

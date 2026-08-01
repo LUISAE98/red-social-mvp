@@ -25,9 +25,18 @@ if (admin.apps.length === 0) {
 const db = admin.firestore();
 const FieldValue = admin.firestore.FieldValue;
 
-/** Comisión de la plataforma. El creador recibe el neto (1 - comisión). */
-export const WALLET_COMMISSION_RATE = 0.23;
-export const WALLET_NET_RATE = 1 - WALLET_COMMISSION_RATE; // 0.77
+/** Comisión de la plataforma. El creador recibe el neto (1 - comisión).
+ *  25% desde 2026-07-31 (reparto 75/25). Ver docs/modelo-financiero.md. */
+export const WALLET_COMMISSION_RATE = 0.25;
+export const WALLET_NET_RATE = 1 - WALLET_COMMISSION_RATE; // 0.75
+
+/**
+ * Moneda de LIQUIDACIÓN de Vibra (en la que se guarda el ledger y se cobra en Stripe).
+ * Hoy MXN (billetera Stripe en MXN). ⚠️ ÚNICO punto para cambiar a "USD" en el backend
+ * (mantener en sync con SETTLEMENT_CURRENCY del frontend en lib/currency/catalog.ts).
+ * El comprador siempre ve su moneda local vía Adaptive Pricing (Stripe) + pf (UI).
+ */
+export const SETTLEMENT_CURRENCY = "MXN";
 
 export type LedgerServiceType =
   | "supercomment"
@@ -107,7 +116,7 @@ type SummaryData = {
 
 function emptySummary(): SummaryData {
   return {
-    currency: "USD",
+    currency: SETTLEMENT_CURRENCY,
     lifetimeEarnedGross: 0,
     lifetimeEarnedNet: 0,
     withdrawnGross: 0,
@@ -186,7 +195,7 @@ export async function recordEarning(
       // 🧾 IVA — desglose fiscal por venta (informativo; el IVA va al SAT, no al creador).
       taxCountry: params.taxCountry ?? null,
       taxAmount,
-      currency: "USD",
+      currency: SETTLEMENT_CURRENCY,
       sourceType: params.sourceType,
       sourceId: params.sourceId,
       buyerId: params.buyerId ?? null,
@@ -211,7 +220,7 @@ export async function recordEarning(
       s.pendingNet = round2(s.pendingNet + net);
     }
 
-    tx.set(sRef, { ...s, currency: "USD", updatedAt: now }, { merge: true });
+    tx.set(sRef, { ...s, currency: SETTLEMENT_CURRENCY, updatedAt: now }, { merge: true });
   });
 }
 
@@ -286,7 +295,7 @@ export async function settleEarning(
     // 🧾 IVA — al liberar (entregado) se cuenta el impuesto cobrado de esta venta.
     s.lifetimeTaxCollected = round2((s.lifetimeTaxCollected ?? 0) + (e.taxAmount ?? 0));
 
-    tx.set(sRef, { ...s, currency: "USD", updatedAt: now }, { merge: true });
+    tx.set(sRef, { ...s, currency: SETTLEMENT_CURRENCY, updatedAt: now }, { merge: true });
   });
 }
 
@@ -330,6 +339,6 @@ export async function reverseEarning(
       s.rejectedNet = round2(s.rejectedNet + e.netAmount);
     }
 
-    tx.set(sRef, { ...s, currency: "USD", updatedAt: now }, { merge: true });
+    tx.set(sRef, { ...s, currency: SETTLEMENT_CURRENCY, updatedAt: now }, { merge: true });
   });
 }

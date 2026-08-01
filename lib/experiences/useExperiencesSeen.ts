@@ -45,10 +45,17 @@ export function useExperiencesSeen(uid: string | null | undefined) {
     };
   }, [uid]);
 
-  const markSeen = useCallback(() => {
-    if (!uid) return;
-    writeSeenAt(uid, Date.now());
-  }, [uid]);
+  // `latestMs` = timestamp (de servidor) de la experiencia pendiente más reciente
+  // ya vista. Se guarda ESE valor, no `Date.now()` del cliente: el badge compara
+  // "visto" contra timestamps de servidor y el reloj del cliente reencendía/
+  // descontaba mal por desfase. Nunca retrocede.
+  const markSeen = useCallback(
+    (latestMs?: number) => {
+      if (!uid) return;
+      writeSeenAt(uid, Math.max(readSeenAt(uid), latestMs ?? Date.now()));
+    },
+    [uid]
+  );
 
   return { seenAt, markSeen };
 }

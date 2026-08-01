@@ -17,6 +17,7 @@ import { db } from "@/lib/firebase";
 import { useWalletLedger } from "@/lib/wallet/walletLedger";
 import WalletScopeToggle, { type StatScope } from "./WalletScopeToggle";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
+import { SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
 
 const DAY = 86400000;
 
@@ -398,7 +399,7 @@ export default function WalletChannels({
                     {pct}%
                   </span>
                   <span style={{ fontSize: 11.5, color: "rgba(255,255,255,0.55)" }}>
-                    {formatMoney(ch.net, { code: true })}
+                    {formatMoney(ch.net, { code: true, baseCurrency: SETTLEMENT_CURRENCY })}
                   </span>
                 </div>
                 <span style={{ flexShrink: 0, marginLeft: 4, display: "inline-flex" }}>
@@ -424,7 +425,7 @@ export default function WalletChannels({
                           newFollowers == null ? "—" : String(newFollowers)
                         )}
                         {statRow(tWallet("channelBuyers"), String(ch.buyers))}
-                        {statRow(tWallet("channelIncome"), formatMoney(ch.net, { code: true }))}
+                        {statRow(tWallet("channelIncome"), formatMoney(ch.net, { code: true, baseCurrency: SETTLEMENT_CURRENCY }))}
                       </>
                     ) : ch.isSubscription ? (
                       <>
@@ -433,10 +434,10 @@ export default function WalletChannels({
                         {statRow(
                           tWallet("channelSubPrice"),
                           ch.price > 0
-                            ? tWallet("channelPerMonth", { price: formatMoney(ch.price) })
+                            ? tWallet("channelPerMonth", { price: formatMoney(ch.price, { baseCurrency: SETTLEMENT_CURRENCY }) })
                             : "—"
                         )}
-                        {statRow(tWallet("channelIncome"), formatMoney(ch.net, { code: true }))}
+                        {statRow(tWallet("channelIncome"), formatMoney(ch.net, { code: true, baseCurrency: SETTLEMENT_CURRENCY }))}
                       </>
                     ) : (
                       <>
@@ -445,7 +446,7 @@ export default function WalletChannels({
                           tWallet("channelNewMembers"),
                           ch.newMembers == null ? "—" : String(ch.newMembers)
                         )}
-                        {statRow(tWallet("channelIncome"), formatMoney(ch.net, { code: true }))}
+                        {statRow(tWallet("channelIncome"), formatMoney(ch.net, { code: true, baseCurrency: SETTLEMENT_CURRENCY }))}
                       </>
                     )}
                   </div>

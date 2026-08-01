@@ -43,12 +43,18 @@ export default function NotificationBell({ active }: NotificationBellProps) {
   // agendadas). `useWalletVisibility` (cacheado) filtra a los vendedores antes de
   // abrir listeners; el conteo de pendientes decide mostrarlo/ocultarlo.
   const { hasWallet } = useWalletVisibility(user?.uid ?? null);
-  const { hasPending, count: experienceCount, latestMs: expLatestMs } =
+  const { hasPending, count: experienceCount, latestMs: expLatestMs, pendingMsList } =
     usePendingExperiences(hasWallet ? user?.uid ?? null : null);
   const { seenAt: expSeenAt, markSeen: markExpSeen } = useExperiencesSeen(
     hasWallet ? user?.uid ?? null : null
   );
-  const hasNewExperiences = experienceCount > 0 && expLatestMs > expSeenAt;
+  // Cuántas experiencias son NUEVAS (sin ver) — NO el total pendiente. Así, tras
+  // ver 3 y llegar 1 más, el badge marca 1, no 4.
+  const newExperiencesCount = useMemo(
+    () => pendingMsList.filter((ms) => ms > expSeenAt).length,
+    [pendingMsList, expSeenAt]
+  );
+  const hasNewExperiences = newExperiencesCount > 0;
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<NotifTab | null>(null);
   const [decidedTab, setDecidedTab] = useState<NotifTab | null>(null);
@@ -111,7 +117,12 @@ export default function NotificationBell({ active }: NotificationBellProps) {
     setOpen(false);
   };
 
-  const badge = badgeCount > 99 ? "99+" : String(badgeCount);
+  // El badge de la campanita avisa por lo social (colección notifications) Y por
+  // experiencias nuevas sin ver (saludos/consejos comprados, sesiones por
+  // atender) — que se cuentan aparte, vía `greetingRequests`/sesiones. Sin esto,
+  // vender un saludo no encendía la campanita (nunca escribe en notifications).
+  const alertCount = badgeCount + newExperiencesCount;
+  const badge = alertCount > 99 ? "99+" : String(alertCount);
 
   // Subnav: solo si hay experiencias pendientes.
   const showSubnav = hasPending;
@@ -147,10 +158,11 @@ export default function NotificationBell({ active }: NotificationBellProps) {
   }, [open, activeTab, markSeen]);
 
   // Ver la pestaña Experiencias (con el panel abierto) marca las experiencias
-  // como "vistas" (para no volver a forzar esa pestaña hasta que llegue una nueva).
+  // como "vistas" hasta el timestamp más reciente: así el badge cuenta solo las
+  // que lleguen DESPUÉS (no vuelve a contar las ya vistas).
   useEffect(() => {
-    if (open && activeTab === "experiences") markExpSeen();
-  }, [open, activeTab, markExpSeen]);
+    if (open && activeTab === "experiences") markExpSeen(expLatestMs);
+  }, [open, activeTab, markExpSeen, expLatestMs]);
 
   const visibleItems = useMemo(() => {
     if (showSubnav && activeTab === "experiences") {
@@ -181,7 +193,7 @@ export default function NotificationBell({ active }: NotificationBellProps) {
         onClick={() => setOpen((v) => !v)}
       >
         <VibraNavigationIcon type="notifications" size={22} strokeWidth={2.2} />
-        {badgeCount > 0 ? <span className="notifBadge">{badge}</span> : null}
+        {alertCount > 0 ? <span className="notifBadge">{badge}</span> : null}
       </button>
 
       {mounted && open

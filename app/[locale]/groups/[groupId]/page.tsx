@@ -51,10 +51,9 @@ import {
   type GreetingType,
 } from "@/lib/greetings/greetingRequests";
 import ServicePaymentModal from "@/components/payments/ServicePaymentModal";
+import StripePaymentModal from "@/components/payments/StripePaymentModal";
+import { createGreetingStripeIntent, createServiceStripeIntent } from "@/lib/stripe/stripePayments";
 import { payGroupSubscription, cancelGroupSubscription } from "@/lib/payments/payGroupSubscription";
-import { payGreeting } from "@/lib/payments/payGreeting";
-import { payExclusiveSession } from "@/lib/payments/payExclusiveSession";
-import { payMeetGreet } from "@/lib/payments/payMeetGreet";
 import { createMeetGreetRequest } from "@/lib/meetGreet/meetGreetRequests";
 import { createExclusiveSessionRequest } from "@/lib/exclusiveSession/exclusiveSessionRequests";
 import {
@@ -2943,10 +2942,11 @@ const avatarNode = (
         </main>
       </RefreshableArea>
 
-      <ServicePaymentModal
+      <StripePaymentModal
         open={payGreetOpen}
         amount={payGreetAmount}
-        pay={(c) => payGreeting({ greetingRequestId: payGreetId ?? "", ...c })}
+        amountCurrency="MXN"
+        createIntent={(args) => createGreetingStripeIntent({ greetingRequestId: payGreetId ?? "", saveCard: args.saveCard, taxCountry: args.taxCountry })}
         priceLabel={payGreetLabel}
         productType={greetType === "consejo" ? "Consejo" : "Saludo"}
         providerName={group?.name}
@@ -2968,10 +2968,11 @@ const avatarNode = (
         }}
       />
 
-      <ServicePaymentModal
+      <StripePaymentModal
         open={paySessionOpen}
         amount={paySessionAmount}
-        pay={(c) => payExclusiveSession({ requestId: paySessionId ?? "", ...c })}
+        amountCurrency="MXN"
+        createIntent={(args) => createServiceStripeIntent({ externalReference: `exclusiveSessionRequest__${paySessionId ?? ""}`, saveCard: args.saveCard, taxCountry: args.taxCountry })}
         priceLabel={paySessionLabel}
         productType="Sesión exclusiva"
         providerName={group?.name}
@@ -2989,10 +2990,11 @@ const avatarNode = (
         }}
       />
 
-      <ServicePaymentModal
+      <StripePaymentModal
         open={payMeetOpen}
         amount={payMeetAmount}
-        pay={(c) => payMeetGreet({ requestId: payMeetId ?? "", ...c })}
+        amountCurrency="MXN"
+        createIntent={(args) => createServiceStripeIntent({ externalReference: `meetGreetRequest__${payMeetId ?? ""}`, saveCard: args.saveCard, taxCountry: args.taxCountry })}
         priceLabel={payMeetLabel}
         productType="Tiempo contigo"
         providerName={group?.name}

@@ -10,6 +10,8 @@ import {
   isExpiredScheduledService,
 } from "@/lib/wallet/ownerWallet";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
+import { SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
+import { WALLET_NET_RATE } from "@/lib/wallet/walletFinances";
 import { useWalletData } from "../components/WalletDataContext";
 import WalletSectionShell from "../components/WalletSectionShell";
 import {
@@ -130,7 +132,7 @@ export default function WalletPendientesPage() {
   const totalPendingAmount = useMemo(() => {
     const sum = safePendingItems.reduce((acc, item) => {
       if (item.priceSnapshot == null) return acc;
-      return acc + Math.round(item.priceSnapshot * 0.77 * 100) / 100;
+      return acc + Math.round(item.priceSnapshot * WALLET_NET_RATE * 100) / 100;
     }, 0);
     return sum > 0 ? sum : null;
   }, [safePendingItems]);
@@ -166,7 +168,7 @@ export default function WalletPendientesPage() {
 
   const viewItemEarning = useMemo(() => {
     if (!viewItem?.priceSnapshot || viewItem.priceSnapshot <= 0) return null;
-    return formatMoney(viewItem.priceSnapshot * 0.77, { baseCurrency: viewItem.currency ?? "MXN" });
+    return formatMoney(viewItem.priceSnapshot * WALLET_NET_RATE, { baseCurrency: viewItem.currency ?? "MXN" });
   }, [viewItem, formatMoney]);
 
   function closeViewItem() {
@@ -310,7 +312,7 @@ export default function WalletPendientesPage() {
             {tWallet("totalToRelease")}
           </p>
           <p style={{ margin: "0 0 8px", fontSize: 28, fontWeight: 700, lineHeight: 1, letterSpacing: "-0.03em", color: "#86efac", fontFamily: "inherit" }}>
-            {formatMoney(Math.round(totalPendingAmount * 100) / 100, { code: true })}
+            {formatMoney(Math.round(totalPendingAmount * 100) / 100, { baseCurrency: SETTLEMENT_CURRENCY, code: true })}
           </p>
           <p style={{ margin: 0, fontSize: 13, color: "#fff", fontFamily: "inherit", fontWeight: 500 }}>
             {tWallet("pendingCount", { count: totalPendingCount })}

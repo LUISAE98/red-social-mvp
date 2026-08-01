@@ -45,10 +45,8 @@ import {
   createGreetingRequest,
   type GreetingType,
 } from "@/lib/greetings/greetingRequests";
-import ServicePaymentModal from "@/components/payments/ServicePaymentModal";
-import { payGreeting } from "@/lib/payments/payGreeting";
-import { payExclusiveSession } from "@/lib/payments/payExclusiveSession";
-import { payMeetGreet } from "@/lib/payments/payMeetGreet";
+import StripePaymentModal from "@/components/payments/StripePaymentModal";
+import { createGreetingStripeIntent, createServiceStripeIntent } from "@/lib/stripe/stripePayments";
 import { createMeetGreetRequest } from "@/lib/meetGreet/meetGreetRequests";
 import { registrarCompraGeo } from "@/lib/wallet/registrarCompraGeo";
 import { createExclusiveSessionRequest } from "@/lib/exclusiveSession/exclusiveSessionRequests";
@@ -1014,7 +1012,7 @@ function handleUnblockFailed() {
   const prefillInstructions = searchParams.get("instructions") ?? "";
   const prefillMessage = searchParams.get("message") ?? "";
 
-  if (service === "saludo" || service === "consejo" || service === "mensaje") {
+  if (service === "saludo" || service === "consejo") {
     setGreetType(service as GreetingType);
     if (retry) {
       setIsRetry(true);
@@ -2805,10 +2803,12 @@ const res = (await createExclusiveSessionRequest({
   onClose={() => setFollowersOverlayOpen(false)}
 />
 
-<ServicePaymentModal
+{/* Saludo/consejo: pasarela STRIPE (cableada). Sesión y meet&greet siguen en MP por ahora. */}
+<StripePaymentModal
   open={payGreetOpen}
   amount={payGreetAmount}
-  pay={(c) => payGreeting({ greetingRequestId: payGreetId ?? "", ...c })}
+  amountCurrency="MXN"
+  createIntent={(args) => createGreetingStripeIntent({ greetingRequestId: payGreetId ?? "", saveCard: args.saveCard, taxCountry: args.taxCountry })}
   priceLabel={payGreetLabel}
   productType={greetType === "consejo" ? "Consejo" : "Saludo"}
   providerName={fullName}
@@ -2826,10 +2826,11 @@ const res = (await createExclusiveSessionRequest({
   }}
 />
 
-<ServicePaymentModal
+<StripePaymentModal
   open={paySessionOpen}
   amount={paySessionAmount}
-  pay={(c) => payExclusiveSession({ requestId: paySessionId ?? "", ...c })}
+  amountCurrency="MXN"
+  createIntent={(args) => createServiceStripeIntent({ externalReference: `exclusiveSessionRequest__${paySessionId ?? ""}`, saveCard: args.saveCard, taxCountry: args.taxCountry })}
   priceLabel={paySessionLabel}
   productType="Sesión exclusiva"
   providerName={fullName}
@@ -2847,10 +2848,11 @@ const res = (await createExclusiveSessionRequest({
   }}
 />
 
-<ServicePaymentModal
+<StripePaymentModal
   open={payMeetOpen}
   amount={payMeetAmount}
-  pay={(c) => payMeetGreet({ requestId: payMeetId ?? "", ...c })}
+  amountCurrency="MXN"
+  createIntent={(args) => createServiceStripeIntent({ externalReference: `meetGreetRequest__${payMeetId ?? ""}`, saveCard: args.saveCard, taxCountry: args.taxCountry })}
   priceLabel={payMeetLabel}
   productType="Tiempo contigo"
   providerName={fullName}

@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { Fragment, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
@@ -26,6 +26,7 @@ import {
   declineExclusiveSessionReschedule,
 } from "@/lib/exclusiveSession/exclusiveSessionRequests";
 import type { WalletServiceItem } from "@/lib/wallet/ownerWallet";
+import { WALLET_NET_RATE } from "@/lib/wallet/walletFinances";
 import type {
   GreetingRequestDoc,
   MeetGreetRequestDoc,
@@ -34,6 +35,11 @@ import type {
 
 type ServiceKind = "meet_greet" | "exclusive_session";
 type SessionDoc = MeetGreetRequestDoc | ExclusiveSessionRequestDoc;
+
+// Elemento de la lista plana ordenada por fecha (saludo/consejo o sesión).
+type FlatItem =
+  | { kind: "greeting"; id: string; bucketKey: string; data: GreetingRequestDoc; ms: number }
+  | { kind: "session"; sessionKind: ServiceKind; id: string; bucketKey: string; data: SessionDoc; ms: number };
 
 // Mismos predicados de estado que el sidebar (OwnerSidebarMyGroups).
 function isServiceRequestAlertStatus(status?: string | null): boolean {
@@ -184,7 +190,6 @@ export default function ExperienceRequestsInbox({
 
   const greetingTypeLabel = (type: string): string => {
     if (type === "consejo") return tWallet("typeLabelAdvice");
-    if (type === "mensaje") return tWallet("typeLabelMessage");
     if (type === "meet_greet_digital") return tServices("exclusiveSession");
     if (
       type === "exclusive_session" ||
@@ -196,57 +201,49 @@ export default function ExperienceRequestsInbox({
     return tWallet("typeLabelGreeting");
   };
 
-  // Todos los saludos ordenados (el review overlay navega entre ellos).
+  // Todos los saludos ordenados MÁS NUEVO primero (el review overlay navega entre
+  // ellos en el mismo orden que se ven en la lista).
   const allSortedGreetings = useMemo(() => {
     return Object.values(greetingsByBucket)
       .flat()
       .sort(
         (a, b) =>
-          (toDateSafe(a.data.createdAt)?.getTime() ?? 0) -
-          (toDateSafe(b.data.createdAt)?.getTime() ?? 0)
+          (toDateSafe(b.data.createdAt)?.getTime() ?? 0) -
+          (toDateSafe(a.data.createdAt)?.getTime() ?? 0)
       );
   }, [greetingsByBucket]);
 
-  // Buckets a mostrar (perfil primero), solo con contenido.
-  const buckets = useMemo(() => {
-    const keys = new Set<string>([
-      ...Object.keys(greetingsByBucket),
-      ...Object.keys(meetGreetsByBucket),
-      ...Object.keys(exclusiveByBucket),
-    ]);
-    return Array.from(keys)
-      .map((key) => {
-        const greetings = greetingsByBucket[key] ?? [];
-        const sessions: Array<{ id: string; data: SessionDoc; kind: ServiceKind }> = [
-          ...(meetGreetsByBucket[key] ?? []).map((r) => ({
-            ...r,
-            kind: "meet_greet" as const,
-          })),
-          ...(exclusiveByBucket[key] ?? []).map((r) => ({
-            ...r,
-            kind: "exclusive_session" as const,
-          })),
-        ];
-        const alerts = sessions
-          .filter((s) => isServiceRequestAlertStatus(s.data.status))
-          .sort(
-            (a, b) =>
-              (toDateSafe(a.data.createdAt)?.getTime() ?? 0) -
-              (toDateSafe(b.data.createdAt)?.getTime() ?? 0)
-          );
-        return { key, greetings, alerts };
-      })
-      .filter((b) => b.greetings.length + b.alerts.length > 0)
-      .sort((a, b) => {
-        const ap = a.key.startsWith("profile:") ? 0 : 1;
-        const bp = b.key.startsWith("profile:") ? 0 : 1;
-        return ap - bp;
-      });
+  // Lista PLANA de experiencias (saludos/consejos + sesiones por atender de todos
+  // los orígenes), ordenada por fecha: la más nueva arriba, la más vieja abajo.
+  // Cada tarjeta conserva el avatar de su origen (perfil/comunidad) vía bucketKey.
+  const flatItems = useMemo<FlatItem[]>(() => {
+    const out: FlatItem[] = [];
+    const msOf = (v: unknown) => toDateSafe(v)?.getTime() ?? 0;
+
+    for (const [key, list] of Object.entries(greetingsByBucket)) {
+      for (const r of list) {
+        out.push({ kind: "greeting", id: r.id, bucketKey: key, data: r.data, ms: msOf(r.data.createdAt) });
+      }
+    }
+    for (const [key, list] of Object.entries(meetGreetsByBucket)) {
+      for (const r of list) {
+        if (!isServiceRequestAlertStatus(r.data.status)) continue;
+        out.push({ kind: "session", sessionKind: "meet_greet", id: r.id, bucketKey: key, data: r.data, ms: msOf(r.data.createdAt) });
+      }
+    }
+    for (const [key, list] of Object.entries(exclusiveByBucket)) {
+      for (const r of list) {
+        if (!isServiceRequestAlertStatus(r.data.status)) continue;
+        out.push({ kind: "session", sessionKind: "exclusive_session", id: r.id, bucketKey: key, data: r.data, ms: msOf(r.data.createdAt) });
+      }
+    }
+
+    return out.sort((a, b) => b.ms - a.ms); // más nueva arriba
   }, [greetingsByBucket, meetGreetsByBucket, exclusiveByBucket]);
 
   const earningOf = (price?: number | null, currency?: string | null): string | null =>
     price != null && price > 0
-      ? formatMoney(price * 0.77, { code: true, baseCurrency: (currency as "MXN" | "USD") ?? "MXN" })
+      ? formatMoney(price * WALLET_NET_RATE, { code: true, baseCurrency: (currency as "MXN" | "USD") ?? "MXN" })
       : null;
 
   // ── Handlers de saludo ─────────────────────────────────────────────────────
@@ -395,7 +392,7 @@ export default function ExperienceRequestsInbox({
     }
   };
 
-  if (loading && buckets.length === 0) {
+  if (loading && flatItems.length === 0) {
     return (
       <div
         className="expInboxState"
@@ -410,20 +407,20 @@ export default function ExperienceRequestsInbox({
       </div>
     );
   }
-  if (buckets.length === 0) {
+  if (flatItems.length === 0) {
     return <div className="expInboxState">{emptyLabel}</div>;
   }
 
   return (
     <div className="expInbox">
-      {buckets.map(({ key, greetings, alerts }) => {
-        const meta = groupMetaMap[key];
-        const isProfile = key.startsWith("profile:");
+      {flatItems.map((item) => {
+        const meta = groupMetaMap[item.bucketKey];
+        const isProfile = item.bucketKey.startsWith("profile:");
         const name = meta?.name ?? (isProfile ? "Mi perfil" : tCommon("user"));
         const avatarUrl = meta?.avatarUrl ?? null;
 
         // Línea vertical + avatar del perfil/comunidad desde donde compraron la
-        // experiencia (se muestra junto a la hora, en cada tarjeta del bucket).
+        // experiencia (se muestra junto a la hora, en cada tarjeta).
         const sourceNode = (
           <>
             <span
@@ -461,12 +458,11 @@ export default function ExperienceRequestsInbox({
           </>
         );
 
-        return (
-          <Fragment key={key}>
-            {/* Saludos / consejos */}
-            {greetings.map((r) => {
-              const req = r.data;
-              const buyer = userMiniMap[req.buyerId] ?? null;
+        // ── Saludo / consejo ──────────────────────────────────────────────────
+        if (item.kind === "greeting") {
+          const r = { id: item.id, data: item.data };
+          const req = r.data;
+          const buyer = userMiniMap[req.buyerId] ?? null;
               const earning = earningOf(req.priceSnapshot, req.currency);
               // Tarjeta con imagen de fondo (+ degradado para legibilidad) y layout
               // horizontal: info a la izquierda, monto + botón "Ver solicitud" a la
@@ -589,10 +585,11 @@ export default function ExperienceRequestsInbox({
                   </div>
                 </div>
               );
-            })}
+        }
 
-            {/* Sesiones por atender / agendar / reagendar */}
-            {alerts.map((r) => {
+        // ── Sesión por atender / agendar / reagendar ──────────────────────────
+        const r = { id: item.id, data: item.data, kind: item.sessionKind };
+        {
               const req = r.data;
               const earning = earningOf(req.priceSnapshot, req.currency);
               // Mismo estilo que saludo/consejo: imagen de fondo por tipo + layout
@@ -696,9 +693,7 @@ export default function ExperienceRequestsInbox({
                   </div>
                 </div>
               );
-            })}
-          </Fragment>
-        );
+        }
       })}
 
       {reviewState && (

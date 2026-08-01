@@ -11,6 +11,7 @@ import {
   type WalletServiceItem,
 } from "@/lib/wallet/ownerWallet";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
+import { WALLET_NET_RATE } from "@/lib/wallet/walletFinances";
 
 import { respondGreetingRequest } from "@/lib/greetings/greetingRequests";
 import {
@@ -862,7 +863,7 @@ export function WalletServiceRow({
                 </span>
                 {row.priceSnapshot != null ? (
                   <span style={{ color: isHistory && historyStatusLabel ? historyStatusColor : "#86efac", fontWeight: 600, fontSize: 11, lineHeight: 1.2, whiteSpace: "nowrap", flexShrink: 0 }}>
-                    +{formatMoney(Math.round(row.priceSnapshot * 0.77 * 100) / 100, { baseCurrency: priceBase, code: true })}
+                    +{formatMoney(Math.round(row.priceSnapshot * WALLET_NET_RATE * 100) / 100, { baseCurrency: priceBase, code: true })}
                   </span>
                 ) : null}
               </div>
@@ -934,7 +935,7 @@ export function WalletServiceRow({
                 </span>
                 {row.priceSnapshot != null ? (
                   <span style={{ color: mode === "history" && historyStatusLabel ? historyStatusColor : "#86efac", fontWeight: 600, fontSize: 11, lineHeight: 1.2, whiteSpace: "nowrap", flexShrink: 0 }}>
-                    +{formatMoney(Math.round(row.priceSnapshot * 0.77 * 100) / 100, { baseCurrency: priceBase, code: true })}
+                    +{formatMoney(Math.round(row.priceSnapshot * WALLET_NET_RATE * 100) / 100, { baseCurrency: priceBase, code: true })}
                   </span>
                 ) : null}
               </div>
@@ -1116,7 +1117,7 @@ export function WalletServiceRow({
               </span>
               {row.priceSnapshot != null ? (
                 <span style={{ color: "#86efac", fontWeight: 600, fontSize: 11, lineHeight: 1.2, whiteSpace: "nowrap", flexShrink: 0 }}>
-                  +{formatMoney(Math.round(row.priceSnapshot * 0.77 * 100) / 100, { baseCurrency: priceBase, code: true })}
+                  +{formatMoney(Math.round(row.priceSnapshot * WALLET_NET_RATE * 100) / 100, { baseCurrency: priceBase, code: true })}
                 </span>
               ) : null}
             </div>

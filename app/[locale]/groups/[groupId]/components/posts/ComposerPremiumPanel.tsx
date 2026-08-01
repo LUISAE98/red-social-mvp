@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
+import { WALLET_NET_RATE } from "@/lib/wallet/walletFinances";
 import type {
   PostPremiumAccessMode,
   PostPremiumFreeFor,
@@ -247,7 +248,7 @@ export default function ComposerPremiumPanel({
 
   const creatorEarnings =
     anchorPrice != null
-      ? priceFmt.format(anchorPrice * 0.77, { baseCurrency: "MXN", code: true })
+      ? priceFmt.format(anchorPrice * WALLET_NET_RATE, { baseCurrency: "MXN", code: true })
       : null;
 
   return (

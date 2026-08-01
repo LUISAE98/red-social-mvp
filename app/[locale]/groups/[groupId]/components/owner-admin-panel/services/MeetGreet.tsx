@@ -171,7 +171,7 @@ export default function MeetGreet({
   }, [draft.meetGreet.enabled, draft.meetGreet.price, calcNetAmount]);
 
   // Neto que gana el creador con el precio que está escribiendo en el overlay
-  // (precio bruto − 23% de comisión de Vibra).
+  // (precio bruto − 25% de comisión de Vibra).
   const overlayMeetGreetCalc = useMemo(() => {
     return calcNetAmount(overlayDraft.meetGreet.price);
   }, [overlayDraft.meetGreet.price, calcNetAmount]);

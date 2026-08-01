@@ -61,12 +61,18 @@ export function useBuyerExperiencesSeen(uid: string | null | undefined) {
     };
   }, [uid]);
 
-  // Marca una categoría como vista AHORA (se apaga su badge).
+  // Marca una categoría como vista. `latestMs` = timestamp de la ÚLTIMA actividad
+  // ya vista de esa categoría (derivado del servidor: updatedAt/deliveredAt/
+  // createdAt). Se guarda ESE valor —no `Date.now()` del cliente— porque el badge
+  // compara "visto" contra timestamps de servidor: usar el reloj del cliente
+  // reencendía el punto por desfase de reloj (o por un write async del webhook
+  // que bumpea `updatedAt` justo después). Nunca retrocede (max con lo guardado).
   const markSeen = useCallback(
-    (category: ExpCategory) => {
+    (category: ExpCategory, latestMs?: number) => {
       if (!uid) return;
       const cur = readSeen(uid);
-      writeSeen(uid, { ...cur, [category]: Date.now() });
+      const value = Math.max(cur[category] ?? 0, latestMs ?? Date.now());
+      writeSeen(uid, { ...cur, [category]: value });
     },
     [uid]
   );

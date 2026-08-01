@@ -17,3 +17,29 @@ export async function createStripePaymentIntent(input: {
   const res = await fn(input);
   return res.data;
 }
+
+/** Crea el PaymentIntent de un SALUDO/CONSEJO (precio del servidor + IVA + metadata). */
+export async function createGreetingStripeIntent(input: {
+  greetingRequestId: string;
+  saveCard: boolean;
+  taxCountry: string | null;
+}): Promise<{ clientSecret: string }> {
+  const fn = httpsCallable<typeof input, { clientSecret: string }>(functions, "createGreetingStripeIntent");
+  const res = await fn(input);
+  return res.data;
+}
+
+/**
+ * Crea el PaymentIntent de un servicio "pagar-luego-crear" genérico, por su
+ * `externalReference` (`exclusiveSessionRequest__{id}`, `meetGreetRequest__{id}`, …).
+ * Precio + IVA los pone el servidor a partir del paymentIntent ya creado.
+ */
+export async function createServiceStripeIntent(input: {
+  externalReference: string;
+  saveCard: boolean;
+  taxCountry: string | null;
+}): Promise<{ clientSecret: string }> {
+  const fn = httpsCallable<typeof input, { clientSecret: string }>(functions, "createServiceStripeIntent");
+  const res = await fn(input);
+  return res.data;
+}

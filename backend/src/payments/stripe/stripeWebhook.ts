@@ -12,6 +12,7 @@ import { logger } from "firebase-functions";
 import { defineSecret } from "firebase-functions/params";
 import * as crypto from "crypto";
 import * as admin from "firebase-admin";
+import { applyApprovedPaymentToSource, upsertPaymentIntentStatus } from "../reconcile";
 
 if (admin.apps.length === 0) {
   admin.initializeApp();
@@ -84,8 +85,6 @@ export const stripeWebhook = onRequest(
     try {
       if (event.type === "payment_intent.succeeded") {
         const pi = event.data.object as { id?: string; amount?: number; currency?: string; status?: string; customer?: string; metadata?: Record<string, unknown> };
-        // Por ahora: registrar el pago. La materialización (crear el saludo/sesión +
-        // sumar al ledger según pi.metadata) se conecta al cablear cada servicio real.
         if (pi.id) {
           await db.collection("stripePayments").doc(pi.id).set(
             {
@@ -100,7 +99,16 @@ export const stripeWebhook = onRequest(
             { merge: true }
           );
         }
-        logger.info("stripeWebhook payment_intent.succeeded", { id: pi.id, amount: pi.amount });
+        // Materializa la compra (crea el saludo/sesión + suma al ledger) usando el
+        // externalReference de la metadata. Reusa TODA la lógica de MP (reconcile).
+        const externalReference = String(pi.metadata?.externalReference ?? "").trim();
+        if (externalReference) {
+          await applyApprovedPaymentToSource(externalReference, { mpOrderId: null, mpPaymentId: pi.id ?? null });
+          await upsertPaymentIntentStatus(externalReference, { status: "paid" });
+          logger.info("stripeWebhook materialized", { externalReference, id: pi.id });
+        } else {
+          logger.info("stripeWebhook payment sin externalReference (prueba suelta)", { id: pi.id });
+        }
       } else {
         // Otros eventos (payment_intent.payment_failed, charge.refunded, etc.): por
         // ahora solo se registran; se manejan al cablear servicios/reembolsos.

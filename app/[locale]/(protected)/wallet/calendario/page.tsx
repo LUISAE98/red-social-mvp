@@ -10,6 +10,7 @@ import {
   type WalletServiceItem,
 } from "@/lib/wallet/ownerWallet";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
+import { WALLET_NET_RATE } from "@/lib/wallet/walletFinances";
 import { useWalletData } from "../components/WalletDataContext";
 import { proposeExclusiveSessionSchedule } from "@/lib/exclusiveSession/exclusiveSessionRequests";
 import { proposeMeetGreetSchedule } from "@/lib/meetGreet/meetGreetRequests";
@@ -511,7 +512,7 @@ function CalendarEventCard({
                 flexShrink: 0,
               }}
             >
-              +{formatMoney(Math.round(item.priceSnapshot * 0.77 * 100) / 100, { baseCurrency: item.currency ?? "MXN", code: true })}
+              +{formatMoney(Math.round(item.priceSnapshot * WALLET_NET_RATE * 100) / 100, { baseCurrency: item.currency ?? "MXN", code: true })}
             </span>
           ) : null}
         </div>
@@ -1208,7 +1209,7 @@ export default function WalletCalendarioPage() {
 
   const viewItemEarning =
     viewItem?.priceSnapshot != null && viewItem.priceSnapshot > 0
-      ? formatMoney(viewItem.priceSnapshot * 0.77, { baseCurrency: viewItem.currency ?? "MXN" })
+      ? formatMoney(viewItem.priceSnapshot * WALLET_NET_RATE, { baseCurrency: viewItem.currency ?? "MXN" })
       : null;
 
   function closeViewItem() {

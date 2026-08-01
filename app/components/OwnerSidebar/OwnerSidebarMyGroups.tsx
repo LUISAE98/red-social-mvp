@@ -65,6 +65,7 @@ import {
 import LiveRingAvatar from "@/app/components/LiveRing/LiveRingAvatar";
 import { useTranslations } from "next-intl";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
+import { WALLET_NET_RATE } from "@/lib/wallet/walletFinances";
 
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
@@ -162,7 +163,7 @@ export default function OwnerSidebarMyGroups({
             : typeof offering?.price === "number" ? (offering.price as number)
             : null;
           const formatted = rawPrice != null && rawPrice > 0
-            ? formatMoney(rawPrice * 0.77, { code: true })
+            ? formatMoney(rawPrice * WALLET_NET_RATE, { baseCurrency: typeof offering?.currency === "string" ? offering.currency : "MXN", code: true })
             : null;
           return [key, formatted] as const;
         } catch {
@@ -1570,7 +1571,7 @@ boxShadow:
                                   const busy = !!meetGreetBusyMap[r.id];
                                   const sessionEarning =
                                     req.priceSnapshot != null && req.priceSnapshot > 0
-                                      ? formatMoney(req.priceSnapshot * 0.77, { code: true })
+                                      ? formatMoney(req.priceSnapshot * WALLET_NET_RATE, { baseCurrency: getRequestCurrency(req), code: true })
                                       : null;
 
                                   return (
@@ -1761,7 +1762,7 @@ maxWidth: 220,
           serviceKind={sessionOverlayData.serviceKind}
           earning={
             sessionOverlayData.req.priceSnapshot != null && sessionOverlayData.req.priceSnapshot > 0
-              ? formatMoney(sessionOverlayData.req.priceSnapshot * 0.77, { code: true })
+              ? formatMoney(sessionOverlayData.req.priceSnapshot * WALLET_NET_RATE, { baseCurrency: getRequestCurrency(sessionOverlayData.req), code: true })
               : null
           }
           busy={!!meetGreetBusyMap[sessionOverlayData.id]}

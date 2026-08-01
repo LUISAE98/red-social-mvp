@@ -7,6 +7,7 @@ import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
+import { WALLET_NET_RATE } from "@/lib/wallet/walletFinances";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import {
@@ -354,7 +355,7 @@ export function pickDonation(donation: DonationInput) {
 export function calcNetAmount(raw: string) {
   const n = Number(raw);
   if (raw.trim() === "" || Number.isNaN(n) || n <= 0) return null;
-  const net = n * 0.77;
+  const net = n * WALLET_NET_RATE;
   return { gross: n, net };
 }
 

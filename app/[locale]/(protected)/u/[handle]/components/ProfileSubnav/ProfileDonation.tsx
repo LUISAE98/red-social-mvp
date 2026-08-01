@@ -6,6 +6,7 @@ import { doc, onSnapshot } from "firebase/firestore";
 import { httpsCallable } from "firebase/functions";
 import { db, functions } from "@/lib/firebase";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
+import { WALLET_NET_RATE } from "@/lib/wallet/walletFinances";
 import ServiceInfoIcon from "@/components/services/ServiceInfoIcon";
 import ServicePreviewReveal from "@/components/services/ServicePreviewReveal";
 import ServicePublishedSuccess from "@/components/services/ServicePublishedSuccess";
@@ -506,8 +507,8 @@ export default function ProfileDonation({
           Number(overlayDraft.donationMinimumAmount) > 0 ? (
             <div style={{ ...subtleStyle, marginTop: 4 }}>
               {tProfile.rich("donationEarningsLegend", {
-                // Monto neto = mínimo − 23% de comisión de Vibra, en la moneda del creador.
-                net: formatMoney(Number(overlayDraft.donationMinimumAmount) * 0.77, {
+                // Monto neto = mínimo − 25% de comisión de Vibra, en la moneda del creador.
+                net: formatMoney(Number(overlayDraft.donationMinimumAmount) * WALLET_NET_RATE, {
                   baseCurrency: displayCurrency,
                 }),
                 amount: (chunks) => (

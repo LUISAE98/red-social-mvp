@@ -54,7 +54,6 @@ function getRelativeTime(ts: { toDate: () => Date } | null | undefined, tCommon:
 
 function getTypeLabel(type: string, t: (key: string) => string): string {
   if (type === "consejo") return t("typeLabelAdvice");
-  if (type === "mensaje") return t("typeLabelMessage");
   return t("typeLabelGreeting");
 }
 
@@ -121,14 +120,13 @@ export default function BuyerGreetingRequestOverlay({ item, sourceName, sourceAv
   const req = item.data;
   const typeLabel = getTypeLabel(req.type, tWallet);
   const bgImage = req.type === "consejo" ? "/consejo.webp" : "/saludo.webp";
-  const retryBtnBg = req.type === "consejo" ? "rgba(250,204,21,0.85)" : req.type === "mensaje" ? "rgba(96,165,250,0.85)" : "#a855f7";
+  const retryBtnBg = req.type === "consejo" ? "rgba(250,204,21,0.85)" : "#a855f7";
   const retryBtnColor = req.type === "consejo" ? "#111" : "#fff";
-  const priceColor = req.type === "consejo" ? "#fde047" : req.type === "mensaje" ? "#93c5fd" : "#d8b4fe";
+  const priceColor = req.type === "consejo" ? "#fde047" : "#d8b4fe";
   const createdAt = req.createdAt as { toDate: () => Date } | undefined;
   const sourceInitial = sourceName.charAt(0).toUpperCase();
   const instructionsLabel =
     req.type === "consejo" ? tServices("contextAdvice") :
-    req.type === "mensaje" ? tServices("contextMessage") :
     tServices("contextGreeting");
 
   useEffect(() => { setMounted(true); }, []);
@@ -258,7 +256,7 @@ export default function BuyerGreetingRequestOverlay({ item, sourceName, sourceAv
       {req.priceSnapshot != null && (
         <div style={{ flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 1 }}>
           <span style={{ color: priceColor, fontSize: 10, fontWeight: 500, opacity: 0.8, lineHeight: 1 }}>{tServices("paidLabel")}</span>
-          <span style={{ color: priceColor, fontWeight: 700, fontSize: 24, lineHeight: 1 }}>{formatMoney(req.priceSnapshot, { code: true })}</span>
+          <span style={{ color: priceColor, fontWeight: 700, fontSize: 24, lineHeight: 1 }}>{formatMoney(req.priceSnapshot, { baseCurrency: req.currency ?? "MXN", code: true })}</span>
         </div>
       )}
     </div>

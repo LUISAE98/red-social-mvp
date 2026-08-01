@@ -89,19 +89,6 @@ function getGreetingUi(
     };
   }
 
-  if (type === "mensaje") {
-    return {
-      title: tServices("greetTitleMensaje"),
-      intro: tServices("greetIntroMensaje"),
-      recipientLabel: tServices("greetRecipientMensaje"),
-      recipientPlaceholder: tServices("greetPlaceholderRecipientMensaje"),
-      instructionsLabel: tServices("greetInstructionsMensaje"),
-      instructionsPlaceholder: tServices("greetPlaceholderInstructionsMensaje"),
-      submitLabel: tServices("greetTitleMensaje"),
-      helperText: tServices("greetHelperMensaje"),
-    };
-  }
-
   return {
     title: tServices("greetTitleSaludo"),
     intro: tServices("greetIntroSaludo"),

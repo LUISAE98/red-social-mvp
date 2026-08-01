@@ -1,7 +1,7 @@
 # Modelo fiscal de Vibra — IVA e impuestos indirectos (modelo VENDEDOR DIRECTO / seller of record)
 
 > **Estado:** documento de diseño **operativo**, actualizado **2026-07-28** al **MODELO DE VENDEDOR DIRECTO**. Es la guía de referencia para **construir y desplegar** la facturación e impuestos.
-> Las tasas por país se confirman con el fiscalista y la procesadora (Pagsmile/EBANX) **conforme se habilitan**; **México (16%) está confirmado** para arranque.
+> Las tasas por país se confirman con el fiscalista **conforme se habilitan**; **México (16%) está confirmado** para arranque. **Procesadora = Stripe** (Stripe Connect; Vibra = Merchant of Record; ver `docs/stripe-integracion.md`).
 >
 > **⚠️ Cambio de modelo (2026-07-28).** Hasta el 2026-07-27 este documento asumía a Vibra como **intermediaria/retenedora** (régimen 18-J / 113-A). El modelo aprobado como base ("Reporte maestro del nuevo modelo fiscal y operativo de Vibra", v1.0, 28-jul-2026) cambia el enfoque: **Vibra es la VENDEDORA directa frente al comprador en el modelo general.** Ver **§0**. Las secciones §1–§11 y los Anexos se conservan como **referencia del detalle fiscal mexicano** pero fueron escritas bajo el modelo anterior (ver nota al final de §0).
 >
@@ -45,7 +45,7 @@ Convención: **Comprador / Creador**. Vibra es la vendedora (seller of record), 
 
 ### 0.2 Impuesto por país — LISTA ORIENTATIVA (abierta, sin validar)
 
-> ⚠️ **Lista orientativa** (se valida por país conforme se habilita). Tasas y mecanismos de LatAm cambian rápido (Brasil en reforma 2026; Perú/Ecuador cambiaron en 2024). **La lista está ABIERTA:** se amplía/ajusta según **los países que habilite la procesadora (Pagsmile o EBANX)** y la validación fiscal por país. **México (16%) está confirmado** para arranque; el resto se activa al confirmar tasa + mecanismo. Las tasas viven en configuración versionada (no hardcode), así que agregar un país es cambiar config, no código.
+> ⚠️ **Lista orientativa** (se valida por país conforme se habilita). Tasas y mecanismos de LatAm cambian rápido (Brasil en reforma 2026; Perú/Ecuador cambiaron en 2024). **La lista está ABIERTA:** se amplía/ajusta según **los países que habilite Stripe** y la validación fiscal por país. **México (16%) está confirmado** para arranque; el resto se activa al confirmar tasa + mecanismo. Las tasas viven en configuración versionada (no hardcode), así que agregar un país es cambiar config, no código.
 
 | País | Tasa | Cómo se cobra | ¿Registro obligatorio? |
 |---|---|---|---|
@@ -84,21 +84,21 @@ Convención: **Comprador / Creador**. Vibra es la vendedora (seller of record), 
 
 | ID | Decisión | Propietario |
 |---|---|---|
-| D-01 | Rol de la procesadora (Pagsmile/EBANX) por país: ¿recauda/remite el impuesto o solo procesa? | Luis + procesadora |
+| D-01 | ✅ Procesadora = **Stripe**. Stripe **solo procesa** (no recauda/remite el impuesto local); como **Merchant of Record, Vibra determina, cobra y entera** el impuesto. Confirmar caso por caso al abrir países. | Luis + fiscalista |
 | D-02 | Matriz fiscal validada de los países habilitados | Fiscalista internacional |
 | D-03/D-04 | Clasificación final de Sesión exclusiva\* y Tiempo contigo\* | Luis + fiscalista |
 | D-05 | Tratamiento de apoyos/donaciones y margen de Vibra | Fiscalista |
 | D-06 | Retenciones y comprobantes por régimen del creador-proveedor | Fiscalista México |
-| D-07 | Presentación contable 100/77/23 y VAT de proveedor | Contador |
+| D-07 | Presentación contable 100/75/25 y VAT de proveedor | Contador |
 
 **Estado:** base aprobada para **construir la integración**. México (16%) confirmado para arranque; los demás países se activan por configuración conforme se validan. Las decisiones pendientes se resuelven en paralelo sin frenar el desarrollo.
 
 ### 0.6 Facturación (Facturapi) — modelo de DOS CFDIs
 
-Como Vibra es **vendedor directo**, la facturación se reduce a **2 comprobantes** (antes, como intermediario, eran ~3; **desaparece el "CFDI de comisión"** porque el 23% de Vibra es **margen**, no un servicio facturado al creador):
+Como Vibra es **vendedor directo**, la facturación se reduce a **2 comprobantes** (antes, como intermediario, eran ~3; **desaparece el "CFDI de comisión"** porque el 25% de Vibra es **margen**, no un servicio facturado al creador):
 
 1. **Vibra → Comprador (factura de venta).** La emite **Vibra con SU propio CSD** (org de Vibra en Facturapi). **Self-service y automática:** el comprador pide factura, captura RFC/uso/régimen/CP, y se timbra al instante. Si no pide factura → **comprobante de pago** (no fiscal) y la venta entra a la **factura global** mensual.
-2. **Creador → Vibra (factura de proveedor).** El creador es proveedor y factura su ~77% a Vibra. Requiere el **CSD del creador**. **Alta perezosa:** al querer **cobrar por primera vez**, el creador sube su CSD (se crea su **organización en Facturapi**) y acepta el **aviso legal de auto-facturación (self-billing)** — junto al KYC/monetización. De ahí en adelante, **cada pago genera su CFDI a Vibra automáticamente**. Las **retenciones** al creador-proveedor (ISR/IVA según su régimen) se calculan y reflejan en ese CFDI (D-06).
+2. **Creador → Vibra (factura de proveedor).** El creador es proveedor y factura su ~75% a Vibra. Requiere el **CSD del creador**. **Alta perezosa:** al querer **cobrar por primera vez**, el creador sube su CSD (se crea su **organización en Facturapi**) y acepta el **aviso legal de auto-facturación (self-billing)** — junto al KYC/monetización. De ahí en adelante, **cada pago genera su CFDI a Vibra automáticamente**. Las **retenciones** al creador-proveedor (ISR/IVA según su régimen) se calculan y reflejan en ese CFDI (D-06).
 
 **Plan de integración por bloques (Facturapi):**
 
@@ -133,13 +133,13 @@ La facturación del creador se resuelve en la **Wallet, al momento del retiro** 
   3. **Factura del retiro:** A = Vibra timbra sola (self-billing). B = sube XML → **validación automática con Facturapi** (timbrado, receptor = Vibra, total correcto).
   4. **Retiro creado:** entra al flujo `withdrawalRequest` existente. **La factura es prerrequisito**: sin CFDI válido no se libera el dinero.
 
-**Cuenta bancaria (aparte, antes):** se captura en el **KYC de Didit** (con cotejo del titular vs. nombre KYC) y se guarda **extendiendo `payoutAccounts`** con `provider` (spei/stripe/payoneer/pagsmile) + campos según el rail. Proveedor de payout swappable por país.
+**Cuenta bancaria (aparte, antes):** se captura en el **KYC de Didit** (con cotejo del titular vs. nombre KYC) y se guarda **extendiendo `payoutAccounts`** con `provider` (stripe/spei/wallbit/takenos) + campos según el rail. Proveedor de payout swappable por país.
 
 **Parametrizado (pendiente D-06):** las **retenciones** (ISR/IVA que Vibra retiene al creador PF) dependen del **régimen** del creador. El cálculo queda parametrizado por régimen; los % exactos entran con el fiscalista.
 
 ---
 
-> ⚠️ **NOTA SOBRE LAS SECCIONES SIGUIENTES (§1–§11 y Anexos).** Fueron redactadas bajo el modelo ANTERIOR de **intermediario/retenedor**. Se conservan como **referencia del detalle fiscal mexicano** (IVA del comprador mexicano, mecánica de retención al creador, jurisprudencia y tasas 2026), que sigue siendo útil. **Bajo el modelo de vendedor directo cambian:** (a) **Vibra** factura la venta al comprador (no el creador); (b) el "corte de comisión" pasa a ser **margen (≈23%)**, no una intermediación gravada aparte; (c) el creador es **proveedor** que factura a Vibra, y las retenciones se analizan sobre esa relación, no sobre una intermediación 18-J. La reelaboración fina al modelo vendedor queda pendiente de la auditoría técnica y del fiscalista (D-06).
+> ⚠️ **NOTA SOBRE LAS SECCIONES SIGUIENTES (§1–§11 y Anexos).** Fueron redactadas bajo el modelo ANTERIOR de **intermediario/retenedor**. Se conservan como **referencia del detalle fiscal mexicano** (IVA del comprador mexicano, mecánica de retención al creador, jurisprudencia y tasas 2026), que sigue siendo útil. **Bajo el modelo de vendedor directo cambian:** (a) **Vibra** factura la venta al comprador (no el creador); (b) el "corte de comisión" pasa a ser **margen (25%)**, no una intermediación gravada aparte; (c) el creador es **proveedor** que factura a Vibra, y las retenciones se analizan sobre esa relación, no sobre una intermediación 18-J. La reelaboración fina al modelo vendedor queda pendiente de la auditoría técnica y del fiscalista (D-06).
 
 ---
 
@@ -179,7 +179,7 @@ Para clasificar cada transacción (y decidir el 16%), la ley (LIVA Art. 18-C) pr
 | # | Indicio (Art. 18-C) | Dato que Vibra puede capturar |
 |---|---|---|
 | I | **Domicilio** manifestado por el receptor | Domicilio de perfil / facturación |
-| II | **Medio de pago** vía intermediario en territorio nacional | Tarjeta/banco emisor mexicano en Mercado Pago |
+| II | **Medio de pago** vía intermediario en territorio nacional | Tarjeta/banco emisor mexicano (BIN) en Stripe |
 | III | **Dirección IP** en rango asignado a México | Geo por IP (`registrar-compra-geo`) |
 | IV | **Código telefónico de país** = +52 | Teléfono del registro |
 
@@ -387,8 +387,8 @@ sin excepción de turista.
 - **Las ganancias del creador NO cambian:** el ledger las calcula sobre la **base** (desde los docs de dominio), no sobre lo cobrado. El IVA es de Vibra hacia el SAT. Suscripción (Preapproval): cobra base+IVA mensual pero registra la ganancia sobre la base.
 - El país fiscal lo manda el cliente (`card.taxCountry`, por IP) en las 9 vías de pago (8 vía `chargeServiceIntent` + suscripción).
 
-**⚠️ Marcadores `🔁 DLOCAL-MIGRATION` (lo que falta / debe rehacerse al migrar a dLocal):**
-- **Determinación fiscal autoritativa en backend:** hoy el país viene del cliente (IP). Con dLocal debe determinarlo el servidor (IP del request + país de la tarjeta por BIN) y conservar los **indicios 18-C**.
+**⚠️ Marcadores `🔁 STRIPE-MIGRATION` (lo que falta / debe rehacerse al integrar Stripe):**
+- **Determinación fiscal autoritativa en backend:** hoy el país viene del cliente (IP). Con Stripe debe determinarlo el servidor (IP del request + país de la tarjeta por BIN de Stripe) y conservar los **indicios 18-C**.
 - **Split de retención + CFDI:** calcular la retención (50%/100% IVA, ISR 2.5%/20%) y emitir el **CFDI de retención**. Requiere capturar RFC/residencia del creador (Fase 3b-2/3b-3/3b-4, con fiscalista y proveedor de timbrado PAC).
 
 **Hecho (Fase 3b-1 — "IVA cobrado" en el Wallet, verificado con type-check):**
@@ -396,7 +396,7 @@ sin excepción de turista.
 - El Wallet (finanzas) muestra "**IVA cobrado (va al SAT)**" como línea de transparencia (solo si hubo ventas con impuesto). NO suma a ganancias ni al saldo retirable. i18n en es/en/pt-BR.
 - **Las ganancias siguen sobre la base** (el IVA nunca infla el neto del creador).
 
-**Propinas/donaciones (decidido 2026-07-27):** se les **suma IVA igual que todo** (son contraprestación gravada, §6.1). El modo donación del panel de pago muestra el desglose Subtotal / IVA / Total sobre el monto que elige el fan, y el cobro se multiplica por (1+tasa). Con esto, la feature "+impuestos" (visualización + cobro coherente) queda **completa**; lo que resta es la determinación autoritativa en backend (Fase 2/dLocal) y el desglose del Wallet (Fase 3).
+**Propinas/donaciones (decidido 2026-07-27):** se les **suma IVA igual que todo** (son contraprestación gravada, §6.1). El modo donación del panel de pago muestra el desglose Subtotal / IVA / Total sobre el monto que elige el fan, y el cobro se multiplica por (1+tasa). Con esto, la feature "+impuestos" (visualización + cobro coherente) queda **completa**; lo que resta es la determinación autoritativa en backend (Fase 2/Stripe) y el desglose del Wallet (Fase 3).
 
 ---
 

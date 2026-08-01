@@ -16,6 +16,7 @@ import { createPortal } from "react-dom";
 import { useEffect, useMemo, useState } from "react";
 import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import { REGIMENES, USOS_CFDI, type SatEntry } from "@/lib/facturacion/satCatalogs";
+import type { PriceFormatOptions } from "@/lib/currency/usePriceFormat";
 import {
   useBuyerBillingProfiles,
   saveBuyerBillingProfile,
@@ -30,6 +31,7 @@ export type InvoiceConcept = {
   typeLabel: string; // etiqueta i18n del tipo de servicio
   base: number; // grossAmount (base, sin IVA)
   tax: number; // taxAmount (IVA cobrado encima)
+  currency?: string; // moneda del cargo original (propagada); el CFDI es MXN
 };
 
 type Props = {
@@ -37,7 +39,7 @@ type Props = {
   onClose: () => void;
   uid: string | null | undefined;
   concepts: InvoiceConcept[];
-  formatMoney: (n: number) => string;
+  formatMoney: (n: number, opts?: PriceFormatOptions) => string;
   onConfirm?: () => void;
 };
 
@@ -387,7 +389,7 @@ export default function BuyerInvoicePanel({ open, onClose, uid, concepts, format
                   </div>
                 </div>
                 <span style={{ flexShrink: 0, color: "#fff", fontSize: 13, fontWeight: 700, whiteSpace: "nowrap" }}>
-                  {formatMoney(c.base + c.tax)}
+                  {formatMoney(c.base + c.tax, { baseCurrency: "MXN" })}
                 </span>
               </div>
             ))}
@@ -397,12 +399,12 @@ export default function BuyerInvoicePanel({ open, onClose, uid, concepts, format
 
           {/* ── DESGLOSE FISCAL ── */}
           <div style={{ display: "grid", gap: 8, fontSize: 12.5 }}>
-            <Row k="Subtotal" v={formatMoney(totals.subtotal)} />
-            <Row k="IVA (16%)" v={formatMoney(totals.iva)} />
+            <Row k="Subtotal" v={formatMoney(totals.subtotal, { baseCurrency: "MXN" })} />
+            <Row k="IVA (16%)" v={formatMoney(totals.iva, { baseCurrency: "MXN" })} />
             <div style={{ height: 1, background: "rgba(255,255,255,0.1)" }} />
             <div style={{ display: "flex", justifyContent: "space-between", gap: 10, fontSize: 14, fontWeight: 700 }}>
               <span style={{ color: "rgba(255,255,255,0.85)" }}>Total a facturar</span>
-              <span style={{ color: "#fff" }}>{formatMoney(totals.total)}</span>
+              <span style={{ color: "#fff" }}>{formatMoney(totals.total, { baseCurrency: "MXN" })}</span>
             </div>
           </div>
 

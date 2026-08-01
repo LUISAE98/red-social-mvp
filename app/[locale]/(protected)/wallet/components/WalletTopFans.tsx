@@ -14,6 +14,7 @@ import { db } from "@/lib/firebase";
 import { useWalletLedger } from "@/lib/wallet/walletLedger";
 import WalletScopeToggle, { type StatScope } from "./WalletScopeToggle";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
+import { SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
 
 const DAY = 86400000;
 
@@ -261,7 +262,7 @@ export default function WalletTopFans({
                   letterSpacing: "-0.01em",
                 }}
               >
-                {formatMoney(fan.total)}
+                {formatMoney(fan.total, { baseCurrency: SETTLEMENT_CURRENCY })}
               </span>
             </div>
           );

@@ -131,7 +131,7 @@ export type GroupDocLite = {
     subscriptionCurrency?: Currency | null;
   };
   offerings?: Array<{
-    type: "saludo" | "consejo" | "mensaje" | string;
+    type: "saludo" | "consejo" | string;
     enabled?: boolean;
     price?: number | null;
     currency?: Currency | null;
@@ -158,7 +158,7 @@ export type GreetingStatus =
   | "delivered"
   | string;
 
-export type GreetingType = "saludo" | "consejo" | "mensaje" | string;
+export type GreetingType = "saludo" | "consejo" | string;
 
 export type GreetingRequestDoc = {
   buyerId: string;

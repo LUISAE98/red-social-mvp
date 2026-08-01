@@ -647,7 +647,7 @@ export default function SuperCommentModal({
                   </button>
 
                   <p style={{ margin: "10px 0 0", fontSize: 11, color: "rgba(255,255,255,0.25)", fontFamily: FONT, textAlign: "center" }}>
-                    El creador recibirá el 77% del monto.
+                    El creador recibirá el 75% del monto.
                   </p>
                 </>
               )}

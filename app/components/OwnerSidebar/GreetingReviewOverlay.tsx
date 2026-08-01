@@ -27,6 +27,8 @@ import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import { useTranslations, useLocale } from "next-intl";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import type { DisplayCurrency } from "@/lib/currency/catalog";
+import { SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
+import { WALLET_NET_RATE } from "@/lib/wallet/walletFinances";
 
 const fontStack =
   'inherit';
@@ -250,7 +252,7 @@ export default function GreetingReviewOverlay({
             ? offering.price
             : null;
       if (rawPrice == null || rawPrice <= 0) return;
-      const net = rawPrice * 0.77;
+      const net = rawPrice * WALLET_NET_RATE;
       const cur = typeof offering.currency === "string" ? offering.currency : "MXN";
       setEarningNet(net);
       setEarningFormatted(formatMoney(net, { baseCurrency: cur as DisplayCurrency, code: true }));
@@ -435,7 +437,7 @@ export default function GreetingReviewOverlay({
     ? `https://image.mux.com/${req.muxPlaybackId}/thumbnail.jpg`
     : null;
 
-  const typeLabel = req.type === "consejo" ? tWallet("typeLabelAdvice") : req.type === "mensaje" ? tWallet("typeLabelMessage") : tWallet("typeLabelGreeting");
+  const typeLabel = req.type === "consejo" ? tWallet("typeLabelAdvice") : tWallet("typeLabelGreeting");
   const titleText = viewMode
     ? `${tServices("viewRequest")} ${typeLabel}`
     : `${tServices("readMessage")} ${typeLabel}`;
@@ -993,7 +995,7 @@ export default function GreetingReviewOverlay({
   const successIsLast = currentIndex >= items.length - 1;
   const successCompletedCount = completedEarningsNet.length;
   const successTotalEarned = completedEarningsNet.reduce((a, b) => a + b, 0);
-  const successLabel = req.type === "consejo" ? tServices("successAdvice") : req.type === "mensaje" ? tServices("successMessage") : tServices("successGreeting");
+  const successLabel = req.type === "consejo" ? tServices("successAdvice") : tServices("successGreeting");
 
   // Success content — shown inline in the panel below the info section
   const successContent = (
@@ -1032,7 +1034,7 @@ export default function GreetingReviewOverlay({
       {/* Earnings + completion — only shown on the very last item */}
       {successIsLast && successTotalEarned > 0 && (
         <span style={{ color: "#86efac", fontWeight: 600, fontSize: 12, lineHeight: 1.5, textAlign: "center" }}>
-          {`Grabaste ${successCompletedCount} ${successCompletedCount === 1 ? "saludo o consejo" : "saludos y consejos"} y ganaste ${formatMoney(successTotalEarned, { code: true })}`}
+          {`Grabaste ${successCompletedCount} ${successCompletedCount === 1 ? "saludo o consejo" : "saludos y consejos"} y ganaste ${formatMoney(successTotalEarned, { baseCurrency: SETTLEMENT_CURRENCY, code: true })}`}
         </span>
       )}
       {successIsLast && (
@@ -1109,7 +1111,7 @@ export default function GreetingReviewOverlay({
     </div>
   );
 
-  const typeWord = req.type === "consejo" ? "consejo" : req.type === "mensaje" ? "mensaje" : "saludo";
+  const typeWord = req.type === "consejo" ? "consejo" : "saludo";
   // Profile source: name is always "Tu perfil", photo comes from buyers[creatorId] (already loaded)
   // Group source: name and photo come from sourceInfo (loaded async from Firestore)
   const sourceName = req.source === "profile" ? tCommon("yourProfile") : (sourceInfo?.name ?? null);
@@ -1361,7 +1363,7 @@ export default function GreetingReviewOverlay({
       }}>
         {isUploading
           ? (uploadProgress < 100 ? tServices("uploadingProgress", { progress: uploadProgress }) : tServices("processing"))
-          : req.type === "consejo" ? tServices("sendAdvice") : req.type === "mensaje" ? tServices("sendMessage") : tServices("sendGreeting")}
+          : req.type === "consejo" ? tServices("sendAdvice") : tServices("sendGreeting")}
       </button>
     </div>
   ) : null;

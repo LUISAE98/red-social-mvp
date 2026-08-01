@@ -1,0 +1,109 @@
+// Callable GENÉRICO para cobrar cualquier servicio "pagar-luego-crear" con Stripe.
+// Reusa el paymentIntent (paymentIntents/{externalReference}) que ya creó el
+// create<Servicio>Request: lee el precio del SERVIDOR, le suma IVA, y crea el
+// PaymentIntent de Stripe con la metadata que el webhook necesita para materializar
+// (applyApprovedPaymentToSource → reconcile). Sirve para sesión exclusiva, tiempo
+// contigo (meet&greet), saludo/consejo, etc.
+//
+// Precio autoritativo del servidor (NO del cliente). Todo en modo prueba.
+
+import { onCall, HttpsError } from "firebase-functions/v2/https";
+import * as crypto from "crypto";
+import * as admin from "firebase-admin";
+import { stripeFetch, stripeSecretKey } from "./stripeClient";
+import { getOrCreateStripeCustomer } from "./stripeCustomer";
+import { applyConsumptionTax } from "../../tax/config";
+import { SETTLEMENT_CURRENCY } from "../../wallet/ledger";
+
+if (admin.apps.length === 0) {
+  admin.initializeApp();
+}
+const db = admin.firestore();
+const REGION = "us-central1";
+
+// Prefijos de externalReference permitidos (deben coincidir con el dispatch de reconcile).
+const ALLOWED_SOURCE_TYPES = new Set([
+  "greetingRequest",
+  "exclusiveSessionRequest",
+  "meetGreetRequest",
+]);
+
+function round2(n: number): number {
+  return Math.round((n + Number.EPSILON) * 100) / 100;
+}
+
+type StripePaymentIntent = { id: string; client_secret: string };
+
+export const createServiceStripeIntent = onCall(
+  { region: REGION, cors: true, secrets: [stripeSecretKey] },
+  async (request) => {
+    const uid = request.auth?.uid;
+    if (!uid) throw new HttpsError("unauthenticated", "Debes iniciar sesión.");
+
+    const data = (request.data ?? {}) as { externalReference?: unknown; saveCard?: unknown; taxCountry?: unknown };
+    const externalReference = String(data.externalReference ?? "").trim();
+    if (!externalReference) throw new HttpsError("invalid-argument", "Falta la referencia del pago.");
+    const saveCard = data.saveCard === true;
+    const taxCountry = data.taxCountry ? String(data.taxCountry).trim().toUpperCase() : null;
+
+    const sep = externalReference.indexOf("__");
+    if (sep <= 0) throw new HttpsError("invalid-argument", "Referencia inválida.");
+    const sourceType = externalReference.slice(0, sep);
+    const sourceId = externalReference.slice(sep + 2);
+    if (!ALLOWED_SOURCE_TYPES.has(sourceType) || !sourceId) {
+      throw new HttpsError("invalid-argument", "Tipo de servicio no soportado.");
+    }
+
+    const intentRef = db.collection("paymentIntents").doc(externalReference);
+    const snap = await intentRef.get();
+    if (!snap.exists) throw new HttpsError("not-found", "Solicitud no encontrada.");
+    const intent = snap.data() ?? {};
+
+    if (intent.buyerId !== uid) throw new HttpsError("permission-denied", "No eres el comprador de esta solicitud.");
+    if (intent.status === "paid" || intent.status === "approved") {
+      throw new HttpsError("failed-precondition", "Esta solicitud ya está pagada.");
+    }
+    const base = Number(intent.grossAmount);
+    if (!Number.isFinite(base) || base <= 0) throw new HttpsError("failed-precondition", "Precio inválido.");
+
+    // 🧾 IVA — se SUMA sobre la base según el país del comprador (hoy MX = 16%).
+    const tax = applyConsumptionTax(base, taxCountry);
+    const total = round2(base + tax.taxAmount); // base en moneda de liquidación → sin FX
+
+    const customerId = await getOrCreateStripeCustomer(uid, request.auth?.token?.email ?? null);
+
+    const res = await stripeFetch<StripePaymentIntent>("/payment_intents", {
+      method: "POST",
+      idempotencyKey: crypto.randomUUID(),
+      form: {
+        amount: Math.round(total * 100), // centavos
+        currency: SETTLEMENT_CURRENCY.toLowerCase(), // Stripe usa minúsculas
+        customer: customerId,
+        payment_method_types: ["card"],
+        ...(saveCard ? { setup_future_usage: "off_session" } : {}),
+        // El webhook usa el externalReference para materializar el servicio + ledger.
+        metadata: { externalReference, sourceType, sourceId, buyerId: uid },
+      },
+    });
+    if (!res.ok) throw new HttpsError("internal", `No se pudo crear el pago (${res.status}): ${res.error.slice(0, 200)}`);
+
+    // Estampa el desglose fiscal + modo en el intent (para el ledger y el registro).
+    await intentRef.set(
+      {
+        baseAmount: tax.baseAmount,
+        taxAmount: tax.taxAmount,
+        taxCountry: tax.taxCountry,
+        taxRate: tax.taxRate,
+        chargedAmount: total,
+        settlementCurrency: SETTLEMENT_CURRENCY,
+        settlementAmount: total,
+        paymentMode: "stripe",
+        stripePaymentIntentId: res.data.id,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+
+    return { clientSecret: res.data.client_secret };
+  }
+);

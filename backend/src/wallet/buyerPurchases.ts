@@ -18,6 +18,7 @@
 import { onDocumentWritten } from "firebase-functions/v2/firestore";
 import * as admin from "firebase-admin";
 import * as logger from "firebase-functions/logger";
+import { SETTLEMENT_CURRENCY } from "./ledger";
 
 if (admin.apps.length === 0) {
   admin.initializeApp();
@@ -64,7 +65,7 @@ export const mirrorLedgerToBuyerPurchase = onDocumentWritten(
         type: d.type ?? null,
         status: buyerStatusFromLedger(d.status),
         grossAmount: typeof d.grossAmount === "number" ? d.grossAmount : 0,
-        currency: typeof d.currency === "string" ? d.currency : "USD",
+        currency: typeof d.currency === "string" ? d.currency : SETTLEMENT_CURRENCY,
         sourceType: d.sourceType ?? null,
         sourceId: d.sourceId ?? null,
         channelType: d.channelType ?? "profile",

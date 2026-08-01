@@ -9,7 +9,7 @@ if (admin.apps.length === 0) {
 
 const db = admin.firestore();
 
-type GreetingType = "saludo" | "consejo" | "mensaje";
+type GreetingType = "saludo" | "consejo";
 type GreetingStatus = "pending" | "accepted" | "rejected" | "refund_requested";
 type GreetingSource = "group" | "profile";
 
@@ -134,10 +134,6 @@ function isGreetingServiceEnabled(group: GroupShape, type: GreetingType): boolea
     return false;
   }
 
-  if (type === "mensaje") {
-    return isEnabledOffering(offerings, "mensaje");
-  }
-
   return false;
 }
 
@@ -208,7 +204,7 @@ function canBuyerRequestByMembership(
   return hasJoinedMembership || hasLegacyAccess;
 }
 
-// 1) Crear solicitud de saludo/consejo/mensaje
+// 1) Crear solicitud de saludo/consejo
 export const createGreetingRequest = onCall(
   {
     region: "us-central1",
@@ -245,7 +241,6 @@ const profileUserId =
     const type = assertOneOf<GreetingType>(request.data?.type, "type", [
       "saludo",
       "consejo",
-      "mensaje",
     ]);
     const toName = assertString(request.data?.toName, "toName", 80);
     const instructions = assertString(

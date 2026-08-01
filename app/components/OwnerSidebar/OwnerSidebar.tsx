@@ -2564,7 +2564,6 @@ newPostsCounts={newPostsCounts}
                     typeLabel={(type) => {
                       if (type === "saludo") return tWallet("typeLabelGreeting");
                       if (type === "consejo") return tWallet("typeLabelAdvice");
-                      if (type === "mensaje") return tWallet("typeLabelMessage");
                       if (type === "meet_greet_digital") return tSessions("meetGreetTitle");
                       if (type === "exclusive_session" || type === "clase_personalizada" || type === "digital_exclusive_session") return tServices("exclusiveSession");
                       return type;

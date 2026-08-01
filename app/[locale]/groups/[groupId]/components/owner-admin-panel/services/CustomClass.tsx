@@ -167,7 +167,7 @@ export default function CustomClass({
   }, [draft.customClass.enabled, draft.customClass.price, calcNetAmount]);
 
   // Neto que gana el creador con el precio que está escribiendo en el overlay
-  // (precio bruto − 23% de comisión de Vibra).
+  // (precio bruto − 25% de comisión de Vibra).
   const overlayCustomClassCalc = useMemo(() => {
     return calcNetAmount(overlayDraft.customClass.price);
   }, [overlayDraft.customClass.price, calcNetAmount]);

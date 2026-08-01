@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import type { LedgerEntry, LedgerStatus } from "@/lib/wallet/walletLedger";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
+import { SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
 
 // Un tramo del eje X: una semana o un mes, con su etiqueta y su predicado de fecha.
 export type ChartBucket = { key: string; label: string; test: (d: Date) => boolean };
@@ -103,7 +104,7 @@ export default function WalletMovementsChart({
             {tWallet(METRIC_KEY[metric])}
           </span>
           <span style={{ fontSize: 18, fontWeight: 700, color: "#fff", letterSpacing: "-0.02em" }}>
-            {fmtMoney(total)}
+            {fmtMoney(total, { baseCurrency: SETTLEMENT_CURRENCY })}
           </span>
         </div>
         <button
@@ -236,7 +237,7 @@ export default function WalletMovementsChart({
                     {hovered.label}
                   </div>
                   <div style={{ fontSize: 12.5, fontWeight: 700, color: "#fff" }}>
-                    {fmtMoney(hovered.amount)}
+                    {fmtMoney(hovered.amount, { baseCurrency: SETTLEMENT_CURRENCY })}
                   </div>
                 </div>
               </>

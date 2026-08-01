@@ -130,7 +130,7 @@ export default function ExperienciasPage() {
     interactedRef.current = true;
     setSlideDir(TAB_ORDER.indexOf(next) > TAB_ORDER.indexOf(tab) ? "right" : "left");
     setTab(next);
-    markExpSeen(next); // ver una pestaña apaga su badge
+    markExpSeen(next, catLatest[next]); // ver una pestaña apaga su badge
   }
 
   // ── Segundo subnav (dentro de Entregados): misma animación que el principal. ──
@@ -201,7 +201,6 @@ export default function ExperienciasPage() {
   const typeLabel = (type: string) => {
     if (type === "saludo") return tWallet("typeLabelGreeting");
     if (type === "consejo") return tWallet("typeLabelAdvice");
-    if (type === "mensaje") return tWallet("typeLabelMessage");
     if (type === "meet_greet_digital") return tSessions("meetGreetTitle");
     if (type === "exclusive_session" || type === "clase_personalizada" || type === "digital_exclusive_session") return tServices("exclusiveSession");
     return type;
@@ -365,7 +364,7 @@ export default function ExperienciasPage() {
     if (!availableTabs.includes(tab)) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setTab(defaultTab);
-      markExpSeen(defaultTab);
+      markExpSeen(defaultTab, catLatest[defaultTab]);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dataLoading, hasPending, hasRejected, hasDelivered, tab]);
@@ -378,7 +377,7 @@ export default function ExperienciasPage() {
     if (availableTabs.includes(openTarget)) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       if (openTarget !== tab) setTab(openTarget);
-      markExpSeen(openTarget);
+      markExpSeen(openTarget, catLatest[openTarget]);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dataLoading]);

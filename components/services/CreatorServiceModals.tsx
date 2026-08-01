@@ -84,18 +84,6 @@ function getGreetingUi(type: GreetingType, tServices: ReturnType<typeof useTrans
       helperText: tServices("greetHelperConsejo"),
     };
   }
-  if (type === "mensaje") {
-    return {
-      title: tServices("greetTitleMensaje"),
-      intro: tServices("greetIntroMensaje"),
-      recipientLabel: tServices("greetRecipientMensaje"),
-      recipientPlaceholder: tServices("greetPlaceholderRecipientMensaje"),
-      instructionsLabel: tServices("greetInstructionsMensaje"),
-      instructionsPlaceholder: tServices("greetPlaceholderInstructionsMensaje"),
-      submitLabel: tServices("submitMensaje"),
-      helperText: tServices("greetHelperMensaje"),
-    };
-  }
   const name = creatorName ?? tServices("creatorFallback");
   return {
     title: tServices("greetTitleSaludoWith", { name }),

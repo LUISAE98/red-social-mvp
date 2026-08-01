@@ -72,11 +72,12 @@ export default function NotificationsPage() {
     if (activeTab === "social") markSeen();
   }, [activeTab, markSeen]);
 
-  // Ver la pestaña Experiencias marca las experiencias como "vistas" (para que no
-  // vuelvan a forzar esa pestaña por defecto hasta que llegue una nueva).
+  // Ver la pestaña Experiencias marca las experiencias como "vistas" hasta el
+  // timestamp más reciente (de servidor): así el badge cuenta solo las que
+  // lleguen DESPUÉS y no vuelven a forzar esa pestaña por defecto.
   useEffect(() => {
-    if (activeTab === "experiences") markExpSeen();
-  }, [activeTab, markExpSeen]);
+    if (activeTab === "experiences") markExpSeen(expLatestMs);
+  }, [activeTab, markExpSeen, expLatestMs]);
 
   // Cambiar de pestaña desliza el contenido (mismas keyframes que el nav de
   // rutas): a la pestaña de la derecha entra desde la derecha, y viceversa.

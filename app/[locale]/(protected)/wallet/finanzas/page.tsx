@@ -12,6 +12,7 @@ import {
 } from "@/lib/wallet/walletFinances";
 import { useWalletLedger } from "@/lib/wallet/walletLedger";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
+import { SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
 import { useBalanceHidden, toggleBalanceHidden } from "@/lib/wallet/useBalanceHidden";
 import MaskedAmount from "@/app/components/MaskedAmount";
 import WalletFigureSkeleton from "../components/WalletFigureSkeleton";
@@ -346,9 +347,9 @@ export default function WalletFinanzasPage() {
                 {loadingAmounts ? (
                   <WalletFigureSkeleton width={170} height={32} />
                 ) : balanceHidden ? (
-                  <MaskedAmount formatted={formatMoney(view.available, { code: true })} />
+                  <MaskedAmount formatted={formatMoney(view.available, { code: true, baseCurrency: summary.currency ?? "MXN" })} />
                 ) : (
-                  formatMoney(view.available, { code: true })
+                  formatMoney(view.available, { code: true, baseCurrency: summary.currency ?? "MXN" })
                 )}
               </div>
               <button
@@ -525,9 +526,9 @@ export default function WalletFinanzasPage() {
                 {loadingAmounts ? (
                   <WalletFigureSkeleton width={66} height={17} />
                 ) : balanceHidden ? (
-                  <MaskedAmount formatted={formatMoney(view.pending)} />
+                  <MaskedAmount formatted={formatMoney(view.pending, { baseCurrency: summary.currency ?? "MXN" })} />
                 ) : (
-                  formatMoney(view.pending)
+                  formatMoney(view.pending, { baseCurrency: summary.currency ?? "MXN" })
                 )}
               </div>
             </div>
@@ -564,9 +565,9 @@ export default function WalletFinanzasPage() {
                 {loadingBestMonth ? (
                   <WalletFigureSkeleton width={66} height={17} />
                 ) : balanceHidden ? (
-                  <MaskedAmount formatted={formatMoney(bestMonth?.amount ?? 0)} />
+                  <MaskedAmount formatted={formatMoney(bestMonth?.amount ?? 0, { baseCurrency: SETTLEMENT_CURRENCY })} />
                 ) : (
-                  formatMoney(bestMonth?.amount ?? 0)
+                  formatMoney(bestMonth?.amount ?? 0, { baseCurrency: SETTLEMENT_CURRENCY })
                 )}
               </div>
               {loadingBestMonth ? (
@@ -612,9 +613,9 @@ export default function WalletFinanzasPage() {
                 {loadingAmounts ? (
                   <WalletFigureSkeleton width={66} height={17} />
                 ) : balanceHidden ? (
-                  <MaskedAmount formatted={formatMoney(view.lifetime)} />
+                  <MaskedAmount formatted={formatMoney(view.lifetime, { baseCurrency: summary.currency ?? "MXN" })} />
                 ) : (
-                  formatMoney(view.lifetime)
+                  formatMoney(view.lifetime, { baseCurrency: summary.currency ?? "MXN" })
                 )}
               </div>
             </div>
@@ -650,7 +651,7 @@ export default function WalletFinanzasPage() {
               <span>
                 {tWallet("financesRefunded")}:{" "}
                 <strong style={{ color: "rgba(255,255,255,0.7)", fontWeight: 600 }}>
-                  {formatMoney(view.refunded, { code: true })}
+                  {formatMoney(view.refunded, { code: true, baseCurrency: summary.currency ?? "MXN" })}
                 </strong>
               </span>
             </div>
@@ -673,7 +674,7 @@ export default function WalletFinanzasPage() {
               <span>
                 {tWallet("financesTaxCollected")}:{" "}
                 <strong style={{ color: "rgba(255,255,255,0.7)", fontWeight: 600 }}>
-                  {formatMoney(summary.taxCollected, { code: true })}
+                  {formatMoney(summary.taxCollected, { code: true, baseCurrency: summary.currency ?? "MXN" })}
                 </strong>
               </span>
             </div>
@@ -689,11 +690,11 @@ export default function WalletFinanzasPage() {
         open={withdrawPanelOpen}
         onClose={() => setWithdrawPanelOpen(false)}
         uid={user?.uid}
-        availableLabel={formatMoney(view.available, { code: true })}
+        availableLabel={formatMoney(view.available, { code: true, baseCurrency: summary.currency ?? "MXN" })}
         // IVA 16% (creador mexicano). Las retenciones se agregarán cuando se defina
         // el modelo fiscal con la API de pagos elegida.
-        ivaLabel={formatMoney(view.available * 0.16, { code: true })}
-        totalLabel={formatMoney(view.available * 1.16, { code: true })}
+        ivaLabel={formatMoney(view.available * 0.16, { code: true, baseCurrency: summary.currency ?? "MXN" })}
+        totalLabel={formatMoney(view.available * 1.16, { code: true, baseCurrency: summary.currency ?? "MXN" })}
       />
     </WalletSectionShell>
   );

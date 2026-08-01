@@ -305,6 +305,8 @@ export { createStripePaymentIntent } from "./payments/stripe/createPaymentIntent
 export { stripeWebhook } from "./payments/stripe/stripeWebhook";
 // Primer servicio real cableado a Stripe: saludo/consejo.
 export { createGreetingStripeIntent } from "./payments/stripe/greetingStripeIntent";
+// Callable genérico Stripe (sesión exclusiva, tiempo contigo, …).
+export { createServiceStripeIntent } from "./payments/stripe/serviceStripeIntent";
 
 // Facturación (Facturapi — CFDI, modelo vendedor directo). Bloque 0: smoke test de
 // credenciales (org de Vibra + multi-tenant). No emite CFDI ni toca el ledger.
@@ -329,15 +331,12 @@ export { saveBuyerBillingProfile, deleteBuyerBillingProfile } from "./facturacio
 // Facturación — Bloque 2: emisión del CFDI Vibra → comprador (org de Vibra).
 export { generateBuyerInvoice, downloadBuyerInvoice } from "./facturacion/generateBuyerInvoice";
 
-// Pagos — Bloque 2a: cobro de saludos/consejos + webhook de órdenes.
-export { payGreeting } from "./payments/greetingPayment";
+// Pagos (MP legacy) — webhook de órdenes. `payGreeting` (MP) se retiró: saludos/consejos
+// ya cobran por Stripe (createGreetingStripeIntent). mpWebhook sigue para servicios aún no migrados.
 export { mpWebhook } from "./payments/mpWebhook";
 
-// Pagos — sesión exclusiva (pagar-luego-crear, servicio propio).
-export { payExclusiveSession } from "./payments/exclusiveSessionPayment";
-
-// Pagos — tiempo contigo / meet & greet (pagar-luego-crear, servicio propio).
-export { payMeetGreet } from "./payments/meetGreetPayment";
+// Sesión exclusiva y tiempo contigo ya cobran por Stripe (createServiceStripeIntent);
+// sus callables MP (payExclusiveSession/payMeetGreet) se retiraron.
 
 // Pagos — desbloqueo de post premium / VOD (pagar-luego-conceder acceso).
 export { payPremiumPost } from "./payments/premiumPostPayment";

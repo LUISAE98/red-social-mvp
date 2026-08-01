@@ -11,6 +11,9 @@ import { doc, getDoc } from "firebase/firestore";
 import { useAuth } from "@/app/providers";
 import { db } from "@/lib/firebase";
 import { useNotifications } from "@/lib/hooks/useNotifications";
+import { useWalletVisibility } from "@/lib/wallet/useWalletVisibility";
+import { usePendingExperiences } from "@/lib/wallet/usePendingExperiences";
+import { useExperiencesSeen } from "@/lib/experiences/useExperiencesSeen";
 
 type NavIconKey = "home" | "groups" | "notifications" | "wallet" | "experiences";
 
@@ -188,6 +191,20 @@ export default function MobileBottomNav({
   const router = useRouter();
   const { user } = useAuth();
   const { badgeCount } = useNotifications(user?.uid ?? null);
+
+  // El badge del icono de notificaciones también avisa por experiencias nuevas
+  // sin ver (saludos/consejos vendidos, sesiones por atender) — que se cuentan
+  // aparte de la colección `notifications`. Igual que la campanita de escritorio.
+  // `useWalletVisibility` (cacheado) evita abrir listeners a quien no vende.
+  const { hasWallet } = useWalletVisibility(user?.uid ?? null);
+  const { pendingMsList } = usePendingExperiences(hasWallet ? user?.uid ?? null : null);
+  const { seenAt: expSeenAt } = useExperiencesSeen(hasWallet ? user?.uid ?? null : null);
+  // Solo las experiencias NUEVAS (sin ver), no el total pendiente.
+  const newExperiencesCount = useMemo(
+    () => pendingMsList.filter((ms) => ms > expSeenAt).length,
+    [pendingMsList, expSeenAt]
+  );
+  const notifAlertCount = badgeCount + newExperiencesCount;
 
   const [handle, setHandle] = useState<string | null>(null);
   const [photoURL, setPhotoURL] = useState<string | null>(null);
@@ -562,8 +579,10 @@ export default function MobileBottomNav({
                     ) : item.iconKey === "notifications" ? (
                       <>
                         {isActive ? <NavBellIconFilled /> : <NavBellIcon />}
-                        {badgeCount > 0 ? (
-                          <span className="navBadge">{badgeCount > 99 ? "99+" : badgeCount}</span>
+                        {notifAlertCount > 0 ? (
+                          <span className="navBadge">
+                            {notifAlertCount > 99 ? "99+" : notifAlertCount}
+                          </span>
                         ) : null}
                       </>
                     ) : item.iconKey === "wallet" ? (

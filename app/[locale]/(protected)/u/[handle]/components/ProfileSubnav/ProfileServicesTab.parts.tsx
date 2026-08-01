@@ -20,6 +20,7 @@ import ProfileDonation from "./ProfileDonation";
 
 import { updateProfileOfferings } from "@/lib/profile/updateProfileOfferings";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
+import { WALLET_NET_RATE } from "@/lib/wallet/walletFinances";
 import type { DisplayCurrency } from "@/lib/currency/catalog";
 
 import type {
@@ -311,7 +312,9 @@ export function buildOffering(params: {
     displayOrder: params.displayOrder,
     memberPrice: params.draft.enabled ? priceNum : null,
     publicPrice: params.draft.enabled ? priceNum : null,
-    currency: params.draft.enabled ? params.draft.currency : null,
+    // La moneda de liquidación es MXN (Mexico-first). Los precios de perfil se guardan
+    // SIEMPRE en MXN — nunca en el ancla USD legacy (evita el bug del ×tipo-de-cambio).
+    currency: params.draft.enabled ? "MXN" : null,
     requiresApproval: true,
     sourceScope: "profile",
     meta: params.meta ?? null,
@@ -322,7 +325,7 @@ export function buildOffering(params: {
 export function calcNetAmount(raw: string) {
   const n = Number(raw);
   if (raw.trim() === "" || Number.isNaN(n) || n <= 0) return null;
-  const net = n * 0.77;
+  const net = n * WALLET_NET_RATE;
   return { gross: n, net };
 }
 

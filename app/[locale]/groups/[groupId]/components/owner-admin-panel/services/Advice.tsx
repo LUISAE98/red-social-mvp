@@ -161,7 +161,7 @@ export default function Consejos({
   }, [draft.consejo.enabled, draft.consejo.price, calcNetAmount]);
 
   // Neto que gana el creador con el precio que está escribiendo en el overlay
-  // (precio bruto − 23% de comisión de Vibra).
+  // (precio bruto − 25% de comisión de Vibra).
   const overlayConsejoCalc = useMemo(() => {
     return calcNetAmount(overlayDraft.consejo.price);
   }, [overlayDraft.consejo.price, calcNetAmount]);

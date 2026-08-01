@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { useWalletFinances } from "@/lib/wallet/walletFinances";
 import { useWalletLedger } from "@/lib/wallet/walletLedger";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
+import { SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
 import WalletFigureSkeleton from "./WalletFigureSkeleton";
 
 /**
@@ -111,7 +112,7 @@ export default function WalletMonthlyStats({
             {loading ? (
               <WalletFigureSkeleton width={72} height={16} />
             ) : (
-              formatMoney(col.amount)
+              formatMoney(col.amount, { baseCurrency: SETTLEMENT_CURRENCY })
             )}
           </span>
         </button>

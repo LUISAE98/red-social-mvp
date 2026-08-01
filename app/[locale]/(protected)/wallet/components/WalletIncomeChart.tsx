@@ -8,6 +8,7 @@ import {
   type LedgerServiceType,
 } from "@/lib/wallet/walletLedger";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
+import { SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
 
 /** Monto compacto para el eje (ej. $1.2k, $850). */
 function formatCompact(value: number): string {
@@ -229,7 +230,7 @@ export default function WalletIncomeChart({
               letterSpacing: "-0.02em",
             }}
           >
-            {formatMoney(total)}
+            {formatMoney(total, { baseCurrency: SETTLEMENT_CURRENCY })}
           </span>
         </div>
 
@@ -369,7 +370,7 @@ export default function WalletIncomeChart({
                     {hovered.label}
                   </div>
                   <div style={{ fontSize: 12.5, fontWeight: 700, color: "#fff" }}>
-                    {formatMoney(hovered.amount)}
+                    {formatMoney(hovered.amount, { baseCurrency: SETTLEMENT_CURRENCY })}
                   </div>
                 </div>
               </>

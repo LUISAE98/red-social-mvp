@@ -108,6 +108,7 @@ export default function PurchasesTodoList({ uid }: { uid: string | null | undefi
             typeLabel: tWallet(ledgerTypeLabelKey(d.type)),
             base: d.grossAmount || 0,
             tax: d.taxAmount || 0,
+            currency: d.currency,
           };
         }),
     [purchases, selectedIds, groupMetaMap, userMiniMap, tCommon, tWallet]
@@ -293,7 +294,7 @@ export default function PurchasesTodoList({ uid }: { uid: string | null | undefi
 
             <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 2, flexShrink: 0 }}>
               <span style={{ color: "#fff", fontSize: 13, fontWeight: 700, whiteSpace: "nowrap", textDecoration: refunded ? "line-through" : "none", opacity: refunded ? 0.6 : 1 }}>
-                {formatMoney(d.grossAmount)}
+                {formatMoney(d.grossAmount, { baseCurrency: d.currency ?? "MXN" })}
               </span>
               {refunded && (
                 <span style={{ fontSize: 10, fontWeight: 600, color: ledgerStatusColor(d.status as LedgerStatus) }}>

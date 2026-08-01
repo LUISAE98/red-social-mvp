@@ -17,6 +17,7 @@ import {
 } from "react";
 import { useTranslations } from "next-intl";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
+import { WALLET_NET_RATE } from "@/lib/wallet/walletFinances";
 import { VibraNavigationIcon } from "@/app/components/VibraServiceIcons/VibraNavigationIcons";
 import type { PostPremiumStateResult } from "@/lib/posts/post-premium-state";
 import { fontStack, getInitials, formatMediaDuration } from "./GroupPostCard.utils";
@@ -59,7 +60,7 @@ export function PremiumPostPanel({
 
   const netEarnings =
     isAuthor && typeof oneTimePrice === "number" && oneTimePrice > 0
-      ? Math.floor(oneTimePrice * 0.77)
+      ? Math.floor(oneTimePrice * WALLET_NET_RATE)
       : null;
 
   return (
