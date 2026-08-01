@@ -2064,6 +2064,31 @@ const hasMenuTabs =
 return (
     <>
       <style jsx>{`
+/* Skeleton canónico de Vibra (vibra_style.md): onda .vb-skel / vbSkelWave. */
+.vb-skel {
+  background: linear-gradient(
+    100deg,
+    rgba(255, 255, 255, 0.05) 30%,
+    rgba(255, 255, 255, 0.11) 50%,
+    rgba(255, 255, 255, 0.05) 70%
+  );
+  background-size: 300% 100%;
+  animation: vbSkelWave 1.6s ease-in-out infinite;
+}
+@keyframes vbSkelWave {
+  0% {
+    background-position: 180% 0;
+  }
+  100% {
+    background-position: -80% 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .vb-skel {
+    animation: none;
+    background: rgba(255, 255, 255, 0.07);
+  }
+}
 .profile-owner-sidebar-panel {
   position: relative;
   display: flex;
@@ -2355,32 +2380,6 @@ className="profile-owner-sidebar-fixed"
     canónico .vb-skel / vbSkelWave de vibra_style.md. */}
 {!profileSidebarGroup && loadingUser && (
   <div style={{ display: "grid", gap: 8, flexShrink: 0 }}>
-    <style jsx>{`
-      .vb-skel {
-        background: linear-gradient(
-          100deg,
-          rgba(255, 255, 255, 0.05) 30%,
-          rgba(255, 255, 255, 0.11) 50%,
-          rgba(255, 255, 255, 0.05) 70%
-        );
-        background-size: 300% 100%;
-        animation: vbSkelWave 1.6s ease-in-out infinite;
-      }
-      @keyframes vbSkelWave {
-        0% {
-          background-position: 180% 0;
-        }
-        100% {
-          background-position: -80% 0;
-        }
-      }
-      @media (prefers-reduced-motion: reduce) {
-        .vb-skel {
-          animation: none;
-          background: rgba(255, 255, 255, 0.07);
-        }
-      }
-    `}</style>
     <div style={{ padding: "10px 12px", borderRadius: 16, display: "flex", alignItems: "center", gap: 10 }}>
       <div
         className="vb-skel"
