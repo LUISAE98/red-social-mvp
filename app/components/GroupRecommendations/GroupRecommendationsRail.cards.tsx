@@ -63,6 +63,7 @@ import type {
 } from "./types";
 import {
   FollowButton, JoinButton, cardStyles, fontStack,
+  RAIL_CARD_W, RAIL_GAP,
   resolveSubscriptionCurrency, resolveSubscriptionEnabled, resolveSubscriptionPrice,
   type LiveRec, type LiveActionState,
 } from "./GroupRecommendationsRail.parts";
@@ -736,35 +737,56 @@ export function LiveRecommendationCard({
 // ─── Skeleton ────────────────────────────────────────────────────────────────
 
 export function SkeletonRail() {
+  // Skeleton canónico de Vibra (vibra_style.md): onda .vb-skel / vbSkelWave.
+  // Celular: 4 cards de ancho fijo. Laptop (≥901px): 3 cards que se ajustan (como
+  // el rail real; la 4ª se oculta). Alto FIJO (no aspect-ratio) para que se
+  // renderice bien en iOS/Android/PWA (aspect-ratio en flex no computa alto en iOS).
   return (
     <>
       <style>{`
-        @keyframes vibraRecsSkeleton {
-          0%,100% { opacity: 0.38; }
-          50%      { opacity: 0.65; }
+        .vibra-recs-skel {
+          background: linear-gradient(
+            100deg,
+            rgba(255, 255, 255, 0.05) 30%,
+            rgba(255, 255, 255, 0.11) 50%,
+            rgba(255, 255, 255, 0.05) 70%
+          );
+          background-size: 300% 100%;
+          animation: vbSkelWave 1.6s ease-in-out infinite;
+        }
+        @keyframes vbSkelWave {
+          0%   { background-position: 180% 0; }
+          100% { background-position: -80% 0; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .vibra-recs-skel { animation: none; background: rgba(255, 255, 255, 0.07); }
+        }
+        .vibra-recs-skel-row {
+          display: flex;
+          gap: ${RAIL_GAP}px;
+          overflow-x: hidden;
+          padding: 0 14px 6px;
+        }
+        .vibra-recs-skel-card {
+          min-width: ${RAIL_CARD_W}px;
+          max-width: ${RAIL_CARD_W}px;
+          flex-shrink: 0;
+        }
+        .vibra-recs-skel-block {
+          width: 100%;
+          height: 224px;
+          border-radius: 14px;
+        }
+        @media (min-width: 901px) {
+          .vibra-recs-skel-row { padding: 0 0 6px; justify-content: center; }
+          .vibra-recs-skel-card { flex: 1 1 0; min-width: 0; max-width: ${RAIL_CARD_W}px; }
+          .vibra-recs-skel-card:nth-child(n + 4) { display: none; }
         }
       `}</style>
-      <div
-        style={{
-          display: "flex",
-          gap: 12,
-          overflowX: "hidden",
-          paddingBottom: 6,
-          paddingLeft: 12,
-          paddingRight: 12,
-        }}
-      >
+      <div className="vibra-recs-skel-row">
         {[0, 1, 2, 3].map((i) => (
-          <div key={i} style={{ minWidth: 200, maxWidth: 200, flexShrink: 0 }}>
-            <div
-              style={{
-                width: "100%",
-                aspectRatio: "9 / 10",
-                borderRadius: 0,
-                background: "rgba(255,255,255,0.07)",
-                animation: `vibraRecsSkeleton 1.6s ease-in-out ${i * 0.18}s infinite`,
-              }}
-            />
+          <div key={i} className="vibra-recs-skel-card">
+            <div className="vibra-recs-skel vibra-recs-skel-block" />
           </div>
         ))}
       </div>
