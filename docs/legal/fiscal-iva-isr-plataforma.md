@@ -19,7 +19,9 @@
 
 En el modelo general, **el comprador contrata con Vibra, no con el creador.** Vibra fija el precio final, cobra, **determina el impuesto indirecto aplicable**, emite el comprobante/factura, concede el acceso o coordina la entrega, y administra cancelaciones, reembolsos, contracargos y la reclamación del consumidor. **El creador es PROVEEDOR de Vibra** (le suministra el contenido/ejecución/colaboración contratada).
 
-**Consecuencia contable propuesta (a validar por contador):** el **100% del precio base** vendido = ingreso bruto de Vibra; la **participación del creador (≈77%)** = costo/obligación de pago; la **participación de Vibra (≈23%)** = margen. **El impuesto cobrado al comprador NO es ingreso ni base de reparto.** El reparto se calcula sobre el **precio base**, no sobre el total con impuesto.
+**Consecuencia contable propuesta (a validar por contador):** el **100% del precio base** vendido = ingreso bruto de Vibra; la **participación del creador (75%)** = costo/obligación de pago; la **participación de Vibra (25%)** = margen. **El impuesto cobrado al comprador NO es ingreso ni base de reparto.** El reparto se calcula sobre el **precio base**, no sobre el total con impuesto.
+
+> **Reparto y márgenes (act. 2026-07-31):** la comisión subió de 23% a **25%** (reparto **75/25**). El modelo completo de comisión, comisiones de Stripe (quién absorbe qué), payout mínimo y márgenes objetivo (25% = ~5% Stripe + 8% infra + 1% devoluciones + 1% sueldos + 10% utilidad) vive en **`docs/modelo-financiero.md`**. Procesadora = **Stripe** (`docs/stripe-integracion.md`).
 
 ### Dos cálculos INDEPENDIENTES (principio rector)
 

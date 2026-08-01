@@ -296,6 +296,12 @@ export { mpHealthcheck } from "./payments/mpHealthcheck";
 
 // Pagos (Stripe — migración MP→Stripe). S1: smoke test de credenciales.
 export { stripeHealthcheck } from "./payments/stripe/stripeHealthcheck";
+// S2: cobro de prueba con Stripe Checkout (página hospedada).
+export { createStripeCheckoutSession } from "./payments/stripe/stripeCheckout";
+// S3a: PaymentIntent para la pasarela embebida (Elements) + guardar tarjeta.
+export { createStripePaymentIntent } from "./payments/stripe/createPaymentIntent";
+// S4: webhook de Stripe (pago aprobado, reembolso…). Reemplaza a mpWebhook.
+export { stripeWebhook } from "./payments/stripe/stripeWebhook";
 
 // Facturación (Facturapi — CFDI, modelo vendedor directo). Bloque 0: smoke test de
 // credenciales (org de Vibra + multi-tenant). No emite CFDI ni toca el ledger.

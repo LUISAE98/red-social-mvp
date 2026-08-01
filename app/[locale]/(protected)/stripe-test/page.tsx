@@ -3,7 +3,7 @@
 // Página TEMPORAL de diagnóstico (S1): confirma que la conexión con Stripe funciona.
 // Solo un moderador puede ejecutarla (el callable lo valida). Borrar cuando ya no se use.
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { httpsCallable } from "firebase/functions";
 import { functions } from "@/lib/firebase";
 
@@ -18,6 +18,27 @@ export default function StripeTestPage() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<Result | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [paying, setPaying] = useState(false);
+  // Aviso del retorno de Stripe Checkout (?pago=ok | cancelado).
+  const [payMsg, setPayMsg] = useState<"ok" | "cancelado" | null>(null);
+
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search).get("pago");
+    if (p === "ok" || p === "cancelado") setPayMsg(p);
+  }, []);
+
+  async function pay() {
+    setPaying(true);
+    setError(null);
+    try {
+      const fn = httpsCallable<{ origin: string }, { url: string }>(functions, "createStripeCheckoutSession");
+      const res = await fn({ origin: window.location.origin });
+      window.location.href = res.data.url; // redirige a la página de pago de Stripe
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+      setPaying(false);
+    }
+  }
 
   async function run() {
     setLoading(true);
@@ -38,8 +59,14 @@ export default function StripeTestPage() {
     <div style={{ maxWidth: 560, margin: "0 auto", padding: "24px 16px", color: "#fff", fontFamily: "inherit" }}>
       <h1 style={{ fontSize: 20, fontWeight: 700, margin: "0 0 8px" }}>Diagnóstico Stripe (S1)</h1>
       <p style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", lineHeight: 1.5, margin: "0 0 20px" }}>
-        Confirma que la llave de Stripe funciona (hace una llamada real a /balance, no mueve dinero). Debes ser moderador.
+        S1: confirma que la llave funciona. S2: prueba un cobro real ($50 MXN) con Stripe Checkout. Debes ser moderador.
       </p>
+
+      {payMsg && (
+        <div style={{ marginBottom: 16, padding: 14, borderRadius: 12, border: `1px solid ${payMsg === "ok" ? "#22c55e" : "#f59e0b"}`, background: "rgba(255,255,255,0.03)", color: payMsg === "ok" ? "#22c55e" : "#f59e0b", fontSize: 14, fontWeight: 600 }}>
+          {payMsg === "ok" ? "✅ ¡Pago de prueba completado! Verifícalo en el dashboard de Stripe (Payments)." : "⚠️ Pago cancelado."}
+        </div>
+      )}
 
       <button
         type="button"
@@ -52,7 +79,21 @@ export default function StripeTestPage() {
           cursor: loading ? "default" : "pointer",
         }}
       >
-        {loading ? "Probando…" : "Probar conexión con Stripe"}
+        {loading ? "Probando…" : "S1 · Probar conexión con Stripe"}
+      </button>
+
+      <button
+        type="button"
+        onClick={pay}
+        disabled={paying}
+        style={{
+          marginTop: 12, width: "100%", height: 48, borderRadius: 8, border: "none",
+          background: paying ? "rgba(255,255,255,0.12)" : "#0a7d33",
+          color: "#fff", fontSize: 16, fontWeight: 600, fontFamily: "inherit",
+          cursor: paying ? "default" : "pointer",
+        }}
+      >
+        {paying ? "Redirigiendo a Stripe…" : "S2 · Probar cobro de $50 MXN (Checkout)"}
       </button>
 
       {result && (
