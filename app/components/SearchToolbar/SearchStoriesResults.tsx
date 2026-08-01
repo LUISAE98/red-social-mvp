@@ -57,23 +57,43 @@ function creatorInitials(name?: string): string {
 }
 
 // Miniatura de la historia. Las grabadas horizontales se muestran con letterbox
-// (contain + barras negras arriba/abajo); las verticales llenan (cover).
+// (contain); las verticales llenan (cover). En las horizontales, en vez de barras
+// NEGRAS arriba/abajo, ponemos de fondo la MISMA portada escalada, muy desenfocada
+// y aclarada → los márgenes toman el color predominante de la portada, difuminado.
+// (Solo en la miniatura de búsqueda; dentro del visor de la historia sigue negro.)
 function StoryThumb({ src }: { src: string }) {
   const [contain, setContain] = useState(false);
   return (
-    <Image
-      src={src}
-      alt=""
-      fill
-      sizes="(max-width: 768px) 33vw, 160px"
-      onLoad={(e) => {
-        const img = e.currentTarget;
-        if (img.naturalWidth > 0 && img.naturalWidth > img.naturalHeight) {
-          setContain(true);
-        }
-      }}
-      style={{ objectFit: contain ? "contain" : "cover" }}
-    />
+    <>
+      {contain ? (
+        <Image
+          src={src}
+          alt=""
+          fill
+          sizes="(max-width: 768px) 33vw, 160px"
+          aria-hidden="true"
+          style={{
+            objectFit: "cover",
+            transform: "scale(1.2)", // cubre los bordes que el blur deja translúcidos
+            filter: "blur(24px) brightness(1.18) saturate(1.15)",
+            zIndex: 0,
+          }}
+        />
+      ) : null}
+      <Image
+        src={src}
+        alt=""
+        fill
+        sizes="(max-width: 768px) 33vw, 160px"
+        onLoad={(e) => {
+          const img = e.currentTarget;
+          if (img.naturalWidth > 0 && img.naturalWidth > img.naturalHeight) {
+            setContain(true);
+          }
+        }}
+        style={{ objectFit: contain ? "contain" : "cover", zIndex: 1 }}
+      />
+    </>
   );
 }
 
@@ -200,9 +220,10 @@ function StoryCard({
             width: "100%",
             height: "100%",
             objectFit: videoContain ? "contain" : "cover",
-            // Fondo negro (barras del letterbox) y el video se revelan SOLO cuando
-            // ya está reproduciendo → sin parpadeo negro sobre la miniatura.
-            background: videoReady ? "#000" : "transparent",
+            // El letterbox del preview deja ver el fondo difuminado de la portada
+            // (transparente), igual que la miniatura. El video se revela solo cuando
+            // ya reproduce (opacity) → sin parpadeo negro sobre la miniatura.
+            background: "transparent",
             opacity: videoReady ? 1 : 0,
             transition: "opacity 0.2s ease",
             zIndex: 1,
