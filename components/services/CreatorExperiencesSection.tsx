@@ -207,22 +207,23 @@ export default function CreatorExperiencesSection({
         @media (min-width: 560px) {
           .exp-avatar { width: 56px; height: 56px; }
         }
-        /* Zoom sutil del contenido de la card al pasar el cursor (solo hover real).
-           :global porque la clase va en un <Link> (componente), no en un DOM host. */
-        :global(.exp-card) {
+        /* Zoom sutil SOLO del contenido al pasar el cursor: el contenedor (bg, borde,
+           sombra) se queda fijo y el .exp-card-content escala. Solo con hover real.
+           :global porque .exp-card va en un <Link> (componente), no en un DOM host. */
+        :global(.exp-card-content) {
           transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
           will-change: transform;
         }
         @media (hover: hover) and (pointer: fine) {
-          :global(.exp-card:hover) {
+          :global(.exp-card:hover .exp-card-content) {
             transform: scale(1.02);
           }
         }
         @media (prefers-reduced-motion: reduce) {
-          :global(.exp-card) {
+          :global(.exp-card-content) {
             transition: none;
           }
-          :global(.exp-card:hover) {
+          :global(.exp-card:hover .exp-card-content) {
             transform: none;
           }
         }
@@ -285,9 +286,7 @@ export default function CreatorExperiencesSection({
               href={href}
               scroll={false}
               style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 14,
+                display: "block",
                 padding: "14px 16px",
                 borderRadius: 16,
                 background: type === "consejo"
@@ -303,6 +302,10 @@ export default function CreatorExperiencesSection({
                 color: "#fff",
               }}
             >
+              <div
+                className="exp-card-content"
+                style={{ display: "flex", alignItems: "center", gap: 14 }}
+              >
               {/* Icon circle placeholder */}
               <img
                 className="exp-avatar"
@@ -410,6 +413,7 @@ export default function CreatorExperiencesSection({
               {/* Chevron */}
               <div className="exp-chevron" style={{ flexShrink: 0, color: conf.color, alignSelf: "center" }}>
                 <ChevronRight />
+              </div>
               </div>
             </Link>
           );
