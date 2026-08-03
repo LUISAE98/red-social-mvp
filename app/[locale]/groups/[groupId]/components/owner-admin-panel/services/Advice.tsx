@@ -149,8 +149,7 @@ export default function Consejos({
 }: Props) {
   const tServices = useTranslations("services");
   const tCommon = useTranslations("common");
-  const { resolveStoredPrice, toDisplayForInput, currency: displayCurrency, formatAnchor } =
-    usePriceFormat();
+  const { currency: displayCurrency } = usePriceFormat();
 
   const [overlayMode, setOverlayMode] = useState<OverlayMode>(null);
   const [overlayDraft, setOverlayDraft] = useState<ServiceDraft>(draft);
@@ -169,16 +168,8 @@ export default function Consejos({
   const isBusy = saving;
 
   function buildEnabledDraft(baseDraft: ServiceDraft) {
-    // Mostrar el precio guardado en la moneda del creador para editarlo.
-    const n = Number(baseDraft.consejo.price);
-    const shown =
-      baseDraft.consejo.price !== "" && Number.isFinite(n) && n > 0
-        ? String(
-            Math.round(
-              toDisplayForInput(n, baseDraft.consejo.currency ?? "MXN") * 100
-            ) / 100
-          )
-        : baseDraft.consejo.price;
+    // El precio se guarda CRUDO en MXN; se muestra tal cual para editarlo.
+    const shown = baseDraft.consejo.price;
     return {
       ...baseDraft,
       consejo: {
@@ -218,7 +209,7 @@ export default function Consejos({
   }
 
   async function confirmOverlaySave() {
-    // El creador tecleó en su moneda; guardamos en MXN (ancla).
+    // El creador teclea en MXN; se guarda CRUDO en MXN (sin round-trip USD).
     const n = Number(overlayDraft.consejo.price);
     let consejoToSave = {
       ...overlayDraft.consejo,
@@ -226,8 +217,7 @@ export default function Consejos({
       visibility: "members" as const,
     };
     if (overlayDraft.consejo.price !== "" && Number.isFinite(n) && n > 0) {
-      const { price, currency } = resolveStoredPrice(n);
-      consejoToSave = { ...consejoToSave, price: String(price), currency };
+      consejoToSave = { ...consejoToSave, price: String(n), currency: "MXN" };
     }
     const ok = await onSaveDraft({
       ...overlayDraft,
@@ -426,14 +416,6 @@ export default function Consejos({
             {displayCurrency}
           </span>
         </div>
-        {displayCurrency !== "USD" &&
-        overlayDraft.consejo.price &&
-        Number(overlayDraft.consejo.price) > 0 ? (
-          <div style={subtleStyle}>
-            = {formatAnchor(resolveStoredPrice(Number(overlayDraft.consejo.price)).price)}
-          </div>
-        ) : null}
-
         {overlayConsejoCalc && overlayConsejoCalc.net > 0 ? (
           <div style={subtleStyle}>
             {tServices.rich("adviceEarningsLegend", {

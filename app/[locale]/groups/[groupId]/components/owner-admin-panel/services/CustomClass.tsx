@@ -155,8 +155,7 @@ export default function CustomClass({
 }: Props) {
   const tServices = useTranslations("services");
   const tCommon = useTranslations("common");
-  const { resolveStoredPrice, toDisplayForInput, currency: displayCurrency, formatAnchor } =
-    usePriceFormat();
+  const { currency: displayCurrency } = usePriceFormat();
 
   const [overlayMode, setOverlayMode] = useState<OverlayMode>(null);
   const [overlayDraft, setOverlayDraft] = useState<ServiceDraft>(draft);
@@ -186,16 +185,8 @@ export default function CustomClass({
   const isBusy = saving;
 
   function buildEnabledDraft(baseDraft: ServiceDraft) {
-    // Mostrar el precio guardado en la moneda del creador para editarlo.
-    const n = Number(baseDraft.customClass.price);
-    const shown =
-      baseDraft.customClass.price !== "" && Number.isFinite(n) && n > 0
-        ? String(
-            Math.round(
-              toDisplayForInput(n, baseDraft.customClass.currency ?? "MXN") * 100
-            ) / 100
-          )
-        : baseDraft.customClass.price;
+    // El precio se guarda CRUDO en MXN; se muestra tal cual para editarlo.
+    const shown = baseDraft.customClass.price;
     return {
       ...baseDraft,
       customClass: {
@@ -236,7 +227,7 @@ export default function CustomClass({
   }
 
   async function confirmOverlaySave() {
-    // El creador tecleó en su moneda; guardamos en MXN (ancla).
+    // El creador teclea en MXN; se guarda CRUDO en MXN (sin round-trip USD).
     const n = Number(overlayDraft.customClass.price);
     let customClassToSave = {
       ...overlayDraft.customClass,
@@ -244,8 +235,7 @@ export default function CustomClass({
       visibility: "members" as const,
     };
     if (overlayDraft.customClass.price !== "" && Number.isFinite(n) && n > 0) {
-      const { price, currency } = resolveStoredPrice(n);
-      customClassToSave = { ...customClassToSave, price: String(price), currency };
+      customClassToSave = { ...customClassToSave, price: String(n), currency: "MXN" };
     }
     const ok = await onSaveDraft({
       ...overlayDraft,
@@ -458,14 +448,6 @@ export default function CustomClass({
             {displayCurrency}
           </span>
         </div>
-        {displayCurrency !== "USD" &&
-        overlayDraft.customClass.price &&
-        Number(overlayDraft.customClass.price) > 0 ? (
-          <div style={subtleStyle}>
-            = {formatAnchor(resolveStoredPrice(Number(overlayDraft.customClass.price)).price)}
-          </div>
-        ) : null}
-
         {overlayCustomClassCalc && overlayCustomClassCalc.net > 0 ? (
           <div style={subtleStyle}>
             {tServices.rich("customClassEarningsLegend", {

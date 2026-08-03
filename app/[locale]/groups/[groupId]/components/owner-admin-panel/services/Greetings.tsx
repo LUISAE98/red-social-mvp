@@ -152,8 +152,7 @@ export default function Saludos({
 }: Props) {
   const tServices = useTranslations("services");
   const tCommon = useTranslations("common");
-  const { resolveStoredPrice, toDisplayForInput, currency: displayCurrency, formatAnchor } =
-    usePriceFormat();
+  const { currency: displayCurrency } = usePriceFormat();
 
   const [overlayMode, setOverlayMode] = useState<OverlayMode>(null);
   const [overlayDraft, setOverlayDraft] = useState<ServiceDraft>(draft);
@@ -173,16 +172,8 @@ export default function Saludos({
   const isBusy = saving;
 
   function buildEnabledDraft(baseDraft: ServiceDraft) {
-    // Mostrar el precio guardado en la moneda del creador para editarlo.
-    const n = Number(baseDraft.saludo.price);
-    const shown =
-      baseDraft.saludo.price !== "" && Number.isFinite(n) && n > 0
-        ? String(
-            Math.round(
-              toDisplayForInput(n, baseDraft.saludo.currency ?? "MXN") * 100
-            ) / 100
-          )
-        : baseDraft.saludo.price;
+    // El precio se guarda CRUDO en MXN; se muestra tal cual para editarlo.
+    const shown = baseDraft.saludo.price;
     return {
       ...baseDraft,
       saludo: {
@@ -222,7 +213,7 @@ export default function Saludos({
   }
 
   async function confirmOverlaySave() {
-    // El creador tecleó en su moneda; guardamos en MXN (ancla).
+    // El creador teclea en MXN; se guarda CRUDO en MXN (sin round-trip USD).
     const n = Number(overlayDraft.saludo.price);
     let saludoToSave = {
       ...overlayDraft.saludo,
@@ -230,8 +221,7 @@ export default function Saludos({
       visibility: "members" as const,
     };
     if (overlayDraft.saludo.price !== "" && Number.isFinite(n) && n > 0) {
-      const { price, currency } = resolveStoredPrice(n);
-      saludoToSave = { ...saludoToSave, price: String(price), currency };
+      saludoToSave = { ...saludoToSave, price: String(n), currency: "MXN" };
     }
     const ok = await onSaveDraft({
       ...overlayDraft,
@@ -432,14 +422,6 @@ export default function Saludos({
             {displayCurrency}
           </span>
         </div>
-        {displayCurrency !== "USD" &&
-        overlayDraft.saludo.price &&
-        Number(overlayDraft.saludo.price) > 0 ? (
-          <div style={subtleStyle}>
-            = {formatAnchor(resolveStoredPrice(Number(overlayDraft.saludo.price)).price)}
-          </div>
-        ) : null}
-
         {overlaySaludoCalc && overlaySaludoCalc.net > 0 ? (
           <div style={subtleStyle}>
             {tServices.rich("greetingEarningsLegend", {

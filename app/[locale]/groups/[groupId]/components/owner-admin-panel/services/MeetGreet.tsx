@@ -159,8 +159,7 @@ export default function MeetGreet({
 }: Props) {
   const tServices = useTranslations("services");
   const tCommon = useTranslations("common");
-  const { resolveStoredPrice, toDisplayForInput, currency: displayCurrency, formatAnchor } =
-    usePriceFormat();
+  const { currency: displayCurrency } = usePriceFormat();
 
   const [overlayMode, setOverlayMode] = useState<OverlayMode>(null);
   const [overlayDraft, setOverlayDraft] = useState<ServiceDraft>(draft);
@@ -190,16 +189,8 @@ export default function MeetGreet({
   const isBusy = saving;
 
   function buildEnabledDraft(baseDraft: ServiceDraft) {
-    // Mostrar el precio guardado en la moneda del creador para editarlo.
-    const n = Number(baseDraft.meetGreet.price);
-    const shown =
-      baseDraft.meetGreet.price !== "" && Number.isFinite(n) && n > 0
-        ? String(
-            Math.round(
-              toDisplayForInput(n, baseDraft.meetGreet.currency ?? "MXN") * 100
-            ) / 100
-          )
-        : baseDraft.meetGreet.price;
+    // El precio se guarda CRUDO en MXN; se muestra tal cual para editarlo.
+    const shown = baseDraft.meetGreet.price;
     return {
       ...baseDraft,
       meetGreet: {
@@ -240,7 +231,7 @@ export default function MeetGreet({
   }
 
   async function confirmOverlaySave() {
-    // El creador tecleó en su moneda; guardamos en MXN (ancla).
+    // El creador teclea en MXN; se guarda CRUDO en MXN (sin round-trip USD).
     const n = Number(overlayDraft.meetGreet.price);
     let meetGreetToSave = {
       ...overlayDraft.meetGreet,
@@ -248,8 +239,7 @@ export default function MeetGreet({
       visibility: "members" as const,
     };
     if (overlayDraft.meetGreet.price !== "" && Number.isFinite(n) && n > 0) {
-      const { price, currency } = resolveStoredPrice(n);
-      meetGreetToSave = { ...meetGreetToSave, price: String(price), currency };
+      meetGreetToSave = { ...meetGreetToSave, price: String(n), currency: "MXN" };
     }
     const ok = await onSaveDraft({
       ...overlayDraft,
@@ -462,14 +452,6 @@ export default function MeetGreet({
             {displayCurrency}
           </span>
         </div>
-        {displayCurrency !== "USD" &&
-        overlayDraft.meetGreet.price &&
-        Number(overlayDraft.meetGreet.price) > 0 ? (
-          <div style={subtleStyle}>
-            = {formatAnchor(resolveStoredPrice(Number(overlayDraft.meetGreet.price)).price)}
-          </div>
-        ) : null}
-
         {overlayMeetGreetCalc && overlayMeetGreetCalc.net > 0 ? (
           <div style={subtleStyle}>
             {tServices.rich("meetGreetEarningsLegend", {
