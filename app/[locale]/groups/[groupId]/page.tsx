@@ -53,6 +53,7 @@ import {
 import ServicePaymentModal from "@/components/payments/ServicePaymentModal";
 import StripePaymentModal from "@/components/payments/StripePaymentModal";
 import { createGreetingStripeIntent, createServiceStripeIntent } from "@/lib/stripe/stripePayments";
+import { FIXED_SERVICE_FEE_MXN } from "@/lib/currency/catalog";
 import { payGroupSubscription, cancelGroupSubscription } from "@/lib/payments/payGroupSubscription";
 import { createMeetGreetRequest } from "@/lib/meetGreet/meetGreetRequests";
 import { createExclusiveSessionRequest } from "@/lib/exclusiveSession/exclusiveSessionRequests";
@@ -147,6 +148,11 @@ export default function GroupPage() {
   const priceFmt = usePriceFormat();
   const formatMoney = (value: number, currency?: string) =>
     priceFmt.format(value, { baseCurrency: currency ?? "MXN", code: true });
+  // Igual que formatMoney pero con IVA INCLUIDO (total según país del comprador). Para
+  // los labels de "Continuar al pago" de los paneles de solicitud (la pasarela sigue
+  // recibiendo el monto base aparte y calcula su propio desglose).
+  const formatMoneyWithTax = (value: number, currency?: string) =>
+    priceFmt.formatWithTax(value, { baseCurrency: currency ?? "MXN", code: true }).total;
 
   const { user } = useAuth();
   const router = useRouter();
@@ -590,7 +596,8 @@ const canRequestMeetGreet =
   const greetPriceLabel = useMemo(() => {
     const price = greetOffering?.memberPrice ?? greetOffering?.publicPrice ?? (greetOffering as { price?: number } | null)?.price ?? null;
     const currency = greetOffering?.currency ?? "MXN";
-    return typeof price === "number" ? formatMoney(price, currency) : undefined;
+    // Total todo-incluido (base + cargo fijo $3 + IVA) para el botón "Continuar al pago".
+    return typeof price === "number" ? formatMoneyWithTax(price + FIXED_SERVICE_FEE_MXN, currency) : undefined;
   }, [greetOffering]);
 
   const [serviceToast, setServiceToast] = useState<string | null>(null);
@@ -2944,7 +2951,7 @@ const avatarNode = (
 
       <StripePaymentModal
         open={payGreetOpen}
-        amount={payGreetAmount}
+        amount={payGreetAmount != null ? payGreetAmount + FIXED_SERVICE_FEE_MXN : null}
         amountCurrency="MXN"
         createIntent={(args) => createGreetingStripeIntent({ greetingRequestId: payGreetId ?? "", saveCard: args.saveCard, taxCountry: args.taxCountry })}
         priceLabel={payGreetLabel}
@@ -2970,7 +2977,7 @@ const avatarNode = (
 
       <StripePaymentModal
         open={paySessionOpen}
-        amount={paySessionAmount}
+        amount={paySessionAmount != null ? paySessionAmount + FIXED_SERVICE_FEE_MXN : null}
         amountCurrency="MXN"
         createIntent={(args) => createServiceStripeIntent({ externalReference: `exclusiveSessionRequest__${paySessionId ?? ""}`, saveCard: args.saveCard, taxCountry: args.taxCountry })}
         priceLabel={paySessionLabel}
@@ -2992,7 +2999,7 @@ const avatarNode = (
 
       <StripePaymentModal
         open={payMeetOpen}
-        amount={payMeetAmount}
+        amount={payMeetAmount != null ? payMeetAmount + FIXED_SERVICE_FEE_MXN : null}
         amountCurrency="MXN"
         createIntent={(args) => createServiceStripeIntent({ externalReference: `meetGreetRequest__${payMeetId ?? ""}`, saveCard: args.saveCard, taxCountry: args.taxCountry })}
         priceLabel={payMeetLabel}
@@ -3075,7 +3082,7 @@ const avatarNode = (
         meetGreetError={meetGreetError}
         meetGreetPriceLabel={
           meetGreetPrice != null
-            ? formatMoney(meetGreetPrice, meetGreetCurrency)
+            ? formatMoneyWithTax(meetGreetPrice + FIXED_SERVICE_FEE_MXN, meetGreetCurrency)
             : tCommon("toBeConfirmed")
         }
         meetGreetDurationLabel={
@@ -3092,7 +3099,7 @@ const avatarNode = (
         exclusiveSessionError={exclusiveSessionError}
         exclusiveSessionPriceLabel={
           exclusiveSessionPrice != null
-            ? formatMoney(exclusiveSessionPrice, exclusiveSessionCurrency)
+            ? formatMoneyWithTax(exclusiveSessionPrice + FIXED_SERVICE_FEE_MXN, exclusiveSessionCurrency)
             : tCommon("toBeConfirmed")
         }
         exclusiveSessionDurationLabel={

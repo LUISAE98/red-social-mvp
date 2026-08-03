@@ -88,6 +88,7 @@ import LanguageSwitcher from "@/app/components/LanguageSwitcher";
 import CurrencySwitcher from "@/app/components/CurrencySwitcher";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import type { DisplayCurrency } from "@/lib/currency/catalog";
+import { FIXED_SERVICE_FEE_MXN } from "@/lib/currency/catalog";
 import {
   type FirestoreDateLike,
   type CropMode,
@@ -747,6 +748,12 @@ const ui = {
 const formatMoney = (value: number, currency?: string) =>
   priceFmt.format(value, { baseCurrency: (currency ?? "MXN") as DisplayCurrency, code: true });
 
+// Igual que formatMoney pero con IVA INCLUIDO (total según país del comprador). Para
+// los labels de los botones "Continuar al pago" de los paneles de solicitud, que deben
+// mostrar el total todo-incluido (la pasarela sigue recibiendo el monto base aparte).
+const formatMoneyWithTax = (value: number, currency?: string) =>
+  priceFmt.formatWithTax(value, { baseCurrency: (currency ?? "MXN") as DisplayCurrency, code: true }).total;
+
 function getProfileService(type: CreatorServiceType) {
   return getServiceByType(userDoc?.offerings ?? null, type, "profile");
 }
@@ -757,7 +764,9 @@ function getServicePriceLabel(type: CreatorServiceType) {
   const currency = service?.currency ?? "MXN";
 
   if (typeof price !== "number") return tServices("priceToConfirm");
-  return formatMoney(price, currency);
+  // Total todo-incluido (base del creador + cargo fijo $3 + IVA): es lo que el botón
+  // "Continuar al pago" del panel de solicitud debe mostrar.
+  return formatMoneyWithTax(price + FIXED_SERVICE_FEE_MXN, currency);
 }
 
 function getServiceDurationLabel(type: CreatorServiceType) {
@@ -2806,7 +2815,7 @@ const res = (await createExclusiveSessionRequest({
 {/* Saludo/consejo: pasarela STRIPE (cableada). Sesión y meet&greet siguen en MP por ahora. */}
 <StripePaymentModal
   open={payGreetOpen}
-  amount={payGreetAmount}
+  amount={payGreetAmount != null ? payGreetAmount + FIXED_SERVICE_FEE_MXN : null}
   amountCurrency="MXN"
   createIntent={(args) => createGreetingStripeIntent({ greetingRequestId: payGreetId ?? "", saveCard: args.saveCard, taxCountry: args.taxCountry })}
   priceLabel={payGreetLabel}
@@ -2828,7 +2837,7 @@ const res = (await createExclusiveSessionRequest({
 
 <StripePaymentModal
   open={paySessionOpen}
-  amount={paySessionAmount}
+  amount={paySessionAmount != null ? paySessionAmount + FIXED_SERVICE_FEE_MXN : null}
   amountCurrency="MXN"
   createIntent={(args) => createServiceStripeIntent({ externalReference: `exclusiveSessionRequest__${paySessionId ?? ""}`, saveCard: args.saveCard, taxCountry: args.taxCountry })}
   priceLabel={paySessionLabel}
@@ -2850,7 +2859,7 @@ const res = (await createExclusiveSessionRequest({
 
 <StripePaymentModal
   open={payMeetOpen}
-  amount={payMeetAmount}
+  amount={payMeetAmount != null ? payMeetAmount + FIXED_SERVICE_FEE_MXN : null}
   amountCurrency="MXN"
   createIntent={(args) => createServiceStripeIntent({ externalReference: `meetGreetRequest__${payMeetId ?? ""}`, saveCard: args.saveCard, taxCountry: args.taxCountry })}
   priceLabel={payMeetLabel}
@@ -2889,7 +2898,8 @@ const res = (await createExclusiveSessionRequest({
     const s = getProfileService(greetType);
     const price = s?.publicPrice ?? s?.memberPrice ?? null;
     const currency = s?.currency ?? "MXN";
-    return typeof price === "number" ? formatMoney(price, currency) : undefined;
+    // Total todo-incluido (base + cargo fijo $3 + IVA) para el botón "Continuar al pago".
+    return typeof price === "number" ? formatMoneyWithTax(price + FIXED_SERVICE_FEE_MXN, currency) : undefined;
   })()}
   meetGreetOpen={meetGreetOpen}
   meetGreetSubmitting={meetGreetSubmitting}
