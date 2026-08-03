@@ -207,6 +207,25 @@ export default function CreatorExperiencesSection({
         @media (min-width: 560px) {
           .exp-avatar { width: 56px; height: 56px; }
         }
+        /* Zoom sutil del contenido de la card al pasar el cursor (solo hover real).
+           :global porque la clase va en un <Link> (componente), no en un DOM host. */
+        :global(.exp-card) {
+          transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+          will-change: transform;
+        }
+        @media (hover: hover) and (pointer: fine) {
+          :global(.exp-card:hover) {
+            transform: scale(1.02);
+          }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          :global(.exp-card) {
+            transition: none;
+          }
+          :global(.exp-card:hover) {
+            transform: none;
+          }
+        }
       `}</style>
 
       {/* Section header */}
@@ -262,6 +281,7 @@ export default function CreatorExperiencesSection({
           return (
             <Link
               key={type}
+              className="exp-card"
               href={href}
               scroll={false}
               style={{
