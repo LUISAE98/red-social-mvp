@@ -102,6 +102,9 @@ export function usePriceFormat(): PriceFormatter {
       const base: DisplayCurrency = isDisplayCurrency(opts.baseCurrency)
         ? opts.baseCurrency
         : ANCHOR_CURRENCY;
+      // Sin conversión (misma moneda) → monto EXACTO, sin buffer FX ni redondeo "nice".
+      // El buffer solo aplica cuando de verdad se convierte de una moneda a otra.
+      if (base === currency) return { value: amount, currency };
       const usd = base === ANCHOR_CURRENCY ? amount : convertToAnchor(amount, base, rates.rates);
       if (usd == null) return { value: amount, currency: base };
       const local = buyerPrice(usd, currency, rates.rates);
@@ -126,7 +129,7 @@ export function usePriceFormat(): PriceFormatter {
       // El impuesto se calcula sobre la base YA en moneda local, así base+impuesto=total
       // exacto (sin drift). Ver docs/legal/fiscal-iva-isr-plataforma.md.
       const bd = computeConsumptionTax(baseLocal, buyerCountry);
-      const fmt = (n: number) => formatCurrency(n, cur, locale, { code: false });
+      const fmt = (n: number) => formatCurrency(n, cur, locale, { code: opts.code ?? false });
       return {
         applies: bd.applies,
         rate: bd.rate,

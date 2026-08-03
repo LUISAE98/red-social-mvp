@@ -20,9 +20,15 @@ type Props = {
   align?: "left" | "center" | "right";
   /** Estilos extra (margen, etc.). */
   style?: React.CSSProperties;
+  /**
+   * `true` cuando el precio mostrado ARRIBA ya incluye el impuesto → la nota dice
+   * "impuestos incluidos". Por defecto (`false`) el precio es la base y dice
+   * "+ impuestos".
+   */
+  included?: boolean;
 };
 
-export default function TaxNote({ color = "#9aa0a8", align = "left", style }: Props) {
+export default function TaxNote({ color = "#9aa0a8", align = "left", style, included = false }: Props) {
   const { taxRate } = usePriceFormat();
   // Sin impuesto para el país del comprador (o aún no se conoce) → no se muestra nada.
   if (taxRate <= 0) return null;
@@ -38,7 +44,7 @@ export default function TaxNote({ color = "#9aa0a8", align = "left", style }: Pr
         ...style,
       }}
     >
-      + impuestos
+      {included ? "impuestos incluidos" : "+ impuestos"}
     </span>
   );
 }

@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import type { CreatorService, CreatorServiceType } from "@/types/group";
 import { getVisibleServices } from "@/lib/services/normalizeServices";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
+import { FIXED_SERVICE_FEE_MXN } from "@/lib/currency/catalog";
 import TaxNote from "@/components/payments/TaxNote";
 
 type ViewerMembershipStatus =
@@ -155,7 +156,10 @@ export default function CreatorExperiencesSection({
       return { hasPrice: false, numberPart: tServices("cardPriceToConfirm") };
     return {
       hasPrice: true,
-      numberPart: priceFmt.format(price, { baseCurrency: currency, code: true }),
+      // Precio PUBLICADO = (base del creador + cargo fijo $3) con IVA INCLUIDO (lo que
+      // ve/paga el comprador, todo-incluido). `.total` = base+impuesto según su país;
+      // si no aplica impuesto, total == base (mismo formato que antes).
+      numberPart: priceFmt.formatWithTax(price + FIXED_SERVICE_FEE_MXN, { baseCurrency: currency, code: true }).total,
     };
   }
 
@@ -361,8 +365,8 @@ export default function CreatorExperiencesSection({
                         {priceData.numberPart}
                       </span>
                     </span>
-                    {/* 🧾 IVA — "+ impuestos" bajo el precio (solo compradores en México). */}
-                    <TaxNote color="rgba(255,255,255,0.5)" style={{ marginTop: 2 }} />
+                    {/* 🧾 IVA — el precio de arriba ya es total-incluido → "impuestos incluidos". */}
+                    <TaxNote included color="rgba(255,255,255,0.5)" style={{ marginTop: 2 }} />
                   </span>
                 ) : (
                   <span
