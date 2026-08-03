@@ -365,8 +365,13 @@ export default function CreatorExperiencesSection({
                         {priceData.numberPart}
                       </span>
                     </span>
-                    {/* 🧾 IVA — el precio de arriba ya es total-incluido → "impuestos incluidos". */}
-                    <TaxNote included color="rgba(255,255,255,0.5)" style={{ marginTop: 2 }} />
+                    {/* 🧾 IVA — el precio de arriba ya es total-incluido → "impuestos incluidos".
+                        Mismo estilo tenue que el "consíguelo por" (10px, weight 300). */}
+                    <TaxNote
+                      included
+                      color="rgba(255,255,255,0.42)"
+                      style={{ marginTop: 2, fontSize: 10, fontWeight: 300, letterSpacing: "0.01em" }}
+                    />
                   </span>
                 ) : (
                   <span
