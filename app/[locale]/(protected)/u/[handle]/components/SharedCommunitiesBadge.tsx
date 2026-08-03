@@ -93,17 +93,44 @@ export default function SharedCommunitiesBadge({
 
   if (!shouldFetch || communities.length === 0) {
     if (isLoading) {
-      // Placeholder that matches the badge dimensions to avoid layout shift
+      // Placeholder con el skeleton canónico de Vibra (vibra_style.md): onda
+      // .vb-skel / vbSkelWave. Mantiene las dimensiones del badge (sin layout shift).
       return (
         <span
           className="flex items-center"
-          style={{ minWidth: 32, minHeight: 32, opacity: 0.35 }}
+          style={{ minWidth: 32, minHeight: 32 }}
           aria-hidden="true"
         >
+          <style jsx>{`
+            .vb-skel {
+              background: linear-gradient(
+                100deg,
+                rgba(255, 255, 255, 0.05) 30%,
+                rgba(255, 255, 255, 0.11) 50%,
+                rgba(255, 255, 255, 0.05) 70%
+              );
+              background-size: 300% 100%;
+              animation: vbSkelWave 1.6s ease-in-out infinite;
+            }
+            @keyframes vbSkelWave {
+              0% {
+                background-position: 180% 0;
+              }
+              100% {
+                background-position: -80% 0;
+              }
+            }
+            @media (prefers-reduced-motion: reduce) {
+              .vb-skel {
+                animation: none;
+                background: rgba(255, 255, 255, 0.07);
+              }
+            }
+          `}</style>
           {[0, 1, 2].map((i) => (
             <span
               key={i}
-              className="relative flex h-8 w-8 shrink-0 rounded-full bg-neutral-800"
+              className="vb-skel relative flex h-8 w-8 shrink-0 rounded-full"
               style={{ marginLeft: i === 0 ? 0 : -15, zIndex: 20 + i }}
             />
           ))}
