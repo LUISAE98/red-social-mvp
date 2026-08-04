@@ -6,6 +6,7 @@ import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import { SERVICE_MIN_PRICE_MXN } from "@/lib/currency/catalog";
 import ServiceInfoIcon from "@/components/services/ServiceInfoIcon";
 import ServicePreviewReveal from "@/components/services/ServicePreviewReveal";
+import ServiceFeaturePreview from "@/components/services/ServiceFeaturePreview";
 import ServicePublishedSuccess from "@/components/services/ServicePublishedSuccess";
 
 type Currency = "MXN" | "USD";
@@ -383,6 +384,20 @@ export default function CustomClass({
 
         {accentColor && !draft.customClass.enabled ? (
           <ServicePreviewReveal service="customClass" accentColor={accentColor} />
+        ) : null}
+
+        {/* Activado: los mismos items del preview, ahora fijos bajo la descripción
+            (con la duración ya configurada por el creador). */}
+        {accentColor && draft.customClass.enabled ? (
+          <ServiceFeaturePreview
+            service="customClass"
+            accentColor={accentColor}
+            durationDescription={
+              draft.customClass.durationMinutes
+                ? `${draft.customClass.durationMinutes} min`
+                : undefined
+            }
+          />
         ) : null}
 
         {renderSummary()}

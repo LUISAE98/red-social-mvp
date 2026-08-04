@@ -8,6 +8,7 @@ import { db, functions } from "@/lib/firebase";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import ServiceInfoIcon from "@/components/services/ServiceInfoIcon";
 import ServicePreviewReveal from "@/components/services/ServicePreviewReveal";
+import ServiceFeaturePreview from "@/components/services/ServiceFeaturePreview";
 import ServicePublishedSuccess from "@/components/services/ServicePublishedSuccess";
 import { WALLET_NET_RATE } from "@/lib/wallet/walletFinances";
 import {
@@ -419,6 +420,11 @@ export default function ProfileDonation({
             botón "Ver más" (celular). */}
         {!isEnabled && (
           <ServicePreviewReveal service="profileDonation" accentColor="#7dd3fc" />
+        )}
+
+        {/* Activado: los mismos items del preview, ahora fijos bajo la descripción. */}
+        {isEnabled && (
+          <ServiceFeaturePreview service="profileDonation" accentColor="#7dd3fc" />
         )}
 
         {renderSummary()}

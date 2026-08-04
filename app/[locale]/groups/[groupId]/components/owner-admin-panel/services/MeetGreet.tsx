@@ -6,6 +6,7 @@ import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import { SERVICE_MIN_PRICE_MXN } from "@/lib/currency/catalog";
 import ServiceInfoIcon from "@/components/services/ServiceInfoIcon";
 import ServicePreviewReveal from "@/components/services/ServicePreviewReveal";
+import ServiceFeaturePreview from "@/components/services/ServiceFeaturePreview";
 import ServicePublishedSuccess from "@/components/services/ServicePublishedSuccess";
 
 type Currency = "MXN" | "USD";
@@ -387,6 +388,20 @@ export default function MeetGreet({
 
         {accentColor && !draft.meetGreet.enabled ? (
           <ServicePreviewReveal service="meetGreet" accentColor={accentColor} />
+        ) : null}
+
+        {/* Activado: los mismos items del preview, ahora fijos bajo la descripción
+            (con la duración ya configurada por el creador). */}
+        {accentColor && draft.meetGreet.enabled ? (
+          <ServiceFeaturePreview
+            service="meetGreet"
+            accentColor={accentColor}
+            durationDescription={
+              draft.meetGreet.durationMinutes
+                ? `${draft.meetGreet.durationMinutes} min`
+                : undefined
+            }
+          />
         ) : null}
 
         {renderSummary()}

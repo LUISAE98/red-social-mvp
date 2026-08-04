@@ -6,6 +6,7 @@ import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import { SERVICE_MIN_PRICE_MXN } from "@/lib/currency/catalog";
 import ServiceInfoIcon from "@/components/services/ServiceInfoIcon";
 import ServicePreviewReveal from "@/components/services/ServicePreviewReveal";
+import ServiceFeaturePreview from "@/components/services/ServiceFeaturePreview";
 import ServicePublishedSuccess from "@/components/services/ServicePublishedSuccess";
 
 type Currency = "MXN" | "USD";
@@ -349,6 +350,11 @@ export default function Consejos({
 
         {accentColor && !draft.consejo.enabled ? (
           <ServicePreviewReveal service="consejo" accentColor={accentColor} />
+        ) : null}
+
+        {/* Activado: los mismos items del preview, ahora fijos bajo la descripción. */}
+        {accentColor && draft.consejo.enabled ? (
+          <ServiceFeaturePreview service="consejo" accentColor={accentColor} />
         ) : null}
 
         {renderSummary()}
