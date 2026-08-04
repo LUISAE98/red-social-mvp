@@ -268,6 +268,7 @@ export function pickDonation(donation: DonationInput) {
     currency: (donation?.currency ?? "MXN") as Currency,
     suggestedAmounts,
     goalLabel: typeof donation?.goalLabel === "string" ? donation.goalLabel : "",
+    message: typeof donation?.message === "string" ? donation.message : "",
     videoUrl: typeof donation?.videoUrl === "string" ? donation.videoUrl : "",
     playbackId: typeof donation?.playbackId === "string" ? donation.playbackId : "",
   };

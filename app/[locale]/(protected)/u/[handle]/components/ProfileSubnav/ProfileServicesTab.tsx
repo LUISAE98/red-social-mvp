@@ -133,7 +133,7 @@ export default function ProfileServicesTab({
       donationCurrency: donation.currency ?? "MXN",
       donationSuggestedAmounts: donation.suggestedAmounts,
       donationGoalLabel: donation.goalLabel ?? "",
-      donationMessage: (donation as { message?: string }).message ?? "",
+      donationMessage: donation.message,
       donationVideoUrl: donation.videoUrl ?? "",
       donationPlaybackId: donation.playbackId ?? "",
       freeToSubscriptionPolicy: "",
