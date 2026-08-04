@@ -308,7 +308,6 @@ export default function ProfileDonation({
 
   function renderSummary() {
     if (!isEnabled) return null;
-    const modeLabel = tCommon("donation");
     const amountsList = normalizeSuggestedAmounts(draft.donationSuggestedAmounts);
     const amount = amountsList
       .map((a) => formatMoney(Number(a), { baseCurrency: displayCurrency }))
@@ -316,45 +315,56 @@ export default function ProfileDonation({
     const hasVideo = Boolean(draft.donationPlaybackId);
 
     return (
-      <div
-        style={{
-          display: "grid",
-          gap: 10,
-        }}
-      >
-        <div style={{ display: "grid", gap: 4 }}>
-          <div style={subtleStyle}>{tProfile("donationTypeLabel")}</div>
-          <div style={{ color: "#fff", fontSize: 14, fontWeight: 700 }}>{modeLabel}</div>
+      <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 12 }}>
+        {/* Izquierda: estado del video y botón Modificar (texto plano, azul celeste). */}
+        <div style={{ display: "grid", gap: 8, minWidth: 0 }}>
+          <div style={{ display: "grid", gap: 4 }}>
+            <div style={subtleStyle}>{tProfile("donationPresentationVideo")}</div>
+            <div style={{ color: hasVideo ? "#a3e635" : "rgba(255,255,255,0.4)", fontSize: 13 }}>
+              {hasVideo ? tProfile("donationVideoReady") : tProfile("donationNoVideoStatus")}
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleModify}
+            disabled={isBusy}
+            style={{
+              background: "none",
+              border: "none",
+              padding: 0,
+              justifySelf: "flex-start",
+              color: "#7dd3fc",
+              fontSize: 14,
+              fontWeight: 600,
+              cursor: isBusy ? "not-allowed" : "pointer",
+              opacity: isBusy ? 0.7 : 1,
+            }}
+          >
+            {tProfile("editLabel")}
+          </button>
         </div>
 
+        {/* Esquina inferior derecha: montos programados con el formato de precio de
+            los demás servicios, pero más pequeños y en azul celeste para que quepan
+            los cuatro. */}
         {amount && (
-          <div style={{ display: "grid", gap: 4 }}>
+          <div style={{ display: "grid", gap: 2, justifyItems: "end", textAlign: "right", flexShrink: 0, minWidth: 0 }}>
             <div style={subtleStyle}>{tProfile("donationMinAmount")}</div>
-            <div style={{ color: "#fff", fontSize: 14, fontWeight: 700 }}>{amount}</div>
+            <div
+              style={{
+                color: "#7dd3fc",
+                fontSize: 16,
+                fontWeight: 600,
+                lineHeight: 1.25,
+                fontVariantNumeric: "tabular-nums",
+                textAlign: "right",
+              }}
+            >
+              {amount}
+            </div>
           </div>
         )}
-
-        <div style={{ display: "grid", gap: 4 }}>
-          <div style={subtleStyle}>{tProfile("donationPresentationVideo")}</div>
-          <div style={{ color: hasVideo ? "#a3e635" : "rgba(255,255,255,0.4)", fontSize: 13 }}>
-            {hasVideo ? tProfile("donationVideoReady") : tProfile("donationNoVideoStatus")}
-          </div>
-        </div>
-
-        <button
-          type="button"
-          onClick={handleModify}
-          disabled={isBusy}
-          style={{
-            ...buttonSecondaryStyle,
-            width: "auto",
-            justifySelf: "flex-start",
-            opacity: isBusy ? 0.7 : 1,
-            cursor: isBusy ? "not-allowed" : "pointer",
-          }}
-        >
-          {tProfile("editLabel")}
-        </button>
       </div>
     );
   }
@@ -408,7 +418,7 @@ export default function ProfileDonation({
           </div>
           <SwitchComponent
             checked={isEnabled}
-            activeColor={accentColor}
+            activeColor="#7dd3fc"
             disabled={isBusy}
             onChange={(next) => { void handleToggle(next); }}
             label={tProfile("donationEnableLabel")}
