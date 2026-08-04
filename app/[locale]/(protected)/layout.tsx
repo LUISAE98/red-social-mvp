@@ -213,6 +213,10 @@ const contentAreaClassName = isEmbed
           --wallet-rail-width: 280px;
           --main-max-width: 860px;
           --shell-column-gap: 24px;
+          /* Ancho natural del conjunto (sidebar + gap + main + gap + wallet + gutters).
+             Por encima de esto el shell deja de estirarse y se CENTRA, para que en
+             monitores grandes las 3 columnas no se dispersen. */
+          --shell-max-width: 1520px;
           --desktop-search-width: 920px;
           --desktop-search-gap: 8px;
           --desktop-create-size: 35px;
@@ -257,6 +261,9 @@ const contentAreaClassName = isEmbed
 
 .headerInner {
   width: 100%;
+  max-width: var(--shell-max-width);
+  margin-left: auto;
+  margin-right: auto;
   min-height: 56px;
   padding-left: max(var(--shell-gutter), env(safe-area-inset-left, 0px));
   padding-right: max(var(--shell-gutter), env(safe-area-inset-right, 0px));
@@ -626,6 +633,9 @@ const contentAreaClassName = isEmbed
   grid-template-columns: var(--sidebar-width) minmax(0, var(--main-max-width));
   gap: var(--shell-column-gap);
   width: 100%;
+  max-width: var(--shell-max-width);
+  margin-left: auto;
+  margin-right: auto;
   flex: 1;
   padding-left: var(--shell-gutter);
   padding-right: var(--shell-gutter);
@@ -674,7 +684,14 @@ const contentAreaClassName = isEmbed
 .walletCol {
   position: fixed;
   top: calc(env(safe-area-inset-top) + 64px);
-  right: max(var(--shell-gutter), env(safe-area-inset-right));
+  /* Se ancla al borde derecho del cluster centrado: en pantallas anchas sigue al
+     conjunto (no al borde del viewport); en pantallas ≤ --shell-max-width cae al
+     gutter, como antes. */
+  right: max(
+    env(safe-area-inset-right, 0px),
+    var(--shell-gutter),
+    calc(50vw - var(--shell-max-width) / 2 + var(--shell-gutter))
+  );
   bottom: calc(8px + var(--vb-safe-bottom, 0px));
   width: var(--wallet-rail-width);
   min-width: 0;
