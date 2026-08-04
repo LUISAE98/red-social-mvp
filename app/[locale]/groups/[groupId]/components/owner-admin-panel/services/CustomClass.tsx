@@ -279,21 +279,8 @@ export default function CustomClass({
 
     return (
       <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 12 }}>
-        {/* Izquierda: duración, cuánto ganas, visibilidad y botón Modificar. */}
+        {/* Izquierda: botón Modificar (texto plano, color del precio). */}
         <div style={{ display: "grid", gap: 8, minWidth: 0 }}>
-          <div style={{ display: "grid", gap: 4 }}>
-            <div style={subtleStyle}>{tServices("meetGreetConfiguredDuration")}</div>
-            <div style={{ color: "#fff", fontSize: 14, fontWeight: 700 }}>
-              {draft.customClass.durationMinutes
-                ? `${draft.customClass.durationMinutes} min`
-                : tServices("meetGreetNoDuration")}
-            </div>
-          </div>
-
-          <div style={subtleStyle}>
-            {tServices("meetGreetMembersVisibility")}
-          </div>
-
           <button
             type="button"
             onClick={handleModify}
@@ -316,17 +303,27 @@ export default function CustomClass({
 
         {/* Esquina inferior derecha: precio grande (estilo del feed, +40%) + 3 MXN. */}
         <div style={{ display: "grid", gap: 2, justifyItems: "end", textAlign: "right", flexShrink: 0 }}>
-          <div style={subtleStyle}>{tServices("meetGreetConfiguredPrice")}</div>
-          <div style={{ display: "flex", alignItems: "baseline", gap: 6, whiteSpace: "nowrap" }}>
-            <span style={{ fontSize: 31, fontWeight: 600, color: accentColor ?? "#f472b6", lineHeight: 1, fontVariantNumeric: "tabular-nums" }}>
-              {draft.customClass.price
-                ? formatMoney(
-                    Number(draft.customClass.price),
-                    draft.customClass.currency
-                  )
-                : `0 ${draft.customClass.currency}`}
+          <div style={subtleStyle}>Configuración de sesión exclusiva</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, whiteSpace: "nowrap" }}>
+            {draft.customClass.durationMinutes ? (
+              <>
+                <span style={{ fontSize: 31, fontWeight: 600, color: "#fff", lineHeight: 1, fontVariantNumeric: "tabular-nums" }}>
+                  {`${draft.customClass.durationMinutes} min`}
+                </span>
+                <span aria-hidden="true" style={{ width: 1, height: 26, background: "rgba(255,255,255,0.2)", flexShrink: 0 }} />
+              </>
+            ) : null}
+            <span style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
+              <span style={{ fontSize: 31, fontWeight: 600, color: accentColor ?? "#f472b6", lineHeight: 1, fontVariantNumeric: "tabular-nums" }}>
+                {draft.customClass.price
+                  ? formatMoney(
+                      Number(draft.customClass.price),
+                      draft.customClass.currency
+                    )
+                  : `0 ${draft.customClass.currency}`}
+              </span>
+              <span style={{ fontSize: 12, fontWeight: 400, color: "rgba(255,255,255,0.5)" }}>+ 3 MXN</span>
             </span>
-            <span style={{ fontSize: 12, fontWeight: 400, color: "rgba(255,255,255,0.5)" }}>+ 3 MXN</span>
           </div>
           {customClassCalc ? (
             <div style={{ ...subtleStyle, textAlign: "right", whiteSpace: "nowrap", marginTop: 2 }}>
