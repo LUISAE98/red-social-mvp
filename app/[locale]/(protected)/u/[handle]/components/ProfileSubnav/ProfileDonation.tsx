@@ -350,18 +350,24 @@ export default function ProfileDonation({
             los cuatro. */}
         {amount && (
           <div style={{ display: "grid", gap: 2, justifyItems: "end", textAlign: "right", flexShrink: 0, minWidth: 0 }}>
-            <div style={subtleStyle}>{tProfile("donationMinAmount")}</div>
-            <div
-              style={{
-                color: "#7dd3fc",
-                fontSize: 16,
-                fontWeight: 600,
-                lineHeight: 1.25,
-                fontVariantNumeric: "tabular-nums",
-                textAlign: "right",
-              }}
-            >
-              {amount}
+            <div style={subtleStyle}>Cantidades predeterminadas</div>
+            <div style={{ display: "flex", alignItems: "baseline", justifyContent: "flex-end", flexWrap: "wrap", gap: 6 }}>
+              <span
+                style={{
+                  color: "#7dd3fc",
+                  fontSize: 16,
+                  fontWeight: 600,
+                  lineHeight: 1.25,
+                  fontVariantNumeric: "tabular-nums",
+                  textAlign: "right",
+                }}
+              >
+                {amount}
+              </span>
+              <span style={{ fontSize: 12, fontWeight: 400, color: "rgba(255,255,255,0.5)" }}>+ 3 MXN</span>
+            </div>
+            <div style={{ ...subtleStyle, textAlign: "right", marginTop: 2 }}>
+              Por cada donación cobrarás el 75% del monto configurado
             </div>
           </div>
         )}
