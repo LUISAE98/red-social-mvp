@@ -163,7 +163,7 @@ export default function ProfileServicesTab({
 
   const contentStyle: React.CSSProperties = {
     display: "grid",
-    gap: 3,
+    gap: 8,
   };
 
   const panelStyle: React.CSSProperties = {
