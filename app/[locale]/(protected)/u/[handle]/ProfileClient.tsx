@@ -2535,7 +2535,13 @@ const res = (await createExclusiveSessionRequest({
                     </div>
                   ) : null}
 
-                  {!isProfileRestrictedForVisitor && !shouldHideProfileSocialContent ? (
+                </div>
+
+                {/* Experiencias FUERA de .profile-meta (grid centrado que encoge al
+                    contenido). Aquí, como hermano en el wrapper de ancho completo,
+                    la sección ocupa todo el ancho y sus .exp-cards igualan la portada
+                    (ver regla .profile-content .exp-cards con margen negativo). */}
+                {!isProfileRestrictedForVisitor && !shouldHideProfileSocialContent ? (
   <PostReveal>
     <CreatorExperiencesSection
       services={(userDoc.offerings ?? []) as import("@/types/group").CreatorService[]}
@@ -2546,7 +2552,6 @@ const res = (await createExclusiveSessionRequest({
     />
   </PostReveal>
 ) : null}
-                </div>
               </div>
 
             </div>
