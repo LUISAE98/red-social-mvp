@@ -163,12 +163,12 @@ export default function ProfileServicesTab({
 
   const contentStyle: React.CSSProperties = {
     display: "grid",
-    gap: 12,
+    gap: 6,
   };
 
   const panelStyle: React.CSSProperties = {
     padding: "10px",
-    borderRadius: 14,
+    borderRadius: 0,
     border: "1px solid rgba(255,255,255,0.08)",
     background: "rgba(255,255,255,0.02)",
     display: "grid",
@@ -224,14 +224,6 @@ export default function ProfileServicesTab({
     fontSize: 15,
     color: "#fff",
     fontWeight: 500,
-  };
-
-  // Línea sutil para separar cada experiencia, igual a la del sidebar derecho
-  // (.owner-sidebar-menu-divider). El espaciado vertical lo da el gap del grid.
-  const dividerStyle: React.CSSProperties = {
-    height: 1,
-    margin: "0 6px",
-    background: "rgba(255,255,255,0.1)",
   };
 
   // Estilo de campos de texto (inputs/selects/textarea) según vibra_style.md:
@@ -586,6 +578,15 @@ export default function ProfileServicesTab({
             padding-right: 10px;
           }
         }
+        /* En celular cada card de experiencia llega de lado a lado (full-bleed):
+           los márgenes negativos vs viewport anulan el padding lateral de la
+           pestaña. El heading "Configura tus experiencias" queda inset. */
+        @media (max-width: 559px) {
+          .services-tab-margins :global(.serviceActivationPanel) {
+            margin-left: calc(50% - 50vw);
+            margin-right: calc(50% - 50vw);
+          }
+        }
       `}</style>
       <div className="services-tab-margins" style={contentStyle}>
       <h2
@@ -622,9 +623,6 @@ export default function ProfileServicesTab({
         onSaveDraft={(d) => saveServicesFromDraft(d as unknown as ServiceDraft)}
       />
       </div>
-
-      <div aria-hidden="true" style={dividerStyle} />
-
       <div id="exp-consejo" style={{ scrollMarginTop: 80 }}>
       <Advice
         draft={draft}
@@ -646,9 +644,6 @@ export default function ProfileServicesTab({
         onSaveDraft={(d) => saveServicesFromDraft(d as unknown as ServiceDraft)}
       />
       </div>
-
-      <div aria-hidden="true" style={dividerStyle} />
-
       <div id="exp-meetGreet" style={{ scrollMarginTop: 80 }}>
       <MeetGreet
         draft={draft}
@@ -672,9 +667,6 @@ export default function ProfileServicesTab({
         onSaveDraft={(d) => saveServicesFromDraft(d as unknown as ServiceDraft)}
       />
       </div>
-
-      <div aria-hidden="true" style={dividerStyle} />
-
       <div id="exp-customClass" style={{ scrollMarginTop: 80 }}>
       <CustomClass
         draft={draft}
@@ -698,9 +690,6 @@ export default function ProfileServicesTab({
         onSaveDraft={(d) => saveServicesFromDraft(d as unknown as ServiceDraft)}
       />
       </div>
-
-      <div aria-hidden="true" style={dividerStyle} />
-
       <div id="exp-donation" style={{ scrollMarginTop: 80 }}>
       <ProfileDonation
         draft={draft}
