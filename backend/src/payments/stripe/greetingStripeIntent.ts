@@ -12,7 +12,7 @@ import * as admin from "firebase-admin";
 import { stripeFetch, stripeSecretKey } from "./stripeClient";
 import { getOrCreateStripeCustomer } from "./stripeCustomer";
 import { applyConsumptionTax } from "../../tax/config";
-import { SETTLEMENT_CURRENCY } from "../../wallet/ledger";
+import { SETTLEMENT_CURRENCY, FIXED_SERVICE_FEE_MXN } from "../../wallet/ledger";
 
 if (admin.apps.length === 0) {
   admin.initializeApp();
@@ -51,9 +51,12 @@ export const createGreetingStripeIntent = onCall(
     const base = Number(intent.grossAmount);
     if (!Number.isFinite(base) || base <= 0) throw new HttpsError("failed-precondition", "Precio inválido.");
 
-    // 🧾 IVA — se SUMA sobre la base según el país del comprador (hoy MX = 16%).
-    const tax = applyConsumptionTax(base, taxCountry);
-    const totalMxn = round2(base + tax.taxAmount); // saludos: base en MXN → sin FX
+    // Precio publicado = base del creador + cargo fijo $3 (lo absorbe el comprador).
+    const country = taxCountry || "MX"; // solo México por ahora
+    const published = round2(base + FIXED_SERVICE_FEE_MXN);
+    // 🧾 IVA 16% sobre el precio publicado (base + $3). El comprador paga el total.
+    const tax = applyConsumptionTax(published, country);
+    const totalMxn = round2(published + tax.taxAmount);
 
     const customerId = await getOrCreateStripeCustomer(uid, request.auth?.token?.email ?? null);
 
@@ -61,8 +64,8 @@ export const createGreetingStripeIntent = onCall(
       method: "POST",
       idempotencyKey: crypto.randomUUID(),
       form: {
-        amount: Math.round(totalMxn * 100), // centavos
-        currency: SETTLEMENT_CURRENCY.toLowerCase(), // Stripe usa minúsculas
+        amount: Math.round(totalMxn * 100), // centavos MXN
+        currency: SETTLEMENT_CURRENCY.toLowerCase(), // MXN (solo México por ahora)
         customer: customerId,
         payment_method_types: ["card"],
         ...(saveCard ? { setup_future_usage: "off_session" } : {}),
@@ -72,14 +75,16 @@ export const createGreetingStripeIntent = onCall(
     });
     if (!res.ok) throw new HttpsError("internal", `No se pudo crear el pago (${res.status}): ${res.error.slice(0, 200)}`);
 
-    // Estampa el desglose fiscal + modo en el intent (para el ledger y el registro).
+    // Estampa el desglose en el intent. El ledger usa grossAmount (base) → creador gana 75% de la base.
     await intentRef.set(
       {
-        baseAmount: tax.baseAmount,
-        taxAmount: tax.taxAmount,
+        baseAmount: base, // precio del creador (para el ledger/ganancia)
+        fixedFee: FIXED_SERVICE_FEE_MXN, // $3 que absorbe el comprador
+        publishedAmount: published, // base + $3
+        taxAmount: tax.taxAmount, // IVA sobre (base + $3), va al SAT
         taxCountry: tax.taxCountry,
         taxRate: tax.taxRate,
-        chargedAmount: totalMxn,
+        chargedAmount: totalMxn, // total que paga el comprador
         settlementCurrency: SETTLEMENT_CURRENCY,
         settlementAmount: totalMxn,
         paymentMode: "stripe",

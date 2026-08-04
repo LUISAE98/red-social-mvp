@@ -307,6 +307,8 @@ export { stripeWebhook } from "./payments/stripe/stripeWebhook";
 export { createGreetingStripeIntent } from "./payments/stripe/greetingStripeIntent";
 // Callable genérico Stripe (sesión exclusiva, tiempo contigo, …).
 export { createServiceStripeIntent } from "./payments/stripe/serviceStripeIntent";
+// Donación a perfil con Stripe (monto dinámico + $3 + IVA).
+export { createDonationStripeIntent } from "./payments/stripe/donationStripeIntent";
 
 // Facturación (Facturapi — CFDI, modelo vendedor directo). Bloque 0: smoke test de
 // credenciales (org de Vibra + multi-tenant). No emite CFDI ni toca el ledger.

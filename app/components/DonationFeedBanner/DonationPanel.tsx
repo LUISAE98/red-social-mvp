@@ -5,6 +5,7 @@ import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import { createPortal } from "react-dom";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import { formatCurrency } from "@/lib/currency/format";
+import { FIXED_SERVICE_FEE_MXN } from "@/lib/currency/catalog";
 
 type Props = {
   open: boolean;
@@ -16,7 +17,8 @@ type Props = {
   onContribute?: (amount: number) => void;
 };
 
-const DEFAULT_AMOUNTS = [50, 100, 200, 500];
+const DEFAULT_AMOUNTS = [50, 120, 250, 490];
+const MIN_DONATION = 50; // no se puede donar menos de $50
 const CLOSE_THRESHOLD = 130;
 
 function applyOffset(raw: number): number {
@@ -30,6 +32,10 @@ export default function DonationPanel({ open, onClose, creatorName, suggestedAmo
   const { currency: displayCurrency, locale } = usePriceFormat();
   const amounts = suggestedAmounts?.length ? suggestedAmounts : DEFAULT_AMOUNTS;
   const currencyLabel = displayCurrency;
+  // Precio TODO-INCLUIDO que ve/paga el donador (SOLO MÉXICO, en MXN, sin convertir a la
+  // moneda del que mira): (monto base + $3 cargo fijo) × IVA 16%.
+  const allIn = (base: number): string =>
+    formatCurrency(Math.round((base + FIXED_SERVICE_FEE_MXN) * 1.16 * 100) / 100, "MXN", locale);
 
   const [mounted, setMounted] = useState(false);
   const [visible, setVisible] = useState(false);
@@ -95,7 +101,8 @@ export default function DonationPanel({ open, onClose, creatorName, suggestedAmo
       ? (parseFloat(customAmount.replace(/[^0-9.]/g, "")) || null)
       : null;
 
-  const canSubmit = effectiveAmount !== null && effectiveAmount > 0 && !submitting && !success;
+  const belowMin = effectiveAmount !== null && effectiveAmount < MIN_DONATION;
+  const canSubmit = effectiveAmount !== null && effectiveAmount >= MIN_DONATION && !submitting && !success;
 
   const handleSubmit = () => {
     if (!canSubmit) return;
@@ -180,7 +187,7 @@ export default function DonationPanel({ open, onClose, creatorName, suggestedAmo
                 textAlign: "center",
               }}
             >
-              {formatCurrency(amt, displayCurrency, locale)}
+              {allIn(amt)}
             </button>
           );
         })}
@@ -192,7 +199,7 @@ export default function DonationPanel({ open, onClose, creatorName, suggestedAmo
         <input
           type="number"
           inputMode="decimal"
-          min="1"
+          min={MIN_DONATION}
           placeholder="Otro monto"
           value={customAmount}
           onChange={(e) => { setCustomAmount(e.target.value); setSelectedAmount(null); }}
@@ -211,8 +218,10 @@ export default function DonationPanel({ open, onClose, creatorName, suggestedAmo
           }}
         />
       </div>
-      <p style={{ margin: "8px 0 0", fontSize: 11, color: "rgba(255,255,255,0.36)", textAlign: "center" }}>
-        {currencyLabel} · Contribución voluntaria
+      <p style={{ margin: "8px 0 0", fontSize: 11, color: belowMin ? "#f9a8d4" : "rgba(255,255,255,0.36)", textAlign: "center" }}>
+        {belowMin
+          ? `El monto mínimo de contribución es ${formatCurrency(MIN_DONATION, displayCurrency, locale)}`
+          : `${currencyLabel} · Incluye $3 de cargo + IVA`}
       </p>
     </div>
   );
@@ -235,7 +244,7 @@ export default function DonationPanel({ open, onClose, creatorName, suggestedAmo
       {submitting
         ? "Procesando..."
         : effectiveAmount && effectiveAmount > 0
-          ? `Contribuir ${formatCurrency(effectiveAmount, displayCurrency, locale, { code: true })}`
+          ? `Contribuir ${allIn(effectiveAmount)}`
           : "Contribuir"}
     </button>
   ) : null;

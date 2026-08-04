@@ -44,10 +44,31 @@ export const ANCHOR_CURRENCY: DisplayCurrency = "USD";
  * Moneda de LIQUIDACIÓN de Vibra: en la que se guarda el ledger y se cobra en Stripe.
  * Hoy MXN (billetera Stripe en MXN). ⚠️ ÚNICO punto para cambiar a "USD" en el frontend
  * (mantener en sync con SETTLEMENT_CURRENCY del backend en backend/src/wallet/ledger.ts).
- * El comprador siempre ve su moneda local vía Adaptive Pricing (Stripe) + pf (UI).
- * Es el default de `baseCurrency` para montos del wallet/compras (que están en esta moneda).
+ * Por ahora SOLO MÉXICO: se cobra en MXN. El cobro en moneda local del comprador
+ * extranjero (+2%) es "el sistema completo" que se implementará después (ver
+ * docs/stripe-integracion.md §13). Es el default de `baseCurrency` para montos del wallet.
  */
 export const SETTLEMENT_CURRENCY: DisplayCurrency = "MXN";
+
+/**
+ * Cargo fijo por transacción que ABSORBE EL COMPRADOR (debe coincidir con
+ * FIXED_SERVICE_FEE_MXN del backend en backend/src/wallet/ledger.ts). El precio
+ * PUBLICADO al comprador = precio base del creador + este cargo; sobre ese total va
+ * el IVA. El creador recibe 75% de su base (el $3 y la comisión son de Vibra).
+ */
+export const FIXED_SERVICE_FEE_MXN = 3;
+
+/**
+ * Precio MÍNIMO (base, MXN) que el creador puede fijar por servicio. Si pone menos,
+ * se muestra aviso rojo y no se puede publicar. Donación: mínimo por cada monto sugerido.
+ */
+export const SERVICE_MIN_PRICE_MXN: Record<string, number> = {
+  saludo: 50,
+  consejo: 50,
+  clase_personalizada: 150, // sesión exclusiva
+  meet_greet_digital: 150, // tiempo contigo
+};
+export const DONATION_MIN_AMOUNT_MXN = 50;
 
 const CHARGE_SET: ReadonlySet<string> = new Set(CHARGE_CURRENCIES);
 const DISPLAY_SET: ReadonlySet<string> = new Set(DISPLAY_CURRENCIES);

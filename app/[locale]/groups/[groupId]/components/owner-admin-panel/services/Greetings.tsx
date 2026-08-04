@@ -3,6 +3,7 @@
 import React, { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
+import { SERVICE_MIN_PRICE_MXN } from "@/lib/currency/catalog";
 import ServiceInfoIcon from "@/components/services/ServiceInfoIcon";
 import ServicePreviewReveal from "@/components/services/ServicePreviewReveal";
 import ServicePublishedSuccess from "@/components/services/ServicePublishedSuccess";
@@ -64,7 +65,7 @@ type ServiceDraft = {
   customClass: CustomClassDraft;
   donationMode: DonationMode;
   donationCurrency: Currency;
-  donationMinimumAmount: string;
+  donationSuggestedAmounts: string[];
   donationGoalLabel: string;
   donationMessage: string;
   donationVideoUrl: string;
@@ -169,6 +170,12 @@ export default function Saludos({
     return calcNetAmount(overlayDraft.saludo.price);
   }, [overlayDraft.saludo.price, calcNetAmount]);
 
+  // Precio mínimo permitido (MXN) para este servicio.
+  const minPrice = SERVICE_MIN_PRICE_MXN.saludo;
+  const priceBelowMin =
+    overlayDraft.saludo.price.trim() !== "" &&
+    Number(overlayDraft.saludo.price) < minPrice;
+
   const isBusy = saving;
 
   function buildEnabledDraft(baseDraft: ServiceDraft) {
@@ -262,10 +269,6 @@ export default function Saludos({
         style={{
           display: "grid",
           gap: 10,
-          padding: "10px",
-          borderRadius: 12,
-          border: "1px solid rgba(255,255,255,0.08)",
-          background: "rgba(255,255,255,0.03)",
         }}
       >
         <div style={{ display: "grid", gap: 4 }}>
@@ -360,7 +363,7 @@ export default function Saludos({
         open={overlayMode !== null}
         title={tServices("greetingsConfigTitle")}
         loading={saving}
-        confirmDisabled={!(Number(overlayDraft.saludo.price) > 0)}
+        confirmDisabled={!(Number(overlayDraft.saludo.price) > 0) || priceBelowMin}
         confirmLabel={tServices("publishExperience")}
         hideFooter={published}
         onCancel={closeOverlay}
@@ -410,6 +413,10 @@ export default function Saludos({
             style={{ ...inputStyle, width: 130, flex: "1 1 180px" }}
           />
 
+          <span style={{ color: "rgba(255,255,255,0.55)", fontSize: 13, fontWeight: 600, whiteSpace: "nowrap" }}>
+            + $3
+          </span>
+
           <span
             style={{
               color: accentColor || "#b45cff",
@@ -422,12 +429,37 @@ export default function Saludos({
             {displayCurrency}
           </span>
         </div>
-        {overlaySaludoCalc && overlaySaludoCalc.net > 0 ? (
-          <div style={subtleStyle}>
+        <div>{/* una sola celda del grid: agrupa los textos bajo el input */}
+        <div
+          style={{
+            maxHeight: priceBelowMin ? 30 : 0,
+            opacity: priceBelowMin ? 1 : 0,
+            transform: priceBelowMin ? "translateY(0)" : "translateY(4px)",
+            overflow: "hidden",
+            transition: "max-height 220ms ease, opacity 220ms ease, transform 220ms ease",
+          }}
+        >
+          <div style={{ color: "#f87171", fontSize: 12, marginTop: 2 }}>
+            {`El precio mínimo es $${minPrice}`}
+          </div>
+        </div>
+        <div
+          style={{
+            maxHeight: overlaySaludoCalc && overlaySaludoCalc.net > 0 ? 60 : 0,
+            opacity: overlaySaludoCalc && overlaySaludoCalc.net > 0 ? 1 : 0,
+            transform:
+              overlaySaludoCalc && overlaySaludoCalc.net > 0
+                ? "translateY(0)"
+                : "translateY(4px)",
+            overflow: "hidden",
+            transition: "max-height 220ms ease, opacity 220ms ease, transform 220ms ease",
+          }}
+        >
+          <div style={{ ...subtleStyle, marginTop: 3 }}>
             {tServices.rich("greetingEarningsLegend", {
               // El input del overlay está en la moneda del creador; formatMoney
               // acepta cualquier moneda en runtime (el tipo local es estrecho).
-              net: formatMoney(overlaySaludoCalc.net, displayCurrency as Currency),
+              net: formatMoney(overlaySaludoCalc?.net ?? 0, displayCurrency as Currency),
               amount: (chunks) => (
                 <span style={{ color: accentColor || "#b45cff", fontWeight: 700 }}>
                   {chunks}
@@ -435,7 +467,11 @@ export default function Saludos({
               ),
             })}
           </div>
-        ) : null}
+        </div>
+        <div style={{ ...subtleStyle, opacity: 0.7, fontSize: 11, marginTop: 3 }}>
+          A todas las experiencias se les suman $3 MXN por el cargo de procesamiento de Stripe.
+        </div>
+        </div>
         </>
         )}
       </OverlayModalComponent>

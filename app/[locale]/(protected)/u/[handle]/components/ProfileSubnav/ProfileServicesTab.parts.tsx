@@ -117,7 +117,7 @@ export type ServiceDraft = {
   customClass: CustomClassDraft;
   donationMode: DonationMode;
   donationCurrency: Currency;
-  donationMinimumAmount: string;
+  donationSuggestedAmounts: string[];
   donationGoalLabel: string;
   donationMessage: string;
   donationVideoUrl: string;
@@ -126,6 +126,19 @@ export type ServiceDraft = {
   subscriptionToFreePolicy: SubscriptionToFreePolicy;
   subscriptionPriceIncreasePolicy: SubscriptionPriceIncreasePolicy;
 };
+
+// Montos sugeridos de donación por defecto (MXN crudo). Cada uno debe ser >= 50.
+export const DEFAULT_DONATION_SUGGESTED_AMOUNTS: string[] = ["50", "120", "250", "490"];
+
+// Normaliza cualquier entrada a EXACTAMENTE 4 montos (string): usa el valor
+// guardado si es un número válido (> 0), o el default de esa posición.
+export function normalizeSuggestedAmounts(input: unknown): string[] {
+  const arr = Array.isArray(input) ? input : [];
+  return DEFAULT_DONATION_SUGGESTED_AMOUNTS.map((def, i) => {
+    const n = Number(arr[i]);
+    return Number.isFinite(n) && n > 0 ? String(n) : def;
+  });
+}
 
 export const SERVICE_EMOJIS = {
   saludo: "👋",
@@ -203,7 +216,7 @@ export function createEmptyDraft(): ServiceDraft {
     },
     donationMode: "none",
     donationCurrency: "MXN",
-    donationMinimumAmount: "",
+    donationSuggestedAmounts: [...DEFAULT_DONATION_SUGGESTED_AMOUNTS],
     donationGoalLabel: "",
     donationMessage: "",
     donationVideoUrl: "",
@@ -248,17 +261,12 @@ export function pickDonation(donation: DonationInput) {
       ? donation.mode
       : "none";
 
-  const minimumAmount =
-    Array.isArray(donation?.suggestedAmounts) &&
-    donation.suggestedAmounts.length > 0 &&
-    Number(donation.suggestedAmounts[0]) > 0
-      ? String(Number(donation.suggestedAmounts[0]))
-      : "";
+  const suggestedAmounts = normalizeSuggestedAmounts(donation?.suggestedAmounts);
 
   return {
     mode,
     currency: (donation?.currency ?? "MXN") as Currency,
-    minimumAmount,
+    suggestedAmounts,
     goalLabel: typeof donation?.goalLabel === "string" ? donation.goalLabel : "",
     videoUrl: typeof donation?.videoUrl === "string" ? donation.videoUrl : "",
     playbackId: typeof donation?.playbackId === "string" ? donation.playbackId : "",

@@ -38,6 +38,13 @@ export const WALLET_NET_RATE = 1 - WALLET_COMMISSION_RATE; // 0.75
  */
 export const SETTLEMENT_CURRENCY = "MXN";
 
+/**
+ * Cargo fijo por transacción que ABSORBE EL COMPRADOR (no el creador). Se suma al
+ * precio base del creador antes del IVA: el comprador paga (base + $3) + IVA, el
+ * creador recibe 75% de la base. Protege el margen en cobros chicos. Ver docs/modelo-financiero.md (D1).
+ */
+export const FIXED_SERVICE_FEE_MXN = 3;
+
 export type LedgerServiceType =
   | "supercomment"
   | "profile_donation"

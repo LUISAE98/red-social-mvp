@@ -1,11 +1,20 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { doc, onSnapshot } from "firebase/firestore";
 import { httpsCallable } from "firebase/functions";
 import { db, functions } from "@/lib/firebase";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
+import { DONATION_MIN_AMOUNT_MXN } from "@/lib/currency/catalog";
+import { WALLET_NET_RATE } from "@/lib/wallet/walletFinances";
+import {
+  DEFAULT_DONATION_SUGGESTED_AMOUNTS,
+  normalizeSuggestedAmounts,
+} from "../OwnerAdminServices.parts";
+
+// Cada monto sugerido debe ser al menos este valor (MXN).
+const DONATION_MIN_PER_AMOUNT = DONATION_MIN_AMOUNT_MXN;
 
 type Currency = "MXN" | "USD";
 
@@ -64,7 +73,7 @@ type ServiceDraft = {
   customClass: CustomClassDraft;
   donationMode: DonationMode;
   donationCurrency: Currency;
-  donationMinimumAmount: string;
+  donationSuggestedAmounts: string[];
   donationGoalLabel: string;
   donationMessage: string;
   donationVideoUrl: string;
@@ -81,6 +90,7 @@ type OverlayModalProps = {
   confirmLabel?: string;
   cancelLabel?: string;
   loading?: boolean;
+  confirmDisabled?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
 };
@@ -150,7 +160,6 @@ export default function Donation({
   subtleStyle,
   inputStyle,
   buttonSecondaryStyle,
-  calcNetAmount,
   formatMoney,
   OverlayModalComponent,
   DonationModeButtonComponent,
@@ -158,8 +167,7 @@ export default function Donation({
   onSaveDraft,
 }: Props) {
   const tServices = useTranslations("services");
-  const { resolveStoredPrice, toDisplayForInput, currency: displayCurrency, formatAnchor } =
-    usePriceFormat();
+  const { currency: displayCurrency } = usePriceFormat();
 
   const isEnabled = draft.donationMode !== "none";
 
@@ -180,11 +188,19 @@ export default function Donation({
 
   const isBusy = saving || removingLegacyMembers || uploadProgress !== null;
 
-  const donationMinimumCalc = useMemo(() => {
-    return draft.donationMode !== "none"
-      ? calcNetAmount(draft.donationMinimumAmount)
-      : null;
-  }, [draft.donationMode, draft.donationMinimumAmount, calcNetAmount]);
+  // Validación de los 4 montos sugeridos (mínimo por monto).
+  const amountBelowMin = (i: number): boolean => {
+    const raw = overlayDraft.donationSuggestedAmounts[i] ?? "";
+    return raw.trim() !== "" && Number(raw) < DONATION_MIN_PER_AMOUNT;
+  };
+  // Hay al menos un monto tecleado por debajo del mínimo.
+  const anyAmountBelowMin = [0, 1, 2, 3].some((i) => amountBelowMin(i));
+  // Bloquea publicar si algún monto está vacío, no es finito o es < mínimo.
+  const amountsInvalid = [0, 1, 2, 3].some((i) => {
+    const raw = overlayDraft.donationSuggestedAmounts[i] ?? "";
+    const n = Number(raw);
+    return raw.trim() === "" || !Number.isFinite(n) || n < DONATION_MIN_PER_AMOUNT;
+  });
 
   function buildEnabledDraft(base: ServiceDraft): ServiceDraft {
     return {
@@ -198,7 +214,7 @@ export default function Donation({
       ...base,
       donationMode: "none",
       donationCurrency: "MXN",
-      donationMinimumAmount: "",
+      donationSuggestedAmounts: [...DEFAULT_DONATION_SUGGESTED_AMOUNTS],
       donationMessage: "",
     };
   }
@@ -211,18 +227,11 @@ export default function Donation({
   function openOverlay(mode: OverlayMode, nextDraft?: ServiceDraft) {
     stopPlaybackListener();
     const src = nextDraft ?? draft;
-    // Mostrar el monto guardado en la moneda del creador para editarlo.
-    const n = Number(src.donationMinimumAmount);
-    const shown =
-      src.donationMinimumAmount !== "" && Number.isFinite(n) && n > 0
-        ? String(
-            Math.round(
-              toDisplayForInput(n, src.donationCurrency ?? "MXN") * 100
-            ) / 100
-          )
-        : src.donationMinimumAmount;
+    // Los 4 montos se guardan CRUDOS en MXN; se cargan tal cual para editarlos
+    // (rellenando con los defaults [50,120,250,490] si vienen incompletos).
+    const shown = normalizeSuggestedAmounts(src.donationSuggestedAmounts);
     setOverlayMode(mode);
-    setOverlayDraft({ ...src, donationMinimumAmount: shown });
+    setOverlayDraft({ ...src, donationSuggestedAmounts: shown });
     setSaveErr(null);
     setUploadErr(null);
     setUploadPending(false);
@@ -303,8 +312,11 @@ export default function Donation({
     if (isBusy) return;
     setSaveErr(null);
 
-    const amount = parseFloat(overlayDraft.donationMinimumAmount);
-    if (isNaN(amount) || amount <= 0) {
+    const amountsNum = overlayDraft.donationSuggestedAmounts.map((s) => Number(s));
+    if (
+      amountsNum.length !== 4 ||
+      amountsNum.some((n) => !Number.isFinite(n) || n < DONATION_MIN_PER_AMOUNT)
+    ) {
       setSaveErr(tServices("donationMinAmountError"));
       return;
     }
@@ -318,12 +330,11 @@ export default function Donation({
       return;
     }
 
-    // El creador tecleó en su moneda; guardamos en MXN (ancla).
-    const { price, currency } = resolveStoredPrice(amount);
+    // El creador teclea en MXN; se guardan CRUDOS en MXN (sin round-trip USD).
     await onSaveDraft({
       ...overlayDraft,
-      donationMinimumAmount: String(price),
-      donationCurrency: currency,
+      donationSuggestedAmounts: amountsNum.map((n) => String(n)),
+      donationCurrency: "MXN",
     });
     setOverlayMode(null);
   }
@@ -355,10 +366,6 @@ export default function Donation({
         style={{
           display: "grid",
           gap: 10,
-          padding: "10px",
-          borderRadius: 12,
-          border: "1px solid rgba(255,255,255,0.08)",
-          background: "rgba(255,255,255,0.03)",
         }}
       >
         <div style={{ display: "grid", gap: 4 }}>
@@ -371,9 +378,9 @@ export default function Donation({
         <div style={{ display: "grid", gap: 4 }}>
           <div style={subtleStyle}>{tServices("donationMinAmount")}</div>
           <div style={{ color: "#fff", fontSize: 14, fontWeight: 700 }}>
-            {draft.donationMinimumAmount
-              ? formatMoney(Number(draft.donationMinimumAmount), draft.donationCurrency)
-              : `0 ${draft.donationCurrency}`}
+            {normalizeSuggestedAmounts(draft.donationSuggestedAmounts)
+              .map((a) => formatMoney(Number(a), "MXN"))
+              .join(" · ")}
           </div>
         </div>
 
@@ -383,14 +390,6 @@ export default function Donation({
             {hasVideo ? "✓ Video listo" : "Sin video (opcional)"}
           </div>
         </div>
-
-        {donationMinimumCalc ? (
-          <div style={subtleStyle}>
-            {tServices("donationMinConfiguredDesc", {
-              amount: formatMoney(donationMinimumCalc.gross, draft.donationCurrency),
-            })}
-          </div>
-        ) : null}
 
         <button
           type="button"
@@ -440,6 +439,7 @@ export default function Donation({
         open={overlayMode !== null}
         title={`${donationEmoji} ${tServices("donationConfigTitle")}`}
         loading={saving}
+        confirmDisabled={amountsInvalid}
         onCancel={closeOverlay}
         onConfirm={() => void confirmOverlaySave()}
       >
@@ -460,42 +460,76 @@ export default function Donation({
         </div>
 
         <div>
-          <div style={{ ...subtleStyle, marginBottom: 8 }}>{tServices("donationMinAmount")}</div>
-          <div style={{ display: "flex", gap: 8 }}>
-            <input
-              type="number"
-              min="1"
-              step="1"
-              value={overlayDraft.donationMinimumAmount}
-              onChange={(e) =>
-                setOverlayDraft((p) => ({
-                  ...p,
-                  donationMinimumAmount: e.target.value,
-                }))
-              }
-              placeholder="Ej. 50"
-              disabled={isBusy}
-              style={{ ...inputStyle, flex: 1 }}
-            />
-            <span
-              style={{
-                ...inputStyle,
-                width: 90,
-                display: "inline-flex",
-                alignItems: "center",
-                opacity: 0.75,
-              }}
-            >
-              {displayCurrency}
-            </span>
+          <div style={{ ...subtleStyle, marginBottom: 8 }}>
+            Define 4 montos sugeridos (en {displayCurrency}). Quienes te apoyen los verán como botones para donar con un toque, y también podrán escribir otra cantidad. El mínimo por monto es ${DONATION_MIN_PER_AMOUNT}.
           </div>
-          {displayCurrency !== "USD" &&
-          overlayDraft.donationMinimumAmount &&
-          Number(overlayDraft.donationMinimumAmount) > 0 ? (
-            <div style={{ ...subtleStyle, marginTop: 6 }}>
-              = {formatAnchor(resolveStoredPrice(Number(overlayDraft.donationMinimumAmount)).price)}
-            </div>
-          ) : null}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+            {[0, 1, 2, 3].map((i) => {
+              const belowMinI = amountBelowMin(i);
+              const amtI = Number(overlayDraft.donationSuggestedAmounts[i] ?? "");
+              const netI = Number.isFinite(amtI) && amtI > 0 ? amtI * WALLET_NET_RATE : null; // neto = 75% de la donación
+              const showEarnI = netI != null && netI > 0 && !belowMinI;
+              return (
+              <div key={i} style={{ display: "grid", gap: 2 }}>
+                <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                  <input
+                    type="number"
+                    min={DONATION_MIN_PER_AMOUNT}
+                    step="1"
+                    value={overlayDraft.donationSuggestedAmounts[i] ?? ""}
+                    onChange={(e) =>
+                      setOverlayDraft((p) => {
+                        const current = normalizeSuggestedAmounts(p.donationSuggestedAmounts);
+                        const next = [...current];
+                        next[i] = e.target.value;
+                        return { ...p, donationSuggestedAmounts: next };
+                      })
+                    }
+                    placeholder="Ej. 50"
+                    disabled={isBusy}
+                    style={{ ...inputStyle, width: "100%", flex: "1 1 auto", minWidth: 0 }}
+                  />
+                  <span style={{ color: "rgba(255,255,255,0.55)", fontSize: 13, fontWeight: 600, whiteSpace: "nowrap" }}>
+                    + $3
+                  </span>
+                </div>
+                {/* Aviso del mínimo + cuánto ganas, agrupados en una celda para que colapsen sin dejar hueco. */}
+                <div>
+                  <div
+                    style={{
+                      maxHeight: belowMinI ? 22 : 0,
+                      opacity: belowMinI ? 1 : 0,
+                      transform: belowMinI ? "translateY(0)" : "translateY(4px)",
+                      overflow: "hidden",
+                      transition: "max-height 220ms ease, opacity 220ms ease, transform 220ms ease",
+                    }}
+                  >
+                    <div style={{ color: "#f87171", fontSize: 12, marginTop: 2 }}>
+                      {`El mínimo es $${DONATION_MIN_PER_AMOUNT}`}
+                    </div>
+                  </div>
+                  <div
+                    style={{
+                      maxHeight: showEarnI ? 22 : 0,
+                      opacity: showEarnI ? 1 : 0,
+                      transform: showEarnI ? "translateY(0)" : "translateY(4px)",
+                      overflow: "hidden",
+                      transition: "max-height 220ms ease, opacity 220ms ease, transform 220ms ease",
+                    }}
+                  >
+                    <div style={{ ...subtleStyle, fontSize: 11, marginTop: 2 }}>
+                      {`Ganas ${formatMoney(netI ?? 0, "MXN")}`}
+                    </div>
+                  </div>
+                </div>
+              </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <div style={{ ...subtleStyle, opacity: 0.7, fontSize: 11 }}>
+          A todas las experiencias se les suman $3 MXN por el cargo de procesamiento de Stripe.
         </div>
 
         {/* Video de presentación (opcional) */}

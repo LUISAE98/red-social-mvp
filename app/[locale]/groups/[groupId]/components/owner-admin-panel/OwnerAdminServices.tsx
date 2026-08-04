@@ -43,6 +43,7 @@ import {
   createEmptyDraft, createEmptyWeeklyAvailability, normalizeDurationMeta,
   normalizeWeeklyAvailabilityFromMeta, pickDonation, pickOffering,
   pickSubscription, pickTransitions, sameDraft,
+  DEFAULT_DONATION_SUGGESTED_AMOUNTS,
   type Props, type ServiceDraft,
 } from "./OwnerAdminServices.parts";
 import { ConfirmModal, OverlayModal } from "./OwnerAdminServices.modals";
@@ -148,7 +149,7 @@ export default function OwnerAdminServices({
       },
       donationMode: donation.mode,
       donationCurrency: donation.currency ?? "MXN",
-      donationMinimumAmount: donation.minimumAmount,
+      donationSuggestedAmounts: donation.suggestedAmounts,
       donationGoalLabel: donation.goalLabel ?? "",
       donationMessage: donation.message ?? "",
       donationVideoUrl: donation.videoUrl ?? "",
@@ -421,10 +422,8 @@ export default function OwnerAdminServices({
           ? null
           : Number(workingDraft.customClass.durationMinutes);
 
-      const donationMinimumNum =
-        workingDraft.donationMinimumAmount.trim() === ""
-          ? null
-          : Number(workingDraft.donationMinimumAmount);
+      const donationSuggestedNums =
+        workingDraft.donationSuggestedAmounts.map((s) => Number(s));
 
       if (
         workingDraft.subscription.enabled &&
@@ -564,11 +563,10 @@ export default function OwnerAdminServices({
 
       if (
         workingDraft.donationMode !== "none" &&
-        (donationMinimumNum == null ||
-          Number.isNaN(donationMinimumNum) ||
-          donationMinimumNum <= 0)
+        (donationSuggestedNums.length !== 4 ||
+          donationSuggestedNums.some((n) => !Number.isFinite(n) || n < 50))
       ) {
-        setErr("❌ Debes definir un monto mínimo válido para la donación.");
+        setErr("❌ Cada monto sugerido de la donación debe ser al menos 50.");
         return;
       }
 
@@ -626,9 +624,7 @@ export default function OwnerAdminServices({
           workingDraft.donationMode !== "none" ? workingDraft.donationCurrency : "MXN",
         sourceScope: "group",
         suggestedAmounts:
-          workingDraft.donationMode !== "none" && donationMinimumNum != null
-            ? [donationMinimumNum]
-            : [],
+          workingDraft.donationMode !== "none" ? donationSuggestedNums : [],
         goalLabel: workingDraft.donationGoalLabel.trim() || null,
         message: workingDraft.donationMessage.trim() || null,
         videoUrl: workingDraft.donationVideoUrl || null,
@@ -837,10 +833,10 @@ export default function OwnerAdminServices({
             donationMode: workingDraft.donationMode,
             donationCurrency:
               workingDraft.donationMode !== "none" ? workingDraft.donationCurrency : "MXN",
-            donationMinimumAmount:
+            donationSuggestedAmounts:
               workingDraft.donationMode !== "none"
-                ? workingDraft.donationMinimumAmount
-                : "",
+                ? workingDraft.donationSuggestedAmounts
+                : [...DEFAULT_DONATION_SUGGESTED_AMOUNTS],
             donationGoalLabel: workingDraft.donationGoalLabel,
             donationMessage: workingDraft.donationMessage,
             donationVideoUrl: workingDraft.donationVideoUrl,
@@ -907,8 +903,10 @@ export default function OwnerAdminServices({
         donationMode: workingDraft.donationMode,
         donationCurrency:
           workingDraft.donationMode !== "none" ? workingDraft.donationCurrency : "MXN",
-        donationMinimumAmount:
-          workingDraft.donationMode !== "none" ? workingDraft.donationMinimumAmount : "",
+        donationSuggestedAmounts:
+          workingDraft.donationMode !== "none"
+            ? workingDraft.donationSuggestedAmounts
+            : [...DEFAULT_DONATION_SUGGESTED_AMOUNTS],
         donationGoalLabel: workingDraft.donationGoalLabel,
         donationMessage: workingDraft.donationMessage,
         donationVideoUrl: workingDraft.donationVideoUrl,

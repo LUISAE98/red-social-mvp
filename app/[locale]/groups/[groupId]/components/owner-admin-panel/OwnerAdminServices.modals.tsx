@@ -245,6 +245,7 @@ export function OverlayModal({
   confirmLabel = "Guardar cambios",
   cancelLabel: cancelLabelProp,
   loading = false,
+  confirmDisabled = false,
   onConfirm,
   onCancel,
 }: {
@@ -254,6 +255,7 @@ export function OverlayModal({
   confirmLabel?: string;
   cancelLabel?: string;
   loading?: boolean;
+  confirmDisabled?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
 }) {
@@ -353,7 +355,7 @@ export function OverlayModal({
             <button
               type="button"
               onClick={onConfirm}
-              disabled={loading}
+              disabled={loading || confirmDisabled}
               style={{
                 minWidth: 180,
                 padding: "10px 14px",
@@ -361,11 +363,11 @@ export function OverlayModal({
                 border: "1px solid rgba(255,255,255,0.92)",
                 background: "#fff",
                 color: "#000",
-                cursor: loading ? "not-allowed" : "pointer",
+                cursor: loading || confirmDisabled ? "not-allowed" : "pointer",
                 fontWeight: 800,
                 fontSize: 13,
                 fontFamily: fontStack,
-                opacity: loading ? 0.75 : 1,
+                opacity: loading || confirmDisabled ? 0.75 : 1,
                 display: "inline-flex",
                 alignItems: "center",
                 justifyContent: "center",

@@ -34,7 +34,9 @@ function readCountryCookie(): string | null {
  * romper la hidratación (mismo patrón que CurrencyProvider).
  */
 export function useBuyerCountry(): string | null {
-  const [country, setCountry] = useState<string | null>(null);
+  // SOLO MÉXICO por ahora: si no hay cookie de país, se asume MX (16% IVA), igual que
+  // el backend al cobrar. Al internacionalizar, quitar este default.
+  const [country, setCountry] = useState<string | null>("MX");
   useEffect(() => {
     const c = readCountryCookie();
     // eslint-disable-next-line react-hooks/set-state-in-effect

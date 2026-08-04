@@ -155,6 +155,7 @@ Fuentes: [Wallbit – cobrar de Kick](https://www.wallbit.io/es/blog/get-paid-fr
 5. **OXXO / SPEI** disponibles y sus costos.
 6. **Cuenta v2 (controller properties) vs Express** — cuál recomiendan para nuestro caso (vendedor de registro + creadores MX y extranjeros).
 7. **KYC / anti-duplicados:** ¿Connect detecta si una persona abre **varias cuentas de creador** (misma identidad/cara)? Si no, ¿cómo lo cubrimos al quitar Didit?
+8. **Fee de conversión de divisa exacto** al liquidar cargos en moneda extranjera a MXN (¿es ~2%? ¿varía por moneda/país?) — define si nuestro +2% al comprador alcanza (ver §13).
 
 ---
 
@@ -170,3 +171,34 @@ Fuentes: [Wallbit – cobrar de Kick](https://www.wallbit.io/es/blog/get-paid-fr
 | Retiro (por cablear) | `transfer` a cuenta conectada + payout |
 | Gate KYC Didit | KYC de Connect (menos edad) |
 | `payoutAccounts` (CLABE) | Capturada en onboarding de Connect |
+
+---
+
+## 13. Moneda de cobro — moneda LOCAL del comprador (conversión propia, NO Adaptive Pricing)
+
+**Decisión (2026-08-03):** el comprador **NUNCA** ve ni paga en MXN (salvo que sea mexicano). Ve y paga en **su moneda local**. Stripe puede cobrar en ~135 monedas (cubre 190+ países) vía PaymentIntents multi-moneda.
+
+### ❌ Por qué NO usamos "Stripe Adaptive Pricing"
+Adaptive Pricing es una función **exclusiva de Stripe Checkout / Payment Links** y trabaja con **Productos/Precios FIJOS** creados en Stripe. Nosotros usamos **PaymentIntents con monto DINÁMICO** (el precio lo fija cada creador por perfil/comunidad, no hay catálogo). Por eso Adaptive Pricing **no aplica** — meter cada precio de cada creador como "producto Stripe" no tiene sentido. **La conversión la hacemos nosotros.**
+
+### El flujo (lo hacemos nosotros)
+1. **Detectar país** del comprador (IP / cookie `vibra_country`).
+2. **Convertir** el precio del creador (guardado en MXN) → moneda local del comprador con **nuestro** tipo de cambio (`config/exchangeRates`) **+ 2%** (margen FX) en los países que aplique.
+3. **Mostrar** ya el precio en la moneda local (nunca MXN).
+4. **Cobrar** en esa moneda: `PaymentIntent` con `currency` = moneda local, `amount` en su unidad mínima.
+5. **Congelar** el tipo de cambio usado en el paymentIntent (para reembolsos/auditoría).
+
+### En qué tipo de cambio se basa Stripe (para la liquidación)
+- Stripe usa el **tipo de cambio de mercado (mid-market / interbancario)** de **proveedores de datos financieros** — NO un banco específico. Se actualiza varias veces al día, aplica al momento del cargo/liquidación.
+- Encima suma su **spread ~2%** (su comisión de conversión, metida en la tasa, no como línea aparte).
+- **Dónde nos cuesta:** cuando el cargo llega en moneda extranjera y **nuestra cuenta liquida en MXN**, Stripe convierte `local → MXN` con su tasa − ~2%. **Ese ~2% es lo que cubre nuestro +2% al comprador.** (La conversión tarjeta↔moneda-del-cargo, si difieren, la hace el banco del comprador, no Stripe.)
+
+### Reglas / cuidados
+- **El creador siempre gana en MXN:** aunque el comprador pague en su moneda, el **ledger registra el precio del creador en MXN** (ganancia = precio MXN × 0.75). FX + 2% son 100% del lado del comprador.
+- **Riesgo de deriva:** nuestra fuente FX (open.er-api.com) ≠ tasa de Stripe. El +2% amortigua; si el spread real de Stripe > 2% o las tasas se separan, comemos la diferencia → **confirmar el fee exacto de conversión de Stripe** (dashboard → Pricing) y **reconciliar** lo que cae en MXN vs. el precio del creador.
+- **Técnico:** mínimos de cobro por moneda (Stripe), monedas sin decimales (JPY/CLP…), redondeo local, reembolsos en la moneda del cargo.
+- **IVA/impuesto:** por país del comprador (vendedor de registro), aparte de la conversión.
+- **Opción avanzada** (después): tener saldos de liquidación en varias monedas en Stripe evita la conversión y su fee, a cambio de más complejidad operativa.
+
+### Qué cambia en el código
+Hoy los callables (`createGreetingStripeIntent`, `createServiceStripeIntent`) cobran fijo en `SETTLEMENT_CURRENCY` (MXN). Al implementar esto, calcularán **monto + moneda LOCAL** (precio MXN → local × FX × 1.02) y crearán el PaymentIntent en esa moneda; la base MXN del creador sigue yendo al ledger. Se implementa junto con los métodos de pago (Apple Pay/Google Pay/Link vía Payment/Express Element) en la fase internacional.

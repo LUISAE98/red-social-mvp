@@ -18,13 +18,18 @@ export async function createStripePaymentIntent(input: {
   return res.data;
 }
 
+/** Respuesta de los callables de intent (solo México por ahora: cobro en MXN). */
+export type StripeChargeResult = {
+  clientSecret: string;
+};
+
 /** Crea el PaymentIntent de un SALUDO/CONSEJO (precio del servidor + IVA + metadata). */
 export async function createGreetingStripeIntent(input: {
   greetingRequestId: string;
   saveCard: boolean;
   taxCountry: string | null;
-}): Promise<{ clientSecret: string }> {
-  const fn = httpsCallable<typeof input, { clientSecret: string }>(functions, "createGreetingStripeIntent");
+}): Promise<StripeChargeResult> {
+  const fn = httpsCallable<typeof input, StripeChargeResult>(functions, "createGreetingStripeIntent");
   const res = await fn(input);
   return res.data;
 }
@@ -38,8 +43,22 @@ export async function createServiceStripeIntent(input: {
   externalReference: string;
   saveCard: boolean;
   taxCountry: string | null;
-}): Promise<{ clientSecret: string }> {
-  const fn = httpsCallable<typeof input, { clientSecret: string }>(functions, "createServiceStripeIntent");
+}): Promise<StripeChargeResult> {
+  const fn = httpsCallable<typeof input, StripeChargeResult>(functions, "createServiceStripeIntent");
+  const res = await fn(input);
+  return res.data;
+}
+
+/** Crea el PaymentIntent de una DONACIÓN a perfil (monto dinámico + $3 + IVA, MXN). */
+export async function createDonationStripeIntent(input: {
+  creatorId: string;
+  amount: number;
+  saveCard: boolean;
+  taxCountry: string | null;
+  groupId?: string | null;
+  groupName?: string | null;
+}): Promise<StripeChargeResult> {
+  const fn = httpsCallable<typeof input, StripeChargeResult>(functions, "createDonationStripeIntent");
   const res = await fn(input);
   return res.data;
 }

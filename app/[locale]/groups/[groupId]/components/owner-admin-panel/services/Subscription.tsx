@@ -63,7 +63,7 @@ type ServiceDraft = {
   customClass: CustomClassDraft;
   donationMode: DonationMode;
   donationCurrency: Currency;
-  donationMinimumAmount: string;
+  donationSuggestedAmounts: string[];
   donationGoalLabel: string;
   donationMessage: string;
   donationVideoUrl: string;
@@ -316,8 +316,7 @@ export default function Subscription({
   onRemoveLegacyMembers,
 }: Props) {
   const tServices = useTranslations("services");
-  const { resolveStoredPrice, toDisplayForInput, currency: displayCurrency, formatAnchor } =
-    usePriceFormat();
+  const { currency: displayCurrency } = usePriceFormat();
   const [overlayMode, setOverlayMode] = useState<SubscriptionOverlayMode>(null);
   const [overlayDraft, setOverlayDraft] = useState<ServiceDraft>(draft);
   const [showRemoveLegacyMembersModal, setShowRemoveLegacyMembersModal] =
@@ -371,16 +370,8 @@ const disabledPanelStyle: React.CSSProperties = disabledByVisibility
 
   function openOverlay(mode: SubscriptionOverlayMode, nextDraft?: ServiceDraft) {
     const src = nextDraft ?? draft;
-    // Mostrar el precio guardado en la moneda del creador para editarlo.
-    const n = Number(src.subscription.price);
-    const shown =
-      src.subscription.price !== "" && Number.isFinite(n) && n > 0
-        ? String(
-            Math.round(
-              toDisplayForInput(n, src.subscription.currency ?? "MXN") * 100
-            ) / 100
-          )
-        : src.subscription.price;
+    // El precio se guarda CRUDO en MXN; se muestra tal cual para editarlo.
+    const shown = src.subscription.price;
     setOverlayMode(mode);
     setOverlayDraft({
       ...src,
@@ -395,14 +386,13 @@ const disabledPanelStyle: React.CSSProperties = disabledByVisibility
   }
 
   async function confirmOverlaySave() {
-    // El creador tecleó en su moneda; guardamos en MXN (ancla).
+    // El creador teclea en MXN; se guarda CRUDO en MXN (sin round-trip USD).
     const n = Number(overlayDraft.subscription.price);
     let toSave = overlayDraft;
     if (overlayDraft.subscription.price !== "" && Number.isFinite(n) && n > 0) {
-      const { price, currency } = resolveStoredPrice(n);
       toSave = {
         ...overlayDraft,
-        subscription: { ...overlayDraft.subscription, price: String(price), currency },
+        subscription: { ...overlayDraft.subscription, price: String(n), currency: "MXN" },
       };
     }
     await onSaveDraft(toSave);
@@ -642,11 +632,11 @@ function handleModify() {
             {displayCurrency}
           </span>
         </div>
-        {displayCurrency !== "USD" &&
-        overlayDraft.subscription.price &&
+        {overlayDraft.subscription.price &&
         Number(overlayDraft.subscription.price) > 0 ? (
           <div style={subtleStyle}>
-            = {formatAnchor(resolveStoredPrice(Number(overlayDraft.subscription.price)).price)}
+            {/* Neto que gana el creador = 75% (precio − 25% comisión Vibra). */}
+            = {formatMoney(Number(overlayDraft.subscription.price) * 0.75, "MXN")}
           </div>
         ) : null}
 

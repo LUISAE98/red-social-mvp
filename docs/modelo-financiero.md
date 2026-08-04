@@ -10,7 +10,7 @@
 | Costo | Lo cubre | Detalle |
 |---|---|---|
 | **$3 fijo por cobro** | **Comprador** | Protege el margen en cobros chicos (donde el fijo es brutal). |
-| **FX del cobro (~2%)** | **Comprador** | Vía Stripe **Adaptive Pricing**: al comprador extranjero se le presenta el precio en su moneda con el margen de cambio incluido; Vibra liquida en MXN completo. Solo aplica a compradores extranjeros. |
+| **FX del cobro (~2%)** | **Comprador** | ❌ NO es Stripe Adaptive Pricing (esa función es solo para Checkout/Prices fijos; nosotros usamos PaymentIntents dinámicos). **La conversión la hacemos NOSOTROS**: convertimos el precio del creador (MXN) → moneda local del comprador con nuestro FX **+ 2%**, y cobramos en esa moneda local. El 2% cubre el spread de conversión de Stripe al liquidar a MXN. Solo aplica a compradores extranjeros. Ver `docs/stripe-integracion.md §13`. |
 | **Stripe payin (%)** | **Vibra** | Tarjeta MX **3.6%** · tarjeta extranjera **4.1%** (3.6% + 0.5% intl). Sobre el total cobrado. |
 | **Stripe payout (%)** | **Vibra** | 0.25% + $12/transferencia + $35/mes cuenta activa. Con retiro a $10,000 → **0.72%**. |
 | **FX del payout (MXN→USD)** | **Banco del creador** | NO lo absorbe Vibra — lo aplica el banco/fintech del creador (Wallbit/Takenos) al convertir a USD. Confirmado en junta con Stripe. |
