@@ -1834,6 +1834,24 @@ const res = (await createExclusiveSessionRequest({
   overflow: visible;
 }
 
+/* Las cards de experiencias del encabezado igualan el ANCHO DE LA PORTADA:
+   rompen el padding lateral de .profile-content para llegar a los bordes de la
+   .profile-card (donde vive la portada). En ≤559px el propio componente ya hace
+   full-bleed al viewport (que ahí coincide con la card), así que aquí solo
+   corregimos de 560px hacia arriba, igualando el padding en cada breakpoint. */
+@media (min-width: 560px) {
+  .profile-content :global(.exp-cards) {
+    margin-left: -18px;
+    margin-right: -18px;
+  }
+}
+@media (min-width: 560px) and (max-width: 640px) {
+  .profile-content :global(.exp-cards) {
+    margin-left: -12px;
+    margin-right: -12px;
+  }
+}
+
           .profile-meta {
             display: grid;
             place-items: center;
