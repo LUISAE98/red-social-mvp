@@ -265,7 +265,7 @@ export default function CreatorExperiencesSection({
       </div>
 
       {/* Service cards */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
         {activeTypes.map((type) => {
           const conf = CONFIG[type];
           if (!conf) return null;
@@ -288,7 +288,7 @@ export default function CreatorExperiencesSection({
               style={{
                 display: "block",
                 padding: "14px 16px",
-                borderRadius: 16,
+                borderRadius: 0,
                 background: type === "consejo"
                   ? "linear-gradient(rgba(11,11,15,0.80), rgba(11,11,15,0.80)), url('/consejo.webp') center 60%/cover no-repeat"
                   : type === "clase_personalizada"
@@ -297,7 +297,7 @@ export default function CreatorExperiencesSection({
                   ? "linear-gradient(rgba(11,11,15,0.80), rgba(11,11,15,0.80)), url('/encuentroenvivo.webp') center 60%/cover no-repeat"
                   : "linear-gradient(rgba(11,11,15,0.80), rgba(11,11,15,0.80)), url('/saludo.webp') center 32%/cover no-repeat",
                 border: "none",
-                boxShadow: `0 2px 20px rgba(0,0,0,0.38), 0 0 0 1px ${conf.color}10`,
+                boxShadow: `0 2px 20px rgba(0,0,0,0.38)`,
                 textDecoration: "none",
                 color: "#fff",
               }}
