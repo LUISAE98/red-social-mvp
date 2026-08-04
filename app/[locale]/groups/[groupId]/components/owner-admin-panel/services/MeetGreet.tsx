@@ -302,11 +302,15 @@ export default function MeetGreet({
             onClick={handleModify}
             disabled={isBusy}
             style={{
-              ...buttonSecondaryStyle,
-              width: "auto",
+              background: "none",
+              border: "none",
+              padding: 0,
               justifySelf: "flex-start",
-              opacity: isBusy ? 0.7 : 1,
+              color: accentColor ?? "#2563eb",
+              fontSize: 14,
+              fontWeight: 600,
               cursor: isBusy ? "not-allowed" : "pointer",
+              opacity: isBusy ? 0.7 : 1,
             }}
           >
             {tServices("modify")}

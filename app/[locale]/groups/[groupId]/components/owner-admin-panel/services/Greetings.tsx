@@ -266,22 +266,22 @@ export default function Saludos({
 
     return (
       <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 12 }}>
-        {/* Izquierda: cuánto ganas, visibilidad y botón Modificar. */}
+        {/* Izquierda: botón Modificar (texto plano, color del precio). */}
         <div style={{ display: "grid", gap: 8, minWidth: 0 }}>
-          <div style={subtleStyle}>
-            {tServices("meetGreetMembersVisibility")}
-          </div>
-
           <button
             type="button"
             onClick={handleModify}
             disabled={isBusy}
             style={{
-              ...buttonSecondaryStyle,
-              width: "auto",
+              background: "none",
+              border: "none",
+              padding: 0,
               justifySelf: "flex-start",
-              opacity: isBusy ? 0.7 : 1,
+              color: accentColor ?? "#b45cff",
+              fontSize: 14,
+              fontWeight: 600,
               cursor: isBusy ? "not-allowed" : "pointer",
+              opacity: isBusy ? 0.7 : 1,
             }}
           >
             {tServices("modify")}
