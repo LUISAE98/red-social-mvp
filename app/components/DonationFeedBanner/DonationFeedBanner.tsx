@@ -10,8 +10,8 @@ import { getMutePreference, setMutePreference } from "@/lib/utils/mutePreference
 import { registrarCompraGeo } from "@/lib/wallet/registrarCompraGeo";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
-import ServicePaymentModal from "@/components/payments/ServicePaymentModal";
-import { payProfileDonation } from "@/lib/payments/payProfileDonation";
+import StripePaymentModal from "@/components/payments/StripePaymentModal";
+import { createDonationStripeIntent } from "@/lib/stripe/stripePayments";
 
 type Props = {
   message?: string | null;
@@ -50,8 +50,9 @@ function desktopPanelSize() {
 export default function DonationFeedBanner({
   message, playbackId, creatorName, profilePhoto, profileHandle,
   donationMode, goalLabel,
-  expanded, onClose,
+  expanded, onClose, onClick,
   currency,
+  suggestedAmounts,
   creatorId, buyerId, groupId, groupName, viewerIsCreator,
 }: Props) {
   const tCommon = useTranslations("common");
@@ -512,19 +513,22 @@ export default function DonationFeedBanner({
     <>
       <VibraToast toast={toast} />
 
-      <ServicePaymentModal
+      <StripePaymentModal
         open={payOpen}
-        amount={1}
+        amount={null}
         amountEditable
-        pay={(c, amt) => {
-          paidAmountRef.current = amt ?? null;
-          return payProfileDonation({
+        amountCurrency="MXN"
+        payButtonLabel="Hacer aportación"
+        donationPresets={suggestedAmounts ?? undefined}
+        createIntent={(args) => {
+          paidAmountRef.current = args.amount ?? null;
+          return createDonationStripeIntent({
             creatorId: creatorId ?? "",
-            amount: amt ?? 0,
-            currency: currency ?? "MXN",
+            amount: args.amount,
+            saveCard: args.saveCard,
+            taxCountry: args.taxCountry,
             groupId: groupId ?? null,
             groupName: groupName ?? null,
-            ...c,
           });
         }}
         productType={tCommon("payDonationProductType")}
@@ -580,7 +584,7 @@ export default function DonationFeedBanner({
         <div className="dbv-landscape-wrap">
           <div
             className="dbv-container"
-            onClick={handleContributeClick}
+            onClick={onClick}
             style={{ position: "relative", width: "100%", borderRadius: 16, overflow: "hidden", backgroundColor: "#0a0a0a", backgroundImage: "url(/donacion-perfil-vertical.webp)", backgroundSize: "cover", backgroundPosition: "center", cursor: "pointer", WebkitTapHighlightColor: "transparent" }}
           >
             <div style={{ position: "absolute", inset: 0, background: "rgba(10,10,10,0.68)" }} />
@@ -621,7 +625,7 @@ export default function DonationFeedBanner({
         /* ── PORTRAIT card: fixed aspect ratio, video top-right ── */
         <div
           className="dbv-container"
-          onClick={handleContributeClick}
+          onClick={onClick}
           style={{ position: "relative", width: "100%", borderRadius: 16, overflow: "hidden", background: "#0a0a0a", cursor: "pointer", aspectRatio: "16 / 8", WebkitTapHighlightColor: "transparent" }}
         >
           <Image src="/donacion-perfil.webp" alt={tCommon("donation")} fill sizes="(max-width: 720px) 100vw, 720px" style={{ objectFit: "cover", objectPosition: "center" }} priority />
@@ -667,7 +671,7 @@ export default function DonationFeedBanner({
         <div className="dbv-landscape-wrap">
         <div
           className="dbv-container"
-          onClick={handleContributeClick}
+          onClick={onClick}
           style={{ position: "relative", width: "100%", borderRadius: 16, overflow: "hidden", backgroundColor: "#0a0a0a", backgroundImage: "url(/donacion-perfil-vertical.webp)", backgroundSize: "cover", backgroundPosition: "center", cursor: "pointer", WebkitTapHighlightColor: "transparent" }}
         >
           <div style={{ position: "absolute", inset: 0, background: "rgba(10,10,10,0.68)" }} />

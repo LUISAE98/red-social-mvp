@@ -1,46 +1,99 @@
-// Configuración fiscal: impuesto al consumo (IVA y equivalentes) por país.
+// Configuración fiscal + moneda por país (TABLA ÚNICA de cobro) — espejo FRONTEND.
 //
-// Puro: sin dependencias de framework ni Firebase, importable desde middleware
-// (edge), servidor y cliente por igual (igual que lib/currency/catalog.ts).
+// Puro: sin dependencias de framework ni Firebase, importable desde middleware (edge),
+// servidor y cliente por igual (igual que lib/currency/catalog.ts). Aquí es SOLO para
+// MOSTRAR el estimado; el cobro real lo calcula el backend (backend/src/tax/config.ts).
+// Mantener AMBAS tablas en sync.
 //
-// MODELO (decisión de producto 2026-07-27): el impuesto se SUMA sobre el precio
-// base del creador. El precio que fija el creador es la BASE (sin impuesto); el
-// comprador ve el precio y, debajo, "+impuestos", y paga base + impuesto. El
-// creador recibe siempre sobre la base, sin importar el país del comprador.
+// 👉 Para agregar un país al cobro = agregar UNA fila a COUNTRY_TAX_CONFIG con su tasa
+//    VERIFICADA por fiscalista y su moneda local. El 2% FX se DERIVA (moneda ≠ liquidación),
+//    no se pone a mano.
+//
+// MODELO (decisión de producto 2026-07-27): el impuesto se SUMA sobre el precio base del
+// creador. El creador recibe siempre sobre la base, sin importar el país del comprador.
 // Fundamento y matriz completa: docs/legal/fiscal-iva-isr-plataforma.md
 //
-// ⚠️ LANZAMIENTO — SOLO MÉXICO: únicamente MX está configurado (IVA 16%). Los
-// otros 16 países de LatAm se activarán país por país DESPUÉS del lanzamiento,
-// tras validación de un fiscalista. Un país sin entrada aquí = SIN impuesto al
-// comprador (0), hasta que se configure explícitamente.
+// ⚠️ LANZAMIENTO — SOLO MÉXICO: únicamente MX está configurado (IVA 16%, MXN). Un país SIN
+//    fila aquí = SIN impuesto y NO cobrable todavía.
 //
-// Regla de aplicación (Art. 18-C LIVA): el impuesto lo determina DÓNDE ESTÁ EL
-// COMPRADOR al comprar, no su nacionalidad. Un extranjero consumiendo desde
-// México paga IVA (es correcto). Ver lib/tax/useBuyerCountry.ts para la señal.
+// Regla de aplicación (Art. 18-C LIVA): el impuesto lo determina DÓNDE ESTÁ EL COMPRADOR al
+// comprar, no su nacionalidad. Ver lib/tax/useBuyerCountry.ts para la señal (por IP).
 
-export type TaxConfig = {
-  /** Tasa decimal (0.16 = 16%). */
-  rate: number;
-  /** Nombre del impuesto en ese país (etiqueta de UI y futuros CFDI). */
-  name: string;
+/** Moneda de LIQUIDACIÓN de Vibra (mantener en sync con SETTLEMENT_CURRENCY del catálogo/wallet). */
+const SETTLEMENT_CURRENCY = "MXN";
+/** Cargo por conversión de divisa que absorbe el comprador extranjero. */
+export const FX_CONVERSION_FEE = 0.02;
+
+export type CountryTaxConfig = {
+  /** Nombre del impuesto al consumo en ese país (etiqueta UI / CFDI). Ej. "IVA". */
+  taxName: string;
+  /** Tasa decimal del impuesto (0.16 = 16%). Equivalente al IVA. */
+  taxRate: number;
+  /** Moneda LOCAL de cobro del comprador (ISO 4217). Ej. "MXN", "COP". */
+  currency: string;
 };
 
-/** País ISO-3166 alpha-2 → configuración de impuesto al consumo. */
-export const CONSUMPTION_TAX_BY_COUNTRY: Readonly<Record<string, TaxConfig>> = {
-  MX: { rate: 0.16, name: "IVA" },
-  // ── Pendientes (activar uno por uno tras validación fiscal por país): ──
-  // AR, BO, BR, CL, CO, CR, EC, SV, GT, HN, NI, PA, PY, PE, DO, UY
+/**
+ * TABLA por país (ISO-3166 alpha-2 → impuesto + moneda de cobro).
+ * Agregar un país = agregar una fila (tasa VERIFICADA + moneda local).
+ * ⚠️ Debe coincidir con backend/src/tax/config.ts.
+ */
+export const COUNTRY_TAX_CONFIG: Readonly<Record<string, CountryTaxConfig>> = {
+  MX: { taxName: "IVA", taxRate: 0.16, currency: "MXN" },
+  // ── Activar país por país tras validación fiscal. ⚠️ VERIFICAR la tasa antes de descomentar. ──
+  // AR: { taxName: "IVA", taxRate: 0.21, currency: "ARS" },
+  // BO: { taxName: "IVA", taxRate: 0.13, currency: "BOB" },
+  // BR: { taxName: "IVA", taxRate: 0.17, currency: "BRL" },
+  // CL: { taxName: "IVA", taxRate: 0.19, currency: "CLP" },
+  // CO: { taxName: "IVA", taxRate: 0.19, currency: "COP" },
+  // CR: { taxName: "IVA", taxRate: 0.13, currency: "CRC" },
+  // EC: { taxName: "IVA", taxRate: 0.15, currency: "USD" },
+  // SV: { taxName: "IVA", taxRate: 0.13, currency: "USD" },
+  // GT: { taxName: "IVA", taxRate: 0.12, currency: "GTQ" },
+  // HN: { taxName: "ISV", taxRate: 0.15, currency: "HNL" },
+  // NI: { taxName: "IVA", taxRate: 0.15, currency: "NIO" },
+  // PA: { taxName: "ITBMS", taxRate: 0.07, currency: "USD" },
+  // PY: { taxName: "IVA", taxRate: 0.10, currency: "PYG" },
+  // PE: { taxName: "IGV", taxRate: 0.18, currency: "PEN" },
+  // DO: { taxName: "ITBIS", taxRate: 0.18, currency: "DOP" },
+  // UY: { taxName: "IVA", taxRate: 0.22, currency: "UYU" },
 };
 
-/** Devuelve la config de impuesto del país, o null si el país no tiene impuesto configurado. */
-export function taxConfigForCountry(country: string | null | undefined): TaxConfig | null {
+/** Config completa del país, o null si no está configurado (no cobrable). */
+export function countryTaxConfig(country: string | null | undefined): CountryTaxConfig | null {
   if (!country) return null;
-  return CONSUMPTION_TAX_BY_COUNTRY[country.toUpperCase()] ?? null;
+  return COUNTRY_TAX_CONFIG[country.toUpperCase()] ?? null;
 }
 
-/** Tasa decimal del país (0 si no hay impuesto configurado). */
+/** Tasa decimal del impuesto (0 si el país no está configurado). */
 export function taxRateForCountry(country: string | null | undefined): number {
-  return taxConfigForCountry(country)?.rate ?? 0;
+  return countryTaxConfig(country)?.taxRate ?? 0;
+}
+
+/** Nombre del impuesto del país (ej. "IVA") o null. */
+export function taxNameForCountry(country: string | null | undefined): string | null {
+  return countryTaxConfig(country)?.taxName ?? null;
+}
+
+/** Moneda de COBRO del país (su local); la de liquidación (MXN) si no está configurado. */
+export function chargeCurrencyForCountry(country: string | null | undefined): string {
+  return countryTaxConfig(country)?.currency ?? SETTLEMENT_CURRENCY;
+}
+
+/** ¿El país está habilitado para cobro? (tiene fila en la tabla). */
+export function isChargeableCountry(country: string | null | undefined): boolean {
+  return !!countryTaxConfig(country);
+}
+
+/** ¿Se suma el 2% FX? DERIVADO: sí cuando la moneda del país ≠ la de liquidación (todos menos MX). */
+export function shouldAddFxFee(country: string | null | undefined): boolean {
+  const c = countryTaxConfig(country);
+  return !!c && c.currency !== SETTLEMENT_CURRENCY;
+}
+
+/** Tasa del cargo FX del país (0.02 o 0). */
+export function fxFeeRateForCountry(country: string | null | undefined): number {
+  return shouldAddFxFee(country) ? FX_CONVERSION_FEE : 0;
 }
 
 export type TaxBreakdown = {
@@ -69,13 +122,13 @@ export function computeConsumptionTax(
   base: number,
   country: string | null | undefined
 ): TaxBreakdown {
-  const cfg = taxConfigForCountry(country);
-  const rate = cfg?.rate ?? 0;
+  const cfg = countryTaxConfig(country);
+  const rate = cfg?.taxRate ?? 0;
   const tax = base * rate;
   return {
     taxCountry: cfg ? (country ?? "").toUpperCase() : null,
     rate,
-    taxName: cfg?.name ?? null,
+    taxName: cfg?.taxName ?? null,
     base,
     tax,
     total: base + tax,

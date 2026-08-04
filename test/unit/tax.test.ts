@@ -1,8 +1,12 @@
 import { describe, it, expect } from "vitest";
 import {
   computeConsumptionTax,
-  taxConfigForCountry,
+  countryTaxConfig,
   taxRateForCountry,
+  chargeCurrencyForCountry,
+  shouldAddFxFee,
+  fxFeeRateForCountry,
+  isChargeableCountry,
 } from "@/lib/tax/config";
 
 // Impuesto al consumo (IVA). Vibra es retenedor: el desglose base/impuesto/total
@@ -49,17 +53,33 @@ describe("lib/tax/config", () => {
     });
   });
 
-  describe("taxConfigForCountry / taxRateForCountry", () => {
-    it("MX está configurado con IVA 16%", () => {
-      expect(taxConfigForCountry("MX")).toEqual({ rate: 0.16, name: "IVA" });
+  describe("countryTaxConfig / taxRateForCountry", () => {
+    it("MX está configurado con IVA 16% y moneda MXN", () => {
+      expect(countryTaxConfig("MX")).toEqual({ taxName: "IVA", taxRate: 0.16, currency: "MXN" });
       expect(taxRateForCountry("MX")).toBe(0.16);
     });
 
     it("país no configurado o nulo -> null / 0", () => {
-      expect(taxConfigForCountry("AR")).toBeNull();
-      expect(taxConfigForCountry(null)).toBeNull();
+      expect(countryTaxConfig("AR")).toBeNull();
+      expect(countryTaxConfig(null)).toBeNull();
       expect(taxRateForCountry("AR")).toBe(0);
       expect(taxRateForCountry(undefined)).toBe(0);
+    });
+  });
+
+  describe("moneda de cobro y 2% FX (derivado)", () => {
+    it("MX cobra en MXN, sin FX (moneda = liquidación)", () => {
+      expect(chargeCurrencyForCountry("MX")).toBe("MXN");
+      expect(shouldAddFxFee("MX")).toBe(false);
+      expect(fxFeeRateForCountry("MX")).toBe(0);
+      expect(isChargeableCountry("MX")).toBe(true);
+    });
+
+    it("país no configurado: no cobrable, sin FX, cae a MXN de liquidación", () => {
+      expect(isChargeableCountry("AR")).toBe(false);
+      expect(shouldAddFxFee("AR")).toBe(false); // aún no configurado -> no cobrable
+      expect(fxFeeRateForCountry("AR")).toBe(0);
+      expect(chargeCurrencyForCountry("AR")).toBe("MXN");
     });
   });
 });

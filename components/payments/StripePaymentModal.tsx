@@ -14,6 +14,7 @@ import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import { doc, getDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
+import { FIXED_SERVICE_FEE_MXN } from "@/lib/currency/catalog";
 import { loadStripe, type StripeLike, type StripeElement } from "@/lib/stripe/loadStripe";
 
 export type SavedCard = { id: string; brand?: string; brandName?: string; lastFour?: string };
@@ -26,6 +27,8 @@ type Props = {
   /** Crea el PaymentIntent y devuelve su client_secret. `taxCountry` = país fiscal del comprador (por IP). */
   createIntent: (args: { amount: number; saveCard: boolean; taxCountry: string | null }) => Promise<{ clientSecret: string }>;
   amountEditable?: boolean;
+  /** Montos sugeridos de DONACIÓN (base MXN). Si no se pasan, usa los defaults. */
+  donationPresets?: number[];
   priceLabel?: string;
   pricePeriodLabel?: string;
   productType?: string;
@@ -53,7 +56,7 @@ const ID_CVC = "vibra-stripe-card-cvc";
 
 const BLUE = "#009ee3";
 const GREEN = "#00a650";
-const DONATION_PRESETS_USD = [2, 5, 10, 20];
+const DEFAULT_DONATION_PRESETS_MXN = [50, 120, 250, 490];
 
 const STRIPE_STYLE = {
   base: { fontSize: "15px", color: "#3a3f4a", fontFamily: "inherit", "::placeholder": { color: "#9aa0a8" } },
@@ -66,6 +69,7 @@ export default function StripePaymentModal({
   amountCurrency = "USD",
   createIntent,
   amountEditable = false,
+  donationPresets,
   priceLabel,
   pricePeriodLabel,
   productType,
@@ -184,7 +188,8 @@ export default function StripePaymentModal({
   // (A) Al abrir: carga Stripe.js.
   useEffect(() => {
     if (!open) return;
-    if (!amount || amount <= 0) { setError("No se pudo determinar el precio."); setLoading(false); return; }
+    // En donación (amountEditable) el monto es dinámico (se elige adentro) → NO exigir `amount`.
+    if (!amountEditable && (!amount || amount <= 0)) { setError("No se pudo determinar el precio."); setLoading(false); return; }
     let cancelled = false;
     setLoading(true);
     setError(null);
@@ -423,8 +428,11 @@ export default function StripePaymentModal({
 
   const effectiveAmount = amountEditable ? chosenAmount : amount;
   const isNonAnchor = pf.currency !== "USD";
-  const totalLabel = effectiveAmount != null ? `${pf.format(effectiveAmount, { baseCurrency: amountCurrency })} ${pf.currency}` : priceLabel ?? "";
-  const taxed = effectiveAmount != null ? pf.formatWithTax(effectiveAmount, { baseCurrency: amountCurrency }) : null;
+  // En donación (amountEditable) el monto elegido es la BASE; el $3 fijo se suma en el
+  // DISPLAY (el backend lo suma al cobrar). Los servicios ya reciben base+$3 en `amount`.
+  const chargedBase = effectiveAmount != null ? effectiveAmount + (amountEditable ? FIXED_SERVICE_FEE_MXN : 0) : null;
+  const totalLabel = chargedBase != null ? `${pf.format(chargedBase, { baseCurrency: amountCurrency })} ${pf.currency}` : priceLabel ?? "";
+  const taxed = chargedBase != null ? pf.formatWithTax(chargedBase, { baseCurrency: amountCurrency }) : null;
 
   const rightColumn = (
     <div style={{ position: "relative", padding: stacked ? "16px 18px 20px" : "48px 24px 24px", background: "#fff", borderLeft: stacked ? "none" : "1px solid #eaecef", display: "flex", flexDirection: "column", justifyContent: "flex-start", gap: 12, minWidth: 0 }}>
@@ -459,13 +467,14 @@ export default function StripePaymentModal({
         <>
           <div style={{ height: 1, background: "#e6e8ec" }} />
           <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
-            {DONATION_PRESETS_USD.map((usd) => {
-              const selected = selectedPreset === usd;
+            {(donationPresets && donationPresets.length ? donationPresets : DEFAULT_DONATION_PRESETS_MXN).map((base) => {
+              const selected = selectedPreset === base;
               return (
-                <button key={usd} type="button"
-                  onClick={() => { setSelectedPreset(usd); setChosenAmount(usd); setCustomAmount(String(Math.round(pf.toDisplayForInput(usd, "USD")))); }}
+                <button key={base} type="button"
+                  onClick={() => { setSelectedPreset(base); setChosenAmount(base); setCustomAmount(String(base)); }}
                   style={{ padding: "9px 2px", borderRadius: 10, border: "none", background: selected ? "#eaf6fd" : "transparent", color: selected ? BLUE : "#3a3f4a", fontSize: 12.5, fontWeight: 600, fontFamily: "inherit", cursor: "pointer", whiteSpace: "nowrap" }}>
-                  {pf.format(usd, { code: true })}
+                  {/* Todo-incluido desde el inicio: (base + $3) + IVA. */}
+                  {pf.formatWithTax(base + FIXED_SERVICE_FEE_MXN, { baseCurrency: "MXN" }).total}
                 </button>
               );
             })}
@@ -476,13 +485,13 @@ export default function StripePaymentModal({
               <span style={{ fontSize: 22, fontWeight: 700, color: "#3a3f4a" }}>$</span>
               <input ref={amountInputRef} type="number" inputMode="decimal" min={1} className="vibra-amount-input" value={customAmount}
                 onChange={(e) => {
+                  // El donador teclea la BASE directo en MXN (México-only, sin conversión).
                   const v = e.target.value; setCustomAmount(v); setSelectedPreset(null);
                   const n = Math.floor(Number(v));
-                  if (Number.isFinite(n) && n > 0) { const mxn = isNonAnchor ? pf.toAnchor(n) : n; setChosenAmount(mxn != null ? Math.round(mxn) : null); }
-                  else setChosenAmount(null);
+                  setChosenAmount(Number.isFinite(n) && n > 0 ? n : null);
                 }}
                 placeholder="0" style={{ width: 120, border: "none", borderBottom: "1px solid #eceef1", background: "transparent", fontSize: 22, fontWeight: 700, color: "#3a3f4a", textAlign: "center", outline: "none", fontFamily: "inherit", padding: "0 2px 4px" }} />
-              <span style={{ fontSize: 13, color: "#9aa0a8", fontWeight: 600 }}>{pf.currency}</span>
+              <span style={{ fontSize: 13, color: "#9aa0a8", fontWeight: 600 }}>MXN</span>
             </div>
           </div>
           {taxed?.applies && chosenAmount != null && (

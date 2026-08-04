@@ -35,7 +35,6 @@ import Greetings from "./services/Greetings";
 import Advice from "./services/Advice";
 import MeetGreet from "./services/MeetGreet";
 import CustomClass from "./services/CustomClass";
-import Donation from "./services/Donation";
 import {
   SERVICE_EMOJIS, SpinningGear, Switch, DonationModeButton,
   buildManualLegacyRemovalSuccessMessage, buildOffering, buildServiceBlockDraft,
@@ -47,6 +46,18 @@ import {
   type Props, type ServiceDraft,
 } from "./OwnerAdminServices.parts";
 import { ConfirmModal, OverlayModal } from "./OwnerAdminServices.modals";
+
+// Kit visual COMPARTIDO con el perfil: mismos overlays con imagen de fondo, switch,
+// colores de acento y estilos → los cards de configuración quedan idénticos a los del
+// perfil. La donación usa el MISMO componente compartido (scope="group").
+import DonationConfigCard from "@/components/services/config/DonationConfigCard";
+import {
+  SaludoOverlay, ConsejoOverlay, MeetGreetOverlay, CustomClassOverlay, DonationOverlay,
+  Switch as RichSwitch, SERVICE_COLORS, makeServiceConfigStyles,
+  MEET_GREET_MIN_MINUTES, MEET_GREET_MAX_MINUTES,
+  CUSTOM_CLASS_MIN_MINUTES, CUSTOM_CLASS_MAX_MINUTES,
+} from "@/components/services/config/serviceConfigKit";
+import { BRAND_DOMAIN } from "@/lib/brand";
 
 export default function OwnerAdminServices({
   groupId,
@@ -348,6 +359,14 @@ export default function OwnerAdminServices({
     fontFamily: fontStack,
     lineHeight: 1.1,
     width: "100%",
+  };
+
+  // Estilos e imágenes de fondo compartidos con el perfil (mismos cards de servicio).
+  // La SUSCRIPCIÓN conserva los estilos "planos" de arriba (rediseño aparte, pendiente).
+  const richStyles = makeServiceConfigStyles();
+  const groupPublishSuccess = {
+    shareUrl: `https://${BRAND_DOMAIN}/groups/${groupId}`,
+    entityKind: "community" as const,
   };
 
   async function handleConfirmRemoveLegacyFreeMembersLater() {
@@ -920,8 +939,10 @@ export default function OwnerAdminServices({
       setDraft(nextSaved);
       setSavedDraft(nextSaved);
       showAdminServicesToast(successMessage);
+      return true;
     } catch (e: unknown) {
       showAdminServicesToast((e instanceof Error ? e.message : null) ?? "❌ No se pudieron guardar los servicios.", "error");
+      return false;
     } finally {
       skipHydrationWhileSavingRef.current = false;
       setSaving(false);
@@ -960,15 +981,19 @@ export default function OwnerAdminServices({
         draft={draft}
         saving={saving}
         saludoEmoji={SERVICE_EMOJIS.saludo}
-        panelStyle={panelStyle}
-        titleStyle={titleStyle}
-        subtleStyle={subtleStyle}
-        inputStyle={inputStyle}
-        buttonSecondaryStyle={buttonSecondaryStyle}
+        accentColor={SERVICE_COLORS.saludo}
+        showDescription
+        descriptionStyle={richStyles.descriptionStyle}
+        panelStyle={draft.saludo.enabled ? richStyles.servicePanelStyles.saludo : richStyles.plainPanelStyle}
+        titleStyle={richStyles.titleStyle}
+        subtleStyle={richStyles.subtleStyle}
+        inputStyle={richStyles.inputStyle}
+        buttonSecondaryStyle={richStyles.buttonSecondaryStyle}
         calcNetAmount={calcNetAmount}
         formatMoney={formatMoney}
-        SwitchComponent={Switch}
-        OverlayModalComponent={OverlayModal}
+        SwitchComponent={RichSwitch}
+        OverlayModalComponent={SaludoOverlay}
+        publishSuccess={groupPublishSuccess}
         onSaveDraft={saveServicesFromDraft}
       />
 
@@ -976,15 +1001,19 @@ export default function OwnerAdminServices({
         draft={draft}
         saving={saving}
         consejoEmoji={SERVICE_EMOJIS.consejo}
-        panelStyle={panelStyle}
-        titleStyle={titleStyle}
-        subtleStyle={subtleStyle}
-        inputStyle={inputStyle}
-        buttonSecondaryStyle={buttonSecondaryStyle}
+        accentColor={SERVICE_COLORS.consejo}
+        showDescription
+        descriptionStyle={richStyles.descriptionStyle}
+        panelStyle={draft.consejo.enabled ? richStyles.servicePanelStyles.consejo : richStyles.plainPanelStyle}
+        titleStyle={richStyles.titleStyle}
+        subtleStyle={richStyles.subtleStyle}
+        inputStyle={richStyles.inputStyle}
+        buttonSecondaryStyle={richStyles.buttonSecondaryStyle}
         calcNetAmount={calcNetAmount}
         formatMoney={formatMoney}
-        SwitchComponent={Switch}
-        OverlayModalComponent={OverlayModal}
+        SwitchComponent={RichSwitch}
+        OverlayModalComponent={ConsejoOverlay}
+        publishSuccess={groupPublishSuccess}
         onSaveDraft={saveServicesFromDraft}
       />
 
@@ -992,15 +1021,21 @@ export default function OwnerAdminServices({
         draft={draft}
         saving={saving}
         meetGreetEmoji={SERVICE_EMOJIS.meetGreet}
-        panelStyle={panelStyle}
-        titleStyle={titleStyle}
-        subtleStyle={subtleStyle}
-        inputStyle={inputStyle}
-        buttonSecondaryStyle={buttonSecondaryStyle}
+        accentColor={SERVICE_COLORS.meetGreet}
+        showDescription
+        descriptionStyle={richStyles.descriptionStyle}
+        panelStyle={draft.meetGreet.enabled ? richStyles.servicePanelStyles.meetGreet : richStyles.plainPanelStyle}
+        titleStyle={richStyles.titleStyle}
+        subtleStyle={richStyles.subtleStyle}
+        inputStyle={richStyles.inputStyle}
+        buttonSecondaryStyle={richStyles.buttonSecondaryStyle}
         calcNetAmount={calcNetAmount}
         formatMoney={formatMoney}
-        SwitchComponent={Switch}
-        OverlayModalComponent={OverlayModal}
+        SwitchComponent={RichSwitch}
+        OverlayModalComponent={MeetGreetOverlay}
+        publishSuccess={groupPublishSuccess}
+        durationMin={MEET_GREET_MIN_MINUTES}
+        durationMax={MEET_GREET_MAX_MINUTES}
         onSaveDraft={saveServicesFromDraft}
       />
 
@@ -1008,36 +1043,41 @@ export default function OwnerAdminServices({
         draft={draft}
         saving={saving}
         customClassEmoji={SERVICE_EMOJIS.customClass}
-        panelStyle={panelStyle}
-        titleStyle={titleStyle}
-        subtleStyle={subtleStyle}
-        inputStyle={inputStyle}
-        buttonSecondaryStyle={buttonSecondaryStyle}
+        accentColor={SERVICE_COLORS.customClass}
+        showDescription
+        descriptionStyle={richStyles.descriptionStyle}
+        panelStyle={draft.customClass.enabled ? richStyles.servicePanelStyles.customClass : richStyles.plainPanelStyle}
+        titleStyle={richStyles.titleStyle}
+        subtleStyle={richStyles.subtleStyle}
+        inputStyle={richStyles.inputStyle}
+        buttonSecondaryStyle={richStyles.buttonSecondaryStyle}
         calcNetAmount={calcNetAmount}
         formatMoney={formatMoney}
-        SwitchComponent={Switch}
-        OverlayModalComponent={OverlayModal}
+        SwitchComponent={RichSwitch}
+        OverlayModalComponent={CustomClassOverlay}
+        publishSuccess={groupPublishSuccess}
+        durationMin={CUSTOM_CLASS_MIN_MINUTES}
+        durationMax={CUSTOM_CLASS_MAX_MINUTES}
         onSaveDraft={saveServicesFromDraft}
       />
 
-      <Donation
+      <DonationConfigCard
         draft={draft}
-        savedDraft={savedDraft}
         saving={saving}
-        removingLegacyMembers={removingLegacyMembers}
-        donationEmoji={SERVICE_EMOJIS.donation}
-        groupId={groupId}
-        panelStyle={panelStyle}
-        titleStyle={titleStyle}
-        subtleStyle={subtleStyle}
-        inputStyle={inputStyle}
-        buttonSecondaryStyle={buttonSecondaryStyle}
-        calcNetAmount={calcNetAmount}
-        formatMoney={formatMoney}
-        OverlayModalComponent={OverlayModal}
+        scope="group"
+        entityId={groupId}
+        accentColor={SERVICE_COLORS.donation}
+        descriptionStyle={richStyles.descriptionStyle}
+        panelStyle={draft.donationMode !== "none" ? richStyles.servicePanelStyles.donation : richStyles.plainPanelStyle}
+        titleStyle={richStyles.titleStyle}
+        subtleStyle={richStyles.subtleStyle}
+        inputStyle={richStyles.inputStyle}
+        buttonSecondaryStyle={richStyles.buttonSecondaryStyle}
+        SwitchComponent={RichSwitch}
         DonationModeButtonComponent={DonationModeButton}
-        SwitchComponent={Switch}
-        onSaveDraft={saveServicesFromDraft}
+        OverlayModalComponent={DonationOverlay}
+        publishSuccess={groupPublishSuccess}
+        onSaveDraft={(d) => saveServicesFromDraft(d as unknown as ServiceDraft)}
       />
 
       <VibraToast toast={adminServicesToast} />

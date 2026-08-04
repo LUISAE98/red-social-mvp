@@ -32,6 +32,54 @@ import type {
   GroupOffering,
 } from "@/types/group";
 
+// El kit visual (OverlayModal rico, variantes, Switch, colores, constantes,
+// helpers de montos) vive ahora en components/services/config para compartirlo
+// con la comunidad. Se importa aquí (para uso interno) y se re-exporta (para los
+// consumidores actuales de este parts, que no cambian).
+import {
+  useLockBodyScroll,
+  useCloseOnEscape,
+  Switch,
+  DonationModeButton,
+  OverlayModal,
+  makeOverlayWithBg,
+  SaludoOverlay,
+  ConsejoOverlay,
+  MeetGreetOverlay,
+  CustomClassOverlay,
+  DonationOverlay,
+  SERVICE_EMOJIS,
+  SERVICE_COLORS,
+  DEFAULT_DONATION_SUGGESTED_AMOUNTS,
+  normalizeSuggestedAmounts,
+  MEET_GREET_MIN_MINUTES,
+  MEET_GREET_MAX_MINUTES,
+  CUSTOM_CLASS_MIN_MINUTES,
+  CUSTOM_CLASS_MAX_MINUTES,
+} from "@/components/services/config/serviceConfigKit";
+
+export {
+  useLockBodyScroll,
+  useCloseOnEscape,
+  Switch,
+  DonationModeButton,
+  OverlayModal,
+  makeOverlayWithBg,
+  SaludoOverlay,
+  ConsejoOverlay,
+  MeetGreetOverlay,
+  CustomClassOverlay,
+  DonationOverlay,
+  SERVICE_EMOJIS,
+  SERVICE_COLORS,
+  DEFAULT_DONATION_SUGGESTED_AMOUNTS,
+  normalizeSuggestedAmounts,
+  MEET_GREET_MIN_MINUTES,
+  MEET_GREET_MAX_MINUTES,
+  CUSTOM_CLASS_MIN_MINUTES,
+  CUSTOM_CLASS_MAX_MINUTES,
+};
+
 export type OfferingInput =
   | {
       type?: CreatorServiceType | string;
@@ -127,42 +175,6 @@ export type ServiceDraft = {
   subscriptionPriceIncreasePolicy: SubscriptionPriceIncreasePolicy;
 };
 
-// Montos sugeridos de donación por defecto (MXN crudo). Cada uno debe ser >= 50.
-export const DEFAULT_DONATION_SUGGESTED_AMOUNTS: string[] = ["50", "120", "250", "490"];
-
-// Normaliza cualquier entrada a EXACTAMENTE 4 montos (string): usa el valor
-// guardado si es un número válido (> 0), o el default de esa posición.
-export function normalizeSuggestedAmounts(input: unknown): string[] {
-  const arr = Array.isArray(input) ? input : [];
-  return DEFAULT_DONATION_SUGGESTED_AMOUNTS.map((def, i) => {
-    const n = Number(arr[i]);
-    return Number.isFinite(n) && n > 0 ? String(n) : def;
-  });
-}
-
-export const SERVICE_EMOJIS = {
-  saludo: "👋",
-  consejo: "💡",
-  meetGreet: "🤝",
-  customClass: "👑",
-  donation: "🎁",
-};
-
-// Color de acento por servicio. Cuando el servicio está inactivo se muestra un
-// ícono info (i en círculo) con este color en lugar del emoji.
-export const SERVICE_COLORS = {
-  saludo: "#b45cff", // morado
-  consejo: "#f7c948", // amarillo
-  meetGreet: "#2563eb", // azul oscuro (tiempo contigo, color de su flujo de sesión)
-  customClass: "#f472b6", // rosa (sesión exclusiva)
-  donation: "#b23a5b", // vino
-};
-
-// Rangos de duración permitidos (minutos) por tipo de servicio.
-export const MEET_GREET_MIN_MINUTES = 5; // Tiempo contigo
-export const MEET_GREET_MAX_MINUTES = 25;
-export const CUSTOM_CLASS_MIN_MINUTES = 5; // Sesión exclusiva
-export const CUSTOM_CLASS_MAX_MINUTES = 90;
 
 export function createEmptyWeeklyAvailability(): WeeklyAvailabilityDraft {
   return {
@@ -338,471 +350,4 @@ export function calcNetAmount(raw: string) {
   return { gross: n, net };
 }
 
-export function Switch({
-  checked,
-  onChange,
-  disabled = false,
-  label,
-  activeColor,
-}: {
-  checked: boolean;
-  onChange: (next: boolean) => void;
-  disabled?: boolean;
-  label?: string;
-  activeColor?: string;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={() => !disabled && onChange(!checked)}
-      disabled={disabled}
-      aria-pressed={checked}
-      aria-label={label}
-      title={label}
-      style={{
-        position: "relative",
-        width: 36,
-        minWidth: 36,
-        maxWidth: 36,
-        height: 20,
-        minHeight: 20,
-        maxHeight: 20,
-        borderRadius: 999,
-        border: "none",
-        background: checked
-          ? (activeColor ?? "linear-gradient(100deg, #a855f7, #4f46ff)")
-          : "rgba(255,255,255,0.10)",
-        padding: 0,
-        cursor: disabled ? "not-allowed" : "pointer",
-        opacity: disabled ? 0.55 : 1,
-        transition: "all 0.2s ease",
-        flexShrink: 0,
-        boxSizing: "border-box",
-      }}
-    >
-      <span
-        style={{
-          position: "absolute",
-          top: 2,
-          left: checked ? 18 : 2,
-          width: 14,
-          height: 14,
-          borderRadius: "50%",
-          background: "#fff",
-          transition: "all 0.2s ease",
-        }}
-      />
-    </button>
-  );
-}
-
-export function DonationModeButton({
-  active,
-  disabled,
-  label,
-  onClick,
-}: {
-  active: boolean;
-  disabled?: boolean;
-  label: string;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      disabled={disabled}
-      onClick={onClick}
-      style={{
-        padding: "10px 12px",
-        borderRadius: 12,
-        border: active
-          ? "1px solid rgba(255,255,255,0.92)"
-          : "1px solid rgba(255,255,255,0.12)",
-        background: active ? "#fff" : "rgba(255,255,255,0.04)",
-        color: active ? "#000" : "#fff",
-        cursor: disabled ? "not-allowed" : "pointer",
-        fontWeight: 700,
-        fontSize: 12,
-        fontFamily:
-          'inherit',
-        transition: "all 160ms ease",
-        minHeight: 42,
-      }}
-    >
-      {label}
-    </button>
-  );
-}
-
-export const useLockBodyScroll = useBodyScrollLock;
-
-export function useCloseOnEscape(active: boolean, onClose: () => void, disabled = false) {
-  useEffect(() => {
-    if (!active || disabled || typeof window === "undefined") return;
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [active, onClose, disabled]);
-}
-
-export function OverlayModal({
-  open,
-  title,
-  children,
-  confirmLabel: confirmLabelProp,
-  loading = false,
-  confirmDisabled = false,
-  hideFooter = false,
-  onConfirm,
-  onCancel,
-  bgImage,
-  bgPosition = "center",
-  accentColor,
-}: {
-  open: boolean;
-  title: string;
-  children: React.ReactNode;
-  confirmLabel?: string;
-  cancelLabel?: string;
-  loading?: boolean;
-  /** Deshabilita el botón de acción (sin spinner) hasta que sea válido publicar. */
-  confirmDisabled?: boolean;
-  /** Oculta el footer (botón de acción). Se usa en la vista de éxito. */
-  hideFooter?: boolean;
-  onConfirm: () => void;
-  onCancel: () => void;
-  /** Imagen de fondo del panel (misma del servicio). Se atenúa para legibilidad. */
-  bgImage?: string;
-  bgPosition?: string;
-  /** Color de acento del servicio (color de sus items). Tiñe el botón de acción. */
-  accentColor?: string;
-}) {
-  const tCommon = useTranslations("common");
-  const confirmLabel = confirmLabelProp ?? tCommon("saveChanges");
-
-  // Entrada/salida animada: se mantiene montado 180ms para que la salida
-  // complete antes de desmontar (spec Panel base, vibra_style.md).
-  const [rendered, setRendered] = useState(open);
-  const [closing, setClosing] = useState(false);
-  useEffect(() => {
-    if (open) {
-      setRendered(true);
-      setClosing(false);
-      return;
-    }
-    if (rendered) {
-      setClosing(true);
-      const t = setTimeout(() => {
-        setRendered(false);
-        setClosing(false);
-      }, 180);
-      return () => clearTimeout(t);
-    }
-  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  useLockBodyScroll(rendered);
-  useCloseOnEscape(open, onCancel, loading);
-
-  if (!rendered) return null;
-
-  return createPortal(
-    <>
-      <style jsx global>{`
-        @keyframes vibraServicePanelIn {
-          from {
-            opacity: 0;
-            transform: scale(0.94) translateY(10px);
-          }
-          to {
-            opacity: 1;
-            transform: scale(1) translateY(0);
-          }
-        }
-        @keyframes vibraServicePanelOut {
-          from {
-            opacity: 1;
-            transform: scale(1) translateY(0);
-          }
-          to {
-            opacity: 0;
-            transform: scale(0.94) translateY(10px);
-          }
-        }
-        .vibra-panel-scroll::-webkit-scrollbar {
-          width: 7px;
-          height: 7px;
-        }
-        .vibra-panel-scroll::-webkit-scrollbar-track {
-          background: transparent;
-        }
-        .vibra-panel-scroll::-webkit-scrollbar-thumb {
-          background: rgba(255, 255, 255, 0.18);
-          border-radius: 999px;
-        }
-        /* Puntos parpadeantes del botón "Publicando..." */
-        @keyframes vibraPublishDotBlink {
-          0%,
-          80%,
-          100% {
-            opacity: 0.2;
-          }
-          40% {
-            opacity: 1;
-          }
-        }
-        .vibraPublishDots span {
-          animation: vibraPublishDotBlink 1.4s infinite both;
-        }
-        .vibraPublishDots span:nth-child(2) {
-          animation-delay: 0.2s;
-        }
-        .vibraPublishDots span:nth-child(3) {
-          animation-delay: 0.4s;
-        }
-        /* Barra de carga bajo el título: se llena de 0 a 100% del ancho. */
-        @keyframes vibraPublishBarFill {
-          0% {
-            width: 0%;
-          }
-          100% {
-            width: 100%;
-          }
-        }
-        .vibraPublishBar {
-          position: absolute;
-          left: 0;
-          top: 0;
-          height: 100%;
-          width: 0%;
-          background: #fff;
-          border-radius: 999px;
-          animation: vibraPublishBarFill 1.1s ease-in-out infinite;
-        }
-      `}</style>
-      <div
-        role="dialog"
-        aria-modal="true"
-        onMouseDown={(e) => {
-          if (!loading && e.target === e.currentTarget) onCancel();
-        }}
-        style={{
-          position: "fixed",
-          inset: 0,
-          zIndex: 999999,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: 24,
-          background: "rgba(0,0,0,0.88)",
-          fontFamily: "inherit",
-          overscrollBehavior: "contain",
-        }}
-      >
-        <section
-          style={{
-            width: "min(100%, 540px)",
-            maxHeight: "min(88vh, 680px)",
-            display: "flex",
-            flexDirection: "column",
-            borderRadius: 18,
-            background: bgImage
-              ? `linear-gradient(rgba(10,10,10,0.88), rgba(10,10,10,0.94)), url('${bgImage}') ${bgPosition}/cover no-repeat`
-              : "#0a0a0a",
-            boxShadow:
-              "0 0 0 1px rgba(255,255,255,0.08), 0 32px 72px rgba(0,0,0,0.9)",
-            color: "#fff",
-            overflow: "hidden",
-            animation: closing
-              ? "vibraServicePanelOut 180ms ease-in forwards"
-              : "vibraServicePanelIn 180ms ease-out",
-          }}
-        >
-          {/* Header: [vacío | título centrado | X] */}
-          <div
-            style={{
-              height: 56,
-              display: "grid",
-              gridTemplateColumns: "48px 1fr 48px",
-              alignItems: "center",
-              padding: "0 12px",
-              borderBottom: "1px solid rgba(255,255,255,0.12)",
-              flexShrink: 0,
-              position: "relative",
-            }}
-          >
-            <div aria-hidden="true" />
-            <span
-              style={{
-                fontSize: 17,
-                fontWeight: 500,
-                color: "#fff",
-                lineHeight: 1.2,
-                textAlign: "center",
-                letterSpacing: "-0.02em",
-              }}
-            >
-              {title}
-            </span>
-            <button
-              type="button"
-              onClick={onCancel}
-              disabled={loading}
-              aria-label={tCommon("cancel")}
-              style={{
-                border: "none",
-                background: "none",
-                color: "#fff",
-                cursor: loading ? "not-allowed" : "pointer",
-                display: "grid",
-                placeItems: "center",
-                justifySelf: "end",
-                padding: 4,
-                opacity: loading ? 0.5 : 1,
-              }}
-            >
-              <svg
-                width="18"
-                height="18"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-              >
-                <line x1="18" y1="6" x2="6" y2="18" />
-                <line x1="6" y1="6" x2="18" y2="18" />
-              </svg>
-            </button>
-
-            {/* Barra de carga indeterminada, sobre la línea del título. */}
-            {loading && (
-              <div
-                aria-hidden="true"
-                style={{
-                  position: "absolute",
-                  left: 0,
-                  right: 0,
-                  bottom: -1,
-                  height: 2,
-                  overflow: "hidden",
-                }}
-              >
-                <div className="vibraPublishBar" />
-              </div>
-            )}
-          </div>
-
-          {/* Área de contenido con scroll */}
-          <div
-            className="vibra-panel-scroll"
-            style={{
-              flex: 1,
-              overflowY: "auto",
-              minHeight: 0,
-              padding: "18px 20px 8px",
-            }}
-          >
-            <div style={{ display: "grid", gap: 12 }}>{children}</div>
-          </div>
-
-          {/* Footer: botón de acción principal (a lo ancho) */}
-          {!hideFooter && (
-          <div
-            style={{
-              padding: "14px 20px 18px",
-              borderTop: "1px solid rgba(255,255,255,0.12)",
-              flexShrink: 0,
-            }}
-          >
-            <button
-              type="button"
-              onClick={onConfirm}
-              disabled={loading || confirmDisabled}
-              style={{
-                width: "100%",
-                height: 42,
-                borderRadius: 5,
-                border: "none",
-                background:
-                  loading || confirmDisabled
-                    ? "rgba(255,255,255,0.1)"
-                    : accentColor ?? "#a855f7",
-                color:
-                  loading || confirmDisabled
-                    ? "rgba(255,255,255,0.36)"
-                    : "rgba(255,255,255,0.98)",
-                fontSize: 17,
-                fontWeight: 500,
-                fontFamily: "inherit",
-                cursor: loading || confirmDisabled ? "not-allowed" : "pointer",
-                letterSpacing: "-0.02em",
-                display: "grid",
-                placeItems: "center",
-              }}
-            >
-              {loading ? (
-                <span style={{ display: "inline-flex", alignItems: "baseline" }}>
-                  {tCommon("publishing")}
-                  <span className="vibraPublishDots" aria-hidden="true">
-                    <span>.</span>
-                    <span>.</span>
-                    <span>.</span>
-                  </span>
-                </span>
-              ) : (
-                confirmLabel
-              )}
-            </button>
-          </div>
-          )}
-        </section>
-      </div>
-    </>,
-    document.body
-  );
-}
-
-// Variantes de OverlayModal con la imagen de fondo de cada experiencia. Se
-// definen a nivel de módulo (identidad estable) para que el panel no se
-// remonte en cada render del formulario y no pierda foco/estado. La posición
-// del recorte reutiliza la misma de las cards (makeServicePanelStyle).
-// accentColor = color de los items de ese servicio; tiñe el botón de acción.
-export const makeOverlayWithBg = (
-  bgImage: string,
-  bgPosition: string,
-  accentColor: string
-) => {
-  function OverlayWithBg(props: React.ComponentProps<typeof OverlayModal>) {
-    return (
-      <OverlayModal
-        {...props}
-        bgImage={bgImage}
-        bgPosition={bgPosition}
-        accentColor={accentColor}
-      />
-    );
-  }
-  return OverlayWithBg;
-};
-export const SaludoOverlay = makeOverlayWithBg("/saludo.webp", "center 32%", "#b45cff");
-export const ConsejoOverlay = makeOverlayWithBg("/consejo.webp", "center 60%", "#f7c948");
-export const MeetGreetOverlay = makeOverlayWithBg(
-  "/encuentroenvivo.webp",
-  "center 60%",
-  "#2563eb"
-);
-export const CustomClassOverlay = makeOverlayWithBg(
-  "/sesionexclusiva.webp",
-  "center 75%",
-  "#f472b6"
-);
-export const DonationOverlay = makeOverlayWithBg(
-  "/donacion-perfil.webp",
-  "center 50%",
-  "#7dd3fc"
-);
 
