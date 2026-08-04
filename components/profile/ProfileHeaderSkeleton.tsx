@@ -54,9 +54,28 @@ export default function ProfileHeaderSkeleton({
           margin: 0 auto;
           box-sizing: border-box;
         }
+        .vb-hdr-cover-wrap {
+          position: relative;
+          width: 100%;
+        }
         .vb-hdr-cover {
           width: 100%;
           height: ${COVER_H};
+        }
+        /* Difuminado inferior a negro, igual que el overlay de la portada real. */
+        .vb-hdr-cover-fade {
+          position: absolute;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          height: 48%;
+          background: linear-gradient(
+            to bottom,
+            rgba(0, 0, 0, 0) 0%,
+            rgba(0, 0, 0, 0.55) 55%,
+            #000 100%
+          );
+          pointer-events: none;
         }
         .vb-hdr-body {
           padding: 0 18px 8px;
@@ -75,6 +94,10 @@ export default function ProfileHeaderSkeleton({
           border-radius: 50%;
           margin-top: calc(${AVATAR} / -2);
           border: 4px solid #000;
+          /* Base OPACA (no rgba translúcido): así no se ve la portada detrás.
+             Se mantiene la onda shimmer de .vb-skel encima de este sólido. */
+          background-color: #161616;
+          z-index: 1;
         }
         .vb-hdr-name {
           width: min(60%, 220px);
@@ -141,7 +164,10 @@ export default function ProfileHeaderSkeleton({
         }
       `}</style>
 
-      <div className="vb-skel vb-hdr-cover" />
+      <div className="vb-hdr-cover-wrap">
+        <div className="vb-skel vb-hdr-cover" />
+        <div className="vb-hdr-cover-fade" />
+      </div>
       <div className="vb-hdr-body">
         <div className="vb-skel vb-hdr-avatar" />
         <div className="vb-skel vb-hdr-name" />
