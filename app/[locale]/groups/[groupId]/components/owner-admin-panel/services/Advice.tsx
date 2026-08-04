@@ -262,15 +262,6 @@ export default function Consejos({
       <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 12 }}>
         {/* Izquierda: cuánto ganas, visibilidad y botón Modificar. */}
         <div style={{ display: "grid", gap: 8, minWidth: 0 }}>
-          {consejoCalc ? (
-            <div style={subtleStyle}>
-              {tServices("adviceEarningsDesc", {
-                gross: formatMoney(consejoCalc.gross, draft.consejo.currency),
-                net: formatMoney(consejoCalc.net, draft.consejo.currency),
-              })}
-            </div>
-          ) : null}
-
           <div style={subtleStyle}>
             {tServices("meetGreetMembersVisibility")}
           </div>
@@ -302,6 +293,14 @@ export default function Consejos({
             </span>
             <span style={{ fontSize: 12, fontWeight: 400, color: "rgba(255,255,255,0.5)" }}>+ 3 MXN</span>
           </div>
+          {consejoCalc ? (
+            <div style={{ ...subtleStyle, textAlign: "right", maxWidth: 200, marginTop: 2 }}>
+              {tServices("adviceEarningsDesc", {
+                gross: formatMoney(consejoCalc.gross, draft.consejo.currency),
+                net: formatMoney(consejoCalc.net, draft.consejo.currency),
+              })}
+            </div>
+          ) : null}
         </div>
       </div>
     );

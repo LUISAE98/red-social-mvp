@@ -268,15 +268,6 @@ export default function Saludos({
       <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 12 }}>
         {/* Izquierda: cuánto ganas, visibilidad y botón Modificar. */}
         <div style={{ display: "grid", gap: 8, minWidth: 0 }}>
-          {saludoCalc ? (
-            <div style={subtleStyle}>
-              {tServices("greetingEarningsDesc", {
-                gross: formatMoney(saludoCalc.gross, draft.saludo.currency),
-                net: formatMoney(saludoCalc.net, draft.saludo.currency),
-              })}
-            </div>
-          ) : null}
-
           <div style={subtleStyle}>
             {tServices("meetGreetMembersVisibility")}
           </div>
@@ -308,6 +299,14 @@ export default function Saludos({
             </span>
             <span style={{ fontSize: 12, fontWeight: 400, color: "rgba(255,255,255,0.5)" }}>+ 3 MXN</span>
           </div>
+          {saludoCalc ? (
+            <div style={{ ...subtleStyle, textAlign: "right", maxWidth: 200, marginTop: 2 }}>
+              {tServices("greetingEarningsDesc", {
+                gross: formatMoney(saludoCalc.gross, draft.saludo.currency),
+                net: formatMoney(saludoCalc.net, draft.saludo.currency),
+              })}
+            </div>
+          ) : null}
         </div>
       </div>
     );

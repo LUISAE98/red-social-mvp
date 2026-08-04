@@ -289,15 +289,6 @@ export default function CustomClass({
             </div>
           </div>
 
-          {customClassCalc ? (
-            <div style={subtleStyle}>
-              {tServices("customClassEarningsDesc", {
-                gross: formatMoney(customClassCalc.gross, draft.customClass.currency),
-                net: formatMoney(customClassCalc.net, draft.customClass.currency),
-              })}
-            </div>
-          ) : null}
-
           <div style={subtleStyle}>
             {tServices("meetGreetMembersVisibility")}
           </div>
@@ -332,6 +323,14 @@ export default function CustomClass({
             </span>
             <span style={{ fontSize: 12, fontWeight: 400, color: "rgba(255,255,255,0.5)" }}>+ 3 MXN</span>
           </div>
+          {customClassCalc ? (
+            <div style={{ ...subtleStyle, textAlign: "right", maxWidth: 200, marginTop: 2 }}>
+              {tServices("customClassEarningsDesc", {
+                gross: formatMoney(customClassCalc.gross, draft.customClass.currency),
+                net: formatMoney(customClassCalc.net, draft.customClass.currency),
+              })}
+            </div>
+          ) : null}
         </div>
       </div>
     );
