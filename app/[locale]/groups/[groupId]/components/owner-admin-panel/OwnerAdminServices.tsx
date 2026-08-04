@@ -962,13 +962,14 @@ export default function OwnerAdminServices({
           }
         }
         /* En celular cada card de experiencia llega de lado a lado (full-bleed):
-           los márgenes negativos vs viewport anulan el padding lateral. El heading
-           "Configura tus experiencias" queda inset. (La suscripción no lleva la
-           clase serviceActivationPanel, así que se queda inset — rediseño aparte.) */
-        @media (max-width: 559px) {
+           se anula EXACTAMENTE el padding lateral de .services-tab-margins (10px),
+           quedando edge-to-edge y SIMÉTRICO (sin depender de 50vw, que con el
+           scrollbar-gutter descentraba). El heading queda inset. (La suscripción no
+           lleva la clase serviceActivationPanel, así que se queda inset.) */
+        @media (max-width: 900px) {
           .services-tab-margins :global(.serviceActivationPanel) {
-            margin-left: calc(50% - 50vw);
-            margin-right: calc(50% - 50vw);
+            margin-left: -10px;
+            margin-right: -10px;
           }
         }
       `}</style>

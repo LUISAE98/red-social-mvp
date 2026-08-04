@@ -579,12 +579,13 @@ export default function ProfileServicesTab({
           }
         }
         /* En celular cada card de experiencia llega de lado a lado (full-bleed):
-           los márgenes negativos vs viewport anulan el padding lateral de la
-           pestaña. El heading "Configura tus experiencias" queda inset. */
-        @media (max-width: 559px) {
+           se anula EXACTAMENTE el padding lateral de .services-tab-margins (10px),
+           así queda edge-to-edge y SIMÉTRICO (sin depender de 50vw, que con el
+           scrollbar-gutter descentraba). El heading queda inset. */
+        @media (max-width: 900px) {
           .services-tab-margins :global(.serviceActivationPanel) {
-            margin-left: calc(50% - 50vw);
-            margin-right: calc(50% - 50vw);
+            margin-left: -10px;
+            margin-right: -10px;
           }
         }
       `}</style>

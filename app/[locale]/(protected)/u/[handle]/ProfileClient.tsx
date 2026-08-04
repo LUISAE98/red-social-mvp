@@ -1151,24 +1151,43 @@ useEffect(() => {
   useEffect(() => {
     setCoverLoaded(false);
     // Si la imagen ya está cacheada, onLoad puede no dispararse: detectamos
-    // completitud por ref (inmediato y en el próximo frame por si aún no montó).
+    // completitud por ref, reintentamos unos frames, y como último recurso un
+    // fallback por tiempo garantiza que el skeleton NUNCA se quede pegado.
+    let cancelled = false;
     const settle = () => {
+      if (cancelled) return;
       const img = coverImgRef.current;
       if (img && img.complete && img.naturalWidth > 0) setCoverLoaded(true);
     };
     settle();
     const raf = requestAnimationFrame(settle);
-    return () => cancelAnimationFrame(raf);
+    const polls = [150, 400, 900].map((ms) => setTimeout(settle, ms));
+    const fb = setTimeout(() => { if (!cancelled) setCoverLoaded(true); }, 2500);
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(raf);
+      polls.forEach(clearTimeout);
+      clearTimeout(fb);
+    };
   }, [coverRenderUrl, userDoc?.coverUrl]);
   useEffect(() => {
     setAvatarLoaded(false);
+    let cancelled = false;
     const settle = () => {
+      if (cancelled) return;
       const img = avatarImgRef.current;
       if (img && img.complete && img.naturalWidth > 0) setAvatarLoaded(true);
     };
     settle();
     const raf = requestAnimationFrame(settle);
-    return () => cancelAnimationFrame(raf);
+    const polls = [150, 400, 900].map((ms) => setTimeout(settle, ms));
+    const fb = setTimeout(() => { if (!cancelled) setAvatarLoaded(true); }, 2500);
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(raf);
+      polls.forEach(clearTimeout);
+      clearTimeout(fb);
+    };
   }, [avatarRenderUrl, userDoc?.photoURL]);
 
   const openCropWithFile = useCallback(
