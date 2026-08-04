@@ -294,7 +294,7 @@ export default function Consejos({
             <span style={{ fontSize: 12, fontWeight: 400, color: "rgba(255,255,255,0.5)" }}>+ 3 MXN</span>
           </div>
           {consejoCalc ? (
-            <div style={{ ...subtleStyle, textAlign: "right", maxWidth: 200, marginTop: 2 }}>
+            <div style={{ ...subtleStyle, textAlign: "right", whiteSpace: "nowrap", marginTop: 2 }}>
               {tServices("adviceEarningsDesc", {
                 gross: formatMoney(consejoCalc.gross, draft.consejo.currency),
                 net: formatMoney(consejoCalc.net, draft.consejo.currency),

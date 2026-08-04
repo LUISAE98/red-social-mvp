@@ -328,7 +328,7 @@ export default function MeetGreet({
             <span style={{ fontSize: 12, fontWeight: 400, color: "rgba(255,255,255,0.5)" }}>+ 3 MXN</span>
           </div>
           {meetGreetCalc ? (
-            <div style={{ ...subtleStyle, textAlign: "right", maxWidth: 200, marginTop: 2 }}>
+            <div style={{ ...subtleStyle, textAlign: "right", whiteSpace: "nowrap", marginTop: 2 }}>
               {tServices("meetGreetEarningsDesc", {
                 gross: formatMoney(meetGreetCalc.gross, draft.meetGreet.currency),
                 net: formatMoney(meetGreetCalc.net, draft.meetGreet.currency),

@@ -300,7 +300,7 @@ export default function Saludos({
             <span style={{ fontSize: 12, fontWeight: 400, color: "rgba(255,255,255,0.5)" }}>+ 3 MXN</span>
           </div>
           {saludoCalc ? (
-            <div style={{ ...subtleStyle, textAlign: "right", maxWidth: 200, marginTop: 2 }}>
+            <div style={{ ...subtleStyle, textAlign: "right", whiteSpace: "nowrap", marginTop: 2 }}>
               {tServices("greetingEarningsDesc", {
                 gross: formatMoney(saludoCalc.gross, draft.saludo.currency),
                 net: formatMoney(saludoCalc.net, draft.saludo.currency),
