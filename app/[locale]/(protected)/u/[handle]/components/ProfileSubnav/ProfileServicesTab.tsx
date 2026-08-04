@@ -591,7 +591,7 @@ export default function ProfileServicesTab({
       <div className="services-tab-margins" style={contentStyle}>
       <h2
         style={{
-          margin: 0,
+          margin: "0 0 7px",
           fontSize: 16,
           fontWeight: 600,
           lineHeight: 1.2,
