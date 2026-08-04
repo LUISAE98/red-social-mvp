@@ -10,6 +10,7 @@ import {
 } from "react";
 import { useTranslations } from "next-intl";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
+import { FIXED_SERVICE_FEE_MXN } from "@/lib/currency/catalog";
 import type { Post } from "@/lib/posts/types";
 import {
   fetchGroupMediaPage,
@@ -343,7 +344,7 @@ export default function MediaGallery({
   onOpenTile,
 }: MediaGalleryProps) {
   const tPosts = useTranslations("posts");
-  const { format: formatMoney } = usePriceFormat();
+  const { formatWithTax } = usePriceFormat();
 
   const [posts, setPosts] = useState<Post[]>([]);
   const [cursor, setCursor] = useState<GroupPostsPageCursor | null>(null);
@@ -540,11 +541,11 @@ export default function MediaGallery({
   }
 
   const liveBadgeLabel = tPosts("mediaLiveBadge");
+  // Precio del candado ya con todo incluido: (base + $3) + IVA (la pasarela desglosa el IVA).
   const formatLockedPrice = (post: Post) =>
-    formatMoney(post.oneTimePrice ?? 0, {
+    formatWithTax((post.oneTimePrice ?? 0) + FIXED_SERVICE_FEE_MXN, {
       baseCurrency: post.currency ?? "MXN",
-      code: true,
-    });
+    }).total;
 
   return (
     <div>

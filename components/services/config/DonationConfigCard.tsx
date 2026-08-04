@@ -279,7 +279,7 @@ export default function DonationConfigCard({
         functions,
         videoCallableName
       );
-      const callableArg = scope === "group" ? { groupId: entityId } : { profileId: entityId };
+      const callableArg: Record<string, string> = scope === "group" ? { groupId: entityId } : { profileId: entityId };
       const result = await callable(callableArg);
       const { uploadUrl, uploadId } = result.data;
 

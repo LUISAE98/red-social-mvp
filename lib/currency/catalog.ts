@@ -69,6 +69,8 @@ export const SERVICE_MIN_PRICE_MXN: Record<string, number> = {
   meet_greet_digital: 150, // tiempo contigo
 };
 export const DONATION_MIN_AMOUNT_MXN = 50;
+/** Precio MÍNIMO (base, MXN) de un POST premium / VOD premium. Por debajo → aviso rojo. */
+export const PREMIUM_MIN_PRICE_MXN = 25;
 
 const CHARGE_SET: ReadonlySet<string> = new Set(CHARGE_CURRENCIES);
 const DISPLAY_SET: ReadonlySet<string> = new Set(DISPLAY_CURRENCIES);

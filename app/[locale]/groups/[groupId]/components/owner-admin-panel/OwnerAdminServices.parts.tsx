@@ -38,7 +38,6 @@ import Greetings from "./services/Greetings";
 import Advice from "./services/Advice";
 import MeetGreet from "./services/MeetGreet";
 import CustomClass from "./services/CustomClass";
-import Donation from "./services/Donation";
 
 export type Visibility = "public" | "private" | "hidden" | string | null;
 

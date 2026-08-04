@@ -298,7 +298,7 @@ export default function OwnerAdminServices({
 
   const contentStyle: React.CSSProperties = {
     display: "grid",
-    gap: 6,
+    gap: 8,
   };
 
   const panelStyle: React.CSSProperties = {
@@ -950,7 +950,41 @@ export default function OwnerAdminServices({
   }
 
   return (
-    <div className="ownerServicesList" style={contentStyle}>
+    <>
+      <style jsx>{`
+        /* En celular, el margen lateral de esta pestaña lo da ÚNICAMENTE este
+           contenedor (transparente), igual que en el perfil: así el contenido
+           queda simétrico y centrado. */
+        @media (max-width: 900px) {
+          .services-tab-margins {
+            padding-left: 10px;
+            padding-right: 10px;
+          }
+        }
+        /* En celular cada card de experiencia llega de lado a lado (full-bleed):
+           los márgenes negativos vs viewport anulan el padding lateral. El heading
+           "Configura tus experiencias" queda inset. (La suscripción no lleva la
+           clase serviceActivationPanel, así que se queda inset — rediseño aparte.) */
+        @media (max-width: 559px) {
+          .services-tab-margins :global(.serviceActivationPanel) {
+            margin-left: calc(50% - 50vw);
+            margin-right: calc(50% - 50vw);
+          }
+        }
+      `}</style>
+      <div className="services-tab-margins" style={contentStyle}>
+      <h2
+        style={{
+          margin: "0 0 7px",
+          fontSize: 16,
+          fontWeight: 600,
+          lineHeight: 1.2,
+          color: "#fff",
+          fontFamily: fontStack,
+        }}
+      >
+        Configura tus experiencias
+      </h2>
       <div id="admin-subscription" style={{ scrollMarginTop: 80 }}>
       <Subscription
         draft={draft}
@@ -972,7 +1006,7 @@ export default function OwnerAdminServices({
         OverlayModalComponent={OverlayModal}
         ConfirmModalComponent={ConfirmModal}
         SpinningGearComponent={SpinningGear}
-        onSaveDraft={saveServicesFromDraft}
+        onSaveDraft={async (d) => { await saveServicesFromDraft(d); }}
         onRemoveLegacyMembers={handleConfirmRemoveLegacyFreeMembersLater}
       />
       </div>
@@ -1081,6 +1115,7 @@ export default function OwnerAdminServices({
       />
 
       <VibraToast toast={adminServicesToast} />
-    </div>
+      </div>
+    </>
   );
 }

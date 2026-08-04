@@ -4,6 +4,7 @@ import type {
   PostContextType,
   PostPremium,
 } from "./types";
+import { PREMIUM_MIN_PRICE_MXN } from "@/lib/currency/catalog";
 
 export const MAX_VIDEO_DURATION_FREE_SECONDS = 30 * 60;       // 30 min
 export const MAX_VIDEO_DURATION_PREMIUM_SECONDS = 3 * 60 * 60; // 3 horas
@@ -264,6 +265,11 @@ if (
     errors.push({
       code: "premium_price_required",
       message: "Agrega un precio válido para el post premium.",
+    });
+  } else if (price < PREMIUM_MIN_PRICE_MXN) {
+    errors.push({
+      code: "premium_price_below_min",
+      message: `El precio mínimo del post premium es $${PREMIUM_MIN_PRICE_MXN} MXN.`,
     });
   }
 

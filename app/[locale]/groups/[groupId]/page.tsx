@@ -2878,7 +2878,7 @@ const avatarNode = (
             )}
 
             {activeTab === "services" && isOwner && user && group.ownerId && (
-              <section className="group-tab-panel" style={{ ...panelStyle, marginTop: 12 }}>
+              <section className="group-tab-panel" style={{ marginTop: 12 }}>
                 <OwnerAdminServices
                   groupId={groupId}
                   ownerId={group.ownerId}

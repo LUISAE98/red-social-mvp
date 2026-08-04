@@ -18,6 +18,7 @@ import {
 import { useTranslations } from "next-intl";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import { WALLET_NET_RATE } from "@/lib/wallet/walletFinances";
+import { FIXED_SERVICE_FEE_MXN } from "@/lib/currency/catalog";
 import { VibraNavigationIcon } from "@/app/components/VibraServiceIcons/VibraNavigationIcons";
 import type { PostPremiumStateResult } from "@/lib/posts/post-premium-state";
 import { fontStack, getInitials, formatMediaDuration } from "./GroupPostCard.utils";
@@ -173,7 +174,8 @@ export function PremiumPostPanel({
           }}
         >
           <VibraNavigationIcon type="premiumCrown" size={17} />
-          {tPosts("premiumUnlockForPrice", { price: priceFmt.format(oneTimePrice ?? 0, { baseCurrency: currency ?? "MXN", code: true }) })}
+          {/* Monto ya con todo incluido: (base + $3) + IVA. La pasarela desglosa solo el IVA. */}
+          {tPosts("premiumUnlockForPrice", { price: priceFmt.formatWithTax((oneTimePrice ?? 0) + FIXED_SERVICE_FEE_MXN, { baseCurrency: currency ?? "MXN" }).total })}
         </button>
       )}
     </div>

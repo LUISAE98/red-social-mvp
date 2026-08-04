@@ -37,7 +37,6 @@ import Greetings from "./services/Greetings";
 import Advice from "./services/Advice";
 import MeetGreet from "./services/MeetGreet";
 import CustomClass from "./services/CustomClass";
-import Donation from "./services/Donation";
 import { SpinningGear } from "./OwnerAdminServices.parts";
 
 export const useLockBodyScroll = useBodyScrollLock;

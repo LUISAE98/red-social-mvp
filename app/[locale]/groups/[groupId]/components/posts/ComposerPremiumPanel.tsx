@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import { WALLET_NET_RATE } from "@/lib/wallet/walletFinances";
+import { FIXED_SERVICE_FEE_MXN, PREMIUM_MIN_PRICE_MXN } from "@/lib/currency/catalog";
 import type {
   PostPremiumAccessMode,
   PostPremiumFreeFor,
@@ -235,7 +236,7 @@ export default function ComposerPremiumPanel({
     ? capabilities.disabledReason
     : null;
 
-  const { resolveStoredPrice, currency: displayCurrency, formatAnchor } = priceFmt;
+  const { resolveStoredPrice, currency: displayCurrency } = priceFmt;
 
   const parsedPrice = parseFloat(priceInput);
   const hasValidPrice =
@@ -250,6 +251,9 @@ export default function ComposerPremiumPanel({
     anchorPrice != null
       ? priceFmt.format(anchorPrice * WALLET_NET_RATE, { baseCurrency: "MXN", code: true })
       : null;
+
+  // Por debajo del mínimo ($25 base) → aviso rojo, no se debe publicar.
+  const belowMin = anchorPrice != null && anchorPrice < PREMIUM_MIN_PRICE_MXN;
 
   return (
     <section
@@ -497,6 +501,19 @@ export default function ComposerPremiumPanel({
               }}
             />
 
+            {/* Cargo fijo de Stripe, visible junto al precio (fuera del placeholder). */}
+            <span
+              style={{
+                color: "rgba(196,168,255,0.78)",
+                fontSize: 12,
+                fontWeight: 700,
+                whiteSpace: "nowrap",
+                flexShrink: 0,
+              }}
+            >
+              + $3
+            </span>
+
             <span
               style={{
                 color: "rgba(168,85,255,0.58)",
@@ -510,20 +527,19 @@ export default function ComposerPremiumPanel({
             </span>
           </div>
 
-          {displayCurrency !== "USD" && anchorPrice != null ? (
+          {/* Aviso mínimo (rojo) o cuánto ganas por desbloqueo (75% de la base). */}
+          {belowMin ? (
             <span
               style={{
-                color: "rgba(196,168,255,0.65)",
+                color: "#f87171",
                 fontSize: 11.5,
                 lineHeight: 1.45,
                 fontFamily: fontStack,
               }}
             >
-              = {formatAnchor(anchorPrice)}
+              {`El mínimo es $${PREMIUM_MIN_PRICE_MXN}`}
             </span>
-          ) : null}
-
-          {creatorEarnings ? (
+          ) : creatorEarnings ? (
             <span
               style={{
                 color: "rgba(196,168,255,0.65)",
@@ -538,6 +554,18 @@ export default function ComposerPremiumPanel({
               </strong>
             </span>
           ) : null}
+
+          {/* Leyenda del cargo fijo de Stripe (siempre visible). */}
+          <span
+            style={{
+              color: "rgba(196,168,255,0.5)",
+              fontSize: 11,
+              lineHeight: 1.4,
+              fontFamily: fontStack,
+            }}
+          >
+            Se suman ${FIXED_SERVICE_FEE_MXN} MXN por el cargo de procesamiento de Stripe.
+          </span>
         </div>
       ) : null}
 

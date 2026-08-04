@@ -309,6 +309,10 @@ export { createGreetingStripeIntent } from "./payments/stripe/greetingStripeInte
 export { createServiceStripeIntent } from "./payments/stripe/serviceStripeIntent";
 // Donación a perfil con Stripe (monto dinámico + $3 + IVA).
 export { createDonationStripeIntent } from "./payments/stripe/donationStripeIntent";
+// Ticket de en vivo con Stripe (acceso pagado a la transmisión; base + $3 + IVA).
+export { createLiveAccessStripeIntent } from "./payments/stripe/liveAccessStripeIntent";
+// Desbloqueo de post premium / VOD premium con Stripe (mismo camino postAccess; base + $3 + IVA).
+export { createPremiumPostStripeIntent } from "./payments/stripe/premiumPostStripeIntent";
 
 // Facturación (Facturapi — CFDI, modelo vendedor directo). Bloque 0: smoke test de
 // credenciales (org de Vibra + multi-tenant). No emite CFDI ni toca el ledger.
@@ -340,14 +344,14 @@ export { mpWebhook } from "./payments/mpWebhook";
 // Sesión exclusiva y tiempo contigo ya cobran por Stripe (createServiceStripeIntent);
 // sus callables MP (payExclusiveSession/payMeetGreet) se retiraron.
 
-// Pagos — desbloqueo de post premium / VOD (pagar-luego-conceder acceso).
-export { payPremiumPost } from "./payments/premiumPostPayment";
+// Post premium / VOD premium ya cobran por Stripe (createPremiumPostStripeIntent);
+// su callable MP (payPremiumPost) se retiró.
 
 // Pagos — donación / contribución a un perfil (pagar-luego-crear).
 export { payProfileDonation } from "./payments/profileDonationPayment";
 
-// Pagos — ticket de acceso a un en vivo (pagar-luego-conceder acceso).
-export { payLiveAccess } from "./payments/liveAccessPayment";
+// Ticket de en vivo ya cobra por Stripe (createLiveAccessStripeIntent); su callable
+// MP (payLiveAccess) se retiró. La donación de live y el súper comentario siguen en MP.
 export { payLiveDonation } from "./payments/liveDonationPayment";
 export { paySuperComment } from "./payments/superCommentPayment";
 

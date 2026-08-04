@@ -62,3 +62,25 @@ export async function createDonationStripeIntent(input: {
   const res = await fn(input);
   return res.data;
 }
+
+/** Crea el PaymentIntent del TICKET de un en vivo (acceso pagado; base + $3 + IVA, MXN). */
+export async function createLiveAccessStripeIntent(input: {
+  postId: string;
+  saveCard: boolean;
+  taxCountry: string | null;
+}): Promise<StripeChargeResult> {
+  const fn = httpsCallable<typeof input, StripeChargeResult>(functions, "createLiveAccessStripeIntent");
+  const res = await fn(input);
+  return res.data;
+}
+
+/** Crea el PaymentIntent del desbloqueo de un POST premium / VOD (base + $3 + IVA, MXN). */
+export async function createPremiumPostStripeIntent(input: {
+  postId: string;
+  saveCard: boolean;
+  taxCountry: string | null;
+}): Promise<StripeChargeResult> {
+  const fn = httpsCallable<typeof input, StripeChargeResult>(functions, "createPremiumPostStripeIntent");
+  const res = await fn(input);
+  return res.data;
+}

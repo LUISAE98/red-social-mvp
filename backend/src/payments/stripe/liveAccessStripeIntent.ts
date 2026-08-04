@@ -1,0 +1,143 @@
+// createLiveAccessStripeIntent — cobra el TICKET de acceso a un en vivo con Stripe.
+//
+// Pagar-luego-conceder (igual que premium/VOD y donación): el acceso aún NO existe;
+// esta función crea el paymentIntents/{externalReference} con el payload pendingLiveAccess
+// y el PaymentIntent de Stripe. Al aprobar el pago, el webhook → reconcile materializa
+// liveAccess/{liveId}/users/{userId} con status "paid" → dispara onLiveAccessLedger.
+// Modelo SOLO MÉXICO: el comprador paga (base + $3) + IVA; el creador recibe 75% de la base.
+
+import { onCall, HttpsError } from "firebase-functions/v2/https";
+import * as crypto from "crypto";
+import * as admin from "firebase-admin";
+import { stripeFetch, stripeSecretKey } from "./stripeClient";
+import { getOrCreateStripeCustomer } from "./stripeCustomer";
+import { applyConsumptionTax } from "../../tax/config";
+import { SETTLEMENT_CURRENCY, FIXED_SERVICE_FEE_MXN } from "../../wallet/ledger";
+
+if (admin.apps.length === 0) {
+  admin.initializeApp();
+}
+const db = admin.firestore();
+const REGION = "us-central1";
+
+function round2(n: number): number {
+  return Math.round((n + Number.EPSILON) * 100) / 100;
+}
+
+type StripePaymentIntent = { id: string; client_secret: string };
+
+export const createLiveAccessStripeIntent = onCall(
+  { region: REGION, cors: true, secrets: [stripeSecretKey] },
+  async (request) => {
+    const uid = request.auth?.uid;
+    if (!uid) throw new HttpsError("unauthenticated", "Debes iniciar sesión.");
+
+    const data = (request.data ?? {}) as Record<string, unknown>;
+    const postId = String(data.postId ?? "").trim(); // el live es un post
+    if (!postId) throw new HttpsError("invalid-argument", "Falta el id del en vivo.");
+
+    const postSnap = await db.collection("posts").doc(postId).get();
+    if (!postSnap.exists) throw new HttpsError("not-found", "En vivo no encontrado.");
+    const post = postSnap.data() as Record<string, unknown>;
+
+    if (post.requiresPayment !== true) {
+      throw new HttpsError("failed-precondition", "Este en vivo no requiere ticket.");
+    }
+
+    const authorId = String(post.authorId ?? "");
+    if (!authorId) throw new HttpsError("failed-precondition", "En vivo sin autor.");
+    if (authorId === uid) throw new HttpsError("failed-precondition", "Es tu propio en vivo.");
+
+    const liveData = (post.liveData ?? {}) as Record<string, unknown>;
+    // La base del creador se trata en MXN (Mexico-only, igual que el resto de servicios).
+    const base = round2(Number(post.oneTimePrice ?? liveData.ticketPrice ?? 0));
+    if (!Number.isFinite(base) || base <= 0) {
+      throw new HttpsError("failed-precondition", "Precio de ticket inválido.");
+    }
+
+    const groupId = post.groupId ? String(post.groupId) : null;
+    const liveId = postId; // liveId = postId (así lo lee checkLiveAccess)
+    const externalReference = `liveAccess__${liveId}_${uid}`;
+
+    // ¿Ya tiene acceso? No re-cobrar.
+    const accessSnap = await db.doc(`liveAccess/${liveId}/users/${uid}`).get();
+    if (accessSnap.exists && accessSnap.data()?.status === "paid") {
+      throw new HttpsError("failed-precondition", "Ya tienes acceso a este en vivo.");
+    }
+
+    const intentRef = db.collection("paymentIntents").doc(externalReference);
+    const intentSnap = await intentRef.get();
+    const existingStatus = intentSnap.exists ? intentSnap.data()?.status : null;
+    if (existingStatus === "approved" || existingStatus === "paid") {
+      throw new HttpsError("failed-precondition", "Ya tienes acceso a este en vivo.");
+    }
+
+    const taxCountry = data.taxCountry ? String(data.taxCountry).trim().toUpperCase() : null;
+    const saveCard = data.saveCard === true;
+
+    // Precio publicado = base + $3 cargo fijo; IVA 16% encima (todo lo absorbe el comprador).
+    const country = taxCountry || "MX";
+    const published = round2(base + FIXED_SERVICE_FEE_MXN);
+    const tax = applyConsumptionTax(published, country);
+    const totalMxn = round2(published + tax.taxAmount);
+
+    await intentRef.set(
+      {
+        externalReference,
+        buyerId: uid,
+        grossAmount: base, // base → ledger (creador gana 75% de esto)
+        sourceType: "liveAccess",
+        sourceId: `${liveId}_${uid}`,
+        status: "awaiting_payment",
+        pendingLiveAccess: {
+          liveId,
+          userId: uid,
+          postId,
+          groupId,
+          authorId,
+          accessType: "live_ticket",
+          amount: base,
+          currency: "MXN",
+          status: "paid",
+          source: "stripe",
+        },
+        baseAmount: base,
+        fixedFee: FIXED_SERVICE_FEE_MXN,
+        publishedAmount: published,
+        taxAmount: tax.taxAmount,
+        taxCountry: tax.taxCountry,
+        taxRate: tax.taxRate,
+        chargedAmount: totalMxn,
+        settlementCurrency: SETTLEMENT_CURRENCY,
+        settlementAmount: totalMxn,
+        paymentMode: "stripe",
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        ...(intentSnap.exists ? {} : { createdAt: admin.firestore.FieldValue.serverTimestamp() }),
+      },
+      { merge: true }
+    );
+
+    const customerId = await getOrCreateStripeCustomer(uid, request.auth?.token?.email ?? null);
+
+    const res = await stripeFetch<StripePaymentIntent>("/payment_intents", {
+      method: "POST",
+      idempotencyKey: crypto.randomUUID(),
+      form: {
+        amount: Math.round(totalMxn * 100), // centavos MXN
+        currency: SETTLEMENT_CURRENCY.toLowerCase(),
+        customer: customerId,
+        payment_method_types: ["card"],
+        ...(saveCard ? { setup_future_usage: "off_session" } : {}),
+        metadata: { externalReference, sourceType: "liveAccess", sourceId: `${liveId}_${uid}`, buyerId: uid },
+      },
+    });
+    if (!res.ok) throw new HttpsError("internal", `No se pudo crear el pago (${res.status}): ${res.error.slice(0, 200)}`);
+
+    await intentRef.set(
+      { stripePaymentIntentId: res.data.id, updatedAt: admin.firestore.FieldValue.serverTimestamp() },
+      { merge: true }
+    );
+
+    return { clientSecret: res.data.client_secret };
+  }
+);

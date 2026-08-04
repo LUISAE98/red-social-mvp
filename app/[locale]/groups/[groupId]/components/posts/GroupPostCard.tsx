@@ -31,9 +31,9 @@ import LiveStreamSetup from "@/app/components/LiveStreamSetup/LiveStreamSetup";
 import PostCommentsPanel from "./PostCommentsPanel";
 import GroupPostComposer, { type GroupPostComposerSubmitPayload } from "./GroupPostComposer";
 import PostImageViewer from "./PostImageViewer";
-import ServicePaymentModal from "@/components/payments/ServicePaymentModal";
-import { payPremiumPost } from "@/lib/payments/payPremiumPost";
-import { payLiveAccess } from "@/lib/payments/payLiveAccess";
+import StripePaymentModal from "@/components/payments/StripePaymentModal";
+import { createLiveAccessStripeIntent, createPremiumPostStripeIntent } from "@/lib/stripe/stripePayments";
+import { FIXED_SERVICE_FEE_MXN } from "@/lib/currency/catalog";
 import { registrarCompraGeo } from "@/lib/wallet/registrarCompraGeo";
 import PremiumVideoTeaser from "./PremiumVideoTeaser";
 import { VideoPlayIcon } from "@/app/components/VibraServiceIcons/VibraVideoIcons";
@@ -4188,7 +4188,8 @@ padding: "0 0 2px 0",
     }}
   >
     <VibraNavigationIcon type="premiumCrown" size={17} />
-    {tFeed("unlockPremiumFor", { price: priceFmt.format(post.oneTimePrice ?? 0, { baseCurrency: post.currency ?? "MXN", code: true }) })}
+    {/* Monto ya con todo incluido: (base + $3) + IVA. La pasarela desglosa solo el IVA. */}
+    {tFeed("unlockPremiumFor", { price: priceFmt.formatWithTax((post.oneTimePrice ?? 0) + FIXED_SERVICE_FEE_MXN, { baseCurrency: post.currency ?? "MXN" }).total })}
   </button>
 )}
 {premiumState.isPremium && (
@@ -4204,10 +4205,11 @@ padding: "0 0 2px 0",
     isMobile={isMobile}
   />
 )}
-<ServicePaymentModal
+<StripePaymentModal
   open={paymentPanelOpen}
-  amount={post.premium?.price ?? post.oneTimePrice ?? null}
-  pay={(c) => payPremiumPost({ postId: post.id, ...c })}
+  amount={(post.premium?.price ?? post.oneTimePrice) != null ? Number(post.premium?.price ?? post.oneTimePrice) + FIXED_SERVICE_FEE_MXN : null}
+  amountCurrency="MXN"
+  createIntent={(args) => createPremiumPostStripeIntent({ postId: post.id, saveCard: args.saveCard, taxCountry: args.taxCountry })}
   productType={tPosts("premiumPayProductType")}
   providerName={postAuthor.authorName}
   avatarUrl={postAuthor.avatarUrl}
@@ -4224,10 +4226,11 @@ padding: "0 0 2px 0",
     if (onViewerClosed) window.setTimeout(() => onViewerClosed(), 200);
   }}
 />
-<ServicePaymentModal
+<StripePaymentModal
   open={livePayOpen}
-  amount={post.oneTimePrice ?? activeLiveData?.ticketPrice ?? null}
-  pay={(c) => payLiveAccess({ postId: post.id, ...c })}
+  amount={(post.oneTimePrice ?? activeLiveData?.ticketPrice) != null ? Number(post.oneTimePrice ?? activeLiveData?.ticketPrice) + FIXED_SERVICE_FEE_MXN : null}
+  amountCurrency="MXN"
+  createIntent={(args) => createLiveAccessStripeIntent({ postId: post.id, saveCard: args.saveCard, taxCountry: args.taxCountry })}
   productType={tPosts("liveTicketProductType")}
   providerName={postAuthor.authorName}
   avatarUrl={postAuthor.avatarUrl}

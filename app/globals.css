@@ -55,16 +55,6 @@ body.vb-authed {
   --vb-safe-bottom: 20px;
 }
 
-/* En celular la lista de cards de configuración de servicios llega de lado a
-   lado (full-bleed): anula el padding lateral de la página con márgenes
-   negativos calculados contra el viewport. Solo en móvil (columna única). */
-@media (max-width: 559px) {
-  .ownerServicesList {
-    margin-left: calc(50% - 50vw);
-    margin-right: calc(50% - 50vw);
-  }
-}
-
 @theme inline {
   /* ── Tipografía ── */
   --font-sans: var(--font-jakarta);
