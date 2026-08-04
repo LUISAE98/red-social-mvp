@@ -277,17 +277,52 @@ export default function CustomClass({
     if (!draft.customClass.enabled) return null;
 
     return (
-      <div
-        style={{
-          display: "grid",
-          gap: 10,
-        }}
-      >
-        <div style={{ display: "grid", gap: 4 }}>
+      <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 12 }}>
+        {/* Izquierda: duración, cuánto ganas, visibilidad y botón Modificar. */}
+        <div style={{ display: "grid", gap: 8, minWidth: 0 }}>
+          <div style={{ display: "grid", gap: 4 }}>
+            <div style={subtleStyle}>{tServices("meetGreetConfiguredDuration")}</div>
+            <div style={{ color: "#fff", fontSize: 14, fontWeight: 700 }}>
+              {draft.customClass.durationMinutes
+                ? `${draft.customClass.durationMinutes} min`
+                : tServices("meetGreetNoDuration")}
+            </div>
+          </div>
+
+          {customClassCalc ? (
+            <div style={subtleStyle}>
+              {tServices("customClassEarningsDesc", {
+                gross: formatMoney(customClassCalc.gross, draft.customClass.currency),
+                net: formatMoney(customClassCalc.net, draft.customClass.currency),
+              })}
+            </div>
+          ) : null}
+
+          <div style={subtleStyle}>
+            {tServices("meetGreetMembersVisibility")}
+          </div>
+
+          <button
+            type="button"
+            onClick={handleModify}
+            disabled={isBusy}
+            style={{
+              ...buttonSecondaryStyle,
+              width: "auto",
+              justifySelf: "flex-start",
+              opacity: isBusy ? 0.7 : 1,
+              cursor: isBusy ? "not-allowed" : "pointer",
+            }}
+          >
+            {tServices("modify")}
+          </button>
+        </div>
+
+        {/* Esquina inferior derecha: precio grande (estilo del feed, +40%) + 3 MXN. */}
+        <div style={{ display: "grid", gap: 2, justifyItems: "end", textAlign: "right", flexShrink: 0 }}>
           <div style={subtleStyle}>{tServices("meetGreetConfiguredPrice")}</div>
-          <div style={{ display: "flex", alignItems: "baseline", gap: 6, flexWrap: "wrap" }}>
-            {/* Mismo estilo que el precio del feed (22px, weight 600, color de acento). */}
-            <span style={{ fontSize: 22, fontWeight: 600, color: accentColor ?? "#f472b6", lineHeight: 1, fontVariantNumeric: "tabular-nums" }}>
+          <div style={{ display: "flex", alignItems: "baseline", gap: 6, whiteSpace: "nowrap" }}>
+            <span style={{ fontSize: 31, fontWeight: 600, color: accentColor ?? "#f472b6", lineHeight: 1, fontVariantNumeric: "tabular-nums" }}>
               {draft.customClass.price
                 ? formatMoney(
                     Number(draft.customClass.price),
@@ -298,43 +333,6 @@ export default function CustomClass({
             <span style={{ fontSize: 12, fontWeight: 400, color: "rgba(255,255,255,0.5)" }}>+ 3 MXN</span>
           </div>
         </div>
-
-        <div style={{ display: "grid", gap: 4 }}>
-          <div style={subtleStyle}>{tServices("meetGreetConfiguredDuration")}</div>
-          <div style={{ color: "#fff", fontSize: 14, fontWeight: 700 }}>
-            {draft.customClass.durationMinutes
-              ? `${draft.customClass.durationMinutes} min`
-              : tServices("meetGreetNoDuration")}
-          </div>
-        </div>
-
-        {customClassCalc ? (
-          <div style={subtleStyle}>
-            {tServices("customClassEarningsDesc", {
-              gross: formatMoney(customClassCalc.gross, draft.customClass.currency),
-              net: formatMoney(customClassCalc.net, draft.customClass.currency),
-            })}
-          </div>
-        ) : null}
-
-        <div style={subtleStyle}>
-          {tServices("meetGreetMembersVisibility")}
-        </div>
-
-        <button
-          type="button"
-          onClick={handleModify}
-          disabled={isBusy}
-          style={{
-            ...buttonSecondaryStyle,
-            width: "auto",
-            justifySelf: "flex-start",
-            opacity: isBusy ? 0.7 : 1,
-            cursor: isBusy ? "not-allowed" : "pointer",
-          }}
-        >
-          {tServices("modify")}
-        </button>
       </div>
     );
   }

@@ -265,17 +265,43 @@ export default function Saludos({
     if (!draft.saludo.enabled) return null;
 
     return (
-      <div
-        style={{
-          display: "grid",
-          gap: 10,
-        }}
-      >
-        <div style={{ display: "grid", gap: 4 }}>
+      <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 12 }}>
+        {/* Izquierda: cuánto ganas, visibilidad y botón Modificar. */}
+        <div style={{ display: "grid", gap: 8, minWidth: 0 }}>
+          {saludoCalc ? (
+            <div style={subtleStyle}>
+              {tServices("greetingEarningsDesc", {
+                gross: formatMoney(saludoCalc.gross, draft.saludo.currency),
+                net: formatMoney(saludoCalc.net, draft.saludo.currency),
+              })}
+            </div>
+          ) : null}
+
+          <div style={subtleStyle}>
+            {tServices("meetGreetMembersVisibility")}
+          </div>
+
+          <button
+            type="button"
+            onClick={handleModify}
+            disabled={isBusy}
+            style={{
+              ...buttonSecondaryStyle,
+              width: "auto",
+              justifySelf: "flex-start",
+              opacity: isBusy ? 0.7 : 1,
+              cursor: isBusy ? "not-allowed" : "pointer",
+            }}
+          >
+            {tServices("modify")}
+          </button>
+        </div>
+
+        {/* Esquina inferior derecha: precio grande (estilo del feed, +40%) + 3 MXN. */}
+        <div style={{ display: "grid", gap: 2, justifyItems: "end", textAlign: "right", flexShrink: 0 }}>
           <div style={subtleStyle}>{tServices("meetGreetConfiguredPrice")}</div>
-          <div style={{ display: "flex", alignItems: "baseline", gap: 6, flexWrap: "wrap" }}>
-            {/* Mismo estilo que el precio del feed (22px, weight 600, color de acento). */}
-            <span style={{ fontSize: 22, fontWeight: 600, color: accentColor ?? "#b45cff", lineHeight: 1, fontVariantNumeric: "tabular-nums" }}>
+          <div style={{ display: "flex", alignItems: "baseline", gap: 6, whiteSpace: "nowrap" }}>
+            <span style={{ fontSize: 31, fontWeight: 600, color: accentColor ?? "#b45cff", lineHeight: 1, fontVariantNumeric: "tabular-nums" }}>
               {draft.saludo.price
                 ? formatMoney(Number(draft.saludo.price), draft.saludo.currency)
                 : `0 ${draft.saludo.currency}`}
@@ -283,34 +309,6 @@ export default function Saludos({
             <span style={{ fontSize: 12, fontWeight: 400, color: "rgba(255,255,255,0.5)" }}>+ 3 MXN</span>
           </div>
         </div>
-
-        {saludoCalc ? (
-          <div style={subtleStyle}>
-            {tServices("greetingEarningsDesc", {
-              gross: formatMoney(saludoCalc.gross, draft.saludo.currency),
-              net: formatMoney(saludoCalc.net, draft.saludo.currency),
-            })}
-          </div>
-        ) : null}
-
-        <div style={subtleStyle}>
-          {tServices("meetGreetMembersVisibility")}
-        </div>
-
-        <button
-          type="button"
-          onClick={handleModify}
-          disabled={isBusy}
-          style={{
-            ...buttonSecondaryStyle,
-            width: "auto",
-            justifySelf: "flex-start",
-            opacity: isBusy ? 0.7 : 1,
-            cursor: isBusy ? "not-allowed" : "pointer",
-          }}
-        >
-          {tServices("modify")}
-        </button>
       </div>
     );
   }
