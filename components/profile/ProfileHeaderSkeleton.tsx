@@ -61,6 +61,13 @@ export default function ProfileHeaderSkeleton({
         .vb-hdr-cover {
           width: 100%;
           height: ${COVER_H};
+          /* Esquinas superiores redondeadas, igual que la card real (radio 18). */
+          border-radius: 18px 18px 0 0;
+        }
+        @media (max-width: 640px) {
+          .vb-hdr-cover {
+            border-radius: 0;
+          }
         }
         /* Difuminado inferior a negro, igual que el overlay de la portada real. */
         .vb-hdr-cover-fade {

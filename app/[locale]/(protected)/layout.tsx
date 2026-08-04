@@ -217,6 +217,13 @@ const contentAreaClassName = isEmbed
              Por encima de esto el shell deja de estirarse y se CENTRA, para que en
              monitores grandes las 3 columnas no se dispersen. */
           --shell-max-width: 1520px;
+          /* Borde izquierdo del cluster centrado, para que el OwnerSidebar (que va
+             position:fixed) siga al conjunto en pantallas grandes en vez de quedarse
+             pegado al viewport. Debajo de --shell-max-width cae a su valor histórico. */
+          --owner-sidebar-fixed-left: max(
+            18px,
+            calc(50vw - var(--shell-max-width) / 2 + var(--shell-gutter))
+          );
           --desktop-search-width: 920px;
           --desktop-search-gap: 8px;
           --desktop-create-size: 35px;

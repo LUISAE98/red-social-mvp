@@ -292,6 +292,11 @@ export default function ProfileClient() {
 
   const avatarInputRef = useRef<HTMLInputElement | null>(null);
   const coverInputRef = useRef<HTMLInputElement | null>(null);
+  // Refs a las <img> de portada/avatar: en algunos navegadores el onLoad no dispara
+  // para imágenes ya cacheadas, así que también comprobamos `.complete` por ref para
+  // que el skeleton nunca se quede pegado.
+  const coverImgRef = useRef<HTMLImageElement | null>(null);
+  const avatarImgRef = useRef<HTMLImageElement | null>(null);
 
   const [avatarRenderUrl, setAvatarRenderUrl] = useState<string | null>(null);
   const [coverRenderUrl, setCoverRenderUrl] = useState<string | null>(null);
@@ -1145,9 +1150,25 @@ useEffect(() => {
   // o subida de una nueva); se oculta con el onLoad de la <Image>.
   useEffect(() => {
     setCoverLoaded(false);
+    // Si la imagen ya está cacheada, onLoad puede no dispararse: detectamos
+    // completitud por ref (inmediato y en el próximo frame por si aún no montó).
+    const settle = () => {
+      const img = coverImgRef.current;
+      if (img && img.complete && img.naturalWidth > 0) setCoverLoaded(true);
+    };
+    settle();
+    const raf = requestAnimationFrame(settle);
+    return () => cancelAnimationFrame(raf);
   }, [coverRenderUrl, userDoc?.coverUrl]);
   useEffect(() => {
     setAvatarLoaded(false);
+    const settle = () => {
+      const img = avatarImgRef.current;
+      if (img && img.complete && img.naturalWidth > 0) setAvatarLoaded(true);
+    };
+    settle();
+    const raf = requestAnimationFrame(settle);
+    return () => cancelAnimationFrame(raf);
   }, [avatarRenderUrl, userDoc?.photoURL]);
 
   const openCropWithFile = useCallback(
@@ -2031,10 +2052,12 @@ const res = (await createExclusiveSessionRequest({
               `}</style>
               <Image
                 key={coverSrc}
+                ref={coverImgRef}
                 src={coverSrc}
                 alt="cover"
                 fill
                 onLoad={() => setCoverLoaded(true)}
+                onError={() => setCoverLoaded(true)}
                 style={{ objectFit: "cover", opacity: 0.96 }}
               />
 
@@ -2364,10 +2387,12 @@ const res = (await createExclusiveSessionRequest({
                       <>
                         <Image
                           key={avatarSrc}
+                          ref={avatarImgRef}
                           src={avatarSrc}
                           alt="avatar"
                           fill
                           onLoad={() => setAvatarLoaded(true)}
+                          onError={() => setAvatarLoaded(true)}
                           style={{ objectFit: "cover" }}
                         />
                         {/* Skeleton mientras carga la foto (se desvanece al cargar). */}

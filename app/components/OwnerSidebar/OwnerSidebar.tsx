@@ -2352,7 +2352,9 @@ return (
 className="profile-owner-sidebar-fixed"
   style={{
     position: "fixed",
-    left: 18,
+    // Sigue al cluster centrado del shell (protected layout). Donde la variable no
+    // esté definida (p. ej. /groups), cae a 18px, el valor histórico.
+    left: "var(--owner-sidebar-fixed-left, 18px)",
     top: ui.sidebarTop,
     width: ui.sidebarWidth,
     maxHeight: `calc(100dvh - ${ui.sidebarTop + ui.sidebarBottom}px)`,
