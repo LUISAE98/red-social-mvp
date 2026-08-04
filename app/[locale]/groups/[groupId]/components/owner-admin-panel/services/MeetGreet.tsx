@@ -289,13 +289,17 @@ export default function MeetGreet({
       >
         <div style={{ display: "grid", gap: 4 }}>
           <div style={subtleStyle}>{tServices("meetGreetConfiguredPrice")}</div>
-          <div style={{ color: "#fff", fontSize: 14, fontWeight: 700 }}>
-            {draft.meetGreet.price
-              ? formatMoney(
-                  Number(draft.meetGreet.price),
-                  draft.meetGreet.currency
-                )
-              : `0 ${draft.meetGreet.currency}`}
+          <div style={{ display: "flex", alignItems: "baseline", gap: 6, flexWrap: "wrap" }}>
+            {/* Mismo estilo que el precio del feed (22px, weight 600, color de acento). */}
+            <span style={{ fontSize: 22, fontWeight: 600, color: accentColor ?? "#2563eb", lineHeight: 1, fontVariantNumeric: "tabular-nums" }}>
+              {draft.meetGreet.price
+                ? formatMoney(
+                    Number(draft.meetGreet.price),
+                    draft.meetGreet.currency
+                  )
+                : `0 ${draft.meetGreet.currency}`}
+            </span>
+            <span style={{ fontSize: 12, fontWeight: 400, color: "rgba(255,255,255,0.5)" }}>+ 3 MXN</span>
           </div>
         </div>
 

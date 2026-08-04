@@ -273,10 +273,14 @@ export default function Saludos({
       >
         <div style={{ display: "grid", gap: 4 }}>
           <div style={subtleStyle}>{tServices("meetGreetConfiguredPrice")}</div>
-          <div style={{ color: "#fff", fontSize: 14, fontWeight: 700 }}>
-            {draft.saludo.price
-              ? formatMoney(Number(draft.saludo.price), draft.saludo.currency)
-              : `0 ${draft.saludo.currency}`}
+          <div style={{ display: "flex", alignItems: "baseline", gap: 6, flexWrap: "wrap" }}>
+            {/* Mismo estilo que el precio del feed (22px, weight 600, color de acento). */}
+            <span style={{ fontSize: 22, fontWeight: 600, color: accentColor ?? "#b45cff", lineHeight: 1, fontVariantNumeric: "tabular-nums" }}>
+              {draft.saludo.price
+                ? formatMoney(Number(draft.saludo.price), draft.saludo.currency)
+                : `0 ${draft.saludo.currency}`}
+            </span>
+            <span style={{ fontSize: 12, fontWeight: 400, color: "rgba(255,255,255,0.5)" }}>+ 3 MXN</span>
           </div>
         </div>
 
