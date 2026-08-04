@@ -319,10 +319,6 @@ export default function ProfileDonation({
         style={{
           display: "grid",
           gap: 10,
-          padding: "10px",
-          borderRadius: 12,
-          border: "1px solid rgba(255,255,255,0.08)",
-          background: "rgba(255,255,255,0.03)",
         }}
       >
         <div style={{ display: "grid", gap: 4 }}>
