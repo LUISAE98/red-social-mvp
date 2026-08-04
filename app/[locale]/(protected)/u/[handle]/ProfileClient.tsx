@@ -37,6 +37,8 @@ import { onAuthStateChanged, sendPasswordResetEmail, type User } from "firebase/
 import { httpsCallable } from "firebase/functions";
 import { updateProfileDisplayName } from "@/lib/profile/updateProfileDisplayName";
 import CreatorExperiencesSection from "@/components/services/CreatorExperiencesSection";
+import ProfileHeaderSkeleton from "@/components/profile/ProfileHeaderSkeleton";
+import PostReveal from "@/app/components/PostSkeleton/PostReveal";
 import CreatorServiceModals from "@/components/services/CreatorServiceModals";
 import { buildCurrentPathWithSearch } from "@/lib/auth-redirect";
 import CopyLinkButton from "@/components/ui/CopyLinkButton";
@@ -1706,23 +1708,13 @@ const res = (await createExclusiveSessionRequest({
 }
 
   if (loading) {
+    // Sin spinner: skeleton del encabezado (portada, avatar, nombre, datos,
+    // descripción, botón, historias y cards de servicios) con la base canónica
+    // .vb-skel. Al llegar los datos, el contenido real entra con fade (ver
+    // .profile-card en el styled-jsx del render principal).
     return (
-      <main
-        style={{
-          minHeight: "100dvh",
-          background: "#000",
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: 16,
-          fontFamily: fontStack,
-        }}
-      >
-        <div className="vibraPullRefreshSpinner refreshing" style={{ width: 32, height: 32 }} />
-        <span style={{ fontSize: 13, color: "rgba(255,255,255,0.32)", letterSpacing: "0.01em" }}>
-          {tProfile("loadingProfile")}
-        </span>
+      <main style={{ minHeight: "100dvh", background: "#000", fontFamily: fontStack }}>
+        <ProfileHeaderSkeleton maxWidth={ui.pageMaxWidth} />
       </main>
     );
   }
@@ -1807,6 +1799,22 @@ const res = (await createExclusiveSessionRequest({
             position: relative;
             overflow: hidden;
             min-width: 0;
+            /* El contenido real no aparece de golpe tras el skeleton: fade-in
+               suave al montar (cuando ya llegaron los datos del perfil). */
+            animation: vbProfileReveal var(--duration-slow, 400ms) var(--ease-out, ease) both;
+          }
+          @keyframes vbProfileReveal {
+            from {
+              opacity: 0;
+            }
+            to {
+              opacity: 1;
+            }
+          }
+          @media (prefers-reduced-motion: reduce) {
+            .profile-card {
+              animation: none;
+            }
           }
 
           .profile-card::before,
@@ -2510,13 +2518,15 @@ const res = (await createExclusiveSessionRequest({
                   ) : null}
 
                   {!isProfileRestrictedForVisitor && !shouldHideProfileSocialContent ? (
-  <CreatorExperiencesSection
-    services={(userDoc.offerings ?? []) as import("@/types/group").CreatorService[]}
-    creatorName={userDoc.firstName || fullName.split(" ")[0] || fullName}
-    contextType="profile"
-    creatorHandle={userDoc.handle}
-    viewerCanRequest={true}
-  />
+  <PostReveal>
+    <CreatorExperiencesSection
+      services={(userDoc.offerings ?? []) as import("@/types/group").CreatorService[]}
+      creatorName={userDoc.firstName || fullName.split(" ")[0] || fullName}
+      contextType="profile"
+      creatorHandle={userDoc.handle}
+      viewerCanRequest={true}
+    />
+  </PostReveal>
 ) : null}
                 </div>
               </div>
@@ -2525,7 +2535,9 @@ const res = (await createExclusiveSessionRequest({
           </div>
 
 {profileUid && !shouldHideProfileSocialContent && (
-  <StoryCircles creatorId={profileUid} currentUserId={viewer?.uid ?? null} />
+  <PostReveal>
+    <StoryCircles creatorId={profileUid} currentUserId={viewer?.uid ?? null} />
+  </PostReveal>
 )}
 
 {shouldShowSubnav && (
