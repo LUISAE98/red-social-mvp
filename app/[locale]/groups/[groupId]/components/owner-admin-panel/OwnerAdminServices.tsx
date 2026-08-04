@@ -287,13 +287,13 @@ export default function OwnerAdminServices({
 
   const contentStyle: React.CSSProperties = {
     display: "grid",
-    gap: 12,
+    gap: 6,
   };
 
   const panelStyle: React.CSSProperties = {
     padding: "10px",
-    borderRadius: 14,
-    border: "1px solid rgba(255,255,255,0.08)",
+    borderRadius: 0,
+    border: "none",
     background: "rgba(255,255,255,0.02)",
     display: "grid",
     gap: 9,
@@ -929,7 +929,7 @@ export default function OwnerAdminServices({
   }
 
   return (
-    <div style={contentStyle}>
+    <div className="ownerServicesList" style={contentStyle}>
       <div id="admin-subscription" style={{ scrollMarginTop: 80 }}>
       <Subscription
         draft={draft}

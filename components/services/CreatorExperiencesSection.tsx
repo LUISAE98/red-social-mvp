@@ -203,6 +203,12 @@ export default function CreatorExperiencesSection({
         @media (max-width: 559px) {
           .exp-description { display: none; }
           .exp-chevron { display: none; }
+          /* En celular las cards llegan de lado a lado (full-bleed): anulan el
+             padding lateral de la página. El header de la sección queda inset. */
+          .exp-cards {
+            margin-left: calc(50% - 50vw);
+            margin-right: calc(50% - 50vw);
+          }
         }
         @media (min-width: 560px) {
           .exp-avatar { width: 56px; height: 56px; }
@@ -265,7 +271,7 @@ export default function CreatorExperiencesSection({
       </div>
 
       {/* Service cards */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+      <div className="exp-cards" style={{ display: "flex", flexDirection: "column", gap: 4 }}>
         {activeTypes.map((type) => {
           const conf = CONFIG[type];
           if (!conf) return null;
