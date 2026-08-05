@@ -503,7 +503,7 @@ export default function LiveComposerModal({
           border: "none",
           background: coverPreviewUrl
             ? "transparent"
-            : "linear-gradient(rgba(0,0,0,0.22), rgba(0,0,0,0.22)), url('/live.webp') center / cover no-repeat",
+            : "linear-gradient(rgba(0,0,0,0.45), rgba(0,0,0,0.45)), url('/live.webp') center / cover no-repeat",
           cursor: saving ? "not-allowed" : "pointer",
           display: "flex", alignItems: "center", justifyContent: "center",
           marginBottom: 8, overflow: "hidden", padding: 0, position: "relative",
@@ -525,10 +525,15 @@ export default function LiveComposerModal({
             </div>
           </>
         ) : (
-          <svg width="36" height="36" viewBox="0 0 36 36" fill="none" style={{ pointerEvents: "none" }}>
-            <circle cx="18" cy="18" r="16" stroke="#ef4444" strokeWidth="1.8" fill="none" />
-            <circle cx="18" cy="18" r="9" fill="#ef4444" />
-          </svg>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, pointerEvents: "none", padding: "0 12px" }}>
+            <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
+              <circle cx="18" cy="18" r="16" stroke="#ef4444" strokeWidth="1.8" fill="none" />
+              <circle cx="18" cy="18" r="9" fill="#ef4444" />
+            </svg>
+            <span style={{ fontSize: 13, fontWeight: 600, color: "#a855f7", fontFamily: fontStack, textAlign: "center", lineHeight: 1.3 }}>
+              Da clic aquí para elegir una portada
+            </span>
+          </div>
         )}
       </button>
 
