@@ -170,7 +170,7 @@ export default function SuperCommentModal({
       setSent(false);
       setText("");
       setSelectedTier(null);
-    }, 1800);
+    }, 4000);
   }
 
   // Invitado (sin sesión): pago aún no integrado → envío simulado por ahora
@@ -618,6 +618,7 @@ export default function SuperCommentModal({
         hideBuyerGreeting
         paymentHeading={tLive("scPaymentHeading")}
         payButtonLabel={tLive("scPayButtonLabel")}
+        autoCloseMs={4000}
         amount={selectedTier ? selectedTier.price + FIXED_SERVICE_FEE_MXN : null}
         amountCurrency="MXN"
         createIntent={(args) => createSuperCommentStripeIntent({

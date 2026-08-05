@@ -53,6 +53,8 @@ type Props = {
   paymentHeading?: string;
   payButtonLabel?: string;
   savedCards?: SavedCard[];
+  /** Si se pasa (>0), el panel de éxito se cierra solo tras estos ms (p. ej. 4000). */
+  autoCloseMs?: number;
   onClose: () => void;
   onPaid: () => void;
 };
@@ -93,6 +95,7 @@ export default function StripePaymentModal({
   paymentHeading = "¿Cómo quieres pagar?",
   payButtonLabel = "Pagar",
   savedCards = [],
+  autoCloseMs,
   onClose,
   onPaid,
 }: Props) {
@@ -145,10 +148,20 @@ export default function StripePaymentModal({
   const numberElRef = useRef<StripeElement | null>(null);
   const onPaidRef = useRef(onPaid);
   const createIntentRef = useRef(createIntent);
+  const onCloseRef = useRef(onClose);
   useEffect(() => {
     onPaidRef.current = onPaid;
     createIntentRef.current = createIntent;
-  }, [onPaid, createIntent]);
+    onCloseRef.current = onClose;
+  }, [onPaid, createIntent, onClose]);
+
+  // Cierre automático del panel de éxito cuando se pide (supercomentario / donación).
+  useEffect(() => {
+    if (showSuccess && autoCloseMs && autoCloseMs > 0) {
+      const t = window.setTimeout(() => onCloseRef.current(), autoCloseMs);
+      return () => window.clearTimeout(t);
+    }
+  }, [showSuccess, autoCloseMs]);
 
   const amountInputRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
