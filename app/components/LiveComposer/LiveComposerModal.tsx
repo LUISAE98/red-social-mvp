@@ -500,10 +500,10 @@ export default function LiveComposerModal({
         aria-label={coverPreviewUrl ? tLive("changeCover") : tLive("addCover")}
         style={{
           width: "100%", aspectRatio: "16/7", borderRadius: 12,
-          border: coverPreviewUrl ? "none" : "1.5px dashed rgba(255,255,255,0.18)",
+          border: "none",
           background: coverPreviewUrl
             ? "transparent"
-            : "radial-gradient(ellipse at center, rgba(180,180,200,0.22) 0%, rgba(120,120,150,0.10) 60%, rgba(80,80,110,0.06) 100%)",
+            : "linear-gradient(rgba(0,0,0,0.22), rgba(0,0,0,0.22)), url('/live.webp') center / cover no-repeat",
           cursor: saving ? "not-allowed" : "pointer",
           display: "flex", alignItems: "center", justifyContent: "center",
           marginBottom: 8, overflow: "hidden", padding: 0, position: "relative",
