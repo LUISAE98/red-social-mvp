@@ -670,9 +670,16 @@ export default function LiveComposerModal({
         })}
       </div>
 
-      {accessType === "paid" && (
-        <>
-          <label style={labelStyle}>{tLive("composerTicketPriceLabel")}</label>
+      {/* El bloque de pago se DESLIZA suave hacia abajo al activar el ticket de pago,
+          y se colapsa suave al cambiar a gratis (no aparece/desaparece de golpe). */}
+      <div
+        style={{
+          maxHeight: accessType === "paid" ? 600 : 0,
+          opacity: accessType === "paid" ? 1 : 0,
+          overflow: "hidden",
+          transition: "max-height 300ms ease, opacity 240ms ease",
+        }}
+      >
           {/* Presentación IGUAL a experiencias/premium: el campo es un input autónomo
               (estilo canónico vibra_style.md); el "+ $3" y la moneda van FUERA, como
               hermanos en la fila (no dentro del placeholder). */}
@@ -773,8 +780,7 @@ export default function LiveComposerModal({
               </div>
             </>
           )}
-        </>
-      )}
+      </div>
 
       {/* Fecha */}
       <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 10 }}>
@@ -1075,7 +1081,14 @@ export default function LiveComposerModal({
         .vibra-live-scroll::-webkit-scrollbar-track { background: transparent; }
         .vibra-live-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.18); border-radius: 999px; }
         .vibra-live-select option { background: #1a0f2e; color: #fff; }
-        .vibra-live-radio:hover { background: rgba(255,255,255,0.06); }
+        .vibra-live-radio { transition: transform 160ms ease; }
+        @media (hover: hover) {
+          .vibra-live-radio:hover { transform: scale(1.02); }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .vibra-live-radio { transition: none; }
+          .vibra-live-radio:hover { transform: none; }
+        }
       `}</style>
 
       {/* Backdrop */}
