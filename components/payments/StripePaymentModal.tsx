@@ -112,6 +112,9 @@ export default function StripePaymentModal({
   const [cardValid, setCardValid] = useState({ number: false, exp: false, cvc: false });
   const [isNarrow, setIsNarrow] = useState(false);
   const stacked = isNarrow || isSheet || forceStacked;
+  // En celular (y no ya en modo sheet embebido), la pasarela se presenta como
+  // bottom-sheet: sube al abrir y baja al cerrar. En laptop queda como diálogo centrado.
+  const mobileSheet = stacked && !isSheet;
   const [buyer, setBuyer] = useState<{ name: string; photo: string | null } | null>(null);
   const [render, setRender] = useState(false);
   const [entered, setEntered] = useState(false);
@@ -613,11 +616,15 @@ export default function StripePaymentModal({
     <div role="dialog" aria-modal="true" onMouseDown={(e) => { if (e.target === e.currentTarget && !submitting) onClose(); }}
       style={isSheet
         ? { position: "absolute", inset: 0, zIndex: 60, display: "flex", alignItems: "stretch", justifyContent: "stretch", background: "transparent" }
-        : { position: "fixed", inset: 0, zIndex: 2147483647, display: "flex", alignItems: "center", justifyContent: "center", padding: 20, background: "rgba(0,0,0,0.55)", opacity: entered ? 1 : 0, transition: "opacity 220ms ease", willChange: "opacity" }}>
+        : mobileSheet
+          ? { position: "fixed", inset: 0, zIndex: 2147483647, display: "flex", alignItems: "flex-end", justifyContent: "center", background: "rgba(0,0,0,0.55)", opacity: entered ? 1 : 0, transition: "opacity 220ms ease", willChange: "opacity" }
+          : { position: "fixed", inset: 0, zIndex: 2147483647, display: "flex", alignItems: "center", justifyContent: "center", padding: 20, background: "rgba(0,0,0,0.55)", opacity: entered ? 1 : 0, transition: "opacity 220ms ease", willChange: "opacity" }}>
       <div onClick={(e) => e.stopPropagation()}
         style={isSheet
           ? { position: "relative", width: "100%", height: "100%", boxSizing: "border-box", overflowY: "auto", background: "#fff", color: "#3a3f4a", paddingBottom: "var(--vb-safe-bottom, 0px)", transform: entered ? "translateY(0)" : "translateY(100%)", transition: "transform 240ms cubic-bezier(0.2,0.8,0.2,1)", willChange: "transform" }
-          : { position: "relative", width: isNarrow || forceStacked ? "min(100%, 440px)" : "min(100%, 660px)", maxHeight: "92vh", overflowY: "auto", background: "#fff", borderRadius: 16, boxShadow: "0 24px 72px rgba(0,0,0,0.4)", color: "#3a3f4a", opacity: entered ? 1 : 0, transform: entered ? "translateY(0) scale(1)" : "translateY(10px) scale(0.985)", transition: "opacity 220ms ease, transform 240ms cubic-bezier(0.2,0.8,0.2,1)", willChange: "opacity, transform" }}>
+          : mobileSheet
+            ? { position: "relative", width: "100%", maxHeight: "92vh", boxSizing: "border-box", overflowY: "auto", background: "#fff", borderRadius: "16px 16px 0 0", boxShadow: "0 -12px 48px rgba(0,0,0,0.4)", color: "#3a3f4a", paddingBottom: "var(--vb-safe-bottom, 0px)", transform: entered ? "translateY(0)" : "translateY(100%)", transition: "transform 240ms cubic-bezier(0.2,0.8,0.2,1)", willChange: "transform" }
+            : { position: "relative", width: isNarrow || forceStacked ? "min(100%, 440px)" : "min(100%, 660px)", maxHeight: "92vh", overflowY: "auto", background: "#fff", borderRadius: 16, boxShadow: "0 24px 72px rgba(0,0,0,0.4)", color: "#3a3f4a", opacity: entered ? 1 : 0, transform: entered ? "translateY(0) scale(1)" : "translateY(10px) scale(0.985)", transition: "opacity 220ms ease, transform 240ms cubic-bezier(0.2,0.8,0.2,1)", willChange: "opacity, transform" }}>
         <style>{keyframes}</style>
         {showSuccess ? successView : (
           <div style={{ opacity: paid ? 0 : 1, transition: "opacity 280ms ease" }}>

@@ -202,6 +202,9 @@ export default function ServicePaymentModal({
   // Layout apilado (una columna): en móvil por ancho, o SIEMPRE en modo "sheet"
   // (el panel del live vive en un contenedor angosto → nunca dos columnas).
   const stacked = isNarrow || isSheet;
+  // En celular (no ya en modo sheet embebido), la pasarela se presenta como
+  // bottom-sheet: sube al abrir y baja al cerrar. En laptop queda como diálogo centrado.
+  const mobileSheet = stacked && !isSheet;
   const [buyer, setBuyer] = useState<{ name: string; photo: string | null } | null>(null);
   // Animación de entrada/salida (no de golpe).
   const [render, setRender] = useState(false);
@@ -1490,6 +1493,19 @@ export default function ServicePaymentModal({
               justifyContent: "stretch",
               background: "transparent",
             }
+          : mobileSheet
+          ? {
+              position: "fixed",
+              inset: 0,
+              zIndex: 2147483647,
+              display: "flex",
+              alignItems: "flex-end",
+              justifyContent: "center",
+              background: "rgba(0,0,0,0.55)",
+              opacity: entered ? 1 : 0,
+              transition: "opacity 220ms ease",
+              willChange: "opacity",
+            }
           : {
               position: "fixed",
               inset: 0,
@@ -1519,6 +1535,22 @@ export default function ServicePaymentModal({
                 color: "#3a3f4a",
                 // La card blanca llena el safe-area inferior; el padding evita que el
                 // contenido quede debajo del home-indicator.
+                paddingBottom: "var(--vb-safe-bottom, 0px)",
+                transform: entered ? "translateY(0)" : "translateY(100%)",
+                transition: "transform 240ms cubic-bezier(0.2, 0.8, 0.2, 1)",
+                willChange: "transform",
+              }
+            : mobileSheet
+            ? {
+                position: "relative",
+                width: "100%",
+                maxHeight: "92vh",
+                boxSizing: "border-box",
+                overflowY: "auto",
+                background: "#fff",
+                borderRadius: "16px 16px 0 0",
+                boxShadow: "0 -12px 48px rgba(0,0,0,0.4)",
+                color: "#3a3f4a",
                 paddingBottom: "var(--vb-safe-bottom, 0px)",
                 transform: entered ? "translateY(0)" : "translateY(100%)",
                 transition: "transform 240ms cubic-bezier(0.2, 0.8, 0.2, 1)",
