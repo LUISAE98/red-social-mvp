@@ -507,136 +507,6 @@ export default function LiveComposerModal({
   const scrollContent = (
     <div className="vibra-live-scroll" style={{ flex: 1, overflowY: "auto", minHeight: 0, padding: "18px 20px 8px" }}>
 
-      {/* Portada */}
-      <input
-        ref={coverInputRef}
-        type="file"
-        accept="image/*,.heic,.heif"
-        style={{ display: "none" }}
-        onChange={handleCoverFileChange}
-      />
-      <label style={labelStyle}>{tLive("composerCoverLabel")}</label>
-      <button
-        type="button"
-        onClick={handleCoverClick}
-        disabled={saving}
-        aria-label={coverPreviewUrl ? tLive("changeCover") : tLive("addCover")}
-        style={{
-          width: "100%", aspectRatio: "16/7", borderRadius: 12,
-          border: "none",
-          background: coverPreviewUrl
-            ? "transparent"
-            : "linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6)), url('/live.webp') center / cover no-repeat",
-          cursor: saving ? "not-allowed" : "pointer",
-          display: "flex", alignItems: "center", justifyContent: "center",
-          marginBottom: 8, overflow: "hidden", padding: 0, position: "relative",
-        }}
-      >
-        {coverPreviewUrl ? (
-          <>
-            <Image src={coverPreviewUrl} alt={tLive("coverAlt")} fill style={{ objectFit: "cover", display: "block" }} />
-            <div
-              style={{
-                position: "absolute", inset: 0, display: "flex",
-                alignItems: "center", justifyContent: "center",
-                background: "rgba(0,0,0,0.45)", opacity: 0, transition: "opacity 150ms ease",
-              }}
-              onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.opacity = "1"; }}
-              onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.opacity = "0"; }}
-            >
-              <span style={{ fontSize: 13, fontWeight: 600, color: "#fff", fontFamily: fontStack }}>{tLive("changeCover")}</span>
-            </div>
-          </>
-        ) : (
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, pointerEvents: "none", padding: "0 12px" }}>
-            <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
-              <circle cx="18" cy="18" r="16" stroke="#ef4444" strokeWidth="1.8" fill="none" />
-              <circle cx="18" cy="18" r="9" fill="#ef4444" />
-            </svg>
-            <span style={{ fontSize: 13, fontWeight: 600, color: "#a855f7", fontFamily: fontStack, textAlign: "center", lineHeight: 1.3 }}>
-              Da clic aquí para elegir una portada
-            </span>
-          </div>
-        )}
-      </button>
-
-      {/* Título */}
-      <label style={labelStyle}>{tLive("composerTitleLabel")}</label>
-      <input
-        type="text"
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-        placeholder=""
-        disabled={saving}
-        maxLength={120}
-        style={inputStyle}
-        autoFocus={isDesktop}
-      />
-
-      {/* Descripción */}
-      <label style={labelStyle}>{tLive("composerDescriptionLabel")}</label>
-      <textarea
-        value={description}
-        onChange={(e) => setDescription(e.target.value)}
-        placeholder=""
-        disabled={saving}
-        maxLength={500}
-        rows={3}
-        style={{ ...inputStyle, resize: "none", minHeight: 44 }}
-      />
-
-      {/* Visibilidad */}
-      <label style={{ ...labelStyle, marginTop: 2 }}>{tLive("composerVisibilityLabel")}</label>
-      {isHiddenGroup ? (
-        <div style={{
-          display: "flex", alignItems: "center", gap: 10,
-          padding: "10px 12px", borderRadius: 10,
-          background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", marginBottom: 8,
-        }}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-            stroke="rgba(255,255,255,0.4)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-          </svg>
-          <div>
-            <div style={{ fontSize: 13, fontWeight: 600, color: "rgba(255,255,255,0.6)", fontFamily: fontStack }}>
-              {tLive("composerMembersOnly")}
-            </div>
-            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", fontFamily: fontStack, marginTop: 1 }}>
-              {tLive("composerHiddenNoPublic")}
-            </div>
-          </div>
-        </div>
-      ) : (
-        <div style={{ marginBottom: 8 }}>
-          {visibilityOptions.map((opt, idx) => {
-            const active = visibilityMode === opt.mode;
-            const isLast = idx === visibilityOptions.length - 1;
-            return (
-              <div
-                key={opt.mode}
-                className="vibra-live-radio"
-                onClick={() => !saving && setVisibilityMode(opt.mode)}
-                style={{
-                  display: "flex", alignItems: "center", gap: 12,
-                  padding: "13px 2px", cursor: saving ? "not-allowed" : "pointer",
-                  borderBottom: isLast ? "none" : "1px solid rgba(255,255,255,0.08)",
-                  userSelect: "none",
-                }}
-              >
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: "#fff", fontFamily: fontStack }}>{opt.title}</div>
-                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", fontFamily: fontStack, marginTop: 2, lineHeight: 1.4 }}>{opt.description}</div>
-                </div>
-                <span style={{ width: 18, height: 18, borderRadius: "50%", border: `2px solid ${active ? "#a855f7" : "rgba(255,255,255,0.25)"}`, display: "grid", placeItems: "center", flexShrink: 0 }}>
-                  {active && <span style={{ width: 9, height: 9, borderRadius: "50%", background: "#a855f7" }} />}
-                </span>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
       {/* Ticket */}
       <label style={{ ...labelStyle, marginTop: 2 }}>Ticket de entrada</label>
       <div style={{ marginBottom: 8 }}>
@@ -781,6 +651,136 @@ export default function LiveComposerModal({
             </>
           )}
       </div>
+
+      {/* Portada */}
+      <input
+        ref={coverInputRef}
+        type="file"
+        accept="image/*,.heic,.heif"
+        style={{ display: "none" }}
+        onChange={handleCoverFileChange}
+      />
+      <label style={labelStyle}>{tLive("composerCoverLabel")}</label>
+      <button
+        type="button"
+        onClick={handleCoverClick}
+        disabled={saving}
+        aria-label={coverPreviewUrl ? tLive("changeCover") : tLive("addCover")}
+        style={{
+          width: "100%", aspectRatio: "16/7", borderRadius: 12,
+          border: "none",
+          background: coverPreviewUrl
+            ? "transparent"
+            : "linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6)), url('/live.webp') center / cover no-repeat",
+          cursor: saving ? "not-allowed" : "pointer",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          marginBottom: 8, overflow: "hidden", padding: 0, position: "relative",
+        }}
+      >
+        {coverPreviewUrl ? (
+          <>
+            <Image src={coverPreviewUrl} alt={tLive("coverAlt")} fill style={{ objectFit: "cover", display: "block" }} />
+            <div
+              style={{
+                position: "absolute", inset: 0, display: "flex",
+                alignItems: "center", justifyContent: "center",
+                background: "rgba(0,0,0,0.45)", opacity: 0, transition: "opacity 150ms ease",
+              }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.opacity = "1"; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.opacity = "0"; }}
+            >
+              <span style={{ fontSize: 13, fontWeight: 600, color: "#fff", fontFamily: fontStack }}>{tLive("changeCover")}</span>
+            </div>
+          </>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, pointerEvents: "none", padding: "0 12px" }}>
+            <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
+              <circle cx="18" cy="18" r="16" stroke="#ef4444" strokeWidth="1.8" fill="none" />
+              <circle cx="18" cy="18" r="9" fill="#ef4444" />
+            </svg>
+            <span style={{ fontSize: 13, fontWeight: 600, color: "#a855f7", fontFamily: fontStack, textAlign: "center", lineHeight: 1.3 }}>
+              Da clic aquí para elegir una portada
+            </span>
+          </div>
+        )}
+      </button>
+
+      {/* Título */}
+      <label style={labelStyle}>{tLive("composerTitleLabel")}</label>
+      <input
+        type="text"
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+        placeholder=""
+        disabled={saving}
+        maxLength={120}
+        style={inputStyle}
+        autoFocus={isDesktop}
+      />
+
+      {/* Descripción */}
+      <label style={labelStyle}>{tLive("composerDescriptionLabel")}</label>
+      <textarea
+        value={description}
+        onChange={(e) => setDescription(e.target.value)}
+        placeholder=""
+        disabled={saving}
+        maxLength={500}
+        rows={3}
+        style={{ ...inputStyle, resize: "none", minHeight: 44 }}
+      />
+
+      {/* Visibilidad */}
+      <label style={{ ...labelStyle, marginTop: 2 }}>{tLive("composerVisibilityLabel")}</label>
+      {isHiddenGroup ? (
+        <div style={{
+          display: "flex", alignItems: "center", gap: 10,
+          padding: "10px 12px", borderRadius: 10,
+          background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", marginBottom: 8,
+        }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+            stroke="rgba(255,255,255,0.4)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+          </svg>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: "rgba(255,255,255,0.6)", fontFamily: fontStack }}>
+              {tLive("composerMembersOnly")}
+            </div>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", fontFamily: fontStack, marginTop: 1 }}>
+              {tLive("composerHiddenNoPublic")}
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div style={{ marginBottom: 8 }}>
+          {visibilityOptions.map((opt, idx) => {
+            const active = visibilityMode === opt.mode;
+            const isLast = idx === visibilityOptions.length - 1;
+            return (
+              <div
+                key={opt.mode}
+                className="vibra-live-radio"
+                onClick={() => !saving && setVisibilityMode(opt.mode)}
+                style={{
+                  display: "flex", alignItems: "center", gap: 12,
+                  padding: "13px 2px", cursor: saving ? "not-allowed" : "pointer",
+                  borderBottom: isLast ? "none" : "1px solid rgba(255,255,255,0.08)",
+                  userSelect: "none",
+                }}
+              >
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "#fff", fontFamily: fontStack }}>{opt.title}</div>
+                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", fontFamily: fontStack, marginTop: 2, lineHeight: 1.4 }}>{opt.description}</div>
+                </div>
+                <span style={{ width: 18, height: 18, borderRadius: "50%", border: `2px solid ${active ? "#a855f7" : "rgba(255,255,255,0.25)"}`, display: "grid", placeItems: "center", flexShrink: 0 }}>
+                  {active && <span style={{ width: 9, height: 9, borderRadius: "50%", background: "#a855f7" }} />}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {/* Fecha */}
       <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 10 }}>
