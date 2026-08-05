@@ -18,6 +18,7 @@ import { createPortal } from "react-dom";
 import { useEffect, useRef, useState } from "react";
 import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import { loadMercadoPago } from "@mercadopago/sdk-js";
+import VibraPayBrand from "./VibraPayBrand";
 import { doc, getDoc, collection, onSnapshot } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { MP_PUBLIC_KEY } from "@/lib/payments/mpConfig";
@@ -912,8 +913,7 @@ export default function ServicePaymentModal({
       {/* En móvil/sheet, Mercado Pago va arriba (centrado, o a la izquierda si logoLeft). */}
       {stacked && (
         <div style={{ marginBottom: 16, display: "flex", justifyContent: logoLeft ? "flex-start" : "center" }}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/mercadopago.webp" alt="Mercado Pago" style={{ height: 30, width: "auto" }} />
+          <VibraPayBrand />
         </div>
       )}
 
@@ -1018,12 +1018,7 @@ export default function ServicePaymentModal({
     >
       {/* Mercado Pago — absoluto arriba-der (no empuja el contenido). Solo laptop (dos columnas). */}
       {!stacked && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src="/mercadopago.webp"
-          alt="Mercado Pago"
-          style={{ position: "absolute", top: 22, right: 24, height: 30, width: "auto" }}
-        />
+        <VibraPayBrand style={{ position: "absolute", top: 22, right: 24 }} />
       )}
 
       {/* Creador */}

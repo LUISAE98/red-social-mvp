@@ -16,6 +16,7 @@ import { auth, db } from "@/lib/firebase";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import { FIXED_SERVICE_FEE_MXN } from "@/lib/currency/catalog";
 import { loadStripe, type StripeLike, type StripeElement } from "@/lib/stripe/loadStripe";
+import VibraPayBrand from "./VibraPayBrand";
 
 export type SavedCard = { id: string; brand?: string; brandName?: string; lastFour?: string };
 
@@ -400,6 +401,12 @@ export default function StripePaymentModal({
       <button type="button" onClick={() => { if (!submitting) onClose(); }} aria-label="Cerrar"
         style={{ position: "absolute", top: 8, right: 10, zIndex: 2, border: "none", background: "none", color: "#9aa0a8", cursor: submitting ? "not-allowed" : "pointer", fontSize: 26, lineHeight: 1, padding: 4 }}>×</button>
 
+      {stacked && (
+        <div style={{ display: "flex", justifyContent: "center", marginBottom: 16 }}>
+          <VibraPayBrand />
+        </div>
+      )}
+
       {!hideBuyerGreeting && (
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
           <div style={{ width: 42, height: 42, borderRadius: "50%", overflow: "hidden", flexShrink: 0, background: "#e6e8ec" }}>
@@ -440,6 +447,7 @@ export default function StripePaymentModal({
 
   const rightColumn = (
     <div style={{ position: "relative", padding: stacked ? "16px 18px 20px" : "48px 24px 24px", background: "#fff", borderLeft: stacked ? "none" : "1px solid #eaecef", display: "flex", flexDirection: "column", justifyContent: "flex-start", gap: 12, minWidth: 0 }}>
+      {!stacked && <VibraPayBrand style={{ position: "absolute", top: 22, right: 24 }} />}
       {/* Creador */}
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
         <div style={{ width: 48, height: 48, borderRadius: "50%", overflow: "hidden", flexShrink: 0, background: "#e6e8ec" }}>
@@ -489,10 +497,20 @@ export default function StripePaymentModal({
               <span style={{ fontSize: 22, fontWeight: 700, color: "#3a3f4a" }}>$</span>
               <input ref={amountInputRef} type="number" inputMode="decimal" min={1} className="vibra-amount-input" value={customAmount}
                 onChange={(e) => {
-                  // El donador teclea la BASE directo en MXN (México-only, sin conversión).
                   const v = e.target.value; setCustomAmount(v); setSelectedPreset(null);
-                  const n = Math.floor(Number(v));
-                  setChosenAmount(Number.isFinite(n) && n > 0 ? n : null);
+                  const typed = Number(v);
+                  if (!Number.isFinite(typed) || typed <= 0) { setChosenAmount(null); return; }
+                  if (donationCustomInclusive) {
+                    // Lo tecleado YA es el TOTAL (incluye $3 + IVA): NO se suma nada. Despejamos
+                    // la base (base + $3 = total/(1+iva)) para que abajo se DESGLOSE el IVA de
+                    // ese total y el total cobrado sea exactamente lo que escribió el usuario.
+                    const base = typed / (1 + pf.taxRate) - FIXED_SERVICE_FEE_MXN;
+                    setChosenAmount(base > 0 ? Math.round(base * 100) / 100 : null);
+                  } else {
+                    // El donador teclea la BASE directo en MXN (México-only, sin conversión).
+                    const n = Math.floor(typed);
+                    setChosenAmount(n > 0 ? n : null);
+                  }
                 }}
                 placeholder="0" style={{ width: 120, border: "none", borderBottom: "1px solid #eceef1", background: "transparent", fontSize: 22, fontWeight: 700, color: "#3a3f4a", textAlign: "center", outline: "none", fontFamily: "inherit", padding: "0 2px 4px" }} />
               <span style={{ fontSize: 13, color: "#9aa0a8", fontWeight: 600 }}>MXN</span>
