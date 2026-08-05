@@ -29,6 +29,9 @@ type Props = {
   amountEditable?: boolean;
   /** Montos sugeridos de DONACIÓN (base MXN). Si no se pasan, usa los defaults. */
   donationPresets?: number[];
+  /** Si true, el monto CUSTOM que teclea el donante ya es el TOTAL (incluye $3 + IVA);
+   *  se despeja la base = total/(1+iva) − $3. Los presets siguen siendo base. Para live donation. */
+  donationCustomInclusive?: boolean;
   priceLabel?: string;
   pricePeriodLabel?: string;
   productType?: string;
@@ -70,6 +73,7 @@ export default function StripePaymentModal({
   createIntent,
   amountEditable = false,
   donationPresets,
+  donationCustomInclusive = false,
   priceLabel,
   pricePeriodLabel,
   productType,
@@ -535,7 +539,7 @@ export default function StripePaymentModal({
         <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke={BLUE} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <path d="M12 3l7 3v5c0 4.5-3 7.6-7 9-4-1.4-7-4.5-7-9V6l7-3z" /><path d="M9 12l2 2 4-4" />
         </svg>
-        <span>Pago protegido y cifrado</span>
+        <span>Tu pago está protegido por <span style={{ color: BLUE, fontWeight: 600 }}>Stripe</span></span>
       </div>
     </div>
   );
