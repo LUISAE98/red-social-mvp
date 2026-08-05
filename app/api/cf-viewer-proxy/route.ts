@@ -27,12 +27,12 @@ export async function POST(req: NextRequest) {
 
   if (liveData?.streamProvider !== "cloudflare") {
     console.warn("[cf-viewer-proxy] Not a Cloudflare live, streamProvider:", liveData?.streamProvider);
-    return NextResponse.json({ error: "Este live no usa Cloudflare Stream" }, { status: 400 });
+    return NextResponse.json({ error: "Esta transmisión en vivo no usa Cloudflare Stream" }, { status: 400 });
   }
 
   if (liveData?.status !== "live") {
     console.warn("[cf-viewer-proxy] Live not active, status:", liveData?.status);
-    return NextResponse.json({ error: "El live no está activo actualmente" }, { status: 400 });
+    return NextResponse.json({ error: "La transmisión en vivo no está activa actualmente" }, { status: 400 });
   }
 
   const storedHlsUrl = (liveData?.hlsUrl as string | undefined)?.split("?")[0];

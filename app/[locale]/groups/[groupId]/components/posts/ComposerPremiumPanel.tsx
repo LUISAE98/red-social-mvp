@@ -210,7 +210,10 @@ export default function ComposerPremiumPanel({
   };
 
   useEffect(() => {
-    if (premiumErrorMessage) showPremiumToast(premiumErrorMessage, "error");
+    // El aviso de "precio mínimo" ya se muestra en rojo bajo el campo; no lo repetimos como toast.
+    if (premiumErrorMessage && validation.errors[0]?.code !== "premium_price_below_min") {
+      showPremiumToast(premiumErrorMessage, "error");
+    }
   }, [premiumErrorMessage]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -236,16 +239,14 @@ export default function ComposerPremiumPanel({
     ? capabilities.disabledReason
     : null;
 
-  const { resolveStoredPrice, currency: displayCurrency } = priceFmt;
+  const { currency: displayCurrency } = priceFmt;
 
   const parsedPrice = parseFloat(priceInput);
   const hasValidPrice =
     priceInput !== "" && Number.isFinite(parsedPrice) && parsedPrice > 0;
 
-  // El creador teclea en su moneda; el monto en MXN (ancla) es lo que se cobra.
-  const anchorPrice = hasValidPrice
-    ? resolveStoredPrice(parsedPrice).price
-    : null;
+  // Mexico-only: la base es EXACTAMENTE lo que teclea el creador, en MXN (sin conversión).
+  const anchorPrice = hasValidPrice ? parsedPrice : null;
 
   const creatorEarnings =
     anchorPrice != null
@@ -254,6 +255,8 @@ export default function ComposerPremiumPanel({
 
   // Por debajo del mínimo ($25 base) → aviso rojo, no se debe publicar.
   const belowMin = anchorPrice != null && anchorPrice < PREMIUM_MIN_PRICE_MXN;
+  // Las ganancias se muestran solo con precio válido y por encima del mínimo.
+  const earningsVisible = !!creatorEarnings && !belowMin;
 
   return (
     <section
@@ -455,28 +458,10 @@ export default function ComposerPremiumPanel({
             </span>
           </span>
 
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              border: "1px solid rgba(168,85,255,0.28)",
-              background: "rgba(12,8,22,0.7)",
-              borderRadius: 12,
-              padding: "0 12px",
-            }}
-          >
-            <span
-              style={{
-                color: "#a855f7",
-                fontSize: 15,
-                fontWeight: 700,
-                flexShrink: 0,
-              }}
-            >
-              $
-            </span>
-
+          {/* Presentación IGUAL a experiencias: el campo es un input autónomo
+              (estilo canónico vibra_style.md); el "+ $3" y la moneda van FUERA,
+              como hermanos en la fila (no dentro del placeholder). */}
+          <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
             <input
               type="text"
               enterKeyHint="done"
@@ -488,27 +473,28 @@ export default function ComposerPremiumPanel({
               inputMode="decimal"
               placeholder="0.00"
               style={{
-                width: "100%",
+                flex: "1 1 180px",
                 minWidth: 0,
-                height: 44,
-                border: 0,
-                outline: "none",
-                background: "transparent",
+                background: "rgba(255,255,255,0.06)",
+                border: "none",
+                borderRadius: 12,
+                padding: "10px 12px",
                 color: "#fff",
+                outline: "none",
                 fontSize: 15,
                 fontWeight: 400,
                 fontFamily: fontStack,
+                boxSizing: "border-box",
+                minHeight: 44,
               }}
             />
 
-            {/* Cargo fijo de Stripe, visible junto al precio (fuera del placeholder). */}
             <span
               style={{
-                color: "rgba(196,168,255,0.78)",
-                fontSize: 12,
-                fontWeight: 700,
+                color: "rgba(255,255,255,0.55)",
+                fontSize: 13,
+                fontWeight: 600,
                 whiteSpace: "nowrap",
-                flexShrink: 0,
               }}
             >
               + $3
@@ -516,56 +502,83 @@ export default function ComposerPremiumPanel({
 
             <span
               style={{
-                color: "rgba(168,85,255,0.58)",
-                fontSize: 11.5,
+                color: "#a855f7",
+                fontSize: 20,
                 fontWeight: 700,
-                letterSpacing: "0.06em",
-                flexShrink: 0,
+                letterSpacing: "-0.01em",
+                whiteSpace: "nowrap",
               }}
             >
               {displayCurrency}
             </span>
           </div>
 
-          {/* Aviso mínimo (rojo) o cuánto ganas por desbloqueo (75% de la base). */}
-          {belowMin ? (
-            <span
+          {/* Avisos que COLAPSAN suave (como en experiencias): mínimo en rojo y
+              cuánto ganas por desbloqueo. Se animan (max-height + opacity) en vez
+              de aparecer/desaparecer de golpe y empujar el panel bruscamente. */}
+          <div>
+            <div
               style={{
-                color: "#f87171",
-                fontSize: 11.5,
-                lineHeight: 1.45,
-                fontFamily: fontStack,
+                maxHeight: belowMin ? 24 : 0,
+                opacity: belowMin ? 1 : 0,
+                transform: belowMin ? "translateY(0)" : "translateY(4px)",
+                overflow: "hidden",
+                transition:
+                  "max-height 220ms ease, opacity 220ms ease, transform 220ms ease",
               }}
             >
-              {`El mínimo es $${PREMIUM_MIN_PRICE_MXN}`}
-            </span>
-          ) : creatorEarnings ? (
-            <span
-              style={{
-                color: "rgba(196,168,255,0.65)",
-                fontSize: 11.5,
-                lineHeight: 1.45,
-                fontFamily: fontStack,
-              }}
-            >
-              {tPosts("premiumEarningsPerUnlock")}{" "}
-              <strong style={{ color: "#a855f7", fontWeight: 600 }}>
-                {creatorEarnings}
-              </strong>
-            </span>
-          ) : null}
+              <span
+                style={{
+                  display: "block",
+                  color: "#f87171",
+                  fontSize: 11.5,
+                  lineHeight: 1.45,
+                  fontFamily: fontStack,
+                }}
+              >
+                {`El mínimo es $${PREMIUM_MIN_PRICE_MXN}`}
+              </span>
+            </div>
 
-          {/* Leyenda del cargo fijo de Stripe (siempre visible). */}
-          <span
-            style={{
-              color: "rgba(196,168,255,0.5)",
-              fontSize: 11,
-              lineHeight: 1.4,
-              fontFamily: fontStack,
-            }}
-          >
-            Se suman ${FIXED_SERVICE_FEE_MXN} MXN por el cargo de procesamiento de Stripe.
-          </span>
+            <div
+              style={{
+                maxHeight: earningsVisible ? 24 : 0,
+                opacity: earningsVisible ? 1 : 0,
+                transform: earningsVisible ? "translateY(0)" : "translateY(4px)",
+                overflow: "hidden",
+                transition:
+                  "max-height 220ms ease, opacity 220ms ease, transform 220ms ease",
+              }}
+            >
+              <span
+                style={{
+                  display: "block",
+                  color: "rgba(196,168,255,0.65)",
+                  fontSize: 11.5,
+                  lineHeight: 1.45,
+                  fontFamily: fontStack,
+                }}
+              >
+                {tPosts("premiumEarningsPerUnlock")}{" "}
+                <strong style={{ color: "#a855f7", fontWeight: 600 }}>
+                  {creatorEarnings}
+                </strong>
+              </span>
+            </div>
+
+            {/* Leyenda del cargo fijo de Stripe (siempre visible), en la misma celda. */}
+            <div
+              style={{
+                color: "rgba(196,168,255,0.5)",
+                fontSize: 11,
+                lineHeight: 1.4,
+                fontFamily: fontStack,
+                marginTop: 3,
+              }}
+            >
+              Se suman ${FIXED_SERVICE_FEE_MXN} MXN por el cargo de procesamiento de Stripe.
+            </div>
+          </div>
         </div>
       ) : null}
 

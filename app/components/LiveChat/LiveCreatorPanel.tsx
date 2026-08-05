@@ -751,7 +751,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
       return (
         <div style={{ height: 40, display: "flex", alignItems: "center", justifyContent: "center" }}>
           <span style={{ fontSize: 11, color: "rgba(255,255,255,0.18)", fontFamily: FONT }}>
-            El live no ha comenzado
+            La transmisión en vivo no ha comenzado
           </span>
         </div>
       );

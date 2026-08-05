@@ -1747,7 +1747,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
       <>
         {!ready && liveData?.coverUrl && (
           <Image
-            src={liveData.coverUrl} alt={liveData.title ?? "Live"}
+            src={liveData.coverUrl} alt={liveData.title ?? "En vivo"}
             fill
             style={{ objectFit: "cover", opacity: 0.3 }}
           />

@@ -62,8 +62,7 @@ export function useComposerPremium({
   viewerIsOwner = false,
   initialPremium,
 }: UseComposerPremiumParams) {
-  const { resolveStoredPrice, toDisplayForInput, currency: displayCurrency } =
-    usePriceFormat();
+  const { toDisplayForInput, currency: displayCurrency } = usePriceFormat();
 
   const [premiumEnabled, setPremiumEnabledState] = useState(() => initialPremium?.enabled === true);
   const [accessMode, setAccessModeState] =
@@ -127,17 +126,11 @@ export function useComposerPremium({
     return { canEnablePremium: true, allowedAccessModes, allowedFreeForOptions, disabledReason: null };
   }, [capabilities, initialPremium, isEditModePremium]);
 
-  // El creador teclea en su moneda; el precio se GUARDA en MXN (ancla).
-  // Convertimos aquí, en el borde donde el objeto `premium` (que se persiste) se
-  // construye. `price` queda ya en MXN para validación y persistencia.
+  // Mexico-only: el creador teclea en MXN y el precio se GUARDA TAL CUAL en MXN
+  // (sin conversión a USD). Es la base del creador — el backend cobra base + $3 + IVA
+  // y el ledger le da el 75% de esta base. Igual que las experiencias.
   const typedPrice = useMemo(() => parsePriceInput(priceInput), [priceInput]);
-  const price = useMemo(
-    () =>
-      typedPrice != null && typedPrice > 0
-        ? resolveStoredPrice(typedPrice).price
-        : typedPrice,
-    [typedPrice, resolveStoredPrice],
-  );
+  const price = typedPrice;
 
   function resetPremium() {
     setPremiumEnabledState(false);

@@ -2871,7 +2871,7 @@ style={{
             {activeLiveData?.coverUrl && (
               <Image
                 src={activeLiveData.coverUrl}
-                alt={activeLiveData.title ?? "Live"}
+                alt={activeLiveData.title ?? "En vivo"}
                 fill
                 style={{ objectFit: "cover", opacity: 0.15, filter: "grayscale(40%)" }}
               />

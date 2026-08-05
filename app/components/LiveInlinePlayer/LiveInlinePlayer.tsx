@@ -543,7 +543,7 @@ export default function LiveInlinePlayer({
       {!ready && coverUrl && (
         <Image
           src={coverUrl}
-          alt={title ?? "Live"}
+          alt={title ?? "En vivo"}
           fill
           style={{ objectFit: "cover", opacity: 0.5 }}
         />

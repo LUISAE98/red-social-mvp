@@ -65,7 +65,7 @@ export async function POST(req: NextRequest) {
 
   if (!credSnap.exists) {
     return NextResponse.json(
-      { error: "Credenciales Mux no encontradas. Asegúrate de haber activado el live." },
+      { error: "Credenciales Mux no encontradas. Asegúrate de haber activado la transmisión en vivo." },
       { status: 404 },
     );
   }

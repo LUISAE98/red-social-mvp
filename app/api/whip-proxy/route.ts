@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
     .get();
 
   if (!credSnap.exists) {
-    return NextResponse.json({ error: "Credenciales no encontradas. Configura el live primero." }, { status: 404 });
+    return NextResponse.json({ error: "Credenciales no encontradas. Configura la transmisión en vivo primero." }, { status: 404 });
   }
 
   const whipUrl = credSnap.data()?.whipUrl as string | undefined;

@@ -287,7 +287,7 @@ export default function LiveEndSummaryPanel({ open, onClose, post }: Props) {
               >
                 <div aria-hidden="true" />
                 <h3 style={{ margin: 0, textAlign: "center", fontSize: 17, fontWeight: 500, letterSpacing: "-0.02em", lineHeight: 1.2, color: "#fff" }}>
-                  Resumen del live
+                  Resumen de la transmisión en vivo
                 </h3>
                 <button
                   type="button"
@@ -351,7 +351,7 @@ export default function LiveEndSummaryPanel({ open, onClose, post }: Props) {
         }}>
           <div aria-hidden="true" />
           <span style={{ fontSize: 17, fontWeight: 500, color: "#fff", lineHeight: 1.2, textAlign: "center", letterSpacing: "-0.02em" }}>
-            Resumen del live
+            Resumen de la transmisión en vivo
           </span>
           <button
             type="button"

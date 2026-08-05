@@ -5,6 +5,8 @@ import { useState, useEffect, useMemo, useRef, type CSSProperties } from "react"
 import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import { useTranslations } from "next-intl";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
+import { WALLET_NET_RATE } from "@/lib/wallet/walletFinances";
+import { FIXED_SERVICE_FEE_MXN, LIVE_TICKET_MIN_PRICE_MXN } from "@/lib/currency/catalog";
 import { createPortal } from "react-dom";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
@@ -76,7 +78,7 @@ export default function LiveComposerModal({
   const { toast: liveComposerToast, showToast: showLiveComposerToast } = useVibraToast();
   const [accessType, setAccessType] = useState<"free" | "paid">("free");
   const [ticketPrice, setTicketPrice] = useState("");
-  const { resolveStoredPrice, toDisplayForInput, currency: displayCurrency, formatAnchor } =
+  const { format: formatMoney, toDisplayForInput, currency: displayCurrency } =
     usePriceFormat();
   const [paidAccessMode, setPaidAccessMode] = useState<"everyone_pays" | "members_free_non_members_pay">("everyone_pays");
   const [calendarOpen, setCalendarOpen] = useState(false);
@@ -303,6 +305,10 @@ export default function LiveComposerModal({
       showLiveComposerToast(tLive("ticketPriceRequired"), "error");
       return;
     }
+    if (accessType === "paid" && priceNum < LIVE_TICKET_MIN_PRICE_MXN) {
+      showLiveComposerToast(`El precio mínimo del ticket es $${LIVE_TICKET_MIN_PRICE_MXN}.`, "error");
+      return;
+    }
 
         setSaving(true);
 
@@ -319,10 +325,10 @@ export default function LiveComposerModal({
         groupVisibility === "private" &&
         effectiveMode !== "members_only";
       const effectivePaidAccessMode = canHaveMemberExemption ? paidAccessMode : "everyone_pays";
-      // El creador teclea en su moneda; se guarda en MXN (ancla).
-      const storedTicket = accessType === "paid" ? resolveStoredPrice(priceNum) : null;
-      const finalTicketPrice = storedTicket ? storedTicket.price : null;
-      const finalCurrency = storedTicket ? storedTicket.currency : null;
+      // Mexico-only: el creador teclea en MXN y se guarda TAL CUAL en MXN (sin
+      // conversión a USD). Es la base — el backend cobra base + $3 + IVA.
+      const finalTicketPrice = accessType === "paid" ? priceNum : null;
+      const finalCurrency = accessType === "paid" ? "MXN" : null;
       const finalPaidAccessMode = accessType === "paid" ? effectivePaidAccessMode : null;
 
       // Strip "__profile__" from community IDs before saving; it's stored separately as broadcast sentinel
@@ -489,6 +495,15 @@ export default function LiveComposerModal({
     display: "block",
   };
 
+  // Precio del ticket (MXN base). Mismo sistema que experiencias/premium:
+  // mínimo en rojo, cuánto ganas (75%), leyenda del $3 — todos con colapso suave.
+  const ticketPriceNum = parseFloat(ticketPrice.replace(",", "."));
+  const ticketHasValidPrice =
+    ticketPrice.trim() !== "" && Number.isFinite(ticketPriceNum) && ticketPriceNum > 0;
+  const ticketBelowMin = ticketHasValidPrice && ticketPriceNum < LIVE_TICKET_MIN_PRICE_MXN;
+  const ticketEarnings = ticketHasValidPrice ? ticketPriceNum * WALLET_NET_RATE : null;
+  const ticketEarningsVisible = ticketEarnings != null && ticketEarnings > 0 && !ticketBelowMin;
+
   const scrollContent = (
     <div className="vibra-live-scroll" style={{ flex: 1, overflowY: "auto", minHeight: 0, padding: "18px 20px 8px" }}>
 
@@ -609,27 +624,6 @@ export default function LiveComposerModal({
                   userSelect: "none",
                 }}
               >
-                <div style={{ flexShrink: 0, color: "rgba(255,255,255,0.5)" }}>
-                  {opt.icon === "globe" && (
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <circle cx="12" cy="12" r="10" />
-                      <line x1="2" y1="12" x2="22" y2="12" />
-                      <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-                    </svg>
-                  )}
-                  {opt.icon === "user" && (
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                      <circle cx="12" cy="7" r="4" />
-                    </svg>
-                  )}
-                  {opt.icon === "lock" && (
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                    </svg>
-                  )}
-                </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 13, fontWeight: 600, color: "#fff", fontFamily: fontStack }}>{opt.title}</div>
                   <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", fontFamily: fontStack, marginTop: 2, lineHeight: 1.4 }}>{opt.description}</div>
@@ -679,34 +673,69 @@ export default function LiveComposerModal({
       {accessType === "paid" && (
         <>
           <label style={labelStyle}>{tLive("composerTicketPriceLabel")}</label>
-          <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
-            <div style={{ flex: 1, position: "relative" as const }}>
-              <input
-                type="number"
-                min="1"
-                step="any"
-                value={ticketPrice}
-                onChange={(e) => setTicketPrice(e.target.value)}
-                placeholder="0.00"
-                disabled={saving}
-                style={{ ...inputStyle, width: "100%", boxSizing: "border-box" as const }}
-              />
-            </div>
-            <div style={{
-              width: 90, flexShrink: 0,
-              display: "flex", alignItems: "center", justifyContent: "center",
-              background: "rgba(255,255,255,0.06)", borderRadius: 10,
-              border: "1px solid rgba(255,255,255,0.1)",
-              color: "#fff", fontSize: 13, fontWeight: 600, fontFamily: fontStack,
-            }}>
+          {/* Presentación IGUAL a experiencias/premium: el campo es un input autónomo
+              (estilo canónico vibra_style.md); el "+ $3" y la moneda van FUERA, como
+              hermanos en la fila (no dentro del placeholder). */}
+          <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", marginBottom: 8 }}>
+            <input
+              type="number"
+              min="1"
+              step="any"
+              value={ticketPrice}
+              onChange={(e) => setTicketPrice(e.target.value)}
+              placeholder="0.00"
+              disabled={saving}
+              style={{ ...inputStyle, flex: "1 1 180px", width: "auto", minWidth: 0, marginBottom: 0 }}
+            />
+
+            <span style={{ color: "rgba(255,255,255,0.55)", fontSize: 13, fontWeight: 600, whiteSpace: "nowrap" }}>
+              + $3
+            </span>
+
+            <span style={{ color: "#a855f7", fontSize: 20, fontWeight: 700, letterSpacing: "-0.01em", whiteSpace: "nowrap" }}>
               {displayCurrency}
+            </span>
+          </div>
+
+          {/* Avisos que COLAPSAN suave (como en experiencias): mínimo en rojo,
+              cuánto ganas (75%), y la leyenda del cargo fijo de Stripe. */}
+          <div style={{ marginBottom: 8 }}>
+            <div
+              style={{
+                maxHeight: ticketBelowMin ? 24 : 0,
+                opacity: ticketBelowMin ? 1 : 0,
+                transform: ticketBelowMin ? "translateY(0)" : "translateY(4px)",
+                overflow: "hidden",
+                transition: "max-height 220ms ease, opacity 220ms ease, transform 220ms ease",
+              }}
+            >
+              <span style={{ display: "block", color: "#f87171", fontSize: 12, lineHeight: 1.45, fontFamily: fontStack }}>
+                {`El mínimo es $${LIVE_TICKET_MIN_PRICE_MXN}`}
+              </span>
+            </div>
+
+            <div
+              style={{
+                maxHeight: ticketEarningsVisible ? 24 : 0,
+                opacity: ticketEarningsVisible ? 1 : 0,
+                transform: ticketEarningsVisible ? "translateY(0)" : "translateY(4px)",
+                overflow: "hidden",
+                transition: "max-height 220ms ease, opacity 220ms ease, transform 220ms ease",
+              }}
+            >
+              <span style={{ display: "block", color: "rgba(255,255,255,0.55)", fontSize: 12, lineHeight: 1.45, fontFamily: fontStack }}>
+                Ganas{" "}
+                <strong style={{ color: "#a855f7", fontWeight: 700 }}>
+                  {formatMoney(ticketEarnings ?? 0, { baseCurrency: "MXN", code: true })}
+                </strong>{" "}
+                por cada entrada
+              </span>
+            </div>
+
+            <div style={{ color: "rgba(255,255,255,0.4)", fontSize: 11, lineHeight: 1.4, fontFamily: fontStack, marginTop: 3 }}>
+              Se suman ${FIXED_SERVICE_FEE_MXN} MXN por el cargo de procesamiento de Stripe.
             </div>
           </div>
-          {displayCurrency !== "USD" && ticketPrice && Number(ticketPrice) > 0 ? (
-            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", marginTop: -4, marginBottom: 8, fontFamily: fontStack }}>
-              = {formatAnchor(resolveStoredPrice(Number(ticketPrice)).price)}
-            </div>
-          ) : null}
 
           {contextType === "group" && groupVisibility === "private" && visibilityMode !== "members_only" && (
             <>

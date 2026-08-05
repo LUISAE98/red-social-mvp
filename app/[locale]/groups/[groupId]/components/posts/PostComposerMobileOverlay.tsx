@@ -369,6 +369,25 @@ export default function PostComposerMobileOverlay({
             100% { background-position: 0% 50%; }
           }
 
+          /* Skeleton canónico de Vibra (vibra_style.md): onda .vb-skel / vbSkelWave. */
+          .vb-skel {
+            background: linear-gradient(
+              100deg,
+              rgba(255, 255, 255, 0.05) 30%,
+              rgba(255, 255, 255, 0.11) 50%,
+              rgba(255, 255, 255, 0.05) 70%
+            );
+            background-size: 300% 100%;
+            animation: vbSkelWave 1.6s ease-in-out infinite;
+          }
+          @keyframes vbSkelWave {
+            0%   { background-position: 180% 0; }
+            100% { background-position: -80% 0; }
+          }
+          @media (prefers-reduced-motion: reduce) {
+            .vb-skel { animation: none; background: rgba(255, 255, 255, 0.07); }
+          }
+
           @keyframes vibra-publish-spinner-spin {
             from { transform: rotate(0deg); }
             to { transform: rotate(360deg); }
@@ -873,48 +892,17 @@ export default function PostComposerMobileOverlay({
                                   draggable={false}
                                 />
                               ) : (
+                                // Skeleton canónico (vibra_style.md) mientras se prepara la
+                                // portada del video — sin emoji ni texto, más profesional.
                                 <div
                                   aria-hidden="true"
+                                  className="vb-skel"
                                   style={{
                                     position: "absolute",
                                     inset: 0,
-                                    display: "grid",
-                                    placeItems: "center",
-                                    background:
-                                      "linear-gradient(135deg, rgba(76,29,149,0.78), rgba(168,85,247,0.34), rgba(49,46,129,0.72))",
-                                    backgroundSize: "220% 220%",
-                                    animation:
-                                      "post-preview-video-cover-loading 1.45s ease-in-out infinite",
-                                    color: "rgba(255,255,255,0.92)",
-                                    textAlign: "center",
-                                    padding: 10,
-                                    boxSizing: "border-box",
                                     zIndex: 2,
                                   }}
-                                >
-                                  <div
-                                    style={{
-                                      display: "grid",
-                                      gap: 6,
-                                      justifyItems: "center",
-                                    }}
-                                  >
-                                    <span
-                                      style={{ fontSize: 22, lineHeight: 1 }}
-                                    >
-                                      🎥
-                                    </span>
-                                    <span
-                                      style={{
-                                        fontSize: 11,
-                                        fontWeight: 800,
-                                        lineHeight: 1.15,
-                                      }}
-                                    >
-                                      {tPosts("loadingVideo")}
-                                    </span>
-                                  </div>
-                                </div>
+                                />
                               )}
 
                               {isVideoCoverLoading && (
@@ -938,7 +926,7 @@ export default function PostComposerMobileOverlay({
                                 style={{
                                   position: "absolute",
                                   right: 8,
-                                  bottom: 35,
+                                  bottom: 25,
                                   color: "#fff",
                                   fontSize: 11,
                                   fontWeight: 800,
@@ -962,13 +950,13 @@ export default function PostComposerMobileOverlay({
                                   left: 0,
                                   right: 0,
                                   bottom: 0,
-                                  height: 29,
+                                  height: 22,
                                   padding: "0 8px",
                                   borderRadius: 0,
                                   border: "none",
                                   background: "#a855f7",
                                   color: "rgba(255,255,255,0.98)",
-                                  fontSize: 12,
+                                  fontSize: 11.5,
                                   fontWeight: 500,
                                   fontFamily: fontStack,
                                   lineHeight: 1,
@@ -1063,7 +1051,7 @@ export default function PostComposerMobileOverlay({
                         width: 104,
                         height: 104,
                         borderRadius: 14,
-                        border: "1px dashed rgba(255,255,255,0.24)",
+                        border: "none",
                         background: "rgba(255,255,255,0.045)",
                         color: "rgba(255,255,255,0.82)",
                         display: "grid",
