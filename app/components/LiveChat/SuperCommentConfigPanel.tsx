@@ -18,6 +18,7 @@ import {
 } from "@/lib/liveChat/types";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import { WALLET_NET_RATE } from "@/lib/wallet/walletFinances";
+import { FIXED_SERVICE_FEE_MXN, SUPER_COMMENT_MIN_PRICE_MXN } from "@/lib/currency/catalog";
 
 const FONT = "inherit";
 const PANEL_CLOSE_THRESHOLD = 130;
@@ -32,10 +33,8 @@ export default function SuperCommentConfigPanel({ open, onClose, postId }: Props
   const tLive = useTranslations("live");
   const {
     format: formatMoney,
-    resolveStoredPrice,
     toDisplayForInput,
     currency: displayCurrency,
-    formatAnchor,
   } = usePriceFormat();
   const [mounted, setMounted] = useState(false);
   const [shouldRender, setShouldRender] = useState(false);
@@ -96,15 +95,16 @@ export default function SuperCommentConfigPanel({ open, onClose, postId }: Props
     setLoadingConfig(true);
     getSuperCommentConfig(uid)
       .then((cfg) => {
-        // Siempre aplicar los colores actuales del default por tier ID
+        // Colores y CARACTERES por msg. son FIJOS (no editables): se reaplican del default por id.
         const colorMap = Object.fromEntries(DEFAULT_SUPER_COMMENT_TIERS.map((t) => [t.id, t.color]));
-        // Los precios están guardados en MXN (ancla). Los mostramos en la moneda
-        // del creador para que edite en su moneda; al guardar se reconvierten a MXN.
+        const maxCharsMap = Object.fromEntries(DEFAULT_SUPER_COMMENT_TIERS.map((t) => [t.id, t.maxChars]));
+        // El precio se guarda en MXN; solo eso edita el creador.
         setScConfig({
           ...cfg,
           tiers: cfg.tiers.map((t) => ({
             ...t,
             color: colorMap[t.id] ?? t.color,
+            maxChars: maxCharsMap[t.id] ?? t.maxChars,
             price:
               t.price > 0
                 ? Math.round(toDisplayForInput(t.price, cfg.currency ?? "MXN") * 100) / 100
@@ -139,14 +139,12 @@ export default function SuperCommentConfigPanel({ open, onClose, postId }: Props
     setSavingConfig(true);
     setConfigSaved(false);
     try {
-      // El creador editó los precios en su moneda; se GUARDAN en MXN (ancla).
+      // Mexico-only: el creador teclea en MXN y se GUARDA TAL CUAL en MXN (sin conversión
+      // a USD). Es la base — el fan paga base + $3 + IVA y el creador recibe 75% de la base.
       const configToSave: SuperCommentConfig = {
         ...scConfig,
         currency: "MXN",
-        tiers: scConfig.tiers.map((t) => ({
-          ...t,
-          price: t.price > 0 ? resolveStoredPrice(t.price).price : t.price,
-        })),
+        tiers: scConfig.tiers.map((t) => ({ ...t, price: t.price })),
       };
       await saveSuperCommentConfig(uid, configToSave);
       await copySuperCommentConfigToLive(postId, configToSave);
@@ -190,7 +188,7 @@ export default function SuperCommentConfigPanel({ open, onClose, postId }: Props
   if (!mounted || !shouldRender) return null;
 
   const formContent = (
-    <div style={{ padding: "20px 20px 28px", display: "flex", flexDirection: "column", gap: 0 }}>
+    <div style={{ padding: "20px 20px 16px" }}>
       {/* Tiers */}
       {loadingConfig ? (
         <div style={{ textAlign: "center", padding: "16px 0", fontSize: 12, color: "rgba(255,255,255,0.35)", fontFamily: FONT }}>
@@ -198,67 +196,94 @@ export default function SuperCommentConfigPanel({ open, onClose, postId }: Props
         </div>
       ) : (
         <>
-          <div style={{ marginBottom: 16 }}>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 10, padding: "0 2px" }}>
-              {[tLive("scConfigCharsPerMsg"), tLive("scConfigFanPays", { currency: displayCurrency })].map((h) => (
-                <span key={h} style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.05em", color: "rgba(255,255,255,0.35)", fontFamily: FONT, textAlign: "center" as const }}>
-                  {h}
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+              {/* Spacer del aro del tier (alinea con el aro de los renglones). */}
+              <div style={{ width: 16, flexShrink: 0 }} />
+              <div style={{ flex: 1, display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)", gap: 8 }}>
+                {/* Col 1: "Fan paga" centrado SOBRE el input (spacer invisible del ancho de "+ $3 MXN"). */}
+                <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                  <span style={{ flex: 1, minWidth: 0, fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.05em", color: "rgba(255,255,255,0.35)", fontFamily: FONT, textAlign: "center" as const }}>
+                    {tLive("scConfigFanPays", { currency: displayCurrency })}
+                  </span>
+                  <span aria-hidden="true" style={{ visibility: "hidden" as const, fontSize: 11, fontWeight: 700, whiteSpace: "nowrap" as const, fontFamily: FONT }}>+ $3 MXN</span>
+                </div>
+                {/* Col 2: "Caracteres por mensaje" en DOS renglones, centrado sobre el número. */}
+                <span style={{ display: "block", maxWidth: 74, margin: "0 auto", fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.05em", color: "rgba(255,255,255,0.35)", fontFamily: FONT, textAlign: "center" as const, lineHeight: 1.25 }}>
+                  {tLive("scConfigCharsPerMsg")}
                 </span>
-              ))}
+              </div>
             </div>
             {scConfig.tiers.map((tier) => {
-              // tier.price está en la moneda del creador; el monto real (MXN) es el ancla.
-              const anchorPrice =
-                tier.price > 0 ? resolveStoredPrice(tier.price).price : 0;
-              const creatorEarns = formatMoney(anchorPrice * WALLET_NET_RATE, { code: true });
+              // Mexico-only: tier.price es la BASE en MXN (lo que teclea el creador).
+              const priceMxn = tier.price > 0 ? tier.price : 0;
+              const belowMin = priceMxn > 0 && priceMxn < SUPER_COMMENT_MIN_PRICE_MXN;
+              const earningsVisible = priceMxn >= SUPER_COMMENT_MIN_PRICE_MXN;
+              const creatorEarns = formatMoney(priceMxn * WALLET_NET_RATE, { baseCurrency: "MXN", code: true });
+              const collapse = "max-height 220ms ease, opacity 220ms ease, transform 220ms ease";
               return (
                 <div key={tier.id} style={{ marginBottom: 14 }}>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, alignItems: "center" }}>
-                    <input
-                      type="number" min={10} max={600} value={tier.maxChars}
-                      onChange={(e) => updateTierField(tier.id, "maxChars", e.target.value)}
-                      style={{
-                        width: "100%", padding: "9px 10px", borderRadius: 8,
-                        border: "none",
-                        background: `${tier.color}66`,
-                        color: "#ffffff",
-                        fontSize: 13, fontFamily: FONT, textAlign: "center" as const, outline: "none",
-                        boxSizing: "border-box" as const,
-                      }}
-                    />
-                    <input
-                      type="number" min={1} value={tier.price}
-                      onChange={(e) => updateTierField(tier.id, "price", e.target.value)}
-                      style={{
-                        width: "100%", padding: "9px 10px", borderRadius: 8,
-                        border: "none",
-                        background: `${tier.color}66`,
-                        color: "#ffffff",
-                        fontSize: 13, fontFamily: FONT, textAlign: "center" as const, outline: "none",
-                        boxSizing: "border-box" as const,
-                      }}
-                    />
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    {/* Aro del color del tier al inicio del renglón (como en el panel de compra). */}
+                    <div style={{ width: 16, height: 16, borderRadius: "50%", border: `2.5px solid ${tier.color}`, flexShrink: 0, boxSizing: "border-box" as const }} />
+                    <div style={{ flex: 1, display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)", gap: 8, alignItems: "center" }}>
+                      {/* Col 1: Precio (editable) + "+ $3 MXN" al final. */}
+                      <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                        <input
+                          type="number" min={1} value={tier.price || ""}
+                          onChange={(e) => updateTierField(tier.id, "price", e.target.value)}
+                          placeholder="0.00"
+                          style={{
+                            flex: 1, minWidth: 0, padding: "9px 10px", borderRadius: 8,
+                            border: "none",
+                            background: "rgba(255,255,255,0.06)",
+                            color: "#ffffff",
+                            fontSize: 13, fontFamily: FONT, textAlign: "center" as const, outline: "none",
+                            boxSizing: "border-box" as const,
+                          }}
+                        />
+                        <span style={{ color: "rgba(255,255,255,0.6)", fontSize: 11, fontWeight: 700, whiteSpace: "nowrap" as const, fontFamily: FONT }}>+ $3 MXN</span>
+                      </div>
+                      {/* Col 2: Caracteres FIJOS (no editables): solo el número, sin caja, centrado. */}
+                      <div style={{ textAlign: "center" as const, color: "rgba(255,255,255,0.55)", fontSize: 13, fontFamily: FONT }}>
+                        {tier.maxChars}
+                      </div>
+                    </div>
                   </div>
-                  {displayCurrency !== "USD" && anchorPrice > 0 ? (
-                    <p style={{ margin: "4px 0 0", fontSize: 10.5, color: "rgba(255,255,255,0.4)", fontFamily: FONT, textAlign: "left" as const, lineHeight: 1.4 }}>
-                      = {formatAnchor(anchorPrice)}
+
+                  {/* Aviso mínimo (rojo) — colapsa suave. */}
+                  <div style={{ maxHeight: belowMin ? 22 : 0, opacity: belowMin ? 1 : 0, transform: belowMin ? "translateY(0)" : "translateY(4px)", overflow: "hidden", transition: collapse }}>
+                    <p style={{ margin: "5px 0 0", fontSize: 10.5, color: "#f87171", fontFamily: FONT, lineHeight: 1.4 }}>
+                      {`El mínimo es $${SUPER_COMMENT_MIN_PRICE_MXN}`}
                     </p>
-                  ) : null}
-                  <p style={{ margin: "5px 0 0", fontSize: 10.5, color: tier.color, fontFamily: FONT, textAlign: "left" as const, lineHeight: 1.4 }}>
-                    {tLive("scConfigEarnNote")}{" "}
-                    <span style={{ color: "#86efac", fontWeight: 600 }}>{creatorEarns}</span>
-                  </p>
+                  </div>
+
+                  {/* Cuánto cobra el creador (75% de la base) — colapsa suave. */}
+                  <div style={{ maxHeight: earningsVisible ? 28 : 0, opacity: earningsVisible ? 1 : 0, transform: earningsVisible ? "translateY(0)" : "translateY(4px)", overflow: "hidden", transition: collapse }}>
+                    <p style={{ margin: "5px 0 0", fontSize: 10.5, color: tier.color, fontFamily: FONT, lineHeight: 1.4 }}>
+                      {tLive("scConfigEarnNote")}{" "}
+                      <span style={{ color: "#86efac", fontWeight: 600 }}>{creatorEarns}</span>
+                    </p>
+                  </div>
                 </div>
               );
             })}
           </div>
-          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", fontFamily: FONT, marginBottom: 20, lineHeight: 1.5 }}>
+          {/* Leyenda del cargo fijo de Stripe (aplica a todos los tiers). */}
+          <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.4)", fontFamily: FONT, marginBottom: 12, lineHeight: 1.5 }}>
+            Se suman ${FIXED_SERVICE_FEE_MXN} MXN por el cargo de procesamiento de Stripe.
+          </div>
+          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", fontFamily: FONT, lineHeight: 1.5 }}>
             {tLive("scConfigSavedNote")}
           </div>
         </>
       )}
+    </div>
+  );
 
-      {/* Save */}
+  // Footer FIJO (fuera del scroll) con el botón de guardar cambios.
+  const saveFooter = (
+    <div style={{ padding: "12px 20px", borderTop: "1px solid rgba(255,255,255,0.08)", flexShrink: 0 }}>
       <style>{`
         @keyframes scSaveCheckIn {
           from { transform: scale(0.3); opacity: 0; }
@@ -307,7 +332,7 @@ export default function SuperCommentConfigPanel({ open, onClose, postId }: Props
         onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
       >
         <section style={{
-          width: "min(100%, 480px)", maxHeight: "min(88vh, 600px)",
+          width: "min(100%, 440px)", maxHeight: "min(88vh, 600px)",
           display: "flex", flexDirection: "column",
           borderRadius: 18, background: "#0a0a0a",
           boxShadow: "0 0 0 1px rgba(255,255,255,0.08), 0 32px 72px rgba(0,0,0,0.9)",
@@ -350,6 +375,7 @@ export default function SuperCommentConfigPanel({ open, onClose, postId }: Props
           <div style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
             {formContent}
           </div>
+          {saveFooter}
         </section>
       </div>,
       document.body,
@@ -415,6 +441,7 @@ export default function SuperCommentConfigPanel({ open, onClose, postId }: Props
             <div style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
               {formContent}
             </div>
+            {saveFooter}
           </section>
         </div>
       </div>
