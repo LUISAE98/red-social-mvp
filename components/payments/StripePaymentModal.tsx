@@ -11,7 +11,7 @@
 import { createPortal } from "react-dom";
 import { useEffect, useRef, useState } from "react";
 import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, collection, onSnapshot } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import { FIXED_SERVICE_FEE_MXN } from "@/lib/currency/catalog";
@@ -25,8 +25,10 @@ type Props = {
   amount: number | null; // monto base (sin IVA), en la moneda `amountCurrency`
   /** Moneda del `amount`: "MXN" (precios de servicios) o "USD" (donaciones/ancla). Default USD. */
   amountCurrency?: "USD" | "MXN";
-  /** Crea el PaymentIntent y devuelve su client_secret. `taxCountry` = país fiscal del comprador (por IP). */
-  createIntent: (args: { amount: number; saveCard: boolean; taxCountry: string | null }) => Promise<{ clientSecret: string }>;
+  /** Crea el PaymentIntent y devuelve su client_secret. `taxCountry` = país fiscal del comprador (por IP).
+   *  Si `savedPaymentMethodId` viene, el cobro es "un clic" off-session (sin CVV): se confirma
+   *  server-side y la respuesta trae `status` ("succeeded" = cobrado). */
+  createIntent: (args: { amount: number; saveCard: boolean; taxCountry: string | null; savedPaymentMethodId?: string }) => Promise<{ clientSecret?: string; status?: string }>;
   amountEditable?: boolean;
   /** Montos sugeridos de DONACIÓN (base MXN). Si no se pasan, usa los defaults. */
   donationPresets?: number[];
@@ -118,6 +120,11 @@ export default function StripePaymentModal({
   const [buyer, setBuyer] = useState<{ name: string; photo: string | null } | null>(null);
   const [render, setRender] = useState(false);
   const [entered, setEntered] = useState(false);
+  // Tarjetas guardadas del comprador (Stripe). Se suscribe internamente para que CUALQUIER
+  // pasarela las ofrezca, aunque el servicio no las pase como prop. Una tarjeta guardada en
+  // un servicio queda disponible en todos (cobro "un clic" off-session, sin CVV).
+  const [subscribedCards, setSubscribedCards] = useState<SavedCard[]>([]);
+  const effectiveSavedCards = savedCards.length ? savedCards : subscribedCards;
 
   const pf = usePriceFormat();
 
@@ -150,6 +157,13 @@ export default function StripePaymentModal({
       return () => window.clearTimeout(t);
     }
   }, [open, entered, amountEditable, showSuccess, isSheet]);
+
+  // Contenedor scrolleable del modal: al pasar al panel de éxito lo llevamos al TOPE
+  // para que la X de cerrar sea visible (si venía scrolleado desde el formulario).
+  const scrollRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (showSuccess) scrollRef.current?.scrollTo({ top: 0 });
+  }, [showSuccess]);
 
   useEffect(() => {
     setMounted(true);
@@ -191,6 +205,32 @@ export default function StripePaymentModal({
       })
       .catch(() => { if (!cancelled) setBuyer(null); });
     return () => { cancelled = true; };
+  }, [open]);
+
+  // Suscripción a las tarjetas guardadas de Stripe del comprador (solo docs con
+  // `stripePaymentMethodId`; descarta legacy de MP). Habilita el cobro "un clic".
+  useEffect(() => {
+    if (!open) { setSubscribedCards([]); return; }
+    const uid = auth.currentUser?.uid;
+    if (!uid) { setSubscribedCards([]); return; }
+    const unsub = onSnapshot(
+      collection(db, "users", uid, "paymentMethods"),
+      (snap) => setSubscribedCards(
+        snap.docs
+          .filter((d) => typeof d.data().stripePaymentMethodId === "string")
+          .map((d) => {
+            const data = d.data();
+            return {
+              id: d.id,
+              brand: typeof data.brand === "string" ? data.brand : undefined,
+              brandName: typeof data.brandName === "string" ? data.brandName : undefined,
+              lastFour: typeof data.lastFour === "string" ? data.lastFour : undefined,
+            };
+          })
+      ),
+      () => setSubscribedCards([])
+    );
+    return () => unsub();
   }, [open]);
 
   // (A) Al abrir: carga Stripe.js.
@@ -276,12 +316,29 @@ export default function StripePaymentModal({
 
     setSubmitting(true);
     setError(null);
+    // Marca el pago como exitoso (pantalla verde o cierre, según successMessage).
+    const markPaid = () => {
+      if (successMessage) {
+        setPaid(true);
+        onPaidRef.current();
+        window.setTimeout(() => setShowSuccess(true), 300);
+      } else {
+        onPaidRef.current();
+      }
+    };
     try {
       if (savedCardId) {
-        // El cobro de tarjeta guardada (off-session, un clic) se conecta en S3c.
-        setError("El cobro con tarjeta guardada se conecta en el siguiente paso (S3c).");
-        setSubmitting(false);
-        return;
+        // Cobro "un clic" off-session (sin CVV): el callable confirma server-side con la
+        // tarjeta guardada. El webhook materializa la compra (igual que la tarjeta nueva).
+        const res = await createIntentRef.current({ amount: payAmount, saveCard: false, taxCountry: pf.buyerCountry ?? null, savedPaymentMethodId: savedCardId });
+        if (res.status === "succeeded" || res.status === "processing") { markPaid(); return; }
+        // Requiere autenticación adicional (SCA): completa el 3DS con el client_secret.
+        if (res.clientSecret) {
+          const result = await stripe.confirmCardPayment(res.clientSecret);
+          if (result.error) { setError(result.error.message || "No se pudo procesar el pago."); setSubmitting(false); return; }
+          if (result.paymentIntent?.status === "succeeded" || result.paymentIntent?.status === "processing") { markPaid(); return; }
+        }
+        throw new Error("rejected");
       }
       // Tarjeta nueva.
       if (!cardName.trim()) throw new Error("no_name");
@@ -289,6 +346,7 @@ export default function StripePaymentModal({
       if (!numberEl) throw new Error("no_element");
 
       const { clientSecret } = await createIntentRef.current({ amount: payAmount, saveCard, taxCountry: pf.buyerCountry ?? null });
+      if (!clientSecret) throw new Error("no_secret");
       const result = await stripe.confirmCardPayment(clientSecret, {
         payment_method: { card: numberEl, billing_details: { name: cardName.trim() } },
       });
@@ -298,13 +356,7 @@ export default function StripePaymentModal({
         return;
       }
       if (result.paymentIntent?.status === "succeeded" || result.paymentIntent?.status === "processing") {
-        if (successMessage) {
-          setPaid(true);
-          onPaidRef.current();
-          window.setTimeout(() => setShowSuccess(true), 300);
-        } else {
-          onPaidRef.current();
-        }
+        markPaid();
         return;
       }
       throw new Error("rejected");
@@ -441,7 +493,7 @@ export default function StripePaymentModal({
         <div style={{ display: "grid" }}>
           {newCardRow("credit", "Tarjeta de crédito")}
           {newCardRow("debit", "Tarjeta de débito")}
-          {savedCards.map((c) => savedCardRow(c))}
+          {effectiveSavedCards.map((c) => savedCardRow(c))}
         </div>
       )}
     </div>
@@ -619,7 +671,7 @@ export default function StripePaymentModal({
         : mobileSheet
           ? { position: "fixed", inset: 0, zIndex: 2147483647, display: "flex", alignItems: "flex-end", justifyContent: "center", background: "rgba(0,0,0,0.55)", opacity: entered ? 1 : 0, transition: "opacity 220ms ease", willChange: "opacity" }
           : { position: "fixed", inset: 0, zIndex: 2147483647, display: "flex", alignItems: "center", justifyContent: "center", padding: 20, background: "rgba(0,0,0,0.55)", opacity: entered ? 1 : 0, transition: "opacity 220ms ease", willChange: "opacity" }}>
-      <div onClick={(e) => e.stopPropagation()}
+      <div ref={scrollRef} onClick={(e) => e.stopPropagation()}
         style={isSheet
           ? { position: "relative", width: "100%", height: "100%", boxSizing: "border-box", overflowY: "auto", background: "#fff", color: "#3a3f4a", paddingBottom: "var(--vb-safe-bottom, 0px)", transform: entered ? "translateY(0)" : "translateY(100%)", transition: "transform 240ms cubic-bezier(0.2,0.8,0.2,1)", willChange: "transform" }
           : mobileSheet

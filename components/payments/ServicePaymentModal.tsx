@@ -265,6 +265,13 @@ export default function ServicePaymentModal({
     }
   }, [open, entered, amountEditable, showSuccess, isSheet]);
 
+  // Contenedor scrolleable del modal: al pasar al panel de éxito lo llevamos al TOPE
+  // para que la X de cerrar sea visible (si venía scrolleado desde el formulario).
+  const scrollRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (showSuccess) scrollRef.current?.scrollTo({ top: 0 });
+  }, [showSuccess]);
+
   useEffect(() => {
     setMounted(true);
     const check = () => setIsNarrow(window.innerWidth <= 720);
@@ -1522,6 +1529,7 @@ export default function ServicePaymentModal({
       }
     >
       <div
+        ref={scrollRef}
         onClick={(e) => e.stopPropagation()}
         style={
           isSheet
