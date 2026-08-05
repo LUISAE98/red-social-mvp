@@ -2967,14 +2967,20 @@ style={{
               {!isMobile && (
                 <svg
                   width="52" height="52" viewBox="0 0 22 22" fill="none"
-                  style={{ flexShrink: 0, position: "relative", zIndex: 1, animation: "livePulseIcon 2s ease-in-out infinite" }}
+                  style={{
+                    flexShrink: 0, position: "relative", zIndex: 1,
+                    animation: "livePulseIcon 2s ease-in-out infinite",
+                    // Con ticket, el punto sube junto con el botón del dueño para que
+                    // no quede detrás del card de ticket (mismo desplazamiento).
+                    transform: (isOwner || isOwnPost) && post.requiresPayment === true ? "translateY(-28px)" : undefined,
+                  }}
                 >
                   <circle cx="11" cy="11" r="10" stroke="#ef4444" strokeWidth="1.4" fill="none" />
                   <circle cx="11" cy="11" r="6" fill="#ef4444" />
                 </svg>
               )}
               {(isOwner || isOwnPost) && post.postType === "live" && (
-                <div style={{ position: "absolute", top: post.requiresPayment === true ? (isMobile ? "50%" : "calc(50% - 20px)") : (isMobile ? "62%" : "calc(50% + 38px)"), left: "50%", transform: isMobile ? "translate(-50%, -50%)" : "translateX(-50%)", zIndex: 2, display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
+                <div style={{ position: "absolute", top: post.requiresPayment === true ? (isMobile ? "57%" : "calc(50% + 10px)") : (isMobile ? "62%" : "calc(50% + 38px)"), left: "50%", transform: isMobile ? "translate(-50%, -50%)" : "translateX(-50%)", zIndex: 2, display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
                   {(activeLiveData?.liveStreamId || activeLiveData?.broadcastMode) ? (
                     <>
                       <button
