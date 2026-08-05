@@ -593,7 +593,7 @@ export default function LiveComposerModal({
           </div>
         </div>
       ) : (
-        <div style={{ marginBottom: 8, borderRadius: 10, border: "1px solid rgba(255,255,255,0.08)", overflow: "hidden" }}>
+        <div style={{ marginBottom: 8 }}>
           {visibilityOptions.map((opt, idx) => {
             const active = visibilityMode === opt.mode;
             const isLast = idx === visibilityOptions.length - 1;
@@ -603,19 +603,13 @@ export default function LiveComposerModal({
                 className="vibra-live-radio"
                 onClick={() => !saving && setVisibilityMode(opt.mode)}
                 style={{
-                  display: "flex", alignItems: "center", gap: 10,
-                  padding: "10px 12px", cursor: saving ? "not-allowed" : "pointer",
-                  borderBottom: isLast ? "none" : "1px solid rgba(255,255,255,0.06)",
-                  background: active ? "rgba(168,85,255,0.10)" : "transparent",
+                  display: "flex", alignItems: "center", gap: 12,
+                  padding: "13px 2px", cursor: saving ? "not-allowed" : "pointer",
+                  borderBottom: isLast ? "none" : "1px solid rgba(255,255,255,0.08)",
                   userSelect: "none",
                 }}
               >
-                <div style={{
-                  width: 16, height: 16, borderRadius: "50%", flexShrink: 0,
-                  border: active ? "5px solid #a855f7" : "2px solid rgba(255,255,255,0.25)",
-                  boxSizing: "border-box", transition: "border 120ms ease",
-                }} />
-                <div style={{ flexShrink: 0, color: active ? "#c084fc" : "rgba(255,255,255,0.35)" }}>
+                <div style={{ flexShrink: 0, color: "rgba(255,255,255,0.5)" }}>
                   {opt.icon === "globe" && (
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <circle cx="12" cy="12" r="10" />
@@ -636,10 +630,13 @@ export default function LiveComposerModal({
                     </svg>
                   )}
                 </div>
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: active ? "#e9d5ff" : "#fff", fontFamily: fontStack }}>{opt.title}</div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "#fff", fontFamily: fontStack }}>{opt.title}</div>
                   <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", fontFamily: fontStack, marginTop: 2, lineHeight: 1.4 }}>{opt.description}</div>
                 </div>
+                <span style={{ width: 18, height: 18, borderRadius: "50%", border: `2px solid ${active ? "#a855f7" : "rgba(255,255,255,0.25)"}`, display: "grid", placeItems: "center", flexShrink: 0 }}>
+                  {active && <span style={{ width: 9, height: 9, borderRadius: "50%", background: "#a855f7" }} />}
+                </span>
               </div>
             );
           })}
@@ -648,34 +645,32 @@ export default function LiveComposerModal({
 
       {/* Ticket */}
       <label style={{ ...labelStyle, marginTop: 2 }}>Ticket de entrada</label>
-      <div style={{ marginBottom: 8, borderRadius: 10, border: "1px solid rgba(255,255,255,0.08)", overflow: "hidden" }}>
+      <div style={{ marginBottom: 8 }}>
         {(["free", "paid"] as const).map((type, idx) => {
           const active = accessType === type;
           return (
             <div
               key={type}
+              className="vibra-live-radio"
               onClick={() => !saving && setAccessType(type)}
               style={{
-                display: "flex", alignItems: "center", gap: 10,
-                padding: "10px 12px", cursor: saving ? "not-allowed" : "pointer",
-                borderBottom: idx === 0 ? "1px solid rgba(255,255,255,0.06)" : "none",
-                background: active ? "rgba(168,85,255,0.10)" : "transparent",
+                display: "flex", alignItems: "center", gap: 12,
+                padding: "13px 2px", cursor: saving ? "not-allowed" : "pointer",
+                borderBottom: idx === 0 ? "1px solid rgba(255,255,255,0.08)" : "none",
                 userSelect: "none",
               }}
             >
-              <div style={{
-                width: 16, height: 16, borderRadius: "50%", flexShrink: 0,
-                border: active ? "5px solid #a855f7" : "2px solid rgba(255,255,255,0.25)",
-                boxSizing: "border-box" as const, transition: "border 120ms ease",
-              }} />
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: active ? "#e9d5ff" : "#fff", fontFamily: fontStack }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: "#fff", fontFamily: fontStack }}>
                   {type === "free" ? tLive("ticketFree") : tLive("ticketPaid")}
                 </div>
                 <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", fontFamily: fontStack, marginTop: 2 }}>
                   {type === "free" ? tLive("ticketFreeDesc") : tLive("ticketPaidDesc")}
                 </div>
               </div>
+              <span style={{ width: 18, height: 18, borderRadius: "50%", border: `2px solid ${active ? "#a855f7" : "rgba(255,255,255,0.25)"}`, display: "grid", placeItems: "center", flexShrink: 0 }}>
+                {active && <span style={{ width: 9, height: 9, borderRadius: "50%", background: "#a855f7" }} />}
+              </span>
             </div>
           );
         })}
