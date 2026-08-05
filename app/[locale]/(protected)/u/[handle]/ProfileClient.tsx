@@ -38,6 +38,7 @@ import { httpsCallable } from "firebase/functions";
 import { updateProfileDisplayName } from "@/lib/profile/updateProfileDisplayName";
 import CreatorExperiencesSection from "@/components/services/CreatorExperiencesSection";
 import ProfileHeaderSkeleton from "@/components/profile/ProfileHeaderSkeleton";
+import EditPencilIcon from "@/components/profile/EditPencilIcon";
 import PostReveal from "@/app/components/PostSkeleton/PostReveal";
 import CreatorServiceModals from "@/components/services/CreatorServiceModals";
 import { buildCurrentPathWithSearch } from "@/lib/auth-redirect";
@@ -2266,7 +2267,7 @@ const res = (await createExclusiveSessionRequest({
           transition: "transform 160ms ease",
         }}
       >
-        ✎
+        <EditPencilIcon size={17} />
       </span>
     </button>
     </>
@@ -2479,7 +2480,7 @@ const res = (await createExclusiveSessionRequest({
                       aria-label={tProfile("ariaChangeAvatar")}
                       data-action="change-avatar"
                     >
-                      {uploading && cropMode === "avatar" ? "..." : "✎"}
+                      {uploading && cropMode === "avatar" ? "..." : <EditPencilIcon size={17} />}
                     </button>
                   )}
                 </div>
