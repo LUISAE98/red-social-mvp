@@ -200,7 +200,7 @@ export default function SuperCommentConfigPanel({ open, onClose, postId }: Props
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
               {/* Spacer del aro del tier (alinea con el aro de los renglones). */}
               <div style={{ width: 16, flexShrink: 0 }} />
-              <div style={{ flex: 1, display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)", gap: 8 }}>
+              <div style={{ flex: 1, display: "grid", gridTemplateColumns: "minmax(0, 1.6fr) minmax(0, 1fr)", gap: 8 }}>
                 {/* Col 1: "Fan paga" centrado SOBRE el input (spacer invisible del ancho de "+ $3 MXN"). */}
                 <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
                   <span style={{ flex: 1, minWidth: 0, fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.05em", color: "rgba(255,255,255,0.35)", fontFamily: FONT, textAlign: "center" as const }}>
@@ -226,7 +226,7 @@ export default function SuperCommentConfigPanel({ open, onClose, postId }: Props
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     {/* Aro del color del tier al inicio del renglón (como en el panel de compra). */}
                     <div style={{ width: 16, height: 16, borderRadius: "50%", border: `2.5px solid ${tier.color}`, flexShrink: 0, boxSizing: "border-box" as const }} />
-                    <div style={{ flex: 1, display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)", gap: 8, alignItems: "center" }}>
+                    <div style={{ flex: 1, display: "grid", gridTemplateColumns: "minmax(0, 1.6fr) minmax(0, 1fr)", gap: 8, alignItems: "center" }}>
                       {/* Col 1: Precio (editable) + "+ $3 MXN" al final. */}
                       <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
                         <input
