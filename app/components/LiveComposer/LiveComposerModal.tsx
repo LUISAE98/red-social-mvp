@@ -479,6 +479,8 @@ export default function LiveComposerModal({
     fontSize: 11,
     fontWeight: 500,
     color: "rgba(255,255,255,0.5)",
+    letterSpacing: "0.03em",
+    textTransform: "uppercase",
     marginBottom: 3,
     display: "block",
   };
@@ -545,7 +547,7 @@ export default function LiveComposerModal({
         type="text"
         value={title}
         onChange={(e) => setTitle(e.target.value)}
-        placeholder={tLive("composerTitlePlaceholder")}
+        placeholder=""
         disabled={saving}
         maxLength={120}
         style={inputStyle}
@@ -557,7 +559,7 @@ export default function LiveComposerModal({
       <textarea
         value={description}
         onChange={(e) => setDescription(e.target.value)}
-        placeholder={tLive("descriptionPlaceholder")}
+        placeholder=""
         disabled={saving}
         maxLength={500}
         rows={3}
