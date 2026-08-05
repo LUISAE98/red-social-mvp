@@ -457,14 +457,18 @@ export default function LiveComposerModal({
     colorScheme: "dark",
   };
 
+  // Estilo canónico de campo (vibra_style.md): fondo sutil sin borde, radio 12,
+  // padding 10/12, texto 13, sin outline. El color del placeholder queda en el
+  // default del navegador (no se sobreescribe).
   const inputStyle: CSSProperties = {
     width: "100%",
-    borderRadius: 10,
-    border: "1px solid rgba(255,255,255,0.1)",
+    borderRadius: 12,
+    border: "none",
     background: "rgba(255,255,255,0.06)",
     color: "#fff",
-    padding: "8px 12px",
-    fontSize: 14,
+    padding: "10px 12px",
+    fontSize: 13,
+    lineHeight: 1.5,
     fontFamily: fontStack,
     outline: "none",
     boxSizing: "border-box",
@@ -475,8 +479,6 @@ export default function LiveComposerModal({
     fontSize: 11,
     fontWeight: 500,
     color: "rgba(255,255,255,0.5)",
-    letterSpacing: "0.03em",
-    textTransform: "uppercase",
     marginBottom: 3,
     display: "block",
   };
@@ -503,7 +505,7 @@ export default function LiveComposerModal({
           border: "none",
           background: coverPreviewUrl
             ? "transparent"
-            : "linear-gradient(rgba(0,0,0,0.45), rgba(0,0,0,0.45)), url('/live.webp') center / cover no-repeat",
+            : "linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6)), url('/live.webp') center / cover no-repeat",
           cursor: saving ? "not-allowed" : "pointer",
           display: "flex", alignItems: "center", justifyContent: "center",
           marginBottom: 8, overflow: "hidden", padding: 0, position: "relative",
