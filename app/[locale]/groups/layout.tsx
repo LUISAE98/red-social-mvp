@@ -349,13 +349,14 @@ const contentAreaClassName = isEmbed
           background: rgba(255, 255, 255, 0.1);
         }
 
-        /* Accesos rápidos (notificaciones / wallet), junto al switch de monedas.
-           margin-right los despega un poco de él, corriéndolos a la izquierda. */
+        /* Accesos rápidos (notificaciones / experiencias), junto al switch de monedas.
+           Mismo margin-right que el header de home/perfil para que queden en la misma
+           posición fija (antes 72px los corría de más a la izquierda en comunidad). */
         .desktopHeaderQuickLinks {
           display: flex;
           align-items: center;
           gap: 18px;
-          margin-right: 72px;
+          margin-right: 18px;
           flex: 0 0 auto;
         }
 
