@@ -194,13 +194,19 @@ export default function LiveEndSummaryPanel({ open, onClose, post }: Props) {
       `}</style>
 
       {/* Row: disponible — primera decisión */}
-      <Row label={tLive("makeVodAvailable")} description={tLive("makeVodAvailableDesc")}>
+      <Row label={tLive("makeVodAvailable")} description={tLive("makeVodAvailableDesc")} last={!vodAvailable}>
         <Switch checked={vodAvailable} onChange={setVodAvailable} />
       </Row>
 
-      {/* Las opciones de fijar y ticket solo aparecen si el VOD quedará disponible */}
-      {vodAvailable && (
-        <>
+      {/* Fijar + ticket: aparecen/desaparecen SUAVE (colapso) al activar/desactivar VOD. */}
+      <div
+        style={{
+          maxHeight: vodAvailable ? 700 : 0,
+          opacity: vodAvailable ? 1 : 0,
+          overflow: "hidden",
+          transition: "max-height 320ms ease, opacity 260ms ease",
+        }}
+      >
           <Row label={tLive("pinVodInFeed")} description={tLive("pinVodInFeedDesc")}>
             <Switch checked={keepPinned} onChange={setKeepPinned} />
           </Row>
@@ -258,8 +264,7 @@ export default function LiveEndSummaryPanel({ open, onClose, post }: Props) {
               </div>
             </div>
           </div>
-        </>
-      )}
+      </div>
 
       <VibraToast toast={summaryToast} />
     </>
