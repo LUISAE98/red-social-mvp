@@ -13,6 +13,7 @@ import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import { createSuperCommentStripeIntent } from "@/lib/stripe/stripePayments";
 import { FIXED_SERVICE_FEE_MXN } from "@/lib/currency/catalog";
 import StripePaymentModal, { type SavedCard } from "@/components/payments/StripePaymentModal";
+import PaymentSuccessCard from "@/components/payments/PaymentSuccessCard";
 import type { SuperCommentConfig, SuperCommentTier } from "@/lib/liveChat/types";
 
 const FONT = 'inherit';
@@ -288,7 +289,8 @@ export default function SuperCommentModal({
                   overflowY: "auto",
                   background: "rgba(8,9,11,0.96)",
                   color: "#fff",
-                  padding: "20px 20px calc(24px + var(--vb-safe-bottom, 0px))",
+                  padding: sent ? 0 : "20px 20px calc(24px + var(--vb-safe-bottom, 0px))",
+                  overflow: sent ? "hidden" : undefined,
                   transform: entered ? "translateY(0)" : "translateY(100%)",
                   transition: "transform 0.26s cubic-bezier(0.22,1,0.36,1)",
                   willChange: "transform",
@@ -300,14 +302,16 @@ export default function SuperCommentModal({
                   background: "rgba(8,9,11,0.96)",
                   boxShadow: "0 -24px 80px rgba(0,0,0,0.56)",
                   color: "#fff",
-                  padding: "20px 20px calc(24px + var(--vb-safe-bottom, 0px))",
+                  padding: sent ? 0 : "20px 20px calc(24px + var(--vb-safe-bottom, 0px))",
+                  overflow: sent ? "hidden" : undefined,
                   transform: entered ? "translateY(0)" : "translateY(100%)",
                   transition: "transform 0.26s cubic-bezier(0.22,1,0.36,1)",
                   willChange: "transform",
                 }
           }
         >
-          {/* Header */}
+          {/* Header — se oculta al confirmar (el panel de éxito trae su propia X). */}
+          {!sent && (
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <span style={{ fontSize: 15, fontWeight: 600, color: "#fff", fontFamily: FONT }}>
@@ -328,6 +332,7 @@ export default function SuperCommentModal({
               ×
             </button>
           </div>
+          )}
 
           {/* ── Step: nickname (invitados sin apodo guardado) ─────────────────── */}
           {isGuest && step === "nickname" ? (
@@ -379,7 +384,7 @@ export default function SuperCommentModal({
             /* ── Step: compose (mismo panel original) ──────────────────────── */
             <>
               {/* Badge de apodo para invitados */}
-              {isGuest && (
+              {isGuest && !sent && (
                 <div style={{
                   display: "flex", alignItems: "center", justifyContent: "space-between",
                   marginBottom: 16, padding: "7px 12px", borderRadius: 8,
@@ -402,23 +407,16 @@ export default function SuperCommentModal({
               )}
 
               {sent ? (
-                <div style={{ textAlign: "center", padding: "32px 0" }}>
-                  <div style={{
-                    width: 52, height: 52, borderRadius: "50%",
-                    background: "rgba(34,197,94,0.15)", border: "1px solid rgba(34,197,94,0.3)",
-                    display: "grid", placeItems: "center", margin: "0 auto 16px",
-                  }}>
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="20 6 9 17 4 12" />
-                    </svg>
-                  </div>
-                  <div style={{ fontSize: 15, fontWeight: 600, color: "#fff", fontFamily: FONT }}>
-                    ¡Supercomentario enviado!
-                  </div>
-                  <div style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", fontFamily: FONT, marginTop: 6 }}>
-                    El creador lo leerá en cualquier momento.
-                  </div>
-                </div>
+                // Mismo panel de confirmación que las donaciones (verde + palomita),
+                // con el contexto de "Supercomentario".
+                <PaymentSuccessCard
+                  avatarUrl={creatorAvatarUrl ?? null}
+                  providerName={creatorName ?? undefined}
+                  productType={tCommon("paySupercommentProductType")}
+                  successMessage={tCommon("paySupercommentSuccess", { name: creatorLabel })}
+                  onClose={onClose}
+                  stacked
+                />
               ) : (
                 <>
                   {/* Selección de tier */}
@@ -628,7 +626,8 @@ export default function SuperCommentModal({
           text: text.trim(),
           saveCard: args.saveCard,
           taxCountry: args.taxCountry,
-        }).then((r) => ({ clientSecret: r.clientSecret ?? "" }))}
+          savedPaymentMethodId: args.savedPaymentMethodId,
+        })}
         productType={tCommon("paySupercommentProductType")}
         providerName={creatorName ?? undefined}
         avatarUrl={creatorAvatarUrl ?? null}
