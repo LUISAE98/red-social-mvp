@@ -143,36 +143,6 @@ export default function LiveEndSummaryPanel({ open, onClose, post }: Props) {
 
   if (!mounted) return null;
 
-  // ── Toggle helper ──────────────────────────────────────────────────────────
-  function Toggle({ value, onChange, labelOn, labelOff }: { value: boolean; onChange: (v: boolean) => void; labelOn: string; labelOff: string }) {
-    return (
-      <div style={{ display: "flex", borderRadius: 10, overflow: "hidden", border: BORDER, flexShrink: 0 }}>
-        <button
-          type="button"
-          onClick={() => onChange(true)}
-          style={{
-            padding: "7px 14px", border: "none", cursor: "pointer", fontFamily: FONT,
-            fontSize: 13, fontWeight: value ? 600 : 400,
-            background: value ? "#a855f7" : "transparent",
-            color: value ? "#fff" : "rgba(255,255,255,0.45)",
-            transition: "background 0.15s, color 0.15s",
-          }}
-        >{labelOn}</button>
-        <button
-          type="button"
-          onClick={() => onChange(false)}
-          style={{
-            padding: "7px 14px", border: "none", cursor: "pointer", fontFamily: FONT,
-            fontSize: 13, fontWeight: !value ? 600 : 400,
-            background: !value ? "#a855f7" : "transparent",
-            color: !value ? "#fff" : "rgba(255,255,255,0.45)",
-            transition: "background 0.15s, color 0.15s",
-          }}
-        >{labelOff}</button>
-      </div>
-    );
-  }
-
   // Switch canónico (estilo vibra_style.md / serviceConfigKit): pill 36×20, morado
   // al activar, perilla blanca deslizante.
   function Switch({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
@@ -236,7 +206,7 @@ export default function LiveEndSummaryPanel({ open, onClose, post }: Props) {
           </Row>
 
           <Row label={tLive("accessTicket")} description={tLive("accessTicketDesc")}>
-            <Toggle value={vodPaid} onChange={setVodPaid} labelOn={tLive("charge")} labelOff={tLive("free")} />
+            <Switch checked={vodPaid} onChange={setVodPaid} />
           </Row>
 
           {/* El precio se DESLIZA suave al activar "cobrar" y se colapsa suave al cambiar a
