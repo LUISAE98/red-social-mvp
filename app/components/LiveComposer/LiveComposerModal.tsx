@@ -440,14 +440,18 @@ export default function LiveComposerModal({
 
   if (!shouldRender || !mounted) return null;
 
+  // Mismo estilo canónico de campo que los inputs (vibra_style.md): fondo sutil sin
+  // borde, radio 12, texto 13. Se conserva el padding derecho para la flecha del
+  // SelectWrapper y appearance:none.
   const selectStyle: CSSProperties = {
     width: "100%",
-    borderRadius: 10,
-    border: "1px solid rgba(255,255,255,0.1)",
-    background: "#1a0f2e",
+    borderRadius: 12,
+    border: "none",
+    background: "rgba(255,255,255,0.06)",
     color: "#fff",
-    padding: "8px 30px 8px 12px",
-    fontSize: 14,
+    padding: "10px 30px 10px 12px",
+    fontSize: 13,
+    lineHeight: 1.5,
     fontFamily: fontStack,
     outline: "none",
     boxSizing: "border-box",
