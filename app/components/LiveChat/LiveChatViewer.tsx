@@ -309,8 +309,8 @@ export default function LiveChatViewer({
                   </div>
                 </div>
               ) : (
-                <div key={item.id} style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 4 }}>
-                  <Avatar url={item.avatarUrl} name={item.username} size={20} />
+                <div key={item.id} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                  <Avatar url={item.avatarUrl} name={item.username} size={34} />
                   <span style={{ fontSize: 12.5, fontFamily: FONT, lineHeight: 1.2, color: "rgba(255,255,255,0.92)", alignSelf: "center", flex: 1, minWidth: 0 }}>
                     <strong style={{ fontWeight: 700, color: "#fff", marginRight: 5 }}>{item.username}</strong>
                     {item.text}
@@ -451,8 +451,8 @@ export default function LiveChatViewer({
                 </div>
               </div>
             ) : (
-              <div key={item.id} style={{ display: "flex", gap: 6, padding: "2px 0", alignItems: "center" }}>
-                <Avatar url={item.avatarUrl} name={item.username} size={20} />
+              <div key={item.id} style={{ display: "flex", gap: 8, padding: "2px 0", alignItems: "center" }}>
+                <Avatar url={item.avatarUrl} name={item.username} size={34} />
                 <div style={{ minWidth: 0, flex: 1, alignSelf: "center" }}>
                   <span style={{ fontFamily: FONT, fontSize: 11.5, fontWeight: 700, color: "rgba(255,255,255,0.85)", marginRight: 4 }}>
                     {item.username}
