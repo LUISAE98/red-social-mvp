@@ -11,6 +11,7 @@ import * as crypto from "crypto";
 import * as admin from "firebase-admin";
 import { stripeFetch, stripeSecretKey } from "./stripeClient";
 import { getOrCreateStripeCustomer } from "./stripeCustomer";
+import { chargeSavedCardOffSession } from "./offSessionCharge";
 import { applyConsumptionTax } from "../../tax/config";
 import { SETTLEMENT_CURRENCY, FIXED_SERVICE_FEE_MXN } from "../../wallet/ledger";
 
@@ -74,6 +75,8 @@ export const createLiveAccessStripeIntent = onCall(
 
     const taxCountry = data.taxCountry ? String(data.taxCountry).trim().toUpperCase() : null;
     const saveCard = data.saveCard === true;
+    // Si viene, el cobro es "un clic" con una tarjeta ya guardada (off-session, sin CVV).
+    const savedPaymentMethodId = data.savedPaymentMethodId ? String(data.savedPaymentMethodId).trim() : null;
 
     // Precio publicado = base + $3 cargo fijo; IVA 16% encima (todo lo absorbe el comprador).
     const country = taxCountry || "MX";
@@ -118,6 +121,23 @@ export const createLiveAccessStripeIntent = onCall(
     );
 
     const customerId = await getOrCreateStripeCustomer(uid, request.auth?.token?.email ?? null);
+
+    // ── Cobro "un clic" con tarjeta guardada (off-session, sin CVV) ──────────
+    if (savedPaymentMethodId) {
+      const charged = await chargeSavedCardOffSession({
+        uid,
+        savedCardDocId: savedPaymentMethodId,
+        customerId,
+        amountCents: Math.round(totalMxn * 100),
+        currency: SETTLEMENT_CURRENCY,
+        metadata: { externalReference, sourceType: "liveAccess", sourceId: `${liveId}_${uid}`, buyerId: uid },
+      });
+      await intentRef.set(
+        { stripePaymentIntentId: charged.id, updatedAt: admin.firestore.FieldValue.serverTimestamp() },
+        { merge: true }
+      );
+      return { status: charged.status, clientSecret: charged.clientSecret };
+    }
 
     const res = await stripeFetch<StripePaymentIntent>("/payment_intents", {
       method: "POST",

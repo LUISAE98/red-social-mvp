@@ -84,3 +84,38 @@ export async function createPremiumPostStripeIntent(input: {
   const res = await fn(input);
   return res.data;
 }
+
+/** Crea el PaymentIntent de una DONACIÓN en un en vivo (monto dinámico base + $3 + IVA, MXN). */
+export async function createLiveDonationStripeIntent(input: {
+  postId: string;
+  amount: number;
+  saveCard: boolean;
+  taxCountry: string | null;
+}): Promise<StripeChargeResult> {
+  const fn = httpsCallable<typeof input, StripeChargeResult>(functions, "createLiveDonationStripeIntent");
+  const res = await fn(input);
+  return res.data;
+}
+
+/** Resultado de un cobro que puede ser "un clic" (off-session): `status` presente sólo
+ *  cuando se cobró una tarjeta guardada server-side (p. ej. "succeeded"). */
+export type StripeDirectChargeResult = { clientSecret?: string; status?: string };
+
+/**
+ * Crea el PaymentIntent de un SÚPER COMENTARIO (precio fijo del tier + $3 + IVA, MXN; con texto).
+ * Si se pasa `savedPaymentMethodId`, el cobro es "un clic" off-session (sin CVV): se confirma
+ * server-side y `status` indica el resultado ("succeeded" = cobrado). Sin él, devuelve
+ * `clientSecret` para confirmar la tarjeta nueva con Elements.
+ */
+export async function createSuperCommentStripeIntent(input: {
+  postId: string;
+  tierId: string;
+  text: string;
+  saveCard: boolean;
+  taxCountry: string | null;
+  savedPaymentMethodId?: string;
+}): Promise<StripeDirectChargeResult> {
+  const fn = httpsCallable<typeof input, StripeDirectChargeResult>(functions, "createSuperCommentStripeIntent");
+  const res = await fn(input);
+  return res.data;
+}

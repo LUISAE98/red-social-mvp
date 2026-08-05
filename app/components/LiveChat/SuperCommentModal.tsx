@@ -9,16 +9,11 @@ import { registrarCompraGeo } from "@/lib/wallet/registrarCompraGeo";
 import { getSavedGuestNickname, saveGuestNickname } from "@/lib/guest-id";
 import { auth, db } from "@/lib/firebase";
 import { collection, onSnapshot } from "firebase/firestore";
-import { loadMercadoPago } from "@mercadopago/sdk-js";
-import { MP_PUBLIC_KEY } from "@/lib/payments/mpConfig";
-import { paySuperComment } from "@/lib/payments/paySuperComment";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
-import ServicePaymentModal, { type SavedCard, type PaymentCardData, type PaymentResult } from "@/components/payments/ServicePaymentModal";
+import { createSuperCommentStripeIntent } from "@/lib/stripe/stripePayments";
+import { FIXED_SERVICE_FEE_MXN } from "@/lib/currency/catalog";
+import StripePaymentModal, { type SavedCard } from "@/components/payments/StripePaymentModal";
 import type { SuperCommentConfig, SuperCommentTier } from "@/lib/liveChat/types";
-
-// Tipado mínimo del SDK de MP (solo lo que usamos para el un-clic con tarjeta guardada).
-type MpTokenizer = { fields: { createCardToken: (d: { cardId?: string }) => Promise<{ id?: string }> } };
-type MercadoPagoCtor = new (key: string, opts?: { locale?: string }) => MpTokenizer;
 
 const FONT = 'inherit';
 
@@ -64,7 +59,9 @@ export default function SuperCommentModal({
   const [payStep, setPayStep] = useState(false);
   const tLive = useTranslations("live");
   const tCommon = useTranslations("common");
-  const { format: formatMoney } = usePriceFormat();
+  const pf = usePriceFormat();
+  // Precio TODO-INCLUIDO que ve el fan (base del creador + $3 + IVA), en MXN.
+  const tierTotal = (base: number) => pf.formatWithTax(base + FIXED_SERVICE_FEE_MXN, { baseCurrency: "MXN" }).total;
 
   const [mounted, setMounted] = useState(false);
   const [shouldRender, setShouldRender] = useState(open);
@@ -76,7 +73,6 @@ export default function SuperCommentModal({
   const [sent, setSent] = useState(false);
   const payBtnRef = useRef<HTMLButtonElement>(null);
   // Instancia del SDK de MP (memoizada) para tokenizar la tarjeta guardada en el un-clic.
-  const mpRef = useRef<MpTokenizer | null>(null);
 
   // Tarjetas guardadas del comprador. Si hay ≥1, el pago es "un clic" directo
   // (sin pasarela); si no hay ninguna, Enviar abre la pasarela (primera compra).
@@ -107,15 +103,19 @@ export default function SuperCommentModal({
     if (!uid) { setSavedCards([]); return; }
     const unsub = onSnapshot(
       collection(db, "users", uid, "paymentMethods"),
-      (snap) => setSavedCards(snap.docs.map((d) => {
-        const data = d.data();
-        return {
-          id: d.id,
-          brand: typeof data.brand === "string" ? data.brand : undefined,
-          brandName: typeof data.brandName === "string" ? data.brandName : undefined,
-          lastFour: typeof data.lastFour === "string" ? data.lastFour : undefined,
-        };
-      })),
+      (snap) => setSavedCards(snap.docs
+        // Solo tarjetas Stripe (con payment_method guardado) → cobro "un clic" off-session.
+        // Descarta docs legacy de MP, que no se pueden cobrar por esta vía.
+        .filter((d) => typeof d.data().stripePaymentMethodId === "string")
+        .map((d) => {
+          const data = d.data();
+          return {
+            id: d.id,
+            brand: typeof data.brand === "string" ? data.brand : undefined,
+            brandName: typeof data.brandName === "string" ? data.brandName : undefined,
+            lastFour: typeof data.lastFour === "string" ? data.lastFour : undefined,
+          };
+        })),
       () => setSavedCards([])
     );
     return () => unsub();
@@ -172,92 +172,6 @@ export default function SuperCommentModal({
     }, 1800);
   }
 
-  // Cobro REAL por pasarela (tarjeta nueva, o guardada con CVV). Se pasa como `pay`
-  // de ServicePaymentModal: recibe la tarjeta tokenizada y cobra vía paySuperComment.
-  async function payViaGateway(card: PaymentCardData): Promise<PaymentResult> {
-    if (!selectedTier || !text.trim()) return { status: "rejected" };
-    try {
-      const r = await paySuperComment({
-        postId,
-        tierId: selectedTier.id,
-        text: text.trim(),
-        token: card.token,
-        paymentMethodId: card.paymentMethodId,
-        paymentType: card.paymentType,
-        installments: card.installments,
-        payerEmail: card.payerEmail,
-        saveToken: card.saveToken,
-        savedCardId: card.savedCardId,
-        taxCountry: card.taxCountry, // 🧾 IVA — el backend suma el impuesto según el país.
-      });
-      return { status: r.status };
-    } catch {
-      return { status: "rejected" };
-    }
-  }
-
-  // Carga (memoizada) del SDK de MP para tokenizar la tarjeta guardada en el un-clic.
-  async function getMpTokenizer(): Promise<MpTokenizer | null> {
-    if (mpRef.current) return mpRef.current;
-    if (!MP_PUBLIC_KEY) return null;
-    try {
-      await loadMercadoPago();
-      const Ctor = (window as unknown as { MercadoPago?: MercadoPagoCtor }).MercadoPago;
-      if (!Ctor) return null;
-      mpRef.current = new Ctor(MP_PUBLIC_KEY, { locale: "es-MX" });
-      return mpRef.current;
-    } catch {
-      return null;
-    }
-  }
-
-  // Cobro REAL de un clic con la tarjeta guardada: tokeniza sin CVV (los tiers ≤ tope
-  // están bajo el umbral) y cobra sin abrir la pasarela. Si MP exige CVV/3DS (no
-  // tokeniza), cae a la pasarela; si el banco rechaza, muestra la leyenda roja.
-  async function handleDirectSend() {
-    if (!selectedTier || !text.trim() || !selectedCardId) return;
-    setDirectError(null);
-    setSubmitting(true);
-    try {
-      const mp = await getMpTokenizer();
-      if (!mp) { setPayStep(true); return; } // sin SDK → completar en pasarela
-
-      let token: { id?: string } | null = null;
-      try {
-        token = await mp.fields.createCardToken({ cardId: selectedCardId });
-      } catch {
-        token = null;
-      }
-      if (!token?.id) {
-        // No tokenizó sin CVV → MP pide CVV/3DS: completar en la pasarela.
-        setPayStep(true);
-        return;
-      }
-
-      const r = await paySuperComment({
-        postId,
-        tierId: selectedTier.id,
-        text: text.trim(),
-        token: token.id,
-        savedCardId: selectedCardId,
-        paymentType: "credit_card",
-        installments: 1,
-        payerEmail: auth.currentUser?.email ?? undefined,
-      });
-
-      if (r.status === "approved" || r.status === "pending") {
-        registrarCompraGeo({ creatorId: authorId, serviceType: "supercomment", grossAmount: selectedTier.price });
-        markSentAndClose();
-      } else {
-        setDirectError(tLive("scPaymentDeclined"));
-      }
-    } catch {
-      setDirectError(tLive("scPaymentDeclined"));
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
   // Invitado (sin sesión): pago aún no integrado → envío simulado por ahora
   // (se conectará cuando integremos pagos para invitados).
   async function handleGuestSend() {
@@ -275,6 +189,42 @@ export default function SuperCommentModal({
       markSentAndClose();
     } catch {
       setDirectError(tLive("scPaymentDeclined"));
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  // Un clic con tarjeta guardada (off-session, sin CVV). Se cobra server-side y el
+  // webhook materializa el súper comentario. Si no queda "succeeded" (p. ej. requiere
+  // autenticación), cae a la pasarela para completar con tarjeta nueva.
+  async function handleDirectSend() {
+    if (!selectedTier || !text.trim() || !selectedCardId) return;
+    setDirectError(null);
+    setSubmitting(true);
+    try {
+      const res = await createSuperCommentStripeIntent({
+        postId,
+        tierId: selectedTier.id,
+        text: text.trim(),
+        saveCard: false,
+        taxCountry: pf.buyerCountry ?? null,
+        savedPaymentMethodId: selectedCardId,
+      });
+      if (res.status === "succeeded") {
+        markSentAndClose();
+        registrarCompraGeo({ creatorId: authorId, serviceType: "supercomment", grossAmount: selectedTier.price });
+        return;
+      }
+      // Requiere paso adicional → pasarela (tarjeta nueva / autenticación).
+      setPayStep(true);
+    } catch (err) {
+      const fbCode = (err as { code?: unknown })?.code;
+      const msg = (err as { message?: unknown })?.message;
+      setDirectError(
+        typeof fbCode === "string" && fbCode.includes("/") && typeof msg === "string"
+          ? msg
+          : tLive("scPaymentDeclined")
+      );
     } finally {
       setSubmitting(false);
     }
@@ -560,7 +510,7 @@ export default function SuperCommentModal({
                               fontFamily: FONT, whiteSpace: "nowrap",
                               transition: "color 0.28s ease",
                             }}>
-                              {formatMoney(tier.price, { code: true })}
+                              {tierTotal(tier.price)}
                             </span>
                           </button>
                         );
@@ -623,9 +573,9 @@ export default function SuperCommentModal({
                     type="button"
                     onClick={() => {
                       if (!selectedTier || !text.trim()) return;
-                      if (isGuest) handleGuestSend();          // invitado: simulado (por ahora)
-                      else if (hasSavedCard) handleDirectSend(); // un-clic real con tarjeta guardada
-                      else setPayStep(true);                     // pasarela real (tarjeta nueva)
+                      if (isGuest) handleGuestSend();       // invitado: simulado (por ahora)
+                      else if (hasSavedCard) handleDirectSend(); // un clic con tarjeta guardada (sin CVV)
+                      else setPayStep(true);                // pasarela Stripe (primera compra / tarjeta nueva)
                     }}
                     disabled={submitting || !text.trim() || !selectedTier}
                     style={{
@@ -642,7 +592,7 @@ export default function SuperCommentModal({
                     {submitting
                       ? tCommon("sending")
                       : selectedTier
-                      ? `Enviar · ${formatMoney(selectedTier.price)}`
+                      ? `Enviar · ${tierTotal(selectedTier.price)}`
                       : tLive("selectLevel")}
                   </button>
 
@@ -663,20 +613,25 @@ export default function SuperCommentModal({
           montos variables ni placeholder. Al aprobar el pago se envía el
           supercomentario (por ahora vía `sendSuperComment`; el cargo real de MP
           se conectará después). */}
-      <ServicePaymentModal
+      <StripePaymentModal
         open={payStep}
         presentation={isSheet ? "sheet" : "dialog"}
         container={isSheet ? container : null}
         hideBuyerGreeting
-        logoLeft
         paymentHeading={tLive("scPaymentHeading")}
         payButtonLabel={tLive("scPayButtonLabel")}
-        amount={selectedTier?.price ?? 0}
-        pay={payViaGateway}
+        amount={selectedTier ? selectedTier.price + FIXED_SERVICE_FEE_MXN : null}
+        amountCurrency="MXN"
+        createIntent={(args) => createSuperCommentStripeIntent({
+          postId,
+          tierId: selectedTier?.id ?? "",
+          text: text.trim(),
+          saveCard: args.saveCard,
+          taxCountry: args.taxCountry,
+        }).then((r) => ({ clientSecret: r.clientSecret ?? "" }))}
         productType={tCommon("paySupercommentProductType")}
         providerName={creatorName ?? undefined}
         avatarUrl={creatorAvatarUrl ?? null}
-        payerEmail={auth.currentUser?.email ?? undefined}
         description={tCommon("paySupercommentDescription", { name: creatorLabel })}
         successMessage={tCommon("paySupercommentSuccess", { name: creatorLabel })}
         onPaid={() => registrarCompraGeo({

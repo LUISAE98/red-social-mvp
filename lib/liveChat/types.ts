@@ -60,11 +60,11 @@ export type SuperComment = {
 };
 
 export const DEFAULT_SUPER_COMMENT_TIERS: SuperCommentTier[] = [
-  { id: "t1", name: "Chispa",    maxChars: 60,  price: 15,  color: "#a855f7", displaySeconds: 10 },
-  { id: "t2", name: "Llama",     maxChars: 120, price: 35,  color: "#f72fbe", displaySeconds: 15 },
-  { id: "t3", name: "Fuego",     maxChars: 240, price: 75,  color: "#3b82f6", displaySeconds: 20 },
-  { id: "t4", name: "Explosión", maxChars: 400, price: 150, color: "#facc15", displaySeconds: 25 },
-  { id: "t5", name: "Volcán",    maxChars: 600, price: 300, color: "#4ade80", displaySeconds: 30 },
+  { id: "t1", name: "Chispa",    maxChars: 60,  price: 25,  color: "#a855f7", displaySeconds: 10 },
+  { id: "t2", name: "Llama",     maxChars: 140, price: 45,  color: "#f72fbe", displaySeconds: 15 },
+  { id: "t3", name: "Fuego",     maxChars: 220, price: 85,  color: "#3b82f6", displaySeconds: 20 },
+  { id: "t4", name: "Explosión", maxChars: 300, price: 215, color: "#facc15", displaySeconds: 25 },
+  { id: "t5", name: "Volcán",    maxChars: 380, price: 430, color: "#4ade80", displaySeconds: 30 },
 ];
 
 export const DEFAULT_SUPER_COMMENT_CONFIG: SuperCommentConfig = {

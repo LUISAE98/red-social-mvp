@@ -31,8 +31,6 @@ import { useReport } from "@/lib/moderation/useReport";
 import ReportModal from "@/app/components/ReportModal/ReportModal";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import TaxNote from "@/components/payments/TaxNote";
-import ServicePaymentModal from "@/components/payments/ServicePaymentModal";
-import { payLiveDonation } from "@/lib/payments/payLiveDonation";
 
 export const FONT =
   'inherit';
@@ -66,7 +64,7 @@ export const CHAT_FLOAT_W = 300;
 
 // ── DonationPanel ────────────────────────────────────────────────────────────
 export const DONATE_BLUE = "#3b82f6";
-export const DONATE_PRESETS = [20, 50, 100, 200, 500];
+export const DONATE_PRESETS = [50, 130, 250, 510];
 
 export type DonationPanelProps = {
   onClose: () => void;

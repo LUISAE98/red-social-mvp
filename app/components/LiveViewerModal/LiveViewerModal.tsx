@@ -29,8 +29,8 @@ import { useReport } from "@/lib/moderation/useReport";
 import ReportModal from "@/app/components/ReportModal/ReportModal";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import TaxNote from "@/components/payments/TaxNote";
-import ServicePaymentModal from "@/components/payments/ServicePaymentModal";
-import { payLiveDonation } from "@/lib/payments/payLiveDonation";
+import StripePaymentModal from "@/components/payments/StripePaymentModal";
+import { createLiveDonationStripeIntent } from "@/lib/stripe/stripePayments";
 import {
   DonationPanel, CHAT_FLOAT_W, FONT, VOD_PLAYBACK_RATES,
   desktopHorizontalSize, desktopStorySize,
@@ -2111,24 +2111,30 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
   // (open controla la visibilidad) para animar la salida.
   const liveDonationName = post.authorName ?? post.authorUsername ?? tCommon("donation");
   const renderLiveDonationSheet = (container: HTMLElement | null) => (
-    <ServicePaymentModal
+    <StripePaymentModal
       open={liveDonateOpen}
       presentation="sheet"
       container={container}
       hideBuyerGreeting
-      logoLeft
       paymentHeading={tLive("donationPaymentHeading")}
       payButtonLabel={tLive("makeDonation")}
-      amount={1}
+      amount={null}
+      amountCurrency="MXN"
       amountEditable
-      pay={(c, amt) => {
-        liveDonatePaidAmountRef.current = amt ?? null;
-        return payLiveDonation({ postId: post.id, amount: amt ?? 0, currency: "MXN", ...c });
+      donationPresets={[50, 130, 250, 510]}
+      donationCustomInclusive
+      createIntent={(args) => {
+        liveDonatePaidAmountRef.current = args.amount ?? null;
+        return createLiveDonationStripeIntent({
+          postId: post.id,
+          amount: args.amount,
+          saveCard: args.saveCard,
+          taxCountry: args.taxCountry,
+        });
       }}
       productType={tCommon("payDonationProductType")}
       providerName={post.authorName ?? post.authorUsername ?? undefined}
       avatarUrl={post.authorAvatarUrl ?? null}
-      payerEmail={user?.email ?? undefined}
       description={tCommon("payDonationDescription", { name: liveDonationName })}
       successMessage={tCommon("payDonationSuccess", { name: liveDonationName })}
       onPaid={() => {

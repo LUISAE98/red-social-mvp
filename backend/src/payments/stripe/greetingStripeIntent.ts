@@ -11,6 +11,7 @@ import * as crypto from "crypto";
 import * as admin from "firebase-admin";
 import { stripeFetch, stripeSecretKey } from "./stripeClient";
 import { getOrCreateStripeCustomer } from "./stripeCustomer";
+import { chargeSavedCardOffSession } from "./offSessionCharge";
 import { applyConsumptionTax } from "../../tax/config";
 import { SETTLEMENT_CURRENCY, FIXED_SERVICE_FEE_MXN } from "../../wallet/ledger";
 
@@ -32,11 +33,13 @@ export const createGreetingStripeIntent = onCall(
     const uid = request.auth?.uid;
     if (!uid) throw new HttpsError("unauthenticated", "Debes iniciar sesión.");
 
-    const data = (request.data ?? {}) as { greetingRequestId?: unknown; saveCard?: unknown; taxCountry?: unknown };
+    const data = (request.data ?? {}) as { greetingRequestId?: unknown; saveCard?: unknown; taxCountry?: unknown; savedPaymentMethodId?: unknown };
     const requestId = String(data.greetingRequestId ?? "").trim();
     if (!requestId) throw new HttpsError("invalid-argument", "Falta el id de la solicitud.");
     const saveCard = data.saveCard === true;
     const taxCountry = data.taxCountry ? String(data.taxCountry).trim().toUpperCase() : null;
+    // Si viene, el cobro es "un clic" con una tarjeta ya guardada (off-session, sin CVV).
+    const savedPaymentMethodId = data.savedPaymentMethodId ? String(data.savedPaymentMethodId).trim() : null;
 
     const externalReference = `greetingRequest__${requestId}`;
     const intentRef = db.collection("paymentIntents").doc(externalReference);
@@ -58,8 +61,45 @@ export const createGreetingStripeIntent = onCall(
     const tax = applyConsumptionTax(published, country);
     const totalMxn = round2(published + tax.taxAmount);
 
+    // Estampa el desglose en el intent (antes de cobrar). El ledger usa grossAmount (base)
+    // → creador gana 75% de la base. Aplica a ambos caminos (tarjeta nueva / guardada).
+    await intentRef.set(
+      {
+        baseAmount: base, // precio del creador (para el ledger/ganancia)
+        fixedFee: FIXED_SERVICE_FEE_MXN, // $3 que absorbe el comprador
+        publishedAmount: published, // base + $3
+        taxAmount: tax.taxAmount, // IVA sobre (base + $3), va al SAT
+        taxCountry: tax.taxCountry,
+        taxRate: tax.taxRate,
+        chargedAmount: totalMxn, // total que paga el comprador
+        settlementCurrency: SETTLEMENT_CURRENCY,
+        settlementAmount: totalMxn,
+        paymentMode: "stripe",
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+
     const customerId = await getOrCreateStripeCustomer(uid, request.auth?.token?.email ?? null);
 
+    // ── Cobro "un clic" con tarjeta guardada (off-session, sin CVV) ──────────
+    if (savedPaymentMethodId) {
+      const charged = await chargeSavedCardOffSession({
+        uid,
+        savedCardDocId: savedPaymentMethodId,
+        customerId,
+        amountCents: Math.round(totalMxn * 100),
+        currency: SETTLEMENT_CURRENCY,
+        metadata: { externalReference, sourceType: "greetingRequest", sourceId: requestId, buyerId: uid },
+      });
+      await intentRef.set(
+        { stripePaymentIntentId: charged.id, updatedAt: admin.firestore.FieldValue.serverTimestamp() },
+        { merge: true }
+      );
+      return { status: charged.status, clientSecret: charged.clientSecret };
+    }
+
+    // ── Tarjeta nueva: devuelve client_secret para confirmar con Elements ────
     const res = await stripeFetch<StripePaymentIntent>("/payment_intents", {
       method: "POST",
       idempotencyKey: crypto.randomUUID(),
@@ -75,22 +115,8 @@ export const createGreetingStripeIntent = onCall(
     });
     if (!res.ok) throw new HttpsError("internal", `No se pudo crear el pago (${res.status}): ${res.error.slice(0, 200)}`);
 
-    // Estampa el desglose en el intent. El ledger usa grossAmount (base) → creador gana 75% de la base.
     await intentRef.set(
-      {
-        baseAmount: base, // precio del creador (para el ledger/ganancia)
-        fixedFee: FIXED_SERVICE_FEE_MXN, // $3 que absorbe el comprador
-        publishedAmount: published, // base + $3
-        taxAmount: tax.taxAmount, // IVA sobre (base + $3), va al SAT
-        taxCountry: tax.taxCountry,
-        taxRate: tax.taxRate,
-        chargedAmount: totalMxn, // total que paga el comprador
-        settlementCurrency: SETTLEMENT_CURRENCY,
-        settlementAmount: totalMxn,
-        paymentMode: "stripe",
-        stripePaymentIntentId: res.data.id,
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      },
+      { stripePaymentIntentId: res.data.id, updatedAt: admin.firestore.FieldValue.serverTimestamp() },
       { merge: true }
     );
 

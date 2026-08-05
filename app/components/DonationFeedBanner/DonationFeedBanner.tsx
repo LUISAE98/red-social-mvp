@@ -520,6 +520,7 @@ export default function DonationFeedBanner({
         amountCurrency="MXN"
         payButtonLabel="Hacer aportación"
         donationPresets={suggestedAmounts ?? undefined}
+        donationCustomInclusive
         createIntent={(args) => {
           paidAmountRef.current = args.amount ?? null;
           return createDonationStripeIntent({

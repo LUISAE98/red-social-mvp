@@ -13,6 +13,7 @@ import { defineSecret } from "firebase-functions/params";
 import * as crypto from "crypto";
 import * as admin from "firebase-admin";
 import { applyApprovedPaymentToSource, upsertPaymentIntentStatus } from "../reconcile";
+import { stripeFetch, stripeSecretKey } from "./stripeClient";
 
 if (admin.apps.length === 0) {
   admin.initializeApp();
@@ -21,6 +22,33 @@ const db = admin.firestore();
 const REGION = "us-central1";
 
 export const stripeWebhookSecret = defineSecret("STRIPE_WEBHOOK_SECRET");
+
+// Guarda la referencia de la tarjeta del comprador (solo referencias: marca + últimos 4;
+// Stripe custodia el dato sensible). Se llama cuando un pago se aprobó con
+// `setup_future_usage` (el comprador pidió guardarla). Con esto sus próximos cobros son
+// "un clic" off-session (sin CVV). Best-effort: si algo falla, solo se loguea.
+async function persistSavedCard(buyerId: string, stripeCustomerId: string, pmId: string): Promise<void> {
+  const res = await stripeFetch<{ id?: string; card?: { brand?: string; last4?: string } }>(
+    `/payment_methods/${pmId}`
+  );
+  if (!res.ok) return;
+  const card = res.data.card ?? {};
+  const brand = typeof card.brand === "string" ? card.brand : null;
+  const lastFour = typeof card.last4 === "string" ? card.last4 : null;
+  const brandName = brand ? brand.charAt(0).toUpperCase() + brand.slice(1) : null;
+  await db.doc(`users/${buyerId}/paymentMethods/${pmId}`).set(
+    {
+      buyerId,
+      stripeCustomerId,
+      stripePaymentMethodId: pmId,
+      brand,
+      brandName,
+      lastFour,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    },
+    { merge: true }
+  );
+}
 
 // Verifica la firma del header `Stripe-Signature` (formato "t=...,v1=...").
 function verifySignature(rawBody: Buffer, sigHeader: string, secret: string): boolean {
@@ -48,7 +76,7 @@ type StripeEvent = {
 };
 
 export const stripeWebhook = onRequest(
-  { region: REGION, secrets: [stripeWebhookSecret], cors: false },
+  { region: REGION, secrets: [stripeWebhookSecret, stripeSecretKey], cors: false },
   async (req, res) => {
     if (req.method !== "POST") {
       res.status(405).send("method not allowed");
@@ -84,7 +112,7 @@ export const stripeWebhook = onRequest(
 
     try {
       if (event.type === "payment_intent.succeeded") {
-        const pi = event.data.object as { id?: string; amount?: number; currency?: string; status?: string; customer?: string; metadata?: Record<string, unknown> };
+        const pi = event.data.object as { id?: string; amount?: number; currency?: string; status?: string; customer?: string; payment_method?: string; setup_future_usage?: string; metadata?: Record<string, unknown> };
         if (pi.id) {
           await db.collection("stripePayments").doc(pi.id).set(
             {
@@ -108,6 +136,18 @@ export const stripeWebhook = onRequest(
           logger.info("stripeWebhook materialized", { externalReference, id: pi.id });
         } else {
           logger.info("stripeWebhook payment sin externalReference (prueba suelta)", { id: pi.id });
+        }
+
+        // Si el comprador pidió guardar su tarjeta (setup_future_usage), persistimos la
+        // referencia para habilitar el cobro "un clic" off-session en la próxima compra.
+        try {
+          const buyerId = String(pi.metadata?.buyerId ?? "").trim();
+          if (pi.setup_future_usage && pi.payment_method && pi.customer && buyerId) {
+            await persistSavedCard(buyerId, pi.customer, pi.payment_method);
+            logger.info("stripeWebhook saved card", { buyerId, pm: pi.payment_method });
+          }
+        } catch (e) {
+          logger.warn("stripeWebhook no pudo guardar la tarjeta", { err: e instanceof Error ? e.message : String(e) });
         }
       } else {
         // Otros eventos (payment_intent.payment_failed, charge.refunded, etc.): por

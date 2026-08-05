@@ -434,6 +434,9 @@ export type Post = {
    */
   premiumUnlockCount?: number;
 
+  /** Contador de tickets comprados de un en vivo de pago (denormalizado; onLiveTicketCount). */
+  liveTicketCount?: number;
+
   /**
    * Estado calculado para la UI del usuario actual.
    * No es obligatorio que exista en Firestore.

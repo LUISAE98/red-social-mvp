@@ -313,6 +313,10 @@ export { createDonationStripeIntent } from "./payments/stripe/donationStripeInte
 export { createLiveAccessStripeIntent } from "./payments/stripe/liveAccessStripeIntent";
 // Desbloqueo de post premium / VOD premium con Stripe (mismo camino postAccess; base + $3 + IVA).
 export { createPremiumPostStripeIntent } from "./payments/stripe/premiumPostStripeIntent";
+// Donación en un en vivo con Stripe (monto dinámico + $3 + IVA; materializa super-comentario).
+export { createLiveDonationStripeIntent } from "./payments/stripe/liveDonationStripeIntent";
+// Súper comentario en un en vivo con Stripe (precio fijo del tier + $3 + IVA; con texto).
+export { createSuperCommentStripeIntent } from "./payments/stripe/superCommentStripeIntent";
 
 // Facturación (Facturapi — CFDI, modelo vendedor directo). Bloque 0: smoke test de
 // credenciales (org de Vibra + multi-tenant). No emite CFDI ni toca el ledger.
@@ -350,10 +354,9 @@ export { mpWebhook } from "./payments/mpWebhook";
 // Pagos — donación / contribución a un perfil (pagar-luego-crear).
 export { payProfileDonation } from "./payments/profileDonationPayment";
 
-// Ticket de en vivo ya cobra por Stripe (createLiveAccessStripeIntent); su callable
-// MP (payLiveAccess) se retiró. La donación de live y el súper comentario siguen en MP.
-export { payLiveDonation } from "./payments/liveDonationPayment";
-export { paySuperComment } from "./payments/superCommentPayment";
+// Ticket, donación y súper comentario de en vivo ya cobran por Stripe
+// (createLiveAccessStripeIntent / createLiveDonationStripeIntent / createSuperCommentStripeIntent);
+// sus callables MP (payLiveAccess/payLiveDonation/paySuperComment) se retiraron.
 
 // Migración única MXN → USD (cambio de ancla de precios a dLocal). Idempotente.
 export { migrateCurrencyMxnToUsd } from "./migrateCurrency";
@@ -381,6 +384,8 @@ export { onPostViewed } from "./postViews";
 
 // Posts: contador de desbloqueos (compras únicas) de premium / VOD
 export { onPremiumUnlockCount } from "./premiumUnlockCount";
+// Contador de tickets de en vivo (espejo del de premium).
+export { onLiveTicketCount } from "./liveTicketCount";
 
 // Notificaciones sociales — triggers que alimentan la campanita (agregadas)
 export {
