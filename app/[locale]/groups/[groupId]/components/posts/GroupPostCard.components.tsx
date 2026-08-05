@@ -193,6 +193,8 @@ export function LiveTicketPanel({
   highlighted = false,
   paid = false,
   memberFree = false,
+  unlockCount = 0,
+  isMobile = false,
 }: {
   ticketPrice: number | null;
   currency: string | null;
@@ -202,11 +204,16 @@ export function LiveTicketPanel({
   highlighted?: boolean;
   paid?: boolean;
   memberFree?: boolean;
+  unlockCount?: number;
+  /** En celular el botón de compra se saca del card y va debajo de la portada. */
+  isMobile?: boolean;
 }) {
   const tPosts = useTranslations("posts");
   const priceFmt = usePriceFormat();
+  // El comprador ve el precio YA con todo incluido: (base + $3) + IVA.
+  // La pasarela desglosa solo el IVA (recibe amount = base + $3).
   const priceLabel = ticketPrice
-    ? priceFmt.format(ticketPrice, { baseCurrency: currency ?? "MXN", code: true })
+    ? priceFmt.formatWithTax(ticketPrice + FIXED_SERVICE_FEE_MXN, { baseCurrency: currency ?? "MXN" }).total
     : tPosts("liveTicketPriceUndefined");
 
   const isPaid = paid && !isAuthor;
@@ -214,11 +221,17 @@ export function LiveTicketPanel({
   const borderColor = isPaid
     ? "rgba(239,68,68,0.45)"
     : "rgba(168,85,255,0.32)";
-  const bgColor = isPaid
-    ? "rgba(20,5,5,0.88)"
-    : "rgba(10,5,25,0.82)";
+  // Mismo fondo que el panel de desbloqueo de post premium (degradado morado + imagen).
+  const premiumUnlockBg =
+    "linear-gradient(160deg, rgba(79,70,255,0.38), rgba(168,85,255,0.32) 55%, rgba(139,92,246,0.28)), linear-gradient(rgba(0,0,0,0.62), rgba(0,0,0,0.62)), url('/desbloquearcontenido.webp') center / cover no-repeat";
+  const bgColor = isPaid ? "rgba(20,5,5,0.88)" : premiumUnlockBg;
   const iconStroke = isPaid ? "#fca5a5" : "#a855f7";
-  const titleColor = isPaid ? "#fca5a5" : "#d8b4fe";
+  const titleColor = isPaid ? "#fca5a5" : "#a855f7";
+  // Ganancia del creador (75% de la base), como en el panel de post premium.
+  const netEarnings =
+    isAuthor && typeof ticketPrice === "number" && ticketPrice > 0
+      ? Math.floor(ticketPrice * WALLET_NET_RATE)
+      : null;
 
   return (
     <div
@@ -231,6 +244,7 @@ export function LiveTicketPanel({
         width: "calc(100% - 24px)",
         border: `1px solid ${borderColor}`,
         borderRadius: 12,
+        overflow: "hidden",
         background: bgColor,
         backdropFilter: "blur(10px)",
         WebkitBackdropFilter: "blur(10px)",
@@ -245,8 +259,8 @@ export function LiveTicketPanel({
         marginTop: 10,
         border: `1px solid ${borderColor}`,
         borderRadius: 12,
-        background:
-          "linear-gradient(160deg, rgba(79,70,255,0.26), rgba(168,85,255,0.22) 55%, rgba(139,92,246,0.18))",
+        overflow: "hidden",
+        background: premiumUnlockBg,
         padding: "10px 12px",
         display: "flex",
         alignItems: "center",
@@ -271,18 +285,27 @@ export function LiveTicketPanel({
             : isMemberFree ? tPosts("liveTicketMemberFreeTitle")
             : tPosts("liveTicketRequiredTitle")}
         </div>
-        <div style={{ fontSize: 10, color: "rgba(255,255,255,0.65)", lineHeight: 1.4, marginTop: 2, fontFamily: fontStack }}>
-          {isAuthor
-            ? tPosts("liveTicketPriceLabel", { price: priceLabel })
-            : isPaid
-              ? tPosts("liveTicketAlreadyHaveAccess")
-              : isMemberFree
-                ? tPosts("liveTicketMemberFreeAccess")
-                : tPosts("liveTicketBuyPrompt", { price: priceLabel })}
+        <div style={{ fontSize: 10, color: "#fff", lineHeight: 1.4, marginTop: 2, fontFamily: fontStack }}>
+          {isPaid
+            ? tPosts("liveTicketAlreadyHaveAccess")
+            : isMemberFree
+              ? tPosts("liveTicketMemberFreeAccess")
+              : tPosts("liveTicketBuyCount", { count: unlockCount })}
         </div>
       </div>
 
-      {!isAuthor && !isPaid && !isMemberFree && (
+      {netEarnings !== null && (
+        <div style={{ flexShrink: 0, textAlign: "right", marginRight: 4 }}>
+          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.7)", fontFamily: fontStack, lineHeight: 1.3 }}>
+            {tPosts("premiumEarningsLabel")}
+          </div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "#4ade80", fontFamily: fontStack, lineHeight: 1.3, marginTop: 1 }}>
+            {priceFmt.format(netEarnings, { baseCurrency: currency ?? "MXN", code: true })}
+          </div>
+        </div>
+      )}
+
+      {!isMobile && !isAuthor && !isPaid && !isMemberFree && (
         <button
           type="button"
           onClick={onBuyTicket}
@@ -311,7 +334,8 @@ export function LiveTicketPanel({
             <path d="M15 17v2" />
             <path d="M5 5h14a2 2 0 0 1 2 2v3a2 2 0 0 0 0 4v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-3a2 2 0 0 0 0-4V7a2 2 0 0 1 2-2z" />
           </svg>
-          {tPosts("liveTicketBuyButton")}
+          {/* Precio ya con todo incluido (base + $3 + IVA) DENTRO del botón, como premium. */}
+          {tPosts("liveTicketBuyForPrice", { price: priceLabel })}
         </button>
       )}
     </div>

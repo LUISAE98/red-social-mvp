@@ -3085,6 +3085,7 @@ style={{
               paid={hasLiveTicketAccess}
               memberFree={memberHasFreeAccess}
               unlockCount={post.liveTicketCount ?? 0}
+              isMobile={isMobile}
             />
           )}
         </div>
@@ -3092,6 +3093,42 @@ style={{
 
     {/* Content area — hidden when live player is visible */}
     {(!isLiveActive || isLiveBlockedByTicket) && (<div style={{ padding: "12px 14px 14px" }}>
+      {/* Botón comprar ticket — SOLO en celular, fuera de la portada (como el de
+          desbloquear post premium): va arriba del título y recorre el resto hacia abajo.
+          En laptop el botón sigue dentro del card overlay de la portada. */}
+      {isMobile && post.requiresPayment === true && !liveAccessBlocked && !(isOwnPost || isOwner) && !hasLiveTicketAccess && !memberHasFreeAccess && (
+        <button
+          type="button"
+          onClick={() => { livePaidRef.current = false; setLivePayOpen(true); }}
+          aria-label={tPosts("liveTicketRequiredTitle")}
+          style={{
+            width: "100%",
+            height: 42,
+            border: "none",
+            borderRadius: 10,
+            background: "linear-gradient(135deg, #4f46ff, #a855f7, #ff2fb3)",
+            color: "#fff",
+            fontSize: 11,
+            fontWeight: 600,
+            fontFamily: fontStack,
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 4,
+            marginBottom: 12,
+            WebkitTapHighlightColor: "transparent",
+          }}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M15 5v2" />
+            <path d="M15 11v2" />
+            <path d="M15 17v2" />
+            <path d="M5 5h14a2 2 0 0 1 2 2v3a2 2 0 0 0 0 4v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-3a2 2 0 0 0 0-4V7a2 2 0 0 1 2-2z" />
+          </svg>
+          {tPosts("liveTicketBuyForPrice", { price: (post.oneTimePrice ?? activeLiveData?.ticketPrice) ? priceFmt.formatWithTax((post.oneTimePrice ?? activeLiveData?.ticketPrice ?? 0) + FIXED_SERVICE_FEE_MXN, { baseCurrency: post.currency ?? activeLiveData?.currency ?? "MXN" }).total : tPosts("liveTicketPriceUndefined") })}
+        </button>
+      )}
       {/* Title */}
       {activeLiveData?.title && (
         <p
