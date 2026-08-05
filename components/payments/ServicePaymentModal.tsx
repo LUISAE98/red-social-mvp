@@ -460,9 +460,10 @@ export default function ServicePaymentModal({
         expField.on("validityChange", (d) => setCardValid((v) => ({ ...v, exp: isValid(d) })));
         cvvField.on("validityChange", (d) => setCardValid((v) => ({ ...v, cvv: isValid(d) })));
 
-        numberField.mount(ID_NUMBER);
-        expField.mount(ID_EXP);
-        cvvField.mount(ID_CVV);
+        // IDs únicos por método → se monta en el contenedor del método ACTIVO.
+        numberField.mount(`${ID_NUMBER}-${selectedMethod}`);
+        expField.mount(`${ID_EXP}-${selectedMethod}`);
+        cvvField.mount(`${ID_CVV}-${selectedMethod}`);
         localFields = [numberField, expField, cvvField];
       } else if (savedCvvMount) {
         // Tarjeta guardada arriba del umbral (o tras un intento sin CVV fallido): re-pedir CVV.
@@ -471,7 +472,7 @@ export default function ServicePaymentModal({
           style: FIELD_STYLE,
         });
         cvvField.on("validityChange", (d) => setCardValid((v) => ({ ...v, savedCvv: isValid(d) })));
-        cvvField.mount(ID_SAVED_CVV);
+        cvvField.mount(`${ID_SAVED_CVV}-${savedCardId}`);
         localFields = [cvvField];
       }
       fieldsRef.current = localFields;
@@ -490,7 +491,9 @@ export default function ServicePaymentModal({
       }
       if (fieldsRef.current === localFields) fieldsRef.current = [];
     };
-  }, [open, sdkReady, isNewCard, savedCardId, savedCvvMount]);
+    // selectedMethod: al cambiar entre crédito/débito (isNewCard sigue true) el efecto
+    // DEBE re-ejecutarse para re-montar los campos en el contenedor del método activo.
+  }, [open, sdkReady, isNewCard, savedCardId, savedCvvMount, selectedMethod]);
 
   // (B.2) Al CERRAR (selectedMethod → null) mantiene el cuerpo del acordeón
   // montado ~320ms, para que la animación de altura (0fr) tenga contenido y no
@@ -690,12 +693,12 @@ export default function ServicePaymentModal({
   );
 
   // Campos de tarjeta nueva (se renderizan DENTRO del método activo).
-  const cardFields = (
+  const cardFields = (kind: "credit" | "debit") => (
     <div style={{ display: "grid", gap: 14, padding: "6px 2px 18px" }}>
       <div>
         <label style={label}>Número de tarjeta</label>
         <div style={{ position: "relative" }}>
-          <div id={ID_NUMBER} style={{ ...box, paddingRight: 58 }} />
+          <div id={`${ID_NUMBER}-${kind}`} style={{ ...box, paddingRight: 58 }} />
           {cardBrandThumb && (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -718,11 +721,11 @@ export default function ServicePaymentModal({
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
         <div>
           <label style={label}>Vencimiento</label>
-          <div id={ID_EXP} style={box} />
+          <div id={`${ID_EXP}-${kind}`} style={box} />
         </div>
         <div>
           <label style={label}>CVV</label>
-          <div id={ID_CVV} style={box} />
+          <div id={`${ID_CVV}-${kind}`} style={box} />
         </div>
       </div>
       <div>
@@ -831,7 +834,7 @@ export default function ServicePaymentModal({
           <div
             style={{ overflow: "hidden", opacity: active ? 1 : 0, transition: "opacity 260ms ease" }}
           >
-            {(active || renderedMethod === kind) && cardFields}
+            {(active || renderedMethod === kind) && cardFields(kind)}
           </div>
         </div>
       </div>
@@ -871,7 +874,7 @@ export default function ServicePaymentModal({
             {savedCvvRequired && (
               <div style={{ display: "grid", gap: 6, padding: "6px 2px 18px", maxWidth: 140 }}>
                 <label style={label}>Código de seguridad</label>
-                {(active || renderedMethod === id) && <div id={ID_SAVED_CVV} style={box} />}
+                {(active || renderedMethod === id) && <div id={`${ID_SAVED_CVV}-${id}`} style={box} />}
               </div>
             )}
           </div>

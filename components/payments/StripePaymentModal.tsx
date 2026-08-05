@@ -233,9 +233,11 @@ export default function StripePaymentModal({
     // rAF: espera a que el contenedor esté en el DOM (dentro del acordeón).
     const raf = requestAnimationFrame(() => {
       try {
-        numberEl.mount(`#${ID_NUMBER}`);
-        expEl.mount(`#${ID_EXP}`);
-        cvcEl.mount(`#${ID_CVC}`);
+        // IDs únicos por método: se monta SIEMPRE en el contenedor del método activo
+        // (evita montar en un contenedor duplicado que se va a colapsar → campos muertos).
+        numberEl.mount(`#${ID_NUMBER}-${selectedMethod}`);
+        expEl.mount(`#${ID_EXP}-${selectedMethod}`);
+        cvcEl.mount(`#${ID_CVC}-${selectedMethod}`);
       } catch {
         setError("No se pudo cargar el formulario. Intenta de nuevo.");
       }
@@ -305,9 +307,14 @@ export default function StripePaymentModal({
       throw new Error("rejected");
     } catch (err) {
       const code = err instanceof Error ? err.message : "";
+      // Errores del callable (HttpsError) traen su propio mensaje útil y en español
+      // (ej. "En vivo no encontrado."); lo mostramos en vez del genérico.
+      const fbCode = (err as { code?: unknown })?.code;
+      const isCallableError = typeof fbCode === "string" && fbCode.includes("/");
       setError(
         code === "no_name" ? "Escribe el nombre como aparece en la tarjeta."
           : code === "no_element" ? "Recarga el formulario de tarjeta."
+          : isCallableError && code ? code
           : "No se pudo procesar el pago. Revisa los datos e intenta de nuevo."
       );
     } finally {
@@ -335,15 +342,15 @@ export default function StripePaymentModal({
     </span>
   );
 
-  const cardFields = (
+  const cardFields = (kind: "credit" | "debit") => (
     <div style={{ display: "grid", gap: 14, padding: "6px 2px 18px" }}>
       <div>
         <label style={label}>Número de tarjeta</label>
-        <div id={ID_NUMBER} style={stripeBox} />
+        <div id={`${ID_NUMBER}-${kind}`} style={stripeBox} />
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-        <div><label style={label}>Vencimiento</label><div id={ID_EXP} style={stripeBox} /></div>
-        <div><label style={label}>CVC</label><div id={ID_CVC} style={stripeBox} /></div>
+        <div><label style={label}>Vencimiento</label><div id={`${ID_EXP}-${kind}`} style={stripeBox} /></div>
+        <div><label style={label}>CVC</label><div id={`${ID_CVC}-${kind}`} style={stripeBox} /></div>
       </div>
       <div>
         <label style={label}>Nombre en la tarjeta</label>
@@ -374,7 +381,7 @@ export default function StripePaymentModal({
         </button>
         <div style={{ display: "grid", gridTemplateRows: active ? "1fr" : "0fr", transition: "grid-template-rows 300ms cubic-bezier(0.4,0,0.2,1)" }}>
           <div style={{ overflow: "hidden", opacity: active ? 1 : 0, transition: "opacity 260ms ease" }}>
-            {(active || renderedMethod === kind) && cardFields}
+            {(active || renderedMethod === kind) && cardFields(kind)}
           </div>
         </div>
       </div>
@@ -483,7 +490,14 @@ export default function StripePaymentModal({
               const selected = selectedPreset === base;
               return (
                 <button key={base} type="button"
-                  onClick={() => { setSelectedPreset(base); setChosenAmount(base); setCustomAmount(String(base)); }}
+                  onClick={() => {
+                    setSelectedPreset(base); setChosenAmount(base);
+                    // En modo inclusivo el input custom muestra el TOTAL (base+$3+IVA), igual
+                    // que el botón, para no confundir al usuario. En modo base, muestra la base.
+                    setCustomAmount(donationCustomInclusive
+                      ? String(Math.round((base + FIXED_SERVICE_FEE_MXN) * (1 + pf.taxRate) * 100) / 100)
+                      : String(base));
+                  }}
                   style={{ padding: "9px 2px", borderRadius: 10, border: "none", background: selected ? "#eaf6fd" : "transparent", color: selected ? BLUE : "#3a3f4a", fontSize: 12.5, fontWeight: 600, fontFamily: "inherit", cursor: "pointer", whiteSpace: "nowrap" }}>
                   {/* Todo-incluido desde el inicio: (base + $3) + IVA. */}
                   {pf.formatWithTax(base + FIXED_SERVICE_FEE_MXN, { baseCurrency: "MXN" }).total}
