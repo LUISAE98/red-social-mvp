@@ -292,14 +292,14 @@ export default function LiveChatViewer({
             {feed.map((item) =>
               item.kind === "sc" ? (
                 <div key={item.id} style={{
-                  display: "flex", alignItems: "center", gap: 8,
+                  display: "flex", alignItems: "flex-start", gap: 8,
                   margin: "0 -14px 5px -14px", padding: "6px 14px",
                   background: "transparent", fontFamily: FONT,
                 }}>
                   <Avatar url={item.avatarUrl} name={item.username} size={34} ringColor={item.color} />
-                  <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ flex: 1, minWidth: 0, paddingTop: 8.5 }}>
                     <div style={{ display: "flex", alignItems: "baseline", flexWrap: "wrap", gap: 4 }}>
-                      <span style={{ fontSize: 13, fontWeight: 700, color: "#fff" }}>{item.username}</span>
+                      <span style={{ fontSize: 14, fontWeight: 600, color: "#fff", lineHeight: 1.2 }}>{item.username}</span>
                       <span style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", fontWeight: 400 }}>{tLive("donated")}</span>
                       <span style={{ fontSize: 13, fontWeight: 700, color: "#4ade80" }}>{paidTotal(item.amount)}</span>
                     </div>
@@ -309,17 +309,19 @@ export default function LiveChatViewer({
                   </div>
                 </div>
               ) : (
-                <div key={item.id} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                <div key={item.id} style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 4 }}>
                   <Avatar url={item.avatarUrl} name={item.username} size={34} />
-                  <span style={{ fontSize: 12.5, fontFamily: FONT, lineHeight: 1.2, color: "rgba(255,255,255,0.92)", alignSelf: "center", flex: 1, minWidth: 0 }}>
-                    <strong style={{ fontWeight: 700, color: "#fff", marginRight: 5 }}>{item.username}</strong>
-                    {item.text}
-                  </span>
+                  <div style={{ flex: 1, minWidth: 0, paddingTop: 8.5 }}>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: "#fff", fontFamily: FONT, lineHeight: 1.2 }}>{item.username}</div>
+                    {item.text ? (
+                      <div style={{ marginTop: 1, fontSize: 12.5, fontFamily: FONT, color: "rgba(255,255,255,0.9)", lineHeight: 1.2, wordBreak: "break-word" }}>{item.text}</div>
+                    ) : null}
+                  </div>
                   {user && item.userId !== user.uid && (
                     <button
                       type="button"
                       onClick={() => openReport({ targetType: "live_chat_message", targetId: item.id, targetOwnerId: item.userId })}
-                      style={{ background: "none", border: "none", color: "rgba(255,255,255,0.25)", fontSize: 14, cursor: "pointer", padding: "0 2px", flexShrink: 0, lineHeight: 1 }}
+                      style={{ background: "none", border: "none", color: "rgba(255,255,255,0.25)", fontSize: 14, cursor: "pointer", padding: "0 2px", flexShrink: 0, lineHeight: 1, marginTop: 8.5 }}
                       title={tLive("reportMessage")}
                     >
                       ⋯
@@ -432,34 +434,36 @@ export default function LiveChatViewer({
           {feed.map((item) =>
             item.kind === "sc" ? (
               <div key={item.id} style={{
-                display: "flex", alignItems: "center", gap: 8,
+                display: "flex", alignItems: "flex-start", gap: 8,
                 padding: "6px 10px", margin: "2px -10px",
                 background: "transparent", fontFamily: FONT,
               }}>
                 <Avatar url={item.avatarUrl} name={item.username} size={34} ringColor={item.color} />
-                <div style={{ minWidth: 0, flex: 1 }}>
+                <div style={{ minWidth: 0, flex: 1, paddingTop: 8.5 }}>
                   <div style={{ display: "flex", alignItems: "baseline", flexWrap: "wrap", gap: 4 }}>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: "#fff" }}>{item.username}</span>
+                    <span style={{ fontSize: 14, fontWeight: 600, color: "#fff", lineHeight: 1.2 }}>{item.username}</span>
                     <span style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", fontWeight: 400 }}>{tLive("donated")}</span>
                     <span style={{ fontSize: 13, fontWeight: 700, color: "#4ade80" }}>{paidTotal(item.amount)}</span>
                   </div>
                   {item.text ? (
-                    <div style={{ marginTop: 1, fontSize: 12, color: "rgba(255,255,255,0.9)", lineHeight: 1.2, wordBreak: "break-word" }}>
+                    <div style={{ marginTop: 1, fontSize: 12.5, color: "rgba(255,255,255,0.9)", lineHeight: 1.2, wordBreak: "break-word" }}>
                       {item.text}
                     </div>
                   ) : null}
                 </div>
               </div>
             ) : (
-              <div key={item.id} style={{ display: "flex", gap: 8, padding: "2px 0", alignItems: "center" }}>
+              <div key={item.id} style={{ display: "flex", gap: 8, padding: "2px 0", alignItems: "flex-start" }}>
                 <Avatar url={item.avatarUrl} name={item.username} size={34} />
-                <div style={{ minWidth: 0, flex: 1, alignSelf: "center" }}>
-                  <span style={{ fontFamily: FONT, fontSize: 11.5, fontWeight: 700, color: "rgba(255,255,255,0.85)", marginRight: 4 }}>
+                <div style={{ minWidth: 0, flex: 1, paddingTop: 8.5 }}>
+                  <div style={{ fontFamily: FONT, fontSize: 14, fontWeight: 600, color: "#fff", lineHeight: 1.2 }}>
                     {item.username}
-                  </span>
-                  <span style={{ fontFamily: FONT, fontSize: 12, color: "rgba(255,255,255,0.7)", lineHeight: 1.2, wordBreak: "break-word" }}>
-                    {item.text}
-                  </span>
+                  </div>
+                  {item.text ? (
+                    <div style={{ marginTop: 1, fontFamily: FONT, fontSize: 12.5, color: "rgba(255,255,255,0.9)", lineHeight: 1.2, wordBreak: "break-word" }}>
+                      {item.text}
+                    </div>
+                  ) : null}
                 </div>
               </div>
             )
