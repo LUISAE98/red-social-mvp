@@ -6,6 +6,8 @@ import { useTranslations } from "next-intl";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
+import { WALLET_NET_RATE } from "@/lib/wallet/walletFinances";
+import { FIXED_SERVICE_FEE_MXN, PREMIUM_MIN_PRICE_MXN } from "@/lib/currency/catalog";
 import type { Post } from "@/lib/posts/types";
 import { finalizeVodSettings } from "@/lib/posts/post-service";
 
@@ -27,7 +29,7 @@ function applyPanelOffset(raw: number): number {
 export default function LiveEndSummaryPanel({ open, onClose, post }: Props) {
   const tCommon = useTranslations("common");
   const tLive = useTranslations("live");
-  const { resolveStoredPrice, toDisplayForInput, currency: displayCurrency, formatAnchor } =
+  const { format: formatMoney, toDisplayForInput, currency: displayCurrency } =
     usePriceFormat();
   const liveData = post.liveData;
   const defaultPaid = liveData?.accessType === "paid";
@@ -46,6 +48,15 @@ export default function LiveEndSummaryPanel({ open, onClose, post }: Props) {
   const [priceInput, setPriceInput] = useState(defaultPrice);
   const [saving, setSaving] = useState(false);
   const { toast: summaryToast, showToast: showSummaryToast } = useVibraToast();
+
+  // Precio del VOD (MXN base). Mismo sistema que experiencias/premium/ticket:
+  // mínimo en rojo, cuánto ganas (75%), leyenda del $3 — todos con colapso suave.
+  const vodPriceNum = parseFloat(priceInput);
+  const vodHasValidPrice =
+    priceInput.trim() !== "" && Number.isFinite(vodPriceNum) && vodPriceNum > 0;
+  const vodBelowMin = vodHasValidPrice && vodPriceNum < PREMIUM_MIN_PRICE_MXN;
+  const vodEarnings = vodHasValidPrice ? vodPriceNum * WALLET_NET_RATE : null;
+  const vodEarningsVisible = vodEarnings != null && vodEarnings > 0 && !vodBelowMin;
 
   // Mobile swipe state
   const [panelOffsetY, setPanelOffsetY] = useState(0);
@@ -100,14 +111,18 @@ export default function LiveEndSummaryPanel({ open, onClose, post }: Props) {
 
   async function handleConfirm() {
     if (saving) return;
-    // El creador teclea en su moneda; validamos y GUARDAMOS en MXN (ancla).
+    // Mexico-only: el creador teclea en MXN y GUARDAMOS TAL CUAL en MXN (sin conversión
+    // a USD). Es la base — el backend cobra base + $3 + IVA (VOD = post premium, postAccess).
     const typedPrice = vodAvailable && vodPaid ? (parseFloat(priceInput) || null) : null;
     if (vodAvailable && vodPaid && (!typedPrice || typedPrice <= 0)) {
       showSummaryToast(tLive("invalidPrice"), "error");
       return;
     }
-    const price =
-      typedPrice != null && typedPrice > 0 ? resolveStoredPrice(typedPrice).price : null;
+    if (vodAvailable && vodPaid && typedPrice != null && typedPrice < PREMIUM_MIN_PRICE_MXN) {
+      showSummaryToast(`El precio mínimo es $${PREMIUM_MIN_PRICE_MXN}.`, "error");
+      return;
+    }
+    const price = typedPrice;
     setSaving(true);
     try {
       await finalizeVodSettings(post.id, {
@@ -158,6 +173,34 @@ export default function LiveEndSummaryPanel({ open, onClose, post }: Props) {
     );
   }
 
+  // Switch canónico (estilo vibra_style.md / serviceConfigKit): pill 36×20, morado
+  // al activar, perilla blanca deslizante.
+  function Switch({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
+    return (
+      <button
+        type="button"
+        onClick={() => onChange(!checked)}
+        aria-pressed={checked}
+        style={{
+          position: "relative",
+          width: 36, minWidth: 36, height: 20, minHeight: 20,
+          borderRadius: 999, border: "none",
+          background: checked ? "#a855f7" : "rgba(255,255,255,0.10)",
+          padding: 0, cursor: "pointer", transition: "all 0.2s ease",
+          flexShrink: 0, boxSizing: "border-box",
+        }}
+      >
+        <span
+          style={{
+            position: "absolute", top: 2, left: checked ? 18 : 2,
+            width: 14, height: 14, borderRadius: "50%", background: "#fff",
+            transition: "all 0.2s ease",
+          }}
+        />
+      </button>
+    );
+  }
+
   function Row({ label, description, children }: { label: string; description?: string; children: React.ReactNode }) {
     return (
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "14px 0", borderBottom: BORDER }}>
@@ -182,52 +225,69 @@ export default function LiveEndSummaryPanel({ open, onClose, post }: Props) {
 
       {/* Row: disponible — primera decisión */}
       <Row label={tLive("makeVodAvailable")} description={tLive("makeVodAvailableDesc")}>
-        <Toggle value={vodAvailable} onChange={setVodAvailable} labelOn={tCommon("yes")} labelOff={tCommon("no")} />
+        <Switch checked={vodAvailable} onChange={setVodAvailable} />
       </Row>
 
       {/* Las opciones de fijar y ticket solo aparecen si el VOD quedará disponible */}
       {vodAvailable && (
         <>
           <Row label={tLive("pinVodInFeed")} description={tLive("pinVodInFeedDesc")}>
-            <Toggle value={keepPinned} onChange={setKeepPinned} labelOn={tCommon("yes")} labelOff={tCommon("no")} />
+            <Switch checked={keepPinned} onChange={setKeepPinned} />
           </Row>
 
           <Row label={tLive("accessTicket")} description={tLive("accessTicketDesc")}>
             <Toggle value={vodPaid} onChange={setVodPaid} labelOn={tLive("charge")} labelOff={tLive("free")} />
           </Row>
 
-          {vodPaid && (
+          {/* El precio se DESLIZA suave al activar "cobrar" y se colapsa suave al cambiar a
+              gratis (no aparece/desaparece de golpe). Mismo estilo que experiencias/premium. */}
+          <div
+            style={{
+              maxHeight: vodPaid ? 280 : 0,
+              opacity: vodPaid ? 1 : 0,
+              overflow: "hidden",
+              transition: "max-height 300ms ease, opacity 240ms ease",
+            }}
+          >
             <div style={{ paddingTop: 2, paddingBottom: 14 }}>
-              <label style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", fontFamily: FONT, display: "block", marginBottom: 8 }}>
-                Precio del ticket
-              </label>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={{ fontSize: 14, color: "rgba(255,255,255,0.5)", fontFamily: FONT }}>$</span>
+              {/* Campo canónico vibra_style.md; el "+ $3" y la moneda van FUERA del placeholder. */}
+              <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
                 <input
                   type="number"
                   min="1"
                   step="1"
                   value={priceInput}
                   onChange={(e) => setPriceInput(e.target.value)}
-                  placeholder={defaultPrice || "0"}
+                  placeholder={defaultPrice || "0.00"}
                   style={{
-                    flex: 1, padding: "10px 12px", borderRadius: 10,
-                    border: "1px solid rgba(255,255,255,0.18)",
+                    flex: "1 1 160px", minWidth: 0,
+                    padding: "10px 12px", borderRadius: 12,
+                    border: "none",
                     background: "rgba(255,255,255,0.06)", color: "#fff",
                     fontSize: 15, fontFamily: FONT, outline: "none",
+                    boxSizing: "border-box",
                   }}
                 />
-                <span style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", fontFamily: FONT }}>{displayCurrency}</span>
+                <span style={{ color: "rgba(255,255,255,0.55)", fontSize: 13, fontWeight: 600, whiteSpace: "nowrap", fontFamily: FONT }}>+ $3</span>
+                <span style={{ color: "#a855f7", fontSize: 20, fontWeight: 700, letterSpacing: "-0.01em", whiteSpace: "nowrap", fontFamily: FONT }}>{displayCurrency}</span>
               </div>
-              {displayCurrency !== "USD" &&
-              priceInput !== "" &&
-              Number(priceInput) > 0 ? (
-                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", fontFamily: FONT, marginTop: 6 }}>
-                  = {formatAnchor(resolveStoredPrice(Number(priceInput)).price)}
+
+              {/* 3 leyendas que COLAPSAN suave: mínimo rojo / cuánto ganas (75%) / cargo Stripe. */}
+              <div style={{ marginTop: 8 }}>
+                <div style={{ maxHeight: vodBelowMin ? 24 : 0, opacity: vodBelowMin ? 1 : 0, transform: vodBelowMin ? "translateY(0)" : "translateY(4px)", overflow: "hidden", transition: "max-height 220ms ease, opacity 220ms ease, transform 220ms ease" }}>
+                  <span style={{ display: "block", color: "#f87171", fontSize: 12, lineHeight: 1.45, fontFamily: FONT }}>{`El mínimo es $${PREMIUM_MIN_PRICE_MXN}`}</span>
                 </div>
-              ) : null}
+                <div style={{ maxHeight: vodEarningsVisible ? 24 : 0, opacity: vodEarningsVisible ? 1 : 0, transform: vodEarningsVisible ? "translateY(0)" : "translateY(4px)", overflow: "hidden", transition: "max-height 220ms ease, opacity 220ms ease, transform 220ms ease" }}>
+                  <span style={{ display: "block", color: "rgba(255,255,255,0.55)", fontSize: 12, lineHeight: 1.45, fontFamily: FONT }}>
+                    Ganas <strong style={{ color: "#a855f7", fontWeight: 700 }}>{formatMoney(vodEarnings ?? 0, { baseCurrency: "MXN", code: true })}</strong> por cada desbloqueo
+                  </span>
+                </div>
+                <div style={{ color: "rgba(255,255,255,0.4)", fontSize: 11, lineHeight: 1.4, fontFamily: FONT, marginTop: 3 }}>
+                  Se suman ${FIXED_SERVICE_FEE_MXN} MXN por el cargo de procesamiento de Stripe.
+                </div>
+              </div>
             </div>
-          )}
+          </div>
         </>
       )}
 
