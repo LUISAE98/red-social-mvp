@@ -2974,7 +2974,7 @@ style={{
                 </svg>
               )}
               {(isOwner || isOwnPost) && post.postType === "live" && (
-                <div style={{ position: "absolute", top: isMobile ? "62%" : "calc(50% + 38px)", left: "50%", transform: isMobile ? "translate(-50%, -50%)" : "translateX(-50%)", zIndex: 2, display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
+                <div style={{ position: "absolute", top: post.requiresPayment === true ? (isMobile ? "50%" : "calc(50% - 20px)") : (isMobile ? "62%" : "calc(50% + 38px)"), left: "50%", transform: isMobile ? "translate(-50%, -50%)" : "translateX(-50%)", zIndex: 2, display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
                   {(activeLiveData?.liveStreamId || activeLiveData?.broadcastMode) ? (
                     <>
                       <button
