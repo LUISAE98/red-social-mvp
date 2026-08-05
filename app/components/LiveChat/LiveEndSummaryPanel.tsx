@@ -171,9 +171,9 @@ export default function LiveEndSummaryPanel({ open, onClose, post }: Props) {
     );
   }
 
-  function Row({ label, description, children }: { label: string; description?: string; children: React.ReactNode }) {
+  function Row({ label, description, children, last = false }: { label: string; description?: string; children: React.ReactNode; last?: boolean }) {
     return (
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "14px 0", borderBottom: BORDER }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "14px 0", borderBottom: last ? "none" : BORDER }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 14, fontWeight: 500, color: "#fff", fontFamily: FONT }}>{label}</div>
           {description && <div style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", marginTop: 2, fontFamily: FONT }}>{description}</div>}
@@ -205,7 +205,7 @@ export default function LiveEndSummaryPanel({ open, onClose, post }: Props) {
             <Switch checked={keepPinned} onChange={setKeepPinned} />
           </Row>
 
-          <Row label={tLive("accessTicket")} description={tLive("accessTicketDesc")}>
+          <Row label={tLive("accessTicket")} description={tLive("accessTicketDesc")} last>
             <Switch checked={vodPaid} onChange={setVodPaid} />
           </Row>
 
