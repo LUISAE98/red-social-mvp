@@ -108,11 +108,13 @@ export function PremiumPostPanel({
             fontFamily: fontStack,
           }}
         >
-          {showUnlockCount
-            ? tPosts("premiumUnlockCount", { count: unlockCount })
-            : isUnlocked
-              ? (statusText ?? tPosts("premiumDefaultAccessText"))
-              : (state.panelMessage ?? tPosts("premiumDefaultLockedText"))}
+          {isAuthor && unlockCount <= 0
+            ? tPosts("premiumBelongsToYou")
+            : showUnlockCount
+              ? tPosts("premiumUnlockCount", { count: unlockCount })
+              : isUnlocked
+                ? (statusText ?? tPosts("premiumDefaultAccessText"))
+                : (state.panelMessage ?? tPosts("premiumDefaultLockedText"))}
         </div>
       </div>
 
