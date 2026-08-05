@@ -186,6 +186,12 @@ export default function ScheduleCalendarOverlay({
   const locale = useLocale();
   const resolvedTitle = title ?? tWallet("creatorCalendar");
   const [mounted, setMounted] = useState(false);
+  // Se mantiene montado durante la animación de SALIDA para que el cierre no sea
+  // "de golpe" (usa la keyframe vibraScheduleCalOut ya definida).
+  const [rendered, setRendered] = useState(open);
+  const [closing, setClosing] = useState(false);
+  const renderedRef = useRef(open);
+  const closeTimerRef = useRef<number | null>(null);
   const [monthOffset, setMonthOffset] = useState(0);
   const MAX_MONTHS_FORWARD = 6;
   const [isCompact, setIsCompact] = useState(false);
@@ -202,6 +208,31 @@ export default function ScheduleCalendarOverlay({
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    if (open) {
+      if (closeTimerRef.current) window.clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = null;
+      renderedRef.current = true;
+      setRendered(true);
+      setClosing(false);
+    } else if (renderedRef.current) {
+      // Reproduce la salida y desmonta al terminar (~180ms de la keyframe).
+      setClosing(true);
+      closeTimerRef.current = window.setTimeout(() => {
+        renderedRef.current = false;
+        setRendered(false);
+        setClosing(false);
+        closeTimerRef.current = null;
+      }, 200);
+    }
+    return () => {
+      if (closeTimerRef.current) {
+        window.clearTimeout(closeTimerRef.current);
+        closeTimerRef.current = null;
+      }
+    };
+  }, [open]);
 
   useEffect(() => {
     function handleResize() {
@@ -265,7 +296,7 @@ export default function ScheduleCalendarOverlay({
     ? eventsByDay.get(selectedEventDayKey) ?? []
     : [];
 
-  if (!mounted || !open) return null;
+  if (!mounted || !rendered) return null;
 
   return createPortal(
     <>
@@ -277,6 +308,17 @@ export default function ScheduleCalendarOverlay({
         @keyframes vibraScheduleCalOut {
           from { opacity: 1; transform: scale(1)    translateY(0);     }
           to   { opacity: 0; transform: scale(0.94) translateY(10px);  }
+        }
+        @keyframes vibraScheduleBackdropOut {
+          from { opacity: 1; }
+          to   { opacity: 0; }
+        }
+        /* Cierre suave: el panel reproduce la salida y el backdrop se desvanece. */
+        .scheduleOverlayPanel.is-closing {
+          animation: vibraScheduleCalOut 180ms ease-in forwards;
+        }
+        .scheduleOverlayBackdrop.is-closing {
+          animation: vibraScheduleBackdropOut 180ms ease forwards;
         }
 
         .scheduleOverlayBackdrop {
@@ -616,11 +658,11 @@ export default function ScheduleCalendarOverlay({
       `}</style>
 
       <div
-        className="scheduleOverlayBackdrop"
+        className={`scheduleOverlayBackdrop${closing ? " is-closing" : ""}`}
         onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
       >
         <section
-          className="scheduleOverlayPanel"
+          className={`scheduleOverlayPanel${closing ? " is-closing" : ""}`}
           onClick={(event) => event.stopPropagation()}
         >
           <header className="scheduleOverlayHeader">
