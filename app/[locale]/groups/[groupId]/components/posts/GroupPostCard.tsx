@@ -3084,6 +3084,7 @@ style={{
               highlighted={liveTicketShake}
               paid={hasLiveTicketAccess}
               memberFree={memberHasFreeAccess}
+              unlockCount={post.liveTicketCount ?? 0}
             />
           )}
         </div>
@@ -3125,50 +3126,30 @@ style={{
         </p>
       )}
 
-      {/* Scheduled date row */}
-      <div
-        style={{
-          marginTop: 10,
-          display: "flex",
-          alignItems: "center",
-          gap: 6,
-        }}
-      >
-        <svg
-          width="13"
-          height="13"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="rgba(168,85,255,0.8)"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          style={{ flexShrink: 0 }}
-        >
-          <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-          <line x1="16" y1="2" x2="16" y2="6" />
-          <line x1="8" y1="2" x2="8" y2="6" />
-          <line x1="3" y1="10" x2="21" y2="10" />
-        </svg>
-        <span
-          style={{
-            fontSize: 12,
-            fontFamily: fontStack,
-            color: "rgba(255,255,255,0.55)",
-          }}
-        >
-          {formatScheduledLiveDate(activeLiveData?.scheduledStartAt, {
-            locale,
-            tbd: tFeed("scheduledTBD"),
-            todayAt: (time) => tFeed("scheduledToday", { time }),
-            tomorrowAt: (time) => tFeed("scheduledTomorrow", { time }),
-            dateAt: (date, time) => tFeed("scheduledDateAt", { date, time }),
-          })}
-        </span>
-      </div>
 
-      {/* Fila inferior: badge visibilidad + CTA acceso */}
+      {/* Fila inferior: fecha agendada (izq) + visibilidad/CTA (der) */}
       <div style={{ marginTop: 10, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
+        {/* Izquierda: fecha agendada (o "Fecha sin confirmar") con icono de calendario */}
+        <div style={{ display: "inline-flex", alignItems: "center", gap: 6, minWidth: 0 }}>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(168,85,255,0.8)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+            <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+            <line x1="16" y1="2" x2="16" y2="6" />
+            <line x1="8" y1="2" x2="8" y2="6" />
+            <line x1="3" y1="10" x2="21" y2="10" />
+          </svg>
+          <span style={{ fontSize: 12, fontFamily: fontStack, color: "rgba(255,255,255,0.55)" }}>
+            {formatScheduledLiveDate(activeLiveData?.scheduledStartAt, {
+              locale,
+              tbd: tFeed("scheduledTBD"),
+              todayAt: (time) => tFeed("scheduledToday", { time }),
+              tomorrowAt: (time) => tFeed("scheduledTomorrow", { time }),
+              dateAt: (date, time) => tFeed("scheduledDateAt", { date, time }),
+            })}
+          </span>
+        </div>
+
+        {/* Derecha: visibilidad + CTA de acceso */}
+        <div style={{ display: "inline-flex", alignItems: "center", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
         {liveVisibilityBadge && (
           <div style={{
             display: "inline-flex", alignItems: "center", gap: 4,
@@ -3225,6 +3206,7 @@ style={{
             {liveAccessCtaText}
           </div>
         )}
+        </div>
       </div>
 
     </div>)}
