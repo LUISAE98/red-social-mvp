@@ -32,6 +32,7 @@ export function PremiumPostPanel({
   unlockCount = 0,
   countWhenLocked = false,
   isMobile = false,
+  isVod = false,
 }: {
   state: PostPremiumStateResult;
   onOpenPayment?: () => void;
@@ -39,6 +40,8 @@ export function PremiumPostPanel({
   oneTimePrice?: number | null;
   currency?: string | null;
   unlockCount?: number;
+  /** VOD con ticket (live grabado): usa su propia imagen de desbloqueo. */
+  isVod?: boolean;
   /** Solo en público + pago simple el subtítulo bloqueado es redundante con el
    *  botón; ahí lo sustituimos por el contador. En "solo miembros"/"miembros
    *  gratis" conservamos ese mensaje de contexto. */
@@ -61,7 +64,7 @@ export function PremiumPostPanel({
 
   const netEarnings =
     isAuthor && typeof oneTimePrice === "number" && oneTimePrice > 0
-      ? Math.floor(oneTimePrice * WALLET_NET_RATE)
+      ? Math.round(oneTimePrice * WALLET_NET_RATE * 100) / 100 // = round2 del ledger
       : null;
 
   return (
@@ -71,7 +74,7 @@ export function PremiumPostPanel({
         border: "1px solid rgba(168,85,255,0.32)",
         borderRadius: 12,
         background:
-          "linear-gradient(160deg, rgba(79,70,255,0.38), rgba(168,85,255,0.32) 55%, rgba(139,92,246,0.28)), linear-gradient(rgba(0,0,0,0.62), rgba(0,0,0,0.62)), url('/desbloquearcontenido.webp') center / cover no-repeat",
+          `linear-gradient(160deg, rgba(79,70,255,0.38), rgba(168,85,255,0.32) 55%, rgba(139,92,246,0.28)), linear-gradient(rgba(0,0,0,0.62), rgba(0,0,0,0.62)), url('${isVod ? "/desbloquearvod.webp" : "/desbloquearcontenido.webp"}') center / cover no-repeat`,
         padding: "10px 12px",
         display: "flex",
         alignItems: "center",
@@ -230,7 +233,7 @@ export function LiveTicketPanel({
   // Ganancia del creador (75% de la base), como en el panel de post premium.
   const netEarnings =
     isAuthor && typeof ticketPrice === "number" && ticketPrice > 0
-      ? Math.floor(ticketPrice * WALLET_NET_RATE)
+      ? Math.round(ticketPrice * WALLET_NET_RATE * 100) / 100 // = round2 del ledger
       : null;
 
   return (

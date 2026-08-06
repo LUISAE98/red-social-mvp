@@ -4228,13 +4228,14 @@ padding: "0 0 2px 0",
       post.premium?.accessMode === "public" && post.premium?.freeFor === "none"
     }
     isMobile={isMobile}
+    isVod={post.postType === "live"}
   />
 )}
 <StripePaymentModal
   open={paymentPanelOpen}
   amount={(post.premium?.price ?? post.oneTimePrice) != null ? Number(post.premium?.price ?? post.oneTimePrice) + FIXED_SERVICE_FEE_MXN : null}
   amountCurrency="MXN"
-  createIntent={(args) => createPremiumPostStripeIntent({ postId: post.id, saveCard: args.saveCard, taxCountry: args.taxCountry })}
+  createIntent={(args) => createPremiumPostStripeIntent({ postId: post.id, saveCard: args.saveCard, taxCountry: args.taxCountry, savedPaymentMethodId: args.savedPaymentMethodId })}
   productType={tPosts("premiumPayProductType")}
   providerName={postAuthor.authorName}
   avatarUrl={postAuthor.avatarUrl}
@@ -4255,7 +4256,7 @@ padding: "0 0 2px 0",
   open={livePayOpen}
   amount={(post.oneTimePrice ?? activeLiveData?.ticketPrice) != null ? Number(post.oneTimePrice ?? activeLiveData?.ticketPrice) + FIXED_SERVICE_FEE_MXN : null}
   amountCurrency="MXN"
-  createIntent={(args) => createLiveAccessStripeIntent({ postId: post.id, saveCard: args.saveCard, taxCountry: args.taxCountry })}
+  createIntent={(args) => createLiveAccessStripeIntent({ postId: post.id, saveCard: args.saveCard, taxCountry: args.taxCountry, savedPaymentMethodId: args.savedPaymentMethodId })}
   productType={tPosts("liveTicketProductType")}
   providerName={postAuthor.authorName}
   avatarUrl={postAuthor.avatarUrl}
