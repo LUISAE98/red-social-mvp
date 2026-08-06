@@ -22,6 +22,14 @@ import { FIXED_SERVICE_FEE_MXN } from "@/lib/currency/catalog";
 
 const FONT = 'inherit';
 
+// Fondo por tipo de card del chat (super comentario vs donación en vivo).
+// La imagen se oscurece con una capa negra para no interferir con el texto.
+// tierId === "donation" es el único valor reservado que distingue la donación.
+function scCardBackground(tierId: string): string {
+  const img = tierId === "donation" ? "/donacionesenvivo.webp" : "/supercomentarios.webp";
+  return `linear-gradient(rgba(0,0,0,0.72), rgba(0,0,0,0.72)), url('${img}') center / cover no-repeat`;
+}
+
 type Props = {
   liveId: string;
   authorId?: string | null;
@@ -176,7 +184,7 @@ export default function LiveChatViewer({
   // Merge regular messages + super comments into a single time-sorted feed
   type FeedItem =
     | { kind: "msg"; id: string; userId: string; username: string; avatarUrl?: string | null; text: string; ts: number }
-    | { kind: "sc"; id: string; userId: string; username: string; avatarUrl?: string | null; text: string; ts: number; tierName: string; color: string; amount: number };
+    | { kind: "sc"; id: string; userId: string; username: string; avatarUrl?: string | null; text: string; ts: number; tierId: string; tierName: string; color: string; amount: number };
 
   const feed: FeedItem[] = [
     ...messages.map((m) => ({
@@ -196,6 +204,7 @@ export default function LiveChatViewer({
       avatarUrl: sc.avatarUrl,
       text: sc.text,
       ts: (sc.createdAt as { seconds?: number })?.seconds ?? 0,
+      tierId: sc.tierId,
       tierName: sc.tierName,
       color: sc.color,
       amount: sc.amount,
@@ -293,8 +302,8 @@ export default function LiveChatViewer({
               item.kind === "sc" ? (
                 <div key={item.id} style={{
                   display: "flex", alignItems: "flex-start", gap: 8,
-                  margin: "0 -14px 10px -14px", padding: "0 14px",
-                  background: "transparent", fontFamily: FONT,
+                  margin: "0 -14px 10px -14px", padding: "10px 14px",
+                  background: scCardBackground(item.tierId), borderRadius: 0, fontFamily: FONT,
                 }}>
                   <Avatar url={item.avatarUrl} name={item.username} size={33} ringColor={item.color} />
                   <div style={{ flex: 1, minWidth: 0, paddingTop: item.text ? 0 : 8.5 }}>
@@ -435,8 +444,8 @@ export default function LiveChatViewer({
             item.kind === "sc" ? (
               <div key={item.id} style={{
                 display: "flex", alignItems: "flex-start", gap: 8,
-                padding: "0 10px", margin: "0 -10px 10px -10px",
-                background: "transparent", fontFamily: FONT,
+                padding: "10px 10px", margin: "0 -10px 10px -10px",
+                background: scCardBackground(item.tierId), borderRadius: 0, fontFamily: FONT,
               }}>
                 <Avatar url={item.avatarUrl} name={item.username} size={33} ringColor={item.color} />
                 <div style={{ minWidth: 0, flex: 1, paddingTop: item.text ? 0 : 8.5 }}>
