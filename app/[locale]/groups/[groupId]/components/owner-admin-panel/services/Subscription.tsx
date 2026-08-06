@@ -328,12 +328,6 @@ export default function Subscription({
   const { toast: subToast, showToast: showSubToast } = useVibraToast();
 
  const disabledByVisibility = isPublic;
-const disabledPanelStyle: React.CSSProperties = disabledByVisibility
-  ? {
-      opacity: 0.55,
-      filter: "grayscale(0.35)",
-    }
-  : {};
 
   const subscriptionCalc = useMemo(() => {
     return draft.subscription.enabled ? calcNetAmount(draft.subscription.price) : null;
@@ -488,12 +482,7 @@ function handleModify() {
   return (
     <>
       <div style={{ display: "grid", gap: 10 }}>
-        <div
-  style={{
-    ...panelStyle,
-    ...disabledPanelStyle,
-  }}
->
+        <div style={panelStyle}>
           <div
             style={{
               display: "flex",
