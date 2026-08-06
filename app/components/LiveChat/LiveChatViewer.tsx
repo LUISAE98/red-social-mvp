@@ -297,7 +297,7 @@ export default function LiveChatViewer({
                   background: "transparent", fontFamily: FONT,
                 }}>
                   <Avatar url={item.avatarUrl} name={item.username} size={29} ringColor={item.color} />
-                  <div style={{ flex: 1, minWidth: 0, paddingTop: item.text ? 0 : 6.5 }}>
+                  <div style={{ flex: 1, minWidth: 0, paddingTop: item.text ? 3 : 6.5 }}>
                     <div style={{ display: "flex", alignItems: "baseline", flexWrap: "wrap", gap: 4 }}>
                       <span style={{ fontSize: 13, fontWeight: 600, color: "#fff", lineHeight: 1.2 }}>{item.username}</span>
                       <span style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", fontWeight: 400 }}>{tLive("donated")}</span>
@@ -439,7 +439,7 @@ export default function LiveChatViewer({
                 background: "transparent", fontFamily: FONT,
               }}>
                 <Avatar url={item.avatarUrl} name={item.username} size={29} ringColor={item.color} />
-                <div style={{ minWidth: 0, flex: 1, paddingTop: item.text ? 0 : 6.5 }}>
+                <div style={{ minWidth: 0, flex: 1, paddingTop: item.text ? 3 : 6.5 }}>
                   <div style={{ display: "flex", alignItems: "baseline", flexWrap: "wrap", gap: 4 }}>
                     <span style={{ fontSize: 13, fontWeight: 600, color: "#fff", lineHeight: 1.2 }}>{item.username}</span>
                     <span style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", fontWeight: 400 }}>{tLive("donated")}</span>
