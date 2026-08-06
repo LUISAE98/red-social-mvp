@@ -12,7 +12,7 @@ import * as admin from "firebase-admin";
 import { stripeFetch, stripeSecretKey } from "./stripeClient";
 import { getOrCreateStripeCustomer } from "./stripeCustomer";
 import { chargeSavedCardOffSession } from "./offSessionCharge";
-import { applyConsumptionTax } from "../../tax/config";
+import { applyConsumptionTax, isChargeableCountry } from "../../tax/config";
 import { SETTLEMENT_CURRENCY, FIXED_SERVICE_FEE_MXN } from "../../wallet/ledger";
 
 if (admin.apps.length === 0) {
@@ -43,6 +43,12 @@ export const createLiveAccessStripeIntent = onCall(
 
     if (post.requiresPayment !== true) {
       throw new HttpsError("failed-precondition", "Este en vivo no requiere ticket.");
+    }
+    // Debe ser realmente un EN VIVO (tiene liveData). Un post premium también trae
+    // requiresPayment:true; sin este guard, comprarlo por esta ruta crearía un liveAccess
+    // en vez de desbloquear el contenido premium (postAccess) → cobro sin entregar acceso.
+    if (post.liveData == null) {
+      throw new HttpsError("failed-precondition", "Esta publicación no es un en vivo.");
     }
 
     const authorId = String(post.authorId ?? "");
@@ -80,6 +86,11 @@ export const createLiveAccessStripeIntent = onCall(
 
     // Precio publicado = base + $3 cargo fijo; IVA 16% encima (todo lo absorbe el comprador).
     const country = taxCountry || "MX";
+    // El país fiscal NO se confía del cliente: si manda uno sin IVA configurado (para
+    // evadir el impuesto), se rechaza. Solo se cobra donde el impuesto está definido (MX).
+    if (!isChargeableCountry(country)) {
+      throw new HttpsError("failed-precondition", "El cobro solo está disponible en México por ahora.");
+    }
     const published = round2(base + FIXED_SERVICE_FEE_MXN);
     const tax = applyConsumptionTax(published, country);
     const totalMxn = round2(published + tax.taxAmount);

@@ -13,7 +13,7 @@ import * as admin from "firebase-admin";
 import { stripeFetch, stripeSecretKey } from "./stripeClient";
 import { getOrCreateStripeCustomer } from "./stripeCustomer";
 import { chargeSavedCardOffSession } from "./offSessionCharge";
-import { applyConsumptionTax } from "../../tax/config";
+import { applyConsumptionTax, isChargeableCountry } from "../../tax/config";
 import { SETTLEMENT_CURRENCY, FIXED_SERVICE_FEE_MXN } from "../../wallet/ledger";
 
 if (admin.apps.length === 0) {
@@ -50,8 +50,9 @@ export const createPremiumPostStripeIntent = onCall(
     if (!creatorId) throw new HttpsError("failed-precondition", "Publicación sin autor.");
     if (creatorId === uid) throw new HttpsError("failed-precondition", "Es tu propia publicación.");
 
-    // La base del creador se trata en MXN (premium ya fuerza MXN).
-    const base = round2(Number(premium.price ?? post.oneTimePrice ?? 0));
+    // La base del creador se trata en MXN. Se prefiere `oneTimePrice` porque es EXACTAMENTE
+    // lo que muestra el frontend (evita cobrar un `premium.price` legacy en USD divergente).
+    const base = round2(Number(post.oneTimePrice ?? premium.price ?? 0));
     if (!Number.isFinite(base) || base <= 0) {
       throw new HttpsError("failed-precondition", "Precio inválido para esta publicación.");
     }
@@ -83,6 +84,11 @@ export const createPremiumPostStripeIntent = onCall(
 
     // Precio publicado = base + $3 cargo fijo; IVA 16% encima (todo lo absorbe el comprador).
     const country = taxCountry || "MX";
+    // El país fiscal NO se confía del cliente: si manda uno sin IVA configurado (para
+    // evadir el impuesto), se rechaza. Solo se cobra donde el impuesto está definido (MX).
+    if (!isChargeableCountry(country)) {
+      throw new HttpsError("failed-precondition", "El cobro solo está disponible en México por ahora.");
+    }
     const published = round2(base + FIXED_SERVICE_FEE_MXN);
     const tax = applyConsumptionTax(published, country);
     const totalMxn = round2(published + tax.taxAmount);

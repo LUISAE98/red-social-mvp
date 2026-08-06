@@ -35,9 +35,15 @@ import StripePaymentModal from "@/components/payments/StripePaymentModal";
 import { createLiveAccessStripeIntent, createPremiumPostStripeIntent } from "@/lib/stripe/stripePayments";
 import { FIXED_SERVICE_FEE_MXN } from "@/lib/currency/catalog";
 import { registrarCompraGeo } from "@/lib/wallet/registrarCompraGeo";
+import { buildLoginHref } from "@/lib/auth-redirect";
 import PremiumVideoTeaser from "./PremiumVideoTeaser";
 import { VideoPlayIcon } from "@/app/components/VibraServiceIcons/VibraVideoIcons";
 import { usePostTempUnlock } from "@/lib/posts/usePostTempUnlock";
+import {
+  isPaywalledPost,
+  mergeProtectedPlayback,
+  useProtectedPlayback,
+} from "@/lib/posts/useProtectedPlayback";
 import { checkLiveAccess } from "@/lib/liveAccess/live-access-service";
 import { fetchPostFlameUsers, registerPostView, updatePost } from "@/lib/posts/post-service";
 import { uploadCommentImage, uploadPostImage } from "@/lib/posts/image-upload";
@@ -185,7 +191,7 @@ type DisplayMediaItem = {
 };
 
 export default function GroupPostCard({
-  post,
+  post: rawPost,
   groupId = null,
   canDelete = false,
   onDelete,
@@ -232,6 +238,43 @@ onToggleProfilePin,
   const locale = useLocale();
   const priceFmt = usePriceFormat();
   const router = useRouter();
+
+  // ── Contenido de pago: el playbackId NO viene en el doc del post ────────────
+  // En un post de pago las coordenadas reproducibles viven en el subdocumento
+  // protegido `posts/{id}/protectedPlayback/current` (ver backend). Aquí se leen
+  // solo si el viewer tiene motivos para tener acceso —compró, es miembro con
+  // acceso gratis, es el autor o modera— y se re-inyectan en el post, así que
+  // todo lo de abajo (card, visor, VOD) sigue leyendo `post.playback` como
+  // siempre. Quien no pagó recibe el post con los campos en null: el candado ya
+  // no es visual, es que literalmente no tiene la URL.
+  const viewerMayHavePaidAccess =
+    !!currentUserId &&
+    isPaywalledPost(rawPost) &&
+    (forceUnlocked ||
+      isOwner ||
+      isModerator ||
+      viewerIsMember ||
+      rawPost.authorId === currentUserId);
+
+  const protectedPlayback = useProtectedPlayback(rawPost.id, viewerMayHavePaidAccess);
+
+  const post = useMemo(
+    () => mergeProtectedPlayback(rawPost, protectedPlayback),
+    [rawPost, protectedPlayback],
+  );
+
+  // Compra (premium / boleto de live) para alguien SIN sesión: el cobro exige
+  // cuenta (los callables de Stripe rechazan `unauthenticated`), así que en vez
+  // de abrir una pasarela que va a fallar, se manda a iniciar sesión y se vuelve
+  // a esta misma vista. Devuelve true si ya se puede cobrar.
+  function ensureSignedInToPay(): boolean {
+    if (currentUserId) return true;
+    if (typeof window === "undefined") return false;
+    router.push(
+      buildLoginHref(window.location.pathname, window.location.search),
+    );
+    return false;
+  }
 
   const [comments, setComments] = useState<Comment[] | null>(null);
   const [commentsPanelOpen, setCommentsPanelOpen] = useState(false);
@@ -784,9 +827,12 @@ useEffect(() => {
     if (autoOpenedRef.current) return;
     if (autoOpenUnlock) {
       // Flujo de desbloqueo/compra: panel de pago (premium) o ticket vía live viewer.
+      // Sin sesión no se puede cobrar → a iniciar sesión en vez de abrir una
+      // pasarela que el backend va a rechazar.
       autoOpenedRef.current = true;
-      if (post.premium?.enabled === true) setPaymentPanelOpen(true);
-      else setLiveViewerOpen(true);
+      if (post.premium?.enabled === true) {
+        if (ensureSignedInToPay()) setPaymentPanelOpen(true);
+      } else setLiveViewerOpen(true);
     } else if (autoOpenLive) {
       // Transmisión en curso → modal de live.
       autoOpenedRef.current = true;
@@ -3079,7 +3125,7 @@ style={{
               ticketPrice={post.oneTimePrice ?? activeLiveData?.ticketPrice ?? null}
               currency={post.currency ?? activeLiveData?.currency ?? null}
               isAuthor={isOwnPost || isOwner}
-              onBuyTicket={() => { livePaidRef.current = false; setLivePayOpen(true); }}
+              onBuyTicket={() => { if (!ensureSignedInToPay()) return; livePaidRef.current = false; setLivePayOpen(true); }}
               overlay
               highlighted={liveTicketShake}
               paid={hasLiveTicketAccess}
@@ -3099,7 +3145,7 @@ style={{
       {isMobile && post.requiresPayment === true && !liveAccessBlocked && !(isOwnPost || isOwner) && !hasLiveTicketAccess && !memberHasFreeAccess && (
         <button
           type="button"
-          onClick={() => { livePaidRef.current = false; setLivePayOpen(true); }}
+          onClick={() => { if (!ensureSignedInToPay()) return; livePaidRef.current = false; setLivePayOpen(true); }}
           aria-label={tPosts("liveTicketRequiredTitle")}
           style={{
             width: "100%",
@@ -4191,7 +4237,7 @@ padding: "0 0 2px 0",
 {isMobile && premiumState.isBlocked && (isVideoPost || hasMediaGrid || liveVodReady) && (
   <button
     type="button"
-    onClick={() => setPaymentPanelOpen(true)}
+    onClick={() => { if (ensureSignedInToPay()) setPaymentPanelOpen(true); }}
     aria-label={tFeed("unlockPremiumContent")}
     style={{
       width: "100%",
@@ -4220,7 +4266,7 @@ padding: "0 0 2px 0",
 {premiumState.isPremium && (
   <PremiumPostPanel
     state={premiumState}
-    onOpenPayment={() => setPaymentPanelOpen(true)}
+    onOpenPayment={() => { if (ensureSignedInToPay()) setPaymentPanelOpen(true); }}
     oneTimePrice={post.oneTimePrice}
     currency={post.currency}
     unlockCount={post.premiumUnlockCount ?? 0}

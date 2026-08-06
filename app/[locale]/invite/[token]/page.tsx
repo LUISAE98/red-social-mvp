@@ -14,8 +14,9 @@ import {
 } from "@/lib/groups/inviteLinks";
 import { useAuth } from "@/app/providers";
 import { buildCurrentPathWithSearch } from "@/lib/auth-redirect";
-import ServicePaymentModal from "@/components/payments/ServicePaymentModal";
-import { payGroupSubscription } from "@/lib/payments/payGroupSubscription";
+import StripePaymentModal from "@/components/payments/StripePaymentModal";
+import { createGroupSubscription } from "@/lib/stripe/stripePayments";
+import { FIXED_SERVICE_FEE_MXN } from "@/lib/currency/catalog";
 
 type InvitePreview = {
   success: boolean;
@@ -613,23 +614,20 @@ const { user } = useAuth();
         </section>
       </div>
 
-      {/* Suscripción por invitación — pasarela REAL (preapproval MP). El backend
-          valida la invitación (invite-only), crea el preapproval mensual y activa
-          la membresía; al aprobar redirige a la comunidad. */}
-      <ServicePaymentModal
+      {/* Suscripción por invitación — pasarela STRIPE (Subscriptions nativas). El callable
+          valida la invitación (invite-only) + crea la Subscription; el webhook (invoice.paid)
+          concede la membresía. `amount` = base + $3 → total mensual (base+$3)×IVA. */}
+      <StripePaymentModal
         open={payOpen}
-        amount={group.subscriptionPrice}
+        amount={group.subscriptionPrice != null ? group.subscriptionPrice + FIXED_SERVICE_FEE_MXN : null}
+        amountCurrency="MXN"
         pricePeriodLabel="mes"
-        pay={async (c) => {
-          const r = await payGroupSubscription({
-            groupId: group.id,
-            token: c.token,
-            payerEmail: user?.email ?? undefined,
-            inviteToken: token,
-            taxCountry: c.taxCountry, // 🧾 IVA — el backend suma el impuesto al cobro mensual.
-          });
-          return { status: r.status === "authorized" ? "approved" : r.status };
-        }}
+        createIntent={(args) => createGroupSubscription({
+          groupId: group.id,
+          taxCountry: args.taxCountry,
+          inviteToken: token,
+          savedPaymentMethodId: args.savedPaymentMethodId,
+        })}
         productType="Suscripción mensual"
         providerName={group.name}
         avatarUrl={group.avatarUrl}
@@ -638,7 +636,7 @@ const { user } = useAuth();
         successMessage="✅ ¡Listo! Ya formas parte de la comunidad."
         onClose={() => setPayOpen(false)}
         onPaid={() => {
-          // Membresía activada server-side → mostrar éxito y entrar a la comunidad.
+          // Membresía activada server-side (webhook) → mostrar éxito y entrar a la comunidad.
           window.setTimeout(() => router.replace(`/groups/${group.id}`), 1600);
         }}
       />

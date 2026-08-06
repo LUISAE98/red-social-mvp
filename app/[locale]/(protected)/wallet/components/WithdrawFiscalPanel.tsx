@@ -1,17 +1,19 @@
 "use client";
 
 // Panel fiscal del retiro (creador MEXICANO). Se abre al dar "Retirar".
-// Estilo: panel base de vibra_style.md (backdrop 0.88, contenedor #0a0a0a r18,
-// header 56px con título centrado + X, botón primario #a855f7 r5).
+// Estilo: primitivo canónico `Modal` (= VibraResponsivePanel, vibra_style.md):
+// en celular es la PESTAÑA deslizable desde abajo (bottom sheet, arrastre para
+// cerrar) y en laptop el panel centrado. Los dos niveles del flujo (elegir cómo
+// facturar → llenar la ruta elegida) viven en la MISMA pestaña: solo cambia el
+// cuerpo, con una fila "Regresar" arriba para volver a la elección.
 //
 // Flujo (docs/legal/fiscal-iva-isr-plataforma.md §0.7):
 //   1. PRIMERO las dos opciones: AUTOMÁTICO (CSD → self-billing) o MANUAL.
 //   2. Cada ruta pide lo suyo (datos fiscales prellenados si ya existen).
 // El creador EXTRANJERO no ve este panel: pasa directo a pago (impuestos aparte).
 
-import { createPortal } from "react-dom";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
+import { Modal } from "@/components/ui";
 import {
   useCreatorTaxProfile,
   saveCreatorTaxProfile,
@@ -63,7 +65,6 @@ type Props = {
 type View = "method" | "auto" | "manual" | "done";
 
 // ── Estilos del sistema (vibra_style.md) ─────────────────────────────────────
-const DIVIDER = "1px solid rgba(255,255,255,0.12)";
 const LABEL = { fontSize: 12, fontWeight: 500, color: "rgba(255,255,255,0.6)", marginBottom: 6 } as const;
 const FIELD: React.CSSProperties = {
   width: "100%", boxSizing: "border-box", background: "rgba(255,255,255,0.06)",
@@ -73,11 +74,8 @@ const FIELD: React.CSSProperties = {
 
 export default function WithdrawFiscalPanel({ open, onClose, uid, availableLabel, ivaLabel, totalLabel }: Props) {
   const { profile, loading, hasData, csdReady } = useCreatorTaxProfile(uid);
-  // Desmontado diferido para animar la SALIDA (vibra_style.md): al cerrar, se
-  // reproduce la animación de salida y se desmonta 180ms después.
-  const [rendered, setRendered] = useState(open);
-  const [closing, setClosing] = useState(false);
-  useBodyScrollLock(rendered);
+  // El ciclo de vida de la animación, el backdrop, el bloqueo de scroll y el
+  // gesto de arrastre los resuelve el primitivo `Modal` (VibraResponsivePanel).
 
   const [view, setView] = useState<View>("method");
   const [error, setError] = useState<string | null>(null);
@@ -164,7 +162,6 @@ export default function WithdrawFiscalPanel({ open, onClose, uid, availableLabel
       setConsent(profile.selfBillingConsent?.accepted ?? false);
     }
     setRegimenOpen(false);
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setView(csdReady ? "done" : "method");
   }, [open, loading, csdReady, profile]);
 
@@ -174,18 +171,6 @@ export default function WithdrawFiscalPanel({ open, onClose, uid, availableLabel
     const t = window.setTimeout(() => setCopied(false), 2000);
     return () => window.clearTimeout(t);
   }, [copied]);
-
-  // Abrir = montar y animar entrada; cerrar = animar salida y desmontar a los 180ms.
-  useEffect(() => {
-    if (open) {
-      setRendered(true);
-      setClosing(false);
-      return;
-    }
-    setClosing(true);
-    const t = window.setTimeout(() => setRendered(false), 180);
-    return () => window.clearTimeout(t);
-  }, [open]);
 
   const canClose = !busy;
   function handleClose() {
@@ -530,70 +515,45 @@ export default function WithdrawFiscalPanel({ open, onClose, uid, availableLabel
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view, loading, busy, hasData, manualSaved, taxId, legalName, taxSystem, regimenQuery, regimenOpen, zip, taxIdError, legalNameError, taxSystemError, zipError, cer, keyFile, cerError, keyError, pdf, xml, pdfError, xmlError, csdPass, showPass, consent, copied, availableLabel, ivaLabel, totalLabel, profile]);
 
-  if (!rendered) return null;
-  if (typeof document === "undefined") return null;
+  const isSecondLevel = view === "auto" || view === "manual";
 
-  return createPortal(
-    <div
-      onMouseDown={(e) => { if (e.target === e.currentTarget) handleClose(); }}
-      style={{
-        position: "fixed", inset: 0, zIndex: 999999,
-        display: "flex", alignItems: "center", justifyContent: "center", padding: 24,
-        background: "rgba(0,0,0,0.88)", fontFamily: "inherit",
-        animation: closing ? "vibraFiscalBackdropOut 180ms ease-in forwards" : "vibraFiscalBackdropIn 180ms ease-out",
-      }}
+  return (
+    <Modal
+      open={open}
+      onClose={handleClose}
+      title={`Retirar ${availableLabel}`}
+      maxWidthDesktop={540}
+      contentPadding="16px 18px calc(18px + var(--vb-safe-bottom, 0px))"
     >
-      <style>{`@keyframes vibraFiscalPanelIn{from{opacity:0;transform:scale(0.94) translateY(10px)}to{opacity:1;transform:scale(1) translateY(0)}}@keyframes vibraFiscalPanelOut{from{opacity:1;transform:scale(1) translateY(0)}to{opacity:0;transform:scale(0.94) translateY(10px)}}@keyframes vibraFiscalBackdropIn{from{background:rgba(0,0,0,0)}to{background:rgba(0,0,0,0.88)}}@keyframes vibraFiscalBackdropOut{from{background:rgba(0,0,0,0.88)}to{background:rgba(0,0,0,0)}}@keyframes vibraCheckPop{0%{transform:scale(0)}60%{transform:scale(1.25)}100%{transform:scale(1)}}`}</style>
-      <section
-        style={{
-          width: "min(100%, 540px)", maxHeight: "min(88vh, 680px)", display: "flex", flexDirection: "column",
-          borderRadius: 18, background: "#0a0a0a",
-          boxShadow: "0 0 0 1px rgba(255,255,255,0.08), 0 32px 72px rgba(0,0,0,0.9)",
-          color: "#fff", overflow: "hidden",
-          animation: closing ? "vibraFiscalPanelOut 180ms ease-in forwards" : "vibraFiscalPanelIn 180ms ease-out",
-        }}
-      >
-        {/* Header: [vacío | título centrado | X] */}
-        <div style={{ height: 56, display: "grid", gridTemplateColumns: "48px 1fr 48px", alignItems: "center", padding: "0 12px", borderBottom: DIVIDER, flexShrink: 0 }}>
-          {view === "auto" || view === "manual" ? (
-            <button
-              type="button" onClick={() => setView("method")} disabled={busy} aria-label="Regresar"
-              style={{ border: "none", background: "none", color: "#fff", cursor: busy ? "default" : "pointer", display: "grid", placeItems: "center", justifySelf: "start", padding: 4 }}
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
-                <line x1="19" y1="12" x2="5" y2="12" />
-                <polyline points="12 19 5 12 12 5" />
-              </svg>
-            </button>
-          ) : (
-            <div aria-hidden="true" />
-          )}
-          <span style={{ fontSize: 17, fontWeight: 500, color: "#fff", lineHeight: 1.2, textAlign: "center", letterSpacing: "-0.02em" }}>
-            Retirar {availableLabel}
-          </span>
-          <button
-            type="button" onClick={handleClose} disabled={!canClose} aria-label="Cerrar"
-            style={{ border: "none", background: "none", color: "#fff", cursor: canClose ? "pointer" : "default", display: "grid", placeItems: "center", justifySelf: "end", padding: 4 }}
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
-          </button>
-        </div>
+      <style>{`@keyframes vibraCheckPop{0%{transform:scale(0)}60%{transform:scale(1.25)}100%{transform:scale(1)}}`}</style>
 
-        {/* Contenido con scroll */}
-        <div style={{ flex: 1, overflowY: "auto", minHeight: 0, padding: "18px 20px 20px" }}>
-          {error && (
-            <div style={{ marginBottom: 14, borderRadius: 13, border: "1px solid rgba(255,90,90,0.24)", background: "rgba(120,18,18,0.28)", color: "#ffdada", padding: "10px 12px", fontSize: 13, lineHeight: 1.4 }}>
-              {error}
-            </div>
-          )}
-          {body}
+      {/* Nivel 2 (auto/manual): fila para volver a la elección de método. El
+          header del primitivo solo trae la X, así que el "Regresar" vive aquí. */}
+      {isSecondLevel && (
+        <button
+          type="button" onClick={() => setView("method")} disabled={busy}
+          style={{
+            display: "flex", alignItems: "center", gap: 8, marginBottom: 14,
+            border: "none", background: "none", padding: 0, fontFamily: "inherit",
+            fontSize: 13, fontWeight: 500, color: "rgba(255,255,255,0.6)",
+            cursor: busy ? "default" : "pointer",
+          }}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <line x1="19" y1="12" x2="5" y2="12" />
+            <polyline points="12 19 5 12 12 5" />
+          </svg>
+          Regresar
+        </button>
+      )}
+
+      {error && (
+        <div style={{ marginBottom: 14, borderRadius: 13, border: "1px solid rgba(255,90,90,0.24)", background: "rgba(120,18,18,0.28)", color: "#ffdada", padding: "10px 12px", fontSize: 13, lineHeight: 1.4 }}>
+          {error}
         </div>
-      </section>
-    </div>,
-    document.body
+      )}
+      {body}
+    </Modal>
   );
 }
 

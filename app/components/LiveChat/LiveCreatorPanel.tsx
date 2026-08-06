@@ -58,6 +58,7 @@ import { onSnapshot, doc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import { WALLET_NET_RATE } from "@/lib/wallet/walletFinances";
+import { FIXED_SERVICE_FEE_MXN } from "@/lib/currency/catalog";
 import {
   OBSBrowserSourceBanner, ChatMessageRow, ScAvatar, ModActionBtn,
   MuxLivePlaceholder, VideoPreview, DIV, FONT,
@@ -67,7 +68,16 @@ import {
 export default function LiveCreatorPanel({ open, onClose, post, portrait = false }: Props) {
   const tCommon = useTranslations("common");
   const tLive = useTranslations("live");
-  const { format: formatMoney } = usePriceFormat();
+  const pf = usePriceFormat();
+  const formatMoney = pf.format;
+  // El monto guardado (`amount`) es la BASE del creador en MXN. Para MOSTRAR:
+  //  · fanPaidTotal = lo que pagó el fan (base + $3 + IVA) — lo que "donó".
+  //  · netEarned    = lo que gana el creador (75% de la base).
+  // `baseCurrency:"MXN"` evita tratar el MXN como USD (bug ×FX → 1095).
+  const fanPaidTotal = (baseMxn: number) =>
+    pf.formatWithTax(baseMxn + FIXED_SERVICE_FEE_MXN, { baseCurrency: "MXN", code: true }).total;
+  const netEarned = (baseMxn: number) =>
+    formatMoney(baseMxn * WALLET_NET_RATE, { baseCurrency: "MXN", code: true });
   const { user } = useAuth();
   const { messages, deleteMessage } = useLiveChat(open ? post.id : null, 50);
   const [isDesktop, setIsDesktop] = useState(false);
@@ -1634,17 +1644,21 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
 
                   {/* Contenido central */}
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    {/* Renglón 1: nombre + monto + Reproducir + spacer + acciones */}
-                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
-                      <span style={{ fontSize: 13, fontWeight: 700, color: "#fff", fontFamily: FONT, flexShrink: 0 }}>
-                        {sc.username}
-                      </span>
-                      {scIsBanned && (
-                        <span style={{ fontSize: 9, fontWeight: 700, color: "#ef4444", background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 3, padding: "0px 4px", flexShrink: 0 }}>BAN</span>
-                      )}
-                      <span style={{ fontSize: 12, fontWeight: 700, color: "#86efac", fontFamily: FONT, flexShrink: 0 }}>
-                        +{formatMoney(sc.amount * WALLET_NET_RATE, { code: true })}
-                      </span>
+                    {/* Renglón 1: nombre + monto (bajados al centro del avatar) + Reproducir + spacer + acciones.
+                        El nombre se desplaza hacia abajo (marginTop) para quedar a la mitad del avatar de 36px,
+                        y el renglón 2 queda pegado a él; el botón y las acciones se quedan arriba. */}
+                    <div style={{ display: "flex", alignItems: "flex-start", gap: 6, marginBottom: -4 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 9, minWidth: 0 }}>
+                        <span style={{ fontSize: 13, fontWeight: 500, letterSpacing: "-0.02em", color: "#fff", fontFamily: FONT, flexShrink: 0, lineHeight: "18px" }}>
+                          {sc.username}
+                        </span>
+                        {scIsBanned && (
+                          <span style={{ fontSize: 9, fontWeight: 700, color: "#ef4444", background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 3, padding: "0px 4px", flexShrink: 0 }}>BAN</span>
+                        )}
+                        <span style={{ fontSize: 12, fontWeight: 700, color: "#86efac", fontFamily: FONT, flexShrink: 0 }}>
+                          +{netEarned(sc.amount)}
+                        </span>
+                      </div>
                       <button
                         type="button"
                         onClick={() => handlePlaySC(sc)}
@@ -1655,13 +1669,13 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
                             ? `${sc.color}55`
                             : "linear-gradient(135deg, #a855f7, #f72fbe)",
                           color: "#fff", fontSize: 11, fontWeight: 600, fontFamily: FONT,
-                          cursor: "pointer", flexShrink: 0,
+                          cursor: "pointer", flexShrink: 0, marginTop: 2,
                         }}
                       >
                         Reproducir
                       </button>
                       {sc.hidden && (
-                        <span style={{ fontSize: 9, fontWeight: 700, color: "#f59e0b", fontFamily: FONT, flexShrink: 0 }}>OCULTO</span>
+                        <span style={{ fontSize: 9, fontWeight: 700, color: "#f59e0b", fontFamily: FONT, flexShrink: 0, marginTop: 6 }}>OCULTO</span>
                       )}
                       <div style={{ flex: 1 }} />
                       <ModActionBtn
@@ -1718,7 +1732,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
                       </span>
                     ) : (
                       <span style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", fontStyle: "italic", fontFamily: FONT }}>
-                        Donación {formatMoney(sc.amount, { code: true })}
+                        Donación {fanPaidTotal(sc.amount)}
                       </span>
                     )}
                   </div>
@@ -1890,7 +1904,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
                     {playingOverlay.username}
                   </span>
                   <span style={{ fontSize: 13, fontWeight: 700, color: "#86efac", fontFamily: FONT }}>
-                    +{formatMoney(playingOverlay.amount * WALLET_NET_RATE, { code: true })}
+                    +{netEarned(playingOverlay.amount)}
                   </span>
                 </div>
               </div>
@@ -1908,7 +1922,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
                   {playingOverlay.text.slice(ttsReadIndex)}
                 </>
               ) : (
-                <span style={{ color: "rgba(255,255,255,0.35)", fontStyle: "italic" }}>{tLive("donationAmount", { amount: formatMoney(playingOverlay.amount, { code: true }) })}</span>
+                <span style={{ color: "rgba(255,255,255,0.35)", fontStyle: "italic" }}>{tLive("donationAmount", { amount: fanPaidTotal(playingOverlay.amount) })}</span>
               )}
             </div>
             {/* Botones */}

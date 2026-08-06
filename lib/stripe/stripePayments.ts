@@ -18,16 +18,21 @@ export async function createStripePaymentIntent(input: {
   return res.data;
 }
 
-/** Respuesta de los callables de intent (solo México por ahora: cobro en MXN). */
+/** Respuesta de los callables de intent (solo México por ahora: cobro en MXN).
+ *  `status` viene sólo en el cobro "un clic" off-session (tarjeta guardada); en el flujo
+ *  de tarjeta nueva sólo viene `clientSecret` para confirmar con Elements. */
 export type StripeChargeResult = {
-  clientSecret: string;
+  clientSecret?: string;
+  status?: string;
 };
 
-/** Crea el PaymentIntent de un SALUDO/CONSEJO (precio del servidor + IVA + metadata). */
+/** Crea el PaymentIntent de un SALUDO/CONSEJO (precio del servidor + IVA + metadata).
+ *  Con `savedPaymentMethodId` → cobro "un clic" off-session (sin CVV; devuelve `status`). */
 export async function createGreetingStripeIntent(input: {
   greetingRequestId: string;
   saveCard: boolean;
   taxCountry: string | null;
+  savedPaymentMethodId?: string;
 }): Promise<StripeChargeResult> {
   const fn = httpsCallable<typeof input, StripeChargeResult>(functions, "createGreetingStripeIntent");
   const res = await fn(input);
@@ -43,6 +48,7 @@ export async function createServiceStripeIntent(input: {
   externalReference: string;
   saveCard: boolean;
   taxCountry: string | null;
+  savedPaymentMethodId?: string;
 }): Promise<StripeChargeResult> {
   const fn = httpsCallable<typeof input, StripeChargeResult>(functions, "createServiceStripeIntent");
   const res = await fn(input);
@@ -57,6 +63,7 @@ export async function createDonationStripeIntent(input: {
   taxCountry: string | null;
   groupId?: string | null;
   groupName?: string | null;
+  savedPaymentMethodId?: string;
 }): Promise<StripeChargeResult> {
   const fn = httpsCallable<typeof input, StripeChargeResult>(functions, "createDonationStripeIntent");
   const res = await fn(input);
@@ -68,6 +75,7 @@ export async function createLiveAccessStripeIntent(input: {
   postId: string;
   saveCard: boolean;
   taxCountry: string | null;
+  savedPaymentMethodId?: string;
 }): Promise<StripeChargeResult> {
   const fn = httpsCallable<typeof input, StripeChargeResult>(functions, "createLiveAccessStripeIntent");
   const res = await fn(input);
@@ -79,6 +87,7 @@ export async function createPremiumPostStripeIntent(input: {
   postId: string;
   saveCard: boolean;
   taxCountry: string | null;
+  savedPaymentMethodId?: string;
 }): Promise<StripeChargeResult> {
   const fn = httpsCallable<typeof input, StripeChargeResult>(functions, "createPremiumPostStripeIntent");
   const res = await fn(input);
@@ -91,15 +100,12 @@ export async function createLiveDonationStripeIntent(input: {
   amount: number;
   saveCard: boolean;
   taxCountry: string | null;
+  savedPaymentMethodId?: string;
 }): Promise<StripeChargeResult> {
   const fn = httpsCallable<typeof input, StripeChargeResult>(functions, "createLiveDonationStripeIntent");
   const res = await fn(input);
   return res.data;
 }
-
-/** Resultado de un cobro que puede ser "un clic" (off-session): `status` presente sólo
- *  cuando se cobró una tarjeta guardada server-side (p. ej. "succeeded"). */
-export type StripeDirectChargeResult = { clientSecret?: string; status?: string };
 
 /**
  * Crea el PaymentIntent de un SÚPER COMENTARIO (precio fijo del tier + $3 + IVA, MXN; con texto).
@@ -114,8 +120,32 @@ export async function createSuperCommentStripeIntent(input: {
   saveCard: boolean;
   taxCountry: string | null;
   savedPaymentMethodId?: string;
-}): Promise<StripeDirectChargeResult> {
-  const fn = httpsCallable<typeof input, StripeDirectChargeResult>(functions, "createSuperCommentStripeIntent");
+}): Promise<StripeChargeResult> {
+  const fn = httpsCallable<typeof input, StripeChargeResult>(functions, "createSuperCommentStripeIntent");
   const res = await fn(input);
+  return res.data;
+}
+
+/**
+ * Crea la SUSCRIPCIÓN MENSUAL a una comunidad (Stripe Subscriptions nativas; (base+$3)×IVA/mes).
+ * Devuelve el `clientSecret` de la 1ª factura para confirmar (tarjeta nueva), o `status`
+ * ("succeeded"/"requires_action") si se cobró una tarjeta guardada off-session. La membresía
+ * la concede el webhook al aprobarse el cobro. `inviteToken` es obligatorio en comunidades ocultas.
+ */
+export async function createGroupSubscription(input: {
+  groupId: string;
+  taxCountry: string | null;
+  inviteToken?: string;
+  savedPaymentMethodId?: string;
+}): Promise<StripeChargeResult & { subscriptionId?: string }> {
+  const fn = httpsCallable<typeof input, StripeChargeResult & { subscriptionId?: string }>(functions, "createGroupSubscription");
+  const res = await fn(input);
+  return res.data;
+}
+
+/** Cancela la suscripción a una comunidad (conserva acceso hasta fin del periodo pagado). */
+export async function cancelGroupSubscriptionStripe(groupId: string): Promise<{ ok: boolean }> {
+  const fn = httpsCallable<{ groupId: string }, { ok: boolean }>(functions, "cancelGroupSubscriptionStripe");
+  const res = await fn({ groupId });
   return res.data;
 }

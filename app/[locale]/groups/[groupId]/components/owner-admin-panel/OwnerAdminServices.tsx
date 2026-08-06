@@ -302,20 +302,6 @@ export default function OwnerAdminServices({
     gap: 8,
   };
 
-  const inputStyle: React.CSSProperties = {
-    padding: "8px 10px",
-    borderRadius: 10,
-    border: "1px solid rgba(255,255,255,0.10)",
-    background: "rgba(255,255,255,0.04)",
-    color: "#fff",
-    outline: "none",
-    fontSize: 12,
-    fontFamily: fontStack,
-    boxSizing: "border-box",
-    appearance: "none",
-    WebkitAppearance: "none",
-    minHeight: 42,
-  };
 
   const noticeStyle: React.CSSProperties = {
     borderRadius: 9,
@@ -986,7 +972,7 @@ export default function OwnerAdminServices({
         titleStyle={richStyles.titleStyle}
         subtleStyle={richStyles.subtleStyle}
         descriptionStyle={richStyles.descriptionStyle}
-        inputStyle={inputStyle}
+        inputStyle={richStyles.inputStyle}
         buttonSecondaryStyle={buttonSecondaryStyle}
         calcNetAmount={calcNetAmount}
         formatMoney={formatMoney}

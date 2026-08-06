@@ -289,7 +289,7 @@ export function DonationPanel({ onClose, postId, authorId, userId, username, ava
                 transition: "all 0.2s",
               }}
             >
-              {paying ? "Procesando..." : valid ? `Donar ${formatMoney(finalAmount!, { code: true })}` : "Selecciona un monto"}
+              {paying ? "Procesando..." : valid ? `Donar ${formatMoney(finalAmount!, { baseCurrency: "MXN", code: true })}` : "Selecciona un monto"}
             </button>
           </>
         )}

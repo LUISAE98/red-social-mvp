@@ -13,6 +13,7 @@ import type { StoryDoc, StoryType } from "@/lib/stories/types";
 import { createGreetingRequest } from "@/lib/greetings/greetingRequests";
 import StripePaymentModal from "@/components/payments/StripePaymentModal";
 import { createGreetingStripeIntent } from "@/lib/stripe/stripePayments";
+import { FIXED_SERVICE_FEE_MXN } from "@/lib/currency/catalog";
 import { registrarCompraGeo } from "@/lib/wallet/registrarCompraGeo";
 import CreatorServiceModals from "@/components/services/CreatorServiceModals";
 import { getMutePreference, setMutePreference } from "@/lib/utils/mutePreference";
@@ -1007,10 +1008,10 @@ export default function StoryViewer({
     />
     <StripePaymentModal
       open={payGreetOpen}
-      amount={payGreetAmount}
+      amount={payGreetAmount != null ? payGreetAmount + FIXED_SERVICE_FEE_MXN : null}
       amountCurrency="MXN"
-      createIntent={(args) => createGreetingStripeIntent({ greetingRequestId: payGreetId ?? "", saveCard: args.saveCard, taxCountry: args.taxCountry })}
-      priceLabel={payGreetAmount != null ? `$${payGreetAmount} MXN` : undefined}
+      createIntent={(args) => createGreetingStripeIntent({ greetingRequestId: payGreetId ?? "", saveCard: args.saveCard, taxCountry: args.taxCountry, savedPaymentMethodId: args.savedPaymentMethodId })}
+      priceLabel={payGreetAmount != null ? `$${payGreetAmount + FIXED_SERVICE_FEE_MXN} MXN` : undefined}
       productType={effectiveType === "consejo" ? "Consejo" : "Saludo"}
       providerName={greetingAuthorName ?? undefined}
       avatarUrl={creator?.photo ?? null}

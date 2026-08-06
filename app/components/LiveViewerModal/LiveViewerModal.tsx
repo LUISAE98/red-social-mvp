@@ -2413,9 +2413,11 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
             {renderViewerBadge("bottom-left", badgeLift)}
 
           </div>
-          {/* Card de chat */}
+          {/* Card de chat (contenedor del sheet de donación — desktop float) */}
           <div
+            ref={desktopChatCardRef}
             style={{
+              position: "relative",
               width: CHAT_FLOAT_W, height: ph,
               background: "rgba(10,10,10,0.97)",
               borderRadius: 18, overflow: "hidden", flexShrink: 0,
@@ -2426,11 +2428,12 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
           >
             {renderCreatorInfo()}
             <div style={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
-              <LiveChatViewer liveId={post.id} authorId={post.authorId} chatEnabled={chatEnabled} liveEnded={isEnded} isMuted={isMuted} mode="panel" broadcastMode={liveData?.broadcastMode} superCommentConfig={liveData?.superCommentConfig} onDonate={!isEnded && (!user || post.authorId !== user.uid) ? () => setDonationOpen(true) : undefined} />
+              <LiveChatViewer liveId={post.id} authorId={post.authorId} chatEnabled={chatEnabled} liveEnded={isEnded} isMuted={isMuted} mode="panel" broadcastMode={liveData?.broadcastMode} superCommentConfig={liveData?.superCommentConfig} superCommentContainer={desktopChatCardRef.current} creatorName={post.authorName ?? post.authorUsername ?? undefined} creatorAvatarUrl={post.authorAvatarUrl ?? null} onDonate={!isEnded && (!user || post.authorId !== user.uid) ? () => { if (user) setLiveDonateOpen(true); else setDonationOpen(true); } : undefined} />
             </div>
           </div>
         </div>
         {donationPanel}
+        {renderLiveDonationSheet(desktopChatCardRef.current)}
       </>,
       document.body
     );

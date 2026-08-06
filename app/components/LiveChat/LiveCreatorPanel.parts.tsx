@@ -164,7 +164,7 @@ export function ChatMessageRow({ msg, isMuted, isBanned, onMute, onBan, onDelete
       )}
 
       <span style={{ flex: 1, minWidth: 0, fontSize: 12.5, lineHeight: 1.4, color: "rgba(255,255,255,0.85)", wordBreak: "break-word", fontFamily: FONT }}>
-        <strong style={{ fontWeight: 700, color: "#fff", marginRight: 5, whiteSpace: "nowrap" }}>{msg.username}</strong>
+        <strong style={{ fontWeight: 500, letterSpacing: "-0.02em", color: "#fff", marginRight: 5, whiteSpace: "nowrap" }}>{msg.username}</strong>
         {isMuted && !isBanned && (
           <span style={{ fontSize: 9, fontWeight: 700, color: "#f59e0b", background: "rgba(245,158,11,0.12)", border: "1px solid rgba(245,158,11,0.2)", borderRadius: 3, padding: "0px 4px", marginRight: 4 }}>MUTE</span>
         )}

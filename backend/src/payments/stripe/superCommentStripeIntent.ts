@@ -13,7 +13,7 @@ import * as admin from "firebase-admin";
 import { stripeFetch, stripeSecretKey } from "./stripeClient";
 import { getOrCreateStripeCustomer } from "./stripeCustomer";
 import { chargeSavedCardOffSession } from "./offSessionCharge";
-import { applyConsumptionTax } from "../../tax/config";
+import { applyConsumptionTax, isChargeableCountry } from "../../tax/config";
 import { SETTLEMENT_CURRENCY, FIXED_SERVICE_FEE_MXN } from "../../wallet/ledger";
 
 if (admin.apps.length === 0) {
@@ -118,6 +118,11 @@ export const createSuperCommentStripeIntent = onCall(
 
     // Precio publicado = base + $3; IVA 16% encima (todo lo absorbe el fan).
     const country = taxCountry || "MX";
+    // El país fiscal NO se confía del cliente: si manda uno sin IVA configurado (para
+    // evadir el impuesto), se rechaza. Solo se cobra donde el impuesto está definido (MX).
+    if (!isChargeableCountry(country)) {
+      throw new HttpsError("failed-precondition", "El cobro solo está disponible en México por ahora.");
+    }
     const published = round2(base + FIXED_SERVICE_FEE_MXN);
     const tax = applyConsumptionTax(published, country);
     const totalMxn = round2(published + tax.taxAmount);

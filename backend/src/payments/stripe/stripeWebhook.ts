@@ -14,6 +14,7 @@ import * as crypto from "crypto";
 import * as admin from "firebase-admin";
 import { applyApprovedPaymentToSource, upsertPaymentIntentStatus } from "../reconcile";
 import { stripeFetch, stripeSecretKey } from "./stripeClient";
+import { reconcileStripeSubscriptionEvent } from "./groupSubscriptionStripeSync";
 
 if (admin.apps.length === 0) {
   admin.initializeApp();
@@ -149,6 +150,15 @@ export const stripeWebhook = onRequest(
         } catch (e) {
           logger.warn("stripeWebhook no pudo guardar la tarjeta", { err: e instanceof Error ? e.message : String(e) });
         }
+      } else if (
+        event.type === "invoice.paid" ||
+        event.type === "invoice.payment_succeeded" ||
+        event.type === "invoice.payment_failed" ||
+        event.type === "customer.subscription.deleted" ||
+        event.type === "customer.subscription.updated"
+      ) {
+        // Suscripción MENSUAL a comunidad (Stripe Billing): renovación/baja/gracia.
+        await reconcileStripeSubscriptionEvent(event.type, event.data.object);
       } else {
         // Otros eventos (payment_intent.payment_failed, charge.refunded, etc.): por
         // ahora solo se registran; se manejan al cablear servicios/reembolsos.

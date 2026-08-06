@@ -72,6 +72,11 @@ export const onSuperCommentLedger = onDocumentCreated(
     const authorId = str(postSnap.get("authorId"));
     if (!authorId) return;
 
+    // Guard de auto-donación (defensa en profundidad): nadie se acredita a sí mismo.
+    // El callable de Stripe ya bloquea authorId===uid, pero lo reforzamos aquí.
+    const buyerId = str(data.userId) ?? str(data.guestId);
+    if (buyerId && buyerId === authorId) return;
+
     const hasText = str(data.text) !== null;
     // Live si el post es una transmisión (tiene liveData). Un supercomment sin
     // texto (donación) siempre ocurre en un live; uno con texto puede ser en
@@ -85,7 +90,7 @@ export const onSuperCommentLedger = onDocumentCreated(
       taxAmount: num(data.taxAmount),
       sourceType: "superComment",
       sourceId: `${postId}_${scId}`,
-      buyerId: str(data.userId) ?? str(data.guestId),
+      buyerId,
       earnedImmediately: true,
       occurredAt: data.createdAt,
       liveId: isLive ? postId : null,
@@ -296,8 +301,9 @@ export const onProfileDonationLedger = onDocumentCreated(
       buyerId,
       earnedImmediately: true,
       occurredAt: data.createdAt,
-      channelType: "profile",
-      channelId: null,
+      // Canal correcto: donación hecha en una COMUNIDAD → grupo; en perfil → perfil.
+      // (El doc trae groupId del pendingProfileDonation cuando la donación fue en grupo.)
+      ...channelFromGroupId(str(data.groupId)),
     });
   }
 );

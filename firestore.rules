@@ -2101,8 +2101,32 @@ function canListPublicPremiumGroupPost() {
 function canListBroadcastPublicLivePost() {
   return resource.data.isDeleted == false
     && resource.data.groupVisibility != "hidden"
+    // `liveData` puede no existir (posts normales). Sin este guard, evaluar
+    // `liveData.status` en un doc sin el campo es un ERROR de reglas y tumba la
+    // query COMPLETA, no solo ese documento.
+    && "liveData" in resource.data
+    && resource.data.liveData is map
+    && "status" in resource.data.liveData
     && resource.data.liveData.status == "live"
     && resource.data.liveData.allowLoggedOutViewers == true;
+}
+
+// Post de PAGO compartible SIN mapa `premium` — es el caso del live con boleto y
+// de su VOD: el creador eligió alcance "todos" (por eso `isShareable`), así que
+// los no-miembros deben poder VERLO BLOQUEADO para poder comprarlo. Sin esta
+// cláusula un live de pago en estado `upcoming`/`ended` no pasa ninguna regla y
+// hace fallar la query entera del feed público de la comunidad.
+// Nunca aplica a comunidades ocultas ni a contenido de suscripción.
+function canReadPaidShareableGroupPost() {
+  return resource.data.isDeleted == false
+    && resource.data.groupId is string
+    && resource.data.groupVisibility != "hidden"
+    && resource.data.isShareable == true
+    && resource.data.requiresPayment == true
+    && (
+      !("requiresSubscription" in resource.data)
+      || resource.data.requiresSubscription == false
+    );
 }
 
 // El autor puede listar sus propios posts (p. ej. sus lives para el calendario).
@@ -2187,6 +2211,7 @@ function canReadPost() {
         && (
           canReadPublicSharedPost()
           || canReadPublicPremiumGroupPost()
+          || canReadPaidShareableGroupPost()
           || canReadPublicShareableGroupPost()
           || canReadGroupContent(resource.data.groupId)
         )
@@ -2507,6 +2532,7 @@ allow list: if canListOwnAuthoredPost()
   || canListPublicSearchablePost()
   || canListReadableGroupSearchablePost()
   || canListPublicPremiumGroupPost()
+  || canReadPaidShareableGroupPost()
   || canListPublicShareableGroupPost()
   || canListBroadcastPublicLivePost();
 
@@ -2608,22 +2634,12 @@ allow list: if canListOwnAuthoredPost()
         // Lectura pública — el live ya controla quién puede verlo
         allow list, get: if true;
 
-        // Viewers crean supercomentarios (pago simulado → status: "paid")
-        // tierId == "donation" permite text vacío (donaciones sin mensaje)
-        allow create: if signedIn()
-          && request.resource.data.userId == request.auth.uid
-          && request.resource.data.text is string
-          && (
-            request.resource.data.tierId == "donation"
-            || (request.resource.data.text.size() > 0 && request.resource.data.text.size() <= 600)
-          )
-          && request.resource.data.status == "paid"
-          && request.resource.data.hidden == false
-          && request.resource.data.isDeleted == false
-          && request.resource.data.played == false
-          && request.resource.data.amount is number
-          && request.resource.data.amount > 0
-          && request.resource.data.createdAt is timestamp;
+        // Los supercomentarios y donaciones en vivo se materializan SOLO en el backend
+        // (reconcile) tras un pago APROBADO de Stripe. El cliente NO puede crearlos: si
+        // pudiera, escribiría un doc status:"paid" con cualquier monto y el trigger
+        // `onSuperCommentLedger` acreditaría al creador SIN que se cobre. El pago de
+        // invitados se integrará por su propia vía de cobro (server-authoritative).
+        allow create: if false;
 
         // Creador puede ocultar, borrar, marcar como reproducido o registrar playedAt
         allow update: if signedIn()
@@ -2671,6 +2687,52 @@ allow list: if canListOwnAuthoredPost()
         allow read: if signedIn()
           && get(/databases/$(database)/documents/posts/$(postId)).data.authorId == request.auth.uid;
         allow write: if false;
+      }
+
+      // Coordenadas reproducibles (playbackId / URL HLS) de un post DE PAGO.
+      // Viven aquí y NO en el doc del post porque ese doc lo puede leer quien
+      // todavía no ha pagado (premium público dentro de comunidad privada). Con
+      // los assets de Mux en política "public", tener el playbackId equivale a
+      // tener el video, así que este subdocumento ES el candado real.
+      // Lo escribe SOLO el backend (trigger onPostPlaybackProtection).
+      match /protectedPlayback/{doc} {
+
+        function playbackParentPost() {
+          return get(/databases/$(database)/documents/posts/$(postId));
+        }
+
+        // Compra única confirmada (postAccess lo concede el webhook de pago).
+        function viewerBoughtPost() {
+          return exists(
+            /databases/$(database)/documents/postAccess/$(request.auth.uid + '_' + postId)
+          )
+          && get(
+            /databases/$(database)/documents/postAccess/$(request.auth.uid + '_' + postId)
+          ).data.status == "active";
+        }
+
+        // Premium con "los miembros lo ven gratis" → basta la membresía.
+        function postFreeForMembers(postData) {
+          return "premium" in postData
+            && postData.premium is map
+            && postData.premium.freeFor == "members_and_subscribers"
+            && postData.groupId is string
+            && isMember(postData.groupId);
+        }
+
+        allow get, list: if signedIn()
+          && (
+            playbackParentPost().data.authorId == request.auth.uid
+            || isPlatformMod()
+            || viewerBoughtPost()
+            || postFreeForMembers(playbackParentPost().data)
+            || (
+              playbackParentPost().data.groupId is string
+              && canModerateGroup(playbackParentPost().data.groupId)
+            )
+          );
+
+        allow create, update, delete: if false;
       }
 
       // Estadísticas históricas del live (ej. historial de espectadores) — solo el

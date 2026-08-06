@@ -168,62 +168,82 @@ function TransitionPolicyPanel({
   subtleStyle: React.CSSProperties;
 }) {
   const tServices = useTranslations("services");
-  const panelStyle: React.CSSProperties = {
-    padding: "10px",
-    borderRadius: 14,
-    border: "1px solid rgba(255,255,255,0.08)",
-    background: "rgba(255,255,255,0.02)",
-    display: "grid",
-    gap: 10,
-  };
 
-  const optionCard = (active: boolean): React.CSSProperties => ({
-    borderRadius: 12,
-    border: active
-      ? "1px solid rgba(255,255,255,0.9)"
-      : "1px solid rgba(255,255,255,0.1)",
-    background: active ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.03)",
-    padding: "10px 12px",
-    display: "grid",
-    gap: 4,
-    cursor: saving ? "not-allowed" : "pointer",
-    opacity: saving ? 0.6 : 1,
-    textAlign: "left",
-  });
+  // Contenedor transparente (sin borde ni relleno).
+  const panelStyle: React.CSSProperties = { display: "grid", gap: 16 };
+
+  // Encabezado de la decisión: qué está por pasar + la pregunta.
+  const header = (title: string, desc: string) => (
+    <div style={{ display: "grid", gap: 3 }}>
+      <span style={{ ...titleStyle, color: "#fff", fontSize: 14 }}>{title}</span>
+      <span style={subtleStyle}>{desc}</span>
+    </div>
+  );
+
+  // Opción tipo "radio": fondo transparente, un aro que se llena al elegir. Sin cajas.
+  const renderOption = (optionValue: string, title: string, desc: string) => {
+    const active = value === optionValue;
+    return (
+      <button
+        key={optionValue}
+        type="button"
+        disabled={saving}
+        onClick={() => onChange(optionValue)}
+        style={{
+          display: "flex",
+          alignItems: "flex-start",
+          gap: 11,
+          background: "transparent",
+          border: "none",
+          padding: 0,
+          textAlign: "left",
+          width: "100%",
+          cursor: saving ? "not-allowed" : "pointer",
+          opacity: saving ? 0.6 : 1,
+        }}
+      >
+        <span
+          style={{
+            width: 18,
+            height: 18,
+            borderRadius: "50%",
+            flexShrink: 0,
+            marginTop: 2,
+            border: `2px solid ${active ? SUBSCRIPTION_ACCENT : "rgba(255,255,255,0.3)"}`,
+            display: "grid",
+            placeItems: "center",
+            transition: "border-color 0.2s ease",
+          }}
+        >
+          {active && (
+            <span style={{ width: 9, height: 9, borderRadius: "50%", background: SUBSCRIPTION_ACCENT }} />
+          )}
+        </span>
+        <span style={{ display: "grid", gap: 3, minWidth: 0 }}>
+          <span style={{ ...titleStyle, color: active ? "#fff" : "rgba(255,255,255,0.92)" }}>{title}</span>
+          <span style={subtleStyle}>{desc}</span>
+        </span>
+      </button>
+    );
+  };
 
   if (mode === "free_to_subscription") {
     return (
       <div style={panelStyle}>
-        <div style={{ display: "grid", gap: 2 }}>
-          <span style={titleStyle}>{tServices("freeToSubscriptionPolicyTitle")}</span>
-          <span style={subtleStyle}>
-            {tServices("freeToSubscriptionPolicyDescription")}
-          </span>
-        </div>
-
-        <button
-          type="button"
-          disabled={saving}
-          onClick={() => onChange("legacy_free")}
-          style={optionCard(value === "legacy_free")}
-        >
-          <span style={titleStyle}>{tServices("freeToSubscriptionOptionLegacyFreeTitle")}</span>
-          <span style={subtleStyle}>
-            {tServices("freeToSubscriptionOptionLegacyFreeDesc")}
-          </span>
-        </button>
-
-        <button
-          type="button"
-          disabled={saving}
-          onClick={() => onChange("require_subscription")}
-          style={optionCard(value === "require_subscription")}
-        >
-          <span style={titleStyle}>{tServices("freeToSubscriptionOptionRequireTitle")}</span>
-          <span style={subtleStyle}>
-            {tServices("freeToSubscriptionOptionRequireDesc")}
-          </span>
-        </button>
+        {header(
+          tServices("freeToSubscriptionPolicyTitle"),
+          tServices("freeToSubscriptionPolicyDescription")
+        )}
+        {renderOption(
+          "legacy_free",
+          tServices("freeToSubscriptionOptionLegacyFreeTitle"),
+          tServices("freeToSubscriptionOptionLegacyFreeDesc")
+        )}
+        {renderOption(
+          "require_subscription",
+          tServices("freeToSubscriptionOptionRequireTitle"),
+          tServices("freeToSubscriptionOptionRequireDesc")
+        )}
       </div>
     );
   }
@@ -231,74 +251,40 @@ function TransitionPolicyPanel({
   if (mode === "subscription_price_increase") {
     return (
       <div style={panelStyle}>
-        <div style={{ display: "grid", gap: 2 }}>
-          <span style={titleStyle}>{tServices("priceIncreasePolicyTitle")}</span>
-          <span style={subtleStyle}>
-            {tServices("priceIncreasePolicyDescription")}
-          </span>
-        </div>
-
-        <button
-          type="button"
-          disabled={saving}
-          onClick={() => onChange("keep_legacy_price")}
-          style={optionCard(value === "keep_legacy_price")}
-        >
-          <span style={titleStyle}>{tServices("priceIncreaseOptionKeepLegacyTitle")}</span>
-          <span style={subtleStyle}>
-            {tServices("priceIncreaseOptionKeepLegacyDesc")}
-          </span>
-        </button>
-
-        <button
-          type="button"
-          disabled={saving}
-          onClick={() => onChange("require_resubscribe_new_price")}
-          style={optionCard(value === "require_resubscribe_new_price")}
-        >
-          <span style={titleStyle}>
-            {tServices("priceIncreaseOptionRequireResubscribeTitle")}
-          </span>
-          <span style={subtleStyle}>
-            {tServices("priceIncreaseOptionRequireResubscribeDesc")}
-          </span>
-        </button>
+        {header(
+          tServices("priceIncreasePolicyTitle"),
+          tServices("priceIncreasePolicyDescription")
+        )}
+        {renderOption(
+          "keep_legacy_price",
+          tServices("priceIncreaseOptionKeepLegacyTitle"),
+          tServices("priceIncreaseOptionKeepLegacyDesc")
+        )}
+        {renderOption(
+          "require_resubscribe_new_price",
+          tServices("priceIncreaseOptionRequireResubscribeTitle"),
+          tServices("priceIncreaseOptionRequireResubscribeDesc")
+        )}
       </div>
     );
   }
 
   return (
     <div style={panelStyle}>
-      <div style={{ display: "grid", gap: 2 }}>
-        <span style={titleStyle}>{tServices("subscriptionToFreePolicyTitle")}</span>
-        <span style={subtleStyle}>
-          {tServices("subscriptionToFreePolicyDescription")}
-        </span>
-      </div>
-
-      <button
-        type="button"
-        disabled={saving}
-        onClick={() => onChange("keep_members_free")}
-        style={optionCard(value === "keep_members_free")}
-      >
-        <span style={titleStyle}>{tServices("subscriptionToFreeOptionKeepTitle")}</span>
-        <span style={subtleStyle}>
-          {tServices("subscriptionToFreeOptionKeepDesc")}
-        </span>
-      </button>
-
-      <button
-        type="button"
-        disabled={saving}
-        onClick={() => onChange("remove_all_members")}
-        style={optionCard(value === "remove_all_members")}
-      >
-        <span style={titleStyle}>{tServices("subscriptionToFreeOptionRemoveTitle")}</span>
-        <span style={subtleStyle}>
-          {tServices("subscriptionToFreeOptionRemoveDesc")}
-        </span>
-      </button>
+      {header(
+        tServices("subscriptionToFreePolicyTitle"),
+        tServices("subscriptionToFreePolicyDescription")
+      )}
+      {renderOption(
+        "keep_members_free",
+        tServices("subscriptionToFreeOptionKeepTitle"),
+        tServices("subscriptionToFreeOptionKeepDesc")
+      )}
+      {renderOption(
+        "remove_all_members",
+        tServices("subscriptionToFreeOptionRemoveTitle"),
+        tServices("subscriptionToFreeOptionRemoveDesc")
+      )}
     </div>
   );
 }
@@ -728,6 +714,10 @@ function handleModify() {
             style={{ ...inputStyle, width: 130, flex: "1 1 180px" }}
           />
 
+          <span style={{ color: "rgba(255,255,255,0.55)", fontSize: 13, fontWeight: 600, whiteSpace: "nowrap" }}>
+            + $3
+          </span>
+
           <span
             style={{
               color: SUBSCRIPTION_ACCENT,
@@ -778,6 +768,10 @@ function handleModify() {
                 ),
               })}
             </div>
+          </div>
+          {/* Leyenda fija del cargo de Stripe (mismo patrón que las demás experiencias). */}
+          <div style={{ ...subtleStyle, opacity: 0.7, fontSize: 11, marginTop: 3 }}>
+            A la suscripción se le suman $3 MXN por el cargo de procesamiento de Stripe.
           </div>
         </div>
 

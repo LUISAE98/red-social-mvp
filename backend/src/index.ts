@@ -9,7 +9,7 @@ import { expireExclusiveSessionNoShowsHandler, autoExpirePendingExclusiveSession
 import { autoExpirePendingGreetingRequestsHandler } from "./greetingRequests";
 import { updateExchangeRatesHandler } from "./exchangeRates";
 import { sessionRemindersHandler } from "./sessionLifecycle";
-import { expireGroupSubscriptionsHandler } from "./payments/groupSubscription";
+import { expireGroupSubscriptionsHandler } from "./payments/groupSubscriptionCore";
 
 // Healthcheck público
 export const healthcheck = onRequest(
@@ -229,6 +229,10 @@ export { createMuxDirectUpload, createMuxDonationUpload, createMuxGroupDonationU
 // Mux webhooks
 export { muxWebhook } from "./muxWebhooks";
 
+// Blindaje del playback de contenido de pago (el playbackId no puede vivir en el
+// doc del post, que es legible por quien todavía no paga).
+export { onPostPlaybackProtection } from "./protectedPlayback";
+
 // Shared communities
 export { getSharedCommunitiesWithProfile } from "./sharedCommunities";
 
@@ -292,10 +296,7 @@ export { submitReport, claimReport, resolveReport } from "./moderation";
 // KYC — verificación de identidad con Didit (habilita retiros del creador)
 export { createKycSession, diditWebhook } from "./kyc";
 
-// Pagos (Mercado Pago — modelo agregador). Bloque 1: smoke test de credenciales.
-export { mpHealthcheck } from "./payments/mpHealthcheck";
-
-// Pagos (Stripe — migración MP→Stripe). S1: smoke test de credenciales.
+// Pagos (Stripe — Vibra migró 100% a Stripe; Mercado Pago retirado). S1: smoke test.
 export { stripeHealthcheck } from "./payments/stripe/stripeHealthcheck";
 // S2: cobro de prueba con Stripe Checkout (página hospedada).
 export { createStripeCheckoutSession } from "./payments/stripe/stripeCheckout";
@@ -317,6 +318,8 @@ export { createPremiumPostStripeIntent } from "./payments/stripe/premiumPostStri
 export { createLiveDonationStripeIntent } from "./payments/stripe/liveDonationStripeIntent";
 // Súper comentario en un en vivo con Stripe (precio fijo del tier + $3 + IVA; con texto).
 export { createSuperCommentStripeIntent } from "./payments/stripe/superCommentStripeIntent";
+// Suscripción MENSUAL a comunidad con Stripe (Subscriptions nativas; (base + $3) × IVA/mes).
+export { createGroupSubscription, cancelGroupSubscriptionStripe } from "./payments/stripe/groupSubscriptionStripe";
 
 // Facturación (Facturapi — CFDI, modelo vendedor directo). Bloque 0: smoke test de
 // credenciales (org de Vibra + multi-tenant). No emite CFDI ni toca el ledger.
@@ -341,28 +344,13 @@ export { saveBuyerBillingProfile, deleteBuyerBillingProfile } from "./facturacio
 // Facturación — Bloque 2: emisión del CFDI Vibra → comprador (org de Vibra).
 export { generateBuyerInvoice, downloadBuyerInvoice } from "./facturacion/generateBuyerInvoice";
 
-// Pagos (MP legacy) — webhook de órdenes. `payGreeting` (MP) se retiró: saludos/consejos
-// ya cobran por Stripe (createGreetingStripeIntent). mpWebhook sigue para servicios aún no migrados.
-export { mpWebhook } from "./payments/mpWebhook";
-
-// Sesión exclusiva y tiempo contigo ya cobran por Stripe (createServiceStripeIntent);
-// sus callables MP (payExclusiveSession/payMeetGreet) se retiraron.
-
-// Post premium / VOD premium ya cobran por Stripe (createPremiumPostStripeIntent);
-// su callable MP (payPremiumPost) se retiró.
-
-// Pagos — donación / contribución a un perfil (pagar-luego-crear).
-export { payProfileDonation } from "./payments/profileDonationPayment";
-
-// Ticket, donación y súper comentario de en vivo ya cobran por Stripe
-// (createLiveAccessStripeIntent / createLiveDonationStripeIntent / createSuperCommentStripeIntent);
-// sus callables MP (payLiveAccess/payLiveDonation/paySuperComment) se retiraron.
+// TODOS los servicios (saludo/consejo, sesión/tiempo contigo, donación perfil/live,
+// ticket/premium/VOD, súper comentario, suscripción a comunidad) cobran por STRIPE.
+// Mercado Pago se retiró por completo (mpWebhook/payProfileDonation/payGroupSubscription
+// y el cliente MP eliminados).
 
 // Migración única MXN → USD (cambio de ancla de precios a dLocal). Idempotente.
 export { migrateCurrencyMxnToUsd } from "./migrateCurrency";
-
-// Suscripción a comunidades (Mercado Pago preapproval — auto-renovación).
-export { payGroupSubscription, cancelGroupSubscription } from "./payments/groupSubscription";
 
 // Backfill de búsqueda de historias (corrida única, protegida por secret)
 export { backfillStoriesSearch } from "./storiesBackfill";

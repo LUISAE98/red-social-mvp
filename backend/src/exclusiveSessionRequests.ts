@@ -549,12 +549,8 @@ const profileUserId =
       "buyerMessage",
       1000
     );
-    const priceSnapshot = asOptionalFiniteNumber(
-      request.data?.priceSnapshot,
-      "priceSnapshot",
-      { min: 0, max: 1000000 }
-    );
-
+    // El precio NO se acepta del cliente: es autoritativo del servidor (offeringPrice).
+    // Aceptarlo permitiría al comprador dictar cuánto paga por una sesión real.
     const durationMinutes = asOptionalFiniteNumber(
       request.data?.durationMinutes,
       "durationMinutes",
@@ -625,7 +621,8 @@ if (source === "profile") {
             ? exclusiveSessionOffering.meta.customClass.durationMinutes
             : null;
 
-    const resolvedPriceSnapshot = priceSnapshot ?? offeringPrice ?? null;
+    // Precio SIEMPRE del servidor (ignora cualquier priceSnapshot del cliente).
+    const resolvedPriceSnapshot = offeringPrice ?? null;
     const resolvedDurationMinutes = durationMinutes ?? offeringDuration ?? null;
         if (
       typeof resolvedDurationMinutes !== "number" ||

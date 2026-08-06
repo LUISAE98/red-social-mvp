@@ -8,6 +8,7 @@ import type { ActiveSuperComment } from "@/lib/posts/types";
 import { TTS_MIN_DURATION_SECS } from "@/lib/tts/edge-tts-client";
 import type { EdgeTTSHandle } from "@/lib/tts/edge-tts-client";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
+import { FIXED_SERVICE_FEE_MXN } from "@/lib/currency/catalog";
 
 const SILENT_WAV = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=";
 
@@ -109,7 +110,11 @@ export default function LiveInlinePlayer({
 }: Props) {
   const tCommon = useTranslations("common");
   const tLive = useTranslations("live");
-  const { format: formatMoney } = usePriceFormat();
+  const pf = usePriceFormat();
+  // Monto mostrado de una donación = total que pagó el fan (base + $3 + IVA) en MXN.
+  // `baseCurrency:"MXN"` evita el bug ×FX (tratar el MXN como USD → 1095).
+  const fanPaidTotal = (baseMxn: number) =>
+    pf.formatWithTax(baseMxn + FIXED_SERVICE_FEE_MXN, { baseCurrency: "MXN", code: true }).total;
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
@@ -640,7 +645,7 @@ export default function LiveInlinePlayer({
               </div>
               <div style={{ fontSize: 10, fontFamily: FONT }}>
                 <span style={{ color: "rgba(255,255,255,0.5)", fontWeight: 400 }}>{tLive("donated")} </span>
-                <span style={{ color: "#4ade80", fontWeight: 700 }}>{formatMoney(activeSC.amount, { code: true })}</span>
+                <span style={{ color: "#4ade80", fontWeight: 700 }}>{fanPaidTotal(activeSC.amount)}</span>
               </div>
             </div>
           </div>

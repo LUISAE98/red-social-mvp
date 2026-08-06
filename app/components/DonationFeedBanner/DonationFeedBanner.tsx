@@ -521,6 +521,7 @@ export default function DonationFeedBanner({
         payButtonLabel="Hacer aportación"
         donationPresets={suggestedAmounts ?? undefined}
         donationCustomInclusive
+        minBaseAmount={50}
         createIntent={(args) => {
           paidAmountRef.current = args.amount ?? null;
           return createDonationStripeIntent({
@@ -530,6 +531,7 @@ export default function DonationFeedBanner({
             taxCountry: args.taxCountry,
             groupId: groupId ?? null,
             groupName: groupName ?? null,
+            savedPaymentMethodId: args.savedPaymentMethodId,
           });
         }}
         productType={tCommon("payDonationProductType")}

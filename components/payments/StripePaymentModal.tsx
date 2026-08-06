@@ -24,7 +24,8 @@ export type SavedCard = { id: string; brand?: string; brandName?: string; lastFo
 type Props = {
   open: boolean;
   amount: number | null; // monto base (sin IVA), en la moneda `amountCurrency`
-  /** Moneda del `amount`: "MXN" (precios de servicios) o "USD" (donaciones/ancla). Default USD. */
+  /** Moneda del `amount`: "MXN" (precios de servicios) o "USD" (ancla legacy). Default MXN
+   *  (todo el dinero de Vibra es MXN; poner "USD" trataría el monto como dólares → ×FX). */
   amountCurrency?: "USD" | "MXN";
   /** Crea el PaymentIntent y devuelve su client_secret. `taxCountry` = país fiscal del comprador (por IP).
    *  Si `savedPaymentMethodId` viene, el cobro es "un clic" off-session (sin CVV): se confirma
@@ -36,6 +37,9 @@ type Props = {
   /** Si true, el monto CUSTOM que teclea el donante ya es el TOTAL (incluye $3 + IVA);
    *  se despeja la base = total/(1+iva) − $3. Los presets siguen siendo base. Para live donation. */
   donationCustomInclusive?: boolean;
+  /** Mínimo de la BASE (monto del creador) en donación editable. El modal comunica el
+   *  total mínimo (base + $3 + IVA) y deshabilita pagar por debajo. 0 = sin mínimo. */
+  minBaseAmount?: number;
   priceLabel?: string;
   pricePeriodLabel?: string;
   productType?: string;
@@ -74,11 +78,12 @@ const STRIPE_STYLE = {
 export default function StripePaymentModal({
   open,
   amount,
-  amountCurrency = "USD",
+  amountCurrency = "MXN",
   createIntent,
   amountEditable = false,
   donationPresets,
   donationCustomInclusive = false,
+  minBaseAmount = 0,
   priceLabel,
   pricePeriodLabel,
   productType,
@@ -135,7 +140,9 @@ export default function StripePaymentModal({
   const savedCardId = selectedMethod?.startsWith("saved:") ? selectedMethod.slice(6) : null;
   const mxnAmount = amountEditable ? chosenAmount : (amount ?? null);
 
-  const amountOk = !amountEditable || (chosenAmount != null && chosenAmount > 0);
+  // Donación editable: la base elegida debe alcanzar el mínimo (si el servicio lo exige).
+  const belowMin = amountEditable && minBaseAmount > 0 && chosenAmount != null && chosenAmount < minBaseAmount;
+  const amountOk = !amountEditable || (chosenAmount != null && chosenAmount > 0 && !belowMin);
   const canPay =
     amountOk &&
     (isNewCard
@@ -598,6 +605,11 @@ export default function StripePaymentModal({
               <span style={{ fontSize: 13, color: "#9aa0a8", fontWeight: 600 }}>MXN</span>
             </div>
           </div>
+          {minBaseAmount > 0 && (
+            <div style={{ textAlign: "center", fontSize: 11.5, fontWeight: 600, color: belowMin ? "#c0392b" : "#9aa0a8" }}>
+              Mínimo {pf.formatWithTax(minBaseAmount + FIXED_SERVICE_FEE_MXN, { baseCurrency: "MXN" }).total} {pf.currency}
+            </div>
+          )}
           {taxed?.applies && chosenAmount != null && (
             <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid #e6e8ec", display: "grid", gap: 5 }}>
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, color: "#8a8f99" }}><span>Subtotal</span><span>{taxed.base} {taxed.currency}</span></div>

@@ -2897,7 +2897,7 @@ const res = (await createExclusiveSessionRequest({
   open={payGreetOpen}
   amount={payGreetAmount != null ? payGreetAmount + FIXED_SERVICE_FEE_MXN : null}
   amountCurrency="MXN"
-  createIntent={(args) => createGreetingStripeIntent({ greetingRequestId: payGreetId ?? "", saveCard: args.saveCard, taxCountry: args.taxCountry })}
+  createIntent={(args) => createGreetingStripeIntent({ greetingRequestId: payGreetId ?? "", saveCard: args.saveCard, taxCountry: args.taxCountry, savedPaymentMethodId: args.savedPaymentMethodId })}
   priceLabel={payGreetLabel}
   productType={greetType === "consejo" ? "Consejo" : "Saludo"}
   providerName={fullName}
@@ -2919,7 +2919,7 @@ const res = (await createExclusiveSessionRequest({
   open={paySessionOpen}
   amount={paySessionAmount != null ? paySessionAmount + FIXED_SERVICE_FEE_MXN : null}
   amountCurrency="MXN"
-  createIntent={(args) => createServiceStripeIntent({ externalReference: `exclusiveSessionRequest__${paySessionId ?? ""}`, saveCard: args.saveCard, taxCountry: args.taxCountry })}
+  createIntent={(args) => createServiceStripeIntent({ externalReference: `exclusiveSessionRequest__${paySessionId ?? ""}`, saveCard: args.saveCard, taxCountry: args.taxCountry, savedPaymentMethodId: args.savedPaymentMethodId })}
   priceLabel={paySessionLabel}
   productType="Sesión exclusiva"
   providerName={fullName}
@@ -2941,7 +2941,7 @@ const res = (await createExclusiveSessionRequest({
   open={payMeetOpen}
   amount={payMeetAmount != null ? payMeetAmount + FIXED_SERVICE_FEE_MXN : null}
   amountCurrency="MXN"
-  createIntent={(args) => createServiceStripeIntent({ externalReference: `meetGreetRequest__${payMeetId ?? ""}`, saveCard: args.saveCard, taxCountry: args.taxCountry })}
+  createIntent={(args) => createServiceStripeIntent({ externalReference: `meetGreetRequest__${payMeetId ?? ""}`, saveCard: args.saveCard, taxCountry: args.taxCountry, savedPaymentMethodId: args.savedPaymentMethodId })}
   priceLabel={payMeetLabel}
   productType="Tiempo contigo"
   providerName={fullName}

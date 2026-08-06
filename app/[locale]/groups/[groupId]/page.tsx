@@ -50,11 +50,9 @@ import {
   createGreetingRequest,
   type GreetingType,
 } from "@/lib/greetings/greetingRequests";
-import ServicePaymentModal from "@/components/payments/ServicePaymentModal";
 import StripePaymentModal from "@/components/payments/StripePaymentModal";
-import { createGreetingStripeIntent, createServiceStripeIntent } from "@/lib/stripe/stripePayments";
+import { createGreetingStripeIntent, createServiceStripeIntent, createGroupSubscription, cancelGroupSubscriptionStripe } from "@/lib/stripe/stripePayments";
 import { FIXED_SERVICE_FEE_MXN } from "@/lib/currency/catalog";
-import { payGroupSubscription, cancelGroupSubscription } from "@/lib/payments/payGroupSubscription";
 import { createMeetGreetRequest } from "@/lib/meetGreet/meetGreetRequests";
 import { createExclusiveSessionRequest } from "@/lib/exclusiveSession/exclusiveSessionRequests";
 import {
@@ -733,25 +731,22 @@ function redirectToLogin() {
     setSubscriptionPayOpen(true);
   }
 
-  // Pasarela de suscripción real (preapproval MP). Se monta TANTO en el landing
-  // restringido (no-miembros, que salen por return anticipado) COMO en el render
-  // principal, porque son ramas mutuamente excluyentes. El backend crea el
-  // preapproval y activa la membresía; `authorized` → `approved` para la pantalla
-  // de éxito de la pasarela.
+  // Pasarela de suscripción MENSUAL con STRIPE (Subscriptions nativas). Se monta TANTO en
+  // el landing restringido (no-miembros) COMO en el render principal (ramas mutuamente
+  // excluyentes). El callable crea la Subscription; el webhook (invoice.paid) concede la
+  // membresía y registra el earning por cada cobro. `amount` = base + $3 → la pasarela
+  // muestra el total mensual (base+$3)×IVA. Para comunidades ocultas el flujo es por invite.
   const subscriptionGateway = (
-    <ServicePaymentModal
+    <StripePaymentModal
       open={subscriptionPayOpen}
-      amount={subscriptionPrice}
+      amount={subscriptionPrice != null ? subscriptionPrice + FIXED_SERVICE_FEE_MXN : null}
+      amountCurrency="MXN"
       pricePeriodLabel="mes"
-      pay={async (c) => {
-        const r = await payGroupSubscription({
-          groupId,
-          token: c.token,
-          payerEmail: user?.email ?? undefined,
-          taxCountry: c.taxCountry, // 🧾 IVA — el backend suma el impuesto al cobro mensual.
-        });
-        return { status: r.status === "authorized" ? "approved" : r.status };
-      }}
+      createIntent={(args) => createGroupSubscription({
+        groupId,
+        taxCountry: args.taxCountry,
+        savedPaymentMethodId: args.savedPaymentMethodId,
+      })}
       productType={tGroups("subscriptionProductType")}
       providerName={group?.name}
       avatarUrl={group?.avatarUrl ?? null}
@@ -813,7 +808,7 @@ function redirectToLogin() {
     setCancellingSub(true);
     setActionError(null);
     try {
-      await cancelGroupSubscription(groupId);
+      await cancelGroupSubscriptionStripe(groupId);
       setCancelSubOpen(false);
       const until = mySub?.accessUntil ? formatSubDate(mySub.accessUntil) : "";
       const msg = tGroups("cancelSubscriptionDone", { date: until });
@@ -1734,12 +1729,54 @@ const avatarNode = (
   if (shouldShowRestrictedLanding) {
     const pending = joinReqStatus === "pending";
     const rejected = joinReqStatus === "rejected";
-    const approved = joinReqStatus === "approved";
     const isBanned = memberStatus === "banned";
     const isPrivate = group.visibility === "private";
     const isHidden = group.visibility === "hidden";
-    const hasLegacyAccess =
-      membershipAccessType === "legacy_free" || membershipLegacyComplimentary;
+
+    // La landing restringida ya NO usa la caja del CTA: si hay una acción posible
+    // se muestra SOLO el botón (suscribirme / solicitar acceso / cancelar), sin
+    // contenedor ni texto encima —el precio y la acción ya se leen en el botón—.
+    // Los textos de contexto ("Esta comunidad requiere suscripción de $X al mes…",
+    // "Esta comunidad es privada…", "Solicitud pendiente", acceso legado, solicitud
+    // aprobada) quedan fuera.
+    const showSubscriptionCta =
+      !isBanned && (shouldShowSubscriptionRecovery || isSubscriptionGroup);
+
+    const showPrivateCta =
+      !isBanned &&
+      !shouldShowSubscriptionRecovery &&
+      !removedBySubscriptionTransition &&
+      !isSubscriptionGroup &&
+      isPrivate;
+
+    // Estados donde no hay ninguna acción que ofrecer: se conserva una sola línea
+    // de aviso (sin caja) porque, si no, la card no explicaría por qué no hay nada.
+    const noticeText = isBanned
+      ? tGroups("communityBanned")
+      : removedBySubscriptionTransition && !subscriptionEnabled
+      ? tGroups("accessRevoked")
+      : !isSubscriptionGroup && !shouldShowSubscriptionRecovery && isHidden
+      ? tGroups("communityHiddenNoAccess")
+      : null;
+
+    const subscribeButton = (
+      <button
+        onClick={openSubscriptionModal}
+        disabled={joining}
+        style={{
+          ...primaryButton,
+          background: "#3b82f6",
+          opacity: joining ? 0.75 : 1,
+          cursor: joining ? "not-allowed" : "pointer",
+        }}
+      >
+        {user
+          ? subscriptionPrice != null
+            ? tGroups("subscribeForPrice", { price: formatMoney(subscriptionPrice, subscriptionCurrency) })
+            : tGroups("subscribeCta")
+          : tGroups("loginToSubscribe")}
+      </button>
+    );
 
     return (
       <>
@@ -1968,7 +2005,45 @@ const avatarNode = (
                 </div>
 
                 <div className="group-actions-wrap">
-                  <div style={{ ...panelStyle }} className="cta-card">
+                  {showSubscriptionCta ? (
+                    /* Suscripción: solo el botón, sin caja ni texto arriba. */
+                    <div className="group-actions-row">{subscribeButton}</div>
+                  ) : showPrivateCta ? (
+                    /* Privada por aprobación: solo el botón (solicitar/cancelar). */
+                    <div className="group-actions-row">
+                      {!pending && !rejected ? (
+                        <button
+                          onClick={handleRequestPrivate}
+                          disabled={joining}
+                          style={{
+                            ...primaryButton,
+                            opacity: joining ? 0.75 : 1,
+                            cursor: joining ? "not-allowed" : "pointer",
+                          }}
+                        >
+                          {joining
+                            ? tCommon("sending")
+                            : user
+                            ? tGroups("requestAccess")
+                            : tGroups("loginToRequestAccess")}
+                        </button>
+                      ) : (
+                        <button
+                          onClick={handleCancelPrivate}
+                          disabled={joining}
+                          style={{
+                            ...secondaryButton,
+                            opacity: joining ? 0.75 : 1,
+                            cursor: joining ? "not-allowed" : "pointer",
+                          }}
+                        >
+                          {joining ? tCommon("sending") : tCommon("cancel")}
+                        </button>
+                      )}
+                    </div>
+                  ) : noticeText ? (
+                    /* Estados SIN botón posible (baneado, acceso revocado, oculta
+                       sin acceso): queda solo la línea de aviso, sin caja. */
                     <div
                       style={{
                         ...microText,
@@ -1976,134 +2051,9 @@ const avatarNode = (
                         textAlign: "center",
                       }}
                     >
-                      {isBanned && tGroups("communityBanned")}
-
-                      {!isBanned && hasLegacyAccess && tGroups("communityLegacyAccess")}
-
-                      {!isBanned && approved && tGroups("approvedAccess")}
-
-                      {!isBanned &&
-                        shouldShowSubscriptionRecovery &&
-                        tGroups("subscriptionRequiredRecovery", {
-                          priceText: subscriptionPrice != null
-                            ? tGroups("subscriptionMonthlyCost", { price: `${formatMoney(subscriptionPrice, subscriptionCurrency)}` })
-                            : tGroups("subscriptionMonthlyCostAvailable"),
-                        })}
-
-                      {!isBanned &&
-                        !shouldShowSubscriptionRecovery &&
-                        isSubscriptionGroup &&
-                        tGroups("subscriptionRequired", {
-                          priceText: subscriptionPrice != null
-                            ? tGroups("subscriptionMonthlyCost", { price: `${formatMoney(subscriptionPrice, subscriptionCurrency)}` })
-                            : tGroups("subscriptionMonthlyCostAvailable"),
-                        })}
-
-                      {!isBanned &&
-                        removedBySubscriptionTransition &&
-                        !subscriptionEnabled &&
-                        tGroups("accessRevoked")}
-
-                      {!isBanned &&
-                        !shouldShowSubscriptionRecovery &&
-                        !removedBySubscriptionTransition &&
-                        !isSubscriptionGroup &&
-                        isPrivate &&
-                        pending &&
-                        tGroups("pendingRequest")}
-
-                      {!isBanned &&
-                        !shouldShowSubscriptionRecovery &&
-                        !removedBySubscriptionTransition &&
-                        !isSubscriptionGroup &&
-                        isPrivate &&
-                        !pending &&
-                        !approved &&
-                        !rejected &&
-                        tGroups("communityPrivateRequiresApproval")}
-
-                      {!isBanned &&
-                        !shouldShowSubscriptionRecovery &&
-                        !removedBySubscriptionTransition &&
-                        !isSubscriptionGroup &&
-                        isPrivate &&
-                        rejected &&
-                        tGroups("communityAccessRejected")}
-
-                      {!isBanned &&
-                        !shouldShowSubscriptionRecovery &&
-                        !removedBySubscriptionTransition &&
-                        !isSubscriptionGroup &&
-                        isHidden &&
-                        tGroups("communityHiddenNoAccess")}
+                      {noticeText}
                     </div>
-
-                    {!isBanned &&
-                      (shouldShowSubscriptionRecovery || isSubscriptionGroup) && (
-                        <div
-                          className="group-actions-row"
-                          style={{ marginTop: 14 }}
-                        >
-                          <button
-                            onClick={openSubscriptionModal}
-                            disabled={joining}
-                            style={{
-                              ...primaryButton,
-                              background: "#3b82f6",
-                              opacity: joining ? 0.75 : 1,
-                              cursor: joining ? "not-allowed" : "pointer",
-                            }}
-                          >
-                            {user
-                              ? subscriptionPrice != null
-                                ? tGroups("subscribeForPrice", { price: formatMoney(subscriptionPrice, subscriptionCurrency) })
-                                : tGroups("subscribeCta")
-                              : tGroups("loginToSubscribe")}
-                          </button>
-                        </div>
-                      )}
-
-                    {!isBanned &&
-                      !shouldShowSubscriptionRecovery &&
-                      !removedBySubscriptionTransition &&
-                      !isSubscriptionGroup &&
-                      isPrivate && (
-                        <div
-                          className="group-actions-row"
-                          style={{ marginTop: 14 }}
-                        >
-                          {!pending && !rejected ? (
-                            <button
-                              onClick={handleRequestPrivate}
-                              disabled={joining}
-                              style={{
-                                ...primaryButton,
-                                opacity: joining ? 0.75 : 1,
-                                cursor: joining ? "not-allowed" : "pointer",
-                              }}
-                            >
-                              {joining
-                                ? tCommon("sending")
-                                : user
-                                ? tGroups("requestAccess")
-                                : tGroups("loginToRequestAccess")}
-                            </button>
-                          ) : (
-                            <button
-                              onClick={handleCancelPrivate}
-                              disabled={joining}
-                              style={{
-                                ...secondaryButton,
-                                opacity: joining ? 0.75 : 1,
-                                cursor: joining ? "not-allowed" : "pointer",
-                              }}
-                            >
-                              {joining ? tCommon("sending") : tCommon("cancel")}
-                            </button>
-                          )}
-                        </div>
-                      )}
-                  </div>
+                  ) : null}
                 </div>
               </div>
             </section>
