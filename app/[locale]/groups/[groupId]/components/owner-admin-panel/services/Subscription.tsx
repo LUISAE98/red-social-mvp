@@ -6,62 +6,12 @@ import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import ServiceInfoIcon from "@/components/services/ServiceInfoIcon";
+import ServicePreviewReveal from "@/components/services/ServicePreviewReveal";
+import ServiceFeaturePreview from "@/components/services/ServiceFeaturePreview";
 
 // Color de acento del servicio de suscripción: azul celeste. Tiñe todos sus iconos
 // (info de la descripción, aviso de comunidad pública e items informativos).
 const SUBSCRIPTION_ACCENT = "#38bdf8";
-
-// Iconos de los items informativos de la suscripción (stroke, teñidos con el acento).
-function SubscriptionMetaIcon({ name, color }: { name: string; color: string }) {
-  const common = {
-    width: 16,
-    height: 16,
-    viewBox: "0 0 24 24",
-    fill: "none",
-    stroke: color,
-    strokeWidth: 1.8,
-    strokeLinecap: "round" as const,
-    strokeLinejoin: "round" as const,
-    "aria-hidden": true,
-    style: { flexShrink: 0, display: "block" as const },
-  };
-  switch (name) {
-    case "percent":
-      return (
-        <svg {...common}>
-          <line x1="19" y1="5" x2="5" y2="19" />
-          <circle cx="6.5" cy="6.5" r="2.5" />
-          <circle cx="17.5" cy="17.5" r="2.5" />
-        </svg>
-      );
-    case "repeat":
-      return (
-        <svg {...common}>
-          <path d="M17 2l4 4-4 4" />
-          <path d="M3 11v-1a4 4 0 0 1 4-4h14" />
-          <path d="M7 22l-4-4 4-4" />
-          <path d="M21 13v1a4 4 0 0 1-4 4H3" />
-        </svg>
-      );
-    case "lock":
-      return (
-        <svg {...common}>
-          <rect x="3" y="11" width="18" height="11" rx="2" />
-          <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-        </svg>
-      );
-    case "cancel":
-      return (
-        <svg {...common}>
-          <circle cx="12" cy="12" r="10" />
-          <line x1="15" y1="9" x2="9" y2="15" />
-          <line x1="9" y1="9" x2="15" y2="15" />
-        </svg>
-      );
-    default:
-      return null;
-  }
-}
 
 type Currency = "MXN" | "USD";
 
@@ -564,7 +514,7 @@ function handleModify() {
   return (
     <>
       <div style={{ display: "grid", gap: 10 }}>
-        <div style={panelStyle}>
+        <div className="serviceActivationPanel" style={panelStyle}>
           <div
             style={{
               display: "flex",
@@ -614,25 +564,14 @@ function handleModify() {
 </div>
           </div>
 
-          {/* Items informativos de la suscripción. */}
-          <div style={{ display: "grid", gap: 7, marginTop: 2 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <SubscriptionMetaIcon name="percent" color={SUBSCRIPTION_ACCENT} />
-              <span style={subtleStyle}>{tServices("subscriptionMetaEarnings")}</span>
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <SubscriptionMetaIcon name="repeat" color={SUBSCRIPTION_ACCENT} />
-              <span style={subtleStyle}>{tServices("subscriptionMetaRecurring")}</span>
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <SubscriptionMetaIcon name="lock" color={SUBSCRIPTION_ACCENT} />
-              <span style={subtleStyle}>{tServices("subscriptionMetaPrivate")}</span>
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <SubscriptionMetaIcon name="cancel" color={SUBSCRIPTION_ACCENT} />
-              <span style={subtleStyle}>{tServices("subscriptionMetaCancel")}</span>
-            </div>
-          </div>
+          {/* Items informativos: mismo patrón que las demás experiencias
+              (hover en laptop / "ver más" en celular cuando está inactiva; fijos
+              cuando está activa). */}
+          {!draft.subscription.enabled ? (
+            <ServicePreviewReveal service="subscription" accentColor={SUBSCRIPTION_ACCENT} />
+          ) : (
+            <ServiceFeaturePreview service="subscription" accentColor={SUBSCRIPTION_ACCENT} />
+          )}
 
 {disabledByVisibility && (
   <>

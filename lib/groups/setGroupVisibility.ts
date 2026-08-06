@@ -24,7 +24,12 @@ export function getDiscoverableFromVisibility(
 export async function setGroupVisibility(
   groupId: string,
   nextVisibility: GroupVisibility,
-  group: Pick<Group, "name" | "description" | "category" | "tags">
+  group: {
+    name?: string | null;
+    description?: string | null;
+    category?: string | null;
+    tags?: string[] | null;
+  }
 ): Promise<void> {
   const discoverable = getDiscoverableFromVisibility(nextVisibility);
   const updatedAt = serverTimestamp() as unknown as Timestamp;
@@ -33,11 +38,13 @@ export async function setGroupVisibility(
     visibility: nextVisibility,
     discoverable,
     updatedAt,
+    // buildGroupSearchIndex normaliza estos campos (categoría inválida → fallback),
+    // así que basta con dar valores por defecto seguros ante null/undefined.
     ...buildGroupSearchIndexPatch({
-      name: group.name,
-      description: group.description,
-      category: group.category,
-      tags: group.tags,
+      name: group.name ?? "",
+      description: group.description ?? "",
+      category: (group.category ?? "otros") as Group["category"],
+      tags: group.tags ?? [],
       visibility: nextVisibility,
       discoverable,
       isActive: true,
