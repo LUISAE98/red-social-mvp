@@ -521,9 +521,21 @@ function handleModify() {
               gap: 10,
             }}
           >
-            <div style={{ display: "grid", gap: 2, minWidth: 0 }}>
+            <div style={{ display: "grid", gap: 8, minWidth: 0 }}>
               <span style={titleStyle}>
                 {tServices("subscriptionTitle")}
+              </span>
+              <span
+                style={
+                  !draft.subscription.enabled
+                    ? { ...descriptionStyle, display: "flex", alignItems: "flex-start", gap: 6 }
+                    : descriptionStyle
+                }
+              >
+                {!draft.subscription.enabled ? (
+                  <ServiceInfoIcon color={SUBSCRIPTION_ACCENT} />
+                ) : null}
+                <span>{tServices("expSubscriptionDesc")}</span>
               </span>
             </div>
 
