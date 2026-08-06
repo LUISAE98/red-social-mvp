@@ -515,6 +515,11 @@ export const DonationOverlay = makeOverlayWithBg(
   "center 50%",
   "#7dd3fc"
 );
+export const SubscriptionOverlay = makeOverlayWithBg(
+  "/suscripciones.webp",
+  "center",
+  "#38bdf8"
+);
 
 // Estilos de panel compartidos (mismos valores en perfil y comunidad).
 export function makeServicePanelStyle(

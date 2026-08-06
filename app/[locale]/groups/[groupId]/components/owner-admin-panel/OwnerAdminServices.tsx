@@ -45,14 +45,14 @@ import {
   DEFAULT_DONATION_SUGGESTED_AMOUNTS,
   type Props, type ServiceDraft,
 } from "./OwnerAdminServices.parts";
-import { ConfirmModal, OverlayModal } from "./OwnerAdminServices.modals";
+import { ConfirmModal } from "./OwnerAdminServices.modals";
 
 // Kit visual COMPARTIDO con el perfil: mismos overlays con imagen de fondo, switch,
 // colores de acento y estilos → los cards de configuración quedan idénticos a los del
 // perfil. La donación usa el MISMO componente compartido (scope="group").
 import DonationConfigCard from "@/components/services/config/DonationConfigCard";
 import {
-  SaludoOverlay, ConsejoOverlay, MeetGreetOverlay, CustomClassOverlay, DonationOverlay,
+  SaludoOverlay, ConsejoOverlay, MeetGreetOverlay, CustomClassOverlay, DonationOverlay, SubscriptionOverlay,
   Switch as RichSwitch, SERVICE_COLORS, makeServiceConfigStyles, makeServicePanelStyle,
   MEET_GREET_MIN_MINUTES, MEET_GREET_MAX_MINUTES,
   CUSTOM_CLASS_MIN_MINUTES, CUSTOM_CLASS_MAX_MINUTES,
@@ -991,7 +991,7 @@ export default function OwnerAdminServices({
         calcNetAmount={calcNetAmount}
         formatMoney={formatMoney}
         SwitchComponent={RichSwitch}
-        OverlayModalComponent={OverlayModal}
+        OverlayModalComponent={SubscriptionOverlay}
         ConfirmModalComponent={ConfirmModal}
         SpinningGearComponent={SpinningGear}
         onSaveDraft={async (d) => { await saveServicesFromDraft(d); }}
