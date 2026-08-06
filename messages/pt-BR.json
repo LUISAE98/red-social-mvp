@@ -1653,7 +1653,7 @@
     "subscriptionPublicDisabledWarning": "Você não pode ativar a assinatura mensal em comunidades públicas. Mude a comunidade para privada ou oculta para habilitar esta função.",
     "communityPrivacyToggleLabel": "Tornar a comunidade privada",
     "communityPrivacyToggleAria": "Alterar a comunidade para privada",
-    "subscriptionBackToPublicNote": "Para torná-la pública novamente, faça isso nas Configurações.",
+    "subscriptionBackToPublicNote": "Ao ativar o botão, sua comunidade se tornará privada e você poderá configurar o preço da assinatura. Se depois quiser torná-la pública novamente, poderá fazer isso nas Configurações.",
     "communityPrivacyChangeError": "Não foi possível alterar a visibilidade da comunidade.",
     "subscriptionSummaryPriceLabel": "Preço mensal configurado",
     "subscriptionCalculationMessage": "Por uma assinatura de {price}, você recebe {netAmount}.",

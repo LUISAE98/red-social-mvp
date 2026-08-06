@@ -1655,7 +1655,7 @@
     "subscriptionPublicDisabledWarning": "You cannot enable the monthly subscription in public communities. Change the community to private or hidden to enable this feature.",
     "communityPrivacyToggleLabel": "Make the community private",
     "communityPrivacyToggleAria": "Change the community to private",
-    "subscriptionBackToPublicNote": "To make it public again, do it from Settings.",
+    "subscriptionBackToPublicNote": "Turning on the switch makes your community private and lets you set the subscription price. If you later want to make it public again, you can do so from Settings.",
     "communityPrivacyChangeError": "Couldn't change the community visibility.",
     "subscriptionSummaryPriceLabel": "Configured monthly price",
     "subscriptionCalculationMessage": "For a {price} subscription, you earn {netAmount}.",

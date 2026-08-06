@@ -1655,7 +1655,7 @@
     "subscriptionPublicDisabledWarning": "No puedes activar la suscripción mensual en comunidades públicas. Cambia la comunidad a privada u oculta para habilitar esta función.",
     "communityPrivacyToggleLabel": "Hacer la comunidad privada",
     "communityPrivacyToggleAria": "Cambiar la comunidad a privada",
-    "subscriptionBackToPublicNote": "Para volver a hacerla pública, hazlo desde Configuración.",
+    "subscriptionBackToPublicNote": "Al activar el switch, tu comunidad pasará a ser privada y podrás configurar el costo de la suscripción. Si más adelante quieres volver a hacerla pública, podrás hacerlo desde Configuración.",
     "communityPrivacyChangeError": "No se pudo cambiar la visibilidad de la comunidad.",
     "subscriptionSummaryPriceLabel": "Precio mensual configurado",
     "subscriptionCalculationMessage": "Por una suscripción de {price}, tú cobras {netAmount}.",

@@ -330,6 +330,7 @@ export default function Subscription({
     useState(false);
   const { toast: subToast, showToast: showSubToast } = useVibraToast();
   const [changingVisibility, setChangingVisibility] = useState(false);
+  const [popping, setPopping] = useState(false);
 
  const disabledByVisibility = isPublic;
 
@@ -340,11 +341,18 @@ export default function Subscription({
 
   async function handleMakePrivate() {
     if (!onChangeVisibility || changingVisibility || saving || removingLegacyMembers) return;
+    setPopping(true); // dispara la animación de salida (pop) del panel
     setChangingVisibility(true);
     try {
       await onChangeVisibility("private");
-      // La visibilidad se refleja sola vía el snapshot del grupo (isPublic).
+      // Ya privada: abrir el panel de configuración para poner el costo (flujo de
+      // activación de la suscripción). isPublic se refleja solo por el snapshot.
+      openOverlay("activate", {
+        ...draft,
+        subscription: { ...draft.subscription, enabled: true },
+      });
     } catch {
+      setPopping(false);
       showSubToast(tServices("communityPrivacyChangeError"), "error");
     } finally {
       setChangingVisibility(false);
@@ -543,55 +551,63 @@ function handleModify() {
           </div>
 
 {disabledByVisibility && (
-  <div
-    style={{
-      display: "grid",
-      gap: 12,
-      padding: "12px",
-      borderRadius: 14,
-      border: "1px solid rgba(255,255,255,0.10)",
-      background: "rgba(255,255,255,0.03)",
-      marginTop: 2,
-    }}
-  >
-    <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
-      <span style={{ marginTop: 1 }}>
-        <ServiceInfoIcon color={SUBSCRIPTION_ACCENT} size={16} />
-      </span>
-      <span style={descriptionStyle}>
-        {tServices("subscriptionPublicDisabledWarning")}
-      </span>
-    </div>
-
-    {canMakePrivate && (
-      <>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 12,
-            paddingTop: 10,
-            borderTop: "1px solid rgba(255,255,255,0.08)",
-          }}
-        >
-          <span style={titleStyle}>
-            {tServices("communityPrivacyToggleLabel")}
-          </span>
-          <SwitchComponent
-            checked={false}
-            disabled={changingVisibility || saving || removingLegacyMembers}
-            onChange={() => void handleMakePrivate()}
-            label={tServices("communityPrivacyToggleAria")}
-          />
-        </div>
-        <span style={{ ...subtleStyle, display: "flex", alignItems: "flex-start", gap: 6 }}>
-          <ServiceInfoIcon color="rgba(255,255,255,0.4)" size={13} />
-          <span>{tServices("subscriptionBackToPublicNote")}</span>
+  <>
+    <style>{`
+      @keyframes vibraSubPrivacyPop {
+        from { opacity: 1; transform: scale(1); }
+        to { opacity: 0; transform: scale(0.92); }
+      }
+    `}</style>
+    <div
+      style={{
+        display: "grid",
+        gap: 12,
+        padding: "12px",
+        borderRadius: 14,
+        border: "1px solid rgba(255,255,255,0.10)",
+        background: "transparent",
+        marginTop: 2,
+        animation: popping ? "vibraSubPrivacyPop 200ms ease-in forwards" : undefined,
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
+        <span style={{ marginTop: 1 }}>
+          <ServiceInfoIcon color={SUBSCRIPTION_ACCENT} size={16} />
         </span>
-      </>
-    )}
-  </div>
+        <span style={descriptionStyle}>
+          {tServices("subscriptionPublicDisabledWarning")}
+        </span>
+      </div>
+
+      {canMakePrivate && (
+        <>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 12,
+              paddingTop: 10,
+              borderTop: "1px solid rgba(255,255,255,0.08)",
+            }}
+          >
+            <span style={titleStyle}>
+              {tServices("communityPrivacyToggleLabel")}
+            </span>
+            <SwitchComponent
+              checked={false}
+              disabled={changingVisibility || saving || removingLegacyMembers}
+              onChange={() => void handleMakePrivate()}
+              label={tServices("communityPrivacyToggleAria")}
+            />
+          </div>
+          <span style={subtleStyle}>
+            {tServices("subscriptionBackToPublicNote")}
+          </span>
+        </>
+      )}
+    </div>
+  </>
 )}
 
           {renderSummary()}
