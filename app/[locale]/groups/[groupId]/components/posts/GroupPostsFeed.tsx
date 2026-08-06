@@ -1227,6 +1227,15 @@ const shellStyle: CSSProperties = {
     overflowWrap: "anywhere",
   };
 
+  // Empty-state de publicaciones: mismo formato que las galerías (Fotos/Videos):
+  // centrado, sin contenedor/caja. (MediaGallery.emptyStyle)
+  const emptyPostsStyle: CSSProperties = {
+    padding: "36px 16px",
+    textAlign: "center",
+    color: "rgba(255,255,255,0.5)",
+    fontSize: 13,
+  };
+
   const composerErrorStyle: CSSProperties = {
     width: "100%",
     maxWidth: "100%",
@@ -1381,9 +1390,13 @@ const shellStyle: CSSProperties = {
             </div>
           ) : null}
         </div>
-      ) : postBlockedReason !== null && postBlockedReason !== "login" ? (
-        // El aviso "Inicia sesión para publicar…" NO se muestra a visitantes
-        // anónimos (login); sí se conservan los avisos de join/restricted.
+      ) : postBlockedReason !== null &&
+        postBlockedReason !== "login" &&
+        postBlockedReason !== "join" ? (
+        // No se muestra la caja de aviso ni a visitantes anónimos ("login") ni a
+        // quien todavía no es miembro ("join" — el CTA de unirse/suscribirse ya
+        // está en la card de la comunidad). Solo queda el aviso de "restricted",
+        // que sí explica algo que el usuario no puede deducir.
         <div style={interactionHintStyle}>
           {buildPostBlockedMessage(postBlockedReason)}
         </div>
@@ -1455,7 +1468,7 @@ const shellStyle: CSSProperties = {
       )}
 
       {!groupSearchActive && !broadcastLiveOnly && !loadingInitial && posts.length === 0 && deletedPosts.length === 0 && !broadcastLive && (
-        <div style={noticeStyle}>
+        <div style={emptyPostsStyle}>
           Todavía no hay publicaciones en esta comunidad.
         </div>
       )}
