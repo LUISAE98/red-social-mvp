@@ -36,7 +36,7 @@ import Advice from "./services/Advice";
 import MeetGreet from "./services/MeetGreet";
 import CustomClass from "./services/CustomClass";
 import {
-  SERVICE_EMOJIS, SpinningGear, Switch, DonationModeButton,
+  SERVICE_EMOJIS, SpinningGear, DonationModeButton,
   buildManualLegacyRemovalSuccessMessage, buildOffering, buildServiceBlockDraft,
   buildSubscriptionDraft, buildTransitionSuccessMessage, calcNetAmount,
   createEmptyDraft, createEmptyWeeklyAvailability, normalizeDurationMeta,
@@ -999,7 +999,7 @@ export default function OwnerAdminServices({
         buttonSecondaryStyle={buttonSecondaryStyle}
         calcNetAmount={calcNetAmount}
         formatMoney={formatMoney}
-        SwitchComponent={Switch}
+        SwitchComponent={RichSwitch}
         OverlayModalComponent={OverlayModal}
         ConfirmModalComponent={ConfirmModal}
         SpinningGearComponent={SpinningGear}

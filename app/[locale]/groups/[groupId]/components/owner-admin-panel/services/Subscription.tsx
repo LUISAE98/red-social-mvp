@@ -513,13 +513,6 @@ function handleModify() {
 
   return (
     <>
-      <style>{`
-        .subSwitchNoRing button:focus,
-        .subSwitchNoRing button:focus-visible {
-          outline: none;
-          box-shadow: none;
-        }
-      `}</style>
       <div style={{ display: "grid", gap: 10 }}>
         <div className="serviceActivationPanel" style={panelStyle}>
           <div
@@ -549,7 +542,6 @@ function handleModify() {
             </div>
 
 <div
-  className="subSwitchNoRing"
   onClick={() => {
     if (disabledByVisibility) {
       showSubToast(tServices("subscriptionPublicDisabledToast"), "warning");
@@ -625,14 +617,12 @@ function handleModify() {
             <span style={titleStyle}>
               {tServices("communityPrivacyToggleLabel")}
             </span>
-            <span className="subSwitchNoRing">
-              <SwitchComponent
-                checked={false}
-                disabled={changingVisibility || saving || removingLegacyMembers}
-                onChange={() => void handleMakePrivate()}
-                label={tServices("communityPrivacyToggleAria")}
-              />
-            </span>
+            <SwitchComponent
+              checked={false}
+              disabled={changingVisibility || saving || removingLegacyMembers}
+              onChange={() => void handleMakePrivate()}
+              label={tServices("communityPrivacyToggleAria")}
+            />
           </div>
           <span style={subtleStyle}>
             {tServices("subscriptionBackToPublicNote")}
