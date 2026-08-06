@@ -5,6 +5,11 @@ import { useTranslations } from "next-intl";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
+import ServiceInfoIcon from "@/components/services/ServiceInfoIcon";
+
+// Color de acento del ícono informativo de la suscripción (morado de marca),
+// en línea con el ícono "i" en círculo del resto de experiencias.
+const SUBSCRIPTION_ACCENT = "#a855f7";
 
 type Currency = "MXN" | "USD";
 
@@ -114,6 +119,7 @@ type Props = {
   panelStyle: React.CSSProperties;
   titleStyle: React.CSSProperties;
   subtleStyle: React.CSSProperties;
+  descriptionStyle: React.CSSProperties;
   inputStyle: React.CSSProperties;
   buttonSecondaryStyle: React.CSSProperties;
 
@@ -301,6 +307,7 @@ export default function Subscription({
   panelStyle,
   titleStyle,
   subtleStyle,
+  descriptionStyle,
   inputStyle,
   buttonSecondaryStyle,
   calcNetAmount,
@@ -525,19 +532,18 @@ function handleModify() {
           </div>
 
 {disabledByVisibility && (
-  <div
+  <span
     style={{
-      ...subtleStyle,
+      ...descriptionStyle,
+      display: "flex",
+      alignItems: "flex-start",
+      gap: 6,
       marginTop: 2,
-      padding: "8px 10px",
-      borderRadius: 10,
-      border: "1px solid rgba(255,255,255,0.08)",
-      background: "rgba(255,255,255,0.04)",
-      color: "rgba(255,255,255,0.68)",
     }}
   >
-    {tServices("subscriptionPublicDisabledWarning")}
-  </div>
+    <ServiceInfoIcon color={SUBSCRIPTION_ACCENT} />
+    <span>{tServices("subscriptionPublicDisabledWarning")}</span>
+  </span>
 )}
 
           {renderSummary()}

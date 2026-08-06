@@ -992,6 +992,7 @@ export default function OwnerAdminServices({
         panelStyle={panelStyle}
         titleStyle={richStyles.titleStyle}
         subtleStyle={subtleStyle}
+        descriptionStyle={richStyles.descriptionStyle}
         inputStyle={inputStyle}
         buttonSecondaryStyle={buttonSecondaryStyle}
         calcNetAmount={calcNetAmount}
