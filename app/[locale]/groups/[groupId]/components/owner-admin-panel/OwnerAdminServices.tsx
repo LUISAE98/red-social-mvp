@@ -316,12 +316,6 @@ export default function OwnerAdminServices({
     lineHeight: 1.35,
   };
 
-  const titleStyle: React.CSSProperties = {
-    fontSize: 12,
-    color: "#fff",
-    fontWeight: 700,
-  };
-
   const inputStyle: React.CSSProperties = {
     padding: "8px 10px",
     borderRadius: 10,
@@ -995,9 +989,8 @@ export default function OwnerAdminServices({
         removingLegacyMembers={removingLegacyMembers}
         activeLegacyFreeMembersCount={activeLegacyFreeMembersCount}
         canRemoveLegacyFreeMembersLater={canRemoveLegacyFreeMembersLater}
-        subscriptionEmoji={SERVICE_EMOJIS.subscription}
         panelStyle={panelStyle}
-        titleStyle={titleStyle}
+        titleStyle={richStyles.titleStyle}
         subtleStyle={subtleStyle}
         inputStyle={inputStyle}
         buttonSecondaryStyle={buttonSecondaryStyle}

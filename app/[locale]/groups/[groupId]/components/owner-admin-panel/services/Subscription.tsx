@@ -111,8 +111,6 @@ type Props = {
   activeLegacyFreeMembersCount: number;
   canRemoveLegacyFreeMembersLater: boolean;
 
-  subscriptionEmoji: string;
-
   panelStyle: React.CSSProperties;
   titleStyle: React.CSSProperties;
   subtleStyle: React.CSSProperties;
@@ -300,7 +298,6 @@ export default function Subscription({
   removingLegacyMembers,
   activeLegacyFreeMembersCount,
   canRemoveLegacyFreeMembersLater,
-  subscriptionEmoji,
   panelStyle,
   titleStyle,
   subtleStyle,
@@ -500,7 +497,7 @@ function handleModify() {
           >
             <div style={{ display: "grid", gap: 2, minWidth: 0 }}>
               <span style={titleStyle}>
-                {subscriptionEmoji} {tServices("subscriptionTitle")}
+                {tServices("subscriptionTitle")}
               </span>
             </div>
 
@@ -595,7 +592,7 @@ function handleModify() {
 
       <OverlayModalComponent
         open={overlayMode !== null}
-        title={`${subscriptionEmoji} ${tServices("subscriptionConfigModalTitle")}`}
+        title={tServices("subscriptionConfigModalTitle")}
         loading={saving}
         onCancel={closeOverlay}
         onConfirm={() => void confirmOverlaySave()}
