@@ -258,6 +258,9 @@ onToggleProfilePin,
 
   const protectedPlayback = useProtectedPlayback(rawPost.id, viewerMayHavePaidAccess);
 
+  /** `undefined` = la lectura protegida sigue en vuelo: aún no hay URL que abrir. */
+  const awaitingProtectedPlayback = protectedPlayback === undefined;
+
   const post = useMemo(
     () => mergeProtectedPlayback(rawPost, protectedPlayback),
     [rawPost, protectedPlayback],
@@ -825,6 +828,10 @@ useEffect(() => {
   const autoOpenedRef = useRef(false);
   useEffect(() => {
     if (autoOpenedRef.current) return;
+    // Contenido de pago: la URL reproducible llega en el subdocumento protegido
+    // (lectura async). Si aún está en vuelo, esperar: cerrar aquí dejaría al
+    // comprador sin poder abrir su propio video desde la galería.
+    if (awaitingProtectedPlayback) return;
     if (autoOpenUnlock) {
       // Flujo de desbloqueo/compra: panel de pago (premium) o ticket vía live viewer.
       // Sin sesión no se puede cobrar → a iniciar sesión en vez de abrir una
@@ -849,9 +856,23 @@ useEffect(() => {
       autoOpenedRef.current = true;
       if (!premiumState.isBlocked) openMediaViewer(autoOpenMediaUrl, null);
       else onViewerClosed?.();
+    } else if (onViewerClosed && viewerMayHavePaidAccess && !premiumState.isBlocked) {
+      // Lightbox de galería sobre contenido de PAGO ya desbloqueado: el padre no
+      // pudo pasar la URL (el doc del post ya no la trae) y aquí sí, porque el
+      // subdocumento protegido ya se fusionó.
+      const paidUrl =
+        post.media?.find(
+          (item) => item?.type === "video" && typeof item.url === "string" && item.url.trim(),
+        )?.url ??
+        post.playback?.hlsUrl ??
+        null;
+      if (paidUrl) {
+        autoOpenedRef.current = true;
+        openMediaViewer(paidUrl, null);
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoOpenMediaUrl, autoOpenLive, autoOpenVod, autoOpenUnlock]);
+  }, [autoOpenMediaUrl, autoOpenLive, autoOpenVod, autoOpenUnlock, awaitingProtectedPlayback]);
 
   // Deep-link de notificaciones: al montar, abre el panel de comentarios.
   const autoOpenedCommentsRef = useRef(false);

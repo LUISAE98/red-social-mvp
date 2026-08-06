@@ -31,10 +31,12 @@ import {
   buildUserSearchText, getCommunityPreviewPriority, getDescriptionPreview,
   initialsFromName, isBlockedStatus, isJoinedStatus, isMobileSearchViewport,
   isPaidPrivateGroup, loadHistory, membershipStatusKey, normalizeMemberStatus,
-  normalizeText, offersExperiences, postBadge, pushToHistory, storyThumb,
+  normalizeText, offersExperiences, postBadge, pushToHistory, resolveSubscriptionBasePrice, storyThumb,
   type CanonicalMemberStatus, type Community, type GroupsSearchPanelProps,
   type PublicUser, type SearchHistoryEntry,
 } from "./GroupsSearchPanel.parts";
+import { usePriceFormat } from "@/lib/currency/usePriceFormat";
+import { FIXED_SERVICE_FEE_MXN } from "@/lib/currency/catalog";
 
 export default function GroupsSearchPanel({
   fontStack,
@@ -47,6 +49,7 @@ export default function GroupsSearchPanel({
 }: GroupsSearchPanelProps) {
   const tGroups = useTranslations("groups");
   const tCommon = useTranslations("common");
+  const pf = usePriceFormat();
 
   const router = useRouter();
   const pathname = usePathname();
@@ -2005,7 +2008,14 @@ const visLabel =
   className="primary-btn subscribe-btn"
   type="button"
 >
-  💎 {tGroups("subscribe")}
+  {(() => {
+    const base = resolveSubscriptionBasePrice(g);
+    return base != null
+      ? tGroups("subscribeForPrice", {
+          price: pf.formatWithTax(base + FIXED_SERVICE_FEE_MXN, { baseCurrency: "MXN" }).total,
+        })
+      : tGroups("subscribeCta");
+  })()}
 </button>
                             )}
 

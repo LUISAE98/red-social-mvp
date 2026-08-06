@@ -367,6 +367,16 @@ export default function NotificationList({
                   <span className="notifTime">{timeAgo(n.updatedAtMs)}</span>
                 </span>
               </Link>
+            ) : n.type === "group_subscription_transition" ? (
+              <Link href={href} className="notifLink" onClick={() => handleItemClick(n, path)}>
+                <Avatar n={n} />
+                <span className="notifBody">
+                  <span className="notifText">
+                    {t(`subscriptionTransition.${n.target.action ?? "removed_needs_subscription"}`, { group })}
+                  </span>
+                  <span className="notifTime">{timeAgo(n.updatedAtMs)}</span>
+                </span>
+              </Link>
             ) : n.type === "live_vod_ready" && n.target.action === "self" ? (
               <Link href={href} className="notifLink" onClick={() => handleItemClick(n, path)}>
                 <Avatar n={n} />

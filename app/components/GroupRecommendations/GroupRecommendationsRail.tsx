@@ -323,6 +323,12 @@ export default function GroupRecommendationsRail({
               coverUrl: (g.coverUrl as string | null) ?? null,
               groupVisibility: (g.visibility as string | null) ?? null,
               subscriptionEnabled: mon.subscriptionsEnabled === true || mon.isPaid === true,
+              subscriptionPriceMonthly:
+                typeof mon.subscriptionPriceMonthly === "number"
+                  ? mon.subscriptionPriceMonthly
+                  : typeof mon.priceMonthly === "number"
+                  ? mon.priceMonthly
+                  : null,
               categories: gcat ? [gcat] : [],
               startedAtMs: startedMs(ld),
             };

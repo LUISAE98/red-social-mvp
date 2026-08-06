@@ -15,7 +15,8 @@
 
 import { useEffect, useState } from "react";
 import { doc, getDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { httpsCallable } from "firebase/functions";
+import { db, functions } from "@/lib/firebase";
 import type { Post, PostMedia } from "./types";
 
 type PlayableFields = {
@@ -33,7 +34,52 @@ export type ProtectedPlayback = {
   liveData?: PlayableFields;
   /** Clave: id del media, o `index_{n}` si el item no tenía id. */
   media?: Record<string, PlayableFields>;
+  /**
+   * "signed" = el asset de Mux está en playback firmado: el playbackId por sí
+   * solo no reproduce, hay que pedir un permiso temporal al backend.
+   */
+  playbackPolicy?: "signed" | null;
 };
+
+type SignedEntry = { playbackId: string; hlsUrl: string; thumbnailUrl: string };
+type SignedPlaybackResponse = {
+  postId: string;
+  expiresInSeconds: number;
+  signed: Record<string, SignedEntry>;
+};
+
+/**
+ * Pide al backend los permisos temporales de reproducción. Solo se llama cuando
+ * el subdocumento protegido dice que el asset está firmado.
+ */
+async function fetchSignedPlayback(postId: string): Promise<ProtectedPlayback | null> {
+  const call = httpsCallable<{ postId: string }, SignedPlaybackResponse>(
+    functions,
+    "getMuxPlaybackToken"
+  );
+
+  const { data } = await call({ postId });
+  if (!data?.signed) return null;
+
+  const result: ProtectedPlayback = { playbackPolicy: "signed" };
+  const media: Record<string, PlayableFields> = {};
+
+  for (const [key, entry] of Object.entries(data.signed)) {
+    const fields: PlayableFields = {
+      playbackId: entry.playbackId,
+      url: entry.hlsUrl,
+      hlsUrl: entry.hlsUrl,
+    };
+
+    if (key === "playback") result.playback = fields;
+    else if (key === "videoData") result.videoData = fields;
+    else if (key.startsWith("media:")) media[key.slice("media:".length)] = fields;
+  }
+
+  if (Object.keys(media).length > 0) result.media = media;
+
+  return result;
+}
 
 /** Un post está paywalled si cobra acceso (premium de post o boleto de live/VOD). */
 export function isPaywalledPost(post: Pick<Post, "requiresPayment" | "premium">): boolean {
@@ -46,36 +92,55 @@ export function isPaywalledPost(post: Pick<Post, "requiresPayment" | "premium">)
  * acceso gratis, es el autor o modera): así no se disparan lecturas que las
  * reglas van a rechazar.
  */
+/**
+ * `undefined` = todavía cargando (quien lo consuma debe ESPERAR antes de decidir
+ * que no hay video); `null` = resuelto y sin datos (no aplica o sin acceso).
+ */
 export function useProtectedPlayback(
   postId: string,
   enabled: boolean
-): ProtectedPlayback | null {
-  const [data, setData] = useState<ProtectedPlayback | null>(null);
+): ProtectedPlayback | null | undefined {
+  // El resultado se guarda junto a la clave que lo produjo: así "pendiente" se
+  // DERIVA (clave activa ≠ clave del resultado) en vez de escribirse en estado
+  // dentro del efecto, que dispararía renders en cascada.
+  const key = enabled && postId ? postId : "";
+  const [result, setResult] = useState<{
+    key: string;
+    value: ProtectedPlayback | null;
+  } | null>(null);
 
   useEffect(() => {
-    if (!enabled || !postId) {
-      setData(null);
-      return;
-    }
+    if (!key) return;
 
     let cancelled = false;
 
-    getDoc(doc(db, "posts", postId, "protectedPlayback", "current"))
-      .then((snap) => {
+    getDoc(doc(db, "posts", key, "protectedPlayback", "current"))
+      .then(async (snap) => {
         if (cancelled) return;
-        setData(snap.exists() ? (snap.data() as ProtectedPlayback) : null);
+        const value = snap.exists() ? (snap.data() as ProtectedPlayback) : null;
+
+        // Asset en playback firmado: el playbackId no basta, hay que pedir el
+        // permiso temporal. Si esa llamada falla, se queda bloqueado (correcto).
+        if (value?.playbackPolicy === "signed") {
+          const signed = await fetchSignedPlayback(key).catch(() => null);
+          if (!cancelled) setResult({ key, value: signed });
+          return;
+        }
+
+        setResult({ key, value });
       })
       // Sin acceso (o post sin blindaje) → se queda bloqueado, que es lo correcto.
       .catch(() => {
-        if (!cancelled) setData(null);
+        if (!cancelled) setResult({ key, value: null });
       });
 
     return () => {
       cancelled = true;
     };
-  }, [postId, enabled]);
+  }, [key]);
 
-  return data;
+  if (!key) return null;
+  return result?.key === key ? result.value : undefined;
 }
 
 /** Solo se inyectan valores REALES: nunca se pisa el post con nulls. */
@@ -105,7 +170,7 @@ function mergeFields<T extends object>(
  */
 export function mergeProtectedPlayback<T extends Post>(
   post: T,
-  protectedPlayback: ProtectedPlayback | null
+  protectedPlayback: ProtectedPlayback | null | undefined
 ): T {
   if (!protectedPlayback) return post;
 

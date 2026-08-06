@@ -76,12 +76,32 @@ export async function finalizeVodSettings(
   }
 ): Promise<void> {
   const now = serverTimestamp();
+
+  // El alcance del VOD lo hereda del live: si la transmisión fue "solo miembros"
+  // (o vive en una comunidad oculta), su grabación de pago NO se vende fuera —
+  // se cobra a los miembros. Si fue para "todos", la grabación sí es pública y
+  // hay que marcarla como compartible, o queda en un limbo: premium con alcance
+  // público que ninguna regla ni query deja ver desde afuera.
+  const snap = await getDoc(doc(db, "posts", postId));
+  const postData = (snap.data() ?? {}) as Record<string, unknown>;
+  const liveData = (postData.liveData ?? {}) as Record<string, unknown>;
+
+  const isGroupPost = typeof postData.groupId === "string" && postData.groupId.length > 0;
+  const membersOnlyScope =
+    liveData.visibilityMode === "members_only" || postData.groupVisibility === "hidden";
+
   const update: Record<string, unknown> = {
     "liveData.vodHidden": opts.vodHidden,
     "liveData.vodPrice": opts.vodPaid ? opts.vodPrice : null,
     "liveData.vodSettingsConfirmed": true,
     updatedAt: now,
   };
+
+  // `isShareable` solo aplica a posts de comunidad (en perfil no lo consumen ni
+  // las reglas ni las queries). Un VOD oculto nunca es compartible.
+  if (isGroupPost) {
+    update.isShareable = !opts.vodHidden && !membersOnlyScope;
+  }
 
   if (!opts.keepPinned || opts.vodHidden) {
     update.isPinnedInGroup = false;
@@ -103,7 +123,7 @@ export async function finalizeVodSettings(
     const premium: PostPremium = {
       enabled: true,
       kind: "video",
-      accessMode: "public",
+      accessMode: membersOnlyScope ? "members_only" : "public",
       freeFor: "none",
       price: opts.vodPrice,
       currency: "MXN",

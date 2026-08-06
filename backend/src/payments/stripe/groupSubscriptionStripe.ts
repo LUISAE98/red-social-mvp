@@ -12,6 +12,7 @@
 // el reparto por creador vive en el ledger interno.
 
 import { onCall, HttpsError } from "firebase-functions/v2/https";
+import * as crypto from "crypto";
 import * as admin from "firebase-admin";
 import { logger } from "firebase-functions";
 import { stripeFetch, stripeSecretKey } from "./stripeClient";
@@ -28,7 +29,13 @@ const db = admin.firestore();
 const REGION = "us-central1";
 
 type StripePI = { id?: string; client_secret?: string; status?: string };
-type StripeInvoice = { id?: string; payment_intent?: StripePI };
+type StripeInvoice = {
+  id?: string;
+  payment_intent?: StripePI;
+  // API reciente de Stripe: el secret para confirmar la 1ª factura vive aquí en vez de
+  // en `payment_intent`. Leemos de cualquiera de los dos.
+  confirmation_secret?: { client_secret?: string };
+};
 type StripeSubscription = { id?: string; status?: string; latest_invoice?: StripeInvoice };
 
 // Las suscripciones de Stripe exigen un Product ID en `price_data` (no acepta product_data
@@ -138,9 +145,12 @@ export const createGroupSubscription = onCall(
 
     const res = await stripeFetch<StripeSubscription>("/subscriptions", {
       method: "POST",
-      // Clave estable por (grupo, usuario): retries dentro de 24h devuelven la MISMA
-      // suscripción en vez de crear duplicados.
-      idempotencyKey: `groupsub_${externalReference}`,
+      // Clave ÚNICA por intento. NO usar una estable por (grupo,usuario): Stripe cachea
+      // la clave 24h con sus params, así que un reintento con params distintos (p. ej.
+      // tras corregir el precio o el código) da idempotency_error. El doble-clic ya lo
+      // frena el flag `submitting` del modal; una suscripción incompleta sin confirmar
+      // se auto-cancela en ~23h.
+      idempotencyKey: crypto.randomUUID(),
       form: {
         customer: customerId,
         // El nombre de la comunidad va en `description` (aparece en la factura de Stripe).
@@ -159,7 +169,7 @@ export const createGroupSubscription = onCall(
         // nueva) o server-side off-session (tarjeta guardada, más abajo).
         payment_behavior: "default_incomplete",
         payment_settings: { save_default_payment_method: "on_subscription" },
-        expand: ["latest_invoice.payment_intent"],
+        expand: ["latest_invoice.payment_intent", "latest_invoice.confirmation_secret"],
         metadata,
         ...(stripePmId ? { default_payment_method: stripePmId } : {}),
       },
@@ -170,9 +180,24 @@ export const createGroupSubscription = onCall(
     }
 
     const subscriptionId = String(res.data.id ?? "");
-    const pi = res.data.latest_invoice?.payment_intent;
+    const invoice = res.data.latest_invoice;
+    const pi = invoice?.payment_intent;
+    // El secret para confirmar la 1ª factura puede venir en payment_intent (API vieja) o
+    // en confirmation_secret (API reciente). Se confirma igual con confirmCardPayment.
+    const clientSecret = pi?.client_secret ?? invoice?.confirmation_secret?.client_secret ?? null;
 
-    // ── Tarjeta guardada: cobra la 1ª factura off-session (sin CVV) ──────────
+    logger.info("createGroupSubscription created", {
+      groupId,
+      uid,
+      subscriptionId,
+      subStatus: res.data.status ?? null,
+      hasPi: !!pi,
+      piStatus: pi?.status ?? null,
+      hasConfirmationSecret: !!invoice?.confirmation_secret?.client_secret,
+      clientSecretFound: !!clientSecret,
+    });
+
+    // ── Tarjeta guardada: cobra la 1ª factura off-session (sin CVV), si tenemos el PI id ──
     if (stripePmId && pi?.id) {
       const conf = await stripeFetch<StripePI>(`/payment_intents/${pi.id}/confirm`, {
         method: "POST",
@@ -187,8 +212,8 @@ export const createGroupSubscription = onCall(
       return { status: conf.data.status ?? "succeeded", clientSecret: conf.data.client_secret, subscriptionId };
     }
 
-    // ── Tarjeta nueva: devuelve el client_secret de la 1ª factura para confirmar con Elements ──
-    return { clientSecret: pi?.client_secret ?? null, status: pi?.status ?? null, subscriptionId };
+    // ── Tarjeta nueva (o guardada sin PI id): devuelve el client_secret para confirmar en el cliente ──
+    return { clientSecret, status: pi?.status ?? null, subscriptionId };
   }
 );
 

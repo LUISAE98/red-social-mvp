@@ -1000,8 +1000,10 @@ return (
           onOpenTile={(tile) => {
             const openUrl = tile.mediaUrl ?? tile.post.media?.[0]?.url ?? null;
             // Los tiles de live y los bloqueados siempre abren (el card resuelve el
-            // VOD, el modal en vivo o el flujo de desbloqueo).
-            if (!tile.isLive && !tile.isLocked && !openUrl) return;
+            // VOD, el modal en vivo o el flujo de desbloqueo). El contenido de pago
+            // ya desbloqueado también: su URL la trae el card desde el
+            // subdocumento protegido (ver useProtectedPlayback).
+            if (!tile.isLive && !tile.isLocked && !tile.isPremiumUnlocked && !openUrl) return;
             setLightboxTile(tile);
           }}
         />

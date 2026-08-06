@@ -184,19 +184,19 @@ export default function GroupJoinRequestsSection({
       ) : null}
 
       <style jsx>{`
+        /* Limpieza de UI: sin caja alrededor de la sección ni relleno de color
+           en el encabezado — la lista de solicitudes va plana como el resto del
+           feed de integrantes. */
         .jrSection {
           margin-top: 12px;
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          border-radius: 12px;
-          overflow: hidden;
         }
         .jrToggle {
           width: 100%;
           display: flex;
           align-items: center;
           gap: 10px;
-          padding: 12px 14px;
-          background: rgba(168, 85, 255, 0.08);
+          padding: 12px 0;
+          background: transparent;
           border: none;
           cursor: pointer;
           text-align: left;
@@ -232,7 +232,7 @@ export default function GroupJoinRequestsSection({
         }
         .jrEmpty {
           margin: 0;
-          padding: 14px;
+          padding: 4px 0 14px;
           font-size: 13px;
           color: rgba(255, 255, 255, 0.5);
         }
@@ -245,8 +245,7 @@ export default function GroupJoinRequestsSection({
           display: flex;
           align-items: center;
           gap: 12px;
-          padding: 10px 14px;
-          border-top: 1px solid rgba(255, 255, 255, 0.06);
+          padding: 8px 0;
         }
         .jrAvatar {
           flex: 0 0 auto;

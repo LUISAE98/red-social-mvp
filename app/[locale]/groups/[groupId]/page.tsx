@@ -1772,7 +1772,7 @@ const avatarNode = (
       >
         {user
           ? subscriptionPrice != null
-            ? tGroups("subscribeForPrice", { price: formatMoney(subscriptionPrice, subscriptionCurrency) })
+            ? tGroups("subscribeForPrice", { price: formatMoneyWithTax(subscriptionPrice + FIXED_SERVICE_FEE_MXN, subscriptionCurrency) })
             : tGroups("subscribeCta")
           : tGroups("loginToSubscribe")}
       </button>

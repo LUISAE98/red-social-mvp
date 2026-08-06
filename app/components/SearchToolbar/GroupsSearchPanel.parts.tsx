@@ -152,6 +152,18 @@ export function isPaidPrivateGroup(group: Community) {
   return group.visibility === "private" && isPaidGroup(group);
 }
 
+/** Precio mensual BASE de la suscripción del grupo (lo que fija el creador), o null. */
+export function resolveSubscriptionBasePrice(group: Community): number | null {
+  const m = group.monetization as Record<string, unknown> | undefined;
+  const p =
+    typeof m?.subscriptionPriceMonthly === "number"
+      ? m.subscriptionPriceMonthly
+      : typeof m?.priceMonthly === "number"
+      ? m.priceMonthly
+      : null;
+  return p != null && Number.isFinite(p) && p > 0 ? p : null;
+}
+
 export function buildUserSearchText(user: PublicUser) {
   return [
     user.handle,

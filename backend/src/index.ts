@@ -223,6 +223,11 @@ export {
 // Group memberships sync
 export { onGroupMembershipMetaUpdated } from "./groupMembershipsSync";
 
+// Al cambiar la visibilidad de la comunidad, resincroniza la copia denormalizada
+// (`groupVisibility` / `isShareable` / `search`) en TODOS sus posts: es la copia
+// que consultan las reglas para decidir quién puede leerlos.
+export { onGroupVisibilityPostsSync } from "./groupPostsVisibilitySync";
+
 // Mux uploads
 export { createMuxDirectUpload, createMuxDonationUpload, createMuxGroupDonationUpload } from "./muxUploads";
 
@@ -230,8 +235,10 @@ export { createMuxDirectUpload, createMuxDonationUpload, createMuxGroupDonationU
 export { muxWebhook } from "./muxWebhooks";
 
 // Blindaje del playback de contenido de pago (el playbackId no puede vivir en el
-// doc del post, que es legible por quien todavía no paga).
+// doc del post, que es legible por quien todavía no paga) + permiso temporal de
+// reproducción para quien sí tiene acceso (playback firmado de Mux).
 export { onPostPlaybackProtection } from "./protectedPlayback";
+export { getMuxPlaybackToken } from "./muxPlaybackToken";
 
 // Shared communities
 export { getSharedCommunitiesWithProfile } from "./sharedCommunities";

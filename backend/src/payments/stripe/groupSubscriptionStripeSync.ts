@@ -36,7 +36,15 @@ type StripeSub = {
   cancel_at_period_end?: boolean;
   metadata?: Record<string, string>;
 };
-type StripeInvoiceObj = { id?: string; subscription?: string; billing_reason?: string };
+type SubDetails = { subscription?: string; metadata?: Record<string, string> };
+type StripeInvoiceObj = {
+  id?: string;
+  subscription?: string; // API vieja (< dahlia)
+  billing_reason?: string;
+  // API reciente (2026-06-24.dahlia): la referencia a la sub + su metadata viven aquí.
+  parent?: { subscription_details?: SubDetails } | null;
+  lines?: { data?: Array<{ period?: { end?: number } }> };
+};
 
 type SubMeta = {
   groupId: string;
@@ -57,10 +65,9 @@ async function fetchSub(subId: string): Promise<StripeSub | null> {
   return r.ok ? r.data : null;
 }
 
-/** Extrae y valida la metadata de suscripción de comunidad; null si no es una nuestra. */
-function subMeta(sub: StripeSub | null): SubMeta | null {
-  const m = sub?.metadata ?? {};
-  if (m.sourceType !== "groupSubscription") return null;
+/** Construye/valida la metadata de suscripción de comunidad desde un mapa; null si no es nuestra. */
+function metaFromMap(m: Record<string, string> | undefined | null): SubMeta | null {
+  if (!m || m.sourceType !== "groupSubscription") return null;
   const groupId = strOr(m.groupId);
   const uid = strOr(m.uid);
   if (!groupId || !uid) return null;
@@ -77,6 +84,23 @@ function subMeta(sub: StripeSub | null): SubMeta | null {
     groupName: strOr(m.groupName),
     inviteToken: strOr(m.inviteToken) || null,
   };
+}
+
+function subMeta(sub: StripeSub | null): SubMeta | null {
+  return metaFromMap(sub?.metadata);
+}
+
+/**
+ * subId + metadata de una factura de suscripción. En dahlia vienen en
+ * `invoice.parent.subscription_details` (la metadata ya viaja en el evento, sin fetch);
+ * en la API vieja está `invoice.subscription` y hay que buscar la sub para la metadata.
+ */
+async function invoiceSub(inv: StripeInvoiceObj): Promise<{ subId: string; meta: SubMeta | null }> {
+  const sd = inv.parent?.subscription_details;
+  const subId = strOr(sd?.subscription) || strOr(inv.subscription);
+  let meta = metaFromMap(sd?.metadata);
+  if (!meta && subId) meta = subMeta(await fetchSub(subId));
+  return { subId, meta };
 }
 
 /** Marca el uso de la invitación (best-effort; solo en la 1ª factura). */
@@ -98,14 +122,13 @@ export async function reconcileStripeSubscriptionEvent(type: string, object: Rec
   // ── Cobro aprobado (primera factura o renovación mensual) ──────────────────
   if (type === "invoice.paid" || type === "invoice.payment_succeeded") {
     const inv = object as StripeInvoiceObj;
-    const subId = strOr(inv.subscription);
-    if (!subId) return; // factura no ligada a suscripción → ignorar
-    const sub = await fetchSub(subId);
-    const meta = subMeta(sub);
-    if (!meta || !sub) return;
+    const { subId, meta } = await invoiceSub(inv);
+    if (!subId || !meta) return; // factura no ligada a una suscripción nuestra → ignorar
     const { groupId, uid, ownerId } = meta;
 
-    const periodEnd = sub.current_period_end ? new Date(sub.current_period_end * 1000) : addMonths(new Date(), 1);
+    // Fin del periodo pagado (accessUntil): del renglón de la factura; si no, +1 mes.
+    const lineEnd = inv.lines?.data?.[0]?.period?.end;
+    const periodEnd = lineEnd ? new Date(lineEnd * 1000) : addMonths(new Date(), 1);
     const subRef = db.collection("groupSubscriptions").doc(`${groupId}_${uid}`);
     const existed = (await subRef.get()).exists;
 
@@ -128,11 +151,11 @@ export async function reconcileStripeSubscriptionEvent(type: string, object: Rec
         currentPeriodEnd: Timestamp.fromDate(periodEnd),
         accessUntil: Timestamp.fromDate(periodEnd),
         gracePeriodEnd: null,
-        cancelAtPeriodEnd: sub.cancel_at_period_end === true,
         lastPaymentAt: FieldValue.serverTimestamp(),
         lastInvoiceId: strOr(inv.id),
         updatedAt: FieldValue.serverTimestamp(),
-        ...(existed ? {} : { createdAt: FieldValue.serverTimestamp() }),
+        // cancelAtPeriodEnd lo sincroniza customer.subscription.updated; al crear, false.
+        ...(existed ? {} : { createdAt: FieldValue.serverTimestamp(), cancelAtPeriodEnd: false }),
       },
       { merge: true }
     );
@@ -176,10 +199,8 @@ export async function reconcileStripeSubscriptionEvent(type: string, object: Rec
   // ── Cobro fallido → 5 días de gracia con acceso ────────────────────────────
   if (type === "invoice.payment_failed") {
     const inv = object as StripeInvoiceObj;
-    const subId = strOr(inv.subscription);
-    if (!subId) return;
-    const meta = subMeta(await fetchSub(subId));
-    if (!meta) return;
+    const { subId, meta } = await invoiceSub(inv);
+    if (!subId || !meta) return;
     const grace = new Date(Date.now() + GRACE_MS);
     await db.collection("groupSubscriptions").doc(`${meta.groupId}_${meta.uid}`).set(
       {

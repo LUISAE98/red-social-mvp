@@ -744,11 +744,14 @@ export function JoinButton({
   onClick,
   loading,
   isPaidSubscriptionPrivate,
+  subscribePriceLabel,
 }: {
   state: RecommendationJoinState;
   onClick: () => void;
   loading: boolean;
   isPaidSubscriptionPrivate: boolean;
+  /** Precio mensual TODO-INCLUIDO (base + $3 + IVA) ya formateado; null si no se conoce. */
+  subscribePriceLabel?: string | null;
 }) {
   const tCommon = useTranslations("common");
   const tGroups = useTranslations("groups");
@@ -760,7 +763,9 @@ export function JoinButton({
         ? tGroups("requestSent")
         : state === "request"
           ? isPaidSubscriptionPrivate
-            ? tGroups("subscribe")
+            ? subscribePriceLabel
+              ? tGroups("subscribeForPrice", { price: subscribePriceLabel })
+              : tGroups("subscribeCta")
             : tGroups("requestAccess")
           : tGroups("join");
 
@@ -853,6 +858,8 @@ export type LiveRec = {
   handle?: string | null;
   groupVisibility?: string | null;
   subscriptionEnabled?: boolean;
+  /** Precio mensual BASE de la suscripción de la comunidad (para el botón "Suscribirme · $"). */
+  subscriptionPriceMonthly?: number | null;
   // Recomendación de lives: categorías (afinidad), inicio (recencia), espectadores.
   categories?: CanonicalGroupCategory[];
   startedAtMs?: number;

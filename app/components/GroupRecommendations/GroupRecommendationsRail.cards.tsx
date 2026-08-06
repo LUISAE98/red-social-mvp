@@ -5,6 +5,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion, type Variants } from "framer-motion";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
+import { FIXED_SERVICE_FEE_MXN } from "@/lib/currency/catalog";
 import { isDisplayCurrency } from "@/lib/currency/catalog";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -272,7 +273,8 @@ export function GroupCard({
   currentUserId: string | null;
 }) {
   const tGroups = useTranslations("groups");
-  const { format: formatMoney } = usePriceFormat();
+  const pf = usePriceFormat();
+  const formatMoney = pf.format;
   const router = useRouter();
   const categoryLabel = group.category
     ? GROUP_CATEGORY_LABELS[group.category]
@@ -300,6 +302,11 @@ export function GroupCard({
             : "MXN",
           code: true,
         })
+      : null;
+  // Precio TODO-INCLUIDO para el botón: (base + $3) + IVA.
+  const subscribeButtonPrice =
+    subscriptionPrice != null
+      ? pf.formatWithTax(subscriptionPrice + FIXED_SERVICE_FEE_MXN, { baseCurrency: "MXN" }).total
       : null;
 
   return (
@@ -481,6 +488,7 @@ export function GroupCard({
             onClick={onJoin}
             loading={loading}
             isPaidSubscriptionPrivate={isPaidSubscriptionPrivate}
+            subscribePriceLabel={subscribeButtonPrice}
           />
         </div>
       </div>
@@ -505,12 +513,24 @@ export function LiveCTAButton({
   const tCommon = useTranslations("common");
   const tGroups = useTranslations("groups");
 
+  const pf = usePriceFormat();
+
   let label: string;
   if (rec.groupId) {
     if (state === "joined") label = tGroups("joined");
     else if (state === "pending") label = tGroups("requestSent");
-    else if (rec.groupVisibility === "private" && rec.subscriptionEnabled) label = tGroups("subscribe");
-    else if (rec.groupVisibility === "private") label = tGroups("requestAccess");
+    else if (rec.groupVisibility === "private" && rec.subscriptionEnabled) {
+      const base =
+        typeof rec.subscriptionPriceMonthly === "number" && rec.subscriptionPriceMonthly > 0
+          ? rec.subscriptionPriceMonthly
+          : null;
+      label =
+        base != null
+          ? tGroups("subscribeForPrice", {
+              price: pf.formatWithTax(base + FIXED_SERVICE_FEE_MXN, { baseCurrency: "MXN" }).total,
+            })
+          : tGroups("subscribeCta");
+    } else if (rec.groupVisibility === "private") label = tGroups("requestAccess");
     else label = tGroups("join");
   } else {
     label = state === "following" ? tCommon("unfollow") : tCommon("follow");

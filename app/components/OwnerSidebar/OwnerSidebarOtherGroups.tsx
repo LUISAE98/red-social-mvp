@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { leaveGroup } from "@/lib/groups/membership";
 import { useTranslations } from "next-intl";
 import { usePriceFormat, type PriceFormatter } from "@/lib/currency/usePriceFormat";
+import { FIXED_SERVICE_FEE_MXN } from "@/lib/currency/catalog";
 import type { DisplayCurrency } from "@/lib/currency/catalog";
 import type { Timestamp } from "firebase/firestore";
 import { useRouter } from "next/navigation";
@@ -50,7 +51,23 @@ export default function OwnerSidebarOtherGroups({
   const tCommon = useTranslations("common");
   const tGroups = useTranslations("groups");
   const tNav = useTranslations("nav");
-  const { format: formatMoney } = usePriceFormat();
+  const pf = usePriceFormat();
+  const formatMoney = pf.format;
+  // Label del botón: "Suscribirme · $total" con el precio TODO-INCLUIDO (base + $3 + IVA).
+  const buildSubscribeLabel = (group: GroupDocLite): string => {
+    const m = group.monetization;
+    const base =
+      typeof m?.subscriptionPriceMonthly === "number"
+        ? m.subscriptionPriceMonthly
+        : typeof m?.priceMonthly === "number"
+        ? m.priceMonthly
+        : null;
+    return base != null && base > 0
+      ? tGroups("subscribeForPrice", {
+          price: pf.formatWithTax(base + FIXED_SERVICE_FEE_MXN, { baseCurrency: "MXN" }).total,
+        })
+      : tGroups("subscribeCta");
+  };
   const router = useRouter();
   const [dismissedGroupIds, setDismissedGroupIds] = useState<Set<string>>(
     () => new Set()
@@ -306,7 +323,7 @@ return (
                 cursor: "pointer",
               }}
             >
-              {tGroups("subscribe")}
+              {buildSubscribeLabel(g)}
             </button>
           </div>
         )}
@@ -459,7 +476,7 @@ return (
                                 cursor: "pointer",
                               }}
                             >
-                              {tGroups("subscribe")}
+                              {buildSubscribeLabel(g)}
                             </button>
                           )}
 

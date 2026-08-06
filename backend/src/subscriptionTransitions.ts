@@ -7,6 +7,7 @@ import {
 } from "firebase-admin/firestore";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
+import { notifySubscriptionTransition } from "./notifications";
 
 if (!getApps().length) {
   initializeApp();
@@ -840,6 +841,11 @@ export const applyGroupSubscriptionTransition = onCall(
     let skippedMembers = 0;
     let reminderMembers = 0;
 
+    // Miembros a notificar tras el commit (avatar de la comunidad, clic → la comunidad).
+    const notifyLegacy: string[] = []; // los dejaron con acceso gratis
+    const notifyRemovedNeedsSub: string[] = []; // los sacaron; ahora requiere suscripción
+    const notifyRemovedNowFree: string[] = []; // los sacaron al volver gratis la comunidad
+
     const memberDocs = membersSnap.docs.filter((docSnap) => {
       const member = (docSnap.data() ?? {}) as MemberDocShape;
       if (shouldSkipMember(member, ownerId)) {
@@ -932,8 +938,10 @@ export const applyGroupSubscriptionTransition = onCall(
               { merge: true }
             );
             reminderMembers += 1;
+            notifyRemovedNeedsSub.push(targetUserId);
           } else {
             batch.delete(reminderRef);
+            notifyRemovedNowFree.push(targetUserId);
           }
 
           removedMembers += 1;
@@ -951,6 +959,7 @@ export const applyGroupSubscriptionTransition = onCall(
           memberStatus !== "banned"
         ) {
           legacyGrantedMembers += 1;
+          notifyLegacy.push(targetUserId);
         }
 
         if (
@@ -969,6 +978,27 @@ export const applyGroupSubscriptionTransition = onCall(
     }
 
     await commitBatches(batches);
+
+    // Notifica a cada miembro afectado (avatar de la comunidad; clic → la comunidad).
+    // Best-effort: si una notificación falla, no tumba la transición.
+    try {
+      const jobs: Promise<unknown>[] = [];
+      for (const uid of notifyLegacy) {
+        jobs.push(notifySubscriptionTransition(groupId, uid, "legacy_free", groupSnap));
+      }
+      for (const uid of notifyRemovedNeedsSub) {
+        jobs.push(notifySubscriptionTransition(groupId, uid, "removed_needs_subscription", groupSnap));
+      }
+      for (const uid of notifyRemovedNowFree) {
+        jobs.push(notifySubscriptionTransition(groupId, uid, "removed_now_free", groupSnap));
+      }
+      await Promise.allSettled(jobs);
+    } catch (notifyErr) {
+      logger.warn("subscription transition notify failed", {
+        groupId,
+        err: notifyErr instanceof Error ? notifyErr.message : String(notifyErr),
+      });
+    }
 
     await groupRef.set(
       {
@@ -1101,6 +1131,7 @@ export const removeLegacyFreeMembersAfterSubscriptionTransition = onCall(
     let removedMembers = 0;
     let reminderMembers = 0;
     let skippedMembers = 0;
+    const notifyRemoved: string[] = []; // los sacaron; ahora requiere suscripción
 
     const memberDocs = membersSnap.docs.filter((docSnap) => {
       const member = (docSnap.data() ?? {}) as MemberDocShape;
@@ -1173,12 +1204,27 @@ export const removeLegacyFreeMembersAfterSubscriptionTransition = onCall(
         updatedMembers += 1;
         removedMembers += 1;
         reminderMembers += 1;
+        notifyRemoved.push(targetUserId);
       }
 
       batches.push(batch);
     }
 
     await commitBatches(batches);
+
+    // Notifica a cada miembro sacado (avatar de la comunidad; clic → la comunidad).
+    try {
+      await Promise.allSettled(
+        notifyRemoved.map((uid) =>
+          notifySubscriptionTransition(groupId, uid, "removed_needs_subscription", groupSnap)
+        )
+      );
+    } catch (notifyErr) {
+      logger.warn("legacy removal notify failed", {
+        groupId,
+        err: notifyErr instanceof Error ? notifyErr.message : String(notifyErr),
+      });
+    }
 
     await groupRef.set(
       {

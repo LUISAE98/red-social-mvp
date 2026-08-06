@@ -32,6 +32,8 @@ import {
   unmuteGroupMember,
 } from "../../../../../lib/groups/groupModeration";
 import GroupJoinRequestsSection from "./GroupJoinRequestsSection";
+// Switch canónico compartido con la configuración de servicios (perfil ⇄ comunidad).
+import { Switch } from "@/components/services/config/serviceConfigKit";
 import {
   Chevron, membersMemoryCache,
   getMutedUntilDate, memberInitials, memberPrimaryName, normalizeRole,
@@ -537,13 +539,12 @@ export default function GroupMembersTab({
     fontFamily: fontStack,
   };
 
+  // Limpieza de UI: el feed de integrantes ya no vive dentro de una tarjeta.
+  // Sin borde, sin relleno de color y sin blur — el contenido respira directo
+  // sobre el fondo de la comunidad.
   const cardStyle: CSSProperties = {
-    borderRadius: 16,
-    border: "1px solid rgba(255,255,255,0.10)",
-    background: "rgba(255,255,255,0.028)",
-    padding: isMobile ? 12 : 14,
+    padding: 0,
     color: "#fff",
-    backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)",
     boxSizing: "border-box",
     overflow: "visible",
   };
@@ -603,31 +604,6 @@ export default function GroupMembersTab({
     color: "rgba(255,255,255,0.58)",
   };
 
-  const switchButtonStyle: CSSProperties = {
-    position: "relative",
-    width: 36,
-    height: 20,
-    borderRadius: 999,
-    border: "1px solid rgba(255,255,255,0.12)",
-    background: safeCanMembersViewList ? "#ffffff" : "rgba(255,255,255,0.10)",
-    transition: "all 0.2s ease",
-    cursor: savingVisibility ? "not-allowed" : "pointer",
-    flexShrink: 0,
-    padding: 0,
-    opacity: savingVisibility ? 0.7 : 1,
-  };
-
-  const switchThumbStyle: CSSProperties = {
-    position: "absolute",
-    top: 2,
-    left: safeCanMembersViewList ? 18 : 2,
-    width: 14,
-    height: 14,
-    borderRadius: "50%",
-    background: safeCanMembersViewList ? "#000" : "#fff",
-    transition: "all 0.2s ease",
-  };
-
   const controlsRow: CSSProperties = {
     display: "grid",
     gridTemplateColumns: canUseFilters
@@ -639,14 +615,15 @@ export default function GroupMembersTab({
     marginTop: 12,
   };
 
+  // Campo canónico de vibra_style.md: sin borde, relleno tenue, radio 12.
   const inputStyle: CSSProperties = {
     width: "100%",
     height: isMobile ? 36 : 40,
-    borderRadius: 8,
-    border: "1px solid rgba(255,255,255,0.12)",
-    background: "rgba(255,255,255,0.035)",
+    borderRadius: 12,
+    border: "none",
+    background: "rgba(255,255,255,0.06)",
     color: "#fff",
-    padding: isMobile ? "0 10px" : "0 11px",
+    padding: isMobile ? "0 12px" : "0 12px",
     outline: "none",
     fontSize: isMobile ? 11.5 : 12.5,
     fontWeight: 400,
@@ -659,7 +636,8 @@ export default function GroupMembersTab({
   const selectStyle: CSSProperties = {
     ...inputStyle,
     cursor: "pointer",
-    background: isMobile ? "#111" : "rgba(255,255,255,0.035)",
+    // En celular el desplegable nativo necesita fondo opaco para leerse.
+    background: isMobile ? "#111" : "rgba(255,255,255,0.06)",
   };
 
   const helperText: CSSProperties = {
@@ -677,12 +655,13 @@ export default function GroupMembersTab({
     overflow: "visible",
   };
 
+  // Botón de acciones: solo el icono, sin píldora alrededor.
   const leftMenuButtonStyle: CSSProperties = {
     width: isMobile ? 26 : 28,
     height: isMobile ? 26 : 28,
     borderRadius: 999,
-    border: "1px solid rgba(255,255,255,0.10)",
-    background: "rgba(255,255,255,0.03)",
+    border: "none",
+    background: "transparent",
     display: "grid",
     placeItems: "center",
     padding: 0,
@@ -690,6 +669,8 @@ export default function GroupMembersTab({
     flexShrink: 0,
   };
 
+  // Avatar sin aro. Conserva un relleno tenue porque es el fondo de las
+  // iniciales cuando la persona no tiene foto.
   const avatarStyle: CSSProperties = {
     width: isMobile ? 34 : 42,
     height: isMobile ? 34 : 42,
@@ -698,7 +679,6 @@ export default function GroupMembersTab({
     display: "grid",
     placeItems: "center",
     background: "rgba(255,255,255,0.06)",
-    border: "1px solid rgba(255,255,255,0.10)",
     color: "#fff",
     fontSize: isMobile ? 10.5 : 12,
     fontWeight: 700,
@@ -768,16 +748,14 @@ export default function GroupMembersTab({
     background: "rgba(255,255,255,0.10)",
   };
 
+  // El rol es texto, no una píldora.
   const roleBadge: CSSProperties = {
     minWidth: isMobile ? 86 : 104,
-    textAlign: "center",
-    borderRadius: 999,
-    border: "1px solid rgba(255,255,255,0.10)",
-    background: "rgba(255,255,255,0.05)",
-    padding: isMobile ? "6px 8px" : "8px 11px",
+    textAlign: "right",
+    padding: 0,
     fontSize: isMobile ? 9.5 : 11.5,
     fontWeight: 500,
-    color: "#fff",
+    color: "rgba(255,255,255,0.68)",
     whiteSpace: "nowrap",
     lineHeight: 1.1,
   };
@@ -822,12 +800,10 @@ export default function GroupMembersTab({
     cursor: "not-allowed",
   };
 
+  // Mensajes (vacío / resultado de una acción): texto suelto, sin caja.
   const emptyStyle: CSSProperties = {
     marginTop: 14,
-    borderRadius: 10,
-    border: "1px solid rgba(255,255,255,0.08)",
-    background: "rgba(255,255,255,0.03)",
-    padding: isMobile ? "10px 11px" : "11px 12px",
+    padding: 0,
     fontSize: isMobile ? 10.5 : 11.5,
     lineHeight: 1.35,
     color: "rgba(255,255,255,0.72)",
@@ -835,10 +811,7 @@ export default function GroupMembersTab({
 
   const actionNoticeStyle: CSSProperties = {
     marginTop: 12,
-    borderRadius: 10,
-    border: "1px solid rgba(255,255,255,0.08)",
-    background: "rgba(255,255,255,0.03)",
-    padding: isMobile ? "10px 11px" : "11px 12px",
+    padding: 0,
     fontSize: isMobile ? 10.5 : 11.5,
     lineHeight: 1.35,
     color: "rgba(255,255,255,0.82)",
@@ -929,22 +902,23 @@ export default function GroupMembersTab({
           {isOwner && (
             <div style={visibilityRow}>
               <div style={switchTextWrap}>
-                <div style={switchTitleStyle}>Permitir lista visible</div>
-                <div style={switchSubtitleStyle}>Acceso para miembros</div>
+                <div style={switchTitleStyle}>
+                  {tGroups("allowMembersViewListTitle")}
+                </div>
+                <div style={switchSubtitleStyle}>
+                  {tGroups("allowMembersViewListDescription")}
+                </div>
               </div>
 
-              <button
-                type="button"
-                aria-pressed={safeCanMembersViewList}
-                aria-label={tGroups("allowMembersViewListLabel")}
-                onClick={() =>
-                  handleToggleMembersVisibility(!safeCanMembersViewList)
-                }
+              {/* Switch canónico compartido (mismo de la config de servicios),
+                  en el morado de marca. */}
+              <Switch
+                checked={safeCanMembersViewList}
                 disabled={savingVisibility}
-                style={switchButtonStyle}
-              >
-                <span style={switchThumbStyle} />
-              </button>
+                onChange={(next) => handleToggleMembersVisibility(next)}
+                activeColor="#a855f7"
+                label={tGroups("allowMembersViewListLabel")}
+              />
             </div>
           )}
         </div>
@@ -1035,6 +1009,8 @@ export default function GroupMembersTab({
               const isProcessing = actionLoadingForUid === member.resolvedUid;
               const actions = getAvailableActions(member);
 
+              // Fila plana: sin tarjeta propia (ni borde ni fondo). Solo el
+              // ritmo vertical separa a un integrante del siguiente.
               const rowStyle: CSSProperties = {
                 display: "grid",
                 gridTemplateColumns: canManage && actions.length > 0
@@ -1046,10 +1022,7 @@ export default function GroupMembersTab({
                     : "42px minmax(0, 1fr) auto",
                 gap: isMobile ? 8 : 12,
                 alignItems: "center",
-                borderRadius: 12,
-                border: "1px solid rgba(255,255,255,0.08)",
-                background: "rgba(255,255,255,0.02)",
-                padding: isMobile ? "8px 9px" : "10px 12px",
+                padding: isMobile ? "6px 0" : "8px 0",
                 overflow: "visible",
               };
 

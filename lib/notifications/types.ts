@@ -18,6 +18,7 @@ export type NotificationType =
   | "group_new_member"
   | "group_new_subscriber"
   | "group_moderation"
+  | "group_subscription_transition"
   | "new_post"
   | "live_started"
   | "live_vod_ready"
@@ -46,6 +47,7 @@ export interface NotificationTarget {
   reason?: string | null;
   /**
    * group_moderation: acción ("muted" | "kicked" | "banned").
+   * group_subscription_transition: "legacy_free" | "removed_needs_subscription" | "removed_now_free".
    * kyc_update: estado ("approved" | "declined" | "in_review" | "pending").
    */
   action?: string | null;
@@ -103,6 +105,7 @@ export const KNOWN_NOTIFICATION_TYPES: ReadonlySet<NotificationType> = new Set([
   "group_new_member",
   "group_new_subscriber",
   "group_moderation",
+  "group_subscription_transition",
   "new_post",
   "live_started",
   "live_vod_ready",
@@ -145,6 +148,9 @@ export function notificationHref(n: AppNotification, selfHandle?: string | null)
     case "join_rejected":
     case "group_new_member":
     case "group_new_subscriber":
+    case "group_subscription_transition":
+      // Sacado o dejado legado → siempre a la comunidad (para re-suscribirse,
+      // re-unirse, o ver su acceso gratis).
     case "invite_expired":
       return n.target.groupId ? `/groups/${n.target.groupId}` : "/notifications";
     default:

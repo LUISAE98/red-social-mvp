@@ -28,6 +28,14 @@
 import { onDocumentWritten } from "firebase-functions/v2/firestore";
 import * as admin from "firebase-admin";
 import * as logger from "firebase-functions/logger";
+import { muxTokenId, muxTokenSecret } from "./mux";
+import { ensureSignedPlaybackId } from "./muxSignedAssets";
+import {
+  buildSignedThumbnailUrl,
+  isMuxSigningConfigured,
+  muxSigningKeyId,
+  muxSigningPrivateKey,
+} from "./muxSigning";
 
 if (admin.apps.length === 0) {
   admin.initializeApp();
@@ -181,15 +189,207 @@ function buildRestorePatch(post: AnyRecord, secret: AnyRecord): AnyRecord | null
   return Object.keys(patch).length > 0 ? patch : null;
 }
 
+/**
+ * Segunda capa: pasa los assets de Mux del post a reproducción FIRMADA.
+ *
+ * Esconder el playbackId (capa 1) evita que un desconocido lo saque del feed,
+ * pero quien SÍ tiene acceso recibe una URL pública que puede reenviar y que no
+ * caduca nunca. Con playback firmado esa URL deja de servir sola: hay que pedir
+ * un token con caducidad (ver `getMuxPlaybackToken`).
+ *
+ * Es idempotente y se salta entera si aún no hay llave de firma configurada.
+ */
+async function upgradeToSignedPlayback(params: {
+  postId: string;
+  postRef: FirebaseFirestore.DocumentReference;
+  secretRef: FirebaseFirestore.DocumentReference;
+  secret: AnyRecord;
+}): Promise<void> {
+  const { postId, postRef, secretRef, secret } = params;
+
+  if (secret.playbackPolicy === "signed") return;
+  if (!isMuxSigningConfigured()) {
+    logger.warn("protectedPlayback: sin llave de firma, el asset sigue público", { postId });
+    return;
+  }
+
+  // Pares (assetId → playbackId) que hay que convertir. `liveData` queda fuera:
+  // los lives de Cloudflare no son assets de Mux.
+  const sources = [asRecord(secret.videoData), asRecord(secret.playback)].filter(
+    Boolean
+  ) as AnyRecord[];
+
+  const mediaSecrets = asRecord(secret.media);
+  if (mediaSecrets) {
+    for (const value of Object.values(mediaSecrets)) {
+      const item = asRecord(value);
+      if (item) sources.push(item);
+    }
+  }
+
+  const assetIds = new Set<string>();
+  for (const source of sources) {
+    const assetId = nonEmptyString(source.assetId);
+    if (assetId) assetIds.add(assetId);
+  }
+
+  if (assetIds.size === 0) return;
+
+  // assetId → nuevo playbackId firmado.
+  const signedByAsset = new Map<string, string>();
+  for (const assetId of assetIds) {
+    try {
+      const signedId = await ensureSignedPlaybackId(assetId);
+      if (signedId) signedByAsset.set(assetId, signedId);
+    } catch (error) {
+      logger.error("protectedPlayback: fallo al firmar el asset", {
+        postId,
+        assetId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return; // sin conversión completa no se toca nada: mejor reintentar luego.
+    }
+  }
+
+  if (signedByAsset.size === 0) return;
+
+  /** Reescribe un bloque con el playbackId firmado y sin URL directa. */
+  function withSignedId(source: AnyRecord | null): AnyRecord | null {
+    if (!source) return null;
+    const assetId = nonEmptyString(source.assetId);
+    const signedId = assetId ? signedByAsset.get(assetId) : null;
+    if (!signedId) return source;
+    return {
+      ...source,
+      playbackId: signedId,
+      // La URL sin token ya no sirve: el cliente la compone al pedir el permiso.
+      url: null,
+      hlsUrl: null,
+      mp4Url: null,
+    };
+  }
+
+  const secretPatch: AnyRecord = { playbackPolicy: "signed" };
+
+  const nextVideoData = withSignedId(asRecord(secret.videoData));
+  if (nextVideoData) secretPatch.videoData = nextVideoData;
+
+  const nextPlayback = withSignedId(asRecord(secret.playback));
+  if (nextPlayback) secretPatch.playback = nextPlayback;
+
+  if (mediaSecrets) {
+    const nextMedia: AnyRecord = {};
+    for (const [key, value] of Object.entries(mediaSecrets)) {
+      nextMedia[key] = withSignedId(asRecord(value)) ?? value;
+    }
+    secretPatch.media = nextMedia;
+  }
+
+  await secretRef.set(secretPatch, { merge: true });
+
+  // La MINIATURA sí la ve quien no ha pagado (es la portada del paywall). Al
+  // retirar el playbackId público, TODA URL de image.mux.com que lo usara queda
+  // rota, así que se reescriben con la miniatura firmada de vida larga. Un token
+  // de miniatura (`aud: "t"`) no abre el video.
+  try {
+    const thumbnailByOldId = new Map<string, string>();
+    for (const source of sources) {
+      const oldId = nonEmptyString(source.playbackId);
+      const assetId = nonEmptyString(source.assetId);
+      const signedId = assetId ? signedByAsset.get(assetId) : null;
+      if (oldId && signedId) {
+        thumbnailByOldId.set(oldId, buildSignedThumbnailUrl(signedId));
+      }
+    }
+
+    if (thumbnailByOldId.size > 0) {
+      /** Sustituye cualquier miniatura de Mux que apunte a un id ya retirado. */
+      const rewriteThumb = (value: unknown): string | null => {
+        const url = nonEmptyString(value);
+        if (!url || !url.includes("image.mux.com")) return null;
+        for (const [oldId, signedUrl] of thumbnailByOldId) {
+          if (url.includes(oldId)) return signedUrl;
+        }
+        return null;
+      };
+
+      const freshSnap = await postRef.get();
+      const freshPost = (freshSnap.data() ?? {}) as AnyRecord;
+      const patch: AnyRecord = {};
+
+      for (const field of ["videoData", "playback"] as const) {
+        const block = asRecord(freshPost[field]);
+        if (!block) continue;
+        const nextThumb = rewriteThumb(block.muxThumbnailUrl);
+        const nextMain = rewriteThumb(block.thumbnailUrl);
+        if (nextThumb || nextMain) {
+          patch[field] = {
+            ...block,
+            ...(nextThumb ? { muxThumbnailUrl: nextThumb } : {}),
+            ...(nextMain ? { thumbnailUrl: nextMain } : {}),
+          };
+        }
+      }
+
+      if (Array.isArray(freshPost.media)) {
+        let mediaTouched = false;
+        const nextMedia = freshPost.media.map((raw) => {
+          const item = asRecord(raw);
+          if (!item) return raw;
+          const nextThumb = rewriteThumb(item.muxThumbnailUrl);
+          const nextMain = rewriteThumb(item.thumbnailUrl);
+          if (!nextThumb && !nextMain) return raw;
+          mediaTouched = true;
+          return {
+            ...item,
+            ...(nextThumb ? { muxThumbnailUrl: nextThumb } : {}),
+            ...(nextMain ? { thumbnailUrl: nextMain } : {}),
+          };
+        });
+        if (mediaTouched) patch.media = nextMedia;
+      }
+
+      const nextShareImage = rewriteThumb(freshPost.shareImageUrl);
+      if (nextShareImage) patch.shareImageUrl = nextShareImage;
+
+      if (Object.keys(patch).length > 0) {
+        await postRef.set(patch, { merge: true });
+      }
+    }
+  } catch (error) {
+    logger.warn("protectedPlayback: no se pudieron reescribir las miniaturas", {
+      postId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+
+  logger.info("protectedPlayback: assets convertidos a playback firmado", {
+    postId,
+    assets: [...signedByAsset.keys()],
+  });
+}
+
 export async function syncProtectedPlayback(postId: string, post: AnyRecord): Promise<void> {
   const postRef = db.collection("posts").doc(postId);
   const secretRef = postRef.collection("protectedPlayback").doc(PROTECTED_PLAYBACK_DOC);
 
   if (isPaidPost(post)) {
     const extraction = extractFromPaidPost(post);
-    // Nada que blindar: o no tiene video, o ya está redactado (2ª pasada del
-    // trigger tras nuestra propia escritura → corta el bucle aquí).
-    if (!extraction) return;
+
+    // Nada nuevo que blindar (o ya estaba redactado): aun así hay que revisar que
+    // el asset esté firmado, porque la conversión pudo fallar en una pasada previa.
+    if (!extraction) {
+      const currentSecret = await secretRef.get();
+      if (currentSecret.exists) {
+        await upgradeToSignedPlayback({
+          postId,
+          postRef,
+          secretRef,
+          secret: currentSecret.data() ?? {},
+        });
+      }
+      return;
+    }
 
     await secretRef.set(
       {
@@ -206,6 +406,14 @@ export async function syncProtectedPlayback(postId: string, post: AnyRecord): Pr
       postId,
       keys: Object.keys(extraction.secret),
     });
+
+    const secretSnap = await secretRef.get();
+    await upgradeToSignedPlayback({
+      postId,
+      postRef,
+      secretRef,
+      secret: secretSnap.data() ?? {},
+    });
     return;
   }
 
@@ -221,7 +429,11 @@ export async function syncProtectedPlayback(postId: string, post: AnyRecord): Pr
 }
 
 export const onPostPlaybackProtection = onDocumentWritten(
-  { document: "posts/{postId}", region: REGION },
+  {
+    document: "posts/{postId}",
+    region: REGION,
+    secrets: [muxTokenId, muxTokenSecret, muxSigningKeyId, muxSigningPrivateKey],
+  },
   async (event) => {
     const after = event.data?.after;
     if (!after?.exists) return;

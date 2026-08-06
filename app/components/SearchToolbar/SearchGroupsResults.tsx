@@ -15,9 +15,12 @@ import { SearchRowSkeletonList } from "./SearchResultSkeleton";
 
 import {
   offersExperiences,
+  resolveSubscriptionBasePrice,
   type CanonicalMemberStatus,
   type Community,
 } from "./GroupsSearchPanel";
+import { usePriceFormat } from "@/lib/currency/usePriceFormat";
+import { FIXED_SERVICE_FEE_MXN } from "@/lib/currency/catalog";
 
 const GROUP_SKELETON_COUNT = 14;
 
@@ -103,6 +106,7 @@ export default function SearchGroupsResults({
 }: SearchGroupsResultsProps) {
   const tGroups = useTranslations("groups");
   const tCommon = useTranslations("common");
+  const pf = usePriceFormat();
 
   const [isMobile, setIsMobile] = useState(false);
   const [visibleCount, setVisibleCount] = useState(10);
@@ -336,7 +340,14 @@ export default function SearchGroupsResults({
                 className="primary-btn subscribe-btn"
                 type="button"
               >
-                💎 {tGroups("subscribe")}
+                {(() => {
+                  const base = resolveSubscriptionBasePrice(group);
+                  return base != null
+                    ? tGroups("subscribeForPrice", {
+                        price: pf.formatWithTax(base + FIXED_SERVICE_FEE_MXN, { baseCurrency: "MXN" }).total,
+                      })
+                    : tGroups("subscribeCta");
+                })()}
               </button>
             )}
 

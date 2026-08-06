@@ -128,7 +128,9 @@ type Props = {
   subtleStyle: React.CSSProperties;
   descriptionStyle: React.CSSProperties;
   inputStyle: React.CSSProperties;
-  buttonSecondaryStyle: React.CSSProperties;
+  /** Ya no se usa: las acciones de esta card son texto plano en el color del
+   *  servicio. Se conserva en el tipo porque el padre lo sigue pasando. */
+  buttonSecondaryStyle?: React.CSSProperties;
 
   calcNetAmount: (raw: string) => { gross: number; net: number } | null;
   formatMoney: (value: number, currency: Currency) => string;
@@ -303,7 +305,6 @@ export default function Subscription({
   subtleStyle,
   descriptionStyle,
   inputStyle,
-  buttonSecondaryStyle,
   calcNetAmount,
   formatMoney,
   SwitchComponent,
@@ -461,52 +462,126 @@ function handleModify() {
   openOverlay("edit", draft);
 }
 
-  function renderSummary() {
-    if (!draft.subscription.enabled || disabledByVisibility) return null;
+  // Miembros heredados gratuitos: vive DENTRO del card de suscripción, entre los
+  // items informativos y el precio configurado. Solo existe mientras queden
+  // miembros con acceso gratis heredado; al sacarlos, desaparece solo.
+  // Formato compacto (una fila de título + conteo) para no romper el card.
+  function renderLegacyMembers() {
+    if (!canRemoveLegacyFreeMembersLater) return null;
 
     return (
       <div
         style={{
           display: "grid",
-          gap: 10,
-          padding: "10px",
-          borderRadius: 12,
-          border: "1px solid rgba(255,255,255,0.08)",
-          background: "rgba(255,255,255,0.03)",
+          gap: 5,
+          marginTop: 12,
+          paddingTop: 12,
+          borderTop: "1px solid rgba(255,255,255,0.08)",
         }}
       >
-        <div style={{ display: "grid", gap: 4 }}>
-          <div style={subtleStyle}>{tServices("subscriptionSummaryPriceLabel")}</div>
-          <div style={{ color: "#fff", fontSize: 14, fontWeight: 700 }}>
-            {draft.subscription.price
-              ? formatMoney(Number(draft.subscription.price), draft.subscription.currency)
-              : `0 ${draft.subscription.currency}`}
-          </div>
-        </div>
+        <span style={{ ...titleStyle, fontSize: 13 }}>
+          {tServices("removeLegacyMembersTitle")}
+        </span>
 
-        {subscriptionCalc ? (
-          <div style={subtleStyle}>
-            {tServices("subscriptionCalculationMessage", {
-              price: formatMoney(subscriptionCalc.gross, draft.subscription.currency),
-              netAmount: formatMoney(subscriptionCalc.net, draft.subscription.currency),
-            })}
-          </div>
-        ) : null}
+        <span style={{ ...subtleStyle, fontSize: 11.5 }}>
+          {tServices("removeLegacyMembersDescription")}
+        </span>
 
+        {/* La acción es texto plano en el azul del servicio, igual que "Modificar",
+            y lleva el conteo dentro para que se entienda a quién afecta. */}
         <button
           type="button"
-          onClick={handleModify}
+          onClick={() => setShowRemoveLegacyMembersModal(true)}
           disabled={isBusy}
           style={{
-            ...buttonSecondaryStyle,
-            width: "auto",
+            background: "none",
+            border: "none",
+            padding: 0,
+            marginTop: 2,
             justifySelf: "flex-start",
-            opacity: isBusy ? 0.7 : 1,
+            textAlign: "left",
+            color: SUBSCRIPTION_ACCENT,
+            fontSize: 14,
+            fontWeight: 600,
+            lineHeight: 1.35,
             cursor: isBusy ? "not-allowed" : "pointer",
+            opacity: isBusy ? 0.7 : 1,
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 8,
           }}
         >
-          {tServices("subscriptionModifyButton")}
+          {removingLegacyMembers ? (
+            <>
+              <SpinningGearComponent />
+              {tServices("removingLegacyMembersButton")}
+            </>
+          ) : (
+            tServices("removeLegacyMembersCta", { count: activeLegacyFreeMembersCount })
+          )}
         </button>
+      </div>
+    );
+  }
+
+  // Resumen de la suscripción activa: MISMO patrón que saludos/consejos/meet&greet
+  // (sin caja alrededor) — "Modificar" como texto plano a la izquierda y el precio
+  // grande abajo a la derecha. Aquí el acento es el azul de suscripción.
+  function renderSummary() {
+    if (!draft.subscription.enabled || disabledByVisibility) return null;
+
+    return (
+      <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 12 }}>
+        {/* Izquierda: botón Modificar (texto plano, color del precio). */}
+        <div style={{ display: "grid", gap: 8, minWidth: 0 }}>
+          <button
+            type="button"
+            onClick={handleModify}
+            disabled={isBusy}
+            style={{
+              background: "none",
+              border: "none",
+              padding: 0,
+              justifySelf: "flex-start",
+              color: SUBSCRIPTION_ACCENT,
+              fontSize: 14,
+              fontWeight: 600,
+              cursor: isBusy ? "not-allowed" : "pointer",
+              opacity: isBusy ? 0.7 : 1,
+            }}
+          >
+            {tServices("subscriptionModifyButton")}
+          </button>
+        </div>
+
+        {/* Esquina inferior derecha: precio grande (estilo del feed, +40%) + 3 MXN. */}
+        <div style={{ display: "grid", gap: 2, justifyItems: "end", textAlign: "right", flexShrink: 0 }}>
+          <div style={subtleStyle}>{tServices("subscriptionSummaryPriceLabel")}</div>
+          <div style={{ display: "flex", alignItems: "baseline", gap: 6, whiteSpace: "nowrap" }}>
+            <span
+              style={{
+                fontSize: 31,
+                fontWeight: 600,
+                color: SUBSCRIPTION_ACCENT,
+                lineHeight: 1,
+                fontVariantNumeric: "tabular-nums",
+              }}
+            >
+              {draft.subscription.price
+                ? formatMoney(Number(draft.subscription.price), draft.subscription.currency)
+                : `0 ${draft.subscription.currency}`}
+            </span>
+            <span style={{ fontSize: 12, fontWeight: 400, color: "rgba(255,255,255,0.5)" }}>+ 3 MXN</span>
+          </div>
+          {subscriptionCalc ? (
+            <div style={{ ...subtleStyle, textAlign: "right", whiteSpace: "nowrap", marginTop: 2 }}>
+              {tServices("subscriptionCalculationMessage", {
+                price: formatMoney(subscriptionCalc.gross, draft.subscription.currency),
+                netAmount: formatMoney(subscriptionCalc.net, draft.subscription.currency),
+              })}
+            </div>
+          ) : null}
+        </div>
       </div>
     );
   }
@@ -634,54 +709,10 @@ function handleModify() {
   </>
 )}
 
+          {renderLegacyMembers()}
+
           {renderSummary()}
         </div>
-
-        {canRemoveLegacyFreeMembersLater && (
-          <div style={panelStyle}>
-            <div style={{ display: "grid", gap: 2 }}>
-              <span style={titleStyle}>{tServices("removeLegacyMembersTitle")}</span>
-              <span style={subtleStyle}>
-                {tServices("removeLegacyMembersDescription")}
-              </span>
-            </div>
-
-            <div style={subtleStyle}>
-              {tServices("removeLegacyMembersCountLabel")}{" "}
-              <strong style={{ color: "#fff" }}>
-                {activeLegacyFreeMembersCount}
-              </strong>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => setShowRemoveLegacyMembersModal(true)}
-              disabled={isBusy}
-              style={{
-                ...buttonSecondaryStyle,
-                opacity: isBusy ? 0.7 : 1,
-                cursor: isBusy ? "not-allowed" : "pointer",
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 8,
-              }}
-            >
-              {removingLegacyMembers ? (
-                <>
-                  <SpinningGearComponent />
-                  {tServices("removingLegacyMembersButton")}
-                </>
-              ) : (
-                tServices("removeLegacyMembersButton")
-              )}
-            </button>
-
-            <div style={subtleStyle}>
-              {tServices("removeLegacyMembersWarning")}
-            </div>
-          </div>
-        )}
       </div>
 
       <OverlayModalComponent

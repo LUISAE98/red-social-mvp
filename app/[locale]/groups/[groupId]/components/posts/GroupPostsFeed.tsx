@@ -388,10 +388,18 @@ export default function GroupPostsFeed({
           return;
         }
 
-        setError(
-          (e instanceof Error ? e.message : null) ??
-            "No se pudieron cargar las publicaciones. Intenta de nuevo.",
-        );
+        // Sin acceso al feed (no-miembro de una comunidad privada/de suscripción): NO es
+        // un error del usuario — el landing ya muestra el gate para suscribirse/unirse.
+        // Silenciamos el permission-denied (nada de toast "Missing permissions").
+        if ((e as { code?: string })?.code === "permission-denied") {
+          setPosts([]);
+          setError(null);
+        } else {
+          setError(
+            (e instanceof Error ? e.message : null) ??
+              "No se pudieron cargar las publicaciones. Intenta de nuevo.",
+          );
+        }
       } finally {
         if (mode === "more") {
           loadingMoreRef.current = false;
@@ -1431,7 +1439,9 @@ const shellStyle: CSSProperties = {
             const openUrl = tile.mediaUrl ?? tile.post.media?.[0]?.url ?? null;
             // Los tiles de live (transmisión/VOD) y los bloqueados siempre abren:
             // el card resuelve el VOD, el modal en vivo o el flujo de desbloqueo.
-            if (!tile.isLive && !tile.isLocked && !openUrl) return;
+            // El contenido de pago YA desbloqueado también abre sin URL: la trae
+            // el card desde el subdocumento protegido (ver useProtectedPlayback).
+            if (!tile.isLive && !tile.isLocked && !tile.isPremiumUnlocked && !openUrl) return;
             setLightboxTile(tile);
           }}
         />
