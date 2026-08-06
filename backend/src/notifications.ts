@@ -20,6 +20,7 @@ import { onTaskDispatched } from "firebase-functions/v2/tasks";
 import { logger } from "firebase-functions";
 import * as admin from "firebase-admin";
 import { getFunctions } from "firebase-admin/functions";
+import { usersHaveBlockBetween } from "./social/blocks";
 
 if (admin.apps.length === 0) {
   admin.initializeApp();
@@ -45,6 +46,7 @@ type NotificationType =
   | "group_new_member"
   | "group_new_subscriber"
   | "group_moderation"
+  | "group_subscription_transition"
   | "new_post"
   | "live_started"
   | "live_vod_ready"
@@ -142,6 +144,20 @@ async function emit(opts: {
 }): Promise<void> {
   const { recipientId, groupKey, type, actor, target } = opts;
   if (!recipientId || recipientId === actor.id) return;
+
+  // Bloqueo de perfil: suprime notificaciones peer de CONTEXTO PERFIL (sin groupId)
+  // entre usuarios bloqueados. Las de comunidad (con groupId) y las de sistema/
+  // moderación NO se suprimen (el bloqueo de perfil no se propaga a comunidades).
+  const PROFILE_PEER_TYPES: NotificationType[] = [
+    "post_like", "comment", "reply", "comment_like", "mention", "follow",
+  ];
+  if (
+    !target.groupId &&
+    PROFILE_PEER_TYPES.includes(type) &&
+    (await usersHaveBlockBetween(actor.id, recipientId))
+  ) {
+    return;
+  }
 
   const ref = db
     .collection("users")
@@ -741,6 +757,34 @@ export async function notifyGroupModeration(
     recipientId: targetUserId,
     groupKey: `group_moderation_${groupId}`,
     type: "group_moderation",
+    actor: groupActorOf(group),
+    target: { groupId, groupName: str(group.get("name")), action },
+  });
+}
+
+/**
+ * Avisa a un miembro afectado por una TRANSICIÓN de modelo de la comunidad
+ * (gratis↔suscripción / cambio de precio). `action`:
+ *  · "legacy_free"                → lo dejaron con acceso gratis (sigue dentro).
+ *  · "removed_needs_subscription" → lo sacaron; ahora requiere suscripción.
+ *  · "removed_now_free"           → lo sacaron al volver la comunidad gratis.
+ * La comunidad hace de actor (su avatar). Clic → la comunidad. Idempotente por grupo:
+ * un solo doc por comunidad (refleja la última transición). Best-effort desde
+ * `subscriptionTransitions.ts` tras aplicar la transición. `groupSnap` opcional para
+ * no releer el grupo por cada miembro.
+ */
+export async function notifySubscriptionTransition(
+  groupId: string,
+  targetUserId: string,
+  action: "legacy_free" | "removed_needs_subscription" | "removed_now_free",
+  groupSnap?: admin.firestore.DocumentSnapshot
+): Promise<void> {
+  const group = groupSnap ?? (await db.collection("groups").doc(groupId).get());
+  if (!group.exists) return;
+  await emit({
+    recipientId: targetUserId,
+    groupKey: `group_subscription_transition_${groupId}`,
+    type: "group_subscription_transition",
     actor: groupActorOf(group),
     target: { groupId, groupName: str(group.get("name")), action },
   });

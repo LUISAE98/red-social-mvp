@@ -1,5 +1,6 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { FieldValue, getFirestore } from "firebase-admin/firestore";
+import { usersHaveBlockBetweenTx } from "./social/blocks";
 
 type TogglePostFlameRequest = {
   postId?: string;
@@ -93,6 +94,23 @@ export const togglePostFlame = onCall<TogglePostFlameRequest>(
         postData.contextType === "profile" ? "profile" : "group";
       const groupId =
         typeof postData.groupId === "string" ? postData.groupId : null;
+
+      // Bloqueo de perfil: no se puede reaccionar a un post de un perfil con el que
+      // hay bloqueo (en cualquier sentido). Lectura transaccional antes de escribir.
+      if (contextType === "profile") {
+        const profileId =
+          typeof postData.profileId === "string" ? postData.profileId : null;
+        if (
+          profileId &&
+          profileId !== uid &&
+          (await usersHaveBlockBetweenTx(transaction, uid, profileId))
+        ) {
+          throw new HttpsError(
+            "permission-denied",
+            "No puedes reaccionar a este contenido."
+          );
+        }
+      }
 
       let groupCategory: string | null = null;
       if (contextType === "group" && groupId) {

@@ -101,6 +101,15 @@ export async function activateSubscribedMembership(
 
   await db.runTransaction(async (tx) => {
     const [memberSnap, userSnap] = await Promise.all([tx.get(memberRef), tx.get(userMembershipRef)]);
+
+    // No reactivar (ni dar acceso a) un miembro BANEADO aunque entre un cobro de
+    // suscripción. El flujo de ban cancela la suscripción; esto es defensa por si
+    // un cobro se cuela antes de la cancelación. Se preserva el status "banned".
+    if (memberSnap.exists && memberSnap.data()?.status === "banned") {
+      logger.warn("activateSubscribedMembership: omitido, miembro baneado", { groupId, uid });
+      return;
+    }
+
     const firstTime = !memberSnap.exists || memberSnap.data()?.subscribedAt == null;
     const stamp = firstTime
       ? { subscribedAt: FieldValue.serverTimestamp(), joinedAt: FieldValue.serverTimestamp(), joinSource: "subscription" }

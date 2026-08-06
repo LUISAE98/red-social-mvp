@@ -92,6 +92,31 @@ export const createSuperCommentStripeIntent = onCall(
       throw new HttpsError("failed-precondition", "No puedes enviarte un supercomentario a ti mismo.");
     }
 
+    // Sanciones: un usuario silenciado/baneado NO puede supercomentar/donar, aunque
+    // los supercomentarios/donaciones estén abiertos a no-miembros. Se revisa el
+    // muteo/ban del propio live (liveData) y del grupo dueño (member status).
+    const liveData = (post.liveData ?? {}) as Record<string, unknown>;
+    const mutedInLive = Array.isArray(liveData.mutedUsers) && (liveData.mutedUsers as unknown[]).includes(uid);
+    const bannedInLive = Array.isArray(liveData.bannedUsers) && (liveData.bannedUsers as unknown[]).includes(uid);
+    if (mutedInLive || bannedInLive) {
+      throw new HttpsError("permission-denied", "Estás silenciado o bloqueado en este en vivo.");
+    }
+    const liveGroupId = post.groupId ? String(post.groupId) : "";
+    if (liveGroupId) {
+      const memberSnap = await db.doc(`groups/${liveGroupId}/members/${uid}`).get();
+      if (memberSnap.exists) {
+        const md = memberSnap.data() as Record<string, unknown>;
+        const mutedUntilMs =
+          md.mutedUntil && typeof (md.mutedUntil as { toMillis?: () => number }).toMillis === "function"
+            ? (md.mutedUntil as { toMillis: () => number }).toMillis()
+            : null;
+        const effectivelyMuted = md.status === "muted" && (mutedUntilMs === null || mutedUntilMs > Date.now());
+        if (md.status === "banned" || effectivelyMuted) {
+          throw new HttpsError("permission-denied", "Estás silenciado o baneado en esta comunidad.");
+        }
+      }
+    }
+
     // Precio SERVER-AUTHORITATIVE: se resuelve el tier contra la config del live.
     const tier = resolveTier(post, tierId);
     if (!tier) throw new HttpsError("invalid-argument", "Nivel de supercomentario inválido.");

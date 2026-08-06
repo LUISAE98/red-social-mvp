@@ -61,6 +61,30 @@ export const createLiveDonationStripeIntent = onCall(
     if (!authorId) throw new HttpsError("failed-precondition", "En vivo sin autor.");
     if (authorId === uid) throw new HttpsError("failed-precondition", "No puedes donarte a ti mismo.");
 
+    // Sanciones: un usuario silenciado/baneado NO puede donar, aunque las donaciones
+    // estén abiertas a no-miembros. Se revisa el mute/ban del live y del grupo dueño.
+    const liveData = (post.liveData ?? {}) as Record<string, unknown>;
+    const mutedInLive = Array.isArray(liveData.mutedUsers) && (liveData.mutedUsers as unknown[]).includes(uid);
+    const bannedInLive = Array.isArray(liveData.bannedUsers) && (liveData.bannedUsers as unknown[]).includes(uid);
+    if (mutedInLive || bannedInLive) {
+      throw new HttpsError("permission-denied", "Estás silenciado o bloqueado en este en vivo.");
+    }
+    const liveGroupId = post.groupId ? String(post.groupId) : "";
+    if (liveGroupId) {
+      const memberSnap = await db.doc(`groups/${liveGroupId}/members/${uid}`).get();
+      if (memberSnap.exists) {
+        const md = memberSnap.data() as Record<string, unknown>;
+        const mutedUntilMs =
+          md.mutedUntil && typeof (md.mutedUntil as { toMillis?: () => number }).toMillis === "function"
+            ? (md.mutedUntil as { toMillis: () => number }).toMillis()
+            : null;
+        const effectivelyMuted = md.status === "muted" && (mutedUntilMs === null || mutedUntilMs > Date.now());
+        if (md.status === "banned" || effectivelyMuted) {
+          throw new HttpsError("permission-denied", "Estás silenciado o baneado en esta comunidad.");
+        }
+      }
+    }
+
     // Perfil del donante (para el super-comentario destacado del chat).
     let username = "Anónimo";
     let avatarUrl: string | null = null;

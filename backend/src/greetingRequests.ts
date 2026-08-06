@@ -2,6 +2,7 @@ import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { logger } from "firebase-functions";
 import * as admin from "firebase-admin";
 import { createMuxClient, muxTokenId, muxTokenSecret } from "./mux";
+import { usersHaveBlockBetweenTx } from "./social/blocks";
 
 if (admin.apps.length === 0) {
   admin.initializeApp();
@@ -281,6 +282,15 @@ const profileUserId =
       throw new HttpsError(
         "failed-precondition",
         "Creator cannot request own service."
+      );
+    }
+
+    // Bloqueo de perfil: si comprador y creador se bloquearon (en cualquier
+    // sentido), no se puede comprar el servicio.
+    if (await usersHaveBlockBetweenTx(tx, buyerId, creatorId)) {
+      throw new HttpsError(
+        "permission-denied",
+        "No puedes solicitar este servicio a este perfil."
       );
     }
 

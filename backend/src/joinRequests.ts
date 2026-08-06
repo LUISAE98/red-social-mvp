@@ -215,6 +215,16 @@ export const approveJoinRequest = onCall(async (request) => {
       throw new HttpsError("failed-precondition", "Solicitud ya procesada.");
     }
 
+    // No reactivar a un usuario baneado (la solicitud pudo crearse antes del ban).
+    // Lectura dentro de la transacción, antes de cualquier escritura.
+    const memberSnap = await tx.get(memberRef);
+    if (memberSnap.exists && memberSnap.data()?.status === "banned") {
+      throw new HttpsError(
+        "failed-precondition",
+        "Este usuario está baneado de la comunidad. Quita el ban antes de aprobarlo."
+      );
+    }
+
     tx.set(
       memberRef,
       {

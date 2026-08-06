@@ -264,8 +264,13 @@ service cloud.firestore {
     // su comunidad. La ESCRITURA es SOLO backend: el cliente nunca puede fabricar
     // una suscripción ni activar el earning.
     match /groupSubscriptions/{subId} {
+      // `resource == null` → doc inexistente (aún no te suscribes): se permite el get y
+      // devuelve vacío, en vez de denegar (referenciar resource.data en un doc que no
+      // existe lanzaba "Missing or insufficient permissions" al entrar a la comunidad).
       allow get: if signedIn()
-        && (resource.data.uid == request.auth.uid || resource.data.ownerId == request.auth.uid);
+        && (resource == null
+          || resource.data.uid == request.auth.uid
+          || resource.data.ownerId == request.auth.uid);
       allow list: if signedIn()
         && (request.auth.uid == resource.data.uid || request.auth.uid == resource.data.ownerId);
       allow create, update, delete: if false;
@@ -511,7 +516,17 @@ service cloud.firestore {
         allow get, list: if signedIn()
           && request.auth.uid == uid;
 
-        allow write: if signedIn()
+        // Índice inverso del bloqueo (lo escribe el que bloquea en la subcolección
+        // del bloqueado). Validar forma y forzar que el doc sea sobre uno mismo,
+        // para no sembrar contenido arbitrario en subcolecciones ajenas.
+        allow create: if signedIn()
+          && request.auth.uid == blockerUid
+          && request.resource.data.blockedByUserId == blockerUid
+          && request.resource.data.keys().hasOnly(["blockedByUserId", "createdAt"]);
+
+        allow update: if false;
+
+        allow delete: if signedIn()
           && request.auth.uid == blockerUid;
       }
 
@@ -969,7 +984,9 @@ match /hiddenGroupTransitions/{groupId} {
       return signedIn()
         && memberExists(groupId, request.auth.uid)
         && memberRole(groupId, request.auth.uid) in ["mod", "moderator"]
-        && isReadableMemberStatus(effectiveMemberStatus(groupId, request.auth.uid));
+        // Un mod muteado NO modera/escribe (mutear ya degrada el rol; esto cubre
+        // datos legados donde coexistieran rol mod y status muted).
+        && effectiveMemberStatus(groupId, request.auth.uid) in ["active", "subscribed"];
     }
 
     function canModerateGroup(groupId) {
@@ -1758,9 +1775,14 @@ allow list: if signedIn()
           && !exists(/databases/$(database)/documents/groups/$(groupId)/members/$(userId))
           && validMemberCreateShape(groupId, userId);
 
+        // Un miembro puede salir (borrar su doc) SALVO si está sancionado: si
+        // pudiera borrarlo, se auto-desbanearía/desmutearía y recrearía el doc
+        // como "active" (create exige !exists). El status queda persistente hasta
+        // que un mod lo levante por callable.
         allow delete: if signedIn()
           && request.auth.uid == userId
-          && groupDoc(groupId).data.ownerId != request.auth.uid;
+          && groupDoc(groupId).data.ownerId != request.auth.uid
+          && !(normalizeMemberStatus(resource.data) in ["banned", "muted"]);
 
         allow update: if false;
       }
@@ -1802,6 +1824,9 @@ match /memberBlocks/{blockId} {
           && request.auth.uid == reqId
           && groupRequiresJoinRequest(groupId)
           && groupIsActive(groupId)
+          // Un baneado no puede volver a solicitar ingreso (el kick/removed sí,
+          // porque el kick es suave). effectiveMemberStatus es null para no-miembros.
+          && effectiveMemberStatus(groupId, reqId) != "banned"
           && request.resource.data.userId == reqId
           && request.resource.data.status == "pending";
 
@@ -2011,6 +2036,27 @@ function isProfilePostData(data) {
     && data.authorId == data.profileId;
 }
 
+// ¿Este post NO vive en una comunidad OCULTA? Es el candado que deben cruzar
+// todas las vías "públicas" de acceso a un post y a sus subcolecciones abiertas
+// (comentarios, reacciones, supercomentarios, espectadores, chat del live).
+//
+// Se comprueba por partida doble:
+//   1. La copia denormalizada `groupVisibility` del propio doc (barata).
+//   2. El doc del grupo, que es la fuente de verdad — cubre los posts legados
+//      cuya copia quedó desactualizada antes del trigger de resincronización.
+// El doc del grupo suele venir ya cacheado por `canReadGroupContent` dentro de
+// la misma evaluación, así que en la práctica no añade accesos.
+//
+// Posts de perfil (sin groupId) pasan siempre: no pertenecen a comunidad alguna.
+function groupPostIsNotHidden(data) {
+  let gid = data.get('groupId', null);
+  return !(gid is string)
+    || (
+      data.get('groupVisibility', '') != "hidden"
+      && groupVisibility(gid) != "hidden"
+    );
+}
+
     // ==========================
     // LIVE OVERLAYS (OBS Browser Source)
     // ==========================
@@ -2018,7 +2064,11 @@ function isProfilePostData(data) {
     // No requiere auth para leer — necesario porque OBS no tiene sesión de Firebase.
     match /liveOverlays/{postId} {
       allow get: if true;
-      allow write: if signedIn();
+      // Solo el autor del live alimenta su overlay. Antes bastaba con estar
+      // logueado, así que cualquiera podía inyectar (o borrar) el supercomentario
+      // que se muestra en el OBS de otro creador.
+      allow write: if signedIn()
+        && get(/databases/$(database)/documents/posts/$(postId)).data.authorId == request.auth.uid;
     }
 
     // ==========================
@@ -2245,7 +2295,21 @@ function canReadPostFromOwnHomeFeed() {
 function canReadPostFromOwnSavedPosts() {
   return signedIn()
     && resource.data.isDeleted == false
-    && exists(/databases/$(database)/documents/users/$(request.auth.uid)/savedPosts/$(postId));
+    && exists(/databases/$(database)/documents/users/$(request.auth.uid)/savedPosts/$(postId))
+    // Aunque esté guardado, respeta el acceso actual: bloqueo de perfil / membresía
+    // (mismo gating que canReadPostFromOwnHomeFeed). Cierra la fuga de leer posts de
+    // un perfil que te bloqueó porque los guardaste antes.
+    && (
+      (
+        isGroupPostData(resource.data)
+        && canReadGroupContent(resource.data.groupId)
+      )
+      ||
+      (
+        isProfilePostData(resource.data)
+        && canReadProfileContent(resource.data.profileId)
+      )
+    );
 }
 
 function validCreateGroupPost() {
@@ -2445,15 +2509,24 @@ function canReadPostCommentsData(data) {
         isGroupPostData(data)
         && (
           canReadGroupContent(data.groupId)
+          // Vías "desde fuera" (premium público / live compartible). NUNCA aplican
+          // a una comunidad oculta: aunque el post quedara marcado `isShareable`
+          // (el autor puede tocar ese campo al editar el live), sus comentarios no
+          // deben poder leerse desde fuera de la comunidad.
           || (
-            data.isShareable == true
-            && data.premium is map
-            && data.premium.get("enabled", false) == true
-            && data.premium.get("accessMode", "") == "public"
-          )
-          || (
-            data.get('postType', '') == "live"
-            && data.get('isShareable', false) == true
+            groupPostIsNotHidden(data)
+            && (
+              (
+                data.get('isShareable', false) == true
+                && data.premium is map
+                && data.premium.get("enabled", false) == true
+                && data.premium.get("accessMode", "") == "public"
+              )
+              || (
+                data.get('postType', '') == "live"
+                && data.get('isShareable', false) == true
+              )
+            )
           )
         )
       )
@@ -2468,6 +2541,20 @@ function canReadPostCommentsData(data) {
 function hasPostAccess(postId) {
   return signedIn()
     && exists(/databases/$(database)/documents/postAccess/$(request.auth.uid + '_' + postId));
+}
+
+// Candado de comunidad OCULTA para las subcolecciones "abiertas" de un post
+// (supercomentarios, espectadores del live). Esas colecciones son deliberadamente
+// laxas porque un live público debe funcionar sin sesión, pero cuando el post
+// vive en una comunidad oculta solo pueden verlas quienes están dentro:
+// de lo contrario cualquiera con el postId deduciría el contenido y la
+// membresía de una comunidad que no debería ni saber que existe.
+function postNotInHiddenGroupOrInsider() {
+  let p = get(/databases/$(database)/documents/posts/$(postId)).data;
+  let gid = p.get('groupId', null);
+  return !(gid is string)
+    || groupVisibility(gid) != "hidden"
+    || canReadGroupContent(gid);
 }
 
 function viewerHasPremiumPostAccess(data, postId) {
@@ -2611,6 +2698,11 @@ allow list: if canListOwnAuthoredPost()
             "isPinnedInGroup", "groupPinnedAt", "groupPinnedBy",
             "isPinnedOnProfile", "profilePinnedAt", "profilePinnedBy",
             "premium", "text",
+            // `isShareable`: al ponerle precio al VOD, su alcance se alinea con el
+            // del live (público → compartible; solo-miembros/oculta → no). El autor
+            // ya podía cambiarlo vía canEditLivePost, así que no da poder nuevo, y
+            // las comunidades ocultas siguen bloqueadas por las reglas de lectura.
+            "isShareable",
             "access", "accessModel", "requiresPayment", "oneTimePrice", "currency", "purchaseType"
           ])
           && request.resource.data.authorId == resource.data.authorId
@@ -2631,8 +2723,9 @@ allow list: if canListOwnAuthoredPost()
 
       // Supercomentarios del live
       match /superComments/{superCommentId} {
-        // Lectura pública — el live ya controla quién puede verlo
-        allow list, get: if true;
+        // Lectura abierta (un live público debe funcionar sin sesión), SALVO en
+        // comunidades ocultas: ahí solo quien está dentro.
+        allow list, get: if postNotInHiddenGroupOrInsider();
 
         // Los supercomentarios y donaciones en vivo se materializan SOLO en el backend
         // (reconcile) tras un pago APROBADO de Stripe. El cliente NO puede crearlos: si
@@ -2651,7 +2744,7 @@ allow list: if canListOwnAuthoredPost()
 
       // Registro histórico de espectadores únicos — solo se crea, nunca se borra
       match /liveUniqueViewers/{viewerId} {
-        allow get, list: if signedIn();
+        allow get, list: if signedIn() && postNotInHiddenGroupOrInsider();
         allow create, update: if signedIn()
           && request.auth.uid == viewerId
           && request.resource.data.uid == viewerId;
@@ -2660,7 +2753,7 @@ allow list: if canListOwnAuthoredPost()
 
       // Presencia de espectadores en vivo — cada usuario escribe/borra su propio doc
       match /liveViewers/{viewerId} {
-        allow get, list: if signedIn();
+        allow get, list: if signedIn() && postNotInHiddenGroupOrInsider();
         allow create: if signedIn()
           && request.auth.uid == viewerId
           && request.resource.data.uid == viewerId
@@ -2961,6 +3054,9 @@ function canUpdateReplyCount(delta) {
               || (
                 parentPost().data.get('postType', '') == "live"
                 && parentPost().data.get('isShareable', false) == true
+                // Un live de comunidad oculta no expone su lista de reacciones
+                // (revelaría quién está dentro de la comunidad).
+                && groupPostIsNotHidden(parentPost().data)
               )
             );
         }
@@ -3057,13 +3153,14 @@ function canUpdateReplyCount(delta) {
           && livePostDoc().data.authorId == request.auth.uid;
       }
 
-      // Bloquea a usuarios muteados en el grupo al que pertenece este live.
-      // effectiveMemberStatus() ya incorpora mutedUntil > request.time,
-      // por lo que el muteo expira automáticamente cuando vence el plazo.
-      function userNotMutedInGroupChat() {
-        return !("groupId" in livePostDoc().data)
-          || livePostDoc().data.groupId == null
-          || effectiveMemberStatus(livePostDoc().data.groupId, request.auth.uid) != "muted";
+      // Chat de live de COMUNIDAD: solo miembros activos/suscritos pueden escribir
+      // (excluye no-miembros, muteados, baneados y removidos; effectiveMemberStatus
+      // ya incorpora la expiración del muteo). Los lives de perfil (sin groupId)
+      // siguen abiertos a cualquiera. Los supercomentarios/donaciones NO pasan por
+      // esta regla (se materializan en backend) y quedan abiertos a cualquiera.
+      function canWriteGroupLiveChat() {
+        let gid = ("groupId" in livePostDoc().data) ? livePostDoc().data.groupId : null;
+        return gid == null || isActiveOrSubscribedMember(gid);
       }
 
       function canDeleteLiveChatMsg() {
@@ -3078,13 +3175,23 @@ function canUpdateReplyCount(delta) {
           );
       }
 
-      allow get, list: if true;
+      // El chat de un live PÚBLICO se lee sin sesión (espectadores deslogueados).
+      // El de un live en comunidad OCULTA, no: sus mensajes llevan nombre y texto
+      // de los miembros, y con solo el liveId cualquiera podía leerlos enteros.
+      function liveChatIsReadable() {
+        let gid = livePostDoc().data.get('groupId', null);
+        return !(gid is string)
+          || groupVisibility(gid) != "hidden"
+          || canReadGroupContent(gid);
+      }
+
+      allow get, list: if liveChatIsReadable();
 
       allow create: if signedIn()
         && liveChatEnabled()
         && userNotMuted()
         && userNotBanned()
-        && userNotMutedInGroupChat()
+        && canWriteGroupLiveChat()
         && request.resource.data.userId == request.auth.uid
         && request.resource.data.liveId == liveId
         && request.resource.data.text is string
@@ -3133,7 +3240,14 @@ function canUpdateReplyCount(delta) {
         && request.resource.data.amount is number
         && request.resource.data.amount > 0
         && request.resource.data.authorId is string
-        && request.resource.data.createdAt is timestamp;
+        && request.resource.data.createdAt is timestamp
+        // Un baneado del grupo dueño del live no puede comprar ticket (los
+        // no-miembros sí pueden, como monetización). Lives de perfil: sin groupId.
+        && (
+          !("groupId" in get(/databases/$(database)/documents/posts/$(liveId)).data)
+          || get(/databases/$(database)/documents/posts/$(liveId)).data.groupId == null
+          || effectiveMemberStatus(get(/databases/$(database)/documents/posts/$(liveId)).data.groupId, request.auth.uid) != "banned"
+        );
 
       // No se puede modificar ni eliminar un acceso ya otorgado
       allow update, delete: if false;

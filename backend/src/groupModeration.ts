@@ -8,6 +8,8 @@ import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import * as logger from "firebase-functions/logger";
 import { notifyGroupModeration } from "./notifications";
+import { cancelGroupSubscriptionImmediately } from "./payments/stripe/groupSubscriptionStripe";
+import { stripeSecretKey } from "./payments/stripe/stripeClient";
 
 /** Notifica al miembro afectado sin tumbar la acción si el aviso falla. */
 async function safeNotifyModeration(
@@ -392,7 +394,7 @@ export const unmuteGroupMember = onCall(async (request) => {
   return { ok: true };
 });
 
-export const banGroupMember = onCall(async (request) => {
+export const banGroupMember = onCall({ secrets: [stripeSecretKey] }, async (request) => {
   const actorUid = requireAuth(request);
   const groupId = normalizeString(request.data?.groupId, "groupId");
   const targetUserId = normalizeString(request.data?.targetUserId, "targetUserId");
@@ -439,6 +441,10 @@ export const banGroupMember = onCall(async (request) => {
   batch.delete(userJoinRequestSentRef);
 
   await batch.commit();
+
+  // Cancela INMEDIATAMENTE la suscripción de pago del baneado (deja de cobrarle) y
+  // revoca el acceso ligado a ella. Best-effort: no bloquea el ban si Stripe falla.
+  await cancelGroupSubscriptionImmediately(groupId, targetUserId);
 
   await safeNotifyModeration(groupId, targetUserId, "banned");
 

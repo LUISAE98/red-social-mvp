@@ -2,6 +2,7 @@ import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { logger } from "firebase-functions";
 import * as admin from "firebase-admin";
 import { notifySessionEvent } from "./notifications";
+import { usersHaveBlockBetween } from "./social/blocks";
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -570,6 +571,14 @@ if (source === "profile") {
   profileData = await getProfileOrThrow(profileUserId);
   exclusiveSessionOffering = assertProfileExclusiveSessionEnabled(profileData.data) as ServiceOfferingShape;
   creatorId = profileUserId;
+  // Bloqueo de perfil: no se puede comprar el servicio si comprador y creador se
+  // bloquearon (en cualquier sentido).
+  if (await usersHaveBlockBetween(uid, creatorId)) {
+    throw new HttpsError(
+      "permission-denied",
+      "No puedes solicitar este servicio a este perfil."
+    );
+  }
 } else {
   if (!groupId) {
     throw new HttpsError("invalid-argument", "groupId es obligatorio.");

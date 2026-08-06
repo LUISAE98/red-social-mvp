@@ -196,6 +196,56 @@ export const createGroupSubscription = onCall(
 // Marca `cancel_at_period_end` en Stripe (no corta al instante). El webhook
 // `customer.subscription.updated`/`.deleted` sincroniza el estado; el cron diario
 // `expireGroupSubscriptions` da de baja el acceso cuando vence `accessUntil`.
+/**
+ * Cancela INMEDIATAMENTE la suscripción de grupo de un usuario (uso: BAN). A
+ * diferencia del cancel del usuario (cancel_at_period_end, mantiene acceso), aquí se
+ * corta ya y se marca el doc como cancelado. Best-effort: si Stripe falla NO se lanza
+ * (el ban ya revocó el acceso vía reglas por status "banned"); se registra para
+ * reintento manual. Requiere que la función que lo invoque declare el secret de Stripe.
+ */
+export async function cancelGroupSubscriptionImmediately(
+  groupId: string,
+  uid: string
+): Promise<void> {
+  try {
+    const ref = db.collection("groupSubscriptions").doc(`${groupId}_${uid}`);
+    const snap = await ref.get();
+    if (!snap.exists) return;
+    const sub = snap.data() as Record<string, unknown>;
+    const stripeSubscriptionId =
+      typeof sub.stripeSubscriptionId === "string" ? sub.stripeSubscriptionId : null;
+
+    if (stripeSubscriptionId) {
+      const res = await stripeFetch(`/subscriptions/${stripeSubscriptionId}`, {
+        method: "DELETE",
+      });
+      if (!res.ok && res.status !== 404) {
+        logger.error("cancelGroupSubscriptionImmediately: Stripe cancel falló", {
+          groupId,
+          uid,
+          status: res.status,
+        });
+      }
+    }
+
+    await ref.set(
+      {
+        cancelAtPeriodEnd: false,
+        status: "cancelled",
+        cancelledByBan: true,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+  } catch (err) {
+    logger.error("cancelGroupSubscriptionImmediately error", {
+      groupId,
+      uid,
+      err: err instanceof Error ? err.message : String(err),
+    });
+  }
+}
+
 export const cancelGroupSubscriptionStripe = onCall(
   { region: REGION, cors: true, secrets: [stripeSecretKey] },
   async (request) => {
