@@ -986,7 +986,6 @@ export default function OwnerAdminServices({
         draft={draft}
         savedDraft={savedDraft}
         isPublic={isPublic}
-        isHidden={currentVisibility === "hidden"}
         onChangeVisibility={onChangeVisibility}
         saving={saving}
         removingLegacyMembers={removingLegacyMembers}

@@ -111,8 +111,7 @@ type Props = {
   draft: ServiceDraft;
   savedDraft: ServiceDraft;
   isPublic: boolean;
-  isHidden: boolean;
-  /** Cambia la visibilidad del grupo (privada ⇄ pública). Ausente = sin switch. */
+  /** Cambia la comunidad a privada. Ausente = sin switch. */
   onChangeVisibility?: (next: "public" | "private") => Promise<void>;
   saving: boolean;
   removingLegacyMembers: boolean;
@@ -303,7 +302,6 @@ export default function Subscription({
   draft,
   savedDraft,
   isPublic,
-  isHidden,
   onChangeVisibility,
   saving,
   removingLegacyMembers,
@@ -335,20 +333,17 @@ export default function Subscription({
 
  const disabledByVisibility = isPublic;
 
-  // Switch de privacidad: solo cuando NO está oculta y el padre provee el callback.
-  const canToggleVisibility = !isHidden && typeof onChangeVisibility === "function";
+  // Switch para pasar la comunidad a privada. Solo cuando es pública y el padre
+  // provee el callback. Al pasar a privada, isPublic → false y el switch desaparece;
+  // para volver a pública se hace desde Configuración.
+  const canMakePrivate = isPublic && typeof onChangeVisibility === "function";
 
-  async function handleVisibilityToggle(makePrivate: boolean) {
+  async function handleMakePrivate() {
     if (!onChangeVisibility || changingVisibility || saving || removingLegacyMembers) return;
-    // No permitir volver pública con la suscripción activa (estado inconsistente).
-    if (!makePrivate && draft.subscription.enabled) {
-      showSubToast(tServices("subscriptionDisableBeforePublicToast"), "warning");
-      return;
-    }
     setChangingVisibility(true);
     try {
-      await onChangeVisibility(makePrivate ? "private" : "public");
-      // La visibilidad se refleja sola vía el snapshot del grupo (isPublic/isHidden).
+      await onChangeVisibility("private");
+      // La visibilidad se refleja sola vía el snapshot del grupo (isPublic).
     } catch {
       showSubToast(tServices("communityPrivacyChangeError"), "error");
     } finally {
@@ -548,37 +543,54 @@ function handleModify() {
           </div>
 
 {disabledByVisibility && (
-  <span
-    style={{
-      ...descriptionStyle,
-      display: "flex",
-      alignItems: "flex-start",
-      gap: 6,
-      marginTop: 2,
-    }}
-  >
-    <ServiceInfoIcon color={SUBSCRIPTION_ACCENT} />
-    <span>{tServices("subscriptionPublicDisabledWarning")}</span>
-  </span>
-)}
-
-{canToggleVisibility && (
   <div
     style={{
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "space-between",
-      gap: 10,
+      display: "grid",
+      gap: 12,
+      padding: "12px",
+      borderRadius: 14,
+      border: "1px solid rgba(255,255,255,0.10)",
+      background: "rgba(255,255,255,0.03)",
       marginTop: 2,
     }}
   >
-    <span style={titleStyle}>{tServices("communityPrivacyToggleLabel")}</span>
-    <SwitchComponent
-      checked={!isPublic}
-      disabled={changingVisibility || saving || removingLegacyMembers}
-      onChange={(next) => void handleVisibilityToggle(next)}
-      label={tServices("communityPrivacyToggleAria")}
-    />
+    <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
+      <span style={{ marginTop: 1 }}>
+        <ServiceInfoIcon color={SUBSCRIPTION_ACCENT} size={16} />
+      </span>
+      <span style={descriptionStyle}>
+        {tServices("subscriptionPublicDisabledWarning")}
+      </span>
+    </div>
+
+    {canMakePrivate && (
+      <>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 12,
+            paddingTop: 10,
+            borderTop: "1px solid rgba(255,255,255,0.08)",
+          }}
+        >
+          <span style={titleStyle}>
+            {tServices("communityPrivacyToggleLabel")}
+          </span>
+          <SwitchComponent
+            checked={false}
+            disabled={changingVisibility || saving || removingLegacyMembers}
+            onChange={() => void handleMakePrivate()}
+            label={tServices("communityPrivacyToggleAria")}
+          />
+        </div>
+        <span style={{ ...subtleStyle, display: "flex", alignItems: "flex-start", gap: 6 }}>
+          <ServiceInfoIcon color="rgba(255,255,255,0.4)" size={13} />
+          <span>{tServices("subscriptionBackToPublicNote")}</span>
+        </span>
+      </>
+    )}
   </div>
 )}
 
