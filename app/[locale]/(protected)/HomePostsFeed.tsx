@@ -38,7 +38,7 @@ import {
   removePostFromAllFeedCaches,
 } from "@/lib/posts/post-feed-cache";
 import { useUnlockedPostIds } from "@/lib/posts/useUnlockedPostIds";
-import { loadFeedWithRetry } from "@/lib/posts/feed-load-helpers";
+import { loadFeedWithRetry, isFeedLoadTimeout } from "@/lib/posts/feed-load-helpers";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import {
@@ -283,10 +283,16 @@ export default function HomePostsFeed({ currentUserId, refreshRef }: HomePostsFe
           return;
         }
 
-        setError(
-          (e instanceof Error ? e.message : null) ??
-            tProfile("loadPostsError")
-        );
+        // Corte por tiempo: no es un error del usuario ni tiene acción posible.
+        // Se silencia (ver isFeedLoadTimeout).
+        if (isFeedLoadTimeout(e)) {
+          setError(null);
+        } else {
+          setError(
+            (e instanceof Error ? e.message : null) ??
+              tProfile("loadPostsError")
+          );
+        }
       } finally {
         if (mode === "more") {
           loadingMoreRef.current = false;

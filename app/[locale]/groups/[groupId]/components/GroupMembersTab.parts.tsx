@@ -42,6 +42,19 @@ export type GroupMembersTabProps = {
   canMembersViewList: boolean;
   /** Abre automáticamente la lista de solicitudes (deep-link `?requests=1`). */
   initialShowRequests?: boolean;
+  /**
+   * Solo una comunidad PRIVADA normal recibe solicitudes de unión: es el único
+   * modelo donde alguien pide entrar y el dueño acepta o rechaza. En pública se
+   * entra directo, en oculta por invitación y en suscripción pagando.
+   */
+  canReceiveJoinRequests?: boolean;
+  /**
+   * Invitar a moderar a alguien de fuera. NUNCA en comunidades ocultas: su
+   * existencia no se revela a quien no está dentro.
+   */
+  canInviteModerators?: boolean;
+  /** Abre el buscador de moderadores al entrar (deep-link `?assignModerator=1`). */
+  initialShowModeratorPanel?: boolean;
 };
 
 export type MemberDoc = {

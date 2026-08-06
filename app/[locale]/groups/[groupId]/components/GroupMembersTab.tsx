@@ -32,14 +32,19 @@ import {
   unmuteGroupMember,
 } from "../../../../../lib/groups/groupModeration";
 import GroupJoinRequestsSection from "./GroupJoinRequestsSection";
+import GroupModeratorInvitePanel from "./GroupModeratorInvitePanel";
 // Switch canónico compartido con la configuración de servicios (perfil ⇄ comunidad).
 import { Switch } from "@/components/services/config/serviceConfigKit";
+// Mismos componentes que la página de búsqueda: campo con lupa morada y menú de filtro.
+import { VibraNavigationIcon } from "@/app/components/VibraServiceIcons/VibraNavigationIcons";
+import { WalletFilterMenu } from "@/app/(protected)/wallet/components/WalletUi";
+import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import {
-  Chevron, membersMemoryCache,
+  membersMemoryCache,
   getMutedUntilDate, memberInitials, memberPrimaryName, normalizeRole,
   resolveEffectiveStatus, statusDotColor,
   type EnrichedMember, type FilterValue, type GroupMembersTabProps,
-  type MemberAction, type MemberDoc, type MenuPosition,
+  type MemberAction, type MemberDoc,
 } from "./GroupMembersTab.parts";
 
 export default function GroupMembersTab({
@@ -48,6 +53,9 @@ export default function GroupMembersTab({
   isModerator = false,
   canMembersViewList,
   initialShowRequests = false,
+  canReceiveJoinRequests = false,
+  canInviteModerators = false,
+  initialShowModeratorPanel = false,
 }: GroupMembersTabProps) {
   const currentUid = auth.currentUser?.uid ?? null;
   const tGroups = useTranslations("groups");
@@ -110,7 +118,9 @@ export default function GroupMembersTab({
     null
   );
   const [actionMessage, setActionMessage] = useState<string | null>(null);
-  const [menuPosition, setMenuPosition] = useState<MenuPosition | null>(null);
+  const [moderatorPanelOpen, setModeratorPanelOpen] = useState(
+    initialShowModeratorPanel
+  );
   const [muteModalOpen, setMuteModalOpen] = useState(false);
   const [muteTarget, setMuteTarget] = useState<EnrichedMember | null>(null);
   const [muteDays, setMuteDays] = useState("7");
@@ -133,67 +143,13 @@ export default function GroupMembersTab({
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
-  useEffect(() => {
-    if (!openMenuForUid) return;
-
-    const openUid = openMenuForUid;
-
-    function updateMenuPosition() {
-      const button = menuButtonRefs.current[openUid];
-      if (!button) {
-        setMenuPosition(null);
-        return;
-      }
-
-      const rect = button.getBoundingClientRect();
-      const panelWidth = isMobile ? 210 : 230;
-      const viewportWidth = window.innerWidth;
-      const viewportHeight = window.innerHeight;
-      const estimatedPanelHeight = 260;
-      const gap = 8;
-
-      let left = rect.left;
-      if (left < 8) left = 8;
-      if (left + panelWidth > viewportWidth - 8) {
-        left = viewportWidth - panelWidth - 8;
-      }
-
-      let top = rect.bottom + gap;
-      if (top + estimatedPanelHeight > viewportHeight - 8) {
-        top = Math.max(8, rect.top - estimatedPanelHeight - gap);
-      }
-
-      setMenuPosition({ top, left });
-    }
-
-    updateMenuPosition();
-    window.addEventListener("resize", updateMenuPosition);
-    window.addEventListener("scroll", updateMenuPosition, true);
-
-    return () => {
-      window.removeEventListener("resize", updateMenuPosition);
-      window.removeEventListener("scroll", updateMenuPosition, true);
-    };
-  }, [openMenuForUid, isMobile]);
+  // El menú de acciones es un panel CENTRADO (mismo patrón que los 3 puntos de
+  // una publicación), así que ya no hay que calcular su posición junto al botón.
+  // El fondo queda bloqueado mientras está abierto — también con el modal de mute.
+  useBodyScrollLock(openMenuForUid !== null || muteModalOpen);
 
   useEffect(() => {
     if (!openMenuForUid && !muteModalOpen) return;
-
-    const openUid = openMenuForUid;
-
-    function handlePointerDown(event: MouseEvent) {
-      const target = event.target as Node | null;
-      if (!target) return;
-
-      const panelEl = menuPanelRef.current;
-      const buttonEl = openUid ? menuButtonRefs.current[openUid] ?? null : null;
-      const clickedInsidePanel = !!panelEl && panelEl.contains(target);
-      const clickedButton = !!buttonEl && buttonEl.contains(target);
-
-      if (!clickedInsidePanel && !clickedButton && !muteModalOpen) {
-        setOpenMenuForUid(null);
-      }
-    }
 
     function handleEscape(event: KeyboardEvent) {
       if (event.key === "Escape") {
@@ -204,13 +160,8 @@ export default function GroupMembersTab({
       }
     }
 
-    document.addEventListener("mousedown", handlePointerDown);
     document.addEventListener("keydown", handleEscape);
-
-    return () => {
-      document.removeEventListener("mousedown", handlePointerDown);
-      document.removeEventListener("keydown", handleEscape);
-    };
+    return () => document.removeEventListener("keydown", handleEscape);
   }, [openMenuForUid, muteModalOpen]);
 
   useEffect(() => {
@@ -475,7 +426,6 @@ export default function GroupMembersTab({
       const displayName = localizedMemberName(member);
       setActionMessage(tGroups("actionApplied", { action: localizedActionLabel(action), name: displayName }));
       setOpenMenuForUid(null);
-      setMenuPosition(null);
     } catch (e: unknown) {
       console.error(e);
       setError((e instanceof Error ? e.message : null) ?? tGroups("actionCompletionError"));
@@ -492,7 +442,6 @@ export default function GroupMembersTab({
       setMuteDays("7");
       setMuteModalOpen(true);
       setOpenMenuForUid(null);
-      setMenuPosition(null);
       return;
     }
 
@@ -580,10 +529,27 @@ export default function GroupMembersTab({
   const visibilityRow: CSSProperties = {
     display: "flex",
     alignItems: "center",
-    gap: 10,
+    justifyContent: "space-between",
+    gap: 12,
     minWidth: 0,
-    marginTop: isMobile ? 2 : 0,
+    marginTop: 12,
   };
+
+  // Opciones del filtro con el mismo componente que usa /search.
+  const filterLabels: Record<FilterValue, string> = {
+    all: tGroups("filterAll"),
+    active: tGroups("filterActive"),
+    subscribed: tGroups("filterSubscribed"),
+    muted: tGroups("filterMuted"),
+    banned: tGroups("filterBanned"),
+    removed: tGroups("filterRemoved"),
+    mod: tGroups("filterMods"),
+    member: tGroups("filterMembers"),
+  };
+
+  const filterOptions = (
+    ["all", "active", "subscribed", "muted", "banned", "removed", "mod", "member"] as FilterValue[]
+  ).map((value) => ({ value, label: filterLabels[value] }));
 
   const switchTextWrap: CSSProperties = {
     minWidth: 0,
@@ -598,54 +564,49 @@ export default function GroupMembersTab({
     color: "rgba(255,255,255,0.93)",
   };
 
+  // La descripción ahora explica los dos estados, así que necesita leerse:
+  // mismo tamaño que el resto de textos secundarios de la pestaña.
   const switchSubtitleStyle: CSSProperties = {
-    fontSize: isMobile ? 9.5 : 10,
-    lineHeight: 1.2,
+    fontSize: isMobile ? 10.5 : 11.5,
+    lineHeight: 1.35,
     color: "rgba(255,255,255,0.58)",
+    marginTop: 2,
   };
 
+  // Misma fila que en la página de búsqueda: campo elástico + menú de filtro.
   const controlsRow: CSSProperties = {
-    display: "grid",
-    gridTemplateColumns: canUseFilters
-      ? isMobile
-        ? "minmax(0, 1fr) 118px"
-        : "minmax(0, 1fr) 180px"
-      : "minmax(0, 1fr)",
-    gap: 8,
+    display: "flex",
+    alignItems: "center",
+    gap: 10,
     marginTop: 12,
   };
 
-  // Campo canónico de vibra_style.md: sin borde, relleno tenue, radio 12.
-  const inputStyle: CSSProperties = {
-    width: "100%",
-    height: isMobile ? 36 : 40,
-    borderRadius: 12,
-    border: "none",
+  // Campo de búsqueda idéntico al de /search: relleno tenue, radio 12, sin borde,
+  // con la lupa morada dentro al final.
+  const searchFieldStyle: CSSProperties = {
+    flex: 1,
+    minWidth: 0,
+    display: "flex",
+    alignItems: "center",
+    gap: 6,
     background: "rgba(255,255,255,0.06)",
-    color: "#fff",
-    padding: isMobile ? "0 12px" : "0 12px",
-    outline: "none",
-    fontSize: isMobile ? 11.5 : 12.5,
-    fontWeight: 400,
-    fontFamily: fontStack,
+    borderRadius: 12,
+    padding: "8px 10px 8px 12px",
     boxSizing: "border-box",
+  };
+
+  const inputStyle: CSSProperties = {
+    flex: 1,
+    minWidth: 0,
+    border: "none",
+    background: "transparent",
+    outline: "none",
+    color: "#fff",
+    fontSize: 13,
+    fontFamily: fontStack,
+    lineHeight: 1.5,
     WebkitAppearance: "none",
     appearance: "none",
-  };
-
-  const selectStyle: CSSProperties = {
-    ...inputStyle,
-    cursor: "pointer",
-    // En celular el desplegable nativo necesita fondo opaco para leerse.
-    background: isMobile ? "#111" : "rgba(255,255,255,0.06)",
-  };
-
-  const helperText: CSSProperties = {
-    marginTop: 9,
-    marginBottom: 0,
-    fontSize: isMobile ? 10 : 10.5,
-    lineHeight: 1.35,
-    color: "rgba(255,255,255,0.60)",
   };
 
   const listStyle: CSSProperties = {
@@ -655,18 +616,22 @@ export default function GroupMembersTab({
     overflow: "visible",
   };
 
-  // Botón de acciones: solo el icono, sin píldora alrededor.
+  // Botón de acciones: 3 puntos verticales, mismo tratamiento que en un post.
   const leftMenuButtonStyle: CSSProperties = {
-    width: isMobile ? 26 : 28,
-    height: isMobile ? 26 : 28,
-    borderRadius: 999,
+    width: isMobile ? 28 : 32,
+    height: isMobile ? 28 : 32,
+    borderRadius: 0,
     border: "none",
     background: "transparent",
+    color: "rgba(255,255,255,0.84)",
     display: "grid",
     placeItems: "center",
     padding: 0,
     cursor: "pointer",
     flexShrink: 0,
+    fontSize: 18,
+    lineHeight: 1,
+    WebkitTapHighlightColor: "transparent",
   };
 
   // Avatar sin aro. Conserva un relleno tenue porque es el fondo de las
@@ -722,6 +687,12 @@ export default function GroupMembersTab({
     flexWrap: "wrap",
   };
 
+  // En laptop el estado ocupa un ANCHO FIJO. El texto varía mucho de largo
+  // ("Activo" vs "Muteado, restan 12 días") y, al ir todo alineado a la derecha,
+  // eso movía la línea vertical de fila en fila. Con ancho fijo, la línea cae
+  // siempre en el mismo punto y la columna se lee limpia.
+  const STATUS_COLUMN_WIDTH = 168;
+
   const statusWrap: CSSProperties = {
     display: "inline-flex",
     alignItems: "center",
@@ -731,6 +702,15 @@ export default function GroupMembersTab({
     lineHeight: 1,
     whiteSpace: "nowrap",
     minWidth: 0,
+    ...(isMobile ? {} : { width: STATUS_COLUMN_WIDTH, flexShrink: 0 }),
+  };
+
+  // El texto del estado se recorta si no cabe, en vez de empujar la línea.
+  const statusTextStyle: CSSProperties = {
+    minWidth: 0,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
   };
 
   const desktopRightMetaWrap: CSSProperties = {
@@ -760,38 +740,20 @@ export default function GroupMembersTab({
     lineHeight: 1.1,
   };
 
-  const menuPanelStyle: CSSProperties = {
-    position: "fixed",
-    minWidth: isMobile ? 210 : 230,
-    borderRadius: 12,
-    border: "1px solid rgba(255,255,255,0.10)",
-    background: "rgba(12,12,12,0.98)",
-    boxShadow: "0 14px 34px rgba(0,0,0,0.34)",
-    backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)",
-    padding: 6,
-    zIndex: 300,
-    display: "grid",
-    gap: 4,
-  };
-
+  // Mismo ítem que el menú de 3 puntos de una publicación: texto centrado.
   const menuItemStyle: CSSProperties = {
     width: "100%",
     minHeight: 36,
     padding: "8px 10px",
-    borderRadius: 8,
+    borderRadius: 0,
     border: "none",
     background: "transparent",
     color: "#fff",
     fontSize: 12,
     fontWeight: 500,
     fontFamily: fontStack,
-    textAlign: "left",
+    textAlign: "center",
     cursor: "pointer",
-  };
-
-  const dangerMenuItemStyle: CSSProperties = {
-    ...menuItemStyle,
-    color: "#ff8a8a",
   };
 
   const disabledMenuItemStyle: CSSProperties = {
@@ -899,85 +861,96 @@ export default function GroupMembersTab({
             </p>
           </div>
 
-          {isOwner && (
-            <div style={visibilityRow}>
-              <div style={switchTextWrap}>
-                <div style={switchTitleStyle}>
-                  {tGroups("allowMembersViewListTitle")}
-                </div>
-                <div style={switchSubtitleStyle}>
-                  {tGroups("allowMembersViewListDescription")}
-                </div>
-              </div>
-
-              {/* Switch canónico compartido (mismo de la config de servicios),
-                  en el morado de marca. */}
-              <Switch
-                checked={safeCanMembersViewList}
-                disabled={savingVisibility}
-                onChange={(next) => handleToggleMembersVisibility(next)}
-                activeColor="#a855f7"
-                label={tGroups("allowMembersViewListLabel")}
-              />
-            </div>
-          )}
         </div>
 
         <div style={controlsRow}>
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder={tGroups("searchMembersPlaceholder")}
-            style={inputStyle}
-          />
+          <div style={searchFieldStyle}>
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder={tGroups("searchMembersPlaceholder")}
+              aria-label={tGroups("searchMembersPlaceholder")}
+              style={inputStyle}
+            />
+            {/* La lista filtra al teclear: la lupa es indicativa, no un botón. */}
+            <span
+              aria-hidden="true"
+              style={{ flexShrink: 0, display: "grid", placeItems: "center" }}
+            >
+              <VibraNavigationIcon type="search" size={20} strokeWidth={2.2} />
+            </span>
+          </div>
 
           {canUseFilters && (
-            <select
-              value={filter}
-              onChange={(e) => setFilter(e.target.value as FilterValue)}
-              style={selectStyle}
-            >
-              <option value="all" style={{ background: "#141414", color: "#fff" }}>
-                {tGroups("filterAll")}
-              </option>
-              <option value="active" style={{ background: "#141414", color: "#fff" }}>
-                {tGroups("filterActive")}
-              </option>
-              <option value="subscribed" style={{ background: "#141414", color: "#fff" }}>
-                {tGroups("filterSubscribed")}
-              </option>
-              <option value="muted" style={{ background: "#141414", color: "#fff" }}>
-                {tGroups("filterMuted")}
-              </option>
-              <option value="banned" style={{ background: "#141414", color: "#fff" }}>
-                {tGroups("filterBanned")}
-              </option>
-              <option value="removed" style={{ background: "#141414", color: "#fff" }}>
-                {tGroups("filterRemoved")}
-              </option>
-              <option value="mod" style={{ background: "#141414", color: "#fff" }}>
-                {tGroups("filterMods")}
-              </option>
-              <option value="member" style={{ background: "#141414", color: "#fff" }}>
-                {tGroups("filterMembers")}
-              </option>
-            </select>
+            <WalletFilterMenu
+              label={filterLabels[filter]}
+              menuLabel={tGroups("filterAll")}
+              value={[filter]}
+              options={filterOptions}
+              onChange={(next) => setFilter((next[0] ?? "all") as FilterValue)}
+              allValue="all"
+              singleSelect
+            />
           )}
         </div>
 
-        {(isOwner || isModerator) && (
-          <p style={helperText}>
-            {isOwner
-              ? tGroups("ownerMembersHelper")
-              : tGroups("modMembersHelper")}
-          </p>
+        {/* El control de visibilidad de la lista vive bajo el buscador: es una
+            preferencia de la comunidad, no parte del encabezado. */}
+        {isOwner && (
+          <div style={visibilityRow}>
+            <div style={switchTextWrap}>
+              <div style={switchTitleStyle}>
+                {tGroups("allowMembersViewListTitle")}
+              </div>
+              <div style={switchSubtitleStyle}>
+                {tGroups("allowMembersViewListDescription")}
+              </div>
+
+              {/* Permite nombrar moderador a alguien que NO es integrante: en una
+                  comunidad de suscripción, exigirle pagar para poder moderar no
+                  tiene sentido. Nunca en comunidades ocultas. */}
+              {canInviteModerators && (
+              <button
+                type="button"
+                onClick={() => setModeratorPanelOpen(true)}
+                style={{
+                  marginTop: 8,
+                  justifySelf: "start",
+                  background: "none",
+                  border: "none",
+                  padding: 0,
+                  textAlign: "left",
+                  color: "#a855f7",
+                  fontSize: isMobile ? 12 : 13,
+                  fontWeight: 600,
+                  fontFamily: fontStack,
+                  lineHeight: 1.35,
+                  cursor: "pointer",
+                }}
+              >
+                {tGroups("inviteModeratorCta")}
+              </button>
+              )}
+            </div>
+
+            {/* Switch canónico compartido (mismo de la config de servicios),
+                en el morado de marca. */}
+            <Switch
+              checked={safeCanMembersViewList}
+              disabled={savingVisibility}
+              onChange={(next) => handleToggleMembersVisibility(next)}
+              activeColor="#a855f7"
+              label={tGroups("allowMembersViewListLabel")}
+            />
+          </div>
         )}
 
         {(isOwner || isModerator) && (
           <GroupJoinRequestsSection
             groupId={groupId}
             canManage={isOwner || isModerator}
+            enabled={canReceiveJoinRequests}
             defaultOpen={initialShowRequests}
           />
         )}
@@ -1049,7 +1022,7 @@ export default function GroupMembersTab({
                         cursor: isProcessing ? "not-allowed" : "pointer",
                       }}
                     >
-                      <Chevron open={menuOpen} muted={isProcessing} />
+                      ⋮
                     </button>
                   )}
 
@@ -1118,7 +1091,7 @@ export default function GroupMembersTab({
                               flexShrink: 0,
                             }}
                           />
-                          <span>{statusText}</span>
+                          <span style={statusTextStyle}>{statusText}</span>
                         </div>
                       </>
                     )}
@@ -1132,8 +1105,14 @@ export default function GroupMembersTab({
         )}
       </section>
 
+      <GroupModeratorInvitePanel
+        open={moderatorPanelOpen}
+        onClose={() => setModeratorPanelOpen(false)}
+        groupId={groupId}
+        currentUserId={currentUid}
+      />
+
       {openMenuForUid &&
-        menuPosition &&
         typeof document !== "undefined" &&
         (() => {
           const member = filteredMembers.find(
@@ -1145,41 +1124,95 @@ export default function GroupMembersTab({
           const actions = getAvailableActions(member);
 
           return createPortal(
-            <div
-              ref={menuPanelRef}
-              style={{
-                ...menuPanelStyle,
-                top: menuPosition.top,
-                left: menuPosition.left,
-              }}
-              role="menu"
-            >
-              {actions.map((action) => {
-                const isDanger =
-                  action === "ban" ||
-                  action === "remove" ||
-                  action === "demote_to_member";
+            <>
+              <style>{`
+                @keyframes vbMembersMenuFadeIn {
+                  from { opacity: 0; }
+                  to   { opacity: 1; }
+                }
+                @keyframes vbMembersMenuScaleIn {
+                  from { opacity: 0; transform: scale(0.92); }
+                  to   { opacity: 1; transform: scale(1); }
+                }
+              `}</style>
 
-                return (
-                  <button
-                    key={action}
-                    type="button"
-                    role="menuitem"
-                    disabled={isProcessing}
-                    onClick={() => handleMemberAction(member, action)}
-                    style={
-                      isProcessing
-                        ? disabledMenuItemStyle
-                        : isDanger
-                          ? dangerMenuItemStyle
-                          : menuItemStyle
-                    }
-                  >
-                    {isProcessing ? tGroups("processing") : localizedActionLabel(action)}
-                  </button>
-                );
-              })}
-            </div>,
+              {/* Backdrop */}
+              <div
+                style={{
+                  position: "fixed",
+                  inset: 0,
+                  zIndex: 99990,
+                  background: "rgba(0,0,0,0.50)",
+                  animation: "vbMembersMenuFadeIn 0.18s ease",
+                }}
+                onClick={() => setOpenMenuForUid(null)}
+              />
+
+              {/* Panel centrado — igual en celular y laptop (mismo que en un post) */}
+              <div
+                style={{
+                  position: "fixed",
+                  inset: 0,
+                  zIndex: 99991,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  pointerEvents: "none",
+                }}
+              >
+                <div
+                  ref={menuPanelRef}
+                  role="menu"
+                  style={{
+                    pointerEvents: "auto",
+                    width: "min(280px, 88vw)",
+                    background: "rgba(8,9,11,0.985)",
+                    borderRadius: 12,
+                    border: "1px solid rgba(255,255,255,0.10)",
+                    padding: 0,
+                    display: "grid",
+                    gap: 0,
+                    overflow: "hidden",
+                    boxShadow:
+                      "0 30px 90px rgba(0,0,0,0.56), 0 0 0 1px rgba(255,255,255,0.035)",
+                    backdropFilter: "blur(10px)",
+                    WebkitBackdropFilter: "blur(10px)",
+                    animation: "vbMembersMenuScaleIn 0.18s ease",
+                  }}
+                >
+                  {actions.map((action, index) => {
+                    const isDanger =
+                      action === "ban" ||
+                      action === "remove" ||
+                      action === "demote_to_member";
+
+                    return (
+                      <button
+                        key={action}
+                        type="button"
+                        role="menuitem"
+                        disabled={isProcessing}
+                        onClick={() => handleMemberAction(member, action)}
+                        style={{
+                          ...menuItemStyle,
+                          minHeight: 46,
+                          fontSize: 14,
+                          padding: "11px 16px",
+                          borderTop: index > 0 ? "1px solid rgba(255,255,255,0.08)" : "none",
+                          ...(isProcessing
+                            ? { color: "rgba(255,255,255,0.35)", cursor: "not-allowed" }
+                            : isDanger
+                              ? { color: "#ff8a8a" }
+                              : {}),
+                        }}
+                      >
+                        {isProcessing ? tGroups("processing") : localizedActionLabel(action)}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </>,
             document.body
           );
         })()}

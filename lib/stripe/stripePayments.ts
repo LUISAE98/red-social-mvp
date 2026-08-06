@@ -64,6 +64,8 @@ export async function createDonationStripeIntent(input: {
   groupId?: string | null;
   groupName?: string | null;
   savedPaymentMethodId?: string;
+  /** Apodo del donador (invitado sin login o usuario logueado). Opcional. */
+  nickname?: string | null;
 }): Promise<StripeChargeResult> {
   const fn = httpsCallable<typeof input, StripeChargeResult>(functions, "createDonationStripeIntent");
   const res = await fn(input);

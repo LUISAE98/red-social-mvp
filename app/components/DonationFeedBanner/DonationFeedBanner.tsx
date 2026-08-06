@@ -12,6 +12,7 @@ import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import StripePaymentModal from "@/components/payments/StripePaymentModal";
 import { createDonationStripeIntent } from "@/lib/stripe/stripePayments";
+import { ensureGuestAuth } from "@/lib/guest/ensureGuestAuth";
 
 type Props = {
   message?: string | null;
@@ -522,8 +523,12 @@ export default function DonationFeedBanner({
         donationPresets={suggestedAmounts ?? undefined}
         donationCustomInclusive
         minBaseAmount={50}
-        createIntent={(args) => {
+        collectNickname={!buyerId}
+        createIntent={async (args) => {
           paidAmountRef.current = args.amount ?? null;
+          // Invitado (sin login): firma anónima silenciosa antes de cobrar → el callable
+          // recibe un uid server-authoritative como buyerId.
+          if (!buyerId) await ensureGuestAuth();
           return createDonationStripeIntent({
             creatorId: creatorId ?? "",
             amount: args.amount,
@@ -532,6 +537,7 @@ export default function DonationFeedBanner({
             groupId: groupId ?? null,
             groupName: groupName ?? null,
             savedPaymentMethodId: args.savedPaymentMethodId,
+            nickname: args.nickname ?? null,
           });
         }}
         productType={tCommon("payDonationProductType")}

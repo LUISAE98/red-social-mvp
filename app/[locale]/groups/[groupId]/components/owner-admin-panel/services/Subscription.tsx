@@ -386,6 +386,12 @@ export default function Subscription({
   const shouldShowSubscriptionToFreePolicy =
     savedDraft.subscription.enabled && !overlayDraft.subscription.enabled;
 
+  // APAGAR la suscripción no es "configurar un precio": no se pide monto, solo
+  // decidir qué pasa con los integrantes actuales (se quedan gratis o salen).
+  // Antes el overlay seguía exigiendo precio > 0 y, como al apagar el precio se
+  // vacía, el botón de guardar quedaba deshabilitado para siempre.
+  const isDeactivating = overlayMode === "deactivate";
+
   const shouldShowPriceIncreasePolicy =
     !isPublic &&
     savedDraft.subscription.enabled &&
@@ -717,12 +723,24 @@ function handleModify() {
 
       <OverlayModalComponent
         open={overlayMode !== null}
-        title={tServices("subscriptionConfigModalTitle")}
+        title={
+          isDeactivating
+            ? tServices("subscriptionDeactivateModalTitle")
+            : tServices("subscriptionConfigModalTitle")
+        }
         loading={saving}
-        confirmDisabled={!(Number(overlayDraft.subscription.price) > 0) || priceBelowMin}
+        confirmDisabled={
+          isDeactivating
+            ? // Solo hace falta haber elegido qué pasa con los integrantes.
+              !overlayDraft.subscriptionToFreePolicy
+            : !(Number(overlayDraft.subscription.price) > 0) || priceBelowMin
+        }
         onCancel={closeOverlay}
         onConfirm={() => void confirmOverlaySave()}
       >
+        {/* Todo el bloque de precio desaparece al apagar la suscripción. */}
+        {!isDeactivating && (
+        <>
         <div style={{ ...subtleStyle, marginBottom: 2 }}>
           {tServices("priceLegend")}
         </div>
@@ -805,6 +823,8 @@ function handleModify() {
             A la suscripción se le suman $3 MXN por el cargo de procesamiento de Stripe.
           </div>
         </div>
+        </>
+        )}
 
         {shouldShowFreeToSubscriptionPolicy ? (
           <TransitionPolicyPanel

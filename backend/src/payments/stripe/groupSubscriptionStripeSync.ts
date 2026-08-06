@@ -15,6 +15,7 @@ import { stripeFetch } from "./stripeClient";
 import { recordEarning } from "../../wallet/ledger";
 import {
   activateSubscribedMembership,
+  deactivateSubscribedMembership,
   patchMembershipExpiry,
   addMonths,
   GRACE_MS,
@@ -103,17 +104,33 @@ async function invoiceSub(inv: StripeInvoiceObj): Promise<{ subId: string; meta:
   return { subId, meta };
 }
 
-/** Marca el uso de la invitación (best-effort; solo en la 1ª factura). */
+/**
+ * Marca el uso de la invitación (best-effort; solo en la 1ª factura). TRANSACCIONAL con
+ * re-chequeo del tope: `validateInviteForGroup` (en el callable) valida el límite con una
+ * lectura simple mucho antes de que llegue esta factura, así que sin transacción el contador
+ * podría pasarse de `maxUses` con checkouts concurrentes. Aquí se re-lee dentro de la
+ * transacción, NO se incrementa si ya está agotado, y se desactiva el enlace al llegar al tope.
+ */
 async function markInviteUsed(groupId: string, inviteToken: string, uid: string): Promise<void> {
   const inv = await db.collectionGroup("inviteLinks").where("token", "==", inviteToken).limit(1).get();
   const ref = inv.empty ? null : inv.docs[0].ref;
   if (!ref) return;
-  await ref
-    .update({
-      usedCount: FieldValue.increment(1),
-      lastUsedAt: FieldValue.serverTimestamp(),
-      lastUsedBy: uid,
-      updatedAt: FieldValue.serverTimestamp(),
+  await db
+    .runTransaction(async (tx) => {
+      const snap = await tx.get(ref);
+      if (!snap.exists) return;
+      const d = snap.data() as { usedCount?: number; maxUses?: number | null };
+      const used = typeof d.usedCount === "number" ? d.usedCount : 0;
+      const max = typeof d.maxUses === "number" ? d.maxUses : null;
+      if (max !== null && used >= max) return; // ya agotado: no sobre-incrementar
+      const next = used + 1;
+      tx.update(ref, {
+        usedCount: next,
+        lastUsedAt: FieldValue.serverTimestamp(),
+        lastUsedBy: uid,
+        updatedAt: FieldValue.serverTimestamp(),
+        ...(max !== null && next >= max ? { isActive: false } : {}),
+      });
     })
     .catch(() => undefined);
 }
@@ -188,8 +205,12 @@ export async function reconcileStripeSubscriptionEvent(type: string, object: Rec
       });
     }
 
-    // Primera factura → marca el uso de la invitación.
-    if (inv.billing_reason === "subscription_create" && meta.inviteToken) {
+    // Primera factura → marca el uso de la invitación. SOLO en `invoice.paid` (no en
+    // `invoice.payment_succeeded`): Stripe emite AMBOS eventos por la misma factura con
+    // event.id distintos, así que el dedup de `stripeEvents` no los junta; como
+    // `markInviteUsed` hace `increment(1)` (no idempotente), correr en los dos subiría
+    // `usedCount` +2 y agotaría el enlace al doble. `invoice.paid` siempre se emite al pagar.
+    if (type === "invoice.paid" && inv.billing_reason === "subscription_create" && meta.inviteToken) {
       await markInviteUsed(groupId, meta.inviteToken, uid);
     }
     logger.info("stripe subscription invoice.paid", { groupId, uid, invoiceId: inv.id });
@@ -201,29 +222,48 @@ export async function reconcileStripeSubscriptionEvent(type: string, object: Rec
     const inv = object as StripeInvoiceObj;
     const { subId, meta } = await invoiceSub(inv);
     if (!subId || !meta) return;
-    const grace = new Date(Date.now() + GRACE_MS);
-    await db.collection("groupSubscriptions").doc(`${meta.groupId}_${meta.uid}`).set(
+    const ref = db.collection("groupSubscriptions").doc(`${meta.groupId}_${meta.uid}`);
+    const graceMs = Date.now() + GRACE_MS;
+    const grace = new Date(graceMs);
+    // El acceso durante la gracia NUNCA debe acortar un periodo ya pagado que siga vigente:
+    // usa el mayor entre el `accessUntil` actual y la gracia (normalmente el fallo ocurre en
+    // la renovación, con el periodo ya vencido, y gana la gracia).
+    const curUntil = (await ref.get()).data()?.accessUntil;
+    const curUntilMs = curUntil && typeof curUntil.toMillis === "function" ? curUntil.toMillis() : 0;
+    const until = new Date(Math.max(graceMs, curUntilMs));
+    await ref.set(
       {
         status: "past_due",
         gracePeriodEnd: Timestamp.fromDate(grace),
-        accessUntil: Timestamp.fromDate(grace),
+        accessUntil: Timestamp.fromDate(until),
         updatedAt: FieldValue.serverTimestamp(),
       },
       { merge: true }
     );
-    await patchMembershipExpiry(meta.groupId, meta.uid, grace);
+    await patchMembershipExpiry(meta.groupId, meta.uid, until);
     logger.info("stripe subscription payment_failed", { groupId: meta.groupId, uid: meta.uid });
     return;
   }
 
-  // ── Suscripción terminada → baja (el cron expira el acceso cuando vence) ────
+  // ── Suscripción terminada → baja INMEDIATA del acceso ──────────────────────
+  // Stripe solo emite `deleted` cuando la suscripción ya terminó de verdad: cancelación
+  // inmediata (el creador eligió "cancelar ahora"), o fin del periodo tras un
+  // cancel_at_period_end. En ambos casos el acceso se corta YA — no se espera al cron.
   if (type === "customer.subscription.deleted") {
     const meta = subMeta(object as StripeSub);
     if (!meta) return;
+    await deactivateSubscribedMembership(meta.groupId, meta.uid);
     await db.collection("groupSubscriptions").doc(`${meta.groupId}_${meta.uid}`).set(
-      { status: "ended", active: false, cancelAtPeriodEnd: true, updatedAt: FieldValue.serverTimestamp() },
+      {
+        status: "ended",
+        active: false,
+        cancelAtPeriodEnd: true,
+        accessUntil: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      },
       { merge: true }
     );
+    logger.info("stripe subscription deleted → acceso revocado", { groupId: meta.groupId, uid: meta.uid });
     return;
   }
 

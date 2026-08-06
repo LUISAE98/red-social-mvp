@@ -52,6 +52,9 @@ export const createDonationStripeIntent = onCall(
     const taxCountry = data.taxCountry ? String(data.taxCountry).trim().toUpperCase() : null;
     const groupId = typeof data.groupId === "string" && data.groupId.trim() ? data.groupId.trim() : null;
     const groupName = typeof data.groupName === "string" && data.groupName.trim() ? data.groupName.trim() : null;
+    // Apodo del donador (invitado sin login o usuario con sesión). Se guarda con la
+    // donación para mostrar quién contribuyó. Opcional; se recorta a 24.
+    const nickname = typeof data.nickname === "string" && data.nickname.trim() ? data.nickname.trim().slice(0, 24) : null;
 
     // Precio publicado = base + $3 cargo fijo; IVA 16% encima (todo lo absorbe el donador).
     const country = taxCountry || "MX";
@@ -82,6 +85,7 @@ export const createDonationStripeIntent = onCall(
         source: groupId ? "group" : "profile",
         groupId,
         groupName,
+        donorNickname: nickname,
       },
       baseAmount: base,
       fixedFee: FIXED_SERVICE_FEE_MXN,

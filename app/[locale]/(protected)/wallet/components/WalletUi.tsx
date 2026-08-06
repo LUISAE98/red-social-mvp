@@ -36,6 +36,7 @@ import ScheduleDateTimeSelector, {
 } from "./ScheduleDateTimeSelector";
 import ScheduleCalendarOverlay from "./ScheduleCalendarOverlay";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
+import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 
 type ServiceCardTheme = { bgImage: string | null; btnBg: string; btnColor: string };
@@ -1684,6 +1685,9 @@ export function WalletFilterMenu<T extends string>({
   const [open, setOpen] = useState(false);
   const [closing, setClosing] = useState(false);
   const [pending, setPending] = useState<T[]>(value);
+
+  // Con el menú abierto, el fondo no se mueve (hook único de la plataforma).
+  useBodyScrollLock(open);
 
   function openMenu() {
     setPending(value);

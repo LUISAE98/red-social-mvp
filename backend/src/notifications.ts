@@ -43,6 +43,9 @@ type NotificationType =
   | "join_request"
   | "join_approved"
   | "join_rejected"
+  | "moderator_invite"
+  | "moderator_invite_accepted"
+  | "moderator_invite_rejected"
   | "group_new_member"
   | "group_new_subscriber"
   | "group_moderation"
@@ -736,6 +739,54 @@ export async function notifyJoinRejected(
     groupKey: `join_rejected_${groupId}`,
     type: "join_rejected",
     actor: groupActorOf(group),
+    target: { groupId, groupName: str(group.get("name")) },
+  });
+}
+
+/**
+ * Invitación a MODERAR una comunidad. El invitado la responde desde la propia
+ * notificación (Aceptar / Rechazar). Actor = quien invita (el dueño).
+ * Una invitación por comunidad: el groupKey no lleva el uid del invitado porque
+ * el destinatario ES el invitado.
+ */
+export async function notifyModeratorInvite(
+  groupId: string,
+  inviteeId: string,
+  inviterId: string
+): Promise<void> {
+  const group = await db.collection("groups").doc(groupId).get();
+  if (!group.exists) return;
+  await emit({
+    recipientId: inviteeId,
+    groupKey: `moderator_invite_${groupId}`,
+    type: "moderator_invite",
+    actor: await resolveActor(inviterId),
+    target: { groupId, groupName: str(group.get("name")) },
+  });
+}
+
+/**
+ * Respuesta a la invitación a moderar, de vuelta a quien invitó. Actor = la
+ * persona invitada (su avatar), que es de quien se habla en el texto.
+ */
+export async function notifyModeratorInviteResponse(
+  groupId: string,
+  inviterId: string,
+  inviteeId: string,
+  accepted: boolean
+): Promise<void> {
+  const group = await db.collection("groups").doc(groupId).get();
+  if (!group.exists) return;
+  const type: NotificationType = accepted
+    ? "moderator_invite_accepted"
+    : "moderator_invite_rejected";
+  await emit({
+    recipientId: inviterId,
+    // Con el uid del invitado: si invitas a varias personas, cada respuesta es
+    // su propia tarjeta y no se pisan entre sí.
+    groupKey: `${type}_${groupId}_${inviteeId}`,
+    type,
+    actor: await resolveActor(inviteeId),
     target: { groupId, groupName: str(group.get("name")) },
   });
 }

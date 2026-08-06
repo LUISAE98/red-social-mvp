@@ -66,21 +66,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let cancelled = false;
     const unsub = onAuthStateChanged(auth, (u) => {
-      setUser(u);
+      // Los usuarios ANÓNIMOS son INVITADOS que compran sin login (donación, súper
+      // comentario, tickets…). NO deben cambiar la UI a modo autenticado (shell, sidebar,
+      // wallet, nav). Para el contexto de UI valen como no-logueados; su identidad sigue
+      // viva en `auth.currentUser` y la usan los pagos de invitado (ver ensureGuestAuth).
+      const effective = u && !u.isAnonymous ? u : null;
+      setUser(effective);
       setLoading(false);
       // When signing out (u=null during "exiting"), don't restart the timer —
       // the one from startAuthTransition already covers the navigation window.
-      if (!(u === null && authTransitionModeRef.current === "exiting")) {
+      if (!(effective === null && authTransitionModeRef.current === "exiting")) {
         scheduleIdle();
       }
 
       // Resolver si el usuario ya tiene perfil (para el guardián de rutas auth).
-      if (!u) {
+      if (!effective) {
         setHasProfile(null);
         return;
       }
       setHasProfile(null); // reset mientras resuelve
-      const uid = u.uid;
+      const uid = effective.uid;
       getDoc(doc(db, "users", uid))
         .then((snap) => {
           if (cancelled) return;

@@ -1837,6 +1837,19 @@ match /memberBlocks/{blockId} {
         allow update: if false;
       }
 
+      // Invitaciones a MODERAR. Las escribe SOLO el backend (callables
+      // inviteGroupModerator / respondGroupModeratorInvite): el ascenso a
+      // moderador nunca puede salir del cliente. Lectura: el dueño ve las que
+      // repartió y cada persona ve la suya.
+      match /moderatorInvites/{inviteeId} {
+        allow get: if signedIn()
+          && (request.auth.uid == inviteeId || isOwner(groupId));
+
+        allow list: if signedIn() && isOwner(groupId);
+
+        allow create, update, delete: if false;
+      }
+
       match /inviteLinks/{linkId} {
         allow read, write: if false;
       }

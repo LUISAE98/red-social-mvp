@@ -15,6 +15,9 @@ export type NotificationType =
   | "join_request"
   | "join_approved"
   | "join_rejected"
+  | "moderator_invite"
+  | "moderator_invite_accepted"
+  | "moderator_invite_rejected"
   | "group_new_member"
   | "group_new_subscriber"
   | "group_moderation"
@@ -102,6 +105,9 @@ export const KNOWN_NOTIFICATION_TYPES: ReadonlySet<NotificationType> = new Set([
   "join_request",
   "join_approved",
   "join_rejected",
+  "moderator_invite",
+  "moderator_invite_accepted",
+  "moderator_invite_rejected",
   "group_new_member",
   "group_new_subscriber",
   "group_moderation",
@@ -146,6 +152,11 @@ export function notificationHref(n: AppNotification, selfHandle?: string | null)
     case "join_request":
     case "join_approved":
     case "join_rejected":
+    // Invitación a moderar y sus respuestas → siempre la comunidad. La pestaña
+    // y el panel a abrir viajan en el query (ver notificationQuery).
+    case "moderator_invite":
+    case "moderator_invite_accepted":
+    case "moderator_invite_rejected":
     case "group_new_member":
     case "group_new_subscriber":
     case "group_subscription_transition":
@@ -179,6 +190,16 @@ export function notificationQuery(n: AppNotification): Record<string, string> | 
     n.target.groupId
   ) {
     return { tab: "members" };
+  }
+  // Aceptó la invitación a moderar → a la lista de integrantes, a verlo ya como
+  // moderador.
+  if (n.type === "moderator_invite_accepted" && n.target.groupId) {
+    return { tab: "members" };
+  }
+  // La rechazó → misma lista, pero abriendo el buscador de moderadores para
+  // proponerle el puesto a alguien más sin tener que navegar de nuevo.
+  if (n.type === "moderator_invite_rejected" && n.target.groupId) {
+    return { tab: "members", assignModerator: "1" };
   }
   return undefined;
 }

@@ -18,6 +18,7 @@ import { FIXED_SERVICE_FEE_MXN } from "@/lib/currency/catalog";
 import { loadStripe, type StripeLike, type StripeElement } from "@/lib/stripe/loadStripe";
 import VibraPayBrand from "./VibraPayBrand";
 import PaymentSuccessCard from "./PaymentSuccessCard";
+import { getGuestNickname, setGuestNickname, GUEST_NICKNAME_MAX } from "@/lib/guest/guestNickname";
 
 export type SavedCard = { id: string; brand?: string; brandName?: string; lastFour?: string };
 
@@ -30,7 +31,10 @@ type Props = {
   /** Crea el PaymentIntent y devuelve su client_secret. `taxCountry` = país fiscal del comprador (por IP).
    *  Si `savedPaymentMethodId` viene, el cobro es "un clic" off-session (sin CVV): se confirma
    *  server-side y la respuesta trae `status` ("succeeded" = cobrado). */
-  createIntent: (args: { amount: number; saveCard: boolean; taxCountry: string | null; savedPaymentMethodId?: string }) => Promise<{ clientSecret?: string; status?: string }>;
+  createIntent: (args: { amount: number; saveCard: boolean; taxCountry: string | null; savedPaymentMethodId?: string; nickname?: string | null }) => Promise<{ clientSecret?: string; status?: string }>;
+  /** Invitado (sin login): en el saludo "Bienvenido" muestra un input de APODO editable
+   *  (placeholder), cacheado por dispositivo y enviado en `createIntent`. */
+  collectNickname?: boolean;
   amountEditable?: boolean;
   /** Montos sugeridos de DONACIÓN (base MXN). Si no se pasan, usa los defaults. */
   donationPresets?: number[];
@@ -97,6 +101,7 @@ export default function StripePaymentModal({
   container,
   forceStacked = false,
   hideBuyerGreeting = false,
+  collectNickname = false,
   paymentHeading = "¿Cómo quieres pagar?",
   payButtonLabel = "Pagar",
   savedCards = [],
@@ -126,6 +131,8 @@ export default function StripePaymentModal({
   // bottom-sheet: sube al abrir y baja al cerrar. En laptop queda como diálogo centrado.
   const mobileSheet = stacked && !isSheet;
   const [buyer, setBuyer] = useState<{ name: string; photo: string | null } | null>(null);
+  // Apodo del invitado (se pre-llena de la caché del dispositivo y es editable).
+  const [nickname, setNickname] = useState("");
   const [render, setRender] = useState(false);
   const [entered, setEntered] = useState(false);
   // Tarjetas guardadas del comprador (Stripe). Se suscribe internamente para que CUALQUIER
@@ -207,6 +214,11 @@ export default function StripePaymentModal({
   }, [open]);
 
   useBodyScrollLock(open && !isSheet);
+
+  // Invitado: pre-llena el apodo desde la caché del dispositivo al abrir.
+  useEffect(() => {
+    if (open && collectNickname) setNickname(getGuestNickname());
+  }, [open, collectNickname]);
 
   // Perfil del comprador (saludo).
   useEffect(() => {
@@ -350,7 +362,7 @@ export default function StripePaymentModal({
       if (savedCardId) {
         // Cobro "un clic" off-session (sin CVV): el callable confirma server-side con la
         // tarjeta guardada. El webhook materializa la compra (igual que la tarjeta nueva).
-        const res = await createIntentRef.current({ amount: payAmount, saveCard: false, taxCountry: pf.buyerCountry ?? null, savedPaymentMethodId: savedCardId });
+        const res = await createIntentRef.current({ amount: payAmount, saveCard: false, taxCountry: pf.buyerCountry ?? null, savedPaymentMethodId: savedCardId, nickname: collectNickname ? (nickname.trim() || null) : null });
         if (res.status === "succeeded" || res.status === "processing") { markPaid(); return; }
         // Requiere autenticación adicional (SCA): completa el 3DS con el client_secret.
         if (res.clientSecret) {
@@ -365,7 +377,11 @@ export default function StripePaymentModal({
       const numberEl = numberElRef.current;
       if (!numberEl) throw new Error("no_element");
 
-      const { clientSecret } = await createIntentRef.current({ amount: payAmount, saveCard, taxCountry: pf.buyerCountry ?? null });
+      const res = await createIntentRef.current({ amount: payAmount, saveCard, taxCountry: pf.buyerCountry ?? null, nickname: collectNickname ? (nickname.trim() || null) : null });
+      // Sin factura que confirmar (p. ej. REACTIVAR una suscripción con cancelación
+      // pendiente: no se cobra de nuevo). El backend ya dejó todo listo → éxito directo.
+      if (res.status === "succeeded" || res.status === "processing") { markPaid(); return; }
+      const clientSecret = res.clientSecret;
       if (!clientSecret) throw new Error("no_secret");
       const result = await stripe.confirmCardPayment(clientSecret, {
         payment_method: { card: numberEl, billing_details: { name: cardName.trim() } },
@@ -495,9 +511,21 @@ export default function StripePaymentModal({
             {/* eslint-disable-next-line @next/next/no-img-element */}
             {buyer?.photo ? <img src={buyer.photo} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : null}
           </div>
-          <div style={{ minWidth: 0 }}>
+          <div style={{ minWidth: 0, flex: 1 }}>
             <div style={{ fontSize: 12, color: "#9aa0a8" }}>Bienvenido</div>
-            {buyer?.name && <div style={{ fontSize: 15, fontWeight: 600, color: "#3a3f4a", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{buyer.name}</div>}
+            {collectNickname ? (
+              <input
+                type="text"
+                value={nickname}
+                onChange={(e) => { const v = e.target.value.slice(0, GUEST_NICKNAME_MAX); setNickname(v); setGuestNickname(v); }}
+                placeholder="Escribe tu apodo"
+                maxLength={GUEST_NICKNAME_MAX}
+                aria-label="Tu apodo"
+                style={{ width: "100%", border: "none", borderBottom: "1px solid #e0e3e8", outline: "none", fontSize: 15, fontWeight: 600, color: "#3a3f4a", fontFamily: "inherit", padding: "2px 0", background: "transparent" }}
+              />
+            ) : (
+              buyer?.name && <div style={{ fontSize: 15, fontWeight: 600, color: "#3a3f4a", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{buyer.name}</div>
+            )}
           </div>
         </div>
       )}

@@ -80,10 +80,42 @@ export const createGroupSubscription = onCall(
     if (!ownerId) throw new HttpsError("failed-precondition", "Comunidad sin dueño.");
     if (ownerId === uid) throw new HttpsError("failed-precondition", "No puedes suscribirte a tu propia comunidad.");
 
-    // ¿Ya suscrito activo? (evita doble suscripción)
-    const memberSnap = await db.doc(`users/${uid}/groupMemberships/${groupId}`).get();
-    if (memberSnap.exists && memberSnap.data()?.subscriptionActive === true) {
-      throw new HttpsError("failed-precondition", "Ya tienes una suscripción activa a esta comunidad.");
+    // Estado de MI suscripción actual (Stripe es la fuente de verdad). Tres casos:
+    //  · Activa y SIN cancelación pendiente → duplicado real: rechazar (evita doble cobro;
+    //    también cierra la carrera de doble-clic, porque el flag `subscriptionActive` de la
+    //    membresía lo pone el webhook async y podría llegar tarde).
+    //  · Activa PERO con cancelación programada (cancel_at_period_end) → el usuario está
+    //    REACTIVANDO desde el botón "Suscrito hasta {fecha}": se deshace la cancelación. No
+    //    se cobra de nuevo (ya pagó este periodo); se reanuda el cobro recurrente.
+    //  · Ended/canceled/incomplete → cae abajo y se crea una suscripción NUEVA.
+    const existingSubSnap = await db.collection("groupSubscriptions").doc(`${groupId}_${uid}`).get();
+    const existingSubId =
+      typeof existingSubSnap.data()?.stripeSubscriptionId === "string"
+        ? (existingSubSnap.data()?.stripeSubscriptionId as string)
+        : null;
+    if (existingSubId) {
+      const chk = await stripeFetch<{ status?: string; cancel_at_period_end?: boolean }>(`/subscriptions/${existingSubId}`);
+      const chkData = chk.ok ? chk.data : null;
+      const st = chkData?.status ?? null;
+      if (st && ["active", "trialing", "past_due", "unpaid"].includes(st)) {
+        if (chkData?.cancel_at_period_end === true) {
+          const re = await stripeFetch(`/subscriptions/${existingSubId}`, {
+            method: "POST",
+            form: { cancel_at_period_end: false },
+          });
+          if (!re.ok) {
+            logger.error("reactivateGroupSubscription failed", { groupId, uid, status: re.status });
+            throw new HttpsError("internal", "No se pudo reactivar la suscripción. Intenta de nuevo.");
+          }
+          await existingSubSnap.ref.set(
+            { cancelAtPeriodEnd: false, status: "authorized", updatedAt: admin.firestore.FieldValue.serverTimestamp() },
+            { merge: true }
+          );
+          logger.info("group subscription reactivated", { groupId, uid, subscriptionId: existingSubId });
+          return { status: "succeeded", clientSecret: null, subscriptionId: existingSubId, reactivated: true };
+        }
+        throw new HttpsError("failed-precondition", "Ya tienes una suscripción activa a esta comunidad.");
+      }
     }
 
     // Comunidad oculta = invite-only: exige inviteToken válido. Se marca su uso al

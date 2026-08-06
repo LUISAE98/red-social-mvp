@@ -53,7 +53,7 @@ import {
   removePostFromAllFeedCaches,
 } from "@/lib/posts/post-feed-cache";
 import RefreshableArea from "@/components/refresh/RefreshableArea";
-import { loadFeedWithRetry } from "@/lib/posts/feed-load-helpers";
+import { loadFeedWithRetry, isFeedLoadTimeout } from "@/lib/posts/feed-load-helpers";
 import { useUnlockedPostIds } from "@/lib/posts/useUnlockedPostIds";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
@@ -393,6 +393,10 @@ export default function GroupPostsFeed({
         // Silenciamos el permission-denied (nada de toast "Missing permissions").
         if ((e as { code?: string })?.code === "permission-denied") {
           setPosts([]);
+          setError(null);
+        } else if (isFeedLoadTimeout(e)) {
+          // Corte por tiempo: no es un error del usuario ni tiene acción posible.
+          // Se silencia (ver isFeedLoadTimeout).
           setError(null);
         } else {
           setError(

@@ -42,7 +42,7 @@ import {
   getFeedRailSeed,
 } from "@/app/components/GroupRecommendations/recommendation-engine";
 import DonationFeedBanner from "@/app/components/DonationFeedBanner/DonationFeedBanner";
-import { loadFeedWithRetry } from "@/lib/posts/feed-load-helpers";
+import { loadFeedWithRetry, isFeedLoadTimeout } from "@/lib/posts/feed-load-helpers";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import {
@@ -329,10 +329,16 @@ const cacheKey = useMemo(
           return;
         }
 
-        setError(
-          (e instanceof Error ? e.message : null) ??
-            tProfile("loadPostsError")
-        );
+        // Corte por tiempo: no es un error del usuario ni tiene acción posible.
+        // Se silencia (ver isFeedLoadTimeout).
+        if (isFeedLoadTimeout(e)) {
+          setError(null);
+        } else {
+          setError(
+            (e instanceof Error ? e.message : null) ??
+              tProfile("loadPostsError")
+          );
+        }
       } finally {
         if (mode === "more") {
           loadingMoreRef.current = false;

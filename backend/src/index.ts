@@ -117,6 +117,12 @@ export const expireGroupSubscriptions = onSchedule(
 // Join requests
 export { approveJoinRequest, rejectJoinRequest } from "./joinRequests";
 
+// Invitaciones a moderar (permite nombrar moderador a alguien que no es miembro).
+export {
+  inviteGroupModerator,
+  respondGroupModeratorInvite,
+} from "./moderatorInvites";
+
 // Invite links
 export {
   createInviteLink,

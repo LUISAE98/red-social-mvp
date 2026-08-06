@@ -328,10 +328,10 @@ export const getInviteLinkPreview = onCall(async (request) => {
     monetization?: unknown;
   };
 
-  // Solo las comunidades ocultas de suscripción piden "Suscribirme" + pago simulado.
+  // Toda comunidad de suscripción (oculta o privada) pide "Suscribirme" + pago Stripe por
+  // invitación. El acceso lo concede el webhook tras el cobro, nunca `consumeInviteLink`.
   const subscription = readGroupSubscription(groupData);
-  const requiresSubscription =
-    groupData?.visibility === "hidden" && subscription.requiresSubscription;
+  const requiresSubscription = subscription.requiresSubscription;
 
   const expiresAt = inviteData?.expiresAt ?? null;
   const isExpired = !expiresAt || expiresAt.toMillis() <= Date.now();
@@ -582,6 +582,19 @@ export const consumeInviteLink = onCall(async (request) => {
           outcome: "already_joined",
           message: "Ya formas parte de esta comunidad.",
         };
+      }
+
+      // Comunidades de SUSCRIPCIÓN: el acceso NUNCA se concede gratis por invitación. Debe
+      // pagarse por Stripe (createGroupSubscription → webhook invoice.paid, patrón
+      // pagar-luego-conceder). Este `onCall` es público: sin este guard, un usuario con un
+      // token válido podría llamarlo directo (fuera de la UI) y obtener membresía suscrita
+      // gratis en una oculta de pago; y en una privada de pago crear una solicitud que al
+      // aprobarse daría acceso sin cobro. Ambos huecos quedan cerrados aquí.
+      if (readGroupSubscription(groupData).requiresSubscription) {
+        throw new HttpsError(
+          "failed-precondition",
+          "Esta comunidad requiere suscripción. Completa el pago para unirte."
+        );
       }
 
       if (groupData?.visibility === "hidden") {

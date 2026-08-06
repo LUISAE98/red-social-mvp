@@ -26,7 +26,7 @@ import GroupPostCard from "@/app/groups/[groupId]/components/posts/GroupPostCard
 import { PostSkeletonList } from "@/app/components/PostSkeleton/PostSkeleton";
 import PostReveal from "@/app/components/PostSkeleton/PostReveal";
 import RefreshableArea from "@/components/refresh/RefreshableArea";
-import { loadFeedWithRetry } from "@/lib/posts/feed-load-helpers";
+import { loadFeedWithRetry, isFeedLoadTimeout } from "@/lib/posts/feed-load-helpers";
 import {
   patchPostInAllFeedCaches,
   registerPostFeedCacheListener,
@@ -337,10 +337,16 @@ const syncPostsState = useCallback(
           return;
         }
 
-        setError(
-          (e instanceof Error ? e.message : null) ??
-            tSaved("loadError")
-        );
+        // Corte por tiempo: no es un error del usuario ni tiene acción posible.
+        // Se silencia (ver isFeedLoadTimeout).
+        if (isFeedLoadTimeout(e)) {
+          setError(null);
+        } else {
+          setError(
+            (e instanceof Error ? e.message : null) ??
+              tSaved("loadError")
+          );
+        }
       } finally {
         loadingMoreRef.current = false;
         setLoadingInitial(false);

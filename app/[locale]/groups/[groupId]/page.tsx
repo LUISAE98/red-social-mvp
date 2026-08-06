@@ -51,6 +51,7 @@ import {
   type GreetingType,
 } from "@/lib/greetings/greetingRequests";
 import StripePaymentModal from "@/components/payments/StripePaymentModal";
+import PaymentSuccessCard from "@/components/payments/PaymentSuccessCard";
 import { createGreetingStripeIntent, createServiceStripeIntent, createGroupSubscription, cancelGroupSubscriptionStripe } from "@/lib/stripe/stripePayments";
 import { FIXED_SERVICE_FEE_MXN } from "@/lib/currency/catalog";
 import { createMeetGreetRequest } from "@/lib/meetGreet/meetGreetRequests";
@@ -98,6 +99,10 @@ import { useSetMobileHeader } from "@/app/contexts/MobileHeaderContext";
 import { buildCurrentPathWithSearch } from "@/lib/auth-redirect";
 import { normalizeImageFile } from "@/lib/uploads/image-normalizer";
 import RefreshableArea from "@/components/refresh/RefreshableArea";
+// Mismo skeleton de encabezado que el perfil: el componente ya se escribió para
+// ambos (portada + avatar + nombre + datos + botón + historias + cards).
+import ProfileHeaderSkeleton from "@/components/profile/ProfileHeaderSkeleton";
+import { Button, Modal } from "@/components/ui";
 import {
   groupPageFontStack,
   groupPageUi,
@@ -603,8 +608,14 @@ const canRequestMeetGreet =
 
   const [subscriptionOpen, setSubscriptionOpen] = useState(false);
   const [subscriptionSubmitting, setSubscriptionSubmitting] = useState(false);
-  // Pasarela de pago real de la suscripción (preapproval MP).
+  // Pasarela de pago real de la suscripción (Stripe Subscriptions).
   const [subscriptionPayOpen, setSubscriptionPayOpen] = useState(false);
+  // Éxito de la suscripción, controlado por estado de PÁGINA (no por el `showSuccess`
+  // interno del modal). El pago concede la membresía vía webhook → el componente cambia
+  // de rama (no-miembro → miembro) y remonta el gateway; si el éxito viviera dentro del
+  // modal se perdería y reaparecería el formulario. Con esta bandera el panel verde
+  // sobrevive al cambio de rama.
+  const [subscriptionPaid, setSubscriptionPaid] = useState(false);
   const [subscriptionError, setSubscriptionError] = useState<string | null>(null);
 
   const [groupDonationViewerOpen, setGroupDonationViewerOpen] = useState(false);
@@ -621,6 +632,10 @@ const canRequestMeetGreet =
   // Deep-link `?requests=1` desde la notificación de solicitud de unión: abre la
   // lista de solicitudes dentro de Integrantes.
   const [requestsDeepLinkOpen, setRequestsDeepLinkOpen] = useState(false);
+  // Deep-link `?assignModerator=1` desde la notificación de invitación RECHAZADA:
+  // abre el buscador de moderadores para proponerle el puesto a alguien más.
+  const [assignModeratorDeepLinkOpen, setAssignModeratorDeepLinkOpen] =
+    useState(false);
 
   // Cambio de pestaña preservando el scroll (misma UX que Wallet/Perfil).
   const tabSwitchScrollY = useRef<number | null>(null);
@@ -737,31 +752,59 @@ function redirectToLogin() {
   // membresía y registra el earning por cada cobro. `amount` = base + $3 → la pasarela
   // muestra el total mensual (base+$3)×IVA. Para comunidades ocultas el flujo es por invite.
   const subscriptionGateway = (
-    <StripePaymentModal
-      open={subscriptionPayOpen}
-      amount={subscriptionPrice != null ? subscriptionPrice + FIXED_SERVICE_FEE_MXN : null}
-      amountCurrency="MXN"
-      pricePeriodLabel="mes"
-      createIntent={(args) => createGroupSubscription({
-        groupId,
-        taxCountry: args.taxCountry,
-        savedPaymentMethodId: args.savedPaymentMethodId,
-      })}
-      productType={tGroups("subscriptionProductType")}
-      providerName={group?.name}
-      avatarUrl={group?.avatarUrl ?? null}
-      payButtonLabel={tGroups("subscribeAction")}
-      description={tGroups("subscribeGatewayDescription", { name: group?.name ?? tServices("creatorFallback") })}
-      successMessage={tGroups("subscriptionProcessed")}
-      onClose={() => setSubscriptionPayOpen(false)}
-      onPaid={() => {
-        registrarCompraGeo({
-          creatorId: group?.ownerId,
-          serviceType: "subscription",
-          grossAmount: subscriptionPrice ?? undefined,
-        });
-      }}
-    />
+    <>
+      <StripePaymentModal
+        open={subscriptionPayOpen}
+        amount={subscriptionPrice != null ? subscriptionPrice + FIXED_SERVICE_FEE_MXN : null}
+        amountCurrency="MXN"
+        pricePeriodLabel="mes"
+        createIntent={(args) => createGroupSubscription({
+          groupId,
+          taxCountry: args.taxCountry,
+          savedPaymentMethodId: args.savedPaymentMethodId,
+        })}
+        productType={tGroups("subscriptionProductType")}
+        providerName={group?.name}
+        avatarUrl={group?.avatarUrl ?? null}
+        payButtonLabel={tGroups("subscribeAction")}
+        description={tGroups("subscribeGatewayDescription", { name: group?.name ?? tServices("creatorFallback") })}
+        onClose={() => setSubscriptionPayOpen(false)}
+        onPaid={() => {
+          registrarCompraGeo({
+            creatorId: group?.ownerId,
+            serviceType: "subscription",
+            grossAmount: subscriptionPrice ?? undefined,
+          });
+          // Cerrar el formulario y mostrar el éxito con estado de PÁGINA: así el panel verde
+          // sobrevive al cambio de rama (no-miembro → miembro) que dispara el webhook.
+          setSubscriptionPayOpen(false);
+          setSubscriptionPaid(true);
+        }}
+      />
+      {subscriptionPaid && typeof window !== "undefined" && createPortal(
+        <div
+          role="dialog"
+          aria-modal="true"
+          onMouseDown={(e) => { if (e.target === e.currentTarget) setSubscriptionPaid(false); }}
+          style={{ position: "fixed", inset: 0, zIndex: 2147483647, display: "flex", alignItems: "center", justifyContent: "center", padding: 20, background: "rgba(0,0,0,0.55)" }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{ position: "relative", width: "min(100%, 440px)", maxHeight: "92vh", overflowY: "auto", background: "#fff", borderRadius: 16, boxShadow: "0 24px 72px rgba(0,0,0,0.4)", color: "#3a3f4a" }}
+          >
+            <PaymentSuccessCard
+              avatarUrl={group?.avatarUrl ?? null}
+              providerName={group?.name}
+              productType={tGroups("subscriptionProductType")}
+              successMessage={tGroups("subscriptionProcessed")}
+              onClose={() => setSubscriptionPaid(false)}
+              locale={locale}
+            />
+          </div>
+        </div>,
+        document.body
+      )}
+    </>
   );
 
   async function handleJoinPublic() {
@@ -1212,6 +1255,20 @@ function redirectToLogin() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, isOwner, isModerator, searchParams]);
 
+  // Deep-link desde la notificación de invitación a moderar RECHAZADA: abre
+  // Integrantes con el buscador de moderadores ya desplegado. Solo el dueño.
+  useEffect(() => {
+    if (!user || !isOwner) return;
+    if (searchParams.get("assignModerator") !== "1") return;
+    setActiveTab("members");
+    setAssignModeratorDeepLinkOpen(true);
+    const nextParams = new URLSearchParams(searchParams.toString());
+    nextParams.delete("assignModerator");
+    const nextHref = nextParams.toString() ? `${pathname}?${nextParams.toString()}` : pathname;
+    router.replace(nextHref, { scroll: false });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, isOwner, searchParams]);
+
   // Deep-link `?tab=members` desde la notificación de nuevo miembro: abre la
   // pestaña Integrantes (la lista de miembros).
   useEffect(() => {
@@ -1384,22 +1441,19 @@ const openCropWithFile = useCallback(
   };
 
   if (loading) {
+    // Sin spinner: el mismo skeleton de encabezado que el perfil (portada, avatar,
+    // nombre, datos, descripción, botón, historias y cards de servicios). Al llegar
+    // los datos, el contenido real entra con fade (ver .group-card en el styled-jsx
+    // del render principal), igual que .profile-card en ProfileClient.
     return (
       <main
         style={{
           minHeight: "100dvh",
           background: "#000",
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: 16,
+          fontFamily: groupPageFontStack,
         }}
       >
-        <div className="vibraPullRefreshSpinner refreshing" style={{ width: 32, height: 32 }} />
-        <span style={{ fontSize: 13, color: "rgba(255,255,255,0.32)", letterSpacing: "0.01em" }}>
-          {tGroups("loadingCommunity")}
-        </span>
+        <ProfileHeaderSkeleton maxWidth={groupPageUi.pageMaxWidth} />
       </main>
     );
   }
@@ -1793,6 +1847,22 @@ const avatarNode = (
               position: relative;
               overflow: hidden;
               min-width: 0;
+              /* El contenido real no aparece de golpe tras el skeleton: fade-in
+                 suave al montar (cuando ya llegaron los datos de la comunidad). */
+              animation: vbGroupReveal var(--duration-slow, 400ms) var(--ease-out, ease) both;
+            }
+            @keyframes vbGroupReveal {
+              from {
+                opacity: 0;
+              }
+              to {
+                opacity: 1;
+              }
+            }
+            @media (prefers-reduced-motion: reduce) {
+              .group-card {
+                animation: none;
+              }
             }
 
             .group-card::before,
@@ -2225,6 +2295,22 @@ const avatarNode = (
             position: relative;
             overflow: hidden;
             min-width: 0;
+            /* El contenido real no aparece de golpe tras el skeleton: fade-in
+               suave al montar (cuando ya llegaron los datos de la comunidad). */
+            animation: vbGroupReveal var(--duration-slow, 400ms) var(--ease-out, ease) both;
+          }
+          @keyframes vbGroupReveal {
+            from {
+              opacity: 0;
+            }
+            to {
+              opacity: 1;
+            }
+          }
+          @media (prefers-reduced-motion: reduce) {
+            .group-card {
+              animation: none;
+            }
           }
 
           .group-card::before,
@@ -2619,15 +2705,32 @@ const avatarNode = (
                         <button
                           type="button"
                           onClick={() => {
-                            // Suscriptor MP → abre cancelación (conserva acceso hasta fin de mes);
-                            // miembro normal/legacy → salir de la comunidad.
-                            if (membershipRequiresSubscription && mySub) setCancelSubOpen(true);
-                            else setLeaveOverlayOpen(true);
+                            if (membershipRequiresSubscription && mySub) {
+                              // Cancelada (pendiente de fin de periodo) → reabrir la pasarela
+                              // para REACTIVAR el pago recurrente; activa → abrir cancelación.
+                              if (mySub.cancelAtPeriodEnd || mySub.status === "cancelled" || mySub.status === "ended") {
+                                openSubscriptionModal();
+                              } else {
+                                setCancelSubOpen(true);
+                              }
+                            } else {
+                              setLeaveOverlayOpen(true);
+                            }
                           }}
-                          style={{ ...primaryButton }}
+                          // Suscrito ACTIVO = azul, ancho normal, dice solo "Suscrito".
+                          // CANCELADO = gradiente morado/rosa, dice "Suscrito hasta {fecha}"
+                          // en un solo renglón (botón más ancho); al hacer clic reabre la
+                          // pasarela para reactivar la suscripción.
+                          style={
+                            !membershipRequiresSubscription
+                              ? { ...primaryButton }
+                              : mySub && (mySub.cancelAtPeriodEnd || mySub.status === "cancelled" || mySub.status === "ended")
+                                ? { ...primaryButton, flex: "0 0 auto", width: "auto", maxWidth: "none", whiteSpace: "nowrap", paddingInline: 22 }
+                                : { ...primaryButton, background: "#3b82f6" }
+                          }
                         >
                           {membershipRequiresSubscription
-                            ? mySub?.accessUntil
+                            ? mySub && (mySub.cancelAtPeriodEnd || mySub.status === "cancelled" || mySub.status === "ended") && mySub.accessUntil
                               ? tGroups("subscribedUntil", { date: formatSubDate(mySub.accessUntil) })
                               : tGroups("subscribedLabel")
                             : tGroups("alreadyMemberLabel")}
@@ -2824,6 +2927,20 @@ const avatarNode = (
                   isModerator={isModerator}
                   canMembersViewList={isEmbed || canMembersViewList}
                   initialShowRequests={requestsDeepLinkOpen}
+                  initialShowModeratorPanel={assignModeratorDeepLinkOpen}
+                  // Solo la comunidad privada normal aprueba/rechaza solicitudes:
+                  // la pública se une directo, la oculta por invitación y la de
+                  // suscripción pagando.
+                  canReceiveJoinRequests={
+                    normalizeVisibility(group.visibility) === "private" &&
+                    !subscriptionEnabled
+                  }
+                  // Invitar a moderar a alguien de fuera nunca aplica en una
+                  // comunidad oculta: no se le revela su existencia a nadie que
+                  // no esté dentro.
+                  canInviteModerators={
+                    normalizeVisibility(group.visibility) !== "hidden"
+                  }
                 />
               </div>
             )}
@@ -3161,89 +3278,87 @@ const avatarNode = (
         onSave={() => uploadCropped(cropMode)}
       />
 
-      {leaveOverlayOpen && typeof window !== "undefined" && createPortal(
-        <div
-          style={serviceModalBackdropStyle}
-          onClick={() => !leaving && setLeaveOverlayOpen(false)}
-        >
-          <div
-            style={{ ...serviceModalCardStyle, maxWidth: 400 }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div style={{ padding: "4px 0 16px", display: "grid", gap: 14 }}>
-              <p style={{ fontSize: 17, fontWeight: 700, lineHeight: 1.25, margin: 0 }}>
-                {membershipRequiresSubscription
-                  ? tGroups("cancelSubscriptionTitle")
-                  : tGroups("leaveConfirm")}
-              </p>
-              <p style={{ fontSize: 14, color: "rgba(255,255,255,0.75)", lineHeight: 1.5, margin: 0 }}>
-                {membershipRequiresSubscription
-                  ? tGroups("cancelSubscriptionWarning")
-                  : tGroups("leaveWarning")}
-              </p>
-
-              {leaveError && (
-                <div style={{
-                  padding: "10px 12px",
-                  borderRadius: 10,
-                  background: "rgba(239,68,68,0.10)",
-                  border: "1px solid rgba(239,68,68,0.3)",
-                  color: "#fca5a5",
-                  fontSize: 13,
-                }}>
-                  {leaveError}
-                </div>
-              )}
-
-              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                <button
-                  type="button"
-                  onClick={() => setLeaveOverlayOpen(false)}
-                  disabled={leaving}
-                  style={{
-                    flex: "1 1 120px",
-                    minHeight: 40,
-                    borderRadius: 10,
-                    border: "1px solid rgba(255,255,255,0.16)",
-                    background: "rgba(255,255,255,0.06)",
-                    color: "#fff",
-                    fontWeight: 600,
-                    fontSize: 14,
-                    cursor: leaving ? "not-allowed" : "pointer",
-                    opacity: leaving ? 0.6 : 1,
-                  }}
-                >
-                  {tCommon("cancel")}
-                </button>
-                <button
-                  type="button"
-                  onClick={handleLeave}
-                  disabled={leaving}
-                  style={{
-                    flex: "1 1 120px",
-                    minHeight: 40,
-                    borderRadius: 10,
-                    border: "none",
-                    background: "rgba(239,68,68,0.85)",
-                    color: "#fff",
-                    fontWeight: 600,
-                    fontSize: 14,
-                    cursor: leaving ? "not-allowed" : "pointer",
-                    opacity: leaving ? 0.75 : 1,
-                  }}
-                >
-                  {leaving
-                    ? tFeed("processing")
-                    : membershipRequiresSubscription
-                    ? tGroups("cancelSubscriptionButton")
-                    : tCommon("leave")}
-                </button>
-              </div>
-            </div>
+      {/* Confirmación de salida / cancelación de suscripción. Panel canónico de
+          Vibra (ver vibra_style.md). `mobileVariant="centered"`: en celular es el
+          mismo panel centrado que en laptop, no una pestaña inferior — para un
+          diálogo de dos botones la pestaña queda desproporcionada. */}
+      <Modal
+        open={leaveOverlayOpen}
+        onClose={() => {
+          if (!leaving) setLeaveOverlayOpen(false);
+        }}
+        // Sin header: la pregunta ES el diálogo. Como título se cortaría con
+        // ellipsis (el header pinta una sola línea), y una descripción aparte no
+        // aporta nada. Los botones del footer ya dan la salida, así que la X
+        // sobra (y con ella el espacio muerto sobre la pregunta).
+        hideHeader
+        ariaLabel={
+          membershipRequiresSubscription
+            ? tGroups("cancelSubscriptionTitle")
+            : tGroups("leaveConfirm")
+        }
+        mobileVariant="centered"
+        maxWidthDesktop={420}
+        // Sin header, el aire superior lo pone el propio contenido.
+        contentPadding="24px 20px 20px"
+        footer={
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <Button
+              variant="secondary"
+              onClick={() => setLeaveOverlayOpen(false)}
+              disabled={leaving}
+              style={{ flex: "1 1 120px" }}
+            >
+              {tCommon("cancel")}
+            </Button>
+            <Button
+              variant="danger"
+              onClick={handleLeave}
+              loading={leaving}
+              style={{ flex: "1 1 120px" }}
+            >
+              {leaving
+                ? tFeed("processing")
+                : membershipRequiresSubscription
+                ? tGroups("cancelSubscriptionButton")
+                : tCommon("leave")}
+            </Button>
           </div>
-        </div>,
-        document.body
-      )}
+        }
+      >
+        <p
+          style={{
+            fontSize: 17,
+            fontWeight: 600,
+            color: "#fff",
+            lineHeight: 1.35,
+            letterSpacing: "-0.01em",
+            margin: 0,
+            textAlign: "center",
+          }}
+        >
+          {membershipRequiresSubscription
+            ? tGroups("cancelSubscriptionTitle")
+            : tGroups("leaveConfirm")}
+        </p>
+
+        {leaveError && (
+          <div
+            style={{
+              marginTop: 14,
+              borderRadius: 13,
+              border: "1px solid rgba(255,90,90,0.24)",
+              background: "rgba(120,18,18,0.28)",
+              color: "#ffdada",
+              padding: "10px 12px",
+              fontSize: 13,
+              lineHeight: 1.4,
+            }}
+          >
+            {leaveError}
+          </div>
+        )}
+      </Modal>
     </>
   );
 }

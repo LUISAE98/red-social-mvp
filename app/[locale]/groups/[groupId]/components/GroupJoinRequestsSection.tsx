@@ -19,16 +19,25 @@ type Requester = {
 /**
  * Lista de solicitudes de unión pendientes de una comunidad, con aceptar/rechazar.
  * Solo owner/mods. Vive dentro de la pestaña Integrantes. Se abre con el texto
- * "Ver solicitudes" o automáticamente vía deep-link (`?requests=1`).
+ * "Ver solicitudes (N)" o automáticamente vía deep-link (`?requests=1`).
+ *
+ * Solo tiene sentido en una comunidad PRIVADA normal: es el único modelo donde
+ * alguien pide entrar y el dueño aprueba o rechaza. En pública se entra directo,
+ * en oculta se entra por invitación y en suscripción se entra pagando.
+ *
+ * Si no hay ninguna solicitud pendiente, la sección no se dibuja.
  */
 export default function GroupJoinRequestsSection({
   groupId,
   canManage,
   defaultOpen = false,
+  enabled = true,
 }: {
   groupId: string;
   canManage: boolean;
   defaultOpen?: boolean;
+  /** false en comunidades pública / oculta / de suscripción. */
+  enabled?: boolean;
 }) {
   const tGroups = useTranslations("groups");
   const tNotif = useTranslations("notifications");
@@ -52,7 +61,7 @@ export default function GroupJoinRequestsSection({
   const [busy, setBusy] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
-    if (!canManage) return;
+    if (!canManage || !enabled) return;
     const qy = query(
       collection(db, "groups", groupId, "joinRequests"),
       where("status", "==", "pending")
@@ -101,9 +110,9 @@ export default function GroupJoinRequestsSection({
       }
     );
     return unsub;
-  }, [groupId, canManage]);
+  }, [groupId, canManage, enabled]);
 
-  if (!canManage) return null;
+  if (!canManage || !enabled) return null;
 
   const act = async (uid: string, kind: "approve" | "reject") => {
     if (busy[uid]) return;
@@ -125,18 +134,23 @@ export default function GroupJoinRequestsSection({
 
   const count = requests.length;
 
+  // Sin solicitudes pendientes no hay nada que administrar: no se dibuja.
+  if (count === 0) return null;
+
   return (
     <div className="jrSection">
       <button type="button" className="jrToggle" onClick={() => setOpen((v) => !v)}>
-        <span className="jrToggleText">{tGroups("viewJoinRequests")}</span>
-        {count > 0 ? <span className="jrCount">{count}</span> : null}
+        <span className="jrToggleText">
+          {tGroups("viewJoinRequests")} ({count})
+        </span>
         <span className={open ? "jrCaret jrCaretOpen" : "jrCaret"} aria-hidden />
       </button>
 
-      {open ? (
-        count === 0 ? (
-          <p className="jrEmpty">{tGroups("noPendingJoinRequests")}</p>
-        ) : (
+      {/* El contenido queda montado y se despliega con una transición: de golpe
+          se sentía brusco. `grid-template-rows: 0fr → 1fr` anima la altura real
+          sin tener que medirla ni inventar un max-height. */}
+      <div className={open ? "jrPanel jrPanelOpen" : "jrPanel"} aria-hidden={!open}>
+        <div className="jrPanelInner">
           <ul className="jrList">
             {requests.map((r) => (
               <li key={r.uid} className="jrRow">
@@ -180,8 +194,8 @@ export default function GroupJoinRequestsSection({
               </li>
             ))}
           </ul>
-        )
-      ) : null}
+        </div>
+      </div>
 
       <style jsx>{`
         /* Limpieza de UI: sin caja alrededor de la sección ni relleno de color
@@ -201,22 +215,13 @@ export default function GroupJoinRequestsSection({
           cursor: pointer;
           text-align: left;
         }
+        /* Mismo peso que el título de la pestaña: el conteo va en el propio
+           texto, así que ya no hace falta la píldora morada. */
         .jrToggleText {
           font-size: 14px;
-          font-weight: 700;
+          font-weight: 600;
+          letter-spacing: -0.02em;
           color: #fff;
-        }
-        .jrCount {
-          min-width: 20px;
-          height: 20px;
-          padding: 0 6px;
-          border-radius: 999px;
-          background: #a855f7;
-          color: #fff;
-          font-size: 12px;
-          font-weight: 800;
-          line-height: 20px;
-          text-align: center;
         }
         .jrCaret {
           margin-left: auto;
@@ -230,11 +235,28 @@ export default function GroupJoinRequestsSection({
         .jrCaretOpen {
           transform: rotate(225deg);
         }
-        .jrEmpty {
-          margin: 0;
-          padding: 4px 0 14px;
-          font-size: 13px;
-          color: rgba(255, 255, 255, 0.5);
+        /* Despliegue suave. La fila del grid pasa de 0fr a 1fr, así que la
+           altura se interpola sola sin conocerla de antemano. */
+        .jrPanel {
+          display: grid;
+          grid-template-rows: 0fr;
+          opacity: 0;
+          transition:
+            grid-template-rows var(--duration-normal) var(--ease-smooth),
+            opacity var(--duration-fast) var(--ease-smooth);
+        }
+        .jrPanelOpen {
+          grid-template-rows: 1fr;
+          opacity: 1;
+        }
+        .jrPanelInner {
+          overflow: hidden;
+          min-height: 0;
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .jrPanel {
+            transition: none;
+          }
         }
         .jrList {
           list-style: none;

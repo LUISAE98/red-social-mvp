@@ -29,6 +29,13 @@ import { Button, Input, TextArea, Avatar, Modal } from "@/components/ui";
 
 // Modal = VibraResponsivePanel (bottom sheet móvil / panel centrado desktop)
 <Modal open={open} onClose={close} title="Título">…</Modal>
+
+// Diálogo de confirmación: panel centrado TAMBIÉN en celular (sin pestaña) y sin
+// header — la pregunta ES el diálogo; los botones del footer dan la salida.
+<Modal open={open} onClose={close} mobileVariant="centered" hideHeader
+       ariaLabel="¿Salir de la comunidad?" footer={<Botones />}>
+  <p>¿Seguro que quieres salir de esta comunidad?</p>
+</Modal>
 ```
 
 - **Button** — variantes `primary | brand | gradient | secondary | ghost | danger`,
@@ -36,7 +43,18 @@ import { Button, Input, TextArea, Avatar, Modal } from "@/components/ui";
   Consume los tokens de color (`var(--brand)`, etc.). Hover/active/foco en `.vibra-btn`.
 - **Input / TextArea** — estilo de campo canónico; foco visible vía `.vibra-field`.
 - **Avatar** — imagen circular con fallback de iniciales determinista + `ringColor`.
-- **Modal** — alias de `VibraResponsivePanel`.
+- **Modal** — alias de `VibraResponsivePanel`. Por defecto es pestaña inferior en
+  celular y panel centrado en laptop. Con `mobileVariant="centered"` usa el panel
+  centrado en ambos: reservado para **diálogos de confirmación cortos** (salir de
+  una comunidad, borrar algo), donde una pestaña a media pantalla para dos botones
+  queda desproporcionada. Para contenido con scroll, sigue usando la pestaña.
+  `title` es **opcional**: el header lo pinta en UNA sola línea con ellipsis, así
+  que una frase larga se corta. Si el mensaje es largo (una pregunta, p. ej.),
+  omite `title` y ponlo en el contenido; el header queda solo con la X y sin
+  divisor. Con `hideHeader` desaparece el header entero (ni título ni X): es lo
+  correcto cuando los botones del footer ya son la salida — sigue cerrándose con
+  Esc, con clic en el backdrop y, en pestaña móvil, arrastrando el pill. En
+  ambos casos pasa `ariaLabel` para que el diálogo conserve nombre accesible.
 
 Los tokens de color viven en `:root` de `app/globals.css` y se consumen como
 `var(--brand)`, `var(--pink)`, `var(--success)`, etc. (ver #6).

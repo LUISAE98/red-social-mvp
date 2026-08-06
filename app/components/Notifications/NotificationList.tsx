@@ -1,10 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 import { Link } from "@/i18n/navigation";
 import { setNavSlideDir } from "@/lib/nav-slide";
 import { approveJoinRequest, rejectJoinRequest } from "@/lib/groups/joinRequests.admin";
+import { respondGroupModeratorInvite } from "@/lib/groups/moderatorInvites";
 import {
   AppNotification,
   KNOWN_NOTIFICATION_TYPES,
@@ -20,10 +23,17 @@ const LOCALE_MAP: Record<string, string> = {
 
 function useTimeAgo() {
   const locale = useLocale();
-  const rtf = new Intl.RelativeTimeFormat(LOCALE_MAP[locale] ?? "es", { numeric: "auto" });
-  return (ms: number | null): string => {
-    if (!ms) return "";
-    const diffSec = Math.round((ms - Date.now()) / 1000);
+  const intlLocale = LOCALE_MAP[locale] ?? "es";
+  const rtf = new Intl.RelativeTimeFormat(intlLocale, { numeric: "auto" });
+
+  // `numeric: "auto"` produce "ayer", "anteayer", "hace 3 días"… siempre en
+  // minúscula. El indicador va suelto bajo el texto, así que arranca frase y
+  // lleva mayúscula inicial. Se capitaliza SOLO la primera letra: con el
+  // `text-transform: capitalize` de CSS saldría "Hace 3 Días".
+  const capitalizeFirst = (value: string): string =>
+    value ? value.charAt(0).toLocaleUpperCase(intlLocale) + value.slice(1) : value;
+
+  const format = (diffSec: number): string => {
     const abs = Math.abs(diffSec);
     if (abs < 60) return rtf.format(Math.round(diffSec / 1), "second");
     if (abs < 3600) return rtf.format(Math.round(diffSec / 60), "minute");
@@ -32,6 +42,77 @@ function useTimeAgo() {
     if (abs < 2629800) return rtf.format(Math.round(diffSec / 604800), "week");
     return rtf.format(Math.round(diffSec / 2629800), "month");
   };
+
+  return (ms: number | null): string => {
+    if (!ms) return "";
+    return capitalizeFirst(format(Math.round((ms - Date.now()) / 1000)));
+  };
+}
+
+/**
+ * Portada de la comunidad para el fondo de la notificación de solicitud de unión.
+ *
+ * La notificación solo guarda `groupId` y `groupName`, así que la portada se lee
+ * del grupo. Se cachea a nivel de módulo (y se recuerda el fallo como `null`)
+ * para no repetir la lectura por cada solicitud de la misma comunidad ni en cada
+ * apertura de la campanita.
+ */
+const groupCoverCache = new Map<string, string | null>();
+
+function useGroupCovers(groupIds: string[]): Record<string, string> {
+  const key = groupIds.join(",");
+  const [covers, setCovers] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    const ids = key ? key.split(",") : [];
+    if (ids.length === 0) return;
+
+    let cancelled = false;
+
+    // Solo se leen las comunidades que no estén ya en el caché del módulo.
+    const missing = ids.filter((id) => !groupCoverCache.has(id));
+    if (missing.length === 0) return;
+
+    void Promise.all(
+      missing.map(async (id) => {
+        try {
+          const snap = await getDoc(doc(db, "groups", id));
+          const data = snap.data() as { coverUrl?: string | null } | undefined;
+          const url =
+            typeof data?.coverUrl === "string" && data.coverUrl.trim()
+              ? data.coverUrl.trim()
+              : null;
+          groupCoverCache.set(id, url);
+          return [id, url] as const;
+        } catch {
+          // Comunidad no legible o borrada: se recuerda para no reintentar.
+          groupCoverCache.set(id, null);
+          return [id, null] as const;
+        }
+      })
+    ).then((entries) => {
+      if (cancelled) return;
+      const next: Record<string, string> = {};
+      for (const [id, url] of entries) if (url) next[id] = url;
+      if (Object.keys(next).length > 0) {
+        setCovers((prev) => ({ ...prev, ...next }));
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [key]);
+
+  // El resultado se DERIVA del caché del módulo más lo resuelto en esta sesión:
+  // así una portada ya cacheada (al reabrir la campanita) se pinta en el primer
+  // render, sin escribir estado dentro del efecto.
+  const resolved: Record<string, string> = {};
+  for (const id of groupIds) {
+    const url = covers[id] ?? groupCoverCache.get(id) ?? null;
+    if (url) resolved[id] = url;
+  }
+  return resolved;
 }
 
 function Avatar({ n }: { n: AppNotification }) {
@@ -159,7 +240,113 @@ function JoinRequestActions({ groupId, userId }: { groupId: string; userId: stri
         }
         .jrBtn {
           flex: 0 0 auto;
-          padding: 7px 16px;
+          /* Menos altos: se baja el relleno vertical y se ajusta el interlineado
+             para que el alto lo mande el padding y no la caja del texto. */
+          padding: 5px 16px;
+          line-height: 1.25;
+          border-radius: 8px;
+          font-size: 13px;
+          font-weight: 700;
+          cursor: pointer;
+          border: none;
+          transition: opacity 120ms ease, background 120ms ease;
+        }
+        .jrBtn:disabled {
+          opacity: 0.5;
+          cursor: default;
+        }
+        .jrApprove {
+          background: #a855f7;
+          color: #fff;
+        }
+        .jrApprove:hover:not(:disabled) {
+          background: #9333ea;
+        }
+        .jrReject {
+          background: rgba(255, 255, 255, 0.1);
+          color: #f2f2f2;
+        }
+        .jrReject:hover:not(:disabled) {
+          background: rgba(255, 255, 255, 0.18);
+        }
+        .jrError {
+          font-size: 12px;
+          color: #ef4444;
+        }
+      `}</style>
+    </div>
+  );
+}
+
+/**
+ * Aceptar / Rechazar la invitación a MODERAR una comunidad, desde la propia
+ * notificación. Aceptar te mete a la comunidad (si no estabas) y te deja como
+ * moderador en la misma operación — sin pasar por la suscripción.
+ */
+function ModeratorInviteActions({ groupId }: { groupId: string }) {
+  const t = useTranslations("notifications");
+  const [status, setStatus] = useState<
+    "idle" | "working" | "accepted" | "rejected" | "error"
+  >("idle");
+
+  const act = async (accept: boolean) => {
+    if (status === "working") return;
+    setStatus("working");
+    try {
+      await respondGroupModeratorInvite(groupId, accept);
+      setStatus(accept ? "accepted" : "rejected");
+    } catch {
+      setStatus("error");
+    }
+  };
+
+  if (status === "accepted" || status === "rejected") {
+    return (
+      <span className="jrDone">
+        {status === "accepted"
+          ? t("moderatorInviteAccepted")
+          : t("moderatorInviteRejected")}
+        <style jsx>{`
+          .jrDone {
+            font-size: 13px;
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.6);
+          }
+        `}</style>
+      </span>
+    );
+  }
+
+  return (
+    <div className="jrActions">
+      <button
+        type="button"
+        className="jrBtn jrApprove"
+        disabled={status === "working"}
+        onClick={() => act(true)}
+      >
+        {t("accept")}
+      </button>
+      <button
+        type="button"
+        className="jrBtn jrReject"
+        disabled={status === "working"}
+        onClick={() => act(false)}
+      >
+        {t("reject")}
+      </button>
+      {status === "error" ? <span className="jrError">{t("actionError")}</span> : null}
+
+      <style jsx>{`
+        .jrActions {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+        .jrBtn {
+          flex: 0 0 auto;
+          padding: 5px 16px;
+          line-height: 1.25;
           border-radius: 8px;
           font-size: 13px;
           font-weight: 700;
@@ -216,6 +403,22 @@ export default function NotificationList({
   const t = useTranslations("notifications");
   const timeAgo = useTimeAgo();
 
+  // Portadas de las comunidades con solicitudes pendientes: se usan como fondo
+  // de esa notificación para que se reconozca de un vistazo a qué comunidad
+  // pertenece la solicitud.
+  const joinRequestGroupIds = Array.from(
+    new Set(
+      items
+        .filter(
+          (n) =>
+            (n.type === "join_request" || n.type === "moderator_invite") &&
+            n.target.groupId
+        )
+        .map((n) => n.target.groupId as string)
+    )
+  );
+  const groupCovers = useGroupCovers(joinRequestGroupIds);
+
   // Al tocar una notificación, el destino (post/perfil/comunidad) entra
   // deslizando de derecha a izquierda, con el mismo sistema del nav inferior y
   // los subnav (setNavSlideDir → el layout aplica data-nav-enter al cambiar de
@@ -266,7 +469,24 @@ export default function NotificationList({
         return (
           <li key={n.id} className={n.read ? "notifItem" : "notifItem notifUnread"}>
             {n.type === "join_request" && jrGroupId ? (
-              <div className="notifJoinItem">
+              <div
+                className={
+                  groupCovers[jrGroupId]
+                    ? "notifJoinItem notifJoinItemCover"
+                    : "notifJoinItem"
+                }
+                style={
+                  groupCovers[jrGroupId]
+                    ? {
+                        // Mismo tratamiento que la notificación de donación:
+                        // degradado oscuro encima para que el texto se lea.
+                        backgroundImage: `linear-gradient(90deg, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0.55) 100%), url('${groupCovers[jrGroupId]}')`,
+                        backgroundSize: "100% 100%, cover",
+                        backgroundPosition: "center",
+                      }
+                    : undefined
+                }
+              >
                 <div className="notifJoinTop">
                   <Avatar n={n} />
                   <span className="notifBody">
@@ -299,6 +519,39 @@ export default function NotificationList({
                     </Link>
                   </div>
                 ) : null}
+              </div>
+            ) : n.type === "moderator_invite" && jrGroupId ? (
+              // Invitación a MODERAR: se responde aquí mismo. Mismo formato que
+              // la solicitud de unión, con la portada de la comunidad de fondo.
+              <div
+                className={
+                  groupCovers[jrGroupId]
+                    ? "notifJoinItem notifJoinItemCover"
+                    : "notifJoinItem"
+                }
+                style={
+                  groupCovers[jrGroupId]
+                    ? {
+                        backgroundImage: `linear-gradient(90deg, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0.55) 100%), url('${groupCovers[jrGroupId]}')`,
+                        backgroundSize: "100% 100%, cover",
+                        backgroundPosition: "center",
+                      }
+                    : undefined
+                }
+              >
+                <div className="notifJoinTop">
+                  <Avatar n={n} />
+                  <span className="notifBody">
+                    <span className="notifText">
+                      <strong>{primaryName}</strong>{" "}
+                      {t("verb.moderator_invite", { group })}
+                    </span>
+                    <span className="notifTime">{timeAgo(n.updatedAtMs)}</span>
+                  </span>
+                </div>
+                <div className="notifJoinActions">
+                  <ModeratorInviteActions groupId={jrGroupId} />
+                </div>
               </div>
             ) : n.type === "invite_expired" ? (
               <Link href={href} className="notifLink" onClick={() => handleItemClick(n, path)}>
@@ -471,6 +724,11 @@ export default function NotificationList({
               .notifUnread .notifJoinItem {
                 background: rgba(168, 85, 255, 0.08);
               }
+              /* Con portada de la comunidad, el degradado ya da el contraste:
+                 el tinte morado de "no leída" sobraría encima de la imagen. */
+              .notifUnread .notifJoinItemCover {
+                background-color: transparent;
+              }
               .notifJoinTop {
                 display: flex;
                 align-items: flex-start;
@@ -520,7 +778,10 @@ export default function NotificationList({
                 color: #e8e8e8;
               }
               .notifText :global(strong) {
-                font-weight: 700;
+                /* Mismo grosor que el nombre del autor en las publicaciones
+                   (authorLinkStyle en GroupPostCard: fontWeight 500). El 700 de
+                   antes se veía desproporcionado frente al resto del texto. */
+                font-weight: 500;
                 color: #ffffff;
               }
               .notifPreview {

@@ -23,7 +23,25 @@ const PANEL_CLOSE_THRESHOLD = 130;
 type VibraResponsivePanelProps = {
   open: boolean;
   onClose: () => void;
-  title: React.ReactNode;
+  /**
+   * Título del header. Opcional: si se omite, el header queda solo con el botón
+   * de cerrar y sin divisor — útil cuando el propio contenido es el mensaje
+   * (diálogos de confirmación). En ese caso pasa `ariaLabel` para que el diálogo
+   * conserve nombre accesible.
+   *
+   * OJO: el título se pinta en una sola línea con ellipsis. Si tu texto es largo
+   * NO lo pases como título: se cortará. Ponlo en el contenido.
+   */
+  title?: React.ReactNode;
+  /** Nombre accesible del diálogo cuando no hay `title` visible. */
+  ariaLabel?: string;
+  /**
+   * Elimina el header por completo (ni título ni botón de cerrar), para diálogos
+   * donde el contenido es todo el mensaje y los botones del footer ya ofrecen la
+   * salida. Se sigue pudiendo cerrar con Esc, clic en el backdrop y —en pestaña
+   * móvil— arrastrando. Requiere `ariaLabel`.
+   */
+  hideHeader?: boolean;
   /** Texto secundario opcional bajo el título (solo se muestra si se pasa). */
   subtitle?: React.ReactNode;
   children: React.ReactNode;
@@ -34,18 +52,29 @@ type VibraResponsivePanelProps = {
   closeAriaLabel?: string;
   /** Padding del área de contenido con scroll. */
   contentPadding?: string;
+  /**
+   * Presentación en celular. Por defecto `"sheet"` (pestaña deslizable desde
+   * abajo), que es el patrón canónico. Usa `"centered"` para que en celular se
+   * vea el MISMO panel centrado que en laptop: apropiado para diálogos de
+   * confirmación cortos (salir de una comunidad, borrar algo), donde una
+   * pestaña a media pantalla para dos botones se siente desproporcionada.
+   */
+  mobileVariant?: "sheet" | "centered";
 };
 
 export default function VibraResponsivePanel({
   open,
   onClose,
   title,
+  ariaLabel,
+  hideHeader,
   subtitle,
   children,
   footer,
   maxWidthDesktop = 520,
   closeAriaLabel = "Cerrar",
   contentPadding,
+  mobileVariant = "sheet",
 }: VibraResponsivePanelProps) {
   // --- Ciclo de vida de animación ---
   const [shouldRender, setShouldRender] = useState(false);
@@ -59,6 +88,11 @@ export default function VibraResponsivePanel({
       : false
   );
   const isMobileRef = useRef(isMobile);
+
+  // ¿Se presenta como pestaña inferior? Solo en celular Y si no se pidió el
+  // panel centrado. Con `mobileVariant="centered"` no hay arrastre ni offset:
+  // se usa la misma rama de panel centrado que en laptop.
+  const useSheet = isMobile && mobileVariant === "sheet";
 
   // --- Arrastre en móvil ---
   const [panelOffsetY, setPanelOffsetY] = useState(0);
@@ -90,22 +124,23 @@ export default function VibraResponsivePanel({
 
   // Observa `open` → dispara animación de entrada/salida
   useEffect(() => {
+    const sheet = isMobileRef.current && mobileVariant === "sheet";
     if (open) {
       if (closeAnimTimerRef.current) {
         clearTimeout(closeAnimTimerRef.current);
         closeAnimTimerRef.current = null;
       }
-      if (isMobileRef.current) {
+      if (sheet) {
         setPanelOffsetY(window.innerHeight);
       }
       setIsClosing(false);
       setShouldRender(true);
     } else if (shouldRenderRef.current) {
       setIsClosing(true);
-      if (isMobileRef.current) {
+      if (sheet) {
         setPanelOffsetY(window.innerHeight);
       }
-      const duration = isMobileRef.current ? 260 : 180;
+      const duration = sheet ? 260 : 180;
       closeAnimTimerRef.current = setTimeout(() => {
         setShouldRender(false);
         setIsClosing(false);
@@ -116,7 +151,7 @@ export default function VibraResponsivePanel({
 
   // Móvil: anima la pestaña hacia arriba tras montar
   useEffect(() => {
-    if (!shouldRender || isClosing || !isMobile) return;
+    if (!shouldRender || isClosing || !useSheet) return;
     if (openAnimRafRef.current) cancelAnimationFrame(openAnimRafRef.current);
     openAnimRafRef.current = requestAnimationFrame(() => {
       openAnimRafRef.current = requestAnimationFrame(() => {
@@ -216,7 +251,19 @@ export default function VibraResponsivePanel({
 
   if (!shouldRender || typeof document === "undefined") return null;
 
-  const titleEl = (
+  const hasTitle = Boolean(title) && !hideHeader;
+
+  // Sin título: el hueco central del header queda vacío (solo la X). El nombre
+  // accesible del diálogo pasa a `aria-label`.
+  const labelProps = hasTitle
+    ? { "aria-labelledby": titleId }
+    : ariaLabel
+      ? { "aria-label": ariaLabel }
+      : {};
+
+  const titleEl = !hasTitle ? (
+    <div />
+  ) : (
     <div style={{ minWidth: 0, textAlign: "center" }}>
       <h2
         id={titleId}
@@ -301,13 +348,13 @@ export default function VibraResponsivePanel({
         }}
       />
 
-      {isMobile ? (
+      {useSheet ? (
         /* ── Celular: pestaña deslizable desde abajo ── */
         <div
           ref={panelRef as React.RefObject<HTMLDivElement>}
           role="dialog"
           aria-modal="true"
-          aria-labelledby={titleId}
+          {...labelProps}
           tabIndex={-1}
           onKeyDown={handleTrapKeyDown}
           style={{
@@ -353,22 +400,28 @@ export default function VibraResponsivePanel({
               />
             </div>
 
-            <div
-              style={{
-                minHeight: 52,
-                display: "grid",
-                gridTemplateColumns: "48px 1fr 48px",
-                alignItems: "center",
-                padding: "0 12px 10px",
-                borderBottom: "1px solid rgba(255,255,255,0.08)",
-              }}
-            >
-              <div style={{ display: "flex", justifyContent: "flex-start" }}>
-                {closeButton}
+            {/* Con `hideHeader` se conserva solo el pill de arrastre: sigue
+                siendo la forma de cerrar la pestaña con el pulgar. */}
+            {hideHeader ? null : (
+              <div
+                style={{
+                  minHeight: hasTitle ? 52 : 40,
+                  display: "grid",
+                  gridTemplateColumns: "48px 1fr 48px",
+                  alignItems: "center",
+                  padding: hasTitle ? "0 12px 10px" : "0 12px 4px",
+                  borderBottom: hasTitle
+                    ? "1px solid rgba(255,255,255,0.08)"
+                    : "none",
+                }}
+              >
+                <div style={{ display: "flex", justifyContent: "flex-start" }}>
+                  {closeButton}
+                </div>
+                {titleEl}
+                <div />
               </div>
-              {titleEl}
-              <div />
-            </div>
+            )}
           </div>
 
           <div
@@ -397,7 +450,8 @@ export default function VibraResponsivePanel({
           ) : null}
         </div>
       ) : (
-        /* ── Laptop: panel centrado con animación de escala ── */
+        /* ── Panel centrado con animación de escala (laptop, y celular si se
+              pidió mobileVariant="centered") ── */
         <div
           style={{
             position: "fixed",
@@ -406,7 +460,9 @@ export default function VibraResponsivePanel({
             display: "grid",
             placeItems: "center",
             paddingTop: "max(14px, env(safe-area-inset-top, 0px))",
-            paddingBottom: 14,
+            // En celular el panel centrado no debe quedar bajo el indicador de
+            // inicio del iOS PWA (ver --vb-safe-bottom en globals.css).
+            paddingBottom: "max(14px, var(--vb-safe-bottom, 0px))",
             paddingLeft: 14,
             paddingRight: 14,
             pointerEvents: "none",
@@ -416,7 +472,7 @@ export default function VibraResponsivePanel({
             ref={panelRef as React.RefObject<HTMLElement>}
             role="dialog"
             aria-modal="true"
-            aria-labelledby={titleId}
+            {...labelProps}
             tabIndex={-1}
             onKeyDown={handleTrapKeyDown}
             onClick={(e) => e.stopPropagation()}
@@ -439,23 +495,27 @@ export default function VibraResponsivePanel({
                 : "vbPanelIn 0.18s ease-out",
             }}
           >
-            <header
-              style={{
-                minHeight: 56,
-                display: "grid",
-                gridTemplateColumns: "48px 1fr 48px",
-                alignItems: "center",
-                padding: "8px 12px",
-                borderBottom: "1px solid rgba(255,255,255,0.08)",
-                flexShrink: 0,
-              }}
-            >
-              <div />
-              {titleEl}
-              <div style={{ display: "flex", justifyContent: "flex-end" }}>
-                {closeButton}
-              </div>
-            </header>
+            {hideHeader ? null : (
+              <header
+                style={{
+                  minHeight: hasTitle ? 56 : 44,
+                  display: "grid",
+                  gridTemplateColumns: "48px 1fr 48px",
+                  alignItems: "center",
+                  padding: hasTitle ? "8px 12px" : "6px 12px 0",
+                  borderBottom: hasTitle
+                    ? "1px solid rgba(255,255,255,0.08)"
+                    : "none",
+                  flexShrink: 0,
+                }}
+              >
+                <div />
+                {titleEl}
+                <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                  {closeButton}
+                </div>
+              </header>
+            )}
 
             <div
               style={{
