@@ -589,7 +589,7 @@ function handleModify() {
         borderRadius: 14,
         border: "1px solid rgba(255,255,255,0.10)",
         background: "transparent",
-        marginTop: 2,
+        marginTop: 14,
         animation: popping ? "vibraSubPrivacyPop 200ms ease-in forwards" : undefined,
       }}
     >
