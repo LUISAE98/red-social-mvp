@@ -67,6 +67,7 @@ export default function OwnerAdminServices({
   currentMonetization = null,
   currentOfferings = null,
   currentDonation = null,
+  onChangeVisibility,
 }: Props) {
   const priceFmt = usePriceFormat();
   const formatMoney = (value: number, currency?: string) =>
@@ -985,6 +986,8 @@ export default function OwnerAdminServices({
         draft={draft}
         savedDraft={savedDraft}
         isPublic={isPublic}
+        isHidden={currentVisibility === "hidden"}
+        onChangeVisibility={onChangeVisibility}
         saving={saving}
         removingLegacyMembers={removingLegacyMembers}
         activeLegacyFreeMembersCount={activeLegacyFreeMembersCount}

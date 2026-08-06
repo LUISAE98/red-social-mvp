@@ -114,6 +114,8 @@ export type Props = {
   currentMonetization?: MonetizationInput;
   currentOfferings?: OfferingInput[] | null;
   currentDonation?: DonationInput;
+  /** Cambia la visibilidad del grupo (privada ⇄ pública) desde la card de suscripción. */
+  onChangeVisibility?: (next: "public" | "private") => Promise<void>;
 };
 
 export type EditableServiceVisibility = "public" | "members";

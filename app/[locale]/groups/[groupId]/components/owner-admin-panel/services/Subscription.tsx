@@ -111,6 +111,9 @@ type Props = {
   draft: ServiceDraft;
   savedDraft: ServiceDraft;
   isPublic: boolean;
+  isHidden: boolean;
+  /** Cambia la visibilidad del grupo (privada ⇄ pública). Ausente = sin switch. */
+  onChangeVisibility?: (next: "public" | "private") => Promise<void>;
   saving: boolean;
   removingLegacyMembers: boolean;
   activeLegacyFreeMembersCount: number;
@@ -300,6 +303,8 @@ export default function Subscription({
   draft,
   savedDraft,
   isPublic,
+  isHidden,
+  onChangeVisibility,
   saving,
   removingLegacyMembers,
   activeLegacyFreeMembersCount,
@@ -326,8 +331,30 @@ export default function Subscription({
   const [showRemoveLegacyMembersModal, setShowRemoveLegacyMembersModal] =
     useState(false);
   const { toast: subToast, showToast: showSubToast } = useVibraToast();
+  const [changingVisibility, setChangingVisibility] = useState(false);
 
  const disabledByVisibility = isPublic;
+
+  // Switch de privacidad: solo cuando NO está oculta y el padre provee el callback.
+  const canToggleVisibility = !isHidden && typeof onChangeVisibility === "function";
+
+  async function handleVisibilityToggle(makePrivate: boolean) {
+    if (!onChangeVisibility || changingVisibility || saving || removingLegacyMembers) return;
+    // No permitir volver pública con la suscripción activa (estado inconsistente).
+    if (!makePrivate && draft.subscription.enabled) {
+      showSubToast(tServices("subscriptionDisableBeforePublicToast"), "warning");
+      return;
+    }
+    setChangingVisibility(true);
+    try {
+      await onChangeVisibility(makePrivate ? "private" : "public");
+      // La visibilidad se refleja sola vía el snapshot del grupo (isPublic/isHidden).
+    } catch {
+      showSubToast(tServices("communityPrivacyChangeError"), "error");
+    } finally {
+      setChangingVisibility(false);
+    }
+  }
 
   const subscriptionCalc = useMemo(() => {
     return draft.subscription.enabled ? calcNetAmount(draft.subscription.price) : null;
@@ -533,6 +560,26 @@ function handleModify() {
     <ServiceInfoIcon color={SUBSCRIPTION_ACCENT} />
     <span>{tServices("subscriptionPublicDisabledWarning")}</span>
   </span>
+)}
+
+{canToggleVisibility && (
+  <div
+    style={{
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: 10,
+      marginTop: 2,
+    }}
+  >
+    <span style={titleStyle}>{tServices("communityPrivacyToggleLabel")}</span>
+    <SwitchComponent
+      checked={!isPublic}
+      disabled={changingVisibility || saving || removingLegacyMembers}
+      onChange={(next) => void handleVisibilityToggle(next)}
+      label={tServices("communityPrivacyToggleAria")}
+    />
+  </div>
 )}
 
           {renderSummary()}

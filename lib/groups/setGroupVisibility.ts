@@ -1,0 +1,47 @@
+import {
+  doc,
+  serverTimestamp,
+  updateDoc,
+  type Timestamp,
+} from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import type { Group, GroupVisibility } from "@/types/group";
+import { buildGroupSearchIndexPatch } from "./groupSearchIndex";
+
+/** Un grupo NO oculto es descubrible; oculto no. Misma regla que el panel General. */
+export function getDiscoverableFromVisibility(
+  visibility: GroupVisibility
+): boolean {
+  return visibility !== "hidden";
+}
+
+/**
+ * Cambia la visibilidad de un grupo manteniendo consistentes `discoverable` y el
+ * índice de búsqueda `search` (mismo efecto que el panel General → Configuración).
+ * Requiere los campos del grupo que alimentan el índice (name/description/category/tags),
+ * porque `buildGroupSearchIndex` los necesita para no dejar el índice desactualizado.
+ */
+export async function setGroupVisibility(
+  groupId: string,
+  nextVisibility: GroupVisibility,
+  group: Pick<Group, "name" | "description" | "category" | "tags">
+): Promise<void> {
+  const discoverable = getDiscoverableFromVisibility(nextVisibility);
+  const updatedAt = serverTimestamp() as unknown as Timestamp;
+
+  await updateDoc(doc(db, "groups", groupId), {
+    visibility: nextVisibility,
+    discoverable,
+    updatedAt,
+    ...buildGroupSearchIndexPatch({
+      name: group.name,
+      description: group.description,
+      category: group.category,
+      tags: group.tags,
+      visibility: nextVisibility,
+      discoverable,
+      isActive: true,
+      updatedAt,
+    }),
+  });
+}
