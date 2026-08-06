@@ -1658,6 +1658,8 @@
     "communityPrivacyChangeError": "Não foi possível alterar a visibilidade da comunidade.",
     "subscriptionSummaryPriceLabel": "Preço mensal configurado",
     "subscriptionCalculationMessage": "Por uma assinatura de {price}, você recebe {netAmount}.",
+    "subscriptionEarningsLegend": "Com esse preço, você ganhará <amount>{net}</amount> por mês.",
+    "subscriptionPriceMinLegend": "O preço mínimo é ${min}",
     "subscriptionModifyButton": "Modificar",
     "subscriptionConfigModalTitle": "Configurar assinatura mensal",
     "subscriptionPriceInputPlaceholder": "Preço mensal",

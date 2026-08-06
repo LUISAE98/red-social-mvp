@@ -8,6 +8,7 @@ import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import ServiceInfoIcon from "@/components/services/ServiceInfoIcon";
 import ServicePreviewReveal from "@/components/services/ServicePreviewReveal";
 import ServiceFeaturePreview from "@/components/services/ServiceFeaturePreview";
+import { SUBSCRIPTION_MIN_PRICE_MXN } from "@/lib/currency/catalog";
 
 // Color de acento del servicio de suscripción: azul celeste. Tiñe todos sus iconos
 // (info de la descripción, aviso de comunidad pública e items informativos).
@@ -95,6 +96,7 @@ type OverlayModalProps = {
   confirmLabel?: string;
   cancelLabel?: string;
   loading?: boolean;
+  confirmDisabled?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
 };
@@ -365,6 +367,17 @@ export default function Subscription({
   const subscriptionCalc = useMemo(() => {
     return draft.subscription.enabled ? calcNetAmount(draft.subscription.price) : null;
   }, [draft.subscription.enabled, draft.subscription.price, calcNetAmount]);
+
+  // Neto que gana el creador con el precio que escribe en el overlay (bruto − 25%).
+  const overlaySubscriptionCalc = useMemo(() => {
+    return calcNetAmount(overlayDraft.subscription.price);
+  }, [overlayDraft.subscription.price, calcNetAmount]);
+
+  // Precio mínimo permitido (MXN) para la suscripción mensual.
+  const minPrice = SUBSCRIPTION_MIN_PRICE_MXN;
+  const priceBelowMin =
+    overlayDraft.subscription.price.trim() !== "" &&
+    Number(overlayDraft.subscription.price) < minPrice;
 
   const isBusy = saving || removingLegacyMembers;
 
@@ -689,10 +702,14 @@ function handleModify() {
         open={overlayMode !== null}
         title={tServices("subscriptionConfigModalTitle")}
         loading={saving}
+        confirmDisabled={!(Number(overlayDraft.subscription.price) > 0) || priceBelowMin}
         onCancel={closeOverlay}
         onConfirm={() => void confirmOverlaySave()}
       >
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <div style={{ ...subtleStyle, marginBottom: 2 }}>
+          {tServices("priceLegend")}
+        </div>
+        <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
           <input
             type="number"
             min="1"
@@ -707,30 +724,62 @@ function handleModify() {
                 },
               }))
             }
-            placeholder={tServices("subscriptionPriceInputPlaceholder")}
-            style={{ ...inputStyle, width: 160, flex: "1 1 200px" }}
+            placeholder={tServices("pricePlaceholder")}
+            style={{ ...inputStyle, width: 130, flex: "1 1 180px" }}
           />
 
           <span
             style={{
-              ...inputStyle,
-              width: 100,
-              flex: "1 1 120px",
-              display: "inline-flex",
-              alignItems: "center",
-              opacity: 0.75,
+              color: SUBSCRIPTION_ACCENT,
+              fontSize: 20,
+              fontWeight: 700,
+              letterSpacing: "-0.01em",
+              whiteSpace: "nowrap",
             }}
           >
             {displayCurrency}
           </span>
         </div>
-        {overlayDraft.subscription.price &&
-        Number(overlayDraft.subscription.price) > 0 ? (
-          <div style={subtleStyle}>
-            {/* Neto que gana el creador = 75% (precio − 25% comisión Vibra). */}
-            = {formatMoney(Number(overlayDraft.subscription.price) * 0.75, "MXN")}
+        <div>
+          {/* Leyenda: error de mínimo (rojo, animada). */}
+          <div
+            style={{
+              maxHeight: priceBelowMin ? 30 : 0,
+              opacity: priceBelowMin ? 1 : 0,
+              transform: priceBelowMin ? "translateY(0)" : "translateY(4px)",
+              overflow: "hidden",
+              transition: "max-height 220ms ease, opacity 220ms ease, transform 220ms ease",
+            }}
+          >
+            <div style={{ color: "#f87171", fontSize: 12, marginTop: 2 }}>
+              {tServices("subscriptionPriceMinLegend", { min: minPrice })}
+            </div>
           </div>
-        ) : null}
+          {/* Leyenda: cuánto ganas al mes (net), animada, solo si net > 0. */}
+          <div
+            style={{
+              maxHeight: overlaySubscriptionCalc && overlaySubscriptionCalc.net > 0 ? 60 : 0,
+              opacity: overlaySubscriptionCalc && overlaySubscriptionCalc.net > 0 ? 1 : 0,
+              transform:
+                overlaySubscriptionCalc && overlaySubscriptionCalc.net > 0
+                  ? "translateY(0)"
+                  : "translateY(4px)",
+              overflow: "hidden",
+              transition: "max-height 220ms ease, opacity 220ms ease, transform 220ms ease",
+            }}
+          >
+            <div style={{ ...subtleStyle, marginTop: 3 }}>
+              {tServices.rich("subscriptionEarningsLegend", {
+                net: formatMoney(overlaySubscriptionCalc?.net ?? 0, displayCurrency as Currency),
+                amount: (chunks) => (
+                  <span style={{ color: SUBSCRIPTION_ACCENT, fontWeight: 700 }}>
+                    {chunks}
+                  </span>
+                ),
+              })}
+            </div>
+          </div>
+        </div>
 
         {shouldShowFreeToSubscriptionPolicy ? (
           <TransitionPolicyPanel
