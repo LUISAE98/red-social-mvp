@@ -85,6 +85,7 @@ type SwitchProps = {
   onChange: (next: boolean) => void;
   disabled?: boolean;
   label?: string;
+  activeColor?: string;
 };
 
 type OverlayModalProps = {
@@ -555,6 +556,7 @@ function handleModify() {
     checked={disabledByVisibility ? false : draft.subscription.enabled}
     disabled={isBusy || disabledByVisibility}
     onChange={handleToggle}
+    activeColor={SUBSCRIPTION_ACCENT}
     label={
       disabledByVisibility
         ? tServices("subscriptionDisabledLabel")

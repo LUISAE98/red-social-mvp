@@ -53,7 +53,7 @@ import { ConfirmModal, OverlayModal } from "./OwnerAdminServices.modals";
 import DonationConfigCard from "@/components/services/config/DonationConfigCard";
 import {
   SaludoOverlay, ConsejoOverlay, MeetGreetOverlay, CustomClassOverlay, DonationOverlay,
-  Switch as RichSwitch, SERVICE_COLORS, makeServiceConfigStyles,
+  Switch as RichSwitch, SERVICE_COLORS, makeServiceConfigStyles, makeServicePanelStyle,
   MEET_GREET_MIN_MINUTES, MEET_GREET_MAX_MINUTES,
   CUSTOM_CLASS_MIN_MINUTES, CUSTOM_CLASS_MAX_MINUTES,
 } from "@/components/services/config/serviceConfigKit";
@@ -302,21 +302,6 @@ export default function OwnerAdminServices({
     gap: 8,
   };
 
-  const panelStyle: React.CSSProperties = {
-    padding: "10px",
-    borderRadius: 0,
-    border: "none",
-    background: "rgba(255,255,255,0.02)",
-    display: "grid",
-    gap: 9,
-  };
-
-  const subtleStyle: React.CSSProperties = {
-    fontSize: 11,
-    color: "rgba(255,255,255,0.56)",
-    lineHeight: 1.35,
-  };
-
   const inputStyle: React.CSSProperties = {
     padding: "8px 10px",
     borderRadius: 10,
@@ -357,8 +342,14 @@ export default function OwnerAdminServices({
   };
 
   // Estilos e imágenes de fondo compartidos con el perfil (mismos cards de servicio).
-  // La SUSCRIPCIÓN conserva los estilos "planos" de arriba (rediseño aparte, pendiente).
   const richStyles = makeServiceConfigStyles();
+  // Panel activo de suscripción: mismo formato que las demás cards activas, con su
+  // propia imagen de fondo (suscripciones.webp).
+  const subscriptionActivePanel = makeServicePanelStyle(
+    richStyles.panelStyle,
+    "/suscripciones.webp",
+    "center"
+  );
   const groupPublishSuccess = {
     shareUrl: `https://${BRAND_DOMAIN}/groups/${groupId}`,
     entityKind: "community" as const,
@@ -991,9 +982,9 @@ export default function OwnerAdminServices({
         removingLegacyMembers={removingLegacyMembers}
         activeLegacyFreeMembersCount={activeLegacyFreeMembersCount}
         canRemoveLegacyFreeMembersLater={canRemoveLegacyFreeMembersLater}
-        panelStyle={panelStyle}
+        panelStyle={draft.subscription.enabled ? subscriptionActivePanel : richStyles.plainPanelStyle}
         titleStyle={richStyles.titleStyle}
-        subtleStyle={subtleStyle}
+        subtleStyle={richStyles.subtleStyle}
         descriptionStyle={richStyles.descriptionStyle}
         inputStyle={inputStyle}
         buttonSecondaryStyle={buttonSecondaryStyle}
