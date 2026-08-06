@@ -296,8 +296,8 @@ export default function LiveChatViewer({
                   margin: "0 -14px 5px -14px", padding: "6px 14px",
                   background: "transparent", fontFamily: FONT,
                 }}>
-                  <Avatar url={item.avatarUrl} name={item.username} size={29} ringColor={item.color} />
-                  <div style={{ flex: 1, minWidth: 0, paddingTop: item.text ? 3 : 6.5 }}>
+                  <Avatar url={item.avatarUrl} name={item.username} size={33} ringColor={item.color} />
+                  <div style={{ flex: 1, minWidth: 0, paddingTop: item.text ? 3 : 8.5 }}>
                     <div style={{ display: "flex", alignItems: "baseline", flexWrap: "wrap", gap: 4 }}>
                       <span style={{ fontSize: 13, fontWeight: 600, color: "#fff", lineHeight: 1.2 }}>{item.username}</span>
                       <span style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", fontWeight: 400 }}>{tLive("donated")}</span>
@@ -311,10 +311,10 @@ export default function LiveChatViewer({
               ) : (
                 <div key={item.id} style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 4 }}>
                   <Avatar url={item.avatarUrl} name={item.username} size={29} />
-                  <div style={{ flex: 1, minWidth: 0, paddingTop: item.text ? 0 : 6.5 }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: "#fff", fontFamily: FONT, lineHeight: 1.2 }}>{item.username}</div>
+                  <div style={{ flex: 1, minWidth: 0, paddingTop: item.text ? 0 : 6.5, lineHeight: 1.25, wordBreak: "break-word" }}>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: "#fff", fontFamily: FONT, marginRight: 5 }}>{item.username}</span>
                     {item.text ? (
-                      <div style={{ marginTop: 1, fontSize: 11.5, fontFamily: FONT, color: "rgba(255,255,255,0.9)", lineHeight: 1.2, wordBreak: "break-word" }}>{item.text}</div>
+                      <span style={{ fontSize: 11.5, fontFamily: FONT, color: "rgba(255,255,255,0.9)" }}>{item.text}</span>
                     ) : null}
                   </div>
                   {user && item.userId !== user.uid && (
@@ -438,8 +438,8 @@ export default function LiveChatViewer({
                 padding: "6px 10px", margin: "2px -10px",
                 background: "transparent", fontFamily: FONT,
               }}>
-                <Avatar url={item.avatarUrl} name={item.username} size={29} ringColor={item.color} />
-                <div style={{ minWidth: 0, flex: 1, paddingTop: item.text ? 3 : 6.5 }}>
+                <Avatar url={item.avatarUrl} name={item.username} size={33} ringColor={item.color} />
+                <div style={{ minWidth: 0, flex: 1, paddingTop: item.text ? 3 : 8.5 }}>
                   <div style={{ display: "flex", alignItems: "baseline", flexWrap: "wrap", gap: 4 }}>
                     <span style={{ fontSize: 13, fontWeight: 600, color: "#fff", lineHeight: 1.2 }}>{item.username}</span>
                     <span style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", fontWeight: 400 }}>{tLive("donated")}</span>
@@ -455,14 +455,14 @@ export default function LiveChatViewer({
             ) : (
               <div key={item.id} style={{ display: "flex", gap: 8, padding: "2px 0", alignItems: "flex-start" }}>
                 <Avatar url={item.avatarUrl} name={item.username} size={29} />
-                <div style={{ minWidth: 0, flex: 1, paddingTop: item.text ? 0 : 6.5 }}>
-                  <div style={{ fontFamily: FONT, fontSize: 13, fontWeight: 600, color: "#fff", lineHeight: 1.2 }}>
+                <div style={{ minWidth: 0, flex: 1, paddingTop: item.text ? 0 : 6.5, lineHeight: 1.25, wordBreak: "break-word" }}>
+                  <span style={{ fontFamily: FONT, fontSize: 13, fontWeight: 600, color: "#fff", marginRight: 5 }}>
                     {item.username}
-                  </div>
+                  </span>
                   {item.text ? (
-                    <div style={{ marginTop: 1, fontFamily: FONT, fontSize: 11.5, color: "rgba(255,255,255,0.9)", lineHeight: 1.2, wordBreak: "break-word" }}>
+                    <span style={{ fontFamily: FONT, fontSize: 11.5, color: "rgba(255,255,255,0.9)" }}>
                       {item.text}
-                    </div>
+                    </span>
                   ) : null}
                 </div>
               </div>
