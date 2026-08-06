@@ -7,7 +7,7 @@ import { useTranslations } from "next-intl";
 import { createPortal } from "react-dom";
 import Hls from "hls.js";
 import { doc, getDoc, onSnapshot } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { auth, db } from "@/lib/firebase";
 import { useAuth } from "@/app/providers";
 import type { Post, PostLiveData, PostPlayback } from "@/lib/posts/types";
 import { togglePostFlame } from "@/lib/posts/post-service";
@@ -642,9 +642,17 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
         // Access-Control-Allow-Origin headers for cross-origin browser requests.
         const proxyUrl = `/api/cf-viewer-proxy?postId=${encodeURIComponent(post.id)}`;
         console.log("[LiveViewerModal] Posting SDP offer to CF viewer proxy, postId:", post.id);
+        // El proxy exige identidad para los lives que no son "para todos"
+        // (comunidad oculta o alcance solo-miembros). Para los públicos el token
+        // es opcional y el deslogueado sigue entrando sin él.
+        const idToken = await auth.currentUser?.getIdToken().catch(() => null);
+
         const resp = await fetch(proxyUrl, {
           method: "POST",
-          headers: { "Content-Type": "application/sdp" },
+          headers: {
+            "Content-Type": "application/sdp",
+            ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
+          },
           body: sdp,
         });
 

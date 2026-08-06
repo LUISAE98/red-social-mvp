@@ -85,6 +85,7 @@ export function DonationPanel({ onClose, postId, authorId, userId, username, ava
   const [amount, setAmount] = useState<number | null>(null);
   const [custom, setCustom] = useState("");
   const [paying, setPaying] = useState(false);
+  const [payError, setPayError] = useState<string | null>(null);
   const [resolvedAvatar, setResolvedAvatar] = useState<string | null>(avatarUrl ?? null);
   const [resolvedUsername, setResolvedUsername] = useState(username ?? "");
 
@@ -123,6 +124,7 @@ export function DonationPanel({ onClose, postId, authorId, userId, username, ava
   async function handlePay() {
     if (!valid || paying) return;
     setPaying(true);
+    setPayError(null);
     try {
       const tier = {
         id: "donation",
@@ -155,9 +157,15 @@ export function DonationPanel({ onClose, postId, authorId, userId, username, ava
         serviceType: "live_donation",
         grossAmount: finalAmount ?? undefined,
       });
+      onClose();
+    } catch (err) {
+      // Sin `catch`, el `finally` cerraba el panel también cuando el cobro
+      // fallaba, y el donante se quedaba creyendo que su donación salió.
+      setPayError(
+        err instanceof Error ? err.message : "No se pudo procesar la donación."
+      );
     } finally {
       setPaying(false);
-      onClose();
     }
   }
 
@@ -275,6 +283,17 @@ export function DonationPanel({ onClose, postId, authorId, userId, username, ava
                 boxSizing: "border-box",
               }}
             />
+
+            {payError && (
+              <p
+                style={{
+                  fontSize: 13, color: "#f87171", fontFamily: FONT,
+                  marginBottom: 12, lineHeight: 1.4,
+                }}
+              >
+                {payError}
+              </p>
+            )}
 
             <button
               onClick={handlePay}

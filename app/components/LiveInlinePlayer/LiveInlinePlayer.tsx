@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import Hls from "hls.js";
+import { auth } from "@/lib/firebase";
 import type { ActiveSuperComment } from "@/lib/posts/types";
 import { TTS_MIN_DURATION_SECS } from "@/lib/tts/edge-tts-client";
 import type { EdgeTTSHandle } from "@/lib/tts/edge-tts-client";
@@ -389,9 +390,17 @@ export default function LiveInlinePlayer({
         const sdp = pc.localDescription?.sdp;
         if (!sdp) return;
 
+        // El proxy exige identidad para los lives que no son "para todos"
+        // (comunidad oculta o alcance solo-miembros). Para los públicos el token
+        // es opcional y el deslogueado sigue entrando sin él.
+        const idToken = await auth.currentUser?.getIdToken().catch(() => null);
+
         const resp = await fetch(`/api/cf-viewer-proxy?postId=${encodeURIComponent(postId)}`, {
           method: "POST",
-          headers: { "Content-Type": "application/sdp" },
+          headers: {
+            "Content-Type": "application/sdp",
+            ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
+          },
           body: sdp,
         });
 

@@ -37,11 +37,22 @@ service firebase.storage {
     // ==============================
     // GROUPS (avatar / cover)
     // ==============================
+    // Solo el DUEÑO de la comunidad sube su avatar/portada. Antes bastaba con
+    // estar logueado: cualquiera podía sobrescribir la imagen de cualquier
+    // comunidad (incluidas las ocultas, cuyo groupId aparece en enlaces de
+    // invitación). Coincide con Firestore, donde `coverUrl`/`avatarUrl` solo los
+    // puede tocar el owner. El doc del grupo ya existe cuando se sube la imagen.
+    function isGroupOwner(groupId) {
+      return isSignedIn()
+        && firestore.exists(/databases/(default)/documents/groups/$(groupId))
+        && firestore.get(/databases/(default)/documents/groups/$(groupId)).data.ownerId == request.auth.uid;
+    }
+
     match /groups/{groupId}/{folder}/{fileName} {
 
       allow read: if true;
 
-      allow write: if isSignedIn()
+      allow write: if isGroupOwner(groupId)
         && (folder == "avatar" || folder == "cover")
         && isImage()
         && maxSize(5 * 1024 * 1024);
@@ -86,7 +97,7 @@ match /posts/{groupId}/{uid}/{folder}/{fileName} {
 
     match /storyCovers/groups/{groupId}/{fileName} {
       allow read: if true;
-      allow write: if isSignedIn()
+      allow write: if isGroupOwner(groupId)
         && isImage()
         && maxSize(5 * 1024 * 1024);
     }
