@@ -293,7 +293,7 @@ export default function LiveChatViewer({
               item.kind === "sc" ? (
                 <div key={item.id} style={{
                   display: "flex", alignItems: "flex-start", gap: 8,
-                  margin: "0 -14px 5px -14px", padding: "6px 14px",
+                  margin: "0 -14px 7px -14px", padding: "0 14px",
                   background: "transparent", fontFamily: FONT,
                 }}>
                   <Avatar url={item.avatarUrl} name={item.username} size={33} ringColor={item.color} />
@@ -309,7 +309,7 @@ export default function LiveChatViewer({
                   </div>
                 </div>
               ) : (
-                <div key={item.id} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                <div key={item.id} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 7 }}>
                   <Avatar url={item.avatarUrl} name={item.username} size={29} />
                   <div style={{ flex: 1, minWidth: 0, fontSize: 13, lineHeight: 1.15, wordBreak: "break-word" }}>
                     <span style={{ fontSize: 13, fontWeight: 600, color: "#fff", fontFamily: FONT, marginRight: 5 }}>{item.username}</span>
@@ -435,7 +435,7 @@ export default function LiveChatViewer({
             item.kind === "sc" ? (
               <div key={item.id} style={{
                 display: "flex", alignItems: "flex-start", gap: 8,
-                padding: "6px 10px", margin: "2px -10px",
+                padding: "0 10px", margin: "0 -10px 7px -10px",
                 background: "transparent", fontFamily: FONT,
               }}>
                 <Avatar url={item.avatarUrl} name={item.username} size={33} ringColor={item.color} />
@@ -453,7 +453,7 @@ export default function LiveChatViewer({
                 </div>
               </div>
             ) : (
-              <div key={item.id} style={{ display: "flex", gap: 8, padding: "2px 0", alignItems: "center" }}>
+              <div key={item.id} style={{ display: "flex", gap: 8, marginBottom: 7, alignItems: "center" }}>
                 <Avatar url={item.avatarUrl} name={item.username} size={29} />
                 <div style={{ minWidth: 0, flex: 1, fontSize: 13, lineHeight: 1.15, wordBreak: "break-word" }}>
                   <span style={{ fontFamily: FONT, fontSize: 13, fontWeight: 600, color: "#fff", marginRight: 5 }}>
