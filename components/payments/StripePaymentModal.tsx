@@ -20,7 +20,7 @@ import VibraPayBrand from "./VibraPayBrand";
 import PaymentSuccessCard from "./PaymentSuccessCard";
 import { getGuestNickname, setGuestNickname, GUEST_NICKNAME_MAX } from "@/lib/guest/guestNickname";
 
-export type SavedCard = { id: string; brand?: string; brandName?: string; lastFour?: string };
+export type SavedCard = { id: string; brand?: string; brandName?: string; lastFour?: string; stripePaymentMethodId?: string };
 
 type Props = {
   open: boolean;
@@ -133,6 +133,11 @@ export default function StripePaymentModal({
   const [buyer, setBuyer] = useState<{ name: string; photo: string | null } | null>(null);
   // Apodo del invitado (se pre-llena de la caché del dispositivo y es editable).
   const [nickname, setNickname] = useState("");
+  // Invitado = sesión anónima. Para un invitado, una tarjeta guardada NO cobra un-clic:
+  // re-pide el CVV (se recolecta con un Element solo-CVC y se confirma on-session).
+  const [isGuest, setIsGuest] = useState(false);
+  const [savedCvcValid, setSavedCvcValid] = useState(false);
+  const savedCvcElRef = useRef<StripeElement | null>(null);
   const [render, setRender] = useState(false);
   const [entered, setEntered] = useState(false);
   // Tarjetas guardadas del comprador (Stripe). Se suscribe internamente para que CUALQUIER
@@ -155,7 +160,7 @@ export default function StripePaymentModal({
     (isNewCard
       ? cardValid.number && cardValid.exp && cardValid.cvc && cardName.trim().length > 0
       : savedCardId
-        ? true // guardada = un clic (sin CVV con Stripe off-session)
+        ? (isGuest ? savedCvcValid : true) // invitado re-pide CVV; cuenta real = un-clic off-session
         : false);
 
   const stripeRef = useRef<StripeLike | null>(null);
@@ -220,6 +225,15 @@ export default function StripePaymentModal({
     if (open && collectNickname) setNickname(getGuestNickname());
   }, [open, collectNickname]);
 
+  // ¿La sesión es un invitado (anónima)? Determina si una tarjeta guardada re-pide CVV.
+  useEffect(() => {
+    if (!open) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setIsGuest(!!auth.currentUser?.isAnonymous);
+    const unsub = auth.onAuthStateChanged((u) => setIsGuest(!!u?.isAnonymous));
+    return () => unsub();
+  }, [open]);
+
   // Perfil del comprador (saludo).
   useEffect(() => {
     if (!open) return;
@@ -257,6 +271,7 @@ export default function StripePaymentModal({
               brand: typeof data.brand === "string" ? data.brand : undefined,
               brandName: typeof data.brandName === "string" ? data.brandName : undefined,
               lastFour: typeof data.lastFour === "string" ? data.lastFour : undefined,
+              stripePaymentMethodId: typeof data.stripePaymentMethodId === "string" ? data.stripePaymentMethodId : undefined,
             };
           })
       ),
@@ -264,6 +279,28 @@ export default function StripePaymentModal({
     );
     return () => unsub();
   }, [open]);
+
+  // (B2) Invitado + tarjeta guardada seleccionada → monta un Element solo-CVC para
+  // recolectar el CVV y confirmar on-session (no off-session). Espeja el montaje de la
+  // tarjeta nueva pero solo con el campo CVC.
+  useEffect(() => {
+    if (!open || !sdkReady || !isGuest || !savedCardId) return;
+    const stripe = stripeRef.current;
+    if (!stripe) return;
+    setSavedCvcValid(false);
+    const elements = stripe.elements();
+    const cvcEl = elements.create("cardCvc", { style: STRIPE_STYLE });
+    savedCvcElRef.current = cvcEl;
+    cvcEl.on("change", (e) => setSavedCvcValid((e as { complete?: boolean } | null)?.complete === true));
+    const raf = requestAnimationFrame(() => {
+      try { cvcEl.mount(`#vibra-saved-cvc-${savedCardId}`); } catch { /* no-op */ }
+    });
+    return () => {
+      cancelAnimationFrame(raf);
+      try { cvcEl.destroy(); } catch { /* no-op */ }
+      if (savedCvcElRef.current === cvcEl) savedCvcElRef.current = null;
+    };
+  }, [open, sdkReady, isGuest, savedCardId]);
 
   // (A) Al abrir: carga Stripe.js.
   useEffect(() => {
@@ -360,9 +397,23 @@ export default function StripePaymentModal({
     };
     try {
       if (savedCardId) {
-        // Cobro "un clic" off-session (sin CVV): el callable confirma server-side con la
-        // tarjeta guardada. El webhook materializa la compra (igual que la tarjeta nueva).
         const res = await createIntentRef.current({ amount: payAmount, saveCard: false, taxCountry: pf.buyerCountry ?? null, savedPaymentMethodId: savedCardId, nickname: collectNickname ? (nickname.trim() || null) : null });
+        if (isGuest) {
+          // Invitado: NO hay un-clic. El callable devolvió un clientSecret y aquí se confirma
+          // ON-SESSION con la PM guardada + el CVV recolectado (Element solo-CVC). Así, en un
+          // dispositivo compartido, sin la tarjeta física no se puede cobrar.
+          const cvcEl = savedCvcElRef.current;
+          const pmId = effectiveSavedCards.find((c) => c.id === savedCardId)?.stripePaymentMethodId;
+          if (!res.clientSecret || !cvcEl || !pmId) throw new Error("no_secret");
+          const result = await stripe.confirmCardPayment(res.clientSecret, {
+            payment_method: pmId,
+            payment_method_options: { card: { cvc: cvcEl } },
+          });
+          if (result.error) { setError(result.error.message || "No se pudo procesar el pago."); setSubmitting(false); return; }
+          if (result.paymentIntent?.status === "succeeded" || result.paymentIntent?.status === "processing") { markPaid(); return; }
+          throw new Error("rejected");
+        }
+        // Cuenta real: cobro "un clic" off-session (sin CVV); el callable confirma server-side.
         if (res.status === "succeeded" || res.status === "processing") { markPaid(); return; }
         // Requiere autenticación adicional (SCA): completa el 3DS con el client_secret.
         if (res.clientSecret) {
@@ -490,6 +541,17 @@ export default function StripePaymentModal({
           <span style={{ fontSize: 14, fontWeight: 600, color: "#3a3f4a", flex: 1, textAlign: "left" }}>{brandLabel} ···· {card.lastFour ?? "••••"}</span>
           {radio(active)}
         </button>
+        {/* Invitado: re-pide el CVV de la tarjeta guardada (sin volver a teclear el número). */}
+        {isGuest && (
+          <div style={{ display: "grid", gridTemplateRows: active ? "1fr" : "0fr", transition: "grid-template-rows 300ms cubic-bezier(0.4,0,0.2,1)" }}>
+            <div style={{ overflow: "hidden", opacity: active ? 1 : 0, transition: "opacity 260ms ease" }}>
+              <div style={{ display: "grid", gap: 6, padding: "2px 2px 16px", maxWidth: 170 }}>
+                <label style={label}>CVV</label>
+                <div id={`vibra-saved-cvc-${card.id}`} style={stripeBox} />
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -507,9 +569,16 @@ export default function StripePaymentModal({
 
       {!hideBuyerGreeting && (
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
-          <div style={{ width: 42, height: 42, borderRadius: "50%", overflow: "hidden", flexShrink: 0, background: "#e6e8ec" }}>
+          <div style={{ width: 42, height: 42, borderRadius: "50%", overflow: "hidden", flexShrink: 0, background: "#e6e8ec", display: "flex", alignItems: "center", justifyContent: "center" }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            {buyer?.photo ? <img src={buyer.photo} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : null}
+            {buyer?.photo ? (
+              <img src={buyer.photo} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            ) : (
+              // Sin foto (invitado): ícono de persona genérica.
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="#9aa0a8" aria-hidden="true">
+                <path d="M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10zm0 2c-4.42 0-8 2.24-8 5v1h16v-1c0-2.76-3.58-5-8-5z" />
+              </svg>
+            )}
           </div>
           <div style={{ minWidth: 0, flex: 1 }}>
             <div style={{ fontSize: 12, color: "#9aa0a8" }}>Bienvenido</div>
@@ -714,7 +783,7 @@ export default function StripePaymentModal({
           : { position: "fixed", inset: 0, zIndex: 2147483647, display: "flex", alignItems: "center", justifyContent: "center", padding: 20, background: "rgba(0,0,0,0.55)", opacity: entered ? 1 : 0, transition: "opacity 220ms ease", willChange: "opacity" }}>
       <div ref={scrollRef} onClick={(e) => e.stopPropagation()}
         style={isSheet
-          ? { position: "relative", width: "100%", height: "100%", boxSizing: "border-box", overflowY: "auto", background: "#fff", color: "#3a3f4a", paddingBottom: "var(--vb-safe-bottom, 0px)", transform: entered ? "translateY(0)" : "translateY(100%)", transition: "transform 240ms cubic-bezier(0.2,0.8,0.2,1)", willChange: "transform" }
+          ? { position: "absolute", inset: 0, boxSizing: "border-box", overflowY: "auto", WebkitOverflowScrolling: "touch", overscrollBehavior: "contain", touchAction: "pan-y", background: "#fff", color: "#3a3f4a", paddingBottom: "var(--vb-safe-bottom, 0px)", transform: entered ? "translateY(0)" : "translateY(100%)", transition: "transform 240ms cubic-bezier(0.2,0.8,0.2,1)", willChange: "transform" }
           : mobileSheet
             ? { position: "relative", width: "100%", maxHeight: "92vh", boxSizing: "border-box", overflowY: "auto", background: "#fff", borderRadius: "16px 16px 0 0", boxShadow: "0 -12px 48px rgba(0,0,0,0.4)", color: "#3a3f4a", paddingBottom: "var(--vb-safe-bottom, 0px)", transform: entered ? "translateY(0)" : "translateY(100%)", transition: "transform 240ms cubic-bezier(0.2,0.8,0.2,1)", willChange: "transform" }
             : { position: "relative", width: isNarrow || forceStacked ? "min(100%, 440px)" : "min(100%, 660px)", maxHeight: "92vh", overflowY: "auto", background: "#fff", borderRadius: 16, boxShadow: "0 24px 72px rgba(0,0,0,0.4)", color: "#3a3f4a", opacity: entered ? 1 : 0, transform: entered ? "translateY(0) scale(1)" : "translateY(10px) scale(0.985)", transition: "opacity 220ms ease, transform 240ms cubic-bezier(0.2,0.8,0.2,1)", willChange: "opacity, transform" }}>

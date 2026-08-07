@@ -26,7 +26,6 @@ import { VibraOutro } from "../session/SessionOutro";
 const TYPE_KEY: Record<string, string> = {
   saludo: "typeLabelGreeting",
   consejo: "typeLabelAdvice",
-  mensaje: "typeLabelMessage",
 };
 
 function GreetingEgressInner() {

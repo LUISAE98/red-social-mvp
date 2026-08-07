@@ -54,7 +54,8 @@ const isPublicRoute =
   pathname.startsWith("/u/") ||
   pathname.startsWith("/p/") ||
   pathname.startsWith("/live-overlay/") ||
-  pathname.startsWith("/egress/");
+  pathname.startsWith("/egress/") ||
+  pathname.startsWith("/dev/"); // páginas de diseño/preview (dev), accesibles sin login
 
 // Rutas que se renderizan SIN chrome (overlays a pantalla completa y la
 // plantilla de grabación de sesiones, que carga el grabador headless).

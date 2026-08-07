@@ -46,10 +46,17 @@ function isFreePost(post: Post): boolean {
 }
 
 function isFreePublicGroupPost(post: Post): boolean {
+  // Un LIVE con alcance "todos" (`allowLoggedOutViewers == true`) es público aunque su
+  // comunidad sea PRIVADA: el creador eligió transmitir a cualquiera (incl. invitados), y
+  // las Firestore Rules ya permiten leerlo. Así el link compartido `/p/` funciona para
+  // invitados. Nunca aplica a comunidades ocultas (allowLoggedOutViewers siempre es false).
+  const openLive =
+    post.liveData?.allowLoggedOutViewers === true &&
+    post.groupVisibility !== "hidden";
   return (
     isFreePost(post) &&
     getPostContextType(post) === "group" &&
-    post.groupVisibility === "public" &&
+    (post.groupVisibility === "public" || openLive) &&
     post.isShareable !== false
   );
 }

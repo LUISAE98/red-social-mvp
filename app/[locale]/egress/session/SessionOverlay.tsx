@@ -5,13 +5,11 @@ import { useTranslations } from "next-intl";
 // Overlay "horneado" de la grabación: avatar del creador con aro de Vibra +
 // nombre + tipo de experiencia, arriba a la izquierda.
 //
-// Vive aparte de la plantilla (page.tsx) porque lo consumen DOS sitios y debe
-// ser la misma fuente en ambos:
-//   · la plantilla real de grabación (app/[locale]/egress/session/page.tsx)
-//   · el lienzo de diseño 1920×1080 (app/[locale]/dev/video-icons)
-//
-// (Antes el lienzo tenía una COPIA manual de este badge, con un comentario
-// "Fuente: page.tsx". Se podían desincronizar sin que nadie se enterara.)
+// Vive aparte de la plantilla (page.tsx) para que sea una pieza aislada y
+// reutilizable: la consume la plantilla real de grabación
+// (app/[locale]/egress/session/page.tsx). Debe seguir siendo la ÚNICA fuente de
+// este badge: si alguna vez se copia a mano en otro lado, se desincronizan sin
+// que nadie se entere.
 //
 // Se renderiza a 1080p nativo (px absolutos, nítido) y el grabador lo captura
 // dentro del video. Sin marca de vibraon.com: ésa va en el cierre.

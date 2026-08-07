@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import type { CSSProperties } from "react";
 import { useTranslations } from "next-intl";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import { WALLET_NET_RATE } from "@/lib/wallet/walletFinances";
@@ -10,12 +10,7 @@ import type {
   PostPremiumFreeFor,
   PostContextType,
 } from "@/lib/posts/types";
-import type {
-  PremiumCapabilities,
-  PremiumValidationResult,
-} from "@/lib/posts/premium";
-import VibraToast from "@/app/components/VibraToast/VibraToast";
-import { useVibraToast } from "@/lib/hooks/useVibraToast";
+import type { PremiumCapabilities } from "@/lib/posts/premium";
 
 type ComposerPremiumPanelProps = {
   hasVideos: boolean;
@@ -34,8 +29,6 @@ type ComposerPremiumPanelProps = {
   setPriceInput: (value: string) => void;
 
   capabilities: PremiumCapabilities;
-  validation: PremiumValidationResult;
-  premiumErrorMessage: string | null;
 
   disabled?: boolean;
   isEditMode?: boolean;
@@ -43,6 +36,20 @@ type ComposerPremiumPanelProps = {
 
 const fontStack =
   'inherit';
+
+// Estética tomada del composer de live (LiveComposerModal): etiquetas en
+// mayúsculas tenues, filas de radio separadas por línea, punto morado en la
+// selección y avisos en cajas neutras. Sin contenedor morado.
+const labelStyle: CSSProperties = {
+  fontSize: 11,
+  fontWeight: 500,
+  color: "rgba(255,255,255,0.5)",
+  letterSpacing: "0.03em",
+  textTransform: "uppercase",
+  marginBottom: 3,
+  display: "block",
+  fontFamily: fontStack,
+};
 
 function buildReadonlyConfigText(
   accessMode: PostPremiumAccessMode,
@@ -68,10 +75,55 @@ function formatThousands(raw: string): string {
   return decPart !== undefined ? `${formatted}.${decPart}` : formatted;
 }
 
+/** Aviso de configuración fija (mismo bloque que el live usa para comunidad oculta). */
+function NoteBox({ text }: { text: string }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "flex-start",
+        gap: 10,
+        padding: "10px 12px",
+        borderRadius: 10,
+        background: "rgba(255,255,255,0.04)",
+        border: "1px solid rgba(255,255,255,0.08)",
+      }}
+    >
+      <svg
+        width="14"
+        height="14"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="rgba(255,255,255,0.4)"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        style={{ flexShrink: 0, marginTop: 2 }}
+        aria-hidden="true"
+      >
+        <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+        <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+      </svg>
+
+      <span
+        style={{
+          fontSize: 11.5,
+          lineHeight: 1.5,
+          color: "rgba(255,255,255,0.5)",
+          fontFamily: fontStack,
+        }}
+      >
+        {text}
+      </span>
+    </div>
+  );
+}
+
 function OptionRow<TValue extends string>({
   value,
   selected,
   disabled,
+  isLast,
   title,
   description,
   onSelect,
@@ -79,85 +131,71 @@ function OptionRow<TValue extends string>({
   value: TValue;
   selected: boolean;
   disabled?: boolean;
+  isLast: boolean;
   title: string;
   description: string;
   onSelect: (value: TValue) => void;
 }) {
   return (
-    <button
-      type="button"
-      disabled={disabled}
-      onClick={() => onSelect(value)}
+    <div
+      className="vibra-premium-radio"
+      role="radio"
+      aria-checked={selected}
+      tabIndex={disabled ? -1 : 0}
+      onClick={() => !disabled && onSelect(value)}
+      onKeyDown={(event) => {
+        if (disabled) return;
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onSelect(value);
+        }
+      }}
       style={{
-        width: "100%",
-        background: "none",
-        border: "none",
-        padding: "3px 0",
         display: "flex",
         alignItems: "center",
-        justifyContent: "space-between",
         gap: 12,
+        padding: "13px 2px",
         cursor: disabled ? "not-allowed" : "pointer",
         opacity: disabled ? 0.5 : 1,
-        fontFamily: fontStack,
-        textAlign: "left",
+        borderBottom: isLast ? "none" : "1px solid rgba(255,255,255,0.08)",
+        userSelect: "none",
+        outline: "none",
       }}
     >
-      <span style={{ display: "grid", gap: 2, minWidth: 0 }}>
-        <span
-          style={{
-            fontSize: 13.5,
-            fontWeight: 500,
-            letterSpacing: "-0.02em",
-            lineHeight: 1.25,
-            color: selected ? "#fff" : "rgba(255,255,255,0.65)",
-          }}
-        >
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: "#fff", fontFamily: fontStack }}>
           {title}
-        </span>
-
-        <span
+        </div>
+        <div
           style={{
-            fontSize: 11.5,
-            lineHeight: 1.35,
-            color: "rgba(196,168,255,0.55)",
+            fontSize: 11,
+            color: "rgba(255,255,255,0.4)",
+            fontFamily: fontStack,
+            marginTop: 2,
+            lineHeight: 1.4,
           }}
         >
           {description}
-        </span>
-      </span>
+        </div>
+      </div>
 
       <span
         aria-hidden="true"
         style={{
-          width: 40,
-          height: 22,
-          borderRadius: 11,
-          background: selected ? "#a855f7" : "transparent",
-          boxShadow: selected
-            ? "none"
-            : "inset 0 0 0 1.5px rgba(168,85,255,0.3)",
-          position: "relative",
+          width: 18,
+          height: 18,
+          borderRadius: "50%",
+          border: `2px solid ${selected ? "#a855f7" : "rgba(255,255,255,0.25)"}`,
+          display: "grid",
+          placeItems: "center",
           flexShrink: 0,
-          display: "inline-block",
-          transition: "background 0.18s",
         }}
       >
-        <span
-          style={{
-            position: "absolute",
-            top: 3,
-            left: selected ? 21 : 3,
-            width: 16,
-            height: 16,
-            borderRadius: "50%",
-            background: selected ? "#fff" : "rgba(196,168,255,0.45)",
-            boxShadow: selected ? "0 1px 3px rgba(0,0,0,0.35)" : "none",
-            transition: "left 0.18s, background 0.18s",
-          }}
-        />
+        {selected && (
+          <span style={{ width: 9, height: 9, borderRadius: "50%", background: "#a855f7" }} />
+        )}
       </span>
-    </button>
+    </div>
   );
 }
 
@@ -172,14 +210,11 @@ export default function ComposerPremiumPanel({
   priceInput,
   setPriceInput,
   capabilities,
-  validation,
-  premiumErrorMessage,
   disabled = false,
   isEditMode = false,
 }: ComposerPremiumPanelProps) {
   const tPosts = useTranslations("posts");
   const priceFmt = usePriceFormat();
-  const { toast: premiumToast, showToast: showPremiumToast } = useVibraToast();
 
   const accessModeLabels: Record<
     PostPremiumAccessMode,
@@ -209,35 +244,26 @@ export default function ComposerPremiumPanel({
     },
   };
 
-  useEffect(() => {
-    // El aviso de "precio mínimo" ya se muestra en rojo bajo el campo; no lo repetimos como toast.
-    if (premiumErrorMessage && validation.errors[0]?.code !== "premium_price_below_min") {
-      showPremiumToast(premiumErrorMessage, "error");
-    }
-  }, [premiumErrorMessage]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => {
-    if (!capabilities.canEnablePremium && capabilities.disabledReason) {
-      showPremiumToast(capabilities.disabledReason, "warning");
-    }
-  }, [capabilities.canEnablePremium, capabilities.disabledReason]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Sin toasts de validación: configurar todavía NO es un error. Faltar el precio o
+  // estar bajo el mínimo se avisa en rojo bajo el propio campo, y publicar ya está
+  // bloqueado por `validation.valid` en el composer.
 
   if (!hasVideos || !premiumEnabled) return null;
 
   const showAccessModeOptions = !isEditMode && capabilities.allowedAccessModes.length > 1;
-  const showFreeForOptions = !isEditMode && capabilities.allowedFreeForOptions.length > 1;
+  const hasFreeForChoice = !isEditMode && capabilities.allowedFreeForOptions.length > 1;
   const showFixedAccessMode = !isEditMode && capabilities.allowedAccessModes.length === 1;
-  const showFixedFreeFor = !isEditMode && capabilities.allowedFreeForOptions.length === 1;
 
   const isHiddenGroupContext =
     !isEditMode && showFixedAccessMode && capabilities.allowedAccessModes[0] === "members_only";
 
-  const requiresPrice = true;
+  // "Quién lo ve gratis" SOLO tiene sentido con alcance público: si el post es
+  // solo para miembros, no hay nadie fuera a quien cobrarle, así que los miembros
+  // pagan por definición (lo mismo que valida el backend). El bloque se despliega
+  // y se colapsa suave al cambiar el alcance, como en el composer de live.
+  const freeForVisible = hasFreeForChoice && accessMode === "public";
 
-  const priceError = !validation.valid ? premiumErrorMessage : null;
-  const capabilityError = !capabilities.canEnablePremium
-    ? capabilities.disabledReason
-    : null;
+  const requiresPrice = true;
 
   const { currency: displayCurrency } = priceFmt;
 
@@ -259,209 +285,116 @@ export default function ComposerPremiumPanel({
   const earningsVisible = !!creatorEarnings && !belowMin;
 
   return (
-    <section
+    <div
       style={{
-        border: "1px solid rgba(168,85,255,0.07)",
-        background: "linear-gradient(160deg, #100c1c, #12092a 55%, #0f0818)",
-        boxShadow: "0 2px 12px rgba(79,70,255,0.07)",
-        borderRadius: 10,
-        padding: 14,
-        display: "grid",
-        gap: 14,
         fontFamily: fontStack,
+        // Sin caja: la sección se separa con una línea, como los bloques del
+        // composer de live (nada de contenedor morado).
+        borderTop: "1px solid rgba(255,255,255,0.08)",
+        paddingTop: 12,
       }}
     >
-      <div style={{ display: "grid", gap: 4 }}>
-        <div
-          style={{
-            color: "#a855f7",
-            fontSize: 17,
-            fontWeight: 500,
-            letterSpacing: "-0.02em",
-            lineHeight: 1.2,
-            fontFamily: fontStack,
-          }}
-        >
-          {tPosts("premiumConfigTitle")}
-        </div>
+      <style>{`
+        .vibra-premium-radio { transition: transform 160ms ease; }
+        @media (hover: hover) {
+          .vibra-premium-radio:hover { transform: scale(1.02); }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .vibra-premium-radio { transition: none; }
+          .vibra-premium-radio:hover { transform: none; }
+        }
+      `}</style>
 
-        <div
-          style={{
-            color: "rgba(196,168,255,0.7)",
-            fontSize: 12.5,
-            lineHeight: 1.35,
-          }}
-        >
-          {tPosts("premiumConfigDesc")}
-        </div>
+      <label style={{ ...labelStyle, marginTop: 2 }}>{tPosts("premiumConfigTitle")}</label>
+      <div
+        style={{
+          fontSize: 11,
+          color: "rgba(255,255,255,0.4)",
+          lineHeight: 1.4,
+          marginBottom: 10,
+        }}
+      >
+        {tPosts("premiumConfigDesc")}
       </div>
 
       {isEditMode ? (
-        <p
-          style={{
-            margin: 0,
-            color: "#fff",
-            fontSize: 11.5,
-            lineHeight: 1.55,
-            fontFamily: fontStack,
-            textAlign: "justify",
-          }}
-        >
-          {buildReadonlyConfigText(accessMode, freeFor, tPosts)}
-        </p>
-      ) : null}
-
-      {!isEditMode && contextType === "profile" ? (
-        <p
-          style={{
-            margin: 0,
-            color: "#fff",
-            fontSize: 11.5,
-            lineHeight: 1.55,
-            fontFamily: fontStack,
-            textAlign: "justify",
-          }}
-        >
-          {tPosts("premiumProfilePublicNote")}
-        </p>
+        <div style={{ marginBottom: 10 }}>
+          <NoteBox text={buildReadonlyConfigText(accessMode, freeFor, tPosts)} />
+        </div>
       ) : null}
 
       {isHiddenGroupContext ? (
-        <p
-          style={{
-            margin: 0,
-            color: "#fff",
-            fontSize: 11.5,
-            lineHeight: 1.55,
-            fontFamily: fontStack,
-            textAlign: "justify",
-          }}
-        >
-          {tPosts("premiumHiddenCommunityNote")}
-        </p>
+        <div style={{ marginBottom: 10 }}>
+          <NoteBox text={tPosts("premiumHiddenCommunityNote")} />
+        </div>
+      ) : null}
+
+      {showFixedAccessMode &&
+      contextType !== "profile" &&
+      capabilities.allowedAccessModes[0] === "public" ? (
+        <div style={{ marginBottom: 10 }}>
+          <NoteBox text={tPosts("premiumPublicCommunityNote")} />
+        </div>
       ) : null}
 
       {showAccessModeOptions ? (
-        <div style={{ display: "grid", gap: 10 }}>
-          <div
-            style={{
-              color: "rgba(196,168,255,0.82)",
-              fontSize: 11.5,
-              fontWeight: 700,
-              letterSpacing: "0.06em",
-              textTransform: "uppercase",
-            }}
-          >
-            {tPosts("premiumReachLabel")}
+        <>
+          <label style={labelStyle}>{tPosts("premiumReachLabel")}</label>
+          <div style={{ marginBottom: 8 }} role="radiogroup" aria-label={tPosts("premiumReachLabel")}>
+            {capabilities.allowedAccessModes.map((option, idx) => (
+              <OptionRow
+                key={option}
+                value={option}
+                selected={accessMode === option}
+                disabled={disabled}
+                isLast={idx === capabilities.allowedAccessModes.length - 1}
+                title={accessModeLabels[option].title}
+                description={accessModeLabels[option].description}
+                onSelect={setAccessMode}
+              />
+            ))}
           </div>
-
-          {capabilities.allowedAccessModes.map((option) => (
-            <OptionRow
-              key={option}
-              value={option}
-              selected={accessMode === option}
-              disabled={disabled}
-              title={accessModeLabels[option].title}
-              description={accessModeLabels[option].description}
-              onSelect={setAccessMode}
-            />
-          ))}
-        </div>
+        </>
       ) : null}
 
-      {showFixedAccessMode && contextType !== "profile" ? (
-        capabilities.allowedAccessModes[0] === "public" ? (
-          <p
-            style={{
-              margin: 0,
-              color: "#fff",
-              fontSize: 11.5,
-              lineHeight: 1.55,
-              fontFamily: fontStack,
-              textAlign: "justify",
-            }}
-          >
-            {tPosts("premiumPublicCommunityNote")}
-          </p>
-        ) : null
-      ) : null}
-
-      {showFreeForOptions ? (
-        <div style={{ display: "grid", gap: 10, marginTop: 8 }}>
-          <div
-            style={{
-              color: "rgba(196,168,255,0.82)",
-              fontSize: 11.5,
-              fontWeight: 700,
-              letterSpacing: "0.06em",
-              textTransform: "uppercase",
-            }}
-          >
-            {tPosts("premiumFreeViewerLabel")}
-          </div>
-
-          {capabilities.allowedFreeForOptions.map((option) => (
-            <OptionRow
-              key={option}
-              value={option}
-              selected={freeFor === option}
-              disabled={disabled}
-              title={freeForLabels[option].title}
-              description={freeForLabels[option].description}
-              onSelect={setFreeFor}
-            />
-          ))}
-        </div>
-      ) : null}
-
-      {showFixedFreeFor && contextType !== "profile" && !isHiddenGroupContext ? (
+      {/* Se DESLIZA suave al elegir alcance público y se colapsa al volver a
+          "solo miembros" (donde no hay elección posible). */}
+      {hasFreeForChoice ? (
         <div
           style={{
-            marginTop: 8,
-            border: "1px solid rgba(168,85,255,0.18)",
-            background: "rgba(79,70,255,0.08)",
-            borderRadius: 12,
-            padding: "11px 12px",
-            display: "grid",
-            gap: 3,
+            maxHeight: freeForVisible ? 300 : 0,
+            opacity: freeForVisible ? 1 : 0,
+            overflow: "hidden",
+            transition: "max-height 300ms ease, opacity 240ms ease",
           }}
+          aria-hidden={!freeForVisible}
         >
-          <div style={{ color: "#fff", fontSize: 13, fontWeight: 700 }}>
-            {freeForLabels[capabilities.allowedFreeForOptions[0]].title}
-          </div>
-
-          <div
-            style={{
-              color: "rgba(196,168,255,0.65)",
-              fontSize: 12.5,
-              lineHeight: 1.35,
-            }}
-          >
-            {freeForLabels[capabilities.allowedFreeForOptions[0]].description}
+          <label style={labelStyle}>{tPosts("premiumFreeViewerLabel")}</label>
+          <div style={{ marginBottom: 8 }} role="radiogroup" aria-label={tPosts("premiumFreeViewerLabel")}>
+            {capabilities.allowedFreeForOptions.map((option, idx) => (
+              <OptionRow
+                key={option}
+                value={option}
+                selected={freeFor === option}
+                disabled={disabled || !freeForVisible}
+                isLast={idx === capabilities.allowedFreeForOptions.length - 1}
+                title={freeForLabels[option].title}
+                description={freeForLabels[option].description}
+                onSelect={setFreeFor}
+              />
+            ))}
           </div>
         </div>
       ) : null}
 
       {requiresPrice ? (
-        <div style={{ display: "grid", gap: 8 }}>
-          <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span
-              style={{
-                color: "rgba(196,168,255,0.82)",
-                fontSize: 11.5,
-                fontWeight: 700,
-                letterSpacing: "0.06em",
-                textTransform: "uppercase",
-              }}
-            >
-              {tPosts("premiumPriceLabel")}
-            </span>
-          </span>
+        <>
+          <label style={labelStyle}>{tPosts("premiumPriceLabel")}</label>
 
-          {/* Presentación IGUAL a experiencias: el campo es un input autónomo
+          {/* Presentación IGUAL a experiencias/live: el campo es un input autónomo
               (estilo canónico vibra_style.md); el "+ $3" y la moneda van FUERA,
               como hermanos en la fila (no dentro del placeholder). */}
-          <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+          <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", marginBottom: 8 }}>
             <input
               type="text"
               enterKeyHint="done"
@@ -513,9 +446,8 @@ export default function ComposerPremiumPanel({
             </span>
           </div>
 
-          {/* Avisos que COLAPSAN suave (como en experiencias): mínimo en rojo y
-              cuánto ganas por desbloqueo. Se animan (max-height + opacity) en vez
-              de aparecer/desaparecer de golpe y empujar el panel bruscamente. */}
+          {/* Avisos que COLAPSAN suave (como en experiencias/live): mínimo en rojo y
+              cuánto ganas por desbloqueo. */}
           <div>
             <div
               style={{
@@ -531,7 +463,7 @@ export default function ComposerPremiumPanel({
                 style={{
                   display: "block",
                   color: "#f87171",
-                  fontSize: 11.5,
+                  fontSize: 12,
                   lineHeight: 1.45,
                   fontFamily: fontStack,
                 }}
@@ -553,14 +485,14 @@ export default function ComposerPremiumPanel({
               <span
                 style={{
                   display: "block",
-                  color: "rgba(196,168,255,0.65)",
-                  fontSize: 11.5,
+                  color: "rgba(255,255,255,0.55)",
+                  fontSize: 12,
                   lineHeight: 1.45,
                   fontFamily: fontStack,
                 }}
               >
                 {tPosts("premiumEarningsPerUnlock")}{" "}
-                <strong style={{ color: "#a855f7", fontWeight: 600 }}>
+                <strong style={{ color: "#a855f7", fontWeight: 700 }}>
                   {creatorEarnings}
                 </strong>
               </span>
@@ -569,7 +501,7 @@ export default function ComposerPremiumPanel({
             {/* Leyenda del cargo fijo de Stripe (siempre visible), en la misma celda. */}
             <div
               style={{
-                color: "rgba(196,168,255,0.5)",
+                color: "rgba(255,255,255,0.4)",
                 fontSize: 11,
                 lineHeight: 1.4,
                 fontFamily: fontStack,
@@ -579,10 +511,8 @@ export default function ComposerPremiumPanel({
               Se suman ${FIXED_SERVICE_FEE_MXN} MXN por el cargo de procesamiento de Stripe.
             </div>
           </div>
-        </div>
+        </>
       ) : null}
-
-      <VibraToast toast={premiumToast} />
-    </section>
+    </div>
   );
 }

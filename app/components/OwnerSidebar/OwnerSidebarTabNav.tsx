@@ -6,6 +6,7 @@ import type { CSSProperties, ReactNode } from "react";
 import type { TopView } from "./OwnerSidebar";
 import {
   SidebarFollowingIcon,
+  SidebarMessagesIcon,
   SidebarMyCommunitiesIcon,
   SidebarOtherCommunitiesIcon,
 } from "@/app/components/VibraServiceIcons/OwnerSidebarNavIcons/OwnerSidebarNavIcons";
@@ -21,6 +22,8 @@ type Props = {
   followedCount?: number;
   myGroupsCount?: number;
   joinedGroupsCount?: number;
+  /** No leídos del DM. La pestaña de Mensajes se muestra siempre, con o sin ellos. */
+  unreadMessagesCount?: number;
   loadingFollowing?: boolean;
   loadingGroups?: boolean;
   /** Contenido de cada sección; se despliega (acordeón) bajo su pestaña activa. */
@@ -36,6 +39,7 @@ export default function OwnerSidebarTabNav({
   followedCount = 0,
   myGroupsCount = 0,
   joinedGroupsCount = 0,
+  unreadMessagesCount = 0,
   loadingFollowing = false,
   loadingGroups = false,
   contentByKey,
@@ -83,12 +87,22 @@ export default function OwnerSidebarTabNav({
           },
         ]
       : []),
+    // Mensajes va SIEMPRE, aunque no haya conversaciones: si se ocultara al
+    // estar vacía (como las de arriba), nadie descubriría que el DM existe.
+    {
+      key: "messages" as const,
+      label: tNav("tabMessages"),
+      title: tNav("tabMessages"),
+      showBadge: unreadMessagesCount > 0,
+      icon: <SidebarMessagesIcon size={28} strokeWidth={1.6} />,
+    },
     // "Experiencias" (estrella) se movió a la página /experiencias, accesible
     // desde el ícono junto a notificaciones. Ya no vive en el sidebar.
   ];
 
   const badgeText = requestedCount > 99 ? "99+" : String(requestedCount);
   const joinBadgeText = joinRequestsCount > 99 ? "99+" : String(joinRequestsCount);
+  const unreadBadgeText = unreadMessagesCount > 99 ? "99+" : String(unreadMessagesCount);
 
   const wrapStyle: CSSProperties = {
     position: "relative",
@@ -197,7 +211,11 @@ export default function OwnerSidebarTabNav({
 
               {tab.showBadge ? (
                 <span style={badgeStyle}>
-                  {tab.key === "owned" ? joinBadgeText : badgeText}
+                  {tab.key === "owned"
+                    ? joinBadgeText
+                    : tab.key === "messages"
+                      ? unreadBadgeText
+                      : badgeText}
                 </span>
               ) : null}
 

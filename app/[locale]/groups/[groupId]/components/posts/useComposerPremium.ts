@@ -178,6 +178,13 @@ export function useComposerPremium({
   function setAccessMode(nextAccessMode: PostPremium["accessMode"]) {
     if (!effectiveCapabilities.allowedAccessModes.includes(nextAccessMode)) return;
     setAccessModeState(nextAccessMode);
+    // Alcance "solo miembros": no hay nadie fuera de la comunidad a quien cobrarle,
+    // así que los miembros pagan por definición (es justo lo que exige la validación
+    // `members_only_premium_requires_paid_members_access`). Se normaliza aquí para
+    // que el estado nunca quede en una combinación que el publicar rechace.
+    if (nextAccessMode === "members_only") {
+      setFreeForState("none");
+    }
   }
 
   function setFreeFor(nextFreeFor: PostPremium["freeFor"]) {

@@ -27,6 +27,7 @@ import {
   fetchCommentRepliesAdmin,
   fetchGroupPostsPage,
   fetchGroupPublicPostsPage,
+  fetchGroupPublicPremiumPostsPage,
   fetchPostComments,
   fetchPostCommentsAdmin,
   softDeletePost,
@@ -330,14 +331,28 @@ export default function GroupPostsFeed({
 
         const result = await loadFeedWithRetry(
           async () => {
-            const pageResult = await (publicPremiumOnly
-              ? fetchGroupPublicPostsPage
-              : fetchGroupPostsPage)({
+            const commonArgs = {
               groupId,
               viewerUid: currentUid,
               pageSize: GROUP_FEED_PAGE_SIZE,
               cursor: mode === "more" ? pageCursorRef.current : null,
-            });
+            };
+
+            // Vista DESDE FUERA (no-miembro). En una comunidad pública la query
+            // genérica vale: las reglas ya dejan leer su contenido a cualquiera.
+            // En una PRIVADA (incl. de suscripción) NO: ahí lo único visible son
+            // los premium de alcance público, y la query tiene que fijar con `==`
+            // los campos que mira la regla (`groupVisibility`, `premium.*`) — si
+            // no, la regla se evalúa contra campos ausentes y Firestore deniega
+            // la consulta ENTERA (el feed público salía vacío).
+            const pageResult = await (publicPremiumOnly
+              ? groupVisibility === "public"
+                ? fetchGroupPublicPostsPage(commonArgs)
+                : fetchGroupPublicPremiumPostsPage({
+                    ...commonArgs,
+                    groupVisibility: "private",
+                  })
+              : fetchGroupPostsPage(commonArgs));
 
             const hydratedPosts = await attachAuthorMemberState(
               groupId,

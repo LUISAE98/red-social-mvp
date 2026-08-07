@@ -40,6 +40,15 @@ ui-debug.log*
 dataconnect-debug.log*
 .firebase/
 
+# Volcados de la JVM que levanta el emulador de Firestore (Java): hs_err_*,
+# replay_pid*. Son artefactos locales de diagnóstico, pesan MB y no aportan nada
+# al repo.
+replay_pid*.log
+hs_err_pid*.log
+
+# Archivo temporal que el CLI de Firebase deja al desplegar/validar las reglas.
+firestore.rules.tmp.*
+
 # env files (can opt-in for committing if needed)
 .env*
 # ...pero la plantilla sin secretos de la raíz sí se versiona

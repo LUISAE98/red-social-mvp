@@ -18,6 +18,7 @@ export function usePostTempUnlock(
   currentUserId?: string | null,
   creatorId?: string | null,
   price?: number | null,
+  isVod?: boolean,
 ) {
   // El caché se scopea por SESIÓN: el uid cuando hay sesión, o "guest" sin sesión.
   // Así un desbloqueo NO se hereda al cambiar de cuenta en el mismo dispositivo
@@ -44,14 +45,16 @@ export function usePostTempUnlock(
 
     setIsTempUnlocked(true);
 
-    if (currentUserId) {
-      registrarCompraGeo({
-        creatorId,
-        serviceType: "premium_post",
-        grossAmount: price,
-      });
-    }
-  }, [key, currentUserId, creatorId, price]);
+    // Geo del planeta 3D: `unlock()` SOLO se llama tras una compra real, así que se
+    // registra SIEMPRE (no se gatea por `currentUserId` — `registrarCompraGeo` ya exige
+    // `creatorId`, y el INVITADO anónimo puede tener `currentUserId` null en el closure).
+    // VOD (post con `liveData`) → `vod_ticket`; post premium normal → `premium_post`.
+    registrarCompraGeo({
+      creatorId,
+      serviceType: isVod ? "vod_ticket" : "premium_post",
+      grossAmount: price,
+    });
+  }, [creatorId, price, isVod]);
 
   return { isTempUnlocked, unlock };
 }

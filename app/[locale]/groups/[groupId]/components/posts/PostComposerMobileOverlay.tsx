@@ -1088,8 +1088,6 @@ export default function PostComposerMobileOverlay({
                 priceInput={premiumComposer.priceInput}
                 setPriceInput={premiumComposer.setPriceInput}
                 capabilities={premiumComposer.capabilities}
-                validation={premiumComposer.validation}
-                premiumErrorMessage={premiumComposer.premiumErrorMessage}
                 disabled={creating}
                 isEditMode={isEditMode}
               />

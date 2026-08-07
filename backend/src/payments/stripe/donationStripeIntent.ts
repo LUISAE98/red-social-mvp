@@ -34,6 +34,13 @@ export const createDonationStripeIntent = onCall(
   async (request) => {
     const uid = request.auth?.uid;
     if (!uid) throw new HttpsError("unauthenticated", "Debes iniciar sesión.");
+    // Invitado = sesión ANÓNIMA. A un invitado NUNCA se le cobra off-session (un-clic sin
+    // CVV): aunque tenga tarjeta guardada, debe re-confirmar con CVV on-session (el cliente
+    // confirma el clientSecret con la PM + CVC). Evita que otra persona en el mismo
+    // dispositivo cobre sin la tarjeta física. El un-clic queda solo para cuentas reales.
+    const isGuest =
+      (request.auth?.token as { firebase?: { sign_in_provider?: string } } | undefined)?.firebase
+        ?.sign_in_provider === "anonymous";
 
     const data = (request.data ?? {}) as Record<string, unknown>;
     const creatorId = String(data.creatorId ?? "").trim();
@@ -103,8 +110,9 @@ export const createDonationStripeIntent = onCall(
 
     const customerId = await getOrCreateStripeCustomer(uid, request.auth?.token?.email ?? null);
 
-    // ── Cobro "un clic" con tarjeta guardada (off-session, sin CVV) ──────────
-    if (savedPaymentMethodId) {
+    // ── Cobro "un clic" con tarjeta guardada (off-session, sin CVV) — SOLO cuentas reales ──
+    // Un invitado con tarjeta guardada cae al flujo on-session de abajo (confirma con CVV).
+    if (savedPaymentMethodId && !isGuest) {
       const charged = await chargeSavedCardOffSession({
         uid,
         savedCardDocId: savedPaymentMethodId,

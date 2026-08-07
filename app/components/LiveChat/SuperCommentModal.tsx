@@ -4,13 +4,13 @@ import { useState, useEffect, useRef } from "react";
 import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
-import { submitSuperCommentAsGuest } from "@/lib/liveChat/super-comment-service";
 import { registrarCompraGeo } from "@/lib/wallet/registrarCompraGeo";
 import { getSavedGuestNickname, saveGuestNickname } from "@/lib/guest-id";
 import { auth, db } from "@/lib/firebase";
 import { collection, onSnapshot } from "firebase/firestore";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import { createSuperCommentStripeIntent } from "@/lib/stripe/stripePayments";
+import { ensureGuestAuth } from "@/lib/guest/ensureGuestAuth";
 import { FIXED_SERVICE_FEE_MXN } from "@/lib/currency/catalog";
 import StripePaymentModal, { type SavedCard } from "@/components/payments/StripePaymentModal";
 import PaymentSuccessCard from "@/components/payments/PaymentSuccessCard";
@@ -79,7 +79,8 @@ export default function SuperCommentModal({
   // (sin pasarela); si no hay ninguna, Enviar abre la pasarela (primera compra).
   const [savedCards, setSavedCards] = useState<SavedCard[]>([]);
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
-  const hasSavedCard = !isGuest && savedCards.length > 0 && !!selectedCardId;
+  // Invitado también puede tener tarjeta guardada (bajo su uid anónimo, de una compra previa).
+  const hasSavedCard = savedCards.length > 0 && !!selectedCardId;
   // Error del pago directo (un clic, sin pasarela). Se muestra en rojo sobre Enviar.
   const [directError, setDirectError] = useState<string | null>(null);
   // Animación de entrada/salida por transform (no keyframes: más fiable en el 1er montaje).
@@ -97,10 +98,10 @@ export default function SuperCommentModal({
     return () => { cancelAnimationFrame(raf1); cancelAnimationFrame(raf2); };
   }, [open]);
 
-  // Suscribe a las tarjetas guardadas (solo usuarios con sesión).
+  // Suscribe a las tarjetas guardadas del comprador (real o invitado anónimo).
   useEffect(() => {
-    if (!open || isGuest) { setSavedCards([]); return; }
-    const uid = auth.currentUser?.uid;
+    if (!open) { setSavedCards([]); return; }
+    const uid = auth.currentUser?.uid; // null si el invitado aún no firmó anónimo (sin compras)
     if (!uid) { setSavedCards([]); return; }
     const unsub = onSnapshot(
       collection(db, "users", uid, "paymentMethods"),
@@ -173,28 +174,6 @@ export default function SuperCommentModal({
     }, 4000);
   }
 
-  // Invitado (sin sesión): pago aún no integrado → envío simulado por ahora
-  // (se conectará cuando integremos pagos para invitados).
-  async function handleGuestSend() {
-    if (!selectedTier || !text.trim() || !guestId) return;
-    setDirectError(null);
-    setSubmitting(true);
-    try {
-      await submitSuperCommentAsGuest({
-        postId,
-        guestId,
-        username: guestNickname.trim(),
-        text: text.trim(),
-        tier: selectedTier,
-      });
-      markSentAndClose();
-    } catch {
-      setDirectError(tLive("scPaymentDeclined"));
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
   // Un clic con tarjeta guardada (off-session, sin CVV). Se cobra server-side y el
   // webhook materializa el súper comentario. Si no queda "succeeded" (p. ej. requiere
   // autenticación), cae a la pasarela para completar con tarjeta nueva.
@@ -255,7 +234,9 @@ export default function SuperCommentModal({
 
   return (
     <>
-      {createPortal(
+      {/* El composer y la pasarela NUNCA se montan a la vez: en la card chica del live
+          (300×450) dos sheets apilados se pisaban y la pasarela abría "a la mitad". */}
+      {!payStep && createPortal(
     <>
       {/* Backdrop — pestaña canónica (vibra_style.md). En "sheet" va contenido en el
           contenedor (área bajo el video), sin oscurecer el live. */}
@@ -285,12 +266,14 @@ export default function SuperCommentModal({
           style={
             isSheet
               ? {
-                  width: "100%", height: "100%", boxSizing: "border-box",
-                  overflowY: "auto",
+                  // Absolute inset:0 → llena la card por posicionamiento (no por flex ni
+                  // height:100%, donde overflowY:auto no scrolleaba). Este SÍ es el scroller.
+                  position: "absolute", inset: 0, boxSizing: "border-box",
+                  overflowY: "auto", WebkitOverflowScrolling: "touch",
+                  overscrollBehavior: "contain", touchAction: "pan-y",
                   background: "rgba(8,9,11,0.96)",
                   color: "#fff",
                   padding: sent ? 0 : "20px 20px calc(24px + var(--vb-safe-bottom, 0px))",
-                  overflow: sent ? "hidden" : undefined,
                   transform: entered ? "translateY(0)" : "translateY(100%)",
                   transition: "transform 0.26s cubic-bezier(0.22,1,0.36,1)",
                   willChange: "transform",
@@ -298,6 +281,7 @@ export default function SuperCommentModal({
               : {
                   width: "100%", maxWidth: 480,
                   maxHeight: "calc(100dvh - 72px)", overflowY: "auto",
+                  WebkitOverflowScrolling: "touch", overscrollBehavior: "contain", touchAction: "pan-y",
                   borderRadius: "22px 22px 0 0",
                   background: "rgba(8,9,11,0.96)",
                   boxShadow: "0 -24px 80px rgba(0,0,0,0.56)",
@@ -383,21 +367,20 @@ export default function SuperCommentModal({
           ) : (
             /* ── Step: compose (mismo panel original) ──────────────────────── */
             <>
-              {/* Badge de apodo para invitados */}
+              {/* Badge de apodo para invitados (sin contenedor: texto suelto) */}
               {isGuest && !sent && (
                 <div style={{
                   display: "flex", alignItems: "center", justifyContent: "space-between",
-                  marginBottom: 16, padding: "7px 12px", borderRadius: 8,
-                  background: "rgba(168,85,247,0.08)", border: "1px solid rgba(168,85,247,0.15)",
+                  marginBottom: 16,
                 }}>
                   <span style={{ fontSize: 12, color: "rgba(255,255,255,0.6)", fontFamily: FONT }}>
-                    Enviando como <strong style={{ color: "#fff" }}>{guestNickname}</strong>
+                    Enviando como<strong style={{ color: "#fff", marginLeft: 8 }}>{guestNickname}</strong>
                   </span>
                   <button
                     type="button"
                     onClick={() => setStep("nickname")}
                     style={{
-                      fontSize: 11, color: "#a855f7", background: "none",
+                      fontSize: 11, fontWeight: 600, color: "#a855f7", background: "none",
                       border: "none", cursor: "pointer", fontFamily: FONT, padding: 0,
                     }}
                   >
@@ -571,9 +554,11 @@ export default function SuperCommentModal({
                     type="button"
                     onClick={() => {
                       if (!selectedTier || !text.trim()) return;
-                      if (isGuest) handleGuestSend();       // invitado: simulado (por ahora)
-                      else if (hasSavedCard) handleDirectSend(); // un clic con tarjeta guardada (sin CVV)
-                      else setPayStep(true);                // pasarela Stripe (primera compra / tarjeta nueva)
+                      // Logueado + tarjeta guardada → un clic off-session (sin CVV).
+                      // Invitado (o primera compra) → pasarela: el invitado re-pide CVV
+                      // sobre su tarjeta guardada; sin tarjeta, teclea una nueva.
+                      if (!isGuest && hasSavedCard) handleDirectSend();
+                      else setPayStep(true);
                     }}
                     disabled={submitting || !text.trim() || !selectedTier}
                     style={{
@@ -621,14 +606,19 @@ export default function SuperCommentModal({
         autoCloseMs={4000}
         amount={selectedTier ? selectedTier.price + FIXED_SERVICE_FEE_MXN : null}
         amountCurrency="MXN"
-        createIntent={(args) => createSuperCommentStripeIntent({
-          postId,
-          tierId: selectedTier?.id ?? "",
-          text: text.trim(),
-          saveCard: args.saveCard,
-          taxCountry: args.taxCountry,
-          savedPaymentMethodId: args.savedPaymentMethodId,
-        })}
+        createIntent={async (args) => {
+          // Invitado (sin login): firma anónima antes de cobrar → buyerId server-authoritative.
+          if (isGuest) await ensureGuestAuth();
+          return createSuperCommentStripeIntent({
+            postId,
+            tierId: selectedTier?.id ?? "",
+            text: text.trim(),
+            saveCard: args.saveCard,
+            taxCountry: args.taxCountry,
+            savedPaymentMethodId: args.savedPaymentMethodId,
+            nickname: isGuest ? (guestNickname.trim() || null) : null,
+          });
+        }}
         productType={tCommon("paySupercommentProductType")}
         providerName={creatorName ?? undefined}
         avatarUrl={creatorAvatarUrl ?? null}

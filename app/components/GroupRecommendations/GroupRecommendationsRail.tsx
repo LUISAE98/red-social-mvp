@@ -242,9 +242,15 @@ export default function GroupRecommendationsRail({
         return 0;
       };
 
+      // Solo lives ABIERTOS (`allowLoggedOutViewers==true`, = visibilityMode "everyone").
+      // Es el mismo criterio que el filtro cliente de abajo, PERO también es obligatorio en
+      // la query: las reglas `list` deniegan la consulta COMPLETA si un solo doc del
+      // resultado no pasa `guestAllowedForLive` (un live restringido para un viewer anónimo).
+      // Filtrando aquí, el result-set nunca incluye restringidos → la query nunca es negada.
       const q = query(
         collection(db, "posts"),
         where("liveData.status", "==", "live"),
+        where("liveData.allowLoggedOutViewers", "==", true),
         limit(40),
       );
 

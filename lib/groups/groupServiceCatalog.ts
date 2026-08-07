@@ -24,7 +24,6 @@ const DEFAULT_SERVICE_ORDER: Record<CreatorServiceType, number> = {
   consejo: 2,
   meet_greet_digital: 3,
   clase_personalizada: 4,
-  mensaje: 99,
 };
 
 const ALL_SUPPORTED_SERVICE_TYPES: CreatorServiceType[] = [
@@ -32,7 +31,6 @@ const ALL_SUPPORTED_SERVICE_TYPES: CreatorServiceType[] = [
   "consejo",
   "meet_greet_digital",
   "clase_personalizada",
-  "mensaje",
 ];
 
 const WEEKLY_AVAILABILITY_DAYS: WeeklyAvailabilityDay[] = [

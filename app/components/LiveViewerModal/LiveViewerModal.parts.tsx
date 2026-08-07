@@ -15,7 +15,6 @@ import type { Post, PostLiveData, PostPlayback } from "@/lib/posts/types";
 import { togglePostFlame } from "@/lib/posts/post-service";
 import VibraFlameIcon from "@/app/components/VibraServiceIcons/VibraFlameIcon";
 import LiveChatViewer from "@/app/components/LiveChat/LiveChatViewer";
-import { checkLiveAccess, grantSimulatedLiveAccess } from "@/lib/liveAccess/live-access-service";
 import { joinLivePresence, leaveLivePresence, subscribeToViewerCount, registerUniqueViewer, addWatchTime, recordVodView } from "@/lib/liveKit/liveViewers";
 import type { ActiveSuperComment } from "@/lib/posts/types";
 import { TTS_MIN_DURATION_SECS } from "@/lib/tts/edge-tts-client";

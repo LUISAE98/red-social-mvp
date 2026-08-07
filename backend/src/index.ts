@@ -311,8 +311,6 @@ export { createKycSession, diditWebhook } from "./kyc";
 
 // Pagos (Stripe — Vibra migró 100% a Stripe; Mercado Pago retirado). S1: smoke test.
 export { stripeHealthcheck } from "./payments/stripe/stripeHealthcheck";
-// S2: cobro de prueba con Stripe Checkout (página hospedada).
-export { createStripeCheckoutSession } from "./payments/stripe/stripeCheckout";
 // S3a: PaymentIntent para la pasarela embebida (Elements) + guardar tarjeta.
 export { createStripePaymentIntent } from "./payments/stripe/createPaymentIntent";
 // S4: webhook de Stripe (pago aprobado, reembolso…). Reemplaza a mpWebhook.
@@ -361,9 +359,6 @@ export { generateBuyerInvoice, downloadBuyerInvoice } from "./facturacion/genera
 // ticket/premium/VOD, súper comentario, suscripción a comunidad) cobran por STRIPE.
 // Mercado Pago se retiró por completo (mpWebhook/payProfileDonation/payGroupSubscription
 // y el cliente MP eliminados).
-
-// Migración única MXN → USD (cambio de ancla de precios a dLocal). Idempotente.
-export { migrateCurrencyMxnToUsd } from "./migrateCurrency";
 
 // Backfill de búsqueda de historias (corrida única, protegida por secret)
 export { backfillStoriesSearch } from "./storiesBackfill";

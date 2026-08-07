@@ -7,6 +7,17 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    // Los invitados de compra sin login usan Firebase Anonymous Auth. Son cuentas
+    // legítimas para PAGAR, pero no para participar socialmente: sin ellas, el DM
+    // tendría spam ilimitado y sin rostro. Defensivo ante tokens sin el claim.
+    function notAnonymous() {
+      return request.auth != null
+        && (
+          !("firebase" in request.auth.token)
+          || request.auth.token.firebase.get('sign_in_provider', '') != 'anonymous'
+        );
+    }
+
     function isPlatformMod() {
       return request.auth != null
         && request.auth.token.get('role', '') == 'moderator';
@@ -308,8 +319,13 @@ service cloud.firestore {
               "showCreatedGroups",
               "profileRestricted",
               "profileCommentsEnabled",
+              "messagePolicy",
               "updatedAt"
             ])
+            // Quién puede abrirme un DM. Ausente ⇒ "everyone" (lo resuelve la
+            // regla de conversations); aquí solo se validan los 3 valores.
+            && (!("messagePolicy" in request.resource.data)
+              || request.resource.data.messagePolicy in ["everyone", "following", "none"])
             && (!("showCreatedGroups" in request.resource.data)
               || request.resource.data.showCreatedGroups is bool)
             && (!("profileRestricted" in request.resource.data)
@@ -554,9 +570,19 @@ match /homeFeed/{postId} {
 match /profileFeed/{postId} {
   // Seguridad: excluye posts de comunidades OCULTAS (su copia denormalizada no
   // debe ser legible por no-miembros). Los supermoderadores sí ven todo.
+  // Además replica el gate de `posts`: un LIVE restringido (logged_in_only /
+  // members_only → `liveData.allowLoggedOutViewers != true`) NO es legible por un
+  // invitado (sin sesión o anónimo) tampoco en esta copia denormalizada. Solo cuentas
+  // reales. (Los posts no-live y los lives "everyone" no se restringen.)
   allow get, list: if resource.data.authorId == uid
     && resource.data.isDeleted == false
-    && (resource.data.groupVisibility != "hidden" || isPlatformMod());
+    && (resource.data.groupVisibility != "hidden" || isPlatformMod())
+    && (
+      !("liveData" in resource.data)
+      || !(resource.data.liveData is map)
+      || resource.data.liveData.get('allowLoggedOutViewers', true) == true
+      || notAnonymous()
+    );
 
   allow create, update, delete: if false;
 }
@@ -2150,9 +2176,13 @@ function canReadPublicPremiumGroupPost() {
     && resource.data.premium.accessMode == "public";
 }
 
+// OJO: aquí NO se exige `groupId is string`. En un `list`, `resource.data` solo
+// tiene los campos que la query fija con `==`, y el feed del PERFIL consulta por
+// `authorId` (sin groupId): pedirlo hacía reventar la evaluación y se denegaba la
+// consulta entera. La barrera real es `groupVisibility != "hidden"`, que la query
+// SÍ debe fijar — un post sin ese campo fijado no puede pasar por aquí.
 function canListPublicPremiumGroupPost() {
   return resource.data.isDeleted == false
-    && resource.data.groupId is string
     && resource.data.groupVisibility != "hidden"
     && resource.data.isShareable == true
     && "premium" in resource.data
@@ -2618,23 +2648,47 @@ function canModeratePostCommentData(data) {
     );
 }
 
-      allow get: if isPlatformMod()
-  || canReadPost()
-  || canReadPostFromOwnHomeFeed()
-  || canReadPostFromOwnSavedPosts();
+      // SEGURIDAD LIVE: un live RESTRINGIDO (visibilityMode logged_in_only o members_only
+      // → `liveData.allowLoggedOutViewers == false`; el VOD hereda el flag) NUNCA es legible
+      // por un INVITADO (sin sesión o sesión anónima). Solo cuentas reales (`notAnonymous`).
+      // Se AND-ea sobre todas las rutas de lectura, así ninguna vía "pública" (perfil no
+      // restringido, comunidad pública/privada compartible) lo expone. Cubre los 3 estados
+      // (programado/en vivo/VOD). Los posts no-live y los lives "everyone" no se restringen.
+      // La membresía de `members_only` y el stream se gatean además en el proxy y el visor.
+      function guestAllowedForLive() {
+        return !("liveData" in resource.data)
+          || !(resource.data.liveData is map)
+          || resource.data.liveData.get('allowLoggedOutViewers', true) == true
+          || notAnonymous();
+      }
 
-allow list: if canListOwnAuthoredPost()
-  || canListPublicDiscoveryPost()
-  || isPlatformMod()
+      allow get: if (isPlatformMod()
   || canReadPost()
   || canReadPostFromOwnHomeFeed()
-  || canReadPostFromOwnSavedPosts()
-  || canListPublicSearchablePost()
-  || canListReadableGroupSearchablePost()
+  || canReadPostFromOwnSavedPosts())
+  && guestAllowedForLive();
+
+// ORDEN IMPORTANTE. En una consulta (`list`), `resource.data` solo contiene los
+// campos que la query fija con `==`; tocar cualquier otro es un ERROR de
+// evaluación. En un `||` el error se absorbe si OTRA rama da true, pero si
+// ninguna lo hace, la consulta ENTERA se deniega. Además, las ramas con `get()`
+// (canReadPost → canReadGroupContent → membresías) son caras y encadenadas
+// llegaban al tope de 1000 expresiones, denegando por coste.
+// Por eso van PRIMERO las cláusulas baratas que solo miran el documento, y al
+// final las que consultan otras colecciones.
+allow list: if (canListOwnAuthoredPost()
+  || canListPublicDiscoveryPost()
   || canListPublicPremiumGroupPost()
   || canReadPaidShareableGroupPost()
   || canListPublicShareableGroupPost()
-  || canListBroadcastPublicLivePost();
+  || canListBroadcastPublicLivePost()
+  || canListPublicSearchablePost()
+  || isPlatformMod()
+  || canReadPost()
+  || canListReadableGroupSearchablePost()
+  || canReadPostFromOwnHomeFeed()
+  || canReadPostFromOwnSavedPosts())
+  && guestAllowedForLive();
 
       allow create: if validCreatePost();
 
@@ -2764,7 +2818,10 @@ allow list: if canListOwnAuthoredPost()
         allow delete: if false;
       }
 
-      // Presencia de espectadores en vivo — cada usuario escribe/borra su propio doc
+      // Presencia de espectadores en vivo — cada usuario escribe/borra su propio doc.
+      // `viewerId` puede ser el uid de una cuenta real o el de una identidad ANÓNIMA
+      // de invitado (espectador sin login): ambos son `signedIn()` y ambos deben contar
+      // en las estadísticas del live.
       match /liveViewers/{viewerId} {
         allow get, list: if signedIn() && postNotInHiddenGroupOrInsider();
         allow create: if signedIn()
@@ -2775,7 +2832,14 @@ allow list: if canListOwnAuthoredPost()
         allow update: if signedIn()
           && request.auth.uid == viewerId
           && request.resource.data.uid == viewerId
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['latency', 'latencyUpdatedAt']);
+          && (
+            // Parche de latencia del propio espectador
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['latency', 'latencyUpdatedAt'])
+            // Re-entrada: si quedó un doc de presencia rancio (pestaña cerrada de golpe,
+            // crash), volver a entrar es un `set` sobre un doc existente = update. Sin
+            // esto se denegaba y el espectador dejaba de refrescar su presencia.
+            || request.resource.data.joinedAt is timestamp
+          );
       }
 
       // Registro de vistas VOD (≥20% reproducido) — cada viewer escribe su propio doc; solo el autor lista
@@ -3242,28 +3306,12 @@ function canUpdateReplyCount(delta) {
       allow list: if signedIn()
         && get(/databases/$(database)/documents/posts/$(liveId)).data.authorId == request.auth.uid;
 
-      // El usuario solo puede crear su propio acceso simulado
-      allow create: if signedIn()
-        && request.auth.uid == userId
-        && request.resource.data.userId == userId
-        && request.resource.data.liveId == liveId
-        && request.resource.data.status == "paid"
-        && request.resource.data.paymentMode == "simulated"
-        && request.resource.data.accessType == "live_ticket"
-        && request.resource.data.amount is number
-        && request.resource.data.amount > 0
-        && request.resource.data.authorId is string
-        && request.resource.data.createdAt is timestamp
-        // Un baneado del grupo dueño del live no puede comprar ticket (los
-        // no-miembros sí pueden, como monetización). Lives de perfil: sin groupId.
-        && (
-          !("groupId" in get(/databases/$(database)/documents/posts/$(liveId)).data)
-          || get(/databases/$(database)/documents/posts/$(liveId)).data.groupId == null
-          || effectiveMemberStatus(get(/databases/$(database)/documents/posts/$(liveId)).data.groupId, request.auth.uid) != "banned"
-        );
-
-      // No se puede modificar ni eliminar un acceso ya otorgado
-      allow update, delete: if false;
+      // El ticket lo crea SOLO el backend tras un pago aprobado (createLiveAccess
+      // StripeIntent → webhook → reconcile, con Admin SDK). El cliente NO puede
+      // crearlo: este doc es el que dispara `onLiveAccessLedger`, así que permitirlo
+      // era acceso gratis + una ganancia fantasma en la wallet del creador.
+      // (Antes se aceptaba `paymentMode == "simulated"` escrito desde el cliente.)
+      allow create, update, delete: if false;
     }
 
     // ==========================
@@ -3320,6 +3368,160 @@ function canUpdateReplyCount(delta) {
     match /kyc/{userId} {
       allow read: if signedIn() && request.auth.uid == userId;
       allow write: if false;
+    }
+
+    // ==========================
+    // MENSAJES DIRECTOS (DM) — Bloque 1
+    // ==========================
+    // Perfil ↔ perfil, solo texto. Las comunidades NO tienen mensajería.
+    //
+    // TODO el control de acceso vive en el `create` de la conversación, que lee 4
+    // documentos (perfil del destinatario, follow y los dos docs de bloqueo).
+    // Una vez abierta, escribir un mensaje NO vuelve a mirar el perfil del otro:
+    // el gate se paga una vez, no por mensaje.
+    //
+    // El `list` del inbox no hace ni un get()/exists(): el evaluador de `allow
+    // list` tiene un tope de 10 lecturas por query y cualquier inbox normal lo
+    // reventaría — es exactamente lo que dejó el feed de guardados vacío.
+    match /conversations/{convId} {
+
+      function isParticipant() {
+        return signedIn() && request.auth.uid in resource.data.participants;
+      }
+
+      function newParticipants() {
+        return request.resource.data.participants;
+      }
+
+      function otherUid() {
+        return newParticipants()[0] == request.auth.uid
+          ? newParticipants()[1]
+          : newParticipants()[0];
+      }
+
+      // Ausente ⇒ "everyone": los perfiles que ya existen no quedan cerrados de golpe.
+      function recipientPolicy() {
+        let u = get(/databases/$(database)/documents/users/$(otherUid())).data;
+        return ("messagePolicy" in u) && u.messagePolicy is string
+          ? u.messagePolicy
+          : "everyone";
+      }
+
+      // ¿El destinatario me sigue? Decide dos cosas: si la política "following"
+      // me deja pasar, y si el hilo entra directo o cae en Solicitudes.
+      function recipientFollowsMe() {
+        return exists(/databases/$(database)/documents/users/$(otherUid())/following/$(request.auth.uid));
+      }
+
+      function policyAllowsMe() {
+        let p = recipientPolicy();
+        return p == "everyone" || (p == "following" && recipientFollowsMe());
+      }
+
+      // El cliente NO elige el estado inicial: si el destinatario no me sigue, la
+      // conversación nace en Solicitudes y no hay forma de saltarse esa bandeja.
+      function requiredNewStatus() {
+        return recipientFollowsMe() ? "active" : "request";
+      }
+
+      // participantsKey ordenado alfabéticamente y usado como ID del documento:
+      // hace imposible que existan dos hilos para el mismo par de personas.
+      function validNewConversation() {
+        return newParticipants() is list
+          && newParticipants().size() == 2
+          && request.auth.uid in newParticipants()
+          && newParticipants()[0] != newParticipants()[1]
+          && newParticipants()[0] < newParticipants()[1]
+          && request.resource.data.participantsKey == newParticipants()[0] + "_" + newParticipants()[1]
+          && convId == request.resource.data.participantsKey
+          && request.resource.data.createdBy == request.auth.uid
+          && request.resource.data.lastMessage == null
+          && request.resource.data.lastMessageAt == null
+          && request.resource.data.blockedBy == null
+          && request.resource.data.unread is map
+          && request.resource.data.lastReadAt is map
+          && request.resource.data.createdAt == request.time
+          && request.resource.data.updatedAt == request.time
+          && request.resource.data.keys().hasOnly([
+               'participants', 'participantsKey', 'status', 'createdBy',
+               'lastMessage', 'lastMessageAt', 'blockedBy', 'unread',
+               'lastReadAt', 'createdAt', 'updatedAt'
+             ]);
+      }
+
+      // Bloquear: cualquiera de los dos. Desbloquear: SOLO quien bloqueó — si no,
+      // el bloqueado se desbloquearía a sí mismo.
+      function validStatusChange() {
+        return resource.data.status == "blocked"
+          ? (
+              request.resource.data.status == "active"
+              && resource.data.blockedBy == request.auth.uid
+              && request.resource.data.blockedBy == null
+            )
+          : (
+              request.resource.data.status == "blocked"
+                ? request.resource.data.blockedBy == request.auth.uid
+                : (
+                    request.resource.data.status == "active"
+                    && request.resource.data.blockedBy == null
+                  )
+            );
+      }
+
+      allow get, list: if isParticipant();
+
+      allow create: if signedIn()
+        && notAnonymous()
+        && validNewConversation()
+        && !usersHaveBlockBetween(request.auth.uid, otherUid())
+        && policyAllowsMe()
+        && request.resource.data.status == requiredNewStatus();
+
+      // `lastMessage`/`lastMessageAt` los escribe SOLO la Cloud Function (Admin
+      // SDK se salta estas rules), por eso no están en la lista de campos
+      // tocables: el cliente no puede falsear el resumen del inbox.
+      allow update: if isParticipant()
+        && notAnonymous()
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['status', 'blockedBy', 'unread', 'lastReadAt', 'updatedAt'])
+        && validStatusChange();
+
+      // Un hilo no se borra: se bloquea. Así el otro lado no puede hacer
+      // desaparecer la evidencia de lo que escribió.
+      allow delete: if false;
+
+      match /messages/{messageId} {
+
+        function conv() {
+          return get(/databases/$(database)/documents/conversations/$(convId)).data;
+        }
+
+        function isConvParticipant() {
+          return signedIn() && request.auth.uid in conv().participants;
+        }
+
+        allow get, list: if isConvParticipant();
+
+        allow create: if isConvParticipant()
+          && notAnonymous()
+          && conv().status != "blocked"
+          && request.resource.data.senderId == request.auth.uid
+          && request.resource.data.text is string
+          && request.resource.data.text.size() > 0
+          && request.resource.data.text.size() <= 2000
+          && request.resource.data.isDeleted == false
+          && request.resource.data.createdAt == request.time
+          && request.resource.data.keys().hasOnly(['senderId', 'text', 'createdAt', 'isDeleted']);
+
+        // Borrado suave del mensaje propio. El texto es inmutable: no se puede
+        // reescribir lo que ya se envió.
+        allow update: if isConvParticipant()
+          && resource.data.senderId == request.auth.uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isDeleted'])
+          && request.resource.data.isDeleted == true;
+
+        allow delete: if false;
+      }
     }
 
     // ==========================

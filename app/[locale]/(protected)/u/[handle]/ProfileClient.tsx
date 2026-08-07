@@ -36,6 +36,8 @@ import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import { onAuthStateChanged, sendPasswordResetEmail, type User } from "firebase/auth";
 import { httpsCallable } from "firebase/functions";
 import { updateProfileDisplayName } from "@/lib/profile/updateProfileDisplayName";
+import { updateMessagePolicy } from "@/lib/chat/messagePolicyService";
+import { DEFAULT_MESSAGE_POLICY, type MessagePolicy } from "@/lib/chat/types";
 import CreatorExperiencesSection from "@/components/services/CreatorExperiencesSection";
 import ProfileHeaderSkeleton from "@/components/profile/ProfileHeaderSkeleton";
 import EditPencilIcon from "@/components/profile/EditPencilIcon";
@@ -143,6 +145,7 @@ type UserDoc = {
   showCreatedGroups?: boolean;
   profileRestricted?: boolean;
   profileCommentsEnabled?: boolean;
+  messagePolicy?: MessagePolicy;
   bio?: string | null;
   profileGreeting?: {
     enabled: boolean;
@@ -289,6 +292,7 @@ export default function ProfileClient() {
 
   const [uploading, setUploading] = useState(false);
   const [savingProfileRestricted, setSavingProfileRestricted] = useState(false);
+  const [savingMessagePolicy, setSavingMessagePolicy] = useState(false);
   const [savingProfileComments, setSavingProfileComments] = useState(false);
 
   const avatarInputRef = useRef<HTMLInputElement | null>(null);
@@ -497,6 +501,7 @@ useEffect(() => {
   const ownerShowGroups = userDoc?.showCreatedGroups ?? true;
   const profileRestricted = userDoc?.profileRestricted ?? false;
   const profileCommentsEnabled = userDoc?.profileCommentsEnabled !== false;
+  const messagePolicy: MessagePolicy = userDoc?.messagePolicy ?? DEFAULT_MESSAGE_POLICY;
 
   const isProfileRestrictedForVisitor = !isOwner && profileRestricted;
 
@@ -1519,6 +1524,22 @@ async function handleCreateProfilePost(payload: ProfileComposerSubmitPayload) {
       throw e;
     } finally {
       setSavingProfileComments(false);
+    }
+  }
+
+  async function handleChangeMessagePolicy(next: MessagePolicy) {
+    if (!userDoc || !isOwner) return;
+
+    setSavingMessagePolicy(true);
+
+    try {
+      await updateMessagePolicy(userDoc.uid, next);
+
+      setUserDoc((prev) => (prev ? { ...prev, messagePolicy: next } : prev));
+    } catch (e: unknown) {
+      throw e;
+    } finally {
+      setSavingMessagePolicy(false);
     }
   }
 
@@ -2841,6 +2862,9 @@ const res = (await createExclusiveSessionRequest({
   commentsEnabled={profileCommentsEnabled}
   onToggleCommentsEnabled={handleToggleProfileCommentsEnabled}
   isSavingComments={savingProfileComments}
+  messagePolicy={messagePolicy}
+  onChangeMessagePolicy={handleChangeMessagePolicy}
+  isSavingMessagePolicy={savingMessagePolicy}
   uid={userDoc.uid}
   email={viewer?.email ?? null}
   displayName={fullName}

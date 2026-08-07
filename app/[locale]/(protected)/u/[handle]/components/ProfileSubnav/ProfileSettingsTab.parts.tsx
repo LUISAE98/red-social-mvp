@@ -11,6 +11,7 @@ import VibraResponsivePanel from "@/components/ui/VibraResponsivePanel";
 import BlockedAccountsOverlay from "./BlockedAccountsOverlay";
 import SessionsOverlay from "./SessionsOverlay";
 import { usePushNotifications } from "@/lib/hooks/usePushNotifications";
+import type { MessagePolicy } from "@/lib/chat/types";
 
 // Cooldown de cliente para el correo de cambio de contraseña. Firebase ya tiene
 // su propio throttling server-side, pero además bloqueamos el reenvío 60s desde
@@ -29,6 +30,11 @@ export type ProfileSettingsTabProps = {
   commentsEnabled?: boolean;
   onToggleCommentsEnabled?: (nextValue: boolean) => Promise<void> | void;
   isSavingComments?: boolean;
+
+  /** Quién puede abrirme un DM. Ausente ⇒ "everyone". */
+  messagePolicy?: MessagePolicy;
+  onChangeMessagePolicy?: (next: MessagePolicy) => Promise<void> | void;
+  isSavingMessagePolicy?: boolean;
 
   uid?: string | null;
   email?: string | null;

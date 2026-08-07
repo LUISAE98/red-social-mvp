@@ -20,6 +20,11 @@ export function useUnlockedPostIds(
   const [ids, setIds] = useState<ReadonlySet<string>>(EMPTY);
 
   useEffect(() => {
+    // Al cambiar de identidad (p. ej. invitado anónimo → cuenta real) se limpia el set
+    // del uid anterior de inmediato, para que sus desbloqueos NO se vean en la ventana
+    // hasta que llegue el primer snapshot del nuevo uid.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setIds(EMPTY);
     if (!viewerUid) return;
     const q = query(
       collection(db, "postAccess"),

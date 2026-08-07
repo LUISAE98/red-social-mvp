@@ -1419,7 +1419,7 @@ boxShadow:
                                   const buyerLetter = getInitials(buyer?.displayName);
 
                                   const listEarning = greetingEarningsMap[`${g.id}_${req.type}`] ?? null;
-                                  const reviewLabel = req.type === "consejo" ? tWallet("typeLabelAdvice") : req.type === "saludo" ? tWallet("typeLabelGreeting") : tWallet("typeLabelMessage");
+                                  const reviewLabel = req.type === "consejo" ? tWallet("typeLabelAdvice") : tWallet("typeLabelGreeting");
 
                                   return (
                                     <div key={r.id} style={styles.miniItem}>

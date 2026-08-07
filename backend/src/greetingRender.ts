@@ -1,6 +1,6 @@
 // Cloud Function: greetingAnimatedDownload
 //
-// Descarga ANIMADA de un saludo / consejo / mensaje. A diferencia de la descarga
+// Descarga ANIMADA de un saludo / consejo. A diferencia de la descarga
 // estática (videoOverlayDownload, que compone un PNG con FFmpeg), esta "hornea"
 // el video con la portada de 6s, la esquina animada y el cierre — grabando la
 // plantilla web `app/[locale]/egress/greeting` con LiveKit Web Egress.
@@ -44,7 +44,7 @@ const GREETING_EGRESS_HOST =
   process.env.GREETING_EGRESS_HOST ?? "https://vibraon.com";
 
 const LOCALES = new Set(["es", "en", "pt-BR"]);
-const TYPES = new Set(["saludo", "consejo", "mensaje"]);
+const TYPES = new Set(["saludo", "consejo"]);
 
 const POLL_INTERVAL_MS = 3000;
 const MAX_WAIT_MS = 500_000; // < timeoutSeconds; guarda contra egress colgado.

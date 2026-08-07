@@ -14,6 +14,10 @@ import {
   daysUntilNameChange, formatDate, pwdResetKey,
   type ProfileSettingsTabProps,
 } from "./ProfileSettingsTab.parts";
+import MessagePolicySetting, {
+  MESSAGE_POLICY_HELP_KEY,
+} from "@/components/chat/MessagePolicySetting";
+import type { MessagePolicy } from "@/lib/chat/types";
 
 export default function ProfileSettingsTab({
   isSaving = false,
@@ -22,6 +26,9 @@ export default function ProfileSettingsTab({
   commentsEnabled = true,
   onToggleCommentsEnabled,
   isSavingComments = false,
+  messagePolicy = "everyone",
+  onChangeMessagePolicy,
+  isSavingMessagePolicy = false,
   uid = null,
   email = null,
   displayName,
@@ -36,6 +43,7 @@ export default function ProfileSettingsTab({
 }: ProfileSettingsTabProps) {
   const [localRestricted, setLocalRestricted] = useState(isRestricted);
   const [localCommentsEnabled, setLocalCommentsEnabled] = useState(commentsEnabled);
+  const [localMessagePolicy, setLocalMessagePolicy] = useState<MessagePolicy>(messagePolicy);
   const [editNameOpen, setEditNameOpen] = useState(false);
   const [editBioOpen, setEditBioOpen] = useState(false);
   const [blockedAccountsOpen, setBlockedAccountsOpen] = useState(false);
@@ -108,6 +116,10 @@ export default function ProfileSettingsTab({
   }, [commentsEnabled]);
 
   useEffect(() => {
+    setLocalMessagePolicy(messagePolicy);
+  }, [messagePolicy]);
+
+  useEffect(() => {
     setDraftName(displayName ?? "");
   }, [displayName]);
 
@@ -150,6 +162,24 @@ export default function ProfileSettingsTab({
     } catch (error: unknown) {
       setLocalCommentsEnabled(!nextValue);
       setErr((error instanceof Error ? error.message : null) ?? tProfile("commentsUpdateError"));
+    }
+  }
+
+  async function handleMessagePolicyChange(next: MessagePolicy) {
+    if (isSavingMessagePolicy || !onChangeMessagePolicy) return;
+
+    const previous = localMessagePolicy;
+    setLocalMessagePolicy(next);
+    setMsg(null);
+    setErr(null);
+
+    try {
+      await onChangeMessagePolicy(next);
+    } catch (error: unknown) {
+      setLocalMessagePolicy(previous);
+      setErr(
+        (error instanceof Error ? error.message : null) ?? tProfile("messagePolicyUpdateError")
+      );
     }
   }
 
@@ -517,6 +547,40 @@ export default function ProfileSettingsTab({
                   ? tProfile("restrictComments")
                   : tProfile("openComments")
               }
+            />
+          </div>
+        )}
+
+        {onChangeMessagePolicy && (
+          <div className="profile-setting-item profile-setting-item--switch" style={item}>
+            <div>
+              <div style={labelStyle}>{tProfile("messagePolicyLabel")}</div>
+              <div style={valueStyle}>
+                {tProfile(
+                  localMessagePolicy === "everyone"
+                    ? "messagePolicyEveryone"
+                    : localMessagePolicy === "following"
+                      ? "messagePolicyFollowing"
+                      : "messagePolicyNone"
+                )}
+              </div>
+              <div
+                style={{
+                  marginTop: 5,
+                  fontSize: 11.5,
+                  color: "rgba(255,255,255,0.58)",
+                  lineHeight: 1.4,
+                  maxWidth: 620,
+                }}
+              >
+                {tProfile(MESSAGE_POLICY_HELP_KEY[localMessagePolicy])}
+              </div>
+            </div>
+
+            <MessagePolicySetting
+              value={localMessagePolicy}
+              disabled={isSavingMessagePolicy}
+              onChange={handleMessagePolicyChange}
             />
           </div>
         )}

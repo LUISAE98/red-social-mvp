@@ -4,13 +4,17 @@ import { getAdminAuth, getAdminFirestore } from "@/lib/firebase-admin";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-async function verifyAndGetUid(req: NextRequest): Promise<string | null> {
+async function verifyAccount(
+  req: NextRequest
+): Promise<{ uid: string; anonymous: boolean } | null> {
   try {
     const auth = req.headers.get("Authorization");
     const token = auth?.startsWith("Bearer ") ? auth.slice(7) : null;
     if (!token) return null;
     const decoded = await getAdminAuth().verifyIdToken(token);
-    return decoded.uid;
+    // Un INVITADO (auth anónima) NO cuenta como "cuenta real".
+    const anonymous = (decoded.firebase as { sign_in_provider?: string } | undefined)?.sign_in_provider === "anonymous";
+    return { uid: decoded.uid, anonymous };
   } catch {
     return null;
   }
@@ -23,9 +27,10 @@ async function verifyAndGetUid(req: NextRequest): Promise<string | null> {
  * `users/{uid}.activeLivePostId`, legible por cualquiera) para ver en directo un
  * live alojado en una comunidad OCULTA.
  *
- * Se exige membresía cuando el live no es para "todos": comunidad oculta, o
- * alcance "solo miembros". El resto (perfil y comunidades públicas/privadas con
- * alcance abierto) sigue siendo accesible sin sesión, como hasta ahora.
+ * Alcances del live (`liveData.visibilityMode`):
+ *  · "everyone"        → acceso libre (incl. invitados), como hasta ahora.
+ *  · "logged_in_only"  → exige CUENTA REAL (no invitado/anónimo); cualquiera basta.
+ *  · "members_only" (o comunidad OCULTA) → exige cuenta real + membresía del grupo.
  */
 async function viewerMayWatch(
   db: FirebaseFirestore.Firestore,
@@ -34,20 +39,29 @@ async function viewerMayWatch(
 ): Promise<boolean> {
   const groupId = typeof post.groupId === "string" && post.groupId ? post.groupId : null;
   const liveData = post.liveData as Record<string, unknown> | undefined;
+  const visibilityMode = typeof liveData?.visibilityMode === "string" ? liveData.visibilityMode : null;
 
   const groupSnap = groupId ? await db.collection("groups").doc(groupId).get() : null;
   const groupVisibility = groupSnap?.data()?.visibility;
 
-  const membersOnly =
-    groupVisibility === "hidden" || liveData?.visibilityMode === "members_only";
+  const membersOnly = groupVisibility === "hidden" || visibilityMode === "members_only";
+  const loggedInOnly = visibilityMode === "logged_in_only";
 
-  if (!groupId || !membersOnly) return true;
+  // "Todos": libre.
+  if (!membersOnly && !loggedInOnly) return true;
 
-  const uid = await verifyAndGetUid(req);
-  if (!uid) return false;
+  // Restringido → exige CUENTA REAL (bloquea sin-sesión Y sesión anónima de invitado).
+  const acct = await verifyAccount(req);
+  if (!acct || acct.anonymous) return false;
+  const uid = acct.uid;
 
+  // "Solo personas con cuenta": cualquier cuenta real basta.
+  if (loggedInOnly && !membersOnly) return true;
+
+  // "Solo miembros" / comunidad oculta: además exige membresía (o autor/dueño).
   if (post.authorId === uid) return true;
   if (groupSnap?.data()?.ownerId === uid) return true;
+  if (!groupId) return false;
 
   const memberSnap = await db
     .collection("groups")

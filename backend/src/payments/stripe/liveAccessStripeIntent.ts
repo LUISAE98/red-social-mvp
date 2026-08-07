@@ -32,6 +32,10 @@ export const createLiveAccessStripeIntent = onCall(
   async (request) => {
     const uid = request.auth?.uid;
     if (!uid) throw new HttpsError("unauthenticated", "Debes iniciar sesión.");
+    // Invitado (sesión anónima): NUNCA off-session. Con tarjeta guardada re-confirma con CVV.
+    const isGuest =
+      (request.auth?.token as { firebase?: { sign_in_provider?: string } } | undefined)?.firebase
+        ?.sign_in_provider === "anonymous";
 
     const data = (request.data ?? {}) as Record<string, unknown>;
     const postId = String(data.postId ?? "").trim(); // el live es un post
@@ -134,7 +138,7 @@ export const createLiveAccessStripeIntent = onCall(
     const customerId = await getOrCreateStripeCustomer(uid, request.auth?.token?.email ?? null);
 
     // ── Cobro "un clic" con tarjeta guardada (off-session, sin CVV) ──────────
-    if (savedPaymentMethodId) {
+    if (savedPaymentMethodId && !isGuest) {
       const charged = await chargeSavedCardOffSession({
         uid,
         savedCardDocId: savedPaymentMethodId,

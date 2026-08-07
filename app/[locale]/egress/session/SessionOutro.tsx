@@ -2,10 +2,9 @@
 
 // Cierre de la grabación de sesiones 1-a-1.
 //
-// Vive aparte de la plantilla (page.tsx) porque lo consumen DOS sitios y debe
-// ser la misma fuente en ambos:
-//   · la plantilla real de grabación (app/[locale]/egress/session/page.tsx)
-//   · el lienzo de diseño 1920×1080 (app/[locale]/dev/video-icons)
+// Vive aparte de la plantilla (page.tsx) para que sea una pieza aislada y
+// reutilizable: la consume la plantilla real de grabación
+// (app/[locale]/egress/session/page.tsx).
 //
 // Envuelve el contenido de la llamada (children) porque el cierre lo difumina.
 // El consumidor decide QUÉ modo disparar (leyendo la metadata de la sala) y qué

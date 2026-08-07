@@ -1,4 +1,4 @@
-import { doc, getDoc, setDoc, collection, onSnapshot, serverTimestamp, type Unsubscribe } from "firebase/firestore";
+import { doc, getDoc, collection, onSnapshot, type Unsubscribe } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
 export type LiveAccess = {
@@ -11,39 +11,38 @@ export type LiveAccess = {
   amount: number;
   currency: "MXN" | "USD";
   status: "paid";
-  paymentMode: "simulated";
   createdAt: unknown;
 };
 
+/**
+ * El ticket lo crea SIEMPRE el backend al aprobarse el pago (Stripe →
+ * `reconcile` → `liveAccess/{liveId}/users/{uid}`), nunca el cliente: crear el
+ * doc acuña la ganancia del creador en el ledger (`onLiveAccessLedger`).
+ *
+ * `userId` puede ser el uid de una cuenta real o el de un invitado (auth anónima).
+ */
 export async function checkLiveAccess(liveId: string, userId: string): Promise<boolean> {
   const ref = doc(db, "liveAccess", liveId, "users", userId);
   const snap = await getDoc(ref);
   return snap.exists() && snap.data()?.status === "paid";
 }
 
-export async function grantSimulatedLiveAccess(params: {
-  liveId: string;
-  userId: string;
-  postId: string;
-  authorId: string;
-  groupId?: string | null;
-  amount: number;
-  currency: "MXN" | "USD";
-}): Promise<void> {
-  const ref = doc(db, "liveAccess", params.liveId, "users", params.userId);
-  await setDoc(ref, {
-    liveId: params.liveId,
-    userId: params.userId,
-    postId: params.postId,
-    authorId: params.authorId,
-    groupId: params.groupId ?? null,
-    accessType: "live_ticket",
-    amount: params.amount,
-    currency: params.currency,
-    status: "paid",
-    paymentMode: "simulated",
-    createdAt: serverTimestamp(),
-  });
+/**
+ * Igual que `checkLiveAccess` pero en tiempo real: mientras el paywall está
+ * abierto, el acceso se refleja solo en cuanto el webhook materializa el ticket
+ * (el cobro es asíncrono, no hay que hacer polling ni reabrir el visor).
+ */
+export function subscribeToLiveAccess(
+  liveId: string,
+  userId: string,
+  onAccess: (paid: boolean) => void,
+  onError?: (err: Error) => void,
+): Unsubscribe {
+  return onSnapshot(
+    doc(db, "liveAccess", liveId, "users", userId),
+    (snap) => onAccess(snap.exists() && snap.data()?.status === "paid"),
+    (err) => { onAccess(false); onError?.(err); },
+  );
 }
 
 /**

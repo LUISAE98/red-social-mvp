@@ -669,6 +669,18 @@ export default function GroupMembersTab({
     maxWidth: "100%",
   };
 
+  // @usuario bajo el nombre: mismo tratamiento tenue que en el buscador de
+  // moderadores y en las tarjetas de perfil.
+  const handleStyle: CSSProperties = {
+    fontSize: isMobile ? 10.5 : 11.5,
+    lineHeight: 1.2,
+    color: "rgba(255,255,255,0.5)",
+    whiteSpace: "nowrap",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    maxWidth: "100%",
+  };
+
   const namePlainStyle: CSSProperties = {
     fontSize: isMobile ? 11.5 : 13,
     fontWeight: 600,
@@ -850,6 +862,104 @@ export default function GroupMembersTab({
     border: "1px solid rgba(255,255,255,0.12)",
   };
 
+  /**
+   * Carga de la lista: skeletons con el relleno y la onda canónicos de
+   * vibra_style.md, calcados a la geometría de la fila real (mismo alto de
+   * avatar, mismas columnas) para que al llegar los datos nada salte.
+   */
+  function renderMembersSkeleton() {
+    const avatarSize = isMobile ? 34 : 42;
+    const showMenuColumn = isOwner || isModerator;
+
+    return (
+      <div style={{ ...listStyle }} aria-hidden="true">
+        <style>{`
+          .vbMembersSkel {
+            background-color: rgba(255,255,255,0.08);
+            background-image: linear-gradient(
+              100deg,
+              rgba(255,255,255,0.05) 30%,
+              rgba(255,255,255,0.11) 50%,
+              rgba(255,255,255,0.05) 70%
+            );
+            background-size: 300% 100%;
+            animation: vbSkelWave 1.6s ease-in-out infinite;
+          }
+          @keyframes vbSkelWave {
+            0%   { background-position: 180% 0; }
+            100% { background-position: -80% 0; }
+          }
+          @media (prefers-reduced-motion: reduce) {
+            .vbMembersSkel {
+              animation: none;
+              background: rgba(255,255,255,0.07);
+            }
+          }
+        `}</style>
+
+        {[0, 1, 2, 3, 4].map((row) => (
+          <div
+            key={row}
+            style={{
+              display: "grid",
+              gridTemplateColumns: showMenuColumn
+                ? `${isMobile ? 28 : 32}px ${avatarSize}px minmax(0, 1fr) auto`
+                : `${avatarSize}px minmax(0, 1fr) auto`,
+              gap: isMobile ? 8 : 12,
+              alignItems: "center",
+              padding: isMobile ? "6px 0" : "8px 0",
+            }}
+          >
+            {showMenuColumn && <span />}
+
+            <span
+              className="vbMembersSkel"
+              style={{
+                width: avatarSize,
+                height: avatarSize,
+                borderRadius: "50%",
+                flexShrink: 0,
+              }}
+            />
+
+            <span style={{ display: "grid", gap: isMobile ? 5 : 6, minWidth: 0 }}>
+              {/* Nombre */}
+              <span
+                className="vbMembersSkel"
+                style={{ height: isMobile ? 10 : 11, borderRadius: 6, width: "46%" }}
+              />
+              {/* @usuario */}
+              <span
+                className="vbMembersSkel"
+                style={{ height: isMobile ? 9 : 10, borderRadius: 6, width: "30%" }}
+              />
+              {/* Estado + rol (en celular van bajo el nombre) */}
+              {isMobile && (
+                <span
+                  className="vbMembersSkel"
+                  style={{ height: 9, borderRadius: 6, width: "62%" }}
+                />
+              )}
+            </span>
+
+            {!isMobile && (
+              <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <span
+                  className="vbMembersSkel"
+                  style={{ height: 11, borderRadius: 6, width: STATUS_COLUMN_WIDTH }}
+                />
+                <span
+                  className="vbMembersSkel"
+                  style={{ height: 11, borderRadius: 6, width: 104 }}
+                />
+              </span>
+            )}
+          </div>
+        ))}
+      </div>
+    );
+  }
+
   return (
     <div style={wrapStyle}>
       <section style={cardStyle}>
@@ -963,7 +1073,7 @@ export default function GroupMembersTab({
           </div>
         )}
 
-        {canViewList && loading && <div style={emptyStyle}>{tGroups("loadingMembers")}</div>}
+        {canViewList && loading && renderMembersSkeleton()}
         <VibraToast toast={membersToast} />
 
         {canViewList && !loading && !error && filteredMembers.length === 0 && (
@@ -1052,6 +1162,10 @@ export default function GroupMembersTab({
                     ) : (
                       <div style={namePlainStyle}>{displayName}</div>
                     )}
+
+                    {member.handle ? (
+                      <div style={handleStyle}>@{member.handle}</div>
+                    ) : null}
 
                     {canSeeStatus && isMobile && (
                       <div style={mobileMetaRowStyle}>

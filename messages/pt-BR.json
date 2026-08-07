@@ -59,7 +59,8 @@
     "tabExperiences": "Experiências",
     "tabAll": "Tudo",
     "sidebarFollowedProfiles": "Perfis seguidos",
-    "statistics": "Estatísticas"
+    "statistics": "Estatísticas",
+    "tabMessages": "Mensagens"
   },
   "common": {
     "accept": "Aceitar",
@@ -764,7 +765,8 @@
     "preparePostError": "Não foi possível preparar a publicação de vídeo.",
     "profileReservedLabel": "Perfil reservado",
     "postsLoading": "Carregando publicações...",
-    "noPostsVisible": "Ainda não há publicações visíveis neste perfil.",    "allPostsLoaded": "Você já viu todas as publicações disponíveis.",
+    "noPostsVisible": "Ainda não há publicações visíveis neste perfil.",
+    "allPostsLoaded": "Você já viu todas as publicações disponíveis.",
     "followersTitle": "Seguidores",
     "loadingFollowers": "Carregando seguidores...",
     "noFollowers": "Você ainda não tem seguidores.",
@@ -800,7 +802,15 @@
     "donationVideoTooLong": "O vídeo não pode ter mais de 5 minutos (duração: {duration}s).",
     "donationUploadFailed": "Upload falhou: {status}",
     "donationNetworkError": "Erro de rede ao enviar",
-    "donationUploadDefault": "Não foi possível enviar o vídeo."
+    "donationUploadDefault": "Não foi possível enviar o vídeo.",
+    "messagePolicyLabel": "Quem pode me enviar mensagens",
+    "messagePolicyEveryone": "Todos",
+    "messagePolicyFollowing": "Só quem eu sigo",
+    "messagePolicyNone": "Ninguém",
+    "messagePolicyEveryoneHelp": "Qualquer pessoa pode te escrever. As mensagens de quem você não segue vão para Solicitações, sem te notificar.",
+    "messagePolicyFollowingHelp": "Só as pessoas que você segue podem te escrever. Para as demais, sua caixa de entrada não existe.",
+    "messagePolicyNoneHelp": "Sua caixa de entrada está fechada. Ninguém pode iniciar uma conversa com você.",
+    "messagePolicyUpdateError": "Não foi possível atualizar as configurações de mensagens."
   },
   "feed": {
     "pinned": "Fixado",
@@ -1128,7 +1138,6 @@
     "typeLabelAdvice": "Conselho",
     "egressTaglinePrefix": "Conecte. Compartilhe.",
     "typeLabelGreeting": "Saudação",
-    "typeLabelMessage": "Mensagem",
     "viewCalendarAriaLabel": "Ver calendário",
     "viewListAriaLabel": "Ver lista",
     "noShowStatusLabel": "Rejeitado",
@@ -1192,13 +1201,11 @@
     "downloadRecording": "↓ Baixar gravação",
     "recordingFailed": "A gravação não está disponível.",
     "actionViewConsejo": "Ver conselho",
-    "actionViewMensaje": "Ver mensagem",
     "actionViewSaludo": "Ver saudação",
     "actionRecordConsejo": "Gravar conselho",
     "actionRecordSaludo": "Gravar saudação",
     "actionRecord": "Gravar",
     "sentLabelConsejo": "Conselho enviado em {date}",
-    "sentLabelMensaje": "Mensagem enviada em {date}",
     "sentLabelSaludo": "Saudação enviada em {date}",
     "greetingAccepted": "✅ Solicitação aceita.",
     "greetingRejected": "✅ Solicitação rejeitada.",
@@ -1609,13 +1616,6 @@
     "statusCancelled": "Cancelado",
     "greetIntroConsejo": "Complete sua solicitação com o máximo de contexto possível para que o criador entenda bem qual conselho você precisa.",
     "greetHelperConsejo": "Nota: o criador revisará sua solicitação de conselho e poderá aceitá-la ou rejeitá-la. Pagamentos e entrega são integrados depois.",
-    "greetTitleMensaje": "Solicitar mensagem",
-    "greetIntroMensaje": "Complete sua solicitação com contexto claro para que o criador prepare uma mensagem personalizada.",
-    "greetRecipientMensaje": "Para quem é a mensagem?",
-    "greetPlaceholderRecipientMensaje": "Ex. Para João",
-    "greetInstructionsMensaje": "Forneça contexto para a mensagem",
-    "greetPlaceholderInstructionsMensaje": "Ex. Mensagem de parabéns, apoio, encorajamento ou resposta personalizada.",
-    "greetHelperMensaje": "Nota: o criador pode aceitar ou rejeitar sua solicitação de mensagem. Pagamentos e entrega são integrados depois.",
     "greetTitleSaludo": "Solicitar saudação",
     "greetIntroSaludo": "Complete sua solicitação com o contexto necessário para que o criador prepare a saudação como você espera.",
     "greetRecipientSaludo": "Para quem é a saudação?",
@@ -1769,7 +1769,6 @@
     "greetTitleSaludoWith": "Sua saudação personalizada com {name}",
     "greetIntroSaludoWith": "Diga a {name} para quem é a saudação e o que você gostaria que dissesse. Quanto mais detalhes compartilhar, mais especial será o vídeo.",
     "greetInstructionsSaludoWith": "Diga-nos como você gostaria que fosse a saudação",
-    "submitMensaje": "Solicitar mensagem",
     "greetBadgeConsejo": "Conselho pessoal",
     "greetBadgeSaludo": "Saudação personalizada",
     "greetBadgeConsejoDesc": "{name} analisará sua situação e dará um conselho adaptado a você.",
@@ -2273,7 +2272,8 @@
     "search": "Buscar",
     "loading": "Carregando salvos...",
     "empty": "Você ainda não tem publicações salvas.",
-    "noSearchResults": "Nenhum salvo encontrado para esta busca.",    "allLoaded": "Você viu todas as suas publicações salvas.",
+    "noSearchResults": "Nenhum salvo encontrado para esta busca.",
+    "allLoaded": "Você viu todas as suas publicações salvas.",
     "loadError": "Não foi possível carregar suas publicações salvas. Tente novamente.",
     "flameError": "Não foi possível atualizar a chama.",
     "saveError": "Não foi possível atualizar o salvo.",
@@ -2535,5 +2535,12 @@
     "pendingReportsNote": "Relatórios pendentes sem atribuição — pegue um para atender.",
     "reportsLoading": "Carregando relatórios...",
     "noReportsPending": "Nenhum relatório pendente."
+  },
+  "chat": {
+    "loadingConversations": "Carregando conversas...",
+    "noConversations": "Você ainda não tem conversas.",
+    "noMessagesYet": "Ainda sem mensagens",
+    "conversationBlocked": "Conversa bloqueada",
+    "youPrefix": "Você: "
   }
 }

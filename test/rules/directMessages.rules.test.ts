@@ -1,0 +1,557 @@
+import { readFileSync } from "node:fs";
+import { beforeAll, afterAll, beforeEach, describe, it } from "vitest";
+import {
+  initializeTestEnvironment,
+  assertFails,
+  assertSucceeds,
+  type RulesTestEnvironment,
+} from "@firebase/rules-unit-testing";
+import {
+  doc,
+  getDoc,
+  getDocs,
+  collection,
+  query,
+  where,
+  orderBy,
+  limit,
+  setDoc,
+  updateDoc,
+  addDoc,
+  deleteDoc,
+  serverTimestamp,
+} from "firebase/firestore";
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MENSAJES DIRECTOS (DM) — Bloque 1.
+//
+// Todo el control de acceso del DM vive en el `create` de la conversación. Si
+// ese gate cede, no hay segunda barrera: una vez abierto el hilo, escribir ya
+// no vuelve a mirar la política del destinatario.
+//
+// Lo que se verifica aquí:
+//   - las 3 políticas (everyone / following / none),
+//   - que el cliente NO puede elegir el estado inicial y saltarse Solicitudes,
+//   - que las cuentas anónimas (invitados de compra) no pueden escribir,
+//   - que el bloqueo corta en ambos sentidos y solo lo levanta quien bloqueó,
+//   - que el ID determinista impide hilos duplicados,
+//   - que `lastMessage` es territorio exclusivo de la Cloud Function.
+// ─────────────────────────────────────────────────────────────────────────────
+
+let testEnv: RulesTestEnvironment;
+
+beforeAll(async () => {
+  testEnv = await initializeTestEnvironment({
+    // projectId propio: `clearFirestore()` vacía TODO el proyecto y vitest corre
+    // los archivos en paralelo — compartirlo le borraría los datos a otra suite.
+    projectId: "demo-vibra-dm",
+    firestore: {
+      rules: readFileSync("firestore.rules", "utf8"),
+      host: "127.0.0.1",
+      port: 8085,
+    },
+  });
+}, 60_000);
+
+afterAll(async () => {
+  await testEnv.cleanup();
+});
+
+beforeEach(async () => {
+  await testEnv.clearFirestore();
+});
+
+type Seeds = Array<[string, Record<string, unknown>]>;
+
+/**
+ * Siembra docs saltándose las reglas (simula lo que escribe el backend).
+ *
+ * Recibe TODOS los docs de una vez a propósito: cada `withSecurityRulesDisabled`
+ * levanta una app de Firebase nueva, y sembrando doc a doc esta suite abría ~150
+ * y tumbaba al emulador por agotamiento a mitad de la corrida. Una llamada por
+ * test lo mantiene en pie.
+ */
+async function seedAll(entries: Seeds) {
+  await testEnv.withSecurityRulesDisabled(async (ctx) => {
+    const db = ctx.firestore();
+    for (const [path, data] of entries) {
+      await setDoc(doc(db, path), data);
+    }
+  });
+}
+
+// Ordenados alfabéticamente: ALICE < BOB. El participantsKey lo exige.
+const ALICE = "alice";
+const BOB = "bob";
+const CAROL = "carol";
+const CONV = `${ALICE}_${BOB}`;
+
+type Policy = "everyone" | "following" | "none" | undefined;
+
+/** Los dos perfiles; `bobPolicy` undefined simula un perfil antiguo sin el campo. */
+function users(bobPolicy: Policy): Seeds {
+  return [
+    [`users/${ALICE}`, { displayName: "Alice" }],
+    [
+      `users/${BOB}`,
+      bobPolicy === undefined
+        ? { displayName: "Bob" }
+        : { displayName: "Bob", messagePolicy: bobPolicy },
+    ],
+  ];
+}
+
+/** Bob sigue a Alice: lo que mira la política "following" y el estado inicial. */
+function bobFollowsAlice(): Seeds {
+  return [[`users/${BOB}/following/${ALICE}`, { userId: BOB, followerUserId: ALICE }]];
+}
+
+function blocked(blocker: string, target: string): Seeds {
+  return [[`users/${blocker}/blockedUsers/${target}`, { uid: target }]];
+}
+
+/** Conversación ya existente, sembrada por detrás. */
+function conversation(
+  status: "active" | "request" | "blocked",
+  blockedBy: string | null = null
+): Seeds {
+  return [
+    [
+      `conversations/${CONV}`,
+      {
+        participants: [ALICE, BOB],
+        participantsKey: CONV,
+        status,
+        createdBy: ALICE,
+        lastMessage: null,
+        lastMessageAt: null,
+        blockedBy,
+        unread: {},
+        lastReadAt: {},
+      },
+    ],
+  ];
+}
+
+function existingMessage(senderId = ALICE): Seeds {
+  return [
+    [`conversations/${CONV}/messages/m1`, { senderId, text: "hola", isDeleted: false }],
+  ];
+}
+
+/** Payload de creación de conversación desde el cliente. */
+function newConversation(status: "active" | "request", createdBy = ALICE) {
+  return {
+    participants: [ALICE, BOB],
+    participantsKey: CONV,
+    status,
+    createdBy,
+    lastMessage: null,
+    lastMessageAt: null,
+    blockedBy: null,
+    unread: {},
+    lastReadAt: {},
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  };
+}
+
+function as(uid: string) {
+  return testEnv.authenticatedContext(uid).firestore();
+}
+
+function asAnonymous(uid: string) {
+  return testEnv
+    .authenticatedContext(uid, { firebase: { sign_in_provider: "anonymous" } })
+    .firestore();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+describe("DM — política de recepción del destinatario", () => {
+  it("🟢 sin campo messagePolicy (perfil antiguo) se comporta como 'everyone'", async () => {
+    await seedAll(users(undefined));
+    await assertSucceeds(
+      setDoc(doc(as(ALICE), `conversations/${CONV}`), newConversation("request"))
+    );
+  });
+
+  it("🟢 'everyone' + el destinatario NO me sigue ⇒ nace en Solicitudes", async () => {
+    await seedAll(users("everyone"));
+    await assertSucceeds(
+      setDoc(doc(as(ALICE), `conversations/${CONV}`), newConversation("request"))
+    );
+  });
+
+  it("🔴 el emisor NO puede forzar 'active' para saltarse la bandeja de Solicitudes", async () => {
+    await seedAll(users("everyone"));
+    await assertFails(
+      setDoc(doc(as(ALICE), `conversations/${CONV}`), newConversation("active"))
+    );
+  });
+
+  it("🟢 'everyone' + el destinatario me sigue ⇒ nace activa", async () => {
+    await seedAll([...users("everyone"), ...bobFollowsAlice()]);
+    await assertSucceeds(
+      setDoc(doc(as(ALICE), `conversations/${CONV}`), newConversation("active"))
+    );
+  });
+
+  it("🔴 'following' + el destinatario NO me sigue ⇒ ni siquiera se abre el hilo", async () => {
+    await seedAll(users("following"));
+    const db = as(ALICE);
+    await assertFails(setDoc(doc(db, `conversations/${CONV}`), newConversation("request")));
+    await assertFails(setDoc(doc(db, `conversations/${CONV}`), newConversation("active")));
+  });
+
+  it("🟢 'following' + el destinatario me sigue ⇒ pasa, y nace activa", async () => {
+    await seedAll([...users("following"), ...bobFollowsAlice()]);
+    await assertSucceeds(
+      setDoc(doc(as(ALICE), `conversations/${CONV}`), newConversation("active"))
+    );
+  });
+
+  it("🔴 'none' ⇒ nadie puede abrir hilo, ni aunque el destinatario me siga", async () => {
+    await seedAll([...users("none"), ...bobFollowsAlice()]);
+    const db = as(ALICE);
+    await assertFails(setDoc(doc(db, `conversations/${CONV}`), newConversation("active")));
+    await assertFails(setDoc(doc(db, `conversations/${CONV}`), newConversation("request")));
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+describe("DM — guardar mi política de recepción", () => {
+  it("🟢 puedo cambiar mi propia política a cualquiera de los 3 valores", async () => {
+    await seedAll(users("everyone"));
+    const db = as(BOB);
+    for (const policy of ["everyone", "following", "none"]) {
+      await assertSucceeds(
+        updateDoc(doc(db, `users/${BOB}`), { messagePolicy: policy, updatedAt: serverTimestamp() })
+      );
+    }
+  });
+
+  it("🔴 un valor fuera de los 3 permitidos se rechaza", async () => {
+    await seedAll(users("everyone"));
+    await assertFails(
+      updateDoc(doc(as(BOB), `users/${BOB}`), {
+        messagePolicy: "nobody_except_fans",
+        updatedAt: serverTimestamp(),
+      })
+    );
+  });
+
+  it("🔴 no puedo cambiarle la política a otra persona", async () => {
+    await seedAll(users("everyone"));
+    await assertFails(
+      updateDoc(doc(as(ALICE), `users/${BOB}`), {
+        messagePolicy: "everyone",
+        updatedAt: serverTimestamp(),
+      })
+    );
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+describe("DM — invitados anónimos", () => {
+  it("🔴 una cuenta anónima NO puede abrir una conversación", async () => {
+    await seedAll(users("everyone"));
+    await assertFails(
+      setDoc(doc(asAnonymous(ALICE), `conversations/${CONV}`), newConversation("request"))
+    );
+  });
+
+  it("🔴 una cuenta anónima NO puede escribir en un hilo ya abierto", async () => {
+    await seedAll([...users("everyone"), ...conversation("active")]);
+    await assertFails(
+      addDoc(collection(asAnonymous(ALICE), `conversations/${CONV}/messages`), {
+        senderId: ALICE,
+        text: "hola",
+        createdAt: serverTimestamp(),
+        isDeleted: false,
+      })
+    );
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+describe("DM — bloqueo entre usuarios", () => {
+  it("🔴 si el destinatario me bloqueó, no puedo abrir hilo", async () => {
+    await seedAll([...users("everyone"), ...blocked(BOB, ALICE)]);
+    await assertFails(
+      setDoc(doc(as(ALICE), `conversations/${CONV}`), newConversation("request"))
+    );
+  });
+
+  it("🔴 si yo bloqueé al destinatario, tampoco", async () => {
+    await seedAll([...users("everyone"), ...blocked(ALICE, BOB)]);
+    await assertFails(
+      setDoc(doc(as(ALICE), `conversations/${CONV}`), newConversation("request"))
+    );
+  });
+
+  it("🔴 en un hilo bloqueado no se puede escribir", async () => {
+    await seedAll([...users("everyone"), ...conversation("blocked", BOB)]);
+    await assertFails(
+      addDoc(collection(as(ALICE), `conversations/${CONV}/messages`), {
+        senderId: ALICE,
+        text: "hola",
+        createdAt: serverTimestamp(),
+        isDeleted: false,
+      })
+    );
+  });
+
+  it("🔴 el BLOQUEADO no puede desbloquearse a sí mismo", async () => {
+    await seedAll([...users("everyone"), ...conversation("blocked", BOB)]);
+    await assertFails(
+      updateDoc(doc(as(ALICE), `conversations/${CONV}`), { status: "active", blockedBy: null })
+    );
+  });
+
+  it("🟢 quien bloqueó sí puede desbloquear", async () => {
+    await seedAll([...users("everyone"), ...conversation("blocked", BOB)]);
+    await assertSucceeds(
+      updateDoc(doc(as(BOB), `conversations/${CONV}`), { status: "active", blockedBy: null })
+    );
+  });
+
+  it("🔴 no se puede bloquear en nombre del otro", async () => {
+    await seedAll([...users("everyone"), ...conversation("active")]);
+    await assertFails(
+      updateDoc(doc(as(ALICE), `conversations/${CONV}`), { status: "blocked", blockedBy: BOB })
+    );
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+describe("DM — identidad del hilo (sin duplicados)", () => {
+  it("🔴 el ID del doc debe ser el participantsKey", async () => {
+    await seedAll(users("everyone"));
+    await assertFails(
+      setDoc(doc(as(ALICE), "conversations/otro-id-cualquiera"), newConversation("request"))
+    );
+  });
+
+  it("🔴 participants sin ordenar alfabéticamente ⇒ rechazado (evita el hilo espejo)", async () => {
+    await seedAll(users("everyone"));
+    await assertFails(
+      setDoc(doc(as(ALICE), `conversations/${BOB}_${ALICE}`), {
+        ...newConversation("request"),
+        participants: [BOB, ALICE],
+        participantsKey: `${BOB}_${ALICE}`,
+      })
+    );
+  });
+
+  it("🔴 no puedo crear un hilo en el que yo no participo", async () => {
+    await seedAll([...users("everyone"), [`users/${CAROL}`, { displayName: "Carol" }]]);
+    await assertFails(
+      setDoc(doc(as(CAROL), `conversations/${CONV}`), newConversation("request", CAROL))
+    );
+  });
+
+  it("🔴 no puedo atribuirle la autoría del hilo a otra persona", async () => {
+    await seedAll(users("everyone"));
+    await assertFails(
+      setDoc(doc(as(ALICE), `conversations/${CONV}`), newConversation("request", BOB))
+    );
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+describe("DM — lectura del hilo", () => {
+  const base = () => [...users("everyone"), ...conversation("active"), ...existingMessage()];
+
+  it("🟢 un participante lee la conversación y sus mensajes", async () => {
+    await seedAll(base());
+    const db = as(BOB);
+    await assertSucceeds(getDoc(doc(db, `conversations/${CONV}`)));
+    await assertSucceeds(getDocs(collection(db, `conversations/${CONV}/messages`)));
+  });
+
+  it("🔴 un tercero NO lee la conversación ni sus mensajes", async () => {
+    await seedAll(base());
+    const db = as(CAROL);
+    await assertFails(getDoc(doc(db, `conversations/${CONV}`)));
+    await assertFails(getDocs(collection(db, `conversations/${CONV}/messages`)));
+  });
+
+  it("🔴 un deslogueado no lee nada", async () => {
+    await seedAll(base());
+    const db = testEnv.unauthenticatedContext().firestore();
+    await assertFails(getDoc(doc(db, `conversations/${CONV}`)));
+  });
+
+  it("🟢 el inbox (query por participants) funciona para su dueño", async () => {
+    await seedAll(base());
+    await assertSucceeds(
+      getDocs(
+        query(collection(as(ALICE), "conversations"), where("participants", "array-contains", ALICE))
+      )
+    );
+  });
+
+  // Forma EXACTA de la query de producción (subscribeToInbox): array-contains +
+  // in + orderBy + limit. Firestore limita cuántas cláusulas de este tipo se
+  // pueden combinar, así que esto verifica que la combinación es legal, no solo
+  // que las rules la dejan pasar.
+  it("🟢 la query real del inbox (array-contains + in + orderBy + limit) es válida", async () => {
+    await seedAll(base());
+    await assertSucceeds(
+      getDocs(
+        query(
+          collection(as(ALICE), "conversations"),
+          where("participants", "array-contains", ALICE),
+          where("status", "in", ["active", "blocked"]),
+          orderBy("lastMessageAt", "desc"),
+          limit(20)
+        )
+      )
+    );
+  });
+
+  it("🟢 la bandeja de Solicitudes se consulta por separado", async () => {
+    await seedAll([...users("everyone"), ...conversation("request")]);
+    await assertSucceeds(
+      getDocs(
+        query(
+          collection(as(BOB), "conversations"),
+          where("participants", "array-contains", BOB),
+          where("status", "in", ["request"]),
+          orderBy("lastMessageAt", "desc"),
+          limit(20)
+        )
+      )
+    );
+  });
+
+  it("🔴 no puedo listar el inbox de otra persona", async () => {
+    await seedAll(base());
+    await assertFails(
+      getDocs(
+        query(collection(as(CAROL), "conversations"), where("participants", "array-contains", ALICE))
+      )
+    );
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+describe("DM — mensajes", () => {
+  const base = () => [...users("everyone"), ...conversation("active")];
+
+  function message(overrides: Record<string, unknown> = {}) {
+    return {
+      senderId: ALICE,
+      text: "hola",
+      createdAt: serverTimestamp(),
+      isDeleted: false,
+      ...overrides,
+    };
+  }
+
+  it("🟢 un participante envía un mensaje", async () => {
+    await seedAll(base());
+    await assertSucceeds(
+      addDoc(collection(as(ALICE), `conversations/${CONV}/messages`), message())
+    );
+  });
+
+  it("🔴 un tercero no puede enviar", async () => {
+    await seedAll(base());
+    await assertFails(
+      addDoc(collection(as(CAROL), `conversations/${CONV}/messages`), message({ senderId: CAROL }))
+    );
+  });
+
+  it("🔴 no puedo firmar un mensaje con el nombre del otro", async () => {
+    await seedAll(base());
+    await assertFails(
+      addDoc(collection(as(ALICE), `conversations/${CONV}/messages`), message({ senderId: BOB }))
+    );
+  });
+
+  it("🔴 texto vacío", async () => {
+    await seedAll(base());
+    await assertFails(
+      addDoc(collection(as(ALICE), `conversations/${CONV}/messages`), message({ text: "" }))
+    );
+  });
+
+  it("🔴 texto por encima del límite de 2000", async () => {
+    await seedAll(base());
+    await assertFails(
+      addDoc(
+        collection(as(ALICE), `conversations/${CONV}/messages`),
+        message({ text: "x".repeat(2001) })
+      )
+    );
+  });
+
+  it("🔴 no se puede nacer ya borrado ni colar campos extra", async () => {
+    await seedAll(base());
+    const col = collection(as(ALICE), `conversations/${CONV}/messages`);
+    await assertFails(addDoc(col, message({ isDeleted: true })));
+    await assertFails(addDoc(col, message({ pinned: true })));
+  });
+
+  it("🟢 borrado suave del mensaje propio", async () => {
+    await seedAll([...base(), ...existingMessage(ALICE)]);
+    await assertSucceeds(
+      updateDoc(doc(as(ALICE), `conversations/${CONV}/messages/m1`), { isDeleted: true })
+    );
+  });
+
+  it("🔴 no puedo borrar el mensaje del otro", async () => {
+    await seedAll([...base(), ...existingMessage(ALICE)]);
+    await assertFails(
+      updateDoc(doc(as(BOB), `conversations/${CONV}/messages/m1`), { isDeleted: true })
+    );
+  });
+
+  it("🔴 el texto enviado es inmutable: no se puede reescribir", async () => {
+    await seedAll([...base(), ...existingMessage(ALICE)]);
+    await assertFails(
+      updateDoc(doc(as(ALICE), `conversations/${CONV}/messages/m1`), { text: "otra cosa" })
+    );
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+describe("DM — campos que solo puede escribir la Cloud Function", () => {
+  const base = () => [...users("everyone"), ...conversation("active")];
+
+  it("🔴 el cliente no puede falsear el resumen del inbox (lastMessage)", async () => {
+    await seedAll(base());
+    const db = as(ALICE);
+    await assertFails(
+      updateDoc(doc(db, `conversations/${CONV}`), {
+        lastMessage: { text: "falso", senderId: BOB, createdAt: serverTimestamp() },
+      })
+    );
+    await assertFails(
+      updateDoc(doc(db, `conversations/${CONV}`), { lastMessageAt: serverTimestamp() })
+    );
+  });
+
+  it("🔴 el cliente no puede reescribir los participantes del hilo", async () => {
+    await seedAll(base());
+    await assertFails(
+      updateDoc(doc(as(ALICE), `conversations/${CONV}`), { participants: [ALICE, CAROL] })
+    );
+  });
+
+  it("🟢 pero sí puede marcar como leído (recibo agregado) y poner su contador a 0", async () => {
+    await seedAll(base());
+    await assertSucceeds(
+      updateDoc(doc(as(BOB), `conversations/${CONV}`), {
+        [`lastReadAt.${BOB}`]: serverTimestamp(),
+        [`unread.${BOB}`]: 0,
+      })
+    );
+  });
+
+  it("🔴 el hilo no se puede borrar, solo bloquear", async () => {
+    await seedAll(base());
+    await assertFails(deleteDoc(doc(as(ALICE), `conversations/${CONV}`)));
+  });
+});

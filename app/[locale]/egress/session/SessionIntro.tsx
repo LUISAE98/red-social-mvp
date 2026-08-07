@@ -2,10 +2,9 @@
 
 // Intro de apertura de la grabación de sesiones 1-a-1.
 //
-// Vive aparte de la plantilla (page.tsx) porque lo consumen DOS sitios y debe
-// ser la misma fuente en ambos:
-//   · la plantilla real de grabación (app/[locale]/egress/session/page.tsx)
-//   · el lienzo de diseño 1920×1080 (app/[locale]/dev/video-icons)
+// Vive aparte de la plantilla (page.tsx) para que sea una pieza aislada y
+// reutilizable: la consume la plantilla real de grabación
+// (app/[locale]/egress/session/page.tsx).
 //
 // Solo añade apertura: no toca el overlay de la esquina, ni el contador de la
 // sesión, ni los tiempos del cierre.

@@ -402,14 +402,12 @@ export type GroupSubscriptionTransitionSettings = {
  * NOTA IMPORTANTE:
  * - "suscripcion" YA NO entra aquí.
  * - La suscripción vive en monetization como capa estructural del grupo.
- * - "mensaje" se conserva solo como legacy temporal.
  */
 export type CreatorServiceType =
   | "saludo"
   | "consejo"
   | "meet_greet_digital"
-  | "clase_personalizada"
-  | "mensaje";
+  | "clase_personalizada";
 
 export type ServiceSourceScope = "group" | "profile" | "both";
 export type ServiceVisibility = "hidden" | "members" | "public";

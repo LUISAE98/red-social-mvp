@@ -35,7 +35,7 @@ import StripePaymentModal from "@/components/payments/StripePaymentModal";
 import { createLiveAccessStripeIntent, createPremiumPostStripeIntent } from "@/lib/stripe/stripePayments";
 import { FIXED_SERVICE_FEE_MXN } from "@/lib/currency/catalog";
 import { registrarCompraGeo } from "@/lib/wallet/registrarCompraGeo";
-import { buildLoginHref } from "@/lib/auth-redirect";
+import { ensureGuestAuth } from "@/lib/guest/ensureGuestAuth";
 import PremiumVideoTeaser from "./PremiumVideoTeaser";
 import { VideoPlayIcon } from "@/app/components/VibraServiceIcons/VibraVideoIcons";
 import { usePostTempUnlock } from "@/lib/posts/usePostTempUnlock";
@@ -266,17 +266,13 @@ onToggleProfilePin,
     [rawPost, protectedPlayback],
   );
 
-  // Compra (premium / boleto de live) para alguien SIN sesión: el cobro exige
-  // cuenta (los callables de Stripe rechazan `unauthenticated`), así que en vez
-  // de abrir una pasarela que va a fallar, se manda a iniciar sesión y se vuelve
-  // a esta misma vista. Devuelve true si ya se puede cobrar.
+  // Compra (premium / boleto de live) SIN login: ya NO se manda a iniciar sesión.
+  // La identidad se resuelve con firma ANÓNIMA (`ensureGuestAuth`) dentro del
+  // `createIntent` de cada pasarela, igual que la donación. El acceso resultante se
+  // liga al uid (anónimo) y se verifica server-side (`postAccess`/`liveAccess`), nunca
+  // por un flag device-wide. Siempre se permite abrir la pasarela.
   function ensureSignedInToPay(): boolean {
-    if (currentUserId) return true;
-    if (typeof window === "undefined") return false;
-    router.push(
-      buildLoginHref(window.location.pathname, window.location.search),
-    );
-    return false;
+    return true;
   }
 
   const [comments, setComments] = useState<Comment[] | null>(null);
@@ -337,7 +333,13 @@ onToggleProfilePin,
   const livePaidRef = useRef(false);
 
   useEffect(() => {
-    if (!post.requiresPayment || !currentUserId) return;
+    // Sin pago requerido o sin identidad → sin ticket (resetea para no dejar acceso
+    // residual al cambiar de uid: invitado→login, o logout).
+    if (!post.requiresPayment || !currentUserId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setHasLiveTicketAccess(false);
+      return;
+    }
     checkLiveAccess(post.id, currentUserId)
       .then(setHasLiveTicketAccess)
       .catch(() => {});
@@ -364,7 +366,7 @@ onToggleProfilePin,
   }, [localLiveData?.status, hasLiveTicketAccess]);
   const [localText, setLocalText] = useState<string | null>(null);
   const [localMedia, setLocalMedia] = useState<import("@/lib/posts/types").PostMedia[] | null>(null);
-  const { isTempUnlocked, unlock: applyTempUnlock } = usePostTempUnlock(post.id, currentUserId, post.authorId, post.oneTimePrice);
+  const { isTempUnlocked, unlock: applyTempUnlock } = usePostTempUnlock(post.id, currentUserId, post.authorId, post.oneTimePrice, post.liveData != null);
   const [selectedMediaUrl, setSelectedMediaUrl] = useState<string | null>(null);
   const [viewerSourceRect, setViewerSourceRect] = useState<DOMRect | null>(null);
   const [viewerInitialVideoTime, setViewerInitialVideoTime] = useState(0);
@@ -4302,7 +4304,12 @@ padding: "0 0 2px 0",
   open={paymentPanelOpen}
   amount={(post.premium?.price ?? post.oneTimePrice) != null ? Number(post.premium?.price ?? post.oneTimePrice) + FIXED_SERVICE_FEE_MXN : null}
   amountCurrency="MXN"
-  createIntent={(args) => createPremiumPostStripeIntent({ postId: post.id, saveCard: args.saveCard, taxCountry: args.taxCountry, savedPaymentMethodId: args.savedPaymentMethodId })}
+  createIntent={async (args) => {
+    // Invitado (sin login): firma anónima antes de cobrar → el acceso (postAccess) se
+    // liga a ese uid y se verifica server-side; una cuenta real (otro uid) no lo hereda.
+    if (!currentUserId) await ensureGuestAuth();
+    return createPremiumPostStripeIntent({ postId: post.id, saveCard: args.saveCard, taxCountry: args.taxCountry, savedPaymentMethodId: args.savedPaymentMethodId });
+  }}
   productType={tPosts("premiumPayProductType")}
   providerName={postAuthor.authorName}
   avatarUrl={postAuthor.avatarUrl}
@@ -4323,7 +4330,12 @@ padding: "0 0 2px 0",
   open={livePayOpen}
   amount={(post.oneTimePrice ?? activeLiveData?.ticketPrice) != null ? Number(post.oneTimePrice ?? activeLiveData?.ticketPrice) + FIXED_SERVICE_FEE_MXN : null}
   amountCurrency="MXN"
-  createIntent={(args) => createLiveAccessStripeIntent({ postId: post.id, saveCard: args.saveCard, taxCountry: args.taxCountry, savedPaymentMethodId: args.savedPaymentMethodId })}
+  createIntent={async (args) => {
+    // Invitado (sin login): firma anónima antes de cobrar → el ticket (liveAccess) se
+    // liga a ese uid y se verifica server-side; una cuenta real (otro uid) no lo hereda.
+    if (!currentUserId) await ensureGuestAuth();
+    return createLiveAccessStripeIntent({ postId: post.id, saveCard: args.saveCard, taxCountry: args.taxCountry, savedPaymentMethodId: args.savedPaymentMethodId });
+  }}
   productType={tPosts("liveTicketProductType")}
   providerName={postAuthor.authorName}
   avatarUrl={postAuthor.avatarUrl}
@@ -4335,7 +4347,7 @@ padding: "0 0 2px 0",
     livePaidRef.current = true;
     registrarCompraGeo({
       creatorId: post.authorId,
-      serviceType: "live_access",
+      serviceType: "live_ticket",
       grossAmount: post.oneTimePrice ?? activeLiveData?.ticketPrice ?? undefined,
     });
   }}

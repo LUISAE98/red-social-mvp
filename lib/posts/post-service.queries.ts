@@ -7,14 +7,14 @@
 import {
   collection, query, where, orderBy, limit, startAfter,
   getDocs, getDoc, doc, documentId, setDoc, serverTimestamp, Timestamp,
-  type QueryDocumentSnapshot, type DocumentData,
+  type QueryConstraint, type QueryDocumentSnapshot, type DocumentData,
 } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { pickString, chunkArray, assertValidId, isProfileRestricted } from "./post-service.helpers";
 import { fetchUsersByIds, fetchGroupsByIds, getPostGroupIds, isPostLocked } from "./post-service.internal";
 import { hydratePost, attachViewerPostState } from "./post-service.hydration";
 import { fetchOwnedGroupIds, fetchMemberGroupIds, fetchHiddenMemberGroupIds, fetchAccessibleGroupIds } from "./post-service.access";
-import type { Post, PostContextType } from "./types";
+import type { GroupVisibility, Post, PostContextType } from "./types";
 import type { CanonicalGroupCategory } from "@/types/group";
 import type {
   HomePostsPageCursor, HomePostsPageResult,
@@ -128,11 +128,22 @@ export async function registerPostView(postId: string): Promise<void> {
 }
 
 /**
- * Galería de una COMUNIDAD: todas las fotos/videos/lives de la comunidad, de
- * cualquier autor (query por `groupId`, no por autor).
+ * Lo que ve de una comunidad quien la mira DESDE FUERA (no-miembro, con o sin
+ * sesión): el video premium de alcance público, el contenido de pago compartible
+ * (boleto de live y su VOD) y el live EN CURSO con alcance "todos" — todo lo que
+ * puede ver bloqueado para comprarlo o para entrar.
+ *
+ * ⚠️ `groupVisibility` NO es un filtro cosmético: en una consulta (`list`), las
+ * reglas solo ven los campos que la query fija con `==`. La regla que autoriza
+ * esto (`canListPublicPremiumGroupPost`) mira `groupVisibility != "hidden"`, así
+ * que si la query no lo fija, la regla se evalúa contra un campo inexistente,
+ * revienta y Firestore DENIEGA LA CONSULTA COMPLETA. En una comunidad pública el
+ * fallo quedaba tapado porque `canReadGroupContent` ya devolvía true; en privada
+ * y de suscripción no, y por eso el feed público salía vacío.
  */
 export async function fetchGroupPublicPremiumPostsPage(params: {
   groupId: string;
+  groupVisibility: Exclude<GroupVisibility, "hidden">;
   viewerUid?: string | null;
   pageSize?: number;
   cursor?: GroupPostsPageCursor | null;
@@ -142,24 +153,72 @@ export async function fetchGroupPublicPremiumPostsPage(params: {
   const safePageSize = Math.max(1, Math.min(params.pageSize ?? 10, 20));
   const previousLastDoc = params.cursor?.lastDoc ?? null;
 
-  const postsSnap = await getDocs(
-    query(
-      collection(db, "posts"),
-      where("groupId", "==", params.groupId),
-      where("isDeleted", "==", false),
-      where("isShareable", "==", true),
+  const postsRef = collection(db, "posts");
+  const base = [
+    where("groupId", "==", params.groupId),
+    where("isDeleted", "==", false),
+    where("isShareable", "==", true),
+    where("groupVisibility", "==", params.groupVisibility),
+  ];
+  const tail = [
+    orderBy("createdAt", "desc"),
+    ...(previousLastDoc ? [startAfter(previousLastDoc)] : []),
+    limit(safePageSize + 1),
+  ];
+
+  // Un carril por REGLA que autoriza a los de fuera, con TODOS sus campos fijados
+  // con `==` (si no, la regla se evalúa contra campos ausentes y la consulta
+  // entera se deniega). Si un carril falla, se avisa y se sigue con los demás:
+  // vale más un feed incompleto que uno vacío.
+  const runLane = (label: string, ...constraints: QueryConstraint[]) =>
+    getDocs(query(postsRef, ...base, ...constraints, ...tail)).catch((err) => {
+      console.warn(`[groupOutsideFeed] carril "${label}" falló`, err);
+      return null;
+    });
+
+  const [premiumSnap, paidSnap, liveSnap] = await Promise.all([
+    // canListPublicPremiumGroupPost — video premium de alcance público.
+    runLane(
+      "premium",
       where("premium.enabled", "==", true),
       where("premium.accessMode", "==", "public"),
-      orderBy("createdAt", "desc"),
-      ...(previousLastDoc ? [startAfter(previousLastDoc)] : []),
-      limit(safePageSize + 1)
-    )
+    ),
+    // canReadPaidShareableGroupPost — contenido de pago compartible SIN mapa
+    // `premium`: el live con boleto (próximo o terminado) y su VOD de pago, que
+    // los de fuera deben poder ver BLOQUEADO para poder comprarlo.
+    runLane("pago", where("requiresPayment", "==", true)),
+    // canListBroadcastPublicLivePost — live EN CURSO con alcance "todos".
+    runLane(
+      "live",
+      where("liveData.status", "==", "live"),
+      where("liveData.allowLoggedOutViewers", "==", true),
+    ),
+  ]);
+
+  const laneDocs = [premiumSnap, paidSnap, liveSnap].flatMap((snap) => snap?.docs ?? []);
+
+  // Mezcla de carriles: deduplica y reordena por fecha (cada carril venía ya
+  // ordenado, pero entre carriles hay que rehacerlo).
+  const mergedDocs = Array.from(new Map(laneDocs.map((d) => [d.id, d])).values()).sort(
+    (a, b) => {
+      const aMs = (a.data().createdAt as Timestamp | undefined)?.toMillis?.() ?? 0;
+      const bMs = (b.data().createdAt as Timestamp | undefined)?.toMillis?.() ?? 0;
+      return bMs - aMs;
+    },
   );
 
-  const rawPosts: Post[] = postsSnap.docs.slice(0, safePageSize).map((d) => ({
-    id: d.id,
-    ...(d.data() as Omit<Post, "id">),
-  }));
+  // Feed PÚBLICO (invitado o no-miembro): oculta lives RESTRINGIDOS
+  // (`liveData.allowLoggedOutViewers === false`) a los invitados (sin sesión o anónimos),
+  // aunque la query los devuelva. Una cuenta real ve los logged_in_only; las reglas + el
+  // proxy siguen siendo la barrera del contenido. (No-op para posts sin liveData.)
+  const isRealAccount = !!auth.currentUser && !auth.currentUser.isAnonymous;
+  const rawPosts: Post[] = mergedDocs
+    .slice(0, safePageSize)
+    .map((d) => ({
+      id: d.id,
+      ...(d.data() as Omit<Post, "id">),
+    }))
+    .filter((post) => isRealAccount || post.liveData?.allowLoggedOutViewers !== false);
 
   const [userMap, groupMap] = await Promise.all([
     fetchUsersByIds(rawPosts.map((post) => post.authorId)),
@@ -176,8 +235,8 @@ export async function fetchGroupPublicPremiumPostsPage(params: {
     params.viewerUid
   );
 
-  const hasMore = postsSnap.docs.length > safePageSize;
-  const lastDoc = postsSnap.docs[safePageSize - 1] ?? null;
+  const hasMore = mergedDocs.length > safePageSize;
+  const lastDoc = mergedDocs[safePageSize - 1] ?? null;
 
   return {
     posts: postsWithViewerState,
@@ -209,10 +268,18 @@ export async function fetchGroupPublicPostsPage(params: {
     )
   );
 
-  const rawPosts: Post[] = postsSnap.docs.slice(0, safePageSize).map((d) => ({
-    id: d.id,
-    ...(d.data() as Omit<Post, "id">),
-  }));
+  // Feed PÚBLICO (invitado o no-miembro): oculta lives RESTRINGIDOS
+  // (`liveData.allowLoggedOutViewers === false`) a los invitados (sin sesión o anónimos),
+  // aunque la query los devuelva. Una cuenta real ve los logged_in_only; las reglas + el
+  // proxy siguen siendo la barrera del contenido. (No-op para posts sin liveData.)
+  const isRealAccount = !!auth.currentUser && !auth.currentUser.isAnonymous;
+  const rawPosts: Post[] = postsSnap.docs
+    .slice(0, safePageSize)
+    .map((d) => ({
+      id: d.id,
+      ...(d.data() as Omit<Post, "id">),
+    }))
+    .filter((post) => isRealAccount || post.liveData?.allowLoggedOutViewers !== false);
 
   const [userMap, groupMap] = await Promise.all([
     fetchUsersByIds(rawPosts.map((post) => post.authorId)),
@@ -540,20 +607,44 @@ async function fetchProfileFeedDocs(params: {
   }
 
   if (params.mode === "shareable_group_posts") {
-    const snap = await getDocs(
-      query(
-        postsRef,
-        where("authorId", "==", params.profileUid),
-        where("contextType", "==", "group"),
-        where("isDeleted", "==", false),
-        where("isShareable", "==", true),
-        orderBy("createdAt", "desc"),
-        orderBy(documentId(), "desc"),
-        ...cursorParts,
-        limit(params.pageSize)
-      )
-    );
-    return snap.docs;
+    // DOS carriles a propósito. En un `list`, las reglas solo ven los campos que
+    // la query fija con `==`: si no se fija `groupVisibility`, la regla que
+    // autoriza estos posts lo lee de un campo ausente, revienta y Firestore
+    // deniega la consulta ENTERA. Como el carril iba dentro de un `.catch`, el
+    // fallo era MUDO: los posts de comunidad del creador (incluido el premium
+    // público de una comunidad privada) desaparecían de su perfil para todo
+    // visitante que no fuera él mismo.
+    const base = [
+      where("authorId", "==", params.profileUid),
+      where("contextType", "==", "group"),
+      where("isDeleted", "==", false),
+      where("isShareable", "==", true),
+    ];
+    const tail = [
+      orderBy("createdAt", "desc"),
+      orderBy(documentId(), "desc"),
+      ...cursorParts,
+      limit(params.pageSize),
+    ];
+
+    const [publicSnap, privatePremiumSnap] = await Promise.all([
+      // Comunidad PÚBLICA: todo lo compartible (gratis, lives abiertos, premium).
+      getDocs(query(postsRef, ...base, where("groupVisibility", "==", "public"), ...tail)),
+      // Comunidad PRIVADA (incl. de suscripción): solo el premium de alcance
+      // público, que es lo único que se puede ver —bloqueado— desde fuera.
+      getDocs(
+        query(
+          postsRef,
+          ...base,
+          where("groupVisibility", "==", "private"),
+          where("premium.enabled", "==", true),
+          where("premium.accessMode", "==", "public"),
+          ...tail
+        )
+      ),
+    ]);
+
+    return [...publicSnap.docs, ...privatePremiumSnap.docs];
   }
 
   const groupIds = Array.from(
@@ -729,9 +820,25 @@ const privateDocsPromise = viewerUid
     feedDocs = [...publicDocs, ...privateDocs, ...shareableGroupDocs];
   }
 
-  const uniqueDocs = Array.from(
+  const dedupedDocs = Array.from(
     new Map(feedDocs.map((feedDoc) => [feedDoc.id, feedDoc])).values()
   );
+
+  // Un INVITADO (sin sesión o sesión anónima) NO debe ver en el feed un LIVE restringido
+  // (`liveData.allowLoggedOutViewers === false`, = logged_in_only / members_only), aunque
+  // la query lo devuelva (p. ej. desde la caché offline de Firestore tras cerrar sesión en
+  // el mismo navegador). Las reglas ya impiden REPRODUCIRLO; esto además lo quita de la
+  // lista para que no aparezca la tarjeta "conectando…". Una cuenta REAL ve todo lo permitido.
+  const isRealAccount = !!auth.currentUser && !auth.currentUser.isAnonymous;
+  const uniqueDocs = isRealAccount
+    ? dedupedDocs
+    : dedupedDocs.filter((feedDoc) => {
+        const ld = (feedDoc.data() as Record<string, unknown>).liveData as
+          | Record<string, unknown>
+          | null
+          | undefined;
+        return !(ld && ld.allowLoggedOutViewers === false);
+      });
 
   uniqueDocs.sort((a, b) => {
     const aData = a.data() as Record<string, unknown>;

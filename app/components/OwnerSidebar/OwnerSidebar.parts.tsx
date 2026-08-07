@@ -317,7 +317,7 @@ export type FollowedProfileLite = {
   photoURL: string | null;
 };
 
-export type TopView = "owned" | "communities" | "following" | "greetings";
+export type TopView = "owned" | "communities" | "following" | "greetings" | "messages";
 
 export type TabIconProps = {
   active: boolean;

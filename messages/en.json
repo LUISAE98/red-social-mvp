@@ -59,7 +59,8 @@
     "tabExperiences": "Experiences",
     "tabAll": "All",
     "sidebarFollowedProfiles": "Followed profiles",
-    "statistics": "Statistics"
+    "statistics": "Statistics",
+    "tabMessages": "Messages"
   },
   "common": {
     "accept": "Accept",
@@ -764,7 +765,8 @@
     "preparePostError": "Could not prepare the video post.",
     "profileReservedLabel": "Reserved profile",
     "postsLoading": "Loading posts...",
-    "noPostsVisible": "There are no visible posts on this profile yet.",    "allPostsLoaded": "You've seen all available posts.",
+    "noPostsVisible": "There are no visible posts on this profile yet.",
+    "allPostsLoaded": "You've seen all available posts.",
     "followersTitle": "Followers",
     "loadingFollowers": "Loading followers...",
     "noFollowers": "You don't have any followers yet.",
@@ -800,7 +802,15 @@
     "donationVideoTooLong": "The video cannot be longer than 5 minutes (duration: {duration}s).",
     "donationUploadFailed": "Upload failed: {status}",
     "donationNetworkError": "Network error while uploading",
-    "donationUploadDefault": "Could not upload the video."
+    "donationUploadDefault": "Could not upload the video.",
+    "messagePolicyLabel": "Who can message me",
+    "messagePolicyEveryone": "Everyone",
+    "messagePolicyFollowing": "Only people I follow",
+    "messagePolicyNone": "No one",
+    "messagePolicyEveryoneHelp": "Anyone can message you. Messages from people you do not follow land in Requests, without notifying you.",
+    "messagePolicyFollowingHelp": "Only people you follow can message you. For everyone else, your inbox does not exist.",
+    "messagePolicyNoneHelp": "Your inbox is closed. No one can start a conversation with you.",
+    "messagePolicyUpdateError": "Could not update message settings."
   },
   "feed": {
     "pinned": "Pinned",
@@ -1130,7 +1140,6 @@
     "typeLabelAdvice": "Advice",
     "egressTaglinePrefix": "Connect. Share.",
     "typeLabelGreeting": "Greeting",
-    "typeLabelMessage": "Message",
     "viewCalendarAriaLabel": "View calendar",
     "viewListAriaLabel": "View list",
     "noShowStatusLabel": "Rejected",
@@ -1194,13 +1203,11 @@
     "downloadRecording": "↓ Download recording",
     "recordingFailed": "The recording is not available.",
     "actionViewConsejo": "View advice",
-    "actionViewMensaje": "View message",
     "actionViewSaludo": "View greeting",
     "actionRecordConsejo": "Record advice",
     "actionRecordSaludo": "Record greeting",
     "actionRecord": "Record",
     "sentLabelConsejo": "Advice sent on {date}",
-    "sentLabelMensaje": "Message sent on {date}",
     "sentLabelSaludo": "Greeting sent on {date}",
     "greetingAccepted": "✅ Request accepted.",
     "greetingRejected": "✅ Request rejected.",
@@ -1611,13 +1618,6 @@
     "statusCancelled": "Cancelled",
     "greetIntroConsejo": "Complete your request with as much context as possible so the creator understands what advice you need.",
     "greetHelperConsejo": "Note: the creator will review your advice request and may accept or reject it. Payments and delivery are integrated later.",
-    "greetTitleMensaje": "Request message",
-    "greetIntroMensaje": "Complete your request with clear context so the creator can prepare a personalized message.",
-    "greetRecipientMensaje": "Who is the message for?",
-    "greetPlaceholderRecipientMensaje": "E.g. For John",
-    "greetInstructionsMensaje": "Provide context for the message",
-    "greetPlaceholderInstructionsMensaje": "E.g. Congratulatory message, support, encouragement or personalized response.",
-    "greetHelperMensaje": "Note: the creator may accept or reject your message request. Payments and delivery are integrated later.",
     "greetTitleSaludo": "Request greeting",
     "greetIntroSaludo": "Complete your request with the necessary context so the creator prepares the greeting as you expect.",
     "greetRecipientSaludo": "Who is the greeting for?",
@@ -1771,7 +1771,6 @@
     "greetTitleSaludoWith": "Your personalized greeting from {name}",
     "greetIntroSaludoWith": "Tell {name} who the greeting is for and what you'd like them to say. The more details you share, the more special the video will be.",
     "greetInstructionsSaludoWith": "Tell us how you'd like the greeting to be",
-    "submitMensaje": "Request message",
     "greetBadgeConsejo": "Personal advice",
     "greetBadgeSaludo": "Personalized greeting",
     "greetBadgeConsejoDesc": "{name} will analyze your situation and give you advice tailored to you.",
@@ -2280,7 +2279,8 @@
     "search": "Search",
     "loading": "Loading saved posts...",
     "empty": "You have no saved posts yet.",
-    "noSearchResults": "No saved posts found for this search.",    "allLoaded": "You've seen all your saved posts.",
+    "noSearchResults": "No saved posts found for this search.",
+    "allLoaded": "You've seen all your saved posts.",
     "loadError": "Could not load your saved posts. Please try again.",
     "flameError": "Could not update the flame.",
     "saveError": "Could not update the save.",
@@ -2542,5 +2542,12 @@
     "pendingReportsNote": "Unassigned pending reports — pick one to handle.",
     "reportsLoading": "Loading reports...",
     "noReportsPending": "No pending reports."
+  },
+  "chat": {
+    "loadingConversations": "Loading conversations...",
+    "noConversations": "You do not have any conversations yet.",
+    "noMessagesYet": "No messages yet",
+    "conversationBlocked": "Conversation blocked",
+    "youPrefix": "You: "
   }
 }

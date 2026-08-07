@@ -41,6 +41,9 @@ import { useIsCompact } from "@/lib/hooks/useMediaQuery";
 import OwnerSidebarMyGroups from "./OwnerSidebarMyGroups";
 import OwnerSidebarOtherGroups from "./OwnerSidebarOtherGroups";
 import OwnerSidebarFollowedProfiles from "./OwnerSidebarFollowedProfiles";
+import ConversationList from "@/components/chat/ConversationList";
+import { useInbox } from "@/lib/chat/useInbox";
+import { getOtherParticipant } from "@/lib/chat/types";
 import OwnerSidebarGreetings from "./OwnerSidebarGreetings";
 import CopyLinkButton from "@/components/ui/CopyLinkButton";
 import RefreshableArea from "@/components/refresh/RefreshableArea";
@@ -290,6 +293,14 @@ const handleOwnerSidebarPullRefresh = useCallback(async () => {
   const [userMiniMap, setUserMiniMap] = useState<Record<string, UserMini>>(
     () => ownerSidebarCache?.userMiniMap ?? {}
   );
+
+  // Bandeja de DM. Las solicitudes van aparte (Bloque 6): aquí solo las
+  // conversaciones ya aceptadas y las bloqueadas, para poder desbloquearlas.
+  const {
+    conversations,
+    loading: loadingConversations,
+    unreadTotal: unreadMessagesCount,
+  } = useInbox(viewer?.uid ?? null);
   const [groupMetaMap, setGroupMetaMap] = useState<Record<string, GroupDocLite>>(
     () => ownerSidebarCache?.groupMetaMap ?? {}
   );
@@ -1551,6 +1562,15 @@ const groupsForSeen = [
     buyerMeetGreets.forEach((r) => ids.add(r.data.creatorId));
     buyerExclusiveSessions.forEach((r) => ids.add(r.data.creatorId));
 
+    // Interlocutores del DM: se cuelgan del mismo cargador de perfiles que ya
+    // existe en vez de montar una segunda pasada de lecturas a `users`.
+    if (viewer?.uid) {
+      conversations.forEach((conv) => {
+        const other = getOtherParticipant(conv.participants, viewer.uid);
+        if (other) ids.add(other);
+      });
+    }
+
     return Array.from(ids).filter(Boolean);
   }, [
     joinRequestsByGroup,
@@ -1561,6 +1581,8 @@ const groupsForSeen = [
     buyerMeetGreets,
     exclusiveSessionsByGroup,
     buyerExclusiveSessions,
+    conversations,
+    viewer?.uid,
   ]);
 
   useEffect(() => {
@@ -2054,13 +2076,6 @@ if (!viewer) return null;
 const isProfileTopOpen =
   profileBucketKey ? openCommunities[profileBucketKey] === true : false;
 
-// ¿Hay al menos una pestaña visible en el menú? (misma lógica que OwnerSidebarTabNav)
-// Se usa para pintar el separador de cierre solo si realmente hay pestañas.
-const hasMenuTabs =
-  loadingFollowing || followedProfiles.length > 0 ||
-  loadingGroups || myGroups.length > 0 || joinedGroups.length > 0 ||
-  pendingCount > 0 || buyerDelivered.length > 0;
-
 return (
     <>
       <style jsx>{`
@@ -2480,9 +2495,25 @@ newPostsCounts={newPostsCounts}
             followedCount={followedProfiles.length}
             myGroupsCount={myGroups.length}
             joinedGroupsCount={joinedGroups.length}
+            unreadMessagesCount={unreadMessagesCount}
             loadingFollowing={loadingFollowing}
             loadingGroups={loadingGroups}
             contentByKey={{
+              messages: (
+                <ConversationList
+                  loading={loadingConversations}
+                  conversations={conversations}
+                  selfUid={viewer?.uid ?? null}
+                  profiles={userMiniMap}
+                  styles={styles}
+                  isMobile={isMobile}
+                  onOpenConversation={(conversationId) => {
+                    // El hilo se abre en el Bloque 5; por ahora la fila queda
+                    // inerte para no dejar un clic que no lleva a ninguna parte.
+                    void conversationId;
+                  }}
+                />
+              ),
               following: (
                 <OwnerSidebarFollowedProfiles
                   loadingFollowing={loadingFollowing}
@@ -2580,9 +2611,10 @@ newPostsCounts={newPostsCounts}
             }}
           />
 
-{hasMenuTabs && (
-  <div className="owner-sidebar-menu-divider" aria-hidden="true" />
-)}
+{/* La pestaña de Mensajes se muestra siempre, así que el menú nunca está
+    vacío y el separador de cierre ya no necesita condición. */}
+<div className="owner-sidebar-menu-divider" aria-hidden="true" />
+
 {isMobile && (
   <div style={{
     flexShrink: 0,

@@ -29,7 +29,9 @@ beforeAll(async () => {
       port: 8085,
     },
   });
-});
+  // Igual que en hiddenGroups: cargar un projectId más en el emulador mientras
+  // las otras suites corren en paralelo tarda más que el hookTimeout de 20s.
+}, 60_000);
 afterAll(async () => {
   await testEnv.cleanup();
 });

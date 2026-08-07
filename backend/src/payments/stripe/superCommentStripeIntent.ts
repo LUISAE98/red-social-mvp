@@ -67,6 +67,10 @@ export const createSuperCommentStripeIntent = onCall(
   async (request) => {
     const uid = request.auth?.uid;
     if (!uid) throw new HttpsError("unauthenticated", "Debes iniciar sesión.");
+    // Invitado (sesión anónima): NUNCA off-session; con tarjeta guardada re-pide CVV.
+    const isGuest =
+      (request.auth?.token as { firebase?: { sign_in_provider?: string } } | undefined)?.firebase
+        ?.sign_in_provider === "anonymous";
 
     const data = (request.data ?? {}) as Record<string, unknown>;
     const postId = String(data.postId ?? "").trim(); // el live es un post
@@ -135,6 +139,9 @@ export const createSuperCommentStripeIntent = onCall(
       username = String(u.displayName ?? u.handle ?? u.username ?? "Anónimo");
       avatarUrl = u.photoURL ? String(u.photoURL) : null;
     }
+    // Apodo del cliente (invitado sin perfil): manda en el chat sobre el perfil. Máx 24.
+    const nickname = typeof data.nickname === "string" && data.nickname.trim() ? data.nickname.trim().slice(0, 24) : null;
+    if (nickname) username = nickname;
 
     const taxCountry = data.taxCountry ? String(data.taxCountry).trim().toUpperCase() : null;
     const saveCard = data.saveCard === true;
@@ -201,7 +208,7 @@ export const createSuperCommentStripeIntent = onCall(
     // Se confirma el PaymentIntent server-side con el payment_method guardado. El
     // webhook `payment_intent.succeeded` materializa el súper comentario (igual que
     // el flujo de tarjeta nueva). El precio SIGUE siendo server-authoritative.
-    if (savedPaymentMethodId) {
+    if (savedPaymentMethodId && !isGuest) {
       const charged = await chargeSavedCardOffSession({
         uid,
         savedCardDocId: savedPaymentMethodId,

@@ -103,6 +103,8 @@ export async function createLiveDonationStripeIntent(input: {
   saveCard: boolean;
   taxCountry: string | null;
   savedPaymentMethodId?: string;
+  /** Apodo del donador (invitado sin perfil). Aparece en el chat del live. */
+  nickname?: string | null;
 }): Promise<StripeChargeResult> {
   const fn = httpsCallable<typeof input, StripeChargeResult>(functions, "createLiveDonationStripeIntent");
   const res = await fn(input);
@@ -122,6 +124,8 @@ export async function createSuperCommentStripeIntent(input: {
   saveCard: boolean;
   taxCountry: string | null;
   savedPaymentMethodId?: string;
+  /** Apodo del invitado (sin perfil). Aparece en el chat con el súper comentario. */
+  nickname?: string | null;
 }): Promise<StripeChargeResult> {
   const fn = httpsCallable<typeof input, StripeChargeResult>(functions, "createSuperCommentStripeIntent");
   const res = await fn(input);

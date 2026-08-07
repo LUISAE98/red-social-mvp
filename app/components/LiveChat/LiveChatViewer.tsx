@@ -400,15 +400,13 @@ export default function LiveChatViewer({
             ) : (
               <div style={{
                 paddingTop: 8, paddingBottom: "max(8px, var(--vb-safe-bottom, 0px))",
-                display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 8,
                 paddingLeft: 14, paddingRight: 14,
               }}>
                 {showGuestSCBtn && (
                   <BillButton onClick={() => setSuperCommentOpen(true)} />
                 )}
-                <span style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", fontFamily: FONT }}>
-                  Inicia sesión para comentar
-                </span>
+                {onDonate && <HeartButton onClick={onDonate} />}
               </div>
             )
           ) : (
@@ -490,13 +488,11 @@ export default function LiveChatViewer({
               {tLive("chatClosed")}
             </div>
           ) : !user ? (
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "4px 0" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 8, padding: "4px 14px" }}>
               {showGuestSCBtn && (
                 <BillButton onClick={() => setSuperCommentOpen(true)} />
               )}
-              <span style={{ fontSize: 12, color: "rgba(255,255,255,0.25)", fontFamily: FONT }}>
-                Inicia sesión para comentar
-              </span>
+              {onDonate && <HeartButton onClick={onDonate} />}
             </div>
           ) : isMuted ? (
             <div style={{ textAlign: "center", fontSize: 12, color: "rgba(255,255,255,0.25)", fontFamily: FONT, padding: "4px 0" }}>

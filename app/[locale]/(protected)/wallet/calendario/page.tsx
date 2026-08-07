@@ -251,8 +251,6 @@ function getServiceCardTheme(kind: string): ServiceCardTheme {
       return { bgImage: "/saludo.webp", btnBg: "rgba(168,85,247,0.22)", btnColor: "#d8b4fe" };
     case "consejo":
       return { bgImage: "/consejo.webp", btnBg: "rgba(250,204,21,0.20)", btnColor: "#fde047" };
-    case "mensaje":
-      return { bgImage: null, btnBg: "rgba(168,85,247,0.22)", btnColor: "#d8b4fe" };
     case "meet_greet":
       return { bgImage: "/encuentroenvivo.webp", btnBg: "rgba(29,78,216,0.28)", btnColor: "#93c5fd" };
     case "exclusive_session":

@@ -47,7 +47,7 @@ function rowToGreetingDoc(row: WalletServiceItem, creatorId: string): GreetingRe
     profileUserId: row.profileUserId ?? null,
     profileDisplayName: row.profileDisplayName ?? null,
     profileUsername: row.profileUsername ?? null,
-    type: row.kind as "saludo" | "consejo" | "mensaje",
+    type: row.kind as "saludo" | "consejo",
     toName: row.targetName ?? "",
     instructions: row.requestText ?? "",
     source: (row.requestSource ?? "group") as "group" | "profile",
@@ -157,7 +157,6 @@ export default function WalletHistorialPage() {
 
   function translatedTypeLabel(kind: string): string {
     if (kind === "consejo") return tWallet("typeLabelAdvice");
-    if (kind === "mensaje") return tWallet("typeLabelMessage");
     return tWallet("typeLabelGreeting");
   }
 

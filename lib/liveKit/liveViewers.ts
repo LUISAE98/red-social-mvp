@@ -16,10 +16,18 @@ import { db } from "@/lib/firebase";
 
 export type ViewerSample = { t: number; v: number };
 
-/** Registers the user as an active viewer of the live. */
-export function joinLivePresence(postId: string, uid: string): Promise<void> {
+/**
+ * Registers the user as an active viewer of the live.
+ *
+ * `uid` puede ser el de una cuenta real o el de una identidad ANÓNIMA de invitado
+ * (la misma que usan los pagos sin login, ver `ensureGuestAuth`). `isGuest` marca
+ * cuál es cuál para poder segmentar la audiencia (registrados vs invitados) sin
+ * tener que resolver cada uid contra `users/`.
+ */
+export function joinLivePresence(postId: string, uid: string, isGuest = false): Promise<void> {
   return setDoc(doc(db, "posts", postId, "liveViewers", uid), {
     uid,
+    isGuest,
     joinedAt: serverTimestamp(),
   });
 }
@@ -49,8 +57,9 @@ export function subscribeToViewerCount(
  * Registers the viewer in the permanent unique-viewer log (idempotent).
  * Unlike liveViewers, this subcollection is never deleted — it's the historical record.
  */
-export function registerUniqueViewer(postId: string, uid: string): Promise<void> {
-  return setDoc(doc(db, "posts", postId, "liveUniqueViewers", uid), { uid });
+export function registerUniqueViewer(postId: string, uid: string, isGuest = false): Promise<void> {
+  // merge: no debe pisar el `watchSeconds` acumulado si el espectador vuelve a entrar.
+  return setDoc(doc(db, "posts", postId, "liveUniqueViewers", uid), { uid, isGuest }, { merge: true });
 }
 
 /** Subscribes to the total unique viewer count (ever connected) for a live post. */

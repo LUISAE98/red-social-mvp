@@ -614,10 +614,14 @@ export default function LiveComposerModal({
             </div>
           </div>
 
-          {contextType === "group" && groupVisibility === "private" && visibilityMode !== "members_only" && (
+          {/* "Quién paga": aparece de inmediato al elegir entrada de pago en una comunidad
+              privada, INDEPENDIENTE de la visibilidad (que se elige más abajo). Si al final
+              la visibilidad queda en "solo miembros", el guardado normaliza a everyone_pays
+              (no hay no-miembros a quién eximir). Mismo estilo que "Ticket de entrada". */}
+          {contextType === "group" && groupVisibility === "private" && (
             <>
               <label style={labelStyle}>{tLive("whoPays")}</label>
-              <div style={{ marginBottom: 8, borderRadius: 10, border: "1px solid rgba(255,255,255,0.08)", overflow: "hidden" }}>
+              <div style={{ marginBottom: 8 }}>
                 {([
                   { value: "everyone_pays", label: tLive("payAllPay"), desc: tLive("payAllPayDesc") },
                   { value: "members_free_non_members_pay", label: tLive("payMembersFree"), desc: tLive("payMembersFreeDesc") },
@@ -626,24 +630,22 @@ export default function LiveComposerModal({
                   return (
                     <div
                       key={value}
+                      className="vibra-live-radio"
                       onClick={() => !saving && setPaidAccessMode(value)}
                       style={{
-                        display: "flex", alignItems: "center", gap: 10,
-                        padding: "10px 12px", cursor: saving ? "not-allowed" : "pointer",
-                        borderBottom: idx === 0 ? "1px solid rgba(255,255,255,0.06)" : "none",
-                        background: active ? "rgba(168,85,255,0.10)" : "transparent",
+                        display: "flex", alignItems: "center", gap: 12,
+                        padding: "13px 2px", cursor: saving ? "not-allowed" : "pointer",
+                        borderBottom: idx === 0 ? "1px solid rgba(255,255,255,0.08)" : "none",
                         userSelect: "none",
                       }}
                     >
-                      <div style={{
-                        width: 16, height: 16, borderRadius: "50%", flexShrink: 0,
-                        border: active ? "5px solid #a855f7" : "2px solid rgba(255,255,255,0.25)",
-                        boxSizing: "border-box" as const, transition: "border 120ms ease",
-                      }} />
-                      <div>
-                        <div style={{ fontSize: 13, fontWeight: 600, color: active ? "#e9d5ff" : "#fff", fontFamily: fontStack }}>{label}</div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: "#fff", fontFamily: fontStack }}>{label}</div>
                         <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", fontFamily: fontStack, marginTop: 2, lineHeight: 1.4 }}>{desc}</div>
                       </div>
+                      <span style={{ width: 18, height: 18, borderRadius: "50%", border: `2px solid ${active ? "#a855f7" : "rgba(255,255,255,0.25)"}`, display: "grid", placeItems: "center", flexShrink: 0 }}>
+                        {active && <span style={{ width: 9, height: 9, borderRadius: "50%", background: "#a855f7" }} />}
+                      </span>
                     </div>
                   );
                 })}

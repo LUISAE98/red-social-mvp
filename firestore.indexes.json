@@ -1,6 +1,23 @@
 {
   "indexes": [
     {
+      "collectionGroup": "conversations",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "participants", "arrayConfig": "CONTAINS" },
+        { "fieldPath": "lastMessageAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "conversations",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "participants", "arrayConfig": "CONTAINS" },
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "lastMessageAt", "order": "DESCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "inviteLinks",
       "queryScope": "COLLECTION_GROUP",
       "fields": [
@@ -102,6 +119,14 @@
       "collectionGroup": "posts",
       "queryScope": "COLLECTION",
       "fields": [
+        { "fieldPath": "liveData.status", "order": "ASCENDING" },
+        { "fieldPath": "liveData.allowLoggedOutViewers", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "posts",
+      "queryScope": "COLLECTION",
+      "fields": [
         { "fieldPath": "groupId", "order": "ASCENDING" },
         { "fieldPath": "postType", "order": "ASCENDING" },
         { "fieldPath": "isDeleted", "order": "ASCENDING" },
@@ -147,6 +172,44 @@
         { "fieldPath": "isShareable", "order": "ASCENDING" },
         { "fieldPath": "premium.enabled", "order": "ASCENDING" },
         { "fieldPath": "premium.accessMode", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "posts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "groupId", "order": "ASCENDING" },
+        { "fieldPath": "isDeleted", "order": "ASCENDING" },
+        { "fieldPath": "isShareable", "order": "ASCENDING" },
+        { "fieldPath": "groupVisibility", "order": "ASCENDING" },
+        { "fieldPath": "premium.enabled", "order": "ASCENDING" },
+        { "fieldPath": "premium.accessMode", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "posts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "groupId", "order": "ASCENDING" },
+        { "fieldPath": "isDeleted", "order": "ASCENDING" },
+        { "fieldPath": "isShareable", "order": "ASCENDING" },
+        { "fieldPath": "groupVisibility", "order": "ASCENDING" },
+        { "fieldPath": "requiresPayment", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "posts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "groupId", "order": "ASCENDING" },
+        { "fieldPath": "isDeleted", "order": "ASCENDING" },
+        { "fieldPath": "isShareable", "order": "ASCENDING" },
+        { "fieldPath": "groupVisibility", "order": "ASCENDING" },
+        { "fieldPath": "liveData.status", "order": "ASCENDING" },
+        { "fieldPath": "liveData.allowLoggedOutViewers", "order": "ASCENDING" },
         { "fieldPath": "createdAt", "order": "DESCENDING" }
       ]
     },
@@ -291,6 +354,34 @@
         { "fieldPath": "contextType", "order": "ASCENDING" },
         { "fieldPath": "isDeleted", "order": "ASCENDING" },
         { "fieldPath": "isShareable", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" },
+        { "fieldPath": "__name__", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "posts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "authorId", "order": "ASCENDING" },
+        { "fieldPath": "contextType", "order": "ASCENDING" },
+        { "fieldPath": "isDeleted", "order": "ASCENDING" },
+        { "fieldPath": "isShareable", "order": "ASCENDING" },
+        { "fieldPath": "groupVisibility", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" },
+        { "fieldPath": "__name__", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "posts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "authorId", "order": "ASCENDING" },
+        { "fieldPath": "contextType", "order": "ASCENDING" },
+        { "fieldPath": "isDeleted", "order": "ASCENDING" },
+        { "fieldPath": "isShareable", "order": "ASCENDING" },
+        { "fieldPath": "groupVisibility", "order": "ASCENDING" },
+        { "fieldPath": "premium.enabled", "order": "ASCENDING" },
+        { "fieldPath": "premium.accessMode", "order": "ASCENDING" },
         { "fieldPath": "createdAt", "order": "DESCENDING" },
         { "fieldPath": "__name__", "order": "DESCENDING" }
       ]

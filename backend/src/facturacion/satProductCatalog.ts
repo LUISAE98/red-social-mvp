@@ -15,7 +15,6 @@ const DEFAULT_PRODUCT_KEY = "81112100"; // Proveedores de servicios de aplicacio
 const DESCRIPTIONS: Record<string, string> = {
   saludo: "Saludo personalizado",
   consejo: "Consejo personalizado",
-  mensaje: "Mensaje personalizado",
   exclusive_session: "Sesión exclusiva",
   meet_greet_digital: "Meet & greet digital",
   premium_post: "Contenido premium",

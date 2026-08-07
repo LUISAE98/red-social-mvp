@@ -106,7 +106,7 @@ export type WalletExclusiveSessionDoc = WalletScheduledDoc & {
   status: ExclusiveSessionStatus;
 };
 
-export type GreetingType = "saludo" | "consejo" | "mensaje";
+export type GreetingType = "saludo" | "consejo";
 export type GreetingSource = "group" | "profile";
 export type GreetingStatus = "pending" | "accepted" | "rejected" | "delivered";
 
@@ -139,7 +139,6 @@ export type WalletServiceKind =
   | "exclusive_session"
   | "saludo"
   | "consejo"
-  | "mensaje"
   | "live";
 
 export type WalletServiceItem = {
@@ -203,8 +202,7 @@ export type WalletHistoryFilter =
   | "meet_greet"
   | "exclusive_session"
   | "saludo"
-  | "consejo"
-  | "mensaje";
+  | "consejo";
 
 export type OwnerWalletDataResult = {
   loading: boolean;
@@ -397,7 +395,7 @@ export function hasWalletScheduleConflict(
 export function getGreetingTypeLabel(type: GreetingType): string {
   if (type === "saludo") return "Saludo";
   if (type === "consejo") return "Consejo";
-  if (type === "mensaje") return "Mensaje";
+  // Tipos legacy (p. ej. el extinto "mensaje") caen aquí sin romper la fila.
   return "Solicitud";
 }
 

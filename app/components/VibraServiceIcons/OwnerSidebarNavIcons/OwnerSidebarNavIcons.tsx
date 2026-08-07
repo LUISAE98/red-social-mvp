@@ -65,6 +65,22 @@ export function SidebarOtherCommunitiesIcon({ size = 18, strokeWidth = 1.75 }: I
   );
 }
 
+// Mensajes directos — globo de conversación
+export function SidebarMessagesIcon({ size = 18, strokeWidth = 1.75 }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" style={BASE} aria-hidden>
+      <path
+        d="M20.5 12.2C20.5 16.1 16.7 19.2 12 19.2C11 19.2 10.1 19.1 9.2 18.9L4.6 20.4L5.7 16.6C4.4 15.4 3.5 13.9 3.5 12.2C3.5 8.3 7.3 5.2 12 5.2C16.7 5.2 20.5 8.3 20.5 12.2Z"
+        fill="none"
+        stroke={g}
+        strokeWidth={strokeWidth}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 // Experiencias — estrella de 5 puntas
 export function SidebarExperiencesIcon({ size = 18, strokeWidth = 1.75 }: IconProps) {
   return (

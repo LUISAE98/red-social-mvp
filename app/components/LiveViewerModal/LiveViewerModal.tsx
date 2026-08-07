@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import { useTranslations } from "next-intl";
 import { createPortal } from "react-dom";
@@ -13,7 +13,7 @@ import type { Post, PostLiveData, PostPlayback } from "@/lib/posts/types";
 import { togglePostFlame } from "@/lib/posts/post-service";
 import VibraFlameIcon from "@/app/components/VibraServiceIcons/VibraFlameIcon";
 import LiveChatViewer from "@/app/components/LiveChat/LiveChatViewer";
-import { checkLiveAccess, grantSimulatedLiveAccess } from "@/lib/liveAccess/live-access-service";
+import { subscribeToLiveAccess } from "@/lib/liveAccess/live-access-service";
 import { joinLivePresence, leaveLivePresence, subscribeToViewerCount, registerUniqueViewer, addWatchTime, recordVodView } from "@/lib/liveKit/liveViewers";
 import type { ActiveSuperComment } from "@/lib/posts/types";
 import { TTS_MIN_DURATION_SECS } from "@/lib/tts/edge-tts-client";
@@ -30,7 +30,8 @@ import ReportModal from "@/app/components/ReportModal/ReportModal";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import TaxNote from "@/components/payments/TaxNote";
 import StripePaymentModal from "@/components/payments/StripePaymentModal";
-import { createLiveDonationStripeIntent } from "@/lib/stripe/stripePayments";
+import { createLiveAccessStripeIntent, createLiveDonationStripeIntent } from "@/lib/stripe/stripePayments";
+import { ensureGuestAuth } from "@/lib/guest/ensureGuestAuth";
 import { FIXED_SERVICE_FEE_MXN } from "@/lib/currency/catalog";
 import {
   DonationPanel, CHAT_FLOAT_W, FONT, VOD_PLAYBACK_RATES,
@@ -41,6 +42,7 @@ import {
 export default function LiveViewerModal({ open, onClose, post, onManage, initialPortrait = false, initialStream }: Props) {
   const tCommon = useTranslations("common");
   const tLive = useTranslations("live");
+  const tPosts = useTranslations("posts");
   const pf = usePriceFormat();
   const formatMoney = pf.format;
   // Monto que MUESTRA una donación/súper comentario = total que pagó el fan (base + $3 +
@@ -88,9 +90,20 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
   const [localPlayback, setLocalPlayback] = useState<PostPlayback | null>(post.playback ?? null);
   const [accessChecked, setAccessChecked] = useState(false);
   const [hasAccess, setHasAccess] = useState(false);
-  const [payingAccess, setPayingAccess] = useState(false);
-  const [accessError, setAccessError] = useState<string | null>(null);
+  // Pasarela real del ticket de entrada (Stripe). Mismo patrón que la tarjeta del feed.
+  const [livePayOpen, setLivePayOpen] = useState(false);
   const [viewerCount, setViewerCount] = useState(0);
+  // Identidad usada SOLO para las estadísticas del live (presencia, únicos, tiempo de
+  // visualización, vista de VOD). El espectador sin login obtiene una identidad
+  // ANÓNIMA de invitado — la misma de los pagos sin login (`ensureGuestAuth`) — para
+  // que SÍ cuente en las métricas del creador. No cambia la UI a modo autenticado:
+  // `useAuth()` sigue filtrando a los anónimos (ver app/providers.tsx).
+  const [statsUid, setStatsUid] = useState<string | null>(user?.uid ?? null);
+  // false mientras se resuelve la identidad: evita que el paywall parpadee para un
+  // invitado que YA compró (su ticket cuelga de la identidad anónima).
+  const [statsReady, setStatsReady] = useState(false);
+  const statsUidRef = useRef<string | null>(user?.uid ?? null);
+  const statsIsGuest = !user?.uid;
   const [retryKey, setRetryKey] = useState(0);
   const hlsRetryCountRef = useRef(0);
 
@@ -163,15 +176,71 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
     return () => unsub();
   }, [post.id]);
 
+  // ── Identidad de estadísticas y acceso (incluye invitados sin login) ───────
+  // Con sesión real es su uid; sin sesión es la identidad ANÓNIMA de invitado
+  // (persistente por navegador, la misma de las compras sin login). Las reglas la
+  // aceptan sin cambios de permisos: `signedIn()` ya es true para un anónimo.
+  // Firmar anónimamente CUESTA una cuenta, así que solo se hace cuando hace falta
+  // de verdad (live en curso, o al registrar la vista de un VOD); para lo demás se
+  // adopta la identidad que ya exista. Si el proveedor anónimo estuviera
+  // deshabilitado, esto falla en silencio y el visor se comporta como antes.
+  const resolveStatsUid = useCallback(async (): Promise<string | null> => {
+    if (user?.uid) return user.uid;
+    if (statsUidRef.current) return statsUidRef.current;
+    try {
+      const u = await ensureGuestAuth();
+      statsUidRef.current = u.uid;
+      setStatsUid(u.uid);
+      return u.uid;
+    } catch (err) {
+      console.warn("[LiveViewerModal] guest stats identity", err);
+      return null;
+    }
+  }, [user?.uid]);
+
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    setStatsReady(false);
+
+    if (user?.uid) {
+      statsUidRef.current = user.uid;
+      setStatsUid(user.uid);
+      setStatsReady(true);
+      return;
+    }
+
+    (async () => {
+      // Adoptar una identidad de invitado YA existente (de una compra previa) sin
+      // crear ninguna: así el ticket que compró se reconoce al volver al VOD.
+      await auth.authStateReady().catch(() => undefined);
+      if (cancelled) return;
+      if (auth.currentUser) {
+        statsUidRef.current = auth.currentUser.uid;
+        setStatsUid(auth.currentUser.uid);
+      } else if (localLiveData?.status === "live") {
+        // Live EN CURSO: la identidad es necesaria para contar como espectador y
+        // para poder leer el contador de audiencia (listar exige sesión).
+        await resolveStatsUid();
+      } else {
+        statsUidRef.current = null;
+        setStatsUid(null);
+      }
+      if (!cancelled) setStatsReady(true);
+    })();
+
+    return () => { cancelled = true; };
+  }, [open, user?.uid, localLiveData?.status, resolveStatsUid]);
+
   // ── Presencia de espectador ────────────────────────────────────────────────
   useEffect(() => {
-    if (!open || !hasAccess || localLiveData?.status !== "live" || !user?.uid || !post.id) return;
-    const uid = user.uid;
+    if (!open || !hasAccess || localLiveData?.status !== "live" || !statsUid || !post.id) return;
+    const uid = statsUid;
     const postId = post.id;
     const joinedAtMs = Date.now();
 
-    joinLivePresence(postId, uid).catch(console.warn);
-    registerUniqueViewer(postId, uid).catch(console.warn);
+    joinLivePresence(postId, uid, statsIsGuest).catch(console.warn);
+    registerUniqueViewer(postId, uid, statsIsGuest).catch(console.warn);
 
     const recordWatchTime = () => {
       const seconds = Math.round((Date.now() - joinedAtMs) / 1000);
@@ -190,13 +259,18 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
       recordWatchTime();
       leaveLivePresence(postId, uid).catch(console.warn);
     };
-  }, [open, hasAccess, localLiveData?.status, user?.uid, post.id]);
+  }, [open, hasAccess, localLiveData?.status, statsUid, statsIsGuest, post.id]);
 
   // ── Contador de espectadores ────────────────────────────────────────────────
+  // Depende de `statsUid`: listar `liveViewers` exige sesión, así que el invitado
+  // se suscribe recién cuando su identidad anónima existe (antes fallaba en
+  // silencio y el badge de audiencia nunca aparecía para los deslogueados).
   useEffect(() => {
-    if (!open || localLiveData?.status !== "live" || !post.id) return;
-    return subscribeToViewerCount(post.id, setViewerCount);
-  }, [open, localLiveData?.status, post.id]);
+    if (!open || localLiveData?.status !== "live" || !post.id || !statsUid) return;
+    return subscribeToViewerCount(post.id, setViewerCount, (err) =>
+      console.warn("[LiveViewerModal] viewer count", err),
+    );
+  }, [open, localLiveData?.status, post.id, statsUid]);
 
   useEffect(() => { prevActiveSuperKeyRef.current = null; }, [post.id]);
   useEffect(() => { if (!open) prevActiveSuperKeyRef.current = null; }, [open]);
@@ -275,12 +349,16 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
     if (!open) {
       setAccessChecked(false);
       setHasAccess(false);
-      setPayingAccess(false);
-      setAccessError(null);
       return;
     }
 
-    const liveAccessType = localLiveData?.accessType ?? "free";
+    // Se cobra solo si el live pide ticket Y el post sigue marcado como de pago
+    // (`requiresPayment`, la señal que exige el backend): si el creador liberó el
+    // VOD al terminar, deja de cobrarse y se ve gratis.
+    const liveAccessType =
+      (localLiveData?.accessType ?? "free") === "paid" && post.requiresPayment === true
+        ? "paid"
+        : "free";
 
     // Creador siempre tiene acceso
     if (user?.uid === post.authorId) {
@@ -289,18 +367,37 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
       return;
     }
 
-    // Live gratuito — acceso directo
+    // Alcance del live (`visibilityMode`): "solo personas con cuenta" (logged_in_only) y
+    // "solo miembros" (members_only) BLOQUEAN al invitado. `user` (useAuth) es null para
+    // sin-sesión Y para el anónimo, así que `!user` = invitado. Las reglas de Firestore y
+    // el proxy del stream son la barrera autoritativa; esto es la defensa/UX en el visor.
+    const visibilityMode = localLiveData?.visibilityMode ?? "everyone";
+    if ((visibilityMode === "logged_in_only" || visibilityMode === "members_only") && !user) {
+      setHasAccess(false);
+      setAccessChecked(true);
+      return;
+    }
+
+    // Live gratuito (tras pasar el alcance) — acceso directo
     if (liveAccessType === "free") {
       setHasAccess(true);
       setAccessChecked(true);
       return;
     }
 
-    // Live de pago — verificar
+    // Live de pago — verificar. El ticket cuelga del uid del comprador, que puede
+    // ser una cuenta real o un INVITADO (auth anónima), así que se espera a que la
+    // identidad esté resuelta antes de decidir.
     setAccessChecked(false);
+    if (!statsReady) return;
+
+    let cancelled = false;
+    let unsubAccess: (() => void) | null = null;
+
     const check = async () => {
       try {
-        if (!user?.uid) {
+        const uid = statsUid;
+        if (!uid) {
           setHasAccess(false);
           setAccessChecked(true);
           return;
@@ -308,7 +405,8 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
 
         const mode = localLiveData?.paidAccessMode ?? "everyone_pays";
         if (mode === "members_free_non_members_pay" && post.groupId) {
-          const memberSnap = await getDoc(doc(db, "groups", post.groupId, "members", user.uid));
+          const memberSnap = await getDoc(doc(db, "groups", post.groupId, "members", uid));
+          if (cancelled) return;
           if (memberSnap.exists()) {
             const status = memberSnap.data()?.status as string | undefined;
             if (["active", "subscribed", "muted"].includes(status ?? "")) {
@@ -319,16 +417,26 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
           }
         }
 
-        const paid = await checkLiveAccess(post.id, user.uid);
-        setHasAccess(paid);
-        setAccessChecked(true);
+        if (cancelled) return;
+        // Suscripción (no lectura puntual): el ticket lo materializa el webhook
+        // segundos después del cobro, así el paywall se cae solo al aprobarse.
+        unsubAccess = subscribeToLiveAccess(post.id, uid, (paid) => {
+          setHasAccess(paid);
+          setAccessChecked(true);
+        });
       } catch {
+        if (cancelled) return;
         setHasAccess(false);
         setAccessChecked(true);
       }
     };
     check();
-  }, [open, localLiveData?.accessType, localLiveData?.paidAccessMode, user?.uid, post.authorId, post.id, post.groupId]);
+
+    return () => {
+      cancelled = true;
+      unsubAccess?.();
+    };
+  }, [open, localLiveData?.accessType, localLiveData?.paidAccessMode, localLiveData?.visibilityMode, post.requiresPayment, statsReady, statsUid, user, post.authorId, post.id, post.groupId]);
 
   const liveData = localLiveData;
   const playbackId = liveData?.playbackId;
@@ -888,43 +996,14 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
   }
 
   // ── Paywall ────────────────────────────────────────────────────────────────
-  const isPaidLive = (liveData?.accessType ?? "free") === "paid";
-
-  async function handlePayAccess() {
-    if (!user?.uid || payingAccess) return;
-    setPayingAccess(true);
-    setAccessError(null);
-    try {
-      await grantSimulatedLiveAccess({
-        liveId: post.id,
-        userId: user.uid,
-        postId: post.id,
-        authorId: post.authorId,
-        groupId: post.groupId ?? null,
-        amount: liveData?.ticketPrice ?? 0,
-        currency: liveData?.currency ?? "MXN",
-      });
-      registrarCompraGeo({
-        creatorId: post.authorId,
-        serviceType: "live_ticket",
-        grossAmount: liveData?.ticketPrice ?? undefined,
-      });
-      setHasAccess(true);
-      // Si el live aún no ha iniciado, cerrar el modal — la tarjeta lo abrirá automáticamente cuando inicie
-      if (localLiveData?.status !== "live") {
-        onClose();
-      }
-    } catch {
-      setAccessError("No se pudo procesar el pago. Intenta de nuevo.");
-    } finally {
-      setPayingAccess(false);
-    }
-  }
+  // `requiresPayment` es la MISMA señal que exige el backend para emitir el intent
+  // (y la que usa la tarjeta del feed). Sin ella el paywall podía quedar en punto
+  // muerto: p. ej. un live de pago cuyo VOD el creador liberó gratis al terminar.
+  const isPaidLive = (liveData?.accessType ?? "free") === "paid" && post.requiresPayment === true;
 
   if (isPaidLive && accessChecked && !hasAccess) {
-    const ticketPrice = liveData?.ticketPrice ?? 0;
+    const ticketPrice = Number(post.oneTimePrice ?? liveData?.ticketPrice ?? 0);
     const currency = liveData?.currency ?? "MXN";
-    const isLoggedIn = !!user?.uid;
 
     return createPortal(
       <div style={{
@@ -1012,57 +1091,64 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
           <TaxNote color="rgba(255,255,255,0.4)" align="center" />
         </div>
 
-        {/* CTA */}
-        {!isLoggedIn ? (
-          <div style={{
-            textAlign: "center", padding: "14px 20px", borderRadius: 12,
-            background: "rgba(255,255,255,0.05)",
-            border: "1px solid rgba(255,255,255,0.1)",
-            maxWidth: 280,
-          }}>
-            <span style={{ fontSize: 14, color: "rgba(255,255,255,0.6)", lineHeight: 1.5 }}>
-              Inicia sesión o crea una cuenta para comprar el acceso al live
-            </span>
-          </div>
-        ) : (
-          <>
-            <button
-              type="button"
-              onClick={handlePayAccess}
-              disabled={payingAccess}
-              style={{
-                padding: "13px 36px", borderRadius: 12, border: "none",
-                background: payingAccess
-                  ? "rgba(168,85,255,0.4)"
-                  : "linear-gradient(135deg, #a855f7, #7c3aed)",
-                color: "#fff", fontSize: 15, fontWeight: 700,
-                fontFamily: FONT, cursor: payingAccess ? "not-allowed" : "pointer",
-                letterSpacing: "-0.01em",
-                boxShadow: payingAccess ? "none" : "0 4px 20px rgba(168,85,255,0.35)",
-                transition: "all 0.15s",
-                minWidth: 200,
-              }}
-            >
-              {payingAccess ? "Procesando..." : `Pagar ${formatMoney(ticketPrice, { baseCurrency: currency, code: true })}`}
-            </button>
+        {/* CTA — cobro REAL por Stripe (el ticket lo concede el backend al aprobar).
+            El invitado sin login también compra: firma anónima antes de cobrar. */}
+        <button
+          type="button"
+          onClick={() => setLivePayOpen(true)}
+          style={{
+            padding: "13px 36px", borderRadius: 12, border: "none",
+            background: "linear-gradient(135deg, #a855f7, #7c3aed)",
+            color: "#fff", fontSize: 15, fontWeight: 700,
+            fontFamily: FONT, cursor: "pointer",
+            letterSpacing: "-0.01em",
+            boxShadow: "0 4px 20px rgba(168,85,255,0.35)",
+            transition: "all 0.15s",
+            minWidth: 200,
+          }}
+        >
+          {`Pagar ${formatMoney(ticketPrice, { baseCurrency: currency, code: true })}`}
+        </button>
 
-            {accessError && (
-              <span style={{
-                fontSize: 12, color: "#f87171",
-                marginTop: 12, textAlign: "center",
-              }}>
-                {accessError}
-              </span>
-            )}
+        <span style={{
+          fontSize: 11, color: "rgba(255,255,255,0.2)",
+          marginTop: 16, textAlign: "center", maxWidth: 260, lineHeight: 1.5,
+        }}>
+          Acceso de un solo pago. Sin suscripción.
+        </span>
 
-            <span style={{
-              fontSize: 11, color: "rgba(255,255,255,0.2)",
-              marginTop: 16, textAlign: "center", maxWidth: 260, lineHeight: 1.5,
-            }}>
-              Acceso de un solo pago. Sin suscripción.
-            </span>
-          </>
-        )}
+        <StripePaymentModal
+          open={livePayOpen}
+          amount={ticketPrice > 0 ? ticketPrice + FIXED_SERVICE_FEE_MXN : null}
+          amountCurrency="MXN"
+          createIntent={async (args) => {
+            // Invitado (sin login): firma anónima antes de cobrar → el ticket
+            // (liveAccess) se liga a ese uid y se verifica server-side; una cuenta
+            // real (otro uid) no lo hereda.
+            await resolveStatsUid();
+            return createLiveAccessStripeIntent({
+              postId: post.id,
+              saveCard: args.saveCard,
+              taxCountry: args.taxCountry,
+              savedPaymentMethodId: args.savedPaymentMethodId,
+            });
+          }}
+          productType={tPosts("liveTicketProductType")}
+          providerName={post.authorName ?? post.authorUsername ?? undefined}
+          avatarUrl={post.authorAvatarUrl ?? null}
+          description={tPosts("liveTicketPayDescription")}
+          successMessage={tPosts("liveTicketPaySuccess")}
+          onPaid={() => {
+            // El acceso lo concede el backend al aprobar el pago; la suscripción a
+            // `liveAccess` lo refleja sola en cuanto el webhook lo materializa.
+            registrarCompraGeo({
+              creatorId: post.authorId,
+              serviceType: "live_ticket",
+              grossAmount: ticketPrice || undefined,
+            });
+          }}
+          onClose={() => setLivePayOpen(false)}
+        />
       </div>,
       document.body
     );
@@ -1839,13 +1925,17 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
             if (!v || !hasEndedVod) return;
             if (isFinite(v.currentTime)) setVodCurrentTime(v.currentTime);
             if (
-              !vodViewRecordedRef.current &&
-              user?.uid && post.id &&
+              !vodViewRecordedRef.current && post.id &&
               isFinite(v.duration) && v.duration > 0 &&
               v.currentTime / v.duration >= 0.2
             ) {
               vodViewRecordedRef.current = true;
-              recordVodView(post.id, user.uid).catch(() => {});
+              // El invitado también cuenta como vista del VOD: aquí sí se resuelve
+              // (o crea) su identidad, porque ya está viendo el contenido.
+              const postId = post.id;
+              void resolveStatsUid().then((uid) => {
+                if (uid) recordVodView(postId, uid).catch(() => {});
+              });
             }
           }}
           onDurationChange={() => {
@@ -2129,7 +2219,8 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
       open={liveDonateOpen}
       presentation="sheet"
       container={container}
-      hideBuyerGreeting
+      hideBuyerGreeting={!!user}
+      collectNickname={!user}
       paymentHeading={tLive("donationPaymentHeading")}
       payButtonLabel={tLive("makeDonation")}
       autoCloseMs={4000}
@@ -2138,14 +2229,17 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
       amountEditable
       donationPresets={[50, 130, 250, 510]}
       donationCustomInclusive
-      createIntent={(args) => {
+      createIntent={async (args) => {
         liveDonatePaidAmountRef.current = args.amount ?? null;
+        // Invitado (sin login): firma anónima antes de cobrar → buyerId server-authoritative.
+        if (!user) await ensureGuestAuth();
         return createLiveDonationStripeIntent({
           postId: post.id,
           amount: args.amount,
           saveCard: args.saveCard,
           taxCountry: args.taxCountry,
           savedPaymentMethodId: args.savedPaymentMethodId,
+          nickname: args.nickname ?? null,
         });
       }}
       productType={tCommon("payDonationProductType")}
@@ -2436,7 +2530,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
           >
             {renderCreatorInfo()}
             <div style={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
-              <LiveChatViewer liveId={post.id} authorId={post.authorId} chatEnabled={chatEnabled} liveEnded={isEnded} isMuted={isMuted} mode="panel" broadcastMode={liveData?.broadcastMode} superCommentConfig={liveData?.superCommentConfig} superCommentContainer={desktopChatCardRef.current} creatorName={post.authorName ?? post.authorUsername ?? undefined} creatorAvatarUrl={post.authorAvatarUrl ?? null} onDonate={!isEnded && (!user || post.authorId !== user.uid) ? () => { if (user) setLiveDonateOpen(true); else setDonationOpen(true); } : undefined} />
+              <LiveChatViewer liveId={post.id} authorId={post.authorId} chatEnabled={chatEnabled} liveEnded={isEnded} isMuted={isMuted} mode="panel" broadcastMode={liveData?.broadcastMode} superCommentConfig={liveData?.superCommentConfig} superCommentContainer={desktopChatCardRef.current} creatorName={post.authorName ?? post.authorUsername ?? undefined} creatorAvatarUrl={post.authorAvatarUrl ?? null} onDonate={!isEnded && (!user || post.authorId !== user.uid) ? () => setLiveDonateOpen(true) : undefined} />
             </div>
           </div>
         </div>
@@ -2503,7 +2597,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
           >
             {renderCreatorInfo()}
             <div style={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
-              <LiveChatViewer liveId={post.id} authorId={post.authorId} chatEnabled={chatEnabled} liveEnded={isEnded} isMuted={isMuted} mode="panel" broadcastMode={liveData?.broadcastMode} superCommentConfig={liveData?.superCommentConfig} superCommentContainer={desktopChatCardRef.current} creatorName={post.authorName ?? post.authorUsername ?? undefined} creatorAvatarUrl={post.authorAvatarUrl ?? null} onDonate={!isEnded && (!user || post.authorId !== user.uid) ? () => { if (user) setLiveDonateOpen(true); else setDonationOpen(true); } : undefined} />
+              <LiveChatViewer liveId={post.id} authorId={post.authorId} chatEnabled={chatEnabled} liveEnded={isEnded} isMuted={isMuted} mode="panel" broadcastMode={liveData?.broadcastMode} superCommentConfig={liveData?.superCommentConfig} superCommentContainer={desktopChatCardRef.current} creatorName={post.authorName ?? post.authorUsername ?? undefined} creatorAvatarUrl={post.authorAvatarUrl ?? null} onDonate={!isEnded && (!user || post.authorId !== user.uid) ? () => setLiveDonateOpen(true) : undefined} />
             </div>
           </div>
         </div>
@@ -2646,7 +2740,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
                   liveId={post.id} authorId={post.authorId} chatEnabled={chatEnabled} liveEnded={isEnded} isMuted={isMuted}
                   mode="overlay" broadcastMode={liveData?.broadcastMode} superCommentConfig={liveData?.superCommentConfig} superCommentContainer={portraitDonateRef.current}
                   creatorName={post.authorName ?? post.authorUsername ?? undefined} creatorAvatarUrl={post.authorAvatarUrl ?? null}
-                  onDonate={!isEnded && (!user || post.authorId !== user.uid) ? () => { if (user) setLiveDonateOpen(true); else setDonationOpen(true); } : undefined}
+                  onDonate={!isEnded && (!user || post.authorId !== user.uid) ? () => setLiveDonateOpen(true) : undefined}
                   onFollow={showFollowBtn ? follow : undefined}
                   onLike={handleToggleLike} liked={liked} likesCount={likesCount}
                 />
@@ -2712,7 +2806,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
         }}>
           {renderCreatorInfo()}
           <div style={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
-            <LiveChatViewer liveId={post.id} authorId={post.authorId} chatEnabled={chatEnabled} liveEnded={isEnded} isMuted={isMuted} mode="panel" broadcastMode={liveData?.broadcastMode} superCommentConfig={liveData?.superCommentConfig} superCommentContainer={belowVideoRef.current} creatorName={post.authorName ?? post.authorUsername ?? undefined} creatorAvatarUrl={post.authorAvatarUrl ?? null} onDonate={!isEnded && (!user || post.authorId !== user.uid) ? () => { if (user) setLiveDonateOpen(true); else setDonationOpen(true); } : undefined} />
+            <LiveChatViewer liveId={post.id} authorId={post.authorId} chatEnabled={chatEnabled} liveEnded={isEnded} isMuted={isMuted} mode="panel" broadcastMode={liveData?.broadcastMode} superCommentConfig={liveData?.superCommentConfig} superCommentContainer={belowVideoRef.current} creatorName={post.authorName ?? post.authorUsername ?? undefined} creatorAvatarUrl={post.authorAvatarUrl ?? null} onDonate={!isEnded && (!user || post.authorId !== user.uid) ? () => setLiveDonateOpen(true) : undefined} />
           </div>
         </div>
       </div>

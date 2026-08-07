@@ -76,8 +76,11 @@ export default function ProfilePostsFeed({
   const tProfile = useTranslations("profile");
   const tFeed = useTranslations("feed");
   const tPosts = useTranslations("posts");
+  // El servicio de donación solo es visible para VISITANTES si el perfil NO está
+  // restringido (regla de producto). El dueño siempre ve su propio banner.
   const showDonationBanner =
-    donation?.mode === "general" && donation?.enabled === true && donation?.visible !== false;
+    donation?.mode === "general" && donation?.enabled === true && donation?.visible !== false &&
+    (isOwner || !profileRestricted);
 
   // Synchronous cache snapshot — used for lazy state initializers to avoid
   // skeleton flash on re-navigation. Must be computed before any useState.

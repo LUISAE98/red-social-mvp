@@ -35,6 +35,10 @@ export const createLiveDonationStripeIntent = onCall(
   async (request) => {
     const uid = request.auth?.uid;
     if (!uid) throw new HttpsError("unauthenticated", "Debes iniciar sesión.");
+    // Invitado (sesión anónima): NUNCA off-session; con tarjeta guardada re-pide CVV.
+    const isGuest =
+      (request.auth?.token as { firebase?: { sign_in_provider?: string } } | undefined)?.firebase
+        ?.sign_in_provider === "anonymous";
 
     const data = (request.data ?? {}) as Record<string, unknown>;
     const postId = String(data.postId ?? "").trim(); // el live es un post
@@ -94,6 +98,10 @@ export const createLiveDonationStripeIntent = onCall(
       username = String(u.displayName ?? u.handle ?? u.username ?? "Anónimo");
       avatarUrl = u.photoURL ? String(u.photoURL) : null;
     }
+    // Apodo del cliente (invitado sin perfil, o quien quiera firmar distinto): manda en el
+    // chat sobre el perfil. Opcional; se recorta a 24.
+    const nickname = typeof data.nickname === "string" && data.nickname.trim() ? data.nickname.trim().slice(0, 24) : null;
+    if (nickname) username = nickname;
 
     const taxCountry = data.taxCountry ? String(data.taxCountry).trim().toUpperCase() : null;
     const saveCard = data.saveCard === true;
@@ -156,8 +164,8 @@ export const createLiveDonationStripeIntent = onCall(
 
     const customerId = await getOrCreateStripeCustomer(uid, request.auth?.token?.email ?? null);
 
-    // ── Cobro "un clic" con tarjeta guardada (off-session, sin CVV) ──────────
-    if (savedPaymentMethodId) {
+    // ── Cobro "un clic" off-session (sin CVV) — SOLO cuentas reales; invitado re-pide CVV ──
+    if (savedPaymentMethodId && !isGuest) {
       const charged = await chargeSavedCardOffSession({
         uid,
         savedCardDocId: savedPaymentMethodId,
