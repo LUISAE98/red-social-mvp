@@ -192,8 +192,6 @@ export default function BuyerSessionRequestOverlay({
   const [closing, setClosing] = useState(false);
   const [panelOffsetY, setPanelOffsetY] = useState(0);
   const [isPanelDragging, setIsPanelDragging] = useState(false);
-  const [refundOpen, setRefundOpen] = useState(false);
-  const [refundReason, setRefundReason] = useState("");
   const [rescheduleOpen, setRescheduleOpen] = useState(false);
   const [rescheduleReason, setRescheduleReason] = useState("");
   // TTS — unified chat
@@ -511,44 +509,7 @@ export default function BuyerSessionRequestOverlay({
     </div>
   ) : null;
 
-  const footerContent = refundOpen ? (
-    <div style={{ display: "grid", gap: 8 }}>
-      <textarea
-        value={refundReason}
-        onChange={(e) => setRefundReason(e.target.value)}
-        placeholder={tServices("refundReasonPlaceholder")}
-        style={{
-          background: "rgba(255,255,255,0.06)", border: "none", borderRadius: 12,
-          color: "#fff", fontSize: 13, padding: "10px 12px", resize: "none",
-          height: 80, fontFamily: "inherit", lineHeight: 1.5, outline: "none",
-          width: "100%", boxSizing: "border-box",
-        }}
-      />
-      <div style={{ display: "flex", gap: 8 }}>
-        <button type="button"
-          onClick={() => { onRefund(refundReason); setRefundOpen(false); }}
-          disabled={busy}
-          style={{
-            flex: 1, height: 42, borderRadius: 5, border: "none",
-            background: busy ? "rgba(255,255,255,0.1)" : "rgba(220,38,38,0.80)",
-            color: busy ? "rgba(255,255,255,0.36)" : "rgba(255,255,255,0.98)",
-            fontSize: 15, fontWeight: 500, cursor: busy ? "not-allowed" : "pointer",
-            fontFamily: "inherit", letterSpacing: "-0.02em", display: "grid", placeItems: "center",
-          }}
-        >
-          {busy ? tCommon("processing") : tServices("confirmRefund")}
-        </button>
-        <button type="button" onClick={() => setRefundOpen(false)} style={{
-          flex: 1, height: 42, borderRadius: 5, border: "none",
-          background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.70)",
-          fontSize: 15, fontWeight: 500, cursor: "pointer",
-          fontFamily: "inherit", letterSpacing: "-0.02em", display: "grid", placeItems: "center",
-        }}>
-          {tCommon("cancel")}
-        </button>
-      </div>
-    </div>
-  ) : rescheduleOpen ? (
+  const footerContent = rescheduleOpen ? (
     <div style={{ display: "grid", gap: 8 }}>
       <textarea
         value={rescheduleReason}
@@ -596,7 +557,7 @@ export default function BuyerSessionRequestOverlay({
       }}>
         {tCommon("retry")}
       </button>
-      <button type="button" onClick={() => setRefundOpen(true)} disabled={busy} style={{
+      <button type="button" onClick={() => onRefund("")} disabled={busy} style={{
         flex: 1, height: 42, borderRadius: 5, border: "none",
         background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.70)",
         fontSize: 15, fontWeight: 500, cursor: busy ? "not-allowed" : "pointer",

@@ -240,8 +240,9 @@ export async function resolveTaxCountry(params: {
 
 /**
  * País fiscal listo para cobrar, o el default si el resuelto no es cobrable.
- * Un país sin ficha (o con `collectionMode: "none"`) no puede cobrarse: el llamador decide
- * si rechaza la operación o la trata como doméstica.
+ * No se puede cobrar en un país sin ficha, o donde el fisco EXIGE un alta que Vibra no tiene
+ * (`registrationStatus: "cannot_sell"`). El llamador decide si rechaza la operación o la
+ * trata como doméstica.
  */
 export function chargeableOrNull(resolved: ResolvedTaxCountry): string | null {
   return isChargeableCountry(resolved.country) ? resolved.country : null;

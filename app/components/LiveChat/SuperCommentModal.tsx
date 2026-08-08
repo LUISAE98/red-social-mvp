@@ -9,6 +9,7 @@ import { getSavedGuestNickname, saveGuestNickname } from "@/lib/guest-id";
 import { auth, db } from "@/lib/firebase";
 import { collection, onSnapshot } from "firebase/firestore";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
+import { useBuyerCredit } from "@/lib/wallet/useBuyerCredit";
 import { createSuperCommentStripeIntent } from "@/lib/stripe/stripePayments";
 import { ensureGuestAuth } from "@/lib/guest/ensureGuestAuth";
 import { FIXED_SERVICE_FEE_MXN } from "@/lib/currency/catalog";
@@ -81,6 +82,15 @@ export default function SuperCommentModal({
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
   // Invitado también puede tener tarjeta guardada (bajo su uid anónimo, de una compra previa).
   const hasSavedCard = savedCards.length > 0 && !!selectedCardId;
+  // Saldo a favor (crédito) — solo cuentas reales. Se puede usar INLINE, sin ir a la pasarela.
+  const creditState = useBuyerCredit(isGuest ? null : (userId ?? null));
+  const creditBalance = isGuest ? 0 : creditState.balance;
+  const [useCredit, setUseCredit] = useState(false);
+  const tierTotalMxn = selectedTier
+    ? Math.round(((selectedTier.price + FIXED_SERVICE_FEE_MXN) * (1 + pf.taxRate) + Number.EPSILON) * 100) / 100
+    : 0;
+  const creditApplied = useCredit && creditBalance > 0 ? Math.min(creditBalance, tierTotalMxn) : 0;
+  const creditCoversAll = useCredit && creditBalance > 0 && selectedTier != null && creditBalance >= tierTotalMxn;
   // Error del pago directo (un clic, sin pasarela). Se muestra en rojo sobre Enviar.
   const [directError, setDirectError] = useState<string | null>(null);
   // Animación de entrada/salida por transform (no keyframes: más fiable en el 1er montaje).
@@ -178,7 +188,9 @@ export default function SuperCommentModal({
   // webhook materializa el súper comentario. Si no queda "succeeded" (p. ej. requiere
   // autenticación), cae a la pasarela para completar con tarjeta nueva.
   async function handleDirectSend() {
-    if (!selectedTier || !text.trim() || !selectedCardId) return;
+    if (!selectedTier || !text.trim()) return;
+    // Debe haber forma de pago: tarjeta guardada, o saldo a favor que cubra el total.
+    if (!selectedCardId && !creditCoversAll) return;
     setDirectError(null);
     setSubmitting(true);
     try {
@@ -188,7 +200,10 @@ export default function SuperCommentModal({
         text: text.trim(),
         saveCard: false,
         taxCountry: pf.buyerCountry ?? null,
-        savedPaymentMethodId: selectedCardId,
+        // Si el saldo cubre todo, no se manda tarjeta. Si no, el saldo (si se activó) se
+        // mezcla con la tarjeta guardada.
+        savedPaymentMethodId: creditCoversAll ? undefined : (selectedCardId ?? undefined),
+        applyCredit: useCredit,
       });
       if (res.status === "succeeded") {
         markSentAndClose();
@@ -404,6 +419,37 @@ export default function SuperCommentModal({
                 <>
                   {/* Selección de tier */}
                   <div style={{ marginBottom: 18 }}>
+                    {/* Saldo a favor INLINE: sin ir a la pasarela. Mezclable con tarjeta. */}
+                    {!isGuest && creditBalance > 0 && (
+                      <div style={{ margin: "0 0 10px" }}>
+                        <button
+                          type="button"
+                          onClick={() => { setUseCredit((v) => !v); setDirectError(null); }}
+                          style={{
+                            display: "flex", alignItems: "center", gap: 10, width: "100%", textAlign: "left",
+                            padding: "12px 14px", borderRadius: 12, background: "#000", cursor: "pointer", fontFamily: FONT,
+                            border: `1px solid ${useCredit ? "rgba(59,130,246,0.9)" : "rgba(255,255,255,0.09)"}`,
+                            WebkitTapHighlightColor: "transparent",
+                          }}
+                        >
+                          <span style={{ width: 18, height: 18, borderRadius: 5, flexShrink: 0, display: "grid", placeItems: "center", border: `2px solid ${useCredit ? "#3b82f6" : "rgba(255,255,255,0.3)"}`, background: useCredit ? "#3b82f6" : "transparent" }}>
+                            {useCredit && <svg width={11} height={11} viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth={3.5} strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>}
+                          </span>
+                          <span style={{ flex: 1, minWidth: 0 }}>
+                            <span style={{ display: "block", fontSize: 14, fontWeight: 600, color: "#fff" }}>Saldo a favor</span>
+                            <span style={{ display: "block", fontSize: 12, color: "rgba(255,255,255,0.5)" }}>{pf.format(creditBalance, { baseCurrency: "MXN" })} {pf.currency} disponible</span>
+                          </span>
+                          {useCredit && creditApplied > 0 && (
+                            <span style={{ fontSize: 13, fontWeight: 700, color: "#3b82f6", whiteSpace: "nowrap" }}>−{pf.format(creditApplied, { baseCurrency: "MXN" })}</span>
+                          )}
+                        </button>
+                        {useCredit && (
+                          <p style={{ margin: "6px 2px 0", fontSize: 11.5, color: creditCoversAll ? "#4ade80" : "rgba(255,255,255,0.5)", fontFamily: FONT }}>
+                            {creditCoversAll ? "Tu saldo cubre el total." : "Elige una tarjeta para el restante."}
+                          </p>
+                        )}
+                      </div>
+                    )}
                     {hasSavedCard ? (
                       /* Tarjeta(s) guardada(s): selector "un clic" (fondo negro,
                          texto blanco, puntito selector azul). Enviar = pago directo. */
@@ -557,7 +603,9 @@ export default function SuperCommentModal({
                       // Logueado + tarjeta guardada → un clic off-session (sin CVV).
                       // Invitado (o primera compra) → pasarela: el invitado re-pide CVV
                       // sobre su tarjeta guardada; sin tarjeta, teclea una nueva.
-                      if (!isGuest && hasSavedCard) handleDirectSend();
+                      // Un clic (sin pasarela): con tarjeta guardada, o si el saldo a favor
+                      // cubre el total. Si el saldo no alcanza y no hay guardada → pasarela.
+                      if (!isGuest && (hasSavedCard || creditCoversAll)) handleDirectSend();
                       else setPayStep(true);
                     }}
                     disabled={submitting || !text.trim() || !selectedTier}

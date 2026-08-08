@@ -2669,10 +2669,15 @@ function canModeratePostCommentData(data) {
       // restringido, comunidad pública/privada compartible) lo expone. Cubre los 3 estados
       // (programado/en vivo/VOD). Los posts no-live y los lives "everyone" no se restringen.
       // La membresía de `members_only` y el stream se gatean además en el proxy y el visor.
+      // ⚠️ El default del `.get()` es FALSE a propósito (antes era `true`, y era la fuga):
+      // un post que SÍ es live pero al que no se le escribió `allowLoggedOutViewers`
+      // —creado antes de que el campo existiera, o por una ruta que lo omitió— quedaba
+      // ABIERTO a invitados. Con `false` el caso dudoso falla CERRADO: se restringe.
+      // Un live "everyone" siempre trae el campo en true, así que no se ve afectado.
       function guestAllowedForLive() {
         return !("liveData" in resource.data)
           || !(resource.data.liveData is map)
-          || resource.data.liveData.get('allowLoggedOutViewers', true) == true
+          || resource.data.liveData.get('allowLoggedOutViewers', false) == true
           || notAnonymous();
       }
 

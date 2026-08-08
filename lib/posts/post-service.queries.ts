@@ -1063,3 +1063,105 @@ function sortPostsWithPinnedPriority(posts: Post[]): Post[] {
   });
 }
 
+
+/**
+ * Feed de una comunidad PÚBLICA vista DESDE FUERA (no-miembro, con o sin sesión).
+ *
+ * ⚠️ POR QUÉ HACEN FALTA DOS CONSULTAS
+ * Un no-miembro de una comunidad pública puede ver dos conjuntos distintos, y cada uno lo
+ * autoriza una regla distinta que mira campos distintos:
+ *
+ *   · Posts GRATIS y compartibles  → `canReadGroupContent` (la comunidad es pública)
+ *   · Posts PREMIUM de alcance público → `canListPublicPremiumGroupPost`, que exige
+ *     `groupVisibility != "hidden"` + `isShareable` + `premium.enabled` + `premium.accessMode`
+ *
+ * En una consulta las reglas solo ven los campos que la query fija con `==`. La query
+ * genérica solo fija `groupId + isDeleted + isShareable`, así que **jamás puede satisfacer
+ * la regla premium** — y los posts premium desaparecían del feed público. Ese era el bug:
+ * una comunidad de suscripción PÚBLICA publicaba un premium "que lo vean todos" y no salía.
+ *
+ * La solución no es relajar la regla sino lanzar las dos consultas y fusionarlas por fecha.
+ */
+export async function fetchGroupOutsiderPostsPage(params: {
+  groupId: string;
+  viewerUid?: string | null;
+  pageSize?: number;
+  cursor?: GroupPostsPageCursor | null;
+}): Promise<GroupPostsPageResult> {
+  assertValidId(params.groupId, "groupId");
+
+  const safePageSize = Math.max(1, Math.min(params.pageSize ?? 10, 20));
+
+  const baseQuery = (extra: QueryConstraint[], lastDoc: QueryDocumentSnapshot<DocumentData> | null) =>
+    query(
+      collection(db, "posts"),
+      where("groupId", "==", params.groupId),
+      where("isDeleted", "==", false),
+      where("isShareable", "==", true),
+      ...extra,
+      orderBy("createdAt", "desc"),
+      ...(lastDoc ? [startAfter(lastDoc)] : []),
+      limit(safePageSize + 1)
+    );
+
+  // Las dos consultas avanzan con SU propio cursor: una puede tener más páginas que la otra.
+  const [freeSnap, premiumSnap] = await Promise.all([
+    getDocs(baseQuery([], params.cursor?.lastDoc ?? null)),
+    getDocs(
+      baseQuery(
+        [
+          where("groupVisibility", "==", "public"),
+          where("premium.enabled", "==", true),
+          where("premium.accessMode", "==", "public"),
+        ],
+        params.cursor?.lastPremiumDoc ?? null
+      )
+    ),
+  ]);
+
+  const freeHasMore = freeSnap.docs.length > safePageSize;
+  const premiumHasMore = premiumSnap.docs.length > safePageSize;
+
+  const freeDocs = freeSnap.docs.slice(0, safePageSize);
+  const premiumDocs = premiumSnap.docs.slice(0, safePageSize);
+
+  // Un post premium compartible puede caer en LAS DOS consultas; se deduplica por id.
+  const byId = new Map<string, (typeof freeDocs)[number]>();
+  for (const d of [...freeDocs, ...premiumDocs]) byId.set(d.id, d);
+
+  const merged = Array.from(byId.values()).sort((a, b) => {
+    const at = (a.data() as { createdAt?: { toMillis?: () => number } }).createdAt?.toMillis?.() ?? 0;
+    const bt = (b.data() as { createdAt?: { toMillis?: () => number } }).createdAt?.toMillis?.() ?? 0;
+    return bt - at;
+  });
+
+  const rawPosts: Post[] = merged.map((d) => ({
+    id: d.id,
+    ...(d.data() as Omit<Post, "id">),
+  }));
+
+  const [userMap, groupMap] = await Promise.all([
+    fetchUsersByIds(rawPosts.map((post) => post.authorId)),
+    fetchGroupsByIds(getPostGroupIds(rawPosts)),
+  ]);
+
+  const hydratedPosts = rawPosts.map((post) => {
+    const hydrated = hydratePost(post, userMap, groupMap);
+    return { ...hydrated, isLocked: isPostLocked(hydrated) };
+  });
+
+  const postsWithViewerState = await attachViewerPostState(hydratedPosts, params.viewerUid);
+
+  return {
+    posts: postsWithViewerState,
+    cursor:
+      freeHasMore || premiumHasMore
+        ? {
+            lastDoc: freeDocs[freeDocs.length - 1] ?? params.cursor?.lastDoc ?? null,
+            lastPremiumDoc:
+              premiumDocs[premiumDocs.length - 1] ?? params.cursor?.lastPremiumDoc ?? null,
+          }
+        : null,
+    hasMore: freeHasMore || premiumHasMore,
+  };
+}

@@ -6,6 +6,7 @@ import { usersHaveBlockBetweenTx } from "./social/blocks";
 import { stripeSecretKey } from "./payments/stripe/stripeClient";
 import { capturePaymentIntentForRef, cancelPaymentIntentForRef } from "./payments/stripe/holdCapture";
 import { revertBuyerCreditSpend } from "./wallet/buyerCredit";
+import { refundExperienceToCredit } from "./wallet/refundToCredit";
 
 if (admin.apps.length === 0) {
   admin.initializeApp();
@@ -657,10 +658,12 @@ export const requestGreetingRefund = onCall(
 
     const reqRef = db.doc(`greetingRequests/${requestId}`);
 
+    let creatorId = "";
+    let wasPaid = false;
     await db.runTransaction(async (tx) => {
       const snap = await tx.get(reqRef);
       if (!snap.exists) throw new HttpsError("not-found", "Greeting request not found.");
-      const gr = snap.data() as { buyerId?: string; status?: string };
+      const gr = snap.data() as { buyerId?: string; creatorId?: string; status?: string; paymentStatus?: string };
 
       if (gr.buyerId !== uid) {
         throw new HttpsError("permission-denied", "No eres el comprador de esta solicitud.");
@@ -668,6 +671,8 @@ export const requestGreetingRefund = onCall(
       if (gr.status !== "rejected") {
         throw new HttpsError("failed-precondition", "La solicitud no es elegible para devolución.");
       }
+      creatorId = String(gr.creatorId ?? "");
+      wasPaid = gr.paymentStatus === "paid";
 
       tx.update(reqRef, {
         status: "refund_requested" as GreetingStatus,
@@ -677,8 +682,19 @@ export const requestGreetingRefund = onCall(
       });
     });
 
-    logger.info("requestGreetingRefund", { requestId, buyerId: uid });
-    return { ok: true };
+    // Devolución → SALDO A FAVOR (síncrono; el trigger es respaldo). Solo si hubo cargo.
+    let credited = 0;
+    if (wasPaid && creatorId) {
+      credited = await refundExperienceToCredit({
+        buyerId: uid,
+        creatorId,
+        sourceType: "greetingRequest",
+        sourceId: requestId,
+      });
+    }
+
+    logger.info("requestGreetingRefund", { requestId, buyerId: uid, credited });
+    return { ok: true, credited };
   }
 );
 

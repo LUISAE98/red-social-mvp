@@ -357,7 +357,12 @@ export default function LiveComposerModal({
           scheduledStartAt: scheduledDate ? Timestamp.fromDate(scheduledDate) : null,
           scheduleHasTime: scheduledDate ? scheduleHasTime : null,
           visibilityMode: effectiveMode,
-          allowLoggedOutViewers: effectiveMode === "everyone",
+          // ⚠️ El `&& !isHiddenGroup` NO es opcional: es el mismo guard que aplican las
+          // otras dos rutas que escriben este campo (post-service.create.ts:480 y
+          // post-service.ts:671). Sin él, EDITAR un live de comunidad oculta lo dejaba
+          // abierto a invitados aunque al crearlo hubiera quedado bien.
+          // Una comunidad oculta NUNCA expone contenido, sea cual sea el alcance elegido.
+          allowLoggedOutViewers: effectiveMode === "everyone" && !isHiddenGroup,
           accessType,
           ticketPrice: finalTicketPrice,
           currency: finalCurrency,

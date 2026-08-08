@@ -15,7 +15,7 @@ import { getOrCreateStripeCustomer } from "./stripeCustomer";
 import { chargeSavedCardOffSession } from "./offSessionCharge";
 import { isChargeableCountry } from "../../tax/config";
 import { resolveTaxCountry } from "../../tax/resolveCountry";
-import { cardOriginFromPaymentMethod } from "./cardCountry";
+import { cardOriginForCharge } from "./cardCountry";
 import { composeCharge, chargeFields } from "../../tax/composeCharge";
 import { reserveCreditAndSplit, materializeCreditOnlyPurchase } from "./chargeWithCredit";
 import { revertBuyerCreditSpend } from "../../wallet/buyerCredit";
@@ -158,11 +158,15 @@ export const createSuperCommentStripeIntent = onCall(
     //   · el país EMISOR de la tarjeta, leído de Stripe con el `pm_...` que manda el
     //     frontend. El cliente envía un identificador, no un país: no puede mentir.
     // Gana la tarjeta, salvo que algún indicio apunte a México (Art. 18-C). Ver impuestos.md §3.
-    const origin = await cardOriginFromPaymentMethod(
-      typeof (request.data as Record<string, unknown>)?.paymentMethodId === "string"
-        ? String((request.data as Record<string, unknown>).paymentMethodId)
-        : null
-    );
+    const origin = await cardOriginForCharge({
+      uid,
+      paymentMethodId:
+        typeof (request.data as Record<string, unknown>)?.paymentMethodId === "string"
+          ? String((request.data as Record<string, unknown>).paymentMethodId)
+          : null,
+      // Tarjeta guardada: se resuelve su `pm_...` para leer también su país emisor.
+      savedCardDocId: savedPaymentMethodId,
+    });
     const resolved = await resolveTaxCountry({
       rawRequest: request.rawRequest,
       cardCountry: origin.cardCountry,

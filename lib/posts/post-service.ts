@@ -169,6 +169,15 @@ export type UserProfilePostsPageResult = {
 
 export type GroupPostsPageCursor = {
   lastDoc: QueryDocumentSnapshot<DocumentData> | null;
+  /**
+   * Cursor de la SEGUNDA fuente cuando el feed fusiona dos consultas.
+   *
+   * Lo usa la vista DESDE FUERA de una comunidad pública: los posts gratis y los premium
+   * de alcance público vienen de queries distintas (las reglas exigen fijar campos
+   * distintos), y cada una avanza a su ritmo. Sin este segundo cursor, "cargar más"
+   * repetiría o se saltaría posts de una de las dos.
+   */
+  lastPremiumDoc?: QueryDocumentSnapshot<DocumentData> | null;
 };
 
 export type GroupPostsPageResult = {

@@ -22,10 +22,6 @@ import {
   type ChatImage,
 } from "@/lib/chat/types";
 import { uploadDirectMessageImage } from "@/lib/posts/image-upload";
-import {
-  VibraNavigationIcon,
-  VibraNavigationIconsStyles,
-} from "@/app/components/VibraServiceIcons/VibraNavigationIcons";
 import type { ProfileMini } from "./ConversationList";
 import { ChatReveal, MessageThreadSkeleton } from "./ChatSkeletons";
 
@@ -105,6 +101,39 @@ const ICON_PENCIL = (
   </>
 );
 
+/**
+ * Icono de adjuntar imagen del compositor.
+ *
+ * Misma forma que el `attachMedia` del compositor de publicaciones, redibujada
+ * aquí en BLANCO: aquel trae el verde escrito en el propio SVG y cambiarlo
+ * afectaría también al de publicaciones, donde el verde sí se queda.
+ *
+ * Va MÁS grande que la flecha de enviar (26 frente a 23) a propósito: su dibujo
+ * ocupa solo 16 de las 24 unidades del lienzo, mientras que la flecha lo llena
+ * casi entero. A igual `size` se vería claramente más pequeño.
+ */
+function AttachImageIcon({ size = 26 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden style={{ display: "block" }}>
+      <rect
+        x="3.5"
+        y="4"
+        width="14"
+        height="14"
+        rx="2.4"
+        fill="none"
+        stroke="#fff"
+        strokeWidth="2.2"
+      />
+      <circle cx="7.2" cy="8.2" r="1.6" fill="#fff" />
+      <path
+        d="M3.5 15.8 L8 11.2 L10.5 13.8 L14.2 10 L17.5 13.5 V18 H3.5 Z"
+        fill="#fff"
+      />
+    </svg>
+  );
+}
+
 const INPUT_MAX_HEIGHT = 120;
 function autoGrow(el: HTMLTextAreaElement) {
   el.style.height = "auto";
@@ -154,8 +183,16 @@ export default function ConversationThread({
   const [uploadingImage, setUploadingImage] = useState(false);
   /** Imagen abierta a tamaño completo. */
   const [lightbox, setLightbox] = useState<string | null>(null);
-  /** Mensaje con el detalle (hora + acciones) desplegado. Solo uno a la vez. */
-  const [expandedMessageId, setExpandedMessageId] = useState<string | null>(null);
+  /**
+   * Mensaje con el detalle (hora + acciones) desplegado, y HACIA DÓNDE se abre.
+   * Solo uno a la vez. Un mensaje pegado
+   * al compositor abre hacia arriba: abrir siempre hacia abajo lo dejaría
+   * escondido detrás del campo de escritura.
+   */
+  const [expandedMessage, setExpandedMessage] = useState<{
+    id: string;
+    direction: "up" | "down";
+  } | null>(null);
   /** Mensaje que se está editando; el compositor pasa a guardar en vez de enviar. */
   const [editing, setEditing] = useState<{ id: string; text: string } | null>(null);
 
@@ -179,33 +216,77 @@ export default function ConversationThread({
     return () => observer.disconnect();
   }, []);
 
-  function toggleExpanded(messageId: string) {
-    setExpandedMessageId((prev) => (prev === messageId ? null : messageId));
+  /** Alto aproximado del menú (hora + hasta 3 acciones). Solo decide el lado. */
+  const MENU_ESTIMATED_HEIGHT = 150;
+
+  function toggleExpanded(messageId: string, anchor: HTMLElement) {
+    setExpandedMessage((prev) => {
+      if (prev?.id === messageId) return null;
+
+      let direction: "up" | "down" = "down";
+      const container = scrollRef.current;
+
+      if (container) {
+        const containerRect = container.getBoundingClientRect();
+        const anchorRect = anchor.getBoundingClientRect();
+        // El compositor va SUPERPUESTO al hilo, así que el fondo realmente
+        // visible termina por encima de él, no en el borde del contenedor.
+        const visibleBottom = containerRect.bottom - composerHeight;
+        const spaceBelow = visibleBottom - anchorRect.bottom;
+        const spaceAbove = anchorRect.top - containerRect.top;
+
+        if (spaceBelow < MENU_ESTIMATED_HEIGHT && spaceAbove > spaceBelow) {
+          direction = "up";
+        }
+      }
+
+      return { id: messageId, direction };
+    });
   }
 
   /**
-   * Al desplegar, asegura que el menú quede a la vista: si el mensaje estaba
-   * al fondo, las opciones nacerían fuera del área visible. Se espera a que
-   * termine la animación para medir la altura real, no la de a medio abrir.
+   * Red de seguridad: si aun eligiendo lado el menú se sale, se ajusta el
+   * scroll. Se hace a mano y NO con `scrollIntoView`, porque este último cree
+   * que el fondo del contenedor está visible cuando en realidad lo tapa el
+   * compositor superpuesto — que era justo por lo que el menú quedaba oculto.
+   *
+   * Espera a que termine la animación para medir la altura real del menú y no
+   * la de a medio abrir.
    */
   useEffect(() => {
-    if (!expandedMessageId) return;
+    if (!expandedMessage) return;
 
     const timer = setTimeout(() => {
-      expandedPanelRef.current?.scrollIntoView({
-        behavior: "smooth",
-        block: "nearest",
-      });
+      const panel = expandedPanelRef.current;
+      const container = scrollRef.current;
+      if (!panel || !container) return;
+
+      const panelRect = panel.getBoundingClientRect();
+      const containerRect = container.getBoundingClientRect();
+      const visibleBottom = containerRect.bottom - composerHeight;
+      const MARGIN = 8;
+
+      if (panelRect.bottom > visibleBottom) {
+        container.scrollBy({
+          top: panelRect.bottom - visibleBottom + MARGIN,
+          behavior: "smooth",
+        });
+      } else if (panelRect.top < containerRect.top) {
+        container.scrollBy({
+          top: panelRect.top - containerRect.top - MARGIN,
+          behavior: "smooth",
+        });
+      }
     }, 260);
 
     return () => clearTimeout(timer);
-  }, [expandedMessageId]);
+  }, [expandedMessage, composerHeight]);
 
   async function runMessageAction(action: () => Promise<void>) {
     setError(null);
     try {
       await action();
-      setExpandedMessageId(null);
+      setExpandedMessage(null);
     } catch {
       setError(tChat("messageActionError"));
     }
@@ -420,15 +501,26 @@ export default function ConversationThread({
         ].join(" · ")
       : "";
 
-    const expanded = expandedMessageId === message.id;
+    const expanded = expandedMessage?.id === message.id;
+    const opensUp = expanded && expandedMessage?.direction === "up";
     // Editar y retirar caducan a los 10 minutos. Si el mensaje aún no tiene
     // `createdAt` del servidor (escritura optimista), se considera reciente.
     const withinWindow = !date || Date.now() - date.getTime() < MESSAGE_EDIT_WINDOW_MS;
 
     return (
-      <div key={message.id}>
+      // Columna con `order` explícito: cuando el menú abre hacia arriba se
+      // REORDENA visualmente, sin sacarlo de su sitio en el DOM. Si se moviera
+      // de verdad, React lo remontaría y perdería la animación de apertura.
+      <div key={message.id} style={{ display: "flex", flexDirection: "column" }}>
         {showDaySeparator && date ? (
-          <div style={{ display: "flex", justifyContent: "center", margin: "14px 0 10px" }}>
+          <div
+            style={{
+              order: 0,
+              display: "flex",
+              justifyContent: "center",
+              margin: "14px 0 10px",
+            }}
+          >
             <span
               style={{
                 fontSize: 10.5,
@@ -450,21 +542,23 @@ export default function ConversationThread({
 
         <div
           style={{
+            order: 2,
             display: "flex",
             justifyContent: mine ? "flex-end" : "flex-start",
             marginTop: 4,
           }}
         >
           {/* Todo el globo es el disparador del detalle. No es un <button> para
-              no anidarlo con el de la imagen; se le da rol y teclado a mano. */}
+              no anidarlo con el de la imagen; se le da rol y teclado a mano.
+              Su rectángulo es lo que se mide para decidir hacia dónde abrir. */}
           <div
             role="button"
             tabIndex={0}
-            onClick={() => toggleExpanded(message.id)}
+            onClick={(e) => toggleExpanded(message.id, e.currentTarget)}
             onKeyDown={(e) => {
               if (e.key === "Enter" || e.key === " ") {
                 e.preventDefault();
-                toggleExpanded(message.id);
+                toggleExpanded(message.id, e.currentTarget);
               }
             }}
             style={{
@@ -542,6 +636,7 @@ export default function ConversationThread({
         {message.editedAt && !message.isDeleted ? (
           <div
             style={{
+              order: 3,
               display: "flex",
               justifyContent: mine ? "flex-end" : "flex-start",
               marginTop: 2,
@@ -571,6 +666,8 @@ export default function ConversationThread({
           // que sacarlo del foco y del lector de pantalla a mano.
           aria-hidden={!expanded}
           style={{
+            // Arriba del globo si abre hacia arriba; si no, debajo de todo.
+            order: opensUp ? 1 : 4,
             display: "grid",
             gridTemplateRows: expanded ? "1fr" : "0fr",
             opacity: expanded ? 1 : 0,
@@ -648,7 +745,7 @@ export default function ConversationThread({
                           onClick={() => {
                             setEditing({ id: message.id, text: message.text });
                             setDraft(message.text);
-                            setExpandedMessageId(null);
+                            setExpandedMessage(null);
                             inputRef.current?.focus();
                           }}
                           tabIndex={expanded ? 0 : -1}
@@ -744,7 +841,6 @@ export default function ConversationThread({
     // izquierda, el clip verde de adjuntar del compositor de publicaciones.
     return (
       <div style={{ display: "grid", gap: 8 }}>
-        <VibraNavigationIconsStyles />
 
         {/* Barra de edición: deja claro que lo que escribes reemplaza a un
             mensaje ya enviado, en vez de mandar uno nuevo. */}
@@ -868,8 +964,13 @@ export default function ConversationThread({
             boxSizing: "border-box",
             minHeight: 40,
             maxHeight: INPUT_MAX_HEIGHT,
-            // El padding derecho deja el hueco de la flecha.
-            padding: "10px 42px 10px 12px",
+            // El padding derecho deja el hueco de los DOS iconos que van dentro
+            // del campo: el de foto y la flecha de enviar.
+            //
+            // Las medidas cuadran EXACTO con `minHeight`: 20 de línea + 10 y 10
+            // de relleno = 40. Con un interlineado en múltiplo (1.5 sobre 13px
+            // daba 19.5) sobraba medio píxel y el texto caía descentrado.
+            padding: "10px 72px 10px 12px",
             borderRadius: 12,
             border: "none",
             // Translúcido + desenfoque: los mensajes se ven pasar por detrás
@@ -880,16 +981,50 @@ export default function ConversationThread({
             color: "#fff",
             fontSize: 13,
             fontFamily: "inherit",
-            lineHeight: 1.5,
+            lineHeight: "20px",
             resize: "none",
             outline: "none",
             display: "block",
           }}
         />
 
-        {/* Anclada abajo, no centrada: al crecer el campo la flecha se queda
-            junto a la última línea, que es donde está el cursor. */}
-        <div style={{ position: "absolute", right: 6, bottom: 8 }}>
+        {/* Ambos iconos DENTRO del campo, anclados abajo y no centrados: al
+            crecer el campo se quedan junto a la última línea, que es donde está
+            el cursor. La foto va a la izquierda de la flecha. */}
+        <div
+          style={{
+            position: "absolute",
+            right: 6,
+            bottom: 0,
+            // Alto igual al mínimo del campo y centrado dentro: con una línea
+            // quedan en el centro exacto, y al crecer el campo se quedan junto a
+            // la última línea, que es donde está el cursor.
+            height: 40,
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            // Una imagen por mensaje: con una elegida, el botón se apaga.
+            disabled={!!pendingImage || uploadingImage || sending}
+            aria-label={tChat("attachImage")}
+            style={{
+              flexShrink: 0,
+              border: "none",
+              background: "none",
+              padding: 0,
+              display: "grid",
+              placeItems: "center",
+              cursor: pendingImage || uploadingImage ? "not-allowed" : "pointer",
+              opacity: pendingImage || uploadingImage ? 0.4 : 1,
+            }}
+          >
+            <AttachImageIcon />
+          </button>
+
           <button
             type="button"
             onClick={handleSend}
@@ -905,6 +1040,11 @@ export default function ConversationThread({
               justifyContent: "center",
               flexShrink: 0,
               transition: "opacity 0.15s ease",
+              // Al ir inclinada, la masa del avión cae hacia abajo dentro de su
+              // caja: centrarla geométricamente la hace ver hundida. Se sube un
+              // par de píxeles para que quede centrada A LA VISTA.
+              position: "relative",
+              top: -2,
             }}
           >
             <svg
@@ -925,28 +1065,6 @@ export default function ConversationThread({
             </div>
           </div>
 
-          {/* A la derecha del campo, como los botones extra del chat de lives. */}
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            // Una imagen por mensaje: con una elegida, el botón se apaga.
-            disabled={!!pendingImage || uploadingImage || sending}
-            aria-label={tChat("attachImage")}
-            style={{
-              flexShrink: 0,
-              width: 34,
-              height: 40,
-              border: "none",
-              background: "none",
-              padding: 0,
-              display: "grid",
-              placeItems: "center",
-              cursor: pendingImage || uploadingImage ? "not-allowed" : "pointer",
-              opacity: pendingImage || uploadingImage ? 0.4 : 1,
-            }}
-          >
-            <VibraNavigationIcon type="attachMedia" size={24} />
-          </button>
         </div>
       </div>
     );

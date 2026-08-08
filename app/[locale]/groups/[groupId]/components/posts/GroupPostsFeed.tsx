@@ -28,6 +28,7 @@ import {
   fetchGroupPostsPage,
   fetchGroupPublicPostsPage,
   fetchGroupPublicPremiumPostsPage,
+  fetchGroupOutsiderPostsPage,
   fetchPostComments,
   fetchPostCommentsAdmin,
   softDeletePost,
@@ -347,7 +348,12 @@ export default function GroupPostsFeed({
             // la consulta ENTERA (el feed público salía vacío).
             const pageResult = await (publicPremiumOnly
               ? groupVisibility === "public"
-                ? fetchGroupPublicPostsPage(commonArgs)
+                // Comunidad PÚBLICA vista desde fuera: hacen falta DOS consultas fusionadas.
+                // La genérica trae los posts gratis, pero NO puede satisfacer la regla
+                // premium (que exige fijar `groupVisibility` y `premium.*` con `==`), así
+                // que los premium de alcance público se caían del feed. Era el caso de una
+                // comunidad de suscripción PÚBLICA con un premium "que lo vean todos".
+                ? fetchGroupOutsiderPostsPage(commonArgs)
                 : fetchGroupPublicPremiumPostsPage({
                     ...commonArgs,
                     groupVisibility: "private",

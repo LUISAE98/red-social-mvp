@@ -34,6 +34,7 @@ import type {
   UserMini,
 } from "./OwnerSidebar";
 import { Chevron } from "./OwnerSidebar";
+import PaymentSuccessCard from "@/components/payments/PaymentSuccessCard";
 import BuyerGreetingRequestOverlay from "./BuyerGreetingRequestOverlay";
 import BuyerSessionRequestOverlay from "./BuyerSessionRequestOverlay";
 import SessionRequestOverlay from "./SessionRequestOverlay";
@@ -93,6 +94,8 @@ export default function OwnerSidebarGreetings({
   const [viewItem, setViewItem] = useState<{ item: { id: string; data: GreetingRequestDoc }; sourceName: string; sourceAvatar: string | null } | null>(null);
   const [viewDeliveredItem, setViewDeliveredItem] = useState<{ item: { id: string; data: GreetingRequestDoc }; sourceName: string; sourceAvatar: string | null } | null>(null);
   const [viewSessionItem, setViewSessionItem] = useState<{ row: ScheduledRow; creatorName: string; creatorAvatar: string | null } | null>(null);
+  // Panel de éxito (mismo diseño que el de pago) tras pedir devolución.
+  const [refundDone, setRefundDone] = useState<{ credited: number; name: string | null; avatar: string | null } | null>(null);
   const [incomingSessionOverlayData, setIncomingSessionOverlayData] = useState<{
     id: string;
     req: MeetGreetRequestDoc | ExclusiveSessionRequestDoc;
@@ -501,14 +504,19 @@ async function handleCreatorSchedule(
         refundReason: reasonOverride !== undefined ? reasonOverride : (refundReasonMap[requestId] ?? null),
       };
 
-      if (kind === "exclusive_session") {
-        await requestExclusiveSessionRefund(payload);
-      } else {
-        await requestMeetGreetRefund(payload);
-      }
+      const res = kind === "exclusive_session"
+        ? await requestExclusiveSessionRefund(payload)
+        : await requestMeetGreetRefund(payload);
 
-      showGreetingsToast(tServices("successRefundRequested"));
       setRefundOpenMap((prev) => ({ ...prev, [requestId]: false }));
+      const sess = viewSessionItem;
+      setViewSessionItem(null);
+      // Panel de éxito (mismo diseño que el de pago) con el crédito acreditado.
+      setRefundDone({
+        credited: (res as unknown as { credited?: number })?.credited ?? 0,
+        name: sess?.creatorName ?? null,
+        avatar: sess?.creatorAvatar ?? null,
+      });
     } catch (e: unknown) {
       showGreetingsToast((e instanceof Error ? e.message : null) ?? tServices("errorRequestRefund"), "error");
     } finally {
@@ -1825,11 +1833,12 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
           sourceName={viewItem.sourceName}
           sourceAvatar={viewItem.sourceAvatar}
           onClose={() => setViewItem(null)}
-          onRefund={async (reason) => {
+          onRefund={async () => {
             try {
-              await requestGreetingRefund({ requestId: viewItem.item.id, refundReason: reason || null });
-              showGreetingsToast(tServices("successRefundRequested"));
+              const res = await requestGreetingRefund({ requestId: viewItem.item.id, refundReason: null });
+              const nm = viewItem.sourceName; const av = viewItem.sourceAvatar;
               setViewItem(null);
+              setRefundDone({ credited: (res as unknown as { credited?: number })?.credited ?? 0, name: nm, avatar: av });
             } catch (e) {
               showGreetingsToast((e instanceof Error ? e.message : null) ?? tServices("errorRequestRefund"), "error");
             }
@@ -1849,6 +1858,27 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
         />
       );
     })()}
+    {refundDone && (
+      <div
+        onClick={() => setRefundDone(null)}
+        style={{ position: "fixed", inset: 0, zIndex: 2147483647, display: "flex", alignItems: "center", justifyContent: "center", padding: 20, background: "rgba(0,0,0,0.55)" }}
+      >
+        <div onClick={(e) => e.stopPropagation()} style={{ width: "min(100%, 440px)", maxHeight: "92vh", overflow: "hidden", borderRadius: 16, boxShadow: "0 24px 72px rgba(0,0,0,0.4)", background: "#fff" }}>
+          <PaymentSuccessCard
+            avatarUrl={refundDone.avatar}
+            providerName={refundDone.name ?? undefined}
+            productType="Devolución aplicada"
+            successMessage={
+              refundDone.credited > 0
+                ? `Se agregaron ${formatMoney(refundDone.credited, { baseCurrency: "MXN" })} MXN a tu saldo a favor. Úsalo para pagar otras experiencias dentro de la plataforma, o solicita el efectivo desde Experiencias.`
+                : "Tu solicitud de devolución se procesó. Revisa tu saldo a favor en Experiencias."
+            }
+            onClose={() => setRefundDone(null)}
+            stacked
+          />
+        </div>
+      </div>
+    )}
     {viewDeliveredItem && (
       <GreetingReviewOverlay
         viewMode

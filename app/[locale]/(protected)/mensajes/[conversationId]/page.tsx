@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -49,6 +49,7 @@ export default function ConversationPage() {
   const displayName = profile?.displayName || tCommon("user");
 
   const [closing, setClosing] = useState(false);
+  const screenRef = useRef<HTMLDivElement | null>(null);
 
   // El portal solo puede montarse en cliente. Mismo patrón (y misma excepción
   // de lint) que en el resto de páginas que detectan el montaje.
@@ -57,6 +58,42 @@ export default function ConversationPage() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
   }, []);
+
+  /**
+   * Ata la pantalla al VISUAL viewport, no al de diseño.
+   *
+   * Con el teclado abierto iOS encoge el visual viewport y desplaza el de
+   * diseño; un `position: fixed` se mide contra el segundo, así que al cerrarse
+   * el teclado heredaba ese desplazamiento y la pantalla quedaba un poco por
+   * encima del borde inferior. Siguiendo `visualViewport` vuelve exacta.
+   *
+   * El `scrollTo(0,0)` remata el caso de iOS, que a veces deja la página
+   * desplazada aunque el viewport ya haya recuperado su alto.
+   */
+  useEffect(() => {
+    if (!mounted) return;
+
+    const viewport = window.visualViewport;
+    const element = screenRef.current;
+    if (!viewport || !element) return;
+
+    const apply = () => {
+      element.style.height = `${viewport.height}px`;
+      element.style.top = `${viewport.offsetTop}px`;
+
+      const keyboardClosed = Math.abs(viewport.height - window.innerHeight) < 2;
+      if (keyboardClosed && window.scrollY !== 0) window.scrollTo(0, 0);
+    };
+
+    apply();
+    viewport.addEventListener("resize", apply);
+    viewport.addEventListener("scroll", apply);
+
+    return () => {
+      viewport.removeEventListener("resize", apply);
+      viewport.removeEventListener("scroll", apply);
+    };
+  }, [mounted]);
 
   /**
    * Salir: la pantalla se va deslizando a la derecha y la página de destino
@@ -75,6 +112,7 @@ export default function ConversationPage() {
 
   const screen = (
     <div
+      ref={screenRef}
       // Entrada: misma animación que el resto de la navegación. Se aplica aquí
       // y no en el layout porque el portal vive fuera de `.mainInner`, que es
       // donde el layout pone este atributo. La regla global
@@ -86,7 +124,13 @@ export default function ConversationPage() {
           ? { animation: `vibraChatExitRight ${NAV_ANIM_MS}ms ease-in both` }
           : null),
         position: "fixed",
-        inset: 0,
+        left: 0,
+        right: 0,
+        top: 0,
+        // `dvh` como base y, si el navegador expone el visual viewport, se
+        // afina desde el efecto: es lo que hace que al cerrarse el teclado la
+        // pantalla vuelva EXACTAMENTE al fondo.
+        height: "100dvh",
         // Por encima de MobileBottomNav (9999): la barra inferior taparía justo
         // el campo de escritura.
         zIndex: 10000,

@@ -426,6 +426,76 @@ describe("Recaudación por la emisora — AR, CR, EC, PY, DO", () => {
   });
 });
 
+// Los rezagados de LatAm: no han creado un régimen que obligue a un proveedor extranjero a
+// registrarse. Se parecen a los de arriba en el resultado (cero impuesto en el checkout) pero
+// por una razón distinta: allá recauda el banco, aquí NO RECAUDA NADIE por esta venta.
+// Esa diferencia es la que separa `collectionMode: "issuer"` de `"none"`.
+describe("Sin régimen de servicios digitales — BO, SV, GT, HN, NI, PA", () => {
+  const NO_REGIME: Array<[string, number, string, string]> = [
+    ["BO", 0.13, "BOB", "IVA"],
+    ["SV", 0.13, "USD", "IVA"],
+    ["GT", 0.12, "GTQ", "IVA"],
+    ["HN", 0.15, "HNL", "ISV"],
+    ["NI", 0.15, "NIO", "IVA"],
+    ["PA", 0.07, "USD", "ITBMS"],
+  ];
+
+  // 🚨 La regresión que este bloque protege: `isChargeableCountry` rechazaba cualquier país
+  // con `collectionMode: "none"`. Si alguien restaura esa condición, estos cinco dejan de
+  // vender en silencio — la compra falla sin que nada en la tabla se vea mal.
+  it("🚨 que no recaude nadie NO impide vender", () => {
+    for (const [iso] of NO_REGIME) {
+      expect(countryTaxConfig(iso), iso).not.toBeNull();
+      expect(countryTaxConfig(iso)!.collectionMode, iso).toBe("none");
+      expect(isChargeableCountry(iso), iso).toBe(true);
+    }
+  });
+
+  it("el checkout suma CERO: no hay alta posible ni fisco al que enterar", () => {
+    for (const [iso] of NO_REGIME) {
+      const b = computeConsumptionTax(100, iso);
+      expect(b.tax, iso).toBe(0);
+      expect(b.total, iso).toBe(100);
+      expect(b.applies, iso).toBe(false);
+      expect(platformCollectsTax(iso), iso).toBe(false);
+      expect(countryTaxConfig(iso)!.registrationStatus, iso).toBe("not_registered");
+    }
+  });
+
+  it("guardan tasa, moneda y nombre del impuesto como referencia", () => {
+    for (const [iso, rate, currency, name] of NO_REGIME) {
+      expect(taxRateForCountry(iso), iso).toBeCloseTo(rate, 8);
+      expect(chargeCurrencyForCountry(iso), iso).toBe(currency);
+      expect(countryTaxConfig(iso)!.taxName, iso).toBe(name);
+    }
+  });
+
+  // Honduras le dice ISV (Impuesto Sobre Ventas) y El Salvador cobra en dólares: son los dos
+  // que se escriben mal si alguien copia la fila de un vecino.
+  it("cada uno con su nombre y moneda: ISV en HN, ITBMS en PA, USD en SV y PA", () => {
+    expect(countryTaxConfig("HN")!.taxName).toBe("ISV");
+    expect(countryTaxConfig("PA")!.taxName).toBe("ITBMS");
+    expect(chargeCurrencyForCountry("SV")).toBe("USD");
+    expect(chargeCurrencyForCountry("PA")).toBe("USD");
+  });
+
+  // 🚨 Panamá SÍ tiene una retención de ITBMS sobre no domiciliados, pero la practica el
+  // cliente panameño que paga (B2B), no el emisor de la tarjeta. Marcarlo "issuer" sería
+  // describir mal el mecanismo; el cobro coincide, la razón no. Y si mañana se aprueba el
+  // anteproyecto de 2019, lo que cambia es a "platform" + "registered", no a "issuer".
+  it("🚨 Panamá NO es 'issuer': ahí no retiene el banco, retiene el cliente empresa", () => {
+    expect(countryTaxConfig("PA")!.collectionMode).toBe("none");
+    expect(countryTaxConfig("AR")!.collectionMode).toBe("issuer");
+    expect(computeConsumptionTax(100, "PA").total).toBe(100);
+  });
+
+  it("el IVA mexicano de esas ventas es 0% por exportación", () => {
+    for (const [iso] of NO_REGIME) {
+      expect(countryTaxConfig(iso)!.mxVatTreatment, iso).toBe("export_zero");
+    }
+  });
+});
+
 // 🇲🇽 IVA mexicano sobre ventas al EXTRANJERO. Vibra es residente en México, así que por el
 // Art. 16 LIVA su venta siempre está dentro del objeto: lo que cambia es la tasa. Hoy 0% por
 // exportación en los 11 servicios (D-08 pendiente de fiscalista). Ver impuestos.md.

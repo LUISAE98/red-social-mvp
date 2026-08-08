@@ -37,7 +37,10 @@ export type TaxCollectionMode =
   | "platform"
   /** Lo percibe la emisora/banco del comprador. Vibra NO lo cobra. */
   | "issuer"
-  /** Sin régimen aplicable → país NO cobrable. */
+  /**
+   * NADIE recauda por esta venta (el país no tiene régimen para proveedores extranjeros).
+   * ⚠️ NO impide vender: eso lo decide `registrationStatus`.
+   */
   | "none";
 
 /** Régimen del IVA mexicano de la venta de Vibra. Ver docs/legal/fiscal-iva-isr-plataforma.md §0.1. */
@@ -129,6 +132,32 @@ const EU_OSS_REGISTERED = true;
 const EU_STATUS: RegistrationStatus = EU_OSS_REGISTERED ? "registered" : "cannot_sell";
 
 /**
+ * Fila de un país SIN régimen de servicios digitales para proveedores extranjeros.
+ *
+ * No hay registro posible ni impuesto que enterar: el checkout suma CERO y se vende con
+ * normalidad. Se distingue de `issuerCollects` en que allá el impuesto SÍ se recauda
+ * (lo hace el banco); aquí simplemente no hay obligación para Vibra.
+ *
+ * La tasa se guarda como referencia del impuesto general del país, no de algo que se cobre.
+ */
+function noDigitalRegime(
+  taxName: string,
+  taxRate: number,
+  currency: string
+): CountryTaxConfig {
+  return {
+    taxName,
+    taxRate,
+    currency,
+    // Nadie recauda: ni Vibra ni el banco del comprador. No bloquea la venta.
+    collectionMode: "none",
+    mxVatTreatment: "export_zero",
+    // Sin alta posible → se vende sin cobrar impuesto.
+    registrationStatus: "not_registered",
+  };
+}
+
+/**
  * Fila de un país donde el impuesto lo percibe la EMISORA del comprador, no el proveedor.
  * El precio mostrado suma CERO: se lo agrega su banco en el resumen de tarjeta.
  */
@@ -191,6 +220,17 @@ export const COUNTRY_TAX_CONFIG: Readonly<Record<string, CountryTaxConfig>> = {
   PY: issuerCollects("IVA", 0.10, "PYG"),   // RG 76/2020: bancos = agentes de percepción
   DO: issuerCollects("ITBIS", 0.18, "DOP"), // retención 2% por procesadores de tarjeta
 
+  // ── LatAm SIN régimen de servicios digitales: no hay alta ni impuesto que enterar ──
+  // El checkout suma CERO. ⚠️ Stripe Tax no los cubre: hay que vigilarlos a mano.
+  BO: noDigitalRegime("IVA", 0.13, "BOB"),
+  SV: noDigitalRegime("IVA", 0.13, "USD"),
+  GT: noDigitalRegime("IVA", 0.12, "GTQ"),
+  HN: noDigitalRegime("ISV", 0.15, "HNL"),
+  NI: noDigitalRegime("IVA", 0.15, "NIO"),
+  // Panamá: el anteproyecto de 2019 nunca se aprobó. La retención de ITBMS que sí existe la
+  // hace el cliente panameño que paga (B2B), no el proveedor ni el banco.
+  PA: noDigitalRegime("ITBMS", 0.07, "USD"),
+
   // ⚠️ Fuera de la UE no se agrega ninguna fila sin su FICHA en impuestos.md.
 };
 
@@ -222,7 +262,9 @@ export function chargeCurrencyForCountry(country: string | null | undefined): st
 export function isChargeableCountry(country: string | null | undefined): boolean {
   const cfg = countryTaxConfig(country);
   if (!cfg) return false;
-  if (cfg.collectionMode === "none") return false;
+  // Lo único que impide vender es no poder estar de alta donde el país lo EXIGE.
+  // `collectionMode` NO participa: que nadie recaude ("none") es una razón para no cobrar
+  // impuesto, no para rechazar la compra.
   return cfg.registrationStatus !== "cannot_sell";
 }
 

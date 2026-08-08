@@ -104,8 +104,6 @@ export default function BuyerGreetingRequestOverlay({ item, sourceName, sourceAv
   const [closing, setClosing] = useState(false);
   const [panelOffsetY, setPanelOffsetY] = useState(0);
   const [isPanelDragging, setIsPanelDragging] = useState(false);
-  const [refundOpen, setRefundOpen] = useState(false);
-  const [refundReason, setRefundReason] = useState("");
   const [speechState, setSpeechState] = useState<"idle" | "playing" | "paused">("idle");
   const [speechHighlight, setSpeechHighlight] = useState<{ start: number; length: number } | null>(null);
   const [speechRate, setSpeechRate] = useState<1 | 1.4 | 1.8>(1);
@@ -353,39 +351,14 @@ export default function BuyerGreetingRequestOverlay({ item, sourceName, sourceAv
     </div>
   ) : null;
 
-  const footerContent = refundOpen ? (
-    <div style={{ display: "grid", gap: 8 }}>
-      <textarea
-        value={refundReason}
-        onChange={(e) => setRefundReason(e.target.value)}
-        placeholder={tServices("refundReasonPlaceholder")}
-        style={{
-          background: "rgba(255,255,255,0.06)", border: "none", borderRadius: 12,
-          color: "#fff", fontSize: 13, padding: "10px 12px", resize: "none",
-          height: 80, fontFamily: "inherit", lineHeight: 1.5, outline: "none",
-          width: "100%", boxSizing: "border-box",
-        }}
-      />
-      <div style={{ display: "flex", gap: 8 }}>
-        <button type="button"
-          onClick={() => { onRefund?.(refundReason); setRefundOpen(false); }}
-          style={{ ...btnPrimary, flex: 1, width: "auto", background: "rgba(220,38,38,0.80)", fontSize: 15 }}
-        >
-          {tServices("confirmRefund")}
-        </button>
-        <button type="button" onClick={() => setRefundOpen(false)}
-          style={{ ...btnSecondary, flex: 1, width: "auto" }}
-        >
-          {tCommon("cancel")}
-        </button>
-      </div>
-    </div>
-  ) : req.status === "rejected" ? (
+  // Devolución SIN preguntar el motivo: un clic → el padre llama al callable y muestra el
+  // panel verde de éxito (con el crédito acreditado).
+  const footerContent = req.status === "rejected" ? (
     <div style={{ display: "flex", gap: 8 }}>
       <button type="button" onClick={onRetry} style={{ ...btnPrimary, flex: 1, width: "auto", background: retryBtnBg, color: retryBtnColor }}>
         {tCommon("retry")}
       </button>
-      <button type="button" onClick={() => setRefundOpen(true)} style={{ ...btnSecondary, flex: 1, width: "auto" }}>
+      <button type="button" onClick={() => onRefund?.("")} style={{ ...btnSecondary, flex: 1, width: "auto" }}>
         {tServices("requestRefund")}
       </button>
     </div>

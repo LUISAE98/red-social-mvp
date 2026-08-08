@@ -11,8 +11,14 @@
 //
 // Ver impuestos.md §3.4.
 
+import * as admin from "firebase-admin";
 import { logger } from "firebase-functions";
 import { stripeFetch } from "./stripeClient";
+
+if (admin.apps.length === 0) {
+  admin.initializeApp();
+}
+const db = admin.firestore();
 
 type StripePaymentMethod = {
   id?: string;
@@ -59,4 +65,45 @@ export async function cardOriginFromPaymentMethod(
     cardCountry: res.data.card?.country ?? null,
     billingCountry: res.data.billing_details?.address?.country ?? null,
   };
+}
+
+/**
+ * Origen de la tarjeta para un cobro, mirando las DOS vías por las que puede llegar:
+ *
+ *  · `paymentMethodId` (`pm_...`) — tarjeta NUEVA, ya materializada por la pasarela al
+ *    terminar de escribirla.
+ *  · `savedCardDocId` — tarjeta GUARDADA. Es un id de Firestore, no de Stripe, así que
+ *    primero se resuelve a su `pm_...` en `users/{uid}/paymentMethods/{id}`.
+ *
+ * Sin esto, un comprador RECURRENTE (que paga con tarjeta guardada) quedaba con el país
+ * decidido solo por su IP — y esa es justo la señal que se puede falsear con una VPN.
+ */
+export async function cardOriginForCharge(params: {
+  uid: string;
+  paymentMethodId?: string | null;
+  savedCardDocId?: string | null;
+}): Promise<CardOrigin> {
+  const direct = String(params.paymentMethodId ?? "").trim();
+  if (direct) return cardOriginFromPaymentMethod(direct);
+
+  const savedId = String(params.savedCardDocId ?? "").trim();
+  if (!savedId || !params.uid) return EMPTY;
+
+  try {
+    const snap = await db.doc(`users/${params.uid}/paymentMethods/${savedId}`).get();
+    const data = snap.data() ?? {};
+    // Se valida el dueño: sin esto, un id ajeno podría hacer leer la tarjeta de otro.
+    if (!snap.exists || data.buyerId !== params.uid) return EMPTY;
+
+    const stripePmId =
+      typeof data.stripePaymentMethodId === "string" ? data.stripePaymentMethodId : null;
+    if (!stripePmId) return EMPTY;
+
+    return cardOriginFromPaymentMethod(stripePmId);
+  } catch (err) {
+    logger.warn("cardOriginForCharge: no se pudo resolver la tarjeta guardada", {
+      err: err instanceof Error ? err.message : String(err),
+    });
+    return EMPTY;
+  }
 }

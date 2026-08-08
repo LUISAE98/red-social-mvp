@@ -31,7 +31,13 @@ export type TaxCollectionMode =
   | "platform"
   /** Lo percibe la emisora/banco del comprador. Vibra NO lo cobra. Ej. AR, CR, PY. */
   | "issuer"
-  /** Sin régimen aplicable → país NO cobrable. */
+  /**
+   * NADIE recauda por esta venta: el país no tiene régimen de servicios digitales para
+   * proveedores extranjeros, así que no hay dónde darse de alta ni qué enterar.
+   *
+   * ⚠️ Esto NO impide vender. La venta la decide `registrationStatus`, no este campo.
+   * Ej. Bolivia, El Salvador, Guatemala, Honduras, Nicaragua.
+   */
   | "none";
 
 /**
@@ -182,6 +188,32 @@ const EU_OSS_REGISTERED = true;
 const EU_STATUS: RegistrationStatus = EU_OSS_REGISTERED ? "registered" : "cannot_sell";
 
 /**
+ * Fila de un país SIN régimen de servicios digitales para proveedores extranjeros.
+ *
+ * No hay registro posible ni impuesto que enterar: el checkout suma CERO y se vende con
+ * normalidad. Se distingue de `issuerCollects` en que allá el impuesto SÍ se recauda
+ * (lo hace el banco); aquí simplemente no hay obligación para Vibra.
+ *
+ * La tasa se guarda como referencia del impuesto general del país, no de algo que se cobre.
+ */
+function noDigitalRegime(
+  taxName: string,
+  taxRate: number,
+  currency: string
+): CountryTaxConfig {
+  return {
+    taxName,
+    taxRate,
+    currency,
+    // Nadie recauda: ni Vibra ni el banco del comprador. No bloquea la venta.
+    collectionMode: "none",
+    mxVatTreatment: "export_zero",
+    // Sin alta posible → se vende sin cobrar impuesto.
+    registrationStatus: "not_registered",
+  };
+}
+
+/**
  * Fila de un país donde el impuesto lo percibe la EMISORA del comprador, no el proveedor.
  *
  * El checkout suma CERO. La tasa se guarda solo para poder mostrarle al comprador qué le
@@ -293,6 +325,36 @@ export const COUNTRY_TAX_CONFIG: Readonly<Record<string, CountryTaxConfig>> = {
   // pasar a producción por si cambia a recaudación por plataforma.
   DO: issuerCollects("ITBIS", 0.18, "DOP"),
 
+  // ── LATINOAMÉRICA — países SIN régimen de servicios digitales ──
+  //
+  // Bolivia, El Salvador, Guatemala, Honduras y Nicaragua no han creado un régimen que
+  // obligue a un proveedor extranjero a registrarse ni a cobrar su impuesto. No hay dónde
+  // darse de alta ni qué enterar, así que el checkout suma CERO.
+  //
+  // ⚠️ El impuesto puede EXISTIR como "importación de servicios" a cargo del COMPRADOR
+  // (reverse charge), pero ahí el contribuyente no es Vibra. Para el cobro es indiferente.
+  //
+  // ⚠️ VIGILAR A MANO: son los rezagados de LatAm (Colombia 2018, Chile 2020, Ecuador 2020,
+  // Paraguay 2021, Perú 2024 ya lo adoptaron; Bolivia tuvo un proyecto en 2024 sin aprobar).
+  // Stripe Tax NO cubre ninguno de los cinco, así que su monitoreo no avisará si cambian.
+  // Fuentes: despachos regionales, no autoridades fiscales. Ver impuestos.md.
+  BO: noDigitalRegime("IVA", 0.13, "BOB"),   // Bolivia
+  SV: noDigitalRegime("IVA", 0.13, "USD"),   // El Salvador
+  GT: noDigitalRegime("IVA", 0.12, "GTQ"),   // Guatemala
+  HN: noDigitalRegime("ISV", 0.15, "HNL"),   // Honduras
+  NI: noDigitalRegime("IVA", 0.15, "NIO"),   // Nicaragua
+  // Panamá va en este bloque, pero por un camino distinto: el Anteproyecto de Ley 229 (2019),
+  // que habría obligado a las plataformas extranjeras a registrarse, NUNCA se aprobó.
+  //
+  // Sí existe una retención del 100% del ITBMS sobre servicios de no domiciliados — pero la
+  // practica el CLIENTE panameño que paga, no el proveedor. Es una obligación B2B: una empresa
+  // panameña que le compre a Vibra retiene y entera. Un consumidor con tarjeta no retiene nada
+  // y Vibra no tiene nada que cobrar. (Es lo contrario de AR, donde recauda el banco emisor.)
+  //
+  // ⚠️ El más probable de moverse de los seis que faltan: la DGI reabrió la evaluación del
+  // anteproyecto en 2023 y lleva desde entonces. Ver impuestos.md.
+  PA: noDigitalRegime("ITBMS", 0.07, "USD"), // Panamá
+
   // ⚠️ Para agregar países fuera de la UE hace falta su FICHA en `impuestos.md`: tasa
   // confirmada contra la autoridad del país, quién recauda (`collectionMode`) y si el país
   // exige alta previa. Sin ficha no se agrega la fila.
@@ -331,7 +393,9 @@ export function chargeCurrencyForCountry(country: string | null | undefined): st
 export function isChargeableCountry(country: string | null | undefined): boolean {
   const cfg = countryTaxConfig(country);
   if (!cfg) return false;
-  if (cfg.collectionMode === "none") return false;
+  // Lo único que impide vender es no poder estar de alta donde el país lo EXIGE.
+  // `collectionMode` NO participa: que nadie recaude ("none") es una razón para no cobrar
+  // impuesto, no para rechazar la compra.
   return cfg.registrationStatus !== "cannot_sell";
 }
 

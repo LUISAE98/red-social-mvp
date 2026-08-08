@@ -252,9 +252,148 @@ no fiscal + factura global mensual.
 
 ---
 
-### ⬜ Los demás países — se abrirán con Stripe Tax
+### 🇪🇺 Unión Europea — los 27 · ✅ ACTIVOS (2026-08-08)
 
-**Decisión (2026-08-07): la habilitación por país NO se hará con investigación manual.**
+| Campo | Valor |
+|---|---|
+| Impuesto | IVA del país del comprador (17% LU → 27% HU) |
+| Moneda de cobro | La local: EUR, y CZK · DKK · HUF · PLN · RON · SEK |
+| `collectionMode` | `platform` — Vibra cobra y entera |
+| `mxVatTreatment` | `export_zero` |
+
+**Un solo registro cubre los 27: el Non-Union OSS.** Alta en línea en un país a elegir,
+declaración trimestral, sin representante fiscal. El número tiene formato `EUxxxyyyyyz`.
+
+**Cobro:** `(base + 3) × 1.02 × (1 + tasa del país)`.
+
+**Umbral:** ninguno para un proveedor de fuera de la UE. Se cobra desde el primer euro. (El
+umbral de €10.000 es para vendedores *dentro* de la UE; no aplica.)
+
+**Interruptor:** `EU_OSS_REGISTERED` en los dos espejos de `config.ts`. En `false` los 27 pasan
+a `cannot_sell` de golpe.
+
+> ⚠️ **Pendiente antes de llaves `sk_live`:** el número de OSS. Hoy los 27 están encendidos para
+> **probar con Stripe en modo prueba**, que es donde no hay dinero real ni obligación fiscal.
+
+---
+
+### 💳 Recauda la EMISORA — 🇦🇷 AR · 🇨🇷 CR · 🇪🇨 EC · 🇵🇾 PY · 🇩🇴 DO · ✅ ACTIVOS
+
+| País | Impuesto | Moneda |
+|---|---|---|
+| 🇦🇷 Argentina | IVA 21% | ARS |
+| 🇨🇷 Costa Rica | IVA 13% | CRC |
+| 🇪🇨 Ecuador | IVA 15% | USD |
+| 🇵🇾 Paraguay | IVA 10% | PYG |
+| 🇩🇴 Rep. Dominicana | ITBIS 18% | DOP |
+
+`collectionMode: "issuer"` · `registrationStatus: "not_registered"` · `mxVatTreatment: "export_zero"`
+
+**Cobro:** `(base + 3) × 1.02`. **Cero impuesto en el checkout.**
+
+**Justificación:** en los cinco, el emisor de la tarjeta (o el intermediario de pago) percibe el
+impuesto por cuenta del fisco cuando el proveedor extranjero no está registrado. El comprador lo
+ve en su resumen de tarjeta, no en la pasarela. Si Vibra también lo sumara, **lo pagaría dos veces**.
+
+En CR y EC el registro voluntario existe y desactivaría la percepción bancaria; Vibra no lo hace,
+así que la retención sigue vigente y el checkout suma cero.
+
+---
+
+### ⬜ Sin régimen digital — 🇧🇴 BO · 🇸🇻 SV · 🇬🇹 GT · 🇭🇳 HN · 🇳🇮 NI · 🇵🇦 PA · ✅ ACTIVOS (2026-08-08)
+
+| País | Impuesto (referencia) | Moneda |
+|---|---|---|
+| 🇧🇴 Bolivia | IVA 13% | BOB |
+| 🇸🇻 El Salvador | IVA 13% | USD |
+| 🇬🇹 Guatemala | IVA 12% | GTQ |
+| 🇭🇳 Honduras | ISV 15% | HNL |
+| 🇳🇮 Nicaragua | IVA 15% | NIO |
+| 🇵🇦 Panamá | ITBMS 7% | USD |
+
+`collectionMode: "none"` · `registrationStatus: "not_registered"` · `mxVatTreatment: "export_zero"`
+
+**Cobro:** `(base + 3) × 1.02`. **Cero impuesto en el checkout.**
+
+#### 📋 Qué se necesita para vender aquí
+
+| Requisito | ¿Aplica? |
+|---|---|
+| **Alta fiscal en el país** | ❌ No existe régimen para proveedores extranjeros — no hay dónde |
+| **Representante legal local** | No aplica |
+| **Declarar y enterar el impuesto** | ❌ No. Vibra no es contribuyente ahí |
+| **Facturación electrónica local** | ❌ No |
+| **Umbral mínimo de ventas** | No aplica (no hay régimen que tenga umbral) |
+
+**Justificación:** ninguno de los cinco ha legislado un régimen que obligue a un proveedor
+extranjero de servicios digitales a registrarse y cobrar. No hay dónde darse de alta ni qué
+enterar, así que el checkout suma cero y se vende con normalidad.
+
+**Diferencia con el bloque de arriba:** allá el impuesto **sí se recauda** (lo hace el banco del
+comprador); aquí **no lo recauda nadie** por esta venta. Por eso el modo es `"none"` y no
+`"issuer"`. El resultado del cobro es el mismo; la razón no.
+
+**¿Y el impuesto del comprador?** Puede existir como *importación de servicios* a cargo del propio
+comprador (autodeterminación / reverse charge), igual que Vibra se autodetermina el IVA de
+importación al pagarle a un creador extranjero. Pero ahí el contribuyente es él, no Vibra: para el
+cobro es indiferente.
+
+> ⚠️ **VIGILAR A MANO.** Son los rezagados de LatAm: Colombia (2018), Chile (2020), Ecuador (2020),
+> Paraguay (2021) y Perú (2024) ya adoptaron su régimen; Bolivia tuvo un proyecto en 2024 que no
+> prosperó. **Stripe Tax no cubre ninguno de los cinco**, así que su monitoreo no avisará si
+> cambian. Fuentes: despachos regionales, no autoridades fiscales.
+
+---
+
+#### 🇵🇦 Panamá — investigación profunda (2026-08-08)
+
+Panamá entra en este bloque, pero llegó por un camino distinto a los otros cinco y conviene
+dejarlo escrito, porque el mecanismo que sí existe ahí se parece mucho al de Argentina y es
+fácil confundirlos.
+
+**1. El régimen para plataformas extranjeras nunca se aprobó.** El *Anteproyecto de Ley 229 de
+2019* — "Ley de Regulación Fiscal y Laboral para las Empresas que Operan a través de Plataformas
+Digitales" — habría obligado a Google, Netflix, Spotify, Airbnb, Uber "y cualquier comercio que
+facture mediante tarjeta de crédito en Panamá" a tributar ITBMS. **No pasó del pleno.** El
+director de la DGI declaró en agosto de 2023 que el proyecto estaba "nuevamente en evaluación",
+y ahí sigue. No hay registro que hacer ni número que obtener.
+
+**2. La retención que SÍ existe la practica el comprador, no el banco.** El Decreto Ejecutivo 84
+de 2005 (modificado por el 128 de 2017) designa agente de retención a *quien pague servicios
+gravados a personas o entidades no domiciliadas en Panamá sin sucursal ni establecimiento
+permanente*, y la retención es del **100% del ITBMS**.
+
+> 🚨 **Esto NO es el modelo argentino.** En Argentina el agente de percepción es el **emisor de
+> la tarjeta**: le suma el 21% al consumidor automáticamente, sin que él haga nada. En Panamá el
+> agente es **quien paga la factura** — es decir, una empresa panameña comprándole a Vibra, que
+> retiene y entera por su cuenta. Un consumidor final con tarjeta no retiene nada: no es agente
+> designado y no tiene declaración de ITBMS que presentar.
+>
+> Vibra vende B2C. **Nadie recauda.** Por eso `collectionMode: "none"` y no `"issuer"`.
+
+**3. Stripe Tax no cubre Panamá.** No aparece en `docs.stripe.com/tax/supported-countries`, ni
+como *business location* ni como *customer location*. De LatAm solo cubre 7: MX · CL · CO · CR ·
+EC · PE · UY. Confirma que no hay obligación que automatizar, y confirma también que **el
+monitoreo de Stripe no va a avisar** si Panamá cambia.
+
+**4. Territorialidad.** El ITBMS del Art. 1057-V del Código Fiscal grava las operaciones "que se
+realicen en la República de Panamá" — es un impuesto de territorialidad estricta, la misma
+doctrina que rige todo el sistema tributario panameño. La regla de retención existe justamente
+porque la DGI considera gravables ciertos servicios transfronterizos aprovechados en Panamá; pero
+la obligación recae en el pagador local, nunca en el proveedor extranjero.
+
+**Conclusión:** `(base + 3) × 1.02`, cero impuesto, se vende hoy. La moneda de curso legal es el
+dólar (el balboa está a la par y casi no circula), así que se cobra en **USD** — no hace falta
+conversión de catálogo.
+
+> ⚠️ **Es el más probable de moverse de los seis que faltaban.** Lleva siete años de anteproyecto
+> vivo y la DGI lo reabrió. Vigilancia manual: `D-10`.
+
+---
+
+### ⬜ Los que faltan — se abrirán con Stripe Tax
+
+**Decisión (2026-08-07): la habilitación por país NO se hace con investigación manual improvisada.**
 
 Se intentó con Argentina y se revirtió el mismo día. El problema no fue el resultado sino el
 método: las tasas y los mecanismos de LatAm cambian rápido, las fuentes secundarias se
@@ -271,6 +410,16 @@ aplican.** Ese es el dato bueno. Cada país nuevo se abre así:
 4. Se escriben los tests de ese país.
 
 Hasta entonces, un país sin fila **no es cobrable** y el checkout lo rechaza.
+
+**Quedan 5 de LatAm**, todos con el mismo bloqueo — **exigen alta previa a la primera venta**:
+
+| País | Impuesto | Qué falta |
+|---|---|---|
+| 🇨🇱 Chile | IVA 19% | Registro simplificado ante el SII |
+| 🇨🇴 Colombia | IVA 19% | RUT + declaración bimestral ante la DIAN |
+| 🇵🇪 Perú | IGV 18% | Registro ante SUNAT (régimen de 2024) |
+| 🇺🇾 Uruguay | IVA 22% | Registro ante la DGI |
+| 🇧🇷 Brasil | ISS/IBS variable | Municipal + reforma tributaria en curso |
 
 ---
 
@@ -416,10 +565,17 @@ son dos trámites distintos.
 
 ### Países
 
-| País | Estado |
-|---|---|
-| 🇲🇽 México | ✅ En producción |
-| Todos los demás | ⬜ Sin ficha — **no cobrables**. Se abrirán con Stripe Tax (§6) |
+| Bloque | Países | Estado | Impuesto en el checkout |
+|---|---|---|---|
+| 🇲🇽 México | 1 | ✅ En producción | **Sí** — IVA 16% |
+| 🇪🇺 Unión Europea | 27 | ✅ Activos (falta nº de OSS para `sk_live`) | **Sí** — el de cada país |
+| 💳 Recauda la emisora | AR · CR · EC · PY · DO | ✅ Activos | No — lo suma el banco |
+| ⬜ Sin régimen digital | BO · SV · GT · HN · NI · **PA** | ✅ Activos | No — no lo recauda nadie |
+| ⬜ Resto de LatAm | CL · CO · PE · UY · BR | Sin ficha — **no cobrables** | — |
+| ⬜ Resto del mundo | — | Sin ficha — **no cobrables** | — |
+
+**Total cobrable: 39 países.** Un país sin fila en `COUNTRY_TAX_CONFIG` no es cobrable y el
+checkout lo rechaza.
 
 ### Backend — ✅ hecho (2026-08-07)
 
@@ -432,20 +588,25 @@ son dos trámites distintos.
 4. ✅ **Fase 2 por tarjeta.** `repriceStripeIntentForCard`.
 5. ✅ **Cobertura:** tests de composición de precio, resolución de país y corrección por tarjeta.
 
-### Frontend — pendiente
+### Frontend — ✅ hecho (2026-08-08)
 
-1. **Llamar a `repriceStripeIntentForCard`** desde la pasarela al capturar la tarjeta, y actualizar
-   el monto en pantalla antes de confirmar.
-2. **Aviso en el checkout** para países `issuer`: qué le sumará su banco (§7 regla 7).
-3. **Precio estimado por IP** en catálogo y botones, alineado con `platformCollectsTax`.
+1. ✅ **Lectura del país de la tarjeta.** Al completar los 3 campos, `StripePaymentModal` crea un
+   PaymentMethod y lee `card.country`; el precio se recompone con skeletons y una leyenda
+   discreta ("Tu tarjeta es de …"). Sin pasos extra en la UI.
+2. ✅ **Cobro en moneda local**, no siempre en MXN.
+3. ✅ **Precio estimado por IP** en catálogo y botones, gateado por `platformCollectsTax` — por eso
+   en AR y en los cinco sin régimen no aparece ninguna línea de impuesto.
+4. ⬜ **Aviso de lo que sumará el banco** en países `issuer`. Decidido NO ponerlo por ahora: la
+   pasarela muestra un precio único, sin desgloses que el comprador no necesita.
 
 ### Decisiones abiertas
 
 | ID | Qué | Quién |
 |---|---|---|
 | **D-08** | Mapear los 11 servicios a un inciso del Art. 29-IV. Provisionalmente **todos a 0%**; los dudosos son **Tiempo contigo** y **Sesión exclusiva** | Fiscalista MX |
-| **D-09** | Investigación profunda país por país (19) | Luis + fiscalista internacional |
-| **AR-01** | ¿Cobrar en ARS o en MXN/USD? | Luis + Stripe |
+| **D-09** | Los 5 de LatAm que faltan (CL · CO · PE · UY · BR): todos exigen alta previa | Luis + fiscalista internacional |
+| **D-10** | Vigilar a mano BO · SV · GT · HN · NI · PA: Stripe Tax no los cubre. **Panamá es el más urgente** (anteproyecto de 2019 reabierto) | Luis |
+| ~~AR-01~~ | ~~¿Cobrar en ARS o en MXN/USD?~~ **Resuelta: en ARS**, la moneda local del comprador | ✅ |
 
 ---
 

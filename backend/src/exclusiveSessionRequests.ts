@@ -6,6 +6,7 @@ import { usersHaveBlockBetween } from "./social/blocks";
 import { stripeSecretKey } from "./payments/stripe/stripeClient";
 import { capturePaymentIntentForRef, cancelPaymentIntentForRef } from "./payments/stripe/holdCapture";
 import { revertBuyerCreditSpend } from "./wallet/buyerCredit";
+import { refundExperienceToCredit } from "./wallet/refundToCredit";
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -1123,16 +1124,29 @@ export const requestExclusiveSessionRefund = onCall(
       updatedAt: nowTs(),
     });
 
+    // Devolución → SALDO A FAVOR (síncrono; el trigger es respaldo). Solo si hubo cargo.
+    let credited = 0;
+    if ((data as { paymentStatus?: string }).paymentStatus === "paid") {
+      credited = await refundExperienceToCredit({
+        buyerId: uid,
+        creatorId: String(data.creatorId ?? ""),
+        sourceType: "exclusiveSessionRequest",
+        sourceId: requestId,
+      });
+    }
+
     logger.info("exclusive_session_refund_requested", {
       requestId,
       buyerId: uid,
       creatorId: data.creatorId,
+      credited,
     });
 
     return {
       ok: true,
       requestId,
       status: "refund_requested",
+      credited,
     };
   }
 );
