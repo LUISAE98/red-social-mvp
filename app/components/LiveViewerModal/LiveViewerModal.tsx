@@ -1131,6 +1131,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
               saveCard: args.saveCard,
               taxCountry: args.taxCountry,
               savedPaymentMethodId: args.savedPaymentMethodId,
+              applyCredit: args.applyCredit,
             });
           }}
           productType={tPosts("liveTicketProductType")}
@@ -2239,6 +2240,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
           saveCard: args.saveCard,
           taxCountry: args.taxCountry,
           savedPaymentMethodId: args.savedPaymentMethodId,
+          applyCredit: args.applyCredit,
           nickname: args.nickname ?? null,
         });
       }}

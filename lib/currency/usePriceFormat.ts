@@ -34,6 +34,14 @@ export type PriceFormatOptions = {
   chargeCurrency?: ChargeCurrency;
   /** Mostrar el código ISO al final (desambigua el "$" entre MXN/USD/ARS…). Default true. */
   code?: boolean;
+  /**
+   * País fiscal a usar EN LUGAR del que dice la IP.
+   *
+   * Lo usa la pasarela cuando ya leyó el país EMISOR de la tarjeta: al terminar de escribirla
+   * el precio se recalcula con su país, que es el que de verdad va a mandar en el cobro.
+   * Espeja la regla del backend (`resolveTaxCountry`): gana la tarjeta, salvo IP mexicana.
+   */
+  taxCountryOverride?: string | null;
 };
 
 /**
@@ -128,7 +136,10 @@ export function usePriceFormat(): PriceFormatter {
       const { value: baseLocal, currency: cur } = resolveLocal(amount, opts);
       // El impuesto se calcula sobre la base YA en moneda local, así base+impuesto=total
       // exacto (sin drift). Ver docs/legal/fiscal-iva-isr-plataforma.md.
-      const bd = computeConsumptionTax(baseLocal, buyerCountry);
+      // El override gana sobre la IP: cuando la pasarela ya leyó el país de la tarjeta,
+      // ese es el país que va a mandar en el cobro real.
+      const country = opts.taxCountryOverride ?? buyerCountry;
+      const bd = computeConsumptionTax(baseLocal, country);
       const fmt = (n: number) => formatCurrency(n, cur, locale, { code: opts.code ?? false });
       return {
         applies: bd.applies,

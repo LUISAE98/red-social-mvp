@@ -622,6 +622,7 @@ const { user } = useAuth();
         amount={group.subscriptionPrice != null ? group.subscriptionPrice + FIXED_SERVICE_FEE_MXN : null}
         amountCurrency="MXN"
         pricePeriodLabel="mes"
+        allowCredit={false}
         createIntent={(args) => createGroupSubscription({
           groupId: group.id,
           taxCountry: args.taxCountry,

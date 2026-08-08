@@ -5,6 +5,7 @@ import { notifySessionEvent } from "./notifications";
 import { usersHaveBlockBetween } from "./social/blocks";
 import { stripeSecretKey } from "./payments/stripe/stripeClient";
 import { capturePaymentIntentForRef, cancelPaymentIntentForRef } from "./payments/stripe/holdCapture";
+import { revertBuyerCreditSpend } from "./wallet/buyerCredit";
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -909,6 +910,9 @@ export const rejectMeetGreetRequest = onCall(
     // del dinero es vía refund → crédito (B5).
     if ((data as { paymentStatus?: string }).paymentStatus === "authorized") {
       await cancelPaymentIntentForRef(`meetGreetRequest__${requestId}`);
+      // Saldo a favor usado en parte → se devuelve (el hold no se cobró).
+      const buyerId = (data as { buyerId?: string }).buyerId;
+      if (buyerId) await revertBuyerCreditSpend(buyerId, { sourceType: "meetGreetRequest", sourceId: requestId });
     }
 
     await ref.update({

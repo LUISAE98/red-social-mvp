@@ -537,6 +537,7 @@ export default function DonationFeedBanner({
             groupId: groupId ?? null,
             groupName: groupName ?? null,
             savedPaymentMethodId: args.savedPaymentMethodId,
+            applyCredit: args.applyCredit,
             nickname: args.nickname ?? null,
           });
         }}

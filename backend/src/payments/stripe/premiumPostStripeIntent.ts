@@ -15,6 +15,7 @@ import { getOrCreateStripeCustomer } from "./stripeCustomer";
 import { chargeSavedCardOffSession } from "./offSessionCharge";
 import { isChargeableCountry } from "../../tax/config";
 import { resolveTaxCountry } from "../../tax/resolveCountry";
+import { cardOriginFromPaymentMethod } from "./cardCountry";
 import { composeCharge, chargeFields } from "../../tax/composeCharge";
 import { reserveCreditAndSplit, materializeCreditOnlyPurchase } from "./chargeWithCredit";
 import { revertBuyerCreditSpend } from "../../wallet/buyerCredit";
@@ -90,11 +91,21 @@ export const createPremiumPostStripeIntent = onCall(
     const applyCredit = data.applyCredit === true; // aplicar saldo a favor (monto lo decide el server)
 
     // Precio publicado = base + $3 cargo fijo; IVA 16% encima (todo lo absorbe el comprador).
-    // País fiscal: lo decide el SERVIDOR con la IP del request, nunca el payload del cliente.
-    // Con un segundo país en la tabla (y más si su impuesto es 0) el cliente podía mandar otro
-    // ISO y evadir el 16% mexicano. Ver impuestos.md §3.
-    // TODO(fase 2): recalcular con el país emisor de la tarjeta antes de confirmar el intent.
-    const resolved = await resolveTaxCountry({ rawRequest: request.rawRequest });
+    // País fiscal: lo decide el SERVIDOR. Dos señales que el cliente no controla:
+    //   · la IP del request
+    //   · el país EMISOR de la tarjeta, leído de Stripe con el `pm_...` que manda el
+    //     frontend. El cliente envía un identificador, no un país: no puede mentir.
+    // Gana la tarjeta, salvo que algún indicio apunte a México (Art. 18-C). Ver impuestos.md §3.
+    const origin = await cardOriginFromPaymentMethod(
+      typeof (request.data as Record<string, unknown>)?.paymentMethodId === "string"
+        ? String((request.data as Record<string, unknown>).paymentMethodId)
+        : null
+    );
+    const resolved = await resolveTaxCountry({
+      rawRequest: request.rawRequest,
+      cardCountry: origin.cardCountry,
+      billingCountry: origin.billingCountry,
+    });
     const country = resolved.country;
     // El país fiscal NO se confía del cliente: si manda uno sin IVA configurado (para
     // evadir el impuesto), se rechaza. Solo se cobra donde el impuesto está definido (MX).

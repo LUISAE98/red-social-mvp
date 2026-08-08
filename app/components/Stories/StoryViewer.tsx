@@ -1010,7 +1010,7 @@ export default function StoryViewer({
       open={payGreetOpen}
       amount={payGreetAmount != null ? payGreetAmount + FIXED_SERVICE_FEE_MXN : null}
       amountCurrency="MXN"
-      createIntent={(args) => createGreetingStripeIntent({ greetingRequestId: payGreetId ?? "", saveCard: args.saveCard, taxCountry: args.taxCountry, savedPaymentMethodId: args.savedPaymentMethodId })}
+      createIntent={(args) => createGreetingStripeIntent({ greetingRequestId: payGreetId ?? "", saveCard: args.saveCard, taxCountry: args.taxCountry, savedPaymentMethodId: args.savedPaymentMethodId, applyCredit: args.applyCredit })}
       priceLabel={payGreetAmount != null ? `$${payGreetAmount + FIXED_SERVICE_FEE_MXN} MXN` : undefined}
       productType={effectiveType === "consejo" ? "Consejo" : "Saludo"}
       providerName={greetingAuthorName ?? undefined}

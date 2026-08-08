@@ -33,6 +33,7 @@ export async function createGreetingStripeIntent(input: {
   saveCard: boolean;
   taxCountry: string | null;
   savedPaymentMethodId?: string;
+  applyCredit?: boolean;
 }): Promise<StripeChargeResult> {
   const fn = httpsCallable<typeof input, StripeChargeResult>(functions, "createGreetingStripeIntent");
   const res = await fn(input);
@@ -49,6 +50,7 @@ export async function createServiceStripeIntent(input: {
   saveCard: boolean;
   taxCountry: string | null;
   savedPaymentMethodId?: string;
+  applyCredit?: boolean;
 }): Promise<StripeChargeResult> {
   const fn = httpsCallable<typeof input, StripeChargeResult>(functions, "createServiceStripeIntent");
   const res = await fn(input);
@@ -64,6 +66,7 @@ export async function createDonationStripeIntent(input: {
   groupId?: string | null;
   groupName?: string | null;
   savedPaymentMethodId?: string;
+  applyCredit?: boolean;
   /** Apodo del donador (invitado sin login o usuario logueado). Opcional. */
   nickname?: string | null;
 }): Promise<StripeChargeResult> {
@@ -78,6 +81,7 @@ export async function createLiveAccessStripeIntent(input: {
   saveCard: boolean;
   taxCountry: string | null;
   savedPaymentMethodId?: string;
+  applyCredit?: boolean;
 }): Promise<StripeChargeResult> {
   const fn = httpsCallable<typeof input, StripeChargeResult>(functions, "createLiveAccessStripeIntent");
   const res = await fn(input);
@@ -90,6 +94,7 @@ export async function createPremiumPostStripeIntent(input: {
   saveCard: boolean;
   taxCountry: string | null;
   savedPaymentMethodId?: string;
+  applyCredit?: boolean;
 }): Promise<StripeChargeResult> {
   const fn = httpsCallable<typeof input, StripeChargeResult>(functions, "createPremiumPostStripeIntent");
   const res = await fn(input);
@@ -103,6 +108,7 @@ export async function createLiveDonationStripeIntent(input: {
   saveCard: boolean;
   taxCountry: string | null;
   savedPaymentMethodId?: string;
+  applyCredit?: boolean;
   /** Apodo del donador (invitado sin perfil). Aparece en el chat del live. */
   nickname?: string | null;
 }): Promise<StripeChargeResult> {
@@ -124,6 +130,7 @@ export async function createSuperCommentStripeIntent(input: {
   saveCard: boolean;
   taxCountry: string | null;
   savedPaymentMethodId?: string;
+  applyCredit?: boolean;
   /** Apodo del invitado (sin perfil). Aparece en el chat con el súper comentario. */
   nickname?: string | null;
 }): Promise<StripeChargeResult> {
@@ -143,6 +150,7 @@ export async function createGroupSubscription(input: {
   taxCountry: string | null;
   inviteToken?: string;
   savedPaymentMethodId?: string;
+  applyCredit?: boolean;
 }): Promise<StripeChargeResult & { subscriptionId?: string }> {
   const fn = httpsCallable<typeof input, StripeChargeResult & { subscriptionId?: string }>(functions, "createGroupSubscription");
   const res = await fn(input);

@@ -14,6 +14,7 @@ import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import { doc, getDoc, collection, onSnapshot } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
+import { useBuyerCredit } from "@/lib/wallet/useBuyerCredit";
 import { FIXED_SERVICE_FEE_MXN } from "@/lib/currency/catalog";
 import { isChargeableCountry } from "@/lib/tax/config";
 import { loadStripe, type StripeLike, type StripeElement } from "@/lib/stripe/loadStripe";
@@ -32,7 +33,7 @@ type Props = {
   /** Crea el PaymentIntent y devuelve su client_secret. `taxCountry` = país fiscal del comprador (por IP).
    *  Si `savedPaymentMethodId` viene, el cobro es "un clic" off-session (sin CVV): se confirma
    *  server-side y la respuesta trae `status` ("succeeded" = cobrado). */
-  createIntent: (args: { amount: number; saveCard: boolean; taxCountry: string | null; savedPaymentMethodId?: string; nickname?: string | null }) => Promise<{ clientSecret?: string; status?: string }>;
+  createIntent: (args: { amount: number; saveCard: boolean; taxCountry: string | null; savedPaymentMethodId?: string; nickname?: string | null; paymentMethodId?: string; applyCredit?: boolean }) => Promise<{ clientSecret?: string; status?: string }>;
   /** Invitado (sin login): en el saludo "Bienvenido" muestra un input de APODO editable
    *  (placeholder), cacheado por dispositivo y enviado en `createIntent`. */
   collectNickname?: boolean;
@@ -69,9 +70,27 @@ type Props = {
    *  el panel verde. Si NO hay tarjeta guardada, cae al flujo manual normal. Solo cuenta
    *  real (no invitado). Default false → comportamiento normal. */
   autoConfirm?: boolean;
+  /** Permite pagar con SALDO A FAVOR (crédito). Default true. La SUSCRIPCIÓN recurrente lo
+   *  pasa en false (el crédito no aplica a un cobro mensual). */
+  allowCredit?: boolean;
   onClose: () => void;
   onPaid: () => void;
 };
+
+/**
+ * Nombre del país en español a partir del ISO-2, para la leyenda "Tu tarjeta es de …".
+ * Usa `Intl.DisplayNames`, que ya viene en el navegador — sin tabla que mantener.
+ * Si el ISO no se reconoce, devuelve el propio código.
+ */
+function countryName(iso: string | null | undefined): string {
+  const code = (iso ?? "").toUpperCase();
+  if (!/^[A-Z]{2}$/.test(code)) return code || "otro país";
+  try {
+    return new Intl.DisplayNames(["es"], { type: "region" }).of(code) ?? code;
+  } catch {
+    return code;
+  }
+}
 
 const ID_NUMBER = "vibra-stripe-card-number";
 const ID_EXP = "vibra-stripe-card-exp";
@@ -113,6 +132,7 @@ export default function StripePaymentModal({
   savedCards = [],
   autoCloseMs,
   autoConfirm = false,
+  allowCredit = true,
   onClose,
   onPaid,
 }: Props) {
@@ -132,6 +152,21 @@ export default function StripePaymentModal({
   const [selectedMethod, setSelectedMethod] = useState<string | null>(null);
   const [renderedMethod, setRenderedMethod] = useState<string | null>(null);
   const [cardValid, setCardValid] = useState({ number: false, exp: false, cvc: false });
+
+  // ── País de la TARJETA ───────────────────────────────────────────────────────
+  // Al abrir la pasarela el precio se calcula con la IP. En cuanto el comprador termina de
+  // escribir la tarjeta se crea el PaymentMethod (SIN cobrar) y Stripe devuelve el país
+  // emisor: si difiere del de la IP, el precio se recalcula solo.
+  //
+  // El `pm_...` se reutiliza al confirmar, así que la tarjeta se materializa una sola vez.
+  // Y se manda al backend para que él lea el país de Stripe — el cliente nunca envía un país,
+  // envía un identificador verificable. Ver backend/src/payments/stripe/cardCountry.ts.
+  const [cardPm, setCardPm] = useState<{ id: string; country: string | null } | null>(null);
+  /** true mientras se lee el BIN: el precio se muestra como skeleton. */
+  const [readingCard, setReadingCard] = useState(false);
+  // Espejo en ref: `handlePay` se define fuera del render y necesita el valor vigente.
+  const cardPmRef = useRef<{ id: string; country: string | null } | null>(null);
+  useEffect(() => { cardPmRef.current = cardPm; }, [cardPm]);
   const [isNarrow, setIsNarrow] = useState(false);
   const stacked = isNarrow || isSheet || forceStacked;
   // En celular (y no ya en modo sheet embebido), la pasarela se presenta como
@@ -155,20 +190,43 @@ export default function StripePaymentModal({
 
   const pf = usePriceFormat();
 
+  // Saldo a favor del comprador (MXN). Solo cuentas reales (un invitado no tiene crédito).
+  const credit = useBuyerCredit(isGuest ? null : (auth.currentUser?.uid ?? null));
+  const creditBalance = isGuest ? 0 : credit.balance;
+  const [useCredit, setUseCredit] = useState(false);
+
   const isNewCard = selectedMethod === "credit" || selectedMethod === "debit";
   const savedCardId = selectedMethod?.startsWith("saved:") ? selectedMethod.slice(6) : null;
   const mxnAmount = amountEditable ? chosenAmount : (amount ?? null);
+
+  // Total estimado en MXN (base + $3 en donación + IVA) para calcular cuánto crédito se
+  // aplica y si cubre el 100%. El monto EXACTO lo decide el backend; esto es para la UI.
+  const creditChargedBaseMxn =
+    mxnAmount != null ? mxnAmount + (amountEditable ? FIXED_SERVICE_FEE_MXN : 0) : null;
+  const estTotalMxn =
+    creditChargedBaseMxn != null
+      ? Math.round((creditChargedBaseMxn * (1 + pf.taxRate) + Number.EPSILON) * 100) / 100
+      : null;
+  const creditEnabled = allowCredit && !isGuest && creditBalance > 0;
+  const creditApplied =
+    useCredit && creditEnabled && estTotalMxn != null ? Math.min(creditBalance, estTotalMxn) : 0;
+  const remainderAfterCredit =
+    estTotalMxn != null ? Math.round((estTotalMxn - creditApplied + Number.EPSILON) * 100) / 100 : null;
+  // El saldo cubre el 100% → no hace falta tarjeta.
+  const creditCoversAll = useCredit && creditEnabled && remainderAfterCredit != null && remainderAfterCredit <= 0;
 
   // Donación editable: la base elegida debe alcanzar el mínimo (si el servicio lo exige).
   const belowMin = amountEditable && minBaseAmount > 0 && chosenAmount != null && chosenAmount < minBaseAmount;
   const amountOk = !amountEditable || (chosenAmount != null && chosenAmount > 0 && !belowMin);
   const canPay =
     amountOk &&
-    (isNewCard
-      ? cardValid.number && cardValid.exp && cardValid.cvc && cardName.trim().length > 0
-      : savedCardId
-        ? (isGuest ? savedCvcValid : true) // invitado re-pide CVV; cuenta real = un-clic off-session
-        : false);
+    // Si el saldo a favor cubre el 100%, no hace falta tarjeta.
+    (creditCoversAll ||
+      (isNewCard
+        ? cardValid.number && cardValid.exp && cardValid.cvc && cardName.trim().length > 0
+        : savedCardId
+          ? (isGuest ? savedCvcValid : true) // invitado re-pide CVV; cuenta real = un-clic off-session
+          : false));
 
   const stripeRef = useRef<StripeLike | null>(null);
   const numberElRef = useRef<StripeElement | null>(null);
@@ -188,6 +246,53 @@ export default function StripePaymentModal({
       return () => window.clearTimeout(t);
     }
   }, [showSuccess, autoCloseMs]);
+
+  // Lee el país EMISOR en cuanto los tres campos de la tarjeta están completos.
+  //
+  // Crea el PaymentMethod, que NO cobra nada — solo materializa la tarjeta para poder
+  // consultarle a Stripe de qué país es. El mismo `pm_...` se reutiliza al confirmar el pago,
+  // así que la tarjeta se tokeniza una sola vez.
+  //
+  // Si falla, no se rompe nada: el precio se queda con el de la IP y el cobro sigue su curso.
+  const cardComplete = cardValid.number && cardValid.exp && cardValid.cvc;
+  useEffect(() => {
+    if (!cardComplete || cardPm || readingCard) return;
+    const stripe = stripeRef.current;
+    const numberEl = numberElRef.current;
+    if (!stripe || !numberEl) return;
+
+    let cancelled = false;
+    setReadingCard(true);
+    (async () => {
+      try {
+        const res = await stripe.createPaymentMethod({
+          type: "card",
+          card: numberEl,
+          billing_details: { name: cardName.trim() || undefined },
+        });
+        if (cancelled) return;
+        const pm = res?.paymentMethod;
+        if (pm?.id) {
+          setCardPm({ id: pm.id, country: pm.card?.country?.toUpperCase() ?? null });
+        }
+      } catch {
+        // Sin país de tarjeta se sigue con el de la IP. No se muestra error al comprador.
+      } finally {
+        if (!cancelled) setReadingCard(false);
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [cardComplete, cardPm, readingCard, cardName]);
+
+  // País que MANDA para el precio mostrado. Espeja la regla del backend
+  // (backend/src/tax/resolveCountry.ts): gana la tarjeta, salvo que la IP sea de México
+  // —ahí el servicio se aprovecha en México y paga IVA mexicano aunque la tarjeta sea de fuera.
+  const ipCountry = pf.buyerCountry;
+  const effectiveCountry =
+    ipCountry === "MX" ? "MX" : (cardPm?.country ?? ipCountry);
+  /** true cuando la tarjeta cambió el país respecto a lo que dijo la IP. */
+  const countryFromCard = !!cardPm?.country && effectiveCountry === cardPm.country && cardPm.country !== ipCountry;
 
   const amountInputRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
@@ -345,9 +450,21 @@ export default function StripePaymentModal({
     numberElRef.current = numberEl;
 
     const complete = (e: unknown) => (e as { complete?: boolean } | null)?.complete === true;
-    numberEl.on("change", (e) => setCardValid((v) => ({ ...v, number: complete(e) })));
-    expEl.on("change", (e) => setCardValid((v) => ({ ...v, exp: complete(e) })));
-    cvcEl.on("change", (e) => setCardValid((v) => ({ ...v, cvc: complete(e) })));
+    // Si el comprador corrige la tarjeta, el país leído deja de valer: se descarta para que
+    // el precio vuelva al de la IP hasta que la nueva tarjeta esté completa.
+    const invalidateCard = () => setCardPm(null);
+    numberEl.on("change", (e) => {
+      setCardValid((v) => ({ ...v, number: complete(e) }));
+      invalidateCard();
+    });
+    expEl.on("change", (e) => {
+      setCardValid((v) => ({ ...v, exp: complete(e) }));
+      invalidateCard();
+    });
+    cvcEl.on("change", (e) => {
+      setCardValid((v) => ({ ...v, cvc: complete(e) }));
+      invalidateCard();
+    });
 
     // rAF: espera a que el contenedor esté en el DOM (dentro del acordeón).
     const raf = requestAnimationFrame(() => {
@@ -384,7 +501,7 @@ export default function StripePaymentModal({
 
   async function handlePay() {
     if (submitting) return;
-    if (!selectedMethod) { setError("Elige un método de pago."); return; }
+    if (!selectedMethod && !creditCoversAll) { setError("Elige un método de pago."); return; }
     const stripe = stripeRef.current;
     if (!stripe) return;
     const payAmount = (amountEditable ? chosenAmount : amount) ?? null;
@@ -403,8 +520,15 @@ export default function StripePaymentModal({
       }
     };
     try {
+      // El SALDO A FAVOR cubre el 100%: sin tarjeta. El backend materializa la compra
+      // (remainder 0) y devuelve status "succeeded".
+      if (creditCoversAll) {
+        const res = await createIntentRef.current({ amount: payAmount, saveCard: false, taxCountry: pf.buyerCountry ?? null, nickname: collectNickname ? (nickname.trim() || null) : null, applyCredit: true });
+        if (res.status === "succeeded" || res.status === "processing" || res.status === "requires_capture") { markPaid(); return; }
+        throw new Error("rejected");
+      }
       if (savedCardId) {
-        const res = await createIntentRef.current({ amount: payAmount, saveCard: false, taxCountry: pf.buyerCountry ?? null, savedPaymentMethodId: savedCardId, nickname: collectNickname ? (nickname.trim() || null) : null });
+        const res = await createIntentRef.current({ amount: payAmount, saveCard: false, taxCountry: pf.buyerCountry ?? null, savedPaymentMethodId: savedCardId, nickname: collectNickname ? (nickname.trim() || null) : null, applyCredit: useCredit });
         if (isGuest) {
           // Invitado: NO hay un-clic. El callable devolvió un clientSecret y aquí se confirma
           // ON-SESSION con la PM guardada + el CVV recolectado (Element solo-CVC). Así, en un
@@ -435,14 +559,19 @@ export default function StripePaymentModal({
       const numberEl = numberElRef.current;
       if (!numberEl) throw new Error("no_element");
 
-      const res = await createIntentRef.current({ amount: payAmount, saveCard, taxCountry: pf.buyerCountry ?? null, nickname: collectNickname ? (nickname.trim() || null) : null });
+      // Se manda el `pm_...` ya creado al leer la tarjeta: el backend consulta a Stripe de qué
+      // país es y resuelve el impuesto con ese dato, no con el que diga el navegador.
+      const res = await createIntentRef.current({ amount: payAmount, saveCard, taxCountry: pf.buyerCountry ?? null, nickname: collectNickname ? (nickname.trim() || null) : null, paymentMethodId: cardPmRef.current?.id, applyCredit: useCredit });
       // Sin factura que confirmar (p. ej. REACTIVAR una suscripción con cancelación
       // pendiente: no se cobra de nuevo). El backend ya dejó todo listo → éxito directo.
       if (res.status === "succeeded" || res.status === "processing" || res.status === "requires_capture") { markPaid(); return; }
       const clientSecret = res.clientSecret;
       if (!clientSecret) throw new Error("no_secret");
+      // Si ya se materializó la tarjeta al leer su país, se confirma con ESE método —
+      // así no se tokeniza dos veces. Si no (lectura fallida), se crea al confirmar.
+      const existingPm = cardPmRef.current?.id;
       const result = await stripe.confirmCardPayment(clientSecret, {
-        payment_method: { card: numberEl, billing_details: { name: cardName.trim() } },
+        payment_method: existingPm ?? { card: numberEl, billing_details: { name: cardName.trim() } },
       });
       if (result.error) {
         setError(result.error.message || "No se pudo procesar el pago.");
@@ -671,9 +800,49 @@ export default function StripePaymentModal({
         <p style={{ color: "#8a8f99", fontSize: 14 }}>Cargando pago seguro…</p>
       ) : (
         <div style={{ display: "grid" }}>
-          {newCardRow("credit", "Tarjeta de crédito")}
-          {newCardRow("debit", "Tarjeta de débito")}
-          {effectiveSavedCards.map((c) => savedCardRow(c))}
+          {/* Saldo a favor: método MEZCLABLE (checkbox). Si cubre el total, la tarjeta es opcional. */}
+          {creditEnabled && (
+            <>
+              <button
+                type="button"
+                onClick={() => { setUseCredit((v) => !v); setError(null); }}
+                style={{
+                  display: "flex", alignItems: "center", gap: 12, width: "100%", textAlign: "left",
+                  padding: "12px 14px", marginBottom: 8, borderRadius: 12, cursor: "pointer",
+                  border: `1.5px solid ${useCredit ? BLUE : "#e3e6ea"}`,
+                  background: useCredit ? "rgba(0,158,227,0.06)" : "#fff",
+                }}
+              >
+                <span style={{ width: 18, height: 18, borderRadius: 5, flexShrink: 0, display: "grid", placeItems: "center", border: `2px solid ${useCredit ? BLUE : "#b8bcc4"}`, background: useCredit ? BLUE : "#fff" }}>
+                  {useCredit && (
+                    <svg width={11} height={11} viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth={3.5} strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
+                  )}
+                </span>
+                <span style={{ flex: 1, minWidth: 0 }}>
+                  <span style={{ display: "block", fontSize: 14, fontWeight: 600, color: "#3a3f4a" }}>Saldo a favor</span>
+                  <span style={{ display: "block", fontSize: 12, color: "#8a8f99" }}>{pf.format(creditBalance, { baseCurrency: "MXN" })} {pf.currency} disponible</span>
+                </span>
+                {useCredit && creditApplied > 0 && (
+                  <span style={{ fontSize: 13, fontWeight: 700, color: BLUE, whiteSpace: "nowrap" }}>−{pf.format(creditApplied, { baseCurrency: "MXN" })}</span>
+                )}
+              </button>
+              {useCredit && (
+                <p style={{ margin: "0 2px 10px", fontSize: 12, color: creditCoversAll ? "#16a34a" : "#8a8f99" }}>
+                  {creditCoversAll
+                    ? "Tu saldo cubre el total. No necesitas tarjeta."
+                    : `Elige una tarjeta para el restante: ${remainderAfterCredit != null ? pf.format(remainderAfterCredit, { baseCurrency: "MXN" }) : ""} ${pf.currency}`}
+                </p>
+              )}
+            </>
+          )}
+          {/* Con el saldo cubriendo el total, la tarjeta sobra: se ocultan los métodos de tarjeta. */}
+          {!creditCoversAll && (
+            <>
+              {newCardRow("credit", "Tarjeta de crédito")}
+              {newCardRow("debit", "Tarjeta de débito")}
+              {effectiveSavedCards.map((c) => savedCardRow(c))}
+            </>
+          )}
         </div>
       )}
     </div>
@@ -685,7 +854,23 @@ export default function StripePaymentModal({
   // DISPLAY (el backend lo suma al cobrar). Los servicios ya reciben base+$3 en `amount`.
   const chargedBase = effectiveAmount != null ? effectiveAmount + (amountEditable ? FIXED_SERVICE_FEE_MXN : 0) : null;
   const totalLabel = chargedBase != null ? `${pf.format(chargedBase, { baseCurrency: amountCurrency })} ${pf.currency}` : priceLabel ?? "";
-  const taxed = chargedBase != null ? pf.formatWithTax(chargedBase, { baseCurrency: amountCurrency }) : null;
+  // El desglose se calcula con el país EFECTIVO: la IP al abrir, y el de la tarjeta en cuanto
+  // se lee. Así el precio en pantalla coincide con lo que el backend va a cobrar.
+  const taxed = chargedBase != null
+    ? pf.formatWithTax(chargedBase, { baseCurrency: amountCurrency, taxCountryOverride: effectiveCountry })
+    : null;
+
+  /** Barra gris del skeleton mientras se lee el BIN de la tarjeta. */
+  const priceSkeleton = (w: number) => (
+    <span
+      aria-hidden="true"
+      style={{
+        display: "inline-block", width: w, height: "1em", borderRadius: 4, verticalAlign: "middle",
+        background: "linear-gradient(90deg,#eceef1 25%,#f5f6f8 50%,#eceef1 75%)",
+        backgroundSize: "200% 100%", animation: "vibraSkeleton 1.1s ease-in-out infinite",
+      }}
+    />
+  );
 
   const rightColumn = (
     <div style={{ position: "relative", padding: stacked ? "16px 18px 20px" : "48px 24px 24px", background: "#fff", borderLeft: stacked ? "none" : "1px solid #eaecef", display: "flex", flexDirection: "column", justifyContent: "flex-start", gap: 12, minWidth: 0 }}>
@@ -772,9 +957,15 @@ export default function StripePaymentModal({
           )}
           {taxed?.applies && chosenAmount != null && (
             <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid #e6e8ec", display: "grid", gap: 5 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, color: "#8a8f99" }}><span>Subtotal</span><span>{taxed.base} {taxed.currency}</span></div>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, color: "#8a8f99" }}><span>{taxed.taxName} ({Math.round(taxed.rate * 100)}%)</span><span>{taxed.tax} {taxed.currency}</span></div>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, color: "#8a8f99" }}><span>Subtotal</span><span>{readingCard ? priceSkeleton(58) : <>{taxed.base} {taxed.currency}</>}</span></div>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, color: "#8a8f99" }}><span>{taxed.taxName} ({Math.round(taxed.rate * 100)}%)</span><span>{readingCard ? priceSkeleton(46) : <>{taxed.tax} {taxed.currency}</>}</span></div>
               <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between" }}><span style={{ fontSize: 13, color: "#6b7280", fontWeight: 600 }}>Total a pagar</span><span style={{ fontSize: 16, fontWeight: 600, color: "#3a3f4a" }}>{taxed.total} {taxed.currency}</span></div>
+              {useCredit && creditApplied > 0 && (
+                <>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, color: BLUE }}><span>Saldo a favor</span><span>−{pf.format(creditApplied, { baseCurrency: "MXN" })} {pf.currency}</span></div>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, fontWeight: 700, color: "#3a3f4a" }}><span>{creditCoversAll ? "Pagas con saldo" : "Restante a tu tarjeta"}</span><span>{pf.format(remainderAfterCredit ?? 0, { baseCurrency: "MXN" })} {pf.currency}</span></div>
+                </>
+              )}
             </div>
           )}
         </>
@@ -783,17 +974,23 @@ export default function StripePaymentModal({
           <div style={{ height: 1, background: "#e6e8ec" }} />
           {taxed?.applies ? (
             <div style={{ display: "grid", gap: 6 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, color: "#8a8f99" }}><span>Subtotal</span><span>{taxed.base} {taxed.currency}</span></div>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, color: "#8a8f99" }}><span>{taxed.taxName} ({Math.round(taxed.rate * 100)}%)</span><span>{taxed.tax} {taxed.currency}</span></div>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, color: "#8a8f99" }}><span>Subtotal</span><span>{readingCard ? priceSkeleton(58) : <>{taxed.base} {taxed.currency}</>}</span></div>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, color: "#8a8f99" }}><span>{taxed.taxName} ({Math.round(taxed.rate * 100)}%)</span><span>{readingCard ? priceSkeleton(46) : <>{taxed.tax} {taxed.currency}</>}</span></div>
               <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between" }}>
                 <span style={{ fontSize: 13, color: "#6b7280", fontWeight: 600 }}>{pricePeriodLabel ? "Cobro mensual" : "Total a pagar"}</span>
-                <span style={{ fontSize: 17, fontWeight: 600, color: "#3a3f4a" }}>{taxed.total} {taxed.currency}{pricePeriodLabel ? ` / ${pricePeriodLabel}` : ""}</span>
+                <span style={{ fontSize: 17, fontWeight: 600, color: "#3a3f4a" }}>{readingCard ? priceSkeleton(78) : <>{taxed.total} {taxed.currency}{pricePeriodLabel ? ` / ${pricePeriodLabel}` : ""}</>}</span>
               </div>
+              {useCredit && creditApplied > 0 && (
+                <>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, color: BLUE }}><span>Saldo a favor</span><span>−{pf.format(creditApplied, { baseCurrency: "MXN" })} {pf.currency}</span></div>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, fontWeight: 700, color: "#3a3f4a" }}><span>{creditCoversAll ? "Pagas con saldo" : "Restante a tu tarjeta"}</span><span>{pf.format(remainderAfterCredit ?? 0, { baseCurrency: "MXN" })} {pf.currency}</span></div>
+                </>
+              )}
             </div>
           ) : (
             <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between" }}>
               <span style={{ fontSize: 13, color: "#6b7280", fontWeight: 600 }}>{pricePeriodLabel ? "Cobro mensual" : "Total a pagar"}</span>
-              <span style={{ fontSize: 17, fontWeight: 600, color: "#3a3f4a" }}>{totalLabel}{pricePeriodLabel ? ` / ${pricePeriodLabel}` : ""}</span>
+              <span style={{ fontSize: 17, fontWeight: 600, color: "#3a3f4a" }}>{readingCard ? priceSkeleton(78) : <>{totalLabel}{pricePeriodLabel ? ` / ${pricePeriodLabel}` : ""}</>}</span>
             </div>
           )}
         </>
@@ -801,7 +998,15 @@ export default function StripePaymentModal({
 
       {error && <p style={{ margin: 0, color: "#c0392b", fontSize: 11, textAlign: "center" }}>{error}</p>}
 
-      <button type="button" onClick={handlePay} disabled={submitting || loading || !canPay}
+      {/* Aviso sutil cuando la tarjeta cambió el país respecto al que dijo la IP: le explica
+          al comprador por qué el precio se movió, sin agregarle un paso ni pedirle confirmar. */}
+      {countryFromCard && !readingCard && (
+        <p style={{ margin: "-2px 0 0", fontSize: 11, color: "#8a8f99", textAlign: "center", lineHeight: 1.35 }}>
+          Tu tarjeta es de <strong style={{ fontWeight: 600, color: "#6b7280" }}>{countryName(cardPm?.country)}</strong>
+        </p>
+      )}
+
+      <button type="button" onClick={handlePay} disabled={submitting || loading || !canPay || readingCard}
         style={{ position: "relative", overflow: "hidden", height: 40, borderRadius: 10, border: "none", background: loading || (!canPay && !submitting) ? "#9fd8f2" : BLUE, color: "#fff", fontSize: 15, fontWeight: 600, fontFamily: "inherit", cursor: submitting || loading || !canPay ? "not-allowed" : "pointer" }}>
         {submitting && <span aria-hidden="true" style={{ position: "absolute", inset: 0, background: "rgba(255,255,255,0.28)", transformOrigin: "left center", animation: "vibraBtnFill 2400ms ease-out forwards" }} />}
         <span style={{ position: "relative" }}>{submitting ? "Procesando…" : payButtonLabel}</span>
@@ -839,6 +1044,7 @@ export default function StripePaymentModal({
 
   const keyframes = `
     @keyframes vibraSpin { to { transform: rotate(360deg); } }
+    @keyframes vibraSkeleton { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
     @keyframes vibraPop { 0% { transform: scale(0); opacity: 0; } 60% { transform: scale(1.08); opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
     @keyframes vibraFade { from { opacity: 0; } to { opacity: 1; } }
     @keyframes vibraFadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }

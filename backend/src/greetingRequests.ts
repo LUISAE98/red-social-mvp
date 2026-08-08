@@ -5,6 +5,7 @@ import { createMuxClient, muxTokenId, muxTokenSecret } from "./mux";
 import { usersHaveBlockBetweenTx } from "./social/blocks";
 import { stripeSecretKey } from "./payments/stripe/stripeClient";
 import { capturePaymentIntentForRef, cancelPaymentIntentForRef } from "./payments/stripe/holdCapture";
+import { revertBuyerCreditSpend } from "./wallet/buyerCredit";
 
 if (admin.apps.length === 0) {
   admin.initializeApp();
@@ -575,7 +576,7 @@ export const respondGreetingRequest = onCall(
     // captura/cancelación son llamadas a Stripe → van FUERA de la transacción.
     const preSnap = await reqRef.get();
     if (!preSnap.exists) throw new HttpsError("not-found", "Greeting request not found.");
-    const pre = preSnap.data() as { creatorId?: string; status?: string; paymentStatus?: string };
+    const pre = preSnap.data() as { creatorId?: string; buyerId?: string; status?: string; paymentStatus?: string };
     if (pre.creatorId !== actorId) {
       throw new HttpsError("permission-denied", "Only the creator can respond to this request.");
     }
@@ -590,6 +591,8 @@ export const respondGreetingRequest = onCall(
     // dinero queda en la plataforma para que el comprador pueda pedir devolución (B5).
     if (action === "reject" && pre.paymentStatus === "authorized") {
       await cancelPaymentIntentForRef(externalReference); // best-effort, no bloquea el rechazo
+      // Si el comprador pagó parte con SALDO A FAVOR, se le devuelve (el hold no se cobró).
+      if (pre.buyerId) await revertBuyerCreditSpend(pre.buyerId, { sourceType: "greetingRequest", sourceId: requestId });
     }
 
     await db.runTransaction(async (tx) => {

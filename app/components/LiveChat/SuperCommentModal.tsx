@@ -616,6 +616,7 @@ export default function SuperCommentModal({
             saveCard: args.saveCard,
             taxCountry: args.taxCountry,
             savedPaymentMethodId: args.savedPaymentMethodId,
+            applyCredit: args.applyCredit,
             nickname: isGuest ? (guestNickname.trim() || null) : null,
           });
         }}

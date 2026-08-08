@@ -280,11 +280,13 @@ describe("i18n / detección por país", () => {
     expect(localeFromCountry("MT")).toBe("en"); // mt aún no está listo
   });
 
-  it("Portugal NO pierde el portugués mientras pt-PT no exista (cae a pt-BR)", () => {
-    // Regresión posible al introducir pt-PT: mandar Portugal al inglés sería peor
-    // que el pt-BR que ya recibía.
-    expect(nearestReadyLocale("pt-PT")).toBe("pt-BR");
-    expect(localeFromCountry("PT")).toBe("pt-BR");
+  it("Portugal recibe pt-PT, y el parentesco con pt-BR sigue en pie", () => {
+    // pt-PT ya existe, así que Portugal recibe SU variante y no la brasileña.
+    expect(localeFromCountry("PT")).toBe("pt-PT");
+    expect(nearestReadyLocale("pt-PT")).toBe("pt-PT");
+    // La cadena de parentesco no es decorativa: es la red que evita que, si una de las
+    // dos variantes se cayera, sus hablantes acabaran en inglés en vez de en la otra.
+    expect(nearestReadyLocale("pt-BR")).toBe("pt-BR");
   });
 
   it("no toca los países de LatAm ni el resto del mundo", () => {

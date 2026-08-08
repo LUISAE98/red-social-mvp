@@ -12,6 +12,7 @@ import { updateVatRatesHandler } from "./vatRates";
 import { sessionRemindersHandler } from "./sessionLifecycle";
 import { expireGroupSubscriptionsHandler } from "./payments/groupSubscriptionCore";
 import { stripeSecretKey } from "./payments/stripe/stripeClient";
+import { cleanupAbandonedCreditReservationsHandler } from "./payments/stripe/creditReservationCleanup";
 
 // Healthcheck público
 export const healthcheck = onRequest(
@@ -70,6 +71,20 @@ export const autoExpirePendingServiceRequests = onSchedule(
     ]);
 
     logger.info("autoExpirePendingServiceRequests finished");
+  }
+);
+
+// Saldo a favor: libera las RESERVAS de crédito de checkouts de tarjeta-nueva abandonados.
+export const cleanupAbandonedCreditReservations = onSchedule(
+  {
+    schedule: "every 6 hours",
+    timeZone: "America/Mexico_City",
+    region: "us-central1",
+  },
+  async () => {
+    logger.info("cleanupAbandonedCreditReservations started");
+    await cleanupAbandonedCreditReservationsHandler();
+    logger.info("cleanupAbandonedCreditReservations finished");
   }
 );
 

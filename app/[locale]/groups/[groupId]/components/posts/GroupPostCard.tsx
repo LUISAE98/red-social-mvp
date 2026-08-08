@@ -4308,7 +4308,7 @@ padding: "0 0 2px 0",
     // Invitado (sin login): firma anónima antes de cobrar → el acceso (postAccess) se
     // liga a ese uid y se verifica server-side; una cuenta real (otro uid) no lo hereda.
     if (!currentUserId) await ensureGuestAuth();
-    return createPremiumPostStripeIntent({ postId: post.id, saveCard: args.saveCard, taxCountry: args.taxCountry, savedPaymentMethodId: args.savedPaymentMethodId });
+    return createPremiumPostStripeIntent({ postId: post.id, saveCard: args.saveCard, taxCountry: args.taxCountry, savedPaymentMethodId: args.savedPaymentMethodId, applyCredit: args.applyCredit });
   }}
   productType={tPosts("premiumPayProductType")}
   providerName={postAuthor.authorName}
@@ -4334,7 +4334,7 @@ padding: "0 0 2px 0",
     // Invitado (sin login): firma anónima antes de cobrar → el ticket (liveAccess) se
     // liga a ese uid y se verifica server-side; una cuenta real (otro uid) no lo hereda.
     if (!currentUserId) await ensureGuestAuth();
-    return createLiveAccessStripeIntent({ postId: post.id, saveCard: args.saveCard, taxCountry: args.taxCountry, savedPaymentMethodId: args.savedPaymentMethodId });
+    return createLiveAccessStripeIntent({ postId: post.id, saveCard: args.saveCard, taxCountry: args.taxCountry, savedPaymentMethodId: args.savedPaymentMethodId, applyCredit: args.applyCredit });
   }}
   productType={tPosts("liveTicketProductType")}
   providerName={postAuthor.authorName}

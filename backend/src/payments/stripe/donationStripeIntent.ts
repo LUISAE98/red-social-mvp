@@ -14,6 +14,7 @@ import { getOrCreateStripeCustomer } from "./stripeCustomer";
 import { chargeSavedCardOffSession } from "./offSessionCharge";
 import { isChargeableCountry } from "../../tax/config";
 import { resolveTaxCountry } from "../../tax/resolveCountry";
+import { cardOriginFromPaymentMethod } from "./cardCountry";
 import { composeCharge, chargeFields } from "../../tax/composeCharge";
 import { reserveCreditAndSplit, materializeCreditOnlyPurchase } from "./chargeWithCredit";
 import { revertBuyerCreditSpend } from "../../wallet/buyerCredit";
@@ -68,12 +69,21 @@ export const createDonationStripeIntent = onCall(
     // donación para mostrar quién contribuyó. Opcional; se recorta a 24.
     const nickname = typeof data.nickname === "string" && data.nickname.trim() ? data.nickname.trim().slice(0, 24) : null;
 
-    // País fiscal: lo decide el SERVIDOR con la IP del request, nunca el payload del cliente.
-    // Antes llegaba en `data.taxCountry`; eso era inofensivo solo mientras México fuera el único
-    // país configurado. Con un segundo país en la tabla —y más si su impuesto es 0— un comprador
-    // mexicano podía mandar otro ISO y evadir el 16%. Ver impuestos.md §3.
-    // TODO(fase 2): recalcular con el país emisor de la tarjeta antes de confirmar el intent.
-    const resolved = await resolveTaxCountry({ rawRequest: request.rawRequest });
+    // País fiscal: lo decide el SERVIDOR. Dos señales que el cliente no controla:
+    //   · la IP del request
+    //   · el país EMISOR de la tarjeta, leído de Stripe con el `pm_...` que manda el
+    //     frontend. El cliente envía un identificador, no un país: no puede mentir.
+    // Gana la tarjeta, salvo que algún indicio apunte a México (Art. 18-C). Ver impuestos.md §3.
+    const origin = await cardOriginFromPaymentMethod(
+      typeof (request.data as Record<string, unknown>)?.paymentMethodId === "string"
+        ? String((request.data as Record<string, unknown>).paymentMethodId)
+        : null
+    );
+    const resolved = await resolveTaxCountry({
+      rawRequest: request.rawRequest,
+      cardCountry: origin.cardCountry,
+      billingCountry: origin.billingCountry,
+    });
     const country = resolved.country;
     if (!isChargeableCountry(country)) {
       throw new HttpsError("failed-precondition", "El cobro no está disponible en tu país por ahora.");

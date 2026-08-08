@@ -9,6 +9,14 @@
       ]
     },
     {
+      "collectionGroup": "paymentIntents",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "creditApplied", "order": "ASCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "conversations",
       "queryScope": "COLLECTION",
       "fields": [

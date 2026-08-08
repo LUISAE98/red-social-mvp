@@ -17,9 +17,24 @@ export type ConfirmResult = {
   paymentIntent?: { status?: string };
   error?: { message?: string; code?: string; type?: string };
 };
+/** Método de pago ya materializado. `card.country` es el país EMISOR (el BIN). */
+export type StripePaymentMethodLike = {
+  id: string;
+  card?: { country?: string | null; brand?: string | null } | null;
+};
+
 export type StripeLike = {
   elements: (options?: unknown) => StripeElements;
   confirmCardPayment: (clientSecret: string, data?: unknown) => Promise<ConfirmResult>;
+  /**
+   * Materializa la tarjeta SIN cobrar. La pasarela lo usa al terminar de escribirla para
+   * conocer el país emisor y recalcular el precio; el mismo `pm_...` se reutiliza al
+   * confirmar, así que la tarjeta se tokeniza una sola vez.
+   */
+  createPaymentMethod: (data: unknown) => Promise<{
+    paymentMethod?: StripePaymentMethodLike;
+    error?: { message?: string };
+  }>;
 };
 
 let stripePromise: Promise<StripeLike> | null = null;
