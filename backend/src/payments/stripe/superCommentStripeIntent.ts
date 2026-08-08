@@ -16,7 +16,8 @@ import { chargeSavedCardOffSession } from "./offSessionCharge";
 import { isChargeableCountry } from "../../tax/config";
 import { resolveTaxCountry } from "../../tax/resolveCountry";
 import { composeCharge, chargeFields } from "../../tax/composeCharge";
-import { resolvePresentment } from "../../tax/presentment";
+import { reserveCreditAndSplit, materializeCreditOnlyPurchase } from "./chargeWithCredit";
+import { revertBuyerCreditSpend } from "../../wallet/buyerCredit";
 
 if (admin.apps.length === 0) {
   admin.initializeApp();
@@ -148,6 +149,7 @@ export const createSuperCommentStripeIntent = onCall(
     const saveCard = data.saveCard === true;
     // Si viene, el cobro es "un clic" con una tarjeta ya guardada (off-session, sin CVV).
     const savedPaymentMethodId = data.savedPaymentMethodId ? String(data.savedPaymentMethodId).trim() : null;
+    const applyCredit = data.applyCredit === true; // aplicar saldo a favor (monto lo decide el server)
 
     // Precio publicado = base + $3; IVA 16% encima (todo lo absorbe el fan).
     // País fiscal: lo decide el SERVIDOR con la IP del request, nunca el payload del cliente.
@@ -164,13 +166,20 @@ export const createSuperCommentStripeIntent = onCall(
     // Composición completa (base + $3 → +2% FX → + impuesto si lo cobra Vibra). Ver impuestos.md §2.
     const charge = composeCharge(base, country);
     const totalMxn = charge.chargedAmount;
-    // Se le cobra al comprador EN SU MONEDA (Stripe convierte y liquida en MXN). Sin esto
-    // veía un precio en su divisa y su tarjeta recibía un cargo en pesos mexicanos.
-    const presentment = await resolvePresentment(totalMxn, charge.displayCurrency);
 
     // Id único por súper comentario (es el id del doc que se materializará).
     const scId = db.collection("posts").doc(postId).collection("superComments").doc().id;
     const externalReference = `superComment__${postId}_${scId}`;
+
+    // Saldo a favor: reserva el crédito y calcula el RESTANTE a cobrar a la tarjeta.
+    const { creditApplied, remainderMxn, presentment } = await reserveCreditAndSplit({
+      uid,
+      applyCredit,
+      totalMxn,
+      displayCurrency: charge.displayCurrency,
+      sourceType: "superComment",
+      sourceId: `${postId}_${scId}`,
+    });
 
     await db.collection("paymentIntents").doc(externalReference).set({
       externalReference,
@@ -200,9 +209,11 @@ export const createSuperCommentStripeIntent = onCall(
       // Desglose completo del cobro: base, cargo fijo, FX, impuesto del país y régimen del
       // IVA mexicano. Se guarda aunque la pasarela muestre un precio único sin desglosar.
       ...chargeFields(charge),
-      // Moneda y monto REALES del cargo (lo que ve el comprador en su estado de cuenta).
-      presentmentCurrency: presentment.currency,
-      presentmentAmount: presentment.amount,
+      creditApplied,
+      cardChargedMxn: remainderMxn,
+      // Moneda y monto REALES del cargo a la tarjeta (el RESTANTE tras el crédito).
+      presentmentCurrency: presentment?.currency ?? charge.settlementCurrency,
+      presentmentAmount: presentment?.amount ?? 0,
       // Evidencia de cómo se determinó el país fiscal (indicios del Art. 18-C).
       taxCountrySource: resolved.source,
       taxCountryIndicios: resolved.indicios,
@@ -217,6 +228,12 @@ export const createSuperCommentStripeIntent = onCall(
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
+    // ── El SALDO A FAVOR cubre el 100% → sin tarjeta: materializar directo ──
+    if (remainderMxn <= 0 || !presentment) {
+      await materializeCreditOnlyPurchase(externalReference);
+      return { status: "succeeded" };
+    }
+
     const customerId = await getOrCreateStripeCustomer(uid, request.auth?.token?.email ?? null);
 
     // ── Cobro "un clic" con tarjeta guardada (off-session, sin CVV) ──────────
@@ -224,14 +241,20 @@ export const createSuperCommentStripeIntent = onCall(
     // webhook `payment_intent.succeeded` materializa el súper comentario (igual que
     // el flujo de tarjeta nueva). El precio SIGUE siendo server-authoritative.
     if (savedPaymentMethodId && !isGuest) {
-      const charged = await chargeSavedCardOffSession({
-        uid,
-        savedCardDocId: savedPaymentMethodId,
-        customerId,
-        amountCents: presentment.amountForStripe,
-        currency: presentment.currency,
-        metadata: { externalReference, sourceType: "superComment", sourceId: `${postId}_${scId}`, buyerId: uid },
-      });
+      let charged;
+      try {
+        charged = await chargeSavedCardOffSession({
+          uid,
+          savedCardDocId: savedPaymentMethodId,
+          customerId,
+          amountCents: presentment.amountForStripe,
+          currency: presentment.currency,
+          metadata: { externalReference, sourceType: "superComment", sourceId: `${postId}_${scId}`, buyerId: uid },
+        });
+      } catch (e) {
+        if (creditApplied > 0) await revertBuyerCreditSpend(uid, { sourceType: "superComment", sourceId: `${postId}_${scId}` });
+        throw e;
+      }
       await db.collection("paymentIntents").doc(externalReference).set(
         { stripePaymentIntentId: charged.id, updatedAt: admin.firestore.FieldValue.serverTimestamp() },
         { merge: true }
@@ -252,7 +275,10 @@ export const createSuperCommentStripeIntent = onCall(
         metadata: { externalReference, sourceType: "superComment", sourceId: `${postId}_${scId}`, buyerId: uid },
       },
     });
-    if (!res.ok) throw new HttpsError("internal", `No se pudo crear el pago (${res.status}): ${res.error.slice(0, 200)}`);
+    if (!res.ok) {
+      if (creditApplied > 0) await revertBuyerCreditSpend(uid, { sourceType: "superComment", sourceId: `${postId}_${scId}` });
+      throw new HttpsError("internal", `No se pudo crear el pago (${res.status}): ${res.error.slice(0, 200)}`);
+    }
 
     await db.collection("paymentIntents").doc(externalReference).set(
       { stripePaymentIntentId: res.data.id, updatedAt: admin.firestore.FieldValue.serverTimestamp() },

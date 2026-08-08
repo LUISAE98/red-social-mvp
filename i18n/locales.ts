@@ -36,7 +36,7 @@ export type LocaleMeta = {
  */
 export const LOCALE_META: readonly LocaleMeta[] = [
   { code: "bg", label: "BG", name: "Български", intl: "bg-BG", ready: false },
-  { code: "cs", label: "CS", name: "Čeština", intl: "cs-CZ", ready: false },
+  { code: "cs", label: "CS", name: "Čeština", intl: "cs-CZ", ready: true },
   { code: "da", label: "DA", name: "Dansk", intl: "da-DK", ready: false },
   { code: "de", label: "DE", name: "Deutsch", intl: "de-DE", ready: true },
   { code: "el", label: "EL", name: "Ελληνικά", intl: "el-GR", ready: true },
@@ -47,19 +47,22 @@ export const LOCALE_META: readonly LocaleMeta[] = [
   { code: "fr", label: "FR", name: "Français", intl: "fr-FR", ready: true },
   { code: "ga", label: "GA", name: "Gaeilge", intl: "ga-IE", ready: false },
   { code: "hr", label: "HR", name: "Hrvatski", intl: "hr-HR", ready: false },
-  { code: "hu", label: "HU", name: "Magyar", intl: "hu-HU", ready: false },
+  { code: "hu", label: "HU", name: "Magyar", intl: "hu-HU", ready: true },
   { code: "it", label: "IT", name: "Italiano", intl: "it-IT", ready: true },
   { code: "lt", label: "LT", name: "Lietuvių", intl: "lt-LT", ready: false },
   { code: "lv", label: "LV", name: "Latviešu", intl: "lv-LV", ready: false },
   { code: "mt", label: "MT", name: "Malti", intl: "mt-MT", ready: false },
   { code: "nl", label: "NL", name: "Nederlands", intl: "nl-NL", ready: true },
   { code: "pl", label: "PL", name: "Polski", intl: "pl-PL", ready: true },
-  { code: "pt-BR", label: "PT", name: "Português (Brasil)", intl: "pt-BR", ready: true },
-  { code: "pt-PT", label: "PT", name: "Português (Portugal)", intl: "pt-PT", ready: false },
+  // Las dos variantes del portugués comparten idioma pero NO etiqueta: `label` es el chip
+  // del selector cerrado y muestra el locale ACTIVO. Con "PT" en ambas, el usuario no
+  // podría distinguir cuál tiene puesta. "BR" / "PT" es lo convencional y sigue en 2 letras.
+  { code: "pt-BR", label: "BR", name: "Português (Brasil)", intl: "pt-BR", ready: true },
+  { code: "pt-PT", label: "PT", name: "Português (Portugal)", intl: "pt-PT", ready: true },
   { code: "ro", label: "RO", name: "Română", intl: "ro-RO", ready: true },
   { code: "sk", label: "SK", name: "Slovenčina", intl: "sk-SK", ready: false },
   { code: "sl", label: "SL", name: "Slovenščina", intl: "sl-SI", ready: false },
-  { code: "sv", label: "SV", name: "Svenska", intl: "sv-SE", ready: false },
+  { code: "sv", label: "SV", name: "Svenska", intl: "sv-SE", ready: true },
 ];
 
 /**
@@ -68,7 +71,7 @@ export const LOCALE_META: readonly LocaleMeta[] = [
  * en toda la app. Al terminar el archivo de un idioma: pon su `ready: true` arriba
  * Y agrégalo a esta tupla. El test de i18n verifica que ambas listas coincidan.
  */
-export const READY_LOCALES = ["es", "en", "pt-BR", "de", "fr", "it", "nl", "pl", "ro", "el"] as const;
+export const READY_LOCALES = ["es", "en", "pt-BR", "de", "fr", "it", "nl", "pl", "ro", "el", "cs", "hu", "sv", "pt-PT"] as const;
 
 export type Locale = (typeof READY_LOCALES)[number];
 

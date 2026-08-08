@@ -5,19 +5,17 @@ import { useLocale, useTranslations } from "next-intl";
 
 import {
   acceptConversationRequest,
-  blockConversation,
   createConversationWithFirstMessage,
   deleteMessageForEveryone,
   editMessage,
   hideMessageForMe,
   rejectConversationRequest,
-  reportConversation,
-  unblockConversation,
   type MessageWithId,
 } from "@/lib/chat/chatService";
 import { useConversation } from "@/lib/chat/useConversation";
 import { useConversationDoc } from "@/lib/chat/useConversationDoc";
 import { useDmImageUrls } from "@/lib/chat/useDmImageUrls";
+import { useSocialRelationship } from "@/lib/social/useSocialRelationship";
 import {
   MESSAGE_EDIT_WINDOW_MS,
   MESSAGE_MAX_LENGTH,
@@ -28,7 +26,6 @@ import {
   VibraNavigationIcon,
   VibraNavigationIconsStyles,
 } from "@/app/components/VibraServiceIcons/VibraNavigationIcons";
-import { REPORT_REASONS, type ReportReason } from "@/lib/moderation/types";
 import type { ProfileMini } from "./ConversationList";
 import { ChatReveal, MessageThreadSkeleton } from "./ChatSkeletons";
 
@@ -56,6 +53,57 @@ function dayKey(date: Date | null): string {
   if (!date) return "";
   return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
 }
+
+/**
+ * Iconos del menú de un mensaje. Heredan el color del renglón (`currentColor`),
+ * así que basta con cambiar el del texto para que sigan.
+ *
+ * "Ocultar" lleva un ojo tachado y no una papelera a propósito: esa acción no
+ * borra nada, solo te lo quita de la vista. La papelera queda para la que sí
+ * retira el mensaje de los dos lados.
+ */
+function MenuIcon({ path }: { path: React.ReactNode }) {
+  return (
+    <svg
+      width="15"
+      height="15"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      style={{ flexShrink: 0, opacity: 0.75 }}
+      aria-hidden
+    >
+      {path}
+    </svg>
+  );
+}
+
+const ICON_HIDE = (
+  <>
+    <path d="M3 3l18 18" />
+    <path d="M10.6 10.6a2 2 0 002.8 2.8" />
+    <path d="M9.4 5.2A9.6 9.6 0 0112 5c5 0 9 4.5 9 7 0 .9-.5 2-1.4 3.1" />
+    <path d="M6.3 6.9C3.9 8.4 3 10.4 3 12c0 2.5 4 7 9 7 1.5 0 2.8-.4 4-1" />
+  </>
+);
+
+const ICON_TRASH = (
+  <>
+    <path d="M4 7h16" />
+    <path d="M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2" />
+    <path d="M6.5 7l.8 12a1 1 0 001 1h7.4a1 1 0 001-1l.8-12" />
+  </>
+);
+
+const ICON_PENCIL = (
+  <>
+    <path d="M15.5 5.5l3 3" />
+    <path d="M4 20l4.5-1 10-10-3-3-10 10L4 20z" />
+  </>
+);
 
 const INPUT_MAX_HEIGHT = 120;
 function autoGrow(el: HTMLTextAreaElement) {
@@ -113,6 +161,24 @@ export default function ConversationThread({
 
   const expandedPanelRef = useRef<HTMLDivElement | null>(null);
 
+  /**
+   * Alto real del compositor. Como va superpuesto al hilo, el área de mensajes
+   * necesita ese relleno abajo para que el último mensaje no quede debajo.
+   */
+  const composerRef = useRef<HTMLDivElement | null>(null);
+  const [composerHeight, setComposerHeight] = useState(64);
+
+  useEffect(() => {
+    const node = composerRef.current;
+    if (!node || typeof ResizeObserver === "undefined") return;
+
+    const observer = new ResizeObserver(([entry]) => {
+      setComposerHeight(Math.ceil(entry.contentRect.height));
+    });
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+
   function toggleExpanded(messageId: string) {
     setExpandedMessageId((prev) => (prev === messageId ? null : messageId));
   }
@@ -157,8 +223,6 @@ export default function ConversationThread({
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busyAction, setBusyAction] = useState(false);
-  const [reporting, setReporting] = useState(false);
-  const [reportSent, setReportSent] = useState(false);
 
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -193,9 +257,18 @@ export default function ConversationThread({
     return image.url ?? signedUrls[image.path] ?? null;
   }
 
+  // Bloqueo de PERFIL: es el canónico y el que se maneja desde el menú de la
+  // cabecera. El estado bloqueado del hilo lo acompaña (lo pone ese mismo menú)
+  // porque es lo que miran las reglas al escribir.
+  const { relationship } = useSocialRelationship(selfUid, otherUid);
+  const blockedByMe = relationship.hasBlocked;
+  const blockedByThem = relationship.isBlockedBy;
+  const profileBlock = blockedByMe || blockedByThem;
+
   const status = conversation?.status ?? null;
-  const isBlocked = status === "blocked";
-  const iBlocked = isBlocked && conversation?.blockedBy === selfUid;
+  const isBlocked = status === "blocked" || profileBlock;
+  const iBlocked =
+    blockedByMe || (status === "blocked" && conversation?.blockedBy === selfUid);
   const isPendingRequest = status === "request";
   const iSentRequest = isPendingRequest && conversation?.createdBy === selfUid;
   const iReceivedRequest = isPendingRequest && conversation?.createdBy !== selfUid;
@@ -235,8 +308,6 @@ export default function ConversationThread({
   useEffect(() => {
     setDraft("");
     setError(null);
-    setReporting(false);
-    setReportSent(false);
     lastMessageIdRef.current = null;
   }, [conversationId]);
 
@@ -326,23 +397,27 @@ export default function ConversationThread({
     }
   }
 
-  async function handleReport(reason: ReportReason) {
-    if (!conversationId || !otherUid) return;
-    await runAction(async () => {
-      await reportConversation({ conversationId, reportedUid: otherUid, reason });
-      setReportSent(true);
-      setReporting(false);
-    }, "reportError");
-  }
-
   function renderMessage(message: MessageWithId, previous: MessageWithId | null) {
     const mine = message.senderId === selfUid;
     const date = toDate(message.createdAt as TimestampLike);
     const previousDate = previous ? toDate(previous.createdAt as TimestampLike) : null;
     const showDaySeparator = dayKey(date) !== dayKey(previousDate);
 
+    // Hora y, tras ella, la fecha completa: día, mes y año. Se compone con dos
+    // formateadores en vez de uno con `dateStyle`, para controlar el separador
+    // y que el orden sea siempre hora → fecha, sea cual sea el idioma.
     const time = date
-      ? new Intl.DateTimeFormat(locale, { hour: "numeric", minute: "2-digit" }).format(date)
+      ? [
+          new Intl.DateTimeFormat(locale, {
+            hour: "numeric",
+            minute: "2-digit",
+          }).format(date),
+          new Intl.DateTimeFormat(locale, {
+            day: "numeric",
+            month: "short",
+            year: "numeric",
+          }).format(date),
+        ].join(" · ")
       : "";
 
     const expanded = expandedMessageId === message.id;
@@ -510,68 +585,80 @@ export default function ConversationThread({
                 flexDirection: "column",
                 alignItems: mine ? "flex-end" : "flex-start",
                 gap: 6,
-                paddingTop: 6,
+                paddingTop: 2,
                 paddingBottom: 2,
               }}
             >
-              <span style={{ fontSize: 10.5, color: "rgba(255,255,255,0.45)" }}>
+              {/* La hora va FUERA de la tarjeta, debajo del globo y con el mismo
+                  tratamiento que "Editado" (bajo esa palabra si la hay). */}
+              <span
+                style={{
+                  fontSize: 10,
+                  color: "rgba(255,255,255,0.42)",
+                  lineHeight: 1,
+                  padding: mine ? "0 4px 0 0" : "0 0 0 4px",
+                }}
+              >
                 {time}
               </span>
 
+              {/* Tarjeta propia, estilo WhatsApp: superficie elevada, esquinas
+                  redondeadas y las acciones como renglones de ancho completo.
+                  Un mensaje retirado no tiene acciones: se muestra solo la hora
+                  en vez de una tarjeta vacía. */}
               {!message.isDeleted ? (
-                <div
-                  style={{
-                    display: "flex",
-                    // Menú VERTICAL: una acción por renglón.
-                    flexDirection: "column",
-                    gap: 8,
-                    alignItems: mine ? "flex-end" : "flex-start",
-                  }}
-                >
-                <button
-                  type="button"
-                  onClick={() => runMessageAction(() => hideMessageForMe(conversationId!, message.id, selfUid!))}
-                  tabIndex={expanded ? 0 : -1}
-                      style={messageActionStyle}
-                >
-                  {tChat("deleteForMe")}
-                </button>
+                <div className="vibra-msg-menu">
+                  <button
+                    type="button"
+                    className="vibra-msg-menu-item"
+                    onClick={() =>
+                      runMessageAction(() =>
+                        hideMessageForMe(conversationId!, message.id, selfUid!)
+                      )
+                    }
+                    tabIndex={expanded ? 0 : -1}
+                  >
+                    <MenuIcon path={ICON_HIDE} />
+                    {tChat("deleteForMe")}
+                  </button>
 
-                {/* Retirar y editar solo el autor, y solo dentro de la ventana
-                    de 10 minutos: pasado ese punto las rules lo rechazan, así
-                    que ni se ofrecen. */}
-                {mine && withinWindow ? (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        runMessageAction(() =>
-                          deleteMessageForEveryone(conversationId!, message.id)
-                        )
-                      }
-                      tabIndex={expanded ? 0 : -1}
-                      style={messageActionStyle}
-                    >
-                      {tChat("deleteForEveryone")}
-                    </button>
-
-                    {message.text ? (
+                  {/* Retirar y editar solo el autor, y solo dentro de la
+                      ventana de 10 minutos: pasado ese punto las rules lo
+                      rechazan, así que ni se ofrecen. */}
+                  {mine && withinWindow ? (
+                    <>
                       <button
                         type="button"
-                        onClick={() => {
-                          setEditing({ id: message.id, text: message.text });
-                          setDraft(message.text);
-                          setExpandedMessageId(null);
-                          inputRef.current?.focus();
-                        }}
+                        className="vibra-msg-menu-item"
+                        onClick={() =>
+                          runMessageAction(() =>
+                            deleteMessageForEveryone(conversationId!, message.id)
+                          )
+                        }
                         tabIndex={expanded ? 0 : -1}
-                      style={messageActionStyle}
                       >
-                        {tChat("editMessage")}
+                        <MenuIcon path={ICON_TRASH} />
+                        {tChat("deleteForEveryone")}
                       </button>
-                    ) : null}
-                  </>
-                ) : null}
+
+                      {message.text ? (
+                        <button
+                          type="button"
+                          className="vibra-msg-menu-item"
+                          onClick={() => {
+                            setEditing({ id: message.id, text: message.text });
+                            setDraft(message.text);
+                            setExpandedMessageId(null);
+                            inputRef.current?.focus();
+                          }}
+                          tabIndex={expanded ? 0 : -1}
+                        >
+                          <MenuIcon path={ICON_PENCIL} />
+                          {tChat("editMessage")}
+                        </button>
+                      ) : null}
+                    </>
+                  ) : null}
                 </div>
               ) : null}
             </div>
@@ -604,34 +691,13 @@ export default function ConversationThread({
   } as const;
 
   function renderFooter() {
-    if (reporting) {
-      return (
-        <button
-          type="button"
-          onClick={() => setReporting(false)}
-          style={{ ...secondaryButtonStyle, width: "100%" }}
-        >
-          {tCommon("cancel")}
-        </button>
-      );
-    }
-
+    // Bloqueado: no hay campo de escritura, solo el aviso de quién bloqueó a
+    // quién. Desbloquear se hace desde el menú ⋮ de la cabecera, que es donde
+    // vive el bloqueo de perfil.
     if (isBlocked) {
       return (
-        <div style={{ display: "grid", gap: 8 }}>
-          <div style={noticeStyle}>
-            {iBlocked ? tChat("blockedByMeNotice") : tChat("blockedByThemNotice")}
-          </div>
-          {iBlocked ? (
-            <button
-              type="button"
-              onClick={() => runAction(() => unblockConversation(conversationId!), "blockError")}
-              disabled={busyAction}
-              style={secondaryButtonStyle}
-            >
-              {tChat("unblock")}
-            </button>
-          ) : null}
+        <div style={{ ...noticeStyle, textAlign: "center", padding: "4px 0" }}>
+          {iBlocked ? tChat("blockedByMeNotice") : tChat("blockedByThemNotice")}
         </div>
       );
     }
@@ -806,7 +872,11 @@ export default function ConversationThread({
             padding: "10px 42px 10px 12px",
             borderRadius: 12,
             border: "none",
+            // Translúcido + desenfoque: los mensajes se ven pasar por detrás
+            // sin que el texto que escribes deje de leerse.
             background: "rgba(255,255,255,0.06)",
+            backdropFilter: "blur(14px)",
+            WebkitBackdropFilter: "blur(14px)",
             color: "#fff",
             fontSize: 13,
             fontFamily: "inherit",
@@ -883,89 +953,13 @@ export default function ConversationThread({
   }
 
   function renderBody() {
-    if (reporting) {
-      return (
-        <div style={{ display: "grid", gap: 10, padding: "6px 0" }}>
-          <div style={{ fontSize: 13, color: "rgba(255,255,255,0.88)", fontWeight: 600 }}>
-            {tChat("reportTitle")}
-          </div>
-          <div style={{ ...noticeStyle, marginBottom: 4 }}>{tChat("reportIntro")}</div>
-          {REPORT_REASONS.map((reason) => (
-            <button
-              key={reason}
-              type="button"
-              onClick={() => handleReport(reason)}
-              disabled={busyAction}
-              style={{
-                minHeight: 42,
-                padding: "0 12px",
-                borderRadius: 10,
-                border: "1px solid rgba(255,255,255,0.10)",
-                background: "rgba(255,255,255,0.04)",
-                color: "rgba(255,255,255,0.92)",
-                fontSize: 13.5,
-                fontFamily: "inherit",
-                textAlign: "left",
-                cursor: busyAction ? "not-allowed" : "pointer",
-              }}
-            >
-              {tChat(`reportReason_${reason}`)}
-            </button>
-          ))}
-        </div>
-      );
-    }
-
+    // El selector de motivos de reporte se fue con el resto: ahora lo abre el
+    // menú ⋮ de la cabecera, con el ReportModal compartido del producto.
     return (
       <>
         {/* Acciones de seguridad del hilo, discretas y siempre a la vista. */}
-        {exists && !isBlocked ? (
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "flex-end",
-              gap: 12,
-              paddingBottom: 6,
-              borderBottom: "1px solid rgba(255,255,255,0.06)",
-              marginBottom: 4,
-            }}
-          >
-            <button
-              type="button"
-              onClick={() =>
-                runAction(() => blockConversation(conversationId!, selfUid!), "blockError")
-              }
-              disabled={busyAction}
-              style={{
-                border: "none",
-                background: "transparent",
-                color: "rgba(255,255,255,0.50)",
-                fontSize: 11.5,
-                fontFamily: "inherit",
-                cursor: busyAction ? "not-allowed" : "pointer",
-                padding: 0,
-              }}
-            >
-              {tChat("block")}
-            </button>
-            <button
-              type="button"
-              onClick={() => setReporting(true)}
-              disabled={busyAction || reportSent}
-              style={{
-                border: "none",
-                background: "transparent",
-                color: reportSent ? "rgba(255,255,255,0.34)" : "rgba(255,255,255,0.50)",
-                fontSize: 11.5,
-                fontFamily: "inherit",
-                cursor: reportSent ? "default" : "pointer",
-                padding: 0,
-              }}
-            >
-              {reportSent ? tChat("reportSent") : tChat("report")}
-            </button>
-          </div>
-        ) : null}
+        {/* Bloquear y reportar ya viven en el menú ⋮ de la cabecera; tenerlos
+            también aquí sería la misma acción en dos sitios. */}
 
         {loading && exists ? (
           <MessageThreadSkeleton />
@@ -1027,31 +1021,85 @@ export default function ConversationThread({
         .vibra-chat-ph::placeholder {
           color: rgba(255, 255, 255, 0.32);
         }
+
+        /* Menú de un mensaje, al estilo de WhatsApp: tarjeta compacta con
+           superficie propia; el ancho lo fija el texto más largo. */
+        .vibra-msg-menu {
+          min-width: 168px;
+          max-width: 240px;
+          border-radius: 12px;
+          background: #1f1f23;
+          /* Sin contorno: la elevación la da solo la sombra. */
+          border: none;
+          box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+          overflow: hidden;
+          display: flex;
+          flex-direction: column;
+        }
+        .vibra-msg-menu-item {
+          appearance: none;
+          border: none;
+          background: transparent;
+          color: rgba(255, 255, 255, 0.88);
+          font-family: inherit;
+          font-size: 13px;
+          line-height: 1.2;
+          text-align: left;
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          padding: 11px 14px;
+          cursor: pointer;
+          transition: background var(--duration-fast, 150ms) ease;
+          -webkit-tap-highlight-color: transparent;
+        }
+        @media (hover: hover) {
+          .vibra-msg-menu-item:hover {
+            background: rgba(255, 255, 255, 0.07);
+          }
+        }
+        .vibra-msg-menu-item:active {
+          background: rgba(255, 255, 255, 0.11);
+        }
       `}</style>
 
       <div
         ref={scrollRef}
-        style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "10px 14px" }}
+        style={{
+          flex: 1,
+          minHeight: 0,
+          overflowY: "auto",
+          // El relleno inferior deja hueco para el compositor, que va ENCIMA:
+          // sin él, el último mensaje quedaría escondido debajo. Se mide en
+          // vivo porque el compositor cambia de alto (campo que crece, aviso de
+          // error, botones de solicitud).
+          padding: `10px 14px ${composerHeight + 10}px`,
+        }}
       >
         {renderBody()}
       </div>
 
+      {/* Superpuesto al hilo, no en su propia fila: así los mensajes se ven
+          pasar por detrás al scrollear. El campo lleva desenfoque para seguir
+          siendo legible sobre ellos. */}
       <div
+        ref={composerRef}
         style={{
-          flexShrink: 0,
-          // Sin divisor ni fondo propio: el compositor no es una barra aparte,
-          // parece flotar sobre la conversación. El único elemento con relleno
-          // visible es el campo de texto.
+          position: "absolute",
+          left: 0,
+          right: 0,
+          bottom: 0,
           background: "transparent",
           padding: safeAreaBottom
             ? "12px 14px calc(12px + var(--vb-safe-bottom, 0px))"
             : "12px 14px",
           display: "grid",
           gap: 8,
+          pointerEvents: "none",
         }}
       >
         {error ? <div style={{ fontSize: 11.5, color: "#fca5a5" }}>{error}</div> : null}
-        {renderFooter()}
+        <div style={{ pointerEvents: "auto" }}>{renderFooter()}</div>
       </div>
 
       {/* Visor a tamaño completo. Cubre el hilo entero (no la app), así sirve

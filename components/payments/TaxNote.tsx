@@ -12,6 +12,7 @@
 
 import type React from "react";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
+import { platformCollectsTax } from "@/lib/tax/config";
 
 type Props = {
   /** Color del texto (ajústalo al fondo: claro sobre tarjetas oscuras). */
@@ -29,9 +30,17 @@ type Props = {
 };
 
 export default function TaxNote({ color = "#9aa0a8", align = "left", style, included = false }: Props) {
-  const { taxRate } = usePriceFormat();
-  // Sin impuesto para el país del comprador (o aún no se conoce) → no se muestra nada.
-  if (taxRate <= 0) return null;
+  const { buyerCountry } = usePriceFormat();
+
+  // ⚠️ La condición es que VIBRA cobre el impuesto, no que el país tenga tasa.
+  //
+  // Antes se guiaba por `taxRate > 0`, y eso se rompe en los países donde recauda la
+  // EMISORA del comprador (Argentina, Costa Rica, Ecuador, Paraguay, Rep. Dominicana):
+  // ahí la tasa existe —y se guarda— pero el precio NO la incluye, porque se la agrega su
+  // banco en el resumen de tarjeta. Decir "impuestos incluidos" ahí sería mentir.
+  //
+  // Tampoco se muestra mientras el país aún no se conoce (`buyerCountry` null).
+  if (!platformCollectsTax(buyerCountry)) return null;
   return (
     <span
       style={{

@@ -3,6 +3,8 @@
 import { useTranslations } from "next-intl";
 
 import LiveRingAvatar from "@/app/components/LiveRing/LiveRingAvatar";
+import ProfileMoreMenu from "@/app/[locale]/(protected)/u/[handle]/components/ProfileMoreMenu";
+import { blockConversation } from "@/lib/chat/chatService";
 import ConversationThread from "./ConversationThread";
 import type { ProfileMini } from "./ConversationList";
 
@@ -125,6 +127,24 @@ export default function ChatDock({
           userSelect: "none",
         }}
       >
+        {/* A la IZQUIERDA del avatar. Se para la propagación para que abrir el
+            menú no minimice también la pestaña. */}
+        {otherUid ? (
+          <span onClick={(e) => e.stopPropagation()} style={{ display: "inline-flex" }}>
+            <ProfileMoreMenu
+              viewerUid={selfUid}
+              profileUid={otherUid}
+              onBlockSuccess={() => void blockConversation(conversationId, selfUid!)}
+              reportTarget={{
+                targetType: "conversation",
+                targetId: conversationId,
+                targetOwnerId: otherUid,
+              }}
+              buttonStyle={{ fontSize: 18, padding: "0 2px" }}
+            />
+          </span>
+        ) : null}
+
         <LiveRingAvatar
           entityId={otherUid ?? conversationId}
           entityType="profile"
@@ -149,28 +169,30 @@ export default function ChatDock({
           {displayName}
         </span>
 
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onToggleMinimize();
-          }}
-          aria-label={minimized ? tChat("expandChat") : tChat("minimizeChat")}
-          style={iconButtonStyle}
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden>
-            {/* Chevron: apunta arriba si está minimizado (se despliega hacia
-                arriba) y abajo si está abierto (se minimiza hacia abajo). */}
-            <path
-              d={minimized ? "M6 15L12 9L18 15" : "M6 9L12 15L18 9"}
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </button>
+        {/* Minimizar: una raya, sin flecha. Estando minimizada NO se muestra —
+            para volver a abrir se toca la pestaña, así que un botón de
+            "expandir" sería redundante. Solo quedan avatar, nombre y tache. */}
+        {!minimized ? (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleMinimize();
+            }}
+            aria-label={tChat("minimizeChat")}
+            style={iconButtonStyle}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden>
+              <path
+                d="M6 12H18"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+              />
+            </svg>
+          </button>
+        ) : null}
 
         <button
           type="button"

@@ -1,5 +1,8 @@
 // Configuración fiscal + moneda por país (TABLA ÚNICA de cobro) — BACKEND (autoritativa).
 //
+// `import type` a propósito: se borra al compilar, así que este módulo sigue siendo PURO
+// (sin firebase-admin) y se puede importar desde tests y desde código sin Admin SDK.
+//
 // El frontend tiene un espejo en lib/tax/config.ts (solo para MOSTRAR el estimado).
 // Aquí es donde se calcula el impuesto que se COBRA. Mantener ambas tablas en sync.
 //
@@ -12,6 +15,8 @@
 //
 // 🔁 El país fiscal del COBRO debe determinarlo el backend de forma AUTORITATIVA (IP del
 //    request + país de la tarjeta), no confiar en el cliente. Ver useBuyerCountry (solo display).
+
+import type { LedgerServiceType } from "../wallet/ledger";
 
 /**
  * QUIÉN recauda materialmente el impuesto del país del comprador.
@@ -87,6 +92,62 @@ export type CountryTaxConfig = {
   registrationStatus: RegistrationStatus;
 };
 
+/**
+ * 🟢 IVA MEXICANO SOBRE VENTAS AL EXTRANJERO — **0% para todos** (decisión 2026-08-08).
+ *
+ * Vibra es residente en México, así que por el Art. 16 LIVA su venta SIEMPRE está dentro
+ * del objeto del IVA mexicano, incluso vendiéndole a un alemán. Lo que cambia es la tasa:
+ * **0% por exportación** (Art. 29-IV) o **16%** si el servicio no encuadra.
+ *
+ * ⚠️ El Art. 29-IV tiene una **lista CERRADA** de servicios exportables:
+ *   a) asistencia técnica · b) maquila · c) publicidad · d) comisiones y mediaciones
+ *   e) seguros · f) financiamiento · g) FILMACIÓN O GRABACIÓN · h) call centers
+ *   i) TECNOLOGÍAS DE LA INFORMACIÓN
+ *
+ * Al pasar de intermediario a vendedor directo, Vibra salió del inciso d) —que era el
+ * encaje natural de una comisión— y ahora el 0% se apoya en g) o i). Mapear cada servicio
+ * a su inciso es la decisión **D-08**, pendiente de fiscalista.
+ *
+ * 👉 PARA CAMBIAR UNO: pon `"export_taxable"` en su línea de abajo. Nada más.
+ *    Ese 16% NO se le traslada al comprador extranjero (ya pagó el impuesto de su país):
+ *    es un pasivo de Vibra que sale de su margen, y por eso nunca suma a `chargedAmount`.
+ */
+export const MX_EXPORT_TREATMENT_BY_SERVICE: Readonly<
+  Record<LedgerServiceType, MxVatTreatment>
+> = {
+  supercomment: "export_zero",
+  profile_donation: "export_zero",
+  live_donation: "export_zero",
+  live_ticket: "export_zero",
+  premium_post: "export_zero",
+  greeting: "export_zero",
+  advice: "export_zero",
+  exclusive_session: "export_zero",
+  live_session: "export_zero",
+  subscription: "export_zero",
+  vod_ticket: "export_zero",
+};
+
+/** Régimen por defecto cuando el cobro no informa de qué servicio se trata. */
+const MX_EXPORT_DEFAULT: MxVatTreatment = "export_zero";
+
+/**
+ * Régimen del IVA mexicano de UNA venta concreta.
+ *
+ * Dos capas, en este orden:
+ *  1. Comprador en México → siempre `domestic_16` (es operación doméstica, no exportación).
+ *  2. Comprador fuera → lo decide el SERVICIO (tabla de arriba), no el país. La lista del
+ *     Art. 29-IV clasifica por tipo de servicio; el destino es irrelevante.
+ */
+export function mxVatTreatmentForSale(
+  country: string | null | undefined,
+  serviceType?: LedgerServiceType | null
+): MxVatTreatment {
+  if ((country ?? "").toUpperCase() === "MX") return "domestic_16";
+  if (!serviceType) return MX_EXPORT_DEFAULT;
+  return MX_EXPORT_TREATMENT_BY_SERVICE[serviceType] ?? MX_EXPORT_DEFAULT;
+}
+
 /** Moneda de LIQUIDACIÓN de Vibra (mantener en sync con SETTLEMENT_CURRENCY del wallet). */
 const SETTLEMENT_CURRENCY = "MXN";
 /** Cargo por conversión de divisa que absorbe el comprador extranjero. */
@@ -119,6 +180,28 @@ export const FX_CONVERSION_FEE = 0.02;
 const EU_OSS_REGISTERED = true;
 
 const EU_STATUS: RegistrationStatus = EU_OSS_REGISTERED ? "registered" : "cannot_sell";
+
+/**
+ * Fila de un país donde el impuesto lo percibe la EMISORA del comprador, no el proveedor.
+ *
+ * El checkout suma CERO. La tasa se guarda solo para poder mostrarle al comprador qué le
+ * va a sumar su banco. Como Vibra no se registra ahí, tampoco hay nada que enterar.
+ */
+function issuerCollects(
+  taxName: string,
+  taxRate: number,
+  currency: string
+): CountryTaxConfig {
+  return {
+    taxName,
+    taxRate,
+    currency,
+    collectionMode: "issuer",
+    mxVatTreatment: "export_zero",
+    // Se VENDE (el país no exige alta previa), pero sin cobrar impuesto.
+    registrationStatus: "not_registered",
+  };
+}
 
 /** Fila de un país de la UE. Todos comparten mecanismo: Vibra cobra y entera vía OSS. */
 function eu(taxRate: number, currency: string): CountryTaxConfig {
@@ -177,6 +260,38 @@ export const COUNTRY_TAX_CONFIG: Readonly<Record<string, CountryTaxConfig>> = {
   SE: eu(0.25, "SEK"),  // Suecia
   SI: eu(0.22, "EUR"),  // Eslovenia
   SK: eu(0.23, "EUR"),  // Eslovaquia
+
+  // ── LATINOAMÉRICA — países donde RECAUDA LA EMISORA del comprador ──
+  //
+  // En estos cinco el impuesto lo percibe el banco/emisora de la tarjeta al procesar el
+  // pago al exterior, NO el proveedor. Por eso `collectionMode: "issuer"` y el checkout
+  // suma CERO: si Vibra cobrara la tasa, el comprador la pagaría DOS VECES (una a Vibra
+  // y otra a su banco en el resumen de tarjeta).
+  //
+  // La tasa se conserva para poder advertirle al comprador qué le sumará su banco.
+  // Ninguno exige alta previa de Vibra → `not_registered` (se vende, sin cobrar impuesto).
+  // Fichas y fuentes: impuestos.md.
+
+  // RG 4240/18 (ARCA): agentes de percepción son "las entidades del país que faciliten o
+  // administren los pagos al exterior". El proveedor extranjero no se registra ni ingresa nada.
+  AR: issuerCollects("IVA", 0.21, "ARS"),
+
+  // Recaudación directa del proveedor SOLO si se registra (voluntario); si no, retienen las
+  // emisoras de tarjeta locales. Vibra no se registra → recauda la emisora.
+  CR: issuerCollects("IVA", 0.13, "CRC"),
+
+  // Las emisoras retienen el IVA de servicios digitales de no residentes NO registrados ante
+  // el SRI. El registro es voluntario y Vibra no se registra → recauda la emisora.
+  EC: issuerCollects("IVA", 0.15, "USD"),
+
+  // RG 76/2020: bancos, procesadores y cooperativas son agentes de PERCEPCIÓN del IVA (10%)
+  // cuando el titular paga con tarjeta o transferencia un servicio digital del exterior.
+  PY: issuerCollects("IVA", 0.10, "PYG"),
+
+  // Retención del 2% de ITBIS por parte de los procesadores de tarjeta.
+  // ⚠️ El régimen de servicios digitales de la DGII sigue en desarrollo: revisar antes de
+  // pasar a producción por si cambia a recaudación por plataforma.
+  DO: issuerCollects("ITBIS", 0.18, "DOP"),
 
   // ⚠️ Para agregar países fuera de la UE hace falta su FICHA en `impuestos.md`: tasa
   // confirmada contra la autoridad del país, quién recauda (`collectionMode`) y si el país
@@ -298,7 +413,8 @@ const MX_VAT_RATE = 0.16;
  */
 export function applyConsumptionTax(
   base: number,
-  country: string | null | undefined
+  country: string | null | undefined,
+  serviceType?: LedgerServiceType | null
 ): TaxBreakdown {
   const cfg = countryTaxConfig(country);
   const rate = cfg?.taxRate ?? 0;
@@ -315,7 +431,10 @@ export function applyConsumptionTax(
 
   // IVA mexicano devengado: solo cuando el servicio NO encuadra en el Art. 29-IV y el
   // comprador está fuera. Es pasivo de Vibra, no precio del comprador.
-  const mxVatTreatment: MxVatTreatment = cfg?.mxVatTreatment ?? "export_zero";
+  //
+  // El régimen lo decide el SERVICIO, no el país: la lista del Art. 29-IV clasifica por tipo
+  // de servicio. Si el cobro no informa cuál es, cae al default (0% por exportación).
+  const mxVatTreatment: MxVatTreatment = mxVatTreatmentForSale(country, serviceType);
   const mxVatAccruedAmount =
     mxVatTreatment === "export_taxable" ? round2(baseAmount * MX_VAT_RATE) : 0;
 

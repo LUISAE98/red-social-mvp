@@ -5,20 +5,32 @@ import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
 import { useSocialRelationship } from "@/lib/social/useSocialRelationship";
-import { useReport } from "@/lib/moderation/useReport";
+import { useReport, type ReportTarget } from "@/lib/moderation/useReport";
 import ReportModal from "@/app/components/ReportModal/ReportModal";
 
 type Props = {
   viewerUid: string | null | undefined;
   profileUid: string;
+  /**
+   * Se dispara tras bloquear. Lo usa el chat para marcar además la conversación
+   * como bloqueada: el bloqueo de perfil es el canónico, pero las reglas del DM
+   * miran el estado del hilo, que es una comprobación mucho más barata que ir a
+   * buscar el bloqueo en cada mensaje.
+   */
+  onBlockSuccess?: () => void;
   onUnblockSuccess?: () => void;
   onUnblockError?: () => void;
+  /**
+   * Qué se reporta. Por defecto el propio perfil; el chat pasa la CONVERSACIÓN
+   * para que moderación vea el hilo, que es lo único que hace juzgable un DM.
+   */
+  reportTarget?: ReportTarget;
   /** Estilo/clase extra para el botón disparador (⋮), p. ej. círculo de portada. */
   buttonStyle?: CSSProperties;
   buttonClassName?: string;
 };
 
-export default function ProfileMoreMenu({ viewerUid, profileUid, onUnblockSuccess, onUnblockError, buttonStyle, buttonClassName }: Props) {
+export default function ProfileMoreMenu({ viewerUid, profileUid, onBlockSuccess, onUnblockSuccess, onUnblockError, buttonStyle, buttonClassName }: Props) {
   const tCommon = useTranslations("common");
   const menuPanelRef = useRef<HTMLDivElement | null>(null);
   const menuButtonRef = useRef<HTMLButtonElement | null>(null);
@@ -74,6 +86,7 @@ export default function ProfileMoreMenu({ viewerUid, profileUid, onUnblockSucces
     if (!confirmed) return;
     closeMenu();
     await block();
+    onBlockSuccess?.();
   }
 
   async function handleUnblockClick() {
@@ -223,11 +236,13 @@ export default function ProfileMoreMenu({ viewerUid, profileUid, onUnblockSucces
                 role="menuitem"
                 onClick={() => {
                   closeMenu();
-                  openReport({
-                    targetType: "user",
-                    targetId: profileUid,
-                    targetOwnerId: profileUid,
-                  });
+                  openReport(
+                    reportTarget ?? {
+                      targetType: "user",
+                      targetId: profileUid,
+                      targetOwnerId: profileUid,
+                    }
+                  );
                 }}
                 style={{
                   ...itemStyle,

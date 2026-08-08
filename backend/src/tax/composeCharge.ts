@@ -17,6 +17,7 @@ import {
   type TaxCollectionMode,
 } from "./config";
 import { FIXED_SERVICE_FEE_MXN, SETTLEMENT_CURRENCY } from "../wallet/ledger";
+import type { LedgerServiceType } from "../wallet/ledger";
 
 function round2(n: number): number {
   return Math.round((n + Number.EPSILON) * 100) / 100;
@@ -84,7 +85,7 @@ export type ChargeComposition = {
 export function composeCharge(
   base: number,
   country: string,
-  opts?: { fixedFee?: number }
+  opts?: { fixedFee?: number; serviceType?: LedgerServiceType | null }
 ): ChargeComposition {
   const baseAmount = round2(base);
   const fixedFee = opts?.fixedFee ?? FIXED_SERVICE_FEE_MXN;
@@ -97,7 +98,7 @@ export function composeCharge(
 
   // El impuesto solo se SUMA si Vibra es quien lo entera. Donde lo percibe la emisora
   // `taxAmount` sale en 0 y el comprador no lo paga dos veces.
-  const tax = applyConsumptionTax(taxableAmount, country);
+  const tax = applyConsumptionTax(taxableAmount, country, opts?.serviceType);
 
   return {
     buyerCountry: country.toUpperCase(),

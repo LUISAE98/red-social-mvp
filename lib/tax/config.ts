@@ -44,6 +44,48 @@ export type TaxCollectionMode =
 export type MxVatTreatment = "domestic_16" | "export_zero" | "export_taxable";
 
 /**
+ * Los 11 servicios monetizables. Espejo de `LedgerServiceType` en backend/src/wallet/ledger.ts
+ * (el frontend no puede importar del backend). Mantener en sync.
+ */
+export type ServiceType =
+  | "supercomment" | "profile_donation" | "live_donation" | "live_ticket"
+  | "premium_post" | "greeting" | "advice" | "exclusive_session"
+  | "live_session" | "subscription" | "vod_ticket";
+
+/**
+ * 🟢 IVA MEXICANO SOBRE VENTAS AL EXTRANJERO — **0% para todos** (decisión 2026-08-08).
+ * Espejo de backend/src/tax/config.ts, donde está la explicación completa del Art. 29-IV.
+ *
+ * 👉 PARA CAMBIAR UNO: `"export_taxable"` en su línea. Cambiarlo también en el backend.
+ */
+export const MX_EXPORT_TREATMENT_BY_SERVICE: Readonly<Record<ServiceType, MxVatTreatment>> = {
+  supercomment: "export_zero",
+  profile_donation: "export_zero",
+  live_donation: "export_zero",
+  live_ticket: "export_zero",
+  premium_post: "export_zero",
+  greeting: "export_zero",
+  advice: "export_zero",
+  exclusive_session: "export_zero",
+  live_session: "export_zero",
+  subscription: "export_zero",
+  vod_ticket: "export_zero",
+};
+
+/**
+ * Régimen del IVA mexicano de una venta concreta.
+ * Comprador en México → doméstico 16%. Fuera → lo decide el SERVICIO, no el país.
+ */
+export function mxVatTreatmentForSale(
+  country: string | null | undefined,
+  serviceType?: ServiceType | null
+): MxVatTreatment {
+  if ((country ?? "").toUpperCase() === "MX") return "domestic_16";
+  if (!serviceType) return "export_zero";
+  return MX_EXPORT_TREATMENT_BY_SERVICE[serviceType] ?? "export_zero";
+}
+
+/**
  * ¿Vibra está dada de alta ante el fisco de ese país? Espejo de backend/src/tax/config.ts.
  * Es lo que decide si se cobra: sin alta no hay forma de enterar el impuesto.
  */
@@ -86,6 +128,25 @@ const EU_OSS_REGISTERED = true;
 
 const EU_STATUS: RegistrationStatus = EU_OSS_REGISTERED ? "registered" : "cannot_sell";
 
+/**
+ * Fila de un país donde el impuesto lo percibe la EMISORA del comprador, no el proveedor.
+ * El precio mostrado suma CERO: se lo agrega su banco en el resumen de tarjeta.
+ */
+function issuerCollects(
+  taxName: string,
+  taxRate: number,
+  currency: string
+): CountryTaxConfig {
+  return {
+    taxName,
+    taxRate,
+    currency,
+    collectionMode: "issuer",
+    mxVatTreatment: "export_zero",
+    registrationStatus: "not_registered",
+  };
+}
+
 /** Fila de un país de la UE. En la UE cobra el proveedor: no hay retención bancaria. */
 function eu(taxRate: number, currency: string): CountryTaxConfig {
   return {
@@ -118,6 +179,17 @@ export const COUNTRY_TAX_CONFIG: Readonly<Record<string, CountryTaxConfig>> = {
   LV: eu(0.21, "EUR"),  MT: eu(0.18, "EUR"),  NL: eu(0.21, "EUR"),
   PL: eu(0.23, "PLN"),  PT: eu(0.23, "EUR"),  RO: eu(0.21, "RON"),
   SE: eu(0.25, "SEK"),  SI: eu(0.22, "EUR"),  SK: eu(0.23, "EUR"),
+
+  // ── LATINOAMÉRICA — recauda la EMISORA del comprador, no Vibra ──
+  // El checkout suma CERO en los cinco: el banco del comprador percibe el impuesto al
+  // procesar el pago al exterior. Cobrarlo aquí se lo cobraría DOS VECES.
+  // La tasa se conserva para poder advertirle qué le sumará su banco.
+  // Fichas y fuentes: impuestos.md.
+  AR: issuerCollects("IVA", 0.21, "ARS"),   // RG 4240/18 (ARCA)
+  CR: issuerCollects("IVA", 0.13, "CRC"),   // retienen las emisoras si no te registras
+  EC: issuerCollects("IVA", 0.15, "USD"),   // idem, régimen SRI
+  PY: issuerCollects("IVA", 0.10, "PYG"),   // RG 76/2020: bancos = agentes de percepción
+  DO: issuerCollects("ITBIS", 0.18, "DOP"), // retención 2% por procesadores de tarjeta
 
   // ⚠️ Fuera de la UE no se agrega ninguna fila sin su FICHA en impuestos.md.
 };

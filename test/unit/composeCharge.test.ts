@@ -46,10 +46,10 @@ describe("backend/tax/composeCharge", () => {
     });
   });
 
-  // País sin ficha: no cobrable. Hoy MX es el único habilitado; los demás se abrirán con
+  // País sin ficha (JP no está configurado): no cobrable. Hoy MX es el único habilitado; los demás se abrirán con
   // Stripe Tax, que informa por país el registro y las obligaciones. Ver impuestos.md.
   describe("país sin ficha", () => {
-    const c = composeCharge(100, "AR");
+    const c = composeCharge(100, "JP");
 
     it("no aplica impuesto ni conversión", () => {
       expect(c.buyerTax.rate).toBe(0);
@@ -96,7 +96,7 @@ describe("backend/tax/composeCharge", () => {
 
   describe("invariantes", () => {
     it("el total siempre es base + fijo + FX + impuesto cobrado", () => {
-      for (const country of ["MX", "AR"]) {
+      for (const country of ["MX", "AR", "JP"]) {
         for (const base of [50, 99.99, 1234.56]) {
           const c = composeCharge(base, country);
           const suma = c.baseAmount + c.fixedFee + c.fxFeeAmount + c.buyerTax.amount;
@@ -107,7 +107,7 @@ describe("backend/tax/composeCharge", () => {
 
     it("el devengo de IVA mexicano NUNCA está dentro de lo que paga el comprador", () => {
       // En "export_taxable" Vibra debe el 16% pero no se lo traslada al extranjero.
-      for (const country of ["MX", "AR"]) {
+      for (const country of ["MX", "AR", "JP"]) {
         const c = composeCharge(100, country);
         expect(c.chargedAmount).toBe(
           c.baseAmount + c.fixedFee + c.fxFeeAmount + c.buyerTax.amount

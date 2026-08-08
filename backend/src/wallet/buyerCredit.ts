@@ -65,6 +65,37 @@ export async function issueBuyerCredit(
 }
 
 /**
+ * Revierte un gasto de crédito (devuelve el saldo reservado). Se usa cuando el cobro de la
+ * tarjeta por el RESTANTE falla, o cuando una reserva de tarjeta-nueva queda abandonada.
+ * BORRA el movimiento `spend__...` para que un reintento con el mismo (sourceType,sourceId)
+ * vuelva a reservar limpio. Idempotente: si no hay gasto, no hace nada. Devuelve lo devuelto.
+ */
+export async function revertBuyerCreditSpend(
+  uid: string,
+  params: { sourceType: string; sourceId: string }
+): Promise<number> {
+  if (!uid) return 0;
+  const mRef = movementsCol(uid).doc(`spend__${params.sourceType}__${params.sourceId}`);
+  const sRef = summaryRef(uid);
+  return db.runTransaction(async (tx) => {
+    const mSnap = await tx.get(mRef);
+    if (!mSnap.exists) return 0; // nada que revertir
+    const amount = round2((mSnap.data()?.amount as number) ?? 0);
+    if (amount > 0) {
+      const sSnap = await tx.get(sRef);
+      const next = round2(readBalance(sSnap.data()) + amount);
+      tx.set(
+        sRef,
+        { balance: next, currency: "MXN", updatedAt: FieldValue.serverTimestamp() },
+        { merge: true }
+      );
+    }
+    tx.delete(mRef); // liberar la clave para un reintento fresco
+    return amount;
+  });
+}
+
+/**
  * Gasta saldo a favor en una compra. Idempotente por (sourceType, sourceId). Aplica
  * como máximo el saldo disponible (el caller cobra la diferencia con tarjeta). Devuelve
  * el monto REALMENTE aplicado.

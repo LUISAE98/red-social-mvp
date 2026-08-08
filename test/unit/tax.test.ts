@@ -8,6 +8,9 @@ import {
   fxFeeRateForCountry,
   isChargeableCountry,
   platformCollectsTax,
+  mxVatTreatmentForSale,
+  MX_EXPORT_TREATMENT_BY_SERVICE,
+  type ServiceType,
 } from "@/lib/tax/config";
 import {
   resolveTaxCountryFromIndicios,
@@ -15,8 +18,9 @@ import {
 } from "../../backend/src/tax/resolveCountry";
 
 // País deliberadamente NO configurado, para probar el camino "sin ficha".
-// Hoy MX es el único país habilitado: los demás se abrirán con Stripe Tax.
-const UNCONFIGURED = "AR";
+// Ojo al elegirlo: debe seguir SIN fila en COUNTRY_TAX_CONFIG. Antes era "AR", pero
+// Argentina se habilitó el 2026-08-08 y el centinela dejó de valer.
+const UNCONFIGURED = "JP";
 
 // Impuesto al consumo. El impuesto lo determina el país del COMPRADOR, no el creador.
 // El desglose base/impuesto/total debe ser exacto.
@@ -358,5 +362,112 @@ describe("resolveCountry — dos pruebas no contradictorias (Art. 24b UE)", () =
     expect(r.source).toBe("ip");
     expect(r.meetsTwoEvidenceRule).toBe(false);
     expect(r.hadConflict).toBe(false);
+  });
+});
+
+// 🌎 Países donde el impuesto lo percibe la EMISORA del comprador, no Vibra.
+// Es el caso que motivó `collectionMode`: la tasa existe pero el checkout suma CERO,
+// porque el banco se la agrega al comprador en su resumen de tarjeta. Ver impuestos.md.
+describe("Recaudación por la emisora — AR, CR, EC, PY, DO", () => {
+  const ISSUER: Array<[string, number, string]> = [
+    ["AR", 0.21, "ARS"],
+    ["CR", 0.13, "CRC"],
+    ["EC", 0.15, "USD"],
+    ["PY", 0.10, "PYG"],
+    ["DO", 0.18, "DOP"],
+  ];
+
+  it("los cinco están configurados y SE PUEDE vender ahí", () => {
+    for (const [iso] of ISSUER) {
+      expect(countryTaxConfig(iso), iso).not.toBeNull();
+      // Ninguno exige alta previa → se vende.
+      expect(isChargeableCountry(iso), iso).toBe(true);
+    }
+  });
+
+  it("🚨 NINGUNO suma impuesto al precio (si lo hiciera, el comprador pagaría doble)", () => {
+    for (const [iso] of ISSUER) {
+      const b = computeConsumptionTax(100, iso);
+      expect(b.tax, iso).toBe(0);
+      expect(b.total, iso).toBe(100);
+      expect(b.applies, iso).toBe(false);
+      expect(b.collectedByPlatform, iso).toBe(false);
+      expect(platformCollectsTax(iso), iso).toBe(false);
+    }
+  });
+
+  it("conservan su tasa y moneda, para poder advertir qué sumará el banco", () => {
+    for (const [iso, rate, currency] of ISSUER) {
+      expect(taxRateForCountry(iso), iso).toBeCloseTo(rate, 8);
+      expect(chargeCurrencyForCountry(iso), iso).toBe(currency);
+      expect(computeConsumptionTax(100, iso).rate, iso).toBeCloseTo(rate, 8);
+    }
+  });
+
+  it("el modo es 'issuer' y el IVA mexicano va a 0% por exportación", () => {
+    for (const [iso] of ISSUER) {
+      const cfg = countryTaxConfig(iso)!;
+      expect(cfg.collectionMode, iso).toBe("issuer");
+      expect(cfg.registrationStatus, iso).toBe("not_registered");
+      expect(cfg.mxVatTreatment, iso).toBe("export_zero");
+    }
+  });
+
+  it("Rep. Dominicana usa ITBIS, no IVA", () => {
+    expect(countryTaxConfig("DO")!.taxName).toBe("ITBIS");
+  });
+
+  // Contraste: México y la UE SÍ cobran. El modo no es cosmético.
+  it("contraste: donde recauda la plataforma, el impuesto sí se suma", () => {
+    expect(computeConsumptionTax(100, "MX").tax).toBe(16);
+    expect(computeConsumptionTax(100, "ES").tax).toBe(21);
+    expect(platformCollectsTax("MX")).toBe(true);
+    expect(platformCollectsTax("AR")).toBe(false);
+  });
+});
+
+// 🇲🇽 IVA mexicano sobre ventas al EXTRANJERO. Vibra es residente en México, así que por el
+// Art. 16 LIVA su venta siempre está dentro del objeto: lo que cambia es la tasa. Hoy 0% por
+// exportación en los 11 servicios (D-08 pendiente de fiscalista). Ver impuestos.md.
+describe("IVA mexicano de exportación — 0% por servicio", () => {
+  const SERVICIOS: ServiceType[] = [
+    "supercomment", "profile_donation", "live_donation", "live_ticket",
+    "premium_post", "greeting", "advice", "exclusive_session",
+    "live_session", "subscription", "vod_ticket",
+  ];
+
+  it("están los 11 servicios en la tabla", () => {
+    expect(Object.keys(MX_EXPORT_TREATMENT_BY_SERVICE).sort()).toEqual([...SERVICIOS].sort());
+  });
+
+  it("🟢 los 11 están en 0% por exportación", () => {
+    for (const s of SERVICIOS) {
+      expect(MX_EXPORT_TREATMENT_BY_SERVICE[s], s).toBe("export_zero");
+    }
+  });
+
+  it("comprador en México → doméstico 16%, sin importar el servicio", () => {
+    for (const s of SERVICIOS) {
+      expect(mxVatTreatmentForSale("MX", s), s).toBe("domestic_16");
+    }
+  });
+
+  it("comprador fuera → 0% de exportación, en cualquier país", () => {
+    for (const pais of ["DE", "ES", "AR", "CR", "EC", "PY", "DO"]) {
+      expect(mxVatTreatmentForSale(pais, "premium_post"), pais).toBe("export_zero");
+    }
+  });
+
+  it("sin servicio informado cae al default (0%), nunca a 16%", () => {
+    expect(mxVatTreatmentForSale("DE", null)).toBe("export_zero");
+    expect(mxVatTreatmentForSale("DE", undefined)).toBe("export_zero");
+  });
+
+  // El punto de tenerlo por servicio: cambiar UNO no debe arrastrar a los demás.
+  it("el régimen es POR SERVICIO, no por país", () => {
+    const porPais = new Set(["DE", "AR", "PY"].map((c) => mxVatTreatmentForSale(c, "greeting")));
+    expect(porPais.size).toBe(1); // el país no lo cambia…
+    // …y la tabla permite diferenciarlos uno por uno cuando el fiscalista lo dictamine.
+    expect(Object.keys(MX_EXPORT_TREATMENT_BY_SERVICE)).toHaveLength(11);
   });
 });

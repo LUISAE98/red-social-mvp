@@ -9,6 +9,8 @@ import { useRouter } from "@/i18n/navigation";
 import { setNavSlideDir } from "@/lib/nav-slide";
 import { useAuth } from "@/app/providers";
 import LiveRingAvatar from "@/app/components/LiveRing/LiveRingAvatar";
+import ProfileMoreMenu from "@/app/[locale]/(protected)/u/[handle]/components/ProfileMoreMenu";
+import { blockConversation } from "@/lib/chat/chatService";
 import ConversationThread from "@/components/chat/ConversationThread";
 import { useProfileMini } from "@/lib/chat/useProfileMini";
 import { getOtherParticipant } from "@/lib/chat/types";
@@ -145,6 +147,21 @@ export default function ConversationPage() {
             />
           </svg>
         </button>
+
+        {/* A la IZQUIERDA del avatar, igual que en la pestaña de laptop. */}
+        {otherUid && conversationId ? (
+          <ProfileMoreMenu
+            viewerUid={selfUid}
+            profileUid={otherUid}
+            onBlockSuccess={() => void blockConversation(conversationId, selfUid!)}
+            reportTarget={{
+              targetType: "conversation",
+              targetId: conversationId,
+              targetOwnerId: otherUid,
+            }}
+            buttonStyle={{ fontSize: 20, padding: "0 2px" }}
+          />
+        ) : null}
 
         <LiveRingAvatar
           entityId={otherUid ?? conversationId ?? ""}
