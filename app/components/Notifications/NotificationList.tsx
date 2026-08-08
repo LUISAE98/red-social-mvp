@@ -14,16 +14,12 @@ import {
   notificationHref,
   notificationQuery,
 } from "@/lib/notifications/types";
-
-const LOCALE_MAP: Record<string, string> = {
-  en: "en",
-  es: "es",
-  "pt-BR": "pt-BR",
-};
+import { intlLocale as intlLocaleFor } from "@/i18n/locales";
 
 function useTimeAgo() {
   const locale = useLocale();
-  const intlLocale = LOCALE_MAP[locale] ?? "es";
+  // El BCP-47 de Intl sale de i18n/locales.ts (antes era un mapa en duro de 3).
+  const intlLocale = intlLocaleFor(locale);
   const rtf = new Intl.RelativeTimeFormat(intlLocale, { numeric: "auto" });
 
   // `numeric: "auto"` produce "ayer", "anteayer", "hace 3 días"… siempre en

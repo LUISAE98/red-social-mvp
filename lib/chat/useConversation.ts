@@ -9,7 +9,7 @@ import {
   subscribeToConversation,
   type MessageWithId,
 } from "./chatService";
-import { CONVERSATION_PAGE_SIZE } from "./types";
+import { CONVERSATION_PAGE_SIZE, type ChatImage } from "./types";
 
 /**
  * Hilo de una conversación.
@@ -114,9 +114,9 @@ export function useConversation(conversationId: string | null, selfUid: string |
   }, [conversationId, loadingOlder, hasMore, older, live]);
 
   const send = useCallback(
-    async (text: string) => {
+    async (text: string, image?: ChatImage | null) => {
       if (!conversationId || !selfUid) return;
-      await sendMessageToConversation(conversationId, selfUid, text);
+      await sendMessageToConversation(conversationId, selfUid, text, image);
     },
     [conversationId, selfUid]
   );

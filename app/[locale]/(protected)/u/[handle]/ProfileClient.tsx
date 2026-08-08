@@ -401,6 +401,9 @@ const [greetType, setGreetType] = useState<GreetingType>("saludo");
 const [toName, setToName] = useState("");
 const [instructions, setInstructions] = useState("");
 const [isRetry, setIsRetry] = useState(false);
+// Reintento: cobra en un clic con la tarjeta guardada al abrir la pasarela (sin que el
+// usuario la toque). Se captura al enviar y se resetea al cerrar la pasarela.
+const [autoConfirmPay, setAutoConfirmPay] = useState(false);
 const [allowCreatorStory, setAllowCreatorStory] = useState(true);
 const [greetError, setGreetError] = useState<string | null>(null);
 const [greetSuccess, setGreetSuccess] = useState<string | null>(null);
@@ -1682,6 +1685,7 @@ const res = await createGreetingRequest({
     setPayGreetId(res.requestId);
     setPayGreetAmount(amount);
     setPayGreetLabel(typeof amount === "number" ? formatMoney(amount, currency) : undefined);
+    setAutoConfirmPay(isRetry); // reintento → cobro un-clic con tarjeta guardada
     setPayGreetOpen(true);
   } catch (e: unknown) {
     setGreetError((e instanceof Error ? e.message : null) ?? tServices("requestError"));
@@ -1721,6 +1725,7 @@ const res = (await createMeetGreetRequest({
     setPayMeetDuration(
       (service as (NormalizedService & { durationMinutes?: number }) | null)?.durationMinutes ?? null
     );
+    setAutoConfirmPay(isRetry); // reintento → cobro un-clic con tarjeta guardada
     setPayMeetOpen(true);
   } catch (e: unknown) {
     setMeetGreetError((e instanceof Error ? e.message : null) ?? tServices("requestError"));
@@ -1761,6 +1766,7 @@ const res = (await createExclusiveSessionRequest({
     setPaySessionDuration(
       (service as (NormalizedService & { durationMinutes?: number }) | null)?.durationMinutes ?? null
     );
+    setAutoConfirmPay(isRetry); // reintento → cobro un-clic con tarjeta guardada
     setPaySessionOpen(true);
   } catch (e: unknown) {
     setExclusiveSessionError((e instanceof Error ? e.message : null) ?? tServices("requestError"));
@@ -2931,7 +2937,8 @@ const res = (await createExclusiveSessionRequest({
   avatarUrl={userDoc.photoURL}
   description={tServices(greetType === "consejo" ? "payDescConsejo" : "payDescSaludo", { name: fullName })}
   successMessage={tServices(greetType === "consejo" ? "paySuccessConsejo" : "paySuccessSaludo", { name: fullName })}
-  onClose={() => setPayGreetOpen(false)}
+  autoConfirm={autoConfirmPay}
+  onClose={() => { setPayGreetOpen(false); setAutoConfirmPay(false); setIsRetry(false); }}
   onPaid={() => {
     // El panel NO se cierra: muestra la pantalla de éxito. Solo registramos la compra.
     registrarCompraGeo({
@@ -2953,7 +2960,8 @@ const res = (await createExclusiveSessionRequest({
   avatarUrl={userDoc.photoURL}
   durationMinutes={paySessionDuration}
   successMessage={tServices("paySuccessScheduled", { name: fullName })}
-  onClose={() => setPaySessionOpen(false)}
+  autoConfirm={autoConfirmPay}
+  onClose={() => { setPaySessionOpen(false); setAutoConfirmPay(false); setIsRetry(false); }}
   onPaid={() => {
     // El panel NO se cierra: muestra la pantalla de éxito. Solo registramos la compra.
     registrarCompraGeo({
@@ -2975,7 +2983,8 @@ const res = (await createExclusiveSessionRequest({
   avatarUrl={userDoc.photoURL}
   durationMinutes={payMeetDuration}
   successMessage={tServices("paySuccessScheduled", { name: fullName })}
-  onClose={() => setPayMeetOpen(false)}
+  autoConfirm={autoConfirmPay}
+  onClose={() => { setPayMeetOpen(false); setAutoConfirmPay(false); setIsRetry(false); }}
   onPaid={() => {
     // El panel NO se cierra: muestra la pantalla de éxito. Solo registramos la compra.
     registrarCompraGeo({

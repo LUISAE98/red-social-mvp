@@ -3462,10 +3462,17 @@ function canUpdateReplyCount(delta) {
           || (p == "following_and_followers" && (recipientFollowsMe() || iFollowRecipient()));
       }
 
-      // El cliente NO elige el estado inicial: si el destinatario no me sigue, la
-      // conversación nace en Solicitudes y no hay forma de saltarse esa bandeja.
+      // El cliente NO elige el estado inicial.
+      //
+      // Solicitudes existe SOLO para la política "everyone": es la única que deja
+      // escribir a un desconocido, así que es la única que necesita triaje. En
+      // "following" y "following_and_followers" el destinatario ya filtró por
+      // relación — quien no cumple ni siquiera ve el botón —, así que lo que pasa
+      // el filtro entra directo a la bandeja principal.
       function requiredNewStatus() {
-        return recipientFollowsMe() ? "active" : "request";
+        return (recipientPolicy() == "everyone" && !recipientFollowsMe())
+          ? "request"
+          : "active";
       }
 
       // participantsKey ordenado alfabéticamente y usado como ID del documento:
@@ -3585,17 +3592,44 @@ function canUpdateReplyCount(delta) {
 
         allow get, list: if isConvParticipant();
 
+        // UNA imagen como mucho por mensaje. Solo se valida la forma: los
+        // ficheros ya los gobierna storage.rules bajo `dmImages/`.
+        function hasImage() {
+          return ("image" in request.resource.data)
+            && request.resource.data.image != null;
+        }
+
+        // Solo se guardan RUTAS: la URL la firma la Cloud Function
+        // `getDirectMessageImageUrls` y caduca. `url`/`thumbnailUrl` siguen
+        // admitidos solo por los primeros mensajes, anteriores a ese cambio.
+        function validImage() {
+          return !hasImage() || (
+            request.resource.data.image is map
+            && request.resource.data.image.path is string
+            && request.resource.data.image.thumbnailPath is string
+            && request.resource.data.image.path.matches('^dmImages/' + convId + '/.*')
+            && request.resource.data.image.thumbnailPath.matches('^dmImages/' + convId + '/.*')
+            && request.resource.data.image.keys().hasOnly([
+                 'path', 'thumbnailPath', 'width', 'height', 'url', 'thumbnailUrl'
+               ])
+          );
+        }
+
         allow create: if isConvParticipantAfter()
           && notAnonymous()
           && convAfter().status != "blocked"
           && allowedInPendingRequest()
           && request.resource.data.senderId == request.auth.uid
           && request.resource.data.text is string
-          && request.resource.data.text.size() > 0
           && request.resource.data.text.size() <= 2000
+          // Un mensaje vacío solo se admite si lleva imagen.
+          && (request.resource.data.text.size() > 0 || hasImage())
+          && validImage()
           && request.resource.data.isDeleted == false
           && request.resource.data.createdAt == request.time
-          && request.resource.data.keys().hasOnly(['senderId', 'text', 'createdAt', 'isDeleted']);
+          && request.resource.data.keys().hasOnly([
+               'senderId', 'text', 'image', 'createdAt', 'isDeleted'
+             ]);
 
         // Borrado suave del mensaje propio. El texto es inmutable: no se puede
         // reescribir lo que ya se envió.

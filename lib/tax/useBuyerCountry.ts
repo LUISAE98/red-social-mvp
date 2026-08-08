@@ -29,18 +29,27 @@ function readCountryCookie(): string | null {
 }
 
 /**
- * País ISO-3166 alpha-2 del comprador por IP, o null si aún no se conoce (primer
- * render antes de hidratar, o sin cabecera de geo). Se resuelve en efecto para no
+ * País de liquidación. Se usa como último recurso SOLO cuando ya se leyó la cookie y no
+ * había ninguna: coincide con el `DEFAULT_COUNTRY` del backend, así que display y cobro
+ * caen al mismo lado. Es conservador (cobra IVA en vez de omitirlo).
+ */
+const FALLBACK_COUNTRY = "MX";
+
+/**
+ * País ISO-3166 alpha-2 del comprador por IP, o `null` mientras aún no se conoce (el
+ * primer render, antes de que el efecto lea la cookie). Se resuelve en efecto para no
  * romper la hidratación (mismo patrón que CurrencyProvider).
+ *
+ * ⚠️ Antes arrancaba en "MX" en vez de null. Con un solo país eso era inofensivo, pero al
+ * abrir la UE significaba que **un alemán veía 16% mexicano** en el primer render y en
+ * cualquier caso sin cookie (bloqueador, sin cabecera de geo). Ahora México solo aparece
+ * como fallback DESPUÉS de comprobar que no hay cookie, nunca antes.
  */
 export function useBuyerCountry(): string | null {
-  // SOLO MÉXICO por ahora: si no hay cookie de país, se asume MX (16% IVA), igual que
-  // el backend al cobrar. Al internacionalizar, quitar este default.
-  const [country, setCountry] = useState<string | null>("MX");
+  const [country, setCountry] = useState<string | null>(null);
   useEffect(() => {
-    const c = readCountryCookie();
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (c) setCountry(c);
+    setCountry(readCountryCookie() ?? FALLBACK_COUNTRY);
     // solo al montar
   }, []);
   return country;

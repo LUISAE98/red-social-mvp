@@ -21,8 +21,12 @@
 
 /** Moneda de LIQUIDACIÓN de Vibra (mantener en sync con SETTLEMENT_CURRENCY del catálogo/wallet). */
 const SETTLEMENT_CURRENCY = "MXN";
-/** Cargo por conversión de divisa que absorbe el comprador extranjero. */
-export const FX_CONVERSION_FEE = 0.02;
+
+// Cargo por conversión de divisa: FUENTE ÚNICA en lib/currency/catalog.ts. Se re-exporta
+// aquí por compatibilidad con los imports existentes, pero NO se redefine: tenerlo dos
+// veces fue justo lo que provocó que el display usara 1.5% y el cobro 2%.
+export { FX_CONVERSION_FEE } from "@/lib/currency/catalog";
+import { FX_CONVERSION_FEE } from "@/lib/currency/catalog";
 
 /**
  * QUIÉN recauda el impuesto del país del comprador. Espejo de backend/src/tax/config.ts.
@@ -31,7 +35,7 @@ export const FX_CONVERSION_FEE = 0.02;
 export type TaxCollectionMode =
   /** Vibra lo cobra en el checkout y lo entera. Ej. MX. */
   | "platform"
-  /** Lo percibe la emisora/banco del comprador. Vibra NO lo cobra. Ej. AR, CR, PY. */
+  /** Lo percibe la emisora/banco del comprador. Vibra NO lo cobra. */
   | "issuer"
   /** Sin régimen aplicable → país NO cobrable. */
   | "none";
@@ -39,10 +43,22 @@ export type TaxCollectionMode =
 /** Régimen del IVA mexicano de la venta de Vibra. Ver docs/legal/fiscal-iva-isr-plataforma.md §0.1. */
 export type MxVatTreatment = "domestic_16" | "export_zero" | "export_taxable";
 
+/**
+ * ¿Vibra está dada de alta ante el fisco de ese país? Espejo de backend/src/tax/config.ts.
+ * Es lo que decide si se cobra: sin alta no hay forma de enterar el impuesto.
+ */
+export type RegistrationStatus =
+  /** Alta activa → SE COBRA el impuesto. */
+  | "registered"
+  /** Sin alta pero el país lo permite (bajo umbral / voluntario) → se vende SIN impuesto. */
+  | "not_registered"
+  /** Sin alta y el país exige registro previo → no se puede vender. */
+  | "cannot_sell";
+
 export type CountryTaxConfig = {
   /** Nombre del impuesto al consumo en ese país (etiqueta UI / CFDI). Ej. "IVA". */
   taxName: string;
-  /** Tasa decimal del impuesto (0.16 = 16%). Se guarda aunque no se cobre (AR: 0.21). */
+  /** Tasa decimal del impuesto (0.16 = 16%). Se guarda aunque no se cobre. */
   taxRate: number;
   /** Moneda LOCAL de cobro del comprador (ISO 4217). Ej. "MXN", "COP". */
   currency: string;
@@ -50,6 +66,8 @@ export type CountryTaxConfig = {
   collectionMode: TaxCollectionMode;
   /** Régimen del IVA mexicano hacia ese país. */
   mxVatTreatment: MxVatTreatment;
+  /** Si Vibra está dada de alta ahí. Sin alta no se cobra, aunque la tasa esté puesta. */
+  registrationStatus: RegistrationStatus;
 };
 
 /**
@@ -57,38 +75,51 @@ export type CountryTaxConfig = {
  * Agregar un país = agregar una fila (tasa VERIFICADA + moneda local).
  * ⚠️ Debe coincidir con backend/src/tax/config.ts.
  */
+/**
+ * 🟢 INTERRUPTOR ÚNICO DEL ALTA EN LA UE — **ACTIVO** (2026-08-08).
+ * Espejo de backend/src/tax/config.ts. Un solo registro (Non-Union OSS) cubre los 27.
+ * En `true` los 27 venden y cobran su IVA. Ver impuestos.md §6.1.
+ * ⚠️ Debe tener el MISMO valor que la constante del backend.
+ * ⚠️ Antes de pasar a llaves `sk_live` hace falta el número de OSS.
+ */
+const EU_OSS_REGISTERED = true;
+
+const EU_STATUS: RegistrationStatus = EU_OSS_REGISTERED ? "registered" : "cannot_sell";
+
+/** Fila de un país de la UE. En la UE cobra el proveedor: no hay retención bancaria. */
+function eu(taxRate: number, currency: string): CountryTaxConfig {
+  return {
+    taxName: "IVA",
+    taxRate,
+    currency,
+    collectionMode: "platform",
+    mxVatTreatment: "export_zero",
+    registrationStatus: EU_STATUS,
+  };
+}
+
 export const COUNTRY_TAX_CONFIG: Readonly<Record<string, CountryTaxConfig>> = {
   // Operación doméstica: Vibra cobra el 16% y lo entera. Ficha: impuestos.md §6.
   MX: {
     taxName: "IVA", taxRate: 0.16, currency: "MXN",
     collectionMode: "platform", mxVatTreatment: "domestic_16",
+    registrationStatus: "registered", // el RFC de Vibra
   },
 
-  // RG 4240/18 (ARCA): la emisora argentina percibe el 21% (más un 30% de RG 5617). Vibra NO
-  // se registra, NO cobra y NO ingresa nada en Argentina. Cobrarlo aquí sería DOBLE cobro.
-  // Ficha completa y fuentes: impuestos.md §6.
-  AR: {
-    taxName: "IVA", taxRate: 0.21, currency: "ARS",
-    collectionMode: "issuer", mxVatTreatment: "export_zero",
-  },
+  // ── UNIÓN EUROPEA — 27 países, 1 solo trámite (Non-Union OSS) ──
+  // Tasas de VATcomply (fuente TEDB, Comisión Europea) al 2026-08-07.
+  // ⚠️ Grecia es "GR" en ISO; TEDB la publica como "EL". Aquí siempre el ISO.
+  AT: eu(0.20, "EUR"),  BE: eu(0.21, "EUR"),  BG: eu(0.20, "EUR"),
+  CY: eu(0.19, "EUR"),  CZ: eu(0.21, "CZK"),  DE: eu(0.19, "EUR"),
+  DK: eu(0.25, "DKK"),  EE: eu(0.24, "EUR"),  ES: eu(0.21, "EUR"),
+  FI: eu(0.255, "EUR"), FR: eu(0.20, "EUR"),  GR: eu(0.24, "EUR"),
+  HR: eu(0.25, "EUR"),  HU: eu(0.27, "HUF"),  IE: eu(0.23, "EUR"),
+  IT: eu(0.22, "EUR"),  LT: eu(0.21, "EUR"),  LU: eu(0.17, "EUR"),
+  LV: eu(0.21, "EUR"),  MT: eu(0.18, "EUR"),  NL: eu(0.21, "EUR"),
+  PL: eu(0.23, "PLN"),  PT: eu(0.23, "EUR"),  RO: eu(0.21, "RON"),
+  SE: eu(0.25, "SEK"),  SI: eu(0.22, "EUR"),  SK: eu(0.23, "EUR"),
 
-  // ── Activar país por país tras validación fiscal. ⚠️ VERIFICAR la tasa Y el modo de cobro
-  //    antes de descomentar, y escribir su ficha en impuestos.md. ──
-  // BO: { taxName: "IVA",     taxRate: 0.13, currency: "BOB", collectionMode: "none",     mxVatTreatment: "export_zero" },
-  // BR: { taxName: "CBS/IBS", taxRate: 0,    currency: "BRL", collectionMode: "none",     mxVatTreatment: "export_zero" }, // reforma 2026-33: 2026 es año de prueba; registro obligatorio desde 2027
-  // CL: { taxName: "IVA",     taxRate: 0.19, currency: "CLP", collectionMode: "platform", mxVatTreatment: "export_zero" },
-  // CO: { taxName: "IVA",     taxRate: 0.19, currency: "COP", collectionMode: "platform", mxVatTreatment: "export_zero" },
-  // CR: { taxName: "IVA",     taxRate: 0.13, currency: "CRC", collectionMode: "issuer",   mxVatTreatment: "export_zero" },
-  // EC: { taxName: "IVA",     taxRate: 0.15, currency: "USD", collectionMode: "platform", mxVatTreatment: "export_zero" },
-  // SV: { taxName: "IVA",     taxRate: 0.13, currency: "USD", collectionMode: "none",     mxVatTreatment: "export_zero" },
-  // GT: { taxName: "IVA",     taxRate: 0.12, currency: "GTQ", collectionMode: "none",     mxVatTreatment: "export_zero" },
-  // HN: { taxName: "ISV",     taxRate: 0.15, currency: "HNL", collectionMode: "none",     mxVatTreatment: "export_zero" },
-  // NI: { taxName: "IVA",     taxRate: 0.15, currency: "NIO", collectionMode: "none",     mxVatTreatment: "export_zero" },
-  // PA: { taxName: "ITBMS",   taxRate: 0.07, currency: "USD", collectionMode: "platform", mxVatTreatment: "export_zero" },
-  // PY: { taxName: "IVA",     taxRate: 0.10, currency: "PYG", collectionMode: "issuer",   mxVatTreatment: "export_zero" },
-  // PE: { taxName: "IGV",     taxRate: 0.18, currency: "PEN", collectionMode: "platform", mxVatTreatment: "export_zero" },
-  // DO: { taxName: "ITBIS",   taxRate: 0.18, currency: "DOP", collectionMode: "none",     mxVatTreatment: "export_zero" },
-  // UY: { taxName: "IVA",     taxRate: 0.22, currency: "UYU", collectionMode: "platform", mxVatTreatment: "export_zero" },
+  // ⚠️ Fuera de la UE no se agrega ninguna fila sin su FICHA en impuestos.md.
 };
 
 /** Config completa del país, o null si no está configurado (no cobrable). */
@@ -113,12 +144,14 @@ export function chargeCurrencyForCountry(country: string | null | undefined): st
 }
 
 /**
- * ¿El país está habilitado para cobro? Tiene fila Y régimen aplicable.
- * `collectionMode: "none"` = el país existe pero todavía no se puede cobrar ahí.
+ * ¿Se le puede VENDER a este país? Vender y cobrar impuesto son cosas distintas:
+ * `not_registered` sí vende, pero sin impuesto. `cannot_sell` rechaza.
  */
 export function isChargeableCountry(country: string | null | undefined): boolean {
   const cfg = countryTaxConfig(country);
-  return !!cfg && cfg.collectionMode !== "none";
+  if (!cfg) return false;
+  if (cfg.collectionMode === "none") return false;
+  return cfg.registrationStatus !== "cannot_sell";
 }
 
 /** ¿Vibra cobra el impuesto local, o lo percibe la emisora del comprador? */
@@ -128,13 +161,21 @@ export function taxCollectionModeForCountry(
   return countryTaxConfig(country)?.collectionMode ?? "none";
 }
 
+/** Estado del alta de Vibra en ese país. */
+export function registrationStatusForCountry(
+  country: string | null | undefined
+): RegistrationStatus {
+  return countryTaxConfig(country)?.registrationStatus ?? "cannot_sell";
+}
+
 /**
  * ¿El impuesto se le suma al precio mostrado?
- * Solo cuando Vibra es quien lo entera. En Argentina (y CR/PY) el precio mostrado NO lo
- * incluye porque lo percibe la emisora: sumarlo aquí sería cobrárselo dos veces.
+ * Hacen falta DOS cosas: que Vibra sea quien recauda ahí (no la emisora del comprador) Y que
+ * esté dada de alta. Sin alta no se puede enterar el impuesto, así que no se cobra.
  */
 export function platformCollectsTax(country: string | null | undefined): boolean {
-  return taxCollectionModeForCountry(country) === "platform";
+  const cfg = countryTaxConfig(country);
+  return cfg?.collectionMode === "platform" && cfg.registrationStatus === "registered";
 }
 
 /** ¿Se suma el 2% FX? DERIVADO: sí cuando la moneda del país ≠ la de liquidación (todos menos MX). */
@@ -180,11 +221,14 @@ export function computeConsumptionTax(
 ): TaxBreakdown {
   const cfg = countryTaxConfig(country);
   const rate = cfg?.taxRate ?? 0;
-  const collectedByPlatform = cfg?.collectionMode === "platform";
 
-  // ⚠️ Solo se SUMA al precio mostrado cuando Vibra es quien entera el impuesto. Donde lo
-  // percibe la emisora del comprador (AR, CR, PY), el precio mostrado NO lo incluye: se lo
-  // agrega su banco en el resumen de tarjeta. Mostrarlo aquí implicaría cobrarlo dos veces.
+  // ⚠️ Se SUMA al precio mostrado solo si se cumplen las DOS condiciones:
+  //  1. Vibra es quien recauda ahí (si lo percibe la emisora del comprador, sumarlo aquí
+  //     se lo cobraría dos veces: su banco ya se lo agrega en el resumen de tarjeta).
+  //  2. Vibra está dada de alta en ese país (sin alta no hay cómo enterarlo).
+  const collectedByPlatform =
+    cfg?.collectionMode === "platform" && cfg.registrationStatus === "registered";
+
   const tax = collectedByPlatform ? base * rate : 0;
 
   return {

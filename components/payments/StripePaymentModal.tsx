@@ -15,6 +15,7 @@ import { doc, getDoc, collection, onSnapshot } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import { FIXED_SERVICE_FEE_MXN } from "@/lib/currency/catalog";
+import { isChargeableCountry } from "@/lib/tax/config";
 import { loadStripe, type StripeLike, type StripeElement } from "@/lib/stripe/loadStripe";
 import VibraPayBrand from "./VibraPayBrand";
 import PaymentSuccessCard from "./PaymentSuccessCard";
@@ -63,6 +64,11 @@ type Props = {
   savedCards?: SavedCard[];
   /** Si se pasa (>0), el panel de éxito se cierra solo tras estos ms (p. ej. 4000). */
   autoCloseMs?: number;
+  /** Reintento de una experiencia ("intentar otra vez"): si hay tarjeta guardada, cobra
+   *  automáticamente en un clic al abrir (sin que el usuario toque la pasarela) y muestra
+   *  el panel verde. Si NO hay tarjeta guardada, cae al flujo manual normal. Solo cuenta
+   *  real (no invitado). Default false → comportamiento normal. */
+  autoConfirm?: boolean;
   onClose: () => void;
   onPaid: () => void;
 };
@@ -106,6 +112,7 @@ export default function StripePaymentModal({
   payButtonLabel = "Pagar",
   savedCards = [],
   autoCloseMs,
+  autoConfirm = false,
   onClose,
   onPaid,
 }: Props) {
@@ -464,6 +471,32 @@ export default function StripePaymentModal({
     }
   }
 
+  // ── Reintento "un clic" (autoConfirm) ─────────────────────────────────────
+  // En modo reintento, si el comprador tiene tarjeta guardada (cuenta real), se
+  // selecciona esa tarjeta y se dispara el cobro AUTOMÁTICAMENTE al abrir, sin que toque
+  // la pasarela → directo al panel verde. Sin tarjeta guardada (o invitado) cae al flujo
+  // manual normal. Idempotente por `autoPayTriggeredRef` (una sola vez por apertura).
+  const autoPayTriggeredRef = useRef(false);
+  const autoPayFiredRef = useRef(false);
+  const firstUsableSavedCardId = effectiveSavedCards.find((c) => c.stripePaymentMethodId)?.id ?? null;
+  const autoPaying = autoConfirm && !isGuest && !!firstUsableSavedCardId && !error && !showSuccess;
+
+  useEffect(() => {
+    if (!open) { autoPayTriggeredRef.current = false; autoPayFiredRef.current = false; return; }
+    if (!autoConfirm || autoPayTriggeredRef.current) return;
+    if (isGuest || !sdkReady || paid || submitting || !firstUsableSavedCardId) return;
+    autoPayTriggeredRef.current = true;
+    setSelectedMethod(`saved:${firstUsableSavedCardId}`);
+  }, [open, autoConfirm, isGuest, sdkReady, paid, submitting, firstUsableSavedCardId]);
+
+  useEffect(() => {
+    if (!autoConfirm || !autoPayTriggeredRef.current || autoPayFiredRef.current) return;
+    if (!savedCardId || submitting || paid) return;
+    autoPayFiredRef.current = true; // una sola vez por apertura
+    void handlePay();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [savedCardId, autoConfirm]);
+
   if (!mounted || !render) return null;
 
   // ── Estilos (panel claro) ──
@@ -555,6 +588,36 @@ export default function StripePaymentModal({
       </div>
     );
   }
+
+  // País del comprador sin habilitar para venta: se avisa ANTES de que teclee la tarjeta.
+  // Sin esto el formulario se ve normal, el comprador captura todo y el backend rechaza al
+  // final con un error genérico — la peor manera de enterarse.
+  // `null` = todavía no se resolvió la cookie de país; no se bloquea nada mientras tanto.
+  const countryBlocked = pf.buyerCountry != null && !isChargeableCountry(pf.buyerCountry);
+
+  const blockedNotice = (
+    <div style={{ position: "relative", padding: stacked ? "24px 18px 24px" : "28px 24px 24px", minWidth: 0 }}>
+      <button type="button" onClick={onClose} aria-label="Cerrar"
+        style={{ position: "absolute", top: 8, right: 10, zIndex: 2, border: "none", background: "none", color: "#9aa0a8", cursor: "pointer", fontSize: 26, lineHeight: 1, padding: 4 }}>×</button>
+
+      {stacked && (
+        <div style={{ display: "flex", justifyContent: "center", marginBottom: 16 }}>
+          <VibraPayBrand />
+        </div>
+      )}
+
+      <div style={{ display: "grid", gap: 10, padding: "28px 4px", textAlign: "center" }}>
+        <div style={{ fontSize: 34, lineHeight: 1 }} aria-hidden="true">🌎</div>
+        <h3 style={{ margin: 0, fontSize: 17, fontWeight: 650, color: "#1f2430" }}>
+          Todavía no podemos cobrar en tu país
+        </h3>
+        <p style={{ margin: 0, fontSize: 13.5, color: "#5b616e", lineHeight: 1.55 }}>
+          Estamos completando los trámites fiscales para vender desde donde te encuentras.
+          En cuanto quede listo vas a poder comprar con normalidad.
+        </p>
+      </div>
+    </div>
+  );
 
   const leftColumn = (
     <div style={{ position: "relative", padding: stacked ? "24px 18px 4px" : "28px 24px 24px", minWidth: 0 }}>
@@ -765,7 +828,17 @@ export default function StripePaymentModal({
     />
   );
 
+  // Vista "procesando" del reintento un-clic: mientras se cobra con la tarjeta guardada
+  // NO se muestra la pasarela (solo un spinner), para saltar directo al panel verde.
+  const processingView = (
+    <div style={{ display: "grid", placeItems: "center", gap: 14, padding: "56px 24px", minHeight: 220 }}>
+      <div style={{ width: 40, height: 40, borderRadius: "50%", border: "3px solid #e3e6ea", borderTopColor: BLUE, animation: "vibraSpin 0.8s linear infinite" }} />
+      <p style={{ margin: 0, fontSize: 14, color: "#5b616e", fontWeight: 600 }}>Procesando tu pago…</p>
+    </div>
+  );
+
   const keyframes = `
+    @keyframes vibraSpin { to { transform: rotate(360deg); } }
     @keyframes vibraPop { 0% { transform: scale(0); opacity: 0; } 60% { transform: scale(1.08); opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
     @keyframes vibraFade { from { opacity: 0; } to { opacity: 1; } }
     @keyframes vibraFadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
@@ -788,7 +861,7 @@ export default function StripePaymentModal({
             ? { position: "relative", width: "100%", maxHeight: "92vh", boxSizing: "border-box", overflowY: "auto", background: "#fff", borderRadius: "16px 16px 0 0", boxShadow: "0 -12px 48px rgba(0,0,0,0.4)", color: "#3a3f4a", paddingBottom: "var(--vb-safe-bottom, 0px)", transform: entered ? "translateY(0)" : "translateY(100%)", transition: "transform 240ms cubic-bezier(0.2,0.8,0.2,1)", willChange: "transform" }
             : { position: "relative", width: isNarrow || forceStacked ? "min(100%, 440px)" : "min(100%, 660px)", maxHeight: "92vh", overflowY: "auto", background: "#fff", borderRadius: 16, boxShadow: "0 24px 72px rgba(0,0,0,0.4)", color: "#3a3f4a", opacity: entered ? 1 : 0, transform: entered ? "translateY(0) scale(1)" : "translateY(10px) scale(0.985)", transition: "opacity 220ms ease, transform 240ms cubic-bezier(0.2,0.8,0.2,1)", willChange: "opacity, transform" }}>
         <style>{keyframes}</style>
-        {showSuccess ? successView : (
+        {showSuccess ? successView : autoPaying ? processingView : countryBlocked ? blockedNotice : (
           <div style={{ opacity: paid ? 0 : 1, transition: "opacity 280ms ease" }}>
             <div style={{ display: "grid", gridTemplateColumns: stacked ? "1fr" : "1.05fr 1fr", alignItems: "stretch" }}>
               {leftColumn}

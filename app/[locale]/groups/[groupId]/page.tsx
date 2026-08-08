@@ -592,6 +592,9 @@ const canRequestMeetGreet =
   const [exclusiveSessionError, setExclusiveSessionError] = useState<string | null>(null);
 
   const [isRetry, setIsRetry] = useState(false);
+// Reintento: cobra en un clic con la tarjeta guardada al abrir la pasarela (sin que el
+// usuario la toque). Se captura al enviar y se resetea al cerrar la pasarela.
+const [autoConfirmPay, setAutoConfirmPay] = useState(false);
 
   const greetOffering = useMemo(() => {
     return normalizedCurrentOfferings.find((o) => o.type === greetType) ?? null;
@@ -987,6 +990,7 @@ function redirectToLogin() {
       setPayGreetId(res.requestId);
       setPayGreetAmount(amount);
       setPayGreetLabel(greetPriceLabel);
+      setAutoConfirmPay(isRetry); // reintento → cobro un-clic con tarjeta guardada
       setPayGreetOpen(true);
     } catch (e: unknown) {
       setGreetError((e instanceof Error ? e.message : null) ?? tGroups("greetRequestError"));
@@ -1051,6 +1055,7 @@ function redirectToLogin() {
         typeof amount === "number" ? formatMoney(amount, meetGreetCurrency) : undefined
       );
       setPayMeetDuration(meetGreetDurationMinutes ?? null);
+      setAutoConfirmPay(isRetry); // reintento → cobro un-clic con tarjeta guardada
       setPayMeetOpen(true);
     } catch (e: unknown) {
       setMeetGreetError(
@@ -1117,6 +1122,7 @@ function redirectToLogin() {
         typeof amount === "number" ? formatMoney(amount, exclusiveSessionCurrency) : undefined
       );
       setPaySessionDuration(exclusiveSessionDurationMinutes ?? null);
+      setAutoConfirmPay(isRetry); // reintento → cobro un-clic con tarjeta guardada
       setPaySessionOpen(true);
     } catch (e: unknown) {
       setExclusiveSessionError(
@@ -3040,7 +3046,8 @@ const avatarNode = (
         successMessage={tServices(greetType === "consejo" ? "paySuccessConsejo" : "paySuccessSaludo", {
           name: group?.name ?? tServices("creatorFallback"),
         })}
-        onClose={() => setPayGreetOpen(false)}
+        autoConfirm={autoConfirmPay}
+        onClose={() => { setPayGreetOpen(false); setAutoConfirmPay(false); setIsRetry(false); }}
         onPaid={() => {
           // El panel NO se cierra: muestra la pantalla de éxito. Solo registramos la compra.
           registrarCompraGeo({
@@ -3062,7 +3069,8 @@ const avatarNode = (
         avatarUrl={group?.avatarUrl ?? null}
         durationMinutes={paySessionDuration}
         successMessage={tServices("paySuccessScheduled", { name: group?.name ?? tServices("creatorFallback") })}
-        onClose={() => setPaySessionOpen(false)}
+        autoConfirm={autoConfirmPay}
+        onClose={() => { setPaySessionOpen(false); setAutoConfirmPay(false); setIsRetry(false); }}
         onPaid={() => {
           // El panel NO se cierra: muestra la pantalla de éxito. Solo registramos la compra.
           registrarCompraGeo({
@@ -3084,7 +3092,8 @@ const avatarNode = (
         avatarUrl={group?.avatarUrl ?? null}
         durationMinutes={payMeetDuration}
         successMessage={tServices("paySuccessScheduled", { name: group?.name ?? tServices("creatorFallback") })}
-        onClose={() => setPayMeetOpen(false)}
+        autoConfirm={autoConfirmPay}
+        onClose={() => { setPayMeetOpen(false); setAutoConfirmPay(false); setIsRetry(false); }}
         onPaid={() => {
           // El panel NO se cierra: muestra la pantalla de éxito. Solo registramos la compra.
           registrarCompraGeo({

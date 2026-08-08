@@ -34,6 +34,7 @@ import {
   createEgressClient,
 } from "./livekit";
 import { extractS3Key } from "./recordingDownload";
+import { safeLocale } from "./locales";
 
 if (admin.apps.length === 0) admin.initializeApp();
 
@@ -43,7 +44,6 @@ const REGION = "us-central1";
 const GREETING_EGRESS_HOST =
   process.env.GREETING_EGRESS_HOST ?? "https://vibraon.com";
 
-const LOCALES = new Set(["es", "en", "pt-BR"]);
 const TYPES = new Set(["saludo", "consejo"]);
 
 const POLL_INTERVAL_MS = 3000;
@@ -88,7 +88,7 @@ export const greetingAnimatedDownload = onRequest(
     const avatar = (body.avatar ?? "").slice(0, 600);
     const type = TYPES.has(body.type ?? "") ? body.type! : "saludo";
     const orientation = body.orientation === "vertical" ? "vertical" : "horizontal";
-    const locale = LOCALES.has(body.locale ?? "") ? body.locale! : "en";
+    const locale = safeLocale(body.locale);
 
     // Config S3/R2 (mismas credenciales que la grabación de sesiones).
     const bucket = process.env.LIVEKIT_EGRESS_S3_BUCKET ?? "";

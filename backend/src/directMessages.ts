@@ -70,6 +70,9 @@ export const onDirectMessageCreated = onDocumentCreated(
           text: text.slice(0, PREVIEW_MAX),
           senderId,
           createdAt,
+          // Un mensaje puede ser solo imagen (texto vacío): el inbox necesita
+          // saberlo para no pintar una fila en blanco.
+          hasImage: message.image != null,
         },
         lastMessageAt: createdAt,
         ...(recipientId
@@ -101,11 +104,15 @@ export const onDirectMessageCreated = onDocumentCreated(
       const senderAvatar =
         (typeof sender.photoURL === "string" && sender.photoURL) || null;
 
+      // Un mensaje solo-imagen no tiene cuerpo que enseñar en la pantalla de
+      // bloqueo: se anuncia como foto.
+      const body = text.trim() || (message.image != null ? "📷 Foto" : "");
+
       await sendPushToUser(result.recipientId, {
         title: senderName,
         // El propio mensaje como cuerpo: es lo que se espera ver en la pantalla
         // de bloqueo.
-        body: text.slice(0, 140) || "te envió un mensaje",
+        body: body.slice(0, 140) || "te envió un mensaje",
         // `/groups` monta el OwnerSidebar completo; `dm` abre ese hilo.
         link: `/groups?dm=${conversationId}`,
         // Mensajes seguidos del mismo hilo se colapsan en un solo aviso.

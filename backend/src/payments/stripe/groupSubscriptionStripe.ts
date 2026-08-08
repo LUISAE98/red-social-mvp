@@ -18,7 +18,8 @@ import { logger } from "firebase-functions";
 import { stripeFetch, stripeSecretKey } from "./stripeClient";
 import { getOrCreateStripeCustomer } from "./stripeCustomer";
 import { extractAuthRequiredPI } from "./offSessionCharge";
-import { isChargeableCountry } from "../../tax/config";
+import { isChargeableCountry, chargeCurrencyForCountry } from "../../tax/config";
+import { resolvePresentment } from "../../tax/presentment";
 import { resolveTaxCountry } from "../../tax/resolveCountry";
 import { SETTLEMENT_CURRENCY } from "../../wallet/ledger";
 import { readGroupSub, validateInviteForGroup, computeMonthlyCharge } from "../groupSubscriptionCore";
@@ -141,7 +142,13 @@ export const createGroupSubscription = onCall(
     }
 
     const charge = computeMonthlyCharge(sub.price, country); // (base + $3) × IVA
-    const unitAmount = Math.round(charge.chargedMonthly * 100); // centavos MXN
+    // La suscripción también se cobra en la moneda del comprador (Stripe convierte y liquida
+    // en MXN). Se fija al crear el Price y aplica a todas las renovaciones.
+    const presentment = await resolvePresentment(
+      charge.chargedMonthly,
+      chargeCurrencyForCountry(country)
+    );
+    const unitAmount = presentment.amountForStripe;
     const groupName = String(group.name ?? "la comunidad");
     const externalReference = `groupSub__${groupId}_${uid}`;
 
@@ -195,7 +202,7 @@ export const createGroupSubscription = onCall(
         items: [
           {
             price_data: {
-              currency: SETTLEMENT_CURRENCY.toLowerCase(),
+              currency: presentment.currency.toLowerCase(),
               product: productId,
               unit_amount: unitAmount,
               recurring: { interval: "month" },

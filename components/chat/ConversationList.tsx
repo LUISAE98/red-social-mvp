@@ -6,6 +6,7 @@ import { useLocale, useTranslations } from "next-intl";
 import LiveRingAvatar from "@/app/components/LiveRing/LiveRingAvatar";
 import type { ConversationWithId } from "@/lib/chat/chatService";
 import { getOtherParticipant } from "@/lib/chat/types";
+import { ChatReveal, ConversationListSkeleton } from "./ChatSkeletons";
 
 /**
  * Lista de conversaciones del inbox (perfil ↔ perfil).
@@ -32,7 +33,8 @@ type Props = {
   profiles: Record<string, ProfileMini>;
   styles: Record<string, CSSProperties>;
   onOpenConversation: (conversationId: string) => void;
-  activeConversationId?: string | null;
+  /** Hilos abiertos en pestañas: pueden ser varios a la vez. */
+  activeConversationIds?: string[];
   isMobile?: boolean;
 };
 
@@ -77,7 +79,7 @@ export default function ConversationList({
   profiles,
   styles,
   onOpenConversation,
-  activeConversationId = null,
+  activeConversationIds,
   isMobile = false,
 }: Props) {
   const tChat = useTranslations("chat");
@@ -87,7 +89,7 @@ export default function ConversationList({
   if (loading) {
     return (
       <div style={{ ...styles.sectionPanel, background: "transparent", padding: 0 }}>
-        <div style={styles.subtle}>{tChat("loadingConversations")}</div>
+        <ConversationListSkeleton avatarSize={isMobile ? 43 : 36} />
       </div>
     );
   }
@@ -102,6 +104,8 @@ export default function ConversationList({
 
   return (
     <div style={{ ...styles.sectionPanel, background: "transparent", padding: 0 }}>
+      {/* El contenido real entra con fade, no de golpe (vibra_style.md). */}
+      <ChatReveal show>
       <div style={{ display: "grid", gap: 6 }}>
         {conversations.map((conversation) => {
           const otherUid = selfUid
@@ -112,14 +116,21 @@ export default function ConversationList({
 
           const unread = selfUid ? (conversation.unread?.[selfUid] ?? 0) : 0;
           const hasUnread = unread > 0;
-          const isSelected = activeConversationId === conversation.id;
+          const isSelected = !!activeConversationIds?.includes(conversation.id);
           const isBlocked = conversation.status === "blocked";
 
+          const last = conversation.lastMessage;
+          const mine = last?.senderId === selfUid;
+          const prefix = mine ? tChat("youPrefix") : "";
+          // Un mensaje solo-imagen no trae texto: se anuncia como foto en vez
+          // de dejar la fila vacía.
           const preview = isBlocked
             ? tChat("conversationBlocked")
-            : conversation.lastMessage?.text
-              ? `${conversation.lastMessage.senderId === selfUid ? tChat("youPrefix") : ""}${conversation.lastMessage.text}`
-              : tChat("noMessagesYet");
+            : last?.text
+              ? `${prefix}${last.text}`
+              : last?.hasImage
+                ? `${prefix}${tChat("photoPreview")}`
+                : tChat("noMessagesYet");
 
           const time = formatConversationTime(
             conversation.lastMessageAt as TimestampLike,
@@ -276,6 +287,7 @@ export default function ConversationList({
           );
         })}
       </div>
+      </ChatReveal>
     </div>
   );
 }

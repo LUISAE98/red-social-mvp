@@ -137,3 +137,17 @@ export async function respondGreetingRequest(input: {
 
   return res.data;
 }
+
+/** El COMPRADOR pide la devolución de un saludo/consejo rechazado → saldo a favor. */
+export async function requestGreetingRefund(input: {
+  requestId: string;
+  refundReason?: string | null;
+}) {
+  const requestId = normalizeRequiredText(input.requestId, "requestId");
+  const fn = httpsCallable<{ requestId: string; refundReason?: string | null }, { ok: boolean }>(
+    functions,
+    "requestGreetingRefund"
+  );
+  const res = await fn({ requestId, refundReason: input.refundReason ?? null });
+  return res.data;
+}

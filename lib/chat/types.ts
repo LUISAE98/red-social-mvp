@@ -71,6 +71,11 @@ export type ConversationLastMessage = {
   text: string;
   senderId: string;
   createdAt: Timestamp;
+  /**
+   * El último mensaje llevaba imagen. Sin esto, un mensaje solo-imagen (texto
+   * vacío) dejaría la fila del inbox en blanco.
+   */
+  hasImage?: boolean;
 };
 
 export type ConversationDoc = {
@@ -110,9 +115,35 @@ export type ConversationDoc = {
   updatedAt: Timestamp;
 };
 
+/**
+ * Imagen adjunta a un mensaje. UNA por mensaje.
+ *
+ * Mismos campos que la imagen de comentarios (misma maquinaria de subida), pero
+ * declarada aquí para que el contrato del DM no dependa del dominio de posts.
+ */
+export type ChatImage = {
+  /** Ruta en Storage del original. Se abre al tocar la miniatura. */
+  path: string;
+  /** Ruta en Storage de la miniatura, que es lo que se pinta en el globo. */
+  thumbnailPath: string;
+  width?: number;
+  height?: number;
+  /**
+   * URLs permanentes de los primeros mensajes, anteriores al modelo firmado.
+   * NO se escriben más: hoy la URL la firma (y la caduca) la Cloud Function
+   * `getDirectMessageImageUrls`. Se conservan para que esos mensajes se sigan
+   * viendo.
+   */
+  url?: string;
+  thumbnailUrl?: string;
+};
+
 export type MessageDoc = {
   senderId: string;
+  /** Puede ir vacío si el mensaje lleva imagen. */
   text: string;
+  /** Una imagen como mucho; null si el mensaje es solo texto. */
+  image?: ChatImage | null;
   createdAt: Timestamp;
   /** Borrado suave: el doc se conserva, el texto deja de mostrarse. */
   isDeleted: boolean;

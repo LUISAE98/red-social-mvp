@@ -61,7 +61,8 @@
     "sidebarFollowedProfiles": "Perfiles seguidos",
     "statistics": "Estadísticas",
     "tabMessages": "Mensajes",
-    "messageRequests": "Solicitudes ({count})"
+    "messageRequests": "Solicitudes ({count})",
+    "seeAllMessages": "Ver todos"
   },
   "common": {
     "accept": "Aceptar",
@@ -808,12 +809,12 @@
     "messagePolicyEveryone": "Todos",
     "messagePolicyFollowing": "Solo a quienes sigo",
     "messagePolicyNone": "Nadie",
-    "messagePolicyEveryoneHelp": "Cualquier persona puede escribirte. Los mensajes de quienes no sigues llegan a Solicitudes, sin notificarte.",
-    "messagePolicyFollowingHelp": "Solo pueden escribirte las personas que tú sigues. Para el resto, tu bandeja no existe. Es la opción predeterminada.",
-    "messagePolicyNoneHelp": "Tu bandeja está cerrada. Nadie puede iniciarte una conversación.",
+    "messagePolicyEveryoneHelp": "Cualquier persona puede escribirte, si no la sigues su mensaje llega a solicitudes y tú decides si lo aceptas.",
+    "messagePolicyFollowingHelp": "Solo pueden escribirte las personas que tú sigues, sus mensajes entran directo a tu bandeja, al resto no le aparece el botón, es la opción predeterminada.",
+    "messagePolicyNoneHelp": "Nadie puede escribirte, el botón de enviar mensaje no aparece en tu perfil.",
     "messagePolicyUpdateError": "No se pudo actualizar la configuración de mensajes.",
     "messagePolicyFollowingAndFollowers": "A quien sigo y a quien me sigue",
-    "messagePolicyFollowingAndFollowersHelp": "Pueden escribirte las personas que sigues y también las que te siguen a ti. Si no sigues a quien te escribe, su mensaje llega a Solicitudes."
+    "messagePolicyFollowingAndFollowersHelp": "Solo pueden escribirte las personas que sigues y las que te siguen, sus mensajes entran directo a tu bandeja, al resto no le aparece el botón de enviar mensaje."
   },
   "feed": {
     "pinned": "Fijado",
@@ -2547,7 +2548,6 @@
     "noReportsPending": "No hay reportes pendientes."
   },
   "chat": {
-    "loadingConversations": "Cargando conversaciones...",
     "noConversations": "Aún no tienes conversaciones.",
     "noMessagesYet": "Sin mensajes todavía",
     "conversationBlocked": "Conversación bloqueada",
@@ -2556,7 +2556,6 @@
     "send": "Enviar",
     "sendError": "No se pudo enviar el mensaje.",
     "blockError": "No se pudo actualizar el bloqueo.",
-    "loadingMessages": "Cargando mensajes...",
     "loadingOlder": "Cargando mensajes anteriores...",
     "emptyThread": "Aún no hay mensajes con {name}. Escribe el primero.",
     "messageDeleted": "Mensaje eliminado",
@@ -2581,6 +2580,14 @@
     "reportReason_illegal_content": "Contenido ilegal",
     "reportReason_harassment": "Acoso",
     "reportReason_misinformation": "Desinformación",
-    "reportReason_other": "Otro"
+    "reportReason_other": "Otro",
+    "minimizeChat": "Minimizar chat",
+    "expandChat": "Desplegar chat",
+    "attachImage": "Adjuntar imagen",
+    "removeImage": "Quitar imagen",
+    "uploadingImage": "Subiendo imagen...",
+    "imageUploadError": "No se pudo subir la imagen.",
+    "openImage": "Ver imagen",
+    "photoPreview": "📷 Foto"
   }
 }

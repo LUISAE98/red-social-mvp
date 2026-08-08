@@ -85,6 +85,28 @@ match /posts/{groupId}/{uid}/{folder}/{fileName} {
         && maxSize(10 * 1024 * 1024);
     }
     // ==============================
+    // DM IMAGES (imagen adjunta a un mensaje directo)
+    //
+    // LECTURA CERRADA A CAL Y CANTO. Storage no puede consultar Firestore, así
+    // que desde aquí es imposible saber quién participa en la conversación: en
+    // vez de dejarlo abierto, NADIE lee directo. Las imágenes se sirven con URL
+    // firmada y caduca desde la Cloud Function `getDirectMessageImageUrls`, que
+    // sí comprueba en Firestore que quien pide es participante del hilo.
+    //
+    // Consecuencia buscada: bloquear a alguien o borrar un mensaje deja de dar
+    // acceso en cuanto caduca la URL, en lugar de nunca.
+    // ==============================
+    match /dmImages/{conversationId}/{uid}/{folder}/{fileName} {
+      allow read: if false;
+
+      allow write: if isSignedIn()
+        && request.auth.uid == uid
+        && (folder == "images" || folder == "thumbnails")
+        && isImage()
+        && maxSize(10 * 1024 * 1024);
+    }
+
+    // ==============================
     // STORY COVERS (foto portada)
     // ==============================
     match /storyCovers/users/{uid}/{fileName} {

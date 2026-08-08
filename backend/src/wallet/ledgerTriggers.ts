@@ -29,6 +29,7 @@ import {
   reverseEarning,
   type LedgerServiceType,
 } from "./ledger";
+import { issueBuyerCredit } from "./buyerCredit";
 
 if (admin.apps.length === 0) {
   admin.initializeApp();
@@ -39,6 +40,26 @@ const REGION = "us-central1";
 
 function num(v: unknown): number {
   return typeof v === "number" && Number.isFinite(v) ? v : 0;
+}
+function round2(n: number): number {
+  return Math.round((n + Number.EPSILON) * 100) / 100;
+}
+/**
+ * Total EXACTO que pagó el comprador de una experiencia (base + $3 + IVA), para emitir el
+ * saldo a favor en una devolución. Fuente autoritativa: el `chargedAmount` del
+ * paymentIntent; si faltara, se reconstruye del doc de dominio (base + $3 + IVA).
+ */
+async function resolveChargedAmount(
+  sourceType: string,
+  sourceId: string,
+  after: Record<string, unknown>
+): Promise<number> {
+  const piSnap = await db.collection("paymentIntents").doc(`${sourceType}__${sourceId}`).get();
+  const charged = num(piSnap.get("chargedAmount"));
+  if (charged > 0) return charged;
+  const base = num(after.priceSnapshot);
+  const tax = num(after.taxAmount);
+  return base > 0 ? round2(base + 3 + tax) : 0;
 }
 function str(v: unknown): string | null {
   return typeof v === "string" && v.trim().length > 0 ? v : null;
@@ -369,12 +390,32 @@ async function handleRequestLifecycle(params: {
     return;
   }
 
-  // 3) Rechazado / reembolsado → revertir.
+  // 3) DEVOLUCIÓN pedida por el comprador (refund_requested) → se revierte al creador
+  //    contándolo como DEVOLUCIÓN (no como "perdido") y, si el dinero se cobró, se emite
+  //    el SALDO A FAVOR al comprador por el total que pagó (base + $3 + IVA).
+  //    ⚠️ El RECHAZO del creador por sí solo YA NO revierte (ya no está en
+  //    reversedStatuses): el dinero queda pending/capturado hasta que el comprador decida
+  //    devolución o "intentar de nuevo".
   if (
     params.reversedStatuses.includes(afterStatus) &&
     !params.reversedStatuses.includes(beforeStatus)
   ) {
-    await reverseEarning(creatorId, params.sourceType, params.requestId);
+    await reverseEarning(creatorId, params.sourceType, params.requestId, { asRefund: true });
+
+    const isPaid =
+      after.paymentStatus === "paid" || after.paymentStatus === "simulated_paid";
+    const buyerId = str(after.buyerId);
+    if (isPaid && buyerId) {
+      const total = await resolveChargedAmount(params.sourceType, params.requestId, after);
+      if (total > 0) {
+        // Idempotente por (sourceType, sourceId): no duplica el crédito.
+        await issueBuyerCredit(buyerId, {
+          amount: total,
+          sourceType: params.sourceType,
+          sourceId: params.requestId,
+        });
+      }
+    }
   }
 }
 
@@ -389,7 +430,7 @@ export const onGreetingLedger = onDocumentWritten(
       sourceType: "greetingRequest",
       resolveType: (d) => (d.type === "consejo" ? "advice" : "greeting"),
       deliveredStatuses: ["delivered"],
-      reversedStatuses: ["rejected", "refund_requested"],
+      reversedStatuses: ["refund_requested"],
     });
   }
 );
@@ -405,7 +446,7 @@ export const onExclusiveSessionLedger = onDocumentWritten(
       sourceType: "exclusiveSessionRequest",
       resolveType: () => "exclusive_session",
       deliveredStatuses: ["completed"],
-      reversedStatuses: ["rejected", "refund_requested"],
+      reversedStatuses: ["refund_requested"],
     });
   }
 );
@@ -421,7 +462,7 @@ export const onMeetGreetLedger = onDocumentWritten(
       sourceType: "meetGreetRequest",
       resolveType: () => "live_session",
       deliveredStatuses: ["completed"],
-      reversedStatuses: ["rejected", "refund_requested"],
+      reversedStatuses: ["refund_requested"],
     });
   }
 );

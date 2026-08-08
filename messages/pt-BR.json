@@ -61,7 +61,8 @@
     "sidebarFollowedProfiles": "Perfis seguidos",
     "statistics": "Estatísticas",
     "tabMessages": "Mensagens",
-    "messageRequests": "Solicitações ({count})"
+    "messageRequests": "Solicitações ({count})",
+    "seeAllMessages": "Ver todos"
   },
   "common": {
     "accept": "Aceitar",
@@ -808,12 +809,12 @@
     "messagePolicyEveryone": "Todos",
     "messagePolicyFollowing": "Só quem eu sigo",
     "messagePolicyNone": "Ninguém",
-    "messagePolicyEveryoneHelp": "Qualquer pessoa pode te escrever. As mensagens de quem você não segue vão para Solicitações, sem te notificar.",
-    "messagePolicyFollowingHelp": "Só podem te escrever as pessoas que você segue. Para as demais, sua caixa de entrada não existe. É a opção padrão.",
-    "messagePolicyNoneHelp": "Sua caixa de entrada está fechada. Ninguém pode iniciar uma conversa com você.",
+    "messagePolicyEveryoneHelp": "Qualquer pessoa pode te escrever, se você não a segue a mensagem vai para solicitações e você decide se aceita.",
+    "messagePolicyFollowingHelp": "Só podem te escrever as pessoas que você segue, as mensagens vão direto para sua caixa de entrada, para as demais o botão não aparece, é a opção padrão.",
+    "messagePolicyNoneHelp": "Ninguém pode te escrever, o botão de mensagem não aparece no seu perfil.",
     "messagePolicyUpdateError": "Não foi possível atualizar as configurações de mensagens.",
     "messagePolicyFollowingAndFollowers": "Quem eu sigo e quem me segue",
-    "messagePolicyFollowingAndFollowersHelp": "Podem te escrever as pessoas que você segue e também as que te seguem. Se você não segue quem escreve, a mensagem vai para Solicitações."
+    "messagePolicyFollowingAndFollowersHelp": "Só podem te escrever as pessoas que você segue e as que te seguem, as mensagens vão direto para sua caixa de entrada, para as demais o botão de mensagem não aparece."
   },
   "feed": {
     "pinned": "Fixado",
@@ -979,6 +980,8 @@
     "liveTicketMemberFreeAccess": "Este live é gratuito para você como membro",
     "liveTicketBuyPrompt": "Compre seu ingresso para acessar — {price}",
     "liveTicketBuyButton": "Comprar ingresso",
+    "liveTicketBuyCount": "{count, plural, =0 {Seja o primeiro a comprar seu ingresso} one {# pessoa já comprou seu ingresso} other {# pessoas já compraram seu ingresso}}",
+    "liveTicketBuyForPrice": "Comprar ingresso · {price}",
     "createPostTitle": "Criar publicação",
     "editPostTitle": "Editar publicação",
     "premiumPostBadge": "Publicação Premium",
@@ -2210,9 +2213,9 @@
     "accept": "Aceitar",
     "reject": "Recusar",
     "requestAccepted": "Aceita",
+    "requestRejected": "Recusada",
     "moderatorInviteAccepted": "Você já é moderador",
     "moderatorInviteRejected": "Convite recusado",
-    "requestRejected": "Recusada",
     "actionError": "Não foi possível concluir",
     "aCommunity": "uma comunidade",
     "inviteMaxed": "Seu link de convite para {group} atingiu o máximo de usos",
@@ -2242,6 +2245,11 @@
       "muted": "Você foi silenciado em {group}",
       "kicked": "Você foi removido de {group}",
       "banned": "Você foi bloqueado em {group}"
+    },
+    "subscriptionTransition": {
+      "legacy_free": "Boa notícia! O criador de {group} te deixou com acesso gratuito. Você continua dentro, sem pagar.",
+      "removed_needs_subscription": "{group} agora é por assinatura e você não está mais dentro. Entre para assinar e voltar.",
+      "removed_now_free": "O criador deixou {group} gratuito de novo e você não está mais dentro. Entre para participar novamente."
     },
     "kyc": {
       "approved": "Sua verificação de identidade foi aprovada. Já pode sacar.",
@@ -2540,7 +2548,6 @@
     "noReportsPending": "Nenhum relatório pendente."
   },
   "chat": {
-    "loadingConversations": "Carregando conversas...",
     "noConversations": "Você ainda não tem conversas.",
     "noMessagesYet": "Ainda sem mensagens",
     "conversationBlocked": "Conversa bloqueada",
@@ -2549,7 +2556,6 @@
     "send": "Enviar",
     "sendError": "Não foi possível enviar a mensagem.",
     "blockError": "Não foi possível atualizar o bloqueio.",
-    "loadingMessages": "Carregando mensagens...",
     "loadingOlder": "Carregando mensagens anteriores...",
     "emptyThread": "Ainda não há mensagens com {name}. Escreva a primeira.",
     "messageDeleted": "Mensagem excluída",
@@ -2574,6 +2580,14 @@
     "reportReason_illegal_content": "Conteúdo ilegal",
     "reportReason_harassment": "Assédio",
     "reportReason_misinformation": "Desinformação",
-    "reportReason_other": "Outro"
+    "reportReason_other": "Outro",
+    "minimizeChat": "Minimizar conversa",
+    "expandChat": "Expandir conversa",
+    "attachImage": "Anexar imagem",
+    "removeImage": "Remover imagem",
+    "uploadingImage": "Enviando imagem...",
+    "imageUploadError": "Não foi possível enviar a imagem.",
+    "openImage": "Ver imagem",
+    "photoPreview": "📷 Foto"
   }
 }

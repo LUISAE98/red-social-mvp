@@ -43,7 +43,7 @@ export type ChargeComposition = {
   // ── Impuesto del país del comprador ──
   buyerTax: {
     name: string | null;
-    /** Tasa vigente del país, aunque no se cobre (AR: 0.21). */
+    /** Tasa vigente del país, aunque no se cobre. */
     rate: number;
     /** Monto efectivamente cobrado. 0 si lo percibe la emisora. */
     amount: number;
@@ -96,7 +96,7 @@ export function composeCharge(
   const taxableAmount = round2(publishedAmount + fxFeeAmount);
 
   // El impuesto solo se SUMA si Vibra es quien lo entera. Donde lo percibe la emisora
-  // (Argentina, Costa Rica, Paraguay), `taxAmount` sale en 0 y el comprador no lo paga dos veces.
+  // `taxAmount` sale en 0 y el comprador no lo paga dos veces.
   const tax = applyConsumptionTax(taxableAmount, country);
 
   return {

@@ -66,9 +66,9 @@ Hoy el `taxCountry` **lo manda el cliente** y el backend solo lo valida con `isC
 Eso funciona por accidente: como **solo México está configurado**, cualquier otro país es
 rechazado y no hay evasión posible.
 
-**El día que Argentina exista en la tabla con impuesto 0, ese accidente se acaba:** un comprador
-mexicano manda `taxCountry: "AR"`, pasa la validación y **paga 0% en vez de 16%**. Vibra es quien
-responde ante el SAT por ese IVA no cobrado.
+**El día que exista un segundo país en la tabla, ese accidente se acaba:** un comprador mexicano
+manda otro ISO, pasa la validación y **paga menos IVA del que debe** —o ninguno, si ese país tiene
+el impuesto a cargo de la emisora—. Vibra es quien responde ante el SAT por ese IVA no cobrado.
 
 > **Regla dura: la determinación del país pasa a ser 100% server-authoritative antes de habilitar
 > el segundo país. No es opcional ni se puede dejar para después.**
@@ -104,11 +104,27 @@ dos fases y no una:
 
 | Fase | Qué se usa | Naturaleza |
 |---|---|---|
-| **Display** (catálogo, botón, pasarela) | IP + cookie `vibra_country` | **Estimado.** Nunca autoritativo |
-| **Cobro** (confirmación del intent) | IP del request en servidor + país de la tarjeta | **Autoritativo.** Es el que manda |
+| **Fase 1 — display** (catálogo, botón, apertura de pasarela) | IP del request en servidor | **Estimado.** Nunca autoritativo |
+| **Fase 2 — cobro** (al capturar la tarjeta, antes de confirmar) | IP + **país emisor de la tarjeta** | **Autoritativo.** Es el que manda |
 
-Si al confirmar el total cambia respecto al mostrado, **se re-confirma con el comprador antes de
-cobrar**. Nunca se cobra en silencio un monto distinto al que vio.
+**Implementación:** `repriceStripeIntentForCard` (`backend/src/payments/stripe/repriceForCard.ts`).
+Lee el BIN de la tarjeta vía Stripe, vuelve a resolver el país, recompone el cobro y —si el total
+cambió— **actualiza el monto del PaymentIntent en Stripe antes de confirmar**. Stripe permite
+cambiar `amount` mientras el intent siga en `requires_payment_method` / `requires_confirmation`.
+
+**El monto en pantalla simplemente se actualiza.** No hay modal ni aviso de "tu total cambió": el
+comprador ve el total vigente antes de pulsar pagar. Decisión de producto (2026-08-07).
+
+**Ejemplo — IP extranjera + tarjeta mexicana**, sobre una base de 100:
+
+| | Fase 1 (por IP → extranjero) | Fase 2 (por tarjeta → MX) |
+|---|---|---|
+| base + $3 | 103 | 103 |
+| 2% conversión | +2.06 | **0** — ya no hay conversión |
+| Impuesto cobrado por Vibra | según el país | **+16.48** — IVA mexicano |
+| **Total** | estimado | **119.48** |
+
+Queda rastro en el intent: `repricedFromAmount`, `repricedAt`, `taxCountrySource` y los 4 indicios.
 
 ---
 
@@ -120,7 +136,7 @@ cobrar**. Nunca se cobra en silencio un monto distinto al que vio.
 /** Quién recauda materialmente el impuesto del país del comprador. */
 type TaxCollectionMode =
   | "platform"   // Vibra lo cobra en el checkout y lo entera (MX)
-  | "issuer"     // lo percibe la emisora/banco del comprador (AR, CR, PY)
+  | "issuer"     // lo percibe la emisora/banco del comprador (Vibra NO lo cobra)
   | "none";      // sin régimen aplicable → país NO cobrable
 
 /** Régimen del IVA MEXICANO sobre la venta de Vibra (Vibra es residente en MX). */
@@ -131,15 +147,16 @@ type MxVatTreatment =
 
 type CountryTaxConfig = {
   taxName: string;            // "IVA", "IGV", "ITBIS", "ITBMS", "ISV"…
-  taxRate: number;            // 0.21 — se guarda SIEMPRE, aunque no se cobre
+  taxRate: number;            // se guarda SIEMPRE, aunque no se cobre
   currency: string;           // moneda local de cobro
   collectionMode: TaxCollectionMode;
   mxVatTreatment: MxVatTreatment;
 };
 ```
 
-**Por qué `taxRate` se guarda aunque no se cobre:** para poder advertirle al comprador argentino
-qué le va a sumar su banco, y para reconstruir la operación si el criterio cambia.
+**Por qué `taxRate` se guarda aunque no se cobre:** en los países donde el impuesto lo percibe la
+emisora, sirve para poder advertirle al comprador qué le va a sumar su banco, y para reconstruir
+la operación si el criterio cambia.
 
 **Por qué `mxVatTreatment` es un campo y no una constante:** hoy es `export_zero` en todos los
 países extranjeros. Si el fiscalista dictamina que algún servicio o país no encuadra en el
@@ -150,13 +167,13 @@ Art. 29-IV, se cambia **una línea** y los 8 intents lo heredan. Ver **D-08**.
 ```ts
 {
   // Determinación del país — evidencia Art. 18-C
-  buyerCountry: "AR",
+  buyerCountry: "XX",              // ISO del país resuelto por el servidor
   buyerCountrySource: "card_bin",           // card_bin | ip | billing_address | phone
   buyerCountryIndicios: {
-    billingAddress: "AR" | null,
-    cardCountry:    "AR" | null,
-    ipCountry:      "AR" | null,
-    phoneCountry:   "AR" | null,
+    billingAddress: "XX" | null,
+    cardCountry:    "XX" | null,
+    ipCountry:      "XX" | null,
+    phoneCountry:   "XX" | null,
   },
 
   // Composición del precio (todo en MXN canónico)
@@ -171,7 +188,7 @@ Art. 29-IV, se cambia **una línea** y los 8 intents lo heredan. Ver **D-08**.
   buyerTax: {
     name: "IVA", rate: 0.21, amount: 0,
     collectionMode: "issuer",
-    note: "Lo percibe la emisora argentina (RG 4240/18). Vibra no lo cobra ni lo entera.",
+    note: "Lo percibe la emisora del comprador. Vibra no lo cobra ni lo entera.",
   },
 
   // IVA mexicano de la venta de Vibra
@@ -179,7 +196,7 @@ Art. 29-IV, se cambia **una línea** y los 8 intents lo heredan. Ver **D-08**.
 
   chargedAmount:     105.06,   // MXN
   settlementCurrency: "MXN",
-  displayCurrency:   "ARS",
+  displayCurrency:   "XXX",           // moneda local del comprador
   fxRate:            <tipo de cambio del día>,
 }
 ```
@@ -214,7 +231,16 @@ reconstruye un histórico con la config vigente.
 | Moneda de cobro | MXN |
 | `collectionMode` | `platform` — Vibra cobra y entera |
 | `mxVatTreatment` | `domestic_16` |
-| Registro | Vibra ya es contribuyente mexicano |
+
+#### 📋 Qué se necesita para vender aquí
+
+| Requisito | ¿Aplica? |
+|---|---|
+| **Alta fiscal en el país** | ✅ Ya — Vibra es contribuyente mexicano (es su residencia) |
+| **Representante legal local** | No aplica |
+| **Declarar y enterar el impuesto** | **Sí — Vibra.** A más tardar el día 17 del mes siguiente |
+| **Facturación electrónica local** | **Sí.** CFDI con IVA desglosado si el comprador la pide; si no, factura global mensual |
+| **Umbral mínimo de ventas** | Ninguno |
 
 **Cobro:** `(base + 3) × 1.16`. Sin 2% de FX (moneda = moneda de liquidación).
 
@@ -226,46 +252,163 @@ no fiscal + factura global mensual.
 
 ---
 
-### 🇦🇷 Argentina — `AR` · 🟡 DISEÑADO, SIN PROGRAMAR
+### ⬜ Los demás países — se abrirán con Stripe Tax
 
-| Campo | Valor |
+**Decisión (2026-08-07): la habilitación por país NO se hará con investigación manual.**
+
+Se intentó con Argentina y se revirtió el mismo día. El problema no fue el resultado sino el
+método: las tasas y los mecanismos de LatAm cambian rápido, las fuentes secundarias se
+contradicen, y algunos datos se colaron sin respaldo oficial (por ejemplo, un "el banco le suma
+~51%" que salía de sumar 21% + 30% sin verificar que el 30% aplica solo a consumos en moneda
+extranjera — y Stripe cobra en la moneda local del comprador).
+
+**Stripe Tax informa por país, al pasar a dinero real, qué registro, umbral y obligaciones
+aplican.** Ese es el dato bueno. Cada país nuevo se abre así:
+
+1. Stripe Tax indica el requisito del país.
+2. Se llena la ficha de este documento con **la plantilla de §8**.
+3. Se agrega la fila a `COUNTRY_TAX_CONFIG` (los dos espejos).
+4. Se escriben los tests de ese país.
+
+Hasta entonces, un país sin fila **no es cobrable** y el checkout lo rechaza.
+
+---
+
+## 6.1 Mapa de expansión — datos de la doc pública de Stripe (2026-08-07)
+
+> Recogido de `docs.stripe.com/tax/supported-countries`. Es **documentación abierta**: no hace
+> falta cuenta ni activar Stripe Tax para consultarla.
+>
+> ⚠️ **Stripe NO publica la TASA en su documentación.** Publica el umbral, la autoridad y las
+> reglas de alta. El porcentaje vive dentro del producto — es justamente lo que cobra por
+> calcular. Para programar el cálculo por cuenta propia, la tasa hay que conseguirla aparte.
+
+### 🌎 Latinoamérica — la región MÁS difícil
+
+**Ninguno tiene umbral: el alta es obligatoria desde la primera venta.** No existe el "vendo
+hasta cruzar el umbral y luego me registro". Y hay que registrarse **país por país**.
+
+| País | Umbral | Alta | Producto | ¿Negocio ahí? | Autoridad |
+|---|---|---|---|---|---|
+| 🇲🇽 **México** | 1 transacción | **Obligatoria** (30 días desde la 1ª venta) | Todos | ✅ Sí | [SAT](https://www.sat.gob.mx/portal/public/home) |
+| 🇨🇱 Chile | 1 transacción | **Obligatoria** | Solo digital | ❌ | [SII](https://www.sii.cl/vat/) |
+| 🇨🇴 Colombia | 1 transacción | **Obligatoria** | Solo digital | ❌ | [DIAN](https://www.dian.gov.co/) |
+| 🇵🇪 Perú | 1 transacción | **Obligatoria** | Solo digital | ❌ | [SUNAT](https://orientacion.sunat.gob.pe/igv-servicios-digitales) |
+| 🇺🇾 Uruguay | 1 transacción | **Obligatoria** | Solo digital | ❌ | [DGI](https://www.gub.uy/direccion-general-impositiva/) |
+| 🇨🇷 Costa Rica | — | **Voluntaria** | Solo digital | ❌ | [Hacienda](https://www.hacienda.go.cr/) |
+| 🇪🇨 Ecuador | — | **Voluntaria** | Solo digital | ❌ | [SRI](https://www.sri.gob.ec/) |
+| 🇦🇼 Aruba · 🇧🇸 Bahamas · 🇧🇧 Barbados · 🇸🇷 Surinam | — | sin detalle | Solo digital | ❌ | — |
+
+**Notas clave:**
+- Solo en **México** Vibra puede tener el negocio basado ahí y vender **todos** los tipos de producto. En el resto solo aplica como *remote seller* y solo productos digitales.
+- En Chile, Colombia, Perú y Uruguay las ventas **B2B no generan obligación** de registro.
+- Costa Rica y Ecuador son las únicas dos donde registrarse es **opcional**.
+
+### 🚫 De la lista original de 17, Stripe Tax NO cubre 10
+
+**Argentina · Brasil · Bolivia · Paraguay · Guatemala · Honduras · Nicaragua · El Salvador ·
+Panamá · República Dominicana.**
+
+Para estos países Stripe no da nada: ni monitoreo, ni tasa, ni ayuda con el alta. Abrirlos exige
+fiscalista, o no abrirlos.
+
+### 🇪🇺 Unión Europea — la región MÁS fácil
+
+Aquí está el hallazgo que cambia la prioridad de expansión:
+
+| Concepto | Regla |
 |---|---|
-| Impuesto | IVA **21%** |
-| Moneda de cobro | ARS *(⚠️ decisión abierta, ver abajo)* |
-| `collectionMode` | **`issuer`** — lo percibe la emisora |
-| `mxVatTreatment` | `export_zero` |
-| Registro en Argentina | **No requerido** |
+| Umbral para negocio **fuera** de la UE | Registro **desde la primera venta** |
+| **Non-Union OSS** | **UN SOLO registro cubre los 27 países** |
+| Representante fiscal | **No hace falta** con el esquema Non-Union OSS |
+| Declaración | **Una sola** al país donde te registraste |
+| Umbral de €10,000 ("small seller") | Solo para negocios **basados en la UE** — a Vibra no le aplica |
 
-**Cobro de Vibra:** `(base + 3) × 1.02`. **Cero impuesto agregado por Vibra.**
+> *"This scheme is for businesses based outside the EU selling services to individuals in the EU.
+> You can choose which EU country you register in… **You don't need to appoint a tax
+> representative** to use the OSS non-Union scheme."*
 
-**Justificación del impuesto argentino — RG 4240/18 (ARCA/AFIP):** los agentes de percepción son
-*"las entidades del país que faciliten o administren los pagos al exterior"*. El proveedor digital
-del exterior — Vibra — **no tiene obligación de registrarse, cobrar ni ingresar nada** en
-Argentina. Si Vibra cobrara el 21% en su checkout, el comprador lo pagaría **dos veces**.
+**Un trámite abre 27 países.** En LatAm, siete trámites abren siete.
 
-**Justificación del IVA mexicano al 0%:** venta de residente mexicano aprovechada en el
-extranjero → exportación de servicios a tasa 0% (Art. 29-IV LIVA). **Provisional**: pendiente de
-que el fiscalista confirme el inciso por servicio (**D-08**) y el requisito de pago (Art. 58 RLIVA).
-Si dictamina que no encuadra, se cambia `mxVatTreatment` a `export_taxable` y el 16% sale del
-margen de Vibra — **nunca se le traslada al comprador argentino**.
+### 🇺🇸 Estados Unidos
 
-**Lo que el comprador ve en su resumen de tarjeta**, sobre un precio de 100 de Vibra:
+| Concepto | Regla |
+|---|---|
+| Nivel | **Por estado** — cada uno define su propio nexo económico |
+| Umbral | Varía por estado; hay que consultar la ficha de cada uno |
+| Registro | Individual en cada estado. **Stripe puede registrarte** |
+| SSUTA | 24 estados con registro unificado en [streamlinedsalestax.org](https://www.streamlinedsalestax.org/) |
+| Marketplace facilitator | Vigente en **todos** los estados con impuesto + DC |
+| Venta desde el extranjero | Si no tienes registro en ese estado, Stripe trata la venta transfronteriza de bienes como exportación a tasa cero |
 
-| Concepto | Quién lo agrega | Monto |
+⚠️ **Las leyes de marketplace facilitator aplican a Vibra.** Como plataforma que fija términos,
+procesa pagos y entrega el producto, en USA la obligación de cobrar y enterar recaería sobre
+Vibra, no sobre el creador. Es un análisis aparte y pesado.
+
+### 🇨🇦 Canadá
+
+Sistema federal (GST/HST) + provincial (QST, PST, RST), con reglas distintas por provincia.
+Negocio basado en Canadá: soportado. Todos los tipos de producto.
+Los umbrales por provincia están en la ficha de cada una — **pendiente de recoger**.
+
+### 🌍 Resto del mundo — nivel índice
+
+Stripe Tax cubre además **Asia-Pacífico, África y Europa fuera de la UE**. De estas regiones solo
+se recogió el índice (país + tipo de impuesto + si soporta negocio/cliente), no el detalle de
+umbral y alta. Se recogerá cuando alguna entre en el plan.
+
+### 🌏 Países CON umbral real — se puede vender antes de darse de alta
+
+Datos de la doc de Stripe (2026-08-07). Aquí sí funciona la estrategia de abrir el país,
+vender, y registrarse cuando el volumen lo justifique.
+
+| País | Umbral | Impuesto | Requisito extra |
+|---|---|---|---|
+| 🇦🇺 **Australia** | **75,000 AUD** en 12 meses (pasados o próximos) | GST | — |
+| 🇳🇿 **Nueva Zelanda** | **60,000 NZD** en 12 meses | GST | — |
+| 🇨🇦 **Canadá** | **30,000 CAD** en 12 meses móviles | GST/HST | Quebec va aparte, mismo monto |
+| 🇸🇬 Singapur | **100,000 SGD** B2C **Y** 1M SGD global | GST | Deben cumplirse **las dos** |
+| 🇯🇵 Japón | **10M JPY** en el periodo base | Consumption Tax | ⚠️ **Representante fiscal en Japón** |
+| 🇳🇴 Noruega | **50,000 NOK** en 12 meses | IVA | Representante, salvo esquema simplificado **VOEC** |
+| 🇿🇦 Sudáfrica | **200,000 ZAR** en 12 meses | IVA | ⚠️ **Representante fiscal** |
+| 🇨🇭 Suiza / Liechtenstein | **100,000 CHF** ⚠️ **de facturación MUNDIAL** | IVA | ⚠️ Representante **+ garantía bancaria** |
+| 🇺🇸 Estados Unidos | $100k (41 estados) · $250k (AL, MS) · $500k (CA, TX, NY) | Sales tax | Por estado. 18 mantienen el test de **200 transacciones** |
+
+**Los tres limpios: Australia, Nueva Zelanda y Canadá.** Umbral real, sin representante fiscal,
+mercados de alto poder adquisitivo y en inglés. Son los mejores candidatos para vender desde el
+día uno sin trámite previo.
+
+#### ⚠️ Trampas que parecen umbral y no lo son
+
+- **Suiza:** el umbral es de **facturación mundial**, no de ventas suizas. En cuanto Vibra
+  facture más de 100,000 CHF en total —en cualquier parte del mundo— hay que registrarse en Suiza
+  **desde la primera venta suiza**. Se comporta como "1 transacción" para cualquier negocio real.
+- **Singapur:** al revés, es genuinamente protector. Exige **las dos** condiciones, así que un
+  negocio con facturación global menor a 1M SGD nunca se registra.
+- **Japón:** el periodo base es el año fiscal de **hace dos años**, así que un negocio nuevo tiene
+  dos años de gracia. Pero necesita representante fiscal en Japón.
+
+### 🚫 Países SIN umbral — alta desde la primera venta
+
+| País / región | Regla |
+|---|---|
+| 🇬🇧 **Reino Unido** | **1 transacción.** Registro dentro de los 30 días de la primera venta gravada |
+| 🇪🇺 Unión Europea | Desde la primera venta (pero **1 solo trámite** para los 27) |
+| 🇲🇽🇨🇱🇨🇴🇵🇪🇺🇾 LatAm | 1 transacción |
+
+⚠️ **El Reino Unido no es un mercado "libre".** Es un mercado grande y en inglés, pero exige alta
+antes de vender, igual que LatAm. Y **el OSS de la UE NO cubre el Reino Unido** — desde el Brexit
+son dos trámites distintos.
+
+### Conclusión de prioridad
+
+| Prioridad | Región | Por qué |
 |---|---|---|
-| Precio de Vibra (incluye $3 y 2%) | Vibra | 100 |
-| IVA 21% — RG 4240/18 | Emisora | +21 |
-| Percepción 30% a cuenta de Ganancias/Bienes Personales — RG 5617 | Emisora | +30 |
-| IIBB provincial, si aplica | Emisora | +0 a ~5 |
-| **Total en su resumen** | | **~151–156** |
-| **Lo que recibe Vibra** | | **100** |
-
-⚠️ **Implicación de negocio:** el precio se infla ~51% para el argentino y Vibra no ve un peso de
-esa diferencia. Decidir si eso cambia la estrategia de precios para AR.
-
-**Decisión abierta — ¿cobrar en ARS o en MXN/USD?** Cambia si aplica la percepción del 30%
-(que golpea consumos en moneda extranjera) y si Stripe liquida directo. De eso depende el campo
-`currency` de esta ficha.
+| 1️⃣ | **Unión Europea** | Un solo registro (Non-Union OSS) abre 27 países, sin representante fiscal |
+| 2️⃣ | **Costa Rica · Ecuador** | Registro voluntario: se puede vender sin darse de alta |
+| 3️⃣ | **Chile · Colombia · Perú · Uruguay** | Un trámite por país, obligatorio desde la venta 1 |
+| 4️⃣ | **USA · Canadá** | Umbrales reales, pero por estado/provincia + marketplace facilitator |
+| ❌ | **Los 10 sin cobertura** | Requieren fiscalista; sin fuente confiable |
 
 ---
 
@@ -276,18 +419,25 @@ esa diferencia. Decidir si eso cambia la estrategia de precios para AR.
 | País | Estado |
 |---|---|
 | 🇲🇽 México | ✅ En producción |
-| 🇦🇷 Argentina | 🟡 Diseñado, sin programar |
-| Los otros 17 (16 LatAm + USA + Canadá) | ⬜ Sin ficha — **no cobrables** |
+| Todos los demás | ⬜ Sin ficha — **no cobrables**. Se abrirán con Stripe Tax (§6) |
 
-### Bloqueantes antes de habilitar el segundo país
+### Backend — ✅ hecho (2026-08-07)
 
-1. 🚨 **Determinación server-authoritative del país** (§3.1). Sin esto, agregar Argentina abre una
-   vía de evasión del IVA mexicano.
-2. **Cablear el 2% de FX.** `FX_CONVERSION_FEE`, `shouldAddFxFee` y `fxFeeRateForCountry` están
-   definidos en los dos espejos de config y **no se invocan en ningún lado**. Hoy no se cobra nada
-   por conversión.
-3. **Agregar `collectionMode` y `mxVatTreatment`** al tipo y a `applyConsumptionTax`.
-4. **Aviso en el checkout** para países `issuer`.
+1. ✅ **Determinación server-authoritative del país.** `backend/src/tax/resolveCountry.ts`. Los 9
+   puntos de cobro ya no leen `data.taxCountry` del cliente.
+2. ✅ **2% de FX cableado.** Vivía en la config sin invocarse en ningún lado; ahora lo aplica
+   `composeCharge`.
+3. ✅ **`collectionMode` y `mxVatTreatment`** en el tipo, en la tabla y en `applyConsumptionTax`,
+   en los dos espejos.
+4. ✅ **Fase 2 por tarjeta.** `repriceStripeIntentForCard`.
+5. ✅ **Cobertura:** tests de composición de precio, resolución de país y corrección por tarjeta.
+
+### Frontend — pendiente
+
+1. **Llamar a `repriceStripeIntentForCard`** desde la pasarela al capturar la tarjeta, y actualizar
+   el monto en pantalla antes de confirmar.
+2. **Aviso en el checkout** para países `issuer`: qué le sumará su banco (§7 regla 7).
+3. **Precio estimado por IP** en catálogo y botones, alineado con `platformCollectsTax`.
 
 ### Decisiones abiertas
 
@@ -310,11 +460,25 @@ esa diferencia. Decidir si eso cambia la estrategia de precios para AR.
 | Moneda de cobro | XXX |
 | `collectionMode` | platform / issuer / none |
 | `mxVatTreatment` | export_zero |
-| Registro en el país | Sí / No / Umbral |
+
+#### 📋 Qué se necesita para vender aquí
+
+| Requisito | ¿Aplica? |
+|---|---|
+| **Alta fiscal en el país** | Sí / No — norma que lo exige |
+| **Representante legal local** | Sí / No |
+| **Declarar y enterar el impuesto** | Vibra / la emisora / nadie |
+| **Facturación electrónica local** | Sí / No — formato exigido |
+| **Umbral mínimo de ventas** | Monto y periodo, o "ninguno" |
+| **Otras obligaciones** | Reportes periódicos, retención de datos, etc. |
 
 **Cobro de Vibra:** fórmula exacta.
 **Justificación del impuesto local:** norma citada + fuente oficial.
 **Justificación del IVA mexicano:** encuadre Art. 29-IV.
-**Lo que el comprador ve:** tabla del resumen.
+**Lo que el comprador ve:** tabla del resumen de tarjeta.
 **Decisiones abiertas:** …
 ```
+
+> **El bloque "Qué se necesita para vender aquí" es obligatorio en toda ficha.** Es la diferencia
+> entre un país que se habilita cambiando una línea de config y uno que requiere un trámite
+> previo de semanas. Ese dato lo da **Stripe Tax**, no una búsqueda en internet.

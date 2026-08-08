@@ -309,12 +309,17 @@ export async function settleEarning(
 /**
  * Revierte una entrada:
  *  - si estaba "earned"  → "refunded" (resta de ganado, suma a devuelto).
- *  - si estaba "pending" → "rejected" (resta de por-liberar, suma a perdido).
+ *  - si estaba "pending":
+ *      · por defecto → "rejected" (resta de por-liberar, suma a perdido).
+ *      · con `asRefund: true` → "refunded" (resta de por-liberar, suma a DEVUELTO). Se
+ *        usa cuando el COMPRADOR pide la devolución de una experiencia no entregada: para
+ *        el creador cuenta como DEVOLUCIÓN, no como "perdido".
  */
 export async function reverseEarning(
   creatorId: string,
   sourceType: string,
-  sourceId: string
+  sourceId: string,
+  opts?: { asRefund?: boolean }
 ): Promise<void> {
   const entryRef = ledgerCollection(creatorId).doc(
     deterministicEntryId(sourceType, sourceId)
@@ -336,6 +341,13 @@ export async function reverseEarning(
       s.lifetimeEarnedNet = round2(s.lifetimeEarnedNet - e.netAmount);
       // 🧾 IVA — al reembolsar una venta ganada, se descuenta el IVA que se había cobrado.
       s.lifetimeTaxCollected = round2((s.lifetimeTaxCollected ?? 0) - (e.taxAmount ?? 0));
+      s.refundedGross = round2(s.refundedGross + e.grossAmount);
+      s.refundedNet = round2(s.refundedNet + e.netAmount);
+    } else if (opts?.asRefund) {
+      // pending → DEVUELTO (el comprador pidió devolución de algo no entregado).
+      tx.update(entryRef, { status: "refunded", reversedAt: now });
+      s.pendingGross = round2(s.pendingGross - e.grossAmount);
+      s.pendingNet = round2(s.pendingNet - e.netAmount);
       s.refundedGross = round2(s.refundedGross + e.grossAmount);
       s.refundedNet = round2(s.refundedNet + e.netAmount);
     } else {

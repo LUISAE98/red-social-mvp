@@ -265,6 +265,114 @@ export async function uploadCommentImage(params: {
   };
 }
 
+function buildDirectMessageImageStoragePath(params: {
+  uid: string;
+  conversationId: string;
+  file: File;
+  variant?: "original" | "thumbnail";
+}): string {
+  const extension = getSafeFileExtension(params.file);
+  const timestamp = Date.now();
+  const randomId =
+    typeof crypto !== "undefined" && "randomUUID" in crypto
+      ? crypto.randomUUID()
+      : Math.random().toString(36).slice(2);
+
+  const variantPath = params.variant === "thumbnail" ? "thumbnails" : "images";
+
+  return `dmImages/${params.conversationId}/${params.uid}/${variantPath}/${timestamp}-${randomId}.${extension}`;
+}
+
+/**
+ * Sube UNA imagen adjunta a un mensaje directo.
+ *
+ * Vive aquí, y no en `lib/chat/`, para reutilizar la misma normalización,
+ * compresión y generación de miniatura que las imágenes de post y de
+ * comentario, en vez de duplicarlas. El path sí es dedicado
+ * (`dmImages/{conversationId}/{uid}/...`) para poder gobernarlas aparte.
+ */
+export async function uploadDirectMessageImage(params: {
+  conversationId: string;
+  file: File;
+}): Promise<{
+  path: string;
+  thumbnailPath: string;
+  width?: number;
+  height?: number;
+}> {
+  const uid = auth.currentUser?.uid;
+
+  if (!uid) {
+    throw new Error("Debes iniciar sesión para subir imágenes.");
+  }
+
+  if (!params.conversationId.trim()) {
+    throw new Error("Falta la conversación para subir la imagen.");
+  }
+
+  const normalized = await normalizeImageFile(params.file, {
+    maxSizeBytes: MAX_IMAGE_SIZE_BYTES,
+  });
+
+  const fileToUpload = normalized.file;
+  const thumbnail = await createImageThumbnailFile(fileToUpload);
+  const thumbnailFile = thumbnail.file;
+
+  const dimensions = await getImageDimensions(fileToUpload);
+
+  const path = buildDirectMessageImageStoragePath({
+    uid,
+    conversationId: params.conversationId,
+    file: fileToUpload,
+    variant: "original",
+  });
+
+  const thumbnailPath = buildDirectMessageImageStoragePath({
+    uid,
+    conversationId: params.conversationId,
+    file: thumbnailFile,
+    variant: "thumbnail",
+  });
+
+  const imageRef = ref(storage, path);
+  const thumbnailRef = ref(storage, thumbnailPath);
+
+  await uploadBytes(imageRef, fileToUpload, {
+    contentType: fileToUpload.type,
+    customMetadata: {
+      conversationId: params.conversationId,
+      uploadedBy: uid,
+      usage: "dm_image",
+      originalName: normalized.originalName,
+      originalType: normalized.originalType,
+      wasConverted: String(normalized.wasConverted),
+    },
+  });
+
+  await uploadBytes(thumbnailRef, thumbnailFile, {
+    contentType: thumbnailFile.type,
+    customMetadata: {
+      conversationId: params.conversationId,
+      uploadedBy: uid,
+      usage: "dm_image_thumbnail",
+      originalName: normalized.originalName,
+      originalType: normalized.originalType,
+      wasConverted: String(normalized.wasConverted),
+      originalImagePath: path,
+    },
+  });
+
+  // A propósito NO se llama a getDownloadURL: esa URL lleva un token permanente
+  // y seguiría abriendo la imagen aunque después bloquees o borres el mensaje.
+  // Solo se guarda la ruta; la URL la firma (y la caduca) `getDirectMessageImageUrls`.
+  return {
+    path,
+    thumbnailPath,
+    width: dimensions.width,
+    height: dimensions.height,
+  };
+}
+
 export async function uploadPostImages(params: {
   groupId: string;
   files: File[];

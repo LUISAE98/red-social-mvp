@@ -5,9 +5,9 @@
 // elegía el cliente. Eso era inofensivo mientras México fuera el ÚNICO país configurado: cualquier
 // otro valor no tenía fila en la tabla y `isChargeableCountry` lo rechazaba.
 //
-// En el momento en que existe un segundo país —y más si su impuesto es 0, como Argentina— ese
-// accidente deja de protegernos: un comprador mexicano manda `taxCountry: "AR"`, pasa la
-// validación y paga 0% en vez de 16%. Quien responde ante el SAT por ese IVA es Vibra.
+// En el momento en que existe un segundo país —y más si su impuesto lo recauda un tercero— ese
+// accidente deja de protegernos: un comprador mexicano manda el ISO de otro país, pasa la
+// validación y paga menos IVA del que debe. Quien responde ante el SAT por ese IVA es Vibra.
 //
 // Desde aquí el país lo decide SIEMPRE el servidor, con dos señales que el cliente no controla:
 // la IP del request y el país emisor de la tarjeta (BIN) que reporta Stripe.
@@ -35,14 +35,36 @@ export type CountryIndicios = {
   phoneCountry: string | null;
 };
 
+/** Nombre de cada indicio, para poder decir CUÁL resolvió el país. */
+export type IndicioName = "billingAddress" | "cardCountry" | "ipCountry" | "phoneCountry";
+
 export type ResolvedTaxCountry = {
   /** País fiscal que manda para el cobro. */
   country: string;
   /** Qué señal lo decidió (para auditoría). */
-  source: "mx_ip_rule" | "card_bin" | "ip" | "default";
+  source:
+    | "mx_rule" // algún indicio apuntaba a México (Art. 18-C)
+    | "agreement" // IP y tarjeta coincidían
+    | "tiebreak" // discrepaban y un tercer indicio desempató
+    | "card_bin" // solo había tarjeta, o discrepaban sin desempate
+    | "ip" // solo había IP
+    | "default"; // sin señal utilizable
   indicios: CountryIndicios;
   /** true si IP y tarjeta apuntaban a países distintos. */
   hadConflict: boolean;
+  /** Qué indicios apuntan al país elegido. Es la EVIDENCIA que exige el Art. 24b. */
+  agreeingIndicios: IndicioName[];
+  /**
+   * ¿Se cumple la regla europea de **dos pruebas no contradictorias** (Art. 24b del
+   * Reglamento de Ejecución del IVA)? Es decir, ≥2 indicios apuntando al mismo país.
+   *
+   * Con ventas B2C a la UE por debajo de **100,000 EUR** (año actual + anterior) basta UNA
+   * prueba, así que `false` no bloquea nada hoy. Por encima de ese umbral sí es obligatorio,
+   * y este campo queda registrado en el paymentIntent para poder demostrarlo.
+   */
+  meetsTwoEvidenceRule: boolean;
+  /** Qué indicio rompió el empate cuando IP y tarjeta discrepaban. */
+  conflictResolvedBy: IndicioName | null;
 };
 
 function normalizeCountry(value: unknown): string | null {
@@ -106,39 +128,91 @@ export async function countryFromIp(ip: string | null): Promise<string | null> {
 /**
  * Resuelve el país fiscal a partir de los indicios.
  *
- * REGLA (decidida 2026-08-07, ver impuestos.md §3.3):
- *   1. Si la IP es de México → México. El servicio se aprovecha en México, así que manda
- *      aunque la tarjeta sea extranjera. Esta excepción aplica SOLO a México.
- *   2. Si hay país de tarjeta → gana la tarjeta. Es el indicio más difícil de falsificar.
- *   3. Si no hay tarjeta todavía (fase de display) → manda la IP.
- *   4. Si nada resuelve → default MX (conservador: cobra el 16%).
+ * REGLA (ver impuestos.md §3.3):
+ *   1. Si CUALQUIER indicio apunta a México → México (Art. 18-C: basta uno). Solo México.
+ *   2. Si IP y tarjeta coinciden → ese país. Dos pruebas no contradictorias.
+ *   3. Si DISCREPAN → desempata un tercer indicio (dirección de facturación, luego teléfono).
+ *      Sin desempate, gana la tarjeta y queda marcado `meetsTwoEvidenceRule: false`.
+ *   4. Solo tarjeta → tarjeta. Solo IP → IP. Nada → default MX (conservador).
  *
- * Es deliberadamente conservadora hacia México: ante la duda se cobra IVA en vez de omitirlo.
+ * Dos marcos legales conviven aquí:
+ *  · **México, Art. 18-C LIVA:** basta UN indicio hacia territorio nacional. Por eso el
+ *    paso 1 es tan agresivo — ante la duda se cobra el IVA en vez de omitirlo.
+ *  · **UE, Art. 24b del Reglamento de Ejecución:** exige DOS pruebas no contradictorias.
+ *    Por eso el paso 3 desempata en vez de elegir una señal en silencio. (Con ventas B2C
+ *    a la UE bajo 100,000 EUR basta una prueba, así que hoy no bloquea nada.)
  */
 export function resolveTaxCountryFromIndicios(
   indicios: CountryIndicios
 ): ResolvedTaxCountry {
-  const ipCountry = normalizeCountry(indicios.ipCountry);
-  const cardCountry = normalizeCountry(indicios.cardCountry);
+  const normalized: Record<IndicioName, string | null> = {
+    billingAddress: normalizeCountry(indicios.billingAddress),
+    cardCountry: normalizeCountry(indicios.cardCountry),
+    ipCountry: normalizeCountry(indicios.ipCountry),
+    phoneCountry: normalizeCountry(indicios.phoneCountry),
+  };
+
+  const ipCountry = normalized.ipCountry;
+  const cardCountry = normalized.cardCountry;
   const hadConflict = !!ipCountry && !!cardCountry && ipCountry !== cardCountry;
 
-  // 1. Regla especial de México: la IP mexicana gana siempre.
-  if (ipCountry === "MX") {
-    return { country: "MX", source: "mx_ip_rule", indicios, hadConflict };
+  /** Qué indicios apuntan a `country`. Es la evidencia que pide el Art. 24b. */
+  const agreeingFor = (country: string): IndicioName[] =>
+    (Object.keys(normalized) as IndicioName[]).filter((k) => normalized[k] === country);
+
+  const build = (
+    country: string,
+    source: ResolvedTaxCountry["source"],
+    conflictResolvedBy: IndicioName | null = null
+  ): ResolvedTaxCountry => {
+    const agreeingIndicios = agreeingFor(country);
+    return {
+      country,
+      source,
+      indicios,
+      hadConflict,
+      agreeingIndicios,
+      meetsTwoEvidenceRule: agreeingIndicios.length >= 2,
+      conflictResolvedBy,
+    };
+  };
+
+  // 1. Regla especial de México (Art. 18-C): basta que UN indicio apunte a territorio
+  //    nacional para considerar al receptor mexicano. Es deliberadamente conservadora —
+  //    ante la duda se cobra el 16% en vez de omitirlo— y aplica SOLO a México.
+  if (Object.values(normalized).includes("MX")) {
+    return build("MX", "mx_rule");
   }
 
-  // 2. Con tarjeta conocida, gana la tarjeta.
-  if (cardCountry) {
-    return { country: cardCountry, source: "card_bin", indicios, hadConflict };
+  // 2. IP y tarjeta coinciden → dos pruebas NO contradictorias. Es el caso ideal del
+  //    Art. 24b y no necesita nada más.
+  if (ipCountry && cardCountry && ipCountry === cardCountry) {
+    return build(ipCountry, "agreement");
   }
 
-  // 3. Fase de display: solo hay IP.
-  if (ipCountry) {
-    return { country: ipCountry, source: "ip", indicios, hadConflict };
+  // 3. IP y tarjeta DISCREPAN. Para la UE eso es evidencia contradictoria: no se puede
+  //    elegir una y seguir. Se busca un TERCER indicio que desempate, y con él vuelven a
+  //    existir dos pruebas coincidentes.
+  if (hadConflict) {
+    for (const tiebreaker of ["billingAddress", "phoneCountry"] as const) {
+      const value = normalized[tiebreaker];
+      if (!value) continue;
+      if (value === ipCountry) return build(ipCountry, "tiebreak", tiebreaker);
+      if (value === cardCountry) return build(cardCountry, "tiebreak", tiebreaker);
+    }
+    // Sin desempate: gana la tarjeta (el indicio más difícil de falsificar). Queda
+    // marcado con `meetsTwoEvidenceRule: false` para poder detectarlo en auditoría.
+    return build(cardCountry!, "card_bin");
   }
 
-  // 4. Sin señal utilizable.
-  return { country: DEFAULT_COUNTRY, source: "default", indicios, hadConflict };
+  // 4. Solo hay tarjeta.
+  if (cardCountry) return build(cardCountry, "card_bin");
+
+  // 5. Fase de display: solo hay IP.
+  if (ipCountry) return build(ipCountry, "ip");
+
+  // 6. Sin señal utilizable.
+  return build(DEFAULT_COUNTRY, "default");
 }
 
 /**

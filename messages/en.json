@@ -61,7 +61,8 @@
     "sidebarFollowedProfiles": "Followed profiles",
     "statistics": "Statistics",
     "tabMessages": "Messages",
-    "messageRequests": "Requests ({count})"
+    "messageRequests": "Requests ({count})",
+    "seeAllMessages": "See all"
   },
   "common": {
     "accept": "Accept",
@@ -808,12 +809,12 @@
     "messagePolicyEveryone": "Everyone",
     "messagePolicyFollowing": "Only people I follow",
     "messagePolicyNone": "No one",
-    "messagePolicyEveryoneHelp": "Anyone can message you. Messages from people you do not follow land in Requests, without notifying you.",
-    "messagePolicyFollowingHelp": "Only people you follow can message you. For everyone else, your inbox does not exist. This is the default.",
-    "messagePolicyNoneHelp": "Your inbox is closed. No one can start a conversation with you.",
+    "messagePolicyEveryoneHelp": "Anyone can message you, if you do not follow them their message lands in requests and you decide whether to accept it.",
+    "messagePolicyFollowingHelp": "Only people you follow can message you, their messages go straight to your inbox, everyone else does not see the button, this is the default option.",
+    "messagePolicyNoneHelp": "No one can message you, the message button does not appear on your profile.",
     "messagePolicyUpdateError": "Could not update message settings.",
     "messagePolicyFollowingAndFollowers": "People I follow and people who follow me",
-    "messagePolicyFollowingAndFollowersHelp": "People you follow and people who follow you can message you. If you do not follow the sender, their message lands in Requests."
+    "messagePolicyFollowingAndFollowersHelp": "Only people you follow and people who follow you can message you, their messages go straight to your inbox, everyone else does not see the message button."
   },
   "feed": {
     "pinned": "Pinned",
@@ -2547,7 +2548,6 @@
     "noReportsPending": "No pending reports."
   },
   "chat": {
-    "loadingConversations": "Loading conversations...",
     "noConversations": "You do not have any conversations yet.",
     "noMessagesYet": "No messages yet",
     "conversationBlocked": "Conversation blocked",
@@ -2556,7 +2556,6 @@
     "send": "Send",
     "sendError": "Could not send the message.",
     "blockError": "Could not update the block.",
-    "loadingMessages": "Loading messages...",
     "loadingOlder": "Loading earlier messages...",
     "emptyThread": "No messages with {name} yet. Write the first one.",
     "messageDeleted": "Message deleted",
@@ -2581,6 +2580,14 @@
     "reportReason_illegal_content": "Illegal content",
     "reportReason_harassment": "Harassment",
     "reportReason_misinformation": "Misinformation",
-    "reportReason_other": "Other"
+    "reportReason_other": "Other",
+    "minimizeChat": "Minimize chat",
+    "expandChat": "Expand chat",
+    "attachImage": "Attach image",
+    "removeImage": "Remove image",
+    "uploadingImage": "Uploading image...",
+    "imageUploadError": "Could not upload the image.",
+    "openImage": "View image",
+    "photoPreview": "📷 Photo"
   }
 }

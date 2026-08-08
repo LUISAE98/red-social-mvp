@@ -6,12 +6,13 @@ import { createPortal } from "react-dom";
 import { useLocale, useTranslations } from "next-intl";
 import { usePathname, useRouter } from "@/i18n/navigation";
 import type { Locale } from "@/i18n/routing";
+import { readyLocaleMeta } from "@/i18n/locales";
 
-const LOCALES: { code: Locale; label: string; name: string }[] = [
-  { code: "es", label: "ES", name: "Español" },
-  { code: "pt-BR", label: "PT", name: "Português" },
-  { code: "en", label: "EN", name: "English" },
-];
+// Solo los idiomas SERVIDOS, derivados de i18n/locales.ts. Ofrecer en el selector
+// uno sin archivo de traducción rompería la app al elegirlo.
+const LOCALES: { code: Locale; label: string; name: string }[] = readyLocaleMeta().map(
+  (m) => ({ code: m.code as Locale, label: m.label, name: m.name })
+);
 
 type Variant = "desktop" | "mobile-bubble" | "cover-corner";
 

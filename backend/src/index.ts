@@ -8,6 +8,7 @@ import { expireMeetGreetNoShowsHandler, autoExpirePendingMeetGreetRequestsHandle
 import { expireExclusiveSessionNoShowsHandler, autoExpirePendingExclusiveSessionRequestsHandler } from "./exclusiveSessionRequests";
 import { autoExpirePendingGreetingRequestsHandler } from "./greetingRequests";
 import { updateExchangeRatesHandler } from "./exchangeRates";
+import { updateVatRatesHandler } from "./vatRates";
 import { sessionRemindersHandler } from "./sessionLifecycle";
 import { expireGroupSubscriptionsHandler } from "./payments/groupSubscriptionCore";
 import { stripeSecretKey } from "./payments/stripe/stripeClient";
@@ -55,7 +56,8 @@ export const autoExpirePendingServiceRequests = onSchedule(
     schedule: "every 24 hours",
     timeZone: "America/Mexico_City",
     region: "us-central1",
-    // Los handlers CANCELAN el auth-hold en Stripe cuando el creador no responde.
+    // Los handlers CAPTURAN el auth-hold en Stripe como respaldo (antes de que expire)
+    // si el creador aún no lo cobró grabando/agendando.
     secrets: [stripeSecretKey],
   },
   async () => {
@@ -102,6 +104,23 @@ export const updateExchangeRates = onSchedule(
   }
 );
 
+// Tasas de IVA de la UE: vigilante diario contra VATcomply/TEDB (la base oficial de la
+// Comisión Europea). NO cambia lo que se cobra — escribe a `config/vatRates` y registra en
+// el log si alguna tasa se desalineó de COUNTRY_TAX_CONFIG, para revisión humana.
+// Ver backend/src/vatRates.ts e impuestos.md §5.
+export const updateVatRates = onSchedule(
+  {
+    schedule: "every 24 hours",
+    timeZone: "America/Mexico_City",
+    region: "us-central1",
+  },
+  async () => {
+    logger.info("updateVatRates started");
+    await updateVatRatesHandler();
+    logger.info("updateVatRates finished");
+  }
+);
+
 // Suscripciones a comunidades: da de baja el acceso cuando el periodo pagado (o la
 // gracia) venció. Corre a diario.
 export const expireGroupSubscriptions = onSchedule(
@@ -142,6 +161,7 @@ export { getMyHiddenJoinedGroups } from "./sidebarGroups";
 export {
   createGreetingRequest,
   respondGreetingRequest,
+  requestGreetingRefund,
   createGreetingMuxUpload,
 } from "./greetingRequests";
 
@@ -312,6 +332,9 @@ export { submitReport, claimReport, resolveReport } from "./moderation";
 // Mensajes directos — resumen del hilo, no leídos y notificación
 export { onDirectMessageCreated } from "./directMessages";
 
+// Mensajes directos — URLs firmadas y caducas para las imágenes adjuntas
+export { getDirectMessageImageUrls } from "./dmImages";
+
 // KYC — verificación de identidad con Didit (habilita retiros del creador)
 export { createKycSession, diditWebhook } from "./kyc";
 
@@ -319,6 +342,9 @@ export { createKycSession, diditWebhook } from "./kyc";
 export { stripeHealthcheck } from "./payments/stripe/stripeHealthcheck";
 // S3a: PaymentIntent para la pasarela embebida (Elements) + guardar tarjeta.
 export { createStripePaymentIntent } from "./payments/stripe/createPaymentIntent";
+// Fase 2 del país fiscal: recotiza el intent con el país EMISOR de la tarjeta antes de
+// confirmar (la fase 1 solo tenía la IP). Ver impuestos.md §3.4.
+export { repriceStripeIntentForCard } from "./payments/stripe/repriceForCard";
 // S4: webhook de Stripe (pago aprobado, reembolso…). Reemplaza a mpWebhook.
 export { stripeWebhook } from "./payments/stripe/stripeWebhook";
 // Primer servicio real cableado a Stripe: saludo/consejo.

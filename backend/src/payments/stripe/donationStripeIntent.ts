@@ -15,7 +15,7 @@ import { chargeSavedCardOffSession } from "./offSessionCharge";
 import { isChargeableCountry } from "../../tax/config";
 import { resolveTaxCountry } from "../../tax/resolveCountry";
 import { composeCharge, chargeFields } from "../../tax/composeCharge";
-import { SETTLEMENT_CURRENCY } from "../../wallet/ledger";
+import { resolvePresentment } from "../../tax/presentment";
 
 if (admin.apps.length === 0) {
   admin.initializeApp();
@@ -77,6 +77,9 @@ export const createDonationStripeIntent = onCall(
     // Composición completa (base + $3 → +2% FX → + impuesto si lo cobra Vibra). Ver impuestos.md §2.
     const charge = composeCharge(base, country);
     const totalMxn = charge.chargedAmount;
+    // Se le cobra al comprador EN SU MONEDA (Stripe convierte y liquida en MXN). Sin esto
+    // veía un precio en su divisa y su tarjeta recibía un cargo en pesos mexicanos.
+    const presentment = await resolvePresentment(totalMxn, charge.displayCurrency);
 
     const donationId = db.collection("profileDonations").doc().id;
     const externalReference = `profileDonation__${donationId}`;
@@ -101,10 +104,18 @@ export const createDonationStripeIntent = onCall(
       // Desglose completo del cobro: base, cargo fijo, FX, impuesto del país y régimen del
       // IVA mexicano. Se guarda aunque la pasarela muestre un precio único sin desglosar.
       ...chargeFields(charge),
+      // Moneda y monto REALES del cargo (lo que ve el comprador en su estado de cuenta).
+      presentmentCurrency: presentment.currency,
+      presentmentAmount: presentment.amount,
       // Evidencia de cómo se determinó el país fiscal (indicios del Art. 18-C).
       taxCountrySource: resolved.source,
       taxCountryIndicios: resolved.indicios,
       taxCountryHadConflict: resolved.hadConflict,
+      // Evidencia de ubicación (Art. 24b UE): qué indicios coinciden y si se llega a
+      // las DOS pruebas no contradictorias. Obligatorio arriba de 100k EUR de ventas UE.
+      taxCountryAgreeingIndicios: resolved.agreeingIndicios,
+      taxCountryMeetsTwoEvidenceRule: resolved.meetsTwoEvidenceRule,
+      taxCountryConflictResolvedBy: resolved.conflictResolvedBy,
       paymentMode: "stripe",
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -119,8 +130,8 @@ export const createDonationStripeIntent = onCall(
         uid,
         savedCardDocId: savedPaymentMethodId,
         customerId,
-        amountCents: Math.round(totalMxn * 100),
-        currency: SETTLEMENT_CURRENCY,
+        amountCents: presentment.amountForStripe,
+        currency: presentment.currency,
         metadata: { externalReference, sourceType: "profileDonation", sourceId: donationId, buyerId: uid },
       });
       await db.collection("paymentIntents").doc(externalReference).set(
@@ -134,8 +145,8 @@ export const createDonationStripeIntent = onCall(
       method: "POST",
       idempotencyKey: crypto.randomUUID(),
       form: {
-        amount: Math.round(totalMxn * 100), // centavos MXN
-        currency: SETTLEMENT_CURRENCY.toLowerCase(),
+        amount: presentment.amountForStripe,
+        currency: presentment.currency.toLowerCase(),
         customer: customerId,
         payment_method_types: ["card"],
         ...(saveCard ? { setup_future_usage: "off_session" } : {}),

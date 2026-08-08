@@ -14,9 +14,7 @@ import {
   daysUntilNameChange, formatDate, pwdResetKey,
   type ProfileSettingsTabProps,
 } from "./ProfileSettingsTab.parts";
-import MessagePolicySetting, {
-  MESSAGE_POLICY_HELP_KEY,
-} from "@/components/chat/MessagePolicySetting";
+import MessagePolicySetting from "@/components/chat/MessagePolicySetting";
 import type { MessagePolicy } from "@/lib/chat/types";
 
 export default function ProfileSettingsTab({
@@ -558,20 +556,9 @@ export default function ProfileSettingsTab({
             className="profile-setting-item"
             style={{ ...item, gridTemplateColumns: "1fr", gap: 8 }}
           >
-            <div>
-              <div style={labelStyle}>{tProfile("messagePolicyLabel")}</div>
-              <div
-                style={{
-                  marginTop: 5,
-                  fontSize: 11.5,
-                  color: "rgba(255,255,255,0.58)",
-                  lineHeight: 1.4,
-                  maxWidth: 620,
-                }}
-              >
-                {tProfile(MESSAGE_POLICY_HELP_KEY[localMessagePolicy])}
-              </div>
-            </div>
+            {/* Sin texto de ayuda aquí: cada opción trae su propia descripción,
+                como en el selector de visibilidad del compositor de lives. */}
+            <div style={labelStyle}>{tProfile("messagePolicyLabel")}</div>
 
             <MessagePolicySetting
               value={localMessagePolicy}

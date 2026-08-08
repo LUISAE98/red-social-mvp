@@ -255,6 +255,11 @@ describe("DM — política de recepción del destinatario", () => {
     await assertSucceeds(createConversation(as(ALICE), { status: "active" }));
   });
 
+  it("🔴 con 'following' tampoco puede nacer en Solicitudes", async () => {
+    await seedAll([...users("following"), ...bobFollowsAlice()]);
+    await assertFails(createConversation(as(ALICE), { status: "request" }));
+  });
+
   it("🔴 'none' ⇒ nadie puede abrir hilo, ni aunque el destinatario me siga", async () => {
     await seedAll([...users("none"), ...bobFollowsAlice()]);
     await assertFails(createConversation(as(ALICE), { status: "active" }));
@@ -270,10 +275,16 @@ describe("DM — política 'a quien sigo y a quien me sigue'", () => {
   });
 
   // La diferencia real con "following": aquí basta con que YO le siga.
-  it("🟢 pasa también si soy yo quien sigue al destinatario", async () => {
+  it("🟢 pasa también si soy yo quien sigue al destinatario, y entra DIRECTO", async () => {
     await seedAll([...users("following_and_followers"), ...aliceFollowsBob()]);
-    // No me sigue de vuelta, así que cae en Solicitudes.
-    await assertSucceeds(createConversation(as(ALICE), { status: "request" }));
+    await assertSucceeds(createConversation(as(ALICE), { status: "active" }));
+  });
+
+  // Solicitudes es exclusivo de "everyone": esta política ya filtró por relación,
+  // así que lo que la pasa no necesita triaje.
+  it("🔴 NO puede nacer en Solicitudes con esta política", async () => {
+    await seedAll([...users("following_and_followers"), ...aliceFollowsBob()]);
+    await assertFails(createConversation(as(ALICE), { status: "request" }));
   });
 
   it("🔴 sin ninguna relación de seguimiento NO pasa", async () => {
@@ -668,6 +679,75 @@ describe("DM — mensajes", () => {
         collection(as(ALICE), `conversations/${CONV}/messages`),
         message({ text: "x".repeat(2001) })
       )
+    );
+  });
+
+  // Una imagen por mensaje. El texto pasa a ser opcional cuando la hay.
+  // Solo se guardan RUTAS: la URL la firma la Cloud Function y caduca.
+  const IMAGE = {
+    path: `dmImages/${CONV}/${ALICE}/images/a.jpg`,
+    thumbnailPath: `dmImages/${CONV}/${ALICE}/thumbnails/a.jpg`,
+    width: 800,
+    height: 600,
+  };
+
+  it("🟢 un mensaje SOLO imagen (sin texto) se permite", async () => {
+    await seedAll(base());
+    await assertSucceeds(
+      addDoc(
+        collection(as(ALICE), `conversations/${CONV}/messages`),
+        message({ text: "", image: IMAGE })
+      )
+    );
+  });
+
+  it("🟢 imagen con pie de foto también", async () => {
+    await seedAll(base());
+    await assertSucceeds(
+      addDoc(
+        collection(as(ALICE), `conversations/${CONV}/messages`),
+        message({ text: "mira esto", image: IMAGE })
+      )
+    );
+  });
+
+  it("🔴 una imagen mal formada se rechaza", async () => {
+    await seedAll(base());
+    const col = collection(as(ALICE), `conversations/${CONV}/messages`);
+    // Sin thumbnailPath. Se OMITE la clave en vez de ponerla a undefined: el SDK
+    // rechaza undefined en el cliente y las rules no llegarían a evaluarse.
+    const { thumbnailPath: _omitted, ...noThumb } = IMAGE;
+    await assertFails(addDoc(col, message({ text: "", image: noThumb })));
+    // Con un campo de más.
+    await assertFails(
+      addDoc(col, message({ text: "", image: { ...IMAGE, evil: true } }))
+    );
+    // No es un mapa.
+    await assertFails(addDoc(col, message({ text: "", image: "https://x/a.jpg" })));
+  });
+
+  // Sin esto se podría apuntar el mensaje a una imagen de OTRO hilo y, al pedir
+  // la URL firmada, la función la firmaría creyendo que es de esta conversación.
+  it("🔴 una ruta de OTRA conversación se rechaza", async () => {
+    await seedAll(base());
+    await assertFails(
+      addDoc(
+        collection(as(ALICE), `conversations/${CONV}/messages`),
+        message({
+          text: "",
+          image: {
+            path: `dmImages/otro_hilo/${ALICE}/images/a.jpg`,
+            thumbnailPath: `dmImages/otro_hilo/${ALICE}/thumbnails/a.jpg`,
+          },
+        })
+      )
+    );
+  });
+
+  it("🔴 sin texto y sin imagen sigue siendo un mensaje vacío", async () => {
+    await seedAll(base());
+    await assertFails(
+      addDoc(collection(as(ALICE), `conversations/${CONV}/messages`), message({ text: "" }))
     );
   });
 

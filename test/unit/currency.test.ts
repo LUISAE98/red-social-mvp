@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { describe, it, expect } from "vitest";
 import {
   convertFromAnchor,
@@ -7,6 +9,13 @@ import {
   formatCurrency,
   FX_BUFFER,
 } from "@/lib/currency/format";
+import {
+  DISPLAY_CURRENCIES,
+  COUNTRY_TO_CURRENCY,
+  FX_CONVERSION_FEE,
+  displayCurrencyForCountry,
+  isDisplayCurrency,
+} from "@/lib/currency/catalog";
 
 // Conversión FX. Regla de oro del sistema: nunca se guarda un monto convertido;
 // se guarda USD (ancla) y se convierte al mostrar/cobrar. Un error aquí cobra de
@@ -53,11 +62,21 @@ describe("lib/currency/format", () => {
       expect(roundNice(4873.42, "COP")).toBe(4900); // paso 100
       expect(roundNice(2.3, "USD")).toBe(2.5); // paso 0.5
     });
+
+    it("redondea al múltiplo del paso de cada moneda de la UE", () => {
+      expect(roundNice(9.31, "EUR")).toBe(9.5); // paso 0.5
+      expect(roundNice(228.4, "CZK")).toBe(230); // paso 5
+      expect(roundNice(68.6, "DKK")).toBe(69); // paso 1
+      expect(roundNice(3512, "HUF")).toBe(3500); // paso 100
+      expect(roundNice(40.4, "PLN")).toBe(40); // paso 1
+      expect(roundNice(46.7, "RON")).toBe(47); // paso 1
+      expect(roundNice(107.2, "SEK")).toBe(105); // paso 5
+    });
   });
 
   describe("buyerPrice (lo que el comprador VE y PAGA)", () => {
-    it("aplica el margen FX (1.5%) y redondea a cifra limpia", () => {
-      // 10 USD * 18.5 = 185 ; *1.015 = 187.775 ; roundNice(,MXN)=190
+    it("aplica el margen FX (2%) y redondea a cifra limpia", () => {
+      // 10 USD * 18.5 = 185 ; *1.02 = 188.7 ; roundNice(,MXN)=190
       expect(buyerPrice(10, "MXN", RATES)).toBe(190);
     });
 
@@ -65,12 +84,27 @@ describe("lib/currency/format", () => {
       expect(buyerPrice(9.99, "USD", RATES)).toBe(9.99);
     });
 
-    it("el buffer FX es 1.5%", () => {
-      expect(FX_BUFFER).toBeCloseTo(0.015, 10);
+    // El margen que se MUESTRA tiene que ser el mismo que se COBRA. Hasta el
+    // 2026-08-07 eran dos constantes desalineadas (1.5% aquí, 2% en el cobro) y el
+    // comprador extranjero veía un precio distinto del que se le cargaba.
+    it("el buffer FX es 2% y sale de la misma constante que el cobro", () => {
+      expect(FX_BUFFER).toBeCloseTo(0.02, 10);
+      expect(FX_BUFFER).toBe(FX_CONVERSION_FEE);
     });
 
     it("tasa faltante -> null", () => {
       expect(buyerPrice(10, "MXN", {})).toBeNull();
+    });
+
+    it("aplica el mismo buffer+redondeo a una moneda de la UE", () => {
+      // 10 USD * 0.92 = 9.2 ; *1.015 = 9.338 ; roundNice(,EUR) paso 0.5 = 9.5
+      expect(buyerPrice(10, "EUR", { EUR: 0.92 })).toBe(9.5);
+    });
+
+    it("una moneda de la UE sin tasa -> null (nunca cobra con tasa basura)", () => {
+      // Es el modo de fallo si el backend no refresca la moneda: precio en null,
+      // no un precio inventado. Ver la copia de DISPLAY_CURRENCIES en exchangeRates.ts.
+      expect(buyerPrice(10, "SEK", { EUR: 0.92 })).toBeNull();
     });
   });
 
@@ -85,5 +119,53 @@ describe("lib/currency/format", () => {
       // "US" no es un código ISO 4217 válido (2 letras) -> Intl lanza -> fallback.
       expect(formatCurrency(10, "US", "en")).toBe("$10.00");
     });
+  });
+});
+
+// Catálogo país→moneda. Un país mal mapeado le muestra al comprador un precio en
+// una moneda que no es la suya; un país ausente cae al fallback USD.
+describe("lib/currency/catalog", () => {
+  const EU_COUNTRY_TO_CURRENCY: Record<string, string> = {
+    AT: "EUR", BE: "EUR", BG: "EUR", HR: "EUR", CY: "EUR", EE: "EUR", FI: "EUR",
+    FR: "EUR", DE: "EUR", GR: "EUR", IE: "EUR", IT: "EUR", LV: "EUR", LT: "EUR",
+    LU: "EUR", MT: "EUR", NL: "EUR", PT: "EUR", SK: "EUR", SI: "EUR", ES: "EUR",
+    CZ: "CZK", DK: "DKK", HU: "HUF", PL: "PLN", RO: "RON", SE: "SEK",
+  };
+
+  it("los 27 países de la UE mapean a su moneda", () => {
+    expect(Object.keys(EU_COUNTRY_TO_CURRENCY)).toHaveLength(27);
+    for (const [cc, expected] of Object.entries(EU_COUNTRY_TO_CURRENCY)) {
+      expect(COUNTRY_TO_CURRENCY[cc], `país ${cc}`).toBe(expected);
+      expect(displayCurrencyForCountry(cc.toLowerCase()), `país ${cc}`).toBe(expected);
+    }
+  });
+
+  it("Bulgaria usa EUR desde el 1-ene-2026 (BGN ya no existe en el catálogo)", () => {
+    expect(COUNTRY_TO_CURRENCY.BG).toBe("EUR");
+    expect(isDisplayCurrency("BGN")).toBe(false);
+  });
+
+  it("las 7 monedas de la UE están en DISPLAY_CURRENCIES", () => {
+    for (const c of ["EUR", "CZK", "DKK", "HUF", "PLN", "RON", "SEK"]) {
+      expect(isDisplayCurrency(c), `moneda ${c}`).toBe(true);
+    }
+  });
+
+  it("no hay códigos de moneda repetidos", () => {
+    expect(new Set(DISPLAY_CURRENCIES).size).toBe(DISPLAY_CURRENCIES.length);
+  });
+
+  // El backend mantiene su PROPIA copia a mano de la lista (no puede importar de
+  // lib/ porque compila aparte). Si divergen, la tarea diaria de tasas no trae la
+  // moneda faltante y su precio sale en null en todo el frontend.
+  it("la copia de DISPLAY_CURRENCIES del backend está en sync con el catálogo", () => {
+    const src = readFileSync(
+      fileURLToPath(new URL("../../backend/src/exchangeRates.ts", import.meta.url)),
+      "utf8"
+    );
+    const block = src.match(/const DISPLAY_CURRENCIES = \[([\s\S]*?)\];/);
+    expect(block, "no se encontró DISPLAY_CURRENCIES en backend/src/exchangeRates.ts").not.toBeNull();
+    const backendList = [...block![1].matchAll(/"([A-Z]{3})"/g)].map((m) => m[1]);
+    expect([...backendList].sort()).toEqual([...DISPLAY_CURRENCIES].sort());
   });
 });

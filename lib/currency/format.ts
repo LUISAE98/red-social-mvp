@@ -3,7 +3,8 @@
 // Regla de oro: nunca se guarda un monto convertido. Se guarda USD (ancla de
 // referencia) y se convierte en el momento de mostrar/cobrar en la moneda local.
 
-import { ANCHOR_CURRENCY, type DisplayCurrency } from "./catalog";
+import { intlLocale } from "@/i18n/locales";
+import { ANCHOR_CURRENCY, FX_CONVERSION_FEE, type DisplayCurrency } from "./catalog";
 
 /**
  * Mapa de tasas: unidades de la moneda por 1 unidad del ancla (USD).
@@ -39,17 +40,24 @@ export function convertToAnchor(
 }
 
 /**
- * Margen (buffer) sobre la tasa FX aplicado SOLO al precio de cara al comprador.
- * Cubre la volatilidad entre que el comprador ve el precio y dLocal liquida (crítico
- * en monedas volátiles como ARS). No se aplica al round-trip del creador ni a la
- * referencia en USD. ~1.5%.
+ * Margen sobre la tasa FX aplicado al precio de cara al comprador.
+ *
+ * ⚠️ Es el MISMO cargo que cobra el backend (`FX_CONVERSION_FEE`), no otro distinto.
+ * Hasta el 2026-08-07 este valor era 1.5% mientras el cobro real usaba 2%: el comprador
+ * extranjero veía un precio y se le cobraba otro. Ahora ambos salen de la misma constante.
+ *
+ * Se re-exporta con el nombre histórico para no romper los imports existentes.
  */
-export const FX_BUFFER = 0.015;
+export const FX_BUFFER = FX_CONVERSION_FEE;
 
 /**
  * Paso de redondeo "bonito" por moneda: el precio local convertido se redondea a un
  * múltiplo de esto para no mostrar cifras crudas del FX (ej. 4.873,42 COP → 4.900 COP).
  * Impacta conversión de ventas.
+ *
+ * Criterio: el paso debe valer aproximadamente lo mismo en poder adquisitivo en todas
+ * las monedas (~0.05–0.50 USD). Demasiado fino deja cifras feas; demasiado grueso
+ * mueve el precio real (el redondeo puede subir o bajar lo que paga el comprador).
  */
 const NICE_STEP: Record<DisplayCurrency, number> = {
   USD: 0.5,
@@ -67,6 +75,14 @@ const NICE_STEP: Record<DisplayCurrency, number> = {
   PYG: 500,
   DOP: 10,
   UYU: 5,
+  // --- Unión Europea --- (equivalencias con la tasa de referencia, ago-2026)
+  EUR: 0.5, // 1 EUR ≈ 1.08 USD → 0.5 EUR ≈ 0.54 USD. Mismo paso que el ancla.
+  CZK: 5, //   1 USD ≈ 23 CZK   → 5 CZK   ≈ 0.22 USD. Igual de fino que MXN.
+  DKK: 1, //   1 USD ≈ 6.9 DKK  → 1 DKK   ≈ 0.15 USD. Con paso 5 serían 0.72 USD, muy grueso.
+  HUF: 100, // 1 USD ≈ 355 HUF  → 100 HUF ≈ 0.28 USD. Nadie cotiza en unidades de HUF.
+  PLN: 1, //   1 USD ≈ 4.0 PLN  → 1 PLN   ≈ 0.25 USD.
+  RON: 1, //   1 USD ≈ 4.6 RON  → 1 RON   ≈ 0.22 USD.
+  SEK: 5, //   1 USD ≈ 10.5 SEK → 5 SEK   ≈ 0.48 USD. El precio sueco se usa en múltiplos de 5.
 };
 
 /** Redondea a un múltiplo "bonito" según la moneda. */
@@ -95,11 +111,7 @@ export function buyerPrice(
 
 // Locale de FORMATEO por idioma: fija el símbolo antes del número y el separador
 // decimal correcto (el genérico "es" pone el símbolo al final, se ve raro).
-const FORMAT_LOCALE: Record<string, string> = {
-  es: "es-MX",
-  en: "en-US",
-  "pt-BR": "pt-BR",
-};
+// Sale de i18n/locales.ts (campo `intl`), la fuente única de idiomas.
 
 /**
  * Formatea un monto en su moneda usando Intl: símbolo normal antes del número,
@@ -113,7 +125,7 @@ export function formatCurrency(
   // Se conservan por compatibilidad de firma; ya no se usan (sin "≈" ni código).
   _opts: { approx?: boolean; code?: boolean } = {}
 ): string {
-  const loc = FORMAT_LOCALE[locale] ?? locale;
+  const loc = intlLocale(locale);
   try {
     return new Intl.NumberFormat(loc, {
       style: "currency",

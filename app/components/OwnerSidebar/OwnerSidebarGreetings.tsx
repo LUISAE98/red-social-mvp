@@ -23,6 +23,7 @@ import {
   declineExclusiveSessionReschedule,
   setExclusiveSessionPreparing,
 } from "@/lib/exclusiveSession/exclusiveSessionRequests";
+import { requestGreetingRefund } from "@/lib/greetings/greetingRequests";
 import { type Timestamp } from "firebase/firestore";
 import { callGetRecordingDownloadUrl } from "@/lib/liveKit/sessionLifecycle";
 import type {
@@ -1824,6 +1825,15 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
           sourceName={viewItem.sourceName}
           sourceAvatar={viewItem.sourceAvatar}
           onClose={() => setViewItem(null)}
+          onRefund={async (reason) => {
+            try {
+              await requestGreetingRefund({ requestId: viewItem.item.id, refundReason: reason || null });
+              showGreetingsToast(tServices("successRefundRequested"));
+              setViewItem(null);
+            } catch (e) {
+              showGreetingsToast((e instanceof Error ? e.message : null) ?? tServices("errorRequestRefund"), "error");
+            }
+          }}
           onRetry={() => {
             setViewItem(null);
             const params = new URLSearchParams();

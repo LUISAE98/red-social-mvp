@@ -30,6 +30,7 @@ import {
   createRoomServiceClient,
 } from "./livekit";
 import { notifySessionEvent } from "./notifications";
+import { safeLocale } from "./locales";
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -62,7 +63,6 @@ const FALLBACK_DURATION_MINUTES = 30;
 // de la plataforma en el momento de la grabación.
 const EGRESS_SESSION_HOST =
   process.env.EGRESS_SESSION_HOST ?? "https://vibraon.com";
-const EGRESS_LOCALES = new Set(["es", "en", "pt-BR"]);
 
 function requireAuth(uid?: string): string {
   if (!uid) throw new HttpsError("unauthenticated", "Debes iniciar sesión.");
@@ -124,7 +124,7 @@ async function startRecording(
       // Plantilla propia con layout FIJO: creador grande + comprador PiP en la
       // esquina, horizontal — como lo ve el comprador. (Los layouts nativos
       // "grid"/"speaker" no permiten fijar quién va en grande.)
-      customBaseUrl: `${EGRESS_SESSION_HOST}/${EGRESS_LOCALES.has(locale ?? "") ? locale : "en"}/egress/session`,
+      customBaseUrl: `${EGRESS_SESSION_HOST}/${safeLocale(locale)}/egress/session`,
       layout: "creator-focus",
       encodingOptions: EncodingOptionsPreset.H264_1080P_30,
     });

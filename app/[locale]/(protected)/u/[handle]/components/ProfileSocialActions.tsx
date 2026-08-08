@@ -5,7 +5,8 @@ import { useTranslations } from "next-intl";
 import { useSocialRelationship } from "@/lib/social/useSocialRelationship";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
-import ConversationPanel from "@/components/chat/ConversationPanel";
+import { useChatDock } from "@/components/chat/ChatDockProvider";
+import { SidebarMessagesIcon } from "@/app/components/VibraServiceIcons/OwnerSidebarNavIcons/OwnerSidebarNavIcons";
 import { getConversationId } from "@/lib/chat/chatService";
 import { DEFAULT_MESSAGE_POLICY, type MessagePolicy } from "@/lib/chat/types";
 
@@ -35,7 +36,7 @@ export default function ProfileSocialActions({
   const tProfile = useTranslations("profile");
   const tChat = useTranslations("chat");
   const isOwnProfile = !!viewerUid && viewerUid === profileUid;
-  const [messagePanelOpen, setMessagePanelOpen] = useState(false);
+  const { openChat } = useChatDock();
 
   const { relationship, loading, error, follow, unfollow } =
     useSocialRelationship(viewerUid, profileUid);
@@ -70,7 +71,21 @@ export default function ProfileSocialActions({
     !relationship.isBlockedBy &&
     policyAllowsMessage;
 
-  const conversationId = viewerUid ? getConversationId(viewerUid, profileUid) : null;
+  // El hilo se abre en el dock (laptop) o en su página (celular): aquí no se
+  // pinta nada, solo se pide abrirlo.
+  function handleOpenChat() {
+    if (!viewerUid) return;
+    openChat({
+      conversationId: getConversationId(viewerUid, profileUid),
+      otherUid: profileUid,
+      profile: {
+        uid: profileUid,
+        displayName: profileName ?? "",
+        handle: profileHandle ?? null,
+        photoURL: profilePhotoURL ?? null,
+      },
+    });
+  }
 
   const followButtonLabel = loading
     ? tFeed("processing")
@@ -115,28 +130,13 @@ export default function ProfileSocialActions({
         <div style={styles.buttonsRow}>
           <button
             type="button"
-            onClick={() => setMessagePanelOpen(true)}
+            onClick={handleOpenChat}
             style={styles.messageButton}
           >
             {tChat("sendMessageAction")}
+            <SidebarMessagesIcon size={17} strokeWidth={1.9} />
           </button>
         </div>
-      )}
-
-      {showMessageButton && (
-        <ConversationPanel
-          open={messagePanelOpen}
-          onClose={() => setMessagePanelOpen(false)}
-          conversationId={conversationId}
-          otherUid={profileUid}
-          profile={{
-            uid: profileUid,
-            displayName: profileName ?? "",
-            handle: profileHandle ?? null,
-            photoURL: profilePhotoURL ?? null,
-          }}
-          selfUid={viewerUid ?? null}
-        />
       )}
 
       <VibraToast toast={socialToast} />
@@ -183,24 +183,27 @@ const styles = {
     padding: "0 14px",
   } as const,
 
-  // Mismo tamaño y forma que "Seguir", pero neutro: seguir es la acción
-  // primaria del perfil, escribir es secundaria.
+  // Texto plano morado con el ícono de mensajes al final: sin caja ni fondo.
+  // "Seguir" es la acción primaria del perfil y se queda con el degradado;
+  // escribir es secundaria y no compite por atención.
+  //
+  // El morado es el canónico #a855f7, el mismo que pinta el ícono, para que
+  // texto e ícono sean exactamente el mismo tono.
   messageButton: {
-    flex: "1 1 140px",
-    maxWidth: 260,
-    minWidth: 120,
-    minHeight: 40,
-    borderRadius: 10,
-    border: "1px solid rgba(255,255,255,0.14)",
-    background: "rgba(255,255,255,0.06)",
-    color: "rgba(255,255,255,0.94)",
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 7,
+    minHeight: 36,
+    padding: "0 4px",
+    border: "none",
+    background: "none",
+    color: "#a855f7",
     fontFamily: "inherit",
     fontWeight: 600,
     fontSize: 14,
     letterSpacing: "-0.01em",
+    lineHeight: 1,
     cursor: "pointer",
     WebkitTapHighlightColor: "transparent",
-    transition: "background 150ms ease",
-    padding: "0 14px",
   } as const,
 };

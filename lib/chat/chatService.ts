@@ -24,12 +24,16 @@ import { submitReport } from "@/lib/moderation/reportService";
 import type { ReportReason } from "@/lib/moderation/types";
 import {
   CONVERSATION_PAGE_SIZE,
+  DEFAULT_MESSAGE_POLICY,
   INBOX_PAGE_SIZE,
   MESSAGE_MAX_LENGTH,
   buildParticipantsKey,
+  isMessagePolicy,
+  type ChatImage,
   type ConversationDoc,
   type ConversationStatus,
   type MessageDoc,
+  type MessagePolicy,
 } from "./types";
 
 /**
@@ -73,6 +77,13 @@ async function isFollowedBy(selfUid: string, otherUid: string): Promise<boolean>
   return snap.exists();
 }
 
+/** Política de recepción del destinatario. `users/{uid}` es de lectura pública. */
+async function getRecipientPolicy(otherUid: string): Promise<MessagePolicy> {
+  const snap = await getDoc(doc(db, "users", otherUid));
+  const value = snap.data()?.messagePolicy;
+  return isMessagePolicy(value) ? value : DEFAULT_MESSAGE_POLICY;
+}
+
 /** ID determinista de la conversación con otra persona. No escribe nada. */
 export function getConversationId(selfUid: string, otherUid: string): string {
   return buildParticipantsKey(selfUid, otherUid);
@@ -99,7 +110,8 @@ export async function conversationExists(conversationId: string): Promise<boolea
 export async function createConversationWithFirstMessage(
   selfUid: string,
   otherUid: string,
-  text: string
+  text: string,
+  image?: ChatImage | null
 ): Promise<string> {
   if (!selfUid || !otherUid) {
     throw new Error("Falta el identificador de alguno de los participantes.");
@@ -109,7 +121,7 @@ export async function createConversationWithFirstMessage(
   }
 
   const body = text.trim();
-  if (!body) {
+  if (!body && !image) {
     throw new Error("El mensaje está vacío.");
   }
   if (body.length > MESSAGE_MAX_LENGTH) {
@@ -118,9 +130,17 @@ export async function createConversationWithFirstMessage(
 
   const conversationId = buildParticipantsKey(selfUid, otherUid);
   const [first, second] = [selfUid, otherUid].sort();
-  const status: ConversationStatus = (await isFollowedBy(selfUid, otherUid))
-    ? "active"
-    : "request";
+
+  // Solicitudes existe SOLO para la política "everyone" — la única que deja
+  // escribir a un desconocido. Con las demás, quien no cumple la relación ni
+  // siquiera ve el botón, así que lo que llega aquí entra directo. Las rules
+  // recalculan esto por su cuenta y rechazan cualquier otro valor.
+  const [recipientFollowsMe, policy] = await Promise.all([
+    isFollowedBy(selfUid, otherUid),
+    getRecipientPolicy(otherUid),
+  ]);
+  const status: ConversationStatus =
+    policy === "everyone" && !recipientFollowsMe ? "request" : "active";
 
   // ID generado en cliente para poder declararlo en la conversación ANTES de
   // que exista el mensaje; es lo que ata ambos documentos en el mismo lote.
@@ -146,6 +166,7 @@ export async function createConversationWithFirstMessage(
   batch.set(messageRef, {
     senderId: selfUid,
     text: body,
+    ...(image ? { image } : {}),
     createdAt: serverTimestamp(),
     isDeleted: false,
   });
@@ -155,15 +176,20 @@ export async function createConversationWithFirstMessage(
   return conversationId;
 }
 
-/** Envía un mensaje de texto. `lastMessage`/`unread` los actualiza la Cloud Function. */
+/**
+ * Envía un mensaje. `lastMessage`/`unread` los actualiza la Cloud Function.
+ *
+ * Puede llevar UNA imagen. Con imagen, el texto es opcional (pie de foto).
+ */
 export async function sendMessage(
   conversationId: string,
   senderId: string,
-  text: string
+  text: string,
+  image?: ChatImage | null
 ): Promise<void> {
   const body = text.trim();
 
-  if (!body) {
+  if (!body && !image) {
     throw new Error("El mensaje está vacío.");
   }
   if (body.length > MESSAGE_MAX_LENGTH) {
@@ -173,6 +199,9 @@ export async function sendMessage(
   await addDoc(messagesCol(conversationId), {
     senderId,
     text: body,
+    // Solo se escribe la clave si hay imagen: las rules limitan los campos y un
+    // `image: undefined` viajaría como null innecesario.
+    ...(image ? { image } : {}),
     createdAt: serverTimestamp(),
     isDeleted: false,
   });

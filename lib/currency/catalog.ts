@@ -8,8 +8,17 @@
 // y al cobrar. La liquidación llega en USD (o MXN si el comprador es de México).
 
 /**
- * Las 15 monedas de los 17 países de lanzamiento (Ecuador, El Salvador y Panamá
- * comparten USD, por eso son 17 países pero 15 monedas distintas).
+ * Monedas de visualización: 15 de LatAm (17 países; Ecuador, El Salvador y Panamá
+ * comparten USD) + 7 de la Unión Europea (27 países; 21 de ellos usan EUR).
+ * Total: 22 monedas para 44 países.
+ *
+ * ⚠️ Que una moneda esté aquí NO habilita vender en ese país. El permiso de venta
+ * lo decide COUNTRY_TAX_CONFIG (lib/tax/config.ts), que es una capa aparte y exige
+ * alta fiscal en el país. Ver impuestos.md.
+ *
+ * ⚠️ Esta lista está DUPLICADA a mano en backend/src/exchangeRates.ts. Si agregas
+ * una moneda aquí y no allá, la tarea diaria de tasas no la trae y su precio sale
+ * en null (buyerPrice devuelve null sin tasa).
  */
 export const DISPLAY_CURRENCIES = [
   "MXN", // México
@@ -27,6 +36,14 @@ export const DISPLAY_CURRENCIES = [
   "DOP", // República Dominicana
   "UYU", // Uruguay
   "USD", // Ecuador, El Salvador, Panamá
+  // --- Unión Europea ---
+  "EUR", // 21 de los 27: AT BE BG HR CY EE FI FR DE GR IE IT LV LT LU MT NL PT SK SI ES
+  "CZK", // Chequia
+  "DKK", // Dinamarca
+  "HUF", // Hungría
+  "PLN", // Polonia
+  "RON", // Rumania
+  "SEK", // Suecia
 ] as const;
 export type DisplayCurrency = (typeof DISPLAY_CURRENCIES)[number];
 
@@ -57,6 +74,22 @@ export const SETTLEMENT_CURRENCY: DisplayCurrency = "MXN";
  * el IVA. El creador recibe 75% de su base (el $3 y la comisión son de Vibra).
  */
 export const FIXED_SERVICE_FEE_MXN = 3;
+
+/**
+ * Cargo por CONVERSIÓN DE MONEDA que absorbe el comprador extranjero. 2%.
+ *
+ * ⚠️ FUENTE ÚNICA. Antes vivía duplicado y DESALINEADO en dos sitios: `FX_BUFFER` (1.5%)
+ * en lib/currency/format.ts para el precio mostrado, y `FX_CONVERSION_FEE` (2%) en
+ * tax/config.ts para el cobro real. El comprador extranjero veía un número y se le
+ * cobraba otro. Unificado en 2% el 2026-08-07 (es el modelo documentado en impuestos.md §1).
+ *
+ * NO es impuesto: es costo/comisión, y nunca se declara como impuesto.
+ * Se aplica solo cuando la moneda de cobro ≠ la de liquidación (MXN).
+ *
+ * ⚠️ El backend tiene su propia copia en backend/src/tax/config.ts (no puede importar
+ * de lib/). Deben tener el MISMO valor.
+ */
+export const FX_CONVERSION_FEE = 0.02;
 
 /**
  * Precio MÍNIMO (base, MXN) que el creador puede fijar por servicio. Si pone menos,
@@ -90,7 +123,10 @@ export function isDisplayCurrency(c: string | null | undefined): c is DisplayCur
 
 /**
  * País ISO-3166 alpha-2 → moneda de visualización.
- * Los 17 países de lanzamiento (Ecuador, El Salvador y Panamá → USD).
+ * Los 17 de LatAm (Ecuador, El Salvador y Panamá → USD) + los 27 de la UE.
+ *
+ * ⚠️ Estar en este mapa solo define EN QUÉ MONEDA SE MUESTRA el precio a quien
+ * navega desde ese país. No habilita el cobro: eso lo decide COUNTRY_TAX_CONFIG.
  */
 export const COUNTRY_TO_CURRENCY: Readonly<Record<string, DisplayCurrency>> = {
   AR: "ARS", // Argentina
@@ -110,6 +146,37 @@ export const COUNTRY_TO_CURRENCY: Readonly<Record<string, DisplayCurrency>> = {
   PE: "PEN", // Perú
   DO: "DOP", // República Dominicana
   UY: "UYU", // Uruguay
+
+  // --- Unión Europea (27) ---
+  // Zona euro (21). Bulgaria adoptó el euro el 1-ene-2026: ya no usa BGN.
+  AT: "EUR", // Austria
+  BE: "EUR", // Bélgica
+  BG: "EUR", // Bulgaria
+  HR: "EUR", // Croacia
+  CY: "EUR", // Chipre
+  EE: "EUR", // Estonia
+  FI: "EUR", // Finlandia
+  FR: "EUR", // Francia
+  DE: "EUR", // Alemania
+  GR: "EUR", // Grecia
+  IE: "EUR", // Irlanda
+  IT: "EUR", // Italia
+  LV: "EUR", // Letonia
+  LT: "EUR", // Lituania
+  LU: "EUR", // Luxemburgo
+  MT: "EUR", // Malta
+  NL: "EUR", // Países Bajos
+  PT: "EUR", // Portugal
+  SK: "EUR", // Eslovaquia
+  SI: "EUR", // Eslovenia
+  ES: "EUR", // España
+  // Fuera de la zona euro (6).
+  CZ: "CZK", // Chequia
+  DK: "DKK", // Dinamarca
+  HU: "HUF", // Hungría
+  PL: "PLN", // Polonia
+  RO: "RON", // Rumania
+  SE: "SEK", // Suecia
 };
 
 /** Moneda de visualización por defecto según país (fallback USD, el ancla). */

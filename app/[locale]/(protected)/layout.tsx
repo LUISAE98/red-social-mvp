@@ -11,6 +11,7 @@ import { usePathname, useRouter } from "@/i18n/navigation";
 import VibraSavedPostIcon from "@/app/components/VibraServiceIcons/VibraSavedPostIcon";
 import { useAuth } from "@/app/providers";
 import OwnerSidebar from "@/app/components/OwnerSidebar/OwnerSidebar";
+import ChatDockProvider from "@/components/chat/ChatDockProvider";
 import MobileBottomNav from "@/app/components/MobileBottomNav";
 import ScrollToTopFAB from "@/app/components/ScrollToTopFAB/ScrollToTopFAB";
 import GroupsSearchPanel from "@/app/components/SearchToolbar/GroupsSearchPanel";
@@ -205,7 +206,7 @@ const contentAreaClassName = isEmbed
   : "contentArea contentAreaWithWallet";
 
   return (
-    <>
+    <ChatDockProvider selfUid={user?.uid ?? null}>
       <style jsx>{`
         .layout {
           --shell-gutter: 16px;
@@ -1098,7 +1099,7 @@ const contentAreaClassName = isEmbed
          )}
        </AnimatePresence>
       </MobileHeaderCtx.Provider>
-    </>
+    </ChatDockProvider>
   );
 }
 

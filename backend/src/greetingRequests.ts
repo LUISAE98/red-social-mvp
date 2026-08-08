@@ -638,6 +638,47 @@ export const respondGreetingRequest = onCall(
   }
 );
 
+// Comprador pide DEVOLUCIÓN de un saludo/consejo RECHAZADO. Pasa a "refund_requested" →
+// el trigger del ledger revierte al creador (como DEVOLUCIÓN) y emite el SALDO A FAVOR al
+// comprador por el total pagado (solo si el dinero se había capturado). Solo el comprador.
+export const requestGreetingRefund = onCall(
+  { region: "us-central1", cors: true },
+  async (request) => {
+    const uid = request.auth?.uid;
+    if (!uid) throw new HttpsError("unauthenticated", "You must be signed in.");
+
+    const requestId = assertString(request.data?.requestId, "requestId", 200);
+    const refundReason = request.data?.refundReason
+      ? String(request.data.refundReason).slice(0, 1000)
+      : null;
+
+    const reqRef = db.doc(`greetingRequests/${requestId}`);
+
+    await db.runTransaction(async (tx) => {
+      const snap = await tx.get(reqRef);
+      if (!snap.exists) throw new HttpsError("not-found", "Greeting request not found.");
+      const gr = snap.data() as { buyerId?: string; status?: string };
+
+      if (gr.buyerId !== uid) {
+        throw new HttpsError("permission-denied", "No eres el comprador de esta solicitud.");
+      }
+      if (gr.status !== "rejected") {
+        throw new HttpsError("failed-precondition", "La solicitud no es elegible para devolución.");
+      }
+
+      tx.update(reqRef, {
+        status: "refund_requested" as GreetingStatus,
+        refundReason,
+        refundRequestedAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    });
+
+    logger.info("requestGreetingRefund", { requestId, buyerId: uid });
+    return { ok: true };
+  }
+);
+
 // Día en que se CAPTURA la retención (auth-hold) como respaldo si el creador aún no la
 // cobró grabando el saludo. El hold de tarjeta expira ~7 días en Stripe, así que se
 // captura al 5º día para no perder el dinero. NO es la ventana de entrega (esa es 60
