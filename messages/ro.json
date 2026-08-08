@@ -2588,6 +2588,12 @@
     "uploadingImage": "Se încarcă imaginea…",
     "imageUploadError": "Imaginea nu a putut fi încărcată.",
     "openImage": "Vezi imaginea",
-    "photoPreview": "📷 Poză"
+    "photoPreview": "📷 Poză",
+    "edited": "(editat)",
+    "deleteForMe": "Șterge pentru mine",
+    "deleteForEveryone": "Șterge pentru toți",
+    "editMessage": "Editează",
+    "editingMessage": "Se editează mesajul",
+    "messageActionError": "Acțiunea nu a putut fi finalizată."
   }
 }

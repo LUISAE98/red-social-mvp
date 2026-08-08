@@ -21,6 +21,7 @@ import {
   deleteDoc,
   writeBatch,
   serverTimestamp,
+  Timestamp,
 } from "firebase/firestore";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -758,26 +759,109 @@ describe("DM — mensajes", () => {
     await assertFails(addDoc(col, message({ pinned: true })));
   });
 
-  it("🟢 borrado suave del mensaje propio", async () => {
-    await seedAll([...base(), ...existingMessage(ALICE)]);
+  // ── Acciones sobre un mensaje ya enviado ──────────────────────────────────
+
+  /** Mensaje con `createdAt` explícito, para poder situarlo dentro o fuera de
+   *  la ventana de 10 minutos. */
+  function messageAt(minutesAgo: number, senderId = ALICE): Seeds {
+    const ms = Date.now() - minutesAgo * 60 * 1000;
+    return [
+      [
+        `conversations/${CONV}/messages/m1`,
+        {
+          senderId,
+          text: "hola",
+          isDeleted: false,
+          createdAt: Timestamp.fromMillis(ms),
+        },
+      ],
+    ];
+  }
+
+  it("🟢 ocultar SOLO para mí: cualquiera de los dos y sin límite de tiempo", async () => {
+    await seedAll([...base(), ...messageAt(120, ALICE)]);
+    // Bob no es el autor y el mensaje es viejo: aun así puede ocultárselo.
+    await assertSucceeds(
+      updateDoc(doc(as(BOB), `conversations/${CONV}/messages/m1`), {
+        deletedFor: [BOB],
+      })
+    );
+  });
+
+  it("🔴 no puedo ocultarle un mensaje al OTRO", async () => {
+    await seedAll([...base(), ...messageAt(1, ALICE)]);
+    await assertFails(
+      updateDoc(doc(as(BOB), `conversations/${CONV}/messages/m1`), {
+        deletedFor: [ALICE],
+      })
+    );
+  });
+
+  it("🟢 retirar para todos dentro de los 10 minutos", async () => {
+    await seedAll([...base(), ...messageAt(3, ALICE)]);
     await assertSucceeds(
       updateDoc(doc(as(ALICE), `conversations/${CONV}/messages/m1`), { isDeleted: true })
     );
   });
 
-  it("🔴 no puedo borrar el mensaje del otro", async () => {
-    await seedAll([...base(), ...existingMessage(ALICE)]);
+  it("🔴 retirar para todos DESPUÉS de los 10 minutos ya no se puede", async () => {
+    await seedAll([...base(), ...messageAt(11, ALICE)]);
+    await assertFails(
+      updateDoc(doc(as(ALICE), `conversations/${CONV}/messages/m1`), { isDeleted: true })
+    );
+  });
+
+  it("🔴 el que NO es autor no puede retirarlo para todos", async () => {
+    await seedAll([...base(), ...messageAt(1, ALICE)]);
     await assertFails(
       updateDoc(doc(as(BOB), `conversations/${CONV}/messages/m1`), { isDeleted: true })
     );
   });
 
-  it("🔴 el texto enviado es inmutable: no se puede reescribir", async () => {
-    await seedAll([...base(), ...existingMessage(ALICE)]);
-    await assertFails(
-      updateDoc(doc(as(ALICE), `conversations/${CONV}/messages/m1`), { text: "otra cosa" })
+  it("🟢 editar dentro de los 10 minutos, marcando editedAt", async () => {
+    await seedAll([...base(), ...messageAt(2, ALICE)]);
+    await assertSucceeds(
+      updateDoc(doc(as(ALICE), `conversations/${CONV}/messages/m1`), {
+        text: "corregido",
+        editedAt: serverTimestamp(),
+      })
     );
   });
+
+  it("🔴 editar DESPUÉS de los 10 minutos ya no se puede", async () => {
+    await seedAll([...base(), ...messageAt(11, ALICE)]);
+    await assertFails(
+      updateDoc(doc(as(ALICE), `conversations/${CONV}/messages/m1`), {
+        text: "corregido",
+        editedAt: serverTimestamp(),
+      })
+    );
+  });
+
+  // Sin esto, se podría reescribir lo dicho sin que el otro lo note.
+  it("🔴 editar SIN marcar editedAt se rechaza", async () => {
+    await seedAll([...base(), ...messageAt(2, ALICE)]);
+    await assertFails(
+      updateDoc(doc(as(ALICE), `conversations/${CONV}/messages/m1`), {
+        text: "corregido en silencio",
+      })
+    );
+  });
+
+  it("🔴 no puedo editar el mensaje del OTRO", async () => {
+    await seedAll([...base(), ...messageAt(2, ALICE)]);
+    await assertFails(
+      updateDoc(doc(as(BOB), `conversations/${CONV}/messages/m1`), {
+        text: "te pongo palabras en la boca",
+        editedAt: serverTimestamp(),
+      })
+    );
+  });
+
+  // Los tres tests que había aquí (borrado suave, borrar el del otro, texto
+  // inmutable) los sustituyen los de arriba, que además fijan la ventana de 10
+  // minutos. El texto YA NO es inmutable: se puede editar dentro de la ventana,
+  // pero solo marcando `editedAt`.
 });
 
 // ═══════════════════════════════════════════════════════════════════════════

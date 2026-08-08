@@ -1,5 +1,6 @@
 import {
   addDoc,
+  arrayUnion,
   collection,
   doc,
   getDoc,
@@ -207,13 +208,52 @@ export async function sendMessage(
   });
 }
 
-/** Borrado suave del mensaje propio. El texto es inmutable. */
-export async function deleteMessage(
+function messageRef(conversationId: string, messageId: string) {
+  return doc(db, "conversations", conversationId, "messages", messageId);
+}
+
+/**
+ * Oculta el mensaje SOLO para quien lo pide. El otro lo sigue viendo.
+ * Sin límite de tiempo y disponible para cualquiera de los dos.
+ */
+export async function hideMessageForMe(
+  conversationId: string,
+  messageId: string,
+  selfUid: string
+): Promise<void> {
+  await updateDoc(messageRef(conversationId, messageId), {
+    deletedFor: arrayUnion(selfUid),
+  });
+}
+
+/**
+ * Retira el mensaje para los DOS. Solo el autor y dentro de los 10 minutos;
+ * las rules rechazan lo demás.
+ */
+export async function deleteMessageForEveryone(
   conversationId: string,
   messageId: string
 ): Promise<void> {
-  await updateDoc(doc(db, "conversations", conversationId, "messages", messageId), {
-    isDeleted: true,
+  await updateDoc(messageRef(conversationId, messageId), { isDeleted: true });
+}
+
+/**
+ * Reescribe el texto. Solo el autor y dentro de los 10 minutos. Marca
+ * `editedAt` siempre: la edición se muestra, no se disimula.
+ */
+export async function editMessage(
+  conversationId: string,
+  messageId: string,
+  text: string
+): Promise<void> {
+  const body = text.trim();
+  if (body.length > MESSAGE_MAX_LENGTH) {
+    throw new Error(`El mensaje no puede superar ${MESSAGE_MAX_LENGTH} caracteres.`);
+  }
+
+  await updateDoc(messageRef(conversationId, messageId), {
+    text: body,
+    editedAt: serverTimestamp(),
   });
 }
 

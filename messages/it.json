@@ -2588,6 +2588,12 @@
     "uploadingImage": "Caricamento dell'immagine…",
     "imageUploadError": "Impossibile caricare l'immagine.",
     "openImage": "Vedi l'immagine",
-    "photoPreview": "📷 Foto"
+    "photoPreview": "📷 Foto",
+    "edited": "(modificato)",
+    "deleteForMe": "Elimina per me",
+    "deleteForEveryone": "Elimina per tutti",
+    "editMessage": "Modifica",
+    "editingMessage": "Modifica messaggio",
+    "messageActionError": "Non è stato possibile completare l’azione."
   }
 }

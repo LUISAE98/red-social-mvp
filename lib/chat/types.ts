@@ -138,6 +138,13 @@ export type ChatImage = {
   thumbnailUrl?: string;
 };
 
+/**
+ * Ventana para editar o retirar un mensaje para los dos. Pasada, el mensaje
+ * queda congelado. Las rules la aplican por su cuenta; esta constante es para
+ * que la interfaz no ofrezca acciones que el servidor va a rechazar.
+ */
+export const MESSAGE_EDIT_WINDOW_MS = 10 * 60 * 1000;
+
 export type MessageDoc = {
   senderId: string;
   /** Puede ir vacío si el mensaje lleva imagen. */
@@ -145,8 +152,15 @@ export type MessageDoc = {
   /** Una imagen como mucho; null si el mensaje es solo texto. */
   image?: ChatImage | null;
   createdAt: Timestamp;
-  /** Borrado suave: el doc se conserva, el texto deja de mostrarse. */
+  /** Retirado para los DOS. El doc se conserva, el contenido deja de mostrarse. */
   isDeleted: boolean;
+  /**
+   * Ocultado solo para estas personas. Es un borrado por lado: cada quien puede
+   * quitárselo de su vista sin tocar la del otro.
+   */
+  deletedFor?: string[];
+  /** Presente si el texto se editó. Se muestra al otro: la edición no es silenciosa. */
+  editedAt?: Timestamp;
 };
 
 /** Límites del hilo y del inbox. Son también el control de costo. */

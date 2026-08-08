@@ -3631,12 +3631,63 @@ function canUpdateReplyCount(delta) {
                'senderId', 'text', 'image', 'createdAt', 'isDeleted'
              ]);
 
-        // Borrado suave del mensaje propio. El texto es inmutable: no se puede
-        // reescribir lo que ya se envió.
+        function isAuthor() {
+          return resource.data.senderId == request.auth.uid;
+        }
+
+        function touchedKeys() {
+          return request.resource.data.diff(resource.data).affectedKeys();
+        }
+
+        /**
+         * Ventana de 10 minutos desde el envío. Pasada, el mensaje queda
+         * congelado: ni se edita ni se retira para el otro. Sin este límite se
+         * podría reescribir una conversación entera a posteriori.
+         */
+        function withinEditWindow() {
+          return resource.data.createdAt is timestamp
+            && request.time < resource.data.createdAt + duration.value(10, 'm');
+        }
+
+        /**
+         * Ocultar SOLO para mí. Cualquiera de los dos, cuando quiera, y solo
+         * puede añadirse a sí mismo: nadie puede ocultarle un mensaje al otro.
+         */
+        function onlyHidesForSelf() {
+          let previous = resource.data.get('deletedFor', []);
+          return touchedKeys().hasOnly(['deletedFor'])
+            && request.resource.data.deletedFor is list
+            && request.resource.data.deletedFor.toSet()
+                 == previous.toSet().union([request.auth.uid].toSet());
+        }
+
+        /** Retirar para los dos. Solo el autor y dentro de la ventana. */
+        function isDeleteForEveryone() {
+          return touchedKeys().hasOnly(['isDeleted'])
+            && request.resource.data.isDeleted == true
+            && isAuthor()
+            && withinEditWindow();
+        }
+
+        /**
+         * Editar el texto. Solo el autor, dentro de la ventana, y SIEMPRE
+         * marcando `editedAt`: la edición tiene que ser visible para el otro,
+         * no un cambio silencioso del historial.
+         */
+        function isEdit() {
+          return touchedKeys().hasOnly(['text', 'editedAt'])
+            && isAuthor()
+            && withinEditWindow()
+            && request.resource.data.text is string
+            && request.resource.data.text.size() <= 2000
+            && (request.resource.data.text.size() > 0
+                || ('image' in resource.data && resource.data.image != null))
+            && request.resource.data.editedAt == request.time;
+        }
+
         allow update: if isConvParticipant()
-          && resource.data.senderId == request.auth.uid
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isDeleted'])
-          && request.resource.data.isDeleted == true;
+          && notAnonymous()
+          && (onlyHidesForSelf() || isDeleteForEveryone() || isEdit());
 
         allow delete: if false;
       }

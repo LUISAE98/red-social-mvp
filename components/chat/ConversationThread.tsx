@@ -7,6 +7,9 @@ import {
   acceptConversationRequest,
   blockConversation,
   createConversationWithFirstMessage,
+  deleteMessageForEveryone,
+  editMessage,
+  hideMessageForMe,
   rejectConversationRequest,
   reportConversation,
   unblockConversation,
@@ -15,7 +18,11 @@ import {
 import { useConversation } from "@/lib/chat/useConversation";
 import { useConversationDoc } from "@/lib/chat/useConversationDoc";
 import { useDmImageUrls } from "@/lib/chat/useDmImageUrls";
-import { MESSAGE_MAX_LENGTH, type ChatImage } from "@/lib/chat/types";
+import {
+  MESSAGE_EDIT_WINDOW_MS,
+  MESSAGE_MAX_LENGTH,
+  type ChatImage,
+} from "@/lib/chat/types";
 import { uploadDirectMessageImage } from "@/lib/posts/image-upload";
 import {
   VibraNavigationIcon,
@@ -99,6 +106,34 @@ export default function ConversationThread({
   const [uploadingImage, setUploadingImage] = useState(false);
   /** Imagen abierta a tamaño completo. */
   const [lightbox, setLightbox] = useState<string | null>(null);
+  /** Mensaje con el detalle (hora + acciones) desplegado. Solo uno a la vez. */
+  const [expandedMessageId, setExpandedMessageId] = useState<string | null>(null);
+  /** Mensaje que se está editando; el compositor pasa a guardar en vez de enviar. */
+  const [editing, setEditing] = useState<{ id: string; text: string } | null>(null);
+
+  function toggleExpanded(messageId: string) {
+    setExpandedMessageId((prev) => (prev === messageId ? null : messageId));
+  }
+
+  async function runMessageAction(action: () => Promise<void>) {
+    setError(null);
+    try {
+      await action();
+      setExpandedMessageId(null);
+    } catch {
+      setError(tChat("messageActionError"));
+    }
+  }
+
+  const messageActionStyle = {
+    border: "none",
+    background: "transparent",
+    color: "rgba(255,255,255,0.55)",
+    fontSize: 11,
+    fontFamily: "inherit",
+    cursor: "pointer",
+    padding: 0,
+  } as const;
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busyAction, setBusyAction] = useState(false);
@@ -187,6 +222,25 @@ export default function ConversationThread({
 
   async function handleSend() {
     const body = draft.trim();
+
+    // En modo edición el compositor GUARDA en vez de enviar.
+    if (editing) {
+      if (!body || sending || !conversationId) return;
+      setSending(true);
+      setError(null);
+      try {
+        await editMessage(conversationId, editing.id, body);
+        setEditing(null);
+        setDraft("");
+        if (inputRef.current) inputRef.current.style.height = "auto";
+      } catch {
+        setError(tChat("messageActionError"));
+      } finally {
+        setSending(false);
+      }
+      return;
+    }
+
     // Con imagen el texto es opcional: la imagen sola ya es un mensaje.
     if ((!body && !pendingImage) || sending || uploadingImage || !canWrite || !selfUid) return;
 
@@ -271,6 +325,11 @@ export default function ConversationThread({
       ? new Intl.DateTimeFormat(locale, { hour: "numeric", minute: "2-digit" }).format(date)
       : "";
 
+    const expanded = expandedMessageId === message.id;
+    // Editar y retirar caducan a los 10 minutos. Si el mensaje aún no tiene
+    // `createdAt` del servidor (escritura optimista), se considera reciente.
+    const withinWindow = !date || Date.now() - date.getTime() < MESSAGE_EDIT_WINDOW_MS;
+
     return (
       <div key={message.id}>
         {showDaySeparator && date ? (
@@ -301,8 +360,20 @@ export default function ConversationThread({
             marginTop: 4,
           }}
         >
+          {/* Todo el globo es el disparador del detalle. No es un <button> para
+              no anidarlo con el de la imagen; se le da rol y teclado a mano. */}
           <div
+            role="button"
+            tabIndex={0}
+            onClick={() => toggleExpanded(message.id)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                toggleExpanded(message.id);
+              }
+            }}
             style={{
+              cursor: "pointer",
               maxWidth: "78%",
               padding: "8px 11px",
               // La esquina "pegada" al lado del emisor da la direccionalidad del
@@ -316,9 +387,11 @@ export default function ConversationThread({
             {!message.isDeleted && message.image && imageUrl(message.image, "thumb") ? (
               <button
                 type="button"
-                onClick={() =>
-                  setLightbox(message.image ? imageUrl(message.image, "full") : null)
-                }
+                onClick={(e) => {
+                  // No debe desplegar también el detalle del mensaje.
+                  e.stopPropagation();
+                  setLightbox(message.image ? imageUrl(message.image, "full") : null);
+                }}
                 aria-label={tChat("openImage")}
                 style={{
                   display: "block",
@@ -367,21 +440,90 @@ export default function ConversationThread({
               </div>
             ) : null}
 
-            {time ? (
-              <div
+            {message.editedAt && !message.isDeleted ? (
+              <span
                 style={{
-                  marginTop: 3,
-                  fontSize: 9.5,
-                  lineHeight: 1,
-                  textAlign: "right",
+                  fontSize: 10,
                   color: "rgba(255,255,255,0.42)",
+                  marginLeft: 6,
                 }}
               >
-                {time}
-              </div>
+                {tChat("edited")}
+              </span>
             ) : null}
           </div>
         </div>
+
+        {/* Detalle desplegado FUERA del globo: hora y acciones. */}
+        {expanded ? (
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: mine ? "flex-end" : "flex-start",
+              gap: 4,
+              marginTop: 4,
+              paddingBottom: 2,
+            }}
+          >
+            <span style={{ fontSize: 10.5, color: "rgba(255,255,255,0.45)" }}>
+              {time}
+            </span>
+
+            {!message.isDeleted ? (
+              <div
+                style={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  gap: 10,
+                  justifyContent: mine ? "flex-end" : "flex-start",
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={() => runMessageAction(() => hideMessageForMe(conversationId!, message.id, selfUid!))}
+                  style={messageActionStyle}
+                >
+                  {tChat("deleteForMe")}
+                </button>
+
+                {/* Retirar y editar solo el autor, y solo dentro de la ventana
+                    de 10 minutos: pasado ese punto las rules lo rechazan, así
+                    que ni se ofrecen. */}
+                {mine && withinWindow ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        runMessageAction(() =>
+                          deleteMessageForEveryone(conversationId!, message.id)
+                        )
+                      }
+                      style={messageActionStyle}
+                    >
+                      {tChat("deleteForEveryone")}
+                    </button>
+
+                    {message.text ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditing({ id: message.id, text: message.text });
+                          setDraft(message.text);
+                          setExpandedMessageId(null);
+                          inputRef.current?.focus();
+                        }}
+                        style={messageActionStyle}
+                      >
+                        {tChat("editMessage")}
+                      </button>
+                    ) : null}
+                  </>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
       </div>
     );
   }
@@ -484,6 +626,33 @@ export default function ConversationThread({
     return (
       <div style={{ display: "grid", gap: 8 }}>
         <VibraNavigationIconsStyles />
+
+        {/* Barra de edición: deja claro que lo que escribes reemplaza a un
+            mensaje ya enviado, en vez de mandar uno nuevo. */}
+        {editing ? (
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              fontSize: 11.5,
+              color: "rgba(255,255,255,0.6)",
+            }}
+          >
+            <span style={{ flex: 1, minWidth: 0 }}>{tChat("editingMessage")}</span>
+            <button
+              type="button"
+              onClick={() => {
+                setEditing(null);
+                setDraft("");
+                if (inputRef.current) inputRef.current.style.height = "auto";
+              }}
+              style={{ ...messageActionStyle, color: "#a855f7", fontWeight: 600 }}
+            >
+              {tCommon("cancel")}
+            </button>
+          </div>
+        ) : null}
 
         {/* Previsualización de la imagen elegida, con su X para quitarla. */}
         {pendingImage || uploadingImage ? (

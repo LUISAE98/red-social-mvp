@@ -2588,6 +2588,12 @@
     "uploadingImage": "Envoi de l'image…",
     "imageUploadError": "Impossible d'envoyer l'image.",
     "openImage": "Voir l'image",
-    "photoPreview": "📷 Photo"
+    "photoPreview": "📷 Photo",
+    "edited": "(modifié)",
+    "deleteForMe": "Supprimer pour moi",
+    "deleteForEveryone": "Supprimer pour tous",
+    "editMessage": "Modifier",
+    "editingMessage": "Modification du message",
+    "messageActionError": "Impossible de terminer l’action."
   }
 }

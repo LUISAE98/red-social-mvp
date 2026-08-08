@@ -2588,6 +2588,12 @@
     "uploadingImage": "Przesyłanie obrazu…",
     "imageUploadError": "Nie udało się przesłać obrazu.",
     "openImage": "Zobacz obraz",
-    "photoPreview": "📷 Zdjęcie"
+    "photoPreview": "📷 Zdjęcie",
+    "edited": "(edytowano)",
+    "deleteForMe": "Usuń u mnie",
+    "deleteForEveryone": "Usuń u wszystkich",
+    "editMessage": "Edytuj",
+    "editingMessage": "Edytowanie wiadomości",
+    "messageActionError": "Nie udało się wykonać tej akcji."
   }
 }

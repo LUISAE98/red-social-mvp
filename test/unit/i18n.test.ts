@@ -203,6 +203,40 @@ describe("i18n / catálogo de idiomas", () => {
     }
   });
 
+  // En alfabetos no latinos (griego, y más adelante búlgaro en cirílico) es facilísimo
+  // que se cuele un HOMÓGLIFO: una «A» latina donde va una «Α» griega, o una «o» latina
+  // en medio de una palabra cirílica. Se ven IDÉNTICAS, así que no se detectan revisando
+  // el texto, pero rompen la búsqueda, la ordenación y el renderizado de fuentes.
+  //
+  // La señal fiable es una PALABRA con mezcla de alfabetos. Las palabras enteramente
+  // latinas (Vibra, OBS, KYC, Google) conviven sin problema con texto griego y no se marcan.
+  it("ninguna palabra mezcla alfabetos (homóglifos)", () => {
+    const LATIN = /\p{Script=Latin}/u;
+    const GREEK = /\p{Script=Greek}/u;
+    const CYRILLIC = /\p{Script=Cyrillic}/u;
+
+    for (const code of READY_LOCALES) {
+      const sospechosas: string[] = [];
+      (function walk(o: unknown, path: string) {
+        if (typeof o === "string") {
+          // Trocea en «palabras» de letras, ignorando placeholders ICU y etiquetas.
+          const limpio = o.replace(/\{[^}]*\}/g, " ").replace(/<[^>]*>/g, " ");
+          for (const palabra of limpio.split(/[^\p{L}]+/u)) {
+            if (!palabra) continue;
+            const scripts = [LATIN, GREEK, CYRILLIC].filter((re) => re.test(palabra)).length;
+            if (scripts > 1) sospechosas.push(`${path}: «${palabra}»`);
+          }
+          return;
+        }
+        if (typeof o === "object" && o !== null) {
+          for (const [k, v] of Object.entries(o)) walk(v, path ? `${path}.${k}` : k);
+        }
+      })(readMessages(code), "");
+
+      expect(sospechosas, `palabras con alfabetos mezclados en ${code}.json`).toEqual([]);
+    }
+  });
+
   it("ningún valor traducido quedó vacío", () => {
     for (const code of READY_LOCALES) {
       const msgs = readMessages(code) as Record<string, unknown>;

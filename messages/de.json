@@ -2588,6 +2588,12 @@
     "uploadingImage": "Bild wird hochgeladen …",
     "imageUploadError": "Das Bild konnte nicht hochgeladen werden.",
     "openImage": "Bild ansehen",
-    "photoPreview": "📷 Foto"
+    "photoPreview": "📷 Foto",
+    "edited": "(bearbeitet)",
+    "deleteForMe": "Für mich löschen",
+    "deleteForEveryone": "Für alle löschen",
+    "editMessage": "Bearbeiten",
+    "editingMessage": "Nachricht bearbeiten",
+    "messageActionError": "Die Aktion konnte nicht abgeschlossen werden."
   }
 }

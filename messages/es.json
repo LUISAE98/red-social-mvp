@@ -2588,6 +2588,12 @@
     "uploadingImage": "Subiendo imagen...",
     "imageUploadError": "No se pudo subir la imagen.",
     "openImage": "Ver imagen",
-    "photoPreview": "📷 Foto"
+    "photoPreview": "📷 Foto",
+    "edited": "(editado)",
+    "deleteForMe": "Eliminar para mí",
+    "deleteForEveryone": "Eliminar para todos",
+    "editMessage": "Editar",
+    "editingMessage": "Editando mensaje",
+    "messageActionError": "No se pudo completar la acción."
   }
 }

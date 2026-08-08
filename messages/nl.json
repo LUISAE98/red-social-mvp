@@ -2588,6 +2588,12 @@
     "uploadingImage": "Afbeelding uploaden…",
     "imageUploadError": "De afbeelding kon niet worden geüpload.",
     "openImage": "Afbeelding bekijken",
-    "photoPreview": "📷 Foto"
+    "photoPreview": "📷 Foto",
+    "edited": "(bewerkt)",
+    "deleteForMe": "Voor mij verwijderen",
+    "deleteForEveryone": "Voor iedereen verwijderen",
+    "editMessage": "Bewerken",
+    "editingMessage": "Bericht bewerken",
+    "messageActionError": "De actie kon niet worden voltooid."
   }
 }

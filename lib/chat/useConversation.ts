@@ -63,7 +63,15 @@ export function useConversation(conversationId: string | null, selfUid: string |
   }, [conversationId]);
 
   // Historial paginado + última página en vivo, en orden de lectura.
-  const messages = useMemo(() => [...older, ...live], [older, live]);
+  // Los ocultados "solo para mí" se filtran aquí: siguen existiendo en la base
+  // (el otro los ve), pero desaparecen de esta vista.
+  const messages = useMemo(
+    () =>
+      [...older, ...live].filter(
+        (message) => !(selfUid && message.deletedFor?.includes(selfUid))
+      ),
+    [older, live, selfUid]
+  );
 
   // Marca leído al abrir el hilo: un solo write, no uno por render.
   useEffect(() => {
