@@ -5,25 +5,10 @@ import { describe, it, expect, vi } from "vitest";
 // `getAuth` revienta por falta de credenciales en el entorno de tests).
 vi.mock("@/lib/firebase", () => ({ db: {}, auth: {}, storage: {}, app: {} }));
 
-// El módulo del backend inicializa Admin SDK al importarse; se stubea porque
-// `resolveIsShareable` es pura y es justo la que tiene que coincidir con la del
-// frontend.
-vi.mock("firebase-admin", () => ({
-  apps: [{}],
-  initializeApp: () => undefined,
-  firestore: () => ({}),
-}));
-vi.mock("firebase-functions/v2/firestore", () => ({ onDocumentUpdated: () => ({}) }));
-vi.mock("firebase-functions/logger", () => ({
-  info: () => undefined,
-  warn: () => undefined,
-  error: () => undefined,
-}));
-
 import { buildShareMetadata } from "@/lib/posts/post-service.hydration";
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore -- el backend está fuera del tsconfig del front; en runtime vitest lo resuelve igual
-import { resolveIsShareable } from "../../backend/src/groupPostsVisibilitySync";
+// Módulo PURO del backend (sin Admin SDK ni firebase-functions): se puede
+// importar desde aquí sin arrastrar dependencias que el frontend no instala.
+import { resolveIsShareable } from "../../backend/src/postShareability";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // `isShareable` es el interruptor del que cuelga TODA la visibilidad hacia fuera

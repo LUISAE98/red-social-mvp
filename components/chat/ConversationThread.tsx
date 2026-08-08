@@ -111,9 +111,29 @@ export default function ConversationThread({
   /** Mensaje que se está editando; el compositor pasa a guardar en vez de enviar. */
   const [editing, setEditing] = useState<{ id: string; text: string } | null>(null);
 
+  const expandedPanelRef = useRef<HTMLDivElement | null>(null);
+
   function toggleExpanded(messageId: string) {
     setExpandedMessageId((prev) => (prev === messageId ? null : messageId));
   }
+
+  /**
+   * Al desplegar, asegura que el menú quede a la vista: si el mensaje estaba
+   * al fondo, las opciones nacerían fuera del área visible. Se espera a que
+   * termine la animación para medir la altura real, no la de a medio abrir.
+   */
+  useEffect(() => {
+    if (!expandedMessageId) return;
+
+    const timer = setTimeout(() => {
+      expandedPanelRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "nearest",
+      });
+    }, 260);
+
+    return () => clearTimeout(timer);
+  }, [expandedMessageId]);
 
   async function runMessageAction(action: () => Promise<void>) {
     setError(null);
@@ -440,49 +460,79 @@ export default function ConversationThread({
               </div>
             ) : null}
 
-            {message.editedAt && !message.isDeleted ? (
-              <span
-                style={{
-                  fontSize: 10,
-                  color: "rgba(255,255,255,0.42)",
-                  marginLeft: 6,
-                }}
-              >
-                {tChat("edited")}
-              </span>
-            ) : null}
           </div>
         </div>
 
-        {/* Detalle desplegado FUERA del globo: hora y acciones. */}
-        {expanded ? (
+        {/* Marca de edición FUERA del globo, pegada debajo y en cursiva. */}
+        {message.editedAt && !message.isDeleted ? (
           <div
             style={{
               display: "flex",
-              flexDirection: "column",
-              alignItems: mine ? "flex-end" : "flex-start",
-              gap: 4,
-              marginTop: 4,
-              paddingBottom: 2,
+              justifyContent: mine ? "flex-end" : "flex-start",
+              marginTop: 2,
+              padding: mine ? "0 4px 0 0" : "0 0 0 4px",
             }}
           >
-            <span style={{ fontSize: 10.5, color: "rgba(255,255,255,0.45)" }}>
-              {time}
+            <span
+              style={{
+                fontSize: 10,
+                fontStyle: "italic",
+                color: "rgba(255,255,255,0.42)",
+                lineHeight: 1,
+              }}
+            >
+              {tChat("edited")}
             </span>
+          </div>
+        ) : null}
 
-            {!message.isDeleted ? (
-              <div
-                style={{
-                  display: "flex",
-                  flexWrap: "wrap",
-                  gap: 10,
-                  justifyContent: mine ? "flex-end" : "flex-start",
-                }}
-              >
+        {/* Detalle FUERA del globo: hora y acciones.
+            Siempre montado y animado con grid-template-rows 0fr→1fr (el mismo
+            acordeón del OwnerSidebar): así se despliega Y se pliega con
+            transición, y llega a la altura real sin tope fijo que recorte. */}
+        <div
+          ref={expanded ? expandedPanelRef : undefined}
+          // Plegado sigue en el DOM (para poder animar el cierre), así que hay
+          // que sacarlo del foco y del lector de pantalla a mano.
+          aria-hidden={!expanded}
+          style={{
+            display: "grid",
+            gridTemplateRows: expanded ? "1fr" : "0fr",
+            opacity: expanded ? 1 : 0,
+            transition:
+              "grid-template-rows var(--duration-normal, 250ms) var(--ease-smooth, cubic-bezier(0.4,0,0.2,1)), opacity var(--duration-fast, 150ms) ease",
+          }}
+        >
+          <div style={{ overflow: "hidden" }}>
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: mine ? "flex-end" : "flex-start",
+                gap: 6,
+                paddingTop: 6,
+                paddingBottom: 2,
+              }}
+            >
+              <span style={{ fontSize: 10.5, color: "rgba(255,255,255,0.45)" }}>
+                {time}
+              </span>
+
+              {!message.isDeleted ? (
+                <div
+                  style={{
+                    display: "flex",
+                    // Menú VERTICAL: una acción por renglón.
+                    flexDirection: "column",
+                    gap: 8,
+                    alignItems: mine ? "flex-end" : "flex-start",
+                  }}
+                >
                 <button
                   type="button"
                   onClick={() => runMessageAction(() => hideMessageForMe(conversationId!, message.id, selfUid!))}
-                  style={messageActionStyle}
+                  tabIndex={expanded ? 0 : -1}
+                      style={messageActionStyle}
                 >
                   {tChat("deleteForMe")}
                 </button>
@@ -499,6 +549,7 @@ export default function ConversationThread({
                           deleteMessageForEveryone(conversationId!, message.id)
                         )
                       }
+                      tabIndex={expanded ? 0 : -1}
                       style={messageActionStyle}
                     >
                       {tChat("deleteForEveryone")}
@@ -513,17 +564,19 @@ export default function ConversationThread({
                           setExpandedMessageId(null);
                           inputRef.current?.focus();
                         }}
-                        style={messageActionStyle}
+                        tabIndex={expanded ? 0 : -1}
+                      style={messageActionStyle}
                       >
                         {tChat("editMessage")}
                       </button>
                     ) : null}
                   </>
                 ) : null}
-              </div>
-            ) : null}
+                </div>
+              ) : null}
+            </div>
           </div>
-        ) : null}
+        </div>
       </div>
     );
   }

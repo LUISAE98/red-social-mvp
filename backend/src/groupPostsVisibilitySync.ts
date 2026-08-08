@@ -36,36 +36,11 @@ function asRecord(value: unknown): AnyRecord | null {
     : null;
 }
 
-/**
- * ¿Este post debe ser visible FUERA de la comunidad? Mismas reglas que al crear:
- *
- *  - Comunidad oculta      → nunca.
- *  - Premium con alcance público → sí (es justo lo que se vende afuera).
- *  - Live/VOD              → según el alcance que eligió el creador.
- *  - Post normal gratis    → solo si la comunidad es pública.
- *  - Post de pago sin premium ni live → no.
- */
-export function resolveIsShareable(post: AnyRecord, groupVisibility: string | null): boolean {
-  if (groupVisibility === "hidden") return false;
-
-  const premium = asRecord(post.premium);
-  if (premium?.enabled === true) {
-    return premium.accessMode === "public";
-  }
-
-  const liveData = asRecord(post.liveData);
-  if (liveData) {
-    if (liveData.vodHidden === true) return false;
-    return liveData.visibilityMode !== "members_only";
-  }
-
-  const isFree =
-    (post.accessModel ?? "free") === "free" &&
-    post.requiresPayment !== true &&
-    post.requiresSubscription !== true;
-
-  return isFree && groupVisibility === "public";
-}
+// La regla vive en un módulo puro y sin dependencias (`postShareability`) para
+// que el test de paridad del frontend pueda importarla sin arrastrar el Admin
+// SDK. Se re-exporta para no romper a quien la importe desde aquí.
+export { resolveIsShareable } from "./postShareability";
+import { resolveIsShareable } from "./postShareability";
 
 export async function syncPostsVisibility(
   groupId: string,
