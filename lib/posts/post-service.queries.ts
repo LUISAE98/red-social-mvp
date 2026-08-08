@@ -22,6 +22,72 @@ import type {
   GroupPostsPageCursor, GroupPostsPageResult,
 } from "./post-service";
 
+/**
+ * ¿Quien mira es un INVITADO (sin sesión o sesión anónima de compra)? Un live de
+ * alcance "solo personas con cuenta" (o "solo miembros") NO debe llegarle: ni el
+ * video ni la tarjeta en el feed.
+ */
+function isGuestViewer(): boolean {
+  return !(auth.currentUser && !auth.currentUser.isAnonymous);
+}
+
+/**
+ * Quita de una lista de posts los lives que un invitado no debe ni ver listados
+ * (`liveData.allowLoggedOutViewers === false` = logged_in_only o members_only).
+ * No-op para posts sin `liveData` y para cuentas reales.
+ */
+function hideRestrictedLivesFromGuests<T extends { liveData?: { allowLoggedOutViewers?: boolean | null } | null }>(
+  posts: T[],
+): T[] {
+  if (!isGuestViewer()) return posts;
+  return posts.filter((post) => post.liveData?.allowLoggedOutViewers !== false);
+}
+
+/**
+ * Lives de OTRO contexto (el perfil del creador u otra comunidad) que se
+ * publicaron TAMBIÉN en esta comunidad con el switch "publicar también en…".
+ *
+ * El post no se duplica: sigue viviendo en su origen y solo se enciende el
+ * anillo (`groups/{id}.activeLivePostId`). Ese anillo se apaga al terminar, así
+ * que sin este carril el live retransmitido no aparecía en el feed del destino
+ * y su grabación no quedaba NUNCA. Aquí se lista como un post más.
+ *
+ * Los campos fijados con `==` son los que mira la regla que lo autoriza
+ * (`canReadPublicSharedPost`): en un `list` las reglas solo ven lo fijado.
+ * Solo trae lives de PERFIL público y gratis — un live nacido en otra comunidad
+ * se rige por el acceso de ESA comunidad y no se expone por esta vía.
+ */
+async function fetchBroadcastIntoGroupDocs(
+  groupId: string,
+  pageSize: number,
+): Promise<QueryDocumentSnapshot<DocumentData>[]> {
+  try {
+    const snap = await getDocs(
+      query(
+        collection(db, "posts"),
+        where("liveData.broadcastGroupIds", "array-contains", groupId),
+        where("contextType", "==", "profile"),
+        where("profileRestricted", "==", false),
+        where("isDeleted", "==", false),
+        where("accessModel", "==", "free"),
+        where("requiresPayment", "==", false),
+        where("requiresSubscription", "==", false),
+        // Invitado (sin sesión o anónimo): se EXIGE en la propia consulta que el
+        // live sea de alcance "todos". No basta con filtrar después en memoria —
+        // fijándolo con `==` la regla `guestAllowedForLive` sí lo ve y es el
+        // servidor quien niega el "solo personas con cuenta".
+        ...(isGuestViewer() ? [where("liveData.allowLoggedOutViewers", "==", true)] : []),
+        orderBy("createdAt", "desc"),
+        limit(pageSize)
+      )
+    );
+    return snap.docs;
+  } catch (err) {
+    console.warn("[groupFeed] carril de lives retransmitidos falló", err);
+    return [];
+  }
+}
+
 export async function fetchGroupPostsPage(params: {
   groupId: string;
   viewerUid?: string | null;
@@ -34,7 +100,7 @@ export async function fetchGroupPostsPage(params: {
   const previousLastDoc = params.cursor?.lastDoc ?? null;
   const isFirstPage = !previousLastDoc;
 
-  const [postsSnap, pinnedSnap] = await Promise.all([
+  const [postsSnap, pinnedSnap, broadcastDocs] = await Promise.all([
     getDocs(
       query(
         collection(db, "posts"),
@@ -57,6 +123,10 @@ export async function fetchGroupPostsPage(params: {
           )
         )
       : Promise.resolve(null),
+    // Solo en la primera página: son pocos y van arriba, como los fijados.
+    isFirstPage
+      ? fetchBroadcastIntoGroupDocs(params.groupId, safePageSize)
+      : Promise.resolve([]),
   ]);
 
   const normalPosts: Post[] = postsSnap.docs.map((d) => ({
@@ -70,9 +140,22 @@ export async function fetchGroupPostsPage(params: {
       ...(d.data() as Omit<Post, "id">),
     })) ?? [];
 
-  const rawPosts = Array.from(
-    new Map([...pinnedPosts, ...normalPosts].map((post) => [post.id, post]))
-      .values()
+  const broadcastPosts: Post[] = broadcastDocs.map((d) => ({
+    id: d.id,
+    ...(d.data() as Omit<Post, "id">),
+  }));
+
+  // ⚠️ Este feed lo usa TAMBIÉN quien no tiene sesión: la página de una comunidad
+  // PÚBLICA muestra el feed completo a cualquiera. Sin este filtro, un live de
+  // alcance "solo personas con cuenta" (nativo o retransmitido aquí) le aparecía
+  // al invitado como tarjeta ("Conectando al en vivo…"), aunque el stream sí
+  // estuviera cerrado.
+  const rawPosts = hideRestrictedLivesFromGuests(
+    Array.from(
+      new Map(
+        [...pinnedPosts, ...broadcastPosts, ...normalPosts].map((post) => [post.id, post])
+      ).values()
+    )
   );
 
   const [userMap, groupMap] = await Promise.all([
@@ -176,7 +259,7 @@ export async function fetchGroupPublicPremiumPostsPage(params: {
       return null;
     });
 
-  const [premiumSnap, paidSnap, liveSnap] = await Promise.all([
+  const [premiumSnap, paidSnap, liveSnap, freeSnap] = await Promise.all([
     // canListPublicPremiumGroupPost — video premium de alcance público.
     runLane(
       "premium",
@@ -193,9 +276,27 @@ export async function fetchGroupPublicPremiumPostsPage(params: {
       where("liveData.status", "==", "live"),
       where("liveData.allowLoggedOutViewers", "==", true),
     ),
+    // canListPublicShareableGroupPost — lo GRATIS y compartible: sobre todo el
+    // VOD (grabación) de un live que fue para "todos" o "solo con cuenta", que
+    // hereda ese alcance. A los invitados se les filtra abajo el de "solo con
+    // cuenta" por `allowLoggedOutViewers`.
+    runLane(
+      "gratis",
+      where("accessModel", "==", "free"),
+      where("requiresPayment", "==", false),
+    ),
   ]);
 
-  const laneDocs = [premiumSnap, paidSnap, liveSnap].flatMap((snap) => snap?.docs ?? []);
+  // Lives del perfil del creador retransmitidos a esta comunidad: el post no es
+  // suyo (vive en el perfil), así que no lo trae ninguno de los carriles de arriba.
+  const broadcastDocs = previousLastDoc
+    ? []
+    : await fetchBroadcastIntoGroupDocs(params.groupId, safePageSize);
+
+  const laneDocs = [
+    ...[premiumSnap, paidSnap, liveSnap, freeSnap].flatMap((snap) => snap?.docs ?? []),
+    ...broadcastDocs,
+  ];
 
   // Mezcla de carriles: deduplica y reordena por fecha (cada carril venía ya
   // ordenado, pero entre carriles hay que rehacerlo).

@@ -111,6 +111,7 @@ export const createServiceStripeIntent = onCall(
         amountCents: Math.round(totalMxn * 100),
         currency: SETTLEMENT_CURRENCY,
         metadata: { externalReference, sourceType, sourceId, buyerId: uid },
+        captureMethod: "manual", // AUTORIZAR (hold): se captura al aceptar el creador
       });
       await intentRef.set(
         { stripePaymentIntentId: charged.id, updatedAt: admin.firestore.FieldValue.serverTimestamp() },
@@ -128,6 +129,7 @@ export const createServiceStripeIntent = onCall(
         currency: SETTLEMENT_CURRENCY.toLowerCase(), // MXN (solo México por ahora)
         customer: customerId,
         payment_method_types: ["card"],
+        capture_method: "manual", // AUTORIZAR (hold): se captura al aceptar el creador
         ...(saveCard ? { setup_future_usage: "off_session" } : {}),
         // El webhook usa el externalReference para materializar el servicio + ledger.
         metadata: { externalReference, sourceType, sourceId, buyerId: uid },

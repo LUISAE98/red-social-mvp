@@ -18,6 +18,8 @@ import { useAllPurchases } from "@/lib/experiences/useAllPurchases";
 import { useBuyerExperiencesSeen } from "@/lib/experiences/useBuyerExperiencesSeen";
 import { computeCategoryLatest, isCategoryNew } from "@/lib/experiences/experienceActivity";
 import { useMyExperiences } from "@/lib/experiences/useMyExperiences";
+import { useBuyerCredit } from "@/lib/wallet/useBuyerCredit";
+import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 
 type Tab = "requested" | "rejected" | "delivered";
 
@@ -102,6 +104,8 @@ export default function ExperienciasPage() {
   const router = useRouter();
   const { user } = useAuth();
   const exp = useMyExperiences(user?.uid);
+  const credit = useBuyerCredit(user?.uid); // Saldo a favor (crédito por devoluciones)
+  const pf = usePriceFormat();
   const [tab, setTab] = useState<Tab>("requested");
 
   const navRef = useRef<HTMLDivElement | null>(null);
@@ -426,6 +430,34 @@ export default function ExperienciasPage() {
       <h1 style={{ fontSize: 20, fontWeight: 700, color: "#fff", margin: "4px 2px 14px", letterSpacing: "-0.02em" }}>
         {tNav("tabExperiences")}
       </h1>
+
+      {/* SALDO A FAVOR (crédito por devoluciones): arriba del subnav, como en la wallet.
+          Solo aparece cuando hay saldo (>0). Gastable en próximas experiencias. */}
+      {credit.balance > 0 ? (
+        <div
+          style={{
+            display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12,
+            padding: "12px 14px", borderRadius: 14, marginBottom: 16, boxSizing: "border-box",
+            background: "linear-gradient(135deg, rgba(34,197,94,0.14), rgba(90,41,174,0.14))",
+            border: "1px solid rgba(255,255,255,0.08)",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+            <span style={{ width: 30, height: 30, borderRadius: "50%", background: "#22c55e", display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+              </svg>
+            </span>
+            <div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
+              <span style={{ fontSize: 12.5, color: "rgba(255,255,255,0.62)", fontWeight: 600, lineHeight: 1.2 }}>Saldo a favor</span>
+              <span style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", lineHeight: 1.3 }}>Úsalo en tus próximas experiencias</span>
+            </div>
+          </div>
+          <span style={{ fontSize: 18, fontWeight: 700, color: "#22c55e", whiteSpace: "nowrap", flexShrink: 0 }}>
+            {pf.format(credit.balance, { baseCurrency: "MXN" })} {pf.currency}
+          </span>
+        </div>
+      ) : null}
 
       {/* Subnav: sin contenedor (ni fondo ni contorno) + barra blanca deslizante. */}
       <style jsx>{`

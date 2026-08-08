@@ -61,11 +61,14 @@ describe("recordEarning", () => {
     const entry = await readEntry(creatorId, "superComment", "p1_sc1");
     expect(entry?.status).toBe("earned");
     expect(entry?.grossAmount).toBe(100);
-    expect(entry?.netAmount).toBe(netFromGross(100)); // 77
+    expect(entry?.netAmount).toBe(netFromGross(100)); // 75
 
     const s = await readSummary(creatorId);
     expect(s?.lifetimeEarnedGross).toBe(100);
-    expect(s?.lifetimeEarnedNet).toBe(77);
+    // En duro a propósito: si alguien cambia WALLET_NET_RATE, este test debe
+    // fallar y obligar a una decisión, no adaptarse en silencio. 75 = neto tras
+    // la comisión unificada del 25% (antes 23%, de ahí el 77 que quedó viejo).
+    expect(s?.lifetimeEarnedNet).toBe(75);
     expect(s?.pendingGross).toBe(0);
   });
 

@@ -3,6 +3,8 @@ import { logger } from "firebase-functions";
 import * as admin from "firebase-admin";
 import { createMuxClient, muxTokenId, muxTokenSecret } from "./mux";
 import { usersHaveBlockBetweenTx } from "./social/blocks";
+import { stripeSecretKey } from "./payments/stripe/stripeClient";
+import { capturePaymentIntentForRef, cancelPaymentIntentForRef } from "./payments/stripe/holdCapture";
 
 if (admin.apps.length === 0) {
   admin.initializeApp();
@@ -549,6 +551,7 @@ export const respondGreetingRequest = onCall(
   {
     region: "us-central1",
     cors: true,
+    secrets: [stripeSecretKey],
   },
   async (request) => {
     const auth = request.auth;
@@ -566,6 +569,33 @@ export const respondGreetingRequest = onCall(
     );
 
     const reqRef = db.doc(`greetingRequests/${requestId}`);
+    const externalReference = `greetingRequest__${requestId}`;
+
+    // Pre-lectura para validar y conocer el estado del pago (hold vs cobrado). La
+    // captura/cancelación son llamadas a Stripe → van FUERA de la transacción.
+    const preSnap = await reqRef.get();
+    if (!preSnap.exists) throw new HttpsError("not-found", "Greeting request not found.");
+    const pre = preSnap.data() as { creatorId?: string; status?: string; paymentStatus?: string };
+    if (pre.creatorId !== actorId) {
+      throw new HttpsError("permission-denied", "Only the creator can respond to this request.");
+    }
+    if (pre.status !== "pending") {
+      throw new HttpsError("failed-precondition", "Request is not pending.");
+    }
+
+    // Auth-hold: al aceptar se CAPTURA (recién ahí se cobra y entra el ledger); al
+    // rechazar se CANCELA la retención ($0 comisión). Si el pago ya estaba cobrado
+    // (flujo legacy inmediato), no hay hold que tocar.
+    const isHold = pre.paymentStatus === "authorized";
+    let capturedNow = false;
+    if (action === "accept") {
+      if (isHold) {
+        await capturePaymentIntentForRef(externalReference); // lanza si no se pudo capturar
+        capturedNow = true;
+      }
+    } else if (isHold) {
+      await cancelPaymentIntentForRef(externalReference); // best-effort, no bloquea el rechazo
+    }
 
     await db.runTransaction(async (tx) => {
       const reqSnap = await tx.get(reqRef);
@@ -597,6 +627,11 @@ export const respondGreetingRequest = onCall(
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         respondedAt: admin.firestore.FieldValue.serverTimestamp(),
         respondedBy: actorId,
+        // Al capturar el hold el pago pasa a "paid" → dispara el ledger (pending) vía
+        // onGreetingLedger. Sin captura (legacy ya-pagado) no se toca paymentStatus.
+        ...(capturedNow
+          ? { paymentStatus: "paid", paidAt: admin.firestore.FieldValue.serverTimestamp() }
+          : {}),
         ...(newStatus === "accepted"
           ? { acceptedAt: admin.firestore.FieldValue.serverTimestamp() }
           : { rejectedAt: admin.firestore.FieldValue.serverTimestamp() }),
@@ -607,16 +642,18 @@ export const respondGreetingRequest = onCall(
       requestId,
       actorId,
       action,
+      capturedNow,
     });
 
     return { ok: true };
   }
 );
 
-// Días que tiene el creador para responder una solicitud de saludo/consejo antes
-// de que se marque como RECHAZADA automáticamente. Debe coincidir con el frontend
-// (GREETING_RESPONSE_DAYS en OwnerSidebarGreetings.parts).
-export const GREETING_RESPONSE_DAYS = 90;
+// Días que tiene el creador para ACEPTAR una solicitud de saludo/consejo antes de que
+// se cancele automáticamente. Con auth-hold el pago es una RETENCIÓN que Stripe libera
+// a los ~7 días; por eso la ventana es de 5 días (aceptar → capturar dentro del hold).
+// Debe coincidir con el frontend (GREETING_RESPONSE_DAYS en OwnerSidebarGreetings.parts).
+export const GREETING_RESPONSE_DAYS = 5;
 
 export async function autoExpirePendingGreetingRequestsHandler(): Promise<number> {
   const cutoffDate = new Date();
@@ -631,6 +668,14 @@ export async function autoExpirePendingGreetingRequestsHandler(): Promise<number
     .get();
 
   if (snap.empty) return 0;
+
+  // Auth-hold: al no responder a tiempo se CANCELA la retención (libera el hold, $0
+  // comisión, sin refund). Best-effort y fuera del batch (son llamadas a Stripe).
+  await Promise.all(
+    snap.docs
+      .filter((doc) => doc.get("paymentStatus") === "authorized")
+      .map((doc) => cancelPaymentIntentForRef(`greetingRequest__${doc.id}`))
+  );
 
   const now = admin.firestore.Timestamp.now();
   const batch = db.batch();

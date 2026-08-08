@@ -60,7 +60,8 @@
     "tabAll": "All",
     "sidebarFollowedProfiles": "Followed profiles",
     "statistics": "Statistics",
-    "tabMessages": "Messages"
+    "tabMessages": "Messages",
+    "messageRequests": "Requests ({count})"
   },
   "common": {
     "accept": "Accept",
@@ -2235,7 +2236,8 @@
       "new_post": "{count, plural, one {shared a new post} other {shared # new posts}}",
       "new_post_group": "{count, plural, one {posted in} other {posted # times in}} {group}",
       "live_started": "is live",
-      "live_vod_ready": "posted their live replay"
+      "live_vod_ready": "posted their live replay",
+      "direct_message": "sent you {count, plural, one {a message} other {# messages}}"
     },
     "moderation": {
       "muted": "You were muted in {group}",
@@ -2548,6 +2550,36 @@
     "noConversations": "You do not have any conversations yet.",
     "noMessagesYet": "No messages yet",
     "conversationBlocked": "Conversation blocked",
-    "youPrefix": "You: "
+    "youPrefix": "You: ",
+    "messagePlaceholder": "Write a message...",
+    "send": "Send",
+    "sendError": "Could not send the message.",
+    "blockError": "Could not update the block.",
+    "loadingMessages": "Loading messages...",
+    "loadingOlder": "Loading earlier messages...",
+    "emptyThread": "No messages with {name} yet. Write the first one.",
+    "messageDeleted": "Message deleted",
+    "blockedByMeNotice": "You blocked this conversation. Neither of you can write.",
+    "blockedByThemNotice": "This conversation is blocked.",
+    "unblock": "Unblock",
+    "sendMessageAction": "Send message",
+    "requestPendingNotice": "Your request is awaiting a reply. You can keep writing once it is accepted.",
+    "requestReceivedNotice": "{name} wants to send you messages.",
+    "acceptRequest": "Accept",
+    "rejectRequest": "Decline",
+    "requestActionError": "Could not complete the action.",
+    "block": "Block",
+    "report": "Report",
+    "reportSent": "Reported",
+    "reportTitle": "Report conversation",
+    "reportIntro": "Choose a reason. A moderator will review the whole thread.",
+    "reportError": "Could not send the report.",
+    "reportReason_spam": "Spam",
+    "reportReason_hate_speech": "Hate speech",
+    "reportReason_violence": "Violence",
+    "reportReason_illegal_content": "Illegal content",
+    "reportReason_harassment": "Harassment",
+    "reportReason_misinformation": "Misinformation",
+    "reportReason_other": "Other"
   }
 }

@@ -60,7 +60,8 @@
     "tabAll": "Todo",
     "sidebarFollowedProfiles": "Perfiles seguidos",
     "statistics": "Estadísticas",
-    "tabMessages": "Mensajes"
+    "tabMessages": "Mensajes",
+    "messageRequests": "Solicitudes ({count})"
   },
   "common": {
     "accept": "Aceptar",
@@ -2235,7 +2236,8 @@
       "new_post": "{count, plural, one {publicó una novedad} other {publicó # novedades}}",
       "new_post_group": "{count, plural, one {publicó en} other {publicó # veces en}} {group}",
       "live_started": "está en vivo",
-      "live_vod_ready": "subió la repetición de su transmisión en vivo"
+      "live_vod_ready": "subió la repetición de su transmisión en vivo",
+      "direct_message": "te envió {count, plural, one {un mensaje} other {# mensajes}}"
     },
     "moderation": {
       "muted": "Fuiste silenciado en {group}",
@@ -2548,6 +2550,36 @@
     "noConversations": "Aún no tienes conversaciones.",
     "noMessagesYet": "Sin mensajes todavía",
     "conversationBlocked": "Conversación bloqueada",
-    "youPrefix": "Tú: "
+    "youPrefix": "Tú: ",
+    "messagePlaceholder": "Escribe un mensaje...",
+    "send": "Enviar",
+    "sendError": "No se pudo enviar el mensaje.",
+    "blockError": "No se pudo actualizar el bloqueo.",
+    "loadingMessages": "Cargando mensajes...",
+    "loadingOlder": "Cargando mensajes anteriores...",
+    "emptyThread": "Aún no hay mensajes con {name}. Escribe el primero.",
+    "messageDeleted": "Mensaje eliminado",
+    "blockedByMeNotice": "Bloqueaste esta conversación. Ninguno de los dos puede escribir.",
+    "blockedByThemNotice": "Esta conversación está bloqueada.",
+    "unblock": "Desbloquear",
+    "sendMessageAction": "Enviar mensaje",
+    "requestPendingNotice": "Tu solicitud está esperando respuesta. Podrás seguir escribiendo cuando la acepten.",
+    "requestReceivedNotice": "{name} quiere enviarte mensajes.",
+    "acceptRequest": "Aceptar",
+    "rejectRequest": "Rechazar",
+    "requestActionError": "No se pudo completar la acción.",
+    "block": "Bloquear",
+    "report": "Reportar",
+    "reportSent": "Reportado",
+    "reportTitle": "Reportar conversación",
+    "reportIntro": "Elige el motivo. Un moderador revisará el hilo completo.",
+    "reportError": "No se pudo enviar el reporte.",
+    "reportReason_spam": "Spam",
+    "reportReason_hate_speech": "Discurso de odio",
+    "reportReason_violence": "Violencia",
+    "reportReason_illegal_content": "Contenido ilegal",
+    "reportReason_harassment": "Acoso",
+    "reportReason_misinformation": "Desinformación",
+    "reportReason_other": "Otro"
   }
 }

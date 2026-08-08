@@ -2578,6 +2578,9 @@ const res = (await createExclusiveSessionRequest({
                     profileUid={userDoc.uid}
                     profileRestricted={profileRestricted}
                     profileName={userDoc.displayName ?? userDoc.handle ?? null}
+                    profileHandle={userDoc.handle ?? null}
+                    profilePhotoURL={userDoc.photoURL ?? null}
+                    profileMessagePolicy={messagePolicy}
                   />
 
                   {shouldHideProfileSocialContent ? (

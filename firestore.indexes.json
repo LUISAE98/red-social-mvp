@@ -1,6 +1,14 @@
 {
   "indexes": [
     {
+      "collectionGroup": "walletLedger",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        { "fieldPath": "sourceType", "order": "ASCENDING" },
+        { "fieldPath": "sourceId", "order": "ASCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "conversations",
       "queryScope": "COLLECTION",
       "fields": [
@@ -197,6 +205,48 @@
         { "fieldPath": "isShareable", "order": "ASCENDING" },
         { "fieldPath": "groupVisibility", "order": "ASCENDING" },
         { "fieldPath": "requiresPayment", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "posts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "groupId", "order": "ASCENDING" },
+        { "fieldPath": "isDeleted", "order": "ASCENDING" },
+        { "fieldPath": "isShareable", "order": "ASCENDING" },
+        { "fieldPath": "groupVisibility", "order": "ASCENDING" },
+        { "fieldPath": "accessModel", "order": "ASCENDING" },
+        { "fieldPath": "requiresPayment", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "posts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "liveData.broadcastGroupIds", "arrayConfig": "CONTAINS" },
+        { "fieldPath": "contextType", "order": "ASCENDING" },
+        { "fieldPath": "profileRestricted", "order": "ASCENDING" },
+        { "fieldPath": "isDeleted", "order": "ASCENDING" },
+        { "fieldPath": "accessModel", "order": "ASCENDING" },
+        { "fieldPath": "requiresPayment", "order": "ASCENDING" },
+        { "fieldPath": "requiresSubscription", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "posts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "liveData.broadcastGroupIds", "arrayConfig": "CONTAINS" },
+        { "fieldPath": "contextType", "order": "ASCENDING" },
+        { "fieldPath": "profileRestricted", "order": "ASCENDING" },
+        { "fieldPath": "isDeleted", "order": "ASCENDING" },
+        { "fieldPath": "accessModel", "order": "ASCENDING" },
+        { "fieldPath": "requiresPayment", "order": "ASCENDING" },
+        { "fieldPath": "requiresSubscription", "order": "ASCENDING" },
+        { "fieldPath": "liveData.allowLoggedOutViewers", "order": "ASCENDING" },
         { "fieldPath": "createdAt", "order": "DESCENDING" }
       ]
     },

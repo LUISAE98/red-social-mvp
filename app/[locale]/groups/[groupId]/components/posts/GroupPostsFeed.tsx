@@ -1471,8 +1471,13 @@ const shellStyle: CSSProperties = {
 
       {loadingInitial && posts.length === 0 && <PostSkeletonList count={4} />}
 
-      {/* Live broadcasting into this community from another context */}
-      {broadcastLive && (
+      {/* Live retransmitido a esta comunidad desde otro contexto.
+          Solo se pinta si el feed NO lo trae ya: desde que el carril de
+          `broadcastGroupIds` lo lista como un post más, esta tarjeta (que cuelga
+          del anillo `activeLivePostId`) lo duplicaba. Se conserva como respaldo
+          para los casos que el carril no cubre — un live nacido en OTRA
+          comunidad, o el índice todavía construyéndose. */}
+      {broadcastLive && !posts.some((post) => post.id === broadcastLive.id) && (
         <div style={postShellStyle}>
           <GroupPostCard
             post={broadcastLive}
@@ -1497,6 +1502,8 @@ const shellStyle: CSSProperties = {
       )}
 
       {!groupSearchActive && !broadcastLiveOnly && !loadingInitial && posts.length === 0 && deletedPosts.length === 0 && !broadcastLive && (
+        // (posts.length === 0 ya cubre el caso en que el live retransmitido
+        //  venga por el carril del feed en vez de por el anillo)
         <div style={emptyPostsStyle}>
           Todavía no hay publicaciones en esta comunidad.
         </div>

@@ -107,11 +107,15 @@ export function buildShareMetadata(params: {
   const isPublicProfile =
     params.contextType === "profile" && params.profileRestricted !== true;
 
-  // Post premium con accessMode "public": visible fuera del grupo aunque sea privado
+  // Post premium con accessMode "public": visible fuera del grupo aunque sea
+  // privado. NUNCA en una comunidad oculta — ahí no se expone nada hacia fuera
+  // (el composer ya fuerza `members_only`, esto lo garantiza igual si el dato
+  // llegara de otra vía). Misma regla que `resolveIsShareable` en el backend.
   const isPremiumPublic =
     params.premium?.enabled === true &&
     params.premium?.accessMode === "public" &&
-    params.contextType !== "profile";
+    params.contextType !== "profile" &&
+    params.groupVisibility !== "hidden";
 
   const cleanText = params.text.trim();
 

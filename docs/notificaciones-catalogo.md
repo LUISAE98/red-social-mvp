@@ -94,6 +94,12 @@
 4. ✅ KYC pendiente / reintento (`kyc_update` action=pending)
 > Disparo: `kyc.ts` `diditWebhook` → `notifyKycStatus` (solo si cambia el estado). Clic → `/wallet/finanzas`.
 
+### Bloque 9 — Mensajes directos (DM) ✅
+1. ✅ Mensaje directo recibido (`direct_message`) → el otro participante. Agrupa por hilo (`groupKey = dm_{conversationId}`): una ráfaga de mensajes no apila una notificación por mensaje.
+2. ➖ Solicitud de mensaje — **deliberadamente NO notifica**. Un desconocido no debe sonar en el teléfono de nadie; la solicitud se ve al entrar a la bandeja.
+> Disparo: `directMessages.ts` `onDirectMessageCreated`, solo si el hilo está en `active` (nunca en `request` ni `blocked`). El mismo trigger denormaliza `lastMessage`/`unread`. Clic → `/groups?dm={conversationId}`, que abre el hilo en el OwnerSidebar.
+> Solo perfil ↔ perfil: las comunidades no tienen mensajería.
+
 ### Bloque 8 — Wallet / Finanzas ⬜ *(dependen de Mercado Pago / features por construir)*
 1. ⬜ Recarga de saldo exitosa — top-up *(→ comprador)*
 2. ⬜ Retiro solicitado *(→ creador/admin)*

@@ -606,9 +606,21 @@ export async function updatePost(params: {
     updatedAt: serverTimestamp(),
   };
 
-  if (params.premium !== undefined) {
-    updatePayload.premium = params.premium ?? null;
-  }
+  // La configuración de monetización NO se toca al editar, a propósito.
+  //
+  // `premium` es lo único monetizable que las reglas dejan cambiar aquí
+  // (`canEditPost` → text/media/premium/editedAt/updatedAt), pero el precio que
+  // se COBRA vive en `oneTimePrice` y el acceso en `requiresPayment`/
+  // `accessModel`/`isShareable`, campos que ese mismo `hasOnly` prohíbe cambiar.
+  // Escribir `premium` aquí desincronizaba el post: la tarjeta mostraba el
+  // precio nuevo (`premium.price ?? oneTimePrice`) y Stripe cobraba el viejo, y
+  // un cambio de `accessMode` dejaba `isShareable` mintiendo sobre quién puede
+  // verlo. El panel del composer ya enseña esta configuración como de solo
+  // lectura; esto lo garantiza también a nivel de servicio.
+  //
+  // Cambiar precio/alcance de un post ya publicado es otra operación (habría que
+  // actualizar los campos monetarios en el mismo write y abrir sus reglas).
+  void params.premium;
 
   await updateDoc(postRef, updatePayload);
 }

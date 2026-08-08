@@ -603,6 +603,19 @@ match /walletSummary/{docId} {
   allow create, update, delete: if false;
 }
 
+// SALDO A FAVOR del comprador (crédito por devoluciones; gastable en la app, NO
+// retirable). El dueño lo lee; solo el backend (Admin SDK) lo emite/gasta. El doc
+// resumen es `users/{uid}/buyerCredit/current`; los movimientos van en
+// `buyerCreditMovements`. Nunca se escribe desde el cliente.
+match /buyerCredit/{docId} {
+  allow get, list: if signedIn() && request.auth.uid == uid;
+  allow create, update, delete: if false;
+}
+match /buyerCreditMovements/{movementId} {
+  allow get, list: if signedIn() && request.auth.uid == uid;
+  allow create, update, delete: if false;
+}
+
 // Compras del COMPRADOR (espejo del ledger): el dueño lista/lee las suyas; solo
 // el backend (trigger mirrorLedgerToBuyerPurchase) escribe. Ver buyerPurchases.ts.
 match /purchases/{purchaseId} {
@@ -2662,11 +2675,31 @@ function canModeratePostCommentData(data) {
           || notAnonymous();
       }
 
+      // El alcance "solo miembros" de un live —y de su VOD, que lo HEREDA— manda
+      // por encima de la visibilidad de la comunidad. Sin esto, en una comunidad
+      // PÚBLICA cualquier logueado podía abrir la grabación de un live que el
+      // creador marcó solo para miembros, porque `canReadGroupContent` da true a
+      // todo el mundo en una comunidad pública.
+      // (En un `list`, lo que la query no fija con `==` se comporta como ausente:
+      // `liveData` no fijado → primera cláusula true → no cuesta nada.)
+      function liveScopeAllowsViewer() {
+        return !("liveData" in resource.data)
+          || !(resource.data.liveData is map)
+          || resource.data.liveData.get('visibilityMode', 'everyone') != "members_only"
+          || (request.auth != null && resource.data.authorId == request.auth.uid)
+          || !(resource.data.groupId is string)
+          || isMember(resource.data.groupId)
+          || isOwner(resource.data.groupId)
+          || isModerator(resource.data.groupId)
+          || isPlatformMod();
+      }
+
       allow get: if (isPlatformMod()
   || canReadPost()
   || canReadPostFromOwnHomeFeed()
   || canReadPostFromOwnSavedPosts())
-  && guestAllowedForLive();
+  && guestAllowedForLive()
+  && liveScopeAllowsViewer();
 
 // ORDEN IMPORTANTE. En una consulta (`list`), `resource.data` solo contiene los
 // campos que la query fija con `==`; tocar cualquier otro es un ERROR de
@@ -2688,7 +2721,8 @@ allow list: if (canListOwnAuthoredPost()
   || canListReadableGroupSearchablePost()
   || canReadPostFromOwnHomeFeed()
   || canReadPostFromOwnSavedPosts())
-  && guestAllowedForLive();
+  && guestAllowedForLive()
+  && liveScopeAllowsViewer();
 
       allow create: if validCreatePost();
 
@@ -3324,7 +3358,7 @@ function canUpdateReplyCount(delta) {
         && request.resource.data.targetType in [
              'post', 'comment', 'comment_reply', 'live',
              'live_chat_message', 'greeting', 'user', 'community',
-             'meet_greet', 'exclusive_session'
+             'meet_greet', 'exclusive_session', 'conversation'
            ]
         && request.resource.data.reason in [
              'spam', 'hate_speech', 'violence', 'illegal_content',
@@ -3442,15 +3476,27 @@ function canUpdateReplyCount(delta) {
           && request.resource.data.lastReadAt is map
           && request.resource.data.createdAt == request.time
           && request.resource.data.updatedAt == request.time
+          // Un hilo NUNCA nace vacío: se crea en el mismo lote que su primer
+          // mensaje. Es lo que permite limitar una solicitud a un solo mensaje
+          // (ver `allowedInPendingRequest`), porque las rules no saben contar
+          // documentos pero sí comprobar que existe justo ese.
+          && request.resource.data.firstMessageId is string
+          && request.resource.data.firstMessageId.size() > 0
+          && existsAfter(/databases/$(database)/documents/conversations/$(convId)/messages/$(request.resource.data.firstMessageId))
           && request.resource.data.keys().hasOnly([
                'participants', 'participantsKey', 'status', 'createdBy',
                'lastMessage', 'lastMessageAt', 'blockedBy', 'unread',
-               'lastReadAt', 'createdAt', 'updatedAt'
+               'lastReadAt', 'firstMessageId', 'createdAt', 'updatedAt'
              ]);
       }
 
-      // Bloquear: cualquiera de los dos. Desbloquear: SOLO quien bloqueó — si no,
-      // el bloqueado se desbloquearía a sí mismo.
+      // Bloquear: cualquiera de los dos (incluido retirar una solicitud propia).
+      // Desbloquear: SOLO quien bloqueó — si no, el bloqueado se desbloquearía
+      // a sí mismo.
+      //
+      // ACEPTAR una solicitud solo puede hacerlo quien la RECIBIÓ. Si el
+      // remitente pudiera auto-aceptarse, pasaría el hilo a "active" y el límite
+      // de un mensaje por solicitud no valdría absolutamente nada.
       function validStatusChange() {
         return resource.data.status == "blocked"
           ? (
@@ -3464,6 +3510,10 @@ function canUpdateReplyCount(delta) {
                 : (
                     request.resource.data.status == "active"
                     && request.resource.data.blockedBy == null
+                    && (
+                      resource.data.status != "request"
+                      || resource.data.createdBy != request.auth.uid
+                    )
                   )
             );
       }
@@ -3500,11 +3550,35 @@ function canUpdateReplyCount(delta) {
           return signedIn() && request.auth.uid in conv().participants;
         }
 
+        // En el lote que crea el hilo junto a su primer mensaje, la conversación
+        // TODAVÍA no existe al evaluar el mensaje: get() daría null. getAfter()
+        // ve el estado posterior al request, y para un hilo que ya existía
+        // devuelve exactamente lo mismo que get().
+        function convAfter() {
+          return getAfter(/databases/$(database)/documents/conversations/$(convId)).data;
+        }
+
+        function isConvParticipantAfter() {
+          return signedIn() && request.auth.uid in convAfter().participants;
+        }
+
+        // Mientras una solicitud no se acepta, quien la abrió solo puede dejar
+        // el ÚNICO mensaje declarado en `firstMessageId`. Sin esto, un
+        // desconocido podría vaciar su bandeja encima de alguien que ni
+        // siquiera le ha contestado todavía. El destinatario sí escribe libre:
+        // si responde, es que la acepta.
+        function allowedInPendingRequest() {
+          return convAfter().status != "request"
+            || convAfter().createdBy != request.auth.uid
+            || messageId == convAfter().firstMessageId;
+        }
+
         allow get, list: if isConvParticipant();
 
-        allow create: if isConvParticipant()
+        allow create: if isConvParticipantAfter()
           && notAnonymous()
-          && conv().status != "blocked"
+          && convAfter().status != "blocked"
+          && allowedInPendingRequest()
           && request.resource.data.senderId == request.auth.uid
           && request.resource.data.text is string
           && request.resource.data.text.size() > 0

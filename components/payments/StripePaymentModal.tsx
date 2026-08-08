@@ -410,16 +410,16 @@ export default function StripePaymentModal({
             payment_method_options: { card: { cvc: cvcEl } },
           });
           if (result.error) { setError(result.error.message || "No se pudo procesar el pago."); setSubmitting(false); return; }
-          if (result.paymentIntent?.status === "succeeded" || result.paymentIntent?.status === "processing") { markPaid(); return; }
+          if (result.paymentIntent?.status === "succeeded" || result.paymentIntent?.status === "processing" || result.paymentIntent?.status === "requires_capture") { markPaid(); return; }
           throw new Error("rejected");
         }
         // Cuenta real: cobro "un clic" off-session (sin CVV); el callable confirma server-side.
-        if (res.status === "succeeded" || res.status === "processing") { markPaid(); return; }
+        if (res.status === "succeeded" || res.status === "processing" || res.status === "requires_capture") { markPaid(); return; }
         // Requiere autenticación adicional (SCA): completa el 3DS con el client_secret.
         if (res.clientSecret) {
           const result = await stripe.confirmCardPayment(res.clientSecret);
           if (result.error) { setError(result.error.message || "No se pudo procesar el pago."); setSubmitting(false); return; }
-          if (result.paymentIntent?.status === "succeeded" || result.paymentIntent?.status === "processing") { markPaid(); return; }
+          if (result.paymentIntent?.status === "succeeded" || result.paymentIntent?.status === "processing" || result.paymentIntent?.status === "requires_capture") { markPaid(); return; }
         }
         throw new Error("rejected");
       }
@@ -431,7 +431,7 @@ export default function StripePaymentModal({
       const res = await createIntentRef.current({ amount: payAmount, saveCard, taxCountry: pf.buyerCountry ?? null, nickname: collectNickname ? (nickname.trim() || null) : null });
       // Sin factura que confirmar (p. ej. REACTIVAR una suscripción con cancelación
       // pendiente: no se cobra de nuevo). El backend ya dejó todo listo → éxito directo.
-      if (res.status === "succeeded" || res.status === "processing") { markPaid(); return; }
+      if (res.status === "succeeded" || res.status === "processing" || res.status === "requires_capture") { markPaid(); return; }
       const clientSecret = res.clientSecret;
       if (!clientSecret) throw new Error("no_secret");
       const result = await stripe.confirmCardPayment(clientSecret, {
@@ -442,7 +442,7 @@ export default function StripePaymentModal({
         setSubmitting(false);
         return;
       }
-      if (result.paymentIntent?.status === "succeeded" || result.paymentIntent?.status === "processing") {
+      if (result.paymentIntent?.status === "succeeded" || result.paymentIntent?.status === "processing" || result.paymentIntent?.status === "requires_capture") {
         markPaid();
         return;
       }

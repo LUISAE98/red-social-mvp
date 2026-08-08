@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { AccessToken, EgressClient, EncodingOptionsPreset, RoomServiceClient, StreamOutput, StreamProtocol } from "livekit-server-sdk";
 import { FieldValue } from "firebase-admin/firestore";
 import { getAdminAuth, getAdminFirestore } from "@/lib/firebase-admin";
+import { filterOwnedBroadcastGroupIds } from "@/lib/live/broadcastTargets";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -122,9 +123,10 @@ export async function POST(req: NextRequest) {
   // Set activeLivePostId immediately so the live ring shows without waiting for the Mux webhook
   const postData = postSnap.data();
   const liveGroupId = typeof postData?.groupId === "string" && postData.groupId ? postData.groupId : null;
-  const broadcastGroupIds: string[] = Array.isArray(postData?.liveData?.broadcastGroupIds)
-    ? (postData.liveData.broadcastGroupIds as string[]).filter((id) => typeof id === "string" && id && id !== liveGroupId)
-    : [];
+  // Solo comunidades PROPIAS del creador (ver filterOwnedBroadcastGroupIds).
+  const broadcastGroupIds = (
+    await filterOwnedBroadcastGroupIds(db, uid, postData?.liveData?.broadcastGroupIds)
+  ).filter((id) => id !== liveGroupId);
   const setLiveUpdates: Promise<unknown>[] = [
     db.collection("users").doc(uid).update({ activeLivePostId: postId }),
   ];
@@ -191,11 +193,13 @@ export async function DELETE(req: NextRequest) {
     if (postSnap.exists) {
       const g = postSnap.data()?.groupId;
       if (typeof g === "string" && g) stopGroupId = g;
-      stopBroadcastGroupIds = Array.isArray(postSnap.data()?.liveData?.broadcastGroupIds)
-        ? (postSnap.data()!.liveData.broadcastGroupIds as string[]).filter(
-            (id) => typeof id === "string" && id && id !== stopGroupId
-          )
-        : [];
+      // Solo comunidades PROPIAS y que sigan apuntando a ESTE live (Admin SDK se
+      // salta las reglas y la lista la escribe el cliente).
+      stopBroadcastGroupIds = (
+        await filterOwnedBroadcastGroupIds(db, uid, postSnap.data()?.liveData?.broadcastGroupIds, {
+          mustPointTo: postId,
+        })
+      ).filter((id) => id !== stopGroupId);
     }
   }
 

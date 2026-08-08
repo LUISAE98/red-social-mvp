@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { FieldValue } from "firebase-admin/firestore";
 import { getAdminAuth, getAdminFirestore } from "@/lib/firebase-admin";
+import { filterOwnedBroadcastGroupIds } from "@/lib/live/broadcastTargets";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -33,9 +34,11 @@ export async function POST(req: NextRequest) {
 
   const postData = postSnap.data();
   const liveGroupId = typeof postData?.groupId === "string" && postData.groupId ? postData.groupId : null;
-  const broadcastGroupIds: string[] = Array.isArray(postData?.liveData?.broadcastGroupIds)
-    ? (postData.liveData.broadcastGroupIds as string[]).filter((id) => typeof id === "string" && id && id !== liveGroupId)
-    : [];
+  // Solo comunidades PROPIAS del creador: la lista viene del cliente y aquí se
+  // escribe con Admin SDK (sin reglas). Ver filterOwnedBroadcastGroupIds.
+  const broadcastGroupIds = (
+    await filterOwnedBroadcastGroupIds(db, uid, postData?.liveData?.broadcastGroupIds)
+  ).filter((id) => id !== liveGroupId);
   const setLive = body?.setLive === true;
 
   const updates: Promise<unknown>[] = [
@@ -105,9 +108,13 @@ export async function DELETE(req: NextRequest) {
 
   const postData = postSnap.data();
   const stopGroupId = typeof postData?.groupId === "string" && postData.groupId ? postData.groupId : null;
-  const stopBroadcastGroupIds: string[] = Array.isArray(postData?.liveData?.broadcastGroupIds)
-    ? (postData.liveData.broadcastGroupIds as string[]).filter((id) => typeof id === "string" && id && id !== stopGroupId)
-    : [];
+  // Propias y, además, que sigan apuntando a ESTE live: así apagar una
+  // transmisión nunca borra el anillo de otra.
+  const stopBroadcastGroupIds = (
+    await filterOwnedBroadcastGroupIds(db, uid, postData?.liveData?.broadcastGroupIds, {
+      mustPointTo: postId,
+    })
+  ).filter((id) => id !== stopGroupId);
   const now = FieldValue.serverTimestamp();
 
   // CF (broadcastMode: "direct") → siempre desfijar al terminar, sin VOD no tiene sentido mantener el pin

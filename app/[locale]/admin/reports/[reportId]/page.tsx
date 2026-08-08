@@ -1,7 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { doc, getDoc, Timestamp } from "firebase/firestore";
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  limit,
+  orderBy,
+  query,
+  Timestamp,
+} from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { resolveReport } from "@/lib/moderation/reportService";
 import type { Report, ModeratorAction } from "@/lib/moderation/types";
@@ -24,6 +33,7 @@ const TARGET_LABELS: Record<string, string> = {
   community: "Comunidad",
   meet_greet: "Tiempo contigo",
   exclusive_session: "Sesión exclusiva",
+  conversation: "Mensajes directos",
 };
 
 const ACTION_COLOR: Record<ModeratorAction, { bg: string; text: string; border: string }> = {
@@ -59,6 +69,27 @@ async function fetchContentPreview(report: Report): Promise<string | null> {
     }
     if (report.targetType === "live_chat_message") {
       return "(Mensaje de chat — acceso directo no disponible)";
+    }
+    // Un DM se juzga por el intercambio, no por una línea suelta: se traen los
+    // últimos mensajes del hilo. Los moderadores pueden leerlos por la regla
+    // global de `isPlatformMod()`.
+    if (report.targetType === "conversation") {
+      const snap = await getDocs(
+        query(
+          collection(db, "conversations", report.targetId, "messages"),
+          orderBy("createdAt", "desc"),
+          limit(20),
+        ),
+      );
+      if (snap.empty) return "(Conversación sin mensajes)";
+      return snap.docs
+        .reverse()
+        .map((d) => {
+          const m = d.data();
+          const who = m?.senderId === report.targetOwnerId ? "Reportado" : "Reportante";
+          return `${who}: ${m?.isDeleted ? "(mensaje eliminado)" : (m?.text ?? "")}`;
+        })
+        .join("\n");
     }
     if (report.targetType === "greeting") {
       const snap = await getDoc(doc(db, "greetingRequests", report.targetId));

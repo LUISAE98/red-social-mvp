@@ -10,8 +10,12 @@ export default defineConfig({
   test: {
     include: ["test-emulator/**/*.test.ts"],
     environment: "node",
-    testTimeout: 20000,
-    hookTimeout: 20000,
+    // 20s se quedaba corto al pasar de 3 a 4 archivos: arrancan en paralelo y
+    // el primer test de cada uno espera a que su propio firebase-admin termine
+    // de inicializar contra un emulador compartido (los `import` tardan ~50s
+    // sumados). No es lentitud del test, es contención de arranque.
+    testTimeout: 45000,
+    hookTimeout: 45000,
     // Cada archivo en su propio proceso aislado (pool forks, isolate). Así cada
     // uno inicializa su propia instancia de firebase-admin / firebase-functions-test
     // sin interferir con los demás. Los tests usan ids únicos, así que compartir el

@@ -12,9 +12,10 @@ import { logger } from "firebase-functions";
 import { defineSecret } from "firebase-functions/params";
 import * as crypto from "crypto";
 import * as admin from "firebase-admin";
-import { applyApprovedPaymentToSource, upsertPaymentIntentStatus } from "../reconcile";
+import { applyApprovedPaymentToSource, applyAuthorizedHoldToSource, upsertPaymentIntentStatus } from "../reconcile";
 import { stripeFetch, stripeSecretKey } from "./stripeClient";
 import { reconcileStripeSubscriptionEvent } from "./groupSubscriptionStripeSync";
+import { reconcileStripeRefundEvent } from "./stripeRefundSync";
 
 if (admin.apps.length === 0) {
   admin.initializeApp();
@@ -150,6 +151,20 @@ export const stripeWebhook = onRequest(
         } catch (e) {
           logger.warn("stripeWebhook no pudo guardar la tarjeta", { err: e instanceof Error ? e.message : String(e) });
         }
+      } else if (event.type === "payment_intent.amount_capturable_updated") {
+        // HOLD colocado (auth-hold de una EXPERIENCIA con `capture_method: manual`). El
+        // comprador autorizó pero AÚN NO se cobra. Materializamos el doc de dominio en
+        // `paymentStatus: "authorized"` para que el creador vea la solicitud, SIN ledger.
+        // El ledger nace al CAPTURAR (cuando el creador acepta).
+        const pi = event.data.object as { id?: string; metadata?: Record<string, unknown> };
+        const externalReference = String(pi.metadata?.externalReference ?? "").trim();
+        if (externalReference) {
+          await applyAuthorizedHoldToSource(externalReference, { mpOrderId: null, mpPaymentId: pi.id ?? null });
+          await upsertPaymentIntentStatus(externalReference, { status: "authorized" });
+          logger.info("stripeWebhook hold authorized", { externalReference, id: pi.id });
+        } else {
+          logger.info("stripeWebhook hold sin externalReference", { id: pi.id });
+        }
       } else if (
         event.type === "invoice.paid" ||
         event.type === "invoice.payment_succeeded" ||
@@ -159,9 +174,15 @@ export const stripeWebhook = onRequest(
       ) {
         // Suscripción MENSUAL a comunidad (Stripe Billing): renovación/baja/gracia.
         await reconcileStripeSubscriptionEvent(event.type, event.data.object);
+      } else if (
+        event.type === "charge.refunded" ||
+        event.type === "charge.dispute.closed"
+      ) {
+        // Reembolso o contracargo perdido → revierte el ledger (fuente de verdad
+        // universal para los 11 servicios). Idempotente.
+        await reconcileStripeRefundEvent(event.type, event.data.object);
       } else {
-        // Otros eventos (payment_intent.payment_failed, charge.refunded, etc.): por
-        // ahora solo se registran; se manejan al cablear servicios/reembolsos.
+        // Otros eventos (payment_intent.payment_failed, etc.): por ahora solo se registran.
         logger.info("stripeWebhook event", { type: event.type, id: event.id });
       }
 

@@ -9,10 +9,10 @@ import {
   orderBy,
   query,
   serverTimestamp,
-  setDoc,
   startAfter,
   updateDoc,
   where,
+  writeBatch,
   type DocumentData,
   type QueryDocumentSnapshot,
   type Unsubscribe,
@@ -20,6 +20,8 @@ import {
 
 import { db } from "@/lib/firebase";
 import { captureError } from "@/lib/observability/captureError";
+import { submitReport } from "@/lib/moderation/reportService";
+import type { ReportReason } from "@/lib/moderation/types";
 import {
   CONVERSATION_PAGE_SIZE,
   INBOX_PAGE_SIZE,
@@ -71,16 +73,33 @@ async function isFollowedBy(selfUid: string, otherUid: string): Promise<boolean>
   return snap.exists();
 }
 
+/** ID determinista de la conversación con otra persona. No escribe nada. */
+export function getConversationId(selfUid: string, otherUid: string): string {
+  return buildParticipantsKey(selfUid, otherUid);
+}
+
+/** ¿Existe ya el hilo? Sirve para decidir entre crearlo o solo escribir en él. */
+export async function conversationExists(conversationId: string): Promise<boolean> {
+  const snap = await getDoc(conversationRef(conversationId));
+  return snap.exists();
+}
+
 /**
- * Abre (o recupera) la conversación con otra persona.
+ * Crea la conversación JUNTO A su primer mensaje, en un solo lote atómico.
  *
- * Devuelve el ID determinista. Si ya existía, no escribe nada. El estado inicial
- * lo decide el follow, no quien llama: las rules rechazan cualquier otro valor,
- * así que no hay forma de colarse en la bandeja principal de un desconocido.
+ * Un hilo nunca nace vacío, y por eso las rules pueden limitar una solicitud a
+ * un único mensaje: comprueban que el mensaje escrito es exactamente el
+ * declarado en `firstMessageId`. Si el lote falla, no queda ni conversación
+ * huérfana ni mensaje suelto.
+ *
+ * El estado inicial lo decide el follow, no quien llama: las rules rechazan
+ * cualquier otro valor, así que no hay forma de colarse en la bandeja principal
+ * de un desconocido.
  */
-export async function openConversation(
+export async function createConversationWithFirstMessage(
   selfUid: string,
-  otherUid: string
+  otherUid: string,
+  text: string
 ): Promise<string> {
   if (!selfUid || !otherUid) {
     throw new Error("Falta el identificador de alguno de los participantes.");
@@ -89,18 +108,27 @@ export async function openConversation(
     throw new Error("No puedes abrir una conversación contigo mismo.");
   }
 
+  const body = text.trim();
+  if (!body) {
+    throw new Error("El mensaje está vacío.");
+  }
+  if (body.length > MESSAGE_MAX_LENGTH) {
+    throw new Error(`El mensaje no puede superar ${MESSAGE_MAX_LENGTH} caracteres.`);
+  }
+
   const conversationId = buildParticipantsKey(selfUid, otherUid);
-  const ref = conversationRef(conversationId);
-
-  const existing = await getDoc(ref);
-  if (existing.exists()) return conversationId;
-
   const [first, second] = [selfUid, otherUid].sort();
   const status: ConversationStatus = (await isFollowedBy(selfUid, otherUid))
     ? "active"
     : "request";
 
-  await setDoc(ref, {
+  // ID generado en cliente para poder declararlo en la conversación ANTES de
+  // que exista el mensaje; es lo que ata ambos documentos en el mismo lote.
+  const messageRef = doc(messagesCol(conversationId));
+
+  const batch = writeBatch(db);
+
+  batch.set(conversationRef(conversationId), {
     participants: [first, second],
     participantsKey: conversationId,
     status,
@@ -110,9 +138,19 @@ export async function openConversation(
     blockedBy: null,
     unread: {},
     lastReadAt: {},
+    firstMessageId: messageRef.id,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
+
+  batch.set(messageRef, {
+    senderId: selfUid,
+    text: body,
+    createdAt: serverTimestamp(),
+    isDeleted: false,
+  });
+
+  await batch.commit();
 
   return conversationId;
 }
@@ -198,6 +236,39 @@ export async function acceptConversationRequest(
   await updateDoc(conversationRef(conversationId), {
     status: "active",
     updatedAt: serverTimestamp(),
+  });
+}
+
+/**
+ * Rechaza una solicitud. Es un bloqueo, no un borrado: el hilo se conserva para
+ * que quede rastro de lo que se escribió si más tarde hay un reporte, y quien
+ * lo mandó no recibe ninguna señal de haber sido rechazado.
+ */
+export async function rejectConversationRequest(
+  conversationId: string,
+  selfUid: string
+): Promise<void> {
+  await blockConversation(conversationId, selfUid);
+}
+
+/**
+ * Reporta el hilo completo a moderación.
+ *
+ * Va por la callable `submitReport` (Admin SDK), igual que el resto de reportes
+ * del producto: el cliente nunca escribe en `reports` directamente.
+ */
+export async function reportConversation(params: {
+  conversationId: string;
+  reportedUid: string;
+  reason: ReportReason;
+  description?: string;
+}): Promise<void> {
+  await submitReport({
+    targetType: "conversation",
+    targetId: params.conversationId,
+    targetOwnerId: params.reportedUid,
+    reason: params.reason,
+    ...(params.description ? { description: params.description } : {}),
   });
 }
 

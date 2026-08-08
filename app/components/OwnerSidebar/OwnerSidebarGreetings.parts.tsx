@@ -191,11 +191,12 @@ export function fmtScheduledSplit(ts: unknown): { dayTime: string; dateStr: stri
   };
 }
 
-// Días que tiene el creador para responder una solicitud antes de que expire.
-// Deben coincidir con los handlers de auto-expirar del backend (greetingRequests.ts
-// y meet & greet / sesión exclusiva).
-export const GREETING_RESPONSE_DAYS = 90;
-export const SESSION_RESPONSE_DAYS = 90;
+// Días que tiene el creador para ACEPTAR una solicitud antes de que se cancele.
+// Con auth-hold el pago es una retención que Stripe libera a los ~7 días, así que la
+// ventana es de 5 días. Deben coincidir con los handlers de auto-expirar del backend
+// (greetingRequests.ts y meet & greet / sesión exclusiva).
+export const GREETING_RESPONSE_DAYS = 5;
+export const SESSION_RESPONSE_DAYS = 5;
 
 // Días restantes (>= 0) para responder, contados desde createdAt sobre una ventana
 // de `days` días.

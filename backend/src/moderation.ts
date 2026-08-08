@@ -23,6 +23,7 @@ const VALID_TARGET_TYPES = [
   "community",
   "meet_greet",
   "exclusive_session",
+  "conversation",
 ] as const;
 
 const VALID_REASONS = [

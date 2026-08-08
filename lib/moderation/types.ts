@@ -9,6 +9,9 @@ export const REPORT_TARGET_TYPES = [
   "community",
   "meet_greet",
   "exclusive_session",
+  // Mensajes directos: se reporta el hilo entero, no un mensaje suelto. El
+  // contexto de una conversación privada es lo que la hace juzgable.
+  "conversation",
 ] as const;
 
 export type ReportTargetType = (typeof REPORT_TARGET_TYPES)[number];

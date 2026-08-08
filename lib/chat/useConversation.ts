@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
   fetchOlderMessages,
@@ -62,8 +62,10 @@ export function useConversation(conversationId: string | null, selfUid: string |
     return () => unsub();
   }, [conversationId]);
 
-  // Marca leído UNA vez por conversación abierta: un solo write, no uno por
-  // mensaje ni uno por render.
+  // Historial paginado + última página en vivo, en orden de lectura.
+  const messages = useMemo(() => [...older, ...live], [older, live]);
+
+  // Marca leído al abrir el hilo: un solo write, no uno por render.
   useEffect(() => {
     if (!conversationId || !selfUid || loading) return;
     if (markedRef.current === conversationId) return;
@@ -71,6 +73,27 @@ export function useConversation(conversationId: string | null, selfUid: string |
     markedRef.current = conversationId;
     void markConversationRead(conversationId, selfUid);
   }, [conversationId, selfUid, loading]);
+
+  // Con el hilo YA abierto, los mensajes que llegan también cuentan como leídos
+  // (si no, la Cloud Function sigue subiendo el contador de algo que la persona
+  // está mirando). Va con retardo a propósito: una ráfaga de mensajes se
+  // colapsa en UN write en vez de uno por mensaje, que es justo el costo que
+  // este diseño evita.
+  const lastIncomingIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!conversationId || !selfUid) return;
+
+    const last = messages[messages.length - 1];
+    if (!last || last.senderId === selfUid) return;
+    if (lastIncomingIdRef.current === last.id) return;
+
+    lastIncomingIdRef.current = last.id;
+    const timer = setTimeout(() => {
+      void markConversationRead(conversationId, selfUid);
+    }, 2500);
+
+    return () => clearTimeout(timer);
+  }, [messages, conversationId, selfUid]);
 
   const loadOlder = useCallback(async () => {
     if (!conversationId || loadingOlder || !hasMore) return;
@@ -99,7 +122,7 @@ export function useConversation(conversationId: string | null, selfUid: string |
   );
 
   return {
-    messages: [...older, ...live],
+    messages,
     loading,
     loadingOlder,
     hasMore,

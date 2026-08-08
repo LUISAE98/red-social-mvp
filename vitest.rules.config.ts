@@ -11,5 +11,10 @@ export default defineConfig({
     hookTimeout: 20000,
     pool: "forks",
     isolate: true,
+    // Un solo emulador atiende a todas las suites, y cada una carga su propio
+    // projectId. Con 4 en paralelo se satura y muere a media corrida (ECONNRESET
+    // al cargar rules, luego ECONNREFUSED). Serializar los archivos cuesta unos
+    // segundos y hace la suite determinista.
+    fileParallelism: false,
   },
 });

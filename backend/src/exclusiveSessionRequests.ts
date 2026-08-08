@@ -3,6 +3,8 @@ import { logger } from "firebase-functions";
 import * as admin from "firebase-admin";
 import { notifySessionEvent } from "./notifications";
 import { usersHaveBlockBetween } from "./social/blocks";
+import { stripeSecretKey } from "./payments/stripe/stripeClient";
+import { capturePaymentIntentForRef, cancelPaymentIntentForRef } from "./payments/stripe/holdCapture";
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -794,6 +796,7 @@ export const acceptExclusiveSessionRequest = onCall(
   {
     region: REGION,
     cors: true,
+    secrets: [stripeSecretKey],
   },
   async (request) => {
     const uid = requireAuth(request.auth?.uid);
@@ -807,10 +810,19 @@ export const acceptExclusiveSessionRequest = onCall(
       "aceptar la solicitud"
     );
 
+    // Auth-hold: aceptar = CAPTURAR la retención (recién aquí se cobra y entra el ledger
+    // pending vía onExclusiveSessionLedger). Si la captura falla, NO se acepta.
+    const isHold = (data as { paymentStatus?: string }).paymentStatus === "authorized";
+    if (isHold) {
+      await capturePaymentIntentForRef(`exclusiveSessionRequest__${requestId}`);
+    }
+
     await ref.update({
       status: "accepted_pending_schedule",
       acceptedAt: nowTs(),
       updatedAt: nowTs(),
+      // Captura del hold → pago cobrado: dispara el ledger (pending).
+      ...(isHold ? { paymentStatus: "paid", paidAt: nowTs() } : {}),
     });
 
     logger.info("exclusive_session_request_accepted", {
@@ -831,6 +843,7 @@ export const rejectExclusiveSessionRequest = onCall(
   {
     region: REGION,
     cors: true,
+    secrets: [stripeSecretKey],
   },
   async (request) => {
     const uid = requireAuth(request.auth?.uid);
@@ -848,6 +861,14 @@ export const rejectExclusiveSessionRequest = onCall(
       ["pending_creator_response", "accepted_pending_schedule", "reschedule_requested", "scheduled", "ready_to_prepare", "in_preparation"],
       "rechazar la solicitud"
     );
+
+    // Auth-hold aún sin capturar (rechazo antes de aceptar): CANCELAR la retención
+    // ($0 comisión). Si ya se había capturado (rechazo tras aceptar), el hold no existe;
+    // el ledger se revierte por el cambio de status a "rejected" (onExclusiveSessionLedger),
+    // y la devolución del dinero al comprador es vía refund → crédito (B5).
+    if ((data as { paymentStatus?: string }).paymentStatus === "authorized") {
+      await cancelPaymentIntentForRef(`exclusiveSessionRequest__${requestId}`);
+    }
 
     await ref.update({
       status: "rejected",
@@ -1303,10 +1324,11 @@ export async function expireExclusiveSessionNoShowsHandler() {
   return expiredCount;
 }
 
-// Días que tiene el creador para responder una solicitud de sesión exclusiva antes
-// de que expire. Debe coincidir con el frontend (SESSION_RESPONSE_DAYS en
-// OwnerSidebarGreetings.parts) y con el handler de meet & greet.
-export const SESSION_RESPONSE_DAYS = 90;
+// Días que tiene el creador para ACEPTAR una solicitud de sesión exclusiva antes de que
+// se cancele. Con auth-hold el pago es una RETENCIÓN que Stripe libera a los ~7 días; por
+// eso la ventana es de 5 días (aceptar → capturar dentro del hold). Debe coincidir con el
+// frontend (SESSION_RESPONSE_DAYS en OwnerSidebarGreetings.parts) y con meet & greet.
+export const SESSION_RESPONSE_DAYS = 5;
 
 export async function autoExpirePendingExclusiveSessionRequestsHandler(): Promise<number> {
   const cutoffDate = new Date();
@@ -1321,6 +1343,14 @@ export async function autoExpirePendingExclusiveSessionRequestsHandler(): Promis
     .get();
 
   if (snap.empty) return 0;
+
+  // Auth-hold: sin respuesta a tiempo → CANCELAR la retención (libera el hold, $0
+  // comisión). Best-effort y fuera del batch (son llamadas a Stripe).
+  await Promise.all(
+    snap.docs
+      .filter((doc) => doc.get("paymentStatus") === "authorized")
+      .map((doc) => cancelPaymentIntentForRef(`exclusiveSessionRequest__${doc.id}`))
+  );
 
   const now = admin.firestore.Timestamp.now();
   const batch = db.batch();

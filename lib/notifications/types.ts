@@ -29,7 +29,8 @@ export type NotificationType =
   | "kyc_update"
   | "invite_expired"
   | "moderation_warning"
-  | "donation";
+  | "donation"
+  | "direct_message";
 
 export interface NotificationActor {
   id: string;
@@ -56,6 +57,8 @@ export interface NotificationTarget {
   action?: string | null;
   /** donation: id de la donación individual (detalle por separado, futuro). */
   donationId?: string | null;
+  /** direct_message: hilo al que lleva la notificación. */
+  conversationId?: string | null;
 }
 
 /** Notificación ya normalizada para la UI. */
@@ -119,6 +122,7 @@ export const KNOWN_NOTIFICATION_TYPES: ReadonlySet<NotificationType> = new Set([
   "kyc_update",
   "invite_expired",
   "donation",
+  "direct_message",
 ]);
 
 /**
@@ -139,6 +143,10 @@ export function notificationHref(n: AppNotification, selfHandle?: string | null)
     case "session_event":
       // Sesiones 1-a-1 → el panel de sesiones (ya existe).
       return "/sessions";
+    case "direct_message":
+      // `/groups` monta el OwnerSidebar completo; el query `dm` abre el hilo
+      // (ver notificationQuery y el deep-link del OwnerSidebar).
+      return "/groups";
     case "donation":
       // Donaciones → finanzas del wallet (donde vive el ingreso). El detalle
       // "ver cada donación por separado" se definirá después.
@@ -183,6 +191,9 @@ export function notificationQuery(n: AppNotification): Record<string, string> | 
   }
   if (n.type === "follow" && n.actorCount > 1) {
     return { followers: "1" };
+  }
+  if (n.type === "direct_message" && n.target.conversationId) {
+    return { dm: n.target.conversationId };
   }
   // Nuevo miembro / suscriptor → abre la pestaña Integrantes (la lista de miembros).
   if (

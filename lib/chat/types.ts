@@ -78,6 +78,15 @@ export type ConversationDoc = {
    * desbloquear: sin este campo, el bloqueado se desbloquearía a sí mismo.
    */
   blockedBy: string | null;
+  /**
+   * ID del primer mensaje, escrito en el mismo lote que este documento.
+   *
+   * Un hilo nunca nace vacío. Esto es lo que permite a las rules limitar una
+   * solicitud a UN solo mensaje mientras no la acepten: no saben contar
+   * documentos, pero sí comprobar que el mensaje que se intenta escribir es
+   * justo este.
+   */
+  firstMessageId: string;
   /** Lo escribe la Cloud Function, nunca el cliente. */
   lastMessage: ConversationLastMessage | null;
   /** Orden del inbox. Lo escribe la Cloud Function. */

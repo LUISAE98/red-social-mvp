@@ -50,6 +50,16 @@ function buildContent(type: string, data: Data): { title: string; body: string }
       return { title: name, body: "reaccionó a tu comentario" };
     case "mention":
       return { title: name, body: "te mencionó" };
+    case "direct_message": {
+      // El propio mensaje como cuerpo: es lo que la persona espera ver en la
+      // pantalla de bloqueo. Ya viene recortado a 140 desde notifications.ts.
+      const preview = s(target.preview);
+      const count = typeof data.actorCount === "number" ? data.actorCount : 1;
+      if (preview) return { title: name, body: preview };
+      return count > 1
+        ? { title: name, body: "te envió varios mensajes" }
+        : { title: name, body: "te envió un mensaje" };
+    }
     case "follow":
       return { title: name, body: "empezó a seguirte" };
     case "donation": {
@@ -155,6 +165,13 @@ function buildLink(type: string, data: Data): string {
     case "kyc_update":
       path = "/wallet/finanzas";
       break;
+    case "direct_message": {
+      // `/groups` es la página que monta el OwnerSidebar completo; el query
+      // `dm` abre directamente ese hilo (ver OwnerSidebar).
+      const cid = s(target.conversationId);
+      path = cid ? `/groups?dm=${cid}` : "/notifications";
+      break;
+    }
     case "group_moderation":
       path = s(target.action) === "muted" && gid ? `/groups/${gid}` : "/notifications";
       break;

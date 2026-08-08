@@ -10,6 +10,7 @@ import { autoExpirePendingGreetingRequestsHandler } from "./greetingRequests";
 import { updateExchangeRatesHandler } from "./exchangeRates";
 import { sessionRemindersHandler } from "./sessionLifecycle";
 import { expireGroupSubscriptionsHandler } from "./payments/groupSubscriptionCore";
+import { stripeSecretKey } from "./payments/stripe/stripeClient";
 
 // Healthcheck público
 export const healthcheck = onRequest(
@@ -54,6 +55,8 @@ export const autoExpirePendingServiceRequests = onSchedule(
     schedule: "every 24 hours",
     timeZone: "America/Mexico_City",
     region: "us-central1",
+    // Los handlers CANCELAN el auth-hold en Stripe cuando el creador no responde.
+    secrets: [stripeSecretKey],
   },
   async () => {
     logger.info("autoExpirePendingServiceRequests started");
@@ -305,6 +308,9 @@ export { getRecordingDownloadUrl } from "./recordingDownload";
 
 // Moderación de plataforma
 export { submitReport, claimReport, resolveReport } from "./moderation";
+
+// Mensajes directos — resumen del hilo, no leídos y notificación
+export { onDirectMessageCreated } from "./directMessages";
 
 // KYC — verificación de identidad con Didit (habilita retiros del creador)
 export { createKycSession, diditWebhook } from "./kyc";

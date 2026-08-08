@@ -96,6 +96,7 @@ export const createGreetingStripeIntent = onCall(
         amountCents: Math.round(totalMxn * 100),
         currency: SETTLEMENT_CURRENCY,
         metadata: { externalReference, sourceType: "greetingRequest", sourceId: requestId, buyerId: uid },
+        captureMethod: "manual", // AUTORIZAR (hold): se captura al aceptar el creador
       });
       await intentRef.set(
         { stripePaymentIntentId: charged.id, updatedAt: admin.firestore.FieldValue.serverTimestamp() },
@@ -113,6 +114,7 @@ export const createGreetingStripeIntent = onCall(
         currency: SETTLEMENT_CURRENCY.toLowerCase(), // MXN (solo México por ahora)
         customer: customerId,
         payment_method_types: ["card"],
+        capture_method: "manual", // AUTORIZAR (hold): se captura al aceptar el creador
         ...(saveCard ? { setup_future_usage: "off_session" } : {}),
         // El webhook usa esta metadata para materializar el saludo + ledger.
         metadata: { externalReference, sourceType: "greetingRequest", sourceId: requestId, buyerId: uid },

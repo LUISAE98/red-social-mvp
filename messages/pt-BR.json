@@ -60,7 +60,8 @@
     "tabAll": "Tudo",
     "sidebarFollowedProfiles": "Perfis seguidos",
     "statistics": "Estatísticas",
-    "tabMessages": "Mensagens"
+    "tabMessages": "Mensagens",
+    "messageRequests": "Solicitações ({count})"
   },
   "common": {
     "accept": "Aceitar",
@@ -2233,7 +2234,8 @@
       "new_post": "{count, plural, one {publicou uma novidade} other {publicou # novidades}}",
       "new_post_group": "{count, plural, one {publicou em} other {publicou # vezes em}} {group}",
       "live_started": "está ao vivo",
-      "live_vod_ready": "publicou a repetição da live"
+      "live_vod_ready": "publicou a repetição da live",
+      "direct_message": "te enviou {count, plural, one {uma mensagem} other {# mensagens}}"
     },
     "moderation": {
       "muted": "Você foi silenciado em {group}",
@@ -2541,6 +2543,36 @@
     "noConversations": "Você ainda não tem conversas.",
     "noMessagesYet": "Ainda sem mensagens",
     "conversationBlocked": "Conversa bloqueada",
-    "youPrefix": "Você: "
+    "youPrefix": "Você: ",
+    "messagePlaceholder": "Escreva uma mensagem...",
+    "send": "Enviar",
+    "sendError": "Não foi possível enviar a mensagem.",
+    "blockError": "Não foi possível atualizar o bloqueio.",
+    "loadingMessages": "Carregando mensagens...",
+    "loadingOlder": "Carregando mensagens anteriores...",
+    "emptyThread": "Ainda não há mensagens com {name}. Escreva a primeira.",
+    "messageDeleted": "Mensagem excluída",
+    "blockedByMeNotice": "Você bloqueou esta conversa. Nenhum dos dois pode escrever.",
+    "blockedByThemNotice": "Esta conversa está bloqueada.",
+    "unblock": "Desbloquear",
+    "sendMessageAction": "Enviar mensagem",
+    "requestPendingNotice": "Sua solicitação está aguardando resposta. Você poderá continuar escrevendo quando for aceita.",
+    "requestReceivedNotice": "{name} quer te enviar mensagens.",
+    "acceptRequest": "Aceitar",
+    "rejectRequest": "Recusar",
+    "requestActionError": "Não foi possível concluir a ação.",
+    "block": "Bloquear",
+    "report": "Denunciar",
+    "reportSent": "Denunciado",
+    "reportTitle": "Denunciar conversa",
+    "reportIntro": "Escolha o motivo. Um moderador vai revisar a conversa inteira.",
+    "reportError": "Não foi possível enviar a denúncia.",
+    "reportReason_spam": "Spam",
+    "reportReason_hate_speech": "Discurso de ódio",
+    "reportReason_violence": "Violência",
+    "reportReason_illegal_content": "Conteúdo ilegal",
+    "reportReason_harassment": "Assédio",
+    "reportReason_misinformation": "Desinformação",
+    "reportReason_other": "Outro"
   }
 }

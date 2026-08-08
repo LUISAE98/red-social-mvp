@@ -503,6 +503,375 @@ describe("comunidad PÚBLICA — feed genérico con un live 'solo con cuenta'", 
   });
 });
 
+// ─────────────────────────────────────────────────────────────────────────────
+// VOD (grabación tras terminar el live). Hereda el alcance del live:
+//   everyone        → lo ve todo el mundo, incluso sin sesión
+//   logged_in_only  → solo con cuenta
+//   members_only    → solo miembros de la comunidad
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Live TERMINADO con su grabación visible (VOD), heredando el alcance del live. */
+async function seedVod(params: {
+  postId: string;
+  groupId: string;
+  groupVisibility: Visibility;
+  visibilityMode: "everyone" | "logged_in_only" | "members_only";
+  paid?: boolean;
+}) {
+  const membersOnly = params.visibilityMode === "members_only" || params.groupVisibility === "hidden";
+  await seed(`posts/${params.postId}`, {
+    authorId: OWNER,
+    contextType: "group",
+    groupId: params.groupId,
+    groupVisibility: params.groupVisibility,
+    postType: "live",
+    text: "EN VIVO - grabación",
+    isDeleted: false,
+    // updateLiveVodSettings: isShareable = !vodHidden && !membersOnlyScope
+    isShareable: !membersOnly,
+    ...(params.paid
+      ? {
+          premium: {
+            enabled: true, kind: "video",
+            accessMode: membersOnly ? "members_only" : "public",
+            freeFor: "none", price: 80, currency: "MXN", purchaseType: "one_time",
+          },
+          access: "paid",
+          accessModel: "one_time_purchase",
+          requiresPayment: true,
+          oneTimePrice: 80,
+        }
+      : {
+          premium: null,
+          access: "free",
+          accessModel: "free",
+          requiresPayment: false,
+          oneTimePrice: null,
+        }),
+    requiresSubscription: false,
+    liveData: {
+      status: "ended",
+      visibilityMode: params.visibilityMode,
+      allowLoggedOutViewers: params.visibilityMode === "everyone" && params.groupVisibility !== "hidden",
+      accessType: "free",
+      vodStatus: "ready",
+      vodHidden: false,
+      vodSettingsConfirmed: true,
+    },
+    createdAt: new Date(),
+  });
+}
+
+describe("VOD — hereda el alcance del live", () => {
+  const gPriv = "gPrivadaVod";
+  const gPub = "gPublicaVod";
+
+  beforeEach(async () => {
+    await seedGroup(gPriv, "private");
+    await seedGroup(gPub, "public");
+  });
+
+  it("✅ everyone (comunidad privada): el deslogueado lo abre", async () => {
+    await seedVod({ postId: "vodTodos", groupId: gPriv, groupVisibility: "private", visibilityMode: "everyone" });
+    const db = testEnv.unauthenticatedContext().firestore();
+    await assertSucceeds(getDoc(doc(db, "posts/vodTodos")));
+  });
+
+  it("✅ everyone (privada): aparece en el feed de fuera para el deslogueado", async () => {
+    await seedVod({ postId: "vodTodos", groupId: gPriv, groupVisibility: "private", visibilityMode: "everyone" });
+    const db = testEnv.unauthenticatedContext().firestore();
+    const snap = await assertSucceeds(getDocs(query(
+      collection(db, "posts"),
+      where("groupId", "==", gPriv),
+      where("isDeleted", "==", false),
+      where("isShareable", "==", true),
+      where("groupVisibility", "==", "private"),
+      where("accessModel", "==", "free"),
+      where("requiresPayment", "==", false),
+      orderBy("createdAt", "desc"), limit(11),
+    )));
+    expect(snap.docs.map((d) => d.id)).toContain("vodTodos");
+  });
+
+  it("🔴 logged_in_only: el deslogueado NO lo abre", async () => {
+    await seedVod({ postId: "vodCuenta", groupId: gPriv, groupVisibility: "private", visibilityMode: "logged_in_only" });
+    const db = testEnv.unauthenticatedContext().firestore();
+    await assertFails(getDoc(doc(db, "posts/vodCuenta")));
+  });
+
+  it("✅ logged_in_only: un logueado no-miembro sí lo abre", async () => {
+    await seedVod({ postId: "vodCuenta", groupId: gPriv, groupVisibility: "private", visibilityMode: "logged_in_only" });
+    const db = testEnv.authenticatedContext(OUTSIDER).firestore();
+    await assertSucceeds(getDoc(doc(db, "posts/vodCuenta")));
+  });
+
+  it("🔴 members_only (comunidad privada): un logueado no-miembro NO lo abre", async () => {
+    await seedVod({ postId: "vodMiembrosPriv", groupId: gPriv, groupVisibility: "private", visibilityMode: "members_only" });
+    const db = testEnv.authenticatedContext(OUTSIDER).firestore();
+    await assertFails(getDoc(doc(db, "posts/vodMiembrosPriv")));
+  });
+
+  it("🔴 members_only (comunidad PÚBLICA): un logueado no-miembro NO lo abre", async () => {
+    await seedVod({ postId: "vodMiembrosPub", groupId: gPub, groupVisibility: "public", visibilityMode: "members_only" });
+    const db = testEnv.authenticatedContext(OUTSIDER).firestore();
+    await assertFails(getDoc(doc(db, "posts/vodMiembrosPub")));
+  });
+
+  it("🔴 members_only (comunidad PÚBLICA): el deslogueado NO lo abre", async () => {
+    await seedVod({ postId: "vodMiembrosPub", groupId: gPub, groupVisibility: "public", visibilityMode: "members_only" });
+    const db = testEnv.unauthenticatedContext().firestore();
+    await assertFails(getDoc(doc(db, "posts/vodMiembrosPub")));
+  });
+
+  it("✅ members_only: el MIEMBRO sí lo abre (pública y privada)", async () => {
+    await seedVod({ postId: "vodMiembrosPriv", groupId: gPriv, groupVisibility: "private", visibilityMode: "members_only" });
+    await seedVod({ postId: "vodMiembrosPub", groupId: gPub, groupVisibility: "public", visibilityMode: "members_only" });
+    const db = testEnv.authenticatedContext(MEMBER).firestore();
+    await assertSucceeds(getDoc(doc(db, "posts/vodMiembrosPriv")));
+    await assertSucceeds(getDoc(doc(db, "posts/vodMiembrosPub")));
+  });
+
+  it("✅ el AUTOR siempre abre su VOD, sea cual sea el alcance", async () => {
+    await seedVod({ postId: "vodMiembrosPriv", groupId: gPriv, groupVisibility: "private", visibilityMode: "members_only" });
+    const db = testEnv.authenticatedContext(OWNER).firestore();
+    await assertSucceeds(getDoc(doc(db, "posts/vodMiembrosPriv")));
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// REGLAS CRUZADAS: un live se PUBLICA TAMBIÉN en otros destinos
+// (`liveData.broadcastGroupIds`). No se duplica el post: sigue habiendo UN solo
+// documento en su contexto de origen y en cada destino se enciende el anillo
+// (`groups/{gid}.activeLivePostId`). Por tanto el alcance que manda es SIEMPRE
+// el del live de origen, no el del destino.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Live de PERFIL (perfil público) publicado además en otras comunidades. */
+async function seedProfileLive(params: {
+  postId: string;
+  visibilityMode: "everyone" | "logged_in_only";
+  broadcastGroupIds: string[];
+}) {
+  await seed(`users/${OWNER}`, { uid: OWNER, handle: "owner", activeLivePostId: params.postId });
+  await seed(`posts/${params.postId}`, {
+    authorId: OWNER,
+    contextType: "profile",
+    profileId: OWNER,
+    profileRestricted: false,
+    postType: "live",
+    text: "live de perfil",
+    isDeleted: false,
+    isShareable: true,
+    access: "free",
+    accessModel: "free",
+    requiresPayment: false,
+    requiresSubscription: false,
+    liveData: {
+      status: "live",
+      visibilityMode: params.visibilityMode,
+      allowLoggedOutViewers: params.visibilityMode === "everyone",
+      accessType: "free",
+      broadcastGroupIds: params.broadcastGroupIds,
+    },
+    createdAt: new Date(),
+  });
+}
+
+/** Live nacido en una comunidad, publicado además en el perfil del creador. */
+async function seedGroupLiveBroadcastToProfile(params: {
+  postId: string;
+  groupId: string;
+  groupVisibility: Visibility;
+  visibilityMode: "everyone" | "members_only";
+}) {
+  await seed(`posts/${params.postId}`, {
+    authorId: OWNER,
+    contextType: "group",
+    groupId: params.groupId,
+    groupVisibility: params.groupVisibility,
+    postType: "live",
+    text: "live de comunidad",
+    isDeleted: false,
+    isShareable: params.visibilityMode !== "members_only" && params.groupVisibility !== "hidden",
+    access: "free",
+    accessModel: "free",
+    requiresPayment: false,
+    requiresSubscription: false,
+    liveData: {
+      status: "live",
+      visibilityMode: params.visibilityMode,
+      allowLoggedOutViewers: params.visibilityMode === "everyone" && params.groupVisibility !== "hidden",
+      accessType: "free",
+      broadcastGroupIds: ["__profile__"],
+    },
+    createdAt: new Date(),
+  });
+}
+
+describe("cruzado — live de PERFIL publicado también en una comunidad PRIVADA", () => {
+  const gid = "gPrivadaDestino";
+  const pid = "liveDePerfil";
+
+  beforeEach(async () => {
+    await seedGroup(gid, "private");
+  });
+
+  it("✅ alcance 'todos': hasta un DESLOGUEADO lo abre, aunque no sea miembro", async () => {
+    await seedProfileLive({ postId: pid, visibilityMode: "everyone", broadcastGroupIds: [gid] });
+    const db = testEnv.unauthenticatedContext().firestore();
+    await assertSucceeds(getDoc(doc(db, `posts/${pid}`)));
+  });
+
+  it("✅ el anillo del destino se ve desde fuera (grupo privado legible)", async () => {
+    await seedProfileLive({ postId: pid, visibilityMode: "everyone", broadcastGroupIds: [gid] });
+    await seed(`groups/${gid}`, {
+      ownerId: OWNER, visibility: "private", isActive: true, activeLivePostId: pid,
+    });
+    const db = testEnv.unauthenticatedContext().firestore();
+    const snap = await assertSucceeds(getDoc(doc(db, `groups/${gid}`)));
+    expect((snap as { data: () => Record<string, unknown> }).data().activeLivePostId).toBe(pid);
+  });
+
+  it("🔴 alcance 'solo con cuenta': el deslogueado NO lo abre…", async () => {
+    await seedProfileLive({ postId: pid, visibilityMode: "logged_in_only", broadcastGroupIds: [gid] });
+    const db = testEnv.unauthenticatedContext().firestore();
+    await assertFails(getDoc(doc(db, `posts/${pid}`)));
+  });
+
+  it("✅ …pero un logueado NO-MIEMBRO de esa comunidad sí", async () => {
+    await seedProfileLive({ postId: pid, visibilityMode: "logged_in_only", broadcastGroupIds: [gid] });
+    const db = testEnv.authenticatedContext(OUTSIDER).firestore();
+    await assertSucceeds(getDoc(doc(db, `posts/${pid}`)));
+  });
+});
+
+describe("cruzado — ¿se puede LISTAR el live de perfil dentro del feed de la comunidad destino?", () => {
+  const gid = "gPrivadaDestinoLista";
+  const pid = "liveDePerfilLista";
+
+  beforeEach(async () => {
+    await seedGroup(gid, "private");
+    await seedProfileLive({ postId: pid, visibilityMode: "everyone", broadcastGroupIds: [gid] });
+  });
+
+  // Consulta candidata para que el live retransmitido salga como un post más del
+  // feed de la comunidad, en vez de depender del anillo (`activeLivePostId`).
+  it("✅ un deslogueado puede listar por broadcastGroupIds fijando los campos del post de perfil", async () => {
+    const db = testEnv.unauthenticatedContext().firestore();
+    const snap = await assertSucceeds(getDocs(query(
+      collection(db, "posts"),
+      where("liveData.broadcastGroupIds", "array-contains", gid),
+      where("contextType", "==", "profile"),
+      where("profileRestricted", "==", false),
+      where("isDeleted", "==", false),
+      where("accessModel", "==", "free"),
+      where("requiresPayment", "==", false),
+      where("requiresSubscription", "==", false),
+      orderBy("createdAt", "desc"), limit(11),
+    )));
+    expect(snap.docs.map((d) => d.id)).toContain(pid);
+  });
+});
+
+// Caso reportado: live de PERFIL con alcance "solo personas con cuenta",
+// publicado además en una comunidad PÚBLICA. Al invitado no debe llegarle por
+// ninguna vía — ni el post, ni la tarjeta en el feed de esa comunidad.
+describe("cruzado — live 'solo con cuenta' retransmitido a una comunidad PÚBLICA", () => {
+  const gid = "gPublicaDestinoRestringido";
+  const pid = "liveRestringidoRetransmitido";
+
+  beforeEach(async () => {
+    await seedGroup(gid, "public");
+    await seedProfileLive({ postId: pid, visibilityMode: "logged_in_only", broadcastGroupIds: [gid] });
+  });
+
+  it("🔴 el deslogueado NO puede abrir el post", async () => {
+    const db = testEnv.unauthenticatedContext().firestore();
+    await assertFails(getDoc(doc(db, `posts/${pid}`)));
+  });
+
+  it("🔴 el carril de retransmitidos NO se lo entrega (fija allowLoggedOutViewers)", async () => {
+    const db = testEnv.unauthenticatedContext().firestore();
+    const snap = await assertSucceeds(getDocs(query(
+      collection(db, "posts"),
+      where("liveData.broadcastGroupIds", "array-contains", gid),
+      where("contextType", "==", "profile"),
+      where("profileRestricted", "==", false),
+      where("isDeleted", "==", false),
+      where("accessModel", "==", "free"),
+      where("requiresPayment", "==", false),
+      where("requiresSubscription", "==", false),
+      where("liveData.allowLoggedOutViewers", "==", true),
+      orderBy("createdAt", "desc"), limit(11),
+    )));
+    expect(snap.docs.map((d) => d.id)).not.toContain(pid);
+  });
+
+  it("✅ un LOGUEADO sí lo ve por el carril (sin fijar el campo) y puede abrirlo", async () => {
+    const db = testEnv.authenticatedContext(OUTSIDER).firestore();
+    const snap = await assertSucceeds(getDocs(query(
+      collection(db, "posts"),
+      where("liveData.broadcastGroupIds", "array-contains", gid),
+      where("contextType", "==", "profile"),
+      where("profileRestricted", "==", false),
+      where("isDeleted", "==", false),
+      where("accessModel", "==", "free"),
+      where("requiresPayment", "==", false),
+      where("requiresSubscription", "==", false),
+      orderBy("createdAt", "desc"), limit(11),
+    )));
+    expect(snap.docs.map((d) => d.id)).toContain(pid);
+    await assertSucceeds(getDoc(doc(db, `posts/${pid}`)));
+  });
+});
+
+describe("cruzado — live de COMUNIDAD publicado también en el perfil", () => {
+  const gid = "gPrivadaOrigen";
+  const pid = "liveDeComunidad";
+
+  beforeEach(async () => {
+    await seedGroup(gid, "private");
+    await seed(`users/${OWNER}`, { uid: OWNER, handle: "owner", activeLivePostId: pid });
+  });
+
+  it("✅ alcance 'todos' (el composer lo fuerza al elegir destino público): cualquiera lo abre", async () => {
+    await seedGroupLiveBroadcastToProfile({
+      postId: pid, groupId: gid, groupVisibility: "private", visibilityMode: "everyone",
+    });
+    const guest = testEnv.unauthenticatedContext().firestore();
+    await assertSucceeds(getDoc(doc(guest, `posts/${pid}`)));
+    const outsider = testEnv.authenticatedContext(OUTSIDER).firestore();
+    await assertSucceeds(getDoc(doc(outsider, `posts/${pid}`)));
+  });
+
+  it("🔴 alcance 'solo miembros': ni el deslogueado ni un logueado ajeno lo abren, aunque el anillo esté en el perfil", async () => {
+    await seedGroupLiveBroadcastToProfile({
+      postId: pid, groupId: gid, groupVisibility: "private", visibilityMode: "members_only",
+    });
+    const guest = testEnv.unauthenticatedContext().firestore();
+    await assertFails(getDoc(doc(guest, `posts/${pid}`)));
+    const outsider = testEnv.authenticatedContext(OUTSIDER).firestore();
+    await assertFails(getDoc(doc(outsider, `posts/${pid}`)));
+  });
+
+  it("🔴 'solo miembros' desde una comunidad PÚBLICA tampoco se abre desde fuera", async () => {
+    await seedGroup("gPublicaOrigen", "public");
+    await seedGroupLiveBroadcastToProfile({
+      postId: "liveMiembrosPub", groupId: "gPublicaOrigen", groupVisibility: "public", visibilityMode: "members_only",
+    });
+    const outsider = testEnv.authenticatedContext(OUTSIDER).firestore();
+    await assertFails(getDoc(doc(outsider, "posts/liveMiembrosPub")));
+  });
+
+  it("✅ el MIEMBRO sí lo abre en ambos casos", async () => {
+    await seedGroupLiveBroadcastToProfile({
+      postId: pid, groupId: gid, groupVisibility: "private", visibilityMode: "members_only",
+    });
+    const db = testEnv.authenticatedContext(MEMBER).firestore();
+    await assertSucceeds(getDoc(doc(db, `posts/${pid}`)));
+  });
+});
+
 // El feed del perfil trae además los posts de COMUNIDAD del creador que son
 // compartibles (carril `shareable_group_posts`): ahí es donde debería aparecer
 // el premium público de una comunidad privada cuando alguien visita el perfil.

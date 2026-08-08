@@ -101,7 +101,11 @@ async function materializeFromIntent(
   targetCollection: string,
   sourceId: string,
   pendingField: string,
-  meta: { mpOrderId?: string | null; mpPaymentId?: string | null }
+  meta: { mpOrderId?: string | null; mpPaymentId?: string | null },
+  // "paid" = cobro confirmado (dispara el ledger). "authorized" = HOLD (auth-hold de las
+  // experiencias): el doc se crea para que el creador lo vea, pero SIN disparar el ledger;
+  // el ledger nace al capturar (paymentStatus → "paid") cuando el creador acepta.
+  paymentStatus: "paid" | "authorized" = "paid"
 ): Promise<void> {
   const targetRef = db.doc(`${targetCollection}/${sourceId}`);
   const intentRef = db.collection("paymentIntents").doc(externalReference);
@@ -127,7 +131,7 @@ async function materializeFromIntent(
     const now = FieldValue.serverTimestamp();
     tx.set(targetRef, {
       ...pending,
-      paymentStatus: "paid",
+      paymentStatus,
       // 🧾 IVA — Copiamos el desglose fiscal del intent al doc de dominio para que el
       // trigger del ledger lo registre y el creador vea "IVA cobrado (va al SAT)". El
       // IVA NO es del creador; su ganancia sigue calculándose sobre la base (amount).
@@ -135,7 +139,8 @@ async function materializeFromIntent(
       taxAmount: typeof intentData?.taxAmount === "number" ? intentData.taxAmount : 0,
       mpOrderId: meta.mpOrderId ?? null,
       mpPaymentId: meta.mpPaymentId ?? null,
-      paidAt: now,
+      // "paid" → paidAt; "authorized" (hold) → authorizedAt (aún no cobrado).
+      ...(paymentStatus === "paid" ? { paidAt: now } : { authorizedAt: now }),
       createdAt: now,
       updatedAt: now,
     });
@@ -235,4 +240,38 @@ export async function applyApprovedPaymentToSource(
   }
 
   logger.info("reconcile: sourceType no manejado aún", { sourceType, externalReference });
+}
+
+/**
+ * Materializa una EXPERIENCIA en estado de HOLD (auth-hold), a partir de un
+ * `payment_intent.amount_capturable_updated` de Stripe. Crea el doc de dominio con
+ * `paymentStatus: "authorized"` para que el CREADOR vea la solicitud, pero SIN disparar
+ * el ledger (eso ocurre al capturar, cuando acepta). Solo aplica a las 3 sourceTypes de
+ * experiencias; cualquier otra se ignora (los demás servicios no usan hold).
+ */
+export async function applyAuthorizedHoldToSource(
+  externalReference: string,
+  meta: { mpOrderId?: string | null; mpPaymentId?: string | null }
+): Promise<void> {
+  const parsed = parseExternalReference(externalReference);
+  if (!parsed) {
+    logger.warn("reconcile(hold): external_reference sin separador", { externalReference });
+    return;
+  }
+  const { sourceType, sourceId } = parsed;
+
+  if (sourceType === "greetingRequest") {
+    await materializeFromIntent(externalReference, "greetingRequests", sourceId, "pendingGreeting", meta, "authorized");
+    return;
+  }
+  if (sourceType === "exclusiveSessionRequest") {
+    await materializeFromIntent(externalReference, "exclusiveSessionRequests", sourceId, "pendingSession", meta, "authorized");
+    return;
+  }
+  if (sourceType === "meetGreetRequest") {
+    await materializeFromIntent(externalReference, "meetGreetRequests", sourceId, "pendingMeetGreet", meta, "authorized");
+    return;
+  }
+
+  logger.info("reconcile(hold): sourceType no es experiencia, se ignora", { sourceType, externalReference });
 }

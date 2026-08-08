@@ -391,6 +391,12 @@ export default function ComposerPremiumPanel({
         <>
           <label style={labelStyle}>{tPosts("premiumPriceLabel")}</label>
 
+          {/* En edición el precio es de SOLO LECTURA, como el resto de la
+              configuración: lo que se cobra vive en `oneTimePrice`, que las
+              reglas no dejan cambiar en una edición. Un campo editable aquí
+              solo lograba que la tarjeta mostrara un precio y Stripe cobrara
+              otro (ver updatePost). */}
+
           {/* Presentación IGUAL a experiencias/live: el campo es un input autónomo
               (estilo canónico vibra_style.md); el "+ $3" y la moneda van FUERA,
               como hermanos en la fila (no dentro del placeholder). */}
@@ -399,7 +405,8 @@ export default function ComposerPremiumPanel({
               type="text"
               enterKeyHint="done"
               value={formatThousands(priceInput)}
-              disabled={disabled}
+              disabled={disabled || isEditMode}
+              readOnly={isEditMode}
               onChange={(event) =>
                 setPriceInput(event.target.value.replace(/,/g, ""))
               }

@@ -53,8 +53,11 @@ export async function chargeSavedCardOffSession(opts: {
   amountCents: number;
   currency: string;
   metadata: Record<string, string>;
+  // "manual" = AUTORIZAR (hold), no cobrar: para las experiencias con devolución
+  // (auth-hold + captura al aceptar). Por defecto "automatic" (cobro inmediato).
+  captureMethod?: "manual" | "automatic";
 }): Promise<{ id: string; status: string; clientSecret: string }> {
-  const { uid, savedCardDocId, customerId, amountCents, currency, metadata } = opts;
+  const { uid, savedCardDocId, customerId, amountCents, currency, metadata, captureMethod } = opts;
 
   const pmSnap = await db.doc(`users/${uid}/paymentMethods/${savedCardDocId}`).get();
   const pm = pmSnap.data() ?? {};
@@ -77,6 +80,7 @@ export async function chargeSavedCardOffSession(opts: {
       payment_method_types: ["card"],
       confirm: true,
       off_session: true,
+      ...(captureMethod === "manual" ? { capture_method: "manual" } : {}),
       metadata,
     },
   });

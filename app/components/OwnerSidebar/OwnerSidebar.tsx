@@ -9,7 +9,7 @@ import {
   useState,
   type CSSProperties,
 } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import {
@@ -42,6 +42,7 @@ import OwnerSidebarMyGroups from "./OwnerSidebarMyGroups";
 import OwnerSidebarOtherGroups from "./OwnerSidebarOtherGroups";
 import OwnerSidebarFollowedProfiles from "./OwnerSidebarFollowedProfiles";
 import ConversationList from "@/components/chat/ConversationList";
+import ConversationPanel from "@/components/chat/ConversationPanel";
 import { useInbox } from "@/lib/chat/useInbox";
 import { getOtherParticipant } from "@/lib/chat/types";
 import OwnerSidebarGreetings from "./OwnerSidebarGreetings";
@@ -294,13 +295,46 @@ const handleOwnerSidebarPullRefresh = useCallback(async () => {
     () => ownerSidebarCache?.userMiniMap ?? {}
   );
 
-  // Bandeja de DM. Las solicitudes van aparte (Bloque 6): aquí solo las
-  // conversaciones ya aceptadas y las bloqueadas, para poder desbloquearlas.
+  // Bandeja de DM. Solicitudes en query aparte para que un aluvión de
+  // desconocidos no desplace las conversaciones reales del inbox.
   const {
     conversations,
     loading: loadingConversations,
     unreadTotal: unreadMessagesCount,
   } = useInbox(viewer?.uid ?? null);
+
+  const { conversations: conversationRequests } = useInbox(viewer?.uid ?? null, ["request"]);
+
+  const [openConversationId, setOpenConversationId] = useState<string | null>(null);
+
+  // Deep-link desde la notificación de un DM (`?dm=<conversationId>`): abre la
+  // pestaña de Mensajes y el hilo. Sin esto, tocar la notificación te dejaría en
+  // la lista sin saber cuál era.
+  const searchParams = useSearchParams();
+  const dmParam = searchParams?.get("dm") ?? null;
+  const handledDmParamRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!dmParam || handledDmParamRef.current === dmParam) return;
+    handledDmParamRef.current = dmParam;
+    setActiveView("messages");
+    setAccordionOpen(true);
+    setOpenConversationId(dmParam);
+  }, [dmParam]);
+
+  // El doc de la conversación sale del inbox ya suscrito: abrir el hilo no
+  // cuesta una lectura extra, y el estado (bloqueada, no leídos) llega en vivo.
+  const openConversation = useMemo(
+    () =>
+      [...conversations, ...conversationRequests].find(
+        (conv) => conv.id === openConversationId
+      ) ?? null,
+    [conversations, conversationRequests, openConversationId]
+  );
+  const openConversationOtherUid =
+    openConversation && viewer?.uid
+      ? getOtherParticipant(openConversation.participants, viewer.uid)
+      : null;
   const [groupMetaMap, setGroupMetaMap] = useState<Record<string, GroupDocLite>>(
     () => ownerSidebarCache?.groupMetaMap ?? {}
   );
@@ -1565,7 +1599,7 @@ const groupsForSeen = [
     // Interlocutores del DM: se cuelgan del mismo cargador de perfiles que ya
     // existe en vez de montar una segunda pasada de lecturas a `users`.
     if (viewer?.uid) {
-      conversations.forEach((conv) => {
+      [...conversations, ...conversationRequests].forEach((conv) => {
         const other = getOtherParticipant(conv.participants, viewer.uid);
         if (other) ids.add(other);
       });
@@ -1582,6 +1616,7 @@ const groupsForSeen = [
     exclusiveSessionsByGroup,
     buyerExclusiveSessions,
     conversations,
+    conversationRequests,
     viewer?.uid,
   ]);
 
@@ -2500,19 +2535,45 @@ newPostsCounts={newPostsCounts}
             loadingGroups={loadingGroups}
             contentByKey={{
               messages: (
-                <ConversationList
-                  loading={loadingConversations}
-                  conversations={conversations}
-                  selfUid={viewer?.uid ?? null}
-                  profiles={userMiniMap}
-                  styles={styles}
-                  isMobile={isMobile}
-                  onOpenConversation={(conversationId) => {
-                    // El hilo se abre en el Bloque 5; por ahora la fila queda
-                    // inerte para no dejar un clic que no lleva a ninguna parte.
-                    void conversationId;
-                  }}
-                />
+                <div style={{ display: "grid", gap: 10 }}>
+                  <ConversationList
+                    loading={loadingConversations}
+                    conversations={conversations}
+                    selfUid={viewer?.uid ?? null}
+                    profiles={userMiniMap}
+                    styles={styles}
+                    isMobile={isMobile}
+                    activeConversationId={openConversationId}
+                    onOpenConversation={setOpenConversationId}
+                  />
+
+                  {/* Solicitudes: sección aparte y sin badge rojo. No deben
+                      reclamar atención como un mensaje de alguien conocido. */}
+                  {conversationRequests.length > 0 && (
+                    <div style={{ display: "grid", gap: 6 }}>
+                      <div
+                        style={{
+                          fontSize: 11,
+                          fontWeight: 600,
+                          color: "rgba(255,255,255,0.52)",
+                          padding: "0 2px",
+                        }}
+                      >
+                        {tNav("messageRequests", { count: conversationRequests.length })}
+                      </div>
+                      <ConversationList
+                        loading={false}
+                        conversations={conversationRequests}
+                        selfUid={viewer?.uid ?? null}
+                        profiles={userMiniMap}
+                        styles={styles}
+                        isMobile={isMobile}
+                        activeConversationId={openConversationId}
+                        onOpenConversation={setOpenConversationId}
+                      />
+                    </div>
+                  )}
+                </div>
               ),
               following: (
                 <OwnerSidebarFollowedProfiles
@@ -2628,6 +2689,14 @@ newPostsCounts={newPostsCounts}
 </div>
 </RefreshableArea>
 </aside>
+      <ConversationPanel
+        open={openConversationId != null}
+        onClose={() => setOpenConversationId(null)}
+        conversationId={openConversationId}
+        otherUid={openConversationOtherUid}
+        profile={openConversationOtherUid ? userMiniMap[openConversationOtherUid] : undefined}
+        selfUid={viewer?.uid ?? null}
+      />
       <VibraToast toast={sidebarToast} />
     </>
   );
