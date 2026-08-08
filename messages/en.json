@@ -809,9 +809,11 @@
     "messagePolicyFollowing": "Only people I follow",
     "messagePolicyNone": "No one",
     "messagePolicyEveryoneHelp": "Anyone can message you. Messages from people you do not follow land in Requests, without notifying you.",
-    "messagePolicyFollowingHelp": "Only people you follow can message you. For everyone else, your inbox does not exist.",
+    "messagePolicyFollowingHelp": "Only people you follow can message you. For everyone else, your inbox does not exist. This is the default.",
     "messagePolicyNoneHelp": "Your inbox is closed. No one can start a conversation with you.",
-    "messagePolicyUpdateError": "Could not update message settings."
+    "messagePolicyUpdateError": "Could not update message settings.",
+    "messagePolicyFollowingAndFollowers": "People I follow and people who follow me",
+    "messagePolicyFollowingAndFollowersHelp": "People you follow and people who follow you can message you. If you do not follow the sender, their message lands in Requests."
   },
   "feed": {
     "pinned": "Pinned",
@@ -2236,8 +2238,7 @@
       "new_post": "{count, plural, one {shared a new post} other {shared # new posts}}",
       "new_post_group": "{count, plural, one {posted in} other {posted # times in}} {group}",
       "live_started": "is live",
-      "live_vod_ready": "posted their live replay",
-      "direct_message": "sent you {count, plural, one {a message} other {# messages}}"
+      "live_vod_ready": "posted their live replay"
     },
     "moderation": {
       "muted": "You were muted in {group}",

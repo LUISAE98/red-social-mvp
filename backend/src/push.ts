@@ -31,6 +31,76 @@ function s(v: unknown): string | null {
   return typeof v === "string" && v.length > 0 ? v : null;
 }
 
+export type PushPayload = {
+  title: string;
+  body: string;
+  /** Ruta relativa (sin prefijo de idioma) a la que lleva el push. */
+  link: string;
+  /** Colapsa avisos repetidos en el dispositivo. */
+  tag: string;
+  icon?: string | null;
+  image?: string | null;
+};
+
+/**
+ * Envía un push DATA-ONLY a todos los dispositivos de un usuario y limpia los
+ * tokens muertos.
+ *
+ * Existe como función aparte porque no todo lo que se empuja al teléfono va
+ * también a la campanita. Los mensajes directos son el caso: notifican en el
+ * dispositivo, pero NO crean doc en `users/{uid}/notifications` — su bandeja es
+ * la pestaña de Mensajes, y duplicarlos en la campanita sería ruido.
+ */
+export async function sendPushToUser(
+  uid: string,
+  payload: PushPayload
+): Promise<void> {
+  if (!uid) return;
+
+  const tokensSnap = await db.collection("users").doc(uid).collection("fcmTokens").get();
+  const tokens = tokensSnap.docs.map((d) => d.id);
+  if (tokens.length === 0) return;
+
+  const resp = await admin.messaging().sendEachForMulticast({
+    tokens,
+    data: {
+      title: payload.title,
+      body: payload.body,
+      link: payload.link,
+      tag: payload.tag,
+      icon: payload.icon ?? "/icon-192.png",
+      badge: "/icon-192.png",
+      ...(payload.image ? { image: payload.image } : {}),
+    },
+  });
+
+  if (resp.failureCount > 0) {
+    const batch = db.batch();
+    let removed = 0;
+    resp.responses.forEach((r, i) => {
+      if (r.success) return;
+      const code = r.error?.code;
+      if (
+        code === "messaging/registration-token-not-registered" ||
+        code === "messaging/invalid-registration-token" ||
+        code === "messaging/invalid-argument"
+      ) {
+        batch.delete(tokensSnap.docs[i].ref);
+        removed += 1;
+      }
+    });
+    if (removed > 0) await batch.commit();
+  }
+
+  logger.info("sendPushToUser", {
+    uid,
+    tag: payload.tag,
+    tokens: tokens.length,
+    success: resp.successCount,
+    failure: resp.failureCount,
+  });
+}
+
 /** Título y cuerpo del push (español; el idioma por-usuario queda para fase 2). */
 function buildContent(type: string, data: Data): { title: string; body: string } {
   const actor = Array.isArray(data.actors) ? data.actors[0] : null;
@@ -50,16 +120,6 @@ function buildContent(type: string, data: Data): { title: string; body: string }
       return { title: name, body: "reaccionó a tu comentario" };
     case "mention":
       return { title: name, body: "te mencionó" };
-    case "direct_message": {
-      // El propio mensaje como cuerpo: es lo que la persona espera ver en la
-      // pantalla de bloqueo. Ya viene recortado a 140 desde notifications.ts.
-      const preview = s(target.preview);
-      const count = typeof data.actorCount === "number" ? data.actorCount : 1;
-      if (preview) return { title: name, body: preview };
-      return count > 1
-        ? { title: name, body: "te envió varios mensajes" }
-        : { title: name, body: "te envió un mensaje" };
-    }
     case "follow":
       return { title: name, body: "empezó a seguirte" };
     case "donation": {
@@ -165,13 +225,6 @@ function buildLink(type: string, data: Data): string {
     case "kyc_update":
       path = "/wallet/finanzas";
       break;
-    case "direct_message": {
-      // `/groups` es la página que monta el OwnerSidebar completo; el query
-      // `dm` abre directamente ese hilo (ver OwnerSidebar).
-      const cid = s(target.conversationId);
-      path = cid ? `/groups?dm=${cid}` : "/notifications";
-      break;
-    }
     case "group_moderation":
       path = s(target.action) === "muted" && gid ? `/groups/${gid}` : "/notifications";
       break;
@@ -224,63 +277,20 @@ export const onNotificationWritten = onDocumentWritten(
     const { uid, groupKey } = event.params;
     const type = s(after.type) ?? "";
 
-    // Tokens del usuario (doc id = token).
-    const tokensSnap = await db
-      .collection("users")
-      .doc(uid)
-      .collection("fcmTokens")
-      .get();
-    const tokens = tokensSnap.docs.map((d) => d.id);
-    if (tokens.length === 0) return;
-
     const { title, body } = buildContent(type, after);
-    const link = buildLink(type, after);
 
     // Ícono = avatar de quien genera la noti (su cara, como en la app); si no
     // hay, el logo de Vibra. Imagen grande = miniatura del post (Android/desktop;
     // iOS no la muestra). Badge = ícono monocromo para la barra de estado Android.
     const actor = Array.isArray(after.actors) ? after.actors[0] : null;
-    const actorAvatar = actor ? s(actor.avatarUrl) : null;
-    const targetImage = s((after.target as Data)?.imageUrl);
 
-    const resp = await admin.messaging().sendEachForMulticast({
-      tokens,
-      data: {
-        title,
-        body,
-        link,
-        tag: groupKey,
-        icon: actorAvatar ?? "/icon-192.png",
-        badge: "/icon-192.png",
-        ...(targetImage ? { image: targetImage } : {}),
-      },
-    });
-
-    // Limpia tokens muertos.
-    if (resp.failureCount > 0) {
-      const batch = db.batch();
-      let removed = 0;
-      resp.responses.forEach((r, i) => {
-        if (r.success) return;
-        const code = r.error?.code;
-        if (
-          code === "messaging/registration-token-not-registered" ||
-          code === "messaging/invalid-registration-token" ||
-          code === "messaging/invalid-argument"
-        ) {
-          batch.delete(tokensSnap.docs[i].ref);
-          removed += 1;
-        }
-      });
-      if (removed > 0) await batch.commit();
-    }
-
-    logger.info("onNotificationWritten push sent", {
-      uid,
-      type,
-      tokens: tokens.length,
-      success: resp.successCount,
-      failure: resp.failureCount,
+    await sendPushToUser(uid, {
+      title,
+      body,
+      link: buildLink(type, after),
+      tag: groupKey,
+      icon: actor ? s(actor.avatarUrl) : null,
+      image: s((after.target as Data)?.imageUrl),
     });
   }
 );

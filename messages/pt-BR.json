@@ -809,9 +809,11 @@
     "messagePolicyFollowing": "Só quem eu sigo",
     "messagePolicyNone": "Ninguém",
     "messagePolicyEveryoneHelp": "Qualquer pessoa pode te escrever. As mensagens de quem você não segue vão para Solicitações, sem te notificar.",
-    "messagePolicyFollowingHelp": "Só as pessoas que você segue podem te escrever. Para as demais, sua caixa de entrada não existe.",
+    "messagePolicyFollowingHelp": "Só podem te escrever as pessoas que você segue. Para as demais, sua caixa de entrada não existe. É a opção padrão.",
     "messagePolicyNoneHelp": "Sua caixa de entrada está fechada. Ninguém pode iniciar uma conversa com você.",
-    "messagePolicyUpdateError": "Não foi possível atualizar as configurações de mensagens."
+    "messagePolicyUpdateError": "Não foi possível atualizar as configurações de mensagens.",
+    "messagePolicyFollowingAndFollowers": "Quem eu sigo e quem me segue",
+    "messagePolicyFollowingAndFollowersHelp": "Podem te escrever as pessoas que você segue e também as que te seguem. Se você não segue quem escreve, a mensagem vai para Solicitações."
   },
   "feed": {
     "pinned": "Fixado",
@@ -2234,8 +2236,7 @@
       "new_post": "{count, plural, one {publicou uma novidade} other {publicou # novidades}}",
       "new_post_group": "{count, plural, one {publicou em} other {publicou # vezes em}} {group}",
       "live_started": "está ao vivo",
-      "live_vod_ready": "publicou a repetição da live",
-      "direct_message": "te enviou {count, plural, one {uma mensagem} other {# mensagens}}"
+      "live_vod_ready": "publicou a repetição da live"
     },
     "moderation": {
       "muted": "Você foi silenciado em {group}",

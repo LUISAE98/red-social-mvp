@@ -5,20 +5,23 @@ import { useTranslations } from "next-intl";
 
 import { MESSAGE_POLICIES, type MessagePolicy } from "@/lib/chat/types";
 
-// Selector de quién puede abrirme un DM. Tres niveles en vez de un on/off: la
+// Selector de quién puede abrirme un DM. Cuatro niveles en vez de un on/off: la
 // mayoría de creadores no quiere "todos o nadie", quiere filtrar.
 //
-// No es un Switch porque no son 2 estados. Se pinta como grupo de radios
-// (accesible con teclado y lector de pantalla) con aspecto de segmentos.
+// Lista vertical y no segmentos horizontales: "a quien sigo y a quien me sigue"
+// no cabe en una fila de cuatro sin recortarse en celular. Es un grupo de radios
+// real, navegable con teclado y anunciado por lector de pantalla.
 
 const OPTION_LABEL_KEY: Record<MessagePolicy, string> = {
   everyone: "messagePolicyEveryone",
+  following_and_followers: "messagePolicyFollowingAndFollowers",
   following: "messagePolicyFollowing",
   none: "messagePolicyNone",
 };
 
 export const MESSAGE_POLICY_HELP_KEY: Record<MessagePolicy, string> = {
   everyone: "messagePolicyEveryoneHelp",
+  following_and_followers: "messagePolicyFollowingAndFollowersHelp",
   following: "messagePolicyFollowingHelp",
   none: "messagePolicyNoneHelp",
 };
@@ -35,29 +38,32 @@ export default function MessagePolicySetting({
   const tProfile = useTranslations("profile");
 
   const groupStyle: CSSProperties = {
-    display: "inline-flex",
-    gap: 2,
-    padding: 2,
-    borderRadius: 8,
-    background: "rgba(255,255,255,0.06)",
+    display: "grid",
+    gap: 6,
+    width: "100%",
     opacity: disabled ? 0.5 : 1,
   };
 
   function optionStyle(active: boolean): CSSProperties {
     return {
-      minHeight: 30,
-      padding: "0 10px",
-      borderRadius: 6,
-      border: "none",
-      background: active ? "rgba(168,85,247,0.28)" : "transparent",
-      color: active ? "#e9d5ff" : "rgba(255,255,255,0.66)",
-      fontSize: 12.5,
+      display: "flex",
+      alignItems: "center",
+      gap: 9,
+      minHeight: 40,
+      padding: "0 12px",
+      borderRadius: 10,
+      border: active
+        ? "1px solid rgba(168,85,247,0.55)"
+        : "1px solid rgba(255,255,255,0.10)",
+      background: active ? "rgba(168,85,247,0.16)" : "rgba(255,255,255,0.04)",
+      color: active ? "#f3e8ff" : "rgba(255,255,255,0.78)",
+      fontSize: 13.5,
       fontWeight: active ? 600 : 500,
       fontFamily: "inherit",
-      lineHeight: 1.2,
-      whiteSpace: "nowrap",
+      lineHeight: 1.25,
+      textAlign: "left",
       cursor: disabled ? "not-allowed" : "pointer",
-      transition: "background 0.18s ease, color 0.18s ease",
+      transition: "background 0.18s ease, border-color 0.18s ease, color 0.18s ease",
       WebkitTapHighlightColor: "transparent",
     };
   }
@@ -79,6 +85,21 @@ export default function MessagePolicySetting({
             }}
             style={optionStyle(active)}
           >
+            {/* Punto de radio dibujado a mano: el input nativo no se puede
+                pintar con el resto del sistema visual. */}
+            <span
+              aria-hidden
+              style={{
+                flexShrink: 0,
+                width: 14,
+                height: 14,
+                borderRadius: 999,
+                border: active
+                  ? "4px solid #a855f7"
+                  : "1.5px solid rgba(255,255,255,0.34)",
+                boxSizing: "border-box",
+              }}
+            />
             {tProfile(OPTION_LABEL_KEY[policy])}
           </button>
         );

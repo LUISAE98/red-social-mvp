@@ -1,17 +1,23 @@
-import { describe, it, expect, beforeAll } from "vitest";
+import { describe, it, expect, beforeAll, beforeEach, vi } from "vitest";
 import * as crypto from "crypto";
 import * as admin from "firebase-admin";
 import functionsTest from "firebase-functions-test";
 
+// El push se envía DIRECTO, sin pasar por `users/{uid}/notifications`: un DM no
+// va a la campanita. Se mockea para poder afirmar a quién se le empuja y a quién
+// no, sin depender de FCM (que no existe en el emulador).
+vi.mock("../src/push", () => ({ sendPushToUser: vi.fn(async () => {}) }));
+
 import { onDirectMessageCreated } from "../src/directMessages";
+import { sendPushToUser } from "../src/push";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Trigger de mensajes directos (directMessages.ts).
 //
 // Es el único que puede escribir `lastMessage`, `lastMessageAt` y `unread`: las
 // rules se lo prohíben al cliente para que nadie pueda falsear su propio inbox.
-// Aquí se comprueba que lo haga bien y —sobre todo— que NO notifique una
-// solicitud pendiente ni un hilo bloqueado.
+// Aquí se comprueba que lo haga bien y —sobre todo— que NO empuje una solicitud
+// pendiente ni un hilo bloqueado, y que NUNCA cree entrada en la campanita.
 // ─────────────────────────────────────────────────────────────────────────────
 
 if (admin.apps.length === 0) admin.initializeApp({ projectId: "demo-vibra" });
@@ -27,6 +33,10 @@ beforeAll(() => {
   if (!process.env.FIRESTORE_EMULATOR_HOST) {
     throw new Error("FIRESTORE_EMULATOR_HOST no definido. Corre: npm run test:emulator");
   }
+});
+
+beforeEach(() => {
+  vi.mocked(sendPushToUser).mockClear();
 });
 
 async function seedConversation(params: {
@@ -124,40 +134,48 @@ describe("onDirectMessageCreated — resumen del hilo y no leídos", () => {
   });
 });
 
-describe("onDirectMessageCreated — a quién notifica", () => {
-  it("un hilo ACTIVO sí genera notificación", async () => {
+describe("onDirectMessageCreated — a quién se le empuja", () => {
+  it("un hilo ACTIVO sí manda push, al DESTINATARIO", async () => {
     const sender = `s_${uid()}`;
     const recipient = `r_${uid()}`;
     const conversationId = await seedConversation({ sender, recipient, status: "active" });
 
     await fireMessage(conversationId, sender, "hola");
 
-    expect(await notificationCount(recipient)).toBe(1);
+    expect(sendPushToUser).toHaveBeenCalledTimes(1);
+    const [uidArg, payload] = vi.mocked(sendPushToUser).mock.calls[0];
+    expect(uidArg).toBe(recipient);
+    expect(payload.body).toBe("hola");
+    expect(payload.link).toBe(`/groups?dm=${conversationId}`);
+    // Mismo tag por hilo ⇒ los avisos seguidos se colapsan en el dispositivo.
+    expect(payload.tag).toBe(`dm_${conversationId}`);
   });
 
   // Lo importante de este bloque: una solicitud de un desconocido no debe sonar
   // en el teléfono de nadie. Se ve al entrar a la bandeja de Solicitudes.
-  it("🔴 una SOLICITUD pendiente NO notifica", async () => {
+  it("🔴 una SOLICITUD pendiente NO manda push", async () => {
     const sender = `s_${uid()}`;
     const recipient = `r_${uid()}`;
     const conversationId = await seedConversation({ sender, recipient, status: "request" });
 
     await fireMessage(conversationId, sender, "hola desconocido");
 
-    expect(await notificationCount(recipient)).toBe(0);
+    expect(sendPushToUser).not.toHaveBeenCalled();
   });
 
-  it("🔴 un hilo BLOQUEADO tampoco notifica", async () => {
+  it("🔴 un hilo BLOQUEADO tampoco manda push", async () => {
     const sender = `s_${uid()}`;
     const recipient = `r_${uid()}`;
     const conversationId = await seedConversation({ sender, recipient, status: "blocked" });
 
     await fireMessage(conversationId, sender, "hola");
 
-    expect(await notificationCount(recipient)).toBe(0);
+    expect(sendPushToUser).not.toHaveBeenCalled();
   });
 
-  it("los mensajes seguidos del mismo hilo agrupan en UNA sola notificación", async () => {
+  // Un DM tiene su propia bandeja (la pestaña de Mensajes). Duplicarlo en la
+  // campanita sería ruido, así que el trigger NO escribe ahí nunca.
+  it("🔴 un DM NUNCA crea entrada en la campanita", async () => {
     const sender = `s_${uid()}`;
     const recipient = `r_${uid()}`;
     const conversationId = await seedConversation({ sender, recipient, status: "active" });
@@ -165,10 +183,11 @@ describe("onDirectMessageCreated — a quién notifica", () => {
     await fireMessage(conversationId, sender, "uno");
     await fireMessage(conversationId, sender, "dos");
 
-    expect(await notificationCount(recipient)).toBe(1);
+    expect(await notificationCount(recipient)).toBe(0);
+    expect(await notificationCount(sender)).toBe(0);
   });
 
-  it("pero la solicitud SÍ actualiza el resumen del hilo (solo no notifica)", async () => {
+  it("pero la solicitud SÍ actualiza el resumen del hilo (solo no empuja)", async () => {
     const sender = `s_${uid()}`;
     const recipient = `r_${uid()}`;
     const conversationId = await seedConversation({ sender, recipient, status: "request" });

@@ -87,7 +87,12 @@ const BOB = "bob";
 const CAROL = "carol";
 const CONV = `${ALICE}_${BOB}`;
 
-type Policy = "everyone" | "following" | "none" | undefined;
+type Policy = "everyone" | "following" | "following_and_followers" | "none" | undefined;
+
+/** Alice sigue a Bob. Solo lo mira la política "following_and_followers". */
+function aliceFollowsBob(): Seeds {
+  return [[`users/${ALICE}/following/${BOB}`, { userId: ALICE, targetUserId: BOB }]];
+}
 
 /** Los dos perfiles; `bobPolicy` undefined simula un perfil antiguo sin el campo. */
 function users(bobPolicy: Policy): Seeds {
@@ -212,9 +217,16 @@ function asAnonymous(uid: string) {
 
 // ═══════════════════════════════════════════════════════════════════════════
 describe("DM — política de recepción del destinatario", () => {
-  it("🟢 sin campo messagePolicy (perfil antiguo) se comporta como 'everyone'", async () => {
+  // El predeterminado de la plataforma es "following": un perfil que nunca tocó
+  // la configuración NO tiene la bandeja abierta de par en par.
+  it("🔴 sin campo messagePolicy, un desconocido NO puede escribir (default = following)", async () => {
     await seedAll(users(undefined));
-    await assertSucceeds(createConversation(as(ALICE), { status: "request" }));
+    await assertFails(createConversation(as(ALICE), { status: "request" }));
+  });
+
+  it("🟢 sin campo messagePolicy, quien el destinatario sigue SÍ puede escribir", async () => {
+    await seedAll([...users(undefined), ...bobFollowsAlice()]);
+    await assertSucceeds(createConversation(as(ALICE), { status: "active" }));
   });
 
   it("🟢 'everyone' + el destinatario NO me sigue ⇒ nace en Solicitudes", async () => {
@@ -246,6 +258,32 @@ describe("DM — política de recepción del destinatario", () => {
   it("🔴 'none' ⇒ nadie puede abrir hilo, ni aunque el destinatario me siga", async () => {
     await seedAll([...users("none"), ...bobFollowsAlice()]);
     await assertFails(createConversation(as(ALICE), { status: "active" }));
+    await assertFails(createConversation(as(ALICE), { status: "request" }));
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+describe("DM — política 'a quien sigo y a quien me sigue'", () => {
+  it("🟢 pasa si el destinatario me sigue", async () => {
+    await seedAll([...users("following_and_followers"), ...bobFollowsAlice()]);
+    await assertSucceeds(createConversation(as(ALICE), { status: "active" }));
+  });
+
+  // La diferencia real con "following": aquí basta con que YO le siga.
+  it("🟢 pasa también si soy yo quien sigue al destinatario", async () => {
+    await seedAll([...users("following_and_followers"), ...aliceFollowsBob()]);
+    // No me sigue de vuelta, así que cae en Solicitudes.
+    await assertSucceeds(createConversation(as(ALICE), { status: "request" }));
+  });
+
+  it("🔴 sin ninguna relación de seguimiento NO pasa", async () => {
+    await seedAll(users("following_and_followers"));
+    await assertFails(createConversation(as(ALICE), { status: "request" }));
+    await assertFails(createConversation(as(ALICE), { status: "active" }));
+  });
+
+  it("🔴 con 'following' a secas, seguir al destinatario NO basta", async () => {
+    await seedAll([...users("following"), ...aliceFollowsBob()]);
     await assertFails(createConversation(as(ALICE), { status: "request" }));
   });
 });
@@ -373,10 +411,10 @@ describe("DM — un hilo nunca nace vacío (y la solicitud, con un solo mensaje)
 
 // ═══════════════════════════════════════════════════════════════════════════
 describe("DM — guardar mi política de recepción", () => {
-  it("🟢 puedo cambiar mi propia política a cualquiera de los 3 valores", async () => {
+  it("🟢 puedo cambiar mi propia política a cualquiera de los 4 valores", async () => {
     await seedAll(users("everyone"));
     const db = as(BOB);
-    for (const policy of ["everyone", "following", "none"]) {
+    for (const policy of ["everyone", "following_and_followers", "following", "none"]) {
       await assertSucceeds(
         updateDoc(doc(db, `users/${BOB}`), { messagePolicy: policy, updatedAt: serverTimestamp() })
       );

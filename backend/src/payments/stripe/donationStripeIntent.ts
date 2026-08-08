@@ -12,8 +12,10 @@ import * as admin from "firebase-admin";
 import { stripeFetch, stripeSecretKey } from "./stripeClient";
 import { getOrCreateStripeCustomer } from "./stripeCustomer";
 import { chargeSavedCardOffSession } from "./offSessionCharge";
-import { applyConsumptionTax, isChargeableCountry } from "../../tax/config";
-import { SETTLEMENT_CURRENCY, FIXED_SERVICE_FEE_MXN } from "../../wallet/ledger";
+import { isChargeableCountry } from "../../tax/config";
+import { resolveTaxCountry } from "../../tax/resolveCountry";
+import { composeCharge, chargeFields } from "../../tax/composeCharge";
+import { SETTLEMENT_CURRENCY } from "../../wallet/ledger";
 
 if (admin.apps.length === 0) {
   admin.initializeApp();
@@ -56,23 +58,25 @@ export const createDonationStripeIntent = onCall(
     const saveCard = data.saveCard === true;
     // Si viene, el cobro es "un clic" con una tarjeta ya guardada (off-session, sin CVV).
     const savedPaymentMethodId = data.savedPaymentMethodId ? String(data.savedPaymentMethodId).trim() : null;
-    const taxCountry = data.taxCountry ? String(data.taxCountry).trim().toUpperCase() : null;
     const groupId = typeof data.groupId === "string" && data.groupId.trim() ? data.groupId.trim() : null;
     const groupName = typeof data.groupName === "string" && data.groupName.trim() ? data.groupName.trim() : null;
     // Apodo del donador (invitado sin login o usuario con sesión). Se guarda con la
     // donación para mostrar quién contribuyó. Opcional; se recorta a 24.
     const nickname = typeof data.nickname === "string" && data.nickname.trim() ? data.nickname.trim().slice(0, 24) : null;
 
-    // Precio publicado = base + $3 cargo fijo; IVA 16% encima (todo lo absorbe el donador).
-    const country = taxCountry || "MX";
-    // El país fiscal NO se confía del cliente: si manda uno sin IVA configurado (para
-    // evadir el impuesto), se rechaza. Solo se cobra donde el impuesto está definido (MX).
+    // País fiscal: lo decide el SERVIDOR con la IP del request, nunca el payload del cliente.
+    // Antes llegaba en `data.taxCountry`; eso era inofensivo solo mientras México fuera el único
+    // país configurado. Con un segundo país en la tabla —y más si su impuesto es 0— un comprador
+    // mexicano podía mandar otro ISO y evadir el 16%. Ver impuestos.md §3.
+    // TODO(fase 2): recalcular con el país emisor de la tarjeta antes de confirmar el intent.
+    const resolved = await resolveTaxCountry({ rawRequest: request.rawRequest });
+    const country = resolved.country;
     if (!isChargeableCountry(country)) {
-      throw new HttpsError("failed-precondition", "El cobro solo está disponible en México por ahora.");
+      throw new HttpsError("failed-precondition", "El cobro no está disponible en tu país por ahora.");
     }
-    const published = round2(base + FIXED_SERVICE_FEE_MXN);
-    const tax = applyConsumptionTax(published, country);
-    const totalMxn = round2(published + tax.taxAmount);
+    // Composición completa (base + $3 → +2% FX → + impuesto si lo cobra Vibra). Ver impuestos.md §2.
+    const charge = composeCharge(base, country);
+    const totalMxn = charge.chargedAmount;
 
     const donationId = db.collection("profileDonations").doc().id;
     const externalReference = `profileDonation__${donationId}`;
@@ -94,15 +98,13 @@ export const createDonationStripeIntent = onCall(
         groupName,
         donorNickname: nickname,
       },
-      baseAmount: base,
-      fixedFee: FIXED_SERVICE_FEE_MXN,
-      publishedAmount: published,
-      taxAmount: tax.taxAmount,
-      taxCountry: tax.taxCountry,
-      taxRate: tax.taxRate,
-      chargedAmount: totalMxn,
-      settlementCurrency: SETTLEMENT_CURRENCY,
-      settlementAmount: totalMxn,
+      // Desglose completo del cobro: base, cargo fijo, FX, impuesto del país y régimen del
+      // IVA mexicano. Se guarda aunque la pasarela muestre un precio único sin desglosar.
+      ...chargeFields(charge),
+      // Evidencia de cómo se determinó el país fiscal (indicios del Art. 18-C).
+      taxCountrySource: resolved.source,
+      taxCountryIndicios: resolved.indicios,
+      taxCountryHadConflict: resolved.hadConflict,
       paymentMode: "stripe",
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),

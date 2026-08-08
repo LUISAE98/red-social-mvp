@@ -325,7 +325,8 @@ service cloud.firestore {
             // Quién puede abrirme un DM. Ausente ⇒ "everyone" (lo resuelve la
             // regla de conversations); aquí solo se validan los 3 valores.
             && (!("messagePolicy" in request.resource.data)
-              || request.resource.data.messagePolicy in ["everyone", "following", "none"])
+              || request.resource.data.messagePolicy in
+                   ["everyone", "following", "following_and_followers", "none"])
             && (!("showCreatedGroups" in request.resource.data)
               || request.resource.data.showCreatedGroups is bool)
             && (!("profileRestricted" in request.resource.data)
@@ -3433,23 +3434,32 @@ function canUpdateReplyCount(delta) {
           : newParticipants()[0];
       }
 
-      // Ausente ⇒ "everyone": los perfiles que ya existen no quedan cerrados de golpe.
+      // Ausente ⇒ "following", el predeterminado de la plataforma (ver
+      // lib/chat/types.ts). Deliberadamente conservador: quien nunca entró a
+      // configurarlo no queda con la bandeja abierta de par en par.
       function recipientPolicy() {
         let u = get(/databases/$(database)/documents/users/$(otherUid())).data;
         return ("messagePolicy" in u) && u.messagePolicy is string
           ? u.messagePolicy
-          : "everyone";
+          : "following";
       }
 
-      // ¿El destinatario me sigue? Decide dos cosas: si la política "following"
-      // me deja pasar, y si el hilo entra directo o cae en Solicitudes.
+      // ¿El destinatario me sigue? Decide dos cosas: si la política me deja
+      // pasar, y si el hilo entra directo o cae en Solicitudes.
       function recipientFollowsMe() {
         return exists(/databases/$(database)/documents/users/$(otherUid())/following/$(request.auth.uid));
       }
 
+      /** ¿Yo sigo al destinatario? Solo lo mira "following_and_followers". */
+      function iFollowRecipient() {
+        return exists(/databases/$(database)/documents/users/$(request.auth.uid)/following/$(otherUid()));
+      }
+
       function policyAllowsMe() {
         let p = recipientPolicy();
-        return p == "everyone" || (p == "following" && recipientFollowsMe());
+        return p == "everyone"
+          || (p == "following" && recipientFollowsMe())
+          || (p == "following_and_followers" && (recipientFollowsMe() || iFollowRecipient()));
       }
 
       // El cliente NO elige el estado inicial: si el destinatario no me sigue, la

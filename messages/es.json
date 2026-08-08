@@ -809,9 +809,11 @@
     "messagePolicyFollowing": "Solo a quienes sigo",
     "messagePolicyNone": "Nadie",
     "messagePolicyEveryoneHelp": "Cualquier persona puede escribirte. Los mensajes de quienes no sigues llegan a Solicitudes, sin notificarte.",
-    "messagePolicyFollowingHelp": "Solo las personas que sigues pueden escribirte. Para el resto, tu bandeja no existe.",
+    "messagePolicyFollowingHelp": "Solo pueden escribirte las personas que tú sigues. Para el resto, tu bandeja no existe. Es la opción predeterminada.",
     "messagePolicyNoneHelp": "Tu bandeja está cerrada. Nadie puede iniciarte una conversación.",
-    "messagePolicyUpdateError": "No se pudo actualizar la configuración de mensajes."
+    "messagePolicyUpdateError": "No se pudo actualizar la configuración de mensajes.",
+    "messagePolicyFollowingAndFollowers": "A quien sigo y a quien me sigue",
+    "messagePolicyFollowingAndFollowersHelp": "Pueden escribirte las personas que sigues y también las que te siguen a ti. Si no sigues a quien te escribe, su mensaje llega a Solicitudes."
   },
   "feed": {
     "pinned": "Fijado",
@@ -2236,8 +2238,7 @@
       "new_post": "{count, plural, one {publicó una novedad} other {publicó # novedades}}",
       "new_post_group": "{count, plural, one {publicó en} other {publicó # veces en}} {group}",
       "live_started": "está en vivo",
-      "live_vod_ready": "subió la repetición de su transmisión en vivo",
-      "direct_message": "te envió {count, plural, one {un mensaje} other {# mensajes}}"
+      "live_vod_ready": "subió la repetición de su transmisión en vivo"
     },
     "moderation": {
       "muted": "Fuiste silenciado en {group}",

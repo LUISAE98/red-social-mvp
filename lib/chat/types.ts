@@ -22,19 +22,30 @@ import type { Timestamp } from "firebase/firestore";
  *     campo por mensaje.
  */
 
-/** Quién puede abrir una conversación conmigo. Ausente ⇒ "everyone" (default). */
+/** Quién puede abrir una conversación conmigo. Ausente ⇒ `DEFAULT_MESSAGE_POLICY`. */
 export type MessagePolicy =
   /** Cualquiera. Quien yo no siga cae en la bandeja de Solicitudes. */
   | "everyone"
   /** Solo las personas que YO sigo. El resto ni siquiera puede abrir el hilo. */
   | "following"
+  /** Las que yo sigo y, además, las que me siguen a mí. */
+  | "following_and_followers"
   /** Nadie. Bandeja cerrada. */
   | "none";
 
-export const DEFAULT_MESSAGE_POLICY: MessagePolicy = "everyone";
+/**
+ * Predeterminado de la plataforma: solo quien yo sigo.
+ *
+ * Es deliberadamente conservador — una bandeja abierta de par en par por defecto
+ * convierte el DM en un canal de spam para quien nunca entró a configurarlo.
+ * Quien quiera abrirla lo hace en un clic.
+ */
+export const DEFAULT_MESSAGE_POLICY: MessagePolicy = "following";
 
+// El orden es el del selector: de más abierto a más cerrado.
 export const MESSAGE_POLICIES: readonly MessagePolicy[] = [
   "everyone",
+  "following_and_followers",
   "following",
   "none",
 ] as const;

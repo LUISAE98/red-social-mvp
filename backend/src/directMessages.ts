@@ -6,18 +6,22 @@
  *     incrementa el contador de no leídos del destinatario. Estos campos son
  *     territorio exclusivo del backend: las rules impiden que el cliente los
  *     toque, así que nadie puede falsear su propio inbox.
- *  2. Emite la notificación, que el pipeline de `onNotificationWritten` ya
- *     convierte en push.
+ *  2. Envía el push al dispositivo.
  *
  * Separar (1) y (2) en dos funciones costaría el doble de invocaciones sin
  * ganar nada: el mismo evento las dispara.
+ *
+ * OJO — el push va DIRECTO, sin crear doc en `users/{uid}/notifications`: un
+ * mensaje directo NO aparece en la campanita. Su bandeja es la pestaña de
+ * Mensajes (con su propio contador de no leídos), y duplicarlo en la campanita
+ * sería ruido para algo que ya tiene su sitio.
  */
 
 import { onDocumentCreated } from "firebase-functions/v2/firestore";
 import * as admin from "firebase-admin";
 import * as logger from "firebase-functions/logger";
 
-import { notifyDirectMessage } from "./notifications";
+import { sendPushToUser } from "./push";
 
 if (admin.apps.length === 0) {
   admin.initializeApp();
@@ -88,16 +92,30 @@ export const onDirectMessageCreated = onDocumentCreated(
     if (result.status !== "active") return;
 
     try {
-      await notifyDirectMessage({
-        recipientId: result.recipientId,
-        senderId,
-        conversationId,
-        preview: text,
+      const senderSnap = await db.collection("users").doc(senderId).get();
+      const sender = senderSnap.data() ?? {};
+      const senderName =
+        (typeof sender.displayName === "string" && sender.displayName) ||
+        (typeof sender.handle === "string" && sender.handle) ||
+        "Alguien";
+      const senderAvatar =
+        (typeof sender.photoURL === "string" && sender.photoURL) || null;
+
+      await sendPushToUser(result.recipientId, {
+        title: senderName,
+        // El propio mensaje como cuerpo: es lo que se espera ver en la pantalla
+        // de bloqueo.
+        body: text.slice(0, 140) || "te envió un mensaje",
+        // `/groups` monta el OwnerSidebar completo; `dm` abre ese hilo.
+        link: `/groups?dm=${conversationId}`,
+        // Mensajes seguidos del mismo hilo se colapsan en un solo aviso.
+        tag: `dm_${conversationId}`,
+        icon: senderAvatar,
       });
     } catch (error) {
       // Un fallo notificando NO debe reintentar el trigger: la conversación ya
       // quedó actualizada y el reintento doblaría el contador de no leídos.
-      logger.error("onDirectMessageCreated: fallo al notificar", {
+      logger.error("onDirectMessageCreated: fallo al enviar el push", {
         conversationId,
         error,
       });

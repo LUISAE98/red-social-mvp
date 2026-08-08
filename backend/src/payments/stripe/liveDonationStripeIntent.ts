@@ -12,8 +12,10 @@ import * as admin from "firebase-admin";
 import { stripeFetch, stripeSecretKey } from "./stripeClient";
 import { getOrCreateStripeCustomer } from "./stripeCustomer";
 import { chargeSavedCardOffSession } from "./offSessionCharge";
-import { applyConsumptionTax, isChargeableCountry } from "../../tax/config";
-import { SETTLEMENT_CURRENCY, FIXED_SERVICE_FEE_MXN } from "../../wallet/ledger";
+import { isChargeableCountry } from "../../tax/config";
+import { resolveTaxCountry } from "../../tax/resolveCountry";
+import { composeCharge, chargeFields } from "../../tax/composeCharge";
+import { SETTLEMENT_CURRENCY } from "../../wallet/ledger";
 
 if (admin.apps.length === 0) {
   admin.initializeApp();
@@ -103,21 +105,25 @@ export const createLiveDonationStripeIntent = onCall(
     const nickname = typeof data.nickname === "string" && data.nickname.trim() ? data.nickname.trim().slice(0, 24) : null;
     if (nickname) username = nickname;
 
-    const taxCountry = data.taxCountry ? String(data.taxCountry).trim().toUpperCase() : null;
     const saveCard = data.saveCard === true;
     // Si viene, el cobro es "un clic" con una tarjeta ya guardada (off-session, sin CVV).
     const savedPaymentMethodId = data.savedPaymentMethodId ? String(data.savedPaymentMethodId).trim() : null;
 
     // Precio publicado = base + $3; IVA 16% encima (todo lo absorbe el donante).
-    const country = taxCountry || "MX";
+    // País fiscal: lo decide el SERVIDOR con la IP del request, nunca el payload del cliente.
+    // Con un segundo país en la tabla (y más si su impuesto es 0) el cliente podía mandar otro
+    // ISO y evadir el 16% mexicano. Ver impuestos.md §3.
+    // TODO(fase 2): recalcular con el país emisor de la tarjeta antes de confirmar el intent.
+    const resolved = await resolveTaxCountry({ rawRequest: request.rawRequest });
+    const country = resolved.country;
     // El país fiscal NO se confía del cliente: si manda uno sin IVA configurado (para
     // evadir el impuesto), se rechaza. Solo se cobra donde el impuesto está definido (MX).
     if (!isChargeableCountry(country)) {
       throw new HttpsError("failed-precondition", "El cobro solo está disponible en México por ahora.");
     }
-    const published = round2(base + FIXED_SERVICE_FEE_MXN);
-    const tax = applyConsumptionTax(published, country);
-    const totalMxn = round2(published + tax.taxAmount);
+    // Composición completa (base + $3 → +2% FX → + impuesto si lo cobra Vibra). Ver impuestos.md §2.
+    const charge = composeCharge(base, country);
+    const totalMxn = charge.chargedAmount;
 
     // Id único por donación (es el id del super-comentario que se materializará).
     const donationId = db.collection("posts").doc(postId).collection("superComments").doc().id;
@@ -148,15 +154,13 @@ export const createLiveDonationStripeIntent = onCall(
         isDeleted: false,
         played: false,
       },
-      baseAmount: base,
-      fixedFee: FIXED_SERVICE_FEE_MXN,
-      publishedAmount: published,
-      taxAmount: tax.taxAmount,
-      taxCountry: tax.taxCountry,
-      taxRate: tax.taxRate,
-      chargedAmount: totalMxn,
-      settlementCurrency: SETTLEMENT_CURRENCY,
-      settlementAmount: totalMxn,
+      // Desglose completo del cobro: base, cargo fijo, FX, impuesto del país y régimen del
+      // IVA mexicano. Se guarda aunque la pasarela muestre un precio único sin desglosar.
+      ...chargeFields(charge),
+      // Evidencia de cómo se determinó el país fiscal (indicios del Art. 18-C).
+      taxCountrySource: resolved.source,
+      taxCountryIndicios: resolved.indicios,
+      taxCountryHadConflict: resolved.hadConflict,
       paymentMode: "stripe",
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),

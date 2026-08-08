@@ -53,11 +53,16 @@ export default function ProfileSocialActions({
     !isOwnProfile && !profileRestricted && !relationship.hasBlocked && relationship.canFollow;
 
   // El botón se oculta cuando esta persona no puede recibirme un mensaje. Es
-  // más honesto que mostrarlo y que las rules lo rechacen al enviar. "following"
-  // significa "solo a quienes YO sigo", así que mira si ella me sigue a mí.
+  // más honesto que mostrarlo y que las rules lo rechacen al enviar.
+  //
+  // Ojo con la dirección: la política es de ELLA. "a quien sigo" significa "a
+  // quien ELLA sigue", que desde aquí es `isFollowedBy` (ella me sigue a mí).
+  // Y "a quien me sigue" es `isFollowing` (yo la sigo).
   const policyAllowsMessage =
     profileMessagePolicy === "everyone" ||
-    (profileMessagePolicy === "following" && relationship.isFollowedBy);
+    (profileMessagePolicy === "following" && relationship.isFollowedBy) ||
+    (profileMessagePolicy === "following_and_followers" &&
+      (relationship.isFollowedBy || relationship.isFollowing));
 
   const showMessageButton =
     !isOwnProfile &&

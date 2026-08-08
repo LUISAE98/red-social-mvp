@@ -191,12 +191,12 @@ export function fmtScheduledSplit(ts: unknown): { dayTime: string; dateStr: stri
   };
 }
 
-// Días que tiene el creador para ACEPTAR una solicitud antes de que se cancele.
-// Con auth-hold el pago es una retención que Stripe libera a los ~7 días, así que la
-// ventana es de 5 días. Deben coincidir con los handlers de auto-expirar del backend
-// (greetingRequests.ts y meet & greet / sesión exclusiva).
-export const GREETING_RESPONSE_DAYS = 5;
-export const SESSION_RESPONSE_DAYS = 5;
+// Días que tiene el creador para ENTREGAR (grabar el saludo / agendar la sesión) antes de
+// que el comprador pueda pedir devolución. El pago se retiene (hold) al comprar y se
+// captura al entregar (o como respaldo interno al 5º día, por el límite de ~7 días del
+// hold en Stripe); esta ventana de 60 días es la de entrega, no la de captura.
+export const GREETING_RESPONSE_DAYS = 60;
+export const SESSION_RESPONSE_DAYS = 60;
 
 // Días restantes (>= 0) para responder, contados desde createdAt sobre una ventana
 // de `days` días.

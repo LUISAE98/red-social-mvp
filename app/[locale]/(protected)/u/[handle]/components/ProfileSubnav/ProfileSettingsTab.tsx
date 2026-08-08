@@ -175,11 +175,11 @@ export default function ProfileSettingsTab({
 
     try {
       await onChangeMessagePolicy(next);
-    } catch (error: unknown) {
+    } catch {
       setLocalMessagePolicy(previous);
-      setErr(
-        (error instanceof Error ? error.message : null) ?? tProfile("messagePolicyUpdateError")
-      );
+      // Siempre el texto traducido: los Error del servicio son guardas internas
+      // en español y mostrarlos crudos rompería el idioma de la interfaz.
+      setErr(tProfile("messagePolicyUpdateError"));
     }
   }
 
@@ -552,18 +552,14 @@ export default function ProfileSettingsTab({
         )}
 
         {onChangeMessagePolicy && (
-          <div className="profile-setting-item profile-setting-item--switch" style={item}>
+          // A una sola columna: son cuatro opciones con etiquetas largas, no un
+          // switch, y no caben en la columna estrecha de la derecha.
+          <div
+            className="profile-setting-item"
+            style={{ ...item, gridTemplateColumns: "1fr", gap: 8 }}
+          >
             <div>
               <div style={labelStyle}>{tProfile("messagePolicyLabel")}</div>
-              <div style={valueStyle}>
-                {tProfile(
-                  localMessagePolicy === "everyone"
-                    ? "messagePolicyEveryone"
-                    : localMessagePolicy === "following"
-                      ? "messagePolicyFollowing"
-                      : "messagePolicyNone"
-                )}
-              </div>
               <div
                 style={{
                   marginTop: 5,

@@ -796,7 +796,6 @@ export const acceptExclusiveSessionRequest = onCall(
   {
     region: REGION,
     cors: true,
-    secrets: [stripeSecretKey],
   },
   async (request) => {
     const uid = requireAuth(request.auth?.uid);
@@ -810,19 +809,12 @@ export const acceptExclusiveSessionRequest = onCall(
       "aceptar la solicitud"
     );
 
-    // Auth-hold: aceptar = CAPTURAR la retención (recién aquí se cobra y entra el ledger
-    // pending vía onExclusiveSessionLedger). Si la captura falla, NO se acepta.
-    const isHold = (data as { paymentStatus?: string }).paymentStatus === "authorized";
-    if (isHold) {
-      await capturePaymentIntentForRef(`exclusiveSessionRequest__${requestId}`);
-    }
-
+    // Auth-hold: aceptar NO cobra (no hay cobro "al aceptar"). El cobro (captura) ocurre
+    // cuando el creador AGENDA la sesión (proposeExclusiveSessionSchedule).
     await ref.update({
       status: "accepted_pending_schedule",
       acceptedAt: nowTs(),
       updatedAt: nowTs(),
-      // Captura del hold → pago cobrado: dispara el ledger (pending).
-      ...(isHold ? { paymentStatus: "paid", paidAt: nowTs() } : {}),
     });
 
     logger.info("exclusive_session_request_accepted", {
@@ -895,6 +887,7 @@ export const proposeExclusiveSessionSchedule = onCall(
   {
     region: REGION,
     cors: true,
+    secrets: [stripeSecretKey],
   },
   async (request) => {
     const uid = requireAuth(request.auth?.uid);
@@ -926,8 +919,18 @@ export const proposeExclusiveSessionSchedule = onCall(
 
     const nextStatus = buildPreparationStatus(scheduledAt);
 
+    // Auth-hold: AGENDAR es el momento en que SE COBRA. Si el pago sigue retenido, se
+    // captura ahora → el ledger registra el pending (se liberará al completar la sesión).
+    // Idempotente: si ya se capturó (respaldo del día 5 o reagenda), no hace nada.
+    const isHold = (data as { paymentStatus?: string }).paymentStatus === "authorized";
+    if (isHold) {
+      await capturePaymentIntentForRef(`exclusiveSessionRequest__${requestId}`);
+    }
+
     await ref.update({
       status: nextStatus,
+      // Captura → cobrado: dispara recordEarning (pending) vía onExclusiveSessionLedger.
+      ...(isHold ? { paymentStatus: "paid", paidAt: nowTs() } : {}),
       scheduledAt,
       scheduledBy: uid,
       scheduleProposedAt: nowTs(),
@@ -1324,51 +1327,53 @@ export async function expireExclusiveSessionNoShowsHandler() {
   return expiredCount;
 }
 
-// Días que tiene el creador para ACEPTAR una solicitud de sesión exclusiva antes de que
-// se cancele. Con auth-hold el pago es una RETENCIÓN que Stripe libera a los ~7 días; por
-// eso la ventana es de 5 días (aceptar → capturar dentro del hold). Debe coincidir con el
-// frontend (SESSION_RESPONSE_DAYS en OwnerSidebarGreetings.parts) y con meet & greet.
-export const SESSION_RESPONSE_DAYS = 5;
+// Día en que se CAPTURA la retención (auth-hold) como respaldo si el creador aún no la
+// cobró agendando la sesión. El hold de tarjeta expira ~7 días en Stripe, así que se
+// captura al 5º día. NO es la ventana de entrega (60 días); es solo el respaldo interno.
+export const HOLD_CAPTURE_DAYS = 5;
+// (Legacy: algunos módulos aún importan este nombre; queda como alias del respaldo.)
+export const SESSION_RESPONSE_DAYS = HOLD_CAPTURE_DAYS;
 
 export async function autoExpirePendingExclusiveSessionRequestsHandler(): Promise<number> {
-  const cutoffDate = new Date();
-  cutoffDate.setDate(cutoffDate.getDate() - SESSION_RESPONSE_DAYS);
-  const cutoff = admin.firestore.Timestamp.fromDate(cutoffDate);
-
+  // Respaldo del hold: captura cualquier retención aún "authorized" cercana a expirar,
+  // SIN importar el status. NO cambia el status: el creador conserva su ventana para
+  // agendar (entregar) o rechazar; esto solo ASEGURA el dinero. El cobro normal ocurre al
+  // agendar (proposeExclusiveSessionSchedule). Si nunca se realiza, el comprador podrá
+  // pedir devolución → saldo a favor (B5).
   const snap = await db
     .collection(EXCLUSIVE_SESSION_COLLECTION)
-    .where("status", "==", "pending_creator_response")
-    .where("createdAt", "<=", cutoff)
-    .limit(200)
+    .where("paymentStatus", "==", "authorized")
+    .limit(500)
     .get();
-
   if (snap.empty) return 0;
 
-  // Auth-hold: sin respuesta a tiempo → CANCELAR la retención (libera el hold, $0
-  // comisión). Best-effort y fuera del batch (son llamadas a Stripe).
+  const cutoffMs = Date.now() - HOLD_CAPTURE_DAYS * 24 * 60 * 60 * 1000;
+  const now = admin.firestore.Timestamp.now();
+  let captured = 0;
+
   await Promise.all(
-    snap.docs
-      .filter((doc) => doc.get("paymentStatus") === "authorized")
-      .map((doc) => cancelPaymentIntentForRef(`exclusiveSessionRequest__${doc.id}`))
+    snap.docs.map(async (doc) => {
+      const createdMs = doc.get("createdAt")?.toMillis?.() ?? 0;
+      if (createdMs > cutoffMs) return; // aún dentro de la ventana: no capturar todavía
+      try {
+        await capturePaymentIntentForRef(`exclusiveSessionRequest__${doc.id}`);
+        await doc.ref.update({
+          paymentStatus: "paid", // dispara recordEarning (pending) vía onExclusiveSessionLedger
+          paidAt: now,
+          holdCapturedAt: now,
+          updatedAt: now,
+        });
+        captured++;
+      } catch (e) {
+        logger.error("exclusive_session_hold_capture_failed", {
+          id: doc.id,
+          err: e instanceof Error ? e.message : String(e),
+        });
+        await doc.ref.update({ holdCaptureFailedAt: now, updatedAt: now });
+      }
+    })
   );
 
-  const now = admin.firestore.Timestamp.now();
-  const batch = db.batch();
-
-  // Al expirar pasa a "rejected" (no a devolución directa): cae en Rechazados y
-  // desde ahí el comprador decide si pedir devolución o intentarlo de nuevo.
-  snap.docs.forEach((doc) => {
-    batch.update(doc.ref, {
-      status: "rejected" as ExclusiveSessionStatus,
-      rejectionReason: "El creador no respondió a tiempo la solicitud.",
-      autoExpiredAt: now,
-      rejectedAt: now,
-      updatedAt: now,
-    });
-  });
-
-  await batch.commit();
-
-  logger.info("auto_expire_pending_exclusive_session_requests", { expiredCount: snap.size });
-  return snap.size;
+  logger.info("exclusive_session_holds_captured", { captured, scanned: snap.size });
+  return captured;
 }

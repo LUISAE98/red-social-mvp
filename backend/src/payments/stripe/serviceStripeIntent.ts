@@ -13,8 +13,10 @@ import * as admin from "firebase-admin";
 import { stripeFetch, stripeSecretKey } from "./stripeClient";
 import { getOrCreateStripeCustomer } from "./stripeCustomer";
 import { chargeSavedCardOffSession } from "./offSessionCharge";
-import { applyConsumptionTax, isChargeableCountry } from "../../tax/config";
-import { SETTLEMENT_CURRENCY, FIXED_SERVICE_FEE_MXN } from "../../wallet/ledger";
+import { isChargeableCountry } from "../../tax/config";
+import { resolveTaxCountry } from "../../tax/resolveCountry";
+import { composeCharge, chargeFields } from "../../tax/composeCharge";
+import { SETTLEMENT_CURRENCY } from "../../wallet/ledger";
 
 if (admin.apps.length === 0) {
   admin.initializeApp();
@@ -29,9 +31,6 @@ const ALLOWED_SOURCE_TYPES = new Set([
   "meetGreetRequest",
 ]);
 
-function round2(n: number): number {
-  return Math.round((n + Number.EPSILON) * 100) / 100;
-}
 
 type StripePaymentIntent = { id: string; client_secret: string };
 
@@ -45,7 +44,6 @@ export const createServiceStripeIntent = onCall(
     const externalReference = String(data.externalReference ?? "").trim();
     if (!externalReference) throw new HttpsError("invalid-argument", "Falta la referencia del pago.");
     const saveCard = data.saveCard === true;
-    const taxCountry = data.taxCountry ? String(data.taxCountry).trim().toUpperCase() : null;
     // Si viene, el cobro es "un clic" con una tarjeta ya guardada (off-session, sin CVV).
     const savedPaymentMethodId = data.savedPaymentMethodId ? String(data.savedPaymentMethodId).trim() : null;
 
@@ -70,30 +68,32 @@ export const createServiceStripeIntent = onCall(
     if (!Number.isFinite(base) || base <= 0) throw new HttpsError("failed-precondition", "Precio inválido.");
 
     // Precio publicado = base del creador + cargo fijo $3 (lo absorbe el comprador).
-    const country = taxCountry || "MX"; // solo México por ahora
+    // País fiscal: lo decide el SERVIDOR con la IP del request, nunca el payload del cliente.
+    // Con un segundo país en la tabla (y más si su impuesto es 0) el cliente podía mandar otro
+    // ISO y evadir el 16% mexicano. Ver impuestos.md §3.
+    // TODO(fase 2): recalcular con el país emisor de la tarjeta antes de confirmar el intent.
+    const resolved = await resolveTaxCountry({ rawRequest: request.rawRequest });
+    const country = resolved.country;
     // El país fiscal NO se confía del cliente: si manda uno sin IVA configurado (para
     // evadir el impuesto), se rechaza. Solo se cobra donde el impuesto está definido (MX).
     if (!isChargeableCountry(country)) {
       throw new HttpsError("failed-precondition", "El cobro solo está disponible en México por ahora.");
     }
-    const published = round2(base + FIXED_SERVICE_FEE_MXN);
-    // 🧾 IVA 16% sobre el precio publicado (base + $3). El comprador paga el total.
-    const tax = applyConsumptionTax(published, country);
-    const totalMxn = round2(published + tax.taxAmount);
+    // Composición completa (base + $3 → +2% FX → + impuesto si lo cobra Vibra). Ver impuestos.md §2.
+    const charge = composeCharge(base, country);
+    const totalMxn = charge.chargedAmount;
 
     // Estampa el desglose en el intent (antes de cobrar). El ledger usa grossAmount (base)
     // → creador gana 75% de la base. Aplica a ambos caminos (tarjeta nueva / guardada).
     await intentRef.set(
       {
-        baseAmount: base, // precio del creador (para el ledger/ganancia)
-        fixedFee: FIXED_SERVICE_FEE_MXN, // $3 que absorbe el comprador
-        publishedAmount: published, // base + $3
-        taxAmount: tax.taxAmount, // IVA sobre (base + $3), va al SAT
-        taxCountry: tax.taxCountry,
-        taxRate: tax.taxRate,
-        chargedAmount: totalMxn, // total que paga el comprador
-        settlementCurrency: SETTLEMENT_CURRENCY,
-        settlementAmount: totalMxn,
+        // Desglose completo del cobro: base, cargo fijo, FX, impuesto del país y régimen del
+        // IVA mexicano. Se guarda aunque la pasarela muestre un precio único sin desglosar.
+        ...chargeFields(charge),
+        // Evidencia de cómo se determinó el país fiscal (indicios del Art. 18-C).
+        taxCountrySource: resolved.source,
+        taxCountryIndicios: resolved.indicios,
+        taxCountryHadConflict: resolved.hadConflict,
         paymentMode: "stripe",
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       },

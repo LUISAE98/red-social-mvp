@@ -12,6 +12,8 @@ import { logger } from "firebase-functions";
 import { defineSecret } from "firebase-functions/params";
 import { onRequest } from "firebase-functions/v2/https";
 import { createMuxClient, muxTokenId, muxTokenSecret } from "./mux";
+import { stripeSecretKey } from "./payments/stripe/stripeClient";
+import { capturePaymentIntentForRef } from "./payments/stripe/holdCapture";
 import {
   enqueueAudienceFanout,
   notifyLiveVodReadyOwner,
@@ -168,6 +170,22 @@ async function markGreetingAssetReady(params: {
 
   const greetingRef = db.collection("greetingRequests").doc(greetingRequestId);
 
+  // Auth-hold: entregar el saludo (grabar + enviar) es el momento en que SE COBRA. Si el
+  // pago sigue retenido (hold sin capturar), se captura ahora → el ledger registra el
+  // pending y, al marcarse "delivered", se libera al creador (settle). Si ya se capturó
+  // antes (respaldo del día 5), paymentStatus ya es "paid" y aquí solo se entrega.
+  // La captura va FUERA de la transacción (llamada a Stripe). Como el hold solo sigue
+  // "authorized" durante los primeros ~5 días, aquí siempre está fresco y la captura pasa.
+  const preSnap = await greetingRef.get();
+  if (!preSnap.exists) {
+    logger.warn("muxWebhook greeting asset.ready: greeting not found", { greetingRequestId });
+    return;
+  }
+  const isHold = preSnap.get("paymentStatus") === "authorized";
+  if (isHold) {
+    await capturePaymentIntentForRef(`greetingRequest__${greetingRequestId}`);
+  }
+
   await db.runTransaction(async (tx) => {
     const greetingSnap = await tx.get(greetingRef);
     if (!greetingSnap.exists) {
@@ -184,6 +202,9 @@ async function markGreetingAssetReady(params: {
       videoDuration: duration,
       videoStatus: "ready",
       status: "delivered",
+      // Captura del hold → cobrado: dispara recordEarning (pending) y, con "delivered",
+      // settleEarning en el mismo trigger (onGreetingLedger).
+      ...(isHold ? { paymentStatus: "paid", paidAt: now } : {}),
       deliveredAt: now,
       updatedAt: now,
     });
@@ -1061,7 +1082,7 @@ async function handleLiveStreamIdle(event: MuxWebhookEvent) {
 export const muxWebhook = onRequest(
   {
     region: "us-central1",
-    secrets: [muxWebhookSecret, muxTokenId, muxTokenSecret],
+    secrets: [muxWebhookSecret, muxTokenId, muxTokenSecret, stripeSecretKey],
     timeoutSeconds: 120,
   },
   async (req, res) => {

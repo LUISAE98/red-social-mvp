@@ -19,6 +19,7 @@ import { stripeFetch, stripeSecretKey } from "./stripeClient";
 import { getOrCreateStripeCustomer } from "./stripeCustomer";
 import { extractAuthRequiredPI } from "./offSessionCharge";
 import { isChargeableCountry } from "../../tax/config";
+import { resolveTaxCountry } from "../../tax/resolveCountry";
 import { SETTLEMENT_CURRENCY } from "../../wallet/ledger";
 import { readGroupSub, validateInviteForGroup, computeMonthlyCharge } from "../groupSubscriptionCore";
 
@@ -129,10 +130,14 @@ export const createGroupSubscription = onCall(
       await validateInviteForGroup(groupId, inviteToken); // lanza si no es válido
     }
 
-    // País fiscal: NO se confía del cliente si es un país sin IVA configurado (evasión).
-    const country = (data.taxCountry ? String(data.taxCountry).trim().toUpperCase() : "") || "MX";
+    // País fiscal: lo decide el SERVIDOR con la IP del request, nunca el payload del cliente.
+    // Con un segundo país en la tabla (y más si su impuesto es 0) el cliente podía mandar otro
+    // ISO y evadir el 16% mexicano. Ver impuestos.md §3.
+    // TODO(fase 2): recalcular con el país emisor de la tarjeta antes de confirmar.
+    const resolved = await resolveTaxCountry({ rawRequest: request.rawRequest });
+    const country = resolved.country;
     if (!isChargeableCountry(country)) {
-      throw new HttpsError("failed-precondition", "El cobro solo está disponible en México por ahora.");
+      throw new HttpsError("failed-precondition", "El cobro no está disponible en tu país por ahora.");
     }
 
     const charge = computeMonthlyCharge(sub.price, country); // (base + $3) × IVA

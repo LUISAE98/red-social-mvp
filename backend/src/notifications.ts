@@ -56,8 +56,7 @@ type NotificationType =
   | "session_event"
   | "kyc_update"
   | "invite_expired"
-  | "donation"
-  | "direct_message";
+  | "donation";
 
 interface Actor {
   id: string;
@@ -83,8 +82,6 @@ interface Target {
   sessionType?: string | null;
   /** donation: id de la donación individual (para el detalle por separado, futuro). */
   donationId?: string | null;
-  /** direct_message: hilo al que lleva la notificación. */
-  conversationId?: string | null;
 }
 
 function str(value: unknown): string | null {
@@ -862,41 +859,6 @@ export async function notifyKycStatus(
     type: "kyc_update",
     actor: { id: "kyc", name: "Verificación", avatarUrl: null, handle: null },
     target: { action: status },
-  });
-}
-
-/**
- * Mensaje directo recibido.
- *
- * `groupKey` por conversación: varios mensajes seguidos del mismo hilo agrupan
- * en UNA sola notificación en vez de apilar una por mensaje. El `emit` ya
- * suprime la notificación si hay bloqueo entre las dos personas.
- *
- * Ojo: NO se llama para conversaciones en estado `request`. Una solicitud de
- * alguien desconocido no debe sonar en el teléfono de nadie; se ve al entrar a
- * la bandeja de Solicitudes.
- */
-export async function notifyDirectMessage(opts: {
-  recipientId: string;
-  senderId: string;
-  conversationId: string;
-  preview: string;
-}): Promise<void> {
-  const { recipientId, senderId, conversationId, preview } = opts;
-  if (!recipientId || !senderId || !conversationId) return;
-
-  const actor = await resolveActor(senderId);
-
-  await emit({
-    recipientId,
-    groupKey: `dm_${conversationId}`,
-    type: "direct_message",
-    actor,
-    target: {
-      conversationId,
-      handle: actor.handle,
-      preview: preview.slice(0, 140),
-    },
   });
 }
 
