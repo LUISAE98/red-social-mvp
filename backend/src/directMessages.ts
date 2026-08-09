@@ -113,8 +113,9 @@ export const onDirectMessageCreated = onDocumentCreated(
         // El propio mensaje como cuerpo: es lo que se espera ver en la pantalla
         // de bloqueo.
         body: body.slice(0, 140) || "te envió un mensaje",
-        // `/groups` monta el OwnerSidebar completo; `dm` abre ese hilo.
-        link: `/groups?dm=${conversationId}`,
+        // Directo al hilo. En celular es la pantalla completa de la
+        // conversación; en laptop, la propia página del hilo.
+        link: `/mensajes/${conversationId}`,
         // Mensajes seguidos del mismo hilo se colapsan en un solo aviso.
         tag: `dm_${conversationId}`,
         icon: senderAvatar,

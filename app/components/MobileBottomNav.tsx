@@ -14,8 +14,15 @@ import { useNotifications } from "@/lib/hooks/useNotifications";
 import { useWalletVisibility } from "@/lib/wallet/useWalletVisibility";
 import { usePendingExperiences } from "@/lib/wallet/usePendingExperiences";
 import { useExperiencesSeen } from "@/lib/experiences/useExperiencesSeen";
+import { useInbox } from "@/lib/chat/useInbox";
 
-type NavIconKey = "home" | "groups" | "notifications" | "wallet" | "experiences";
+type NavIconKey =
+  | "home"
+  | "groups"
+  | "messages"
+  | "notifications"
+  | "wallet"
+  | "experiences";
 
 type MobileNavItem = {
   key: string;
@@ -95,6 +102,29 @@ function NavGroupsIcon() {
       <path d="M9.4 8.8L8.8 13" strokeWidth={1.5} />
       <path d="M14.6 8.8L15.2 13" strokeWidth={1.5} />
       <path d="M9.7 16H14.3" strokeWidth={1.5} />
+    </svg>
+  );
+}
+
+/**
+ * Mensajes: mismo globo de conversación que identifica al DM en el resto del
+ * producto, redibujado con el trazo de 30px de este nav.
+ */
+function NavMessagesIcon() {
+  return (
+    <svg width={30} height={30} viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M20.5 12.2C20.5 16.1 16.7 19.2 12 19.2C11 19.2 10.1 19.1 9.2 18.9L4.6 20.4L5.7 16.6C4.4 15.4 3.5 13.9 3.5 12.2C3.5 8.3 7.3 5.2 12 5.2C16.7 5.2 20.5 8.3 20.5 12.2Z" />
+    </svg>
+  );
+}
+
+function NavMessagesIconFilled() {
+  return (
+    <svg width={30} height={30} viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path
+        d="M20.5 12.2C20.5 16.1 16.7 19.2 12 19.2C11 19.2 10.1 19.1 9.2 18.9L4.6 20.4L5.7 16.6C4.4 15.4 3.5 13.9 3.5 12.2C3.5 8.3 7.3 5.2 12 5.2C16.7 5.2 20.5 8.3 20.5 12.2Z"
+        fill="white"
+      />
     </svg>
   );
 }
@@ -191,6 +221,8 @@ export default function MobileBottomNav({
   const router = useRouter();
   const { user } = useAuth();
   const { badgeCount } = useNotifications(user?.uid ?? null);
+  // No leídos del DM, para el badge de Mensajes.
+  const { unreadTotal: unreadMessages } = useInbox(user?.uid ?? null);
 
   // El badge del icono de notificaciones también avisa por experiencias nuevas
   // sin ver (saludos/consejos vendidos, sesiones por atender) — que se cuentan
@@ -295,7 +327,9 @@ export default function MobileBottomNav({
     loadProfileData();
   }, [user]);
 
-  const profileHref = handle ? `/u/${handle}` : "/login";
+  // El avatar ya no lleva al perfil sino al menú; sin sesión no hay menú que
+  // abrir, así que cae en el login igual que antes.
+  const menuHref = user ? "/menu" : "/login";
 
   // eslint-disable-next-line react-hooks/preserve-manual-memoization
   const nav = useMemo(() => {
@@ -308,13 +342,15 @@ export default function MobileBottomNav({
         type: "icon",
         iconKey: "home",
       },
+      // Mensajes ocupa el segundo hueco. Las comunidades pasaron al menú del
+      // avatar (`/menu`), que es donde vive el OwnerSidebar.
       {
-        key: "groups",
-        href: "/groups",
-        active: pathname.startsWith("/groups"),
-        label: t("groups"),
+        key: "messages",
+        href: "/mensajes",
+        active: pathname.startsWith("/mensajes"),
+        label: t("tabMessages"),
         type: "icon",
-        iconKey: "groups",
+        iconKey: "messages",
       },
     ];
 
@@ -351,16 +387,20 @@ export default function MobileBottomNav({
       });
     }
 
+    // El avatar abre TU MENÚ, no el perfil: dentro está la tarjeta de tu perfil
+    // (y es ella la que lleva a `/u/{handle}`), a quién sigues y tus comunidades.
     items.push({
       key: "profile",
-      href: profileHref,
-      active: handle ? (pathname === `/u/${handle}` || pathname.startsWith(`/u/${handle}/`)) : false,
+      href: menuHref,
+      active:
+        pathname.startsWith("/menu") ||
+        (handle ? pathname === `/u/${handle}` || pathname.startsWith(`/u/${handle}/`) : false),
       label: t("profile"),
       type: "avatar",
     });
 
     return items;
-  }, [pathname, profileHref, showWallet, showExperiences]);
+  }, [pathname, menuHref, handle, showWallet, showExperiences]);
 
   return (
     <>
@@ -582,6 +622,15 @@ export default function MobileBottomNav({
                         {notifAlertCount > 0 ? (
                           <span className="navBadge">
                             {notifAlertCount > 99 ? "99+" : notifAlertCount}
+                          </span>
+                        ) : null}
+                      </>
+                    ) : item.iconKey === "messages" ? (
+                      <>
+                        {isActive ? <NavMessagesIconFilled /> : <NavMessagesIcon />}
+                        {unreadMessages > 0 ? (
+                          <span className="navBadge">
+                            {unreadMessages > 99 ? "99+" : unreadMessages}
                           </span>
                         ) : null}
                       </>

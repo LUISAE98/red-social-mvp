@@ -2630,22 +2630,29 @@ newPostsCounts={newPostsCounts}
             }}
           />
 
-<div className="owner-sidebar-menu-divider" aria-hidden="true" />
-
 {/* Mensajes: módulo INDEPENDIENTE del acordeón de arriba y siempre abierto.
-    No es una sección plegable más — la bandeja o se ve, o no existe. */}
-<SidebarMessages
-  loading={loadingConversations}
-  conversations={conversations}
-  requests={conversationRequests}
-  selfUid={viewer?.uid ?? null}
-  profiles={userMiniMap}
-  styles={styles}
-  isMobile={isMobile}
-  activeConversationIds={activeConversationIds}
-  onOpenConversation={handleOpenConversation}
-  unreadTotal={unreadMessagesCount}
-/>
+    No es una sección plegable más — la bandeja o se ve, o no existe.
+
+    Solo en laptop. En celular este sidebar es lo que hay detrás del avatar del
+    nav inferior, y ese mismo nav ya tiene su propio botón de Mensajes: repetir
+    la bandeja aquí sería una segunda puerta a lo mismo. */}
+{!isMobile && (
+  <>
+    <div className="owner-sidebar-menu-divider" aria-hidden="true" />
+    <SidebarMessages
+      loading={loadingConversations}
+      conversations={conversations}
+      requests={conversationRequests}
+      selfUid={viewer?.uid ?? null}
+      profiles={userMiniMap}
+      styles={styles}
+      isMobile={isMobile}
+      activeConversationIds={activeConversationIds}
+      onOpenConversation={handleOpenConversation}
+      unreadTotal={unreadMessagesCount}
+    />
+  </>
+)}
 
 {isMobile && (
   <div style={{

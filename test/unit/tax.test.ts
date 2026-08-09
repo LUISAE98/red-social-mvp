@@ -496,6 +496,65 @@ describe("Sin régimen de servicios digitales — BO, SV, GT, HN, NI, PA", () =>
   });
 });
 
+// 🇳🇴🇮🇸🇧🇦 Europa NO comunitaria. Aquí el régimen SÍ existe y Vibra SÍ sería quien recauda:
+// lo único que falta es el alta, que no es obligatoria mientras no se cruce el umbral. Por eso
+// van con `platform` + `not_registered` y no con `none` como los de LatAm sin régimen.
+describe("Europa no comunitaria bajo umbral — NO, IS, BA", () => {
+  const UNDER: Array<[string, number, string, string]> = [
+    ["NO", 0.25, "NOK", "MVA"],
+    ["IS", 0.24, "ISK", "VSK"],
+    ["BA", 0.17, "BAM", "PDV"],
+  ];
+
+  it("se vende, y el checkout suma CERO mientras no haya alta", () => {
+    for (const [iso] of UNDER) {
+      expect(isChargeableCountry(iso), iso).toBe(true);
+      const b = computeConsumptionTax(100, iso);
+      expect(b.tax, iso).toBe(0);
+      expect(b.total, iso).toBe(100);
+      expect(b.applies, iso).toBe(false);
+      expect(platformCollectsTax(iso), iso).toBe(false);
+    }
+  });
+
+  // 🚨 La distinción que hace falta preservar: NO es lo mismo "nadie recauda nunca" (Bolivia)
+  // que "Vibra recaudará en cuanto se registre" (Noruega). Si alguien uniforma los dos a
+  // `none`, se pierde la señal de que aquí hay una obligación esperando a nacer.
+  it("🚨 el modo es platform (no none): la obligación existe, solo falta el alta", () => {
+    for (const [iso] of UNDER) {
+      expect(countryTaxConfig(iso)!.collectionMode, iso).toBe("platform");
+      expect(countryTaxConfig(iso)!.registrationStatus, iso).toBe("not_registered");
+    }
+    // Contraste con los que nunca van a cobrar nada.
+    expect(countryTaxConfig("BO")!.collectionMode).toBe("none");
+  });
+
+  it("guardan tasa, moneda y nombre para el día del alta", () => {
+    for (const [iso, rate, currency, name] of UNDER) {
+      expect(taxRateForCountry(iso), iso).toBeCloseTo(rate, 8);
+      expect(chargeCurrencyForCountry(iso), iso).toBe(currency);
+      expect(countryTaxConfig(iso)!.taxName, iso).toBe(name);
+      // Cobran en su moneda local, así que les toca el 2% de conversión.
+      expect(shouldAddFxFee(iso), iso).toBe(true);
+    }
+  });
+
+  // Cambiar UN campo debe bastar para encender el cobro el día que se cruce el umbral.
+  it("encender el cobro es cambiar registrationStatus y nada más", () => {
+    const noruega = countryTaxConfig("NO")!;
+    const comoSiEstuvieraDeAlta = { ...noruega, registrationStatus: "registered" as const };
+    expect(comoSiEstuvieraDeAlta.collectionMode).toBe("platform");
+    expect(comoSiEstuvieraDeAlta.taxRate).toBe(0.25);
+  });
+
+  // 🚫 Ucrania tiene umbral pero se dejó fuera: Crimea, Donetsk y Lugansk están bajo embargo
+  // OFAC y resolveCountry solo distingue país, no región (D-14).
+  it("🚫 Ucrania NO está configurada, y es a propósito", () => {
+    expect(countryTaxConfig("UA")).toBeNull();
+    expect(isChargeableCountry("UA")).toBe(false);
+  });
+});
+
 // 🇲🇽 IVA mexicano sobre ventas al EXTRANJERO. Vibra es residente en México, así que por el
 // Art. 16 LIVA su venta siempre está dentro del objeto: lo que cambia es la tasa. Hoy 0% por
 // exportación en los 11 servicios (D-08 pendiente de fiscalista). Ver impuestos.md.

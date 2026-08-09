@@ -28,11 +28,13 @@ const db = admin.firestore();
  * ⚠️ DUPLICADO de NICE_STEP en lib/currency/format.ts. Deben coincidir: si difieren, el
  * precio mostrado y el cobrado se separan, que es justo el bug que esto viene a cerrar.
  */
-const NICE_STEP: Readonly<Record<string, number>> = {
+export const NICE_STEP: Readonly<Record<string, number>> = {
   USD: 0.5, MXN: 5, ARS: 100, BOB: 1, BRL: 1, CLP: 100, COP: 100, CRC: 100,
   GTQ: 1, HNL: 5, NIO: 5, PEN: 1, PYG: 500, DOP: 10, UYU: 5,
   // Unión Europea
   EUR: 0.5, CZK: 5, DKK: 1, HUF: 100, PLN: 1, RON: 1, SEK: 5,
+  // Europa NO comunitaria
+  NOK: 5, ISK: 50, BAM: 0.5,
 };
 
 /**
@@ -43,10 +45,24 @@ const NICE_STEP: Readonly<Record<string, number>> = {
 const STRIPE_MIN_CHARGE: Readonly<Record<string, number>> = {
   USD: 0.5, MXN: 10, EUR: 0.5, CZK: 15, DKK: 2.5, HUF: 175, PLN: 2, RON: 2, SEK: 3,
   ARS: 0.5, BRL: 0.5, COP: 0.5,
+  NOK: 3,
+  // ISK y BAM no aparecen en la lista publicada de mínimos de Stripe. Sin entrada aquí,
+  // `meetsStripeMinimum` los deja pasar y Stripe decide.
 };
 
 /** Monedas sin decimales para Stripe: el `amount` va en unidades enteras, no en centavos. */
 const ZERO_DECIMAL = new Set(["CLP", "PYG", "JPY", "KRW", "VND"]);
+
+/**
+ * Monedas que Stripe trata como SIN decimales pero que, por compatibilidad con importes
+ * antiguos, siguen expresándose en centavos con los decimales SIEMPRE en `00`.
+ *
+ * 🚨 Stripe RECHAZA fracciones: para cobrar 5 ISK hay que mandar `500`, nunca `537`.
+ * Hoy el `NICE_STEP` de ISK (50) ya garantiza enteros, pero eso es una coincidencia
+ * afortunada, no una garantía: si alguien afina ese paso a 0.5 los cargos islandeses
+ * empiezan a fallar sin que nada más cambie. Por eso se fuerza aquí y no se confía en el paso.
+ */
+const WHOLE_UNIT_ONLY = new Set(["ISK", "UGX"]);
 
 function roundNice(amount: number, currency: string): number {
   const step = NICE_STEP[currency] ?? 1;
@@ -70,7 +86,11 @@ export type Presentment = {
 /** Convierte a la unidad mínima que espera Stripe. */
 export function toStripeAmount(amount: number, currency: string): number {
   const code = currency.toUpperCase();
-  return ZERO_DECIMAL.has(code) ? Math.round(amount) : Math.round(amount * 100);
+  if (ZERO_DECIMAL.has(code)) return Math.round(amount);
+  // Enteros obligatorios: se redondea la unidad ANTES de pasar a centavos, para que el
+  // resultado termine siempre en `00` como exige Stripe.
+  if (WHOLE_UNIT_ONLY.has(code)) return Math.round(amount) * 100;
+  return Math.round(amount * 100);
 }
 
 /** ¿El monto alcanza el mínimo que Stripe exige para esa moneda? */

@@ -132,6 +132,35 @@ const EU_OSS_REGISTERED = true;
 const EU_STATUS: RegistrationStatus = EU_OSS_REGISTERED ? "registered" : "cannot_sell";
 
 /**
+ * Fila de un país donde Vibra SÍ sería quien recauda, pero todavía está por debajo del umbral
+ * que obliga a registrarse. Se vende con normalidad y el checkout suma CERO.
+ *
+ * Se distingue de `noDigitalRegime` en algo que importa: allá no existe régimen y nunca habrá
+ * nada que cobrar; aquí el régimen existe y **la obligación nace sola al cruzar el umbral**.
+ *
+ * 👉 PARA ENCENDER EL COBRO al cruzarlo: cambiar `registrationStatus` a `"registered"`. Un solo
+ *    campo, en los dos espejos. El resto del motor ya lo maneja.
+ *
+ * 🚨 Un umbral no es permiso permanente: es permiso HASTA que lo cruzas. Hoy nada en el código
+ *    cuenta ventas por país (decisión D-13), así que la vigilancia es MANUAL. Ver impuestos.md §6.3.
+ */
+function belowThreshold(
+  taxName: string,
+  taxRate: number,
+  currency: string
+): CountryTaxConfig {
+  return {
+    taxName,
+    taxRate,
+    currency,
+    // Vibra sería la que recauda aquí — solo que aún no está de alta.
+    collectionMode: "platform",
+    mxVatTreatment: "export_zero",
+    registrationStatus: "not_registered",
+  };
+}
+
+/**
  * Fila de un país SIN régimen de servicios digitales para proveedores extranjeros.
  *
  * No hay registro posible ni impuesto que enterar: el checkout suma CERO y se vende con
@@ -230,6 +259,24 @@ export const COUNTRY_TAX_CONFIG: Readonly<Record<string, CountryTaxConfig>> = {
   // Panamá: el anteproyecto de 2019 nunca se aprobó. La retención de ITBMS que sí existe la
   // hace el cliente panameño que paga (B2B), no el proveedor ni el banco.
   PA: noDigitalRegime("ITBMS", 0.07, "USD"),
+
+  // ── EUROPA NO COMUNITARIA — con umbral, se vende sin alta ──
+  //
+  // ⚠️ El OSS NO cubre nada de esto: cada país es un trámite propio.
+  // ⚠️ VIGILANCIA MANUAL DEL UMBRAL (D-13). Al cruzarlo hay que registrarse y pasar la fila
+  //    a "registered". Noruega es el más apretado con diferencia.
+  //
+  //   NO — NOK 50.000 en 12 meses MÓVILES (~US$4.500). Régimen VOEC.
+  //   IS — ISK 2.000.000 al año (~US$14.500). Régimen VOES.
+  //   BA — BAM 50.000 al año (~US$28.000). Régimen de la ITA, vigente desde 2023.
+  //
+  // 🚫 Ucrania queda FUERA a propósito pese a tener umbral: Crimea, Donetsk y Lugansk están
+  //    bajo embargo integral de la OFAC y resolveCountry solo distingue PAÍS, no región.
+  //    Decisión D-14. No agregar UA sin discriminación regional.
+  NO: belowThreshold("MVA", 0.25, "NOK"),  // Noruega
+  IS: belowThreshold("VSK", 0.24, "ISK"),  // Islandia
+  BA: belowThreshold("PDV", 0.17, "BAM"),  // Bosnia y Herzegovina
+
 
   // ⚠️ Fuera de la UE no se agrega ninguna fila sin su FICHA en impuestos.md.
 };

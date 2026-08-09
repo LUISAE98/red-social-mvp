@@ -835,13 +835,26 @@ useEffect(() => {
     // comprador sin poder abrir su propio video desde la galería.
     if (awaitingProtectedPlayback) return;
     if (autoOpenUnlock) {
-      // Flujo de desbloqueo/compra: panel de pago (premium) o ticket vía live viewer.
-      // Sin sesión no se puede cobrar → a iniciar sesión en vez de abrir una
-      // pasarela que el backend va a rechazar.
+      // Flujo de desbloqueo/compra desde la galería. Sin sesión no se puede
+      // cobrar → a iniciar sesión en vez de abrir una pasarela que el backend
+      // va a rechazar.
       autoOpenedRef.current = true;
       if (post.premium?.enabled === true) {
+        // Premium: foto, video, o VOD con precio propio.
         if (ensureSignedInToPay()) setPaymentPanelOpen(true);
-      } else setLiveViewerOpen(true);
+      } else if ((localLiveData ?? post.liveData)?.status === "live") {
+        // Transmisión EN CURSO con ticket: el visor enseña portada y paywall.
+        setLiveViewerOpen(true);
+      } else {
+        // VOD de un live CON TICKET: la MISMA hoja de pago que usan las fotos y
+        // los videos de pago. Antes abría el visor de live a pantalla completa,
+        // o sea otra estética y otro flujo para el mismo gesto (tocar un tile
+        // bloqueado). Al aprobarse el cobro el visor se abre solo.
+        if (ensureSignedInToPay()) {
+          livePaidRef.current = false;
+          setLivePayOpen(true);
+        } else onViewerClosed?.();
+      }
     } else if (autoOpenLive) {
       // Transmisión en curso → modal de live.
       autoOpenedRef.current = true;
@@ -4356,6 +4369,11 @@ padding: "0 0 2px 0",
     if (livePaidRef.current) {
       livePaidRef.current = false;
       setLiveViewerOpen(true);
+    } else if (onViewerClosed) {
+      // Cerrada SIN pagar desde el lightbox de la galería: hay que desmontar la
+      // tarjeta headless, o el visor queda abierto en 0×0 y bloquea la galería
+      // (mismo cierre que la hoja de premium).
+      window.setTimeout(() => onViewerClosed(), 200);
     }
   }}
 />

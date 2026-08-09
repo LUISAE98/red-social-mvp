@@ -143,12 +143,19 @@ export async function fetchGroupMediaPage(params: {
   const safePageSize = Math.max(1, Math.min(params.pageSize ?? 24, 40));
   const previousLastDoc = params.cursor?.lastDoc ?? null;
 
-  // Se consulta por groupId (mismo índice que el feed, ya construido) y se filtra
-  // el tipo de media en cliente — más robusto que depender de `postType`.
+  // Fotos y videos: se consulta por groupId (mismo índice que el feed) y el tipo
+  // de media se filtra en cliente — más robusto que depender de `postType`.
+  // "En vivo" NO: un live SIEMPRE nace con `postType: "live"`, y filtrar en
+  // cliente obligaba a recorrer TODO el historial de la comunidad para descubrir
+  // que no hay ninguno; la pestaña se quedaba paginando en blanco en vez de
+  // enseñar su leyenda de vacío. Con el índice por postType (ya existente) la
+  // respuesta es inmediata. El filtro por contenido de `buildMediaPageResult`
+  // se conserva como red.
   const postsSnap = await getDocs(
     query(
       collection(db, "posts"),
       where("groupId", "==", params.groupId),
+      ...(params.kind === "lives" ? [where("postType", "==", "live")] : []),
       where("isDeleted", "==", false),
       orderBy("createdAt", "desc"),
       ...(previousLastDoc ? [startAfter(previousLastDoc)] : []),
@@ -182,12 +189,16 @@ export async function fetchProfileMediaPage(params: {
 
   // Misma forma que el feed de perfil (reglas + índice ya probados): filtra por
   // contextType+profileId+authorId+isDeleted; el tipo de media se filtra en cliente.
+  // Excepción "En vivo": se fija además `postType == "live"` para no recorrer
+  // todo el historial buscando transmisiones (ver fetchGroupMediaPage). Fijar un
+  // campo de más nunca estorba a las reglas: siguen viendo los que ya miraban.
   const postsSnap = await getDocs(
     query(
       collection(db, "posts"),
       where("contextType", "==", "profile"),
       where("profileId", "==", params.profileUid),
       where("authorId", "==", params.profileUid),
+      ...(params.kind === "lives" ? [where("postType", "==", "live")] : []),
       where("isDeleted", "==", false),
       orderBy("createdAt", "desc"),
       ...(previousLastDoc ? [startAfter(previousLastDoc)] : []),

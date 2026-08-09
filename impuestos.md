@@ -662,6 +662,122 @@ son dos trámites distintos.
 
 ---
 
+## 6.3 Europa NO comunitaria (2026-08-08)
+
+El OSS **no cubre nada de esto**: cada país es un trámite propio. Lo que decide si se puede
+encender es el umbral, no la tasa.
+
+### ✅ ACTIVOS — con umbral, se vende sin alta
+
+| País | Moneda | Idioma | Tasa | Impuesto | Régimen | Umbral | Equivale a | Estado |
+|---|---|---|---|---|---|---|---|---|
+| 🇳🇴 Noruega | NOK | Noruego | 25% | MVA | VOEC | **NOK 50.000** / 12 meses móviles | ~US$4.500 | ✅ Integrado |
+| 🇮🇸 Islandia | ISK | Islandés | 24% | VSK | VOES | **ISK 2.000.000** / año | ~US$14.500 | ✅ Integrado |
+| 🇧🇦 Bosnia y Herzegovina | BAM | Bosnio/croata/serbio | 17% | PDV | ITA (desde 2023) | **BAM 50.000** / año | ~US$28.000 | ✅ Integrado |
+| 🇺🇦 Ucrania | UAH | Ucraniano | 20% | ПДВ | No residente | UAH 1.000.000 / año | ~US$24.000 | 🚫 **FUERA** (D-14) |
+
+Los tres integrados van con `collectionMode: "platform"` + `registrationStatus: "not_registered"`:
+el régimen existe y Vibra sería quien recauda, pero sin alta el checkout suma **cero**.
+
+> 👉 **Para encender el cobro el día que se cruce un umbral:** cambiar `registrationStatus` a
+> `"registered"` en esa fila, en los **dos** espejos. Un solo campo; el motor ya hace el resto.
+> Hay un test que verifica justamente eso.
+
+**Idiomas:** noruego, islandés y bosnio **no** están en los 24 de la UE, así que esos compradores
+ven la UI en inglés (fallback). No bloquea la venta. Ver [[project_eu_languages_rollout]].
+
+### ❌ Sin umbral — alta desde la primera venta
+
+| País | Moneda | Idioma | Tasa | Impuesto | Alta | Declaración |
+|---|---|---|---|---|---|---|
+| 🇬🇧 Reino Unido | GBP | Inglés | 20% | VAT | HMRC — **umbral CERO** para NETP | Trimestral |
+| 🇨🇭 Suiza | CHF | Alemán/francés/italiano | 8,1% | MWST/TVA | FTA + **representante fiscal** | Trimestral |
+| 🇱🇮 Liechtenstein | CHF | Alemán | 8,1% | MWST | Sistema suizo (unión aduanera) | Trimestral |
+| 🇷🇸 Serbia | RSD | Serbio | 20% | PDV | Registro no residente | Por confirmar |
+| 🇦🇱 Albania | ALL | Albanés | 20% | TVSH | Registro no residente | Por confirmar |
+| 🇲🇪 Montenegro | EUR | Montenegrino | 21% | PDV | Registro no residente | Por confirmar |
+| 🇲🇩 Moldavia | MDL | Rumano | 20% | TVA | Registro no residente | Por confirmar |
+| 🇲🇰 Macedonia del Norte | MKD | Macedonio | 18% | DDV | **Representante fiscal local** solidariamente responsable | Por confirmar |
+| 🇹🇷 Turquía | TRY | Turco | 20% | KDV | VAT No. 3 | Mensual |
+
+### 🚫 No viables
+
+🇷🇺 Rusia y 🇧🇾 Bielorrusia: sanciones. Stripe no opera.
+
+### ⚠️ Suiza: los CHF 100.000 son de facturación MUNDIAL, no suiza
+
+Es la confusión más cara de esta tabla. **No** es "vende hasta CHF 100k en Suiza y luego te
+registras". Es: *si tu facturación global supera CHF 100.000, debes registrarte aunque vendas una
+sola vez en Suiza*. Vibra está en ese rango o lo estará pronto, así que el umbral no protege nada.
+
+Encima: exige **representante fiscal**, y basta **una sola venta B2C** para que todas las ventas
+suizas — incluidas las B2B que habrían ido por reverse charge — queden gravadas. Suiza es de las
+más caras de abrir de toda Europa, no de las fáciles.
+
+### 🇬🇧 Reino Unido: el umbral de £90.000 NO aplica
+
+Ese umbral es solo para empresas **establecidas** en UK. Para un extranjero (*Non-Established
+Taxable Person*) el umbral es **cero**: alta desde la primera libra. No hay forma de probar el
+mercado antes de registrarse. Es el mercado más grande de la lista y el que menos margen da.
+
+### 🇺🇦 Ucrania — ⚠️ PAÍS EN GUERRA
+
+Invasión rusa a gran escala desde febrero de 2022, ley marcial vigente. Tres efectos reales,
+en orden de gravedad:
+
+**1. 🚨 Territorios ocupados bajo embargo — el único riesgo serio.** Crimea, Donetsk y Lugansk
+están bajo embargo integral de la OFAC, **el mismo nivel que Cuba, Irán, Corea del Norte y Siria**.
+Stripe prohíbe expresamente "cualquier trato, negocio o venta de bienes/servicios vinculado
+directa o indirectamente" con esas regiones.
+
+> **El problema para Vibra:** `resolveCountry.ts` resuelve a nivel PAÍS. Devuelve `"UA"` y no
+> distingue un comprador en Kiev de uno en Donetsk ocupado. Vender a Ucrania sin discriminación
+> regional deja abierta una vía a territorio embargado.
+>
+> Mitigante: en la práctica los bancos de los territorios ocupados son rusos y sus tarjetas ya
+> están bloqueadas, y Stripe hace su propio filtrado de sanciones. Pero el filtrado de Stripe no
+> traslada toda la responsabilidad al procesador: el comerciante conserva la suya.
+
+**2. Control de cambios del BNU — impacto bajo.** Bajo ley marcial, los ucranianos tienen un tope
+de **UAH 100.000 al mes** (~US$2.400) para compras de bienes y servicios en el exterior. El BNU
+lleva liberalizando desde 2022 (Resoluciones N.º 2 y 3 del 13-ene-2026; N.º 43 del 23-abr-2026),
+y para el ticket promedio de Vibra ese tope no es una restricción práctica.
+
+**3. La devaluación mueve el umbral.** El umbral está en hryvnias. Si la moneda se devalúa, el
+mismo UAH 1.000.000 se cruza con **menos ingreso real**. La estimación de ~US$24.000 no es estable
+y no sirve como referencia fija para el contador.
+
+**La obligación fiscal es real y se cobra.** La administración tributaria ucraniana funciona y
+recauda este IVA de Google, Meta y Netflix. Estar en guerra no la suspende.
+
+**DECISIÓN (2026-08-08): Ucrania queda FUERA.** El riesgo no es que la guerra lo haga imposible —
+es que la superficie de sanciones es desproporcionada frente a un ingreso marginal. Los otros tres
+con umbral no tienen esta complicación.
+
+⚠️ **No agregar `UA` a `COUNTRY_TAX_CONFIG` sin discriminación REGIONAL.** Hay un test que
+verifica que siga fuera, para que nadie la agregue "por completar la lista de Europa".
+
+### 🚨 VIGILANCIA MANUAL DEL UMBRAL — asumida a conciencia (2026-08-08)
+
+**Un umbral no es permiso permanente: es permiso HASTA que lo cruzas.** Hoy no existe nada en el
+código que cuente ventas acumuladas por país ni que avise al acercarse.
+
+Los tres se encendieron igual, con la vigilancia **manual y explícita** a cargo de Luis. Al cruzar
+un umbral nace la obligación de registrarse y de empezar a cobrar; nadie va a avisar solo.
+
+| País | Umbral | Ventana | Riesgo |
+|---|---|---|---|
+| 🇳🇴 Noruega | NOK 50.000 (~US$4.500) | **12 meses MÓVILES** | 🔴 El más apretado. Un solo creador que funcione lo alcanza |
+| 🇮🇸 Islandia | ISK 2.000.000 (~US$14.500) | Año | 🟡 Medio |
+| 🇧🇦 Bosnia | BAM 50.000 (~US$28.000) | Año | 🟢 Holgado |
+
+⚠️ Noruega usa ventana **móvil de 12 meses**, no año calendario: no se "reinicia" en enero.
+
+Sigue pendiente el contador automático con alerta al 80%. El ledger ya tiene todo el dato.
+Queda como **D-13** — ya no bloquea, pero cuanto antes exista, menos depende de la memoria.
+
+---
+
 ## 7. Estado y pendientes
 
 ### Países
@@ -672,10 +788,13 @@ son dos trámites distintos.
 | 🇪🇺 Unión Europea | 27 | ✅ Activos (falta nº de OSS para `sk_live`) | **Sí** — el de cada país |
 | 💳 Recauda la emisora | AR · CR · EC · PY · DO | ✅ Activos | No — lo suma el banco |
 | ⬜ Sin régimen digital | BO · SV · GT · HN · NI · **PA** | ✅ Activos | No — no lo recauda nadie |
+| 🏔️ Europa no-UE bajo umbral | NO · IS · BA | ✅ Activos — **vigilancia manual** | No — hasta cruzar el umbral |
 | ⬜ Resto de LatAm | CL · CO · PE · UY · BR | Sin ficha — **no cobrables** | — |
+| ⬜ Resto de Europa no-UE | GB · CH · LI · RS · AL · ME · MD · MK · TR | Sin ficha — exigen alta desde la 1ª venta | — |
+| 🚫 Excluidos a propósito | UA (embargo regional) · RU · BY (sanciones) | No integrar | — |
 | ⬜ Resto del mundo | — | Sin ficha — **no cobrables** | — |
 
-**Total cobrable: 39 países.** Un país sin fila en `COUNTRY_TAX_CONFIG` no es cobrable y el
+**Total cobrable: 42 países.** Un país sin fila en `COUNTRY_TAX_CONFIG` no es cobrable y el
 checkout lo rechaza.
 
 ### Backend — ✅ hecho (2026-08-07)
@@ -708,6 +827,8 @@ checkout lo rechaza.
 | **D-09** | Los 5 de LatAm que faltan (CL · CO · PE · UY · BR): todos exigen alta previa. Detalle de quién recauda y quién declara en §6.2 | Luis + fiscalista internacional |
 | **D-11** | 🇨🇴 ¿La retención en la fuente colombiana SE SUMA al comprador o se DESCUENTA de lo que cobra Vibra? Vale 19% de cada venta. Bloquea la integración de Colombia | Fiscalista CO |
 | **D-12** | 🇺🇾 Confirmar el IRNR 12% sobre IVA 22% y quién retiene | Fiscalista UY |
+| **D-13** | Contador de ventas acumuladas por país + alerta al 80% del umbral. NO · IS · BA ya están encendidos con **vigilancia manual**; el contador la reemplazaría | Luis + Claude |
+| ~~D-14~~ | ~~🇺🇦 ¿Entrar a Ucrania?~~ **Resuelta 2026-08-08: NO.** Requeriría discriminación regional (Crimea/Donetsk/Lugansk bajo embargo OFAC) que no existe | ✅ |
 | **D-10** | Vigilar a mano BO · SV · GT · HN · NI · PA: Stripe Tax no los cubre. **Panamá es el más urgente** (anteproyecto de 2019 reabierto) | Luis |
 | ~~AR-01~~ | ~~¿Cobrar en ARS o en MXN/USD?~~ **Resuelta: en ARS**, la moneda local del comprador | ✅ |
 

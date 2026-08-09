@@ -1,36 +1,23 @@
 "use client";
 
-import { useLayoutEffect, useState } from "react";
-import OwnerSidebar from "@/app/components/OwnerSidebar/OwnerSidebar";
+import { useEffect } from "react";
+import { useRouter } from "@/i18n/navigation";
 
-export default function GroupsMobilePage() {
-  const [isEmbed, setIsEmbed] = useState(false);
+/**
+ * `/groups` era el índice que montaba el OwnerSidebar. Ese contenido se movió a
+ * `/menu`, detrás del avatar del nav inferior.
+ *
+ * Esta ruta se conserva como redirección porque sigue siendo el destino natural
+ * al salir de una comunidad (`router.replace("/groups")` tras abandonarla o
+ * borrarla) y de enlaces antiguos. Se usa `replace` para no dejar un paso
+ * intermedio en el historial: el botón de atrás no debe volver aquí.
+ */
+export default function GroupsIndexRedirect() {
+  const router = useRouter();
 
-  useLayoutEffect(() => {
-    try {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setIsEmbed(window.self !== window.top);
-    } catch {
-      setIsEmbed(true);
-    }
-  }, []);
+  useEffect(() => {
+    router.replace("/menu");
+  }, [router]);
 
-  if (isEmbed) return null;
-
-  return (
-    <div
-      style={{
-        maxWidth: 720,
-        margin: "0 auto",
-        // Sin padding lateral aquí: OwnerSidebar ya trae sus propios 10px de panel.
-        // Antes iba position:fixed de borde a borde (ignoraba este wrapper); ahora
-        // en flujo, sumar padding lateral estrechaba el contenido. Se conserva el
-        // ancho previo (~full width) dejando solo el padding vertical.
-        padding: "16px 0 120px",
-        color: "#fff",
-      }}
-    >
-      <OwnerSidebar />
-    </div>
-  );
+  return null;
 }

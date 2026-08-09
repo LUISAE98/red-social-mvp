@@ -1646,7 +1646,9 @@ const shellStyle: CSSProperties = {
               lightboxTile.mediaUrl ?? lightboxTile.post.media?.[0]?.url ?? null
             }
             autoOpenLive={lightboxTile.isLiveNow}
-            autoOpenVod={lightboxTile.isLive && !lightboxTile.isLiveNow}
+            // Un VOD bloqueado NO abre el visor: va al flujo de compra
+            // (`autoOpenUnlock`), igual que una foto o un video de pago.
+            autoOpenVod={lightboxTile.isLive && !lightboxTile.isLiveNow && !lightboxTile.isLocked}
             autoOpenUnlock={lightboxTile.isLocked}
             forceUnlocked={lightboxTile.isPremiumUnlocked}
             onPostUnlocked={(id) =>

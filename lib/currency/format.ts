@@ -59,7 +59,7 @@ export const FX_BUFFER = FX_CONVERSION_FEE;
  * las monedas (~0.05–0.50 USD). Demasiado fino deja cifras feas; demasiado grueso
  * mueve el precio real (el redondeo puede subir o bajar lo que paga el comprador).
  */
-const NICE_STEP: Record<DisplayCurrency, number> = {
+export const NICE_STEP: Record<DisplayCurrency, number> = {
   USD: 0.5,
   MXN: 5,
   ARS: 100,
@@ -83,6 +83,12 @@ const NICE_STEP: Record<DisplayCurrency, number> = {
   PLN: 1, //   1 USD ≈ 4.0 PLN  → 1 PLN   ≈ 0.25 USD.
   RON: 1, //   1 USD ≈ 4.6 RON  → 1 RON   ≈ 0.22 USD.
   SEK: 5, //   1 USD ≈ 10.5 SEK → 5 SEK   ≈ 0.48 USD. El precio sueco se usa en múltiplos de 5.
+  // --- Europa NO comunitaria ---
+  NOK: 5, //   1 USD ≈ 10.5 NOK → 5 NOK   ≈ 0.48 USD. Mismo caso que la corona sueca.
+  ISK: 50, //  1 USD ≈ 138 ISK  → 50 ISK  ≈ 0.36 USD. La corona islandesa no usa decimales
+  //           en la práctica y los precios se cotizan en decenas.
+  BAM: 0.5, // 1 USD ≈ 1.8 BAM  → 0.5 BAM ≈ 0.28 USD. El marco está anclado al euro
+  //           (1.95583 BAM = 1 EUR), así que se comporta como él.
 };
 
 /** Redondea a un múltiplo "bonito" según la moneda. */
