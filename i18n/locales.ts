@@ -35,7 +35,7 @@ export type LocaleMeta = {
  * `es`, `en` y `pt-BR` son los que ya existían.
  */
 export const LOCALE_META: readonly LocaleMeta[] = [
-  { code: "bg", label: "BG", name: "Български", intl: "bg-BG", ready: false },
+  { code: "bg", label: "BG", name: "Български", intl: "bg-BG", ready: true },
   { code: "cs", label: "CS", name: "Čeština", intl: "cs-CZ", ready: true },
   { code: "da", label: "DA", name: "Dansk", intl: "da-DK", ready: true },
   { code: "de", label: "DE", name: "Deutsch", intl: "de-DE", ready: true },
@@ -46,10 +46,10 @@ export const LOCALE_META: readonly LocaleMeta[] = [
   { code: "fi", label: "FI", name: "Suomi", intl: "fi-FI", ready: true },
   { code: "fr", label: "FR", name: "Français", intl: "fr-FR", ready: true },
   { code: "ga", label: "GA", name: "Gaeilge", intl: "ga-IE", ready: false },
-  { code: "hr", label: "HR", name: "Hrvatski", intl: "hr-HR", ready: false },
+  { code: "hr", label: "HR", name: "Hrvatski", intl: "hr-HR", ready: true },
   { code: "hu", label: "HU", name: "Magyar", intl: "hu-HU", ready: true },
   { code: "it", label: "IT", name: "Italiano", intl: "it-IT", ready: true },
-  { code: "lt", label: "LT", name: "Lietuvių", intl: "lt-LT", ready: false },
+  { code: "lt", label: "LT", name: "Lietuvių", intl: "lt-LT", ready: true },
   { code: "lv", label: "LV", name: "Latviešu", intl: "lv-LV", ready: false },
   { code: "mt", label: "MT", name: "Malti", intl: "mt-MT", ready: false },
   { code: "nl", label: "NL", name: "Nederlands", intl: "nl-NL", ready: true },
@@ -71,7 +71,7 @@ export const LOCALE_META: readonly LocaleMeta[] = [
  * en toda la app. Al terminar el archivo de un idioma: pon su `ready: true` arriba
  * Y agrégalo a esta tupla. El test de i18n verifica que ambas listas coincidan.
  */
-export const READY_LOCALES = ["es", "en", "pt-BR", "de", "fr", "it", "nl", "pl", "ro", "el", "cs", "hu", "sv", "pt-PT", "da", "fi", "sk"] as const;
+export const READY_LOCALES = ["es", "en", "pt-BR", "de", "fr", "it", "nl", "pl", "ro", "el", "cs", "hu", "sv", "pt-PT", "da", "fi", "sk", "bg", "hr", "lt"] as const;
 
 export type Locale = (typeof READY_LOCALES)[number];
 

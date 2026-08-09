@@ -219,6 +219,11 @@ export default function PurchasesTodoList({ uid }: { uid: string | null | undefi
         const typeLabel = tWallet(ledgerTypeLabelKey(d.type));
         const refunded = d.status !== "paid";
         const invoiced = d.invoiced === true;
+        // Devuelto: a crédito (saldo a favor) o a la tarjeta (rechazo antes de cobrar).
+        const returnedToCredit = d.refundDestination === "credit";
+        const returnedToCard = d.refundDestination === "card";
+        const isReturn = returnedToCredit || returnedToCard;
+        const returnAmount = typeof d.refundedAmount === "number" ? d.refundedAmount : d.grossAmount;
         // Facturable/seleccionable solo si está pagada y NO facturada aún.
         const selectable = selecting && !refunded && !invoiced;
         const selected = selectedIds.has(r.id);
@@ -288,18 +293,29 @@ export default function PurchasesTodoList({ uid }: { uid: string | null | undefi
                 )}
               </div>
               <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 11, marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                {typeLabel}{relTime ? ` · ${relTime}` : ""}
+                {isReturn
+                  ? <>{typeLabel} · {returnedToCredit ? "Devuelto en crédito usable para la plataforma" : "Devuelto a tu tarjeta"}</>
+                  : <>{typeLabel}{relTime ? ` · ${relTime}` : ""}</>}
               </div>
             </div>
 
             <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 2, flexShrink: 0 }}>
-              <span style={{ color: "#fff", fontSize: 13, fontWeight: 700, whiteSpace: "nowrap", textDecoration: refunded ? "line-through" : "none", opacity: refunded ? 0.6 : 1 }}>
-                {formatMoney(d.grossAmount, { baseCurrency: d.currency ?? "MXN" })}
-              </span>
-              {refunded && (
-                <span style={{ fontSize: 10, fontWeight: 600, color: ledgerStatusColor(d.status as LedgerStatus) }}>
-                  {tWallet(ledgerStatusLabelKey(d.status as LedgerStatus))}
+              {isReturn ? (
+                // Devuelto: cifra en verde con "+" (lo que volvió al saldo/tarjeta). No tachado.
+                <span style={{ color: "#4ade80", fontSize: 13, fontWeight: 700, whiteSpace: "nowrap" }}>
+                  +{formatMoney(returnAmount, { baseCurrency: d.currency ?? "MXN" })}
                 </span>
+              ) : (
+                <>
+                  <span style={{ color: "#fff", fontSize: 13, fontWeight: 700, whiteSpace: "nowrap", textDecoration: refunded ? "line-through" : "none", opacity: refunded ? 0.6 : 1 }}>
+                    {formatMoney(d.grossAmount, { baseCurrency: d.currency ?? "MXN" })}
+                  </span>
+                  {refunded && (
+                    <span style={{ fontSize: 10, fontWeight: 600, color: ledgerStatusColor(d.status as LedgerStatus) }}>
+                      {tWallet(ledgerStatusLabelKey(d.status as LedgerStatus))}
+                    </span>
+                  )}
+                </>
               )}
             </div>
           </div>

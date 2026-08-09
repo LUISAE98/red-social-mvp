@@ -3047,6 +3047,7 @@ const avatarNode = (
         successMessage={tServices(greetType === "consejo" ? "paySuccessConsejo" : "paySuccessSaludo", {
           name: group?.name ?? tServices("creatorFallback"),
         })}
+        holdSuccessMessage={`Tu solicitud fue enviada. Aún no se te cobra: el cargo se hace solo cuando ${group?.name ?? tServices("creatorFallback")} grabe y envíe tu ${greetType === "consejo" ? "consejo" : "saludo"}.`}
         autoConfirm={autoConfirmPay}
         onClose={() => { setPayGreetOpen(false); setAutoConfirmPay(false); setIsRetry(false); }}
         onPaid={() => {
@@ -3070,6 +3071,7 @@ const avatarNode = (
         avatarUrl={group?.avatarUrl ?? null}
         durationMinutes={paySessionDuration}
         successMessage={tServices("paySuccessScheduled", { name: group?.name ?? tServices("creatorFallback") })}
+        holdSuccessMessage={`Tu solicitud fue enviada. Aún no se te cobra: el cargo se hace solo cuando ${group?.name ?? tServices("creatorFallback")} agende la sesión.`}
         autoConfirm={autoConfirmPay}
         onClose={() => { setPaySessionOpen(false); setAutoConfirmPay(false); setIsRetry(false); }}
         onPaid={() => {
@@ -3093,6 +3095,7 @@ const avatarNode = (
         avatarUrl={group?.avatarUrl ?? null}
         durationMinutes={payMeetDuration}
         successMessage={tServices("paySuccessScheduled", { name: group?.name ?? tServices("creatorFallback") })}
+        holdSuccessMessage={`Tu solicitud fue enviada. Aún no se te cobra: el cargo se hace solo cuando ${group?.name ?? tServices("creatorFallback")} agende la sesión.`}
         autoConfirm={autoConfirmPay}
         onClose={() => { setPayMeetOpen(false); setAutoConfirmPay(false); setIsRetry(false); }}
         onPaid={() => {

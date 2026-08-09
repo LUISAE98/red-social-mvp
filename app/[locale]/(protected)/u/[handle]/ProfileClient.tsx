@@ -2937,6 +2937,7 @@ const res = (await createExclusiveSessionRequest({
   avatarUrl={userDoc.photoURL}
   description={tServices(greetType === "consejo" ? "payDescConsejo" : "payDescSaludo", { name: fullName })}
   successMessage={tServices(greetType === "consejo" ? "paySuccessConsejo" : "paySuccessSaludo", { name: fullName })}
+  holdSuccessMessage={`Tu solicitud fue enviada. Aún no se te cobra: el cargo se hace solo cuando ${fullName} grabe y envíe tu ${greetType === "consejo" ? "consejo" : "saludo"}.`}
   autoConfirm={autoConfirmPay}
   onClose={() => { setPayGreetOpen(false); setAutoConfirmPay(false); setIsRetry(false); }}
   onPaid={() => {
@@ -2960,6 +2961,7 @@ const res = (await createExclusiveSessionRequest({
   avatarUrl={userDoc.photoURL}
   durationMinutes={paySessionDuration}
   successMessage={tServices("paySuccessScheduled", { name: fullName })}
+  holdSuccessMessage={`Tu solicitud fue enviada. Aún no se te cobra: el cargo se hace solo cuando ${fullName} agende la sesión.`}
   autoConfirm={autoConfirmPay}
   onClose={() => { setPaySessionOpen(false); setAutoConfirmPay(false); setIsRetry(false); }}
   onPaid={() => {
@@ -2983,6 +2985,7 @@ const res = (await createExclusiveSessionRequest({
   avatarUrl={userDoc.photoURL}
   durationMinutes={payMeetDuration}
   successMessage={tServices("paySuccessScheduled", { name: fullName })}
+  holdSuccessMessage={`Tu solicitud fue enviada. Aún no se te cobra: el cargo se hace solo cuando ${fullName} agende tu sesión.`}
   autoConfirm={autoConfirmPay}
   onClose={() => { setPayMeetOpen(false); setAutoConfirmPay(false); setIsRetry(false); }}
   onPaid={() => {

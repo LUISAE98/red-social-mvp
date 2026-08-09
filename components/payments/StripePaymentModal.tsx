@@ -53,6 +53,10 @@ type Props = {
   avatarUrl?: string | null;
   description?: string | null;
   successMessage?: string | null;
+  /** Mensaje de éxito cuando el pago quedó como HOLD (retención, `requires_capture`) — las 4
+   *  experiencias: aclara que se cobra al entregar/agendar. Si el pago se captura de una
+   *  (crédito cubre todo, o servicio inmediato), se usa `successMessage`. */
+  holdSuccessMessage?: string | null;
   durationMinutes?: number | null;
   locale?: string;
   presentation?: "dialog" | "sheet";
@@ -120,6 +124,7 @@ export default function StripePaymentModal({
   avatarUrl,
   description,
   successMessage,
+  holdSuccessMessage,
   durationMinutes,
   locale = "es-MX",
   presentation = "dialog",
@@ -144,6 +149,8 @@ export default function StripePaymentModal({
   const [submitting, setSubmitting] = useState(false);
   const [paid, setPaid] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  // El pago quedó como HOLD (retención): el panel de éxito usa el copy "se cobra al entregar".
+  const [wasHold, setWasHold] = useState(false);
   const [chosenAmount, setChosenAmount] = useState<number | null>(null);
   const [customAmount, setCustomAmount] = useState("");
   const [selectedPreset, setSelectedPreset] = useState<number | null>(null);
@@ -426,6 +433,7 @@ export default function StripePaymentModal({
     setSelectedMethod(null);
     setPaid(false);
     setShowSuccess(false);
+    setWasHold(false);
     setChosenAmount(amountEditable ? null : amount ?? null);
     setCustomAmount("");
     setSelectedPreset(null);
@@ -510,8 +518,9 @@ export default function StripePaymentModal({
     setSubmitting(true);
     setError(null);
     // Marca el pago como exitoso (pantalla verde o cierre, según successMessage).
-    const markPaid = () => {
-      if (successMessage) {
+    const markPaid = (resultStatus?: string) => {
+      setWasHold(resultStatus === "requires_capture");
+      if (successMessage || holdSuccessMessage) {
         setPaid(true);
         onPaidRef.current();
         window.setTimeout(() => setShowSuccess(true), 300);
@@ -524,7 +533,7 @@ export default function StripePaymentModal({
       // (remainder 0) y devuelve status "succeeded".
       if (creditCoversAll) {
         const res = await createIntentRef.current({ amount: payAmount, saveCard: false, taxCountry: pf.buyerCountry ?? null, nickname: collectNickname ? (nickname.trim() || null) : null, applyCredit: true });
-        if (res.status === "succeeded" || res.status === "processing" || res.status === "requires_capture") { markPaid(); return; }
+        if (res.status === "succeeded" || res.status === "processing" || res.status === "requires_capture") { markPaid(res.status); return; }
         throw new Error("rejected");
       }
       if (savedCardId) {
@@ -541,16 +550,16 @@ export default function StripePaymentModal({
             payment_method_options: { card: { cvc: cvcEl } },
           });
           if (result.error) { setError(result.error.message || "No se pudo procesar el pago."); setSubmitting(false); return; }
-          if (result.paymentIntent?.status === "succeeded" || result.paymentIntent?.status === "processing" || result.paymentIntent?.status === "requires_capture") { markPaid(); return; }
+          if (result.paymentIntent?.status === "succeeded" || result.paymentIntent?.status === "processing" || result.paymentIntent?.status === "requires_capture") { markPaid(result.paymentIntent?.status); return; }
           throw new Error("rejected");
         }
         // Cuenta real: cobro "un clic" off-session (sin CVV); el callable confirma server-side.
-        if (res.status === "succeeded" || res.status === "processing" || res.status === "requires_capture") { markPaid(); return; }
+        if (res.status === "succeeded" || res.status === "processing" || res.status === "requires_capture") { markPaid(res.status); return; }
         // Requiere autenticación adicional (SCA): completa el 3DS con el client_secret.
         if (res.clientSecret) {
           const result = await stripe.confirmCardPayment(res.clientSecret);
           if (result.error) { setError(result.error.message || "No se pudo procesar el pago."); setSubmitting(false); return; }
-          if (result.paymentIntent?.status === "succeeded" || result.paymentIntent?.status === "processing" || result.paymentIntent?.status === "requires_capture") { markPaid(); return; }
+          if (result.paymentIntent?.status === "succeeded" || result.paymentIntent?.status === "processing" || result.paymentIntent?.status === "requires_capture") { markPaid(result.paymentIntent?.status); return; }
         }
         throw new Error("rejected");
       }
@@ -564,7 +573,7 @@ export default function StripePaymentModal({
       const res = await createIntentRef.current({ amount: payAmount, saveCard, taxCountry: pf.buyerCountry ?? null, nickname: collectNickname ? (nickname.trim() || null) : null, paymentMethodId: cardPmRef.current?.id, applyCredit: useCredit });
       // Sin factura que confirmar (p. ej. REACTIVAR una suscripción con cancelación
       // pendiente: no se cobra de nuevo). El backend ya dejó todo listo → éxito directo.
-      if (res.status === "succeeded" || res.status === "processing" || res.status === "requires_capture") { markPaid(); return; }
+      if (res.status === "succeeded" || res.status === "processing" || res.status === "requires_capture") { markPaid(res.status); return; }
       const clientSecret = res.clientSecret;
       if (!clientSecret) throw new Error("no_secret");
       // Si ya se materializó la tarjeta al leer su país, se confirma con ESE método —
@@ -579,7 +588,7 @@ export default function StripePaymentModal({
         return;
       }
       if (result.paymentIntent?.status === "succeeded" || result.paymentIntent?.status === "processing" || result.paymentIntent?.status === "requires_capture") {
-        markPaid();
+        markPaid(result.paymentIntent?.status);
         return;
       }
       throw new Error("rejected");
@@ -1026,7 +1035,7 @@ export default function StripePaymentModal({
       avatarUrl={avatarUrl}
       providerName={providerName}
       productType={productType}
-      successMessage={successMessage}
+      successMessage={wasHold && holdSuccessMessage ? holdSuccessMessage : successMessage}
       onClose={onClose}
       locale={locale}
       stacked={stacked}

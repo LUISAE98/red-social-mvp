@@ -489,6 +489,23 @@ export function displayRowStatus(row: DisplayRow): string {
   return row.row.data.status;
 }
 
+export function displayRowPaymentStatus(row: DisplayRow): string | undefined {
+  return (row.row.data as { paymentStatus?: string }).paymentStatus;
+}
+
+/**
+ * ¿La experiencia ya fue DEVUELTA? (crédito o tarjeta) → sale de "Rechazados" y vive en
+ * Entregados → "Todo". Devuelta a crédito = refund_requested/refund_review. Devuelta a la
+ * tarjeta = rechazada ANTES de cobrar (hold cancelado): status "rejected" sin `paymentStatus`
+ * "paid".
+ */
+export function isReturnedRow(row: DisplayRow): boolean {
+  const st = displayRowStatus(row);
+  if (isRefundStatus(st)) return true;
+  if (st === "rejected" && displayRowPaymentStatus(row) !== "paid") return true;
+  return false;
+}
+
 export function getSectionVisual(key: ServiceSectionKey): {
   icon: ReactNode;
   title: string;

@@ -59,7 +59,7 @@ import {
   getMeetGreetStatusLabel, getRelativeTime, getSectionForMeetGreetStatus,
   GREETING_RESPONSE_DAYS, SESSION_RESPONSE_DAYS, responseDaysLeft,
   getServiceCardColors, greetingBgImage, isNoShowExpired, isPrepareWindowOpen,
-  isProfileRequest, isRefundStatus, remainingReschedules, serviceCardBackground,
+  isProfileRequest, isRefundStatus, isReturnedRow, remainingReschedules, serviceCardBackground,
   serviceCardBackgroundStyle, sortDisplayRows, sortResolvedDesc, toDateSafe,
   type BusyMap, type DisplayRow, type Props, type ScheduledServiceKind,
   type ServiceSectionKey, type TextMap, type ToggleMap,
@@ -240,7 +240,10 @@ export default function OwnerSidebarGreetings({
         .map((row) => ({ rowType: "incoming_scheduled" as const, id: `incoming-${row.serviceKind}-${row.id}`, row })),
     ];
 
-    return rows.sort(sortResolvedDesc);
+    // Las DEVUELTAS (a crédito o a tarjeta) salen de "Rechazados": viven en Entregados →
+    // "Todo" (para el comprador). Solo quedan aquí las rechazadas AÚN accionables (cobradas,
+    // que pueden pedir devolución o reintentar) y las entrantes del creador.
+    return rows.filter((r) => r.rowType === "incoming_scheduled" || !isReturnedRow(r)).sort(sortResolvedDesc);
   }, [buyerRejectedGreetings, buyerScheduledServices, incomingScheduledServices]);
 
   // Submenús de rechazados: rechazados "puros" y los que están en devolución.

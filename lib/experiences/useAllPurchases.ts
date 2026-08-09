@@ -24,6 +24,9 @@ export type PurchaseData = {
   currency: string;
   invoiced?: boolean; // true si ya se generó su CFDI (generateBuyerInvoice)
   invoiceId?: string | null;
+  // Devolución: destino del reembolso + monto devuelto (para "· Devuelto en crédito/tarjeta").
+  refundDestination?: "credit" | "card";
+  refundedAmount?: number;
   creatorId: string;
   channelType: "profile" | "group";
   channelId: string | null;

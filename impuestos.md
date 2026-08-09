@@ -423,6 +423,107 @@ Hasta entonces, un país sin fila **no es cobrable** y el checkout lo rechaza.
 
 ---
 
+## 6.2 Los 5 que faltan — quién recauda y quién declara (2026-08-08)
+
+Tabla de decisión para el orden de integración. La columna que importa no es la tasa: es **quién
+declara**, porque eso es lo que se convierte en trabajo recurrente para siempre.
+
+| País | Tasa | Alta previa | Quién recauda | Quién declara | Periodicidad |
+|---|---|---|---|---|---|
+| 🇨🇴 Colombia | IVA 19% | **RUT** + firma electrónica | **A elección:** Vibra, o los emisores de tarjeta | **A elección:** Vibra, o **nadie** | Bimestral — o ninguna |
+| 🇨🇱 Chile | IVA 19% | Régimen simplificado (SII) | Vibra | **Vibra** (F129, en USD/EUR) | Mensual o trimestral |
+| 🇵🇪 Perú | IGV 18% | **RUC** (sin domicilio ni EP) | Vibra, como agente de percepción | **Vibra** | Mensual |
+| 🇺🇾 Uruguay | IVA 22% **+ IRNR 12%** | Registro DGI (régimen de no residentes) | Por confirmar | Por confirmar | Por confirmar |
+| 🇧🇷 Brasil | ISS 2–5% → IBS/CBS | Municipal | Por confirmar | Por confirmar | Por confirmar |
+
+### 🇨🇴 Colombia — el más barato de operar, y por mucho
+
+**Resolución DIAN 000049 del 1 de agosto de 2019.** Un prestador del exterior elige entre dos
+caminos, y la elección es permanente hasta que la cambie:
+
+* **(a) Declaración bimestral.** Vibra cobra el IVA, lo declara y lo paga cada dos meses.
+* **(b) Sistema alternativo de retención en la fuente.** Los emisores de tarjetas de crédito y
+  débito, los vendedores de tarjetas prepago y los recaudadores de efectivo practican la
+  retención. **Quien se acoge NO está obligado a presentar declaración de IVA.**
+
+**El alta en el RUT + firma electrónica se necesita en los dos casos.** Lo que cambia es que la
+opción (b) elimina la obligación periódica: un trámite una vez y nunca más una declaración.
+
+> 🚨 **PREGUNTA ABIERTA — vale 19% de cada venta colombiana.** En la opción (b) la retención es
+> *en la fuente*, no una percepción al consumidor como en Argentina. Hay que confirmar si el 19%
+> **se le suma al comprador** (y Vibra recibe su base íntegra) o si **se descuenta de lo que Vibra
+> cobra** (y entonces hay que subir el precio 19% para quedar igual). Los dos mecanismos se
+> escriben parecido en la norma y significan cosas opuestas para el ingreso del creador.
+>
+> No integrar Colombia hasta resolver esto. Se resuelve con el fiscalista o con una prueba real.
+
+**Nota de modelo de datos:** la opción (b) sería `collectionMode: "issuer"` + `registrationStatus:
+"registered"` — una combinación que hoy no existe en la tabla pero que `applyConsumptionTax` ya
+maneja bien (solo cobra con `platform` **y** `registered`, así que sumaría cero). No hace falta
+tocar el motor.
+
+### 🇨🇱 Chile — Vibra declara, pero paga en dólares
+
+**Ley 21.210**, régimen simplificado vigente desde el **1 de junio de 2020**. Inscripción
+obligatoria en la lista pública de contribuyentes extranjeros del SII. Vibra declara y paga con el
+**Formulario 129**, mensual o trimestral, **en USD o EUR** — no hay que convertir a pesos chilenos
+para enterar. Sin umbral mínimo.
+
+**Ley 21.713**, vigente desde el **24 de octubre de 2025**, agregó una presunción de
+territorialidad: se considera chileno al comprador que cumpla **dos de cuatro** criterios (IP,
+medio de pago chileno, domicilio, SIM chilena). Es la misma lógica de dos pruebas del Art. 24b de
+la UE, así que `resolveCountry.ts` ya la satisface sin cambios.
+
+> ⚠️ Fuentes secundarias mencionan que Transbank retendría el 19% automáticamente a proveedores no
+> inscritos. **El portal del SII no lo confirma.** No contar con eso como vía para vender sin alta.
+
+### 🇵🇪 Perú — hay respaldo bancario, pero es la lista de morosos
+
+**D. Leg. 1623**, publicado el **4 de agosto de 2024**; retención y percepción efectivas desde el
+**1 de diciembre de 2024** (postergadas por el D. Leg. 1644). Reglamento: **D.S. 157-2024-EF**.
+
+Vibra debe inscribirse en el **RUC** — y explícitamente *no* se requiere domicilio en el país ni
+representante legal domiciliado, ni la inscripción constituye establecimiento permanente. Vibra
+queda como **agente de percepción**: cobra el 18% y lo entera mensualmente.
+
+> 🚨 **El respaldo bancario existe pero NO es una vía limpia.** Si Vibra no se inscribe, la SUNAT
+> la publica por Decreto Supremo en un **listado de sujetos no domiciliados incumplidos**, le
+> quita la condición de agente, y la responsabilidad pasa a los facilitadores de pago (los
+> emisores de tarjeta). Es decir: sí, el comprador termina pagando su IGV igual — pero Vibra
+> aparece en una lista pública de morosos fiscales y arrastra intereses y multas para salir.
+>
+> **No es el modelo argentino.** En Argentina no estás incumpliendo nada; aquí sí.
+
+### 🇺🇾 Uruguay — el único con DOS impuestos
+
+**Ley 19.535 (2018)** + Decreto 220/998 art. 26 bis. Régimen especial exclusivo para no
+residentes, confirmado por la DGI.
+
+> 🚨 **IVA 22% NO es el costo total.** Para servicios de suscripción B2C tipo Netflix/Spotify, la
+> normativa los considera **100% de fuente uruguaya**, lo que agrega **IRNR del 12%** encima del
+> IVA. Es el único de los cinco con una segunda capa de impuesto, y cambia por completo su
+> atractivo comercial.
+
+Pendiente de confirmar: quién practica la retención y con qué periodicidad se declara. Las fuentes
+que encontré no lo resuelven y no vale la pena adivinarlo.
+
+### 🇧🇷 Brasil — dejarlo para el final
+
+ISS municipal (2–5% según la ciudad) migrando a IBS/CBS por la reforma tributaria. La CBS arranca
+en 2027 y el IBS se escalona entre 2029 y 2032, con 2026 como año de prueba. Stripe Tax **no cubre
+Brasil**. Requiere asesoría local, no investigación remota.
+
+### Orden de integración sugerido
+
+1. **Colombia** — resolver primero la pregunta abierta del 19%. Si se le suma al comprador, es el
+   más barato de todos: un trámite y cero declaraciones para siempre.
+2. **Chile** — el más predecible. Alta clara, formulario claro, pago en dólares.
+3. **Perú** — igual de claro que Chile pero con declaración mensual.
+4. **Uruguay** — solo si el 22% + 12% deja margen. Confirmar antes de invertir en el alta.
+5. **Brasil** — con asesor local, no antes.
+
+---
+
 ## 6.1 Mapa de expansión — datos de la doc pública de Stripe (2026-08-07)
 
 > Recogido de `docs.stripe.com/tax/supported-countries`. Es **documentación abierta**: no hace
@@ -604,7 +705,9 @@ checkout lo rechaza.
 | ID | Qué | Quién |
 |---|---|---|
 | **D-08** | Mapear los 11 servicios a un inciso del Art. 29-IV. Provisionalmente **todos a 0%**; los dudosos son **Tiempo contigo** y **Sesión exclusiva** | Fiscalista MX |
-| **D-09** | Los 5 de LatAm que faltan (CL · CO · PE · UY · BR): todos exigen alta previa | Luis + fiscalista internacional |
+| **D-09** | Los 5 de LatAm que faltan (CL · CO · PE · UY · BR): todos exigen alta previa. Detalle de quién recauda y quién declara en §6.2 | Luis + fiscalista internacional |
+| **D-11** | 🇨🇴 ¿La retención en la fuente colombiana SE SUMA al comprador o se DESCUENTA de lo que cobra Vibra? Vale 19% de cada venta. Bloquea la integración de Colombia | Fiscalista CO |
+| **D-12** | 🇺🇾 Confirmar el IRNR 12% sobre IVA 22% y quién retiene | Fiscalista UY |
 | **D-10** | Vigilar a mano BO · SV · GT · HN · NI · PA: Stripe Tax no los cubre. **Panamá es el más urgente** (anteproyecto de 2019 reabierto) | Luis |
 | ~~AR-01~~ | ~~¿Cobrar en ARS o en MXN/USD?~~ **Resuelta: en ARS**, la moneda local del comprador | ✅ |
 

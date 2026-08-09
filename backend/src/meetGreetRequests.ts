@@ -6,7 +6,7 @@ import { usersHaveBlockBetween } from "./social/blocks";
 import { stripeSecretKey } from "./payments/stripe/stripeClient";
 import { capturePaymentIntentForRef, cancelPaymentIntentForRef } from "./payments/stripe/holdCapture";
 import { revertBuyerCreditSpend } from "./wallet/buyerCredit";
-import { refundExperienceToCredit } from "./wallet/refundToCredit";
+import { refundExperienceToCredit, mirrorCardReturnPurchase } from "./wallet/refundToCredit";
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -913,7 +913,20 @@ export const rejectMeetGreetRequest = onCall(
       await cancelPaymentIntentForRef(`meetGreetRequest__${requestId}`);
       // Saldo a favor usado en parte → se devuelve (el hold no se cobró).
       const buyerId = (data as { buyerId?: string }).buyerId;
-      if (buyerId) await revertBuyerCreditSpend(buyerId, { sourceType: "meetGreetRequest", sourceId: requestId });
+      if (buyerId) {
+        await revertBuyerCreditSpend(buyerId, { sourceType: "meetGreetRequest", sourceId: requestId });
+        // Reflejar en Entregados → "Todo" como "Devuelto a tu tarjeta" (nunca se cobró).
+        const gid = (data as { groupId?: string | null }).groupId ?? null;
+        await mirrorCardReturnPurchase({
+          buyerId,
+          creatorId: String(data.creatorId ?? ""),
+          sourceType: "meetGreetRequest",
+          sourceId: requestId,
+          type: "live_session",
+          channelType: gid ? "group" : "profile",
+          channelId: gid,
+        });
+      }
     }
 
     await ref.update({

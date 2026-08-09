@@ -320,11 +320,23 @@ export default function ExperienciasPage() {
   // Compras completas (Todo) — solo el conteo/loading aquí, para decidir el subnav.
   const allPurchases = useAllPurchases(user?.uid);
 
-  // Rechazados: saludos/consejos rechazados o en devolución + sesiones en esa sección.
+  // Rechazados: SOLO las accionables (rechazadas y cobradas, que aún pueden pedir
+  // devolución o reintentar). Las ya DEVUELTAS (a crédito = refund_requested/refund_review,
+  // o a la tarjeta = rechazada sin cobrar) viven en Entregados → "Todo", no aquí. Debe
+  // coincidir con `isReturnedRow` de OwnerSidebarGreetings para que la pestaña desaparezca
+  // cuando queda vacía.
+  const isReturnedExp = (status: string, paymentStatus?: string) =>
+    status === "refund_requested" ||
+    status === "refund_review" ||
+    (status === "rejected" && paymentStatus !== "paid");
   const rejectedCount =
-    exp.buyerRejectedGreetings.length +
+    exp.buyerRejectedGreetings.filter(
+      (r) => !isReturnedExp(r.data.status, (r.data as { paymentStatus?: string }).paymentStatus)
+    ).length +
     [...exp.buyerMeetGreets, ...exp.buyerExclusiveSessions].filter(
-      (r) => getSectionForMeetGreetStatus(r.data.status) === "rejected"
+      (r) =>
+        getSectionForMeetGreetStatus(r.data.status) === "rejected" &&
+        !isReturnedExp(r.data.status, (r.data as { paymentStatus?: string }).paymentStatus)
     ).length;
 
   // ── Disponibilidad de las pestañas del subnav principal ────────────────────
