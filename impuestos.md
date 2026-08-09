@@ -669,12 +669,17 @@ encender es el umbral, no la tasa.
 
 ### ✅ ACTIVOS — con umbral, se vende sin alta
 
-| País | Moneda | Idioma | Tasa | Impuesto | Régimen | Umbral | Equivale a | Estado |
-|---|---|---|---|---|---|---|---|---|
-| 🇳🇴 Noruega | NOK | Noruego | 25% | MVA | VOEC | **NOK 50.000** / 12 meses móviles | ~US$4.500 | ✅ Integrado |
-| 🇮🇸 Islandia | ISK | Islandés | 24% | VSK | VOES | **ISK 2.000.000** / año | ~US$14.500 | ✅ Integrado |
-| 🇧🇦 Bosnia y Herzegovina | BAM | Bosnio/croata/serbio | 17% | PDV | ITA (desde 2023) | **BAM 50.000** / año | ~US$28.000 | ✅ Integrado |
-| 🇺🇦 Ucrania | UAH | Ucraniano | 20% | ПДВ | No residente | UAH 1.000.000 / año | ~US$24.000 | 🚫 **FUERA** (D-14) |
+| País | Moneda | Idioma | TASA | Impuesto | Recaudación | Declaración | Alta fiscal | Umbral | Estatus |
+|---|---|---|---|---|---|---|---|---|---|
+| 🇳🇴 Noruega | NOK | Noruego | 25% | MVA | Vibra (al cruzar) | **Trimestral** — día 20 tras el trimestre | VOEC (Skatteetaten) | NOK 50.000 / **12 meses móviles** | ✅ Activo — sin impuesto |
+| 🇮🇸 Islandia | ISK | Islandés | 24% | VSK | Vibra (al cruzar) | **Bimestral** — periodos desde 1-ene, 1-mar, 1-may… | VOES (Skatturinn) | ISK 2.000.000 / año | ✅ Activo — sin impuesto |
+| 🇧🇦 Bosnia y Herzegovina | BAM | Bosnio | 17% | PDV | Vibra (al cruzar) | **Mensual** — día 10 del mes siguiente | ITA / UINO (desde 2023) | BAM 50.000 / año | ✅ Activo — sin impuesto |
+| 🇺🇦 Ucrania | UAH | Ucraniano | 20% | ПДВ | — | — | No residente | UAH 1.000.000 / año | 🚫 **FUERA** (D-14) |
+
+⚠️ La columna **Declaración** es la frecuencia que aplicará **desde el día del alta**. Hoy no hay
+ninguna declaración que presentar: sin registro no hay obligación. Se anota ahora porque es parte
+del costo operativo real de cruzar cada umbral — Bosnia es mensual, la más pesada de las tres pese
+a ser la del umbral más holgado.
 
 Los tres integrados van con `collectionMode: "platform"` + `registrationStatus: "not_registered"`:
 el régimen existe y Vibra sería quien recauda, pero sin alta el checkout suma **cero**.
