@@ -754,11 +754,11 @@ describe("cruzado — ¿se puede LISTAR el live de perfil dentro del feed de la 
     await seedProfileLive({ postId: pid, visibilityMode: "everyone", broadcastGroupIds: [gid] });
   });
 
-  // Consulta candidata para que el live retransmitido salga como un post más del
-  // feed de la comunidad, en vez de depender del anillo (`activeLivePostId`).
-  it("✅ un deslogueado puede listar por broadcastGroupIds fijando los campos del post de perfil", async () => {
-    const db = testEnv.unauthenticatedContext().firestore();
-    const snap = await assertSucceeds(getDocs(query(
+  // Carril de lives retransmitidos (`fetchBroadcastIntoGroupDocs`): el live sale
+  // como un post más del feed del destino, sin depender del anillo
+  // (`activeLivePostId`), que se apaga al terminar la transmisión.
+  const broadcastLane = (db: never, pinAllowGuests: boolean) =>
+    query(
       collection(db, "posts"),
       where("liveData.broadcastGroupIds", "array-contains", gid),
       where("contextType", "==", "profile"),
@@ -767,8 +767,29 @@ describe("cruzado — ¿se puede LISTAR el live de perfil dentro del feed de la 
       where("accessModel", "==", "free"),
       where("requiresPayment", "==", false),
       where("requiresSubscription", "==", false),
-      orderBy("createdAt", "desc"), limit(11),
-    )));
+      ...(pinAllowGuests ? [where("liveData.allowLoggedOutViewers", "==", true)] : []),
+      orderBy("createdAt", "desc"),
+      limit(11),
+    );
+
+  // `guestAllowedForLive` toma `allowLoggedOutViewers` con default FALSE: al
+  // invitado hay que DEMOSTRARLE en la propia query que el live es abierto. Como
+  // en un `list` las reglas solo ven los campos fijados con `==`, sin ese filtro
+  // la consulta se deniega entera — por eso el carril lo añade para invitados.
+  it("🔴 sin fijar `allowLoggedOutViewers`, al deslogueado se le deniega", async () => {
+    const db = testEnv.unauthenticatedContext().firestore();
+    await assertFails(getDocs(broadcastLane(db as never, false)));
+  });
+
+  it("✅ fijándolo, el deslogueado lista el live retransmitido", async () => {
+    const db = testEnv.unauthenticatedContext().firestore();
+    const snap = await assertSucceeds(getDocs(broadcastLane(db as never, true)));
+    expect(snap.docs.map((d) => d.id)).toContain(pid);
+  });
+
+  it("✅ una cuenta real no necesita fijarlo", async () => {
+    const db = testEnv.authenticatedContext(OUTSIDER).firestore();
+    const snap = await assertSucceeds(getDocs(broadcastLane(db as never, false)));
     expect(snap.docs.map((d) => d.id)).toContain(pid);
   });
 });
