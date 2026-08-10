@@ -834,6 +834,86 @@ compensa.
 
 ---
 
+## 6.5 Asia-Pacífico y Medio Oriente (2026-08-10)
+
+Los 13 integrados. Ninguno cobra impuesto hoy, por dos razones distintas que conviene no mezclar.
+
+### 🟢 ACTIVOS — no existe impuesto al consumo
+
+Los únicos de TODA la tabla sin reloj corriendo: no hay umbral que cruzar ni alta que llegue nunca.
+Son estrictamente mejores que Noruega, Islandia y Bosnia.
+
+| País | Moneda | Idioma | TASA | Impuesto | Recaudación | Declaración | Alta fiscal | Umbral | Estatus |
+|---|---|---|---|---|---|---|---|---|---|
+| 🇭🇰 Hong Kong | HKD | Chino/Inglés | **0%** | No existe | Nadie | Ninguna | **No existe** | N/A | ✅ Activo |
+| 🇶🇦 Qatar | QAR | Árabe | **0%** | Sin IVA aún | Nadie | Ninguna | **No existe** | N/A | ✅ Activo |
+| 🇰🇼 Kuwait | KWD | Árabe | **0%** | Sin IVA aún | Nadie | Ninguna | **No existe** | N/A | ✅ Activo |
+
+Helper: `noConsumptionTax(currency)` — tasa **0**, `collectionMode: "none"`.
+
+⚠️ Qatar y Kuwait firmaron el acuerdo de IVA del CCG pero **no lo han implementado**. Si lo hacen,
+pasan a `belowThreshold` o a `cannot_sell` según lo que exija el régimen. Vigilancia manual.
+
+### ✅ ACTIVOS — con umbral, se vende sin alta
+
+| País | Moneda | Idioma | TASA | Impuesto | Recaudación | Declaración | Alta fiscal | Umbral | Estatus |
+|---|---|---|---|---|---|---|---|---|---|
+| 🇯🇵 Japón | JPY | Japonés | 10% | JCT | Nadie (bajo umbral) | Anual | NTA | **¥10.000.000**/año (~US$65.000) | ✅ Activo |
+| 🇲🇾 Malasia | MYR | Malayo | 8% | SST | Nadie (bajo umbral) | Por confirmar | RMCD | **MYR 500.000**/12m (~US$106.000) | ✅ Activo |
+| 🇵🇭 Filipinas | PHP | Filipino/Inglés | 12% | VAT | Nadie (bajo umbral) | Trimestral | BIR (RA 12023, 2024) | **PHP 3.000.000**/12m (~US$51.000) | ✅ Activo |
+| 🇹🇭 Tailandia | THB | Tailandés | 7% | VAT | Nadie (bajo umbral) | **Mensual** | Revenue Department | **THB 1.800.000**/año (~US$50.000) | ✅ Activo |
+| 🇦🇺 Australia | AUD | Inglés | 10% | GST | Nadie (bajo umbral) | Trimestral | ATO simplificado | **A$75.000**/año (~US$49.000) | ✅ Activo |
+| 🇯🇴 Jordania | JOD | Árabe | 16% | GST | Nadie (bajo umbral) | Por confirmar | ISTD | **JOD 30.000**/12m (~US$42.000) | ✅ Activo |
+| 🇮🇩 Indonesia | IDR | Indonesio | 11% | PPN | Nadie (bajo umbral) | Mensual | DGT | **IDR 600.000.000**/año (~US$37.000) | ✅ Activo |
+| 🇳🇿 Nueva Zelanda | NZD | Inglés | 15% | GST | Nadie (bajo umbral) | Trimestral | IRD | **NZ$60.000**/12m móviles (~US$36.000) | ✅ Activo |
+| 🇹🇼 Taiwán | TWD | Chino | 5% | VAT | Nadie (bajo umbral) | Bimestral | MOF | **NTD 600.000**/año (~US$18.500) | ✅ Activo |
+| 🇸🇬 Singapur | SGD | Inglés | 9% | GST | Nadie (bajo umbral) | Trimestral | IRAS (OVR) | **SGD 100.000 local Y SGD 1M global** ⚠️ | ✅ Activo |
+
+Helper: `belowThreshold()` — `collectionMode: "platform"` + `registrationStatus: "not_registered"`.
+Al cruzar un umbral: cambiar ese campo a `"registered"` en los **dos** espejos.
+
+**🇯🇵 Japón es el hallazgo grande:** ~US$65.000 al año, el umbral más holgado de toda la tabla, en
+uno de los mercados más ricos del mundo para creadores. Se puede construir algo real antes del alta.
+
+**🇸🇬 Singapur exige DOS condiciones a la vez** (ventas locales ≥ SGD 100.000 **y** facturación
+mundial ≥ SGD 1.000.000). Basta que una no se cumpla para no tener que registrarse. Se parece a
+Suiza en que mira la facturación global, pero allá una sola condición basta — por eso Suiza está
+bloqueada y Singapur no.
+
+**🇹🇼 Taiwán es el más apretado del bloque** (~US$18.500) y el de tasa más baja (5%).
+
+### 🚨 Monedas: dos trampas de formato de Stripe
+
+Integrar estos 13 obligó a arreglar `toStripeAmount`:
+
+**Dinares de TRES decimales (KWD, JOD — y BHD, OMR, TND si algún día entran).** El importe va en
+MILÉSIMAS, no en centésimas. Con la fórmula genérica `amount * 100` se le habría cobrado al
+comprador **la décima parte**: 15.778 KWD habrían salido como 1.578 KWD. Además Stripe exige que el
+último dígito sea 0, así que se redondea a la decena de fils. Cubierto con tests.
+
+**El yen ya estaba** en `ZERO_DECIMAL`; el nuevo dólar taiwanés **no** necesita trato especial
+(su restricción de divisibilidad es solo para transferencias manuales, no para cargos — igual que
+el forinto húngaro, que se verificó de paso y está bien).
+
+### Idiomas
+
+Ninguno de estos idiomas está en los 24 de la UE: japonés, malayo, tailandés, árabe, indonesio,
+chino y coreano caen al **fallback en inglés**. No bloquea la venta, y Hong Kong, Singapur,
+Australia, Nueva Zelanda y Filipinas son mercados donde el inglés es natural. Ver §6.3 y
+`i18n/locales.ts`.
+
+### 🚫 De Asia y Medio Oriente NO se integró
+
+| País | Motivo |
+|---|---|
+| 🇮🇳 India · 🇸🇦 Arabia Saudita · 🇰🇷 Corea del Sur · 🇻🇳 Vietnam · 🇧🇭 Baréin · 🇴🇲 Omán · 🇦🇪 EAU | Umbral **cero**: alta desde la venta 1. Baréin además exige representante fiscal |
+| 🇷🇺 Rusia · 🇧🇾 Bielorrusia · 🇨🇺 Cuba | Sanciones — Stripe no opera |
+| 🇮🇱 Israel | Excluido por decisión del usuario (2026-08-10) |
+
+Hay un test que verifica que estos sigan fuera.
+
+---
+
 ## 7. Estado y pendientes
 
 ### Países
@@ -845,12 +925,15 @@ compensa.
 | 💳 Recauda la emisora | AR · CR · EC · PY · DO | ✅ Activos | No — lo suma el banco |
 | ⬜ Sin régimen digital | BO · SV · GT · HN · NI · **PA** | ✅ Activos | No — no lo recauda nadie |
 | 🏔️ Europa no-UE bajo umbral | NO · IS · BA | ✅ Activos — **vigilancia manual** | No — hasta cruzar el umbral |
+| 🌏 Asia-Pacífico bajo umbral | JP · MY · PH · TH · AU · JO · ID · NZ · TW · SG | ✅ Activos — **vigilancia manual** | No — hasta cruzar el umbral |
+| 🟢 Sin impuesto al consumo | HK · QA · KW | ✅ Activos — **sin reloj** | No — no existe el impuesto |
 | ⬜ Resto de LatAm | CL · CO · PE · UY · BR | Sin ficha — **no cobrables** | — |
 | ⬜ Resto de Europa no-UE | GB · CH · LI · RS · AL · ME · MD · MK · TR | Sin ficha — exigen alta desde la 1ª venta | — |
-| 🚫 Excluidos a propósito | UA (embargo regional) · RU · BY (sanciones) | No integrar | — |
+| 🚫 Excluidos a propósito | UA (embargo regional) · RU · BY · CU (sanciones) · IL (decisión de Luis) | No integrar | — |
+| ⬜ Resto de Asia / Medio Oriente | IN · SA · KR · VN · BH · OM · AE | Sin ficha — umbral cero | — |
 | ⬜ Resto del mundo | — | Sin ficha — **no cobrables** | — |
 
-**Total cobrable: 42 países.** Un país sin fila en `COUNTRY_TAX_CONFIG` no es cobrable y el
+**Total cobrable: 55 países.** Un país sin fila en `COUNTRY_TAX_CONFIG` no es cobrable y el
 checkout lo rechaza.
 
 ### Backend — ✅ hecho (2026-08-07)
@@ -883,7 +966,7 @@ checkout lo rechaza.
 | **D-09** | Los 5 de LatAm que faltan (CL · CO · PE · UY · BR): todos exigen alta previa. Detalle de quién recauda y quién declara en §6.2 | Luis + fiscalista internacional |
 | **D-11** | 🇨🇴 ¿La retención en la fuente colombiana SE SUMA al comprador o se DESCUENTA de lo que cobra Vibra? Vale 19% de cada venta. Bloquea la integración de Colombia | Fiscalista CO |
 | **D-12** | 🇺🇾 Confirmar el IRNR 12% sobre IVA 22% y quién retiene | Fiscalista UY |
-| **D-13** | Contador de ventas acumuladas por país + alerta al 80% del umbral. NO · IS · BA ya están encendidos con **vigilancia manual**; el contador la reemplazaría | Luis + Claude |
+| **D-13** | Contador de ventas acumuladas por país + alerta al 80% del umbral. **13 países** encendidos con vigilancia manual (NO · IS · BA · JP · MY · PH · TH · AU · JO · ID · NZ · TW · SG); el contador la reemplazaría. Cuantos más umbrales, menos sostenible es recordarlos | Luis + Claude |
 | ~~D-14~~ | ~~🇺🇦 ¿Entrar a Ucrania?~~ **Resuelta 2026-08-08: NO.** Requeriría discriminación regional (Crimea/Donetsk/Lugansk bajo embargo OFAC) que no existe | ✅ |
 | **D-10** | Vigilar a mano BO · SV · GT · HN · NI · PA: Stripe Tax no los cubre. **Panamá es el más urgente** (anteproyecto de 2019 reabierto) | Luis |
 | ~~AR-01~~ | ~~¿Cobrar en ARS o en MXN/USD?~~ **Resuelta: en ARS**, la moneda local del comprador | ✅ |

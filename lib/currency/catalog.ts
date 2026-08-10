@@ -10,8 +10,8 @@
 /**
  * Monedas de visualización: 15 de LatAm (17 países; Ecuador, El Salvador y Panamá
  * comparten USD) + 7 de la Unión Europea (27 países; 21 de ellos usan EUR) + 3 de
- * Europa no comunitaria (Noruega, Islandia, Bosnia).
- * Total: 25 monedas para 47 países.
+ * Europa no comunitaria (Noruega, Islandia, Bosnia) + 13 de Asia-Pacífico y Medio Oriente.
+ * Total: 38 monedas para 60 países.
  *
  * ⚠️ Que una moneda esté aquí NO habilita vender en ese país. El permiso de venta
  * lo decide COUNTRY_TAX_CONFIG (lib/tax/config.ts), que es una capa aparte y exige
@@ -49,6 +49,20 @@ export const DISPLAY_CURRENCIES = [
   "NOK", // Noruega
   "ISK", // Islandia
   "BAM", // Bosnia y Herzegovina
+  // --- Asia-Pacífico y Medio Oriente ---
+  "JPY", // Japón
+  "SGD", // Singapur
+  "AUD", // Australia
+  "NZD", // Nueva Zelanda
+  "HKD", // Hong Kong
+  "TWD", // Taiwán
+  "THB", // Tailandia
+  "MYR", // Malasia
+  "PHP", // Filipinas
+  "IDR", // Indonesia
+  "QAR", // Qatar
+  "KWD", // Kuwait
+  "JOD", // Jordania
 ] as const;
 export type DisplayCurrency = (typeof DISPLAY_CURRENCIES)[number];
 
@@ -186,6 +200,20 @@ export const COUNTRY_TO_CURRENCY: Readonly<Record<string, DisplayCurrency>> = {
   NO: "NOK", // Noruega
   IS: "ISK", // Islandia
   BA: "BAM", // Bosnia y Herzegovina
+  // Asia-Pacífico y Medio Oriente (13).
+  JP: "JPY", // Japón
+  SG: "SGD", // Singapur
+  AU: "AUD", // Australia
+  NZ: "NZD", // Nueva Zelanda
+  HK: "HKD", // Hong Kong
+  TW: "TWD", // Taiwán
+  TH: "THB", // Tailandia
+  MY: "MYR", // Malasia
+  PH: "PHP", // Filipinas
+  ID: "IDR", // Indonesia
+  QA: "QAR", // Qatar
+  KW: "KWD", // Kuwait
+  JO: "JOD", // Jordania
 };
 
 /** Moneda de visualización por defecto según país (fallback USD, el ancla). */

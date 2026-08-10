@@ -2593,6 +2593,10 @@
     "deleteForEveryone": "Für alle löschen",
     "editMessage": "Bearbeiten",
     "editingMessage": "Nachricht bearbeiten",
-    "messageActionError": "Die Aktion konnte nicht abgeschlossen werden."
+    "messageActionError": "Die Aktion konnte nicht abgeschlossen werden.",
+    "reply": "Antworten",
+    "replyingTo": "Antwort an {name}",
+    "replyToSelf": "Du",
+    "cancelReply": "Antwort abbrechen"
   }
 }

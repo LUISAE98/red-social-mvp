@@ -2593,6 +2593,10 @@
     "deleteForEveryone": "Elimina per tutti",
     "editMessage": "Modifica",
     "editingMessage": "Modifica messaggio",
-    "messageActionError": "Non è stato possibile completare l’azione."
+    "messageActionError": "Non è stato possibile completare l’azione.",
+    "reply": "Rispondi",
+    "replyingTo": "Risposta a {name}",
+    "replyToSelf": "Tu",
+    "cancelReply": "Annulla risposta"
   }
 }

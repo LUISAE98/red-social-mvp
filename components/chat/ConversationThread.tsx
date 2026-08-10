@@ -5,6 +5,7 @@ import { useLocale, useTranslations } from "next-intl";
 
 import {
   acceptConversationRequest,
+  buildReplyPreview,
   createConversationWithFirstMessage,
   deleteMessageForEveryone,
   editMessage,
@@ -20,6 +21,7 @@ import {
   MESSAGE_EDIT_WINDOW_MS,
   MESSAGE_MAX_LENGTH,
   type ChatImage,
+  type MessageReply,
 } from "@/lib/chat/types";
 import { uploadDirectMessageImage } from "@/lib/posts/image-upload";
 import type { ProfileMini } from "./ConversationList";
@@ -100,6 +102,56 @@ const ICON_PENCIL = (
     <path d="M4 20l4.5-1 10-10-3-3-10 10L4 20z" />
   </>
 );
+
+/** Flecha que vuelve sobre sí misma: responder. */
+const ICON_REPLY = (
+  <>
+    <path d="M9 15L4 10l5-5" />
+    <path d="M4 10h8a7 7 0 017 7v2" />
+  </>
+);
+
+/**
+ * Deslizar un mensaje hacia la derecha lo cita, como en WhatsApp.
+ *
+ * `THRESHOLD` es el arrastre a partir del cual el gesto cuenta; `MAX` es hasta
+ * dónde acompaña el globo. Pasado ese tope sigue cediendo un poco (efecto goma)
+ * para que el gesto no se sienta topado en seco, pero ya no aporta nada.
+ */
+const REPLY_SWIPE_THRESHOLD = 56;
+const REPLY_SWIPE_MAX = 76;
+/** Antes de esto no se decide el eje: un gesto de 3px no dice si es scroll. */
+const SWIPE_AXIS_SLOP = 6;
+
+/** Pista del gesto: aparece a la izquierda del globo según se arrastra. */
+function SwipeReplyCue() {
+  return (
+    <span
+      style={{
+        width: 26,
+        height: 26,
+        borderRadius: 999,
+        background: "rgba(255,255,255,0.14)",
+        display: "grid",
+        placeItems: "center",
+      }}
+    >
+      <svg
+        width="14"
+        height="14"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="#fff"
+        strokeWidth="2.2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden
+      >
+        {ICON_REPLY}
+      </svg>
+    </span>
+  );
+}
 
 /**
  * Icono de adjuntar imagen del compositor.
@@ -195,8 +247,14 @@ export default function ConversationThread({
   } | null>(null);
   /** Mensaje que se está editando; el compositor pasa a guardar en vez de enviar. */
   const [editing, setEditing] = useState<{ id: string; text: string } | null>(null);
+  /** Mensaje que se está citando. El siguiente envío irá como respuesta a él. */
+  const [replyingTo, setReplyingTo] = useState<MessageReply | null>(null);
+  /** Mensaje al que se acaba de saltar desde una cita: parpadea para ubicarlo. */
+  const [flashing, setFlashing] = useState<string | null>(null);
 
   const expandedPanelRef = useRef<HTMLDivElement | null>(null);
+  /** Nodo de cada mensaje, para poder saltar al original desde su cita. */
+  const messageNodes = useRef(new Map<string, HTMLDivElement>());
 
   /**
    * Alto real del compositor. Como va superpuesto al hilo, el área de mensajes
@@ -216,8 +274,8 @@ export default function ConversationThread({
     return () => observer.disconnect();
   }, []);
 
-  /** Alto aproximado del menú (hora + hasta 3 acciones). Solo decide el lado. */
-  const MENU_ESTIMATED_HEIGHT = 150;
+  /** Alto aproximado del menú (hora + hasta 4 acciones). Solo decide el lado. */
+  const MENU_ESTIMATED_HEIGHT = 190;
 
   function toggleExpanded(messageId: string, anchor: HTMLElement) {
     setExpandedMessage((prev) => {
@@ -281,6 +339,144 @@ export default function ConversationThread({
 
     return () => clearTimeout(timer);
   }, [expandedMessage, composerHeight]);
+
+  /**
+   * Gesto de citar: deslizar el globo hacia la derecha.
+   *
+   * Va por DOM directo y no por estado de React a propósito. Un `setState` por
+   * `touchmove` volvería a pintar el hilo entero decenas de veces por segundo, y
+   * un arrastre que se entrecorta se nota inmediatamente. Aquí solo se tocan dos
+   * `transform`, que el navegador resuelve en el compositor sin recalcular nada.
+   *
+   * El eje se decide una sola vez, en los primeros píxeles: si el dedo va más en
+   * vertical que en horizontal, el gesto se abandona y el scroll se queda con
+   * él. El `touch-action: pan-y` del renglón es la otra mitad de eso — le dice al
+   * navegador que lo horizontal es nuestro y lo vertical suyo.
+   */
+  const swipeRef = useRef<{
+    message: MessageWithId;
+    startX: number;
+    startY: number;
+    axis: "undecided" | "x";
+    slider: HTMLElement;
+    cue: HTMLElement;
+    reached: boolean;
+  } | null>(null);
+  /** Un arrastre termina en `click`; sin esto también desplegaría el detalle. */
+  const suppressClickRef = useRef(false);
+
+  function beginSwipe(e: React.TouchEvent<HTMLDivElement>, message: MessageWithId) {
+    suppressClickRef.current = false;
+    if (!canReply(message) || e.touches.length !== 1) return;
+
+    const touch = e.touches[0];
+    const row = e.currentTarget;
+    const slider = row.querySelector<HTMLElement>("[data-swipe-slider]");
+    const cue = row.querySelector<HTMLElement>("[data-swipe-cue]");
+    if (!touch || !slider || !cue) return;
+
+    slider.style.transition = "none";
+    cue.style.transition = "none";
+
+    swipeRef.current = {
+      message,
+      startX: touch.clientX,
+      startY: touch.clientY,
+      axis: "undecided",
+      slider,
+      cue,
+      reached: false,
+    };
+  }
+
+  function moveSwipe(e: React.TouchEvent<HTMLDivElement>) {
+    const swipe = swipeRef.current;
+    const touch = e.touches[0];
+    if (!swipe || !touch) return;
+
+    const dx = touch.clientX - swipe.startX;
+    const dy = touch.clientY - swipe.startY;
+
+    if (swipe.axis === "undecided") {
+      if (Math.abs(dx) < SWIPE_AXIS_SLOP && Math.abs(dy) < SWIPE_AXIS_SLOP) return;
+      // Vertical, o hacia la izquierda: no es este gesto. Se suelta para que el
+      // scroll siga su curso sin competir con nosotros.
+      if (dx <= 0 || Math.abs(dx) <= Math.abs(dy)) {
+        swipeRef.current = null;
+        return;
+      }
+      swipe.axis = "x";
+    }
+
+    const pull =
+      dx <= REPLY_SWIPE_MAX
+        ? Math.max(0, dx)
+        : REPLY_SWIPE_MAX + (dx - REPLY_SWIPE_MAX) * 0.15;
+    const progress = Math.min(1, pull / REPLY_SWIPE_THRESHOLD);
+
+    swipe.slider.style.transform = `translateX(${pull}px)`;
+    swipe.cue.style.opacity = String(progress);
+    swipe.cue.style.transform = `scale(${0.6 + progress * 0.4})`;
+
+    // Vibración corta justo al cruzar el umbral: confirma que soltando ahora sí
+    // se cita, sin tener que mirar. iOS no la implementa; da igual, es opcional.
+    if (!swipe.reached && pull >= REPLY_SWIPE_THRESHOLD) {
+      swipe.reached = true;
+      navigator.vibrate?.(10);
+    } else if (swipe.reached && pull < REPLY_SWIPE_THRESHOLD) {
+      swipe.reached = false;
+    }
+
+    suppressClickRef.current = true;
+  }
+
+  function endSwipe() {
+    const swipe = swipeRef.current;
+    swipeRef.current = null;
+    if (!swipe) return;
+
+    swipe.slider.style.transition = "transform 220ms cubic-bezier(0.2,0,0,1)";
+    swipe.cue.style.transition = "opacity 160ms ease, transform 160ms ease";
+    swipe.slider.style.transform = "translateX(0)";
+    swipe.cue.style.opacity = "0";
+    swipe.cue.style.transform = "scale(0.6)";
+
+    if (swipe.reached) startReply(swipe.message);
+  }
+
+  /** Un mensaje retirado no se cita, y en un hilo donde no se puede escribir tampoco. */
+  function canReply(message: MessageWithId) {
+    return canWrite && !message.isDeleted && !!conversationId;
+  }
+
+  function startReply(message: MessageWithId) {
+    const preview = buildReplyPreview(message);
+    if (!preview) return;
+
+    // Citar y editar son excluyentes: el compositor solo puede hacer una cosa.
+    setEditing(null);
+    setReplyingTo(preview);
+    setExpandedMessage(null);
+    inputRef.current?.focus();
+  }
+
+  /**
+   * Salta al mensaje citado y lo hace parpadear.
+   *
+   * Si ya no está cargado (quedó en una página anterior del historial) no se
+   * hace nada: la cita lleva el texto dentro, así que no se pierde información
+   * por no poder llegar al original.
+   */
+  function jumpToMessage(messageId: string) {
+    const node = messageNodes.current.get(messageId);
+    if (!node) return;
+
+    node.scrollIntoView({ behavior: "smooth", block: "center" });
+    setFlashing(messageId);
+    setTimeout(() => {
+      setFlashing((current) => (current === messageId ? null : current));
+    }, 1200);
+  }
 
   async function runMessageAction(action: () => Promise<void>) {
     setError(null);
@@ -389,6 +585,7 @@ export default function ConversationThread({
   useEffect(() => {
     setDraft("");
     setError(null);
+    setReplyingTo(null);
     lastMessageIdRef.current = null;
   }, [conversationId]);
 
@@ -420,7 +617,7 @@ export default function ConversationThread({
     setError(null);
     try {
       if (exists) {
-        await send(body, pendingImage);
+        await send(body, pendingImage, replyingTo);
       } else {
         if (!otherUid) throw new Error("missing-other");
         const createdId = await createConversationWithFirstMessage(
@@ -433,6 +630,7 @@ export default function ConversationThread({
       }
       setDraft("");
       setPendingImage(null);
+      setReplyingTo(null);
       if (inputRef.current) inputRef.current.style.height = "auto";
     } catch {
       setError(tChat("sendError"));
@@ -511,7 +709,14 @@ export default function ConversationThread({
       // Columna con `order` explícito: cuando el menú abre hacia arriba se
       // REORDENA visualmente, sin sacarlo de su sitio en el DOM. Si se moviera
       // de verdad, React lo remontaría y perdería la animación de apertura.
-      <div key={message.id} style={{ display: "flex", flexDirection: "column" }}>
+      <div
+        key={message.id}
+        ref={(node) => {
+          if (node) messageNodes.current.set(message.id, node);
+          else messageNodes.current.delete(message.id);
+        }}
+        style={{ display: "flex", flexDirection: "column" }}
+      >
         {showDaySeparator && date ? (
           <div
             style={{
@@ -540,21 +745,67 @@ export default function ConversationThread({
           </div>
         ) : null}
 
+        {/* Renglón deslizable. `touch-action: pan-y` reparte el gesto con el
+            navegador: lo vertical sigue siendo scroll suyo, lo horizontal es
+            nuestro. Sin eso habría que cancelar el evento, y React escucha
+            `touchmove` en modo pasivo — no se puede. */}
         <div
+          onTouchStart={(e) => beginSwipe(e, message)}
+          onTouchMove={moveSwipe}
+          onTouchEnd={endSwipe}
+          onTouchCancel={endSwipe}
           style={{
             order: 2,
             display: "flex",
-            justifyContent: mine ? "flex-end" : "flex-start",
             marginTop: 4,
+            touchAction: "pan-y",
           }}
         >
+          <div
+            data-swipe-slider
+            style={{
+              flex: 1,
+              minWidth: 0,
+              display: "flex",
+              justifyContent: mine ? "flex-end" : "flex-start",
+              alignItems: "center",
+            }}
+          >
+            {/* Ancho cero: se coloca justo antes del globo sin ocupar sitio, así
+                que la pista sale a su izquierda tanto si el mensaje va a la
+                derecha como si va a la izquierda. */}
+            <span
+              data-swipe-cue
+              aria-hidden
+              style={{
+                position: "relative",
+                width: 0,
+                display: "flex",
+                alignItems: "center",
+                opacity: 0,
+                transform: "scale(0.6)",
+                pointerEvents: "none",
+              }}
+            >
+              <span style={{ position: "absolute", right: 8, display: "flex" }}>
+                <SwipeReplyCue />
+              </span>
+            </span>
+
           {/* Todo el globo es el disparador del detalle. No es un <button> para
               no anidarlo con el de la imagen; se le da rol y teclado a mano.
               Su rectángulo es lo que se mide para decidir hacia dónde abrir. */}
           <div
             role="button"
             tabIndex={0}
-            onClick={(e) => toggleExpanded(message.id, e.currentTarget)}
+            onClick={(e) => {
+              // Un arrastre acaba disparando un click; ese no despliega nada.
+              if (suppressClickRef.current) {
+                suppressClickRef.current = false;
+                return;
+              }
+              toggleExpanded(message.id, e.currentTarget);
+            }}
             onKeyDown={(e) => {
               if (e.key === "Enter" || e.key === " ") {
                 e.preventDefault();
@@ -568,11 +819,90 @@ export default function ConversationThread({
               // La esquina "pegada" al lado del emisor da la direccionalidad del
               // globo sin necesidad de una cola.
               borderRadius: mine ? "16px 16px 4px 16px" : "16px 16px 16px 4px",
-              background: mine ? "rgba(168,85,247,0.30)" : "rgba(255,255,255,0.07)",
+              background: flashing === message.id
+                ? "rgba(168,85,247,0.55)"
+                : mine
+                  ? "rgba(168,85,247,0.30)"
+                  : "rgba(255,255,255,0.07)",
+              // El destello al llegar desde una cita: entra rápido y se va sin
+              // prisa, que es lo que hace que el ojo lo siga.
+              transition: "background 420ms ease",
               boxShadow: mine ? "inset 0 1px 0 rgba(255,255,255,0.06)" : "none",
               minWidth: 0,
             }}
           >
+            {/* Cita del mensaje al que responde. Tocarla salta al original. */}
+            {message.replyTo && !message.isDeleted ? (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  // Un arrastre que empezó justo encima de la cita también
+                  // termina en click aquí; ese no debe saltar a ningún sitio.
+                  if (suppressClickRef.current) {
+                    suppressClickRef.current = false;
+                    return;
+                  }
+                  jumpToMessage(message.replyTo!.messageId);
+                }}
+                style={{
+                  display: "flex",
+                  gap: 7,
+                  width: "100%",
+                  textAlign: "left",
+                  border: "none",
+                  borderRadius: 7,
+                  background: "rgba(0,0,0,0.22)",
+                  padding: "5px 8px",
+                  marginBottom: 5,
+                  cursor: "pointer",
+                  fontFamily: "inherit",
+                  minWidth: 0,
+                }}
+              >
+                <span
+                  aria-hidden
+                  style={{
+                    flexShrink: 0,
+                    width: 2.5,
+                    borderRadius: 2,
+                    background: "#a855f7",
+                  }}
+                />
+                <span style={{ minWidth: 0, display: "grid", gap: 1 }}>
+                  <span
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 600,
+                      color: "#c99bf5",
+                      lineHeight: 1.25,
+                    }}
+                  >
+                    {message.replyTo.senderId === selfUid
+                      ? tChat("replyToSelf")
+                      : displayName}
+                  </span>
+                  <span
+                    style={{
+                      fontSize: 11.5,
+                      color: "rgba(255,255,255,0.62)",
+                      lineHeight: 1.3,
+                      // Dos líneas como mucho: la cita ubica, no vuelve a contar
+                      // el mensaje entero.
+                      display: "-webkit-box",
+                      WebkitLineClamp: 2,
+                      WebkitBoxOrient: "vertical",
+                      overflow: "hidden",
+                      overflowWrap: "anywhere",
+                    }}
+                  >
+                    {message.replyTo.text ||
+                      (message.replyTo.hasImage ? tChat("photoPreview") : "")}
+                  </span>
+                </span>
+              </button>
+            ) : null}
+
             {!message.isDeleted && message.image && imageUrl(message.image, "thumb") ? (
               <button
                 type="button"
@@ -629,6 +959,7 @@ export default function ConversationThread({
               </div>
             ) : null}
 
+          </div>
           </div>
         </div>
 
@@ -705,6 +1036,21 @@ export default function ConversationThread({
                   en vez de una tarjeta vacía. */}
               {!message.isDeleted ? (
                 <div className="vibra-msg-menu">
+                  {/* En celular esto se hace deslizando el mensaje a la derecha.
+                      Aquí está por los dos casos en que ese gesto no existe: el
+                      dock de laptop y la navegación por teclado. */}
+                  {canReply(message) ? (
+                    <button
+                      type="button"
+                      className="vibra-msg-menu-item"
+                      onClick={() => startReply(message)}
+                      tabIndex={expanded ? 0 : -1}
+                    >
+                      <MenuIcon path={ICON_REPLY} />
+                      {tChat("reply")}
+                    </button>
+                  ) : null}
+
                   <button
                     type="button"
                     className="vibra-msg-menu-item"
@@ -744,6 +1090,7 @@ export default function ConversationThread({
                           className="vibra-msg-menu-item"
                           onClick={() => {
                             setEditing({ id: message.id, text: message.text });
+                            setReplyingTo(null);
                             setDraft(message.text);
                             setExpandedMessage(null);
                             inputRef.current?.focus();
@@ -865,6 +1212,83 @@ export default function ConversationThread({
               style={{ ...messageActionStyle, color: "#a855f7", fontWeight: 600 }}
             >
               {tCommon("cancel")}
+            </button>
+          </div>
+        ) : null}
+
+        {/* Mensaje citado. Mismo bloque que se verá dentro del globo al enviar,
+            para que lo que se previsualiza y lo que se manda sean lo mismo. */}
+        {replyingTo ? (
+          <div
+            role="group"
+            aria-label={tChat("replyingTo", {
+              name: replyingTo.senderId === selfUid ? tChat("replyToSelf") : displayName,
+            })}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              borderRadius: 10,
+              background: "rgba(255,255,255,0.06)",
+              backdropFilter: "blur(14px)",
+              WebkitBackdropFilter: "blur(14px)",
+              padding: "7px 8px 7px 9px",
+            }}
+          >
+            <span
+              aria-hidden
+              style={{
+                flexShrink: 0,
+                alignSelf: "stretch",
+                width: 2.5,
+                borderRadius: 2,
+                background: "#a855f7",
+              }}
+            />
+            <div style={{ flex: 1, minWidth: 0, display: "grid", gap: 1 }}>
+              <span style={{ fontSize: 11, fontWeight: 600, color: "#c99bf5", lineHeight: 1.25 }}>
+                {replyingTo.senderId === selfUid ? tChat("replyToSelf") : displayName}
+              </span>
+              <span
+                style={{
+                  fontSize: 11.5,
+                  color: "rgba(255,255,255,0.62)",
+                  lineHeight: 1.3,
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                }}
+              >
+                {replyingTo.text || (replyingTo.hasImage ? tChat("photoPreview") : "")}
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setReplyingTo(null)}
+              aria-label={tChat("cancelReply")}
+              style={{
+                flexShrink: 0,
+                width: 22,
+                height: 22,
+                borderRadius: 999,
+                border: "none",
+                background: "transparent",
+                color: "rgba(255,255,255,0.6)",
+                cursor: "pointer",
+                display: "grid",
+                placeItems: "center",
+                padding: 0,
+              }}
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" aria-hidden>
+                <path
+                  d="M6 6L18 18M18 6L6 18"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.6"
+                  strokeLinecap="round"
+                />
+              </svg>
             </button>
           </div>
         ) : null}
@@ -1187,6 +1611,9 @@ export default function ConversationThread({
           flex: 1,
           minHeight: 0,
           overflowY: "auto",
+          // Explícito: al deslizar un mensaje se sale de la caja, y sin esto el
+          // navegador convertiría ese desbordamiento en scroll horizontal.
+          overflowX: "hidden",
           // El relleno inferior deja hueco para el compositor, que va ENCIMA:
           // sin él, el último mensaje quedaría escondido debajo. Se mide en
           // vivo porque el compositor cambia de alto (campo que crece, aviso de

@@ -13,6 +13,17 @@ vi.mock("firebase-admin", () => ({
 
 import { composeCharge } from "../../backend/src/tax/composeCharge";
 import { resolveTaxCountryFromIndicios } from "../../backend/src/tax/resolveCountry";
+import { COUNTRY_TAX_CONFIG } from "../../backend/src/tax/config";
+
+/**
+ * País SIN ficha, elegido en tiempo de ejecución: fijarlo a mano ya puso el CI en
+ * rojo dos veces al habilitarse el país que servía de centinela (AR, luego JP).
+ * Mismo criterio que en `tax.test.ts`.
+ */
+const UNCONFIGURED =
+  ["AQ", "GS", "HM", "BV", "TF", "UM", "PN", "IO", "ZZ"].find(
+    (code) => !(code in COUNTRY_TAX_CONFIG),
+  ) ?? "ZZ";
 
 // Composición del precio: base + $3 → +2% FX → + impuesto (solo si lo cobra Vibra).
 // Orden y justificación: impuestos.md §2.
@@ -46,10 +57,10 @@ describe("backend/tax/composeCharge", () => {
     });
   });
 
-  // País sin ficha (JP no está configurado): no cobrable. Hoy MX es el único habilitado; los demás se abrirán con
+  // País sin ficha: no cobrable. Hoy MX es el único habilitado; los demás se abrirán con
   // Stripe Tax, que informa por país el registro y las obligaciones. Ver impuestos.md.
   describe("país sin ficha", () => {
-    const c = composeCharge(100, "JP");
+    const c = composeCharge(100, UNCONFIGURED);
 
     it("no aplica impuesto ni conversión", () => {
       expect(c.buyerTax.rate).toBe(0);

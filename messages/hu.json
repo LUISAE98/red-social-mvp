@@ -2593,6 +2593,10 @@
     "deleteForEveryone": "Törlés mindenkinél",
     "editMessage": "Szerkesztés",
     "editingMessage": "Üzenet szerkesztése",
-    "messageActionError": "A műveletet nem sikerült befejezni."
+    "messageActionError": "A műveletet nem sikerült befejezni.",
+    "reply": "Válasz",
+    "replyingTo": "Válasz neki: {name}",
+    "replyToSelf": "Te",
+    "cancelReply": "Válasz megszakítása"
   }
 }

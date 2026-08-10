@@ -2593,6 +2593,10 @@
     "deleteForEveryone": "Delete for everyone",
     "editMessage": "Edit",
     "editingMessage": "Editing message",
-    "messageActionError": "Could not complete the action."
+    "messageActionError": "Could not complete the action.",
+    "reply": "Reply",
+    "replyingTo": "Replying to {name}",
+    "replyToSelf": "You",
+    "cancelReply": "Cancel reply"
   }
 }

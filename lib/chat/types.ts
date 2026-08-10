@@ -5,7 +5,7 @@ import type { Timestamp } from "firebase/firestore";
  *
  * Alcance deliberado (ver plan del DM):
  *  - Solo perfil ↔ perfil. Las comunidades NO reciben mensajes.
- *  - Solo texto. Sin media, sin grupos.
+ *  - Texto y una imagen por mensaje. Sin grupos.
  *  - Las cuentas anónimas (invitados de compra sin login) no pueden escribir.
  *
  * El modelo está diseñado para que el costo de Firestore no se dispare. Tres
@@ -145,12 +145,42 @@ export type ChatImage = {
  */
 export const MESSAGE_EDIT_WINDOW_MS = 10 * 60 * 1000;
 
+/**
+ * Extracto del mensaje citado que se guarda DENTRO de la respuesta.
+ *
+ * Es una copia, no una referencia. Dos razones:
+ *  1. Pintar una cita no puede costar una lectura por globo. Con la referencia
+ *     sola, un hilo de treinta respuestas serían treinta `get()` extra.
+ *  2. La cita tiene que sobrevivir al original. Si el otro retira su mensaje a
+ *     los cinco minutos, tu respuesta seguiría contestando a algo — sin la
+ *     copia se quedaría colgando de un hueco.
+ *
+ * `messageId` se conserva igualmente para poder saltar al original cuando
+ * todavía está en el hilo.
+ */
+export type MessageReply = {
+  messageId: string;
+  senderId: string;
+  /** Recortado a `REPLY_PREVIEW_MAX_LENGTH`; vacío si el original era solo imagen. */
+  text: string;
+  /** El original llevaba imagen: la cita lo anuncia aunque no haya texto. */
+  hasImage?: boolean;
+};
+
+/**
+ * Tope del extracto citado. La cita se pinta en dos líneas como mucho, así que
+ * guardar el mensaje entero solo engordaría cada respuesta en Firestore.
+ */
+export const REPLY_PREVIEW_MAX_LENGTH = 200;
+
 export type MessageDoc = {
   senderId: string;
   /** Puede ir vacío si el mensaje lleva imagen. */
   text: string;
   /** Una imagen como mucho; null si el mensaje es solo texto. */
   image?: ChatImage | null;
+  /** Mensaje al que responde. Ausente si no responde a nada. */
+  replyTo?: MessageReply | null;
   createdAt: Timestamp;
   /** Retirado para los DOS. El doc se conserva, el contenido deja de mostrarse. */
   isDeleted: boolean;

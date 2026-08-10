@@ -2593,6 +2593,10 @@
     "deleteForEveryone": "Изтрий за всички",
     "editMessage": "Редактирай",
     "editingMessage": "Редактира се съобщение",
-    "messageActionError": "Действието не можа да бъде завършено."
+    "messageActionError": "Действието не можа да бъде завършено.",
+    "reply": "Отговор",
+    "replyingTo": "Отговор до {name}",
+    "replyToSelf": "Ти",
+    "cancelReply": "Отказ на отговора"
   }
 }

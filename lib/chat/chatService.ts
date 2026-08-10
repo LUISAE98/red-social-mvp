@@ -28,6 +28,7 @@ import {
   DEFAULT_MESSAGE_POLICY,
   INBOX_PAGE_SIZE,
   MESSAGE_MAX_LENGTH,
+  REPLY_PREVIEW_MAX_LENGTH,
   buildParticipantsKey,
   isMessagePolicy,
   type ChatImage,
@@ -35,6 +36,7 @@ import {
   type ConversationStatus,
   type MessageDoc,
   type MessagePolicy,
+  type MessageReply,
 } from "./types";
 
 /**
@@ -178,15 +180,34 @@ export async function createConversationWithFirstMessage(
 }
 
 /**
+ * Extracto que se guarda dentro de la respuesta a partir del mensaje citado.
+ *
+ * Un mensaje ya retirado no se puede citar: quedaría una cita de "Se eliminó
+ * este mensaje", que no dice nada.
+ */
+export function buildReplyPreview(message: MessageWithId): MessageReply | null {
+  if (message.isDeleted) return null;
+
+  return {
+    messageId: message.id,
+    senderId: message.senderId,
+    text: message.text.slice(0, REPLY_PREVIEW_MAX_LENGTH),
+    ...(message.image ? { hasImage: true } : {}),
+  };
+}
+
+/**
  * Envía un mensaje. `lastMessage`/`unread` los actualiza la Cloud Function.
  *
  * Puede llevar UNA imagen. Con imagen, el texto es opcional (pie de foto).
+ * `replyTo` lleva el extracto ya construido con `buildReplyPreview`.
  */
 export async function sendMessage(
   conversationId: string,
   senderId: string,
   text: string,
-  image?: ChatImage | null
+  image?: ChatImage | null,
+  replyTo?: MessageReply | null
 ): Promise<void> {
   const body = text.trim();
 
@@ -201,8 +222,18 @@ export async function sendMessage(
     senderId,
     text: body,
     // Solo se escribe la clave si hay imagen: las rules limitan los campos y un
-    // `image: undefined` viajaría como null innecesario.
+    // `image: undefined` viajaría como null innecesario. Igual con la cita.
     ...(image ? { image } : {}),
+    ...(replyTo
+      ? {
+          replyTo: {
+            messageId: replyTo.messageId,
+            senderId: replyTo.senderId,
+            text: replyTo.text.slice(0, REPLY_PREVIEW_MAX_LENGTH),
+            ...(replyTo.hasImage ? { hasImage: true } : {}),
+          },
+        }
+      : {}),
     createdAt: serverTimestamp(),
     isDeleted: false,
   });

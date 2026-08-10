@@ -132,6 +132,26 @@ const EU_OSS_REGISTERED = true;
 const EU_STATUS: RegistrationStatus = EU_OSS_REGISTERED ? "registered" : "cannot_sell";
 
 /**
+ * Fila de un país donde NO EXISTE un impuesto al consumo que cobrar.
+ *
+ * No es "estamos bajo el umbral" ni "no hay régimen para extranjeros": es que el país no tiene
+ * IVA/GST en absoluto. No hay reloj corriendo ni umbral que vigilar — nunca va a haber nada que
+ * cobrar mientras eso no cambie. Ej. Hong Kong, Qatar, Kuwait.
+ *
+ * La tasa se guarda en 0 a propósito: si el país legisla un IVA, se cambia aquí y se ve el salto.
+ */
+function noConsumptionTax(currency: string): CountryTaxConfig {
+  return {
+    taxName: "N/A",
+    taxRate: 0,
+    currency,
+    collectionMode: "none",
+    mxVatTreatment: "export_zero",
+    registrationStatus: "not_registered",
+  };
+}
+
+/**
  * Fila de un país donde Vibra SÍ sería quien recauda, pero todavía está por debajo del umbral
  * que obliga a registrarse. Se vende con normalidad y el checkout suma CERO.
  *
@@ -276,6 +296,38 @@ export const COUNTRY_TAX_CONFIG: Readonly<Record<string, CountryTaxConfig>> = {
   NO: belowThreshold("MVA", 0.25, "NOK"),  // Noruega
   IS: belowThreshold("VSK", 0.24, "ISK"),  // Islandia
   BA: belowThreshold("PDV", 0.17, "BAM"),  // Bosnia y Herzegovina
+
+  // ── SIN IMPUESTO AL CONSUMO — no existe IVA/GST en el país ──
+  // Los únicos de toda la tabla sin reloj corriendo: no hay umbral que cruzar.
+  HK: noConsumptionTax("HKD"), // Hong Kong
+  QA: noConsumptionTax("QAR"), // Qatar — el CCG lo pactó pero Qatar no lo ha implementado
+  KW: noConsumptionTax("KWD"), // Kuwait — íd.
+
+  // ── ASIA-PACÍFICO Y MEDIO ORIENTE — con umbral, se vende sin alta ──
+  //
+  // ⚠️ VIGILANCIA MANUAL DEL UMBRAL (D-13), igual que NO/IS/BA.
+  //
+  //   JP — ¥10.000.000/año   (~US$65.000). El más holgado de toda la tabla.
+  //   MY — MYR 500.000/año   (~US$106.000) sobre ventas a Malasia.
+  //   PH — PHP 3.000.000/12m (~US$51.000). Régimen RA 12023, de 2024.
+  //   TH — THB 1.800.000/año (~US$50.000).
+  //   AU — A$75.000/año      (~US$49.000).
+  //   JO — JOD 30.000/12m    (~US$42.000).
+  //   ID — IDR 600.000.000/año (~US$37.000).
+  //   NZ — NZ$60.000/12m móviles (~US$36.000).
+  //   TW — NTD 600.000/año   (~US$18.500). El más apretado del bloque.
+  //   SG — ⚠️ DOS condiciones A LA VEZ: SGD 100.000 de ventas a Singapur **y** SGD 1.000.000
+  //        de facturación MUNDIAL. Basta que una no se cumpla para no tener que registrarse.
+  JP: belowThreshold("JCT", 0.10, "JPY"),  // Japón
+  MY: belowThreshold("SST", 0.08, "MYR"),  // Malasia
+  PH: belowThreshold("VAT", 0.12, "PHP"),  // Filipinas
+  TH: belowThreshold("VAT", 0.07, "THB"),  // Tailandia
+  AU: belowThreshold("GST", 0.10, "AUD"),  // Australia
+  JO: belowThreshold("GST", 0.16, "JOD"),  // Jordania
+  ID: belowThreshold("PPN", 0.11, "IDR"),  // Indonesia
+  NZ: belowThreshold("GST", 0.15, "NZD"),  // Nueva Zelanda
+  TW: belowThreshold("VAT", 0.05, "TWD"),  // Taiwán
+  SG: belowThreshold("GST", 0.09, "SGD"),  // Singapur
 
 
   // ⚠️ Fuera de la UE no se agrega ninguna fila sin su FICHA en impuestos.md.

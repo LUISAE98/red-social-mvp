@@ -2593,6 +2593,10 @@
     "deleteForEveryone": "Dzēst visiem",
     "editMessage": "Rediģēt",
     "editingMessage": "Rediģē ziņu",
-    "messageActionError": "Darbību neizdevās pabeigt."
+    "messageActionError": "Darbību neizdevās pabeigt.",
+    "reply": "Atbildēt",
+    "replyingTo": "Atbilde lietotājam {name}",
+    "replyToSelf": "Tu",
+    "cancelReply": "Atcelt atbildi"
   }
 }

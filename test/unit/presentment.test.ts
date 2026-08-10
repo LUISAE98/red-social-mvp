@@ -66,9 +66,33 @@ describe("toStripeAmount — formato exacto que exige Stripe", () => {
     }
   });
 
+  // 🚨 Los dinares del Golfo van en MILÉSIMAS, no en centésimas. Con la fórmula genérica
+  // (amount * 100) se le cobraría al comprador la DÉCIMA PARTE: un error de 10x a favor
+  // del comprador que no salta a la vista salvo cuadrando la liquidación.
+  it("🚨 KWD y JOD: milésimas, no centésimas (error de 10x si se olvida)", () => {
+    expect(toStripeAmount(1.5, "KWD")).toBe(1500);
+    expect(toStripeAmount(0.5, "BHD")).toBe(500);
+    expect(toStripeAmount(1, "TND")).toBe(1000);
+    expect(toStripeAmount(2.3, "JOD")).toBe(2300);
+    // Lo que habría hecho la fórmula genérica, para dejar clara la diferencia.
+    expect(toStripeAmount(1.5, "KWD")).not.toBe(150);
+  });
+
+  // Stripe exige que el último dígito del importe en milésimas sea 0.
+  it("🚨 tres decimales: el último dígito siempre es 0", () => {
+    for (const raw of [1.5, 2.348, 0.077, 15.778, 99.999]) {
+      for (const code of ["KWD", "JOD", "BHD", "OMR", "TND"]) {
+        expect(toStripeAmount(raw, code) % 10, raw + " " + code).toBe(0);
+      }
+    }
+    // 15.778 KWD → 15.780 KWD = 15780 milésimas (se redondea a la decena de fils).
+    expect(toStripeAmount(15.778, "KWD")).toBe(15780);
+  });
+
   it("normaliza el código de moneda a mayúsculas", () => {
     expect(toStripeAmount(1250.37, "isk")).toBe(125000);
     expect(toStripeAmount(5000, "clp")).toBe(5000);
+    expect(toStripeAmount(1.5, "kwd")).toBe(1500);
   });
 });
 

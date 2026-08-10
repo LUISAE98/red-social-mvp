@@ -2593,6 +2593,10 @@
     "deleteForEveryone": "Διαγραφή για όλους",
     "editMessage": "Επεξεργασία",
     "editingMessage": "Επεξεργασία μηνύματος",
-    "messageActionError": "Δεν ήταν δυνατή η ολοκλήρωση της ενέργειας."
+    "messageActionError": "Δεν ήταν δυνατή η ολοκλήρωση της ενέργειας.",
+    "reply": "Απάντηση",
+    "replyingTo": "Απάντηση σε {name}",
+    "replyToSelf": "Εσύ",
+    "cancelReply": "Ακύρωση απάντησης"
   }
 }

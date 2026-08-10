@@ -2593,6 +2593,10 @@
     "deleteForEveryone": "Odstrániť pre všetkých",
     "editMessage": "Upraviť",
     "editingMessage": "Upravuje sa správa",
-    "messageActionError": "Akciu sa nepodarilo dokončiť."
+    "messageActionError": "Akciu sa nepodarilo dokončiť.",
+    "reply": "Odpovedať",
+    "replyingTo": "Odpoveď pre {name}",
+    "replyToSelf": "Ty",
+    "cancelReply": "Zrušiť odpoveď"
   }
 }

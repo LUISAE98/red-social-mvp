@@ -3620,6 +3620,31 @@ function canUpdateReplyCount(delta) {
           );
         }
 
+        // Cita del mensaje al que se responde. Es una COPIA del original, no una
+        // referencia, así que aquí solo se valida la forma y el tamaño: el
+        // contenido citado ya lo vio quien responde, y ambos son participantes
+        // del mismo hilo. Lo que sí se cierra es que el autor citado sea uno de
+        // los dos, para que nadie fabrique una cita a nombre de un tercero.
+        function hasReply() {
+          return ("replyTo" in request.resource.data)
+            && request.resource.data.replyTo != null;
+        }
+
+        function validReply() {
+          return !hasReply() || (
+            request.resource.data.replyTo is map
+            && request.resource.data.replyTo.messageId is string
+            && request.resource.data.replyTo.messageId.size() > 0
+            && request.resource.data.replyTo.messageId.size() <= 128
+            && request.resource.data.replyTo.senderId in convAfter().participants
+            && request.resource.data.replyTo.text is string
+            && request.resource.data.replyTo.text.size() <= 200
+            && request.resource.data.replyTo.keys().hasOnly([
+                 'messageId', 'senderId', 'text', 'hasImage'
+               ])
+          );
+        }
+
         allow create: if isConvParticipantAfter()
           && notAnonymous()
           && convAfter().status != "blocked"
@@ -3630,10 +3655,11 @@ function canUpdateReplyCount(delta) {
           // Un mensaje vacío solo se admite si lleva imagen.
           && (request.resource.data.text.size() > 0 || hasImage())
           && validImage()
+          && validReply()
           && request.resource.data.isDeleted == false
           && request.resource.data.createdAt == request.time
           && request.resource.data.keys().hasOnly([
-               'senderId', 'text', 'image', 'createdAt', 'isDeleted'
+               'senderId', 'text', 'image', 'replyTo', 'createdAt', 'isDeleted'
              ]);
 
         function isAuthor() {

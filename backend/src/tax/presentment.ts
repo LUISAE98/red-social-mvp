@@ -35,6 +35,9 @@ export const NICE_STEP: Readonly<Record<string, number>> = {
   EUR: 0.5, CZK: 5, DKK: 1, HUF: 100, PLN: 1, RON: 1, SEK: 5,
   // Europa NO comunitaria
   NOK: 5, ISK: 50, BAM: 0.5,
+  // Asia-Pacífico y Medio Oriente
+  JPY: 50, SGD: 0.5, AUD: 0.5, NZD: 0.5, HKD: 1, TWD: 5, THB: 5,
+  MYR: 0.5, PHP: 5, IDR: 5000, QAR: 0.5, KWD: 0.05, JOD: 0.1,
 };
 
 /**
@@ -46,8 +49,10 @@ const STRIPE_MIN_CHARGE: Readonly<Record<string, number>> = {
   USD: 0.5, MXN: 10, EUR: 0.5, CZK: 15, DKK: 2.5, HUF: 175, PLN: 2, RON: 2, SEK: 3,
   ARS: 0.5, BRL: 0.5, COP: 0.5,
   NOK: 3,
-  // ISK y BAM no aparecen en la lista publicada de mínimos de Stripe. Sin entrada aquí,
-  // `meetsStripeMinimum` los deja pasar y Stripe decide.
+  // Asia-Pacífico
+  AUD: 0.5, HKD: 4, IDR: 0.5, JPY: 50, MYR: 2, NZD: 0.5, PHP: 0.5, SGD: 0.5, THB: 10,
+  // ISK, BAM, TWD, QAR, KWD y JOD no aparecen en la lista publicada de mínimos de Stripe.
+  // Sin entrada aquí, `meetsStripeMinimum` los deja pasar y Stripe decide.
 };
 
 /** Monedas sin decimales para Stripe: el `amount` va en unidades enteras, no en centavos. */
@@ -63,6 +68,16 @@ const ZERO_DECIMAL = new Set(["CLP", "PYG", "JPY", "KRW", "VND"]);
  * empiezan a fallar sin que nada más cambie. Por eso se fuerza aquí y no se confía en el paso.
  */
 const WHOLE_UNIT_ONLY = new Set(["ISK", "UGX"]);
+
+/**
+ * Monedas de TRES decimales (dinares y dinares del Golfo). El importe va en MILÉSIMAS
+ * (fils/millimes), no en centésimas.
+ *
+ * 🚨 Con la fórmula genérica `amount * 100` se le cobraría al comprador la DÉCIMA PARTE de
+ * lo que debe: 15.778 KWD saldría como 1578 milésimas = 1,578 KWD. Además Stripe exige que
+ * el último dígito sea 0, así que se redondea a la decena de fils más cercana.
+ */
+const THREE_DECIMAL = new Set(["KWD", "JOD", "BHD", "OMR", "TND"]);
 
 function roundNice(amount: number, currency: string): number {
   const step = NICE_STEP[currency] ?? 1;
@@ -90,6 +105,8 @@ export function toStripeAmount(amount: number, currency: string): number {
   // Enteros obligatorios: se redondea la unidad ANTES de pasar a centavos, para que el
   // resultado termine siempre en `00` como exige Stripe.
   if (WHOLE_UNIT_ONLY.has(code)) return Math.round(amount) * 100;
+  // Milésimas, redondeadas a la decena para que el último dígito sea 0.
+  if (THREE_DECIMAL.has(code)) return Math.round(amount * 100) * 10;
   return Math.round(amount * 100);
 }
 

@@ -2593,6 +2593,10 @@
     "deleteForEveryone": "Supprimer pour tous",
     "editMessage": "Modifier",
     "editingMessage": "Modification du message",
-    "messageActionError": "Impossible de terminer l’action."
+    "messageActionError": "Impossible de terminer l’action.",
+    "reply": "Répondre",
+    "replyingTo": "Réponse à {name}",
+    "replyToSelf": "Vous",
+    "cancelReply": "Annuler la réponse"
   }
 }

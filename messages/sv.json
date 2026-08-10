@@ -2593,6 +2593,10 @@
     "deleteForEveryone": "Ta bort för alla",
     "editMessage": "Redigera",
     "editingMessage": "Redigerar meddelandet",
-    "messageActionError": "Det gick inte att slutföra åtgärden."
+    "messageActionError": "Det gick inte att slutföra åtgärden.",
+    "reply": "Svara",
+    "replyingTo": "Svarar {name}",
+    "replyToSelf": "Du",
+    "cancelReply": "Avbryt svar"
   }
 }

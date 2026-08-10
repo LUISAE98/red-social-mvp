@@ -759,6 +759,68 @@ describe("DM — mensajes", () => {
     await assertFails(addDoc(col, message({ pinned: true })));
   });
 
+  // ── Respuestas (deslizar el mensaje para citarlo) ─────────────────────────
+  //
+  // La cita es una COPIA del mensaje original, no una referencia, así que lo
+  // que las rules pueden cerrar es la FORMA y a quién se le atribuye. Lo que no
+  // pueden es verificar que el texto citado sea el que realmente se escribió:
+  // eso exigiría leer el original y ambos son participantes del mismo hilo de
+  // todos modos — quien cita ya vio el mensaje entero.
+  const REPLY = {
+    messageId: "m1",
+    senderId: BOB,
+    text: "el mensaje original",
+  };
+
+  it("🟢 responder citando un mensaje del otro", async () => {
+    await seedAll(base());
+    await assertSucceeds(
+      addDoc(
+        collection(as(ALICE), `conversations/${CONV}/messages`),
+        message({ replyTo: REPLY })
+      )
+    );
+  });
+
+  it("🟢 una cita de un mensaje solo-imagen no lleva texto", async () => {
+    await seedAll(base());
+    await assertSucceeds(
+      addDoc(
+        collection(as(ALICE), `conversations/${CONV}/messages`),
+        message({ replyTo: { ...REPLY, text: "", hasImage: true } })
+      )
+    );
+  });
+
+  // Sin esto se podría fabricar una cita a nombre de alguien ajeno al hilo y
+  // hacer que en el globo del otro apareciese como dicho por un tercero.
+  it("🔴 no se puede citar a alguien que no está en el hilo", async () => {
+    await seedAll(base());
+    await assertFails(
+      addDoc(
+        collection(as(ALICE), `conversations/${CONV}/messages`),
+        message({ replyTo: { ...REPLY, senderId: CAROL } })
+      )
+    );
+  });
+
+  it("🔴 una cita mal formada se rechaza", async () => {
+    await seedAll(base());
+    const col = collection(as(ALICE), `conversations/${CONV}/messages`);
+    // Sin messageId (se OMITE la clave: el SDK rechaza undefined en cliente).
+    const { messageId: _omitted, ...noId } = REPLY;
+    await assertFails(addDoc(col, message({ replyTo: noId })));
+    // Con un campo de más.
+    await assertFails(addDoc(col, message({ replyTo: { ...REPLY, evil: true } })));
+    // No es un mapa.
+    await assertFails(addDoc(col, message({ replyTo: "m1" })));
+    // Extracto por encima del tope: la cita se pinta en dos líneas, guardar el
+    // mensaje entero solo engordaría cada respuesta.
+    await assertFails(
+      addDoc(col, message({ replyTo: { ...REPLY, text: "x".repeat(201) } }))
+    );
+  });
+
   // ── Acciones sobre un mensaje ya enviado ──────────────────────────────────
 
   /** Mensaje con `createdAt` explícito, para poder situarlo dentro o fuera de

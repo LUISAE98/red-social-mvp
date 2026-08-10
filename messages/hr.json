@@ -2593,6 +2593,10 @@
     "deleteForEveryone": "Obriši za sve",
     "editMessage": "Uredi",
     "editingMessage": "Uređuje se poruka",
-    "messageActionError": "Radnju nije bilo moguće dovršiti."
+    "messageActionError": "Radnju nije bilo moguće dovršiti.",
+    "reply": "Odgovori",
+    "replyingTo": "Odgovor korisniku {name}",
+    "replyToSelf": "Ti",
+    "cancelReply": "Odustani od odgovora"
   }
 }

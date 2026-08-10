@@ -2593,6 +2593,10 @@
     "deleteForEveryone": "Șterge pentru toți",
     "editMessage": "Editează",
     "editingMessage": "Se editează mesajul",
-    "messageActionError": "Acțiunea nu a putut fi finalizată."
+    "messageActionError": "Acțiunea nu a putut fi finalizată.",
+    "reply": "Răspunde",
+    "replyingTo": "Răspuns către {name}",
+    "replyToSelf": "Tu",
+    "cancelReply": "Anulează răspunsul"
   }
 }

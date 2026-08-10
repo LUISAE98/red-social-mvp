@@ -2593,6 +2593,10 @@
     "deleteForEveryone": "Usuń u wszystkich",
     "editMessage": "Edytuj",
     "editingMessage": "Edytowanie wiadomości",
-    "messageActionError": "Nie udało się wykonać tej akcji."
+    "messageActionError": "Nie udało się wykonać tej akcji.",
+    "reply": "Odpowiedz",
+    "replyingTo": "Odpowiadasz {name}",
+    "replyToSelf": "Ty",
+    "cancelReply": "Anuluj odpowiedź"
   }
 }

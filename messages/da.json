@@ -2593,6 +2593,10 @@
     "deleteForEveryone": "Slet for alle",
     "editMessage": "Redigér",
     "editingMessage": "Redigerer beskeden",
-    "messageActionError": "Handlingen kunne ikke gennemføres."
+    "messageActionError": "Handlingen kunne ikke gennemføres.",
+    "reply": "Svar",
+    "replyingTo": "Svarer {name}",
+    "replyToSelf": "Dig",
+    "cancelReply": "Annullér svar"
   }
 }

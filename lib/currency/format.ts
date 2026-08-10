@@ -89,6 +89,22 @@ export const NICE_STEP: Record<DisplayCurrency, number> = {
   //           en la práctica y los precios se cotizan en decenas.
   BAM: 0.5, // 1 USD ≈ 1.8 BAM  → 0.5 BAM ≈ 0.28 USD. El marco está anclado al euro
   //           (1.95583 BAM = 1 EUR), así que se comporta como él.
+  // --- Asia-Pacífico y Medio Oriente ---
+  JPY: 50, //    1 USD ≈ 150 JPY  → 50 JPY ≈ 0.33 USD. El yen no tiene decimales.
+  SGD: 0.5, //   1 USD ≈ 1.34 SGD → 0.5 SGD ≈ 0.37 USD.
+  AUD: 0.5, //   1 USD ≈ 1.5 AUD  → 0.5 AUD ≈ 0.33 USD.
+  NZD: 0.5, //   1 USD ≈ 1.65 NZD → 0.5 NZD ≈ 0.30 USD.
+  HKD: 1, //     1 USD ≈ 7.8 HKD  → 1 HKD ≈ 0.13 USD. Anclado al dólar (banda 7.75–7.85).
+  TWD: 5, //     1 USD ≈ 32 TWD   → 5 TWD ≈ 0.16 USD.
+  THB: 5, //     1 USD ≈ 35 THB   → 5 THB ≈ 0.14 USD.
+  MYR: 0.5, //   1 USD ≈ 4.4 MYR  → 0.5 MYR ≈ 0.11 USD.
+  PHP: 5, //     1 USD ≈ 57 PHP   → 5 PHP ≈ 0.09 USD.
+  IDR: 5000, //  1 USD ≈ 16.000 IDR → 5.000 IDR ≈ 0.31 USD. Nadie cotiza en unidades de rupia.
+  QAR: 0.5, //   1 USD ≈ 3.64 QAR → 0.5 QAR ≈ 0.14 USD. Anclado al dólar.
+  // ⚠️ KWD y JOD son monedas de TRES decimales. El paso debe dejar el monto en múltiplos
+  // de 10 fils, porque Stripe exige que el último dígito del importe en milésimas sea 0.
+  KWD: 0.05, //  1 USD ≈ 0.31 KWD → 0.05 KWD ≈ 0.16 USD = 50 fils exactos.
+  JOD: 0.1, //   1 USD ≈ 0.71 JOD → 0.1 JOD ≈ 0.14 USD = 100 fils exactos. Anclado al dólar.
 };
 
 /** Redondea a un múltiplo "bonito" según la moneda. */

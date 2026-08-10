@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
+  COUNTRY_TAX_CONFIG,
   computeConsumptionTax,
   countryTaxConfig,
   taxRateForCountry,
@@ -17,10 +18,20 @@ import {
   type CountryIndicios,
 } from "../../backend/src/tax/resolveCountry";
 
-// País deliberadamente NO configurado, para probar el camino "sin ficha".
-// Ojo al elegirlo: debe seguir SIN fila en COUNTRY_TAX_CONFIG. Antes era "AR", pero
-// Argentina se habilitó el 2026-08-08 y el centinela dejó de valer.
-const UNCONFIGURED = "JP";
+/**
+ * País deliberadamente NO configurado, para probar el camino "sin ficha".
+ *
+ * Se elige EN TIEMPO DE EJECUCIÓN. Fijarlo a mano ya rompió estos tests dos
+ * veces —"AR" al habilitar Argentina (2026-08-08) y "JP" al habilitar Japón
+ * (2026-08-10)—: cada país nuevo invalidaba el centinela y el CI se ponía rojo
+ * por un test viejo, no por un bug. Se toma el primer código que NO esté en la
+ * tabla; son territorios sin jurisdicción fiscal propia, y "ZZ" (reservado por
+ * la ISO para uso privado) cierra la lista como red.
+ */
+const UNCONFIGURED =
+  ["AQ", "GS", "HM", "BV", "TF", "UM", "PN", "IO", "ZZ"].find(
+    (code) => !(code in COUNTRY_TAX_CONFIG),
+  ) ?? "ZZ";
 
 // Impuesto al consumo. El impuesto lo determina el país del COMPRADOR, no el creador.
 // El desglose base/impuesto/total debe ser exacto.
@@ -552,6 +563,90 @@ describe("Europa no comunitaria bajo umbral — NO, IS, BA", () => {
   it("🚫 Ucrania NO está configurada, y es a propósito", () => {
     expect(countryTaxConfig("UA")).toBeNull();
     expect(isChargeableCountry("UA")).toBe(false);
+  });
+});
+
+// Asia-Pacífico y Medio Oriente. Dos situaciones distintas que dan el mismo cobro (cero):
+// unos no tienen impuesto en absoluto, otros lo tienen pero Vibra está bajo su umbral.
+describe("Asia-Pacífico y Medio Oriente", () => {
+  // 🇭🇰🇶🇦🇰🇼 No existe IVA/GST. Son los ÚNICOS de toda la tabla sin reloj corriendo:
+  // no hay umbral que cruzar ni alta que llegue nunca. Estrictamente mejores que NO/IS/BA.
+  describe("sin impuesto al consumo — HK, QA, KW", () => {
+    const SIN_IMPUESTO: Array<[string, string]> = [
+      ["HK", "HKD"],
+      ["QA", "QAR"],
+      ["KW", "KWD"],
+    ];
+
+    it("se vende, y la tasa es CERO — no solo el cobro", () => {
+      for (const [iso, moneda] of SIN_IMPUESTO) {
+        expect(isChargeableCountry(iso), iso).toBe(true);
+        expect(taxRateForCountry(iso), iso).toBe(0);
+        expect(computeConsumptionTax(100, iso).total, iso).toBe(100);
+        expect(chargeCurrencyForCountry(iso), iso).toBe(moneda);
+      }
+    });
+
+    // 🚨 La diferencia con NO/IS/BA: allá la tasa está guardada esperando el día del alta.
+    // Aquí no hay nada que esperar. Si alguien copia una fila de Noruega y le pone tasa a
+    // Hong Kong, se cobraría un impuesto que no existe.
+    it("🚨 no confundirlos con los de umbral: aquí NO hay tasa guardada", () => {
+      for (const [iso] of SIN_IMPUESTO) {
+        expect(countryTaxConfig(iso)!.taxRate, iso).toBe(0);
+        expect(countryTaxConfig(iso)!.collectionMode, iso).toBe("none");
+      }
+      // Contraste: Japón sí guarda su 10% para el día que cruce el umbral.
+      expect(countryTaxConfig("JP")!.taxRate).toBe(0.1);
+      expect(countryTaxConfig("JP")!.collectionMode).toBe("platform");
+    });
+  });
+
+  describe("bajo umbral — JP, MY, PH, TH, AU, JO, ID, NZ, TW, SG", () => {
+    const UMBRAL: Array<[string, number, string, string]> = [
+      ["JP", 0.1, "JPY", "JCT"],
+      ["MY", 0.08, "MYR", "SST"],
+      ["PH", 0.12, "PHP", "VAT"],
+      ["TH", 0.07, "THB", "VAT"],
+      ["AU", 0.1, "AUD", "GST"],
+      ["JO", 0.16, "JOD", "GST"],
+      ["ID", 0.11, "IDR", "PPN"],
+      ["NZ", 0.15, "NZD", "GST"],
+      ["TW", 0.05, "TWD", "VAT"],
+      ["SG", 0.09, "SGD", "GST"],
+    ];
+
+    it("los diez venden con cobro CERO mientras no haya alta", () => {
+      for (const [iso] of UMBRAL) {
+        expect(isChargeableCountry(iso), iso).toBe(true);
+        expect(computeConsumptionTax(100, iso).total, iso).toBe(100);
+        expect(platformCollectsTax(iso), iso).toBe(false);
+        expect(countryTaxConfig(iso)!.registrationStatus, iso).toBe("not_registered");
+      }
+    });
+
+    it("guardan tasa, moneda y nombre para el día del alta", () => {
+      for (const [iso, tasa, moneda, nombre] of UMBRAL) {
+        expect(taxRateForCountry(iso), iso).toBeCloseTo(tasa, 8);
+        expect(chargeCurrencyForCountry(iso), iso).toBe(moneda);
+        expect(countryTaxConfig(iso)!.taxName, iso).toBe(nombre);
+        expect(shouldAddFxFee(iso), iso).toBe(true);
+      }
+    });
+
+    it("cada uno con el nombre real de SU impuesto, no un IVA genérico", () => {
+      expect(countryTaxConfig("JP")!.taxName).toBe("JCT");
+      expect(countryTaxConfig("MY")!.taxName).toBe("SST");
+      expect(countryTaxConfig("ID")!.taxName).toBe("PPN");
+      expect(countryTaxConfig("AU")!.taxName).toBe("GST");
+    });
+  });
+
+  // Excluidos por decisión del usuario (sanciones) o porque exigen alta desde la venta 1.
+  it("🚫 los excluidos siguen fuera: RU, BY, CU, IL, IN, SA, AE, KR", () => {
+    for (const iso of ["RU", "BY", "CU", "IL", "IN", "SA", "AE", "KR"]) {
+      expect(countryTaxConfig(iso), iso).toBeNull();
+      expect(isChargeableCountry(iso), iso).toBe(false);
+    }
   });
 });
 

@@ -2593,6 +2593,10 @@
     "deleteForEveryone": "Voor iedereen verwijderen",
     "editMessage": "Bewerken",
     "editingMessage": "Bericht bewerken",
-    "messageActionError": "De actie kon niet worden voltooid."
+    "messageActionError": "De actie kon niet worden voltooid.",
+    "reply": "Beantwoorden",
+    "replyingTo": "Antwoord aan {name}",
+    "replyToSelf": "Jij",
+    "cancelReply": "Antwoord annuleren"
   }
 }

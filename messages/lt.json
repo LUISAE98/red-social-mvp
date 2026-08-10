@@ -2593,6 +2593,10 @@
     "deleteForEveryone": "Ištrinti visiems",
     "editMessage": "Redaguoti",
     "editingMessage": "Redaguojama žinutė",
-    "messageActionError": "Veiksmo nepavyko užbaigti."
+    "messageActionError": "Veiksmo nepavyko užbaigti.",
+    "reply": "Atsakyti",
+    "replyingTo": "Atsakoma {name}",
+    "replyToSelf": "Tu",
+    "cancelReply": "Atšaukti atsakymą"
   }
 }
