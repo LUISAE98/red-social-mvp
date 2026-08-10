@@ -1,9 +1,12 @@
 import { describe, it, expect } from "vitest";
+// Módulo PURO del backend (sin firebase-admin ni firebase-functions): se puede
+// importar desde el frontend sin arrastrar dependencias que este no instala —
+// eso es justo lo que rompía el CI y el build de Vercel.
 import {
   toStripeAmount,
   meetsStripeMinimum,
   NICE_STEP as BACKEND_NICE_STEP,
-} from "../../backend/src/tax/presentment";
+} from "../../backend/src/tax/presentmentFormat";
 import { NICE_STEP as FRONTEND_NICE_STEP } from "@/lib/currency/format";
 import { DISPLAY_CURRENCIES } from "@/lib/currency/catalog";
 
