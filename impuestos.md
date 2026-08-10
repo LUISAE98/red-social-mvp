@@ -783,6 +783,57 @@ Queda como **D-13** — ya no bloquea, pero cuanto antes exista, menos depende d
 
 ---
 
+## 6.4 Bloqueados: exigen alta desde la venta 1 (2026-08-08)
+
+Vista consolidada de LatAm + Europa. **Ninguno tiene fila en `COUNTRY_TAX_CONFIG`**, así que hoy
+el checkout los rechaza. No falta programarlos: falta el trámite. El detalle por país está en
+§6.2 (LatAm) y §6.3 (Europa).
+
+| País | Moneda | Idioma | TASA | Impuesto | Recaudación | Declaración | Alta fiscal | Umbral | Estatus |
+|---|---|---|---|---|---|---|---|---|---|
+| 🇨🇱 Chile | CLP | Español | 19% | IVA | Vibra (tras alta) | Mensual o trimestral (F129, en USD/EUR) | Régimen simplificado — SII | Ninguno | 🔴 No cobrable |
+| 🇨🇴 Colombia | COP | Español | 19% | IVA | Vibra **o** emisores de tarjeta (a elección) | Bimestral — o **ninguna** si opta por retención | RUT + firma electrónica — DIAN | Ninguno | 🔴 No cobrable |
+| 🇵🇪 Perú | PEN | Español | 18% | IGV | Vibra, como agente de percepción | Mensual | RUC — SUNAT (sin domicilio ni EP) | Ninguno | 🔴 No cobrable |
+| 🇺🇾 Uruguay | UYU | Español | 22% **+ IRNR 12%** | IVA | Por confirmar | Por confirmar | Régimen no residentes — DGI | Ninguno | 🔴 No cobrable |
+| 🇧🇷 Brasil | BRL | Portugués | Variable | ISS → IBS/CBS | Por confirmar | Por confirmar | Municipal | Ninguno | 🔴 No cobrable |
+| 🇬🇧 Reino Unido | GBP | Inglés | 20% | VAT | Vibra (tras alta) | Trimestral | HMRC — **NETP** | **Cero** para extranjeros | 🔴 No cobrable |
+| 🇨🇭 Suiza | CHF | Alemán/francés/italiano | 8,1% | MWST/TVA | Vibra (tras alta) | Trimestral | FTA + **representante fiscal** | CHF 100.000 **mundial** ⚠️ | 🔴 No cobrable |
+| 🇱🇮 Liechtenstein | CHF | Alemán | 8,1% | MWST | Vibra (tras alta) | Trimestral | Sistema suizo (unión aduanera) | Igual que Suiza | 🔴 No cobrable |
+| 🇹🇷 Turquía | TRY | Turco | 20% | KDV | Vibra (tras alta) | Mensual | VAT No. 3 | Ninguno | 🔴 No cobrable |
+| 🇦🇱 Albania | ALL | Albanés | 20% | TVSH | Vibra (tras alta) | Mensual | Registro no residente | Ninguno | 🔴 No cobrable |
+| 🇷🇸 Serbia | RSD | Serbio | 20% | PDV | Vibra (tras alta) | Por confirmar | Registro no residente | Ninguno | 🔴 No cobrable |
+| 🇲🇪 Montenegro | EUR | Montenegrino | 21% | PDV | Vibra (tras alta) | Por confirmar | Registro no residente | Ninguno | 🔴 No cobrable |
+| 🇲🇩 Moldavia | MDL | Rumano | 20% | TVA | Vibra (tras alta) | Por confirmar | Registro no residente | Ninguno | 🔴 No cobrable |
+| 🇲🇰 Macedonia del Norte | MKD | Macedonio | 18% | DDV | Vibra (tras alta) | Por confirmar | **Representante fiscal local** solidario | Ninguno | 🔴 No cobrable |
+
+⚠️ Los "por confirmar" son huecos REALES: se buscaron y las fuentes no los resuelven con claridad.
+Se dejan vacíos a propósito — inventar una frecuencia de declaración es peor que no tenerla. Se
+cierran cuando el país se priorice, con la profundidad que se le dio a Panamá (§6).
+
+### Lo que no se ve en la tabla
+
+**🇨🇭 Suiza no tiene umbral aunque lo parezca.** Los CHF 100.000 son de facturación **mundial**, no
+suiza: si el ingreso global los supera, hay que registrarse aunque se venda una sola vez ahí. Es
+la confusión más cara de esta lista. Ver §6.3.
+
+**🇨🇴 Colombia es el único que puede quedar SIN declaraciones.** Acogiéndose al sistema alternativo,
+los emisores de tarjeta retienen y Vibra no presenta nada. Sigue haciendo falta el RUT, pero es un
+trámite una vez. El más barato de operar de los 14 — bloqueado por **D-11**.
+
+**🇲🇰 Macedonia del Norte exige representante fiscal local solidariamente responsable**: alguien en
+el país responde con su patrimonio por los impuestos de Vibra. Para el tamaño de ese mercado, no
+compensa.
+
+### Orden de prioridad sugerido
+
+1. 🇨🇴 **Colombia** — resolver D-11; si el 19% se le suma al comprador, es el más barato de todos.
+2. 🇨🇱 **Chile** — el más predecible: alta clara, formulario claro, pago en dólares.
+3. 🇬🇧 **Reino Unido** — el mercado más grande, pero sin margen de prueba (umbral cero).
+4. 🇵🇪 **Perú** — claro, con declaración mensual.
+5. El resto, solo si aparece demanda real.
+
+---
+
 ## 7. Estado y pendientes
 
 ### Países

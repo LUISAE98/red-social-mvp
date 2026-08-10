@@ -50,7 +50,7 @@ export const LOCALE_META: readonly LocaleMeta[] = [
   { code: "hu", label: "HU", name: "Magyar", intl: "hu-HU", ready: true },
   { code: "it", label: "IT", name: "Italiano", intl: "it-IT", ready: true },
   { code: "lt", label: "LT", name: "Lietuvių", intl: "lt-LT", ready: true },
-  { code: "lv", label: "LV", name: "Latviešu", intl: "lv-LV", ready: false },
+  { code: "lv", label: "LV", name: "Latviešu", intl: "lv-LV", ready: true },
   { code: "mt", label: "MT", name: "Malti", intl: "mt-MT", ready: false },
   { code: "nl", label: "NL", name: "Nederlands", intl: "nl-NL", ready: true },
   { code: "pl", label: "PL", name: "Polski", intl: "pl-PL", ready: true },
@@ -71,7 +71,7 @@ export const LOCALE_META: readonly LocaleMeta[] = [
  * en toda la app. Al terminar el archivo de un idioma: pon su `ready: true` arriba
  * Y agrégalo a esta tupla. El test de i18n verifica que ambas listas coincidan.
  */
-export const READY_LOCALES = ["es", "en", "pt-BR", "de", "fr", "it", "nl", "pl", "ro", "el", "cs", "hu", "sv", "pt-PT", "da", "fi", "sk", "bg", "hr", "lt", "sl"] as const;
+export const READY_LOCALES = ["es", "en", "pt-BR", "de", "fr", "it", "nl", "pl", "ro", "el", "cs", "hu", "sv", "pt-PT", "da", "fi", "sk", "bg", "hr", "lt", "sl", "lv"] as const;
 
 export type Locale = (typeof READY_LOCALES)[number];
 
