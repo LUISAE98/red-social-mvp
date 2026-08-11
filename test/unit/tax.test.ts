@@ -696,6 +696,47 @@ describe("Oceanía — GU, PG, NC, FJ", () => {
   });
 });
 
+// 🌍 África. Solo dos integrados, y con los umbrales más extremos de toda la tabla:
+// Sudáfrica el más holgado que existe, Egipto de los más apretados.
+describe("África — ZA, EG", () => {
+  it("los dos venden con cobro CERO mientras no haya alta", () => {
+    for (const iso of ["ZA", "EG"]) {
+      expect(isChargeableCountry(iso), iso).toBe(true);
+      expect(computeConsumptionTax(100, iso).total, iso).toBe(100);
+      expect(platformCollectsTax(iso), iso).toBe(false);
+      expect(countryTaxConfig(iso)!.collectionMode, iso).toBe("platform");
+      expect(countryTaxConfig(iso)!.registrationStatus, iso).toBe("not_registered");
+    }
+  });
+
+  it("tasas y monedas correctas", () => {
+    expect(taxRateForCountry("ZA")).toBeCloseTo(0.15, 8);
+    expect(taxRateForCountry("EG")).toBeCloseTo(0.14, 8);
+    expect(chargeCurrencyForCountry("ZA")).toBe("ZAR");
+    expect(chargeCurrencyForCountry("EG")).toBe("EGP");
+    expect(shouldAddFxFee("ZA")).toBe(true);
+    expect(shouldAddFxFee("EG")).toBe(true);
+  });
+
+  // 🚨 En África el impuesto NO es el único filtro: Stripe no procesa en varios países y
+  // aplica restricciones por riesgo de sanciones en otros. Zimbabue es el caso claro —
+  // fiscalmente sería vendible (umbral de US$25.000) pero Stripe lo restringe. Ninguno de
+  // esos debe acabar en la tabla "porque el impuesto lo permite".
+  it("🚨 los países que Stripe no procesa NO están configurados", () => {
+    for (const iso of ["SD", "SS", "SO", "ER", "LY", "ZW", "BI", "CF", "CD", "GN", "GW", "ML"]) {
+      expect(countryTaxConfig(iso), iso).toBeNull();
+      expect(isChargeableCountry(iso), iso).toBe(false);
+    }
+  });
+
+  it("🚫 los africanos con alta desde la venta 1 siguen fuera", () => {
+    for (const iso of ["MA", "KE", "GH", "NG", "TZ", "UG"]) {
+      expect(countryTaxConfig(iso), iso).toBeNull();
+      expect(isChargeableCountry(iso), iso).toBe(false);
+    }
+  });
+});
+
 // 🇲🇽 IVA mexicano sobre ventas al EXTRANJERO. Vibra es residente en México, así que por el
 // Art. 16 LIVA su venta siempre está dentro del objeto: lo que cambia es la tasa. Hoy 0% por
 // exportación en los 11 servicios (D-08 pendiente de fiscalista). Ver impuestos.md.

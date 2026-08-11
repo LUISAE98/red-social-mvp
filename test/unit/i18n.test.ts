@@ -274,10 +274,16 @@ describe("i18n / detección por país", () => {
     }
   });
 
-  it("España sigue en español e Irlanda/Malta en inglés", () => {
+  it("Malta recibe maltés, pero Irlanda sigue en inglés a propósito", () => {
     expect(localeFromCountry("ES")).toBe("es");
+    // Malta: ya existe mt.json, así que recibe su idioma.
+    expect(localeFromCountry("MT")).toBe("mt");
+    // Irlanda NO. El irlandés está listo y servible, pero `IE → en` es una
+    // decisión de producto, no una carencia: el inglés es la lengua de trabajo
+    // de la práctica totalidad de la población. Si alguien "arregla" esto
+    // apuntando IE a `ga`, este test se lo dice.
+    expect(isReadyLocale("ga")).toBe(true);
     expect(localeFromCountry("IE")).toBe("en");
-    expect(localeFromCountry("MT")).toBe("en"); // mt aún no está listo
   });
 
   it("Portugal recibe pt-PT, y el parentesco con pt-BR sigue en pie", () => {

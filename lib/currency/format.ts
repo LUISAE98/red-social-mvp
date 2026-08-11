@@ -110,6 +110,9 @@ export const NICE_STEP: Record<DisplayCurrency, number> = {
   // ⚠️ El franco CFP es moneda SIN decimales para Stripe. El paso tiene que ser entero.
   XPF: 50, //    1 USD ≈ 110 XPF  → 50 XPF ≈ 0.45 USD. Anclado al euro (119,33 XPF = 1 EUR).
   FJD: 0.5, //   1 USD ≈ 2.25 FJD → 0.5 FJD ≈ 0.22 USD.
+  // --- África ---
+  ZAR: 5, //     1 USD ≈ 18 ZAR   → 5 ZAR  ≈ 0.28 USD. Mismo paso que el peso mexicano.
+  EGP: 10, //    1 USD ≈ 48 EGP   → 10 EGP ≈ 0.21 USD. Con paso 5 quedaría en 0.10, muy fino.
 };
 
 /** Redondea a un múltiplo "bonito" según la moneda. */

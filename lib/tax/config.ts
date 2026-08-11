@@ -352,6 +352,23 @@ export const COUNTRY_TAX_CONFIG: Readonly<Record<string, CountryTaxConfig>> = {
                                            // ⚠️ Registrarse exige agente fiscal local o
                                            // establecimiento permanente.
 
+  // ── ÁFRICA ──
+  //
+  // ⚠️ La región que MÁS rápido está legislando esto: Marruecos entró en vigor en junio de
+  // 2026, Nigeria en enero, Malaui en abril, Botsuana en junio. Cualquier fila de aquí
+  // caduca antes que las de otras regiones. Ver impuestos.md §6.7.
+  //
+  // ⚠️ Y hay un SEGUNDO filtro que no existe en otros continentes: Stripe no procesa en
+  // Sudán, Sudán del Sur, Somalia, Eritrea ni Libia, y aplica restricciones por riesgo de
+  // sanciones en Zimbabue, Burundi, Rep. Centroafricana, RD Congo, Guinea, Guinea-Bisáu y
+  // Malí. Que el impuesto lo permita NO significa que se pueda cobrar.
+  //
+  //   ZA — ZAR 2.300.000 en 12 meses MÓVILES (~US$125.000). Subió desde ZAR 1.000.000 el
+  //        2026-04-01. Es el umbral MÁS HOLGADO de toda la tabla, por encima de Japón.
+  //   EG — EGP 500.000 en 12 meses (~US$10.000). De los más apretados que tenemos.
+  ZA: belowThreshold("VAT", 0.15, "ZAR"), // Sudáfrica
+  EG: belowThreshold("VAT", 0.14, "EGP"), // Egipto
+
 
   // ⚠️ Fuera de la UE no se agrega ninguna fila sin su FICHA en impuestos.md.
 };

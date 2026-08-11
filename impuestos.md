@@ -785,9 +785,9 @@ Queda como **D-13** — ya no bloquea, pero cuanto antes exista, menos depende d
 
 ## 6.4 Bloqueados: exigen alta desde la venta 1 (2026-08-08)
 
-Vista consolidada de LatAm + Europa + Oceanía. **Ninguno tiene fila en `COUNTRY_TAX_CONFIG`**,
+Vista consolidada de LatAm + Europa + Oceanía + África. **Ninguno tiene fila en `COUNTRY_TAX_CONFIG`**,
 así que hoy el checkout los rechaza. No falta programarlos: falta el trámite. El detalle por país
-está en §6.2 (LatAm), §6.3 (Europa) y §6.6 (Oceanía).
+está en §6.2 (LatAm), §6.3 (Europa), §6.6 (Oceanía) y §6.7 (África).
 
 ⚠️ **La Polinesia Francesa es el caso a no malinterpretar:** su moneda (XPF) SÍ está en el
 catálogo, porque la comparte con Nueva Caledonia, que sí vende. Tener moneda **no** es permiso de
@@ -810,6 +810,12 @@ venta — lo gatea `COUNTRY_TAX_CONFIG`, y ahí no tiene fila. Hay un test que l
 | 🇲🇩 Moldavia | MDL | Rumano | 20% | TVA | Vibra (tras alta) | Por confirmar | Registro no residente | Ninguno | 🔴 No cobrable |
 | 🇲🇰 Macedonia del Norte | MKD | Macedonio | 18% | DDV | Vibra (tras alta) | Por confirmar | **Representante fiscal local** solidario | Ninguno | 🔴 No cobrable |
 | 🇵🇫 Polinesia Francesa | XPF | Francés/Tahitiano | 13% servicios / 16% estándar | TVA | Vibra (tras alta) | Por confirmar | DICP | **Cero** | 🔴 No cobrable |
+| 🇲🇦 Marruecos | MAD | Árabe/Francés | 20% | TVA | Vibra (tras alta) | Por confirmar | Plataforma DGI | **Cero** — vigente 11-jun-2026 | 🔴 No cobrable |
+| 🇰🇪 Kenia | KES | Suajili/Inglés | 16% | VAT | Vibra (tras alta) | Mensual | KRA | **Cero** | 🔴 No cobrable |
+| 🇬🇭 Ghana | GHS | Inglés | 15% | VAT | Vibra (tras alta) | Mensual | GRA + **E-VAT obligatorio** | **Cero** | 🔴 No cobrable |
+| 🇳🇬 Nigeria | NGN | Inglés | 7,5% | VAT | Vibra (tras alta) | Por confirmar | FIRS (Tax Act 2025) | Por confirmar — obligación desde 1-ene-2026 | 🔴 No cobrable |
+| 🇹🇿 Tanzania | TZS | Suajili/Inglés | 18% | VAT | Vibra (tras alta) | Mensual | TRA | **Cero** + **3% de renta sobre bruto** ⚠️ | 🔴 No cobrable |
+| 🇺🇬 Uganda | UGX | Inglés/Suajili | 18% | VAT | Vibra (tras alta) | Por confirmar | URA | **Cero** | 🔴 No cobrable |
 
 ⚠️ Los "por confirmar" son huecos REALES: se buscaron y las fuentes no los resuelven con claridad.
 Se dejan vacíos a propósito — inventar una frecuencia de declaración es peor que no tenerla. Se
@@ -976,6 +982,71 @@ Con esto **Oceanía queda cerrada.** Lo que faltaba de peso —Australia y Nueva
 
 ---
 
+## 6.7 África (2026-08-11)
+
+⚠️ **Es la región que más rápido está legislando esto, y esta sección caduca antes que las
+demás.** Marruecos entró en vigor el 11 de junio de 2026, Nigeria el 1 de enero, Malaui el 15 de
+abril, Botsuana en junio. Lo que hoy no tiene régimen puede tenerlo en seis meses.
+
+Ventaja frente a LatAm: **Stripe Tax sí cubre buena parte de África** (19 países), así que su
+monitoreo avisará de los cambios — al revés que con Bolivia y compañía.
+
+### ✅ ACTIVOS — con umbral, se vende sin alta
+
+| País | Moneda | Idioma | TASA | Impuesto | Recaudación | Declaración | Alta fiscal | Umbral | Estatus |
+|---|---|---|---|---|---|---|---|---|---|
+| 🇿🇦 Sudáfrica | ZAR | Inglés/Afrikáans | 15% | VAT | Nadie (bajo umbral) | Bimestral | SARS | **ZAR 2.300.000**/12m móviles (~US$125.000) | ✅ Activo |
+| 🇪🇬 Egipto | EGP | Árabe | 14% | VAT | Nadie (bajo umbral) | Mensual | ETA (registro simplificado) | **EGP 500.000**/12m (~US$10.000) | ✅ Activo |
+
+**🇿🇦 Sudáfrica tiene el umbral más holgado de TODA la tabla mundial.** Subió de ZAR 1.000.000 a
+**ZAR 2.300.000 el 1 de abril de 2026** — unos US$125.000 al año, casi el doble que Japón
+(~US$65.000), que era el récord anterior. Y es el mercado de creadores más grande de África, en
+inglés. Es el país de mayor margen de operación sin alta que existe hoy en la tabla.
+
+**🇪🇬 Egipto está en el extremo opuesto:** ~US$10.000 al año lo convierte en el segundo umbral más
+apretado que tenemos, solo por encima de Noruega (~US$4.500). Vigilarlo de cerca.
+
+### 🚨 En África el impuesto NO es el único filtro
+
+Es la primera región donde **Stripe puede ser el bloqueo, no el fisco**. Que el impuesto permita
+vender no significa que se pueda cobrar:
+
+| Situación | Países |
+|---|---|
+| **Stripe no opera** | Sudán · Sudán del Sur · Somalia · Eritrea · Libia |
+| **Restricciones o demoras por riesgo de sanciones** | Zimbabue · Burundi · Rep. Centroafricana · RD Congo · Guinea · Guinea-Bisáu · Malí |
+
+⚠️ **Zimbabue es el caso ilustrativo:** fiscalmente sería vendible —IVA 15,5% con umbral de
+US$25.000, y desde el 1-ene-2026 hasta con retención por intermediarios— pero Stripe lo restringe.
+**No agregarlo aunque el impuesto lo permita.** Hay un test que verifica que estos doce sigan fuera.
+
+### 🚫 Con alta desde la venta 1 → §6.4
+
+Marruecos, Kenia, Ghana, Nigeria, Tanzania y Uganda. Dos merecen nota:
+
+* **🇬🇭 Ghana** exige además **facturación electrónica certificada (E-VAT)**. Es de los regímenes
+  más pesados de todo el documento: no basta con declarar, hay que emitir por su sistema.
+* **🇹🇿 Tanzania** cobra 18% de IVA **más un 3% de impuesto sobre ingresos brutos** (subió del 2%
+  el 1-jul-2026). Es el único de toda la tabla mundial que grava el ingreso además del consumo —
+  ese 3% sale del margen, no del comprador.
+
+### ⚠️ Sin verificar — el resto del continente
+
+**Regímenes recién estrenados que habría que mirar:** 🇧🇼 Botsuana (junio 2026) y 🇲🇼 Malaui
+(15 de abril de 2026). No se verificaron sus umbrales.
+
+**El resto** — Argelia, Túnez, Angola, Zambia, Etiopía, Senegal, Costa de Marfil, Camerún, Ruanda,
+Mauricio, Namibia, Cabo Verde, Mauritania y los demás. Casi todos tienen IVA propio (18–19% en el
+África francófona), la mayoría sin régimen para proveedores extranjeros. No se verificaron uno por
+uno: fuera de Sudáfrica, Nigeria, Egipto y Kenia, el mercado de creadores es marginal y la
+penetración de tarjeta baja.
+
+**Nota de formato:** el chelín ugandés (UGX) ya está en `WHOLE_UNIT_ONLY` y los francos CFA
+(XAF/XOF) en `ZERO_DECIMAL` desde las integraciones del Golfo y Oceanía. Si algún día entran,
+esa trampa ya está cubierta. Ni ZAR ni EGP necesitan trato especial.
+
+---
+
 ## 7. Estado y pendientes
 
 ### Países
@@ -990,14 +1061,17 @@ Con esto **Oceanía queda cerrada.** Lo que faltaba de peso —Australia y Nueva
 | 🌏 Asia-Pacífico bajo umbral | JP · MY · PH · TH · AU · JO · ID · NZ · TW · SG | ✅ Activos — **vigilancia manual** | No — hasta cruzar el umbral |
 | 🟢 Sin impuesto al consumo | HK · QA · KW · **GU** | ✅ Activos — **sin reloj** | No — no existe el impuesto |
 | 🌊 Oceanía | PG (sin régimen) · NC · FJ (bajo umbral) | ✅ Activos | No |
+| 🌍 África | ZA · EG (bajo umbral) | ✅ Activos — **vigilancia manual** | No — hasta cruzar el umbral |
 | ⬜ Resto de LatAm | CL · CO · PE · UY · BR | Sin ficha — **no cobrables** | — |
 | ⬜ Resto de Europa no-UE | GB · CH · LI · RS · AL · ME · MD · MK · TR | Sin ficha — exigen alta desde la 1ª venta | — |
 | 🚫 Excluidos a propósito | UA (embargo regional) · RU · BY · CU (sanciones) · IL (decisión de Luis) | No integrar | — |
 | ⬜ Resto de Asia / Medio Oriente | IN · SA · KR · VN · BH · OM · AE | Sin ficha — umbral cero | — |
 | ⬜ Oceanía restante | PF (umbral cero) + microestados | Sin ficha — no compensan | — |
+| ⬜ África restante | MA · KE · GH · NG · TZ · UG (umbral cero) + resto sin verificar | Sin ficha | — |
+| 🚫 África — Stripe no procesa | SD · SS · SO · ER · LY + riesgo: ZW · BI · CF · CD · GN · GW · ML | No integrar | — |
 | ⬜ Resto del mundo | — | Sin ficha — **no cobrables** | — |
 
-**Total cobrable: 59 países.** Un país sin fila en `COUNTRY_TAX_CONFIG` no es cobrable y el
+**Total cobrable: 61 países.** Un país sin fila en `COUNTRY_TAX_CONFIG` no es cobrable y el
 checkout lo rechaza.
 
 ### Backend — ✅ hecho (2026-08-07)
@@ -1030,7 +1104,7 @@ checkout lo rechaza.
 | **D-09** | Los 5 de LatAm que faltan (CL · CO · PE · UY · BR): todos exigen alta previa. Detalle de quién recauda y quién declara en §6.2 | Luis + fiscalista internacional |
 | **D-11** | 🇨🇴 ¿La retención en la fuente colombiana SE SUMA al comprador o se DESCUENTA de lo que cobra Vibra? Vale 19% de cada venta. Bloquea la integración de Colombia | Fiscalista CO |
 | **D-12** | 🇺🇾 Confirmar el IRNR 12% sobre IVA 22% y quién retiene | Fiscalista UY |
-| **D-13** | Contador de ventas acumuladas por país + alerta al 80% del umbral. **15 países** encendidos con vigilancia manual (NO · IS · BA · JP · MY · PH · TH · AU · JO · ID · NZ · TW · SG · NC · FJ); el contador la reemplazaría. Cuantos más umbrales, menos sostenible es recordarlos | Luis + Claude |
+| **D-13** | Contador de ventas acumuladas por país + alerta al 80% del umbral. **17 países** encendidos con vigilancia manual (NO · IS · BA · JP · MY · PH · TH · AU · JO · ID · NZ · TW · SG · NC · FJ · ZA · EG); el contador la reemplazaría. Cuantos más umbrales, menos sostenible es recordarlos | Luis + Claude |
 | ~~D-14~~ | ~~🇺🇦 ¿Entrar a Ucrania?~~ **Resuelta 2026-08-08: NO.** Requeriría discriminación regional (Crimea/Donetsk/Lugansk bajo embargo OFAC) que no existe | ✅ |
 | **D-10** | Vigilar a mano BO · SV · GT · HN · NI · PA: Stripe Tax no los cubre. **Panamá es el más urgente** (anteproyecto de 2019 reabierto) | Luis |
 | ~~AR-01~~ | ~~¿Cobrar en ARS o en MXN/USD?~~ **Resuelta: en ARS**, la moneda local del comprador | ✅ |

@@ -11,8 +11,9 @@
  * Monedas de visualización: 15 de LatAm (17 países; Ecuador, El Salvador y Panamá
  * comparten USD) + 7 de la Unión Europea (27 países; 21 de ellos usan EUR) + 3 de
  * Europa no comunitaria (Noruega, Islandia, Bosnia) + 13 de Asia-Pacífico y Medio Oriente
- * + 3 de Oceanía (Guam usa USD; Nueva Caledonia y Polinesia Francesa comparten XPF).
- * Total: 41 monedas para 64 países.
+ * + 3 de Oceanía (Guam usa USD; Nueva Caledonia y Polinesia Francesa comparten XPF)
+ * + 2 de África (Sudáfrica y Egipto).
+ * Total: 43 monedas para 66 países.
  *
  * ⚠️ Que una moneda esté aquí NO habilita vender en ese país. El permiso de venta
  * lo decide COUNTRY_TAX_CONFIG (lib/tax/config.ts), que es una capa aparte y exige
@@ -68,6 +69,9 @@ export const DISPLAY_CURRENCIES = [
   "PGK", // Papúa Nueva Guinea
   "XPF", // Nueva Caledonia (y Polinesia Francesa, cuando se habilite)
   "FJD", // Fiyi
+  // --- África ---
+  "ZAR", // Sudáfrica
+  "EGP", // Egipto
 ] as const;
 export type DisplayCurrency = (typeof DISPLAY_CURRENCIES)[number];
 
@@ -224,6 +228,9 @@ export const COUNTRY_TO_CURRENCY: Readonly<Record<string, DisplayCurrency>> = {
   PG: "PGK", // Papúa Nueva Guinea
   NC: "XPF", // Nueva Caledonia
   FJ: "FJD", // Fiyi
+  // África (2).
+  ZA: "ZAR", // Sudáfrica
+  EG: "EGP", // Egipto
   PF: "XPF", // Polinesia Francesa — moneda lista; la VENTA sigue bloqueada (umbral cero)
 };
 
