@@ -737,6 +737,69 @@ describe("África — ZA, EG", () => {
   });
 });
 
+// 🇨🇦 Canadá. Es el único país de la tabla que NO cabe en el modelo de una fila por país:
+// tiene cinco registros (federal + 4 provincias), tasas que van de 5% a 15% según dónde esté
+// el comprador, y dos provincias SIN umbral. Se integró cubriendo los tres niveles con umbral
+// y asumiendo a conciencia la exposición de Saskatchewan y Manitoba. Ver impuestos.md §6.8.
+describe("Canadá — el país que no cabe en el modelo", () => {
+  it("vende con cobro CERO mientras no haya alta", () => {
+    expect(isChargeableCountry("CA")).toBe(true);
+    expect(computeConsumptionTax(100, "CA").total).toBe(100);
+    expect(platformCollectsTax("CA")).toBe(false);
+    expect(chargeCurrencyForCountry("CA")).toBe("CAD");
+    expect(shouldAddFxFee("CA")).toBe(true);
+  });
+
+  // 🚨 En los otros 17 países bajo umbral, cruzarlo se resuelve poniendo registrationStatus
+  // en "registered" y el motor hace el resto. En Canadá ESO NO BASTA: la tasa efectiva
+  // depende de la provincia del comprador (5% Alberta … 15% Nueva Escocia) y resolveCountry
+  // solo distingue país. Quien haga el flip sin resolver provincia va a cobrar mal.
+  it("🚨 la tasa guardada es el SUELO federal, no la tasa de Canadá", () => {
+    expect(taxRateForCountry("CA")).toBe(0.05);
+    // Si alguien "corrige" esto a una tasa promedio o al HST máximo, es señal de que creyó
+    // que Canadá se comporta como los demás. No lo hace.
+    expect(taxRateForCountry("CA")).not.toBe(0.15);
+    expect(taxRateForCountry("CA")).toBeLessThan(taxRateForCountry("MX"));
+  });
+
+  it("está bajo umbral, como los otros 17", () => {
+    expect(countryTaxConfig("CA")!.collectionMode).toBe("platform");
+    expect(countryTaxConfig("CA")!.registrationStatus).toBe("not_registered");
+    expect(countryTaxConfig("CA")!.mxVatTreatment).toBe("export_zero");
+  });
+});
+
+// 🇺🇸 Estados Unidos. Comparte con Canadá la limitación de modelo (el impuesto es por
+// subdivisión, no por país) pero NO su exposición: ningún estado tiene umbral cero, así que
+// vender sin registro es legal en los 50. Ver impuestos.md §6.9.
+describe("Estados Unidos", () => {
+  it("vende con cobro CERO y en dólares", () => {
+    expect(isChargeableCountry("US")).toBe(true);
+    expect(computeConsumptionTax(100, "US").total).toBe(100);
+    expect(platformCollectsTax("US")).toBe(false);
+    expect(chargeCurrencyForCountry("US")).toBe("USD");
+  });
+
+  // 🚨 Tasa 0 NO significa "aquí no hay impuesto": significa que no existe una tasa FEDERAL
+  // que guardar (van de 2,9% a 7,25% de base estatal, más locales). La diferencia con Hong
+  // Kong o Guam —donde el impuesto de verdad no existe— está en el helper, no en la tasa.
+  it("🚨 tasa 0 por falta de tasa federal, NO por ausencia de impuesto", () => {
+    expect(taxRateForCountry("US")).toBe(0);
+    // Bajo umbral de un régimen que SÍ existe...
+    expect(countryTaxConfig("US")!.collectionMode).toBe("platform");
+    expect(countryTaxConfig("US")!.registrationStatus).toBe("not_registered");
+    // ...a diferencia de Hong Kong y Guam, donde no hay nada que recaudar nunca.
+    expect(countryTaxConfig("HK")!.collectionMode).toBe("none");
+    expect(countryTaxConfig("GU")!.collectionMode).toBe("none");
+  });
+
+  // El 2% de conversión sí aplica: se liquida en MXN, así que hay cambio de divisa real.
+  it("cobra el 2% de FX (la liquidación es en MXN)", () => {
+    expect(shouldAddFxFee("US")).toBe(true);
+    expect(fxFeeRateForCountry("US")).toBeGreaterThan(0);
+  });
+});
+
 // 🇲🇽 IVA mexicano sobre ventas al EXTRANJERO. Vibra es residente en México, así que por el
 // Art. 16 LIVA su venta siempre está dentro del objeto: lo que cambia es la tasa. Hoy 0% por
 // exportación en los 11 servicios (D-08 pendiente de fiscalista). Ver impuestos.md.

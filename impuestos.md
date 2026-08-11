@@ -1047,6 +1047,208 @@ esa trampa ya está cubierta. Ni ZAR ni EGP necesitan trato especial.
 
 ---
 
+## 6.8 🇨🇦 Canadá — el país que no cabe en el modelo (2026-08-11)
+
+Canadá no tiene un impuesto: tiene **cinco registros distintos**, cada uno con su propia regla.
+Es el único caso de todo el documento donde una fila de `COUNTRY_TAX_CONFIG` no describe bien la
+realidad.
+
+| Nivel | Impuesto | Tasa | Umbral | ¿Vende sin alta? |
+|---|---|---|---|---|
+| **Federal** | GST/HST | **5%–15% según provincia** | CAD 30.000/12m móviles (~US$22.000) | ✅ Sí |
+| 🇨🇦 Québec | QST | 9,975% | CAD 30.000/año | ✅ Sí |
+| 🇨🇦 Columbia Británica | PST | 7% | CAD 10.000/año | ✅ Sí |
+| 🇨🇦 Saskatchewan | PST | 6% | **CERO** | ❌ **Desde la venta 1** |
+| 🇨🇦 Manitoba | RST | 7% | **CERO en la práctica** | ❌ **Desde la venta 1** |
+
+⚠️ El umbral nominal de CAD 30.000 de Manitoba **solo aplica a vendedores que pagaron RST en sus
+propias compras** — cosa que un proveedor extranjero nunca cumple. En la práctica es cero.
+
+### Ficha de integración
+
+| Campo | Valor |
+|---|---|
+| País | 🇨🇦 Canadá — `CA` |
+| Moneda | CAD |
+| Idioma | Inglés / Francés |
+| TASA | 5% (**suelo federal**, no "la tasa de Canadá") |
+| Impuesto | GST/HST |
+| Recaudación | Nadie (bajo umbral) |
+| Declaración | Trimestral, en CAD (registro simplificado, sin BN canadiense ni representante) |
+| Alta fiscal | CRA — Business Registration Online |
+| Umbral | CAD 30.000/12m móviles federal · QC 30.000 · BC 10.000 · **SK y MB: cero** |
+| Estatus | ✅ Activo — sin impuesto |
+
+### 🚨 Exposición aceptada a conciencia (decisión de Luis, 2026-08-11)
+
+Se entró **cubriendo los tres niveles CON umbral** (federal, Québec y Columbia Británica).
+Saskatchewan y Manitoba quedan pendientes.
+
+Eso significa que **la primera venta a esas dos provincias genera obligación de registro ese mismo
+día**. No es un umbral que vigilar: es incumplimiento técnico desde el minuto uno.
+
+**Dimensión de la exposición:** Saskatchewan (~1,2 M) y Manitoba (~1,5 M) suman ~2,7 de los
+41 millones de canadienses, un **6,6%**. El riesgo material es PST del 6–7% sobre esa fracción de
+las ventas canadienses, más eventuales multas. Pequeño en absoluto, pero real y permanente.
+
+> Se documenta aquí para que sea una decisión visible y no un olvido. Si algún día Canadá pasa a
+> ser un mercado con peso, esto se revisa **antes**, no después.
+
+### 🚨 Aquí cruzar el umbral NO es cambiar un campo
+
+En los otros 17 países bajo umbral, el día que se cruza basta con poner
+`registrationStatus: "registered"` en los dos espejos y el motor hace el resto.
+
+**En Canadá eso cobraría mal.** La tasa efectiva del GST/HST depende de la provincia del comprador
+—5% en Alberta, 13% en Ontario, 15% en Nueva Escocia— y `resolveCountry.ts` solo distingue PAÍS.
+Registrarse exige antes **resolver la provincia**, que es un cambio de modelo, no una bandera.
+
+Por eso la fila guarda **0.05, el suelo federal**, y hay un test que lo fija: si alguien lo
+"corrige" a una tasa promedio o al HST máximo, es señal de que creyó que Canadá se comporta como
+los demás.
+
+Es la misma limitación de subdivisión que dejó fuera a Ucrania (Crimea y Donbás) — solo que allá
+el riesgo era un embargo y aquí es cobrar de menos.
+
+---
+
+## 6.9 🇺🇸 Estados Unidos (2026-08-11)
+
+**No existe sales tax federal.** El impuesto es estatal: 45 estados + DC lo tienen; Nuevo
+Hampshire, Oregón, Montana, Alaska y Delaware no (Alaska sí permite impuestos locales).
+
+### Ficha de integración
+
+| Campo | Valor |
+|---|---|
+| País | 🇺🇸 Estados Unidos — `US` |
+| Moneda | USD *(ya estaba en el catálogo: no hizo falta agregar ninguna)* |
+| Idioma | Inglés |
+| TASA | **0** — ver la advertencia de abajo |
+| Impuesto | Sales tax (estatal) |
+| Recaudación | Nadie (bajo umbral en los 50 estados) |
+| Declaración | Por estado, tras registrarse |
+| Alta fiscal | Por estado, ante su Department of Revenue |
+| Umbral | **Por estado.** 41 estados US$100.000 · AL y MS US$250.000 · CA, TX y NY US$500.000 |
+| Estatus | ✅ Activo — sin impuesto |
+
+### ✅ Por qué EE. UU. es más seguro que Canadá
+
+Tras *South Dakota v. Wayfair* (2018) cada estado fija su **nexo económico**. La diferencia que
+importa: **ningún estado lo tiene en cero.**
+
+| | 🇺🇸 EE. UU. | 🇨🇦 Canadá |
+|---|---|---|
+| Jurisdicciones | 46 | 5 |
+| Umbral mínimo | **US$100.000** | **Cero** (Saskatchewan, Manitoba) |
+| ¿Vende sin alta? | **Sí, en los 50 estados** | Sí, salvo en 2 provincias |
+| Exposición desde la venta 1 | **Ninguna** | ~6,6% del país |
+
+Canadá tiene cinco jurisdicciones y dos obligan desde el minuto uno. Estados Unidos tiene 46 y
+ninguna lo hace. **Estar sin registrar es plenamente legal en todas partes**, y por eso su fila no
+lleva la nota de exposición aceptada que sí lleva la de Canadá (§6.8).
+
+Además el umbral es **por estado**: para deber algo en California harían falta US$500.000 vendidos
+solo en California en 12 meses.
+
+### 🚨 La tasa va en 0, y NO significa "aquí no hay impuesto"
+
+No existe una tasa federal que guardar. Van de **2,90% (Colorado) a 7,25% (California)** de base
+estatal, más locales que suman hasta ~5 puntos. Cualquier número en esa celda sería falso para 45
+jurisdicciones.
+
+Es un caso **distinto** de Hong Kong, Qatar, Kuwait y Guam, donde el impuesto de verdad no existe:
+esos usan `noConsumptionTax`. Estados Unidos usa `belowThreshold`, que dice "hay régimen y
+estamos debajo". Hay un test que fija esa diferencia.
+
+### Tabla por estado — tasas al 1 de julio de 2026 (Tax Foundation)
+
+| Estado | Estatal | Local prom. | Combinada | Umbral de nexo |
+|---|---|---|---|---|
+| Alabama | 4,00% | 5,46% | 9,46% | **US$250.000** |
+| Alaska | 0,00% | 1,82% | 1,82% | US$100.000 *(solo local)* |
+| Arizona | 5,60% | 2,94% | 8,54% | US$100.000 |
+| Arkansas | 6,50% | 2,98% | 9,48% | US$100.000 |
+| California | 7,25% | 1,78% | 9,03% | **US$500.000** |
+| Carolina del Norte | 4,75% | 2,35% | 7,10% | US$100.000 |
+| Carolina del Sur | 6,00% | 1,49% | 7,49% | US$100.000 |
+| Colorado | 2,90% | 4,99% | 7,89% | US$100.000 |
+| Connecticut | 6,35% | 0,00% | 6,35% | US$100.000 |
+| Dakota del Norte | 5,00% | 2,09% | 7,09% | US$100.000 |
+| Dakota del Sur | 4,20% | 1,91% | 6,11% | US$100.000 |
+| Delaware | 0,00% | 0,00% | 0,00% | — *(sin sales tax)* |
+| Distrito de Columbia | 6,00% | 0,00% | 6,00% | US$100.000 |
+| Florida | 6,00% | 0,98% | 6,98% | US$100.000 |
+| Georgia | 4,00% | 3,56% | 7,56% | US$100.000 |
+| Hawái | 4,00% | 0,50% | 4,50% | US$100.000 |
+| Idaho | 6,00% | 0,03% | 6,03% | US$100.000 |
+| Illinois | 6,25% | 2,73% | 8,98% | US$100.000 |
+| Indiana | 7,00% | 0,00% | 7,00% | US$100.000 |
+| Iowa | 6,00% | 0,94% | 6,94% | US$100.000 |
+| Kansas | 6,50% | 2,21% | 8,71% | US$100.000 |
+| Kentucky | 6,00% | 0,00% | 6,00% | US$100.000 |
+| Luisiana | 5,00% | 5,13% | 10,13% | US$100.000 |
+| Maine | 5,50% | 0,00% | 5,50% | US$100.000 |
+| Maryland | 6,00% | 0,00% | 6,00% | US$100.000 |
+| Massachusetts | 6,25% | 0,00% | 6,25% | US$100.000 |
+| Michigan | 6,00% | 0,00% | 6,00% | US$100.000 |
+| Minnesota | 6,88% | 1,26% | 8,14% | US$100.000 |
+| Misisipi | 7,00% | 0,06% | 7,06% | **US$250.000** |
+| Misuri | 4,23% | 4,22% | 8,45% | US$100.000 |
+| Montana | 0,00% | 0,00% | 0,00% | — *(sin sales tax)* |
+| Nebraska | 5,50% | 1,48% | 6,98% | US$100.000 |
+| Nevada | 6,85% | 1,39% | 8,24% | US$100.000 |
+| Nueva Jersey | 6,63% | -0,02% | 6,61% | US$100.000 |
+| Nueva York | 4,00% | 4,54% | 8,54% | **US$500.000** |
+| Nuevo Hampshire | 0,00% | 0,00% | 0,00% | — *(sin sales tax)* |
+| Nuevo México | 4,88% | 2,80% | 7,68% | US$100.000 |
+| Ohio | 5,75% | 1,54% | 7,29% | US$100.000 |
+| Oklahoma | 4,50% | 4,56% | 9,06% | US$100.000 |
+| Oregón | 0,00% | 0,00% | 0,00% | — *(sin sales tax)* |
+| Pensilvania | 6,00% | 0,34% | 6,34% | US$100.000 |
+| Rhode Island | 7,00% | 0,00% | 7,00% | US$100.000 |
+| Tennessee | 7,00% | 2,61% | 9,61% | US$100.000 |
+| Texas | 6,25% | 1,95% | 8,20% | **US$500.000** |
+| Utah | 6,10% | 1,32% | 7,42% | US$100.000 |
+| Vermont | 6,00% | 0,43% | 6,43% | US$100.000 |
+| Virginia | 5,30% | 0,47% | 5,77% | US$100.000 |
+| Virginia Occidental | 6,00% | 0,60% | 6,60% | US$100.000 |
+| Washington | 6,50% | 3,07% | 9,57% | US$100.000 |
+| Wisconsin | 5,00% | 0,72% | 5,72% | US$100.000 |
+| Wyoming | 4,00% | 1,39% | 5,39% | US$100.000 |
+
+⚠️ La columna **local promedio** es un promedio ponderado: la tasa real depende del municipio.
+Luisiana, Colorado y Alabama tienen jurisdicciones locales que además **registran aparte**.
+
+⚠️ Alaska no tiene sales tax estatal pero sus municipios sí, coordinados por la ARSSTC, con su
+propio umbral de US$100.000.
+
+### ⚠️ Lo que NO está resuelto: qué servicios son gravables
+
+Es la parte más movediza y la que habría que cerrar **antes** de registrarse en cualquier estado:
+
+* Unos **30 estados** gravan algún producto digital; **~25** gravan SaaS. Las definiciones difieren
+  entre sí.
+* **Florida y Virginia los eximen** explícitamente.
+* Una videollamada 1-a-1 puede ser *servicio* (no gravado) en un estado y *producto digital*
+  (gravado) en otro. Las propinas y donaciones probablemente no sean venta en ninguno.
+* Es el área que más rápido cambia de todo el documento: California amplió su base con la SB 122,
+  Colorado y Washington ampliaron software, Utah codificó SaaS.
+
+**No se investigó estado por estado a propósito:** con umbrales de US$100.000+ por estado, la
+pregunta no se vuelve real hasta tener volumen serio en uno concreto — y para entonces la
+respuesta de hoy estaría vencida.
+
+### 🚨 Registrarse aquí tampoco es cambiar un campo
+
+Igual que Canadá: haría falta resolver el **estado** del comprador (**D-16**) y además decidir la
+gravabilidad de cada uno de los 11 servicios en ese estado. Dos casos distintos ya piden resolución
+por subdivisión.
+
+Diferencia con Canadá: allá esa limitación produce **exposición hoy**; aquí solo bloquea el futuro.
+
+---
+
 ## 7. Estado y pendientes
 
 ### Países
@@ -1062,6 +1264,8 @@ esa trampa ya está cubierta. Ni ZAR ni EGP necesitan trato especial.
 | 🟢 Sin impuesto al consumo | HK · QA · KW · **GU** | ✅ Activos — **sin reloj** | No — no existe el impuesto |
 | 🌊 Oceanía | PG (sin régimen) · NC · FJ (bajo umbral) | ✅ Activos | No |
 | 🌍 África | ZA · EG (bajo umbral) | ✅ Activos — **vigilancia manual** | No — hasta cruzar el umbral |
+| 🇨🇦 Canadá | CA | ✅ Activo — ⚠️ **exposición SK/MB aceptada** | No — hasta cruzar el umbral |
+| 🇺🇸 Estados Unidos | US | ✅ Activo — sin exposición | No — hasta cruzar el umbral de algún estado |
 | ⬜ Resto de LatAm | CL · CO · PE · UY · BR | Sin ficha — **no cobrables** | — |
 | ⬜ Resto de Europa no-UE | GB · CH · LI · RS · AL · ME · MD · MK · TR | Sin ficha — exigen alta desde la 1ª venta | — |
 | 🚫 Excluidos a propósito | UA (embargo regional) · RU · BY · CU (sanciones) · IL (decisión de Luis) | No integrar | — |
@@ -1071,7 +1275,7 @@ esa trampa ya está cubierta. Ni ZAR ni EGP necesitan trato especial.
 | 🚫 África — Stripe no procesa | SD · SS · SO · ER · LY + riesgo: ZW · BI · CF · CD · GN · GW · ML | No integrar | — |
 | ⬜ Resto del mundo | — | Sin ficha — **no cobrables** | — |
 
-**Total cobrable: 61 países.** Un país sin fila en `COUNTRY_TAX_CONFIG` no es cobrable y el
+**Total cobrable: 63 países.** Un país sin fila en `COUNTRY_TAX_CONFIG` no es cobrable y el
 checkout lo rechaza.
 
 ### Backend — ✅ hecho (2026-08-07)
@@ -1102,10 +1306,13 @@ checkout lo rechaza.
 |---|---|---|
 | **D-08** | Mapear los 11 servicios a un inciso del Art. 29-IV. Provisionalmente **todos a 0%**; los dudosos son **Tiempo contigo** y **Sesión exclusiva** | Fiscalista MX |
 | **D-09** | Los 5 de LatAm que faltan (CL · CO · PE · UY · BR): todos exigen alta previa. Detalle de quién recauda y quién declara en §6.2 | Luis + fiscalista internacional |
-| **D-11** | 🇨🇴 ¿La retención en la fuente colombiana SE SUMA al comprador o se DESCUENTA de lo que cobra Vibra? Vale 19% de cada venta. Bloquea la integración de Colombia | Fiscalista CO |
+| **D-11** | 🇨🇴 **Una sola pregunta abierta:** ¿la retención en la fuente del sistema alternativo SE SUMA al comprador o se DESCUENTA de lo que cobra Vibra? Vale 19% de cada venta colombiana. **RESUELTO 2026-08-11:** el cambio de modalidad SÍ es posible pero **por ÚNICA VEZ** (Art. 2° Res. DIAN 000049/2019) → no gastar ese cambio: entrar DIRECTO al sistema de retención. El alta NO es un formulario: es una petición por el canal **PQSR** de la DIAN (Art. 1°), y la DIAN debe publicarte por resolución en un listado taxativo con fecha de aplicación (Art. 5°) | Fiscalista CO |
 | **D-12** | 🇺🇾 Confirmar el IRNR 12% sobre IVA 22% y quién retiene | Fiscalista UY |
-| **D-13** | Contador de ventas acumuladas por país + alerta al 80% del umbral. **17 países** encendidos con vigilancia manual (NO · IS · BA · JP · MY · PH · TH · AU · JO · ID · NZ · TW · SG · NC · FJ · ZA · EG); el contador la reemplazaría. Cuantos más umbrales, menos sostenible es recordarlos | Luis + Claude |
+| **D-13** | Contador de ventas acumuladas por país + alerta al 80% del umbral. **19 países** encendidos con vigilancia manual (NO · IS · BA · JP · MY · PH · TH · AU · JO · ID · NZ · TW · SG · NC · FJ · ZA · EG · CA · US); el contador la reemplazaría. Cuantos más umbrales, menos sostenible es recordarlos | Luis + Claude |
 | ~~D-14~~ | ~~🇺🇦 ¿Entrar a Ucrania?~~ **Resuelta 2026-08-08: NO.** Requeriría discriminación regional (Crimea/Donetsk/Lugansk bajo embargo OFAC) que no existe | ✅ |
+| **D-15** | 🇨🇦 Saskatchewan y Manitoba: sin umbral, obligación desde la venta 1. Exposición ~6,6% de Canadá **aceptada a conciencia**. Revisar si Canadá gana peso | Luis |
+| **D-16** | Resolución por **subdivisión** (estado/provincia/región) en `resolveCountry.ts`. Bloquea registrarse en 🇺🇸 (tasa por estado) y 🇨🇦 (5–15% por provincia), y entrar a 🇺🇦 (embargo regional). **Tres** casos ya la piden | Luis + Claude |
+| **D-17** | 🇺🇸 Gravabilidad de los 11 servicios estado por estado (~30 gravan digitales, ~25 SaaS; FL y VA eximen). Cerrarlo ANTES de registrarse en cualquier estado | Fiscalista US |
 | **D-10** | Vigilar a mano BO · SV · GT · HN · NI · PA: Stripe Tax no los cubre. **Panamá es el más urgente** (anteproyecto de 2019 reabierto) | Luis |
 | ~~AR-01~~ | ~~¿Cobrar en ARS o en MXN/USD?~~ **Resuelta: en ARS**, la moneda local del comprador | ✅ |
 

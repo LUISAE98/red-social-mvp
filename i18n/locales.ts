@@ -49,6 +49,9 @@ export const LOCALE_META: readonly LocaleMeta[] = [
   { code: "hr", label: "HR", name: "Hrvatski", intl: "hr-HR", ready: true },
   { code: "hu", label: "HU", name: "Magyar", intl: "hu-HU", ready: true },
   { code: "it", label: "IT", name: "Italiano", intl: "it-IT", ready: true },
+  // Primer idioma FUERA de la UE. Japón no está en EU_COUNTRY_TO_LOCALE: lo mapea
+  // NON_EU_COUNTRY_TO_LOCALE, más abajo.
+  { code: "ja", label: "JA", name: "日本語", intl: "ja-JP", ready: true },
   { code: "lt", label: "LT", name: "Lietuvių", intl: "lt-LT", ready: true },
   { code: "lv", label: "LV", name: "Latviešu", intl: "lv-LV", ready: true },
   { code: "mt", label: "MT", name: "Malti", intl: "mt-MT", ready: true },
@@ -71,7 +74,7 @@ export const LOCALE_META: readonly LocaleMeta[] = [
  * en toda la app. Al terminar el archivo de un idioma: pon su `ready: true` arriba
  * Y agrégalo a esta tupla. El test de i18n verifica que ambas listas coincidan.
  */
-export const READY_LOCALES = ["es", "en", "pt-BR", "de", "fr", "it", "nl", "pl", "ro", "el", "cs", "hu", "sv", "pt-PT", "da", "fi", "sk", "bg", "hr", "lt", "sl", "lv", "et", "ga", "mt"] as const;
+export const READY_LOCALES = ["es", "en", "pt-BR", "de", "fr", "it", "nl", "pl", "ro", "el", "cs", "hu", "sv", "pt-PT", "da", "fi", "sk", "bg", "hr", "lt", "sl", "lv", "et", "ga", "mt", "ja"] as const;
 
 export type Locale = (typeof READY_LOCALES)[number];
 
@@ -156,4 +159,18 @@ export const EU_COUNTRY_TO_LOCALE: Readonly<Record<string, string>> = {
   SI: "sl", // Eslovenia
   ES: "es", // España
   SE: "sv", // Suecia
+};
+
+/**
+ * Países FUERA de la UE con idioma propio en Vibra.
+ *
+ * Va aparte de `EU_COUNTRY_TO_LOCALE` a propósito: ese mapa tiene exactamente los 27
+ * de la Unión y hay un test que lo comprueba. Meter Japón ahí rompería esa garantía
+ * y, peor, haría que un mapa llamado "EU" dejara de significar lo que dice.
+ *
+ * Solo se listan países cuyo idioma YA está servido. El resto (Noruega, Tailandia,
+ * los países árabes…) sigue cayendo a inglés, que es el comportamiento por defecto.
+ */
+export const NON_EU_COUNTRY_TO_LOCALE: Readonly<Record<string, string>> = {
+  JP: "ja", // Japón
 };

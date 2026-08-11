@@ -113,6 +113,8 @@ export const NICE_STEP: Record<DisplayCurrency, number> = {
   // --- África ---
   ZAR: 5, //     1 USD ≈ 18 ZAR   → 5 ZAR  ≈ 0.28 USD. Mismo paso que el peso mexicano.
   EGP: 10, //    1 USD ≈ 48 EGP   → 10 EGP ≈ 0.21 USD. Con paso 5 quedaría en 0.10, muy fino.
+  // --- Norteamérica ---
+  CAD: 0.5, //   1 USD ≈ 1.37 CAD → 0.5 CAD ≈ 0.36 USD. Mismo paso que el ancla.
 };
 
 /** Redondea a un múltiplo "bonito" según la moneda. */

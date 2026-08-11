@@ -6,6 +6,7 @@ import {
   LOCALE_META,
   READY_LOCALES,
   EU_COUNTRY_TO_LOCALE,
+  NON_EU_COUNTRY_TO_LOCALE,
   nearestReadyLocale,
   intlLocale,
   isReadyLocale,
@@ -299,8 +300,26 @@ describe("i18n / detección por país", () => {
     expect(localeFromCountry("MX")).toBe("es");
     expect(localeFromCountry("BR")).toBe("pt-BR");
     expect(localeFromCountry("US")).toBe("en");
-    expect(localeFromCountry("JP")).toBe("en");
+    // Un país sin idioma propio en Vibra sigue cayendo a inglés. Noruega es el
+    // caso de control: tenemos su MONEDA (NOK) pero no su idioma, y son capas
+    // distintas — cobrar en coronas no implica traducir al noruego.
+    expect(localeFromCountry("NO")).toBe("en");
     expect(localeFromCountry(null)).toBeNull();
+  });
+
+  it("un país de fuera de la UE con idioma propio lo recibe", () => {
+    // Japón es el primero. Va por NON_EU_COUNTRY_TO_LOCALE, no por el mapa de la UE.
+    expect(localeFromCountry("JP")).toBe("ja");
+    for (const [cc, loc] of Object.entries(NON_EU_COUNTRY_TO_LOCALE)) {
+      expect(
+        isReadyLocale(loc),
+        `${cc} apunta a "${loc}", que no está servido`
+      ).toBe(true);
+      expect(
+        EU_COUNTRY_TO_LOCALE[cc],
+        `${cc} está en los DOS mapas; debe estar solo en uno`
+      ).toBeUndefined();
+    }
   });
 
   it("intlLocale da un BCP-47 que Intl acepta, para todos los del catálogo", () => {

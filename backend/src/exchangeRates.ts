@@ -12,7 +12,7 @@ const db = admin.firestore();
 
 // 15 monedas de LatAm (17 países; EC/SV/PA comparten USD) + 7 de la UE
 // (27 países; 21 usan EUR) + 3 de Europa no comunitaria + 13 de Asia-Pacífico y
-// Medio Oriente + 3 de Oceanía + 2 de África. Total 43.
+// Medio Oriente + 3 de Oceanía + 2 de África + CAD. Total 44.
 // ⚠️ COPIA MANUAL: debe quedar IDÉNTICA a DISPLAY_CURRENCIES de
 // lib/currency/catalog.ts. Una moneda que falte aquí no se refresca y su precio
 // sale en null en todo el frontend.
@@ -65,6 +65,8 @@ const DISPLAY_CURRENCIES = [
   // --- África ---
   "ZAR",
   "EGP",
+  // --- Norteamérica ---
+  "CAD",
 ];
 
 // Fuente gratuita y sin clave. Devuelve { result, base_code: "USD", rates: { MXN: n, ... } }

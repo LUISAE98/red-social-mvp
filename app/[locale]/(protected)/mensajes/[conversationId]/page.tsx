@@ -80,12 +80,19 @@ export default function ConversationPage() {
    * campo de escritura queda debajo del teclado. Copiando alto y desplazamiento
    * del visual, la pantalla cae exactamente sobre lo que se ve.
    *
-   * Lo frágil de esto NO es la fórmula, es CUÁNDO se aplica: iOS anima el
-   * teclado unos 300ms y el último evento suele llegar antes del estado final;
-   * al descartarlo con "Listo" a veces no llega ninguno. Cuando eso pasaba, la
-   * pantalla se quedaba con el alto del teclado abierto y debajo aparecía una
-   * franja negra — el "safe-area gigante". De ahí los reintentos escalonados
-   * tras cada cambio de foco: son lo que cierra ese hueco.
+   * DOS decisiones aquí son las que hacen que esto funcione en iOS:
+   *
+   * 1. Sin teclado NO se escribe ningún número: se devuelve la pantalla al CSS
+   *    (`top: 0` + `100dvh`), que por definición es "su sitio". Antes se escribía
+   *    el alto medido también al cerrar, y bastaba que iOS lo reportase tarde
+   *    para que la pantalla se quedase corta y apareciera una franja negra
+   *    abajo. Un valor que no se escribe no se puede quedar a medias.
+   *
+   * 2. No basta con reaccionar a los eventos. iOS anima el teclado ~300ms y el
+   *    último evento suele llegar ANTES del estado final; al descartarlo con el
+   *    botón del propio teclado a veces no llega ninguno. Por eso ante cualquier
+   *    señal se arranca un seguimiento por frames que LEE el viewport hasta que
+   *    deja de moverse, en vez de esperar a que alguien nos avise.
    */
   useEffect(() => {
     if (!mounted) return;
@@ -105,42 +112,81 @@ export default function ConversationPage() {
 
     const apply = () => {
       maxHeight = Math.max(maxHeight, viewport.height);
-
-      element.style.height = `${viewport.height}px`;
-      element.style.top = `${viewport.offsetTop}px`;
-
-      // Con el teclado fuera no hay home-indicator que esquivar: el campo se
-      // pega al teclado en vez de flotar 20px por encima. Se sobrescribe la
-      // variable global solo en esta pantalla; el compositor ya la consume.
       const keyboardOpen = viewport.height < maxHeight - 120;
-      if (keyboardOpen) element.style.setProperty("--vb-safe-bottom", "0px");
-      else element.style.removeProperty("--vb-safe-bottom");
+
+      if (keyboardOpen) {
+        element.style.height = `${viewport.height}px`;
+        element.style.top = `${viewport.offsetTop}px`;
+        // Con teclado no hay home-indicator que esquivar: el campo se pega a él
+        // en vez de flotar 20px por encima. Se sobrescribe la variable global
+        // solo en esta pantalla; el compositor ya la consume.
+        element.style.setProperty("--vb-safe-bottom", "0px");
+      } else {
+        // Valores fijos y NO `removeProperty`: el alto de partida lo pone React
+        // en el atributo `style`, y React solo reescribe lo que cambia entre
+        // renders — si se quitara aquí, no lo repondría y la pantalla se
+        // quedaría sin alto.
+        element.style.height = "100dvh";
+        element.style.top = "0px";
+        element.style.removeProperty("--vb-safe-bottom");
+      }
     };
 
     apply();
 
-    /** Reaplica y vuelve a mirar mientras iOS termina de animar el teclado. */
-    let timers: number[] = [];
-    const applySettling = () => {
-      apply();
-      timers.forEach(clearTimeout);
-      timers = [60, 180, 350, 600].map((ms) => window.setTimeout(apply, ms));
+    /**
+     * Sigue al viewport frame a frame hasta que se queda quieto (300ms sin
+     * moverse), con un tope de 2s por si acaso. Es lo que cubre el caso de que
+     * el evento no llegue nunca o llegue con un valor a medio camino.
+     */
+    let frame = 0;
+    const track = () => {
+      cancelAnimationFrame(frame);
+
+      const startedAt = performance.now();
+      let lastHeight = -1;
+      let lastOffset = -1;
+      let stillSince = startedAt;
+
+      const step = () => {
+        apply();
+
+        const now = performance.now();
+        if (viewport.height !== lastHeight || viewport.offsetTop !== lastOffset) {
+          lastHeight = viewport.height;
+          lastOffset = viewport.offsetTop;
+          stillSince = now;
+        }
+
+        if (now - stillSince < 300 && now - startedAt < 2000) {
+          frame = requestAnimationFrame(step);
+        }
+      };
+
+      frame = requestAnimationFrame(step);
     };
 
-    viewport.addEventListener("resize", apply);
-    viewport.addEventListener("scroll", apply);
-    window.addEventListener("orientationchange", applySettling);
+    // Al girar, el alto de referencia ya no vale: en horizontal la pantalla mide
+    // casi la mitad y sin reiniciarlo se leería como "hay teclado".
+    const onOrientation = () => {
+      maxHeight = 0;
+      track();
+    };
+
+    viewport.addEventListener("resize", track);
+    viewport.addEventListener("scroll", track);
+    window.addEventListener("orientationchange", onOrientation);
     // Entrar y salir del campo de escritura es lo que abre y cierra el teclado.
-    element.addEventListener("focusin", applySettling);
-    element.addEventListener("focusout", applySettling);
+    element.addEventListener("focusin", track);
+    element.addEventListener("focusout", track);
 
     return () => {
-      timers.forEach(clearTimeout);
-      viewport.removeEventListener("resize", apply);
-      viewport.removeEventListener("scroll", apply);
-      window.removeEventListener("orientationchange", applySettling);
-      element.removeEventListener("focusin", applySettling);
-      element.removeEventListener("focusout", applySettling);
+      cancelAnimationFrame(frame);
+      viewport.removeEventListener("resize", track);
+      viewport.removeEventListener("scroll", track);
+      window.removeEventListener("orientationchange", onOrientation);
+      element.removeEventListener("focusin", track);
+      element.removeEventListener("focusout", track);
       element.style.removeProperty("--vb-safe-bottom");
     };
   }, [mounted]);
@@ -242,21 +288,6 @@ export default function ConversationPage() {
           </svg>
         </button>
 
-        {/* A la IZQUIERDA del avatar, igual que en la pestaña de laptop. */}
-        {otherUid && conversationId ? (
-          <ProfileMoreMenu
-            viewerUid={selfUid}
-            profileUid={otherUid}
-            onBlockSuccess={() => void blockConversation(conversationId, selfUid!)}
-            reportTarget={{
-              targetType: "conversation",
-              targetId: conversationId,
-              targetOwnerId: otherUid,
-            }}
-            buttonStyle={{ fontSize: 20, padding: "0 2px" }}
-          />
-        ) : null}
-
         <LiveRingAvatar
           entityId={otherUid ?? conversationId ?? ""}
           entityType="profile"
@@ -293,6 +324,23 @@ export default function ConversationPage() {
             </div>
           ) : null}
         </div>
+
+        {/* En el EXTREMO derecho. En la pestaña de laptop sigue a la izquierda
+            del avatar: allí la cabecera es estrecha y el borde derecho lo ocupan
+            minimizar y cerrar. Aquí hay ancho de sobra y el pulgar llega mejor. */}
+        {otherUid && conversationId ? (
+          <ProfileMoreMenu
+            viewerUid={selfUid}
+            profileUid={otherUid}
+            onBlockSuccess={() => void blockConversation(conversationId, selfUid!)}
+            reportTarget={{
+              targetType: "conversation",
+              targetId: conversationId,
+              targetOwnerId: otherUid,
+            }}
+            buttonStyle={{ fontSize: 20, padding: "0 2px" }}
+          />
+        ) : null}
       </header>
 
       <div style={{ flex: 1, minHeight: 0 }}>

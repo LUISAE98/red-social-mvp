@@ -25,6 +25,8 @@ export const NICE_STEP: Readonly<Record<string, number>> = {
   PGK: 0.5, XPF: 50, FJD: 0.5,
   // África
   ZAR: 5, EGP: 10,
+  // Norteamérica
+  CAD: 0.5,
 };
 
 /**
@@ -40,6 +42,8 @@ const STRIPE_MIN_CHARGE: Readonly<Record<string, number>> = {
   AUD: 0.5, HKD: 4, IDR: 0.5, JPY: 50, MYR: 2, NZD: 0.5, PHP: 0.5, SGD: 0.5, THB: 10,
   // África
   ZAR: 0.5,
+  // Norteamérica
+  CAD: 0.5,
   // ISK, BAM, TWD, QAR, KWD, JOD, PGK, XPF, FJD y EGP no aparecen en la lista publicada
   // de mínimos de Stripe.
   // Sin entrada aquí, `meetsStripeMinimum` los deja pasar y Stripe decide.

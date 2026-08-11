@@ -1,5 +1,10 @@
 import { routing } from "./routing";
-import { EU_COUNTRY_TO_LOCALE, nearestReadyLocale, type Locale } from "./locales";
+import {
+  EU_COUNTRY_TO_LOCALE,
+  NON_EU_COUNTRY_TO_LOCALE,
+  nearestReadyLocale,
+  type Locale,
+} from "./locales";
 
 // Países hispanohablantes → español. (España también está en EU_COUNTRY_TO_LOCALE;
 // ambos coinciden en "es", así que el orden no importa para ese caso.)
@@ -34,6 +39,9 @@ export function localeFromCountry(country: string | null | undefined): Locale | 
 
   const eu = EU_COUNTRY_TO_LOCALE[cc];
   if (eu) return nearestReadyLocale(eu) ?? routing.defaultLocale;
+
+  const nonEu = NON_EU_COUNTRY_TO_LOCALE[cc];
+  if (nonEu) return nearestReadyLocale(nonEu) ?? routing.defaultLocale;
 
   if (ES_COUNTRIES.has(cc)) return "es";
   if (PT_COUNTRIES.has(cc)) return "pt-BR";

@@ -493,6 +493,62 @@ export const COUNTRY_TAX_CONFIG: Readonly<Record<string, CountryTaxConfig>> = {
   ZA: belowThreshold("VAT", 0.15, "ZAR"), // Sudáfrica
   EG: belowThreshold("VAT", 0.14, "EGP"), // Egipto
 
+  // ── 🇨🇦 CANADÁ ── ⚠️ EL ÚNICO PAÍS QUE NO CABE EN ESTE MODELO ⚠️
+  //
+  // Canadá no tiene UN impuesto: tiene CINCO registros distintos, cada uno con su regla.
+  //
+  //   Federal GST/HST     5%–15% según provincia   CAD 30.000/12m móviles   ✅ hay umbral
+  //   Québec QST          9,975%                   CAD 30.000/año           ✅ hay umbral
+  //   Col. Británica PST  7%                       CAD 10.000/año           ✅ hay umbral
+  //   Saskatchewan PST    6%                       CERO                     ❌ desde la venta 1
+  //   Manitoba RST        7%                       CERO en la práctica      ❌ desde la venta 1
+  //
+  // 🚨 EXPOSICIÓN ACEPTADA A CONCIENCIA (decisión de Luis, 2026-08-11):
+  //    Se entra cubriendo los tres niveles CON umbral. Saskatchewan y Manitoba NO tienen
+  //    umbral, así que la primera venta a esas dos provincias genera obligación de registro
+  //    ese mismo día. Son ~2,7 de 41 millones de canadienses (~6,6%). No es un umbral que
+  //    vigilar: es incumplimiento técnico desde el minuto uno, asumido a sabiendas.
+  //    (El umbral nominal de CAD 30.000 de Manitoba solo aplica a vendedores que pagaron RST
+  //     en sus propias compras — cosa que un proveedor extranjero nunca cumple.)
+  //
+  // 🚨 CRUZAR EL UMBRAL AQUÍ **NO** ES CAMBIAR UN CAMPO.
+  //    En los otros 17 países bajo umbral basta con poner `registrationStatus: "registered"`.
+  //    En Canadá NO: la tasa efectiva va de 5% (Alberta) a 15% (Nueva Escocia) según dónde
+  //    esté el comprador, y `resolveCountry.ts` solo distingue PAÍS, no provincia. Registrarse
+  //    exige antes resolver la provincia — un cambio de modelo, no una bandera.
+  //    La tasa de abajo es el SUELO federal (5%), no "la tasa de Canadá". Hay un test que
+  //    fija esto para que nadie lo tome por un flip normal.
+  CA: belowThreshold("GST", 0.05, "CAD"), // Canadá
+
+  // ── 🇺🇸 ESTADOS UNIDOS ──
+  //
+  // NO existe sales tax federal. El impuesto es ESTATAL: 45 estados + DC lo tienen; New
+  // Hampshire, Oregón, Montana, Alaska y Delaware no (Alaska sí permite impuestos locales).
+  //
+  // Tras *South Dakota v. Wayfair* (2018) cada estado fija su NEXO ECONÓMICO, y —a
+  // diferencia de Canadá— **NINGUNO lo tiene en cero**:
+  //     41 estados  US$100.000
+  //     AL, MS      US$250.000
+  //     CA, TX, NY  US$500.000
+  // El umbral es POR ESTADO, no nacional: para deber algo en California harían falta
+  // US$500.000 vendidos solo en California en 12 meses.
+  //
+  // ✅ Por eso "vende sin alta" es CIERTO en los 50 estados, sin la excepción que sí hubo
+  //    que documentar en Canadá (Saskatchewan y Manitoba, sin umbral). Aquí no hay
+  //    exposición desde la venta 1: estar sin registrar es plenamente legal en todas partes.
+  //
+  // 🚨 LA TASA VA EN 0 A PROPÓSITO, y NO significa "aquí no hay impuesto".
+  //    No existe una tasa federal que guardar: van de 2,9% (Colorado) a 7,25% (California)
+  //    de base estatal, más locales que pueden sumar varios puntos. Cualquier número aquí
+  //    sería falso para 45 jurisdicciones. Es un caso DISTINTO de Hong Kong o Guam, donde
+  //    el impuesto de verdad no existe (esos usan `noConsumptionTax`).
+  //
+  // 🚨 Y como en Canadá, cruzar un umbral aquí NO es cambiar un campo: haría falta resolver
+  //    el ESTADO del comprador (D-16), y además decidir si cada servicio es gravable — unos
+  //    30 estados gravan productos digitales y ~25 gravan SaaS, con definiciones que
+  //    difieren; Florida y Virginia los eximen. Ver impuestos.md §6.9.
+  US: belowThreshold("Sales tax", 0, "USD"), // Estados Unidos
+
 
   // ⚠️ Para agregar países fuera de la UE hace falta su FICHA en `impuestos.md`: tasa
   // confirmada contra la autoridad del país, quién recauda (`collectionMode`) y si el país
