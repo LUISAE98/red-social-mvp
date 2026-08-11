@@ -53,6 +53,9 @@ describe("toStripeAmount — formato exacto que exige Stripe", () => {
   it("monedas sin decimales van en unidades enteras, sin multiplicar", () => {
     expect(toStripeAmount(5000, "CLP")).toBe(5000);
     expect(toStripeAmount(75000, "PYG")).toBe(75000);
+    // 🚨 El franco CFP también: sin esto se le cobraría 100x de más a Nueva Caledonia.
+    expect(toStripeAmount(1200, "XPF")).toBe(1200);
+    expect(toStripeAmount(1200, "XPF")).not.toBe(120000);
   });
 
   // 🚨 La corona islandesa es el caso raro: Stripe la trata como moneda SIN decimales, pero

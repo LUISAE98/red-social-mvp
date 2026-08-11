@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useTransition, useEffect } from "react";
+import { useState, useTransition, useEffect, useRef } from "react";
 import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
+import { useAutoScrollHint } from "@/lib/hooks/useAutoScrollHint";
 import { createPortal } from "react-dom";
 import { useLocale, useTranslations } from "next-intl";
 import { usePathname, useRouter } from "@/i18n/navigation";
@@ -39,9 +40,11 @@ function LangOverlay({
   onSelect: (code: Locale) => void;
 }) {
   const [mounted, setMounted] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { setMounted(true); }, []);
   useBodyScrollLock(mounted && open);
+  useAutoScrollHint(scrollRef, mounted && open);
   if (!mounted || !open) return null;
 
   return createPortal(
@@ -75,6 +78,11 @@ function LangOverlay({
           style={{
             pointerEvents: "auto",
             width: "min(320px, 88vw)",
+            // Tope de altura + lista con scroll propio: con 23 idiomas la lista
+            // se salía de la pantalla. Mismos valores que CurrencySwitcher.
+            maxHeight: "min(480px, 80vh)",
+            display: "flex",
+            flexDirection: "column",
             background: "rgba(8,9,11,0.985)",
             borderRadius: 12,
             border: "1px solid rgba(255,255,255,0.10)",
@@ -87,6 +95,14 @@ function LangOverlay({
               : "vbSwScaleIn 0.18s ease",
           }}
         >
+          <div
+            ref={scrollRef}
+            style={{
+              overflowY: "auto",
+              overscrollBehavior: "contain",
+              flex: 1,
+            }}
+          >
           {LOCALES.map((locale, i) => {
             const active = locale.code === currentLocale;
             return (
@@ -141,6 +157,7 @@ function LangOverlay({
               </button>
             );
           })}
+          </div>
         </div>
       </div>
     </>,

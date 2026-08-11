@@ -453,6 +453,29 @@ export const COUNTRY_TAX_CONFIG: Readonly<Record<string, CountryTaxConfig>> = {
   TW: belowThreshold("VAT", 0.05, "TWD"),  // Taiwán
   SG: belowThreshold("GST", 0.09, "SGD"),  // Singapur
 
+  // ── OCEANÍA ──
+  //
+  // Australia y Nueva Zelanda están arriba, con Asia-Pacífico. Aquí van los cuatro que
+  // quedaban; el resto de la región son microestados de <300.000 habitantes sin régimen
+  // digital, y no compensan la superficie de mantenimiento. Ver impuestos.md §6.6.
+  //
+  // 🚫 Polinesia Francesa (PF) NO entra: TVA con umbral CERO, alta desde la primera venta.
+  //    Su moneda (XPF) sí está en el catálogo, compartida con Nueva Caledonia.
+  GU: noConsumptionTax("USD"),             // Guam — territorio de EE. UU., sin IVA ni GST.
+                                           // Su Business Privilege Tax del 4% recae en
+                                           // negocios ESTABLECIDOS ahí, no en un vendedor
+                                           // extranjero.
+  PG: noDigitalRegime("GST", 0.10, "PGK"), // Papúa Nueva Guinea — el GST existe, pero el
+                                           // reverse charge solo alcanza a clientes
+                                           // registrados (B2B). Las ventas a consumidores
+                                           // desde el exterior no tienen régimen.
+  NC: belowThreshold("TGC", 0.11, "XPF"),  // Nueva Caledonia — umbral XPF 7.500.000/año
+                                           // (~US$68.000). Régimen para extranjeros activo.
+  FJ: belowThreshold("VAT", 0.125, "FJD"), // Fiyi — umbral FJD 100.000/12m (~US$44.000).
+                                           // ⚠️ Tasa 12,5%: bajó desde 15% el 2025-08-01.
+                                           // ⚠️ Registrarse exige agente fiscal local o
+                                           // establecimiento permanente.
+
 
   // ⚠️ Para agregar países fuera de la UE hace falta su FICHA en `impuestos.md`: tasa
   // confirmada contra la autoridad del país, quién recauda (`collectionMode`) y si el país

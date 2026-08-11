@@ -858,7 +858,9 @@ export const rejectExclusiveSessionRequest = onCall(
 
     // Auth-hold aún sin capturar (rechazo antes de aceptar): CANCELAR la retención
     // ($0 comisión). Si ya se había capturado (rechazo tras aceptar), el hold no existe;
-    // el ledger se revierte por el cambio de status a "rejected" (onExclusiveSessionLedger),
+    // el asiento del ledger SIGUE en pending: el rechazo por sí solo ya no revierte
+    // (ver `reversedStatuses` en ledgerTriggers). Lo revierte el comprador al pedir
+    // devolución (`refund_requested`), y entonces cuenta como devuelto, no como rechazado;
     // y la devolución del dinero al comprador es vía refund → crédito (B5).
     if ((data as { paymentStatus?: string }).paymentStatus === "authorized") {
       await cancelPaymentIntentForRef(`exclusiveSessionRequest__${requestId}`);

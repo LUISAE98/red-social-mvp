@@ -8,7 +8,7 @@
 // renderizan en inglés para un usuario que SÍ tiene traducción: el texto queda
 // horneado en el .mp4 y no se puede corregir después.
 // El test test/unit/i18n.test.ts compara ambas listas.
-export const READY_LOCALES = ["es", "en", "pt-BR", "de", "fr", "it", "nl", "pl", "ro", "el", "cs", "hu", "sv", "pt-PT", "da", "fi", "sk", "bg", "hr", "lt", "sl", "lv", "et"];
+export const READY_LOCALES = ["es", "en", "pt-BR", "de", "fr", "it", "nl", "pl", "ro", "el", "cs", "hu", "sv", "pt-PT", "da", "fi", "sk", "bg", "hr", "lt", "sl", "lv", "et", "ga"];
 
 const READY_SET = new Set(READY_LOCALES);
 

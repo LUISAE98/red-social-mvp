@@ -21,6 +21,8 @@ export const NICE_STEP: Readonly<Record<string, number>> = {
   // Asia-Pacífico y Medio Oriente
   JPY: 50, SGD: 0.5, AUD: 0.5, NZD: 0.5, HKD: 1, TWD: 5, THB: 5,
   MYR: 0.5, PHP: 5, IDR: 5000, QAR: 0.5, KWD: 0.05, JOD: 0.1,
+  // Oceanía
+  PGK: 0.5, XPF: 50, FJD: 0.5,
 };
 
 /**
@@ -34,12 +36,13 @@ const STRIPE_MIN_CHARGE: Readonly<Record<string, number>> = {
   NOK: 3,
   // Asia-Pacífico
   AUD: 0.5, HKD: 4, IDR: 0.5, JPY: 50, MYR: 2, NZD: 0.5, PHP: 0.5, SGD: 0.5, THB: 10,
-  // ISK, BAM, TWD, QAR, KWD y JOD no aparecen en la lista publicada de mínimos de Stripe.
+  // ISK, BAM, TWD, QAR, KWD, JOD, PGK, XPF y FJD no aparecen en la lista publicada de
+  // mínimos de Stripe.
   // Sin entrada aquí, `meetsStripeMinimum` los deja pasar y Stripe decide.
 };
 
 /** Monedas sin decimales para Stripe: el `amount` va en unidades enteras, no en centavos. */
-const ZERO_DECIMAL = new Set(["CLP", "PYG", "JPY", "KRW", "VND"]);
+const ZERO_DECIMAL = new Set(["CLP", "PYG", "JPY", "KRW", "VND", "XPF", "XAF", "XOF"]);
 
 /**
  * Monedas que Stripe trata como SIN decimales pero que, por compatibilidad con importes

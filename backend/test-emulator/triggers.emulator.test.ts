@@ -449,7 +449,11 @@ describe("onGreetingLedger (#6 saludo / #7 consejo) — ciclo de vida completo",
     expect(entry?.type).toBe("advice");
   });
 
-  it("pagado -> pending -> rechazado -> reversed (rejected)", async () => {
+  // El RECHAZO del creador, por sí solo, ya NO revierte el asiento: el dinero se
+  // queda en pending hasta que el COMPRADOR decida (devolución o intentar de
+  // nuevo). Quien revierte es `refund_requested`, y lo hace como DEVOLUCIÓN
+  // (`refunded`), no como "rechazado". Ver reversedStatuses en ledgerTriggers.
+  it("pagado -> pending -> rechazado: sigue pending (decide el comprador)", async () => {
     const creatorId = `c_${uid()}`;
     const requestId = `req_${uid()}`;
     const path = `greetingRequests/${requestId}`;
@@ -469,10 +473,36 @@ describe("onGreetingLedger (#6 saludo / #7 consejo) — ciclo de vida completo",
     });
 
     const entry = await readEntry(creatorId, `greetingRequest__${requestId}`);
-    expect(entry?.status).toBe("rejected");
+    expect(entry?.status).toBe("pending");
+    const s = await readSummary(creatorId);
+    expect(s?.pendingGross).toBe(80);
+    expect(s?.rejectedGross).toBe(0);
+  });
+
+  it("...y al pedir devolución el comprador, se revierte como devuelto", async () => {
+    const creatorId = `c_${uid()}`;
+    const requestId = `req_${uid()}`;
+    const path = `greetingRequests/${requestId}`;
+    const wrapped = testEnv.wrap(onGreetingLedger);
+
+    await wrapped({
+      data: change({}, { creatorId, paymentStatus: "paid", priceSnapshot: 80, type: "saludo", status: "paid" }, path),
+      params: { requestId },
+    });
+    await wrapped({
+      data: change(
+        { creatorId, paymentStatus: "paid", priceSnapshot: 80, status: "rejected" },
+        { creatorId, paymentStatus: "paid", priceSnapshot: 80, status: "refund_requested" },
+        path
+      ),
+      params: { requestId },
+    });
+
+    const entry = await readEntry(creatorId, `greetingRequest__${requestId}`);
+    expect(entry?.status).toBe("refunded");
     const s = await readSummary(creatorId);
     expect(s?.pendingGross).toBe(0);
-    expect(s?.rejectedGross).toBe(80);
+    expect(s?.refundedGross).toBe(80);
   });
 });
 

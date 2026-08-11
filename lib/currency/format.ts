@@ -105,6 +105,11 @@ export const NICE_STEP: Record<DisplayCurrency, number> = {
   // de 10 fils, porque Stripe exige que el último dígito del importe en milésimas sea 0.
   KWD: 0.05, //  1 USD ≈ 0.31 KWD → 0.05 KWD ≈ 0.16 USD = 50 fils exactos.
   JOD: 0.1, //   1 USD ≈ 0.71 JOD → 0.1 JOD ≈ 0.14 USD = 100 fils exactos. Anclado al dólar.
+  // --- Oceanía ---
+  PGK: 0.5, //   1 USD ≈ 4.0 PGK  → 0.5 PGK ≈ 0.13 USD.
+  // ⚠️ El franco CFP es moneda SIN decimales para Stripe. El paso tiene que ser entero.
+  XPF: 50, //    1 USD ≈ 110 XPF  → 50 XPF ≈ 0.45 USD. Anclado al euro (119,33 XPF = 1 EUR).
+  FJD: 0.5, //   1 USD ≈ 2.25 FJD → 0.5 FJD ≈ 0.22 USD.
 };
 
 /** Redondea a un múltiplo "bonito" según la moneda. */

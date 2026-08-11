@@ -146,7 +146,9 @@ describe("onDirectMessageCreated — a quién se le empuja", () => {
     const [uidArg, payload] = vi.mocked(sendPushToUser).mock.calls[0];
     expect(uidArg).toBe(recipient);
     expect(payload.body).toBe("hola");
-    expect(payload.link).toBe(`/groups?dm=${conversationId}`);
+    // El hilo vive en su propia ruta desde que se separó de comunidades; el
+    // deep link viejo (`/groups?dm=…`) ya no existe en ningún lado.
+    expect(payload.link).toBe(`/mensajes/${conversationId}`);
     // Mismo tag por hilo ⇒ los avisos seguidos se colapsan en el dispositivo.
     expect(payload.tag).toBe(`dm_${conversationId}`);
   });

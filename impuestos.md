@@ -785,9 +785,13 @@ Queda como **D-13** — ya no bloquea, pero cuanto antes exista, menos depende d
 
 ## 6.4 Bloqueados: exigen alta desde la venta 1 (2026-08-08)
 
-Vista consolidada de LatAm + Europa. **Ninguno tiene fila en `COUNTRY_TAX_CONFIG`**, así que hoy
-el checkout los rechaza. No falta programarlos: falta el trámite. El detalle por país está en
-§6.2 (LatAm) y §6.3 (Europa).
+Vista consolidada de LatAm + Europa + Oceanía. **Ninguno tiene fila en `COUNTRY_TAX_CONFIG`**,
+así que hoy el checkout los rechaza. No falta programarlos: falta el trámite. El detalle por país
+está en §6.2 (LatAm), §6.3 (Europa) y §6.6 (Oceanía).
+
+⚠️ **La Polinesia Francesa es el caso a no malinterpretar:** su moneda (XPF) SÍ está en el
+catálogo, porque la comparte con Nueva Caledonia, que sí vende. Tener moneda **no** es permiso de
+venta — lo gatea `COUNTRY_TAX_CONFIG`, y ahí no tiene fila. Hay un test que lo verifica.
 
 | País | Moneda | Idioma | TASA | Impuesto | Recaudación | Declaración | Alta fiscal | Umbral | Estatus |
 |---|---|---|---|---|---|---|---|---|---|
@@ -805,6 +809,7 @@ el checkout los rechaza. No falta programarlos: falta el trámite. El detalle po
 | 🇲🇪 Montenegro | EUR | Montenegrino | 21% | PDV | Vibra (tras alta) | Por confirmar | Registro no residente | Ninguno | 🔴 No cobrable |
 | 🇲🇩 Moldavia | MDL | Rumano | 20% | TVA | Vibra (tras alta) | Por confirmar | Registro no residente | Ninguno | 🔴 No cobrable |
 | 🇲🇰 Macedonia del Norte | MKD | Macedonio | 18% | DDV | Vibra (tras alta) | Por confirmar | **Representante fiscal local** solidario | Ninguno | 🔴 No cobrable |
+| 🇵🇫 Polinesia Francesa | XPF | Francés/Tahitiano | 13% servicios / 16% estándar | TVA | Vibra (tras alta) | Por confirmar | DICP | **Cero** | 🔴 No cobrable |
 
 ⚠️ Los "por confirmar" son huecos REALES: se buscaron y las fuentes no los resuelven con claridad.
 Se dejan vacíos a propósito — inventar una frecuencia de declaración es peor que no tenerla. Se
@@ -914,6 +919,63 @@ Hay un test que verifica que estos sigan fuera.
 
 ---
 
+## 6.6 Oceanía (2026-08-10)
+
+Australia y Nueva Zelanda están en §6.5, con Asia-Pacífico. Aquí van los cuatro que quedaban.
+Los cuatro cobran cero, pero **cada uno por un motivo distinto**, y esa diferencia decide si algún
+día habrá que cobrar ahí.
+
+| País | Moneda | Idioma | TASA | Impuesto | Recaudación | Declaración | Alta fiscal | Umbral | Estatus |
+|---|---|---|---|---|---|---|---|---|---|
+| 🇬🇺 Guam | USD | Inglés/Chamorro | **0%** | No existe | Nadie | Ninguna | **No existe** | N/A | ✅ Activo |
+| 🇵🇬 Papúa Nueva Guinea | PGK | Inglés/Tok Pisin | 10% | GST | Nadie (B2C sin régimen) | Ninguna | No existe para extranjeros | N/A | ✅ Activo |
+| 🇳🇨 Nueva Caledonia | XPF | Francés | 11% | TGC | Nadie (bajo umbral) | Por confirmar | DSF | **XPF 7.500.000**/año (~US$68.000) | ✅ Activo |
+| 🇫🇯 Fiyi | FJD | Inglés/Fiyiano | **12,5%** | VAT | Nadie (bajo umbral) | Por confirmar | FRCS + **agente fiscal local** | **FJD 100.000**/12m (~US$44.000) | ✅ Activo |
+
+### Por qué cada uno lleva un helper distinto
+
+* **🇬🇺 Guam — `noConsumptionTax("USD")`.** No hay IVA ni GST. Su *Business Privilege Tax* del 4%
+  recae en negocios **establecidos en Guam**, no en un vendedor extranjero. Nunca habrá nada que
+  cobrar. Además no trajo moneda nueva: usa el dólar, que ya estaba.
+* **🇵🇬 Papúa Nueva Guinea — `noDigitalRegime("GST", 0.10, "PGK")`.** El GST del 10% existe, pero
+  el reverse charge solo alcanza a clientes registrados en GST (B2B). Las ventas a consumidores
+  desde el exterior no tienen régimen. Si legislan uno, esta fila cambia.
+* **🇳🇨 Nueva Caledonia y 🇫🇯 Fiyi — `belowThreshold()`.** El régimen para extranjeros existe y
+  está activo; solo falta cruzar el umbral. Reloj corriendo, vigilancia manual (**D-13**).
+
+⚠️ **Fiyi cobra 12,5%, no 15%:** bajó el 1 de agosto de 2025. Hay un test que fija ese valor
+para que nadie lo "corrija" al dato viejo, que sigue circulando en fuentes secundarias.
+
+⚠️ **Registrarse en Fiyi exige agente fiscal local o establecimiento permanente**, como Macedonia
+del Norte. Es un motivo para no dejar que cruce el umbral sin decidirlo antes.
+
+### 🚨 El franco CFP es moneda SIN decimales
+
+XPF entró a `ZERO_DECIMAL` junto con XAF y XOF. Sin eso, la fórmula genérica `amount * 100`
+le habría cobrado a Nueva Caledonia **100 veces de más**. Cubierto con test.
+
+Es la tercera trampa de formato de Stripe que aparece en esta tabla, después de las milésimas del
+Golfo (§6.5) y los enteros de la corona islandesa (§6.3). **Al agregar una moneda hay que revisar
+siempre `toStripeAmount`,** no solo el catálogo.
+
+### 🚫 Lo que NO se integró de Oceanía
+
+**🇵🇫 Polinesia Francesa** — TVA 13% servicios / 16% estándar, con umbral **CERO**: alta desde la
+primera venta. Está en §6.4. Su moneda ya quedó en el catálogo por compartirla con Nueva Caledonia.
+
+**Los microestados** — Islas Salomón, Vanuatu, Samoa, Tonga, Kiribati, Micronesia, Islas Marshall,
+Palaos, Nauru, Tuvalu, Islas Cook, Niue, Wallis y Futuna, Samoa Americana, Marianas del Norte.
+
+Casi todos tienen impuesto al consumo propio (15% en Vanuatu, Samoa y Tonga), pero ninguno tiene
+régimen para proveedores digitales extranjeros — son más pequeños que Bolivia, que tampoco lo
+tiene. **No se verificaron uno por uno a propósito:** son mercados de 100.000 a 300.000 habitantes
+y cada país nuevo cuesta cuatro sitios de código, filas en dos espejos, tests, ficha y un umbral
+más que recordar. No compensa.
+
+Con esto **Oceanía queda cerrada.** Lo que faltaba de peso —Australia y Nueva Zelanda— ya estaba.
+
+---
+
 ## 7. Estado y pendientes
 
 ### Países
@@ -926,14 +988,16 @@ Hay un test que verifica que estos sigan fuera.
 | ⬜ Sin régimen digital | BO · SV · GT · HN · NI · **PA** | ✅ Activos | No — no lo recauda nadie |
 | 🏔️ Europa no-UE bajo umbral | NO · IS · BA | ✅ Activos — **vigilancia manual** | No — hasta cruzar el umbral |
 | 🌏 Asia-Pacífico bajo umbral | JP · MY · PH · TH · AU · JO · ID · NZ · TW · SG | ✅ Activos — **vigilancia manual** | No — hasta cruzar el umbral |
-| 🟢 Sin impuesto al consumo | HK · QA · KW | ✅ Activos — **sin reloj** | No — no existe el impuesto |
+| 🟢 Sin impuesto al consumo | HK · QA · KW · **GU** | ✅ Activos — **sin reloj** | No — no existe el impuesto |
+| 🌊 Oceanía | PG (sin régimen) · NC · FJ (bajo umbral) | ✅ Activos | No |
 | ⬜ Resto de LatAm | CL · CO · PE · UY · BR | Sin ficha — **no cobrables** | — |
 | ⬜ Resto de Europa no-UE | GB · CH · LI · RS · AL · ME · MD · MK · TR | Sin ficha — exigen alta desde la 1ª venta | — |
 | 🚫 Excluidos a propósito | UA (embargo regional) · RU · BY · CU (sanciones) · IL (decisión de Luis) | No integrar | — |
 | ⬜ Resto de Asia / Medio Oriente | IN · SA · KR · VN · BH · OM · AE | Sin ficha — umbral cero | — |
+| ⬜ Oceanía restante | PF (umbral cero) + microestados | Sin ficha — no compensan | — |
 | ⬜ Resto del mundo | — | Sin ficha — **no cobrables** | — |
 
-**Total cobrable: 55 países.** Un país sin fila en `COUNTRY_TAX_CONFIG` no es cobrable y el
+**Total cobrable: 59 países.** Un país sin fila en `COUNTRY_TAX_CONFIG` no es cobrable y el
 checkout lo rechaza.
 
 ### Backend — ✅ hecho (2026-08-07)
@@ -966,7 +1030,7 @@ checkout lo rechaza.
 | **D-09** | Los 5 de LatAm que faltan (CL · CO · PE · UY · BR): todos exigen alta previa. Detalle de quién recauda y quién declara en §6.2 | Luis + fiscalista internacional |
 | **D-11** | 🇨🇴 ¿La retención en la fuente colombiana SE SUMA al comprador o se DESCUENTA de lo que cobra Vibra? Vale 19% de cada venta. Bloquea la integración de Colombia | Fiscalista CO |
 | **D-12** | 🇺🇾 Confirmar el IRNR 12% sobre IVA 22% y quién retiene | Fiscalista UY |
-| **D-13** | Contador de ventas acumuladas por país + alerta al 80% del umbral. **13 países** encendidos con vigilancia manual (NO · IS · BA · JP · MY · PH · TH · AU · JO · ID · NZ · TW · SG); el contador la reemplazaría. Cuantos más umbrales, menos sostenible es recordarlos | Luis + Claude |
+| **D-13** | Contador de ventas acumuladas por país + alerta al 80% del umbral. **15 países** encendidos con vigilancia manual (NO · IS · BA · JP · MY · PH · TH · AU · JO · ID · NZ · TW · SG · NC · FJ); el contador la reemplazaría. Cuantos más umbrales, menos sostenible es recordarlos | Luis + Claude |
 | ~~D-14~~ | ~~🇺🇦 ¿Entrar a Ucrania?~~ **Resuelta 2026-08-08: NO.** Requeriría discriminación regional (Crimea/Donetsk/Lugansk bajo embargo OFAC) que no existe | ✅ |
 | **D-10** | Vigilar a mano BO · SV · GT · HN · NI · PA: Stripe Tax no los cubre. **Panamá es el más urgente** (anteproyecto de 2019 reabierto) | Luis |
 | ~~AR-01~~ | ~~¿Cobrar en ARS o en MXN/USD?~~ **Resuelta: en ARS**, la moneda local del comprador | ✅ |

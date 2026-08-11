@@ -650,6 +650,52 @@ describe("Asia-Pacífico y Medio Oriente", () => {
   });
 });
 
+// 🌊 Oceanía. Australia y Nueva Zelanda se cubren en el bloque de Asia-Pacífico; aquí van
+// los cuatro que quedaban, cada uno por un motivo distinto de cobrar cero.
+describe("Oceanía — GU, PG, NC, FJ", () => {
+  it("los cuatro venden y ninguno suma impuesto", () => {
+    for (const iso of ["GU", "PG", "NC", "FJ"]) {
+      expect(isChargeableCountry(iso), iso).toBe(true);
+      expect(computeConsumptionTax(100, iso).total, iso).toBe(100);
+      expect(platformCollectsTax(iso), iso).toBe(false);
+    }
+  });
+
+  // Cada uno usa un helper distinto, y la diferencia no es cosmética: dice si algún día
+  // habrá que cobrar ahí y por qué. Guam nunca; Papúa solo si legisla un régimen para
+  // extranjeros; Nueva Caledonia y Fiyi en cuanto crucen su umbral.
+  it("🚨 cada motivo con su helper: no son intercambiables", () => {
+    // Guam: no existe el impuesto. Tasa 0 de verdad.
+    expect(countryTaxConfig("GU")!.taxRate).toBe(0);
+    expect(countryTaxConfig("GU")!.collectionMode).toBe("none");
+    // Papúa: el GST existe (10%) pero no alcanza al B2C desde el exterior.
+    expect(countryTaxConfig("PG")!.taxRate).toBe(0.1);
+    expect(countryTaxConfig("PG")!.collectionMode).toBe("none");
+    // Nueva Caledonia y Fiyi: régimen activo, solo falta cruzar el umbral.
+    expect(countryTaxConfig("NC")!.collectionMode).toBe("platform");
+    expect(countryTaxConfig("FJ")!.collectionMode).toBe("platform");
+  });
+
+  it("monedas y tasas correctas", () => {
+    expect(chargeCurrencyForCountry("GU")).toBe("USD");
+    expect(chargeCurrencyForCountry("PG")).toBe("PGK");
+    expect(chargeCurrencyForCountry("NC")).toBe("XPF");
+    expect(chargeCurrencyForCountry("FJ")).toBe("FJD");
+    expect(countryTaxConfig("NC")!.taxName).toBe("TGC");
+    // ⚠️ Fiyi bajó de 15% a 12,5% el 2025-08-01. Si alguien "corrige" esto a 0.15, rompe.
+    expect(taxRateForCountry("FJ")).toBeCloseTo(0.125, 8);
+  });
+
+  // 🚫 Polinesia Francesa tiene umbral CERO: alta desde la primera venta. Su moneda (XPF)
+  // sí está en el catálogo porque la comparte con Nueva Caledonia — tener moneda NO es
+  // permiso de venta, y este test evita que alguien confunda una cosa con la otra.
+  it("🚫 Polinesia Francesa NO es vendible, aunque su moneda esté en el catálogo", () => {
+    expect(countryTaxConfig("PF")).toBeNull();
+    expect(isChargeableCountry("PF")).toBe(false);
+    expect(chargeCurrencyForCountry("NC")).toBe("XPF");
+  });
+});
+
 // 🇲🇽 IVA mexicano sobre ventas al EXTRANJERO. Vibra es residente en México, así que por el
 // Art. 16 LIVA su venta siempre está dentro del objeto: lo que cambia es la tasa. Hoy 0% por
 // exportación en los 11 servicios (D-08 pendiente de fiscalista). Ver impuestos.md.

@@ -7,6 +7,7 @@ import { useTranslations } from "next-intl";
 
 import { useRouter } from "@/i18n/navigation";
 import { setNavSlideDir } from "@/lib/nav-slide";
+import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import { useAuth } from "@/app/providers";
 import LiveRingAvatar from "@/app/components/LiveRing/LiveRingAvatar";
 import ProfileMoreMenu from "@/app/[locale]/(protected)/u/[handle]/components/ProfileMoreMenu";
@@ -60,38 +61,87 @@ export default function ConversationPage() {
   }, []);
 
   /**
+   * El fondo no se mueve mientras el chat está abierto.
+   *
+   * No es solo higiene: si el documento de debajo puede desplazarse, iOS lo
+   * desplaza al enfocar el campo de escritura para "hacer sitio" al teclado, y
+   * entonces la compensación del visual viewport pelea contra ese movimiento.
+   * Con el fondo quieto, lo único que se mueve es el viewport visual, que es
+   * justo lo que el efecto de abajo sabe seguir.
+   */
+  useBodyScrollLock(mounted);
+
+  /**
    * Ata la pantalla al VISUAL viewport, no al de diseño.
    *
-   * Con el teclado abierto iOS encoge el visual viewport y desplaza el de
-   * diseño; un `position: fixed` se mide contra el segundo, así que al cerrarse
-   * el teclado heredaba ese desplazamiento y la pantalla quedaba un poco por
-   * encima del borde inferior. Siguiendo `visualViewport` vuelve exacta.
+   * Con el teclado abierto iOS no encoge el viewport de diseño: encoge el
+   * VISUAL y lo desplaza dentro del otro. Un `position: fixed` se mide contra el
+   * de diseño, así que sin compensar nada la cabecera se sale por arriba y el
+   * campo de escritura queda debajo del teclado. Copiando alto y desplazamiento
+   * del visual, la pantalla cae exactamente sobre lo que se ve.
    *
-   * El `scrollTo(0,0)` remata el caso de iOS, que a veces deja la página
-   * desplazada aunque el viewport ya haya recuperado su alto.
+   * Lo frágil de esto NO es la fórmula, es CUÁNDO se aplica: iOS anima el
+   * teclado unos 300ms y el último evento suele llegar antes del estado final;
+   * al descartarlo con "Listo" a veces no llega ninguno. Cuando eso pasaba, la
+   * pantalla se quedaba con el alto del teclado abierto y debajo aparecía una
+   * franja negra — el "safe-area gigante". De ahí los reintentos escalonados
+   * tras cada cambio de foco: son lo que cierra ese hueco.
    */
   useEffect(() => {
     if (!mounted) return;
 
-    const viewport = window.visualViewport;
     const element = screenRef.current;
-    if (!viewport || !element) return;
+    if (!element) return;
+
+    const viewport = window.visualViewport;
+    if (!viewport) return; // Sin API, se queda el 100dvh del estilo en línea.
+
+    // El alto máximo visto es la referencia para saber si hay teclado. Comparar
+    // contra `window.innerHeight` no sirve: en Safari la barra de direcciones se
+    // encoge y se estira sola, y eso ya mete decenas de píxeles de diferencia
+    // sin que haya ningún teclado. Un teclado nunca baja de ~200px; una barra
+    // no pasa de ~100px, así que el umbral los separa sin ambigüedad.
+    let maxHeight = viewport.height;
 
     const apply = () => {
+      maxHeight = Math.max(maxHeight, viewport.height);
+
       element.style.height = `${viewport.height}px`;
       element.style.top = `${viewport.offsetTop}px`;
 
-      const keyboardClosed = Math.abs(viewport.height - window.innerHeight) < 2;
-      if (keyboardClosed && window.scrollY !== 0) window.scrollTo(0, 0);
+      // Con el teclado fuera no hay home-indicator que esquivar: el campo se
+      // pega al teclado en vez de flotar 20px por encima. Se sobrescribe la
+      // variable global solo en esta pantalla; el compositor ya la consume.
+      const keyboardOpen = viewport.height < maxHeight - 120;
+      if (keyboardOpen) element.style.setProperty("--vb-safe-bottom", "0px");
+      else element.style.removeProperty("--vb-safe-bottom");
     };
 
     apply();
+
+    /** Reaplica y vuelve a mirar mientras iOS termina de animar el teclado. */
+    let timers: number[] = [];
+    const applySettling = () => {
+      apply();
+      timers.forEach(clearTimeout);
+      timers = [60, 180, 350, 600].map((ms) => window.setTimeout(apply, ms));
+    };
+
     viewport.addEventListener("resize", apply);
     viewport.addEventListener("scroll", apply);
+    window.addEventListener("orientationchange", applySettling);
+    // Entrar y salir del campo de escritura es lo que abre y cierra el teclado.
+    element.addEventListener("focusin", applySettling);
+    element.addEventListener("focusout", applySettling);
 
     return () => {
+      timers.forEach(clearTimeout);
       viewport.removeEventListener("resize", apply);
       viewport.removeEventListener("scroll", apply);
+      window.removeEventListener("orientationchange", applySettling);
+      element.removeEventListener("focusin", applySettling);
+      element.removeEventListener("focusout", applySettling);
+      element.style.removeProperty("--vb-safe-bottom");
     };
   }, [mounted]);
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 
 import {
@@ -267,11 +267,44 @@ export default function ConversationThread({
     const node = composerRef.current;
     if (!node || typeof ResizeObserver === "undefined") return;
 
-    const observer = new ResizeObserver(([entry]) => {
-      setComposerHeight(Math.ceil(entry.contentRect.height));
+    const observer = new ResizeObserver((entries) => {
+      // BORDE, no `contentRect`. El compositor lleva relleno propio arriba y
+      // abajo (12 + 12) más el safe-area inferior, y `contentRect` los excluye:
+      // el hueco reservado salía ~44px corto y el último mensaje quedaba
+      // justo DEBAJO del campo de escritura.
+      const border = entries[0]?.borderBoxSize?.[0]?.blockSize;
+      setComposerHeight(Math.ceil(border ?? node.getBoundingClientRect().height));
     });
     observer.observe(node);
     return () => observer.disconnect();
+  }, []);
+
+  /**
+   * Distancia al final por debajo de la cual se considera que estás "abajo".
+   * Con margen: al llegar un mensaje mientras lees los últimos, se sigue bajando.
+   */
+  const STICK_TO_BOTTOM_SLACK = 90;
+  /** ¿Seguimos pegados al final? Si te fuiste a leer historia, no se te arrastra. */
+  const stickToBottomRef = useRef(true);
+
+  /**
+   * Baja al final del hilo.
+   *
+   * Se mueve el contenedor a mano en vez de usar `scrollIntoView`: ese arrastra
+   * TODOS los ancestros scrollables, incluido el documento, y en iOS eso pelea
+   * con el `position: fixed` de la pantalla de celular — la página entera daba
+   * un salto. Aquí solo se toca el scroller del hilo.
+   *
+   * `scrollHeight` incluye el relleno inferior, así que el tope del scroll deja
+   * el último mensaje justo por encima del compositor, no debajo.
+   */
+  const scrollToBottom = useCallback((smooth: boolean) => {
+    const container = scrollRef.current;
+    if (!container) return;
+    container.scrollTo({
+      top: container.scrollHeight,
+      behavior: smooth ? "smooth" : "auto",
+    });
   }, []);
 
   /** Alto aproximado del menú (hora + hasta 4 acciones). Solo decide el lado. */
@@ -505,7 +538,6 @@ export default function ConversationThread({
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const topSentinelRef = useRef<HTMLDivElement | null>(null);
-  const bottomAnchorRef = useRef<HTMLDivElement | null>(null);
   const lastMessageIdRef = useRef<string | null>(null);
 
   // Rutas de todas las imágenes cargadas (miniaturas para el globo, originales
@@ -576,11 +608,39 @@ export default function ConversationThread({
 
     const isFirstPaint = lastMessageIdRef.current === null;
     lastMessageIdRef.current = last.id;
-    bottomAnchorRef.current?.scrollIntoView({
-      behavior: isFirstPaint ? "auto" : "smooth",
-      block: "end",
+
+    // Lo propio siempre se ve; lo del otro solo si ya estabas al final.
+    if (isFirstPaint || last.senderId === selfUid || stickToBottomRef.current) {
+      scrollToBottom(!isFirstPaint);
+    }
+  }, [messages, selfUid, scrollToBottom]);
+
+  /**
+   * El compositor cambió de alto ⇒ cambió el hueco reservado bajo el hilo.
+   * Pasa al enviar (el campo vuelve de tres líneas a una), al citar un mensaje y
+   * al adjuntar una imagen. Sin esto el último mensaje se descoloca justo
+   * después de mandarlo, que es cuando más se nota.
+   */
+  useEffect(() => {
+    if (stickToBottomRef.current) scrollToBottom(false);
+  }, [composerHeight, scrollToBottom]);
+
+  /**
+   * El teclado al abrirse encoge el hilo, y al cerrarse lo devuelve a su sitio.
+   * Ambos casos llegan aquí como un cambio de tamaño del scroller, así que no
+   * hace falta escuchar al teclado: si estabas al final, sigues al final — que
+   * es exactamente lo que se espera al ponerte a escribir.
+   */
+  useEffect(() => {
+    const container = scrollRef.current;
+    if (!container || typeof ResizeObserver === "undefined") return;
+
+    const observer = new ResizeObserver(() => {
+      if (stickToBottomRef.current) scrollToBottom(false);
     });
-  }, [messages]);
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, [scrollToBottom]);
 
   useEffect(() => {
     setDraft("");
@@ -612,6 +672,9 @@ export default function ConversationThread({
 
     // Con imagen el texto es opcional: la imagen sola ya es un mensaje.
     if ((!body && !pendingImage) || sending || uploadingImage || !canWrite || !selfUid) return;
+
+    // Lo que acabas de mandar se ve, estuvieras donde estuvieras leyendo.
+    stickToBottomRef.current = true;
 
     setSending(true);
     setError(null);
@@ -930,6 +993,12 @@ export default function ConversationThread({
                 <img
                   src={imageUrl(message.image, "thumb") ?? undefined}
                   alt=""
+                  // Una imagen no ocupa sitio hasta que carga. Si la del último
+                  // mensaje llega tarde, el hilo crece por debajo y lo que
+                  // estabas viendo deja de ser el final.
+                  onLoad={() => {
+                    if (stickToBottomRef.current) scrollToBottom(false);
+                  }}
                   style={{
                     display: "block",
                     maxWidth: "100%",
@@ -1368,6 +1437,13 @@ export default function ConversationThread({
           ref={inputRef}
           className="vibra-chat-ph"
           value={draft}
+          onFocus={() => {
+            // Ponerse a escribir lleva al final del hilo, como en WhatsApp. Se
+            // marca antes de que abra el teclado para que el reajuste que viene
+            // después (el hilo encoge) también acabe abajo.
+            stickToBottomRef.current = true;
+            scrollToBottom(false);
+          }}
           onChange={(e) => {
             setDraft(e.target.value);
             autoGrow(e.currentTarget);
@@ -1538,7 +1614,6 @@ export default function ConversationThread({
               renderMessage(message, index > 0 ? messages[index - 1] : null)
             )}
 
-            <div ref={bottomAnchorRef} aria-hidden style={{ height: 1 }} />
           </ChatReveal>
         )}
       </>
@@ -1607,6 +1682,11 @@ export default function ConversationThread({
 
       <div
         ref={scrollRef}
+        onScroll={(e) => {
+          const el = e.currentTarget;
+          stickToBottomRef.current =
+            el.scrollHeight - el.scrollTop - el.clientHeight <= STICK_TO_BOTTOM_SLACK;
+        }}
         style={{
           flex: 1,
           minHeight: 0,
@@ -1614,6 +1694,9 @@ export default function ConversationThread({
           // Explícito: al deslizar un mensaje se sale de la caja, y sin esto el
           // navegador convertiría ese desbordamiento en scroll horizontal.
           overflowX: "hidden",
+          // El rebote de iOS al final del hilo se lo queda el propio scroller y
+          // no se propaga a la página de debajo.
+          overscrollBehavior: "contain",
           // El relleno inferior deja hueco para el compositor, que va ENCIMA:
           // sin él, el último mensaje quedaría escondido debajo. Se mide en
           // vivo porque el compositor cambia de alto (campo que crece, aviso de
