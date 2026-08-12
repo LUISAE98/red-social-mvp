@@ -693,13 +693,17 @@ describe("Oceanía — GU, PG, NC, FJ", () => {
     expect(taxRateForCountry("FJ")).toBeCloseTo(0.125, 8);
   });
 
-  // 🚫 Polinesia Francesa tiene umbral CERO: alta desde la primera venta. Su moneda (XPF)
-  // sí está en el catálogo porque la comparte con Nueva Caledonia — tener moneda NO es
-  // permiso de venta, y este test evita que alguien confunda una cosa con la otra.
-  it("🚫 Polinesia Francesa NO es vendible, aunque su moneda esté en el catálogo", () => {
-    expect(countryTaxConfig("PF")).toBeNull();
-    expect(isChargeableCountry("PF")).toBe(false);
+  // 🇵🇫 Polinesia Francesa se integró el 2026-08-11. Comparte moneda con Nueva Caledonia
+  // pero NO su régimen: NC tiene umbral (XPF 7.500.000) y PF no tiene ninguno.
+  // Misma moneda, reglas opuestas — no asumir que se comportan igual.
+  it("🚨 PF y NC comparten XPF pero no el régimen", () => {
+    expect(chargeCurrencyForCountry("PF")).toBe("XPF");
     expect(chargeCurrencyForCountry("NC")).toBe("XPF");
+    // PF cobra desde la primera venta; NC vende sin cobrar mientras esté bajo umbral.
+    expect(platformCollectsTax("PF")).toBe(true);
+    expect(platformCollectsTax("NC")).toBe(false);
+    expect(taxRateForCountry("PF")).toBeCloseTo(0.13, 8);
+    expect(taxRateForCountry("NC")).toBeCloseTo(0.11, 8);
   });
 });
 
@@ -736,8 +740,9 @@ describe("África — ZA, EG", () => {
     }
   });
 
-  it("🚫 los africanos con alta desde la venta 1 siguen fuera", () => {
-    for (const iso of ["MA", "KE", "GH", "NG", "TZ", "UG"]) {
+  // (MA y NG estaban aquí hasta el 2026-08-11; ya se integraron.)
+  it("🚫 Kenia, Ghana, Tanzania y Uganda siguen fuera", () => {
+    for (const iso of ["KE", "GH", "TZ", "UG"]) {
       expect(countryTaxConfig(iso), iso).toBeNull();
       expect(isChargeableCountry(iso), iso).toBe(false);
     }
@@ -852,7 +857,8 @@ describe("LatAm con alta obligatoria — BR, CO, CL, PE, UY", () => {
   // sería quedarse con dinero ajeno.
   it("🚨 ALTAS_PENDIENTES refleja exactamente los que están encendidos sin alta", () => {
     expect([...ALTAS_PENDIENTES].sort()).toEqual(
-      ["AE", "AL", "BR", "CL", "CO", "GB", "KR", "MD", "ME", "PE", "RS", "SA", "TR", "UY", "VN"],
+      ["AE", "AL", "BR", "CL", "CO", "GB", "KR", "MA", "MD", "ME", "NG", "PE", "PF", "RS",
+       "SA", "TR", "UY", "VN"],
     );
     // Todo el que esté en la lista debe estar cobrando (si no, sobra en la lista).
     for (const iso of ALTAS_PENDIENTES) {
@@ -966,6 +972,35 @@ describe("Asia y Golfo con alta obligatoria", () => {
     expect(countryTaxConfig("VN")!.taxName).toBe("VAT");
     // Uruguay desglosa 22% al comprador, no 34%: el IRNR 12% lo absorbe Vibra.
     expect(taxRateForCountry("UY")).toBeCloseTo(0.22, 8);
+  });
+});
+
+// 🇳🇬🇲🇦 África con alta obligatoria. Los dos únicos mercados africanos que compensan hoy.
+describe("África con alta obligatoria — NG, MA", () => {
+  it("los dos cobran su impuesto y recauda la plataforma", () => {
+    expect(platformCollectsTax("NG")).toBe(true);
+    expect(platformCollectsTax("MA")).toBe(true);
+    expect(chargeCurrencyForCountry("NG")).toBe("NGN");
+    expect(chargeCurrencyForCountry("MA")).toBe("MAD");
+    expect(countryTaxConfig("MA")!.taxName).toBe("TVA");
+  });
+
+  // 🚨 El VAT nigeriano es genuinamente 7,5%, con decimal: no es un 7% ni un 75% mal escrito.
+  // Es de las tasas más bajas de la tabla, junto a EAU (5%) y Brasil (1%, transitorio).
+  it("🚨 Nigeria cobra 7,5% exacto, con decimal", () => {
+    expect(taxRateForCountry("NG")).toBeCloseTo(0.075, 8);
+    expect(computeConsumptionTax(1000, "NG").tax).toBeCloseTo(75, 6);
+    // No se redondeó a 7% ni se coló como 75%.
+    expect(taxRateForCountry("NG")).not.toBeCloseTo(0.07, 4);
+    expect(taxRateForCountry("NG")).not.toBeCloseTo(0.75, 4);
+  });
+
+  // 🚫 Los cuatro africanos que se dejaron fuera a propósito.
+  it("🚫 Kenia, Tanzania, Uganda y Ghana siguen fuera", () => {
+    for (const iso of ["KE", "TZ", "UG", "GH"]) {
+      expect(countryTaxConfig(iso), iso).toBeNull();
+      expect(isChargeableCountry(iso), iso).toBe(false);
+    }
   });
 });
 

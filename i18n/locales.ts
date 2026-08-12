@@ -187,8 +187,8 @@ export const EU_COUNTRY_TO_LOCALE: Readonly<Record<string, string>> = {
  * de la Unión y hay un test que lo comprueba. Meter Japón ahí rompería esa garantía
  * y, peor, haría que un mapa llamado "EU" dejara de significar lo que dice.
  *
- * Solo se listan países cuyo idioma YA está servido. El resto (Noruega, Tailandia,
- * los países árabes…) sigue cayendo a inglés, que es el comportamiento por defecto.
+ * Solo se listan países cuyo idioma YA está servido. El resto (los países árabes,
+ * Turquía, Corea…) sigue cayendo a inglés, que es el comportamiento por defecto.
  */
 export const NON_EU_COUNTRY_TO_LOCALE: Readonly<Record<string, string>> = {
   JP: "ja", // Japón
@@ -199,4 +199,14 @@ export const NON_EU_COUNTRY_TO_LOCALE: Readonly<Record<string, string>> = {
   BA: "bs", // Bosnia y Herzegovina
   NO: "nb", // Noruega
   IS: "is", // Islandia
+
+  // Los cuatro de abajo NO trajeron traducción nueva: reutilizan un idioma que ya
+  // servíamos y que hasta ahora no les llegaba, así que estaban viendo la app en
+  // inglés sin motivo.
+  MD: "ro", // Moldavia — rumano (el moldavo es la misma lengua; así lo reconoce el país desde 2023)
+  NC: "fr", // Nueva Caledonia — colectividad francesa, pero NO está en la UE: es un PTU
+  ME: "bs", // Montenegro — ijekavo y meses latinos, igual que el bosnio
+  HK: "zh-TW", // Hong Kong — chino TRADICIONAL, el mismo que Taiwán
+  // ⚠️ Serbia (RS) NO va aquí aunque sea vecina de Montenegro: el serbio es EKAVO
+  // (`vreme`, no `vrijeme`) y se escribe a menudo en cirílico. Darle `bs` se notaría.
 };

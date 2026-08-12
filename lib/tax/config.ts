@@ -179,6 +179,9 @@ const KR_NTS_REGISTERED = true;   // 🇰🇷 Hometax (NTS) — PENDIENTE
 const VN_GDT_REGISTERED = true;   // 🇻🇳 Portal de proveedores extranjeros (GDT) — PENDIENTE
 const AE_FTA_REGISTERED = true;   // 🇦🇪 FTA / EmaraTax — PENDIENTE
 const SA_ZATCA_REGISTERED = true; // 🇸🇦 ZATCA — PENDIENTE
+const NG_FIRS_REGISTERED = true;  // 🇳🇬 FIRS (Nigeria Tax Act 2025) — PENDIENTE
+const MA_DGI_REGISTERED = true;   // 🇲🇦 Plataforma DGI Marruecos — PENDIENTE
+const PF_DICP_REGISTERED = true;  // 🇵🇫 DICP Polinesia Francesa — PENDIENTE
 
 /**
  * Países encendidos en el código cuya alta fiscal REAL sigue pendiente.
@@ -190,6 +193,8 @@ export const ALTAS_PENDIENTES: readonly string[] = [
   "BR", "CO", "CL", "PE", "UY",
   "GB", "TR", "RS", "AL", "ME", "MD",  // Europa no comunitaria
   "KR", "VN", "AE", "SA",              // Asia y Golfo
+  "NG", "MA",                          // África
+  "PF",                                // Oceanía
 ];
 
 /**
@@ -600,6 +605,46 @@ export const COUNTRY_TAX_CONFIG: Readonly<Record<string, CountryTaxConfig>> = {
   VN: platformCollects("VAT", 0.10, "VND", VN_GDT_REGISTERED),      // Vietnam
   AE: platformCollects("VAT", 0.05, "AED", AE_FTA_REGISTERED),      // Emiratos Árabes Unidos
   SA: platformCollects("VAT", 0.15, "SAR", SA_ZATCA_REGISTERED),    // Arabia Saudita
+
+  // ── ÁFRICA — ALTA OBLIGATORIA DESDE LA VENTA 1 ──
+  //
+  // Los dos únicos mercados africanos que compensan hoy, elegidos por razones opuestas:
+  // Marruecos por CALIDAD (~90% de penetración de internet, el doble de ingreso per cápita
+  // que Nigeria) y Nigeria por VOLUMEN (~230 M de habitantes, cultura de creadores enorme).
+  //
+  // ⚠️ Ambos tenían control de cambios que impedía comprar en el extranjero. Los dos se
+  //    relajaron y hoy NO son limitantes para el ticket de Vibra:
+  //      🇳🇬 Tarjetas naira reactivadas en jul-2025 tras 3 años suspendidas. Los bancos
+  //         ponen sus propios topes (GTBank: de US$1.000 a US$6.000 por trimestre).
+  //      🇲🇦 Dotación anual de e-commerce subida a 20.000 dirhams (~US$2.000) el 1-ene-2026.
+  //         Agotada la cuota, el banco rechaza los pagos internacionales.
+  //
+  // 🇲🇦 MARRUECOS — su régimen entró en vigor el 11-jun-2026, hace dos meses: se llega A
+  //    TIEMPO, no tarde.
+  // 🇳🇬 NIGERIA — ⚠️ se llega TARDE: la obligación del Tax Act 2025 arrancó el 1-ene-2026.
+  //    Mismo caso que Brasil. Confirmar el régimen de multas antes de dar el alta.
+  //
+  // 🚫 NO se integraron (decisión de Luis, 2026-08-11):
+  //    · Kenia — M-Pesa domina los pagos, no la tarjeta. Mismo problema que India con UPI.
+  //    · Tanzania — 18% de IVA MÁS 3% sobre ingreso bruto, que sale del margen.
+  //    · Uganda — el más pobre y menos conectado de los seis.
+  //    · Ghana — mercado decente, pero exige facturación electrónica certificada (E-VAT).
+  NG: platformCollects("VAT", 0.075, "NGN", NG_FIRS_REGISTERED),    // Nigeria
+  MA: platformCollects("TVA", 0.20, "MAD", MA_DGI_REGISTERED),      // Marruecos
+
+  // ── OCEANÍA — ALTA OBLIGATORIA DESDE LA VENTA 1 ──
+  //
+  // 🇵🇫 POLINESIA FRANCESA — cierra Oceanía. Su moneda (XPF) ya estaba en el catálogo por
+  //    compartirla con Nueva Caledonia, así que no trajo trabajo de monedas.
+  //
+  //    ⚠️ Su TVA tiene DOS tasas: 13% para servicios y 16% estándar. Se usa 13% porque los
+  //       11 servicios de Vibra son servicios. Si el fisco polinesio llegara a clasificar el
+  //       contenido de pago (VOD, post premium, tickets) como bien y no como servicio,
+  //       subiría al 16%. Pendiente de confirmar si Polinesia gana volumen.
+  //
+  //    Contraste con 🇳🇨 Nueva Caledonia, su vecina: allá hay umbral (XPF 7.500.000) y aquí
+  //    no. Misma moneda, regímenes distintos — no asumir que se comportan igual.
+  PF: platformCollects("TVA", 0.13, "XPF", PF_DICP_REGISTERED),     // Polinesia Francesa
 
 
   // ⚠️ Fuera de la UE no se agrega ninguna fila sin su FICHA en impuestos.md.

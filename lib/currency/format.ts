@@ -134,6 +134,10 @@ export const NICE_STEP: Record<DisplayCurrency, number> = {
   VND: 5000, //  1 USD ≈ 26.000 VND → 5.000 VND ≈ 0.19 USD. Nadie cotiza en dongs sueltos.
   AED: 1, //     1 USD ≈ 3.67 AED   → 1 AED ≈ 0.27 USD. Anclado al dólar.
   SAR: 1, //     1 USD ≈ 3.75 SAR   → 1 SAR ≈ 0.27 USD. Anclado al dólar.
+  // --- África (2ª tanda) ---
+  NGN: 200, //   1 USD ≈ 1.550 NGN → 200 NGN ≈ 0.13 USD. La naira se devaluó muchísimo:
+  //             revisar el paso si el precio empieza a verse raro.
+  MAD: 2, //     1 USD ≈ 9.2 MAD   → 2 MAD ≈ 0.22 USD.
 };
 
 /** Redondea a un múltiplo "bonito" según la moneda. */

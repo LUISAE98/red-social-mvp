@@ -322,6 +322,21 @@ describe("i18n / detección por país", () => {
     }
   });
 
+  it("un país reutiliza un idioma que ya servíamos en vez de caer a inglés", () => {
+    // Estos cuatro no trajeron traducción propia: aprovechan una que ya existía.
+    // Se comprueban por separado del bucle de arriba porque el bucle valida que el
+    // mapa sea coherente, no que estas cuatro entradas SIGAN estando. Se perdieron
+    // una vez (los usuarios veían inglés sin motivo) y es fácil volver a perderlas.
+    expect(localeFromCountry("MD")).toBe("ro"); // Moldavia
+    expect(localeFromCountry("NC")).toBe("fr"); // Nueva Caledonia
+    expect(localeFromCountry("ME")).toBe("bs"); // Montenegro
+    expect(localeFromCountry("HK")).toBe("zh-TW"); // Hong Kong
+
+    // Serbia queda fuera a propósito: el serbio es ekavo y a menudo cirílico, así
+    // que el bosnio NO le sirve. Si algún día entra `sr`, este expect debe cambiar.
+    expect(localeFromCountry("RS")).toBe("en");
+  });
+
   it("intlLocale da un BCP-47 que Intl acepta, para todos los del catálogo", () => {
     for (const m of LOCALE_META) {
       expect(() => new Intl.DateTimeFormat(intlLocale(m.code)), `locale ${m.code}`).not.toThrow();

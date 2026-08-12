@@ -156,6 +156,21 @@ const REPLY_SWIPE_MAX = 76;
 /** Antes de esto no se decide el eje: un gesto de 3px no dice si es scroll. */
 const SWIPE_AXIS_SLOP = 6;
 
+/**
+ * Fondos de los globos, sobre negro.
+ *
+ * El morado es el de marca (#a855f7) con alfa: la opacidad es lo que decide
+ * cuánta luz tiene. A 0.30 quedaba casi apagado sobre el fondo negro del chat.
+ *
+ * El destello del salto a una cita tiene que seguir leyéndose como un golpe de
+ * luz POR ENCIMA del globo ya iluminado, no como su color normal — de ahí la
+ * distancia entre los dos valores.
+ */
+const BUBBLE_MINE = "rgba(168,85,247,0.52)";
+const BUBBLE_MINE_FLASH = "rgba(168,85,247,0.85)";
+/** Los del otro no se tocan: el encargo era iluminar el morado, no el gris. */
+const BUBBLE_THEIRS = "rgba(255,255,255,0.07)";
+
 /** Pista del gesto: aparece a la izquierda del globo según se arrastra. */
 function SwipeReplyCue() {
   return (
@@ -1033,12 +1048,12 @@ export default function ConversationThread({
               // globo sin necesidad de una cola.
               borderRadius: mine ? "16px 16px 4px 16px" : "16px 16px 16px 4px",
               background: flashing === message.id
-                ? "rgba(168,85,247,0.55)"
+                ? BUBBLE_MINE_FLASH
                 : bareImage
                   ? "transparent"
                   : mine
-                    ? "rgba(168,85,247,0.30)"
-                    : "rgba(255,255,255,0.07)",
+                    ? BUBBLE_MINE
+                    : BUBBLE_THEIRS,
               // El destello al llegar desde una cita: entra rápido y se va sin
               // prisa, que es lo que hace que el ojo lo siga.
               transition: "background 420ms ease",
