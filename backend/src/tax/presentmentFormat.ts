@@ -27,6 +27,8 @@ export const NICE_STEP: Readonly<Record<string, number>> = {
   ZAR: 5, EGP: 10,
   // Norteamérica
   CAD: 0.5,
+  // Europa NO comunitaria (2ª tanda)
+  GBP: 0.5, TRY: 5, RSD: 20, ALL: 10, MDL: 5,
 };
 
 /**
@@ -44,6 +46,8 @@ const STRIPE_MIN_CHARGE: Readonly<Record<string, number>> = {
   ZAR: 0.5,
   // Norteamérica
   CAD: 0.5,
+  // Europa no comunitaria — GBP es el único con mínimo publicado
+  GBP: 0.3,
   // ISK, BAM, TWD, QAR, KWD, JOD, PGK, XPF, FJD y EGP no aparecen en la lista publicada
   // de mínimos de Stripe.
   // Sin entrada aquí, `meetsStripeMinimum` los deja pasar y Stripe decide.

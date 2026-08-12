@@ -56,9 +56,9 @@ function NavHomeIconFilled() {
 function NavWalletIcon() {
   return (
     <svg width={30} height={30} viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M20 12V7H5a2 2 0 0 1 0-4h13v4" />
-      <path d="M3 5v13a2 2 0 0 0 2 2h15v-5" />
-      <path d="M17 12a2 2 0 0 0 0 4h3v-4Z" />
+      <path d="M3 7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2" />
+      <rect x="3" y="7" width="18" height="12" rx="2.5" />
+      <path d="M16 12.5h3" />
     </svg>
   );
 }
@@ -66,11 +66,9 @@ function NavWalletIcon() {
 function NavWalletIconFilled() {
   return (
     <svg width={30} height={30} viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path fill="white" stroke="none" d="M3 6v12a2 2 0 0 0 2 2h15V6H3Z" />
-      <path fill="#000000" stroke="none" d="M16.4 11.5a2.55 2.55 0 0 0 0 5.1h3.6v-5.1Z" />
-      <path d="M20 12V7H5a2 2 0 0 1 0-4h13v4" />
-      <path d="M3 5v13a2 2 0 0 0 2 2h15v-5" />
-      <path d="M17 12a2 2 0 0 0 0 4h3v-4Z" />
+      <path fill="white" stroke="white" d="M5 5h12a2 2 0 0 1 2 2H3a2 2 0 0 1 2-2Z" />
+      <rect x="3" y="7" width="18" height="12" rx="2.5" fill="white" stroke="white" />
+      <path fill="#000000" stroke="none" d="M16.4 11.4a2.3 2.3 0 0 0 0 4.6H21v-4.6Z" />
     </svg>
   );
 }

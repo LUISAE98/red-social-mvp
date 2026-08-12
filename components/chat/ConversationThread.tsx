@@ -26,6 +26,10 @@ import {
 import { uploadDirectMessageImage } from "@/lib/posts/image-upload";
 import type { ProfileMini } from "./ConversationList";
 import { ChatReveal, MessageThreadSkeleton } from "./ChatSkeletons";
+import {
+  CommentImageLightbox,
+  type CommentImageLightboxTarget,
+} from "@/app/[locale]/groups/[groupId]/components/posts/CommentImageUI";
 
 /**
  * Hilo de conversación SIN chrome: solo el área de mensajes y el pie de acción.
@@ -273,8 +277,15 @@ export default function ConversationThread({
   /** Imagen elegida y ya subida, esperando a enviarse. Una como mucho. */
   const [pendingImage, setPendingImage] = useState<ChatImage | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
-  /** Imagen abierta a tamaño completo. */
-  const [lightbox, setLightbox] = useState<string | null>(null);
+  /**
+   * Imagen abierta a tamaño completo.
+   *
+   * Se reutiliza el visor de las imágenes de comentario: crece desde la propia
+   * miniatura, enseña la miniatura ya cargada mientras llega el original (sin
+   * parpadeo) y se cierra deslizando hacia abajo. No había motivo para escribir
+   * otro.
+   */
+  const [lightbox, setLightbox] = useState<CommentImageLightboxTarget | null>(null);
   /**
    * Mensaje con el detalle (hora + acciones) desplegado, y HACIA DÓNDE se abre.
    * Solo uno a la vez. Un mensaje pegado
@@ -614,6 +625,33 @@ export default function ConversationThread({
     return image.url ?? signedUrls[image.path] ?? null;
   }
 
+  /**
+   * Traduce la imagen del DM al contrato del visor de comentarios.
+   *
+   * Aquel guarda URLs directas; el DM guarda rutas y las firma al vuelo. Es la
+   * única diferencia, así que resolverlas aquí basta para reutilizar el visor
+   * entero en vez de escribir uno igual.
+   */
+  function openLightbox(image: ChatImage, rect: DOMRect | null) {
+    const thumbnailUrl = imageUrl(image, "thumb");
+    // Si el original no está firmado se cae a la miniatura: mejor verla en
+    // grande y algo blanda que no abrir nada.
+    const url = imageUrl(image, "full") ?? thumbnailUrl;
+    if (!thumbnailUrl || !url) return;
+
+    setLightbox({
+      image: {
+        url,
+        thumbnailUrl,
+        path: image.path,
+        thumbnailPath: image.thumbnailPath,
+        width: image.width,
+        height: image.height,
+      },
+      rect,
+    });
+  }
+
   // Bloqueo de PERFIL: es el canónico y el que se maneja desde el menú de la
   // cabecera. El estado bloqueado del hilo lo acompaña (lo pone ese mismo menú)
   // porque es lo que miran las reglas al escribir.
@@ -810,6 +848,10 @@ export default function ConversationThread({
         ].join(" · ")
       : "";
 
+    // Una imagen sin pie ni cita ES el mensaje: no lleva globo detrás, solo sus
+    // esquinas redondeadas.
+    const bareImage = !message.isDeleted && !!message.image && !message.text && !message.replyTo;
+
     const expanded = expandedMessage?.id === message.id;
     const opensUp = expanded && expandedMessage?.direction === "up";
     // Editar y retirar caducan a los 10 minutos. Si el mensaje aún no tiene
@@ -980,20 +1022,30 @@ export default function ConversationThread({
               order: 2,
               cursor: "pointer",
               maxWidth: "78%",
-              padding: "8px 11px",
+              // El relleno NO va aquí sino en cada parte que lo necesita (cita y
+              // texto). Así la imagen llega a los bordes del globo en vez de
+              // quedar enmarcada, y una imagen sola no lleva marco ninguno.
+              padding: 0,
+              // Recorta la imagen contra las esquinas del globo: es lo que le da
+              // el redondeo sin tener que repetirlo en el <img>.
+              overflow: "hidden",
               // La esquina "pegada" al lado del emisor da la direccionalidad del
               // globo sin necesidad de una cola.
               borderRadius: mine ? "16px 16px 4px 16px" : "16px 16px 16px 4px",
               background: flashing === message.id
                 ? "rgba(168,85,247,0.55)"
-                : mine
-                  ? "rgba(168,85,247,0.30)"
-                  : "rgba(255,255,255,0.07)",
+                : bareImage
+                  ? "transparent"
+                  : mine
+                    ? "rgba(168,85,247,0.30)"
+                    : "rgba(255,255,255,0.07)",
               // El destello al llegar desde una cita: entra rápido y se va sin
               // prisa, que es lo que hace que el ojo lo siga.
               transition: "background 420ms ease",
-              boxShadow: mine ? "inset 0 1px 0 rgba(255,255,255,0.06)" : "none",
+              boxShadow:
+                mine && !bareImage ? "inset 0 1px 0 rgba(255,255,255,0.06)" : "none",
               minWidth: 0,
+              lineHeight: 0,
             }}
           >
             {/* Cita del mensaje al que responde. Tocarla salta al original. */}
@@ -1013,13 +1065,15 @@ export default function ConversationThread({
                 style={{
                   display: "flex",
                   gap: 7,
-                  width: "100%",
+                  // `auto` y no 100%: el globo ya no tiene relleno propio, así
+                  // que la cita se separa de los bordes con su propio margen.
+                  width: "auto",
                   textAlign: "left",
                   border: "none",
                   borderRadius: 7,
                   background: "rgba(0,0,0,0.22)",
                   padding: "5px 8px",
-                  marginBottom: 5,
+                  margin: "8px 11px 5px",
                   cursor: "pointer",
                   fontFamily: "inherit",
                   minWidth: 0,
@@ -1068,24 +1122,44 @@ export default function ConversationThread({
               </button>
             ) : null}
 
+            {/* Sin URL firmada todavía se pinta un hueco, NO nada. Antes, si la
+                firma no llegaba, el globo se quedaba vacío y un mensaje de solo
+                imagen desaparecía por completo — parecía que no se había
+                enviado. */}
+            {!message.isDeleted && message.image && !imageUrl(message.image, "thumb") ? (
+              <div
+                aria-label={tChat("openImage")}
+                style={{
+                  width: Math.min(200, message.image.width ?? 200),
+                  aspectRatio:
+                    message.image.width && message.image.height
+                      ? `${message.image.width} / ${message.image.height}`
+                      : "4 / 3",
+                  maxHeight: 260,
+                  background: "rgba(255,255,255,0.08)",
+                }}
+              />
+            ) : null}
+
             {!message.isDeleted && message.image && imageUrl(message.image, "thumb") ? (
               <button
                 type="button"
                 onClick={(e) => {
                   // No debe desplegar también el detalle del mensaje.
                   e.stopPropagation();
-                  setLightbox(message.image ? imageUrl(message.image, "full") : null);
+                  if (!message.image) return;
+                  // El rect de la miniatura es de donde crece el visor.
+                  openLightbox(message.image, e.currentTarget.getBoundingClientRect());
                 }}
                 aria-label={tChat("openImage")}
                 style={{
                   display: "block",
+                  // A sangre: sin relleno, sin borde y sin radio propio. El
+                  // redondeo se lo da el recorte del globo.
                   padding: 0,
                   border: "none",
                   background: "none",
                   cursor: "zoom-in",
-                  borderRadius: 10,
-                  overflow: "hidden",
-                  marginBottom: message.text ? 6 : 0,
                   lineHeight: 0,
                 }}
               >
@@ -1107,7 +1181,6 @@ export default function ConversationThread({
                     maxHeight: 260,
                     width: "auto",
                     height: "auto",
-                    borderRadius: 10,
                   }}
                 />
               </button>
@@ -1116,6 +1189,9 @@ export default function ConversationThread({
             {message.isDeleted || message.text ? (
               <div
                 style={{
+                  // El relleno vive aquí, no en el globo. Con imagen encima se
+                  // aprieta un poco arriba: la foto ya separa visualmente.
+                  padding: message.image && !message.isDeleted ? "6px 11px 9px" : "8px 11px",
                   fontSize: 13.5,
                   lineHeight: 1.4,
                   color: message.isDeleted
@@ -1463,18 +1539,32 @@ export default function ConversationThread({
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             {pendingImage ? (
               <div style={{ position: "relative", lineHeight: 0 }}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={imageUrl(pendingImage, "thumb") ?? undefined}
-                  alt=""
-                  style={{
-                    width: 54,
-                    height: 54,
-                    objectFit: "cover",
-                    borderRadius: 10,
-                    display: "block",
-                  }}
-                />
+                {/* Mientras no haya URL firmada va un hueco gris. Un `img` sin
+                    `src` sobre fondo oscuro se ve como un cuadro negro y parece
+                    que la imagen se subió rota. */}
+                {imageUrl(pendingImage, "thumb") ? (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img
+                    src={imageUrl(pendingImage, "thumb") ?? undefined}
+                    alt=""
+                    style={{
+                      width: 54,
+                      height: 54,
+                      objectFit: "cover",
+                      borderRadius: 10,
+                      display: "block",
+                    }}
+                  />
+                ) : (
+                  <div
+                    style={{
+                      width: 54,
+                      height: 54,
+                      borderRadius: 10,
+                      background: "rgba(255,255,255,0.08)",
+                    }}
+                  />
+                )}
                 <button
                   type="button"
                   onClick={() => setPendingImage(null)}
@@ -1869,32 +1959,10 @@ export default function ConversationThread({
         <div style={{ pointerEvents: "auto" }}>{renderFooter()}</div>
       </div>
 
-      {/* Visor a tamaño completo. Cubre el hilo entero (no la app), así sirve
-          igual en la pestaña de laptop que en la página de celular. */}
-      {lightbox ? (
-        <div
-          role="dialog"
-          aria-modal="true"
-          onClick={() => setLightbox(null)}
-          style={{
-            position: "absolute",
-            inset: 0,
-            zIndex: 5,
-            background: "rgba(0,0,0,0.92)",
-            display: "grid",
-            placeItems: "center",
-            padding: 12,
-            cursor: "zoom-out",
-          }}
-        >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={lightbox}
-            alt=""
-            style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }}
-          />
-        </div>
-      ) : null}
+      {/* El mismo visor que las imágenes de comentario. Se portalea al body, así
+          que cubre la app entera y sirve igual en la pestaña de laptop que en la
+          página de celular. */}
+      <CommentImageLightbox target={lightbox} onClose={() => setLightbox(null)} />
     </div>
   );
 }

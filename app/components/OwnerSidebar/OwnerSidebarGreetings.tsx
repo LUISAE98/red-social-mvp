@@ -1873,8 +1873,8 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
             productType="Devolución aplicada"
             successMessage={
               refundDone.credited > 0
-                ? `Se agregaron ${formatMoney(refundDone.credited, { baseCurrency: "MXN" })} MXN a tu saldo a favor. Úsalo para pagar otras experiencias dentro de la plataforma, o solicita el efectivo desde Experiencias.`
-                : "Tu solicitud de devolución se procesó. Revisa tu saldo a favor en Experiencias."
+                ? `Se agregaron ${formatMoney(refundDone.credited, { baseCurrency: "MXN" })} MXN a tu crédito disponible. Úsalo para pagar otras experiencias dentro de la plataforma, o solicita el efectivo desde Experiencias.`
+                : "Tu solicitud de devolución se procesó. Revisa tu crédito disponible en Experiencias."
             }
             onClose={() => setRefundDone(null)}
             stacked

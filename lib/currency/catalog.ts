@@ -12,8 +12,9 @@
  * comparten USD) + 7 de la Unión Europea (27 países; 21 de ellos usan EUR) + 3 de
  * Europa no comunitaria (Noruega, Islandia, Bosnia) + 13 de Asia-Pacífico y Medio Oriente
  * + 3 de Oceanía (Guam usa USD; Nueva Caledonia y Polinesia Francesa comparten XPF)
- * + 2 de África (Sudáfrica y Egipto) + CAD (Canadá). Estados Unidos usa USD, que ya estaba.
- * Total: 44 monedas para 68 países.
+ * + 2 de África (Sudáfrica y Egipto) + CAD (Canadá) + 5 de Europa no comunitaria.
+ * Estados Unidos usa USD y Montenegro usa EUR: ninguno trajo moneda nueva.
+ * Total: 49 monedas para 74 países.
  *
  * ⚠️ Que una moneda esté aquí NO habilita vender en ese país. El permiso de venta
  * lo decide COUNTRY_TAX_CONFIG (lib/tax/config.ts), que es una capa aparte y exige
@@ -74,6 +75,12 @@ export const DISPLAY_CURRENCIES = [
   "EGP", // Egipto
   // --- Norteamérica (además de MXN) ---
   "CAD", // Canadá
+  // --- Europa NO comunitaria (2ª tanda) ---
+  "GBP", // Reino Unido
+  "TRY", // Turquía
+  "RSD", // Serbia
+  "ALL", // Albania
+  "MDL", // Moldavia
 ] as const;
 export type DisplayCurrency = (typeof DISPLAY_CURRENCIES)[number];
 
@@ -236,6 +243,13 @@ export const COUNTRY_TO_CURRENCY: Readonly<Record<string, DisplayCurrency>> = {
   // Norteamérica.
   US: "USD", // Estados Unidos
   CA: "CAD", // Canadá
+  // Europa NO comunitaria (2ª tanda).
+  GB: "GBP", // Reino Unido
+  TR: "TRY", // Turquía
+  RS: "RSD", // Serbia
+  AL: "ALL", // Albania
+  MD: "MDL", // Moldavia
+  ME: "EUR", // Montenegro — usa el euro pero NO es UE: registro fiscal aparte, sin OSS
   PF: "XPF", // Polinesia Francesa — moneda lista; la VENTA sigue bloqueada (umbral cero)
 };
 

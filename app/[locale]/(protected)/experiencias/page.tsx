@@ -461,7 +461,7 @@ export default function ExperienciasPage() {
               </svg>
             </span>
             <div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
-              <span style={{ fontSize: 12.5, color: "rgba(255,255,255,0.62)", fontWeight: 600, lineHeight: 1.2 }}>Saldo a favor</span>
+              <span style={{ fontSize: 12.5, color: "rgba(255,255,255,0.62)", fontWeight: 600, lineHeight: 1.2 }}>Crédito disponible</span>
               <span style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", lineHeight: 1.3 }}>Úsalo en tus próximas experiencias</span>
             </div>
           </div>

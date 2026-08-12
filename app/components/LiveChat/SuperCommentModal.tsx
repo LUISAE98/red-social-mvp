@@ -436,7 +436,7 @@ export default function SuperCommentModal({
                             {useCredit && <svg width={11} height={11} viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth={3.5} strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>}
                           </span>
                           <span style={{ flex: 1, minWidth: 0 }}>
-                            <span style={{ display: "block", fontSize: 14, fontWeight: 600, color: "#fff" }}>Saldo a favor</span>
+                            <span style={{ display: "block", fontSize: 14, fontWeight: 600, color: "#fff" }}>Crédito disponible</span>
                             <span style={{ display: "block", fontSize: 12, color: "rgba(255,255,255,0.5)" }}>{pf.format(creditBalance, { baseCurrency: "MXN" })} {pf.currency} disponible</span>
                           </span>
                           {useCredit && creditApplied > 0 && (

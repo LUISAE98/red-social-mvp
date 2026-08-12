@@ -795,14 +795,8 @@ venta — lo gatea `COUNTRY_TAX_CONFIG`, y ahí no tiene fila. Hay un test que l
 
 | País | Moneda | Idioma | TASA | Impuesto | Recaudación | Declaración | Alta fiscal | Umbral | Estatus |
 |---|---|---|---|---|---|---|---|---|---|
-| 🇬🇧 Reino Unido | GBP | Inglés | 20% | VAT | Vibra (tras alta) | Trimestral | HMRC — **NETP** | **Cero** para extranjeros | 🔴 No cobrable |
 | 🇨🇭 Suiza | CHF | Alemán/francés/italiano | 8,1% | MWST/TVA | Vibra (tras alta) | Trimestral | FTA + **representante fiscal** | CHF 100.000 **mundial** ⚠️ | 🔴 No cobrable |
 | 🇱🇮 Liechtenstein | CHF | Alemán | 8,1% | MWST | Vibra (tras alta) | Trimestral | Sistema suizo (unión aduanera) | Igual que Suiza | 🔴 No cobrable |
-| 🇹🇷 Turquía | TRY | Turco | 20% | KDV | Vibra (tras alta) | Mensual | VAT No. 3 | Ninguno | 🔴 No cobrable |
-| 🇦🇱 Albania | ALL | Albanés | 20% | TVSH | Vibra (tras alta) | Mensual | Registro no residente | Ninguno | 🔴 No cobrable |
-| 🇷🇸 Serbia | RSD | Serbio | 20% | PDV | Vibra (tras alta) | Por confirmar | Registro no residente | Ninguno | 🔴 No cobrable |
-| 🇲🇪 Montenegro | EUR | Montenegrino | 21% | PDV | Vibra (tras alta) | Por confirmar | Registro no residente | Ninguno | 🔴 No cobrable |
-| 🇲🇩 Moldavia | MDL | Rumano | 20% | TVA | Vibra (tras alta) | Por confirmar | Registro no residente | Ninguno | 🔴 No cobrable |
 | 🇲🇰 Macedonia del Norte | MKD | Macedonio | 18% | DDV | Vibra (tras alta) | Por confirmar | **Representante fiscal local** solidario | Ninguno | 🔴 No cobrable |
 | 🇵🇫 Polinesia Francesa | XPF | Francés/Tahitiano | 13% servicios / 16% estándar | TVA | Vibra (tras alta) | Por confirmar | DICP | **Cero** | 🔴 No cobrable |
 | 🇲🇦 Marruecos | MAD | Árabe/Francés | 20% | TVA | Vibra (tras alta) | Por confirmar | Plataforma DGI | **Cero** — vigente 11-jun-2026 | 🔴 No cobrable |
@@ -1244,7 +1238,7 @@ Diferencia con Canadá: allá esa limitación produce **exposición hoy**; aquí
 
 ---
 
-## 6.10 🇧🇷🇨🇴🇨🇱🇵🇪🇺🇾 LatAm con alta obligatoria — ENCENDIDOS con alta pendiente (2026-08-11)
+## 6.10 Países con alta obligatoria — ENCENDIDOS con alta pendiente (2026-08-11)
 
 Los cuatro **exigen alta desde la primera venta**: no tienen umbral. El código ya cobra; **las
 altas reales están pendientes**. Están encendidos para probar con Stripe en **modo prueba**, donde
@@ -1258,6 +1252,32 @@ no hay dinero real ni obligación fiscal — la misma decisión que se tomó con
 | 🇵🇪 Perú | PEN | Español | 18% | IGV | **Vibra** (agente de percepción) | Mensual | RUC — SUNAT | Ninguno | 🟡 Alta pendiente |
 | 🇺🇾 Uruguay | UYU *(se puede pagar en USD)* | Español | **22%** al comprador | IVA | **Vibra** | **Trimestral** | DGI · sin representante local | Ninguno | 🟡 Alta pendiente |
 
+### 🌍 Europa no comunitaria (2026-08-11)
+
+| País | Moneda | Idioma | TASA | Impuesto | Recaudación | Declaración | Alta fiscal | Umbral | Estatus |
+|---|---|---|---|---|---|---|---|---|---|
+| 🇬🇧 Reino Unido | GBP | Inglés | 20% | VAT | **Vibra** | Trimestral | HMRC — **NETP** | **Cero** para extranjeros | 🟡 Alta pendiente |
+| 🇹🇷 Turquía | TRY | Turco | 20% | KDV | **Vibra** | Mensual | VAT No. 3 (GİB) | Ninguno | 🟡 Alta pendiente |
+| 🇷🇸 Serbia | RSD | Serbio | 20% | PDV | **Vibra** | Por confirmar | Poreska uprava | Ninguno | 🟡 Alta pendiente |
+| 🇦🇱 Albania | ALL | Albanés | 20% | TVSH | **Vibra** | Mensual | Drejtoria e Tatimeve | Ninguno | 🟡 Alta pendiente |
+| 🇲🇪 Montenegro | **EUR** | Montenegrino | 21% | PDV | **Vibra** | Por confirmar | Uprava prihoda i carina | Ninguno | 🟡 Alta pendiente |
+| 🇲🇩 Moldavia | MDL | Rumano | 20% | TVA | **Vibra** | Por confirmar | Serviciul Fiscal de Stat | Ninguno | 🟡 Alta pendiente |
+
+🚨 **Montenegro usa el EURO pero NO es de la UE.** El OSS no lo cubre: necesita su propio
+registro. Tener la moneda de la UE no implica estar en su régimen fiscal. Hay un test que lo fija.
+
+🚨 **El umbral británico de £90.000 NO aplica.** Es solo para empresas **establecidas** en UK.
+Para un extranjero (*Non-Established Taxable Person*) es **cero**, desde la primera libra.
+
+**🚫 Tres europeos quedaron fuera a propósito (decisión de Luis, 2026-08-11):**
+
+| País | Motivo |
+|---|---|
+| 🇲🇰 Macedonia del Norte | Exige **representante fiscal local solidariamente responsable** — alguien allá responde con su patrimonio — para un mercado de 1,8 millones |
+| 🇨🇭 Suiza · 🇱🇮 Liechtenstein | Los CHF 100.000 son de facturación **mundial**, no suiza: el umbral no protege. Además exigen representante fiscal, y basta **una** venta B2C para que todas las ventas suizas queden gravadas |
+
+Hay un test que verifica que los tres sigan fuera.
+
 Helper: `platformCollects(taxName, taxRate, currency, registered)`. Sin estado intermedio: o
 cobra (`registered`) o bloquea la venta (`cannot_sell`). **No existe "vender sin cobrar"** como en
 los países con umbral — aquí eso sería ilegal, no una zona gris.
@@ -1265,7 +1285,10 @@ los países con umbral — aquí eso sería ilegal, no una zona gris.
 ### 🚨 Lista de verificación previa a `sk_live`
 
 ```ts
-export const ALTAS_PENDIENTES = ["BR", "CO", "CL", "PE", "UY"];
+export const ALTAS_PENDIENTES = [
+  "BR", "CO", "CL", "PE", "UY",   // LatAm
+  "GB", "TR", "RS", "AL", "ME", "MD",  // Europa no comunitaria
+];
 ```
 
 Mientras esa lista tenga entradas, hay países **cobrando un impuesto que Vibra todavía no puede
@@ -1276,7 +1299,8 @@ pasar a llaves reales sin deuda. Hay un test que verifica que la lista coincida 
 encendidos.
 
 Interruptores individuales: `BR_CNPJ_REGISTERED`, `CO_DIAN_REGISTERED`, `CL_SII_REGISTERED`,
-`PE_SUNAT_REGISTERED`, `UY_DGI_REGISTERED`. En `false` el país pasa a `cannot_sell` y el checkout lo rechaza.
+`PE_SUNAT_REGISTERED`, `UY_DGI_REGISTERED`, `GB_HMRC_REGISTERED`, `TR_GIB_REGISTERED`,
+`RS_PURS_REGISTERED`, `AL_TATIME_REGISTERED`, `ME_UPC_REGISTERED`, `MD_SFS_REGISTERED`. En `false` el país pasa a `cannot_sell` y el checkout lo rechaza.
 
 ### 🇧🇷 Brasil: la única tasa de la tabla que cambia con el calendario
 
@@ -1371,8 +1395,9 @@ paga igual, pero Vibra queda en una lista pública y sale con intereses y multas
 | 🇨🇦 Canadá | CA | ✅ Activo — ⚠️ **exposición SK/MB aceptada** | No — hasta cruzar el umbral |
 | 🇺🇸 Estados Unidos | US | ✅ Activo — sin exposición | No — hasta cruzar el umbral de algún estado |
 | 🌎 LatAm con alta obligatoria | BR · CO · CL · PE · UY | 🟡 **Encendidos, alta PENDIENTE** | **Sí** — 1% BR · 19% CO · 19% CL · 18% PE · 22% UY |
+| 🌍 Europa no-UE con alta obligatoria | GB · TR · RS · AL · ME · MD | 🟡 **Encendidos, alta PENDIENTE** | **Sí** — 20% salvo ME 21% |
 | ⬜ Resto de LatAm | CL · CO · PE · UY · BR | Sin ficha — **no cobrables** | — |
-| ⬜ Resto de Europa no-UE | GB · CH · LI · RS · AL · ME · MD · MK · TR | Sin ficha — exigen alta desde la 1ª venta | — |
+| ⬜ Resto de Europa no-UE | CH · LI · MK | Fuera a propósito — representante fiscal / umbral mundial | — |
 | 🚫 Excluidos a propósito | UA (embargo regional) · RU · BY · CU (sanciones) · IL (decisión de Luis) | No integrar | — |
 | ⬜ Resto de Asia / Medio Oriente | IN · SA · KR · VN · BH · OM · AE | Sin ficha — umbral cero | — |
 | ⬜ Oceanía restante | PF (umbral cero) + microestados | Sin ficha — no compensan | — |
@@ -1380,7 +1405,7 @@ paga igual, pero Vibra queda en una lista pública y sale con intereses y multas
 | 🚫 África — Stripe no procesa | SD · SS · SO · ER · LY + riesgo: ZW · BI · CF · CD · GN · GW · ML | No integrar | — |
 | ⬜ Resto del mundo | — | Sin ficha — **no cobrables** | — |
 
-**Total cobrable: 68 países.** De ellos, **33 cobran impuesto** (MX + 27 UE + BR·CO·CL·PE·UY). Un país sin fila en `COUNTRY_TAX_CONFIG` no es cobrable y el
+**Total cobrable: 74 países.** De ellos, **39 cobran impuesto** (MX + 27 UE + 5 LatAm + 6 Europa no comunitaria). Un país sin fila en `COUNTRY_TAX_CONFIG` no es cobrable y el
 checkout lo rechaza.
 
 ### Backend — ✅ hecho (2026-08-07)
@@ -1412,7 +1437,7 @@ checkout lo rechaza.
 | **D-08** | Mapear los 11 servicios a un inciso del Art. 29-IV. Provisionalmente **todos a 0%**; los dudosos son **Tiempo contigo** y **Sesión exclusiva** | Fiscalista MX |
 | ~~D-09~~ | ~~LatAm pendiente~~ **Cerrada 2026-08-11: los 17 países de LatAm están integrados** | ✅ |
 | **D-19** | 🇺🇾 ¿El Convenio México–Uruguay elimina o reduce el IRNR 12%? Depende de encuadrar cada servicio en Art. 7 (0%), Art. 12 (10%) o Art. 20 (12%). Hoy ese 12% sale del margen | Fiscalista MX/UY |
-| **D-18** | 🚨 **Completar las 4 altas de `ALTAS_PENDIENTES` (BR · CO · CL · PE) ANTES de pasar a `sk_live`.** Hoy cobran en modo prueba sin poder enterar | Luis |
+| **D-18** | 🚨 **Completar las 11 altas de `ALTAS_PENDIENTES` (BR·CO·CL·PE·UY + GB·TR·RS·AL·ME·MD) ANTES de pasar a `sk_live`.** Hoy cobran en modo prueba sin poder enterar | Luis |
 | **D-11** | 🇨🇴 **Una sola pregunta abierta:** ¿la retención en la fuente del sistema alternativo SE SUMA al comprador o se DESCUENTA de lo que cobra Vibra? Vale 19% de cada venta colombiana. **RESUELTO 2026-08-11:** el cambio de modalidad SÍ es posible pero **por ÚNICA VEZ** (Art. 2° Res. DIAN 000049/2019) → no gastar ese cambio: entrar DIRECTO al sistema de retención. El alta NO es un formulario: es una petición por el canal **PQSR** de la DIAN (Art. 1°), y la DIAN debe publicarte por resolución en un listado taxativo con fecha de aplicación (Art. 5°) | Fiscalista CO |
 | ~~D-12~~ | ~~🇺🇾 Confirmar IRNR y quién retiene~~ **Resuelta 2026-08-11:** recauda Vibra (no hay retención bancaria para B2C), declaración trimestral, se puede pagar en USD. El IRNR sigue abierto en D-19 | ✅ |
 | **D-13** | Contador de ventas acumuladas por país + alerta al 80% del umbral. **19 países** encendidos con vigilancia manual (NO · IS · BA · JP · MY · PH · TH · AU · JO · ID · NZ · TW · SG · NC · FJ · ZA · EG · CA · US); el contador la reemplazaría. Cuantos más umbrales, menos sostenible es recordarlos | Luis + Claude |

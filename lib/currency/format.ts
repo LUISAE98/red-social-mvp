@@ -115,6 +115,14 @@ export const NICE_STEP: Record<DisplayCurrency, number> = {
   EGP: 10, //    1 USD ≈ 48 EGP   → 10 EGP ≈ 0.21 USD. Con paso 5 quedaría en 0.10, muy fino.
   // --- Norteamérica ---
   CAD: 0.5, //   1 USD ≈ 1.37 CAD → 0.5 CAD ≈ 0.36 USD. Mismo paso que el ancla.
+  // --- Europa NO comunitaria (2ª tanda) ---
+  GBP: 0.5, //   1 USD ≈ 0.78 GBP → 0.5 GBP ≈ 0.64 USD. Algo grueso, pero el precio
+  //             británico se cotiza en múltiplos de 0,50 y 0,99.
+  TRY: 5, //     1 USD ≈ 41 TRY   → 5 TRY  ≈ 0.12 USD. La lira se devalúa: revisar el paso
+  //             si el precio empieza a verse raro.
+  RSD: 20, //    1 USD ≈ 101 RSD  → 20 RSD ≈ 0.20 USD.
+  ALL: 10, //    1 USD ≈ 83 ALL   → 10 ALL ≈ 0.12 USD. El lek no usa subdivisiones.
+  MDL: 5, //     1 USD ≈ 17.5 MDL → 5 MDL  ≈ 0.29 USD.
 };
 
 /** Redondea a un múltiplo "bonito" según la moneda. */

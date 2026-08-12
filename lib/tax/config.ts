@@ -169,6 +169,12 @@ const CO_DIAN_REGISTERED = true;  // 🇨🇴 RUT + firma electrónica (DIAN) �
 const CL_SII_REGISTERED = true;   // 🇨🇱 Régimen simplificado SII — PENDIENTE
 const PE_SUNAT_REGISTERED = true; // 🇵🇪 RUC ante SUNAT — PENDIENTE
 const UY_DGI_REGISTERED = true;   // 🇺🇾 Registro de no residentes DGI — PENDIENTE
+const GB_HMRC_REGISTERED = true;  // 🇬🇧 HMRC (NETP) — PENDIENTE
+const TR_GIB_REGISTERED = true;   // 🇹🇷 VAT No. 3 (GİB) — PENDIENTE
+const RS_PURS_REGISTERED = true;  // 🇷🇸 Poreska uprava — PENDIENTE
+const AL_TATIME_REGISTERED = true;// 🇦🇱 Drejtoria e Tatimeve — PENDIENTE
+const ME_UPC_REGISTERED = true;   // 🇲🇪 Uprava prihoda i carina — PENDIENTE
+const MD_SFS_REGISTERED = true;   // 🇲🇩 Serviciul Fiscal de Stat — PENDIENTE
 
 /**
  * Países encendidos en el código cuya alta fiscal REAL sigue pendiente.
@@ -176,7 +182,10 @@ const UY_DGI_REGISTERED = true;   // 🇺🇾 Registro de no residentes DGI — 
  * 👉 Es la lista de verificación previa a `sk_live`. Cuando una alta se complete, se borra su
  *    entrada de aquí. Cuando esta lista quede vacía, se puede pasar a producción sin deuda.
  */
-export const ALTAS_PENDIENTES: readonly string[] = ["BR", "CO", "CL", "PE", "UY"];
+export const ALTAS_PENDIENTES: readonly string[] = [
+  "BR", "CO", "CL", "PE", "UY",
+  "GB", "TR", "RS", "AL", "ME", "MD",
+];
 
 /**
  * Fila de un país donde Vibra recauda el impuesto y lo entera, y cuyo régimen NO tiene umbral:
@@ -533,6 +542,33 @@ export const COUNTRY_TAX_CONFIG: Readonly<Record<string, CountryTaxConfig>> = {
   // Lo bueno del régimen: declaración TRIMESTRAL, se puede pagar en DÓLARES (si se opta,
   // hay que mantenerlo 3 años) y no exige representante local.
   UY: platformCollects("IVA", 0.22, "UYU", UY_DGI_REGISTERED),      // Uruguay
+
+  // ── EUROPA NO COMUNITARIA — ALTA OBLIGATORIA DESDE LA VENTA 1 ──
+  //
+  // El OSS NO cubre nada de esto: cada país es un registro propio. Ninguno tiene umbral.
+  //
+  // 🇬🇧 REINO UNIDO — el umbral de £90.000 que aparece en toda la documentación es SOLO
+  //    para empresas ESTABLECIDAS en UK. Para un extranjero (Non-Established Taxable
+  //    Person) el umbral es CERO: alta desde la primera libra. Es el mercado más grande
+  //    de la lista y el que menos margen de prueba da.
+  //
+  // 🇲🇪 MONTENEGRO — ⚠️ usa el EURO pero NO es de la UE. No lo cubre el OSS: necesita su
+  //    propio registro. Tener la moneda de la UE no implica estar en su régimen fiscal.
+  //
+  // 🇹🇷 TURQUÍA — transcontinental; se agrupa aquí por conveniencia. Declaración mensual.
+  //
+  // 🚫 NO se integraron, a propósito (decisión de Luis, 2026-08-11):
+  //    · Macedonia del Norte — exige representante fiscal local SOLIDARIAMENTE responsable
+  //      (alguien allá responde con su patrimonio) para un mercado de 1,8 millones.
+  //    · Suiza y Liechtenstein — los CHF 100.000 son de facturación MUNDIAL, no suiza, así
+  //      que el umbral no protege; además exigen representante fiscal y basta una venta
+  //      B2C para que TODAS las ventas suizas queden gravadas.
+  GB: platformCollects("VAT", 0.20, "GBP", GB_HMRC_REGISTERED),     // Reino Unido
+  TR: platformCollects("KDV", 0.20, "TRY", TR_GIB_REGISTERED),      // Turquía
+  RS: platformCollects("PDV", 0.20, "RSD", RS_PURS_REGISTERED),     // Serbia
+  AL: platformCollects("TVSH", 0.20, "ALL", AL_TATIME_REGISTERED),  // Albania
+  ME: platformCollects("PDV", 0.21, "EUR", ME_UPC_REGISTERED),      // Montenegro
+  MD: platformCollects("TVA", 0.20, "MDL", MD_SFS_REGISTERED),      // Moldavia
 
 
   // ⚠️ Fuera de la UE no se agrega ninguna fila sin su FICHA en impuestos.md.

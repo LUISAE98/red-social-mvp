@@ -809,49 +809,41 @@ export default function StripePaymentModal({
         <p style={{ color: "#8a8f99", fontSize: 14 }}>Cargando pago seguro…</p>
       ) : (
         <div style={{ display: "grid" }}>
-          {/* Saldo a favor: método MEZCLABLE (checkbox). Si cubre el total, la tarjeta es opcional. */}
+          {/* Crédito disponible: método MEZCLABLE, con la MISMA estética que las tarjetas.
+              Va PRIMERO. Si cubre el total, se ocultan los demás métodos (no deja elegir otro);
+              si no alcanza, se piden además para el restante. */}
           {creditEnabled && (
-            <>
-              <button
-                type="button"
-                onClick={() => { setUseCredit((v) => !v); setError(null); }}
-                style={{
-                  display: "flex", alignItems: "center", gap: 12, width: "100%", textAlign: "left",
-                  padding: "12px 14px", marginBottom: 8, borderRadius: 12, cursor: "pointer",
-                  border: `1.5px solid ${useCredit ? BLUE : "#e3e6ea"}`,
-                  background: useCredit ? "rgba(0,158,227,0.06)" : "#fff",
-                }}
-              >
-                <span style={{ width: 18, height: 18, borderRadius: 5, flexShrink: 0, display: "grid", placeItems: "center", border: `2px solid ${useCredit ? BLUE : "#b8bcc4"}`, background: useCredit ? BLUE : "#fff" }}>
-                  {useCredit && (
-                    <svg width={11} height={11} viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth={3.5} strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
-                  )}
+            <div style={rowDivider}>
+              <button type="button" onClick={() => { setUseCredit((v) => !v); setError(null); }} style={rowButton}>
+                {/* Icono de billetera, mismo trazo que el de tarjeta. */}
+                <svg width={24} height={24} viewBox="0 0 24 24" fill="none" stroke={useCredit ? BLUE : "#8a8f99"} strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M3 7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2" /><rect x="3" y="7" width="18" height="12" rx="2.5" /><path d="M16 12.5h3" />
+                </svg>
+                <span style={{ fontSize: 14, fontWeight: 600, color: "#3a3f4a", flex: 1, textAlign: "left" }}>
+                  Crédito disponible <span style={{ color: "#8a8f99", fontWeight: 500 }}>· {pf.format(creditBalance, { baseCurrency: "MXN" })} {pf.currency}</span>
                 </span>
-                <span style={{ flex: 1, minWidth: 0 }}>
-                  <span style={{ display: "block", fontSize: 14, fontWeight: 600, color: "#3a3f4a" }}>Saldo a favor</span>
-                  <span style={{ display: "block", fontSize: 12, color: "#8a8f99" }}>{pf.format(creditBalance, { baseCurrency: "MXN" })} {pf.currency} disponible</span>
-                </span>
-                {useCredit && creditApplied > 0 && (
-                  <span style={{ fontSize: 13, fontWeight: 700, color: BLUE, whiteSpace: "nowrap" }}>−{pf.format(creditApplied, { baseCurrency: "MXN" })}</span>
-                )}
+                {radio(useCredit)}
               </button>
-              {useCredit && (
-                <p style={{ margin: "0 2px 10px", fontSize: 12, color: creditCoversAll ? "#16a34a" : "#8a8f99" }}>
-                  {creditCoversAll
-                    ? "Tu saldo cubre el total. No necesitas tarjeta."
-                    : `Elige una tarjeta para el restante: ${remainderAfterCredit != null ? pf.format(remainderAfterCredit, { baseCurrency: "MXN" }) : ""} ${pf.currency}`}
-                </p>
-              )}
-            </>
+              <div style={{ display: "grid", gridTemplateRows: useCredit ? "1fr" : "0fr", transition: "grid-template-rows 300ms cubic-bezier(0.4,0,0.2,1)" }}>
+                <div style={{ overflow: "hidden", opacity: useCredit ? 1 : 0, transition: "opacity 240ms ease" }}>
+                  <p style={{ margin: "6px 2px 12px 36px", fontSize: 12, color: creditCoversAll ? "#16a34a" : "#8a8f99" }}>
+                    {creditCoversAll
+                      ? "Cubre el total. No necesitas otra forma de pago."
+                      : `Falta ${remainderAfterCredit != null ? pf.format(remainderAfterCredit, { baseCurrency: "MXN" }) : ""} ${pf.currency} — elige otra forma de pago.`}
+                  </p>
+                </div>
+              </div>
+            </div>
           )}
-          {/* Con el saldo cubriendo el total, la tarjeta sobra: se ocultan los métodos de tarjeta. */}
-          {!creditCoversAll && (
-            <>
+          {/* Con el crédito cubriendo el total, no deja elegir otro método: se ocultan
+              SUAVEMENTE (colapso de alto + fundido), igual que el acordeón de tarjeta. */}
+          <div style={{ display: "grid", gridTemplateRows: creditCoversAll ? "0fr" : "1fr", transition: "grid-template-rows 340ms cubic-bezier(0.4,0,0.2,1)" }}>
+            <div style={{ overflow: "hidden", opacity: creditCoversAll ? 0 : 1, transition: "opacity 240ms ease" }}>
               {newCardRow("credit", "Tarjeta de crédito")}
               {newCardRow("debit", "Tarjeta de débito")}
               {effectiveSavedCards.map((c) => savedCardRow(c))}
-            </>
-          )}
+            </div>
+          </div>
         </div>
       )}
     </div>
@@ -969,12 +961,14 @@ export default function StripePaymentModal({
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, color: "#8a8f99" }}><span>Subtotal</span><span>{readingCard ? priceSkeleton(58) : <>{taxed.base} {taxed.currency}</>}</span></div>
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, color: "#8a8f99" }}><span>{taxed.taxName} ({Math.round(taxed.rate * 100)}%)</span><span>{readingCard ? priceSkeleton(46) : <>{taxed.tax} {taxed.currency}</>}</span></div>
               <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between" }}><span style={{ fontSize: 13, color: "#6b7280", fontWeight: 600 }}>Total a pagar</span><span style={{ fontSize: 16, fontWeight: 600, color: "#3a3f4a" }}>{taxed.total} {taxed.currency}</span></div>
-              {useCredit && creditApplied > 0 && (
-                <>
-                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, color: BLUE }}><span>Saldo a favor</span><span>−{pf.format(creditApplied, { baseCurrency: "MXN" })} {pf.currency}</span></div>
-                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, fontWeight: 700, color: "#3a3f4a" }}><span>{creditCoversAll ? "Pagas con saldo" : "Restante a tu tarjeta"}</span><span>{pf.format(remainderAfterCredit ?? 0, { baseCurrency: "MXN" })} {pf.currency}</span></div>
-                </>
-              )}
+              <div style={{ display: "grid", gridTemplateRows: useCredit && creditApplied > 0 ? "1fr" : "0fr", transition: "grid-template-rows 300ms cubic-bezier(0.4,0,0.2,1)" }}>
+                <div style={{ overflow: "hidden", opacity: useCredit && creditApplied > 0 ? 1 : 0, transition: "opacity 240ms ease" }}>
+                  <div style={{ display: "grid", gap: 5 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, color: BLUE }}><span>Crédito disponible</span><span>−{pf.format(creditApplied, { baseCurrency: "MXN" })} {pf.currency}</span></div>
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, fontWeight: 700, color: "#3a3f4a" }}><span>{creditCoversAll ? "Pagas con saldo" : "Restante a tu tarjeta"}</span><span>{pf.format(remainderAfterCredit ?? 0, { baseCurrency: "MXN" })} {pf.currency}</span></div>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
         </>
@@ -989,12 +983,14 @@ export default function StripePaymentModal({
                 <span style={{ fontSize: 13, color: "#6b7280", fontWeight: 600 }}>{pricePeriodLabel ? "Cobro mensual" : "Total a pagar"}</span>
                 <span style={{ fontSize: 17, fontWeight: 600, color: "#3a3f4a" }}>{readingCard ? priceSkeleton(78) : <>{taxed.total} {taxed.currency}{pricePeriodLabel ? ` / ${pricePeriodLabel}` : ""}</>}</span>
               </div>
-              {useCredit && creditApplied > 0 && (
-                <>
-                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, color: BLUE }}><span>Saldo a favor</span><span>−{pf.format(creditApplied, { baseCurrency: "MXN" })} {pf.currency}</span></div>
-                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, fontWeight: 700, color: "#3a3f4a" }}><span>{creditCoversAll ? "Pagas con saldo" : "Restante a tu tarjeta"}</span><span>{pf.format(remainderAfterCredit ?? 0, { baseCurrency: "MXN" })} {pf.currency}</span></div>
-                </>
-              )}
+              <div style={{ display: "grid", gridTemplateRows: useCredit && creditApplied > 0 ? "1fr" : "0fr", transition: "grid-template-rows 300ms cubic-bezier(0.4,0,0.2,1)" }}>
+                <div style={{ overflow: "hidden", opacity: useCredit && creditApplied > 0 ? 1 : 0, transition: "opacity 240ms ease" }}>
+                  <div style={{ display: "grid", gap: 5 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, color: BLUE }}><span>Crédito disponible</span><span>−{pf.format(creditApplied, { baseCurrency: "MXN" })} {pf.currency}</span></div>
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, fontWeight: 700, color: "#3a3f4a" }}><span>{creditCoversAll ? "Pagas con saldo" : "Restante a tu tarjeta"}</span><span>{pf.format(remainderAfterCredit ?? 0, { baseCurrency: "MXN" })} {pf.currency}</span></div>
+                  </div>
+                </div>
+              </div>
             </div>
           ) : (
             <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between" }}>

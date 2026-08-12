@@ -36,6 +36,9 @@ export type LocaleMeta = {
  */
 export const LOCALE_META: readonly LocaleMeta[] = [
   { code: "bg", label: "BG", name: "Български", intl: "bg-BG", ready: true },
+  // Mutuamente inteligible con el croata, pero NO es croata: se derivó de `hr` y se
+  // corrigieron los croatismos (link, nivo, sedmica, meses latinos, ko/niko/svako).
+  { code: "bs", label: "BS", name: "Bosanski", intl: "bs-BA", ready: true },
   { code: "cs", label: "CS", name: "Čeština", intl: "cs-CZ", ready: true },
   { code: "da", label: "DA", name: "Dansk", intl: "da-DK", ready: true },
   { code: "de", label: "DE", name: "Deutsch", intl: "de-DE", ready: true },
@@ -68,6 +71,9 @@ export const LOCALE_META: readonly LocaleMeta[] = [
   { code: "sk", label: "SK", name: "Slovenčina", intl: "sk-SK", ready: true },
   { code: "sl", label: "SL", name: "Slovenščina", intl: "sl-SI", ready: true },
   { code: "sv", label: "SV", name: "Svenska", intl: "sv-SE", ready: true },
+  // El tailandés no tiene plural gramatical: TODOS sus `plural` son `other`-only.
+  // No es una traducción incompleta; es lo que dice CLDR para `th`.
+  { code: "th", label: "TH", name: "ไทย", intl: "th-TH", ready: true },
   // Taiwán usa caracteres TRADICIONALES y vocabulario propio (影片 no 视频,
   // 網路 no 网络, 貼文 no 帖子). Por eso es `zh-TW` y no un `zh` genérico:
   // deja sitio a un `zh-CN` simplificado si algún día entra China continental.
@@ -80,7 +86,7 @@ export const LOCALE_META: readonly LocaleMeta[] = [
  * en toda la app. Al terminar el archivo de un idioma: pon su `ready: true` arriba
  * Y agrégalo a esta tupla. El test de i18n verifica que ambas listas coincidan.
  */
-export const READY_LOCALES = ["es", "en", "pt-BR", "de", "fr", "it", "nl", "pl", "ro", "el", "cs", "hu", "sv", "pt-PT", "da", "fi", "sk", "bg", "hr", "lt", "sl", "lv", "et", "ga", "mt", "ja", "zh-TW", "id", "ms"] as const;
+export const READY_LOCALES = ["es", "en", "pt-BR", "de", "fr", "it", "nl", "pl", "ro", "el", "cs", "hu", "sv", "pt-PT", "da", "fi", "sk", "bg", "hr", "lt", "sl", "lv", "et", "ga", "mt", "ja", "zh-TW", "id", "ms", "th", "bs"] as const;
 
 export type Locale = (typeof READY_LOCALES)[number];
 
@@ -182,4 +188,6 @@ export const NON_EU_COUNTRY_TO_LOCALE: Readonly<Record<string, string>> = {
   TW: "zh-TW", // Taiwán
   ID: "id", // Indonesia
   MY: "ms", // Malasia
+  TH: "th", // Tailandia
+  BA: "bs", // Bosnia y Herzegovina
 };

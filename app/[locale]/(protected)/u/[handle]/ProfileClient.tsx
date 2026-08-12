@@ -1006,6 +1006,27 @@ useEffect(() => {
   prevBlockedByViewerRef.current = profileBlockedByViewer;
 }, [profileBlockedByViewer, viewerBlockedByProfile]);
 
+/**
+ * Baja el compás de espera venga el desbloqueo de donde venga.
+ *
+ * `pendingUnblock` existe para aguantar hasta que el servidor confirme el
+ * borrado, pero solo lo bajaba el menú de ESTA página. Al desbloquear desde el
+ * chat o desde ajustes, la transición se detectaba aquí y ya no la bajaba nadie:
+ * el perfil se quedaba restringido para siempre, sin ninguna forma de salir de
+ * ese estado desde la interfaz.
+ */
+useEffect(() => {
+  if (!pendingUnblock) return;
+  if (profileBlockedByViewer || viewerBlockedByProfile) return;
+
+  const timer = setTimeout(() => {
+    setPendingUnblock(false);
+    setProfilePostsRefreshKey((v) => v + 1);
+  }, 600);
+
+  return () => clearTimeout(timer);
+}, [pendingUnblock, profileBlockedByViewer, viewerBlockedByProfile]);
+
 function handleUnblockConfirmed() {
   setPendingUnblock(false);
   setProfilePostsRefreshKey((v) => v + 1);
@@ -2602,11 +2623,17 @@ const res = (await createExclusiveSessionRequest({
                         color: "rgba(255,255,255,0.6)",
                       }}
                     >
-                      {checkingProfileBlock
-                        ? tProfile("checkingAccess")
-                        : profileBlockedByViewer
-                          ? tProfile("blockedByViewer")
-                          : tProfile("blockedByProfile")}
+                      {/* Cada rama afirma algo COMPROBADO. Antes el último caso
+                          era un "si no, es que te bloquearon", y ahí caían
+                          también los estados de espera (`pendingUnblock`): el
+                          perfil acusaba a la otra persona de haberte bloqueado
+                          cuando lo único que pasaba era que se estaba
+                          confirmando TU desbloqueo. */}
+                      {profileBlockedByViewer
+                        ? tProfile("blockedByViewer")
+                        : viewerBlockedByProfile
+                          ? tProfile("blockedByProfile")
+                          : tProfile("checkingAccess")}
                     </div>
                   ) : null}
 

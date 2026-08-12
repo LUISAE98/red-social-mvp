@@ -845,7 +845,9 @@ describe("LatAm con alta obligatoria — BR, CO, CL, PE, UY", () => {
   // un impuesto que Vibra todavía no puede enterar. En modo prueba es inocuo; en producción
   // sería quedarse con dinero ajeno.
   it("🚨 ALTAS_PENDIENTES refleja exactamente los que están encendidos sin alta", () => {
-    expect([...ALTAS_PENDIENTES].sort()).toEqual(["BR", "CL", "CO", "PE", "UY"]);
+    expect([...ALTAS_PENDIENTES].sort()).toEqual(
+      ["AL", "BR", "CL", "CO", "GB", "MD", "ME", "PE", "RS", "TR", "UY"],
+    );
     // Todo el que esté en la lista debe estar cobrando (si no, sobra en la lista).
     for (const iso of ALTAS_PENDIENTES) {
       expect(platformCollectsTax(iso), iso + " está en ALTAS_PENDIENTES pero no cobra").toBe(true);
@@ -868,6 +870,49 @@ describe("LatAm con alta obligatoria — BR, CO, CL, PE, UY", () => {
     expect(platformCollectsTax("JP")).toBe(false);
     expect(countryTaxConfig("CL")!.registrationStatus).toBe("registered");
     expect(platformCollectsTax("CL")).toBe(true);
+  });
+});
+
+// 🇬🇧🇹🇷🇷🇸🇦🇱🇲🇪🇲🇩 Europa no comunitaria con alta obligatoria. El OSS no cubre nada de esto.
+describe("Europa no comunitaria con alta obligatoria", () => {
+  const SEIS: Array<[string, number, string, string]> = [
+    ["GB", 0.20, "GBP", "VAT"],
+    ["TR", 0.20, "TRY", "KDV"],
+    ["RS", 0.20, "RSD", "PDV"],
+    ["AL", 0.20, "ALL", "TVSH"],
+    ["ME", 0.21, "EUR", "PDV"],
+    ["MD", 0.20, "MDL", "TVA"],
+  ];
+
+  it("los seis cobran su impuesto y recauda la plataforma", () => {
+    for (const [iso, tasa, moneda, nombre] of SEIS) {
+      expect(platformCollectsTax(iso), iso).toBe(true);
+      expect(taxRateForCountry(iso), iso).toBeCloseTo(tasa, 8);
+      expect(chargeCurrencyForCountry(iso), iso).toBe(moneda);
+      expect(countryTaxConfig(iso)!.taxName, iso).toBe(nombre);
+      expect(computeConsumptionTax(100, iso).tax, iso).toBeCloseTo(100 * tasa, 6);
+    }
+  });
+
+  // 🚨 Montenegro usa el EURO pero NO es de la UE: el OSS no lo cubre y necesita registro
+  // propio. Si alguien lo mete en la lista de los 27 "porque paga en euros", quedaría
+  // cubierto por un registro que no lo alcanza.
+  it("🚨 Montenegro paga en euros pero NO es UE: registro aparte", () => {
+    expect(chargeCurrencyForCountry("ME")).toBe("EUR");
+    expect(chargeCurrencyForCountry("DE")).toBe("EUR");
+    // La UE se controla con un solo interruptor; Montenegro con el suyo.
+    expect(countryTaxConfig("ME")!.taxName).toBe("PDV");
+    expect(countryTaxConfig("DE")!.taxName).toBe("IVA");
+    expect(ALTAS_PENDIENTES).toContain("ME");
+    expect(ALTAS_PENDIENTES).not.toContain("DE");
+  });
+
+  // 🚫 Los tres que se dejaron fuera a propósito.
+  it("🚫 Macedonia del Norte, Suiza y Liechtenstein siguen fuera", () => {
+    for (const iso of ["MK", "CH", "LI"]) {
+      expect(countryTaxConfig(iso), iso).toBeNull();
+      expect(isChargeableCountry(iso), iso).toBe(false);
+    }
   });
 });
 
