@@ -14,7 +14,7 @@
  * + 3 de Oceanía (Guam usa USD; Nueva Caledonia y Polinesia Francesa comparten XPF)
  * + 2 de África (Sudáfrica y Egipto) + CAD (Canadá) + 5 de Europa no comunitaria.
  * Estados Unidos usa USD y Montenegro usa EUR: ninguno trajo moneda nueva.
- * Total: 59 monedas para 94 países.
+ * Total: 67 monedas para 116 países.
  *
  * ⚠️ Que una moneda esté aquí NO habilita vender en ese país. El permiso de venta
  * lo decide COUNTRY_TAX_CONFIG (lib/tax/config.ts), que es una capa aparte y exige
@@ -94,6 +94,15 @@ export const DISPLAY_CURRENCIES = [
   "SBD", // Islas Salomón
   "VUV", // Vanuatu
   "WST", // Samoa
+  // --- Caribe ---
+  "SRD", // Surinam
+  "BZD", // Belice
+  "TTD", // Trinidad y Tobago
+  "JMD", // Jamaica
+  "KYD", // Islas Caimán
+  "BMD", // Bermudas
+  "XCD", // Caribe oriental (Granada y vecinos)
+  "HTG", // Haití
 ] as const;
 export type DisplayCurrency = (typeof DISPLAY_CURRENCIES)[number];
 
@@ -319,6 +328,30 @@ export const COUNTRY_TO_CURRENCY: Readonly<Record<string, DisplayCurrency>> = {
   MH: "USD", // Islas Marshall
   AS: "USD", // Samoa Americana
   MP: "USD", // Marianas del Norte
+  // Caribe (9).
+  SR: "SRD", // Surinam
+  BZ: "BZD", // Belice
+  TT: "TTD", // Trinidad y Tobago
+  JM: "JMD", // Jamaica
+  GD: "XCD", // Granada
+  KY: "KYD", // Islas Caimán
+  BM: "BMD", // Bermudas
+  TC: "USD", // Turcas y Caicos
+  VG: "USD", // Islas Vírgenes Británicas
+  // Caribe y territorios americanos (13). Solo Haití trajo moneda nueva.
+  PR: "USD", // Puerto Rico
+  VI: "USD", // Islas Vírgenes de EE. UU.
+  BQ: "USD", // Bonaire
+  HT: "HTG", // Haití
+  GL: "DKK", // Groenlandia
+  PM: "EUR", // San Pedro y Miquelón
+  LC: "XCD", // Santa Lucía
+  VC: "XCD", // San Vicente y las Granadinas
+  AG: "XCD", // Antigua y Barbuda
+  KN: "XCD", // San Cristóbal y Nieves
+  DM: "XCD", // Dominica
+  AI: "XCD", // Anguila
+  MS: "XCD", // Montserrat
   ME: "EUR", // Montenegro — usa el euro pero NO es UE: registro fiscal aparte, sin OSS
   PF: "XPF", // Polinesia Francesa — moneda lista; la VENTA sigue bloqueada (umbral cero)
 };

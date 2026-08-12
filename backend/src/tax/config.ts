@@ -836,6 +836,76 @@ export const COUNTRY_TAX_CONFIG: Readonly<Record<string, CountryTaxConfig>> = {
   AS: noConsumptionTax("USD"),                         // Samoa Americana — territorio de EE. UU.
   MP: noConsumptionTax("USD"),                         // Marianas del Norte — territorio de EE. UU.
 
+  // ── CARIBE ──
+  //
+  // 🇸🇷 SURINAM — el único del Caribe con UMBRAL real: SRD 500.000 al año (~US$13.000).
+  //    Régimen para extranjeros vigente desde 2023. Vigilancia manual como el resto.
+  //
+  // Sin régimen para proveedores extranjeros (se vende a cero):
+  //   🇧🇿 Belice — el GST del 12,5% solo alcanza a entidades establecidas ahí. VERIFICADO.
+  //   🇰🇾 Caimán · 🇧🇲 Bermudas · 🇹🇨 Turcas y Caicos · 🇻🇬 Vírgenes Británicas — no existe
+  //      impuesto al consumo. Nunca habrá nada que cobrar.
+  //
+  // ⚠️ 🇹🇹 TRINIDAD Y TOBAGO — el más AMBIGUO de la tabla. No hay legislación específica
+  //    para servicios digitales, pero algunas fuentes sugieren que una empresa extranjera
+  //    igual tendría obligación de registro sin importar la facturación. Se integra como
+  //    sin régimen porque no se encontró norma que lo exija, pero **si Trinidad gana
+  //    volumen hay que consultarlo con un asesor local antes de seguir vendiendo**.
+  //
+  // 🚨 EN CAMINO — hoy no hay régimen, pero YA TIENEN FECHA. Vigilancia obligatoria:
+  //   🇯🇲 JAMAICA — el GCT del 15% sobre servicios digitales del exterior está ANUNCIADO
+  //      y sería efectivo a **principios de 2027**. Cuando entre en vigor, esta fila pasa
+  //      a `platformCollects` con alta ante la TAJ. Es el único país de toda la tabla con
+  //      fecha conocida de cambio de régimen. Ver D-23.
+  //   🇬🇩 GRANADA — propuesta de 2026 para gravar a no residentes; aún NO es ley. El umbral
+  //      doméstico es XCD 120.000. Vigilar si se aprueba.
+  SR: belowThreshold("VAT", 0.10, "SRD"),              // Surinam
+  BZ: noDigitalRegime("GST", 0.125, "BZD"),            // Belice
+  TT: noDigitalRegime("VAT", 0.125, "TTD"),            // Trinidad y Tobago — ⚠️ ambiguo
+  JM: noDigitalRegime("GCT", 0.15, "JMD"),             // Jamaica — ⚠️ cambia en 2027
+  GD: noDigitalRegime("VAT", 0.15, "XCD"),             // Granada — ⚠️ propuesta en curso
+  KY: noConsumptionTax("KYD"),                         // Islas Caimán
+  BM: noConsumptionTax("BMD"),                         // Bermudas
+  TC: noConsumptionTax("USD"),                         // Turcas y Caicos
+  VG: noConsumptionTax("USD"),                         // Islas Vírgenes Británicas
+
+  // ── CARIBE Y TERRITORIOS AMERICANOS (2ª tanda) ──
+  //
+  // 🇵🇷 PUERTO RICO — ⚠️ NO es 'territorio de EE. UU. y por eso ya está cubierto'. Tiene su
+  //    PROPIO sistema (Hacienda PR) con IVU del 11,5%, y aplica el modelo Wayfair igual que
+  //    los estados: umbral de **US$100.000 o 200 transacciones**. Es umbral REAL, así que
+  //    se vende sin alta hasta cruzarlo. Son 3,2 M de hispanohablantes.
+  //
+  // 🇻🇮 ISLAS VÍRGENES DE EE. UU. — tiene un gross receipts tax del 5%, pero **NO adoptó
+  //    reglas de nexo económico tipo Wayfair** para vendedores remotos. Sin régimen.
+  //
+  // 🏝️ CARIBE ORIENTAL (XCD) — se buscó un marco OECS armonizado y **NO EXISTE**: cada país
+  //    legisla por su cuenta. El único que se movió fue Granada, con una propuesta que aún
+  //    no es ley. Los siete restantes no tienen régimen para proveedores extranjeros.
+  //    Todos comparten el dólar del Caribe Oriental, que ya estaba en el catálogo.
+  //
+  // 🇬🇱 GROENLANDIA y 🇵🇲 SAN PEDRO Y MIQUELÓN — no existe IVA ni impuesto general al consumo.
+  //    Ambos están fuera del territorio IVA de la UE pese a su vínculo con Dinamarca y
+  //    Francia; no los cubre el OSS ni les aplica el IVA de esos países.
+  //
+  // 🚫 NO se integraron, porque SÍ tienen régimen para extranjeros con umbral cero:
+  //    🇧🇧 Barbados (VAT 17,5%) · 🇧🇸 Bahamas (VAT 10%) · 🇦🇼 Aruba (BBO 7%)
+  //    🇨🇼 Curazao (OB 6%, mensual) · 🇸🇽 Sint Maarten (TOT 5%, mensual incluso en cero)
+  //    🇬🇾 Guyana (VAT 14% + representante fiscal obligatorio)
+  PR: belowThreshold("IVU", 0.115, "USD"),             // Puerto Rico
+  VI: noDigitalRegime("Gross Receipts", 0.05, "USD"),  // Islas Vírgenes de EE. UU.
+  HT: noDigitalRegime("TCA", 0.10, "HTG"),             // Haití
+  BQ: noDigitalRegime("ABB", 0.08, "USD"),             // Bonaire
+  LC: noDigitalRegime("VAT", 0.125, "XCD"),            // Santa Lucía
+  VC: noDigitalRegime("VAT", 0.16, "XCD"),             // San Vicente y las Granadinas
+  AG: noDigitalRegime("ABST", 0.17, "XCD"),            // Antigua y Barbuda
+  KN: noDigitalRegime("VAT", 0.17, "XCD"),             // San Cristóbal y Nieves
+  DM: noDigitalRegime("VAT", 0.15, "XCD"),             // Dominica
+  AI: noDigitalRegime("GST", 0.13, "XCD"),             // Anguila
+  MS: noConsumptionTax("XCD"),                         // Montserrat
+  GL: noConsumptionTax("DKK"),                         // Groenlandia
+  PM: noConsumptionTax("EUR"),                         // San Pedro y Miquelón
+
 
   // ⚠️ Para agregar países fuera de la UE hace falta su FICHA en `impuestos.md`: tasa
   // confirmada contra la autoridad del país, quién recauda (`collectionMode`) y si el país

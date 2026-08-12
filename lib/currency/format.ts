@@ -144,6 +144,15 @@ export const NICE_STEP: Record<DisplayCurrency, number> = {
   // ⚠️ El vatu es moneda SIN decimales para Stripe: el paso debe ser entero.
   VUV: 20, //    1 USD ≈ 120 VUV   → 20 VUV ≈ 0.17 USD.
   WST: 0.5, //   1 USD ≈ 2.8 WST   → 0.5 WST ≈ 0.18 USD.
+  // --- Caribe ---
+  SRD: 5, //     1 USD ≈ 38 SRD   → 5 SRD  ≈ 0.13 USD.
+  BZD: 0.5, //   1 USD = 2 BZD    → 0.5 BZD ≈ 0.25 USD. Anclado 2:1 al dólar.
+  TTD: 1, //     1 USD ≈ 6.8 TTD  → 1 TTD  ≈ 0.15 USD.
+  JMD: 20, //    1 USD ≈ 158 JMD  → 20 JMD ≈ 0.13 USD.
+  KYD: 0.25, //  1 USD ≈ 0.82 KYD → 0.25 KYD ≈ 0.30 USD. Anclado al dólar.
+  BMD: 0.5, //   1 USD = 1 BMD    → 0.5 BMD = 0.50 USD. Anclado 1:1, igual que el ancla.
+  XCD: 0.5, //   1 USD ≈ 2.7 XCD  → 0.5 XCD ≈ 0.19 USD. Anclado al dólar.
+  HTG: 20, //    1 USD ≈ 132 HTG  → 20 HTG ≈ 0.15 USD.
 };
 
 /** Redondea a un múltiplo "bonito" según la moneda. */

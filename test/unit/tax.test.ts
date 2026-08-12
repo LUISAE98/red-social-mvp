@@ -1044,6 +1044,102 @@ describe("Microestados del Pacífico", () => {
   });
 });
 
+// 🏝️ Caribe. Un país bajo umbral (Surinam) y ocho sin régimen para proveedores extranjeros.
+describe("Caribe", () => {
+  it("Surinam vende bajo umbral, sin cobrar", () => {
+    expect(isChargeableCountry("SR")).toBe(true);
+    expect(platformCollectsTax("SR")).toBe(false);
+    expect(taxRateForCountry("SR")).toBeCloseTo(0.10, 8);
+    expect(chargeCurrencyForCountry("SR")).toBe("SRD");
+    expect(countryTaxConfig("SR")!.registrationStatus).toBe("not_registered");
+  });
+
+  it("los ocho sin régimen venden a cero", () => {
+    for (const iso of ["BZ","TT","JM","GD","KY","BM","TC","VG"]) {
+      expect(isChargeableCountry(iso), iso).toBe(true);
+      expect(computeConsumptionTax(100, iso).total, iso).toBe(100);
+      expect(platformCollectsTax(iso), iso).toBe(false);
+      expect(ALTAS_PENDIENTES, iso).not.toContain(iso);
+    }
+  });
+
+  // 🚨 Jamaica es el ÚNICO país de la tabla con FECHA CONOCIDA de cambio de régimen: su GCT
+  // del 15% sobre servicios digitales del exterior está anunciado para principios de 2027.
+  // Cuando entre en vigor hay que pasarlo a platformCollects con alta ante la TAJ (D-23).
+  // Hasta entonces la tasa se guarda pero NO se cobra.
+  it("🚨 Jamaica guarda su 15% pero HOY no cobra — cambia en 2027", () => {
+    expect(taxRateForCountry("JM")).toBeCloseTo(0.15, 8);
+    expect(platformCollectsTax("JM")).toBe(false);
+    expect(computeConsumptionTax(100, "JM").tax).toBe(0);
+    expect(countryTaxConfig("JM")!.taxName).toBe("GCT");
+  });
+
+  // Los cuatro paraísos no tienen impuesto en absoluto: tasa 0 de verdad, no "bajo umbral".
+  it("Caimán, Bermudas, Turcas y Caicos y BVI: tasa CERO real", () => {
+    for (const iso of ["KY","BM","TC","VG"]) {
+      expect(taxRateForCountry(iso), iso).toBe(0);
+      expect(countryTaxConfig(iso)!.collectionMode, iso).toBe("none");
+    }
+    // Contraste: Belice y Trinidad SÍ tienen impuesto, solo que no alcanza a extranjeros.
+    expect(taxRateForCountry("BZ")).toBeCloseTo(0.125, 8);
+    expect(taxRateForCountry("TT")).toBeCloseTo(0.125, 8);
+  });
+});
+
+// 🏝️ Caribe y territorios americanos, 2ª tanda. Doce sin régimen y Puerto Rico bajo umbral.
+describe("Caribe y territorios americanos", () => {
+  // 🚨 Puerto Rico NO está cubierto por la fila de Estados Unidos: tiene su propio sistema
+  // (Hacienda PR, IVU 11,5%) con umbral Wayfair propio de US$100.000 o 200 transacciones.
+  // Antes de integrarlo NO se le vendía, porque resolvía a "PR" y esa fila no existía.
+  it("🚨 Puerto Rico tiene fila propia, no hereda la de Estados Unidos", () => {
+    expect(isChargeableCountry("PR")).toBe(true);
+    expect(taxRateForCountry("PR")).toBeCloseTo(0.115, 8);
+    expect(countryTaxConfig("PR")!.taxName).toBe("IVU");
+    // Estados Unidos guarda 0 porque no hay tasa federal; Puerto Rico sí tiene la suya.
+    expect(taxRateForCountry("US")).toBe(0);
+    // Ambos bajo umbral: hoy ninguno cobra.
+    expect(platformCollectsTax("PR")).toBe(false);
+    expect(platformCollectsTax("US")).toBe(false);
+  });
+
+  it("los doce sin régimen venden a cero", () => {
+    for (const iso of ["VI","HT","BQ","LC","VC","AG","KN","DM","AI","MS","GL","PM"]) {
+      expect(isChargeableCountry(iso), iso).toBe(true);
+      expect(computeConsumptionTax(100, iso).total, iso).toBe(100);
+      expect(platformCollectsTax(iso), iso).toBe(false);
+      expect(ALTAS_PENDIENTES, iso).not.toContain(iso);
+    }
+  });
+
+  // Los siete del Caribe oriental comparten XCD. No hay marco OECS armonizado: se verificó.
+  it("el Caribe oriental comparte XCD y ninguno tiene régimen", () => {
+    for (const iso of ["LC","VC","AG","KN","DM","AI","MS"]) {
+      expect(chargeCurrencyForCountry(iso), iso).toBe("XCD");
+      expect(platformCollectsTax(iso), iso).toBe(false);
+    }
+    // Granada también es XCD y también sin régimen — su propuesta aún no es ley.
+    expect(chargeCurrencyForCountry("GD")).toBe("XCD");
+  });
+
+  // 🚨 Estos seis SÍ tienen régimen con umbral cero y por eso quedaron fuera. Si alguien los
+  // agrega "para completar el Caribe", estaría vendiendo sin alta donde sí se exige.
+  it("🚨 Barbados, Bahamas, Aruba, Curazao, Sint Maarten y Guyana siguen fuera", () => {
+    for (const iso of ["BB","BS","AW","CW","SX","GY"]) {
+      expect(countryTaxConfig(iso), iso).toBeNull();
+      expect(isChargeableCountry(iso), iso).toBe(false);
+    }
+  });
+
+  // Groenlandia y San Pedro y Miquelón están FUERA del territorio IVA de la UE pese a su
+  // vínculo con Dinamarca y Francia: no los cubre el OSS ni les aplica el IVA de esos países.
+  it("Groenlandia y San Pedro y Miquelón no heredan el IVA de la UE", () => {
+    expect(taxRateForCountry("GL")).toBe(0);
+    expect(taxRateForCountry("PM")).toBe(0);
+    expect(taxRateForCountry("DK")).toBeCloseTo(0.25, 8);
+    expect(taxRateForCountry("FR")).toBeCloseTo(0.20, 8);
+  });
+});
+
 // 🇲🇽 IVA mexicano sobre ventas al EXTRANJERO. Vibra es residente en México, así que por el
 // Art. 16 LIVA su venta siempre está dentro del objeto: lo que cambia es la tasa. Hoy 0% por
 // exportación en los 11 servicios (D-08 pendiente de fiscalista). Ver impuestos.md.

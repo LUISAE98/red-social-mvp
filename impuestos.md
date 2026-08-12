@@ -1575,6 +1575,105 @@ Queda como **D-22**.
 
 ---
 
+## 6.13 🏝️ Caribe (2026-08-11)
+
+Se integraron 9. ⚠️ **Belice se había ignorado por completo** en las listas anteriores: aquellas eran
+de "Latinoamérica" en sentido **lingüístico**, y Belice es anglófono. Geográficamente es
+Centroamérica. Lo mismo pasó con todo el Caribe.
+
+### ✅ Con umbral
+
+| País | Moneda | Idioma | TASA | Impuesto | Recaudación | Alta fiscal | Umbral | Estatus |
+|---|---|---|---|---|---|---|---|---|
+| 🇸🇷 Surinam | SRD | Neerlandés | 10% | VAT | Nadie (bajo umbral) | Belastingdienst | **SRD 500.000** (~US$13.000) | ✅ Activo |
+
+### 🟢 Sin régimen para extranjeros
+
+| País | Moneda | Idioma | TASA | Impuesto | Recaudación | Estatus |
+|---|---|---|---|---|---|---|
+| 🇧🇿 Belice | BZD | Inglés | 12,5% | GST | Nadie | ✅ Activo — **verificado** |
+| 🇹🇹 Trinidad y Tobago | TTD | Inglés | 12,5% | VAT | Nadie | ✅ Activo — ⚠️ **ambiguo** |
+| 🇯🇲 Jamaica | JMD | Inglés | 15% | GCT | Nadie | ✅ Activo — 🚨 **cambia en 2027** |
+| 🇬🇩 Granada | XCD | Inglés | 15% | VAT | Nadie | ✅ Activo — ⚠️ propuesta en curso |
+| 🇰🇾 Islas Caimán | KYD | Inglés | **0%** | No existe | Nadie | ✅ Activo |
+| 🇧🇲 Bermudas | BMD | Inglés | **0%** | No existe | Nadie | ✅ Activo |
+| 🇹🇨 Turcas y Caicos | **USD** | Inglés | **0%** | No existe | Nadie | ✅ Activo |
+| 🇻🇬 Islas Vírgenes Británicas | **USD** | Inglés | **0%** | No existe | Nadie | ✅ Activo |
+
+### 🚨 Jamaica: el único país con FECHA conocida de cambio
+
+Su **GCT del 15% sobre servicios digitales del exterior está anunciado y sería efectivo a
+principios de 2027**. Hoy no hay régimen, así que entra como `noDigitalRegime` y vende a cero.
+
+Cuando entre en vigor hay que pasarlo a `platformCollects` con alta ante la TAJ. Es el único caso
+de toda la tabla donde se sabe la fecha por adelantado. Queda como **D-23**.
+
+### ⚠️ Trinidad y Tobago es el más ambiguo de los 103
+
+**No hay legislación específica** para servicios digitales, pero algunas fuentes sugieren que una
+empresa extranjera igual tendría obligación de registro sin importar la facturación. Se integró
+como sin régimen porque no se encontró norma que lo exija — **si Trinidad gana volumen, consultar
+con asesor local antes de seguir vendiendo**.
+
+### 🏝️ Segunda tanda del Caribe y territorios americanos (2026-08-11)
+
+Investigación profunda por bloques. **13 integrados**, 6 fuera por exigir alta.
+
+| País | Moneda | Idioma | TASA | Impuesto | Recaudación | Declaración | Alta fiscal | Umbral | Estatus |
+|---|---|---|---|---|---|---|---|---|---|
+| 🇵🇷 Puerto Rico | USD | Español/Inglés | 11,5% | IVU | Nadie (bajo umbral) | Al registrarse | Hacienda PR | **US$100.000 o 200 transacciones** | ✅ Activo |
+| 🇻🇮 Islas Vírgenes EE. UU. | USD | Inglés | 5% | Gross Receipts | Nadie | Ninguna | **No adoptó nexo económico** | No aplica | ✅ Activo |
+| 🇭🇹 Haití | HTG | Francés/Criollo | 10% | TCA | Nadie | Ninguna | Sin régimen digital | No aplica | ✅ Activo |
+| 🇧🇶 Bonaire | USD | Neerlandés | 8% | ABB | Nadie | Ninguna | Sin régimen para extranjeros | No aplica | ✅ Activo |
+| 🇱🇨 Santa Lucía | XCD | Inglés | 12,5% | VAT | Nadie | Ninguna | Sin régimen para extranjeros | No aplica | ✅ Activo |
+| 🇻🇨 San Vicente y las Granadinas | XCD | Inglés | 16% | VAT | Nadie | Ninguna | Sin régimen para extranjeros | No aplica | ✅ Activo |
+| 🇦🇬 Antigua y Barbuda | XCD | Inglés | 17% | ABST | Nadie | Ninguna | Sin régimen para extranjeros | No aplica | ✅ Activo |
+| 🇰🇳 San Cristóbal y Nieves | XCD | Inglés | 17% | VAT | Nadie | Ninguna | Sin régimen para extranjeros | No aplica | ✅ Activo |
+| 🇩🇲 Dominica | XCD | Inglés | 15% | VAT | Nadie | Ninguna | Sin régimen para extranjeros | No aplica | ✅ Activo |
+| 🇦🇮 Anguila | XCD | Inglés | 13% | GST | Nadie | Ninguna | Sin régimen para extranjeros | No aplica | ✅ Activo |
+| 🇲🇸 Montserrat | XCD | Inglés | 0% | No existe | Nadie | Ninguna | No existe | No aplica | ✅ Activo |
+| 🇬🇱 Groenlandia | DKK | Groenlandés/Danés | 0% | No existe | Nadie | Ninguna | No existe | No aplica | ✅ Activo |
+| 🇵🇲 San Pedro y Miquelón | EUR | Francés | 0% | No existe | Nadie | Ninguna | No existe | No aplica | ✅ Activo |
+
+**Solo Haití trajo moneda nueva (HTG).** El resto reutiliza USD, XCD, DKK y EUR.
+
+### 🚨 Puerto Rico NO estaba cubierto por la fila de Estados Unidos
+
+Es el hallazgo que más valía: PR tiene **su propio sistema fiscal** (Hacienda PR, IVU 11,5%) con
+umbral Wayfair propio de **US$100.000 o 200 transacciones**. Antes resolvía a `PR`, esa fila no
+existía y **simplemente no se le vendía** — a 3,2 millones de hispanohablantes.
+Hay un test que verifica que no herede la fila de `US`. Cierra **D-24**.
+
+### 🏝️ El Caribe oriental está limpio, y se verificó
+
+Se buscó un **marco OECS armonizado y NO existe**: cada país legisla por su cuenta. El único que
+se movió fue Granada, con una propuesta que aún no es ley. Los siete restantes no tienen régimen
+para proveedores extranjeros, y **todos comparten XCD**.
+
+### 🇬🇱🇵🇲 Groenlandia y San Pedro y Miquelón
+
+Ninguno tiene IVA ni impuesto general al consumo, y **ambos están fuera del territorio IVA de la
+UE** pese a su vínculo con Dinamarca y Francia: no los cubre el OSS ni les aplica el IVA de esos
+países. Hay un test que lo fija.
+
+### 🔴 Del Caribe NO se integraron
+
+| País | Motivo |
+|---|---|
+| 🇧🇧 Barbados | VAT 17,5%, régimen para extranjeros desde dic-2019, **umbral cero** |
+| 🇨🇼 Curazao | **OB 6%** sobre servicios digitales de extranjeros, umbral cero, declaración **mensual** |
+| 🇸🇽 Sint Maarten | **TOT 5%**, no residentes se consideran domiciliados ante la Inspección, **mensual incluso declarando cero** |
+| 🇧🇸 Bahamas | VAT 10%, régimen vigente, umbral cero (⚠️ fuentes en conflicto) |
+| 🇦🇼 Aruba | BBO/BAVP/BAZV 7% sobre servicios electrónicos desde ene-2023, umbral cero |
+| 🇬🇾 Guyana | VAT 14% + **representante fiscal obligatorio** |
+| 🇭🇹 Haití | Sin verificar. Crisis de seguridad |
+| 🇨🇺 Cuba | Embargo integral OFAC |
+| Caribe oriental (7) · territorios menores | Sin verificar |
+
+✅ **🇵🇷 Puerto Rico se integró** con fila propia — ver arriba. **D-24 cerrada.**
+
+---
+
 ## 7. Estado y pendientes
 
 ### Países
@@ -1598,6 +1697,8 @@ Queda como **D-22**.
 | 🌍 África con alta obligatoria | NG · MA | 🟡 **Encendidos, alta PENDIENTE** | **Sí** — 7,5% NG · 20% MA |
 | 🌊 Oceanía con alta obligatoria | PF | 🟡 **Encendido, alta PENDIENTE** | **Sí** — 13% |
 | 🏝️ Microestados del Pacífico | 13 (TO·SB·VU·WS·KI·NR·TV·NU·WF·FM·MH·AS·MP) | ✅ Activos — ⚠️ sin verificar | No |
+| 🏝️ Caribe | SR (umbral) + BZ·TT·JM·GD·KY·BM·TC·VG | ✅ Activos | No |
+| 🏝️ Caribe y territorios (2ª) | PR (umbral) + VI·HT·BQ·LC·VC·AG·KN·DM·AI·MS·GL·PM | ✅ Activos | No |
 | ⬜ Resto de LatAm | CL · CO · PE · UY · BR | Sin ficha — **no cobrables** | — |
 | ⬜ Resto de Europa no-UE | CH · LI · MK | Fuera a propósito — representante fiscal / umbral mundial | — |
 | 🚫 Excluidos a propósito | UA (embargo regional) · RU · BY · CU (sanciones) · IL (decisión de Luis) | No integrar | — |
@@ -1607,7 +1708,7 @@ Queda como **D-22**.
 | 🚫 África — Stripe no procesa | SD · SS · SO · ER · LY + riesgo: ZW · BI · CF · CD · GN · GW · ML | No integrar | — |
 | ⬜ Resto del mundo | — | Sin ficha — **no cobrables** | — |
 
-**Total cobrable: 94 países.** De ellos, **46 cobran impuesto** (MX + 27 UE + 5 LatAm + 6 Europa no comunitaria + 4 Asia/Golfo + 2 África). Un país sin fila en `COUNTRY_TAX_CONFIG` no es cobrable y el
+**Total cobrable: 116 países.** De ellos, **46 cobran impuesto** (MX + 27 UE + 5 LatAm + 6 Europa no comunitaria + 4 Asia/Golfo + 2 África). Un país sin fila en `COUNTRY_TAX_CONFIG` no es cobrable y el
 checkout lo rechaza.
 
 ### Backend — ✅ hecho (2026-08-07)
@@ -1648,6 +1749,8 @@ checkout lo rechaza.
 | ~~D-14~~ | ~~🇺🇦 ¿Entrar a Ucrania?~~ **Resuelta 2026-08-08: NO.** Requeriría discriminación regional (Crimea/Donetsk/Lugansk bajo embargo OFAC) que no existe | ✅ |
 | **D-15** | 🇨🇦 Saskatchewan y Manitoba: sin umbral, obligación desde la venta 1. Exposición ~6,6% de Canadá **aceptada a conciencia**. Revisar si Canadá gana peso | Luis |
 | **D-16** | Resolución por **subdivisión** en `resolveCountry.ts`. Bloquea registrarse en 🇺🇸 y 🇨🇦, entrar a 🇺🇦, y **cobrar bien en los territorios UE fuera del IVA comunitario (D-22)**. **CUATRO** casos ya la piden | Luis + Claude |
+| **D-23** | 🇯🇲 Jamaica anuncia GCT 15% sobre digitales del exterior para **principios de 2027**. Único país con fecha conocida: pasar a `platformCollects` + alta ante la TAJ cuando entre en vigor. Ver §6.13 | Luis |
+| ~~D-24~~ | ~~🇵🇷 Puerto Rico sin fila~~ **Cerrada 2026-08-11: fila propia con IVU 11,5% y umbral Wayfair de US$100.000 o 200 transacciones** | ✅ |
 | **D-22** | 🚨 🇪🇸🇫🇷🇫🇮 **Canarias, Ceuta, Melilla, departamentos franceses de ultramar y Åland están FUERA del territorio IVA de la UE y el OSS no los cubre** — pero hoy se les cobra el IVA del país y se declararían por OSS. ~5,2 M de personas. Es el único de los cuatro casos de D-16 que ya cobra mal. Se resuelve por código postal. Ver §6.12 | Luis + Claude |
 | **D-17** | 🇺🇸 Gravabilidad de los 11 servicios estado por estado (~30 gravan digitales, ~25 SaaS; FL y VA eximen). Cerrarlo ANTES de registrarse en cualquier estado | Fiscalista US |
 | **D-10** | Vigilar a mano BO · SV · GT · HN · NI · PA: Stripe Tax no los cubre. **Panamá es el más urgente** (anteproyecto de 2019 reabierto) | Luis |
