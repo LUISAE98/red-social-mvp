@@ -31,7 +31,9 @@ export default function MenuMobilePage() {
         maxWidth: 720,
         margin: "0 auto",
         // Sin padding lateral aquí: OwnerSidebar ya trae sus propios 10px de panel.
-        padding: "16px 0 120px",
+        // Y abajo tampoco se libera el nav: eso ya lo reserva `.mainCol` en el
+        // layout protegido. Los 120px que había aquí se sumaban a los suyos.
+        padding: "16px 0 12px",
         color: "#fff",
       }}
     >

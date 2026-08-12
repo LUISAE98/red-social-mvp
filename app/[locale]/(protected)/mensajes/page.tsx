@@ -92,7 +92,11 @@ export default function MessagesPage() {
         .msgPage {
           max-width: 640px;
           margin: 0 auto;
-          padding: 8px 12px 96px;
+          /* Abajo NO se libera el nav: de eso ya se encarga el layout protegido
+             (mainCol reserva 84px + safe-area). Aquí había 96px extra, y el
+             resultado era un pozo vacío entre la última fila y el nav que se
+             leía como un segundo safe-area apilado. */
+          padding: 8px 12px 12px;
         }
         .msgPageHead {
           display: flex;

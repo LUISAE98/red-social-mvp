@@ -41,6 +41,18 @@ export async function requestCashout(): Promise<{ ok: boolean; amount: number }>
   return res.data;
 }
 
+/** 🧪 Solo-moderador (QA): captura un hold por su `pi_...` y emite crédito reembolsable. */
+export async function devCaptureAndCredit(
+  stripePaymentIntentId: string
+): Promise<{ ok: boolean; credited: number; externalReference: string }> {
+  const fn = httpsCallable<
+    { stripePaymentIntentId: string },
+    { ok: boolean; credited: number; externalReference: string }
+  >(functions, "devCaptureAndCredit");
+  const res = await fn({ stripePaymentIntentId });
+  return res.data;
+}
+
 /** El superadmin aprueba (dispara reembolsos) o rechaza (revierte) una solicitud. */
 export async function resolveCashout(
   cashoutId: string,

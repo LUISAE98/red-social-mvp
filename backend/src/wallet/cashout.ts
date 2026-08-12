@@ -19,6 +19,8 @@ import { onCall, HttpsError } from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
 import { stripeFetch, stripeSecretKey } from "../payments/stripe/stripeClient";
 import { spendBuyerCredit, revertBuyerCreditSpend } from "./buyerCredit";
+import { capturePaymentIntentForRef } from "../payments/stripe/holdCapture";
+import { refundExperienceToCredit } from "./refundToCredit";
 
 if (admin.apps.length === 0) {
   admin.initializeApp();
@@ -198,6 +200,65 @@ export const requestCashout = onCall(
 
     logger.info("cashout_requested", { cashoutId, uid, amount: reserved, origins: origins.length });
     return { ok: true, amount: reserved };
+  }
+);
+
+/**
+ * 🧪 HELPER DE PRUEBA (solo-moderador). Dado el `pi_...` de Stripe que ves en el dashboard,
+ * CAPTURA el hold de una experiencia (lo cobra de verdad) y emite el crédito de devolución
+ * reembolsable — para poder probar el cash-out sin esperar el día-6 ni el rechazo real.
+ * Atajo de QA; NO forma parte del flujo de producción.
+ */
+export const devCaptureAndCredit = onCall(
+  { region: "us-central1", secrets: [stripeSecretKey] },
+  async (request) => {
+    if (request.auth?.token?.["role"] !== "moderator") {
+      throw new HttpsError("permission-denied", "Solo moderadores.");
+    }
+    const stripePaymentIntentId = str(request.data?.stripePaymentIntentId).trim();
+    if (!stripePaymentIntentId) {
+      throw new HttpsError("invalid-argument", "Falta stripePaymentIntentId (pi_...).");
+    }
+
+    // Localiza el paymentIntents por el pi_... de Stripe.
+    const q = await db
+      .collection("paymentIntents")
+      .where("stripePaymentIntentId", "==", stripePaymentIntentId)
+      .limit(1)
+      .get();
+    if (q.empty) {
+      throw new HttpsError("not-found", "No hay paymentIntents con ese pi_...");
+    }
+    const doc = q.docs[0];
+    const pi = doc.data();
+    const externalReference = doc.id; // `${sourceType}__${sourceId}`
+    const sourceType = str(pi.sourceType);
+    const sourceId = str(pi.sourceId);
+    if (!EXPERIENCE_COLLECTION[sourceType]) {
+      throw new HttpsError("failed-precondition", `No es una experiencia con hold: ${sourceType}`);
+    }
+
+    // Resuelve comprador/creador (del intent o del doc de la experiencia).
+    const expRef = db.collection(EXPERIENCE_COLLECTION[sourceType]).doc(sourceId);
+    const expSnap = await expRef.get();
+    const exp = expSnap.data() ?? {};
+    const buyerId = str(pi.buyerId) || str(exp.buyerId);
+    const creatorId = str(pi.creatorId) || str(exp.creatorId) || str(exp.recipientId);
+    if (!buyerId) throw new HttpsError("failed-precondition", "Sin buyerId.");
+
+    // 1) Capturar el hold (cobra de verdad → el cargo queda reembolsable).
+    await capturePaymentIntentForRef(externalReference);
+    const now = FieldValue.serverTimestamp();
+    await doc.ref.set({ status: "paid", updatedAt: now }, { merge: true });
+    if (expSnap.exists) {
+      await expRef.set({ paymentStatus: "paid", paidAt: now, updatedAt: now }, { merge: true });
+    }
+
+    // 2) Emitir el crédito de devolución (reembolsable, con el cargo Stripe detrás).
+    const credited = await refundExperienceToCredit({ buyerId, creatorId, sourceType, sourceId });
+
+    logger.info("dev_capture_and_credit", { externalReference, buyerId, credited });
+    return { ok: true, externalReference, buyerId, credited };
   }
 );
 

@@ -11,6 +11,7 @@ import ServiceWorkerRegister from "./components/ServiceWorkerRegister";
 import DesktopRefreshSplash from "@/components/DesktopRefreshSplash";
 import { CurrencyProvider } from "./components/CurrencyProvider";
 import { buildCollageTiles } from "@/lib/collage";
+import { localeDir } from "@/i18n/locales";
 
 // Fuente variable (eje wght): permite cualquier peso 200–800, incluidos
 // intermedios como 650, no solo los estáticos.
@@ -57,7 +58,17 @@ export default async function RootLayout({
   const messages = await getMessages();
 
   return (
-    <html lang={locale} style={{ backgroundColor: "#000000" }} suppressHydrationWarning>
+    // `dir` sale de RTL_LOCALES, no de una heurística sobre el código de idioma.
+    // Sin él, el árabe se renderiza mal a nivel de CARÁCTER —orden invertido,
+    // puntuación en el extremo equivocado, inputs escribiendo al revés—, que es
+    // un fallo mucho peor que una maquetación sin espejar. El espejado visual de
+    // la interfaz va aparte: docs/rtl-pendiente.md.
+    <html
+      lang={locale}
+      dir={localeDir(locale)}
+      style={{ backgroundColor: "#000000" }}
+      suppressHydrationWarning
+    >
       <head>
         <style
           dangerouslySetInnerHTML={{

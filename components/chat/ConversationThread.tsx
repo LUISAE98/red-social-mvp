@@ -1201,9 +1201,18 @@ export default function ConversationThread({
                 style={{
                   display: "flex",
                   gap: 7,
-                  // `auto` y no 100%: el globo ya no tiene relleno propio, así
-                  // que la cita se separa de los bordes con su propio margen.
-                  width: "auto",
+                  // Ocupa TODO el ancho del globo (menos sus propios márgenes).
+                  // Con `auto` se encogía al contenido y quedaba una cita corta
+                  // flotando dentro de un globo ancho.
+                  //
+                  // El porcentaje no cuenta para calcular el ancho del globo, así
+                  // que no hay pescadilla: el globo lo miden el texto o la foto,
+                  // y la cita se estira hasta donde llegue.
+                  width: "calc(100% - 22px)",
+                  boxSizing: "border-box",
+                  // Suelo para que responder a algo largo con un "ok" no deje la
+                  // cita espachurrada en un globo diminuto.
+                  minWidth: 160,
                   textAlign: "left",
                   border: "none",
                   borderRadius: 7,
@@ -1212,7 +1221,6 @@ export default function ConversationThread({
                   margin: "8px 11px 5px",
                   cursor: "pointer",
                   fontFamily: "inherit",
-                  minWidth: 0,
                 }}
               >
                 <span
@@ -1224,13 +1232,17 @@ export default function ConversationThread({
                     background: "#a855f7",
                   }}
                 />
-                <span style={{ minWidth: 0, display: "grid", gap: 1 }}>
+                <span style={{ minWidth: 0, flex: 1, display: "grid", gap: 1 }}>
                   <span
                     style={{
                       fontSize: 11,
                       fontWeight: 600,
                       color: "#c99bf5",
                       lineHeight: 1.25,
+                      minWidth: 0,
+                      whiteSpace: "nowrap",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
                     }}
                   >
                     {message.replyTo.senderId === selfUid
@@ -1242,13 +1254,13 @@ export default function ConversationThread({
                       fontSize: 11.5,
                       color: "rgba(255,255,255,0.62)",
                       lineHeight: 1.3,
-                      // Dos líneas como mucho: la cita ubica, no vuelve a contar
-                      // el mensaje entero.
-                      display: "-webkit-box",
-                      WebkitLineClamp: 2,
-                      WebkitBoxOrient: "vertical",
+                      // UN renglón y lo que no quepa se corta con puntos
+                      // suspensivos. La cita está para ubicar de qué se habla,
+                      // no para volver a contar el mensaje entero.
+                      minWidth: 0,
+                      whiteSpace: "nowrap",
                       overflow: "hidden",
-                      overflowWrap: "anywhere",
+                      textOverflow: "ellipsis",
                     }}
                   >
                     {message.replyTo.text ||

@@ -177,18 +177,22 @@ function FeatureCell({
   title,
   description,
   color,
+  descColor,
 }: {
   icon: string;
   title: string;
   description: string;
   color: string;
+  descColor?: string;
 }) {
   return (
     <div style={rowStyle}>
       {ICONS[icon](color)}
       <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
         <span style={titleTextStyle}>{title}</span>
-        <span style={descTextStyle}>{description}</span>
+        <span style={descColor ? { ...descTextStyle, color: descColor } : descTextStyle}>
+          {description}
+        </span>
       </div>
     </div>
   );
@@ -200,6 +204,9 @@ export default function ServiceFeaturePreview({
   durationDescription,
   audience = "creator",
   firstCell,
+  cells: cellsOverride,
+  columns = 2,
+  descColor,
 }: {
   service: ServiceKey;
   accentColor: string;
@@ -223,6 +230,27 @@ export default function ServiceFeaturePreview({
    * Solo tiene efecto en el servicio `superComments`.
    */
   firstCell?: { icon: string; color: string; titleKey: string; descKey: string };
+  /**
+   * Sustituye por completo los items del servicio por unos propios (texto ya
+   * resuelto, no claves). Lo usa el login, donde una sola card cubre VARIAS
+   * experiencias —saludos y consejos, por ejemplo— y los textos por servicio se
+   * quedan cortos: hablan solo de una. El resto de la app no lo pasa y sigue
+   * viendo los items de siempre.
+   */
+  cells?: readonly { icon: string; title: string; description: string }[];
+  /**
+   * Columnas del mosaico de items. 2 por defecto (tarjetas del creador y
+   * wallet, donde el ancho manda). El login usa 1 para apilarlos: ahí cada card
+   * es angosta y en dos columnas los textos quedaban ilegibles.
+   */
+  columns?: 1 | 2;
+  /**
+   * Color de la descripción de cada item. Por defecto va tenue (42% de blanco),
+   * que funciona dentro de los paneles del creador. El login lo sube: ahí los
+   * items son parte de la presentación, sobre negro puro, y a ese gris casi no
+   * se le ve.
+   */
+  descColor?: string;
 }) {
   const rawT = useTranslations("services");
   // Intercambia por la variante de usuario ("<clave>User") cuando aplica.
@@ -267,16 +295,30 @@ export default function ServiceFeaturePreview({
 
   let cells: React.ReactNode;
 
-  if (service === "saludo" || service === "consejo") {
+  if (cellsOverride) {
     cells = (
       <>
-        <FeatureCell
+        {cellsOverride.map((c) => (
+          <FeatureCell descColor={descColor}
+            key={c.title}
+            icon={c.icon}
+            color={accentColor}
+            title={c.title}
+            description={c.description}
+          />
+        ))}
+      </>
+    );
+  } else if (service === "saludo" || service === "consejo") {
+    cells = (
+      <>
+        <FeatureCell descColor={descColor}
           icon="check"
           color={accentColor}
           title={service === "consejo" ? t("greetBadgeConsejo") : t("greetBadgeSaludo")}
           description={service === "consejo" ? t("featurePreviewConsejoCheckDesc") : t("featurePreviewSaludoCheckDesc")}
         />
-        <FeatureCell
+        <FeatureCell descColor={descColor}
           icon="download"
           color={accentColor}
           title={t("downloadableLabel")}
@@ -287,41 +329,41 @@ export default function ServiceFeaturePreview({
   } else if (service === "meetGreet") {
     cells = (
       <>
-        <FeatureCell icon="clock" color={accentColor} title={t("duration")} description={durationDesc} />
-        <FeatureCell icon="camera" color={accentColor} title={t("modalityLabel")} description={t("fromAnywhereDesc")} />
+        <FeatureCell descColor={descColor} icon="clock" color={accentColor} title={t("duration")} description={durationDesc} />
+        <FeatureCell descColor={descColor} icon="camera" color={accentColor} title={t("modalityLabel")} description={t("fromAnywhereDesc")} />
         {IncludesCell}
-        <FeatureCell icon="calendar" color={accentColor} title={t("scheduleDateTimeLabel")} description={t("featurePreviewScheduleDesc")} />
+        <FeatureCell descColor={descColor} icon="calendar" color={accentColor} title={t("scheduleDateTimeLabel")} description={t("featurePreviewScheduleDesc")} />
       </>
     );
   } else if (service === "customClass") {
     // sesión exclusiva
     cells = (
       <>
-        <FeatureCell icon="clock" color={accentColor} title={t("duration")} description={durationDesc} />
-        <FeatureCell icon="camera" color={accentColor} title={t("modalityLabel")} description={t("fromAnywhereDesc")} />
-        <FeatureCell icon="focus" color={accentColor} title={t("exclusiveSessionFocusedLabel")} description={t("featurePreviewFocusedDesc")} />
-        <FeatureCell icon="lock" color={accentColor} title={t("exclusiveSessionPrivateLabel")} description={t("exclusiveSessionPrivateDesc")} />
+        <FeatureCell descColor={descColor} icon="clock" color={accentColor} title={t("duration")} description={durationDesc} />
+        <FeatureCell descColor={descColor} icon="camera" color={accentColor} title={t("modalityLabel")} description={t("fromAnywhereDesc")} />
+        <FeatureCell descColor={descColor} icon="focus" color={accentColor} title={t("exclusiveSessionFocusedLabel")} description={t("featurePreviewFocusedDesc")} />
+        <FeatureCell descColor={descColor} icon="lock" color={accentColor} title={t("exclusiveSessionPrivateLabel")} description={t("exclusiveSessionPrivateDesc")} />
         {IncludesCell}
-        <FeatureCell icon="calendar" color={accentColor} title={t("scheduleDateTimeLabel")} description={t("featurePreviewScheduleDesc")} />
+        <FeatureCell descColor={descColor} icon="calendar" color={accentColor} title={t("scheduleDateTimeLabel")} description={t("featurePreviewScheduleDesc")} />
       </>
     );
   } else if (service === "liveAccess") {
     // acceso a transmisiones en vivo
     cells = (
       <>
-        <FeatureCell icon="lock" color={accentColor} title={t("liveAccessTicketLabel")} description={t("liveAccessTicketDesc")} />
-        <FeatureCell icon="star" color={accentColor} title={t("liveAccessSuperLabel")} description={t("liveAccessSuperDesc")} />
-        <FeatureCell icon="heart" color={accentColor} title={t("liveAccessDonationLabel")} description={t("liveAccessDonationDesc")} />
+        <FeatureCell descColor={descColor} icon="lock" color={accentColor} title={t("liveAccessTicketLabel")} description={t("liveAccessTicketDesc")} />
+        <FeatureCell descColor={descColor} icon="star" color={accentColor} title={t("liveAccessSuperLabel")} description={t("liveAccessSuperDesc")} />
+        <FeatureCell descColor={descColor} icon="heart" color={accentColor} title={t("liveAccessDonationLabel")} description={t("liveAccessDonationDesc")} />
       </>
     );
   } else if (service === "subscription") {
     // suscripciones a tu comunidad
     cells = (
       <>
-        <FeatureCell icon="calendar" color={accentColor} title={t("subscriptionPreviewRecurringLabel")} description={t("subscriptionPreviewRecurringDesc")} />
-        <FeatureCell icon="star" color={accentColor} title={t("subscriptionPreviewExclusiveLabel")} description={t("subscriptionPreviewExclusiveDesc")} />
-        <FeatureCell icon="heart" color={accentColor} title={t("subscriptionPreviewBenefitsLabel")} description={t("subscriptionPreviewBenefitsDesc")} />
-        <FeatureCell icon="check" color={accentColor} title={t("subscriptionPreviewPriceLabel")} description={t("subscriptionPreviewPriceDesc")} />
+        <FeatureCell descColor={descColor} icon="calendar" color={accentColor} title={t("subscriptionPreviewRecurringLabel")} description={t("subscriptionPreviewRecurringDesc")} />
+        <FeatureCell descColor={descColor} icon="star" color={accentColor} title={t("subscriptionPreviewExclusiveLabel")} description={t("subscriptionPreviewExclusiveDesc")} />
+        <FeatureCell descColor={descColor} icon="heart" color={accentColor} title={t("subscriptionPreviewBenefitsLabel")} description={t("subscriptionPreviewBenefitsDesc")} />
+        <FeatureCell descColor={descColor} icon="check" color={accentColor} title={t("subscriptionPreviewPriceLabel")} description={t("subscriptionPreviewPriceDesc")} />
       </>
     );
   } else if (service === "superComments") {
@@ -329,62 +371,71 @@ export default function ServiceFeaturePreview({
     cells = (
       <>
         {firstCell ? (
-          <FeatureCell
+          <FeatureCell descColor={descColor}
             icon={firstCell.icon}
             color={firstCell.color}
             title={t(firstCell.titleKey)}
             description={t(firstCell.descKey)}
           />
         ) : (
-          <FeatureCell icon="star" color={accentColor} title={t("superCommentsPreviewTiersLabel")} description={t("superCommentsPreviewTiersDesc")} />
+          <FeatureCell descColor={descColor} icon="star" color={accentColor} title={t("superCommentsPreviewTiersLabel")} description={t("superCommentsPreviewTiersDesc")} />
         )}
-        <FeatureCell icon="focus" color={accentColor} title={t("superCommentsPreviewPinLabel")} description={t("superCommentsPreviewPinDesc")} />
-        <FeatureCell icon="camera" color={accentColor} title={t("superCommentsPreviewLiveLabel")} description={t("superCommentsPreviewLiveDesc")} />
-        <FeatureCell icon="check" color={accentColor} title={t("superCommentsPreviewPriceLabel")} description={t("superCommentsPreviewPriceDesc")} />
+        <FeatureCell descColor={descColor} icon="focus" color={accentColor} title={t("superCommentsPreviewPinLabel")} description={t("superCommentsPreviewPinDesc")} />
+        <FeatureCell descColor={descColor} icon="camera" color={accentColor} title={t("superCommentsPreviewLiveLabel")} description={t("superCommentsPreviewLiveDesc")} />
+        <FeatureCell descColor={descColor} icon="check" color={accentColor} title={t("superCommentsPreviewPriceLabel")} description={t("superCommentsPreviewPriceDesc")} />
       </>
     );
   } else if (service === "liveDonation") {
     // donaciones en vivo
     cells = (
       <>
-        <FeatureCell icon="heart" color={accentColor} title={t("liveDonationPreviewSupportLabel")} description={t("liveDonationPreviewSupportDesc")} />
-        <FeatureCell icon="focus" color={accentColor} title={t("liveDonationPreviewShowLabel")} description={t("liveDonationPreviewShowDesc")} />
-        <FeatureCell icon="includes" color={accentColor} title={t("liveDonationPreviewAnyoneLabel")} description={t("liveDonationPreviewAnyoneDesc")} />
+        <FeatureCell descColor={descColor} icon="heart" color={accentColor} title={t("liveDonationPreviewSupportLabel")} description={t("liveDonationPreviewSupportDesc")} />
+        <FeatureCell descColor={descColor} icon="focus" color={accentColor} title={t("liveDonationPreviewShowLabel")} description={t("liveDonationPreviewShowDesc")} />
+        <FeatureCell descColor={descColor} icon="includes" color={accentColor} title={t("liveDonationPreviewAnyoneLabel")} description={t("liveDonationPreviewAnyoneDesc")} />
       </>
     );
   } else if (service === "profileDonation") {
     // donaciones en tu perfil
     cells = (
       <>
-        <FeatureCell icon="heart" color={accentColor} title={t("profileDonationPreviewAnytimeLabel")} description={t("profileDonationPreviewAnytimeDesc")} />
-        <FeatureCell icon="star" color={accentColor} title={t("profileDonationPreviewMessageLabel")} description={t("profileDonationPreviewMessageDesc")} />
-        <FeatureCell icon="camera" color={accentColor} title={t("profileDonationPreviewVideoLabel")} description={t("profileDonationPreviewVideoDesc")} />
-        <FeatureCell icon="check" color={accentColor} title={t("profileDonationPreviewMinLabel")} description={t("profileDonationPreviewMinDesc")} />
+        <FeatureCell descColor={descColor} icon="heart" color={accentColor} title={t("profileDonationPreviewAnytimeLabel")} description={t("profileDonationPreviewAnytimeDesc")} />
+        <FeatureCell descColor={descColor} icon="star" color={accentColor} title={t("profileDonationPreviewMessageLabel")} description={t("profileDonationPreviewMessageDesc")} />
+        <FeatureCell descColor={descColor} icon="camera" color={accentColor} title={t("profileDonationPreviewVideoLabel")} description={t("profileDonationPreviewVideoDesc")} />
+        <FeatureCell descColor={descColor} icon="check" color={accentColor} title={t("profileDonationPreviewMinLabel")} description={t("profileDonationPreviewMinDesc")} />
       </>
     );
   } else if (service === "vodUnlock") {
     // acceso a videos exclusivos
     cells = (
       <>
-        <FeatureCell icon="lock" color={accentColor} title={t("vodUnlockPreviewOneTimeLabel")} description={t("vodUnlockPreviewOneTimeDesc")} />
-        <FeatureCell icon="camera" color={accentColor} title={t("vodUnlockPreviewLongLabel")} description={t("vodUnlockPreviewLongDesc")} />
-        <FeatureCell icon="star" color={accentColor} title={t("vodUnlockPreviewSubsLabel")} description={t("vodUnlockPreviewSubsDesc")} />
-        <FeatureCell icon="check" color={accentColor} title={t("vodUnlockPreviewPriceLabel")} description={t("vodUnlockPreviewPriceDesc")} />
+        <FeatureCell descColor={descColor} icon="lock" color={accentColor} title={t("vodUnlockPreviewOneTimeLabel")} description={t("vodUnlockPreviewOneTimeDesc")} />
+        <FeatureCell descColor={descColor} icon="camera" color={accentColor} title={t("vodUnlockPreviewLongLabel")} description={t("vodUnlockPreviewLongDesc")} />
+        <FeatureCell descColor={descColor} icon="star" color={accentColor} title={t("vodUnlockPreviewSubsLabel")} description={t("vodUnlockPreviewSubsDesc")} />
+        <FeatureCell descColor={descColor} icon="check" color={accentColor} title={t("vodUnlockPreviewPriceLabel")} description={t("vodUnlockPreviewPriceDesc")} />
       </>
     );
   } else {
     // premiumPost (publicaciones premium)
     cells = (
       <>
-        <FeatureCell icon="lock" color={accentColor} title={t("premiumPostPreviewUnlockLabel")} description={t("premiumPostPreviewUnlockDesc")} />
-        <FeatureCell icon="camera" color={accentColor} title={t("premiumPostPreviewFeedLabel")} description={t("premiumPostPreviewFeedDesc")} />
-        <FeatureCell icon="star" color={accentColor} title={t("premiumPostPreviewSubsLabel")} description={t("premiumPostPreviewSubsDesc")} />
-        <FeatureCell icon="check" color={accentColor} title={t("premiumPostPreviewPriceLabel")} description={t("premiumPostPreviewPriceDesc")} />
+        <FeatureCell descColor={descColor} icon="lock" color={accentColor} title={t("premiumPostPreviewUnlockLabel")} description={t("premiumPostPreviewUnlockDesc")} />
+        <FeatureCell descColor={descColor} icon="camera" color={accentColor} title={t("premiumPostPreviewFeedLabel")} description={t("premiumPostPreviewFeedDesc")} />
+        <FeatureCell descColor={descColor} icon="star" color={accentColor} title={t("premiumPostPreviewSubsLabel")} description={t("premiumPostPreviewSubsDesc")} />
+        <FeatureCell descColor={descColor} icon="check" color={accentColor} title={t("premiumPostPreviewPriceLabel")} description={t("premiumPostPreviewPriceDesc")} />
       </>
     );
   }
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 10 }}>{cells}</div>
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: columns === 1 ? "1fr" : "1fr 1fr",
+        gap: columns === 1 ? 12 : 8,
+        marginTop: 10,
+      }}
+    >
+      {cells}
+    </div>
   );
 }

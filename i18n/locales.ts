@@ -35,6 +35,10 @@ export type LocaleMeta = {
  * `es`, `en` y `pt-BR` son los que ya existían.
  */
 export const LOCALE_META: readonly LocaleMeta[] = [
+  // ⚠️ ÚNICO locale RTL de momento. Ver RTL_LOCALES y localeDir al final del
+  // archivo: la dirección NO se deduce del código, sale de una tabla explícita.
+  // 6 categorías de plural (zero/one/two/few/many/other), el máximo de CLDR.
+  { code: "ar", label: "AR", name: "العربية", intl: "ar", ready: true },
   // Aglutinante con armonía vocálica como el turco y emparentado con él, pero NO
   // mutuamente inteligible: se escribió aparte. Alfabeto latino (Azerbaiyán lo usa
   // desde 1991) y con la letra ə, que el turco no tiene.
@@ -52,6 +56,9 @@ export const LOCALE_META: readonly LocaleMeta[] = [
   { code: "en", label: "EN", name: "English", intl: "en-US", ready: true },
   { code: "es", label: "ES", name: "Español", intl: "es-MX", ready: true },
   { code: "et", label: "ET", name: "Eesti", intl: "et-EE", ready: true },
+  // Alfabeto latino y plurales one/other. En Filipinas el inglés es cooficial y de
+  // uso corriente, así que este idioma es una mejora, no un rescate.
+  { code: "fil", label: "FIL", name: "Filipino", intl: "fil", ready: true },
   { code: "fi", label: "FI", name: "Suomi", intl: "fi-FI", ready: true },
   { code: "fr", label: "FR", name: "Français", intl: "fr-FR", ready: true },
   { code: "ga", label: "GA", name: "Gaeilge", intl: "ga-IE", ready: true },
@@ -71,6 +78,8 @@ export const LOCALE_META: readonly LocaleMeta[] = [
   { code: "ko", label: "KO", name: "한국어", intl: "ko-KR", ready: true },
   { code: "lt", label: "LT", name: "Lietuvių", intl: "lt-LT", ready: true },
   { code: "lv", label: "LV", name: "Latviešu", intl: "lv-LV", ready: true },
+  // Cirílico mongol (no la escritura tradicional vertical, que Intl no soporta).
+  { code: "mn", label: "MN", name: "Монгол", intl: "mn", ready: true },
   { code: "ms", label: "MS", name: "Bahasa Melayu", intl: "ms-MY", ready: true },
   { code: "mt", label: "MT", name: "Malti", intl: "mt-MT", ready: true },
   // Bokmål, no nynorsk: es la variante escrita de ~85–90 % de los noruegos y la
@@ -86,13 +95,12 @@ export const LOCALE_META: readonly LocaleMeta[] = [
   { code: "ro", label: "RO", name: "Română", intl: "ro-RO", ready: true },
   { code: "sk", label: "SK", name: "Slovenčina", intl: "sk-SK", ready: true },
   { code: "sl", label: "SL", name: "Slovenščina", intl: "sl-SI", ready: true },
+  // Sin pariente en el repertorio: no se deriva de nadie, está escrito.
+  { code: "sq", label: "SQ", name: "Shqip", intl: "sq-AL", ready: true },
   // EKAVO (vreme, mesec) frente al ijekavo del bosnio, y futuro sintético
   // (Pojaviće se, no Pojavit će se). Se derivó de `bs` con una lista CERRADA de
   // raíces con yat: un `je → e` a ciegas se comería `nije`, `jedan` y todos los
   // sustantivos en -nje sin dar un solo error. Alfabeto latino, no cirílico.
-  // Único de los cinco sin pariente en el repertorio: no se deriva de nadie, está
-  // escrito. Plurales one/other.
-  { code: "sq", label: "SQ", name: "Shqip", intl: "sq-AL", ready: true },
   { code: "sr", label: "SR", name: "Srpski", intl: "sr-Latn-RS", ready: true },
   { code: "sv", label: "SV", name: "Svenska", intl: "sv-SE", ready: true },
   // El tailandés no tiene plural gramatical: TODOS sus `plural` son `other`-only.
@@ -102,12 +110,12 @@ export const LOCALE_META: readonly LocaleMeta[] = [
   // placeholder porque su vocal depende de la palabra que los precede. Por eso los
   // mensajes con {name} llevan detrás una palabra fija ("{name} adlı kişiye").
   { code: "tr", label: "TR", name: "Türkçe", intl: "tr-TR", ready: true },
-  // Taiwán usa caracteres TRADICIONALES y vocabulario propio (影片 no 视频,
-  // 網路 no 网络, 貼文 no 帖子). Por eso es `zh-TW` y no un `zh` genérico:
-  // deja sitio a un `zh-CN` simplificado si algún día entra China continental.
   // Sin plural gramatical y con clasificadores, como el tailandés. ⚠️ Vietnam cobra
   // al 7 % por el CIT vietnamita, no al tipo global de FX: ver COUNTRY_TAX_CONFIG.
   { code: "vi", label: "VI", name: "Tiếng Việt", intl: "vi-VN", ready: true },
+  // Taiwán usa caracteres TRADICIONALES y vocabulario propio (影片 no 视频,
+  // 網路 no 网络, 貼文 no 帖子). Por eso es `zh-TW` y no un `zh` genérico:
+  // deja sitio a un `zh-CN` simplificado si algún día entra China continental.
   { code: "zh-TW", label: "TW", name: "繁體中文", intl: "zh-TW", ready: true },
 ];
 
@@ -117,7 +125,7 @@ export const LOCALE_META: readonly LocaleMeta[] = [
  * en toda la app. Al terminar el archivo de un idioma: pon su `ready: true` arriba
  * Y agrégalo a esta tupla. El test de i18n verifica que ambas listas coincidan.
  */
-export const READY_LOCALES = ["es", "en", "pt-BR", "de", "fr", "it", "nl", "pl", "ro", "el", "cs", "hu", "sv", "pt-PT", "da", "fi", "sk", "bg", "hr", "lt", "sl", "lv", "et", "ga", "mt", "ja", "zh-TW", "id", "ms", "th", "bs", "nb", "is", "tr", "ko", "vi", "sr", "sq", "az", "ca"] as const;
+export const READY_LOCALES = ["es", "en", "pt-BR", "de", "fr", "it", "nl", "pl", "ro", "el", "cs", "hu", "sv", "pt-PT", "da", "fi", "sk", "bg", "hr", "lt", "sl", "lv", "et", "ga", "mt", "ja", "zh-TW", "id", "ms", "th", "bs", "nb", "is", "tr", "ko", "vi", "sr", "sq", "az", "ca", "ar", "fil", "mn"] as const;
 
 export type Locale = (typeof READY_LOCALES)[number];
 
@@ -227,6 +235,17 @@ export const NON_EU_COUNTRY_TO_LOCALE: Readonly<Record<string, string>> = {
   RS: "sr", // Serbia
   AL: "sq", // Albania
   AZ: "az", // Azerbaiyán
+
+  // Árabe. Siete países, todos fuera de la UE.
+  SA: "ar", // Arabia Saudita
+  AE: "ar", // Emiratos Árabes Unidos
+  QA: "ar", // Catar
+  KW: "ar", // Kuwait
+  JO: "ar", // Jordania
+  EG: "ar", // Egipto
+  MN: "mn", // Mongolia
+  PH: "fil", // Filipinas — inglés cooficial, pero el filipino es el idioma nacional
+  MA: "ar", // Marruecos — el francés también es de uso corriente, pero el árabe es el oficial
   AD: "ca", // Andorra — el catalán es la única lengua oficial del país
   NO: "nb", // Noruega
   IS: "is", // Islandia
@@ -295,3 +314,25 @@ export const NON_EU_COUNTRY_TO_LOCALE: Readonly<Record<string, string>> = {
   GL: "en", // Groenlandia
   FO: "en", // Islas Feroe
 };
+
+/**
+ * Locales que se escriben de DERECHA A IZQUIERDA.
+ *
+ * Fuente única de la dirección del documento. El `dir` del `<html>` sale de aquí
+ * (ver app/layout.tsx) y NO se deduce del locale con una heurística: no hay forma
+ * de saber la dirección de un código de idioma sin una tabla, y adivinarla mal
+ * rompe el renderizado del texto entero, no solo la maquetación.
+ *
+ * ⚠️ `dir="rtl"` NO refleja la interfaz por sí solo. Lo que arregla es la capa de
+ * TEXTO —orden de los caracteres, posición de los signos de puntuación, dirección
+ * de escritura en los inputs, alineación por defecto— y eso hay que activarlo sí
+ * o sí: sin ello el árabe se lee mal a nivel de carácter, que es mucho peor que
+ * una maquetación sin espejar. El espejado visual de la interfaz es un trabajo
+ * aparte y progresivo (ver docs/rtl-pendiente.md).
+ */
+export const RTL_LOCALES: ReadonlySet<string> = new Set(["ar"]);
+
+/** "rtl" si el locale se escribe de derecha a izquierda; "ltr" en cualquier otro caso. */
+export function localeDir(locale: string | null | undefined): "rtl" | "ltr" {
+  return locale && RTL_LOCALES.has(locale) ? "rtl" : "ltr";
+}

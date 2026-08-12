@@ -11,7 +11,7 @@ import {
   getDoc,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { resolveCashout, type CashoutRequestDoc } from "@/lib/wallet/cashout";
+import { resolveCashout, devCaptureAndCredit, type CashoutRequestDoc } from "@/lib/wallet/cashout";
 import { useAdminPreview } from "../context";
 
 const TYPE_LABELS: Record<string, string> = {
@@ -53,6 +53,25 @@ export default function AdminRefundsPage() {
   const [creatorNames, setCreatorNames] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [devPi, setDevPi] = useState("");
+  const [devBusy, setDevBusy] = useState(false);
+  const [devMsg, setDevMsg] = useState<string | null>(null);
+
+  async function handleDevCapture() {
+    const pi = devPi.trim();
+    if (!pi || devBusy) return;
+    setDevBusy(true);
+    setDevMsg(null);
+    try {
+      const res = await devCaptureAndCredit(pi);
+      setDevMsg(`✓ Capturado y acreditado $${(res.credited ?? 0).toFixed(2)} (${res.externalReference}). Ahora el comprador puede pedir efectivo.`);
+      setDevPi("");
+    } catch (e: unknown) {
+      setDevMsg(e instanceof Error ? e.message : "No se pudo capturar/acreditar.");
+    } finally {
+      setDevBusy(false);
+    }
+  }
 
   useEffect(() => {
     const q = query(
@@ -160,6 +179,33 @@ export default function AdminRefundsPage() {
           {error}
         </div>
       )}
+
+      {/* 🧪 Herramienta de PRUEBA (QA): captura un hold por su pi_... y emite crédito
+          reembolsable, para poder probar el cash-out sin esperar el día-6 ni el rechazo. */}
+      <div style={{ padding: "12px 14px", background: "#0d0d0d", border: "1px dashed #2a2a2a", borderRadius: 10, marginBottom: 18 }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: "#666", marginBottom: 8, letterSpacing: "0.04em" }}>
+          🧪 PRUEBA — capturar hold + acreditar (pega el <code>pi_…</code> del dashboard de Stripe)
+        </div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <input
+            value={devPi}
+            onChange={(e) => setDevPi(e.target.value)}
+            placeholder="pi_3U3h..."
+            spellCheck={false}
+            style={{ flex: 1, background: "#111", border: "1px solid #222", borderRadius: 8, padding: "8px 10px", fontSize: 12, color: "#ddd", outline: "none", fontFamily: "monospace" }}
+          />
+          <button
+            onClick={handleDevCapture}
+            disabled={devBusy || !devPi.trim()}
+            style={{ padding: "8px 14px", borderRadius: 8, border: "1px solid #2a2a2a", background: "#1a1a1a", color: "#aaa", fontSize: 12, fontWeight: 600, cursor: devBusy ? "wait" : "pointer", whiteSpace: "nowrap" }}
+          >
+            {devBusy ? "…" : "Capturar + acreditar"}
+          </button>
+        </div>
+        {devMsg && (
+          <div style={{ fontSize: 12, color: devMsg.startsWith("✓") ? "#34d399" : "#f87171", marginTop: 8 }}>{devMsg}</div>
+        )}
+      </div>
 
       {loading ? (
         <div style={{ color: "#555", fontSize: 14 }}>Cargando…</div>

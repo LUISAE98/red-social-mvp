@@ -10,6 +10,8 @@ import {
   nearestReadyLocale,
   intlLocale,
   isReadyLocale,
+  RTL_LOCALES,
+  localeDir,
 } from "@/i18n/locales";
 import { localeFromCountry } from "@/i18n/localeFromCountry";
 import { routing } from "@/i18n/routing";
@@ -386,6 +388,28 @@ describe("i18n / detección por país", () => {
     for (const cc of ["WS", "TO", "VU", "TV", "GL", "FO"]) {
       expect(NON_EU_COUNTRY_TO_LOCALE[cc], `${cc} perdió su entrada explícita`).toBe("en");
       expect(localeFromCountry(cc)).toBe("en");
+    }
+  });
+
+  it("la dirección del documento sale de la tabla, no de una heurística", () => {
+    // `dir` en el <html> se calcula con esto (app/layout.tsx). Si `ar` deja de
+    // marcarse como RTL, el árabe no se ve "sin espejar": se rompe a nivel de
+    // CARÁCTER —orden invertido, puntuación al lado contrario, inputs escribiendo
+    // al revés— y eso no lo detecta ningún test de traducción.
+    expect(localeDir("ar")).toBe("rtl");
+    for (const code of READY_LOCALES) {
+      if (RTL_LOCALES.has(code)) continue;
+      expect(localeDir(code), `${code} no debería ser RTL`).toBe("ltr");
+    }
+    // Sin locale (petición sin resolver todavía) el documento no puede quedarse
+    // sin dirección: LTR es el único valor seguro por defecto.
+    expect(localeDir(null)).toBe("ltr");
+    expect(localeDir(undefined)).toBe("ltr");
+
+    // Un RTL que no se sirva sería una entrada muerta: la dirección se aplicaría
+    // a un locale que nadie puede seleccionar.
+    for (const code of RTL_LOCALES) {
+      expect(isReadyLocale(code), `${code} está en RTL_LOCALES pero no se sirve`).toBe(true);
     }
   });
 

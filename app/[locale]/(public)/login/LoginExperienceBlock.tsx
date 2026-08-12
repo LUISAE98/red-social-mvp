@@ -1,18 +1,16 @@
 "use client";
 
-import type React from "react";
 import ServiceFeaturePreview from "@/components/services/ServiceFeaturePreview";
 
 /**
- * Un bloque de experiencia del login (debajo del fold): video circular,
- * antetítulo, título, descripción y los items del servicio.
+ * Un bloque de experiencia del login (debajo del fold).
  *
- * Es genérico a propósito. Ya hay dos bloques con la misma estructura —saludos y
- * encuentros— y vendrán más; tenerlos en un solo componente evita repetir 120
- * líneas de CSS por cada experiencia y garantiza que el ritmo vertical sea
- * idéntico en todos.
+ * En laptop ocupa una FILA completa partida en dos mitades: de un lado el video
+ * circular con el título y la descripción, del otro los items. El lado de los
+ * items se ALTERNA fila tras fila (`itemsLeft`), que es lo que le da ritmo a la
+ * lectura en vez de una columna monótona.
  *
- * Se desarrolla PRIMERO en laptop; el acomodo fino de celular es un paso aparte.
+ * En celular se apila todo; el acomodo fino de móvil es un paso aparte.
  */
 
 /**
@@ -40,7 +38,8 @@ export default function LoginExperienceBlock({
   poster,
   service,
   accentColor,
-  wide = false,
+  items,
+  itemsLeft = false,
 }: {
   /** Antetítulo. El CSS lo pinta en MAYÚSCULAS. */
   eyebrow: string;
@@ -53,41 +52,61 @@ export default function LoginExperienceBlock({
   /**
    * Servicio(s) de los que se listan los items (reutiliza ServiceFeaturePreview).
    * Con varios, un solo bloque cubre varias experiencias emparentadas y sus
-   * items se reparten en columnas.
+   * listas se apilan una tras otra.
    */
   service: ServiceKey | readonly ServiceKey[];
   accentColor: string;
   /**
-   * Ocupa la fila COMPLETA de la rejilla en vez de una columna. Para las
-   * experiencias que se cuentan juntas y necesitan más aire que un tercio.
+   * Items propios en vez de los del servicio. Necesario cuando una card cubre
+   * varias experiencias: los textos de ServiceFeaturePreview hablan de una
+   * sola ("recibes un saludo…") y aquí tienen que abarcar todas.
+   * Solo aplica con UN servicio; con varios, cada uno trae los suyos.
    */
-  wide?: boolean;
+  items?: readonly { icon: string; title: string; description: string }[];
+  /** Los items van a la IZQUIERDA. Se alterna bloque a bloque. */
+  itemsLeft?: boolean;
 }) {
   const services = Array.isArray(service) ? service : [service as ServiceKey];
 
   return (
-    <section className={wide ? "expBlock expBlockWide" : "expBlock"}>
+    <section className={itemsLeft ? "expBlock expBlockFlip" : "expBlock"}>
       <style jsx>{`
-        /* Es una COLUMNA de la fila de experiencias: no fija ancho ni se centra a
-           sí misma — de eso se encarga la rejilla del padre (.loginExpGrid). */
+        /* Una fila = dos mitades. Las dos con minmax(0, 1fr) para que ninguna se
+           ensanche por su contenido y las filas queden alineadas entre sí. */
         .expBlock {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+          align-items: center;
+          gap: 48px;
           width: 100%;
-          min-width: 0;
-          padding: 8px 12px 24px;
+          max-width: 1080px;
+          margin: 0 auto;
+          padding: 30px 20px;
+          box-sizing: border-box;
+        }
+
+        /* Alternado: los items pasan a la primera columna. Se hace con la
+           propiedad order y no reordenando el HTML, para que el lector de
+           pantalla siga leyendo antes la presentación que su lista. */
+        .expBlockFlip .expBlockMain {
+          order: 2;
+        }
+        .expBlockFlip .expBlockItems {
+          order: 1;
+        }
+
+        .expBlockMain {
           display: flex;
           flex-direction: column;
           align-items: center;
           text-align: center;
-          box-sizing: border-box;
+          min-width: 0;
         }
 
-        /* El círculo: el video se recorta en un disco perfecto (aspect-ratio 1
-           + object-fit: cover), con un aro tenue que lo despega del negro. */
-        /* El círculo se mide contra SU COLUMNA, no contra la ventana: así los
-           tres quedan iguales sin importar el ancho de la rejilla. */
+        /* El círculo se mide contra SU MITAD, no contra la ventana. */
         .expBlockMedia {
           position: relative;
-          width: min(74%, 190px);
+          width: min(70%, 250px);
           aspect-ratio: 1 / 1;
           border-radius: 50%;
           overflow: hidden;
@@ -102,7 +121,7 @@ export default function LoginExperienceBlock({
         }
 
         .expBlockEyebrow {
-          margin: 21px 0 0;
+          margin: 22px 0 0;
           font-size: 10px;
           font-weight: 700;
           letter-spacing: 0.14em;
@@ -119,51 +138,47 @@ export default function LoginExperienceBlock({
           max-width: 20ch;
         }
 
-        .expBlockBody {
-          width: 100%;
-        }
-
         .expBlockDesc {
           margin: 13px auto 0;
-          max-width: 54ch;
-          font-size: clamp(11.5px, 0.84vw, 13px);
+          max-width: 44ch;
+          font-size: clamp(12.5px, 0.92vw, 14px);
           line-height: 1.65;
-          color: rgba(255, 255, 255, 0.62);
+          color: rgba(255, 255, 255, 0.86);
         }
 
-        /* Items de la experiencia. Se reutiliza ServiceFeaturePreview, que ya
-           trae iconos y textos —y su variante en voz de FAN—, para que el login
-           diga lo mismo que la tarjeta del creador y no haya dos copys que
-           mantener. El zoom los encoge al mismo 80% que el resto del bloque,
-           porque sus tamaños viven en estilos inline dentro de ese componente. */
+        /* Items. Se reutiliza ServiceFeaturePreview, que ya trae iconos y textos
+           —y su variante en voz de FAN—, para que el login diga lo mismo que la
+           tarjeta del creador y no haya dos copys que mantener.
+           El zoom los AGRANDA: sus tamaños (11px el título, 10px la descripción)
+           están pensados para las tarjetas del creador y aquí se leían chicos. */
         .expBlockItems {
-          margin: 18px auto 0;
           text-align: left;
-          zoom: 0.8;
+          min-width: 0;
+          zoom: 1.3;
         }
 
-        /* Bloque ANCHO: ocupa la fila entera. El texto se mantiene estrecho para
-           que siga siendo legible, y los items se reparten en tantas columnas
-           como servicios traiga. */
-        .expBlockWide {
-          grid-column: 1 / -1;
-          padding-top: 26px;
+        /* Con varios servicios, sus listas se apilan con aire entre ellas. */
+        .expBlockItems > :global(div) + :global(div) {
+          margin-top: 14px;
         }
 
-        .expBlockWide .expBlockBody {
-          max-width: 100%;
-        }
-
-        .expBlockWide .expBlockItems {
-          display: grid;
-          grid-template-columns: repeat(var(--exp-cols, 1), minmax(0, 1fr));
-          gap: 0 28px;
-          max-width: 860px;
-        }
-
+        /* Celular: una sola columna y los items SIEMPRE debajo, sin importar el
+           alternado. (El acomodo fino de móvil se hace aparte.) */
         @media (max-width: 900px) {
-          .expBlockWide .expBlockItems {
+          .expBlock {
             grid-template-columns: 1fr;
+            gap: 4px;
+            padding: 24px 20px;
+          }
+          .expBlockFlip .expBlockMain,
+          .expBlockFlip .expBlockItems {
+            order: initial;
+          }
+          .expBlockItems {
+            margin-top: 18px;
+            max-width: 420px;
+            margin-left: auto;
+            margin-right: auto;
           }
         }
 
@@ -174,51 +189,53 @@ export default function LoginExperienceBlock({
         }
       `}</style>
 
-      <div
-        className="expBlockMedia"
-        style={{
-          boxShadow: `0 0 0 1px rgba(255,255,255,0.1), 0 24px 60px ${accentColor}2e`,
-          // Póster de respaldo: si el video no se ve (movimiento reducido o
-          // error de carga), el círculo sigue teniendo imagen.
-          backgroundImage: `url(${poster})`,
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-        }}
-      >
-        <video
-          src={videoSrc}
-          poster={poster}
-          autoPlay
-          muted
-          loop
-          playsInline
-          preload="metadata"
-          aria-hidden="true"
-        />
+      <div className="expBlockMain">
+        <div
+          className="expBlockMedia"
+          style={{
+            // Sin aro ni resplandor: el disco se recorta limpio contra el negro.
+            // Póster de respaldo: si el video no se ve (movimiento reducido o
+            // error de carga), el círculo sigue teniendo imagen.
+            backgroundImage: `url(${poster})`,
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+          }}
+        >
+          <video
+            src={videoSrc}
+            poster={poster}
+            autoPlay
+            muted
+            loop
+            playsInline
+            preload="metadata"
+            aria-hidden="true"
+          />
+        </div>
+
+        {/* El antetítulo se pinta en mayúsculas desde el CSS. */}
+        <p className="expBlockEyebrow" style={{ color: accentColor }}>
+          {eyebrow}
+        </p>
+
+        <h2 className="expBlockTitle">{title}</h2>
+
+        <p className="expBlockDesc">{description}</p>
       </div>
 
-      <p className="expBlockEyebrow" style={{ color: accentColor }}>
-        {eyebrow}
-      </p>
-
-      <h2 className="expBlockTitle">{title}</h2>
-
-      <div className="expBlockBody">
-        <p className="expBlockDesc">{description}</p>
-
-        <div
-          className="expBlockItems"
-          style={{ "--exp-cols": services.length } as React.CSSProperties}
-        >
-          {services.map((s) => (
-            <ServiceFeaturePreview
-              key={s}
-              service={s}
-              accentColor={accentColor}
-              audience="user"
-            />
-          ))}
-        </div>
+      <div className="expBlockItems">
+        {services.map((s) => (
+          <ServiceFeaturePreview
+            key={s}
+            service={s}
+            accentColor={accentColor}
+            audience="user"
+            cells={services.length === 1 ? items : undefined}
+            columns={1}
+            // Sobre negro puro, el 42% de blanco por defecto casi no se lee.
+            descColor="rgba(255,255,255,0.78)"
+          />
+        ))}
       </div>
     </section>
   );

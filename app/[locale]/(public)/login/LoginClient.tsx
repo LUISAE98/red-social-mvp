@@ -500,27 +500,15 @@ body.loginPageBg {
           );
           padding: 34px 0 24px;
         }
-        /* Fila de experiencias: TRES por fila en laptop. Las columnas son
-           minmax(0,1fr) —no auto— para que el texto largo no ensanche su columna
-           y las tres queden exactamente del mismo ancho.
-           El acomodo de celular se hará aparte; por ahora se apilan. */
+        /* Experiencias: una POR FILA. Cada bloque se parte en dos mitades por
+           dentro (presentación · items) y alterna el lado, así que aquí solo se
+           apilan. El ancho máximo lo pone cada bloque. */
         .loginExpGrid {
-          display: grid;
-          grid-template-columns: repeat(3, minmax(0, 1fr));
-          gap: 8px 20px;
-          align-items: start;
+          display: flex;
+          flex-direction: column;
           width: 100%;
-          max-width: 1180px;
-          margin: 0 auto;
-          padding: 34px 20px 8px;
+          padding: 30px 0 8px;
           box-sizing: border-box;
-        }
-
-        @media (max-width: 900px) {
-          .loginExpGrid {
-            grid-template-columns: 1fr;
-            gap: 24px;
-          }
         }
 
         .loginTagline {
@@ -1037,6 +1025,7 @@ marginBottom: 6,
             sustituyan por completo. Los videos son de MUESTRA. */}
         <div className="loginExpGrid">
         <LoginExperienceBlock
+          itemsLeft
           eyebrow="Experiencias personales"
           title="Cuando es para ti, se siente distinto"
           description="Un saludo para hacer inolvidable un momento. Un consejo para dar el siguiente paso. Pídelo a quien admiras o grábalo para alguien que eligió escucharte."
@@ -1044,6 +1033,22 @@ marginBottom: 6,
           poster="/saludo.webp"
           service="saludo"
           accentColor="#a855f7"
+          // Los textos por servicio hablan solo del saludo; esta card cubre
+          // también los consejos, así que se escriben aquí para abarcar ambos.
+          items={[
+            {
+              icon: "check",
+              title: "Saludo o consejo personalizado",
+              description:
+                "Se graba a partir de lo que tú cuentes, con tu nombre, la ocasión o eso que quieres resolver.",
+            },
+            {
+              icon: "download",
+              title: "Descargable",
+              description:
+                "El video queda en alta calidad para que lo guardes, lo veas cuando quieras y lo compartas.",
+            },
+          ]}
         />
 
         <LoginExperienceBlock
@@ -1057,6 +1062,7 @@ marginBottom: 6,
         />
 
         <LoginExperienceBlock
+          itemsLeft
           eyebrow="Apoyo directo"
           title="Cuando valoras lo que alguien crea, puedes hacerlo sentir"
           description="Apoya desde su perfil o dentro de su comunidad y forma parte de lo que está construyendo. Comparte tu reconocimiento o recibe el impulso de quienes creen en ti."
@@ -1069,7 +1075,6 @@ marginBottom: 6,
         {/* Segunda fila: un solo card ancho que junta las tres experiencias del
             directo y el contenido de pago (ticket, supercomentarios y VOD). */}
         <LoginExperienceBlock
-          wide
           eyebrow="Streaming exclusivo"
           title="Hay experiencias que merecen vivirse más cerca"
           description="Accede a transmisiones especiales, haz que tu mensaje destaque y disfruta contenido premium cuando tú quieras. En vivo o después, crea experiencias que tu comunidad estará dispuesta a elegir."
@@ -1080,7 +1085,7 @@ marginBottom: 6,
         />
 
         <LoginExperienceBlock
-          wide
+          itemsLeft
           eyebrow="Contenido exclusivo"
           title="Lo mejor se comparte con quienes deciden estar más cerca"
           description="Suscríbete para descubrir una parte diferente de quien sigues o accede solo a las publicaciones que elijas. Comparte algo más con tu comunidad y convierte cada publicación en una experiencia especial."
