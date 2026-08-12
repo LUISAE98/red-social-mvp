@@ -138,6 +138,12 @@ export const NICE_STEP: Record<DisplayCurrency, number> = {
   NGN: 200, //   1 USD ≈ 1.550 NGN → 200 NGN ≈ 0.13 USD. La naira se devaluó muchísimo:
   //             revisar el paso si el precio empieza a verse raro.
   MAD: 2, //     1 USD ≈ 9.2 MAD   → 2 MAD ≈ 0.22 USD.
+  // --- Microestados del Pacífico ---
+  TOP: 0.5, //   1 USD ≈ 2.4 TOP   → 0.5 TOP ≈ 0.21 USD.
+  SBD: 2, //     1 USD ≈ 8.5 SBD   → 2 SBD ≈ 0.24 USD.
+  // ⚠️ El vatu es moneda SIN decimales para Stripe: el paso debe ser entero.
+  VUV: 20, //    1 USD ≈ 120 VUV   → 20 VUV ≈ 0.17 USD.
+  WST: 0.5, //   1 USD ≈ 2.8 WST   → 0.5 WST ≈ 0.18 USD.
 };
 
 /** Redondea a un múltiplo "bonito" según la moneda. */

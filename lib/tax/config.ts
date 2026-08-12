@@ -646,6 +646,37 @@ export const COUNTRY_TAX_CONFIG: Readonly<Record<string, CountryTaxConfig>> = {
   //    no. Misma moneda, regímenes distintos — no asumir que se comportan igual.
   PF: platformCollects("TVA", 0.13, "XPF", PF_DICP_REGISTERED),     // Polinesia Francesa
 
+  // ── MICROESTADOS DEL PACÍFICO — SIN RÉGIMEN PARA PROVEEDORES EXTRANJEROS ──
+  //
+  // 🚨 ESTOS 13 SE INTEGRARON SOBRE UNA PROBABILIDAD, NO SOBRE VERIFICACIÓN. 🚨
+  //
+  // A diferencia del resto de la tabla, aquí NO se confirmó país por país que no exista
+  // régimen para proveedores digitales extranjeros: se buscó y **no hay información pública
+  // clara**. Se integran por el mismo razonamiento que Bolivia o Papúa Nueva Guinea —
+  // jurisdicciones de 1.900 a 750.000 habitantes no construyen regímenes tipo OSS— pero
+  // conviene saber que el fundamento es un prior, no una fuente.
+  // Decisión de Luis, 2026-08-11. Ver impuestos.md §6.6.
+  //
+  // Varios tienen IVA propio (15% en Vanuatu, Samoa y Tonga); lo que no se encontró es que
+  // alcance a un vendedor extranjero sin presencia local.
+  //
+  // 🚫 DOS del Pacífico se dejaron FUERA porque sí hay evidencia positiva de impuesto:
+  //    · 🇨🇰 Islas Cook — régimen CONFIRMADO para no residentes, VAT 15%
+  //    · 🇵🇼 Palaos — GST 10% desde 2023
+  TO: noDigitalRegime("Consumption Tax", 0.15, "TOP"), // Tonga
+  SB: noDigitalRegime("GST", 0.15, "SBD"),             // Islas Salomón
+  VU: noDigitalRegime("VAT", 0.15, "VUV"),             // Vanuatu
+  WS: noDigitalRegime("GST", 0.15, "WST"),             // Samoa
+  KI: noDigitalRegime("VAT", 0.125, "AUD"),            // Kiribati
+  NR: noConsumptionTax("AUD"),                         // Nauru
+  TV: noConsumptionTax("AUD"),                         // Tuvalu
+  NU: noConsumptionTax("NZD"),                         // Niue
+  WF: noConsumptionTax("XPF"),                         // Wallis y Futuna
+  FM: noConsumptionTax("USD"),                         // Micronesia
+  MH: noConsumptionTax("USD"),                         // Islas Marshall
+  AS: noConsumptionTax("USD"),                         // Samoa Americana — territorio de EE. UU.
+  MP: noConsumptionTax("USD"),                         // Marianas del Norte — territorio de EE. UU.
+
 
   // ⚠️ Fuera de la UE no se agrega ninguna fila sin su FICHA en impuestos.md.
 };

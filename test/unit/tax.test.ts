@@ -1004,6 +1004,46 @@ describe("África con alta obligatoria — NG, MA", () => {
   });
 });
 
+// 🏝️ Microestados del Pacífico. 🚨 Integrados sobre una PROBABILIDAD, no sobre verificación:
+// se buscó régimen para proveedores extranjeros y no hay información pública clara. Se aplicó
+// el mismo razonamiento que a Bolivia o Papúa Nueva Guinea. Ver impuestos.md §6.6.
+describe("Microestados del Pacífico", () => {
+  const TRECE = ["TO","SB","VU","WS","KI","NR","TV","NU","WF","FM","MH","AS","MP"];
+
+  it("los trece venden y ninguno cobra impuesto", () => {
+    for (const iso of TRECE) {
+      expect(isChargeableCountry(iso), iso).toBe(true);
+      expect(computeConsumptionTax(100, iso).total, iso).toBe(100);
+      expect(platformCollectsTax(iso), iso).toBe(false);
+    }
+  });
+
+  it("ninguno queda en cannot_sell ni bloquea el checkout", () => {
+    for (const iso of TRECE) {
+      expect(countryTaxConfig(iso)!.registrationStatus, iso).toBe("not_registered");
+      expect(ALTAS_PENDIENTES, iso).not.toContain(iso);
+    }
+  });
+
+  // 🚨 Estos dos SÍ tienen evidencia positiva de impuesto y por eso quedaron fuera. Si alguien
+  // los agrega "para completar el Pacífico", estaría vendiendo sin alta donde sí hay régimen.
+  it("🚨 Islas Cook y Palaos NO se integraron, y es a propósito", () => {
+    expect(countryTaxConfig("CK")).toBeNull();  // VAT 15%, régimen confirmado para no residentes
+    expect(countryTaxConfig("PW")).toBeNull();  // GST 10% desde 2023
+    expect(isChargeableCountry("CK")).toBe(false);
+    expect(isChargeableCountry("PW")).toBe(false);
+  });
+
+  // Reutilizan monedas ya existentes: solo cuatro trajeron moneda nueva.
+  it("la mayoría reutiliza monedas del catálogo", () => {
+    expect(chargeCurrencyForCountry("KI")).toBe("AUD");
+    expect(chargeCurrencyForCountry("NU")).toBe("NZD");
+    expect(chargeCurrencyForCountry("FM")).toBe("USD");
+    expect(chargeCurrencyForCountry("WF")).toBe("XPF");
+    expect(chargeCurrencyForCountry("VU")).toBe("VUV");
+  });
+});
+
 // 🇲🇽 IVA mexicano sobre ventas al EXTRANJERO. Vibra es residente en México, así que por el
 // Art. 16 LIVA su venta siempre está dentro del objeto: lo que cambia es la tasa. Hoy 0% por
 // exportación en los 11 servicios (D-08 pendiente de fiscalista). Ver impuestos.md.

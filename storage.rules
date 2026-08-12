@@ -87,17 +87,30 @@ match /posts/{groupId}/{uid}/{folder}/{fileName} {
     // ==============================
     // DM IMAGES (imagen adjunta a un mensaje directo)
     //
-    // LECTURA CERRADA A CAL Y CANTO. Storage no puede consultar Firestore, así
-    // que desde aquí es imposible saber quién participa en la conversación: en
-    // vez de dejarlo abierto, NADIE lee directo. Las imágenes se sirven con URL
-    // firmada y caduca desde la Cloud Function `getDirectMessageImageUrls`, que
-    // sí comprueba en Firestore que quien pide es participante del hilo.
+    // Solo los DOS participantes del hilo. Y sí se puede comprobar desde aquí,
+    // aunque Storage no sepa consultar Firestore: el ID de la conversación ES
+    // los dos UIDs ordenados y unidos por "_", y firestore.rules obliga a que
+    // así sea (`convId == participantsKey`, `participants[0] + "_" +
+    // participants[1]`). O sea que la propia ruta lleva dentro quién participa,
+    // y comprobarlo es comparar cadenas.
     //
-    // Consecuencia buscada: bloquear a alguien o borrar un mensaje deja de dar
-    // acceso en cuanto caduca la URL, en lugar de nunca.
+    // Es la MISMA garantía que daba la Cloud Function que firmaba URLs — aquella
+    // también miraba solo `participants` —, pero sin depender de que el proyecto
+    // tenga permiso para firmar. Y es más estricta en un punto: el cliente lee
+    // los bytes con su sesión, así que no queda ninguna URL suelta que se pueda
+    // compartir ni que siga sirviendo tras borrar el mensaje.
+    //
+    // Los UIDs de Firebase son alfanuméricos y nunca llevan "_", así que partir
+    // por ese carácter da exactamente los dos participantes.
     // ==============================
     match /dmImages/{conversationId}/{uid}/{folder}/{fileName} {
-      allow read: if false;
+      function isConversationParticipant() {
+        return isSignedIn()
+          && conversationId.split('_').size() == 2
+          && conversationId.split('_').hasAny([request.auth.uid]);
+      }
+
+      allow read: if isConversationParticipant();
 
       allow write: if isSignedIn()
         && request.auth.uid == uid

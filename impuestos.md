@@ -1277,6 +1277,65 @@ no hay dinero real ni obligación fiscal — la misma decisión que se tomó con
 | 🇳🇬 Nigeria | NGN | Inglés | **7,5%** | VAT | **Vibra** | Por confirmar | FIRS (Tax Act 2025) | Ninguno | 🟡 Alta pendiente |
 | 🇲🇦 Marruecos | MAD | Árabe/Francés | 20% | TVA | **Vibra** | Por confirmar | Plataforma DGI | Ninguno | 🟡 Alta pendiente |
 
+### 🌊 Oceanía (2026-08-11)
+
+| País | Moneda | Idioma | TASA | Impuesto | Recaudación | Declaración | Alta fiscal | Umbral | Estatus |
+|---|---|---|---|---|---|---|---|---|---|
+| 🇵🇫 Polinesia Francesa | XPF | Francés/Tahitiano | **13%** servicios | TVA | **Vibra** | Por confirmar | DICP | Ninguno | 🟡 Alta pendiente |
+
+Cierra Oceanía. Su moneda ya estaba en el catálogo por compartirla con Nueva Caledonia.
+
+⚠️ **Su TVA tiene DOS tasas: 13% para servicios y 16% estándar.** Se usa 13% porque los 11
+servicios de Vibra son servicios. Si el fisco polinesio llegara a clasificar el contenido de pago
+(VOD, post premium, tickets) como bien, subiría al 16%.
+
+🚨 **PF y NC comparten moneda pero NO régimen:** Nueva Caledonia tiene umbral (XPF 7.500.000) y
+Polinesia no tiene ninguno. Hay un test que lo fija.
+
+### 🏝️ Los 13 microestados del Pacífico — integrados sin cobrar (2026-08-11)
+
+| País | Población | Moneda | Impuesto local | Cobra Vibra |
+|---|---|---|---|---|
+| 🇸🇧 Islas Salomón | ~750.000 | SBD | GST 15% | No |
+| 🇻🇺 Vanuatu | ~330.000 | VUV | VAT 15% | No |
+| 🇼🇸 Samoa | ~220.000 | WST | GST 15% | No |
+| 🇰🇮 Kiribati | ~130.000 | AUD ✓ | VAT 12,5% | No |
+| 🇫🇲 Micronesia | ~115.000 | USD ✓ | — | No |
+| 🇹🇴 Tonga | ~105.000 | TOP | Consumption Tax 15% | No |
+| 🇲🇵 Marianas del Norte | ~47.000 | USD ✓ | — | No |
+| 🇦🇸 Samoa Americana | ~45.000 | USD ✓ | — | No |
+| 🇲🇭 Islas Marshall | ~42.000 | USD ✓ | — | No |
+| 🇳🇷 Nauru | ~12.000 | AUD ✓ | — | No |
+| 🇹🇻 Tuvalu | ~11.000 | AUD ✓ | — | No |
+| 🇼🇫 Wallis y Futuna | ~11.000 | XPF ✓ | — | No |
+| 🇳🇺 Niue | ~1.900 | NZD ✓ | — | No |
+
+Solo cuatro trajeron moneda nueva (TOP, SBD, VUV, WST); el resto reutiliza AUD, NZD, USD y XPF.
+⚠️ El **vatu (VUV) es moneda sin decimales** para Stripe — entró a `ZERO_DECIMAL`.
+
+### 🚨 Estos 13 se integraron sobre una PROBABILIDAD, no sobre verificación
+
+A diferencia del resto del documento, **no se confirmó país por país** que no exista régimen para
+proveedores digitales extranjeros: se buscó y **no hay información pública clara**.
+
+Se integraron por el mismo razonamiento que Bolivia o Papúa Nueva Guinea —jurisdicciones de 1.900
+a 750.000 habitantes no construyen regímenes tipo OSS— y porque verificarlos serían 15
+investigaciones separadas para un mercado combinado de ~1,8 millones, menos que media Nueva
+Zelanda. **Decisión de Luis, 2026-08-11.**
+
+Varios tienen IVA propio (15% en Vanuatu, Samoa y Tonga). Lo que no se encontró es que **alcance a
+un vendedor extranjero sin presencia local**.
+
+**🚫 Dos del Pacífico quedaron FUERA porque sí hay evidencia positiva de impuesto:**
+
+| País | Motivo |
+|---|---|
+| 🇨🇰 Islas Cook | Régimen **confirmado** para no residentes, VAT 15% |
+| 🇵🇼 Palaos | GST 10% desde 2023 |
+
+Hay un test que los mantiene fuera: si alguien los agrega "para completar el Pacífico", estaría
+vendiendo sin alta donde sí hay régimen.
+
 Elegidos por razones opuestas: **Marruecos por calidad** (~90% de penetración de internet, el doble
 de ingreso per cápita que Nigeria) y **Nigeria por volumen** (~230 M de habitantes y una de las
 culturas de creadores más fuertes del mundo).
@@ -1365,6 +1424,7 @@ export const ALTAS_PENDIENTES = [
   "GB", "TR", "RS", "AL", "ME", "MD",  // Europa no comunitaria
   "KR", "VN", "AE", "SA",              // Asia y Golfo
   "NG", "MA",                          // África
+  "PF",                                // Oceanía
 ];
 ```
 
@@ -1379,7 +1439,7 @@ Interruptores individuales: `BR_CNPJ_REGISTERED`, `CO_DIAN_REGISTERED`, `CL_SII_
 `PE_SUNAT_REGISTERED`, `UY_DGI_REGISTERED`, `GB_HMRC_REGISTERED`, `TR_GIB_REGISTERED`,
 `RS_PURS_REGISTERED`, `AL_TATIME_REGISTERED`, `ME_UPC_REGISTERED`, `MD_SFS_REGISTERED`,
 `KR_NTS_REGISTERED`, `VN_GDT_REGISTERED`, `AE_FTA_REGISTERED`, `SA_ZATCA_REGISTERED`,
-`NG_FIRS_REGISTERED`, `MA_DGI_REGISTERED`. En `false` el país pasa a `cannot_sell` y el checkout lo rechaza.
+`NG_FIRS_REGISTERED`, `MA_DGI_REGISTERED`, `PF_DICP_REGISTERED`. En `false` el país pasa a `cannot_sell` y el checkout lo rechaza.
 
 ### 🇧🇷 Brasil: la única tasa de la tabla que cambia con el calendario
 
@@ -1465,6 +1525,56 @@ paga igual, pero Vibra queda en una lista pública y sale con intereses y multas
 
 ---
 
+## 6.12 🚨 PENDIENTE UE: territorios FUERA del territorio IVA de la Unión (2026-08-11)
+
+> **Guardado para cuando se retome Europa.** No es una expansión: es un **error de cobro en países
+> que YA están encendidos**.
+
+Varios territorios pertenecen a un Estado miembro —y por tanto resuelven a su código de país— pero
+están **fuera del territorio IVA de la UE**. **El OSS no los cubre.**
+
+| Territorio | País | Código que resuelve | Población | Su impuesto real |
+|---|---|---|---|---|
+| **Canarias** | 🇪🇸 España | `ES` | **~2,2 M** | **IGIC 7%**, no IVA |
+| Ceuta y Melilla | 🇪🇸 España | `ES` | ~170.000 | IPSI |
+| Guadalupe · Martinica · Guayana Francesa · Reunión · Mayotte | 🇫🇷 Francia | `FR` | **~2,8 M** | Octroi de mer |
+| Åland | 🇫🇮 Finlandia | `FI` | ~30.000 | Régimen propio |
+
+### El problema concreto
+
+Hoy a un comprador en Tenerife se le cobra **21% de IVA español** —porque su país es `ES`— y se
+declararía por el **OSS**. Las dos cosas están mal: Canarias no está en el territorio IVA de la UE
+y el OSS no la alcanza.
+
+Son **~5,2 millones de personas**, más que Irlanda o Croacia.
+
+### Es la CUARTA vez que aparece la misma causa raíz
+
+`resolveCountry.ts` solo distingue **país**, no subdivisión (**D-16**). Ya lo pedían:
+
+| Caso | Qué bloquea |
+|---|---|
+| 🇨🇦 Canadá | Registrarse (tasa 5–15% por provincia) |
+| 🇺🇸 EE. UU. | Registrarse (tasa por estado) |
+| 🇺🇦 Ucrania | Entrar (embargo regional OFAC) |
+| **🇪🇺 Territorios UE** | **Nada — ya está cobrando mal HOY** |
+
+Los tres primeros bloquean el futuro. **Este es dinero mal cobrado en mercados vivos.**
+
+### La buena noticia: es el más fácil de los cuatro
+
+Se resuelve con **códigos postales**, sin geolocalización fina:
+
+* 🇪🇸 Canarias `35xxx` y `38xxx` · Ceuta `51xxx` · Melilla `52xxx`
+* 🇫🇷 Guadalupe `971xx` · Martinica `972xx` · Guayana `973xx` · Reunión `974xx` · Mayotte `976xx`
+* 🇫🇮 Åland `22xxx`
+
+⚠️ Requiere capturar el código postal de facturación, que hoy no siempre se pide.
+
+Queda como **D-22**.
+
+---
+
 ## 7. Estado y pendientes
 
 ### Países
@@ -1486,6 +1596,8 @@ paga igual, pero Vibra queda en una lista pública y sale con intereses y multas
 | 🌍 Europa no-UE con alta obligatoria | GB · TR · RS · AL · ME · MD | 🟡 **Encendidos, alta PENDIENTE** | **Sí** — 20% salvo ME 21% |
 | 🌏 Asia y Golfo con alta obligatoria | KR · VN · AE · SA | 🟡 **Encendidos, alta PENDIENTE** | **Sí** — 10% KR · 10% VN · 5% AE · 15% SA |
 | 🌍 África con alta obligatoria | NG · MA | 🟡 **Encendidos, alta PENDIENTE** | **Sí** — 7,5% NG · 20% MA |
+| 🌊 Oceanía con alta obligatoria | PF | 🟡 **Encendido, alta PENDIENTE** | **Sí** — 13% |
+| 🏝️ Microestados del Pacífico | 13 (TO·SB·VU·WS·KI·NR·TV·NU·WF·FM·MH·AS·MP) | ✅ Activos — ⚠️ sin verificar | No |
 | ⬜ Resto de LatAm | CL · CO · PE · UY · BR | Sin ficha — **no cobrables** | — |
 | ⬜ Resto de Europa no-UE | CH · LI · MK | Fuera a propósito — representante fiscal / umbral mundial | — |
 | 🚫 Excluidos a propósito | UA (embargo regional) · RU · BY · CU (sanciones) · IL (decisión de Luis) | No integrar | — |
@@ -1495,7 +1607,7 @@ paga igual, pero Vibra queda en una lista pública y sale con intereses y multas
 | 🚫 África — Stripe no procesa | SD · SS · SO · ER · LY + riesgo: ZW · BI · CF · CD · GN · GW · ML | No integrar | — |
 | ⬜ Resto del mundo | — | Sin ficha — **no cobrables** | — |
 
-**Total cobrable: 80 países.** De ellos, **45 cobran impuesto** (MX + 27 UE + 5 LatAm + 6 Europa no comunitaria + 4 Asia/Golfo + 2 África). Un país sin fila en `COUNTRY_TAX_CONFIG` no es cobrable y el
+**Total cobrable: 94 países.** De ellos, **46 cobran impuesto** (MX + 27 UE + 5 LatAm + 6 Europa no comunitaria + 4 Asia/Golfo + 2 África). Un país sin fila en `COUNTRY_TAX_CONFIG` no es cobrable y el
 checkout lo rechaza.
 
 ### Backend — ✅ hecho (2026-08-07)
@@ -1527,7 +1639,7 @@ checkout lo rechaza.
 | **D-08** | Mapear los 11 servicios a un inciso del Art. 29-IV. Provisionalmente **todos a 0%**; los dudosos son **Tiempo contigo** y **Sesión exclusiva** | Fiscalista MX |
 | ~~D-09~~ | ~~LatAm pendiente~~ **Cerrada 2026-08-11: los 17 países de LatAm están integrados** | ✅ |
 | **D-19** | 🇺🇾 ¿El Convenio México–Uruguay elimina o reduce el IRNR 12%? Depende de encuadrar cada servicio en Art. 7 (0%), Art. 12 (10%) o Art. 20 (12%). Hoy ese 12% sale del margen | Fiscalista MX/UY |
-| **D-18** | 🚨 **Completar las 17 altas de `ALTAS_PENDIENTES` ANTES de pasar a `sk_live`.** Hoy cobran en modo prueba sin poder enterar | Luis |
+| **D-18** | 🚨 **Completar las 18 altas de `ALTAS_PENDIENTES` ANTES de pasar a `sk_live`.** Hoy cobran en modo prueba sin poder enterar | Luis |
 | **D-20** | 🇸🇦 Confirmar si ZATCA exige garantía bancaria a un no residente sin representante fiscal, y por cuánto. Las fuentes se contradicen | Luis / asesor SA |
 | **D-21** | 🇻🇳 Confirmar las tasas presuntas de Vietnam (VAT 10% / CIT 5%) contra normativa directa. Hoy vienen de una sola fuente especializada | Fiscalista VN |
 | **D-11** | 🇨🇴 **Una sola pregunta abierta:** ¿la retención en la fuente del sistema alternativo SE SUMA al comprador o se DESCUENTA de lo que cobra Vibra? Vale 19% de cada venta colombiana. **RESUELTO 2026-08-11:** el cambio de modalidad SÍ es posible pero **por ÚNICA VEZ** (Art. 2° Res. DIAN 000049/2019) → no gastar ese cambio: entrar DIRECTO al sistema de retención. El alta NO es un formulario: es una petición por el canal **PQSR** de la DIAN (Art. 1°), y la DIAN debe publicarte por resolución en un listado taxativo con fecha de aplicación (Art. 5°) | Fiscalista CO |
@@ -1535,7 +1647,8 @@ checkout lo rechaza.
 | **D-13** | Contador de ventas acumuladas por país + alerta al 80% del umbral. **19 países** encendidos con vigilancia manual (NO · IS · BA · JP · MY · PH · TH · AU · JO · ID · NZ · TW · SG · NC · FJ · ZA · EG · CA · US); el contador la reemplazaría. Cuantos más umbrales, menos sostenible es recordarlos | Luis + Claude |
 | ~~D-14~~ | ~~🇺🇦 ¿Entrar a Ucrania?~~ **Resuelta 2026-08-08: NO.** Requeriría discriminación regional (Crimea/Donetsk/Lugansk bajo embargo OFAC) que no existe | ✅ |
 | **D-15** | 🇨🇦 Saskatchewan y Manitoba: sin umbral, obligación desde la venta 1. Exposición ~6,6% de Canadá **aceptada a conciencia**. Revisar si Canadá gana peso | Luis |
-| **D-16** | Resolución por **subdivisión** (estado/provincia/región) en `resolveCountry.ts`. Bloquea registrarse en 🇺🇸 (tasa por estado) y 🇨🇦 (5–15% por provincia), y entrar a 🇺🇦 (embargo regional). **Tres** casos ya la piden | Luis + Claude |
+| **D-16** | Resolución por **subdivisión** en `resolveCountry.ts`. Bloquea registrarse en 🇺🇸 y 🇨🇦, entrar a 🇺🇦, y **cobrar bien en los territorios UE fuera del IVA comunitario (D-22)**. **CUATRO** casos ya la piden | Luis + Claude |
+| **D-22** | 🚨 🇪🇸🇫🇷🇫🇮 **Canarias, Ceuta, Melilla, departamentos franceses de ultramar y Åland están FUERA del territorio IVA de la UE y el OSS no los cubre** — pero hoy se les cobra el IVA del país y se declararían por OSS. ~5,2 M de personas. Es el único de los cuatro casos de D-16 que ya cobra mal. Se resuelve por código postal. Ver §6.12 | Luis + Claude |
 | **D-17** | 🇺🇸 Gravabilidad de los 11 servicios estado por estado (~30 gravan digitales, ~25 SaaS; FL y VA eximen). Cerrarlo ANTES de registrarse en cualquier estado | Fiscalista US |
 | **D-10** | Vigilar a mano BO · SV · GT · HN · NI · PA: Stripe Tax no los cubre. **Panamá es el más urgente** (anteproyecto de 2019 reabierto) | Luis |
 | ~~AR-01~~ | ~~¿Cobrar en ARS o en MXN/USD?~~ **Resuelta: en ARS**, la moneda local del comprador | ✅ |

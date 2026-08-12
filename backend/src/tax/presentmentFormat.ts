@@ -33,6 +33,8 @@ export const NICE_STEP: Readonly<Record<string, number>> = {
   KRW: 500, VND: 5000, AED: 1, SAR: 1,
   // África (2ª tanda)
   NGN: 200, MAD: 2,
+  // Microestados del Pacífico
+  TOP: 0.5, SBD: 2, VUV: 20, WST: 0.5,
 };
 
 /**
@@ -58,7 +60,9 @@ const STRIPE_MIN_CHARGE: Readonly<Record<string, number>> = {
 };
 
 /** Monedas sin decimales para Stripe: el `amount` va en unidades enteras, no en centavos. */
-const ZERO_DECIMAL = new Set(["CLP", "PYG", "JPY", "KRW", "VND", "XPF", "XAF", "XOF"]);
+const ZERO_DECIMAL = new Set([
+  "CLP", "PYG", "JPY", "KRW", "VND", "XPF", "XAF", "XOF", "VUV",
+]);
 
 /**
  * Monedas que Stripe trata como SIN decimales pero que, por compatibilidad con importes
