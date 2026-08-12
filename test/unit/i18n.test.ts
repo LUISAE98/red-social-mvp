@@ -24,8 +24,19 @@ function leafKeys(obj: unknown, prefix = ""): string[] {
   );
 }
 
+// Memoizado a propósito. Seis de estos tests recorren TODOS los locales, y sin
+// caché cada uno releía y reparseaba los 40 archivos: 240 lecturas de ~100 KB
+// que hacían que la suite rozara el timeout de 5 s de Vitest. El síntoma no era
+// un fallo sino un "Test timed out", que se lee como si la traducción estuviera
+// rota. Con caché son 40 lecturas y sobra tiempo para los idiomas que falten.
+const MESSAGES_CACHE = new Map<string, unknown>();
+
 function readMessages(locale: string): unknown {
-  return JSON.parse(readFileSync(root(`messages/${locale}.json`), "utf8"));
+  const hit = MESSAGES_CACHE.get(locale);
+  if (hit !== undefined) return hit;
+  const parsed = JSON.parse(readFileSync(root(`messages/${locale}.json`), "utf8"));
+  MESSAGES_CACHE.set(locale, parsed);
+  return parsed;
 }
 
 // El idioma es la capa donde un error no rompe el build: falla en silencio y el
@@ -323,18 +334,59 @@ describe("i18n / detección por país", () => {
   });
 
   it("un país reutiliza un idioma que ya servíamos en vez de caer a inglés", () => {
-    // Estos cuatro no trajeron traducción propia: aprovechan una que ya existía.
-    // Se comprueban por separado del bucle de arriba porque el bucle valida que el
-    // mapa sea coherente, no que estas cuatro entradas SIGAN estando. Se perdieron
-    // una vez (los usuarios veían inglés sin motivo) y es fácil volver a perderlas.
-    expect(localeFromCountry("MD")).toBe("ro"); // Moldavia
-    expect(localeFromCountry("NC")).toBe("fr"); // Nueva Caledonia
-    expect(localeFromCountry("ME")).toBe("bs"); // Montenegro
-    expect(localeFromCountry("HK")).toBe("zh-TW"); // Hong Kong
+    // Ninguno de estos trajo traducción propia: aprovechan una que ya existía.
+    // Se comprueban uno a uno, y no con el bucle de arriba, porque el bucle valida
+    // que el mapa sea COHERENTE, no que estas entradas SIGAN estando. Se perdieron
+    // una vez y el síntoma —el usuario ve inglés— se lee como comportamiento
+    // normal, no como fallo; por eso no basta con una comprobación genérica.
+    const REUSED: Record<string, string> = {
+      MD: "ro", // Moldavia
+      ME: "bs", // Montenegro
+      HK: "zh-TW", // Hong Kong
+      IC: "es", // Canarias
+      EA: "es", // Ceuta y Melilla
+      VA: "it", // Ciudad del Vaticano
+      SM: "it", // San Marino
+      GP: "fr", // Guadalupe
+      MQ: "fr", // Martinica
+      GF: "fr", // Guayana Francesa
+      YT: "fr", // Mayotte
+      RE: "fr", // Reunión
+      PM: "fr", // San Pedro y Miquelón
+      PF: "fr", // Polinesia Francesa
+      WF: "fr", // Wallis y Futuna
+      NC: "fr", // Nueva Caledonia
+      MC: "fr", // Mónaco
+      CI: "fr", // Costa de Marfil
+      HT: "fr", // Haití
+      BQ: "nl", // Caribe Neerlandés
+      SR: "nl", // Surinam
+      SJ: "nb", // Svalbard y Jan Mayen
+      BN: "ms", // Brunéi
+    };
+    for (const [cc, locale] of Object.entries(REUSED)) {
+      expect(localeFromCountry(cc), `${cc} debería recibir "${locale}"`).toBe(locale);
+    }
 
-    // Serbia queda fuera a propósito: el serbio es ekavo y a menudo cirílico, así
-    // que el bosnio NO le sirve. Si algún día entra `sr`, este expect debe cambiar.
-    expect(localeFromCountry("RS")).toBe("en");
+    // ⚠️ Surinam es "SR" y el serbio es "sr". Si alguien confunde el código de país
+    // con el del idioma, Surinam empieza a servirse en serbio y nadie lo nota.
+    expect(localeFromCountry("SR")).not.toBe("sr");
+
+    // Serbia SÍ tiene idioma propio: el serbio es ekavo y no le servía el bosnio,
+    // así que `sr` se derivó aparte en vez de reutilizar `bs` como hizo Montenegro.
+    expect(localeFromCountry("RS")).toBe("sr");
+  });
+
+  it("el inglés de estos países está DECIDIDO, no heredado del fallback", () => {
+    // El inglés es el respaldo por defecto, así que estos expects pasarían igual
+    // sin las entradas del mapa. Lo que comprueban de verdad es que las entradas
+    // SIGAN existiendo: son la única señal de que aquí se revisó el idioma y se
+    // eligió el inglés. Si alguien las borra por redundantes, estos países vuelven
+    // a ser indistinguibles de los que nadie ha mirado nunca.
+    for (const cc of ["WS", "TO", "VU", "TV", "GL", "FO"]) {
+      expect(NON_EU_COUNTRY_TO_LOCALE[cc], `${cc} perdió su entrada explícita`).toBe("en");
+      expect(localeFromCountry(cc)).toBe("en");
+    }
   });
 
   it("intlLocale da un BCP-47 que Intl acepta, para todos los del catálogo", () => {

@@ -1017,15 +1017,22 @@ Marruecos, Kenia, Ghana, Nigeria, Tanzania y Uganda. Dos merecen nota:
   el 1-jul-2026). Es el único de toda la tabla mundial que grava el ingreso además del consumo —
   ese 3% sale del margen, no del comprador.
 
+### ✅ Verificados y descartados
+
+* **🇨🇻 CABO VERDE** (verificado 2026-08-12). IVA **15%**, **umbral CERO** y **representante fiscal
+  residente OBLIGATORIO** — la propia solicitud de registro pide los datos del representante local.
+  Declaración **trimestral**, **sin derecho a deducir IVA soportado**, y **facturación electrónica**
+  obligatoria para los no residentes que la Agência de Receitas incluya en su lista de operadores de
+  e-commerce (lista que se actualiza periódicamente, así que la obligación puede aparecer sin aviso).
+  Dos bloqueadores independientes sobre un mercado de ~525.000 habitantes: descartado sin matices.
+* **🇲🇼 MALAUI** — obliga a registrarse aunque no se alcance el umbral. Descartado.
+
 ### ⚠️ Sin verificar — el resto del continente
 
-**Regímenes recién estrenados que habría que mirar:** 🇧🇼 Botsuana (junio 2026) y 🇲🇼 Malaui
-(15 de abril de 2026). No se verificaron sus umbrales.
-
-**El resto** — Argelia, Túnez, Angola, Zambia, Etiopía, Senegal, Costa de Marfil, Camerún, Ruanda,
-Mauricio, Namibia, Cabo Verde, Mauritania y los demás. Casi todos tienen IVA propio (18–19% en el
-África francófona), la mayoría sin régimen para proveedores extranjeros. No se verificaron uno por
-uno: fuera de Sudáfrica, Nigeria, Egipto y Kenia, el mercado de creadores es marginal y la
+Argelia, Túnez, Angola, Zambia, Etiopía, Senegal, Camerún, Ruanda, Mauricio, Namibia, Mauritania y
+los demás. Casi todos tienen IVA propio (18–19% en el África francófona), la mayoría sin régimen
+para proveedores extranjeros. No se verificaron uno por uno: fuera de Sudáfrica, Nigeria, Egipto,
+Botsuana y Costa de Marfil —los cinco integrados— el mercado de creadores es marginal y la
 penetración de tarjeta baja.
 
 **Nota de formato:** el chelín ugandés (UGX) ya está en `WHOLE_UNIT_ONLY` y los francos CFA
@@ -1561,6 +1568,95 @@ Son **~5,2 millones de personas**, más que Irlanda o Croacia.
 
 Los tres primeros bloquean el futuro. **Este es dinero mal cobrado en mercados vivos.**
 
+### 🚨 CORRECCIÓN (2026-08-11): NO a todos les corresponde cero
+
+La primera versión de esta ficha decía que a los nueve territorios habría que cobrarles cero.
+**Solo es cierto para dos.** Lo que aplica de verdad:
+
+| Territorio | ISO propio | TASA correcta | Impuesto | Alta necesaria | Hoy le cobramos |
+|---|---|---|---|---|---|
+| 🇬🇫 Guayana Francesa | ✅ `GF` | **0%** | TVA **no aplicable** | Ninguna | ~~IVA francés 20%~~ ✅ **corregido** |
+| 🇾🇹 Mayotte | ✅ `YT` | **0%** | TVA **no aplicable** | Ninguna | ~~IVA francés 20%~~ ✅ **corregido** |
+| 🇬🇵 Guadalupe | ✅ `GP` | **8,5%** | TVA DOM | DGFiP | ❌ IVA francés 20% |
+| 🇲🇶 Martinica | ✅ `MQ` | **8,5%** | TVA DOM | DGFiP | ❌ IVA francés 20% |
+| 🇷🇪 Reunión | ✅ `RE` | **8,5%** | TVA DOM | DGFiP | ❌ IVA francés 20% |
+| Canarias | ❌ resuelve `ES` | **7%** | IGIC | **Agencia Tributaria Canaria** | ❌ IVA español 21% |
+| Ceuta | ❌ resuelve `ES` | Variable | IPSI | Sin régimen conocido para extranjeros | ❌ IVA español 21% |
+| Melilla | ❌ resuelve `ES` | Variable | IPSI | Sin régimen conocido para extranjeros | ❌ IVA español 21% |
+| Åland | ❌ resuelve `FI` | Territorio tercero | Fuera del IVA comunitario | Sin resolver | ❌ IVA finlandés 24% |
+
+**Canarias no es cero: es IGIC 7%**, y los servicios digitales a consumidores canarios tributan por
+IGIC **sin importar dónde esté el prestador**, con registro propio ante la Agencia Tributaria
+Canaria — aparte del OSS y aparte de España.
+
+**Guadalupe, Martinica y Reunión tampoco: TVA 8,5%.** Son territorios de exportación respecto a
+Francia metropolitana pero aplican su propio IVA.
+
+**Åland es "territorio tercero"** para el IVA comunitario, comparable a una jurisdicción fuera de
+la UE. Dentro de Åland aplica el IVA finlandés; desde fuera, el OSS no lo cubre.
+
+### ✅ Lo que YA se arregló (2026-08-11)
+
+**Guayana Francesa (`GF`) y Mayotte (`YT`) tienen código ISO propio**, así que la geolocalización
+por IP los distingue de Francia. Se les agregó fila con `noConsumptionTax` y ya cobran **cero**.
+
+🚨 **Limitación:** nuestra regla de resolución da preferencia a la TARJETA sobre la IP. Un
+comprador en Mayotte con tarjeta de un banco francés metropolitano reportará `FR` y se le cobrará
+el 20% igual. Estas filas solo corrigen cuando la IP manda.
+
+### ✅ Segunda tanda de correcciones (2026-08-11)
+
+**🇬🇵🇲🇶🇷🇪 Guadalupe, Martinica y Reunión** — integrados con **TVA 8,5%** (no cero, no 20%).
+
+> ✅ **UN SOLO REGISTRO PARA LOS TRES.** El punto de contacto para no residentes de fuera de la UE
+> es el **SIEE** (Service des Impôts des Entreprises Étrangères), Noisy-le-Grand, que da un número
+> de TVA francés y cubre los DOM. Comparten el interruptor `FR_DOM_REGISTERED`.
+
+**🇮🇨 Canarias** — fila agregada con el dato correcto, pero **HOY NO SE ACTIVA**:
+
+| Dato | Valor |
+|---|---|
+| Impuesto | **IGIC 7%** — grava los servicios digitales a consumidores canarios **sin importar dónde esté el prestador** |
+| **Umbral** | ✅ **€100.000** de base imponible del año anterior |
+| Alta | **Modelo 400** (censal) ante la Agencia Tributaria Canaria |
+| Declaración | **Modelo 420, trimestral** |
+
+El umbral es la buena noticia: por debajo de €100.000 **no hay obligación de darse de alta**, así
+que lo correcto hoy sería cobrarles **cero**, no el 21% español.
+
+🚨 La fila usa el código `IC` (ISO 3166-1 excepcionalmente reservado), que **nadie emite en la
+práctica**: un canario resuelve como `ES`. Se deja lista para que el día que exista resolución por
+subdivisión (D-16) o detección por código postal `35xxx`/`38xxx`, Canarias funcione sin volver a
+investigar.
+
+### ✅ RESUELTO (2026-08-11): corrección por subdivisión
+
+**La geolocalización ya daba la región — la estábamos descartando.**
+
+* `ipwho.is` devuelve `region_code` junto al `country_code`. El backend leía solo el segundo.
+* Vercel manda `x-vercel-ip-country-region` con el código ISO 3166-2. El middleware lo ignoraba.
+
+Se agregó `SUBDIVISION_TAX_OVERRIDES` en `backend/src/tax/resolveCountry.ts`, con espejo en
+`lib/tax/subdivisions.ts` y test de paridad:
+
+| Subdivisión | Resuelve como | Impuesto | Antes cobrábamos |
+|---|---|---|---|
+| `ES-CN` Canarias | **IC** | IGIC 7%, umbral €100.000 → hoy **cero** | ❌ 21% español |
+| `ES-CE` Ceuta | **EA** | IPSI, sin régimen para extranjeros → **cero** | ❌ 21% español |
+| `ES-ML` Melilla | **EA** | IPSI, íd. | ❌ 21% español |
+
+La península sigue resolviendo como `ES` y cobrando su 21%. Hay tests que lo verifican en las
+dos direcciones.
+
+### ⬜ Lo que sigue sin resolver
+
+* **🇬🇵🇲🇶🇷🇪 Guadalupe, Martinica y Reunión** — tienen ISO propio, pero cobrarles su 8,5% exige
+  alta ante la DGFiP. Se les podría poner `cannot_sell` o cobrar cero mientras tanto.
+* **Åland** — resuelve como `FI` y su régimen no está resuelto. Se dejó fuera del mapa de
+  subdivisiones a propósito: haría falta investigarlo antes de decidir qué cobrarle.
+
+**Estado de D-22: 8 de 9 resueltos.** Solo queda Åland.
+
 ### La buena noticia: es el más fácil de los cuatro
 
 Se resuelve con **códigos postales**, sin geolocalización fina:
@@ -1755,6 +1851,10 @@ récord. Y **Andorra tiene la tasa más baja de Europa**: IGI 4,5%.
 | 🏝️ Caribe | SR (umbral) + BZ·TT·JM·GD·KY·BM·TC·VG | ✅ Activos | No |
 | 🏝️ Caribe y territorios (2ª) | PR (umbral) + VI·HT·BQ·LC·VC·AG·KN·DM·AI·MS·GL·PM | ✅ Activos | No |
 | 🏔️ Microestados europeos | **MC (cobra vía OSS)** + JE·AD (umbral) + SM·FO·GI·VA·GG·SJ | ✅ Activos | Solo Mónaco — 20% |
+| 🌍 Cáucaso | AZ (umbral US$10.000, régimen desde 1-sep-2026) | ✅ Activo | No |
+| 🇫🇷 Territorios sin TVA | GF · YT | ✅ Activos — **D-22 corregido** | No |
+| 🇫🇷 DOM con TVA propia | GP · MQ · RE | 🟡 Activos, **alta SIEE pendiente** | **Sí** — 8,5% |
+| 🇮🇨 Canarias · 🇪🇦 Ceuta y Melilla | IC · EA | ✅ **ACTIVOS** vía corrección de subdivisión | No — Canarias bajo umbral €100.000; IPSI sin régimen |
 | ⬜ Resto de LatAm | CL · CO · PE · UY · BR | Sin ficha — **no cobrables** | — |
 | ⬜ Resto de Europa no-UE | CH · LI · MK | Fuera a propósito — representante fiscal / umbral mundial | — |
 | 🚫 Excluidos a propósito | UA (embargo regional) · RU · BY · CU (sanciones) · IL (decisión de Luis) | No integrar | — |
@@ -1764,7 +1864,7 @@ récord. Y **Andorra tiene la tasa más baja de Europa**: IGI 4,5%.
 | 🚫 África — Stripe no procesa | SD · SS · SO · ER · LY + riesgo: ZW · BI · CF · CD · GN · GW · ML | No integrar | — |
 | ⬜ Resto del mundo | — | Sin ficha — **no cobrables** | — |
 
-**Total cobrable: 125 países.** De ellos, **47 cobran impuesto** (MX + 27 UE + 5 LatAm + 6 Europa no comunitaria + 4 Asia/Golfo + 2 África). Un país sin fila en `COUNTRY_TAX_CONFIG` no es cobrable y el
+**Total cobrable: 133 jurisdicciones.** De ellas, **50 cobran impuesto** (MX + 27 UE + 5 LatAm + 6 Europa no comunitaria + 4 Asia/Golfo + 2 África). Un país sin fila en `COUNTRY_TAX_CONFIG` no es cobrable y el
 checkout lo rechaza.
 
 ### Backend — ✅ hecho (2026-08-07)
@@ -1807,7 +1907,7 @@ checkout lo rechaza.
 | **D-16** | Resolución por **subdivisión** en `resolveCountry.ts`. Bloquea registrarse en 🇺🇸 y 🇨🇦, entrar a 🇺🇦, y **cobrar bien en los territorios UE fuera del IVA comunitario (D-22)**. **CUATRO** casos ya la piden | Luis + Claude |
 | **D-23** | 🇯🇲 Jamaica anuncia GCT 15% sobre digitales del exterior para **principios de 2027**. Único país con fecha conocida: pasar a `platformCollects` + alta ante la TAJ cuando entre en vigor. Ver §6.13 | Luis |
 | ~~D-24~~ | ~~🇵🇷 Puerto Rico sin fila~~ **Cerrada 2026-08-11: fila propia con IVU 11,5% y umbral Wayfair de US$100.000 o 200 transacciones** | ✅ |
-| **D-22** | 🚨 🇪🇸🇫🇷🇫🇮 **Canarias, Ceuta, Melilla, departamentos franceses de ultramar y Åland están FUERA del territorio IVA de la UE y el OSS no los cubre** — pero hoy se les cobra el IVA del país y se declararían por OSS. ~5,2 M de personas. Es el único de los cuatro casos de D-16 que ya cobra mal. Se resuelve por código postal. Ver §6.12 | Luis + Claude |
+| ~~D-22~~ | ~~Territorios fuera del IVA de la UE cobrando mal~~ **RESUELTA 2026-08-11: 8 de 9.** GF·YT a cero, GP·MQ·RE al 8,5% (una sola alta SIEE), Canarias·Ceuta·Melilla vía `SUBDIVISION_TAX_OVERRIDES` leyendo la región que la geolocalización ya daba. Solo queda **Åland**, sin resolver su régimen | ✅ |
 | **D-17** | 🇺🇸 Gravabilidad de los 11 servicios estado por estado (~30 gravan digitales, ~25 SaaS; FL y VA eximen). Cerrarlo ANTES de registrarse en cualquier estado | Fiscalista US |
 | **D-10** | Vigilar a mano BO · SV · GT · HN · NI · PA: Stripe Tax no los cubre. **Panamá es el más urgente** (anteproyecto de 2019 reabierto) | Luis |
 | ~~AR-01~~ | ~~¿Cobrar en ARS o en MXN/USD?~~ **Resuelta: en ARS**, la moneda local del comprador | ✅ |

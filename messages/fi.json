@@ -1056,7 +1056,7 @@
     "onboardingStartNow": "Aloita nyt",
     "onboardingCreateLive": "Tee ensimmäinen lähetyksesi",
     "onboardingCreatePremium": "Tee ensimmäinen premium-julkaisusi",
-    "onboardingWaysTitle": "11 elämystä, joilla <vibra>ansaitset</vibra> ja pääset lähemmäs yleisöäsi",
+    "onboardingWaysTitle": "{count} elämystä, joilla <vibra>ansaitset</vibra> ja pääset lähemmäs yleisöäsi",
     "onboardingCommunitiesTitle": "Luo 3 erilaista <vibra>yhteisöä</vibra>",
     "onboardingCommunityPublicName": "Julkinen",
     "onboardingCommunityPublicDesc": "Avoin koko maailmalle. Kuka tahansa voi löytää sen, liittyä ilman hyväksyntää ja nähdä sisältösi — myös ilman Vibra-tiliä. Se on näyteikkunasi kasvuun, seuraajien saamiseen ja tunnetuksi tulemiseen. Loistava tapa aloittaa ja rakentaa yleisöä.",

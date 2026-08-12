@@ -93,6 +93,48 @@ export function extractClientIp(rawRequest: {
   return null;
 }
 
+/**
+ * 🚨 SUBDIVISIONES QUE TRIBUTAN DISTINTO QUE SU PAÍS 🚨
+ *
+ * Algunos territorios pertenecen a un Estado pero están FUERA de su régimen de IVA, y la
+ * geolocalización los devuelve con el código de país del Estado. Sin esta corrección se les
+ * cobra el impuesto equivocado: a un comprador en Tenerife se le cobraba 21% de IVA español
+ * cuando le corresponde IGIC 7% —y encima a otro fisco—.
+ *
+ * La clave es `PAÍS-SUBDIVISIÓN` en ISO 3166-2. El valor es el código con el que debe
+ * resolverse para efectos fiscales.
+ *
+ *   ES-CN → IC   Canarias (IGIC 7%, umbral €100.000)
+ *   ES-CE → EA   Ceuta (IPSI)
+ *   ES-ML → EA   Melilla (IPSI)
+ *
+ * ⚠️ Guayana Francesa, Mayotte, Guadalupe, Martinica y Reunión NO están aquí: tienen código
+ *    ISO de PAÍS propio (GF, YT, GP, MQ, RE) y se resuelven solos.
+ * ⚠️ Åland (FI-01) se dejó fuera a propósito: su régimen no está resuelto. Ver impuestos.md §6.12.
+ *
+ * ⚠️ Este mapa está DUPLICADO en el frontend (lib/tax/subdivisions.ts) porque el backend no
+ *    puede importar de lib/. Hay un test de paridad.
+ */
+export const SUBDIVISION_TAX_OVERRIDES: Readonly<Record<string, string>> = {
+  "ES-CN": "IC",
+  "ES-CE": "EA",
+  "ES-ML": "EA",
+};
+
+/**
+ * Aplica la corrección por subdivisión. Devuelve el país fiscal correcto, o el original si
+ * esa subdivisión no tributa distinto.
+ */
+export function applySubdivisionOverride(
+  country: string | null | undefined,
+  region: string | null | undefined
+): string | null {
+  const c = (country ?? '').trim().toUpperCase();
+  if (!c) return null;
+  const r = (region ?? '').trim().toUpperCase();
+  if (!r) return c;
+  return SUBDIVISION_TAX_OVERRIDES[`${c}-${r}`] ?? c;
+}
 /** IPs privadas/locales para las que no tiene sentido geolocalizar (emulador, red interna). */
 function isNonPublicIp(ip: string): boolean {
   return (
@@ -115,10 +157,20 @@ export async function countryFromIp(ip: string | null): Promise<string | null> {
     const res = await fetch(GEO_URL(ip));
     if (!res.ok) return null;
 
-    const data = (await res.json()) as { success?: boolean; country_code?: unknown };
+    const data = (await res.json()) as {
+      success?: boolean;
+      country_code?: unknown;
+      region_code?: unknown;
+    };
     if (data.success === false) return null;
 
-    return normalizeCountry(data.country_code);
+    const country = normalizeCountry(data.country_code);
+    if (!country) return null;
+
+    // ipwho.is devuelve la subdivisión en `region_code`. Se usa para corregir los
+    // territorios que tributan distinto que su país (Canarias, Ceuta, Melilla).
+    const region = typeof data.region_code === "string" ? data.region_code : null;
+    return applySubdivisionOverride(country, region);
   } catch {
     // La geolocalización no debe tumbar un cobro: si falla, caemos al default.
     return null;

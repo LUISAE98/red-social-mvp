@@ -1056,7 +1056,7 @@
     "onboardingStartNow": "Kezdd el most",
     "onboardingCreateLive": "Hozd létre az első adásod",
     "onboardingCreatePremium": "Hozd létre az első prémium bejegyzésed",
-    "onboardingWaysTitle": "11 élmény, amivel <vibra>bevételt szerzel</vibra>, miközben közelebb kerülsz a közönségedhez",
+    "onboardingWaysTitle": "{count} élmény, amivel <vibra>bevételt szerzel</vibra>, miközben közelebb kerülsz a közönségedhez",
     "onboardingCommunitiesTitle": "Hozz létre 3 típusú <vibra>közösséget</vibra>",
     "onboardingCommunityPublicName": "Nyilvános",
     "onboardingCommunityPublicDesc": "Mindenki előtt nyitva. Bárki felfedezheti, jóváhagyás nélkül csatlakozhat, és láthatja a tartalmaidat — még Vibra-fiók nélkül is. Ez a kirakatod, amivel növekedhetsz, követőket szerezhetsz és ismertté válhatsz. Ideális a kezdéshez és a közönségépítéshez.",

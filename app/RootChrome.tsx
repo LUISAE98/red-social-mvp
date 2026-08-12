@@ -32,6 +32,9 @@ export default function RootChrome({
   // "logged-in" y no coincide con el servidor → error de hidratación. Tratamos al
   // usuario como null hasta hidratar; tras el efecto ya usamos el real.
   const [hydrated, setHydrated] = useState(false);
+  // Marcar "ya hidraté" es justo lo que este efecto debe hacer: corre una sola
+  // vez al montar y no encadena renders.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { setHydrated(true); }, []);
 
   // Marca el <body> cuando hay sesión → habilita un safe-area inferior CONSTANTE

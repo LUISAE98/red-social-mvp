@@ -721,9 +721,9 @@ if (source === "profile") {
       preparingCreatorAt: null,
       preparationOpenedAt: null,
 
-      // Pago real con Mercado Pago. paymentStatus/createdAt/updatedAt los pone
+      // Pago real con Stripe (auth-hold). paymentStatus/createdAt/updatedAt los pone
       // reconcile al materializar (cuando el pago aprueba).
-      paymentMode: "mercadopago",
+      paymentMode: "stripe",
 
       // Campos LiveKit — se populan cuando se crea/gestiona la sala de videollamada
       roomName: null,

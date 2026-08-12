@@ -12,6 +12,7 @@ import {
 import { createPortal } from "react-dom";
 import type { CommentImage } from "@/lib/posts/types";
 import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
+import PostPinchZoomImage from "./PostPinchZoomImage";
 
 /**
  * UI compartida para la imagen adjunta de comentarios/respuestas:
@@ -255,12 +256,36 @@ export function CommentImageLightbox({
   const finalRectRef = useRef<Rect | null>(null);
   const closingRef = useRef(false);
   const dragRef = useRef({ startY: 0, dy: 0, active: false });
-  const [fullLoaded, setFullLoaded] = useState(false);
 
   const url = target?.image.url ?? null;
 
+  /**
+   * El original se precarga aparte en vez de montarse directamente.
+   *
+   * Así se puede seguir enseñando la miniatura (que ya está en caché) sin un
+   * parpadeo negro, y el visor con zoom se monta solo cuando la imagen grande ya
+   * está lista — al montarse, sale del caché del navegador y aparece al instante.
+   */
+  const [loadedUrl, setLoadedUrl] = useState<string | null>(null);
+  const fullLoaded = !!url && loadedUrl === url;
+
   useEffect(() => {
-    setFullLoaded(false);
+    if (!url) return;
+    // `window.Image` y no `Image` a secas: en este archivo ese nombre es el
+    // componente de `next/image`, que lo tapa.
+    const preload = new window.Image();
+    // Un error también cuenta como "ya no esperamos más": mejor intentar
+    // pintarla y que falle a la vista que dejar el visor colgado en la miniatura.
+    preload.onload = () => setLoadedUrl(url);
+    preload.onerror = () => setLoadedUrl(url);
+    preload.src = url;
+    return () => {
+      preload.onload = null;
+      preload.onerror = null;
+    };
+  }, [url]);
+
+  useEffect(() => {
     closingRef.current = false;
   }, [url]);
 
@@ -330,7 +355,6 @@ export function CommentImageLightbox({
       });
     });
     return () => cancelAnimationFrame(raf);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [target]);
 
   function startClose(swipeDown: boolean) {
@@ -366,8 +390,15 @@ export function CommentImageLightbox({
     window.setTimeout(onClose, 250);
   }
 
+  /**
+   * Arrastrar para cerrar, SOLO con ratón.
+   *
+   * En táctil de esto se encarga `PostPinchZoomImage`, que además distingue el
+   * arrastre del pellizco. Si los dos escucharan, un dedo movería la imagen por
+   * dentro y la caja por fuera a la vez.
+   */
   function onPointerDown(e: ReactPointerEvent<HTMLDivElement>) {
-    if (closingRef.current) return;
+    if (closingRef.current || e.pointerType !== "mouse") return;
     const box = boxRef.current;
     if (!box) return;
     box.setPointerCapture?.(e.pointerId);
@@ -460,24 +491,32 @@ export function CommentImageLightbox({
             display: "block",
           }}
         />
-        {/* Original: aparece encima al terminar de cargar. */}
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={image.url}
-          alt=""
-          draggable={false}
-          onLoad={() => setFullLoaded(true)}
-          style={{
-            position: "absolute",
-            inset: 0,
-            width: "100%",
-            height: "100%",
-            objectFit: "contain",
-            display: "block",
-            opacity: fullLoaded ? 1 : 0,
-            transition: "opacity 200ms ease",
-          }}
-        />
+
+        {/* Original CON ZOOM, encima, en cuanto está cargado. Es el mismo visor
+            de pellizco que las imágenes de publicación (`PostPinchZoomImage`):
+            dos dedos para acercar hasta 4x, arrastrar para moverse dentro, y
+            deslizar hacia abajo sin zoom para cerrar. */}
+        {fullLoaded ? (
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              opacity: 1,
+              animation: "pmFadeIn 200ms ease",
+            }}
+          >
+            <PostPinchZoomImage
+              src={image.url}
+              alt=""
+              // Cerrar por gesto pasa por la MISMA salida animada que la X, para
+              // que el visor no desaparezca de golpe.
+              onClose={() => startClose(true)}
+              // El alto lo pone la caja del visor, no la pantalla: aquí la
+              // imagen vive dentro del recuadro que creció desde la miniatura.
+              disableMinHeight
+            />
+          </div>
+        ) : null}
       </div>
 
       <button
@@ -489,15 +528,24 @@ export function CommentImageLightbox({
         aria-label="Cerrar"
         style={{
           position: "fixed",
-          top: 16,
-          right: 16,
+          // Por debajo de la muesca / isla dinámica y de la barra de estado. Sin
+          // esto la X se encimaba con la hora y la batería del sistema, que
+          // además se comen el toque.
+          top: "calc(16px + env(safe-area-inset-top, 0px))",
+          // En horizontal la muesca se va a un lado y también hay que esquivarla.
+          right: "calc(16px + env(safe-area-inset-right, 0px))",
           border: "none",
-          background: "none",
+          // Disco oscuro detrás: sobre una foto clara, una X blanca sin fondo
+          // desaparece.
+          background: "rgba(0,0,0,0.42)",
+          borderRadius: 999,
           color: "#fff",
           cursor: "pointer",
           display: "grid",
           placeItems: "center",
           padding: 8,
+          // Por encima del visor con zoom, que ocupa toda la caja.
+          zIndex: 1,
         }}
       >
         <svg

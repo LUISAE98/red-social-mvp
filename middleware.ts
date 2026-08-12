@@ -1,4 +1,5 @@
 import createMiddleware from "next-intl/middleware";
+import { applySubdivisionOverride } from "@/lib/tax/subdivisions";
 import type { NextRequest } from "next/server";
 import { routing } from "./i18n/routing";
 import { localeFromCountry, hasLocalePrefix } from "./i18n/localeFromCountry";
@@ -18,7 +19,13 @@ const ONE_YEAR = 60 * 60 * 24 * 365;
 export default function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const alreadyChosen = request.cookies.has(LOCALE_COOKIE);
-  const country = request.headers.get("x-vercel-ip-country");
+  const rawCountry = request.headers.get("x-vercel-ip-country");
+  // Vercel manda la subdivisión ISO 3166-2 aparte. Se aplica antes de nada para que
+  // Canarias, Ceuta y Melilla no se traten como España: tributan distinto.
+  const country = applySubdivisionOverride(
+    rawCountry,
+    request.headers.get("x-vercel-ip-country-region")
+  );
 
   let response;
 

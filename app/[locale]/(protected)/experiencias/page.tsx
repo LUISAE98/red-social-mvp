@@ -23,9 +23,6 @@ import { useBuyerCashout } from "@/lib/wallet/useBuyerCashout";
 import { requestCashout } from "@/lib/wallet/cashout";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 
-// Monto mínimo (MXN) para pedir efectivo (espejo del backend cashout.ts).
-const MIN_CASHOUT_MXN = 100;
-
 type Tab = "requested" | "rejected" | "delivered";
 
 const TAB_ORDER: Tab[] = ["requested", "rejected", "delivered"];
@@ -501,26 +498,26 @@ export default function ExperienciasPage() {
           original. Si ya hay una solicitud en revisión, se muestra ese estado. Si el saldo
           es menor al mínimo (o 0), no aparece nada. */}
       {cashout.pending ? (
-        <div style={{ marginTop: -8, marginBottom: 16, padding: "0 2px", fontSize: 12.5, color: "rgba(255,255,255,0.5)" }}>
+        <div style={{ marginTop: -13, marginBottom: 16, padding: "0 2px", fontSize: 12, color: "rgba(255,255,255,0.4)", textAlign: "right" }}>
           Tienes {pf.format(cashout.pending.amount, { baseCurrency: "MXN" })} {pf.currency} en revisión
           para reembolso a tu tarjeta.
         </div>
-      ) : credit.balance >= MIN_CASHOUT_MXN ? (
-        <div style={{ marginTop: -8, marginBottom: 16, padding: "0 2px" }}>
+      ) : credit.balance > 0 ? (
+        <div style={{ marginTop: -13, marginBottom: 16, padding: "0 2px", textAlign: "right" }}>
           <button
             type="button"
             onClick={handleRequestCashout}
             disabled={cashoutBusy}
             style={{
               background: "transparent", border: "none", padding: 0,
-              fontSize: 12.5, fontWeight: 600, color: "#22c55e",
-              cursor: cashoutBusy ? "wait" : "pointer", textAlign: "left",
+              fontSize: 12, fontWeight: 600, color: "rgba(255,255,255,0.4)",
+              cursor: cashoutBusy ? "wait" : "pointer", textAlign: "right",
               opacity: cashoutBusy ? 0.6 : 1,
             }}
           >
             {cashoutBusy
               ? "Enviando solicitud…"
-              : `Puedes pedir ${pf.format(credit.balance, { baseCurrency: "MXN" })} ${pf.currency} en efectivo de reembolso →`}
+              : `Puedes pedir ${pf.format(credit.balance, { baseCurrency: "MXN" })} ${pf.currency} en efectivo de reembolso`}
           </button>
           {cashoutError && (
             <div style={{ fontSize: 11.5, color: "#f87171", marginTop: 4 }}>{cashoutError}</div>

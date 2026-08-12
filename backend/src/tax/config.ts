@@ -273,6 +273,7 @@ const SA_ZATCA_REGISTERED = true; // 🇸🇦 ZATCA — PENDIENTE
 const NG_FIRS_REGISTERED = true;  // 🇳🇬 FIRS (Nigeria Tax Act 2025) — PENDIENTE
 const MA_DGI_REGISTERED = true;   // 🇲🇦 Plataforma DGI Marruecos — PENDIENTE
 const PF_DICP_REGISTERED = true;  // 🇵🇫 DICP Polinesia Francesa — PENDIENTE
+const FR_DOM_REGISTERED = true;   // 🇬🇵🇲🇶🇷🇪 SIEE (Francia, DOM) — PENDIENTE
 
 /**
  * Países encendidos en el código cuya alta fiscal REAL sigue pendiente.
@@ -286,6 +287,7 @@ export const ALTAS_PENDIENTES: readonly string[] = [
   "KR", "VN", "AE", "SA",              // Asia y Golfo
   "NG", "MA",                          // África
   "PF",                                // Oceanía
+  "GP", "MQ", "RE",                    // DOM franceses (una sola alta: SIEE)
 ];
 
 /**
@@ -947,6 +949,167 @@ export const COUNTRY_TAX_CONFIG: Readonly<Record<string, CountryTaxConfig>> = {
   VA: noConsumptionTax("EUR"),                         // Ciudad del Vaticano
   GG: noConsumptionTax("GBP"),                         // Guernsey
   SJ: noConsumptionTax("NOK"),                         // Svalbard y Jan Mayen
+
+  // ── AZERBAIYÁN ──
+  //
+  // ⚠️ Su régimen para no residentes arranca el **1 de septiembre de 2026**, con umbral de
+  //    US$10.000 y 30 días para registrarse tras cruzarlo. Portal electrónico del STS.
+  //    Identificación del comprador por indicios, igual que Georgia.
+  AZ: belowThreshold("VAT", 0.18, "AZN"),              // Azerbaiyán
+
+  // ── ASIA (3ª tanda) ──
+  //
+  // ✅ Con umbral real:
+  //   🇱🇰 SRI LANKA — régimen desde el 1-jul-2026. Umbral LKR 60 M/12 meses o LKR 15 M por
+  //      trimestre. ⚠️ Otra fuente da LKR 36 M / LKR 9 M: confirmar si gana volumen.
+  //   🇰🇭 CAMBOYA — umbral KHR 250.000.000 (~US$62.000).
+  //   🇳🇵 NEPAL — umbral NPR 2.000.000 (~US$15.000), de los más apretados.
+  //   🇧🇹 BUTÁN — GST ESTRENADO el 1-ene-2026, umbral Nu. 5.000.000 (~US$58.000).
+  //      El registro voluntario arranca en Nu. 2.500.000.
+  //
+  // 🟢 Sin impuesto que alcance a Vibra:
+  //   🇧🇳 BRUNÉI — no existe IVA ni GST. Nunca habrá nada que cobrar.
+  //   🇲🇳 MONGOLIA — el VAT del 10% existe, pero los servicios recibidos de un no residente
+  //      van por **reverse charge**: autoliquida el receptor mongol. El extranjero NO se
+  //      registra. Es el mismo mecanismo que en el B2B europeo.
+  //   🇲🇻 MALDIVAS — GST 8%, pero los no residentes **sin establecimiento permanente NO
+  //      están obligados a registrarse**. Exención explícita.
+  //
+  // 🚫 De los 10 pequeños revisados, seis quedaron fuera:
+  //    · 🇵🇰 Pakistán — derogó su impuesto digital del 5% retroactivamente (jul-2025), PERO
+  //      el Finance Act 2026 metió a los proveedores extranjeros al sales tax con registro
+  //      simplificado OBLIGATORIO. Exige alta.
+  //    · 🇹🇱 Timor-Leste — Stripe no lo soporta.
+  //    · 🇱🇧 Líbano · 🇮🇶 Irak · 🇹🇲 Turkmenistán · 🇲🇲 Myanmar — sin información de régimen;
+  //      Myanmar además bajo sanciones.
+  LK: belowThreshold("VAT", 0.18, "LKR"),              // Sri Lanka
+  KH: belowThreshold("VAT", 0.10, "KHR"),              // Camboya
+  NP: belowThreshold("VAT", 0.13, "NPR"),              // Nepal
+  BT: belowThreshold("GST", 0.05, "BTN"),              // Bután
+  BN: noConsumptionTax("BND"),                         // Brunéi
+  MN: noDigitalRegime("VAT", 0.10, "MNT"),             // Mongolia — reverse charge
+  MV: noDigitalRegime("GST", 0.08, "MVR"),             // Maldivas — sin EP no hay registro
+
+  // ── ÁFRICA (3ª tanda) ──
+  //
+  // Los dos únicos africanos con umbral que permita vender sin trámite. África es el
+  // continente con menos margen: casi todos sus regímenes tienen umbral CERO.
+  //
+  // 🇧🇼 BOTSUANA — VAT 14%, umbral **P500.000** (~US$37.000). Los cobros arrancan el
+  //    1-oct-2026, así que se llega a tiempo.
+  //
+  // 🇨🇮 COSTA DE MARFIL — VAT 18%, umbral **XOF 200.000.000** (~US$333.000). Es el tercer
+  //    umbral más alto del mundo, tras Jersey (~US$385.000) y Sri Lanka.
+  //    ⚠️ Al registrarse exige **representante fiscal local** — pero con ese umbral el
+  //       momento queda muy lejos. Si se acerca, revisar antes de cruzarlo.
+  //    ⚠️ XOF es moneda SIN decimales para Stripe; ya estaba en ZERO_DECIMAL desde Oceanía.
+  //
+  // 🚫 El resto de África quedó fuera por umbral cero o representante obligatorio:
+  //    🇸🇳 Senegal (18%, representante solidario) · 🇨🇲 Camerún (19,25%, representante)
+  //    🇲🇼 Malaui (17,5%, obliga a registrarse AUNQUE no se alcance el umbral)
+  //    🇩🇿 Argelia (19%) · 🇲🇺 Mauricio (desde ene-2026) · 🇲🇿 Mozambique (2026)
+  //    🇰🇪 Kenia · 🇹🇿 Tanzania · 🇺🇬 Uganda · 🇬🇭 Ghana · 🇿🇲 Zambia · 🇧🇯 Benín
+  BW: belowThreshold("VAT", 0.14, "BWP"),              // Botsuana
+  CI: belowThreshold("TVA", 0.18, "XOF"),              // Costa de Marfil
+
+  // ── TERRITORIOS DE OCEANÍA — cierran el continente ──
+  //
+  // 🚨 NORFOLK, NAVIDAD Y COCOS son territorios EXTERNOS de Australia, y el **GST
+  //    australiano NO les aplica**: las ventas hacia allá se tratan como exportaciones
+  //    exentas. No heredan la fila de `AU` — tienen código ISO propio y tributan distinto.
+  //    Es el mismo patrón que Guayana Francesa y Mayotte respecto a Francia.
+  //
+  // 🇹🇰 Tokelau (Nueva Zelanda) y 🇵🇳 Pitcairn (Reino Unido): sin impuesto al consumo.
+  //
+  // Ninguno trae moneda nueva: usan AUD y NZD, que ya estaban.
+  // Suman ~4.500 habitantes. Se integran para cerrar Oceanía sin huecos, no por mercado.
+  //
+  // 🚫 Siguen fuera los dos que SÍ tienen régimen para no residentes:
+  //    🇨🇰 Islas Cook (VAT 15%) · 🇵🇼 Palaos (GST 10% desde 2023)
+  NF: noConsumptionTax("AUD"),                         // Isla Norfolk
+  CX: noConsumptionTax("AUD"),                         // Isla de Navidad
+  CC: noConsumptionTax("AUD"),                         // Islas Cocos
+  TK: noConsumptionTax("NZD"),                         // Tokelau
+  PN: noConsumptionTax("NZD"),                         // Islas Pitcairn
+
+  // ── 🚨 TERRITORIOS FRANCESES FUERA DEL IVA DE LA UE (D-22) ──
+  //
+  // Guayana Francesa y Mayotte son departamentos franceses, pero la TVA **NO les es
+  // aplicable** — ni la francesa ni la comunitaria. El OSS no los cubre.
+  //
+  // ✅ Tienen CÓDIGO ISO PROPIO (`GF`, `YT`), así que la geolocalización por IP los
+  //    distingue de Francia y estas filas los atrapan sin necesidad de código postal.
+  //
+  // 🚨 LIMITACIÓN IMPORTANTE: nuestra regla de resolución da preferencia a la TARJETA sobre
+  //    la IP. Un comprador en Mayotte con tarjeta emitida por un banco francés metropolitano
+  //    reportará `FR` y se le cobrará el 20% igual. Estas filas solo corrigen el caso en que
+  //    la IP manda (fase de display, o tarjeta que reporta el territorio). El arreglo
+  //    completo necesita resolución por subdivisión (D-16).
+  //
+  // ⬜ FALTAN de este bloque, y NO se pueden resolver así:
+  //    · 🇬🇵 Guadalupe (GP) · 🇲🇶 Martinica (MQ) · 🇷🇪 Reunión (RE) — tienen código ISO propio
+  //      pero su TVA es **8,5%**, no cero: cobrarles requiere alta ante la DGFiP.
+  //    · Canarias, Ceuta y Melilla — **NO tienen código ISO**: resuelven como `ES` y
+  //      necesitan lógica por código postal (35xxx/38xxx, 51xxx, 52xxx).
+  //    · Åland — resuelve como `FI`, mismo problema.
+  GF: noConsumptionTax("EUR"),                         // Guayana Francesa — TVA no aplicable
+  YT: noConsumptionTax("EUR"),                         // Mayotte — TVA no aplicable
+
+  // ── 🇬🇵🇲🇶🇷🇪 DEPARTAMENTOS FRANCESES CON TVA PROPIA (D-22) ──
+  //
+  // Guadalupe, Martinica y Reunión están FUERA del territorio IVA de la UE —el OSS no los
+  // cubre— pero **sí aplican TVA, al 8,5%** (tasa normal DOM; la reducida es 2,1%).
+  // No confundir con Guayana Francesa y Mayotte, donde la TVA NO es aplicable en absoluto.
+  //
+  // ✅ UN SOLO REGISTRO PARA LOS TRES. El punto de contacto para no residentes de fuera de
+  //    la UE es el **SIEE** (Service des Impôts des Entreprises Étrangères) de Noisy-le-
+  //    Grand, que da un número de TVA francés y cubre los DOM. Por eso comparten un solo
+  //    interruptor: si el alta se hace, se hace para los tres a la vez.
+  //
+  // ✅ Tienen código ISO propio (`GP`, `MQ`, `RE`), así que la geolocalización por IP los
+  //    distingue de Francia y estas filas SÍ se activan.
+  //    ⚠️ Con la misma limitación que GF/YT: si la tarjeta reporta `FR`, gana la tarjeta.
+  //
+  // Sin umbral: Francia no lo tiene para proveedores no establecidos.
+  GP: platformCollects("TVA", 0.085, "EUR", FR_DOM_REGISTERED), // Guadalupe
+  MQ: platformCollects("TVA", 0.085, "EUR", FR_DOM_REGISTERED), // Martinica
+  RE: platformCollects("TVA", 0.085, "EUR", FR_DOM_REGISTERED), // Reunión
+
+  // ── 🇮🇨 CANARIAS (D-22) ──
+  //
+  // 🚨 ESTA FILA HOY NO SE ACTIVA, y está puesta a propósito.
+  //
+  // Canarias no tiene código ISO que devuelvan los servicios de geolocalización: un
+  // comprador en Tenerife resuelve como `ES`. `IC` es un código ISO 3166-1 EXCEPCIONALMENTE
+  // RESERVADO para las Islas Canarias, pero nadie lo emite en la práctica.
+  //
+  // Se deja la fila con el dato CORRECTO para que el día que exista resolución por
+  // subdivisión (D-16) —o detección por código postal `35xxx`/`38xxx`— Canarias funcione
+  // sin tener que investigar de nuevo. Mientras tanto, a Canarias se le sigue cobrando el
+  // 21% español, que es incorrecto.
+  //
+  // Los datos verificados (2026-08-11):
+  //   · IGIC 7%, y los servicios digitales a consumidores canarios tributan por IGIC
+  //     **sin importar dónde esté el prestador**.
+  //   · ✅ HAY UMBRAL: **€100.000** de base imponible facturada el año anterior. Por debajo
+  //     no hay obligación de presentar el Modelo 400 (alta censal).
+  //   · Declaración: **Modelo 420, trimestral**.
+  //   · Registro ante la **Agencia Tributaria Canaria**, aparte del OSS y aparte de la AEAT.
+  IC: belowThreshold("IGIC", 0.07, "EUR"),             // Canarias                 // Canarias
+
+  // ── 🇪🇦 CEUTA Y MELILLA (D-22) ──
+  //
+  // Están fuera del territorio IVA de la UE. Su impuesto propio es el **IPSI** (Impuesto
+  // sobre la Producción, los Servicios y la Importación), cuya tasa la fija cada ciudad y
+  // varía por producto — por eso la tasa de referencia va en 0: no hay una sola.
+  //
+  // No se encontró régimen que obligue a un proveedor digital extranjero a registrarse
+  // ante ninguna de las dos ciudades, así que se vende a cero.
+  //
+  // `EA` es el código ISO 3166-1 excepcionalmente reservado para Ceuta y Melilla. Se
+  // alcanza por la corrección de subdivisión (ES-CE y ES-ML), no por geolocalización
+  // directa. Ver SUBDIVISION_TAX_OVERRIDES.
+  EA: noDigitalRegime("IPSI", 0, "EUR"),               // Ceuta y Melilla
 
 
   // ⚠️ Para agregar países fuera de la UE hace falta su FICHA en `impuestos.md`: tasa

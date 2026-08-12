@@ -18,8 +18,10 @@ export type ExclusiveSessionStatus =
 
 export type ExclusiveSessionUserRole = "buyer" | "creator";
 
-export type ExclusiveSessionPaymentMode = "simulated_no_real_payment";
-export type ExclusiveSessionPaymentStatus = "simulated_paid";
+// Cobro real por Stripe (auth-hold). Los valores "mercadopago"/"simulated_no_real_payment"
+// se conservan solo para docs LEGACY previos a la migración.
+export type ExclusiveSessionPaymentMode = "stripe" | "mercadopago" | "simulated_no_real_payment";
+export type ExclusiveSessionPaymentStatus = "authorized" | "paid" | "simulated_paid";
 
 export type ExclusiveSessionScheduleHistoryItem = {
   proposedAt: string | null;

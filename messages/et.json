@@ -1056,7 +1056,7 @@
     "onboardingStartNow": "Alusta kohe",
     "onboardingCreateLive": "Loo oma esimene ülekanne",
     "onboardingCreatePremium": "Loo oma esimene premium-postitus",
-    "onboardingWaysTitle": "11 kogemust, kuidas <vibra>tulu teenida</vibra>, olles oma publikule lähemal",
+    "onboardingWaysTitle": "{count} kogemust, kuidas <vibra>tulu teenida</vibra>, olles oma publikule lähemal",
     "onboardingCommunitiesTitle": "Loo 3 tüüpi <vibra>kogukondi</vibra>",
     "onboardingCommunityPublicName": "Avalik",
     "onboardingCommunityPublicDesc": "Avatud maailmale. Igaüks saab selle avastada, liituda ilma kinnituseta ja näha sinu sisu — ka ilma Vibra kontota. See on sinu vaateaken, et kasvada, jälgijaid saada ja tuntuks saada. Ideaalne alustamiseks ja publiku loomiseks.",

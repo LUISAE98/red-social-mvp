@@ -29,6 +29,7 @@ import {
   ChatReveal,
   MessageThreadSkeleton,
   SendingImageSkeleton,
+  SkeletonBlock,
 } from "./ChatSkeletons";
 import {
   CommentImageLightbox,
@@ -160,6 +161,9 @@ const REPLY_SWIPE_MAX = 76;
 /** Antes de esto no se decide el eje: un gesto de 3px no dice si es scroll. */
 const SWIPE_AXIS_SLOP = 6;
 
+/** Lo que tarda el texto en irse del campo al enviarlo. Cuadra con el CSS. */
+const DRAFT_FADE_MS = 140;
+
 /**
  * Fondos de los globos, sobre negro.
  *
@@ -245,6 +249,40 @@ function AttachImageIcon({ size = 26 }: { size?: number }) {
  */
 const INPUT_MIN_HEIGHT = 48;
 const INPUT_MAX_HEIGHT = 132;
+
+/**
+ * Caja que ocupa una imagen en el hilo, calculada ANTES de que cargue.
+ *
+ * Sin esto el hueco solo existe cuando la foto llega, y entonces el hilo pega un
+ * empujón. Con la proporción real puesta de antemano, la imagen se funde encima
+ * de su propio sitio y nada se mueve.
+ *
+ * Se devuelve `aspectRatio` en vez de un alto fijo para que la caja pueda
+ * encoger con el globo en pantallas estrechas sin deformar la foto.
+ */
+function imageBox(image: ChatImage): {
+  width: number;
+  maxWidth: string;
+  aspectRatio: string;
+} {
+  const MAX_WIDTH = 240;
+  const MAX_HEIGHT = 260;
+  const width = image.width ?? 0;
+  const height = image.height ?? 0;
+
+  // Sin dimensiones guardadas (mensajes antiguos) se asume apaisado corriente.
+  if (!width || !height) {
+    return { width: 200, maxWidth: "100%", aspectRatio: "4 / 3" };
+  }
+
+  // Nunca se amplía: una foto pequeña se queda a su tamaño.
+  const scale = Math.min(MAX_WIDTH / width, MAX_HEIGHT / height, 1);
+  return {
+    width: Math.round(width * scale),
+    maxWidth: "100%",
+    aspectRatio: `${width} / ${height}`,
+  };
+}
 function autoGrow(el: HTMLTextAreaElement) {
   el.style.height = "auto";
   el.style.height = `${Math.min(el.scrollHeight, INPUT_MAX_HEIGHT)}px`;
@@ -311,6 +349,10 @@ export default function ConversationThread({
   const uploadIdRef = useRef(0);
   /** El campo tiene el foco ⇒ hay teclado ⇒ el botón de foto se pliega. */
   const [composerFocused, setComposerFocused] = useState(false);
+  /** Miniaturas ya cargadas, por ruta: deciden cuándo apagar su skeleton. */
+  const [loadedImages, setLoadedImages] = useState<Record<string, true>>({});
+  /** Breve, mientras el texto se desvanece del campo tras enviarlo. */
+  const [draftFading, setDraftFading] = useState(false);
   /**
    * Imagen abierta a tamaño completo.
    *
@@ -340,6 +382,26 @@ export default function ConversationThread({
   const expandedPanelRef = useRef<HTMLDivElement | null>(null);
   /** Nodo de cada mensaje, para poder saltar al original desde su cita. */
   const messageNodes = useRef(new Map<string, HTMLDivElement>());
+
+  /**
+   * Qué mensajes entran con animación.
+   *
+   * Solo los que LLEGAN estando tú mirando. La tanda inicial no se anima: veinte
+   * globos haciendo pop a la vez al abrir un hilo es ruido, no un detalle.
+   *
+   * Se decide una sola vez por mensaje y se recuerda, porque si la decisión
+   * cambiara en el siguiente render la animación se cortaría a medias.
+   */
+  const popDecision = useRef(new Map<string, boolean>());
+  const firstBatchDone = useRef(false);
+
+  function shouldPop(messageId: string): boolean {
+    const decided = popDecision.current.get(messageId);
+    if (decided !== undefined) return decided;
+    const value = firstBatchDone.current;
+    popDecision.current.set(messageId, value);
+    return value;
+  }
 
   /**
    * Alto real del compositor. Como va superpuesto al hilo, el área de mensajes
@@ -725,6 +787,8 @@ export default function ConversationThread({
 
     const isFirstPaint = lastMessageIdRef.current === null;
     lastMessageIdRef.current = last.id;
+    // A partir de aquí, lo que llegue es nuevo y sí se anima.
+    firstBatchDone.current = true;
 
     // Lo propio siempre se ve; lo del otro solo si ya estabas al final.
     if (isFirstPaint || last.senderId === selfUid || stickToBottomRef.current) {
@@ -794,13 +858,30 @@ export default function ConversationThread({
 
     setSending(true);
     setError(null);
+
+    // El texto se desvanece del campo mientras el mensaje sale, en vez de
+    // desaparecer de golpe. No se espera a que termine para enviar: el envío ya
+    // va en camino y esto es solo lo que se ve.
+    setDraftFading(true);
+    setTimeout(() => {
+      setDraft("");
+      setDraftFading(false);
+      if (inputRef.current) inputRef.current.style.height = "auto";
+    }, DRAFT_FADE_MS);
+
     try {
       await deliver(body, null, replyingTo);
-      setDraft("");
       setReplyingTo(null);
-      if (inputRef.current) inputRef.current.style.height = "auto";
     } catch {
       setError(tChat("sendError"));
+      // Si falló, lo escrito VUELVE al campo: perder un mensaje por un corte de
+      // red es mucho peor que cualquier animación.
+      //
+      // Va con el mismo retardo que el borrado a propósito. Este temporizador se
+      // crea después que aquel, así que nunca puede dispararse antes — y si el
+      // fallo llega rapidísimo, esto sigue ganando en vez de que el borrado
+      // vacíe el campo justo después de haberlo restaurado.
+      setTimeout(() => setDraft(body), DRAFT_FADE_MS);
     } finally {
       setSending(false);
     }
@@ -921,6 +1002,8 @@ export default function ConversationThread({
           if (node) messageNodes.current.set(message.id, node);
           else messageNodes.current.delete(message.id);
         }}
+        // Los que llegan mientras miras entran con un pequeño rebote.
+        className={shouldPop(message.id) ? "vibra-msg-pop" : undefined}
         style={{ display: "flex", flexDirection: "column" }}
       >
         {showDaySeparator && date ? (
@@ -1175,26 +1258,12 @@ export default function ConversationThread({
               </button>
             ) : null}
 
-            {/* Sin URL firmada todavía se pinta un hueco, NO nada. Antes, si la
-                firma no llegaba, el globo se quedaba vacío y un mensaje de solo
-                imagen desaparecía por completo — parecía que no se había
-                enviado. */}
-            {!message.isDeleted && message.image && !imageUrl(message.image, "thumb") ? (
-              <div
-                aria-label={tChat("openImage")}
-                style={{
-                  width: Math.min(200, message.image.width ?? 200),
-                  aspectRatio:
-                    message.image.width && message.image.height
-                      ? `${message.image.width} / ${message.image.height}`
-                      : "4 / 3",
-                  maxHeight: 260,
-                  background: "rgba(255,255,255,0.08)",
-                }}
-              />
-            ) : null}
-
-            {!message.isDeleted && message.image && imageUrl(message.image, "thumb") ? (
+            {/* La imagen ocupa su hueco DESDE EL PRIMER PINTADO, con la silueta
+                shimmer detrás. Antes el globo estaba vacío hasta que la imagen
+                llegaba y entonces aparecía de golpe, empujando el hilo. Ahora la
+                caja ya está reservada con la proporción real y lo único que pasa
+                al llegar es que la foto se funde encima. */}
+            {!message.isDeleted && message.image ? (
               <button
                 type="button"
                 onClick={(e) => {
@@ -1207,6 +1276,7 @@ export default function ConversationThread({
                 aria-label={tChat("openImage")}
                 style={{
                   display: "block",
+                  position: "relative",
                   // A sangre: sin relleno, sin borde y sin radio propio. El
                   // redondeo se lo da el recorte del globo.
                   padding: 0,
@@ -1214,26 +1284,42 @@ export default function ConversationThread({
                   background: "none",
                   cursor: "zoom-in",
                   lineHeight: 0,
+                  ...imageBox(message.image),
                 }}
               >
+                <SkeletonBlock
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    // Se apaga en cuanto la foto está encima, para que no siga
+                    // brillando por los bordes.
+                    opacity: loadedImages[message.image.thumbnailPath] ? 0 : 1,
+                    transition: "opacity var(--duration-fast, 150ms) ease",
+                  }}
+                />
+
                 {/* <img> y no next/image: la URL de Storage lleva token y las
                     dimensiones las decide el propio archivo. */}
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={imageUrl(message.image, "thumb") ?? undefined}
                   alt=""
-                  // Una imagen no ocupa sitio hasta que carga. Si la del último
-                  // mensaje llega tarde, el hilo crece por debajo y lo que
-                  // estabas viendo deja de ser el final.
                   onLoad={() => {
+                    const path = message.image?.thumbnailPath;
+                    if (path) setLoadedImages((prev) => ({ ...prev, [path]: true }));
                     if (stickToBottomRef.current) scrollToBottom(false);
                   }}
                   style={{
+                    position: "absolute",
+                    inset: 0,
                     display: "block",
-                    maxWidth: "100%",
-                    maxHeight: 260,
-                    width: "auto",
-                    height: "auto",
+                    width: "100%",
+                    height: "100%",
+                    // La caja lleva la proporción real, así que `cover` no
+                    // recorta nada: solo evita medio píxel de desajuste.
+                    objectFit: "cover",
+                    opacity: loadedImages[message.image.thumbnailPath] ? 1 : 0,
+                    transition: "opacity var(--duration-slow, 400ms) ease",
                   }}
                 />
               </button>
@@ -1601,6 +1687,7 @@ export default function ConversationThread({
         <textarea
           ref={inputRef}
           className="vibra-chat-ph"
+          data-fading={draftFading ? "" : undefined}
           value={draft}
           onFocus={() => {
             // Ponerse a escribir lleva al final del hilo, como en WhatsApp. Se
@@ -1821,6 +1908,40 @@ export default function ConversationThread({
       <style jsx global>{`
         .vibra-chat-ph::placeholder {
           color: rgba(255, 255, 255, 0.32);
+        }
+
+        /* El texto se va del campo al enviarlo, en vez de desaparecer seco. */
+        .vibra-chat-ph {
+          transition: opacity 140ms ease;
+        }
+        .vibra-chat-ph[data-fading] {
+          opacity: 0;
+        }
+
+        /* Entrada de un mensaje que llega mientras miras: sube un poco y crece
+           hasta su sitio. El easing con rebote es el que hace que se lea como
+           que "cae" en la conversación y no como un simple fundido. */
+        .vibra-msg-pop {
+          animation: vibraMsgPop var(--duration-normal, 250ms)
+            var(--ease-spring, cubic-bezier(0.34, 1.56, 0.64, 1)) both;
+        }
+        @keyframes vibraMsgPop {
+          from {
+            opacity: 0;
+            transform: scale(0.88) translateY(8px);
+          }
+          to {
+            opacity: 1;
+            transform: scale(1) translateY(0);
+          }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .vibra-chat-ph {
+            transition: none;
+          }
+          .vibra-msg-pop {
+            animation: none;
+          }
         }
 
         /* Botón de foto, a la derecha del campo. Se pliega al escribir.

@@ -39,6 +39,12 @@ export const NICE_STEP: Readonly<Record<string, number>> = {
   SRD: 5, BZD: 0.5, TTD: 1, JMD: 20, KYD: 0.25, BMD: 0.5, XCD: 0.5, HTG: 20,
   // Europa — microestados
   GIP: 0.5,
+  // Cáucaso
+  AZN: 0.5,
+  // Asia (3ª tanda)
+  LKR: 50, KHR: 500, NPR: 20, BTN: 10, BND: 0.5, MNT: 500, MVR: 2,
+  // África (3ª tanda)
+  BWP: 2, XOF: 100,
 };
 
 /**

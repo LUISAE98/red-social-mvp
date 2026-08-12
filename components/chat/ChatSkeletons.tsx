@@ -128,6 +128,22 @@ export function MessageThreadSkeleton({ bubbles = 6 }: { bubbles?: number }) {
 }
 
 /**
+ * Bloque shimmer suelto, para reservar el hueco de algo que aún no llegó.
+ *
+ * Trae consigo la base (`.vb-skel` va scopeada bajo `.vb-chat-skel`), así que se
+ * puede soltar en cualquier sitio. El envoltorio va en `display: contents` para
+ * no meter una caja de más en el layout de quien lo usa.
+ */
+export function SkeletonBlock({ style }: { style?: React.CSSProperties }) {
+  return (
+    <span className="vb-chat-skel" aria-hidden style={{ display: "contents" }}>
+      <SkeletonBase />
+      <span className="vb-skel" style={{ display: "block", ...style }} />
+    </span>
+  );
+}
+
+/**
  * Imagen que se está subiendo, en su sitio del hilo.
  *
  * La foto se manda al elegirla, así que hay una ventana en la que el mensaje

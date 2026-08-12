@@ -1056,7 +1056,7 @@
     "onboardingStartNow": "今すぐ始める",
     "onboardingCreateLive": "最初の配信を作成",
     "onboardingCreatePremium": "最初のプレミアム投稿を作成",
-    "onboardingWaysTitle": "オーディエンスとの距離を縮めながら<vibra>収入を得る</vibra>11の体験",
+    "onboardingWaysTitle": "オーディエンスとの距離を縮めながら<vibra>収入を得る</vibra>{count}の体験",
     "onboardingCommunitiesTitle": "3種類の<vibra>コミュニティ</vibra>を作成",
     "onboardingCommunityPublicName": "公開",
     "onboardingCommunityPublicDesc": "世界に開かれています。誰でも見つけられ、承認なしで参加でき、Vibraのアカウントがなくてもあなたのコンテンツを見られます。成長し、フォロワーを増やし、名前を知ってもらうためのショーケースです。始めたばかりでオーディエンスを作りたいときに最適です。",

@@ -20,6 +20,16 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { getNextFromSearchParams } from "@/lib/auth-redirect";
 import LoginCollageBackground from "./LoginCollageBackground";
 import WalletOnboarding from "@/app/[locale]/(protected)/wallet/components/WalletOnboarding";
+import LoginExperienceBlock from "./LoginExperienceBlock";
+
+/**
+ * ⚠️ TEMPORAL — video de muestra compartido por los bloques de experiencias.
+ * Cámbialo por los definitivos (uno por experiencia) cuando existan: si son
+ * archivos del proyecto van en `public/`; si vienen de Mux hay que reproducirlos
+ * con HLS, como el visor de posts.
+ */
+const VIDEO_MUESTRA =
+  "https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4";
 import LegalLinksFooter from "@/components/legal/LegalLinksFooter";
 import RegisterPanel from "@/app/[locale]/(public)/register/RegisterPanel";
 import CompleteProfilePanel from "@/app/[locale]/(public)/complete-profile/CompleteProfilePanel";
@@ -490,6 +500,29 @@ body.loginPageBg {
           );
           padding: 34px 0 24px;
         }
+        /* Fila de experiencias: TRES por fila en laptop. Las columnas son
+           minmax(0,1fr) —no auto— para que el texto largo no ensanche su columna
+           y las tres queden exactamente del mismo ancho.
+           El acomodo de celular se hará aparte; por ahora se apilan. */
+        .loginExpGrid {
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 8px 20px;
+          align-items: start;
+          width: 100%;
+          max-width: 1180px;
+          margin: 0 auto;
+          padding: 34px 20px 8px;
+          box-sizing: border-box;
+        }
+
+        @media (max-width: 900px) {
+          .loginExpGrid {
+            grid-template-columns: 1fr;
+            gap: 24px;
+          }
+        }
+
         .loginTagline {
           margin: 0;
           font-size: clamp(26px, 3.1vw, 41px);
@@ -999,7 +1032,75 @@ marginBottom: 6,
           marketing, así que se oculta. */}
       {mode !== "complete" && (
       <section className="loginBelowFold">
-        <WalletOnboarding showCtas={false} twoColumn />
+        {/* Rediseño en curso: los bloques nuevos se van armando arriba y el
+            contenido viejo (WalletOnboarding) se queda debajo hasta que lo
+            sustituyan por completo. Los videos son de MUESTRA. */}
+        <div className="loginExpGrid">
+        <LoginExperienceBlock
+          eyebrow="Experiencias personales"
+          title="Cuando es para ti, se siente distinto"
+          description="Un saludo para hacer inolvidable un momento. Un consejo para dar el siguiente paso. Pídelo a quien admiras o grábalo para alguien que eligió escucharte."
+          videoSrc={VIDEO_MUESTRA}
+          poster="/saludo.webp"
+          service="saludo"
+          accentColor="#a855f7"
+        />
+
+        <LoginExperienceBlock
+          eyebrow="Encuentros exclusivos"
+          title="Cuando el tiempo es para ustedes, todo cambia"
+          description="Una conversación, una guía o una experiencia compartida en tiempo real. Reserva un momento con quien admiras o abre un espacio para quienes quieren conectar contigo."
+          videoSrc={VIDEO_MUESTRA}
+          poster="/encuentroenvivo.webp"
+          service="meetGreet"
+          accentColor="#ec4899"
+        />
+
+        <LoginExperienceBlock
+          eyebrow="Apoyo directo"
+          title="Cuando valoras lo que alguien crea, puedes hacerlo sentir"
+          description="Apoya desde su perfil o dentro de su comunidad y forma parte de lo que está construyendo. Comparte tu reconocimiento o recibe el impulso de quienes creen en ti."
+          videoSrc={VIDEO_MUESTRA}
+          poster="/donacion-perfil.webp"
+          service="profileDonation"
+          accentColor="#38bdf8"
+        />
+
+        {/* Segunda fila: un solo card ancho que junta las tres experiencias del
+            directo y el contenido de pago (ticket, supercomentarios y VOD). */}
+        <LoginExperienceBlock
+          wide
+          eyebrow="Streaming exclusivo"
+          title="Hay experiencias que merecen vivirse más cerca"
+          description="Accede a transmisiones especiales, haz que tu mensaje destaque y disfruta contenido premium cuando tú quieras. En vivo o después, crea experiencias que tu comunidad estará dispuesta a elegir."
+          videoSrc={VIDEO_MUESTRA}
+          poster="/desbloquearvod.webp"
+          service={["liveAccess", "vodUnlock"]}
+          accentColor="#a855f7"
+        />
+
+        <LoginExperienceBlock
+          wide
+          eyebrow="Contenido exclusivo"
+          title="Lo mejor se comparte con quienes deciden estar más cerca"
+          description="Suscríbete para descubrir una parte diferente de quien sigues o accede solo a las publicaciones que elijas. Comparte algo más con tu comunidad y convierte cada publicación en una experiencia especial."
+          videoSrc={VIDEO_MUESTRA}
+          poster="/suscripciones.webp"
+          service={["subscription", "premiumPost"]}
+          accentColor="#3b82f6"
+        />
+        </div>
+
+        {/* Las 11 experiencias YA tienen bloque propio arriba, así que el
+            listado de la wallet se queda sin ninguna que mostrar: la sección se
+            oculta sola (ver `excludeServices` en WalletOnboarding). Se mantiene
+            el resto del componente —presentación, comunidades y cierre— hasta
+            que el rediseño lo sustituya. */}
+        <WalletOnboarding
+          showCtas={false}
+          twoColumn
+          excludeServices={[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]}
+        />
       </section>
       )}
 

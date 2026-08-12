@@ -1056,7 +1056,7 @@
     "onboardingStartNow": "Hemen başla",
     "onboardingCreateLive": "İlk yayınını oluştur",
     "onboardingCreatePremium": "İlk premium gönderini oluştur",
-    "onboardingWaysTitle": "Kitlene yaklaşarak <vibra>gelir elde etmenin</vibra> 11 yolu",
+    "onboardingWaysTitle": "Kitlene yaklaşarak <vibra>gelir elde etmenin</vibra> {count} yolu",
     "onboardingCommunitiesTitle": "3 tür <vibra>topluluk</vibra> oluştur",
     "onboardingCommunityPublicName": "Herkese açık",
     "onboardingCommunityPublicDesc": "Dünyaya açık. Herkes keşfedebilir, onay olmadan katılabilir ve içeriğini görebilir — Vibra hesabı olmasa bile. Büyümek, takipçi kazanmak ve tanınmak için vitrinin. Başlamak ve kitle kurmak için ideal.",

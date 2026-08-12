@@ -28,6 +28,7 @@ export default function WalletOnboarding({
   showCtas = true,
   twoColumn = false,
   audience = "creators",
+  excludeServices,
 }: {
   /** Botones "Comenzar ahora"/"Crea…" de los 11 servicios. Se ocultan cuando se
    *  reutiliza esta info fuera de la wallet (p. ej. login con sesión cerrada). */
@@ -39,6 +40,16 @@ export default function WalletOnboarding({
    *  textos de creador. "users" redirige las claves con variante onboardingU* a
    *  un copy dirigido al fan y oculta la sección "Wallet clara" (celular + texto). */
   audience?: "creators" | "users";
+  /**
+   * Ids de servicio que NO se listan. Lo usa el login, donde las primeras
+   * experiencias ya tienen su propio bloque arriba (video + copy propios) y
+   * repetirlas aquí sería decir lo mismo dos veces. La wallet real no lo pasa:
+   * ahí se siguen viendo las 11.
+   *
+   * El conteo del título y la numeración de las cards se ajustan solos a las que
+   * queden, así que no hay que tocar nada más al cambiar esta lista.
+   */
+  excludeServices?: readonly number[];
 } = {}) {
   const rawWallet = useTranslations("wallet");
   // Redirige las claves de onboarding con variante propia a su copy de usuario
@@ -58,6 +69,21 @@ export default function WalletOnboarding({
         rawWallet.rich(resolveKey(key), values),
     },
   );
+  // Servicios que se van a listar, ya sin los excluidos. Se calcula aquí —y no
+  // dentro del mosaico— porque el TÍTULO también lo necesita: dice "N
+  // experiencias", y ese número tiene que cuadrar con las cards que se ven.
+  const serviceEntries = (
+    audience === "users"
+      ? (USER_SERVICE_ENTRIES as readonly (readonly number[])[])
+      : SERVICE_ORDER.map((s) => [s] as readonly number[])
+  ).filter(
+    (group) =>
+      !excludeServices?.length || !group.every((s) => excludeServices.includes(s)),
+  );
+  // Cuenta EXPERIENCIAS, no cards: para el fan algunas van combinadas (7+8,
+  // 10+11) y aun así son dos experiencias cada una.
+  const serviceCount = serviceEntries.reduce((n, group) => n + group.length, 0);
+
   const { user } = useAuth();
   // Handle del creador para armar el enlace a su propio perfil ("Comenzar ahora").
   const [handle, setHandle] = useState<string | null>(null);
@@ -1843,10 +1869,15 @@ export default function WalletOnboarding({
       </section>
       )}
 
-      {/* Las 11 formas: título + mosaico de categorías de fondo para el contenido. */}
+      {/* Las 11 formas: título + mosaico de categorías de fondo para el contenido.
+          Si se excluyeron TODAS (el login, donde cada experiencia ya tiene su
+          propio bloque), la sección entera desaparece: dejarla mostraría un
+          título anunciando cero experiencias sobre un mosaico vacío. */}
+      {serviceCount > 0 && (
       <section className="ways">
         <h2 className="waysTitle reveal">
           {tWallet.rich("onboardingWaysTitle", {
+            count: serviceCount,
             vibra: (chunks) => (
               <VibraGradientText
                 gradient="linear-gradient(100deg, #c084fc 0%, #a855f7 45%, #7c3aed 100%)"
@@ -1861,10 +1892,7 @@ export default function WalletOnboarding({
         {/* Los 11 servicios: número grande intercalado izquierda/derecha, cada
             uno con la imagen de su categoría de fondo. */}
         {(() => {
-          const serviceEntries =
-            audience === "users"
-              ? USER_SERVICE_ENTRIES
-              : SERVICE_ORDER.map((s) => [s]);
+          // `serviceEntries` se calcula arriba (lo comparte el título).
           const cardEls = serviceEntries.map((group, i) => {
             const pos = i + 1;
             const primary = group[0];
@@ -2127,6 +2155,7 @@ export default function WalletOnboarding({
           );
         })()}
       </section>
+      )}
 
       {/* Título: crea 3 tipos de comunidades ("comunidades" con el degradado de
           marca, igual que "conectar" en el título principal). */}

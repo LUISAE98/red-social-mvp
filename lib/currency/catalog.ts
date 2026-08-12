@@ -14,7 +14,7 @@
  * + 3 de Oceanía (Guam usa USD; Nueva Caledonia y Polinesia Francesa comparten XPF)
  * + 2 de África (Sudáfrica y Egipto) + CAD (Canadá) + 5 de Europa no comunitaria.
  * Estados Unidos usa USD y Montenegro usa EUR: ninguno trajo moneda nueva.
- * Total: 68 monedas para 125 países.
+ * Total: 78 monedas para 147 jurisdicciones.
  *
  * ⚠️ Que una moneda esté aquí NO habilita vender en ese país. El permiso de venta
  * lo decide COUNTRY_TAX_CONFIG (lib/tax/config.ts), que es una capa aparte y exige
@@ -104,6 +104,18 @@ export const DISPLAY_CURRENCIES = [
   "XCD", // Caribe oriental (Granada y vecinos)
   "HTG", // Haití
   "GIP", // Gibraltar
+  "AZN", // Azerbaiyán
+  // --- Asia (3ª tanda) ---
+  "LKR", // Sri Lanka
+  "KHR", // Camboya
+  "NPR", // Nepal
+  "BTN", // Bután
+  "BND", // Brunéi
+  "MNT", // Mongolia
+  "MVR", // Maldivas
+  // --- África (3ª tanda) ---
+  "BWP", // Botsuana
+  "XOF", // Franco CFA de África Occidental (Costa de Marfil y vecinos)
 ] as const;
 export type DisplayCurrency = (typeof DISPLAY_CURRENCIES)[number];
 
@@ -363,6 +375,33 @@ export const COUNTRY_TO_CURRENCY: Readonly<Record<string, DisplayCurrency>> = {
   JE: "GBP", // Jersey
   FO: "DKK", // Islas Feroe
   SJ: "NOK", // Svalbard y Jan Mayen
+  AZ: "AZN", // Azerbaiyán
+  // Asia (3ª tanda).
+  LK: "LKR", // Sri Lanka
+  KH: "KHR", // Camboya
+  NP: "NPR", // Nepal
+  BT: "BTN", // Bután
+  BN: "BND", // Brunéi
+  MN: "MNT", // Mongolia
+  MV: "MVR", // Maldivas
+  // África (3ª tanda).
+  BW: "BWP", // Botsuana
+  CI: "XOF", // Costa de Marfil
+  // Territorios de Oceanía (5). Ninguno trae moneda nueva.
+  NF: "AUD", // Isla Norfolk
+  CX: "AUD", // Isla de Navidad
+  CC: "AUD", // Islas Cocos
+  TK: "NZD", // Tokelau
+  PN: "NZD", // Islas Pitcairn
+  // Territorios franceses de ultramar FUERA del IVA de la UE. Tienen código ISO propio,
+  // así que la geolocalización por IP los distingue de Francia. Ver D-22.
+  GF: "EUR", // Guayana Francesa
+  YT: "EUR", // Mayotte
+  GP: "EUR", // Guadalupe
+  MQ: "EUR", // Martinica
+  RE: "EUR", // Reunión
+  IC: "EUR", // Canarias — se alcanza por corrección de subdivisión (ES-CN)
+  EA: "EUR", // Ceuta y Melilla — íd. (ES-CE, ES-ML)
   ME: "EUR", // Montenegro — usa el euro pero NO es UE: registro fiscal aparte, sin OSS
   PF: "XPF", // Polinesia Francesa — moneda lista; la VENTA sigue bloqueada (umbral cero)
 };

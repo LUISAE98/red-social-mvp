@@ -35,10 +35,16 @@ export type LocaleMeta = {
  * `es`, `en` y `pt-BR` son los que ya existían.
  */
 export const LOCALE_META: readonly LocaleMeta[] = [
+  // Aglutinante con armonía vocálica como el turco y emparentado con él, pero NO
+  // mutuamente inteligible: se escribió aparte. Alfabeto latino (Azerbaiyán lo usa
+  // desde 1991) y con la letra ə, que el turco no tiene.
+  { code: "az", label: "AZ", name: "Azərbaycan dili", intl: "az-AZ", ready: true },
   { code: "bg", label: "BG", name: "Български", intl: "bg-BG", ready: true },
   // Mutuamente inteligible con el croata, pero NO es croata: se derivó de `hr` y se
   // corrigieron los croatismos (link, nivo, sedmica, meses latinos, ko/niko/svako).
   { code: "bs", label: "BS", name: "Bosanski", intl: "bs-BA", ready: true },
+  // Andorra. NO se deriva del español: son lenguas distintas, no variantes.
+  { code: "ca", label: "CA", name: "Català", intl: "ca-ES", ready: true },
   { code: "cs", label: "CS", name: "Čeština", intl: "cs-CZ", ready: true },
   { code: "da", label: "DA", name: "Dansk", intl: "da-DK", ready: true },
   { code: "de", label: "DE", name: "Deutsch", intl: "de-DE", ready: true },
@@ -60,6 +66,9 @@ export const LOCALE_META: readonly LocaleMeta[] = [
   // Primer idioma FUERA de la UE. Japón no está en EU_COUNTRY_TO_LOCALE: lo mapea
   // NON_EU_COUNTRY_TO_LOCALE, más abajo.
   { code: "ja", label: "JA", name: "日本語", intl: "ja-JP", ready: true },
+  // Sin plural gramatical (solo `other`) y con contadores como el japonés: 명 para
+  // personas, 장 para tickets, 개 para cosas. Va pegado al número, no al sustantivo.
+  { code: "ko", label: "KO", name: "한국어", intl: "ko-KR", ready: true },
   { code: "lt", label: "LT", name: "Lietuvių", intl: "lt-LT", ready: true },
   { code: "lv", label: "LV", name: "Latviešu", intl: "lv-LV", ready: true },
   { code: "ms", label: "MS", name: "Bahasa Melayu", intl: "ms-MY", ready: true },
@@ -77,6 +86,14 @@ export const LOCALE_META: readonly LocaleMeta[] = [
   { code: "ro", label: "RO", name: "Română", intl: "ro-RO", ready: true },
   { code: "sk", label: "SK", name: "Slovenčina", intl: "sk-SK", ready: true },
   { code: "sl", label: "SL", name: "Slovenščina", intl: "sl-SI", ready: true },
+  // EKAVO (vreme, mesec) frente al ijekavo del bosnio, y futuro sintético
+  // (Pojaviće se, no Pojavit će se). Se derivó de `bs` con una lista CERRADA de
+  // raíces con yat: un `je → e` a ciegas se comería `nije`, `jedan` y todos los
+  // sustantivos en -nje sin dar un solo error. Alfabeto latino, no cirílico.
+  // Único de los cinco sin pariente en el repertorio: no se deriva de nadie, está
+  // escrito. Plurales one/other.
+  { code: "sq", label: "SQ", name: "Shqip", intl: "sq-AL", ready: true },
+  { code: "sr", label: "SR", name: "Srpski", intl: "sr-Latn-RS", ready: true },
   { code: "sv", label: "SV", name: "Svenska", intl: "sv-SE", ready: true },
   // El tailandés no tiene plural gramatical: TODOS sus `plural` son `other`-only.
   // No es una traducción incompleta; es lo que dice CLDR para `th`.
@@ -88,6 +105,9 @@ export const LOCALE_META: readonly LocaleMeta[] = [
   // Taiwán usa caracteres TRADICIONALES y vocabulario propio (影片 no 视频,
   // 網路 no 网络, 貼文 no 帖子). Por eso es `zh-TW` y no un `zh` genérico:
   // deja sitio a un `zh-CN` simplificado si algún día entra China continental.
+  // Sin plural gramatical y con clasificadores, como el tailandés. ⚠️ Vietnam cobra
+  // al 7 % por el CIT vietnamita, no al tipo global de FX: ver COUNTRY_TAX_CONFIG.
+  { code: "vi", label: "VI", name: "Tiếng Việt", intl: "vi-VN", ready: true },
   { code: "zh-TW", label: "TW", name: "繁體中文", intl: "zh-TW", ready: true },
 ];
 
@@ -97,7 +117,7 @@ export const LOCALE_META: readonly LocaleMeta[] = [
  * en toda la app. Al terminar el archivo de un idioma: pon su `ready: true` arriba
  * Y agrégalo a esta tupla. El test de i18n verifica que ambas listas coincidan.
  */
-export const READY_LOCALES = ["es", "en", "pt-BR", "de", "fr", "it", "nl", "pl", "ro", "el", "cs", "hu", "sv", "pt-PT", "da", "fi", "sk", "bg", "hr", "lt", "sl", "lv", "et", "ga", "mt", "ja", "zh-TW", "id", "ms", "th", "bs", "nb", "is", "tr"] as const;
+export const READY_LOCALES = ["es", "en", "pt-BR", "de", "fr", "it", "nl", "pl", "ro", "el", "cs", "hu", "sv", "pt-PT", "da", "fi", "sk", "bg", "hr", "lt", "sl", "lv", "et", "ga", "mt", "ja", "zh-TW", "id", "ms", "th", "bs", "nb", "is", "tr", "ko", "vi", "sr", "sq", "az", "ca"] as const;
 
 export type Locale = (typeof READY_LOCALES)[number];
 
@@ -202,16 +222,76 @@ export const NON_EU_COUNTRY_TO_LOCALE: Readonly<Record<string, string>> = {
   TH: "th", // Tailandia
   BA: "bs", // Bosnia y Herzegovina
   TR: "tr", // Turquía
+  KR: "ko", // Corea del Sur
+  VN: "vi", // Vietnam
+  RS: "sr", // Serbia
+  AL: "sq", // Albania
+  AZ: "az", // Azerbaiyán
+  AD: "ca", // Andorra — el catalán es la única lengua oficial del país
   NO: "nb", // Noruega
   IS: "is", // Islandia
 
-  // Los cuatro de abajo NO trajeron traducción nueva: reutilizan un idioma que ya
-  // servíamos y que hasta ahora no les llegaba, así que estaban viendo la app en
-  // inglés sin motivo.
+  // ─── Reutilizaciones ───────────────────────────────────────────────────────
+  // De aquí abajo, NINGUNA entrada trajo traducción nueva: todas apuntan a un
+  // idioma que ya servíamos y que a ese país no le llegaba. Estaban viendo la
+  // app en inglés sin motivo, y el síntoma no se nota porque "inglés" parece un
+  // resultado normal, no un fallo. Por eso hay un test que las fija una a una.
   MD: "ro", // Moldavia — rumano (el moldavo es la misma lengua; así lo reconoce el país desde 2023)
-  NC: "fr", // Nueva Caledonia — colectividad francesa, pero NO está en la UE: es un PTU
   ME: "bs", // Montenegro — ijekavo y meses latinos, igual que el bosnio
   HK: "zh-TW", // Hong Kong — chino TRADICIONAL, el mismo que Taiwán
   // ⚠️ Serbia (RS) NO va aquí aunque sea vecina de Montenegro: el serbio es EKAVO
   // (`vreme`, no `vrijeme`) y se escribe a menudo en cirílico. Darle `bs` se notaría.
+
+  // Español. Códigos ISO reservados aparte de ES: no los cubre el mapa de la UE.
+  IC: "es", // Canarias
+  EA: "es", // Ceuta y Melilla
+
+  // Italiano. Dos microestados rodeados por Italia, ninguno en la UE.
+  VA: "it", // Ciudad del Vaticano
+  SM: "it", // San Marino
+
+  // Francés. Los cinco RUP (GP, MQ, GF, YT, RE) sí son territorio de la UE, pero
+  // tienen código ISO propio y no "FR", así que el mapa de los 27 no los alcanza.
+  GP: "fr", // Guadalupe
+  MQ: "fr", // Martinica
+  GF: "fr", // Guayana Francesa
+  YT: "fr", // Mayotte
+  RE: "fr", // Reunión
+  PM: "fr", // San Pedro y Miquelón — PTU, no RUP
+  PF: "fr", // Polinesia Francesa
+  WF: "fr", // Wallis y Futuna
+  NC: "fr", // Nueva Caledonia — colectividad francesa, pero NO está en la UE: es un PTU
+  MC: "fr", // Mónaco
+  CI: "fr", // Costa de Marfil
+  HT: "fr", // Haití — el criollo haitiano es cooficial y mayoritario, pero no lo servimos
+
+  // Neerlandés.
+  BQ: "nl", // Caribe Neerlandés (Bonaire, San Eustaquio y Saba)
+  SR: "nl", // Surinam — ⚠️ el ISO de Surinam es "SR", que NO es el locale serbio "sr"
+
+  // Nórdicos.
+  SJ: "nb", // Svalbard y Jan Mayen
+
+  // Malayo.
+  BN: "ms", // Brunéi
+
+  // ─── Inglés DELIBERADO ─────────────────────────────────────────────────────
+  // El inglés ya es el respaldo por defecto, así que estas entradas no cambian
+  // nada en tiempo de ejecución. Existen para dejar constancia de que en estos
+  // países se REVISÓ el idioma y se decidió el inglés, en vez de que les llegue
+  // por descarte igual que a un país que se nos olvidó mapear. Sin ellas, un
+  // hueco real y una decisión tomada son indistinguibles desde el código.
+  //
+  // En los cuatro del Pacífico el inglés es lengua oficial del Estado; la lengua
+  // propia (samoano, tongano, bislama, tuvaluano) no la servimos.
+  WS: "en", // Samoa — samoano cooficial
+  TO: "en", // Tonga — tongano cooficial
+  VU: "en", // Vanuatu — bislama y francés cooficiales
+  TV: "en", // Tuvalu — tuvaluano cooficial
+  // ⚠️ Estos dos son decisión de producto, no lingüística: su lengua propia es
+  // el groenlandés y el feroés, y el DANÉS —que sí servimos— es cooficial en las
+  // Feroe y lengua escolar obligatoria en ambas, o sea que se entiende mejor que
+  // el inglés. Cambiar el valor a "da" es lo único que hace falta si se revierte.
+  GL: "en", // Groenlandia
+  FO: "en", // Islas Feroe
 };

@@ -1056,7 +1056,7 @@
     "onboardingStartNow": "Sākt tagad",
     "onboardingCreateLive": "Izveido savu pirmo pārraidi",
     "onboardingCreatePremium": "Izveido savu pirmo premium ierakstu",
-    "onboardingWaysTitle": "11 pieredzes, kā <vibra>gūt ienākumus</vibra>, kļūstot tuvākam savai auditorijai",
+    "onboardingWaysTitle": "{count} pieredzes, kā <vibra>gūt ienākumus</vibra>, kļūstot tuvākam savai auditorijai",
     "onboardingCommunitiesTitle": "Izveido 3 veidu <vibra>kopienas</vibra>",
     "onboardingCommunityPublicName": "Publiska",
     "onboardingCommunityPublicDesc": "Atvērta pasaulei. Ikviens to var atklāt, pievienoties bez apstiprinājuma un redzēt tavu saturu — pat bez Vibra konta. Tā ir tava skatlogs, lai augtu, iegūtu sekotājus un kļūtu pazīstams. Ideāla, lai sāktu un veidotu auditoriju.",

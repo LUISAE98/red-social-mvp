@@ -26,9 +26,6 @@ if (admin.apps.length === 0) {
 const db = admin.firestore();
 const FieldValue = admin.firestore.FieldValue;
 
-/** Monto mínimo (MXN) para pedir efectivo. Ajustable. */
-const MIN_CASHOUT_MXN = 100;
-
 function round2(n: number): number {
   return Math.round((n + Number.EPSILON) * 100) / 100;
 }
@@ -140,10 +137,10 @@ export const requestCashout = onCall(
     }
 
     const balance = await readBalance(uid);
-    if (balance < MIN_CASHOUT_MXN) {
+    if (balance <= 0) {
       throw new HttpsError(
         "failed-precondition",
-        `El monto mínimo para pedir efectivo es $${MIN_CASHOUT_MXN}.`
+        "No tienes saldo a favor para reembolsar."
       );
     }
 

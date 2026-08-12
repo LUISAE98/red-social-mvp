@@ -19,8 +19,10 @@ export type MeetGreetStatus =
 
 export type MeetGreetUserRole = "buyer" | "creator";
 
-export type MeetGreetPaymentMode = "simulated_no_real_payment";
-export type MeetGreetPaymentStatus = "simulated_paid";
+// Cobro real por Stripe (auth-hold). Los valores "mercadopago"/"simulated_no_real_payment"
+// se conservan solo para docs LEGACY previos a la migración.
+export type MeetGreetPaymentMode = "stripe" | "mercadopago" | "simulated_no_real_payment";
+export type MeetGreetPaymentStatus = "authorized" | "paid" | "simulated_paid";
 
 export type MeetGreetScheduleHistoryItem = {
   proposedAt: string | null;

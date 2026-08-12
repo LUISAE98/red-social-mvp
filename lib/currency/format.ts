@@ -154,6 +154,21 @@ export const NICE_STEP: Record<DisplayCurrency, number> = {
   XCD: 0.5, //   1 USD ≈ 2.7 XCD  → 0.5 XCD ≈ 0.19 USD. Anclado al dólar.
   HTG: 20, //    1 USD ≈ 132 HTG  → 20 HTG ≈ 0.15 USD.
   GIP: 0.5, //   La libra gibraltareña está anclada 1:1 a la esterlina: mismo paso que GBP.
+  AZN: 0.5, //   1 USD ≈ 1.7 AZN  → 0.5 AZN ≈ 0.29 USD.
+  // --- Asia (3ª tanda) ---
+  LKR: 50, //    1 USD ≈ 300 LKR   → 50 LKR ≈ 0.17 USD.
+  KHR: 500, //   1 USD ≈ 4.000 KHR → 500 KHR ≈ 0.13 USD.
+  NPR: 20, //    1 USD ≈ 140 NPR   → 20 NPR ≈ 0.14 USD.
+  // ⚠️ El ngultrum está anclado 1:1 a la rupia india y casi no se usa fuera de Bután:
+  // confirmar que Stripe lo acepte como moneda de presentación antes de pasar a producción.
+  BTN: 10, //    1 USD ≈ 87 BTN    → 10 BTN ≈ 0.11 USD.
+  BND: 0.5, //   1 USD ≈ 1.34 BND  → 0.5 BND ≈ 0.37 USD. Anclado 1:1 al dólar de Singapur.
+  MNT: 500, //   1 USD ≈ 3.500 MNT → 500 MNT ≈ 0.14 USD.
+  MVR: 2, //     1 USD ≈ 15.4 MVR  → 2 MVR ≈ 0.13 USD.
+  // --- África (3ª tanda) ---
+  BWP: 2, //     1 USD ≈ 13.5 BWP  → 2 BWP ≈ 0.15 USD.
+  // ⚠️ El franco CFA es moneda SIN decimales para Stripe: el paso debe ser entero.
+  XOF: 100, //   1 USD ≈ 570 XOF   → 100 XOF ≈ 0.18 USD. Anclado al euro (655,957 = 1 EUR).
 };
 
 /** Redondea a un múltiplo "bonito" según la moneda. */

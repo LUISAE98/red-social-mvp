@@ -321,7 +321,7 @@ const profileUserId =
       status: "pending" as GreetingStatus,
       priceSnapshot,
       currency: "MXN",
-      paymentMode: "mercadopago",
+      paymentMode: "stripe",
       allowCreatorStory,
     };
   } else {
@@ -388,7 +388,7 @@ const profileUserId =
       status: "pending" as GreetingStatus,
       priceSnapshot,
       currency: "MXN",
-      paymentMode: "mercadopago",
+      paymentMode: "stripe",
       allowCreatorStory,
     };
   }

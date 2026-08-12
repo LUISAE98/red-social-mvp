@@ -16,8 +16,14 @@ import {
 } from "@/lib/tax/config";
 import {
   resolveTaxCountryFromIndicios,
+  applySubdivisionOverride,
+  SUBDIVISION_TAX_OVERRIDES,
   type CountryIndicios,
 } from "../../backend/src/tax/resolveCountry";
+import {
+  applySubdivisionOverride as applySubdivisionOverrideFE,
+  SUBDIVISION_TAX_OVERRIDES as SUBDIVISION_TAX_OVERRIDES_FE,
+} from "@/lib/tax/subdivisions";
 
 /**
  * País deliberadamente NO configurado, para probar el camino "sin ficha".
@@ -857,8 +863,8 @@ describe("LatAm con alta obligatoria — BR, CO, CL, PE, UY", () => {
   // sería quedarse con dinero ajeno.
   it("🚨 ALTAS_PENDIENTES refleja exactamente los que están encendidos sin alta", () => {
     expect([...ALTAS_PENDIENTES].sort()).toEqual(
-      ["AE", "AL", "BR", "CL", "CO", "GB", "KR", "MA", "MD", "ME", "NG", "PE", "PF", "RS",
-       "SA", "TR", "UY", "VN"],
+      ["AE", "AL", "BR", "CL", "CO", "GB", "GP", "KR", "MA", "MD", "ME", "MQ", "NG", "PE",
+       "PF", "RE", "RS", "SA", "TR", "UY", "VN"],
     );
     // Todo el que esté en la lista debe estar cobrando (si no, sobra en la lista).
     for (const iso of ALTAS_PENDIENTES) {
@@ -1189,6 +1195,197 @@ describe("Microestados y territorios europeos", () => {
   it("🚫 Kosovo e Isla de Man siguen fuera", () => {
     expect(countryTaxConfig("XK")).toBeNull();  // representante fiscal obligatorio
     expect(countryTaxConfig("IM")).toBeNull();  // área IVA del Reino Unido
+  });
+});
+
+// 🇦🇿🇬🇫🇾🇹 Azerbaiyán y los dos territorios franceses donde la TVA no aplica.
+describe("Azerbaiyán y territorios franceses fuera del IVA", () => {
+  it("Azerbaiyán vende bajo umbral, sin cobrar", () => {
+    expect(isChargeableCountry("AZ")).toBe(true);
+    expect(platformCollectsTax("AZ")).toBe(false);
+    expect(taxRateForCountry("AZ")).toBeCloseTo(0.18, 8);
+    expect(chargeCurrencyForCountry("AZ")).toBe("AZN");
+  });
+
+  // 🚨 Guayana Francesa y Mayotte son departamentos franceses, pero la TVA NO les es
+  // aplicable — ni la francesa ni la comunitaria. Tienen código ISO propio, así que la
+  // geolocalización por IP los distingue de Francia y estas filas los atrapan.
+  it("🚨 GF y YT cobran CERO, no el 20% francés", () => {
+    for (const iso of ["GF", "YT"]) {
+      expect(isChargeableCountry(iso), iso).toBe(true);
+      expect(taxRateForCountry(iso), iso).toBe(0);
+      expect(computeConsumptionTax(100, iso).total, iso).toBe(100);
+      expect(chargeCurrencyForCountry(iso), iso).toBe("EUR");
+    }
+    // Francia metropolitana sí cobra su 20%.
+    expect(taxRateForCountry("FR")).toBeCloseTo(0.20, 8);
+    expect(platformCollectsTax("FR")).toBe(true);
+  });
+
+  // 🚨 Guadalupe, Martinica y Reunión SÍ aplican TVA, al 8,5% — NO son cero como GF/YT.
+  // Confundirlos costaría 8,5 puntos por venta en una dirección o en la otra.
+  // Comparten UN SOLO registro (SIEE, Francia), por eso un solo interruptor.
+  it("🚨 GP/MQ/RE cobran 8,5%, no cero ni el 20% metropolitano", () => {
+    for (const iso of ["GP", "MQ", "RE"]) {
+      expect(taxRateForCountry(iso), iso).toBeCloseTo(0.085, 8);
+      expect(platformCollectsTax(iso), iso).toBe(true);
+      expect(ALTAS_PENDIENTES, iso).toContain(iso);
+    }
+    // Contraste con los dos donde la TVA no aplica en absoluto.
+    expect(taxRateForCountry("GF")).toBe(0);
+    expect(taxRateForCountry("YT")).toBe(0);
+    // Y con Francia metropolitana.
+    expect(taxRateForCountry("FR")).toBeCloseTo(0.20, 8);
+  });
+
+  // 🚨 Canarias tiene la fila con el dato correcto pero HOY NO SE ACTIVA: no hay código ISO
+  // que devuelva la geolocalización (un canario resuelve como "ES"). Se dejó lista para el
+  // día que exista resolución por subdivisión o detección por código postal.
+  it("🚨 Canarias: fila correcta pero inerte hasta que haya subdivisión", () => {
+    expect(taxRateForCountry("IC")).toBeCloseTo(0.07, 8);
+    expect(countryTaxConfig("IC")!.taxName).toBe("IGIC");
+    // Bajo umbral (€100.000): hoy no cobraría aunque se activara.
+    expect(platformCollectsTax("IC")).toBe(false);
+    // Y España sigue cobrando su 21% — que es justo lo que está mal para un canario.
+    expect(taxRateForCountry("ES")).toBeCloseTo(0.21, 8);
+  });
+});
+
+// 🚨 Corrección por SUBDIVISIÓN. Sin esto, a un comprador en Tenerife se le cobraba 21% de
+// IVA español cuando le corresponde IGIC 7% — y a otro fisco. Ver impuestos.md §6.12 (D-22).
+describe("Corrección por subdivisión", () => {
+  it("🚨 Canarias resuelve como IC, no como ES", () => {
+    expect(applySubdivisionOverride("ES", "CN")).toBe("IC");
+    expect(taxRateForCountry("IC")).toBeCloseTo(0.07, 8);
+    // Bajo umbral (€100.000): hoy cobra CERO, no el 21% español.
+    expect(computeConsumptionTax(100, "IC").tax).toBe(0);
+    expect(computeConsumptionTax(100, "ES").tax).toBeCloseTo(21, 6);
+  });
+
+  it("🚨 Ceuta y Melilla resuelven como EA", () => {
+    expect(applySubdivisionOverride("ES", "CE")).toBe("EA");
+    expect(applySubdivisionOverride("ES", "ML")).toBe("EA");
+    expect(computeConsumptionTax(100, "EA").tax).toBe(0);
+    expect(countryTaxConfig("EA")!.taxName).toBe("IPSI");
+  });
+
+  it("la península sigue siendo España", () => {
+    expect(applySubdivisionOverride("ES", "MD")).toBe("ES");  // Madrid
+    expect(applySubdivisionOverride("ES", "CT")).toBe("ES");  // Cataluña
+    expect(applySubdivisionOverride("ES", null)).toBe("ES");  // sin región
+    expect(applySubdivisionOverride("ES", "")).toBe("ES");
+  });
+
+  it("no toca países sin subdivisiones especiales", () => {
+    expect(applySubdivisionOverride("FR", "IDF")).toBe("FR");
+    expect(applySubdivisionOverride("MX", "CMX")).toBe("MX");
+    expect(applySubdivisionOverride(null, "CN")).toBeNull();
+  });
+
+  // 🚨 Duplicado a mano: el backend no puede importar de lib/. Si se desincronizan, el
+  // precio mostrado y el cobrado dejan de coincidir justo en los territorios que este
+  // mapa existe para corregir.
+  it("🚨 el mapa del backend y el del frontend coinciden", () => {
+    expect(SUBDIVISION_TAX_OVERRIDES_FE).toEqual(SUBDIVISION_TAX_OVERRIDES);
+    for (const [clave, valor] of Object.entries(SUBDIVISION_TAX_OVERRIDES)) {
+      const [pais, region] = clave.split("-");
+      expect(applySubdivisionOverrideFE(pais, region), clave).toBe(valor);
+      // Y todo destino del mapa tiene que existir en la tabla fiscal.
+      expect(countryTaxConfig(valor), valor).not.toBeNull();
+    }
+  });
+});
+
+// 🌏 Asia, tercera tanda: cuatro bajo umbral y tres donde el impuesto no alcanza a Vibra.
+describe("Asia (3ª tanda)", () => {
+  it("los cuatro bajo umbral venden sin cobrar", () => {
+    for (const [iso, tasa] of [["LK",0.18],["KH",0.10],["NP",0.13],["BT",0.05]] as const) {
+      expect(isChargeableCountry(iso), iso).toBe(true);
+      expect(taxRateForCountry(iso), iso).toBeCloseTo(tasa, 8);
+      expect(platformCollectsTax(iso), iso).toBe(false);
+      expect(countryTaxConfig(iso)!.registrationStatus, iso).toBe("not_registered");
+    }
+  });
+
+  // 🚨 Mongolia y Maldivas NO están a cero por falta de impuesto: lo tienen, pero no les
+  // alcanza. Mongolia por reverse charge (autoliquida el receptor), Maldivas por exención
+  // explícita a no residentes sin establecimiento permanente. Brunéi sí es cero real.
+  it("🚨 Mongolia y Maldivas guardan su tasa; Brunéi no tiene ninguna", () => {
+    expect(taxRateForCountry("MN")).toBeCloseTo(0.10, 8);
+    expect(taxRateForCountry("MV")).toBeCloseTo(0.08, 8);
+    expect(taxRateForCountry("BN")).toBe(0);
+    // Los tres cobran cero al comprador.
+    for (const iso of ["MN", "MV", "BN"]) {
+      expect(computeConsumptionTax(100, iso).total, iso).toBe(100);
+      expect(platformCollectsTax(iso), iso).toBe(false);
+    }
+  });
+
+  it("ninguno de los siete agrega alta pendiente", () => {
+    for (const iso of ["LK","KH","NP","BT","BN","MN","MV"]) {
+      expect(ALTAS_PENDIENTES, iso).not.toContain(iso);
+    }
+  });
+
+  // 🚫 Pakistán derogó su impuesto digital del 5% pero el Finance Act 2026 lo repuso vía
+  // sales tax con registro obligatorio. No confundir la derogación con ausencia de régimen.
+  it("🚫 Pakistán y los otros cinco siguen fuera", () => {
+    for (const iso of ["PK","TL","LB","IQ","TM","MM"]) {
+      expect(countryTaxConfig(iso), iso).toBeNull();
+      expect(isChargeableCountry(iso), iso).toBe(false);
+    }
+  });
+});
+
+// 🌍 África, tercera tanda: los dos únicos con umbral que permita vender sin trámite.
+describe("África (3ª tanda) — BW, CI", () => {
+  it("los dos venden bajo umbral, sin cobrar", () => {
+    expect(taxRateForCountry("BW")).toBeCloseTo(0.14, 8);
+    expect(taxRateForCountry("CI")).toBeCloseTo(0.18, 8);
+    for (const iso of ["BW", "CI"]) {
+      expect(isChargeableCountry(iso), iso).toBe(true);
+      expect(platformCollectsTax(iso), iso).toBe(false);
+      expect(ALTAS_PENDIENTES, iso).not.toContain(iso);
+    }
+    expect(chargeCurrencyForCountry("BW")).toBe("BWP");
+    expect(chargeCurrencyForCountry("CI")).toBe("XOF");
+  });
+
+  // 🚫 El resto de África tiene umbral cero o exige representante fiscal. Malaui es el más
+  // engañoso: publica un umbral de MWK 50 M pero obliga a registrarse aunque no se alcance.
+  it("🚫 el resto de África sigue fuera", () => {
+    for (const iso of ["SN","CM","MW","DZ","MU","MZ","KE","TZ","UG","GH","ZM","BJ"]) {
+      expect(countryTaxConfig(iso), iso).toBeNull();
+      expect(isChargeableCountry(iso), iso).toBe(false);
+    }
+  });
+});
+
+// 🌊 Territorios de Oceanía. Cierran el continente.
+describe("Territorios de Oceanía", () => {
+  it("los cinco venden a cero", () => {
+    for (const iso of ["NF","CX","CC","TK","PN"]) {
+      expect(isChargeableCountry(iso), iso).toBe(true);
+      expect(taxRateForCountry(iso), iso).toBe(0);
+      expect(computeConsumptionTax(100, iso).total, iso).toBe(100);
+      expect(ALTAS_PENDIENTES, iso).not.toContain(iso);
+    }
+  });
+
+  // 🚨 Norfolk, Navidad y Cocos son territorios EXTERNOS de Australia y el GST australiano
+  // NO les aplica. No heredan la fila de AU: mismo patrón que Guayana Francesa con Francia.
+  it("🚨 los territorios australianos NO heredan el GST de Australia", () => {
+    for (const iso of ["NF","CX","CC"]) {
+      expect(chargeCurrencyForCountry(iso), iso).toBe("AUD");
+      expect(taxRateForCountry(iso), iso).toBe(0);
+    }
+    // Australia continental sí guarda su 10% para el día que cruce el umbral.
+    expect(taxRateForCountry("AU")).toBeCloseTo(0.10, 8);
+  });
+
+  it("🚫 Islas Cook y Palaos siguen fuera: sí tienen régimen", () => {
+    expect(countryTaxConfig("CK")).toBeNull();
+    expect(countryTaxConfig("PW")).toBeNull();
   });
 });
 
