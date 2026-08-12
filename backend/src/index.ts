@@ -335,6 +335,9 @@ export {
 // Wallet — espejo de compras del comprador (users/{buyerId}/purchases)
 export { mirrorLedgerToBuyerPurchase } from "./wallet/buyerPurchases";
 
+// Wallet — devolución en efectivo del saldo a favor (B7): comprador solicita, superadmin resuelve
+export { requestCashout, resolveCashout } from "./wallet/cashout";
+
 // LiveKit — tokens de videollamada para sesiones exclusivas y meet & greet
 export { getLivekitToken } from "./livekitTokens";
 

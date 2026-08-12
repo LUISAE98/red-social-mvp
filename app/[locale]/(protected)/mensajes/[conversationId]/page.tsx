@@ -98,7 +98,20 @@ export default function ConversationPage() {
       : 0;
   // Mismo umbral que el resto del producto: la barra del navegador ya deja
   // 40-80px de diferencia sin que haya ningún teclado.
-  const keyboardOpen = keyboardPx > 120;
+  const keyboardFitsGeometry = keyboardPx > 120;
+
+  /**
+   * Y ADEMÁS el campo tiene que tener el foco.
+   *
+   * Sin esta segunda condición seguía apareciendo la franja negra en Safari: si
+   * iOS no emite el evento de `visualViewport` al retirarse el teclado — y a
+   * veces no lo emite —, la geometría se queda con el alto de cuando estaba
+   * abierto y la pantalla no vuelve al borde. El foco no depende de ese evento:
+   * si el campo se soltó, no hay teclado, punto. Da igual lo que diga la
+   * geometría rezagada.
+   */
+  const [composerFocused, setComposerFocused] = useState(false);
+  const keyboardOpen = composerFocused && keyboardFitsGeometry;
 
   /**
    * Salir: la pantalla se va deslizando a la derecha y la página de destino
@@ -122,6 +135,10 @@ export default function ConversationPage() {
       // donde el layout pone este atributo. La regla global
       // `[data-nav-enter="right"]` de globals.css hace el resto.
       data-nav-enter={closing ? undefined : "right"}
+      // `onFocus`/`onBlur` de React son focusin/focusout: burbujean, así que se
+      // enteran del campo de escritura sin tener que pasarle nada al hilo.
+      onFocus={() => setComposerFocused(true)}
+      onBlur={() => setComposerFocused(false)}
       style={{
         // La salida va inline para que gane a la regla del atributo.
         ...(closing

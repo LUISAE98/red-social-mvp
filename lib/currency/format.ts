@@ -153,6 +153,7 @@ export const NICE_STEP: Record<DisplayCurrency, number> = {
   BMD: 0.5, //   1 USD = 1 BMD    → 0.5 BMD = 0.50 USD. Anclado 1:1, igual que el ancla.
   XCD: 0.5, //   1 USD ≈ 2.7 XCD  → 0.5 XCD ≈ 0.19 USD. Anclado al dólar.
   HTG: 20, //    1 USD ≈ 132 HTG  → 20 HTG ≈ 0.15 USD.
+  GIP: 0.5, //   La libra gibraltareña está anclada 1:1 a la esterlina: mismo paso que GBP.
 };
 
 /** Redondea a un múltiplo "bonito" según la moneda. */

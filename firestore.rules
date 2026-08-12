@@ -3382,6 +3382,18 @@ function canUpdateReplyCount(delta) {
     }
 
     // ==========================
+    // DEVOLUCIONES EN EFECTIVO (B7)
+    // ==========================
+    // El comprador solicita efectivo de su saldo a favor (callable requestCashout) y un
+    // superadmin lo resuelve (callable resolveCashout). Solo el backend (Admin SDK) escribe.
+    // El dueño lee las suyas; los moderadores leen todas (panel "Devoluciones").
+    match /cashoutRequests/{cashoutId} {
+      allow read: if signedIn()
+        && (isPlatformMod() || resource.data.buyerId == request.auth.uid);
+      allow create, update, delete: if false;
+    }
+
+    // ==========================
     // MODERACIÓN — AUDIT LOG
     // ==========================
     match /adminAuditLog/{actionId} {

@@ -747,6 +747,48 @@ export const COUNTRY_TAX_CONFIG: Readonly<Record<string, CountryTaxConfig>> = {
   GL: noConsumptionTax("DKK"),                         // Groenlandia
   PM: noConsumptionTax("EUR"),                         // San Pedro y Miquelón
 
+  // ── MICROESTADOS Y TERRITORIOS EUROPEOS ──
+  //
+  // 🇲🇨 MÓNACO — ⚠️ usa `eu()` A PROPÓSITO, aunque NO sea miembro de la Unión Europea.
+  //    Para efectos de IVA, Mónaco **es territorio francés**: misma base, misma tasa (20%),
+  //    administrado por la DGFiP. El Art. 7 de la Directiva del IVA asimila las operaciones
+  //    con Mónaco a operaciones con Francia, así que **el registro OSS YA LO CUBRE** y no
+  //    hace falta ningún alta nueva.
+  //    Usar `eu()` no es un atajo: si `EU_OSS_REGISTERED` se apaga, Mónaco también debe
+  //    dejar de vender, porque depende exactamente del mismo registro.
+  //    🚨 Es el CONTRARIO de Montenegro, que usa euro pero NO está en el régimen del IVA
+  //       comunitario. Moneda y territorio fiscal son cosas distintas.
+  //
+  // ✅ Con umbral real:
+  //   🇯🇪 JERSEY — GST 5%, umbral **£300.000 en 12 meses móviles** (~US$385.000). Es el
+  //      umbral MÁS ALTO de toda la tabla mundial, por encima de Sudáfrica (~US$125.000).
+  //   🇦🇩 ANDORRA — IGI 4,5%, la tasa más baja de Europa. Umbral **€40.000/año** con
+  //      clientes andorranos. Tiene régimen digital desde 2013.
+  //
+  // 🟢 Con impuesto que NO alcanza a Vibra:
+  //   🇸🇲 SAN MARINO — su imposta monofase del 17% grava importación de BIENES y
+  //      **expresamente no se extiende a prestaciones de servicios**. Para lo que vende
+  //      Vibra, cero. No es que falte régimen: es que el impuesto no llega hasta aquí.
+  //   🇫🇴 ISLAS FEROE — MVG 25% con umbral DKK 50.000, pero la obligación solo alcanza a
+  //      negocios con **actividad establecida** en territorio feroés. Sin presencia, no.
+  //      Están fuera del IVA danés pese a ser territorio de Dinamarca.
+  //
+  // 🟢 Sin impuesto al consumo en absoluto: 🇬🇮 Gibraltar · 🇻🇦 Vaticano · 🇬🇬 Guernsey
+  //    (tiene un GST propuesto, aún no aprobado) · 🇸🇯 Svalbard (exento del IVA noruego).
+  //
+  // 🚫 NO se integraron:
+  //    🇽🇰 Kosovo — VAT 18% con **representante fiscal obligatorio**.
+  //    🇮🇲 Isla de Man — forma parte del área IVA del REINO UNIDO: entra cuando entre UK.
+  MC: eu(0.20, "EUR"),                                 // Mónaco — territorio IVA francés
+  JE: belowThreshold("GST", 0.05, "GBP"),              // Jersey
+  AD: belowThreshold("IGI", 0.045, "EUR"),             // Andorra
+  SM: noDigitalRegime("Imposta monofase", 0.17, "EUR"),// San Marino
+  FO: noDigitalRegime("MVG", 0.25, "DKK"),             // Islas Feroe
+  GI: noConsumptionTax("GIP"),                         // Gibraltar
+  VA: noConsumptionTax("EUR"),                         // Ciudad del Vaticano
+  GG: noConsumptionTax("GBP"),                         // Guernsey
+  SJ: noConsumptionTax("NOK"),                         // Svalbard y Jan Mayen
+
 
   // ⚠️ Fuera de la UE no se agrega ninguna fila sin su FICHA en impuestos.md.
 };

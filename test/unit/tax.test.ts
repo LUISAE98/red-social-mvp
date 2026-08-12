@@ -1140,6 +1140,58 @@ describe("Caribe y territorios americanos", () => {
   });
 });
 
+// 🏔️ Microestados y territorios europeos.
+describe("Microestados y territorios europeos", () => {
+  // 🚨 Mónaco NO es de la UE, pero para el IVA ES territorio francés (Art. 7 de la Directiva).
+  // Por eso usa eu(): el registro OSS ya lo cubre y no hace falta alta nueva. Y si el OSS se
+  // apaga, Mónaco debe apagarse con él.
+  // Es el CONTRARIO de Montenegro: allá hay euro sin régimen comunitario; aquí hay régimen
+  // comunitario sin ser miembro. Moneda y territorio fiscal son cosas distintas.
+  it("🚨 Mónaco COBRA vía el OSS; Montenegro usa euro pero NO", () => {
+    expect(platformCollectsTax("MC")).toBe(true);
+    expect(taxRateForCountry("MC")).toBeCloseTo(0.20, 8);
+    expect(taxRateForCountry("FR")).toBeCloseTo(0.20, 8);
+    expect(ALTAS_PENDIENTES).not.toContain("MC");   // cubierto por el OSS
+    // Montenegro: mismo euro, régimen propio, alta pendiente.
+    expect(chargeCurrencyForCountry("ME")).toBe("EUR");
+    expect(ALTAS_PENDIENTES).toContain("ME");
+  });
+
+  // 🚨 Jersey tiene el umbral MÁS ALTO de toda la tabla mundial: £300.000 (~US$385.000),
+  // por encima de Sudáfrica (~US$125.000), que era el récord anterior.
+  it("🚨 Jersey y Andorra venden bajo umbral, sin cobrar", () => {
+    for (const iso of ["JE", "AD"]) {
+      expect(isChargeableCountry(iso), iso).toBe(true);
+      expect(platformCollectsTax(iso), iso).toBe(false);
+      expect(countryTaxConfig(iso)!.registrationStatus, iso).toBe("not_registered");
+    }
+    expect(taxRateForCountry("JE")).toBeCloseTo(0.05, 8);
+    // Andorra: la tasa más baja de Europa.
+    expect(taxRateForCountry("AD")).toBeCloseTo(0.045, 8);
+    expect(taxRateForCountry("AD")).toBeLessThan(taxRateForCountry("LU"));
+  });
+
+  it("los seis sin impuesto aplicable venden a cero", () => {
+    for (const iso of ["SM", "FO", "GI", "VA", "GG", "SJ"]) {
+      expect(isChargeableCountry(iso), iso).toBe(true);
+      expect(computeConsumptionTax(100, iso).total, iso).toBe(100);
+      expect(platformCollectsTax(iso), iso).toBe(false);
+    }
+    // San Marino y Feroe SÍ tienen impuesto, solo que no alcanza a Vibra.
+    expect(taxRateForCountry("SM")).toBeCloseTo(0.17, 8);
+    expect(taxRateForCountry("FO")).toBeCloseTo(0.25, 8);
+    // Los otros cuatro no tienen impuesto en absoluto.
+    for (const iso of ["GI", "VA", "GG", "SJ"]) {
+      expect(taxRateForCountry(iso), iso).toBe(0);
+    }
+  });
+
+  it("🚫 Kosovo e Isla de Man siguen fuera", () => {
+    expect(countryTaxConfig("XK")).toBeNull();  // representante fiscal obligatorio
+    expect(countryTaxConfig("IM")).toBeNull();  // área IVA del Reino Unido
+  });
+});
+
 // 🇲🇽 IVA mexicano sobre ventas al EXTRANJERO. Vibra es residente en México, así que por el
 // Art. 16 LIVA su venta siempre está dentro del objeto: lo que cambia es la tasa. Hoy 0% por
 // exportación en los 11 servicios (D-08 pendiente de fiscalista). Ver impuestos.md.

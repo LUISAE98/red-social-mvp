@@ -128,6 +128,36 @@ export function MessageThreadSkeleton({ bubbles = 6 }: { bubbles?: number }) {
 }
 
 /**
+ * Imagen que se está subiendo, en su sitio del hilo.
+ *
+ * La foto se manda al elegirla, así que hay una ventana en la que el mensaje
+ * todavía no existe. En vez de dejar el hilo quieto, se ocupa ya el hueco con la
+ * silueta del globo: al llegar el mensaje real, nada salta de sitio.
+ *
+ * Va siempre del lado de quien escribe — solo tú puedes estar subiendo algo.
+ */
+export function SendingImageSkeleton() {
+  return (
+    <div
+      className="vb-chat-skel"
+      aria-hidden
+      style={{ display: "flex", justifyContent: "flex-end", marginTop: 4 }}
+    >
+      <div
+        className="vb-skel"
+        style={{
+          width: 200,
+          height: 150,
+          // Mismo redondeo que un globo propio: es lo que va a sustituirlo.
+          borderRadius: "16px 16px 4px 16px",
+        }}
+      />
+      <SkeletonBase />
+    </div>
+  );
+}
+
+/**
  * Revelado del contenido real: entra con fade en vez de aparecer de golpe.
  * `show` pasa a true cuando los datos llegaron.
  */

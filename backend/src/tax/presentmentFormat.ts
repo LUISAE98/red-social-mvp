@@ -37,6 +37,8 @@ export const NICE_STEP: Readonly<Record<string, number>> = {
   TOP: 0.5, SBD: 2, VUV: 20, WST: 0.5,
   // Caribe
   SRD: 5, BZD: 0.5, TTD: 1, JMD: 20, KYD: 0.25, BMD: 0.5, XCD: 0.5, HTG: 20,
+  // Europa — microestados
+  GIP: 0.5,
 };
 
 /**

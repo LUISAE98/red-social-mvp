@@ -103,6 +103,40 @@ const isOverlayRoute =
   const fontStack =
     'inherit';
 
+  // El header público (con el buscador) se esconde al bajar y vuelve al subir,
+  // como el de la app ya autenticada. Devuelve la pantalla completa a la lectura
+  // sin obligar a llegar hasta arriba para recuperar la búsqueda.
+  const publicHeaderRef = useRef<HTMLElement>(null);
+  const [publicHeaderHidden, setPublicHeaderHidden] = useState(false);
+  const lastScrollYRef = useRef(0);
+
+  useEffect(() => {
+    lastScrollYRef.current = window.scrollY;
+
+    const onScroll = () => {
+      const y = window.scrollY;
+      const last = lastScrollYRef.current;
+      lastScrollYRef.current = y;
+
+      // Escribiendo en el buscador: NO se esconde aunque la página se mueva
+      // (el teclado del celular desplaza el scroll y se llevaría el campo).
+      const el = publicHeaderRef.current;
+      if (el && document.activeElement && el.contains(document.activeElement)) {
+        setPublicHeaderHidden(false);
+        return;
+      }
+
+      // Mismo criterio que el layout autenticado: se esconde al bajar pasando
+      // los 60px, y reaparece en cuanto se sube un poco — sin tener que llegar
+      // al tope. El umbral de 20px lo fuerza visible cerca del inicio.
+      if (y > 60 && y > last) setPublicHeaderHidden(true);
+      else if (y < last || y <= 20) setPublicHeaderHidden(false);
+    };
+
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
     // Auth solo para el render (el primer render del cliente = servidor). Los
     // efectos de arriba siguen usando el `user` real para redirigir.
     const renderUser = hydrated ? user : null;
@@ -157,6 +191,20 @@ if (isPublicPostRoute || isOverlayRoute) {
           padding-top: env(safe-area-inset-top);
           border-bottom: none;
           background: transparent;
+          transition: transform 260ms cubic-bezier(0.4, 0, 0.2, 1);
+          will-change: transform;
+        }
+
+        /* Oculto: sube fuera de la vista. Sigue en el flujo (es sticky), así que
+           el contenido no salta al esconderse ni al volver. */
+        .rootChromePublicHeader[data-hidden="true"] {
+          transform: translateY(-100%);
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .rootChromePublicHeader {
+            transition: none;
+          }
         }
 
         .rootChromePublicHeaderInner {
@@ -316,7 +364,11 @@ if (isPublicPostRoute || isOverlayRoute) {
       `}</style>
 
       <div className="rootChromePublicLayout">
-        <header className="rootChromePublicHeader">
+        <header
+          ref={publicHeaderRef}
+          className="rootChromePublicHeader"
+          data-hidden={publicHeaderHidden ? "true" : undefined}
+        >
           <div className="rootChromePublicHeaderInner">
             <div className="rootChromeDesktopHeader">
               <div className="rootChromeBrandCol" />

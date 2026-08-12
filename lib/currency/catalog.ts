@@ -14,7 +14,7 @@
  * + 3 de Oceanía (Guam usa USD; Nueva Caledonia y Polinesia Francesa comparten XPF)
  * + 2 de África (Sudáfrica y Egipto) + CAD (Canadá) + 5 de Europa no comunitaria.
  * Estados Unidos usa USD y Montenegro usa EUR: ninguno trajo moneda nueva.
- * Total: 67 monedas para 116 países.
+ * Total: 68 monedas para 125 países.
  *
  * ⚠️ Que una moneda esté aquí NO habilita vender en ese país. El permiso de venta
  * lo decide COUNTRY_TAX_CONFIG (lib/tax/config.ts), que es una capa aparte y exige
@@ -103,6 +103,7 @@ export const DISPLAY_CURRENCIES = [
   "BMD", // Bermudas
   "XCD", // Caribe oriental (Granada y vecinos)
   "HTG", // Haití
+  "GIP", // Gibraltar
 ] as const;
 export type DisplayCurrency = (typeof DISPLAY_CURRENCIES)[number];
 
@@ -352,6 +353,16 @@ export const COUNTRY_TO_CURRENCY: Readonly<Record<string, DisplayCurrency>> = {
   DM: "XCD", // Dominica
   AI: "XCD", // Anguila
   MS: "XCD", // Montserrat
+  // Microestados y territorios europeos (9). Solo Gibraltar trajo moneda nueva.
+  MC: "EUR", // Mónaco — territorio IVA francés
+  AD: "EUR", // Andorra
+  SM: "EUR", // San Marino
+  VA: "EUR", // Ciudad del Vaticano
+  GI: "GIP", // Gibraltar
+  GG: "GBP", // Guernsey
+  JE: "GBP", // Jersey
+  FO: "DKK", // Islas Feroe
+  SJ: "NOK", // Svalbard y Jan Mayen
   ME: "EUR", // Montenegro — usa el euro pero NO es UE: registro fiscal aparte, sin OSS
   PF: "XPF", // Polinesia Francesa — moneda lista; la VENTA sigue bloqueada (umbral cero)
 };

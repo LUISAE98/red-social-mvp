@@ -1,0 +1,333 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import {
+  collection,
+  query,
+  orderBy,
+  onSnapshot,
+  limit,
+  doc,
+  getDoc,
+} from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import { resolveCashout, type CashoutRequestDoc } from "@/lib/wallet/cashout";
+import { useAdminPreview } from "../context";
+
+const TYPE_LABELS: Record<string, string> = {
+  greetingRequest: "Saludo / consejo",
+  greeting: "Saludo / consejo",
+  advice: "Consejo",
+  exclusiveSessionRequest: "Sesión exclusiva",
+  exclusive_session: "Sesión exclusiva",
+  meetGreetRequest: "Tiempo contigo",
+  meet_greet: "Tiempo contigo",
+  live_session: "Tiempo contigo",
+};
+
+const STATUS_META: Record<string, { label: string; color: string; dot: string }> = {
+  pending: { label: "Pendiente", color: "#f59e0b", dot: "#f59e0b" },
+  approved: { label: "Aprobada", color: "#34d399", dot: "#34d399" },
+  rejected: { label: "Rechazada", color: "#f87171", dot: "#f87171" },
+};
+
+function money(n: number): string {
+  return `$${(n ?? 0).toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+function rel(date: Date | null): string {
+  if (!date) return "";
+  const m = Math.floor((Date.now() - date.getTime()) / 60000);
+  if (m < 1) return "ahora";
+  if (m < 60) return `hace ${m}m`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `hace ${h}h`;
+  return `hace ${Math.floor(h / 24)}d`;
+}
+
+export default function AdminRefundsPage() {
+  const { setPreviewUrl } = useAdminPreview();
+  const [requests, setRequests] = useState<CashoutRequestDoc[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [creatorNames, setCreatorNames] = useState<Record<string, string>>({});
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const q = query(
+      collection(db, "cashoutRequests"),
+      orderBy("createdAt", "desc"),
+      limit(100)
+    );
+    const unsub = onSnapshot(
+      q,
+      (snap) => {
+        const rows = snap.docs.map(
+          (d) => ({ id: d.id, ...(d.data() as Omit<CashoutRequestDoc, "id">) })
+        );
+        // Pendientes primero, luego el resto por fecha (ya viene desc).
+        rows.sort((a, b) => {
+          const pa = a.status === "pending" ? 0 : 1;
+          const pb = b.status === "pending" ? 0 : 1;
+          return pa - pb;
+        });
+        setRequests(rows);
+        setLoading(false);
+      },
+      () => setLoading(false)
+    );
+    return () => unsub();
+  }, []);
+
+  const selected = useMemo(
+    () => requests.find((r) => r.id === selectedId) ?? null,
+    [requests, selectedId]
+  );
+
+  // Resolver los nombres de los creadores del detalle seleccionado.
+  useEffect(() => {
+    if (!selected) return;
+    const ids = Array.from(
+      new Set((selected.origins ?? []).map((o) => o.creatorId).filter(Boolean))
+    ).filter((id) => !(id in creatorNames));
+    if (ids.length === 0) return;
+    let cancelled = false;
+    (async () => {
+      const entries = await Promise.all(
+        ids.map(async (id) => {
+          try {
+            const s = await getDoc(doc(db, "users", id));
+            const d = s.data() ?? {};
+            const name =
+              (d.displayName as string) ||
+              (d.name as string) ||
+              (d.username as string) ||
+              id;
+            return [id, name] as const;
+          } catch {
+            return [id, id] as const;
+          }
+        })
+      );
+      if (!cancelled) {
+        setCreatorNames((prev) => ({ ...prev, ...Object.fromEntries(entries) }));
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [selected, creatorNames]);
+
+  async function handleResolve(action: "approve" | "reject") {
+    if (!selected) return;
+    if (action === "reject") {
+      const ok = window.confirm(
+        `¿Rechazar la solicitud de ${money(selected.amount)} de ${selected.buyerName || "el comprador"}? El saldo se le devuelve.`
+      );
+      if (!ok) return;
+    } else {
+      const ok = window.confirm(
+        `¿Aprobar y reembolsar ${money(selected.amount)} a la tarjeta original de ${selected.buyerName || "el comprador"}? Esta acción dispara reembolsos en Stripe.`
+      );
+      if (!ok) return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      await resolveCashout(selected.id, action);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "No se pudo resolver la solicitud.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div>
+      <div style={{ marginBottom: 24 }}>
+        <h1 style={{ fontSize: 22, fontWeight: 700, color: "#fff", margin: 0 }}>
+          Devoluciones en efectivo
+        </h1>
+        <p style={{ fontSize: 13, color: "#555", margin: "6px 0 0" }}>
+          Solicitudes de reembolso a tarjeta del saldo a favor. Reembolso solo a la tarjeta
+          original.
+        </p>
+      </div>
+
+      {error && (
+        <div style={{ padding: "10px 14px", background: "#1f0a0a", border: "1px solid #7f1d1d", borderRadius: 8, color: "#f87171", fontSize: 13, marginBottom: 16 }}>
+          {error}
+        </div>
+      )}
+
+      {loading ? (
+        <div style={{ color: "#555", fontSize: 14 }}>Cargando…</div>
+      ) : requests.length === 0 ? (
+        <div style={{ color: "#555", fontSize: 14 }}>No hay solicitudes de efectivo.</div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          {requests.map((r) => {
+            const meta = STATUS_META[r.status] ?? STATUS_META.pending;
+            const isOpen = r.id === selectedId;
+            return (
+              <div
+                key={r.id}
+                style={{
+                  background: isOpen ? "#141018" : "#111",
+                  border: `1px solid ${isOpen ? "#3a2a4f" : "#1e1e1e"}`,
+                  borderRadius: 10,
+                  overflow: "hidden",
+                  transition: "background 150ms, border-color 150ms",
+                }}
+              >
+                {/* Fila resumen */}
+                <button
+                  onClick={() => setSelectedId(isOpen ? null : r.id)}
+                  style={{
+                    width: "100%",
+                    background: "transparent",
+                    border: "none",
+                    padding: "14px 16px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 12,
+                    cursor: "pointer",
+                    textAlign: "left",
+                  }}
+                >
+                  <div style={{ width: 8, height: 8, borderRadius: "50%", background: meta.dot, flexShrink: 0 }} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: "#fff" }}>
+                      {r.buyerName || r.buyerUsername || r.buyerId}
+                    </div>
+                    <div style={{ fontSize: 11, color: "#444", marginTop: 3 }}>
+                      {rel(r.createdAt?.toDate?.() ?? null)}
+                    </div>
+                  </div>
+                  <div style={{ textAlign: "right", flexShrink: 0 }}>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: "#34d399" }}>
+                      {money(r.amount)}
+                    </div>
+                    <div style={{ fontSize: 11, color: meta.color, fontWeight: 600, marginTop: 2 }}>
+                      {meta.label}
+                    </div>
+                  </div>
+                </button>
+
+                {/* Detalle */}
+                {isOpen && (
+                  <div style={{ borderTop: "1px solid #1e1e1e", padding: "14px 16px", display: "flex", flexDirection: "column", gap: 14 }}>
+                    {/* Comprador */}
+                    <div>
+                      <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "#555", marginBottom: 6 }}>
+                        Quién compra
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <span style={{ fontSize: 13, color: "#fff", fontWeight: 600 }}>
+                          {r.buyerName || r.buyerUsername || r.buyerId}
+                        </span>
+                        {r.buyerUsername && (
+                          <button
+                            onClick={() => setPreviewUrl(`/u/${r.buyerUsername}`)}
+                            style={linkBtn}
+                          >
+                            ver perfil →
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Orígenes: a quién compró + por qué se rechazó */}
+                    <div>
+                      <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "#555", marginBottom: 6 }}>
+                        A quién compró · por qué se rechazó
+                      </div>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                        {(r.origins ?? []).map((o, i) => (
+                          <div key={`${o.sourceType}__${o.sourceId}__${i}`} style={{ background: "#0d0d0d", border: "1px solid #191919", borderRadius: 8, padding: "10px 12px" }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
+                              <span style={{ fontSize: 12, color: "#ddd", fontWeight: 600 }}>
+                                {TYPE_LABELS[o.type] ?? TYPE_LABELS[o.sourceType] ?? o.type}
+                              </span>
+                              <span style={{ fontSize: 12, color: "#888", whiteSpace: "nowrap" }}>
+                                {money(o.chargedAmount)}
+                              </span>
+                            </div>
+                            <div style={{ fontSize: 12, color: "#999", marginTop: 4 }}>
+                              a <span style={{ color: "#cbb6e6" }}>{creatorNames[o.creatorId] ?? "…"}</span>
+                            </div>
+                            <div style={{ fontSize: 12, color: "#7a7a7a", marginTop: 3, fontStyle: "italic" }}>
+                              «{o.reason}»
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Estado resuelto / error */}
+                    {r.status === "approved" && (
+                      <div style={{ fontSize: 12, color: "#34d399" }}>
+                        Reembolsado {money(r.refundedAmount ?? r.amount)} a la tarjeta original.
+                      </div>
+                    )}
+                    {r.status === "rejected" && (
+                      <div style={{ fontSize: 12, color: "#f87171" }}>
+                        Rechazada — el saldo se devolvió al comprador.
+                      </div>
+                    )}
+                    {r.lastError && r.status === "pending" && (
+                      <div style={{ fontSize: 12, color: "#f59e0b" }}>
+                        Último error: {r.lastError}. Vuelve a aprobar para reintentar (los reembolsos ya hechos no se duplican).
+                      </div>
+                    )}
+
+                    {/* Acciones */}
+                    {r.status === "pending" && (
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <button
+                          onClick={() => handleResolve("approve")}
+                          disabled={busy}
+                          style={{ ...actionBtn, background: "#7c3aed", color: "#fff", opacity: busy ? 0.6 : 1 }}
+                        >
+                          {busy ? "…" : "Aprobar y reembolsar"}
+                        </button>
+                        <button
+                          onClick={() => handleResolve("reject")}
+                          disabled={busy}
+                          style={{ ...actionBtn, background: "transparent", color: "#f87171", border: "1px solid #3d1515", opacity: busy ? 0.6 : 1 }}
+                        >
+                          Rechazar
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+const linkBtn: React.CSSProperties = {
+  background: "transparent",
+  border: "none",
+  color: "#a855f7",
+  fontSize: 12,
+  fontWeight: 600,
+  cursor: "pointer",
+  padding: 0,
+};
+
+const actionBtn: React.CSSProperties = {
+  padding: "8px 14px",
+  borderRadius: 8,
+  border: "none",
+  fontSize: 12,
+  fontWeight: 600,
+  cursor: "pointer",
+  whiteSpace: "nowrap",
+};

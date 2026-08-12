@@ -1674,6 +1674,61 @@ países. Hay un test que lo fija.
 
 ---
 
+## 6.14 🏔️ Microestados y territorios europeos (2026-08-11)
+
+| País | Moneda | Idioma | TASA | Impuesto | Recaudación | Declaración | Alta fiscal | Umbral | Estatus |
+|---|---|---|---|---|---|---|---|---|---|
+| 🇲🇨 Mónaco | EUR | Francés | 20% | TVA francés | **Vibra** | Vía OSS | **Ninguna nueva** | Cero | ✅ Activo — **cobra** |
+| 🇯🇪 Jersey | GBP | Inglés | 5% | GST | Nadie (bajo umbral) | Al registrarse | Revenue Jersey | **£300.000**/12m móviles (~US$385.000) | ✅ Activo |
+| 🇦🇩 Andorra | EUR | Catalán | **4,5%** | IGI | Nadie (bajo umbral) | Al registrarse | NRT — régimen digital desde 2013 | **€40.000**/año | ✅ Activo |
+| 🇸🇲 San Marino | EUR | Italiano | 17% | Imposta monofase | Nadie | Ninguna | **No alcanza servicios** | No aplica | ✅ Activo |
+| 🇫🇴 Islas Feroe | DKK | Feroés/Danés | 25% | MVG | Nadie | Ninguna | Solo con actividad establecida ahí | DKK 50.000 (locales) | ✅ Activo |
+| 🇬🇮 Gibraltar | GIP | Inglés | **0%** | No existe | Nadie | Ninguna | No existe | No aplica | ✅ Activo |
+| 🇻🇦 Ciudad del Vaticano | EUR | Italiano | **0%** | No existe | Nadie | Ninguna | No existe | No aplica | ✅ Activo |
+| 🇬🇬 Guernsey | GBP | Inglés | **0%** | No existe | Nadie | Ninguna | No existe *(GST propuesto)* | No aplica | ✅ Activo |
+| 🇸🇯 Svalbard | NOK | Noruego | **0%** | No existe | Nadie | Ninguna | Exento del IVA noruego | No aplica | ✅ Activo |
+
+Solo Gibraltar trajo moneda nueva (GIP, anclada 1:1 a la esterlina).
+
+### 🚨 Mónaco usa `eu()` y NO es un atajo
+
+Mónaco **no es miembro de la UE**, pero para efectos de IVA **es territorio francés**: misma base,
+misma tasa (20%), administrado por la DGFiP. El **Art. 7 de la Directiva del IVA** asimila las
+operaciones con Mónaco a operaciones con Francia.
+
+Por eso **el registro OSS ya lo cubre** y no hace falta alta nueva — es el único país que se sumó
+cobrando impuesto sin agregar una entrada a `ALTAS_PENDIENTES`.
+
+Usar `eu()` además es correcto en comportamiento: si `EU_OSS_REGISTERED` se apaga, Mónaco debe
+apagarse con él, porque depende exactamente del mismo registro.
+
+> 🚨 **Es el CONTRARIO de Montenegro**, que usa euro pero **no** está en el régimen comunitario y
+> necesita su propio registro. **Moneda y territorio fiscal son cosas distintas.** Hay un test que
+> contrasta los dos casos.
+
+### 🚨 Jersey tiene el umbral más alto del mundo
+
+**£300.000 en 12 meses móviles (~US$385.000)**, por encima de Sudáfrica (~US$125.000), que era el
+récord. Y **Andorra tiene la tasa más baja de Europa**: IGI 4,5%.
+
+### 🟢 Impuesto que existe pero no alcanza a Vibra
+
+* **🇸🇲 San Marino** — su imposta monofase del 17% grava importación de **bienes** y
+  **expresamente no se extiende a prestaciones de servicios**. No es que falte régimen: el
+  impuesto no llega hasta aquí.
+* **🇫🇴 Islas Feroe** — MVG 25% con umbral DKK 50.000, pero la obligación solo alcanza a negocios
+  con **actividad establecida** en territorio feroés. Están fuera del IVA danés pese a ser
+  territorio de Dinamarca.
+
+### 🚫 No se integraron
+
+| País | Motivo |
+|---|---|
+| 🇽🇰 Kosovo | VAT 18% con **representante fiscal obligatorio** |
+| 🇮🇲 Isla de Man | Forma parte del **área IVA del Reino Unido**: entra cuando entre UK |
+
+---
+
 ## 7. Estado y pendientes
 
 ### Países
@@ -1699,6 +1754,7 @@ países. Hay un test que lo fija.
 | 🏝️ Microestados del Pacífico | 13 (TO·SB·VU·WS·KI·NR·TV·NU·WF·FM·MH·AS·MP) | ✅ Activos — ⚠️ sin verificar | No |
 | 🏝️ Caribe | SR (umbral) + BZ·TT·JM·GD·KY·BM·TC·VG | ✅ Activos | No |
 | 🏝️ Caribe y territorios (2ª) | PR (umbral) + VI·HT·BQ·LC·VC·AG·KN·DM·AI·MS·GL·PM | ✅ Activos | No |
+| 🏔️ Microestados europeos | **MC (cobra vía OSS)** + JE·AD (umbral) + SM·FO·GI·VA·GG·SJ | ✅ Activos | Solo Mónaco — 20% |
 | ⬜ Resto de LatAm | CL · CO · PE · UY · BR | Sin ficha — **no cobrables** | — |
 | ⬜ Resto de Europa no-UE | CH · LI · MK | Fuera a propósito — representante fiscal / umbral mundial | — |
 | 🚫 Excluidos a propósito | UA (embargo regional) · RU · BY · CU (sanciones) · IL (decisión de Luis) | No integrar | — |
@@ -1708,7 +1764,7 @@ países. Hay un test que lo fija.
 | 🚫 África — Stripe no procesa | SD · SS · SO · ER · LY + riesgo: ZW · BI · CF · CD · GN · GW · ML | No integrar | — |
 | ⬜ Resto del mundo | — | Sin ficha — **no cobrables** | — |
 
-**Total cobrable: 116 países.** De ellos, **46 cobran impuesto** (MX + 27 UE + 5 LatAm + 6 Europa no comunitaria + 4 Asia/Golfo + 2 África). Un país sin fila en `COUNTRY_TAX_CONFIG` no es cobrable y el
+**Total cobrable: 125 países.** De ellos, **47 cobran impuesto** (MX + 27 UE + 5 LatAm + 6 Europa no comunitaria + 4 Asia/Golfo + 2 África). Un país sin fila en `COUNTRY_TAX_CONFIG` no es cobrable y el
 checkout lo rechaza.
 
 ### Backend — ✅ hecho (2026-08-07)

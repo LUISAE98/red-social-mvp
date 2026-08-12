@@ -91,8 +91,6 @@ const [googleUser, setGoogleUser] = useState<User | null>(null);
 const cardRef = useRef<HTMLDivElement | null>(null);
 const [resetMsg, setResetMsg] = useState<string | null>(null);
 const [resetLoading, setResetLoading] = useState(false);
-// Switch del contenido debajo del fold: creadores (izq) / usuarios (der).
-const [audience, setAudience] = useState<"creators" | "users">("creators");
 const { startAuthTransition } = useAuth();
 // Lógica del panel "completar perfil" (4º panel); activa cuando hay googleUser.
 const onboarding = useProfileOnboarding(googleUser);
@@ -492,87 +490,6 @@ body.loginPageBg {
           );
           padding: 34px 0 24px;
         }
-        /* Switch transparente: sin fondo ni contorno. El indicador del tab activo
-           es una pastilla blanca que se DESLIZA entre los dos tabs. */
-        .audienceSwitch {
-          position: relative;
-          display: flex;
-          width: fit-content;
-          margin: 0 auto 34px;
-          padding: 4px;
-          border-radius: 999px;
-          background: transparent;
-          border: none;
-        }
-        .audienceSwitchPill {
-          position: absolute;
-          top: 4px;
-          bottom: 4px;
-          left: 4px;
-          width: calc(50% - 4px);
-          border-radius: 999px;
-          background: #ffffff;
-          transition: transform 340ms cubic-bezier(0.22, 1, 0.36, 1);
-        }
-        .audienceSwitch[data-audience="users"] .audienceSwitchPill {
-          transform: translateX(100%);
-        }
-        /* El texto usa mix-blend-mode: difference → sale NEGRO sobre la pastilla
-           blanca y CLARO sobre el fondo oscuro, sea cual sea la posición de la
-           pastilla. Así no hay desfase de color durante el deslizamiento (el
-           problema de "a veces no se pone negro"). Los tabs se pintan después de
-           la pastilla (orden del DOM), así que se mezclan con ella. */
-        .audienceTab {
-          position: relative;
-          width: 124px;
-          text-align: center;
-          border: none;
-          border-radius: 999px;
-          padding: 9px 8px;
-          font-size: 14px;
-          font-weight: 600;
-          font-family: inherit;
-          letter-spacing: -0.01em;
-          color: #ffffff;
-          mix-blend-mode: difference;
-          background: transparent;
-          cursor: pointer;
-        }
-
-        /* El panel de contenido entra deslizándose: usuarios (tab derecho) entra
-           desde la DERECHA; creadores (tab izquierdo) desde la IZQUIERDA. Al
-           cambiar de audiencia cambia la clase → la animación se re-dispara.
-           overflow-x: clip recorta el desborde del slide sin crear scroll. */
-        .audiencePanel {
-          overflow-x: clip;
-        }
-        .audiencePanel--users {
-          animation: audienceSlideFromRight 440ms cubic-bezier(0.22, 1, 0.36, 1);
-        }
-        .audiencePanel--creators {
-          animation: audienceSlideFromLeft 440ms cubic-bezier(0.22, 1, 0.36, 1);
-        }
-        @keyframes audienceSlideFromRight {
-          from {
-            opacity: 0;
-            transform: translateX(48px);
-          }
-          to {
-            opacity: 1;
-            transform: translateX(0);
-          }
-        }
-        @keyframes audienceSlideFromLeft {
-          from {
-            opacity: 0;
-            transform: translateX(-48px);
-          }
-          to {
-            opacity: 1;
-            transform: translateX(0);
-          }
-        }
-
         .loginTagline {
           margin: 0;
           font-size: clamp(26px, 3.1vw, 41px);
@@ -1074,48 +991,15 @@ marginBottom: 6,
         </div>
       </main>
 
-      {/* Contenido debajo del fold: switch Creadores/Usuarios. Para creadores se
-          reutiliza la info de la wallet (sin los botones de los 11 servicios,
-          porque la sesión está cerrada). Para usuarios, aún por definir.
+      {/* Contenido debajo del fold: SOLO la propuesta para creadores. Se reutiliza
+          la info de la wallet (sin los botones de los 11 servicios, porque la
+          sesión está cerrada). Antes había un switch Creadores/Usuarios; se quitó
+          junto con el panel de usuarios.
           En "completar perfil" (usuario ya autenticado) NO va el pitch de
           marketing, así que se oculta. */}
       {mode !== "complete" && (
       <section className="loginBelowFold">
-        <div
-          className="audienceSwitch"
-          data-audience={audience}
-          role="tablist"
-          aria-label="Público"
-        >
-          {/* Pastilla blanca que se desliza al tab activo (indicador). */}
-          <span className="audienceSwitchPill" aria-hidden="true" />
-          <button
-            type="button"
-            role="tab"
-            aria-selected={audience === "creators"}
-            className={`audienceTab${audience === "creators" ? " isOn" : ""}`}
-            onClick={() => setAudience("creators")}
-          >
-            {t("audienceCreators")}
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={audience === "users"}
-            className={`audienceTab${audience === "users" ? " isOn" : ""}`}
-            onClick={() => setAudience("users")}
-          >
-            {t("audienceUsers")}
-          </button>
-        </div>
-
-        <div className={`audiencePanel audiencePanel--${audience}`}>
-          {audience === "creators" ? (
-            <WalletOnboarding showCtas={false} twoColumn />
-          ) : (
-            <WalletOnboarding showCtas={false} twoColumn audience="users" />
-          )}
-        </div>
+        <WalletOnboarding showCtas={false} twoColumn />
       </section>
       )}
 

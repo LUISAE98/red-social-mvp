@@ -19,7 +19,12 @@ import { useBuyerExperiencesSeen } from "@/lib/experiences/useBuyerExperiencesSe
 import { computeCategoryLatest, isCategoryNew } from "@/lib/experiences/experienceActivity";
 import { useMyExperiences } from "@/lib/experiences/useMyExperiences";
 import { useBuyerCredit } from "@/lib/wallet/useBuyerCredit";
+import { useBuyerCashout } from "@/lib/wallet/useBuyerCashout";
+import { requestCashout } from "@/lib/wallet/cashout";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
+
+// Monto mínimo (MXN) para pedir efectivo (espejo del backend cashout.ts).
+const MIN_CASHOUT_MXN = 100;
 
 type Tab = "requested" | "rejected" | "delivered";
 
@@ -105,8 +110,30 @@ export default function ExperienciasPage() {
   const { user } = useAuth();
   const exp = useMyExperiences(user?.uid);
   const credit = useBuyerCredit(user?.uid); // Saldo a favor (crédito por devoluciones)
+  const cashout = useBuyerCashout(user?.uid); // Solicitud de efectivo pendiente (B7)
+  const [cashoutBusy, setCashoutBusy] = useState(false);
+  const [cashoutError, setCashoutError] = useState<string | null>(null);
   const pf = usePriceFormat();
   const [tab, setTab] = useState<Tab>("requested");
+
+  // El comprador pide TODO su saldo a favor en efectivo (reembolso a la tarjeta original).
+  // Modelo B: todo el saldo restante es reembolsable. El superadmin lo revisa en "Devoluciones".
+  async function handleRequestCashout() {
+    if (cashoutBusy) return;
+    const ok = window.confirm(
+      `¿Solicitar ${pf.format(credit.balance, { baseCurrency: "MXN" })} ${pf.currency} de reembolso a tu tarjeta original? Un administrador lo revisará. Mientras tanto, ese saldo queda apartado.`
+    );
+    if (!ok) return;
+    setCashoutBusy(true);
+    setCashoutError(null);
+    try {
+      await requestCashout();
+    } catch (e: unknown) {
+      setCashoutError(e instanceof Error ? e.message : "No se pudo solicitar el efectivo.");
+    } finally {
+      setCashoutBusy(false);
+    }
+  }
 
   const navRef = useRef<HTMLDivElement | null>(null);
   const tabRefs = useRef<Record<string, HTMLButtonElement | null>>({});
@@ -467,6 +494,37 @@ export default function ExperienciasPage() {
           <span style={{ fontSize: 18, fontWeight: 700, color: "#22c55e", whiteSpace: "nowrap", flexShrink: 0 }}>
             {pf.format(credit.balance, { baseCurrency: "MXN" })} {pf.currency}
           </span>
+        </div>
+      ) : null}
+
+      {/* DEVOLUCIÓN EN EFECTIVO (B7): todo el saldo restante es reembolsable a la tarjeta
+          original. Si ya hay una solicitud en revisión, se muestra ese estado. Si el saldo
+          es menor al mínimo (o 0), no aparece nada. */}
+      {cashout.pending ? (
+        <div style={{ marginTop: -8, marginBottom: 16, padding: "0 2px", fontSize: 12.5, color: "rgba(255,255,255,0.5)" }}>
+          Tienes {pf.format(cashout.pending.amount, { baseCurrency: "MXN" })} {pf.currency} en revisión
+          para reembolso a tu tarjeta.
+        </div>
+      ) : credit.balance >= MIN_CASHOUT_MXN ? (
+        <div style={{ marginTop: -8, marginBottom: 16, padding: "0 2px" }}>
+          <button
+            type="button"
+            onClick={handleRequestCashout}
+            disabled={cashoutBusy}
+            style={{
+              background: "transparent", border: "none", padding: 0,
+              fontSize: 12.5, fontWeight: 600, color: "#22c55e",
+              cursor: cashoutBusy ? "wait" : "pointer", textAlign: "left",
+              opacity: cashoutBusy ? 0.6 : 1,
+            }}
+          >
+            {cashoutBusy
+              ? "Enviando solicitud…"
+              : `Puedes pedir ${pf.format(credit.balance, { baseCurrency: "MXN" })} ${pf.currency} en efectivo de reembolso →`}
+          </button>
+          {cashoutError && (
+            <div style={{ fontSize: 11.5, color: "#f87171", marginTop: 4 }}>{cashoutError}</div>
+          )}
         </div>
       ) : null}
 

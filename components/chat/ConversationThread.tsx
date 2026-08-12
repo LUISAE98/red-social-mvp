@@ -25,7 +25,11 @@ import {
 } from "@/lib/chat/types";
 import { uploadDirectMessageImage } from "@/lib/posts/image-upload";
 import type { ProfileMini } from "./ConversationList";
-import { ChatReveal, MessageThreadSkeleton } from "./ChatSkeletons";
+import {
+  ChatReveal,
+  MessageThreadSkeleton,
+  SendingImageSkeleton,
+} from "./ChatSkeletons";
 import {
   CommentImageLightbox,
   type CommentImageLightboxTarget,
@@ -234,7 +238,13 @@ function AttachImageIcon({ size = 26 }: { size?: number }) {
   );
 }
 
-const INPUT_MAX_HEIGHT = 120;
+/**
+ * Alto del campo. 48 y no 40: un dedo en un campo de 40 con el pulgar en marcha
+ * falla más de lo que parece, y el compositor es lo que más se toca del chat.
+ * Cuadra con el relleno: 20 de línea + 14 + 14.
+ */
+const INPUT_MIN_HEIGHT = 48;
+const INPUT_MAX_HEIGHT = 132;
 function autoGrow(el: HTMLTextAreaElement) {
   el.style.height = "auto";
   el.style.height = `${Math.min(el.scrollHeight, INPUT_MAX_HEIGHT)}px`;
@@ -289,9 +299,18 @@ export default function ConversationThread({
   );
 
   const [draft, setDraft] = useState("");
-  /** Imagen elegida y ya subida, esperando a enviarse. Una como mucho. */
-  const [pendingImage, setPendingImage] = useState<ChatImage | null>(null);
-  const [uploadingImage, setUploadingImage] = useState(false);
+  /**
+   * Imágenes en vuelo: elegidas y todavía subiendo.
+   *
+   * La foto se manda al elegirla, sin previsualización ni segundo toque, así que
+   * lo único que hay que recordar es CUÁNTAS están en camino para pintar sus
+   * skeletons. Se guardan ids y no un contador porque dos fotos seguidas
+   * terminan en cualquier orden.
+   */
+  const [uploadingIds, setUploadingIds] = useState<number[]>([]);
+  const uploadIdRef = useRef(0);
+  /** El campo tiene el foco ⇒ hay teclado ⇒ el botón de foto se pliega. */
+  const [composerFocused, setComposerFocused] = useState(false);
   /**
    * Imagen abierta a tamaño completo.
    *
@@ -624,11 +643,8 @@ export default function ConversationThread({
       if (message.image.thumbnailUrl || message.image.url) continue;
       paths.push(message.image.thumbnailPath, message.image.path);
     }
-    if (pendingImage && !pendingImage.thumbnailUrl) {
-      paths.push(pendingImage.thumbnailPath);
-    }
     return paths;
-  }, [messages, pendingImage]);
+  }, [messages]);
 
   const signedUrls = useDmImageUrls(conversationId, imagePaths);
 
@@ -771,8 +787,7 @@ export default function ConversationThread({
       return;
     }
 
-    // Con imagen el texto es opcional: la imagen sola ya es un mensaje.
-    if ((!body && !pendingImage) || sending || uploadingImage || !canWrite || !selfUid) return;
+    if (!body || sending || !canWrite || !selfUid) return;
 
     // Lo que acabas de mandar se ve, estuvieras donde estuvieras leyendo.
     stickToBottomRef.current = true;
@@ -780,20 +795,8 @@ export default function ConversationThread({
     setSending(true);
     setError(null);
     try {
-      if (exists) {
-        await send(body, pendingImage, replyingTo);
-      } else {
-        if (!otherUid) throw new Error("missing-other");
-        const createdId = await createConversationWithFirstMessage(
-          selfUid,
-          otherUid,
-          body,
-          pendingImage
-        );
-        onConversationCreated?.(createdId);
-      }
+      await deliver(body, null, replyingTo);
       setDraft("");
-      setPendingImage(null);
       setReplyingTo(null);
       if (inputRef.current) inputRef.current.style.height = "auto";
     } catch {
@@ -804,25 +807,60 @@ export default function ConversationThread({
   }
 
   /**
-   * Sube la imagen al elegirla, no al enviar: así el envío es instantáneo y los
-   * fallos de subida se ven en el momento, con el mensaje todavía sin mandar.
+   * Escribe el mensaje, exista ya el hilo o haya que crearlo.
    *
-   * El hilo puede no existir aún (modo borrador). El path de Storage usa el ID
-   * determinista de la conversación, que ya se conoce antes de crearla.
+   * En borrador (aún sin conversación) el primer envío crea hilo y mensaje en un
+   * solo lote atómico. Lo usan tanto el texto como la imagen, que ahora salen por
+   * caminos distintos.
+   */
+  async function deliver(
+    body: string,
+    image: ChatImage | null,
+    replyTo: MessageReply | null
+  ) {
+    if (!selfUid) throw new Error("missing-self");
+
+    if (exists) {
+      await send(body, image, replyTo);
+      return;
+    }
+    if (!otherUid) throw new Error("missing-other");
+    const createdId = await createConversationWithFirstMessage(
+      selfUid,
+      otherUid,
+      body,
+      image
+    );
+    onConversationCreated?.(createdId);
+  }
+
+  /**
+   * La foto se MANDA al elegirla: sin previsualización en el campo ni segundo
+   * toque. Es lo que se espera hoy de un chat — eliges del carrete y ya está.
+   *
+   * Mientras sube, su hueco en el hilo lo ocupa un skeleton, así que se ve que
+   * va en camino y al llegar el mensaje real nada salta de sitio.
+   *
+   * El hilo puede no existir aún (modo borrador). La ruta de Storage usa el ID
+   * determinista de la conversación, que se conoce antes de crearla.
    */
   async function handlePickImage(file: File | null | undefined) {
-    if (!file || !conversationId || uploadingImage) return;
+    if (!file || !conversationId || !canWrite) return;
 
-    setUploadingImage(true);
+    const uploadId = ++uploadIdRef.current;
+    setUploadingIds((prev) => [...prev, uploadId]);
+    stickToBottomRef.current = true;
     setError(null);
+
     try {
       const uploaded = await uploadDirectMessageImage({ conversationId, file });
-      setPendingImage(uploaded);
+      // La foto va sola: el pie de foto se escribe como un mensaje aparte.
+      await deliver("", uploaded, null);
     } catch {
       setError(tChat("imageUploadError"));
     } finally {
-      setUploadingImage(false);
-      // Permite volver a elegir el MISMO fichero tras quitarlo.
+      setUploadingIds((prev) => prev.filter((id) => id !== uploadId));
+      // Permite volver a elegir el MISMO fichero justo después.
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
   }
@@ -1368,8 +1406,8 @@ export default function ConversationThread({
     );
   }
 
-  const canSend =
-    (draft.trim().length > 0 || !!pendingImage) && !sending && !uploadingImage && canWrite;
+  // Solo texto: la foto ya no espera aquí, se manda al elegirla.
+  const canSend = draft.trim().length > 0 && !sending && canWrite;
 
   const noticeStyle = {
     fontSize: 12,
@@ -1549,82 +1587,8 @@ export default function ConversationThread({
           </div>
         ) : null}
 
-        {/* Previsualización de la imagen elegida, con su X para quitarla. */}
-        {pendingImage || uploadingImage ? (
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            {pendingImage ? (
-              <div style={{ position: "relative", lineHeight: 0 }}>
-                {/* Mientras no haya URL firmada va un hueco gris. Un `img` sin
-                    `src` sobre fondo oscuro se ve como un cuadro negro y parece
-                    que la imagen se subió rota. */}
-                {imageUrl(pendingImage, "thumb") ? (
-                  /* eslint-disable-next-line @next/next/no-img-element */
-                  <img
-                    src={imageUrl(pendingImage, "thumb") ?? undefined}
-                    alt=""
-                    style={{
-                      width: 54,
-                      height: 54,
-                      objectFit: "cover",
-                      borderRadius: 10,
-                      display: "block",
-                    }}
-                  />
-                ) : (
-                  <div
-                    style={{
-                      width: 54,
-                      height: 54,
-                      borderRadius: 10,
-                      background: "rgba(255,255,255,0.08)",
-                    }}
-                  />
-                )}
-                <button
-                  type="button"
-                  onClick={() => setPendingImage(null)}
-                  aria-label={tChat("removeImage")}
-                  style={{
-                    position: "absolute",
-                    top: -6,
-                    right: -6,
-                    width: 20,
-                    height: 20,
-                    borderRadius: 999,
-                    border: "none",
-                    background: "rgba(0,0,0,0.78)",
-                    color: "#fff",
-                    cursor: "pointer",
-                    display: "grid",
-                    placeItems: "center",
-                    padding: 0,
-                  }}
-                >
-                  <svg width="11" height="11" viewBox="0 0 24 24" aria-hidden>
-                    <path
-                      d="M6 6L18 18M18 6L6 18"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2.6"
-                      strokeLinecap="round"
-                    />
-                  </svg>
-                </button>
-              </div>
-            ) : (
-              <div
-                style={{
-                  fontSize: 11.5,
-                  color: "rgba(255,255,255,0.5)",
-                }}
-              >
-                {tChat("uploadingImage")}
-              </div>
-            )}
-          </div>
-        ) : null}
 
-        <div style={{ display: "flex", alignItems: "flex-end", gap: 6 }}>
+        <div style={{ display: "flex", alignItems: "flex-end" }}>
           <input
             ref={fileInputRef}
             type="file"
@@ -1644,7 +1608,9 @@ export default function ConversationThread({
             // después (el hilo encoge) también acabe abajo.
             stickToBottomRef.current = true;
             scrollToBottom(false);
+            setComposerFocused(true);
           }}
+          onBlur={() => setComposerFocused(false)}
           onChange={(e) => {
             setDraft(e.target.value);
             autoGrow(e.currentTarget);
@@ -1663,16 +1629,16 @@ export default function ConversationThread({
           style={{
             width: "100%",
             boxSizing: "border-box",
-            minHeight: 40,
+            minHeight: INPUT_MIN_HEIGHT,
             maxHeight: INPUT_MAX_HEIGHT,
-            // El padding derecho deja el hueco de los DOS iconos que van dentro
-            // del campo: el de foto y la flecha de enviar.
+            // El relleno derecho deja hueco para la flecha de enviar, que es lo
+            // único que queda DENTRO del campo. La foto se salió a la derecha.
             //
-            // Las medidas cuadran EXACTO con `minHeight`: 20 de línea + 10 y 10
-            // de relleno = 40. Con un interlineado en múltiplo (1.5 sobre 13px
+            // Las medidas cuadran EXACTO con `minHeight`: 20 de línea + 14 y 14
+            // de relleno = 48. Con un interlineado en múltiplo (1.5 sobre 13px
             // daba 19.5) sobraba medio píxel y el texto caía descentrado.
-            padding: "10px 72px 10px 12px",
-            borderRadius: 12,
+            padding: "14px 42px 14px 14px",
+            borderRadius: 14,
             border: "none",
             // Translúcido + desenfoque: los mensajes se ven pasar por detrás
             // sin que el texto que escribes deje de leerse.
@@ -1689,43 +1655,20 @@ export default function ConversationThread({
           }}
         />
 
-        {/* Ambos iconos DENTRO del campo, anclados abajo y no centrados: al
-            crecer el campo se quedan junto a la última línea, que es donde está
-            el cursor. La foto va a la izquierda de la flecha. */}
+        {/* La flecha, DENTRO del campo y anclada abajo: al crecer el campo se
+            queda junto a la última línea, que es donde está el cursor. */}
         <div
           style={{
             position: "absolute",
             right: 6,
             bottom: 0,
-            // Alto igual al mínimo del campo y centrado dentro: con una línea
-            // quedan en el centro exacto, y al crecer el campo se quedan junto a
-            // la última línea, que es donde está el cursor.
-            height: 40,
+            // Alto igual al mínimo del campo: con una línea queda centrada, y al
+            // crecer el campo se queda junto a la última línea.
+            height: INPUT_MIN_HEIGHT,
             display: "flex",
             alignItems: "center",
-            gap: 6,
           }}
         >
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            // Una imagen por mensaje: con una elegida, el botón se apaga.
-            disabled={!!pendingImage || uploadingImage || sending}
-            aria-label={tChat("attachImage")}
-            style={{
-              flexShrink: 0,
-              border: "none",
-              background: "none",
-              padding: 0,
-              display: "grid",
-              placeItems: "center",
-              cursor: pendingImage || uploadingImage ? "not-allowed" : "pointer",
-              opacity: pendingImage || uploadingImage ? 0.4 : 1,
-            }}
-          >
-            <AttachImageIcon />
-          </button>
-
           <button
             type="button"
             onClick={handleSend}
@@ -1766,6 +1709,37 @@ export default function ConversationThread({
             </div>
           </div>
 
+          {/* La foto, FUERA del campo y a su derecha. Al ponerte a escribir se
+              pliega y le cede el sitio al texto; al soltar el campo vuelve. La
+              anchura se anima, así que el campo crece y encoge acompañándola sin
+              tener que animar el campo por su cuenta. */}
+          <div
+            className="vibra-chat-attach"
+            data-collapsed={composerFocused ? "" : undefined}
+            style={{ height: INPUT_MIN_HEIGHT }}
+          >
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={sending || !canWrite}
+              aria-label={tChat("attachImage")}
+              // Sin foco cuando está plegado: si no, se puede tabular a un botón
+              // invisible.
+              tabIndex={composerFocused ? -1 : 0}
+              style={{
+                flexShrink: 0,
+                border: "none",
+                background: "none",
+                padding: 0,
+                display: "grid",
+                placeItems: "center",
+                cursor: "pointer",
+              }}
+            >
+              <AttachImageIcon size={34} />
+            </button>
+          </div>
+
         </div>
       </div>
     );
@@ -1782,7 +1756,10 @@ export default function ConversationThread({
 
         {loading && exists ? (
           <MessageThreadSkeleton />
-        ) : !exists || messages.length === 0 ? (
+        ) : (!exists || messages.length === 0) && uploadingIds.length === 0 ? (
+          // Con una foto ya subiendo NO se enseña el hilo vacío: la primera cosa
+          // que mandas puede ser precisamente esa foto, y decirte "aún no hay
+          // mensajes" mientras va en camino se lee como que no se envió.
           <div
             style={{
               fontSize: 12.5,
@@ -1815,6 +1792,12 @@ export default function ConversationThread({
               renderMessage(message, index > 0 ? messages[index - 1] : null)
             )}
 
+            {/* Fotos en camino. Van al final porque es donde va a aparecer el
+                mensaje de verdad en cuanto termine de subir. */}
+            {uploadingIds.map((id) => (
+              <SendingImageSkeleton key={id} />
+            ))}
+
           </ChatReveal>
         )}
       </>
@@ -1838,6 +1821,38 @@ export default function ConversationThread({
       <style jsx global>{`
         .vibra-chat-ph::placeholder {
           color: rgba(255, 255, 255, 0.32);
+        }
+
+        /* Botón de foto, a la derecha del campo. Se pliega al escribir.
+           Se anima el ANCHO (y su margen) en vez de esconderlo de golpe: así el
+           campo se estira solo, arrastrado por el hueco que queda libre, sin
+           necesidad de animarlo por separado. */
+        .vibra-chat-attach {
+          flex-shrink: 0;
+          /* Un pelo más ancho que el icono: con el ancho justo, el recorte que
+             hace falta para poder plegarlo le comía el trazo. */
+          width: 38px;
+          margin-left: 8px;
+          overflow: hidden;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          opacity: 1;
+          transition:
+            width var(--duration-normal, 250ms) var(--ease-smooth, cubic-bezier(0.4, 0, 0.2, 1)),
+            margin-left var(--duration-normal, 250ms) var(--ease-smooth, cubic-bezier(0.4, 0, 0.2, 1)),
+            opacity var(--duration-fast, 150ms) var(--ease-smooth, cubic-bezier(0.4, 0, 0.2, 1));
+        }
+        .vibra-chat-attach[data-collapsed] {
+          width: 0;
+          margin-left: 0;
+          opacity: 0;
+          pointer-events: none;
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .vibra-chat-attach {
+            transition: none;
+          }
         }
 
         /* Menú de un mensaje, al estilo de WhatsApp: tarjeta compacta con
@@ -1962,8 +1977,10 @@ export default function ConversationThread({
           right: 0,
           bottom: 0,
           background: "transparent",
+          // En celular el hueco de abajo lo pone SOLO el safe-area. Antes se le
+          // sumaban 12px y el campo quedaba flotando visiblemente alto.
           padding: safeAreaBottom
-            ? "12px 14px calc(12px + var(--vb-safe-bottom, 0px))"
+            ? "10px 14px var(--vb-safe-bottom, 0px)"
             : "12px 14px",
           display: "grid",
           gap: 8,

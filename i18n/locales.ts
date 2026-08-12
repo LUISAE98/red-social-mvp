@@ -81,6 +81,10 @@ export const LOCALE_META: readonly LocaleMeta[] = [
   // El tailandés no tiene plural gramatical: TODOS sus `plural` son `other`-only.
   // No es una traducción incompleta; es lo que dice CLDR para `th`.
   { code: "th", label: "TH", name: "ไทย", intl: "th-TH", ready: true },
+  // Aglutinante con armonía vocálica: los sufijos de caso NO se pueden pegar a un
+  // placeholder porque su vocal depende de la palabra que los precede. Por eso los
+  // mensajes con {name} llevan detrás una palabra fija ("{name} adlı kişiye").
+  { code: "tr", label: "TR", name: "Türkçe", intl: "tr-TR", ready: true },
   // Taiwán usa caracteres TRADICIONALES y vocabulario propio (影片 no 视频,
   // 網路 no 网络, 貼文 no 帖子). Por eso es `zh-TW` y no un `zh` genérico:
   // deja sitio a un `zh-CN` simplificado si algún día entra China continental.
@@ -93,7 +97,7 @@ export const LOCALE_META: readonly LocaleMeta[] = [
  * en toda la app. Al terminar el archivo de un idioma: pon su `ready: true` arriba
  * Y agrégalo a esta tupla. El test de i18n verifica que ambas listas coincidan.
  */
-export const READY_LOCALES = ["es", "en", "pt-BR", "de", "fr", "it", "nl", "pl", "ro", "el", "cs", "hu", "sv", "pt-PT", "da", "fi", "sk", "bg", "hr", "lt", "sl", "lv", "et", "ga", "mt", "ja", "zh-TW", "id", "ms", "th", "bs", "nb", "is"] as const;
+export const READY_LOCALES = ["es", "en", "pt-BR", "de", "fr", "it", "nl", "pl", "ro", "el", "cs", "hu", "sv", "pt-PT", "da", "fi", "sk", "bg", "hr", "lt", "sl", "lv", "et", "ga", "mt", "ja", "zh-TW", "id", "ms", "th", "bs", "nb", "is", "tr"] as const;
 
 export type Locale = (typeof READY_LOCALES)[number];
 
@@ -197,6 +201,7 @@ export const NON_EU_COUNTRY_TO_LOCALE: Readonly<Record<string, string>> = {
   MY: "ms", // Malasia
   TH: "th", // Tailandia
   BA: "bs", // Bosnia y Herzegovina
+  TR: "tr", // Turquía
   NO: "nb", // Noruega
   IS: "is", // Islandia
 
