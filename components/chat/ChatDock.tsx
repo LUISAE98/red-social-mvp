@@ -4,7 +4,6 @@ import { useTranslations } from "next-intl";
 
 import LiveRingAvatar from "@/app/components/LiveRing/LiveRingAvatar";
 import ProfileMoreMenu from "@/app/[locale]/(protected)/u/[handle]/components/ProfileMoreMenu";
-import { blockConversation } from "@/lib/chat/chatService";
 import ConversationThread from "./ConversationThread";
 import type { ProfileMini } from "./ConversationList";
 
@@ -134,13 +133,17 @@ export default function ChatDock({
             <ProfileMoreMenu
               viewerUid={selfUid}
               profileUid={otherUid}
-              onBlockSuccess={() => void blockConversation(conversationId, selfUid!)}
+              // Bloquear/desbloquear NO se cablea aquí: el estado del hilo lo
+              // sincroniza `useSocialRelationship`, que es por donde pasan todos
+              // los bloqueos. Hacerlo también aquí sería escribir dos veces.
               reportTarget={{
                 targetType: "conversation",
                 targetId: conversationId,
                 targetOwnerId: otherUid,
               }}
-              buttonStyle={{ fontSize: 18, padding: "0 2px" }}
+              // Área de clic holgada: con `padding: 0` el blanco entre los tres
+              // puntos era todo lo que había que acertar.
+              buttonStyle={{ fontSize: 18, padding: "6px 9px", lineHeight: 1 }}
             />
           </span>
         ) : null}
@@ -230,6 +233,8 @@ export default function ChatDock({
           profile={profile}
           selfUid={selfUid}
           active={!minimized}
+          // El dock solo existe en laptop: aquí siempre hay cursor.
+          pointerActions
         />
       </div>
     </div>

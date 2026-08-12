@@ -98,6 +98,9 @@ const experiencesBadge =
 const { headerRef, safeAreaRef } = useMobileHeaderFade();
 const mainInnerRef = useRef<HTMLDivElement>(null);
 const pendingAnimDirRef = useRef<"left" | "right" | null>(null);
+// ¿La última navegación fue "atrás"? Se marca en `popstate` (ver más abajo).
+const poppedRef = useRef(false);
+const firstRenderRef = useRef(true);
 
 // Estado para header contextual (avatar + nombre del grupo)
 const [headerData, setHeaderData] = useState<MobileHeaderData>({ avatarUrl: null, name: null });
@@ -124,13 +127,37 @@ useLayoutEffect(() => {
     history.scrollRestoration = "manual";
   }, []);
 
+  // El "atrás" del navegador (y el gesto de borde en iOS) no pasa por el subnav.
+  useEffect(() => {
+    const onPop = () => { poppedRef.current = true; };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
+
   // Restore scroll before paint so there's no visible jump
   useLayoutEffect(() => {
-    const dir = consumeNavSlideDir();
-    if (!dir) return;
-    const saved = sessionStorage.getItem(`nav:scroll:${pathname}`);
-    window.scrollTo({ top: saved !== null ? parseInt(saved) : 0, behavior: "instant" });
-    pendingAnimDirRef.current = dir;
+    const explicit = consumeNavSlideDir();
+    const wasBack = poppedRef.current;
+    poppedRef.current = false;
+
+    // Arranque en frío: no hubo navegación, no hay nada que deslizar.
+    if (firstRenderRef.current) {
+      firstRenderRef.current = false;
+      if (!explicit) return;
+    }
+
+    if (explicit) {
+      const saved = sessionStorage.getItem(`nav:scroll:${pathname}`);
+      window.scrollTo({ top: saved !== null ? parseInt(saved) : 0, behavior: "instant" });
+      pendingAnimDirRef.current = explicit;
+      return;
+    }
+
+    // En celular TODA navegación desliza (mismo criterio que el layout protegido):
+    // entrar a una comunidad, abrir un post, volver atrás. En escritorio, no.
+    if (typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches) {
+      pendingAnimDirRef.current = wasBack ? "left" : "right";
+    }
   }, [pathname]);
 
   // Animate after paint so position:fixed children are in the DOM when iOS

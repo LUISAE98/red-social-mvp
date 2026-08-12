@@ -10,6 +10,7 @@ import {
   unblockUser,
   unfollowUser,
 } from "@/lib/social/social-service";
+import { syncConversationBlock } from "@/lib/chat/chatService";
 
 import type { SocialRelationshipStatus } from "@/types/social";
 
@@ -139,6 +140,11 @@ export function useSocialRelationship(
 
     try {
       await blockUser({ currentUserId, targetUserId });
+      // El hilo de DM guarda su propio estado bloqueado, y es ESE el que miran
+      // las rules al escribir. Se sincroniza aquí y no en cada pantalla porque
+      // esto es por donde pasan todos los bloqueos del producto: haciéndolo en
+      // los botones, desbloquear desde el perfil dejaba el hilo trabado.
+      await syncConversationBlock(currentUserId, targetUserId, true);
     } catch (err) {
       console.error("Error blocking user:", err);
       setError("No se pudo bloquear este usuario.");
@@ -155,6 +161,7 @@ export function useSocialRelationship(
 
     try {
       await unblockUser({ currentUserId, targetUserId });
+      await syncConversationBlock(currentUserId, targetUserId, false);
       return true;
     } catch (err) {
       console.error("Error unblocking user:", err);

@@ -574,7 +574,31 @@ export default function MobileBottomNav({
                     : item.active;
 
                   if (alreadyHere) {
-                    setShakingKey(item.key);
+                    // Estar "en la sección" no siempre es estar en su raíz: el
+                    // avatar sigue encendido dentro de tu perfil, mensajes dentro
+                    // de un hilo, wallet dentro de una subpestaña. En esos casos
+                    // el mismo botón REGRESA a la raíz (el menú, la bandeja, el
+                    // índice), que es lo que uno espera al volver a tocarlo.
+                    // La sacudida queda solo para cuando ya estás en la raíz y de
+                    // verdad no hay a dónde ir.
+                    const atRoot = pendingHref !== null
+                      ? pendingHref === item.href
+                      : pathname === item.href;
+
+                    if (atRoot) {
+                      setShakingKey(item.key);
+                      return;
+                    }
+
+                    sessionStorage.setItem(`nav:scroll:${pathname}`, String(window.scrollY));
+                    const savedRoot = sessionStorage.getItem(`nav:scroll:${item.href}`);
+                    lastScrollYRef.current = savedRoot !== null ? parseInt(savedRoot) : 0;
+
+                    setPoppingKey(item.key);
+                    setPendingHref(item.href);
+                    // Hacia atrás: entra desde la izquierda.
+                    setNavSlideDir("left");
+                    router.push(item.href, { scroll: false });
                     return;
                   }
 

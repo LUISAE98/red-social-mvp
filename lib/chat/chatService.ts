@@ -329,6 +329,51 @@ export async function unblockConversation(conversationId: string): Promise<void>
   });
 }
 
+/**
+ * Pone el hilo de DM de acuerdo con el bloqueo de PERFIL.
+ *
+ * El bloqueo vive en dos sitios: la relación entre perfiles, que es la canónica
+ * y la que ve todo el producto, y el estado del hilo, que es lo que miran las
+ * rules para dejar escribir o no. Mantenerlos a mano desde cada pantalla no
+ * funcionó: al desbloquear desde la página del perfil, el hilo se quedaba en
+ * "blocked" para siempre y no había forma de volver a escribir.
+ *
+ * Por eso esto se llama desde `useSocialRelationship`, que es por donde pasan
+ * TODOS los bloqueos del producto, y no desde cada sitio que pinta un botón.
+ *
+ * El ID del hilo es determinista a partir de los dos UIDs, así que no hace falta
+ * saber si la conversación está abierta ni tenerla a mano.
+ */
+export async function syncConversationBlock(
+  selfUid: string,
+  otherUid: string,
+  blocked: boolean
+): Promise<void> {
+  try {
+    const conversationId = buildParticipantsKey(selfUid, otherUid);
+    const snapshot = await getDoc(conversationRef(conversationId));
+    // Sin hilo no hay nada que sincronizar: cuando se cree, nacerá coherente.
+    if (!snapshot.exists()) return;
+
+    const data = snapshot.data() as ConversationDoc;
+
+    if (blocked) {
+      if (data.status === "blocked") return;
+      await blockConversation(conversationId, selfUid);
+      return;
+    }
+
+    // Solo se deshace TU bloqueo. Si quien bloqueó fue el otro, su bloqueo sigue
+    // en pie y las rules rechazarían el cambio de todas formas.
+    if (data.status !== "blocked" || data.blockedBy !== selfUid) return;
+    await unblockConversation(conversationId);
+  } catch (error) {
+    // No debe tumbar el bloqueo de perfil, que es la acción que pidió la
+    // persona; pero sí hay que enterarse, porque deja el hilo descuadrado.
+    captureError(error, { scope: "chat", code: "sync_conversation_block_failed" });
+  }
+}
+
 /** Acepta una solicitud: el hilo pasa a la bandeja principal. */
 export async function acceptConversationRequest(
   conversationId: string

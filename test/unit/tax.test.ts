@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   COUNTRY_TAX_CONFIG,
+  ALTAS_PENDIENTES,
   computeConsumptionTax,
   countryTaxConfig,
   taxRateForCountry,
@@ -797,6 +798,76 @@ describe("Estados Unidos", () => {
   it("cobra el 2% de FX (la liquidación es en MXN)", () => {
     expect(shouldAddFxFee("US")).toBe(true);
     expect(fxFeeRateForCountry("US")).toBeGreaterThan(0);
+  });
+});
+
+// 🇧🇷🇨🇴🇨🇱🇵🇪 LatAm con alta obligatoria desde la venta 1. A diferencia de los 19 países
+// bajo umbral, aquí NO existe el estado "vender sin cobrar": vender sin alta es ilegal.
+// Están encendidos para probar con Stripe en modo prueba; sus altas reales siguen pendientes.
+describe("LatAm con alta obligatoria — BR, CO, CL, PE, UY", () => {
+  const CUATRO: Array<[string, number, string, string]> = [
+    ["BR", 0.01, "BRL", "CBS+IBS"],
+    ["CO", 0.19, "COP", "IVA"],
+    ["CL", 0.19, "CLP", "IVA"],
+    ["PE", 0.18, "PEN", "IGV"],
+    ["UY", 0.22, "UYU", "IVA"],
+  ];
+
+  it("los cuatro COBRAN el impuesto: recauda la plataforma", () => {
+    for (const [iso, tasa] of CUATRO) {
+      expect(isChargeableCountry(iso), iso).toBe(true);
+      expect(platformCollectsTax(iso), iso).toBe(true);
+      expect(countryTaxConfig(iso)!.collectionMode, iso).toBe("platform");
+      expect(countryTaxConfig(iso)!.registrationStatus, iso).toBe("registered");
+      expect(computeConsumptionTax(100, iso).tax, iso).toBeCloseTo(100 * tasa, 6);
+    }
+  });
+
+  it("tasas, monedas y nombres correctos", () => {
+    for (const [iso, tasa, moneda, nombre] of CUATRO) {
+      expect(taxRateForCountry(iso), iso).toBeCloseTo(tasa, 8);
+      expect(chargeCurrencyForCountry(iso), iso).toBe(moneda);
+      expect(countryTaxConfig(iso)!.taxName, iso).toBe(nombre);
+      expect(shouldAddFxFee(iso), iso).toBe(true);
+    }
+  });
+
+  // 🚨 Brasil es el ÚNICO país de la tabla cuya tasa cambia con el calendario. Hoy 1% (año de
+  // prueba), ~8,9% en 2027, 26,5% en 2033. Quien vea "1%" y lo tome por error de dedo estaría
+  // cobrándole a los brasileños 26 veces de más, siete años antes de tiempo.
+  it("🚨 Brasil cobra 1% HOY, no el 26,5% del régimen final", () => {
+    expect(taxRateForCountry("BR")).toBeCloseTo(0.01, 8);
+    expect(taxRateForCountry("BR")).not.toBeCloseTo(0.265, 3);
+    expect(computeConsumptionTax(1000, "BR").tax).toBeCloseTo(10, 6);
+  });
+
+  // 🚨 Lista de verificación previa a sk_live. Mientras tenga entradas, hay países cobrando
+  // un impuesto que Vibra todavía no puede enterar. En modo prueba es inocuo; en producción
+  // sería quedarse con dinero ajeno.
+  it("🚨 ALTAS_PENDIENTES refleja exactamente los que están encendidos sin alta", () => {
+    expect([...ALTAS_PENDIENTES].sort()).toEqual(["BR", "CL", "CO", "PE", "UY"]);
+    // Todo el que esté en la lista debe estar cobrando (si no, sobra en la lista).
+    for (const iso of ALTAS_PENDIENTES) {
+      expect(platformCollectsTax(iso), iso + " está en ALTAS_PENDIENTES pero no cobra").toBe(true);
+    }
+  });
+
+  // 🚨 Uruguay cobra DOS impuestos pero solo uno se le cobra al comprador. El IRNR 12% es
+  // impuesto a la RENTA de Vibra, sale de su margen, y por eso NO debe aparecer en taxRate.
+  // Si alguien "completa" la tasa a 0.34 (22+12), le estaría cobrando al comprador uruguayo
+  // un impuesto que no le corresponde pagar.
+  it("🚨 Uruguay cobra 22% al comprador, NO 34%: el IRNR no se traslada", () => {
+    expect(taxRateForCountry("UY")).toBeCloseTo(0.22, 8);
+    expect(taxRateForCountry("UY")).not.toBeCloseTo(0.34, 3);
+    expect(computeConsumptionTax(100, "UY").tax).toBeCloseTo(22, 6);
+  });
+
+  // Contraste con los de umbral: allá vender sin alta es legal, aquí no.
+  it("no confundirlos con los países bajo umbral", () => {
+    expect(countryTaxConfig("JP")!.registrationStatus).toBe("not_registered");
+    expect(platformCollectsTax("JP")).toBe(false);
+    expect(countryTaxConfig("CL")!.registrationStatus).toBe("registered");
+    expect(platformCollectsTax("CL")).toBe(true);
   });
 });
 

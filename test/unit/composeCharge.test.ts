@@ -99,9 +99,15 @@ describe("backend/tax/composeCharge", () => {
       expect(fase2.hadConflict).toBe(true);
     });
 
-    it("al corregir a México entra el 16%", () => {
-      expect(composeCharge(100, fase1.country).buyerTax.amount).toBe(0); // país sin ficha
+    // Antes Colombia no tenía ficha y este test comparaba "algo contra nada". Desde que
+    // Colombia cobra (2026-08-11) compara dos impuestos reales, que es el caso que importa:
+    // la tarjeta no solo agrega impuesto, puede CAMBIARLO de país.
+    it("al corregir a México cambia el impuesto: 19% colombiano → 16% mexicano", () => {
+      // Fase 1 — IP colombiana: 19% sobre (base + $3) + 2% de conversión.
+      expect(composeCharge(100, fase1.country).buyerTax.amount).toBeCloseTo(19.96, 2);
+      // Fase 2 — tarjeta mexicana: 16% y SIN 2% de FX, porque se cobra en pesos.
       expect(composeCharge(100, fase2.country).chargedAmount).toBe(119.48);
+      expect(composeCharge(100, fase2.country).fxFeeAmount).toBe(0);
     });
   });
 

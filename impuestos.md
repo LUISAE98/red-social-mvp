@@ -411,7 +411,7 @@ aplican.** Ese es el dato bueno. Cada país nuevo se abre así:
 
 Hasta entonces, un país sin fila **no es cobrable** y el checkout lo rechaza.
 
-**Quedan 5 de LatAm**, todos con el mismo bloqueo — **exigen alta previa a la primera venta**:
+**LatAm queda COMPLETA** — los 17 países integrados, todos con el mismo bloqueo — **exigen alta previa a la primera venta**:
 
 | País | Impuesto | Qué falta |
 |---|---|---|
@@ -795,11 +795,6 @@ venta — lo gatea `COUNTRY_TAX_CONFIG`, y ahí no tiene fila. Hay un test que l
 
 | País | Moneda | Idioma | TASA | Impuesto | Recaudación | Declaración | Alta fiscal | Umbral | Estatus |
 |---|---|---|---|---|---|---|---|---|---|
-| 🇨🇱 Chile | CLP | Español | 19% | IVA | Vibra (tras alta) | Mensual o trimestral (F129, en USD/EUR) | Régimen simplificado — SII | Ninguno | 🔴 No cobrable |
-| 🇨🇴 Colombia | COP | Español | 19% | IVA | Vibra **o** emisores de tarjeta (a elección) | Bimestral — o **ninguna** si opta por retención | RUT + firma electrónica — DIAN | Ninguno | 🔴 No cobrable |
-| 🇵🇪 Perú | PEN | Español | 18% | IGV | Vibra, como agente de percepción | Mensual | RUC — SUNAT (sin domicilio ni EP) | Ninguno | 🔴 No cobrable |
-| 🇺🇾 Uruguay | UYU | Español | 22% **+ IRNR 12%** | IVA | Por confirmar | Por confirmar | Régimen no residentes — DGI | Ninguno | 🔴 No cobrable |
-| 🇧🇷 Brasil | BRL | Portugués | Variable | ISS → IBS/CBS | Por confirmar | Por confirmar | Municipal | Ninguno | 🔴 No cobrable |
 | 🇬🇧 Reino Unido | GBP | Inglés | 20% | VAT | Vibra (tras alta) | Trimestral | HMRC — **NETP** | **Cero** para extranjeros | 🔴 No cobrable |
 | 🇨🇭 Suiza | CHF | Alemán/francés/italiano | 8,1% | MWST/TVA | Vibra (tras alta) | Trimestral | FTA + **representante fiscal** | CHF 100.000 **mundial** ⚠️ | 🔴 No cobrable |
 | 🇱🇮 Liechtenstein | CHF | Alemán | 8,1% | MWST | Vibra (tras alta) | Trimestral | Sistema suizo (unión aduanera) | Igual que Suiza | 🔴 No cobrable |
@@ -1249,6 +1244,115 @@ Diferencia con Canadá: allá esa limitación produce **exposición hoy**; aquí
 
 ---
 
+## 6.10 🇧🇷🇨🇴🇨🇱🇵🇪🇺🇾 LatAm con alta obligatoria — ENCENDIDOS con alta pendiente (2026-08-11)
+
+Los cuatro **exigen alta desde la primera venta**: no tienen umbral. El código ya cobra; **las
+altas reales están pendientes**. Están encendidos para probar con Stripe en **modo prueba**, donde
+no hay dinero real ni obligación fiscal — la misma decisión que se tomó con la UE.
+
+| País | Moneda | Idioma | TASA | Impuesto | Recaudación | Declaración | Alta fiscal | Umbral | Estatus |
+|---|---|---|---|---|---|---|---|---|---|
+| 🇧🇷 Brasil | BRL | Portugués | **1,0%** hoy → 26,5% en 2033 | CBS + IBS | **Vibra** | Mensual | CNPJ — Receita Federal | Ninguno | 🟡 Alta pendiente |
+| 🇨🇴 Colombia | COP | Español | 19% | IVA | **Vibra** (o emisores, si se acoge) | Bimestral — o ninguna con retención | RUT + firma electrónica — DIAN | Ninguno | 🟡 Alta pendiente |
+| 🇨🇱 Chile | CLP | Español | 19% | IVA | **Vibra** | Mensual o trimestral, en USD/EUR | Régimen simplificado — SII | Ninguno | 🟡 Alta pendiente |
+| 🇵🇪 Perú | PEN | Español | 18% | IGV | **Vibra** (agente de percepción) | Mensual | RUC — SUNAT | Ninguno | 🟡 Alta pendiente |
+| 🇺🇾 Uruguay | UYU *(se puede pagar en USD)* | Español | **22%** al comprador | IVA | **Vibra** | **Trimestral** | DGI · sin representante local | Ninguno | 🟡 Alta pendiente |
+
+Helper: `platformCollects(taxName, taxRate, currency, registered)`. Sin estado intermedio: o
+cobra (`registered`) o bloquea la venta (`cannot_sell`). **No existe "vender sin cobrar"** como en
+los países con umbral — aquí eso sería ilegal, no una zona gris.
+
+### 🚨 Lista de verificación previa a `sk_live`
+
+```ts
+export const ALTAS_PENDIENTES = ["BR", "CO", "CL", "PE", "UY"];
+```
+
+Mientras esa lista tenga entradas, hay países **cobrando un impuesto que Vibra todavía no puede
+enterar**. En modo prueba es inocuo. En producción sería quedarse con dinero ajeno.
+
+**Al completar un alta: borrar su entrada de `ALTAS_PENDIENTES`.** Cuando quede vacía, se puede
+pasar a llaves reales sin deuda. Hay un test que verifica que la lista coincida con los países
+encendidos.
+
+Interruptores individuales: `BR_CNPJ_REGISTERED`, `CO_DIAN_REGISTERED`, `CL_SII_REGISTERED`,
+`PE_SUNAT_REGISTERED`, `UY_DGI_REGISTERED`. En `false` el país pasa a `cannot_sell` y el checkout lo rechaza.
+
+### 🇧🇷 Brasil: la única tasa de la tabla que cambia con el calendario
+
+| Año | CBS | IBS | Total |
+|---|---|---|---|
+| **2026 (hoy)** | 0,9% | 0,1% | **1,0%** |
+| 2027 | ~8,8% (plena; mueren PIS/COFINS) | 0,1% | ~8,9% |
+| 2029–2032 | 8,8% | Sube gradual, bajan ICMS e ISS | Transición |
+| 2033 | 8,8% | 17,7% | **26,5%** |
+
+Hay un test que fija el 1%. Quien lo vea y lo "corrija" al 26,5% estaría cobrándoles a los
+brasileños **26 veces de más, siete años antes de tiempo**.
+
+⚠️ El registro venció el **1 de agosto de 2026**. Y no registrarse no es no pagar: la CBS/IBS se
+cobra sobre la **remesa al exterior a tasas de referencia**, más multa.
+
+### 🇨🇴 Colombia: la opción de no recaudar sigue disponible, pero se gasta una sola vez
+
+La **Res. DIAN 000049/2019** permite acogerse a que retengan los emisores de tarjeta — y entonces
+Vibra **no presenta declaración**. Se dejó como `platform` porque esa opción todavía no se ha
+tomado.
+
+* **Art. 1°:** el alta NO es un formulario. Es una petición por el canal **PQSR** de la DIAN.
+* **Art. 5°:** la DIAN publica por resolución un listado **taxativo** con fecha de aplicación.
+* **Art. 2°:** 🚨 el cambio de modalidad es **por ÚNICA VEZ**. No gastarlo por accidente.
+
+Sigue abierta **D-11**: si ese 19% se le suma al comprador o se le descuenta a Vibra.
+
+### 🇺🇾 Uruguay: el único donde un impuesto sale de TU margen
+
+Uruguay cobra **dos** impuestos, y solo uno cabe en el modelo:
+
+| | Qué es | Quién lo paga |
+|---|---|---|
+| **IVA 22%** | Impuesto al consumo | **El comprador** — es el que está en la tabla |
+| **IRNR 12%** | Impuesto a la **renta** del no residente | **Vibra**, de su propio ingreso |
+
+🚨 **DECISIÓN (2026-08-11): se arranca cobrando SOLO el 22%**, sin subir el precio para cubrir el
+IRNR. Ese 12% sale del margen: sobre una venta de $100 de base, el margen pasa de **$25 a $13**.
+
+El IRNR **no aparece en `COUNTRY_TAX_CONFIG` y es correcto que no aparezca** — ese campo modela lo
+que se le cobra al comprador. Hay un test que impide "completar" la tasa a 34%: hacerlo le cobraría
+al uruguayo un impuesto que no le toca pagar.
+
+**El Convenio México–Uruguay** (vigente desde 2011) puede reducirlo, pero no automáticamente:
+
+| Artículo | Cubre | Resultado |
+|---|---|---|
+| **Art. 7** Beneficios empresariales | Sesión 1-a-1, saludos, consejos, tiempo contigo | **0%** (no hay EP en Uruguay) |
+| **Art. 12** Regalías, tope **10%** | Tickets de live, VOD, post premium — la definición incluye *"derecho de autor sobre obra artística, incluidas películas cinematográficas"* | 10% |
+| **Art. 20** Otras rentas | Lo que no encaje arriba | ⚠️ **Uruguay SÍ puede gravar** |
+
+⚠️ El Art. 20 de este tratado **no** sigue el modelo OCDE: dice que las otras rentas *"podrán
+someterse a imposición en ese otro Estado"*. Lo que no se encuadre en el Art. 7 se cae ahí y queda
+gravado igual.
+
+Reclamar el beneficio exige certificado de residencia fiscal del SAT (**Decreto 323/012** +
+**Resolución DGI 2.456/2012**), normas escritas para la retención B2B — autoliquidando, el
+procedimiento no está claro.
+
+**Lo bueno del régimen uruguayo:** declaración **trimestral** (mejor que Perú y Brasil, mensuales),
+**se puede pagar en dólares** —lo que evita el doble cambio de divisa— y **no exige representante
+local**. Si se opta por dólares hay que mantenerlo **3 años**.
+
+**Contexto:** 30+ plataformas registradas ante DGI pagaron más de US$50 millones en un año
+(Netflix, Spotify, Airbnb, Booking, Uber). De Kick, Twitch y OnlyFans no hay registro público —
+operan ahí sin figurar. No es precedente a seguir: Uruguay no tiene umbral.
+
+### 🇵🇪 Perú: el respaldo bancario no es una alternativa
+
+Si Vibra no se registra, la SUNAT la publica por Decreto Supremo en un **listado de incumplidos**,
+le quita la condición de agente y la responsabilidad pasa a los facilitadores de pago. El comprador
+paga igual, pero Vibra queda en una lista pública y sale con intereses y multas.
+
+---
+
 ## 7. Estado y pendientes
 
 ### Países
@@ -1266,6 +1370,7 @@ Diferencia con Canadá: allá esa limitación produce **exposición hoy**; aquí
 | 🌍 África | ZA · EG (bajo umbral) | ✅ Activos — **vigilancia manual** | No — hasta cruzar el umbral |
 | 🇨🇦 Canadá | CA | ✅ Activo — ⚠️ **exposición SK/MB aceptada** | No — hasta cruzar el umbral |
 | 🇺🇸 Estados Unidos | US | ✅ Activo — sin exposición | No — hasta cruzar el umbral de algún estado |
+| 🌎 LatAm con alta obligatoria | BR · CO · CL · PE · UY | 🟡 **Encendidos, alta PENDIENTE** | **Sí** — 1% BR · 19% CO · 19% CL · 18% PE · 22% UY |
 | ⬜ Resto de LatAm | CL · CO · PE · UY · BR | Sin ficha — **no cobrables** | — |
 | ⬜ Resto de Europa no-UE | GB · CH · LI · RS · AL · ME · MD · MK · TR | Sin ficha — exigen alta desde la 1ª venta | — |
 | 🚫 Excluidos a propósito | UA (embargo regional) · RU · BY · CU (sanciones) · IL (decisión de Luis) | No integrar | — |
@@ -1275,7 +1380,7 @@ Diferencia con Canadá: allá esa limitación produce **exposición hoy**; aquí
 | 🚫 África — Stripe no procesa | SD · SS · SO · ER · LY + riesgo: ZW · BI · CF · CD · GN · GW · ML | No integrar | — |
 | ⬜ Resto del mundo | — | Sin ficha — **no cobrables** | — |
 
-**Total cobrable: 63 países.** Un país sin fila en `COUNTRY_TAX_CONFIG` no es cobrable y el
+**Total cobrable: 68 países.** De ellos, **33 cobran impuesto** (MX + 27 UE + BR·CO·CL·PE·UY). Un país sin fila en `COUNTRY_TAX_CONFIG` no es cobrable y el
 checkout lo rechaza.
 
 ### Backend — ✅ hecho (2026-08-07)
@@ -1305,9 +1410,11 @@ checkout lo rechaza.
 | ID | Qué | Quién |
 |---|---|---|
 | **D-08** | Mapear los 11 servicios a un inciso del Art. 29-IV. Provisionalmente **todos a 0%**; los dudosos son **Tiempo contigo** y **Sesión exclusiva** | Fiscalista MX |
-| **D-09** | Los 5 de LatAm que faltan (CL · CO · PE · UY · BR): todos exigen alta previa. Detalle de quién recauda y quién declara en §6.2 | Luis + fiscalista internacional |
+| ~~D-09~~ | ~~LatAm pendiente~~ **Cerrada 2026-08-11: los 17 países de LatAm están integrados** | ✅ |
+| **D-19** | 🇺🇾 ¿El Convenio México–Uruguay elimina o reduce el IRNR 12%? Depende de encuadrar cada servicio en Art. 7 (0%), Art. 12 (10%) o Art. 20 (12%). Hoy ese 12% sale del margen | Fiscalista MX/UY |
+| **D-18** | 🚨 **Completar las 4 altas de `ALTAS_PENDIENTES` (BR · CO · CL · PE) ANTES de pasar a `sk_live`.** Hoy cobran en modo prueba sin poder enterar | Luis |
 | **D-11** | 🇨🇴 **Una sola pregunta abierta:** ¿la retención en la fuente del sistema alternativo SE SUMA al comprador o se DESCUENTA de lo que cobra Vibra? Vale 19% de cada venta colombiana. **RESUELTO 2026-08-11:** el cambio de modalidad SÍ es posible pero **por ÚNICA VEZ** (Art. 2° Res. DIAN 000049/2019) → no gastar ese cambio: entrar DIRECTO al sistema de retención. El alta NO es un formulario: es una petición por el canal **PQSR** de la DIAN (Art. 1°), y la DIAN debe publicarte por resolución en un listado taxativo con fecha de aplicación (Art. 5°) | Fiscalista CO |
-| **D-12** | 🇺🇾 Confirmar el IRNR 12% sobre IVA 22% y quién retiene | Fiscalista UY |
+| ~~D-12~~ | ~~🇺🇾 Confirmar IRNR y quién retiene~~ **Resuelta 2026-08-11:** recauda Vibra (no hay retención bancaria para B2C), declaración trimestral, se puede pagar en USD. El IRNR sigue abierto en D-19 | ✅ |
 | **D-13** | Contador de ventas acumuladas por país + alerta al 80% del umbral. **19 países** encendidos con vigilancia manual (NO · IS · BA · JP · MY · PH · TH · AU · JO · ID · NZ · TW · SG · NC · FJ · ZA · EG · CA · US); el contador la reemplazaría. Cuantos más umbrales, menos sostenible es recordarlos | Luis + Claude |
 | ~~D-14~~ | ~~🇺🇦 ¿Entrar a Ucrania?~~ **Resuelta 2026-08-08: NO.** Requeriría discriminación regional (Crimea/Donetsk/Lugansk bajo embargo OFAC) que no existe | ✅ |
 | **D-15** | 🇨🇦 Saskatchewan y Manitoba: sin umbral, obligación desde la venta 1. Exposición ~6,6% de Canadá **aceptada a conciencia**. Revisar si Canadá gana peso | Luis |

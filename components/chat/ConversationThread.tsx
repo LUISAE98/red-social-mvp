@@ -103,13 +103,42 @@ const ICON_PENCIL = (
   </>
 );
 
-/** Flecha que vuelve sobre sí misma: responder. */
+/**
+ * Responder: la MISMA silueta que el compartir de las publicaciones
+ * (`VibraShareIcon`), reflejada. Compartir apunta hacia fuera y responder hacia
+ * dentro, así que una es el espejo de la otra y el producto habla un solo idioma
+ * de iconos. El camino va ya escrito en espejo (x' = 24 − x) en vez de girarse
+ * con un `transform`, para que sirva igual dentro de `MenuIcon`.
+ */
 const ICON_REPLY = (
-  <>
-    <path d="M9 15L4 10l5-5" />
-    <path d="M4 10h8a7 7 0 017 7v2" />
-  </>
+  <path d="M11.2 4.5L3 11.5L11.2 18.5V14.2H13.5C17.3 14.2 19.8 16 21.5 19.5C21.2 12.7 18.2 9.2 13.3 9.2H11.2V4.5Z" />
 );
+
+/**
+ * Iconos de las acciones que salen al lado del globo.
+ *
+ * Van aparte de `MenuIcon` porque piden lo contrario que aquel: ahí son un
+ * apoyo del texto y se atenúan; aquí son la acción entera, así que van más
+ * blancos y con más cuerpo de trazo. Huecos en los dos casos.
+ */
+function ActionIcon({ path }: { path: React.ReactNode }) {
+  return (
+    <svg
+      width="17"
+      height="17"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.9"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      style={{ display: "block", flexShrink: 0 }}
+      aria-hidden
+    >
+      {path}
+    </svg>
+  );
+}
 
 /**
  * Deslizar un mensaje hacia la derecha lo cita, como en WhatsApp.
@@ -137,12 +166,12 @@ function SwipeReplyCue() {
       }}
     >
       <svg
-        width="14"
-        height="14"
+        width="15"
+        height="15"
         viewBox="0 0 24 24"
         fill="none"
         stroke="#fff"
-        strokeWidth="2.2"
+        strokeWidth="1.9"
         strokeLinecap="round"
         strokeLinejoin="round"
         aria-hidden
@@ -199,6 +228,7 @@ export default function ConversationThread({
   selfUid,
   active = true,
   safeAreaBottom = false,
+  pointerActions = false,
   onConversationCreated,
 }: {
   /** ID determinista del hilo. Puede no existir todavía (modo borrador). */
@@ -215,6 +245,16 @@ export default function ConversationThread({
    * debajo y esos 20px quedarían como hueco muerto.
    */
   safeAreaBottom?: boolean;
+  /**
+   * Responder y editar salen como iconos al pasar el cursor sobre el mensaje, y
+   * desaparecen del menú.
+   *
+   * Lo decide quien monta el hilo y no un `@media (hover: hover)`: el dock solo
+   * existe en laptop y la pantalla completa solo en celular, así que el dato ya
+   * lo sabe el sitio que monta. Consultarlo por CSS añadía una incógnita (qué
+   * responde cada navegador con pantalla táctil) sin ganar nada.
+   */
+  pointerActions?: boolean;
   onConversationCreated?: (conversationId: string) => void;
 }) {
   const tChat = useTranslations("chat");
@@ -489,6 +529,14 @@ export default function ConversationThread({
     // Citar y editar son excluyentes: el compositor solo puede hacer una cosa.
     setEditing(null);
     setReplyingTo(preview);
+    setExpandedMessage(null);
+    inputRef.current?.focus();
+  }
+
+  function startEdit(message: MessageWithId) {
+    setEditing({ id: message.id, text: message.text });
+    setReplyingTo(null);
+    setDraft(message.text);
     setExpandedMessage(null);
     inputRef.current?.focus();
   }
@@ -813,6 +861,7 @@ export default function ConversationThread({
             nuestro. Sin eso habría que cancelar el evento, y React escucha
             `touchmove` en modo pasivo — no se puede. */}
         <div
+          className="vibra-msg-row"
           onTouchStart={(e) => beginSwipe(e, message)}
           onTouchMove={moveSwipe}
           onTouchEnd={endSwipe}
@@ -834,6 +883,57 @@ export default function ConversationThread({
               alignItems: "center",
             }}
           >
+            {/* Acciones al pasar el cursor. El hueco se reserva SIEMPRE (aunque
+                estén invisibles) para que aparecer no empuje el globo de sitio.
+                Van del lado de fuera del globo: a su izquierda si el mensaje es
+                mío (pegado a la derecha), a su derecha si es del otro. */}
+            {pointerActions ? (
+            <span
+              className="vibra-msg-actions"
+              style={{
+                order: mine ? 0 : 3,
+                // Pegados AL GLOBO, no centrados en el hueco reservado. Con una
+                // sola acción (editar caduca a los 10 minutos, y en lo del otro
+                // nunca aparece) centrar dejaba un espacio muerto justo entre el
+                // icono y el mensaje. Así el sobrante se va hacia fuera, donde
+                // no se nota.
+                justifyContent: mine ? "flex-end" : "flex-start",
+              }}
+            >
+              {canReply(message) ? (
+                <button
+                  type="button"
+                  className="vibra-msg-action"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    startReply(message);
+                  }}
+                  aria-label={tChat("reply")}
+                  title={tChat("reply")}
+                >
+                  <ActionIcon path={ICON_REPLY} />
+                </button>
+              ) : null}
+
+              {/* Editar: solo lo tuyo, con texto y dentro de los 10 minutos.
+                  Pasado ese punto las rules lo rechazan, así que ni se ofrece. */}
+              {mine && withinWindow && message.text && !message.isDeleted ? (
+                <button
+                  type="button"
+                  className="vibra-msg-action"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    startEdit(message);
+                  }}
+                  aria-label={tChat("editMessage")}
+                  title={tChat("editMessage")}
+                >
+                  <ActionIcon path={ICON_PENCIL} />
+                </button>
+              ) : null}
+            </span>
+            ) : null}
+
             {/* Ancho cero: se coloca justo antes del globo sin ocupar sitio, así
                 que la pista sale a su izquierda tanto si el mensaje va a la
                 derecha como si va a la izquierda. */}
@@ -841,6 +941,7 @@ export default function ConversationThread({
               data-swipe-cue
               aria-hidden
               style={{
+                order: 1,
                 position: "relative",
                 width: 0,
                 display: "flex",
@@ -876,6 +977,7 @@ export default function ConversationThread({
               }
             }}
             style={{
+              order: 2,
               cursor: "pointer",
               maxWidth: "78%",
               padding: "8px 11px",
@@ -1106,9 +1208,9 @@ export default function ConversationThread({
               {!message.isDeleted ? (
                 <div className="vibra-msg-menu">
                   {/* En celular esto se hace deslizando el mensaje a la derecha.
-                      Aquí está por los dos casos en que ese gesto no existe: el
-                      dock de laptop y la navegación por teclado. */}
-                  {canReply(message) ? (
+                      Aquí queda para táctil; con puntero se hace desde los
+                      iconos que salen al lado del globo. */}
+                  {!pointerActions && canReply(message) ? (
                     <button
                       type="button"
                       className="vibra-msg-menu-item"
@@ -1153,17 +1255,11 @@ export default function ConversationThread({
                         {tChat("deleteForEveryone")}
                       </button>
 
-                      {message.text ? (
+                      {!pointerActions && message.text ? (
                         <button
                           type="button"
                           className="vibra-msg-menu-item"
-                          onClick={() => {
-                            setEditing({ id: message.id, text: message.text });
-                            setReplyingTo(null);
-                            setDraft(message.text);
-                            setExpandedMessage(null);
-                            inputRef.current?.focus();
-                          }}
+                          onClick={() => startEdit(message)}
                           tabIndex={expanded ? 0 : -1}
                         >
                           <MenuIcon path={ICON_PENCIL} />
@@ -1678,6 +1774,49 @@ export default function ConversationThread({
         .vibra-msg-menu-item:active {
           background: rgba(255, 255, 255, 0.11);
         }
+
+        /* Acciones rápidas al lado del globo. Solo se montan donde hay puntero
+           (lo decide la prop pointerActions), así que aquí no hay media query.
+           El hueco se reserva siempre para que salir del hover no mueva el
+           globo de sitio. */
+        .vibra-msg-actions {
+          display: flex;
+          flex-shrink: 0;
+          align-items: center;
+          gap: 2px;
+          /* Ancho FIJO aunque solo haya una acción: si encogiera, el globo se
+             movería de sitio en los mensajes viejos al caducar el editar. */
+          width: 56px;
+          opacity: 0;
+          transition: opacity var(--duration-fast, 150ms) ease;
+        }
+        /* Visibles también mientras el foco esté dentro: si no, tabular hasta
+           ellas las apagaría justo al llegar. */
+        .vibra-msg-row:hover .vibra-msg-actions,
+        .vibra-msg-actions:focus-within {
+          opacity: 1;
+        }
+        .vibra-msg-action {
+          appearance: none;
+          border: none;
+          background: transparent;
+          /* Casi blanco: son la acción, no un adorno del texto. */
+          color: rgba(255, 255, 255, 0.92);
+          padding: 0;
+          width: 26px;
+          height: 26px;
+          border-radius: 999px;
+          display: grid;
+          place-items: center;
+          cursor: pointer;
+          transition: background var(--duration-fast, 150ms) ease,
+            color var(--duration-fast, 150ms) ease;
+        }
+        .vibra-msg-action:hover {
+          background: rgba(255, 255, 255, 0.1);
+          color: #fff;
+        }
+
       `}</style>
 
       <div

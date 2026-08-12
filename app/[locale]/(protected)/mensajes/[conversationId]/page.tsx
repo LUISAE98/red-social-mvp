@@ -11,7 +11,6 @@ import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import { useAuth } from "@/app/providers";
 import LiveRingAvatar from "@/app/components/LiveRing/LiveRingAvatar";
 import ProfileMoreMenu from "@/app/[locale]/(protected)/u/[handle]/components/ProfileMoreMenu";
-import { blockConversation } from "@/lib/chat/chatService";
 import ConversationThread from "@/components/chat/ConversationThread";
 import { useProfileMini } from "@/lib/chat/useProfileMini";
 import { getOtherParticipant } from "@/lib/chat/types";
@@ -80,19 +79,25 @@ export default function ConversationPage() {
    * campo de escritura queda debajo del teclado. Copiando alto y desplazamiento
    * del visual, la pantalla cae exactamente sobre lo que se ve.
    *
-   * DOS decisiones aquí son las que hacen que esto funcione en iOS:
+   * TRES decisiones aquí son las que hacen que esto funcione en iOS:
    *
-   * 1. Sin teclado NO se escribe ningún número: se devuelve la pantalla al CSS
-   *    (`top: 0` + `100dvh`), que por definición es "su sitio". Antes se escribía
-   *    el alto medido también al cerrar, y bastaba que iOS lo reportase tarde
-   *    para que la pantalla se quedase corta y apareciera una franja negra
-   *    abajo. Un valor que no se escribe no se puede quedar a medias.
+   * 1. SIEMPRE se escribe el alto medido, también con el teclado cerrado. El
+   *    intento anterior devolvía la pantalla a `100dvh` al cerrar, y ahí está la
+   *    diferencia entre Chrome (iba bien) y Safari/PWA (no): iOS no recalcula
+   *    las unidades `dvh` al retirarse el teclado, así que el alto se quedaba
+   *    con el valor de cuando estaba abierto. Medir no depende de eso.
    *
    * 2. No basta con reaccionar a los eventos. iOS anima el teclado ~300ms y el
    *    último evento suele llegar ANTES del estado final; al descartarlo con el
    *    botón del propio teclado a veces no llega ninguno. Por eso ante cualquier
    *    señal se arranca un seguimiento por frames que LEE el viewport hasta que
    *    deja de moverse, en vez de esperar a que alguien nos avise.
+   *
+   * 3. Se corrige el desplazamiento que iOS le mete al documento al enfocar el
+   *    campo. Un `position: fixed` se ancla al viewport de diseño, así que si el
+   *    documento queda corrido la pantalla entera aparece desplazada. Se vuelve
+   *    a la posición que tenía al entrar — no a cero — para no perder el punto
+   *    donde estaba el feed de debajo.
    */
   useEffect(() => {
     if (!mounted) return;
@@ -110,25 +115,27 @@ export default function ConversationPage() {
     // no pasa de ~100px, así que el umbral los separa sin ambigüedad.
     let maxHeight = viewport.height;
 
+    /** Dónde estaba el documento al entrar; es el sitio al que hay que volver. */
+    const baseScroll = window.scrollY;
+
     const apply = () => {
       maxHeight = Math.max(maxHeight, viewport.height);
       const keyboardOpen = viewport.height < maxHeight - 120;
 
-      if (keyboardOpen) {
-        element.style.height = `${viewport.height}px`;
-        element.style.top = `${viewport.offsetTop}px`;
-        // Con teclado no hay home-indicator que esquivar: el campo se pega a él
-        // en vez de flotar 20px por encima. Se sobrescribe la variable global
-        // solo en esta pantalla; el compositor ya la consume.
-        element.style.setProperty("--vb-safe-bottom", "0px");
-      } else {
-        // Valores fijos y NO `removeProperty`: el alto de partida lo pone React
-        // en el atributo `style`, y React solo reescribe lo que cambia entre
-        // renders — si se quitara aquí, no lo repondría y la pantalla se
-        // quedaría sin alto.
-        element.style.height = "100dvh";
-        element.style.top = "0px";
-        element.style.removeProperty("--vb-safe-bottom");
+      element.style.height = `${viewport.height}px`;
+      element.style.top = `${viewport.offsetTop}px`;
+
+      // Con teclado no hay home-indicator que esquivar: el campo se pega a él en
+      // vez de flotar 20px por encima. Se sobrescribe la variable global solo en
+      // esta pantalla; el compositor ya la consume.
+      if (keyboardOpen) element.style.setProperty("--vb-safe-bottom", "0px");
+      else element.style.removeProperty("--vb-safe-bottom");
+
+      // Solo si algo lo movió: con el fondo bloqueado esto no debería dispararse
+      // nunca, y cuando lo hace es iOS empujando el documento para "hacer sitio"
+      // al teclado. Devolverlo a `baseScroll` y no a 0 deja el feed donde estaba.
+      if (!keyboardOpen && window.scrollY !== baseScroll) {
+        window.scrollTo(0, baseScroll);
       }
     };
 
@@ -325,20 +332,24 @@ export default function ConversationPage() {
           ) : null}
         </div>
 
-        {/* En el EXTREMO derecho. En la pestaña de laptop sigue a la izquierda
-            del avatar: allí la cabecera es estrecha y el borde derecho lo ocupan
-            minimizar y cerrar. Aquí hay ancho de sobra y el pulgar llega mejor. */}
+        {/* A la derecha, pero SEPARADO del borde: pegado a él el dedo se sale de
+            la pantalla al intentar darle. Los 6px de margen más el relleno
+            propio del botón dejan un blanco cómodo.
+            En la pestaña de laptop sigue a la izquierda del avatar: allí la
+            cabecera es estrecha y el borde derecho lo ocupan minimizar y cerrar. */}
         {otherUid && conversationId ? (
           <ProfileMoreMenu
             viewerUid={selfUid}
             profileUid={otherUid}
-            onBlockSuccess={() => void blockConversation(conversationId, selfUid!)}
+            // Bloquear/desbloquear NO se cablea aquí: el estado del hilo lo
+            // sincroniza `useSocialRelationship`, que es por donde pasan todos
+            // los bloqueos. Hacerlo también aquí sería escribir dos veces.
             reportTarget={{
               targetType: "conversation",
               targetId: conversationId,
               targetOwnerId: otherUid,
             }}
-            buttonStyle={{ fontSize: 20, padding: "0 2px" }}
+            buttonStyle={{ fontSize: 20, padding: "0 8px", marginRight: 6 }}
           />
         ) : null}
       </header>

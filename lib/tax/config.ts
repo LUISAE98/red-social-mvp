@@ -152,6 +152,57 @@ function noConsumptionTax(currency: string): CountryTaxConfig {
 }
 
 /**
+ * 🚨 ALTAS PENDIENTES — INTERRUPTORES POR PAÍS 🚨
+ *
+ * Estos cuatro países EXIGEN alta antes de la primera venta: no tienen umbral. El código ya
+ * está listo para cobrar, pero el alta ante su fisco **todavía no está hecha**.
+ *
+ * Están en `true` a propósito, para poder **probar el cobro con Stripe en modo prueba**, donde
+ * no hay dinero real ni obligación fiscal. Es la misma decisión que se tomó con la UE.
+ *
+ * ⚠️⚠️ ANTES DE PASAR A LLAVES `sk_live`: cada uno de estos debe tener su alta REAL hecha, o
+ *      ponerse en `false`. Cobrar un impuesto que no se puede enterar es quedárselo.
+ *      La lista viva está en `ALTAS_PENDIENTES` (abajo) y hay un test que la vigila.
+ */
+const BR_CNPJ_REGISTERED = true;  // 🇧🇷 CNPJ ante Receita Federal — PENDIENTE
+const CO_DIAN_REGISTERED = true;  // 🇨🇴 RUT + firma electrónica (DIAN) — PENDIENTE
+const CL_SII_REGISTERED = true;   // 🇨🇱 Régimen simplificado SII — PENDIENTE
+const PE_SUNAT_REGISTERED = true; // 🇵🇪 RUC ante SUNAT — PENDIENTE
+const UY_DGI_REGISTERED = true;   // 🇺🇾 Registro de no residentes DGI — PENDIENTE
+
+/**
+ * Países encendidos en el código cuya alta fiscal REAL sigue pendiente.
+ *
+ * 👉 Es la lista de verificación previa a `sk_live`. Cuando una alta se complete, se borra su
+ *    entrada de aquí. Cuando esta lista quede vacía, se puede pasar a producción sin deuda.
+ */
+export const ALTAS_PENDIENTES: readonly string[] = ["BR", "CO", "CL", "PE", "UY"];
+
+/**
+ * Fila de un país donde Vibra recauda el impuesto y lo entera, y cuyo régimen NO tiene umbral:
+ * hay que estar de alta desde la primera venta.
+ *
+ * El interruptor decide entre cobrar (`registered`) y bloquear la venta (`cannot_sell`).
+ * NO existe el estado intermedio "vender sin cobrar" que sí tienen los países con umbral:
+ * aquí vender sin alta es ilegal, no una zona gris.
+ */
+function platformCollects(
+  taxName: string,
+  taxRate: number,
+  currency: string,
+  registered: boolean
+): CountryTaxConfig {
+  return {
+    taxName,
+    taxRate,
+    currency,
+    collectionMode: "platform",
+    mxVatTreatment: "export_zero",
+    registrationStatus: registered ? "registered" : "cannot_sell",
+  };
+}
+
+/**
  * Fila de un país donde Vibra SÍ sería quien recauda, pero todavía está por debajo del umbral
  * que obliga a registrarse. Se vende con normalidad y el checkout suma CERO.
  *
@@ -424,6 +475,64 @@ export const COUNTRY_TAX_CONFIG: Readonly<Record<string, CountryTaxConfig>> = {
   //    30 estados gravan productos digitales y ~25 gravan SaaS, con definiciones que
   //    difieren; Florida y Virginia los eximen. Ver impuestos.md §6.9.
   US: belowThreshold("Sales tax", 0, "USD"), // Estados Unidos
+
+  // ── LATAM — ALTA OBLIGATORIA DESDE LA VENTA 1 (sin umbral) ──
+  //
+  // Los cuatro recaudan por PLATAFORMA: Vibra cobra el impuesto y lo entera. Ninguno funciona
+  // como Argentina (donde recauda el banco del comprador).
+  //
+  // 🚨 Sus altas siguen PENDIENTES. Ver `ALTAS_PENDIENTES` y los interruptores de arriba.
+  //
+  // 🇧🇷 BRASIL — ⚠️ LA TASA CAMBIA CON EL TIEMPO, es la única de toda la tabla que lo hace.
+  //    2026 (hoy): 1,0% — año de prueba (CBS 0,9% + IBS 0,1%)
+  //    2027:       ~8,9% — la CBS entra a tasa plena y mueren PIS/COFINS
+  //    2029–2032:  el IBS sube gradual mientras bajan ICMS e ISS
+  //    2033:       26,5% (CBS 8,8% + IBS 17,7%) — la 2ª tasa más alta de la tabla mundial
+  //    Hay un test que fija el 1% de hoy: si alguien lo "corrige" al 26,5% estaría cobrando
+  //    de más siete años antes de tiempo. Registro: CNPJ, sin umbral, representante opcional.
+  //    ⚠️ Si NO se registra, la CBS/IBS se cobra sobre la remesa al exterior a tasas de
+  //       referencia, más multa. No registrarse no es no pagar.
+  //
+  // 🇨🇴 COLOMBIA — es el único de los cuatro que PODRÍA no recaudar. La Res. DIAN 000049/2019
+  //    permite acogerse a que retengan los emisores de tarjeta, y entonces Vibra no declara.
+  //    Se deja como `platform` porque esa opción NO está tomada todavía y depende de D-11
+  //    (si ese 19% se le suma al comprador o se le descuenta a Vibra).
+  //    ⚠️ El cambio de modalidad es por ÚNICA VEZ (Art. 2°): no gastarlo por accidente.
+  //
+  // 🇵🇪 PERÚ — Vibra queda como agente de percepción. ⚠️ Si no se registra, la SUNAT la publica
+  //    por Decreto Supremo en un listado de incumplidos y la responsabilidad pasa a los
+  //    facilitadores de pago. Eso NO es "recauda el banco": es la vía del incumplimiento.
+  BR: platformCollects("CBS+IBS", 0.01, "BRL", BR_CNPJ_REGISTERED), // Brasil
+  CO: platformCollects("IVA", 0.19, "COP", CO_DIAN_REGISTERED),     // Colombia
+  CL: platformCollects("IVA", 0.19, "CLP", CL_SII_REGISTERED),      // Chile
+  PE: platformCollects("IGV", 0.18, "PEN", PE_SUNAT_REGISTERED),    // Perú
+
+  // 🇺🇾 URUGUAY — ⚠️ AQUÍ HAY UN SEGUNDO IMPUESTO QUE NO APARECE EN ESTA TABLA ⚠️
+  //
+  // Uruguay cobra DOS impuestos sobre esta venta, y solo uno cabe en el modelo:
+  //
+  //   · IVA 22%  → impuesto al CONSUMO. Lo paga el comprador. Es el que está aquí abajo.
+  //   · IRNR 12% → impuesto a la RENTA del no residente. Lo paga VIBRA de su propio ingreso.
+  //                NO se le traslada al comprador, y por eso no tiene lugar en el campo
+  //                de tasa: ese campo solo modela lo que se le cobra a quien compra.
+  //
+  // 🚨 DECISIÓN (Luis, 2026-08-11): se arranca cobrando SOLO el 22% de IVA, sin subir el
+  //    precio para cubrir el IRNR. Es decir, **ese 12% sale del margen de Vibra**.
+  //    Sobre una venta de $100 de base, el margen pasa de $25 a $13.
+  //
+  // El Convenio México–Uruguay (vigente desde 2011) puede reducirlo o eliminarlo, pero NO
+  // automáticamente: depende de cómo se caracterice cada servicio.
+  //    Art. 7  Beneficios empresariales → 0%  (sesión 1-a-1, saludos, consejos)
+  //    Art. 12 Regalías, tope 10%       → tickets de live, VOD, post premium (la definición
+  //            incluye 'derecho de autor sobre obra artística, incluidas películas')
+  //    Art. 20 Otras rentas             → ⚠️ este tratado SÍ deja gravar a Uruguay
+  // Reclamarlo exige certificado de residencia fiscal del SAT (Dec. 323/012 + Res. DGI
+  // 2.456/2012), normas escritas para retención B2B: autoliquidando, el procedimiento no
+  // está claro. Ver impuestos.md §6.11.
+  //
+  // Lo bueno del régimen: declaración TRIMESTRAL, se puede pagar en DÓLARES (si se opta,
+  // hay que mantenerlo 3 años) y no exige representante local.
+  UY: platformCollects("IVA", 0.22, "UYU", UY_DGI_REGISTERED),      // Uruguay
 
 
   // ⚠️ Fuera de la UE no se agrega ninguna fila sin su FICHA en impuestos.md.

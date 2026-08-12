@@ -48,12 +48,14 @@ export const LOCALE_META: readonly LocaleMeta[] = [
   { code: "ga", label: "GA", name: "Gaeilge", intl: "ga-IE", ready: true },
   { code: "hr", label: "HR", name: "Hrvatski", intl: "hr-HR", ready: true },
   { code: "hu", label: "HU", name: "Magyar", intl: "hu-HU", ready: true },
+  { code: "id", label: "ID", name: "Bahasa Indonesia", intl: "id-ID", ready: true },
   { code: "it", label: "IT", name: "Italiano", intl: "it-IT", ready: true },
   // Primer idioma FUERA de la UE. Japón no está en EU_COUNTRY_TO_LOCALE: lo mapea
   // NON_EU_COUNTRY_TO_LOCALE, más abajo.
   { code: "ja", label: "JA", name: "日本語", intl: "ja-JP", ready: true },
   { code: "lt", label: "LT", name: "Lietuvių", intl: "lt-LT", ready: true },
   { code: "lv", label: "LV", name: "Latviešu", intl: "lv-LV", ready: true },
+  { code: "ms", label: "MS", name: "Bahasa Melayu", intl: "ms-MY", ready: true },
   { code: "mt", label: "MT", name: "Malti", intl: "mt-MT", ready: true },
   { code: "nl", label: "NL", name: "Nederlands", intl: "nl-NL", ready: true },
   { code: "pl", label: "PL", name: "Polski", intl: "pl-PL", ready: true },
@@ -66,6 +68,10 @@ export const LOCALE_META: readonly LocaleMeta[] = [
   { code: "sk", label: "SK", name: "Slovenčina", intl: "sk-SK", ready: true },
   { code: "sl", label: "SL", name: "Slovenščina", intl: "sl-SI", ready: true },
   { code: "sv", label: "SV", name: "Svenska", intl: "sv-SE", ready: true },
+  // Taiwán usa caracteres TRADICIONALES y vocabulario propio (影片 no 视频,
+  // 網路 no 网络, 貼文 no 帖子). Por eso es `zh-TW` y no un `zh` genérico:
+  // deja sitio a un `zh-CN` simplificado si algún día entra China continental.
+  { code: "zh-TW", label: "TW", name: "繁體中文", intl: "zh-TW", ready: true },
 ];
 
 /**
@@ -74,7 +80,7 @@ export const LOCALE_META: readonly LocaleMeta[] = [
  * en toda la app. Al terminar el archivo de un idioma: pon su `ready: true` arriba
  * Y agrégalo a esta tupla. El test de i18n verifica que ambas listas coincidan.
  */
-export const READY_LOCALES = ["es", "en", "pt-BR", "de", "fr", "it", "nl", "pl", "ro", "el", "cs", "hu", "sv", "pt-PT", "da", "fi", "sk", "bg", "hr", "lt", "sl", "lv", "et", "ga", "mt", "ja"] as const;
+export const READY_LOCALES = ["es", "en", "pt-BR", "de", "fr", "it", "nl", "pl", "ro", "el", "cs", "hu", "sv", "pt-PT", "da", "fi", "sk", "bg", "hr", "lt", "sl", "lv", "et", "ga", "mt", "ja", "zh-TW", "id", "ms"] as const;
 
 export type Locale = (typeof READY_LOCALES)[number];
 
@@ -173,4 +179,7 @@ export const EU_COUNTRY_TO_LOCALE: Readonly<Record<string, string>> = {
  */
 export const NON_EU_COUNTRY_TO_LOCALE: Readonly<Record<string, string>> = {
   JP: "ja", // Japón
+  TW: "zh-TW", // Taiwán
+  ID: "id", // Indonesia
+  MY: "ms", // Malasia
 };

@@ -111,6 +111,11 @@ const { headerRef, safeAreaRef } = useMobileHeaderFade();
 // el paint lo evita. Mismo mecanismo que app/[locale]/groups/layout.tsx.
 const mainInnerRef = useRef<HTMLDivElement>(null);
 const pendingAnimDirRef = useRef<"left" | "right" | null>(null);
+// ¿La última navegación fue el botón "atrás" del navegador/gesto? Se marca en
+// `popstate` y se consume en el siguiente cambio de ruta, para que volver entre
+// desde la izquierda (como en iOS) y avanzar entre desde la derecha.
+const poppedRef = useRef(false);
+const firstRenderRef = useRef(true);
 
 // Estado para header contextual (avatar + nombre que pasan las páginas hijas)
 const [headerData, setHeaderData] = useState<MobileHeaderData>({ avatarUrl: null, name: null });
@@ -150,12 +155,42 @@ useLayoutEffect(() => {
 
   // Restaurar scroll antes del paint (sin salto visible) y guardar la dirección
   // para animar después del paint.
+  // El "atrás" del navegador (y el gesto de borde en iOS) no pasa por el subnav,
+  // así que se detecta aparte para animar hacia el lado correcto.
+  useEffect(() => {
+    const onPop = () => { poppedRef.current = true; };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
+
   useLayoutEffect(() => {
-    const dir = consumeNavSlideDir();
-    if (!dir) return;
-    const saved = sessionStorage.getItem(`nav:scroll:${pathname}`);
-    window.scrollTo({ top: saved !== null ? parseInt(saved) : 0, behavior: "instant" });
-    pendingAnimDirRef.current = dir;
+    const explicit = consumeNavSlideDir();
+    const wasBack = poppedRef.current;
+    poppedRef.current = false;
+
+    // Arranque en frío: no hubo navegación, así que no hay nada que deslizar.
+    // Sin esto la app "entraría" desplazándose en cada carga, que se lee como
+    // un salto, no como una transición.
+    if (firstRenderRef.current) {
+      firstRenderRef.current = false;
+      if (!explicit) return;
+    }
+
+    if (explicit) {
+      // Navegación del subnav: además restaura el scroll que tenía esa página.
+      const saved = sessionStorage.getItem(`nav:scroll:${pathname}`);
+      window.scrollTo({ top: saved !== null ? parseInt(saved) : 0, behavior: "instant" });
+      pendingAnimDirRef.current = explicit;
+      return;
+    }
+
+    // En CELULAR toda navegación desliza, la pida quien la pida: un enlace del
+    // menú, una tarjeta del feed o el botón atrás. Sin esto solo se animaba lo
+    // que pasaba por el subnav y el resto de la app cambiaba de página de golpe.
+    // En escritorio se deja quieto: ahí el deslizamiento no aporta y marea.
+    if (typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches) {
+      pendingAnimDirRef.current = wasBack ? "left" : "right";
+    }
   }, [pathname]);
 
   // Animar después del paint para que los `position: fixed` hijos ya estén en el
