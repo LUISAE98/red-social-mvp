@@ -93,6 +93,9 @@ export const LOCALE_META: readonly LocaleMeta[] = [
   { code: "pt-BR", label: "BR", name: "Português (Brasil)", intl: "pt-BR", ready: true },
   { code: "pt-PT", label: "PT", name: "Português (Portugal)", intl: "pt-PT", ready: true },
   { code: "ro", label: "RO", name: "Română", intl: "ro-RO", ready: true },
+  // Escritura singalesa. Sri Lanka; el inglés es lengua de enlace allí, así que
+  // esto es una mejora sobre el fallback, no un rescate.
+  { code: "si", label: "SI", name: "සිංහල", intl: "si", ready: true },
   { code: "sk", label: "SK", name: "Slovenčina", intl: "sk-SK", ready: true },
   { code: "sl", label: "SL", name: "Slovenščina", intl: "sl-SI", ready: true },
   // Sin pariente en el repertorio: no se deriva de nadie, está escrito.
@@ -125,7 +128,7 @@ export const LOCALE_META: readonly LocaleMeta[] = [
  * en toda la app. Al terminar el archivo de un idioma: pon su `ready: true` arriba
  * Y agrégalo a esta tupla. El test de i18n verifica que ambas listas coincidan.
  */
-export const READY_LOCALES = ["es", "en", "pt-BR", "de", "fr", "it", "nl", "pl", "ro", "el", "cs", "hu", "sv", "pt-PT", "da", "fi", "sk", "bg", "hr", "lt", "sl", "lv", "et", "ga", "mt", "ja", "zh-TW", "id", "ms", "th", "bs", "nb", "is", "tr", "ko", "vi", "sr", "sq", "az", "ca", "ar", "fil", "mn"] as const;
+export const READY_LOCALES = ["es", "en", "pt-BR", "de", "fr", "it", "nl", "pl", "ro", "el", "cs", "hu", "sv", "pt-PT", "da", "fi", "sk", "bg", "hr", "lt", "sl", "lv", "et", "ga", "mt", "ja", "zh-TW", "id", "ms", "th", "bs", "nb", "is", "tr", "ko", "vi", "sr", "sq", "az", "ca", "ar", "fil", "mn", "si"] as const;
 
 export type Locale = (typeof READY_LOCALES)[number];
 
@@ -243,6 +246,7 @@ export const NON_EU_COUNTRY_TO_LOCALE: Readonly<Record<string, string>> = {
   KW: "ar", // Kuwait
   JO: "ar", // Jordania
   EG: "ar", // Egipto
+  LK: "si", // Sri Lanka
   MN: "mn", // Mongolia
   PH: "fil", // Filipinas — inglés cooficial, pero el filipino es el idioma nacional
   MA: "ar", // Marruecos — el francés también es de uso corriente, pero el árabe es el oficial

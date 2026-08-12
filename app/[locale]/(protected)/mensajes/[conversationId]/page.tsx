@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -112,6 +112,53 @@ export default function ConversationPage() {
    */
   const [composerFocused, setComposerFocused] = useState(false);
   const keyboardOpen = composerFocused && keyboardFitsGeometry;
+
+  /** Dónde estaba el documento al entrar. Es el sitio al que hay que devolverlo. */
+  const baseScrollRef = useRef(0);
+  useEffect(() => {
+    baseScrollRef.current = window.scrollY;
+  }, []);
+
+  /**
+   * Devuelve el DOCUMENTO a su sitio cuando el teclado se retira.
+   *
+   * Esta es la causa de la franja que aparece SOLO tras abrir y cerrar el
+   * teclado, y que no está al entrar: iOS desplaza el documento al enfocar el
+   * campo, para "hacer sitio", y al cerrarse no siempre lo devuelve. Un
+   * `position: fixed` se ancla al viewport de LAYOUT, así que ese desplazamiento
+   * sobrante se ve como un hueco bajo el panel — aunque el panel siga midiendo
+   * exactamente lo que debe.
+   *
+   * No basta con corregirlo una vez al perder el foco: iOS termina de mover las
+   * cosas DESPUÉS, mientras el teclado se va. Por eso se queda escuchando el
+   * viewport hasta que deja de moverse.
+   *
+   * Se devuelve a la posición que tenía al entrar, NO a cero: así el feed que
+   * hay debajo no pierde dónde estaba al salir del chat.
+   */
+  useEffect(() => {
+    if (!mounted) return;
+
+    const restore = () => {
+      // Con el teclado abierto ese desplazamiento es de iOS y hace falta.
+      if (composerFocused) return;
+      if (window.scrollY === baseScrollRef.current) return;
+      window.scrollTo(0, baseScrollRef.current);
+    };
+
+    restore();
+
+    const vv = window.visualViewport;
+    vv?.addEventListener("scroll", restore);
+    vv?.addEventListener("resize", restore);
+    window.addEventListener("scroll", restore);
+
+    return () => {
+      vv?.removeEventListener("scroll", restore);
+      vv?.removeEventListener("resize", restore);
+      window.removeEventListener("scroll", restore);
+    };
+  }, [mounted, composerFocused]);
 
   /**
    * Salir: la pantalla se va deslizando a la derecha y la página de destino

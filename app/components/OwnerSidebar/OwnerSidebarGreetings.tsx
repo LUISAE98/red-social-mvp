@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import { WALLET_NET_RATE } from "@/lib/wallet/walletFinances";
 import {
@@ -55,6 +55,7 @@ import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import {
   ScheduledRow, SectionBlock,
+  cardButtonColumnStyle, cardButtonStyle,
   displayRowStatus, fmtScheduledSplit, getCreatorScheduleNote,
   getMeetGreetStatusLabel, getRelativeTime, getSectionForMeetGreetStatus,
   GREETING_RESPONSE_DAYS, SESSION_RESPONSE_DAYS, responseDaysLeft,
@@ -86,6 +87,7 @@ export default function OwnerSidebarGreetings({
   const tGroups = useTranslations("groups");
   const tSessions = useTranslations("sessions");
   const tWallet = useTranslations("wallet");
+  const locale = useLocale();
   const { format: formatMoney } = usePriceFormat();
   const [busyMap, setBusyMap] = useState<BusyMap>({});
   const [errorMap, setErrorMap] = useState<TextMap>({});
@@ -811,11 +813,7 @@ async function handleCreatorSchedule(
       <button
         type="button"
         onClick={() => setViewItem({ item: row, sourceName, sourceAvatar })}
-        style={{
-          flexShrink: 0, height: 30, padding: "0 14px", borderRadius: 8, border: "none",
-          background: cardColors.btnBg, color: cardColors.btnColor,
-          fontWeight: 600, fontSize: 11, cursor: "pointer", whiteSpace: "nowrap",
-        }}
+        style={{ ...cardButtonStyle, background: cardColors.btnBg, color: cardColors.btnColor }}
       >
         {tServices("viewRequest")}
       </button>
@@ -897,8 +895,8 @@ async function handleCreatorSchedule(
           ) : null}
         </div>
 
-        {/* 3 · Botón */}
-        {gViewBtn}
+        {/* 3 · Botón (columna de ancho fijo: ver cardButtonColumnStyle) */}
+        <div style={cardButtonColumnStyle}>{gViewBtn}</div>
       </div>
     );
   }
@@ -1030,11 +1028,7 @@ const creatorScheduleNote = getCreatorScheduleNote(req);
         <button
           type="button"
           onClick={() => setViewSessionItem({ row, creatorName: creatorName2, creatorAvatar: creatorAvatar2 })}
-          style={{
-            flexShrink: 0, height: 30, padding: "0 14px", borderRadius: 8, border: "none",
-            background: cardColors2.btnBg, color: cardColors2.btnColor,
-            fontWeight: 600, fontSize: 11, cursor: "pointer", whiteSpace: "nowrap",
-          }}
+          style={{ ...cardButtonStyle, background: cardColors2.btnBg, color: cardColors2.btnColor }}
         >
           {canPrepareCard ? tServices("prepare") : tServices("viewDetails")}
         </button>
@@ -1067,7 +1061,7 @@ const creatorScheduleNote = getCreatorScheduleNote(req);
 
       // Pendiente: 3 partes centradas de altura, separadas por línea vertical sutil:
       // (1) creador + hace cuánto se compró · (2) fecha agendada · (3) botón.
-      const scheduledSplit2 = fmtScheduledSplit(req.scheduledAt);
+      const scheduledSplit2 = fmtScheduledSplit(req.scheduledAt, locale);
       const dateAccent2 = isExclusiveSession ? "#f9a8d4" : "#93c5fd";
       const sessionDaysLeft = responseDaysLeft(req.createdAt, SESSION_RESPONSE_DAYS);
       const divider2 = (
@@ -1127,8 +1121,8 @@ const creatorScheduleNote = getCreatorScheduleNote(req);
             )}
           </div>
 
-          {/* 3 · Botón */}
-          {viewBtn2}
+          {/* 3 · Botón (columna de ancho fijo: ver cardButtonColumnStyle) */}
+          <div style={cardButtonColumnStyle}>{viewBtn2}</div>
         </div>
       );
     }

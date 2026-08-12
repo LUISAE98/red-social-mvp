@@ -42,6 +42,23 @@ export const viewport: Viewport = {
   maximumScale: 1,
   userScalable: false,
   viewportFit: "cover",
+  /**
+   * El teclado ENCOGE el viewport de layout, en vez de taparlo.
+   *
+   * Por omisión ("resizes-visual") el teclado se dibuja ENCIMA: el viewport de
+   * layout no cambia, así que todo lo anclado con `position: fixed` abajo — el
+   * campo de escritura del chat, el nav — queda detrás del teclado, y para
+   * corregirlo hay que ir midiendo `visualViewport` con JavaScript.
+   *
+   * Con "resizes-content" el propio navegador encoge el viewport: `inset: 0` y
+   * `100dvh` ya acaban justo encima del teclado, sin medir nada. Lo soportan
+   * Chrome y los navegadores Android; Safari todavía no, y ahí sigue haciendo
+   * falta el seguimiento del viewport visual de la pantalla de chat.
+   *
+   * Consecuencia buscada en Android: lo fijado abajo sube con el teclado en vez
+   * de esconderse detrás.
+   */
+  interactiveWidget: "resizes-content",
   colorScheme: "dark",
   themeColor: [
     { media: "(prefers-color-scheme: dark)", color: "#000000" },

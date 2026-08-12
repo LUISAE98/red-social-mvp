@@ -5,6 +5,7 @@
 import Image from "next/image";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
+import { intlLocale } from "@/i18n/locales";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import {
   acceptMeetGreetRequest,
@@ -175,20 +176,71 @@ export function serviceCardBackgroundStyle(image: string | null, fallback: strin
   };
 }
 
+// 🚨 COLUMNA DEL BOTÓN DE LAS CARDS: ANCHO FIJO, NO "LO QUE MIDA LA ETIQUETA" 🚨
+//
+// Las cards pendientes son tres columnas: [origen] │ [contador o fecha] [botón]. El botón
+// tenía ancho automático con `flexShrink: 0`, así que era la LONGITUD DE SU ETIQUETA
+// TRADUCIDA la que decidía cuánto espacio sobraba para las otras dos. Y como en una misma
+// lista conviven botones distintos ("Ver solicitud" / "Ver detalles" / "Preparar"), el
+// contador del centro caía en una X distinta en cada card.
+//
+// En español no se veía: las etiquetas miden casi lo mismo. En griego (Δες το αίτημα vs
+// Δες τις λεπτομέρειες), alemán o turco la diferencia es enorme y las cards quedan
+// escalonadas.
+//
+// Al fijar esta columna en proporción, las dos de la izquierda miden SIEMPRE lo mismo sea
+// cual sea el idioma, y una etiqueta larga parte en dos líneas DENTRO del botón en vez de
+// robarle ancho al resto. Por eso el botón lleva `whiteSpace: "normal"` y `minHeight` en
+// lugar de `height` fijo.
+export const cardButtonColumnStyle: React.CSSProperties = {
+  flex: "0 0 30%",
+  minWidth: 0,
+  display: "flex",
+  justifyContent: "flex-end",
+};
+
+// Estilo base del botón de las cards. Se deja envolver a dos líneas a propósito: ver
+// `cardButtonColumnStyle`.
+export const cardButtonStyle: React.CSSProperties = {
+  flexShrink: 0,
+  maxWidth: "100%",
+  minHeight: 30,
+  padding: "6px 12px",
+  borderRadius: 8,
+  border: "none",
+  fontWeight: 600,
+  fontSize: 11,
+  lineHeight: 1.2,
+  cursor: "pointer",
+  whiteSpace: "normal",
+};
+
 // Fecha agendada en dos líneas (mismo formato que el overlay de detalles).
-export function fmtScheduledSplit(ts: unknown): { dayTime: string; dateStr: string } | null {
+//
+// ⚠️ Antes esto estaba clavado en "es-MX" y armaba la fecha CONCATENANDO ("15 de Julio
+// de 2026", "Miércoles 22:45 hrs"). Resultado: a un usuario con la app en griego se le
+// mostraba la fecha en español dentro de una interfaz griega. La concatenación además
+// no es traducible: el "de … de" es una regla del español y el orden día-mes-año no es
+// universal (en-US pone el mes primero).
+//
+// Ahora lo arma `Intl.DateTimeFormat` con el locale ACTIVO, que resuelve solo el orden
+// de los campos, el nombre del mes y el reloj de 12 o 24 horas según el idioma. Por eso
+// desaparece el sufijo "hrs": en los locales de 12 horas lo pone el propio Intl como
+// AM/PM, y ponerlo a mano daría "10:45 PM hrs".
+export function fmtScheduledSplit(
+  ts: unknown,
+  locale: string
+): { dayTime: string; dateStr: string } | null {
   const d = toDateSafe(ts);
   if (!d) return null;
-  const weekday = d.toLocaleString("es-MX", { weekday: "long" });
-  const hh = String(d.getHours()).padStart(2, "0");
-  const mm = String(d.getMinutes()).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  const month = d.toLocaleString("es-MX", { month: "long" });
-  const year = d.getFullYear();
-  return {
-    dayTime: `${weekday.charAt(0).toUpperCase() + weekday.slice(1)} ${hh}:${mm} hrs`,
-    dateStr: `${day} de ${month.charAt(0).toUpperCase() + month.slice(1)} de ${year}`,
-  };
+  const bcp = intlLocale(locale);
+  const weekday = new Intl.DateTimeFormat(bcp, { weekday: "long" }).format(d);
+  const time = new Intl.DateTimeFormat(bcp, { hour: "2-digit", minute: "2-digit" }).format(d);
+  const dateStr = new Intl.DateTimeFormat(bcp, { day: "numeric", month: "long", year: "numeric" }).format(d);
+  // Muchos idiomas escriben el día de la semana en minúscula; el diseño lo quiere
+  // capitalizado. `toLocaleUpperCase` respeta la i sin punto del turco.
+  const dayCap = weekday.charAt(0).toLocaleUpperCase(bcp) + weekday.slice(1);
+  return { dayTime: `${dayCap} ${time}`, dateStr };
 }
 
 // Días que tiene el creador para ENTREGAR (grabar el saludo / agendar la sesión) antes de
