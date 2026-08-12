@@ -14,7 +14,7 @@
  * + 3 de Oceanía (Guam usa USD; Nueva Caledonia y Polinesia Francesa comparten XPF)
  * + 2 de África (Sudáfrica y Egipto) + CAD (Canadá) + 5 de Europa no comunitaria.
  * Estados Unidos usa USD y Montenegro usa EUR: ninguno trajo moneda nueva.
- * Total: 49 monedas para 74 países.
+ * Total: 53 monedas para 78 países.
  *
  * ⚠️ Que una moneda esté aquí NO habilita vender en ese país. El permiso de venta
  * lo decide COUNTRY_TAX_CONFIG (lib/tax/config.ts), que es una capa aparte y exige
@@ -81,6 +81,11 @@ export const DISPLAY_CURRENCIES = [
   "RSD", // Serbia
   "ALL", // Albania
   "MDL", // Moldavia
+  // --- Asia y Golfo (2ª tanda) ---
+  "KRW", // Corea del Sur
+  "VND", // Vietnam
+  "AED", // Emiratos Árabes Unidos
+  "SAR", // Arabia Saudita
 ] as const;
 export type DisplayCurrency = (typeof DISPLAY_CURRENCIES)[number];
 
@@ -127,6 +132,41 @@ export const FIXED_SERVICE_FEE_MXN = 3;
  * de lib/). Deben tener el MISMO valor.
  */
 export const FX_CONVERSION_FEE = 0.02;
+
+/**
+ * Monedas con un cargo de conversión ELEVADO, por encima del 2% estándar.
+ *
+ * 🚨 NO es impuesto y NO se desglosa al comprador: es un ajuste de PRECIO. Existe para
+ *    hacer viable vender en países donde un impuesto a la RENTA nos sale del margen y
+ *    no se le puede trasladar al comprador como línea aparte.
+ *
+ *   🇻🇳 VND — 7% = 2% de conversión + 5% que cubre el CIT vietnamita. *
+ * 🚫 URUGUAY se probó y se DESCARTÓ (Luis, 2026-08-11). Con UYU al 14% el total de una venta
+ *    de $100 de base subía a $143 —el país más caro de toda la tabla, 36% por encima de
+ *    Argentina— porque el IVA del 22% se calcula DESPUÉS del ajuste y lo amplifica.
+ *    Se prefirió absorber el IRNR del 12% antes que cobrarle eso al comprador uruguayo.
+ *    No volver a agregar UYU aquí sin revisar ese número.
+ *      Vietnam cobra VAT 10% (al comprador, ese sí va en la tabla fiscal) **y** CIT 5%
+ *      sobre ingreso BRUTO, que sale del margen de Vibra. Sin este ajuste, cada venta
+ *      vietnamita dejaría $20 de margen en vez de $25.
+ *      Decisión de Luis, 2026-08-11: el comprador vietnamita paga un poco más y el
+ *      servicio se puede ofrecer, en vez de no ofrecerlo.
+ *
+ * ⚠️ Al agregar una moneda aquí hay que replicarla en backend/src/tax/config.ts (no puede
+ *    importar de lib/). Hay un test de paridad que lo vigila.
+ */
+const FX_CONVERSION_FEE_BY_CURRENCY: Readonly<Record<string, number>> = {
+  VND: 0.07,
+};
+
+/**
+ * Cargo de conversión que aplica a una moneda concreta. Devuelve el 2% estándar salvo
+ * que la moneda tenga un ajuste propio.
+ */
+export function fxConversionFeeForCurrency(currency: string | null | undefined): number {
+  if (!currency) return FX_CONVERSION_FEE;
+  return FX_CONVERSION_FEE_BY_CURRENCY[currency.toUpperCase()] ?? FX_CONVERSION_FEE;
+}
 
 /**
  * Precio MÍNIMO (base, MXN) que el creador puede fijar por servicio. Si pone menos,
@@ -249,6 +289,11 @@ export const COUNTRY_TO_CURRENCY: Readonly<Record<string, DisplayCurrency>> = {
   RS: "RSD", // Serbia
   AL: "ALL", // Albania
   MD: "MDL", // Moldavia
+  // Asia y Golfo (2ª tanda).
+  KR: "KRW", // Corea del Sur
+  VN: "VND", // Vietnam
+  AE: "AED", // Emiratos Árabes Unidos
+  SA: "SAR", // Arabia Saudita
   ME: "EUR", // Montenegro — usa el euro pero NO es UE: registro fiscal aparte, sin OSS
   PF: "XPF", // Polinesia Francesa — moneda lista; la VENTA sigue bloqueada (umbral cero)
 };

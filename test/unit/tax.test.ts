@@ -642,9 +642,15 @@ describe("Asia-Pacífico y Medio Oriente", () => {
     });
   });
 
-  // Excluidos por decisión del usuario (sanciones) o porque exigen alta desde la venta 1.
-  it("🚫 los excluidos siguen fuera: RU, BY, CU, IL, IN, SA, AE, KR", () => {
-    for (const iso of ["RU", "BY", "CU", "IL", "IN", "SA", "AE", "KR"]) {
+  // 🚫 Los que siguen fuera, cada uno por su motivo:
+  //   RU · BY · CU  sanciones (Stripe no opera)
+  //   IL            decisión de Luis
+  //   IN            representante fiscal obligatorio + UPI inaccesible desde México
+  //   BH            representante fiscal obligatorio
+  //   OM            sin confirmar si exige representante
+  // (SA, AE y KR estaban aquí hasta el 2026-08-11; ya se integraron.)
+  it("🚫 los excluidos siguen fuera", () => {
+    for (const iso of ["RU", "BY", "CU", "IL", "IN", "BH", "OM"]) {
       expect(countryTaxConfig(iso), iso).toBeNull();
       expect(isChargeableCountry(iso), iso).toBe(false);
     }
@@ -846,7 +852,7 @@ describe("LatAm con alta obligatoria — BR, CO, CL, PE, UY", () => {
   // sería quedarse con dinero ajeno.
   it("🚨 ALTAS_PENDIENTES refleja exactamente los que están encendidos sin alta", () => {
     expect([...ALTAS_PENDIENTES].sort()).toEqual(
-      ["AL", "BR", "CL", "CO", "GB", "MD", "ME", "PE", "RS", "TR", "UY"],
+      ["AE", "AL", "BR", "CL", "CO", "GB", "KR", "MD", "ME", "PE", "RS", "SA", "TR", "UY", "VN"],
     );
     // Todo el que esté en la lista debe estar cobrando (si no, sobra en la lista).
     for (const iso of ALTAS_PENDIENTES) {
@@ -913,6 +919,53 @@ describe("Europa no comunitaria con alta obligatoria", () => {
       expect(countryTaxConfig(iso), iso).toBeNull();
       expect(isChargeableCountry(iso), iso).toBe(false);
     }
+  });
+});
+
+// 🇰🇷🇻🇳🇦🇪🇸🇦 Asia y Golfo con alta obligatoria. Sin representante fiscal, trimestrales.
+describe("Asia y Golfo con alta obligatoria", () => {
+  const CUATRO: Array<[string, number, string]> = [
+    ["KR", 0.10, "KRW"],
+    ["VN", 0.10, "VND"],
+    ["AE", 0.05, "AED"],
+    ["SA", 0.15, "SAR"],
+  ];
+
+  it("los cuatro cobran su impuesto y recauda la plataforma", () => {
+    for (const [iso, tasa, moneda] of CUATRO) {
+      expect(platformCollectsTax(iso), iso).toBe(true);
+      expect(taxRateForCountry(iso), iso).toBeCloseTo(tasa, 8);
+      expect(chargeCurrencyForCountry(iso), iso).toBe(moneda);
+      expect(computeConsumptionTax(100, iso).tax, iso).toBeCloseTo(100 * tasa, 6);
+    }
+  });
+
+  // 🚨 Vietnam cobra VAT 10% al comprador Y un CIT 5% sobre bruto que sale del margen.
+  // Ese 5% NO se absorbe como en Uruguay: se recupera subiendo el cargo de conversión del
+  // dong al 7% (2% estándar + 5% del CIT). Es PRECIO, no impuesto, y no se desglosa.
+  // Si alguien lo baja al 2% "por consistencia", cada venta vietnamita pierde 5 puntos.
+  it("🚨 Vietnam lleva 7% de conversión, no el 2% estándar", () => {
+    // 7% = 2% + 5% del CIT vietnamita.
+    expect(fxFeeRateForCountry("VN")).toBeCloseTo(0.07, 8);
+    // 🚫 Uruguay se probó al 14% y se descartó: el total subía a $143 por cada $100 de base,
+    // el más caro de la tabla, porque el IVA del 22% se calcula DESPUÉS del ajuste. Se
+    // prefirió absorber el IRNR. Si alguien lo sube, ese número es el que hay que revisar.
+    expect(fxFeeRateForCountry("UY")).toBeCloseTo(0.02, 8);
+    // El resto del mundo sigue en 2%.
+    for (const iso of ["KR", "AE", "SA", "DE", "JP", "BR"]) {
+      expect(fxFeeRateForCountry(iso), iso).toBeCloseTo(0.02, 8);
+    }
+    // México no lleva conversión: se cobra en la moneda de liquidación.
+    expect(fxFeeRateForCountry("MX")).toBe(0);
+  });
+
+  // El 7% NO es impuesto: la tabla fiscal de Vietnam sigue diciendo 10%, que es lo único
+  // que se le desglosa al comprador.
+  it("los ajustes no contaminan la tasa fiscal", () => {
+    expect(taxRateForCountry("VN")).toBeCloseTo(0.10, 8);
+    expect(countryTaxConfig("VN")!.taxName).toBe("VAT");
+    // Uruguay desglosa 22% al comprador, no 34%: el IRNR 12% lo absorbe Vibra.
+    expect(taxRateForCountry("UY")).toBeCloseTo(0.22, 8);
   });
 });
 

@@ -685,9 +685,9 @@ export default function WalletDesktopRail({
                   <span className="walletTitleGroup">
                     <span className="walletTitleIcon" aria-hidden="true">
                       <svg width={17} height={17} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.8} strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M20 12V7H5a2 2 0 0 1 0-4h13v4" />
-                        <path d="M3 5v13a2 2 0 0 0 2 2h15v-5" />
-                        <path d="M17 12a2 2 0 0 0 0 4h3v-4Z" />
+                        <path d="M3 7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2" />
+                        <rect x="3" y="7" width="18" height="12" rx="2.5" />
+                        <path d="M16 12.5h3" />
                       </svg>
                     </span>
                     <h3 className="walletTitle">{t("wallet")}</h3>
@@ -774,9 +774,9 @@ export default function WalletDesktopRail({
               <Link href="/wallet/finanzas" className="walletEntryLink">
                 <span className="walletTitleIcon" aria-hidden="true">
                   <svg width={17} height={17} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.8} strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M20 12V7H5a2 2 0 0 1 0-4h13v4" />
-                    <path d="M3 5v13a2 2 0 0 0 2 2h15v-5" />
-                    <path d="M17 12a2 2 0 0 0 0 4h3v-4Z" />
+                    <path d="M3 7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2" />
+                    <rect x="3" y="7" width="18" height="12" rx="2.5" />
+                    <path d="M16 12.5h3" />
                   </svg>
                 </span>
                 <h3 className="walletTitle">{t("wallet")}</h3>

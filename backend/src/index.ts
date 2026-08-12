@@ -4,9 +4,9 @@ import { onRequest } from "firebase-functions/v2/https";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { logger } from "firebase-functions";
 
-import { expireMeetGreetNoShowsHandler, autoExpirePendingMeetGreetRequestsHandler } from "./meetGreetRequests";
-import { expireExclusiveSessionNoShowsHandler, autoExpirePendingExclusiveSessionRequestsHandler } from "./exclusiveSessionRequests";
-import { autoExpirePendingGreetingRequestsHandler } from "./greetingRequests";
+import { expireMeetGreetNoShowsHandler, autoExpirePendingMeetGreetRequestsHandler, autoRejectUndeliveredMeetGreetRequestsHandler } from "./meetGreetRequests";
+import { expireExclusiveSessionNoShowsHandler, autoExpirePendingExclusiveSessionRequestsHandler, autoRejectUndeliveredExclusiveSessionRequestsHandler } from "./exclusiveSessionRequests";
+import { autoExpirePendingGreetingRequestsHandler, autoRejectUndeliveredGreetingRequestsHandler } from "./greetingRequests";
 import { updateExchangeRatesHandler } from "./exchangeRates";
 import { updateVatRatesHandler } from "./vatRates";
 import { sessionRemindersHandler } from "./sessionLifecycle";
@@ -54,20 +54,26 @@ export const expireScheduledServiceNoShows = onSchedule(
 
 export const autoExpirePendingServiceRequests = onSchedule(
   {
-    schedule: "every 24 hours",
+    // Cada 6 h: (a) CAPTURA el auth-hold al 6º día como respaldo (antes de que expire el
+    // hold de tarjeta ~7 días), y (b) marca RECHAZADA la experiencia YA COBRADA que el
+    // creador no entregó en 60 días → el comprador puede pedir devolución → crédito.
+    schedule: "every 6 hours",
     timeZone: "America/Mexico_City",
     region: "us-central1",
-    // Los handlers CAPTURAN el auth-hold en Stripe como respaldo (antes de que expire)
-    // si el creador aún no lo cobró grabando/agendando.
     secrets: [stripeSecretKey],
   },
   async () => {
     logger.info("autoExpirePendingServiceRequests started");
 
     await Promise.all([
+      // Respaldo de captura del hold (día 6).
       autoExpirePendingGreetingRequestsHandler(),
       autoExpirePendingMeetGreetRequestsHandler(),
       autoExpirePendingExclusiveSessionRequestsHandler(),
+      // Auto-rechazo por no entregar en 60 días (ya cobradas).
+      autoRejectUndeliveredGreetingRequestsHandler(),
+      autoRejectUndeliveredMeetGreetRequestsHandler(),
+      autoRejectUndeliveredExclusiveSessionRequestsHandler(),
     ]);
 
     logger.info("autoExpirePendingServiceRequests finished");

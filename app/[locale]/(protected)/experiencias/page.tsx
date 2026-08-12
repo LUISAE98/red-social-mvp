@@ -451,7 +451,6 @@ export default function ExperienciasPage() {
             display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12,
             padding: "12px 14px", borderRadius: 14, marginBottom: 16, boxSizing: "border-box",
             background: "linear-gradient(135deg, rgba(34,197,94,0.14), rgba(90,41,174,0.14))",
-            border: "1px solid rgba(255,255,255,0.08)",
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>

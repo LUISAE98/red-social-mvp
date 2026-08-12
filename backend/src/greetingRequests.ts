@@ -712,9 +712,9 @@ export const requestGreetingRefund = onCall(
 
 // Día en que se CAPTURA la retención (auth-hold) como respaldo si el creador aún no la
 // cobró grabando el saludo. El hold de tarjeta expira ~7 días en Stripe, así que se
-// captura al 5º día para no perder el dinero. NO es la ventana de entrega (esa es 60
-// días); es solo el respaldo interno de captura.
-export const HOLD_CAPTURE_DAYS = 5;
+// captura al 6º día (el cron corre cada 6 h → margen antes de que expire). NO es la
+// ventana de entrega (esa es 60 días); es solo el respaldo interno de captura.
+export const HOLD_CAPTURE_DAYS = 6;
 // (Legacy: algunos módulos aún importan este nombre; queda como alias del respaldo.)
 export const GREETING_RESPONSE_DAYS = HOLD_CAPTURE_DAYS;
 
@@ -760,4 +760,43 @@ export async function autoExpirePendingGreetingRequestsHandler(): Promise<number
 
   logger.info("greeting_holds_captured", { captured, scanned: snap.size });
   return captured;
+}
+
+// Ventana de ENTREGA: días que tiene el creador para grabar/entregar (desde la compra)
+// antes de que la experiencia YA COBRADA se marque RECHAZADA en automático — el mismo
+// estado terminal que un rechazo manual, así el comprador puede pedir su devolución →
+// crédito. Debe coincidir con el frontend (GREETING_RESPONSE_DAYS del overlay del comprador).
+export const DELIVERY_WINDOW_DAYS = 60;
+
+export async function autoRejectUndeliveredGreetingRequestsHandler(): Promise<number> {
+  const cutoff = admin.firestore.Timestamp.fromDate(
+    new Date(Date.now() - DELIVERY_WINDOW_DAYS * 24 * 60 * 60 * 1000)
+  );
+  const snap = await db
+    .collection("greetingRequests")
+    .where("paymentStatus", "==", "paid")
+    .where("createdAt", "<=", cutoff)
+    .limit(200)
+    .get();
+  if (snap.empty) return 0;
+
+  const now = admin.firestore.Timestamp.now();
+  const batch = db.batch();
+  let n = 0;
+  snap.docs.forEach((doc) => {
+    const status = String(doc.get("status") ?? "");
+    // Solo las YA COBRADAS y aún SIN entregar (no terminales).
+    if (["delivered", "rejected", "refund_requested", "refund_review"].includes(status)) return;
+    batch.update(doc.ref, {
+      status: "rejected" as GreetingStatus,
+      rejectionReason: "El creador no entregó dentro de los 60 días.",
+      autoRejectedNoDeliveryAt: now,
+      rejectedAt: now,
+      updatedAt: now,
+    });
+    n++;
+  });
+  if (n > 0) await batch.commit();
+  logger.info("auto_reject_undelivered_greetings", { rejected: n, scanned: snap.size });
+  return n;
 }

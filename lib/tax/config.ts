@@ -26,7 +26,7 @@ const SETTLEMENT_CURRENCY = "MXN";
 // aquí por compatibilidad con los imports existentes, pero NO se redefine: tenerlo dos
 // veces fue justo lo que provocó que el display usara 1.5% y el cobro 2%.
 export { FX_CONVERSION_FEE } from "@/lib/currency/catalog";
-import { FX_CONVERSION_FEE } from "@/lib/currency/catalog";
+import { FX_CONVERSION_FEE, fxConversionFeeForCurrency } from "@/lib/currency/catalog";
 
 /**
  * QUIÉN recauda el impuesto del país del comprador. Espejo de backend/src/tax/config.ts.
@@ -175,6 +175,10 @@ const RS_PURS_REGISTERED = true;  // 🇷🇸 Poreska uprava — PENDIENTE
 const AL_TATIME_REGISTERED = true;// 🇦🇱 Drejtoria e Tatimeve — PENDIENTE
 const ME_UPC_REGISTERED = true;   // 🇲🇪 Uprava prihoda i carina — PENDIENTE
 const MD_SFS_REGISTERED = true;   // 🇲🇩 Serviciul Fiscal de Stat — PENDIENTE
+const KR_NTS_REGISTERED = true;   // 🇰🇷 Hometax (NTS) — PENDIENTE
+const VN_GDT_REGISTERED = true;   // 🇻🇳 Portal de proveedores extranjeros (GDT) — PENDIENTE
+const AE_FTA_REGISTERED = true;   // 🇦🇪 FTA / EmaraTax — PENDIENTE
+const SA_ZATCA_REGISTERED = true; // 🇸🇦 ZATCA — PENDIENTE
 
 /**
  * Países encendidos en el código cuya alta fiscal REAL sigue pendiente.
@@ -184,7 +188,8 @@ const MD_SFS_REGISTERED = true;   // 🇲🇩 Serviciul Fiscal de Stat — PENDI
  */
 export const ALTAS_PENDIENTES: readonly string[] = [
   "BR", "CO", "CL", "PE", "UY",
-  "GB", "TR", "RS", "AL", "ME", "MD",
+  "GB", "TR", "RS", "AL", "ME", "MD",  // Europa no comunitaria
+  "KR", "VN", "AE", "SA",              // Asia y Golfo
 ];
 
 /**
@@ -570,6 +575,32 @@ export const COUNTRY_TAX_CONFIG: Readonly<Record<string, CountryTaxConfig>> = {
   ME: platformCollects("PDV", 0.21, "EUR", ME_UPC_REGISTERED),      // Montenegro
   MD: platformCollects("TVA", 0.20, "MDL", MD_SFS_REGISTERED),      // Moldavia
 
+  // ── ASIA Y GOLFO — ALTA OBLIGATORIA DESDE LA VENTA 1 ──
+  //
+  // Los cuatro sin representante fiscal obligatorio y con declaración TRIMESTRAL.
+  //
+  // 🇰🇷 COREA DEL SUR — registro simplificado en Hometax. ⚠️ El alta debe hacerse dentro
+  //    de los 20 días desde que se empieza a operar ahí.
+  //
+  // 🇦🇪 EAU y 🇸🇦 ARABIA SAUDITA — trimestral salvo volúmenes enormes (AED 150 M / SAR 40 M).
+  //    En Arabia Saudita la facturación electrónica (Fatoora) NO aplica a no residentes,
+  //    que es la parte más pesada de su régimen. ⚠️ El representante fiscal es opcional
+  //    desde jul-2025, pero sin él ZATCA pediría garantía bancaria — monto SIN CONFIRMAR.
+  //
+  // 🇻🇳 VIETNAM — ⚠️ COBRA DOS IMPUESTOS, igual que Uruguay:
+  //      · VAT 10% → al comprador. Es el que está en la fila de abajo.
+  //      · CIT  5% sobre ingreso BRUTO → sale del margen de Vibra, no se le traslada.
+  //    🚨 A diferencia de Uruguay, ese 5% NO se absorbe: se recupera subiendo el cargo de
+  //       conversión de VND al 7% (2% estándar + 5% del CIT). Ver la explicación en
+  //       FX_CONVERSION_FEE_BY_CURRENCY. No se desglosa al comprador: es precio, no
+  //       impuesto. Decisión de Luis, 2026-08-11.
+  //    ⚠️ Si NO se registra, los bancos e intermediarios retienen y enteran mensualmente.
+  //       Es la vía del incumplimiento, no una alternativa (mismo patrón que Perú).
+  KR: platformCollects("VAT", 0.10, "KRW", KR_NTS_REGISTERED),      // Corea del Sur
+  VN: platformCollects("VAT", 0.10, "VND", VN_GDT_REGISTERED),      // Vietnam
+  AE: platformCollects("VAT", 0.05, "AED", AE_FTA_REGISTERED),      // Emiratos Árabes Unidos
+  SA: platformCollects("VAT", 0.15, "SAR", SA_ZATCA_REGISTERED),    // Arabia Saudita
+
 
   // ⚠️ Fuera de la UE no se agrega ninguna fila sin su FICHA en impuestos.md.
 };
@@ -640,7 +671,9 @@ export function shouldAddFxFee(country: string | null | undefined): boolean {
 
 /** Tasa del cargo FX del país (0.02 o 0). */
 export function fxFeeRateForCountry(country: string | null | undefined): number {
-  return shouldAddFxFee(country) ? FX_CONVERSION_FEE : 0;
+  if (!shouldAddFxFee(country)) return 0;
+  // No siempre es el 2%: algunas monedas llevan un ajuste propio (ver catalog.ts).
+  return fxConversionFeeForCurrency(chargeCurrencyForCountry(country));
 }
 
 export type TaxBreakdown = {

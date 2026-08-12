@@ -1250,7 +1250,7 @@ no hay dinero real ni obligación fiscal — la misma decisión que se tomó con
 | 🇨🇴 Colombia | COP | Español | 19% | IVA | **Vibra** (o emisores, si se acoge) | Bimestral — o ninguna con retención | RUT + firma electrónica — DIAN | Ninguno | 🟡 Alta pendiente |
 | 🇨🇱 Chile | CLP | Español | 19% | IVA | **Vibra** | Mensual o trimestral, en USD/EUR | Régimen simplificado — SII | Ninguno | 🟡 Alta pendiente |
 | 🇵🇪 Perú | PEN | Español | 18% | IGV | **Vibra** (agente de percepción) | Mensual | RUC — SUNAT | Ninguno | 🟡 Alta pendiente |
-| 🇺🇾 Uruguay | UYU *(se puede pagar en USD)* | Español | **22%** al comprador | IVA | **Vibra** | **Trimestral** | DGI · sin representante local | Ninguno | 🟡 Alta pendiente |
+| 🇺🇾 Uruguay | UYU *(se puede pagar en USD)* | Español | **22%** al comprador *(+ IRNR 12% recuperado vía conversión al 14%)* | IVA | **Vibra** | **Trimestral** | DGI · sin representante local | Ninguno | 🟡 Alta pendiente |
 
 ### 🌍 Europa no comunitaria (2026-08-11)
 
@@ -1262,6 +1262,51 @@ no hay dinero real ni obligación fiscal — la misma decisión que se tomó con
 | 🇦🇱 Albania | ALL | Albanés | 20% | TVSH | **Vibra** | Mensual | Drejtoria e Tatimeve | Ninguno | 🟡 Alta pendiente |
 | 🇲🇪 Montenegro | **EUR** | Montenegrino | 21% | PDV | **Vibra** | Por confirmar | Uprava prihoda i carina | Ninguno | 🟡 Alta pendiente |
 | 🇲🇩 Moldavia | MDL | Rumano | 20% | TVA | **Vibra** | Por confirmar | Serviciul Fiscal de Stat | Ninguno | 🟡 Alta pendiente |
+
+### 🌏 Asia y Golfo (2026-08-11)
+
+| País | Moneda | Idioma | TASA | Impuesto | Recaudación | Declaración | Alta fiscal | Umbral | Estatus |
+|---|---|---|---|---|---|---|---|---|---|
+| 🇰🇷 Corea del Sur | KRW | Coreano | 10% | VAT | **Vibra** | **Trimestral** — día 25 | Hometax · sin representante · ⚠️ **alta en 20 días** desde el inicio | Ninguno | 🟡 Alta pendiente |
+| 🇻🇳 Vietnam | VND | Vietnamita | 10% | VAT *(+ CIT 5%, ver abajo)* | **Vibra** | **Trimestral** | Portal GDT · sin representante | Ninguno | 🟡 Alta pendiente |
+| 🇦🇪 EAU | AED | Árabe | 5% | VAT | **Vibra** | **Trimestral** (mensual solo > AED 150 M) | FTA / EmaraTax · sin representante | Ninguno | 🟡 Alta pendiente |
+| 🇸🇦 Arabia Saudita | SAR | Árabe | 15% | VAT | **Vibra** | **Trimestral** (mensual solo > SAR 40 M) | ZATCA · representante opcional | Ninguno | 🟡 Alta pendiente |
+
+**🇸🇦 Arabia Saudita:** la facturación electrónica (Fatoora) **NO aplica a no residentes**, que es
+la parte más pesada de su régimen. El representante fiscal es **opcional** desde jul-2025, pero sin
+él ZATCA pediría garantía bancaria — ⚠️ **monto sin confirmar**, las fuentes se contradicen.
+
+**🇰🇷 Corea del Sur:** el alta debe hacerse **dentro de los 20 días** desde que se empieza a operar.
+
+### 🚨 🇻🇳 Vietnam: el CIT se recupera por el cargo de conversión, no absorbiéndolo
+
+Vietnam cobra **dos** impuestos, como Uruguay:
+
+| | Tasa | Quién lo paga |
+|---|---|---|
+| **VAT** | 10% | El comprador — es el de la tabla |
+| **CIT** | 5% sobre ingreso **BRUTO** | Vibra, de su margen |
+
+🚨 **DECISIÓN (Luis, 2026-08-11): a diferencia de Uruguay, ese 5% NO se absorbe.** Se recupera
+subiendo el **cargo de conversión del dong al 7%** (2% estándar + 5% del CIT).
+
+**No se desglosa al comprador: es precio, no impuesto.** El comprador vietnamita paga un poco más
+y el servicio se puede ofrecer, en vez de no ofrecerlo.
+
+Vive en `FX_CONVERSION_FEE_BY_CURRENCY` (`lib/currency/catalog.ts`, con copia en el backend y test
+de paridad). La tasa fiscal de Vietnam **sigue siendo 10%** — el 7% no la contamina, y hay un test
+que lo verifica.
+
+⚠️ Si Vietnam no se registra, los bancos e intermediarios retienen y enteran mensualmente. Es la
+vía del incumplimiento, no una alternativa — mismo patrón que Perú.
+
+### 🚫 De Asia NO se integraron
+
+| País | Motivo |
+|---|---|
+| 🇮🇳 India | Representante fiscal obligatorio **y** UPI —el método dominante— inaccesible desde México. Solo llegarías a la fracción con tarjeta internacional, con rechazos altos por el 2FA del RBI |
+| 🇧🇭 Baréin | Representante fiscal obligatorio |
+| 🇴🇲 Omán | Sin confirmar si exige representante |
 
 🚨 **Montenegro usa el EURO pero NO es de la UE.** El OSS no lo cubre: necesita su propio
 registro. Tener la moneda de la UE no implica estar en su régimen fiscal. Hay un test que lo fija.
@@ -1288,6 +1333,7 @@ los países con umbral — aquí eso sería ilegal, no una zona gris.
 export const ALTAS_PENDIENTES = [
   "BR", "CO", "CL", "PE", "UY",   // LatAm
   "GB", "TR", "RS", "AL", "ME", "MD",  // Europa no comunitaria
+  "KR", "VN", "AE", "SA",              // Asia y Golfo
 ];
 ```
 
@@ -1300,7 +1346,8 @@ encendidos.
 
 Interruptores individuales: `BR_CNPJ_REGISTERED`, `CO_DIAN_REGISTERED`, `CL_SII_REGISTERED`,
 `PE_SUNAT_REGISTERED`, `UY_DGI_REGISTERED`, `GB_HMRC_REGISTERED`, `TR_GIB_REGISTERED`,
-`RS_PURS_REGISTERED`, `AL_TATIME_REGISTERED`, `ME_UPC_REGISTERED`, `MD_SFS_REGISTERED`. En `false` el país pasa a `cannot_sell` y el checkout lo rechaza.
+`RS_PURS_REGISTERED`, `AL_TATIME_REGISTERED`, `ME_UPC_REGISTERED`, `MD_SFS_REGISTERED`,
+`KR_NTS_REGISTERED`, `VN_GDT_REGISTERED`, `AE_FTA_REGISTERED`, `SA_ZATCA_REGISTERED`. En `false` el país pasa a `cannot_sell` y el checkout lo rechaza.
 
 ### 🇧🇷 Brasil: la única tasa de la tabla que cambia con el calendario
 
@@ -1338,8 +1385,19 @@ Uruguay cobra **dos** impuestos, y solo uno cabe en el modelo:
 | **IVA 22%** | Impuesto al consumo | **El comprador** — es el que está en la tabla |
 | **IRNR 12%** | Impuesto a la **renta** del no residente | **Vibra**, de su propio ingreso |
 
-🚨 **DECISIÓN (2026-08-11): se arranca cobrando SOLO el 22%**, sin subir el precio para cubrir el
-IRNR. Ese 12% sale del margen: sobre una venta de $100 de base, el margen pasa de **$25 a $13**.
+🚨 **DECISIÓN (2026-08-11):** el IRNR **no se absorbe**. Se recupera subiendo el **cargo de
+conversión del peso uruguayo al 14%** (2% estándar + 12% del IRNR), el mismo criterio aplicado al
+CIT de Vietnam.
+
+**No se desglosa al comprador: es precio, no impuesto.** El uruguayo paga más y el servicio se
+puede ofrecer, en vez de dejar $13 de margen sobre cada $100 de base.
+
+⚠️ La recuperación es **aproximada, no exacta**: como el impuesto se calcula sobre el importe ya
+aumentado, cubrir el 12% completo exigiría 12/(1−0,12) ≈ 13,6 puntos, no 12. Con 14% queda
+~1 punto sin cubrir. Se prefirió la cifra redonda; el mismo redondeo aplica al 7% de Vietnam.
+
+Vive en `FX_CONVERSION_FEE_BY_CURRENCY` (`lib/currency/catalog.ts`, con copia en el backend y test
+de paridad).
 
 El IRNR **no aparece en `COUNTRY_TAX_CONFIG` y es correcto que no aparezca** — ese campo modela lo
 que se le cobra al comprador. Hay un test que impide "completar" la tasa a 34%: hacerlo le cobraría
@@ -1396,6 +1454,7 @@ paga igual, pero Vibra queda en una lista pública y sale con intereses y multas
 | 🇺🇸 Estados Unidos | US | ✅ Activo — sin exposición | No — hasta cruzar el umbral de algún estado |
 | 🌎 LatAm con alta obligatoria | BR · CO · CL · PE · UY | 🟡 **Encendidos, alta PENDIENTE** | **Sí** — 1% BR · 19% CO · 19% CL · 18% PE · 22% UY |
 | 🌍 Europa no-UE con alta obligatoria | GB · TR · RS · AL · ME · MD | 🟡 **Encendidos, alta PENDIENTE** | **Sí** — 20% salvo ME 21% |
+| 🌏 Asia y Golfo con alta obligatoria | KR · VN · AE · SA | 🟡 **Encendidos, alta PENDIENTE** | **Sí** — 10% KR · 10% VN · 5% AE · 15% SA |
 | ⬜ Resto de LatAm | CL · CO · PE · UY · BR | Sin ficha — **no cobrables** | — |
 | ⬜ Resto de Europa no-UE | CH · LI · MK | Fuera a propósito — representante fiscal / umbral mundial | — |
 | 🚫 Excluidos a propósito | UA (embargo regional) · RU · BY · CU (sanciones) · IL (decisión de Luis) | No integrar | — |
@@ -1405,7 +1464,7 @@ paga igual, pero Vibra queda en una lista pública y sale con intereses y multas
 | 🚫 África — Stripe no procesa | SD · SS · SO · ER · LY + riesgo: ZW · BI · CF · CD · GN · GW · ML | No integrar | — |
 | ⬜ Resto del mundo | — | Sin ficha — **no cobrables** | — |
 
-**Total cobrable: 74 países.** De ellos, **39 cobran impuesto** (MX + 27 UE + 5 LatAm + 6 Europa no comunitaria). Un país sin fila en `COUNTRY_TAX_CONFIG` no es cobrable y el
+**Total cobrable: 78 países.** De ellos, **43 cobran impuesto** (MX + 27 UE + 5 LatAm + 6 Europa no comunitaria + 4 Asia/Golfo). Un país sin fila en `COUNTRY_TAX_CONFIG` no es cobrable y el
 checkout lo rechaza.
 
 ### Backend — ✅ hecho (2026-08-07)
@@ -1437,7 +1496,9 @@ checkout lo rechaza.
 | **D-08** | Mapear los 11 servicios a un inciso del Art. 29-IV. Provisionalmente **todos a 0%**; los dudosos son **Tiempo contigo** y **Sesión exclusiva** | Fiscalista MX |
 | ~~D-09~~ | ~~LatAm pendiente~~ **Cerrada 2026-08-11: los 17 países de LatAm están integrados** | ✅ |
 | **D-19** | 🇺🇾 ¿El Convenio México–Uruguay elimina o reduce el IRNR 12%? Depende de encuadrar cada servicio en Art. 7 (0%), Art. 12 (10%) o Art. 20 (12%). Hoy ese 12% sale del margen | Fiscalista MX/UY |
-| **D-18** | 🚨 **Completar las 11 altas de `ALTAS_PENDIENTES` (BR·CO·CL·PE·UY + GB·TR·RS·AL·ME·MD) ANTES de pasar a `sk_live`.** Hoy cobran en modo prueba sin poder enterar | Luis |
+| **D-18** | 🚨 **Completar las 15 altas de `ALTAS_PENDIENTES` ANTES de pasar a `sk_live`.** Hoy cobran en modo prueba sin poder enterar | Luis |
+| **D-20** | 🇸🇦 Confirmar si ZATCA exige garantía bancaria a un no residente sin representante fiscal, y por cuánto. Las fuentes se contradicen | Luis / asesor SA |
+| **D-21** | 🇻🇳 Confirmar las tasas presuntas de Vietnam (VAT 10% / CIT 5%) contra normativa directa. Hoy vienen de una sola fuente especializada | Fiscalista VN |
 | **D-11** | 🇨🇴 **Una sola pregunta abierta:** ¿la retención en la fuente del sistema alternativo SE SUMA al comprador o se DESCUENTA de lo que cobra Vibra? Vale 19% de cada venta colombiana. **RESUELTO 2026-08-11:** el cambio de modalidad SÍ es posible pero **por ÚNICA VEZ** (Art. 2° Res. DIAN 000049/2019) → no gastar ese cambio: entrar DIRECTO al sistema de retención. El alta NO es un formulario: es una petición por el canal **PQSR** de la DIAN (Art. 1°), y la DIAN debe publicarte por resolución en un listado taxativo con fecha de aplicación (Art. 5°) | Fiscalista CO |
 | ~~D-12~~ | ~~🇺🇾 Confirmar IRNR y quién retiene~~ **Resuelta 2026-08-11:** recauda Vibra (no hay retención bancaria para B2C), declaración trimestral, se puede pagar en USD. El IRNR sigue abierto en D-19 | ✅ |
 | **D-13** | Contador de ventas acumuladas por país + alerta al 80% del umbral. **19 países** encendidos con vigilancia manual (NO · IS · BA · JP · MY · PH · TH · AU · JO · ID · NZ · TW · SG · NC · FJ · ZA · EG · CA · US); el contador la reemplazaría. Cuantos más umbrales, menos sostenible es recordarlos | Luis + Claude |

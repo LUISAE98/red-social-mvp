@@ -165,6 +165,41 @@ const SETTLEMENT_CURRENCY = "MXN";
 export const FX_CONVERSION_FEE = 0.02;
 
 /**
+ * Monedas con un cargo de conversión ELEVADO, por encima del 2% estándar.
+ *
+ * 🚨 NO es impuesto y NO se desglosa al comprador: es un ajuste de PRECIO. Existe para
+ *    hacer viable vender en países donde un impuesto a la RENTA nos sale del margen y
+ *    no se le puede trasladar al comprador como línea aparte.
+ *
+ *   🇻🇳 VND — 7% = 2% de conversión + 5% que cubre el CIT vietnamita. *
+ * 🚫 URUGUAY se probó y se DESCARTÓ (Luis, 2026-08-11). Con UYU al 14% el total de una venta
+ *    de $100 de base subía a $143 —el país más caro de toda la tabla, 36% por encima de
+ *    Argentina— porque el IVA del 22% se calcula DESPUÉS del ajuste y lo amplifica.
+ *    Se prefirió absorber el IRNR del 12% antes que cobrarle eso al comprador uruguayo.
+ *    No volver a agregar UYU aquí sin revisar ese número.
+ *      Vietnam cobra VAT 10% (al comprador, ese sí va en la tabla fiscal) **y** CIT 5%
+ *      sobre ingreso BRUTO, que sale del margen de Vibra. Sin este ajuste, cada venta
+ *      vietnamita dejaría $20 de margen en vez de $25.
+ *      Decisión de Luis, 2026-08-11: el comprador vietnamita paga un poco más y el
+ *      servicio se puede ofrecer, en vez de no ofrecerlo.
+ *
+ * ⚠️ COPIA de lib/currency/catalog.ts. Deben tener los MISMOS valores: si difieren, el
+ *    comprador ve un precio y se le cobra otro. Hay un test de paridad que lo vigila.
+ */
+const FX_CONVERSION_FEE_BY_CURRENCY: Readonly<Record<string, number>> = {
+  VND: 0.07,
+};
+
+/**
+ * Cargo de conversión que aplica a una moneda concreta. Devuelve el 2% estándar salvo
+ * que la moneda tenga un ajuste propio.
+ */
+export function fxConversionFeeForCurrency(currency: string | null | undefined): number {
+  if (!currency) return FX_CONVERSION_FEE;
+  return FX_CONVERSION_FEE_BY_CURRENCY[currency.toUpperCase()] ?? FX_CONVERSION_FEE;
+}
+
+/**
  * TABLA por país (ISO-3166 alpha-2 → impuesto + moneda de cobro).
  * Agregar un país = agregar una fila (tasa VERIFICADA + moneda + modo de cobro).
  * ⚠️ Además, cada país debe tener su FICHA JUSTIFICADA en `impuestos.md` (raíz del repo).
@@ -231,6 +266,10 @@ const RS_PURS_REGISTERED = true;  // 🇷🇸 Poreska uprava — PENDIENTE
 const AL_TATIME_REGISTERED = true;// 🇦🇱 Drejtoria e Tatimeve — PENDIENTE
 const ME_UPC_REGISTERED = true;   // 🇲🇪 Uprava prihoda i carina — PENDIENTE
 const MD_SFS_REGISTERED = true;   // 🇲🇩 Serviciul Fiscal de Stat — PENDIENTE
+const KR_NTS_REGISTERED = true;   // 🇰🇷 Hometax (NTS) — PENDIENTE
+const VN_GDT_REGISTERED = true;   // 🇻🇳 Portal de proveedores extranjeros (GDT) — PENDIENTE
+const AE_FTA_REGISTERED = true;   // 🇦🇪 FTA / EmaraTax — PENDIENTE
+const SA_ZATCA_REGISTERED = true; // 🇸🇦 ZATCA — PENDIENTE
 
 /**
  * Países encendidos en el código cuya alta fiscal REAL sigue pendiente.
@@ -240,7 +279,8 @@ const MD_SFS_REGISTERED = true;   // 🇲🇩 Serviciul Fiscal de Stat — PENDI
  */
 export const ALTAS_PENDIENTES: readonly string[] = [
   "BR", "CO", "CL", "PE", "UY",
-  "GB", "TR", "RS", "AL", "ME", "MD",
+  "GB", "TR", "RS", "AL", "ME", "MD",  // Europa no comunitaria
+  "KR", "VN", "AE", "SA",              // Asia y Golfo
 ];
 
 /**
@@ -694,6 +734,32 @@ export const COUNTRY_TAX_CONFIG: Readonly<Record<string, CountryTaxConfig>> = {
   ME: platformCollects("PDV", 0.21, "EUR", ME_UPC_REGISTERED),      // Montenegro
   MD: platformCollects("TVA", 0.20, "MDL", MD_SFS_REGISTERED),      // Moldavia
 
+  // ── ASIA Y GOLFO — ALTA OBLIGATORIA DESDE LA VENTA 1 ──
+  //
+  // Los cuatro sin representante fiscal obligatorio y con declaración TRIMESTRAL.
+  //
+  // 🇰🇷 COREA DEL SUR — registro simplificado en Hometax. ⚠️ El alta debe hacerse dentro
+  //    de los 20 días desde que se empieza a operar ahí.
+  //
+  // 🇦🇪 EAU y 🇸🇦 ARABIA SAUDITA — trimestral salvo volúmenes enormes (AED 150 M / SAR 40 M).
+  //    En Arabia Saudita la facturación electrónica (Fatoora) NO aplica a no residentes,
+  //    que es la parte más pesada de su régimen. ⚠️ El representante fiscal es opcional
+  //    desde jul-2025, pero sin él ZATCA pediría garantía bancaria — monto SIN CONFIRMAR.
+  //
+  // 🇻🇳 VIETNAM — ⚠️ COBRA DOS IMPUESTOS, igual que Uruguay:
+  //      · VAT 10% → al comprador. Es el que está en la fila de abajo.
+  //      · CIT  5% sobre ingreso BRUTO → sale del margen de Vibra, no se le traslada.
+  //    🚨 A diferencia de Uruguay, ese 5% NO se absorbe: se recupera subiendo el cargo de
+  //       conversión de VND al 7% (2% estándar + 5% del CIT). Ver la explicación en
+  //       FX_CONVERSION_FEE_BY_CURRENCY. No se desglosa al comprador: es precio, no
+  //       impuesto. Decisión de Luis, 2026-08-11.
+  //    ⚠️ Si NO se registra, los bancos e intermediarios retienen y enteran mensualmente.
+  //       Es la vía del incumplimiento, no una alternativa (mismo patrón que Perú).
+  KR: platformCollects("VAT", 0.10, "KRW", KR_NTS_REGISTERED),      // Corea del Sur
+  VN: platformCollects("VAT", 0.10, "VND", VN_GDT_REGISTERED),      // Vietnam
+  AE: platformCollects("VAT", 0.05, "AED", AE_FTA_REGISTERED),      // Emiratos Árabes Unidos
+  SA: platformCollects("VAT", 0.15, "SAR", SA_ZATCA_REGISTERED),    // Arabia Saudita
+
 
   // ⚠️ Para agregar países fuera de la UE hace falta su FICHA en `impuestos.md`: tasa
   // confirmada contra la autoridad del país, quién recauda (`collectionMode`) y si el país
@@ -768,7 +834,9 @@ export function shouldAddFxFee(country: string | null | undefined): boolean {
 
 /** Tasa del cargo FX del país (0.02 o 0). */
 export function fxFeeRateForCountry(country: string | null | undefined): number {
-  return shouldAddFxFee(country) ? FX_CONVERSION_FEE : 0;
+  if (!shouldAddFxFee(country)) return 0;
+  // No siempre es el 2%: algunas monedas llevan un ajuste propio (ver el mapa de arriba).
+  return fxConversionFeeForCurrency(chargeCurrencyForCountry(country));
 }
 
 export type TaxBreakdown = {

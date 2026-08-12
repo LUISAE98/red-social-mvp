@@ -52,6 +52,10 @@ export const LOCALE_META: readonly LocaleMeta[] = [
   { code: "hr", label: "HR", name: "Hrvatski", intl: "hr-HR", ready: true },
   { code: "hu", label: "HU", name: "Magyar", intl: "hu-HU", ready: true },
   { code: "id", label: "ID", name: "Bahasa Indonesia", intl: "id-ID", ready: true },
+  // Íslenska: sin pariente cercano entre los locales servidos (el danés y el noruego
+  // son nórdicos, pero el islandés no es mutuamente inteligible con ellos), así que
+  // está escrito, no derivado. Plurales one/other.
+  { code: "is", label: "IS", name: "Íslenska", intl: "is-IS", ready: true },
   { code: "it", label: "IT", name: "Italiano", intl: "it-IT", ready: true },
   // Primer idioma FUERA de la UE. Japón no está en EU_COUNTRY_TO_LOCALE: lo mapea
   // NON_EU_COUNTRY_TO_LOCALE, más abajo.
@@ -60,6 +64,9 @@ export const LOCALE_META: readonly LocaleMeta[] = [
   { code: "lv", label: "LV", name: "Latviešu", intl: "lv-LV", ready: true },
   { code: "ms", label: "MS", name: "Bahasa Melayu", intl: "ms-MY", ready: true },
   { code: "mt", label: "MT", name: "Malti", intl: "mt-MT", ready: true },
+  // Bokmål, no nynorsk: es la variante escrita de ~85–90 % de los noruegos y la
+  // que usa el software. Se derivó de `da`, que es su pariente escrito directo.
+  { code: "nb", label: "NB", name: "Norsk bokmål", intl: "nb-NO", ready: true },
   { code: "nl", label: "NL", name: "Nederlands", intl: "nl-NL", ready: true },
   { code: "pl", label: "PL", name: "Polski", intl: "pl-PL", ready: true },
   // Las dos variantes del portugués comparten idioma pero NO etiqueta: `label` es el chip
@@ -86,7 +93,7 @@ export const LOCALE_META: readonly LocaleMeta[] = [
  * en toda la app. Al terminar el archivo de un idioma: pon su `ready: true` arriba
  * Y agrégalo a esta tupla. El test de i18n verifica que ambas listas coincidan.
  */
-export const READY_LOCALES = ["es", "en", "pt-BR", "de", "fr", "it", "nl", "pl", "ro", "el", "cs", "hu", "sv", "pt-PT", "da", "fi", "sk", "bg", "hr", "lt", "sl", "lv", "et", "ga", "mt", "ja", "zh-TW", "id", "ms", "th", "bs"] as const;
+export const READY_LOCALES = ["es", "en", "pt-BR", "de", "fr", "it", "nl", "pl", "ro", "el", "cs", "hu", "sv", "pt-PT", "da", "fi", "sk", "bg", "hr", "lt", "sl", "lv", "et", "ga", "mt", "ja", "zh-TW", "id", "ms", "th", "bs", "nb", "is"] as const;
 
 export type Locale = (typeof READY_LOCALES)[number];
 
@@ -190,4 +197,6 @@ export const NON_EU_COUNTRY_TO_LOCALE: Readonly<Record<string, string>> = {
   MY: "ms", // Malasia
   TH: "th", // Tailandia
   BA: "bs", // Bosnia y Herzegovina
+  NO: "nb", // Noruega
+  IS: "is", // Islandia
 };

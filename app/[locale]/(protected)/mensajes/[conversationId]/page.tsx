@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -8,6 +8,7 @@ import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
 import { setNavSlideDir } from "@/lib/nav-slide";
 import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
+import { useVisualViewport } from "@/lib/hooks/useVisualViewport";
 import { useAuth } from "@/app/providers";
 import LiveRingAvatar from "@/app/components/LiveRing/LiveRingAvatar";
 import ProfileMoreMenu from "@/app/[locale]/(protected)/u/[handle]/components/ProfileMoreMenu";
@@ -49,7 +50,6 @@ export default function ConversationPage() {
   const displayName = profile?.displayName || tCommon("user");
 
   const [closing, setClosing] = useState(false);
-  const screenRef = useRef<HTMLDivElement | null>(null);
 
   // El portal solo puede montarse en cliente. Mismo patrón (y misma excepción
   // de lint) que en el resto de páginas que detectan el montaje.
@@ -71,132 +71,34 @@ export default function ConversationPage() {
   useBodyScrollLock(mounted);
 
   /**
-   * Ata la pantalla al VISUAL viewport, no al de diseño.
+   * Geometría de la pantalla frente al teclado.
    *
-   * Con el teclado abierto iOS no encoge el viewport de diseño: encoge el
-   * VISUAL y lo desplaza dentro del otro. Un `position: fixed` se mide contra el
-   * de diseño, así que sin compensar nada la cabecera se sale por arriba y el
-   * campo de escritura queda debajo del teclado. Copiando alto y desplazamiento
-   * del visual, la pantalla cae exactamente sobre lo que se ve.
+   * En iOS el teclado NO encoge el viewport de LAYOUT, que es contra el que se
+   * ancla un "position: fixed": solo encoge el VISUAL y lo desplaza dentro del
+   * otro. Sin compensarlo, la cabecera se sale por arriba y el campo de
+   * escritura queda debajo del teclado.
    *
-   * TRES decisiones aquí son las que hacen que esto funcione en iOS:
+   * Se resuelve con "useVisualViewport" y con la MISMA forma que el panel de
+   * comentarios, que es el patrón que ya funciona en el resto de la plataforma:
    *
-   * 1. SIEMPRE se escribe el alto medido, también con el teclado cerrado. El
-   *    intento anterior devolvía la pantalla a `100dvh` al cerrar, y ahí está la
-   *    diferencia entre Chrome (iba bien) y Safari/PWA (no): iOS no recalcula
-   *    las unidades `dvh` al retirarse el teclado, así que el alto se quedaba
-   *    con el valor de cuando estaba abierto. Medir no depende de eso.
+   *  - Con teclado: "top"/"height" del viewport visual, así la pantalla calza
+   *    exactamente el área que se ve.
+   *  - Sin teclado: "inset: 0" y NINGÚN número. Estira el propio viewport.
    *
-   * 2. No basta con reaccionar a los eventos. iOS anima el teclado ~300ms y el
-   *    último evento suele llegar ANTES del estado final; al descartarlo con el
-   *    botón del propio teclado a veces no llega ninguno. Por eso ante cualquier
-   *    señal se arranca un seguimiento por frames que LEE el viewport hasta que
-   *    deja de moverse, en vez de esperar a que alguien nos avise.
-   *
-   * 3. Se corrige el desplazamiento que iOS le mete al documento al enfocar el
-   *    campo. Un `position: fixed` se ancla al viewport de diseño, así que si el
-   *    documento queda corrido la pantalla entera aparece desplazada. Se vuelve
-   *    a la posición que tenía al entrar — no a cero — para no perder el punto
-   *    donde estaba el feed de debajo.
+   * Ese segundo punto es el que estaba roto. Antes se escribía un alto medido (o
+   * "100dvh") también al cerrar, y a mano sobre el nodo. Como React no reescribe
+   * un estilo que no cambia entre renders, ese valor se quedaba pegado y salía la
+   * franja negra abajo. Declarándolo, cerrar el teclado BORRA "top"/"height" en
+   * vez de recalcularlos: no queda número que pueda envejecer.
    */
-  useEffect(() => {
-    if (!mounted) return;
-
-    const element = screenRef.current;
-    if (!element) return;
-
-    const viewport = window.visualViewport;
-    if (!viewport) return; // Sin API, se queda el 100dvh del estilo en línea.
-
-    // El alto máximo visto es la referencia para saber si hay teclado. Comparar
-    // contra `window.innerHeight` no sirve: en Safari la barra de direcciones se
-    // encoge y se estira sola, y eso ya mete decenas de píxeles de diferencia
-    // sin que haya ningún teclado. Un teclado nunca baja de ~200px; una barra
-    // no pasa de ~100px, así que el umbral los separa sin ambigüedad.
-    let maxHeight = viewport.height;
-
-    /** Dónde estaba el documento al entrar; es el sitio al que hay que volver. */
-    const baseScroll = window.scrollY;
-
-    const apply = () => {
-      maxHeight = Math.max(maxHeight, viewport.height);
-      const keyboardOpen = viewport.height < maxHeight - 120;
-
-      element.style.height = `${viewport.height}px`;
-      element.style.top = `${viewport.offsetTop}px`;
-
-      // Con teclado no hay home-indicator que esquivar: el campo se pega a él en
-      // vez de flotar 20px por encima. Se sobrescribe la variable global solo en
-      // esta pantalla; el compositor ya la consume.
-      if (keyboardOpen) element.style.setProperty("--vb-safe-bottom", "0px");
-      else element.style.removeProperty("--vb-safe-bottom");
-
-      // Solo si algo lo movió: con el fondo bloqueado esto no debería dispararse
-      // nunca, y cuando lo hace es iOS empujando el documento para "hacer sitio"
-      // al teclado. Devolverlo a `baseScroll` y no a 0 deja el feed donde estaba.
-      if (!keyboardOpen && window.scrollY !== baseScroll) {
-        window.scrollTo(0, baseScroll);
-      }
-    };
-
-    apply();
-
-    /**
-     * Sigue al viewport frame a frame hasta que se queda quieto (300ms sin
-     * moverse), con un tope de 2s por si acaso. Es lo que cubre el caso de que
-     * el evento no llegue nunca o llegue con un valor a medio camino.
-     */
-    let frame = 0;
-    const track = () => {
-      cancelAnimationFrame(frame);
-
-      const startedAt = performance.now();
-      let lastHeight = -1;
-      let lastOffset = -1;
-      let stillSince = startedAt;
-
-      const step = () => {
-        apply();
-
-        const now = performance.now();
-        if (viewport.height !== lastHeight || viewport.offsetTop !== lastOffset) {
-          lastHeight = viewport.height;
-          lastOffset = viewport.offsetTop;
-          stillSince = now;
-        }
-
-        if (now - stillSince < 300 && now - startedAt < 2000) {
-          frame = requestAnimationFrame(step);
-        }
-      };
-
-      frame = requestAnimationFrame(step);
-    };
-
-    // Al girar, el alto de referencia ya no vale: en horizontal la pantalla mide
-    // casi la mitad y sin reiniciarlo se leería como "hay teclado".
-    const onOrientation = () => {
-      maxHeight = 0;
-      track();
-    };
-
-    viewport.addEventListener("resize", track);
-    viewport.addEventListener("scroll", track);
-    window.addEventListener("orientationchange", onOrientation);
-    // Entrar y salir del campo de escritura es lo que abre y cierra el teclado.
-    element.addEventListener("focusin", track);
-    element.addEventListener("focusout", track);
-
-    return () => {
-      cancelAnimationFrame(frame);
-      viewport.removeEventListener("resize", track);
-      viewport.removeEventListener("scroll", track);
-      window.removeEventListener("orientationchange", onOrientation);
-      element.removeEventListener("focusin", track);
-      element.removeEventListener("focusout", track);
-      element.style.removeProperty("--vb-safe-bottom");
-    };
-  }, [mounted]);
+  const viewport = useVisualViewport();
+  const keyboardPx =
+    viewport != null && typeof window !== "undefined"
+      ? Math.max(0, Math.round(window.innerHeight - viewport.height))
+      : 0;
+  // Mismo umbral que el resto del producto: la barra del navegador ya deja
+  // 40-80px de diferencia sin que haya ningún teclado.
+  const keyboardOpen = keyboardPx > 120;
 
   /**
    * Salir: la pantalla se va deslizando a la derecha y la página de destino
@@ -215,7 +117,6 @@ export default function ConversationPage() {
 
   const screen = (
     <div
-      ref={screenRef}
       // Entrada: misma animación que el resto de la navegación. Se aplica aquí
       // y no en el layout porque el portal vive fuera de `.mainInner`, que es
       // donde el layout pone este atributo. La regla global
@@ -227,13 +128,22 @@ export default function ConversationPage() {
           ? { animation: `vibraChatExitRight ${NAV_ANIM_MS}ms ease-in both` }
           : null),
         position: "fixed",
-        left: 0,
-        right: 0,
-        top: 0,
-        // `dvh` como base y, si el navegador expone el visual viewport, se
-        // afina desde el efecto: es lo que hace que al cerrarse el teclado la
-        // pantalla vuelva EXACTAMENTE al fondo.
-        height: "100dvh",
+        // Con teclado, el área visible exacta. Sin teclado, `inset: 0` y ni un
+        // número: es la diferencia entre que al cerrarlo vuelva al borde o se
+        // quede una franja negra abajo.
+        ...(keyboardOpen && viewport
+          ? {
+              top: viewport.offsetTop,
+              left: 0,
+              right: 0,
+              height: viewport.height,
+              bottom: "auto" as const,
+            }
+          : { inset: 0 }),
+        // Con el teclado fuera no hay home-indicator que esquivar: el campo se
+        // pega a él en vez de flotar 20px por encima. El compositor ya consume
+        // esta variable.
+        ...(keyboardOpen ? { "--vb-safe-bottom": "0px" } : null),
         // Por encima de MobileBottomNav (9999): la barra inferior taparía justo
         // el campo de escritura.
         zIndex: 10000,

@@ -4,7 +4,12 @@
 // referencia) y se convierte en el momento de mostrar/cobrar en la moneda local.
 
 import { intlLocale } from "@/i18n/locales";
-import { ANCHOR_CURRENCY, FX_CONVERSION_FEE, type DisplayCurrency } from "./catalog";
+import {
+  ANCHOR_CURRENCY,
+  FX_CONVERSION_FEE,
+  fxConversionFeeForCurrency,
+  type DisplayCurrency,
+} from "./catalog";
 
 /**
  * Mapa de tasas: unidades de la moneda por 1 unidad del ancla (USD).
@@ -123,6 +128,12 @@ export const NICE_STEP: Record<DisplayCurrency, number> = {
   RSD: 20, //    1 USD ≈ 101 RSD  → 20 RSD ≈ 0.20 USD.
   ALL: 10, //    1 USD ≈ 83 ALL   → 10 ALL ≈ 0.12 USD. El lek no usa subdivisiones.
   MDL: 5, //     1 USD ≈ 17.5 MDL → 5 MDL  ≈ 0.29 USD.
+  // --- Asia y Golfo (2ª tanda) ---
+  // ⚠️ KRW y VND son monedas SIN decimales para Stripe: el paso debe ser entero.
+  KRW: 500, //   1 USD ≈ 1.390 KRW  → 500 KRW ≈ 0.36 USD. El won no usa subdivisiones.
+  VND: 5000, //  1 USD ≈ 26.000 VND → 5.000 VND ≈ 0.19 USD. Nadie cotiza en dongs sueltos.
+  AED: 1, //     1 USD ≈ 3.67 AED   → 1 AED ≈ 0.27 USD. Anclado al dólar.
+  SAR: 1, //     1 USD ≈ 3.75 SAR   → 1 SAR ≈ 0.27 USD. Anclado al dólar.
 };
 
 /** Redondea a un múltiplo "bonito" según la moneda. */
@@ -146,7 +157,9 @@ export function buyerPrice(
   if (currency === ANCHOR_CURRENCY) return usdAmount;
   const raw = convertFromAnchor(usdAmount, currency, rates);
   if (raw == null) return null;
-  return roundNice(raw * (1 + FX_BUFFER), currency);
+  // El cargo depende de la MONEDA: casi todas llevan el 2% estándar, pero algunas tienen
+  // un ajuste propio (ver FX_CONVERSION_FEE_BY_CURRENCY en catalog.ts).
+  return roundNice(raw * (1 + fxConversionFeeForCurrency(currency)), currency);
 }
 
 // Locale de FORMATEO por idioma: fija el símbolo antes del número y el separador

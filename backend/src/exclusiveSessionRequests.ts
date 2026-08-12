@@ -1362,8 +1362,9 @@ export async function expireExclusiveSessionNoShowsHandler() {
 
 // Día en que se CAPTURA la retención (auth-hold) como respaldo si el creador aún no la
 // cobró agendando la sesión. El hold de tarjeta expira ~7 días en Stripe, así que se
-// captura al 5º día. NO es la ventana de entrega (60 días); es solo el respaldo interno.
-export const HOLD_CAPTURE_DAYS = 5;
+// captura al 6º día (el cron corre cada 6 h → margen). NO es la ventana de entrega (60
+// días); es solo el respaldo interno.
+export const HOLD_CAPTURE_DAYS = 6;
 // (Legacy: algunos módulos aún importan este nombre; queda como alias del respaldo.)
 export const SESSION_RESPONSE_DAYS = HOLD_CAPTURE_DAYS;
 
@@ -1409,4 +1410,47 @@ export async function autoExpirePendingExclusiveSessionRequestsHandler(): Promis
 
   logger.info("exclusive_session_holds_captured", { captured, scanned: snap.size });
   return captured;
+}
+
+// Ventana de ENTREGA (60 días): una sesión YA COBRADA que el creador NUNCA llevó a agendar
+// se marca RECHAZADA en automático (igual que un rechazo manual → el comprador puede pedir
+// devolución → crédito). Las AGENDADAS que no se realizan ya las cubre el no-show; aquí solo
+// caen las que quedaron sin fecha (pendiente de responder / de agendar / de reagenda).
+export const DELIVERY_WINDOW_DAYS = 60;
+const UNSCHEDULED_CAPTURED_STATUSES = [
+  "pending_creator_response",
+  "accepted_pending_schedule",
+  "reschedule_requested",
+];
+
+export async function autoRejectUndeliveredExclusiveSessionRequestsHandler(): Promise<number> {
+  const cutoff = admin.firestore.Timestamp.fromDate(
+    new Date(Date.now() - DELIVERY_WINDOW_DAYS * 24 * 60 * 60 * 1000)
+  );
+  const snap = await db
+    .collection(EXCLUSIVE_SESSION_COLLECTION)
+    .where("paymentStatus", "==", "paid")
+    .where("createdAt", "<=", cutoff)
+    .limit(200)
+    .get();
+  if (snap.empty) return 0;
+
+  const now = admin.firestore.Timestamp.now();
+  const batch = db.batch();
+  let n = 0;
+  snap.docs.forEach((doc) => {
+    const status = String(doc.get("status") ?? "");
+    if (!UNSCHEDULED_CAPTURED_STATUSES.includes(status)) return;
+    batch.update(doc.ref, {
+      status: "rejected" as ExclusiveSessionStatus,
+      rejectionReason: "El creador no realizó la sesión dentro de los 60 días.",
+      autoRejectedNoDeliveryAt: now,
+      rejectedAt: now,
+      updatedAt: now,
+    });
+    n++;
+  });
+  if (n > 0) await batch.commit();
+  logger.info("auto_reject_undelivered_exclusive_sessions", { rejected: n, scanned: snap.size });
+  return n;
 }

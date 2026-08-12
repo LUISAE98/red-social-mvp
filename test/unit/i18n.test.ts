@@ -300,10 +300,10 @@ describe("i18n / detección por país", () => {
     expect(localeFromCountry("MX")).toBe("es");
     expect(localeFromCountry("BR")).toBe("pt-BR");
     expect(localeFromCountry("US")).toBe("en");
-    // Un país sin idioma propio en Vibra sigue cayendo a inglés. Noruega es el
-    // caso de control: tenemos su MONEDA (NOK) pero no su idioma, y son capas
-    // distintas — cobrar en coronas no implica traducir al noruego.
-    expect(localeFromCountry("NO")).toBe("en");
+    // Un país sin idioma propio en Vibra sigue cayendo a inglés. Suiza es el
+    // caso de control: no está en la UE y no tiene entrada propia, así que
+    // recibe inglés aunque hablen alemán, francés e italiano, que sí servimos.
+    expect(localeFromCountry("CH")).toBe("en");
     expect(localeFromCountry(null)).toBeNull();
   });
 

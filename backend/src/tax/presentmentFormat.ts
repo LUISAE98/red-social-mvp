@@ -29,6 +29,8 @@ export const NICE_STEP: Readonly<Record<string, number>> = {
   CAD: 0.5,
   // Europa NO comunitaria (2ª tanda)
   GBP: 0.5, TRY: 5, RSD: 20, ALL: 10, MDL: 5,
+  // Asia y Golfo (2ª tanda)
+  KRW: 500, VND: 5000, AED: 1, SAR: 1,
 };
 
 /**
