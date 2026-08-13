@@ -104,15 +104,6 @@ export default function ConversationPage() {
    * franja negra abajo. Declarándolo, cerrar el teclado BORRA "top"/"height" en
    * vez de recalcularlos: no queda número que pueda envejecer.
    */
-  const viewport = useVisualViewport();
-  const keyboardPx =
-    viewport != null && typeof window !== "undefined"
-      ? Math.max(0, Math.round(window.innerHeight - viewport.height))
-      : 0;
-  // Mismo umbral que el resto del producto: la barra del navegador ya deja
-  // 40-80px de diferencia sin que haya ningún teclado.
-  const keyboardFitsGeometry = keyboardPx > 120;
-
   /**
    * Y ADEMÁS el campo tiene que tener el foco.
    *
@@ -124,7 +115,42 @@ export default function ConversationPage() {
    * geometría rezagada.
    */
   const [composerFocused, setComposerFocused] = useState(false);
+
+  // El foco se le pasa al hook como aviso: es la señal de que la geometría va a
+  // moverse, y con ella el hook vuelve a leerla varias veces mientras el teclado
+  // se va, en vez de esperar un evento que iOS puede no mandar.
+  const viewport = useVisualViewport(composerFocused);
+  const keyboardPx =
+    viewport != null && typeof window !== "undefined"
+      ? Math.max(0, Math.round(window.innerHeight - viewport.height))
+      : 0;
+  // Mismo umbral que el resto del producto: la barra del navegador ya deja
+  // 40-80px de diferencia sin que haya ningún teclado.
+  const keyboardFitsGeometry = keyboardPx > 120;
+
   const keyboardOpen = composerFocused && keyboardFitsGeometry;
+
+  /**
+   * El viewport visual puede quedarse CORRIDO aunque no haya teclado.
+   *
+   * Mientras el chat está abierto el fondo va bloqueado con `overflow: hidden`,
+   * así que iOS no puede desplazar el DOCUMENTO para hacerle sitio al teclado y
+   * desplaza el viewport VISUAL dentro del de layout. Al cerrarse no siempre lo
+   * devuelve a cero.
+   *
+   * Antes, sin teclado se caía a `inset: 0` sin mirar esto, y `inset: 0` ancla al
+   * viewport de LAYOUT: la pantalla quedaba calzada contra un área distinta de la
+   * que se ve, el campo de escritura no volvía abajo y salía la franja. Mientras
+   * siga corrido hay que seguir calzando el área visible, haya teclado o no.
+   */
+  const viewportCorrido = viewport != null && viewport.offsetTop > 0;
+  const calzarAreaVisible = (keyboardOpen || viewportCorrido) && viewport != null;
+
+  /** Lector de geometría en pantalla, solo con `?vv=1`. Ver más abajo. */
+  const depurarViewport =
+    mounted && typeof window !== "undefined"
+      ? new URLSearchParams(window.location.search).has("vv")
+      : false;
 
   /** Dónde estaba el documento al entrar. Es el sitio al que hay que devolverlo. */
   const baseScrollRef = useRef(0);
@@ -148,6 +174,15 @@ export default function ConversationPage() {
    *
    * Se devuelve a la posición que tenía al entrar, NO a cero: así el feed que
    * hay debajo no pierde dónde estaba al salir del chat.
+   *
+   * ⚠️ Ojo con lo que este efecto puede y no puede arreglar. Mientras el chat está
+   * abierto el fondo va bloqueado con `overflow: hidden`, así que el documento NO
+   * se puede desplazar y `window.scrollY` se queda en su valor de entrada pase lo
+   * que pase: aquí dentro esto casi nunca tiene nada que hacer. Lo que iOS mueve
+   * en ese caso es el viewport VISUAL, y eso no se corrige desplazando el
+   * documento sino calzando la pantalla al área visible (`calzarAreaVisible`).
+   * Este efecto cubre el otro escenario, el de que el documento sí se haya
+   * movido, y sobre todo la salida (ver el efecto de desmontaje de abajo).
    */
   useEffect(() => {
     if (!mounted) return;
@@ -172,6 +207,29 @@ export default function ConversationPage() {
       window.removeEventListener("scroll", restore);
     };
   }, [mounted, composerFocused]);
+
+  /**
+   * Al SALIR del chat, devolver el documento a su sitio pase lo que pase.
+   *
+   * El efecto de arriba se sale por el guard de foco, así que si se navega con el
+   * campo todavía enfocado —que es justo lo que pasa al darle a atrás nada más
+   * escribir— nunca llegaba a corregir nada, y el desplazamiento que había puesto
+   * iOS se arrastraba a la lista de chats: el nav aparecía impulsado hacia arriba
+   * como si hubiera un segundo safe-area, y no se enderezaba hasta navegar a otra
+   * sección.
+   *
+   * Va SIN dependencias para que corra solo al desmontar, y DESPUÉS del
+   * `useBodyScrollLock` de arriba: React limpia los efectos en el orden en que se
+   * declararon, así que para cuando esto corre el fondo ya está desbloqueado y el
+   * documento vuelve a poder desplazarse.
+   */
+  useEffect(() => {
+    return () => {
+      if (window.scrollY !== baseScrollRef.current) {
+        window.scrollTo(0, baseScrollRef.current);
+      }
+    };
+  }, []);
 
   /**
    * Salir: la pantalla se va deslizando a la derecha y la página de destino
@@ -208,7 +266,7 @@ export default function ConversationPage() {
         // Con teclado, el área visible exacta. Sin teclado, `inset: 0` y ni un
         // número: es la diferencia entre que al cerrarlo vuelva al borde o se
         // quede una franja negra abajo.
-        ...(keyboardOpen && viewport
+        ...(calzarAreaVisible && viewport
           ? {
               top: viewport.offsetTop,
               insetInlineStart: 0,
@@ -239,6 +297,38 @@ export default function ConversationPage() {
         background: "#000",
       }}
     >
+      {/* Lector de geometría para depurar el teclado en iOS. Solo aparece con
+          `?vv=1` en la URL, porque este fallo únicamente se reproduce en un
+          iPhone de verdad y desde el escritorio no hay forma de mirarlo. Si
+          `corrido` se queda en un número distinto de 0 con el teclado ya cerrado,
+          es que iOS no devolvió el viewport visual a su sitio. */}
+      {depurarViewport ? (
+        <div
+          style={{
+            position: "absolute",
+            top: "calc(env(safe-area-inset-top, 0px) + 4px)",
+            insetInlineEnd: 4,
+            zIndex: 10001,
+            pointerEvents: "none",
+            background: "rgba(0,0,0,0.72)",
+            color: "#0f0",
+            font: "600 10px/1.35 ui-monospace, monospace",
+            padding: "4px 6px",
+            borderRadius: 6,
+            whiteSpace: "pre",
+          }}
+        >
+          {[
+            `corrido ${viewport?.offsetTop ?? "—"}`,
+            `alto vv ${viewport?.height ?? "—"}`,
+            `alto win ${typeof window !== "undefined" ? window.innerHeight : "—"}`,
+            `teclado ${keyboardPx}`,
+            `foco ${composerFocused ? "sí" : "no"}`,
+            `calza ${calzarAreaVisible ? "sí" : "no"}`,
+          ].join("\n")}
+        </div>
+      ) : null}
+
       {/* Global: los keyframes de entrada viven en globals.css, pero el de
           salida solo lo usa esta pantalla. */}
       <style jsx global>{`

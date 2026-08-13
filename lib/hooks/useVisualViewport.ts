@@ -14,7 +14,31 @@ import { useEffect, useState } from "react";
  * Devuelve `null` hasta que hay `visualViewport` (SSR / navegadores sin la API) →
  * el consumidor cae a su layout normal (`inset: 0`).
  */
-export function useVisualViewport(): { height: number; offsetTop: number } | null {
+
+/**
+ * Relecturas tras un cambio de foco, en milisegundos desde el aviso.
+ *
+ * Existen porque iOS a veces NO emite `resize`/`scroll` del viewport visual cuando
+ * el teclado se retira. El navegador sí tiene la geometría buena; los que nos
+ * quedamos con la vieja somos nosotros, porque nadie nos despertó. Y con geometría
+ * vieja la pantalla se sigue calzando contra el área que se veía CON el teclado:
+ * el campo de escritura no vuelve abajo y queda una franja, que es el fallo que
+ * esto viene a cerrar.
+ *
+ * El teclado de iOS tarda unos 250 ms en irse y el reasiento va a trompicones, así
+ * que no vale una sola relectura tardía: se mira varias veces repartidas hasta
+ * pasado el final de la animación.
+ */
+const REASENTADO_MS = [0, 60, 150, 300, 500, 800] as const;
+
+/**
+ * @param avisoDeCambio Valor que el consumidor cambia cuando sabe que la geometría
+ *   va a moverse aunque el navegador no lo anuncie — en la práctica, si el campo
+ *   de escritura tiene el foco. Al cambiar dispara las relecturas de arriba.
+ */
+export function useVisualViewport(
+  avisoDeCambio?: unknown,
+): { height: number; offsetTop: number } | null {
   const [vp, setVp] = useState<{ height: number; offsetTop: number } | null>(
     null,
   );
@@ -26,7 +50,13 @@ export function useVisualViewport(): { height: number; offsetTop: number } | nul
     function update() {
       const v = window.visualViewport;
       if (!v) return;
-      setVp({ height: v.height, offsetTop: v.offsetTop });
+      // Solo se reescribe si de verdad cambió: así un reasiento que no mueve nada
+      // no provoca un render por cada relectura.
+      setVp((antes) =>
+        antes && antes.height === v.height && antes.offsetTop === v.offsetTop
+          ? antes
+          : { height: v.height, offsetTop: v.offsetTop },
+      );
     }
 
     update();
@@ -37,6 +67,26 @@ export function useVisualViewport(): { height: number; offsetTop: number } | nul
       vv.removeEventListener("scroll", update);
     };
   }, []);
+
+  // Relecturas a ciegas tras el aviso, para no depender de un evento que iOS puede
+  // no mandar. Va en su propio efecto para no volver a suscribir los listeners.
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.visualViewport) return;
+
+    const temporizadores = REASENTADO_MS.map((ms) =>
+      setTimeout(() => {
+        const v = window.visualViewport;
+        if (!v) return;
+        setVp((antes) =>
+          antes && antes.height === v.height && antes.offsetTop === v.offsetTop
+            ? antes
+            : { height: v.height, offsetTop: v.offsetTop },
+        );
+      }, ms),
+    );
+
+    return () => temporizadores.forEach(clearTimeout);
+  }, [avisoDeCambio]);
 
   return vp;
 }
