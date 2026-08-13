@@ -265,6 +265,13 @@ export default function ProfileMoreMenu({ viewerUid, profileUid, onBlockSuccess,
                 {tCommon("report")}
               </button>
 
+              {/* La regla `react-hooks/refs` marca esto porque `closeMenu`
+                  consulta un ref y aquí se entrega durante el render. En la
+                  práctica no se lee nada: el ref solo se toca cuando alguien
+                  pulsa. Las alternativas —convertirlo en componente y volver a
+                  montarlo en cada render, o pasar el cierre por contexto— salen
+                  peor que este permiso puntual. */}
+              {/* eslint-disable-next-line react-hooks/refs */}
               {extraItems?.({
                 close: closeMenu,
                 itemStyle: {
