@@ -43,8 +43,11 @@ export default function DesktopRefreshSplash() {
       splash.classList.remove("desktop-refresh-splash-hidden"); // cubrir al instante
       setScreenReady(false);
       setMinimumTimeDone(false);
-      // Safety por si login no avisara: no dejar el splash colgado.
-      window.setTimeout(() => setScreenReady(true), 4000);
+      // Safety por si login no avisara: no dejar el splash colgado. Login se
+      // toma hasta 7 s (espera a que sus primeros videos estén completos, ver
+      // useExperienceVideos), así que este tope va por encima: si cortara
+      // antes, la espera de login no serviría de nada.
+      window.setTimeout(() => setScreenReady(true), 8000);
     }
     window.addEventListener("vibra:auth-splash", onAuthSplash);
     return () => window.removeEventListener("vibra:auth-splash", onAuthSplash);

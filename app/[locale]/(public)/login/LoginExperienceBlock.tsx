@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import ServiceFeaturePreview from "@/components/services/ServiceFeaturePreview";
+import { useMediaQuery } from "@/lib/hooks/useMediaQuery";
 
 /**
  * Un bloque de experiencia del login (debajo del fold).
@@ -36,7 +37,6 @@ export default function LoginExperienceBlock({
   title,
   description,
   videoSrc,
-  poster,
   service,
   accentColor,
   items,
@@ -50,8 +50,6 @@ export default function LoginExperienceBlock({
   description: string;
   /** ⚠️ Hoy son videos de MUESTRA; se cambian por los definitivos más adelante. */
   videoSrc: string;
-  /** Imagen del primer frame: el círculo se ve bien aunque el video tarde o falle. */
-  poster: string;
   /**
    * Servicio(s) de los que se listan los items (reutiliza ServiceFeaturePreview).
    * Con varios, un solo bloque cubre varias experiencias emparentadas y sus
@@ -95,7 +93,11 @@ export default function LoginExperienceBlock({
   // la página, y cinco videos decodificando a la vez saturan al navegador: se
   // entrecortan y termina soltando alguno, que es justo el síntoma de "se traba
   // y de pronto ya no se reproduce".
-  const playing = active && inView;
+  //
+  // Con movimiento reducido se queda quieto en su primer frame en vez de
+  // esconderse: ya no hay foto debajo que pudiera ocupar su lugar.
+  const reduceMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
+  const playing = active && inView && !reduceMotion;
 
   useEffect(() => {
     const v = videoRef.current;
@@ -107,7 +109,17 @@ export default function LoginExperienceBlock({
     // Puede rechazarse (política de reproducción del navegador); el póster
     // queda debajo, así que el círculo nunca se ve vacío.
     const kick = () => void v.play().catch(() => {});
-    kick();
+
+    // NO se arranca en cuanto el bloque aparece, sino cuando hay video
+    // suficiente por delante. Arrancar antes es lo que producía los tirones del
+    // primer card: empezaba a reproducir mientras todavía se estaba
+    // descargando, y encima compitiendo con la carga de la página. Los de más
+    // abajo iban finos porque para entonces el archivo ya estaba en caché.
+    // Mientras tanto se ve la portada, así que la espera no se nota.
+    // 3 = HAVE_FUTURE_DATA.
+    if (v.readyState >= 3) kick();
+    else v.addEventListener("canplay", kick);
+
     // Red de seguridad del bucle: si el navegador deja el video en el último
     // frame en vez de reiniciarlo, se rebobina a mano. El video está grabado
     // para que el primer y el último frame coincidan, así que el corte no se ve.
@@ -115,14 +127,13 @@ export default function LoginExperienceBlock({
       v.currentTime = 0;
       kick();
     };
-    // Y si se detiene por falta de datos o por ahorro de energía, se retoma.
     v.addEventListener("ended", onEnded);
+    // Si se queda sin datos a mitad, se retoma cuando vuelva a haberlos.
     v.addEventListener("stalled", kick);
-    v.addEventListener("suspend", kick);
     return () => {
+      v.removeEventListener("canplay", kick);
       v.removeEventListener("ended", onEnded);
       v.removeEventListener("stalled", kick);
-      v.removeEventListener("suspend", kick);
     };
   }, [playing]);
 
@@ -354,9 +365,6 @@ export default function LoginExperienceBlock({
         }
 
         @media (prefers-reduced-motion: reduce) {
-          .expBlockMedia video {
-            visibility: hidden;
-          }
           /* Quien pidió menos movimiento ve el bloque puesto, sin recorrido. */
           .expBlockMedia,
           .expBlockEyebrow,
@@ -371,24 +379,19 @@ export default function LoginExperienceBlock({
       `}</style>
 
       <div className="expBlockMain">
-        <div
-          className="expBlockMedia"
-          style={{
-            // Sin aro ni resplandor: el disco se recorta limpio contra el negro.
-            // Póster de respaldo: si el video no se ve (movimiento reducido o
-            // error de carga), el círculo sigue teniendo imagen.
-            backgroundImage: `url(${poster})`,
-            backgroundSize: "cover",
-            backgroundPosition: "center",
-          }}
-        >
+        {/* Sin aro, resplandor ni imagen de respaldo: el disco se recorta limpio
+            contra el negro. La foto que había debajo era de otra toma, así que
+            al arrancar el video saltaba de una imagen a otra; ahora el círculo
+            va en negro hasta que hay video, y los primeros ya vienen cargados
+            desde el splash. */}
+        <div className="expBlockMedia">
           <video
             ref={videoRef}
             // El video NO se descarga hasta que el bloque se ve por primera
             // vez. Con cinco cards en la página, cargarlos todos de entrada
-            // satura la red y el que estás mirando se entrecorta.
+            // satura la red y el que estás mirando se entrecorta. (Los que ya
+            // trae precargados el splash llegan aquí como copia en memoria.)
             src={entered ? videoSrc : undefined}
-            poster={poster}
             autoPlay
             muted
             loop

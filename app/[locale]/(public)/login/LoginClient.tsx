@@ -34,11 +34,26 @@ import LoginExperienceRail from "./LoginExperienceRail";
  * todo se atragantaba.
  */
 const VIDEO_MUESTRA = "/videosaludosyconsejos.mp4";
+
+/** Videos de las cinco experiencias, EN ORDEN. Constante estable: la precarga
+ *  la memoriza y un literal por render la haría repetirse sin fin. */
+const VIDEOS_EXPERIENCIAS = [
+  "/videosaludosyconsejos.mp4",
+  VIDEO_MUESTRA,
+  VIDEO_MUESTRA,
+  VIDEO_MUESTRA,
+  VIDEO_MUESTRA,
+] as const;
+
+/** Cuántos se descargan enteros ANTES de abrir la página. El resto empieza en
+ *  cuanto la página ya se ve. */
+const VIDEOS_BLOQUEANTES = 3;
 import LegalLinksFooter from "@/components/legal/LegalLinksFooter";
 import RegisterPanel from "@/app/[locale]/(public)/register/RegisterPanel";
 import CompleteProfilePanel from "@/app/[locale]/(public)/complete-profile/CompleteProfilePanel";
 import { useProfileOnboarding } from "@/app/[locale]/(public)/complete-profile/useProfileOnboarding";
 import { useScreenReady } from "@/lib/useScreenReady";
+import { useExperienceVideos } from "./useExperienceVideos";
 import CurrencySwitcher from "@/app/components/CurrencySwitcher";
 import LanguageSwitcher from "@/app/components/LanguageSwitcher";
 
@@ -108,8 +123,15 @@ const [resetLoading, setResetLoading] = useState(false);
 const { startAuthTransition } = useAuth();
 // Lógica del panel "completar perfil" (4º panel); activa cuando hay googleUser.
 const onboarding = useProfileOnboarding(googleUser);
+// Precarga de los videos de las experiencias. El splash NO se quita hasta que
+// la página terminó de cargar y los primeros videos están completos, para que
+// nadie llegue a ellos mientras se descargan (que es cuando se entrecortan).
+const { listo: experienciasListas, fuente: fuenteVideo } = useExperienceVideos(
+  VIDEOS_EXPERIENCIAS,
+  VIDEOS_BLOQUEANTES,
+);
 // Avisa al splash de arranque que la pantalla de login ya está pintada.
-useScreenReady();
+useScreenReady(experienciasListas);
 
 // Transición al entrar a login desde una acción de invitado (comprar, iniciar
 // sesión, etc.): en LAPTOP se re-muestra el splash de marca; en CELULAR la página
@@ -1024,10 +1046,7 @@ marginBottom: 6,
           eyebrow="Experiencias personales"
           title="Cuando es para ti, se siente distinto"
           description="Un saludo para hacer inolvidable un momento. Un consejo para dar el siguiente paso. Pídelo a quien admiras o grábalo para alguien que eligió escucharte."
-          videoSrc="/videosaludosyconsejos.mp4"
-          // La portada es el PRIMER FRAME del propio video (19 KB), no una foto
-          // aparte: así el círculo no cambia de imagen al arrancar el video.
-          poster="/videosaludosyconsejos-portada.webp"
+          videoSrc={fuenteVideo(VIDEOS_EXPERIENCIAS[0])}
           service="saludo"
           accentColor="#a855f7"
           // Los textos por servicio hablan solo del saludo; esta card cubre
@@ -1052,8 +1071,7 @@ marginBottom: 6,
           eyebrow="Encuentros exclusivos"
           title="Cuando el tiempo es para ustedes, todo cambia"
           description="Una conversación, una guía o una experiencia compartida en tiempo real. Reserva un momento con quien admiras o abre un espacio para quienes quieren conectar contigo."
-          videoSrc={VIDEO_MUESTRA}
-          poster="/encuentroenvivo.webp"
+          videoSrc={fuenteVideo(VIDEOS_EXPERIENCIAS[1])}
           service="meetGreet"
           accentColor="#ec4899"
           // Lista propia: la del servicio hablaba solo del meet & greet y este
@@ -1087,8 +1105,7 @@ marginBottom: 6,
           eyebrow="Apoyo directo"
           title="Cuando valoras lo que alguien crea, puedes hacerlo sentir"
           description="Apoya desde su perfil o dentro de su comunidad y forma parte de lo que está construyendo. Comparte tu reconocimiento o recibe el impulso de quienes creen en ti."
-          videoSrc={VIDEO_MUESTRA}
-          poster="/donacion-perfil.webp"
+          videoSrc={fuenteVideo(VIDEOS_EXPERIENCIAS[2])}
           service="profileDonation"
           accentColor="#38bdf8"
           // Escritos aquí porque los del servicio hablan solo del perfil y en
@@ -1115,8 +1132,7 @@ marginBottom: 6,
           eyebrow="Streaming"
           title="Hay experiencias que merecen vivirse más cerca"
           description="Accede a transmisiones especiales, haz que tu mensaje destaque y disfruta contenido premium cuando tú quieras. En vivo o después, crea experiencias que tu comunidad estará dispuesta a elegir."
-          videoSrc={VIDEO_MUESTRA}
-          poster="/desbloquearvod.webp"
+          videoSrc={fuenteVideo(VIDEOS_EXPERIENCIAS[3])}
           service="liveAccess"
           // El mismo rojo del directo (aro, badge LIVE, panel del creador), no
           // uno nuevo: el color ya significa "en vivo" en el resto de la app.
@@ -1151,8 +1167,7 @@ marginBottom: 6,
           eyebrow="Contenido exclusivo"
           title="Lo mejor se comparte con quienes deciden estar más cerca"
           description="Suscríbete para descubrir una parte diferente de quien sigues o accede solo a las publicaciones que elijas. Comparte algo más con tu comunidad y convierte cada publicación en una experiencia especial."
-          videoSrc={VIDEO_MUESTRA}
-          poster="/suscripciones.webp"
+          videoSrc={fuenteVideo(VIDEOS_EXPERIENCIAS[4])}
           service="subscription"
           accentColor="#3b82f6"
           items={[
