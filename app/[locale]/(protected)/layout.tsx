@@ -249,6 +249,25 @@ const contentAreaClassName = isEmbed
           --wallet-rail-width: 280px;
           --main-max-width: 860px;
           --shell-column-gap: 24px;
+          /* Hueco que .contentAreaWithWallet reserva a un lado para el rail de la
+             wallet. Va en una VARIABLE y no en la propia regla a propósito.
+
+             El motivo: una propiedad lógica con valor asimétrico no sobrevive a la
+             compilación. Lightning CSS no puede dejar padding-inline-end tal cual
+             para navegadores viejos, así que la parte en dos reglas dirigidas por
+             :lang() —una para LTR y otra para RTL— y ese :not(:is(:lang(…)))
+             SUMA especificidad. La regla pasa de (0,2,0) a (0,3,0) sola.
+
+             Cuando el valor es simétrico (0 a los dos lados) no hace falta saber la
+             dirección, así que lo colapsa a físicas y se queda en (0,2,0). Es decir:
+             la anulación de celular perdía contra la regla de escritorio y el móvil
+             seguía reservando ~292px para un rail que ahí ni se pinta. Con variable
+             no hay pulso de especificidad: es el MISMO selector redefiniendo su
+             propio valor por breakpoint. */
+          --wallet-rail-pad: calc(
+            var(--wallet-rail-width) + var(--shell-column-gap) + var(--shell-gutter)
+          );
+          --shell-pad-inline: var(--shell-gutter);
           /* Ancho natural del conjunto (sidebar + gap + main + gap + wallet + gutters).
              Por encima de esto el shell deja de estirarse y se CENTRA, para que en
              monitores grandes las 3 columnas no se dispersen. */
@@ -680,8 +699,11 @@ const contentAreaClassName = isEmbed
   margin-inline-start: auto;
   margin-inline-end: auto;
   flex: 1;
-  padding-inline-start: var(--shell-gutter);
-  padding-inline-end: var(--shell-gutter);
+  /* Por variable, no por valor: ver --wallet-rail-pad arriba. Aunque aquí los dos
+     lados valgan lo mismo, el compilador no puede demostrarlo (son var() sin
+     resolver), así que parte la regla igual y le sube la especificidad. */
+  padding-inline-start: var(--shell-pad-inline);
+  padding-inline-end: var(--shell-pad-inline);
   padding-top: 0;
   padding-bottom: calc(24px + var(--vb-safe-bottom, 0px));
   box-sizing: border-box;
@@ -690,13 +712,13 @@ const contentAreaClassName = isEmbed
 
 .contentAreaWithWallet {
   grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
-  padding-inline-end: calc(var(--wallet-rail-width) + var(--shell-column-gap) + var(--shell-gutter));
+  padding-inline-end: var(--wallet-rail-pad);
 }
 
 .contentAreaEmbed {
   grid-template-columns: minmax(0, 1fr);
-  padding-inline-start: 0;
-  padding-inline-end: 0;
+  --shell-pad-inline: 0px;
+  --wallet-rail-pad: 0px;
 }
 
 .sidebarCol {
@@ -778,6 +800,10 @@ const contentAreaClassName = isEmbed
 
 .layout {
   background: #000000;
+  /* En celular el rail de la wallet no se pinta (.walletCol va a display:none),
+     así que no hay hueco que reservarle; y el contenido va a sangre. */
+  --wallet-rail-pad: 0px;
+  --shell-pad-inline: 0px;
 }
 
 .safeAreaHeaderBackdrop {
@@ -859,8 +885,10 @@ const contentAreaClassName = isEmbed
             grid-template-columns: 1fr;
             width: 100%;
             gap: 0;
-            padding-inline-start: 0;
-            padding-inline-end: 0;
+            /* El padding lateral ya lo pone a 0 --shell-pad-inline / --wallet-rail-pad
+               unas líneas más arriba. Anularlo aquí no servía: escrito como propiedad
+               lógica simétrica el compilador lo colapsa a físicas y se queda con menos
+               especificidad que la regla de escritorio, que sí se parte por :lang(). */
             padding-top: 10px;
             padding-bottom: calc(16px + var(--vb-safe-bottom, 0px));
           }

@@ -204,10 +204,20 @@ export default function CreatorExperiencesSection({
           .exp-description { display: none; }
           .exp-chevron { display: none; }
           /* En celular las cards llegan de lado a lado (full-bleed): anulan el
-             padding lateral de la página. El header de la sección queda inset. */
+             padding lateral de la página. El header de la sección queda inset.
+
+             Se anula el padding EXACTO (12px, el que ponen los dos contenedores
+             que montan esta sección en celular: .profile-content y
+             .group-content), no 50vw. Con scrollbar-gutter stable en el html
+             —lo pone globals.css— el viewport de maquetación es más estrecho que
+             100vw, así que calc(50% - 50vw) se pasa de largo por cada lado; y
+             como .mainCol lleva overflow-x: clip, lo que se sale se recorta y las
+             cards salían con el texto cortado. Los hermanos de esta misma sección
+             (ProfileServicesTab, OwnerAdminServices) ya habían abandonado 50vw
+             por lo mismo. */
           .exp-cards {
-            margin-inline-start: calc(50% - 50vw);
-            margin-inline-end: calc(50% - 50vw);
+            margin-inline-start: -12px;
+            margin-inline-end: -12px;
           }
         }
         @media (min-width: 560px) {

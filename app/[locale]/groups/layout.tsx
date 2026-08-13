@@ -210,6 +210,17 @@ const contentAreaClassName = isEmbed
           --wallet-rail-width: 280px;
           --main-max-width: 860px;
           --shell-column-gap: 24px;
+          /* Los paddings laterales del shell van por VARIABLE, no por valor en la
+             regla. Una propiedad lógica asimétrica no sobrevive a la compilación:
+             Lightning CSS la parte en dos reglas dirigidas por :lang() y ese
+             :not(:is(:lang(…))) le SUMA especificidad, con lo que la anulación de
+             celular —simétrica, que sí colapsa a físicas— perdía y el móvil seguía
+             reservando el hueco del rail de wallet. Mismo arreglo que en el layout
+             protegido; si se toca uno, tocar el otro. */
+          --wallet-rail-pad: calc(
+            var(--wallet-rail-width) + var(--shell-column-gap) + var(--shell-gutter)
+          );
+          --shell-pad-inline: var(--shell-gutter);
           --desktop-search-width: 920px;
           --desktop-search-gap: 8px;
           --desktop-create-size: 35px;
@@ -617,8 +628,8 @@ const contentAreaClassName = isEmbed
   gap: var(--shell-column-gap);
   width: 100%;
   flex: 1;
-  padding-inline-start: var(--shell-gutter);
-  padding-inline-end: var(--shell-gutter);
+  padding-inline-start: var(--shell-pad-inline);
+  padding-inline-end: var(--shell-pad-inline);
   padding-top: 0;
   padding-bottom: calc(24px + var(--vb-safe-bottom, 0px));
   box-sizing: border-box;
@@ -627,13 +638,13 @@ const contentAreaClassName = isEmbed
 
 .contentAreaWithWallet {
   grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
-  padding-inline-end: calc(var(--wallet-rail-width) + var(--shell-column-gap) + var(--shell-gutter));
+  padding-inline-end: var(--wallet-rail-pad);
 }
 
 .contentAreaEmbed {
   grid-template-columns: minmax(0, 1fr);
-  padding-inline-start: 0;
-  padding-inline-end: 0;
+  --shell-pad-inline: 0px;
+  --wallet-rail-pad: 0px;
 }
 
 .sidebarCol {
@@ -708,6 +719,9 @@ const contentAreaClassName = isEmbed
 
 .layout {
   background: #000000;
+  /* En celular no se pinta el rail de la wallet y el contenido va a sangre. */
+  --wallet-rail-pad: 0px;
+  --shell-pad-inline: 0px;
 }
 
 .safeAreaHeaderBackdrop {
@@ -785,8 +799,8 @@ const contentAreaClassName = isEmbed
             grid-template-columns: 1fr;
             width: 100%;
             gap: 0;
-            padding-inline-start: 0;
-            padding-inline-end: 0;
+            /* El padding lateral lo pone a 0 --shell-pad-inline / --wallet-rail-pad
+               más arriba; anularlo aquí no ganaba la especificidad. */
             padding-top: 10px;
             padding-bottom: calc(16px + var(--vb-safe-bottom, 0px));
           }
