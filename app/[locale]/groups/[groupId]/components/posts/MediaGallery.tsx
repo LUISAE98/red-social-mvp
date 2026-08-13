@@ -20,6 +20,7 @@ import {
   type MediaGalleryKind,
 } from "@/lib/posts/post-service";
 import { VibraNavigationIcon } from "@/app/components/VibraServiceIcons/VibraNavigationIcons";
+import { useLiveTicketPostIds } from "@/lib/liveAccess/useLiveTicketPostIds";
 
 /** ¿El post es contenido de pago (premium o ticket), independiente del viewer? */
 function isPaidContentPost(post: Post): boolean {
@@ -495,9 +496,22 @@ export default function MediaGallery({
     return () => observer.disconnect();
   }, [loadMore]);
 
+  // Transmisiones de pago en pantalla: para ellas el ticket del live también
+  // desbloquea la grabación (es el mismo post), así que hay que consultarlo.
+  const paidLivePostIds = useMemo(
+    () => posts.filter((p) => p.liveData != null && isPaidContentPost(p)).map((p) => p.id),
+    [posts]
+  );
+  const liveTicketPostIds = useLiveTicketPostIds(paidLivePostIds, viewerUid);
+
+  const unlockedWithTickets = useMemo(() => {
+    if (liveTicketPostIds.size === 0) return unlockedPostIds;
+    return new Set([...unlockedPostIds, ...liveTicketPostIds]);
+  }, [unlockedPostIds, liveTicketPostIds]);
+
   const tiles = useMemo(
-    () => tilesFromPosts(posts, kind, viewerUid, viewerHasMembership, unlockedPostIds),
-    [posts, kind, viewerUid, viewerHasMembership, unlockedPostIds]
+    () => tilesFromPosts(posts, kind, viewerUid, viewerHasMembership, unlockedWithTickets),
+    [posts, kind, viewerUid, viewerHasMembership, unlockedWithTickets]
   );
 
   // Con filtrado en cliente una página puede traer 0 tiles; auto-rellena hasta un

@@ -2595,6 +2595,7 @@
     "editingMessage": "جارٍ تعديل الرسالة",
     "messageActionError": "تعذّر إتمام الإجراء.",
     "reply": "رد",
+    "like": "إعجاب",
     "replyingTo": "جارٍ الرد على {name}",
     "replyToSelf": "أنت",
     "cancelReply": "إلغاء الرد"

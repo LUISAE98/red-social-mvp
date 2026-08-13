@@ -207,6 +207,7 @@ export default function ServiceFeaturePreview({
   cells: cellsOverride,
   columns = 2,
   descColor,
+  omitIcons,
 }: {
   service: ServiceKey;
   accentColor: string;
@@ -251,6 +252,14 @@ export default function ServiceFeaturePreview({
    * se le ve.
    */
   descColor?: string;
+  /**
+   * Quita items del servicio por su icono (`clock`, `camera`, `calendar`…).
+   * Existe para poder mostrar la lista del servicio MENOS alguno sin tener que
+   * reescribirla entera con `cells`, que perdería las traducciones de los que
+   * sí se quedan. El login la usa para esconder la duración de los encuentros,
+   * que ahí no dice nada porque cada creador fija la suya.
+   */
+  omitIcons?: readonly string[];
 }) {
   const rawT = useTranslations("services");
   // Intercambia por la variante de usuario ("<clave>User") cuando aplica.
@@ -426,6 +435,23 @@ export default function ServiceFeaturePreview({
     );
   }
 
+  // Se filtra sobre los elementos ya construidos, leyendo su prop `icon`. Así
+  // `omitIcons` no obliga a tocar las ~38 celdas de este archivo, y los items
+  // sin icono propio (el de "Incluye", que arma su fila aparte) nunca se caen.
+  const visibleCells =
+    omitIcons && omitIcons.length > 0
+      ? React.Children.toArray(
+          (cells as React.ReactElement<{ children?: React.ReactNode }>).props.children,
+        ).filter(
+          (child) =>
+            !(
+              React.isValidElement<{ icon?: string }>(child) &&
+              child.props.icon !== undefined &&
+              omitIcons.includes(child.props.icon)
+            ),
+        )
+      : cells;
+
   return (
     <div
       style={{
@@ -435,7 +461,7 @@ export default function ServiceFeaturePreview({
         marginTop: 10,
       }}
     >
-      {cells}
+      {visibleCells}
     </div>
   );
 }

@@ -5,7 +5,7 @@
 import Image from "next/image";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
-import { intlLocale } from "@/i18n/locales";
+import { formatDateLong, formatWeekdayTime } from "@/lib/i18n/dateTime";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import {
   acceptMeetGreetRequest,
@@ -233,14 +233,9 @@ export function fmtScheduledSplit(
 ): { dayTime: string; dateStr: string } | null {
   const d = toDateSafe(ts);
   if (!d) return null;
-  const bcp = intlLocale(locale);
-  const weekday = new Intl.DateTimeFormat(bcp, { weekday: "long" }).format(d);
-  const time = new Intl.DateTimeFormat(bcp, { hour: "2-digit", minute: "2-digit" }).format(d);
-  const dateStr = new Intl.DateTimeFormat(bcp, { day: "numeric", month: "long", year: "numeric" }).format(d);
-  // Muchos idiomas escriben el día de la semana en minúscula; el diseño lo quiere
-  // capitalizado. `toLocaleUpperCase` respeta la i sin punto del turco.
-  const dayCap = weekday.charAt(0).toLocaleUpperCase(bcp) + weekday.slice(1);
-  return { dayTime: `${dayCap} ${time}`, dateStr };
+  const dayTime = formatWeekdayTime(d, locale);
+  const dateStr = formatDateLong(d, locale);
+  return dayTime && dateStr ? { dayTime, dateStr } : null;
 }
 
 // Días que tiene el creador para ENTREGAR (grabar el saludo / agendar la sesión) antes de

@@ -2595,6 +2595,7 @@
     "editingMessage": "Rediģē ziņu",
     "messageActionError": "Darbību neizdevās pabeigt.",
     "reply": "Atbildēt",
+    "like": "Patīk",
     "replyingTo": "Atbilde lietotājam {name}",
     "replyToSelf": "Tu",
     "cancelReply": "Atcelt atbildi"

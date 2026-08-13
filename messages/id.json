@@ -2595,6 +2595,7 @@
     "editingMessage": "Mengedit pesan",
     "messageActionError": "Tindakan tidak bisa diselesaikan.",
     "reply": "Balas",
+    "like": "Suka",
     "replyingTo": "Membalas {name}",
     "replyToSelf": "Kamu",
     "cancelReply": "Batalkan balasan"

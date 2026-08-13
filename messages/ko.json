@@ -2595,6 +2595,7 @@
     "editingMessage": "메시지 수정 중",
     "messageActionError": "작업을 완료하지 못했습니다.",
     "reply": "답장",
+    "like": "좋아요",
     "replyingTo": "{name} 님에게 답장",
     "replyToSelf": "나",
     "cancelReply": "답장 취소"

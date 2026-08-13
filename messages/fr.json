@@ -2595,6 +2595,7 @@
     "editingMessage": "Modification du message",
     "messageActionError": "Impossible de terminer l’action.",
     "reply": "Répondre",
+    "like": "J’aime",
     "replyingTo": "Réponse à {name}",
     "replyToSelf": "Vous",
     "cancelReply": "Annuler la réponse"

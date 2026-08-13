@@ -2595,6 +2595,7 @@
     "editingMessage": "Se editează mesajul",
     "messageActionError": "Acțiunea nu a putut fi finalizată.",
     "reply": "Răspunde",
+    "like": "Îmi place",
     "replyingTo": "Răspuns către {name}",
     "replyToSelf": "Tu",
     "cancelReply": "Anulează răspunsul"

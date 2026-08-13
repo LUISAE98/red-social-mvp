@@ -3,6 +3,8 @@
 // ownerWallet.ts, que re-exporta este módulo (barrel). Extraído para <1000 líneas.
 
 import { orderBy, type FirestoreError } from "firebase/firestore";
+import { formatCurrency } from "@/lib/currency/format";
+import { formatDateTime, formatTime } from "@/lib/i18n/dateTime";
 import {
   collection,
   doc,
@@ -266,18 +268,8 @@ export type WalletScheduleConflictResult = {
   message: string | null;
 };
 
-export function formatWalletTimeOnly(value: Date): string {
-  try {
-    return new Intl.DateTimeFormat("es-MX", {
-      hour: "2-digit",
-      minute: "2-digit",
-    }).format(value);
-  } catch {
-    return value.toLocaleTimeString("es-MX", {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  }
+export function formatWalletTimeOnly(value: Date, locale: string): string {
+  return formatTime(value, locale) ?? "--:--";
 }
 
 export function getWalletScheduleEndAt(
@@ -289,7 +281,7 @@ export function getWalletScheduleEndAt(
   return new Date(scheduledAt.getTime() + durationMinutes * 60 * 1000);
 }
 
-export function getWalletScheduleConflictResult(
+export function getWalletScheduleConflictResult(locale,  locale: string,
   target: {
     id?: string;
     source?: WalletServiceItem["source"];
@@ -359,16 +351,16 @@ export function getWalletScheduleConflictResult(
         ? "transmisión en vivo"
         : "Tiempo contigo";
 
-  const startLabel = formatWalletTimeOnly(conflictItem.scheduledAt);
-  const endLabel = conflictEndAt ? formatWalletTimeOnly(conflictEndAt) : null;
+  const startLabel = formatWalletTimeOnly(conflictItem.scheduledAt, locale);
+  const endLabel = conflictEndAt ? formatWalletTimeOnly(conflictEndAt, locale) : null;
 
   const targetEndAt = getWalletScheduleEndAt(
   target.scheduledAt,
   targetDuration
 );
 
-  const targetStartLabel = formatWalletTimeOnly(target.scheduledAt);
-  const targetEndLabel = targetEndAt ? formatWalletTimeOnly(targetEndAt) : null;
+  const targetStartLabel = formatWalletTimeOnly(target.scheduledAt, locale);
+  const targetEndLabel = targetEndAt ? formatWalletTimeOnly(targetEndAt, locale) : null;
 
 return {
   hasConflict: true,
@@ -389,7 +381,7 @@ export function hasWalletScheduleConflict(
   },
   existingRows: WalletServiceItem[]
 ): boolean {
-  return getWalletScheduleConflictResult(target, existingRows).hasConflict;
+  return getWalletScheduleConflictResult(locale, target, existingRows).hasConflict;
 }
 
 export function getGreetingTypeLabel(type: GreetingType): string {
@@ -797,34 +789,19 @@ export function normalizeLiveRow(id: string, data: LivePostRowData): WalletServi
   };
 }
 
-export function formatWalletDateTime(value: Date | null): string {
-  if (!value) return "Sin fecha";
-
-  try {
-    return new Intl.DateTimeFormat("es-MX", {
-      dateStyle: "medium",
-      timeStyle: "short",
-    }).format(value);
-  } catch {
-    return value.toLocaleString("es-MX");
-  }
+export function formatWalletDateTime(value: Date | null, locale: string): string {
+  // ⚠️ El "—" sustituye al literal "Sin fecha", que salía en español en cualquier idioma.
+  // Si se quiere una frase, tiene que venir de messages/ y entrarle ya traducida.
+  return formatDateTime(value, locale, { dateStyle: "medium", timeStyle: "short" }) ?? "—";
 }
 
-export function formatWalletMoney(value: number | null): string {
-  if (value == null) return "Sin precio";
-
-  try {
-    return new Intl.NumberFormat("es-MX", {
-      style: "currency",
-      currency: "MXN",
-      maximumFractionDigits: 2,
-    }).format(value);
-  } catch {
-    return `MXN ${value}`;
-  }
+export function formatWalletMoney(value: number | null, locale: string): string {
+  // ⚠️ Igual que arriba: "Sin precio" era un literal en español.
+  if (value == null) return "—";
+  return formatCurrency(value, "MXN", locale, { code: true });
 }
 
-export function getWalletServiceRowMeta(row: WalletServiceItem): string {
+export function getWalletServiceRowMeta(row: WalletServiceItem, locale: string): string {
   if (
     (row.source === "meet_greet" || row.source === "exclusive_session") &&
     row.status === "accepted_pending_schedule"
@@ -832,9 +809,9 @@ export function getWalletServiceRowMeta(row: WalletServiceItem): string {
     return "Pendiente de asignar fecha";
   }
 
-  if (row.scheduledAt) return formatWalletDateTime(row.scheduledAt);
-  if (row.updatedAt) return formatWalletDateTime(row.updatedAt);
-  if (row.createdAt) return formatWalletDateTime(row.createdAt);
+  if (row.scheduledAt) return formatWalletDateTime(row.scheduledAt, locale);
+  if (row.updatedAt) return formatWalletDateTime(row.updatedAt, locale);
+  if (row.createdAt) return formatWalletDateTime(row.createdAt, locale);
 
   return "Sin fecha";
 }

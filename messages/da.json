@@ -2595,6 +2595,7 @@
     "editingMessage": "Redigerer beskeden",
     "messageActionError": "Handlingen kunne ikke gennemføres.",
     "reply": "Svar",
+    "like": "Synes godt om",
     "replyingTo": "Svarer {name}",
     "replyToSelf": "Dig",
     "cancelReply": "Annullér svar"

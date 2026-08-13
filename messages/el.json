@@ -2595,6 +2595,7 @@
     "editingMessage": "Επεξεργασία μηνύματος",
     "messageActionError": "Δεν ήταν δυνατή η ολοκλήρωση της ενέργειας.",
     "reply": "Απάντηση",
+    "like": "Μου αρέσει",
     "replyingTo": "Απάντηση σε {name}",
     "replyToSelf": "Εσύ",
     "cancelReply": "Ακύρωση απάντησης"

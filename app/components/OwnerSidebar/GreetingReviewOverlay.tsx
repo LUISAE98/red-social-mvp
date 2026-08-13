@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { formatDateTimeLong } from "@/lib/i18n/dateTime";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
@@ -76,15 +77,8 @@ type Props = {
   readOnly?: boolean;
 };
 
-function formatDateDisplay(date: Date): string {
-  try {
-    return new Intl.DateTimeFormat("es-MX", {
-      day: "numeric", month: "long", year: "numeric",
-      hour: "2-digit", minute: "2-digit",
-    }).format(date);
-  } catch {
-    return date.toLocaleString("es-MX");
-  }
+function formatDateDisplay(date: Date, locale: string): string {
+  return formatDateTimeLong(date, locale) ?? "";
 }
 
 export default function GreetingReviewOverlay({
@@ -1307,13 +1301,13 @@ export default function GreetingReviewOverlay({
       {viewMode && req.createdAt && (
         <div style={{ display: "grid", gap: 2 }}>
           <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 12 }}>{tServices("requestedOn")}</span>
-          <span style={{ color: "#fff", fontWeight: 600, fontSize: 13 }}>{formatDateDisplay(req.createdAt.toDate())}</span>
+          <span style={{ color: "#fff", fontWeight: 600, fontSize: 13 }}>{formatDateDisplay(req.createdAt.toDate(), locale)}</span>
         </div>
       )}
       {viewMode && req.deliveredAt && (
         <div style={{ display: "grid", gap: 2 }}>
           <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 12 }}>{tServices("sentOn")}</span>
-          <span style={{ color: "#fff", fontWeight: 600, fontSize: 13 }}>{formatDateDisplay(req.deliveredAt.toDate())}</span>
+          <span style={{ color: "#fff", fontWeight: 600, fontSize: 13 }}>{formatDateDisplay(req.deliveredAt.toDate(), locale)}</span>
         </div>
       )}
     </>

@@ -2595,6 +2595,7 @@
     "editingMessage": "Editing message",
     "messageActionError": "Could not complete the action.",
     "reply": "Reply",
+    "like": "Like",
     "replyingTo": "Replying to {name}",
     "replyToSelf": "You",
     "cancelReply": "Cancel reply"

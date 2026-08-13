@@ -1,9 +1,10 @@
 "use client";
 
 import Image from "next/image";
+import { formatDateTimeLong } from "@/lib/i18n/dateTime";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { createPortal } from "react-dom";
 import type { GreetingRequestDoc } from "./OwnerSidebar";
 import { playEdgeTTS } from "@/lib/tts/edge-tts-client";
@@ -30,14 +31,8 @@ function applyPanelOffset(raw: number): number {
   return raw * 0.2;
 }
 
-function formatDate(ts: { toDate: () => Date } | undefined): string {
-  if (!ts) return "";
-  try {
-    return new Intl.DateTimeFormat("es-MX", {
-      day: "numeric", month: "long", year: "numeric",
-      hour: "2-digit", minute: "2-digit",
-    }).format(ts.toDate());
-  } catch { return ts.toDate().toLocaleString("es-MX"); }
+function formatDate(ts: { toDate: () => Date } | undefined, locale: string): string {
+  return formatDateTimeLong(ts, locale) ?? "";
 }
 
 function getRelativeTime(ts: { toDate: () => Date } | null | undefined, tCommon: (key: string, params?: Record<string, number>) => string): string {
@@ -98,6 +93,7 @@ export default function BuyerGreetingRequestOverlay({ item, sourceName, sourceAv
   const tCommon = useTranslations("common");
   const tServices = useTranslations("services");
   const tWallet = useTranslations("wallet");
+  const locale = useLocale();
   const { format: formatMoney } = usePriceFormat();
   const [mounted, setMounted] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
@@ -323,14 +319,14 @@ export default function BuyerGreetingRequestOverlay({ item, sourceName, sourceAv
       {createdAt ? (
         <div style={{ display: "grid", gap: 2 }}>
           <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 12 }}>{tServices("requestedOn")}</span>
-          <span style={{ color: "#fff", fontWeight: 600, fontSize: 13 }}>{formatDate(createdAt)}</span>
+          <span style={{ color: "#fff", fontWeight: 600, fontSize: 13 }}>{formatDate(createdAt, locale)}</span>
         </div>
       ) : null}
 
       {(req.status === "rejected" || req.status === "refund_requested" || req.status === "refund_review") && req.updatedAt ? (
         <div style={{ display: "grid", gap: 2 }}>
           <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 12 }}>{tServices("rejectedOn")}</span>
-          <span style={{ color: "#fff", fontWeight: 600, fontSize: 13 }}>{formatDate(req.updatedAt as { toDate: () => Date })}</span>
+          <span style={{ color: "#fff", fontWeight: 600, fontSize: 13 }}>{formatDate(req.updatedAt as { toDate: () => Date }, locale)}</span>
         </div>
       ) : null}
     </div>

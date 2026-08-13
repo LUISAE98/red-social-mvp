@@ -2595,6 +2595,7 @@
     "editingMessage": "Editant el missatge",
     "messageActionError": "No s'ha pogut completar l'acció.",
     "reply": "Respon",
+    "like": "M’agrada",
     "replyingTo": "Responent a {name}",
     "replyToSelf": "Tu",
     "cancelReply": "Cancel·la la resposta"

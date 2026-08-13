@@ -910,6 +910,64 @@ describe("DM — mensajes", () => {
     );
   });
 
+  // ── Corazón (doble toque / botón) ─────────────────────────────────────────
+
+  it("🟢 poner y quitar MI corazón, en cualquier momento y en el mensaje del otro", async () => {
+    await seedAll([...base(), ...messageAt(60, BOB)]);
+    const ref = doc(as(ALICE), `conversations/${CONV}/messages/m1`);
+    // Sin ventana de tiempo: el mensaje es de hace una hora y aun así se puede.
+    await assertSucceeds(updateDoc(ref, { likedBy: [ALICE] }));
+    await assertSucceeds(updateDoc(ref, { likedBy: [] }));
+  });
+
+  it("🟢 mi corazón convive con el del otro sin pisarlo", async () => {
+    await seedAll([
+      ...base(),
+      [`conversations/${CONV}/messages/m1`, { senderId: BOB, text: "hola", isDeleted: false, createdAt: Timestamp.now(), likedBy: [BOB] }],
+    ]);
+    await assertSucceeds(
+      updateDoc(doc(as(ALICE), `conversations/${CONV}/messages/m1`), {
+        likedBy: [BOB, ALICE],
+      })
+    );
+  });
+
+  // Lo que de verdad hay que cerrar: que nadie borre el corazón ajeno ni
+  // fabrique uno a nombre de otro.
+  it("🔴 no puedo quitar el corazón del OTRO", async () => {
+    await seedAll([
+      ...base(),
+      [`conversations/${CONV}/messages/m1`, { senderId: BOB, text: "hola", isDeleted: false, createdAt: Timestamp.now(), likedBy: [BOB] }],
+    ]);
+    await assertFails(
+      updateDoc(doc(as(ALICE), `conversations/${CONV}/messages/m1`), { likedBy: [] })
+    );
+  });
+
+  it("🔴 no puedo poner un corazón a nombre del OTRO", async () => {
+    await seedAll([...base(), ...messageAt(1)]);
+    await assertFails(
+      updateDoc(doc(as(ALICE), `conversations/${CONV}/messages/m1`), { likedBy: [BOB] })
+    );
+  });
+
+  it("🔴 un tercero no puede reaccionar", async () => {
+    await seedAll([...base(), ...messageAt(1)]);
+    await assertFails(
+      updateDoc(doc(as(CAROL), `conversations/${CONV}/messages/m1`), { likedBy: [CAROL] })
+    );
+  });
+
+  it("🔴 el corazón no puede colar otros cambios de paso", async () => {
+    await seedAll([...base(), ...messageAt(1)]);
+    await assertFails(
+      updateDoc(doc(as(ALICE), `conversations/${CONV}/messages/m1`), {
+        likedBy: [ALICE],
+        text: "texto cambiado sin marcar edición",
+      })
+    );
+  });
+
   it("🔴 no puedo editar el mensaje del OTRO", async () => {
     await seedAll([...base(), ...messageAt(2, ALICE)]);
     await assertFails(

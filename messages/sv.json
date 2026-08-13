@@ -2595,6 +2595,7 @@
     "editingMessage": "Redigerar meddelandet",
     "messageActionError": "Det gick inte att slutföra åtgärden.",
     "reply": "Svara",
+    "like": "Gilla",
     "replyingTo": "Svarar {name}",
     "replyToSelf": "Du",
     "cancelReply": "Avbryt svar"

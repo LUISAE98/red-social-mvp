@@ -244,8 +244,7 @@ export default function SessionRequestOverlay({
 
   const selectedScheduleIso = schedulePartsToIso(scheduleParts);
   const selectedScheduleDate = selectedScheduleIso ? new Date(selectedScheduleIso) : null;
-  const scheduleConflict = getWalletScheduleConflictResult(
-    { id: requestId, source: serviceKind, scheduledAt: selectedScheduleDate, durationMinutes: typeof req.durationMinutes === "number" && req.durationMinutes > 0 ? req.durationMinutes : null },
+  const scheduleConflict = getWalletScheduleConflictResult(locale, { id: requestId, source: serviceKind, scheduledAt: selectedScheduleDate, durationMinutes: typeof req.durationMinutes === "number" && req.durationMinutes > 0 ? req.durationMinutes : null },
     ownerCalendarItems
   );
 
@@ -486,7 +485,7 @@ export default function SessionRequestOverlay({
           <div className="sro-schedule">
             <ScheduleDateTimeSelector value={scheduleParts} onChange={(p) => setScheduleParts(p)} disabled={busy} />
             <div style={{ marginTop: 4, fontSize: 11, color: "rgba(255,255,255,0.38)" }}>
-              {tSessions("schedulingLocalTime", { timezone: getTimezoneLabel(getViewerTimezone()) })}
+              {tSessions("schedulingLocalTime", { timezone: getTimezoneLabel(getViewerTimezone(), locale) })}
             </div>
           </div>
           {scheduleConflict.message && (

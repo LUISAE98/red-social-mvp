@@ -1,3 +1,6 @@
+import { intlLocale } from "@/i18n/locales";
+import { formatDateTime } from "@/lib/i18n/dateTime";
+
 // Returns the viewer's IANA timezone string, e.g. "America/Mexico_City"
 export function getViewerTimezone(): string {
   try {
@@ -8,11 +11,11 @@ export function getViewerTimezone(): string {
 }
 
 // Returns a human-friendly timezone label, e.g. "Mexico_City (CST)"
-export function getTimezoneLabel(tz: string): string {
+export function getTimezoneLabel(tz: string, locale: string): string {
   try {
     const now = new Date();
     const offset =
-      new Intl.DateTimeFormat("es-MX", {
+      new Intl.DateTimeFormat(intlLocale(locale), {
         timeZone: tz,
         timeZoneName: "short",
       })
@@ -25,31 +28,31 @@ export function getTimezoneLabel(tz: string): string {
   }
 }
 
-// Returns "14:00" in a given IANA timezone
-function timeInZone(date: Date, tz: string): string {
-  try {
-    return new Intl.DateTimeFormat("es-MX", {
-      timeZone: tz,
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false,
-    }).format(date);
-  } catch {
-    return "--:--";
-  }
+// Hora corta en una zona IANA. Sin `hour12: false`: el reloj de 12 o 24 horas lo decide
+// el idioma (en inglés "2:00 PM", en finés "14.00"), no nosotros.
+function timeInZone(date: Date, tz: string, locale: string): string {
+  return (
+    formatDateTime(date, locale, { timeZone: tz, hour: "2-digit", minute: "2-digit" }) ?? "--:--"
+  );
 }
 
-// Returns "10 de Julio del 2026 a las 14:00 hrs" in a given IANA timezone
-function fullDateInZone(date: Date, tz: string): string {
-  try {
-    const day = new Intl.DateTimeFormat("es-MX", { timeZone: tz, day: "numeric" }).format(date);
-    const month = new Intl.DateTimeFormat("es-MX", { timeZone: tz, month: "long" }).format(date);
-    const year = new Intl.DateTimeFormat("es-MX", { timeZone: tz, year: "numeric" }).format(date);
-    const time = timeInZone(date, tz);
-    return `${day} de ${month.charAt(0).toUpperCase() + month.slice(1)} del ${year} a las ${time} hrs`;
-  } catch {
-    return date.toLocaleString("es-MX");
-  }
+// Fecha completa en una zona IANA.
+//
+// ⚠️ Antes esto devolvía "10 de Julio del 2026 a las 14:00 hrs", armado a mano. Los tres
+// pegamentos ("de", "del", "a las") y el sufijo "hrs" son gramática ESPAÑOLA: en cualquier
+// otro idioma quedaba una frase en español dentro de una UI traducida. Ahora el orden de
+// los campos y el separador los pone Intl según el idioma.
+function fullDateInZone(date: Date, tz: string, locale: string): string {
+  return (
+    formatDateTime(date, locale, {
+      timeZone: tz,
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    }) ?? "—"
+  );
 }
 
 export type ScheduledAtDisplay = {
@@ -70,7 +73,8 @@ export type ScheduledAtDisplay = {
 /** Accepts any date-like value (ISO string, Date, Firestore Timestamp, number). */
 export function formatScheduledAt(
   scheduledAt: unknown,
-  creatorTimezone?: string | null
+  creatorTimezone: string | null | undefined,
+  locale: string
 ): ScheduledAtDisplay | null {
   if (!scheduledAt) return null;
 
@@ -97,11 +101,11 @@ export function formatScheduledAt(
   const sameZone = !creatorTz || creatorTz === viewerTz;
 
   return {
-    localFull: fullDateInZone(date, viewerTz),
-    localTime: timeInZone(date, viewerTz),
-    viewerLabel: getTimezoneLabel(viewerTz),
-    creatorTime: sameZone ? null : timeInZone(date, creatorTz!),
-    creatorLabel: sameZone ? null : getTimezoneLabel(creatorTz!),
+    localFull: fullDateInZone(date, viewerTz, locale),
+    localTime: timeInZone(date, viewerTz, locale),
+    viewerLabel: getTimezoneLabel(viewerTz, locale),
+    creatorTime: sameZone ? null : timeInZone(date, creatorTz!, locale),
+    creatorLabel: sameZone ? null : getTimezoneLabel(creatorTz!, locale),
     showBoth: !sameZone,
   };
 }

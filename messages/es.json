@@ -2595,6 +2595,7 @@
     "editingMessage": "Editando mensaje",
     "messageActionError": "No se pudo completar la acción.",
     "reply": "Responder",
+    "like": "Me gusta",
     "replyingTo": "Respondiendo a {name}",
     "replyToSelf": "Tú",
     "cancelReply": "Cancelar respuesta"

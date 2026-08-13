@@ -2595,6 +2595,7 @@
     "editingMessage": "Redaguojama žinutė",
     "messageActionError": "Veiksmo nepavyko užbaigti.",
     "reply": "Atsakyti",
+    "like": "Patinka",
     "replyingTo": "Atsakoma {name}",
     "replyToSelf": "Tu",
     "cancelReply": "Atšaukti atsakymą"

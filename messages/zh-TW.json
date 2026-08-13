@@ -2595,6 +2595,7 @@
     "editingMessage": "編輯訊息中",
     "messageActionError": "無法完成這項操作。",
     "reply": "回覆",
+    "like": "讚",
     "replyingTo": "正在回覆 {name}",
     "replyToSelf": "你",
     "cancelReply": "取消回覆"

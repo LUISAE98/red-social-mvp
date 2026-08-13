@@ -4,6 +4,8 @@
 // desde OwnerSidebar (sin ciclo en runtime) para mantener una sola fuente de verdad.
 
 import type { Timestamp } from "firebase/firestore";
+import { intlLocale } from "@/i18n/locales";
+import { formatDateTime } from "@/lib/i18n/dateTime";
 import type {
   Currency,
   SidebarMemberStatus,
@@ -81,9 +83,8 @@ export function isBuyerRequestedVisibleItem(status?: MeetGreetStatus | null) {
   );
 }
 
-export function fmtDate(ts?: Timestamp | null) {
-  if (!ts) return "";
-  return ts.toDate().toLocaleString("es-MX");
+export function fmtDate(ts: Timestamp | null | undefined, locale: string) {
+  return formatDateTime(ts, locale, { dateStyle: "medium", timeStyle: "short" }) ?? "";
 }
 
 export function getInitials(name?: string | null) {
@@ -187,16 +188,20 @@ export function normalizeSidebarGroupRole(raw: unknown): GroupRoleLite {
   return null;
 }
 
-export function sortGroupsWithModsFirst(items: GroupDocLite[]) {
+export function sortGroupsWithModsFirst(items: GroupDocLite[], locale: string) {
   return [...items].sort((a, b) => {
     const aIsMod = a.memberRole === "mod" ? 0 : 1;
     const bIsMod = b.memberRole === "mod" ? 0 : 1;
 
     if (aIsMod !== bIsMod) return aIsMod - bIsMod;
 
-    const aName = (a.name ?? "").trim().toLocaleLowerCase("es-MX");
-    const bName = (b.name ?? "").trim().toLocaleLowerCase("es-MX");
-    return aName.localeCompare(bName, "es-MX");
+    // El criterio de ORDEN alfabético depende del idioma: en sueco la "å" va después de
+    // la "z" y en español la "ñ" va entre "n" y "o". Ordenar siempre a la española deja
+    // la lista mal ordenada para todos los demás.
+    const bcp = intlLocale(locale);
+    const aName = (a.name ?? "").trim().toLocaleLowerCase(bcp);
+    const bName = (b.name ?? "").trim().toLocaleLowerCase(bcp);
+    return aName.localeCompare(bName, bcp);
   });
 }
 
@@ -223,9 +228,9 @@ export function resolveSidebarSubscriptionCurrency(group?: GroupDocLite | null) 
   );
 }
 
-export function formatSidebarMoney(value: number, currency: Currency) {
+export function formatSidebarMoney(value: number, currency: Currency, locale: string) {
   try {
-    return new Intl.NumberFormat("es-MX", {
+    return new Intl.NumberFormat(intlLocale(locale), {
       style: "currency",
       currency,
       maximumFractionDigits: 2,

@@ -2595,6 +2595,7 @@
     "editingMessage": "Uređuje se poruka",
     "messageActionError": "Radnju nije bilo moguće dovršiti.",
     "reply": "Odgovori",
+    "like": "Свиђа ми се",
     "replyingTo": "Odgovor korisniku {name}",
     "replyToSelf": "Ti",
     "cancelReply": "Odustani od odgovora"

@@ -2595,6 +2595,7 @@
     "editingMessage": "Úprava zprávy",
     "messageActionError": "Akci se nepodařilo dokončit.",
     "reply": "Odpovědět",
+    "like": "To se mi líbí",
     "replyingTo": "Odpověď pro {name}",
     "replyToSelf": "Ty",
     "cancelReply": "Zrušit odpověď"

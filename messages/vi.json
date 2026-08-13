@@ -2595,6 +2595,7 @@
     "editingMessage": "Đang sửa tin nhắn",
     "messageActionError": "Không hoàn tất được thao tác.",
     "reply": "Trả lời",
+    "like": "Thích",
     "replyingTo": "Đang trả lời {name}",
     "replyToSelf": "Bạn",
     "cancelReply": "Hủy trả lời"

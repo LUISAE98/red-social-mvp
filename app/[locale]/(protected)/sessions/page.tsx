@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, type CSSProperties } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { useRouter } from "next/navigation";
 import {
   collection,
@@ -18,6 +18,7 @@ import { setExclusiveSessionPreparing } from "@/lib/exclusiveSession/exclusiveSe
 import { callGetRecordingDownloadUrl } from "@/lib/liveKit/sessionLifecycle";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import { formatScheduledAt } from "@/lib/utils/timezoneDisplay";
+import { formatDateTime } from "@/lib/i18n/dateTime";
 import type { LiveKitSessionRecordingStatus } from "@/types/livekit";
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
@@ -67,7 +68,7 @@ type BuyerSession = BuyerSessionDoc & {
   preparingBuyerAtDate: Date | null;
 };
 
-function getRecordingExpiry(expiresAt: string | null): {
+function getRecordingExpiry(expiresAt: string | null, locale: string): {
   expired: boolean;
   diffDays: number | null;
   dateLabel: string | null;
@@ -78,11 +79,11 @@ function getRecordingExpiry(expiresAt: string | null): {
   const now = Date.now();
   if (now > exp.getTime()) return { expired: true, diffDays: null, dateLabel: null };
   const diffDays = Math.ceil((exp.getTime() - now) / (1000 * 60 * 60 * 24));
-  const dateLabel = new Intl.DateTimeFormat("es-MX", {
+  const dateLabel = formatDateTime(exp, locale, {
     day: "numeric",
     month: "short",
     year: "numeric",
-  }).format(exp);
+  });
   return { expired: false, diffDays, dateLabel };
 }
 
@@ -99,15 +100,16 @@ function toDate(v: FirestoreDateLike): Date | null {
   return null;
 }
 
-function formatDate(d: Date | null): string {
-  if (!d) return "—";
-  return new Intl.DateTimeFormat("es-MX", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(d);
+function formatDate(d: Date | null, locale: string): string {
+  return (
+    formatDateTime(d, locale, {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    }) ?? "—"
+  );
 }
 
 function formatDuration(seconds: number): string {
@@ -166,6 +168,7 @@ const SESSION_STATUS_KEY_MAP: Record<string, string> = {
 
 function SessionCard({ session }: { session: BuyerSession }) {
   const tSessions = useTranslations("sessions");
+  const locale = useLocale();
   const { format: formatMoney } = usePriceFormat();
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -256,9 +259,9 @@ function SessionCard({ session }: { session: BuyerSession }) {
           </div>
           {session.scheduledAtDate ? (
             <div style={cardMeta}>
-              {formatDate(session.scheduledAtDate)}
+              {formatDate(session.scheduledAtDate, locale)}
               {(() => {
-                const tzd = formatScheduledAt(session.scheduledAtDate, session.creatorTimezone);
+                const tzd = formatScheduledAt(session.scheduledAtDate, session.creatorTimezone, locale);
                 if (!tzd?.showBoth) return null;
                 return (
                   <span style={{ display: "block", fontSize: 11, color: "rgba(255,255,255,0.38)", marginTop: 2 }}>
@@ -294,7 +297,7 @@ function SessionCard({ session }: { session: BuyerSession }) {
                 <div style={processingBadge}>{tSessions("processingRecording")}</div>
               ) : recordingReady ? (
                 (() => {
-                  const { expired, diffDays, dateLabel } = getRecordingExpiry(session.recordingExpiresAt);
+                  const { expired, diffDays, dateLabel } = getRecordingExpiry(session.recordingExpiresAt, locale);
                   const expiryLabelStr = diffDays !== null && dateLabel
                     ? tSessions(diffDays <= 7 ? "recordingAvailableUrgent" : "recordingAvailable", { date: dateLabel, days: diffDays })
                     : null;

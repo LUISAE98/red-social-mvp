@@ -2595,6 +2595,7 @@
     "editingMessage": "Qed tiġi editjata l-messaġġ",
     "messageActionError": "L-azzjoni ma setgħetx titlesta.",
     "reply": "Wieġeb",
+    "like": "Jogħġobni",
     "replyingTo": "Qed twieġeb lil {name}",
     "replyToSelf": "Int",
     "cancelReply": "Ikkanċella r-risposta"

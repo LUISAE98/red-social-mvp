@@ -2595,6 +2595,7 @@
     "editingMessage": "Muudan sõnumit",
     "messageActionError": "Toimingut ei õnnestunud lõpule viia.",
     "reply": "Vasta",
+    "like": "Meeldib",
     "replyingTo": "Vastan kasutajale {name}",
     "replyToSelf": "Sina",
     "cancelReply": "Tühista vastamine"

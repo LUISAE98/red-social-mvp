@@ -2595,6 +2595,7 @@
     "editingMessage": "Редактира се съобщение",
     "messageActionError": "Действието не можа да бъде завършено.",
     "reply": "Отговор",
+    "like": "Харесване",
     "replyingTo": "Отговор до {name}",
     "replyToSelf": "Ти",
     "cancelReply": "Отказ на отговора"

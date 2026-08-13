@@ -1,8 +1,9 @@
 "use client";
 
 import Image from "next/image";
+import { intlLocale } from "@/i18n/locales";
 import { createPortal } from "react-dom";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { useCallback, useEffect, useRef, useState, memo, type CSSProperties } from "react";
 import Hls from "hls.js";
 import {
@@ -68,6 +69,7 @@ import {
 export default function LiveCreatorPanel({ open, onClose, post, portrait = false }: Props) {
   const tCommon = useTranslations("common");
   const tLive = useTranslations("live");
+  const locale = useLocale();
   const pf = usePriceFormat();
   const formatMoney = pf.format;
   // El monto guardado (`amount`) es la BASE del creador en MXN. Para MOSTRAR:
@@ -978,19 +980,19 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
     }
 
     const stats: Array<{ id: string; value: string; sub?: string; label: string; green?: boolean }> = [
-      { id: "ahora",    value: viewerCount.toLocaleString("es-MX"),                                         label: tLive("statViewersNow") },
-      { id: "pico",     value: peakViewerCount.toLocaleString("es-MX"),                                     label: tLive("statPeakViewers") },
-      { id: "unicos",   value: uniqueViewerCount > 0 ? uniqueViewerCount.toLocaleString("es-MX") : "—",     label: tLive("statUniqueViewers") },
-      { id: "seguids",  value: newFollowers > 0 ? newFollowers.toLocaleString("es-MX") : "—",               label: tLive("statNewFollowers") },
-      { id: "mensajes", value: totalChatMessages > 0 ? totalChatMessages.toLocaleString("es-MX") : "—",     label: tLive("statChatMessages") },
-      { id: "likes",    value: likesCount.toLocaleString("es-MX"),                                           label: "Likes" },
+      { id: "ahora",    value: viewerCount.toLocaleString(intlLocale(locale)),                                         label: tLive("statViewersNow") },
+      { id: "pico",     value: peakViewerCount.toLocaleString(intlLocale(locale)),                                     label: tLive("statPeakViewers") },
+      { id: "unicos",   value: uniqueViewerCount > 0 ? uniqueViewerCount.toLocaleString(intlLocale(locale)) : "—",     label: tLive("statUniqueViewers") },
+      { id: "seguids",  value: newFollowers > 0 ? newFollowers.toLocaleString(intlLocale(locale)) : "—",               label: tLive("statNewFollowers") },
+      { id: "mensajes", value: totalChatMessages > 0 ? totalChatMessages.toLocaleString(intlLocale(locale)) : "—",     label: tLive("statChatMessages") },
+      { id: "likes",    value: likesCount.toLocaleString(intlLocale(locale)),                                           label: "Likes" },
       { id: "tvisto",   value: avgWatchSeconds > 0 ? formatWatchTime(avgWatchSeconds) : "—",                label: tLive("statAvgWatchTime") },
       { id: "duracion", value: formatDuration(liveDurationMs),                                             label: tLive("duration") },
       ...(donationCount > 0 ? [{ id: "donaciones",  value: fmtMoney(net(donationRevenue)), sub: tLive("donationCount", { count: donationCount }), label: tLive("statDonations") }] : []),
       ...(superCount > 0    ? [{ id: "supercoment", value: fmtMoney(net(superRevenue)),    sub: `${superCount} SC`,                               label: tLive("superComments") }] : []),
       ...(isPaidLive && ticketCount > 0  ? [{ id: "tickets", value: fmtMoney(net(ticketRevenue)), sub: tLive("boughtCount", { count: ticketCount }),   label: tLive("statAccessTickets") }] : []),
       ...(hasVod && vodBuyerCount > 0    ? [{ id: "vod",     value: fmtMoney(net(vodRevenue)),    sub: tLive("boughtCount", { count: vodBuyerCount }), label: tLive("statVodRevenue") }] : []),
-      ...(hasVod && vodViewCount > 0     ? [{ id: "vodviews", value: vodViewCount.toLocaleString("es-MX"),                                              label: tLive("statVodViews") }] : []),
+      ...(hasVod && vodViewCount > 0     ? [{ id: "vodviews", value: vodViewCount.toLocaleString(intlLocale(locale)),                                              label: tLive("statVodViews") }] : []),
       ...(totalRevenue > 0  ? [{ id: "total", value: fmtMoney(net(totalRevenue)), sub: displayPeak > 0 ? `${tLive("statRecord")} ${fmtMoney(displayPeak)}` : undefined, label: tLive("statNetRevenue"), green: true }] : []),
     ];
 
@@ -1100,19 +1102,19 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
 
     // Todos los items arrastrables: tiles + charts
     const tileItems: Array<{ id: string; defaultX: number; defaultY: number; width: number; height: number; extra?: React.CSSProperties; content: React.ReactNode }> = [
-      { id: "ahora",    defaultX: tx(0), defaultY: R0, width: TILE2W, height: TILE, content: <><span style={val}>{viewerCount.toLocaleString("es-MX")}</span><span style={lbl}>{tLive("statViewersNow")}</span></> },
-      { id: "pico",     defaultX: tx(1), defaultY: R0, width: TILE2W, height: TILE, content: <><span style={val}>{peakViewerCount.toLocaleString("es-MX")}</span><span style={lbl}>{tLive("statPeakViewers")}</span></> },
-      { id: "unicos",   defaultX: tx(2), defaultY: R0, width: TILE2W, height: TILE, content: <><span style={val}>{uniqueViewerCount > 0 ? uniqueViewerCount.toLocaleString("es-MX") : "—"}</span><span style={lbl}>{tLive("statUniqueViewers")}</span></> },
-      { id: "seguids",  defaultX: tx(3), defaultY: R0, width: TILE2W, height: TILE, content: <><span style={val}>{newFollowers > 0 ? newFollowers.toLocaleString("es-MX") : "—"}</span><span style={lbl}>{tLive("statNewFollowers")}</span></> },
-      { id: "mensajes", defaultX: tx(4), defaultY: R0, width: TILE2W, height: TILE, content: <><span style={val}>{totalChatMessages > 0 ? totalChatMessages.toLocaleString("es-MX") : "—"}</span><span style={lbl}>{tLive("statChatMessages")}</span></> },
-      { id: "likes",    defaultX: tx(7), defaultY: R0, width: TILE2W, height: TILE, content: <><span style={val}>{likesCount.toLocaleString("es-MX")}</span><span style={lbl}>Likes</span></> },
+      { id: "ahora",    defaultX: tx(0), defaultY: R0, width: TILE2W, height: TILE, content: <><span style={val}>{viewerCount.toLocaleString(intlLocale(locale))}</span><span style={lbl}>{tLive("statViewersNow")}</span></> },
+      { id: "pico",     defaultX: tx(1), defaultY: R0, width: TILE2W, height: TILE, content: <><span style={val}>{peakViewerCount.toLocaleString(intlLocale(locale))}</span><span style={lbl}>{tLive("statPeakViewers")}</span></> },
+      { id: "unicos",   defaultX: tx(2), defaultY: R0, width: TILE2W, height: TILE, content: <><span style={val}>{uniqueViewerCount > 0 ? uniqueViewerCount.toLocaleString(intlLocale(locale)) : "—"}</span><span style={lbl}>{tLive("statUniqueViewers")}</span></> },
+      { id: "seguids",  defaultX: tx(3), defaultY: R0, width: TILE2W, height: TILE, content: <><span style={val}>{newFollowers > 0 ? newFollowers.toLocaleString(intlLocale(locale)) : "—"}</span><span style={lbl}>{tLive("statNewFollowers")}</span></> },
+      { id: "mensajes", defaultX: tx(4), defaultY: R0, width: TILE2W, height: TILE, content: <><span style={val}>{totalChatMessages > 0 ? totalChatMessages.toLocaleString(intlLocale(locale)) : "—"}</span><span style={lbl}>{tLive("statChatMessages")}</span></> },
+      { id: "likes",    defaultX: tx(7), defaultY: R0, width: TILE2W, height: TILE, content: <><span style={val}>{likesCount.toLocaleString(intlLocale(locale))}</span><span style={lbl}>Likes</span></> },
       { id: "tvisto",   defaultX: tx(5), defaultY: R0, width: TILE2W, height: TILE, content: <><span style={val}>{avgWatchSeconds > 0 ? formatWatchTime(avgWatchSeconds) : "—"}</span><span style={lbl}>{tLive("statAvgWatchTime")}</span></> },
       { id: "duracion", defaultX: tx(6), defaultY: R0, width: TILE2W, height: TILE, content: <><span style={val}>{formatDuration(liveDurationMs)}</span><span style={lbl}>{tLive("duration")}</span></> },
       ...(donationCount > 0 ? [{ id: "donaciones",  defaultX: tx(0), defaultY: R1, width: TILE2W, height: TILE, content: <><span style={val}>{fmtMoney(net(donationRevenue))}</span><span style={sub}>{tLive("donationCount", { count: donationCount })}</span><span style={lbl}>{tLive("statDonations")}</span></> }] : []),
       ...(superCount > 0    ? [{ id: "supercoment", defaultX: tx(6), defaultY: R0, width: TILE2W, height: TILE, content: <><span style={val}>{fmtMoney(net(superRevenue))}</span><span style={sub}>{superCount} SC</span><span style={lbl}>{tLive("superComments")}</span></> }] : []),
       ...(isPaidLive && ticketCount > 0 ? [{ id: "tickets", defaultX: tx(7), defaultY: R0, width: TILE2W, height: TILE, content: <><span style={val}>{fmtMoney(net(ticketRevenue))}</span><span style={sub}>{tLive("boughtCount", { count: ticketCount })}</span><span style={lbl}>{tLive("statAccessTickets")}</span></> }] : []),
       ...(hasVod && vodBuyerCount > 0   ? [{ id: "vod",     defaultX: tx(8), defaultY: R0, width: TILE2W, height: TILE, content: <><span style={val}>{fmtMoney(net(vodRevenue))}</span><span style={sub}>{tLive("boughtCount", { count: vodBuyerCount })}</span><span style={lbl}>{tLive("statVodRevenue")}</span></> }] : []),
-      ...(hasVod && vodViewCount > 0    ? [{ id: "vodviews", defaultX: CELL*16 + OFFSET, defaultY: R1, width: TILE2W, height: TILE, content: <><span style={val}>{vodViewCount.toLocaleString("es-MX")}</span><span style={lbl}>{tLive("statVodViews")}</span></> }] : []),
+      ...(hasVod && vodViewCount > 0    ? [{ id: "vodviews", defaultX: CELL*16 + OFFSET, defaultY: R1, width: TILE2W, height: TILE, content: <><span style={val}>{vodViewCount.toLocaleString(intlLocale(locale))}</span><span style={lbl}>{tLive("statVodViews")}</span></> }] : []),
       ...(totalRevenue > 0  ? [{ id: "total", defaultX: tx(9), defaultY: R0, width: TILE2W, height: TILE, content: (() => { const displayPeak = peakRevenue > 0 ? peakRevenue : net(totalRevenue); return <><span style={{ ...val, color: "#4ade80" }}>{fmtMoney(net(totalRevenue))}</span>{displayPeak > 0 && <span style={sub}>{tLive("statRecord")} {fmtMoney(displayPeak)}</span>}<span style={{ ...lbl, color: "#4ade80" }}>{tLive("statNetRevenue")}</span></>; })() }] : []),
       { id: "chart_espect", defaultX: CELL*2 + OFFSET, defaultY: R1, width: CELL*7, height: CELL*2, content: <><span style={{ display: "block", ...lbl, marginBottom: 3 }}>{tLive("viewersChartLabel")}</span>{renderViewerChart()}</> },
       { id: "chart_activ",  defaultX: CELL*9 + OFFSET, defaultY: R1, width: CELL*7, height: CELL*2, content: <><span style={{ display: "block", ...lbl, marginBottom: 3 }}>{tLive("audienceActivityLabel")}</span>{renderHeatmap()}</> },

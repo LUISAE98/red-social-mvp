@@ -373,8 +373,7 @@ export default function OwnerSidebarGreetings({
       return;
     }
     const selectedDate = new Date(scheduledAtIso);
-    const conflict = getWalletScheduleConflictResult(
-      { id: requestId, source: kind, scheduledAt: selectedDate, durationMinutes: kind === "exclusive_session" ? 60 : 30 },
+    const conflict = getWalletScheduleConflictResult(locale, { id: requestId, source: kind, scheduledAt: selectedDate, durationMinutes: kind === "exclusive_session" ? 60 : 30 },
       buildCalendarItems
     );
     if (conflict.hasConflict) {
@@ -407,8 +406,7 @@ export default function OwnerSidebarGreetings({
       return;
     }
     const selectedDate = new Date(scheduledAtIso);
-    const conflict = getWalletScheduleConflictResult(
-      { id: requestId, source: kind, scheduledAt: selectedDate, durationMinutes: kind === "exclusive_session" ? 60 : 30 },
+    const conflict = getWalletScheduleConflictResult(locale, { id: requestId, source: kind, scheduledAt: selectedDate, durationMinutes: kind === "exclusive_session" ? 60 : 30 },
       buildCalendarItems
     );
     if (conflict.hasConflict) {
@@ -451,8 +449,7 @@ async function handleCreatorSchedule(
 
   const selectedScheduleDate = new Date(scheduledAt);
 
-  const scheduleConflict = getWalletScheduleConflictResult(
-    {
+  const scheduleConflict = getWalletScheduleConflictResult(locale, {
       id: requestId,
       source: kind,
       scheduledAt: selectedScheduleDate,

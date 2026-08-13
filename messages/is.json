@@ -2595,6 +2595,7 @@
     "editingMessage": "Breyti skilaboðum",
     "messageActionError": "Ekki tókst að ljúka aðgerðinni.",
     "reply": "Svara",
+    "like": "Líkar við",
     "replyingTo": "Svarar {name}",
     "replyToSelf": "Þú",
     "cancelReply": "Hætta við svar"

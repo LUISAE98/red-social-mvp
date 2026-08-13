@@ -2595,6 +2595,7 @@
     "editingMessage": "Mesaj düzenleniyor",
     "messageActionError": "İşlem tamamlanamadı.",
     "reply": "Yanıtla",
+    "like": "Beğen",
     "replyingTo": "{name} yanıtlanıyor",
     "replyToSelf": "Sen",
     "cancelReply": "Yanıtı iptal et"

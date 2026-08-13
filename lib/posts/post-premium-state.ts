@@ -10,6 +10,7 @@ import type { PostAccess } from "./post-access-types";
  * unlocked_membership  — acceso por membresía activa (freeFor: members_and_subscribers)
  * unlocked_subscription — acceso por suscripción (freeFor: members_and_subscribers)
  * unlocked_purchase  — acceso por compra única confirmada (PostAccess.status === "active")
+ * unlocked_live_ticket — acceso por el ticket del live del que salió esta grabación
  */
 export type PostPremiumState =
   | "free"
@@ -17,7 +18,8 @@ export type PostPremiumState =
   | "unlocked_author"
   | "unlocked_membership"
   | "unlocked_subscription"
-  | "unlocked_purchase";
+  | "unlocked_purchase"
+  | "unlocked_live_ticket";
 
 /**
  * Contexto del viewer para resolver el estado premium de un post.
@@ -25,6 +27,7 @@ export type PostPremiumState =
  * viewerIsMember      — true si el viewer es miembro activo del grupo/contexto
  * viewerIsSubscriber  — true si el viewer tiene suscripción activa (fase futura)
  * viewerAccess        — registro PostAccess del viewer para este post, si existe
+ * viewerHasLiveTicket — true si el viewer compró el ticket del live de este post
  */
 export type PostPremiumViewerContext = {
   post: Post;
@@ -32,6 +35,7 @@ export type PostPremiumViewerContext = {
   viewerIsMember?: boolean;
   viewerIsSubscriber?: boolean;
   viewerAccess?: PostAccess | null;
+  viewerHasLiveTicket?: boolean;
 };
 
 export type PostPremiumStateResult = {
@@ -73,6 +77,7 @@ export function resolvePostPremiumState(
     viewerIsMember = false,
     viewerIsSubscriber = false,
     viewerAccess = null,
+    viewerHasLiveTicket = false,
   } = ctx;
 
   if (!isPostPremium(post)) {
@@ -87,6 +92,14 @@ export function resolvePostPremiumState(
   // Compra única confirmada
   if (viewerAccess?.status === "active") {
     return buildUnlockedResult("unlocked_purchase");
+  }
+
+  // Ticket del live ya pagado. El live y su grabación son EL MISMO post
+  // (`liveId == postId`), así que el VOD premium que nace de esa transmisión
+  // no se le vuelve a cobrar a quien ya compró la entrada. El candado real
+  // vive en las reglas y en `getMuxPlaybackToken`; esto solo lo refleja.
+  if (viewerHasLiveTicket && post.liveData != null) {
+    return buildUnlockedResult("unlocked_live_ticket");
   }
 
   const premium = post.premium!;
@@ -163,7 +176,9 @@ function buildUnlockedResult(
     isBlocked: false,
     hasAccessByMembership: state === "unlocked_membership",
     hasAccessBySubscription: state === "unlocked_subscription",
-    hasAccessByPurchase: state === "unlocked_purchase",
+    // El ticket del live TAMBIÉN es una compra de este post, así que el viewer
+    // ve el mismo "ya tienes acceso" que quien compró la grabación directo.
+    hasAccessByPurchase: state === "unlocked_purchase" || state === "unlocked_live_ticket",
     panelMessage: null,
     ctaText: null,
   };

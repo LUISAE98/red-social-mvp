@@ -2595,6 +2595,7 @@
     "editingMessage": "Мессежийг засаж байна",
     "messageActionError": "Үйлдлийг гүйцээж чадсангүй.",
     "reply": "Хариу бичих",
+    "like": "Таалагдсан",
     "replyingTo": "{name}-д хариу бичиж байна",
     "replyToSelf": "Та",
     "cancelReply": "Хариуг цуцлах"

@@ -2595,6 +2595,7 @@
     "editingMessage": "Ine-edit ang mensahe",
     "messageActionError": "Hindi nakumpleto ang aksyon.",
     "reply": "Tumugon",
+    "like": "Gusto",
     "replyingTo": "Tumutugon kay {name}",
     "replyToSelf": "Ikaw",
     "cancelReply": "Kanselahin ang tugon"

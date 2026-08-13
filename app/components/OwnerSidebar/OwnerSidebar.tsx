@@ -2587,7 +2587,7 @@ newPostsCounts={newPostsCounts}
                   browseGrouped={browseGrouped}
                   groupMetaMap={groupMetaMap}
                   styles={styles}
-                  fmtDate={fmtDate}
+                  fmtDate={(ts) => fmtDate(ts, locale)}
                   renderCommunityCard={renderCommunityCard}
                   joinRequestsByGroup={joinRequestsByGroup}
                   joinSectionOpen={joinSectionOpen}
@@ -2620,7 +2620,7 @@ newPostsCounts={newPostsCounts}
                       if (type === "exclusive_session" || type === "clase_personalizada" || type === "digital_exclusive_session") return tServices("exclusiveSession");
                       return type;
                     }}
-                    fmtDate={fmtDate}
+                    fmtDate={(ts) => fmtDate(ts, locale)}
                     renderUserLink={renderUserLink}
                     router={router}
                     buyerMeetGreets={buyerMeetGreets}

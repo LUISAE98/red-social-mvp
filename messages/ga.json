@@ -2595,6 +2595,7 @@
     "editingMessage": "Teachtaireacht á cur in eagar",
     "messageActionError": "Níorbh fhéidir an gníomh a chur i gcrích.",
     "reply": "Freagair",
+    "like": "Is maith liom",
     "replyingTo": "Ag freagairt do {name}",
     "replyToSelf": "Tusa",
     "cancelReply": "Cealaigh an freagra"

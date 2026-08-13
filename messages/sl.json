@@ -2595,6 +2595,7 @@
     "editingMessage": "Urejanje sporočila",
     "messageActionError": "Dejanja ni bilo mogoče dokončati.",
     "reply": "Odgovori",
+    "like": "Všeč mi je",
     "replyingTo": "Odgovor uporabniku {name}",
     "replyToSelf": "Ti",
     "cancelReply": "Prekliči odgovor"

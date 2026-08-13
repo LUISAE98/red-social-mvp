@@ -1,10 +1,11 @@
 "use client";
 
 import Image from "next/image";
+import { formatDateLong, formatDateTimeLong, formatWeekdayTime } from "@/lib/i18n/dateTime";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import { createPortal } from "react-dom";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import type { MeetGreetRequestDoc, ExclusiveSessionRequestDoc } from "./OwnerSidebar";
 import { playEdgeTTS } from "@/lib/tts/edge-tts-client";
 import type { EdgeTTSHandle } from "@/lib/tts/edge-tts-client";
@@ -76,30 +77,16 @@ function toDate(ts: unknown): Date | null {
   return null;
 }
 
-function formatDate(ts: unknown): string {
-  const d = toDate(ts);
-  if (!d) return "";
-  try {
-    return new Intl.DateTimeFormat("es-MX", {
-      day: "numeric", month: "long", year: "numeric",
-      hour: "2-digit", minute: "2-digit",
-    }).format(d);
-  } catch { return d.toLocaleString("es-MX"); }
+function formatDate(ts: unknown, locale: string): string {
+  return formatDateTimeLong(toDate(ts), locale) ?? "";
 }
 
-function fmtDateSplit(ts: unknown): { dayTime: string; dateStr: string } | null {
+function fmtDateSplit(ts: unknown, locale: string): { dayTime: string; dateStr: string } | null {
   const d = toDate(ts);
   if (!d) return null;
-  const weekday = d.toLocaleString("es-MX", { weekday: "long" });
-  const hh = String(d.getHours()).padStart(2, "0");
-  const mm = String(d.getMinutes()).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  const month = d.toLocaleString("es-MX", { month: "long" });
-  const year = d.getFullYear();
-  return {
-    dayTime: `${weekday.charAt(0).toUpperCase() + weekday.slice(1)} ${hh}:${mm} hrs`,
-    dateStr: `${day} de ${month.charAt(0).toUpperCase() + month.slice(1)} de ${year}`,
-  };
+  const dayTime = formatWeekdayTime(d, locale);
+  const dateStr = formatDateLong(d, locale);
+  return dayTime && dateStr ? { dayTime, dateStr } : null;
 }
 
 type ChatEntry = { role: "buyer" | "creator"; text: string; ts: unknown };
@@ -208,6 +195,7 @@ export default function BuyerSessionRequestOverlay({
   const tCommon = useTranslations("common");
   const tServices = useTranslations("services");
   const tSessions = useTranslations("sessions");
+  const locale = useLocale();
   const { format: formatMoney } = usePriceFormat();
 
   const req = item.data;
@@ -363,7 +351,7 @@ export default function BuyerSessionRequestOverlay({
           </svg>
           <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
             <span style={{ color: "#fff", fontSize: 11, fontWeight: 600, lineHeight: 1.2 }}>{tServices("scheduledDateLabel")}</span>
-            {(() => { const p = fmtDateSplit(req.scheduledAt); return p ? (
+            {(() => { const p = fmtDateSplit(req.scheduledAt, locale); return p ? (
               <>
                 <span style={{ color: "#fff", fontSize: 13, fontWeight: 400, lineHeight: 1.2 }}>{p.dayTime}</span>
                 <span style={{ color: "#fff", fontSize: 12, fontWeight: 400, lineHeight: 1.2 }}>{p.dateStr}</span>
@@ -377,7 +365,7 @@ export default function BuyerSessionRequestOverlay({
           </svg>
           <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
             <span style={{ color: "#fff", fontSize: 11, fontWeight: 600, lineHeight: 1.2 }}>{tServices("requestedDateLabel")}</span>
-            {(() => { const p = fmtDateSplit(req.createdAt); return p ? (
+            {(() => { const p = fmtDateSplit(req.createdAt, locale); return p ? (
               <>
                 <span style={{ color: "#fff", fontSize: 13, fontWeight: 400, lineHeight: 1.2 }}>{p.dayTime}</span>
                 <span style={{ color: "#fff", fontSize: 12, fontWeight: 400, lineHeight: 1.2 }}>{p.dateStr}</span>
@@ -448,7 +436,7 @@ export default function BuyerSessionRequestOverlay({
       {(req.status === "rejected" || req.status === "refund_requested" || req.status === "refund_review") && (req.rejectedAt ?? req.updatedAt) ? (
         <div style={{ display: "grid", gap: 2 }}>
           <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 12 }}>{tServices("rejectedOn")}</span>
-          <span style={{ color: "#fff", fontWeight: 600, fontSize: 13 }}>{formatDate(req.rejectedAt ?? req.updatedAt)}</span>
+          <span style={{ color: "#fff", fontWeight: 600, fontSize: 13 }}>{formatDate(req.rejectedAt ?? req.updatedAt, locale)}</span>
         </div>
       ) : null}
 

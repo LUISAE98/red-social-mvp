@@ -204,22 +204,40 @@ export function buyerPrice(
 /**
  * Formatea un monto en su moneda usando Intl: símbolo normal antes del número,
  * decimales según la propia moneda (CLP/COP/PYG sin decimales, etc.).
- * Cada quien ve su moneda como es normal — sin "≈" ni código ISO pegado.
+ *
+ * Con `code: true` añade el código ISO al final para desambiguar el "$", que en Vibra
+ * es genuinamente ambiguo: se muestran precios en 78 monedas y muchas comparten símbolo
+ * (MXN, USD, ARS, CLP, COP…).
+ *
+ * 🚨 EL CÓDIGO NO SE PEGA A CIEGAS 🚨
+ *
+ * `narrowSymbol` NO garantiza un símbolo: cuando el locale no conoce un símbolo corto
+ * para esa moneda, Intl usa **el propio código ISO como símbolo**. En finés, MXN se
+ * formatea "83,52 MXN". Si encima le concatenamos el código sale "83,52 MXN MXN" —que es
+ * exactamente el bug que se veía en la app en finés—, mientras que en español, donde sí
+ * hay símbolo, salía bien y por eso pasó desapercibido.
+ *
+ * Por eso se inspecciona con `formatToParts` qué puso Intl de símbolo y solo se añade el
+ * código cuando NO es ya el código.
  */
 export function formatCurrency(
   amount: number,
   currency: string,
   locale: string,
-  // Se conservan por compatibilidad de firma; ya no se usan (sin "≈" ni código).
-  _opts: { approx?: boolean; code?: boolean } = {}
+  opts: { approx?: boolean; code?: boolean } = {}
 ): string {
   const loc = intlLocale(locale);
   try {
-    return new Intl.NumberFormat(loc, {
+    const nf = new Intl.NumberFormat(loc, {
       style: "currency",
       currency,
       currencyDisplay: "narrowSymbol",
-    }).format(amount);
+    });
+    const text = nf.format(amount);
+    if (!opts.code) return text;
+    const iso = currency.toUpperCase();
+    const shown = nf.formatToParts(amount).find((p) => p.type === "currency")?.value ?? "";
+    return shown.toUpperCase() === iso ? text : `${text} ${iso}`;
   } catch {
     return `$${amount.toFixed(2)}`;
   }

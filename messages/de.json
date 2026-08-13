@@ -2595,6 +2595,7 @@
     "editingMessage": "Nachricht bearbeiten",
     "messageActionError": "Die Aktion konnte nicht abgeschlossen werden.",
     "reply": "Antworten",
+    "like": "Gefällt mir",
     "replyingTo": "Antwort an {name}",
     "replyToSelf": "Du",
     "cancelReply": "Antwort abbrechen"

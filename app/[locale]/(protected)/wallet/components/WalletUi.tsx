@@ -625,7 +625,7 @@ export function WalletServiceRow({
         ? formatMoney(row.priceSnapshot, { baseCurrency: row.currency ?? "MXN" })
         : null,
   });
-  const meta = getWalletServiceRowMeta(row);
+  const meta = getWalletServiceRowMeta(row, locale);
 
   const historyStatusLabel: string | null =
     row.status === "rejected" || row.status === "cancelled"
@@ -651,8 +651,7 @@ export function WalletServiceRow({
     : null;
 
   const scheduleConflict = isScheduledService
-    ? getWalletScheduleConflictResult(
-        {
+    ? getWalletScheduleConflictResult(locale, {
           id: row.id,
           source: row.source,
           scheduledAt: selectedScheduledAt,
@@ -1593,7 +1592,7 @@ export function WalletServiceRow({
           role="creator"
           sessionId={row.id}
           sessionType={isMeetGreet ? "meet_greet" : "exclusive_session"}
-          scheduledAtLabel={row.scheduledAt ? getWalletServiceRowMeta(row) : null}
+          scheduledAtLabel={row.scheduledAt ? getWalletServiceRowMeta(row, locale) : null}
           durationMinutes={row.durationMinutes ?? null}
         />
       ) : null}

@@ -118,7 +118,7 @@ export default function ExperienciasPage() {
   async function handleRequestCashout() {
     if (cashoutBusy) return;
     const ok = window.confirm(
-      `¿Solicitar ${pf.format(credit.balance, { baseCurrency: "MXN" })} ${pf.currency} de reembolso a tu tarjeta original? Un administrador lo revisará. Mientras tanto, ese saldo queda apartado.`
+      `¿Solicitar ${pf.format(credit.balance, { baseCurrency: "MXN", code: true })} de reembolso a tu tarjeta original? Un administrador lo revisará. Mientras tanto, ese saldo queda apartado.`
     );
     if (!ok) return;
     setCashoutBusy(true);
@@ -455,7 +455,7 @@ export default function ExperienciasPage() {
       userMiniMap={exp.userMiniMap}
       styles={styles}
       typeLabel={typeLabel}
-      fmtDate={fmtDate}
+      fmtDate={(ts) => fmtDate(ts, locale)}
       renderUserLink={renderUserLink}
       router={router}
     />
@@ -489,7 +489,7 @@ export default function ExperienciasPage() {
             </div>
           </div>
           <span style={{ fontSize: 18, fontWeight: 700, color: "#22c55e", whiteSpace: "nowrap", flexShrink: 0 }}>
-            {pf.format(credit.balance, { baseCurrency: "MXN" })} {pf.currency}
+            {pf.format(credit.balance, { baseCurrency: "MXN", code: true })}
           </span>
         </div>
       ) : null}
@@ -499,7 +499,7 @@ export default function ExperienciasPage() {
           es menor al mínimo (o 0), no aparece nada. */}
       {cashout.pending ? (
         <div style={{ marginTop: -13, marginBottom: 16, padding: "0 2px", fontSize: 12, color: "rgba(255,255,255,0.4)", textAlign: "right" }}>
-          Tienes {pf.format(cashout.pending.amount, { baseCurrency: "MXN" })} {pf.currency} en revisión
+          Tienes {pf.format(cashout.pending.amount, { baseCurrency: "MXN", code: true })} en revisión
           para reembolso a tu tarjeta.
         </div>
       ) : credit.balance > 0 ? (
@@ -517,7 +517,7 @@ export default function ExperienciasPage() {
           >
             {cashoutBusy
               ? "Enviando solicitud…"
-              : `Puedes pedir ${pf.format(credit.balance, { baseCurrency: "MXN" })} ${pf.currency} en efectivo de reembolso`}
+              : `Puedes pedir ${pf.format(credit.balance, { baseCurrency: "MXN", code: true })} en efectivo de reembolso`}
           </button>
           {cashoutError && (
             <div style={{ fontSize: 11.5, color: "#f87171", marginTop: 4 }}>{cashoutError}</div>

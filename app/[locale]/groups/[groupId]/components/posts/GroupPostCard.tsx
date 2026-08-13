@@ -332,10 +332,15 @@ onToggleProfilePin,
   const [livePayOpen, setLivePayOpen] = useState(false);
   const livePaidRef = useRef(false);
 
+  // El post nació de una transmisión (en vivo ahora o su grabación).
+  const isLivePost = post.liveData != null;
+
   useEffect(() => {
-    // Sin pago requerido o sin identidad → sin ticket (resetea para no dejar acceso
-    // residual al cambiar de uid: invitado→login, o logout).
-    if (!post.requiresPayment || !currentUserId) {
+    // Sin pago requerido, sin identidad o sin transmisión → sin ticket (resetea para
+    // no dejar acceso residual al cambiar de uid: invitado→login, o logout).
+    // El guard de `liveData` importa: este flag ya no solo abre el live, también
+    // desbloquea su VOD premium, y un post premium normal nunca debe pasar por ahí.
+    if (!post.requiresPayment || !currentUserId || !isLivePost) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setHasLiveTicketAccess(false);
       return;
@@ -343,7 +348,7 @@ onToggleProfilePin,
     checkLiveAccess(post.id, currentUserId)
       .then(setHasLiveTicketAccess)
       .catch(() => {});
-  }, [post.id, post.requiresPayment, currentUserId, liveViewerOpen]);
+  }, [post.id, post.requiresPayment, isLivePost, currentUserId, liveViewerOpen]);
 
   const [isLivePortrait, setIsLivePortrait] = useState(false);
   const [localLiveData, setLocalLiveData] = useState<PostLiveData | null | undefined>(post.liveData);
@@ -1856,6 +1861,9 @@ function renderBlurredMediaBackdrop(
       viewerIsMember: isOwner || viewerIsMember,
       viewerAccess:
         isTempUnlocked || forceUnlocked ? ({ status: "active" } as PostAccess) : null,
+      // Quien compró el ticket del live ya pagó este post: su grabación premium
+      // no se le vuelve a cobrar.
+      viewerHasLiveTicket: hasLiveTicketAccess,
     },
     // Precio en la moneda del viewer (mismo hook que el resto de la UI).
     (price, currency) =>

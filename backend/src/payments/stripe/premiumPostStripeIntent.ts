@@ -78,6 +78,20 @@ export const createPremiumPostStripeIntent = onCall(
       throw new HttpsError("failed-precondition", "Ya tienes acceso a esta publicación.");
     }
 
+    // ¿Ya pagó el TICKET del live? El live y su grabación son el mismo post
+    // (`liveId == postId`): el VOD premium que nace de esa transmisión ya está
+    // pagado y cobrarlo aquí sería cobrar dos veces el mismo contenido. La UI ya
+    // no ofrece el botón, pero el candado tiene que vivir en el servidor.
+    if (post.liveData != null) {
+      const ticketSnap = await db.doc(`liveAccess/${postId}/users/${uid}`).get();
+      if (ticketSnap.exists && ticketSnap.data()?.status === "paid") {
+        throw new HttpsError(
+          "failed-precondition",
+          "Ya tienes acceso a esta transmisión con tu ticket."
+        );
+      }
+    }
+
     const intentRef = db.collection("paymentIntents").doc(externalReference);
     const intentSnap = await intentRef.get();
     const existingStatus = intentSnap.exists ? intentSnap.data()?.status : null;

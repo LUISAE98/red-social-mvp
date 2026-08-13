@@ -2600,6 +2600,18 @@ function hasPostAccess(postId) {
     && exists(/databases/$(database)/documents/postAccess/$(request.auth.uid + '_' + postId));
 }
 
+// Ticket de EN VIVO ya pagado por el viewer.
+//
+// El live y su grabación son EL MISMO post (`liveId == postId`), así que quien
+// compró el ticket ya pagó este contenido: cuando el creador convierte la
+// transmisión en un VOD premium, no se le vuelve a cobrar por verlo.
+// El doc lo crea SOLO el backend al aprobarse el pago (reconcile), nunca el
+// cliente, así que su mera existencia ya prueba el cobro.
+function hasLiveTicket(postId) {
+  return signedIn()
+    && exists(/databases/$(database)/documents/liveAccess/$(postId)/users/$(request.auth.uid));
+}
+
 // Candado de comunidad OCULTA para las subcolecciones "abiertas" de un post
 // (supercomentarios, espectadores del live). Esas colecciones son deliberadamente
 // laxas porque un live público debe funcionar sin sesión, pero cuando el post
@@ -2626,7 +2638,9 @@ function viewerHasPremiumPostAccess(data, postId) {
       data.premium.get("freeFor", "") == "members_and_subscribers"
       && isActiveOrSubscribedMember(data.groupId)
     )
-    || hasPostAccess(postId);
+    || hasPostAccess(postId)
+    // Ticket del live: el VOD es ese mismo post, ya lo pagó.
+    || hasLiveTicket(postId);
 }
 
 function canWritePostCommentData(data, postId) {
@@ -2935,6 +2949,8 @@ allow list: if (canListOwnAuthoredPost()
             playbackParentPost().data.authorId == request.auth.uid
             || isPlatformMod()
             || viewerBoughtPost()
+            // Compró el ticket del live: la grabación es ese mismo post.
+            || hasLiveTicket(postId)
             || postFreeForMembers(playbackParentPost().data)
             || (
               playbackParentPost().data.groupId is string
@@ -3728,9 +3744,36 @@ function canUpdateReplyCount(delta) {
             && request.resource.data.editedAt == request.time;
         }
 
+        /**
+         * Poner o quitar TU corazón. Cualquiera de los dos, en cualquier
+         * mensaje y sin ventana de tiempo: un corazón no reescribe lo dicho, así
+         * que no necesita el límite de 10 minutos de editar y retirar.
+         *
+         * La lista solo puede cambiar en TI: o queda igual más tu uid, o igual
+         * menos tu uid. Con eso es imposible quitarle el corazón al otro ni
+         * ponérselo en su nombre.
+         */
+        function onlyTogglesOwnLike() {
+          let previous = resource.data.get('likedBy', []).toSet();
+          let next = request.resource.data.likedBy;
+          return touchedKeys().hasOnly(['likedBy'])
+            && next is list
+            // Solo hay dos personas en el hilo: más de dos es basura.
+            && next.size() <= 2
+            && (
+              next.toSet() == previous.union([request.auth.uid].toSet())
+              || next.toSet() == previous.difference([request.auth.uid].toSet())
+            );
+        }
+
         allow update: if isConvParticipant()
           && notAnonymous()
-          && (onlyHidesForSelf() || isDeleteForEveryone() || isEdit());
+          && (
+            onlyHidesForSelf()
+            || isDeleteForEveryone()
+            || isEdit()
+            || onlyTogglesOwnLike()
+          );
 
         allow delete: if false;
       }

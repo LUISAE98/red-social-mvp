@@ -100,7 +100,16 @@ export function useMyExperiences(uid: string | null | undefined): MyExperiences 
     );
 
     const unsubR = onSnapshot(
-      query(base, where("buyerId", "==", uid), where("status", "in", ["rejected", "refund_requested"]), limit(50)),
+      // `refund_review` va aquí igual que en el resto de la app (sidebar del
+      // vendedor y `useBuyerExperienceActivity`): si falta, la devolución en
+      // revisión enciende el punto de la estrella y el comprador nunca la ve —
+      // un punto rojo imposible de apagar.
+      query(
+        base,
+        where("buyerId", "==", uid),
+        where("status", "in", ["rejected", "refund_requested", "refund_review"]),
+        limit(50)
+      ),
       (snap) => setBuyerRejectedGreetings(snap.docs.map((d) => ({ id: d.id, data: d.data() as GreetingRequestDoc }))),
       () => setBuyerRejectedGreetings([])
     );

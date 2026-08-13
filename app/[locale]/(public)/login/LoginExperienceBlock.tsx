@@ -39,6 +39,7 @@ export default function LoginExperienceBlock({
   service,
   accentColor,
   items,
+  omitIcons,
   itemsLeft = false,
 }: {
   /** Antetítulo. El CSS lo pinta en MAYÚSCULAS. */
@@ -63,6 +64,12 @@ export default function LoginExperienceBlock({
    * Solo aplica con UN servicio; con varios, cada uno trae los suyos.
    */
   items?: readonly { icon: string; title: string; description: string }[];
+  /**
+   * Esconde items del servicio por su icono, conservando los demás con su
+   * traducción. Sirve para los que no aplican en el login, donde todavía no
+   * hay un creador concreto detrás.
+   */
+  omitIcons?: readonly string[];
   /** Los items van a la IZQUIERDA. Se alterna bloque a bloque. */
   itemsLeft?: boolean;
 }) {
@@ -231,6 +238,7 @@ export default function LoginExperienceBlock({
             accentColor={accentColor}
             audience="user"
             cells={services.length === 1 ? items : undefined}
+            omitIcons={omitIcons}
             columns={1}
             // Sobre negro puro, el 42% de blanco por defecto casi no se lee.
             descColor="rgba(255,255,255,0.78)"

@@ -191,6 +191,13 @@ export type MessageDoc = {
   deletedFor?: string[];
   /** Presente si el texto se editó. Se muestra al otro: la edición no es silenciosa. */
   editedAt?: Timestamp;
+  /**
+   * Quién le puso corazón. Como mucho dos UIDs, que son los del hilo.
+   *
+   * Se guarda la lista y no un contador porque cada uno solo puede quitar EL
+   * SUYO, y eso las rules solo lo pueden comprobar sabiendo quién puso qué.
+   */
+  likedBy?: string[];
 };
 
 /** Límites del hilo y del inbox. Son también el control de costo. */

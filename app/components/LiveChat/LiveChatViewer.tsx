@@ -1,8 +1,9 @@
 "use client";
 
 import Image from "next/image";
+import { intlLocale } from "@/i18n/locales";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import VibraFlameIcon from "@/app/components/VibraServiceIcons/VibraFlameIcon";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
@@ -76,6 +77,7 @@ export default function LiveChatViewer({
   creatorAvatarUrl,
 }: Props) {
   const tLive = useTranslations("live");
+  const locale = useLocale();
   const pf = usePriceFormat();
   // El monto guardado (`amount`) es la BASE del creador en MXN. Lo que se MUESTRA es el
   // total que pagó el fan (base + $3 + IVA), que es lo que donó/pagó — igual que ve el
@@ -277,7 +279,7 @@ export default function LiveChatViewer({
                     <VibraFlameIcon size={18} active={liked} />
                     {likesCount > 0 && (
                       <span style={{ fontSize: 12, fontWeight: 600, color: "rgba(255,255,255,0.9)" }}>
-                        {likesCount.toLocaleString("es-MX")}
+                        {likesCount.toLocaleString(intlLocale(locale))}
                       </span>
                     )}
                   </button>

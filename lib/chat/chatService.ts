@@ -1,5 +1,6 @@
 import {
   addDoc,
+  arrayRemove,
   arrayUnion,
   collection,
   doc,
@@ -241,6 +242,25 @@ export async function sendMessage(
 
 function messageRef(conversationId: string, messageId: string) {
   return doc(db, "conversations", conversationId, "messages", messageId);
+}
+
+/**
+ * Pone o quita TU corazón en un mensaje.
+ *
+ * Vale en los dos sentidos y sin ventana de tiempo: un corazón no reescribe lo
+ * dicho, así que no necesita el límite de 10 minutos que sí tienen editar y
+ * retirar. `arrayUnion`/`arrayRemove` lo hacen idempotente — tocar dos veces
+ * rápido no deja el mensaje con dos corazones tuyos ni con ninguno de más.
+ */
+export async function setMessageLike(
+  conversationId: string,
+  messageId: string,
+  selfUid: string,
+  liked: boolean
+): Promise<void> {
+  await updateDoc(messageRef(conversationId, messageId), {
+    likedBy: liked ? arrayUnion(selfUid) : arrayRemove(selfUid),
+  });
 }
 
 /**

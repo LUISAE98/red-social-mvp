@@ -1059,10 +1059,25 @@ marginBottom: 6,
           poster="/encuentroenvivo.webp"
           service="meetGreet"
           accentColor="#ec4899"
+          // Fuera la duración. Cada creador fija la suya y aquí todavía no hay
+          // uno elegido, así que un rango genérico no dice nada.
+          omitIcons={["clock"]}
+        />
+
+        {/* Un solo card junta las tres experiencias del directo y el contenido
+            de pago (ticket, supercomentarios y VOD). */}
+        <LoginExperienceBlock
+          itemsLeft
+          eyebrow="Streaming"
+          title="Hay experiencias que merecen vivirse más cerca"
+          description="Accede a transmisiones especiales, haz que tu mensaje destaque y disfruta contenido premium cuando tú quieras. En vivo o después, crea experiencias que tu comunidad estará dispuesta a elegir."
+          videoSrc={VIDEO_MUESTRA}
+          poster="/desbloquearvod.webp"
+          service={["liveAccess", "vodUnlock"]}
+          accentColor="#a855f7"
         />
 
         <LoginExperienceBlock
-          itemsLeft
           eyebrow="Apoyo directo"
           title="Cuando valoras lo que alguien crea, puedes hacerlo sentir"
           description="Apoya desde su perfil o dentro de su comunidad y forma parte de lo que está construyendo. Comparte tu reconocimiento o recibe el impulso de quienes creen en ti."
@@ -1070,18 +1085,28 @@ marginBottom: 6,
           poster="/donacion-perfil.webp"
           service="profileDonation"
           accentColor="#38bdf8"
-        />
-
-        {/* Segunda fila: un solo card ancho que junta las tres experiencias del
-            directo y el contenido de pago (ticket, supercomentarios y VOD). */}
-        <LoginExperienceBlock
-          eyebrow="Streaming exclusivo"
-          title="Hay experiencias que merecen vivirse más cerca"
-          description="Accede a transmisiones especiales, haz que tu mensaje destaque y disfruta contenido premium cuando tú quieras. En vivo o después, crea experiencias que tu comunidad estará dispuesta a elegir."
-          videoSrc={VIDEO_MUESTRA}
-          poster="/desbloquearvod.webp"
-          service={["liveAccess", "vodUnlock"]}
-          accentColor="#a855f7"
+          // Escritos aquí porque los del servicio hablan solo del perfil y en
+          // tercera persona ("el creador…"), que en el login suena a manual.
+          items={[
+            {
+              icon: "heart",
+              title: "Apoya cuando quieras",
+              description:
+                "Desde su perfil o dentro de su comunidad, cualquier día, sin esperar a que haya un live.",
+            },
+            {
+              icon: "star",
+              title: "Sabes qué estás impulsando",
+              description:
+                "Un mensaje corto cuenta a dónde va el apoyo, así nadie da a ciegas.",
+            },
+            {
+              icon: "camera",
+              title: "La causa, contada en video",
+              description:
+                "Hasta 5 minutos en primera persona, porque hay cosas que se entienden mejor viéndolas.",
+            },
+          ]}
         />
 
         <LoginExperienceBlock

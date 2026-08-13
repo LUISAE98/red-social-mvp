@@ -10,6 +10,7 @@
 //   · autor del post
 //   · dueño o moderador de la comunidad
 //   · comprador con `postAccess` activo
+//   · comprador del ticket del live, para el VOD de esa misma transmisión
 //   · miembro, cuando el premium es `freeFor: members_and_subscribers`
 
 import { onCall, HttpsError } from "firebase-functions/v2/https";
@@ -58,6 +59,13 @@ async function viewerHasAccess(params: {
   // Compra única confirmada.
   const accessSnap = await db.collection("postAccess").doc(`${uid}_${postId}`).get();
   if (accessSnap.exists && accessSnap.data()?.status === "active") return true;
+
+  // Ticket del EN VIVO ya pagado. El live y su grabación son el mismo post
+  // (`liveId == postId`), así que quien pagó el ticket ya pagó este contenido y
+  // el VOD premium que nace de esa transmisión no se le cobra otra vez.
+  // Va ANTES del corte por `groupId` porque los lives de perfil no tienen grupo.
+  const ticketSnap = await db.doc(`liveAccess/${postId}/users/${uid}`).get();
+  if (ticketSnap.exists && ticketSnap.data()?.status === "paid") return true;
 
   const groupId = nonEmptyString(post.groupId);
   if (!groupId) return false;

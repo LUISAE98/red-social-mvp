@@ -2595,6 +2595,7 @@
     "editingMessage": "メッセージを編集しています",
     "messageActionError": "操作を完了できませんでした。",
     "reply": "返信",
+    "like": "いいね",
     "replyingTo": "{name}さんに返信",
     "replyToSelf": "自分",
     "cancelReply": "返信をキャンセル"

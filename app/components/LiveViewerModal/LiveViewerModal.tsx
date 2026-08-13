@@ -1,9 +1,10 @@
 "use client";
 
 import Image from "next/image";
+import { intlLocale } from "@/i18n/locales";
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { createPortal } from "react-dom";
 import Hls from "hls.js";
 import { doc, getDoc, onSnapshot } from "firebase/firestore";
@@ -42,6 +43,7 @@ import {
 export default function LiveViewerModal({ open, onClose, post, onManage, initialPortrait = false, initialStream }: Props) {
   const tCommon = useTranslations("common");
   const tLive = useTranslations("live");
+  const locale = useLocale();
   const tPosts = useTranslations("posts");
   const pf = usePriceFormat();
   const formatMoney = pf.format;
@@ -1748,7 +1750,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
           <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
           <path d="M16 3.13a4 4 0 0 1 0 7.75" />
         </svg>
-        {viewerCount.toLocaleString("es-MX")}
+        {viewerCount.toLocaleString(intlLocale(locale))}
       </div>
     );
   }
@@ -2375,7 +2377,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
               <VibraFlameIcon size={18} active={liked} />
               {likesCount > 0 && (
                 <span style={{ fontSize: 12, fontWeight: 600, color: "rgba(255,255,255,0.9)", fontFamily: FONT }}>
-                  {likesCount.toLocaleString("es-MX")}
+                  {likesCount.toLocaleString(intlLocale(locale))}
                 </span>
               )}
             </button>

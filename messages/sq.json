@@ -2595,6 +2595,7 @@
     "editingMessage": "Duke modifikuar mesazhin",
     "messageActionError": "Veprimi nuk u përfundua dot.",
     "reply": "Përgjigju",
+    "like": "Pëlqej",
     "replyingTo": "Duke iu përgjigjur {name}",
     "replyToSelf": "Ti",
     "cancelReply": "Anulo përgjigjen"

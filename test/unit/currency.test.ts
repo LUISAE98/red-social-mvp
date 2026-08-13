@@ -169,3 +169,46 @@ describe("lib/currency/catalog", () => {
     expect([...backendList].sort()).toEqual([...DISPLAY_CURRENCIES].sort());
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Código ISO de la moneda: el bug de "83,52 MXN MXN"
+// ─────────────────────────────────────────────────────────────────────────────
+describe("formatCurrency · código ISO sin duplicar", () => {
+  // 🚨 EL BUG QUE ESTE BLOQUE IMPIDE 🚨
+  //
+  // `currencyDisplay: "narrowSymbol"` NO garantiza un símbolo. Cuando el idioma no
+  // conoce símbolo corto para esa moneda, Intl usa el PROPIO CÓDIGO ISO como símbolo.
+  // En finés, MXN se formatea "83,52 MXN". Si encima se concatena el código —que es lo
+  // que hacían a mano 14 sitios de la app— sale "83,52 MXN MXN".
+  //
+  // En español no se veía porque sí hay símbolo ("$83.52"), y por eso el bug llegó a
+  // producción y solo apareció al mirar la app en finés.
+  it("🚨 en finés NO duplica el código (el símbolo YA es el código)", () => {
+    const out = formatCurrency(83.52, "MXN", "fi");
+    expect(out).not.toMatch(/MXN.*MXN/);
+    const conCodigo = formatCurrency(83.52, "MXN", "fi", { code: true });
+    expect(conCodigo).not.toMatch(/MXN.*MXN/);
+    expect(conCodigo).toContain("MXN");
+  });
+
+  it("donde SÍ hay símbolo, el código se añade una sola vez", () => {
+    for (const loc of ["es", "en", "el", "de", "pt-BR"]) {
+      const out = formatCurrency(83.52, "MXN", loc, { code: true });
+      expect(out.match(/MXN/g)?.length, `locale ${loc}`).toBe(1);
+    }
+  });
+
+  it("sin `code` no aparece el código salvo que Intl lo use de símbolo", () => {
+    expect(formatCurrency(83.52, "MXN", "es")).not.toContain("MXN");
+  });
+
+  // El defecto importa: la mayoría de los sitios llama sin opciones y no debe cambiar.
+  it("ningún idioma produce el código repetido, en ninguna moneda del catálogo", () => {
+    for (const cur of DISPLAY_CURRENCIES) {
+      for (const loc of ["es", "fi", "en", "ja", "tr"]) {
+        const out = formatCurrency(1234.5, cur, loc, { code: true });
+        expect(out.match(new RegExp(cur, "g"))?.length ?? 0, `${cur}/${loc}`).toBeLessThanOrEqual(1);
+      }
+    }
+  });
+});

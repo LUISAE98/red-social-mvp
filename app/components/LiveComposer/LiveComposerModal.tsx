@@ -97,8 +97,7 @@ export default function LiveComposerModal({
     }
     if (!built || !built.hasTime) return null;
     const sessions = walletCalendar.filter((i) => i.source !== "live");
-    const res = getWalletScheduleConflictResult(
-      { id: editPost?.id, source: "live", scheduledAt: built.date, durationMinutes: 60 },
+    const res = getWalletScheduleConflictResult(locale, { id: editPost?.id, source: "live", scheduledAt: built.date, durationMinutes: 60 },
       sessions
     );
     const conflict = res.conflictItem;

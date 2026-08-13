@@ -118,13 +118,18 @@ export async function finalizeVodSettings(
     update.text = opts.vodDescription ? `${prefix}\n${opts.vodDescription}` : prefix;
   }
 
+  // El VOD hereda la exención de la transmisión: si el live fue "los miembros no
+  // pagan", el miembro que lo vio gratis tampoco paga por la grabación. Sin esto,
+  // el beneficio de la membresía se evaporaba en cuanto terminaba el live.
+  const membersWatchedFree = liveData.paidAccessMode === "members_free_non_members_pay";
+
   // Convert to premium video post when creator sets a ticket price
   if (!opts.vodHidden && opts.vodPaid && opts.vodPrice && opts.vodPrice > 0) {
     const premium: PostPremium = {
       enabled: true,
       kind: "video",
       accessMode: membersOnlyScope ? "members_only" : "public",
-      freeFor: "none",
+      freeFor: membersWatchedFree && !membersOnlyScope ? "members_and_subscribers" : "none",
       price: opts.vodPrice,
       currency: "MXN",
       purchaseType: "one_time",

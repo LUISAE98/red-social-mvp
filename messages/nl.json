@@ -2595,6 +2595,7 @@
     "editingMessage": "Bericht bewerken",
     "messageActionError": "De actie kon niet worden voltooid.",
     "reply": "Beantwoorden",
+    "like": "Vind ik leuk",
     "replyingTo": "Antwoord aan {name}",
     "replyToSelf": "Jij",
     "cancelReply": "Antwoord annuleren"

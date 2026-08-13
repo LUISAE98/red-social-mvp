@@ -11,6 +11,7 @@ import {
   editMessage,
   hideMessageForMe,
   rejectConversationRequest,
+  setMessageLike,
   type MessageWithId,
 } from "@/lib/chat/chatService";
 import { useConversation } from "@/lib/chat/useConversation";
@@ -130,13 +131,19 @@ const ICON_REPLY = (
  * apoyo del texto y se atenúan; aquí son la acción entera, así que van más
  * blancos y con más cuerpo de trazo. Huecos en los dos casos.
  */
-function ActionIcon({ path }: { path: React.ReactNode }) {
+function ActionIcon({
+  path,
+  fill = "none",
+}: {
+  path: React.ReactNode;
+  fill?: string;
+}) {
   return (
     <svg
       width="17"
       height="17"
       viewBox="0 0 24 24"
-      fill="none"
+      fill={fill}
       stroke="currentColor"
       strokeWidth="1.9"
       strokeLinecap="round"
@@ -163,6 +170,19 @@ const SWIPE_AXIS_SLOP = 6;
 
 /** Lo que tarda el texto en irse del campo al enviarlo. Cuadra con el CSS. */
 const DRAFT_FADE_MS = 140;
+
+/**
+ * Ventana para encadenar dos toques como "doble toque".
+ *
+ * Es también lo que tarda en abrirse el menú de un mensaje en táctil: hay que
+ * esperar por si viene el segundo toque. 260ms es el punto donde el doble toque
+ * sale natural sin que el menú se sienta perezoso.
+ */
+const DOUBLE_TAP_MS = 260;
+
+/** Corazón: relleno para la marca del mensaje, contorno para el botón. */
+const HEART_PATH =
+  "M12 20.5l-1.6-1.45C5.1 14.5 2 11.7 2 8.2 2 5.4 4.2 3.2 7 3.2c1.6 0 3.1.74 4 1.9.9-1.16 2.4-1.9 4-1.9 2.8 0 5 2.2 5 5 0 3.5-3.1 6.3-8.4 10.85L12 20.5z";
 
 /**
  * Fondos de los globos, sobre negro.
@@ -353,6 +373,11 @@ export default function ConversationThread({
   const [loadedImages, setLoadedImages] = useState<Record<string, true>>({});
   /** Breve, mientras el texto se desvanece del campo tras enviarlo. */
   const [draftFading, setDraftFading] = useState(false);
+
+  /** Último toque, para encadenar el doble toque que pone corazón. */
+  const lastTapRef = useRef<{ id: string; at: number } | null>(null);
+  /** Apertura del menú en espera: se cancela si llega el segundo toque. */
+  const pendingTapRef = useRef<number | null>(null);
   /**
    * Imagen abierta a tamaño completo.
    *
@@ -638,6 +663,50 @@ export default function ConversationThread({
     setReplyingTo(preview);
     setExpandedMessage(null);
     inputRef.current?.focus();
+  }
+
+  /** ¿Le puse yo corazón a este mensaje? */
+  function isLikedByMe(message: MessageWithId) {
+    return !!selfUid && (message.likedBy ?? []).includes(selfUid);
+  }
+
+  function toggleLike(message: MessageWithId) {
+    if (!conversationId || !selfUid || message.isDeleted) return;
+    void setMessageLike(
+      conversationId,
+      message.id,
+      selfUid,
+      !isLikedByMe(message)
+    ).catch(() => setError(tChat("messageActionError")));
+  }
+
+  /**
+   * Toque sobre el globo en TÁCTIL: uno abre el menú, dos ponen corazón.
+   *
+   * El menú tiene que esperar por si viene el segundo toque, así que se programa
+   * y se cancela si llega. Con puntero no se hace nada de esto — allí el menú
+   * abre al instante y el corazón tiene su propio botón al pasar el cursor.
+   */
+  function handleBubbleTap(message: MessageWithId, anchor: HTMLElement) {
+    const now = performance.now();
+    const previous = lastTapRef.current;
+
+    if (previous && previous.id === message.id && now - previous.at < DOUBLE_TAP_MS) {
+      lastTapRef.current = null;
+      if (pendingTapRef.current !== null) {
+        clearTimeout(pendingTapRef.current);
+        pendingTapRef.current = null;
+      }
+      toggleLike(message);
+      return;
+    }
+
+    lastTapRef.current = { id: message.id, at: now };
+    if (pendingTapRef.current !== null) clearTimeout(pendingTapRef.current);
+    pendingTapRef.current = window.setTimeout(() => {
+      pendingTapRef.current = null;
+      toggleExpanded(message.id, anchor);
+    }, DOUBLE_TAP_MS);
   }
 
   function startEdit(message: MessageWithId) {
@@ -1061,6 +1130,43 @@ export default function ConversationThread({
               alignItems: "center",
             }}
           >
+            {/* Corazón del mensaje. Va SIEMPRE en el DOM y se enciende con el
+                atributo: así el pop de entrada y el de salida son la misma
+                transición, sin tener que retrasar el desmontaje.
+                Fuera del globo, que recorta lo que se sale (`overflow: hidden`).
+
+                Mismo truco que la pista del gesto: un hueco de ancho CERO justo
+                al lado del globo, así queda pegado a él sea cual sea su ancho.
+                Va en la esquina de dentro — la que mira al centro de la
+                pantalla — y por eso cambia de lado según quién escribe. */}
+            {!message.isDeleted ? (
+              <span
+                aria-hidden
+                style={{
+                  order: mine ? 1 : 5,
+                  position: "relative",
+                  width: 0,
+                  display: "flex",
+                  alignItems: "center",
+                  alignSelf: "stretch",
+                }}
+              >
+                <span
+                  className="vibra-msg-heart"
+                  data-on={(message.likedBy ?? []).length > 0 ? "" : undefined}
+                  style={{
+                    position: "absolute",
+                    bottom: -7,
+                    ...(mine ? { left: -5 } : { right: -5 }),
+                  }}
+                >
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="#ff3040">
+                    <path d={HEART_PATH} />
+                  </svg>
+                </span>
+              </span>
+            ) : null}
+
             {/* Acciones al pasar el cursor. El hueco se reserva SIEMPRE (aunque
                 estén invisibles) para que aparecer no empuje el globo de sitio.
                 Van del lado de fuera del globo: a su izquierda si el mensaje es
@@ -1069,7 +1175,7 @@ export default function ConversationThread({
             <span
               className="vibra-msg-actions"
               style={{
-                order: mine ? 0 : 3,
+                order: mine ? 0 : 6,
                 // Pegados AL GLOBO, no centrados en el hueco reservado. Con una
                 // sola acción (editar caduca a los 10 minutos, y en lo del otro
                 // nunca aparece) centrar dejaba un espacio muerto justo entre el
@@ -1078,6 +1184,29 @@ export default function ConversationThread({
                 justifyContent: mine ? "flex-end" : "flex-start",
               }}
             >
+              {/* Corazón: mismo gesto que el doble toque de celular, aquí con
+                  su propio botón. Contorno cuando no está puesto, relleno y
+                  rosa cuando sí. */}
+              {!message.isDeleted && conversationId ? (
+                <button
+                  type="button"
+                  className="vibra-msg-action"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleLike(message);
+                  }}
+                  aria-label={tChat("like")}
+                  title={tChat("like")}
+                  aria-pressed={isLikedByMe(message)}
+                  style={isLikedByMe(message) ? { color: "#ec4899" } : undefined}
+                >
+                  <ActionIcon
+                    path={<path d={HEART_PATH} />}
+                    fill={isLikedByMe(message) ? "currentColor" : "none"}
+                  />
+                </button>
+              ) : null}
+
               {canReply(message) ? (
                 <button
                   type="button"
@@ -1119,7 +1248,7 @@ export default function ConversationThread({
               data-swipe-cue
               aria-hidden
               style={{
-                order: 1,
+                order: 2,
                 position: "relative",
                 width: 0,
                 display: "flex",
@@ -1146,7 +1275,12 @@ export default function ConversationThread({
                 suppressClickRef.current = false;
                 return;
               }
-              toggleExpanded(message.id, e.currentTarget);
+              // Con puntero el menú abre ya: el doble toque es gesto de dedo.
+              if (pointerActions) {
+                toggleExpanded(message.id, e.currentTarget);
+                return;
+              }
+              handleBubbleTap(message, e.currentTarget);
             }}
             onKeyDown={(e) => {
               if (e.key === "Enter" || e.key === " ") {
@@ -1155,7 +1289,7 @@ export default function ConversationThread({
               }
             }}
             style={{
-              order: 2,
+              order: 3,
               cursor: "pointer",
               maxWidth: "78%",
               // El relleno NO va aquí sino en cada parte que lo necesita (cita y
@@ -1922,6 +2056,28 @@ export default function ConversationThread({
           color: rgba(255, 255, 255, 0.32);
         }
 
+        /* Corazón de un mensaje. Entra y sale con el MISMO rebote: al ser una
+           transición y no una animación de montaje, quitarlo también se ve. */
+        .vibra-msg-heart {
+          display: grid;
+          place-items: center;
+          /* Sin contenedor: el corazón va suelto sobre el globo. Una sombra
+             corta lo despega del fondo sin dibujarle una caja alrededor. */
+          filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.55));
+          pointer-events: none;
+          z-index: 1;
+          transform: scale(0);
+          opacity: 0;
+          transition:
+            transform var(--duration-normal, 250ms)
+              var(--ease-spring, cubic-bezier(0.34, 1.56, 0.64, 1)),
+            opacity var(--duration-fast, 150ms) ease;
+        }
+        .vibra-msg-heart[data-on] {
+          transform: scale(1);
+          opacity: 1;
+        }
+
         /* El texto se va del campo al enviarlo, en vez de desaparecer seco. */
         .vibra-chat-ph {
           transition: opacity 140ms ease;
@@ -1953,6 +2109,9 @@ export default function ConversationThread({
           }
           .vibra-msg-pop {
             animation: none;
+          }
+          .vibra-msg-heart {
+            transition: none;
           }
         }
 

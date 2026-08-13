@@ -2595,6 +2595,7 @@
     "editingMessage": "กำลังแก้ไขข้อความ",
     "messageActionError": "ดำเนินการไม่สำเร็จ",
     "reply": "ตอบกลับ",
+    "like": "ถูกใจ",
     "replyingTo": "กำลังตอบกลับ {name}",
     "replyToSelf": "คุณ",
     "cancelReply": "ยกเลิกการตอบกลับ"

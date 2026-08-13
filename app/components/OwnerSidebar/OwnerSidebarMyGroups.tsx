@@ -63,7 +63,8 @@ import {
 } from "@/lib/exclusiveSession/exclusiveSessionRequests";
 
 import LiveRingAvatar from "@/app/components/LiveRing/LiveRingAvatar";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
+import { capitalizeFirst, formatDateTime, formatTime } from "@/lib/i18n/dateTime";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import { WALLET_NET_RATE } from "@/lib/wallet/walletFinances";
 
@@ -115,6 +116,7 @@ export default function OwnerSidebarMyGroups({
   const tGroups = useTranslations("groups");
   const tSessions = useTranslations("sessions");
   const tWallet = useTranslations("wallet");
+  const locale = useLocale();
   const { format: formatMoney } = usePriceFormat();
   const pathname = usePathname();
   const [inviteGroupId, setInviteGroupId] = useState<string | null>(null);
@@ -366,8 +368,7 @@ useEffect(() => {
       return;
     }
     const selectedScheduleDate = new Date(scheduledAt);
-const scheduleConflict = getWalletScheduleConflictResult(
-  {
+const scheduleConflict = getWalletScheduleConflictResult(locale, {
     id: requestId,
     source: kind,
     scheduledAt: selectedScheduleDate,
@@ -455,8 +456,7 @@ if (scheduleConflict.hasConflict) {
       return;
     }
     const selectedDate = new Date(scheduledAtIso);
-    const conflict = getWalletScheduleConflictResult(
-      { id: requestId, source: kind, scheduledAt: selectedDate, durationMinutes: kind === "exclusive_session" ? 60 : 30 },
+    const conflict = getWalletScheduleConflictResult(locale, { id: requestId, source: kind, scheduledAt: selectedDate, durationMinutes: kind === "exclusive_session" ? 60 : 30 },
       ownerCalendarItems
     );
     if (conflict.hasConflict) {
@@ -549,8 +549,7 @@ if (scheduleConflict.hasConflict) {
       return;
     }
     const selectedDate = new Date(scheduledAtIso);
-    const conflict = getWalletScheduleConflictResult(
-      { id: requestId, source: kind, scheduledAt: selectedDate, durationMinutes: kind === "exclusive_session" ? 60 : 30 },
+    const conflict = getWalletScheduleConflictResult(locale, { id: requestId, source: kind, scheduledAt: selectedDate, durationMinutes: kind === "exclusive_session" ? 60 : 30 },
       ownerCalendarItems
     );
     if (conflict.hasConflict) {
@@ -1784,13 +1783,13 @@ maxWidth: 220,
       {rescheduleNotification && (() => {
         const d = rescheduleNotification.newScheduledAt ? new Date(rescheduleNotification.newScheduledAt) : null;
         const isExclusive = rescheduleNotification.source === "exclusive_session";
-        const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
-        const formattedDate = d ? (() => {
-          const weekday = cap(d.toLocaleDateString("es-MX", { weekday: "long" }));
-          const month = cap(d.toLocaleDateString("es-MX", { month: "long" }));
-          return `${weekday} ${d.getDate()} de ${month} ${d.getFullYear()}`;
-        })() : null;
-        const formattedTime = d ? d.toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit", hour12: false }) + " hrs" : null;
+        // El orden de los campos y el nombre del mes los pone Intl según el idioma: antes
+        // esto era `${weekday} ${dia} de ${mes} ${año}`, con el "de" del español pegado.
+        const formattedDate = capitalizeFirst(
+          formatDateTime(d, locale, { weekday: "long", day: "numeric", month: "long", year: "numeric" }),
+          locale
+        );
+        const formattedTime = formatTime(d, locale);
 
         return (
           <div style={{
@@ -1908,16 +1907,15 @@ maxWidth: 220,
                 </span>
                 <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 2, flexShrink: 0 }}>
                   <span style={{ fontSize: 12, fontWeight: 500, color: "rgba(255,255,255,0.70)" }}>
-                    {(() => {
-                      const d = postScheduleCalendar.date;
-                      const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
-                      const weekday = cap(d.toLocaleDateString("es-MX", { weekday: "long" }));
-                      const month = cap(d.toLocaleDateString("es-MX", { month: "long" }));
-                      return `${weekday} ${d.getDate()} de ${month} ${d.getFullYear()}`;
-                    })()}
+                    {capitalizeFirst(
+                      formatDateTime(postScheduleCalendar.date, locale, {
+                        weekday: "long", day: "numeric", month: "long", year: "numeric",
+                      }),
+                      locale
+                    )}
                   </span>
                   <span style={{ fontSize: 12, fontWeight: 500, color: "rgba(255,255,255,0.45)" }}>
-                    {postScheduleCalendar.date.toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit", hour12: false })} hrs
+                    {formatTime(postScheduleCalendar.date, locale)}
                   </span>
                 </div>
               </div>

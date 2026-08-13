@@ -2595,6 +2595,7 @@
     "editingMessage": "Muokataan viestiä",
     "messageActionError": "Toimintoa ei voitu viedä loppuun.",
     "reply": "Vastaa",
+    "like": "Tykkää",
     "replyingTo": "Vastaus käyttäjälle {name}",
     "replyToSelf": "Sinä",
     "cancelReply": "Peruuta vastaus"
