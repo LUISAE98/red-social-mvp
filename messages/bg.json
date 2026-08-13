@@ -1446,8 +1446,8 @@
     "cashoutRequest": "Можеш да поискаш {amount} като възстановяване в брой",
     "cashoutSending": "Изпращане на заявката…",
     "cashoutPendingReview": "Имаш {amount} в проверка за възстановяване по картата ти.",
-    "cashoutApproved": "Your refund of {amount} was completed successfully. It may take 5 to 10 business days to appear on your card due to Stripe processing.",
-    "cashoutRejected": "Your card refund request was declined. Reason: “{reason}”. Your credit is still available to use on the platform.",
+    "cashoutApproved": "Възстановяването ти на {amount} беше успешно. Заради обработката в Stripe може да минат от 5 до 10 работни дни, преди да се появи по картата ти.",
+    "cashoutRejected": "Заявката ти за възстановяване по картата беше отхвърлена. Причина: „{reason}“. Кредитът ти остава на разположение в платформата.",
     "cashoutConfirm": "Да поискаш ли {amount} възстановяване по първоначалната ти карта? Администратор ще го прегледа. Междувременно сумата се запазва.",
     "cashoutError": "Възстановяването не можа да бъде заявено.",
     "payHeading": "Как искаш да платиш?",
@@ -2639,6 +2639,7 @@
     "messageActionError": "Действието не можа да бъде завършено.",
     "reply": "Отговор",
     "like": "Харесване",
+    "unlike": "Премахни харесването",
     "replyingTo": "Отговор до {name}",
     "replyToSelf": "Ти",
     "cancelReply": "Отказ на отговора"

@@ -1446,8 +1446,8 @@
     "cashoutRequest": "Możesz poprosić o zwrot {amount} w gotówce",
     "cashoutSending": "Wysyłanie prośby…",
     "cashoutPendingReview": "Masz {amount} w trakcie weryfikacji zwrotu na kartę.",
-    "cashoutApproved": "Your refund of {amount} was completed successfully. It may take 5 to 10 business days to appear on your card due to Stripe processing.",
-    "cashoutRejected": "Your card refund request was declined. Reason: “{reason}”. Your credit is still available to use on the platform.",
+    "cashoutApproved": "Twój zwrot {amount} został zrealizowany. Ze względu na przetwarzanie w Stripe może minąć od 5 do 10 dni roboczych, zanim pojawi się na Twojej karcie.",
+    "cashoutRejected": "Twoja prośba o zwrot na kartę została odrzucona. Powód: „{reason}”. Twoje środki nadal możesz wykorzystać na platformie.",
     "cashoutConfirm": "Poprosić o zwrot {amount} na pierwotną kartę? Administrator to sprawdzi. W tym czasie ta kwota zostanie zarezerwowana.",
     "cashoutError": "Nie udało się poprosić o zwrot.",
     "payHeading": "Jak chcesz zapłacić?",
@@ -2639,6 +2639,7 @@
     "messageActionError": "Nie udało się wykonać tej akcji.",
     "reply": "Odpowiedz",
     "like": "Lubię to",
+    "unlike": "Usuń polubienie",
     "replyingTo": "Odpowiadasz {name}",
     "replyToSelf": "Ty",
     "cancelReply": "Anuluj odpowiedź"

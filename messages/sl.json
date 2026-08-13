@@ -1446,8 +1446,8 @@
     "cashoutRequest": "Lahko zahtevaš {amount} kot vračilo v gotovini",
     "cashoutSending": "Pošiljanje zahteve…",
     "cashoutPendingReview": "Imaš {amount} v pregledu za vračilo na kartico.",
-    "cashoutApproved": "Your refund of {amount} was completed successfully. It may take 5 to 10 business days to appear on your card due to Stripe processing.",
-    "cashoutRejected": "Your card refund request was declined. Reason: “{reason}”. Your credit is still available to use on the platform.",
+    "cashoutApproved": "Tvoje vračilo v znesku {amount} je bilo uspešno izvedeno. Zaradi obdelave pri Stripeu lahko traja od 5 do 10 delovnih dni, da se prikaže na tvoji kartici.",
+    "cashoutRejected": "Tvoja zahteva za vračilo na kartico je bila zavrnjena. Razlog: »{reason}«. Svoje dobroimetje lahko še naprej uporabljaš na platformi.",
     "cashoutConfirm": "Želiš zahtevati {amount} vračila na izvirno kartico? Skrbnik bo to pregledal. Medtem ostane znesek rezerviran.",
     "cashoutError": "Vračila ni bilo mogoče zahtevati.",
     "payHeading": "Kako želiš plačati?",
@@ -2639,6 +2639,7 @@
     "messageActionError": "Dejanja ni bilo mogoče dokončati.",
     "reply": "Odgovori",
     "like": "Všeč mi je",
+    "unlike": "Odstrani všeček",
     "replyingTo": "Odgovor uporabniku {name}",
     "replyToSelf": "Ti",
     "cancelReply": "Prekliči odgovor"

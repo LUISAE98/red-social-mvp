@@ -1446,8 +1446,8 @@
     "cashoutRequest": "Tu peux demander {amount} en remboursement",
     "cashoutSending": "Envoi de la demande…",
     "cashoutPendingReview": "Tu as {amount} en cours de vérification pour un remboursement sur ta carte.",
-    "cashoutApproved": "Your refund of {amount} was completed successfully. It may take 5 to 10 business days to appear on your card due to Stripe processing.",
-    "cashoutRejected": "Your card refund request was declined. Reason: “{reason}”. Your credit is still available to use on the platform.",
+    "cashoutApproved": "Ton remboursement de {amount} a bien été effectué. Il peut mettre 5 à 10 jours ouvrés à apparaître sur ta carte, le temps du traitement par Stripe.",
+    "cashoutRejected": "Ta demande de remboursement sur carte a été refusée. Motif : « {reason} ». Ton crédit reste disponible sur la plateforme.",
     "cashoutConfirm": "Demander {amount} de remboursement sur ta carte d’origine ? Un administrateur va l’examiner. En attendant, ce solde est mis de côté.",
     "cashoutError": "Impossible de demander le remboursement.",
     "payHeading": "Comment veux-tu payer ?",
@@ -2639,6 +2639,7 @@
     "messageActionError": "Impossible de terminer l’action.",
     "reply": "Répondre",
     "like": "J’aime",
+    "unlike": "Retirer le j’aime",
     "replyingTo": "Réponse à {name}",
     "replyToSelf": "Vous",
     "cancelReply": "Annuler la réponse"

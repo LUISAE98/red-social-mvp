@@ -1446,8 +1446,8 @@
     "cashoutRequest": "Та {amount} бэлнээр буцаан олголт хүсэх боломжтой",
     "cashoutSending": "Хүсэлт илгээж байна…",
     "cashoutPendingReview": "Таны картад буцаан олгох {amount} хянагдаж байна.",
-    "cashoutApproved": "Your refund of {amount} was completed successfully. It may take 5 to 10 business days to appear on your card due to Stripe processing.",
-    "cashoutRejected": "Your card refund request was declined. Reason: “{reason}”. Your credit is still available to use on the platform.",
+    "cashoutApproved": "{amount} буцаалт чинь амжилттай хийгдлээ. Stripe-ийн боловсруулалтаас шалтгаалж картад чинь тусахад 5-10 ажлын өдөр зарцуулагдаж болно.",
+    "cashoutRejected": "Картад буцаах хүсэлт чинь татгалзагдлаа. Шалтгаан нь „{reason}“. Кредит чинь платформ дээр ашиглах боломжтой хэвээр байна.",
     "cashoutConfirm": "{amount}-г анхны картад буцаан олгохыг хүсэх үү? Админ хянана. Энэ хугацаанд тухайн үлдэгдэл нөөцлөгдөнө.",
     "cashoutError": "Буцаан олголт хүсэх боломжгүй байна.",
     "payHeading": "Та хэрхэн төлөхийг хүсэж байна вэ?",
@@ -2639,6 +2639,7 @@
     "messageActionError": "Үйлдлийг гүйцээж чадсангүй.",
     "reply": "Хариу бичих",
     "like": "Таалагдсан",
+    "unlike": "Таалагдсаныг болиулах",
     "replyingTo": "{name}-д хариу бичиж байна",
     "replyToSelf": "Та",
     "cancelReply": "Хариуг цуцлах"

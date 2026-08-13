@@ -1446,8 +1446,8 @@
     "cashoutRequest": "Pode pedir {amount} como reembolso em dinheiro",
     "cashoutSending": "A enviar pedido…",
     "cashoutPendingReview": "Tem {amount} em análise para reembolso no seu cartão.",
-    "cashoutApproved": "Your refund of {amount} was completed successfully. It may take 5 to 10 business days to appear on your card due to Stripe processing.",
-    "cashoutRejected": "Your card refund request was declined. Reason: “{reason}”. Your credit is still available to use on the platform.",
+    "cashoutApproved": "O teu reembolso de {amount} foi concluído com sucesso. Pode demorar 5 a 10 dias úteis a aparecer no teu cartão devido ao processamento da Stripe.",
+    "cashoutRejected": "O teu pedido de reembolso para o cartão foi recusado. Motivo: «{reason}». O teu crédito continua disponível para usares na plataforma.",
     "cashoutConfirm": "Pedir {amount} de reembolso para o cartão original? Um administrador vai rever. Entretanto, esse saldo fica reservado.",
     "cashoutError": "Não foi possível pedir o reembolso.",
     "payHeading": "Como quer pagar?",
@@ -2639,6 +2639,7 @@
     "messageActionError": "Não foi possível concluir a ação.",
     "reply": "Responder",
     "like": "Gosto",
+    "unlike": "Remover gosto",
     "replyingTo": "A responder a {name}",
     "replyToSelf": "Tu",
     "cancelReply": "Cancelar resposta"

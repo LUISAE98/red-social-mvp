@@ -1446,8 +1446,8 @@
     "cashoutRequest": "Tista titlob {amount} bhala rifuzjoni fi flus",
     "cashoutSending": "Qed tintbaghat it-talba…",
     "cashoutPendingReview": "Ghandek {amount} taht revizjoni ghal rifuzjoni fuq il-kard.",
-    "cashoutApproved": "Your refund of {amount} was completed successfully. It may take 5 to 10 business days to appear on your card due to Stripe processing.",
-    "cashoutRejected": "Your card refund request was declined. Reason: “{reason}”. Your credit is still available to use on the platform.",
+    "cashoutApproved": "Ir-rimborż tiegħek ta' {amount} tlesta b'suċċess. Minħabba l-ipproċessar ta' Stripe, jista' jieħu bejn 5 u 10 ijiem tax-xogħol biex jidher fuq il-kard tiegħek.",
+    "cashoutRejected": "It-talba tiegħek għal rimborż fuq il-kard ġiet miċħuda. Raġuni: „{reason}”. Il-kreditu tiegħek għadu disponibbli biex tużah fuq il-pjattaforma.",
     "cashoutConfirm": "Titlob {amount} ta rifuzjoni fuq il-kard originali? Amministratur se jirrevedi. Sadanittant, dak il-bilanc jinzamm imwarrab.",
     "cashoutError": "Ma setghetx tintalab ir-rifuzjoni.",
     "payHeading": "Kif trid thallas?",
@@ -2639,6 +2639,7 @@
     "messageActionError": "L-azzjoni ma setgħetx titlesta.",
     "reply": "Wieġeb",
     "like": "Jogħġobni",
+    "unlike": "Neħħi l-jogħġobni",
     "replyingTo": "Qed twieġeb lil {name}",
     "replyToSelf": "Int",
     "cancelReply": "Ikkanċella r-risposta"

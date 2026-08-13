@@ -1446,8 +1446,8 @@
     "cashoutRequest": "Anda boleh meminta {amount} sebagai bayaran balik tunai",
     "cashoutSending": "Menghantar permintaan…",
     "cashoutPendingReview": "Anda mempunyai {amount} dalam semakan untuk bayaran balik ke kad anda.",
-    "cashoutApproved": "Your refund of {amount} was completed successfully. It may take 5 to 10 business days to appear on your card due to Stripe processing.",
-    "cashoutRejected": "Your card refund request was declined. Reason: “{reason}”. Your credit is still available to use on the platform.",
+    "cashoutApproved": "Bayaran balik {amount} anda telah selesai. Disebabkan pemprosesan Stripe, ia mungkin mengambil masa 5 hingga 10 hari bekerja untuk muncul pada kad anda.",
+    "cashoutRejected": "Permintaan bayaran balik ke kad anda telah ditolak. Sebab: “{reason}”. Kredit anda masih boleh digunakan di platform.",
     "cashoutConfirm": "Minta bayaran balik {amount} ke kad asal anda? Pentadbir akan menyemaknya. Sementara itu, baki tersebut akan diketepikan.",
     "cashoutError": "Bayaran balik tidak dapat diminta.",
     "payHeading": "Bagaimana anda mahu membayar?",
@@ -2639,6 +2639,7 @@
     "messageActionError": "Tindakan tidak dapat diselesaikan.",
     "reply": "Balas",
     "like": "Suka",
+    "unlike": "Buang suka",
     "replyingTo": "Membalas {name}",
     "replyToSelf": "Anda",
     "cancelReply": "Batalkan balasan"

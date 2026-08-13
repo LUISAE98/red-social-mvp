@@ -1446,8 +1446,8 @@
     "cashoutRequest": "Du kan begära {amount} som kontant återbetalning",
     "cashoutSending": "Skickar begäran…",
     "cashoutPendingReview": "Du har {amount} under granskning för återbetalning till ditt kort.",
-    "cashoutApproved": "Your refund of {amount} was completed successfully. It may take 5 to 10 business days to appear on your card due to Stripe processing.",
-    "cashoutRejected": "Your card refund request was declined. Reason: “{reason}”. Your credit is still available to use on the platform.",
+    "cashoutApproved": "Din återbetalning på {amount} har genomförts. På grund av Stripes hantering kan det ta 5 till 10 arbetsdagar innan den syns på ditt kort.",
+    "cashoutRejected": "Din begäran om återbetalning till kortet avslogs. Skäl: ”{reason}”. Ditt tillgodohavande kan du fortfarande använda på plattformen.",
     "cashoutConfirm": "Begära {amount} i återbetalning till ditt ursprungliga kort? En administratör granskar det. Under tiden reserveras beloppet.",
     "cashoutError": "Det gick inte att begära återbetalningen.",
     "payHeading": "Hur vill du betala?",
@@ -2639,6 +2639,7 @@
     "messageActionError": "Det gick inte att slutföra åtgärden.",
     "reply": "Svara",
     "like": "Gilla",
+    "unlike": "Ta bort gilla",
     "replyingTo": "Svarar {name}",
     "replyToSelf": "Du",
     "cancelReply": "Avbryt svar"

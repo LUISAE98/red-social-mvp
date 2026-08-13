@@ -1446,8 +1446,8 @@
     "cashoutRequest": "Saad taotleda {amount} tagasimakset sularahas",
     "cashoutSending": "Taotluse saatmine…",
     "cashoutPendingReview": "Sul on {amount} läbivaatamisel kaardile tagasimakseks.",
-    "cashoutApproved": "Your refund of {amount} was completed successfully. It may take 5 to 10 business days to appear on your card due to Stripe processing.",
-    "cashoutRejected": "Your card refund request was declined. Reason: “{reason}”. Your credit is still available to use on the platform.",
+    "cashoutApproved": "Sinu {amount} tagasimakse on edukalt tehtud. Stripe'i töötlemise tõttu võib kuluda 5 kuni 10 tööpäeva, enne kui see sinu kaardil kajastub.",
+    "cashoutRejected": "Sinu kaardile tagasimakse taotlus lükati tagasi. Põhjus: „{reason}”. Sinu krediit on platvormil endiselt kasutatav.",
     "cashoutConfirm": "Kas taotleda {amount} tagasimakset algsele kaardile? Administraator vaatab selle üle. Seni jääb summa reserveerituks.",
     "cashoutError": "Tagasimakset ei õnnestunud taotleda.",
     "payHeading": "Kuidas soovid maksta?",
@@ -2639,6 +2639,7 @@
     "messageActionError": "Toimingut ei õnnestunud lõpule viia.",
     "reply": "Vasta",
     "like": "Meeldib",
+    "unlike": "Eemalda meeldimine",
     "replyingTo": "Vastan kasutajale {name}",
     "replyToSelf": "Sina",
     "cancelReply": "Tühista vastamine"

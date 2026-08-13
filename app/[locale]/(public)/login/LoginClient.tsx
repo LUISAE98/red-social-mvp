@@ -24,13 +24,16 @@ import LoginExperienceBlock from "./LoginExperienceBlock";
 import LoginExperienceRail from "./LoginExperienceRail";
 
 /**
- * ⚠️ TEMPORAL — video de muestra compartido por los bloques de experiencias.
- * Cámbialo por los definitivos (uno por experiencia) cuando existan: si son
- * archivos del proyecto van en `public/`; si vienen de Mux hay que reproducirlos
- * con HLS, como el visor de posts.
+ * ⚠️ TEMPORAL — video de muestra compartido por los bloques que todavía no
+ * tienen el suyo. Cámbialo por los definitivos (uno por experiencia) cuando
+ * existan: si son archivos del proyecto van en `public/`; si vienen de Mux hay
+ * que reproducirlos con HLS, como el visor de posts.
+ *
+ * Se usa el archivo local a propósito. Antes apuntaba a un video de muestra
+ * remoto de ~158 MB y el navegador lo descargaba para CADA card, con lo que
+ * todo se atragantaba.
  */
-const VIDEO_MUESTRA =
-  "https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4";
+const VIDEO_MUESTRA = "/videosaludosyconsejos.mp4";
 import LegalLinksFooter from "@/components/legal/LegalLinksFooter";
 import RegisterPanel from "@/app/[locale]/(public)/register/RegisterPanel";
 import CompleteProfilePanel from "@/app/[locale]/(public)/complete-profile/CompleteProfilePanel";
@@ -1021,8 +1024,10 @@ marginBottom: 6,
           eyebrow="Experiencias personales"
           title="Cuando es para ti, se siente distinto"
           description="Un saludo para hacer inolvidable un momento. Un consejo para dar el siguiente paso. Pídelo a quien admiras o grábalo para alguien que eligió escucharte."
-          videoSrc={VIDEO_MUESTRA}
-          poster="/saludo.webp"
+          videoSrc="/videosaludosyconsejos.mp4"
+          // La portada es el PRIMER FRAME del propio video (19 KB), no una foto
+          // aparte: así el círculo no cambia de imagen al arrancar el video.
+          poster="/videosaludosyconsejos-portada.webp"
           service="saludo"
           accentColor="#a855f7"
           // Los textos por servicio hablan solo del saludo; esta card cubre
@@ -1159,7 +1164,7 @@ marginBottom: 6,
             },
             {
               icon: "postUnlocked",
-              title: "Posts premium",
+              title: "Publicaciones premium",
               description:
                 "Desbloquea únicamente las publicaciones que te interesen con un solo pago, sin necesidad de suscribirte.",
             },

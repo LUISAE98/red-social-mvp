@@ -12,20 +12,25 @@ import {
 /**
  * Silenciar y quitar de la bandeja, para el menú ⋮ del chat.
  *
- * Vive aparte porque lo montan los DOS marcos del chat — la pestaña de laptop y
- * la pantalla completa de celular — y el panel de confirmación tiene bastante
- * cuerpo como para duplicarlo.
+ * Está partido en DOS piezas a propósito, y no por gusto: los renglones viven
+ * dentro del portal del menú, y ese portal se desmonta al cerrarse el menú. Si
+ * el panel de confirmación colgara de ahí, se iría con él — que es exactamente
+ * lo que pasaba: el panel se abría y desaparecía solo a los pocos milisegundos.
  *
- * Ninguna de las dos toca al otro lado: silenciar solo apaga TU aviso, y quitar
- * solo despeja TU bandeja.
+ * Por eso el panel lo monta el MARCO del chat (la pantalla de celular o la
+ * pestaña de laptop), que sigue vivo cuando el menú ya no está.
+ *
+ * Ninguna de las dos acciones toca al otro lado: silenciar apaga TU aviso y
+ * quitar despeja TU bandeja.
  */
-export default function ChatConversationActions({
+
+export function ChatConversationMenuItems({
   conversationId,
   selfUid,
   muted,
   itemStyle,
   onCloseMenu,
-  onRemoved,
+  onRequestRemove,
 }: {
   conversationId: string;
   selfUid: string;
@@ -33,33 +38,16 @@ export default function ChatConversationActions({
   /** Estilo de renglón que presta el menú, para no desentonar. */
   itemStyle: React.CSSProperties;
   onCloseMenu: () => void;
-  /** Se dispara al quitar el hilo; el marco decide adónde ir después. */
-  onRemoved?: () => void;
+  onRequestRemove: () => void;
 }) {
   const tChat = useTranslations("chat");
-  const tCommon = useTranslations("common");
-
-  const [confirmOpen, setConfirmOpen] = useState(false);
-  const [busy, setBusy] = useState(false);
 
   async function handleToggleMute() {
     onCloseMenu();
     try {
       await setConversationMuted(conversationId, selfUid, !muted);
     } catch {
-      // Silencioso: no llega el aviso pero el chat sigue funcionando igual.
-    }
-  }
-
-  async function handleRemove() {
-    if (busy) return;
-    setBusy(true);
-    try {
-      await hideConversationForMe(conversationId, selfUid);
-      setConfirmOpen(false);
-      onRemoved?.();
-    } finally {
-      setBusy(false);
+      // Silencioso: no cambia el aviso, pero el chat sigue funcionando igual.
     }
   }
 
@@ -74,74 +62,105 @@ export default function ChatConversationActions({
         role="menuitem"
         onClick={() => {
           onCloseMenu();
-          setConfirmOpen(true);
+          onRequestRemove();
         }}
         style={{ ...itemStyle, color: "#ff8a8a" }}
       >
         {tChat("removeConversation")}
       </button>
-
-      <VibraResponsivePanel
-        open={confirmOpen}
-        onClose={() => setConfirmOpen(false)}
-        title={tChat("removeConversationTitle")}
-        mobileVariant="centered"
-        maxWidthDesktop={420}
-        footer={
-          <div style={{ display: "flex", gap: 10 }}>
-            <button
-              type="button"
-              onClick={() => setConfirmOpen(false)}
-              disabled={busy}
-              style={{
-                flex: 1,
-                minHeight: 44,
-                borderRadius: 10,
-                border: "none",
-                background: "rgba(255,255,255,0.10)",
-                color: "#fff",
-                fontSize: 14,
-                fontWeight: 500,
-                fontFamily: "inherit",
-                cursor: busy ? "not-allowed" : "pointer",
-              }}
-            >
-              {tCommon("cancel")}
-            </button>
-            <button
-              type="button"
-              onClick={handleRemove}
-              disabled={busy}
-              style={{
-                flex: 1,
-                minHeight: 44,
-                borderRadius: 10,
-                border: "none",
-                background: "#ef4444",
-                color: "#fff",
-                fontSize: 14,
-                fontWeight: 600,
-                fontFamily: "inherit",
-                cursor: busy ? "not-allowed" : "pointer",
-                opacity: busy ? 0.7 : 1,
-              }}
-            >
-              {tChat("removeConversation")}
-            </button>
-          </div>
-        }
-      >
-        <p
-          style={{
-            margin: 0,
-            fontSize: 13.5,
-            lineHeight: 1.5,
-            color: "rgba(255,255,255,0.7)",
-          }}
-        >
-          {tChat("removeConversationBody")}
-        </p>
-      </VibraResponsivePanel>
     </>
+  );
+}
+
+export function ChatRemoveConversationDialog({
+  open,
+  conversationId,
+  selfUid,
+  onClose,
+  onRemoved,
+}: {
+  open: boolean;
+  conversationId: string;
+  selfUid: string;
+  onClose: () => void;
+  /** Se dispara al quitar el hilo; el marco decide adónde ir después. */
+  onRemoved?: () => void;
+}) {
+  const tChat = useTranslations("chat");
+  const tCommon = useTranslations("common");
+  const [busy, setBusy] = useState(false);
+
+  async function handleRemove() {
+    if (busy) return;
+    setBusy(true);
+    try {
+      await hideConversationForMe(conversationId, selfUid);
+      onClose();
+      onRemoved?.();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const buttonBase: React.CSSProperties = {
+    flex: 1,
+    minHeight: 44,
+    borderRadius: 10,
+    border: "none",
+    fontSize: 14,
+    fontFamily: "inherit",
+    cursor: busy ? "not-allowed" : "pointer",
+  };
+
+  return (
+    <VibraResponsivePanel
+      open={open}
+      onClose={onClose}
+      title={tChat("removeConversationTitle")}
+      mobileVariant="centered"
+      maxWidthDesktop={420}
+      footer={
+        <div style={{ display: "flex", gap: 10 }}>
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={busy}
+            style={{
+              ...buttonBase,
+              background: "rgba(255,255,255,0.10)",
+              color: "#fff",
+              fontWeight: 500,
+            }}
+          >
+            {tCommon("cancel")}
+          </button>
+          <button
+            type="button"
+            onClick={handleRemove}
+            disabled={busy}
+            style={{
+              ...buttonBase,
+              background: "#ef4444",
+              color: "#fff",
+              fontWeight: 600,
+              opacity: busy ? 0.7 : 1,
+            }}
+          >
+            {tChat("removeConversation")}
+          </button>
+        </div>
+      }
+    >
+      <p
+        style={{
+          margin: 0,
+          fontSize: 13.5,
+          lineHeight: 1.5,
+          color: "rgba(255,255,255,0.7)",
+        }}
+      >
+        {tChat("removeConversationBody")}
+      </p>
+    </VibraResponsivePanel>
   );
 }

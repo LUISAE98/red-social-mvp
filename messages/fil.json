@@ -1446,8 +1446,8 @@
     "cashoutRequest": "Puwede kang humiling ng {amount} bilang cash refund",
     "cashoutSending": "Ipinapadala ang kahilingan…",
     "cashoutPendingReview": "May {amount} kang sinusuri para sa refund sa iyong card.",
-    "cashoutApproved": "Your refund of {amount} was completed successfully. It may take 5 to 10 business days to appear on your card due to Stripe processing.",
-    "cashoutRejected": "Your card refund request was declined. Reason: “{reason}”. Your credit is still available to use on the platform.",
+    "cashoutApproved": "Matagumpay na naiproseso ang refund mong {amount}. Dahil sa pagproseso ng Stripe, puwedeng abutin ng 5 hanggang 10 araw ng trabaho bago ito lumabas sa card mo.",
+    "cashoutRejected": "Tinanggihan ang hiling mong refund sa card. Dahilan: “{reason}”. Magagamit mo pa rin ang credit mo sa plataporma.",
     "cashoutConfirm": "Hihilingin ang {amount} na refund sa orihinal mong card? Susuriin ito ng administrator. Samantala, ilalaan ang balanseng iyon.",
     "cashoutError": "Hindi maihiling ang cash refund.",
     "payHeading": "Paano mo gustong magbayad?",
@@ -2639,6 +2639,7 @@
     "messageActionError": "Hindi nakumpleto ang aksyon.",
     "reply": "Tumugon",
     "like": "Gusto",
+    "unlike": "Alisin ang gusto",
     "replyingTo": "Tumutugon kay {name}",
     "replyToSelf": "Ikaw",
     "cancelReply": "Kanselahin ang tugon"

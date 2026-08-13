@@ -1446,8 +1446,8 @@
     "cashoutRequest": "Je kunt {amount} als terugbetaling aanvragen",
     "cashoutSending": "Verzoek versturen…",
     "cashoutPendingReview": "Je hebt {amount} in behandeling voor terugbetaling op je kaart.",
-    "cashoutApproved": "Your refund of {amount} was completed successfully. It may take 5 to 10 business days to appear on your card due to Stripe processing.",
-    "cashoutRejected": "Your card refund request was declined. Reason: “{reason}”. Your credit is still available to use on the platform.",
+    "cashoutApproved": "Je terugbetaling van {amount} is voltooid. Door de verwerking bij Stripe kan het 5 tot 10 werkdagen duren voordat het bedrag op je kaart staat.",
+    "cashoutRejected": "Je verzoek om terugbetaling op je kaart is afgewezen. Reden: ‘{reason}’. Je tegoed blijft beschikbaar op het platform.",
     "cashoutConfirm": "{amount} terugbetalen op je oorspronkelijke kaart? Een beheerder beoordeelt dit. In de tussentijd wordt dat tegoed apart gezet.",
     "cashoutError": "De terugbetaling kon niet worden aangevraagd.",
     "payHeading": "Hoe wil je betalen?",
@@ -2639,6 +2639,7 @@
     "messageActionError": "De actie kon niet worden voltooid.",
     "reply": "Beantwoorden",
     "like": "Vind ik leuk",
+    "unlike": "Vind ik niet meer leuk",
     "replyingTo": "Antwoord aan {name}",
     "replyToSelf": "Jij",
     "cancelReply": "Antwoord annuleren"

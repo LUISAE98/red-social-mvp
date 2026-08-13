@@ -88,18 +88,43 @@ export default function LoginExperienceBlock({
   const sectionRef = useRef<HTMLElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [entered, setEntered] = useState(false);
+  /** El bloque está a la vista AHORA (no como `entered`, que es de una sola vez). */
+  const [inView, setInView] = useState(false);
+
+  // Solo se reproduce el video del bloque visible. En laptop los cinco están en
+  // la página, y cinco videos decodificando a la vez saturan al navegador: se
+  // entrecortan y termina soltando alguno, que es justo el síntoma de "se traba
+  // y de pronto ya no se reproduce".
+  const playing = active && inView;
 
   useEffect(() => {
     const v = videoRef.current;
     if (!v) return;
-    if (active) {
-      // Puede rechazarse (política de reproducción del navegador); el póster
-      // queda debajo, así que el círculo nunca se ve vacío.
-      void v.play().catch(() => {});
-    } else {
+    if (!playing) {
       v.pause();
+      return;
     }
-  }, [active]);
+    // Puede rechazarse (política de reproducción del navegador); el póster
+    // queda debajo, así que el círculo nunca se ve vacío.
+    const kick = () => void v.play().catch(() => {});
+    kick();
+    // Red de seguridad del bucle: si el navegador deja el video en el último
+    // frame en vez de reiniciarlo, se rebobina a mano. El video está grabado
+    // para que el primer y el último frame coincidan, así que el corte no se ve.
+    const onEnded = () => {
+      v.currentTime = 0;
+      kick();
+    };
+    // Y si se detiene por falta de datos o por ahorro de energía, se retoma.
+    v.addEventListener("ended", onEnded);
+    v.addEventListener("stalled", kick);
+    v.addEventListener("suspend", kick);
+    return () => {
+      v.removeEventListener("ended", onEnded);
+      v.removeEventListener("stalled", kick);
+      v.removeEventListener("suspend", kick);
+    };
+  }, [playing]);
 
   useEffect(() => {
     const node = sectionRef.current;
@@ -118,6 +143,21 @@ export default function LoginExperienceBlock({
       },
       { threshold: 0.22 },
     );
+    obs.observe(node);
+    return () => obs.disconnect();
+  }, []);
+
+  // Este NO se desconecta: sigue el ir y venir del bloque para prender y apagar
+  // su video. Umbral bajo, para que ya esté andando cuando se alcance a ver.
+  useEffect(() => {
+    const node = sectionRef.current;
+    if (!node || typeof IntersectionObserver === "undefined") {
+      const id = requestAnimationFrame(() => setInView(true));
+      return () => cancelAnimationFrame(id);
+    }
+    const obs = new IntersectionObserver((entries) => setInView(entries.some((e) => e.isIntersecting)), {
+      threshold: 0.1,
+    });
     obs.observe(node);
     return () => obs.disconnect();
   }, []);
@@ -163,7 +203,7 @@ export default function LoginExperienceBlock({
         /* El círculo se mide contra SU MITAD, no contra la ventana. */
         .expBlockMedia {
           position: relative;
-          width: min(70%, 250px);
+          width: min(84%, 300px);
           aspect-ratio: 1 / 1;
           border-radius: 50%;
           overflow: hidden;
@@ -344,13 +384,19 @@ export default function LoginExperienceBlock({
         >
           <video
             ref={videoRef}
-            src={videoSrc}
+            // El video NO se descarga hasta que el bloque se ve por primera
+            // vez. Con cinco cards en la página, cargarlos todos de entrada
+            // satura la red y el que estás mirando se entrecorta.
+            src={entered ? videoSrc : undefined}
             poster={poster}
             autoPlay
             muted
             loop
             playsInline
-            preload="metadata"
+            // El clip entero, no solo su cabecera: son unos segundos en bucle y
+            // con "metadata" el navegador vuelve a pedir datos en cada vuelta,
+            // que es de donde salen los tirones en la costura del bucle.
+            preload="auto"
             aria-hidden="true"
           />
         </div>

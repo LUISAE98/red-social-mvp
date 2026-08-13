@@ -1,11 +1,15 @@
 "use client";
 
+import { useState } from "react";
 import { useTranslations } from "next-intl";
 
 import LiveRingAvatar from "@/app/components/LiveRing/LiveRingAvatar";
 import ProfileMoreMenu from "@/app/[locale]/(protected)/u/[handle]/components/ProfileMoreMenu";
 import ConversationThread from "./ConversationThread";
-import ChatConversationActions from "./ChatConversationActions";
+import {
+  ChatConversationMenuItems,
+  ChatRemoveConversationDialog,
+} from "./ChatConversationActions";
 import { useConversationDoc } from "@/lib/chat/useConversationDoc";
 import type { ProfileMini } from "./ConversationList";
 
@@ -54,6 +58,8 @@ export default function ChatDock({
   // Solo para saber si está silenciado: es el mismo documento que ya escucha el
   // hilo, así que no añade lecturas.
   const { conversation } = useConversationDoc(conversationId);
+  // Fuera del menú: ese se desmonta al cerrarse y se llevaba el panel con él.
+  const [removeOpen, setRemoveOpen] = useState(false);
 
   return (
     <div
@@ -151,14 +157,13 @@ export default function ChatDock({
               buttonStyle={{ fontSize: 18, padding: "6px 9px", lineHeight: 1 }}
               extraItems={({ close, itemStyle }) =>
                 selfUid ? (
-                  <ChatConversationActions
+                  <ChatConversationMenuItems
                     conversationId={conversationId}
                     selfUid={selfUid}
                     muted={(conversation?.mutedBy ?? []).includes(selfUid)}
                     itemStyle={itemStyle}
                     onCloseMenu={close}
-                    // Quitada de la bandeja, la pestaña se cierra sola.
-                    onRemoved={onClose}
+                    onRequestRemove={() => setRemoveOpen(true)}
                   />
                 ) : null
               }
@@ -255,6 +260,18 @@ export default function ChatDock({
           pointerActions
         />
       </div>
+
+      {/* Fuera de la caja que se colapsa al minimizar, y fuera del menú. */}
+      {selfUid ? (
+        <ChatRemoveConversationDialog
+          open={removeOpen}
+          conversationId={conversationId}
+          selfUid={selfUid}
+          onClose={() => setRemoveOpen(false)}
+          // Quitada de la bandeja, la pestaña se cierra sola.
+          onRemoved={onClose}
+        />
+      ) : null}
     </div>
   );
 }

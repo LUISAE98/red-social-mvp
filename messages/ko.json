@@ -1446,8 +1446,8 @@
     "cashoutRequest": "{amount}를 현금 환불로 요청할 수 있습니다",
     "cashoutSending": "요청 보내는 중…",
     "cashoutPendingReview": "카드 환불을 위해 {amount}가 검토 중입니다.",
-    "cashoutApproved": "Your refund of {amount} was completed successfully. It may take 5 to 10 business days to appear on your card due to Stripe processing.",
-    "cashoutRejected": "Your card refund request was declined. Reason: “{reason}”. Your credit is still available to use on the platform.",
+    "cashoutApproved": "{amount} 환불이 정상적으로 처리되었습니다. Stripe 처리 과정으로 인해 카드에 반영되기까지 영업일 기준 5~10일이 걸릴 수 있습니다.",
+    "cashoutRejected": "카드 환불 요청이 거절되었습니다. 사유는 ‘{reason}’입니다. 크레딧은 플랫폼에서 계속 사용하실 수 있습니다.",
     "cashoutConfirm": "원래 카드로 {amount}를 환불 요청할까요? 관리자가 검토합니다. 그동안 해당 잔액은 보류됩니다.",
     "cashoutError": "현금 환불을 요청하지 못했습니다.",
     "payHeading": "어떻게 결제할까요?",
@@ -2639,6 +2639,7 @@
     "messageActionError": "작업을 완료하지 못했습니다.",
     "reply": "답장",
     "like": "좋아요",
+    "unlike": "좋아요 취소",
     "replyingTo": "{name} 님에게 답장",
     "replyToSelf": "나",
     "cancelReply": "답장 취소"

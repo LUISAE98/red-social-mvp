@@ -1446,8 +1446,8 @@
     "cashoutRequest": "Is féidir leat {amount} a iarraidh mar aisíoc airgid",
     "cashoutSending": "Iarratas á sheoladh…",
     "cashoutPendingReview": "Tá {amount} á athbhreithniú le haisíoc ar do chárta.",
-    "cashoutApproved": "Your refund of {amount} was completed successfully. It may take 5 to 10 business days to appear on your card due to Stripe processing.",
-    "cashoutRejected": "Your card refund request was declined. Reason: “{reason}”. Your credit is still available to use on the platform.",
+    "cashoutApproved": "Críochnaíodh d'aisíoc {amount} go rathúil. Mar gheall ar phróiseáil Stripe, d'fhéadfadh sé 5 go 10 lá oibre a thógáil sula bhfeicfidh tú ar do chárta é.",
+    "cashoutRejected": "Diúltaíodh d'iarratas ar aisíoc chuig do chárta. Cúis: „{reason}”. Tá do chreidmheas fós ar fáil le húsáid ar an ardán.",
     "cashoutConfirm": "{amount} a iarraidh mar aisíoc ar do bhunchárta? Déanfaidh riarthóir athbhreithniú air. Idir an dá linn, cuirfear an t-iarmhéid sin i leataobh.",
     "cashoutError": "Níorbh fhéidir an t-aisíoc a iarraidh.",
     "payHeading": "Conas is mian leat íoc?",
@@ -2639,6 +2639,7 @@
     "messageActionError": "Níorbh fhéidir an gníomh a chur i gcrích.",
     "reply": "Freagair",
     "like": "Is maith liom",
+    "unlike": "Bain an maith liom",
     "replyingTo": "Ag freagairt do {name}",
     "replyToSelf": "Tusa",
     "cancelReply": "Cealaigh an freagra"

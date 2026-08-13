@@ -1446,8 +1446,8 @@
     "cashoutRequest": "Du kan bede om {amount} som kontant refusion",
     "cashoutSending": "Sender anmodning…",
     "cashoutPendingReview": "Du har {amount} under behandling til refusion på dit kort.",
-    "cashoutApproved": "Your refund of {amount} was completed successfully. It may take 5 to 10 business days to appear on your card due to Stripe processing.",
-    "cashoutRejected": "Your card refund request was declined. Reason: “{reason}”. Your credit is still available to use on the platform.",
+    "cashoutApproved": "Din refusion på {amount} er gennemført. På grund af Stripes behandling kan der gå 5 til 10 hverdage, før den står på dit kort.",
+    "cashoutRejected": "Din anmodning om refusion til kortet blev afvist. Årsag: »{reason}«. Dit tilgodehavende kan du stadig bruge på platformen.",
     "cashoutConfirm": "Bed om {amount} i refusion til dit oprindelige kort? En administrator gennemgår det. Imens reserveres beløbet.",
     "cashoutError": "Refusionen kunne ikke anmodes.",
     "payHeading": "Hvordan vil du betale?",
@@ -2639,6 +2639,7 @@
     "messageActionError": "Handlingen kunne ikke gennemføres.",
     "reply": "Svar",
     "like": "Synes godt om",
+    "unlike": "Fjern synes godt om",
     "replyingTo": "Svarer {name}",
     "replyToSelf": "Dig",
     "cancelReply": "Annullér svar"

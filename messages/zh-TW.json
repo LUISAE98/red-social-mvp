@@ -1446,8 +1446,8 @@
     "cashoutRequest": "你可以申請 {amount} 現金退款",
     "cashoutSending": "正在送出申請…",
     "cashoutPendingReview": "你有 {amount} 正在審核，將退回你的卡片。",
-    "cashoutApproved": "Your refund of {amount} was completed successfully. It may take 5 to 10 business days to appear on your card due to Stripe processing.",
-    "cashoutRejected": "Your card refund request was declined. Reason: “{reason}”. Your credit is still available to use on the platform.",
+    "cashoutApproved": "你的 {amount} 退款已完成。由於 Stripe 的處理程序，可能需要 5 至 10 個工作天才會顯示在你的卡片上。",
+    "cashoutRejected": "你的信用卡退款申請未通過。原因是「{reason}」。你的餘額仍可在平台上使用。",
     "cashoutConfirm": "要申請 {amount} 退款到原卡片嗎？管理員會審核。在此期間，這筆餘額會先保留。",
     "cashoutError": "無法申請退款。",
     "payHeading": "你想怎麼付款？",
@@ -2639,6 +2639,7 @@
     "messageActionError": "無法完成這項操作。",
     "reply": "回覆",
     "like": "讚",
+    "unlike": "取消讚",
     "replyingTo": "正在回覆 {name}",
     "replyToSelf": "你",
     "cancelReply": "取消回覆"

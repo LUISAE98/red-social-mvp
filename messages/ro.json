@@ -1446,8 +1446,8 @@
     "cashoutRequest": "Poți cere {amount} ca rambursare în numerar",
     "cashoutSending": "Se trimite cererea…",
     "cashoutPendingReview": "Ai {amount} în verificare pentru rambursare pe card.",
-    "cashoutApproved": "Your refund of {amount} was completed successfully. It may take 5 to 10 business days to appear on your card due to Stripe processing.",
-    "cashoutRejected": "Your card refund request was declined. Reason: “{reason}”. Your credit is still available to use on the platform.",
+    "cashoutApproved": "Rambursarea ta de {amount} a fost finalizată cu succes. Din cauza procesării Stripe, poate dura între 5 și 10 zile lucrătoare până apare pe cardul tău.",
+    "cashoutRejected": "Cererea ta de rambursare pe card a fost respinsă. Motiv: „{reason}”. Creditul tău rămâne disponibil pe platformă.",
     "cashoutConfirm": "Ceri {amount} ca rambursare pe cardul inițial? Un administrator va verifica. Între timp, acel sold rămâne rezervat.",
     "cashoutError": "Rambursarea nu a putut fi solicitată.",
     "payHeading": "Cum vrei să plătești?",
@@ -2639,6 +2639,7 @@
     "messageActionError": "Acțiunea nu a putut fi finalizată.",
     "reply": "Răspunde",
     "like": "Îmi place",
+    "unlike": "Elimină aprecierea",
     "replyingTo": "Răspuns către {name}",
     "replyToSelf": "Tu",
     "cancelReply": "Anulează răspunsul"

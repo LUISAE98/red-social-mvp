@@ -1446,8 +1446,8 @@
     "cashoutRequest": "Kamu bisa meminta {amount} sebagai pengembalian tunai",
     "cashoutSending": "Mengirim permintaan…",
     "cashoutPendingReview": "Kamu punya {amount} dalam peninjauan untuk pengembalian ke kartumu.",
-    "cashoutApproved": "Your refund of {amount} was completed successfully. It may take 5 to 10 business days to appear on your card due to Stripe processing.",
-    "cashoutRejected": "Your card refund request was declined. Reason: “{reason}”. Your credit is still available to use on the platform.",
+    "cashoutApproved": "Pengembalian dana {amount} kamu berhasil diproses. Karena pemrosesan Stripe, mungkin butuh 5 sampai 10 hari kerja sampai muncul di kartumu.",
+    "cashoutRejected": "Permintaan pengembalian dana ke kartumu ditolak. Alasan: “{reason}”. Saldomu masih bisa kamu pakai di platform.",
     "cashoutConfirm": "Minta pengembalian {amount} ke kartu asalmu? Administrator akan meninjaunya. Sementara itu, saldo tersebut disisihkan.",
     "cashoutError": "Pengembalian dana tidak dapat diminta.",
     "payHeading": "Bagaimana kamu ingin membayar?",
@@ -2639,6 +2639,7 @@
     "messageActionError": "Tindakan tidak bisa diselesaikan.",
     "reply": "Balas",
     "like": "Suka",
+    "unlike": "Batalkan suka",
     "replyingTo": "Membalas {name}",
     "replyToSelf": "Kamu",
     "cancelReply": "Batalkan balasan"

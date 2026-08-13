@@ -1446,8 +1446,8 @@
     "cashoutRequest": "Du kan be om {amount} som kontant refusjon",
     "cashoutSending": "Sender forespørsel…",
     "cashoutPendingReview": "Du har {amount} til vurdering for refusjon på kortet ditt.",
-    "cashoutApproved": "Your refund of {amount} was completed successfully. It may take 5 to 10 business days to appear on your card due to Stripe processing.",
-    "cashoutRejected": "Your card refund request was declined. Reason: “{reason}”. Your credit is still available to use on the platform.",
+    "cashoutApproved": "Refusjonen din på {amount} er fullført. På grunn av Stripes behandling kan det ta 5 til 10 virkedager før den vises på kortet ditt.",
+    "cashoutRejected": "Forespørselen din om refusjon til kortet ble avslått. Årsak: «{reason}». Du kan fortsatt bruke saldoen din på plattformen.",
     "cashoutConfirm": "Be om {amount} i refusjon til det opprinnelige kortet ditt? En administrator vurderer det. I mellomtiden reserveres beløpet.",
     "cashoutError": "Kunne ikke be om refusjon.",
     "payHeading": "Hvordan vil du betale?",
@@ -2639,6 +2639,7 @@
     "messageActionError": "Handlingen kunne ikke gjennomføres.",
     "reply": "Svar",
     "like": "Lik",
+    "unlike": "Fjern lik",
     "replyingTo": "Svarer {name}",
     "replyToSelf": "Deg",
     "cancelReply": "Annuller svar"

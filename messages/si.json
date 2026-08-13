@@ -1446,8 +1446,8 @@
     "cashoutRequest": "ඔබට {amount} ක් මුදලින් ආපසු ගෙවීමක් ලෙස ඉල්ලිය හැක",
     "cashoutSending": "ඉල්ලීම යවමින්…",
     "cashoutPendingReview": "ඔබේ කාඩ්පතට ආපසු ගෙවීම සඳහා {amount} ක් සමාලෝචනයේ පවතී.",
-    "cashoutApproved": "Your refund of {amount} was completed successfully. It may take 5 to 10 business days to appear on your card due to Stripe processing.",
-    "cashoutRejected": "Your card refund request was declined. Reason: “{reason}”. Your credit is still available to use on the platform.",
+    "cashoutApproved": "ඔබේ {amount} ආපසු ගෙවීම සාර්ථකව සම්පූර්ණ විය. Stripe හි සැකසීම නිසා එය ඔබේ කාඩ්පතේ පෙන්වීමට ව්‍යාපාරික දින 5 සිට 10 දක්වා ගත විය හැක.",
+    "cashoutRejected": "ඔබේ කාඩ්පතට ආපසු ගෙවීමේ ඉල්ලීම ප්‍රතික්ෂේප විය. හේතුව „{reason}”. ඔබේ ණය ශේෂය තවමත් වේදිකාවේ භාවිත කළ හැක.",
     "cashoutConfirm": "මුල් කාඩ්පතට {amount} ආපසු ගෙවීමක් ඉල්ලන්නද? පරිපාලකයෙක් එය සමාලෝචනය කරයි. ඒ අතරතුර එම ශේෂය වෙන් කර තබයි.",
     "cashoutError": "මුදල් ආපසු ගෙවීම ඉල්ලීමට නොහැකි විය.",
     "payHeading": "ඔබට ගෙවීමට අවශ්‍ය කෙසේද?",
@@ -2639,6 +2639,7 @@
     "messageActionError": "ක්‍රියාව සම්පූර්ණ කළ නොහැකි විය.",
     "reply": "පිළිතුරු දෙන්න",
     "like": "කැමතියි",
+    "unlike": "කැමැත්ත ඉවත් කරන්න",
     "replyingTo": "{name} හට පිළිතුරු දෙමින්",
     "replyToSelf": "ඔබ",
     "cancelReply": "පිළිතුර අවලංගු කරන්න"

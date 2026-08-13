@@ -1446,8 +1446,8 @@
     "cashoutRequest": "Þú getur beðið um {amount} sem endurgreiðslu",
     "cashoutSending": "Sendi beiðni…",
     "cashoutPendingReview": "Þú ert með {amount} í skoðun fyrir endurgreiðslu á kortið þitt.",
-    "cashoutApproved": "Your refund of {amount} was completed successfully. It may take 5 to 10 business days to appear on your card due to Stripe processing.",
-    "cashoutRejected": "Your card refund request was declined. Reason: “{reason}”. Your credit is still available to use on the platform.",
+    "cashoutApproved": "Endurgreiðslan þín upp á {amount} tókst. Vegna vinnslu hjá Stripe getur tekið 5 til 10 virka daga þar til hún birtist á kortinu þínu.",
+    "cashoutRejected": "Beiðni þinni um endurgreiðslu á kortið var hafnað. Ástæða: „{reason}“. Inneignin þín er áfram tiltæk á vettvangnum.",
     "cashoutConfirm": "Biðja um {amount} endurgreiðslu á upphaflega kortið þitt? Stjórnandi fer yfir það. Á meðan er upphæðin tekin frá.",
     "cashoutError": "Ekki tókst að biðja um endurgreiðslu.",
     "payHeading": "Hvernig viltu borga?",
@@ -2639,6 +2639,7 @@
     "messageActionError": "Ekki tókst að ljúka aðgerðinni.",
     "reply": "Svara",
     "like": "Líkar við",
+    "unlike": "Fjarlægja líkar við",
     "replyingTo": "Svarar {name}",
     "replyToSelf": "Þú",
     "cancelReply": "Hætta við svar"

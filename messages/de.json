@@ -1446,8 +1446,8 @@
     "cashoutRequest": "Du kannst {amount} als Barerstattung anfordern",
     "cashoutSending": "Anfrage wird gesendet…",
     "cashoutPendingReview": "Du hast {amount} in Prüfung für eine Erstattung auf deine Karte.",
-    "cashoutApproved": "Your refund of {amount} was completed successfully. It may take 5 to 10 business days to appear on your card due to Stripe processing.",
-    "cashoutRejected": "Your card refund request was declined. Reason: “{reason}”. Your credit is still available to use on the platform.",
+    "cashoutApproved": "Deine Erstattung über {amount} wurde erfolgreich abgeschlossen. Durch die Verarbeitung bei Stripe kann es 5 bis 10 Werktage dauern, bis sie auf deiner Karte erscheint.",
+    "cashoutRejected": "Deine Anfrage auf Rückerstattung auf die Karte wurde abgelehnt. Grund: „{reason}“. Dein Guthaben kannst du weiterhin auf der Plattform nutzen.",
     "cashoutConfirm": "{amount} als Erstattung auf deine ursprüngliche Karte anfordern? Ein Administrator prüft das. In der Zwischenzeit wird dieses Guthaben zurückgelegt.",
     "cashoutError": "Die Barerstattung konnte nicht angefordert werden.",
     "payHeading": "Wie möchtest du bezahlen?",
@@ -2639,6 +2639,7 @@
     "messageActionError": "Die Aktion konnte nicht abgeschlossen werden.",
     "reply": "Antworten",
     "like": "Gefällt mir",
+    "unlike": "Gefällt mir nicht mehr",
     "replyingTo": "Antwort an {name}",
     "replyToSelf": "Du",
     "cancelReply": "Antwort abbrechen"

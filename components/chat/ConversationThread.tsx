@@ -173,13 +173,12 @@ const SWIPE_AXIS_SLOP = 6;
 const DRAFT_FADE_MS = 140;
 
 /**
- * Ventana para encadenar dos toques como "doble toque".
+ * Cuánto hay que mantener el dedo para abrir el menú de un mensaje.
  *
- * Es también lo que tarda en abrirse el menú de un mensaje en táctil: hay que
- * esperar por si viene el segundo toque. 260ms es el punto donde el doble toque
- * sale natural sin que el menú se sienta perezoso.
+ * 480ms es el punto donde no se dispara sin querer al tocar, pero tampoco
+ * obliga a esperar: es el mismo orden que usan las apps de mensajería.
  */
-const DOUBLE_TAP_MS = 260;
+const LONG_PRESS_MS = 480;
 
 /** Corazón: relleno para la marca del mensaje, contorno para el botón. */
 const HEART_PATH =
@@ -375,10 +374,8 @@ export default function ConversationThread({
   /** Breve, mientras el texto se desvanece del campo tras enviarlo. */
   const [draftFading, setDraftFading] = useState(false);
 
-  /** Último toque, para encadenar el doble toque que pone corazón. */
-  const lastTapRef = useRef<{ id: string; at: number } | null>(null);
-  /** Apertura del menú en espera: se cancela si llega el segundo toque. */
-  const pendingTapRef = useRef<number | null>(null);
+  /** Temporizador de la pulsación larga que abre el menú de un mensaje. */
+  const longPressRef = useRef<number | null>(null);
   /**
    * Imagen abierta a tamaño completo.
    *
@@ -682,32 +679,33 @@ export default function ConversationThread({
   }
 
   /**
-   * Toque sobre el globo en TÁCTIL: uno abre el menú, dos ponen corazón.
+   * En táctil el menú se abre con pulsación LARGA, no con un toque.
    *
-   * El menú tiene que esperar por si viene el segundo toque, así que se programa
-   * y se cancela si llega. Con puntero no se hace nada de esto — allí el menú
-   * abre al instante y el corazón tiene su propio botón al pasar el cursor.
+   * Es el reparto que la gente ya trae de WhatsApp y iMessage, y aquí además era
+   * la única salida: el toque simple estaba ocupado dos veces —abrir la imagen y
+   * abrir el menú—, así que no quedaba gesto libre. Con esto el toque queda solo
+   * para abrir la foto, y el corazón se movió al propio menú.
+   *
+   * Se cancela en cuanto el dedo se mueve, para no pelear con el deslizar-para-
+   * responder: quien empieza a arrastrar no quería abrir nada.
    */
-  function handleBubbleTap(message: MessageWithId, anchor: HTMLElement) {
-    const now = performance.now();
-    const previous = lastTapRef.current;
+  function cancelLongPress() {
+    if (longPressRef.current === null) return;
+    clearTimeout(longPressRef.current);
+    longPressRef.current = null;
+  }
 
-    if (previous && previous.id === message.id && now - previous.at < DOUBLE_TAP_MS) {
-      lastTapRef.current = null;
-      if (pendingTapRef.current !== null) {
-        clearTimeout(pendingTapRef.current);
-        pendingTapRef.current = null;
-      }
-      toggleLike(message);
-      return;
-    }
-
-    lastTapRef.current = { id: message.id, at: now };
-    if (pendingTapRef.current !== null) clearTimeout(pendingTapRef.current);
-    pendingTapRef.current = window.setTimeout(() => {
-      pendingTapRef.current = null;
+  function startLongPress(message: MessageWithId, anchor: HTMLElement) {
+    cancelLongPress();
+    longPressRef.current = window.setTimeout(() => {
+      longPressRef.current = null;
+      // Un toque corto de vibración confirma que el menú abrió sin tener que
+      // mirar; es lo que hace que la pulsación larga se sienta deliberada.
+      navigator.vibrate?.(12);
       toggleExpanded(message.id, anchor);
-    }, DOUBLE_TAP_MS);
+      // El `click` que llega al levantar el dedo ya no debe hacer nada más.
+      suppressClickRef.current = true;
+    }, LONG_PRESS_MS);
   }
 
   function startEdit(message: MessageWithId) {
@@ -1074,6 +1072,11 @@ export default function ConversationThread({
         }}
         // Los que llegan mientras miras entran con un pequeño rebote.
         className={shouldPop(message.id) ? "vibra-msg-pop" : undefined}
+        // Con un menú abierto, TODO lo demás se difumina: el mensaje que
+        // pulsaste y su menú se quedan nítidos y el ojo va solo hacia ellos.
+        data-dimmed={
+          expandedMessage && expandedMessage.id !== message.id ? "" : undefined
+        }
         style={{ display: "flex", flexDirection: "column" }}
       >
         {showDaySeparator && date ? (
@@ -1110,15 +1113,34 @@ export default function ConversationThread({
             `touchmove` en modo pasivo — no se puede. */}
         <div
           className="vibra-msg-row"
-          onTouchStart={(e) => beginSwipe(e, message)}
-          onTouchMove={moveSwipe}
-          onTouchEnd={endSwipe}
-          onTouchCancel={endSwipe}
+          onTouchStart={(e) => {
+            beginSwipe(e, message);
+            if (!message.isDeleted) startLongPress(message, e.currentTarget);
+          }}
+          onTouchMove={(e) => {
+            // Moverse cancela la pulsación larga: quien arrastra no quería abrir
+            // el menú, quería responder o hacer scroll.
+            cancelLongPress();
+            moveSwipe(e);
+          }}
+          onTouchEnd={() => {
+            cancelLongPress();
+            endSwipe();
+          }}
+          onTouchCancel={() => {
+            cancelLongPress();
+            endSwipe();
+          }}
           style={{
             order: 2,
             display: "flex",
             marginTop: 4,
             touchAction: "pan-y",
+            // Sin esto, mantener pulsado saca el menú de copiar/pegar del
+            // sistema encima del nuestro.
+            WebkitTouchCallout: "none",
+            WebkitUserSelect: "none",
+            userSelect: "none",
           }}
         >
           <div
@@ -1198,13 +1220,15 @@ export default function ConversationThread({
                   }}
                   aria-label={tChat("like")}
                   title={tChat("like")}
+                  // El estado sí se anuncia a lectores de pantalla, aunque el
+                  // icono no cambie: quien no ve el corazón del globo necesita
+                  // saber si ya está puesto.
                   aria-pressed={isLikedByMe(message)}
-                  style={isLikedByMe(message) ? { color: "#ec4899" } : undefined}
                 >
-                  <ActionIcon
-                    path={<path d={HEART_PATH} />}
-                    fill={isLikedByMe(message) ? "currentColor" : "none"}
-                  />
+                  {/* Siempre de contorno, esté puesto o no. Es un botón de
+                      acción, no un indicador: el corazón rojo del globo ya dice
+                      si está puesto, y rellenar también el botón lo repetía. */}
+                  <ActionIcon path={<path d={HEART_PATH} />} />
                 </button>
               ) : null}
 
@@ -1271,17 +1295,15 @@ export default function ConversationThread({
             role="button"
             tabIndex={0}
             onClick={(e) => {
-              // Un arrastre acaba disparando un click; ese no despliega nada.
+              // Un arrastre, o la pulsación larga que ya abrió el menú, acaban
+              // disparando un click; ese no debe hacer nada más.
               if (suppressClickRef.current) {
                 suppressClickRef.current = false;
                 return;
               }
-              // Con puntero el menú abre ya: el doble toque es gesto de dedo.
-              if (pointerActions) {
-                toggleExpanded(message.id, e.currentTarget);
-                return;
-              }
-              handleBubbleTap(message, e.currentTarget);
+              // Con puntero el menú abre con un clic normal. En táctil NO: allí
+              // se abre manteniendo pulsado, y un toque suelto no hace nada.
+              if (pointerActions) toggleExpanded(message.id, e.currentTarget);
             }}
             onKeyDown={(e) => {
               if (e.key === "Enter" || e.key === " ") {
@@ -1574,6 +1596,25 @@ export default function ConversationThread({
                   {/* En celular esto se hace deslizando el mensaje a la derecha.
                       Aquí queda para táctil; con puntero se hace desde los
                       iconos que salen al lado del globo. */}
+                  {/* El corazón vive AQUÍ en táctil. Estuvo en el doble toque y
+                      dio más problemas de los que resolvía: chocaba con abrir la
+                      imagen y obligaba a retrasar todo lo demás. Con puntero
+                      tiene su icono al pasar el cursor. */}
+                  {!pointerActions && conversationId ? (
+                    <button
+                      type="button"
+                      className="vibra-msg-menu-item"
+                      onClick={() => {
+                        toggleLike(message);
+                        setExpandedMessage(null);
+                      }}
+                      tabIndex={expanded ? 0 : -1}
+                    >
+                      <MenuIcon path={<path d={HEART_PATH} />} />
+                      {isLikedByMe(message) ? tChat("unlike") : tChat("like")}
+                    </button>
+                  ) : null}
+
                   {!pointerActions && canReply(message) ? (
                     <button
                       type="button"
@@ -2059,6 +2100,27 @@ export default function ConversationThread({
           color: rgba(255, 255, 255, 0.32);
         }
 
+        /* Difuminado del resto mientras hay un menú abierto. Entra y sale con la
+           misma transición, así que aparecer y desvanecerse son igual de suaves.
+           Y deja de recibir toques: pulsar algo borroso no debe activarlo. */
+        [data-dimmed] {
+          filter: blur(3px);
+          opacity: 0.45;
+          pointer-events: none;
+        }
+        [data-dimmed],
+        .vibra-msg-dimmable {
+          transition:
+            filter var(--duration-normal, 250ms) var(--ease-smooth, cubic-bezier(0.4, 0, 0.2, 1)),
+            opacity var(--duration-normal, 250ms) var(--ease-smooth, cubic-bezier(0.4, 0, 0.2, 1));
+        }
+        @media (prefers-reduced-motion: reduce) {
+          [data-dimmed],
+          .vibra-msg-dimmable {
+            transition: none;
+          }
+        }
+
         /* Corazón de un mensaje. Entra y sale con el MISMO rebote: al ser una
            transición y no una animación de montaje, quitarlo también se ve. */
         .vibra-msg-heart {
@@ -2251,6 +2313,15 @@ export default function ConversationThread({
           stickToBottomRef.current =
             el.scrollHeight - el.scrollTop - el.clientHeight <= STICK_TO_BOTTOM_SLACK;
         }}
+        // Con el menú abierto, tocar en cualquier otro sitio lo cierra. Sin
+        // esto, abierto con pulsación larga, no había forma evidente de salir:
+        // el resto está difuminado y no responde.
+        onClickCapture={(e) => {
+          if (!expandedMessage) return;
+          const target = e.target as HTMLElement | null;
+          if (target?.closest(".vibra-msg-menu")) return;
+          setExpandedMessage(null);
+        }}
         style={{
           flex: 1,
           minHeight: 0,
@@ -2276,6 +2347,8 @@ export default function ConversationThread({
           siendo legible sobre ellos. */}
       <div
         ref={composerRef}
+        className="vibra-msg-dimmable"
+        data-dimmed={expandedMessage ? "" : undefined}
         style={{
           position: "absolute",
           left: 0,

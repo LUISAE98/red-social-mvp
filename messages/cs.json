@@ -1446,8 +1446,8 @@
     "cashoutRequest": "Můžeš požádat o vrácení {amount} v hotovosti",
     "cashoutSending": "Odesílání žádosti…",
     "cashoutPendingReview": "Máš {amount} v posouzení pro vrácení na kartu.",
-    "cashoutApproved": "Your refund of {amount} was completed successfully. It may take 5 to 10 business days to appear on your card due to Stripe processing.",
-    "cashoutRejected": "Your card refund request was declined. Reason: “{reason}”. Your credit is still available to use on the platform.",
+    "cashoutApproved": "Tvoje vrácení částky {amount} proběhlo úspěšně. Kvůli zpracování ve Stripe může trvat 5 až 10 pracovních dnů, než se objeví na tvé kartě.",
+    "cashoutRejected": "Tvoje žádost o vrácení peněz na kartu byla zamítnuta. Důvod: „{reason}“. Tvůj kredit můžeš dál použít na platformě.",
     "cashoutConfirm": "Požádat o vrácení {amount} na původní kartu? Administrátor to posoudí. Mezitím zůstane tato částka rezervovaná.",
     "cashoutError": "Vrácení peněz se nepodařilo vyžádat.",
     "payHeading": "Jak chceš zaplatit?",
@@ -2639,6 +2639,7 @@
     "messageActionError": "Akci se nepodařilo dokončit.",
     "reply": "Odpovědět",
     "like": "To se mi líbí",
+    "unlike": "Zrušit to se mi líbí",
     "replyingTo": "Odpověď pro {name}",
     "replyToSelf": "Ty",
     "cancelReply": "Zrušit odpověď"

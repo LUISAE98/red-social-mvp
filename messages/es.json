@@ -2639,6 +2639,7 @@
     "messageActionError": "No se pudo completar la acción.",
     "reply": "Responder",
     "like": "Me gusta",
+    "unlike": "Quitar me gusta",
     "replyingTo": "Respondiendo a {name}",
     "replyToSelf": "Tú",
     "cancelReply": "Cancelar respuesta"

@@ -1446,8 +1446,8 @@
     "cashoutRequest": "Pots demanar {amount} com a devolució en efectiu",
     "cashoutSending": "Enviant la sol·licitud…",
     "cashoutPendingReview": "Tens {amount} en revisió per a la devolució a la teva targeta.",
-    "cashoutApproved": "Your refund of {amount} was completed successfully. It may take 5 to 10 business days to appear on your card due to Stripe processing.",
-    "cashoutRejected": "Your card refund request was declined. Reason: “{reason}”. Your credit is still available to use on the platform.",
+    "cashoutApproved": "La teva devolució de {amount} s'ha fet correctament. Pel processament de Stripe, pot trigar entre 5 i 10 dies laborables a aparèixer a la teva targeta.",
+    "cashoutRejected": "La teva sol·licitud de devolució a la targeta s'ha rebutjat. Motiu: «{reason}». El teu crèdit continua disponible per fer-lo servir a la plataforma.",
     "cashoutConfirm": "Vols demanar {amount} de devolució a la targeta original? Un administrador ho revisarà. Mentrestant, aquest saldo queda apartat.",
     "cashoutError": "No s’ha pogut demanar la devolució.",
     "payHeading": "Com vols pagar?",
@@ -2639,6 +2639,7 @@
     "messageActionError": "No s'ha pogut completar l'acció.",
     "reply": "Respon",
     "like": "M’agrada",
+    "unlike": "Treu el m’agrada",
     "replyingTo": "Responent a {name}",
     "replyToSelf": "Tu",
     "cancelReply": "Cancel·la la resposta"

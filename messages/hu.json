@@ -1446,8 +1446,8 @@
     "cashoutRequest": "Kérheted {amount} visszatérítését készpénzben",
     "cashoutSending": "Kérés küldése…",
     "cashoutPendingReview": "{amount} elbírálás alatt áll a kártyádra való visszatérítéshez.",
-    "cashoutApproved": "Your refund of {amount} was completed successfully. It may take 5 to 10 business days to appear on your card due to Stripe processing.",
-    "cashoutRejected": "Your card refund request was declined. Reason: “{reason}”. Your credit is still available to use on the platform.",
+    "cashoutApproved": "A(z) {amount} összegű visszatérítésed sikeresen megtörtént. A Stripe feldolgozása miatt 5–10 munkanapba telhet, mire megjelenik a kártyádon.",
+    "cashoutRejected": "A kártyás visszatérítési kérelmedet elutasítottuk. Indok: „{reason}”. Az egyenleged továbbra is felhasználható a platformon.",
     "cashoutConfirm": "Kéred {amount} visszatérítését az eredeti kártyádra? Egy adminisztrátor átnézi. Addig ez az összeg zárolva marad.",
     "cashoutError": "A visszatérítést nem sikerült kérni.",
     "payHeading": "Hogyan szeretnél fizetni?",
@@ -2639,6 +2639,7 @@
     "messageActionError": "A műveletet nem sikerült befejezni.",
     "reply": "Válasz",
     "like": "Tetszik",
+    "unlike": "Tetszik visszavonása",
     "replyingTo": "Válasz neki: {name}",
     "replyToSelf": "Te",
     "cancelReply": "Válasz megszakítása"

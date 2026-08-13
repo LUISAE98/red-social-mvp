@@ -1446,8 +1446,8 @@
     "cashoutRequest": "{amount} を現金で返金申請できます",
     "cashoutSending": "申請を送信中…",
     "cashoutPendingReview": "カードへの返金として {amount} が審査中です。",
-    "cashoutApproved": "Your refund of {amount} was completed successfully. It may take 5 to 10 business days to appear on your card due to Stripe processing.",
-    "cashoutRejected": "Your card refund request was declined. Reason: “{reason}”. Your credit is still available to use on the platform.",
+    "cashoutApproved": "{amount} の返金が完了しました。Stripe の処理の都合で、カードに反映されるまで5〜10営業日ほどかかる場合があります。",
+    "cashoutRejected": "カードへの返金リクエストは承認されませんでした。理由は「{reason}」です。クレジットは引き続きプラットフォームでご利用いただけます。",
     "cashoutConfirm": "元のカードへ {amount} の返金を申請しますか？管理者が確認します。その間、この残高は保留されます。",
     "cashoutError": "返金を申請できませんでした。",
     "payHeading": "お支払い方法を選んでください",
@@ -2639,6 +2639,7 @@
     "messageActionError": "操作を完了できませんでした。",
     "reply": "返信",
     "like": "いいね",
+    "unlike": "いいねを取り消す",
     "replyingTo": "{name}さんに返信",
     "replyToSelf": "自分",
     "cancelReply": "返信をキャンセル"

@@ -1446,8 +1446,8 @@
     "cashoutRequest": "Vari pieprasīt {amount} kā naudas atmaksu",
     "cashoutSending": "Nosūta pieprasījumu…",
     "cashoutPendingReview": "Tev ir {amount} izskatīšanā atmaksai uz karti.",
-    "cashoutApproved": "Your refund of {amount} was completed successfully. It may take 5 to 10 business days to appear on your card due to Stripe processing.",
-    "cashoutRejected": "Your card refund request was declined. Reason: “{reason}”. Your credit is still available to use on the platform.",
+    "cashoutApproved": "Tava {amount} atmaksa ir veiksmīgi pabeigta. Stripe apstrādes dēļ var paiet 5 līdz 10 darba dienas, līdz tā parādīsies tavā kartē.",
+    "cashoutRejected": "Tavs pieprasījums atmaksāt naudu kartē tika noraidīts. Iemesls: „{reason}”. Tavs kredīts joprojām ir pieejams platformā.",
     "cashoutConfirm": "Pieprasīt {amount} atmaksu uz sākotnējo karti? Administrators to izskatīs. Pa to laiku summa tiks rezervēta.",
     "cashoutError": "Atmaksu neizdevās pieprasīt.",
     "payHeading": "Kā vēlies samaksāt?",
@@ -2639,6 +2639,7 @@
     "messageActionError": "Darbību neizdevās pabeigt.",
     "reply": "Atbildēt",
     "like": "Patīk",
+    "unlike": "Noņemt patīk",
     "replyingTo": "Atbilde lietotājam {name}",
     "replyToSelf": "Tu",
     "cancelReply": "Atcelt atbildi"

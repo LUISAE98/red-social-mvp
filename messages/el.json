@@ -1446,8 +1446,8 @@
     "cashoutRequest": "Μπορείς να ζητήσεις {amount} ως επιστροφή χρημάτων",
     "cashoutSending": "Αποστολή αιτήματος…",
     "cashoutPendingReview": "Έχεις {amount} υπό έλεγχο για επιστροφή στην κάρτα σου.",
-    "cashoutApproved": "Your refund of {amount} was completed successfully. It may take 5 to 10 business days to appear on your card due to Stripe processing.",
-    "cashoutRejected": "Your card refund request was declined. Reason: “{reason}”. Your credit is still available to use on the platform.",
+    "cashoutApproved": "Η επιστροφή σου ύψους {amount} ολοκληρώθηκε με επιτυχία. Λόγω της επεξεργασίας από τη Stripe, μπορεί να χρειαστούν 5 έως 10 εργάσιμες ημέρες για να εμφανιστεί στην κάρτα σου.",
+    "cashoutRejected": "Το αίτημά σου για επιστροφή στην κάρτα απορρίφθηκε. Αιτία: «{reason}». Το υπόλοιπό σου παραμένει διαθέσιμο στην πλατφόρμα.",
     "cashoutConfirm": "Να ζητηθεί επιστροφή {amount} στην αρχική σου κάρτα; Ένας διαχειριστής θα το εξετάσει. Στο μεταξύ, το υπόλοιπο δεσμεύεται.",
     "cashoutError": "Δεν ήταν δυνατή η αίτηση επιστροφής χρημάτων.",
     "payHeading": "Πώς θέλεις να πληρώσεις;",
@@ -2639,6 +2639,7 @@
     "messageActionError": "Δεν ήταν δυνατή η ολοκλήρωση της ενέργειας.",
     "reply": "Απάντηση",
     "like": "Μου αρέσει",
+    "unlike": "Αφαίρεση",
     "replyingTo": "Απάντηση σε {name}",
     "replyToSelf": "Εσύ",
     "cancelReply": "Ακύρωση απάντησης"

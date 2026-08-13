@@ -1446,8 +1446,8 @@
     "cashoutRequest": "يمكنك طلب {amount} كاسترداد نقدي",
     "cashoutSending": "جارٍ إرسال الطلب…",
     "cashoutPendingReview": "لديك {amount} قيد المراجعة للاسترداد إلى بطاقتك.",
-    "cashoutApproved": "Your refund of {amount} was completed successfully. It may take 5 to 10 business days to appear on your card due to Stripe processing.",
-    "cashoutRejected": "Your card refund request was declined. Reason: “{reason}”. Your credit is still available to use on the platform.",
+    "cashoutApproved": "تم استرداد مبلغ {amount} بنجاح. قد يستغرق ظهوره في بطاقتك من 5 إلى 10 أيام عمل بسبب معالجة Stripe.",
+    "cashoutRejected": "تم رفض طلب الاسترداد إلى بطاقتك. السبب: «{reason}». رصيدك ما زال متاحًا للاستخدام في المنصة.",
     "cashoutConfirm": "هل تطلب استرداد {amount} إلى بطاقتك الأصلية؟ سيراجعه أحد المسؤولين. في هذه الأثناء، يتم حجز هذا الرصيد.",
     "cashoutError": "تعذر طلب الاسترداد النقدي.",
     "payHeading": "كيف تريد الدفع؟",
@@ -2639,6 +2639,7 @@
     "messageActionError": "تعذّر إتمام الإجراء.",
     "reply": "رد",
     "like": "إعجاب",
+    "unlike": "إزالة الإعجاب",
     "replyingTo": "جارٍ الرد على {name}",
     "replyToSelf": "أنت",
     "cancelReply": "إلغاء الرد"

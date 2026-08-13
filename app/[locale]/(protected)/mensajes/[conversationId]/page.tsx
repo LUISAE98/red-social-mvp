@@ -13,7 +13,10 @@ import { useAuth } from "@/app/providers";
 import LiveRingAvatar from "@/app/components/LiveRing/LiveRingAvatar";
 import ProfileMoreMenu from "@/app/[locale]/(protected)/u/[handle]/components/ProfileMoreMenu";
 import ConversationThread from "@/components/chat/ConversationThread";
-import ChatConversationActions from "@/components/chat/ChatConversationActions";
+import {
+  ChatConversationMenuItems,
+  ChatRemoveConversationDialog,
+} from "@/components/chat/ChatConversationActions";
 import { useConversationDoc } from "@/lib/chat/useConversationDoc";
 import { useProfileMini } from "@/lib/chat/useProfileMini";
 import { getOtherParticipant } from "@/lib/chat/types";
@@ -55,6 +58,11 @@ export default function ConversationPage() {
   const displayName = profile?.displayName || tCommon("user");
 
   const [closing, setClosing] = useState(false);
+  /**
+   * Vive AQUÍ y no dentro del menú: el menú se desmonta al cerrarse, y con él
+   * se llevaba el panel de confirmación a los pocos milisegundos de abrirlo.
+   */
+  const [removeOpen, setRemoveOpen] = useState(false);
 
   // El portal solo puede montarse en cliente. Mismo patrón (y misma excepción
   // de lint) que en el resto de páginas que detectan el montaje.
@@ -341,21 +349,30 @@ export default function ConversationPage() {
             buttonStyle={{ fontSize: 20, padding: "0 8px", marginRight: 6 }}
             extraItems={({ close, itemStyle }) =>
               selfUid ? (
-                <ChatConversationActions
+                <ChatConversationMenuItems
                   conversationId={conversationId}
                   selfUid={selfUid}
                   muted={(conversation?.mutedBy ?? []).includes(selfUid)}
                   itemStyle={itemStyle}
                   onCloseMenu={close}
-                  // Quitada de la bandeja, quedarse dentro del hilo no tiene
-                  // sentido: se vuelve a la lista.
-                  onRemoved={handleBack}
+                  onRequestRemove={() => setRemoveOpen(true)}
                 />
               ) : null
             }
           />
         ) : null}
       </header>
+
+      {selfUid && conversationId ? (
+        <ChatRemoveConversationDialog
+          open={removeOpen}
+          conversationId={conversationId}
+          selfUid={selfUid}
+          onClose={() => setRemoveOpen(false)}
+          // Quitada de la bandeja, quedarse dentro del hilo no tiene sentido.
+          onRemoved={handleBack}
+        />
+      ) : null}
 
       <div style={{ flex: 1, minHeight: 0 }}>
         <ConversationThread

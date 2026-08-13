@@ -1446,8 +1446,8 @@
     "cashoutRequest": "{amount} tutarında nakit iade talep edebilirsin",
     "cashoutSending": "İstek gönderiliyor…",
     "cashoutPendingReview": "Kartına iade için {amount} inceleniyor.",
-    "cashoutApproved": "Your refund of {amount} was completed successfully. It may take 5 to 10 business days to appear on your card due to Stripe processing.",
-    "cashoutRejected": "Your card refund request was declined. Reason: “{reason}”. Your credit is still available to use on the platform.",
+    "cashoutApproved": "{amount} tutarındaki iaden başarıyla tamamlandı. Stripe'ın işlem süreci nedeniyle kartına yansıması 5 ila 10 iş günü sürebilir.",
+    "cashoutRejected": "Kartına iade talebin reddedildi. Gerekçe: “{reason}”. Bakiyeni platformda kullanmaya devam edebilirsin.",
     "cashoutConfirm": "{amount} tutarını asıl kartına iade olarak talep etmek istiyor musun? Bir yönetici inceleyecek. Bu sırada bu bakiye ayrılır.",
     "cashoutError": "Nakit iade talep edilemedi.",
     "payHeading": "Nasıl ödemek istersin?",
@@ -2639,6 +2639,7 @@
     "messageActionError": "İşlem tamamlanamadı.",
     "reply": "Yanıtla",
     "like": "Beğen",
+    "unlike": "Beğenmekten vazgeç",
     "replyingTo": "{name} yanıtlanıyor",
     "replyToSelf": "Sen",
     "cancelReply": "Yanıtı iptal et"

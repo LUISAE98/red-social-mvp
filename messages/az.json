@@ -1446,8 +1446,8 @@
     "cashoutRequest": "{amount} məbləğini nağd geri ödəmə kimi tələb edə bilərsən",
     "cashoutSending": "Sorğu göndərilir…",
     "cashoutPendingReview": "Kartına geri ödəmə üçün {amount} baxılır.",
-    "cashoutApproved": "Your refund of {amount} was completed successfully. It may take 5 to 10 business days to appear on your card due to Stripe processing.",
-    "cashoutRejected": "Your card refund request was declined. Reason: “{reason}”. Your credit is still available to use on the platform.",
+    "cashoutApproved": "{amount} məbləğində geri qaytarman uğurla tamamlandı. Stripe-ın emalı səbəbindən kartında görünməsi 5-10 iş günü çəkə bilər.",
+    "cashoutRejected": "Karta geri qaytarma sorğun rədd edildi. Səbəb: “{reason}”. Balansından platformada istifadə etməyə davam edə bilərsən.",
     "cashoutConfirm": "{amount} məbləğini ilkin kartına geri ödəmə kimi tələb edilsin? Administrator baxacaq. Bu müddətdə həmin balans ayrılır.",
     "cashoutError": "Geri ödəmə tələb edilə bilmədi.",
     "payHeading": "Necə ödəmək istəyirsən?",
@@ -2639,6 +2639,7 @@
     "messageActionError": "Əməliyyatı tamamlamaq mümkün olmadı.",
     "reply": "Cavabla",
     "like": "Bəyən",
+    "unlike": "Bəyənməni götür",
     "replyingTo": "{name} adlı şəxsə cavab verilir",
     "replyToSelf": "Sən",
     "cancelReply": "Cavabı ləğv et"

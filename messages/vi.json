@@ -1446,8 +1446,8 @@
     "cashoutRequest": "Bạn có thể yêu cầu hoàn {amount} bằng tiền mặt",
     "cashoutSending": "Đang gửi yêu cầu…",
     "cashoutPendingReview": "Bạn có {amount} đang được xét duyệt để hoàn về thẻ.",
-    "cashoutApproved": "Your refund of {amount} was completed successfully. It may take 5 to 10 business days to appear on your card due to Stripe processing.",
-    "cashoutRejected": "Your card refund request was declined. Reason: “{reason}”. Your credit is still available to use on the platform.",
+    "cashoutApproved": "Khoản hoàn tiền {amount} của bạn đã hoàn tất. Do quá trình xử lý của Stripe, có thể mất 5 đến 10 ngày làm việc để hiển thị trên thẻ của bạn.",
+    "cashoutRejected": "Yêu cầu hoàn tiền về thẻ của bạn đã bị từ chối. Lý do: “{reason}”. Số dư của bạn vẫn dùng được trên nền tảng.",
     "cashoutConfirm": "Yêu cầu hoàn {amount} về thẻ gốc của bạn? Quản trị viên sẽ xem xét. Trong thời gian đó, số dư này sẽ được giữ lại.",
     "cashoutError": "Không thể yêu cầu hoàn tiền.",
     "payHeading": "Bạn muốn thanh toán thế nào?",
@@ -2639,6 +2639,7 @@
     "messageActionError": "Không hoàn tất được thao tác.",
     "reply": "Trả lời",
     "like": "Thích",
+    "unlike": "Bỏ thích",
     "replyingTo": "Đang trả lời {name}",
     "replyToSelf": "Bạn",
     "cancelReply": "Hủy trả lời"

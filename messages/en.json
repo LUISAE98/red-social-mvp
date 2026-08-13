@@ -2639,6 +2639,7 @@
     "messageActionError": "Could not complete the action.",
     "reply": "Reply",
     "like": "Like",
+    "unlike": "Remove like",
     "replyingTo": "Replying to {name}",
     "replyToSelf": "You",
     "cancelReply": "Cancel reply"

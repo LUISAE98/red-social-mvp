@@ -1446,8 +1446,8 @@
     "cashoutRequest": "Voit pyytää {amount} rahapalautuksena",
     "cashoutSending": "Lähetetään pyyntöä…",
     "cashoutPendingReview": "Sinulla on {amount} käsittelyssä kortillesi palautusta varten.",
-    "cashoutApproved": "Your refund of {amount} was completed successfully. It may take 5 to 10 business days to appear on your card due to Stripe processing.",
-    "cashoutRejected": "Your card refund request was declined. Reason: “{reason}”. Your credit is still available to use on the platform.",
+    "cashoutApproved": "Palautuksesi {amount} on tehty onnistuneesti. Stripen käsittelyn vuoksi voi kestää 5–10 arkipäivää, ennen kuin se näkyy kortillasi.",
+    "cashoutRejected": "Korttipalautuspyyntösi hylättiin. Syy: ”{reason}”. Saldosi on edelleen käytettävissäsi alustalla.",
     "cashoutConfirm": "Pyydetäänkö {amount} palautuksena alkuperäiselle kortillesi? Ylläpitäjä tarkistaa sen. Sillä välin summa varataan.",
     "cashoutError": "Palautusta ei voitu pyytää.",
     "payHeading": "Miten haluat maksaa?",
@@ -2639,6 +2639,7 @@
     "messageActionError": "Toimintoa ei voitu viedä loppuun.",
     "reply": "Vastaa",
     "like": "Tykkää",
+    "unlike": "Poista tykkäys",
     "replyingTo": "Vastaus käyttäjälle {name}",
     "replyToSelf": "Sinä",
     "cancelReply": "Peruuta vastaus"

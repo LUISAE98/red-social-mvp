@@ -199,19 +199,13 @@ export default function LoginExperienceRail({ children }: { children: React.Reac
             justify-content: center;
             align-items: center;
             gap: 7px;
-            padding: 14px 0 2px;
+            padding: 18px 0 0;
           }
         }
       `}</style>
 
-      <div className="expRail" ref={railRef}>
-        {slides.map((child, i) =>
-          isValidElement<{ active?: boolean }>(child)
-            ? cloneElement(child, { active: !isMobile || i === active })
-            : child,
-        )}
-      </div>
-
+      {/* Los puntos van ARRIBA del rail: así se ven sin tener que llegar al
+          final de la tarjeta, que es donde se necesita saber que hay más. */}
       <div className="expRailDots">
         {slides.map((_, i) => (
           <Dot
@@ -224,6 +218,14 @@ export default function LoginExperienceRail({ children }: { children: React.Reac
             }}
           />
         ))}
+      </div>
+
+      <div className="expRail" ref={railRef}>
+        {slides.map((child, i) =>
+          isValidElement<{ active?: boolean }>(child)
+            ? cloneElement(child, { active: !isMobile || i === active })
+            : child,
+        )}
       </div>
     </div>
   );
