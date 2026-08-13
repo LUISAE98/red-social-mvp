@@ -426,20 +426,17 @@ export { generateBuyerInvoice, downloadBuyerInvoice } from "./facturacion/genera
 // Mercado Pago se retiró por completo (mpWebhook/payProfileDonation/payGroupSubscription
 // y el cliente MP eliminados).
 
-// Backfill de búsqueda de historias (corrida única, protegida por secret)
-export { backfillStoriesSearch } from "./storiesBackfill";
+// Los backfills de corrida única (búsqueda de historias, liveId del ledger,
+// postId de tickets, groupCategory de posts y categorías/vistas de historias) se
+// retiraron el 2026-08-13: eran `onRequest` SIN autenticación que recorrían
+// colecciones enteras con privilegios Admin, o sea una factura de Firestore a un
+// curl de distancia. Ya se habían ejecutado. Si hiciera falta correr otro, el
+// patrón correcto es el de `backfillSavedPosts`/`backfillRestrictedMedia`:
+// `onCall` con gate por email de admin, nunca `onRequest` abierto.
+// El código vive en el historial de git (commit anterior a este).
 
-// Backfill de liveId en el ledger (corrida única, idempotente)
-export { backfillWalletLives } from "./walletLivesBackfill";
-
-// Backfill de postId para tickets (premium_post / vod_ticket), corrida única
-export { backfillTicketPostIds } from "./backfillTicketPostIds";
-
-// Backfill de groupCategory en posts (descubrimiento Fase 2), corrida única
-export { backfillPostGroupCategory } from "./backfillPostGroupCategory";
-
-// Historias: contador de vistas (trigger) + backfill de categorías/vistas
-export { onStoryViewed, backfillStoryDiscovery } from "./storyDiscovery";
+// Historias: contador de vistas (trigger)
+export { onStoryViewed } from "./storyDiscovery";
 
 // Posts: contador de vistas únicas por usuario (videos y VODs)
 export { onPostViewed } from "./postViews";

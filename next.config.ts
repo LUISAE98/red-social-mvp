@@ -48,6 +48,44 @@ const nextConfig: NextConfig = {
           },
         ],
       },
+      // Cabeceras de seguridad para TODA la app. Deliberadamente NO se define
+      // aquí un CSP con `script-src`/`default-src`: Vibra carga Firebase, Mux,
+      // Cloudflare Stream, LiveKit y Stripe, y un CSP de recursos mal calibrado
+      // rompe la app en silencio. Eso merece su propio ticket, con
+      // `Content-Security-Policy-Report-Only` y medición antes de aplicarlo.
+      {
+        source: "/:path*",
+        headers: [
+          // Impide que el navegador adivine el tipo de una respuesta y ejecute
+          // como script algo que se sirvió como otra cosa.
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          // Antisecuestro de clics. Es `self` y no `none` porque el panel de
+          // admin previsualiza páginas de Vibra dentro de un iframe propio
+          // (app/[locale]/admin/layout.tsx).
+          { key: "Content-Security-Policy", value: "frame-ancestors 'self'" },
+          { key: "X-Frame-Options", value: "SAMEORIGIN" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          // Cámara, micrófono y captura de pantalla SE USAN (transmisión en
+          // directo, videollamadas de LiveKit y compartir pantalla), así que se
+          // permiten en el propio origen. Solo se apagan las que la app no usa.
+          {
+            key: "Permissions-Policy",
+            value: [
+              "camera=(self)",
+              "microphone=(self)",
+              "display-capture=(self)",
+              "fullscreen=(self)",
+              "geolocation=()",
+              "payment=()",
+              "usb=()",
+              "bluetooth=()",
+              "serial=()",
+              "midi=()",
+              "interest-cohort=()",
+            ].join(", "),
+          },
+        ],
+      },
     ];
   },
 

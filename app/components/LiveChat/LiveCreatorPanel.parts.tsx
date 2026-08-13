@@ -7,6 +7,7 @@ import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useRef, useState, memo, type CSSProperties } from "react";
 import Hls from "hls.js";
+import { getAuth } from "firebase/auth";
 import {
   VideoPlayIcon, VideoPauseIcon,
   VideoSkipBackIcon, VideoSkipForwardIcon,
@@ -83,9 +84,29 @@ export type Props = {
 export function OBSBrowserSourceBanner({ postId }: { postId: string }) {
   const tLive = useTranslations("live");
   const [copied, setCopied] = useState(false);
-  const url = typeof window !== "undefined"
-    ? `${window.location.origin}/live-overlay.html?postId=${postId}`
-    : `/live-overlay.html?postId=${postId}`;
+  // El token autentica las llamadas de OBS a /api/live-overlay-ready. Solo el
+  // autor del live puede pedirlo, así que la URL se arma en el servidor.
+  const [token, setToken] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const idToken = await getAuth().currentUser?.getIdToken();
+        if (!idToken) return;
+        const res = await fetch(`/api/live-overlay-url?postId=${encodeURIComponent(postId)}`, {
+          headers: { Authorization: `Bearer ${idToken}` },
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!cancelled && typeof data?.token === "string") setToken(data.token);
+      } catch { /* la URL se muestra sin token; OBS caerá al fallback de 1.5s */ }
+    })();
+    return () => { cancelled = true; };
+  }, [postId]);
+
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
+  const url = `${origin}/live-overlay.html?postId=${postId}${token ? `&t=${token}` : ""}`;
 
   const handleCopy = () => {
     navigator.clipboard.writeText(url).then(() => {

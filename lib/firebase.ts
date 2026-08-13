@@ -17,6 +17,7 @@ import {
 } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 import { getFunctions } from "firebase/functions";
+import { initAppCheck } from "./appCheck";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY!,
@@ -28,6 +29,9 @@ const firebaseConfig = {
 };
 
 export const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
+
+// No-op mientras no exista NEXT_PUBLIC_APPCHECK_RECAPTCHA_SITE_KEY. Ver lib/appCheck.ts.
+initAppCheck(app);
 
 function createAuth(): Auth {
   // En server nunca intentamos initializeAuth con persistencias de navegador.

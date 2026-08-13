@@ -35,6 +35,7 @@ import {
 } from "./livekit";
 import { extractS3Key } from "./recordingDownload";
 import { safeLocale } from "./locales";
+import { isGreetingParticipant } from "./greetingAccess";
 
 if (admin.apps.length === 0) admin.initializeApp();
 
@@ -57,6 +58,7 @@ export const greetingAnimatedDownload = onRequest(
     region: REGION,
     memory: "512MiB",
     timeoutSeconds: 540,
+    maxInstances: 10,
     secrets: [livekitApiKey, livekitApiSecret, egressS3AccessKey, egressS3SecretKey],
   },
   async (req, res) => {
@@ -83,6 +85,15 @@ export const greetingAnimatedDownload = onRequest(
     };
     const playbackId = (body.playbackId ?? "").trim();
     if (!playbackId) { res.status(400).json({ error: "Missing playbackId" }); return; }
+
+    // Tener sesión no basta: hay que ser el comprador o el creador de ESE
+    // saludo. Sin esto, cualquier cuenta podía lanzar un egress de LiveKit de
+    // hasta 9 minutos sobre el video de otra persona.
+    if (!(await isGreetingParticipant(uid, playbackId))) {
+      logger.warn("greetingAnimatedDownload_forbidden", { uid, playbackId });
+      res.status(403).json({ error: "Forbidden" });
+      return;
+    }
 
     const name = (body.name ?? "").slice(0, 80);
     const avatar = (body.avatar ?? "").slice(0, 600);

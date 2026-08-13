@@ -51,8 +51,13 @@
     import { initializeApp }         from "https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js";
     import { getFirestore, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js";
 
-    const postId = new URLSearchParams(location.search).get("postId");
+    const params = new URLSearchParams(location.search);
+    const postId = params.get("postId");
+    // Token del Browser Source: autentica el aviso de "ya lo estoy mostrando".
+    // Si falta, el panel del creador sigue funcionando por su fallback de 1.5s.
+    const overlayToken = params.get("t");
     if (!postId) { console.error("[overlay] falta postId"); }
+    if (!overlayToken) { console.warn("[overlay] URL sin token — copia de nuevo la URL del Browser Source"); }
 
     const VOICE = "es-MX-DaliaNeural";
     const RING  = 3;
@@ -140,11 +145,13 @@
       if (!sc) { fadeOutCard(); return; }
       showCard(sc);
       // Señalar al panel del creador que OBS ya está mostrando el SC
-      fetch("/api/live-overlay-ready", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ postId, scheduledAt: sc.scheduledAt ?? Date.now() }),
-      }).catch(() => {});
+      if (overlayToken) {
+        fetch("/api/live-overlay-ready", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ postId, scheduledAt: sc.scheduledAt ?? Date.now(), token: overlayToken }),
+        }).catch(() => {});
+      }
     });
   </script>
 </body>

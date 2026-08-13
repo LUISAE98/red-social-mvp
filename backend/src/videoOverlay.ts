@@ -5,6 +5,7 @@ import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
 import { spawn } from "child_process";
+import { isGreetingParticipant } from "./greetingAccess";
 
 if (admin.apps.length === 0) admin.initializeApp();
 
@@ -24,16 +25,21 @@ function runFFmpeg(args: string[]): Promise<void> {
   });
 }
 
+// Tope del PNG de overlay. Sin él, el cuerpo de la petición era ilimitado y se
+// escribía a disco antes de tocar FFmpeg.
+const MAX_OVERLAY_BASE64 = 12 * 1024 * 1024; // ~9 MB ya decodificado
+
 export const videoOverlayDownload = onRequest(
-  { cors: true, region: "us-central1", memory: "2GiB", timeoutSeconds: 300 },
+  { cors: true, region: "us-central1", memory: "2GiB", timeoutSeconds: 300, maxInstances: 10 },
   async (req, res) => {
     if (req.method === "OPTIONS") { res.status(204).end(); return; }
     if (req.method !== "POST") { res.status(405).json({ error: "Method not allowed" }); return; }
 
     const authHeader = req.headers.authorization;
     if (!authHeader?.startsWith("Bearer ")) { res.status(401).json({ error: "Unauthorized" }); return; }
+    let uid: string;
     try {
-      await admin.auth().verifyIdToken(authHeader.slice(7));
+      uid = (await admin.auth().verifyIdToken(authHeader.slice(7))).uid;
     } catch {
       res.status(401).json({ error: "Invalid token" }); return;
     }
@@ -43,6 +49,18 @@ export const videoOverlayDownload = onRequest(
     const { playbackId, overlayBase64 } = body;
     if (!playbackId || !overlayBase64) {
       res.status(400).json({ error: "Missing playbackId or overlayBase64" });
+      return;
+    }
+
+    if (overlayBase64.length > MAX_OVERLAY_BASE64) {
+      res.status(413).json({ error: "Overlay too large" });
+      return;
+    }
+
+    // Tener sesión no basta: hay que ser parte de ESE saludo.
+    if (!(await isGreetingParticipant(uid, playbackId))) {
+      logger.warn("videoOverlayDownload: acceso denegado", { uid, playbackId });
+      res.status(403).json({ error: "Forbidden" });
       return;
     }
 
