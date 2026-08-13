@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { intlLocale } from "@/i18n/locales";
 import {
   collection,
   query,
@@ -13,7 +14,7 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAdminPreview } from "../context";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 
 type Community = {
   id: string;
@@ -64,13 +65,13 @@ function toCommunityBase(
   };
 }
 
-function rel(date: Date, t: (key: string, params?: Record<string, string | number | Date>) => string): string {
+function rel(date: Date, t: (key: string, params?: Record<string, string | number | Date>) => string, locale: string): string {
   const m = Math.floor((Date.now() - date.getTime()) / 60000);
   if (m < 1) return t("timeNow");
   if (m < 60) return t("timeMinutesAgo", { count: m });
   const h = Math.floor(m / 60);
   if (h < 24) return t("timeHoursAgo", { count: h });
-  return date.toLocaleString("es-MX", { dateStyle: "medium" });
+  return date.toLocaleString(intlLocale(locale), { dateStyle: "medium" });
 }
 
 type Tab = "unverified" | "verified";
@@ -78,6 +79,8 @@ type Tab = "unverified" | "verified";
 export default function HiddenCommunitiesPage() {
   const { setPreviewUrl } = useAdminPreview();
   const tAdmin = useTranslations("admin");
+
+  const locale = useLocale();
   const [tab, setTab] = useState<Tab>("unverified");
   type CommunityBase = Omit<Community, "postsCount" | "livesCount" | "memberCount" | "creatorName" | "creatorAvatar" | "creatorHandle">;
 
@@ -400,7 +403,7 @@ export default function HiddenCommunitiesPage() {
                     >
                       <div style={{ fontSize: 14, fontWeight: 700, color: "#e2e2e2" }}>
                         {stat.value !== null
-                          ? stat.value.toLocaleString("es-MX")
+                          ? stat.value.toLocaleString(intlLocale(locale))
                           : "—"}
                       </div>
                       <div style={{ fontSize: 10, color: "#444", marginTop: 1 }}>
@@ -422,7 +425,7 @@ export default function HiddenCommunitiesPage() {
                   }}
                 >
                   <span style={{ fontSize: 10, color: "#444" }}>
-                    {c.createdAt ? rel(c.createdAt, tAdmin) : "—"}
+                    {c.createdAt ? rel(c.createdAt, tAdmin, locale) : "—"}
                   </span>
                   <span
                     style={{

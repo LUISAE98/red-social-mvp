@@ -25,7 +25,7 @@ function getDateFromTimestamp(value: unknown): Date | null {
   }
 }
 
-function formatExactDate(date: Date | null, locale = "es-MX"): string | null {
+function formatExactDate(date: Date | null, locale = "en"): string | null {
   if (!date) return null;
 
   try {
@@ -91,7 +91,7 @@ function toAbsoluteUrl(value: string | null | undefined): string | undefined {
   return `${cleanBaseUrl}${cleanValue.startsWith("/") ? "" : "/"}${cleanValue}`;
 }
 
-function toPublicPostView(post: Post, locale = "es-MX"): PublicPostView {
+function toPublicPostView(post: Post, locale = "en"): PublicPostView {
   const createdAtDate = getDateFromTimestamp(post.createdAt);
 
   const media = Array.isArray(post.media)

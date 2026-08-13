@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { intlLocale } from "@/i18n/locales";
 import { onAuthStateChanged, type User } from "firebase/auth";
 import { doc, getDoc, setDoc } from "firebase/firestore";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { auth, db } from "@/lib/firebase";
 import { uploadFile } from "@/lib/storage/uploadFile";
 
@@ -13,6 +14,8 @@ type AdminProfile = {
 
 export default function AdminProfilePage() {
   const tAdmin = useTranslations("admin");
+
+  const locale = useLocale();
   const [viewer, setViewer] = useState<User | null>(null);
   const [profile, setProfile] = useState<AdminProfile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -83,7 +86,7 @@ export default function AdminProfilePage() {
   const uid = viewer.uid;
   const email = viewer.email ?? "—";
   const createdAt = viewer.metadata.creationTime
-    ? new Date(viewer.metadata.creationTime).toLocaleDateString("es-MX", {
+    ? new Date(viewer.metadata.creationTime).toLocaleDateString(intlLocale(locale), {
         year: "numeric",
         month: "long",
         day: "numeric",

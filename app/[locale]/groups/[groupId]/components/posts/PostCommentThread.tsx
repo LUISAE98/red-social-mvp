@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { intlLocale } from "@/i18n/locales";
 import Link from "next/link";
 import { Timestamp, doc, getDoc } from "firebase/firestore";
 import {
@@ -11,7 +12,13 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import type { Comment, CommentImage, CommentMention, CommentReply } from "@/lib/posts/types";
-import { toggleCommentFlame, updatePostComment, updatePostCommentReply } from "@/lib/posts/post-service";
+import {
+  fetchOlderCommentReplies,
+  toggleCommentFlame,
+  updatePostComment,
+  updatePostCommentReply,
+} from "@/lib/posts/post-service";
+import { CommentSkeletonList } from "@/app/components/PostSkeleton/CommentSkeleton";
 import { uploadCommentImage } from "@/lib/posts/image-upload";
 import MentionTextarea from "./mentions/MentionTextarea";
 import { renderCommentText } from "./mentions/renderMentions";
@@ -31,7 +38,7 @@ import {
 } from "@/lib/groups/groupModeration";
 import { useReport } from "@/lib/moderation/useReport";
 import ReportModal from "@/app/components/ReportModal/ReportModal";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import {
   Avatar, CommentActionsPortal, ReplyActionsPortal,
   fontStack, formatExactDate, formatRelativeDate, getAuthorInfo,
@@ -62,10 +69,15 @@ export default function PostCommentThread({
   focusCommentId = null,
 }: PostCommentThreadProps) {
   const tCommon = useTranslations("common");
+  const locale = useLocale();
   const tPosts = useTranslations("posts");
   const { reportTarget, openReport, closeReport } = useReport();
   const [replies, setReplies] = useState<CommentReply[] | null>(null);
   const [loadingReplies, setLoadingReplies] = useState(false);
+  /** Se apaga cuando una tanda del historial vuelve incompleta. */
+  const [hasOlderReplies, setHasOlderReplies] = useState(true);
+  const [loadingOlderReplies, setLoadingOlderReplies] = useState(false);
+  const olderRepliesSentinelRef = useRef<HTMLDivElement | null>(null);
   const [replyBoxOpen, setReplyBoxOpen] = useState(false);
   const [replyText, setReplyText] = useState("");
   const [replyMentions, setReplyMentions] = useState<CommentMention[]>([]);
@@ -183,6 +195,28 @@ export default function PostCommentThread({
   const replyCount = localReplyCount;
   const hasRepliesToLoad = replyCount > 0;
 
+  // Dispara el historial de respuestas al asomarse su principio. El margen lo
+  // adelanta un poco para que la tanda esté puesta antes de llegar.
+  useEffect(() => {
+    if (!hasOlderReplies || loadingOlderReplies) return;
+    if (replies === null || replies.length === 0) return;
+
+    const sentinel = olderRepliesSentinelRef.current;
+    if (!sentinel) return;
+
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) void handleLoadOlderReplies();
+      },
+      { rootMargin: "200px 0px 0px 0px" }
+    );
+    io.observe(sentinel);
+    return () => io.disconnect();
+    // `handleLoadOlderReplies` se redefine en cada render; sus guardas internas
+    // (`loadingOlderReplies`/`hasOlderReplies`) ya evitan la carga duplicada.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasOlderReplies, loadingOlderReplies, replies]);
+
   async function handleLoadReplies() {
     if (replies !== null || loadingReplies) return;
 
@@ -195,6 +229,43 @@ export default function PostCommentThread({
       setInlineError((e instanceof Error ? e.message : null) ?? tPosts("errorLoadReplies"));
     } finally {
       setLoadingReplies(false);
+    }
+  }
+
+  /**
+   * Trae la tanda ANTERIOR de respuestas al llegar arriba de la lista.
+   *
+   * Igual que los comentarios: la primera tanda son las 30 más recientes y el
+   * historial se pide de verdad al servidor. Antes se quedaba en 30 y las demás
+   * no había forma de verlas.
+   */
+  async function handleLoadOlderReplies() {
+    if (loadingOlderReplies || !hasOlderReplies) return;
+
+    const oldest = replies?.[0]?.createdAt;
+    if (!oldest) {
+      setHasOlderReplies(false);
+      return;
+    }
+
+    try {
+      setLoadingOlderReplies(true);
+      const page = await fetchOlderCommentReplies({
+        postId,
+        commentId: comment.id,
+        before: oldest,
+      });
+
+      setReplies((current) => {
+        const existing = new Set((current ?? []).map((r) => r.id));
+        const fresh = page.replies.filter((r) => !existing.has(r.id));
+        return [...fresh, ...(current ?? [])];
+      });
+      setHasOlderReplies(page.hasMore);
+    } catch {
+      setInlineError(tPosts("errorLoadReplies"));
+    } finally {
+      setLoadingOlderReplies(false);
     }
   }
 
@@ -448,7 +519,7 @@ export default function PostCommentThread({
             <span style={{ fontSize: 11, fontWeight: 700, color: "#f87171" }}>{tPosts("commentDeleted")}</span>
             {comment.deletedAt && (
               <span style={{ fontSize: 10, color: "rgba(239,68,68,0.6)", marginLeft: 6 }}>
-                {comment.deletedAt.toDate().toLocaleString("es-MX", { dateStyle: "medium", timeStyle: "short" })}
+                {comment.deletedAt.toDate().toLocaleString(intlLocale(locale), { dateStyle: "medium", timeStyle: "short" })}
               </span>
             )}
           </div>
@@ -587,7 +658,7 @@ export default function PostCommentThread({
                       border: "1px solid rgba(251,191,36,0.12)",
                     }}>
                       <div style={{ fontSize: 10, color: "rgba(251,191,36,0.5)", marginBottom: 3 }}>
-                        {entry.editedAt?.toDate().toLocaleString("es-MX", { dateStyle: "medium", timeStyle: "short" })}
+                        {entry.editedAt?.toDate().toLocaleString(intlLocale(locale), { dateStyle: "medium", timeStyle: "short" })}
                       </div>
                       <div style={{ fontSize: 12, fontWeight: 300, color: "rgba(255,255,255,0.5)", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
                         {entry.previousText}
@@ -757,6 +828,12 @@ export default function PostCommentThread({
           {/* Replies */}
           {replies !== null && replies.length > 0 && (
             <div style={{ marginTop: 10, display: "grid", gap: 10 }}>
+              {/* Historial hacia atrás: el centinela va antes de la primera
+                  respuesta, y el skeleton ocupa su sitio mientras llega la
+                  tanda para que la lista no salte. */}
+              <div ref={olderRepliesSentinelRef} aria-hidden style={{ height: 1 }} />
+              {loadingOlderReplies && <CommentSkeletonList count={2} />}
+
               {replies.map((reply) => {
                 const replyAuthor = getAuthorInfo(reply, tCommon("user"));
                 const canDeleteReply = isOwner || isModerator || currentUserId === reply.authorId;
@@ -794,7 +871,7 @@ export default function PostCommentThread({
                           <span style={{ fontSize: 10.5, fontWeight: 700, color: "#f87171" }}>{tPosts("replyDeleted")}</span>
                           {reply.deletedAt && (
                             <span style={{ fontSize: 9.5, color: "rgba(239,68,68,0.6)", marginLeft: 6 }}>
-                              {reply.deletedAt.toDate().toLocaleString("es-MX", { dateStyle: "medium", timeStyle: "short" })}
+                              {reply.deletedAt.toDate().toLocaleString(intlLocale(locale), { dateStyle: "medium", timeStyle: "short" })}
                             </span>
                           )}
                         </div>
@@ -942,7 +1019,7 @@ export default function PostCommentThread({
                               border: "1px solid rgba(251,191,36,0.12)",
                             }}>
                               <div style={{ fontSize: 9.5, color: "rgba(251,191,36,0.5)", marginBottom: 2 }}>
-                                {entry.editedAt?.toDate().toLocaleString("es-MX", { dateStyle: "medium", timeStyle: "short" })}
+                                {entry.editedAt?.toDate().toLocaleString(intlLocale(locale), { dateStyle: "medium", timeStyle: "short" })}
                               </div>
                               <div style={{ fontSize: 11.5, fontWeight: 300, color: "rgba(255,255,255,0.5)", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
                                 {entry.previousText}

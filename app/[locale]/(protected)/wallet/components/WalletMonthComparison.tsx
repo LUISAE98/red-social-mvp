@@ -1,14 +1,15 @@
 "use client";
 
 import { useMemo } from "react";
-import { useTranslations } from "next-intl";
+import { intlLocale } from "@/i18n/locales";
+import { useTranslations, useLocale } from "next-intl";
 import { useWalletLedger } from "@/lib/wallet/walletLedger";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import { SETTLEMENT_CURRENCY } from "@/lib/currency/catalog";
 
-function formatMonthLabel(year: number, month: number): string {
+function formatMonthLabel(year: number, month: number, locale: string): string {
   try {
-    return new Intl.DateTimeFormat("es-MX", { month: "short", year: "numeric" })
+    return new Intl.DateTimeFormat(intlLocale(locale), { month: "short", year: "numeric" })
       .format(new Date(year, month, 1))
       .replace(".", "");
   } catch {
@@ -25,6 +26,7 @@ export default function WalletMonthComparison({
 }: {
   uid: string | null | undefined;
 }) {
+  const locale = useLocale();
   const tWallet = useTranslations("wallet");
   const { format: formatMoney } = usePriceFormat();
   const { entries } = useWalletLedger(uid, 1000);
@@ -58,7 +60,7 @@ export default function WalletMonthComparison({
   const beaten = target > 0 && current >= target;
   const remaining = Math.max(0, target - current);
   const pct = target > 0 ? Math.min(100, (current / target) * 100) : current > 0 ? 100 : 0;
-  const bestLabel = best ? formatMonthLabel(best.year, best.month) : "";
+  const bestLabel = best ? formatMonthLabel(best.year, best.month, locale) : "";
 
   return (
     <div

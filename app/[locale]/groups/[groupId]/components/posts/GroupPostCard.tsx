@@ -3,6 +3,7 @@
 "use client";
 
 import Image from "next/image";
+import { intlLocale } from "@/i18n/locales";
 import Hls from "hls.js";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -45,7 +46,12 @@ import {
   useProtectedPlayback,
 } from "@/lib/posts/useProtectedPlayback";
 import { checkLiveAccess } from "@/lib/liveAccess/live-access-service";
-import { fetchPostFlameUsers, registerPostView, updatePost } from "@/lib/posts/post-service";
+import {
+  fetchOlderPostComments,
+  fetchPostFlameUsers,
+  registerPostView,
+  updatePost,
+} from "@/lib/posts/post-service";
 import { uploadCommentImage, uploadPostImage } from "@/lib/posts/image-upload";
 import { CommentImageLightbox } from "./CommentImageUI";
 import PostShareButton from "@/components/ui/PostShareButton";
@@ -276,6 +282,9 @@ onToggleProfilePin,
   }
 
   const [comments, setComments] = useState<Comment[] | null>(null);
+  /** Se apaga cuando una tanda del historial vuelve incompleta. */
+  const [hasOlderComments, setHasOlderComments] = useState(true);
+  const [loadingOlderComments, setLoadingOlderComments] = useState(false);
   const [commentsPanelOpen, setCommentsPanelOpen] = useState(false);
   const [desktopVisibleCount, setDesktopVisibleCount] = useState(5);
   const [loadingComments, setLoadingComments] = useState(false);
@@ -1048,6 +1057,49 @@ function handleToggleSave() {
   }
 }
 
+/**
+ * Trae la tanda ANTERIOR de comentarios al llegar arriba del todo.
+ *
+ * El historial se pide de verdad al servidor: antes el "ver más" solo destapaba
+ * los que ya estaban en memoria, así que a partir del comentario 30 no había
+ * forma de llegar a los demás.
+ *
+ * `hasOlderComments` empieza en true y se apaga en cuanto una tanda vuelve
+ * incompleta. Así no hay que saber de antemano cuántos hay.
+ */
+async function handleLoadOlderComments() {
+  if (loadingOlderComments || !hasOlderComments) return;
+
+  const oldest = comments?.[0]?.createdAt;
+  if (!oldest) {
+    setHasOlderComments(false);
+    return;
+  }
+
+  try {
+    setLoadingOlderComments(true);
+    const page = await fetchOlderPostComments({ postId: post.id, before: oldest });
+
+    // Se deduplica por id: si entre tanda y tanda alguien borra un comentario,
+    // el cursor puede solaparse y no queremos pintarlo dos veces.
+    setComments((current) => {
+      const existing = new Set((current ?? []).map((c) => c.id));
+      const fresh = page.comments.filter((c) => !existing.has(c.id));
+      // La ventana de laptop corta por el final; si no crece, lo recién traído
+      // se quedaría fuera de ella y el historial parecería no llegar nunca.
+      if (fresh.length > 0) setDesktopVisibleCount((n) => n + fresh.length);
+      return [...fresh, ...(current ?? [])];
+    });
+    setHasOlderComments(page.hasMore);
+  } catch {
+    // Un fallo de red no debe apagar el historial para siempre: se deja que se
+    // pueda reintentar al volver a subir.
+    setInlineActionError(tFeed("errorLoadComments"));
+  } finally {
+    setLoadingOlderComments(false);
+  }
+}
+
   function handleToggleCommentsDesktop() {
     if (commentsPanelOpen) {
       setCommentsPanelOpen(false);
@@ -1231,6 +1283,8 @@ function handleToggleSave() {
       setInlineActionError(null);
       closeMenu();
       setComments(null);
+      // Vaciar la lista reabre el historial: la siguiente carga empieza de cero.
+      setHasOlderComments(true);
       await blockPostAuthorInGroup();
       await onGroupMemberBlockComplete?.();
     } catch (e: unknown) {
@@ -1247,6 +1301,8 @@ function handleToggleSave() {
       setInlineActionError(null);
       closeMenu();
       setComments(null);
+      // Vaciar la lista reabre el historial: la siguiente carga empieza de cero.
+      setHasOlderComments(true);
       await unblockPostAuthorInGroup();
       await onGroupMemberBlockComplete?.();
     } catch (e: unknown) {
@@ -2399,7 +2455,7 @@ const shouldClampFeedPostText =
             <span style={{ fontSize: 11, fontWeight: 700, color: "#f87171" }}>Post eliminado</span>
             {post.deletedAt && (
               <span style={{ fontSize: 10, color: "rgba(239,68,68,0.65)", marginLeft: 6 }}>
-                {post.deletedAt.toDate().toLocaleString("es-MX", { dateStyle: "medium", timeStyle: "short" })}
+                {post.deletedAt.toDate().toLocaleString(intlLocale(locale), { dateStyle: "medium", timeStyle: "short" })}
               </span>
             )}
           </div>
@@ -4875,6 +4931,9 @@ padding: "0 0 2px 0",
       onCommentImageClear={() => setCommentImageFile(null)}
       onOpenCommentImage={(image, rect) => setCommentLightbox({ image, rect })}
       onClose={() => setCommentsPanelOpen(false)}
+      hasOlderComments={hasOlderComments}
+      loadingOlderComments={loadingOlderComments}
+      onLoadOlderComments={handleLoadOlderComments}
       onCreateComment={handleCreateComment}
       onDeleteComment={handleDeleteComment}
       onLoadReplies={onLoadReplies}
@@ -4882,6 +4941,8 @@ padding: "0 0 2px 0",
       onDeleteReply={onDeleteReply}
       onGroupMemberBlockComplete={async () => {
         setComments(null);
+      // Vaciar la lista reabre el historial: la siguiente carga empieza de cero.
+      setHasOlderComments(true);
         await onGroupMemberBlockComplete?.();
       }}
       onModerationComplete={async () => {
@@ -4920,6 +4981,9 @@ padding: "0 0 2px 0",
       onCommentImageClear={() => setCommentImageFile(null)}
       onOpenCommentImage={(image, rect) => setCommentLightbox({ image, rect })}
       onClose={() => setCommentsPanelOpen(false)}
+      hasOlderComments={hasOlderComments}
+      loadingOlderComments={loadingOlderComments}
+      onLoadOlderComments={handleLoadOlderComments}
       onCreateComment={handleCreateComment}
       onDeleteComment={handleDeleteComment}
       onLoadReplies={onLoadReplies}
@@ -4927,6 +4991,8 @@ padding: "0 0 2px 0",
       onDeleteReply={onDeleteReply}
       onGroupMemberBlockComplete={async () => {
         setComments(null);
+      // Vaciar la lista reabre el historial: la siguiente carga empieza de cero.
+      setHasOlderComments(true);
         await onGroupMemberBlockComplete?.();
       }}
       onModerationComplete={async () => {
@@ -4988,6 +5054,8 @@ padding: "0 0 2px 0",
   onDeleteReply={onDeleteReply}
   onGroupMemberBlockComplete={async () => {
     setComments(null);
+      // Vaciar la lista reabre el historial: la siguiente carga empieza de cero.
+      setHasOlderComments(true);
     await onGroupMemberBlockComplete?.();
   }}
   onModerationComplete={async () => {

@@ -4,6 +4,7 @@
 // de acciones) de PostCommentThread, aislados a nivel de módulo.
 
 import Image from "next/image";
+import { intlLocale } from "@/i18n/locales";
 import Link from "next/link";
 import { Timestamp, doc, getDoc } from "firebase/firestore";
 import {
@@ -108,7 +109,7 @@ export function formatExactDate(value?: { toDate?: () => Date } | null, t?: TFun
   if (!date) return unavailable;
 
   try {
-    return new Intl.DateTimeFormat(locale ?? "es-MX", {
+    return new Intl.DateTimeFormat(intlLocale(locale ?? "en"), {
       dateStyle: "medium",
       timeStyle: "short",
     }).format(date);

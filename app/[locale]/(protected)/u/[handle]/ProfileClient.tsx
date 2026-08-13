@@ -1,6 +1,7 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
+import { intlLocale } from "@/i18n/locales";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import { useScreenReady } from "@/lib/useScreenReady";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
@@ -232,6 +233,8 @@ function CoverSearchLupaIcon() {
 
 export default function ProfileClient() {
   const tProfile = useTranslations("profile");
+
+  const locale = useLocale();
   const tCommon = useTranslations("common");
   const tServices = useTranslations("services");
   const priceFmt = usePriceFormat();
@@ -539,7 +542,7 @@ useEffect(() => {
       ? userDoc.followersCount
       : 0;
 
-  const followersLabel = `${followersCount.toLocaleString("es-MX")} ${
+  const followersLabel = `${followersCount.toLocaleString(intlLocale(locale))} ${
     followersCount === 1 ? tProfile("follower") : tProfile("followers")
   }`;
 

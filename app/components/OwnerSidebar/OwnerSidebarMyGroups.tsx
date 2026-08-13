@@ -633,7 +633,7 @@ if (scheduleConflict.hasConflict) {
         role={role}
         sessionId={requestId}
         sessionType={req.type === "digital_meet_greet" ? "meet_greet" : "exclusive_session"}
-        scheduledAtLabel={req.scheduledAt ? formatUnknownDate(req.scheduledAt) : null}
+        scheduledAtLabel={req.scheduledAt ? formatUnknownDate(req.scheduledAt, locale) : null}
         durationMinutes={req.durationMinutes ?? null}
       />
     );

@@ -40,6 +40,7 @@ export default function LoginExperienceBlock({
   accentColor,
   items,
   omitIcons,
+  separateItems = false,
   itemsLeft = false,
 }: {
   /** Antetítulo. El CSS lo pinta en MAYÚSCULAS. */
@@ -70,6 +71,11 @@ export default function LoginExperienceBlock({
    * hay un creador concreto detrás.
    */
   omitIcons?: readonly string[];
+  /**
+   * Traza una línea tenue entre item e item. Con pocos items el espacio en
+   * blanco solo no alcanza a separarlos y se leen como un párrafo corrido.
+   */
+  separateItems?: boolean;
   /** Los items van a la IZQUIERDA. Se alterna bloque a bloque. */
   itemsLeft?: boolean;
 }) {
@@ -169,6 +175,16 @@ export default function LoginExperienceBlock({
           margin-top: 14px;
         }
 
+        /* Línea entre items. Los selectores de hijo directo apuntan a las FILAS
+           que arma ServiceFeaturePreview (mosaico > fila), sin alcanzar el
+           texto de adentro. La línea va apenas visible: separa sin dibujar una
+           tabla. */
+        .expBlockItemsSep > :global(div) > :global(div) + :global(div) {
+          border-top: 1px solid rgba(255, 255, 255, 0.13);
+          padding-top: 12px;
+          margin-top: 2px;
+        }
+
         /* Celular: una sola columna y los items SIEMPRE debajo, sin importar el
            alternado. (El acomodo fino de móvil se hace aparte.) */
         @media (max-width: 900px) {
@@ -230,7 +246,7 @@ export default function LoginExperienceBlock({
         <p className="expBlockDesc">{description}</p>
       </div>
 
-      <div className="expBlockItems">
+      <div className={separateItems ? "expBlockItems expBlockItemsSep" : "expBlockItems"}>
         {services.map((s) => (
           <ServiceFeaturePreview
             key={s}

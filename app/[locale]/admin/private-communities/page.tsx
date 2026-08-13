@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { intlLocale } from "@/i18n/locales";
 import {
   collection,
   query,
@@ -13,7 +14,7 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAdminPreview } from "../context";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 
 type Community = {
   id: string;
@@ -86,6 +87,8 @@ type Tab = "active" | "deleted";
 export default function PrivateCommunitiesPage() {
   const { setPreviewUrl } = useAdminPreview();
   const tAdmin = useTranslations("admin");
+
+  const locale = useLocale();
   const [tab, setTab] = useState<Tab>("active");
 
   const [bases, setBases] = useState<CommunityBase[]>([]);
@@ -443,7 +446,7 @@ export default function PrivateCommunitiesPage() {
                       }}
                     >
                       <div style={{ fontSize: 14, fontWeight: 700, color: c.isDeleted ? "#555" : "#e2e2e2" }}>
-                        {stat.value !== null ? stat.value.toLocaleString("es-MX") : "—"}
+                        {stat.value !== null ? stat.value.toLocaleString(intlLocale(locale)) : "—"}
                       </div>
                       <div style={{ fontSize: 10, color: "#444", marginTop: 1 }}>
                         {stat.label}

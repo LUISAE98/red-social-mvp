@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useEffect, useRef } from "react";
+import { intlLocale } from "@/i18n/locales";
 import { useTranslations, useLocale } from "next-intl";
 import { useAuth } from "@/app/providers";
 import WalletSectionShell from "../components/WalletSectionShell";
@@ -47,9 +48,9 @@ const KYC_REASON_KEY: Record<string, string> = {
   UNREADABLE_DOCUMENT: "kycReasonQuality",
 };
 
-function formatMonthLabel(year: number, month: number): string {
+function formatMonthLabel(year: number, month: number, locale: string): string {
   try {
-    return new Intl.DateTimeFormat("es-MX", {
+    return new Intl.DateTimeFormat(intlLocale(locale), {
       month: "short",
       year: "numeric",
     }).format(new Date(year, month, 1));
@@ -576,7 +577,7 @@ export default function WalletFinanzasPage() {
                 </div>
               ) : bestMonth ? (
                 <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.4)" }}>
-                  {formatMonthLabel(bestMonth.year, bestMonth.month)}
+                  {formatMonthLabel(bestMonth.year, bestMonth.month, locale)}
                 </div>
               ) : null}
             </div>

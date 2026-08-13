@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useTranslations } from "next-intl";
+import { intlLocale } from "@/i18n/locales";
+import { useTranslations, useLocale } from "next-intl";
 import {
   useWalletLedger,
   ledgerTypeLabelKey,
@@ -19,9 +20,9 @@ function formatCompact(value: number): string {
 }
 
 /** Etiqueta de fecha "d MMM" (ej. "9 jul"). */
-function dayMonthLabel(d: Date): string {
+function dayMonthLabel(d: Date, locale: string): string {
   try {
-    return new Intl.DateTimeFormat("es-MX", { day: "numeric", month: "short" })
+    return new Intl.DateTimeFormat(intlLocale(locale), { day: "numeric", month: "short" })
       .format(d)
       .replace(".", "");
   } catch {
@@ -62,6 +63,7 @@ export default function WalletIncomeChart({
 }: {
   uid: string | null | undefined;
 }) {
+  const locale = useLocale();
   const tWallet = useTranslations("wallet");
   const { format: formatMoney } = usePriceFormat();
   const { entries } = useWalletLedger(uid, 1000);
@@ -89,7 +91,7 @@ export default function WalletIncomeChart({
     while (s < now && i < 60) {
       const start = new Date(s);
       const end = new Date(s + cfg.bucketDays * DAY);
-      list.push({ start, end, key: `b${i}`, label: dayMonthLabel(start) });
+      list.push({ start, end, key: `b${i}`, label: dayMonthLabel(start, locale) });
       s += cfg.bucketDays * DAY;
       i += 1;
     }

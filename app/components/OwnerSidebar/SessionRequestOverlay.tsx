@@ -223,7 +223,7 @@ export default function SessionRequestOverlay({
   const chipType = isExclusive ? "digital_exclusive_session" : "meet_greet_digital";
   const status = req.status;
   const creatorScheduleNote = getCreatorScheduleNote(req);
-  const scheduledAtText = formatScheduledDate(req.scheduledAt);
+  const scheduledAtText = formatScheduledDate(req.scheduledAt, locale);
   const prepareWindowOpen = isPrepareWindowOpen(req.scheduledAt);
   const noShowExpired = isNoShowExpired(req.scheduledAt);
   const canAccept = status === "pending_creator_response";

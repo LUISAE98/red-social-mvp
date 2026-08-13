@@ -13,6 +13,8 @@
 // El creador EXTRANJERO no ve este panel: pasa directo a pago (impuestos aparte).
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useLocale } from "next-intl";
+import { intlLocale } from "@/i18n/locales";
 import { Modal } from "@/components/ui";
 import {
   useCreatorTaxProfile,
@@ -73,6 +75,7 @@ const FIELD: React.CSSProperties = {
 };
 
 export default function WithdrawFiscalPanel({ open, onClose, uid, availableLabel, ivaLabel, totalLabel }: Props) {
+  const locale = useLocale();
   const { profile, loading, hasData, csdReady } = useCreatorTaxProfile(uid);
   // El ciclo de vida de la animación, el backdrop, el bloqueo de scroll y el
   // gesto de arrastre los resuelve el primitivo `Modal` (VibraResponsivePanel).
@@ -507,7 +510,7 @@ export default function WithdrawFiscalPanel({ open, onClose, uid, availableLabel
         <div style={{ fontSize: 15, fontWeight: 700, color: "#fff" }}>Facturación automática activada</div>
         <p style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", lineHeight: 1.5, margin: 0 }}>
           Tus facturas hacia Vibra se generarán solas en cada retiro.
-          {profile?.csdExpiresAt ? ` Tu CSD vence el ${new Date(profile.csdExpiresAt).toLocaleDateString("es-MX")}.` : ""}
+          {profile?.csdExpiresAt ? ` Tu CSD vence el ${new Date(profile.csdExpiresAt).toLocaleDateString(intlLocale(locale))}.` : ""}
         </p>
         <button type="button" onClick={handleClose} style={primaryBtn(false)}>Listo</button>
       </div>

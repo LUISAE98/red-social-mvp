@@ -3,6 +3,7 @@
 // Tipos, helpers y sub-componentes (SpinningGear, Switch) de ProfileSettingsTab.
 
 import { CSSProperties, useEffect, useState } from "react";
+import { intlLocale } from "@/i18n/locales";
 import { useTranslations, useLocale } from "next-intl";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
@@ -55,7 +56,7 @@ export function formatDate(value?: string | Date | null, locale?: string): strin
   const date = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(date.getTime())) return null;
 
-  return new Intl.DateTimeFormat(locale ?? "es-MX", {
+  return new Intl.DateTimeFormat(intlLocale(locale ?? "en"), {
     day: "2-digit",
     month: "long",
     year: "numeric",

@@ -126,7 +126,7 @@ export default function StripePaymentModal({
   successMessage,
   holdSuccessMessage,
   durationMinutes,
-  locale = "es-MX",
+  locale = "en",
   presentation = "dialog",
   container,
   forceStacked = false,

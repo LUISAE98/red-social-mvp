@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useLocale } from "next-intl";
+import { intlLocale } from "@/i18n/locales";
 import {
   collection,
   doc,
@@ -120,6 +122,7 @@ async function fetchContentPreview(report: Report): Promise<string | null> {
 }
 
 export default function ReportDetailPage() {
+  const locale = useLocale();
   const params = useParams();
   const router = useRouter();
   const reportId = params?.reportId as string;
@@ -224,7 +227,7 @@ export default function ReportDetailPage() {
         <Row label="ID del propietario" value={report.targetOwnerId} mono />
         <Row
           label="Reportado"
-          value={report.createdAt.toLocaleString("es-MX", { dateStyle: "medium", timeStyle: "short" })}
+          value={report.createdAt.toLocaleString(intlLocale(locale), { dateStyle: "medium", timeStyle: "short" })}
         />
         {report.description && (
           <Row label="Descripción del reporte" value={report.description} />

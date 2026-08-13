@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { intlLocale } from "@/i18n/locales";
 import {
   collection,
   query,
@@ -16,7 +17,7 @@ import type { Report } from "@/lib/moderation/types";
 import { REPORT_REASON_LABELS, MODERATOR_ACTION_LABELS } from "@/lib/moderation/types";
 import type { ModeratorAction } from "@/lib/moderation/types";
 import Link from "next/link";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 
 const ACTION_COLOR: Record<string, string> = {
   dismiss: "#6b7280",
@@ -45,6 +46,8 @@ function toReport(id: string, d: FireReport): Report {
 export default function AuditLogPage() {
   const { user } = useAuth();
   const tAdmin = useTranslations("admin");
+
+  const locale = useLocale();
   const [reports, setReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -71,7 +74,7 @@ export default function AuditLogPage() {
     if (m < 60) return tAdmin("timeMinutesAgo", { count: m });
     const h = Math.floor(m / 60);
     if (h < 24) return tAdmin("timeHoursAgo", { count: h });
-    return date.toLocaleString("es-MX", { dateStyle: "short", timeStyle: "short" });
+    return date.toLocaleString(intlLocale(locale), { dateStyle: "short", timeStyle: "short" });
   }
 
   useEffect(() => {

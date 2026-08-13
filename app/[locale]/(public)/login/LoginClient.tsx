@@ -1033,6 +1033,7 @@ marginBottom: 6,
           poster="/saludo.webp"
           service="saludo"
           accentColor="#a855f7"
+          separateItems
           // Los textos por servicio hablan solo del saludo; esta card cubre
           // también los consejos, así que se escriben aquí para abarcar ambos.
           items={[

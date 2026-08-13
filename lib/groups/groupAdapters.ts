@@ -1,4 +1,5 @@
 import type { Timestamp } from "firebase/firestore";
+import { intlLocale } from "@/i18n/locales";
 import type {
   Currency,
   CreatorServiceMeta,
@@ -407,9 +408,9 @@ export function visibilityLabel(v: string) {
   return v ? `Comunidad ${v}` : "";
 }
 
-export function formatMoney(value: number, currency: Currency) {
+export function formatMoney(value: number, currency: Currency, locale: string) {
   try {
-    return new Intl.NumberFormat("es-MX", {
+    return new Intl.NumberFormat(intlLocale(locale), {
       style: "currency",
       currency,
       maximumFractionDigits: 2,

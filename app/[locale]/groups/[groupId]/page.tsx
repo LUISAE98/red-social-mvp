@@ -1548,7 +1548,7 @@ const openCropWithFile = useCallback(
           {tGroups("communityDeletedBanner")}
         </div>
         <div style={{ fontSize: 11, color: "#ef4444", marginTop: 2 }}>
-          {formatDeletedAt(groupDeletionState.deletedAt)}
+          {formatDeletedAt(groupDeletionState.deletedAt, locale)}
           {groupDeletionState.deletionReason
             ? ` · ${groupDeletionState.deletionReason}`
             : ""}

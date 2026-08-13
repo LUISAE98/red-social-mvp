@@ -3,6 +3,7 @@
 // Tipos, helpers y sub-componente BuyerMessagePlayer de OwnerSidebarMyGroups.
 
 import Image from "next/image";
+import { intlLocale } from "@/i18n/locales";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState, useRef, useCallback } from "react";
@@ -65,7 +66,7 @@ import {
 } from "@/lib/exclusiveSession/exclusiveSessionRequests";
 
 import LiveRingAvatar from "@/app/components/LiveRing/LiveRingAvatar";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
@@ -362,11 +363,11 @@ export function getMeetGreetStatusStyle(status: string): React.CSSProperties {
   };
 }
 
-export function formatUnknownDate(value: unknown): string | null {
+export function formatUnknownDate(value: unknown, locale: string): string | null {
   if (!value) return null;
 
   if (value instanceof Date && !Number.isNaN(value.getTime())) {
-    return value.toLocaleString("es-MX");
+    return value.toLocaleString(intlLocale(locale));
   }
 
   if (
@@ -377,14 +378,14 @@ export function formatUnknownDate(value: unknown): string | null {
   ) {
     const date = (value as { toDate: () => Date }).toDate();
     if (date instanceof Date && !Number.isNaN(date.getTime())) {
-      return date.toLocaleString("es-MX");
+      return date.toLocaleString(intlLocale(locale));
     }
   }
 
   if (typeof value === "string" || typeof value === "number") {
     const date = new Date(value);
     if (!Number.isNaN(date.getTime())) {
-      return date.toLocaleString("es-MX");
+      return date.toLocaleString(intlLocale(locale));
     }
   }
 

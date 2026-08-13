@@ -2033,13 +2033,16 @@ color: "rgba(255,255,255,0.94)",
     const allJoined = Array.from(mergedMap.values());
 
     const publics = sortGroupsWithModsFirst(
-      allJoined.filter((g) => g.visibility === "public")
+      allJoined.filter((g) => g.visibility === "public"),
+      locale
     );
     const privates = sortGroupsWithModsFirst(
-      allJoined.filter((g) => g.visibility === "private")
+      allJoined.filter((g) => g.visibility === "private"),
+      locale
     );
     const hiddens = sortGroupsWithModsFirst(
-      allJoined.filter((g) => g.visibility === "hidden")
+      allJoined.filter((g) => g.visibility === "hidden"),
+      locale
     );
     const others = sortGroupsWithModsFirst(
       allJoined.filter(
@@ -2047,7 +2050,8 @@ color: "rgba(255,255,255,0.94)",
           g.visibility !== "public" &&
           g.visibility !== "private" &&
           g.visibility !== "hidden"
-      )
+      ),
+      locale
     );
 
     return [

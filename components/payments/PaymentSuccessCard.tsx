@@ -18,7 +18,7 @@ export default function PaymentSuccessCard({
   productType,
   successMessage,
   onClose,
-  locale = "es-MX",
+  locale = "en",
   stacked = false,
   showClose = true,
 }: {

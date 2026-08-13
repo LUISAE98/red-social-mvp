@@ -382,7 +382,8 @@ export function hasWalletScheduleConflict(
   },
   existingRows: WalletServiceItem[]
 ): boolean {
-  return getWalletScheduleConflictResult(locale, target, existingRows).hasConflict;
+  // Solo mira si HAY choque; no usa el mensaje, así que el idioma da igual.
+  return getWalletScheduleConflictResult("en", target, existingRows).hasConflict;
 }
 
 export function getGreetingTypeLabel(type: GreetingType): string {

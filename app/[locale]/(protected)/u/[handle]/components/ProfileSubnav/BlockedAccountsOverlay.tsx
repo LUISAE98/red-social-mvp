@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useTranslations } from "next-intl";
+import { intlLocale } from "@/i18n/locales";
+import { useTranslations, useLocale } from "next-intl";
 import { CSSProperties, useEffect, useMemo, useState } from "react";
 
 import VibraResponsivePanel from "@/components/ui/VibraResponsivePanel";
@@ -23,12 +24,13 @@ type ActiveTab = "profile" | "groups";
 
 function formatBlockedDate(
   value: BlockedProfileAccount["createdAt"],
-  fallback: string
+  fallback: string,
+  locale: string
 ) {
   if (!value?.toDate) return fallback;
 
   try {
-    return new Intl.DateTimeFormat("es-MX", {
+    return new Intl.DateTimeFormat(intlLocale(locale), {
       day: "2-digit",
       month: "short",
       year: "numeric",
@@ -109,6 +111,7 @@ export default function BlockedAccountsOverlay({
   currentUserId,
   onClose,
 }: BlockedAccountsOverlayProps) {
+  const locale = useLocale();
   const tProfile = useTranslations("profile");
   const tCommon = useTranslations("common");
 
@@ -428,7 +431,7 @@ export default function BlockedAccountsOverlay({
                         }}
                       >
                         {tProfile("blockedOnDate", {
-                          date: formatBlockedDate(account.createdAt, dateUnavailable),
+                          date: formatBlockedDate(account.createdAt, dateUnavailable, locale),
                         })}
                       </div>
                     </div>
@@ -582,7 +585,7 @@ export default function BlockedAccountsOverlay({
                         }}
                       >
                         {tProfile("blockedOnDate", {
-                          date: formatBlockedDate(account.createdAt, dateUnavailable),
+                          date: formatBlockedDate(account.createdAt, dateUnavailable, locale),
                         })}
                       </div>
                     </div>

@@ -1,6 +1,8 @@
 "use client";
 
 import Image from "next/image";
+import { useLocale } from "next-intl";
+import { intlLocale } from "@/i18n/locales";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useCreatorTodaySessions, type CreatorSession } from "@/lib/hooks/useCreatorTodaySessions";
@@ -32,8 +34,8 @@ function formatCountdown(ms: number): string {
   return [h, m, s].map((n) => String(n).padStart(2, "0")).join(":");
 }
 
-function formatTime(d: Date): string {
-  return d.toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit", hour12: false });
+function formatTime(d: Date, locale: string): string {
+  return d.toLocaleTimeString(intlLocale(locale), { hour: "2-digit", minute: "2-digit", hour12: false });
 }
 
 
@@ -41,6 +43,7 @@ function formatTime(d: Date): string {
 
 // Self-contained row for auto_rejected_no_show sessions in the "other sessions" list
 function ActionSessionRow({ session }: { session: CreatorSession }) {
+  const locale = useLocale();
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
   const buyerName = session.buyerDisplayName ?? "Comprador";
@@ -63,7 +66,7 @@ function ActionSessionRow({ session }: { session: CreatorSession }) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0" }}>
       <div style={{ fontSize: 12, fontWeight: 700, color: "#fb923c", minWidth: 40, fontVariantNumeric: "tabular-nums" }}>
-        {formatTime(session.scheduledAt)}
+        {formatTime(session.scheduledAt, locale)}
       </div>
       <div style={{ width: 24, height: 24, borderRadius: "50%", overflow: "hidden", flexShrink: 0, background: "rgba(255,255,255,0.10)", border: "1.5px solid rgba(251,146,60,0.30)" }}>
         {session.buyerAvatarUrl ? (
@@ -90,6 +93,7 @@ function ActionSessionRow({ session }: { session: CreatorSession }) {
 }
 
 function SessionRow({ session }: { session: CreatorSession }) {
+  const locale = useLocale();
   const buyerName = session.buyerDisplayName ?? "Comprador";
   return (
     <div
@@ -110,7 +114,7 @@ function SessionRow({ session }: { session: CreatorSession }) {
           letterSpacing: "-0.01em",
         }}
       >
-        {formatTime(session.scheduledAt)}
+        {formatTime(session.scheduledAt, locale)}
       </div>
       <div
         style={{

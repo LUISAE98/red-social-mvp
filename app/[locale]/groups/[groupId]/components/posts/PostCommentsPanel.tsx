@@ -63,6 +63,15 @@ type PostCommentsPanelProps = {
   onLoadMore?: () => void;
   /** Desktop only: callback to close the panel (e.g. from heading click). */
   onCloseDesktop?: () => void;
+  /**
+   * Historial real: quedan comentarios ANTERIORES sin traer del servidor.
+   *
+   * Distinto de `hasMore`, que solo dice si quedan por destapar de los que ya
+   * están en memoria. Este dispara una lectura nueva.
+   */
+  hasOlderComments?: boolean;
+  loadingOlderComments?: boolean;
+  onLoadOlderComments?: () => void;
   onCommentTextChange: (value: string) => void;
   onCommentMentionsChange: (mentions: CommentMention[]) => void;
   onCommentImageSelect: (file: File) => void;
@@ -122,6 +131,9 @@ export default function PostCommentsPanel({
   hasMore = false,
   onLoadMore,
   onCloseDesktop,
+  hasOlderComments = false,
+  loadingOlderComments = false,
+  onLoadOlderComments,
   onCommentTextChange,
   onCommentMentionsChange,
   onCommentImageSelect,
@@ -196,6 +208,35 @@ export default function PostCommentsPanel({
     io.observe(sentinel);
     return () => io.disconnect();
   }, [isMobile, shouldRender, hasMoreMobile, loadingMoreMobile]);
+
+  /**
+   * Historial: al asomarse el principio de la lista, pide la tanda anterior.
+   *
+   * Va contra el borde SUPERIOR porque los comentarios se pintan del más viejo
+   * al más nuevo: subir es ir hacia atrás en el tiempo. El margen de 200px la
+   * dispara un poco antes de llegar, para que la tanda ya esté puesta cuando el
+   * dedo llegue arriba.
+   */
+  const olderSentinelRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!shouldRender || !hasOlderComments || loadingOlderComments) return;
+    if (!onLoadOlderComments) return;
+
+    const sentinel = olderSentinelRef.current;
+    if (!sentinel) return;
+
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) onLoadOlderComments();
+      },
+      // Sin `root`: sirve igual dentro del scroll de celular que en el flujo
+      // normal de laptop, donde el panel no tiene contenedor propio.
+      { rootMargin: "200px 0px 0px 0px" }
+    );
+    io.observe(sentinel);
+    return () => io.disconnect();
+  }, [shouldRender, hasOlderComments, loadingOlderComments, onLoadOlderComments]);
 
   // Muestra el skeleton un instante y luego revela la siguiente tanda.
   useEffect(() => {
@@ -451,6 +492,17 @@ export default function PostCommentsPanel({
                   {tPosts("noComments")}
                 </p>
               </div>
+            )}
+
+            {/* En laptop el centinela SOLO aparece cuando ya no quedan
+                comentarios por destapar de los que hay en memoria: si no,
+                estando la ventana en 5 se dispararía nada más abrir el panel y
+                pediría al servidor lo que ya estaba cargado. */}
+            {!loading && !hasMore && comments !== null && comments.length > 0 && (
+              <>
+                <div ref={olderSentinelRef} aria-hidden style={{ height: 1 }} />
+                {loadingOlderComments && <CommentSkeletonList count={3} />}
+              </>
             )}
 
             {!loading &&
@@ -807,6 +859,16 @@ export default function PostCommentsPanel({
                     {tPosts("noComments")}
                   </p>
                 </div>
+              )}
+
+              {/* Historial hacia atrás: el centinela va ARRIBA del todo, antes
+                  del primer comentario, y el skeleton ocupa su sitio mientras
+                  llega la tanda para que la lista no dé un salto. */}
+              {!loading && comments !== null && comments.length > 0 && (
+                <>
+                  <div ref={olderSentinelRef} aria-hidden style={{ height: 1 }} />
+                  {loadingOlderComments && <CommentSkeletonList count={3} />}
+                </>
               )}
 
               {!loading &&

@@ -1,6 +1,7 @@
 // Tipos, helpers puros y estilos (OVERLAY_CSS) de SessionRequestOverlay (hoja).
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { formatDateTime, formatDateTimeLong } from "@/lib/i18n/dateTime";
 import { createPortal } from "react-dom";
 import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import { useTranslations, useLocale } from "next-intl";
@@ -77,20 +78,15 @@ export function toDateSafe(value: unknown): Date | null {
   return null;
 }
 
-export function formatUnknownDate(value: unknown): string | null {
-  const date = toDateSafe(value);
-  return date ? date.toLocaleString("es-MX") : null;
+export function formatUnknownDate(value: unknown, locale: string): string | null {
+  return formatDateTime(toDateSafe(value), locale, { dateStyle: "medium", timeStyle: "short" });
 }
 
-export function formatScheduledDate(value: unknown): string | null {
-  const date = toDateSafe(value);
-  if (!date) return null;
-  const day = date.getDate();
-  const month = date.toLocaleString("es-MX", { month: "long" });
-  const year = date.getFullYear();
-  const hh = String(date.getHours()).padStart(2, "0");
-  const mm = String(date.getMinutes()).padStart(2, "0");
-  return `${day} de ${month.charAt(0).toUpperCase() + month.slice(1)} del ${year} a las ${hh}:${mm} horas`;
+// ⚠️ Antes: `${día} de ${mes} del ${año} a las ${hh}:${mm} horas`. Los cuatro pegamentos
+// ("de", "del", "a las", "horas") son gramática española y salían tal cual en cualquier
+// idioma. El orden de los campos y el reloj de 12/24 h los decide ahora Intl.
+export function formatScheduledDate(value: unknown, locale: string): string | null {
+  return formatDateTimeLong(toDateSafe(value), locale);
 }
 
 export function getRequestCurrency(req: SessionRequest): string {

@@ -1,6 +1,8 @@
 "use client";
 
 import Image from "next/image";
+import { useLocale } from "next-intl";
+import { intlLocale } from "@/i18n/locales";
 import { useEffect, useMemo, useState } from "react";
 import {
   useParams,
@@ -51,6 +53,7 @@ function visibilityLabel(v: string | null | undefined) {
 }
 
 export default function InvitePage() {
+  const locale = useLocale();
 const { token } = useParams<{ token: string }>();
 const router = useRouter();
 const pathname = usePathname();
@@ -332,7 +335,7 @@ const { user } = useAuth();
     if (typeof group.subscriptionPrice !== "number") return null;
     const currency = group.subscriptionCurrency ?? "MXN";
     try {
-      return new Intl.NumberFormat("es-MX", {
+      return new Intl.NumberFormat(intlLocale(locale), {
         style: "currency",
         currency,
       }).format(group.subscriptionPrice);
@@ -605,7 +608,7 @@ const { user } = useAuth();
                     }}
                   >
                     Vigente hasta:{" "}
-                    {new Date(invite.expiresAt).toLocaleString("es-MX")}
+                    {new Date(invite.expiresAt).toLocaleString(intlLocale(locale))}
                   </div>
                 )}
               </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { intlLocale } from "@/i18n/locales";
 import { useLocale, useTranslations } from "next-intl";
 import { motion } from "framer-motion";
 import { WalletCard, WalletFilterMenu } from "./WalletUi";
@@ -39,10 +40,10 @@ const TYPE_ORDER: Array<{ value: LedgerServiceType; emoji: string }> = [
   { value: "vod_ticket", emoji: "🎬" },
 ];
 
-function formatDate(date: Date | null): string {
+function formatDate(date: Date | null, locale: string): string {
   if (!date) return "";
   try {
-    return new Intl.DateTimeFormat("es-MX", {
+    return new Intl.DateTimeFormat(intlLocale(locale), {
       day: "numeric",
       month: "short",
       year: "numeric",
@@ -643,7 +644,7 @@ export default function WalletTransactions({
                     {tWallet(ledgerTypeLabelKey(entry.type))}
                   </span>
                   <span style={{ fontSize: 11.5, color: "rgba(255,255,255,0.45)" }}>
-                    {formatDate(entry.createdAt)}
+                    {formatDate(entry.createdAt, locale)}
                   </span>
                 </div>
 

@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { intlLocale } from "@/i18n/locales";
 import { useState, useEffect, useMemo, useRef, type CSSProperties } from "react";
 import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import { useTranslations, useLocale } from "next-intl";
@@ -104,7 +105,7 @@ export default function LiveComposerModal({
     const conflict = res.conflictItem;
     if (!res.hasConflict || !conflict || !conflict.scheduledAt) return null;
     const label = conflict.source === "exclusive_session" ? tLive("conflictExclusiveSession") : tLive("conflictMeetGreet");
-    const time = new Intl.DateTimeFormat("es-MX", { hour: "2-digit", minute: "2-digit" }).format(
+    const time = new Intl.DateTimeFormat(intlLocale(locale), { hour: "2-digit", minute: "2-digit" }).format(
       conflict.scheduledAt
     );
     return tLive("composerScheduleConflict", { item: label, time });

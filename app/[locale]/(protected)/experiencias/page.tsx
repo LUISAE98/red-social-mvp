@@ -607,7 +607,7 @@ export default function ExperienciasPage() {
             >
               <span style={{ display: "inline-flex", position: "relative" }}>
                 {t.icon}
-                {isNew[t.key] ? (
+                {displayIsNew[t.key] ? (
                   <span aria-hidden="true" style={{ position: "absolute", top: -2, right: -2, width: 9, height: 9, borderRadius: 999, background: "#ff3b30", border: "2px solid #000" }} />
                 ) : null}
               </span>

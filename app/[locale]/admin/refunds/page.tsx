@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useLocale } from "next-intl";
+import { intlLocale } from "@/i18n/locales";
 import {
   collection,
   query,
@@ -31,8 +33,8 @@ const STATUS_META: Record<string, { label: string; color: string; dot: string }>
   rejected: { label: "Rechazada", color: "#f87171", dot: "#f87171" },
 };
 
-function money(n: number): string {
-  return `$${(n ?? 0).toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+function money(n: number, locale: string): string {
+  return `$${(n ?? 0).toLocaleString(intlLocale(locale), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 function rel(date: Date | null): string {
@@ -46,6 +48,7 @@ function rel(date: Date | null): string {
 }
 
 export default function AdminRefundsPage() {
+  const locale = useLocale();
   const { setPreviewUrl } = useAdminPreview();
   const [requests, setRequests] = useState<CashoutRequestDoc[]>([]);
   const [loading, setLoading] = useState(true);
@@ -142,12 +145,12 @@ export default function AdminRefundsPage() {
     if (!selected) return;
     if (action === "reject") {
       const ok = window.confirm(
-        `¿Rechazar la solicitud de ${money(selected.amount)} de ${selected.buyerName || "el comprador"}? El saldo se le devuelve.`
+        `¿Rechazar la solicitud de ${money(selected.amount, locale)} de ${selected.buyerName || "el comprador"}? El saldo se le devuelve.`
       );
       if (!ok) return;
     } else {
       const ok = window.confirm(
-        `¿Aprobar y reembolsar ${money(selected.amount)} a la tarjeta original de ${selected.buyerName || "el comprador"}? Esta acción dispara reembolsos en Stripe.`
+        `¿Aprobar y reembolsar ${money(selected.amount, locale)} a la tarjeta original de ${selected.buyerName || "el comprador"}? Esta acción dispara reembolsos en Stripe.`
       );
       if (!ok) return;
     }
@@ -253,7 +256,7 @@ export default function AdminRefundsPage() {
                   </div>
                   <div style={{ textAlign: "right", flexShrink: 0 }}>
                     <div style={{ fontSize: 14, fontWeight: 700, color: "#34d399" }}>
-                      {money(r.amount)}
+                      {money(r.amount, locale)}
                     </div>
                     <div style={{ fontSize: 11, color: meta.color, fontWeight: 600, marginTop: 2 }}>
                       {meta.label}
@@ -297,7 +300,7 @@ export default function AdminRefundsPage() {
                                 {TYPE_LABELS[o.type] ?? TYPE_LABELS[o.sourceType] ?? o.type}
                               </span>
                               <span style={{ fontSize: 12, color: "#888", whiteSpace: "nowrap" }}>
-                                {money(o.chargedAmount)}
+                                {money(o.chargedAmount, locale)}
                               </span>
                             </div>
                             <div style={{ fontSize: 12, color: "#999", marginTop: 4 }}>
@@ -314,7 +317,7 @@ export default function AdminRefundsPage() {
                     {/* Estado resuelto / error */}
                     {r.status === "approved" && (
                       <div style={{ fontSize: 12, color: "#34d399" }}>
-                        Reembolsado {money(r.refundedAmount ?? r.amount)} a la tarjeta original.
+                        Reembolsado {money(r.refundedAmount ?? r.amount, locale)} a la tarjeta original.
                       </div>
                     )}
                     {r.status === "rejected" && (

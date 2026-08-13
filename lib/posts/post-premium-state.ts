@@ -1,4 +1,5 @@
 import type { Post } from "./types";
+import { intlLocale } from "@/i18n/locales";
 import type { PostAccess } from "./post-access-types";
 
 /**
@@ -232,16 +233,20 @@ function buildCtaText(post: Post, fmt: PostPriceFormatter = formatPrice): string
 }
 
 // Fallback puro (server/otros callers sin formateador): sin sufijo de código.
+// El locale es OPCIONAL a propósito: `PostPriceFormatter` declara dos parámetros y una
+// función con uno opcional de más sigue siendo asignable a ese tipo. Quien tenga el
+// idioma a mano debería inyectar su propio `fmt`; este es solo el de respaldo.
 function formatPrice(
   price: number | null | undefined,
-  currency: string
+  currency: string,
+  locale: string = "en"
 ): string | null {
   if (typeof price !== "number" || !Number.isFinite(price) || price <= 0) {
     return null;
   }
 
   try {
-    return new Intl.NumberFormat("es-MX", {
+    return new Intl.NumberFormat(intlLocale(locale), {
       style: "currency",
       currency,
       currencyDisplay: "narrowSymbol",

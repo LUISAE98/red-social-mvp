@@ -1,3 +1,4 @@
+import { intlLocale } from "@/i18n/locales";
 /**
  * Calibración de velocidad TTS por dispositivo.
  *
@@ -56,7 +57,7 @@ function saveToStorage(v: number): void {
  * Si ya existe un valor en localStorage, lo carga sin reproducir nada.
  * Si ya está en progreso, no hace nada.
  */
-export function initTtsCalibration(): void {
+export function initTtsCalibration(locale: string = "en"): void {
   if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
   if (cachedWordsPerSec !== null || calibrating) return;
 
@@ -68,7 +69,9 @@ export function initTtsCalibration(): void {
 
   calibrating = true;
   const u = new SpeechSynthesisUtterance(CAL_TEXT);
-  u.lang = "es-MX";
+  // La calibración mide palabras/segundo LEYENDO en voz alta: fijarla en español
+  // calibra con una voz que no es la que el usuario va a oír.
+  u.lang = intlLocale(locale);
   u.rate = 1;
   u.volume = 0;
 

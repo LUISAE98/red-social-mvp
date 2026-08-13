@@ -2,6 +2,7 @@
 // Tipos locales y helpers puros extraídos de la página de grupo (page.tsx).
 // No dependen del estado del componente.
 
+import { intlLocale } from "@/i18n/locales";
 import type {
   Currency,
   CreatorServiceMeta,
@@ -110,7 +111,7 @@ export type GroupDoc = {
   } | null;
 };
 
-export function formatDeletedAt(val: unknown): string {
+export function formatDeletedAt(val: unknown, locale: string): string {
   if (!val) return "fecha desconocida";
   if (
     typeof val === "object" &&
@@ -120,14 +121,14 @@ export function formatDeletedAt(val: unknown): string {
   ) {
     return (val as { toDate: () => Date })
       .toDate()
-      .toLocaleString("es-MX", { dateStyle: "long", timeStyle: "short" });
+      .toLocaleString(intlLocale(locale), { dateStyle: "long", timeStyle: "short" });
   }
   if (val instanceof Date) {
-    return val.toLocaleString("es-MX", { dateStyle: "long", timeStyle: "short" });
+    return val.toLocaleString(intlLocale(locale), { dateStyle: "long", timeStyle: "short" });
   }
   const n = Number(val);
   if (!isNaN(n) && n > 0) {
-    return new Date(n).toLocaleString("es-MX", { dateStyle: "long", timeStyle: "short" });
+    return new Date(n).toLocaleString(intlLocale(locale), { dateStyle: "long", timeStyle: "short" });
   }
   return String(val);
 }

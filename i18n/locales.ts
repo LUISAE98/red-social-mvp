@@ -75,6 +75,9 @@ export const LOCALE_META: readonly LocaleMeta[] = [
   { code: "ja", label: "JA", name: "日本語", intl: "ja-JP", ready: true },
   // Sin plural gramatical (solo `other`) y con contadores como el japonés: 명 para
   // personas, 장 para tickets, 개 para cosas. Va pegado al número, no al sustantivo.
+  // Jemer. Única categoría de plural ("other"), como el japonés: las ramas
+  // plurales son de una sola forma, pero el # sigue haciendo falta.
+  { code: "km", label: "KM", name: "ខ្មែរ", intl: "km", ready: true },
   { code: "ko", label: "KO", name: "한국어", intl: "ko-KR", ready: true },
   { code: "lt", label: "LT", name: "Lietuvių", intl: "lt-LT", ready: true },
   { code: "lv", label: "LV", name: "Latviešu", intl: "lv-LV", ready: true },
@@ -128,7 +131,7 @@ export const LOCALE_META: readonly LocaleMeta[] = [
  * en toda la app. Al terminar el archivo de un idioma: pon su `ready: true` arriba
  * Y agrégalo a esta tupla. El test de i18n verifica que ambas listas coincidan.
  */
-export const READY_LOCALES = ["es", "en", "pt-BR", "de", "fr", "it", "nl", "pl", "ro", "el", "cs", "hu", "sv", "pt-PT", "da", "fi", "sk", "bg", "hr", "lt", "sl", "lv", "et", "ga", "mt", "ja", "zh-TW", "id", "ms", "th", "bs", "nb", "is", "tr", "ko", "vi", "sr", "sq", "az", "ca", "ar", "fil", "mn", "si"] as const;
+export const READY_LOCALES = ["es", "en", "pt-BR", "de", "fr", "it", "nl", "pl", "ro", "el", "cs", "hu", "sv", "pt-PT", "da", "fi", "sk", "bg", "hr", "lt", "sl", "lv", "et", "ga", "mt", "ja", "zh-TW", "id", "ms", "th", "bs", "nb", "is", "tr", "ko", "vi", "sr", "sq", "az", "ca", "ar", "fil", "mn", "si", "km"] as const;
 
 export type Locale = (typeof READY_LOCALES)[number];
 
@@ -246,6 +249,7 @@ export const NON_EU_COUNTRY_TO_LOCALE: Readonly<Record<string, string>> = {
   KW: "ar", // Kuwait
   JO: "ar", // Jordania
   EG: "ar", // Egipto
+  KH: "km", // Camboya
   LK: "si", // Sri Lanka
   MN: "mn", // Mongolia
   PH: "fil", // Filipinas — inglés cooficial, pero el filipino es el idioma nacional

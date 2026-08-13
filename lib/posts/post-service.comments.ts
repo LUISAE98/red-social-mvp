@@ -5,7 +5,7 @@
 
 import {
   collection, doc, addDoc, getDoc, getDocs, updateDoc,
-  setDoc, serverTimestamp, increment, query, orderBy, limit,
+  setDoc, serverTimestamp, increment, query, orderBy, limit, startAfter,
   runTransaction, Timestamp,
 } from "firebase/firestore";
 import { httpsCallable } from "firebase/functions";
@@ -95,38 +95,51 @@ async function enforceCommentRateLimit(): Promise<void> {
   });
 }
 
-export async function fetchPostComments(postId: string): Promise<Comment[]> {
-  assertValidId(postId, "postId");
+/** Comentarios por tanda. El panel pide la siguiente al llegar arriba del todo. */
+export const COMMENTS_PAGE_SIZE = 30;
 
-  const viewerUid = auth.currentUser?.uid ?? null;
-  const cacheKey = getPostCommentsCacheKey(postId, viewerUid);
-
-  const cached = POST_COMMENTS_CACHE.get(cacheKey);
-  if (cached) {
-    return cached;
-  }
-
-  const postSnap = await getDoc(doc(db, "posts", postId));
-
-  if (!postSnap.exists()) {
-    return [];
-  }
+/**
+ * Trae UNA tanda de comentarios y la deja lista para pintar.
+ *
+ * Se pide en orden DESCENDENTE (lo más nuevo primero) y se le da la vuelta al
+ * final. Es la diferencia entre ver los comentarios recientes o no verlos: con
+ * el orden ascendente que había antes, una publicación con más de 30
+ * comentarios enseñaba los 30 MÁS VIEJOS y los nuevos no existían para nadie.
+ *
+ * `before` es la marca de tiempo del comentario más antiguo que ya tienes; con
+ * ella se piden los anteriores a ese.
+ */
+async function fetchCommentsPage(params: {
+  postId: string;
+  before?: Timestamp | null;
+  pageSize: number;
+}): Promise<{ comments: Comment[]; hasMore: boolean }> {
+  const postSnap = await getDoc(doc(db, "posts", params.postId));
+  if (!postSnap.exists()) return { comments: [], hasMore: false };
 
   const postData = postSnap.data() as Record<string, unknown>;
   const groupId =
     postData.contextType === "profile" ? null : pickString(postData.groupId);
+  const viewerUid = auth.currentUser?.uid ?? null;
 
-  const q = query(
-    collection(db, "posts", postId, "comments"),
-    orderBy("createdAt", "asc"),
-    limit(30)
+  const snap = await getDocs(
+    query(
+      collection(db, "posts", params.postId, "comments"),
+      orderBy("createdAt", "desc"),
+      ...(params.before ? [startAfter(params.before)] : []),
+      limit(params.pageSize)
+    )
   );
 
-  const snap = await getDocs(q);
+  // Se mide ANTES de filtrar los borrados: si no, una tanda entera de
+  // comentarios borrados se leería como "ya no hay más" y cortaría el historial.
+  const hasMore = snap.docs.length === params.pageSize;
 
   const rawComments: Comment[] = snap.docs
     .map((d) => ({ id: d.id, ...(d.data() as Omit<Comment, "id">) }))
-    .filter((c) => !c.isDeleted);
+    .filter((c) => !c.isDeleted)
+    // De vuelta a ascendente: el panel pinta del más viejo al más nuevo.
+    .reverse();
 
   const userMap = await fetchUsersByIds(
     rawComments.map((comment) => comment.authorId)
@@ -147,15 +160,56 @@ export async function fetchPostComments(postId: string): Promise<Comment[]> {
     commentsWithGroupBlockState
   );
 
-  const commentsWithViewerState = await attachViewerCommentFlameState(
-    postId,
+  const comments = await attachViewerCommentFlameState(
+    params.postId,
     visibleComments,
     viewerUid
   );
 
-  POST_COMMENTS_CACHE.set(cacheKey, commentsWithViewerState);
+  return { comments, hasMore };
+}
 
-  return commentsWithViewerState;
+export async function fetchPostComments(postId: string): Promise<Comment[]> {
+  assertValidId(postId, "postId");
+
+  const viewerUid = auth.currentUser?.uid ?? null;
+  const cacheKey = getPostCommentsCacheKey(postId, viewerUid);
+
+  const cached = POST_COMMENTS_CACHE.get(cacheKey);
+  if (cached) {
+    return cached;
+  }
+
+  const { comments } = await fetchCommentsPage({
+    postId,
+    pageSize: COMMENTS_PAGE_SIZE,
+  });
+
+  POST_COMMENTS_CACHE.set(cacheKey, comments);
+
+  return comments;
+}
+
+/**
+ * Comentarios ANTERIORES a los que ya tienes cargados.
+ *
+ * No pasa por la caché a propósito: esa guarda la primera tanda, que es la que
+ * se reutiliza al reabrir el panel. Las tandas de historial son bajo demanda y
+ * viven en el estado de quien las pide.
+ */
+export async function fetchOlderPostComments(params: {
+  postId: string;
+  /** `createdAt` del comentario más antiguo que ya está en pantalla. */
+  before: Timestamp;
+  pageSize?: number;
+}): Promise<{ comments: Comment[]; hasMore: boolean }> {
+  assertValidId(params.postId, "postId");
+
+  return fetchCommentsPage({
+    postId: params.postId,
+    before: params.before,
+    pageSize: params.pageSize ?? COMMENTS_PAGE_SIZE,
+  });
 }
 
 const MAX_COMMENT_MENTIONS = 20;
@@ -387,45 +441,46 @@ clearPostCommentsCache(params.postId);
 clearCommentRepliesCache(params.postId, params.commentId);
 }
 
-export async function fetchCommentReplies(params: {
+/**
+ * Trae UNA tanda de respuestas de un comentario, lista para pintar.
+ *
+ * Mismo criterio que los comentarios: se piden en orden DESCENDENTE y se les da
+ * la vuelta. Con el ascendente que había antes, un comentario con más de 30
+ * respuestas enseñaba las 30 MÁS VIEJAS y las recientes no se veían nunca.
+ */
+async function fetchRepliesPage(params: {
   postId: string;
   commentId: string;
-}): Promise<CommentReply[]> {
-  assertValidId(params.postId, "postId");
-  assertValidId(params.commentId, "commentId");
-
-  const viewerUid = auth.currentUser?.uid ?? null;
-  const cacheKey = getCommentRepliesCacheKey(params.postId, params.commentId);
-  const cached = COMMENT_REPLIES_CACHE.get(cacheKey);
-
-  if (cached) {
-    return cached;
-  }
-
+  before?: Timestamp | null;
+  pageSize: number;
+}): Promise<{ replies: CommentReply[]; hasMore: boolean }> {
   const postSnap = await getDoc(doc(db, "posts", params.postId));
-
-  if (!postSnap.exists()) {
-    return [];
-  }
+  if (!postSnap.exists()) return { replies: [], hasMore: false };
 
   const postData = postSnap.data() as Record<string, unknown>;
   const groupId =
     postData.contextType === "profile" ? null : pickString(postData.groupId);
+  const viewerUid = auth.currentUser?.uid ?? null;
 
-  const q = query(
-    collection(
-      db,
-      "posts",
-      params.postId,
-      "comments",
-      params.commentId,
-      "replies"
-    ),
-    orderBy("createdAt", "asc"),
-    limit(30)
+  const snap = await getDocs(
+    query(
+      collection(
+        db,
+        "posts",
+        params.postId,
+        "comments",
+        params.commentId,
+        "replies"
+      ),
+      orderBy("createdAt", "desc"),
+      ...(params.before ? [startAfter(params.before)] : []),
+      limit(params.pageSize)
+    )
   );
 
-  const snap = await getDocs(q);
+  // Antes de filtrar los borrados: una tanda entera de borradas no debe
+  // leerse como "ya no hay más".
+  const hasMore = snap.docs.length === params.pageSize;
 
   const rawReplies: CommentReply[] = snap.docs
     .map((d) => ({
@@ -434,7 +489,8 @@ export async function fetchCommentReplies(params: {
       commentId: params.commentId,
       ...(d.data() as Omit<CommentReply, "id" | "postId" | "commentId">),
     }))
-    .filter((r) => !r.isDeleted);
+    .filter((r) => !r.isDeleted)
+    .reverse();
 
   const userMap = await fetchUsersByIds(
     rawReplies.map((reply) => reply.authorId)
@@ -451,13 +507,60 @@ export async function fetchCommentReplies(params: {
       replies: hydratedReplies,
     });
 
-  const visibleReplies = filterRepliesForViewerGroupMemberBlocks(
+  const replies = filterRepliesForViewerGroupMemberBlocks(
     repliesWithGroupBlockState
   );
 
-  COMMENT_REPLIES_CACHE.set(cacheKey, visibleReplies);
+  return { replies, hasMore };
+}
 
-  return visibleReplies;
+export async function fetchCommentReplies(params: {
+  postId: string;
+  commentId: string;
+}): Promise<CommentReply[]> {
+  assertValidId(params.postId, "postId");
+  assertValidId(params.commentId, "commentId");
+
+  const cacheKey = getCommentRepliesCacheKey(params.postId, params.commentId);
+  const cached = COMMENT_REPLIES_CACHE.get(cacheKey);
+
+  if (cached) {
+    return cached;
+  }
+
+  const { replies } = await fetchRepliesPage({
+    postId: params.postId,
+    commentId: params.commentId,
+    pageSize: COMMENTS_PAGE_SIZE,
+  });
+
+  COMMENT_REPLIES_CACHE.set(cacheKey, replies);
+
+  return replies;
+}
+
+/**
+ * Respuestas ANTERIORES a las que ya están en pantalla.
+ *
+ * Fuera de la caché a propósito, igual que en los comentarios: esa guarda la
+ * primera tanda, que es la que se reutiliza al reabrir el hilo.
+ */
+export async function fetchOlderCommentReplies(params: {
+  postId: string;
+  commentId: string;
+  /** `createdAt` de la respuesta más antigua ya cargada. */
+  before: Timestamp;
+  pageSize?: number;
+}): Promise<{ replies: CommentReply[]; hasMore: boolean }> {
+  assertValidId(params.postId, "postId");
+  assertValidId(params.commentId, "commentId");
+
+  return fetchRepliesPage({
+    postId: params.postId,
+    commentId: params.commentId,
+    before: params.before,
+    pageSize: params.pageSize ?? COMMENTS_PAGE_SIZE,
+  });
 }
 
 
