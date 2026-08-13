@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { useState, useEffect, useMemo, useRef, type CSSProperties } from "react";
 import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import { WALLET_NET_RATE } from "@/lib/wallet/walletFinances";
 import { FIXED_SERVICE_FEE_MXN, LIVE_TICKET_MIN_PRICE_MXN } from "@/lib/currency/catalog";
@@ -40,6 +40,7 @@ export default function LiveComposerModal({
 }: LiveComposerModalProps) {
   const tCommon = useTranslations("common");
   const tLive = useTranslations("live");
+  const locale = useLocale();
   const isEditMode = !!editPost;
 
   const MONTHS: MonthNames = [

@@ -10,7 +10,7 @@ import {
   type CSSProperties,
 } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import {
   collection,
@@ -101,6 +101,7 @@ export default function OwnerSidebar() {
   const pathname = usePathname();
   const tNav = useTranslations("nav");
   const tCommon = useTranslations("common");
+  const locale = useLocale();
   const tGroups = useTranslations("groups");
   const tWallet = useTranslations("wallet");
   const tServices = useTranslations("services");

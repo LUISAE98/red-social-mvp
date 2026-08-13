@@ -152,17 +152,19 @@ export default function NotificationBell({ active }: NotificationBellProps) {
 
   const activeTab: NotifTab = tab ?? decidedTab ?? (showSubnav ? "experiences" : "social");
 
-  // Ver la pestaña Sociales (con el panel abierto) marca lo social como "visto".
+  // Abrir el panel marca visto TODO lo que había, las dos pestañas a la vez.
+  // Antes se marcaba solo la pestaña activa: como el panel abre en una sola, la
+  // otra conservaba su cuenta para siempre y el punto rojo volvía en cada sesión
+  // aunque no hubiera llegado nada nuevo. Las experiencias se marcan hasta el
+  // timestamp de servidor más reciente, para que cuenten solo las posteriores.
+  // Espera a que la pestaña por defecto esté decidida: marcar antes pondría los
+  // contadores en 0 y la prioridad (Experiencias nuevas → Sociales nuevas) se
+  // decidiría siempre sobre cero.
   useEffect(() => {
-    if (open && activeTab === "social") markSeen();
-  }, [open, activeTab, markSeen]);
-
-  // Ver la pestaña Experiencias (con el panel abierto) marca las experiencias
-  // como "vistas" hasta el timestamp más reciente: así el badge cuenta solo las
-  // que lleguen DESPUÉS (no vuelve a contar las ya vistas).
-  useEffect(() => {
-    if (open && activeTab === "experiences") markExpSeen(expLatestMs);
-  }, [open, activeTab, markExpSeen, expLatestMs]);
+    if (!open || decidedTab === null) return;
+    markSeen();
+    markExpSeen(expLatestMs);
+  }, [open, decidedTab, markSeen, markExpSeen, expLatestMs]);
 
   const visibleItems = useMemo(() => {
     if (showSubnav && activeTab === "experiences") {

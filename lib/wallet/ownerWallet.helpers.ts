@@ -281,7 +281,8 @@ export function getWalletScheduleEndAt(
   return new Date(scheduledAt.getTime() + durationMinutes * 60 * 1000);
 }
 
-export function getWalletScheduleConflictResult(locale,  locale: string,
+export function getWalletScheduleConflictResult(
+  locale: string,
   target: {
     id?: string;
     source?: WalletServiceItem["source"];

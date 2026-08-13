@@ -66,18 +66,20 @@ export default function NotificationsPage() {
 
   const activeTab: NotifTab = tab ?? decidedTab ?? (showSubnav ? "experiences" : "social");
 
-  // Ver la pestaña Sociales marca las notificaciones como "vistas" (baja el badge
-  // del nav/campanita y el contador de Sociales a 0), sin marcarlas como leídas.
+  // Entrar aquí marca visto TODO lo que había, las dos pestañas a la vez, sin
+  // marcar nada como leído. Antes se marcaba solo la pestaña activa: como se
+  // entra a una sola, la otra conservaba su cuenta para siempre y el punto rojo
+  // volvía en cada sesión aunque no hubiera llegado nada nuevo. Las experiencias
+  // se marcan hasta el timestamp de SERVIDOR más reciente, para que cuenten solo
+  // las posteriores (el reloj del cliente reencendía el punto por desfase).
+  // Espera a que la pestaña por defecto esté decidida: marcar antes pondría los
+  // contadores en 0 y la prioridad (Experiencias nuevas → Sociales nuevas) se
+  // decidiría siempre sobre cero.
   useEffect(() => {
-    if (activeTab === "social") markSeen();
-  }, [activeTab, markSeen]);
-
-  // Ver la pestaña Experiencias marca las experiencias como "vistas" hasta el
-  // timestamp más reciente (de servidor): así el badge cuenta solo las que
-  // lleguen DESPUÉS y no vuelven a forzar esa pestaña por defecto.
-  useEffect(() => {
-    if (activeTab === "experiences") markExpSeen(expLatestMs);
-  }, [activeTab, markExpSeen, expLatestMs]);
+    if (decidedTab === null) return;
+    markSeen();
+    markExpSeen(expLatestMs);
+  }, [decidedTab, markSeen, markExpSeen, expLatestMs]);
 
   // Cambiar de pestaña desliza el contenido (mismas keyframes que el nav de
   // rutas): a la pestaña de la derecha entra desde la derecha, y viceversa.

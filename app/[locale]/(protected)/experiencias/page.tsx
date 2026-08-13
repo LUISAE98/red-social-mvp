@@ -6,7 +6,7 @@
 // alimentado por el hook autocontenido useMyExperiences. Ver docs de experiencias.
 
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/app/providers";
 import OwnerSidebarGreetings from "@/app/components/OwnerSidebar/OwnerSidebarGreetings";
@@ -16,6 +16,7 @@ import { WalletFilterMenu } from "@/app/(protected)/wallet/components/WalletUi";
 import PurchasesTodoList from "./PurchasesTodoList";
 import { useAllPurchases } from "@/lib/experiences/useAllPurchases";
 import { useBuyerExperiencesSeen } from "@/lib/experiences/useBuyerExperiencesSeen";
+import { useBuyerExperienceActivity } from "@/lib/experiences/useBuyerExperienceActivity";
 import { computeCategoryLatest, isCategoryNew } from "@/lib/experiences/experienceActivity";
 import { useMyExperiences } from "@/lib/experiences/useMyExperiences";
 import { useBuyerCredit } from "@/lib/wallet/useBuyerCredit";
@@ -100,6 +101,7 @@ const styles: Record<string, CSSProperties> = {
 export default function ExperienciasPage() {
   const tCommon = useTranslations("common");
   const tNav = useTranslations("nav");
+  const locale = useLocale();
   const tWallet = useTranslations("wallet");
   const tServices = useTranslations("services");
   const tSessions = useTranslations("sessions");
@@ -159,6 +161,7 @@ export default function ExperienciasPage() {
     setSlideDir(TAB_ORDER.indexOf(next) > TAB_ORDER.indexOf(tab) ? "right" : "left");
     setTab(next);
     markExpSeen(next, catLatest[next]); // ver una pestaña apaga su badge
+    setFrozenIsNew((prev) => (prev ? { ...prev, [next]: false } : prev));
   }
 
   // ── Segundo subnav (dentro de Entregados): misma animación que el principal. ──
@@ -378,13 +381,24 @@ export default function ExperienciasPage() {
   const visibleTabs = tabs.filter((t) => availableTabs.includes(t.key));
 
   // ── Notificaciones: "nuevo" por categoría (última actividad vs. "visto") ─────
-  const { seen: expSeen, markSeen: markExpSeen } = useBuyerExperiencesSeen(user?.uid);
-  const catLatest = computeCategoryLatest({
+  const { seen: expSeen, markSeen: markExpSeen, markAllSeen: markAllExpSeen } =
+    useBuyerExperiencesSeen(user?.uid);
+  const pageLatest = computeCategoryLatest({
     pendingGreetings: exp.buyerPending,
     deliveredGreetings: exp.buyerDelivered,
     rejectedGreetings: exp.buyerRejectedGreetings,
     sessions: [...exp.buyerMeetGreets, ...exp.buyerExclusiveSessions],
   });
+  // El punto de la ESTRELLA lo enciende `useBuyerExperienceActivity` (layout), que
+  // consulta las mismas colecciones pero clasifica por su cuenta. Si aquí marcamos
+  // "visto" con un timestamp menor que el suyo, el punto queda encendido para
+  // siempre. Marcamos contra el mayor de los dos para que siempre se apague.
+  const starLatest = useBuyerExperienceActivity(user?.uid);
+  const catLatest: Record<Tab, number> = {
+    requested: Math.max(pageLatest.requested, starLatest.requested),
+    rejected: Math.max(pageLatest.rejected, starLatest.rejected),
+    delivered: Math.max(pageLatest.delivered, starLatest.delivered),
+  };
   const isNew: Record<Tab, boolean> = {
     requested: isCategoryNew(catLatest.requested, expSeen.requested),
     rejected: isCategoryNew(catLatest.rejected, expSeen.rejected),
@@ -398,6 +412,14 @@ export default function ExperienciasPage() {
   const openTarget: Tab = newestNewTab ?? defaultTab;
   const didAutoOpenRef = useRef(false);
 
+  // Puntos del subnav congelados al entrar. Entrar a la pantalla marca visto TODO
+  // lo que había (si no, la categoría que no abrieras conservaba su punto para
+  // siempre y volvía en cada sesión), pero el usuario todavía necesita ver dónde
+  // hubo novedad: sin congelar, los puntos se apagarían antes del primer paint.
+  // Cada punto se apaga al visitar su pestaña.
+  const [frozenIsNew, setFrozenIsNew] = useState<Record<Tab, boolean> | null>(null);
+  const displayIsNew = frozenIsNew ?? isNew;
+
   // Si la pestaña activa dejó de existir (o arranca vacía), caer al default válido.
   useEffect(() => {
     if (dataLoading) return;
@@ -410,15 +432,17 @@ export default function ExperienciasPage() {
   }, [dataLoading, hasPending, hasRejected, hasDelivered, tab]);
 
   // Auto-apertura (una sola vez, al cargar): caer en la categoría NUEVA más
-  // reciente; si ninguna es nueva, en el default. Marca esa categoría como vista.
+  // reciente; si ninguna es nueva, en el default. Marca visto TODO lo que había
+  // —no solo la categoría abierta— y congela los puntos para que se sigan viendo
+  // durante la visita.
   useEffect(() => {
     if (dataLoading || didAutoOpenRef.current) return;
     didAutoOpenRef.current = true;
-    if (availableTabs.includes(openTarget)) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      if (openTarget !== tab) setTab(openTarget);
-      markExpSeen(openTarget, catLatest[openTarget]);
-    }
+    const landing = availableTabs.includes(openTarget) ? openTarget : tab;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (landing !== tab) setTab(landing);
+    setFrozenIsNew({ ...isNew, [landing]: false }); // la que se abre ya se vio
+    markAllExpSeen(catLatest);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dataLoading]);
 
