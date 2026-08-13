@@ -84,6 +84,12 @@ export const onDirectMessageCreated = onDocumentCreated(
       return {
         recipientId,
         status: typeof data.status === "string" ? data.status : null,
+        // Silenciado por el destinatario: se le sigue guardando el mensaje y el
+        // contador de no leídos, pero no se le suena el teléfono.
+        muted:
+          Array.isArray(data.mutedBy) && recipientId
+            ? data.mutedBy.includes(recipientId)
+            : false,
       };
     });
 
@@ -93,6 +99,10 @@ export const onDirectMessageCreated = onDocumentCreated(
     // sonar en el teléfono de nadie: se ve al entrar a la bandeja. Y un hilo
     // bloqueado, obviamente, tampoco.
     if (result.status !== "active") return;
+
+    // Silenciado: el mensaje ya quedó guardado y contado arriba; lo único que se
+    // salta es el aviso al teléfono.
+    if (result.muted) return;
 
     try {
       const senderSnap = await db.collection("users").doc(senderId).get();

@@ -1018,6 +1018,62 @@ describe("DM — campos que solo puede escribir la Cloud Function", () => {
     );
   });
 
+  // ── Silenciar y quitar de la bandeja (cosas de UNO, no del hilo) ──────────
+
+  it("🟢 silencio y reactivo MI aviso, incluso en una solicitud", async () => {
+    // En Solicitudes también: es donde más falta hace poder callar a alguien.
+    await seedAll([...users("everyone"), ...conversation("request")]);
+    const ref = doc(as(BOB), `conversations/${CONV}`);
+    await assertSucceeds(updateDoc(ref, { mutedBy: [BOB], updatedAt: serverTimestamp() }));
+    await assertSucceeds(updateDoc(ref, { mutedBy: [], updatedAt: serverTimestamp() }));
+  });
+
+  it("🔴 no puedo silenciar a nombre del OTRO", async () => {
+    await seedAll(base());
+    await assertFails(
+      updateDoc(doc(as(ALICE), `conversations/${CONV}`), {
+        mutedBy: [BOB],
+        updatedAt: serverTimestamp(),
+      })
+    );
+  });
+
+  it("🟢 quito la conversación de MI bandeja", async () => {
+    await seedAll(base());
+    await assertSucceeds(
+      updateDoc(doc(as(ALICE), `conversations/${CONV}`), {
+        [`hiddenAt.${ALICE}`]: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      })
+    );
+  });
+
+  // Lo que de verdad hay que cerrar: que nadie despeje la bandeja ajena.
+  it("🔴 no puedo quitarle la conversación al OTRO", async () => {
+    await seedAll(base());
+    await assertFails(
+      updateDoc(doc(as(ALICE), `conversations/${CONV}`), {
+        [`hiddenAt.${BOB}`]: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      })
+    );
+  });
+
+  it("🔴 ni silenciar ni ocultar sirven para colar otros cambios", async () => {
+    await seedAll(base());
+    const ref = doc(as(ALICE), `conversations/${CONV}`);
+    // Con valores DISTINTOS a los que ya tiene: reescribir un campo con el
+    // mismo valor no aparece en `affectedKeys`, así que un intento así no
+    // probaría nada.
+    await assertFails(updateDoc(ref, { mutedBy: [ALICE], createdBy: CAROL }));
+    await assertFails(
+      updateDoc(ref, {
+        [`hiddenAt.${ALICE}`]: serverTimestamp(),
+        lastMessage: { text: "falso", senderId: ALICE, createdAt: serverTimestamp() },
+      })
+    );
+  });
+
   it("🔴 el hilo no se puede borrar, solo bloquear", async () => {
     await seedAll(base());
     await assertFails(deleteDoc(doc(as(ALICE), `conversations/${CONV}`)));

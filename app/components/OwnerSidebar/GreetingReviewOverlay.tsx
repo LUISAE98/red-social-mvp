@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { useCfError } from "@/lib/i18n/cfError";
 import { formatDateTimeLong } from "@/lib/i18n/dateTime";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -96,6 +97,7 @@ export default function GreetingReviewOverlay({
   readOnly = false,
 }: Props) {
   const tCommon = useTranslations("common");
+  const cfError = useCfError();
   const tServices = useTranslations("services");
   const tWallet = useTranslations("wallet");
   const locale = useLocale();
@@ -412,7 +414,7 @@ export default function GreetingReviewOverlay({
       setCompletedEarningsNet((prev) => [...prev, earningNet ?? 0]);
       setUploadSucceeded(true);
     } catch (e: unknown) {
-      setUploadError((e instanceof Error ? e.message : null) ?? tCommon("generalError"));
+      setUploadError((e instanceof Error ? cfError(e) : null) ?? tCommon("generalError"));
       setIsUploading(false);
       setUploadProgress(0);
     }

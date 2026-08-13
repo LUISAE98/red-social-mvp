@@ -14,6 +14,7 @@ import {
   limit,
 } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
+import { attachRestrictedMediaUrls } from "./restricted-media";
 import {
   pickString,
   chunkArray,
@@ -362,10 +363,16 @@ export async function attachViewerPostState(
     attachViewerSavedState(visiblePosts, viewerUid),
   ]);
 
-  return withFlameState.map((post, i) => ({
+  const withViewerState = withFlameState.map((post, i) => ({
     ...post,
     viewerHasSaved: withSavedState[i]?.viewerHasSaved ?? false,
   }));
+
+  // Último paso: firmar los medios de comunidades privadas/ocultas, que se
+  // guardan sin URL. Va AQUÍ, en el embudo por el que pasan todos los feeds, y
+  // no en cada sitio que pinta una imagen: así los ~74 puntos de render siguen
+  // leyendo `media[].url` como siempre. Lo público no genera ninguna llamada.
+  return attachRestrictedMediaUrls(withViewerState);
 }
 
 export function hydrateComment(

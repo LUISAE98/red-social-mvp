@@ -3580,11 +3580,56 @@ function canUpdateReplyCount(delta) {
       // `lastMessage`/`lastMessageAt` los escribe SOLO la Cloud Function (Admin
       // SDK se salta estas rules), por eso no están en la lista de campos
       // tocables: el cliente no puede falsear el resumen del inbox.
+      /**
+       * Silenciar y quitar de la bandeja son cosas de UNO, no del hilo.
+       *
+       * Van por su propia rama y no por la de arriba a propósito: aquella exige
+       * `validStatusChange()`, que solo tiene sentido cuando se toca el estado.
+       * Metiéndolas ahí, silenciar un hilo que está en Solicitudes se habría
+       * rechazado sin motivo.
+       */
+      function convTouchedKeys() {
+        return request.resource.data.diff(resource.data).affectedKeys();
+      }
+
+      /** La lista de silenciados solo puede cambiar EN TI. */
+      function onlyTogglesOwnMute() {
+        let previous = resource.data.get('mutedBy', []).toSet();
+        let next = request.resource.data.mutedBy;
+        return convTouchedKeys().hasOnly(['mutedBy', 'updatedAt'])
+          && next is list
+          && next.size() <= 2
+          && (
+            next.toSet() == previous.union([request.auth.uid].toSet())
+            || next.toSet() == previous.difference([request.auth.uid].toSet())
+          );
+      }
+
+      /**
+       * Ocultar el hilo de MI bandeja. Solo se puede tocar la clave con el uid
+       * propio: nadie puede hacer desaparecer la conversación del otro.
+       */
+      function onlyHidesConversationForSelf() {
+        return convTouchedKeys().hasOnly(['hiddenAt', 'updatedAt'])
+          && request.resource.data.hiddenAt is map
+          && request.resource.data.hiddenAt
+               .diff(resource.data.get('hiddenAt', {}))
+               .affectedKeys()
+               .hasOnly([request.auth.uid])
+          && request.resource.data.hiddenAt[request.auth.uid] == request.time;
+      }
+
       allow update: if isParticipant()
         && notAnonymous()
-        && request.resource.data.diff(resource.data).affectedKeys()
-             .hasOnly(['status', 'blockedBy', 'unread', 'lastReadAt', 'updatedAt'])
-        && validStatusChange();
+        && (
+          (
+            request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly(['status', 'blockedBy', 'unread', 'lastReadAt', 'updatedAt'])
+            && validStatusChange()
+          )
+          || onlyTogglesOwnMute()
+          || onlyHidesConversationForSelf()
+        );
 
       // Un hilo no se borra: se bloquea. Así el otro lado no puede hacer
       // desaparecer la evidencia de lo que escribió.

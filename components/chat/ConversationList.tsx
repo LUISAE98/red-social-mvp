@@ -126,11 +126,15 @@ export default function ConversationList({
           // de dejar la fila vacía.
           const preview = isBlocked
             ? tChat("conversationBlocked")
-            : last?.text
-              ? `${prefix}${last.text}`
-              : last?.hasImage
-                ? `${prefix}${tChat("photoPreview")}`
-                : tChat("noMessagesYet");
+            : last?.isDeleted
+              ? // El backend manda la bandera, no la frase: no sabe en qué
+                // idioma lee cada quien.
+                `${prefix}${tChat("messageDeleted")}`
+              : last?.text
+                ? `${prefix}${last.text}`
+                : last?.hasImage
+                  ? `${prefix}${tChat("photoPreview")}`
+                  : tChat("noMessagesYet");
 
           const time = formatConversationTime(
             conversation.lastMessageAt as TimestampLike,

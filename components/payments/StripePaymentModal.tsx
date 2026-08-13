@@ -9,6 +9,8 @@
 // CVV (Stripe off-session; el cobro de guardadas se conecta en S3c).
 
 import { createPortal } from "react-dom";
+import { intlLocale } from "@/i18n/locales";
+import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
 import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import { doc, getDoc, collection, onSnapshot } from "firebase/firestore";
@@ -86,11 +88,11 @@ type Props = {
  * Usa `Intl.DisplayNames`, que ya viene en el navegador — sin tabla que mantener.
  * Si el ISO no se reconoce, devuelve el propio código.
  */
-function countryName(iso: string | null | undefined): string {
+function countryName(iso: string | null | undefined, locale: string, unknownLabel: string): string {
   const code = (iso ?? "").toUpperCase();
-  if (!/^[A-Z]{2}$/.test(code)) return code || "otro país";
+  if (!/^[A-Z]{2}$/.test(code)) return code || unknownLabel;
   try {
-    return new Intl.DisplayNames(["es"], { type: "region" }).of(code) ?? code;
+    return new Intl.DisplayNames([intlLocale(locale)], { type: "region" }).of(code) ?? code;
   } catch {
     return code;
   }
@@ -132,8 +134,8 @@ export default function StripePaymentModal({
   forceStacked = false,
   hideBuyerGreeting = false,
   collectNickname = false,
-  paymentHeading = "¿Cómo quieres pagar?",
-  payButtonLabel = "Pagar",
+  paymentHeading,
+  payButtonLabel,
   savedCards = [],
   autoCloseMs,
   autoConfirm = false,
@@ -141,6 +143,8 @@ export default function StripePaymentModal({
   onClose,
   onPaid,
 }: Props) {
+  const tWallet = useTranslations("wallet");
+  const tCommon = useTranslations("common");
   const isSheet = presentation === "sheet";
   const [mounted, setMounted] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -425,7 +429,7 @@ export default function StripePaymentModal({
   useEffect(() => {
     if (!open) return;
     // En donación (amountEditable) el monto es dinámico (se elige adentro) → NO exigir `amount`.
-    if (!amountEditable && (!amount || amount <= 0)) { setError("No se pudo determinar el precio."); setLoading(false); return; }
+    if (!amountEditable && (!amount || amount <= 0)) { setError(tWallet("payErrorNoPrice")); setLoading(false); return; }
     let cancelled = false;
     setLoading(true);
     setError(null);
@@ -440,7 +444,7 @@ export default function StripePaymentModal({
 
     loadStripe()
       .then((s) => { if (cancelled) return; stripeRef.current = s; setSdkReady(true); setLoading(false); })
-      .catch(() => { if (cancelled) return; setError("No se pudo cargar el pago. Intenta de nuevo."); setLoading(false); });
+      .catch(() => { if (cancelled) return; setError(tWallet("payErrorLoad")); setLoading(false); });
 
     return () => { cancelled = true; };
   }, [open, amount, amountEditable]);
@@ -483,7 +487,7 @@ export default function StripePaymentModal({
         expEl.mount(`#${ID_EXP}-${selectedMethod}`);
         cvcEl.mount(`#${ID_CVC}-${selectedMethod}`);
       } catch {
-        setError("No se pudo cargar el formulario. Intenta de nuevo.");
+        setError(tWallet("payErrorForm"));
       }
     });
 
@@ -509,11 +513,11 @@ export default function StripePaymentModal({
 
   async function handlePay() {
     if (submitting) return;
-    if (!selectedMethod && !creditCoversAll) { setError("Elige un método de pago."); return; }
+    if (!selectedMethod && !creditCoversAll) { setError(tWallet("payErrorNoMethod")); return; }
     const stripe = stripeRef.current;
     if (!stripe) return;
     const payAmount = (amountEditable ? chosenAmount : amount) ?? null;
-    if (payAmount == null || payAmount <= 0) { setError("Monto inválido."); return; }
+    if (payAmount == null || payAmount <= 0) { setError(tWallet("payErrorInvalidAmount")); return; }
 
     setSubmitting(true);
     setError(null);
@@ -549,7 +553,7 @@ export default function StripePaymentModal({
             payment_method: pmId,
             payment_method_options: { card: { cvc: cvcEl } },
           });
-          if (result.error) { setError(result.error.message || "No se pudo procesar el pago."); setSubmitting(false); return; }
+          if (result.error) { setError(result.error.message || tWallet("payErrorGeneric")); setSubmitting(false); return; }
           if (result.paymentIntent?.status === "succeeded" || result.paymentIntent?.status === "processing" || result.paymentIntent?.status === "requires_capture") { markPaid(result.paymentIntent?.status); return; }
           throw new Error("rejected");
         }
@@ -558,7 +562,7 @@ export default function StripePaymentModal({
         // Requiere autenticación adicional (SCA): completa el 3DS con el client_secret.
         if (res.clientSecret) {
           const result = await stripe.confirmCardPayment(res.clientSecret);
-          if (result.error) { setError(result.error.message || "No se pudo procesar el pago."); setSubmitting(false); return; }
+          if (result.error) { setError(result.error.message || tWallet("payErrorGeneric")); setSubmitting(false); return; }
           if (result.paymentIntent?.status === "succeeded" || result.paymentIntent?.status === "processing" || result.paymentIntent?.status === "requires_capture") { markPaid(result.paymentIntent?.status); return; }
         }
         throw new Error("rejected");
@@ -583,7 +587,7 @@ export default function StripePaymentModal({
         payment_method: existingPm ?? { card: numberEl, billing_details: { name: cardName.trim() } },
       });
       if (result.error) {
-        setError(result.error.message || "No se pudo procesar el pago.");
+        setError(result.error.message || tWallet("payErrorGeneric"));
         setSubmitting(false);
         return;
       }
@@ -599,10 +603,10 @@ export default function StripePaymentModal({
       const fbCode = (err as { code?: unknown })?.code;
       const isCallableError = typeof fbCode === "string" && fbCode.includes("/");
       setError(
-        code === "no_name" ? "Escribe el nombre como aparece en la tarjeta."
-          : code === "no_element" ? "Recarga el formulario de tarjeta."
+        code === "no_name" ? tWallet("payErrorNoName")
+          : code === "no_element" ? tWallet("payErrorReloadForm")
           : isCallableError && code ? code
-          : "No se pudo procesar el pago. Revisa los datos e intenta de nuevo."
+          : tWallet("payErrorRetry")
       );
     } finally {
       setSubmitting(false);
@@ -666,13 +670,13 @@ export default function StripePaymentModal({
         <div><label style={label}>CVC</label><div id={`${ID_CVC}-${kind}`} style={stripeBox} /></div>
       </div>
       <div>
-        <label style={label}>Nombre en la tarjeta</label>
+        <label style={label}>{tWallet("payCardNameLabel")}</label>
         <style>{`.vibra-pay-input::placeholder{color:#9aa0a8;opacity:1}`}</style>
-        <input className="vibra-pay-input" value={cardName} onChange={(e) => setCardName(e.target.value)} placeholder="Como aparece en la tarjeta" autoComplete="cc-name" disabled={submitting} style={textInput} />
+        <input className="vibra-pay-input" value={cardName} onChange={(e) => setCardName(e.target.value)} placeholder={tWallet("payCardNamePlaceholder")} autoComplete="cc-name" disabled={submitting} style={textInput} />
       </div>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginTop: 2 }}>
-        <span style={{ fontSize: 13, color: "#8a8f99", fontWeight: 500 }}>Guardar tarjeta para futuras compras</span>
-        <button type="button" role="switch" aria-checked={saveCard} aria-label="Guardar tarjeta" onClick={() => setSaveCard((v) => !v)} disabled={submitting}
+        <span style={{ fontSize: 13, color: "#8a8f99", fontWeight: 500 }}>{tWallet("paySaveCard")}</span>
+        <button type="button" role="switch" aria-checked={saveCard} aria-label={tWallet("paySaveCardToggle")} onClick={() => setSaveCard((v) => !v)} disabled={submitting}
           style={{ position: "relative", width: 40, height: 22, borderRadius: 999, border: "none", padding: 0, flexShrink: 0, cursor: submitting ? "not-allowed" : "pointer", background: saveCard ? BLUE : "#d4d7dc", transition: "background 180ms ease" }}>
           <span style={{ position: "absolute", top: 2, left: saveCard ? 20 : 2, width: 18, height: 18, borderRadius: "50%", background: "#fff", transition: "left 180ms ease", boxShadow: "0 1px 2px rgba(0,0,0,0.25)" }} />
         </button>
@@ -747,11 +751,10 @@ export default function StripePaymentModal({
       <div style={{ display: "grid", gap: 10, padding: "28px 4px", textAlign: "center" }}>
         <div style={{ fontSize: 34, lineHeight: 1 }} aria-hidden="true">🌎</div>
         <h3 style={{ margin: 0, fontSize: 17, fontWeight: 650, color: "#1f2430" }}>
-          Todavía no podemos cobrar en tu país
+          {tWallet("blockedCountryTitle")}
         </h3>
         <p style={{ margin: 0, fontSize: 13.5, color: "#5b616e", lineHeight: 1.55 }}>
-          Estamos completando los trámites fiscales para vender desde donde te encuentras.
-          En cuanto quede listo vas a poder comprar con normalidad.
+          {tWallet("blockedCountryBody")}
         </p>
       </div>
     </div>
@@ -788,9 +791,9 @@ export default function StripePaymentModal({
                 type="text"
                 value={nickname}
                 onChange={(e) => { const v = e.target.value.slice(0, GUEST_NICKNAME_MAX); setNickname(v); setGuestNickname(v); }}
-                placeholder="Escribe tu apodo"
+                placeholder={tWallet("payNicknamePlaceholder")}
                 maxLength={GUEST_NICKNAME_MAX}
-                aria-label="Tu apodo"
+                aria-label={tWallet("payNicknameLabel")}
                 style={{ width: "100%", border: "none", borderBottom: "1px solid #e0e3e8", outline: "none", fontSize: 15, fontWeight: 600, color: "#3a3f4a", fontFamily: "inherit", padding: "2px 0", background: "transparent" }}
               />
             ) : (
@@ -801,12 +804,12 @@ export default function StripePaymentModal({
       )}
 
       <div style={{ marginBottom: 16 }}>
-        <h4 style={{ margin: 0, fontSize: 15, fontWeight: 600, color: "#3a3f4a" }}>{paymentHeading}</h4>
+        <h4 style={{ margin: 0, fontSize: 15, fontWeight: 600, color: "#3a3f4a" }}>{paymentHeading ?? tWallet("payHeading")}</h4>
         <p style={{ margin: "3px 0 0", fontSize: 12.5, color: "#9aa0a8", fontWeight: 400 }}>Elige tu forma de pago</p>
       </div>
 
       {loading ? (
-        <p style={{ color: "#8a8f99", fontSize: 14 }}>Cargando pago seguro…</p>
+        <p style={{ color: "#8a8f99", fontSize: 14 }}>{tWallet("payLoadingSecure")}</p>
       ) : (
         <div style={{ display: "grid" }}>
           {/* Crédito disponible: método MEZCLABLE, con la MISMA estética que las tarjetas.
@@ -820,7 +823,7 @@ export default function StripePaymentModal({
                   <path d="M3 7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2" /><rect x="3" y="7" width="18" height="12" rx="2.5" /><path d="M16 12.5h3" />
                 </svg>
                 <span style={{ fontSize: 14, fontWeight: 600, color: "#3a3f4a", flex: 1, textAlign: "left" }}>
-                  Crédito disponible <span style={{ color: "#8a8f99", fontWeight: 500 }}>· {pf.format(creditBalance, { baseCurrency: "MXN", code: true })}</span>
+                  {tWallet("creditAvailable")} <span style={{ color: "#8a8f99", fontWeight: 500 }}>· {pf.format(creditBalance, { baseCurrency: "MXN", code: true })}</span>
                 </span>
                 {radio(useCredit)}
               </button>
@@ -828,8 +831,10 @@ export default function StripePaymentModal({
                 <div style={{ overflow: "hidden", opacity: useCredit ? 1 : 0, transition: "opacity 240ms ease" }}>
                   <p style={{ margin: "6px 2px 12px 36px", fontSize: 12, color: creditCoversAll ? "#16a34a" : "#8a8f99" }}>
                     {creditCoversAll
-                      ? "Cubre el total. No necesitas otra forma de pago."
-                      : `Falta ${remainderAfterCredit != null ? pf.format(remainderAfterCredit, { baseCurrency: "MXN", code: true }) : ""} — elige otra forma de pago.`}
+                      ? tWallet("payCreditCoversAll")
+                      : tWallet("creditMissingAmount", {
+                          amount: remainderAfterCredit != null ? pf.format(remainderAfterCredit, { baseCurrency: "MXN", code: true }) : "",
+                        })}
                   </p>
                 </div>
               </div>
@@ -839,8 +844,8 @@ export default function StripePaymentModal({
               SUAVEMENTE (colapso de alto + fundido), igual que el acordeón de tarjeta. */}
           <div style={{ display: "grid", gridTemplateRows: creditCoversAll ? "0fr" : "1fr", transition: "grid-template-rows 340ms cubic-bezier(0.4,0,0.2,1)" }}>
             <div style={{ overflow: "hidden", opacity: creditCoversAll ? 0 : 1, transition: "opacity 240ms ease" }}>
-              {newCardRow("credit", "Tarjeta de crédito")}
-              {newCardRow("debit", "Tarjeta de débito")}
+              {newCardRow("credit", tWallet("payCardCredit"))}
+              {newCardRow("debit", tWallet("payCardDebit"))}
               {effectiveSavedCards.map((c) => savedCardRow(c))}
             </div>
           </div>
@@ -953,19 +958,21 @@ export default function StripePaymentModal({
           </div>
           {minBaseAmount > 0 && (
             <div style={{ textAlign: "center", fontSize: 11.5, fontWeight: 600, color: belowMin ? "#c0392b" : "#9aa0a8" }}>
-              Mínimo {pf.formatWithTax(minBaseAmount + FIXED_SERVICE_FEE_MXN, { baseCurrency: "MXN", code: true }).total}
+              {tWallet("minimumAmount", {
+                amount: pf.formatWithTax(minBaseAmount + FIXED_SERVICE_FEE_MXN, { baseCurrency: "MXN", code: true }).total,
+              })}
             </div>
           )}
           {taxed?.applies && chosenAmount != null && (
             <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid #e6e8ec", display: "grid", gap: 5 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, color: "#8a8f99" }}><span>Subtotal</span><span>{readingCard ? priceSkeleton(58) : <>{taxed.base} {taxed.currency}</>}</span></div>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, color: "#8a8f99" }}><span>{tWallet("paySubtotal")}</span><span>{readingCard ? priceSkeleton(58) : <>{taxed.base} {taxed.currency}</>}</span></div>
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, color: "#8a8f99" }}><span>{taxed.taxName} ({Math.round(taxed.rate * 100)}%)</span><span>{readingCard ? priceSkeleton(46) : <>{taxed.tax} {taxed.currency}</>}</span></div>
-              <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between" }}><span style={{ fontSize: 13, color: "#6b7280", fontWeight: 600 }}>Total a pagar</span><span style={{ fontSize: 16, fontWeight: 600, color: "#3a3f4a" }}>{taxed.total} {taxed.currency}</span></div>
+              <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between" }}><span style={{ fontSize: 13, color: "#6b7280", fontWeight: 600 }}>{tWallet("payTotalDue")}</span><span style={{ fontSize: 16, fontWeight: 600, color: "#3a3f4a" }}>{taxed.total} {taxed.currency}</span></div>
               <div style={{ display: "grid", gridTemplateRows: useCredit && creditApplied > 0 ? "1fr" : "0fr", transition: "grid-template-rows 300ms cubic-bezier(0.4,0,0.2,1)" }}>
                 <div style={{ overflow: "hidden", opacity: useCredit && creditApplied > 0 ? 1 : 0, transition: "opacity 240ms ease" }}>
                   <div style={{ display: "grid", gap: 5 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, color: BLUE }}><span>Crédito disponible</span><span>−{pf.format(creditApplied, { baseCurrency: "MXN", code: true })}</span></div>
-                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, fontWeight: 700, color: "#3a3f4a" }}><span>{creditCoversAll ? "Pagas con saldo" : "Restante a tu tarjeta"}</span><span>{pf.format(remainderAfterCredit ?? 0, { baseCurrency: "MXN", code: true })}</span></div>
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, color: BLUE }}><span>{tWallet("creditAvailable")}</span><span>−{pf.format(creditApplied, { baseCurrency: "MXN", code: true })}</span></div>
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, fontWeight: 700, color: "#3a3f4a" }}><span>{creditCoversAll ? tWallet("creditPayWithBalance") : tWallet("creditRemainderOnCard")}</span><span>{pf.format(remainderAfterCredit ?? 0, { baseCurrency: "MXN", code: true })}</span></div>
                   </div>
                 </div>
               </div>
@@ -977,7 +984,7 @@ export default function StripePaymentModal({
           <div style={{ height: 1, background: "#e6e8ec" }} />
           {taxed?.applies ? (
             <div style={{ display: "grid", gap: 6 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, color: "#8a8f99" }}><span>Subtotal</span><span>{readingCard ? priceSkeleton(58) : <>{taxed.base} {taxed.currency}</>}</span></div>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, color: "#8a8f99" }}><span>{tWallet("paySubtotal")}</span><span>{readingCard ? priceSkeleton(58) : <>{taxed.base} {taxed.currency}</>}</span></div>
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, color: "#8a8f99" }}><span>{taxed.taxName} ({Math.round(taxed.rate * 100)}%)</span><span>{readingCard ? priceSkeleton(46) : <>{taxed.tax} {taxed.currency}</>}</span></div>
               <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between" }}>
                 <span style={{ fontSize: 13, color: "#6b7280", fontWeight: 600 }}>{pricePeriodLabel ? "Cobro mensual" : "Total a pagar"}</span>
@@ -986,8 +993,8 @@ export default function StripePaymentModal({
               <div style={{ display: "grid", gridTemplateRows: useCredit && creditApplied > 0 ? "1fr" : "0fr", transition: "grid-template-rows 300ms cubic-bezier(0.4,0,0.2,1)" }}>
                 <div style={{ overflow: "hidden", opacity: useCredit && creditApplied > 0 ? 1 : 0, transition: "opacity 240ms ease" }}>
                   <div style={{ display: "grid", gap: 5 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, color: BLUE }}><span>Crédito disponible</span><span>−{pf.format(creditApplied, { baseCurrency: "MXN", code: true })}</span></div>
-                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, fontWeight: 700, color: "#3a3f4a" }}><span>{creditCoversAll ? "Pagas con saldo" : "Restante a tu tarjeta"}</span><span>{pf.format(remainderAfterCredit ?? 0, { baseCurrency: "MXN", code: true })}</span></div>
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, color: BLUE }}><span>{tWallet("creditAvailable")}</span><span>−{pf.format(creditApplied, { baseCurrency: "MXN", code: true })}</span></div>
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, fontWeight: 700, color: "#3a3f4a" }}><span>{creditCoversAll ? tWallet("creditPayWithBalance") : tWallet("creditRemainderOnCard")}</span><span>{pf.format(remainderAfterCredit ?? 0, { baseCurrency: "MXN", code: true })}</span></div>
                   </div>
                 </div>
               </div>
@@ -1007,14 +1014,14 @@ export default function StripePaymentModal({
           al comprador por qué el precio se movió, sin agregarle un paso ni pedirle confirmar. */}
       {countryFromCard && !readingCard && (
         <p style={{ margin: "-2px 0 0", fontSize: 11, color: "#8a8f99", textAlign: "center", lineHeight: 1.35 }}>
-          Tu tarjeta es de <strong style={{ fontWeight: 600, color: "#6b7280" }}>{countryName(cardPm?.country)}</strong>
+          Tu tarjeta es de <strong style={{ fontWeight: 600, color: "#6b7280" }}>{countryName(cardPm?.country, locale, tWallet("payCountryUnknown"))}</strong>
         </p>
       )}
 
       <button type="button" onClick={handlePay} disabled={submitting || loading || !canPay || readingCard}
         style={{ position: "relative", overflow: "hidden", height: 40, borderRadius: 10, border: "none", background: loading || (!canPay && !submitting) ? "#9fd8f2" : BLUE, color: "#fff", fontSize: 15, fontWeight: 600, fontFamily: "inherit", cursor: submitting || loading || !canPay ? "not-allowed" : "pointer" }}>
         {submitting && <span aria-hidden="true" style={{ position: "absolute", inset: 0, background: "rgba(255,255,255,0.28)", transformOrigin: "left center", animation: "vibraBtnFill 2400ms ease-out forwards" }} />}
-        <span style={{ position: "relative" }}>{submitting ? "Procesando…" : payButtonLabel}</span>
+        <span style={{ position: "relative" }}>{submitting ? tCommon("processing") : (payButtonLabel ?? tWallet("payButton"))}</span>
       </button>
 
       <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, fontSize: 11, color: "#8a8f99", marginTop: -6 }}>

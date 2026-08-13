@@ -49,29 +49,45 @@ if (firebaseConfig.apiKey && firebaseConfig.projectId) {
   });
 }
 
-// Al tocar la notificación: enfoca una pestaña de Vibra ya abierta (y navega al
-// deep-link) o abre una nueva.
+/* Al tocar la notificación: enfoca una pestaña de Vibra ya abierta y la lleva al
+ * deep-link, o abre una nueva.
+ *
+ * OJO con `WindowClient.navigate()`: lanza si la ventana NO la controla ESTE
+ * service worker, y nunca la controla — este SW vive en su propio scope
+ * (/firebase-cloud-messaging-push-scope) mientras que la app se sirve desde /.
+ * Antes se intentaba igual dentro de un try/catch vacío, así que el fallo pasaba
+ * inadvertido: la pestaña se enfocaba pero se quedaba donde estuviera. De ahí
+ * que las notificaciones "abrieran la app" pero no el chat.
+ *
+ * La vía que sí funciona es pedirle a la app que navegue ella misma con su
+ * router (`postMessage`), que además no recarga la página. */
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
   const link =
     (event.notification.data && event.notification.data.link) || "/";
+
   event.waitUntil(
-    clients
-      .matchAll({ type: "window", includeUncontrolled: true })
-      .then((wins) => {
-        for (const w of wins) {
-          if ("focus" in w) {
-            if ("navigate" in w) {
-              try {
-                w.navigate(link);
-              } catch (_e) {
-                /* algunos navegadores no permiten navigate cross-scope */
-              }
-            }
-            return w.focus();
-          }
+    (async () => {
+      const wins = await clients.matchAll({
+        type: "window",
+        includeUncontrolled: true,
+      });
+
+      for (const w of wins) {
+        let sameOrigin = false;
+        try {
+          sameOrigin = new URL(w.url).origin === self.location.origin;
+        } catch (_e) {
+          sameOrigin = false;
         }
-        return clients.openWindow(link);
-      })
+        if (!sameOrigin || !("focus" in w)) continue;
+
+        w.postMessage({ type: "vibra:navigate", link });
+        return w.focus();
+      }
+
+      // Sin ninguna pestaña abierta: se abre directamente en el destino.
+      return clients.openWindow(link);
+    })()
   );
 });

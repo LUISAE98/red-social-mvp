@@ -96,7 +96,9 @@ export default function WalletIncomeChart({
       i += 1;
     }
     return list;
-  }, [range]);
+    // `locale` va en dependencias porque las etiquetas de los buckets se formatean con
+    // él: sin esto, al cambiar de idioma la gráfica conservaría los meses del anterior.
+  }, [range, locale]);
 
   // Ingresos (neto) por bucket para la vista actual.
   const data = useMemo(() => {

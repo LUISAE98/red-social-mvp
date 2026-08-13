@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useLocale } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { intlLocale } from "@/i18n/locales";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -54,6 +54,7 @@ function visibilityLabel(v: string | null | undefined) {
 
 export default function InvitePage() {
   const locale = useLocale();
+  const tGroups = useTranslations("groups");
 const { token } = useParams<{ token: string }>();
 const router = useRouter();
 const pathname = usePathname();
@@ -635,7 +636,7 @@ const { user } = useAuth();
         productType="Suscripción mensual"
         providerName={group.name}
         avatarUrl={group.avatarUrl}
-        payButtonLabel="Suscribirme"
+        payButtonLabel={tGroups("subscribeAction")}
         description={`Tu suscripción a ${group.name} se renueva sola cada mes. Puedes cancelar cuando quieras.`}
         successMessage="✅ ¡Listo! Ya formas parte de la comunidad."
         onClose={() => setPayOpen(false)}

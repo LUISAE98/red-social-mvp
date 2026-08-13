@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { useCfError } from "@/lib/i18n/cfError";
 import {
   useCallback,
   useEffect,
@@ -100,6 +101,7 @@ export default function OwnerSidebar() {
   const router = useRouter();
   const pathname = usePathname();
   const tNav = useTranslations("nav");
+  const cfError = useCfError();
   const tCommon = useTranslations("common");
   const locale = useLocale();
   const tGroups = useTranslations("groups");
@@ -642,7 +644,7 @@ miniItem: {
           },
         }));
       } catch (e: unknown) {
-        setMsg((e instanceof Error ? e.message : null) ?? tCommon("errorLoadProfile"));
+        setMsg((e instanceof Error ? cfError(e) : null) ?? tCommon("errorLoadProfile"));
         setUserDoc(null);
       } finally {
         setLoadingUser(false);
@@ -937,7 +939,7 @@ miniItem: {
         } catch (e: unknown) {
           if (!cancelled) {
             setGroupsErr(
-              (e instanceof Error ? e.message : null) ?? tCommon("loadError")
+              (e instanceof Error ? cfError(e) : null) ?? tCommon("loadError")
             );
             followedProfilesRef.current = [];
             setFollowedProfiles([]);
@@ -1797,7 +1799,7 @@ const groupsForSeen = [
           : tCommon("successServiceRejected")
       );
     } catch (e: unknown) {
-      showSidebarToast((e instanceof Error ? e.message : null) ?? tCommon("errorUpdateRequest"), "error");
+      showSidebarToast((e instanceof Error ? cfError(e) : null) ?? tCommon("errorUpdateRequest"), "error");
     } finally {
       setGreetingBusyId(null);
     }

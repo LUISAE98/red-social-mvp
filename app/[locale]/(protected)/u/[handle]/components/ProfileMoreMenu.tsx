@@ -28,9 +28,21 @@ type Props = {
   /** Estilo/clase extra para el botón disparador (⋮), p. ej. círculo de portada. */
   buttonStyle?: CSSProperties;
   buttonClassName?: string;
+  /**
+   * Acciones propias de quien monta el menú, DEBAJO de bloquear y reportar.
+   *
+   * Existe para que el chat pueda añadir silenciar y quitar la conversación sin
+   * meter en el menú del perfil opciones que allí no significan nada. Recibe el
+   * cierre del menú y el estilo de sus renglones, para que lo añadido no se vea
+   * de otra familia.
+   */
+  extraItems?: (helpers: {
+    close: () => void;
+    itemStyle: CSSProperties;
+  }) => React.ReactNode;
 };
 
-export default function ProfileMoreMenu({ viewerUid, profileUid, onBlockSuccess, onUnblockSuccess, onUnblockError, buttonStyle, buttonClassName }: Props) {
+export default function ProfileMoreMenu({ viewerUid, profileUid, onBlockSuccess, onUnblockSuccess, onUnblockError, buttonStyle, buttonClassName, extraItems }: Props) {
   const tCommon = useTranslations("common");
   const menuPanelRef = useRef<HTMLDivElement | null>(null);
   const menuButtonRef = useRef<HTMLButtonElement | null>(null);
@@ -252,6 +264,14 @@ export default function ProfileMoreMenu({ viewerUid, profileUid, onBlockSuccess,
               >
                 {tCommon("report")}
               </button>
+
+              {extraItems?.({
+                close: closeMenu,
+                itemStyle: {
+                  ...itemStyle,
+                  borderTop: "1px solid rgba(255,255,255,0.08)",
+                },
+              })}
             </div>
           </div>
         </>,

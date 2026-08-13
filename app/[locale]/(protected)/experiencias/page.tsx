@@ -6,6 +6,7 @@
 // alimentado por el hook autocontenido useMyExperiences. Ver docs de experiencias.
 
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useCfError } from "@/lib/i18n/cfError";
 import { useTranslations, useLocale } from "next-intl";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/app/providers";
@@ -21,7 +22,7 @@ import { computeCategoryLatest, isCategoryNew } from "@/lib/experiences/experien
 import { useMyExperiences } from "@/lib/experiences/useMyExperiences";
 import { useBuyerCredit } from "@/lib/wallet/useBuyerCredit";
 import { useBuyerCashout } from "@/lib/wallet/useBuyerCashout";
-import { requestCashout } from "@/lib/wallet/cashout";
+import { requestCashout, dismissCashoutNotice } from "@/lib/wallet/cashout";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 
 type Tab = "requested" | "rejected" | "delivered";
@@ -100,6 +101,7 @@ const styles: Record<string, CSSProperties> = {
 
 export default function ExperienciasPage() {
   const tCommon = useTranslations("common");
+  const cfError = useCfError();
   const tNav = useTranslations("nav");
   const locale = useLocale();
   const tWallet = useTranslations("wallet");
@@ -120,7 +122,7 @@ export default function ExperienciasPage() {
   async function handleRequestCashout() {
     if (cashoutBusy) return;
     const ok = window.confirm(
-      `¿Solicitar ${pf.format(credit.balance, { baseCurrency: "MXN", code: true })} de reembolso a tu tarjeta original? Un administrador lo revisará. Mientras tanto, ese saldo queda apartado.`
+      tWallet("cashoutConfirm", { amount: pf.format(credit.balance, { baseCurrency: "MXN", code: true }) })
     );
     if (!ok) return;
     setCashoutBusy(true);
@@ -128,9 +130,21 @@ export default function ExperienciasPage() {
     try {
       await requestCashout();
     } catch (e: unknown) {
-      setCashoutError(e instanceof Error ? e.message : "No se pudo solicitar el efectivo.");
+      setCashoutError(e instanceof Error ? cfError(e) : tWallet("cashoutError"));
     } finally {
       setCashoutBusy(false);
+    }
+  }
+
+  // Cierra (tache) el aviso de una devolución RECHAZADA. Se marca en el servidor
+  // (`buyerDismissedAt`) → persiste entre dispositivos y no vuelve a aparecer.
+  async function handleDismissCashout() {
+    const id = cashout.latest?.id;
+    if (!id) return;
+    try {
+      await dismissCashoutNotice(id);
+    } catch {
+      /* si falla, el snapshot lo deja visible; reintentable */
     }
   }
 
@@ -508,8 +522,8 @@ export default function ExperienciasPage() {
               </svg>
             </span>
             <div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
-              <span style={{ fontSize: 12.5, color: "rgba(255,255,255,0.62)", fontWeight: 600, lineHeight: 1.2 }}>Crédito disponible</span>
-              <span style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", lineHeight: 1.3 }}>Úsalo en tus próximas experiencias</span>
+              <span style={{ fontSize: 12.5, color: "rgba(255,255,255,0.62)", fontWeight: 600, lineHeight: 1.2 }}>{tWallet("creditAvailable")}</span>
+              <span style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", lineHeight: 1.3 }}>{tWallet("creditUseOnExperiences")}</span>
             </div>
           </div>
           <span style={{ fontSize: 18, fontWeight: 700, color: "#22c55e", whiteSpace: "nowrap", flexShrink: 0 }}>
@@ -521,11 +535,40 @@ export default function ExperienciasPage() {
       {/* DEVOLUCIÓN EN EFECTIVO (B7): todo el saldo restante es reembolsable a la tarjeta
           original. Si ya hay una solicitud en revisión, se muestra ese estado. Si el saldo
           es menor al mínimo (o 0), no aparece nada. */}
-      {cashout.pending ? (
-        <div style={{ marginTop: -13, marginBottom: 16, padding: "0 2px", fontSize: 12, color: "rgba(255,255,255,0.4)", textAlign: "right" }}>
-          Tienes {pf.format(cashout.pending.amount, { baseCurrency: "MXN", code: true })} en revisión
-          para reembolso a tu tarjeta.
+      {cashout.latest?.status === "pending" ? (
+        <div style={{ marginTop: -13, marginBottom: 16, padding: "0 8px", fontSize: 12.5, color: "#fff", textAlign: "center", lineHeight: 1.4 }}>
+          {tWallet("cashoutPendingReview", {
+            amount: pf.format(cashout.latest.amount, { baseCurrency: "MXN", code: true }),
+          })}
         </div>
+      ) : cashout.latest?.status === "approved" ? (
+        <div style={{ marginTop: -13, marginBottom: 16, padding: "0 8px", fontSize: 12.5, color: "#fff", textAlign: "center", lineHeight: 1.4 }}>
+          {tWallet("cashoutApproved", {
+            amount: pf.format(cashout.latest.refundedAmount || cashout.latest.amount, { baseCurrency: "MXN", code: true }),
+          })}
+        </div>
+      ) : cashout.latest?.status === "rejected" ? (
+        cashout.latest.dismissed ? null : (
+          <div style={{ position: "relative", marginTop: -13, marginBottom: 16, padding: "0 30px", fontSize: 12.5, color: "#fff", textAlign: "center", lineHeight: 1.4 }}>
+            {tWallet("cashoutRejected", { reason: cashout.latest.rejectionNote || "—" })}
+            <button
+              type="button"
+              onClick={handleDismissCashout}
+              aria-label="Cerrar"
+              style={{
+                position: "absolute", top: -2, right: 2, width: 22, height: 22,
+                display: "inline-flex", alignItems: "center", justifyContent: "center",
+                background: "transparent", border: "none", color: "rgba(255,255,255,0.55)",
+                cursor: "pointer", padding: 0, lineHeight: 1,
+              }}
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          </div>
+        )
       ) : credit.balance > 0 ? (
         <div style={{ marginTop: -13, marginBottom: 16, padding: "0 2px", textAlign: "right" }}>
           <button
@@ -540,8 +583,10 @@ export default function ExperienciasPage() {
             }}
           >
             {cashoutBusy
-              ? "Enviando solicitud…"
-              : `Puedes pedir ${pf.format(credit.balance, { baseCurrency: "MXN", code: true })} en efectivo de reembolso`}
+              ? tWallet("cashoutSending")
+              : tWallet("cashoutRequest", {
+                  amount: pf.format(credit.balance, { baseCurrency: "MXN", code: true }),
+                })}
           </button>
           {cashoutError && (
             <div style={{ fontSize: 11.5, color: "#f87171", marginTop: 4 }}>{cashoutError}</div>

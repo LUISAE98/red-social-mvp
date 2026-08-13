@@ -25,6 +25,7 @@ import {
   type MessageReply,
 } from "@/lib/chat/types";
 import { uploadDirectMessageImage } from "@/lib/posts/image-upload";
+import { renderMessageText } from "@/lib/chat/linkify";
 import type { ProfileMini } from "./ConversationList";
 import {
   ChatReveal,
@@ -1160,7 +1161,7 @@ export default function ConversationThread({
                     ...(mine ? { left: -5 } : { right: -5 }),
                   }}
                 >
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="#ff3040">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="#ff3040">
                     <path d={HEART_PATH} />
                   </svg>
                 </span>
@@ -1487,7 +1488,9 @@ export default function ConversationThread({
                   overflowWrap: "anywhere",
                 }}
               >
-                {message.isDeleted ? tChat("messageDeleted") : message.text}
+                {message.isDeleted
+                  ? tChat("messageDeleted")
+                  : renderMessageText(message.text)}
               </div>
             ) : null}
 
@@ -2068,14 +2071,24 @@ export default function ConversationThread({
           z-index: 1;
           transform: scale(0);
           opacity: 0;
+          /* Esta es la transición de SALIDA: CSS aplica la del estado al que se
+             va. Las dos propiedades duran lo mismo a propósito — antes la
+             opacidad tardaba 150ms y la escala 250, así que el corazón ya era
+             invisible cuando empezaba a encoger y la salida parecía un corte
+             seco. El easing con tirón negativo lo hace crecer un pelo antes de
+             desaparecer: el mismo pop, al revés. */
           transition:
-            transform var(--duration-normal, 250ms)
-              var(--ease-spring, cubic-bezier(0.34, 1.56, 0.64, 1)),
-            opacity var(--duration-fast, 150ms) ease;
+            transform 200ms cubic-bezier(0.36, 0, 0.66, -0.4),
+            opacity 200ms ease;
         }
         .vibra-msg-heart[data-on] {
           transform: scale(1);
           opacity: 1;
+          /* ENTRADA: rebote más marcado que el ease-spring estándar, porque es
+             un elemento pequeño y con el rebote suave apenas se percibía. */
+          transition:
+            transform 340ms cubic-bezier(0.34, 1.8, 0.64, 1),
+            opacity 120ms ease;
         }
 
         /* El texto se va del campo al enviarlo, en vez de desaparecer seco. */
@@ -2279,7 +2292,42 @@ export default function ConversationThread({
           pointerEvents: "none",
         }}
       >
-        {error ? <div style={{ fontSize: 11.5, color: "#fca5a5" }}>{error}</div> : null}
+        {/* El aviso de error lleva su propio "Reintentar" cuando lo que falló
+            fue un envío: el texto ya volvió al campo, así que reintentar es
+            mandarlo otra vez sin que haya que reescribir nada. */}
+        {error ? (
+          <div
+            style={{
+              pointerEvents: "auto",
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              fontSize: 11.5,
+              color: "#fca5a5",
+            }}
+          >
+            <span style={{ flex: 1, minWidth: 0 }}>{error}</span>
+            {draft.trim().length > 0 && !sending ? (
+              <button
+                type="button"
+                onClick={() => void handleSend()}
+                style={{
+                  border: "none",
+                  background: "transparent",
+                  color: "#a855f7",
+                  fontSize: 11.5,
+                  fontWeight: 600,
+                  fontFamily: "inherit",
+                  cursor: "pointer",
+                  padding: 0,
+                  flexShrink: 0,
+                }}
+              >
+                {tChat("retry")}
+              </button>
+            ) : null}
+          </div>
+        ) : null}
         <div style={{ pointerEvents: "auto" }}>{renderFooter()}</div>
       </div>
 

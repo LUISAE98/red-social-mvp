@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { useCfError } from "@/lib/i18n/cfError";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
@@ -83,6 +84,7 @@ export default function OwnerSidebarGreetings({
   activeSection,
 }: Props) {
   const tCommon = useTranslations("common");
+  const cfError = useCfError();
   const tServices = useTranslations("services");
   const tGroups = useTranslations("groups");
   const tSessions = useTranslations("sessions");
@@ -316,7 +318,7 @@ export default function OwnerSidebarGreetings({
       setScheduleOpenMap((prev) => ({ ...prev, [requestId]: true }));
       setOpenItemKey(`incoming-${kind}-${requestId}`);
     } catch (e: unknown) {
-      showGreetingsToast((e instanceof Error ? e.message : null) ?? tServices("errorAcceptRequest"), "error");
+      showGreetingsToast((e instanceof Error ? cfError(e) : null) ?? tServices("errorAcceptRequest"), "error");
     } finally {
       setBusy(requestId, false);
     }
@@ -342,7 +344,7 @@ export default function OwnerSidebarGreetings({
       showGreetingsToast(tServices("successRequestRejected"));
       setRejectOpenMap((prev) => ({ ...prev, [requestId]: false }));
     } catch (e: unknown) {
-      showGreetingsToast((e instanceof Error ? e.message : null) ?? tServices("errorRejectRequest"), "error");
+      showGreetingsToast((e instanceof Error ? cfError(e) : null) ?? tServices("errorRejectRequest"), "error");
     } finally {
       setBusy(requestId, false);
     }
@@ -360,7 +362,7 @@ export default function OwnerSidebarGreetings({
       }
       showGreetingsToast(tServices("successRequestRejected"));
     } catch (e: unknown) {
-      showGreetingsToast((e instanceof Error ? e.message : null) ?? tServices("errorRejectRequest"), "error");
+      showGreetingsToast((e instanceof Error ? cfError(e) : null) ?? tServices("errorRejectRequest"), "error");
       throw e;
     } finally {
       setBusy(requestId, false);
@@ -393,7 +395,7 @@ export default function OwnerSidebarGreetings({
       }
       showGreetingsToast(tServices("successDateProposed"));
     } catch (e: unknown) {
-      showGreetingsToast((e instanceof Error ? e.message : null) ?? tServices("errorSaveDate"), "error");
+      showGreetingsToast((e instanceof Error ? cfError(e) : null) ?? tServices("errorSaveDate"), "error");
       throw e;
     } finally {
       setBusy(requestId, false);
@@ -429,7 +431,7 @@ export default function OwnerSidebarGreetings({
       setIncomingSessionOverlayOpen(false);
       setTimeout(() => setIncomingSessionOverlayData(null), 300);
     } catch (e: unknown) {
-      showGreetingsToast((e instanceof Error ? e.message : null) ?? tServices("errorScheduleSession"), "error");
+      showGreetingsToast((e instanceof Error ? cfError(e) : null) ?? tServices("errorScheduleSession"), "error");
     } finally {
       setBusy(requestId, false);
     }
@@ -489,7 +491,7 @@ async function handleCreatorSchedule(
     setScheduleOpenMap((prev) => ({ ...prev, [requestId]: false }));
     setCalendarOpenMap((prev) => ({ ...prev, [requestId]: false }));
   } catch (e: unknown) {
-    showGreetingsToast((e instanceof Error ? e.message : null) ?? tServices("errorSaveDate"), "error");
+    showGreetingsToast((e instanceof Error ? cfError(e) : null) ?? tServices("errorSaveDate"), "error");
   } finally {
     setBusy(requestId, false);
   }
@@ -520,7 +522,7 @@ async function handleCreatorSchedule(
         avatar: sess?.creatorAvatar ?? null,
       });
     } catch (e: unknown) {
-      showGreetingsToast((e instanceof Error ? e.message : null) ?? tServices("errorRequestRefund"), "error");
+      showGreetingsToast((e instanceof Error ? cfError(e) : null) ?? tServices("errorRequestRefund"), "error");
     } finally {
       setBusy(requestId, false);
     }
@@ -546,7 +548,7 @@ async function handleCreatorSchedule(
       showGreetingsToast(tServices("successRescheduleRequested"));
       setRescheduleOpenMap((prev) => ({ ...prev, [requestId]: false }));
     } catch (e: unknown) {
-      showGreetingsToast((e instanceof Error ? e.message : null) ?? tServices("errorRequestReschedule"), "error");
+      showGreetingsToast((e instanceof Error ? cfError(e) : null) ?? tServices("errorRequestReschedule"), "error");
     } finally {
       setBusy(requestId, false);
     }
@@ -563,7 +565,7 @@ async function handleCreatorSchedule(
         await declineMeetGreetReschedule(requestId);
       }
     } catch (e: unknown) {
-      showGreetingsToast((e instanceof Error ? e.message : null) ?? tServices("errorProcess"), "error");
+      showGreetingsToast((e instanceof Error ? cfError(e) : null) ?? tServices("errorProcess"), "error");
     } finally {
       setBusy(requestId, false);
     }
@@ -585,7 +587,7 @@ async function handleCreatorSchedule(
       setPreparationOpenMap((prev) => ({ ...prev, [requestId]: true }));
       setSuccess(requestId, tServices("successPreparationOpened"));
     } catch (e: unknown) {
-      setError(requestId, (e instanceof Error ? e.message : null) ?? tServices("errorOpenPreparation"));
+      setError(requestId, (e instanceof Error ? cfError(e) : null) ?? tServices("errorOpenPreparation"));
     } finally {
       setBusy(requestId, false);
     }
@@ -1834,7 +1836,7 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
               setViewItem(null);
               setRefundDone({ credited: (res as unknown as { credited?: number })?.credited ?? 0, name: nm, avatar: av });
             } catch (e) {
-              showGreetingsToast((e instanceof Error ? e.message : null) ?? tServices("errorRequestRefund"), "error");
+              showGreetingsToast((e instanceof Error ? cfError(e) : null) ?? tServices("errorRequestRefund"), "error");
             }
           }}
           onRetry={() => {

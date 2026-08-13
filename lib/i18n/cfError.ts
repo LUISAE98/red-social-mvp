@@ -28,6 +28,12 @@ const MSG_TO_KEY: Record<string, string> = {
   "la sesión no existe.": "sessionNotFound",
   "el live no existe.": "postNotFound",
 
+  // cobertura por país
+  "el cobro no está disponible en tu país por ahora.": "countryNotAvailable",
+  "el cobro no está disponible en tu país por ahora": "countryNotAvailable",
+  "no podemos cobrar con una tarjeta de ese país por ahora.": "cardCountryNotAvailable",
+  "no podemos cobrar con una tarjeta de ese país por ahora": "cardCountryNotAvailable",
+
   // permissions
   "no tienes permisos para realizar esta acción.": "noPermission",
   "solo el owner o un moderador pueden realizar esta acción.": "noPermission",

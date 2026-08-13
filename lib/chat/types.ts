@@ -76,6 +76,13 @@ export type ConversationLastMessage = {
    * vacío) dejaría la fila del inbox en blanco.
    */
   hasImage?: boolean;
+  /**
+   * El último mensaje fue retirado para los dos.
+   *
+   * Es una BANDERA y no el texto ya escrito porque el backend no sabe en qué
+   * idioma lee cada quien: la frase la pone la interfaz.
+   */
+  isDeleted?: boolean;
 };
 
 export type ConversationDoc = {
@@ -111,6 +118,22 @@ export type ConversationDoc = {
   unread: Record<string, number>;
   /** Recibo de lectura agregado, por UID. Un solo write al abrir el hilo. */
   lastReadAt: Record<string, Timestamp>;
+  /**
+   * Quién silenció el hilo. Como mucho dos UIDs, los del propio hilo.
+   *
+   * Silenciar NO deja de recibir mensajes: solo apaga el aviso al teléfono. La
+   * conversación sigue en la bandeja y sigue contando los no leídos.
+   */
+  mutedBy?: string[];
+  /**
+   * Cuándo quitó cada quien la conversación de SU bandeja.
+   *
+   * No borra nada: el hilo se conserva entero para los dos. Se oculta mientras
+   * no pase nada nuevo — si llega otro mensaje, `lastMessageAt` adelanta a esta
+   * marca y la conversación reaparece sola. Es como se comporta cualquier
+   * mensajería: borrar un chat no impide que esa persona te vuelva a escribir.
+   */
+  hiddenAt?: Record<string, Timestamp>;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 };

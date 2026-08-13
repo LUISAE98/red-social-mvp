@@ -57,6 +57,7 @@ export default function DonationFeedBanner({
   creatorId, buyerId, groupId, groupName, viewerIsCreator,
 }: Props) {
   const tCommon = useTranslations("common");
+  const tLive = useTranslations("live");
   const { toast, showToast } = useVibraToast();
   // No se puede hacer una contribución a uno mismo (ej. el dueño de la comunidad
   // o el propio creador del perfil).
@@ -519,7 +520,7 @@ export default function DonationFeedBanner({
         amount={null}
         amountEditable
         amountCurrency="MXN"
-        payButtonLabel="Hacer aportación"
+        payButtonLabel={tLive("makeDonation")}
         donationPresets={suggestedAmounts ?? undefined}
         donationCustomInclusive
         minBaseAmount={50}

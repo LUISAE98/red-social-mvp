@@ -8,6 +8,8 @@ import { displayCurrencyForCountry } from "./lib/currency/catalog";
 const intlMiddleware = createMiddleware(routing);
 
 const LOCALE_COOKIE = "NEXT_LOCALE";
+// Marca de elección MANUAL de idioma (la pone LanguageSwitcher). Ver más abajo.
+const LOCALE_MANUAL_COOKIE = "vibra_locale_manual";
 const CURRENCY_COOKIE = "vibra_currency";
 // País por IP para fines de IMPUESTOS (IVA). A diferencia de la moneda (preferencia
 // pegajosa), este se REFRESCA en cada visita para reflejar dónde está el comprador
@@ -18,7 +20,6 @@ const ONE_YEAR = 60 * 60 * 24 * 365;
 
 export default function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  const alreadyChosen = request.cookies.has(LOCALE_COOKIE);
   const rawCountry = request.headers.get("x-vercel-ip-country");
   // Vercel manda la subdivisión ISO 3166-2 aparte. Se aplica antes de nada para que
   // Canarias, Ceuta y Melilla no se traten como España: tributan distinto.
@@ -29,10 +30,19 @@ export default function middleware(request: NextRequest) {
 
   let response;
 
-  // Solo en la PRIMERA visita (sin cookie de idioma y sin locale en la URL)
-  // detectamos el idioma por país (cabecera de geo de Vercel). Si el usuario
-  // ya eligió idioma o la URL ya trae locale, no interferimos.
-  if (!alreadyChosen && !hasLocalePrefix(pathname)) {
+  // 🚨 AUTO-DETECTADO ≠ ELEGIDO POR EL USUARIO 🚨
+  //
+  // Antes esto miraba solo si EXISTÍA `NEXT_LOCALE`, y esa cookie la escribe el propio
+  // middleware en la primera visita. O sea que una detección automática quedaba
+  // congelada un año, indistinguible de una decisión del usuario: quien entrara una vez
+  // desde México y se mudara a Alemania seguía viendo español para siempre.
+  //
+  // `vibra_locale_manual` solo la pone LanguageSwitcher al elegir idioma a mano. Mientras
+  // no esté, el idioma se re-detecta por geo en cada visita; en cuanto está, no se toca.
+  const chosenByUser = request.cookies.has(LOCALE_MANUAL_COOKIE);
+  const shouldDetectLocale = !chosenByUser && !hasLocalePrefix(pathname);
+
+  if (shouldDetectLocale) {
     const locale = localeFromCountry(country);
     if (locale) {
       // next-intl lee la cookie del request para decidir el redirect.

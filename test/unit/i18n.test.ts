@@ -26,19 +26,29 @@ function leafKeys(obj: unknown, prefix = ""): string[] {
   );
 }
 
-// Memoizado a propósito. Seis de estos tests recorren TODOS los locales, y sin
-// caché cada uno releía y reparseaba los 40 archivos: 240 lecturas de ~100 KB
-// que hacían que la suite rozara el timeout de 5 s de Vitest. El síntoma no era
-// un fallo sino un "Test timed out", que se lee como si la traducción estuviera
-// rota. Con caché son 40 lecturas y sobra tiempo para los idiomas que falten.
-const MESSAGES_CACHE = new Map<string, unknown>();
+// Precargado a nivel de módulo, no dentro de los tests, y a propósito.
+// Seis de estos tests recorren TODOS los locales. Parsear los 46 archivos cuesta
+// ~3 s (los de escritura no latina rondan los 270 KB), y si ese coste cae dentro
+// de un `it()` se lo come entero el primero que los toque: pasaba del timeout de
+// 5 s de Vitest y fallaba con "Test timed out", que se lee como si una traducción
+// estuviera rota y no como lentitud. Fuera de los tests, el mismo trabajo cuenta
+// como tiempo de carga del archivo y ningún test individual lo paga.
+const MESSAGES: ReadonlyMap<string, unknown> = new Map(
+  READY_LOCALES.map((code) => [
+    code,
+    JSON.parse(readFileSync(root(`messages/${code}.json`), "utf8")) as unknown,
+  ])
+);
+
+/** Claves hoja por locale, también precalculadas: aplanar 46 árboles cuesta otro medio segundo. */
+const LEAF_KEYS: ReadonlyMap<string, string[]> = new Map(
+  [...MESSAGES].map(([code, msgs]) => [code, leafKeys(msgs).sort()])
+);
 
 function readMessages(locale: string): unknown {
-  const hit = MESSAGES_CACHE.get(locale);
-  if (hit !== undefined) return hit;
-  const parsed = JSON.parse(readFileSync(root(`messages/${locale}.json`), "utf8"));
-  MESSAGES_CACHE.set(locale, parsed);
-  return parsed;
+  const hit = MESSAGES.get(locale);
+  if (hit === undefined) throw new Error(`messages/${locale}.json no está precargado`);
+  return hit;
 }
 
 // El idioma es la capa donde un error no rompe el build: falla en silencio y el
@@ -70,14 +80,21 @@ describe("i18n / catálogo de idiomas", () => {
   // La razón de ser del catálogo: que ningún idioma quede a medias. Una clave que
   // falta en un idioma hace que next-intl muestre la ruta cruda de la clave.
   it("todos los idiomas tienen EXACTAMENTE el mismo juego de claves que en.json", () => {
-    const base = leafKeys(readMessages("en")).sort();
+    const base = LEAF_KEYS.get("en")!;
     expect(base.length).toBeGreaterThan(2000); // sanity: el archivo se leyó de verdad
+
+    // Con Set, no con Array.includes: comparar dos listas de ~2500 claves a
+    // fuerza bruta son 6 millones de comparaciones por idioma, y con 45 idiomas
+    // eso reventaba el timeout de 5 s de Vitest. El síntoma era "Test timed out",
+    // que se lee como si una traducción estuviera rota y no como lentitud.
+    const baseSet = new Set(base);
 
     for (const code of READY_LOCALES) {
       if (code === "en") continue;
-      const keys = leafKeys(readMessages(code)).sort();
-      const faltan = base.filter((k) => !keys.includes(k));
-      const sobran = keys.filter((k) => !base.includes(k));
+      const keys = LEAF_KEYS.get(code)!;
+      const keySet = new Set(keys);
+      const faltan = base.filter((k) => !keySet.has(k));
+      const sobran = keys.filter((k) => !baseSet.has(k));
       expect(faltan, `claves que FALTAN en ${code}.json`).toEqual([]);
       expect(sobran, `claves de MÁS en ${code}.json (no existen en en.json)`).toEqual([]);
     }
@@ -364,6 +381,8 @@ describe("i18n / detección por país", () => {
       BQ: "nl", // Caribe Neerlandés
       SR: "nl", // Surinam
       SJ: "nb", // Svalbard y Jan Mayen
+      GL: "da", // Groenlandia — su lengua es el groenlandés, que no servimos
+      FO: "da", // Islas Feroe — su lengua es el feroés, que no servimos
       BN: "ms", // Brunéi
     };
     for (const [cc, locale] of Object.entries(REUSED)) {
@@ -385,7 +404,7 @@ describe("i18n / detección por país", () => {
     // SIGAN existiendo: son la única señal de que aquí se revisó el idioma y se
     // eligió el inglés. Si alguien las borra por redundantes, estos países vuelven
     // a ser indistinguibles de los que nadie ha mirado nunca.
-    for (const cc of ["WS", "TO", "VU", "TV", "GL", "FO"]) {
+    for (const cc of ["WS", "TO", "VU", "TV", "BT"]) {
       expect(NON_EU_COUNTRY_TO_LOCALE[cc], `${cc} perdió su entrada explícita`).toBe("en");
       expect(localeFromCountry(cc)).toBe("en");
     }
@@ -396,7 +415,13 @@ describe("i18n / detección por país", () => {
     // marcarse como RTL, el árabe no se ve "sin espejar": se rompe a nivel de
     // CARÁCTER —orden invertido, puntuación al lado contrario, inputs escribiendo
     // al revés— y eso no lo detecta ningún test de traducción.
+    // El conjunto va fijado entero, no derivado de RTL_LOCALES: si el bucle de
+    // abajo se limitara a saltarse lo que hay en la tabla, sacar un idioma de
+    // ella lo mandaría a la rama LTR y el test seguiría pasando. Así, añadir o
+    // quitar un RTL obliga a tocar esta línea a propósito.
+    expect([...RTL_LOCALES].sort()).toEqual(["ar", "dv"]);
     expect(localeDir("ar")).toBe("rtl");
+    expect(localeDir("dv")).toBe("rtl");
     for (const code of READY_LOCALES) {
       if (RTL_LOCALES.has(code)) continue;
       expect(localeDir(code), `${code} no debería ser RTL`).toBe("ltr");

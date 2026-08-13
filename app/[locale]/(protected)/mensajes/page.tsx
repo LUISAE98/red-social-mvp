@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useTranslations } from "next-intl";
 
 import { useAuth } from "@/app/providers";
@@ -8,6 +8,7 @@ import { useInbox } from "@/lib/chat/useInbox";
 import { getOtherParticipant } from "@/lib/chat/types";
 import { useChatDock } from "@/components/chat/ChatDockProvider";
 import ConversationList from "@/components/chat/ConversationList";
+import { ConversationListSkeleton } from "@/components/chat/ChatSkeletons";
 import { useProfileMinis } from "@/lib/chat/useProfileMinis";
 
 /**
@@ -22,7 +23,7 @@ export default function MessagesPage() {
   const { user } = useAuth();
   const selfUid = user?.uid ?? null;
 
-  const { conversations, loading } = useInbox(selfUid);
+  const { conversations, loading, hasMore, loadingMore, loadMore } = useInbox(selfUid);
   const { conversations: requests } = useInbox(selfUid, ["request"]);
   const { openChat, activeConversationIds } = useChatDock();
 
@@ -34,6 +35,25 @@ export default function MessagesPage() {
   }, [conversations, requests, selfUid]);
 
   const profiles = useProfileMinis(counterpartIds);
+
+  // Dispara la siguiente tanda al llegar al final. El margen la adelanta para
+  // que ya esté puesta cuando el dedo llegue abajo.
+  const loadMoreSentinelRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!hasMore || loadingMore) return;
+    const sentinel = loadMoreSentinelRef.current;
+    if (!sentinel) return;
+
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) void loadMore();
+      },
+      { rootMargin: "0px 0px 300px 0px" }
+    );
+    io.observe(sentinel);
+    return () => io.disconnect();
+  }, [hasMore, loadingMore, loadMore]);
 
   // Estilos del sidebar que `ConversationList` espera; aquí van planos porque
   // la página no tiene el panel morado de fondo que sí tiene el sidebar.
@@ -70,6 +90,16 @@ export default function MessagesPage() {
         activeConversationIds={activeConversationIds}
         onOpenConversation={handleOpen}
       />
+
+      {/* Historial: al asomarse el final de la lista se trae la siguiente
+          tanda. El centinela va ANTES de las solicitudes, que son un bloque
+          aparte y no deben empujarlo fuera de vista. */}
+      {!loading && hasMore && (
+        <>
+          <div ref={loadMoreSentinelRef} aria-hidden style={{ height: 1 }} />
+          {loadingMore && <ConversationListSkeleton rows={3} />}
+        </>
+      )}
 
       {requests.length > 0 && (
         <div className="msgRequests">

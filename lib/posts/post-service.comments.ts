@@ -22,6 +22,7 @@ import {
 } from "./post-service.internal";
 import { hydrateComment, hydrateCommentReply, attachViewerCommentFlameState } from "./post-service.hydration";
 import { ensureUserCanCommentOnPost } from "./post-service.access";
+import { attachRestrictedCommentImageUrls } from "./restricted-media";
 import type { Comment, CommentReply, CommentImage, CommentMention, CommentEditEntry } from "./types";
 
 type ToggleCommentFlameResponse = {
@@ -166,7 +167,11 @@ async function fetchCommentsPage(params: {
     viewerUid
   );
 
-  return { comments, hasMore };
+  // Firma las imágenes de comunidades privadas/ocultas, que se guardan sin URL.
+  return {
+    comments: await attachRestrictedCommentImageUrls(params.postId, comments),
+    hasMore,
+  };
 }
 
 export async function fetchPostComments(postId: string): Promise<Comment[]> {
@@ -511,7 +516,10 @@ async function fetchRepliesPage(params: {
     repliesWithGroupBlockState
   );
 
-  return { replies, hasMore };
+  return {
+    replies: await attachRestrictedCommentImageUrls(params.postId, replies),
+    hasMore,
+  };
 }
 
 export async function fetchCommentReplies(params: {

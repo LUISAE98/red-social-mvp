@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import ServiceFeaturePreview from "@/components/services/ServiceFeaturePreview";
 
 /**
@@ -40,8 +41,8 @@ export default function LoginExperienceBlock({
   accentColor,
   items,
   omitIcons,
-  separateItems = false,
   itemsLeft = false,
+  active = true,
 }: {
   /** Antetítulo. El CSS lo pinta en MAYÚSCULAS. */
   eyebrow: string;
@@ -71,18 +72,61 @@ export default function LoginExperienceBlock({
    * hay un creador concreto detrás.
    */
   omitIcons?: readonly string[];
-  /**
-   * Traza una línea tenue entre item e item. Con pocos items el espacio en
-   * blanco solo no alcanza a separarlos y se leen como un párrafo corrido.
-   */
-  separateItems?: boolean;
   /** Los items van a la IZQUIERDA. Se alterna bloque a bloque. */
   itemsLeft?: boolean;
+  /**
+   * El bloque es el visible. En laptop siempre lo es; en el carrusel de celular
+   * lo pone el rail, y solo el activo reproduce su video —cinco videos a la vez
+   * en un celular son batería y datos tirados.
+   */
+  active?: boolean;
 }) {
   const services = Array.isArray(service) ? service : [service as ServiceKey];
 
+  // Entrada al hacer scroll. Se dispara UNA vez, con el 22% del bloque a la
+  // vista, y a partir de ahí el CSS encadena video → texto → items.
+  const sectionRef = useRef<HTMLElement | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const [entered, setEntered] = useState(false);
+
+  useEffect(() => {
+    const v = videoRef.current;
+    if (!v) return;
+    if (active) {
+      // Puede rechazarse (política de reproducción del navegador); el póster
+      // queda debajo, así que el círculo nunca se ve vacío.
+      void v.play().catch(() => {});
+    } else {
+      v.pause();
+    }
+  }, [active]);
+
+  useEffect(() => {
+    const node = sectionRef.current;
+    // Sin observador (navegador viejo) el bloque se muestra tal cual: el estado
+    // de partida es invisible, así que un fallo aquí escondería el contenido.
+    if (!node || typeof IntersectionObserver === "undefined") {
+      const id = requestAnimationFrame(() => setEntered(true));
+      return () => cancelAnimationFrame(id);
+    }
+    const obs = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          setEntered(true);
+          obs.disconnect();
+        }
+      },
+      { threshold: 0.22 },
+    );
+    obs.observe(node);
+    return () => obs.disconnect();
+  }, []);
+
   return (
-    <section className={itemsLeft ? "expBlock expBlockFlip" : "expBlock"}>
+    <section
+      ref={sectionRef}
+      className={`expBlock${itemsLeft ? " expBlockFlip" : ""}${entered ? " expBlockIn" : ""}`}
+    >
       <style jsx>{`
         /* Una fila = dos mitades. Las dos con minmax(0, 1fr) para que ninguna se
            ensanche por su contenido y las filas queden alineadas entre sí. */
@@ -175,16 +219,6 @@ export default function LoginExperienceBlock({
           margin-top: 14px;
         }
 
-        /* Línea entre items. Los selectores de hijo directo apuntan a las FILAS
-           que arma ServiceFeaturePreview (mosaico > fila), sin alcanzar el
-           texto de adentro. La línea va apenas visible: separa sin dibujar una
-           tabla. */
-        .expBlockItemsSep > :global(div) > :global(div) + :global(div) {
-          border-top: 1px solid rgba(255, 255, 255, 0.13);
-          padding-top: 12px;
-          margin-top: 2px;
-        }
-
         /* Celular: una sola columna y los items SIEMPRE debajo, sin importar el
            alternado. (El acomodo fino de móvil se hace aparte.) */
         @media (max-width: 900px) {
@@ -205,9 +239,93 @@ export default function LoginExperienceBlock({
           }
         }
 
+        /* ── Entrada ──────────────────────────────────────────────────────
+           Estado de partida de cada pieza. La clase .expBlockIn (la pone el
+           observador al entrar el bloque) las lleva a su sitio; los retrasos
+           son lo que arma la secuencia video → texto → items, poco más de un
+           segundo en total. La curva es de salida rápida y frenado largo, que
+           es lo que hace que se sienta un movimiento y no un parpadeo. */
+        .expBlockMedia {
+          opacity: 0;
+          transform: translateY(20px) scale(0.92);
+          transition:
+            opacity 700ms ease,
+            transform 700ms cubic-bezier(0.22, 1, 0.36, 1);
+        }
+        .expBlockIn .expBlockMedia {
+          opacity: 1;
+          transform: none;
+        }
+
+        .expBlockEyebrow,
+        .expBlockTitle,
+        .expBlockDesc {
+          opacity: 0;
+          transform: translateY(24px);
+          transition:
+            opacity 600ms ease 120ms,
+            transform 600ms cubic-bezier(0.22, 1, 0.36, 1) 120ms;
+        }
+        .expBlockIn .expBlockEyebrow,
+        .expBlockIn .expBlockTitle,
+        .expBlockIn .expBlockDesc {
+          opacity: 1;
+          transform: none;
+        }
+
+        /* Los items entran DESDE SU LADO —de la izquierda si están a la
+           izquierda— para que el movimiento acompañe al alternado en vez de
+           contradecirlo. Los selectores llegan a las filas que arma
+           ServiceFeaturePreview (mosaico > fila). */
+        .expBlockItems > :global(div) > :global(div) {
+          opacity: 0;
+          transform: translateX(20px);
+          transition:
+            opacity 520ms ease,
+            transform 520ms cubic-bezier(0.22, 1, 0.36, 1);
+        }
+        .expBlockFlip .expBlockItems > :global(div) > :global(div) {
+          transform: translateX(-20px);
+        }
+        .expBlockIn .expBlockItems > :global(div) > :global(div) {
+          opacity: 1;
+          transform: none;
+        }
+
+        /* Uno por uno, 100 ms de separación, arrancando cuando el texto ya va
+           en camino. */
+        .expBlockItems > :global(div) > :global(div):nth-child(1) {
+          transition-delay: 260ms;
+        }
+        .expBlockItems > :global(div) > :global(div):nth-child(2) {
+          transition-delay: 360ms;
+        }
+        .expBlockItems > :global(div) > :global(div):nth-child(3) {
+          transition-delay: 460ms;
+        }
+        .expBlockItems > :global(div) > :global(div):nth-child(4) {
+          transition-delay: 560ms;
+        }
+        .expBlockItems > :global(div) > :global(div):nth-child(5) {
+          transition-delay: 660ms;
+        }
+        .expBlockItems > :global(div) > :global(div):nth-child(6) {
+          transition-delay: 760ms;
+        }
+
         @media (prefers-reduced-motion: reduce) {
           .expBlockMedia video {
             visibility: hidden;
+          }
+          /* Quien pidió menos movimiento ve el bloque puesto, sin recorrido. */
+          .expBlockMedia,
+          .expBlockEyebrow,
+          .expBlockTitle,
+          .expBlockDesc,
+          .expBlockItems > :global(div) > :global(div) {
+            opacity: 1;
+            transform: none;
+            transition: none;
           }
         }
       `}</style>
@@ -225,6 +343,7 @@ export default function LoginExperienceBlock({
           }}
         >
           <video
+            ref={videoRef}
             src={videoSrc}
             poster={poster}
             autoPlay
@@ -246,7 +365,7 @@ export default function LoginExperienceBlock({
         <p className="expBlockDesc">{description}</p>
       </div>
 
-      <div className={separateItems ? "expBlockItems expBlockItemsSep" : "expBlockItems"}>
+      <div className="expBlockItems">
         {services.map((s) => (
           <ServiceFeaturePreview
             key={s}

@@ -60,6 +60,16 @@ service firebase.storage {
 
     // ==============================
     // POSTS (imagenes)
+    //
+    // La lectura sigue abierta porque la inmensa mayoría del contenido es
+    // público y encarecerlo con una consulta a Firestore por imagen no compensa.
+    //
+    // Lo de comunidades PRIVADAS y OCULTAS no se protege desde aquí, y no por
+    // descuido: sus imágenes ya no se guardan con URL de descarga, así que no
+    // hay enlace que repartir. Se piden firmadas a `getRestrictedMediaUrls`, que
+    // comprueba la membresía y las caduca a la hora. Cerrar aquí no añadiría
+    // nada — una URL firmada no consulta estas reglas — y en cambio rompería
+    // todo el contenido público.
     // ==============================
 match /posts/{groupId}/{uid}/{folder}/{fileName} {
   allow read: if true;
@@ -87,30 +97,21 @@ match /posts/{groupId}/{uid}/{folder}/{fileName} {
     // ==============================
     // DM IMAGES (imagen adjunta a un mensaje directo)
     //
-    // Solo los DOS participantes del hilo. Y sí se puede comprobar desde aquí,
-    // aunque Storage no sepa consultar Firestore: el ID de la conversación ES
-    // los dos UIDs ordenados y unidos por "_", y firestore.rules obliga a que
-    // así sea (`convId == participantsKey`, `participants[0] + "_" +
-    // participants[1]`). O sea que la propia ruta lleva dentro quién participa,
-    // y comprobarlo es comparar cadenas.
+    // LECTURA CERRADA A CAL Y CANTO. Nadie lee estos archivos directamente: la
+    // única puerta es la Cloud Function `getDirectMessageImageUrls`, que
+    // comprueba en Firestore que quien pide es participante del hilo y devuelve
+    // una URL FIRMADA que caduca en una hora.
     //
-    // Es la MISMA garantía que daba la Cloud Function que firmaba URLs — aquella
-    // también miraba solo `participants` —, pero sin depender de que el proyecto
-    // tenga permiso para firmar. Y es más estricta en un punto: el cliente lee
-    // los bytes con su sesión, así que no queda ninguna URL suelta que se pueda
-    // compartir ni que siga sirviendo tras borrar el mensaje.
+    // Que esté cerrado aquí es lo que hace que esa caducidad signifique algo. Si
+    // se dejara leer a los participantes, cualquiera de los dos podría pedir por
+    // su cuenta una URL de descarga con token permanente y saltarse el límite —
+    // y con él, el efecto de bloquear a alguien o borrar un mensaje.
     //
-    // Los UIDs de Firebase son alfanuméricos y nunca llevan "_", así que partir
-    // por ese carácter da exactamente los dos participantes.
+    // (Estuvo abierto un rato como apaño mientras el proyecto no tenía el
+    // permiso de IAM para firmar. Ya lo tiene.)
     // ==============================
     match /dmImages/{conversationId}/{uid}/{folder}/{fileName} {
-      function isConversationParticipant() {
-        return isSignedIn()
-          && conversationId.split('_').size() == 2
-          && conversationId.split('_').hasAny([request.auth.uid]);
-      }
-
-      allow read: if isConversationParticipant();
+      allow read: if false;
 
       allow write: if isSignedIn()
         && request.auth.uid == uid

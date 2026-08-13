@@ -52,6 +52,8 @@ export const LOCALE_META: readonly LocaleMeta[] = [
   { code: "cs", label: "CS", name: "Čeština", intl: "cs-CZ", ready: true },
   { code: "da", label: "DA", name: "Dansk", intl: "da-DK", ready: true },
   { code: "de", label: "DE", name: "Deutsch", intl: "de-DE", ready: true },
+  // Escritura thaana y RTL, como el árabe. Maldivas.
+  { code: "dv", label: "DV", name: "ދިވެހި", intl: "dv", ready: true },
   { code: "el", label: "EL", name: "Ελληνικά", intl: "el-GR", ready: true },
   { code: "en", label: "EN", name: "English", intl: "en-US", ready: true },
   { code: "es", label: "ES", name: "Español", intl: "es-MX", ready: true },
@@ -88,6 +90,8 @@ export const LOCALE_META: readonly LocaleMeta[] = [
   // Bokmål, no nynorsk: es la variante escrita de ~85–90 % de los noruegos y la
   // que usa el software. Se derivó de `da`, que es su pariente escrito directo.
   { code: "nb", label: "NB", name: "Norsk bokmål", intl: "nb-NO", ready: true },
+  // Devanágari. Nepal; el inglés circula allí, así que esto mejora el fallback.
+  { code: "ne", label: "NE", name: "नेपाली", intl: "ne", ready: true },
   { code: "nl", label: "NL", name: "Nederlands", intl: "nl-NL", ready: true },
   { code: "pl", label: "PL", name: "Polski", intl: "pl-PL", ready: true },
   // Las dos variantes del portugués comparten idioma pero NO etiqueta: `label` es el chip
@@ -131,7 +135,7 @@ export const LOCALE_META: readonly LocaleMeta[] = [
  * en toda la app. Al terminar el archivo de un idioma: pon su `ready: true` arriba
  * Y agrégalo a esta tupla. El test de i18n verifica que ambas listas coincidan.
  */
-export const READY_LOCALES = ["es", "en", "pt-BR", "de", "fr", "it", "nl", "pl", "ro", "el", "cs", "hu", "sv", "pt-PT", "da", "fi", "sk", "bg", "hr", "lt", "sl", "lv", "et", "ga", "mt", "ja", "zh-TW", "id", "ms", "th", "bs", "nb", "is", "tr", "ko", "vi", "sr", "sq", "az", "ca", "ar", "fil", "mn", "si", "km"] as const;
+export const READY_LOCALES = ["es", "en", "pt-BR", "de", "fr", "it", "nl", "pl", "ro", "el", "cs", "hu", "sv", "pt-PT", "da", "fi", "sk", "bg", "hr", "lt", "sl", "lv", "et", "ga", "mt", "ja", "zh-TW", "id", "ms", "th", "bs", "nb", "is", "tr", "ko", "vi", "sr", "sq", "az", "ca", "ar", "fil", "mn", "si", "km", "ne", "dv"] as const;
 
 export type Locale = (typeof READY_LOCALES)[number];
 
@@ -252,6 +256,8 @@ export const NON_EU_COUNTRY_TO_LOCALE: Readonly<Record<string, string>> = {
   KH: "km", // Camboya
   LK: "si", // Sri Lanka
   MN: "mn", // Mongolia
+  MV: "dv", // Maldivas
+  NP: "ne", // Nepal
   PH: "fil", // Filipinas — inglés cooficial, pero el filipino es el idioma nacional
   MA: "ar", // Marruecos — el francés también es de uso corriente, pero el árabe es el oficial
   AD: "ca", // Andorra — el catalán es la única lengua oficial del país
@@ -298,6 +304,12 @@ export const NON_EU_COUNTRY_TO_LOCALE: Readonly<Record<string, string>> = {
 
   // Nórdicos.
   SJ: "nb", // Svalbard y Jan Mayen
+  // Groenlandia y las Feroe: su lengua propia es el groenlandés y el feroés, y no
+  // servimos ninguna de las dos. El danés es la mejor aproximación que tenemos —
+  // cooficial en las Feroe y lengua escolar obligatoria en ambas—, así que se
+  // entiende mejor que el inglés. Estuvieron en inglés hasta 2026-08-12.
+  GL: "da", // Groenlandia — groenlandés oficial
+  FO: "da", // Islas Feroe — feroés oficial
 
   // Malayo.
   BN: "ms", // Brunéi
@@ -315,12 +327,11 @@ export const NON_EU_COUNTRY_TO_LOCALE: Readonly<Record<string, string>> = {
   TO: "en", // Tonga — tongano cooficial
   VU: "en", // Vanuatu — bislama y francés cooficiales
   TV: "en", // Tuvalu — tuvaluano cooficial
-  // ⚠️ Estos dos son decisión de producto, no lingüística: su lengua propia es
-  // el groenlandés y el feroés, y el DANÉS —que sí servimos— es cooficial en las
-  // Feroe y lengua escolar obligatoria en ambas, o sea que se entiende mejor que
-  // el inglés. Cambiar el valor a "da" es lo único que hace falta si se revierte.
-  GL: "en", // Groenlandia
-  FO: "en", // Islas Feroe
+  // Bután. Su lengua es el dzongkha y NO lo servimos a propósito: el inglés es
+  // allí lengua de gobierno y el medio de enseñanza en la escuela, así que una
+  // traducción sin hablante nativo que la revise —en pantallas de dinero— sería
+  // peor que el respaldo. Decisión de Luis, 2026-08-12.
+  BT: "en", // Bután — dzongkha oficial
 };
 
 /**
@@ -338,7 +349,7 @@ export const NON_EU_COUNTRY_TO_LOCALE: Readonly<Record<string, string>> = {
  * una maquetación sin espejar. El espejado visual de la interfaz es un trabajo
  * aparte y progresivo (ver docs/rtl-pendiente.md).
  */
-export const RTL_LOCALES: ReadonlySet<string> = new Set(["ar"]);
+export const RTL_LOCALES: ReadonlySet<string> = new Set(["ar", "dv"]);
 
 /** "rtl" si el locale se escribe de derecha a izquierda; "ltr" en cualquier otro caso. */
 export function localeDir(locale: string | null | undefined): "rtl" | "ltr" {

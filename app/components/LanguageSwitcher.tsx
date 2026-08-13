@@ -189,6 +189,20 @@ export default function LanguageSwitcher({ variant = "desktop" }: { variant?: Va
 
   function switchLocale(next: Locale) {
     handleClose();
+    // 🚨 Marca de ELECCIÓN MANUAL 🚨
+    //
+    // `NEXT_LOCALE` no distingue "lo detecté yo por IP" de "el usuario lo eligió": el
+    // middleware la escribe igual en la primera visita, con un año de vigencia. Sin esta
+    // marca, una detección automática queda congelada para siempre y alguien que se muda
+    // de país sigue viendo el idioma de su primera visita.
+    //
+    // Con la marca puesta, el middleware deja de refrescar el idioma por geolocalización
+    // y respeta la decisión, que es lo que siempre se quiso hacer.
+    try {
+      document.cookie = `vibra_locale_manual=1; max-age=${60 * 60 * 24 * 365}; path=/; samesite=lax`;
+    } catch {
+      // Sin cookies el idioma se sigue refrescando por geo: degradación aceptable.
+    }
     startTransition(() => {
       router.replace(pathname, { locale: next });
     });

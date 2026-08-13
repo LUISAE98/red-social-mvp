@@ -41,6 +41,13 @@ export async function requestCashout(): Promise<{ ok: boolean; amount: number }>
   return res.data;
 }
 
+/** El comprador descarta el aviso de una devolución rechazada (persiste entre dispositivos). */
+export async function dismissCashoutNotice(cashoutId: string): Promise<{ ok: boolean }> {
+  const fn = httpsCallable<{ cashoutId: string }, { ok: boolean }>(functions, "dismissCashoutNotice");
+  const res = await fn({ cashoutId });
+  return res.data;
+}
+
 /** 🧪 Solo-moderador (QA): captura un hold por su `pi_...` y emite crédito reembolsable. */
 export async function devCaptureAndCredit(
   stripePaymentIntentId: string

@@ -59,6 +59,8 @@ export default function AdminRefundsPage() {
   const [devPi, setDevPi] = useState("");
   const [devBusy, setDevBusy] = useState(false);
   const [devMsg, setDevMsg] = useState<string | null>(null);
+  const [rejectingId, setRejectingId] = useState<string | null>(null);
+  const [rejectNote, setRejectNote] = useState("");
 
   async function handleDevCapture() {
     const pi = devPi.trim();
@@ -141,14 +143,9 @@ export default function AdminRefundsPage() {
     };
   }, [selected, creatorNames]);
 
-  async function handleResolve(action: "approve" | "reject") {
+  async function handleResolve(action: "approve" | "reject", note?: string) {
     if (!selected) return;
-    if (action === "reject") {
-      const ok = window.confirm(
-        `¿Rechazar la solicitud de ${money(selected.amount, locale)} de ${selected.buyerName || "el comprador"}? El saldo se le devuelve.`
-      );
-      if (!ok) return;
-    } else {
+    if (action === "approve") {
       const ok = window.confirm(
         `¿Aprobar y reembolsar ${money(selected.amount, locale)} a la tarjeta original de ${selected.buyerName || "el comprador"}? Esta acción dispara reembolsos en Stripe.`
       );
@@ -157,7 +154,9 @@ export default function AdminRefundsPage() {
     setBusy(true);
     setError(null);
     try {
-      await resolveCashout(selected.id, action);
+      await resolveCashout(selected.id, action, note);
+      setRejectingId(null);
+      setRejectNote("");
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "No se pudo resolver la solicitud.");
     } finally {
@@ -333,22 +332,51 @@ export default function AdminRefundsPage() {
 
                     {/* Acciones */}
                     {r.status === "pending" && (
-                      <div style={{ display: "flex", gap: 8 }}>
-                        <button
-                          onClick={() => handleResolve("approve")}
-                          disabled={busy}
-                          style={{ ...actionBtn, background: "#7c3aed", color: "#fff", opacity: busy ? 0.6 : 1 }}
-                        >
-                          {busy ? "…" : "Aprobar y reembolsar"}
-                        </button>
-                        <button
-                          onClick={() => handleResolve("reject")}
-                          disabled={busy}
-                          style={{ ...actionBtn, background: "transparent", color: "#f87171", border: "1px solid #3d1515", opacity: busy ? 0.6 : 1 }}
-                        >
-                          Rechazar
-                        </button>
-                      </div>
+                      rejectingId === r.id ? (
+                        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                          <textarea
+                            value={rejectNote}
+                            onChange={(e) => setRejectNote(e.target.value)}
+                            placeholder="Explica al comprador por qué se rechaza. Lo verá junto a su crédito, así que sé claro…"
+                            rows={3}
+                            autoFocus
+                            style={{ background: "#111", border: "1px solid #2a2a2a", borderRadius: 8, padding: "8px 10px", fontSize: 12.5, color: "#ddd", outline: "none", resize: "vertical", fontFamily: "inherit", lineHeight: 1.4 }}
+                          />
+                          <div style={{ display: "flex", gap: 8 }}>
+                            <button
+                              onClick={() => handleResolve("reject", rejectNote.trim())}
+                              disabled={busy || !rejectNote.trim()}
+                              style={{ ...actionBtn, background: "#7f1d1d", color: "#fff", opacity: busy || !rejectNote.trim() ? 0.5 : 1 }}
+                            >
+                              {busy ? "…" : "Confirmar rechazo"}
+                            </button>
+                            <button
+                              onClick={() => { setRejectingId(null); setRejectNote(""); }}
+                              disabled={busy}
+                              style={{ ...actionBtn, background: "transparent", color: "#888", border: "1px solid #2a2a2a" }}
+                            >
+                              Cancelar
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div style={{ display: "flex", gap: 8 }}>
+                          <button
+                            onClick={() => handleResolve("approve")}
+                            disabled={busy}
+                            style={{ ...actionBtn, background: "#7c3aed", color: "#fff", opacity: busy ? 0.6 : 1 }}
+                          >
+                            {busy ? "…" : "Aprobar y reembolsar"}
+                          </button>
+                          <button
+                            onClick={() => { setRejectingId(r.id); setRejectNote(""); }}
+                            disabled={busy}
+                            style={{ ...actionBtn, background: "transparent", color: "#f87171", border: "1px solid #3d1515", opacity: busy ? 0.6 : 1 }}
+                          >
+                            Rechazar
+                          </button>
+                        </div>
+                      )
                     )}
                   </div>
                 )}

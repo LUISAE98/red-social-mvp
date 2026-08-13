@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useCfError } from "@/lib/i18n/cfError";
 import { createPortal } from "react-dom";
 import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import { useTranslations } from "next-intl";
@@ -63,6 +64,8 @@ async function copyToClipboardWithFallback(text: string) {
 
 export default function InviteLinkModal({ groupId, onClose, onCreated }: Props) {
   const tGroups = useTranslations("groups");
+
+  const cfError = useCfError();
   const tCommon = useTranslations("common");
     const [mounted, setMounted] = useState(false);
 
@@ -151,7 +154,7 @@ export default function InviteLinkModal({ groupId, onClose, onCreated }: Props) 
       onCreated?.();
     } catch (e: unknown) {
       console.error(e);
-      showInviteToast((e instanceof Error ? e.message : null) ?? tGroups("linkCreateError"), "error");
+      showInviteToast((e instanceof Error ? cfError(e) : null) ?? tGroups("linkCreateError"), "error");
     } finally {
       setLoading(false);
     }

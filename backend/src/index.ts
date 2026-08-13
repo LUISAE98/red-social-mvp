@@ -240,6 +240,14 @@ export { togglePostFlame } from "./postReactions";
 
 // Post comments
 export { toggleCommentFlame } from "./postComments";
+export {
+  onCommentDeletedCleanupImage,
+  onCommentReplyDeletedCleanupImage,
+} from "./commentImageCleanup";
+
+// Medios de comunidades privadas/ocultas (URL firmada que caduca)
+export { getRestrictedMediaUrls } from "./restrictedMedia";
+export { backfillRestrictedMedia } from "./restrictedMediaBackfill";
 
 // Post saves
 export {
@@ -336,7 +344,7 @@ export {
 export { mirrorLedgerToBuyerPurchase } from "./wallet/buyerPurchases";
 
 // Wallet — devolución en efectivo del saldo a favor (B7): comprador solicita, superadmin resuelve
-export { requestCashout, resolveCashout, devCaptureAndCredit } from "./wallet/cashout";
+export { requestCashout, resolveCashout, dismissCashoutNotice, devCaptureAndCredit } from "./wallet/cashout";
 
 // LiveKit — tokens de videollamada para sesiones exclusivas y meet & greet
 export { getLivekitToken } from "./livekitTokens";
@@ -355,6 +363,8 @@ export { submitReport, claimReport, resolveReport } from "./moderation";
 
 // Mensajes directos — resumen del hilo, no leídos y notificación
 export { onDirectMessageCreated } from "./directMessages";
+export { onDirectMessageChangedUpdatePreview } from "./directMessagePreview";
+export { onDirectMessageDeletedCleanupImage } from "./directMessageImageCleanup";
 
 // Mensajes directos — URLs firmadas y caducas para las imágenes adjuntas
 export { getDirectMessageImageUrls } from "./dmImages";

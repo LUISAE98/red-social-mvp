@@ -5,6 +5,8 @@ import { useTranslations } from "next-intl";
 import LiveRingAvatar from "@/app/components/LiveRing/LiveRingAvatar";
 import ProfileMoreMenu from "@/app/[locale]/(protected)/u/[handle]/components/ProfileMoreMenu";
 import ConversationThread from "./ConversationThread";
+import ChatConversationActions from "./ChatConversationActions";
+import { useConversationDoc } from "@/lib/chat/useConversationDoc";
 import type { ProfileMini } from "./ConversationList";
 
 /**
@@ -49,6 +51,9 @@ export default function ChatDock({
   const tChat = useTranslations("chat");
 
   const displayName = profile?.displayName || tCommon("user");
+  // Solo para saber si está silenciado: es el mismo documento que ya escucha el
+  // hilo, así que no añade lecturas.
+  const { conversation } = useConversationDoc(conversationId);
 
   return (
     <div
@@ -144,6 +149,19 @@ export default function ChatDock({
               // Área de clic holgada: con `padding: 0` el blanco entre los tres
               // puntos era todo lo que había que acertar.
               buttonStyle={{ fontSize: 18, padding: "6px 9px", lineHeight: 1 }}
+              extraItems={({ close, itemStyle }) =>
+                selfUid ? (
+                  <ChatConversationActions
+                    conversationId={conversationId}
+                    selfUid={selfUid}
+                    muted={(conversation?.mutedBy ?? []).includes(selfUid)}
+                    itemStyle={itemStyle}
+                    onCloseMenu={close}
+                    // Quitada de la bandeja, la pestaña se cierra sola.
+                    onRemoved={onClose}
+                  />
+                ) : null
+              }
             />
           </span>
         ) : null}

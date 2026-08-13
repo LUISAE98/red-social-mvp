@@ -17,6 +17,7 @@ import {
   writeBatch,
   type DocumentData,
   type QueryDocumentSnapshot,
+  type Timestamp,
   type Unsubscribe,
 } from "firebase/firestore";
 
@@ -340,6 +341,40 @@ export async function blockConversation(
   });
 }
 
+/**
+ * Silencia o reactiva los avisos de un hilo, solo para ti.
+ *
+ * Silenciar apaga el push; no deja de recibir mensajes ni oculta el hilo. Lo lee
+ * la Cloud Function antes de notificar.
+ */
+export async function setConversationMuted(
+  conversationId: string,
+  selfUid: string,
+  muted: boolean
+): Promise<void> {
+  await updateDoc(conversationRef(conversationId), {
+    mutedBy: muted ? arrayUnion(selfUid) : arrayRemove(selfUid),
+    updatedAt: serverTimestamp(),
+  });
+}
+
+/**
+ * Quita la conversación de TU bandeja.
+ *
+ * No borra el hilo — las rules lo prohíben a propósito, para que nadie pueda
+ * hacer desaparecer lo que escribió. Solo se marca desde cuándo dejas de verla:
+ * si esa persona vuelve a escribir, reaparece con el mensaje nuevo.
+ */
+export async function hideConversationForMe(
+  conversationId: string,
+  selfUid: string
+): Promise<void> {
+  await updateDoc(conversationRef(conversationId), {
+    [`hiddenAt.${selfUid}`]: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+}
+
 /** Desbloquea. Las rules rechazan esto si no fuiste tú quien bloqueó. */
 export async function unblockConversation(conversationId: string): Promise<void> {
   await updateDoc(conversationRef(conversationId), {
@@ -470,6 +505,40 @@ export function subscribeToInbox(
       onError?.(err);
     }
   );
+}
+
+/**
+ * Conversaciones ANTERIORES a las que ya están en la bandeja.
+ *
+ * El listener en vivo se queda acotado a la primera página, como el del hilo:
+ * el historial se trae de una sola vez y NO queda suscrito. Así una bandeja de
+ * doscientas conversaciones no multiplica el costo del listener.
+ *
+ * `before` es el `lastMessageAt` de la conversación más antigua ya cargada.
+ */
+export async function fetchOlderConversations(params: {
+  selfUid: string;
+  statuses: ConversationStatus[];
+  before: Timestamp;
+  pageSize?: number;
+}): Promise<{ conversations: ConversationWithId[]; hasMore: boolean }> {
+  const pageSize = params.pageSize ?? INBOX_PAGE_SIZE;
+
+  const snap = await getDocs(
+    query(
+      conversationsCol(),
+      where("participants", "array-contains", params.selfUid),
+      where("status", "in", params.statuses),
+      orderBy("lastMessageAt", "desc"),
+      startAfter(params.before),
+      fsLimit(pageSize)
+    )
+  );
+
+  return {
+    conversations: snap.docs.map(toConversation),
+    hasMore: snap.docs.length === pageSize,
+  };
 }
 
 /**

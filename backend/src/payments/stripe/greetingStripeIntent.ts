@@ -79,7 +79,7 @@ export const createGreetingStripeIntent = onCall(
     // El país fiscal NO se confía del cliente: si manda uno sin IVA configurado (para
     // evadir el impuesto), se rechaza. Solo se cobra donde el impuesto está definido (MX).
     if (!isChargeableCountry(country)) {
-      throw new HttpsError("failed-precondition", "El cobro solo está disponible en México por ahora.");
+      throw new HttpsError("failed-precondition", "El cobro no está disponible en tu país por ahora.");
     }
     // Composición completa (base + $3 → +2% FX → + impuesto si lo cobra Vibra). Ver impuestos.md §2.
     const charge = composeCharge(base, country);

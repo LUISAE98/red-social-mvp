@@ -13,6 +13,8 @@ import { useAuth } from "@/app/providers";
 import LiveRingAvatar from "@/app/components/LiveRing/LiveRingAvatar";
 import ProfileMoreMenu from "@/app/[locale]/(protected)/u/[handle]/components/ProfileMoreMenu";
 import ConversationThread from "@/components/chat/ConversationThread";
+import ChatConversationActions from "@/components/chat/ChatConversationActions";
+import { useConversationDoc } from "@/lib/chat/useConversationDoc";
 import { useProfileMini } from "@/lib/chat/useProfileMini";
 import { getOtherParticipant } from "@/lib/chat/types";
 
@@ -47,6 +49,9 @@ export default function ConversationPage() {
       : null;
 
   const { profile } = useProfileMini(otherUid);
+  // Solo para saber si el hilo está silenciado; el propio hilo ya se suscribe
+  // por su cuenta y el listener es el mismo documento.
+  const { conversation } = useConversationDoc(conversationId);
   const displayName = profile?.displayName || tCommon("user");
 
   const [closing, setClosing] = useState(false);
@@ -334,6 +339,20 @@ export default function ConversationPage() {
               targetOwnerId: otherUid,
             }}
             buttonStyle={{ fontSize: 20, padding: "0 8px", marginRight: 6 }}
+            extraItems={({ close, itemStyle }) =>
+              selfUid ? (
+                <ChatConversationActions
+                  conversationId={conversationId}
+                  selfUid={selfUid}
+                  muted={(conversation?.mutedBy ?? []).includes(selfUid)}
+                  itemStyle={itemStyle}
+                  onCloseMenu={close}
+                  // Quitada de la bandeja, quedarse dentro del hilo no tiene
+                  // sentido: se vuelve a la lista.
+                  onRemoved={handleBack}
+                />
+              ) : null
+            }
           />
         ) : null}
       </header>

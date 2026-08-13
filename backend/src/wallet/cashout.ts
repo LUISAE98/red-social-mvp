@@ -204,6 +204,29 @@ export const requestCashout = onCall(
 );
 
 /**
+ * El COMPRADOR descarta el aviso de una solicitud RECHAZADA (el tache de la leyenda). Marca
+ * `buyerDismissedAt` en su propia solicitud → persiste entre dispositivos y no vuelve a
+ * aparecer. Solo el dueño; solo el flag (no toca saldo ni estado).
+ */
+export const dismissCashoutNotice = onCall(
+  { region: "us-central1" },
+  async (request) => {
+    const uid = request.auth?.uid;
+    if (!uid) throw new HttpsError("unauthenticated", "Debes iniciar sesión.");
+    const cashoutId = str(request.data?.cashoutId);
+    if (!cashoutId) throw new HttpsError("invalid-argument", "Falta cashoutId.");
+    const ref = db.collection("cashoutRequests").doc(cashoutId);
+    const snap = await ref.get();
+    if (!snap.exists) throw new HttpsError("not-found", "Solicitud no encontrada.");
+    if (str(snap.get("buyerId")) !== uid) {
+      throw new HttpsError("permission-denied", "No es tu solicitud.");
+    }
+    await ref.update({ buyerDismissedAt: FieldValue.serverTimestamp() });
+    return { ok: true };
+  }
+);
+
+/**
  * 🧪 HELPER DE PRUEBA (solo-moderador). Dado el `pi_...` de Stripe que ves en el dashboard,
  * CAPTURA el hold de una experiencia (lo cobra de verdad) y emite el crédito de devolución
  * reembolsable — para poder probar el cash-out sin esperar el día-6 ni el rechazo real.

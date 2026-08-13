@@ -1,6 +1,7 @@
 import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 
-import { auth, storage } from "@/lib/firebase";
+import { doc, getDoc } from "firebase/firestore";
+import { auth, db, storage } from "@/lib/firebase";
 import {
   createImageThumbnailFile,
   normalizeImageFile,
@@ -141,10 +142,14 @@ export async function uploadPostImage(params: {
     },
   });
 
-  const [url, thumbnailUrl] = await Promise.all([
-    getDownloadURL(imageRef),
-    getDownloadURL(thumbnailRef),
-  ]);
+  // En comunidad privada u oculta NO se pide la URL de descarga: esa lleva un
+  // token permanente que abre el archivo sin sesión y para siempre. Se guardan
+  // solo las rutas y la URL la firma (y la caduca) `getRestrictedMediaUrls`.
+  const restricted = await isRestrictedGroup(params.groupId);
+
+  const [url, thumbnailUrl] = restricted
+    ? ["", null]
+    : await Promise.all([getDownloadURL(imageRef), getDownloadURL(thumbnailRef)]);
 
   return {
     type: "image",
@@ -158,6 +163,48 @@ export async function uploadPostImage(params: {
     thumbnailPath,
     altText: null,
   };
+}
+
+/**
+ * ¿Los medios de esta comunidad tienen que ir protegidos?
+ *
+ * Privada y oculta sí; pública no — ahí la URL directa es más barata y no hay
+ * nada que proteger. El primer segmento de la ruta de un post de PERFIL es el
+ * uid del autor, no un grupo, así que ahí simplemente no existe el documento y
+ * se resuelve como no restringido.
+ *
+ * Se cachea por proceso: subir cinco fotos a la misma comunidad no debe costar
+ * cinco lecturas.
+ */
+const RESTRICTED_GROUP_CACHE = new Map<string, boolean>();
+
+async function isRestrictedGroup(groupId: string): Promise<boolean> {
+  const cached = RESTRICTED_GROUP_CACHE.get(groupId);
+  if (cached !== undefined) return cached;
+
+  try {
+    const snap = await getDoc(doc(db, "groups", groupId));
+    const visibility = snap.exists() ? snap.data()?.visibility : null;
+    const restricted = visibility === "private" || visibility === "hidden";
+    RESTRICTED_GROUP_CACHE.set(groupId, restricted);
+    return restricted;
+  } catch {
+    // Ante la duda, protegido: es preferible una imagen que hay que firmar a
+    // una filtrada.
+    return true;
+  }
+}
+
+/** Igual que arriba pero partiendo del post, para las imágenes de comentario. */
+async function isRestrictedPost(postId: string): Promise<boolean> {
+  try {
+    const snap = await getDoc(doc(db, "posts", postId));
+    const groupId = snap.exists() ? snap.data()?.groupId : null;
+    if (typeof groupId !== "string" || !groupId) return false;
+    return isRestrictedGroup(groupId);
+  } catch {
+    return true;
+  }
 }
 
 function buildCommentImageStoragePath(params: {
@@ -250,10 +297,13 @@ export async function uploadCommentImage(params: {
     },
   });
 
-  const [url, thumbnailUrl] = await Promise.all([
-    getDownloadURL(imageRef),
-    getDownloadURL(thumbnailRef),
-  ]);
+  // Mismo criterio que las imágenes de post: en comunidad privada u oculta se
+  // guardan solo rutas, sin URL de token permanente.
+  const restricted = await isRestrictedPost(params.postId);
+
+  const [url, thumbnailUrl] = restricted
+    ? ["", ""]
+    : await Promise.all([getDownloadURL(imageRef), getDownloadURL(thumbnailRef)]);
 
   return {
     url,

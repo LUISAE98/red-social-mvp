@@ -21,6 +21,7 @@ import { getNextFromSearchParams } from "@/lib/auth-redirect";
 import LoginCollageBackground from "./LoginCollageBackground";
 import WalletOnboarding from "@/app/[locale]/(protected)/wallet/components/WalletOnboarding";
 import LoginExperienceBlock from "./LoginExperienceBlock";
+import LoginExperienceRail from "./LoginExperienceRail";
 
 /**
  * ⚠️ TEMPORAL — video de muestra compartido por los bloques de experiencias.
@@ -500,17 +501,6 @@ body.loginPageBg {
           );
           padding: 34px 0 24px;
         }
-        /* Experiencias: una POR FILA. Cada bloque se parte en dos mitades por
-           dentro (presentación · items) y alterna el lado, así que aquí solo se
-           apilan. El ancho máximo lo pone cada bloque. */
-        .loginExpGrid {
-          display: flex;
-          flex-direction: column;
-          width: 100%;
-          padding: 30px 0 8px;
-          box-sizing: border-box;
-        }
-
         .loginTagline {
           margin: 0;
           font-size: clamp(26px, 3.1vw, 41px);
@@ -1023,7 +1013,9 @@ marginBottom: 6,
         {/* Rediseño en curso: los bloques nuevos se van armando arriba y el
             contenido viejo (WalletOnboarding) se queda debajo hasta que lo
             sustituyan por completo. Los videos son de MUESTRA. */}
-        <div className="loginExpGrid">
+        {/* En laptop apila los bloques; en celular los vuelve un carrusel de
+            una tarjeta por vista. */}
+        <LoginExperienceRail>
         <LoginExperienceBlock
           itemsLeft
           eyebrow="Experiencias personales"
@@ -1033,7 +1025,6 @@ marginBottom: 6,
           poster="/saludo.webp"
           service="saludo"
           accentColor="#a855f7"
-          separateItems
           // Los textos por servicio hablan solo del saludo; esta card cubre
           // también los consejos, así que se escriben aquí para abarcar ambos.
           items={[
@@ -1060,25 +1051,34 @@ marginBottom: 6,
           poster="/encuentroenvivo.webp"
           service="meetGreet"
           accentColor="#ec4899"
-          // Fuera la duración. Cada creador fija la suya y aquí todavía no hay
-          // uno elegido, así que un rango genérico no dice nada.
-          omitIcons={["clock"]}
+          // Lista propia: la del servicio hablaba solo del meet & greet y este
+          // card cubre también las sesiones exclusivas. Fuera quedan la
+          // duración —cada creador fija la suya— y el "Qué incluye", que abría
+          // una lista dentro de la lista.
+          items={[
+            {
+              icon: "camera",
+              title: "Conversación en privado",
+              description:
+                "Un momento en videollamada para conversar, pedir orientación o compartir una experiencia directamente con el creador.",
+            },
+            {
+              icon: "calendar",
+              title: "Elige cuándo conectar",
+              description:
+                "Consulta los horarios disponibles y reserva desde la agenda el momento que mejor funcione para ambos.",
+            },
+            {
+              icon: "download",
+              title: "Guarda el momento",
+              description:
+                "Al terminar, recibe la grabación para descargarla y conservar lo mejor de la conversación.",
+            },
+          ]}
         />
 
-        {/* Un solo card junta las tres experiencias del directo y el contenido
-            de pago (ticket, supercomentarios y VOD). */}
         <LoginExperienceBlock
           itemsLeft
-          eyebrow="Streaming"
-          title="Hay experiencias que merecen vivirse más cerca"
-          description="Accede a transmisiones especiales, haz que tu mensaje destaque y disfruta contenido premium cuando tú quieras. En vivo o después, crea experiencias que tu comunidad estará dispuesta a elegir."
-          videoSrc={VIDEO_MUESTRA}
-          poster="/desbloquearvod.webp"
-          service={["liveAccess", "vodUnlock"]}
-          accentColor="#a855f7"
-        />
-
-        <LoginExperienceBlock
           eyebrow="Apoyo directo"
           title="Cuando valoras lo que alguien crea, puedes hacerlo sentir"
           description="Apoya desde su perfil o dentro de su comunidad y forma parte de lo que está construyendo. Comparte tu reconocimiento o recibe el impulso de quienes creen en ti."
@@ -1090,22 +1090,53 @@ marginBottom: 6,
           // tercera persona ("el creador…"), que en el login suena a manual.
           items={[
             {
-              icon: "heart",
-              title: "Apoya cuando quieras",
+              icon: "handHeart",
+              title: "Apoyo directo",
               description:
-                "Desde su perfil o dentro de su comunidad, cualquier día, sin esperar a que haya un live.",
+                "Envía una donación desde un perfil o una comunidad, cuando quieras, para impulsar lo que ese creador está construyendo.",
             },
             {
-              icon: "star",
-              title: "Sabes qué estás impulsando",
+              icon: "liveHeart",
+              title: "Donaciones en vivo",
               description:
-                "Un mensaje corto cuenta a dónde va el apoyo, así nadie da a ciegas.",
+                "Hazte presente durante una transmisión con una donación y comparte tu apoyo justo mientras el momento está sucediendo.",
+            },
+          ]}
+        />
+
+        {/* Un solo card junta las tres experiencias del directo y el contenido
+            de pago (ticket, supercomentarios y VOD). */}
+        <LoginExperienceBlock
+          eyebrow="Streaming"
+          title="Hay experiencias que merecen vivirse más cerca"
+          description="Accede a transmisiones especiales, haz que tu mensaje destaque y disfruta contenido premium cuando tú quieras. En vivo o después, crea experiencias que tu comunidad estará dispuesta a elegir."
+          videoSrc={VIDEO_MUESTRA}
+          poster="/desbloquearvod.webp"
+          service="liveAccess"
+          // El mismo rojo del directo (aro, badge LIVE, panel del creador), no
+          // uno nuevo: el color ya significa "en vivo" en el resto de la app.
+          accentColor="#ef4444"
+          // Una lista propia para las tres experiencias del card. Antes se
+          // apilaban las listas de dos servicios (liveAccess y vodUnlock) y
+          // salían seis items, con el ticket contado dos veces.
+          items={[
+            {
+              icon: "ticket",
+              title: "Ticket live",
+              description:
+                "Entra a transmisiones exclusivas comprando tu acceso y vive en directo un momento creado para una audiencia especial.",
             },
             {
-              icon: "camera",
-              title: "La causa, contada en video",
+              icon: "commentStar",
+              title: "Supercomentarios",
               description:
-                "Hasta 5 minutos en primera persona, porque hay cosas que se entienden mejor viéndolas.",
+                "Haz que tu mensaje destaque durante la transmisión para compartir tu apoyo y tener más posibilidades de ser visto por el creador.",
+            },
+            {
+              icon: "videoLock",
+              title: "VOD premium",
+              description:
+                "Desbloquea transmisiones grabadas y videos especiales para disfrutarlos cuando quieras, a tu propio ritmo.",
             },
           ]}
         />
@@ -1117,10 +1148,30 @@ marginBottom: 6,
           description="Suscríbete para descubrir una parte diferente de quien sigues o accede solo a las publicaciones que elijas. Comparte algo más con tu comunidad y convierte cada publicación en una experiencia especial."
           videoSrc={VIDEO_MUESTRA}
           poster="/suscripciones.webp"
-          service={["subscription", "premiumPost"]}
+          service="subscription"
           accentColor="#3b82f6"
+          items={[
+            {
+              icon: "memberBadge",
+              title: "Suscripciones",
+              description:
+                "Únete a la comunidad de un creador para disfrutar cada mes contenido exclusivo y beneficios reservados para sus miembros.",
+            },
+            {
+              icon: "postUnlocked",
+              title: "Posts premium",
+              description:
+                "Desbloquea únicamente las publicaciones que te interesen con un solo pago, sin necesidad de suscribirte.",
+            },
+            {
+              icon: "postStar",
+              title: "Contenido en el feed",
+              description:
+                "Descubre publicaciones premium directamente en perfiles y comunidades, junto al contenido que ya disfrutas.",
+            },
+          ]}
         />
-        </div>
+        </LoginExperienceRail>
 
         {/* Las 11 experiencias YA tienen bloque propio arriba, así que el
             listado de la wallet se queda sin ninguna que mostrar: la sección se
