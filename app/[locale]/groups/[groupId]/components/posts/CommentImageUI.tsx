@@ -237,7 +237,7 @@ function computeContainedRect(natW: number, natH: number): Rect {
     w = h * ar;
   }
   return {
-    insetInlineStart: (window.innerWidth - w) / 2,
+    left: (window.innerWidth - w) / 2,
     top: (window.innerHeight - h) / 2,
     width: w,
     height: h,

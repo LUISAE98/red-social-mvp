@@ -2418,7 +2418,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
               <span
                 onClick={() => setDescExpanded(true)}
                 style={{
-                  position: "absolute", right: 0, bottom: 0,
+                  position: "absolute", insetInlineEnd: 0, bottom: 0,
                   paddingInlineStart: 28,
                   background: "linear-gradient(to right, transparent, rgba(10,10,10,0.97) 40%)",
                   fontSize: 12, fontWeight: 500,

@@ -256,7 +256,7 @@ const contentAreaClassName = isEmbed
           /* Borde izquierdo del cluster centrado, para que el OwnerSidebar (que va
              position:fixed) siga al conjunto en pantallas grandes en vez de quedarse
              pegado al viewport. Debajo de --shell-max-width cae a su valor histórico. */
-          --owner-sidebar-fixed-insetInlineStart: max(
+          --owner-sidebar-fixed-left: max(
             18px,
             calc(50vw - var(--shell-max-width) / 2 + var(--shell-gutter))
           );
@@ -730,7 +730,7 @@ const contentAreaClassName = isEmbed
   /* Se ancla al borde derecho del cluster centrado: en pantallas anchas sigue al
      conjunto (no al borde del viewport); en pantallas ≤ --shell-max-width cae al
      gutter, como antes. */
-  insetInlineEnd: max(
+  inset-inline-end: max(
     env(safe-area-inset-right, 0px),
     var(--shell-gutter),
     calc(50vw - var(--shell-max-width) / 2 + var(--shell-gutter))

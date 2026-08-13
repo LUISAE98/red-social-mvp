@@ -664,7 +664,7 @@ const contentAreaClassName = isEmbed
 .walletCol {
   position: fixed;
   top: calc(env(safe-area-inset-top) + 64px);
-  insetInlineEnd: max(var(--shell-gutter), env(safe-area-inset-right));
+  inset-inline-end: max(var(--shell-gutter), env(safe-area-inset-right));
   bottom: calc(8px + var(--vb-safe-bottom, 0px));
   width: var(--wallet-rail-width);
   min-width: 0;

@@ -2239,7 +2239,7 @@ const res = (await createExclusiveSessionRequest({
     <LanguageSwitcher variant="cover-corner" />
     {/* Lupa + copiar perfil (owner). En móvil se corre a la izquierda para no
         encimar los switchers de moneda/idioma. */}
-    <style>{`.profile-owner-cover-actions{insetInlineEnd:14px}@media(max-width:900px){.profile-owner-cover-actions{insetInlineEnd:96px}}`}</style>
+    <style>{`.profile-owner-cover-actions{inset-inline-end:14px}@media(max-width:900px){.profile-owner-cover-actions{inset-inline-end:96px}}`}</style>
     <div
       className="profile-owner-cover-actions"
       style={{
