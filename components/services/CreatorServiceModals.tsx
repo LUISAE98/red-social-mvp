@@ -151,14 +151,14 @@ const PANEL_CSS = `
   .vibra-svc-handle, .vibra-svc-header, .vibra-svc-body, .vibra-svc-footer { position: relative; z-index: 2; }
 
   .vibra-svc-bg-img {
-    position: absolute; top: 0; right: 0; bottom: 0; left: 0; z-index: 0;
+    position: absolute; top: 0; inset-inline-end: 0; bottom: 0; inset-inline-start: 0; z-index: 0;
     background-size: 100% auto;
     background-position: center bottom;
     background-repeat: no-repeat;
     opacity: 0.35;
   }
   .vibra-svc-bg-grad {
-    position: absolute; top: 0; right: 0; bottom: 0; left: 0; z-index: 1;
+    position: absolute; top: 0; inset-inline-end: 0; bottom: 0; inset-inline-start: 0; z-index: 1;
     background: linear-gradient(to bottom, #0a0a0a 50%, rgba(10,10,10,0.85) 68%, rgba(10,10,10,0.4) 85%, transparent 100%);
     -webkit-transform: translateZ(0); transform: translateZ(0);
     will-change: opacity;
@@ -530,7 +530,7 @@ export default function CreatorServiceModals({
           style={{ ...s.input, resize: "vertical", minHeight: 56 }}
           onFocus={(e) => { setTimeout(() => e.target.scrollIntoView({ behavior: "smooth", block: "center" }), 80); }}
         />
-        <span style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", textAlign: "right" }}>
+        <span style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", textAlign: "end" }}>
           {tServices("charsRemaining", { count: String((greetType === "saludo" ? 500 : 900) - instructions.length) })}
         </span>
       </label>
@@ -566,7 +566,7 @@ export default function CreatorServiceModals({
           >
             <span style={{
               position: "absolute", top: 2,
-              left: allowCreatorStory ? 18 : 2,
+              insetInlineStart: allowCreatorStory ? 18 : 2,
               width: 14, height: 14, borderRadius: "50%",
               background: "#fff", transition: "all 0.2s ease",
               display: "block",
@@ -603,7 +603,7 @@ export default function CreatorServiceModals({
         >
           <span style={{
             position: "absolute", top: 2,
-            left: acceptedTerms ? 18 : 2,
+            insetInlineStart: acceptedTerms ? 18 : 2,
             width: 14, height: 14, borderRadius: "50%",
             background: "#fff", transition: "all 0.2s ease",
             display: "block",
@@ -763,7 +763,7 @@ export default function CreatorServiceModals({
             style={{ ...s.input, resize: "vertical" }}
             onFocus={(e) => { setTimeout(() => e.target.scrollIntoView({ behavior: "smooth", block: "center" }), 80); }}
           />
-          <span style={{ ...s.micro, textAlign: "right" }}>
+          <span style={{ ...s.micro, textAlign: "end" }}>
             {tServices("charsRemaining", { count: String(remaining) })}
           </span>
         </div>
@@ -805,7 +805,7 @@ export default function CreatorServiceModals({
             >
               <span style={{
                 position: "absolute", top: 2,
-                left: params.termsAccepted ? 18 : 2,
+                insetInlineStart: params.termsAccepted ? 18 : 2,
                 width: 14, height: 14, borderRadius: "50%",
                 background: "#fff", transition: "all 0.2s ease",
                 display: "block",

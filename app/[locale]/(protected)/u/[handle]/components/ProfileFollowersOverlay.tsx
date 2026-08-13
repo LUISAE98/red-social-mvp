@@ -326,8 +326,8 @@ export default function ProfileFollowersOverlay({
           style={{
             position: "fixed",
             bottom: 0,
-            left: 0,
-            right: 0,
+            insetInlineStart: 0,
+            insetInlineEnd: 0,
             zIndex: 99981,
             maxHeight: "calc(100dvh - 72px)",
             borderRadius: "22px 22px 0 0",
@@ -416,8 +416,8 @@ export default function ProfileFollowersOverlay({
             placeItems: "center",
             paddingTop: "max(14px, env(safe-area-inset-top, 0px))",
             paddingBottom: 14,
-            paddingLeft: 14,
-            paddingRight: 14,
+            paddingInlineStart: 14,
+            paddingInlineEnd: 14,
             pointerEvents: "none",
           }}
         >

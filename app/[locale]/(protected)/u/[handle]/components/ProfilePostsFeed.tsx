@@ -805,8 +805,8 @@ const shellStyle: CSSProperties = {
   minWidth: 0,
   display: "grid",
   gap: 12,
-  marginLeft: "auto",
-  marginRight: "auto",
+  marginInlineStart: "auto",
+  marginInlineEnd: "auto",
   marginTop: 0,
   marginBottom: 18,
   paddingTop: 0,
@@ -820,8 +820,8 @@ const shellStyle: CSSProperties = {
       width: "100%",
       maxWidth: "100%",
       minWidth: 0,
-      paddingLeft: isMobile ? 8 : 0,
-      paddingRight: isMobile ? 8 : 0,
+      paddingInlineStart: isMobile ? 8 : 0,
+      paddingInlineEnd: isMobile ? 8 : 0,
       boxSizing: "border-box",
     }),
     [isMobile]
@@ -843,8 +843,8 @@ const shellStyle: CSSProperties = {
       color: "rgba(255,255,255,0.82)",
       overflowWrap: "anywhere",
       wordBreak: "break-word",
-      marginLeft: 0,
-      marginRight: 0,
+      marginInlineStart: 0,
+      marginInlineEnd: 0,
     }),
     []
   );
@@ -1148,7 +1148,7 @@ const shellStyle: CSSProperties = {
       {lightboxTile && (
         <div
           aria-hidden="true"
-          style={{ position: "fixed", left: 0, top: 0, width: 0, height: 0, overflow: "hidden" }}
+          style={{ position: "fixed", insetInlineStart: 0, top: 0, width: 0, height: 0, overflow: "hidden" }}
         >
           <GroupPostCard
             post={lightboxTile.post}

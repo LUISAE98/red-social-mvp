@@ -210,7 +210,7 @@ export default function ChatDockProvider({
         <div
           style={{
             position: "fixed",
-            right: DOCK_EDGE,
+            insetInlineEnd: DOCK_EDGE,
             bottom: 0,
             zIndex: 1200,
             display: "flex",

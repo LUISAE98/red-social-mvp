@@ -43,8 +43,8 @@ export default function CoverSearchBar({ onSubmit, onClose, placeholder }: Props
       className="cover-search-field"
       style={{
         position: "absolute",
-        left: 14,
-        right: 14,
+        insetInlineStart: 14,
+        insetInlineEnd: 14,
         top: 14,
         zIndex: 60,
         display: "flex",

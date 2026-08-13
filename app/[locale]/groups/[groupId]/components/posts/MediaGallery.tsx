@@ -635,8 +635,8 @@ const MEDIA_GRID_CSS = `
 }
 .vibra-media-unlock {
   position: absolute;
-  left: 8px;
-  right: 8px;
+  inset-inline-start: 8px;
+  inset-inline-end: 8px;
   bottom: 8px;
   display: flex;
   align-items: center;
@@ -674,7 +674,7 @@ const MEDIA_GRID_CSS = `
 .vibra-media-crown-sm {
   position: absolute;
   bottom: 6px;
-  right: 6px;
+  inset-inline-end: 6px;
   display: flex;
   pointer-events: none;
   filter: drop-shadow(0 1px 3px rgba(0,0,0,0.6));
@@ -682,7 +682,7 @@ const MEDIA_GRID_CSS = `
 .vibra-media-views {
   position: absolute;
   bottom: 6px;
-  left: 6px;
+  inset-inline-start: 6px;
   display: flex;
   align-items: center;
   gap: 4px;
@@ -695,7 +695,7 @@ const MEDIA_GRID_CSS = `
 }
 .vibra-media-views.locked {
   bottom: 44px;
-  left: 10px;
+  inset-inline-start: 10px;
 }
 @media (min-width: 768px) {
   .vibra-media-views.locked {
@@ -742,7 +742,7 @@ const lockedScrimStyle: CSSProperties = {
 const liveBadgeStyle: CSSProperties = {
   position: "absolute",
   top: 6,
-  left: 6,
+  insetInlineStart: 6,
   padding: "2px 6px",
   borderRadius: 5,
   background: "#e11d48",
@@ -758,7 +758,7 @@ const liveBadgeStyle: CSSProperties = {
 const carouselIconStyle: CSSProperties = {
   position: "absolute",
   top: 6,
-  left: 6,
+  insetInlineStart: 6,
   display: "flex",
   filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.55))",
   pointerEvents: "none",

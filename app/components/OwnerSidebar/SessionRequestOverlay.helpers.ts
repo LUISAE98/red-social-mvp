@@ -212,12 +212,12 @@ export const OVERLAY_CSS = `
   @keyframes sroDesktopIn  { from { opacity:0; transform:scale(0.94) translateY(10px); } to { opacity:1; transform:scale(1) translateY(0); } }
   @keyframes sroDesktopOut { from { opacity:1; transform:scale(1) translateY(0); } to { opacity:0; transform:scale(0.94) translateY(10px); } }
   .sro-bg-img {
-    position: absolute; top: 0; right: 0; bottom: 0; left: 0; z-index: 0;
+    position: absolute; top: 0; inset-inline-end: 0; bottom: 0; inset-inline-start: 0; z-index: 0;
     background-size: cover; background-position: center 40%; background-repeat: no-repeat;
     opacity: 0.52;
   }
   .sro-bg-grad {
-    position: absolute; top: 0; right: 0; bottom: 0; left: 0; z-index: 1;
+    position: absolute; top: 0; inset-inline-end: 0; bottom: 0; inset-inline-start: 0; z-index: 1;
     background: linear-gradient(to bottom,
       #0a0a0a 28%,
       rgba(10,10,10,0.72) 46%,

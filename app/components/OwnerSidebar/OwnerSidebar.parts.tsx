@@ -389,7 +389,7 @@ export function Chevron({
         display: "inline-block",
         width: 9,
         height: 9,
-        borderRight: `1.7px solid ${color}`,
+        borderInlineEnd: `1.7px solid ${color}`,
         borderBottom: `1.7px solid ${color}`,
         transform: open ? "rotate(225deg)" : "rotate(45deg)",
         transition: "transform 180ms ease",

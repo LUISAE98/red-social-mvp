@@ -4,14 +4,22 @@
 // cuando una venta quede registrada en el ledger, SIN tener que modificar el ledger
 // en ese momento. Hoy es un no-op: el ledger NO llama a esto aún.
 //
-// MODELO VENDEDOR DIRECTO (docs/legal/fiscal-iva-isr-plataforma.md §0.6) — al
-// dispararse, aquí se decidirá qué emitir vía Facturapi:
-//   • Vibra → Comprador: CFDI de VENTA (con CSD de Vibra) SOLO si el comprador la
-//     pidió; si no, comprobante de pago (no fiscal) y la venta entra a la factura
-//     global mensual. → Bloque 2.
-//   • Creador → Vibra: CFDI de PROVEEDOR (self-billing, con el CSD del creador, en
-//     su organización de Facturapi) por cada pago, si el creador ya subió su CSD.
-//     Retenciones al proveedor según su régimen (D-06). → Bloque 3.
+// MODELO VENDEDOR DIRECTO (docs/legal/fiscal-iva-isr-plataforma.md §0.6). Son CUATRO
+// caminos, y lo que decide es la RESIDENCIA de la contraparte:
+//
+//   COMPRA (lado comprador)
+//     1. Comprador MEXICANO   → puede pedir CFDI de venta, con el CSD de Vibra.
+//     2. Comprador EXTRANJERO → comprobante de pago (NO fiscal): no hay CFDI que emitir
+//        a un residente en el extranjero.
+//
+//   RETIRO (lado creador)
+//     3. Creador MEXICANO   → factura a Vibra su 75% CON RETENCIONES según su régimen
+//        (D-06). Dos caminos a elección suya: sube su CSD y Vibra la emite por él
+//        (self-billing), o sube él mismo su PDF + XML ya timbrados.
+//     4. Creador EXTRANJERO → comprobante de pago y se le transfiere; no hay CFDI.
+//
+// 🚫 La FACTURA GLOBAL mensual NO se automatiza por ahora (decisión de Luis, 2026-08-13).
+//    Lo que el comprador no pida se queda sin CFDI y se resuelve fuera del sistema.
 //
 // ⚠️ INTENCIONALMENTE DESCONECTADO: no importar ni llamar esto desde el ledger aún.
 

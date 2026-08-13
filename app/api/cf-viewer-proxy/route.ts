@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminAuth, getAdminFirestore } from "@/lib/firebase-admin";
+import { isCloudflareStreamUrl } from "@/lib/live/cfStreamUrls";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -121,6 +122,15 @@ export async function POST(req: NextRequest) {
   const storedHlsUrl = (liveData?.hlsUrl as string | undefined)?.split("?")[0];
   if (!storedHlsUrl || !storedHlsUrl.includes("/manifest/video.m3u8")) {
     console.error("[cf-viewer-proxy] hlsUrl missing or unexpected format:", storedHlsUrl);
+    return NextResponse.json({ error: "URL de stream no disponible" }, { status: 404 });
+  }
+
+  // `liveData` la escribe el AUTOR desde el cliente (canEditLivePost en las
+  // reglas), así que `hlsUrl` es entrada no confiable aunque viva en Firestore.
+  // Sin esta allowlist, un creador podía apuntar el fetch del servidor a la red
+  // interna y recibir de vuelta la respuesta en el cuerpo de este endpoint.
+  if (!isCloudflareStreamUrl(storedHlsUrl)) {
+    console.error("[cf-viewer-proxy] hlsUrl fuera de la allowlist de Cloudflare, post:", postId);
     return NextResponse.json({ error: "URL de stream no disponible" }, { status: 404 });
   }
 

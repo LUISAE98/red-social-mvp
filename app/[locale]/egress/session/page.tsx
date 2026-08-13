@@ -150,7 +150,7 @@ function CreatorFocusLayout() {
         <div
           style={{
             position: "absolute",
-            right: "2.5%",
+            insetInlineEnd: "2.5%",
             bottom: "4%",
             display: "flex",
             gap: "1.4%",

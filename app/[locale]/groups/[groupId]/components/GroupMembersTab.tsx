@@ -743,7 +743,7 @@ export default function GroupMembersTab({
   // El rol es texto, no una píldora.
   const roleBadge: CSSProperties = {
     minWidth: isMobile ? 86 : 104,
-    textAlign: "right",
+    textAlign: "end",
     padding: 0,
     fontSize: isMobile ? 9.5 : 11.5,
     fontWeight: 500,
@@ -1030,7 +1030,7 @@ export default function GroupMembersTab({
                   background: "none",
                   border: "none",
                   padding: 0,
-                  textAlign: "left",
+                  textAlign: "start",
                   color: "#a855f7",
                   fontSize: isMobile ? 12 : 13,
                   fontWeight: 600,

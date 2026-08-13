@@ -195,7 +195,7 @@ export default function CreatorExperiencesSection({
     <div
       style={{
         width: "100%",
-        textAlign: "left",
+        textAlign: "start",
         marginTop: 22,
       }}
     >
@@ -206,8 +206,8 @@ export default function CreatorExperiencesSection({
           /* En celular las cards llegan de lado a lado (full-bleed): anulan el
              padding lateral de la página. El header de la sección queda inset. */
           .exp-cards {
-            margin-left: calc(50% - 50vw);
-            margin-right: calc(50% - 50vw);
+            margin-inline-start: calc(50% - 50vw);
+            margin-inline-end: calc(50% - 50vw);
           }
         }
         @media (min-width: 560px) {

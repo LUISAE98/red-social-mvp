@@ -421,8 +421,8 @@ function RoomContent({
             position: "absolute",
             top: 0,
             bottom: 0,
-            left: isMobile ? "env(safe-area-inset-left, 0px)" : 0,
-            right: isMobile ? "env(safe-area-inset-right, 0px)" : 0,
+            insetInlineStart: isMobile ? "env(safe-area-inset-left, 0px)" : 0,
+            insetInlineEnd: isMobile ? "env(safe-area-inset-right, 0px)" : 0,
           }}>
             <VideoTrack
               trackRef={(screenTrack ?? remoteCameraTrack)!}
@@ -443,7 +443,7 @@ function RoomContent({
           <div
             style={{
               position: "absolute",
-              left: isMobile ? "max(14px, env(safe-area-inset-left))" : 14,
+              insetInlineStart: isMobile ? "max(14px, env(safe-area-inset-left))" : 14,
               bottom: isMobile ? "max(28px, var(--vb-safe-bottom, 0px))" : 28,
               width: "18%",
               aspectRatio: "16 / 9",
@@ -524,7 +524,7 @@ function RoomContent({
         style={{
           position: "absolute",
           bottom: isMobile ? "max(28px, var(--vb-safe-bottom, 0px))" : 28,
-          right: isMobile ? "max(28px, env(safe-area-inset-right))" : 28,
+          insetInlineEnd: isMobile ? "max(28px, env(safe-area-inset-right))" : 28,
           width: isMobile ? 221 : "clamp(130px, 18%, 208px)",
           aspectRatio: "16/9",
           borderRadius: 10,
@@ -845,8 +845,8 @@ const styles: Record<string, CSSProperties> = {
   },
   controls: {
     position: "absolute",
-    left: 0,
-    right: 0,
+    insetInlineStart: 0,
+    insetInlineEnd: 0,
     bottom: 0,
     display: "flex",
     gap: 28,
@@ -873,7 +873,7 @@ const styles: Record<string, CSSProperties> = {
   offBadge: {
     position: "absolute",
     bottom: 0,
-    right: 0,
+    insetInlineEnd: 0,
     width: 14,
     height: 14,
     borderRadius: "50%",

@@ -109,7 +109,7 @@ function Switch({
         style={{
           position: "absolute",
           top: 2,
-          left: checked ? 18 : 2,
+          insetInlineStart: checked ? 18 : 2,
           width: 14,
           height: 14,
           borderRadius: "50%",

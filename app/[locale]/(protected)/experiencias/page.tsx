@@ -556,7 +556,7 @@ export default function ExperienciasPage() {
               onClick={handleDismissCashout}
               aria-label="Cerrar"
               style={{
-                position: "absolute", top: -2, right: 2, width: 22, height: 22,
+                position: "absolute", top: -2, insetInlineEnd: 2, width: 22, height: 22,
                 display: "inline-flex", alignItems: "center", justifyContent: "center",
                 background: "transparent", border: "none", color: "rgba(255,255,255,0.55)",
                 cursor: "pointer", padding: 0, lineHeight: 1,
@@ -570,7 +570,7 @@ export default function ExperienciasPage() {
           </div>
         )
       ) : credit.balance > 0 ? (
-        <div style={{ marginTop: -13, marginBottom: 16, padding: "0 2px", textAlign: "right" }}>
+        <div style={{ marginTop: -13, marginBottom: 16, padding: "0 2px", textAlign: "end" }}>
           <button
             type="button"
             onClick={handleRequestCashout}
@@ -578,7 +578,7 @@ export default function ExperienciasPage() {
             style={{
               background: "transparent", border: "none", padding: 0,
               fontSize: 12, fontWeight: 600, color: "rgba(255,255,255,0.4)",
-              cursor: cashoutBusy ? "wait" : "pointer", textAlign: "right",
+              cursor: cashoutBusy ? "wait" : "pointer", textAlign: "end",
               opacity: cashoutBusy ? 0.6 : 1,
             }}
           >
@@ -653,7 +653,7 @@ export default function ExperienciasPage() {
               <span style={{ display: "inline-flex", position: "relative" }}>
                 {t.icon}
                 {displayIsNew[t.key] ? (
-                  <span aria-hidden="true" style={{ position: "absolute", top: -2, right: -2, width: 9, height: 9, borderRadius: 999, background: "#ff3b30", border: "2px solid #000" }} />
+                  <span aria-hidden="true" style={{ position: "absolute", top: -2, insetInlineEnd: -2, width: 9, height: 9, borderRadius: 999, background: "#ff3b30", border: "2px solid #000" }} />
                 ) : null}
               </span>
               <span className="expTabLabel" style={{ color: active ? "#fff" : "rgba(255,255,255,0.55)" }}>
@@ -663,7 +663,7 @@ export default function ExperienciasPage() {
           );
         })}
         {indicator ? (
-          <span className="expIndicator" style={{ left: indicator.left, width: indicator.width }} />
+          <span className="expIndicator" style={{ insetInlineStart: indicator.left, width: indicator.width }} />
         ) : null}
       </div>
       ) : null}
@@ -683,7 +683,7 @@ export default function ExperienciasPage() {
               transparent
             />
           </div>
-          <span style={{ flexShrink: 0, color: "#ffffff", fontSize: 15, fontWeight: 700, lineHeight: 1, paddingRight: 4 }}>
+          <span style={{ flexShrink: 0, color: "#ffffff", fontSize: 15, fontWeight: 700, lineHeight: 1, paddingInlineEnd: 4 }}>
             {pendingCount}
           </span>
         </div>
@@ -736,7 +736,7 @@ export default function ExperienciasPage() {
                     );
                   })}
                   {subIndicator ? (
-                    <span className="expIndicator" style={{ left: subIndicator.left, width: subIndicator.width }} />
+                    <span className="expIndicator" style={{ insetInlineStart: subIndicator.left, width: subIndicator.width }} />
                   ) : null}
                 </div>
 
@@ -756,7 +756,7 @@ export default function ExperienciasPage() {
                               transparent
                             />
                           </div>
-                          <span style={{ flexShrink: 0, color: "#ffffff", fontSize: 15, fontWeight: 700, lineHeight: 1, paddingRight: 4 }}>
+                          <span style={{ flexShrink: 0, color: "#ffffff", fontSize: 15, fontWeight: 700, lineHeight: 1, paddingInlineEnd: 4 }}>
                             {deliveredCount}
                           </span>
                         </div>

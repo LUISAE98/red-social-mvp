@@ -173,7 +173,7 @@ export default function MeetGreetPreparationFullscreen({
     ? {
         position: "absolute",
         top: 0,
-        left: "100dvw",
+        insetInlineStart: "100dvw",
         width: "100dvh",
         height: "100dvw",
         transformOrigin: "top left",

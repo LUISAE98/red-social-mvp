@@ -307,7 +307,7 @@ export default function LiveStreamSetup({
                 padding: "14px 16px", borderRadius: 12,
                 border: "none",
                 background: "rgba(59,130,246,0.16)",
-                cursor: "pointer", textAlign: "left", marginBottom: 10,
+                cursor: "pointer", textAlign: "start", marginBottom: 10,
                 transition: "background 0.15s",
               }}
             >
@@ -326,7 +326,7 @@ export default function LiveStreamSetup({
                 <div style={{ fontSize: 14, fontWeight: 600, color: "#fff", fontFamily: fontStack }}>{tLive("setupFromVibra")}</div>
                 <div style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", fontFamily: fontStack, marginTop: 2 }}>{tLive("setupUseDevice")}</div>
               </div>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.3)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginLeft: "auto" }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.3)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginInlineStart: "auto" }}>
                 <polyline points="9 18 15 12 9 6" />
               </svg>
             </button>
@@ -339,7 +339,7 @@ export default function LiveStreamSetup({
                 padding: "14px 16px", borderRadius: 12,
                 border: "none",
                 background: "rgba(168,85,255,0.16)",
-                cursor: "pointer", textAlign: "left",
+                cursor: "pointer", textAlign: "start",
                 transition: "background 0.15s",
               }}
             >
@@ -357,7 +357,7 @@ export default function LiveStreamSetup({
                 <div style={{ fontSize: 14, fontWeight: 600, color: "#fff", fontFamily: fontStack }}>Software externo</div>
                 <div style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", fontFamily: fontStack, marginTop: 2 }}>OBS, Streamlabs u otro software RTMP</div>
               </div>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.3)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginLeft: "auto" }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.3)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginInlineStart: "auto" }}>
                 <polyline points="9 18 15 12 9 6" />
               </svg>
             </button>

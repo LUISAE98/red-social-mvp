@@ -1025,7 +1025,7 @@ export default function LiveComposerModal({
                       }}
                     >
                       <div style={{
-                        position: "absolute", top: 3, left: isSelected ? 18 : 3,
+                        position: "absolute", top: 3, insetInlineStart: isSelected ? 18 : 3,
                         width: 16, height: 16, borderRadius: "50%",
                         background: "#fff",
                         transition: "left 0.18s ease",
@@ -1046,9 +1046,9 @@ export default function LiveComposerModal({
   const footerContent = (
     <div style={{
       paddingTop: isDesktop ? 14 : 10,
-      paddingRight: 20,
+      paddingInlineEnd: 20,
       paddingBottom: isDesktop ? 18 : "calc(14px + var(--vb-safe-bottom, 0px))" as CSSProperties["paddingBottom"],
-      paddingLeft: 20,
+      paddingInlineStart: 20,
       borderTop: `1px solid rgba(255,255,255,${isDesktop ? "0.12" : "0.07"})`,
       flexShrink: 0,
     }}>

@@ -365,7 +365,7 @@ export default function WalletChannels({
                   alignItems: "center",
                   gap: 12,
                   padding: "12px 0",
-                  textAlign: "left",
+                  textAlign: "start",
                 }}
               >
                 <ChannelAvatar src={ch.avatar} initial={name.charAt(0).toUpperCase()} />
@@ -402,7 +402,7 @@ export default function WalletChannels({
                     {formatMoney(ch.net, { code: true, baseCurrency: SETTLEMENT_CURRENCY })}
                   </span>
                 </div>
-                <span style={{ flexShrink: 0, marginLeft: 4, display: "inline-flex" }}>
+                <span style={{ flexShrink: 0, marginInlineStart: 4, display: "inline-flex" }}>
                   <Chevron open={isOpen} />
                 </span>
               </button>

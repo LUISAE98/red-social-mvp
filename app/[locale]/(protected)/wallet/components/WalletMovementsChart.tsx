@@ -118,7 +118,7 @@ export default function WalletMovementsChart({
             fontSize: 10.5,
             fontWeight: 600,
             color: "rgba(168,85,255,0.95)",
-            textAlign: "right",
+            textAlign: "end",
           }}
         >
           {tWallet("movementsChartHint")}
@@ -135,7 +135,7 @@ export default function WalletMovementsChart({
             paddingTop: padTop,
             paddingBottom: padBottom,
             boxSizing: "border-box",
-            textAlign: "right",
+            textAlign: "end",
             fontSize: 9.5,
             fontWeight: 500,
             color: "rgba(255,255,255,0.38)",
@@ -192,7 +192,7 @@ export default function WalletMovementsChart({
                 <div
                   style={{
                     position: "absolute",
-                    left: `${(xAt(hoverIdx) / W) * 100}%`,
+                    insetInlineStart: `${(xAt(hoverIdx) / W) * 100}%`,
                     top: 0,
                     bottom: 0,
                     width: 1,
@@ -203,7 +203,7 @@ export default function WalletMovementsChart({
                 <div
                   style={{
                     position: "absolute",
-                    left: `${(xAt(hoverIdx) / W) * 100}%`,
+                    insetInlineStart: `${(xAt(hoverIdx) / W) * 100}%`,
                     top: `${(yAt(hovered.amount) / H) * 100}%`,
                     transform: "translate(-50%, -50%)",
                     width: 8,
@@ -217,7 +217,7 @@ export default function WalletMovementsChart({
                 <div
                   style={{
                     position: "absolute",
-                    left: `${(xAt(hoverIdx) / W) * 100}%`,
+                    insetInlineStart: `${(xAt(hoverIdx) / W) * 100}%`,
                     top: `${(yAt(hovered.amount) / H) * 100}%`,
                     // Traslación horizontal según la posición: en el primer punto el
                     // tooltip queda alineado a la izquierda, en el último a la derecha,

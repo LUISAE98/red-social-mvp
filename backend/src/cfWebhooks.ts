@@ -32,24 +32,46 @@ type CFVideoResult = {
   playback?: { hls?: string; dash?: string };
 };
 
+// Ventana de frescura de la firma. El timestamp SÍ entra en el HMAC, así que un
+// atacante no puede refrescarlo sin el secreto: acotarla cierra el replay de una
+// petición legítima capturada.
+const SIGNATURE_TOLERANCE_MS = 5 * 60 * 1000;
+
+type CFSignatureCheck =
+  | { ok: true; timestamp: number }
+  | { ok: false; reason: "malformed" | "mismatch" | "stale" };
+
 // CF signature format: "time=<ts>,sig1=<hmac_hex>"
 // HMAC is computed over "<timestamp>.<body>"
-function verifyCFSignature(rawBody: string, sigHeader: string, secret: string): boolean {
-  try {
-    const timeMatch = sigHeader.match(/time=(\d+)/);
-    const sig1Match = sigHeader.match(/sig1=([a-f0-9]+)/);
-    if (!timeMatch || !sig1Match) return false;
+function verifyCFSignature(
+  rawBody: string,
+  sigHeader: string,
+  secret: string,
+  nowMs: number
+): CFSignatureCheck {
+  const timeMatch = sigHeader.match(/time=(\d+)/);
+  const sig1Match = sigHeader.match(/sig1=([a-f0-9]+)/);
+  if (!timeMatch || !sig1Match) return { ok: false, reason: "malformed" };
 
-    const timestamp = timeMatch[1];
-    const received = sig1Match[1];
-    const payload = `${timestamp}.${rawBody}`;
-    // Trim the secret to handle trailing whitespace/newlines from Secret Manager
-    const expected = crypto.createHmac("sha256", secret.trim()).update(payload).digest("hex");
+  const timestamp = Number(timeMatch[1]);
+  if (!Number.isFinite(timestamp)) return { ok: false, reason: "malformed" };
 
-    return crypto.timingSafeEqual(Buffer.from(expected, "hex"), Buffer.from(received, "hex"));
-  } catch {
-    return false;
+  const payload = `${timeMatch[1]}.${rawBody}`;
+  // Trim the secret to handle trailing whitespace/newlines from Secret Manager
+  const expected = crypto.createHmac("sha256", secret.trim()).update(payload).digest("hex");
+
+  const expectedBuf = Buffer.from(expected, "hex");
+  const receivedBuf = Buffer.from(sig1Match[1], "hex");
+  // timingSafeEqual lanza si difieren en longitud; comparar antes evita el throw.
+  if (expectedBuf.length !== receivedBuf.length) return { ok: false, reason: "mismatch" };
+  if (!crypto.timingSafeEqual(expectedBuf, receivedBuf)) return { ok: false, reason: "mismatch" };
+
+  // CF manda el timestamp en segundos UNIX.
+  if (Math.abs(nowMs - timestamp * 1000) > SIGNATURE_TOLERANCE_MS) {
+    return { ok: false, reason: "stale" };
   }
+
+  return { ok: true, timestamp };
 }
 
 async function findPostByLiveInput(
@@ -104,15 +126,30 @@ export const cfWebhook = onRequest(
     }
 
     const rawBody = req.rawBody?.toString("utf8") ?? "";
-    const sigHeader = req.headers["webhook-signature"] as string | undefined;
 
-    // Verify signature when secret is configured
-    if (sigHeader && cfWebhookSecret.value()) {
-      if (!verifyCFSignature(rawBody, sigHeader, cfWebhookSecret.value())) {
-        logger.warn("cfWebhook invalid signature");
-        res.status(401).json({ error: "Invalid signature" });
-        return;
-      }
+    // FAIL-CLOSED. Antes solo se verificaba `if (sigHeader && secret)`, así que
+    // omitir la cabecera saltaba la autenticación entera y cualquiera podía
+    // fabricar eventos de Cloudflare contra este endpoint, que escribe con
+    // privilegios Admin sobre el estado del live, el post, los aros y el VOD.
+    const secret = cfWebhookSecret.value().trim();
+    if (!secret) {
+      logger.error("cfWebhook CF_WEBHOOK_SECRET ausente — se rechaza todo el tráfico");
+      res.status(500).json({ error: "Webhook secret not configured" });
+      return;
+    }
+
+    const sigHeader = req.headers["webhook-signature"];
+    if (typeof sigHeader !== "string" || !sigHeader) {
+      logger.warn("cfWebhook sin cabecera de firma");
+      res.status(401).json({ error: "Missing signature" });
+      return;
+    }
+
+    const signature = verifyCFSignature(rawBody, sigHeader, secret, Date.now());
+    if (!signature.ok) {
+      logger.warn("cfWebhook firma rechazada", { reason: signature.reason });
+      res.status(401).json({ error: "Invalid signature" });
+      return;
     }
 
     let event: CFStreamEvent;
@@ -130,6 +167,31 @@ export const cfWebhook = onRequest(
 
     if (!liveInputId || !state) {
       res.status(200).json({ received: true });
+      return;
+    }
+
+    // Idempotencia. La clave es el payload firmado completo, así que una entrega
+    // repetida colisiona pero dos eventos distintos del mismo live input (p. ej.
+    // dos transmisiones diferentes) no. `create()` falla si el doc ya existe, o
+    // sea que el reclamo es atómico — no hay ventana get→procesar→set por la que
+    // se cuelen dos entregas concurrentes y se dupliquen los avisos.
+    const eventKey = crypto
+      .createHash("sha256")
+      .update(`${signature.timestamp}.${rawBody}`)
+      .digest("hex");
+    const eventRef = db.collection("cfWebhookEvents").doc(eventKey);
+    try {
+      await eventRef.create({
+        state,
+        liveInputId,
+        signedAt: signature.timestamp,
+        receivedAt: FieldValue.serverTimestamp(),
+        // Para la política de TTL de Firestore sobre este campo.
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      });
+    } catch {
+      logger.info("cfWebhook entrega duplicada, ignorada", { state, uid: liveInputId });
+      res.status(200).json({ received: true, duplicate: true });
       return;
     }
 

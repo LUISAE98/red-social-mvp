@@ -197,7 +197,7 @@ export default function WalletSubNav({
             <span
               className="indicator"
               style={{
-                left: indicatorStyle.left,
+                insetInlineStart: indicatorStyle.left,
                 width: indicatorStyle.width,
                 opacity: 1,
               }}

@@ -109,7 +109,7 @@ export default function ProfileSubnav({
 
   const indicatorStyle: CSSProperties = {
     position: "absolute",
-    left: 10,
+    insetInlineStart: 10,
     bottom: 15,
     width: `calc((100% - 20px) / ${safeTabCount})`,
     height: 2,
@@ -163,11 +163,11 @@ export default function ProfileSubnav({
         @media (max-width: 768px) {
           .profile-subnav-mobile-full {
             width: 100vw !important;
-            margin-left: calc(50% - 50vw) !important;
-            margin-right: calc(50% - 50vw) !important;
+            margin-inline-start: calc(50% - 50vw) !important;
+            margin-inline-end: calc(50% - 50vw) !important;
             border-radius: 0 !important;
-            border-left: 0 !important;
-            border-right: 0 !important;
+            border-inline-start: 0 !important;
+            border-inline-end: 0 !important;
             background: transparent !important;
             box-shadow: none !important;
           }

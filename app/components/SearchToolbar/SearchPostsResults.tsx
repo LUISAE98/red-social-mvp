@@ -532,8 +532,8 @@ export default function SearchPostsResults({
     minWidth: 0,
     display: "grid",
     gap: 6,
-    marginLeft: "auto",
-    marginRight: "auto",
+    marginInlineStart: "auto",
+    marginInlineEnd: "auto",
     marginBottom: 18,
     marginTop: -16,
     overflowX: "clip",
@@ -556,8 +556,8 @@ export default function SearchPostsResults({
     width: "100%",
     maxWidth: 720,
     minWidth: 0,
-    marginLeft: "auto",
-    marginRight: "auto",
+    marginInlineStart: "auto",
+    marginInlineEnd: "auto",
     overflowX: "hidden",
   };
 

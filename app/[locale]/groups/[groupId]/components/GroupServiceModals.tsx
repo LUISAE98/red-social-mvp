@@ -306,7 +306,7 @@ export default function GroupServiceModals({
                       minHeight: 110,
                     }}
                   />
-                  <span style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", textAlign: "right" }}>
+                  <span style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", textAlign: "end" }}>
                     {instructions.length} / {greetType === "saludo" ? 250 : 500}
                   </span>
                 </label>
@@ -349,7 +349,7 @@ export default function GroupServiceModals({
                         <div style={{
                           position: "absolute",
                           top: 2,
-                          left: allowCreatorStory ? 22 : 2,
+                          insetInlineStart: allowCreatorStory ? 22 : 2,
                           width: 18, height: 18, borderRadius: "50%",
                           background: "#fff",
                           transition: "left 200ms ease",
@@ -597,7 +597,7 @@ export default function GroupServiceModals({
                   minHeight: 110,
                 }}
               />
-              <span style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", textAlign: "right" }}>
+              <span style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", textAlign: "end" }}>
                 {params.message.length} / 500
               </span>
             </label>

@@ -574,8 +574,8 @@ export default function ProfileServicesTab({
            margen lo sigue dando .profile-content (aquí no se aplica). */
         @media (max-width: 900px) {
           .services-tab-margins {
-            padding-left: 10px;
-            padding-right: 10px;
+            padding-inline-start: 10px;
+            padding-inline-end: 10px;
           }
         }
         /* En celular cada card de experiencia llega de lado a lado (full-bleed):
@@ -584,8 +584,8 @@ export default function ProfileServicesTab({
            scrollbar-gutter descentraba). El heading queda inset. */
         @media (max-width: 900px) {
           .services-tab-margins :global(.serviceActivationPanel) {
-            margin-left: -10px;
-            margin-right: -10px;
+            margin-inline-start: -10px;
+            margin-inline-end: -10px;
           }
         }
       `}</style>

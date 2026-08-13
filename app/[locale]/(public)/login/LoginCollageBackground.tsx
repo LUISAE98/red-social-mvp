@@ -41,8 +41,8 @@ export default function LoginCollageBackground() {
         .login-collage-root {
           position: absolute;
           top: 0;
-          left: 0;
-          right: 0;
+          inset-inline-start: 0;
+          inset-inline-end: 0;
           /* Cubre la primera pantalla y algo más; por debajo el body es negro. */
           height: 135vh;
           z-index: 0;

@@ -120,7 +120,7 @@ function CurrencyOverlay({
                     color: active ? "#fff" : "rgba(255,255,255,0.72)",
                     fontSize: 14,
                     fontWeight: active ? 600 : 400,
-                    textAlign: "left",
+                    textAlign: "start",
                     cursor: "pointer",
                     minHeight: 48,
                     padding: "11px 16px",
@@ -256,7 +256,7 @@ export default function CurrencySwitcher({
             // Centro alineado con el CTA "Iniciar sesión" (42px de alto @ bottom:16):
             // la burbuja mide 53px, así que baja 5.5px para que sus centros coincidan.
             bottom: "calc(10.5px + var(--vb-safe-bottom, 0px))",
-            right: 77,
+            insetInlineEnd: 77,
             zIndex: 200,
           }}
         >
@@ -303,7 +303,7 @@ export default function CurrencySwitcher({
         <style>{`.vb-cur-corner{display:none}@media(max-width:900px){.vb-cur-corner{display:block}}`}</style>
         <div
           className="vb-cur-corner"
-          style={{ position: "absolute", top: 14, right: 54, zIndex: 40 }}
+          style={{ position: "absolute", top: 14, insetInlineEnd: 54, zIndex: 40 }}
         >
           <button
             type="button"

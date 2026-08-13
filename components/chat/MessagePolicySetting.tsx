@@ -51,7 +51,7 @@ export default function MessagePolicySetting({
     border: "none",
     borderBottom: isLast ? "none" : "1px solid rgba(255,255,255,0.08)",
     borderRadius: 0,
-    textAlign: "left",
+    textAlign: "start",
     cursor: disabled ? "not-allowed" : "pointer",
     userSelect: "none",
     fontFamily: "inherit",

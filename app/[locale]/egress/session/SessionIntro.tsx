@@ -142,7 +142,7 @@ export default function SessionIntro({
         @keyframes introRingDraw { to { stroke-dashoffset: 0 } }
 
         .introDomain {
-          position: absolute; left: 0; right: 0; bottom: 58px; z-index: 2; text-align: center;
+          position: absolute; inset-inline-start: 0; inset-inline-end: 0; bottom: 58px; z-index: 2; text-align: center;
           font-size: 30px; font-weight: 600; color: #fff; letter-spacing: 0.01em;
           text-shadow: 0 2px 18px rgba(0,0,0,0.6);
           animation: introRise 0.9s cubic-bezier(0.22, 1, 0.36, 1) ${HOLD + 2700}ms both;
@@ -197,7 +197,7 @@ export default function SessionIntro({
             style={{
               position: "absolute",
               top: GAP + RING_W,
-              left: GAP + RING_W,
+              insetInlineStart: GAP + RING_W,
               width: AVATAR,
               height: AVATAR,
               borderRadius: "50%",

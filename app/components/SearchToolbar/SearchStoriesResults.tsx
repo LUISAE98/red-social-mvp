@@ -166,8 +166,8 @@ function StoryCard({
       .story-overlay {
         position: absolute;
         top: 6px;
-        left: 6px;
-        right: 6px;
+        inset-inline-start: 6px;
+        inset-inline-end: 6px;
         opacity: 0;
         transition: opacity 0.16s ease;
         pointer-events: none;
@@ -294,7 +294,7 @@ function StoryCard({
               display: "flex",
               flexDirection: "column",
               alignItems: "flex-start",
-              textAlign: "left",
+              textAlign: "start",
               lineHeight: 1.15,
             }}
           >

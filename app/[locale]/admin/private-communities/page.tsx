@@ -271,7 +271,7 @@ export default function PrivateCommunitiesPage() {
             {t.label}
             <span
               style={{
-                marginLeft: 5,
+                marginInlineStart: 5,
                 fontSize: 10,
                 background: tab === t.key
                   ? (t.key === "deleted" ? "#3d0a0a" : "#2d1557")
@@ -442,7 +442,7 @@ export default function PrivateCommunitiesPage() {
                       style={{
                         flex: 1,
                         textAlign: "center",
-                        borderLeft: i > 0 ? "1px solid #1a1a1a" : "none",
+                        borderInlineStart: i > 0 ? "1px solid #1a1a1a" : "none",
                       }}
                     >
                       <div style={{ fontSize: 14, fontWeight: 700, color: c.isDeleted ? "#555" : "#e2e2e2" }}>
@@ -548,7 +548,7 @@ export default function PrivateCommunitiesPage() {
                       {c.creatorName ?? c.ownerId ?? tAdmin("creatorNameFallback")}
                     </span>
                     {c.creatorHandle && (
-                      <span style={{ fontSize: 10, color: "#555", marginLeft: 4 }}>
+                      <span style={{ fontSize: 10, color: "#555", marginInlineStart: 4 }}>
                         @{c.creatorHandle}
                       </span>
                     )}

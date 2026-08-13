@@ -202,7 +202,7 @@ export default function AdminLayout({
           .sidebar {
             width: 200px;
             flex-shrink: 0;
-            border-right: 1px solid #1a1a1a;
+            border-inline-end: 1px solid #1a1a1a;
             display: flex;
             flex-direction: column;
             padding: 24px 0 16px;
@@ -226,7 +226,7 @@ export default function AdminLayout({
             font-weight: 500;
             color: #777;
             text-decoration: none;
-            border-left: 2px solid transparent;
+            border-inline-start: 2px solid transparent;
             transition: color 150ms, border-color 150ms, background 150ms;
           }
 
@@ -237,7 +237,7 @@ export default function AdminLayout({
 
           .navItemActive {
             color: #a855f7;
-            border-left-color: #a855f7;
+            border-inline-start-color: #a855f7;
             background: #130a1f;
           }
 
@@ -245,7 +245,7 @@ export default function AdminLayout({
           .content {
             width: 400px;
             flex-shrink: 0;
-            border-right: 1px solid #1a1a1a;
+            border-inline-end: 1px solid #1a1a1a;
             height: 100dvh;
             overflow-y: auto;
             padding: 0;
@@ -421,7 +421,7 @@ export default function AdminLayout({
                 fontSize: 12,
                 fontWeight: 600,
                 cursor: signingOut ? "not-allowed" : "pointer",
-                textAlign: "left",
+                textAlign: "start",
                 transition: "color 150ms, border-color 150ms",
               }}
               onMouseEnter={(e) => {

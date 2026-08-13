@@ -206,8 +206,8 @@ export default function WalletOnboarding({
            componente) no pasa por aquí y sigue sin restricción de ancho. */
         .onboardingRoot {
           max-width: 768px;
-          margin-left: auto;
-          margin-right: auto;
+          margin-inline-start: auto;
+          margin-inline-end: auto;
         }
 
         /* Modo 2 columnas (solo login creador, solo laptop): el contenido pasa
@@ -434,7 +434,7 @@ export default function WalletOnboarding({
         }
 
         .onboardingRules {
-          text-align: right;
+          text-align: end;
         }
 
         .onboardingRulesTitle {
@@ -647,7 +647,7 @@ export default function WalletOnboarding({
           display: flex;
           flex-direction: column;
           align-items: flex-end;
-          text-align: right;
+          text-align: end;
         }
 
         /* Contenedor del teléfono. En laptop solo lleva el teléfono (los badges
@@ -909,8 +909,8 @@ export default function WalletOnboarding({
           .communityCards:hover .communityCard:not(:hover) {
             flex-grow: 0;
             flex-basis: 0;
-            padding-left: 0;
-            padding-right: 0;
+            padding-inline-start: 0;
+            padding-inline-end: 0;
             opacity: 0;
           }
         }
@@ -942,7 +942,7 @@ export default function WalletOnboarding({
         .communityDesc {
           flex-shrink: 0;
           max-width: 0;
-          margin-left: 0;
+          margin-inline-start: 0;
           opacity: 0;
           overflow: hidden;
           transition:
@@ -955,7 +955,7 @@ export default function WalletOnboarding({
           /* Ancho definido (alto estable) pero relativo al ANCHO DEL PANEL (cqw),
              así se encoge cuando el panel es angosto y nunca desborda. */
           width: min(500px, 58cqw);
-          text-align: left;
+          text-align: start;
           font-size: 13.5px;
           line-height: 1.5;
           color: rgba(255, 255, 255, 0.9);
@@ -974,7 +974,7 @@ export default function WalletOnboarding({
         @media (hover: hover) {
           .communityCard:hover .communityDesc {
             max-width: 520px;
-            margin-left: 22px;
+            margin-inline-start: 22px;
             opacity: 1;
           }
         }
@@ -991,13 +991,13 @@ export default function WalletOnboarding({
           .communityCards:has(.communityCard.isOpen) .communityCard:not(.isOpen) {
             flex-grow: 0;
             flex-basis: 0;
-            padding-left: 0;
-            padding-right: 0;
+            padding-inline-start: 0;
+            padding-inline-end: 0;
             opacity: 0;
           }
           .communityCard.isOpen .communityDesc {
             max-width: 520px;
-            margin-left: 22px;
+            margin-inline-start: 22px;
             opacity: 1;
           }
         }
@@ -1015,7 +1015,7 @@ export default function WalletOnboarding({
 
         /* El título de comunidades va alineado a la derecha. */
         .communitiesTitle .waysTitle {
-          text-align: right;
+          text-align: end;
         }
 
         /* Lista de servicios (creador): número grande intercalado izq/der. */
@@ -1081,8 +1081,8 @@ export default function WalletOnboarding({
            que se abre el panel: entonces la imagen se funde con el fondo negro. */
         .wayMainFade {
           position: absolute;
-          left: 0;
-          right: 0;
+          inset-inline-start: 0;
+          inset-inline-end: 0;
           bottom: 0;
           height: 55%;
           z-index: 1;
@@ -1130,7 +1130,7 @@ export default function WalletOnboarding({
 
         /* En las pares el texto se alinea hacia el número (derecha). */
         .wayRow.isRight .wayText {
-          text-align: right;
+          text-align: end;
           align-items: flex-end;
         }
 
@@ -1236,7 +1236,7 @@ export default function WalletOnboarding({
         .wayChevron {
           position: absolute;
           bottom: 8px;
-          right: 16px;
+          inset-inline-end: 16px;
           width: 16px;
           height: 16px;
           z-index: 3;
@@ -1245,8 +1245,8 @@ export default function WalletOnboarding({
           pointer-events: none;
         }
         .wayRow.isRight .wayChevron {
-          right: auto;
-          left: 16px;
+          inset-inline-end: auto;
+          inset-inline-start: 16px;
         }
         .wayChevron svg {
           display: block;
@@ -1542,7 +1542,7 @@ export default function WalletOnboarding({
           .clearTextBlock {
             align-self: stretch;
             align-items: flex-start;
-            text-align: left;
+            text-align: start;
             padding: 0 16px;
           }
 

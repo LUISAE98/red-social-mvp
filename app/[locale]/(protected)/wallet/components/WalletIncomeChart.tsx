@@ -253,7 +253,7 @@ export default function WalletIncomeChart({
                 fontSize: 10.5,
                 fontWeight: 600,
                 color: "rgba(59,130,246,0.95)",
-                textAlign: "right",
+                textAlign: "end",
               }}
             >
               {tWallet("chartTapHint")}
@@ -274,7 +274,7 @@ export default function WalletIncomeChart({
             paddingTop: padTop,
             paddingBottom: padBottom,
             boxSizing: "border-box",
-            textAlign: "right",
+            textAlign: "end",
             fontSize: 9.5,
             fontWeight: 500,
             color: "rgba(255,255,255,0.38)",
@@ -332,7 +332,7 @@ export default function WalletIncomeChart({
                 <div
                   style={{
                     position: "absolute",
-                    left: `${(xAt(hoverIdx) / W) * 100}%`,
+                    insetInlineStart: `${(xAt(hoverIdx) / W) * 100}%`,
                     top: 0,
                     bottom: 0,
                     width: 1,
@@ -343,7 +343,7 @@ export default function WalletIncomeChart({
                 <div
                   style={{
                     position: "absolute",
-                    left: `${(xAt(hoverIdx) / W) * 100}%`,
+                    insetInlineStart: `${(xAt(hoverIdx) / W) * 100}%`,
                     top: `${(yAt(hovered.amount) / H) * 100}%`,
                     transform: "translate(-50%, -50%)",
                     width: 8,
@@ -357,7 +357,7 @@ export default function WalletIncomeChart({
                 <div
                   style={{
                     position: "absolute",
-                    left: `${(xAt(hoverIdx) / W) * 100}%`,
+                    insetInlineStart: `${(xAt(hoverIdx) / W) * 100}%`,
                     top: `${(yAt(hovered.amount) / H) * 100}%`,
                     transform: "translate(-50%, calc(-100% - 12px))",
                     background: "rgba(20,14,40,0.96)",

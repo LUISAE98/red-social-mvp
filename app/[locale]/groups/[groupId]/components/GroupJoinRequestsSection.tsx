@@ -213,7 +213,7 @@ export default function GroupJoinRequestsSection({
           background: transparent;
           border: none;
           cursor: pointer;
-          text-align: left;
+          text-align: start;
         }
         /* Mismo peso que el título de la pestaña: el conteo va en el propio
            texto, así que ya no hace falta la píldora morada. */
@@ -224,10 +224,10 @@ export default function GroupJoinRequestsSection({
           color: #fff;
         }
         .jrCaret {
-          margin-left: auto;
+          margin-inline-start: auto;
           width: 8px;
           height: 8px;
-          border-right: 1.7px solid rgba(255, 255, 255, 0.6);
+          border-inline-end: 1.7px solid rgba(255, 255, 255, 0.6);
           border-bottom: 1.7px solid rgba(255, 255, 255, 0.6);
           transform: rotate(45deg);
           transition: transform 180ms ease;

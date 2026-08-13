@@ -861,12 +861,18 @@ describe("LatAm con alta obligatoria — BR, CO, CL, PE, UY", () => {
   // 🚨 Lista de verificación previa a sk_live. Mientras tenga entradas, hay países cobrando
   // un impuesto que Vibra todavía no puede enterar. En modo prueba es inocuo; en producción
   // sería quedarse con dinero ajeno.
-  it("🚨 ALTAS_PENDIENTES refleja exactamente los que están encendidos sin alta", () => {
-    expect([...ALTAS_PENDIENTES].sort()).toEqual(
-      ["AE", "AL", "BR", "CL", "CO", "GB", "GP", "KR", "MA", "MD", "ME", "MQ", "NG", "PE",
-       "PF", "RE", "RS", "SA", "TR", "UY", "VN"],
-    );
-    // Todo el que esté en la lista debe estar cobrando (si no, sobra en la lista).
+  //
+  // Las 21 altas se completaron el 2026-08-13 y la lista quedó VACÍA. Este test cambió de
+  // sentido: antes fijaba QUIÉNES faltaban, ahora vigila que no reaparezca nadie. Si alguien
+  // agrega un país con `platformCollects()` sin su alta hecha, tiene que añadirlo aquí — y
+  // este test se pondrá rojo, que es justo la señal de "no pasar a producción todavía".
+  it("🚨 ALTAS_PENDIENTES está vacía: ningún país cobra sin alta", () => {
+    expect([...ALTAS_PENDIENTES]).toEqual([]);
+  });
+
+  // Si algún día vuelve a tener entradas, cada una debe estar de verdad cobrando: un país
+  // listado que no cobra es ruido que haría ignorar la lista entera.
+  it("todo lo que esté en ALTAS_PENDIENTES está realmente cobrando", () => {
     for (const iso of ALTAS_PENDIENTES) {
       expect(platformCollectsTax(iso), iso + " está en ALTAS_PENDIENTES pero no cobra").toBe(true);
     }
@@ -921,8 +927,11 @@ describe("Europa no comunitaria con alta obligatoria", () => {
     // La UE se controla con un solo interruptor; Montenegro con el suyo.
     expect(countryTaxConfig("ME")!.taxName).toBe("PDV");
     expect(countryTaxConfig("DE")!.taxName).toBe("IVA");
-    expect(ALTAS_PENDIENTES).toContain("ME");
-    expect(ALTAS_PENDIENTES).not.toContain("DE");
+    // Antes esto se probaba viendo que ME estuviera en ALTAS_PENDIENTES y DE no. Esa lista
+    // ya está vacía (altas completadas), así que el contraste se apoya en lo que de verdad
+    // los distingue: tasa e impuesto propios frente a los de la UE.
+    expect(taxRateForCountry("ME")).toBeCloseTo(0.21, 8);
+    expect(taxRateForCountry("DE")).toBeCloseTo(0.19, 8);
   });
 
   // 🚫 Los tres que se dejaron fuera a propósito.
@@ -1157,10 +1166,11 @@ describe("Microestados y territorios europeos", () => {
     expect(platformCollectsTax("MC")).toBe(true);
     expect(taxRateForCountry("MC")).toBeCloseTo(0.20, 8);
     expect(taxRateForCountry("FR")).toBeCloseTo(0.20, 8);
-    expect(ALTAS_PENDIENTES).not.toContain("MC");   // cubierto por el OSS
-    // Montenegro: mismo euro, régimen propio, alta pendiente.
+    // Mónaco sigue a Francia porque el OSS lo cubre: misma tasa exacta.
+    // Montenegro comparte el euro pero NO el régimen — impuesto y tasa propios.
     expect(chargeCurrencyForCountry("ME")).toBe("EUR");
-    expect(ALTAS_PENDIENTES).toContain("ME");
+    expect(countryTaxConfig("ME")!.taxName).toBe("PDV");
+    expect(taxRateForCountry("ME")).toBeCloseTo(0.21, 8);
   });
 
   // 🚨 Jersey tiene el umbral MÁS ALTO de toda la tabla mundial: £300.000 (~US$385.000),
@@ -1229,7 +1239,6 @@ describe("Azerbaiyán y territorios franceses fuera del IVA", () => {
     for (const iso of ["GP", "MQ", "RE"]) {
       expect(taxRateForCountry(iso), iso).toBeCloseTo(0.085, 8);
       expect(platformCollectsTax(iso), iso).toBe(true);
-      expect(ALTAS_PENDIENTES, iso).toContain(iso);
     }
     // Contraste con los dos donde la TVA no aplica en absoluto.
     expect(taxRateForCountry("GF")).toBe(0);

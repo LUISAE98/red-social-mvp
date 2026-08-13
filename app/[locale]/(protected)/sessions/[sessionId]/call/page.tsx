@@ -83,9 +83,9 @@ const screen: CSSProperties = {
   display: "flex",
   flexDirection: "column",
   paddingTop: "env(safe-area-inset-top)",
-  paddingRight: "env(safe-area-inset-right)",
+  paddingInlineEnd: "env(safe-area-inset-right)",
   paddingBottom: "var(--vb-safe-bottom, 0px)",
-  paddingLeft: "env(safe-area-inset-left)",
+  paddingInlineStart: "env(safe-area-inset-left)",
   boxSizing: "border-box",
 };
 

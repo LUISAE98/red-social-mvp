@@ -114,7 +114,7 @@ export function SelectWrapper({ children }: { children: React.ReactNode }) {
         width="12" height="12" viewBox="0 0 24 24" fill="none"
         stroke="rgba(255,255,255,0.4)" strokeWidth="2.5"
         strokeLinecap="round" strokeLinejoin="round"
-        style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }}
+        style={{ position: "absolute", insetInlineEnd: 10, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }}
       >
         <polyline points="6 9 12 15 18 9" />
       </svg>

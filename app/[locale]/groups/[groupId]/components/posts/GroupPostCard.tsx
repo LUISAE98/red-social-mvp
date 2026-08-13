@@ -1455,8 +1455,8 @@ const cardStyle: CSSProperties = {
   borderRadius: isMobile ? 0 : 12,
 
   border: "1px solid rgba(0, 0, 0, 1)",
-  borderLeft: isMobile ? "none" : "1px solid rgba(0, 0, 0, 1)",
-  borderRight: isMobile ? "none" : "1px solid rgba(0, 0, 0, 1)",
+  borderInlineStart: isMobile ? "none" : "1px solid rgba(0, 0, 0, 1)",
+  borderInlineEnd: isMobile ? "none" : "1px solid rgba(0, 0, 0, 1)",
 
   background:
     "linear-gradient(135deg, rgb(0, 0, 0) 0%, rgb(2, 2, 4) 50%, rgb(0, 0, 0) 100%)",
@@ -1729,8 +1729,8 @@ const imageGridStyle: CSSProperties = {
   gap: 8,
   width: "100%",
   maxWidth: "100%",
-  marginLeft: 0,
-  marginRight: 0,
+  marginInlineStart: 0,
+  marginInlineEnd: 0,
 };
 
 const videoSkeletonAspectRatio =
@@ -2454,7 +2454,7 @@ const shouldClampFeedPostText =
           <div>
             <span style={{ fontSize: 11, fontWeight: 700, color: "#f87171" }}>Post eliminado</span>
             {post.deletedAt && (
-              <span style={{ fontSize: 10, color: "rgba(239,68,68,0.65)", marginLeft: 6 }}>
+              <span style={{ fontSize: 10, color: "rgba(239,68,68,0.65)", marginInlineStart: 6 }}>
                 {post.deletedAt.toDate().toLocaleString(intlLocale(locale), { dateStyle: "medium", timeStyle: "short" })}
               </span>
             )}
@@ -2515,7 +2515,7 @@ const shouldClampFeedPostText =
     boxShadow:
       "0 0 10px rgba(255, 255, 255, 0.45), 0 0 18px rgba(255, 255, 255, 0.22)",
     flexShrink: 0,
-    marginRight: 2,
+    marginInlineEnd: 2,
   }}
 />
                   )}
@@ -2588,7 +2588,7 @@ style={{
   background: "transparent",
   fontFamily: fontStack,
   cursor: "pointer",
-  textAlign: "left",
+  textAlign: "start",
   lineHeight: "15px",
   WebkitTapHighlightColor: "transparent",
 }}
@@ -2597,7 +2597,7 @@ style={{
     ? formatExactDate(post.liveData?.startedAt ?? post.createdAt, locale)
     : formatRelativeDate(post.liveData?.startedAt ?? post.createdAt, locale)}
   {(post.editedAt ?? localText !== null) ? (
-    <span style={{ opacity: 0.45, fontStyle: "italic", marginLeft: 2 }}>
+    <span style={{ opacity: 0.45, fontStyle: "italic", marginInlineStart: 2 }}>
       {" · Editado"}
     </span>
   ) : null}
@@ -2679,13 +2679,13 @@ style={{
       style={{
         position: "absolute",
         top: 0,
-        right: 10,
+        insetInlineEnd: 10,
         display: "inline-flex",
         alignItems: "center",
         gap: 5,
         background: "linear-gradient(180deg, #a855f7 0%, #d946b8 100%)",
-        borderBottomLeftRadius: 6,
-        borderBottomRightRadius: 6,
+        borderEndStartRadius: 6,
+        borderEndEndRadius: 6,
         padding: "3px 8px 3px 6px",
         fontSize: 8.5,
         fontWeight: 700,
@@ -2714,7 +2714,7 @@ style={{
           border: authorStatusBadge.border,
           background: authorStatusBadge.background,
           color: authorStatusBadge.color,
-          marginRight: cleanPostText.length > 0 ? 8 : 0,
+          marginInlineEnd: cleanPostText.length > 0 ? 8 : 0,
           verticalAlign: "middle",
         }}
       >
@@ -2733,7 +2733,7 @@ style={{
             type="button"
             onClick={() => setPostTextExpanded((prev) => !prev)}
             style={{
-              marginLeft: 6,
+              marginInlineStart: 6,
               border: "none",
               background: "transparent",
               color: "rgba(255,255,255,0.72)",
@@ -2763,7 +2763,7 @@ style={{
           type="button"
           onClick={() => setLiveCreatorOpen(true)}
           style={{
-            position: "absolute", top: 8, left: 8, zIndex: 10,
+            position: "absolute", top: 8, insetInlineStart: 8, zIndex: 10,
             height: 32, padding: "0 14px", borderRadius: 10, border: "none",
             background: "linear-gradient(135deg, #a855f7 0%, #d946b8 100%)",
             color: "#fff", fontWeight: 600, fontSize: 12,
@@ -2803,7 +2803,7 @@ style={{
             <span
               aria-hidden="true"
               style={{
-                position: "absolute", right: 8, bottom: 8, zIndex: 5,
+                position: "absolute", insetInlineEnd: 8, bottom: 8, zIndex: 5,
                 minHeight: 20, padding: "3px 7px", borderRadius: 6,
                 background: "rgba(0,0,0,0.52)",
                 backdropFilter: "blur(4px)", WebkitBackdropFilter: "blur(4px)",
@@ -2851,8 +2851,8 @@ style={{
         style={{
           position: "absolute",
           ...(isLivePlayer
-            ? { bottom: 0, left: "50%", transform: "translateX(-50%)", borderTopLeftRadius: 8, borderTopRightRadius: 8 }
-            : { top: 0, right: 10, borderBottomLeftRadius: 6, borderBottomRightRadius: 6 }),
+            ? { bottom: 0, left: "50%", transform: "translateX(-50%)", borderStartStartRadius: 8, borderStartEndRadius: 8 }
+            : { top: 0, insetInlineEnd: 10, borderEndStartRadius: 6, borderEndEndRadius: 6 }),
           display: "inline-flex",
           alignItems: "center",
           gap: 5,
@@ -2886,7 +2886,7 @@ style={{
           type="button"
           onClick={() => setLiveCreatorOpen(true)}
           style={{
-            position: "absolute", top: 8, left: 8, zIndex: 4,
+            position: "absolute", top: 8, insetInlineStart: 8, zIndex: 4,
             height: 36, padding: "0 18px", borderRadius: 10, border: "none",
             background: "linear-gradient(135deg, #a855f7 0%, #d946b8 100%)", color: "#fff", fontWeight: 600,
             fontSize: 13, fontFamily: fontStack, cursor: "pointer", whiteSpace: "nowrap",
@@ -3197,7 +3197,7 @@ style={{
             </>
           )}
           <div style={{
-            position: "absolute", top: 10, left: 10,
+            position: "absolute", top: 10, insetInlineStart: 10,
             display: "inline-flex", alignItems: "center", gap: 6,
             background: isLiveBlockedByTicket ? "rgba(20,5,5,0.88)" : "rgba(10,5,20,0.82)",
             border: isLiveBlockedByTicket ? "1px solid rgba(239,68,68,0.45)" : "1px solid rgba(168,85,255,0.35)",
@@ -3453,7 +3453,7 @@ style={{
           </div>
         </div>
         <span style={{
-          marginLeft: "auto", width: 7, height: 7, borderRadius: "50%",
+          marginInlineStart: "auto", width: 7, height: 7, borderRadius: "50%",
           background: "#ef4444", flexShrink: 0,
           boxShadow: "0 0 0 2px rgba(239,68,68,0.3)",
           animation: "livePulse 2s ease-in-out infinite",
@@ -3470,8 +3470,8 @@ style={{
   marginTop: 10,
   width: "100%",
   maxWidth: "100%",
-  marginLeft: 0,
-  marginRight: 0,
+  marginInlineStart: 0,
+  marginInlineEnd: 0,
   borderRadius: isMobile ? 12 : 14,
   border: isMobile ? "none" : "1px solid rgba(255,255,255,0.08)",
   overflow: "hidden",
@@ -3596,7 +3596,7 @@ cursor: isMobile ? "pointer" : "default",
       WebkitTapHighlightColor: "transparent",
     }}
   >
-    <svg aria-hidden="true" viewBox="0 0 24 24" fill="rgba(255,255,255,0.78)" width="104" height="104" style={{ marginLeft: 5, filter: "drop-shadow(0 1px 5px rgba(0,0,0,0.4))" }}>
+    <svg aria-hidden="true" viewBox="0 0 24 24" fill="rgba(255,255,255,0.78)" width="104" height="104" style={{ marginInlineStart: 5, filter: "drop-shadow(0 1px 5px rgba(0,0,0,0.4))" }}>
       <path fillRule="evenodd" d="M4.5 5.653c0-1.427 1.529-2.33 2.779-1.643l11.54 6.348c1.295.712 1.295 2.573 0 3.285L7.28 19.991c-1.25.687-2.779-.217-2.779-1.643V5.653z" clipRule="evenodd" />
     </svg>
   </button>
@@ -3722,7 +3722,7 @@ function getCarouselMediaFrameWidth(media: DisplayMediaItem) {
             aria-hidden="true"
             style={{
               position: "absolute",
-              right: 8,
+              insetInlineEnd: 8,
               bottom: 8,
               zIndex: 3,
               color: "#fff",
@@ -4045,7 +4045,7 @@ style={{
                   aria-hidden="true"
                   style={{
                     position: "absolute",
-                    right: 8,
+                    insetInlineEnd: 8,
                     bottom: 8,
                     zIndex: 5,
                     minHeight: 20,
@@ -4164,7 +4164,7 @@ style={{
               aria-label="Ver archivo anterior"
               style={{
                 position: "absolute",
-                left: 10,
+                insetInlineStart: 10,
                 top: "50%",
                 transform: "translateY(-50%)",
                 zIndex: 10,
@@ -4193,7 +4193,7 @@ padding: "0 0 2px 0",
               aria-label="Ver siguiente archivo"
               style={{
                 position: "absolute",
-                right: 10,
+                insetInlineEnd: 10,
                 top: "50%",
                 transform: "translateY(-50%)",
                 zIndex: 10,
@@ -4235,7 +4235,7 @@ padding: "0 0 2px 0",
                       aria-hidden="true"
                       style={{
                         position: "absolute",
-                        right: 8,
+                        insetInlineEnd: 8,
                         bottom: 8,
                         zIndex: 5,
                         minHeight: 20,

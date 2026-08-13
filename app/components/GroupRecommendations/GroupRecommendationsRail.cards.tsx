@@ -243,8 +243,8 @@ export function ProfileCard({
           style={{
             position: "absolute",
             bottom: 10,
-            left: 10,
-            right: 10,
+            insetInlineStart: 10,
+            insetInlineEnd: 10,
             zIndex: 2,
           }}
         >
@@ -478,8 +478,8 @@ export function GroupCard({
           style={{
             position: "absolute",
             bottom: 10,
-            left: 10,
-            right: 10,
+            insetInlineStart: 10,
+            insetInlineEnd: 10,
             zIndex: 2,
           }}
         >
@@ -741,7 +741,7 @@ export function LiveRecommendationCard({
         </button>
 
         {/* CTA */}
-        <div style={{ position: "absolute", bottom: 10, left: 10, right: 10, zIndex: 2 }}>
+        <div style={{ position: "absolute", bottom: 10, insetInlineStart: 10, insetInlineEnd: 10, zIndex: 2 }}>
           <LiveCTAButton
             rec={rec}
             state={actionState}

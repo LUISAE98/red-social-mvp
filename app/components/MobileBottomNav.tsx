@@ -405,8 +405,8 @@ export default function MobileBottomNav({
       <style jsx>{`
         .wrap {
           position: fixed;
-          left: 0;
-          right: 0;
+          inset-inline-start: 0;
+          inset-inline-end: 0;
           bottom: 0;
           z-index: 9999;
           display: none;
@@ -469,7 +469,7 @@ export default function MobileBottomNav({
         .navBadge {
           position: absolute;
           top: -5px;
-          right: -8px;
+          inset-inline-end: -8px;
           min-width: 16px;
           height: 16px;
           padding: 0 4px;
@@ -487,7 +487,7 @@ export default function MobileBottomNav({
         .navDot {
           position: absolute;
           top: -3px;
-          right: -3px;
+          inset-inline-end: -3px;
           width: 9px;
           height: 9px;
           border-radius: 999px;

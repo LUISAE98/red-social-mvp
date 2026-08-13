@@ -361,14 +361,14 @@ export default function DonationFeedBanner({
     );
 
     const headerStyle: React.CSSProperties = {
-      position: "absolute", top: headerTop, left: 12, zIndex: 10,
+      position: "absolute", top: headerTop, insetInlineStart: 12, zIndex: 10,
       display: "flex", alignItems: "center", gap: sz === 20 ? 6 : 8,
       textDecoration: "none", WebkitTapHighlightColor: "transparent",
     };
 
     return (
       <>
-        <div style={{ position: "absolute", top: safeTop, left: 0, right: 0, paddingTop: 12, paddingLeft: 10, paddingRight: 10, zIndex: 10 }}>
+        <div style={{ position: "absolute", top: safeTop, insetInlineStart: 0, insetInlineEnd: 0, paddingTop: 12, paddingInlineStart: 10, paddingInlineEnd: 10, zIndex: 10 }}>
           <div style={{ height: 3, borderRadius: 2, background: "rgba(255,255,255,0.3)", overflow: "hidden" }}>
             <div style={{ height: "100%", borderRadius: 2, background: "#fff", width: `${Math.round(progress * 100)}%`, transition: "none" }} />
           </div>
@@ -376,7 +376,7 @@ export default function DonationFeedBanner({
         {profileHandle
           ? <a href={`/u/${profileHandle}`} onClick={(e) => e.stopPropagation()} style={{ ...headerStyle, cursor: "pointer" }}>{headerInner}</a>
           : <div style={headerStyle}>{headerInner}</div>}
-        <div style={{ position: "absolute", top: controlsTop, right: 10, display: "flex", alignItems: "center", gap: 4, zIndex: 11 }}>
+        <div style={{ position: "absolute", top: controlsTop, insetInlineEnd: 10, display: "flex", alignItems: "center", gap: 4, zIndex: 11 }}>
           {muteBtn(sz)}
           <button type="button" aria-label={tCommon("closeAriaLabel")} onClick={handleClose}
             style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.9)", padding: "0 5px", display: "flex", alignItems: "center", justifyContent: "center" }}
@@ -386,8 +386,8 @@ export default function DonationFeedBanner({
             </svg>
           </button>
         </div>
-        <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: "40%", background: "linear-gradient(to top, rgba(0,0,0,0.85) 0%, transparent 100%)", pointerEvents: "none", zIndex: 8 }} />
-        <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "0 14px", paddingBottom: btnPadBottom, zIndex: 10 }}>
+        <div style={{ position: "absolute", bottom: 0, insetInlineStart: 0, insetInlineEnd: 0, height: "40%", background: "linear-gradient(to top, rgba(0,0,0,0.85) 0%, transparent 100%)", pointerEvents: "none", zIndex: 8 }} />
+        <div style={{ position: "absolute", bottom: 0, insetInlineStart: 0, insetInlineEnd: 0, padding: "0 14px", paddingBottom: btnPadBottom, zIndex: 10 }}>
           <button type="button" onTouchStart={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); handleContributeClick(); }}
             style={{ width: "100%", padding: sz === 20 ? "8px 10px" : "11px 10px", borderRadius: 10, border: "none", background: "#38bdf8", color: "#fff", fontSize: sz === 20 ? 12 : 14, fontWeight: 600, cursor: "pointer", letterSpacing: "-0.01em", display: "flex", alignItems: "center", justifyContent: "center", gap: 7 }}
           >
@@ -472,7 +472,7 @@ export default function DonationFeedBanner({
   const muteIconBanner = (
     <button type="button" aria-label={muted ? tCommon("unmuteAriaLabel") : tCommon("muteAriaLabel")}
       onClick={(e) => { e.stopPropagation(); setMuted((m) => !m); }}
-      style={{ position: "absolute", bottom: 6, right: 6, zIndex: 3, background: "rgba(0,0,0,0.55)", border: "none", borderRadius: "50%", width: 26, height: 26, cursor: "pointer", padding: 0, display: "flex", alignItems: "center", justifyContent: "center", color: "rgba(255,255,255,0.9)", WebkitTapHighlightColor: "transparent" }}
+      style={{ position: "absolute", bottom: 6, insetInlineEnd: 6, zIndex: 3, background: "rgba(0,0,0,0.55)", border: "none", borderRadius: "50%", width: 26, height: 26, cursor: "pointer", padding: 0, display: "flex", alignItems: "center", justifyContent: "center", color: "rgba(255,255,255,0.9)", WebkitTapHighlightColor: "transparent" }}
     >
       {muted ? (
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -561,9 +561,9 @@ export default function DonationFeedBanner({
       />
       <style>{`
         .dbv-video-wrap { position: absolute; z-index: 2; border-radius: 10px; overflow: hidden; background: #000; }
-.dbv-video-wrap.portrait  { top: 2%; right: 12%; }
+.dbv-video-wrap.portrait  { top: 2%; inset-inline-end: 12%; }
         @media (min-width: 560px) {
-          .dbv-video-wrap.portrait { top: 4%; bottom: 4%; right: 4%; width: auto !important; }
+          .dbv-video-wrap.portrait { top: 4%; bottom: 4%; inset-inline-end: 4%; width: auto !important; }
         }
         .dbv-actions { position: absolute; inset: 0; z-index: 1; padding: 0 18px; display: flex; flex-direction: column; align-items: center; justify-content: space-between; }
         .dbv-upper { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; gap: 10px; }
@@ -578,13 +578,13 @@ export default function DonationFeedBanner({
           .dbv-btn { font-size: 12px !important; padding-top: 7px !important; padding-bottom: 7px !important; }
         }
         @media (min-width: 900px) {
-          .dbv-actions.portrait { right: auto; width: 74%; }
+          .dbv-actions.portrait { inset-inline-end: auto; width: 74%; }
           .dbv-actions.portrait .dbv-text-block,
           .dbv-actions.portrait .dbv-shield-row,
           .dbv-actions.portrait .dbv-btn { width: 70%; }
         }
         @media (max-width: 599px) {
-          .dbv-landscape-wrap { padding-left: 14px; padding-right: 14px; }
+          .dbv-landscape-wrap { padding-inline-start: 14px; padding-inline-end: 14px; }
         }
       `}</style>
 

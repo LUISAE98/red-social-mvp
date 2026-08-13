@@ -140,7 +140,7 @@ function ToggleSwitch({
         style={{
           position: "absolute",
           top: 2,
-          left: checked ? 20 : 2,
+          insetInlineStart: checked ? 20 : 2,
           width: 20,
           height: 20,
           borderRadius: "50%",
@@ -196,7 +196,7 @@ function SelectField({
         aria-hidden="true"
         style={{
           position: "absolute",
-          right: 11,
+          insetInlineEnd: 11,
           top: "50%",
           transform: "translateY(-50%)",
           pointerEvents: "none",
@@ -914,7 +914,7 @@ const onCropComplete = useCallback(
                     style={{
                       position: "absolute",
                       top: 10,
-                      right: 10,
+                      insetInlineEnd: 10,
                       padding: "8px 12px",
                       borderRadius: 9,
                       border: "1px solid rgba(255,255,255,0.14)",
@@ -972,7 +972,7 @@ const onCropComplete = useCallback(
                       aria-label={tGroups("chooseAvatarAriaLabel")}
                       style={{
                         position: "absolute",
-                        right: 6,
+                        insetInlineEnd: 6,
                         bottom: 6,
                         width: 30,
                         height: 30,
@@ -1535,7 +1535,7 @@ const onCropComplete = useCallback(
                   style={{ width: 200 }}
                 />
 
-                <div style={{ marginLeft: "auto", display: "flex", gap: 10 }}>
+                <div style={{ marginInlineStart: "auto", display: "flex", gap: 10 }}>
                   <button
                     type="button"
                     onClick={closeCropModal}

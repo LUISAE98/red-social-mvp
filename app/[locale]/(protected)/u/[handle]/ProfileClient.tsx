@@ -1933,14 +1933,14 @@ const res = (await createExclusiveSessionRequest({
    corregimos de 560px hacia arriba, igualando el padding en cada breakpoint. */
 @media (min-width: 560px) {
   .profile-content :global(.exp-cards) {
-    margin-left: -18px;
-    margin-right: -18px;
+    margin-inline-start: -18px;
+    margin-inline-end: -18px;
   }
 }
 @media (min-width: 560px) and (max-width: 640px) {
   .profile-content :global(.exp-cards) {
-    margin-left: -12px;
-    margin-right: -12px;
+    margin-inline-start: -12px;
+    margin-inline-end: -12px;
   }
 }
 
@@ -1998,7 +1998,7 @@ const res = (await createExclusiveSessionRequest({
 
 .shared-communities-cover {
   position: absolute;
-  left: 18px;
+  inset-inline-start: 18px;
   top: 18px;
   z-index: 45;
   display: flex;
@@ -2022,7 +2022,7 @@ const res = (await createExclusiveSessionRequest({
 
           @media (max-width: 640px) {
             .profile-card button[data-action="change-avatar"] {
-              right: -10px !important;
+              inset-inline-end: -10px !important;
               bottom: -2px !important;
             }
           }
@@ -2040,8 +2040,8 @@ const res = (await createExclusiveSessionRequest({
 
   .profile-card {
     border-radius: 0 !important;
-    border-left: 0 !important;
-    border-right: 0 !important;
+    border-inline-start: 0 !important;
+    border-inline-end: 0 !important;
   }
 
 .profile-content {
@@ -2053,16 +2053,16 @@ const res = (await createExclusiveSessionRequest({
    pestaña (.services-tab-margins), que es la única fuente del margen simétrico y
    centrado. El subnav se re-alinea a ese mismo margen para que quede parejo. */
 .profile-content--services {
-  padding-left: 0;
-  padding-right: 0;
+  padding-inline-start: 0;
+  padding-inline-end: 0;
 }
 .profile-content--services .profile-subnav-wrap {
-  padding-left: 10px;
-  padding-right: 10px;
+  padding-inline-start: 10px;
+  padding-inline-end: 10px;
 }
 
 .shared-communities-cover {
-  left: 12px;
+  inset-inline-start: 12px;
   top: 12px;
 }
 
@@ -2150,8 +2150,8 @@ const res = (await createExclusiveSessionRequest({
 <div
   style={{
     position: "absolute",
-    left: 0,
-    right: 0,
+    insetInlineStart: 0,
+    insetInlineEnd: 0,
     bottom: 0,
     height: "82%",
     zIndex: 10,
@@ -2183,7 +2183,7 @@ const res = (await createExclusiveSessionRequest({
     <div
     style={{
       position: "absolute",
-      right: 18,
+      insetInlineEnd: 18,
       top: 18,
       zIndex: 40,
       display: "flex",
@@ -2239,7 +2239,7 @@ const res = (await createExclusiveSessionRequest({
     <LanguageSwitcher variant="cover-corner" />
     {/* Lupa + copiar perfil (owner). En móvil se corre a la izquierda para no
         encimar los switchers de moneda/idioma. */}
-    <style>{`.profile-owner-cover-actions{right:14px}@media(max-width:900px){.profile-owner-cover-actions{right:96px}}`}</style>
+    <style>{`.profile-owner-cover-actions{insetInlineEnd:14px}@media(max-width:900px){.profile-owner-cover-actions{insetInlineEnd:96px}}`}</style>
     <div
       className="profile-owner-cover-actions"
       style={{
@@ -2287,7 +2287,7 @@ const res = (await createExclusiveSessionRequest({
       title={tProfile("ariaChangeCover")}
       style={{
         position: "absolute",
-        right: 14,
+        insetInlineEnd: 14,
         bottom: 14,
         zIndex: 40,
         width: 34,
@@ -2504,7 +2504,7 @@ const res = (await createExclusiveSessionRequest({
                       disabled={uploading}
                       style={{
                         position: "absolute",
-                        right: 8,
+                        insetInlineEnd: 8,
                         bottom: 8,
                         width: 34,
                         height: 34,
@@ -2617,8 +2617,8 @@ const res = (await createExclusiveSessionRequest({
                     <div
                       style={{
                         marginTop: 18,
-                        marginLeft: "auto",
-                        marginRight: "auto",
+                        marginInlineStart: "auto",
+                        marginInlineEnd: "auto",
                         textAlign: "center",
                         maxWidth: 460,
                         fontSize: 12.5,
@@ -2705,8 +2705,8 @@ const res = (await createExclusiveSessionRequest({
                     style={{
                       width: "100%",
                       maxWidth: 720,
-                      marginLeft: "auto",
-                      marginRight: "auto",
+                      marginInlineStart: "auto",
+                      marginInlineEnd: "auto",
                       boxSizing: "border-box",
                     }}
                   >
@@ -3110,8 +3110,8 @@ const res = (await createExclusiveSessionRequest({
     placeItems: "center",
     paddingTop: "max(14px, env(safe-area-inset-top, 0px))",
     paddingBottom: 14,
-    paddingLeft: 14,
-    paddingRight: 14,
+    paddingInlineStart: 14,
+    paddingInlineEnd: 14,
     fontFamily: fontStack,
   }}
   serviceModalCardStyle={{
@@ -3184,8 +3184,8 @@ const res = (await createExclusiveSessionRequest({
             placeItems: "center",
             paddingTop: "max(14px, env(safe-area-inset-top, 0px))",
             paddingBottom: 14,
-            paddingLeft: 14,
-            paddingRight: 14,
+            paddingInlineStart: 14,
+            paddingInlineEnd: 14,
             fontFamily: fontStack,
           }}
           onClick={() => {
@@ -3287,7 +3287,7 @@ const res = (await createExclusiveSessionRequest({
 
                 <div
                   style={{
-                    marginLeft: "auto",
+                    marginInlineStart: "auto",
                     display: "flex",
                     gap: 10,
                     flexWrap: "wrap",

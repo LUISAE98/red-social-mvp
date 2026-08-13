@@ -111,7 +111,7 @@ export function Switch({
         style={{
           position: "absolute",
           top: 2,
-          left: checked ? 18 : 2,
+          insetInlineStart: checked ? 18 : 2,
           width: 14,
           height: 14,
           borderRadius: "50%",
@@ -285,7 +285,7 @@ export function OverlayModal({
         }
         .vibraPublishBar {
           position: absolute;
-          left: 0;
+          inset-inline-start: 0;
           top: 0;
           height: 100%;
           width: 0%;
@@ -395,8 +395,8 @@ export function OverlayModal({
                 aria-hidden="true"
                 style={{
                   position: "absolute",
-                  left: 0,
-                  right: 0,
+                  insetInlineStart: 0,
+                  insetInlineEnd: 0,
                   bottom: -1,
                   height: 2,
                   overflow: "hidden",

@@ -319,7 +319,7 @@ export default function ReportDetailPage() {
                     color: selected ? c.text : "#666",
                     fontSize: 13,
                     fontWeight: 600,
-                    textAlign: "left",
+                    textAlign: "start",
                     cursor: "pointer",
                     transition: "all 120ms ease",
                   }}

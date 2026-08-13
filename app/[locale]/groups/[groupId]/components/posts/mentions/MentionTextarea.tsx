@@ -290,7 +290,7 @@ export default function MentionTextarea({
                     <span style={avatarFallbackStyle}>{initials(suggestion.label)}</span>
                   )}
                 </span>
-                <span style={{ display: "grid", gap: 1, minWidth: 0, textAlign: "left" }}>
+                <span style={{ display: "grid", gap: 1, minWidth: 0, textAlign: "start" }}>
                   <span style={labelStyle}>{suggestion.label}</span>
                   <span style={secondaryStyle}>
                     {secondary}
@@ -331,8 +331,8 @@ export default function MentionTextarea({
 const popoverStyle: CSSProperties = {
   position: "absolute",
   bottom: "calc(100% + 6px)",
-  left: 0,
-  right: 0,
+  insetInlineStart: 0,
+  insetInlineEnd: 0,
   maxHeight: 236,
   overflowY: "auto",
   background: "rgba(20,20,26,0.98)",

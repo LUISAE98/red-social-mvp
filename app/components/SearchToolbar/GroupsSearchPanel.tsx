@@ -810,8 +810,8 @@ function handleOpenFullResults() {
 .search-area-full .search-dropdown {
   position: relative;
   top: auto;
-  left: auto;
-  right: auto;
+  inset-inline-start: auto;
+  inset-inline-end: auto;
   width: 100%;
   max-width: 100%;
   margin: 8px 0 0;
@@ -829,8 +829,8 @@ function handleOpenFullResults() {
 .search-dropdown {
   position: absolute;
   top: calc(100% + 8px);
-  left: 0;
-  right: 0;
+  inset-inline-start: 0;
+  inset-inline-end: 0;
   width: 600px;
   max-width: 100%;
   margin: 0 auto;
@@ -1452,8 +1452,8 @@ to {
 .search-dropdown {
   position: fixed;
   top: calc(env(safe-area-inset-top, 0px) + 58px);
-  left: 0;
-  right: 0;
+  inset-inline-start: 0;
+  inset-inline-end: 0;
   width: auto;
   min-width: 0;
   border-radius: 0 0 18px 18px;

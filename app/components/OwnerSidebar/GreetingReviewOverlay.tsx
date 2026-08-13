@@ -1283,7 +1283,7 @@ export default function GreetingReviewOverlay({
           <p
             ref={speechTextRef}
             onClick={handleTextSeek}
-            style={{ whiteSpace: "pre-wrap", fontSize: 13, lineHeight: 1.5, color: "rgba(255,255,255,0.82)", margin: 0, cursor: "text", userSelect: "none", maxHeight: 160, overflowY: "auto", paddingRight: 4 }}
+            style={{ whiteSpace: "pre-wrap", fontSize: 13, lineHeight: 1.5, color: "rgba(255,255,255,0.82)", margin: 0, cursor: "text", userSelect: "none", maxHeight: 160, overflowY: "auto", paddingInlineEnd: 4 }}
           >
             {(() => {
               const text = req.instructions;
@@ -1439,9 +1439,9 @@ export default function GreetingReviewOverlay({
         transition: "opacity 220ms ease",
         pointerEvents: "none",
       }}>
-        {/* Top-right: fullscreen + mute */}
+        {/* Top-insetInlineEnd: fullscreen + mute */}
         <div style={{
-          position: "absolute", top: 0, right: 0,
+          position: "absolute", top: 0, insetInlineEnd: 0,
           padding: "10px 12px",
           display: "flex", alignItems: "center", gap: 10,
           pointerEvents: "auto",
@@ -1505,7 +1505,7 @@ export default function GreetingReviewOverlay({
 
         {/* Bottom: time + scrubber */}
         <div style={{
-          position: "absolute", bottom: 0, left: 0, right: 0,
+          position: "absolute", bottom: 0, insetInlineStart: 0, insetInlineEnd: 0,
           background: "linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 100%)",
           padding: "0 12px 10px",
           pointerEvents: "auto",
@@ -1519,11 +1519,11 @@ export default function GreetingReviewOverlay({
             </span>
           </div>
           <div ref={vpScrubberRef} style={{ position: "relative", height: 20, display: "flex", alignItems: "center" }}>
-            <div style={{ position: "absolute", left: 0, right: 0, height: 3, borderRadius: 2, background: "rgba(255,255,255,0.28)" }}>
+            <div style={{ position: "absolute", insetInlineStart: 0, insetInlineEnd: 0, height: 3, borderRadius: 2, background: "rgba(255,255,255,0.28)" }}>
               <div style={{ height: "100%", width: "var(--pct, 0%)", background: "#fff", borderRadius: 2 }} />
             </div>
             <div style={{
-              position: "absolute", left: "var(--pct, 0%)", transform: "translate(-50%, 0)",
+              position: "absolute", insetInlineStart: "var(--pct, 0%)", transform: "translate(-50%, 0)",
               width: 13, height: 13, borderRadius: "50%", background: "#fff",
               pointerEvents: "none",
             }} />
@@ -1568,7 +1568,7 @@ export default function GreetingReviewOverlay({
 
         {/* ── Camera / playback area — fills from top to panel ── */}
         <div style={{
-          position: "absolute", top: 0, left: 0, right: 0,
+          position: "absolute", top: 0, insetInlineStart: 0, insetInlineEnd: 0,
           bottom: mobilePanelHeight,
           background: "#000", overflow: "hidden",
           borderRadius: "16px 16px 24px 24px",
@@ -1662,7 +1662,7 @@ export default function GreetingReviewOverlay({
 
         {/* ── Draggable panel ── */}
         <div style={{
-          position: "absolute", bottom: 0, left: 0, right: 0,
+          position: "absolute", bottom: 0, insetInlineStart: 0, insetInlineEnd: 0,
           height: mobilePanelHeight,
           borderRadius: "20px 20px 0 0",
           background: "linear-gradient(145deg, rgb(6,3,12) 0%, rgb(10,5,20) 100%)",
@@ -1855,7 +1855,7 @@ export default function GreetingReviewOverlay({
             gap: 16,
             overflowY: "auto",
             padding: 20,
-            borderRight: "1px solid rgba(255,255,255,0.06)",
+            borderInlineEnd: "1px solid rgba(255,255,255,0.06)",
           }}>
             {/* Header */}
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
@@ -2099,12 +2099,12 @@ export default function GreetingReviewOverlay({
   const reviewBgImage = req.type === "consejo" ? "/consejo.webp" : req.type === "saludo" ? "/saludo.webp" : null;
   const REVIEW_BG_CSS = `
     .grv-bg-img {
-      position: absolute; top: 0; right: 0; bottom: 0; left: 0; z-index: 0;
+      position: absolute; top: 0; inset-inline-end: 0; bottom: 0; inset-inline-start: 0; z-index: 0;
       background-size: cover; background-position: center 40%; background-repeat: no-repeat;
       opacity: 0.52;
     }
     .grv-bg-grad {
-      position: absolute; top: 0; right: 0; bottom: 0; left: 0; z-index: 1;
+      position: absolute; top: 0; inset-inline-end: 0; bottom: 0; inset-inline-start: 0; z-index: 1;
       background: linear-gradient(to bottom,
         #0a0a0a 28%,
         rgba(10,10,10,0.72) 46%,
@@ -2148,7 +2148,7 @@ export default function GreetingReviewOverlay({
         />
         {/* Bottom sheet */}
         <div style={{
-          position: "fixed", bottom: 0, left: 0, right: 0,
+          position: "fixed", bottom: 0, insetInlineStart: 0, insetInlineEnd: 0,
           zIndex: 10051,
           maxHeight: "calc(100dvh - 72px)",
           display: "flex", flexDirection: "column",

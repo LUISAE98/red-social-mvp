@@ -1,6 +1,14 @@
 "use client";
 
-import { Children, cloneElement, isValidElement, useCallback, useEffect, useRef, useState } from "react";
+import {
+  Children,
+  cloneElement,
+  isValidElement,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { useMediaQuery } from "@/lib/hooks/useMediaQuery";
 
 /**
@@ -20,11 +28,17 @@ import { useMediaQuery } from "@/lib/hooks/useMediaQuery";
 
 const AUTO_MS = 5000;
 
+/** Lo que cada tarjeta necesita saber del carrusel para pintar sus puntos. */
+type CarouselInfo = { count: number; current: number; onSelect: (i: number) => void };
+
 export default function LoginExperienceRail({ children }: { children: React.ReactNode }) {
   const isMobile = useMediaQuery(900);
   const reduceMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
 
-  const railRef = useRef<HTMLDivElement | null>(null);
+  // El nodo del rail va en ESTADO, no en una ref: así los efectos se rearman
+  // solos cuando aparece y las funciones que lo usan pueden pasarse a las
+  // tarjetas sin leer nada durante el render.
+  const [rail, setRail] = useState<HTMLDivElement | null>(null);
   const [active, setActive] = useState(0);
   /** La persona tomó el control del rail: se acabó el avance automático. */
   const [manual, setManual] = useState(false);
@@ -35,27 +49,39 @@ export default function LoginExperienceRail({ children }: { children: React.Reac
   const count = slides.length;
 
   const slideEls = useCallback((): HTMLElement[] => {
-    const rail = railRef.current;
     if (!rail) return [];
     return Array.from(rail.children).filter((el): el is HTMLElement => el instanceof HTMLElement);
-  }, []);
+  }, [rail]);
 
   const goTo = useCallback(
     (i: number, smooth = true) => {
-      const rail = railRef.current;
       const els = slideEls();
       const target = els[i];
       if (!rail || !target) return;
-      // La diferencia contra la primera tarjeta descuenta el padding del rail,
-      // que es justo lo que scroll-padding usa como origen del snap.
+      // La diferencia contra la primera tarjeta descuenta el margen del rail,
+      // que es el origen desde el que se mide el acomodo.
+      // `left` es la propiedad de scrollTo; no tiene equivalente lógico.
       rail.scrollTo({ left: target.offsetLeft - els[0].offsetLeft, behavior: smooth ? "smooth" : "auto" });
     },
-    [slideEls],
+    [rail, slideEls],
+  );
+
+  // Tocar un punto lleva a su tarjeta y apaga el avance automático.
+  const irYTomarControl = useCallback(
+    (destino: number) => {
+      setManual(true);
+      goTo(destino);
+    },
+    [goTo],
+  );
+
+  const carousel = useMemo<CarouselInfo | null>(
+    () => (isMobile ? { count, current: active, onSelect: irYTomarControl } : null),
+    [isMobile, count, active, irYTomarControl],
   );
 
   // Tarjeta activa = la más cercana al borde de arranque del rail.
   useEffect(() => {
-    const rail = railRef.current;
     if (!rail || !isMobile) return;
     let raf = 0;
     const read = () => {
@@ -84,35 +110,67 @@ export default function LoginExperienceRail({ children }: { children: React.Reac
       rail.removeEventListener("scroll", onScroll);
       if (raf) cancelAnimationFrame(raf);
     };
-  }, [isMobile, slideEls]);
+  }, [rail, isMobile, slideEls]);
 
-  // Cualquier señal de que la persona está manejando el rail apaga el avance.
+  // Apaga el avance automático cuando la persona maneja el rail. Solo cuentan
+  // los gestos HORIZONTALES: antes bastaba con tocar el rail, y como ocupa toda
+  // la pantalla, cualquier scroll vertical de la página lo daba por manipulado y
+  // el avance no volvía a arrancar en toda la visita.
   useEffect(() => {
-    const rail = railRef.current;
     if (!rail || !isMobile || manual) return;
-    const stop = () => setManual(true);
-    const opts = { passive: true } as const;
-    rail.addEventListener("pointerdown", stop, opts);
-    rail.addEventListener("touchstart", stop, opts);
-    rail.addEventListener("wheel", stop, opts);
-    rail.addEventListener("keydown", stop);
-    return () => {
-      rail.removeEventListener("pointerdown", stop);
-      rail.removeEventListener("touchstart", stop);
-      rail.removeEventListener("wheel", stop);
-      rail.removeEventListener("keydown", stop);
+    let x0 = 0;
+    let y0 = 0;
+    let siguiendo = false;
+    const abajo = (e: PointerEvent) => {
+      x0 = e.clientX;
+      y0 = e.clientY;
+      siguiendo = true;
     };
-  }, [isMobile, manual]);
+    const movimiento = (e: PointerEvent) => {
+      if (!siguiendo) return;
+      const dx = Math.abs(e.clientX - x0);
+      const dy = Math.abs(e.clientY - y0);
+      // Horizontal y con recorrido suficiente para no confundirlo con el temblor
+      // del dedo al empezar a deslizar la página.
+      if (dx > 12 && dx > dy) {
+        setManual(true);
+        siguiendo = false;
+      }
+    };
+    const fin = () => {
+      siguiendo = false;
+    };
+    const rueda = (e: WheelEvent) => {
+      if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) setManual(true);
+    };
+    const tecla = () => setManual(true);
+    const opts = { passive: true } as const;
+    rail.addEventListener("pointerdown", abajo, opts);
+    rail.addEventListener("pointermove", movimiento, opts);
+    rail.addEventListener("pointerup", fin, opts);
+    rail.addEventListener("pointercancel", fin, opts);
+    rail.addEventListener("wheel", rueda, opts);
+    rail.addEventListener("keydown", tecla);
+    return () => {
+      rail.removeEventListener("pointerdown", abajo);
+      rail.removeEventListener("pointermove", movimiento);
+      rail.removeEventListener("pointerup", fin);
+      rail.removeEventListener("pointercancel", fin);
+      rail.removeEventListener("wheel", rueda);
+      rail.removeEventListener("keydown", tecla);
+    };
+  }, [rail, isMobile, manual]);
 
   useEffect(() => {
-    const rail = railRef.current;
     if (!rail || typeof IntersectionObserver === "undefined") return;
+    // Umbral bajo: una tarjeta puede ser más alta que la pantalla, y con un
+    // umbral exigente nunca se daría por visible y jamás avanzaría.
     const obs = new IntersectionObserver((entries) => setOnScreen(entries.some((e) => e.isIntersecting)), {
-      threshold: 0.35,
+      threshold: 0.2,
     });
     obs.observe(rail);
     return () => obs.disconnect();
-  }, []);
+  }, [rail]);
 
   // Avance automático. El temporizador se rearma con cada cambio de tarjeta,
   // así que siempre son 5 s desde que se llega a una, no desde el arranque.
@@ -142,26 +200,16 @@ export default function LoginExperienceRail({ children }: { children: React.Reac
           box-sizing: border-box;
         }
 
-        .expRailDots {
-          display: none;
-        }
-
         @media (max-width: 900px) {
           /* Celular: carrusel de una tarjeta por vista. Sin touch-action ni
              listeners de gesto a propósito, el navegador ya distingue el
              desplazamiento vertical de la página del horizontal del rail. */
           .expRail {
             flex-direction: row;
-            gap: 10px;
-            /* El margen lateral es lo que permite CENTRAR también la primera y
-               la última: sin él no habría recorrido para llevarlas al medio y
-               quedarían pegadas a su borde. 84% + 8% + 8% = ancho completo.
-               El de la izquierda va como padding; el de la derecha NO puede ir
-               así porque los navegadores se comen el padding final de un
-               contenedor flex con scroll y la última tarjeta se quedaría sin
-               recorrido para centrarse. Va como pieza vacía al final. */
+            gap: 12px;
+            /* Sin margen lateral: cada tarjeta ocupa el ancho COMPLETO, así que
+               ya cae centrada por sí sola, la primera y la última incluidas. */
             padding: 22px 0 6px;
-            padding-left: 8%;
             overflow-x: auto;
             scroll-snap-type: x mandatory;
             /* Que el rebote horizontal no se propague a la página ni al gesto
@@ -173,17 +221,10 @@ export default function LoginExperienceRail({ children }: { children: React.Reac
             display: none;
           }
 
-          /* Cierre del recorrido para que la última tarjeta llegue al centro.
-             El gap ya aporta 10px de los 8%. */
-          .expRail::after {
-            content: "";
-            flex: 0 0 calc(8% - 10px);
-          }
-
-          /* La tarjeta se detiene CENTRADA, con la anterior y la siguiente
-             asomando ~5% por cada lado. */
+          /* Una sola tarjeta a la vista, centrada y a pantalla completa. Sin
+             asomo de las vecinas: la atención va a una y nada más. */
           .expRail > :global(.expBlock) {
-            flex: 0 0 84%;
+            flex: 0 0 100%;
             max-width: none;
             margin: 0;
             scroll-snap-align: center;
@@ -193,65 +234,17 @@ export default function LoginExperienceRail({ children }: { children: React.Reac
                media pantalla y con hueco arriba y abajo. */
             align-content: start;
           }
-
-          .expRailDots {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 7px;
-            padding: 18px 0 0;
-          }
         }
       `}</style>
 
-      {/* Los puntos van ARRIBA del rail: así se ven sin tener que llegar al
-          final de la tarjeta, que es donde se necesita saber que hay más. */}
-      <div className="expRailDots">
-        {slides.map((_, i) => (
-          <Dot
-            key={i}
-            index={i}
-            active={i === active}
-            onSelect={() => {
-              setManual(true);
-              goTo(i);
-            }}
-          />
-        ))}
-      </div>
-
-      <div className="expRail" ref={railRef}>
+      <div className="expRail" ref={setRail}>
         {slides.map((child, i) =>
-          isValidElement<{ active?: boolean }>(child)
-            ? cloneElement(child, { active: !isMobile || i === active })
+          isValidElement<{ active?: boolean; carousel?: CarouselInfo | null }>(child)
+            ? // Los puntos se pintan DENTRO de la tarjeta, debajo del círculo.
+              cloneElement(child, { active: !isMobile || i === active, carousel })
             : child,
         )}
       </div>
     </div>
-  );
-}
-
-/**
- * Punto indicador. El activo se alarga en vez de solo aclararse: a este tamaño
- * el cambio de forma se distingue mejor que el de color.
- */
-function Dot({ index, active, onSelect }: { index: number; active: boolean; onSelect: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onSelect}
-      aria-label={`Ir a la experiencia ${index + 1}`}
-      aria-current={active ? "true" : undefined}
-      style={{
-        width: active ? 18 : 6,
-        height: 6,
-        padding: 0,
-        border: "none",
-        borderRadius: 999,
-        background: active ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.28)",
-        transition: "width 260ms ease, background 260ms ease",
-        cursor: "pointer",
-      }}
-    />
   );
 }

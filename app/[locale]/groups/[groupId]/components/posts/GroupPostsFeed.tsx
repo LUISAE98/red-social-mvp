@@ -1610,7 +1610,7 @@ const shellStyle: CSSProperties = {
       {lightboxTile && (
         <div
           aria-hidden="true"
-          style={{ position: "fixed", left: 0, top: 0, width: 0, height: 0, overflow: "hidden" }}
+          style={{ position: "fixed", insetInlineStart: 0, top: 0, width: 0, height: 0, overflow: "hidden" }}
         >
           <GroupPostCard
             post={lightboxTile.post}

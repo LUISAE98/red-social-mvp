@@ -412,7 +412,7 @@ export function PlaceholderRow({
           flex-shrink: 0;
           font-size: 18px;
           line-height: 1;
-          margin-left: auto;
+          margin-inline-start: auto;
         }
 
         .placeholderSubtitle {
@@ -1832,7 +1832,7 @@ export function WalletFilterMenu<T extends string>({
                         : (option.color ? option.color + "bb" : "rgba(255,255,255,0.72)"),
                       fontSize: 14,
                       fontWeight: isSelected ? 600 : 400,
-                      textAlign: "left",
+                      textAlign: "start",
                       cursor: "pointer",
                       minHeight: 48,
                       padding: "11px 16px",

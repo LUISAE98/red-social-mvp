@@ -281,9 +281,18 @@ export default function LiveDirectBroadcast({
     pcRef.current = null;
 
     if (whipResourceRef.current) {
-      const resource = encodeURIComponent(whipResourceRef.current);
-      fetch(`/api/whip-proxy?r=${resource}`, { method: "DELETE" }).catch(() => {});
       whipResourceRef.current = null;
+      // El servidor guarda la URL del recurso WHIP al abrir la sesión; aquí solo
+      // decimos qué live cerrar. Mandarle la URL sería SSRF (ver whip-proxy).
+      getAuth()
+        .currentUser?.getIdToken()
+        .then((token) =>
+          fetch(`/api/whip-proxy?postId=${encodeURIComponent(postId)}`, {
+            method: "DELETE",
+            headers: { Authorization: `Bearer ${token}` },
+          })
+        )
+        .catch(() => {});
     }
 
     if (pc) {
@@ -613,8 +622,8 @@ export default function LiveDirectBroadcast({
       <div style={{
         display: "flex", alignItems: "center", gap: 8,
         paddingTop: 10,
-        paddingLeft: "max(12px, env(safe-area-inset-left))",
-        paddingRight: "max(12px, env(safe-area-inset-right))",
+        paddingInlineStart: "max(12px, env(safe-area-inset-left))",
+        paddingInlineEnd: "max(12px, env(safe-area-inset-right))",
         paddingBottom: "max(10px, var(--vb-safe-bottom, 0px))",
         background: "rgba(0,0,0,0.85)",
         borderTop: "1px solid rgba(255,255,255,0.08)",

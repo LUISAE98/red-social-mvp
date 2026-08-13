@@ -368,7 +368,7 @@ export default function DonationConfigCard({
             los demás servicios, pero más pequeños y en azul celeste para que quepan
             los cuatro. */}
         {amount && (
-          <div style={{ display: "grid", gap: 2, justifyItems: "end", textAlign: "right", flexShrink: 0, minWidth: 0 }}>
+          <div style={{ display: "grid", gap: 2, justifyItems: "end", textAlign: "end", flexShrink: 0, minWidth: 0 }}>
             <div style={subtleStyle}>Cantidades predeterminadas</div>
             <div style={{ display: "flex", alignItems: "baseline", justifyContent: "flex-end", flexWrap: "wrap", gap: 6 }}>
               <span
@@ -378,14 +378,14 @@ export default function DonationConfigCard({
                   fontWeight: 600,
                   lineHeight: 1.25,
                   fontVariantNumeric: "tabular-nums",
-                  textAlign: "right",
+                  textAlign: "end",
                 }}
               >
                 {amount}
               </span>
               <span style={{ fontSize: 12, fontWeight: 400, color: "rgba(255,255,255,0.5)" }}>+ 3 MXN</span>
             </div>
-            <div style={{ ...subtleStyle, textAlign: "right", marginTop: 2 }}>
+            <div style={{ ...subtleStyle, textAlign: "end", marginTop: 2 }}>
               Por cada donación cobrarás el 75% del monto configurado
             </div>
           </div>
@@ -506,7 +506,7 @@ export default function DonationConfigCard({
             maxLength={160}
             style={{ ...inputStyle, width: "100%", resize: "vertical" }}
           />
-          <div style={{ ...subtleStyle, textAlign: "right", marginTop: 2 }}>
+          <div style={{ ...subtleStyle, textAlign: "end", marginTop: 2 }}>
             {(overlayDraft.donationMessage as string).length} / 160
           </div>
         </div>

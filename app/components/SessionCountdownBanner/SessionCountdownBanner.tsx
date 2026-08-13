@@ -296,7 +296,7 @@ export default function SessionCountdownBanner({ uid }: { uid: string }) {
           type="button"
           aria-label="Cerrar"
           onClick={() => setRefundClosing(true)}
-          style={{ position: "absolute", top: 8, right: 8, width: 28, height: 28, padding: 0, border: "none", background: "transparent", cursor: "pointer", display: "grid", placeItems: "center", zIndex: 2, WebkitTapHighlightColor: "transparent" }}
+          style={{ position: "absolute", top: 8, insetInlineEnd: 8, width: 28, height: 28, padding: 0, border: "none", background: "transparent", cursor: "pointer", display: "grid", placeItems: "center", zIndex: 2, WebkitTapHighlightColor: "transparent" }}
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth={2.2} strokeLinecap="round" aria-hidden="true">
             <path d="M6 6L18 18" /><path d="M18 6L6 18" />
@@ -359,7 +359,7 @@ export default function SessionCountdownBanner({ uid }: { uid: string }) {
     return (
       <div style={{ width: "100%", position: "relative", borderRadius: 12, overflow: "hidden", marginBottom: 2, boxSizing: "border-box", backgroundImage: `url(${bgImage})`, backgroundSize: "cover", backgroundPosition: "center" }}>
         <div style={{ position: "absolute", inset: 0, background: "linear-gradient(160deg, rgba(0,0,0,0.60) 0%, rgba(0,0,0,0.80) 100%)" }} />
-        <button type="button" onClick={dismissStandalone} style={{ position: "absolute", top: 10, right: 10, border: "none", background: "none", color: "rgba(255,255,255,0.45)", fontSize: 16, cursor: "pointer", padding: "0 2px", zIndex: 2, fontFamily: "inherit", lineHeight: 1 }} aria-label="Cerrar">✕</button>
+        <button type="button" onClick={dismissStandalone} style={{ position: "absolute", top: 10, insetInlineEnd: 10, border: "none", background: "none", color: "rgba(255,255,255,0.45)", fontSize: 16, cursor: "pointer", padding: "0 2px", zIndex: 2, fontFamily: "inherit", lineHeight: 1 }} aria-label="Cerrar">✕</button>
         <div style={{ position: "relative", padding: "16px 40px 16px 18px", display: "flex", flexDirection: "column", gap: 10 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <div style={{ width: 44, height: 44, borderRadius: "50%", overflow: "hidden", flexShrink: 0, background: "rgba(255,255,255,0.10)", border: "2px solid rgba(34,197,94,0.50)" }}>
@@ -690,7 +690,7 @@ export default function SessionCountdownBanner({ uid }: { uid: string }) {
               <div style={{ fontSize: 16, color: "#fff", fontWeight: 700, letterSpacing: "-0.01em", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{creatorName}</div>
             </div>
 
-            <div style={{ flexShrink: 0, textAlign: "right", maxWidth: "40%" }}>
+            <div style={{ flexShrink: 0, textAlign: "end", maxWidth: "40%" }}>
               <div style={{ fontSize: 11, fontWeight: 500, marginBottom: 2, lineHeight: 1.3, color: sessionInProgress || countdownFrozen ? "#4ade80" : isPastStart ? "#fb923c" : "rgba(255,255,255,0.65)" }}>
                 {countdownLabel}
               </div>

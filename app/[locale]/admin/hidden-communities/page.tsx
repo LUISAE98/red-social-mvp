@@ -256,7 +256,7 @@ export default function HiddenCommunitiesPage() {
             {t === "unverified" ? tAdmin("tabUnverified") : tAdmin("tabVerified")}
             <span
               style={{
-                marginLeft: 5,
+                marginInlineStart: 5,
                 fontSize: 10,
                 background: tab === t ? "#2d1557" : "#1a1a1a",
                 color: tab === t ? "#c084fc" : "#444",
@@ -398,7 +398,7 @@ export default function HiddenCommunitiesPage() {
                       style={{
                         flex: 1,
                         textAlign: "center",
-                        borderLeft: i > 0 ? "1px solid #1a1a1a" : "none",
+                        borderInlineStart: i > 0 ? "1px solid #1a1a1a" : "none",
                       }}
                     >
                       <div style={{ fontSize: 14, fontWeight: 700, color: "#e2e2e2" }}>
@@ -498,7 +498,7 @@ export default function HiddenCommunitiesPage() {
                       {c.creatorName ?? c.ownerId ?? tAdmin("creatorNameFallback")}
                     </span>
                     {c.creatorHandle && (
-                      <span style={{ fontSize: 10, color: "#555", marginLeft: 4 }}>
+                      <span style={{ fontSize: 10, color: "#555", marginInlineStart: 4 }}>
                         @{c.creatorHandle}
                       </span>
                     )}

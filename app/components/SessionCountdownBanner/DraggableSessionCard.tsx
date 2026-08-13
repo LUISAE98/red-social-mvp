@@ -237,14 +237,14 @@ export default function DraggableSessionCard({ uid }: { uid: string }) {
         style={{
           position: "fixed",
           top: edgeY,
-          ...(isLeft ? { left: 0 } : { right: 0 }),
+          ...(isLeft ? { insetInlineStart: 0 } : { insetInlineEnd: 0 }),
           width: TAB_W,
           height: TAB_H,
           background: tabGradient,
           border: `1px solid ${tabBorderColor}`,
           ...(isLeft
-            ? { borderLeftWidth: 0, borderRadius: "0 14px 14px 0" }
-            : { borderRightWidth: 0, borderRadius: "14px 0 0 14px" }
+            ? { borderInlineStartWidth: 0, borderRadius: "0 14px 14px 0" }
+            : { borderInlineEndWidth: 0, borderRadius: "14px 0 0 14px" }
           ),
           boxShadow: shadowDir,
           display: "flex",
@@ -319,7 +319,7 @@ export default function DraggableSessionCard({ uid }: { uid: string }) {
         ref={cardRef}
         style={{
           position: "fixed",
-          left: pos.x,
+          insetInlineStart: pos.x,
           top: pos.y,
           width: CARD_W,
           maxWidth: "calc(100vw - 32px)",

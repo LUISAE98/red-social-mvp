@@ -164,7 +164,12 @@ export async function POST(req: NextRequest) {
   });
 }
 
-// DELETE /api/livekit-broadcast?egressId=xxx&postId=xxx — stop broadcast
+// DELETE /api/livekit-broadcast?postId=xxx — stop broadcast
+//
+// `postId` es OBLIGATORIO y su autoría se verifica: el egress a detener se
+// deriva de la sala del post, nunca del `egressId` que mande el cliente. Antes
+// bastaba con estar autenticado y conocer un egressId ajeno para cortarle la
+// transmisión a cualquiera, y omitir `postId` saltaba la verificación entera.
 export async function DELETE(req: NextRequest) {
   if (livekitMissing()) {
     return NextResponse.json({ error: "LiveKit no configurado" }, { status: 500 });
@@ -175,77 +180,81 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ error: "No autenticado" }, { status: 401 });
   }
 
-  const egressId = req.nextUrl.searchParams.get("egressId");
-  if (!egressId) {
-    return new NextResponse(null, { status: 204 });
-  }
-
-  // Verify ownership and read groupId + broadcastGroupIds for live ring cleanup
   const postId = req.nextUrl.searchParams.get("postId");
-  let stopGroupId: string | null = null;
-  let stopBroadcastGroupIds: string[] = [];
-  if (postId) {
-    const db = getAdminFirestore();
-    const postSnap = await db.collection("posts").doc(postId).get();
-    if (postSnap.exists && postSnap.data()?.authorId !== uid) {
-      return NextResponse.json({ error: "No autorizado" }, { status: 403 });
-    }
-    if (postSnap.exists) {
-      const g = postSnap.data()?.groupId;
-      if (typeof g === "string" && g) stopGroupId = g;
-      // Solo comunidades PROPIAS y que sigan apuntando a ESTE live (Admin SDK se
-      // salta las reglas y la lista la escribe el cliente).
-      stopBroadcastGroupIds = (
-        await filterOwnedBroadcastGroupIds(db, uid, postSnap.data()?.liveData?.broadcastGroupIds, {
-          mustPointTo: postId,
-        })
-      ).filter((id) => id !== stopGroupId);
-    }
+  if (!postId) {
+    return NextResponse.json({ error: "postId requerido" }, { status: 400 });
   }
 
-  // 1. Stop egress — severs the LiveKit → Mux RTMP feed
+  const db = getAdminFirestore();
+  const postSnap = await db.collection("posts").doc(postId).get();
+  if (!postSnap.exists) {
+    return NextResponse.json({ error: "Post no encontrado" }, { status: 404 });
+  }
+  if (postSnap.data()?.authorId !== uid) {
+    return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+  }
+
+  // groupId + broadcastGroupIds para limpiar los aros de "en vivo"
+  const g = postSnap.data()?.groupId;
+  const stopGroupId: string | null = typeof g === "string" && g ? g : null;
+  // Solo comunidades PROPIAS y que sigan apuntando a ESTE live (Admin SDK se
+  // salta las reglas y la lista la escribe el cliente).
+  const stopBroadcastGroupIds = (
+    await filterOwnedBroadcastGroupIds(db, uid, postSnap.data()?.liveData?.broadcastGroupIds, {
+      mustPointTo: postId,
+    })
+  ).filter((id) => id !== stopGroupId);
+
+  const roomName = `live-${postId}`;
+
+  // 1. Detener los egress ACTIVOS de esta sala — corta el feed LiveKit → Mux RTMP.
+  // Se consultan por sala en vez de aceptar el id del cliente, así el permiso
+  // sobre el post es lo único que decide qué se puede detener.
   try {
     const egressClient = new EgressClient(LIVEKIT_URL, LIVEKIT_API_KEY, LIVEKIT_API_SECRET);
-    await egressClient.stopEgress(egressId);
+    const active = await egressClient.listEgress({ roomName, active: true });
+    await Promise.all(
+      active.map((info) =>
+        egressClient.stopEgress(info.egressId).catch((err) => {
+          console.error("[livekit-broadcast] Stop egress error:", err instanceof Error ? err.message : err);
+        })
+      )
+    );
   } catch (err) {
-    console.error("[livekit-broadcast] Stop egress error:", err instanceof Error ? err.message : err);
+    console.error("[livekit-broadcast] List egress error:", err instanceof Error ? err.message : err);
+    // Si el listado falla, borrar la sala (paso 2) también termina el egress.
   }
 
   // 2. Delete the LiveKit room immediately so it closes now instead of after emptyTimeout (600s).
   // Prevents the egress compositor from billing as a phantom participant while the room drains.
-  if (postId) {
-    try {
-      const roomService = new RoomServiceClient(LIVEKIT_URL, LIVEKIT_API_KEY, LIVEKIT_API_SECRET);
-      await roomService.deleteRoom(`live-${postId}`);
-    } catch (err) {
-      console.error("[livekit-broadcast] Delete room error:", err instanceof Error ? err.message : err);
-    }
+  try {
+    const roomService = new RoomServiceClient(LIVEKIT_URL, LIVEKIT_API_KEY, LIVEKIT_API_SECRET);
+    await roomService.deleteRoom(roomName);
+  } catch (err) {
+    console.error("[livekit-broadcast] Delete room error:", err instanceof Error ? err.message : err);
   }
 
   // 3. Update Firestore: mark live as ended and clear live ring badges.
   // Direct write avoids the 120s delay from Mux's reconnect_window before live_stream.idle fires.
   // The muxWebhook handler is a no-op when liveData.status is already "ended".
-  if (postId) {
-    const db = getAdminFirestore();
-    const now = FieldValue.serverTimestamp();
-    const clearUpdates: Promise<unknown>[] = [
-      db.collection("users").doc(uid).update({ activeLivePostId: FieldValue.delete() }),
-      db.collection("posts").doc(postId).update({
-        "liveData.status": "ended",
-        "liveData.endedAt": now,
-        updatedAt: now,
-      }),
-    ];
-    if (stopGroupId) {
-      clearUpdates.push(db.collection("groups").doc(stopGroupId).update({ activeLivePostId: FieldValue.delete() }));
-    }
-    for (const gid of stopBroadcastGroupIds) {
-      clearUpdates.push(db.collection("groups").doc(gid).update({ activeLivePostId: FieldValue.delete() }));
-    }
-    await Promise.all(clearUpdates).catch((err) => {
-      console.error("[livekit-broadcast] Failed to clear live state:", err);
-    });
+  const now = FieldValue.serverTimestamp();
+  const clearUpdates: Promise<unknown>[] = [
+    db.collection("users").doc(uid).update({ activeLivePostId: FieldValue.delete() }),
+    db.collection("posts").doc(postId).update({
+      "liveData.status": "ended",
+      "liveData.endedAt": now,
+      updatedAt: now,
+    }),
+  ];
+  if (stopGroupId) {
+    clearUpdates.push(db.collection("groups").doc(stopGroupId).update({ activeLivePostId: FieldValue.delete() }));
   }
+  for (const gid of stopBroadcastGroupIds) {
+    clearUpdates.push(db.collection("groups").doc(gid).update({ activeLivePostId: FieldValue.delete() }));
+  }
+  await Promise.all(clearUpdates).catch((err) => {
+    console.error("[livekit-broadcast] Failed to clear live state:", err);
+  });
 
   return new NextResponse(null, { status: 204 });
 }

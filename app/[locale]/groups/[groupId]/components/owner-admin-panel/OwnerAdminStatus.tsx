@@ -138,7 +138,7 @@ function PermissionSwitchRow({
             style={{
               position: "absolute",
               top: 3,
-              left: checked ? 25 : 3,
+              insetInlineStart: checked ? 25 : 3,
               width: 22,
               height: 22,
               borderRadius: "50%",

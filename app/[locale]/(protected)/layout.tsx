@@ -256,7 +256,7 @@ const contentAreaClassName = isEmbed
           /* Borde izquierdo del cluster centrado, para que el OwnerSidebar (que va
              position:fixed) siga al conjunto en pantallas grandes en vez de quedarse
              pegado al viewport. Debajo de --shell-max-width cae a su valor histórico. */
-          --owner-sidebar-fixed-left: max(
+          --owner-sidebar-fixed-insetInlineStart: max(
             18px,
             calc(50vw - var(--shell-max-width) / 2 + var(--shell-gutter))
           );
@@ -275,8 +275,8 @@ const contentAreaClassName = isEmbed
 .safeAreaHeaderBackdrop {
   position: fixed;
   top: 0;
-  left: 0;
-  right: 0;
+  inset-inline-start: 0;
+  inset-inline-end: 0;
   height: calc(env(safe-area-inset-top, 0px) + 56px);
   z-index: 70;
   pointer-events: none;
@@ -305,11 +305,11 @@ const contentAreaClassName = isEmbed
 .headerInner {
   width: 100%;
   max-width: var(--shell-max-width);
-  margin-left: auto;
-  margin-right: auto;
+  margin-inline-start: auto;
+  margin-inline-end: auto;
   min-height: 56px;
-  padding-left: max(var(--shell-gutter), env(safe-area-inset-left, 0px));
-  padding-right: max(var(--shell-gutter), env(safe-area-inset-right, 0px));
+  padding-inline-start: max(var(--shell-gutter), env(safe-area-inset-left, 0px));
+  padding-inline-end: max(var(--shell-gutter), env(safe-area-inset-right, 0px));
   padding-top: 8px;
   padding-bottom: 8px;
   box-sizing: border-box;
@@ -345,7 +345,7 @@ const contentAreaClassName = isEmbed
    VibraGradientText / el hero del login). */
 .brandLogo {
   display: inline-block;
-  margin-left: 10px;
+  margin-inline-start: 10px;
   font-size: 35px;
   font-weight: 680;
   letter-spacing: -0.035em;
@@ -360,7 +360,7 @@ const contentAreaClassName = isEmbed
 
 .mobileBrandLogo {
   display: inline-block;
-  margin-left: 8px;
+  margin-inline-start: 8px;
   font-size: 29px;
   font-weight: 680;
   letter-spacing: -0.035em;
@@ -423,7 +423,7 @@ const contentAreaClassName = isEmbed
 /* Botón de cerrar sesión (icono puerta+flecha) a la derecha del switch de idioma. */
 .desktopHeaderActions :global(.headerLogoutBtn) {
   background: transparent;
-  margin-left: 2px;
+  margin-inline-start: 2px;
   transition: background 140ms ease;
 }
 
@@ -437,7 +437,7 @@ const contentAreaClassName = isEmbed
   display: flex;
   align-items: center;
   gap: 18px;
-  margin-right: 18px;
+  margin-inline-end: 18px;
   flex: 0 0 auto;
 }
 
@@ -497,8 +497,8 @@ const contentAreaClassName = isEmbed
 .mobileHeaderContext {
   position: absolute;
   top: 0;
-  left: 0;
-  right: 0;
+  inset-inline-start: 0;
+  inset-inline-end: 0;
   bottom: 0;
   display: flex;
   align-items: center;
@@ -616,7 +616,7 @@ const contentAreaClassName = isEmbed
           display: flex;
           align-items: center;
           gap: 8px;
-          margin-left: auto;
+          margin-inline-start: auto;
           flex-shrink: 0;
         }
 
@@ -677,11 +677,11 @@ const contentAreaClassName = isEmbed
   gap: var(--shell-column-gap);
   width: 100%;
   max-width: var(--shell-max-width);
-  margin-left: auto;
-  margin-right: auto;
+  margin-inline-start: auto;
+  margin-inline-end: auto;
   flex: 1;
-  padding-left: var(--shell-gutter);
-  padding-right: var(--shell-gutter);
+  padding-inline-start: var(--shell-gutter);
+  padding-inline-end: var(--shell-gutter);
   padding-top: 0;
   padding-bottom: calc(24px + var(--vb-safe-bottom, 0px));
   box-sizing: border-box;
@@ -690,13 +690,13 @@ const contentAreaClassName = isEmbed
 
 .contentAreaWithWallet {
   grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
-  padding-right: calc(var(--wallet-rail-width) + var(--shell-column-gap) + var(--shell-gutter));
+  padding-inline-end: calc(var(--wallet-rail-width) + var(--shell-column-gap) + var(--shell-gutter));
 }
 
 .contentAreaEmbed {
   grid-template-columns: minmax(0, 1fr);
-  padding-left: 0;
-  padding-right: 0;
+  padding-inline-start: 0;
+  padding-inline-end: 0;
 }
 
 .sidebarCol {
@@ -719,8 +719,8 @@ const contentAreaClassName = isEmbed
 
 .mainInner {
   width: min(var(--main-max-width), 100%);
-  margin-left: auto;
-  margin-right: auto;
+  margin-inline-start: auto;
+  margin-inline-end: auto;
   margin-top: 0;
 }
   
@@ -730,7 +730,7 @@ const contentAreaClassName = isEmbed
   /* Se ancla al borde derecho del cluster centrado: en pantallas anchas sigue al
      conjunto (no al borde del viewport); en pantallas ≤ --shell-max-width cae al
      gutter, como antes. */
-  right: max(
+  insetInlineEnd: max(
     env(safe-area-inset-right, 0px),
     var(--shell-gutter),
     calc(50vw - var(--shell-max-width) / 2 + var(--shell-gutter))
@@ -859,8 +859,8 @@ const contentAreaClassName = isEmbed
             grid-template-columns: 1fr;
             width: 100%;
             gap: 0;
-            padding-left: 0;
-            padding-right: 0;
+            padding-inline-start: 0;
+            padding-inline-end: 0;
             padding-top: 10px;
             padding-bottom: calc(16px + var(--vb-safe-bottom, 0px));
           }
@@ -966,7 +966,7 @@ const contentAreaClassName = isEmbed
                           <path d="M12 3.2l2.7 5.47 6.03.88-4.36 4.25 1.03 6.0L12 17.9l-5.4 2.84 1.03-6.0L3.27 9.55l6.03-.88z" />
                         </svg>
                         {experiencesBadge ? (
-                          <span aria-hidden="true" style={{ position: "absolute", top: 5, right: 5, width: 8, height: 8, borderRadius: 999, background: "#ff3b30", boxShadow: "0 0 0 2px rgba(0,0,0,0.55)" }} />
+                          <span aria-hidden="true" style={{ position: "absolute", top: 5, insetInlineEnd: 5, width: 8, height: 8, borderRadius: 999, background: "#ff3b30", boxShadow: "0 0 0 2px rgba(0,0,0,0.55)" }} />
                         ) : null}
                       </Link>
                     ) : null}
@@ -1012,7 +1012,7 @@ const contentAreaClassName = isEmbed
                 <path d="M12 3.2l2.7 5.47 6.03.88-4.36 4.25 1.03 6.0L12 17.9l-5.4 2.84 1.03-6.0L3.27 9.55l6.03-.88z" />
               </svg>
               {experiencesBadge ? (
-                <span aria-hidden="true" style={{ position: "absolute", top: 5, right: 5, width: 8, height: 8, borderRadius: 999, background: "#ff3b30", boxShadow: "0 0 0 2px rgba(0,0,0,0.55)" }} />
+                <span aria-hidden="true" style={{ position: "absolute", top: 5, insetInlineEnd: 5, width: 8, height: 8, borderRadius: 999, background: "#ff3b30", boxShadow: "0 0 0 2px rgba(0,0,0,0.55)" }} />
               ) : null}
             </Link>
           </span>
@@ -1104,8 +1104,8 @@ const contentAreaClassName = isEmbed
                display: "flex",
                flexDirection: "column",
                paddingTop: "env(safe-area-inset-top, 0px)",
-               paddingLeft: "env(safe-area-inset-left, 0px)",
-               paddingRight: "env(safe-area-inset-right, 0px)",
+               paddingInlineStart: "env(safe-area-inset-left, 0px)",
+               paddingInlineEnd: "env(safe-area-inset-right, 0px)",
                boxSizing: "border-box",
                willChange: "transform",
              }}

@@ -415,7 +415,7 @@ export default function WalletLives({
                   background: `linear-gradient(90deg, rgba(0,0,0,0.90), rgba(0,0,0,0.66)), center / cover no-repeat url("${row.cover}")`,
                   cursor: "pointer",
                   fontFamily: "inherit",
-                  textAlign: "left",
+                  textAlign: "start",
                   width: "100%",
                 }}
               >

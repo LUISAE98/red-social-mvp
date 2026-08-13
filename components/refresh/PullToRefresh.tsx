@@ -34,8 +34,8 @@ export default function PullToRefresh({
       style={{
         position: "fixed",
         top: indicatorTop ?? "calc(env(safe-area-inset-top) + 20px)",
-        left: 0,
-        right: 0,
+        insetInlineStart: 0,
+        insetInlineEnd: 0,
         zIndex: 99999,
         opacity: Math.max(progress, isRefreshing ? 1 : 0),
         transform: `translateY(${Math.min(pullDistance * 0.35, 18)}px)`,

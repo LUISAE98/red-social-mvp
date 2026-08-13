@@ -140,7 +140,7 @@ export default function OtherReportsPage() {
                 <div style={{ fontSize: 11, color: "#444", marginTop: 3 }}>
                   {tAdmin("otherReportsClaimed", { time: r.claimedAt ? rel(r.claimedAt) : "—" })}
                   {r.claimedBy && (
-                    <span style={{ marginLeft: 8, fontFamily: "monospace" }}>
+                    <span style={{ marginInlineStart: 8, fontFamily: "monospace" }}>
                       · {r.claimedBy.slice(0, 10)}…
                     </span>
                   )}

@@ -615,7 +615,7 @@ export function CelebrationBurst({
             transition={{ duration: total, times, ease: "easeOut" }}
             style={{
               position: "absolute",
-              left: x - size / 2,
+              insetInlineStart: x - size / 2,
               top: y - size / 2,
               width: size,
               height: size,
@@ -691,7 +691,7 @@ export function GroupCategoryPill({
             style={{
               position: "absolute",
               top: 6,
-              right: 6,
+              insetInlineEnd: 6,
               width: 22,
               height: 22,
               borderRadius: "50%",

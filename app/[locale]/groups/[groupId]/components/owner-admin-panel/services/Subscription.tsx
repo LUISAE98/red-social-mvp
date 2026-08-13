@@ -198,7 +198,7 @@ function TransitionPolicyPanel({
           background: "transparent",
           border: "none",
           padding: 0,
-          textAlign: "left",
+          textAlign: "start",
           width: "100%",
           cursor: saving ? "not-allowed" : "pointer",
           opacity: saving ? 0.6 : 1,
@@ -505,7 +505,7 @@ function handleModify() {
             padding: 0,
             marginTop: 2,
             justifySelf: "flex-start",
-            textAlign: "left",
+            textAlign: "start",
             color: SUBSCRIPTION_ACCENT,
             fontSize: 14,
             fontWeight: 600,
@@ -561,7 +561,7 @@ function handleModify() {
         </div>
 
         {/* Esquina inferior derecha: precio grande (estilo del feed, +40%) + 3 MXN. */}
-        <div style={{ display: "grid", gap: 2, justifyItems: "end", textAlign: "right", flexShrink: 0 }}>
+        <div style={{ display: "grid", gap: 2, justifyItems: "end", textAlign: "end", flexShrink: 0 }}>
           <div style={subtleStyle}>{tServices("subscriptionSummaryPriceLabel")}</div>
           <div style={{ display: "flex", alignItems: "baseline", gap: 6, whiteSpace: "nowrap" }}>
             <span
@@ -580,7 +580,7 @@ function handleModify() {
             <span style={{ fontSize: 12, fontWeight: 400, color: "rgba(255,255,255,0.5)" }}>+ 3 MXN</span>
           </div>
           {subscriptionCalc ? (
-            <div style={{ ...subtleStyle, textAlign: "right", whiteSpace: "nowrap", marginTop: 2 }}>
+            <div style={{ ...subtleStyle, textAlign: "end", whiteSpace: "nowrap", marginTop: 2 }}>
               {tServices("subscriptionCalculationMessage", {
                 price: formatMoney(subscriptionCalc.gross, draft.subscription.currency),
                 netAmount: formatMoney(subscriptionCalc.net, draft.subscription.currency),

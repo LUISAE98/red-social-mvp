@@ -170,7 +170,7 @@ export const tinyGhostButton: CSSProperties = {
 
 export const coverDonationButton: CSSProperties = {
   position: "absolute",
-  left: 12,
+  insetInlineStart: 12,
   top: 12,
   zIndex: 3,
 };

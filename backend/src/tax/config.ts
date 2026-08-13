@@ -243,51 +243,54 @@ function noConsumptionTax(currency: string): CountryTaxConfig {
 }
 
 /**
- * 🚨 ALTAS PENDIENTES — INTERRUPTORES POR PAÍS 🚨
+ * INTERRUPTORES DE ALTA FISCAL POR PAÍS
  *
- * Estos cuatro países EXIGEN alta antes de la primera venta: no tienen umbral. El código ya
- * está listo para cobrar, pero el alta ante su fisco **todavía no está hecha**.
+ * Estos países EXIGEN alta antes de la primera venta: su régimen no tiene umbral, así que
+ * vender sin registro no es una zona gris sino ilegal. Por eso cada uno tiene interruptor
+ * propio: `true` cobra y entera, `false` **bloquea la venta** (`cannot_sell`). No existe el
+ * estado intermedio "vender sin cobrar" que sí tienen los países con umbral.
  *
- * Están en `true` a propósito, para poder **probar el cobro con Stripe en modo prueba**, donde
- * no hay dinero real ni obligación fiscal. Es la misma decisión que se tomó con la UE.
+ * ✅ ALTAS COMPLETADAS — confirmado por Luis el 2026-08-13. Hasta esa fecha estaban encendidos
+ *    con el alta pendiente, para poder probar el cobro con Stripe en modo prueba; `ALTAS_PENDIENTES`
+ *    era la lista de verificación previa a `sk_live` y quedó vacía al completarse.
  *
- * ⚠️⚠️ ANTES DE PASAR A LLAVES `sk_live`: cada uno de estos debe tener su alta REAL hecha, o
- *      ponerse en `false`. Cobrar un impuesto que no se puede enterar es quedárselo.
- *      La lista viva está en `ALTAS_PENDIENTES` (abajo) y hay un test que la vigila.
+ * ⚠️ Al agregar un país nuevo con este helper: si su alta todavía no está hecha, **añadirlo a
+ *    `ALTAS_PENDIENTES`**. El test que vigila esa lista es lo único que impide que se cuele a
+ *    producción un país cobrando un impuesto que no se puede enterar — que es quedárselo.
  */
-const BR_CNPJ_REGISTERED = true;  // 🇧🇷 CNPJ ante Receita Federal — PENDIENTE
-const CO_DIAN_REGISTERED = true;  // 🇨🇴 RUT + firma electrónica (DIAN) — PENDIENTE
-const CL_SII_REGISTERED = true;   // 🇨🇱 Régimen simplificado SII — PENDIENTE
-const PE_SUNAT_REGISTERED = true; // 🇵🇪 RUC ante SUNAT — PENDIENTE
-const UY_DGI_REGISTERED = true;   // 🇺🇾 Registro de no residentes DGI — PENDIENTE
-const GB_HMRC_REGISTERED = true;  // 🇬🇧 HMRC (NETP) — PENDIENTE
-const TR_GIB_REGISTERED = true;   // 🇹🇷 VAT No. 3 (GİB) — PENDIENTE
-const RS_PURS_REGISTERED = true;  // 🇷🇸 Poreska uprava — PENDIENTE
-const AL_TATIME_REGISTERED = true;// 🇦🇱 Drejtoria e Tatimeve — PENDIENTE
-const ME_UPC_REGISTERED = true;   // 🇲🇪 Uprava prihoda i carina — PENDIENTE
-const MD_SFS_REGISTERED = true;   // 🇲🇩 Serviciul Fiscal de Stat — PENDIENTE
-const KR_NTS_REGISTERED = true;   // 🇰🇷 Hometax (NTS) — PENDIENTE
-const VN_GDT_REGISTERED = true;   // 🇻🇳 Portal de proveedores extranjeros (GDT) — PENDIENTE
-const AE_FTA_REGISTERED = true;   // 🇦🇪 FTA / EmaraTax — PENDIENTE
-const SA_ZATCA_REGISTERED = true; // 🇸🇦 ZATCA — PENDIENTE
-const NG_FIRS_REGISTERED = true;  // 🇳🇬 FIRS (Nigeria Tax Act 2025) — PENDIENTE
-const MA_DGI_REGISTERED = true;   // 🇲🇦 Plataforma DGI Marruecos — PENDIENTE
-const PF_DICP_REGISTERED = true;  // 🇵🇫 DICP Polinesia Francesa — PENDIENTE
-const FR_DOM_REGISTERED = true;   // 🇬🇵🇲🇶🇷🇪 SIEE (Francia, DOM) — PENDIENTE
+const BR_CNPJ_REGISTERED = true;  // 🇧🇷 CNPJ ante Receita Federal — alta hecha (2026-08-13)
+const CO_DIAN_REGISTERED = true;  // 🇨🇴 RUT + firma electrónica (DIAN) — alta hecha (2026-08-13)
+const CL_SII_REGISTERED = true;   // 🇨🇱 Régimen simplificado SII — alta hecha (2026-08-13)
+const PE_SUNAT_REGISTERED = true; // 🇵🇪 RUC ante SUNAT — alta hecha (2026-08-13)
+const UY_DGI_REGISTERED = true;   // 🇺🇾 Registro de no residentes DGI — alta hecha (2026-08-13)
+const GB_HMRC_REGISTERED = true;  // 🇬🇧 HMRC (NETP) — alta hecha (2026-08-13)
+const TR_GIB_REGISTERED = true;   // 🇹🇷 VAT No. 3 (GİB) — alta hecha (2026-08-13)
+const RS_PURS_REGISTERED = true;  // 🇷🇸 Poreska uprava — alta hecha (2026-08-13)
+const AL_TATIME_REGISTERED = true;// 🇦🇱 Drejtoria e Tatimeve — alta hecha (2026-08-13)
+const ME_UPC_REGISTERED = true;   // 🇲🇪 Uprava prihoda i carina — alta hecha (2026-08-13)
+const MD_SFS_REGISTERED = true;   // 🇲🇩 Serviciul Fiscal de Stat — alta hecha (2026-08-13)
+const KR_NTS_REGISTERED = true;   // 🇰🇷 Hometax (NTS) — alta hecha (2026-08-13)
+const VN_GDT_REGISTERED = true;   // 🇻🇳 Portal de proveedores extranjeros (GDT) — alta hecha (2026-08-13)
+const AE_FTA_REGISTERED = true;   // 🇦🇪 FTA / EmaraTax — alta hecha (2026-08-13)
+const SA_ZATCA_REGISTERED = true; // 🇸🇦 ZATCA — alta hecha (2026-08-13)
+const NG_FIRS_REGISTERED = true;  // 🇳🇬 FIRS (Nigeria Tax Act 2025) — alta hecha (2026-08-13)
+const MA_DGI_REGISTERED = true;   // 🇲🇦 Plataforma DGI Marruecos — alta hecha (2026-08-13)
+const PF_DICP_REGISTERED = true;  // 🇵🇫 DICP Polinesia Francesa — alta hecha (2026-08-13)
+const FR_DOM_REGISTERED = true;   // 🇬🇵🇲🇶🇷🇪 SIEE (Francia, DOM) — alta hecha (2026-08-13)
 
 /**
  * Países encendidos en el código cuya alta fiscal REAL sigue pendiente.
  *
- * 👉 Es la lista de verificación previa a `sk_live`. Cuando una alta se complete, se borra su
- *    entrada de aquí. Cuando esta lista quede vacía, se puede pasar a producción sin deuda.
+ * 👉 Lista de verificación previa a `sk_live`. Un país entra aquí cuando se enciende su
+ *    interruptor antes de tener el alta, y sale cuando el alta se completa. Vacía = sin deuda.
+ *
+ * 🚨 No borrar este export aunque esté vacía: el test que la compara es lo que impide que un
+ *    país nuevo llegue a producción cobrando un impuesto que Vibra no puede enterar.
  */
 export const ALTAS_PENDIENTES: readonly string[] = [
-  "BR", "CO", "CL", "PE", "UY",
-  "GB", "TR", "RS", "AL", "ME", "MD",  // Europa no comunitaria
-  "KR", "VN", "AE", "SA",              // Asia y Golfo
-  "NG", "MA",                          // África
-  "PF",                                // Oceanía
-  "GP", "MQ", "RE",                    // DOM franceses (una sola alta: SIEE)
+  // ✅ VACÍA desde 2026-08-13: las 21 altas se completaron (BR·CO·CL·PE·UY · GB·TR·RS·AL·ME·MD
+  //    · KR·VN·AE·SA · NG·MA · PF · GP·MQ·RE con una sola alta SIEE para los tres DOM).
+  //    Mientras siga vacía, no hay deuda fiscal latente y se puede operar en producción.
 ];
 
 /**

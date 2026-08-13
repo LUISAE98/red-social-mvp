@@ -398,6 +398,18 @@ describe("i18n / detección por país", () => {
     expect(localeFromCountry("RS")).toBe("sr");
   });
 
+  it("Canadá delega en el navegador en vez de fijar un idioma", () => {
+    // Devolver null aquí NO es un olvido: es lo que hace que el middleware NO
+    // fije la cookie y deje decidir al Accept-Language, que sí distingue fr-CA
+    // de en-CA. Con "en" un quebequés vería inglés a la fuerza; con "fr" el
+    // 75 % anglófono vería francés. Cualquiera de los dos valores fijos se
+    // equivoca con millones de personas, así que si alguien mapea CA a un idioma
+    // "para completar la tabla", este test lo para.
+    expect(localeFromCountry("CA")).toBeNull();
+    expect(NON_EU_COUNTRY_TO_LOCALE["CA"]).toBeUndefined();
+    expect(EU_COUNTRY_TO_LOCALE["CA"]).toBeUndefined();
+  });
+
   it("el inglés de estos países está DECIDIDO, no heredado del fallback", () => {
     // El inglés es el respaldo por defecto, así que estos expects pasarían igual
     // sin las entradas del mapa. Lo que comprueban de verdad es que las entradas

@@ -90,7 +90,7 @@ export default function OwnerSidebarFollowedProfiles({
                   display: "flex",
                   alignItems: "center",
                   gap: 10,
-                  textAlign: "left",
+                  textAlign: "start",
                   WebkitTapHighlightColor: "transparent",
                 }}
               >
@@ -161,7 +161,7 @@ export default function OwnerSidebarFollowedProfiles({
                 title={tCommon("copyProfileLink")}
                 style={{
                   flexShrink: 0,
-                  marginLeft: "auto",
+                  marginInlineStart: "auto",
                 }}
               />
             </div>

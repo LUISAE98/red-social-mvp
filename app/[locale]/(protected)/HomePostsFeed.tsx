@@ -737,8 +737,8 @@ const shellStyle: CSSProperties = {
   minWidth: 0,
   display: "grid",
   gap: 12,
-  marginLeft: "auto",
-  marginRight: "auto",
+  marginInlineStart: "auto",
+  marginInlineEnd: "auto",
   marginBottom: 18,
   overflowX: "hidden",
 };

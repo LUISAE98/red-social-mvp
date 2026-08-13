@@ -385,7 +385,7 @@ export default function WithdrawFiscalPanel({ open, onClose, uid, availableLabel
             <div style={LABEL}>Contraseña de la clave privada</div>
             <div style={{ position: "relative" }}>
               <input
-                style={{ ...FIELD, paddingRight: 42 }}
+                style={{ ...FIELD, paddingInlineEnd: 42 }}
                 type={showPass ? "text" : "password"}
                 value={csdPass}
                 onChange={(e) => setCsdPass(e.target.value)}
@@ -395,7 +395,7 @@ export default function WithdrawFiscalPanel({ open, onClose, uid, availableLabel
                 onClick={() => setShowPass((v) => !v)}
                 aria-label={showPass ? "Ocultar contraseña" : "Mostrar contraseña"}
                 style={{
-                  position: "absolute", top: "50%", right: 10, transform: "translateY(-50%)",
+                  position: "absolute", top: "50%", insetInlineEnd: 10, transform: "translateY(-50%)",
                   background: "none", border: "none", padding: 4, cursor: "pointer",
                   color: "rgba(255,255,255,0.55)", display: "grid", placeItems: "center", lineHeight: 0,
                 }}
@@ -423,7 +423,7 @@ export default function WithdrawFiscalPanel({ open, onClose, uid, availableLabel
             >
               <span
                 style={{
-                  position: "absolute", top: 2, left: consent ? 20 : 2, width: 18, height: 18,
+                  position: "absolute", top: 2, insetInlineStart: consent ? 20 : 2, width: 18, height: 18,
                   borderRadius: "50%", background: "#fff", transition: "left 180ms ease",
                   boxShadow: "0 1px 2px rgba(0,0,0,0.25)",
                 }}
@@ -600,7 +600,7 @@ function Row({ k, v }: { k: string; v: string }) {
   return (
     <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
       <span style={{ color: "rgba(255,255,255,0.55)" }}>{k}</span>
-      <span style={{ color: "#fff", fontWeight: 600, textAlign: "right" }}>{v}</span>
+      <span style={{ color: "#fff", fontWeight: 600, textAlign: "end" }}>{v}</span>
     </div>
   );
 }
@@ -624,7 +624,7 @@ function primaryBtn(busy: boolean): React.CSSProperties {
 // Card de método: fila [ícono morado | texto]. Contorno gris MUY ligero para que
 // se note que son botones; el ícono va centrado a la altura total (alignItems: center).
 const methodCard: React.CSSProperties = {
-  display: "flex", gap: 12, alignItems: "center", textAlign: "left", width: "100%",
+  display: "flex", gap: 12, alignItems: "center", textAlign: "start", width: "100%",
   border: "1px solid rgba(255,255,255,0.09)", borderRadius: 12,
   background: "transparent", cursor: "pointer", fontFamily: "inherit",
   padding: "12px 14px",
@@ -632,7 +632,7 @@ const methodCard: React.CSSProperties = {
 
 // Desplegable del buscador de régimen (aparece bajo el campo al escribir).
 const SUGGEST_BOX: React.CSSProperties = {
-  position: "absolute", top: "100%", left: 0, right: 0, marginTop: 4, zIndex: 5,
+  position: "absolute", top: "100%", insetInlineStart: 0, insetInlineEnd: 0, marginTop: 4, zIndex: 5,
   background: "#141419", border: "1px solid rgba(255,255,255,0.14)", borderRadius: 12,
   maxHeight: 220, overflowY: "auto", boxShadow: "0 16px 40px rgba(0,0,0,0.6)",
 };
@@ -665,7 +665,7 @@ const copyRow: React.CSSProperties = {
 const uploadLink: React.CSSProperties = {
   background: "none", border: "none", padding: 0, margin: 0, cursor: "pointer",
   fontFamily: "inherit", fontSize: 14, fontWeight: 500, color: "#c084fc",
-  textAlign: "left", display: "inline-flex", alignItems: "center", maxWidth: "100%",
+  textAlign: "start", display: "inline-flex", alignItems: "center", maxWidth: "100%",
 };
 
 // Nota corta en rojo si el archivo no corresponde.

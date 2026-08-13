@@ -736,8 +736,8 @@ const shellStyle: CSSProperties = {
   minWidth: 0,
   display: "grid",
   gap: 12,
-  marginLeft: "auto",
-  marginRight: "auto",
+  marginInlineStart: "auto",
+  marginInlineEnd: "auto",
   marginTop: 0,
   marginBottom: 18,
   paddingTop: 0,
@@ -751,8 +751,8 @@ const shellStyle: CSSProperties = {
       width: "100%",
       maxWidth: "100%",
       minWidth: 0,
-      paddingLeft: isMobile ? 14 : 0,
-      paddingRight: isMobile ? 14 : 0,
+      paddingInlineStart: isMobile ? 14 : 0,
+      paddingInlineEnd: isMobile ? 14 : 0,
       boxSizing: "border-box",
     }),
     [isMobile]
@@ -772,8 +772,8 @@ const shellStyle: CSSProperties = {
     width: "100%",
     maxWidth: 720,
     minWidth: 0,
-    marginLeft: "auto",
-    marginRight: "auto",
+    marginInlineStart: "auto",
+    marginInlineEnd: "auto",
     boxSizing: "border-box",
     paddingTop: 8,
     marginBottom: 10,
@@ -791,8 +791,8 @@ const shellStyle: CSSProperties = {
     width: "100%",
     maxWidth: 720,
     minWidth: 0,
-    marginLeft: "auto",
-    marginRight: "auto",
+    marginInlineStart: "auto",
+    marginInlineEnd: "auto",
     boxSizing: "border-box",
     background: "#000",
   };
@@ -806,7 +806,7 @@ const shellStyle: CSSProperties = {
     ? {
         position: "fixed",
         top: 0,
-        left: headMetrics.left,
+        insetInlineStart: headMetrics.left,
         width: headMetrics.width,
         height: headMetrics.top,
         background: "#000",
@@ -859,8 +859,8 @@ const shellStyle: CSSProperties = {
     maxWidth: "100%",
     minWidth: 0,
     boxSizing: "border-box",
-    paddingLeft: isMobile ? 14 : 0,
-    paddingRight: isMobile ? 14 : 0,
+    paddingInlineStart: isMobile ? 14 : 0,
+    paddingInlineEnd: isMobile ? 14 : 0,
     display: "flex",
     alignItems: "center",
     gap: 8,
@@ -880,8 +880,8 @@ const shellStyle: CSSProperties = {
     border: "none",
     background: "rgba(255,255,255,0.06)",
     color: "#fff",
-    paddingLeft: 12,
-    paddingRight: 38,
+    paddingInlineStart: 12,
+    paddingInlineEnd: 38,
     fontSize: 13,
     fontFamily: "inherit",
     outline: "none",
@@ -1029,7 +1029,7 @@ return (
             value={searchInput}
             onChange={(event) => setSearchInput(event.target.value)}
             placeholder={tSaved("searchPlaceholder")}
-            style={{ ...searchInputStyle, paddingRight: activeSearch ? 62 : 38 }}
+            style={{ ...searchInputStyle, paddingInlineEnd: activeSearch ? 62 : 38 }}
             aria-label={tSaved("searchPlaceholder")}
           />
 
@@ -1042,7 +1042,7 @@ return (
               title={tSaved("clearSearch")}
               style={{
                 position: "absolute",
-                right: 36,
+                insetInlineEnd: 36,
                 top: "50%",
                 transform: "translateY(-50%)",
                 width: 24,
@@ -1069,7 +1069,7 @@ return (
             title={tSaved("search")}
             style={{
               position: "absolute",
-              right: 6,
+              insetInlineEnd: 6,
               top: "50%",
               transform: "translateY(-50%)",
               width: 26,
@@ -1153,7 +1153,7 @@ return (
       {lightboxTile && (
         <div
           aria-hidden="true"
-          style={{ position: "fixed", left: 0, top: 0, width: 0, height: 0, overflow: "hidden" }}
+          style={{ position: "fixed", insetInlineStart: 0, top: 0, width: 0, height: 0, overflow: "hidden" }}
         >
           <GroupPostCard
             post={lightboxTile.post}

@@ -639,7 +639,7 @@ export default function ScheduleCalendarOverlay({
             gap: 8px;
             margin: 0 -16px;
             padding: 0 16px 4px 20px;
-            scroll-padding-left: 20px;
+            scroll-padding-inline-start: 20px;
             scrollbar-width: none;
           }
 

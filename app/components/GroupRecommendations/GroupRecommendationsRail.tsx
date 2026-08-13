@@ -976,7 +976,7 @@ export default function GroupRecommendationsRail({
                   savingOnboarding || selectedCategories.length < minCategories
                 }
                 style={{
-                  marginLeft: "auto",
+                  marginInlineStart: "auto",
                   border: "none",
                   borderRadius: 10,
                   padding: "7px 32px",
@@ -1019,7 +1019,7 @@ export default function GroupRecommendationsRail({
                   setInterestsPage(interestPage + 1);
                 }}
                 style={{
-                  marginLeft: "auto",
+                  marginInlineStart: "auto",
                   border: "none",
                   borderRadius: 10,
                   padding: "7px 32px",
@@ -1104,7 +1104,7 @@ export default function GroupRecommendationsRail({
                     <button
                       type="button"
                       onClick={handleRailMore}
-                      style={{ ...railTextButtonStyle, marginLeft: "auto" }}
+                      style={{ ...railTextButtonStyle, marginInlineStart: "auto" }}
                     >
                       {tCommon("viewMore")}
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6" /></svg>
@@ -1125,8 +1125,8 @@ export default function GroupRecommendationsRail({
                 paddingBottom: 6,
                 // Pequeño marco a los lados: el scrollPadding hace que el snap
                 // respete el margen y la primera card no quede pegada al borde.
-                paddingLeft: 14,
-                paddingRight: 14,
+                paddingInlineStart: 14,
+                paddingInlineEnd: 14,
                 scrollPaddingLeft: 14,
                 scrollPaddingRight: 14,
                 willChange: "transform",

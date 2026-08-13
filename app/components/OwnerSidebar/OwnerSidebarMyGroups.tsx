@@ -1145,7 +1145,7 @@ boxShadow:
                         border: "none",
                         padding: 0,
                         color: "#fff",
-                        textAlign: "left",
+                        textAlign: "start",
                         cursor:
                            g.visibility === "profile" && !g.profileHref && !g.handle
                             ? "default"
@@ -1273,7 +1273,7 @@ boxShadow:
       aria-label={tGroups("generateInviteLink")}
       style={{
         flexShrink: 0,
-        marginLeft: "auto",
+        marginInlineStart: "auto",
         width: 24,
         height: 24,
         border: "none",
@@ -1303,7 +1303,7 @@ boxShadow:
   ) : (
     <div
       onClick={(e) => e.stopPropagation()}
-      style={{ flexShrink: 0, marginLeft: "auto", display: "inline-flex" }}
+      style={{ flexShrink: 0, marginInlineStart: "auto", display: "inline-flex" }}
     >
       <CopyLinkButton
         href={copyHref}
@@ -1387,7 +1387,7 @@ boxShadow:
                               width: "100%",
                               color: "#fff",
                               cursor: "pointer",
-                              textAlign: "left",
+                              textAlign: "start",
                             }}
                           >
                             <span
@@ -1541,7 +1541,7 @@ boxShadow:
                               width: "100%",
                               color: "#fff",
                               cursor: "pointer",
-                              textAlign: "left",
+                              textAlign: "start",
                             }}
                           >
                             <span

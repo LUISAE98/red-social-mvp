@@ -286,7 +286,7 @@ export default function WalletChannelFilter({
               <div
                 key={ch.key}
                 style={{
-                  marginLeft: i === 0 ? 0 : -STACK_OVERLAP,
+                  marginInlineStart: i === 0 ? 0 : -STACK_OVERLAP,
                   zIndex: stack.length - i,
                   borderRadius: "50%",
                   border: "2px solid #0a0a0e",
@@ -343,11 +343,11 @@ export default function WalletChannelFilter({
            (padding 15px), pero deja un inset para no pegarse al borde. */
         @media (max-width: 819px) {
           .chf-scroller {
-            margin-left: -15px;
-            margin-right: -15px;
-            padding-left: 15px;
-            padding-right: 15px;
-            scroll-padding-left: 15px;
+            margin-inline-start: -15px;
+            margin-inline-end: -15px;
+            padding-inline-start: 15px;
+            padding-inline-end: 15px;
+            scroll-padding-inline-start: 15px;
           }
         }
         .chf-arrow {
@@ -365,10 +365,10 @@ export default function WalletChannelFilter({
           filter: drop-shadow(0 1px 4px rgba(0, 0, 0, 0.75));
         }
         .chf-arrow-left {
-          left: -8px;
+          inset-inline-start: -8px;
         }
         .chf-arrow-right {
-          right: -8px;
+          inset-inline-end: -8px;
         }
       `}</style>
     </div>

@@ -626,7 +626,7 @@ const cardHeaderBtn: CSSProperties = {
   display: "flex",
   alignItems: "center",
   gap: 12,
-  textAlign: "left",
+  textAlign: "start",
   cursor: "pointer",
   color: "inherit",
   fontFamily: fontStack,
@@ -764,7 +764,7 @@ const expiryLabel: CSSProperties = {
   fontSize: 11,
   color: "rgba(253,230,138,0.80)",
   lineHeight: 1.4,
-  paddingLeft: 2,
+  paddingInlineStart: 2,
 };
 
 const expandedPanel: CSSProperties = {

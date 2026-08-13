@@ -1,7 +1,7 @@
 // Cliente único de Facturapi (CFDI 4.0 — timbrado de facturas y comprobantes).
 //
 // Fuente única de acceso a Facturapi para todo el backend. Las credenciales viven
-// en Firebase Secrets (nunca hardcodeadas), igual que Mercado Pago y Didit.
+// en Firebase Secrets (nunca hardcodeadas), igual que Mercado Pago y Stripe.
 //
 // MODELO VENDEDOR DIRECTO (ver docs/legal/fiscal-iva-isr-plataforma.md §0.6):
 //   - Vibra → Comprador (factura de venta): se timbra con la ORG de Vibra (secret key).

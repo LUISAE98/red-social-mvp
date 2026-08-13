@@ -299,8 +299,8 @@ export default function DonationViewer({ open, donation, profileName, profilePho
         <div style={{
           position: "absolute",
           top: safeTop,
-          left: 0, right: 0,
-          paddingTop: 12, paddingLeft: 10, paddingRight: 10,
+          insetInlineStart: 0, insetInlineEnd: 0,
+          paddingTop: 12, paddingInlineStart: 10, paddingInlineEnd: 10,
           zIndex: 10,
         }}>
           <div style={{ height: 3, borderRadius: 2, background: "rgba(255,255,255,0.3)", overflow: "hidden" }}>
@@ -341,7 +341,7 @@ export default function DonationViewer({ open, donation, profileName, profilePho
           const headerStyle: React.CSSProperties = {
             position: "absolute",
             top: headerTop,
-            left: 12,
+            insetInlineStart: 12,
             zIndex: 10,
             display: "flex",
             alignItems: "center",
@@ -359,7 +359,7 @@ export default function DonationViewer({ open, donation, profileName, profilePho
           <div style={{
             position: "absolute",
             top: typeof safeTop === "number" ? safeTop + 28 : `calc(${safeTop} + 28px)`,
-            right: 10,
+            insetInlineEnd: 10,
             display: "flex", alignItems: "center", gap: 4,
             zIndex: 11,
           }}>
@@ -370,7 +370,7 @@ export default function DonationViewer({ open, donation, profileName, profilePho
 
         {/* Bottom gradient */}
         <div style={{
-          position: "absolute", bottom: 0, left: 0, right: 0,
+          position: "absolute", bottom: 0, insetInlineStart: 0, insetInlineEnd: 0,
           height: "40%",
           background: "linear-gradient(to top, rgba(0,0,0,0.85) 0%, transparent 100%)",
           pointerEvents: "none",
@@ -379,7 +379,7 @@ export default function DonationViewer({ open, donation, profileName, profilePho
 
         {/* Bottom: Donar button */}
         <div style={{
-          position: "absolute", bottom: 0, left: 0, right: 0,
+          position: "absolute", bottom: 0, insetInlineStart: 0, insetInlineEnd: 0,
           padding: "0 14px",
           paddingBottom: btnPadBottom,
           display: "flex", flexDirection: "column", gap: 10,

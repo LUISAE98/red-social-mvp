@@ -1022,7 +1022,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
           aria-label={tCommon("closeAriaLabel")}
           style={{
             position: "absolute", top: "max(20px, env(safe-area-inset-top))",
-            right: "max(20px, env(safe-area-inset-right))",
+            insetInlineEnd: "max(20px, env(safe-area-inset-right))",
             background: "rgba(255,255,255,0.08)", border: "none",
             borderRadius: "50%", width: 36, height: 36,
             display: "flex", alignItems: "center", justifyContent: "center",
@@ -1269,7 +1269,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
     return (
       <div
         style={{
-          position: "absolute", left: 0, right: 0,
+          position: "absolute", insetInlineStart: 0, insetInlineEnd: 0,
           ...(isTop
             ? { top: 0, bottom: "auto" }
             : { bottom: position === "above-chat" ? "33dvh" : 0, top: "auto" }),
@@ -1293,7 +1293,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
           borderRadius: 16,
           padding: "10px 14px",
           display: "flex", alignItems: "center", gap: 12,
-          borderLeft: `3px solid ${sc.color}`,
+          borderInlineStart: `3px solid ${sc.color}`,
         }}>
           {/* Avatar con aro de tier */}
           <div style={{ position: "relative", width: SIZE, height: SIZE, flexShrink: 0 }}>
@@ -1416,7 +1416,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
         {/* Gradient bottom — oculto en portrait para consistencia visual con DVR */}
         {showGradient && (
           <div style={{
-            position: "absolute", bottom: 0, left: 0, right: 0, height: 110,
+            position: "absolute", bottom: 0, insetInlineStart: 0, insetInlineEnd: 0, height: 110,
             background: "linear-gradient(to top, rgba(0,0,0,0.65) 0%, transparent 100%)",
             pointerEvents: "none",
           }} />
@@ -1461,8 +1461,8 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
         <div style={{
           position: "absolute",
           bottom: inSafeZone ? 14 : 0,
-          left: inSafeZone ? 14 : 14,
-          right: inSafeZone ? 14 : 14,
+          insetInlineStart: inSafeZone ? 14 : 14,
+          insetInlineEnd: inSafeZone ? 14 : 14,
           paddingBottom: inSafeZone ? 0 : "max(14px, var(--vb-safe-bottom, 0px))",
           pointerEvents: "auto",
         }}>
@@ -1511,18 +1511,18 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
     return (
       <div style={{
         position: "absolute",
-        top: 0, left: 0, right: 0, zIndex: 10,
+        top: 0, insetInlineStart: 0, insetInlineEnd: 0, zIndex: 10,
         display: "flex", alignItems: "center", justifyContent: "space-between",
         paddingTop: safeTop ? "max(12px, env(safe-area-inset-top))" : 12,
         paddingBottom: 12,
-        paddingLeft: inSafeZone ? "14px" : "max(14px, env(safe-area-inset-left))",
-        paddingRight: inSafeZone ? "14px" : "max(14px, env(safe-area-inset-right))",
+        paddingInlineStart: inSafeZone ? "14px" : "max(14px, env(safe-area-inset-left))",
+        paddingInlineEnd: inSafeZone ? "14px" : "max(14px, env(safe-area-inset-right))",
       }}>
         {showTitle && liveData?.title ? (
           <span style={{
             fontSize: 13, fontWeight: 600, color: "rgba(255,255,255,0.9)", fontFamily: FONT,
             overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-            minWidth: 0, flex: 1, paddingRight: 8,
+            minWidth: 0, flex: 1, paddingInlineEnd: 8,
           }}>
             {liveData.title}
           </span>
@@ -1655,7 +1655,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
             : (liftPx > 0
                 ? `calc(max(14px, var(--vb-safe-bottom, 0px)) + ${liftPx}px)`
                 : "max(14px, var(--vb-safe-bottom, 0px))"),
-          right: inSafeZone
+          insetInlineEnd: inSafeZone
             ? "14px"
             : (sidePx > 0
                 ? `calc(max(14px, env(safe-area-inset-right)) + ${sidePx}px)`
@@ -1712,7 +1712,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
       ? {
           position: "absolute",
           top: inSafeZone ? "12px" : "max(12px, env(safe-area-inset-top))",
-          left: inSafeZone ? "14px" : "max(14px, env(safe-area-inset-left))",
+          insetInlineStart: inSafeZone ? "14px" : "max(14px, env(safe-area-inset-left))",
           zIndex: 10,
         }
       : {
@@ -1722,7 +1722,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
             : (liftPx > 0
                 ? `calc(max(14px, var(--vb-safe-bottom, 0px)) + ${liftPx}px)`
                 : "max(14px, var(--vb-safe-bottom, 0px))"),
-          left: inSafeZone
+          insetInlineStart: inSafeZone
             ? "14px"
             : (sidePx > 0
                 ? `calc(max(14px, env(safe-area-inset-left)) + ${sidePx}px)`
@@ -2017,7 +2017,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
       <div style={{
         position: "absolute",
         bottom: inSafeZone ? "14px" : "max(14px, var(--vb-safe-bottom, 0px))",
-        left: 14, right: 14, zIndex: 7,
+        insetInlineStart: 14, insetInlineEnd: 14, zIndex: 7,
         display: "flex", flexDirection: "column", gap: 4,
         opacity: visible ? 1 : 0,
         transform: visible ? "translateY(0)" : "translateY(8px)",
@@ -2095,7 +2095,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
         {/* Gradient bottom — solo en layouts no-portrait */}
         {showGradient && (
           <div style={{
-            position: "absolute", bottom: 0, left: 0, right: 0, height: 110,
+            position: "absolute", bottom: 0, insetInlineStart: 0, insetInlineEnd: 0, height: 110,
             background: "linear-gradient(to top, rgba(0,0,0,0.65) 0%, transparent 100%)",
             pointerEvents: "none",
           }} />
@@ -2131,7 +2131,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
         <div style={{
           position: "absolute",
           bottom: inSafeZone ? 14 + extraBottom : extraBottom,
-          left: 14, right: 14,
+          insetInlineStart: 14, insetInlineEnd: 14,
           paddingBottom: inSafeZone ? 0 : "max(14px, var(--vb-safe-bottom, 0px))",
           pointerEvents: "auto",
         }}>
@@ -2269,7 +2269,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
   // viewport-fit=cover (ya activo) esto pinta la franja en iOS y Android.
   const liveDonateSafeAreaFill = liveDonateOpen ? (
     <div aria-hidden style={{
-      position: "fixed", left: 0, right: 0, bottom: 0,
+      position: "fixed", insetInlineStart: 0, insetInlineEnd: 0, bottom: 0,
       height: "var(--vb-safe-bottom, 0px)",
       background: "#fff", zIndex: 10001, pointerEvents: "none",
     }} />
@@ -2419,7 +2419,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
                 onClick={() => setDescExpanded(true)}
                 style={{
                   position: "absolute", right: 0, bottom: 0,
-                  paddingLeft: 28,
+                  paddingInlineStart: 28,
                   background: "linear-gradient(to right, transparent, rgba(10,10,10,0.97) 40%)",
                   fontSize: 12, fontWeight: 500,
                   color: "rgba(255,255,255,0.65)", cursor: "pointer", fontFamily: FONT,
@@ -2630,14 +2630,14 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
       position: "absolute",
       top: "env(safe-area-inset-right)",
       bottom: "env(safe-area-inset-left)",
-      left: "env(safe-area-inset-top)",
-      right: "var(--vb-safe-bottom, 0px)",
+      insetInlineStart: "env(safe-area-inset-top)",
+      insetInlineEnd: "var(--vb-safe-bottom, 0px)",
     } : {
       position: "absolute",
       top: "env(safe-area-inset-top)",
       bottom: "var(--vb-safe-bottom, 0px)",
-      left: "env(safe-area-inset-left)",
-      right: "env(safe-area-inset-right)",
+      insetInlineStart: "env(safe-area-inset-left)",
+      insetInlineEnd: "env(safe-area-inset-right)",
     };
 
     return createPortal(
@@ -2773,8 +2773,8 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
         position: "fixed", inset: 0, zIndex: 10000, background: "#0a0a0a",
         display: "flex", flexDirection: "column",
         paddingTop: "env(safe-area-inset-top)",
-        paddingLeft: "env(safe-area-inset-left)",
-        paddingRight: "env(safe-area-inset-right)",
+        paddingInlineStart: "env(safe-area-inset-left)",
+        paddingInlineEnd: "env(safe-area-inset-right)",
       }}>
         {/* Video */}
         <div

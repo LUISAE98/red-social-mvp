@@ -207,7 +207,7 @@ export default function NotificationBell({ active }: NotificationBellProps) {
               aria-label={t("title")}
               style={{
                 top: pos.top,
-                right: pos.right,
+                insetInlineEnd: pos.right,
                 ...(detailOpen ? { display: "none" } : {}),
               }}
             >
@@ -280,7 +280,7 @@ export default function NotificationBell({ active }: NotificationBellProps) {
         .notifBadge {
           position: absolute;
           top: 2px;
-          right: 0;
+          inset-inline-end: 0;
           min-width: 16px;
           height: 16px;
           padding: 0 4px;

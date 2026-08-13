@@ -243,7 +243,7 @@ export function DonationPanel({ onClose, postId, authorId, userId, username, ava
                 Donando como <strong style={{ color: "#fff" }}>{guestNickname}</strong>
                 <button
                   onClick={() => setStep("nickname")}
-                  style={{ marginLeft: 8, background: "none", border: "none", color: DONATE_BLUE, fontSize: 12, cursor: "pointer", padding: 0, fontFamily: FONT }}
+                  style={{ marginInlineStart: 8, background: "none", border: "none", color: DONATE_BLUE, fontSize: 12, cursor: "pointer", padding: 0, fontFamily: FONT }}
                 >
                   Cambiar
                 </button>

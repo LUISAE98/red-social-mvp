@@ -231,7 +231,7 @@ export default function CompleteProfilePanel({
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={coverPreview} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                 ) : (
-                  <span style={{ position: "absolute", top: 14, left: 0, right: 0, display: "flex", flexDirection: "column", alignItems: "center", gap: 5 }}>
+                  <span style={{ position: "absolute", top: 14, insetInlineStart: 0, insetInlineEnd: 0, display: "flex", flexDirection: "column", alignItems: "center", gap: 5 }}>
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                       <rect x="3" y="5" width="18" height="14" rx="2" />
                       <circle cx="9" cy="10" r="1.6" />
@@ -282,8 +282,8 @@ export default function CompleteProfilePanel({
                 onClick={() => avatarInputRef.current?.click()}
                 style={{
                   position: "absolute",
-                  left: 0,
-                  right: 0,
+                  insetInlineStart: 0,
+                  insetInlineEnd: 0,
                   top: 156,
                   background: "transparent",
                   border: "none",
@@ -399,7 +399,7 @@ export default function CompleteProfilePanel({
                     style={{
                       position: "absolute",
                       top: 2,
-                      left: notifOn ? 20 : 2,
+                      insetInlineStart: notifOn ? 20 : 2,
                       width: 18,
                       height: 18,
                       borderRadius: "50%",

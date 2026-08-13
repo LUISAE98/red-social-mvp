@@ -162,7 +162,7 @@ export default function LiveEndSummaryPanel({ open, onClose, post }: Props) {
       >
         <span
           style={{
-            position: "absolute", top: 2, left: checked ? 18 : 2,
+            position: "absolute", top: 2, insetInlineStart: checked ? 18 : 2,
             width: 14, height: 14, borderRadius: "50%", background: "#fff",
             transition: "all 0.2s ease",
           }}

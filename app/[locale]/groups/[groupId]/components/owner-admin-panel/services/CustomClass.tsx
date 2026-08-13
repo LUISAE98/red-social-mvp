@@ -302,7 +302,7 @@ export default function CustomClass({
         </div>
 
         {/* Esquina inferior derecha: precio grande (estilo del feed, +40%) + 3 MXN. */}
-        <div style={{ display: "grid", gap: 2, justifyItems: "end", textAlign: "right", flexShrink: 0 }}>
+        <div style={{ display: "grid", gap: 2, justifyItems: "end", textAlign: "end", flexShrink: 0 }}>
           <div style={subtleStyle}>Configuración de sesión exclusiva</div>
           <div style={{ display: "flex", alignItems: "center", gap: 8, whiteSpace: "nowrap" }}>
             {draft.customClass.durationMinutes ? (
@@ -326,7 +326,7 @@ export default function CustomClass({
             </span>
           </div>
           {customClassCalc ? (
-            <div style={{ ...subtleStyle, textAlign: "right", whiteSpace: "nowrap", marginTop: 2 }}>
+            <div style={{ ...subtleStyle, textAlign: "end", whiteSpace: "nowrap", marginTop: 2 }}>
               {tServices("customClassEarningsDesc", {
                 gross: formatMoney(customClassCalc.gross, draft.customClass.currency),
                 net: formatMoney(customClassCalc.net, draft.customClass.currency),

@@ -261,7 +261,7 @@ return (
                 // (para no encimarse con el texto), sin contorno, texto blanco.
                 ...noticeStyles(notice.tone, isMobile),
                 position: "relative",
-                paddingRight: 34,
+                paddingInlineEnd: 34,
                 border: "none",
                 overflow: "hidden",
                 color: "#fff",
@@ -280,7 +280,7 @@ return (
             style={{
               position: "absolute",
               top: 8,
-              right: 8,
+              insetInlineEnd: 8,
               width: 22,
               height: 22,
               display: "inline-flex",
@@ -405,7 +405,7 @@ return (
                               // contorno y con texto blanco.
                               ...noticeStyles(accessNotice.tone, isMobile),
                               position: "relative",
-                              paddingRight: 34,
+                              paddingInlineEnd: 34,
                               border: "none",
                               overflow: "hidden",
                               color: "#fff",
@@ -424,7 +424,7 @@ return (
                           style={{
                             position: "absolute",
                             top: 8,
-                            right: 8,
+                            insetInlineEnd: 8,
                             width: 22,
                             height: 22,
                             display: "inline-flex",

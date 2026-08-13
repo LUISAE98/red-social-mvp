@@ -211,8 +211,8 @@ export default function ConversationPage() {
         ...(keyboardOpen && viewport
           ? {
               top: viewport.offsetTop,
-              left: 0,
-              right: 0,
+              insetInlineStart: 0,
+              insetInlineEnd: 0,
               height: viewport.height,
               bottom: "auto" as const,
             }
@@ -346,7 +346,7 @@ export default function ConversationPage() {
               targetId: conversationId,
               targetOwnerId: otherUid,
             }}
-            buttonStyle={{ fontSize: 20, padding: "0 8px", marginRight: 6 }}
+            buttonStyle={{ fontSize: 20, padding: "0 8px", marginInlineEnd: 6 }}
             extraItems={({ close, itemStyle }) =>
               selfUid ? (
                 <ChatConversationMenuItems

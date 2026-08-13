@@ -274,7 +274,7 @@ export default function PostFlamesPanel({
         <div
           aria-hidden
           style={{
-            position: "fixed", bottom: 0, left: 0, right: 0,
+            position: "fixed", bottom: 0, insetInlineStart: 0, insetInlineEnd: 0,
             height: 120,
             background: "rgba(8,9,11,0.96)",
             zIndex: 2147483640,
@@ -285,7 +285,7 @@ export default function PostFlamesPanel({
         />
         <div
           style={{
-            position: "fixed", bottom: 0, left: 0, right: 0,
+            position: "fixed", bottom: 0, insetInlineStart: 0, insetInlineEnd: 0,
             zIndex: 2147483641,
             maxHeight: "calc(100dvh - 72px)",
             borderRadius: "22px 22px 0 0",

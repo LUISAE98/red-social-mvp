@@ -64,7 +64,7 @@ export default function SessionOverlay({
     <div className={`vsoRoot${out ? " is-out" : ""}`}>
       <style>{`
         .vsoRoot {
-          position: absolute; top: 34px; left: 34px; z-index: 20;
+          position: absolute; top: 34px; inset-inline-start: 34px; z-index: 20;
           display: flex; align-items: center; gap: 16px;
           pointer-events: none;
         }
@@ -163,7 +163,7 @@ export default function SessionOverlay({
           style={{
             position: "absolute",
             top: GAP + RING_W,
-            left: GAP + RING_W,
+            insetInlineStart: GAP + RING_W,
             width: AVATAR,
             height: AVATAR,
             borderRadius: "50%",

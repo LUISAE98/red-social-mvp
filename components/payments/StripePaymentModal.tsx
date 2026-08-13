@@ -678,7 +678,7 @@ export default function StripePaymentModal({
         <span style={{ fontSize: 13, color: "#8a8f99", fontWeight: 500 }}>{tWallet("paySaveCard")}</span>
         <button type="button" role="switch" aria-checked={saveCard} aria-label={tWallet("paySaveCardToggle")} onClick={() => setSaveCard((v) => !v)} disabled={submitting}
           style={{ position: "relative", width: 40, height: 22, borderRadius: 999, border: "none", padding: 0, flexShrink: 0, cursor: submitting ? "not-allowed" : "pointer", background: saveCard ? BLUE : "#d4d7dc", transition: "background 180ms ease" }}>
-          <span style={{ position: "absolute", top: 2, left: saveCard ? 20 : 2, width: 18, height: 18, borderRadius: "50%", background: "#fff", transition: "left 180ms ease", boxShadow: "0 1px 2px rgba(0,0,0,0.25)" }} />
+          <span style={{ position: "absolute", top: 2, insetInlineStart: saveCard ? 20 : 2, width: 18, height: 18, borderRadius: "50%", background: "#fff", transition: "left 180ms ease", boxShadow: "0 1px 2px rgba(0,0,0,0.25)" }} />
         </button>
       </div>
     </div>
@@ -693,7 +693,7 @@ export default function StripePaymentModal({
       <div key={kind} style={rowDivider}>
         <button type="button" onClick={() => toggleMethod(kind)} style={rowButton}>
           {cardIcon(active)}
-          <span style={{ fontSize: 14, fontWeight: 600, color: "#3a3f4a", flex: 1, textAlign: "left" }}>{title}</span>
+          <span style={{ fontSize: 14, fontWeight: 600, color: "#3a3f4a", flex: 1, textAlign: "start" }}>{title}</span>
           {radio(active)}
         </button>
         <div style={{ display: "grid", gridTemplateRows: active ? "1fr" : "0fr", transition: "grid-template-rows 300ms cubic-bezier(0.4,0,0.2,1)" }}>
@@ -713,7 +713,7 @@ export default function StripePaymentModal({
       <div key={id} style={rowDivider}>
         <button type="button" onClick={() => toggleMethod(id)} style={rowButton}>
           {cardIcon(active)}
-          <span style={{ fontSize: 14, fontWeight: 600, color: "#3a3f4a", flex: 1, textAlign: "left" }}>{brandLabel} ···· {card.lastFour ?? "••••"}</span>
+          <span style={{ fontSize: 14, fontWeight: 600, color: "#3a3f4a", flex: 1, textAlign: "start" }}>{brandLabel} ···· {card.lastFour ?? "••••"}</span>
           {radio(active)}
         </button>
         {/* Invitado: re-pide el CVV de la tarjeta guardada (sin volver a teclear el número). */}
@@ -740,7 +740,7 @@ export default function StripePaymentModal({
   const blockedNotice = (
     <div style={{ position: "relative", padding: stacked ? "24px 18px 24px" : "28px 24px 24px", minWidth: 0 }}>
       <button type="button" onClick={onClose} aria-label="Cerrar"
-        style={{ position: "absolute", top: 8, right: 10, zIndex: 2, border: "none", background: "none", color: "#9aa0a8", cursor: "pointer", fontSize: 26, lineHeight: 1, padding: 4 }}>×</button>
+        style={{ position: "absolute", top: 8, insetInlineEnd: 10, zIndex: 2, border: "none", background: "none", color: "#9aa0a8", cursor: "pointer", fontSize: 26, lineHeight: 1, padding: 4 }}>×</button>
 
       {stacked && (
         <div style={{ display: "flex", justifyContent: "center", marginBottom: 16 }}>
@@ -763,7 +763,7 @@ export default function StripePaymentModal({
   const leftColumn = (
     <div style={{ position: "relative", padding: stacked ? "24px 18px 4px" : "28px 24px 24px", minWidth: 0 }}>
       <button type="button" onClick={() => { if (!submitting) onClose(); }} aria-label="Cerrar"
-        style={{ position: "absolute", top: 8, right: 10, zIndex: 2, border: "none", background: "none", color: "#9aa0a8", cursor: submitting ? "not-allowed" : "pointer", fontSize: 26, lineHeight: 1, padding: 4 }}>×</button>
+        style={{ position: "absolute", top: 8, insetInlineEnd: 10, zIndex: 2, border: "none", background: "none", color: "#9aa0a8", cursor: submitting ? "not-allowed" : "pointer", fontSize: 26, lineHeight: 1, padding: 4 }}>×</button>
 
       {stacked && (
         <div style={{ display: "flex", justifyContent: "center", marginBottom: 16 }}>
@@ -822,7 +822,7 @@ export default function StripePaymentModal({
                 <svg width={24} height={24} viewBox="0 0 24 24" fill="none" stroke={useCredit ? BLUE : "#8a8f99"} strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                   <path d="M3 7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2" /><rect x="3" y="7" width="18" height="12" rx="2.5" /><path d="M16 12.5h3" />
                 </svg>
-                <span style={{ fontSize: 14, fontWeight: 600, color: "#3a3f4a", flex: 1, textAlign: "left" }}>
+                <span style={{ fontSize: 14, fontWeight: 600, color: "#3a3f4a", flex: 1, textAlign: "start" }}>
                   {tWallet("creditAvailable")} <span style={{ color: "#8a8f99", fontWeight: 500 }}>· {pf.format(creditBalance, { baseCurrency: "MXN", code: true })}</span>
                 </span>
                 {radio(useCredit)}
@@ -879,8 +879,8 @@ export default function StripePaymentModal({
   );
 
   const rightColumn = (
-    <div style={{ position: "relative", padding: stacked ? "16px 18px 20px" : "48px 24px 24px", background: "#fff", borderLeft: stacked ? "none" : "1px solid #eaecef", display: "flex", flexDirection: "column", justifyContent: "flex-start", gap: 12, minWidth: 0 }}>
-      {!stacked && <VibraPayBrand style={{ position: "absolute", top: 22, right: 24 }} />}
+    <div style={{ position: "relative", padding: stacked ? "16px 18px 20px" : "48px 24px 24px", background: "#fff", borderInlineStart: stacked ? "none" : "1px solid #eaecef", display: "flex", flexDirection: "column", justifyContent: "flex-start", gap: 12, minWidth: 0 }}>
+      {!stacked && <VibraPayBrand style={{ position: "absolute", top: 22, insetInlineEnd: 24 }} />}
       {/* Creador */}
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
         <div style={{ width: 48, height: 48, borderRadius: "50%", overflow: "hidden", flexShrink: 0, background: "#e6e8ec" }}>

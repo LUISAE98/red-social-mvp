@@ -369,8 +369,8 @@ export { onDirectMessageDeletedCleanupImage } from "./directMessageImageCleanup"
 // Mensajes directos — URLs firmadas y caducas para las imágenes adjuntas
 export { getDirectMessageImageUrls } from "./dmImages";
 
-// KYC — verificación de identidad con Didit (habilita retiros del creador)
-export { createKycSession, diditWebhook } from "./kyc";
+// KYC — pendiente de reemplazo. Didit se eliminó por completo el 2026-08-13; la
+// verificación de identidad pasará a hacerse en el alta de cuenta Stripe del creador.
 
 // Pagos (Stripe — Vibra migró 100% a Stripe; Mercado Pago retirado). S1: smoke test.
 export { stripeHealthcheck } from "./payments/stripe/stripeHealthcheck";

@@ -1931,7 +1931,7 @@ WebkitBackdropFilter: "none",
             border: "none",
             padding: 0,
             color: "#fff",
-            textAlign: "left",
+            textAlign: "start",
             cursor: "pointer",
             display: "flex",
             alignItems: "center",
@@ -2300,8 +2300,8 @@ return (
 
   .owner-sidebar-community-card {
     width: 100% !important;
-    padding-left: 12px !important;
-    padding-right: 12px !important;
+    padding-inline-start: 12px !important;
+    padding-inline-end: 12px !important;
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
     justify-content: space-between !important;
@@ -2314,8 +2314,8 @@ return (
 
   .profile-owner-sidebar-fixed {
     position: fixed !important;
-    left: 0 !important;
-    right: 0 !important;
+    inset-inline-start: 0 !important;
+    inset-inline-end: 0 !important;
     top: calc(env(safe-area-inset-top, 0px) + 68px) !important;
     bottom: 0 !important;
     width: auto !important;
@@ -2411,7 +2411,7 @@ className="profile-owner-sidebar-fixed"
     position: "fixed",
     // Sigue al cluster centrado del shell (protected layout). Donde la variable no
     // esté definida (p. ej. /groups), cae a 18px, el valor histórico.
-    left: "var(--owner-sidebar-fixed-left, 18px)",
+    insetInlineStart: "var(--owner-sidebar-fixed-left, 18px)",
     top: ui.sidebarTop,
     width: ui.sidebarWidth,
     maxHeight: `calc(100dvh - ${ui.sidebarTop + ui.sidebarBottom}px)`,
@@ -2508,7 +2508,7 @@ newPostsCounts={newPostsCounts}
   <>
     {/* Margen negativo para recuperar el padding (10px) del panel y que el card use
         todo el ancho del sidebar (menos apretado el botón de devolución y el nombre). */}
-    <div className="owner-sidebar-session-panel" style={{ flexShrink: 0, minWidth: 0, marginLeft: -10, marginRight: -10 }}>
+    <div className="owner-sidebar-session-panel" style={{ flexShrink: 0, minWidth: 0, marginInlineStart: -10, marginInlineEnd: -10 }}>
       <CreatorSessionCountdownBanner uid={viewer.uid} />
       <SessionCountdownBanner uid={viewer.uid} />
     </div>

@@ -360,8 +360,8 @@ export default function VibraResponsivePanel({
           style={{
             position: "fixed",
             bottom: 0,
-            left: 0,
-            right: 0,
+            insetInlineStart: 0,
+            insetInlineEnd: 0,
             zIndex: 999991,
             outline: "none",
             maxHeight: "calc(100dvh - 72px)",
@@ -463,8 +463,8 @@ export default function VibraResponsivePanel({
             // En celular el panel centrado no debe quedar bajo el indicador de
             // inicio del iOS PWA (ver --vb-safe-bottom en globals.css).
             paddingBottom: "max(14px, var(--vb-safe-bottom, 0px))",
-            paddingLeft: 14,
-            paddingRight: 14,
+            paddingInlineStart: 14,
+            paddingInlineEnd: 14,
             pointerEvents: "none",
           }}
         >

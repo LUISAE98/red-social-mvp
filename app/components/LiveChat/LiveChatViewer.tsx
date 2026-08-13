@@ -242,7 +242,7 @@ export default function LiveChatViewer({
           className="lvc-overlay"
           onClick={(e) => e.stopPropagation()}
           style={{
-            position: "absolute", bottom: 0, left: 0, right: 0, zIndex: 5,
+            position: "absolute", bottom: 0, insetInlineStart: 0, insetInlineEnd: 0, zIndex: 5,
             display: "flex", flexDirection: "column",
             background: "linear-gradient(to top, rgba(0,0,0,0.68) 50%, transparent 100%)",
           }}
@@ -323,7 +323,7 @@ export default function LiveChatViewer({
                 <div key={item.id} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
                   <Avatar url={item.avatarUrl} name={item.username} size={29} />
                   <div style={{ flex: 1, minWidth: 0, fontSize: 13, lineHeight: 1.15, wordBreak: "break-word" }}>
-                    <span style={{ fontSize: 13, fontWeight: 600, color: "#fff", fontFamily: FONT, marginRight: 5 }}>{item.username}</span>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: "#fff", fontFamily: FONT, marginInlineEnd: 5 }}>{item.username}</span>
                     {item.text ? (
                       <span style={{ fontSize: 11.5, fontFamily: FONT, color: "rgba(255,255,255,0.9)" }}>{item.text}</span>
                     ) : null}
@@ -348,8 +348,8 @@ export default function LiveChatViewer({
             user ? (
               <div style={{
                 paddingTop: 7,
-                paddingLeft: 14,
-                paddingRight: 14,
+                paddingInlineStart: 14,
+                paddingInlineEnd: 14,
                 paddingBottom: "max(10px, var(--vb-safe-bottom, 0px))",
               }}>
                 {isMuted ? (
@@ -378,7 +378,7 @@ export default function LiveChatViewer({
                             fontFamily: FONT, lineHeight: 1.5, outline: "none",
                           }}
                         />
-                        <div style={{ position: "absolute", right: 6, top: "50%", transform: "translateY(-50%)" }}>
+                        <div style={{ position: "absolute", insetInlineEnd: 6, top: "50%", transform: "translateY(-50%)" }}>
                           <SendButton onClick={handleSend} active={!!text.trim()} />
                         </div>
                       </div>
@@ -387,7 +387,7 @@ export default function LiveChatViewer({
                         const n = (showSuperCommentBtn ? 1 : 0) + (onDonate ? 1 : 0);
                         const w = n * 31 + (n - 1) * 8;
                         return (
-                          <div style={{ overflow: "hidden", flexShrink: 0, width: chatFocused ? 0 : w, marginLeft: chatFocused ? 0 : 10, opacity: chatFocused ? 0 : 1, transition: "width 0.25s ease, margin 0.25s ease, opacity 0.2s ease" }}>
+                          <div style={{ overflow: "hidden", flexShrink: 0, width: chatFocused ? 0 : w, marginInlineStart: chatFocused ? 0 : 10, opacity: chatFocused ? 0 : 1, transition: "width 0.25s ease, margin 0.25s ease, opacity 0.2s ease" }}>
                             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                               {showSuperCommentBtn && <BillButton onClick={() => setSuperCommentOpen(true)} />}
                               {onDonate && <HeartButton onClick={onDonate} />}
@@ -403,7 +403,7 @@ export default function LiveChatViewer({
               <div style={{
                 paddingTop: 8, paddingBottom: "max(8px, var(--vb-safe-bottom, 0px))",
                 display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 8,
-                paddingLeft: 14, paddingRight: 14,
+                paddingInlineStart: 14, paddingInlineEnd: 14,
               }}>
                 {showGuestSCBtn && (
                   <BillButton onClick={() => setSuperCommentOpen(true)} />
@@ -465,7 +465,7 @@ export default function LiveChatViewer({
               <div key={item.id} style={{ display: "flex", gap: 8, marginBottom: 10, alignItems: "center" }}>
                 <Avatar url={item.avatarUrl} name={item.username} size={29} />
                 <div style={{ minWidth: 0, flex: 1, fontSize: 13, lineHeight: 1.15, wordBreak: "break-word" }}>
-                  <span style={{ fontFamily: FONT, fontSize: 13, fontWeight: 600, color: "#fff", marginRight: 5 }}>
+                  <span style={{ fontFamily: FONT, fontSize: 13, fontWeight: 600, color: "#fff", marginInlineEnd: 5 }}>
                     {item.username}
                   </span>
                   {item.text ? (
@@ -480,7 +480,7 @@ export default function LiveChatViewer({
           <div ref={messagesEndRef} />
         </div>
 
-        <div style={{ paddingTop: 8, paddingLeft: 10, paddingRight: 10, paddingBottom: "max(8px, var(--vb-safe-bottom, 0px))", borderTop: "1px solid transparent", flexShrink: 0 }}>
+        <div style={{ paddingTop: 8, paddingInlineStart: 10, paddingInlineEnd: 10, paddingBottom: "max(8px, var(--vb-safe-bottom, 0px))", borderTop: "1px solid transparent", flexShrink: 0 }}>
           {liveEnded ? (
             <div style={{ textAlign: "center", fontSize: 12, color: "rgba(255,255,255,0.25)", fontFamily: FONT, padding: "4px 0" }}>
               {tLive("liveEnded")}
@@ -522,7 +522,7 @@ export default function LiveChatViewer({
                       fontFamily: FONT, lineHeight: 1.5, outline: "none",
                     }}
                   />
-                  <div style={{ position: "absolute", right: 6, top: "50%", transform: "translateY(-50%)" }}>
+                  <div style={{ position: "absolute", insetInlineEnd: 6, top: "50%", transform: "translateY(-50%)" }}>
                     <SendButton onClick={handleSend} active={!!text.trim()} />
                   </div>
                 </div>
@@ -531,7 +531,7 @@ export default function LiveChatViewer({
                   const n = (showSuperCommentBtn ? 1 : 0) + (onDonate ? 1 : 0);
                   const w = n * 31 + (n - 1) * 8;
                   return (
-                    <div style={{ overflow: "hidden", flexShrink: 0, width: chatFocused ? 0 : w, marginLeft: chatFocused ? 0 : 10, opacity: chatFocused ? 0 : 1, transition: "width 0.25s ease, margin 0.25s ease, opacity 0.2s ease" }}>
+                    <div style={{ overflow: "hidden", flexShrink: 0, width: chatFocused ? 0 : w, marginInlineStart: chatFocused ? 0 : 10, opacity: chatFocused ? 0 : 1, transition: "width 0.25s ease, margin 0.25s ease, opacity 0.2s ease" }}>
                       <div style={{ display: "flex", gap: 8 }}>
                         {showSuperCommentBtn && <BillButton onClick={() => setSuperCommentOpen(true)} />}
                         {onDonate && <HeartButton onClick={onDonate} />}

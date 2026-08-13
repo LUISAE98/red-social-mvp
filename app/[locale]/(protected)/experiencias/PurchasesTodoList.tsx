@@ -145,7 +145,7 @@ export default function PurchasesTodoList({ uid }: { uid: string | null | undefi
             transparent
           />
         </div>
-        <span style={{ color: "#ffffff", fontSize: 15, fontWeight: 700, lineHeight: 1, paddingRight: 4, flexShrink: 0 }}>
+        <span style={{ color: "#ffffff", fontSize: 15, fontWeight: 700, lineHeight: 1, paddingInlineEnd: 4, flexShrink: 0 }}>
           {purchases.length}
         </span>
       </div>
@@ -160,7 +160,7 @@ export default function PurchasesTodoList({ uid }: { uid: string | null | undefi
             justifySelf: "start",
             background: "transparent", border: "none", padding: 0, margin: 0,
             color: "#a855f7", cursor: "pointer", fontSize: 12, fontWeight: 600,
-            fontFamily: "inherit", lineHeight: 1.3, textAlign: "left",
+            fontFamily: "inherit", lineHeight: 1.3, textAlign: "start",
           }}
         >
           {tWallet("invoiceCta")}

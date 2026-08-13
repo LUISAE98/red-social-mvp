@@ -18,35 +18,11 @@ import { useBalanceHidden, toggleBalanceHidden } from "@/lib/wallet/useBalanceHi
 import MaskedAmount from "@/app/components/MaskedAmount";
 import WalletFigureSkeleton from "../components/WalletFigureSkeleton";
 import CurrencySwitcher from "@/app/components/CurrencySwitcher";
-import { useKyc } from "@/lib/kyc/useKyc";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import WithdrawFiscalPanel from "../components/WithdrawFiscalPanel";
 
-// Mapeo de códigos de motivo (risk) de Didit → clave de traducción amigable.
-const KYC_REASON_KEY: Record<string, string> = {
-  POSSIBLE_DUPLICATED_USER: "kycReasonDuplicate",
-  DUPLICATED_USER: "kycReasonDuplicate",
-  DUPLICATED_FACE: "kycReasonDuplicate",
-  DOCUMENT_EXPIRED: "kycReasonDocExpired",
-  EXPIRED_DOCUMENT: "kycReasonDocExpired",
-  DOCUMENT_TYPE_NOT_ALLOWED: "kycReasonDocUnsupported",
-  DOCUMENT_NOT_SUPPORTED: "kycReasonDocUnsupported",
-  UNSUPPORTED_DOCUMENT: "kycReasonDocUnsupported",
-  FACE_NOT_MATCHING: "kycReasonFaceMismatch",
-  FACE_MISMATCH: "kycReasonFaceMismatch",
-  LIVENESS_FAILED: "kycReasonLiveness",
-  NOT_LIVE: "kycReasonLiveness",
-  SPOOFING_DETECTED: "kycReasonLiveness",
-  DOCUMENT_MANIPULATED: "kycReasonManipulated",
-  TAMPERED_DOCUMENT: "kycReasonManipulated",
-  FRAUD: "kycReasonManipulated",
-  UNDERAGE: "kycReasonUnderage",
-  AGE_NOT_MET: "kycReasonUnderage",
-  BAD_QUALITY: "kycReasonQuality",
-  LOW_QUALITY: "kycReasonQuality",
-  UNREADABLE_DOCUMENT: "kycReasonQuality",
-};
+
 
 function formatMonthLabel(year: number, month: number, locale: string): string {
   try {
@@ -77,80 +53,11 @@ export default function WalletFinanzasPage() {
   const balanceHidden = useBalanceHidden();
   const { user } = useAuth();
   const { summary, loading: summaryLoading } = useWalletFinances(user?.uid);
-  const kyc = useKyc(user?.uid);
   const [mode, setMode] = useState<"net" | "gross">("net");
   const [withdrawPanelOpen, setWithdrawPanelOpen] = useState(false);
   const { toast: walletToast, showToast: showWalletToast } = useVibraToast();
 
-  // ── CTA de KYC: solo mientras la identidad NO está verificada ──────────────
-  // "in_review" = Didit revisando manualmente (bloqueado). "pending" = sesión
-  // creada pero sin terminar → clicable para continuar/reiniciar el flujo.
-  const kycReasonText = tWallet(
-    (kyc.reason && KYC_REASON_KEY[kyc.reason]) || "kycReasonGeneric"
-  );
-  const kycCtaLabel =
-    kyc.status === "in_review"
-      ? tWallet("kycPending")
-      : kyc.status === "pending"
-      ? tWallet("kycContinue")
-      : kyc.status === "declined"
-      ? tWallet("kycRejectedReason", { reason: kycReasonText })
-      : tWallet("kycWithdrawCta");
-  const kycCtaDisabled = kyc.status === "in_review" || kyc.starting || kyc.loading;
 
-  async function handleKycClick() {
-    if (kycCtaDisabled) return;
-    try {
-      await kyc.startKyc(locale);
-    } catch {
-      showWalletToast(tWallet("kycStartError"), "error");
-    }
-  }
-
-  // ── Celebración "Identidad verificada": 10 s, una sola vez tras verificar ──
-  const [kycCelebrate, setKycCelebrate] = useState(false);
-  const [kycCelebrateExiting, setKycCelebrateExiting] = useState(false);
-  const celebratedRef = useRef(false);
-  const cameFromDiditRef = useRef(false);
-
-  // Detecta el retorno desde el flujo de Didit y limpia los params de la URL.
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const params = new URLSearchParams(window.location.search);
-    if (params.has("verificationSessionId") || params.has("status")) {
-      cameFromDiditRef.current = true;
-      params.delete("verificationSessionId");
-      params.delete("status");
-      const qs = params.toString();
-      window.history.replaceState(
-        null,
-        "",
-        window.location.pathname + (qs ? `?${qs}` : "") + window.location.hash
-      );
-    }
-  }, []);
-
-  // Celebra UNA sola vez, y SOLO si el usuario acaba de volver del flujo de Didit
-  // (no en visitas normales a finanzas ya estando verificado).
-  useEffect(() => {
-    if (kyc.loading || celebratedRef.current) return;
-    if (cameFromDiditRef.current && kyc.approved) {
-      celebratedRef.current = true;
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- reacción a la aprobación async de Firestore
-      setKycCelebrate(true);
-    }
-  }, [kyc.approved, kyc.loading]);
-
-  // Temporizador: visible 10 s, con salida animada al final.
-  useEffect(() => {
-    if (!kycCelebrate) return;
-    const exit = setTimeout(() => setKycCelebrateExiting(true), 9500);
-    const hide = setTimeout(() => setKycCelebrate(false), 10000);
-    return () => {
-      clearTimeout(exit);
-      clearTimeout(hide);
-    };
-  }, [kycCelebrate]);
 
   // Último día del mes en curso (fecha de disponibilidad del retiro).
   const withdrawDate = useMemo(() => {
@@ -176,7 +83,6 @@ export default function WalletFinanzasPage() {
 
   // La opción de registrar KYC solo aparece cuando ya hay saldo por retirar
   // (al menos una compra). Si el creador ya inició el flujo, mostramos su estado.
-  const showKycCta = view.available > 0 || kyc.status !== "not_started";
 
   // Mejor mes: mes calendario con más ganancias (entradas "earned").
   const { entries, loading: ledgerLoading } = useWalletLedger(user?.uid, 365);
@@ -275,32 +181,12 @@ export default function WalletFinanzasPage() {
             <CurrencySwitcher color="#fff" scale={1.3} />
 
             <div style={{ flex: 1, minWidth: 0, display: "flex", justifyContent: "flex-end" }}>
-              {kyc.loading ? (
-                <WalletFigureSkeleton width={88} height={30} />
-              ) : kyc.approved ? (
-                <button
-                  type="button"
-                  onClick={handleWithdrawClick}
-                  disabled={!canWithdrawNow}
-                  style={{
-                    border: "none",
-                    borderRadius: 7,
-                    padding: "7px 16px",
-                    fontSize: 12.5,
-                    fontWeight: 700,
-                    letterSpacing: "-0.01em",
-                    whiteSpace: "nowrap",
-                    color: canWithdrawNow ? "#fff" : "rgba(255,255,255,0.4)",
-                    background: canWithdrawNow
-                      ? "linear-gradient(135deg, #a855f7, #ec4899)"
-                      : "rgba(255,255,255,0.06)",
-                    cursor: canWithdrawNow ? "pointer" : "not-allowed",
-                    transition: "background 150ms ease, color 150ms ease",
-                  }}
-                >
-                  {tWallet("withdrawButton")}
-                </button>
-              ) : null}
+              {/* 🚧 BOTÓN DE RETIRO OCULTO A PROPÓSITO.
+                  Antes se mostraba solo con `kyc.approved` (Didit). Al eliminar Didit el
+                  2026-08-13 nadie queda aprobado, y **quitar el proveedor del gate no debe
+                  quitar el gate**: abrir el retiro a cualquiera sería un retroceso de
+                  seguridad, no una limpieza. Vuelve a mostrarse cuando el alta de cuenta
+                  Stripe (que trae su propio KYC) esté conectada y podamos preguntarle. */}
             </div>
           </div>
 
@@ -386,103 +272,33 @@ export default function WalletFinanzasPage() {
             </div>
           </div>
 
-          {/* KYC: CTA mientras no está verificado; celebración al verificar.
-              Espera a que `kyc.loading` termine antes de decidir, para no mostrar
-              (y quitar en seguida) la leyenda de KYC al entrar ya estando verificado. */}
-          {kyc.loading ? null : kyc.approved ? (
-            kycCelebrate ? (
-              <>
-                <style jsx global>{`
-                  @keyframes vbKycBadgeIn {
-                    0%   { opacity: 0; transform: translateY(4px) scale(0.9); }
-                    60%  { opacity: 1; transform: translateY(0) scale(1.04); }
-                    100% { opacity: 1; transform: translateY(0) scale(1); }
-                  }
-                  @keyframes vbKycBadgeOut {
-                    from { opacity: 1; transform: translateY(0) scale(1); }
-                    to   { opacity: 0; transform: translateY(-4px) scale(0.96); }
-                  }
-                  @keyframes vbKycCirclePop {
-                    0%   { transform: scale(0.4); }
-                    65%  { transform: scale(1.25); }
-                    100% { transform: scale(1); }
-                  }
-                `}</style>
-                <div
-                  style={{
-                    marginTop: -14,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: 8,
-                    animation: kycCelebrateExiting
-                      ? "vbKycBadgeOut 0.5s ease forwards"
-                      : "vbKycBadgeIn 0.45s cubic-bezier(0.34,1.56,0.64,1) forwards",
-                  }}
-                >
-                  <span
-                    style={{
-                      width: 20,
-                      height: 20,
-                      borderRadius: "50%",
-                      background: "#22c55e",
-                      display: "inline-flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      flexShrink: 0,
-                      animation:
-                        "vbKycCirclePop 0.4s cubic-bezier(0.34,1.56,0.64,1) forwards",
-                    }}
-                  >
-                    <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
-                      <path
-                        d="M2 6L5 9L10 3"
-                        stroke="#fff"
-                        strokeWidth="1.9"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  </span>
-                  <span
-                    style={{
-                      color: "#4ade80",
-                      fontSize: 12.5,
-                      fontWeight: 600,
-                      letterSpacing: "-0.01em",
-                    }}
-                  >
-                    {tWallet("kycApproved")}
-                  </span>
-                </div>
-              </>
-            ) : null
-          ) : showKycCta ? (
-            <button
-              type="button"
-              onClick={handleKycClick}
-              disabled={kycCtaDisabled}
-              style={{
-                width: "100%",
-                marginTop: -14,
-                padding: 0,
-                border: "none",
-                background: "transparent",
-                color: kyc.status === "declined" ? "#f87171" : "#c084fc",
-                fontFamily: "inherit",
-                fontSize: 12.5,
-                fontWeight: 600,
-                lineHeight: 1.35,
-                letterSpacing: "-0.01em",
-                textAlign: "center",
-                cursor: kycCtaDisabled ? "default" : "pointer",
-                opacity: kyc.starting ? 0.6 : 1,
-                WebkitTapHighlightColor: "transparent",
-              }}
-            >
-              {kycCtaLabel}
-            </button>
-          ) : null}
+          {/* Alta de cuenta Stripe: habilita los retiros del creador.
+              🚧 SIN CONECTAR — el onClick está vacío a propósito. Didit se eliminó por
+              completo el 2026-08-13 y su reemplazo (el alta de cuenta Stripe, que trae
+              su propio KYC) todavía no existe. Hasta que exista, esto es solo el sitio
+              donde va a vivir, con el mismo estilo que tenía el CTA de KYC. */}
+          <button
+            type="button"
+            onClick={() => { /* TODO: iniciar el alta de cuenta Stripe del creador. */ }}
+            style={{
+              width: "100%",
+              marginTop: -14,
+              padding: 0,
+              border: "none",
+              background: "transparent",
+              color: "#c084fc",
+              fontFamily: "inherit",
+              fontSize: 12.5,
+              fontWeight: 600,
+              lineHeight: 1.35,
+              letterSpacing: "-0.01em",
+              textAlign: "center",
+              cursor: "pointer",
+              WebkitTapHighlightColor: "transparent",
+            }}
+          >
+            {tWallet("stripeAccountCta")}
+          </button>
 
           <VibraToast toast={walletToast} />
 

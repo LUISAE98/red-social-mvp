@@ -219,7 +219,7 @@ export default function PostImageViewer({
           navigator.maxTouchPoints > 0,
       );
       const safeEl = document.createElement("div");
-      safeEl.style.cssText = "position:fixed;height:env(safe-area-inset-top,0px);top:0;left:-9999px;pointer-events:none;visibility:hidden;";
+      safeEl.style.cssText = "position:fixed;height:env(safe-area-inset-top,0px);top:0;inset-inline-start:-9999px;pointer-events:none;visibility:hidden;";
       document.body.appendChild(safeEl);
       safeAreaTopRef.current = safeEl.offsetHeight;
       document.body.removeChild(safeEl);
@@ -911,21 +911,21 @@ const previousMedia =
     const dur = 340;
 
     if (heroPhase === "entering") {
-      return { left: r.left, top: r.top, width: r.width, height: r.height, borderRadius: 12, background: "transparent", transition: undefined as string | undefined };
+      return { insetInlineStart: r.left, top: r.top, width: r.width, height: r.height, borderRadius: 12, background: "transparent", transition: undefined as string | undefined };
     }
 
     if (heroPhase === "exiting") {
-      return { left: r.left, top: r.top, width: r.width, height: r.height, borderRadius: 12, background: "transparent", transition: `left ${dur}ms ${ease}, top ${dur}ms ${ease}, width ${dur}ms ${ease}, height ${dur}ms ${ease}, border-radius ${dur}ms ${ease}, background 260ms ease` };
+      return { insetInlineStart: r.left, top: r.top, width: r.width, height: r.height, borderRadius: 12, background: "transparent", transition: `left ${dur}ms ${ease}, top ${dur}ms ${ease}, width ${dur}ms ${ease}, height ${dur}ms ${ease}, border-radius ${dur}ms ${ease}, background 260ms ease` };
     }
 
     // "open" — may have drag in progress
     if (mobileDragOffsetY > 0) {
       const t = Math.min(1, mobileDragOffsetY / vh);
-      return { left: lerp(0, r.left, t), top: mobileDragOffsetY, width: lerp(vw, r.width, t), height: lerp(vh, r.height, t), borderRadius: 12 * t, background: `rgba(0,0,0,${1 - t * 0.85})`, transition: undefined as string | undefined };
+      return { insetInlineStart: lerp(0, r.left, t), top: mobileDragOffsetY, width: lerp(vw, r.width, t), height: lerp(vh, r.height, t), borderRadius: 12 * t, background: `rgba(0,0,0,${1 - t * 0.85})`, transition: undefined as string | undefined };
     }
 
     // Fullscreen
-    return { left: 0, top: 0, width: vw, height: vh, borderRadius: 0, background: "#000", transition: `left ${dur}ms ${ease}, top ${dur}ms ${ease}, width ${dur}ms ${ease}, height ${dur}ms ${ease}, border-radius ${dur}ms ${ease}, background 300ms ease` };
+    return { insetInlineStart: 0, top: 0, width: vw, height: vh, borderRadius: 0, background: "#000", transition: `left ${dur}ms ${ease}, top ${dur}ms ${ease}, width ${dur}ms ${ease}, height ${dur}ms ${ease}, border-radius ${dur}ms ${ease}, background 300ms ease` };
   }
 
   const heroContainerStyle = getHeroContainerStyle();
@@ -958,7 +958,7 @@ const previousMedia =
   const closeButtonStyle: CSSProperties = {
     position: "absolute",
     top: useMobileLayout ? "calc(10px + env(safe-area-inset-top))" : 14,
-    left: useMobileLayout ? "calc(10px + env(safe-area-inset-left))" : 14,
+    insetInlineStart: useMobileLayout ? "calc(10px + env(safe-area-inset-left))" : 14,
     zIndex: 8,
     width: 38,
     height: 38,
@@ -1087,7 +1087,7 @@ const liveBtnStyle: CSSProperties = {
               border: "1px solid rgba(255,255,255,0.22)",
               color: "#fff",
               fontSize: 28,
-              paddingLeft: 4,
+              paddingInlineStart: 4,
             }}
           >
             ▶
@@ -1570,16 +1570,16 @@ const previewUrl = media.url;
           style={{
             position: "absolute",
             top: 0,
-            left: 0,
-            right: 0,
+            insetInlineStart: 0,
+            insetInlineEnd: 0,
             zIndex: 10,
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
             paddingTop: "max(12px, env(safe-area-inset-top))",
             paddingBottom: 8,
-            paddingLeft: "max(8px, env(safe-area-inset-left))",
-            paddingRight: "max(8px, env(safe-area-inset-right))",
+            paddingInlineStart: "max(8px, env(safe-area-inset-left))",
+            paddingInlineEnd: "max(8px, env(safe-area-inset-right))",
             opacity: controlsOpacity,
             transition: controlsTransition,
           }}
@@ -1745,8 +1745,8 @@ const previewUrl = media.url;
           style={{
             position: "absolute",
             bottom: 0,
-            left: 0,
-            right: 0,
+            insetInlineStart: 0,
+            insetInlineEnd: 0,
             background: "linear-gradient(to top, rgba(0,0,0,0.84) 0%, rgba(0,0,0,0.54) 58%, transparent 100%)",
             paddingBottom: "calc(8px + var(--vb-safe-bottom, 0px))",
             zIndex: 5,
@@ -1800,7 +1800,7 @@ const previewUrl = media.url;
                   margin: 0,
                   fontFamily: fontStack,
                   cursor: "pointer",
-                  textAlign: "left",
+                  textAlign: "start",
                   WebkitTapHighlightColor: "transparent",
                   WebkitAppearance: "none",
                   appearance: "none",
@@ -1837,13 +1837,13 @@ const previewUrl = media.url;
                     </button>
                   </div>
                   <div ref={pivRef1} style={{ position: "relative", height: 20, display: "flex", alignItems: "center" }}>
-                    <div style={{ position: "absolute", left: 0, right: 0, height: 3, borderRadius: 2, background: "rgba(255,255,255,0.28)" }}>
+                    <div style={{ position: "absolute", insetInlineStart: 0, insetInlineEnd: 0, height: 3, borderRadius: 2, background: "rgba(255,255,255,0.28)" }}>
                       <div style={{ height: "100%", width: "var(--pct, 0%)", background: "#fff", borderRadius: 2 }} />
                     </div>
                     <div
                       style={{
                         position: "absolute",
-                        left: "var(--pct, 0%)",
+                        insetInlineStart: "var(--pct, 0%)",
                         transform: "translate(-50%, 0)",
                         width: 14, height: 14, borderRadius: "50%",
                         background: "#fff", boxShadow: "0 1px 5px rgba(0,0,0,0.55)",
@@ -1916,7 +1916,7 @@ const previewUrl = media.url;
               <span>{commentsCount}</span>
             </button>
 
-            <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 14 }}>
+            <div style={{ marginInlineStart: "auto", display: "flex", alignItems: "center", gap: 14 }}>
               <PostSaveButton
                 count={savesCount}
                 saved={isSaved}
@@ -1953,8 +1953,8 @@ const previewUrl = media.url;
             style={{
               width: "100%",
               maxHeight: "72dvh",
-              borderTopLeftRadius: 18,
-              borderTopRightRadius: 18,
+              borderStartStartRadius: 18,
+              borderStartEndRadius: 18,
               background: "rgba(12,12,12,0.98)",
               border: "1px solid rgba(255,255,255,0.10)",
               borderBottom: "none",
@@ -2016,7 +2016,7 @@ const previewUrl = media.url;
                   fontWeight: videoPlaybackRate === rate ? 700 : 400,
                   cursor: "pointer",
                   WebkitTapHighlightColor: "transparent",
-                  textAlign: "left",
+                  textAlign: "start",
                 }}
               >
                 <span>{rate === 1 ? "Normal" : `${rate}×`}</span>
@@ -2085,7 +2085,7 @@ const previewUrl = media.url;
               style={{
                 position: "absolute",
                 top: 14,
-                right: 14,
+                insetInlineEnd: 14,
                 zIndex: 8,
                 background: "none",
                 border: "none",
@@ -2185,7 +2185,7 @@ const previewUrl = media.url;
               >
                 {/* Top bar — padding-right 50px para no tapar el botón cerrar (top-right) */}
                 <div style={{
-                  position: "absolute", top: 0, left: 0, right: 0,
+                  position: "absolute", top: 0, insetInlineStart: 0, insetInlineEnd: 0,
                   padding: "19px 50px 8px 14px",
                   background: "linear-gradient(to bottom, rgba(0,0,0,0.65) 0%, transparent 100%)",
                   display: "flex", alignItems: "center", justifyContent: "space-between",
@@ -2273,7 +2273,7 @@ const previewUrl = media.url;
                 </div>
 
                 {/* Bottom bar: tiempos + scrubber */}
-                <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "0 14px 10px" }}>
+                <div style={{ position: "absolute", bottom: 0, insetInlineStart: 0, insetInlineEnd: 0, padding: "0 14px 10px" }}>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
                     <span style={{ color: "rgba(255,255,255,0.8)", fontSize: 12, fontWeight: 600, fontFamily: fontStack, fontVariantNumeric: "tabular-nums" }}>
                       {formatMediaDuration(videoCurrentTime)}
@@ -2292,11 +2292,11 @@ const previewUrl = media.url;
                     </button>
                   </div>
                   <div ref={pivRef2} style={{ position: "relative", height: 28, display: "flex", alignItems: "center" }}>
-                    <div style={{ position: "absolute", left: 0, right: 0, height: 4, borderRadius: 99, background: "rgba(255,255,255,0.25)" }} />
-                    <div style={{ position: "absolute", left: 0, width: "var(--pct, 0%)", height: 4, borderRadius: 99, background: "#fff" }} />
+                    <div style={{ position: "absolute", insetInlineStart: 0, insetInlineEnd: 0, height: 4, borderRadius: 99, background: "rgba(255,255,255,0.25)" }} />
+                    <div style={{ position: "absolute", insetInlineStart: 0, width: "var(--pct, 0%)", height: 4, borderRadius: 99, background: "#fff" }} />
                     <div style={{
                       position: "absolute",
-                      left: "var(--pct, 0%)",
+                      insetInlineStart: "var(--pct, 0%)",
                       transform: "translateX(-50%)",
                       width: 11, height: 11, borderRadius: "50%", background: "#fff",
                       pointerEvents: "none",
@@ -2324,7 +2324,7 @@ const previewUrl = media.url;
                 aria-label={tPosts("viewPrevMedia")}
                 style={{
                   position: "absolute",
-                  left: 14,
+                  insetInlineStart: 14,
                   top: "50%",
                   transform: "translateY(-50%)",
                   zIndex: 6,
@@ -2347,7 +2347,7 @@ const previewUrl = media.url;
                 aria-label={tPosts("viewNextMedia")}
                 style={{
                   position: "absolute",
-                  right: 14,
+                  insetInlineEnd: 14,
                   top: "50%",
                   transform: "translateY(-50%)",
                   zIndex: 6,
@@ -2525,7 +2525,7 @@ const previewUrl = media.url;
                   padding: 0,
                   fontFamily: fontStack,
                   cursor: "pointer",
-                  textAlign: "left",
+                  textAlign: "start",
                   WebkitTapHighlightColor: "transparent",
                 }}
               >
@@ -2600,7 +2600,7 @@ const previewUrl = media.url;
                       border: authorStatusBadge.border,
                       background: authorStatusBadge.background,
                       color: authorStatusBadge.color,
-                      marginRight: shouldShowDesktopPostText ? 8 : 0,
+                      marginInlineEnd: shouldShowDesktopPostText ? 8 : 0,
                       verticalAlign: "middle",
                     }}
                   >
@@ -2621,7 +2621,7 @@ const previewUrl = media.url;
                           setDesktopPostTextExpanded((prev) => !prev)
                         }
                         style={{
-                          marginLeft: 6,
+                          marginInlineStart: 6,
                           border: "none",
                           background: "transparent",
                           color: "rgba(255,255,255,0.78)",
@@ -2705,7 +2705,7 @@ const previewUrl = media.url;
                 <span>{commentsCount}</span>
               </button>
 
-              <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 14 }}>
+              <div style={{ marginInlineStart: "auto", display: "flex", alignItems: "center", gap: 14 }}>
                 <PostSaveButton
                   count={savesCount}
                   saved={isSaved}

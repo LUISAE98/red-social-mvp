@@ -175,7 +175,7 @@ export default function ConversationList({
                   display: "flex",
                   alignItems: "center",
                   gap: 10,
-                  textAlign: "left",
+                  textAlign: "start",
                   WebkitTapHighlightColor: "transparent",
                 }}
               >

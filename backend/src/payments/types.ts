@@ -61,19 +61,19 @@ export type PaymentIntent = {
 };
 
 /**
- * Cuenta de retiro del creador (CLABE). La guarda VIBRA (no MP, no Didit).
- * El titular se coteja contra el nombre verificado por Didit antes de aprobar.
+ * Cuenta de retiro del creador (CLABE). La guarda VIBRA (no MP, no el procesador).
+ * El titular se coteja contra el nombre verificado en el alta de Stripe antes de aprobar.
  * Documento: `users/{creatorId}/payoutAccounts/{accountId}`.
- * Escritura SOLO backend (onCall que valida contra Didit — Bloque 4).
+ * Escritura SOLO backend (onCall que valida contra el alta de Stripe — Bloque 4).
  */
 export type PayoutAccount = {
   creatorId: string;
   /** CLABE de 18 dígitos. */
   clabe: string;
   bankName: string;
-  /** Nombre del titular declarado (debe cotejar con el nombre KYC de Didit). */
+  /** Nombre del titular declarado (debe cotejar con el nombre verificado por Stripe). */
   accountHolderName: string;
-  /** Verificada = titular coincide con Didit y aprobada por Vibra. */
+  /** Verificada = titular coincide con el alta de Stripe y aprobada por Vibra. */
   status: "pending_review" | "verified" | "rejected";
   createdAt: FirebaseFirestore.Timestamp | FirebaseFirestore.FieldValue;
   updatedAt: FirebaseFirestore.Timestamp | FirebaseFirestore.FieldValue;
@@ -81,7 +81,7 @@ export type PayoutAccount = {
 
 /**
  * Solicitud de retiro. El creador la pide; Vibra la revisa (banderas: reportes
- * abiertos, KYC Didit, cuenta verificada) y la libera con intervención humana.
+ * abiertos, KYC del alta de Stripe, cuenta verificada) y la libera con intervención humana.
  * Documento top-level: `withdrawalRequests/{requestId}` (con `creatorId` para
  * que el panel admin liste todas y el creador solo las suyas).
  */

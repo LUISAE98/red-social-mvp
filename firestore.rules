@@ -647,7 +647,7 @@ match /invoices/{invoiceId} {
 
 // Cuenta de retiro del creador (CLABE). Dato financiero sensible: el dueño la
 // lee; la ESCRITURA es solo backend (onCall que coteja el titular contra el
-// nombre verificado por Didit antes de aprobar). Nunca la escribe el cliente.
+// nombre verificado en el alta de Stripe antes de aprobar). Nunca la escribe el cliente.
 match /payoutAccounts/{accountId} {
   allow get, list: if signedIn()
     && request.auth.uid == uid;
@@ -2775,11 +2775,29 @@ allow list: if (canListOwnAuthoredPost()
           && request.resource.data.updatedAt is timestamp;
       }
 
+      // `liveData.hlsUrl` es el destino de un fetch SERVER-SIDE en cf-viewer-proxy,
+      // y el creador escribe el mapa `liveData` completo desde el cliente. Anclar
+      // el host aquí evita que un live apunte ese fetch a la red interna (SSRF).
+      // El proxy valida por su cuenta; esto es la segunda capa.
+      function liveDataHlsUrl(data) {
+        return data.get('liveData', {}) is map
+          ? data.get('liveData', {}).get('hlsUrl', null)
+          : null;
+      }
+
+      function liveHlsUrlIsTrustedHost() {
+        return liveDataHlsUrl(request.resource.data) == null
+          || (liveDataHlsUrl(request.resource.data) is string
+              && liveDataHlsUrl(request.resource.data)
+                   .matches('https://[a-zA-Z0-9._-]+[.](cloudflarestream[.]com|mux[.]com)(/.*)?'));
+      }
+
       function canEditLivePost() {
         return signedIn()
           && resource.data.authorId == request.auth.uid
           && resource.data.get('isDeleted', false) != true
           && resource.data.postType == "live"
+          && liveHlsUrlIsTrustedHost()
           && request.resource.data.diff(resource.data).changedKeys().hasOnly([
             "text", "liveData", "shareTitle", "shareDescription", "shareImageUrl",
             "isShareable", "requiresPayment", "accessModel", "oneTimePrice",
@@ -2794,6 +2812,7 @@ allow list: if (canListOwnAuthoredPost()
         return signedIn()
           && resource.data.authorId == request.auth.uid
           && resource.data.postType == "live"
+          && liveHlsUrlIsTrustedHost()
           && request.resource.data.diff(resource.data).changedKeys().hasOnly(["liveData", "updatedAt"])
           && request.resource.data.authorId == resource.data.authorId
           && request.resource.data.updatedAt is timestamp;
@@ -2804,6 +2823,7 @@ allow list: if (canListOwnAuthoredPost()
         return signedIn()
           && resource.data.authorId == request.auth.uid
           && resource.data.postType == "live"
+          && liveHlsUrlIsTrustedHost()
           && request.resource.data.diff(resource.data).changedKeys().hasOnly(["liveData", "updatedAt"])
           && request.resource.data.authorId == resource.data.authorId
           && request.resource.data.updatedAt is timestamp;
@@ -3430,9 +3450,14 @@ function canUpdateReplyCount(delta) {
     // ==========================
     // KYC (verificación de identidad)
     // ==========================
-    // El estado de KYC lo escribe SOLO el backend (Didit webhook / callable con
-    // Admin SDK). El usuario únicamente puede leer su propio documento. No hay PII:
-    // los documentos de identidad los custodia Didit.
+    // El estado de KYC lo escribe SOLO el backend. El usuario únicamente puede leer su
+    // propio documento. Aquí NO hay PII: los documentos de identidad los custodia el
+    // proveedor de verificación, nunca Firestore.
+    //
+    // ⚠️ Didit se eliminó el 2026-08-13 y hoy NADIE escribe esta colección. La regla se
+    //    conserva a propósito: los documentos históricos siguen ahí y deben permanecer
+    //    legibles solo por su dueño e inescribibles desde el cliente. Cuando el alta de
+    //    cuenta Stripe traiga su propio KYC, volverá a escribirse desde el backend.
     match /kyc/{userId} {
       allow read: if signedIn() && request.auth.uid == userId;
       allow write: if false;

@@ -842,11 +842,13 @@ export async function notifySubscriptionTransition(
 }
 
 /**
- * Avisa al creador de un cambio de estado de su verificación KYC (Didit).
+ * Avisa al creador de un cambio de estado de su verificación KYC.
  * Un solo tipo `kyc_update` con `action` = "approved" | "declined" | "in_review"
  * | "pending" (siempre la misma clave → refleja el estado más reciente).
  * La plataforma hace de actor (no hay persona). Clic → wallet/finanzas.
- * Invocado server-side desde `kyc.ts` `diditWebhook` tras persistir el estado.
+ * ⚠️ HOY SIN EMISOR: Didit se eliminó el 2026-08-13 y nadie llama a esta función.
+ * Se conserva porque el tipo `kyc_update` ya se renderiza en la campana y el alta de
+ * Stripe volverá a necesitarla. Si en 2027 sigue sin emisor, borrarla.
  */
 export async function notifyKycStatus(
   uid: string,

@@ -37,7 +37,7 @@ function SCCard({ sc, fadingOut }: { sc: ActiveSuperComment; fadingOut: boolean 
         borderRadius: 14,
         padding: "14px 18px",
         display: "flex", alignItems: "center", gap: 12,
-        borderLeft: `4px solid ${sc.color}`,
+        borderInlineStart: `4px solid ${sc.color}`,
         fontFamily: FONT,
       }}>
         {/* Avatar con aro de tier */}

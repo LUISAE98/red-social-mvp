@@ -119,7 +119,7 @@ function LangOverlay({
                   color: active ? "#fff" : "rgba(255,255,255,0.72)",
                   fontSize: 14,
                   fontWeight: active ? 600 : 400,
-                  textAlign: "left",
+                  textAlign: "start",
                   cursor: "pointer",
                   minHeight: 48,
                   padding: "11px 16px",
@@ -231,7 +231,7 @@ export default function LanguageSwitcher({ variant = "desktop" }: { variant?: Va
             // Centro alineado con el CTA "Iniciar sesión" (42px de alto @ bottom:16):
             // la burbuja mide 53px, así que baja 5.5px para que sus centros coincidan.
             bottom: "calc(10.5px + var(--vb-safe-bottom, 0px))",
-            right: 16,
+            insetInlineEnd: 16,
             zIndex: 200,
           }}
         >
@@ -278,7 +278,7 @@ export default function LanguageSwitcher({ variant = "desktop" }: { variant?: Va
         <style>{`.vb-lang-corner{display:none}@media(max-width:900px){.vb-lang-corner{display:block}}`}</style>
         <div
           className="vb-lang-corner"
-          style={{ position: "absolute", top: 14, right: 14, zIndex: 40 }}
+          style={{ position: "absolute", top: 14, insetInlineEnd: 14, zIndex: 40 }}
         >
           <button
             type="button"

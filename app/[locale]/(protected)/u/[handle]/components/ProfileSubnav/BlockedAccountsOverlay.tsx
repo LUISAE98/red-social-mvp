@@ -236,7 +236,7 @@ export default function BlockedAccountsOverlay({
               aria-hidden="true"
               style={{
                 position: "absolute",
-                left: 8,
+                insetInlineStart: 8,
                 bottom: 0,
                 width: "calc((100% - 16px) / 2)",
                 height: 2,

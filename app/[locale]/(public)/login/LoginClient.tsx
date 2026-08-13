@@ -39,7 +39,7 @@ const VIDEO_MUESTRA = "/videosaludosyconsejos.mp4";
  *  la memoriza y un literal por render la haría repetirse sin fin. */
 const VIDEOS_EXPERIENCIAS = [
   "/videosaludosyconsejos.mp4",
-  VIDEO_MUESTRA,
+  "/videosesiones3.mp4",
   VIDEO_MUESTRA,
   VIDEO_MUESTRA,
   VIDEO_MUESTRA,
@@ -476,7 +476,7 @@ const forgotLinkStyle: React.CSSProperties = {
   const switchThumbStyle: React.CSSProperties = {
     position: "absolute",
     top: 2,
-    left: keepSession ? 18 : 2,
+    insetInlineStart: keepSession ? 18 : 2,
     width: 14,
     height: 14,
     borderRadius: "50%",

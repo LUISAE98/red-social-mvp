@@ -419,8 +419,8 @@ export default function ProfileSettingsTab({
         .profile-setting-item::after {
           content: "";
           position: absolute;
-          left: 6px;
-          right: 6px;
+          inset-inline-start: 6px;
+          inset-inline-end: 6px;
           bottom: 0;
           height: 1px;
           background: rgba(255, 255, 255, 0.1);
@@ -1005,7 +1005,7 @@ export default function ProfileSettingsTab({
             maxLength={300}
           />
 
-          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.42)", textAlign: "right" }}>
+          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.42)", textAlign: "end" }}>
             {draftBio.length}/300
           </div>
         </div>

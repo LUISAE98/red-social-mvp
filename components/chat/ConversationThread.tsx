@@ -1180,7 +1180,7 @@ export default function ConversationThread({
                   style={{
                     position: "absolute",
                     bottom: -7,
-                    ...(mine ? { left: -5 } : { right: -5 }),
+                    ...(mine ? { insetInlineStart: -5 } : { insetInlineEnd: -5 }),
                   }}
                 >
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="#ff3040">
@@ -1283,7 +1283,7 @@ export default function ConversationThread({
                 pointerEvents: "none",
               }}
             >
-              <span style={{ position: "absolute", right: 8, display: "flex" }}>
+              <span style={{ position: "absolute", insetInlineEnd: 8, display: "flex" }}>
                 <SwipeReplyCue />
               </span>
             </span>
@@ -1370,7 +1370,7 @@ export default function ConversationThread({
                   // Suelo para que responder a algo largo con un "ok" no deje la
                   // cita espachurrada en un globo diminuto.
                   minWidth: 160,
-                  textAlign: "left",
+                  textAlign: "start",
                   border: "none",
                   borderRadius: 7,
                   background: "rgba(0,0,0,0.22)",
@@ -1937,7 +1937,7 @@ export default function ConversationThread({
         <div
           style={{
             position: "absolute",
-            right: 6,
+            insetInlineEnd: 6,
             bottom: 0,
             // Alto igual al mínimo del campo: con una línea queda centrada, y al
             // crecer el campo se queda junto a la última línea.
@@ -2199,7 +2199,7 @@ export default function ConversationThread({
           /* Un pelo más ancho que el icono: con el ancho justo, el recorte que
              hace falta para poder plegarlo le comía el trazo. */
           width: 38px;
-          margin-left: 8px;
+          margin-inline-start: 8px;
           overflow: hidden;
           display: flex;
           align-items: center;
@@ -2212,7 +2212,7 @@ export default function ConversationThread({
         }
         .vibra-chat-attach[data-collapsed] {
           width: 0;
-          margin-left: 0;
+          margin-inline-start: 0;
           opacity: 0;
           pointer-events: none;
         }
@@ -2244,7 +2244,7 @@ export default function ConversationThread({
           font-family: inherit;
           font-size: 13px;
           line-height: 1.2;
-          text-align: left;
+          text-align: start;
           display: flex;
           align-items: center;
           gap: 10px;
@@ -2351,8 +2351,8 @@ export default function ConversationThread({
         data-dimmed={expandedMessage ? "" : undefined}
         style={{
           position: "absolute",
-          left: 0,
-          right: 0,
+          insetInlineStart: 0,
+          insetInlineEnd: 0,
           bottom: 0,
           background: "transparent",
           // En celular el hueco de abajo lo pone SOLO el safe-area. Antes se le

@@ -72,8 +72,8 @@ export default function ProfileHeaderSkeleton({
         /* Difuminado inferior a negro, igual que el overlay de la portada real. */
         .vb-hdr-cover-fade {
           position: absolute;
-          left: 0;
-          right: 0;
+          inset-inline-start: 0;
+          inset-inline-end: 0;
           bottom: 0;
           height: 48%;
           background: linear-gradient(

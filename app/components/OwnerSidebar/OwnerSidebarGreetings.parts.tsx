@@ -670,7 +670,7 @@ export function CleanServiceCard({
           padding: 10,
           margin: 0,
           cursor: "pointer",
-          textAlign: "left",
+          textAlign: "start",
           display: "grid",
           gap: 7,
         }}
@@ -850,7 +850,7 @@ export function SectionBlock({
           alignItems: "center",
           justifyContent: "space-between",
           gap: 10,
-          textAlign: "left",
+          textAlign: "start",
         }}
       >
         <span style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>

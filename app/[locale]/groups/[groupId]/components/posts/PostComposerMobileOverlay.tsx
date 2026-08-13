@@ -281,7 +281,7 @@ export default function PostComposerMobileOverlay({
   const removeMediaButtonStyle: CSSProperties = {
     position: "absolute",
     top: 6,
-    right: 6,
+    insetInlineEnd: 6,
     width: 24,
     height: 24,
     border: "none",
@@ -414,7 +414,7 @@ export default function PostComposerMobileOverlay({
             border-radius: 999px;
             border: 2px solid rgba(168,85,255,0.22);
             border-top-color: #a855f7;
-            border-right-color: #a855f7;
+            border-inline-end-color: #a855f7;
             animation: vibra-publish-spinner-spin 760ms linear infinite;
             box-sizing: border-box;
           }
@@ -595,15 +595,15 @@ export default function PostComposerMobileOverlay({
                   style={{
                     position: "absolute",
                     top: 0,
-                    right: 14,
+                    insetInlineEnd: 14,
                     display: "inline-flex",
                     alignItems: "center",
                     gap: 5,
                     background: "linear-gradient(180deg, #a855f7 0%, #d946b8 100%)",
-                    borderTopLeftRadius: 0,
-                    borderTopRightRadius: 0,
-                    borderBottomLeftRadius: 6,
-                    borderBottomRightRadius: 6,
+                    borderStartStartRadius: 0,
+                    borderStartEndRadius: 0,
+                    borderEndStartRadius: 6,
+                    borderEndEndRadius: 6,
                     padding: "3px 8px 3px 6px",
                     fontSize: 8.5,
                     fontWeight: 700,
@@ -925,7 +925,7 @@ export default function PostComposerMobileOverlay({
                                 aria-hidden="true"
                                 style={{
                                   position: "absolute",
-                                  right: 8,
+                                  insetInlineEnd: 8,
                                   bottom: 25,
                                   color: "#fff",
                                   fontSize: 11,
@@ -947,8 +947,8 @@ export default function PostComposerMobileOverlay({
                                 disabled={creating}
                                 style={{
                                   position: "absolute",
-                                  left: 0,
-                                  right: 0,
+                                  insetInlineStart: 0,
+                                  insetInlineEnd: 0,
                                   bottom: 0,
                                   height: 22,
                                   padding: "0 8px",
@@ -975,7 +975,7 @@ export default function PostComposerMobileOverlay({
                           <div
                             style={{
                               position: "absolute",
-                              left: 8,
+                              insetInlineStart: 8,
                               top: 8,
                               minWidth: 24,
                               height: 24,

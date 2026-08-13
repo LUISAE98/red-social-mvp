@@ -90,8 +90,8 @@ const tabButtonStyle: CSSProperties = {
 
 const indicatorStyle: CSSProperties = {
   position: "absolute",
-  left: 8,
-  right: 8,
+  insetInlineStart: 8,
+  insetInlineEnd: 8,
   bottom: -1,
   height: 2,
   borderRadius: 2,

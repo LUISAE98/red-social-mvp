@@ -173,8 +173,8 @@ export default function WalletDesktopRail({
           width: min(100%, 250px);
           height: 100%;
           min-height: 0;
-          margin-left: auto;
-          margin-right: auto;
+          margin-inline-start: auto;
+          margin-inline-end: auto;
           overflow: hidden;
           box-sizing: border-box;
           display: flex;
@@ -310,7 +310,7 @@ export default function WalletDesktopRail({
           border: none;
           background: transparent;
           cursor: pointer;
-          text-align: left;
+          text-align: start;
           gap: 6px;
         }
 
@@ -564,7 +564,7 @@ export default function WalletDesktopRail({
           opacity: 0.82;
           filter: saturate(0.65) brightness(0.96);
           transform: translateY(3.5px);
-          margin-right: 8px;
+          margin-inline-end: 8px;
           transition:
             color 180ms ease,
             opacity 180ms ease,
@@ -605,8 +605,8 @@ export default function WalletDesktopRail({
               #000000 100%
             );
           padding: 3px 12px;
-          margin-left: -2px;
-          margin-right: -2px;
+          margin-inline-start: -2px;
+          margin-inline-end: -2px;
           box-shadow:
             inset 0 0 10px rgba(255, 255, 255, 0.04),
             inset 0 0 18px rgba(124, 58, 237, 0.16),

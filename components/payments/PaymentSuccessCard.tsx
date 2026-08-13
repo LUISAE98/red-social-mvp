@@ -36,9 +36,9 @@ export default function PaymentSuccessCard({
     <div style={{ height: stacked ? 480 : 440, display: "flex", flexDirection: "column", position: "relative" }}>
       <style>{SUCCESS_KEYFRAMES}</style>
       {showClose && (
-        <button type="button" onClick={onClose} aria-label="Cerrar" style={{ position: "absolute", top: 10, right: 16, zIndex: 2, border: "none", background: "transparent", color: "#fff", fontSize: 32, lineHeight: 1, padding: 2, cursor: "pointer" }}>×</button>
+        <button type="button" onClick={onClose} aria-label="Cerrar" style={{ position: "absolute", top: 10, insetInlineEnd: 16, zIndex: 2, border: "none", background: "transparent", color: "#fff", fontSize: 32, lineHeight: 1, padding: 2, cursor: "pointer" }}>×</button>
       )}
-      <div style={{ position: "absolute", top: 16, left: 0, right: 0, zIndex: 2, textAlign: "center", color: "rgba(255,255,255,0.85)", fontSize: 13, fontWeight: 500, pointerEvents: "none", animation: "vibraPaySuccessFade 300ms ease both" }}>{purchaseDate}</div>
+      <div style={{ position: "absolute", top: 16, insetInlineStart: 0, insetInlineEnd: 0, zIndex: 2, textAlign: "center", color: "rgba(255,255,255,0.85)", fontSize: 13, fontWeight: 500, pointerEvents: "none", animation: "vibraPaySuccessFade 300ms ease both" }}>{purchaseDate}</div>
       <div style={{ flex: 2, background: GREEN, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-start", gap: 7, padding: "88px 24px 14px", animation: "vibraPaySuccessFade 300ms ease both" }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         {avatarUrl ? <img src={avatarUrl} alt={providerName ?? ""} style={{ width: 128, height: 128, borderRadius: "50%", objectFit: "cover", boxShadow: "0 8px 24px rgba(0,0,0,0.18)", animation: "vibraPaySuccessPop 460ms cubic-bezier(0.2,0.9,0.2,1.2) both", animationDelay: "120ms" }} /> : null}

@@ -607,19 +607,19 @@ export default function StoryViewer({
     const radius = r.width / 2;
 
     if (heroPhase === "entering") {
-      return { left: r.left, top: r.top, width: r.width, height: r.height, borderRadius: radius, background: "transparent" };
+      return { insetInlineStart: r.left, top: r.top, width: r.width, height: r.height, borderRadius: radius, background: "transparent" };
     }
     if (heroPhase === "exiting") {
       const exitEase = "cubic-bezier(0.4,0,1,1)";
       const exitDur = 170;
-      return { left: r.left, top: r.top, width: r.width, height: r.height, borderRadius: radius, background: "transparent", transition: `left ${exitDur}ms ${exitEase}, top ${exitDur}ms ${exitEase}, width ${exitDur}ms ${exitEase}, height ${exitDur}ms ${exitEase}, border-radius ${exitDur}ms ${exitEase}, background 120ms ease` };
+      return { insetInlineStart: r.left, top: r.top, width: r.width, height: r.height, borderRadius: radius, background: "transparent", transition: `left ${exitDur}ms ${exitEase}, top ${exitDur}ms ${exitEase}, width ${exitDur}ms ${exitEase}, height ${exitDur}ms ${exitEase}, border-radius ${exitDur}ms ${exitEase}, background 120ms ease` };
     }
     if (dragY > 0) {
       const t = Math.min(1, dragY / vh);
       const lerp = (a: number, b: number) => a + (b - a) * t;
-      return { left: lerp(0, r.left), top: dragY, width: lerp(vw, r.width), height: lerp(vh, r.height), borderRadius: lerp(0, radius), background: `rgba(0,0,0,${1 - t * 0.85})` };
+      return { insetInlineStart: lerp(0, r.left), top: dragY, width: lerp(vw, r.width), height: lerp(vh, r.height), borderRadius: lerp(0, radius), background: `rgba(0,0,0,${1 - t * 0.85})` };
     }
-    return { left: 0, top: 0, width: vw, height: vh, borderRadius: 0, background: "#000", transition: `left ${dur}ms ${ease}, top ${dur}ms ${ease}, width ${dur}ms ${ease}, height ${dur}ms ${ease}, border-radius ${dur}ms ${ease}, background 190ms ease` };
+    return { insetInlineStart: 0, top: 0, width: vw, height: vh, borderRadius: 0, background: "#000", transition: `left ${dur}ms ${ease}, top ${dur}ms ${ease}, width ${dur}ms ${ease}, height ${dur}ms ${ease}, border-radius ${dur}ms ${ease}, background 190ms ease` };
   }
   const heroContainerStyle = getHeroContainerStyle();
 
@@ -668,7 +668,7 @@ export default function StoryViewer({
       <div style={{ position: "absolute", inset: 0, opacity: heroAnimating ? 0 : 1, transition: heroAnimating ? "none" : "opacity 180ms ease", pointerEvents: heroAnimating ? "none" : undefined }}>
 
       {/* Progress bars */}
-      <div style={{ position: "absolute", top: safeTop, left: 0, right: 0, paddingTop: 12, paddingLeft: 10, paddingRight: 10, display: "flex", gap: 4, zIndex: 10 }}>
+      <div style={{ position: "absolute", top: safeTop, insetInlineStart: 0, insetInlineEnd: 0, paddingTop: 12, paddingInlineStart: 10, paddingInlineEnd: 10, display: "flex", gap: 4, zIndex: 10 }}>
         {stories.map((_, i) => (
           <div key={i} style={{ flex: 1, height: 3, borderRadius: 2, background: "rgba(255,255,255,0.3)", overflow: "hidden" }}>
             <div style={{ height: "100%", borderRadius: 2, background: "#fff", width: i < index ? "100%" : i === index ? `${Math.round(progress * 100)}%` : "0%", transition: i === index ? "none" : undefined }} />
@@ -682,7 +682,7 @@ export default function StoryViewer({
         const headerStyle: React.CSSProperties = {
           position: "absolute",
           top: typeof safeTop === "number" ? safeTop + 36 : `calc(${safeTop} + 36px)`,
-          left: 12,
+          insetInlineStart: 12,
           zIndex: 10,
           display: "flex",
           alignItems: "center",
@@ -706,8 +706,8 @@ export default function StoryViewer({
       })()}
 
       {/* Tap zones */}
-      <button type="button" aria-label={tCommon("prevStory")} onClick={() => { if (suppressNextClickRef.current) { suppressNextClickRef.current = false; return; } goTo(index - 1); }} style={{ position: "absolute", top: 0, left: 0, width: "35%", height: "100%", background: "none", border: "none", cursor: index > 0 ? "w-resize" : "default", zIndex: 5 }} />
-      <button type="button" aria-label={tCommon("nextStory")} onClick={() => { if (suppressNextClickRef.current) { suppressNextClickRef.current = false; return; } goTo(index + 1); }} style={{ position: "absolute", top: 0, right: 0, width: "65%", height: "100%", background: "none", border: "none", cursor: "e-resize", zIndex: 5 }} />
+      <button type="button" aria-label={tCommon("prevStory")} onClick={() => { if (suppressNextClickRef.current) { suppressNextClickRef.current = false; return; } goTo(index - 1); }} style={{ position: "absolute", top: 0, insetInlineStart: 0, width: "35%", height: "100%", background: "none", border: "none", cursor: index > 0 ? "w-resize" : "default", zIndex: 5 }} />
+      <button type="button" aria-label={tCommon("nextStory")} onClick={() => { if (suppressNextClickRef.current) { suppressNextClickRef.current = false; return; } goTo(index + 1); }} style={{ position: "absolute", top: 0, insetInlineEnd: 0, width: "65%", height: "100%", background: "none", border: "none", cursor: "e-resize", zIndex: 5 }} />
 
       {(showClose || onCloseCarousel) && (
         <div
@@ -716,7 +716,7 @@ export default function StoryViewer({
             top: typeof safeTop === "number"
               ? safeTop + 28 + avatarSz / 2
               : `calc(${safeTop} + ${28 + avatarSz / 2}px)`,
-            right: 10,
+            insetInlineEnd: 10,
             transform: "translateY(-50%)",
             display: "flex",
             alignItems: "center",
@@ -776,8 +776,8 @@ export default function StoryViewer({
           <div
             style={{
               position: "absolute",
-              left: 0,
-              right: 0,
+              insetInlineStart: 0,
+              insetInlineEnd: 0,
               bottom: 0,
               display: "flex",
               flexDirection: "column",
@@ -826,7 +826,7 @@ export default function StoryViewer({
                       aria-label={tServices("changeReadingSpeed")}
                       onTouchStart={(e) => e.stopPropagation()}
                       onClick={(e) => { e.stopPropagation(); handleCycleRate(); }}
-                      style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.75)", padding: "4px 6px", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginRight: 6, fontSize: 12, fontWeight: 700, letterSpacing: "-0.3px" }}
+                      style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.75)", padding: "4px 6px", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginInlineEnd: 6, fontSize: 12, fontWeight: 700, letterSpacing: "-0.3px" }}
                     >
                       {speechRate}×
                     </button>
@@ -838,7 +838,7 @@ export default function StoryViewer({
                     aria-label={speechState === "playing" ? tServices("pauseReading") : speechState === "paused" ? tServices("resumeReading") : tServices("readContext")}
                     onTouchStart={(e) => e.stopPropagation()}
                     onClick={(e) => { e.stopPropagation(); handleToggleSpeech(); }}
-                    style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.85)", padding: 4, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginRight: 6, transition: "color 0.15s" }}
+                    style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.85)", padding: 4, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginInlineEnd: 6, transition: "color 0.15s" }}
                   >
                     {speechState === "playing" ? (
                       <svg width={18} height={18} viewBox="0 0 24 24" fill="currentColor">

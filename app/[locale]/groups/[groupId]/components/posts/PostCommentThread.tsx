@@ -518,7 +518,7 @@ export default function PostCommentThread({
           <div>
             <span style={{ fontSize: 11, fontWeight: 700, color: "#f87171" }}>{tPosts("commentDeleted")}</span>
             {comment.deletedAt && (
-              <span style={{ fontSize: 10, color: "rgba(239,68,68,0.6)", marginLeft: 6 }}>
+              <span style={{ fontSize: 10, color: "rgba(239,68,68,0.6)", marginInlineStart: 6 }}>
                 {comment.deletedAt.toDate().toLocaleString(intlLocale(locale), { dateStyle: "medium", timeStyle: "short" })}
               </span>
             )}
@@ -578,7 +578,7 @@ export default function PostCommentThread({
                     fontFamily: fontStack,
                     cursor: "pointer",
                     lineHeight: 1.2,
-                    textAlign: "left",
+                    textAlign: "start",
                     WebkitTapHighlightColor: "transparent",
                   }}
                 >
@@ -586,7 +586,7 @@ export default function PostCommentThread({
                     ? formatExactDate(comment.createdAt, tCommon)
                     : formatRelativeDate(comment.createdAt, tCommon)}
                   {(localCommentEditedAt ?? comment.editedAt) ? (
-                    <span style={{ opacity: 0.45, fontStyle: "italic", marginLeft: 2 }}>
+                    <span style={{ opacity: 0.45, fontStyle: "italic", marginInlineStart: 2 }}>
                       {" "}{tPosts("editedSuffix")}
                     </span>
                   ) : null}
@@ -862,7 +862,7 @@ export default function PostCommentThread({
                         display: "flex",
                         alignItems: "center",
                         gap: 6,
-                        marginLeft: 4,
+                        marginInlineStart: 4,
                       }}>
                         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#f87171" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
                           <polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2" />
@@ -870,14 +870,14 @@ export default function PostCommentThread({
                         <div>
                           <span style={{ fontSize: 10.5, fontWeight: 700, color: "#f87171" }}>{tPosts("replyDeleted")}</span>
                           {reply.deletedAt && (
-                            <span style={{ fontSize: 9.5, color: "rgba(239,68,68,0.6)", marginLeft: 6 }}>
+                            <span style={{ fontSize: 9.5, color: "rgba(239,68,68,0.6)", marginInlineStart: 6 }}>
                               {reply.deletedAt.toDate().toLocaleString(intlLocale(locale), { dateStyle: "medium", timeStyle: "short" })}
                             </span>
                           )}
                         </div>
                       </div>
                     )}
-                  <div style={{ display: "flex", alignItems: "flex-start", gap: 9, paddingLeft: 4 }}>
+                  <div style={{ display: "flex", alignItems: "flex-start", gap: 9, paddingInlineStart: 4 }}>
                     <Link href={replyAuthor.profileHref} style={{ flexShrink: 0 }}>
                       <Avatar name={replyAuthor.authorName} avatarUrl={replyAuthor.avatarUrl} size={26} />
                     </Link>
@@ -928,7 +928,7 @@ export default function PostCommentThread({
                             fontFamily: fontStack,
                             cursor: "pointer",
                             lineHeight: 1.2,
-                            textAlign: "left",
+                            textAlign: "start",
                             WebkitTapHighlightColor: "transparent",
                           }}
                         >
@@ -936,7 +936,7 @@ export default function PostCommentThread({
                             ? formatExactDate(reply.createdAt, tCommon)
                             : formatRelativeDate(reply.createdAt, tCommon)}
                           {reply.editedAt ? (
-                            <span style={{ opacity: 0.45, fontStyle: "italic", marginLeft: 2 }}>
+                            <span style={{ opacity: 0.45, fontStyle: "italic", marginInlineStart: 2 }}>
                               {" "}{tPosts("editedSuffix")}
                             </span>
                           ) : null}

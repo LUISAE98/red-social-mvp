@@ -216,7 +216,7 @@ export default function OwnerSidebarGreetings({
     alignItems: "center",
     justifyContent: "space-between",
     gap: 10,
-    textAlign: "left",
+    textAlign: "start",
   };
 
   const requestedRows = useMemo<DisplayRow[]>(() => {
@@ -673,7 +673,7 @@ async function handleCreatorSchedule(
     borderRadius: 999,
     padding: "6px 9px",
     margin: 0,
-    textAlign: "left",
+    textAlign: "start",
     cursor: "pointer",
     color: "#fff",
     fontSize: 11,
@@ -1706,7 +1706,7 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
               alignItems: "center",
               justifyContent: "space-between",
               gap: 10,
-              textAlign: "left",
+              textAlign: "start",
             }}
           >
             <span style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>

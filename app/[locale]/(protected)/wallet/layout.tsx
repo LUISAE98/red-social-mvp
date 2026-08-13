@@ -108,16 +108,16 @@ export default function WalletLayout({
 
         @media (max-width: 900px) {
           .walletLayout {
-            padding-left: 12px;
-            padding-right: 12px;
+            padding-inline-start: 12px;
+            padding-inline-end: 12px;
             box-sizing: border-box;
           }
 
           /* El onboarding va a pantalla completa en celular (sin márgenes negros
              a los lados); sus secciones ya tienen su propio padding interno. */
           .walletLayout.walletLayoutFull {
-            padding-left: 0;
-            padding-right: 0;
+            padding-inline-start: 0;
+            padding-inline-end: 0;
           }
 
           .walletHeader {

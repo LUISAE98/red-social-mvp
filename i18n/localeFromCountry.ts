@@ -19,11 +19,24 @@ const PT_COUNTRIES = new Set([
   "BR", "AO", "MZ", "CV", "GW", "ST", "TL",
 ]);
 
+// Países donde el país NO determina el idioma y el navegador es mejor señal.
+//
+// Canadá es el caso claro: el inglés y el francés son cooficiales y las dos
+// comunidades son grandes (~75 % y ~22 %). Cualquier valor fijo se equivoca con
+// millones de personas —forzar inglés deja fuera a Quebec, forzar francés se lo
+// impone al resto—, así que aquí se devuelve null a propósito para que decida el
+// Accept-Language del navegador, que sí distingue fr-CA de en-CA.
+//
+// ⚠️ Devolver null NO es lo mismo que devolver "en": con "en" el middleware fija
+// la cookie y la cabecera del navegador ya no se mira nunca.
+const BROWSER_DECIDES = new Set(["CA"]);
+
 /**
  * Devuelve el locale según el código de país ISO (de la geo por IP).
  *
- * Orden: los 27 de la UE por su idioma oficial, luego hispanohablantes, luego
- * lusófonos, y cualquier otro país → inglés.
+ * Orden: los países bilingües se delegan al navegador, luego los 27 de la UE por
+ * su idioma oficial, luego hispanohablantes, luego lusófonos, y cualquier otro
+ * país → inglés.
  *
  * Un idioma de la UE que todavía no tenga su archivo de traducción NO degrada al
  * usuario a un idioma peor por accidente: `nearestReadyLocale` prueba primero el
@@ -36,6 +49,8 @@ const PT_COUNTRIES = new Set([
 export function localeFromCountry(country: string | null | undefined): Locale | null {
   if (!country) return null;
   const cc = country.toUpperCase();
+
+  if (BROWSER_DECIDES.has(cc)) return null;
 
   const eu = EU_COUNTRY_TO_LOCALE[cc];
   if (eu) return nearestReadyLocale(eu) ?? routing.defaultLocale;

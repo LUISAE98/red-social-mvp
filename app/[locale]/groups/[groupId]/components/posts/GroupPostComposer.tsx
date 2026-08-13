@@ -806,7 +806,7 @@ const launcherButtonStyle: CSSProperties = {
   lineHeight: 1.5,
   fontFamily: fontStack,
   boxSizing: "border-box",
-  textAlign: "left",
+  textAlign: "start",
   cursor: creating ? "not-allowed" : "text",
   overflow: "hidden",
   display: "block",

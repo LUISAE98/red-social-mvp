@@ -43,6 +43,7 @@ export default function LoginExperienceBlock({
   omitIcons,
   itemsLeft = false,
   active = true,
+  carousel = null,
 }: {
   /** Antetítulo. El CSS lo pinta en MAYÚSCULAS. */
   eyebrow: string;
@@ -78,6 +79,13 @@ export default function LoginExperienceBlock({
    * en un celular son batería y datos tirados.
    */
   active?: boolean;
+  /**
+   * Presente solo cuando el bloque es una tarjeta del carrusel de celular. Trae
+   * los puntos indicadores —que se pintan debajo del círculo, dentro de la
+   * tarjeta— y hace que la entrada se repita cada vez que la tarjeta pasa a ser
+   * la activa, incluso si ya se había visto.
+   */
+  carousel?: { count: number; current: number; onSelect: (i: number) => void } | null;
 }) {
   const services = Array.isArray(service) ? service : [service as ServiceKey];
 
@@ -176,7 +184,13 @@ export default function LoginExperienceBlock({
   return (
     <section
       ref={sectionRef}
-      className={`expBlock${itemsLeft ? " expBlockFlip" : ""}${entered ? " expBlockIn" : ""}`}
+      className={`expBlock${itemsLeft ? " expBlockFlip" : ""}${
+        // En el carrusel la entrada se ata a "ser la tarjeta activa", así que se
+        // rehace en cada cambio, también al volver a una ya vista. Apilados en
+        // laptop se hace una sola vez, al aparecer: ahí repetirla en cada scroll
+        // sería mareante.
+        (carousel ? active : entered) ? " expBlockIn" : ""
+      }`}
     >
       <style jsx>{`
         /* Una fila = dos mitades. Las dos con minmax(0, 1fr) para que ninguna se
@@ -228,6 +242,14 @@ export default function LoginExperienceBlock({
           display: block;
         }
 
+        .expBlockDots {
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          gap: 7px;
+          margin: 16px 0 0;
+        }
+
         .expBlockEyebrow {
           margin: 22px 0 0;
           font-size: 10px;
@@ -260,7 +282,7 @@ export default function LoginExperienceBlock({
            El zoom los AGRANDA: sus tamaños (11px el título, 10px la descripción)
            están pensados para las tarjetas del creador y aquí se leían chicos. */
         .expBlockItems {
-          text-align: left;
+          text-align: start;
           min-width: 0;
           zoom: 1.3;
         }
@@ -285,8 +307,8 @@ export default function LoginExperienceBlock({
           .expBlockItems {
             margin-top: 18px;
             max-width: 420px;
-            margin-left: auto;
-            margin-right: auto;
+            margin-inline-start: auto;
+            margin-inline-end: auto;
           }
         }
 
@@ -403,6 +425,36 @@ export default function LoginExperienceBlock({
             aria-hidden="true"
           />
         </div>
+
+        {/* Puntos del carrusel, justo debajo del círculo. Van dentro de la
+            tarjeta —y no en el rail— para que queden pegados al video; como en
+            celular solo se ve una tarjeta, nunca se perciben repetidos. Fuera
+            del bloque de la animación de entrada a propósito: son navegación y
+            deben quedarse quietos. */}
+        {carousel && (
+          <div className="expBlockDots">
+            {Array.from({ length: carousel.count }, (_, i) => (
+              <button
+                key={i}
+                type="button"
+                onClick={() => carousel.onSelect(i)}
+                aria-label={`Ir a la experiencia ${i + 1}`}
+                aria-current={i === carousel.current ? "true" : undefined}
+                style={{
+                  width: i === carousel.current ? 18 : 6,
+                  height: 6,
+                  padding: 0,
+                  border: "none",
+                  borderRadius: 999,
+                  background:
+                    i === carousel.current ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.28)",
+                  transition: "width 260ms ease, background 260ms ease",
+                  cursor: "pointer",
+                }}
+              />
+            ))}
+          </div>
+        )}
 
         {/* El antetítulo se pinta en mayúsculas desde el CSS. */}
         <p className="expBlockEyebrow" style={{ color: accentColor }}>

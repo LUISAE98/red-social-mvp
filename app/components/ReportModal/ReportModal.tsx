@@ -144,7 +144,7 @@ export default function ReportModal({ target, onClose, onReported }: Props) {
                     fontSize: 14,
                     fontWeight: 500,
                     cursor: "pointer",
-                    textAlign: "left",
+                    textAlign: "start",
                     transition: "border-color 120ms, background 120ms",
                   }}
                 >

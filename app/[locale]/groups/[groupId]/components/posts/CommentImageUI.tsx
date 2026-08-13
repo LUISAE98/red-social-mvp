@@ -144,7 +144,7 @@ export function CommentAttachButton({
           style={{
             position: "absolute",
             top: 1,
-            right: 1,
+            insetInlineEnd: 1,
             width: 16,
             height: 16,
             borderRadius: "50%",
@@ -237,7 +237,7 @@ function computeContainedRect(natW: number, natH: number): Rect {
     w = h * ar;
   }
   return {
-    left: (window.innerWidth - w) / 2,
+    insetInlineStart: (window.innerWidth - w) / 2,
     top: (window.innerHeight - h) / 2,
     width: w,
     height: h,
@@ -533,7 +533,7 @@ export function CommentImageLightbox({
           // además se comen el toque.
           top: "calc(16px + env(safe-area-inset-top, 0px))",
           // En horizontal la muesca se va a un lado y también hay que esquivarla.
-          right: "calc(16px + env(safe-area-inset-right, 0px))",
+          insetInlineEnd: "calc(16px + env(safe-area-inset-right, 0px))",
           border: "none",
           // Disco oscuro detrás: sobre una foto clara, una X blanca sin fondo
           // desaparece.

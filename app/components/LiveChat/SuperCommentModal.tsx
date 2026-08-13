@@ -389,7 +389,7 @@ export default function SuperCommentModal({
                   marginBottom: 16,
                 }}>
                   <span style={{ fontSize: 12, color: "rgba(255,255,255,0.6)", fontFamily: FONT }}>
-                    Enviando como<strong style={{ color: "#fff", marginLeft: 8 }}>{guestNickname}</strong>
+                    Enviando como<strong style={{ color: "#fff", marginInlineStart: 8 }}>{guestNickname}</strong>
                   </span>
                   <button
                     type="button"
@@ -426,7 +426,7 @@ export default function SuperCommentModal({
                           type="button"
                           onClick={() => { setUseCredit((v) => !v); setDirectError(null); }}
                           style={{
-                            display: "flex", alignItems: "center", gap: 10, width: "100%", textAlign: "left",
+                            display: "flex", alignItems: "center", gap: 10, width: "100%", textAlign: "start",
                             padding: "12px 14px", borderRadius: 12, background: "#000", cursor: "pointer", fontFamily: FONT,
                             border: `1px solid ${useCredit ? "rgba(59,130,246,0.9)" : "rgba(255,255,255,0.09)"}`,
                             WebkitTapHighlightColor: "transparent",
@@ -468,7 +468,7 @@ export default function SuperCommentModal({
                               onClick={() => { setSelectedCardId(c.id); setDirectError(null); }}
                               style={{
                                 display: "flex", alignItems: "center", gap: 10,
-                                width: "100%", textAlign: "left",
+                                width: "100%", textAlign: "start",
                                 padding: "12px 14px", borderRadius: 12,
                                 background: "#000",
                                 border: `1px solid ${active ? "rgba(59,130,246,0.9)" : "rgba(255,255,255,0.09)"}`,

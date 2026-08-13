@@ -86,7 +86,7 @@ export default function NotificationTabs({
           padding: 9px 2px 6px;
         }
         .ntabCount {
-          margin-left: 6px;
+          margin-inline-start: 6px;
           font-weight: inherit;
           color: inherit;
         }
@@ -99,7 +99,7 @@ export default function NotificationTabs({
         .ntabIndicator {
           position: absolute;
           bottom: 0;
-          left: 16px;
+          inset-inline-start: 16px;
           width: calc((100% - 32px) / 2);
           height: 2px;
           border-radius: 2px;

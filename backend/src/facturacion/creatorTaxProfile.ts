@@ -1,9 +1,18 @@
 // Perfil fiscal del CREADOR-proveedor (Bloque 1a).
 //
-// Modelo vendedor directo: el creador factura a Vibra su ~77% (self-billing). Para
-// eso Vibra necesita sus DATOS fiscales (RFC, régimen, CP) y su CONSENTIMIENTO para
-// que Vibra emita sus CFDIs por él. El CSD (que habilita el timbrado real) se sube
-// aparte en el Bloque 1b — aquí solo se capturan datos + consentimiento.
+// Modelo vendedor directo: el creador factura a Vibra su **75%** (`WALLET_NET_RATE`).
+// Vibra necesita sus DATOS fiscales (RFC, régimen, CP) en cualquier caso, porque de
+// ahí salen las RETENCIONES que se le aplican al pagarle.
+//
+// 🚨 DOS CAMINOS, y los elige el CREADOR — no solo self-billing:
+//   a) **Sube su CSD** → Vibra emite el CFDI por él automáticamente en su propia
+//      organización de Facturapi (self-billing). Requiere su CONSENTIMIENTO expreso,
+//      que es lo que versiona `SELF_BILLING_CONSENT_VERSION`. Bloque 1b.
+//   b) **Sube su factura ya emitida** (PDF + XML) por cada pago. Sin CSD, sin
+//      consentimiento de auto-facturación: él la emite por su cuenta y la entrega.
+//
+// El consentimiento solo aplica al camino (a). Quien elija (b) igual necesita perfil
+// fiscal, porque las retenciones dependen de su régimen.
 //
 // Documento: `creatorTaxProfiles/{uid}` (escritura SOLO backend; lectura del dueño).
 // El RFC nunca lo escribe el cliente directo: pasa por esta callable (validada).

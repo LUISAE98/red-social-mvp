@@ -180,7 +180,7 @@ export default function StoryCircles({ creatorId, currentUserId }: Props) {
 const gearBtnStyle: React.CSSProperties = {
   position: "absolute",
   bottom: 22,
-  right: -4,
+  insetInlineEnd: -4,
   width: 22,
   height: 22,
   borderRadius: "50%",

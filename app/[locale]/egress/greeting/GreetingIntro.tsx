@@ -146,7 +146,7 @@ export default function GreetingIntro({
             </defs>
             <circle pathLength={100} cx={OUTER / 2} cy={OUTER / 2} r={rr} fill="none" stroke="url(#giRingGrad)" strokeWidth={RW} strokeLinecap="round" />
           </svg>
-          <div style={{ position: "absolute", top: GAP + RW, left: GAP + RW, width: AV, height: AV, borderRadius: "50%", overflow: "hidden", background: "#1a1a1a", display: "grid", placeItems: "center" }}>
+          <div style={{ position: "absolute", top: GAP + RW, insetInlineStart: GAP + RW, width: AV, height: AV, borderRadius: "50%", overflow: "hidden", background: "#1a1a1a", display: "grid", placeItems: "center" }}>
             {avatarUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={avatarUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />

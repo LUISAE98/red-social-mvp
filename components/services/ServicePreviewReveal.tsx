@@ -71,7 +71,7 @@ export default function ServicePreviewReveal({
           .serviceSeeMoreBtn {
             position: absolute;
             bottom: 8px;
-            right: 10px;
+            inset-inline-end: 10px;
             z-index: 2;
             display: inline-flex;
             align-items: center;

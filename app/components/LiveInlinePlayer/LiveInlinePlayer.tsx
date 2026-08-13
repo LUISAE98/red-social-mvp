@@ -618,7 +618,7 @@ export default function LiveInlinePlayer({
       {/* SC overlay: avatar + nombre + monto (sin texto) — detrás del badge En vivo y del botón mute */}
       {activeSC && (
         <div style={{
-          position: "absolute", left: 0, right: 0, bottom: 0,
+          position: "absolute", insetInlineStart: 0, insetInlineEnd: 0, bottom: 0,
           zIndex: 2, padding: "0 8px 8px",
           pointerEvents: "none",
           animation: scFadingOut ? "lipSCOut 0.7s ease forwards" : "lipSCIn 0.4s ease forwards",
@@ -628,7 +628,7 @@ export default function LiveInlinePlayer({
             borderRadius: 12,
             padding: "8px 10px",
             display: "flex", alignItems: "center", gap: 8,
-            borderLeft: `2px solid ${activeSC.color}`,
+            borderInlineStart: `2px solid ${activeSC.color}`,
           }}>
             {/* Avatar con aro */}
             <div style={{ position: "relative", width: 32, height: 32, flexShrink: 0 }}>
@@ -677,7 +677,7 @@ export default function LiveInlinePlayer({
         style={{
           position: "absolute",
           bottom: 10,
-          right: 10,
+          insetInlineEnd: 10,
           width: 32,
           height: 32,
           zIndex: 5,

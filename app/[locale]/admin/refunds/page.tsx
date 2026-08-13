@@ -241,7 +241,7 @@ export default function AdminRefundsPage() {
                     alignItems: "center",
                     gap: 12,
                     cursor: "pointer",
-                    textAlign: "left",
+                    textAlign: "start",
                   }}
                 >
                   <div style={{ width: 8, height: 8, borderRadius: "50%", background: meta.dot, flexShrink: 0 }} />
@@ -253,7 +253,7 @@ export default function AdminRefundsPage() {
                       {rel(r.createdAt?.toDate?.() ?? null)}
                     </div>
                   </div>
-                  <div style={{ textAlign: "right", flexShrink: 0 }}>
+                  <div style={{ textAlign: "end", flexShrink: 0 }}>
                     <div style={{ fontSize: 14, fontWeight: 700, color: "#34d399" }}>
                       {money(r.amount, locale)}
                     </div>

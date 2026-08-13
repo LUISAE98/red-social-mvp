@@ -131,7 +131,7 @@ export default function SharedCommunitiesBadge({
             <span
               key={i}
               className="vb-skel relative flex h-8 w-8 shrink-0 rounded-full"
-              style={{ marginLeft: i === 0 ? 0 : -15, zIndex: 20 + i }}
+              style={{ marginInlineStart: i === 0 ? 0 : -15, zIndex: 20 + i }}
             />
           ))}
         </span>
@@ -172,7 +172,7 @@ className={[
   isTouchPopping ? "scale-105 brightness-100 saturate-100" : "",
 ].join(" ")}
                 style={{
-                  marginLeft: index === 0 ? 0 : -15,
+                  marginInlineStart: index === 0 ? 0 : -15,
                   zIndex: 20 + index,
                 }}
                 aria-label={community.name}
@@ -200,7 +200,7 @@ className={[
   isTouchPopping ? "scale-105 bg-purple-600/95" : "",
 ].join(" ")}
               style={{
-                marginLeft: -15,
+                marginInlineStart: -15,
                 zIndex: 40,
               }}
               aria-label={tProfile("sharesCommunities", { count: communities.length })}

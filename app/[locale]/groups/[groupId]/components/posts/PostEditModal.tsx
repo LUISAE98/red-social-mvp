@@ -352,7 +352,7 @@ export default function PostEditModal({
                           style={{
                             position: "absolute",
                             top: 4,
-                            right: 4,
+                            insetInlineEnd: 4,
                             width: 22,
                             height: 22,
                             borderRadius: 999,
@@ -425,7 +425,7 @@ export default function PostEditModal({
                             style={{
                               position: "absolute",
                               top: 4,
-                              right: 4,
+                              insetInlineEnd: 4,
                               width: 22,
                               height: 22,
                               borderRadius: 999,

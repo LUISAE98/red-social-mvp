@@ -178,7 +178,7 @@ export default function WalletPurchaseGlobe({
         @media (max-width: 640px) {
           .globeFrame {
             width: 100vw;
-            margin-left: calc(50% - 50vw);
+            margin-inline-start: calc(50% - 50vw);
           }
         }
       `}</style>
@@ -238,7 +238,7 @@ export default function WalletPurchaseGlobe({
               if (p.country) parts.push(p.country);
               const label = parts.length ? parts.join(", ") : tWallet("globeApproxLocation");
               return `
-                <div style="font-family:inherit;text-align:left;white-space:nowrap;">
+                <div style="font-family:inherit;text-align:start;white-space:nowrap;">
                   <div style="font-size:12.5px;font-weight:700;color:#fff;margin-bottom:2px;">${label}</div>
                   <div style="font-size:11px;color:rgba(255,255,255,0.85);">${tWallet("globeTooltipPurchases", { count: p.purchases })}</div>
                   <div style="font-size:11px;color:#93c5fd;">${tWallet("globeTooltipGross", { amount: formatMoney(p.grossSum) })}</div>

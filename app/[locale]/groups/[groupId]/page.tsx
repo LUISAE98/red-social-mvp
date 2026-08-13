@@ -1639,8 +1639,8 @@ function GroupCoverLupaIcon() {
 
 const groupCoverGradientStyle = {
   position: "absolute" as const,
-  left: 0,
-  right: 0,
+  insetInlineStart: 0,
+  insetInlineEnd: 0,
   bottom: 0,
   height: "82%",
   zIndex: 10,
@@ -1759,7 +1759,7 @@ const avatarNode = (
           style={{
             ...groupRoundIconButtonStyle,
             position: "absolute",
-            right: 8,
+            insetInlineEnd: 8,
             bottom: 8,
             cursor: uploading ? "not-allowed" : "pointer",
             fontSize: 17,
@@ -1955,8 +1955,8 @@ const avatarNode = (
 
   .group-card {
     border-radius: 0 !important;
-    border-left: 0 !important;
-    border-right: 0 !important;
+    border-inline-start: 0 !important;
+    border-inline-end: 0 !important;
   }
 
   .group-content {
@@ -1994,7 +1994,7 @@ const avatarNode = (
                   <div
                     style={{
                       position: "absolute",
-                      right: 18,
+                      insetInlineEnd: 18,
                       top: 18,
                       zIndex: 40,
                       display: "flex",
@@ -2372,8 +2372,8 @@ const avatarNode = (
             margin-top: 14px;
             width: 100%;
             max-width: 720px;
-            margin-left: auto;
-            margin-right: auto;
+            margin-inline-start: auto;
+            margin-inline-end: auto;
             min-width: 0;
           }
 
@@ -2381,8 +2381,8 @@ const avatarNode = (
             margin-top: 12px;
             width: 100%;
             max-width: none;
-            margin-left: auto;
-            margin-right: auto;
+            margin-inline-start: auto;
+            margin-inline-end: auto;
             min-width: 0;
           }
 
@@ -2447,8 +2447,8 @@ const avatarNode = (
 
   .group-card {
     border-radius: 0 !important;
-    border-left: 0 !important;
-    border-right: 0 !important;
+    border-inline-start: 0 !important;
+    border-inline-end: 0 !important;
   }
 
   .group-content {
@@ -2508,7 +2508,7 @@ const avatarNode = (
                 <div
                   style={{
                     position: "absolute",
-                    right: 18,
+                    insetInlineEnd: 18,
                     top: 18,
                     zIndex: 40,
                     display: "flex",
@@ -2549,7 +2549,7 @@ const avatarNode = (
                 <div
                   style={{
                     position: "absolute",
-                    left: 18,
+                    insetInlineStart: 18,
                     top: 18,
                     zIndex: 40,
                     display: "flex",
@@ -2616,7 +2616,7 @@ const avatarNode = (
                   style={{
                     ...groupRoundIconButtonStyle,
                     position: "absolute",
-                    right: 14,
+                    insetInlineEnd: 14,
                     bottom: 14,
                     opacity: uploading ? 0.7 : 1,
                     cursor: uploading ? "not-allowed" : "pointer",

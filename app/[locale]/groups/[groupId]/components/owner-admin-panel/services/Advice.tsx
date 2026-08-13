@@ -284,7 +284,7 @@ export default function Consejos({
         </div>
 
         {/* Esquina inferior derecha: precio grande (estilo del feed, +40%) + 3 MXN. */}
-        <div style={{ display: "grid", gap: 2, justifyItems: "end", textAlign: "right", flexShrink: 0 }}>
+        <div style={{ display: "grid", gap: 2, justifyItems: "end", textAlign: "end", flexShrink: 0 }}>
           <div style={subtleStyle}>{tServices("meetGreetConfiguredPrice")}</div>
           <div style={{ display: "flex", alignItems: "baseline", gap: 6, whiteSpace: "nowrap" }}>
             <span style={{ fontSize: 31, fontWeight: 600, color: accentColor ?? "#f7c948", lineHeight: 1, fontVariantNumeric: "tabular-nums" }}>
@@ -295,7 +295,7 @@ export default function Consejos({
             <span style={{ fontSize: 12, fontWeight: 400, color: "rgba(255,255,255,0.5)" }}>+ 3 MXN</span>
           </div>
           {consejoCalc ? (
-            <div style={{ ...subtleStyle, textAlign: "right", whiteSpace: "nowrap", marginTop: 2 }}>
+            <div style={{ ...subtleStyle, textAlign: "end", whiteSpace: "nowrap", marginTop: 2 }}>
               {tServices("adviceEarningsDesc", {
                 gross: formatMoney(consejoCalc.gross, draft.consejo.currency),
                 net: formatMoney(consejoCalc.net, draft.consejo.currency),

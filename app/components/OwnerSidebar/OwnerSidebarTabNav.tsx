@@ -118,7 +118,7 @@ export default function OwnerSidebarTabNav({
     WebkitTapHighlightColor: "transparent",
     padding: "7px 8px 7px 6px",
     borderRadius: 10,
-    textAlign: "left",
+    textAlign: "start",
     overflow: "hidden",
   };
 

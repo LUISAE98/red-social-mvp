@@ -338,7 +338,7 @@ export default function PostCommentsPanel({
     gap: 12,
     overflowY: isMobile ? "auto" : "visible",
     minHeight: 0,
-    paddingRight: isMobile ? 2 : 0,
+    paddingInlineEnd: isMobile ? 2 : 0,
   };
 
   // Sin minHeight/maxHeight aquí: la altura la controla el autogrow de
@@ -707,8 +707,8 @@ export default function PostCommentsPanel({
           ...(keyboardOpen && vv
             ? {
                 top: vv.offsetTop,
-                left: 0,
-                right: 0,
+                insetInlineStart: 0,
+                insetInlineEnd: 0,
                 height: vv.height,
                 bottom: "auto" as const,
               }

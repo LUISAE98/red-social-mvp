@@ -406,13 +406,13 @@ export default function BuyerGreetingRequestOverlay({ item, sourceName, sourceAv
               position: "relative",
             }}>
               <div style={{
-                position: "absolute", top: 0, right: 0, bottom: 0, left: 0, zIndex: 0,
+                position: "absolute", top: 0, insetInlineEnd: 0, bottom: 0, insetInlineStart: 0, zIndex: 0,
                 backgroundImage: `url('${bgImage}')`, backgroundSize: "100% auto",
                 backgroundPosition: "center bottom", backgroundRepeat: "no-repeat",
                 opacity: 0.35, pointerEvents: "none",
               }} />
               <div style={{
-                position: "absolute", top: 0, right: 0, bottom: 0, left: 0, zIndex: 1, pointerEvents: "none",
+                position: "absolute", top: 0, insetInlineEnd: 0, bottom: 0, insetInlineStart: 0, zIndex: 1, pointerEvents: "none",
                 background: "linear-gradient(to bottom, #0a0a0a 0%, #0a0a0a 52%, rgba(10,10,10,0.9) 68%, rgba(10,10,10,0.6) 84%, rgba(10,10,10,0.28) 100%)",
               }} />
               <div style={{ position: "relative", zIndex: 2, display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
@@ -483,13 +483,13 @@ export default function BuyerGreetingRequestOverlay({ item, sourceName, sourceAv
           : "vibraComposerDesktopIn 180ms ease-out",
       }}>
         <div style={{
-          position: "absolute", top: 0, right: 0, bottom: 0, left: 0, zIndex: 0,
+          position: "absolute", top: 0, insetInlineEnd: 0, bottom: 0, insetInlineStart: 0, zIndex: 0,
           backgroundImage: `url('${bgImage}')`, backgroundSize: "100% auto",
           backgroundPosition: "center bottom", backgroundRepeat: "no-repeat",
           opacity: 0.35, pointerEvents: "none",
         }} />
         <div style={{
-          position: "absolute", top: 0, right: 0, bottom: 0, left: 0, zIndex: 1, pointerEvents: "none",
+          position: "absolute", top: 0, insetInlineEnd: 0, bottom: 0, insetInlineStart: 0, zIndex: 1, pointerEvents: "none",
           background: "linear-gradient(to bottom, #0a0a0a 50%, rgba(10,10,10,0.85) 68%, rgba(10,10,10,0.4) 85%, transparent 100%)",
         }} />
         <div style={{ position: "relative", zIndex: 2, display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>

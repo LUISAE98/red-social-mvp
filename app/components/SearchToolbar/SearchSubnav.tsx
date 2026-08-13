@@ -207,7 +207,7 @@ export default function SearchSubnav({
             <span
               className="indicator"
               style={{
-                left: indicatorStyle.left,
+                insetInlineStart: indicatorStyle.left,
                 width: indicatorStyle.width,
                 opacity: 1,
               }}

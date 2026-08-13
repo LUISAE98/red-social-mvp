@@ -411,7 +411,7 @@ export default function WalletTransactions({
             aria-hidden="true"
             style={{
               position: "absolute",
-              left: pill.left,
+              insetInlineStart: pill.left,
               width: pill.width,
               top: 0,
               bottom: 0,

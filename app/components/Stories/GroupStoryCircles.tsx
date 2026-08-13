@@ -186,7 +186,7 @@ export default function GroupStoryCircles({
 const gearBtnStyle: React.CSSProperties = {
   position: "absolute",
   bottom: 22,
-  right: -3,
+  insetInlineEnd: -3,
   width: 20,
   height: 20,
   borderRadius: "50%",

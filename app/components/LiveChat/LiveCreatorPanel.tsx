@@ -742,7 +742,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
             <circle cx={lastX} cy={toY(data[data.length - 1].v).toFixed(1)} r="3" fill="#a855f7" />
           </svg>
           <span style={{
-            position: "absolute", top: 0, right: 0,
+            position: "absolute", top: 0, insetInlineEnd: 0,
             fontSize: 9, color: "rgba(255,255,255,0.3)", fontFamily: FONT,
           }}>
             máx {maxV}
@@ -856,7 +856,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
           {label}
         </span>
         {extra && (
-          <div style={{ position: "absolute", right: 16, top: "50%", transform: "translateY(-50%)" }}>
+          <div style={{ position: "absolute", insetInlineEnd: 16, top: "50%", transform: "translateY(-50%)" }}>
             {extra}
           </div>
         )}
@@ -918,7 +918,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
           <div style={{
             position: "absolute", bottom: -1, height: 2,
             width: "50%", background: "#fff",
-            left: `${progress * 50}%`,
+            insetInlineStart: `${progress * 50}%`,
             transition: isDragging ? "none" : "left 0.3s ease",
           }} />
         </div>
@@ -1318,7 +1318,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
                   ...(extra ?? {}),
                   ...(!isChart ? { color: getTileColor(id) } : {}),
                   position: "absolute",
-                  left: pos.x,
+                  insetInlineStart: pos.x,
                   top: pos.y,
                   cursor: isDragging ? "grabbing" : "grab",
                   userSelect: "none",
@@ -1555,7 +1555,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
             >
               <span style={{
                 position: "absolute", top: 3,
-                left: scEnabled ? 21 : 3,
+                insetInlineStart: scEnabled ? 21 : 3,
                 width: 16, height: 16, borderRadius: "50%",
                 background: scEnabled ? "#fff" : "rgba(196,168,255,0.45)",
                 boxShadow: scEnabled ? "0 1px 3px rgba(0,0,0,0.35)" : "none",
@@ -1811,7 +1811,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
             >
               <span style={{
                 position: "absolute", top: 3,
-                left: chatEnabled ? 21 : 3,
+                insetInlineStart: chatEnabled ? 21 : 3,
                 width: 16, height: 16, borderRadius: "50%",
                 background: chatEnabled ? "#fff" : "rgba(196,168,255,0.45)",
                 boxShadow: chatEnabled ? "0 1px 3px rgba(0,0,0,0.35)" : "none",
@@ -1888,7 +1888,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
               type="button"
               onClick={handleCloseSCOverlay}
               style={{
-                position: "absolute", top: 10, right: 10,
+                position: "absolute", top: 10, insetInlineEnd: 10,
                 border: "none", background: "none", color: "rgba(255,255,255,0.7)",
                 cursor: "pointer", padding: 4, display: "grid", placeItems: "center",
               }}
@@ -1898,7 +1898,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
               </svg>
             </button>
             {/* Fila 1: avatar + nombre + monto */}
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8, paddingRight: 24 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8, paddingInlineEnd: 24 }}>
               <ScAvatar url={playingOverlay.avatarUrl} name={playingOverlay.username} ringColor={playingOverlay.color} />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
@@ -1976,8 +1976,8 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
         display: "flex", alignItems: "center", justifyContent: "space-between",
         paddingTop: "max(14px, env(safe-area-inset-top, 0px))",
         paddingBottom: 14,
-        paddingLeft: "max(16px, env(safe-area-inset-left))",
-        paddingRight: "max(16px, env(safe-area-inset-right))",
+        paddingInlineStart: "max(16px, env(safe-area-inset-left))",
+        paddingInlineEnd: "max(16px, env(safe-area-inset-right))",
         borderBottom: DIV,
         flexShrink: 0,
       }}>
@@ -2152,7 +2152,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
                 )}
                 {liveStatus === "live" && isBroadcasting && (
                   <div style={{
-                    position: "absolute", top: 10, left: 10, zIndex: 10,
+                    position: "absolute", top: 10, insetInlineStart: 10, zIndex: 10,
                     display: "inline-flex", alignItems: "center", gap: 6,
                     background: "rgba(239,68,68,0.88)",
                     borderRadius: 7, padding: "5px 11px 5px 8px",
@@ -2230,7 +2230,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
             width: "42%",
             display: "flex",
             flexDirection: "column",
-            borderLeft: "1px solid rgba(255,255,255,0.08)",
+            borderInlineStart: "1px solid rgba(255,255,255,0.08)",
             background: "#0a0a0a",
           }}>
             {/* Tab bar */}
@@ -2255,7 +2255,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
               <div style={{
                 position: "absolute", bottom: -1, height: 2,
                 width: "33.333%", background: "#fff",
-                left: `${Math.max(0, Math.min(2, portraitTabProgress)) * 33.333}%`,
+                insetInlineStart: `${Math.max(0, Math.min(2, portraitTabProgress)) * 33.333}%`,
                 transition: isPortraitDragging ? "none" : "left 0.3s ease",
               }} />
             </div>
@@ -2275,13 +2275,13 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
                 transition: isPortraitDragging ? "none" : "transform 0.3s ease",
                 willChange: "transform",
               }}>
-                <div style={{ width: "33.333%", height: "100%", overflow: "hidden", display: "flex", flexDirection: "column", paddingBottom: "var(--vb-safe-bottom, 0px)", paddingRight: "env(safe-area-inset-right, 0px)" }}>
+                <div style={{ width: "33.333%", height: "100%", overflow: "hidden", display: "flex", flexDirection: "column", paddingBottom: "var(--vb-safe-bottom, 0px)", paddingInlineEnd: "env(safe-area-inset-right, 0px)" }}>
                   {renderSuperCommentsSection()}
                 </div>
-                <div style={{ width: "33.333%", height: "100%", overflow: "hidden", display: "flex", flexDirection: "column", paddingBottom: "var(--vb-safe-bottom, 0px)", paddingRight: "env(safe-area-inset-right, 0px)" }}>
+                <div style={{ width: "33.333%", height: "100%", overflow: "hidden", display: "flex", flexDirection: "column", paddingBottom: "var(--vb-safe-bottom, 0px)", paddingInlineEnd: "env(safe-area-inset-right, 0px)" }}>
                   {renderChatSection(true)}
                 </div>
-                <div style={{ width: "33.333%", height: "100%", overflow: "hidden", display: "flex", flexDirection: "column", paddingBottom: "var(--vb-safe-bottom, 0px)", paddingRight: "env(safe-area-inset-right, 0px)" }}>
+                <div style={{ width: "33.333%", height: "100%", overflow: "hidden", display: "flex", flexDirection: "column", paddingBottom: "var(--vb-safe-bottom, 0px)", paddingInlineEnd: "env(safe-area-inset-right, 0px)" }}>
                   {renderMobileStatsSection(3)}
                 </div>
               </div>
@@ -2362,7 +2362,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
                 <div style={{
                   position: "absolute", bottom: -1, height: 2,
                   width: "33.333%", background: "#fff",
-                  left: `${Math.max(0, Math.min(2, portraitTabProgress)) * 33.333}%`,
+                  insetInlineStart: `${Math.max(0, Math.min(2, portraitTabProgress)) * 33.333}%`,
                   transition: isPortraitDragging ? "none" : "left 0.3s ease",
                 }} />
               </div>
@@ -2417,7 +2417,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
             </div>
           )}
           <div style={{ flex: 1, overflow: "hidden", display: "flex" }}>
-            <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", borderRight: DIV }}>
+            <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", borderInlineEnd: DIV }}>
               {renderChatSection()}
             </div>
             <div style={{ width: "clamp(150px, 38%, 240px)", flexShrink: 0, display: "flex", flexDirection: "column" }}>

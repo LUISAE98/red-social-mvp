@@ -291,7 +291,7 @@ export default function CreatorSessionCountdownBanner({ uid }: { uid: string }) 
       <div style={{ width: "100%", position: "relative", borderRadius: 12, overflow: "hidden", marginBottom: 2, boxSizing: "border-box" }}>
         <div style={{ position: "absolute", inset: 0, backgroundImage: `url(${bg})`, backgroundSize: "cover", backgroundPosition: "center" }} />
         <div style={{ position: "absolute", inset: 0, background: "linear-gradient(160deg, rgba(0,0,0,0.60) 0%, rgba(0,0,0,0.80) 100%)" }} />
-        <button type="button" onClick={dismissCompleted} style={{ position: "absolute", top: 10, right: 10, border: "none", background: "none", color: "rgba(255,255,255,0.45)", fontSize: 16, cursor: "pointer", padding: "0 2px", zIndex: 2, fontFamily: "inherit", lineHeight: 1 }} aria-label="Cerrar">✕</button>
+        <button type="button" onClick={dismissCompleted} style={{ position: "absolute", top: 10, insetInlineEnd: 10, border: "none", background: "none", color: "rgba(255,255,255,0.45)", fontSize: 16, cursor: "pointer", padding: "0 2px", zIndex: 2, fontFamily: "inherit", lineHeight: 1 }} aria-label="Cerrar">✕</button>
         <div style={{ position: "relative", padding: "16px 40px 16px 18px", display: "flex", flexDirection: "column", gap: 10 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <div style={{ width: 44, height: 44, borderRadius: "50%", overflow: "hidden", flexShrink: 0, background: "rgba(255,255,255,0.10)", border: "2px solid rgba(34,197,94,0.50)" }}>
@@ -569,7 +569,7 @@ export default function CreatorSessionCountdownBanner({ uid }: { uid: string }) 
               </div>
 
               {/* Countdown */}
-              <div style={{ flexShrink: 0, textAlign: "right", maxWidth: "40%" }}>
+              <div style={{ flexShrink: 0, textAlign: "end", maxWidth: "40%" }}>
                 <div
                   style={{
                     fontSize: 11,

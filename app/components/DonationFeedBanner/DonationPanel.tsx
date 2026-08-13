@@ -193,7 +193,7 @@ export default function DonationPanel({ open, onClose, creatorName, suggestedAmo
         })}
       </div>
       <div style={{ position: "relative" }}>
-        <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", fontSize: 15, color: "rgba(255,255,255,0.55)", pointerEvents: "none" }}>
+        <span style={{ position: "absolute", insetInlineStart: 12, top: "50%", transform: "translateY(-50%)", fontSize: 15, color: "rgba(255,255,255,0.55)", pointerEvents: "none" }}>
           $
         </span>
         <input

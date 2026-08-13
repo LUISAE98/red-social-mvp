@@ -77,7 +77,7 @@ export default function LegalDocPanel({
         .legalPanelClose {
           position: absolute;
           top: 12px;
-          right: 12px;
+          inset-inline-end: 12px;
           width: 30px;
           height: 30px;
           display: inline-flex;

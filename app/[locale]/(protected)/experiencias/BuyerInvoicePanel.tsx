@@ -54,7 +54,7 @@ const FIELD: React.CSSProperties = {
   fontSize: 14, fontFamily: "inherit", lineHeight: 1.5, outline: "none",
 };
 const SUGGEST_BOX: React.CSSProperties = {
-  position: "absolute", top: "100%", left: 0, right: 0, marginTop: 4, zIndex: 5,
+  position: "absolute", top: "100%", insetInlineStart: 0, insetInlineEnd: 0, marginTop: 4, zIndex: 5,
   background: "#141419", border: "1px solid rgba(255,255,255,0.14)", borderRadius: 12,
   maxHeight: 220, overflowY: "auto", boxShadow: "0 16px 40px rgba(0,0,0,0.6)",
 };
@@ -325,7 +325,7 @@ export default function BuyerInvoicePanel({ open, onClose, uid, concepts, format
                 onClick={() => { setUsingNew(true); setSelectedProfileId(null); setError(null); }}
                 style={{ ...CARD_ROW, borderTop: DIVIDER_LINE }}
               >
-                <span style={{ fontSize: 13.5, fontWeight: 500, color: "#fff", flex: 1, textAlign: "left" }}>Usar otros datos</span>
+                <span style={{ fontSize: 13.5, fontWeight: 500, color: "#fff", flex: 1, textAlign: "start" }}>Usar otros datos</span>
                 <Radio checked={usingNew} />
               </button>
             )}
@@ -436,7 +436,7 @@ function ProfileCard({ profile, selected, divider, onSelect }: { profile: BuyerB
   const regimen = REGIMENES.find((r) => r.value === profile.taxSystem)?.value ?? profile.taxSystem;
   return (
     <button type="button" onClick={onSelect} style={{ ...CARD_ROW, borderTop: divider ? DIVIDER_LINE : "none" }}>
-      <span style={{ display: "grid", gap: 2, minWidth: 0, textAlign: "left", flex: 1 }}>
+      <span style={{ display: "grid", gap: 2, minWidth: 0, textAlign: "start", flex: 1 }}>
         <span style={{ fontSize: 13.5, fontWeight: 600, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           {profile.legalName}
         </span>
@@ -492,7 +492,7 @@ function Switch({ checked, onToggle, label }: { checked: boolean; onToggle: () =
       }}
     >
       <span style={{
-        position: "absolute", top: 2, left: checked ? 20 : 2, width: 18, height: 18,
+        position: "absolute", top: 2, insetInlineStart: checked ? 20 : 2, width: 18, height: 18,
         borderRadius: "50%", background: "#fff", transition: "left 180ms ease",
         boxShadow: "0 1px 2px rgba(0,0,0,0.25)",
       }} />
@@ -544,7 +544,7 @@ function Row({ k, v }: { k: string; v: string }) {
   return (
     <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
       <span style={{ color: "rgba(255,255,255,0.55)" }}>{k}</span>
-      <span style={{ color: "#fff", fontWeight: 600, textAlign: "right" }}>{v}</span>
+      <span style={{ color: "#fff", fontWeight: 600, textAlign: "end" }}>{v}</span>
     </div>
   );
 }

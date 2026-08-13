@@ -180,7 +180,7 @@ export default function GroupsSearchToolbar({
           position: absolute;
           z-index: 20;
           top: 50%;
-          right: 11px;
+          inset-inline-end: 11px;
           transform: translateY(-50%);
           width: 24px;
           height: 24px;
@@ -282,7 +282,7 @@ export default function GroupsSearchToolbar({
 
 .search-input {
   height: 40px;
-  padding-left: 14px;
+  padding-inline-start: 14px;
   font-size: 13px;
 }
         }

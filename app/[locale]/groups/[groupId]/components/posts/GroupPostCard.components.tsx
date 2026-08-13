@@ -83,7 +83,7 @@ export function PremiumPostPanel({
         overflow: "hidden",
       }}
     >
-      <span style={{ flexShrink: 0, marginLeft: 4 }}>
+      <span style={{ flexShrink: 0, marginInlineStart: 4 }}>
         <VibraNavigationIcon
           type={isUnlocked ? "premiumUnlocked" : "premiumLock"}
           size={28}
@@ -125,8 +125,8 @@ export function PremiumPostPanel({
         <div
           style={{
             flexShrink: 0,
-            textAlign: "right",
-            marginRight: 4,
+            textAlign: "end",
+            marginInlineEnd: 4,
           }}
         >
           <div
@@ -175,7 +175,7 @@ export function PremiumPostPanel({
             gap: 4,
             flexShrink: 0,
             whiteSpace: "nowrap",
-            marginRight: 4,
+            marginInlineEnd: 4,
           }}
         >
           <VibraNavigationIcon type="premiumCrown" size={17} />
@@ -271,7 +271,7 @@ export function LiveTicketPanel({
         fontFamily: fontStack,
       }}
     >
-      <span style={{ flexShrink: 0, marginLeft: overlay ? 0 : 4 }}>
+      <span style={{ flexShrink: 0, marginInlineStart: overlay ? 0 : 4 }}>
         <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={iconStroke} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
           <path d="M15 5v2" />
           <path d="M15 11v2" />
@@ -298,7 +298,7 @@ export function LiveTicketPanel({
       </div>
 
       {netEarnings !== null && (
-        <div style={{ flexShrink: 0, textAlign: "right", marginRight: 4 }}>
+        <div style={{ flexShrink: 0, textAlign: "end", marginInlineEnd: 4 }}>
           <div style={{ fontSize: 10, color: "rgba(255,255,255,0.7)", fontFamily: fontStack, lineHeight: 1.3 }}>
             {tPosts("premiumEarningsLabel")}
           </div>
@@ -328,7 +328,7 @@ export function LiveTicketPanel({
             gap: 4,
             flexShrink: 0,
             whiteSpace: "nowrap",
-            marginRight: 4,
+            marginInlineEnd: 4,
           }}
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -603,7 +603,7 @@ export const MediaGridVideoItem = forwardRef<MediaGridVideoItemHandle, MediaGrid
             aria-hidden="true"
             style={{
               position: "absolute",
-              right: 8,
+              insetInlineEnd: 8,
               bottom: 8,
               zIndex: 3,
               color: "#fff",

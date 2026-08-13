@@ -180,7 +180,7 @@ export default function GroupImageCropModal({
 
             <div
               style={{
-                marginLeft: "auto",
+                marginInlineStart: "auto",
                 display: "flex",
                 gap: 10,
                 flexWrap: "wrap",
