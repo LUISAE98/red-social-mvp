@@ -306,12 +306,15 @@ export default function DraggableSessionCard({ uid }: { uid: string }) {
   const card = (
     <>
       <style>{`
+        /* El signo sale de --vb-dir (globals.css): en RTL "desde la izquierda"
+           tiene que entrar por la derecha. translateX no es una propiedad logica
+           y no se voltea solo. */
         @keyframes vibra-slide-from-left {
-          from { transform: translateX(calc(-100% - 32px)); opacity: 0.5; }
+          from { transform: translateX(calc((-100% - 32px) * var(--vb-dir, 1))); opacity: 0.5; }
           to   { transform: translateX(0); opacity: 1; }
         }
         @keyframes vibra-slide-from-right {
-          from { transform: translateX(calc(100% + 32px)); opacity: 0.5; }
+          from { transform: translateX(calc((100% + 32px) * var(--vb-dir, 1))); opacity: 0.5; }
           to   { transform: translateX(0); opacity: 1; }
         }
       `}</style>

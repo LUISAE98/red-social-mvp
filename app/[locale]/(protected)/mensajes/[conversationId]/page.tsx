@@ -337,7 +337,11 @@ export default function ConversationPage() {
             transform: translateX(0);
           }
           to {
-            transform: translateX(100%);
+            /* El signo sale de --vb-dir (globals.css): en árabe y dhivehi la
+               pantalla tiene que salir hacia la izquierda para que se lea como
+               retroceder. translateX no se voltea solo, no es una propiedad
+               lógica. */
+            transform: translateX(calc(100% * var(--vb-dir, 1)));
           }
         }
       `}</style>

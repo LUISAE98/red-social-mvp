@@ -10,6 +10,13 @@
      `env(safe-area-inset-bottom, 0px)`. */
   --vb-safe-bottom: 0px;
 
+  /* Sentido de lectura, como NÚMERO, para las animaciones.
+     Las propiedades lógicas (margin-inline-start y compañía) se voltean solas en
+     RTL, pero `translateX` no: es geometría pura y no tiene versión lógica. Así que
+     donde haya un desplazamiento direccional se multiplica por esta variable, que
+     vale 1 en LTR y -1 en árabe y dhivehi. Ver `nav-enter-from-*` más abajo. */
+  --vb-dir: 1;
+
   /* ── Marca (morado) — fuente única de verdad, consumible en estilos inline ── */
   --brand:         #a855f7;
   --brand-strong:  #9333ea;
@@ -368,14 +375,25 @@ body::-webkit-scrollbar-button {
   }
 }
 
-/* ── Nav slide entrance animations ── */
+/* ── Nav slide entrance animations ──
+   El signo del desplazamiento sale de --vb-dir, no está escrito en el keyframe.
+   `translateX` es una transformación geométrica: no existe una versión lógica que
+   se voltee sola, así que en árabe y dhivehi una pantalla que "entra desde la
+   derecha" tiene que entrar desde la IZQUIERDA para seguir leyéndose como avanzar.
+   Multiplicar por la variable lo resuelve sin duplicar los keyframes, y se hereda
+   del `dir` del <html>, así que vale para cualquier animación de estas. */
 @keyframes nav-enter-from-right {
-  from { transform: translateX(100%); }
+  from { transform: translateX(calc(100% * var(--vb-dir, 1))); }
   to   { transform: translateX(0); }
 }
 @keyframes nav-enter-from-left {
-  from { transform: translateX(-100%); }
+  from { transform: translateX(calc(-100% * var(--vb-dir, 1))); }
   to   { transform: translateX(0); }
+}
+
+/* El <html> lleva dir="rtl" solo en los locales de RTL_LOCALES (ar, dv). */
+[dir="rtl"] {
+  --vb-dir: -1;
 }
 
 [data-nav-enter="right"] {

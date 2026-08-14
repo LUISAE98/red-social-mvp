@@ -657,8 +657,10 @@ body.loginPageBg {
 
 /* Celular: al navegar a login (desde cualquier acción de invitado), la página
    entra deslizando desde la derecha. En laptop la transición es el splash. */
+/* El signo sale de --vb-dir (globals.css): translateX es geometría pura y no se
+   voltea solo en RTL, como sí hacen las propiedades lógicas. */
 @keyframes vibraLoginSlideInRight {
-  from { transform: translateX(100%); }
+  from { transform: translateX(calc(100% * var(--vb-dir, 1))); }
   to   { transform: translateX(0); }
 }
 @media (max-width: 900px) {
