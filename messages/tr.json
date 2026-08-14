@@ -2475,7 +2475,7 @@
       "errRegistrationFailed": "Kayıt tamamlanamadı. Lütfen tekrar dene.",
       "errUnexpected": "Beklenmeyen hata. Lütfen tekrar dene.",
       "errWeakPassword": "Parola en az 6 karakter olmalı.",
-      "errPasswordWeak": "En az 8 karakter kullan, harfleri rakam veya sembollerle karıştır."
+      "errPasswordWeak": "En az 10 karakter kullan, büyük ve küçük harf, rakam ve sembolle."
     },
     "resetPassword": {
       "title": "Parolayı sıfırla",

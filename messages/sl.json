@@ -2475,7 +2475,7 @@
       "errRegistrationFailed": "Registracije ni bilo mogoče dokončati. Poskusi znova.",
       "errUnexpected": "Nepričakovana napaka. Poskusi znova.",
       "errWeakPassword": "Geslo mora imeti vsaj 6 znakov.",
-      "errPasswordWeak": "Uporabi vsaj 8 znakov in pomešaj črke s številkami ali simboli."
+      "errPasswordWeak": "Uporabi vsaj 10 znakov, z veliko in malo črko, številko in simbolom."
     },
     "resetPassword": {
       "title": "Ponastavi geslo",

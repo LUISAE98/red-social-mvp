@@ -2475,7 +2475,7 @@
       "errRegistrationFailed": "Det gick inte att slutföra registreringen. Försök igen.",
       "errUnexpected": "Oväntat fel. Försök igen.",
       "errWeakPassword": "Lösenordet måste vara minst 6 tecken.",
-      "errPasswordWeak": "Använd minst 8 tecken och blanda bokstäver med siffror eller symboler."
+      "errPasswordWeak": "Använd minst 10 tecken, med stor och liten bokstav, siffra och symbol."
     },
     "resetPassword": {
       "title": "Återställ lösenordet",

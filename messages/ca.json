@@ -2475,7 +2475,7 @@
       "errRegistrationFailed": "No s'ha pogut completar el registre. Torna-ho a provar.",
       "errUnexpected": "Error inesperat. Torna-ho a provar.",
       "errWeakPassword": "La contrasenya ha de tenir com a mínim 6 caràcters.",
-      "errPasswordWeak": "Fes servir com a mínim 8 caràcters, barrejant lletres amb números o símbols."
+      "errPasswordWeak": "Fes servir com a mínim 10 caràcters, amb majúscula, minúscula, número i símbol."
     },
     "resetPassword": {
       "title": "Restableix la contrasenya",

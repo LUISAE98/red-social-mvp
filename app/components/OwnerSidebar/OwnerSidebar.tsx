@@ -48,6 +48,7 @@ import { useInbox } from "@/lib/chat/useInbox";
 import { getOtherParticipant } from "@/lib/chat/types";
 import OwnerSidebarGreetings from "./OwnerSidebarGreetings";
 import OwnerSidebarSettings from "./OwnerSidebarSettings";
+import CreateCommunityCard from "@/components/groups/CreateCommunityCard";
 import CopyLinkButton from "@/components/ui/CopyLinkButton";
 import RefreshableArea from "@/components/refresh/RefreshableArea";
 import { useSidebarVisitCounts } from "@/lib/hooks/useSidebarVisitCounts";
@@ -2665,16 +2666,28 @@ newPostsCounts={newPostsCounts}
 {/* Configuración: último módulo del menú, plegado por omisión. Independiente
     del acordeón de arriba — abrirlo no cierra seguidos ni comunidades.
 
+    SOLO EN CELULAR. En laptop este atajo sobra: el perfil ya está a un clic y
+    tiene su pestaña de Configuración. Es el espejo de Mensajes, que vive solo
+    en laptop porque en celular ya lo cubre el nav inferior.
+
     Fuera para invitados (Anonymous Auth): no tienen documento de perfil, ni
-    handle, ni correo — no hay nada que configurar ni sesión que cerrar. */}
-{viewer && !viewer.isAnonymous && (
+    handle, ni correo — no hay nada que configurar ni sesión que cerrar.
+
+    Sin divisor arriba: la tarjeta gris del módulo ya lo separa del acordeón. */}
+{isMobile && viewer && !viewer.isAnonymous && (
   <>
-    <div className="owner-sidebar-menu-divider" aria-hidden="true" />
     <OwnerSidebarSettings
       uid={viewer.uid}
       email={viewer.email ?? null}
       onToast={showSidebarToast}
     />
+
+    {/* "Crea tu comunidad": el mismo bloque que vive en el menú derecho de
+        laptop (WalletDesktopRail), que en celular no existe. Va debajo de
+        Configuración, al cierre del menú. */}
+    <div style={{ padding: "14px 6px 0", minWidth: 0 }}>
+      <CreateCommunityCard />
+    </div>
   </>
 )}
 

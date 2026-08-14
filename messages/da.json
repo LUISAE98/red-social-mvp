@@ -2475,7 +2475,7 @@
       "errRegistrationFailed": "Tilmeldingen kunne ikke gennemføres. Prøv igen.",
       "errUnexpected": "Uventet fejl. Prøv igen.",
       "errWeakPassword": "Adgangskoden skal være på mindst 6 tegn.",
-      "errPasswordWeak": "Brug mindst 8 tegn, og bland bogstaver med tal eller symboler."
+      "errPasswordWeak": "Brug mindst 10 tegn, med stort og lille bogstav, tal og symbol."
     },
     "resetPassword": {
       "title": "Nulstil adgangskode",

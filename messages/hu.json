@@ -2475,7 +2475,7 @@
       "errRegistrationFailed": "A regisztrációt nem sikerült befejezni. Próbáld újra.",
       "errUnexpected": "Váratlan hiba. Próbáld újra.",
       "errWeakPassword": "A jelszónak legalább 6 karakteresnek kell lennie.",
-      "errPasswordWeak": "Használj legalább 8 karaktert, betűket számokkal vagy szimbólumokkal keverve."
+      "errPasswordWeak": "Használj legalább 10 karaktert, nagy- és kisbetűvel, számmal és szimbólummal."
     },
     "resetPassword": {
       "title": "Jelszó visszaállítása",

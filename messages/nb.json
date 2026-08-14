@@ -2475,7 +2475,7 @@
       "errRegistrationFailed": "Tilmeldingen kunne ikke gjennomføres. Prøv igjen.",
       "errUnexpected": "Uventet feil. Prøv igjen.",
       "errWeakPassword": "Passordet skal være på minst 6 tegn.",
-      "errPasswordWeak": "Bruk minst 8 tegn, og bland bokstaver med tall eller symboler."
+      "errPasswordWeak": "Bruk minst 10 tegn, med stor og liten bokstav, tall og symbol."
     },
     "resetPassword": {
       "title": "Tilbakestill passord",

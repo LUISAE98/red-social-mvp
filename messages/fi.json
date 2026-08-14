@@ -2475,7 +2475,7 @@
       "errRegistrationFailed": "Rekisteröitymistä ei voitu viedä loppuun. Yritä uudelleen.",
       "errUnexpected": "Odottamaton virhe. Yritä uudelleen.",
       "errWeakPassword": "Salasanassa on oltava vähintään 6 merkkiä.",
-      "errPasswordWeak": "Käytä vähintään 8 merkkiä ja sekoita kirjaimia numeroihin tai symboleihin."
+      "errPasswordWeak": "Käytä vähintään 10 merkkiä, isolla ja pienellä kirjaimella, numerolla ja symbolilla."
     },
     "resetPassword": {
       "title": "Palauta salasana",

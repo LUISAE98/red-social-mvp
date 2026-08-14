@@ -2475,7 +2475,7 @@
       "errRegistrationFailed": "Reģistrāciju neizdevās pabeigt. Mēģini vēlreiz.",
       "errUnexpected": "Negaidīta kļūda. Mēģini vēlreiz.",
       "errWeakPassword": "Parolē jābūt vismaz 6 rakstzīmēm.",
-      "errPasswordWeak": "Izmanto vismaz 8 rakstzīmes, jaucot burtus ar cipariem vai simboliem."
+      "errPasswordWeak": "Izmanto vismaz 10 rakstzīmes, ar lielo un mazo burtu, ciparu un simbolu."
     },
     "resetPassword": {
       "title": "Atjaunot paroli",

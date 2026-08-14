@@ -104,10 +104,27 @@ export type Props = {
 export const fontStack =
   'inherit';
 
-// Grid del selector de intereses: ancho mínimo de columna y separación.
-// Se usan tanto en el estilo del grid como para calcular columnas por página.
-export const INTEREST_GRID_MIN_COL = 130;
+// Separación entre tarjetas del selector de intereses.
 export const INTEREST_GRID_GAP = 3;
+
+/**
+ * Retícula del selector de intereses: renglones y columnas FIJOS por aparato,
+ * no derivados del ancho.
+ *
+ * En celular son 3 × 3 y en laptop 4 × 2. Las tarjetas se estiran o se encogen
+ * para llenar el ancho que haya — un celular angosto y uno ancho enseñan la
+ * misma cuadrícula, solo que con tarjetas de distinto tamaño. La última página
+ * es la única que puede venir incompleta, cuando ya no quedan categorías.
+ */
+export const INTEREST_GRID = {
+  mobile: { columns: 3, rows: 3 },
+  desktop: { columns: 4, rows: 2 },
+} as const;
+
+export function interestsGridFor(isDesktop: boolean) {
+  const { columns, rows } = isDesktop ? INTEREST_GRID.desktop : INTEREST_GRID.mobile;
+  return { columns, rows, perPage: columns * rows };
+}
 
 // Carrusel de recomendaciones. RAIL_CARD_W es el ancho de referencia: en celular
 // es el ancho fijo de cada card; en desktop es el mínimo para decidir cuántas
@@ -638,18 +655,45 @@ export function CelebrationBurst({
   );
 }
 
+/**
+ * Medidas internas de la tarjeta a partir del ancho de su columna.
+ *
+ * La retícula tiene columnas fijas (3 en celular, 8 en laptop), así que el
+ * ancho de cada tarjeta cambia con el del aparato. Si el círculo, el texto y el
+ * acolchado se quedaran en píxeles fijos, en las columnas angostas el contenido
+ * se saldría de la tarjeta. Todo se calcula proporcional y con topes: nunca más
+ * grande que el diseño original ni más chico de lo legible.
+ */
+export function categoryPillMetrics(columnWidth: number) {
+  // Sin medida todavía (primer render): las de siempre.
+  const w = columnWidth > 0 ? columnWidth : 130;
+  return {
+    padding: clamp(Math.round(w * 0.09), 6, 12),
+    gap: clamp(Math.round(w * 0.085), 4, 12),
+    circle: clamp(Math.round(w * 0.44), 26, 60),
+    icon: clamp(Math.round(w * 0.22), 13, 30),
+    font: clamp(Math.round(w * 0.1 * 10) / 10, 9, 13),
+    check: clamp(Math.round(w * 0.17), 14, 22),
+    checkInset: clamp(Math.round(w * 0.05), 3, 6),
+  };
+}
+
 export function GroupCategoryPill({
   label,
   category,
   selected,
   onToggle,
+  columnWidth = 0,
 }: {
   label: string;
   category: CanonicalGroupCategory;
   selected: boolean;
   onToggle: () => void;
+  /** Ancho medido de la columna; de ahí salen las medidas internas. */
+  columnWidth?: number;
 }) {
   const bgImage = CATEGORY_IMAGE[category];
+  const m = categoryPillMetrics(columnWidth);
   return (
     <button
       type="button"
@@ -661,8 +705,9 @@ export function GroupCategoryPill({
         flexDirection: "column",
         alignItems: "center",
         justifyContent: "center",
-        gap: 12,
+        gap: m.gap,
         width: "100%",
+        minWidth: 0,
         aspectRatio: "1 / 1",
         border: selected
           ? "2px solid #a855f7"
@@ -674,7 +719,7 @@ export function GroupCategoryPill({
         color: "#fff",
         borderRadius: 0,
         overflow: "hidden",
-        padding: 12,
+        padding: m.padding,
         cursor: "pointer",
         fontFamily: fontStack,
         boxSizing: "border-box",
@@ -690,10 +735,10 @@ export function GroupCategoryPill({
             transition={{ type: "spring", stiffness: 520, damping: 18 }}
             style={{
               position: "absolute",
-              top: 6,
-              insetInlineEnd: 6,
-              width: 22,
-              height: 22,
+              top: m.checkInset,
+              insetInlineEnd: m.checkInset,
+              width: m.check,
+              height: m.check,
               borderRadius: "50%",
               background: "#a855f7",
               display: "flex",
@@ -702,7 +747,7 @@ export function GroupCategoryPill({
               boxShadow: "0 2px 6px rgba(0,0,0,0.35)",
             }}
           >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+            <svg width={Math.round(m.check * 0.55)} height={Math.round(m.check * 0.55)} viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
               <path d="M5 12l5 5L20 6" />
             </svg>
           </motion.span>
@@ -711,8 +756,9 @@ export function GroupCategoryPill({
       <span
         className="vibCatIcon"
         style={{
-          width: 60,
-          height: 60,
+          width: m.circle,
+          height: m.circle,
+          flexShrink: 0,
           borderRadius: "50%",
           background: "rgba(0,0,0,0.72)",
           display: "flex",
@@ -722,15 +768,24 @@ export function GroupCategoryPill({
           transition: "transform 0.28s cubic-bezier(0.22, 1, 0.36, 1)",
         }}
       >
-        <CategoryIcon category={category} size={30} />
+        <CategoryIcon category={category} size={m.icon} />
       </span>
+      {/* A dos renglones como tope: en las columnas angostas de laptop, un
+          nombre largo a tres renglones empujaría el círculo fuera de la
+          tarjeta. */}
       <span
         style={{
-          fontSize: 13,
+          display: "-webkit-box",
+          WebkitBoxOrient: "vertical",
+          WebkitLineClamp: 2,
+          overflow: "hidden",
+          maxWidth: "100%",
+          fontSize: m.font,
           fontWeight: 600,
           color: "#fff",
           textAlign: "center",
           lineHeight: 1.15,
+          overflowWrap: "anywhere",
         }}
       >
         {label}

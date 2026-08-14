@@ -2475,7 +2475,7 @@
       "errRegistrationFailed": "Pendaftaran tidak bisa diselesaikan. Coba lagi.",
       "errUnexpected": "Terjadi kesalahan tak terduga. Coba lagi.",
       "errWeakPassword": "Kata sandi harus minimal 6 karakter.",
-      "errPasswordWeak": "Gunakan minimal 8 karakter, campur huruf dengan angka atau simbol."
+      "errPasswordWeak": "Gunakan minimal 10 karakter, dengan huruf besar, huruf kecil, angka dan simbol."
     },
     "resetPassword": {
       "title": "Atur ulang kata sandi",

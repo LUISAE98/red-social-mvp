@@ -2475,7 +2475,7 @@
       "errRegistrationFailed": "Impossibile completare la registrazione. Riprova.",
       "errUnexpected": "Errore imprevisto. Riprova.",
       "errWeakPassword": "La password deve avere almeno 6 caratteri.",
-      "errPasswordWeak": "Usa almeno 8 caratteri, mescolando lettere con numeri o simboli."
+      "errPasswordWeak": "Usa almeno 10 caratteri, con maiuscola, minuscola, numero e simbolo."
     },
     "resetPassword": {
       "title": "Reimposta la password",

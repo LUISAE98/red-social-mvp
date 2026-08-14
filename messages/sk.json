@@ -2475,7 +2475,7 @@
       "errRegistrationFailed": "Registráciu sa nepodarilo dokončiť. Skús to znova.",
       "errUnexpected": "Neočakávaná chyba. Skús to znova.",
       "errWeakPassword": "Heslo musí mať aspoň 6 znakov.",
-      "errPasswordWeak": "Použi aspoň 8 znakov a zmiešaj písmená s číslami alebo symbolmi."
+      "errPasswordWeak": "Použi aspoň 10 znakov, s veľkým a malým písmenom, číslom a symbolom."
     },
     "resetPassword": {
       "title": "Obnoviť heslo",

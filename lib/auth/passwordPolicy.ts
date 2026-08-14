@@ -9,23 +9,25 @@
 // Lo que esto sí hace es poner un mínimo demostrable para quien se registra por
 // la vía normal, en vez de aceptar "1234" porque se escribió dos veces igual.
 
-export const PASSWORD_MIN_LENGTH = 8;
+// ESPEJO EXACTO de la política configurada en Firebase Auth → Configuración →
+// Política de contraseñas. Si allí se cambia, hay que cambiarlo aquí: si el
+// formulario acepta algo que Firebase rechaza, la persona recibe un error
+// críptico DESPUÉS de rellenar todo el registro.
+export const PASSWORD_MIN_LENGTH = 10;
+export const PASSWORD_MAX_LENGTH = 500;
 
 /**
- * Mínimo aceptable: 8 caracteres y al menos dos clases distintas (letras,
- * números, símbolos). Dos clases en vez de exigir mayúscula + número + símbolo:
- * las reglas rígidas empujan a la gente hacia "Password1!" y no hacia una
- * contraseña buena.
+ * Requisitos: 10 a 500 caracteres, con mayúscula, minúscula, número y símbolo.
  */
 export function isPasswordAcceptable(password: string): boolean {
   if (typeof password !== "string") return false;
   if (password.length < PASSWORD_MIN_LENGTH) return false;
+  if (password.length > PASSWORD_MAX_LENGTH) return false;
 
-  const classes = [
-    /[a-záéíóúñü]/i.test(password), // letras
-    /\d/.test(password), // números
-    /[^\p{L}\p{N}]/u.test(password), // símbolos y espacios
-  ].filter(Boolean).length;
-
-  return classes >= 2;
+  return (
+    /\p{Lu}/u.test(password) && // mayúscula
+    /\p{Ll}/u.test(password) && // minúscula
+    /\p{N}/u.test(password) && // número
+    /[^\p{L}\p{N}]/u.test(password) // símbolo
+  );
 }

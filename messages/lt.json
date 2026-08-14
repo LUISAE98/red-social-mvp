@@ -2475,7 +2475,7 @@
       "errRegistrationFailed": "Registracijos nepavyko užbaigti. Bandyk dar kartą.",
       "errUnexpected": "Netikėta klaida. Bandyk dar kartą.",
       "errWeakPassword": "Slaptažodį turi sudaryti bent 6 simboliai.",
-      "errPasswordWeak": "Naudok bent 8 simbolius, maišydamas raides su skaičiais ar simboliais."
+      "errPasswordWeak": "Naudok bent 10 simbolių, su didžiąja ir mažąja raide, skaičiumi ir simboliu."
     },
     "resetPassword": {
       "title": "Atkurti slaptažodį",

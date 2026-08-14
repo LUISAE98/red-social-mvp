@@ -2475,7 +2475,7 @@
       "errRegistrationFailed": "Ekki tókst að ljúka skráningunni. Reyndu aftur.",
       "errUnexpected": "Óvænt villa. Reyndu aftur.",
       "errWeakPassword": "Lykilorðið verður að vera að minnsta kosti 6 stafir.",
-      "errPasswordWeak": "Notaðu að minnsta kosti 8 stafi og blandaðu bókstöfum við tölur eða tákn."
+      "errPasswordWeak": "Notaðu að minnsta kosti 10 stafi, með hástaf, lágstaf, tölu og tákni."
     },
     "resetPassword": {
       "title": "Endurstilla lykilorð",

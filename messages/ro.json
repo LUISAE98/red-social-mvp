@@ -2475,7 +2475,7 @@
       "errRegistrationFailed": "Înregistrarea nu a putut fi finalizată. Încearcă din nou.",
       "errUnexpected": "Eroare neașteptată. Încearcă din nou.",
       "errWeakPassword": "Parola trebuie să aibă cel puțin 6 caractere.",
-      "errPasswordWeak": "Folosește cel puțin 8 caractere, amestecând litere cu cifre sau simboluri."
+      "errPasswordWeak": "Folosește cel puțin 10 caractere, cu majusculă, minusculă, cifră și simbol."
     },
     "resetPassword": {
       "title": "Resetează parola",

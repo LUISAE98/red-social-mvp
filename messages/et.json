@@ -2475,7 +2475,7 @@
       "errRegistrationFailed": "Registreerimist ei õnnestunud lõpule viia. Proovi uuesti.",
       "errUnexpected": "Ootamatu viga. Proovi uuesti.",
       "errWeakPassword": "Paroolis peab olema vähemalt 6 tähemärki.",
-      "errPasswordWeak": "Kasuta vähemalt 8 märki ja sega tähed numbrite või sümbolitega."
+      "errPasswordWeak": "Kasuta vähemalt 10 märki, suur- ja väiketähte, numbrit ja sümbolit."
     },
     "resetPassword": {
       "title": "Lähtesta parool",

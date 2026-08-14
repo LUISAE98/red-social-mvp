@@ -63,7 +63,8 @@ import type {
 export * from "./GroupRecommendationsRail.parts";
 import {
   CATEGORY_IMAGE, CelebrationBurst, GroupCategoryPill, INTEREST_GRID_GAP,
-  INTEREST_GRID_MIN_COL, INTEREST_SLIDE_VARIANTS, RAIL_CARD_W, RAIL_GAP,
+  INTEREST_SLIDE_VARIANTS, interestsGridFor,
+  RAIL_CARD_W, RAIL_GAP,
   RAIL_PER_PAGE, celebTimings, fontStack, peekProfiles, profileCache,
   railTextButtonStyle, resolveJoinState, resolveSubscriptionEnabled,
   type Props, type LiveRec, type LiveActionState, type RailCard,
@@ -90,12 +91,12 @@ export default function GroupRecommendationsRail({
   const [loading, setLoading] = useState<boolean>(() => !getCachedResult(currentUserId));
   const [savingOnboarding, setSavingOnboarding] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // Paginación del selector: dos renglones completos por página (columnas × 2),
-  // según cuántas columnas quepan realmente en el grid.
+  // Paginación del selector: renglones y columnas fijos por aparato (3 × 3 en
+  // celular, 8 × 2 en laptop). El ancho medido ya no decide cuántas caben, solo
+  // de qué tamaño salen.
   const [interestsPage, setInterestsPage] = useState(0);
   const [interestsDirection, setInterestsDirection] = useState(1);
   const [interestsGridEl, setInterestsGridEl] = useState<HTMLDivElement | null>(null);
-  const [interestsColumns, setInterestsColumns] = useState(4);
   const [interestsContainerWidth, setInterestsContainerWidth] = useState(0);
   // Animación final: al confirmar, los contenedores elegidos hacen pop y todo
   // el panel (incluido el título) se "consume".
@@ -606,19 +607,13 @@ export default function GroupRecommendationsRail({
     return [...allRailCards.slice(offset), ...allRailCards.slice(0, offset)];
   }, [allRailCards, railIndex]);
 
-  // Mide cuántas columnas caben en el grid para paginar en renglones completos.
+  // Mide el ancho del grid. Ya no decide cuántas columnas hay (eso es fijo por
+  // aparato): sirve para el tamaño de cada tarjeta y para el alto animado.
   useEffect(() => {
     if (!interestsGridEl || typeof ResizeObserver === "undefined") return;
     const compute = () => {
       const w = interestsGridEl.clientWidth;
       if (w <= 0) return;
-      const cols = Math.max(
-        1,
-        Math.floor(
-          (w + INTEREST_GRID_GAP) / (INTEREST_GRID_MIN_COL + INTEREST_GRID_GAP)
-        )
-      );
-      setInterestsColumns(cols);
       setInterestsContainerWidth(w);
     };
     compute();
@@ -637,12 +632,30 @@ export default function GroupRecommendationsRail({
     return () => mq.removeEventListener("change", apply);
   }, []);
 
+  // Al cruzar el corte de aparato la cuadrícula cambia de forma (3×3 ↔ 4×2), y
+  // la página en la que iba ya no cae sobre las mismas categorías: se vuelve al
+  // principio en vez de dejarlo en una página que ya no significa lo mismo.
+  useEffect(() => {
+    setInterestsPage(0);
+    setInterestsDirection(1);
+  }, [isDesktopRail]);
+
   const showOnboarding = useMemo(() => {
     return !suppressOnboarding && !loading && result && !result.onboardingCompleted;
   }, [suppressOnboarding, loading, result]);
 
-  // Paginación derivada del selector de categorías (dos renglones por página).
-  const interestsPerPage = Math.max(1, interestsColumns * 2);
+  /**
+   * Cuadrícula fija por aparato: 3 × 3 en celular, 4 × 2 en laptop.
+   *
+   * Antes salía del ancho medido (`columnas × 2`), así que dos celulares de
+   * distinto tamaño enseñaban cuadrículas distintas. Ahora la forma es la misma
+   * siempre y lo que cambia es el tamaño de las tarjetas, que se estiran para
+   * llenar el ancho que haya.
+   */
+  const {
+    columns: interestsColumns,
+    perPage: interestsPerPage,
+  } = interestsGridFor(isDesktopRail);
   const interestPageCount = Math.ceil(
     GROUP_CATEGORY_OPTIONS.length / interestsPerPage
   );
@@ -914,7 +927,9 @@ export default function GroupRecommendationsRail({
                   }}
                   style={{
                     display: "grid",
-                    gridTemplateColumns: `repeat(auto-fill, minmax(${INTEREST_GRID_MIN_COL}px, 1fr))`,
+                    // Columnas fijas: las tarjetas se encogen o se estiran, pero
+                    // la cuadrícula es la misma en cualquier ancho del aparato.
+                    gridTemplateColumns: `repeat(${interestsColumns}, minmax(0, 1fr))`,
                     gap: INTEREST_GRID_GAP,
                     width: "100%",
                   }}
@@ -926,6 +941,7 @@ export default function GroupRecommendationsRail({
                       category={option.value}
                       selected={selectedCategories.includes(option.value)}
                       onToggle={() => toggleCategory(option.value)}
+                      columnWidth={interestColWidth}
                     />
                   ))}
                 </motion.div>

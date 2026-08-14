@@ -2475,7 +2475,7 @@
       "errRegistrationFailed": "Registraciju nije bilo moguće dovršiti. Pokušaj ponovo.",
       "errUnexpected": "Neočekivana greška. Pokušaj ponovo.",
       "errWeakPassword": "Lozinka mora imati najmanje 6 znakova.",
-      "errPasswordWeak": "Koristi bar 8 znakova, miješajući slova s brojevima ili simbolima."
+      "errPasswordWeak": "Koristi bar 10 znakova, s velikim i malim slovom, brojem i simbolom."
     },
     "resetPassword": {
       "title": "Ponovo postavi lozinku",

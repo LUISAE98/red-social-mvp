@@ -2475,7 +2475,7 @@
       "errRegistrationFailed": "Hindi nakumpleto ang pagrehistro. Pakisubukan ulit.",
       "errUnexpected": "Hindi inaasahang error. Pakisubukan ulit.",
       "errWeakPassword": "Dapat hindi bababa sa 6 na karakter ang password.",
-      "errPasswordWeak": "Gumamit ng hindi bababa sa 8 karakter, may halong letra at numero o simbolo."
+      "errPasswordWeak": "Gumamit ng hindi bababa sa 10 karakter, may malaki at maliit na letra, numero at simbolo."
     },
     "resetPassword": {
       "title": "I-reset ang password",

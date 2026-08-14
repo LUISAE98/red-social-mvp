@@ -97,19 +97,41 @@ export function SidebarExperiencesIcon({ size = 18, strokeWidth = 1.75 }: IconPr
   );
 }
 
-// Configuración — engrane
-export function SidebarSettingsIcon({ size = 18, strokeWidth = 1.75 }: IconProps) {
+// Configuración — MISMO engrane que el subnav del perfil (VibraSubNavIcons →
+// `settings`), para que el ajuste se vea igual en los dos lugares donde vive.
+// Aquí el color es un parámetro porque el módulo del sidebar lo pide en blanco;
+// por omisión mantiene el morado de sus hermanos de este archivo.
+//
+// El trazo original está descentrado dentro del viewBox 24×24 (su caja cae
+// alrededor de 10.3,11). El `translate` lo recentra a 12,12 para que quede a
+// plomo con los demás iconos de la columna, sin tocar la silueta.
+export function SidebarSettingsIcon({
+  size = 18,
+  strokeWidth = 1.75,
+  color = g,
+}: IconProps & { color?: string }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" style={BASE} aria-hidden>
-      <circle cx="12" cy="12" r="3.1" fill="none" stroke={g} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
-      <path
-        d="M12 3.2l1.5 2.3 2.7-.5.5 2.7 2.3 1.5-1.4 2.3 1.4 2.3-2.3 1.5-.5 2.7-2.7-.5-1.5 2.3-1.5-2.3-2.7.5-.5-2.7L5 14.3 6.4 12 5 9.7l2.3-1.5.5-2.7 2.7.5z"
-        fill="none"
-        stroke={g}
-        strokeWidth={strokeWidth}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
+      <g transform="translate(1.7 1)">
+        <path
+          d="M12 3.2L13.15 5.55C13.72 5.72 14.25 5.95 14.73 6.25L17.25 5.4L18.95 8.35L16.85 10C16.9 10.32 16.93 10.66 16.93 11C16.93 11.34 16.9 11.68 16.85 12L18.95 13.65L17.25 16.6L14.73 15.75C14.25 16.05 13.72 16.28 13.15 16.45L12 18.8H8.6L7.45 16.45C6.88 16.28 6.35 16.05 5.87 15.75L3.35 16.6L1.65 13.65L3.75 12C3.7 11.68 3.67 11.34 3.67 11C3.67 10.66 3.7 10.32 3.75 10L1.65 8.35L3.35 5.4L5.87 6.25C6.35 5.95 6.88 5.72 7.45 5.55L8.6 3.2H12Z"
+          fill="none"
+          stroke={color}
+          strokeWidth={strokeWidth}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <circle
+          cx="10.3"
+          cy="11"
+          r="2.65"
+          fill="none"
+          stroke={color}
+          strokeWidth={strokeWidth}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </g>
     </svg>
   );
 }

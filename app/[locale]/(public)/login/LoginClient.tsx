@@ -172,6 +172,20 @@ useEffect(() => {
 
 const contenidoDentro = paginaAbierta && paneALaVista;
 
+// La presentación de creador (comisión, wallet, garantías) arranca OCULTA: la
+// página está escrita para quien viene a consumir. Se abre desde su botón.
+const [verCreador, setVerCreador] = useState(false);
+const creadorRef = useRef<HTMLDivElement | null>(null);
+useEffect(() => {
+  if (!verCreador) return;
+  // Al abrirse, se lleva la vista al inicio de lo que acaba de aparecer; si no,
+  // el contenido nuevo queda fuera de pantalla y parece que no pasó nada.
+  const id = requestAnimationFrame(() =>
+    creadorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }),
+  );
+  return () => cancelAnimationFrame(id);
+}, [verCreador]);
+
 // Transición al entrar a login desde una acción de invitado (comprar, iniciar
 // sesión, etc.): en LAPTOP se re-muestra el splash de marca; en CELULAR la página
 // entra deslizando desde la derecha (animación CSS de `.loginSplitPage`). Se activa
@@ -669,6 +683,59 @@ body.loginPageBg {
           .authPanel form > * {
             opacity: 1;
             transform: none;
+            transition: none;
+          }
+        }
+
+        /* Puerta al contenido de creador: pregunta, gancho y botón. */
+        .loginCreatorCta {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          text-align: center;
+          padding: 40px 20px 64px;
+        }
+
+        .loginCreatorQ {
+          margin: 0;
+          font-size: clamp(20px, 2.2vw, 27px);
+          font-weight: 700;
+          letter-spacing: -0.03em;
+          line-height: 1.15;
+          color: #ffffff;
+        }
+
+        .loginCreatorSub {
+          margin: 8px 0 0;
+          font-size: clamp(13px, 1vw, 15px);
+          line-height: 1.5;
+          color: rgba(255, 255, 255, 0.72);
+        }
+
+        /* Relleno con el degradado de marca: es la única llamada a la acción de
+           toda esta zona, así que puede permitirse el peso. */
+        .loginCreatorBtn {
+          margin-top: 22px;
+          padding: 12px 26px;
+          border: none;
+          border-radius: 999px;
+          font-size: 13.5px;
+          font-weight: 700;
+          letter-spacing: -0.01em;
+          color: #ffffff;
+          cursor: pointer;
+          background: linear-gradient(100deg, #ff2fb3 0%, #a855f7 45%, #4f46ff 100%);
+          background-size: 220% 220%;
+          animation: vibraTextFlow 4.5s ease-in-out infinite;
+          transition: transform 200ms ease;
+        }
+        .loginCreatorBtn:hover {
+          transform: translateY(-1px) scale(1.02);
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .loginCreatorBtn {
+            animation: none;
+            background-position: 50% 50%;
             transition: none;
           }
         }
@@ -1267,21 +1334,43 @@ marginBottom: 6,
           con personas de más de 150 países alrededor del mundo
         </h2>
 
-        {/* Los tres tipos de comunidad. ⚠️ Imágenes de PRUEBA. */}
+        {/* Los tres tipos de comunidad. */}
         <LoginCommunityCards />
 
-        {/* Las 11 experiencias YA tienen bloque propio arriba, así que el
-            listado de la wallet se queda sin ninguna que mostrar: la sección se
-            oculta sola (ver `excludeServices` en WalletOnboarding). Se mantiene
-            el resto del componente —presentación, comunidades y cierre— hasta
-            que el rediseño lo sustituya. */}
+        {/* Puerta al contenido de creador. Toda la página está escrita para
+            quien viene a consumir; esto separa a quien viene a publicar sin
+            imponerle esa información a los demás. */}
+        {!verCreador && (
+          <div className="loginCreatorCta">
+            <p className="loginCreatorQ">¿Eres creador digital?</p>
+            <p className="loginCreatorSub">Esto te va a interesar bastante</p>
+            <button
+              type="button"
+              className="loginCreatorBtn"
+              onClick={() => setVerCreador(true)}
+            >
+              Ver cómo funciona para creadores
+            </button>
+          </div>
+        )}
+
+        {/* Presentación de creador. Solo aparece al pulsar el botón de arriba;
+            hasta entonces no se pinta ninguna de sus secciones.
+            Las 11 experiencias siguen fuera (ya tienen bloque propio arriba) y
+            las comunidades también, porque las sustituyen las tarjetas nuevas. */}
+        <div ref={creadorRef}>
         <WalletOnboarding
           showCtas={false}
           twoColumn
           excludeServices={[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]}
           // Solo en el login. La wallet del creador las sigue mostrando.
-          hideSections={["hero", "commission", "clear", "lifestyle", "communities"]}
+          hideSections={
+            verCreador
+              ? ["communities"]
+              : ["hero", "commission", "clear", "lifestyle", "communities"]
+          }
         />
+        </div>
       </section>
       )}
 

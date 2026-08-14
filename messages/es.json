@@ -2475,7 +2475,7 @@
       "errRegistrationFailed": "No se pudo completar el registro. Intenta nuevamente.",
       "errUnexpected": "Error inesperado. Intenta nuevamente.",
       "errWeakPassword": "La contraseña debe tener al menos 6 caracteres.",
-      "errPasswordWeak": "Usa al menos 8 caracteres, mezclando letras con números o símbolos."
+      "errPasswordWeak": "Usa al menos 10 caracteres, con mayúscula, minúscula, número y símbolo."
     },
     "resetPassword": {
       "title": "Restablecer contraseña",

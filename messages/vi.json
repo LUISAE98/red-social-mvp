@@ -2475,7 +2475,7 @@
       "errRegistrationFailed": "Không hoàn tất được việc đăng ký. Vui lòng thử lại.",
       "errUnexpected": "Lỗi không mong muốn. Vui lòng thử lại.",
       "errWeakPassword": "Mật khẩu phải có ít nhất 6 ký tự.",
-      "errPasswordWeak": "Dùng ít nhất 8 ký tự, kết hợp chữ với số hoặc ký hiệu."
+      "errPasswordWeak": "Dùng ít nhất 10 ký tự, có chữ hoa, chữ thường, số và ký hiệu."
     },
     "resetPassword": {
       "title": "Đặt lại mật khẩu",

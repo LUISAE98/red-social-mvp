@@ -2475,7 +2475,7 @@
       "errRegistrationFailed": "Níorbh fhéidir an clárú a chríochnú. Bain triail eile as.",
       "errUnexpected": "Earráid gan choinne. Bain triail eile as.",
       "errWeakPassword": "Caithfidh 6 charachtar ar a laghad a bheith sa phasfhocal.",
-      "errPasswordWeak": "Bain úsáid as 8 gcarachtar ar a laghad, ag meascadh litreacha le huimhreacha nó siombailí."
+      "errPasswordWeak": "Bain úsáid as 10 gcarachtar ar a laghad, le ceannlitir, litir bheag, uimhir agus siombail."
     },
     "resetPassword": {
       "title": "Athshocraigh an pasfhocal",

@@ -2475,7 +2475,7 @@
       "errRegistrationFailed": "登録を完了できませんでした。もう一度お試しください。",
       "errUnexpected": "予期しないエラーが発生しました。もう一度お試しください。",
       "errWeakPassword": "パスワードは6文字以上にしてください。",
-      "errPasswordWeak": "8文字以上で、英字に数字か記号を混ぜてください。"
+      "errPasswordWeak": "10文字以上で、大文字・小文字・数字・記号をそれぞれ入れてください。"
     },
     "resetPassword": {
       "title": "パスワードを再設定",

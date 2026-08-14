@@ -2475,7 +2475,7 @@
       "errRegistrationFailed": "Could not complete registration. Please try again.",
       "errUnexpected": "Unexpected error. Please try again.",
       "errWeakPassword": "The password must be at least 6 characters.",
-      "errPasswordWeak": "Use at least 8 characters, mixing letters with numbers or symbols."
+      "errPasswordWeak": "Use at least 10 characters, with an uppercase and a lowercase letter, a number and a symbol."
     },
     "resetPassword": {
       "title": "Reset password",
