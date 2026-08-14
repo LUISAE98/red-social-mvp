@@ -234,6 +234,10 @@ export { updateProfileDisplayName, updateProfileInterests } from "./profileSetti
 // Sesiones activas — geo-IP para etiquetar la ubicación de cada dispositivo
 export { enrichSessionLocation, revokeAllSessions } from "./sessions";
 
+// Migración de corrida única: saca correo/fecha de nacimiento/sexo del documento
+// público del perfil. onCall con gate de admin, nunca onRequest abierto.
+export { migratePrivateProfile } from "./migratePrivateProfile";
+
 // Post reactions
 export { togglePostFlame } from "./postReactions";
 

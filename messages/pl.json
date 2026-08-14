@@ -2474,7 +2474,8 @@
       "errPermissionDenied": "Odmowa dostępu. Sprawdź reguły Firestore.",
       "errRegistrationFailed": "Nie udało się dokończyć rejestracji. Spróbuj ponownie.",
       "errUnexpected": "Nieoczekiwany błąd. Spróbuj ponownie.",
-      "errWeakPassword": "Hasło musi mieć co najmniej 6 znaków."
+      "errWeakPassword": "Hasło musi mieć co najmniej 6 znaków.",
+      "errPasswordWeak": "Użyj co najmniej 8 znaków, mieszając litery z cyframi lub symbolami."
     },
     "resetPassword": {
       "title": "Zresetuj hasło",

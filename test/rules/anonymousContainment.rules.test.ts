@@ -6,7 +6,7 @@ import {
   assertSucceeds,
   type RulesTestEnvironment,
 } from "@firebase/rules-unit-testing";
-import { doc, setDoc, deleteDoc, writeBatch, serverTimestamp } from "firebase/firestore";
+import { doc, getDoc, setDoc, deleteDoc, writeBatch, serverTimestamp } from "firebase/firestore";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CONTENCIÓN DE CUENTAS ANÓNIMAS + ACAPARAMIENTO DE HANDLES — Bloque 2 (C01, C02).
@@ -118,11 +118,8 @@ function profile(
   handle: string,
   overrides: Record<string, unknown> = {}
 ) {
-  const email = `${uid}@example.com`;
   return {
     uid,
-    email,
-    emailLower: email.toLowerCase(),
     photoURL: null,
     coverUrl: null,
     handle,
@@ -130,12 +127,8 @@ function profile(
     displayName: "Nombre Visible",
     firstName: "Nombre",
     lastName: "Apellido",
-    birthDate: "1990-01-01",
-    sex: "other",
     bio: "",
     role: "user",
-    provider: "password",
-    authProvider: "password",
     profileReserved: false,
     profileRestricted: false,
     profileCommentsEnabled: true,
@@ -366,67 +359,162 @@ describe("C03 — el cliente no puede tocar la revocación de sus sesiones", () 
   });
 });
 
-describe("H03 — el perfil no se puede falsificar", () => {
-  /** Crea el perfil y su handle en un lote, que es como lo hace la app. */
-  function createProfile(overrides: Record<string, unknown> = {}) {
-    const db = realDb();
-    const batch = writeBatch(db);
-    batch.set(doc(db, `users/${REAL}`), profile(REAL, "realuser", overrides));
-    batch.set(doc(db, "handles/realuser"), { uid: REAL });
-    return batch.commit();
-  }
+/**
+ * Identidad privada: lo que escribe `profileOnboarding.ts` en
+ * `users/{uid}/private/identity`. El correo y el proveedor tienen que coincidir
+ * con el token, así que se derivan de él.
+ */
+function identity(uid: string, overrides: Record<string, unknown> = {}) {
+  const email = `${uid}@example.com`;
+  return {
+    email,
+    emailLower: email.toLowerCase(),
+    birthDate: "1990-01-01",
+    sex: "other",
+    provider: "password",
+    authProvider: "password",
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+    ...overrides,
+  };
+}
 
-  it("el perfil legítimo se crea", async () => {
-    await assertSucceeds(createProfile());
+/** Alta completa: perfil público + handle + identidad privada, en un lote. */
+function signUpBatch(overrides: Record<string, unknown> = {}) {
+  const db = realDb();
+  const batch = writeBatch(db);
+  batch.set(doc(db, `users/${REAL}`), profile(REAL, "realuser"));
+  batch.set(doc(db, "handles/realuser"), { uid: REAL });
+  batch.set(doc(db, `users/${REAL}/private/identity`), identity(REAL, overrides));
+  return batch.commit();
+}
+
+describe("H01 — los datos personales salen del documento público", () => {
+  it("el alta completa funciona", async () => {
+    await assertSucceeds(signUpBatch());
   });
 
+  it("el perfil público YA NO acepta correo ni fecha de nacimiento", async () => {
+    const db = realDb();
+    const batch = writeBatch(db);
+    batch.set(
+      doc(db, `users/${REAL}`),
+      profile(REAL, "realuser", { email: "x@y.com", birthDate: "1990-01-01" })
+    );
+    batch.set(doc(db, "handles/realuser"), { uid: REAL });
+    await assertFails(batch.commit());
+  });
+
+  it("el dueño SÍ lee su identidad privada", async () => {
+    await seedAll([[`users/${REAL}/private/identity`, { email: "a@b.com" }]]);
+    await assertSucceeds(getDoc(doc(realDb(), `users/${REAL}/private/identity`)));
+  });
+
+  it("otra persona NO la lee, aunque el perfil sea público", async () => {
+    await seedAll([[`users/otro/private/identity`, { email: "victima@banco.com" }]]);
+    await assertFails(getDoc(doc(realDb(), "users/otro/private/identity")));
+  });
+
+  it("un invitado anónimo tampoco", async () => {
+    await seedAll([[`users/${REAL}/private/identity`, { email: "a@b.com" }]]);
+    await assertFails(getDoc(doc(guestDb(), `users/${REAL}/private/identity`)));
+  });
+
+  it("es inmutable, ni el dueño la reescribe", async () => {
+    await seedAll([[`users/${REAL}/private/identity`, identity(REAL)]]);
+    await assertFails(
+      setDoc(
+        doc(realDb(), `users/${REAL}/private/identity`),
+        { email: "otro@correo.com" },
+        { merge: true }
+      )
+    );
+    await assertFails(deleteDoc(doc(realDb(), `users/${REAL}/private/identity`)));
+  });
+});
+
+describe("H03 — la identidad no se puede falsificar", () => {
   it("NO puede inventarse el correo", async () => {
-    await assertFails(createProfile({ email: "victima@banco.com", emailLower: "victima@banco.com" }));
+    await assertFails(
+      signUpBatch({ email: "victima@banco.com", emailLower: "victima@banco.com" })
+    );
   });
 
   it("NO puede mentir sobre el proveedor", async () => {
-    await assertFails(createProfile({ authProvider: "google.com", provider: "google" }));
-  });
-
-  it("NO puede nacer con rol de moderador", async () => {
-    await assertFails(createProfile({ role: "moderator" }));
+    await assertFails(signUpBatch({ authProvider: "google.com", provider: "google" }));
   });
 
   it("NO puede colar campos que nadie validó", async () => {
-    await assertFails(createProfile({ verificado: true, saldo: 999999 }));
+    await assertFails(signUpBatch({ verificado: true, saldo: 999999 }));
+  });
+
+  it("NO puede nacer con rol de moderador", async () => {
+    const db = realDb();
+    const batch = writeBatch(db);
+    batch.set(doc(db, `users/${REAL}`), profile(REAL, "realuser", { role: "moderator" }));
+    batch.set(doc(db, "handles/realuser"), { uid: REAL });
+    batch.set(doc(db, `users/${REAL}/private/identity`), identity(REAL));
+    await assertFails(batch.commit());
   });
 
   it("NO puede desalinear username y handle", async () => {
-    await assertFails(createProfile({ username: "otro_nombre" }));
+    const db = realDb();
+    const batch = writeBatch(db);
+    batch.set(doc(db, `users/${REAL}`), profile(REAL, "realuser", { username: "otro" }));
+    batch.set(doc(db, "handles/realuser"), { uid: REAL });
+    batch.set(doc(db, `users/${REAL}/private/identity`), identity(REAL));
+    await assertFails(batch.commit());
   });
 });
 
 describe("H04 — la edad mínima deja de ser solo del cliente", () => {
-  function createWithBirthDate(birthDate: string) {
-    const db = realDb();
-    const batch = writeBatch(db);
-    batch.set(doc(db, `users/${REAL}`), profile(REAL, "realuser", { birthDate }));
-    batch.set(doc(db, "handles/realuser"), { uid: REAL });
-    return batch.commit();
-  }
-
   it("acepta a una persona adulta", async () => {
-    await assertSucceeds(createWithBirthDate("1990-01-01"));
+    await assertSucceeds(signUpBatch({ birthDate: "1990-01-01" }));
   });
 
   it("RECHAZA a un menor de edad", async () => {
-    await assertFails(createWithBirthDate("2015-06-15"));
+    await assertFails(signUpBatch({ birthDate: "2015-06-15" }));
   });
 
   it("RECHAZA una fecha futura", async () => {
-    await assertFails(createWithBirthDate("2090-01-01"));
+    await assertFails(signUpBatch({ birthDate: "2090-01-01" }));
   });
 
   it("RECHAZA una fecha inexistente", async () => {
-    await assertFails(createWithBirthDate("2000-13-45"));
+    await assertFails(signUpBatch({ birthDate: "2000-13-45" }));
   });
 
   it("RECHAZA una fecha absurda", async () => {
-    await assertFails(createWithBirthDate("1523-01-01"));
+    await assertFails(signUpBatch({ birthDate: "1523-01-01" }));
+  });
+});
+
+describe("H07 — el moderador tiene que entrar con Google", () => {
+  const MOD = "mod_uid";
+
+  /** Claim de moderador con el proveedor indicado. */
+  function modDb(provider: "google.com" | "password") {
+    return testEnv
+      .authenticatedContext(MOD, {
+        role: "moderator",
+        email: `${MOD}@example.com`,
+        firebase: { sign_in_provider: provider },
+      })
+      .firestore();
+  }
+
+  it("con Google SÍ ve el registro de auditoría", async () => {
+    await seedAll([["adminAuditLog/a1", { action: "x" }]]);
+    await assertSucceeds(getDoc(doc(modDb("google.com"), "adminAuditLog/a1")));
+  });
+
+  it("con contraseña NO, aunque tenga el claim", async () => {
+    await seedAll([["adminAuditLog/a1", { action: "x" }]]);
+    await assertFails(getDoc(doc(modDb("password"), "adminAuditLog/a1")));
+  });
+
+  it("sin el claim NO, aunque entre con Google", async () => {
+    await seedAll([["adminAuditLog/a1", { action: "x" }]]);
+    await assertFails(getDoc(doc(realDb(), "adminAuditLog/a1")));
   });
 });

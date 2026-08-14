@@ -2474,7 +2474,8 @@
       "errPermissionDenied": "권한이 거부되었습니다. Firestore 규칙을 확인하세요.",
       "errRegistrationFailed": "가입을 완료하지 못했습니다. 다시 시도해 주세요.",
       "errUnexpected": "예기치 않은 오류입니다. 다시 시도해 주세요.",
-      "errWeakPassword": "비밀번호는 6자 이상이어야 합니다."
+      "errWeakPassword": "비밀번호는 6자 이상이어야 합니다.",
+      "errPasswordWeak": "8자 이상으로, 문자와 숫자 또는 기호를 섞어 주세요."
     },
     "resetPassword": {
       "title": "비밀번호 재설정",

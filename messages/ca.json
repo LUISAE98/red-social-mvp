@@ -2474,7 +2474,8 @@
       "errPermissionDenied": "Permís denegat. Comprova les regles de Firestore.",
       "errRegistrationFailed": "No s'ha pogut completar el registre. Torna-ho a provar.",
       "errUnexpected": "Error inesperat. Torna-ho a provar.",
-      "errWeakPassword": "La contrasenya ha de tenir com a mínim 6 caràcters."
+      "errWeakPassword": "La contrasenya ha de tenir com a mínim 6 caràcters.",
+      "errPasswordWeak": "Fes servir com a mínim 8 caràcters, barrejant lletres amb números o símbols."
     },
     "resetPassword": {
       "title": "Restableix la contrasenya",

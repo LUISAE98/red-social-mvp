@@ -7,6 +7,7 @@ import { signOut } from "firebase/auth";
 import { useTranslations } from "next-intl";
 import { auth } from "@/lib/firebase";
 import { usePlatformMod } from "@/lib/moderation/usePlatformMod";
+import { clearClientSession } from "@/lib/auth/clearClientSession";
 import { AdminPreviewContext } from "./context";
 
 const NAV_ITEMS = [
@@ -64,6 +65,20 @@ export default function AdminLayout({
   async function handleSignOut() {
     if (signingOut) return;
     setSigningOut(true);
+
+    // Este cierre de sesión no borraba la cookie `__session` ni la caché local:
+    // salir del panel de moderación dejaba atrás más rastro que salir de la app
+    // normal, justo al revés de lo deseable.
+    try {
+      void fetch("/api/auth/logout", {
+        method: "POST",
+        cache: "no-store",
+        keepalive: true,
+      }).catch(() => {});
+    } catch {
+      // ignorar
+    }
+
     // No dejar que signOut cuelgue la redirección; siempre mandamos a login.
     try {
       await Promise.race([
@@ -73,6 +88,9 @@ export default function AdminLayout({
     } catch (error) {
       console.error("Error cerrando sesión en Firebase:", error);
     }
+
+    // Caché local después de signOut, ver el comentario en LogoutButton.
+    await clearClientSession();
     window.location.replace("/login");
   }
 

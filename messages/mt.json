@@ -2474,7 +2474,8 @@
       "errPermissionDenied": "Aċċess miċħud. Iċċekkja r-regoli ta' Firestore.",
       "errRegistrationFailed": "Ir-reġistrazzjoni ma setgħetx titlesta. Erġa' pprova.",
       "errUnexpected": "Żball mhux mistenni. Erġa' pprova.",
-      "errWeakPassword": "Il-password trid ikollha mill-inqas 6 karattri."
+      "errWeakPassword": "Il-password trid ikollha mill-inqas 6 karattri.",
+      "errPasswordWeak": "Uża mill-inqas 8 karattri, u ħallat ittri ma'' numri jew simboli."
     },
     "resetPassword": {
       "title": "Irrisettja l-password",

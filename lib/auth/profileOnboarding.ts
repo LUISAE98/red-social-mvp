@@ -138,10 +138,24 @@ export async function createUserProfileDoc(
 
     const updatedAt = serverTimestamp();
 
-    transaction.set(userRef, {
-      uid: input.user.uid,
+    // Datos personales fuera del documento público: `users/{uid}` lo lee
+    // cualquiera (perfiles, búsqueda, feeds) y Firestore no oculta campos
+    // sueltos, así que el correo, la fecha de nacimiento y el sexo de toda la
+    // base eran extraíbles con una consulta. Van en la misma transacción para
+    // que un perfil nunca exista sin su identidad, ni al revés.
+    transaction.set(doc(db, "users", input.user.uid, "private", "identity"), {
       email,
       emailLower: email.toLowerCase(),
+      birthDate: input.birthDate ?? null,
+      sex: input.sex ?? null,
+      provider: input.provider,
+      authProvider: input.provider === "google" ? "google.com" : "password",
+      createdAt: serverTimestamp(),
+      updatedAt,
+    });
+
+    transaction.set(userRef, {
+      uid: input.user.uid,
       photoURL,
       coverUrl: input.coverUrl ?? null,
       handle: normalizedHandle,
@@ -149,12 +163,10 @@ export async function createUserProfileDoc(
       displayName,
       firstName,
       lastName,
-      birthDate: input.birthDate ?? null,
-      sex: input.sex ?? null,
+      // birthDate, sex, email, provider y authProvider viven en
+      // `users/{uid}/private/identity` — ver el comentario de arriba.
       bio: input.bio?.trim() ?? "",
       role: "user",
-      provider: input.provider,
-      authProvider: input.provider === "google" ? "google.com" : "password",
       profileReserved: false,
       // Defaults de privacidad para usuarios nuevos:
       // - perfil NO restringido → todos pueden ver sus publicaciones.

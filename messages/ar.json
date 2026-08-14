@@ -2474,7 +2474,8 @@
       "errPermissionDenied": "تم رفض الإذن. تحقق من قواعد Firestore.",
       "errRegistrationFailed": "تعذّر إكمال التسجيل. يُرجى المحاولة مرة أخرى.",
       "errUnexpected": "خطأ غير متوقع. يُرجى المحاولة مرة أخرى.",
-      "errWeakPassword": "يجب ألا تقل كلمة المرور عن 6 أحرف."
+      "errWeakPassword": "يجب ألا تقل كلمة المرور عن 6 أحرف.",
+      "errPasswordWeak": "استخدم 8 أحرف على الأقل، مع مزيج من الحروف والأرقام أو الرموز."
     },
     "resetPassword": {
       "title": "إعادة تعيين كلمة المرور",

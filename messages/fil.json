@@ -2474,7 +2474,8 @@
       "errPermissionDenied": "Tinanggihan ang pahintulot. Suriin ang mga rule ng Firestore.",
       "errRegistrationFailed": "Hindi nakumpleto ang pagrehistro. Pakisubukan ulit.",
       "errUnexpected": "Hindi inaasahang error. Pakisubukan ulit.",
-      "errWeakPassword": "Dapat hindi bababa sa 6 na karakter ang password."
+      "errWeakPassword": "Dapat hindi bababa sa 6 na karakter ang password.",
+      "errPasswordWeak": "Gumamit ng hindi bababa sa 8 karakter, may halong letra at numero o simbolo."
     },
     "resetPassword": {
       "title": "I-reset ang password",

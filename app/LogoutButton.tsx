@@ -6,6 +6,7 @@ import { useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
 import { useAuth } from "@/app/providers";
+import { clearClientSession } from "@/lib/auth/clearClientSession";
 
 type LogoutButtonVariant = "icon" | "settings" | "headerIcon";
 
@@ -28,17 +29,6 @@ async function handleLogout() {
   if (loading) return;
   setLoading(true);
   startAuthTransition("exiting");
-
-  // Limpiar caché del cliente que es solo por sesión (no debe persistir para el
-  // siguiente usuario en este navegador). Clave definida en GroupsSearchPanel.
-  try {
-    const SESSION_ONLY_STORAGE_KEYS = ["vibra_search_history"];
-    for (const key of SESSION_ONLY_STORAGE_KEYS) {
-      localStorage.removeItem(key);
-    }
-  } catch (error) {
-    console.error("Error limpiando caché local de sesión:", error);
-  }
 
   // Petición de limpieza de sesión del servidor SIN await, con keepalive para
   // que se complete aunque la página ya esté navegando. Así navegamos de
@@ -67,6 +57,13 @@ async function handleLogout() {
   } catch (error) {
     console.error("Error cerrando sesión en Firebase:", error);
   }
+
+  // Limpiar TODO el rastro local: localStorage de sesión, id de sesión y la
+  // caché de Firestore en IndexedDB, que guardaba los documentos que la persona
+  // miró (DMs, notificaciones, wallet) y sobrevivía al cierre de sesión.
+  // DESPUÉS de signOut y justo antes de redirigir: terminar Firestore mientras
+  // los listeners siguen vivos los deja apuntando a una instancia muerta.
+  await clearClientSession();
 
   // Redirección dura y definitiva a login. Usamos replace para que el botón
   // "atrás" no regrese a la página anterior (ya sin sesión).

@@ -2474,7 +2474,8 @@
       "errPermissionDenied": "Akses ditolak. Semak peraturan Firestore.",
       "errRegistrationFailed": "Pendaftaran tidak dapat diselesaikan. Cuba lagi.",
       "errUnexpected": "Ralat yang tidak dijangka. Cuba lagi.",
-      "errWeakPassword": "Kata laluan mestilah sekurang-kurangnya 6 aksara."
+      "errWeakPassword": "Kata laluan mestilah sekurang-kurangnya 6 aksara.",
+      "errPasswordWeak": "Guna sekurang-kurangnya 8 aksara, campurkan huruf dengan nombor atau simbol."
     },
     "resetPassword": {
       "title": "Tetapkan semula kata laluan",

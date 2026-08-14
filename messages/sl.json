@@ -2474,7 +2474,8 @@
       "errPermissionDenied": "Dostop je zavrnjen. Preveri pravila za Firestore.",
       "errRegistrationFailed": "Registracije ni bilo mogoče dokončati. Poskusi znova.",
       "errUnexpected": "Nepričakovana napaka. Poskusi znova.",
-      "errWeakPassword": "Geslo mora imeti vsaj 6 znakov."
+      "errWeakPassword": "Geslo mora imeti vsaj 6 znakov.",
+      "errPasswordWeak": "Uporabi vsaj 8 znakov in pomešaj črke s številkami ali simboli."
     },
     "resetPassword": {
       "title": "Ponastavi geslo",

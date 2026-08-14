@@ -2474,7 +2474,8 @@
       "errPermissionDenied": "Toegang geweigerd. Controleer de Firestore-regels.",
       "errRegistrationFailed": "De registratie kon niet worden voltooid. Probeer het opnieuw.",
       "errUnexpected": "Onverwachte fout. Probeer het opnieuw.",
-      "errWeakPassword": "Het wachtwoord moet minstens 6 tekens hebben."
+      "errWeakPassword": "Het wachtwoord moet minstens 6 tekens hebben.",
+      "errPasswordWeak": "Gebruik minstens 8 tekens en meng letters met cijfers of symbolen."
     },
     "resetPassword": {
       "title": "Wachtwoord herstellen",

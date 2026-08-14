@@ -2474,7 +2474,8 @@
       "errPermissionDenied": "Adgang nægtet. Tjek Firestore-reglerne.",
       "errRegistrationFailed": "Tilmeldingen kunne ikke gennemføres. Prøv igen.",
       "errUnexpected": "Uventet fejl. Prøv igen.",
-      "errWeakPassword": "Adgangskoden skal være på mindst 6 tegn."
+      "errWeakPassword": "Adgangskoden skal være på mindst 6 tegn.",
+      "errPasswordWeak": "Brug mindst 8 tegn, og bland bogstaver med tal eller symboler."
     },
     "resetPassword": {
       "title": "Nulstil adgangskode",

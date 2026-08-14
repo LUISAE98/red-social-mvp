@@ -63,6 +63,18 @@ function requireModerator(request: {
   if (request.auth?.token?.["role"] !== "moderator") {
     throw new HttpsError("permission-denied", "Acceso solo para moderadores.");
   }
+  // La sesión también tiene que ser de Google. El panel ya lo exigía, pero solo
+  // en el cliente: estas callables aceptaban el claim viniera de donde viniera,
+  // así que la regla "los moderadores entran con Google" no era una frontera.
+  const firebaseClaim = request.auth?.token?.["firebase"] as
+    | { sign_in_provider?: string }
+    | undefined;
+  if (firebaseClaim?.sign_in_provider !== "google.com") {
+    throw new HttpsError(
+      "permission-denied",
+      "La moderación exige haber iniciado sesión con Google."
+    );
+  }
   return uid;
 }
 

@@ -2,12 +2,10 @@ import {
   collection,
   doc,
   getDoc,
-  getDocs,
   onSnapshot,
   serverTimestamp,
   setDoc,
   updateDoc,
-  writeBatch,
   type Timestamp,
   type Unsubscribe,
 } from "firebase/firestore";
@@ -34,14 +32,23 @@ function generateSessionId(): string {
     if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
       return crypto.randomUUID();
     }
+    // `getRandomValues` existe en todo navegador con contexto seguro, incluso
+    // donde falta `randomUUID` (Safari antiguo). El fallback anterior usaba
+    // Math.random(), que es predecible: el id de sesión no es un secreto —las
+    // reglas ya lo acotan al propio uid— pero un identificador adivinable
+    // invita a jugar con documentos de sesión ajenos dentro de la misma cuenta.
+    if (typeof crypto !== "undefined" && typeof crypto.getRandomValues === "function") {
+      const bytes = new Uint8Array(16);
+      crypto.getRandomValues(bytes);
+      return `sess_${Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("")}`;
+    }
   } catch {
     // continúa al fallback
   }
 
-  // Fallback razonablemente único para entornos sin crypto.randomUUID.
-  return `sess_${Math.random().toString(36).slice(2)}${Math.random()
-    .toString(36)
-    .slice(2)}`;
+  // Último recurso, entornos sin Web Crypto. No es criptográfico y se marca como
+  // tal para que se note en los datos si alguna vez ocurre.
+  return `sess_weak_${Date.now().toString(36)}${Math.random().toString(36).slice(2)}`;
 }
 
 /**

@@ -2474,7 +2474,8 @@
       "errPermissionDenied": "Pristup je odbijen. Proveri pravila za Firestore.",
       "errRegistrationFailed": "Registraciju nije bilo moguće dovršiti. Pokušaj ponovo.",
       "errUnexpected": "Neočekivana greška. Pokušaj ponovo.",
-      "errWeakPassword": "Lozinka mora imati najmanje 6 znakova."
+      "errWeakPassword": "Lozinka mora imati najmanje 6 znakova.",
+      "errPasswordWeak": "Користи бар 8 знакова, мешајући слова с бројевима или симболима."
     },
     "resetPassword": {
       "title": "Ponovo postavi lozinku",

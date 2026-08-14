@@ -2474,7 +2474,8 @@
       "errPermissionDenied": "Aðgangi hafnað. Athugaðu Firestore-reglur.",
       "errRegistrationFailed": "Ekki tókst að ljúka skráningunni. Reyndu aftur.",
       "errUnexpected": "Óvænt villa. Reyndu aftur.",
-      "errWeakPassword": "Lykilorðið verður að vera að minnsta kosti 6 stafir."
+      "errWeakPassword": "Lykilorðið verður að vera að minnsta kosti 6 stafir.",
+      "errPasswordWeak": "Notaðu að minnsta kosti 8 stafi og blandaðu bókstöfum við tölur eða tákn."
     },
     "resetPassword": {
       "title": "Endurstilla lykilorð",

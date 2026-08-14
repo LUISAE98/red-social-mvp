@@ -2474,7 +2474,8 @@
       "errPermissionDenied": "Hozzáférés megtagadva. Ellenőrizd a Firestore szabályokat.",
       "errRegistrationFailed": "A regisztrációt nem sikerült befejezni. Próbáld újra.",
       "errUnexpected": "Váratlan hiba. Próbáld újra.",
-      "errWeakPassword": "A jelszónak legalább 6 karakteresnek kell lennie."
+      "errWeakPassword": "A jelszónak legalább 6 karakteresnek kell lennie.",
+      "errPasswordWeak": "Használj legalább 8 karaktert, betűket számokkal vagy szimbólumokkal keverve."
     },
     "resetPassword": {
       "title": "Jelszó visszaállítása",

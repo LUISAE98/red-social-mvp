@@ -17,6 +17,7 @@ import {
 import { doc, getDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { createUserProfileDoc } from "@/lib/auth/profileOnboarding";
+import { isPasswordAcceptable } from "@/lib/auth/passwordPolicy";
 import { enablePush, isPushSupported } from "@/lib/push/fcm";
 import ImageCropperModal from "@/components/media/ImageCropperModal";
 import { uploadProfileImage } from "@/lib/storage/uploadProfileImage";
@@ -301,6 +302,17 @@ export default function RegisterPanel({
 
     if (password !== password2) {
       setMsg(t("errPasswordMismatch"));
+      return;
+    }
+
+    // Suelo de contraseña. Antes lo único que se pedía era que las dos
+    // coincidieran, así que "1234" pasaba: la fortaleza real dependía por
+    // completo de la política que hubiera configurada en Firebase Auth, que no
+    // vive en el repositorio y no se puede dar por supuesta. Esto NO sustituye a
+    // esa política —un cliente puede saltarse cualquier validación de interfaz—,
+    // pero pone un mínimo demostrable para quien se registra por la vía normal.
+    if (!isPasswordAcceptable(password)) {
+      setMsg(t("errPasswordWeak"));
       return;
     }
 

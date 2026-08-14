@@ -64,9 +64,18 @@ const vibraBlue = "#4f46ff";
 
 function friendlyAuthErrorKey(err: unknown): string {
   const code = (err as { code?: string } | null)?.code;
-  if (code === "auth/invalid-credential") return "errInvalidCredential";
-  if (code === "auth/user-not-found") return "errUserNotFound";
-  if (code === "auth/wrong-password") return "errWrongPassword";
+  // `user-not-found` y `wrong-password` se colapsan en un único mensaje a
+  // propósito. Distinguirlos le confirma a quien pruebe correos cuáles tienen
+  // cuenta en Vibra, que es el primer paso de cualquier campaña de credenciales.
+  // La persona legítima no pierde nada: si su correo o su contraseña fallan, la
+  // acción es la misma.
+  if (
+    code === "auth/invalid-credential" ||
+    code === "auth/user-not-found" ||
+    code === "auth/wrong-password"
+  ) {
+    return "errInvalidCredential";
+  }
   if (code === "auth/too-many-requests") return "errTooManyRequests";
   if (code === "auth/network-request-failed") return "errNetworkFailed";
   if (code === "auth/unauthorized-domain") return "errUnauthorizedDomain";
@@ -81,7 +90,6 @@ function friendlyAuthErrorKey(err: unknown): string {
 function friendlyResetErrorKey(err: unknown): string {
   const code = (err as { code?: string } | null)?.code;
   if (code === "auth/invalid-email") return "errInvalidEmail";
-  if (code === "auth/user-not-found") return "errUserNotFound";
   if (code === "auth/too-many-requests") return "errTooManyRequests";
   if (code === "auth/network-request-failed") return "errNetworkFailed";
   return "errUnexpected";
@@ -337,7 +345,15 @@ async function handleReset(e: React.FormEvent) {
     await sendPasswordResetEmail(auth, email.trim());
     setResetMsg(tReset("successMsg"));
   } catch (err: unknown) {
-    setResetMsg(tReset(friendlyResetErrorKey(err) as Parameters<typeof tReset>[0]));
+    // Que el correo no tenga cuenta NO se cuenta: se responde lo mismo que en el
+    // caso bueno. Si no, esta pantalla es un comprobador gratuito de qué correos
+    // están registrados en Vibra, sin necesidad siquiera de una contraseña.
+    const code = (err as { code?: string } | null)?.code;
+    if (code === "auth/user-not-found") {
+      setResetMsg(tReset("successMsg"));
+    } else {
+      setResetMsg(tReset(friendlyResetErrorKey(err) as Parameters<typeof tReset>[0]));
+    }
   } finally {
     setResetLoading(false);
   }
@@ -662,7 +678,11 @@ body.loginPageBg {
            centrado y con tope de ancho, porque cruza toda la página en vez de
            vivir en una columna. */
         .loginReachTitle {
-          margin: 46px auto 8px;
+          /* Arriba casi nada: el último bloque de experiencias ya trae su propio
+             relleno, así que un margen grande aquí se sumaba a aquel y abría un
+             hueco enorme. Abajo, cero: el aire hacia las comunidades lo pone su
+             sección, para que no se junten dos espacios. */
+          margin: 6px auto 0;
           /* Sin tope de ancho: cruza la página entera y en laptop cabe en un
              solo renglón. Con el tope de 22ch caía en tres y parecía metido a
              la fuerza en una columna. */

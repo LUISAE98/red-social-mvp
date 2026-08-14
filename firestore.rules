@@ -18,9 +18,16 @@ service cloud.firestore {
         );
     }
 
+    // Moderador de plataforma. Exige el claim Y que la sesión sea de Google.
+    //
+    // Lo segundo lo comprobaba SOLO el cliente (`usePlatformMod`), así que era
+    // una preferencia de interfaz, no una frontera: con el claim puesto, una
+    // sesión de contraseña conservaba todos los privilegios ante Firestore.
+    // Mismo criterio que el hook, para que cliente y servidor no discrepen.
     function isPlatformMod() {
       return request.auth != null
-        && request.auth.token.get('role', '') == 'moderator';
+        && request.auth.token.get('role', '') == 'moderator'
+        && request.auth.token.firebase.sign_in_provider == 'google.com';
     }
 
     // ==========================
@@ -102,11 +109,17 @@ service cloud.firestore {
     // leen búsquedas, métricas y funciones que confían en él.
     // Las 23 primeras son las que escribe `profileOnboarding.ts`; el resto son
     // opcionales que esta misma función ya validaba.
+    // `users/{uid}` es de LECTURA PÚBLICA (lo exigen perfiles, búsqueda y feeds),
+    // y Firestore no sabe ocultar campos sueltos: si el documento se lee, se leen
+    // TODOS sus campos. Por eso el correo, la fecha de nacimiento y el sexo ya no
+    // viven aquí — se mudaron a `users/{uid}/private/identity`, que solo lee su
+    // dueño. Antes cualquiera podía recolectar esos datos de toda la base con una
+    // sola consulta.
     function userCreateKeysAllowed(data) {
       return data.keys().hasOnly([
-        "uid", "email", "emailLower", "photoURL", "coverUrl", "handle",
-        "username", "displayName", "firstName", "lastName", "birthDate", "sex",
-        "bio", "role", "provider", "authProvider", "profileReserved",
+        "uid", "photoURL", "coverUrl", "handle",
+        "username", "displayName", "firstName", "lastName",
+        "bio", "role", "profileReserved",
         "profileRestricted", "profileCommentsEnabled", "isActive", "createdAt",
         "updatedAt", "search",
         "showPosts", "showCreatedGroups", "followersCount", "profileGreeting",
@@ -114,14 +127,26 @@ service cloud.firestore {
       ]);
     }
 
-    // Ata la identidad del perfil al TOKEN, no a lo que diga el cliente. Antes se
-    // podía crear el propio documento con correo y proveedor inventados.
+    // Ata la identidad al TOKEN, no a lo que diga el cliente. Antes se podía
+    // crear el propio perfil con correo y proveedor inventados.
     function userIdentityMatchesToken(data) {
       return data.email == request.auth.token.get('email', '')
         && data.emailLower == data.email.lower()
         && data.authProvider == request.auth.token.firebase.sign_in_provider
         && data.authProvider in ["password", "google.com"]
         && data.provider == (data.authProvider == "google.com" ? "google" : "password");
+    }
+
+    // Datos personales del perfil. Se escriben en el MISMO lote que el perfil
+    // público, así que el gate de edad y el de identidad viven aquí ahora.
+    function validPrivateIdentity(data) {
+      return data.keys().hasOnly([
+        "email", "emailLower", "birthDate", "sex", "provider", "authProvider",
+        "createdAt", "updatedAt"
+      ])
+        && userIdentityMatchesToken(data)
+        && validBirthDate(data.birthDate)
+        && validSex(data.sex);
     }
 
     // Campos operativos: el cliente no elige su rol ni nace desactivado.
@@ -138,7 +163,6 @@ service cloud.firestore {
 
     function validUserBase(data) {
       return userCreateKeysAllowed(data)
-        && userIdentityMatchesToken(data)
         && userOperationalDefaults(data)
         && data.uid is string
         && validHandle(data.handle)
@@ -151,8 +175,8 @@ service cloud.firestore {
         && data.lastName is string
         && data.lastName.size() >= 1
         && data.lastName.size() <= 40
-        && validBirthDate(data.birthDate)
-        && validSex(data.sex)
+        // birthDate y sex se validan ahora en `validPrivateIdentity`: ya no
+        // viven en el documento público.
         && (data.photoURL == null || data.photoURL is string)
         && (!("coverUrl" in data) || data.coverUrl == null || data.coverUrl is string)
         && (!("showPosts" in data) || data.showPosts is bool)
@@ -860,6 +884,23 @@ match /hiddenGroupTransitions/{groupId} {
       match /meta/{docId} {
         allow get, list: if signedIn() && request.auth.uid == uid;
         allow write: if signedIn() && request.auth.uid == uid;
+      }
+
+      // Datos personales del perfil: correo, fecha de nacimiento y sexo. Viven
+      // fuera del documento público porque `users/{uid}` es legible por
+      // cualquiera y Firestore no sabe ocultar campos sueltos.
+      //
+      // Se crean en el MISMO lote que el perfil, así que el gate de edad y la
+      // atadura de identidad al token se comprueban aquí (`validPrivateIdentity`).
+      // Inmutables después: cambiar de correo o de fecha de nacimiento no es una
+      // edición de perfil, y si algún día hace falta, va por callable.
+      match /private/{docId} {
+        allow get, list: if notAnonymous() && request.auth.uid == uid;
+        allow create: if notAnonymous()
+          && request.auth.uid == uid
+          && docId == "identity"
+          && validPrivateIdentity(request.resource.data);
+        allow update, delete: if false;
       }
 
       // Sesiones activas (dispositivos con la sesión abierta). El dispositivo

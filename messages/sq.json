@@ -2474,7 +2474,8 @@
       "errPermissionDenied": "Leja u refuzua. Kontrollo rregullat e Firestore.",
       "errRegistrationFailed": "Regjistrimi nuk u përfundua dot. Provo sërish.",
       "errUnexpected": "Gabim i papritur. Provo sërish.",
-      "errWeakPassword": "Fjalëkalimi duhet të ketë të paktën 6 shenja."
+      "errWeakPassword": "Fjalëkalimi duhet të ketë të paktën 6 shenja.",
+      "errPasswordWeak": "Përdor të paktën 8 karaktere, duke përzier shkronja me numra ose simbole."
     },
     "resetPassword": {
       "title": "Rivendos fjalëkalimin",

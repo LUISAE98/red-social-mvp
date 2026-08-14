@@ -2474,7 +2474,8 @@
       "errPermissionDenied": "Zugriff verweigert. Prüfe die Firestore-Regeln.",
       "errRegistrationFailed": "Die Registrierung konnte nicht abgeschlossen werden. Bitte versuche es erneut.",
       "errUnexpected": "Unerwarteter Fehler. Bitte versuche es erneut.",
-      "errWeakPassword": "Das Passwort muss mindestens 6 Zeichen lang sein."
+      "errWeakPassword": "Das Passwort muss mindestens 6 Zeichen lang sein.",
+      "errPasswordWeak": "Nimm mindestens 8 Zeichen und mische Buchstaben mit Zahlen oder Symbolen."
     },
     "resetPassword": {
       "title": "Passwort zurücksetzen",

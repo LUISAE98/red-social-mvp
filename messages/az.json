@@ -2474,7 +2474,8 @@
       "errPermissionDenied": "İcazə rədd edildi. Firestore qaydalarını yoxla.",
       "errRegistrationFailed": "Qeydiyyatı tamamlamaq mümkün olmadı. Zəhmət olmasa yenidən cəhd et.",
       "errUnexpected": "Gözlənilməz xəta. Zəhmət olmasa yenidən cəhd et.",
-      "errWeakPassword": "Şifrə ən azı 6 simvol olmalıdır."
+      "errWeakPassword": "Şifrə ən azı 6 simvol olmalıdır.",
+      "errPasswordWeak": "Ən azı 8 simvol istifadə edin, hərflərlə rəqəmləri və ya simvolları qarışdırın."
     },
     "resetPassword": {
       "title": "Şifrəni sıfırla",

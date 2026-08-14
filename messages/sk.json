@@ -2474,7 +2474,8 @@
       "errPermissionDenied": "Prístup zamietnutý. Skontroluj pravidlá Firestore.",
       "errRegistrationFailed": "Registráciu sa nepodarilo dokončiť. Skús to znova.",
       "errUnexpected": "Neočakávaná chyba. Skús to znova.",
-      "errWeakPassword": "Heslo musí mať aspoň 6 znakov."
+      "errWeakPassword": "Heslo musí mať aspoň 6 znakov.",
+      "errPasswordWeak": "Použi aspoň 8 znakov a zmiešaj písmená s číslami alebo symbolmi."
     },
     "resetPassword": {
       "title": "Obnoviť heslo",

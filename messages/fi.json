@@ -2474,7 +2474,8 @@
       "errPermissionDenied": "Käyttöoikeus evätty. Tarkista Firestore-säännöt.",
       "errRegistrationFailed": "Rekisteröitymistä ei voitu viedä loppuun. Yritä uudelleen.",
       "errUnexpected": "Odottamaton virhe. Yritä uudelleen.",
-      "errWeakPassword": "Salasanassa on oltava vähintään 6 merkkiä."
+      "errWeakPassword": "Salasanassa on oltava vähintään 6 merkkiä.",
+      "errPasswordWeak": "Käytä vähintään 8 merkkiä ja sekoita kirjaimia numeroihin tai symboleihin."
     },
     "resetPassword": {
       "title": "Palauta salasana",

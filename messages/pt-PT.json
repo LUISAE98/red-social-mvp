@@ -2474,7 +2474,8 @@
       "errPermissionDenied": "Permissão negada. Verifica as regras do Firestore.",
       "errRegistrationFailed": "Não foi possível concluir o registo. Tenta novamente.",
       "errUnexpected": "Erro inesperado. Tenta novamente.",
-      "errWeakPassword": "A palavra-passe tem de ter pelo menos 6 caracteres."
+      "errWeakPassword": "A palavra-passe tem de ter pelo menos 6 caracteres.",
+      "errPasswordWeak": "Usa pelo menos 8 caracteres, misturando letras com números ou símbolos."
     },
     "resetPassword": {
       "title": "Repor a palavra-passe",

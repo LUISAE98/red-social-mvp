@@ -2474,7 +2474,8 @@
       "errPermissionDenied": "Accesso negato. Controlla le regole di Firestore.",
       "errRegistrationFailed": "Impossibile completare la registrazione. Riprova.",
       "errUnexpected": "Errore imprevisto. Riprova.",
-      "errWeakPassword": "La password deve avere almeno 6 caratteri."
+      "errWeakPassword": "La password deve avere almeno 6 caratteri.",
+      "errPasswordWeak": "Usa almeno 8 caratteri, mescolando lettere con numeri o simboli."
     },
     "resetPassword": {
       "title": "Reimposta la password",

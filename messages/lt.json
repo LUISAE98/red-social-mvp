@@ -2474,7 +2474,8 @@
       "errPermissionDenied": "Prieiga uždrausta. Patikrink Firestore taisykles.",
       "errRegistrationFailed": "Registracijos nepavyko užbaigti. Bandyk dar kartą.",
       "errUnexpected": "Netikėta klaida. Bandyk dar kartą.",
-      "errWeakPassword": "Slaptažodį turi sudaryti bent 6 simboliai."
+      "errWeakPassword": "Slaptažodį turi sudaryti bent 6 simboliai.",
+      "errPasswordWeak": "Naudok bent 8 simbolius, maišydamas raides su skaičiais ar simboliais."
     },
     "resetPassword": {
       "title": "Atkurti slaptažodį",

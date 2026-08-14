@@ -38,6 +38,7 @@ import {
   pwdResetKey,
 } from "@/components/profile/ProfileSettings.parts";
 import MessagePolicySetting from "@/components/chat/MessagePolicySetting";
+import { usePrivateProfile } from "@/lib/auth/usePrivateProfile";
 import { updateMessagePolicy } from "@/lib/chat/messagePolicyService";
 import { updateProfileDisplayName } from "@/lib/profile/updateProfileDisplayName";
 import { isMessagePolicy, type MessagePolicy } from "@/lib/chat/types";
@@ -113,6 +114,10 @@ export default function OwnerSidebarSettings({
 
   const push = usePushNotifications(uid);
 
+  // Datos personales del propio dueño (correo, fecha de nacimiento, sexo). Ya no
+  // viven en el documento público del perfil, que lee cualquiera.
+  const privateProfile = usePrivateProfile(uid, everOpened);
+
   // El toast se dispara desde handlers async; guardarlo en ref evita re-suscribir
   // el listener de Firestore cada vez que el padre re-renderiza.
   const toastRef = useRef(onToast);
@@ -141,7 +146,12 @@ export default function OwnerSidebarSettings({
           handle: (raw.handle as string) ?? null,
           bio: (raw.bio as string) ?? null,
           messagePolicy: isMessagePolicy(policy) ? policy : "everyone",
-          birthDate: toDateValue(raw.birthDate as FirestoreDateLike),
+          // La fecha de nacimiento ya no está en el documento público; se lee
+          // aparte con `usePrivateProfile`. El fallback a `raw.birthDate`
+          // sostiene a los perfiles que aún no pasaron por la migración.
+          birthDate: toDateValue(
+            (privateProfile?.birthDate ?? raw.birthDate) as FirestoreDateLike
+          ),
           createdAt: toDateValue(raw.createdAt as FirestoreDateLike),
           displayNameLastChangedAt: toDateValue(
             raw.displayNameLastChangedAt as FirestoreDateLike
@@ -340,6 +350,17 @@ export default function OwnerSidebarSettings({
 
   // ---- Estilos ----------------------------------------------------------
 
+  // Contenedor de la opción: gris ligero con esquinas redondeadas. Envuelve el
+  // módulo entero (encabezado + contenido desplegado), así que al abrirse la
+  // caja crece y todo el bloque se lee como una sola tarjeta.
+  const cardStyle: CSSProperties = {
+    background: "rgba(255,255,255,0.06)",
+    borderRadius: 14,
+    padding: 6,
+    marginTop: 8,
+    minWidth: 0,
+  };
+
   const headerStyle: CSSProperties = {
     position: "relative",
     width: "100%",
@@ -347,14 +368,15 @@ export default function OwnerSidebarSettings({
     display: "flex",
     alignItems: "center",
     gap: 8,
-    background: open ? "rgba(255,255,255,0.05)" : "transparent",
+    // Dentro de la tarjeta gris el encabezado no lleva fondo propio: dos grises
+    // encimados solo ensucian el contraste.
+    background: "transparent",
     border: "none",
     borderRadius: 10,
     cursor: "pointer",
     padding: "7px 8px 7px 6px",
     textAlign: "start",
     WebkitTapHighlightColor: "transparent",
-    transition: "background 0.2s ease",
     fontFamily: "inherit",
   };
 
@@ -458,12 +480,17 @@ export default function OwnerSidebarSettings({
     cursor: "pointer",
   };
 
+  // La variante `settings` de LogoutButton trae fondo morado y un halo morado
+  // (`boxShadow`). El fondo ya lo pisábamos con gris, pero el halo sobrevivía y
+  // quedaba un brillo morado bajo un botón gris. `boxShadow: "none"` lo apaga.
+  // Se hace aquí y no en LogoutButton para no alterar sus otros usos.
   const logoutButtonStyle: CSSProperties = {
     width: "100%",
     minHeight: 40,
     borderRadius: 6,
     border: "none",
     background: "rgba(255,255,255,0.10)",
+    boxShadow: "none",
     color: "rgba(255,255,255,0.70)",
     fontWeight: 500,
     fontSize: 13,
@@ -478,7 +505,7 @@ export default function OwnerSidebarSettings({
   if (!uid) return null;
 
   return (
-    <div style={{ display: "grid", minWidth: 0 }}>
+    <div style={{ display: "grid", ...cardStyle }}>
       <style jsx>{`
         .vibra-sidebar-settings-input::placeholder {
           color: rgba(255, 255, 255, 0.42);
@@ -508,8 +535,8 @@ export default function OwnerSidebarSettings({
         title={tNav("settings")}
         style={headerStyle}
       >
-        <span style={{ display: "inline-flex", opacity: open ? 1 : 0.55 }}>
-          <SidebarSettingsIcon size={28} strokeWidth={1.6} />
+        <span style={{ display: "inline-flex", opacity: open ? 1 : 0.8 }}>
+          <SidebarSettingsIcon size={28} strokeWidth={1.8} color="#ffffff" />
         </span>
 
         <span
@@ -521,8 +548,8 @@ export default function OwnerSidebarSettings({
             whiteSpace: "nowrap",
             overflow: "hidden",
             textOverflow: "ellipsis",
-            color: open ? "#ffffff" : "rgba(255,255,255,0.74)",
-            fontWeight: open ? 700 : 400,
+            color: "#ffffff",
+            fontWeight: open ? 700 : 600,
           }}
         >
           {tNav("settings")}
@@ -563,7 +590,9 @@ export default function OwnerSidebarSettings({
         }}
       >
         <div style={{ overflow: "hidden" }}>
-          <div style={{ padding: "6px 6px 0", display: "grid", gap: 2, minWidth: 0 }}>
+          {/* Sin padding lateral propio: el que aporta la tarjeta gris ya separa
+              el contenido del borde, y sumar otro lo dejaba demasiado angosto. */}
+          <div style={{ padding: "2px 6px 0", display: "grid", gap: 2, minWidth: 0 }}>
             {/* Quién puede enviarme mensajes — a una sola columna: son cuatro
                 opciones con etiquetas largas, no caben junto a un control. */}
             <div

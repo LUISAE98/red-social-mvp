@@ -2474,7 +2474,8 @@
       "errPermissionDenied": "Ligipääs keelatud. Kontrolli Firestore'i reegleid.",
       "errRegistrationFailed": "Registreerimist ei õnnestunud lõpule viia. Proovi uuesti.",
       "errUnexpected": "Ootamatu viga. Proovi uuesti.",
-      "errWeakPassword": "Paroolis peab olema vähemalt 6 tähemärki."
+      "errWeakPassword": "Paroolis peab olema vähemalt 6 tähemärki.",
+      "errPasswordWeak": "Kasuta vähemalt 8 märki ja sega tähed numbrite või sümbolitega."
     },
     "resetPassword": {
       "title": "Lähtesta parool",

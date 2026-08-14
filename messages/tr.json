@@ -2474,7 +2474,8 @@
       "errPermissionDenied": "İzin reddedildi. Firestore kurallarını kontrol et.",
       "errRegistrationFailed": "Kayıt tamamlanamadı. Lütfen tekrar dene.",
       "errUnexpected": "Beklenmeyen hata. Lütfen tekrar dene.",
-      "errWeakPassword": "Parola en az 6 karakter olmalı."
+      "errWeakPassword": "Parola en az 6 karakter olmalı.",
+      "errPasswordWeak": "En az 8 karakter kullan, harfleri rakam veya sembollerle karıştır."
     },
     "resetPassword": {
       "title": "Parolayı sıfırla",

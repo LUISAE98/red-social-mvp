@@ -38,6 +38,7 @@ import { onAuthStateChanged, sendPasswordResetEmail, type User } from "firebase/
 import { httpsCallable } from "firebase/functions";
 import { updateProfileDisplayName } from "@/lib/profile/updateProfileDisplayName";
 import { updateMessagePolicy } from "@/lib/chat/messagePolicyService";
+import { usePrivateProfile } from "@/lib/auth/usePrivateProfile";
 import { DEFAULT_MESSAGE_POLICY, type MessagePolicy } from "@/lib/chat/types";
 import CreatorExperiencesSection from "@/components/services/CreatorExperiencesSection";
 import ProfileHeaderSkeleton from "@/components/profile/ProfileHeaderSkeleton";
@@ -477,6 +478,10 @@ useEffect(() => {
 
   const isOwner = !!viewer && !!userDoc && viewer.uid === userDoc.uid;
   const profileUid = userDoc?.uid ?? null;
+
+  // Datos personales del perfil (fecha de nacimiento, sexo, correo). Solo los
+  // puede leer su dueño: viven fuera del documento público.
+  const privateProfile = usePrivateProfile(profileUid, isOwner);
 
   // Track last visit so the sidebar can show new-post counts
   useEffect(() => {
@@ -1837,7 +1842,13 @@ const res = (await createExclusiveSessionRequest({
     ? tProfile("restricted")
     : tProfile("public");
 
-  const normalizedBirthDate = normalizeDateValue(userDoc.birthDate ?? null);
+  // La fecha de nacimiento salió del documento público del perfil (lo lee
+  // cualquiera y Firestore no oculta campos sueltos). Se lee del documento
+  // privado, solo cuando quien mira es el dueño. El fallback a `userDoc`
+  // sostiene a los perfiles que aún no pasaron por la migración.
+  const normalizedBirthDate = normalizeDateValue(
+    privateProfile?.birthDate ?? userDoc.birthDate ?? null
+  );
   const normalizedCreatedAt = normalizeDateValue(userDoc.createdAt ?? null);
   const normalizedDisplayNameLastChangedAt = normalizeDateValue(
   userDoc.displayNameLastChangedAt ?? null

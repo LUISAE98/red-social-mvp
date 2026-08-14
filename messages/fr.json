@@ -2474,7 +2474,8 @@
       "errPermissionDenied": "Accès refusé. Vérifie les règles Firestore.",
       "errRegistrationFailed": "Impossible de finaliser l'inscription. Réessaie.",
       "errUnexpected": "Erreur inattendue. Réessaie.",
-      "errWeakPassword": "Le mot de passe doit comporter au moins 6 caractères."
+      "errWeakPassword": "Le mot de passe doit comporter au moins 6 caractères.",
+      "errPasswordWeak": "Utilise au moins 8 caractères, en mêlant lettres et chiffres ou symboles."
     },
     "resetPassword": {
       "title": "Réinitialiser le mot de passe",

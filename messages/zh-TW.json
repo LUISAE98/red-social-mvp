@@ -2474,7 +2474,8 @@
       "errPermissionDenied": "存取遭拒。請檢查 Firestore 規則。",
       "errRegistrationFailed": "無法完成註冊。請再試一次。",
       "errUnexpected": "發生非預期的錯誤。請再試一次。",
-      "errWeakPassword": "密碼至少要 6 個字元。"
+      "errWeakPassword": "密碼至少要 6 個字元。",
+      "errPasswordWeak": "至少 8 個字元，並混合字母與數字或符號。"
     },
     "resetPassword": {
       "title": "重設密碼",

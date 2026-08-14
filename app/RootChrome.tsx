@@ -100,6 +100,15 @@ const isOverlayRoute =
       // Ya autenticado Y con perfil → al feed. Un usuario autenticado SIN perfil
       // (onboarding de Google) se queda: el login muestra el panel de completar.
       router.replace(getNextFromSearchParams(searchParams, "/"));
+    } else if (user && hasProfile === false && !isPublicRoute && !isAuthPage) {
+      // Cuenta de Firebase Auth SIN documento de perfil, dentro de la app.
+      // Pasa cuando el registro creó la cuenta pero la transacción del perfil
+      // falló, o cuando el onboarding de Google se abandonó a medias: quedaba
+      // navegando por la app autenticado y sin perfil, sin nada que lo empujara
+      // a terminar. `hasProfile` solo vale `false` tras una lectura correcta —
+      // los errores lo dejan en `null`—, así que esto no dispara por red caída.
+      startAuthTransition("exiting");
+      router.replace("/login");
     }
   }, [loading, user, hasProfile, isPublicRoute, isAuthPage, router, startAuthTransition, searchParams]);
 
