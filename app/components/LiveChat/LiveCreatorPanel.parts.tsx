@@ -586,7 +586,12 @@ export const VideoPreview = memo(function VideoPreview({ hlsUrl, fill, objectFit
           .vp-vod-range{-webkit-appearance:none;appearance:none;width:100%;height:4px;background:rgba(255,255,255,0.28);border-radius:2px;outline:none;cursor:pointer;display:block}
           .vp-vod-range::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:14px;height:14px;border-radius:50%;background:#fff;cursor:pointer;margin-top:-5px}
           .vp-vod-range::-moz-range-thumb{width:14px;height:14px;border-radius:50%;background:#fff;cursor:pointer;border:none}
-          .vp-vod-range::-webkit-slider-runnable-track{height:4px;border-radius:2px;background:linear-gradient(to right,#fff var(--pct,0%),rgba(255,255,255,0.28) var(--pct,0%))}
+          /* El relleno de la barra de progreso se voltea con --vb-dir porque el
+             <input type="range" /> nativo YA se voltea solo con dir="rtl": el tirador
+             arranca por la derecha. Si el degradado se quedara pintando de
+             izquierda a derecha, el relleno y el tirador irían por lados
+             distintos. 90deg es "to right", y -90deg, "to left". */
+          .vp-vod-range::-webkit-slider-runnable-track{height:4px;border-radius:2px;background:linear-gradient(calc(90deg * var(--vb-dir, 1)),#fff var(--pct,0%),rgba(255,255,255,0.28) var(--pct,0%))}
           .vp-vod-range::-moz-range-track{height:4px;border-radius:2px;background:rgba(255,255,255,0.28)}
           .vp-vod-range::-moz-range-progress{height:4px;border-radius:2px;background:#fff}
           .vp-vod-btn{outline:none!important;box-shadow:none!important;-webkit-tap-highlight-color:transparent}

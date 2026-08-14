@@ -588,7 +588,7 @@ body.loginPageBg {
         @keyframes authSwapFromRight {
           from {
             opacity: 0;
-            transform: translateX(42px);
+            transform: translateX(calc(42px * var(--vb-dir, 1)));
           }
           to {
             opacity: 1;

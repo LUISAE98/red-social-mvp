@@ -131,7 +131,7 @@ export default function CoverSearchBar({ onSubmit, onClose, placeholder }: Props
         @keyframes coverSearchIn {
           from {
             opacity: 0;
-            transform: scale(0.94) translateX(10px);
+            transform: scale(0.94) translateX(calc(10px * var(--vb-dir, 1)));
           }
           to {
             opacity: 1;
@@ -145,7 +145,7 @@ export default function CoverSearchBar({ onSubmit, onClose, placeholder }: Props
           }
           to {
             opacity: 0;
-            transform: scale(0.94) translateX(10px);
+            transform: scale(0.94) translateX(calc(10px * var(--vb-dir, 1)));
           }
         }
       `}</style>

@@ -475,7 +475,7 @@ export default function WalletDesktopRail({
           display: block;
           margin: -6px auto -14px;
           object-fit: contain;
-          transform: translateX(-35px);
+          transform: translateX(calc(-35px * var(--vb-dir, 1)));
         }
 
         .createCommunityCopy {
@@ -544,7 +544,7 @@ export default function WalletDesktopRail({
 
         .walletLink:hover {
           color: rgba(255, 255, 255, 0.84);
-          transform: translateX(2px);
+          transform: translateX(calc(2px * var(--vb-dir, 1)));
         }
 
         .walletLink:hover .walletIcon {

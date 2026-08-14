@@ -2182,7 +2182,12 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
     .lvm-vod-range{-webkit-appearance:none;appearance:none;width:100%;height:4px;background:rgba(255,255,255,0.28);border-radius:2px;outline:none;cursor:pointer;display:block}
     .lvm-vod-range::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:14px;height:14px;border-radius:50%;background:#fff;cursor:pointer;margin-top:-5px}
     .lvm-vod-range::-moz-range-thumb{width:14px;height:14px;border-radius:50%;background:#fff;cursor:pointer;border:none}
-    .lvm-vod-range::-webkit-slider-runnable-track{height:4px;border-radius:2px;background:linear-gradient(to right,#fff var(--pct,0%),rgba(255,255,255,0.28) var(--pct,0%))}
+    /* El relleno de la barra de progreso se voltea con --vb-dir porque el
+       <input type="range" /> nativo YA se voltea solo con dir="rtl": el tirador
+       arranca por la derecha. Si el degradado se quedara pintando de
+       izquierda a derecha, el relleno y el tirador irían por lados
+       distintos. 90deg es "to right", y -90deg, "to left". */
+    .lvm-vod-range::-webkit-slider-runnable-track{height:4px;border-radius:2px;background:linear-gradient(calc(90deg * var(--vb-dir, 1)),#fff var(--pct,0%),rgba(255,255,255,0.28) var(--pct,0%))}
     .lvm-vod-range::-moz-range-track{height:4px;border-radius:2px;background:rgba(255,255,255,0.28)}
     .lvm-vod-range::-moz-range-progress{height:4px;border-radius:2px;background:#fff}
     .lvm-vod-btn{outline:none!important;box-shadow:none!important;-webkit-tap-highlight-color:transparent}
@@ -2420,7 +2425,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
                 style={{
                   position: "absolute", insetInlineEnd: 0, bottom: 0,
                   paddingInlineStart: 28,
-                  background: "linear-gradient(to right, transparent, rgba(10,10,10,0.97) 40%)",
+                  background: "linear-gradient(calc(90deg * var(--vb-dir, 1)), transparent, rgba(10,10,10,0.97) 40%)",
                   fontSize: 12, fontWeight: 500,
                   color: "rgba(255,255,255,0.65)", cursor: "pointer", fontFamily: FONT,
                 }}

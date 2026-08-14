@@ -90,6 +90,13 @@ export default async function RootLayout({
         <style
           dangerouslySetInnerHTML={{
             __html: `
+              /* Sentido de lectura como número, para el collage de aquí abajo.
+                 Está repetido (vive en globals.css) a propósito: este bloque se
+                 pinta ANTES de que cargue la hoja, y sin la variable el mosaico
+                 arrancaría sin espejar y brincaría al llegar el CSS. */
+              :root { --vb-dir: 1; }
+              [dir="rtl"] { --vb-dir: -1; }
+
               #desktop-refresh-splash {
                 position: fixed;
                 inset: 0;
@@ -137,7 +144,7 @@ export default async function RootLayout({
                 /* translateX: la rotación -11deg hunde la esquina superior
                    derecha y dejaba ese lado descubierto, con la izquierda de
                    sobra. Se corre el mosaico a la derecha para repartirlo. */
-                transform: translateX(9vw) rotateX(15deg) rotateZ(-11deg) scale(1.08);
+                transform: translateX(calc(9vw * var(--vb-dir, 1))) rotateX(15deg) rotateZ(calc(-11deg * var(--vb-dir, 1))) scale(1.08);
                 filter: saturate(1.02);
               }
 
@@ -267,7 +274,7 @@ export default async function RootLayout({
                      espacio muerto a la derecha. */
                   width: 148.5vw;
                   gap: 10px;
-                  transform: translateX(8vw) rotateX(12deg) rotateZ(-9deg) scale(1.12);
+                  transform: translateX(calc(8vw * var(--vb-dir, 1))) rotateX(12deg) rotateZ(calc(-9deg * var(--vb-dir, 1))) scale(1.12);
                 }
 
                 /* Espejo horizontal sólo en celular (ver flipMobile en lib/collage). */

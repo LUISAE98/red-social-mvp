@@ -73,8 +73,14 @@ export default function LoginCollageBackground() {
              dejaba ese lado descubierto, con la izquierda de sobra. Se corre el
              mosaico a la derecha para repartirlo. Va también en los keyframes:
              la animación reescribe el transform completo y si no lo lleva, al
-             arrancar el drift el mosaico brincaría de vuelta al centro. */
-          transform: translateX(9vw) rotateX(15deg) rotateZ(-11deg) scale(1.08);
+             arrancar el drift el mosaico brincaría de vuelta al centro.
+
+             En RTL se voltean LOS DOS a la vez con --vb-dir, la inclinación y su
+             compensación. Voltear solo el translateX dejaría el mosaico corrido
+             hacia el lado en el que la rotación YA lo hunde, que es peor que no
+             espejar nada. La tarjeta de acceso cambia de lado en árabe, así que
+             la composición tiene que inclinarse hacia el otro para equilibrarla. */
+          transform: translateX(calc(9vw * var(--vb-dir, 1))) rotateX(15deg) rotateZ(calc(-11deg * var(--vb-dir, 1))) scale(1.08);
           filter: saturate(1.02);
           animation: loginCollageDrift 46s ease-in-out infinite alternate;
         }
@@ -127,11 +133,11 @@ export default function LoginCollageBackground() {
 
         @keyframes loginCollageDrift {
           from {
-            transform: translateX(9vw) rotateX(15deg) rotateZ(-11deg) scale(1.08)
+            transform: translateX(calc(9vw * var(--vb-dir, 1))) rotateX(15deg) rotateZ(calc(-11deg * var(--vb-dir, 1))) scale(1.08)
               translateY(0);
           }
           to {
-            transform: translateX(9vw) rotateX(15deg) rotateZ(-11deg) scale(1.08)
+            transform: translateX(calc(9vw * var(--vb-dir, 1))) rotateX(15deg) rotateZ(calc(-11deg * var(--vb-dir, 1))) scale(1.08)
               translateY(-46px);
           }
         }
@@ -162,7 +168,7 @@ export default function LoginCollageBackground() {
             grid-template-columns: repeat(3, 1fr);
             width: 148.5vw;
             gap: 10px;
-            transform: translateX(8vw) rotateX(12deg) rotateZ(-9deg) scale(1.12);
+            transform: translateX(calc(8vw * var(--vb-dir, 1))) rotateX(12deg) rotateZ(calc(-9deg * var(--vb-dir, 1))) scale(1.12);
             animation-name: loginCollageDriftMobile;
           }
 
@@ -174,11 +180,11 @@ export default function LoginCollageBackground() {
 
         @keyframes loginCollageDriftMobile {
           from {
-            transform: translateX(8vw) rotateX(12deg) rotateZ(-9deg) scale(1.12)
+            transform: translateX(calc(8vw * var(--vb-dir, 1))) rotateX(12deg) rotateZ(calc(-9deg * var(--vb-dir, 1))) scale(1.12)
               translateY(0);
           }
           to {
-            transform: translateX(8vw) rotateX(12deg) rotateZ(-9deg) scale(1.12)
+            transform: translateX(calc(8vw * var(--vb-dir, 1))) rotateX(12deg) rotateZ(calc(-9deg * var(--vb-dir, 1))) scale(1.12)
               translateY(-46px);
           }
         }
