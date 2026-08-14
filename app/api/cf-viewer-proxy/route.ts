@@ -152,6 +152,8 @@ export async function POST(req: NextRequest) {
       method: "POST",
       headers: { "Content-Type": "application/sdp" },
       body: sdpOffer,
+      // Sin timeout explícito la petición colgada se comía el de la plataforma.
+      signal: AbortSignal.timeout(10_000),
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
@@ -171,9 +173,11 @@ export async function POST(req: NextRequest) {
   }
 
   if (!cfResp.ok) {
+    // El detalle del proveedor se queda en los logs: devolverlo al cliente
+    // filtra interioridades de la infraestructura sin ayudar a quien mira.
     console.error("[cf-viewer-proxy] CF error", cfResp.status, "body:", sdpAnswer.slice(0, 300));
     return NextResponse.json(
-      { error: `Cloudflare Stream error ${cfResp.status}`, detail: sdpAnswer.slice(0, 200) },
+      { error: "No se pudo conectar con la transmisión" },
       { status: cfResp.status >= 400 && cfResp.status < 600 ? cfResp.status : 502 }
     );
   }

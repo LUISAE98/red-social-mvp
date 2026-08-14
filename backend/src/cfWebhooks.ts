@@ -9,6 +9,7 @@ import {
   notifyLiveVodReadyOwner,
   liveAudience,
 } from "./notifications";
+import { claimWebhookEvent } from "./webhookEvents";
 
 if (!getApps().length) initializeApp();
 
@@ -179,17 +180,12 @@ export const cfWebhook = onRequest(
       .createHash("sha256")
       .update(`${signature.timestamp}.${rawBody}`)
       .digest("hex");
-    const eventRef = db.collection("cfWebhookEvents").doc(eventKey);
-    try {
-      await eventRef.create({
-        state,
-        liveInputId,
-        signedAt: signature.timestamp,
-        receivedAt: FieldValue.serverTimestamp(),
-        // Para la política de TTL de Firestore sobre este campo.
-        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-      });
-    } catch {
+    const claim = await claimWebhookEvent("cfWebhookEvents", eventKey, {
+      state,
+      liveInputId,
+      signedAt: signature.timestamp,
+    });
+    if (!claim.claimed) {
       logger.info("cfWebhook entrega duplicada, ignorada", { state, uid: liveInputId });
       res.status(200).json({ received: true, duplicate: true });
       return;
@@ -465,10 +461,14 @@ export const cfWebhook = onRequest(
         liveInputId,
         err: err instanceof Error ? err.message : String(err),
       });
+      // Liberar el reclamo: si no, el reintento de Cloudflare se descartaría
+      // como duplicado y el evento quedaría perdido.
+      await claim.release();
       res.status(500).json({ error: "Processing failed" });
       return;
     }
 
+    await claim.confirm();
     res.status(200).json({ received: true });
   }
 );

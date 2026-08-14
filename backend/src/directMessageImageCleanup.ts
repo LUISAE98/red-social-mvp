@@ -16,10 +16,12 @@
  * garantizar de forma fiable.
  */
 
+import { getFirestore } from "firebase-admin/firestore";
 import { getStorage } from "firebase-admin/storage";
 import { onDocumentUpdated } from "firebase-functions/v2/firestore";
 import * as logger from "firebase-functions/logger";
 
+const db = getFirestore();
 const REGION = "us-central1";
 
 type StoredImage = {
@@ -67,6 +69,14 @@ export const onDirectMessageDeletedCleanupImage = onDocumentUpdated(
       })
     );
 
-    await event.data?.after.ref.update({ image: null });
+    // Se rearma la referencia desde los parámetros en vez de usar la del
+    // snapshot: aquella la construye el entorno que dispara el evento, y basta
+    // con que apunte a otro proyecto para que la escritura falle sin motivo
+    // aparente. Con la ruta explícita, esto escribe siempre donde debe.
+    await db
+      .doc(
+        `conversations/${event.params.convId}/messages/${event.params.messageId}`
+      )
+      .update({ image: null });
   }
 );

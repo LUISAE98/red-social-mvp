@@ -25,12 +25,9 @@ import { WALLET_COMMISSION_RATE } from "@/lib/wallet/walletFinances";
 // texto de marketing se actualiza con ella en vez de quedar desincronizado.
 export const COMMISSION_PCT = Math.round(WALLET_COMMISSION_RATE * 100);
 
-export const PERK_KEYS = [
-  "onboardingPerk1",
-  "onboardingPerk2",
-  "onboardingPerk3",
-  "onboardingPerk4",
-] as const;
+// `onboardingPerk2` ("Sin censura política") queda fuera a propósito. La clave
+// se conserva traducida por si se retoma, igual que el hueco de HERO_LIST_KEYS.
+export const PERK_KEYS = ["onboardingPerk1", "onboardingPerk3", "onboardingPerk4"] as const;
 
 export const FEE_PERK_KEYS = [
   "onboardingFeePerk1",

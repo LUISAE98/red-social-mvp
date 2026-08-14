@@ -26,11 +26,10 @@ export const healthcheck = onRequest(
       path: req.path,
     });
 
-    res.status(200).json({
-      status: "ok",
-      service: "red-social-mvp-backend",
-      timestamp: new Date().toISOString(),
-    });
+    // Sin nombre de servicio ni reloj del servidor: un healthcheck solo tiene
+    // que decir que está vivo, y esos dos datos solo sirven para perfilar la
+    // infraestructura desde fuera.
+    res.status(200).json({ status: "ok" });
   }
 );
 

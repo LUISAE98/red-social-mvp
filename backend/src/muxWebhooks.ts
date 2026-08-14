@@ -14,6 +14,7 @@ import { onRequest } from "firebase-functions/v2/https";
 import { createMuxClient, muxTokenId, muxTokenSecret } from "./mux";
 import { stripeSecretKey } from "./payments/stripe/stripeClient";
 import { capturePaymentIntentForRef } from "./payments/stripe/holdCapture";
+import { claimWebhookEvent } from "./webhookEvents";
 import {
   enqueueAudienceFanout,
   notifyLiveVodReadyOwner,
@@ -42,6 +43,7 @@ type MuxPassthrough = {
 };
 
 type MuxWebhookEvent = {
+  id?: string;
   type?: string;
   data?: {
     id?: string;
@@ -1122,17 +1124,32 @@ export const muxWebhook = onRequest(
       return;
     }
 
+    // Idempotencia: Mux reintenta las entregas y no había dedup. `markAssetReady`
+    // dispara notificaciones de audiencia, que no son idempotentes.
+    // Sin `id` en el evento se procesa igual, para no descartar uno legítimo.
+    const claim = event.id
+      ? await claimWebhookEvent("muxWebhookEvents", event.id, { type: event.type ?? null })
+      : null;
+    if (claim && !claim.claimed) {
+      logger.info("muxWebhook duplicate", { type: event.type, id: event.id });
+      res.status(200).json({ received: true, duplicate: true });
+      return;
+    }
+
     // For live_stream.idle, respond to Mux immediately (5-second timeout) then
     // apply a delay so the HLS player buffer drains before the UI transitions
     // to "ended". Without this, viewers see a flash: the "ended" overlay
     // appears while the stream's latency buffer is still playing.
     if (event.type === "video.live_stream.idle") {
       res.status(200).json({ received: true });
-      await handleLiveStreamIdle(event).catch((err) =>
-        logger.error("muxWebhook live_stream.idle deferred error", {
-          error: err instanceof Error ? err.message : String(err),
-        })
-      );
+      await handleLiveStreamIdle(event)
+        .then(() => claim?.confirm())
+        .catch(async (err) => {
+          logger.error("muxWebhook live_stream.idle deferred error", {
+            error: err instanceof Error ? err.message : String(err),
+          });
+          await claim?.release();
+        });
       return;
     }
 
@@ -1154,6 +1171,7 @@ export const muxWebhook = onRequest(
           break;
       }
 
+      await claim?.confirm();
       res.status(200).json({ received: true });
     } catch (error) {
       logger.error("muxWebhook processing failed", {
@@ -1161,6 +1179,8 @@ export const muxWebhook = onRequest(
         error: error instanceof Error ? error.message : String(error),
       });
 
+      // Liberar para que el reintento de Mux pueda procesarlo.
+      await claim?.release();
       res.status(500).json({ error: "Webhook processing failed" });
     }
   }

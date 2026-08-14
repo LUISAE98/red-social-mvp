@@ -3,7 +3,7 @@
 
 import {
   collection, doc, addDoc, getDoc, getDocs, query, where, limit,
-  setDoc, serverTimestamp, writeBatch, runTransaction, Timestamp,
+  setDoc, serverTimestamp, writeBatch, Timestamp,
 } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import {
@@ -20,6 +20,7 @@ import { assertMembershipCanInteract, resolveEffectiveMembershipStatus } from ".
 import { buildPremiumAccessFields } from "./premium";
 import { buildPostSearchIndex } from "./postSearchIndex";
 import { MAX_POST_IMAGES, MAX_POST_VIDEOS } from "./types";
+import { callCheckRateLimit } from "./rateLimitClient";
 import type {
   Post, PostContextType, PostLiveData, PostMedia, PostPremium, LiveVisibilityMode,
 } from "./types";
@@ -216,50 +217,14 @@ export function buildPostSearchIndexForContext(params: {
     premiumFreeFor: premium?.freeFor ?? null,
   };
 }
+// El conteo lo lleva el servidor (`checkRateLimitPost` en backend/rateLimiter.ts).
+// Antes esta lógica corría en el cliente escribiendo `rateLimits` directo, y como
+// el dueño podía escribir su propio documento, reiniciar `lastAt` bastaba para
+// saltarse el límite. Ver `lib/posts/rateLimitClient.ts`.
 export async function enforcePostRateLimit(): Promise<void> {
   const user = auth.currentUser;
   if (!user?.uid) throw new Error("Debes iniciar sesión.");
-  const INTERVAL_MS = 10_000;
-  const MAX_PER_HOUR = 20;
-  const docRef = doc(db, "rateLimits", `${user.uid}_post`);
-  const nowMs = Date.now();
-  const oneHourAgoMs = nowMs - 60 * 60 * 1000;
-  try {
-    await runTransaction(db, async (tx) => {
-      const snap = await tx.get(docRef);
-      let lastAtMs = 0;
-      let hourTimestamps: Timestamp[] = [];
-      if (snap.exists()) {
-        const data = snap.data()!;
-        const lastAt = data.lastAt as Timestamp | undefined;
-        lastAtMs = lastAt ? lastAt.toMillis() : 0;
-        hourTimestamps = ((data.hourTimestamps as Timestamp[]) ?? []).filter(
-          (ts: Timestamp) => ts.toMillis() > oneHourAgoMs
-        );
-      }
-      if (nowMs - lastAtMs < INTERVAL_MS) {
-        const waitSec = Math.ceil((INTERVAL_MS - (nowMs - lastAtMs)) / 1000);
-        throw new Error(`Espera ${waitSec}s antes de publicar de nuevo.`);
-      }
-      if (hourTimestamps.length >= MAX_PER_HOUR) {
-        throw new Error(`Alcanzaste el límite de ${MAX_PER_HOUR} publicaciones por hora.`);
-      }
-      const nowTs = Timestamp.fromMillis(nowMs);
-      tx.set(docRef, { lastAt: nowTs, hourTimestamps: [...hourTimestamps, nowTs] });
-    });
-  } catch (err: unknown) {
-    const isFirestorePermissionError =
-      err != null &&
-      typeof err === "object" &&
-      "code" in err &&
-      (err as { code: string }).code === "permission-denied";
-    if (isFirestorePermissionError) {
-      console.error("[enforcePostRateLimit] Firestore permission denied on rateLimits write:", err);
-      // Regla de rate limit bloqueada — no interrumpir la publicación por esto
-      return;
-    }
-    throw err;
-  }
+  await callCheckRateLimit("checkRateLimitPost");
 }
 
 export async function createTextPost(params: {

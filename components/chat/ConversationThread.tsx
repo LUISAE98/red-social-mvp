@@ -1,5 +1,7 @@
 "use client";
 
+import { useDirectionFactor } from "@/lib/i18n/useDirectionFactor";
+
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 
@@ -556,6 +558,13 @@ export default function ConversationThread({
    * él. El `touch-action: pan-y` del renglón es la otra mitad de eso — le dice al
    * navegador que lo horizontal es nuestro y lo vertical suyo.
    */
+  // +1 / -1 según el sentido de lectura. Deslizar para responder se hace hacia el
+  // lado por el que EMPIEZA la línea: a la derecha leyendo de izquierda a derecha,
+  // y a la izquierda en árabe. Como en el resto de gestos, `dx` y `pull` se llevan
+  // en LÓGICO y se vuelve a multiplicar solo al pintar; así el rechazo de `dx <= 0`
+  // y el umbral de abajo siguen valiendo sin tocarlos. La pista ya se ancla con
+  // insetInlineEnd, o sea que esa se voltea sola.
+  const dirX = useDirectionFactor();
   const swipeRef = useRef<{
     message: MessageWithId;
     startX: number;
@@ -597,7 +606,7 @@ export default function ConversationThread({
     const touch = e.touches[0];
     if (!swipe || !touch) return;
 
-    const dx = touch.clientX - swipe.startX;
+    const dx = (touch.clientX - swipe.startX) * dirX;
     const dy = touch.clientY - swipe.startY;
 
     if (swipe.axis === "undecided") {
@@ -617,7 +626,7 @@ export default function ConversationThread({
         : REPLY_SWIPE_MAX + (dx - REPLY_SWIPE_MAX) * 0.15;
     const progress = Math.min(1, pull / REPLY_SWIPE_THRESHOLD);
 
-    swipe.slider.style.transform = `translateX(${pull}px)`;
+    swipe.slider.style.transform = `translateX(${pull * dirX}px)`;
     swipe.cue.style.opacity = String(progress);
     swipe.cue.style.transform = `scale(${0.6 + progress * 0.4})`;
 

@@ -220,16 +220,15 @@ service cloud.firestore {
     // RATE LIMITS (client-side enforcement)
     // ==========================
     match /rateLimits/{docId} {
-      // Solo el propio usuario puede leer y escribir su documento de rate limit.
-      // El docId tiene formato "{uid}_post" o "{uid}_comment".
+      // El usuario puede LEER su contador, pero NO escribirlo. Antes podía, y
+      // como el documento guarda su propia ventana (`lastAt`, `hourTimestamps`),
+      // bastaba con reescribirlo para reiniciar el límite y publicar sin freno.
+      // Ahora solo lo escribe el callable `checkRateLimitPost`/`Comment` con el
+      // Admin SDK, en transacción.
       allow read: if signedIn()
         && (docId == request.auth.uid + '_post'
             || docId == request.auth.uid + '_comment');
-      allow write: if signedIn()
-        && (docId == request.auth.uid + '_post'
-            || docId == request.auth.uid + '_comment')
-        && request.resource.data.keys().hasOnly(['lastAt', 'hourTimestamps'])
-        && request.resource.data.lastAt is timestamp;
+      allow write: if false;
     }
 
     // Configuración pública de solo lectura (catálogo/tasas de cambio).
@@ -3445,6 +3444,22 @@ function canUpdateReplyCount(delta) {
     match /adminProfiles/{uid} {
       allow read: if isPlatformMod();
       allow write: if isPlatformMod() && request.auth.uid == uid;
+    }
+
+    // ==========================
+    // CUENTAS CONECTADAS DE STRIPE (retiros del creador)
+    // ==========================
+    // Estado del alta de la cuenta conectada. Lo escribe SOLO el backend, desde el
+    // webhook `account.updated` de Connect. El creador únicamente lee la suya.
+    //
+    // Aquí NO hay PII: los datos de identidad los custodia Stripe. Solo se guardan
+    // banderas (payoutsEnabled), requisitos pendientes y el id de la cuenta.
+    //
+    // 🚨 Que el cliente NO pueda escribir es lo que impide que alguien se marque a sí
+    //    mismo como verificado para desbloquear el retiro.
+    match /stripeAccounts/{userId} {
+      allow read: if signedIn() && request.auth.uid == userId;
+      allow write: if false;
     }
 
     // ==========================

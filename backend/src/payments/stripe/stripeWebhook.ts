@@ -16,6 +16,7 @@ import { applyApprovedPaymentToSource, applyAuthorizedHoldToSource, upsertPaymen
 import { stripeFetch, stripeSecretKey } from "./stripeClient";
 import { reconcileStripeSubscriptionEvent } from "./groupSubscriptionStripeSync";
 import { reconcileStripeRefundEvent } from "./stripeRefundSync";
+import { claimWebhookEvent } from "../../webhookEvents";
 
 if (admin.apps.length === 0) {
   admin.initializeApp();
@@ -105,9 +106,11 @@ export const stripeWebhook = onRequest(
       return;
     }
 
-    // Idempotencia: si ya procesamos este evento, 200 y salir.
-    const evRef = db.collection("stripeEvents").doc(event.id);
-    if ((await evRef.get()).exists) {
+    // Idempotencia ATÓMICA. Antes era `get()` → procesar → `set()`, y dos
+    // entregas concurrentes del mismo evento leían "no existe" a la vez: las dos
+    // procesaban y acuñaban el asiento del ledger por duplicado.
+    const claim = await claimWebhookEvent("stripeEvents", event.id, { type: event.type });
+    if (!claim.claimed) {
       res.status(200).send("duplicate");
       return;
     }
@@ -186,10 +189,13 @@ export const stripeWebhook = onRequest(
         logger.info("stripeWebhook event", { type: event.type, id: event.id });
       }
 
-      await evRef.set({ type: event.type, processedAt: admin.firestore.FieldValue.serverTimestamp() });
+      await claim.confirm();
       res.status(200).send("ok");
     } catch (err) {
       logger.error("stripeWebhook handler failed", { type: event.type, err: err instanceof Error ? err.message : String(err) });
+      // Liberar el reclamo: si no, el reintento de Stripe se vería como
+      // duplicado y el evento quedaría perdido para siempre.
+      await claim.release();
       res.status(500).send("error"); // Stripe reintenta.
     }
   }

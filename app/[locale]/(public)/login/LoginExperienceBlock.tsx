@@ -1,46 +1,26 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import ServiceFeaturePreview from "@/components/services/ServiceFeaturePreview";
 import { useMediaQuery } from "@/lib/hooks/useMediaQuery";
 
 /**
  * Un bloque de experiencia del login (debajo del fold).
  *
  * En laptop ocupa una FILA completa partida en dos mitades: de un lado el video
- * circular con el título y la descripción, del otro los items. El lado de los
- * items se ALTERNA fila tras fila (`itemsLeft`), que es lo que le da ritmo a la
- * lectura en vez de una columna monótona.
+ * circular con el antetítulo y el título, del otro la descripción. El lado se
+ * ALTERNA fila tras fila (`itemsLeft`), que es lo que le da ritmo a la lectura
+ * en vez de una columna monótona.
  *
- * En celular se apila todo; el acomodo fino de móvil es un paso aparte.
+ * En celular se apila en el mismo orden del HTML —video, puntos, antetítulo,
+ * título, descripción—, así que el cambio de mitades no lo afecta.
  */
-
-/**
- * Servicios que hoy tienen bloque propio en el login. Es un subconjunto de los
- * que acepta ServiceFeaturePreview: se amplía conforme se sumen experiencias.
- */
-type ServiceKey =
-  | "saludo"
-  | "consejo"
-  | "meetGreet"
-  | "customClass"
-  | "profileDonation"
-  | "liveDonation"
-  | "liveAccess"
-  | "vodUnlock"
-  | "superComments"
-  | "premiumPost"
-  | "subscription";
 
 export default function LoginExperienceBlock({
   eyebrow,
   title,
   description,
   videoSrc,
-  service,
   accentColor,
-  items,
-  omitIcons,
   itemsLeft = false,
   active = true,
   carousel = null,
@@ -51,27 +31,12 @@ export default function LoginExperienceBlock({
   description: string;
   /** ⚠️ Hoy son videos de MUESTRA; se cambian por los definitivos más adelante. */
   videoSrc: string;
-  /**
-   * Servicio(s) de los que se listan los items (reutiliza ServiceFeaturePreview).
-   * Con varios, un solo bloque cubre varias experiencias emparentadas y sus
-   * listas se apilan una tras otra.
-   */
-  service: ServiceKey | readonly ServiceKey[];
   accentColor: string;
   /**
-   * Items propios en vez de los del servicio. Necesario cuando una card cubre
-   * varias experiencias: los textos de ServiceFeaturePreview hablan de una
-   * sola ("recibes un saludo…") y aquí tienen que abarcar todas.
-   * Solo aplica con UN servicio; con varios, cada uno trae los suyos.
+   * La DESCRIPCIÓN va a la izquierda y la presentación a la derecha. Se alterna
+   * bloque a bloque. (El nombre viene de cuando esa mitad llevaba una lista de
+   * items; se conserva para no tocar los cinco llamados.)
    */
-  items?: readonly { icon: string; title: string; description: string }[];
-  /**
-   * Esconde items del servicio por su icono, conservando los demás con su
-   * traducción. Sirve para los que no aplican en el login, donde todavía no
-   * hay un creador concreto detrás.
-   */
-  omitIcons?: readonly string[];
-  /** Los items van a la IZQUIERDA. Se alterna bloque a bloque. */
   itemsLeft?: boolean;
   /**
    * El bloque es el visible. En laptop siempre lo es; en el carrusel de celular
@@ -87,8 +52,6 @@ export default function LoginExperienceBlock({
    */
   carousel?: { count: number; current: number; onSelect: (i: number) => void } | null;
 }) {
-  const services = Array.isArray(service) ? service : [service as ServiceKey];
-
   // Entrada al hacer scroll. Se dispara UNA vez, con el 22% del bloque a la
   // vista, y a partir de ahí el CSS encadena video → texto → items.
   const sectionRef = useRef<HTMLElement | null>(null);
@@ -207,13 +170,13 @@ export default function LoginExperienceBlock({
           box-sizing: border-box;
         }
 
-        /* Alternado: los items pasan a la primera columna. Se hace con la
+        /* Alternado: la descripción pasa a la primera columna. Se hace con la
            propiedad order y no reordenando el HTML, para que el lector de
-           pantalla siga leyendo antes la presentación que su lista. */
+           pantalla siga leyendo antes la presentación que su descripción. */
         .expBlockFlip .expBlockMain {
           order: 2;
         }
-        .expBlockFlip .expBlockItems {
+        .expBlockFlip .expBlockAside {
           order: 1;
         }
 
@@ -268,32 +231,25 @@ export default function LoginExperienceBlock({
           max-width: 20ch;
         }
 
+        /* La mitad de la descripción. Centrada en su columna, con el texto
+           centrado igual que la presentación de enfrente. */
+        .expBlockAside {
+          display: flex;
+          justify-content: center;
+          min-width: 0;
+        }
+
         .expBlockDesc {
-          margin: 13px auto 0;
+          margin: 0;
           max-width: 44ch;
           font-size: clamp(12.5px, 0.92vw, 14px);
           line-height: 1.65;
+          text-align: center;
           color: rgba(255, 255, 255, 0.86);
         }
 
-        /* Items. Se reutiliza ServiceFeaturePreview, que ya trae iconos y textos
-           —y su variante en voz de FAN—, para que el login diga lo mismo que la
-           tarjeta del creador y no haya dos copys que mantener.
-           El zoom los AGRANDA: sus tamaños (11px el título, 10px la descripción)
-           están pensados para las tarjetas del creador y aquí se leían chicos. */
-        .expBlockItems {
-          text-align: start;
-          min-width: 0;
-          zoom: 1.3;
-        }
-
-        /* Con varios servicios, sus listas se apilan con aire entre ellas. */
-        .expBlockItems > :global(div) + :global(div) {
-          margin-top: 14px;
-        }
-
-        /* Celular: una sola columna y los items SIEMPRE debajo, sin importar el
-           alternado. (El acomodo fino de móvil se hace aparte.) */
+        /* Celular: una sola columna, y la descripción SIEMPRE debajo del
+           título, sin importar el alternado. */
         @media (max-width: 900px) {
           .expBlock {
             grid-template-columns: 1fr;
@@ -301,23 +257,20 @@ export default function LoginExperienceBlock({
             padding: 24px 20px;
           }
           .expBlockFlip .expBlockMain,
-          .expBlockFlip .expBlockItems {
+          .expBlockFlip .expBlockAside {
             order: initial;
           }
-          .expBlockItems {
-            margin-top: 18px;
-            max-width: 420px;
-            margin-inline-start: auto;
-            margin-inline-end: auto;
+          .expBlockAside {
+            margin-top: 13px;
           }
         }
 
         /* ── Entrada ──────────────────────────────────────────────────────
            Estado de partida de cada pieza. La clase .expBlockIn (la pone el
-           observador al entrar el bloque) las lleva a su sitio; los retrasos
-           son lo que arma la secuencia video → texto → items, poco más de un
-           segundo en total. La curva es de salida rápida y frenado largo, que
-           es lo que hace que se sienta un movimiento y no un parpadeo. */
+           observador al entrar el bloque) las lleva a su sitio; el retraso del
+           texto es lo que arma la secuencia video → texto. La curva es de
+           salida rápida y frenado largo, que es lo que hace que se sienta un
+           movimiento y no un parpadeo. */
         .expBlockMedia {
           opacity: 0;
           transform: translateY(20px) scale(0.92);
@@ -346,53 +299,12 @@ export default function LoginExperienceBlock({
           transform: none;
         }
 
-        /* Los items entran DESDE SU LADO —de la izquierda si están a la
-           izquierda— para que el movimiento acompañe al alternado en vez de
-           contradecirlo. Los selectores llegan a las filas que arma
-           ServiceFeaturePreview (mosaico > fila). */
-        .expBlockItems > :global(div) > :global(div) {
-          opacity: 0;
-          transform: translateX(20px);
-          transition:
-            opacity 520ms ease,
-            transform 520ms cubic-bezier(0.22, 1, 0.36, 1);
-        }
-        .expBlockFlip .expBlockItems > :global(div) > :global(div) {
-          transform: translateX(-20px);
-        }
-        .expBlockIn .expBlockItems > :global(div) > :global(div) {
-          opacity: 1;
-          transform: none;
-        }
-
-        /* Uno por uno, 100 ms de separación, arrancando cuando el texto ya va
-           en camino. */
-        .expBlockItems > :global(div) > :global(div):nth-child(1) {
-          transition-delay: 260ms;
-        }
-        .expBlockItems > :global(div) > :global(div):nth-child(2) {
-          transition-delay: 360ms;
-        }
-        .expBlockItems > :global(div) > :global(div):nth-child(3) {
-          transition-delay: 460ms;
-        }
-        .expBlockItems > :global(div) > :global(div):nth-child(4) {
-          transition-delay: 560ms;
-        }
-        .expBlockItems > :global(div) > :global(div):nth-child(5) {
-          transition-delay: 660ms;
-        }
-        .expBlockItems > :global(div) > :global(div):nth-child(6) {
-          transition-delay: 760ms;
-        }
-
         @media (prefers-reduced-motion: reduce) {
           /* Quien pidió menos movimiento ve el bloque puesto, sin recorrido. */
           .expBlockMedia,
           .expBlockEyebrow,
           .expBlockTitle,
-          .expBlockDesc,
-          .expBlockItems > :global(div) > :global(div) {
+          .expBlockDesc {
             opacity: 1;
             transform: none;
             transition: none;
@@ -462,24 +374,12 @@ export default function LoginExperienceBlock({
         </p>
 
         <h2 className="expBlockTitle">{title}</h2>
-
-        <p className="expBlockDesc">{description}</p>
       </div>
 
-      <div className="expBlockItems">
-        {services.map((s) => (
-          <ServiceFeaturePreview
-            key={s}
-            service={s}
-            accentColor={accentColor}
-            audience="user"
-            cells={services.length === 1 ? items : undefined}
-            omitIcons={omitIcons}
-            columns={1}
-            // Sobre negro puro, el 42% de blanco por defecto casi no se lee.
-            descColor="rgba(255,255,255,0.78)"
-          />
-        ))}
+      {/* La descripción ocupa la otra mitad. Va DESPUÉS en el HTML, así que al
+          apilarse en celular cae justo debajo del título, como estaba. */}
+      <div className="expBlockAside">
+        <p className="expBlockDesc">{description}</p>
       </div>
     </section>
   );

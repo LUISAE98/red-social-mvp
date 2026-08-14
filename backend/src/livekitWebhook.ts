@@ -18,6 +18,7 @@ import {
 } from "livekit-server-sdk";
 import { livekitApiKey, livekitApiSecret } from "./livekit";
 import { notifySessionEvent } from "./notifications";
+import { claimWebhookEvent } from "./webhookEvents";
 
 /** Deriva el tipo de sesión (para las notificaciones) desde la colección del doc. */
 function sessionTypeOfRef(ref: admin.firestore.DocumentReference): string {
@@ -396,6 +397,21 @@ export const livekitWebhook = onRequest(
       id: event.id,
     });
 
+    // ── Idempotencia ──────────────────────────────────────────────────────────
+    // LiveKit reintenta las entregas y no había dedup: `handleParticipantPresence`
+    // y los `egress_*` escriben estado de sesión, así que reprocesar el mismo
+    // evento podía descuadrar la presencia o duplicar el ciclo de grabación.
+    // Sin `id` no hay forma de deduplicar, así que se procesa (comportamiento
+    // anterior) en vez de descartar un evento posiblemente único.
+    const claim = event.id
+      ? await claimWebhookEvent("livekitWebhookEvents", event.id, { event: event.event })
+      : null;
+    if (claim && !claim.claimed) {
+      logger.info("livekit_webhook_duplicate", { event: event.event, id: event.id });
+      res.status(200).send("duplicate");
+      return;
+    }
+
     // ── Despachar evento ──────────────────────────────────────────────────────
     try {
       switch (event.event) {
@@ -421,11 +437,14 @@ export const livekitWebhook = onRequest(
           // room_started, track_* — no requieren acción
           break;
       }
+      await claim?.confirm();
     } catch (err: unknown) {
       logger.error("livekit_webhook_handler_error", {
         event: event.event,
         err,
       });
+      // Liberar para no dejar el evento inservible ante un fallo transitorio.
+      await claim?.release();
     }
 
     res.status(200).send("ok");

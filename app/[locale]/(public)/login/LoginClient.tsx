@@ -1049,24 +1049,7 @@ marginBottom: 6,
           title="Cuando es para ti, se siente distinto"
           description="Un saludo para hacer inolvidable un momento. Un consejo para dar el siguiente paso. Pídelo a quien admiras o grábalo para alguien que eligió escucharte."
           videoSrc={fuenteVideo(VIDEOS_EXPERIENCIAS[0])}
-          service="saludo"
           accentColor="#a855f7"
-          // Los textos por servicio hablan solo del saludo; esta card cubre
-          // también los consejos, así que se escriben aquí para abarcar ambos.
-          items={[
-            {
-              icon: "check",
-              title: "Saludo o consejo personalizado",
-              description:
-                "Se graba a partir de lo que tú cuentes, con tu nombre, la ocasión o eso que quieres resolver.",
-            },
-            {
-              icon: "download",
-              title: "Descargable",
-              description:
-                "El video queda en alta calidad para que lo guardes, lo veas cuando quieras y lo compartas.",
-            },
-          ]}
         />
 
         <LoginExperienceBlock
@@ -1074,32 +1057,7 @@ marginBottom: 6,
           title="Cuando el tiempo es para ustedes, todo cambia"
           description="Una conversación, una guía o una experiencia compartida en tiempo real. Reserva un momento con quien admiras o abre un espacio para quienes quieren conectar contigo."
           videoSrc={fuenteVideo(VIDEOS_EXPERIENCIAS[1])}
-          service="meetGreet"
           accentColor="#ec4899"
-          // Lista propia: la del servicio hablaba solo del meet & greet y este
-          // card cubre también las sesiones exclusivas. Fuera quedan la
-          // duración —cada creador fija la suya— y el "Qué incluye", que abría
-          // una lista dentro de la lista.
-          items={[
-            {
-              icon: "camera",
-              title: "Conversación en privado",
-              description:
-                "Un momento en videollamada para conversar, pedir orientación o compartir una experiencia directamente con el creador.",
-            },
-            {
-              icon: "calendar",
-              title: "Elige cuándo conectar",
-              description:
-                "Consulta los horarios disponibles y reserva desde la agenda el momento que mejor funcione para ambos.",
-            },
-            {
-              icon: "download",
-              title: "Guarda el momento",
-              description:
-                "Al terminar, recibe la grabación para descargarla y conservar lo mejor de la conversación.",
-            },
-          ]}
         />
 
         <LoginExperienceBlock
@@ -1108,24 +1066,7 @@ marginBottom: 6,
           title="Cuando valoras lo que alguien crea, puedes hacerlo sentir"
           description="Apoya desde su perfil o dentro de su comunidad y forma parte de lo que está construyendo. Comparte tu reconocimiento o recibe el impulso de quienes creen en ti."
           videoSrc={fuenteVideo(VIDEOS_EXPERIENCIAS[2])}
-          service="profileDonation"
           accentColor="#38bdf8"
-          // Escritos aquí porque los del servicio hablan solo del perfil y en
-          // tercera persona ("el creador…"), que en el login suena a manual.
-          items={[
-            {
-              icon: "handHeart",
-              title: "Apoyo directo",
-              description:
-                "Envía una donación desde un perfil o una comunidad, cuando quieras, para impulsar lo que ese creador está construyendo.",
-            },
-            {
-              icon: "liveHeart",
-              title: "Donaciones en vivo",
-              description:
-                "Hazte presente durante una transmisión con una donación y comparte tu apoyo justo mientras el momento está sucediendo.",
-            },
-          ]}
         />
 
         {/* Un solo card junta las tres experiencias del directo y el contenido
@@ -1135,33 +1076,9 @@ marginBottom: 6,
           title="Hay experiencias que merecen vivirse más cerca"
           description="Accede a transmisiones especiales, haz que tu mensaje destaque y disfruta contenido premium cuando tú quieras. En vivo o después, crea experiencias que tu comunidad estará dispuesta a elegir."
           videoSrc={fuenteVideo(VIDEOS_EXPERIENCIAS[3])}
-          service="liveAccess"
           // El mismo rojo del directo (aro, badge LIVE, panel del creador), no
           // uno nuevo: el color ya significa "en vivo" en el resto de la app.
           accentColor="#ef4444"
-          // Una lista propia para las tres experiencias del card. Antes se
-          // apilaban las listas de dos servicios (liveAccess y vodUnlock) y
-          // salían seis items, con el ticket contado dos veces.
-          items={[
-            {
-              icon: "ticket",
-              title: "Ticket live",
-              description:
-                "Entra a transmisiones exclusivas comprando tu acceso y vive en directo un momento creado para una audiencia especial.",
-            },
-            {
-              icon: "commentStar",
-              title: "Supercomentarios",
-              description:
-                "Haz que tu mensaje destaque durante la transmisión para compartir tu apoyo y tener más posibilidades de ser visto por el creador.",
-            },
-            {
-              icon: "videoLock",
-              title: "VOD premium",
-              description:
-                "Desbloquea transmisiones grabadas y videos especiales para disfrutarlos cuando quieras, a tu propio ritmo.",
-            },
-          ]}
         />
 
         <LoginExperienceBlock
@@ -1170,28 +1087,7 @@ marginBottom: 6,
           title="Lo mejor se comparte con quienes deciden estar más cerca"
           description="Suscríbete para descubrir una parte diferente de quien sigues o accede solo a las publicaciones que elijas. Comparte algo más con tu comunidad y convierte cada publicación en una experiencia especial."
           videoSrc={fuenteVideo(VIDEOS_EXPERIENCIAS[4])}
-          service="subscription"
           accentColor="#3b82f6"
-          items={[
-            {
-              icon: "memberBadge",
-              title: "Suscripciones",
-              description:
-                "Únete a la comunidad de un creador para disfrutar cada mes contenido exclusivo y beneficios reservados para sus miembros.",
-            },
-            {
-              icon: "postUnlocked",
-              title: "Publicaciones premium",
-              description:
-                "Desbloquea únicamente las publicaciones que te interesen con un solo pago, sin necesidad de suscribirte.",
-            },
-            {
-              icon: "postStar",
-              title: "Contenido en el feed",
-              description:
-                "Descubre publicaciones premium directamente en perfiles y comunidades, junto al contenido que ya disfrutas.",
-            },
-          ]}
         />
         </LoginExperienceRail>
 

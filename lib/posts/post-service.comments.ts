@@ -11,6 +11,7 @@ import {
 import { httpsCallable } from "firebase/functions";
 import { auth, db, functions } from "@/lib/firebase";
 import { pickString, assertValidId } from "./post-service.helpers";
+import { callCheckRateLimit } from "./rateLimitClient";
 import {
   getCurrentAuthorSnapshot,
   fetchUsersByIds,
@@ -64,36 +65,15 @@ function getPostCommentsCacheKey(postId: string, viewerUid?: string | null): str
  * borrada, o el viewer no puede leerla (reglas / bloqueo). Usada por la página
  * de post individual y el deep-link de notificaciones.
  */
+// El conteo lo lleva el servidor (`checkRateLimitComment` en backend/rateLimiter.ts).
+// Antes esta misma lógica corría en el cliente escribiendo `rateLimits` directo,
+// y como el dueño podía escribir su propio documento, bastaba con reiniciar
+// `lastAt` para saltarse el límite. Ahora esa colección es de solo lectura para
+// el cliente y el único que la escribe es el callable.
 async function enforceCommentRateLimit(): Promise<void> {
   const user = auth.currentUser;
   if (!user?.uid) throw new Error("Debes iniciar sesión.");
-  const INTERVAL_MS = 3_000;
-  const MAX_PER_HOUR = 60;
-  const docRef = doc(db, "rateLimits", `${user.uid}_comment`);
-  const nowMs = Date.now();
-  const oneHourAgoMs = nowMs - 60 * 60 * 1000;
-  await runTransaction(db, async (tx) => {
-    const snap = await tx.get(docRef);
-    let lastAtMs = 0;
-    let hourTimestamps: Timestamp[] = [];
-    if (snap.exists()) {
-      const data = snap.data()!;
-      const lastAt = data.lastAt as Timestamp | undefined;
-      lastAtMs = lastAt ? lastAt.toMillis() : 0;
-      hourTimestamps = ((data.hourTimestamps as Timestamp[]) ?? []).filter(
-        (ts: Timestamp) => ts.toMillis() > oneHourAgoMs
-      );
-    }
-    if (nowMs - lastAtMs < INTERVAL_MS) {
-      const waitSec = Math.ceil((INTERVAL_MS - (nowMs - lastAtMs)) / 1000);
-      throw new Error(`Espera ${waitSec}s antes de comentar de nuevo.`);
-    }
-    if (hourTimestamps.length >= MAX_PER_HOUR) {
-      throw new Error(`Alcanzaste el límite de ${MAX_PER_HOUR} comentarios por hora.`);
-    }
-    const nowTs = Timestamp.fromMillis(nowMs);
-    tx.set(docRef, { lastAt: nowTs, hourTimestamps: [...hourTimestamps, nowTs] });
-  });
+  await callCheckRateLimit("checkRateLimitComment");
 }
 
 /** Comentarios por tanda. El panel pide la siguiente al llegar arriba del todo. */

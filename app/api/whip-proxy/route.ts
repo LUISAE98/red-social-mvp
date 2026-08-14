@@ -63,6 +63,7 @@ export async function POST(req: NextRequest) {
       method: "POST",
       headers: { "Content-Type": "application/sdp" },
       body: sdpOffer,
+      signal: AbortSignal.timeout(10_000),
     });
   } catch (err) {
     console.error("[whip-proxy] fetch error:", err instanceof Error ? err.message : err);
@@ -74,8 +75,10 @@ export async function POST(req: NextRequest) {
   console.info("[whip-proxy] CF SDP answer directions:", sdpAnswer.match(/a=(sendrecv|sendonly|recvonly|inactive)/g));
 
   if (!cfResp.ok) {
+    // El cuerpo del error de Cloudflare se queda en el log, no en la respuesta.
+    console.error("[whip-proxy] CF error", cfResp.status, "body:", sdpAnswer.slice(0, 300));
     return NextResponse.json(
-      { error: `Cloudflare error ${cfResp.status}`, body: sdpAnswer },
+      { error: "No se pudo iniciar la transmisión" },
       { status: cfResp.status >= 400 && cfResp.status < 600 ? cfResp.status : 502 }
     );
   }
