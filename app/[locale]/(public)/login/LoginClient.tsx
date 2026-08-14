@@ -19,10 +19,10 @@ import { auth, db } from "@/lib/firebase";
 import { useRouter, useSearchParams } from "next/navigation";
 import { getNextFromSearchParams } from "@/lib/auth-redirect";
 import LoginCollageBackground from "./LoginCollageBackground";
-import WalletOnboarding from "@/app/[locale]/(protected)/wallet/components/WalletOnboarding";
 import LoginExperienceBlock from "./LoginExperienceBlock";
 import LoginExperienceRail from "./LoginExperienceRail";
 import LoginCommunityCards from "./LoginCommunityCards";
+import LoginCreatorPanel from "./LoginCreatorPanel";
 
 /**
  * ⚠️ TEMPORAL — video de muestra compartido por los bloques que todavía no
@@ -41,8 +41,8 @@ const VIDEO_MUESTRA = "/videosaludosyconsejos.mp4";
 const VIDEOS_EXPERIENCIAS = [
   "/videosaludosyconsejos.mp4",
   "/videosesiones3.mp4",
-  VIDEO_MUESTRA,
-  VIDEO_MUESTRA,
+  "/donacionesvideo.mp4",
+  "/streamvideo.mp4",
   VIDEO_MUESTRA,
 ] as const;
 
@@ -172,18 +172,19 @@ useEffect(() => {
 
 const contenidoDentro = paginaAbierta && paneALaVista;
 
-// La presentación de creador (comisión, wallet, garantías) arranca OCULTA: la
+// La presentación de creador (comisión, wallet, alcance) arranca OCULTA: la
 // página está escrita para quien viene a consumir. Se abre desde su botón.
+//
+// El relevo es en dos tiempos: al pulsar, la invitación se DESVANECE y solo
+// cuando terminó de salir entra el panel. Sin esa espera, uno aparecería encima
+// del otro y el salto se sentiría brusco. Tampoco se mueve el scroll: llevar la
+// página sola a otro punto desorienta más de lo que ayuda.
 const [verCreador, setVerCreador] = useState(false);
-const creadorRef = useRef<HTMLDivElement | null>(null);
+const [invitacionFuera, setInvitacionFuera] = useState(false);
 useEffect(() => {
   if (!verCreador) return;
-  // Al abrirse, se lleva la vista al inicio de lo que acaba de aparecer; si no,
-  // el contenido nuevo queda fuera de pantalla y parece que no pasó nada.
-  const id = requestAnimationFrame(() =>
-    creadorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }),
-  );
-  return () => cancelAnimationFrame(id);
+  const id = setTimeout(() => setInvitacionFuera(true), 320);
+  return () => clearTimeout(id);
 }, [verCreador]);
 
 // Transición al entrar a login desde una acción de invitado (comprar, iniciar
@@ -693,7 +694,30 @@ body.loginPageBg {
           flex-direction: column;
           align-items: center;
           text-align: center;
-          padding: 40px 20px 64px;
+          /* Bastante aire arriba: aquí cambia el destinatario de la página —de
+             quien viene a consumir a quien viene a publicar— y ese corte se
+             tiene que sentir. */
+          padding: 74px 20px 64px;
+          transition:
+            opacity 300ms ease,
+            transform 300ms cubic-bezier(0.4, 0, 1, 1);
+        }
+        /* Salida: se va hacia arriba, en sentido contrario al que entra el
+           panel, para que se lea como un relevo y no como un parpadeo. */
+        .loginCreatorCtaOut {
+          opacity: 0;
+          transform: translateY(-14px);
+          pointer-events: none;
+        }
+        @media (max-width: 900px) {
+          .loginCreatorCta {
+            padding: 52px 20px 48px;
+          }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .loginCreatorCta {
+            transition: none;
+          }
         }
 
         .loginCreatorQ {
@@ -706,10 +730,15 @@ body.loginPageBg {
         }
 
         .loginCreatorSub {
-          margin: 8px 0 0;
+          margin: 12px 0 0;
+          /* Tope de ancho: el texto es largo y de borde a borde costaría leerlo. */
+          max-width: 54ch;
           font-size: clamp(13px, 1vw, 15px);
-          line-height: 1.5;
-          color: rgba(255, 255, 255, 0.72);
+          line-height: 1.6;
+          /* Morado de marca. Se sube el peso: a este tamaño, un color saturado
+             sobre negro se lee peor que el blanco tenue si el trazo es fino. */
+          color: #c084fc;
+          font-weight: 500;
         }
 
         /* Relleno con el degradado de marca: es la única llamada a la acción de
@@ -1267,10 +1296,8 @@ marginBottom: 6,
           marketing, así que se oculta. */}
       {mode !== "complete" && (
       <section className="loginBelowFold">
-        {/* Rediseño en curso: los bloques nuevos se van armando arriba y el
-            contenido viejo (WalletOnboarding) se queda debajo hasta que lo
-            sustituyan por completo. Los videos son de MUESTRA. */}
-        {/* En laptop apila los bloques; en celular los vuelve un carrusel de
+        {/* ⚠️ Tres de los cinco videos son de MUESTRA todavía.
+            En laptop apila los bloques; en celular los vuelve un carrusel de
             una tarjeta por vista. */}
         <LoginExperienceRail>
         <LoginExperienceBlock
@@ -1340,37 +1367,34 @@ marginBottom: 6,
         {/* Puerta al contenido de creador. Toda la página está escrita para
             quien viene a consumir; esto separa a quien viene a publicar sin
             imponerle esa información a los demás. */}
-        {!verCreador && (
-          <div className="loginCreatorCta">
-            <p className="loginCreatorQ">¿Eres creador digital?</p>
-            <p className="loginCreatorSub">Esto te va a interesar bastante</p>
+        {!invitacionFuera && (
+          <div className={`loginCreatorCta${verCreador ? " loginCreatorCtaOut" : ""}`}>
+            <h2 className="loginCreatorQ">
+              ¿Eres{" "}
+              {/* En em, para que crezcan con el título cuando el clamp lo achica
+                  en pantallas angostas en vez de quedarse fijas. */}
+              <span className="heroVibraGradientText" style={{ fontSize: "1.2em" }}>
+                creador digital
+              </span>
+              ? Esto te va a interesar
+            </h2>
+            <p className="loginCreatorSub">
+              Descubre todas las formas en que puedes monetizar tu contenido, ofrecer experiencias
+              exclusivas y generar ingresos con el apoyo de tu comunidad.
+            </p>
             <button
               type="button"
               className="loginCreatorBtn"
               onClick={() => setVerCreador(true)}
             >
-              Ver cómo funciona para creadores
+              Descubre cómo monetizar en Vibra
             </button>
           </div>
         )}
 
-        {/* Presentación de creador. Solo aparece al pulsar el botón de arriba;
-            hasta entonces no se pinta ninguna de sus secciones.
-            Las 11 experiencias siguen fuera (ya tienen bloque propio arriba) y
-            las comunidades también, porque las sustituyen las tarjetas nuevas. */}
-        <div ref={creadorRef}>
-        <WalletOnboarding
-          showCtas={false}
-          twoColumn
-          excludeServices={[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]}
-          // Solo en el login. La wallet del creador las sigue mostrando.
-          hideSections={
-            verCreador
-              ? ["communities"]
-              : ["hero", "commission", "clear", "lifestyle", "communities"]
-          }
-        />
-        </div>
+        {/* Panel de creador: comisión, wallet simulada y alcance. Entra cuando
+            la invitación terminó de salir. */}
+        {invitacionFuera && <LoginCreatorPanel />}
       </section>
       )}
 

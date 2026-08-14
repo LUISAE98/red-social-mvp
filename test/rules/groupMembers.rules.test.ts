@@ -78,7 +78,17 @@ describe("groups/{g}/members create — prueba de pago obligatoria", () => {
       monetization: { subscriptionsEnabled: true },
     });
     // Solo el backend puede crear esto (create:if false en las rules).
-    await seed(`groupSubscriptions/${gid}_${buyer}`, { active: true, uid: buyer });
+    // Se siembra con la MISMA forma que escribe `groupSubscriptionStripeSync`:
+    // antes bastaba `{ active: true }`, pero las reglas ya no se conforman con
+    // que el comprobante exista — comprueban que siga vigente y que hable de
+    // esta persona y esta comunidad (ver B3-C03).
+    await seed(`groupSubscriptions/${gid}_${buyer}`, {
+      active: true,
+      status: "authorized",
+      uid: buyer,
+      groupId: gid,
+      accessUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+    });
 
     const db = testEnv.authenticatedContext(buyer).firestore();
     await assertSucceeds(

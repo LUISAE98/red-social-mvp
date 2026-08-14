@@ -86,8 +86,9 @@ import {
   isJoinedStatus,
   normalizeVisibility,
   toCatalogOfferings,
-  visibilityLabel,
 } from "@/lib/groups/groupAdapters";
+import StatsRow, { type StatItem } from "@/components/ui/StatsRow";
+import { fetchGroupPostsCount } from "@/lib/posts/post-service";
 
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import TaxNote from "@/components/payments/TaxNote";
@@ -333,6 +334,77 @@ const hasLegacyServiceAccess =
   membershipAccessType === "legacy_free" || membershipLegacyComplimentary;
 
 const effectiveIsMember = isOwner || hasJoinedMembership;
+
+// Publicaciones de la comunidad, para el card de la portada. Solo se pide donde
+// el feed puede leer: dentro de una comunidad pública, o siendo miembro o dueño
+// de una privada u oculta. Fuera de eso las reglas lo niegan a propósito y el
+// card enseña un guion en vez de un cero, que se leería como "no hay nada".
+const [groupPostsCount, setGroupPostsCount] = useState<number | null>(null);
+
+const canCountGroupPosts =
+  !!groupId &&
+  (effectiveIsMember || group?.visibility === "public");
+
+useEffect(() => {
+  if (!canCountGroupPosts) {
+    setGroupPostsCount(null);
+    return;
+  }
+
+  let cancelled = false;
+
+  fetchGroupPostsCount(groupId)
+    .then((count) => {
+      if (!cancelled) setGroupPostsCount(count);
+    })
+    .catch(() => {
+      if (!cancelled) setGroupPostsCount(null);
+    });
+
+  return () => {
+    cancelled = true;
+  };
+}, [canCountGroupPosts, groupId, groupPageRefreshKey]);
+
+const formattedGroupPostsCount =
+  groupPostsCount === null
+    ? "—"
+    : new Intl.NumberFormat(locale).format(groupPostsCount);
+
+/**
+ * Los tres datos de la portada. Se arman aquí una sola vez porque la pantalla
+ * tiene dos renders distintos —el de dentro y el de la antesala de una
+ * comunidad cerrada— y en los dos va la misma fila.
+ *
+ * "Comunidad" y su estado van emparejados, del mismo tamaño: no hay cifra que
+ * destacar y juntos se leen como una frase.
+ */
+const groupStatsItems: StatItem[] = [
+  {
+    key: "visibility",
+    top: tCommon("community"),
+    bottom:
+      group?.visibility === "public"
+        ? tGroups("publicLabel")
+        : group?.visibility === "private"
+          ? tGroups("privateLabel")
+          : group?.visibility === "hidden"
+            ? tGroups("hiddenLabel")
+            : "",
+    paired: true,
+  },
+  {
+    key: "members",
+    top: formattedMemberCount ?? "—",
+    bottom: memberCount === 1 ? tCommon("member") : tCommon("members"),
+  },
+  {
+    key: "posts",
+    top: formattedGroupPostsCount,
+    bottom:
+      groupPostsCount === 1 ? tCommon("publication") : tCommon("publications"),
+  },
+];
 
 // When a group switches from public to private mid-session, force a refresh
 // so any stale Firestore cache doesn't keep showing the full-page view.
@@ -2046,38 +2118,7 @@ const avatarNode = (
                       </div>
                     )}
 
-<div
-  style={{
-    marginTop: 8,
-    ...microText,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    flexWrap: "wrap",
-  }}
->
-  <span>{visibilityLabel(String(group.visibility ?? ""))}</span>
-
-  {memberCount !== null && (
-    <>
-      <span
-        aria-hidden="true"
-        style={{
-          width: 4,
-          height: 4,
-          borderRadius: 999,
-          background: "rgba(255,255,255,0.42)",
-          display: "inline-block",
-        }}
-      />
-
-      <span>
-        {formattedMemberCount} {memberCount === 1 ? tCommon("member") : tCommon("members")}
-      </span>
-    </>
-  )}
-</div>
+<StatsRow items={groupStatsItems} />
                   </div>
                 </div>
 
@@ -2664,38 +2705,7 @@ const avatarNode = (
                     </div>
                   )}
 
-<div
-  className="group-visibility"
-  style={{
-    ...microText,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    flexWrap: "wrap",
-  }}
->
-  <span>{visibilityLabel(String(group.visibility ?? ""))}</span>
-
-  {memberCount !== null && (
-    <>
-      <span
-        aria-hidden="true"
-        style={{
-          width: 4,
-          height: 4,
-          borderRadius: 999,
-          background: "rgba(255,255,255,0.42)",
-          display: "inline-block",
-        }}
-      />
-
-      <span>
-        {formattedMemberCount} {memberCount === 1 ? tCommon("member") : tCommon("members")}
-      </span>
-    </>
-  )}
-</div>
+<StatsRow items={groupStatsItems} />
 
                   <div style={{
                     marginTop: 10,

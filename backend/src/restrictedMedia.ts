@@ -72,7 +72,20 @@ async function canReadGroup(groupId: string, uid: string): Promise<boolean> {
     .doc(uid)
     .get();
 
-  return memberSnap.exists;
+  if (!memberSnap.exists) return false;
+
+  // ⚠️ Antes bastaba con que el documento EXISTIERA, y ahí estaba el agujero: al
+  // banear o expulsar a alguien su documento de miembro NO se borra, se queda
+  // con `status: banned` o `removed` para conservar el historial. Las Firestore
+  // Rules sí lo tienen en cuenta, pero esta función no, así que un expulsado
+  // seguía obteniendo URLs firmadas de las imágenes de la comunidad — y podía
+  // renovarlas indefinidamente.
+  //
+  // Mismo criterio que `isReadableMemberStatus` en firestore.rules: los estados
+  // sancionados pierden el acceso; ausente cuenta como miembro normal (datos
+  // antiguos, anteriores al campo).
+  const status = memberSnap.get("status");
+  return status === undefined || ["active", "subscribed", "muted"].includes(String(status));
 }
 
 export const getRestrictedMediaUrls = onCall<RequestData, Promise<ResponseData>>(

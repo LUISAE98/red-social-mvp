@@ -45,6 +45,53 @@ type ResponseData = {
   expiresAt: number;
 };
 
+/** Trocea una lista para las consultas `in` de Firestore, que topan en 10. */
+function chunk<T>(items: T[], size: number): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
+  return out;
+}
+
+/**
+ * De las rutas pedidas, devuelve solo las que siguen colgando de un mensaje que
+ * `uid` puede ver: ni borrado para todos (`isDeleted`), ni ocultado por él
+ * (`deletedFor`).
+ *
+ * Se buscan por los dos campos porque cada mensaje guarda la imagen y su
+ * miniatura en rutas distintas.
+ */
+async function filterPathsWithLiveMessage(
+  conversationId: string,
+  uid: string,
+  requested: string[]
+): Promise<string[]> {
+  if (requested.length === 0) return [];
+
+  const messages = db.collection("conversations").doc(conversationId).collection("messages");
+  const vivas = new Set<string>();
+
+  await Promise.all(
+    chunk(requested, 10).flatMap((grupo) =>
+      ["image.path", "image.thumbnailPath"].map(async (campo) => {
+        const snap = await messages.where(campo, "in", grupo).get();
+        for (const doc of snap.docs) {
+          if (doc.get("isDeleted") === true) continue;
+          const deletedFor = doc.get("deletedFor");
+          if (Array.isArray(deletedFor) && deletedFor.includes(uid)) continue;
+
+          const image = doc.get("image");
+          if (!image || typeof image !== "object") continue;
+          const { path, thumbnailPath } = image as Record<string, unknown>;
+          if (typeof path === "string") vivas.add(path);
+          if (typeof thumbnailPath === "string") vivas.add(thumbnailPath);
+        }
+      })
+    )
+  );
+
+  return requested.filter((p) => vivas.has(p));
+}
+
 export const getDirectMessageImageUrls = onCall<RequestData, Promise<ResponseData>>(
   { region: REGION },
   async (request) => {
@@ -79,9 +126,18 @@ export const getDirectMessageImageUrls = onCall<RequestData, Promise<ResponseDat
     // Una ruta de OTRA conversación no se firma aunque sí participes en esta:
     // sin esto, cualquiera podría pedir imágenes de hilos ajenos.
     const prefix = `dmImages/${conversationId}/`;
-    const allowed = paths.filter(
+    const requested = paths.filter(
       (p) => typeof p === "string" && p.startsWith(prefix) && !p.includes("..")
     );
+
+    // ⚠️ El prefijo NO basta. Antes se firmaba cualquier ruta que empezara por
+    // esta conversación, así que quien se hubiera guardado la ruta de una imagen
+    // podía seguir renovando su URL DESPUÉS de que el mensaje se borrara para
+    // todos, o de haberla ocultado para sí mismo. Borrar no borraba nada.
+    //
+    // Ahora se firma solo lo que sigue colgando de un mensaje que esta persona
+    // puede ver de verdad.
+    const allowed = await filterPathsWithLiveMessage(conversationId, uid, requested);
 
     const bucket = admin.storage().bucket();
     const expires = Date.now() + URL_TTL_MS;

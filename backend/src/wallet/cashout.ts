@@ -21,6 +21,7 @@ import { stripeFetch, stripeSecretKey } from "../payments/stripe/stripeClient";
 import { spendBuyerCredit, revertBuyerCreditSpend } from "./buyerCredit";
 import { capturePaymentIntentForRef } from "../payments/stripe/holdCapture";
 import { refundExperienceToCredit } from "./refundToCredit";
+import { requirePlatformMod } from "../authz";
 
 if (admin.apps.length === 0) {
   admin.initializeApp();
@@ -235,9 +236,7 @@ export const dismissCashoutNotice = onCall(
 export const devCaptureAndCredit = onCall(
   { region: "us-central1", secrets: [stripeSecretKey] },
   async (request) => {
-    if (request.auth?.token?.["role"] !== "moderator") {
-      throw new HttpsError("permission-denied", "Solo moderadores.");
-    }
+    requirePlatformMod(request);
     const stripePaymentIntentId = str(request.data?.stripePaymentIntentId).trim();
     if (!stripePaymentIntentId) {
       throw new HttpsError("invalid-argument", "Falta stripePaymentIntentId (pi_...).");
@@ -293,9 +292,7 @@ export const devCaptureAndCredit = onCall(
 export const resolveCashout = onCall(
   { region: "us-central1", secrets: [stripeSecretKey] },
   async (request) => {
-    if (request.auth?.token?.["role"] !== "moderator") {
-      throw new HttpsError("permission-denied", "Acceso solo para moderadores.");
-    }
+    requirePlatformMod(request);
     const moderatorUid = request.auth?.uid ?? "";
     const cashoutId = str(request.data?.cashoutId);
     const action = str(request.data?.action);

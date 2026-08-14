@@ -17,12 +17,11 @@
 
 import { getFirestore } from "firebase-admin/firestore";
 import { getStorage } from "firebase-admin/storage";
-import { HttpsError, onCall } from "firebase-functions/v2/https";
+import { onCall } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
+import { requirePlatformOwner } from "./authz";
 
 const db = getFirestore();
-const ADMIN_EMAIL = "luis@consumed.mx";
-
 /** Quita el token de descarga de un archivo. Sin token, su URL deja de abrir. */
 async function stripDownloadToken(path: string): Promise<void> {
   const file = getStorage().bucket().file(path);
@@ -43,10 +42,10 @@ type Counters = {
 export const backfillRestrictedMedia = onCall(
   { region: "us-central1", timeoutSeconds: 540, memory: "512MiB" },
   async (request) => {
-    const email = request.auth?.token?.email;
-    if (!email || email !== ADMIN_EMAIL) {
-      throw new HttpsError("permission-denied", "Solo el administrador puede ejecutar esto.");
-    }
+    // Claim de moderador + sesión de Google + correo del dueño. Antes bastaba
+    // el correo: quien lograra registrar esa dirección en Firebase Auth heredaba
+    // el permiso, sin rol ni segundo factor.
+    requirePlatformOwner(request);
 
     // Por defecto NO escribe: hay que pedir explícitamente que lo haga.
     const dryRun = request.data?.dryRun !== false;

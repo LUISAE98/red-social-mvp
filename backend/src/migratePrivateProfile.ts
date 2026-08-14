@@ -11,15 +11,14 @@
 
 import * as admin from "firebase-admin";
 import { logger } from "firebase-functions";
-import { HttpsError, onCall } from "firebase-functions/v2/https";
+import { onCall } from "firebase-functions/v2/https";
+import { requirePlatformOwner } from "./authz";
 
 if (!admin.apps.length) {
   admin.initializeApp();
 }
 
 const db = admin.firestore();
-
-const ADMIN_EMAIL = "luis@consumed.mx";
 
 // Los campos que se mudan. `role` se queda: no es personal y vale "user".
 const PRIVATE_FIELDS = [
@@ -34,10 +33,10 @@ const PRIVATE_FIELDS = [
 export const migratePrivateProfile = onCall(
   { region: "us-central1", timeoutSeconds: 540, memory: "512MiB" },
   async (request) => {
-    const email = request.auth?.token?.email;
-    if (!email || email !== ADMIN_EMAIL) {
-      throw new HttpsError("permission-denied", "Solo administración.");
-    }
+    // Claim de moderador + sesión de Google + correo del dueño. Antes bastaba
+    // el correo: quien lograra registrar esa dirección en Firebase Auth heredaba
+    // el permiso, sin rol ni segundo factor.
+    requirePlatformOwner(request);
 
     // `dryRun` por defecto: la primera corrida solo cuenta, no toca nada.
     const dryRun = request.data?.dryRun !== false;

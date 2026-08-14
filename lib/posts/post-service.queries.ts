@@ -6,7 +6,7 @@
 
 import {
   collection, query, where, orderBy, limit, startAfter,
-  getDocs, getDoc, doc, documentId, setDoc, serverTimestamp, Timestamp,
+  getDocs, getDoc, getCountFromServer, doc, documentId, setDoc, serverTimestamp, Timestamp,
   type QueryConstraint, type QueryDocumentSnapshot, type DocumentData,
 } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
@@ -781,6 +781,59 @@ async function fetchProfileFeedDocs(params: {
   );
 
   return snaps.flatMap((snap) => snap.docs);
+}
+
+/**
+ * Cuántas publicaciones tiene un perfil, para el card de la portada.
+ *
+ * Cuenta SOLO el carril de perfil (`contextType: "profile"`), que es el mismo
+ * conjunto que abre la pestaña de publicaciones. Lo que el creador escribió
+ * dentro de una comunidad no entra: eso es de la comunidad, y quién lo puede ver
+ * depende de a cuáles pertenece cada visitante, así que un número único mentiría
+ * para la mitad de quienes lo lean.
+ *
+ * Va por `getCountFromServer` y no trayendo los documentos: es una lectura
+ * agregada —se cobra una por cada mil documentos contados— y no descarga nada.
+ * Los campos que fija con `==` son los mismos del carril público del feed, así
+ * que las reglas la autorizan igual (en un `list` solo se ven los campos
+ * fijados, y cambiarlos denegaría la consulta entera).
+ */
+export async function fetchProfilePostsCount(profileUid: string): Promise<number> {
+  assertValidId(profileUid, "profileUid");
+
+  const snap = await getCountFromServer(
+    query(
+      collection(db, "posts"),
+      where("contextType", "==", "profile"),
+      where("profileId", "==", profileUid),
+      where("authorId", "==", profileUid),
+      where("isDeleted", "==", false)
+    )
+  );
+
+  return snap.data().count;
+}
+
+/**
+ * Cuántas publicaciones tiene una comunidad, para el card de la portada.
+ *
+ * Fija los mismos campos con `==` que el feed de la comunidad, así que puede
+ * contar exactamente donde el feed puede leer: dentro, quien tiene acceso. A un
+ * no-miembro de una comunidad privada u oculta las reglas se lo niegan —a
+ * propósito— y quien llama debe decidir si la lanza siquiera.
+ */
+export async function fetchGroupPostsCount(groupId: string): Promise<number> {
+  assertValidId(groupId, "groupId");
+
+  const snap = await getCountFromServer(
+    query(
+      collection(db, "posts"),
+      where("groupId", "==", groupId),
+      where("isDeleted", "==", false)
+    )
+  );
+
+  return snap.data().count;
 }
 
 export async function fetchUserProfilePostsPage(params: {

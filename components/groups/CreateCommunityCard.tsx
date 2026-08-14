@@ -26,7 +26,7 @@ import { setNavSlideDir } from "@/lib/nav-slide";
 
 export default function CreateCommunityCard({
   /** Ancho máximo de la imagen. */
-  imageMaxWidth = 340,
+  imageMaxWidth = 420,
 }: {
   imageMaxWidth?: number;
 }) {
@@ -89,11 +89,11 @@ export default function CreateCommunityCard({
              se saldría de los 40px de alto (hay overflow: hidden). El mínimo
              evita que se encoja de más en idiomas de palabra corta. */
           width: fit-content;
-          min-width: 170px;
+          min-width: 215px;
           max-width: 100%;
           height: 40px;
           min-height: 40px;
-          padding: 8px 26px;
+          padding: 8px 34px;
           border-radius: 10px;
           border: none;
           background-image: linear-gradient(

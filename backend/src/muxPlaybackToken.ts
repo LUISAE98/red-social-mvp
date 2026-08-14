@@ -83,7 +83,15 @@ async function viewerHasAccess(params: {
   if (!memberSnap.exists) return false;
   const member = memberSnap.data() ?? {};
 
-  if (member.role === "moderator" && MEMBER_OK.has(String(member.status))) return true;
+  // El rol se guarda indistintamente como `mod` o `moderator`, y en `roleInGroup`
+  // o en `role` según la antigüedad del documento. Aquí solo se miraba
+  // `role === "moderator"`, pero las promociones escriben `roleInGroup: "mod"`,
+  // así que a los moderadores de verdad se les negaba el acceso que este mismo
+  // código dice concederles.
+  const rol = String(member.roleInGroup ?? member.role ?? "");
+  if ((rol === "mod" || rol === "moderator") && MEMBER_OK.has(String(member.status))) {
+    return true;
+  }
 
   // Premium con "los miembros lo ven gratis".
   const premium = asRecord(post.premium);

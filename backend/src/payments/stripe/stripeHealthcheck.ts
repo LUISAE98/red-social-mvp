@@ -8,6 +8,7 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { logger } from "firebase-functions";
 import { stripeFetch, isStripeTestMode, stripeSecretKey } from "./stripeClient";
+import { requirePlatformMod } from "../../authz";
 
 const REGION = "us-central1";
 
@@ -19,9 +20,7 @@ type StripeBalance = {
 export const stripeHealthcheck = onCall(
   { region: REGION, secrets: [stripeSecretKey] },
   async (request) => {
-    if (request.auth?.token?.role !== "moderator") {
-      throw new HttpsError("permission-denied", "Solo un moderador puede ejecutar esto.");
-    }
+    requirePlatformMod(request);
     const res = await stripeFetch<StripeBalance>("/balance");
     if (!res.ok) {
       logger.error("stripeHealthcheck failed", { status: res.status, error: res.error.slice(0, 200) });

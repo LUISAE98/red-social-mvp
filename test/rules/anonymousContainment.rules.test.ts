@@ -518,3 +518,191 @@ describe("H07 — el moderador tiene que entrar con Google", () => {
     await assertFails(getDoc(doc(realDb(), "adminAuditLog/a1")));
   });
 });
+
+describe("B3-C01 — el supermoderador ya no lee todo", () => {
+  const SUPER = "super_uid";
+  const OTRO = "otro_uid";
+
+  function superDb() {
+    return testEnv
+      .authenticatedContext(SUPER, {
+        role: "moderator",
+        email: `${SUPER}@example.com`,
+        firebase: { sign_in_provider: "google.com" },
+      })
+      .firestore();
+  }
+
+  it("NO lee las claves de transmisión de un live ajeno", async () => {
+    await seedAll([
+      ["posts/p1", { authorId: OTRO, isDeleted: false }],
+      ["posts/p1/liveStream/credentials", { streamKey: "SECRETO", whipUrl: "https://x" }],
+    ]);
+    await assertFails(getDoc(doc(superDb(), "posts/p1/liveStream/credentials")));
+  });
+
+  it("NO lee los datos fiscales de un creador", async () => {
+    await seedAll([["creatorTaxProfiles/otro_uid", { rfc: "XAXX010101000" }]]);
+    await assertFails(getDoc(doc(superDb(), "creatorTaxProfiles/otro_uid")));
+  });
+
+  it("NO lee las cuentas de retiro", async () => {
+    await seedAll([[`users/${OTRO}/payoutAccounts/a1`, { clabe: "0123456789" }]]);
+    await assertFails(getDoc(doc(superDb(), `users/${OTRO}/payoutAccounts/a1`)));
+  });
+
+  it("NO lee el movimiento de wallet de nadie", async () => {
+    await seedAll([[`users/${OTRO}/walletLedger/e1`, { amount: 500 }]]);
+    await assertFails(getDoc(doc(superDb(), `users/${OTRO}/walletLedger/e1`)));
+  });
+
+  it("NO lee las sesiones ni los dispositivos de nadie", async () => {
+    await seedAll([[`users/${OTRO}/sessions/s1`, { userAgent: "x" }]]);
+    await assertFails(getDoc(doc(superDb(), `users/${OTRO}/sessions/s1`)));
+  });
+});
+
+describe("B3-C01 — mensajes privados: solo los denunciados", () => {
+  const SUPER = "super_uid";
+  const CONV_LIMPIA = "aaa_bbb";
+  const CONV_DENUNCIADA = "ccc_ddd";
+
+  function superDb() {
+    return testEnv
+      .authenticatedContext(SUPER, {
+        role: "moderator",
+        email: `${SUPER}@example.com`,
+        firebase: { sign_in_provider: "google.com" },
+      })
+      .firestore();
+  }
+
+  async function seedConversaciones() {
+    await seedAll([
+      [`conversations/${CONV_LIMPIA}`, { participants: ["aaa", "bbb"], status: "active" }],
+      [`conversations/${CONV_LIMPIA}/messages/m1`, { senderId: "aaa", text: "hola" }],
+      [
+        `conversations/${CONV_DENUNCIADA}`,
+        { participants: ["ccc", "ddd"], status: "active", underReview: true },
+      ],
+      [`conversations/${CONV_DENUNCIADA}/messages/m1`, { senderId: "ccc", text: "acoso" }],
+    ]);
+  }
+
+  it("NO lee una conversación que nadie denunció", async () => {
+    await seedConversaciones();
+    await assertFails(getDoc(doc(superDb(), `conversations/${CONV_LIMPIA}`)));
+  });
+
+  it("NO lee los mensajes de una conversación que nadie denunció", async () => {
+    await seedConversaciones();
+    await assertFails(getDoc(doc(superDb(), `conversations/${CONV_LIMPIA}/messages/m1`)));
+  });
+
+  it("SÍ lee la conversación denunciada", async () => {
+    await seedConversaciones();
+    await assertSucceeds(getDoc(doc(superDb(), `conversations/${CONV_DENUNCIADA}`)));
+  });
+
+  it("SÍ lee los mensajes de la conversación denunciada", async () => {
+    await seedConversaciones();
+    await assertSucceeds(
+      getDoc(doc(superDb(), `conversations/${CONV_DENUNCIADA}/messages/m1`))
+    );
+  });
+
+  it("un participante NO puede marcar su propio hilo como denunciado", async () => {
+    await seedAll([
+      [`conversations/${CONV_LIMPIA}`, { participants: [REAL, "bbb"], status: "active" }],
+    ]);
+    await assertFails(
+      setDoc(
+        doc(realDb(), `conversations/${CONV_LIMPIA}`),
+        { underReview: true },
+        { merge: true }
+      )
+    );
+  });
+});
+
+describe("B3-C03 — una suscripción vencida no reconstruye el acceso", () => {
+  const GRUPO = "g_pago";
+
+  /** Miembro que el cliente intenta crearse a sí mismo como suscriptor. */
+  function membresiaSuscrita() {
+    return {
+      userId: REAL,
+      roleInGroup: "member",
+      status: "subscribed",
+      accessType: "subscription",
+    };
+  }
+
+  function suscripcion(extra: Record<string, unknown>) {
+    return { uid: REAL, groupId: GRUPO, ...extra };
+  }
+
+  const dentroDeUnMes = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+  const haceUnMes = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
+  async function sembrarGrupo(sub: Record<string, unknown> | null) {
+    const seeds: Array<[string, Record<string, unknown>]> = [
+      [
+        `groups/${GRUPO}`,
+        {
+          ownerId: "dueno",
+          visibility: "private",
+          isActive: true,
+          monetization: { subscriptionsEnabled: true, isPaid: true },
+        },
+      ],
+      [`users/${REAL}`, profile(REAL, "realuser")],
+    ];
+    if (sub) seeds.push([`groupSubscriptions/${GRUPO}_${REAL}`, sub]);
+    await seedAll(seeds);
+  }
+
+  it("con suscripción viva SÍ puede", async () => {
+    await sembrarGrupo(suscripcion({ active: true, status: "authorized", accessUntil: dentroDeUnMes }));
+    await assertSucceeds(
+      setDoc(doc(realDb(), `groups/${GRUPO}/members/${REAL}`), membresiaSuscrita())
+    );
+  });
+
+  it("con suscripción CANCELADA no puede", async () => {
+    await sembrarGrupo(suscripcion({ active: false, status: "cancelled", accessUntil: dentroDeUnMes }));
+    await assertFails(
+      setDoc(doc(realDb(), `groups/${GRUPO}/members/${REAL}`), membresiaSuscrita())
+    );
+  });
+
+  it("con suscripción TERMINADA no puede", async () => {
+    await sembrarGrupo(suscripcion({ active: false, status: "ended", accessUntil: haceUnMes }));
+    await assertFails(
+      setDoc(doc(realDb(), `groups/${GRUPO}/members/${REAL}`), membresiaSuscrita())
+    );
+  });
+
+  it("con suscripción VENCIDA aunque siga marcada activa, no puede", async () => {
+    await sembrarGrupo(suscripcion({ active: true, status: "authorized", accessUntil: haceUnMes }));
+    await assertFails(
+      setDoc(doc(realDb(), `groups/${GRUPO}/members/${REAL}`), membresiaSuscrita())
+    );
+  });
+
+  it("con el comprobante de OTRA persona no puede", async () => {
+    await sembrarGrupo(
+      suscripcion({ uid: "otra_persona", active: true, status: "authorized", accessUntil: dentroDeUnMes })
+    );
+    await assertFails(
+      setDoc(doc(realDb(), `groups/${GRUPO}/members/${REAL}`), membresiaSuscrita())
+    );
+  });
+
+  it("sin ningún comprobante no puede", async () => {
+    await sembrarGrupo(null);
+    await assertFails(
+      setDoc(doc(realDb(), `groups/${GRUPO}/members/${REAL}`), membresiaSuscrita())
+    );
+  });
+});

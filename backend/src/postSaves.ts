@@ -1,6 +1,7 @@
 import { FieldValue, getFirestore, Timestamp } from "firebase-admin/firestore";
 import { HttpsError, onCall } from "firebase-functions/v2/https";
 import { onDocumentUpdated } from "firebase-functions/v2/firestore";
+import { requirePlatformOwner } from "./authz";
 
 const db = getFirestore();
 
@@ -461,8 +462,6 @@ export const onSavedPostsPostDeleted = onDocumentUpdated(
   }
 );
 
-const ADMIN_EMAIL = "luis@consumed.mx";
-
 /**
  * Backfill: sincroniza users/{uid}/savedPosts/{postId} a partir de
  * posts/{postId}/saves/{uid}. Solo puede llamarlo el admin autenticado.
@@ -474,10 +473,10 @@ const ADMIN_EMAIL = "luis@consumed.mx";
 export const backfillSavedPosts = onCall(
   { region: "us-central1", timeoutSeconds: 540, memory: "512MiB" },
   async (request) => {
-    const email = request.auth?.token?.email;
-    if (!email || email !== ADMIN_EMAIL) {
-      throw new HttpsError("permission-denied", "Solo el administrador puede ejecutar esto.");
-    }
+    // Claim de moderador + sesión de Google + correo del dueño. Antes bastaba
+    // el correo: quien lograra registrar esa dirección en Firebase Auth heredaba
+    // el permiso, sin rol ni segundo factor.
+    requirePlatformOwner(request);
 
     const savesSnap = await db.collectionGroup("saves").get();
 

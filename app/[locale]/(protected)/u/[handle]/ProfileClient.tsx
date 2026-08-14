@@ -76,8 +76,13 @@ import SharedCommunitiesBadge from "./components/SharedCommunitiesBadge";
 import ProfileFollowersOverlay from "./components/ProfileFollowersOverlay";
 import GroupPostComposer from "@/app/groups/[groupId]/components/posts/GroupPostComposer";
 import LiveComposerModal from "@/app/components/LiveComposer/LiveComposerModal";
-import { createMediaPost, createTextPost } from "@/lib/posts/post-service";
+import {
+  createMediaPost,
+  createTextPost,
+  fetchProfilePostsCount,
+} from "@/lib/posts/post-service";
 import { uploadPostImages } from "@/lib/posts/image-upload";
+import StatsRow from "@/components/ui/StatsRow";
 import { clearAllPostFeedCaches } from "@/lib/posts/post-feed-cache";
 import RefreshableArea from "@/components/refresh/RefreshableArea";
 import { clearMediaGalleryCache } from "@/app/groups/[groupId]/components/posts/MediaGallery";
@@ -182,6 +187,22 @@ type BlockStatusEntry = {
 };
 
 const blockStatusCache = new Map<string, BlockStatusEntry>();
+// ──────────────────────────────────────────────────────────────────────────────
+
+// ─── Conteo de publicaciones del perfil ───────────────────────────────────────
+// El feed pagina de diez en diez y nunca sabe el total, así que el número del
+// card sale de una lectura agregada aparte. Se guarda por uid para que entrar y
+// salir del mismo perfil no vuelva a contar; el TTL es corto porque publicar
+// mueve el número y verlo desfasado media hora se sentiría roto.
+const PROFILE_POSTS_COUNT_TTL_MS = 2 * 60 * 1000;
+
+const profilePostsCountCache = new Map<string, { count: number; cachedAt: number }>();
+
+function peekProfilePostsCount(uid: string): number | null {
+  const hit = profilePostsCountCache.get(uid);
+  if (!hit || Date.now() - hit.cachedAt > PROFILE_POSTS_COUNT_TTL_MS) return null;
+  return hit.count;
+}
 // ──────────────────────────────────────────────────────────────────────────────
 
 // ─── Orden de pestañas para animar el slide del subnav (misma UX que Wallet) ──
@@ -547,9 +568,57 @@ useEffect(() => {
       ? userDoc.followersCount
       : 0;
 
-  const followersLabel = `${followersCount.toLocaleString(intlLocale(locale))} ${
-    followersCount === 1 ? tProfile("follower") : tProfile("followers")
-  }`;
+  // La cifra y su palabra van por separado: en la fila de datos ocupan renglones
+  // distintos, y `followersLabel` sigue armado para leerse de corrido en el
+  // lector de pantalla, donde partirlo en dos no significaría nada.
+  const followersCountText = followersCount.toLocaleString(intlLocale(locale));
+  const followersWord =
+    followersCount === 1 ? tProfile("follower") : tProfile("followers");
+  const followersLabel = `${followersCountText} ${followersWord}`;
+
+  // Publicaciones del perfil. `null` mientras no se sabe: el card enseña un
+  // guion en vez de un cero, que se leería como "no ha publicado nada".
+  const [profilePostsCount, setProfilePostsCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    // Sin pestaña de publicaciones (perfil reservado, bloqueo, o el dueño la
+    // apagó) no hay nada que contar y la consulta ni se lanza.
+    if (!profileUid || !showPostsTab) {
+      setProfilePostsCount(null);
+      return;
+    }
+
+    const cached = peekProfilePostsCount(profileUid);
+    if (cached !== null) {
+      setProfilePostsCount(cached);
+      return;
+    }
+
+    let alive = true;
+    fetchProfilePostsCount(profileUid)
+      .then((count) => {
+        profilePostsCountCache.set(profileUid, { count, cachedAt: Date.now() });
+        if (alive) setProfilePostsCount(count);
+      })
+      .catch(() => {
+        // Que falle el conteo no debe tumbar la portada: el card se queda con el
+        // guion y todo lo demás sigue igual.
+        if (alive) setProfilePostsCount(null);
+      });
+
+    return () => {
+      alive = false;
+    };
+  }, [profileUid, showPostsTab]);
+
+  // El guion mientras el conteo va en camino (o si falló): un cero se leería
+  // como "no ha publicado nada", que es una afirmación y no una espera.
+  const postsCountText =
+    profilePostsCount === null
+      ? "—"
+      : profilePostsCount.toLocaleString(intlLocale(locale));
+  const postsWord =
+    profilePostsCount === 1 ? tCommon("publication") : tCommon("publications");
 
 function openFollowersOverlay() {
   if (!isOwner) return;
@@ -1838,8 +1907,11 @@ const res = (await createExclusiveSessionRequest({
   const fullName =
     userDoc.displayName || `${userDoc.firstName} ${userDoc.lastName}`.trim();
 
-  const profileVisibilityLabel = profileRestricted
-    ? tProfile("restricted")
+  // El adjetivo suelto: en la fila de datos va debajo de la palabra "Perfil",
+  // en renglón aparte. Partir la frase completa por el espacio no serviría —
+  // en alemán el orden se invierte y en chino no hay espacio que partir.
+  const profileVisibilityWord = profileRestricted
+    ? tProfile("reserved")
     : tProfile("public");
 
   // La fecha de nacimiento salió del documento público del perfil (lo lee
@@ -1970,12 +2042,6 @@ const res = (await createExclusiveSessionRequest({
             word-break: break-word;
           }
 
-          .profile-visibility {
-            margin-top: 10px;
-            font-size: 12px;
-            color: rgba(255, 255, 255, 0.55);
-            line-height: 1.3;
-          }
             .profile-services-menu {
              margin-top: 18px;
           }
@@ -2578,41 +2644,29 @@ const res = (await createExclusiveSessionRequest({
                     </div>
                   )}
 
-                                    <div
-                    className="profile-visibility"
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: 6,
-                      flexWrap: "wrap",
-                    }}
-                  >
-                    <span>{profileVisibilityLabel}</span>
-
-                    <span aria-hidden="true">·</span>
-
-                    {isOwner ? (
-                      <button
-                        type="button"
-                        onClick={openFollowersOverlay}
-                        style={{
-                          border: "none",
-                          background: "transparent",
-                          color: "rgba(255,255,255,0.72)",
-                          padding: 0,
-                          margin: 0,
-                          font: "inherit",
-                          cursor: "pointer",
-                          textDecoration: "none",
-                        }}
-                      >
-                        {followersLabel}
-                      </button>
-                    ) : (
-                      <span>{followersLabel}</span>
-                    )}
-                  </div>
+                  <StatsRow
+                    items={[
+                      // Emparejado porque no tiene cifra: "Perfil" arriba solo
+                      // dice de qué se está hablando, y el estado abajo es lo
+                      // que de verdad importa del dato.
+                      {
+                        key: "visibility",
+                        top: tCommon("profile"),
+                        bottom: profileVisibilityWord,
+                        paired: true,
+                      },
+                      {
+                        key: "followers",
+                        top: followersCountText,
+                        bottom: followersWord,
+                        // Solo el dueño puede abrir su lista de seguidores; para
+                        // el resto es un dato y no un botón.
+                        onClick: isOwner ? openFollowersOverlay : undefined,
+                        ariaLabel: isOwner ? followersLabel : undefined,
+                      },
+                      { key: "posts", top: postsCountText, bottom: postsWord },
+                    ]}
+                  />
 
                   <ProfileSocialActions
                     viewerUid={viewer?.uid ?? null}

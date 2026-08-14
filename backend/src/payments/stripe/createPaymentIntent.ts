@@ -11,6 +11,7 @@ import { onCall, HttpsError } from "firebase-functions/v2/https";
 import * as crypto from "crypto";
 import { stripeFetch, stripeSecretKey } from "./stripeClient";
 import { getOrCreateStripeCustomer } from "./stripeCustomer";
+import { requirePlatformMod } from "../../authz";
 
 const REGION = "us-central1";
 
@@ -19,11 +20,7 @@ type PaymentIntent = { id: string; client_secret: string };
 export const createStripePaymentIntent = onCall(
   { region: REGION, cors: true, secrets: [stripeSecretKey] },
   async (request) => {
-    const uid = request.auth?.uid;
-    if (!uid) throw new HttpsError("unauthenticated", "Debes iniciar sesión.");
-    if (request.auth?.token?.role !== "moderator") {
-      throw new HttpsError("permission-denied", "Solo un moderador (fase de prueba).");
-    }
+    const uid = requirePlatformMod(request);
 
     const data = (request.data ?? {}) as { amount?: unknown; saveCard?: unknown };
     let amount = Math.round(Number(data.amount) || 0); // MXN (pesos)

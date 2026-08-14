@@ -221,7 +221,23 @@ export default function ConversationList({
                   size={isMobile ? 43 : 36}
                 />
 
-                <div style={{ minWidth: 0, flex: 1 }}>
+                {/* Rejilla de dos por dos, y no dos renglones con la hora
+                    metida en el primero. Con la hora y las palomitas apiladas
+                    DENTRO del renglón del nombre, ese renglón crecía al alto de
+                    las dos y la vista previa caía a un tercer renglón, dejando
+                    un hueco muerto entre el nombre y ella. Repartidas en su
+                    propia columna, la hora queda a la altura del nombre y las
+                    palomitas a la de la vista previa, que es donde se ven. */}
+                <div
+                  style={{
+                    minWidth: 0,
+                    flex: 1,
+                    display: "grid",
+                    gridTemplateColumns: "minmax(0, 1fr) auto",
+                    columnGap: 6,
+                    alignItems: "center",
+                  }}
+                >
                   <div
                     style={{
                       display: "flex",
@@ -249,47 +265,28 @@ export default function ConversationList({
                     >
                       {displayName}
                     </span>
-
-                    {/* Hora y, debajo, las palomitas. En columna para que las
-                        palomitas no empujen el nombre ni recorten su hora. */}
-                    {time || showsReadChecks ? (
-                      <span
-                        style={{
-                          display: "flex",
-                          flexDirection: "column",
-                          alignItems: "flex-end",
-                          gap: 3,
-                          flexShrink: 0,
-                        }}
-                      >
-                        {time ? (
-                          <span
-                            style={{
-                              fontSize: 10,
-                              color: hasUnread
-                                ? "rgba(255,255,255,0.70)"
-                                : "rgba(255,255,255,0.40)",
-                              lineHeight: 1.25,
-                              whiteSpace: "nowrap",
-                            }}
-                          >
-                            {time}
-                          </span>
-                        ) : null}
-
-                        {/* Se montan solo cuando toca, no ocultas con opacidad:
-                            un elemento invisible seguiría ocupando su alto y
-                            estiraría TODAS las filas, tengan visto o no.
-                            La entrada se anima al montarse, con el mismo rebote
-                            que en el hilo. */}
-                        {showsReadChecks ? (
-                          <span className="vibra-row-checks">
-                            <ReadChecksIcon size={16} />
-                          </span>
-                        ) : null}
-                      </span>
-                    ) : null}
                   </div>
+
+                  {/* Celda de la derecha del primer renglón. Va siempre, aunque
+                      esté vacía: si no, la vista previa se colaría en ella y la
+                      rejilla se descuadraría. Vacía no ocupa alto. */}
+                  {time ? (
+                    <span
+                      style={{
+                        fontSize: 10,
+                        color: hasUnread
+                          ? "rgba(255,255,255,0.70)"
+                          : "rgba(255,255,255,0.40)",
+                        lineHeight: 1.25,
+                        whiteSpace: "nowrap",
+                        justifySelf: "end",
+                      }}
+                    >
+                      {time}
+                    </span>
+                  ) : (
+                    <span style={{ display: "block" }} aria-hidden="true" />
+                  )}
 
                   <div
                     style={{
@@ -342,6 +339,18 @@ export default function ConversationList({
                       </span>
                     ) : null}
                   </div>
+
+                  {/* Se montan solo cuando toca, no ocultas con opacidad: un
+                      elemento invisible seguiría ocupando su alto y estiraría
+                      TODAS las filas, tengan visto o no. La entrada se anima al
+                      montarse, con el mismo rebote que en el hilo. */}
+                  {showsReadChecks ? (
+                    <span className="vibra-row-checks" style={{ justifySelf: "end" }}>
+                      <ReadChecksIcon size={16} />
+                    </span>
+                  ) : (
+                    <span style={{ display: "block" }} aria-hidden="true" />
+                  )}
                 </div>
               </button>
             </div>

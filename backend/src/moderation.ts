@@ -3,6 +3,7 @@ import { getAuth } from "firebase-admin/auth";
 import { FieldValue, getFirestore, Timestamp } from "firebase-admin/firestore";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
+import { requirePlatformMod } from "./authz";
 
 if (!getApps().length) {
   initializeApp();
@@ -56,26 +57,78 @@ function requireAuth(request: { auth?: { uid?: string } }): string {
   return uid;
 }
 
+/**
+ * Resuelve en el SERVIDOR de quién es el contenido reportado.
+ *
+ * Antes se guardaba el `targetOwnerId` que mandaba quien reporta, y ese valor
+ * es el que usa el moderador al pulsar "bloquear usuario". Convertir un dato no
+ * confiable en una acción administrativa sobre una cuenta es exactamente cómo se
+ * consigue que un tercero banee a quien quiera.
+ *
+ * Devuelve null si el contenido no existe: sin dueño no hay reporte.
+ */
+async function resolveTargetOwner(
+  targetType: string,
+  targetId: string,
+  parentId: string | null
+): Promise<string | null> {
+  const readField = async (path: string, field: string): Promise<string | null> => {
+    const snap = await db.doc(path).get();
+    if (!snap.exists) return null;
+    const value = snap.get(field);
+    return typeof value === "string" && value ? value : null;
+  };
+
+  switch (targetType) {
+    case "post":
+    case "live":
+      return readField(`posts/${targetId}`, "authorId");
+
+    case "comment":
+    case "comment_reply":
+      // `parentId` ya se validó arriba: el comentario existe en ese post.
+      return readField(`posts/${parentId}/comments/${targetId}`, "authorId");
+
+    case "live_chat_message":
+      // El id del live viaja en parentId; el autor del mensaje es `userId`.
+      return parentId
+        ? readField(`liveChats/${parentId}/messages/${targetId}`, "userId")
+        : null;
+
+    case "greeting":
+      return readField(`greetingRequests/${targetId}`, "creatorId");
+
+    case "meet_greet":
+      return readField(`meetGreetRequests/${targetId}`, "creatorId");
+
+    case "exclusive_session":
+      return readField(`exclusiveSessionRequests/${targetId}`, "creatorId");
+
+    case "community":
+      return readField(`groups/${targetId}`, "ownerId");
+
+    case "user":
+      // Se reporta a la persona misma: el objetivo ES el dueño, pero se
+      // comprueba que exista para no abrir reportes contra uids inventados.
+      return (await db.doc(`users/${targetId}`).get()).exists ? targetId : null;
+
+    case "conversation":
+      // Un hilo privado no tiene "dueño": el moderador decide sobre las personas
+      // al revisarlo. Se deja sin dueño en vez de señalar a alguien de antemano.
+      return (await db.doc(`conversations/${targetId}`).get()).exists ? "" : null;
+
+    default:
+      return null;
+  }
+}
+
+// El criterio vive en `authz.ts`, en un solo sitio: claim de moderador MÁS
+// sesión de Google. Tenerlo repetido aquí es como acabó pasando que las
+// funciones de dinero se quedaran solo con el claim.
 function requireModerator(request: {
   auth?: { uid?: string; token?: Record<string, unknown> };
 }): string {
-  const uid = requireAuth(request);
-  if (request.auth?.token?.["role"] !== "moderator") {
-    throw new HttpsError("permission-denied", "Acceso solo para moderadores.");
-  }
-  // La sesión también tiene que ser de Google. El panel ya lo exigía, pero solo
-  // en el cliente: estas callables aceptaban el claim viniera de donde viniera,
-  // así que la regla "los moderadores entran con Google" no era una frontera.
-  const firebaseClaim = request.auth?.token?.["firebase"] as
-    | { sign_in_provider?: string }
-    | undefined;
-  if (firebaseClaim?.sign_in_provider !== "google.com") {
-    throw new HttpsError(
-      "permission-denied",
-      "La moderación exige haber iniciado sesión con Google."
-    );
-  }
-  return uid;
+  return requirePlatformMod(request);
 }
 
 async function writeAuditLog(entry: {
@@ -130,12 +183,9 @@ export const submitReport = onCall<SubmitReportRequest>(
     if (!VALID_REASONS.includes(reason as ReportReason)) {
       throw new HttpsError("invalid-argument", "Motivo de reporte no válido.");
     }
-    if (targetOwnerId === uid) {
-      throw new HttpsError(
-        "invalid-argument",
-        "No puedes reportar tu propio contenido."
-      );
-    }
+    // Ojo: aquí NO se comprueba si es tu propio contenido. Ese valor lo manda el
+    // cliente y mentir en él es justo el ataque. La comprobación de verdad va
+    // más abajo, contra el dueño que resuelve el servidor.
     if (description && description.length > 500) {
       throw new HttpsError(
         "invalid-argument",
@@ -163,6 +213,28 @@ export const submitReport = onCall<SubmitReportRequest>(
           "El comentario no existe en la publicación indicada."
         );
       }
+    }
+
+    // ⚠️ Quién es el dueño del contenido lo decide el SERVIDOR, no quien reporta.
+    // Antes se guardaba el `targetOwnerId` que mandaba el cliente, y ese valor es
+    // el que usa el moderador al pulsar "bloquear usuario": deshabilita la cuenta
+    // y revoca sus tokens. O sea que alguien podía reportar su propia publicación
+    // y poner de dueño a la persona que quisiera hundir, y bastaba con que un
+    // moderador atendiera el reporte para banear a un inocente.
+    // `null` = el contenido no existe. Cadena vacía = existe pero no tiene un
+    // dueño único (una conversación privada es de dos personas), y eso es válido.
+    const resolvedOwnerId = await resolveTargetOwner(targetType, targetId, parentId);
+    if (resolvedOwnerId === null) {
+      throw new HttpsError(
+        "not-found",
+        "No se encontró el contenido reportado."
+      );
+    }
+    if (resolvedOwnerId === uid) {
+      throw new HttpsError(
+        "invalid-argument",
+        "No puedes reportar tu propio contenido."
+      );
     }
 
     // Verificar duplicado: mismo reportero + mismo targetId
@@ -197,7 +269,9 @@ export const submitReport = onCall<SubmitReportRequest>(
       targetType,
       targetId,
       parentId,
-      targetOwnerId,
+      // El resuelto por el servidor, NO el que mandó quien reporta.
+      targetOwnerId: resolvedOwnerId,
+      reportedOwnerIdClaim: targetOwnerId || null,
       reason,
       description,
       status: "pending",
@@ -209,6 +283,27 @@ export const submitReport = onCall<SubmitReportRequest>(
       resolutionNotes: null,
       resolvedBy: null,
     });
+
+    // Denuncia de una conversación privada: se marca el hilo como "en revisión".
+    // Ese marcador es lo ÚNICO que le abre esa conversación al supermoderador —
+    // sin él no puede leer los mensajes de nadie. Antes leía los de todo el
+    // mundo por una regla comodín, hubiera denuncia o no.
+    if (targetType === "conversation") {
+      try {
+        await db.collection("conversations").doc(targetId).update({
+          underReview: true,
+          underReviewAt: FieldValue.serverTimestamp(),
+        });
+      } catch (err) {
+        // El hilo pudo borrarse entre el reporte y esta escritura. El reporte ya
+        // quedó guardado; sin la marca el moderador verá el motivo pero no el
+        // contenido, que es el modo seguro de fallar.
+        logger.warn("submitReport: no se pudo marcar la conversación", {
+          targetId,
+          err: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }
 
     logger.info("submitReport", { uid, targetType, targetId, reason });
     return { ok: true, duplicate: false };
@@ -306,6 +401,55 @@ export const resolveReport = onCall<ResolveReportRequest>(
       throw new HttpsError(
         "failed-precondition",
         "Este reporte ya fue resuelto."
+      );
+    }
+
+    // Nadie resuelve un reporte que otra persona está atendiendo. Antes cualquier
+    // moderador podía resolver uno ya tomado: dos personas decidían cosas
+    // distintas sobre el mismo caso y la segunda pisaba a la primera, sin que el
+    // registro reflejara quién lo revisó de verdad.
+    //
+    // Si está libre, se toma AQUÍ y en transacción. Así no hace falta pasar por
+    // la lista para poder resolver, y dos moderadores que abran el mismo reporte
+    // a la vez no pueden resolverlo los dos: el segundo se encuentra con que ya
+    // tiene dueño.
+    await db.runTransaction(async (tx) => {
+      const snap = await tx.get(reportRef);
+      const current = snap.data() ?? {};
+
+      if (current.status === "resolved" || current.status === "dismissed") {
+        throw new HttpsError("failed-precondition", "Este reporte ya fue resuelto.");
+      }
+
+      const claimedBy =
+        typeof current.claimedBy === "string" ? current.claimedBy : null;
+
+      if (claimedBy && claimedBy !== modUid) {
+        throw new HttpsError(
+          "failed-precondition",
+          "Este reporte lo está atendiendo otra persona."
+        );
+      }
+
+      if (!claimedBy) {
+        tx.update(reportRef, {
+          claimedBy: modUid,
+          claimedAt: FieldValue.serverTimestamp(),
+          status: "reviewing",
+        });
+      }
+    });
+
+    // Sin dueño resuelto no se puede sancionar a nadie. Pasa con las denuncias
+    // de conversaciones privadas, que son de dos personas: el moderador puede
+    // desestimarlas o revisar el hilo, pero no bloquear a ciegas.
+    if (
+      (action === "block_user" || action === "warn_user") &&
+      !reportData.targetOwnerId
+    ) {
+      throw new HttpsError(
+        "failed-precondition",
+        "Este reporte no señala a una persona concreta. Actúa desde su perfil."
       );
     }
 

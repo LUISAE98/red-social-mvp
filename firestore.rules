@@ -1006,6 +1006,24 @@ match /hiddenGroupTransitions/{groupId} {
         : groupDoc(groupId).data.visibility;
     }
 
+    // ¿La suscripción de esta persona a esta comunidad sigue vigente?
+    //
+    // No basta con que el documento exista: al terminar una suscripción NO se
+    // borra, se marca (`ended`, `cancelled`, `past_due`) y se queda de historial.
+    // Se comprueba que esté activa, que no haya vencido y que el documento hable
+    // de esta persona y de esta comunidad, no de otras.
+    function subscriptionDoc(groupId, userId) {
+      return get(/databases/$(database)/documents/groupSubscriptions/$(groupId + "_" + userId)).data;
+    }
+
+    function subscriptionIsCurrent(groupId, userId) {
+      return subscriptionDoc(groupId, userId).get('active', false) == true
+        && subscriptionDoc(groupId, userId).get('uid', '') == userId
+        && subscriptionDoc(groupId, userId).get('groupId', '') == groupId
+        && subscriptionDoc(groupId, userId).get('accessUntil', null) != null
+        && subscriptionDoc(groupId, userId).accessUntil > request.time;
+    }
+
     function groupSubscriptionsEnabled(groupId) {
       return groupExists(groupId)
         && ("monetization" in groupDoc(groupId).data)
@@ -1786,7 +1804,15 @@ function validMemberCreateShape(groupId, userId) {
             // create:if false). Sin ese doc, un cliente NO puede auto-concederse una
             // membresía de pago sin pagar. El flujo legítimo escribe la membresía con
             // Admin SDK (que ignora estas reglas), así que esta condición no lo afecta.
+            //
+            // ⚠️ Antes bastaba con `exists()`, y ahí estaba el agujero: los
+            // documentos de suscripción NO se borran al terminar, se quedan con
+            // `status: ended/cancelled/past_due` y `active: false`. Así que quien
+            // pagó una vez podía reconstruirse la membresía años después sin
+            // renovar, y volver a entrar a una comunidad de pago u oculta.
+            // Ahora se exige que la suscripción siga VIVA y sin vencer.
             && exists(/databases/$(database)/documents/groupSubscriptions/$(groupId + "_" + userId))
+            && subscriptionIsCurrent(groupId, userId)
           )
         )
       )
@@ -2022,6 +2048,8 @@ match /memberBlocks/{blockId} {
         && (
           resource.data.buyerId == request.auth.uid
           || resource.data.creatorId == request.auth.uid
+          // El supermoderador revisa la experiencia cuando la denuncian.
+          || isPlatformMod()
         );
 
       allow list: if signedIn()
@@ -2075,6 +2103,8 @@ match /memberBlocks/{blockId} {
         && (
           resource.data.buyerId == request.auth.uid
           || resource.data.creatorId == request.auth.uid
+          // El supermoderador revisa la experiencia cuando la denuncian.
+          || isPlatformMod()
         );
 
       allow list: if signedIn()
@@ -2096,6 +2126,8 @@ match /memberBlocks/{blockId} {
         && (
           resource.data.buyerId == request.auth.uid
           || resource.data.creatorId == request.auth.uid
+          // El supermoderador revisa la experiencia cuando la denuncian.
+          || isPlatformMod()
         );
 
       allow list: if signedIn()
@@ -2117,6 +2149,8 @@ match /memberBlocks/{blockId} {
         && (
           resource.data.buyerId == request.auth.uid
           || resource.data.creatorId == request.auth.uid
+          // El supermoderador revisa la experiencia cuando la denuncian.
+          || isPlatformMod()
         );
 
       allow list: if signedIn()
@@ -3220,7 +3254,8 @@ function canUpdateReplyCount(delta) {
             );
         }
 
-        allow get, list: if canReadComment();
+        // El supermoderador revisa comentarios denunciados desde el panel.
+      allow get, list: if canReadComment() || isPlatformMod();
 
         allow create: if canCreateComment();
 
@@ -3287,7 +3322,8 @@ function canUpdateReplyCount(delta) {
               );
           }
 
-          allow get, list: if canReadReply();
+          // El supermoderador revisa respuestas denunciadas desde el panel.
+        allow get, list: if canReadReply() || isPlatformMod();
 
           allow create: if canCreateReply();
 
@@ -3453,7 +3489,8 @@ function canUpdateReplyCount(delta) {
           || canReadGroupContent(gid);
       }
 
-      allow get, list: if liveChatIsReadable();
+      // El supermoderador revisa mensajes de chat de live denunciados.
+      allow get, list: if liveChatIsReadable() || isPlatformMod();
 
       allow create: if notAnonymous()
         && liveChatEnabled()
@@ -3547,6 +3584,20 @@ function canUpdateReplyCount(delta) {
     // ==========================
     // MODERACIÓN — AUDIT LOG
     // ==========================
+    // Historial de la moderación de COMUNIDADES (silenciar, banear, expulsar,
+    // promover, degradar). Antes la huella vivía en el propio documento de
+    // miembro y la siguiente acción la sobrescribía, así que no había forma de
+    // investigar a un moderador de comunidad. Aquí cada acción es una línea
+    // nueva que nadie puede editar.
+    //
+    // Lo lee el dueño de la comunidad —es su comunidad y su dinero, porque
+    // banear cancela suscripciones— y el supermoderador de plataforma.
+    match /groupModerationLog/{entryId} {
+      allow get, list: if isPlatformMod()
+        || (signedIn() && isOwner(resource.data.groupId));
+      allow write: if false;
+    }
+
     match /adminAuditLog/{actionId} {
       // Solo moderadores de plataforma pueden leer el historial
       allow read: if isPlatformMod();
@@ -3724,7 +3775,12 @@ function canUpdateReplyCount(delta) {
             );
       }
 
-      allow get, list: if isParticipant();
+      // El supermoderador NO puede leer conversaciones ajenas por curiosidad.
+      // Solo abre la que alguien denunció: `submitReport` marca `underReview`
+      // en el hilo al recibir un reporte de tipo "conversation", y ese marcador
+      // es lo único que abre la puerta. Sin denuncia, no hay lectura.
+      allow get, list: if isParticipant()
+        || (isPlatformMod() && resource.data.get("underReview", false) == true);
 
       allow create: if signedIn()
         && notAnonymous()
@@ -3824,7 +3880,10 @@ function canUpdateReplyCount(delta) {
             || messageId == convAfter().firstMessageId;
         }
 
-        allow get, list: if isConvParticipant();
+        // Mismo criterio que el hilo: solo los mensajes de una conversación
+        // denunciada, nunca los de una cualquiera.
+        allow get, list: if isConvParticipant()
+          || (isPlatformMod() && conv().get("underReview", false) == true);
 
         // UNA imagen como mucho por mensaje. Solo se valida la forma: los
         // ficheros ya los gobierna storage.rules bajo `dmImages/`.
@@ -3983,11 +4042,18 @@ function canUpdateReplyCount(delta) {
     // ==========================
     // ACCESO GLOBAL MODERADORES
     // ==========================
-    // Los moderadores de plataforma pueden leer cualquier documento para revisar contenido.
-    // No pueden escribir nada directamente — todas sus acciones van por Cloud Functions.
-    match /{document=**} {
-      allow read: if isPlatformMod();
-    }
+    // ⚠️ AQUÍ HABÍA UNA REGLA COMODÍN: `match /{document=**} { allow read: if
+    // isPlatformMod(); }`. En Firestore las reglas se combinan con OR, así que
+    // esa línea ANULABA todas las restricciones de lectura del archivo. Un
+    // supermoderador podía leer los mensajes privados de cualquiera, los datos
+    // fiscales y bancarios de los creadores, las cuentas de retiro, el KYC y —lo
+    // peor— las claves de transmisión de `posts/{id}/liveStream/credentials`,
+    // con las que se puede secuestrar un directo.
+    //
+    // Ahora el acceso del supermoderador es EXPLÍCITO, colección por colección,
+    // ahí donde el panel de moderación lo necesita de verdad. Si en el futuro
+    // hace falta revisar algo nuevo, se añade el permiso a esa colección — nunca
+    // se vuelve a abrir un comodín.
 
     match /{document=**} {
       allow read, write: if false;

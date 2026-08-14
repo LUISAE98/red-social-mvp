@@ -101,6 +101,67 @@ async function getGroupOrThrow(groupId: string) {
   };
 }
 
+/**
+ * Rastro inmutable de una acción de moderación de comunidad.
+ *
+ * Las acciones dejaban su huella EN el propio documento de miembro
+ * (`moderatedBy`, `bannedAt`, `removedAt`), y la siguiente acción la
+ * sobrescribía. Así no se podía investigar el abuso de un moderador: cada
+ * castigo borraba el anterior. Esto va a una colección aparte que solo escribe
+ * el backend, y donde cada acción es una línea nueva.
+ *
+ * Importa especialmente porque banear CANCELA la suscripción de Stripe de esa
+ * persona, así que un moderador de contenido puede cortar una relación de pago
+ * del dueño. Es una decisión de producto válida, pero tiene que quedar anotada.
+ */
+async function logGroupModeration(entry: {
+  groupId: string;
+  action: string;
+  actorUid: string;
+  targetUserId: string;
+  details?: Record<string, unknown>;
+}): Promise<void> {
+  try {
+    await db.collection("groupModerationLog").add({
+      ...entry,
+      details: entry.details ?? null,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+  } catch (err) {
+    // El rastro no puede tumbar la acción de moderación en sí.
+    logger.warn("logGroupModeration falló", {
+      ...entry,
+      err: err instanceof Error ? err.message : String(err),
+    });
+  }
+}
+
+/** ¿Esta comunidad cobra suscripción para entrar? */
+async function groupIsSubscriptionBased(groupId: string): Promise<boolean> {
+  const snap = await db.collection("groups").doc(groupId).get();
+  const monetization = snap.get("monetization");
+  if (!monetization || typeof monetization !== "object") return false;
+  const m = monetization as Record<string, unknown>;
+  return m.subscriptionsEnabled === true || m.isPaid === true;
+}
+
+/**
+ * ¿La suscripción de esta persona a esta comunidad sigue vigente?
+ *
+ * Los documentos de `groupSubscriptions` NO se borran al terminar: quedan con
+ * `active: false` y `status` en `ended`/`cancelled`/`past_due`. Comprobar solo
+ * que existan haría pasar por suscriptor a quien dejó de pagar hace un año.
+ */
+async function hasCurrentSubscription(groupId: string, uid: string): Promise<boolean> {
+  const snap = await db.collection("groupSubscriptions").doc(`${groupId}_${uid}`).get();
+  if (!snap.exists) return false;
+  if (snap.get("active") !== true) return false;
+
+  const accessUntil = snap.get("accessUntil");
+  if (!accessUntil || typeof accessUntil.toMillis !== "function") return false;
+  return accessUntil.toMillis() > Date.now();
+}
+
 async function getMemberRefOrThrow(groupId: string, targetUserId: string) {
   const memberRef = db
     .collection("groups")
@@ -163,7 +224,16 @@ async function getActorContextOrThrow(groupId: string, actorUid: string) {
   const actorRole = normalizeRole(actorData?.roleInGroup ?? actorData?.role);
   const actorStatus = normalizeStatus(actorData?.status);
 
-  if (actorStatus === "banned" || actorStatus === "removed") {
+  // `muted` también queda fuera. Las Firestore Rules solo aceptan a un moderador
+  // en `active` o `subscribed`, pero aquí se colaba: un moderador silenciado era
+  // rechazado por las reglas y aceptado por estas callables, que usan Admin SDK y
+  // se saltan las reglas. Normalmente silenciar a un moderador también lo degrada,
+  // pero un dato antiguo o a medio migrar podía dejar `mod` + `muted`.
+  if (
+    actorStatus === "banned" ||
+    actorStatus === "removed" ||
+    actorStatus === "muted"
+  ) {
     throw new HttpsError(
       "permission-denied",
       "No tienes permisos para realizar esta acción."
@@ -291,6 +361,13 @@ export const promoteGroupMemberToAdmin = onCall(async (request) => {
 
   await batch.commit();
 
+  await logGroupModeration({
+    groupId,
+    action: "promote",
+    actorUid,
+    targetUserId,
+  });
+
   return { ok: true, roleInGroup: "mod" };
 });
 
@@ -323,6 +400,13 @@ export const demoteGroupAdminToMember = onCall(async (request) => {
   batch.set(userMembershipRef, patch, { merge: true });
 
   await batch.commit();
+
+  await logGroupModeration({
+    groupId,
+    action: "demote",
+    actorUid,
+    targetUserId,
+  });
 
   return { ok: true, roleInGroup: "member" };
 });
@@ -360,6 +444,13 @@ export const muteGroupMember = onCall(async (request) => {
 
   await safeNotifyModeration(groupId, targetUserId, "muted");
 
+  await logGroupModeration({
+    groupId,
+    action: "mute",
+    actorUid,
+    targetUserId,
+  });
+
   return {
     ok: true,
     mutedUntil: mutedUntilDate.toISOString(),
@@ -390,6 +481,13 @@ export const unmuteGroupMember = onCall(async (request) => {
   batch.set(userMembershipRef, patch, { merge: true });
 
   await batch.commit();
+
+  await logGroupModeration({
+    groupId,
+    action: "unmute",
+    actorUid,
+    targetUserId,
+  });
 
   return { ok: true };
 });
@@ -448,6 +546,13 @@ export const banGroupMember = onCall({ secrets: [stripeSecretKey] }, async (requ
 
   await safeNotifyModeration(groupId, targetUserId, "banned");
 
+  await logGroupModeration({
+    groupId,
+    action: "ban",
+    actorUid,
+    targetUserId,
+  });
+
   return { ok: true };
 });
 
@@ -467,38 +572,72 @@ export const unbanGroupMember = onCall(async (request) => {
     groupId,
     targetUserId
   );
+  // Desbanear NO puede regalar una suscripción. Al banear a alguien se le cancela
+  // el cobro en Stripe, así que ponerlo de vuelta en `active` le devolvía TODO el
+  // contenido de pago sin volver a pagar — y bastaba con hacerse banear y
+  // desbanear para no pagar nunca. Si la comunidad es de pago y su suscripción ya
+  // no está vigente, se le levanta el castigo pero se le quita la membresía:
+  // vuelve a ser alguien de fuera que puede suscribirse otra vez.
+  const paidAccessStillValid = await hasCurrentSubscription(groupId, targetUserId);
+  const groupRequiresPayment = await groupIsSubscriptionBased(groupId);
+  const restoreAsMember = !groupRequiresPayment || paidAccessStillValid;
+
   const batch = db.batch();
 
-  batch.set(
-    memberRef,
-    {
-      status: "active",
-      mutedUntil: null,
-      updatedAt: FieldValue.serverTimestamp(),
-      unbannedAt: FieldValue.serverTimestamp(),
-      moderatedBy: actorUid,
-    },
-    { merge: true }
-  );
+  if (restoreAsMember) {
+    const restoredStatus = paidAccessStillValid && groupRequiresPayment ? "subscribed" : "active";
 
     batch.set(
-    userMembershipRef,
-    {
-      status: "active",
-      mutedUntil: null,
-      updatedAt: FieldValue.serverTimestamp(),
-      unbannedAt: FieldValue.serverTimestamp(),
-      moderatedBy: actorUid,
-    },
-    { merge: true }
-  );
+      memberRef,
+      {
+        status: restoredStatus,
+        mutedUntil: null,
+        updatedAt: FieldValue.serverTimestamp(),
+        unbannedAt: FieldValue.serverTimestamp(),
+        moderatedBy: actorUid,
+      },
+      { merge: true }
+    );
+
+    batch.set(
+      userMembershipRef,
+      {
+        status: restoredStatus,
+        mutedUntil: null,
+        updatedAt: FieldValue.serverTimestamp(),
+        unbannedAt: FieldValue.serverTimestamp(),
+        moderatedBy: actorUid,
+      },
+      { merge: true }
+    );
+  } else {
+    // Comunidad de pago y sin suscripción viva: se va la membresía entera.
+    batch.delete(memberRef);
+    batch.delete(userMembershipRef);
+  }
 
   batch.delete(joinRequestRef);
   batch.delete(userJoinRequestSentRef);
 
   await batch.commit();
 
-  return { ok: true };
+  logger.info("unbanGroupMember", {
+    groupId,
+    targetUserId,
+    actorUid,
+    restoreAsMember,
+    groupRequiresPayment,
+    paidAccessStillValid,
+  });
+
+  await logGroupModeration({
+    groupId,
+    action: "unban",
+    actorUid,
+    targetUserId,
+  });
+
+  return { ok: true, restoredAsMember: restoreAsMember };
 });
 
 export const removeGroupMember = onCall(async (request) => {
@@ -538,6 +677,13 @@ export const removeGroupMember = onCall(async (request) => {
   await batch.commit();
 
   await safeNotifyModeration(groupId, targetUserId, "kicked");
+
+  await logGroupModeration({
+    groupId,
+    action: "remove",
+    actorUid,
+    targetUserId,
+  });
 
   return { ok: true };
 });

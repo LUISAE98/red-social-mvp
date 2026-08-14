@@ -2676,18 +2676,19 @@ newPostsCounts={newPostsCounts}
     Sin divisor arriba: la tarjeta gris del módulo ya lo separa del acordeón. */}
 {isMobile && viewer && !viewer.isAnonymous && (
   <>
+    {/* "Crea tu comunidad": el mismo bloque que vive en el menú derecho de
+        laptop (WalletDesktopRail), que en celular no existe. */}
+    <div style={{ padding: "14px 6px 0", minWidth: 0 }}>
+      <CreateCommunityCard />
+    </div>
+
+    {/* Configuración va al final del todo: es el cajón de ajustes, no algo que
+        se consulte a diario como crear una comunidad. */}
     <OwnerSidebarSettings
       uid={viewer.uid}
       email={viewer.email ?? null}
       onToast={showSidebarToast}
     />
-
-    {/* "Crea tu comunidad": el mismo bloque que vive en el menú derecho de
-        laptop (WalletDesktopRail), que en celular no existe. Va debajo de
-        Configuración, al cierre del menú. */}
-    <div style={{ padding: "14px 6px 0", minWidth: 0 }}>
-      <CreateCommunityCard />
-    </div>
   </>
 )}
 

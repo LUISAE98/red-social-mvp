@@ -18,6 +18,7 @@ import {
   facturapiUserKey,
   isFacturapiTestMode,
 } from "./facturapiClient";
+import { requirePlatformMod } from "../authz";
 
 const REGION = "us-central1";
 
@@ -30,9 +31,7 @@ export const facturapiHealthcheck = onCall(
     secrets: [facturapiTestKey, facturapiUserKey],
   },
   async (request) => {
-    if (request.auth?.token?.role !== "moderator") {
-      throw new HttpsError("permission-denied", "Solo un moderador puede ejecutar esto.");
-    }
+    requirePlatformMod(request);
 
     // 1. Multi-tenant: lista de organizaciones (llave de usuario).
     const orgs = await facturapiFetch<FacturapiList>("/organizations", { auth: "user" });

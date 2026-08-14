@@ -28,6 +28,10 @@ if (!admin.apps.length) {
 const db = getFirestore();
 const REGION = "us-central1";
 
+// Caducidad de una invitación a moderador. Sin tope, una invitación pendiente
+// vivía para siempre y podía aceptarse cuando la comunidad ya era otra cosa.
+const INVITE_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
+
 type AnyRecord = Record<string, unknown>;
 
 function str(value: unknown): string | null {
@@ -224,6 +228,41 @@ export const respondGroupModeratorInvite = onCall(
           { merge: true }
         );
         return;
+      }
+
+      // ⚠️ Las condiciones se comprobaban SOLO al invitar, nunca al aceptar, y
+      // una invitación pendiente no caducaba jamás. Así que bastaba con invitar
+      // a alguien mientras la comunidad era pública, volverla oculta después, y
+      // que aceptara meses más tarde para entrar de moderador a una comunidad
+      // oculta — justo lo que la comprobación de `inviteGroupModerator` prohíbe.
+      // Todo lo que se valida al invitar hay que revalidarlo al aceptar: entre
+      // los dos momentos puede pasar cualquier cosa.
+
+      const createdAtMs = invite.createdAt?.toMillis?.() ?? 0;
+      if (createdAtMs && Date.now() - createdAtMs > INVITE_MAX_AGE_MS) {
+        tx.set(
+          inviteRef,
+          { status: "expired", respondedAt: now, updatedAt: now },
+          { merge: true }
+        );
+        throw new HttpsError(
+          "failed-precondition",
+          "Esta invitación caducó. Pídele al dueño que te invite de nuevo."
+        );
+      }
+
+      if (str(groupData.visibility) === "hidden") {
+        throw new HttpsError(
+          "failed-precondition",
+          "Esta comunidad pasó a ser oculta. El dueño debe invitarte desde dentro."
+        );
+      }
+
+      if ("isActive" in groupData && groupData.isActive !== true) {
+        throw new HttpsError(
+          "failed-precondition",
+          "Esta comunidad ya no está activa."
+        );
       }
 
       // Un baneado no puede colarse aceptando una invitación vieja.
