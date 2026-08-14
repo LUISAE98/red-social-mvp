@@ -29,6 +29,7 @@ export default function WalletOnboarding({
   twoColumn = false,
   audience = "creators",
   excludeServices,
+  hideSections,
 }: {
   /** Botones "Comenzar ahora"/"Crea…" de los 11 servicios. Se ocultan cuando se
    *  reutiliza esta info fuera de la wallet (p. ej. login con sesión cerrada). */
@@ -50,7 +51,20 @@ export default function WalletOnboarding({
    * queden, así que no hay que tocar nada más al cambiar esta lista.
    */
   excludeServices?: readonly number[];
+  /**
+   * Secciones que NO se pintan. Lo usa el login, que está sustituyendo esta
+   * presentación por sus propios bloques y va apagando las que ya sobran. La
+   * wallet real no lo pasa, así que ahí se siguen viendo todas.
+   *
+   * - `hero`: el titular "Convierte tu pasión…" con sus ventajas y reglas
+   * - `commission`: la comisión de Vibra
+   * - `clear`: "Wallet clara" (celular, sellos y planeta)
+   * - `communities`: los 3 tipos de comunidades
+   */
+  hideSections?: readonly ("hero" | "commission" | "clear" | "communities")[];
 } = {}) {
+  const oculta = (s: "hero" | "commission" | "clear" | "communities") =>
+    hideSections?.includes(s) ?? false;
   const rawWallet = useTranslations("wallet");
   // Redirige las claves de onboarding con variante propia a su copy de usuario
   // cuando audience === "users"; el resto (claves neutrales) cae al de creador.
@@ -1632,6 +1646,7 @@ export default function WalletOnboarding({
         }`}
         ref={rootRef}
       >
+      {!oculta("hero") && (
       <section className="onboarding reveal">
         {/* Fondo decorativo. styled-jsx no scopea clases sobre <Image>, así que
             el posicionamiento va inline; el aspecto (velo, capas) en las clases
@@ -1694,12 +1709,13 @@ export default function WalletOnboarding({
           </div>
         </div>
       </section>
+      )}
 
       {/* Comisión: fuera de la tarjeta con imagen. Texto a la izquierda; la
           derecha queda reservada para un ejemplo que se agregará después.
           Habla del % que cobra Vibra y cuánto recibe el creador → no le interesa
           al fan, así que se oculta para users. */}
-      {audience !== "users" && (
+      {audience !== "users" && !oculta("commission") && (
       <section className="commission reveal">
         <div className="commissionLeft">
           <h2 className="commissionTitle">{tWallet("onboardingCommissionTitle")}</h2>
@@ -1739,7 +1755,7 @@ export default function WalletOnboarding({
       {/* Transparencia: título + descripción, alineados a la derecha.
           Es la sección "Wallet clara" (celular + texto): habla de lo que ve el
           creador de sus ventas, así que no aplica al fan → se oculta para users. */}
-      {audience !== "users" && (
+      {audience !== "users" && !oculta("clear") && (
       <section className="clearSection reveal">
         {/* En celular: teléfono a la izquierda y los 2 badges de seguridad a la
             derecha (apilados). En laptop: solo el teléfono (los badges viven en
@@ -2159,6 +2175,7 @@ export default function WalletOnboarding({
 
       {/* Título: crea 3 tipos de comunidades ("comunidades" con el degradado de
           marca, igual que "conectar" en el título principal). */}
+      {!oculta("communities") && (
       <section className="communitiesTitle reveal">
         {/* Tapete de categorías con profundidad (perspectiva 3D), puramente
             decorativo, detrás del título y las tarjetas. */}
@@ -2223,6 +2240,7 @@ export default function WalletOnboarding({
           ))}
         </div>
       </section>
+      )}
 
       {/* Cierre: invitación final. En usuarios va como celda del grid, y en
           login-creador (twoColumn) va dentro de la columna de servicios (ambos

@@ -2582,6 +2582,7 @@
     "retry": "Reintentar",
     "mute": "Silenciar",
     "unmute": "Reactivar",
+    "unreadCount": "{count} mensajes sin leer",
     "removeConversation": "Eliminar conversación",
     "removeConversationTitle": "¿Eliminar esta conversación?",
     "removeConversationBody": "Se quitará de tu bandeja. No se borra para la otra persona, y si te vuelve a escribir aparecerá de nuevo.",

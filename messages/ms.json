@@ -2582,6 +2582,7 @@
     "retry": "Cuba lagi",
     "mute": "Redam",
     "unmute": "Nyahredam",
+    "unreadCount": "{count} mesej belum dibaca",
     "removeConversation": "Padam perbualan",
     "removeConversationTitle": "Padam perbualan ini?",
     "removeConversationBody": "Ia akan hilang dari peti masuk anda. Ia tidak dipadam untuk orang lain dan akan kembali jika dia menulis lagi.",

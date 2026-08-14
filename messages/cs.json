@@ -2582,6 +2582,7 @@
     "retry": "Zkusit znovu",
     "mute": "Ztlumit",
     "unmute": "Zrušit ztlumení",
+    "unreadCount": "Nepřečtené zprávy: {count}",
     "removeConversation": "Smazat konverzaci",
     "removeConversationTitle": "Smazat tuto konverzaci?",
     "removeConversationBody": "Zmizí z vaší schránky. U druhé osoby se nesmaže a vrátí se, až vám znovu napíše.",

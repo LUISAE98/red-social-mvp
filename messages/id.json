@@ -2582,6 +2582,7 @@
     "retry": "Coba lagi",
     "mute": "Bisukan",
     "unmute": "Bunyikan",
+    "unreadCount": "{count} pesan belum dibaca",
     "removeConversation": "Hapus percakapan",
     "removeConversationTitle": "Hapus percakapan ini?",
     "removeConversationBody": "Akan hilang dari kotak masuk Anda. Tidak terhapus bagi orang lain dan akan kembali jika dia menulis lagi.",

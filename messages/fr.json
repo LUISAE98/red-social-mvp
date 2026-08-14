@@ -2582,6 +2582,7 @@
     "retry": "Réessayer",
     "mute": "Mettre en sourdine",
     "unmute": "Réactiver",
+    "unreadCount": "{count} messages non lus",
     "removeConversation": "Supprimer la conversation",
     "removeConversationTitle": "Supprimer cette conversation ?",
     "removeConversationBody": "Elle disparaîtra de votre boîte de réception. Elle n’est pas supprimée pour l’autre personne et réapparaîtra si elle vous réécrit.",

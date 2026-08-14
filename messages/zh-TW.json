@@ -2582,6 +2582,7 @@
     "retry": "重試",
     "mute": "靜音",
     "unmute": "取消靜音",
+    "unreadCount": "{count} 則未讀訊息",
     "removeConversation": "刪除對話",
     "removeConversationTitle": "要刪除這個對話嗎？",
     "removeConversationBody": "它會從你的收件匣消失。對方不會被刪除，如果對方再傳訊息就會回來。",

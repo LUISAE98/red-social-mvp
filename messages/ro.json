@@ -2582,6 +2582,7 @@
     "retry": "Reîncearcă",
     "mute": "Dezactivează sunetul",
     "unmute": "Reactivează",
+    "unreadCount": "{count} mesaje necitite",
     "removeConversation": "Șterge conversația",
     "removeConversationTitle": "Ștergi această conversație?",
     "removeConversationBody": "Va dispărea din inbox. Nu se șterge pentru cealaltă persoană și va reapărea dacă îți scrie din nou.",

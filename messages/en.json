@@ -2582,6 +2582,7 @@
     "retry": "Retry",
     "mute": "Mute",
     "unmute": "Unmute",
+    "unreadCount": "{count} unread messages",
     "removeConversation": "Delete conversation",
     "removeConversationTitle": "Delete this conversation?",
     "removeConversationBody": "It will be removed from your inbox. It is not deleted for the other person, and it will come back if they write to you again.",

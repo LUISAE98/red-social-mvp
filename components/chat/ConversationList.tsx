@@ -7,6 +7,7 @@ import LiveRingAvatar from "@/app/components/LiveRing/LiveRingAvatar";
 import type { ConversationWithId } from "@/lib/chat/chatService";
 import { getOtherParticipant } from "@/lib/chat/types";
 import { ChatReveal, ConversationListSkeleton } from "./ChatSkeletons";
+import ReadChecksIcon from "./ReadChecksIcon";
 
 /**
  * Lista de conversaciones del inbox (perfil ↔ perfil).
@@ -103,10 +104,20 @@ export default function ConversationList({
   }
 
   return (
-    <div style={{ ...styles.sectionPanel, background: "transparent", padding: 0 }}>
+    <div
+      style={{
+        ...styles.sectionPanel,
+        background: "transparent",
+        padding: 0,
+        // Cortan la cadena de encogido de arriba abajo: basta con que UN
+        // ancestro no pueda encogerse para que el recorte de la vista previa no
+        // llegue a aplicarse nunca.
+        minWidth: 0,
+      }}
+    >
       {/* El contenido real entra con fade, no de golpe (vibra_style.md). */}
       <ChatReveal show>
-      <div style={{ display: "grid", gap: 6 }}>
+      <div style={{ display: "grid", gap: 6, minWidth: 0 }}>
         {conversations.map((conversation) => {
           const otherUid = selfUid
             ? getOtherParticipant(conversation.participants, selfUid)
@@ -141,6 +152,22 @@ export default function ConversationList({
             locale
           );
 
+          /**
+           * Palomitas de leído en la fila: solo si lo ÚLTIMO del hilo lo
+           * escribiste tú y ya lo vieron.
+           *
+           * Sale del mismo recibo agregado que en el hilo, sin ningún dato
+           * nuevo: `lastReadAt` dice hasta cuándo leyó el otro, y basta con que
+           * alcance a la marca del último mensaje.
+           */
+          const otherReadAt = otherUid ? conversation.lastReadAt?.[otherUid] : null;
+          const showsReadChecks =
+            mine &&
+            !isBlocked &&
+            !!otherReadAt &&
+            !!last?.createdAt &&
+            last.createdAt.toMillis() <= otherReadAt.toMillis();
+
           return (
             <div
               key={conversation.id}
@@ -153,6 +180,12 @@ export default function ConversationList({
                 display: "flex",
                 alignItems: "center",
                 gap: 10,
+                // La fila es un elemento de rejilla, y esos traen `min-width:
+                // auto`: sin esto, una vista previa larga ensancha la tarjeta más
+                // allá del panel por mucho que el texto de dentro esté preparado
+                // para recortarse. En el sidebar eso empujaba el "Ver todos"
+                // fuera de la vista.
+                minWidth: 0,
                 background: !isSelected
                   ? "transparent"
                   : "linear-gradient(90deg, rgba(236,72,153,0.20) 0%, rgba(147,51,234,0.18) 42%, rgba(59,130,246,0.14) 100%)",
@@ -217,19 +250,43 @@ export default function ConversationList({
                       {displayName}
                     </span>
 
-                    {time ? (
+                    {/* Hora y, debajo, las palomitas. En columna para que las
+                        palomitas no empujen el nombre ni recorten su hora. */}
+                    {time || showsReadChecks ? (
                       <span
                         style={{
-                          fontSize: 10,
-                          color: hasUnread
-                            ? "rgba(255,255,255,0.70)"
-                            : "rgba(255,255,255,0.40)",
-                          lineHeight: 1.25,
-                          whiteSpace: "nowrap",
+                          display: "flex",
+                          flexDirection: "column",
+                          alignItems: "flex-end",
+                          gap: 3,
                           flexShrink: 0,
                         }}
                       >
-                        {time}
+                        {time ? (
+                          <span
+                            style={{
+                              fontSize: 10,
+                              color: hasUnread
+                                ? "rgba(255,255,255,0.70)"
+                                : "rgba(255,255,255,0.40)",
+                              lineHeight: 1.25,
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            {time}
+                          </span>
+                        ) : null}
+
+                        {/* Se montan solo cuando toca, no ocultas con opacidad:
+                            un elemento invisible seguiría ocupando su alto y
+                            estiraría TODAS las filas, tengan visto o no.
+                            La entrada se anima al montarse, con el mismo rebote
+                            que en el hilo. */}
+                        {showsReadChecks ? (
+                          <span className="vibra-row-checks">
+                            <ReadChecksIcon size={16} />
+                          </span>
+                        ) : null}
                       </span>
                     ) : null}
                   </div>
@@ -292,6 +349,32 @@ export default function ConversationList({
         })}
       </div>
       </ChatReveal>
+
+      {/* Entrada de las palomitas en una fila. Propia y no la del hilo: esa vive
+          en el bloque de estilos de la conversación, que aquí no está montado. */}
+      <style jsx global>{`
+        .vibra-row-checks {
+          display: block;
+          line-height: 0;
+          animation: vibraRowChecksPop var(--duration-normal, 250ms)
+            var(--ease-spring, cubic-bezier(0.34, 1.56, 0.64, 1)) both;
+        }
+        @keyframes vibraRowChecksPop {
+          from {
+            opacity: 0;
+            transform: scale(0.4);
+          }
+          to {
+            opacity: 1;
+            transform: scale(1);
+          }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .vibra-row-checks {
+            animation: none;
+          }
+        }
+      `}</style>
     </div>
   );
 }

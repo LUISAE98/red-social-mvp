@@ -2582,6 +2582,7 @@
     "retry": "Yenidən cəhd edin",
     "mute": "Səssiz et",
     "unmute": "Səsi aç",
+    "unreadCount": "{count} oxunmamış mesaj",
     "removeConversation": "Söhbəti sil",
     "removeConversationTitle": "Bu söhbət silinsin?",
     "removeConversationBody": "Gələnlər qutunuzdan çıxacaq. Qarşı tərəf üçün silinmir və yenidən yazsa qayıdacaq.",

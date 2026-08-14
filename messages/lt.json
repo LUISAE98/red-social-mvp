@@ -2582,6 +2582,7 @@
     "retry": "Bandyti dar kartą",
     "mute": "Nutildyti",
     "unmute": "Įjungti garsą",
+    "unreadCount": "Neperskaityti pranešimai: {count}",
     "removeConversation": "Ištrinti pokalbį",
     "removeConversationTitle": "Ištrinti šį pokalbį?",
     "removeConversationBody": "Jis dings iš jūsų gautųjų. Kitam asmeniui neištrinamas ir grįš, jei jis vėl parašys.",

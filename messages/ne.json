@@ -2582,6 +2582,7 @@
     "retry": "पुनः प्रयास गर्नुहोस्",
     "mute": "म्युट गर्नुहोस्",
     "unmute": "अनम्युट गर्नुहोस्",
+    "unreadCount": "{count} unread messages",
     "removeConversation": "कुराकानी मेट्नुहोस्",
     "removeConversationTitle": "यो कुराकानी मेट्ने?",
     "removeConversationBody": "यो तपाईंको इनबक्सबाट हट्नेछ। अर्को व्यक्तिका लागि मेटिँदैन, र उनले फेरि लेखे यो फेरि देखिनेछ।",

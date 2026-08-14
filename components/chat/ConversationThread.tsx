@@ -28,6 +28,7 @@ import {
 } from "@/lib/chat/types";
 import { uploadDirectMessageImage } from "@/lib/posts/image-upload";
 import { renderMessageText } from "@/lib/chat/linkify";
+import ReadChecksIcon from "./ReadChecksIcon";
 import type { ProfileMini } from "./ConversationList";
 import {
   ChatReveal,
@@ -200,6 +201,7 @@ const BUBBLE_MINE = "rgba(168,85,247,0.52)";
 const BUBBLE_MINE_FLASH = "rgba(168,85,247,0.85)";
 /** Los del otro no se tocan: el encargo era iluminar el morado, no el gris. */
 const BUBBLE_THEIRS = "rgba(255,255,255,0.07)";
+
 
 /** Pista del gesto: aparece a la izquierda del globo según se arrastra. */
 function SwipeReplyCue() {
@@ -787,6 +789,29 @@ export default function ConversationThread({
 
   const signedUrls = useDmImageUrls(conversationId, imagePaths);
 
+  /**
+   * Cuál de MIS mensajes lleva las palomitas de leído.
+   *
+   * Sale del recibo agregado que ya existía: `lastReadAt` guarda hasta cuándo
+   * leyó cada quien, así que un mensaje está leído si es anterior a esa marca.
+   * No hace falta ningún campo por mensaje ni ninguna escritura nueva — que es
+   * justo lo que abarataba este diseño desde el principio.
+   */
+  const lastReadMineId = useMemo(() => {
+    const readAt = otherUid ? conversation?.lastReadAt?.[otherUid] : null;
+    if (!readAt || !selfUid) return null;
+
+    for (let i = messages.length - 1; i >= 0; i -= 1) {
+      const candidate = messages[i];
+      if (candidate.senderId !== selfUid) continue;
+      // Sin `createdAt` es una escritura optimista que el servidor aún no ha
+      // sellado: no se puede comparar, y desde luego no está leída.
+      const at = candidate.createdAt;
+      if (at && at.toMillis() <= readAt.toMillis()) return candidate.id;
+    }
+    return null;
+  }, [messages, conversation?.lastReadAt, otherUid, selfUid]);
+
   /** URL para pintar: la firmada, o la permanente si es un mensaje antiguo. */
   function imageUrl(image: ChatImage, variant: "thumb" | "full"): string | null {
     if (variant === "thumb") {
@@ -906,6 +931,27 @@ export default function ConversationThread({
     setReplyingTo(null);
     lastMessageIdRef.current = null;
   }, [conversationId]);
+
+  /**
+   * Abrir el hilo lo deja SIEMPRE en los mensajes recientes.
+   *
+   * Al minimizar la pestaña se corta la suscripción y el hilo se queda sin
+   * mensajes; al volver a abrirla llega el mismo último mensaje que ya había, y
+   * el efecto de más abajo salía antes de mover nada — comprueba si CAMBIÓ el
+   * último, no si el hilo se acaba de mostrar. Resultado: la conversación se
+   * abría al principio de todo.
+   *
+   * Olvidando cuál era el último, la siguiente llegada vuelve a contar como
+   * primera pintada y baja sola.
+   */
+  useEffect(() => {
+    if (!active) {
+      lastMessageIdRef.current = null;
+      return;
+    }
+    stickToBottomRef.current = true;
+    scrollToBottom(false);
+  }, [active, scrollToBottom]);
 
   async function handleSend() {
     const body = draft.trim();
@@ -1059,6 +1105,16 @@ export default function ConversationThread({
         ].join(" · ")
       : "";
 
+    /**
+     * Este mensaje es el que lleva las palomitas de leído.
+     *
+     * Solo uno en todo el hilo, y va recorriéndose: es el ÚLTIMO tuyo que la
+     * otra persona ya vio. Marcarlos todos sería ruido, y dejarlas clavadas en
+     * el último enviado las haría desaparecer cada vez que escribes algo nuevo
+     * — justo cuando más quieres saber si lo leyeron.
+     */
+    const showsReadChecks = message.id === lastReadMineId;
+
     // Una imagen sin pie ni cita ES el mensaje: no lleva globo detrás, solo sus
     // esquinas redondeadas.
     const bareImage = !message.isDeleted && !!message.image && !message.text && !message.replyTo;
@@ -1183,9 +1239,29 @@ export default function ConversationThread({
                   alignSelf: "stretch",
                 }}
               >
+                {/* Palomitas de leído y corazón COMPARTEN sitio, y por eso van
+                    los dos siempre montados: al pasar las palomitas al mensaje
+                    siguiente, el corazón de este entra con su rebote en el hueco
+                    que dejan. Si se montaran y desmontaran, el relevo sería un
+                    corte seco. */}
                 <span
                   className="vibra-msg-heart"
-                  data-on={(message.likedBy ?? []).length > 0 ? "" : undefined}
+                  data-on={showsReadChecks ? "" : undefined}
+                  style={{
+                    position: "absolute",
+                    bottom: -7,
+                    ...(mine ? { insetInlineStart: -5 } : { insetInlineEnd: -5 }),
+                  }}
+                >
+                  <ReadChecksIcon />
+                </span>
+
+                <span
+                  className="vibra-msg-heart"
+                  // Las palomitas mandan: mientras estén, el corazón espera.
+                  data-on={
+                    !showsReadChecks && (message.likedBy ?? []).length > 0 ? "" : undefined
+                  }
                   style={{
                     position: "absolute",
                     bottom: -7,

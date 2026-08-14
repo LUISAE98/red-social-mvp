@@ -2582,6 +2582,7 @@
     "retry": "Prøv igen",
     "mute": "Slå lyd fra",
     "unmute": "Slå lyd til",
+    "unreadCount": "{count} ulæste beskeder",
     "removeConversation": "Slet samtale",
     "removeConversationTitle": "Slet denne samtale?",
     "removeConversationBody": "Den forsvinder fra din indbakke. Den slettes ikke for den anden person og kommer tilbage, hvis vedkommende skriver igen.",

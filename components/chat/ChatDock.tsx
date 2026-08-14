@@ -61,6 +61,9 @@ export default function ChatDock({
   // Fuera del menú: ese se desmonta al cerrarse y se llevaba el panel con él.
   const [removeOpen, setRemoveOpen] = useState(false);
 
+  const unread = selfUid ? (conversation?.unread?.[selfUid] ?? 0) : 0;
+  const showUnreadBadge = minimized && unread > 0;
+
   return (
     <div
       style={{
@@ -88,6 +91,28 @@ export default function ChatDock({
       aria-label={displayName}
     >
       <style jsx global>{`
+        /* El contador entra con el mismo rebote que el resto de marcadores del
+           chat, para que un mensaje nuevo se note sin sobresaltar. */
+        .vibra-dock-unread {
+          animation: vibraDockUnreadPop var(--duration-normal, 250ms)
+            var(--ease-spring, cubic-bezier(0.34, 1.56, 0.64, 1)) both;
+        }
+        @keyframes vibraDockUnreadPop {
+          from {
+            opacity: 0;
+            transform: scale(0.4);
+          }
+          to {
+            opacity: 1;
+            transform: scale(1);
+          }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .vibra-dock-unread {
+            animation: none;
+          }
+        }
+
         @keyframes vibraChatDockIn {
           from {
             transform: translateY(100%);
@@ -171,14 +196,60 @@ export default function ChatDock({
           </span>
         ) : null}
 
-        <LiveRingAvatar
-          entityId={otherUid ?? conversationId}
-          entityType="profile"
-          currentUserId={selfUid}
-          photoURL={profile?.photoURL ?? null}
-          displayName={displayName}
-          size={28}
-        />
+        {/* Aviso de la pestaña minimizada: aro morado y el número de mensajes
+            sin abrir. Solo minimizada — desplegada los estás leyendo, y el
+            propio hilo los marca como leídos.
+            El contador viene del documento de la conversación, que se sigue
+            escuchando aunque la pestaña esté plegada (lo que se corta al plegar
+            es la suscripción a los MENSAJES, que es la cara). */}
+        <span
+          style={{
+            position: "relative",
+            display: "inline-flex",
+            flexShrink: 0,
+            borderRadius: 999,
+            // El aro va por sombra y no por borde: un borde cambiaría el tamaño
+            // del avatar y movería toda la cabecera al aparecer.
+            boxShadow: showUnreadBadge ? "0 0 0 2px #a855f7" : "none",
+            transition: "box-shadow var(--duration-fast, 150ms) ease",
+          }}
+        >
+          <LiveRingAvatar
+            entityId={otherUid ?? conversationId}
+            entityType="profile"
+            currentUserId={selfUid}
+            photoURL={profile?.photoURL ?? null}
+            displayName={displayName}
+            size={28}
+          />
+
+          {showUnreadBadge ? (
+            <span
+              className="vibra-dock-unread"
+              aria-label={tChat("unreadCount", { count: unread })}
+              style={{
+                position: "absolute",
+                top: -5,
+                insetInlineEnd: -5,
+                minWidth: 17,
+                height: 17,
+                padding: "0 4px",
+                borderRadius: 999,
+                background: "#a855f7",
+                color: "#fff",
+                fontSize: 10,
+                fontWeight: 700,
+                lineHeight: "17px",
+                textAlign: "center",
+                boxSizing: "border-box",
+                // Separa el número del avatar que tiene detrás.
+                border: "2px solid #0b0b0f",
+              }}
+            >
+              {unread > 99 ? "99+" : unread}
+            </span>
+          ) : null}
+        </span>
 
         <span
           style={{

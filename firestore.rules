@@ -300,12 +300,12 @@ service cloud.firestore {
     match /users/{uid} {
       allow get, list: if true;
 
-      allow create: if signedIn()
+      allow create: if notAnonymous()
         && request.auth.uid == uid
         && request.resource.data.uid == uid
         && validUserBase(request.resource.data);
 
-      allow update: if signedIn()
+      allow update: if notAnonymous()
         && (
           (
             request.auth.uid == uid
@@ -461,7 +461,7 @@ service cloud.firestore {
         allow get, list: if signedIn()
           && request.auth.uid == uid;
 
-        allow create, update: if signedIn()
+        allow create, update: if notAnonymous()
           && request.auth.uid == uid
           && targetUid != uid
           && validFollowingDoc(uid, targetUid)
@@ -470,7 +470,7 @@ service cloud.firestore {
           && getAfter(/databases/$(database)/documents/users/$(targetUid)/followers/$(uid)).data.userId == targetUid
           && getAfter(/databases/$(database)/documents/users/$(targetUid)/followers/$(uid)).data.followerUserId == uid;
 
-        allow delete: if signedIn()
+        allow delete: if notAnonymous()
           && (
             request.auth.uid == uid
             || (
@@ -490,7 +490,7 @@ service cloud.firestore {
         allow list: if signedIn()
           && request.auth.uid == uid;
 
-        allow create, update: if signedIn()
+        allow create, update: if notAnonymous()
           && request.auth.uid == followerUid
           && followerUid != uid
           && validFollowerDoc(uid, followerUid)
@@ -499,7 +499,7 @@ service cloud.firestore {
           && getAfter(/databases/$(database)/documents/users/$(followerUid)/following/$(uid)).data.userId == followerUid
           && getAfter(/databases/$(database)/documents/users/$(followerUid)/following/$(uid)).data.targetUserId == uid;
 
-        allow delete: if signedIn()
+        allow delete: if notAnonymous()
           && (
             request.auth.uid == uid
             || (
@@ -519,12 +519,12 @@ service cloud.firestore {
         allow list: if signedIn()
           && request.auth.uid == uid;
 
-        allow create, update: if signedIn()
+        allow create, update: if notAnonymous()
           && request.auth.uid == uid
           && blockedUid != uid
           && validBlockedUserDoc(uid, blockedUid);
 
-        allow delete: if signedIn()
+        allow delete: if notAnonymous()
           && request.auth.uid == uid;
       }
 
@@ -535,14 +535,14 @@ service cloud.firestore {
         // Índice inverso del bloqueo (lo escribe el que bloquea en la subcolección
         // del bloqueado). Validar forma y forzar que el doc sea sobre uno mismo,
         // para no sembrar contenido arbitrario en subcolecciones ajenas.
-        allow create: if signedIn()
+        allow create: if notAnonymous()
           && request.auth.uid == blockerUid
           && request.resource.data.blockedByUserId == blockerUid
           && request.resource.data.keys().hasOnly(["blockedByUserId", "createdAt"]);
 
         allow update: if false;
 
-        allow delete: if signedIn()
+        allow delete: if notAnonymous()
           && request.auth.uid == blockerUid;
       }
 
@@ -693,13 +693,13 @@ match /joinRequestsSent/{groupId} {
   allow get, list: if signedIn()
     && request.auth.uid == uid;
 
-  allow create, update: if signedIn()
+  allow create, update: if notAnonymous()
     && request.auth.uid == uid
     && request.resource.data.userId == uid
     && request.resource.data.groupId == groupId
     && request.resource.data.status == "pending";
 
-  allow delete: if signedIn()
+  allow delete: if notAnonymous()
     && request.auth.uid == uid;
 }
       
@@ -707,7 +707,7 @@ match /groupMemberships/{groupId} {
   allow get, list: if signedIn()
     && request.auth.uid == uid;
 
-  allow create, update: if signedIn()
+  allow create, update: if notAnonymous()
     && request.auth.uid == uid
     && request.resource.data.userId == uid
     && request.resource.data.groupId == groupId
@@ -755,14 +755,14 @@ match /groupMemberships/{groupId} {
       )
     );
 
-  allow delete: if signedIn()
+  allow delete: if notAnonymous()
     && request.auth.uid == uid;
 }
 
 match /hiddenGroupTransitions/{groupId} {
   allow get, list: if signedIn()
     && request.auth.uid == uid;
-  allow delete: if signedIn()
+  allow delete: if notAnonymous()
     && request.auth.uid == uid;
 }
 
@@ -815,7 +815,7 @@ match /hiddenGroupTransitions/{groupId} {
       // Function de geo-IP usa Admin SDK y no pasa por estas reglas.
       match /sessions/{sessionId} {
         allow get, list: if signedIn() && request.auth.uid == uid;
-        allow create, update, delete: if signedIn() && request.auth.uid == uid;
+        allow create, update, delete: if notAnonymous() && request.auth.uid == uid;
       }
 
       // Tokens FCM de push por dispositivo. El dueño registra/borra los suyos
@@ -823,7 +823,7 @@ match /hiddenGroupTransitions/{groupId} {
       // push usa Admin SDK (Cloud Function) y no pasa por estas reglas.
       match /fcmTokens/{token} {
         allow get, list: if signedIn() && request.auth.uid == uid;
-        allow create, update, delete: if signedIn() && request.auth.uid == uid;
+        allow create, update, delete: if notAnonymous() && request.auth.uid == uid;
       }
 
       allow delete: if false;
@@ -832,10 +832,19 @@ match /hiddenGroupTransitions/{groupId} {
     match /handles/{handle} {
       allow get, list: if true;
 
-      allow create: if signedIn()
+      // El handle solo se puede reservar si en la MISMA transacción queda un
+      // perfil `users/{uid}` que lo declara suyo. Antes bastaba con estar
+      // autenticado (incluso de forma anónima) y no había tope: un solo uid
+      // podía reservar miles de nombres —marcas, creadores— y dejarlos
+      // bloqueados para siempre, porque `update, delete` son `false`.
+      //
+      // Como el perfil tiene UN campo `handle` y ese campo no está en la lista
+      // de claves editables de `users`, cada uid queda con un handle y solo uno.
+      allow create: if notAnonymous()
         && validHandle(handle)
         && request.resource.data.uid == request.auth.uid
-        && !exists(/databases/$(database)/documents/handles/$(handle));
+        && !exists(/databases/$(database)/documents/handles/$(handle))
+        && getAfter(/databases/$(database)/documents/users/$(request.auth.uid)).data.handle == handle;
 
       allow update, delete: if false;
     }
@@ -1704,7 +1713,7 @@ allow list: if
   || isModerator(groupId)
   || isPlatformMod();
 
-      allow create: if signedIn()
+      allow create: if notAnonymous()
         && validGroupCreateShape(request.resource.data);
 
       allow update: if isOwner(groupId)
@@ -1804,7 +1813,7 @@ allow list: if signedIn()
     )
   );
 
-        allow create: if signedIn()
+        allow create: if notAnonymous()
           && request.auth.uid == userId
           && groupExistsAfter(groupId)
           && (
@@ -1818,7 +1827,7 @@ allow list: if signedIn()
         // pudiera borrarlo, se auto-desbanearía/desmutearía y recrearía el doc
         // como "active" (create exige !exists). El status queda persistente hasta
         // que un mod lo levante por callable.
-        allow delete: if signedIn()
+        allow delete: if notAnonymous()
           && request.auth.uid == userId
           && groupDoc(groupId).data.ownerId != request.auth.uid
           && !(normalizeMemberStatus(resource.data) in ["banned", "muted"]);
@@ -1837,7 +1846,7 @@ match /memberBlocks/{blockId} {
       || resource.data.blockedUserId == request.auth.uid
     );
 
-  allow create: if signedIn()
+  allow create: if notAnonymous()
     && isMember(groupId)
     && !isOwner(groupId)
     && validGroupMemberBlockDoc(groupId, blockId)
@@ -1845,7 +1854,7 @@ match /memberBlocks/{blockId} {
 
   allow update: if false;
 
-  allow delete: if signedIn()
+  allow delete: if notAnonymous()
     && resource.data.blockerId == request.auth.uid;
 }
 
@@ -1859,7 +1868,7 @@ match /memberBlocks/{blockId} {
         allow list: if signedIn()
           && canModerateGroup(groupId);
 
-        allow create: if signedIn()
+        allow create: if notAnonymous()
           && request.auth.uid == reqId
           && groupRequiresJoinRequest(groupId)
           && groupIsActive(groupId)
@@ -1869,7 +1878,7 @@ match /memberBlocks/{blockId} {
           && request.resource.data.userId == reqId
           && request.resource.data.status == "pending";
 
-        allow delete: if signedIn()
+        allow delete: if notAnonymous()
           && request.auth.uid == reqId
           && resource.data.status == "pending";
 
@@ -1923,14 +1932,14 @@ match /memberBlocks/{blockId} {
       allow read: if true;
 
       // Only the authenticated creator can create their own story
-      allow create: if signedIn()
+      allow create: if notAnonymous()
         && request.resource.data.creatorId == request.auth.uid
         && request.resource.data.type in ["saludo", "consejo"]
         && request.resource.data.greetingRequestId is string
         && request.resource.data.greetingRequestId.size() > 0;
 
       // Creator can delete their own stories
-      allow delete: if signedIn()
+      allow delete: if notAnonymous()
         && resource.data.creatorId == request.auth.uid;
 
       allow update: if false;
@@ -1942,7 +1951,7 @@ match /memberBlocks/{blockId} {
     match /userStoryViews/{userId}/views/{storyId} {
       // Users can only read and write their own view records
       allow read: if signedIn() && request.auth.uid == userId;
-      allow write: if signedIn()
+      allow write: if notAnonymous()
         && request.auth.uid == userId
         && request.resource.data.storyId == storyId;
     }
@@ -2369,7 +2378,7 @@ function canReadPostFromOwnSavedPosts() {
 }
 
 function validCreateGroupPost() {
-  return signedIn()
+  return notAnonymous()
     && request.resource.data.authorId == request.auth.uid
     && request.resource.data.isDeleted == false
     && request.resource.data.groupId is string
@@ -2377,7 +2386,7 @@ function validCreateGroupPost() {
 }
 
 function validCreateProfilePost() {
-  return signedIn()
+  return notAnonymous()
     && request.resource.data.authorId == request.auth.uid
     && request.resource.data.isDeleted == false
     && request.resource.data.profileId is string
@@ -2391,7 +2400,7 @@ function validCreatePost() {
 }
 
       function canSoftDeletePost() {
-        return signedIn()
+        return notAnonymous()
           && request.resource.data.diff(resource.data).changedKeys().hasOnly([
             "isDeleted",
             "deletedAt",
@@ -2988,7 +2997,7 @@ allow list: if (canListOwnAuthoredPost()
       }
 
       match /editHistory/{historyId} {
-        allow create: if signedIn()
+        allow create: if notAnonymous()
           && get(/databases/$(database)/documents/posts/$(postId)).data.authorId == request.auth.uid
           && request.resource.data.editedBy == request.auth.uid
           && request.resource.data.editedAt is timestamp;
@@ -3027,7 +3036,7 @@ allow list: if (canListOwnAuthoredPost()
         }
 
         function canCreateComment() {
-          return signedIn()
+          return notAnonymous()
             && request.resource.data.authorId == request.auth.uid
             && request.resource.data.text is string
             && request.resource.data.text.size() <= 2000
@@ -3116,7 +3125,7 @@ function canUpdateReplyCount(delta) {
         allow delete: if canDeleteComment();
 
         match /editHistory/{historyId} {
-          allow create: if signedIn()
+          allow create: if notAnonymous()
             && get(/databases/$(database)/documents/posts/$(postId)/comments/$(commentId)).data.authorId == request.auth.uid
             && request.resource.data.editedBy == request.auth.uid
             && request.resource.data.editedAt is timestamp;
@@ -3131,7 +3140,7 @@ function canUpdateReplyCount(delta) {
           }
 
           function canCreateReply() {
-            return signedIn()
+            return notAnonymous()
               && request.resource.data.authorId == request.auth.uid
               && request.resource.data.text is string
               && request.resource.data.text.size() <= 2000
@@ -3181,7 +3190,7 @@ function canUpdateReplyCount(delta) {
           allow delete: if canDeleteReply();
 
           match /editHistory/{historyId} {
-            allow create: if signedIn()
+            allow create: if notAnonymous()
               && get(/databases/$(database)/documents/posts/$(postId)/comments/$(commentId)/replies/$(replyId)).data.authorId == request.auth.uid
               && request.resource.data.editedBy == request.auth.uid
               && request.resource.data.editedAt is timestamp;
@@ -3339,7 +3348,7 @@ function canUpdateReplyCount(delta) {
 
       allow get, list: if liveChatIsReadable();
 
-      allow create: if signedIn()
+      allow create: if notAnonymous()
         && liveChatEnabled()
         && userNotMuted()
         && userNotBanned()
@@ -3353,7 +3362,7 @@ function canUpdateReplyCount(delta) {
         && request.resource.data.isDeleted == false
         && request.resource.data.createdAt is timestamp;
 
-      allow update: if signedIn()
+      allow update: if notAnonymous()
         && request.resource.data.diff(resource.data).changedKeys().hasOnly([
           "isDeleted", "deletedAt", "deletedBy"
         ])
@@ -3394,7 +3403,7 @@ function canUpdateReplyCount(delta) {
     // ==========================
     match /reports/{reportId} {
       // Cualquier usuario autenticado puede crear un reporte (solo el suyo)
-      allow create: if signedIn()
+      allow create: if notAnonymous()
         && request.resource.data.reporterUid == request.auth.uid
         && request.resource.data.targetType in [
              'post', 'comment', 'comment_reply', 'live',

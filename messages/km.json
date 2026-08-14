@@ -2582,6 +2582,7 @@
     "retry": "ព្យាយាមម្តងទៀត",
     "mute": "បិទសំឡេង",
     "unmute": "បើកសំឡេង",
+    "unreadCount": "{count} unread messages",
     "removeConversation": "លុបការសន្ទនា",
     "removeConversationTitle": "លុបការសន្ទនានេះ?",
     "removeConversationBody": "វានឹងត្រូវដកចេញពីប្រអប់សំបុត្ររបស់អ្នក។ វាមិនត្រូវបានលុបសម្រាប់អ្នកម្ខាងទៀតទេ ហើយប្រសិនបើគាត់សរសេរមកអ្នកម្តងទៀត វានឹងលេចឡើងវិញ។",

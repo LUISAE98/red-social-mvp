@@ -2582,6 +2582,7 @@
     "retry": "Yeniden dene",
     "mute": "Sessize al",
     "unmute": "Sesi aç",
+    "unreadCount": "{count} okunmamış mesaj",
     "removeConversation": "Sohbeti sil",
     "removeConversationTitle": "Bu sohbet silinsin mi?",
     "removeConversationBody": "Gelen kutunuzdan kalkar. Karşı tarafta silinmez ve tekrar yazarsa geri gelir.",

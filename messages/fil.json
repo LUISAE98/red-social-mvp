@@ -2582,6 +2582,7 @@
     "retry": "Subukan muli",
     "mute": "I-mute",
     "unmute": "I-unmute",
+    "unreadCount": "{count} hindi pa nababasang mensahe",
     "removeConversation": "Burahin ang usapan",
     "removeConversationTitle": "Burahin ang usapang ito?",
     "removeConversationBody": "Mawawala ito sa iyong inbox. Hindi ito nabubura para sa kabila at babalik kung susulat siya ulit.",

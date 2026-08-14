@@ -2582,6 +2582,7 @@
     "retry": "Bain triail eile as",
     "mute": "Balbhaigh",
     "unmute": "Díbhalbhaigh",
+    "unreadCount": "{count} teachtaireacht gan léamh",
     "removeConversation": "Scrios an comhrá",
     "removeConversationTitle": "An comhrá seo a scriosadh?",
     "removeConversationBody": "Imeoidh sé as do bhosca isteach. Ní scriostar don duine eile é agus fillfidh sé má scríobhann sé arís.",

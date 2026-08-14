@@ -74,7 +74,10 @@ export default function SidebarMessages({
   };
 
   return (
-    <div style={{ display: "grid", gap: 2 }}>
+    // `minWidth: 0` en el módulo entero: sin él, una vista previa larga de
+    // cualquier chat ensancha la rejilla y empuja el encabezado —con su "Ver
+    // todos"— fuera del panel.
+    <div style={{ display: "grid", gap: 2, minWidth: 0 }}>
       {/* Encabezado fijo. No es un botón: aquí no hay nada que plegar. */}
       <div style={headerStyle}>
         <span style={{ display: "inline-flex" }}>

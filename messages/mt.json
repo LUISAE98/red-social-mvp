@@ -2582,6 +2582,7 @@
     "retry": "Erġa pprova",
     "mute": "Immutja",
     "unmute": "Erġa ixgħel",
+    "unreadCount": "{count} messaġġi mhux moqrija",
     "removeConversation": "Ħassar il-konversazzjoni",
     "removeConversationTitle": "Tħassar din il-konversazzjoni?",
     "removeConversationBody": "Titlaq mill-inbox tiegħek. Ma titħassarx għall-persuna l-oħra u terġa tidher jekk tikteblek.",

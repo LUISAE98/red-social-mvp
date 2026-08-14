@@ -2582,6 +2582,7 @@
     "retry": "Skúsiť znova",
     "mute": "Stlmiť",
     "unmute": "Zrušiť stlmenie",
+    "unreadCount": "Neprečítané správy: {count}",
     "removeConversation": "Odstrániť konverzáciu",
     "removeConversationTitle": "Odstrániť túto konverzáciu?",
     "removeConversationBody": "Zmizne z vašej schránky. U druhej osoby sa neodstráni a vráti sa, keď vám znova napíše.",

@@ -2582,6 +2582,7 @@
     "retry": "Erneut versuchen",
     "mute": "Stummschalten",
     "unmute": "Stummschaltung aufheben",
+    "unreadCount": "{count} ungelesene Nachrichten",
     "removeConversation": "Unterhaltung löschen",
     "removeConversationTitle": "Diese Unterhaltung löschen?",
     "removeConversationBody": "Sie verschwindet aus deinem Postfach. Für die andere Person wird nichts gelöscht, und sie taucht wieder auf, wenn sie dir erneut schreibt.",

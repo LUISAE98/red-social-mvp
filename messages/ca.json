@@ -2582,6 +2582,7 @@
     "retry": "Torna-ho a provar",
     "mute": "Silencia",
     "unmute": "Reactiva",
+    "unreadCount": "{count} missatges sense llegir",
     "removeConversation": "Elimina la conversa",
     "removeConversationTitle": "Vols eliminar aquesta conversa?",
     "removeConversationBody": "Desapareixerà de la teva safata. No s’elimina per a l’altra persona i tornarà si t’escriu de nou.",

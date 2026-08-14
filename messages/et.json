@@ -2582,6 +2582,7 @@
     "retry": "Proovi uuesti",
     "mute": "Vaigista",
     "unmute": "Taasta heli",
+    "unreadCount": "{count} lugemata sõnumit",
     "removeConversation": "Kustuta vestlus",
     "removeConversationTitle": "Kas kustutada see vestlus?",
     "removeConversationBody": "See kaob su postkastist. Teisele inimesele seda ei kustutata ja see naaseb, kui ta uuesti kirjutab.",

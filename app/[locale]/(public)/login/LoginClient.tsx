@@ -536,6 +536,26 @@ body.loginPageBg {
           text-align: center;
           color: #fff;
         }
+        /* Cierre de las experiencias. Comparte tipografía con el título de la
+           presentación (.onboardingTitle): 34px, peso 700 y -0.03em. Aquí va
+           centrado y con tope de ancho, porque cruza toda la página en vez de
+           vivir en una columna. */
+        .loginReachTitle {
+          margin: 46px auto 8px;
+          /* Sin tope de ancho: cruza la página entera y en laptop cabe en un
+             solo renglón. Con el tope de 22ch caía en tres y parecía metido a
+             la fuerza en una columna. */
+          max-width: none;
+          padding: 0 20px;
+          font-size: clamp(23px, 3vw, 34px);
+          font-weight: 700;
+          line-height: 1.1;
+          letter-spacing: -0.03em;
+          text-align: center;
+          color: #ffffff;
+          box-sizing: border-box;
+        }
+
         .heroVibraGradientText {
   background: linear-gradient(
     100deg,
@@ -1091,6 +1111,19 @@ marginBottom: 6,
         />
         </LoginExperienceRail>
 
+        {/* Cierre de la sección de experiencias. Misma tipografía que el título
+            de la presentación de abajo (34px, -0.03em), con "Vibra" en el
+            degradado de marca. */}
+        <h2 className="loginReachTitle">
+          {/* "Vibra" va más grande que el resto, como en el título de la
+              presentación. En em, para que crezca con el título en vez de
+              quedarse fija cuando el clamp lo achica en pantallas angostas. */}
+          <span className="heroVibraGradientText" style={{ fontSize: "1.25em" }}>
+            Vibra
+          </span>{" "}
+          con personas de más de 150 países alrededor del mundo
+        </h2>
+
         {/* Las 11 experiencias YA tienen bloque propio arriba, así que el
             listado de la wallet se queda sin ninguna que mostrar: la sección se
             oculta sola (ver `excludeServices` en WalletOnboarding). Se mantiene
@@ -1100,6 +1133,8 @@ marginBottom: 6,
           showCtas={false}
           twoColumn
           excludeServices={[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]}
+          // Solo en el login. La wallet del creador las sigue mostrando.
+          hideSections={["hero", "commission", "clear", "communities"]}
         />
       </section>
       )}

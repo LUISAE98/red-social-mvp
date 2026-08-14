@@ -2582,6 +2582,7 @@
     "retry": "إعادة المحاولة",
     "mute": "كتم",
     "unmute": "إلغاء الكتم",
+    "unreadCount": "رسائل غير مقروءة: {count}",
     "removeConversation": "حذف المحادثة",
     "removeConversationTitle": "هل تحذف هذه المحادثة؟",
     "removeConversationBody": "ستختفي من صندوقك. لا تُحذف لدى الطرف الآخر، وستعود إذا راسلك مجددًا.",

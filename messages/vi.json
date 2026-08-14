@@ -2582,6 +2582,7 @@
     "retry": "Thử lại",
     "mute": "Tắt thông báo",
     "unmute": "Bật thông báo",
+    "unreadCount": "{count} tin nhắn chưa đọc",
     "removeConversation": "Xóa cuộc trò chuyện",
     "removeConversationTitle": "Xóa cuộc trò chuyện này?",
     "removeConversationBody": "Nó sẽ biến mất khỏi hộp thư của bạn. Không bị xóa với người kia và sẽ trở lại nếu họ nhắn tiếp.",

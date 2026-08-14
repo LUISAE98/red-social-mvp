@@ -2582,6 +2582,7 @@
     "retry": "Yritä uudelleen",
     "mute": "Mykistä",
     "unmute": "Poista mykistys",
+    "unreadCount": "{count} lukematonta viestiä",
     "removeConversation": "Poista keskustelu",
     "removeConversationTitle": "Poistetaanko tämä keskustelu?",
     "removeConversationBody": "Se katoaa postilaatikostasi. Sitä ei poisteta toiselta, ja se palaa, jos hän kirjoittaa uudelleen.",

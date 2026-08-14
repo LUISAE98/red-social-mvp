@@ -2582,6 +2582,7 @@
     "retry": "Tentar novamente",
     "mute": "Silenciar",
     "unmute": "Reativar",
+    "unreadCount": "{count} mensagens não lidas",
     "removeConversation": "Eliminar conversa",
     "removeConversationTitle": "Eliminar esta conversa?",
     "removeConversationBody": "Sairá da sua caixa de entrada. Não é eliminada para a outra pessoa, e voltará se lhe escrever de novo.",

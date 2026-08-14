@@ -2582,6 +2582,7 @@
     "retry": "Reyna aftur",
     "mute": "Þagga",
     "unmute": "Kveikja á hljóði",
+    "unreadCount": "{count} ólesin skilaboð",
     "removeConversation": "Eyða samtali",
     "removeConversationTitle": "Eyða þessu samtali?",
     "removeConversationBody": "Það hverfur úr pósthólfinu þínu. Því er ekki eytt hjá hinum og það birtist aftur ef hann skrifar þér.",

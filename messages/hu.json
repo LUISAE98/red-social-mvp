@@ -2582,6 +2582,7 @@
     "retry": "Újra",
     "mute": "Némítás",
     "unmute": "Némítás feloldása",
+    "unreadCount": "{count} olvasatlan üzenet",
     "removeConversation": "Beszélgetés törlése",
     "removeConversationTitle": "Törlöd ezt a beszélgetést?",
     "removeConversationBody": "Eltűnik a postaládádból. A másik félnél nem törlődik, és visszatér, ha újra ír neked.",

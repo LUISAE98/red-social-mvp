@@ -2582,6 +2582,7 @@
     "retry": "Poskusi znova",
     "mute": "Utišaj",
     "unmute": "Vklopi zvok",
+    "unreadCount": "Neprebrana sporočila: {count}",
     "removeConversation": "Izbriši pogovor",
     "removeConversationTitle": "Izbrišem ta pogovor?",
     "removeConversationBody": "Izginil bo iz vaše mape. Za drugo osebo se ne izbriše in se bo vrnil, če vam znova piše.",

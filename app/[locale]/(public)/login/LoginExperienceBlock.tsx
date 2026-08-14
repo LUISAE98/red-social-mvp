@@ -53,11 +53,12 @@ export default function LoginExperienceBlock({
   carousel?: { count: number; current: number; onSelect: (i: number) => void } | null;
 }) {
   // Entrada al hacer scroll. Se dispara UNA vez, con el 22% del bloque a la
-  // vista, y a partir de ahí el CSS encadena video → texto → items.
+  // vista, y a partir de ahí el CSS encadena video → texto.
   const sectionRef = useRef<HTMLElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  /** Se ve lo suficiente para dar por hecha su entrada (22% del bloque). */
   const [entered, setEntered] = useState(false);
-  /** El bloque está a la vista AHORA (no como `entered`, que es de una sola vez). */
+  /** Asoma aunque sea un poco. Umbral más bajo, para el video. */
   const [inView, setInView] = useState(false);
 
   // Solo se reproduce el video del bloque visible. En laptop los cinco están en
@@ -108,38 +109,29 @@ export default function LoginExperienceBlock({
     };
   }, [playing]);
 
+  // Un solo observador para las dos cosas: la entrada (22%) y el video (10%).
+  // NO se desconecta, así que sigue el ir y venir del bloque: al salir de la
+  // pantalla el contenido se retira y al volver a entrar se rehace la entrada,
+  // bajando y subiendo por igual.
   useEffect(() => {
     const node = sectionRef.current;
     // Sin observador (navegador viejo) el bloque se muestra tal cual: el estado
-    // de partida es invisible, así que un fallo aquí escondería el contenido.
+    // de partida es invisible, así que un fallo aquí lo escondería para siempre.
     if (!node || typeof IntersectionObserver === "undefined") {
-      const id = requestAnimationFrame(() => setEntered(true));
+      const id = requestAnimationFrame(() => {
+        setEntered(true);
+        setInView(true);
+      });
       return () => cancelAnimationFrame(id);
     }
     const obs = new IntersectionObserver(
       (entries) => {
-        if (entries.some((e) => e.isIntersecting)) {
-          setEntered(true);
-          obs.disconnect();
-        }
+        const ratio = Math.max(...entries.map((e) => (e.isIntersecting ? e.intersectionRatio : 0)));
+        setEntered(ratio >= 0.22);
+        setInView(ratio > 0);
       },
-      { threshold: 0.22 },
+      { threshold: [0, 0.1, 0.22, 0.5] },
     );
-    obs.observe(node);
-    return () => obs.disconnect();
-  }, []);
-
-  // Este NO se desconecta: sigue el ir y venir del bloque para prender y apagar
-  // su video. Umbral bajo, para que ya esté andando cuando se alcance a ver.
-  useEffect(() => {
-    const node = sectionRef.current;
-    if (!node || typeof IntersectionObserver === "undefined") {
-      const id = requestAnimationFrame(() => setInView(true));
-      return () => cancelAnimationFrame(id);
-    }
-    const obs = new IntersectionObserver((entries) => setInView(entries.some((e) => e.isIntersecting)), {
-      threshold: 0.1,
-    });
     obs.observe(node);
     return () => obs.disconnect();
   }, []);
@@ -162,9 +154,12 @@ export default function LoginExperienceBlock({
           display: grid;
           grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
           align-items: center;
-          gap: 48px;
+          /* El hueco del medio no es solo este gap: cada mitad centra su
+             contenido, así que el círculo y el texto dejan aire propio a los
+             lados. Estrechar la fila los acerca mucho más que bajar el gap. */
+          gap: 32px;
           width: 100%;
-          max-width: 1080px;
+          max-width: 900px;
           margin: 0 auto;
           padding: 30px 20px;
           box-sizing: border-box;

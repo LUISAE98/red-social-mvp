@@ -2582,6 +2582,7 @@
     "retry": "Дахин оролдох",
     "mute": "Дуугүй болгох",
     "unmute": "Дууг асаах",
+    "unreadCount": "{count} уншаагүй мессеж",
     "removeConversation": "Яриаг устгах",
     "removeConversationTitle": "Энэ яриаг устгах уу?",
     "removeConversationBody": "Таны хайрцгаас алга болно. Нөгөө талд устахгүй бөгөөд дахин бичвэл эргэж ирнэ.",

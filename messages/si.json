@@ -2582,6 +2582,7 @@
     "retry": "නැවත උත්සාහ කරන්න",
     "mute": "නිශ්ශබ්ද කරන්න",
     "unmute": "නැවත සක්‍රීය කරන්න",
+    "unreadCount": "නොකියවූ පණිවිඩ {count}",
     "removeConversation": "සංවාදය මකන්න",
     "removeConversationTitle": "මෙම සංවාදය මකන්නද?",
     "removeConversationBody": "එය ඔබේ එන ලිපිවලින් ඉවත් වේ. අනෙක් පුද්ගලයාට එය මැකෙන්නේ නැත.",

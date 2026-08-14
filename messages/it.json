@@ -2582,6 +2582,7 @@
     "retry": "Riprova",
     "mute": "Silenzia",
     "unmute": "Riattiva",
+    "unreadCount": "{count} messaggi non letti",
     "removeConversation": "Elimina conversazione",
     "removeConversationTitle": "Eliminare questa conversazione?",
     "removeConversationBody": "Sparirà dalla tua posta. Non viene eliminata per l’altra persona e tornerà se ti riscrive.",

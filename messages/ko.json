@@ -2582,6 +2582,7 @@
     "retry": "다시 시도",
     "mute": "알림 끄기",
     "unmute": "알림 켜기",
+    "unreadCount": "읽지 않은 메시지 {count}개",
     "removeConversation": "대화 삭제",
     "removeConversationTitle": "이 대화를 삭제할까요?",
     "removeConversationBody": "받은함에서 사라집니다. 상대방에게는 삭제되지 않으며 다시 메시지를 보내면 돌아옵니다.",

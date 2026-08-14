@@ -2582,6 +2582,7 @@
     "retry": "Riprovo",
     "mute": "Hesht",
     "unmute": "Riaktivizo",
+    "unreadCount": "{count} mesazhe të palexuara",
     "removeConversation": "Fshi bisedën",
     "removeConversationTitle": "Ta fshish këtë bisedë?",
     "removeConversationBody": "Do të zhduket nga kutia jote. Nuk fshihet për personin tjetër dhe do të rikthehet nëse të shkruan sërish.",

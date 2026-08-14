@@ -2582,6 +2582,7 @@
     "retry": "Försök igen",
     "mute": "Ljud av",
     "unmute": "Slå på ljud",
+    "unreadCount": "{count} olästa meddelanden",
     "removeConversation": "Radera konversation",
     "removeConversationTitle": "Radera den här konversationen?",
     "removeConversationBody": "Den försvinner från din inkorg. Den raderas inte för den andra personen och kommer tillbaka om hen skriver igen.",

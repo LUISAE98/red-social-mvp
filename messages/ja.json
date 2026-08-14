@@ -2582,6 +2582,7 @@
     "retry": "再試行",
     "mute": "ミュート",
     "unmute": "ミュート解除",
+    "unreadCount": "未読メッセージ {count} 件",
     "removeConversation": "会話を削除",
     "removeConversationTitle": "この会話を削除しますか？",
     "removeConversationBody": "受信箱から消えます。相手側では削除されず、また連絡があれば戻ります。",

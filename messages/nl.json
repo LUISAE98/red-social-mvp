@@ -2582,6 +2582,7 @@
     "retry": "Opnieuw",
     "mute": "Dempen",
     "unmute": "Dempen opheffen",
+    "unreadCount": "{count} ongelezen berichten",
     "removeConversation": "Gesprek verwijderen",
     "removeConversationTitle": "Dit gesprek verwijderen?",
     "removeConversationBody": "Het verdwijnt uit je inbox. Het wordt niet verwijderd voor de ander en komt terug als die je weer schrijft.",

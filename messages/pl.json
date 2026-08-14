@@ -2582,6 +2582,7 @@
     "retry": "Ponów",
     "mute": "Wycisz",
     "unmute": "Włącz powiadomienia",
+    "unreadCount": "Nieprzeczytane wiadomości: {count}",
     "removeConversation": "Usuń rozmowę",
     "removeConversationTitle": "Usunąć tę rozmowę?",
     "removeConversationBody": "Zniknie z Twojej skrzynki. Nie zostanie usunięta u drugiej osoby i wróci, jeśli napisze ponownie.",

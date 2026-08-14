@@ -2582,6 +2582,7 @@
     "retry": "Pokušaj ponovo",
     "mute": "Utišaj",
     "unmute": "Uključi zvuk",
+    "unreadCount": "Nepročitane poruke: {count}",
     "removeConversation": "Obriši razgovor",
     "removeConversationTitle": "Obrisati ovaj razgovor?",
     "removeConversationBody": "Nestat će iz vašeg sandučeta. Ne briše se drugoj osobi i vratit će se ako vam ponovo piše.",

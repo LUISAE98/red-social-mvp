@@ -2582,6 +2582,7 @@
     "retry": "Mēģināt vēlreiz",
     "mute": "Izslēgt skaņu",
     "unmute": "Ieslēgt skaņu",
+    "unreadCount": "Neizlasītas ziņas: {count}",
     "removeConversation": "Dzēst sarunu",
     "removeConversationTitle": "Dzēst šo sarunu?",
     "removeConversationBody": "Tā pazudīs no jūsu iesūtnes. Otrai personai netiek dzēsta un atgriezīsies, ja viņa rakstīs vēlreiz.",
