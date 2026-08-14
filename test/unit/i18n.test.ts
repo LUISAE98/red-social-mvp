@@ -337,6 +337,53 @@ describe("i18n / detección por país", () => {
     expect(localeFromCountry(null)).toBeNull();
   });
 
+  /**
+   * Regla de producto: un país que NO está registrado recibe inglés. Siempre.
+   *
+   * Está escrita en la última línea de `localeFromCountry`, que es fácil de
+   * perder de vista al añadir países: basta con meter un `return null` o un
+   * `switch` que no cubra el caso, y a partir de ahí medio mundo empieza a
+   * depender de lo que diga el navegador. Este test lo fija.
+   *
+   * La lista de abajo son códigos ISO 3166-1 reales que hoy no están en ninguna
+   * de las tablas, más basura, más códigos inventados. Si alguien DA DE ALTA uno
+   * de estos países, el test falla y hay que sacarlo de aquí — que es
+   * exactamente el aviso que se quiere.
+   */
+  it("un país no registrado recibe inglés, y la basura también", () => {
+    const sinRegistrar = [
+      "AF", "AM", "BD", "BJ", "BF", "BI", "KM", "CG", "CD", "DJ", "ER", "ET",
+      "GM", "GE", "GH", "GN", "KZ", "KE", "KG", "LA", "LS", "LR", "MG", "MW",
+      "ML", "MR", "MM", "NA", "NE", "NG", "PG", "RW", "SL", "SB", "SO", "SS",
+      "SD", "SZ", "TJ", "TZ", "TG", "TM", "UG", "UZ", "YE", "ZM", "ZW", "BT",
+      "PS", "IQ", "SY", "LY", "TD", "CF", "GA", "SN", "CM", "BW", "MU", "SC",
+      "FJ", "KI", "NR", "PW", "FM", "MH", "CK", "NU", "TK", "AS", "GU", "MP",
+      "VI", "AI", "AG", "BS", "BB", "BZ", "BM", "VG", "KY", "DM", "GD", "GY",
+      "JM", "MS", "KN", "LC", "VC", "TT", "TC",
+    ];
+    const distintos = sinRegistrar
+      .map((cc) => [cc, localeFromCountry(cc)] as const)
+      .filter(([, loc]) => loc !== "en")
+      .map(([cc, loc]) => `${cc}→${String(loc)}`);
+    expect(
+      distintos,
+      "o se dieron de alta (sácalos de la lista) o se rompió el respaldo a inglés",
+    ).toEqual([]);
+
+    // Códigos que no existen y entradas mal formadas: mismo destino.
+    for (const basura of ["ZZ", "XX", "QQ", "aa", "  ", "1", "esp"]) {
+      expect(localeFromCountry(basura), `${JSON.stringify(basura)}`).toBe("en");
+    }
+
+    // Distinto caso, a propósito: aquí NO sabemos el país (no llegó la cabecera),
+    // no es que el país no esté registrado. Devolver null deja que decida el
+    // Accept-Language del navegador, que es mejor información que ninguna, y si
+    // su idioma tampoco lo servimos el defaultLocale ya es inglés. Ver Canadá.
+    expect(localeFromCountry(null)).toBeNull();
+    expect(localeFromCountry(undefined)).toBeNull();
+    expect(localeFromCountry("")).toBeNull();
+  });
+
   it("un país de fuera de la UE con idioma propio lo recibe", () => {
     // Japón es el primero. Va por NON_EU_COUNTRY_TO_LOCALE, no por el mapa de la UE.
     expect(localeFromCountry("JP")).toBe("ja");
