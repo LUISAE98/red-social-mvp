@@ -7,8 +7,7 @@ import VibraResponsivePanel from "@/components/ui/VibraResponsivePanel";
 import type { UserSession } from "@/types/session";
 import {
   getOrCreateSessionId,
-  revokeOtherSessions,
-  revokeSession,
+  revokeAllSessions,
   subscribeUserSessions,
 } from "@/lib/sessions/sessions-service";
 
@@ -189,14 +188,19 @@ export default function SessionsOverlay({
     []
   );
 
+  // Cerrar CUALQUIER sesión cierra TODAS, incluida la de este dispositivo.
+  // Firebase no sabe revocar un dispositivo suelto, y una revocación que solo
+  // escribía un campo en Firestore no detenía a quien se llevó el token: le
+  // bastaba con no ejecutar el JavaScript de la app. Se confirma antes.
   async function handleRevokeOne(session: UserSession) {
     if (!uid || busyKey) return;
+    if (!window.confirm(tProfile("sessionRevokeAllConfirm"))) return;
 
     setBusyKey(session.id);
     setError(null);
 
     try {
-      await revokeSession(uid, session.id);
+      await revokeAllSessions();
     } catch (err: unknown) {
       setError(
         (err instanceof Error ? err.message : null) ??
@@ -208,13 +212,14 @@ export default function SessionsOverlay({
   }
 
   async function handleRevokeOthers() {
-    if (!uid || !currentSessionId || busyKey || otherCount === 0) return;
+    if (!uid || !currentSessionId || busyKey) return;
+    if (!window.confirm(tProfile("sessionRevokeAllConfirm"))) return;
 
     setBusyKey("__others__");
     setError(null);
 
     try {
-      await revokeOtherSessions(uid, currentSessionId);
+      await revokeAllSessions();
     } catch (err: unknown) {
       setError(
         (err instanceof Error ? err.message : null) ??

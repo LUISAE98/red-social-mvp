@@ -62,7 +62,8 @@
     "statistics": "සංඛ්‍යාලේඛන",
     "tabMessages": "පණිවිඩ",
     "messageRequests": "ඉල්ලීම් ({count})",
-    "seeAllMessages": "සියල්ල බලන්න"
+    "seeAllMessages": "සියල්ල බලන්න",
+    "settings": "සැකසුම්"
   },
   "common": {
     "accept": "පිළිගන්න",
@@ -742,7 +743,7 @@
     "blockedAccountsLabel": "අවහිර කළ ගිණුම්",
     "sessionsLabel": "සක්‍රීය සැසි",
     "sessionsValue": "ඔබ පිවිසී සිටින උපාංග",
-    "sessionsHint": "ඔබේ සැසිය විවෘතව ඇති උපාංග පරීක්ෂා කර ඔබ හඳුනා නොගන්නා ඒවා වසන්න.",
+    "sessionsHint": "ඔබගේ සැසිය විවෘත උපාංග බලන්න. ඉවත් වීම සියල්ලෙන් වසයි.",
     "sessionsTitle": "සක්‍රීය සැසි",
     "sessionsDesc": "ඔබේ ගිණුම දැනට පිවිසී ඇති උපාංග.",
     "sessionsLoginRequired": "ඔබේ සක්‍රීය සැසි බැලීමට පිවිසෙන්න.",
@@ -752,7 +753,7 @@
     "sessionThisDevice": "මෙම උපාංගය",
     "sessionRevoke": "පිටවන්න",
     "sessionRevoking": "පිටවෙමින්...",
-    "sessionsRevokeOthers": "අනෙක් සියලු සැසිවලින් පිටවන්න",
+    "sessionsRevokeOthers": "සියලු උපාංගවලින් ඉවත් වන්න",
     "sessionRevokeError": "සැසිය වැසිය නොහැකි විය.",
     "sessionActiveNow": "දැන් සක්‍රීයයි",
     "sessionActiveMinutes": "මිනිත්තු {count}කට පෙර සක්‍රීයයි",
@@ -814,7 +815,8 @@
     "messagePolicyNoneHelp": "කිසිවෙකුට ඔබට පණිවිඩ යැවිය නොහැක; ඔබේ පැතිකඩේ පණිවිඩ බොත්තම නොපෙනේ.",
     "messagePolicyUpdateError": "පණිවිඩ සැකසුම් යාවත්කාලීන කළ නොහැකි විය.",
     "messagePolicyFollowingAndFollowers": "මා අනුගමනය කරන අය සහ මාව අනුගමනය කරන අය",
-    "messagePolicyFollowingAndFollowersHelp": "ඔබ අනුගමනය කරන අයට සහ ඔබව අනුගමනය කරන අයට පමණක් ඔබට පණිවිඩ යැවිය හැක; ඔවුන්ගේ පණිවිඩ කෙලින්ම ඔබේ එනතැපෑලට යයි, අන් අයට පණිවිඩ බොත්තම නොපෙනේ."
+    "messagePolicyFollowingAndFollowersHelp": "ඔබ අනුගමනය කරන අයට සහ ඔබව අනුගමනය කරන අයට පමණක් ඔබට පණිවිඩ යැවිය හැක; ඔවුන්ගේ පණිවිඩ කෙලින්ම ඔබේ එනතැපෑලට යයි, අන් අයට පණිවිඩ බොත්තම නොපෙනේ.",
+    "sessionRevokeAllConfirm": "ඔබගේ සියලුම උපාංගවල, මෙයද ඇතුළුව, සැසිය වැසෙනු ඇත. නැවත පිවිසිය යුතුය."
   },
   "feed": {
     "pinned": "ඇමිණූ",

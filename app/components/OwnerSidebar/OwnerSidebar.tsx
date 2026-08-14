@@ -47,6 +47,7 @@ import { useChatDock } from "@/components/chat/ChatDockProvider";
 import { useInbox } from "@/lib/chat/useInbox";
 import { getOtherParticipant } from "@/lib/chat/types";
 import OwnerSidebarGreetings from "./OwnerSidebarGreetings";
+import OwnerSidebarSettings from "./OwnerSidebarSettings";
 import CopyLinkButton from "@/components/ui/CopyLinkButton";
 import RefreshableArea from "@/components/refresh/RefreshableArea";
 import { useSidebarVisitCounts } from "@/lib/hooks/useSidebarVisitCounts";
@@ -2657,6 +2658,22 @@ newPostsCounts={newPostsCounts}
       activeConversationIds={activeConversationIds}
       onOpenConversation={handleOpenConversation}
       unreadTotal={unreadMessagesCount}
+    />
+  </>
+)}
+
+{/* Configuración: último módulo del menú, plegado por omisión. Independiente
+    del acordeón de arriba — abrirlo no cierra seguidos ni comunidades.
+
+    Fuera para invitados (Anonymous Auth): no tienen documento de perfil, ni
+    handle, ni correo — no hay nada que configurar ni sesión que cerrar. */}
+{viewer && !viewer.isAnonymous && (
+  <>
+    <div className="owner-sidebar-menu-divider" aria-hidden="true" />
+    <OwnerSidebarSettings
+      uid={viewer.uid}
+      email={viewer.email ?? null}
+      onToast={showSidebarToast}
     />
   </>
 )}

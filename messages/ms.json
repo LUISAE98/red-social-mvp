@@ -62,7 +62,8 @@
     "statistics": "Statistik",
     "tabMessages": "Mesej",
     "messageRequests": "Permintaan ({count})",
-    "seeAllMessages": "Lihat semua"
+    "seeAllMessages": "Lihat semua",
+    "settings": "Tetapan"
   },
   "common": {
     "accept": "Terima",
@@ -742,7 +743,7 @@
     "blockedAccountsLabel": "Akaun yang disekat",
     "sessionsLabel": "Sesi aktif",
     "sessionsValue": "Peranti tempat anda log masuk",
-    "sessionsHint": "Semak peranti mana yang masih terbuka sesinya, dan tutup mana-mana yang anda tidak kenal.",
+    "sessionsHint": "Lihat peranti mana yang mempunyai sesi anda terbuka. Log keluar menutupnya di semua.",
     "sessionsTitle": "Sesi aktif",
     "sessionsDesc": "Peranti tempat akaun anda sedang log masuk.",
     "sessionsLoginRequired": "Log masuk untuk melihat sesi aktif anda.",
@@ -752,7 +753,7 @@
     "sessionThisDevice": "Peranti ini",
     "sessionRevoke": "Log keluar",
     "sessionRevoking": "Sedang log keluar...",
-    "sessionsRevokeOthers": "Log keluar daripada semua sesi lain",
+    "sessionsRevokeOthers": "Log keluar dari semua peranti",
     "sessionRevokeError": "Sesi tidak dapat ditutup.",
     "sessionActiveNow": "Aktif sekarang",
     "sessionActiveMinutes": "Aktif {count} min lalu",
@@ -814,7 +815,8 @@
     "messagePolicyNoneHelp": "Tiada sesiapa boleh menghantar mesej kepada anda; butang mesej tidak muncul pada profil anda.",
     "messagePolicyUpdateError": "Tetapan mesej tidak dapat dikemas kini.",
     "messagePolicyFollowingAndFollowers": "Orang yang saya ikuti dan orang yang mengikuti saya",
-    "messagePolicyFollowingAndFollowersHelp": "Hanya orang yang anda ikuti dan orang yang mengikuti anda boleh menghantar mesej kepada anda, dan mesej mereka terus masuk ke peti masuk anda; yang lain tidak melihat butang mesej."
+    "messagePolicyFollowingAndFollowersHelp": "Hanya orang yang anda ikuti dan orang yang mengikuti anda boleh menghantar mesej kepada anda, dan mesej mereka terus masuk ke peti masuk anda; yang lain tidak melihat butang mesej.",
+    "sessionRevokeAllConfirm": "Sesi akan ditutup pada semua peranti anda, termasuk yang ini. Anda perlu log masuk semula."
   },
   "feed": {
     "pinned": "Disemat",

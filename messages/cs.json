@@ -62,7 +62,8 @@
     "statistics": "Statistiky",
     "tabMessages": "Zprávy",
     "messageRequests": "Žádosti ({count})",
-    "seeAllMessages": "Zobrazit vše"
+    "seeAllMessages": "Zobrazit vše",
+    "settings": "Nastavení"
   },
   "common": {
     "accept": "Přijmout",
@@ -742,7 +743,7 @@
     "blockedAccountsLabel": "Zablokované účty",
     "sessionsLabel": "Aktivní relace",
     "sessionsValue": "Zařízení, na kterých jsi přihlášený",
-    "sessionsHint": "Zkontroluj, která zařízení mají otevřenou tvoji relaci, a zavři ta, která nepoznáváš.",
+    "sessionsHint": "Podívejte se, na kterých zařízeních máte otevřenou relaci. Odhlášení ji ukončí všude.",
     "sessionsTitle": "Aktivní relace",
     "sessionsDesc": "Zařízení, na kterých je tvůj účet právě přihlášený.",
     "sessionsLoginRequired": "Přihlas se, abys viděl své aktivní relace.",
@@ -752,7 +753,7 @@
     "sessionThisDevice": "Toto zařízení",
     "sessionRevoke": "Odhlásit",
     "sessionRevoking": "Odhlašuje se…",
-    "sessionsRevokeOthers": "Odhlásit všechny ostatní relace",
+    "sessionsRevokeOthers": "Odhlásit na všech zařízeních",
     "sessionRevokeError": "Relaci se nepodařilo ukončit.",
     "sessionActiveNow": "Aktivní teď",
     "sessionActiveMinutes": "Aktivní před {count} min",
@@ -814,7 +815,8 @@
     "messagePolicyNoneHelp": "Nikdo ti nemůže psát, tlačítko zprávy se na tvém profilu nezobrazuje.",
     "messagePolicyUpdateError": "Nastavení zpráv se nepodařilo aktualizovat.",
     "messagePolicyFollowingAndFollowers": "Lidé, které sleduji, a ti, kdo sledují mě",
-    "messagePolicyFollowingAndFollowersHelp": "Psát ti mohou jen lidé, které sleduješ, a ti, kdo sledují tebe, jejich zprávy chodí rovnou do tvojí schránky a ostatním se tlačítko zprávy nezobrazí."
+    "messagePolicyFollowingAndFollowersHelp": "Psát ti mohou jen lidé, které sleduješ, a ti, kdo sledují tebe, jejich zprávy chodí rovnou do tvojí schránky a ostatním se tlačítko zprávy nezobrazí.",
+    "sessionRevokeAllConfirm": "Relace se ukončí na všech vašich zařízeních, včetně tohoto. Budete se muset znovu přihlásit."
   },
   "feed": {
     "pinned": "Připnuto",

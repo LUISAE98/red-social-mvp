@@ -62,7 +62,8 @@
     "statistics": "數據",
     "tabMessages": "訊息",
     "messageRequests": "邀請（{count}）",
-    "seeAllMessages": "查看全部"
+    "seeAllMessages": "查看全部",
+    "settings": "設定"
   },
   "common": {
     "accept": "接受",
@@ -742,7 +743,7 @@
     "blockedAccountsLabel": "已封鎖的帳號",
     "sessionsLabel": "使用中的登入裝置",
     "sessionsValue": "你目前登入的裝置",
-    "sessionsHint": "查看哪些裝置還登入著，並登出你不認得的裝置。",
+    "sessionsHint": "查看哪些裝置開著你的工作階段。登出會在全部裝置結束。",
     "sessionsTitle": "使用中的登入裝置",
     "sessionsDesc": "你的帳號目前登入中的裝置。",
     "sessionsLoginRequired": "登入後即可查看使用中的登入裝置。",
@@ -752,7 +753,7 @@
     "sessionThisDevice": "這台裝置",
     "sessionRevoke": "登出",
     "sessionRevoking": "登出中...",
-    "sessionsRevokeOthers": "登出其他所有裝置",
+    "sessionsRevokeOthers": "在所有裝置登出",
     "sessionRevokeError": "無法結束這個登入。",
     "sessionActiveNow": "現在在線",
     "sessionActiveMinutes": "{count} 分鐘前活動",
@@ -814,7 +815,8 @@
     "messagePolicyNoneHelp": "沒有人能傳訊息給你，你的個人檔案上不會顯示訊息按鈕。",
     "messagePolicyUpdateError": "無法更新訊息設定。",
     "messagePolicyFollowingAndFollowers": "我追蹤的人，以及追蹤我的人",
-    "messagePolicyFollowingAndFollowersHelp": "只有你追蹤的人和追蹤你的人能傳訊息給你，訊息會直接進到收件匣；其他人看不到訊息按鈕。"
+    "messagePolicyFollowingAndFollowersHelp": "只有你追蹤的人和追蹤你的人能傳訊息給你，訊息會直接進到收件匣；其他人看不到訊息按鈕。",
+    "sessionRevokeAllConfirm": "所有裝置上的工作階段都會結束，包括這台。你需要重新登入。"
   },
   "feed": {
     "pinned": "已置頂",

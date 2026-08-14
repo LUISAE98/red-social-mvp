@@ -62,7 +62,8 @@
     "statistics": "Статистик",
     "tabMessages": "Мессеж",
     "messageRequests": "Хүсэлт ({count})",
-    "seeAllMessages": "Бүгдийг харах"
+    "seeAllMessages": "Бүгдийг харах",
+    "settings": "Тохиргоо"
   },
   "common": {
     "accept": "Зөвшөөрөх",
@@ -742,7 +743,7 @@
     "blockedAccountsLabel": "Хориглосон бүртгэлүүд",
     "sessionsLabel": "Идэвхтэй сешнүүд",
     "sessionsValue": "Таны нэвтэрсэн төхөөрөмжүүд",
-    "sessionsHint": "Аль төхөөрөмж дээр таны сешн нээлттэй байгааг шалгаж, таньдаггүйг нь хаа.",
+    "sessionsHint": "Сесс нээлттэй байгаа төхөөрөмжүүдээ хараарай. Гарах нь бүгдийг хаана.",
     "sessionsTitle": "Идэвхтэй сешнүүд",
     "sessionsDesc": "Таны бүртгэл одоогоор нэвтэрсэн байгаа төхөөрөмжүүд.",
     "sessionsLoginRequired": "Идэвхтэй сешнүүдээ харахын тулд нэвтэрнэ үү.",
@@ -752,7 +753,7 @@
     "sessionThisDevice": "Энэ төхөөрөмж",
     "sessionRevoke": "Гарах",
     "sessionRevoking": "Гарч байна...",
-    "sessionsRevokeOthers": "Бусад бүх сешнээс гарах",
+    "sessionsRevokeOthers": "Бүх төхөөрөмжөөс гарах",
     "sessionRevokeError": "Сешнийг хааж чадсангүй.",
     "sessionActiveNow": "Одоо идэвхтэй",
     "sessionActiveMinutes": "{count} минутын өмнө идэвхтэй байсан",
@@ -814,7 +815,8 @@
     "messagePolicyNoneHelp": "Хэн ч танд мессеж бичиж чадахгүй, таны профайл дээр мессежийн товч харагдахгүй.",
     "messagePolicyUpdateError": "Мессежийн тохиргоог шинэчилж чадсангүй.",
     "messagePolicyFollowingAndFollowers": "Миний дагадаг хүмүүс болон намайг дагадаг хүмүүс",
-    "messagePolicyFollowingAndFollowersHelp": "Зөвхөн таны дагадаг хүмүүс болон таныг дагадаг хүмүүс танд мессеж бичиж болно, тэдний мессеж шууд таны ирсэн хайрцагт очно, бусад нь мессежийн товчийг харахгүй."
+    "messagePolicyFollowingAndFollowersHelp": "Зөвхөн таны дагадаг хүмүүс болон таныг дагадаг хүмүүс танд мессеж бичиж болно, тэдний мессеж шууд таны ирсэн хайрцагт очно, бусад нь мессежийн товчийг харахгүй.",
+    "sessionRevokeAllConfirm": "Энэ төхөөрөмж зэрэг таны бүх төхөөрөмж дээр сесс хаагдана. Дахин нэвтрэх шаардлагатай."
   },
   "feed": {
     "pinned": "Бэхэлсэн",

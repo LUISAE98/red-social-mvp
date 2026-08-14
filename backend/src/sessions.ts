@@ -150,3 +150,61 @@ export const enrichSessionLocation = onCall(
     return { ok: true, locationLabel: geo.locationLabel };
   }
 );
+
+/**
+ * Cierra la sesión en TODOS los dispositivos, de verdad.
+ *
+ * Antes "revocar" solo escribía `revoked: true` en Firestore, y nadie del lado
+ * del servidor miraba ese campo: el único que reaccionaba era el JavaScript de
+ * la propia app. Contra la amenaza real —alguien que se llevó el token y usa el
+ * SDK directamente— eso no hacía absolutamente nada. Encima el cliente podía
+ * reescribir el campo, y `registerSession` lo limpiaba en cada arranque.
+ *
+ * `revokeRefreshTokens` sí invalida las credenciales en Firebase Auth. Es la
+ * ÚNICA revocación real que ofrece Firebase, y es por usuario: no existe forma
+ * de matar un dispositivo suelto sin Identity Platform y verificación de sesión
+ * en servidor. Por eso esto cierra todo, incluido el dispositivo que lo pide, y
+ * la interfaz lo dice claramente.
+ */
+export const revokeAllSessions = onCall(
+  { region: "us-central1" },
+  async (request) => {
+    const uid = request.auth?.uid;
+    if (!uid) {
+      throw new HttpsError("unauthenticated", "Debes iniciar sesión.");
+    }
+    // Un invitado de compra no tiene panel de sesiones que cerrar.
+    if (request.auth?.token?.firebase?.sign_in_provider === "anonymous") {
+      throw new HttpsError("permission-denied", "Las cuentas de invitado no tienen sesiones.");
+    }
+
+    // 1. Invalida los refresh tokens. A partir de aquí ningún dispositivo puede
+    //    acuñar tokens nuevos; los ID tokens ya emitidos caducan en ~1h, que es
+    //    el límite propio de un JWT sin estado.
+    await admin.auth().revokeRefreshTokens(uid);
+
+    // 2. Marca los documentos para que la interfaz refleje el cierre y los
+    //    clientes vivos se desconecten sin esperar a que caduque su token.
+    const snap = await db.collection(`users/${uid}/sessions`).get();
+    const now = admin.firestore.FieldValue.serverTimestamp();
+    let revoked = 0;
+
+    let batch = db.batch();
+    let pending = 0;
+    for (const docSnap of snap.docs) {
+      if (docSnap.get("revoked") === true) continue;
+      batch.update(docSnap.ref, { revoked: true, revokedAt: now });
+      revoked += 1;
+      pending += 1;
+      if (pending >= 400) {
+        await batch.commit();
+        batch = db.batch();
+        pending = 0;
+      }
+    }
+    if (pending > 0) await batch.commit();
+
+    logger.info("revokeAllSessions", { uid, revoked });
+    return { ok: true, revoked };
+  }
+);

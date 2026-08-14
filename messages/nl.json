@@ -62,7 +62,8 @@
     "statistics": "Statistieken",
     "tabMessages": "Berichten",
     "messageRequests": "Verzoeken ({count})",
-    "seeAllMessages": "Alles bekijken"
+    "seeAllMessages": "Alles bekijken",
+    "settings": "Instellingen"
   },
   "common": {
     "accept": "Accepteren",
@@ -742,7 +743,7 @@
     "blockedAccountsLabel": "Geblokkeerde accounts",
     "sessionsLabel": "Actieve sessies",
     "sessionsValue": "Apparaten waarop je bent ingelogd",
-    "sessionsHint": "Controleer welke apparaten je sessie open hebben en sluit de apparaten die je niet herkent.",
+    "sessionsHint": "Bekijk op welke apparaten je sessie openstaat. Uitloggen sluit hem overal.",
     "sessionsTitle": "Actieve sessies",
     "sessionsDesc": "Apparaten waarop je account op dit moment is ingelogd.",
     "sessionsLoginRequired": "Log in om je actieve sessies te bekijken.",
@@ -752,7 +753,7 @@
     "sessionThisDevice": "Dit apparaat",
     "sessionRevoke": "Uitloggen",
     "sessionRevoking": "Uitloggen…",
-    "sessionsRevokeOthers": "Alle andere sessies uitloggen",
+    "sessionsRevokeOthers": "Uitloggen op alle apparaten",
     "sessionRevokeError": "De sessie kon niet worden gesloten.",
     "sessionActiveNow": "Nu actief",
     "sessionActiveMinutes": "{count} min geleden actief",
@@ -814,7 +815,8 @@
     "messagePolicyNoneHelp": "Niemand kan je schrijven, de berichtknop verschijnt niet op je profiel.",
     "messagePolicyUpdateError": "De berichtinstellingen konden niet worden bijgewerkt.",
     "messagePolicyFollowingAndFollowers": "Mensen die ik volg en die mij volgen",
-    "messagePolicyFollowingAndFollowersHelp": "Alleen mensen die je volgt en die jou volgen kunnen je schrijven, hun berichten komen direct in je inbox, bij alle anderen verschijnt de berichtknop niet."
+    "messagePolicyFollowingAndFollowersHelp": "Alleen mensen die je volgt en die jou volgen kunnen je schrijven, hun berichten komen direct in je inbox, bij alle anderen verschijnt de berichtknop niet.",
+    "sessionRevokeAllConfirm": "De sessie wordt op al je apparaten gesloten, ook op dit apparaat. Je moet opnieuw inloggen."
   },
   "feed": {
     "pinned": "Vastgezet",

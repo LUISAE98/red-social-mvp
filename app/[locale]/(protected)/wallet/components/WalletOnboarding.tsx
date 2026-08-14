@@ -59,11 +59,12 @@ export default function WalletOnboarding({
    * - `hero`: el titular "Convierte tu pasión…" con sus ventajas y reglas
    * - `commission`: la comisión de Vibra
    * - `clear`: "Wallet clara" (celular, sellos y planeta)
+   * - `lifestyle`: la imagen con las garantías ("Retiros protegidos…")
    * - `communities`: los 3 tipos de comunidades
    */
-  hideSections?: readonly ("hero" | "commission" | "clear" | "communities")[];
+  hideSections?: readonly ("hero" | "commission" | "clear" | "lifestyle" | "communities")[];
 } = {}) {
-  const oculta = (s: "hero" | "commission" | "clear" | "communities") =>
+  const oculta = (s: "hero" | "commission" | "clear" | "lifestyle" | "communities") =>
     hideSections?.includes(s) ?? false;
   const rawWallet = useTranslations("wallet");
   // Redirige las claves de onboarding con variante propia a su copy de usuario
@@ -1817,7 +1818,7 @@ export default function WalletOnboarding({
       {/* Imagen de estilo de vida con la lista de garantías encima (checks e
           iconos verdes). Son garantías de cobro/manejo de dinero del creador,
           no le competen al fan → se oculta para users. */}
-      {audience !== "users" && (
+      {audience !== "users" && !oculta("lifestyle") && (
       <section className="lifestyle reveal">
         <div className="lifestyleImageWrap">
           <Image

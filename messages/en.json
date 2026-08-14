@@ -62,7 +62,8 @@
     "statistics": "Statistics",
     "tabMessages": "Messages",
     "messageRequests": "Requests ({count})",
-    "seeAllMessages": "See all"
+    "seeAllMessages": "See all",
+    "settings": "Settings"
   },
   "common": {
     "accept": "Accept",
@@ -742,7 +743,7 @@
     "blockedAccountsLabel": "Blocked accounts",
     "sessionsLabel": "Active sessions",
     "sessionsValue": "Devices where you're signed in",
-    "sessionsHint": "Check which devices have your session open and close any you don't recognize.",
+    "sessionsHint": "See which devices have your session open. Signing out closes it everywhere.",
     "sessionsTitle": "Active sessions",
     "sessionsDesc": "Devices where your account is currently signed in.",
     "sessionsLoginRequired": "Sign in to see your active sessions.",
@@ -752,7 +753,7 @@
     "sessionThisDevice": "This device",
     "sessionRevoke": "Sign out",
     "sessionRevoking": "Signing out...",
-    "sessionsRevokeOthers": "Sign out all other sessions",
+    "sessionsRevokeOthers": "Sign out on all devices",
     "sessionRevokeError": "Could not close the session.",
     "sessionActiveNow": "Active now",
     "sessionActiveMinutes": "Active {count} min ago",
@@ -814,7 +815,8 @@
     "messagePolicyNoneHelp": "No one can message you, the message button does not appear on your profile.",
     "messagePolicyUpdateError": "Could not update message settings.",
     "messagePolicyFollowingAndFollowers": "People I follow and people who follow me",
-    "messagePolicyFollowingAndFollowersHelp": "Only people you follow and people who follow you can message you, their messages go straight to your inbox, everyone else does not see the message button."
+    "messagePolicyFollowingAndFollowersHelp": "Only people you follow and people who follow you can message you, their messages go straight to your inbox, everyone else does not see the message button.",
+    "sessionRevokeAllConfirm": "Your session will close on all your devices, including this one. You'll need to sign in again."
   },
   "feed": {
     "pinned": "Pinned",

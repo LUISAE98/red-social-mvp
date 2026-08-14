@@ -62,7 +62,8 @@
     "statistics": "Statistik",
     "tabMessages": "Meddelanden",
     "messageRequests": "Förfrågningar ({count})",
-    "seeAllMessages": "Visa alla"
+    "seeAllMessages": "Visa alla",
+    "settings": "Inställningar"
   },
   "common": {
     "accept": "Acceptera",
@@ -742,7 +743,7 @@
     "blockedAccountsLabel": "Blockerade konton",
     "sessionsLabel": "Aktiva sessioner",
     "sessionsValue": "Enheter där du är inloggad",
-    "sessionsHint": "Kolla vilka enheter som har din session öppen och stäng dem du inte känner igen.",
+    "sessionsHint": "Se vilka enheter som har din session öppen. Utloggning stänger den överallt.",
     "sessionsTitle": "Aktiva sessioner",
     "sessionsDesc": "Enheter där ditt konto är inloggat just nu.",
     "sessionsLoginRequired": "Logga in för att se dina aktiva sessioner.",
@@ -752,7 +753,7 @@
     "sessionThisDevice": "Den här enheten",
     "sessionRevoke": "Logga ut",
     "sessionRevoking": "Loggar ut...",
-    "sessionsRevokeOthers": "Logga ut alla andra sessioner",
+    "sessionsRevokeOthers": "Logga ut på alla enheter",
     "sessionRevokeError": "Det gick inte att stänga sessionen.",
     "sessionActiveNow": "Aktiv nu",
     "sessionActiveMinutes": "Aktiv för {count} min sedan",
@@ -814,7 +815,8 @@
     "messagePolicyNoneHelp": "Ingen kan skicka meddelanden till dig, meddelandeknappen syns inte på din profil.",
     "messagePolicyUpdateError": "Det gick inte att uppdatera meddelandeinställningarna.",
     "messagePolicyFollowingAndFollowers": "Personer jag följer och personer som följer mig",
-    "messagePolicyFollowingAndFollowersHelp": "Bara personer du följer och personer som följer dig kan skicka meddelanden till dig, deras meddelanden går direkt till inkorgen, alla andra ser inte meddelandeknappen."
+    "messagePolicyFollowingAndFollowersHelp": "Bara personer du följer och personer som följer dig kan skicka meddelanden till dig, deras meddelanden går direkt till inkorgen, alla andra ser inte meddelandeknappen.",
+    "sessionRevokeAllConfirm": "Sessionen stängs på alla dina enheter, även den här. Du behöver logga in igen."
   },
   "feed": {
     "pinned": "Fäst",

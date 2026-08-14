@@ -62,7 +62,8 @@
     "statistics": "Statistika",
     "tabMessages": "Žinutės",
     "messageRequests": "Prašymai ({count})",
-    "seeAllMessages": "Rodyti visas"
+    "seeAllMessages": "Rodyti visas",
+    "settings": "Nustatymai"
   },
   "common": {
     "accept": "Priimti",
@@ -742,7 +743,7 @@
     "blockedAccountsLabel": "Užblokuotos paskyros",
     "sessionsLabel": "Aktyvios sesijos",
     "sessionsValue": "Įrenginiai, kuriuose esi prisijungęs",
-    "sessionsHint": "Pažiūrėk, kuriuose įrenginiuose tavo sesija atidaryta, ir uždaryk tuos, kurių neatpažįsti.",
+    "sessionsHint": "Pažiūrėk, kuriuose įrenginiuose atidaryta tavo sesija. Atsijungimas ją uždaro visur.",
     "sessionsTitle": "Aktyvios sesijos",
     "sessionsDesc": "Įrenginiai, kuriuose tavo paskyra šiuo metu prisijungusi.",
     "sessionsLoginRequired": "Prisijunk, kad pamatytum savo aktyvias sesijas.",
@@ -752,7 +753,7 @@
     "sessionThisDevice": "Šis įrenginys",
     "sessionRevoke": "Atjungti",
     "sessionRevoking": "Atjungiama...",
-    "sessionsRevokeOthers": "Atjungti visas kitas sesijas",
+    "sessionsRevokeOthers": "Atsijungti visuose įrenginiuose",
     "sessionRevokeError": "Sesijos nepavyko uždaryti.",
     "sessionActiveNow": "Aktyvi dabar",
     "sessionActiveMinutes": "Aktyvi prieš {count} min.",
@@ -814,7 +815,8 @@
     "messagePolicyNoneHelp": "Niekas negali tau rašyti, žinutės mygtukas tavo profilyje nerodomas.",
     "messagePolicyUpdateError": "Žinučių nustatymų nepavyko atnaujinti.",
     "messagePolicyFollowingAndFollowers": "Tie, kuriuos seku, ir tie, kurie seka mane",
-    "messagePolicyFollowingAndFollowersHelp": "Rašyti tau gali tik tie, kuriuos seki, ir tie, kurie seka tave, jų žinutės keliauja tiesiai į gautuosius, kiti žinutės mygtuko nemato."
+    "messagePolicyFollowingAndFollowersHelp": "Rašyti tau gali tik tie, kuriuos seki, ir tie, kurie seka tave, jų žinutės keliauja tiesiai į gautuosius, kiti žinutės mygtuko nemato.",
+    "sessionRevokeAllConfirm": "Sesija bus uždaryta visuose tavo įrenginiuose, įskaitant šį. Reikės prisijungti iš naujo."
   },
   "feed": {
     "pinned": "Prisegta",

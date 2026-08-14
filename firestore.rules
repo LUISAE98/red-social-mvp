@@ -808,14 +808,26 @@ match /hiddenGroupTransitions/{groupId} {
         allow write: if signedIn() && request.auth.uid == uid;
       }
 
-      // Sesiones activas (dispositivos con la sesión abierta). Solo el propio
-      // usuario lee y escribe su subcolección: registra su dispositivo, refresca
-      // el heartbeat y marca como `revoked` cualquier sesión (la suya o la de
-      // otro dispositivo del mismo usuario) para cerrarla remotamente. La Cloud
-      // Function de geo-IP usa Admin SDK y no pasa por estas reglas.
+      // Sesiones activas (dispositivos con la sesión abierta). El dispositivo
+      // registra y refresca SU documento, pero `revoked` es territorio del
+      // servidor: antes el cliente podía reescribirlo, así que quien tuviera la
+      // sesión robada podía des-revocarse solo, y `delete` abierto permitía
+      // borrar la evidencia. La revocación real la hace el callable
+      // `revokeAllSessions` (Admin SDK + revokeRefreshTokens); la Cloud Function
+      // de geo-IP también usa Admin SDK y no pasa por estas reglas.
       match /sessions/{sessionId} {
-        allow get, list: if signedIn() && request.auth.uid == uid;
-        allow create, update, delete: if notAnonymous() && request.auth.uid == uid;
+        allow get, list: if notAnonymous() && request.auth.uid == uid;
+
+        allow create: if notAnonymous()
+          && request.auth.uid == uid
+          && request.resource.data.get('revoked', false) == false;
+
+        allow update: if notAnonymous()
+          && request.auth.uid == uid
+          && request.resource.data.get('revoked', false) == resource.data.get('revoked', false)
+          && request.resource.data.get('revokedAt', null) == resource.data.get('revokedAt', null);
+
+        allow delete: if false;
       }
 
       // Tokens FCM de push por dispositivo. El dueño registra/borra los suyos

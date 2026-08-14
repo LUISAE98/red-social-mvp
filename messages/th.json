@@ -62,7 +62,8 @@
     "statistics": "สถิติ",
     "tabMessages": "ข้อความ",
     "messageRequests": "คำขอ ({count})",
-    "seeAllMessages": "ดูทั้งหมด"
+    "seeAllMessages": "ดูทั้งหมด",
+    "settings": "การตั้งค่า"
   },
   "common": {
     "accept": "ยอมรับ",
@@ -742,7 +743,7 @@
     "blockedAccountsLabel": "บัญชีที่ถูกบล็อก",
     "sessionsLabel": "เซสชันที่ใช้งานอยู่",
     "sessionsValue": "อุปกรณ์ที่คุณเข้าสู่ระบบอยู่",
-    "sessionsHint": "ตรวจดูว่าอุปกรณ์ไหนยังเปิดเซสชันอยู่ และปิดอันที่คุณไม่รู้จัก",
+    "sessionsHint": "ดูว่าอุปกรณ์ใดเปิดเซสชันของคุณอยู่ การออกจากระบบจะปิดทุกเครื่อง",
     "sessionsTitle": "เซสชันที่ใช้งานอยู่",
     "sessionsDesc": "อุปกรณ์ที่บัญชีของคุณกำลังเข้าสู่ระบบอยู่",
     "sessionsLoginRequired": "เข้าสู่ระบบเพื่อดูเซสชันที่ใช้งานอยู่",
@@ -752,7 +753,7 @@
     "sessionThisDevice": "อุปกรณ์นี้",
     "sessionRevoke": "ออกจากระบบ",
     "sessionRevoking": "กำลังออกจากระบบ...",
-    "sessionsRevokeOthers": "ออกจากระบบทุกเซสชันอื่น",
+    "sessionsRevokeOthers": "ออกจากระบบทุกอุปกรณ์",
     "sessionRevokeError": "ปิดเซสชันไม่สำเร็จ",
     "sessionActiveNow": "ใช้งานอยู่ตอนนี้",
     "sessionActiveMinutes": "ใช้งานเมื่อ {count} นาทีที่แล้ว",
@@ -814,7 +815,8 @@
     "messagePolicyNoneHelp": "ไม่มีใครส่งข้อความหาคุณได้ ปุ่มข้อความจะไม่ปรากฏในโปรไฟล์ของคุณ",
     "messagePolicyUpdateError": "อัปเดตการตั้งค่าข้อความไม่สำเร็จ",
     "messagePolicyFollowingAndFollowers": "คนที่ฉันติดตาม และคนที่ติดตามฉัน",
-    "messagePolicyFollowingAndFollowersHelp": "เฉพาะคนที่คุณติดตามและคนที่ติดตามคุณเท่านั้นที่ส่งข้อความหาคุณได้ และข้อความจะเข้ากล่องข้อความโดยตรง คนอื่นจะไม่เห็นปุ่มข้อความ"
+    "messagePolicyFollowingAndFollowersHelp": "เฉพาะคนที่คุณติดตามและคนที่ติดตามคุณเท่านั้นที่ส่งข้อความหาคุณได้ และข้อความจะเข้ากล่องข้อความโดยตรง คนอื่นจะไม่เห็นปุ่มข้อความ",
+    "sessionRevokeAllConfirm": "เซสชันจะปิดบนอุปกรณ์ทุกเครื่องของคุณ รวมถึงเครื่องนี้ คุณจะต้องเข้าสู่ระบบอีกครั้ง"
   },
   "feed": {
     "pinned": "ปักหมุดไว้",

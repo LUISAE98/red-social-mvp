@@ -62,7 +62,8 @@
     "statistics": "Staitisticí",
     "tabMessages": "Teachtaireachtaí",
     "messageRequests": "Iarratais ({count})",
-    "seeAllMessages": "Féach orthu uile"
+    "seeAllMessages": "Féach orthu uile",
+    "settings": "Socruithe"
   },
   "common": {
     "accept": "Glac leis",
@@ -742,7 +743,7 @@
     "blockedAccountsLabel": "Cuntais bhactha",
     "sessionsLabel": "Seisiúin ghníomhacha",
     "sessionsValue": "Gléasanna ina bhfuil tú logáilte isteach",
-    "sessionsHint": "Seiceáil cé na gléasanna ina bhfuil do sheisiún ar oscailt agus dún aon cheann nach n-aithníonn tú.",
+    "sessionsHint": "Féach cé na gléasanna a bhfuil do sheisiún oscailte orthu. Dúnann logáil amach i ngach áit é.",
     "sessionsTitle": "Seisiúin ghníomhacha",
     "sessionsDesc": "Gléasanna ina bhfuil do chuntas logáilte isteach faoi láthair.",
     "sessionsLoginRequired": "Logáil isteach chun do sheisiúin ghníomhacha a fheiceáil.",
@@ -752,7 +753,7 @@
     "sessionThisDevice": "An gléas seo",
     "sessionRevoke": "Logáil amach",
     "sessionRevoking": "Ag logáil amach...",
-    "sessionsRevokeOthers": "Logáil amach as na seisiúin eile go léir",
+    "sessionsRevokeOthers": "Logáil amach ar gach gléas",
     "sessionRevokeError": "Níorbh fhéidir an seisiún a dhúnadh.",
     "sessionActiveNow": "Gníomhach anois",
     "sessionActiveMinutes": "Gníomhach {count} nóim. ó shin",
@@ -814,7 +815,8 @@
     "messagePolicyNoneHelp": "Ní féidir le duine ar bith scríobh chugat; ní thaispeántar cnaipe na dteachtaireachtaí ar do phróifíl.",
     "messagePolicyUpdateError": "Níorbh fhéidir socruithe na dteachtaireachtaí a nuashonrú.",
     "messagePolicyFollowingAndFollowers": "Na daoine a leanaim agus na daoine a leanann mé",
-    "messagePolicyFollowingAndFollowersHelp": "Ní féidir ach leis na daoine a leanann tú agus na daoine a leanann thú scríobh chugat; téann a dteachtaireachtaí díreach chuig do bhosca isteach, ní fheiceann na daoine eile cnaipe na dteachtaireachtaí."
+    "messagePolicyFollowingAndFollowersHelp": "Ní féidir ach leis na daoine a leanann tú agus na daoine a leanann thú scríobh chugat; téann a dteachtaireachtaí díreach chuig do bhosca isteach, ní fheiceann na daoine eile cnaipe na dteachtaireachtaí.",
+    "sessionRevokeAllConfirm": "Dúnfar an seisiún ar do ghléasanna go léir, an ceann seo san áireamh. Beidh ort logáil isteach arís."
   },
   "feed": {
     "pinned": "Pionnáilte",

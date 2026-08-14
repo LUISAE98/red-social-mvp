@@ -62,7 +62,8 @@
     "statistics": "Statistiques",
     "tabMessages": "Messages",
     "messageRequests": "Demandes ({count})",
-    "seeAllMessages": "Tout voir"
+    "seeAllMessages": "Tout voir",
+    "settings": "Paramètres"
   },
   "common": {
     "accept": "Accepter",
@@ -742,7 +743,7 @@
     "blockedAccountsLabel": "Comptes bloqués",
     "sessionsLabel": "Sessions actives",
     "sessionsValue": "Appareils sur lesquels tu es connecté",
-    "sessionsHint": "Vérifie quels appareils ont ta session ouverte et ferme ceux que tu ne reconnais pas.",
+    "sessionsHint": "Vois sur quels appareils ta session est ouverte. La fermer la ferme partout.",
     "sessionsTitle": "Sessions actives",
     "sessionsDesc": "Appareils sur lesquels ton compte est actuellement connecté.",
     "sessionsLoginRequired": "Connecte-toi pour voir tes sessions actives.",
@@ -752,7 +753,7 @@
     "sessionThisDevice": "Cet appareil",
     "sessionRevoke": "Se déconnecter",
     "sessionRevoking": "Déconnexion…",
-    "sessionsRevokeOthers": "Déconnecter toutes les autres sessions",
+    "sessionsRevokeOthers": "Se déconnecter de tous les appareils",
     "sessionRevokeError": "Impossible de fermer la session.",
     "sessionActiveNow": "Actif maintenant",
     "sessionActiveMinutes": "Actif il y a {count} min",
@@ -814,7 +815,8 @@
     "messagePolicyNoneHelp": "Personne ne peut t'écrire, le bouton de message n'apparaît pas sur ton profil.",
     "messagePolicyUpdateError": "Impossible de mettre à jour les paramètres de messagerie.",
     "messagePolicyFollowingAndFollowers": "Les personnes que je suis et celles qui me suivent",
-    "messagePolicyFollowingAndFollowersHelp": "Seules les personnes que tu suis et celles qui te suivent peuvent t'écrire, leurs messages arrivent directement dans ta boîte de réception, pour les autres le bouton de message n'apparaît pas."
+    "messagePolicyFollowingAndFollowersHelp": "Seules les personnes que tu suis et celles qui te suivent peuvent t'écrire, leurs messages arrivent directement dans ta boîte de réception, pour les autres le bouton de message n'apparaît pas.",
+    "sessionRevokeAllConfirm": "La session sera fermée sur tous tes appareils, y compris celui-ci. Tu devras te reconnecter."
   },
   "feed": {
     "pinned": "Épinglé",

@@ -62,7 +62,8 @@
     "statistics": "Statistika",
     "tabMessages": "Mesajlar",
     "messageRequests": "Sorğular ({count})",
-    "seeAllMessages": "Hamısına bax"
+    "seeAllMessages": "Hamısına bax",
+    "settings": "Parametrlər"
   },
   "common": {
     "accept": "Qəbul et",
@@ -742,7 +743,7 @@
     "blockedAccountsLabel": "Bloklanmış hesablar",
     "sessionsLabel": "Aktiv sessiyalar",
     "sessionsValue": "Daxil olduğun cihazlar",
-    "sessionsHint": "Hansı cihazlarda sessiyanın açıq olduğunu yoxla və tanımadıqlarını bağla.",
+    "sessionsHint": "Sessiyanızın açıq olduğu cihazlara baxın. Çıxış bütün cihazlarda bağlayır.",
     "sessionsTitle": "Aktiv sessiyalar",
     "sessionsDesc": "Hesabının hazırda açıq olduğu cihazlar.",
     "sessionsLoginRequired": "Aktiv sessiyalarını görmək üçün daxil ol.",
@@ -752,7 +753,7 @@
     "sessionThisDevice": "Bu cihaz",
     "sessionRevoke": "Çıx",
     "sessionRevoking": "Çıxılır...",
-    "sessionsRevokeOthers": "Bütün digər sessiyaları bağla",
+    "sessionsRevokeOthers": "Bütün cihazlarda çıxış et",
     "sessionRevokeError": "Sessiyanı bağlamaq mümkün olmadı.",
     "sessionActiveNow": "Hazırda aktiv",
     "sessionActiveMinutes": "{count} dəq əvvəl aktiv idi",
@@ -814,7 +815,8 @@
     "messagePolicyNoneHelp": "Heç kim sənə yaza bilməz, mesaj düyməsi profilində görünmür.",
     "messagePolicyUpdateError": "Mesaj parametrlərini yeniləmək mümkün olmadı.",
     "messagePolicyFollowingAndFollowers": "İzlədiklərim və məni izləyənlər",
-    "messagePolicyFollowingAndFollowersHelp": "Yalnız izlədiyin və səni izləyən şəxslər sənə yaza bilər, mesajları birbaşa gələnlər qutusuna düşür, digərləri mesaj düyməsini görmür."
+    "messagePolicyFollowingAndFollowersHelp": "Yalnız izlədiyin və səni izləyən şəxslər sənə yaza bilər, mesajları birbaşa gələnlər qutusuna düşür, digərləri mesaj düyməsini görmür.",
+    "sessionRevokeAllConfirm": "Sessiya bütün cihazlarınızda, bu cihaz da daxil olmaqla, bağlanacaq. Yenidən daxil olmalı olacaqsınız."
   },
   "feed": {
     "pinned": "Sancaqlanıb",

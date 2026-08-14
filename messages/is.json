@@ -62,7 +62,8 @@
     "statistics": "Tölfræði",
     "tabMessages": "Skilaboð",
     "messageRequests": "Beiðnir ({count})",
-    "seeAllMessages": "Sjá allt"
+    "seeAllMessages": "Sjá allt",
+    "settings": "Stillingar"
   },
   "common": {
     "accept": "Samþykkja",
@@ -742,7 +743,7 @@
     "blockedAccountsLabel": "Lokaðir reikningar",
     "sessionsLabel": "Virkar innskráningar",
     "sessionsValue": "Tæki þar sem þú ert skráður inn",
-    "sessionsHint": "Athugaðu hvaða tæki eru með opna innskráningu og lokaðu þeim sem þú kannast ekki við.",
+    "sessionsHint": "Sjáðu í hvaða tækjum lotan þín er opin. Útskráning lokar henni alls staðar.",
     "sessionsTitle": "Virkar innskráningar",
     "sessionsDesc": "Tæki þar sem reikningurinn þinn er skráður inn núna.",
     "sessionsLoginRequired": "Skráðu þig inn til að sjá virkar innskráningar.",
@@ -752,7 +753,7 @@
     "sessionThisDevice": "Þetta tæki",
     "sessionRevoke": "Skrá út",
     "sessionRevoking": "Skrái út...",
-    "sessionsRevokeOthers": "Skrá út allar aðrar innskráningar",
+    "sessionsRevokeOthers": "Skrá út af öllum tækjum",
     "sessionRevokeError": "Ekki tókst að loka innskráningunni.",
     "sessionActiveNow": "Virkt núna",
     "sessionActiveMinutes": "Virkt fyrir {count} mín",
@@ -814,7 +815,8 @@
     "messagePolicyNoneHelp": "Enginn getur sent þér skilaboð, skilaboðahnappurinn birtist ekki á prófílnum þínum.",
     "messagePolicyUpdateError": "Ekki tókst að uppfæra skilaboðastillingar.",
     "messagePolicyFollowingAndFollowers": "Fólk sem ég fylgi og fólk sem fylgir mér",
-    "messagePolicyFollowingAndFollowersHelp": "Aðeins fólk sem þú fylgir og fólk sem fylgir þér getur sent þér skilaboð, þau fara beint í innhólfið þitt, aðrir sjá ekki skilaboðahnappinn."
+    "messagePolicyFollowingAndFollowersHelp": "Aðeins fólk sem þú fylgir og fólk sem fylgir þér getur sent þér skilaboð, þau fara beint í innhólfið þitt, aðrir sjá ekki skilaboðahnappinn.",
+    "sessionRevokeAllConfirm": "Lotunni verður lokað á öllum tækjunum þínum, þar á meðal þessu. Þú þarft að skrá þig inn aftur."
   },
   "feed": {
     "pinned": "Fest",

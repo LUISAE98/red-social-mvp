@@ -62,7 +62,8 @@
     "statistics": "Statisztikák",
     "tabMessages": "Üzenetek",
     "messageRequests": "Kérések ({count})",
-    "seeAllMessages": "Összes megtekintése"
+    "seeAllMessages": "Összes megtekintése",
+    "settings": "Beállítások"
   },
   "common": {
     "accept": "Elfogadás",
@@ -742,7 +743,7 @@
     "blockedAccountsLabel": "Letiltott fiókok",
     "sessionsLabel": "Aktív munkamenetek",
     "sessionsValue": "Eszközök, amelyeken be vagy jelentkezve",
-    "sessionsHint": "Nézd meg, mely eszközökön van nyitva a munkameneted, és zárd be azokat, amiket nem ismersz fel.",
+    "sessionsHint": "Nézd meg, mely eszközökön van nyitva a munkameneted. A kijelentkezés mindenhol bezárja.",
     "sessionsTitle": "Aktív munkamenetek",
     "sessionsDesc": "Eszközök, amelyeken a fiókod jelenleg be van jelentkezve.",
     "sessionsLoginRequired": "Jelentkezz be az aktív munkameneteid megtekintéséhez.",
@@ -752,7 +753,7 @@
     "sessionThisDevice": "Ez az eszköz",
     "sessionRevoke": "Kijelentkeztetés",
     "sessionRevoking": "Kijelentkeztetés…",
-    "sessionsRevokeOthers": "Az összes többi munkamenet kijelentkeztetése",
+    "sessionsRevokeOthers": "Kijelentkezés minden eszközről",
     "sessionRevokeError": "A munkamenetet nem sikerült lezárni.",
     "sessionActiveNow": "Most aktív",
     "sessionActiveMinutes": "Aktív {count} perce",
@@ -814,7 +815,8 @@
     "messagePolicyNoneHelp": "Senki nem írhat neked, az üzenet gomb nem jelenik meg a profilodon.",
     "messagePolicyUpdateError": "Az üzenetbeállításokat nem sikerült frissíteni.",
     "messagePolicyFollowingAndFollowers": "Akiket követek, és akik követnek engem",
-    "messagePolicyFollowingAndFollowersHelp": "Csak azok írhatnak neked, akiket követsz, és akik téged követnek, az ő üzeneteik egyenesen a beérkezők közé kerülnek, másoknál az üzenet gomb meg sem jelenik."
+    "messagePolicyFollowingAndFollowersHelp": "Csak azok írhatnak neked, akiket követsz, és akik téged követnek, az ő üzeneteik egyenesen a beérkezők közé kerülnek, másoknál az üzenet gomb meg sem jelenik.",
+    "sessionRevokeAllConfirm": "A munkamenet minden eszközödön bezárul, ezen is. Újra be kell jelentkezned."
   },
   "feed": {
     "pinned": "Rögzítve",

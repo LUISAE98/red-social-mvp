@@ -62,7 +62,8 @@
     "statistics": "Estadísticas",
     "tabMessages": "Mensajes",
     "messageRequests": "Solicitudes ({count})",
-    "seeAllMessages": "Ver todos"
+    "seeAllMessages": "Ver todos",
+    "settings": "Configuración"
   },
   "common": {
     "accept": "Aceptar",
@@ -742,7 +743,7 @@
     "blockedAccountsLabel": "Cuentas bloqueadas",
     "sessionsLabel": "Sesiones activas",
     "sessionsValue": "Dispositivos con tu sesión abierta",
-    "sessionsHint": "Revisa en qué dispositivos tienes la sesión abierta y ciérrala en los que no reconozcas.",
+    "sessionsHint": "Revisa en qué dispositivos tienes la sesión abierta. Cerrarla la cierra en todos.",
     "sessionsTitle": "Sesiones activas",
     "sessionsDesc": "Dispositivos donde tu cuenta tiene la sesión abierta.",
     "sessionsLoginRequired": "Inicia sesión para ver tus sesiones activas.",
@@ -752,7 +753,7 @@
     "sessionThisDevice": "Este dispositivo",
     "sessionRevoke": "Cerrar sesión",
     "sessionRevoking": "Cerrando...",
-    "sessionsRevokeOthers": "Cerrar todas las demás",
+    "sessionsRevokeOthers": "Cerrar sesión en todos los dispositivos",
     "sessionRevokeError": "No se pudo cerrar la sesión.",
     "sessionActiveNow": "Activo ahora",
     "sessionActiveMinutes": "Activo hace {count} min",
@@ -814,7 +815,8 @@
     "messagePolicyNoneHelp": "Nadie puede escribirte, el botón de enviar mensaje no aparece en tu perfil.",
     "messagePolicyUpdateError": "No se pudo actualizar la configuración de mensajes.",
     "messagePolicyFollowingAndFollowers": "A quien sigo y a quien me sigue",
-    "messagePolicyFollowingAndFollowersHelp": "Solo pueden escribirte las personas que sigues y las que te siguen, sus mensajes entran directo a tu bandeja, al resto no le aparece el botón de enviar mensaje."
+    "messagePolicyFollowingAndFollowersHelp": "Solo pueden escribirte las personas que sigues y las que te siguen, sus mensajes entran directo a tu bandeja, al resto no le aparece el botón de enviar mensaje.",
+    "sessionRevokeAllConfirm": "Se cerrará la sesión en todos tus dispositivos, incluido este. Tendrás que volver a entrar."
   },
   "feed": {
     "pinned": "Fijado",

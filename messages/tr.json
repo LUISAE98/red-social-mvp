@@ -62,7 +62,8 @@
     "statistics": "İstatistikler",
     "tabMessages": "Mesajlar",
     "messageRequests": "İstekler ({count})",
-    "seeAllMessages": "Tümünü gör"
+    "seeAllMessages": "Tümünü gör",
+    "settings": "Ayarlar"
   },
   "common": {
     "accept": "Kabul et",
@@ -742,7 +743,7 @@
     "blockedAccountsLabel": "Engellenen hesaplar",
     "sessionsLabel": "Aktif oturumlar",
     "sessionsValue": "Oturumunun açık olduğu cihazlar",
-    "sessionsHint": "Hangi cihazlarda oturumunun açık olduğunu kontrol et ve tanımadıklarını kapat.",
+    "sessionsHint": "Oturumunun açık olduğu cihazları gör. Kapatmak hepsinde kapatır.",
     "sessionsTitle": "Aktif oturumlar",
     "sessionsDesc": "Hesabının şu anda açık olduğu cihazlar.",
     "sessionsLoginRequired": "Aktif oturumlarını görmek için giriş yap.",
@@ -752,7 +753,7 @@
     "sessionThisDevice": "Bu cihaz",
     "sessionRevoke": "Oturumu kapat",
     "sessionRevoking": "Kapatılıyor...",
-    "sessionsRevokeOthers": "Diğer tüm oturumları kapat",
+    "sessionsRevokeOthers": "Tüm cihazlarda oturumu kapat",
     "sessionRevokeError": "Oturum kapatılamadı.",
     "sessionActiveNow": "Şu anda aktif",
     "sessionActiveMinutes": "{count} dk önce aktifti",
@@ -814,7 +815,8 @@
     "messagePolicyNoneHelp": "Kimse sana yazamaz, mesaj düğmesi profilinde görünmez.",
     "messagePolicyUpdateError": "Mesaj ayarları güncellenemedi.",
     "messagePolicyFollowingAndFollowers": "Takip ettiklerim ve beni takip edenler",
-    "messagePolicyFollowingAndFollowersHelp": "Yalnızca takip ettiğin ve seni takip eden kişiler sana yazabilir, mesajları doğrudan gelen kutuna düşer, diğerleri mesaj düğmesini görmez."
+    "messagePolicyFollowingAndFollowersHelp": "Yalnızca takip ettiğin ve seni takip eden kişiler sana yazabilir, mesajları doğrudan gelen kutuna düşer, diğerleri mesaj düğmesini görmez.",
+    "sessionRevokeAllConfirm": "Oturum bu cihaz dahil tüm cihazlarında kapanacak. Yeniden giriş yapman gerekecek."
   },
   "feed": {
     "pinned": "Sabitlendi",

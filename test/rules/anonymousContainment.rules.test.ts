@@ -251,3 +251,79 @@ describe("C02 — un uid no acumula handles", () => {
     await assertFails(deleteDoc(doc(realDb(), "handles/realuser")));
   });
 });
+
+describe("C03 — el cliente no puede tocar la revocación de sus sesiones", () => {
+  it("puede registrar y refrescar su sesión", async () => {
+    const db = realDb();
+    await assertSucceeds(
+      setDoc(doc(db, `users/${REAL}/sessions/s1`), {
+        userAgent: "x",
+        revoked: false,
+        createdAt: serverTimestamp(),
+      })
+    );
+    await assertSucceeds(
+      setDoc(
+        doc(db, `users/${REAL}/sessions/s1`),
+        { userAgent: "x", revoked: false, lastSeenAt: serverTimestamp() },
+        { merge: true }
+      )
+    );
+  });
+
+  it("NO puede crear una sesión ya marcada como revocada", async () => {
+    await assertFails(
+      setDoc(doc(realDb(), `users/${REAL}/sessions/s2`), {
+        userAgent: "x",
+        revoked: true,
+        createdAt: serverTimestamp(),
+      })
+    );
+  });
+
+  it("NO puede revocar desde el cliente", async () => {
+    await seedAll([[`users/${REAL}/sessions/s3`, { userAgent: "x", revoked: false }]]);
+    await assertFails(
+      setDoc(
+        doc(realDb(), `users/${REAL}/sessions/s3`),
+        { revoked: true },
+        { merge: true }
+      )
+    );
+  });
+
+  it("NO puede DES-revocarse (el agujero que hacía inútil el panel)", async () => {
+    await seedAll([[`users/${REAL}/sessions/s4`, { userAgent: "x", revoked: true }]]);
+    await assertFails(
+      setDoc(
+        doc(realDb(), `users/${REAL}/sessions/s4`),
+        { revoked: false },
+        { merge: true }
+      )
+    );
+  });
+
+  it("NO puede borrar el documento para tapar el rastro", async () => {
+    await seedAll([[`users/${REAL}/sessions/s5`, { userAgent: "x", revoked: true }]]);
+    await assertFails(deleteDoc(doc(realDb(), `users/${REAL}/sessions/s5`)));
+  });
+
+  it("un heartbeat sobre una sesión revocada NO la resucita", async () => {
+    await seedAll([[`users/${REAL}/sessions/s6`, { userAgent: "x", revoked: true }]]);
+    // Refrescar metadata sí, tocar `revoked` no.
+    await assertSucceeds(
+      setDoc(
+        doc(realDb(), `users/${REAL}/sessions/s6`),
+        { lastSeenAt: serverTimestamp() },
+        { merge: true }
+      )
+    );
+    await assertFails(
+      setDoc(
+        doc(realDb(), `users/${REAL}/sessions/s6`),
+        { lastSeenAt: serverTimestamp(), revoked: false },
+        { merge: true }
+      )
+    );
+  });
+});

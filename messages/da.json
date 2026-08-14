@@ -62,7 +62,8 @@
     "statistics": "Statistik",
     "tabMessages": "Beskeder",
     "messageRequests": "Anmodninger ({count})",
-    "seeAllMessages": "Se alle"
+    "seeAllMessages": "Se alle",
+    "settings": "Indstillinger"
   },
   "common": {
     "accept": "Accepter",
@@ -742,7 +743,7 @@
     "blockedAccountsLabel": "Blokerede konti",
     "sessionsLabel": "Aktive sessioner",
     "sessionsValue": "Enheder, hvor du er logget ind",
-    "sessionsHint": "Tjek, hvilke enheder der har din session åben, og luk dem, du ikke genkender.",
+    "sessionsHint": "Se på hvilke enheder du har en åben session. Log ud lukker den alle steder.",
     "sessionsTitle": "Aktive sessioner",
     "sessionsDesc": "Enheder, hvor din konto er logget ind lige nu.",
     "sessionsLoginRequired": "Log ind for at se dine aktive sessioner.",
@@ -752,7 +753,7 @@
     "sessionThisDevice": "Denne enhed",
     "sessionRevoke": "Log ud",
     "sessionRevoking": "Logger ud...",
-    "sessionsRevokeOthers": "Log ud af alle andre sessioner",
+    "sessionsRevokeOthers": "Log ud på alle enheder",
     "sessionRevokeError": "Sessionen kunne ikke lukkes.",
     "sessionActiveNow": "Aktiv nu",
     "sessionActiveMinutes": "Aktiv for {count} min. siden",
@@ -814,7 +815,8 @@
     "messagePolicyNoneHelp": "Ingen kan skrive til dig, beskedknappen vises ikke på din profil.",
     "messagePolicyUpdateError": "Beskedindstillingerne kunne ikke opdateres.",
     "messagePolicyFollowingAndFollowers": "Dem jeg følger, og dem der følger mig",
-    "messagePolicyFollowingAndFollowersHelp": "Kun dem, du følger, og dem, der følger dig, kan skrive til dig, deres beskeder går direkte i din indbakke, alle andre ser ikke beskedknappen."
+    "messagePolicyFollowingAndFollowersHelp": "Kun dem, du følger, og dem, der følger dig, kan skrive til dig, deres beskeder går direkte i din indbakke, alle andre ser ikke beskedknappen.",
+    "sessionRevokeAllConfirm": "Sessionen lukkes på alle dine enheder, inklusive denne. Du skal logge ind igen."
   },
   "feed": {
     "pinned": "Fastgjort",

@@ -62,7 +62,8 @@
     "statistics": "Statistik",
     "tabMessages": "Pesan",
     "messageRequests": "Permintaan ({count})",
-    "seeAllMessages": "Lihat semua"
+    "seeAllMessages": "Lihat semua",
+    "settings": "Pengaturan"
   },
   "common": {
     "accept": "Terima",
@@ -742,7 +743,7 @@
     "blockedAccountsLabel": "Akun yang diblokir",
     "sessionsLabel": "Sesi aktif",
     "sessionsValue": "Perangkat tempat kamu masuk",
-    "sessionsHint": "Periksa perangkat mana yang masih terbuka sesinya, dan tutup yang tidak kamu kenali.",
+    "sessionsHint": "Lihat di perangkat mana sesimu terbuka. Keluar menutupnya di semua perangkat.",
     "sessionsTitle": "Sesi aktif",
     "sessionsDesc": "Perangkat tempat akunmu sedang masuk.",
     "sessionsLoginRequired": "Masuk untuk melihat sesi aktifmu.",
@@ -752,7 +753,7 @@
     "sessionThisDevice": "Perangkat ini",
     "sessionRevoke": "Keluar",
     "sessionRevoking": "Sedang keluar...",
-    "sessionsRevokeOthers": "Keluar dari semua sesi lain",
+    "sessionsRevokeOthers": "Keluar dari semua perangkat",
     "sessionRevokeError": "Sesi tidak bisa ditutup.",
     "sessionActiveNow": "Aktif sekarang",
     "sessionActiveMinutes": "Aktif {count} mnt lalu",
@@ -814,7 +815,8 @@
     "messagePolicyNoneHelp": "Tidak ada yang bisa mengirimimu pesan; tombol pesan tidak muncul di profilmu.",
     "messagePolicyUpdateError": "Pengaturan pesan tidak bisa diperbarui.",
     "messagePolicyFollowingAndFollowers": "Orang yang kuikuti dan orang yang mengikutiku",
-    "messagePolicyFollowingAndFollowersHelp": "Hanya orang yang kamu ikuti dan orang yang mengikutimu yang bisa mengirimimu pesan, dan pesannya langsung masuk ke kotak masukmu; yang lain tidak melihat tombol pesan."
+    "messagePolicyFollowingAndFollowersHelp": "Hanya orang yang kamu ikuti dan orang yang mengikutimu yang bisa mengirimimu pesan, dan pesannya langsung masuk ke kotak masukmu; yang lain tidak melihat tombol pesan.",
+    "sessionRevokeAllConfirm": "Sesi akan ditutup di semua perangkatmu, termasuk yang ini. Kamu harus masuk lagi."
   },
   "feed": {
     "pinned": "Disematkan",

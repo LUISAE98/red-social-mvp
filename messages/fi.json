@@ -62,7 +62,8 @@
     "statistics": "Tilastot",
     "tabMessages": "Viestit",
     "messageRequests": "Pyynnöt ({count})",
-    "seeAllMessages": "Näytä kaikki"
+    "seeAllMessages": "Näytä kaikki",
+    "settings": "Asetukset"
   },
   "common": {
     "accept": "Hyväksy",
@@ -742,7 +743,7 @@
     "blockedAccountsLabel": "Estetyt tilit",
     "sessionsLabel": "Aktiiviset istunnot",
     "sessionsValue": "Laitteet, joilla olet kirjautuneena",
-    "sessionsHint": "Katso, millä laitteilla istuntosi on auki, ja sulje ne, joita et tunnista.",
+    "sessionsHint": "Katso, millä laitteilla istuntosi on auki. Uloskirjautuminen sulkee sen kaikkialta.",
     "sessionsTitle": "Aktiiviset istunnot",
     "sessionsDesc": "Laitteet, joilla tilisi on tällä hetkellä kirjautuneena.",
     "sessionsLoginRequired": "Kirjaudu sisään nähdäksesi aktiiviset istuntosi.",
@@ -752,7 +753,7 @@
     "sessionThisDevice": "Tämä laite",
     "sessionRevoke": "Kirjaudu ulos",
     "sessionRevoking": "Kirjaudutaan ulos...",
-    "sessionsRevokeOthers": "Kirjaudu ulos kaikista muista istunnoista",
+    "sessionsRevokeOthers": "Kirjaudu ulos kaikilta laitteilta",
     "sessionRevokeError": "Istuntoa ei voitu sulkea.",
     "sessionActiveNow": "Aktiivinen nyt",
     "sessionActiveMinutes": "Aktiivinen {count} min sitten",
@@ -814,7 +815,8 @@
     "messagePolicyNoneHelp": "Kukaan ei voi kirjoittaa sinulle, viestipainike ei näy profiilissasi.",
     "messagePolicyUpdateError": "Viestiasetuksia ei voitu päivittää.",
     "messagePolicyFollowingAndFollowers": "Seuraamani ja minua seuraavat",
-    "messagePolicyFollowingAndFollowersHelp": "Vain seuraamasi ja sinua seuraavat voivat kirjoittaa sinulle, heidän viestinsä tulevat suoraan postilaatikkoosi, muut eivät näe viestipainiketta."
+    "messagePolicyFollowingAndFollowersHelp": "Vain seuraamasi ja sinua seuraavat voivat kirjoittaa sinulle, heidän viestinsä tulevat suoraan postilaatikkoosi, muut eivät näe viestipainiketta.",
+    "sessionRevokeAllConfirm": "Istunto suljetaan kaikilla laitteillasi, myös tällä. Sinun täytyy kirjautua uudelleen."
   },
   "feed": {
     "pinned": "Kiinnitetty",

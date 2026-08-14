@@ -62,7 +62,8 @@
     "statistics": "Statistika",
     "tabMessages": "Mesazhe",
     "messageRequests": "Kërkesa ({count})",
-    "seeAllMessages": "Shiko të gjitha"
+    "seeAllMessages": "Shiko të gjitha",
+    "settings": "Cilësimet"
   },
   "common": {
     "accept": "Prano",
@@ -742,7 +743,7 @@
     "blockedAccountsLabel": "Llogari të bllokuara",
     "sessionsLabel": "Sesione aktive",
     "sessionsValue": "Pajisjet ku je i identifikuar",
-    "sessionsHint": "Kontrollo cilat pajisje e kanë sesionin tënd të hapur dhe mbyll ato që nuk i njeh.",
+    "sessionsHint": "Shiko në cilat pajisje e ke sesionin hapur. Dalja e mbyll kudo.",
     "sessionsTitle": "Sesione aktive",
     "sessionsDesc": "Pajisjet ku llogaria jote është aktualisht e identifikuar.",
     "sessionsLoginRequired": "Hyr për të parë sesionet e tua aktive.",
@@ -752,7 +753,7 @@
     "sessionThisDevice": "Kjo pajisje",
     "sessionRevoke": "Dil",
     "sessionRevoking": "Duke dalë...",
-    "sessionsRevokeOthers": "Mbyll të gjitha sesionet e tjera",
+    "sessionsRevokeOthers": "Dil nga të gjitha pajisjet",
     "sessionRevokeError": "Sesioni nuk u mbyll dot.",
     "sessionActiveNow": "Aktiv tani",
     "sessionActiveMinutes": "Aktiv {count} min më parë",
@@ -814,7 +815,8 @@
     "messagePolicyNoneHelp": "Askush nuk mund të të shkruajë, butoni i mesazhit nuk shfaqet në profilin tënd.",
     "messagePolicyUpdateError": "Cilësimet e mesazheve nuk u përditësuan dot.",
     "messagePolicyFollowingAndFollowers": "Ata që ndjek dhe ata që më ndjekin",
-    "messagePolicyFollowingAndFollowersHelp": "Vetëm ata që ndjek dhe ata që të ndjekin mund të të shkruajnë, mesazhet e tyre shkojnë drejt në kutinë hyrëse, të tjerët nuk e shohin butonin e mesazhit."
+    "messagePolicyFollowingAndFollowersHelp": "Vetëm ata që ndjek dhe ata që të ndjekin mund të të shkruajnë, mesazhet e tyre shkojnë drejt në kutinë hyrëse, të tjerët nuk e shohin butonin e mesazhit.",
+    "sessionRevokeAllConfirm": "Sesioni do të mbyllet në të gjitha pajisjet e tua, përfshirë këtë. Do të duhet të hysh sërish."
   },
   "feed": {
     "pinned": "I fiksuar",

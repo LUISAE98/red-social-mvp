@@ -62,7 +62,8 @@
     "statistics": "Статистика",
     "tabMessages": "Съобщения",
     "messageRequests": "Заявки ({count})",
-    "seeAllMessages": "Виж всички"
+    "seeAllMessages": "Виж всички",
+    "settings": "Настройки"
   },
   "common": {
     "accept": "Приеми",
@@ -742,7 +743,7 @@
     "blockedAccountsLabel": "Блокирани акаунти",
     "sessionsLabel": "Активни сесии",
     "sessionsValue": "Устройства, на които си влязъл",
-    "sessionsHint": "Виж на кои устройства имаш отворена сесия и затвори онези, които не разпознаваш.",
+    "sessionsHint": "Вижте на кои устройства сесията ви е отворена. Изходът я затваря навсякъде.",
     "sessionsTitle": "Активни сесии",
     "sessionsDesc": "Устройства, на които акаунтът ти е влязъл в момента.",
     "sessionsLoginRequired": "Влез, за да видиш активните си сесии.",
@@ -752,7 +753,7 @@
     "sessionThisDevice": "Това устройство",
     "sessionRevoke": "Излез",
     "sessionRevoking": "Излиза се...",
-    "sessionsRevokeOthers": "Излез от всички други сесии",
+    "sessionsRevokeOthers": "Изход от всички устройства",
     "sessionRevokeError": "Сесията не можа да бъде затворена.",
     "sessionActiveNow": "Активна сега",
     "sessionActiveMinutes": "Активна преди {count} мин.",
@@ -814,7 +815,8 @@
     "messagePolicyNoneHelp": "Никой не може да ти пише, бутонът за съобщение не се показва в профила ти.",
     "messagePolicyUpdateError": "Настройките за съобщения не можаха да бъдат обновени.",
     "messagePolicyFollowingAndFollowers": "Хората, които следвам, и които следват мен",
-    "messagePolicyFollowingAndFollowersHelp": "Само хората, които следваш, и онези, които следват теб, могат да ти пишат, съобщенията им отиват направо във входящата ти поща, останалите не виждат бутона за съобщение."
+    "messagePolicyFollowingAndFollowersHelp": "Само хората, които следваш, и онези, които следват теб, могат да ти пишат, съобщенията им отиват направо във входящата ти поща, останалите не виждат бутона за съобщение.",
+    "sessionRevokeAllConfirm": "Сесията ще бъде затворена на всички ваши устройства, включително това. Ще трябва да влезете отново."
   },
   "feed": {
     "pinned": "Закачена",

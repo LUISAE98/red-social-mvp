@@ -62,7 +62,8 @@
     "statistics": "तथ्याङ्क",
     "tabMessages": "सन्देशहरू",
     "messageRequests": "अनुरोधहरू ({count})",
-    "seeAllMessages": "सबै हेर्नुहोस्"
+    "seeAllMessages": "सबै हेर्नुहोस्",
+    "settings": "सेटिङहरू"
   },
   "common": {
     "accept": "स्वीकार गर्नुहोस्",
@@ -742,7 +743,7 @@
     "blockedAccountsLabel": "ब्लक गरिएका खाताहरू",
     "sessionsLabel": "सक्रिय सत्रहरू",
     "sessionsValue": "तपाईंले लगइन गर्नुभएका उपकरणहरू",
-    "sessionsHint": "कुन उपकरणमा तपाईंको सत्र खुला छ जाँच्नुहोस् र नचिनेका बन्द गर्नुहोस्।",
+    "sessionsHint": "कुन उपकरणमा तपाईंको सत्र खुला छ हेर्नुहोस्। साइन आउटले सबैतिर बन्द गर्छ।",
     "sessionsTitle": "सक्रिय सत्रहरू",
     "sessionsDesc": "तपाईंको खाता हाल लगइन भएका उपकरणहरू।",
     "sessionsLoginRequired": "आफ्ना सक्रिय सत्रहरू हेर्न लगइन गर्नुहोस्।",
@@ -752,7 +753,7 @@
     "sessionThisDevice": "यो उपकरण",
     "sessionRevoke": "लगआउट गर्नुहोस्",
     "sessionRevoking": "लगआउट हुँदै...",
-    "sessionsRevokeOthers": "अन्य सबै सत्रहरूबाट लगआउट गर्नुहोस्",
+    "sessionsRevokeOthers": "सबै उपकरणबाट साइन आउट",
     "sessionRevokeError": "सत्र बन्द गर्न सकिएन।",
     "sessionActiveNow": "अहिले सक्रिय",
     "sessionActiveMinutes": "{count} मिनेट अघि सक्रिय",
@@ -814,7 +815,8 @@
     "messagePolicyNoneHelp": "कसैले पनि तपाईंलाई सन्देश पठाउन सक्दैन, तपाईंको प्रोफाइलमा सन्देश बटन देखिँदैन।",
     "messagePolicyUpdateError": "सन्देश सेटिङहरू अद्यावधिक गर्न सकिएन।",
     "messagePolicyFollowingAndFollowers": "मैले फलो गरेकाहरू र मलाई फलो गर्नेहरू",
-    "messagePolicyFollowingAndFollowersHelp": "तपाईंले फलो गरेकाहरू र तपाईंलाई फलो गर्नेहरूले मात्र तपाईंलाई सन्देश पठाउन सक्छन्, उनीहरूको सन्देश सिधै तपाईंको इनबक्समा जान्छ, अरूले सन्देश बटन देख्दैनन्।"
+    "messagePolicyFollowingAndFollowersHelp": "तपाईंले फलो गरेकाहरू र तपाईंलाई फलो गर्नेहरूले मात्र तपाईंलाई सन्देश पठाउन सक्छन्, उनीहरूको सन्देश सिधै तपाईंको इनबक्समा जान्छ, अरूले सन्देश बटन देख्दैनन्।",
+    "sessionRevokeAllConfirm": "तपाईंका सबै उपकरणमा, यो सहित, सत्र बन्द हुनेछ। फेरि साइन इन गर्नुपर्नेछ।"
   },
   "feed": {
     "pinned": "पिन गरिएको",

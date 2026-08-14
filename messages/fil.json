@@ -62,7 +62,8 @@
     "statistics": "Mga istatistika",
     "tabMessages": "Mga mensahe",
     "messageRequests": "Mga request ({count})",
-    "seeAllMessages": "Tingnan lahat"
+    "seeAllMessages": "Tingnan lahat",
+    "settings": "Mga setting"
   },
   "common": {
     "accept": "Tanggapin",
@@ -742,7 +743,7 @@
     "blockedAccountsLabel": "Mga naka-block na account",
     "sessionsLabel": "Mga aktibong session",
     "sessionsValue": "Mga device kung saan ka naka-log in",
-    "sessionsHint": "Suriin kung aling mga device ang may bukas na session mo at isara ang mga hindi mo kilala.",
+    "sessionsHint": "Tingnan kung saang device bukas ang session mo. Isasara ito sa lahat.",
     "sessionsTitle": "Mga aktibong session",
     "sessionsDesc": "Mga device kung saan kasalukuyang naka-log in ang account mo.",
     "sessionsLoginRequired": "Mag-log in para makita ang mga aktibong session mo.",
@@ -752,7 +753,7 @@
     "sessionThisDevice": "Device na ito",
     "sessionRevoke": "Mag-log out",
     "sessionRevoking": "Nagla-log out...",
-    "sessionsRevokeOthers": "Isara ang lahat ng ibang session",
+    "sessionsRevokeOthers": "Mag-sign out sa lahat ng device",
     "sessionRevokeError": "Hindi naisara ang session.",
     "sessionActiveNow": "Aktibo ngayon",
     "sessionActiveMinutes": "Aktibo {count} min ang nakalipas",
@@ -814,7 +815,8 @@
     "messagePolicyNoneHelp": "Walang makakapagmensahe sa iyo, at hindi lumalabas ang button ng mensahe sa profile mo.",
     "messagePolicyUpdateError": "Hindi na-update ang mga setting ng mensahe.",
     "messagePolicyFollowingAndFollowers": "Mga sinusundan ko at mga sumusunod sa akin",
-    "messagePolicyFollowingAndFollowersHelp": "Ang mga sinusundan mo at ang mga sumusunod sa iyo lang ang makakapagmensahe sa iyo, diretso sa inbox mo ang mensahe nila, at hindi nakikita ng iba ang button ng mensahe."
+    "messagePolicyFollowingAndFollowersHelp": "Ang mga sinusundan mo at ang mga sumusunod sa iyo lang ang makakapagmensahe sa iyo, diretso sa inbox mo ang mensahe nila, at hindi nakikita ng iba ang button ng mensahe.",
+    "sessionRevokeAllConfirm": "Isasara ang session sa lahat ng device mo, kasama ito. Kailangan mong mag-sign in ulit."
   },
   "feed": {
     "pinned": "Naka-pin",

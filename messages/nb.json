@@ -62,7 +62,8 @@
     "statistics": "Statistikk",
     "tabMessages": "Meldinger",
     "messageRequests": "Forespørsler ({count})",
-    "seeAllMessages": "Se alle"
+    "seeAllMessages": "Se alle",
+    "settings": "Innstillinger"
   },
   "common": {
     "accept": "Aksepter",
@@ -742,7 +743,7 @@
     "blockedAccountsLabel": "Blokkerede kontoer",
     "sessionsLabel": "Aktive sesjoner",
     "sessionsValue": "Enheter, hvor du er logget inn",
-    "sessionsHint": "Sjekk, hvilke enheter der har din sesjon åben, og lukk dem, du ikke genkender.",
+    "sessionsHint": "Se hvilke enheter som har økten din åpen. Utlogging lukker den overalt.",
     "sessionsTitle": "Aktive sesjoner",
     "sessionsDesc": "Enheter, hvor din konto er logget inn lige nå.",
     "sessionsLoginRequired": "Logg inn for å se dine aktive sesjoner.",
@@ -752,7 +753,7 @@
     "sessionThisDevice": "Denne enheten",
     "sessionRevoke": "Logg ut",
     "sessionRevoking": "Logger ut...",
-    "sessionsRevokeOthers": "Logg ut av alle andre sesjoner",
+    "sessionsRevokeOthers": "Logg ut på alle enheter",
     "sessionRevokeError": "Sesjonen kunne ikke lukkes.",
     "sessionActiveNow": "Aktiv nå",
     "sessionActiveMinutes": "Aktiv for {count} min. siden",
@@ -814,7 +815,8 @@
     "messagePolicyNoneHelp": "Ingen kan skrive til deg, meldingsknappen vises ikke på din profil.",
     "messagePolicyUpdateError": "Meldingsinnstillingene kunne ikke oppdateres.",
     "messagePolicyFollowingAndFollowers": "Dem jeg følger, og dem der følger meg",
-    "messagePolicyFollowingAndFollowersHelp": "Bare dem, du følger, og dem som følger deg, kan skrive til deg, deres meldinger går direkte i din innboks, alle andre ser ikke meldingsknappen."
+    "messagePolicyFollowingAndFollowersHelp": "Bare dem, du følger, og dem som følger deg, kan skrive til deg, deres meldinger går direkte i din innboks, alle andre ser ikke meldingsknappen.",
+    "sessionRevokeAllConfirm": "Økten lukkes på alle enhetene dine, inkludert denne. Du må logge inn igjen."
   },
   "feed": {
     "pinned": "Fastgjort",

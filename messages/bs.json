@@ -62,7 +62,8 @@
     "statistics": "Statistika",
     "tabMessages": "Poruke",
     "messageRequests": "Zahtjevi ({count})",
-    "seeAllMessages": "Prikaži sve"
+    "seeAllMessages": "Prikaži sve",
+    "settings": "Postavke"
   },
   "common": {
     "accept": "Prihvati",
@@ -742,7 +743,7 @@
     "blockedAccountsLabel": "Blokirani računi",
     "sessionsLabel": "Aktivne sesije",
     "sessionsValue": "Uređaji na kojima si prijavljen",
-    "sessionsHint": "Pogledaj na kojim uređajima imaš otvorenu sesiju i zatvori one koje ne prepoznaješ.",
+    "sessionsHint": "Pogledajte na kojim uređajima imate otvorenu sesiju. Odjava je zatvara svugdje.",
     "sessionsTitle": "Aktivne sesije",
     "sessionsDesc": "Uređaji na kojima je tvoj račun trenutačno prijavljen.",
     "sessionsLoginRequired": "Prijavi se da vidiš svoje aktivne sesije.",
@@ -752,7 +753,7 @@
     "sessionThisDevice": "Ovaj uređaj",
     "sessionRevoke": "Odjavi",
     "sessionRevoking": "Odjavljuje se...",
-    "sessionsRevokeOthers": "Odjavi sve ostale sesije",
+    "sessionsRevokeOthers": "Odjava sa svih uređaja",
     "sessionRevokeError": "Sesiju nije bilo moguće zatvoriti.",
     "sessionActiveNow": "Aktivna sada",
     "sessionActiveMinutes": "Aktivna prije {count} min",
@@ -814,7 +815,8 @@
     "messagePolicyNoneHelp": "Niko ti ne može pisati, dugme za poruku ne pojavljuje se na tvom profilu.",
     "messagePolicyUpdateError": "Postavke poruka nije bilo moguće ažurirati.",
     "messagePolicyFollowingAndFollowers": "Oni koje pratim i oni koji prate mene",
-    "messagePolicyFollowingAndFollowersHelp": "Pisati ti mogu samo oni koje pratiš i oni koji prate tebe, njihove poruke idu ravno u pristiglu poštu, ostali ne vide dugme za poruku."
+    "messagePolicyFollowingAndFollowersHelp": "Pisati ti mogu samo oni koje pratiš i oni koji prate tebe, njihove poruke idu ravno u pristiglu poštu, ostali ne vide dugme za poruku.",
+    "sessionRevokeAllConfirm": "Sesija će biti zatvorena na svim vašim uređajima, uključujući i ovaj. Morat ćete se ponovo prijaviti."
   },
   "feed": {
     "pinned": "Prikvačeno",

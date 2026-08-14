@@ -62,7 +62,8 @@
     "statistics": "Statistici",
     "tabMessages": "Mesaje",
     "messageRequests": "Cereri ({count})",
-    "seeAllMessages": "Vezi toate"
+    "seeAllMessages": "Vezi toate",
+    "settings": "Setări"
   },
   "common": {
     "accept": "Acceptă",
@@ -742,7 +743,7 @@
     "blockedAccountsLabel": "Conturi blocate",
     "sessionsLabel": "Sesiuni active",
     "sessionsValue": "Dispozitive pe care ești conectat",
-    "sessionsHint": "Verifică ce dispozitive au sesiunea ta deschisă și închide-le pe cele pe care nu le recunoști.",
+    "sessionsHint": "Vezi pe ce dispozitive ai sesiunea deschisă. Deconectarea o închide peste tot.",
     "sessionsTitle": "Sesiuni active",
     "sessionsDesc": "Dispozitive pe care contul tău este conectat în acest moment.",
     "sessionsLoginRequired": "Conectează-te ca să îți vezi sesiunile active.",
@@ -752,7 +753,7 @@
     "sessionThisDevice": "Acest dispozitiv",
     "sessionRevoke": "Deconectează",
     "sessionRevoking": "Se deconectează…",
-    "sessionsRevokeOthers": "Deconectează toate celelalte sesiuni",
+    "sessionsRevokeOthers": "Deconectare pe toate dispozitivele",
     "sessionRevokeError": "Sesiunea nu a putut fi închisă.",
     "sessionActiveNow": "Activ acum",
     "sessionActiveMinutes": "Activ acum {count} min",
@@ -814,7 +815,8 @@
     "messagePolicyNoneHelp": "Nimeni nu îți poate scrie, butonul de mesaj nu apare pe profilul tău.",
     "messagePolicyUpdateError": "Setările de mesaje nu au putut fi actualizate.",
     "messagePolicyFollowingAndFollowers": "Persoanele pe care le urmăresc și cele care mă urmăresc",
-    "messagePolicyFollowingAndFollowersHelp": "Îți pot scrie doar persoanele pe care le urmărești și cele care te urmăresc, mesajele lor ajung direct în inboxul tău, iar pentru ceilalți butonul de mesaj nu apare."
+    "messagePolicyFollowingAndFollowersHelp": "Îți pot scrie doar persoanele pe care le urmărești și cele care te urmăresc, mesajele lor ajung direct în inboxul tău, iar pentru ceilalți butonul de mesaj nu apare.",
+    "sessionRevokeAllConfirm": "Sesiunea se va închide pe toate dispozitivele tale, inclusiv pe acesta. Va trebui să intri din nou."
   },
   "feed": {
     "pinned": "Fixat",

@@ -62,7 +62,8 @@
     "statistics": "Statystyki",
     "tabMessages": "Wiadomości",
     "messageRequests": "Prośby ({count})",
-    "seeAllMessages": "Zobacz wszystkie"
+    "seeAllMessages": "Zobacz wszystkie",
+    "settings": "Ustawienia"
   },
   "common": {
     "accept": "Akceptuj",
@@ -742,7 +743,7 @@
     "blockedAccountsLabel": "Zablokowane konta",
     "sessionsLabel": "Aktywne sesje",
     "sessionsValue": "Urządzenia, na których jesteś zalogowany",
-    "sessionsHint": "Sprawdź, które urządzenia mają otwartą twoją sesję, i zamknij te, których nie rozpoznajesz.",
+    "sessionsHint": "Zobacz, na których urządzeniach masz otwartą sesję. Wylogowanie zamyka ją wszędzie.",
     "sessionsTitle": "Aktywne sesje",
     "sessionsDesc": "Urządzenia, na których twoje konto jest obecnie zalogowane.",
     "sessionsLoginRequired": "Zaloguj się, aby zobaczyć swoje aktywne sesje.",
@@ -752,7 +753,7 @@
     "sessionThisDevice": "To urządzenie",
     "sessionRevoke": "Wyloguj",
     "sessionRevoking": "Wylogowywanie…",
-    "sessionsRevokeOthers": "Wyloguj wszystkie pozostałe sesje",
+    "sessionsRevokeOthers": "Wyloguj na wszystkich urządzeniach",
     "sessionRevokeError": "Nie udało się zamknąć sesji.",
     "sessionActiveNow": "Aktywna teraz",
     "sessionActiveMinutes": "Aktywna {count} min temu",
@@ -814,7 +815,8 @@
     "messagePolicyNoneHelp": "Nikt nie może do ciebie napisać, przycisk wiadomości nie pojawia się w twoim profilu.",
     "messagePolicyUpdateError": "Nie udało się zaktualizować ustawień wiadomości.",
     "messagePolicyFollowingAndFollowers": "Osoby, które obserwuję, i te, które obserwują mnie",
-    "messagePolicyFollowingAndFollowersHelp": "Pisać mogą tylko osoby, które obserwujesz, i te, które obserwują ciebie — ich wiadomości trafiają prosto do twojej skrzynki, a pozostali nie widzą przycisku wiadomości."
+    "messagePolicyFollowingAndFollowersHelp": "Pisać mogą tylko osoby, które obserwujesz, i te, które obserwują ciebie — ich wiadomości trafiają prosto do twojej skrzynki, a pozostali nie widzą przycisku wiadomości.",
+    "sessionRevokeAllConfirm": "Sesja zostanie zamknięta na wszystkich twoich urządzeniach, także na tym. Trzeba będzie zalogować się ponownie."
   },
   "feed": {
     "pinned": "Przypięte",

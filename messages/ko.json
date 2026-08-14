@@ -62,7 +62,8 @@
     "statistics": "통계",
     "tabMessages": "메시지",
     "messageRequests": "요청 ({count})",
-    "seeAllMessages": "전체 보기"
+    "seeAllMessages": "전체 보기",
+    "settings": "설정"
   },
   "common": {
     "accept": "수락",
@@ -742,7 +743,7 @@
     "blockedAccountsLabel": "차단한 계정",
     "sessionsLabel": "활성 세션",
     "sessionsValue": "로그인되어 있는 기기",
-    "sessionsHint": "어떤 기기에서 로그인 중인지 확인하고 모르는 기기는 로그아웃하세요.",
+    "sessionsHint": "세션이 열려 있는 기기를 확인하세요. 로그아웃하면 모든 기기에서 종료됩니다.",
     "sessionsTitle": "활성 세션",
     "sessionsDesc": "현재 계정이 로그인되어 있는 기기입니다.",
     "sessionsLoginRequired": "활성 세션을 보려면 로그인하세요.",
@@ -752,7 +753,7 @@
     "sessionThisDevice": "이 기기",
     "sessionRevoke": "로그아웃",
     "sessionRevoking": "로그아웃 중...",
-    "sessionsRevokeOthers": "다른 모든 세션 로그아웃",
+    "sessionsRevokeOthers": "모든 기기에서 로그아웃",
     "sessionRevokeError": "세션을 닫지 못했습니다.",
     "sessionActiveNow": "지금 활동 중",
     "sessionActiveMinutes": "{count}분 전 활동",
@@ -814,7 +815,8 @@
     "messagePolicyNoneHelp": "아무도 메시지를 보낼 수 없고, 프로필에 메시지 버튼이 나타나지 않습니다.",
     "messagePolicyUpdateError": "메시지 설정을 업데이트하지 못했습니다.",
     "messagePolicyFollowingAndFollowers": "내가 팔로우하는 사람과 나를 팔로우하는 사람",
-    "messagePolicyFollowingAndFollowersHelp": "내가 팔로우하는 사람과 나를 팔로우하는 사람만 메시지를 보낼 수 있고, 그 메시지는 바로 받은편지함으로 들어옵니다. 그 외에는 메시지 버튼이 보이지 않습니다."
+    "messagePolicyFollowingAndFollowersHelp": "내가 팔로우하는 사람과 나를 팔로우하는 사람만 메시지를 보낼 수 있고, 그 메시지는 바로 받은편지함으로 들어옵니다. 그 외에는 메시지 버튼이 보이지 않습니다.",
+    "sessionRevokeAllConfirm": "이 기기를 포함한 모든 기기에서 세션이 종료됩니다. 다시 로그인해야 합니다."
   },
   "feed": {
     "pinned": "고정됨",

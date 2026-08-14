@@ -62,7 +62,8 @@
     "statistics": "統計",
     "tabMessages": "メッセージ",
     "messageRequests": "リクエスト（{count}）",
-    "seeAllMessages": "すべて見る"
+    "seeAllMessages": "すべて見る",
+    "settings": "設定"
   },
   "common": {
     "accept": "承認する",
@@ -742,7 +743,7 @@
     "blockedAccountsLabel": "ブロック済みアカウント",
     "sessionsLabel": "有効なセッション",
     "sessionsValue": "ログイン中の端末",
-    "sessionsHint": "どの端末でセッションが開いているかを確認し、心当たりのないものは終了してください。",
+    "sessionsHint": "セッションが開いているデバイスを確認できます。ログアウトするとすべてで終了します。",
     "sessionsTitle": "有効なセッション",
     "sessionsDesc": "現在アカウントにログインしている端末です。",
     "sessionsLoginRequired": "有効なセッションを見るにはログインしてください。",
@@ -752,7 +753,7 @@
     "sessionThisDevice": "この端末",
     "sessionRevoke": "ログアウト",
     "sessionRevoking": "ログアウトしています...",
-    "sessionsRevokeOthers": "他のすべてのセッションからログアウト",
+    "sessionsRevokeOthers": "すべてのデバイスでログアウト",
     "sessionRevokeError": "セッションを終了できませんでした。",
     "sessionActiveNow": "現在オンライン",
     "sessionActiveMinutes": "{count}分前にアクティブ",
@@ -814,7 +815,8 @@
     "messagePolicyNoneHelp": "誰もメッセージを送れません。プロフィールにメッセージボタンは表示されません。",
     "messagePolicyUpdateError": "メッセージの設定を更新できませんでした。",
     "messagePolicyFollowingAndFollowers": "自分がフォローしている人と、自分をフォローしている人",
-    "messagePolicyFollowingAndFollowersHelp": "メッセージを送れるのは、あなたがフォローしている人とあなたをフォローしている人だけで、そのメッセージは受信トレイに直接届きます。それ以外の人にはメッセージボタンが表示されません。"
+    "messagePolicyFollowingAndFollowersHelp": "メッセージを送れるのは、あなたがフォローしている人とあなたをフォローしている人だけで、そのメッセージは受信トレイに直接届きます。それ以外の人にはメッセージボタンが表示されません。",
+    "sessionRevokeAllConfirm": "このデバイスを含む、すべてのデバイスでセッションが終了します。もう一度ログインが必要です。"
   },
   "feed": {
     "pinned": "固定済み",

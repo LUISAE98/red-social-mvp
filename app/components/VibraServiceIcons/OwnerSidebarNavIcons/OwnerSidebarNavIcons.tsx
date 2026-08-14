@@ -97,6 +97,23 @@ export function SidebarExperiencesIcon({ size = 18, strokeWidth = 1.75 }: IconPr
   );
 }
 
+// Configuración — engrane
+export function SidebarSettingsIcon({ size = 18, strokeWidth = 1.75 }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" style={BASE} aria-hidden>
+      <circle cx="12" cy="12" r="3.1" fill="none" stroke={g} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
+      <path
+        d="M12 3.2l1.5 2.3 2.7-.5.5 2.7 2.3 1.5-1.4 2.3 1.4 2.3-2.3 1.5-.5 2.7-2.7-.5-1.5 2.3-1.5-2.3-2.7.5-.5-2.7L5 14.3 6.4 12 5 9.7l2.3-1.5.5-2.7 2.7.5z"
+        fill="none"
+        stroke={g}
+        strokeWidth={strokeWidth}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 // Reloj — usado en Historial de wallet
 export function SidebarClockIcon({ size = 18, strokeWidth = 1.75 }: IconProps) {
   return (

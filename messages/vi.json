@@ -62,7 +62,8 @@
     "statistics": "Thống kê",
     "tabMessages": "Tin nhắn",
     "messageRequests": "Yêu cầu ({count})",
-    "seeAllMessages": "Xem tất cả"
+    "seeAllMessages": "Xem tất cả",
+    "settings": "Cài đặt"
   },
   "common": {
     "accept": "Chấp nhận",
@@ -742,7 +743,7 @@
     "blockedAccountsLabel": "Tài khoản đã chặn",
     "sessionsLabel": "Phiên đăng nhập",
     "sessionsValue": "Các thiết bị bạn đang đăng nhập",
-    "sessionsHint": "Kiểm tra thiết bị nào đang mở phiên của bạn và đóng những thiết bị bạn không nhận ra.",
+    "sessionsHint": "Xem phiên của bạn đang mở trên thiết bị nào. Đăng xuất sẽ đóng ở tất cả.",
     "sessionsTitle": "Phiên đăng nhập",
     "sessionsDesc": "Các thiết bị hiện đang đăng nhập tài khoản của bạn.",
     "sessionsLoginRequired": "Đăng nhập để xem các phiên đang hoạt động.",
@@ -752,7 +753,7 @@
     "sessionThisDevice": "Thiết bị này",
     "sessionRevoke": "Đăng xuất",
     "sessionRevoking": "Đang đăng xuất...",
-    "sessionsRevokeOthers": "Đăng xuất tất cả các phiên khác",
+    "sessionsRevokeOthers": "Đăng xuất trên mọi thiết bị",
     "sessionRevokeError": "Không đóng được phiên.",
     "sessionActiveNow": "Đang hoạt động",
     "sessionActiveMinutes": "Hoạt động {count} phút trước",
@@ -814,7 +815,8 @@
     "messagePolicyNoneHelp": "Không ai nhắn được cho bạn, nút nhắn tin không xuất hiện trên hồ sơ của bạn.",
     "messagePolicyUpdateError": "Không cập nhật được cài đặt tin nhắn.",
     "messagePolicyFollowingAndFollowers": "Người tôi theo dõi và người theo dõi tôi",
-    "messagePolicyFollowingAndFollowersHelp": "Chỉ những người bạn theo dõi và những người theo dõi bạn mới nhắn được cho bạn, tin của họ vào thẳng hộp thư đến, những người khác không thấy nút nhắn tin."
+    "messagePolicyFollowingAndFollowersHelp": "Chỉ những người bạn theo dõi và những người theo dõi bạn mới nhắn được cho bạn, tin của họ vào thẳng hộp thư đến, những người khác không thấy nút nhắn tin.",
+    "sessionRevokeAllConfirm": "Phiên sẽ đóng trên tất cả thiết bị của bạn, kể cả thiết bị này. Bạn sẽ cần đăng nhập lại."
   },
   "feed": {
     "pinned": "Đã ghim",

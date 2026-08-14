@@ -62,7 +62,8 @@
     "statistics": "Estatísticas",
     "tabMessages": "Mensagens",
     "messageRequests": "Pedidos ({count})",
-    "seeAllMessages": "Ver todas"
+    "seeAllMessages": "Ver todas",
+    "settings": "Definições"
   },
   "common": {
     "accept": "Aceitar",
@@ -742,7 +743,7 @@
     "blockedAccountsLabel": "Contas bloqueadas",
     "sessionsLabel": "Sessões ativas",
     "sessionsValue": "Dispositivos onde tens sessão iniciada",
-    "sessionsHint": "Vê que dispositivos têm a tua sessão aberta e termina os que não reconheceres.",
+    "sessionsHint": "Vê em que dispositivos tens a sessão aberta. Terminar fecha-a em todos.",
     "sessionsTitle": "Sessões ativas",
     "sessionsDesc": "Dispositivos onde a tua conta tem sessão iniciada neste momento.",
     "sessionsLoginRequired": "Inicia sessão para veres as tuas sessões ativas.",
@@ -752,7 +753,7 @@
     "sessionThisDevice": "Este dispositivo",
     "sessionRevoke": "Terminar sessão",
     "sessionRevoking": "A terminar sessão...",
-    "sessionsRevokeOthers": "Terminar todas as outras sessões",
+    "sessionsRevokeOthers": "Terminar sessão em todos os dispositivos",
     "sessionRevokeError": "Não foi possível encerrar a sessão.",
     "sessionActiveNow": "Ativo agora",
     "sessionActiveMinutes": "Ativo há {count} min",
@@ -814,7 +815,8 @@
     "messagePolicyNoneHelp": "Ninguém te pode escrever, o botão de mensagem não aparece no teu perfil.",
     "messagePolicyUpdateError": "Não foi possível atualizar as definições de mensagens.",
     "messagePolicyFollowingAndFollowers": "Quem eu sigo e quem me segue",
-    "messagePolicyFollowingAndFollowersHelp": "Só te podem escrever as pessoas que segues e as que te seguem, as mensagens vão direitas à tua caixa de entrada, as restantes não veem o botão de mensagem."
+    "messagePolicyFollowingAndFollowersHelp": "Só te podem escrever as pessoas que segues e as que te seguem, as mensagens vão direitas à tua caixa de entrada, as restantes não veem o botão de mensagem.",
+    "sessionRevokeAllConfirm": "A sessão será terminada em todos os teus dispositivos, incluindo este. Terás de entrar novamente."
   },
   "feed": {
     "pinned": "Fixada",

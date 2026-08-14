@@ -62,7 +62,8 @@
     "statistics": "Statistika",
     "tabMessages": "Sporočila",
     "messageRequests": "Zahteve ({count})",
-    "seeAllMessages": "Prikaži vsa"
+    "seeAllMessages": "Prikaži vsa",
+    "settings": "Nastavitve"
   },
   "common": {
     "accept": "Sprejmi",
@@ -742,7 +743,7 @@
     "blockedAccountsLabel": "Blokirani računi",
     "sessionsLabel": "Aktivne seje",
     "sessionsValue": "Naprave, na katerih si prijavljen",
-    "sessionsHint": "Poglej, na katerih napravah imaš odprto sejo, in zapri tiste, ki jih ne prepoznaš.",
+    "sessionsHint": "Poglej, na katerih napravah imaš odprto sejo. Odjava jo zapre povsod.",
     "sessionsTitle": "Aktivne seje",
     "sessionsDesc": "Naprave, na katerih je tvoj račun trenutno prijavljen.",
     "sessionsLoginRequired": "Prijavi se, da vidiš svoje aktivne seje.",
@@ -752,7 +753,7 @@
     "sessionThisDevice": "Ta naprava",
     "sessionRevoke": "Odjavi",
     "sessionRevoking": "Odjavljanje...",
-    "sessionsRevokeOthers": "Odjavi vse druge seje",
+    "sessionsRevokeOthers": "Odjava iz vseh naprav",
     "sessionRevokeError": "Seje ni bilo mogoče zapreti.",
     "sessionActiveNow": "Aktivna zdaj",
     "sessionActiveMinutes": "Aktivna pred {count} min",
@@ -814,7 +815,8 @@
     "messagePolicyNoneHelp": "Nihče ti ne more pisati, gumb za sporočilo se na tvojem profilu ne prikaže.",
     "messagePolicyUpdateError": "Nastavitev sporočil ni bilo mogoče posodobiti.",
     "messagePolicyFollowingAndFollowers": "Tisti, ki jih spremljam, in tisti, ki spremljajo mene",
-    "messagePolicyFollowingAndFollowersHelp": "Pišejo ti lahko samo tisti, ki jih spremljaš, in tisti, ki spremljajo tebe, njihova sporočila gredo naravnost v prejeto pošto, drugi gumba za sporočilo ne vidijo."
+    "messagePolicyFollowingAndFollowersHelp": "Pišejo ti lahko samo tisti, ki jih spremljaš, in tisti, ki spremljajo tebe, njihova sporočila gredo naravnost v prejeto pošto, drugi gumba za sporočilo ne vidijo.",
+    "sessionRevokeAllConfirm": "Seja se bo zaprla na vseh tvojih napravah, tudi na tej. Znova se boš moral prijaviti."
   },
   "feed": {
     "pinned": "Pripeto",

@@ -232,7 +232,7 @@ export {
 export { updateProfileDisplayName, updateProfileInterests } from "./profileSettings";
 
 // Sesiones activas — geo-IP para etiquetar la ubicación de cada dispositivo
-export { enrichSessionLocation } from "./sessions";
+export { enrichSessionLocation, revokeAllSessions } from "./sessions";
 
 // Post reactions
 export { togglePostFlame } from "./postReactions";

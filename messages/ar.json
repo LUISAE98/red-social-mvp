@@ -62,7 +62,8 @@
     "statistics": "الإحصائيات",
     "tabMessages": "الرسائل",
     "messageRequests": "الطلبات ({count})",
-    "seeAllMessages": "عرض الكل"
+    "seeAllMessages": "عرض الكل",
+    "settings": "الإعدادات"
   },
   "common": {
     "accept": "قبول",
@@ -742,7 +743,7 @@
     "blockedAccountsLabel": "الحسابات المحظورة",
     "sessionsLabel": "الجلسات النشطة",
     "sessionsValue": "الأجهزة التي سجّلت الدخول منها",
-    "sessionsHint": "تحقق من الأجهزة التي تفتح جلستك وأغلق ما لا تعرفه.",
+    "sessionsHint": "راجع الأجهزة التي فتحت فيها جلستك. إنهاء الجلسة يغلقها في كل الأجهزة.",
     "sessionsTitle": "الجلسات النشطة",
     "sessionsDesc": "الأجهزة التي يسجّل حسابك الدخول منها حاليًا.",
     "sessionsLoginRequired": "سجّل الدخول لعرض جلساتك النشطة.",
@@ -752,7 +753,7 @@
     "sessionThisDevice": "هذا الجهاز",
     "sessionRevoke": "تسجيل الخروج",
     "sessionRevoking": "جارٍ تسجيل الخروج...",
-    "sessionsRevokeOthers": "إغلاق كل الجلسات الأخرى",
+    "sessionsRevokeOthers": "إنهاء الجلسة على كل الأجهزة",
     "sessionRevokeError": "تعذّر إغلاق الجلسة.",
     "sessionActiveNow": "نشط الآن",
     "sessionActiveMinutes": "كان نشطًا قبل {count} دقيقة",
@@ -814,7 +815,8 @@
     "messagePolicyNoneHelp": "لا يستطيع أحد مراسلتك، ولا يظهر زر الرسالة في ملفك الشخصي.",
     "messagePolicyUpdateError": "تعذّر تحديث إعدادات الرسائل.",
     "messagePolicyFollowingAndFollowers": "من أتابعهم ومن يتابعونني",
-    "messagePolicyFollowingAndFollowersHelp": "لا يستطيع مراسلتك إلا من تتابعهم ومن يتابعونك، وتصل رسائلهم مباشرة إلى صندوق الوارد، ولا يرى الآخرون زر الرسالة."
+    "messagePolicyFollowingAndFollowersHelp": "لا يستطيع مراسلتك إلا من تتابعهم ومن يتابعونك، وتصل رسائلهم مباشرة إلى صندوق الوارد، ولا يرى الآخرون زر الرسالة.",
+    "sessionRevokeAllConfirm": "سيتم إنهاء جلستك على جميع أجهزتك، بما في ذلك هذا الجهاز. ستحتاج إلى تسجيل الدخول مرة أخرى."
   },
   "feed": {
     "pinned": "مثبّت",

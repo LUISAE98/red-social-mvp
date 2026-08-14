@@ -62,7 +62,8 @@
     "statistics": "Štatistiky",
     "tabMessages": "Správy",
     "messageRequests": "Žiadosti ({count})",
-    "seeAllMessages": "Zobraziť všetky"
+    "seeAllMessages": "Zobraziť všetky",
+    "settings": "Nastavenia"
   },
   "common": {
     "accept": "Prijať",
@@ -742,7 +743,7 @@
     "blockedAccountsLabel": "Zablokované účty",
     "sessionsLabel": "Aktívne relácie",
     "sessionsValue": "Zariadenia, na ktorých si prihlásený",
-    "sessionsHint": "Pozri, na ktorých zariadeniach máš otvorenú reláciu, a ukonči tie, ktoré nepoznáš.",
+    "sessionsHint": "Pozri sa, na ktorých zariadeniach máš otvorenú reláciu. Odhlásenie ju ukončí všade.",
     "sessionsTitle": "Aktívne relácie",
     "sessionsDesc": "Zariadenia, na ktorých je tvoj účet práve prihlásený.",
     "sessionsLoginRequired": "Prihlás sa, aby si videl svoje aktívne relácie.",
@@ -752,7 +753,7 @@
     "sessionThisDevice": "Toto zariadenie",
     "sessionRevoke": "Odhlásiť",
     "sessionRevoking": "Odhlasuje sa...",
-    "sessionsRevokeOthers": "Odhlásiť všetky ostatné relácie",
+    "sessionsRevokeOthers": "Odhlásiť na všetkých zariadeniach",
     "sessionRevokeError": "Reláciu sa nepodarilo ukončiť.",
     "sessionActiveNow": "Aktívne teraz",
     "sessionActiveMinutes": "Aktívne pred {count} min",
@@ -814,7 +815,8 @@
     "messagePolicyNoneHelp": "Nikto ti nemôže písať, tlačidlo na správu sa na tvojom profile nezobrazuje.",
     "messagePolicyUpdateError": "Nastavenia správ sa nepodarilo aktualizovať.",
     "messagePolicyFollowingAndFollowers": "Tí, ktorých sledujem, a tí, ktorí sledujú mňa",
-    "messagePolicyFollowingAndFollowersHelp": "Písať ti môžu len tí, ktorých sleduješ, a tí, ktorí sledujú teba, ich správy idú rovno do doručenej pošty, ostatní tlačidlo na správu nevidia."
+    "messagePolicyFollowingAndFollowersHelp": "Písať ti môžu len tí, ktorých sleduješ, a tí, ktorí sledujú teba, ich správy idú rovno do doručenej pošty, ostatní tlačidlo na správu nevidia.",
+    "sessionRevokeAllConfirm": "Relácia sa ukončí na všetkých tvojich zariadeniach, aj na tomto. Budeš sa musieť znova prihlásiť."
   },
   "feed": {
     "pinned": "Pripnuté",

@@ -113,11 +113,13 @@ export async function registerSession(
     return { created: true };
   }
 
+  // NUNCA se limpia `revoked` aquí. Antes sí, y eso deshacía la revocación sola
+  // en cuanto el dispositivo volvía a abrir la app: bastaba con esperar. Si el
+  // doc está revocado, el listener de `subscribeOwnSessionRevoked` cierra sesión
+  // y olvida el id local, así que el próximo login estrena documento.
   await updateDoc(ref, {
     ...metadata,
     lastSeenAt: serverTimestamp(),
-    revoked: false,
-    revokedAt: null,
   });
   return { created: false };
 }
@@ -245,42 +247,24 @@ export function subscribeUserSessions(
   );
 }
 
-/** Marca una sesión como revocada (el dispositivo dueño cerrará sesión solo). */
-export async function revokeSession(
-  uid: string,
-  sessionId: string
-): Promise<void> {
-  await updateDoc(sessionDoc(uid, sessionId), {
-    revoked: true,
-    revokedAt: serverTimestamp(),
-  });
-}
-
 /**
- * Marca como revocadas todas las sesiones excepto la actual. La sesión de este
- * dispositivo permanece activa.
+ * Cierra la sesión en TODOS los dispositivos, incluido este.
+ *
+ * Sustituye a `revokeSession`/`revokeOtherSessions`, que solo escribían un campo
+ * en Firestore. Ese campo no lo miraba nadie del lado del servidor, así que a
+ * quien te hubiera robado la sesión no le afectaba: le bastaba con no ejecutar
+ * el JavaScript de la app. Y el cliente podía reescribirlo.
+ *
+ * Ahora lo hace el callable `revokeAllSessions`, que invalida los refresh tokens
+ * en Firebase Auth. Es la única revocación real que existe en Firebase, y va por
+ * usuario: no se puede cerrar un dispositivo suelto. Por eso cierra todos, y la
+ * interfaz debe decirlo antes de ejecutarlo.
  */
-export async function revokeOtherSessions(
-  uid: string,
-  currentSessionId: string
-): Promise<void> {
-  const snapshot = await getDocs(sessionsCollection(uid));
-  const batch = writeBatch(db);
-  let count = 0;
-
-  snapshot.docs.forEach((docSnap) => {
-    if (docSnap.id === currentSessionId) return;
-    const data = docSnap.data() as Record<string, unknown>;
-    if (data.revoked === true) return;
-
-    batch.update(docSnap.ref, {
-      revoked: true,
-      revokedAt: serverTimestamp(),
-    });
-    count += 1;
-  });
-
-  if (count > 0) {
-    await batch.commit();
-  }
+export async function revokeAllSessions(): Promise<{ revoked: number }> {
+  const callable = httpsCallable<unknown, { ok: boolean; revoked: number }>(
+    functions,
+    "revokeAllSessions"
+  );
+  const res = await callable({});
+  return { revoked: res.data?.revoked ?? 0 };
 }

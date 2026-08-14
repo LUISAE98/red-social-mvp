@@ -62,7 +62,8 @@
     "statistics": "Statistika",
     "tabMessages": "Sõnumid",
     "messageRequests": "Taotlused ({count})",
-    "seeAllMessages": "Vaata kõiki"
+    "seeAllMessages": "Vaata kõiki",
+    "settings": "Seaded"
   },
   "common": {
     "accept": "Nõustu",
@@ -742,7 +743,7 @@
     "blockedAccountsLabel": "Blokeeritud kontod",
     "sessionsLabel": "Aktiivsed seansid",
     "sessionsValue": "Seadmed, kus oled sisse logitud",
-    "sessionsHint": "Vaata, millistes seadmetes on su seanss avatud, ja sulge need, mida sa ära ei tunne.",
+    "sessionsHint": "Vaata, millistes seadmetes on sessioon avatud. Väljalogimine sulgeb selle kõikjal.",
     "sessionsTitle": "Aktiivsed seansid",
     "sessionsDesc": "Seadmed, kus su konto on praegu sisse logitud.",
     "sessionsLoginRequired": "Logi sisse, et oma aktiivseid seansse näha.",
@@ -752,7 +753,7 @@
     "sessionThisDevice": "See seade",
     "sessionRevoke": "Logi välja",
     "sessionRevoking": "Login välja...",
-    "sessionsRevokeOthers": "Logi välja kõigist teistest seanssidest",
+    "sessionsRevokeOthers": "Logi välja kõigist seadmetest",
     "sessionRevokeError": "Seanssi ei õnnestunud sulgeda.",
     "sessionActiveNow": "Aktiivne praegu",
     "sessionActiveMinutes": "Aktiivne {count} min tagasi",
@@ -814,7 +815,8 @@
     "messagePolicyNoneHelp": "Keegi ei saa sulle kirjutada; sõnuminupp su profiilil ei ilmu.",
     "messagePolicyUpdateError": "Sõnumiseadeid ei õnnestunud uuendada.",
     "messagePolicyFollowingAndFollowers": "Need, keda ma jälgin, ja need, kes jälgivad mind",
-    "messagePolicyFollowingAndFollowersHelp": "Kirjutada saavad ainult need, keda sa jälgid, ja need, kes jälgivad sind; nende sõnumid jõuavad otse su postkasti, teised sõnuminuppu ei näe."
+    "messagePolicyFollowingAndFollowersHelp": "Kirjutada saavad ainult need, keda sa jälgid, ja need, kes jälgivad sind; nende sõnumid jõuavad otse su postkasti, teised sõnuminuppu ei näe.",
+    "sessionRevokeAllConfirm": "Sessioon suletakse kõigis sinu seadmetes, kaasa arvatud selles. Pead uuesti sisse logima."
   },
   "feed": {
     "pinned": "Kinnitatud",

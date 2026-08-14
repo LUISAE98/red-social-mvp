@@ -62,7 +62,8 @@
     "statistics": "Statistika",
     "tabMessages": "Messaġġi",
     "messageRequests": "Talbiet ({count})",
-    "seeAllMessages": "Ara kollha"
+    "seeAllMessages": "Ara kollha",
+    "settings": "Issettjar"
   },
   "common": {
     "accept": "Aċċetta",
@@ -742,7 +743,7 @@
     "blockedAccountsLabel": "Kontijiet imblukkati",
     "sessionsLabel": "Sessjonijiet attivi",
     "sessionsValue": "Apparati fejn int imdaħħal",
-    "sessionsHint": "Iċċekkja liema apparati għandhom is-sessjoni tiegħek miftuħa u agħlaq dawk li ma tagħrafx.",
+    "sessionsHint": "Ara fuq liema apparati għandek is-sessjoni miftuħa. Il-ħruġ jagħlaqha kullimkien.",
     "sessionsTitle": "Sessjonijiet attivi",
     "sessionsDesc": "Apparati fejn il-kont tiegħek bħalissa huwa mdaħħal.",
     "sessionsLoginRequired": "Idħol biex tara s-sessjonijiet attivi tiegħek.",
@@ -752,7 +753,7 @@
     "sessionThisDevice": "Dan l-apparat",
     "sessionRevoke": "Oħroġ",
     "sessionRevoking": "Qed toħroġ...",
-    "sessionsRevokeOthers": "Oħroġ mis-sessjonijiet l-oħra kollha",
+    "sessionsRevokeOthers": "Oħroġ mill-apparati kollha",
     "sessionRevokeError": "Is-sessjoni ma setgħetx tingħalaq.",
     "sessionActiveNow": "Attiva issa",
     "sessionActiveMinutes": "Attiva {count} min ilu",
@@ -814,7 +815,8 @@
     "messagePolicyNoneHelp": "Ħadd ma jista' jiktiblek; il-buttuna tal-messaġġi ma tidhirx fil-profil tiegħek.",
     "messagePolicyUpdateError": "L-issettjar tal-messaġġi ma setax jiġi aġġornat.",
     "messagePolicyFollowingAndFollowers": "Dawk li nsegwi u dawk li jsegwuni",
-    "messagePolicyFollowingAndFollowersHelp": "Jistgħu jiktbulek biss dawk li ssegwi u dawk li jsegwuk; il-messaġġi tagħhom imorru direttament fl-inbox tiegħek, l-oħrajn ma jarawx il-buttuna tal-messaġġi."
+    "messagePolicyFollowingAndFollowersHelp": "Jistgħu jiktbulek biss dawk li ssegwi u dawk li jsegwuk; il-messaġġi tagħhom imorru direttament fl-inbox tiegħek, l-oħrajn ma jarawx il-buttuna tal-messaġġi.",
+    "sessionRevokeAllConfirm": "Is-sessjoni tagħlaq fuq l-apparati kollha tiegħek, inkluż dan. Ikollok terġa'' tidħol."
   },
   "feed": {
     "pinned": "Imwaħħal",

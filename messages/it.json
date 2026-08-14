@@ -62,7 +62,8 @@
     "statistics": "Statistiche",
     "tabMessages": "Messaggi",
     "messageRequests": "Richieste ({count})",
-    "seeAllMessages": "Vedi tutti"
+    "seeAllMessages": "Vedi tutti",
+    "settings": "Impostazioni"
   },
   "common": {
     "accept": "Accetta",
@@ -742,7 +743,7 @@
     "blockedAccountsLabel": "Account bloccati",
     "sessionsLabel": "Sessioni attive",
     "sessionsValue": "Dispositivi su cui hai effettuato l'accesso",
-    "sessionsHint": "Controlla quali dispositivi hanno la tua sessione aperta e chiudi quelli che non riconosci.",
+    "sessionsHint": "Guarda su quali dispositivi hai la sessione aperta. Chiuderla la chiude ovunque.",
     "sessionsTitle": "Sessioni attive",
     "sessionsDesc": "Dispositivi su cui il tuo account è attualmente connesso.",
     "sessionsLoginRequired": "Accedi per vedere le tue sessioni attive.",
@@ -752,7 +753,7 @@
     "sessionThisDevice": "Questo dispositivo",
     "sessionRevoke": "Disconnetti",
     "sessionRevoking": "Disconnessione…",
-    "sessionsRevokeOthers": "Disconnetti tutte le altre sessioni",
+    "sessionsRevokeOthers": "Esci da tutti i dispositivi",
     "sessionRevokeError": "Impossibile chiudere la sessione.",
     "sessionActiveNow": "Attivo ora",
     "sessionActiveMinutes": "Attivo {count} min fa",
@@ -814,7 +815,8 @@
     "messagePolicyNoneHelp": "Nessuno può scriverti, il pulsante messaggio non compare sul tuo profilo.",
     "messagePolicyUpdateError": "Impossibile aggiornare le impostazioni dei messaggi.",
     "messagePolicyFollowingAndFollowers": "Le persone che seguo e quelle che mi seguono",
-    "messagePolicyFollowingAndFollowersHelp": "Possono scriverti solo le persone che segui e quelle che ti seguono, i loro messaggi arrivano direttamente nella tua posta in arrivo, per tutti gli altri il pulsante messaggio non compare."
+    "messagePolicyFollowingAndFollowersHelp": "Possono scriverti solo le persone che segui e quelle che ti seguono, i loro messaggi arrivano direttamente nella tua posta in arrivo, per tutti gli altri il pulsante messaggio non compare.",
+    "sessionRevokeAllConfirm": "La sessione verrà chiusa su tutti i tuoi dispositivi, incluso questo. Dovrai accedere di nuovo."
   },
   "feed": {
     "pinned": "In evidenza",

@@ -62,7 +62,8 @@
     "statistics": "Estadístiques",
     "tabMessages": "Missatges",
     "messageRequests": "Sol·licituds ({count})",
-    "seeAllMessages": "Mostra-ho tot"
+    "seeAllMessages": "Mostra-ho tot",
+    "settings": "Configuració"
   },
   "common": {
     "accept": "Accepta",
@@ -742,7 +743,7 @@
     "blockedAccountsLabel": "Comptes bloquejats",
     "sessionsLabel": "Sessions actives",
     "sessionsValue": "Dispositius on tens la sessió iniciada",
-    "sessionsHint": "Comprova quins dispositius tenen la teva sessió oberta i tanca els que no reconeguis.",
+    "sessionsHint": "Mira en quins dispositius tens la sessió oberta. Tancar-la la tanca a tots.",
     "sessionsTitle": "Sessions actives",
     "sessionsDesc": "Dispositius on el teu compte té la sessió iniciada ara mateix.",
     "sessionsLoginRequired": "Inicia la sessió per veure les teves sessions actives.",
@@ -752,7 +753,7 @@
     "sessionThisDevice": "Aquest dispositiu",
     "sessionRevoke": "Tanca la sessió",
     "sessionRevoking": "Tancant la sessió...",
-    "sessionsRevokeOthers": "Tanca totes les altres sessions",
+    "sessionsRevokeOthers": "Tancar sessió a tots els dispositius",
     "sessionRevokeError": "No s'ha pogut tancar la sessió.",
     "sessionActiveNow": "Activa ara",
     "sessionActiveMinutes": "Activa fa {count} min",
@@ -814,7 +815,8 @@
     "messagePolicyNoneHelp": "Ningú no et pot escriure, el botó de missatge no apareix al teu perfil.",
     "messagePolicyUpdateError": "No s'ha pogut actualitzar la configuració de missatges.",
     "messagePolicyFollowingAndFollowers": "Qui segueixo i qui em segueix",
-    "messagePolicyFollowingAndFollowersHelp": "Només et poden escriure les persones que segueixes i les que et segueixen, els seus missatges van directament a la safata d'entrada i la resta no veu el botó de missatge."
+    "messagePolicyFollowingAndFollowersHelp": "Només et poden escriure les persones que segueixes i les que et segueixen, els seus missatges van directament a la safata d'entrada i la resta no veu el botó de missatge.",
+    "sessionRevokeAllConfirm": "La sessió es tancarà a tots els teus dispositius, inclòs aquest. Hauràs de tornar a entrar."
   },
   "feed": {
     "pinned": "Fixada",

@@ -62,7 +62,8 @@
     "statistics": "Statistika",
     "tabMessages": "Ziņas",
     "messageRequests": "Pieprasījumi ({count})",
-    "seeAllMessages": "Skatīt visas"
+    "seeAllMessages": "Skatīt visas",
+    "settings": "Iestatījumi"
   },
   "common": {
     "accept": "Pieņemt",
@@ -742,7 +743,7 @@
     "blockedAccountsLabel": "Bloķētie konti",
     "sessionsLabel": "Aktīvās sesijas",
     "sessionsValue": "Ierīces, kurās esi pieteicies",
-    "sessionsHint": "Pārbaudi, kurās ierīcēs ir atvērta tava sesija, un aizver tās, kuras neatpazīsti.",
+    "sessionsHint": "Apskati, kurās ierīcēs ir atvērta tava sesija. Iziešana to aizver visur.",
     "sessionsTitle": "Aktīvās sesijas",
     "sessionsDesc": "Ierīces, kurās tavs konts šobrīd ir pieteicies.",
     "sessionsLoginRequired": "Piesakies, lai redzētu savas aktīvās sesijas.",
@@ -752,7 +753,7 @@
     "sessionThisDevice": "Šī ierīce",
     "sessionRevoke": "Iziet",
     "sessionRevoking": "Iziet...",
-    "sessionsRevokeOthers": "Iziet no visām pārējām sesijām",
+    "sessionsRevokeOthers": "Iziet visās ierīcēs",
     "sessionRevokeError": "Sesiju neizdevās aizvērt.",
     "sessionActiveNow": "Aktīva tagad",
     "sessionActiveMinutes": "Aktīva pirms {count} min",
@@ -814,7 +815,8 @@
     "messagePolicyNoneHelp": "Neviens tev nevar rakstīt; ziņas poga tavā profilā neparādās.",
     "messagePolicyUpdateError": "Ziņu iestatījumus neizdevās atjaunināt.",
     "messagePolicyFollowingAndFollowers": "Tie, kuriem es sekoju, un tie, kas seko man",
-    "messagePolicyFollowingAndFollowersHelp": "Rakstīt var tikai tie, kuriem tu seko, un tie, kas seko tev; viņu ziņas nonāk tieši tavā iesūtnē, pārējie ziņas pogu neredz."
+    "messagePolicyFollowingAndFollowersHelp": "Rakstīt var tikai tie, kuriem tu seko, un tie, kas seko tev; viņu ziņas nonāk tieši tavā iesūtnē, pārējie ziņas pogu neredz.",
+    "sessionRevokeAllConfirm": "Sesija tiks aizvērta visās tavās ierīcēs, arī šajā. Būs jāpiesakās no jauna."
   },
   "feed": {
     "pinned": "Piesprausts",

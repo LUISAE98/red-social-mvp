@@ -62,7 +62,8 @@
     "statistics": "Statistiken",
     "tabMessages": "Nachrichten",
     "messageRequests": "Anfragen ({count})",
-    "seeAllMessages": "Alle ansehen"
+    "seeAllMessages": "Alle ansehen",
+    "settings": "Einstellungen"
   },
   "common": {
     "accept": "Annehmen",
@@ -742,7 +743,7 @@
     "blockedAccountsLabel": "Blockierte Konten",
     "sessionsLabel": "Aktive Sitzungen",
     "sessionsValue": "Geräte, auf denen du angemeldet bist",
-    "sessionsHint": "Prüfe, welche Geräte deine Sitzung geöffnet haben, und schließe alle, die du nicht kennst.",
+    "sessionsHint": "Sieh nach, auf welchen Geräten deine Sitzung offen ist. Abmelden schließt sie überall.",
     "sessionsTitle": "Aktive Sitzungen",
     "sessionsDesc": "Geräte, auf denen dein Konto derzeit angemeldet ist.",
     "sessionsLoginRequired": "Melde dich an, um deine aktiven Sitzungen zu sehen.",
@@ -752,7 +753,7 @@
     "sessionThisDevice": "Dieses Gerät",
     "sessionRevoke": "Abmelden",
     "sessionRevoking": "Wird abgemeldet …",
-    "sessionsRevokeOthers": "Alle anderen Sitzungen abmelden",
+    "sessionsRevokeOthers": "Auf allen Geräten abmelden",
     "sessionRevokeError": "Die Sitzung konnte nicht geschlossen werden.",
     "sessionActiveNow": "Jetzt aktiv",
     "sessionActiveMinutes": "Vor {count} Min. aktiv",
@@ -814,7 +815,8 @@
     "messagePolicyNoneHelp": "Niemand kann dir schreiben, der Nachrichten-Button erscheint nicht in deinem Profil.",
     "messagePolicyUpdateError": "Die Nachrichteneinstellungen konnten nicht aktualisiert werden.",
     "messagePolicyFollowingAndFollowers": "Personen, denen ich folge, und die mir folgen",
-    "messagePolicyFollowingAndFollowersHelp": "Nur Personen, denen du folgst, und die dir folgen, können dir schreiben; ihre Nachrichten landen direkt in deinem Posteingang, für alle anderen erscheint der Nachrichten-Button nicht."
+    "messagePolicyFollowingAndFollowersHelp": "Nur Personen, denen du folgst, und die dir folgen, können dir schreiben; ihre Nachrichten landen direkt in deinem Posteingang, für alle anderen erscheint der Nachrichten-Button nicht.",
+    "sessionRevokeAllConfirm": "Die Sitzung wird auf allen deinen Geräten beendet, auch auf diesem. Du musst dich erneut anmelden."
   },
   "feed": {
     "pinned": "Angeheftet",

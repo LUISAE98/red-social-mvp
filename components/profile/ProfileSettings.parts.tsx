@@ -1,17 +1,10 @@
 "use client";
 
-// Tipos, helpers y sub-componentes (SpinningGear, Switch) de ProfileSettingsTab.
+// Tipos, helpers y sub-componentes (SpinningGear, Switch) de la configuración de
+// perfil. Vive en el árbol compartido porque lo consumen dos sitios: la pestaña
+// de Configuración del perfil y el módulo de Configuración del OwnerSidebar.
 
-import { CSSProperties, useEffect, useState } from "react";
 import { intlLocale } from "@/i18n/locales";
-import { useTranslations, useLocale } from "next-intl";
-import VibraToast from "@/app/components/VibraToast/VibraToast";
-import { useVibraToast } from "@/lib/hooks/useVibraToast";
-import LogoutButton from "@/app/LogoutButton";
-import VibraResponsivePanel from "@/components/ui/VibraResponsivePanel";
-import BlockedAccountsOverlay from "./BlockedAccountsOverlay";
-import SessionsOverlay from "./SessionsOverlay";
-import { usePushNotifications } from "@/lib/hooks/usePushNotifications";
 import type { MessagePolicy } from "@/lib/chat/types";
 
 // Cooldown de cliente para el correo de cambio de contraseña. Firebase ya tiene

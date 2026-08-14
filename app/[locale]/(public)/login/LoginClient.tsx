@@ -133,6 +133,36 @@ const { listo: experienciasListas, fuente: fuenteVideo } = useExperienceVideos(
 // Avisa al splash de arranque que la pantalla de login ya está pintada.
 useScreenReady(experienciasListas);
 
+// Entrada del contenido de login (tagline, tarjeta, campos). Arranca cuando la
+// página se abre —no al montar—, porque hasta ese momento el splash la tapa y
+// la animación se perdería detrás de él.
+const [paginaAbierta, setPaginaAbierta] = useState(false);
+useEffect(() => {
+  if (!experienciasListas) return;
+  const id = setTimeout(() => setPaginaAbierta(true), 120);
+  return () => clearTimeout(id);
+}, [experienciasListas]);
+
+// Y se REHACE cada vez que la zona del login vuelve a la vista, igual que los
+// bloques de experiencias: al bajar se retira y al subir vuelve a entrar.
+const paneRef = useRef<HTMLDivElement | null>(null);
+const [paneALaVista, setPaneALaVista] = useState(true);
+useEffect(() => {
+  const node = paneRef.current;
+  if (!node || typeof IntersectionObserver === "undefined") return;
+  const obs = new IntersectionObserver(
+    (entries) => {
+      const ratio = Math.max(...entries.map((e) => (e.isIntersecting ? e.intersectionRatio : 0)));
+      setPaneALaVista(ratio >= 0.15);
+    },
+    { threshold: [0, 0.15, 0.5] },
+  );
+  obs.observe(node);
+  return () => obs.disconnect();
+}, []);
+
+const contenidoDentro = paginaAbierta && paneALaVista;
+
 // Transición al entrar a login desde una acción de invitado (comprar, iniciar
 // sesión, etc.): en LAPTOP se re-muestra el splash de marca; en CELULAR la página
 // entra deslizando desde la derecha (animación CSS de `.loginSplitPage`). Se activa
@@ -536,6 +566,96 @@ body.loginPageBg {
           text-align: center;
           color: #fff;
         }
+        /* ── Entrada del contenido de login ───────────────────────────────
+           Mismo lenguaje que los bloques de experiencias de abajo: opacidad y
+           un recorrido corto hacia arriba, con salida rápida y frenado largo.
+           La clase .loginIn (en <main>) la enciende cuando el splash abre; en
+           cascada, primero el tagline, luego la tarjeta y después sus filas. */
+        .loginTagline,
+        .loginCardShell {
+          opacity: 0;
+          transform: translateY(18px);
+          transition:
+            opacity 620ms ease,
+            transform 620ms cubic-bezier(0.22, 1, 0.36, 1);
+        }
+        .loginCardShell {
+          transition-delay: 90ms;
+        }
+        .loginIn .loginTagline,
+        .loginIn .loginCardShell {
+          opacity: 1;
+          transform: none;
+        }
+
+        /* Las filas del panel (título, campos con sus placeholder, botones,
+           enlaces) entran una tras otra dentro de la tarjeta ya presente. */
+        .authPanel > * {
+          opacity: 0;
+          transform: translateY(14px);
+          transition:
+            opacity 480ms ease,
+            transform 480ms cubic-bezier(0.22, 1, 0.36, 1);
+        }
+        .loginIn .authPanel > * {
+          opacity: 1;
+          transform: none;
+        }
+        .loginIn .authPanel > *:nth-child(1) {
+          transition-delay: 220ms;
+        }
+        .loginIn .authPanel > *:nth-child(2) {
+          transition-delay: 290ms;
+        }
+        .loginIn .authPanel > *:nth-child(3) {
+          transition-delay: 360ms;
+        }
+        .loginIn .authPanel > *:nth-child(4) {
+          transition-delay: 430ms;
+        }
+        .loginIn .authPanel > *:nth-child(5) {
+          transition-delay: 500ms;
+        }
+        .loginIn .authPanel > *:nth-child(n + 6) {
+          transition-delay: 570ms;
+        }
+
+        /* Los campos del formulario, uno por uno dentro de su fila. */
+        .authPanel form > * {
+          opacity: 0;
+          transform: translateY(12px);
+          transition:
+            opacity 440ms ease,
+            transform 440ms cubic-bezier(0.22, 1, 0.36, 1);
+        }
+        .loginIn .authPanel form > * {
+          opacity: 1;
+          transform: none;
+        }
+        .loginIn .authPanel form > *:nth-child(1) {
+          transition-delay: 400ms;
+        }
+        .loginIn .authPanel form > *:nth-child(2) {
+          transition-delay: 470ms;
+        }
+        .loginIn .authPanel form > *:nth-child(3) {
+          transition-delay: 540ms;
+        }
+        .loginIn .authPanel form > *:nth-child(n + 4) {
+          transition-delay: 610ms;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .loginTagline,
+          .loginCardShell,
+          .authPanel > *,
+          .authPanel form > * {
+            opacity: 1;
+            transform: none;
+            transition: none;
+          }
+        }
+
         /* Cierre de las experiencias. Comparte tipografía con el título de la
            presentación (.onboardingTitle): 34px, peso 700 y -0.03em. Aquí va
            centrado y con tope de ancho, porque cruza toda la página en vez de
@@ -713,15 +833,17 @@ body.loginPageBg {
 
      <main
   style={pageStyle}
-  className={`loginSplitPage ${isLeavingLogin ? "loginLeaving" : ""}`}
+  className={`loginSplitPage ${isLeavingLogin ? "loginLeaving" : ""}${
+    contenidoDentro ? " loginIn" : ""
+  }`}
 >
-        <div className="loginRightPane" style={rightPaneStyle}>
+        <div ref={paneRef} className="loginRightPane" style={rightPaneStyle}>
           <p className="loginTagline">
             {t("heroTitle")}{" "}
             <span className="heroVibraGradientText">Vibra.</span>
           </p>
 
-          <div ref={cardRef} style={shellStyle}>
+          <div ref={cardRef} className="loginCardShell" style={shellStyle}>
             <div className="authSwap">
               <div
                 key={mode}
@@ -1134,7 +1256,7 @@ marginBottom: 6,
           twoColumn
           excludeServices={[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]}
           // Solo en el login. La wallet del creador las sigue mostrando.
-          hideSections={["hero", "commission", "clear", "communities"]}
+          hideSections={["hero", "commission", "clear", "lifestyle", "communities"]}
         />
       </section>
       )}

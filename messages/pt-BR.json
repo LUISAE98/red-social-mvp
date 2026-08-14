@@ -62,7 +62,8 @@
     "statistics": "Estatísticas",
     "tabMessages": "Mensagens",
     "messageRequests": "Solicitações ({count})",
-    "seeAllMessages": "Ver todos"
+    "seeAllMessages": "Ver todos",
+    "settings": "Configurações"
   },
   "common": {
     "accept": "Aceitar",
@@ -742,7 +743,7 @@
     "blockedAccountsLabel": "Contas bloqueadas",
     "sessionsLabel": "Sessões ativas",
     "sessionsValue": "Dispositivos com sua sessão aberta",
-    "sessionsHint": "Veja em quais dispositivos sua sessão está aberta e encerre os que você não reconhecer.",
+    "sessionsHint": "Veja em quais dispositivos sua sessão está aberta. Encerrar fecha em todos.",
     "sessionsTitle": "Sessões ativas",
     "sessionsDesc": "Dispositivos onde sua conta está com a sessão aberta.",
     "sessionsLoginRequired": "Entre para ver suas sessões ativas.",
@@ -752,7 +753,7 @@
     "sessionThisDevice": "Este dispositivo",
     "sessionRevoke": "Encerrar sessão",
     "sessionRevoking": "Encerrando...",
-    "sessionsRevokeOthers": "Encerrar todas as outras sessões",
+    "sessionsRevokeOthers": "Sair em todos os dispositivos",
     "sessionRevokeError": "Não foi possível encerrar a sessão.",
     "sessionActiveNow": "Ativo agora",
     "sessionActiveMinutes": "Ativo há {count} min",
@@ -814,7 +815,8 @@
     "messagePolicyNoneHelp": "Ninguém pode te escrever, o botão de mensagem não aparece no seu perfil.",
     "messagePolicyUpdateError": "Não foi possível atualizar as configurações de mensagens.",
     "messagePolicyFollowingAndFollowers": "Quem eu sigo e quem me segue",
-    "messagePolicyFollowingAndFollowersHelp": "Só podem te escrever as pessoas que você segue e as que te seguem, as mensagens vão direto para sua caixa de entrada, para as demais o botão de mensagem não aparece."
+    "messagePolicyFollowingAndFollowersHelp": "Só podem te escrever as pessoas que você segue e as que te seguem, as mensagens vão direto para sua caixa de entrada, para as demais o botão de mensagem não aparece.",
+    "sessionRevokeAllConfirm": "A sessão será encerrada em todos os seus dispositivos, incluindo este. Você vai precisar entrar de novo."
   },
   "feed": {
     "pinned": "Fixado",

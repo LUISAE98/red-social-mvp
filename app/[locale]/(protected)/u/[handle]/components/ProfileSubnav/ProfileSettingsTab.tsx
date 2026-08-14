@@ -6,14 +6,14 @@ import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import LogoutButton from "@/app/LogoutButton";
 import VibraResponsivePanel from "@/components/ui/VibraResponsivePanel";
-import BlockedAccountsOverlay from "./BlockedAccountsOverlay";
-import SessionsOverlay from "./SessionsOverlay";
+import BlockedAccountsOverlay from "@/components/profile/BlockedAccountsOverlay";
+import SessionsOverlay from "@/components/profile/SessionsOverlay";
 import { usePushNotifications } from "@/lib/hooks/usePushNotifications";
 import {
   PWD_RESET_COOLDOWN_S, SpinningGear, Switch,
   daysUntilNameChange, formatDate, pwdResetKey,
   type ProfileSettingsTabProps,
-} from "./ProfileSettingsTab.parts";
+} from "@/components/profile/ProfileSettings.parts";
 import MessagePolicySetting from "@/components/chat/MessagePolicySetting";
 import type { MessagePolicy } from "@/lib/chat/types";
 

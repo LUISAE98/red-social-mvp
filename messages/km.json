@@ -62,7 +62,8 @@
     "statistics": "ស្ថិតិ",
     "tabMessages": "សារ",
     "messageRequests": "សំណើ ({count})",
-    "seeAllMessages": "មើលទាំងអស់"
+    "seeAllMessages": "មើលទាំងអស់",
+    "settings": "ការកំណត់"
   },
   "common": {
     "accept": "ទទួលយក",
@@ -742,7 +743,7 @@
     "blockedAccountsLabel": "គណនីដែលបានទប់ស្កាត់",
     "sessionsLabel": "វគ្គសកម្ម",
     "sessionsValue": "ឧបករណ៍ដែលអ្នកបានចូលគណនី",
-    "sessionsHint": "ពិនិត្យមើលថាឧបករណ៍ណាខ្លះមានវគ្គរបស់អ្នកបើក ហើយបិទឧបករណ៍ណាដែលអ្នកមិនស្គាល់។",
+    "sessionsHint": "មើលឧបករណ៍ណាដែលវគ្គរបស់អ្នកបើក។ ការចាកចេញបិទវានៅគ្រប់ទីកន្លែង។",
     "sessionsTitle": "វគ្គសកម្ម",
     "sessionsDesc": "ឧបករណ៍ដែលគណនីរបស់អ្នកកំពុងចូលបច្ចុប្បន្ន។",
     "sessionsLoginRequired": "ចូលគណនីដើម្បីមើលវគ្គសកម្មរបស់អ្នក។",
@@ -752,7 +753,7 @@
     "sessionThisDevice": "ឧបករណ៍នេះ",
     "sessionRevoke": "ចាកចេញ",
     "sessionRevoking": "កំពុងចាកចេញ...",
-    "sessionsRevokeOthers": "ចាកចេញពីវគ្គផ្សេងទៀតទាំងអស់",
+    "sessionsRevokeOthers": "ចាកចេញពីឧបករណ៍ទាំងអស់",
     "sessionRevokeError": "មិនអាចបិទវគ្គបានទេ។",
     "sessionActiveNow": "សកម្មឥឡូវនេះ",
     "sessionActiveMinutes": "សកម្ម {count} នាទីមុន",
@@ -814,7 +815,8 @@
     "messagePolicyNoneHelp": "គ្មាននរណាម្នាក់អាចផ្ញើសារមកអ្នកបានទេ ប៊ូតុងសារមិនបង្ហាញនៅលើប្រវត្តិរូបរបស់អ្នកទេ។",
     "messagePolicyUpdateError": "មិនអាចធ្វើបច្ចុប្បន្នភាពការកំណត់សារបានទេ។",
     "messagePolicyFollowingAndFollowers": "អ្នកដែលខ្ញុំតាមដាន និងអ្នកដែលតាមដានខ្ញុំ",
-    "messagePolicyFollowingAndFollowersHelp": "មានតែអ្នកដែលអ្នកតាមដាន និងអ្នកដែលតាមដានអ្នកទេដែលអាចផ្ញើសារមកអ្នក សាររបស់គាត់ទៅដោយផ្ទាល់ក្នុងប្រអប់សំបុត្ររបស់អ្នក អ្នកផ្សេងទៀតមិនឃើញប៊ូតុងសារទេ។"
+    "messagePolicyFollowingAndFollowersHelp": "មានតែអ្នកដែលអ្នកតាមដាន និងអ្នកដែលតាមដានអ្នកទេដែលអាចផ្ញើសារមកអ្នក សាររបស់គាត់ទៅដោយផ្ទាល់ក្នុងប្រអប់សំបុត្ររបស់អ្នក អ្នកផ្សេងទៀតមិនឃើញប៊ូតុងសារទេ។",
+    "sessionRevokeAllConfirm": "វគ្គនឹងត្រូវបិទនៅលើឧបករណ៍ទាំងអស់របស់អ្នក រួមទាំងឧបករណ៍នេះ។ អ្នកនឹងត្រូវចូលម្តងទៀត។"
   },
   "feed": {
     "pinned": "បានខ្ទាស់",
