@@ -57,7 +57,13 @@ export default function ConversationPage() {
   const { conversation } = useConversationDoc(conversationId);
   const displayName = profile?.displayName || tCommon("user");
 
-  const [closing, setClosing] = useState(false);
+  /**
+   * Hacia dónde se va la pantalla al salir.
+   *  - "back": atrás, se va por la derecha.
+   *  - "forward": al perfil, se va por la izquierda y el perfil entra desde la
+   *    derecha, que es como se lee una navegación hacia adelante.
+   */
+  const [closing, setClosing] = useState<null | "back" | "forward">(null);
   /**
    * Vive AQUÍ y no dentro del menú: el menú se desmonta al cerrarse, y con él
    * se llevaba el panel de confirmación a los pocos milisegundos de abrirlo.
@@ -239,9 +245,24 @@ export default function ConversationPage() {
    */
   function handleBack() {
     if (closing) return;
-    setClosing(true);
+    setClosing("back");
     setNavSlideDir("left");
     setTimeout(() => router.back(), NAV_ANIM_MS);
+  }
+
+  /**
+   * Al perfil de la otra persona, desde su nombre o su avatar.
+   *
+   * Es una navegación hacia ADELANTE, así que se mueve al revés que salir: esta
+   * pantalla se va por la izquierda y el perfil entra desde la derecha. Sin
+   * animar la salida se vería un corte seco — este portal va por encima de todo,
+   * o sea que la página nueva no puede taparlo: tiene que quitarse él.
+   */
+  function handleOpenProfile() {
+    if (closing || !profile?.handle) return;
+    setClosing("forward");
+    setNavSlideDir("right");
+    setTimeout(() => router.push(`/u/${profile.handle}`), NAV_ANIM_MS);
   }
 
   if (!mounted) return null;
@@ -260,7 +281,11 @@ export default function ConversationPage() {
       style={{
         // La salida va inline para que gane a la regla del atributo.
         ...(closing
-          ? { animation: `vibraChatExitRight ${NAV_ANIM_MS}ms ease-in both` }
+          ? {
+              animation: `${
+                closing === "back" ? "vibraChatExitRight" : "vibraChatExitLeft"
+              } ${NAV_ANIM_MS}ms ease-in both`,
+            }
           : null),
         position: "fixed",
         // Con teclado, el área visible exacta. Sin teclado, `inset: 0` y ni un
@@ -344,6 +369,17 @@ export default function ConversationPage() {
             transform: translateX(calc(100% * var(--vb-dir, 1)));
           }
         }
+
+        /* Hacia adelante: se va al lado contrario, dejando sitio al perfil que
+           entra. Mismo respeto por --vb-dir. */
+        @keyframes vibraChatExitLeft {
+          from {
+            transform: translateX(0);
+          }
+          to {
+            transform: translateX(calc(-100% * var(--vb-dir, 1)));
+          }
+        }
       `}</style>
 
       <header
@@ -386,42 +422,68 @@ export default function ConversationPage() {
           </svg>
         </button>
 
-        <LiveRingAvatar
-          entityId={otherUid ?? conversationId ?? ""}
-          entityType="profile"
-          currentUserId={selfUid}
-          photoURL={profile?.photoURL ?? null}
-          displayName={displayName}
-          size={34}
-        />
+        {/* Avatar y nombre son UN solo destino: al perfil. Se agrupan en un
+            botón en vez de dos para que el toque no tenga que afinar entre la
+            foto y el texto. */}
+        <button
+          type="button"
+          onClick={handleOpenProfile}
+          disabled={!profile?.handle}
+          style={{
+            flex: 1,
+            minWidth: 0,
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            border: "none",
+            background: "transparent",
+            padding: 0,
+            textAlign: "start",
+            font: "inherit",
+            color: "inherit",
+            cursor: profile?.handle ? "pointer" : "default",
+            WebkitTapHighlightColor: "transparent",
+          }}
+        >
+          <LiveRingAvatar
+            entityId={otherUid ?? conversationId ?? ""}
+            entityType="profile"
+            currentUserId={selfUid}
+            photoURL={profile?.photoURL ?? null}
+            displayName={displayName}
+            size={34}
+          />
 
-        <div style={{ minWidth: 0, flex: 1 }}>
-          <div
-            style={{
-              fontSize: 14,
-              fontWeight: 600,
-              color: "#fff",
-              whiteSpace: "nowrap",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-            }}
-          >
-            {displayName}
-          </div>
-          {profile?.handle ? (
-            <div
+          <span style={{ minWidth: 0, flex: 1, display: "block" }}>
+            <span
               style={{
-                fontSize: 11.5,
-                color: "rgba(255,255,255,0.45)",
+                display: "block",
+                fontSize: 14,
+                fontWeight: 600,
+                color: "#fff",
                 whiteSpace: "nowrap",
                 overflow: "hidden",
                 textOverflow: "ellipsis",
               }}
             >
-              @{profile.handle}
-            </div>
-          ) : null}
-        </div>
+              {displayName}
+            </span>
+            {profile?.handle ? (
+              <span
+                style={{
+                  display: "block",
+                  fontSize: 11.5,
+                  color: "rgba(255,255,255,0.45)",
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                }}
+              >
+                @{profile.handle}
+              </span>
+            ) : null}
+          </span>
+        </button>
 
         {/* A la derecha, pero SEPARADO del borde: pegado a él el dedo se sale de
             la pantalla al intentar darle. Los 6px de margen más el relleno

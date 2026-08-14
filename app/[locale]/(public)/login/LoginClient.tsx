@@ -1256,7 +1256,9 @@ marginBottom: 6,
           twoColumn
           excludeServices={[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]}
           // Solo en el login. La wallet del creador las sigue mostrando.
-          hideSections={["hero", "commission", "clear", "lifestyle", "communities"]}
+          // `communities` SÍ se pinta: es lo único que queda de esta
+          // presentación y cae justo debajo del título de los 150 países.
+          hideSections={["hero", "commission", "clear", "lifestyle"]}
         />
       </section>
       )}

@@ -50,6 +50,7 @@
   <script type="module">
     import { initializeApp }         from "https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js";
     import { getFirestore, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js";
+    import { initializeAppCheck, ReCaptchaV3Provider } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-app-check.js";
 
     const params = new URLSearchParams(location.search);
     const postId = params.get("postId");
@@ -134,6 +135,23 @@
     // Obtener config de Firebase desde nuestro servidor y conectar
     const cfg = await fetch("/api/live-overlay-config").then(r => r.json());
     const app = initializeApp(cfg);
+
+    // App Check ANTES de Firestore. Este es el único cliente de Vibra que habla
+    // con Firestore fuera del bundle de Next, así que sin esto el Browser Source
+    // se quedaría sin supercomentarios en cuanto se active la exigencia.
+    // La clave de reCAPTCHA está restringida a nuestro dominio y esta página se
+    // sirve desde él, así que OBS la satisface igual que un navegador normal.
+    if (cfg.appCheckSiteKey) {
+      try {
+        initializeAppCheck(app, {
+          provider: new ReCaptchaV3Provider(cfg.appCheckSiteKey),
+          isTokenAutoRefreshEnabled: true,
+        });
+      } catch (err) {
+        console.warn("[overlay] App Check no se pudo inicializar:", err);
+      }
+    }
+
     const db  = getFirestore(app);
 
     onSnapshot(doc(db, "liveOverlays", postId), (snap) => {

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
 
 import LiveRingAvatar from "@/app/components/LiveRing/LiveRingAvatar";
@@ -61,6 +62,7 @@ export default function ChatDock({
   // Fuera del menú: ese se desmonta al cerrarse y se llevaba el panel con él.
   const [removeOpen, setRemoveOpen] = useState(false);
 
+  const router = useRouter();
   const unread = selfUid ? (conversation?.unread?.[selfUid] ?? 0) : 0;
   const showUnreadBadge = minimized && unread > 0;
 
@@ -203,11 +205,18 @@ export default function ChatDock({
             escuchando aunque la pestaña esté plegada (lo que se corta al plegar
             es la suscripción a los MENSAJES, que es la cara). */}
         <span
+          role={profile?.handle ? "button" : undefined}
+          onClick={(e) => {
+            if (!profile?.handle) return;
+            e.stopPropagation();
+            router.push(`/u/${profile.handle}`);
+          }}
           style={{
             position: "relative",
             display: "inline-flex",
             flexShrink: 0,
             borderRadius: 999,
+            cursor: profile?.handle ? "pointer" : undefined,
             // El aro va por sombra y no por borde: un borde cambiaría el tamaño
             // del avatar y movería toda la cabecera al aparecer.
             boxShadow: showUnreadBadge ? "0 0 0 2px #a855f7" : "none",
@@ -251,20 +260,35 @@ export default function ChatDock({
           ) : null}
         </span>
 
-        <span
+        {/* El nombre lleva al perfil. Se para la propagación porque el resto de
+            la cabecera pliega y despliega la pestaña: sin eso, ir al perfil la
+            minimizaría de paso. */}
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            if (profile?.handle) router.push(`/u/${profile.handle}`);
+          }}
+          disabled={!profile?.handle}
           style={{
             flex: 1,
             minWidth: 0,
+            border: "none",
+            background: "transparent",
+            padding: 0,
+            textAlign: "start",
+            fontFamily: "inherit",
             fontSize: 13,
             fontWeight: 600,
             color: "#fff",
             whiteSpace: "nowrap",
             overflow: "hidden",
             textOverflow: "ellipsis",
+            cursor: profile?.handle ? "pointer" : "default",
           }}
         >
           {displayName}
-        </span>
+        </button>
 
         {/* Minimizar: una raya, sin flecha. Estando minimizada NO se muestra —
             para volver a abrir se toca la pestaña, así que un botón de
