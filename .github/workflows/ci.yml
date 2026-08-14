@@ -42,7 +42,7 @@ jobs:
       - name: Install backend dependencies
         run: npm install --prefix backend
 
-      - name: Unit tests (backend — ledger, firma MP, reconcile)
+      - name: Unit tests (backend — ledger, firma MP, reconcile, Connect)
         run: npm test --prefix backend
 
       - name: Install firebase-tools

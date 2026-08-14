@@ -3,6 +3,7 @@ dotenv.config({ path: ".env.local" });
 
 import { getApps, initializeApp, cert } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
+import { getFirestore, FieldValue } from "firebase-admin/firestore";
 
 // Uso: npx ts-node scripts/set-moderator.ts --uid=<UID_DEL_USUARIO>
 // Para quitar el rol: npx ts-node scripts/set-moderator.ts --uid=<UID> --remove
@@ -75,8 +76,33 @@ async function main() {
     console.log(`✅  Rol de moderador ASIGNADO a ${userRecord.email ?? uid}`);
   }
 
+  // Los custom claims viajan DENTRO del token: cambiarlos no toca los tokens ya
+  // emitidos. Sin esto, quitarle el rol a alguien lo dejaba con privilegios de
+  // moderador hasta que se le ocurriera cerrar sesión, que era literalmente lo
+  // que el script le pedía por consola. Revocar fuerza un token nuevo ya.
+  await auth.revokeRefreshTokens(uid);
+  console.log("🔒  Tokens revocados: el cambio de rol es efectivo de inmediato.");
+
+  // Rastro persistente. Antes esto solo dejaba huella en la terminal de quien lo
+  // corriera, así que no había forma de saber quién dio o quitó un rol ni cuándo.
+  try {
+    await getFirestore().collection("adminAuditLog").add({
+      action: remove ? "moderator_role_removed" : "moderator_role_granted",
+      targetUid: uid,
+      targetEmail: userRecord.email ?? null,
+      source: "scripts/set-moderator.ts",
+      // El script corre con credenciales de administrador desde una terminal, así
+      // que no hay un uid de actor: queda quien lo ejecutó a nivel de máquina.
+      actorNote: process.env.USERNAME ?? process.env.USER ?? "desconocido",
+      createdAt: FieldValue.serverTimestamp(),
+    });
+    console.log("📝  Registrado en adminAuditLog.");
+  } catch (err) {
+    console.warn("⚠️  No se pudo escribir en adminAuditLog:", err);
+  }
+
   console.log("");
-  console.log("⚠️  El usuario debe cerrar sesión y volver a iniciarla para que el claim se actualice en su token.");
+  console.log("⚠️  El usuario debe volver a iniciar sesión (sus tokens quedaron revocados).");
 }
 
 main().catch((err) => {

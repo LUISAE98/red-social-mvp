@@ -51,18 +51,33 @@ beforeEach(async () => {
 const GUEST = "guest_uid";
 const REAL = "real_uid";
 
-/** Contexto de invitado: el token lleva sign_in_provider = "anonymous". */
-function guestDb() {
-  return testEnv
+// Los contextos se crean UNA vez y se reutilizan. Cada `authenticatedContext()`
+// levanta una app de Firebase nueva, y llamarlos dentro de cada aserción abría
+// ~90 en esta suite: el emulador se queda sin recursos y muere a media corrida
+// (se ve como ECONNREFUSED en la suite que toque correr después, no en esta).
+let guestFs: ReturnType<ReturnType<RulesTestEnvironment["authenticatedContext"]>["firestore"]>;
+let realFs: typeof guestFs;
+
+beforeAll(() => {
+  guestFs = testEnv
     .authenticatedContext(GUEST, { firebase: { sign_in_provider: "anonymous" } })
     .firestore();
+  realFs = testEnv
+    .authenticatedContext(REAL, {
+      email: `${REAL}@example.com`,
+      firebase: { sign_in_provider: "password" },
+    })
+    .firestore();
+});
+
+/** Contexto de invitado: el token lleva sign_in_provider = "anonymous". */
+function guestDb() {
+  return guestFs;
 }
 
 /** Contexto de cuenta real (email/contraseña). */
 function realDb() {
-  return testEnv
-    .authenticatedContext(REAL, { firebase: { sign_in_provider: "password" } })
-    .firestore();
+  return realFs;
 }
 
 async function seedAll(entries: Array<[string, Record<string, unknown>]>) {
@@ -94,17 +109,40 @@ function followBatch(db: ReturnType<typeof realDb>, followerUid: string, targetU
   return batch.commit();
 }
 
-/** Perfil mínimo que `validUserBase` acepta. */
-function profile(uid: string, handle: string) {
+/**
+ * Perfil válido: refleja lo que escribe `profileOnboarding.ts`. El correo y el
+ * proveedor tienen que coincidir con el token, así que se derivan de él.
+ */
+function profile(
+  uid: string,
+  handle: string,
+  overrides: Record<string, unknown> = {}
+) {
+  const email = `${uid}@example.com`;
   return {
     uid,
+    email,
+    emailLower: email.toLowerCase(),
+    photoURL: null,
+    coverUrl: null,
     handle,
+    username: handle,
     displayName: "Nombre Visible",
     firstName: "Nombre",
     lastName: "Apellido",
     birthDate: "1990-01-01",
     sex: "other",
-    photoURL: null,
+    bio: "",
+    role: "user",
+    provider: "password",
+    authProvider: "password",
+    profileReserved: false,
+    profileRestricted: false,
+    profileCommentsEnabled: true,
+    isActive: true,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+    ...overrides,
   };
 }
 
@@ -325,5 +363,70 @@ describe("C03 — el cliente no puede tocar la revocación de sus sesiones", () 
         { merge: true }
       )
     );
+  });
+});
+
+describe("H03 — el perfil no se puede falsificar", () => {
+  /** Crea el perfil y su handle en un lote, que es como lo hace la app. */
+  function createProfile(overrides: Record<string, unknown> = {}) {
+    const db = realDb();
+    const batch = writeBatch(db);
+    batch.set(doc(db, `users/${REAL}`), profile(REAL, "realuser", overrides));
+    batch.set(doc(db, "handles/realuser"), { uid: REAL });
+    return batch.commit();
+  }
+
+  it("el perfil legítimo se crea", async () => {
+    await assertSucceeds(createProfile());
+  });
+
+  it("NO puede inventarse el correo", async () => {
+    await assertFails(createProfile({ email: "victima@banco.com", emailLower: "victima@banco.com" }));
+  });
+
+  it("NO puede mentir sobre el proveedor", async () => {
+    await assertFails(createProfile({ authProvider: "google.com", provider: "google" }));
+  });
+
+  it("NO puede nacer con rol de moderador", async () => {
+    await assertFails(createProfile({ role: "moderator" }));
+  });
+
+  it("NO puede colar campos que nadie validó", async () => {
+    await assertFails(createProfile({ verificado: true, saldo: 999999 }));
+  });
+
+  it("NO puede desalinear username y handle", async () => {
+    await assertFails(createProfile({ username: "otro_nombre" }));
+  });
+});
+
+describe("H04 — la edad mínima deja de ser solo del cliente", () => {
+  function createWithBirthDate(birthDate: string) {
+    const db = realDb();
+    const batch = writeBatch(db);
+    batch.set(doc(db, `users/${REAL}`), profile(REAL, "realuser", { birthDate }));
+    batch.set(doc(db, "handles/realuser"), { uid: REAL });
+    return batch.commit();
+  }
+
+  it("acepta a una persona adulta", async () => {
+    await assertSucceeds(createWithBirthDate("1990-01-01"));
+  });
+
+  it("RECHAZA a un menor de edad", async () => {
+    await assertFails(createWithBirthDate("2015-06-15"));
+  });
+
+  it("RECHAZA una fecha futura", async () => {
+    await assertFails(createWithBirthDate("2090-01-01"));
+  });
+
+  it("RECHAZA una fecha inexistente", async () => {
+    await assertFails(createWithBirthDate("2000-13-45"));
+  });
+
+  it("RECHAZA una fecha absurda", async () => {
+    await assertFails(createWithBirthDate("1523-01-01"));
   });
 });

@@ -64,6 +64,16 @@ export default function ChatDock({
 
   const router = useRouter();
   const unread = selfUid ? (conversation?.unread?.[selfUid] ?? 0) : 0;
+
+  /**
+   * Al perfil. Para la propagación porque el resto de la cabecera pliega y
+   * despliega la pestaña: sin esto, ir al perfil la minimizaría de paso.
+   */
+  function handleOpenProfile(e: React.MouseEvent) {
+    if (!profile?.handle) return;
+    e.stopPropagation();
+    router.push(`/u/${profile.handle}`);
+  }
   const showUnreadBadge = minimized && unread > 0;
 
   return (
@@ -205,24 +215,19 @@ export default function ChatDock({
             escuchando aunque la pestaña esté plegada (lo que se corta al plegar
             es la suscripción a los MENSAJES, que es la cara). */}
         <span
-          role={profile?.handle ? "button" : undefined}
-          onClick={(e) => {
-            if (!profile?.handle) return;
-            e.stopPropagation();
-            router.push(`/u/${profile.handle}`);
-          }}
           style={{
             position: "relative",
             display: "inline-flex",
             flexShrink: 0,
             borderRadius: 999,
-            cursor: profile?.handle ? "pointer" : undefined,
             // El aro va por sombra y no por borde: un borde cambiaría el tamaño
             // del avatar y movería toda la cabecera al aparecer.
             boxShadow: showUnreadBadge ? "0 0 0 2px #a855f7" : "none",
             transition: "box-shadow var(--duration-fast, 150ms) ease",
           }}
         >
+          {/* Sin envolverlo en nada pulsable: el avatar ya trae su propio botón
+              y su propia cadena — live, historias y, si no hay ninguno, esto. */}
           <LiveRingAvatar
             entityId={otherUid ?? conversationId}
             entityType="profile"
@@ -230,6 +235,7 @@ export default function ChatDock({
             photoURL={profile?.photoURL ?? null}
             displayName={displayName}
             size={28}
+            onClick={handleOpenProfile}
           />
 
           {showUnreadBadge ? (
@@ -260,15 +266,11 @@ export default function ChatDock({
           ) : null}
         </span>
 
-        {/* El nombre lleva al perfil. Se para la propagación porque el resto de
-            la cabecera pliega y despliega la pestaña: sin eso, ir al perfil la
-            minimizaría de paso. */}
+        {/* El nombre lleva al perfil, siempre — a diferencia del avatar, que
+            primero atiende al live y a las historias. */}
         <button
           type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            if (profile?.handle) router.push(`/u/${profile.handle}`);
-          }}
+          onClick={handleOpenProfile}
           disabled={!profile?.handle}
           style={{
             flex: 1,

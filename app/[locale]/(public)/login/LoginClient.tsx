@@ -22,6 +22,7 @@ import LoginCollageBackground from "./LoginCollageBackground";
 import WalletOnboarding from "@/app/[locale]/(protected)/wallet/components/WalletOnboarding";
 import LoginExperienceBlock from "./LoginExperienceBlock";
 import LoginExperienceRail from "./LoginExperienceRail";
+import LoginCommunityCards from "./LoginCommunityCards";
 
 /**
  * ⚠️ TEMPORAL — video de muestra compartido por los bloques que todavía no
@@ -1246,6 +1247,9 @@ marginBottom: 6,
           con personas de más de 150 países alrededor del mundo
         </h2>
 
+        {/* Los tres tipos de comunidad. ⚠️ Imágenes de PRUEBA. */}
+        <LoginCommunityCards />
+
         {/* Las 11 experiencias YA tienen bloque propio arriba, así que el
             listado de la wallet se queda sin ninguna que mostrar: la sección se
             oculta sola (ver `excludeServices` en WalletOnboarding). Se mantiene
@@ -1256,9 +1260,7 @@ marginBottom: 6,
           twoColumn
           excludeServices={[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]}
           // Solo en el login. La wallet del creador las sigue mostrando.
-          // `communities` SÍ se pinta: es lo único que queda de esta
-          // presentación y cae justo debajo del título de los 150 países.
-          hideSections={["hero", "commission", "clear", "lifestyle"]}
+          hideSections={["hero", "commission", "clear", "lifestyle", "communities"]}
         />
       </section>
       )}

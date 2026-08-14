@@ -432,6 +432,12 @@ async function blockUser(targetOwnerId: string): Promise<void> {
   // Deshabilita la cuenta en Firebase Auth — el usuario no podrá iniciar sesión
   await getAuth().updateUser(targetOwnerId, { disabled: true });
 
+  // `disabled` solo impide INICIAR sesión; los tokens ya emitidos seguían
+  // valiendo, así que un baneado conservaba acceso hasta que caducara el suyo.
+  // Revocar los refresh tokens corta esa ventana: no puede acuñar más y el que
+  // tenga muere en ~1h, que es el límite propio de un JWT sin estado.
+  await getAuth().revokeRefreshTokens(targetOwnerId);
+
   // Marca al usuario en Firestore para mostrarlo como bloqueado en la UI
   const userRef = db.collection("users").doc(targetOwnerId);
   const snap = await userRef.get();

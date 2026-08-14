@@ -42,9 +42,21 @@ service cloud.firestore {
       return c in ["MXN", "ARS", "BOB", "BRL", "CLP", "COP", "CRC", "GTQ", "HNL", "NIO", "PEN", "PYG", "DOP", "UYU", "USD"];
     }
 
+    function birthTimestamp(b) {
+      return timestamp.date(int(b.split('-')[0]), int(b.split('-')[1]), int(b.split('-')[2]));
+    }
+
+    // Antes solo se comprobaba el FORMATO: cualquier YYYY-MM-DD pasaba, así que
+    // el requisito de 18 años vivía únicamente en la interfaz y se saltaba con
+    // una llamada directa al SDK. Ahora la fecha tiene que ser real (timestamp.date
+    // revienta con un 2010-13-45, y reventar deniega) y tener 18 años cumplidos.
+    // 6574 días = 18 × 365.25; el desfase máximo es de horas y siempre a favor
+    // de exigir más edad, nunca menos.
     function validBirthDate(b) {
       return b is string
-        && b.matches('^\\d{4}-\\d{2}-\\d{2}$');
+        && b.matches('^\\d{4}-\\d{2}-\\d{2}$')
+        && birthTimestamp(b) > timestamp.date(1900, 1, 1)
+        && birthTimestamp(b) < request.time - duration.value(6574, 'd');
     }
 
     function validNullableString(value) {
@@ -85,8 +97,50 @@ service cloud.firestore {
         && (!("monetization" in profileServices) || profileMonetizationValid(profileServices.monetization));
     }
 
+    // Lista CERRADA de campos del perfil al crearlo. Sin ella, un cliente podía
+    // sembrar cualquier campo extra en su propio documento, y ese documento lo
+    // leen búsquedas, métricas y funciones que confían en él.
+    // Las 23 primeras son las que escribe `profileOnboarding.ts`; el resto son
+    // opcionales que esta misma función ya validaba.
+    function userCreateKeysAllowed(data) {
+      return data.keys().hasOnly([
+        "uid", "email", "emailLower", "photoURL", "coverUrl", "handle",
+        "username", "displayName", "firstName", "lastName", "birthDate", "sex",
+        "bio", "role", "provider", "authProvider", "profileReserved",
+        "profileRestricted", "profileCommentsEnabled", "isActive", "createdAt",
+        "updatedAt", "search",
+        "showPosts", "showCreatedGroups", "followersCount", "profileGreeting",
+        "profileServices", "offerings", "donation", "monetization"
+      ]);
+    }
+
+    // Ata la identidad del perfil al TOKEN, no a lo que diga el cliente. Antes se
+    // podía crear el propio documento con correo y proveedor inventados.
+    function userIdentityMatchesToken(data) {
+      return data.email == request.auth.token.get('email', '')
+        && data.emailLower == data.email.lower()
+        && data.authProvider == request.auth.token.firebase.sign_in_provider
+        && data.authProvider in ["password", "google.com"]
+        && data.provider == (data.authProvider == "google.com" ? "google" : "password");
+    }
+
+    // Campos operativos: el cliente no elige su rol ni nace desactivado.
+    function userOperationalDefaults(data) {
+      return data.role == "user"
+        && data.isActive == true
+        && data.profileReserved == false
+        && data.username == data.handle
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp
+        && data.bio is string
+        && data.bio.size() <= 500;
+    }
+
     function validUserBase(data) {
-      return data.uid is string
+      return userCreateKeysAllowed(data)
+        && userIdentityMatchesToken(data)
+        && userOperationalDefaults(data)
+        && data.uid is string
         && validHandle(data.handle)
         && data.displayName is string
         && data.displayName.size() >= 1

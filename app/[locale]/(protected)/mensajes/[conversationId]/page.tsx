@@ -422,9 +422,21 @@ export default function ConversationPage() {
           </svg>
         </button>
 
-        {/* Avatar y nombre son UN solo destino: al perfil. Se agrupan en un
-            botón en vez de dos para que el toque no tenga que afinar entre la
-            foto y el texto. */}
+        {/* El avatar NO va envuelto en un botón: se pinta él uno propio, y
+            anidarlos es HTML inválido.
+            Su `onClick` es el último recurso de una cadena que ya trae hecha —
+            si hay live abre el live (aro rojo), si hay historias las abre, y
+            solo si no hay ninguno cae aquí y va al perfil. */}
+        <LiveRingAvatar
+          entityId={otherUid ?? conversationId ?? ""}
+          entityType="profile"
+          currentUserId={selfUid}
+          photoURL={profile?.photoURL ?? null}
+          displayName={displayName}
+          size={34}
+          onClick={handleOpenProfile}
+        />
+
         <button
           type="button"
           onClick={handleOpenProfile}
@@ -432,9 +444,7 @@ export default function ConversationPage() {
           style={{
             flex: 1,
             minWidth: 0,
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
+            display: "block",
             border: "none",
             background: "transparent",
             padding: 0,
@@ -445,44 +455,33 @@ export default function ConversationPage() {
             WebkitTapHighlightColor: "transparent",
           }}
         >
-          <LiveRingAvatar
-            entityId={otherUid ?? conversationId ?? ""}
-            entityType="profile"
-            currentUserId={selfUid}
-            photoURL={profile?.photoURL ?? null}
-            displayName={displayName}
-            size={34}
-          />
-
-          <span style={{ minWidth: 0, flex: 1, display: "block" }}>
+          <span
+            style={{
+              display: "block",
+              fontSize: 14,
+              fontWeight: 600,
+              color: "#fff",
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+            }}
+          >
+            {displayName}
+          </span>
+          {profile?.handle ? (
             <span
               style={{
                 display: "block",
-                fontSize: 14,
-                fontWeight: 600,
-                color: "#fff",
+                fontSize: 11.5,
+                color: "rgba(255,255,255,0.45)",
                 whiteSpace: "nowrap",
                 overflow: "hidden",
                 textOverflow: "ellipsis",
               }}
             >
-              {displayName}
+              @{profile.handle}
             </span>
-            {profile?.handle ? (
-              <span
-                style={{
-                  display: "block",
-                  fontSize: 11.5,
-                  color: "rgba(255,255,255,0.45)",
-                  whiteSpace: "nowrap",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                }}
-              >
-                @{profile.handle}
-              </span>
-            ) : null}
-          </span>
+          ) : null}
         </button>
 
         {/* A la derecha, pero SEPARADO del borde: pegado a él el dedo se sale de

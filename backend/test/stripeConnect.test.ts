@@ -1,3 +1,9 @@
+// Vive en la suite del BACKEND, no en test/unit/ del frontend: el módulo que
+// prueba importa `firebase-functions` (el logger), y esa dependencia solo existe
+// en backend/package.json. Desde la suite raíz reventaba en CI con
+// ERR_MODULE_NOT_FOUND, porque los tests del frontend corren antes de que se
+// instalen las dependencias del backend.
+
 import { describe, it, expect } from "vitest";
 import {
   deriveConnectStatus,
@@ -5,7 +11,7 @@ import {
   accountToDoc,
   isCrossBorder,
   PLATFORM_COUNTRY,
-} from "../../backend/src/payments/stripe/stripeConnect";
+} from "../src/payments/stripe/stripeConnect";
 
 const base = {
   accountId: "acct_123",
