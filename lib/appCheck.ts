@@ -22,6 +22,13 @@
 //   d) solo entonces poner `enforceAppCheck: true` en las callables del backend.
 
 import type { FirebaseApp } from "firebase/app";
+// Importación ESTÁTICA a propósito. Con `await import(...)` esta función
+// retornaba antes de registrar App Check, y Auth y Firestore —que se crean
+// justo después, de forma síncrona— quedaban con un proveedor de token vacío.
+// Sin exigencia activa no se nota; con exigencia activa, las primeras
+// peticiones de cada carga saldrían sin token. App Check debe registrarse
+// ANTES que cualquier otro servicio de Firebase.
+import { initializeAppCheck, ReCaptchaV3Provider } from "firebase/app-check";
 
 let started = false;
 
@@ -34,23 +41,19 @@ export function initAppCheck(app: FirebaseApp): void {
 
   started = true;
 
-  void (async () => {
-    try {
-      const { initializeAppCheck, ReCaptchaV3Provider } = await import("firebase/app-check");
-
-      // En desarrollo, la consola imprime un token de depuración que hay que
-      // registrar una vez en Firebase para poder trabajar en local.
-      if (process.env.NODE_ENV !== "production") {
-        (self as unknown as Record<string, unknown>).FIREBASE_APPCHECK_DEBUG_TOKEN = true;
-      }
-
-      initializeAppCheck(app, {
-        provider: new ReCaptchaV3Provider(siteKey),
-        isTokenAutoRefreshEnabled: true,
-      });
-    } catch (err) {
-      // Nunca romper el arranque de la app por la atestación.
-      console.warn("[appCheck] no se pudo inicializar:", err);
+  try {
+    // En desarrollo, la consola imprime un token de depuración que hay que
+    // registrar una vez en Firebase para poder trabajar en local.
+    if (process.env.NODE_ENV !== "production") {
+      (self as unknown as Record<string, unknown>).FIREBASE_APPCHECK_DEBUG_TOKEN = true;
     }
-  })();
+
+    initializeAppCheck(app, {
+      provider: new ReCaptchaV3Provider(siteKey),
+      isTokenAutoRefreshEnabled: true,
+    });
+  } catch (err) {
+    // Nunca romper el arranque de la app por la atestación.
+    console.warn("[appCheck] no se pudo inicializar:", err);
+  }
 }
