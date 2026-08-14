@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { intlLocale } from "@/i18n/locales";
+import { useDirectionFactor } from "@/lib/i18n/useDirectionFactor";
 import { createPortal } from "react-dom";
 import { useTranslations, useLocale } from "next-intl";
 import { useCallback, useEffect, useRef, useState, memo, type CSSProperties } from "react";
@@ -159,6 +160,10 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
   const statsGridRef = useRef<HTMLDivElement>(null);
   const statsContainerRef = useRef<HTMLDivElement>(null);
   const statsDragRef = useRef<{ id: string; startX: number; startY: number; origX: number; origY: number; w: number; h: number; moved: boolean } | null>(null);
+  // +1 / -1 según el sentido de lectura. `tabDragOffset` se guarda en LÓGICO
+  // (se multiplica al leer el dedo), así los umbrales y topes de abajo siguen
+  // valiendo tal cual; solo se vuelve a multiplicar al pintar el translateX.
+  const dirX = useDirectionFactor();
   const [tabDragOffset, setTabDragOffset] = useState(0);
   const tabContainerRef = useRef<HTMLDivElement>(null);
   const tabDragStateRef = useRef<{ startX: number; startY: number; dir: "h" | "v" | null } | null>(null);
@@ -169,7 +174,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
   function onTabTouchMove(e: React.TouchEvent) {
     const s = tabDragStateRef.current;
     if (!s) return;
-    const dx = e.touches[0].clientX - s.startX;
+    const dx = (e.touches[0].clientX - s.startX) * dirX;
     const dy = e.touches[0].clientY - s.startY;
     if (!s.dir) {
       if (Math.abs(dx) < 6 && Math.abs(dy) < 6) return;
@@ -203,7 +208,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
   function onPortraitTabTouchMove(e: React.TouchEvent) {
     const s = tabDragStateRef.current;
     if (!s) return;
-    const dx = e.touches[0].clientX - s.startX;
+    const dx = (e.touches[0].clientX - s.startX) * dirX;
     const dy = e.touches[0].clientY - s.startY;
     if (!s.dir) {
       if (Math.abs(dx) < 6 && Math.abs(dy) < 6) return;
@@ -935,7 +940,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
           >
             <div style={{
               display: "flex", width: "200%", height: "100%",
-              transform: `translateX(calc(${-tabIndex * 50}% + ${tabDragOffset / 2}px))`,
+              transform: `translateX(calc(${-tabIndex * 50 * dirX}% + ${(tabDragOffset * dirX) / 2}px))`,
               transition: isDragging ? "none" : "transform 0.3s ease",
               willChange: "transform",
             }}>
@@ -2271,7 +2276,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
             >
               <div style={{
                 display: "flex", width: "300%", height: "100%",
-                transform: `translateX(calc(${-portraitTab * 33.333}% + ${tabDragOffset / 3}px))`,
+                transform: `translateX(calc(${-portraitTab * 33.333 * dirX}% + ${(tabDragOffset * dirX) / 3}px))`,
                 transition: isPortraitDragging ? "none" : "transform 0.3s ease",
                 willChange: "transform",
               }}>
@@ -2379,7 +2384,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
             >
               <div style={{
                 display: "flex", width: "300%", height: "100%",
-                transform: `translateX(calc(${-portraitTab * 33.333}% + ${tabDragOffset / 3}px))`,
+                transform: `translateX(calc(${-portraitTab * 33.333 * dirX}% + ${(tabDragOffset * dirX) / 3}px))`,
                 transition: isPortraitDragging ? "none" : "transform 0.3s ease",
                 willChange: "transform",
               }}>

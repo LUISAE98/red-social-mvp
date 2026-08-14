@@ -2,6 +2,7 @@
 
 "use client";
 
+import { useDirectionFactor } from "@/lib/i18n/useDirectionFactor";
 import Image from "next/image";
 import { intlLocale } from "@/i18n/locales";
 import Hls from "hls.js";
@@ -388,7 +389,13 @@ onToggleProfilePin,
   const mediaCurrentTimesRef = useRef<Record<string, number>>({});
   const mediaVideoHandlesRef = useRef<Map<string, MediaGridVideoItemHandle>>(new Map());
   const [viewerExternalVideo, setViewerExternalVideo] = useState<HTMLVideoElement | null>(null);
-  const [activeMediaIndex, setActiveMediaIndex] = useState(0);
+  // +1 / -1 según el sentido de lectura. El desplazamiento del carrusel se guarda
+// en LÓGICO (el dedo se multiplica al leerlo), así el umbral de swipe y el
+// "deltaX < 0 ⇒ siguiente" siguen valiendo tal cual; se vuelve a multiplicar solo
+// al pintar. En árabe el siguiente elemento está a la izquierda, como al pasar la
+// página de un libro.
+const dirX = useDirectionFactor();
+const [activeMediaIndex, setActiveMediaIndex] = useState(0);
 const carouselShellRef = useRef<HTMLDivElement | null>(null);
 const carouselTouchStartXRef = useRef<number | null>(null);
 const carouselTouchStartYRef = useRef<number | null>(null);
@@ -2132,7 +2139,7 @@ useEffect(() => {
 
     if (startX === null || startY === null || !touch) return;
 
-    const deltaX = touch.clientX - startX;
+    const deltaX = (touch.clientX - startX) * dirX;
     const deltaY = touch.clientY - startY;
 
     const absX = Math.abs(deltaX);
@@ -2192,7 +2199,7 @@ useEffect(() => {
     document.body.style.overflow = "";
   };
 // eslint-disable-next-line react-hooks/exhaustive-deps
-}, [isMobile, displayMedia.length, activeMediaIndex]);
+}, [isMobile, displayMedia.length, activeMediaIndex, dirX]);
 
 function getMediaDotsTranslateX() {
   const total = displayMedia.length;
@@ -4096,7 +4103,7 @@ style={{
   inset: 0,
   display: "flex",
   width: `${totalMedia * 100}%`,
-  transform: `translateX(calc(-${activeMediaIndex * (100 / totalMedia)}% + ${carouselDragOffsetX}px))`,
+  transform: `translateX(calc(${-activeMediaIndex * (100 / totalMedia) * dirX}% + ${carouselDragOffsetX * dirX}px))`,
   transition: carouselIsDragging
     ? "none"
     : "transform 360ms cubic-bezier(0.22, 1, 0.36, 1)",
@@ -4282,7 +4289,7 @@ padding: "0 0 2px 0",
                 style={{
                   display: "flex",
                   alignItems: "center",
-                  transform: `translateX(${getMediaDotsTranslateX()}px)`,
+                  transform: `translateX(${getMediaDotsTranslateX() * dirX}px)`,
                   transition: "transform 260ms cubic-bezier(0.22, 1, 0.36, 1)",
                   willChange: "transform",
                 }}

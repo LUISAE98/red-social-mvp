@@ -1,4 +1,5 @@
 "use client";
+import { useDirectionFactor } from "@/lib/i18n/useDirectionFactor";
 
 // Tipos, helpers y el sub-componente LeaveGroupActionCard de OwnerSidebarOtherGroups
 // (aislados a nivel de módulo). Extraído para reducir el componente principal.
@@ -464,6 +465,7 @@ export function LeaveGroupActionCard(params: {
   const actionWidth = 150;
 
   const [startX, setStartX] = useState<number | null>(null);
+  const dirX = useDirectionFactor();
   const [dragX, setDragX] = useState(0);
   const [isOpen, setIsOpen] = useState(false);
   const didDragRef = useRef(false);
@@ -525,7 +527,7 @@ style={{
 style={{
   position: "relative",
   zIndex: 2,
-  transform: `translateX(${currentX}px)`,
+  transform: `translateX(${currentX * dirX}px)`,
   transition: startX === null ? "transform 180ms ease" : "none",
   borderRadius: 16,
   touchAction: "pan-y",
@@ -539,7 +541,9 @@ onPointerDown={(event) => {
         onPointerMove={(event) => {
           if (startX === null) return;
 
-          const deltaX = event.clientX - startX;
+          // En LÓGICO: el panel de acciones se ancla con insetInlineStart, así que
+          // en RTL sale por la derecha y abrirlo es arrastrar hacia la izquierda.
+          const deltaX = (event.clientX - startX) * dirX;
 
 if (deltaX > 0) {
   if (deltaX > 6) {

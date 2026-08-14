@@ -1,5 +1,7 @@
 "use client";
 
+import { useDirectionFactor } from "@/lib/i18n/useDirectionFactor";
+
 import Image from "next/image";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
@@ -149,6 +151,10 @@ export default function PostImageViewer({
   const [showExactDate, setShowExactDate] = useState(false);
   const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
   const [mobileCommentsOpen, setMobileCommentsOpen] = useState(false);
+  // +1 / -1 según el sentido de lectura. El arrastre se guarda en LÓGICO (el dedo
+  // se multiplica al leerlo), así los umbrales y el "diffX < 0 ⇒ siguiente" siguen
+  // valiendo; se vuelve a multiplicar solo al pintar el translateX.
+  const dirX = useDirectionFactor();
   const [mobileDragOffsetX, setMobileDragOffsetX] = useState(0);
   const [mobileDragOffsetY, setMobileDragOffsetY] = useState(0);
   const [mobileVerticalClosing, setMobileVerticalClosing] = useState(false);
@@ -1058,8 +1064,8 @@ const liveBtnStyle: CSSProperties = {
             background: "#000",
             transform:
               label === "Anterior"
-                ? `translateX(calc(-100% + ${mobileDragOffsetX}px))`
-                : `translateX(calc(100% + ${mobileDragOffsetX}px))`,
+                ? `translateX(calc(${-100 * dirX}% + ${mobileDragOffsetX * dirX}px))`
+                : `translateX(calc(${100 * dirX}% + ${mobileDragOffsetX * dirX}px))`,
             transition: mobileSwipeAnimating ? "transform 180ms ease" : "none",
             display: "grid",
             placeItems: "center",
@@ -1113,8 +1119,8 @@ const previewUrl = media.url;
           background: "#000",
           transform:
             label === "Anterior"
-              ? `translateX(calc(-100% + ${mobileDragOffsetX}px))`
-              : `translateX(calc(100% + ${mobileDragOffsetX}px))`,
+              ? `translateX(calc(${-100 * dirX}% + ${mobileDragOffsetX * dirX}px))`
+              : `translateX(calc(${100 * dirX}% + ${mobileDragOffsetX * dirX}px))`,
           transition: mobileSwipeAnimating ? "transform 180ms ease" : "none",
         }}
       />
@@ -1265,7 +1271,7 @@ const previewUrl = media.url;
               ? heroActive
                 ? `translate3d(0, 0, 0) scale(1)`
                 : `translate3d(0, ${mobileDragOffsetY}px, 0) scale(${mobileVerticalScale})`
-              : `translate3d(${mobileDragOffsetX}px, 0, 0) scale(1)`,
+              : `translate3d(${mobileDragOffsetX * dirX}px, 0, 0) scale(1)`,
             transition: mobileSwipeAnimating ? "transform 180ms ease" : undefined,
             opacity: mobileOverlayOpacity,
             background: "#000",
@@ -1284,7 +1290,7 @@ const previewUrl = media.url;
           inset: 0,
           transform: mobileGestureAxis === "vertical"
             ? `translate3d(0, ${mobileDragOffsetY}px, 0) scale(${mobileVerticalScale})`
-            : `translate3d(${mobileDragOffsetX}px, 0, 0) scale(1)`,
+            : `translate3d(${mobileDragOffsetX * dirX}px, 0, 0) scale(1)`,
           transition: mobileSwipeAnimating ? "transform 180ms ease" : undefined,
           opacity: mobileOverlayOpacity,
           background: "#000",
@@ -1398,7 +1404,7 @@ const previewUrl = media.url;
 
           if (!touch || !startX) return;
 
-          const diffX = touch.clientX - startX;
+          const diffX = (touch.clientX - startX) * dirX;
           const diffY = touch.clientY - startY;
 
           const absX = Math.abs(diffX);
@@ -1469,7 +1475,7 @@ const previewUrl = media.url;
             return;
           }
 
-          const diffX = touch.clientX - startX;
+          const diffX = (touch.clientX - startX) * dirX;
           const diffY = touch.clientY - startY;
 
           if (axis === "vertical" && diffY > 120) {

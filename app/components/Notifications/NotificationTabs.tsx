@@ -57,7 +57,11 @@ export default function NotificationTabs({
       {/* Barra selectora única que desliza entre pestañas (como el subnav de wallet). */}
       <span
         className="ntabIndicator"
-        style={{ transform: `translateX(${activeIndex * 100}%)` }}
+        // La barra se ancla con `inset-inline-start`, que en RTL la lleva sola al
+        // borde derecho. Pero `translateX` no se voltea: seguiría avanzando hacia
+        // la derecha, fuera de las pestañas. El signo sale de --vb-dir
+        // (globals.css). Aquí no hace falta el factor de JS porque no hay gesto.
+        style={{ transform: `translateX(calc(${activeIndex * 100}% * var(--vb-dir, 1)))` }}
         aria-hidden="true"
       />
 

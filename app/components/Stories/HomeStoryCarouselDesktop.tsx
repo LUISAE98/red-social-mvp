@@ -1,4 +1,5 @@
 "use client";
+import { useDirectionFactor } from "@/lib/i18n/useDirectionFactor";
 /* eslint-disable react-hooks/refs */
 
 import Image from "next/image";
@@ -79,6 +80,11 @@ export default function HomeStoryCarouselDesktop({
 }: Props) {
   // Freeze groups at mount so live Firestore updates don't shift indices mid-session
   const groups = useRef(groupsProp).current;
+
+  // +1 / -1 según el sentido de lectura. Este carrusel no tiene gesto, pero sí dos
+  // capas que hay que voltear a la vez: la imagen (translateX) y su área clicable,
+  // que se posiciona aparte porque un transform no mueve la caja del DOM.
+  const dirX = useDirectionFactor();
 
   const [activeIdx, setActiveIdx] = useState(initialGroupIndex);
   const [phase, setPhase] = useState<Phase>("idle");
@@ -161,7 +167,10 @@ export default function HomeStoryCarouselDesktop({
     return {
       position: "absolute", width: PW, height: PH,
       borderRadius: 18, overflow: "hidden",
-      transform: `translateX(${tx}px) scale(${sc})`,
+      // El sentido lo pone --vb-dir/dirX: en RTL la vista previa "anterior" va a
+      // la derecha. El área clicable de abajo se voltea con el MISMO factor, o el
+      // clic se quedaría donde ya no está la imagen.
+      transform: `translateX(${tx * dirX}px) scale(${sc})`,
       opacity: op, transition: tr,
       willChange: "transform, opacity", zIndex,
     };
@@ -172,9 +181,8 @@ export default function HomeStoryCarouselDesktop({
   const previewHitW = Math.round(PW * NEXT_SCALE);
   const previewHitH = Math.round(PH * NEXT_SCALE);
   function hitAreaStyle(side: "left" | "right"): React.CSSProperties {
-    const marginLeft = side === "left"
-      ? Math.round(-offsetX - previewHitW / 2)
-      : Math.round(offsetX - previewHitW / 2);
+    const dx = (side === "left" ? -offsetX : offsetX) * dirX;
+    const marginLeft = Math.round(dx - previewHitW / 2);
     return {
       position: "absolute",
       left: "50%", top: "50%",
