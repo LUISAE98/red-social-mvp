@@ -372,19 +372,25 @@ const formattedGroupPostsCount =
     ? "—"
     : new Intl.NumberFormat(locale).format(groupPostsCount);
 
+// Ventas hechas dentro de esta comunidad. Lo lleva el ledger en el backend; el
+// cliente solo lo lee del documento de la comunidad.
+const groupExperiencesCount = (() => {
+  const raw = (group as { experiencesCount?: unknown } | null)?.experiencesCount;
+  return typeof raw === "number" && raw > 0 ? raw : 0;
+})();
+
 /**
  * Los tres datos de la portada. Se arman aquí una sola vez porque la pantalla
  * tiene dos renders distintos —el de dentro y el de la antesala de una
  * comunidad cerrada— y en los dos va la misma fila.
  *
- * "Comunidad" y su estado van emparejados, del mismo tamaño: no hay cifra que
- * destacar y juntos se leen como una frase.
+ * El tipo de comunidad va en una sola línea: la palabra "Comunidad" encima no
+ * decía nada que no dijera ya la pantalla entera.
  */
 const groupStatsItems: StatItem[] = [
   {
     key: "visibility",
-    top: tCommon("community"),
-    bottom:
+    top:
       group?.visibility === "public"
         ? tGroups("publicLabel")
         : group?.visibility === "private"
@@ -410,6 +416,23 @@ const groupStatsItems: StatItem[] = [
       locale
     ),
   },
+  // Solo a partir de la primera venta hecha dentro de esta comunidad. Un "0
+  // Experiencias" en cada comunidad nueva diría lo contrario de lo que el dato
+  // busca decir.
+  ...(groupExperiencesCount > 0
+    ? [
+        {
+          key: "experiences",
+          top: new Intl.NumberFormat(locale).format(groupExperiencesCount),
+          bottom: capitalizeFirst(
+            groupExperiencesCount === 1
+              ? tCommon("experience")
+              : tCommon("experiences"),
+            locale
+          ),
+        },
+      ]
+    : []),
 ];
 
 // When a group switches from public to private mid-session, force a refresh

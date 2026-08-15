@@ -22,8 +22,8 @@ const COMISION_PCT = Math.round(WALLET_COMMISSION_RATE * 100);
 
 const PREGUNTAS: { p: string; r: string }[] = [
   {
-    p: "¿Cómo creo mi cuenta de creador?",
-    r: "Creas tu cuenta con tu correo o con Google, completas tu perfil y desde tu wallet activas las experiencias que quieras ofrecer. No hay solicitud que aprobar ni lista de espera, la misma cuenta con la que ves contenido es con la que vendes.",
+    p: "¿Necesito una cuenta especial para crear y vender?",
+    r: "No. En Vibra todos usan la misma cuenta. Puedes registrarte, completar tu perfil y activar los servicios que quieras ofrecer. Cuando solicites tu primer retiro, validaremos tu identidad y al completar la verificación, tu cuenta quedará marcada con un distintivo especial para que los usuarios te identifiquen como creador.",
   },
   {
     p: "¿Qué puedo ofrecer?",

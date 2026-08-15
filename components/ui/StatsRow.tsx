@@ -18,8 +18,12 @@ export type StatItem = {
   key: string;
   /** Renglón de arriba. */
   top: string;
-  /** Renglón de abajo. */
-  bottom: string;
+  /**
+   * Renglón de abajo. Se puede omitir: el dato que no tiene cifra ni palabra que
+   * lo nombre —"Público", "Privada"— es una sola línea y se centra a lo alto de
+   * su columna, para que no quede colgando de arriba con un hueco debajo.
+   */
+  bottom?: string;
   /**
    * Los dos renglones del mismo tamaño, para el dato que no tiene cifra. El
    * tamaño queda a medio camino entre la cifra y la palabra de sus vecinos, así
@@ -36,8 +40,16 @@ export type StatItem = {
 };
 
 export default function StatsRow({ items }: { items: StatItem[] }) {
+  if (items.length === 0) return null;
+
   return (
-    <div className="vb-stats">
+    <div
+      className="vb-stats"
+      // Las columnas salen de cuántos datos haya, no de un número fijo: el de
+      // experiencias solo aparece a partir de la primera venta, así que la misma
+      // fila se pinta con tres o con cuatro según el perfil.
+      style={{ "--vb-stat-count": items.length } as React.CSSProperties}
+    >
       <style jsx global>{`
         /* Toda la fila esta dibujada a partir de --vb-stat-scale: las medidas de
            abajo son las de referencia y la escala las mueve todas a la vez. Asi
@@ -49,7 +61,7 @@ export default function StatsRow({ items }: { items: StatItem[] }) {
           width: 100%;
           max-width: calc(460px * var(--vb-stat-scale));
           display: grid;
-          grid-template-columns: repeat(3, minmax(0, 1fr));
+          grid-template-columns: repeat(var(--vb-stat-count, 3), minmax(0, 1fr));
         }
 
         .vb-stat {
@@ -118,6 +130,17 @@ export default function StatsRow({ items }: { items: StatItem[] }) {
           min-height: calc(20px * var(--vb-stat-scale));
         }
 
+        /* El dato de una sola linea se centra a lo alto de su columna, contra
+           los dos renglones de sus vecinas. Arriba del todo se leeria como si
+           le faltara el de abajo. */
+        .vb-stat--single {
+          justify-content: center;
+        }
+
+        .vb-stat--single .vb-stat-line:first-child {
+          min-height: 0;
+        }
+
         .vb-stat-value {
           font-size: calc(17px * var(--vb-stat-scale));
           font-weight: 600;
@@ -166,12 +189,16 @@ export default function StatsRow({ items }: { items: StatItem[] }) {
       `}</style>
 
       {items.map((item) => {
+        const single = item.bottom === undefined;
         const topClass = item.paired ? "vb-stat-pair" : "vb-stat-value";
         const bottomClass = item.paired ? "vb-stat-pair" : "vb-stat-word";
+        const cellClass = single ? "vb-stat vb-stat--single" : "vb-stat";
         const lines = (
           <>
             <span className={`vb-stat-line ${topClass}`}>{item.top}</span>
-            <span className={`vb-stat-line ${bottomClass}`}>{item.bottom}</span>
+            {single ? null : (
+              <span className={`vb-stat-line ${bottomClass}`}>{item.bottom}</span>
+            )}
           </>
         );
 
@@ -179,14 +206,14 @@ export default function StatsRow({ items }: { items: StatItem[] }) {
           <button
             key={item.key}
             type="button"
-            className="vb-stat vb-stat-button"
+            className={`${cellClass} vb-stat-button`}
             onClick={item.onClick}
             aria-label={item.ariaLabel}
           >
             {lines}
           </button>
         ) : (
-          <div key={item.key} className="vb-stat">
+          <div key={item.key} className={cellClass}>
             {lines}
           </div>
         );

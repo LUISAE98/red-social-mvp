@@ -119,6 +119,8 @@
     "members": "members",
     "publication": "post",
     "publications": "posts",
+    "experience": "experience",
+    "experiences": "experiences",
     "monetization": "Monetization",
     "muteAriaLabel": "Mute",
     "prevStory": "Previous story",

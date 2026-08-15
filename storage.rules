@@ -24,6 +24,11 @@ service firebase.storage {
      * ⚠️ Solo para comunidades. Un post de PERFIL se descarta antes con
      * `isProfileContainer()`: ahí no hay comunidad que consultar.
      */
+    /** ¿Quien pide el archivo es quien lo subió? El uid va en la propia ruta. */
+    function isOwnUpload(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+
     /**
      * ¿Este segmento es el contenedor de un post de PERFIL y no una comunidad?
      *
@@ -125,13 +130,26 @@ service firebase.storage {
     // corre cuando alguien usa el SDK — al subir, o al hurgar.
     // ==============================
     match /posts/{groupId}/{uid}/{folder}/{fileName} {
-      // Un post de PERFIL no lleva comunidad en la ruta: lleva el pseudo-contenedor
-      // `profile-{uid}`. Va primero y con `||` para que ni siquiera se intente la
-      // consulta a Firestore — no hay ninguna comunidad que consultar, y buscar
-      // `groups/profile-{uid}` es una lectura entre servicios que solo puede fallar.
-      // No hay riesgo de colisión: los id de comunidad son alfanuméricos de 20
-      // caracteres, así que ninguno puede empezar por `profile-`.
-      allow read: if isProfileContainer(groupId) || !isRestrictedGroup(groupId);
+      // ORDEN IMPORTANTE, y los dos primeros van antes A PROPÓSITO: `||`
+      // cortocircuita, así que ninguno de los dos llega a tocar Firestore.
+      //
+      //   1. `isOwnUpload` — quien subió el archivo lee el suyo. Es lo que hace
+      //      `getDownloadURL` justo después de subir, o sea el camino de publicar.
+      //   2. `isProfileContainer` — un post de PERFIL no lleva comunidad en la
+      //      ruta sino el pseudo-contenedor `profile-{uid}`; no hay comunidad que
+      //      consultar. Sin colisión posible: los id de comunidad son
+      //      alfanuméricos de 20 caracteres y ninguno empieza por `profile-`.
+      //   3. Solo para leer el archivo DE OTRO en una comunidad se consulta si
+      //      está restringida.
+      //
+      // ⚠️ Si la lectura entre servicios de la cláusula 3 falla, la evaluación
+      // ERROR-A y la regla deniega. Eso es correcto —falla cerrado— pero antes se
+      // llevaba por delante también el camino de publicar, porque subir termina
+      // leyendo el propio archivo. Con `isOwnUpload` delante, publicar ya no
+      // depende de que esa consulta funcione.
+      allow read: if isOwnUpload(uid)
+        || isProfileContainer(groupId)
+        || !isRestrictedGroup(groupId);
 
       allow write: if isRealAccount()
         && request.auth.uid == uid
@@ -148,7 +166,10 @@ service firebase.storage {
     // del post al que cuelga el comentario.
     // ==============================
     match /commentImages/{postId}/{uid}/{folder}/{fileName} {
-      allow read: if !isRestrictedGroup(postGroupId(postId));
+      // Mismo motivo que en las imágenes de post: quien subió lee lo suyo sin
+      // pasar por la consulta entre servicios, que es la que rompe el camino de
+      // publicar cuando falla. Ver el comentario largo de arriba.
+      allow read: if isOwnUpload(uid) || !isRestrictedGroup(postGroupId(postId));
 
       allow write: if isRealAccount()
         && request.auth.uid == uid

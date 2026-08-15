@@ -168,6 +168,11 @@ type UserDoc = {
   interests?: import("@/types/group").CanonicalGroupCategory[] | null;
   followersCount?: number;
   socialLinks?: SocialLinks | null;
+  /**
+   * Ventas del creador, de cualquiera de los once servicios. Lo lleva el ledger
+   * en el backend; el cliente solo lo lee.
+   */
+  experiencesCount?: number;
 };
 
 // ─── Module-level profile cache ───────────────────────────────────────────────
@@ -625,6 +630,14 @@ useEffect(() => {
       : profilePostsCount.toLocaleString(intlLocale(locale));
   const postsWord =
     profilePostsCount === 1 ? tCommon("publication") : tCommon("publications");
+
+  // El dato de experiencias NO aparece hasta la primera venta. Un "0
+  // Experiencias" en cada perfil nuevo diría lo contrario de lo que el dato
+  // busca decir.
+  const experiencesCount =
+    typeof userDoc?.experiencesCount === "number" && userDoc.experiencesCount > 0
+      ? userDoc.experiencesCount
+      : 0;
 
 function openFollowersOverlay() {
   if (!isOwner) return;
@@ -2662,13 +2675,12 @@ const res = (await createExclusiveSessionRequest({
 
                   <StatsRow
                     items={[
-                      // Emparejado porque no tiene cifra: "Perfil" arriba solo
-                      // dice de qué se está hablando, y el estado abajo es lo
-                      // que de verdad importa del dato.
+                      // Una sola línea: la palabra "Perfil" encima no decía
+                      // nada que el estado no dijera ya, y el dato es el
+                      // estado.
                       {
                         key: "visibility",
-                        top: tCommon("profile"),
-                        bottom: profileVisibilityWord,
+                        top: profileVisibilityWord,
                         paired: true,
                       },
                       {
@@ -2685,6 +2697,20 @@ const res = (await createExclusiveSessionRequest({
                         top: postsCountText,
                         bottom: capitalizeFirst(postsWord, locale),
                       },
+                      ...(experiencesCount > 0
+                        ? [
+                            {
+                              key: "experiences",
+                              top: experiencesCount.toLocaleString(intlLocale(locale)),
+                              bottom: capitalizeFirst(
+                                experiencesCount === 1
+                                  ? tCommon("experience")
+                                  : tCommon("experiences"),
+                                locale
+                              ),
+                            },
+                          ]
+                        : []),
                     ]}
                   />
 

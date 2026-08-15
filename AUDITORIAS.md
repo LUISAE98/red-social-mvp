@@ -63,6 +63,20 @@ Al borrar una publicación no se borran sus imágenes ni sus miniaturas de Stora
 **Qué haría falta:** un trigger `onDocumentDeleted` sobre `posts` que barra el prefijo del post. Ojo con el borrado suave: hoy borrar un post lo marca, no lo elimina, así que el disparador correcto es el barrido de los marcados, no el borrado del documento.
 
 ---
+
+### 5. Habilitar la lectura entre servicios de las reglas de Storage
+
+**Estado:** bloqueado, lo tienes que hacer tú en consola. **Hay un apaño desplegado que sostiene el producto mientras tanto.**
+
+El gate de lectura que cerró **B4-C02** consulta Firestore desde `storage.rules` (`firestore.exists(/databases/(default)/documents/groups/$(groupId))`) para saber si la comunidad es privada u oculta. Esa consulta **entre servicios** no está funcionando: la evaluación lanza error y la regla deniega. El síntoma era `storage/unauthorized` al subir cualquier imagen o portada de video a un post de comunidad.
+
+**Por qué se coló:** las reglas compilan y despliegan sin problema por CLI; el permiso que la consulta necesita se concede desde la consola de Firebase, que lo pide con un aviso al guardar reglas con llamadas entre servicios. Desplegando por CLI ese aviso nunca aparece. Además, el gate solo corre cuando alguien usa el SDK —el contenido público se sirve con URL de token, que no evalúa reglas—, así que estuvo desplegado sin ejercitarse desde el Bloque 4.
+
+**Apaño desplegado:** en `storage.rules`, `allow read` de `posts/…` y `commentImages/…` empieza por `isOwnUpload(uid)`. Como `||` cortocircuita, quien sube lee su propio archivo sin tocar Firestore, que es lo que hace `getDownloadURL` justo después de subir. Publicar dejó de depender de la consulta rota. Leer el archivo **de otro** en una comunidad sigue pasando por ella y, mientras falle, se deniega — falla cerrado, que es lo correcto, y no afecta al producto porque el contenido público se sirve por token y el restringido lo firma `getRestrictedMediaUrls` con el Admin SDK.
+
+**Qué falta:** conceder el permiso al agente de servicio de reglas sobre Firestore. Consola de Firebase → Storage → Reglas; al guardar debería aparecer el aviso para habilitarlo. Si no aparece, hay que darlo a mano en IAM y conviene mirar juntos cuál es la cuenta exacta antes de tocar nada.
+
+---
 ## Bloques cerrados
 
 ### Bloque 1 — Superficie de ataque y fronteras de confianza

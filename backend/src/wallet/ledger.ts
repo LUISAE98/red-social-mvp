@@ -185,8 +185,28 @@ export async function recordEarning(
   );
   const sRef = summaryRef(creatorId);
 
+  // Contador público de experiencias. Va aquí y no en otro lado porque ESTE es
+  // el embudo por el que pasan las once formas de vender: contando aquí no hay
+  // una venta que se escape ni una que se cuente dos veces —el id de la entrada
+  // es determinista y arriba se sale si ya existía—.
+  //
+  // Una venta hecha dentro de una comunidad suma en las dos cuentas: en la del
+  // creador, porque la hizo él, y en la de la comunidad, porque ahí ocurrió.
+  const creatorRef = db.collection("users").doc(creatorId);
+  const groupRef =
+    params.channelType === "group" && params.channelId
+      ? db.collection("groups").doc(params.channelId)
+      : null;
+
   await db.runTransaction(async (tx) => {
-    const [entrySnap, sSnap] = await Promise.all([tx.get(entryRef), tx.get(sRef)]);
+    // Todas las lecturas ANTES de cualquier escritura: es la regla de las
+    // transacciones de Firestore.
+    const [entrySnap, sSnap, creatorSnap, groupSnap] = await Promise.all([
+      tx.get(entryRef),
+      tx.get(sRef),
+      tx.get(creatorRef),
+      groupRef ? tx.get(groupRef) : Promise.resolve(null),
+    ]);
     if (entrySnap.exists) return; // ya registrado
 
     const s = sSnap.exists ? (sSnap.data() as SummaryData) : emptySummary();
@@ -228,6 +248,29 @@ export async function recordEarning(
     }
 
     tx.set(sRef, { ...s, currency: SETTLEMENT_CURRENCY, updatedAt: now }, { merge: true });
+
+    // Se suma en cuanto la venta ocurre, no cuando el dinero se libera: la
+    // experiencia ya pasó. Y no se resta al devolver — decisión de producto, el
+    // número solo sube.
+    //
+    // Se comprueba que el documento exista antes de escribirlo. Con `merge` a
+    // secas, una comunidad ya borrada reviviría como un documento fantasma con
+    // un solo campo dentro.
+    if (creatorSnap.exists) {
+      tx.set(
+        creatorRef,
+        { experiencesCount: FieldValue.increment(1) },
+        { merge: true }
+      );
+    }
+
+    if (groupRef && groupSnap?.exists) {
+      tx.set(
+        groupRef,
+        { experiencesCount: FieldValue.increment(1) },
+        { merge: true }
+      );
+    }
   });
 }
 
