@@ -16,6 +16,13 @@ export const stripeSecretKey = defineSecret("STRIPE_SECRET_KEY");
 
 const STRIPE_API_BASE = "https://api.stripe.com/v1";
 
+/**
+ * Tope de espera por llamada a Stripe. Holgado para no cortar una operación
+ * legítima lenta, pero muy por debajo del timeout de la Cloud Function, que es
+ * de minutos: lo que se evita es quedarse colgado pagando instancia.
+ */
+const STRIPE_TIMEOUT_MS = 20_000;
+
 export type StripeResult<T> =
   | { ok: true; status: number; data: T }
   | { ok: false; status: number; error: string };
@@ -81,7 +88,16 @@ export async function stripeFetch<T = unknown>(
   }
 
   try {
-    const res = await fetch(url, { method: init.method ?? "GET", headers, body });
+    // ⚠️ Con timeout explícito. Sin él, una conexión lenta retiene la instancia
+    // hasta el timeout global de la Cloud Function (minutos): se paga ese tiempo,
+    // se ocupa concurrencia y el cliente se queda colgado sin poder reintentar.
+    // Las rutas proxy de Next ya lo hacían; los clientes centrales, no.
+    const res = await fetch(url, {
+      method: init.method ?? "GET",
+      headers,
+      body,
+      signal: AbortSignal.timeout(STRIPE_TIMEOUT_MS),
+    });
     const text = await res.text().catch(() => "");
     if (!res.ok) {
       logger.error("stripeFetch error", { path, status: res.status, text: text.slice(0, 500) });

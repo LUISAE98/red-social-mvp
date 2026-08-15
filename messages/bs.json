@@ -65,8 +65,7 @@
     "seeAllMessages": "Prikaži sve",
     "settings": "Postavke",
     "seeAllFollowing": "Prikaži sve",
-    "seeAllCommunities": "Prikaži sve",
-    "publishTo": "Objavi u"
+    "seeAllCommunities": "Prikaži sve"
   },
   "common": {
     "accept": "Prihvati",
@@ -75,6 +74,8 @@
     "block": "Blokiraj",
     "cancel": "Odustani",
     "edit": "Uredi",
+    "date": "Datum",
+    "time": "Vrijeme",
     "create": "Stvori",
     "understood": "Jasno",
     "changeLanguage": "Promijeni jezik",

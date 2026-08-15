@@ -29,6 +29,23 @@ const COLLECTION_BY_TYPE: Record<SessionType, string> = {
 // Estados que permiten entrar a la videollamada.
 const VALID_ENTRY_STATUSES = new Set(["scheduled", "ready_to_prepare", "in_preparation", "auto_rejected_no_show"]);
 
+/**
+ * Estados de pago que dan derecho a entrar a la videollamada.
+ *
+ * ⚠️ Aquí SOLO se aceptaba `simulated_paid`, que es el estado del flujo simulado
+ * de antes de Stripe. El flujo real escribe `authorized` al retener y `paid` al
+ * capturar, así que una sesión pagada de verdad y bien agendada NO obtenía token:
+ * comprador y creador se quedaban fuera de la llamada con el dinero ya cobrado.
+ * Todos los demás sitios que miran el pago —`notifications.ts`, los triggers del
+ * ledger— aceptan los dos valores desde siempre; este se quedó atrás.
+ *
+ * `authorized` NO entra a propósito: es solo la retención previa. El cobro se
+ * captura al AGENDAR (`proposeMeetGreetSchedule` / su gemela de sesiones
+ * exclusivas), y esa misma operación deja el estado en `paid`. Si algo sigue en
+ * `authorized` es que todavía no hay cita a la que entrar.
+ */
+const VALID_PAYMENT_STATUSES = new Set(["paid", "simulated_paid"]);
+
 // Mensajes específicos para estados terminales (antes del check genérico de estado).
 const TERMINAL_STATUS_MESSAGES: Partial<Record<string, string>> = {
   cancelled: "Esta sesión fue cancelada.",
@@ -172,7 +189,7 @@ export const getLivekitToken = onCall(
     }
 
     // ── Validar pago ───────────────────────────────────────────────────────────
-    if (paymentStatus !== "simulated_paid") {
+    if (!VALID_PAYMENT_STATUSES.has(paymentStatus as string)) {
       logger.warn("livekit_token_denied_payment", {
         uid,
         sessionId: cleanId,

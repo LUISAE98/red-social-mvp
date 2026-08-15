@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslations, useLocale } from "next-intl";
+import WheelPanel from "@/components/ui/WheelPanel";
 
 export type ScheduleParts = {
   day: string;
@@ -99,6 +100,10 @@ export default function ScheduleDateTimeSelector({
   disabled = false,
 }: Props) {
   const tWallet = useTranslations("wallet");
+  const tCommon = useTranslations("common");
+  // Fecha y hora en paneles SEPARADOS: cinco tambores a la vez son un muro, y
+  // casi siempre se cambia una cosa o la otra, no las dos.
+  const [wheelOpen, setWheelOpen] = useState<"date" | "time" | null>(null);
   const locale = useLocale();
   const now = new Date();
   const currentYear = now.getFullYear();
@@ -160,6 +165,18 @@ export default function ScheduleDateTimeSelector({
   const minuteOptions = isSameHour
     ? allMinuteOptions.filter((m) => Number(m) > currentMinute)
     : allMinuteOptions;
+
+  // Los cinco campos que se ven fuera, cada uno con su r\u00f3tulo y su valor.
+  const mesElegido = allMonthOptions.find((m) => m.value === value.month);
+  const camposFecha = [
+    { key: "day", rotulo: tWallet("dayLabel"), texto: value.day },
+    { key: "month", rotulo: tWallet("monthLabel"), texto: mesElegido?.label ?? value.month },
+    { key: "year", rotulo: tWallet("yearLabel"), texto: value.year },
+  ];
+  const camposHora = [
+    { key: "hour", rotulo: tWallet("hourLabel"), texto: value.hour },
+    { key: "minute", rotulo: tWallet("minuteLabel"), texto: value.minute },
+  ];
 
   const valueRef = useRef(value);
   valueRef.current = value;
@@ -344,91 +361,110 @@ export default function ScheduleDateTimeSelector({
         }
       `}</style>
 
+      {/* Los cinco campos siguen separados y con su rótulo, como estaban. Lo
+          único que cambia es que ya no son listas del sistema: los de fecha
+          abren el panel de fecha y los de hora el de hora. */}
       <div>
         <div className="selectorGrid">
-          <label className="fieldGroup">
-            <span className="label">{tWallet("dayLabel")}</span>
-            <select
-              value={value.day}
-              onChange={(e) => updatePart("day", e.target.value)}
-              disabled={disabled}
-              className="field"
-            >
-              {dayOptions.map((d) => (
-                <option key={d} value={d}>
-                  {d}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="fieldGroup">
-            <span className="label">{tWallet("monthLabel")}</span>
-            <select
-              value={value.month}
-              onChange={(e) => updatePart("month", e.target.value)}
-              disabled={disabled}
-              className="field"
-            >
-              {monthOptions.map((month) => (
-                <option key={month.value} value={month.value}>
-                  {month.label}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="fieldGroup">
-            <span className="label">{tWallet("yearLabel")}</span>
-            <select
-              value={value.year}
-              onChange={(e) => updatePart("year", e.target.value)}
-              disabled={disabled}
-              className="field"
-            >
-              {yearOptions.map((year) => (
-                <option key={year} value={year}>
-                  {year}
-                </option>
-              ))}
-            </select>
-          </label>
+          {camposFecha.map((campo) => (
+            <label className="fieldGroup" key={campo.key}>
+              <span className="label">{campo.rotulo}</span>
+              <button
+                type="button"
+                onClick={() => setWheelOpen("date")}
+                disabled={disabled}
+                className="field"
+                style={{
+                  textAlign: "start",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                  cursor: disabled ? "not-allowed" : "pointer",
+                }}
+              >
+                {campo.texto}
+              </button>
+            </label>
+          ))}
         </div>
 
         <div className="timeGrid">
-          <label className="fieldGroup">
-            <span className="label">{tWallet("hourLabel")}</span>
-            <select
-              value={value.hour}
-              onChange={(e) => updatePart("hour", e.target.value)}
-              disabled={disabled}
-              className="field"
-            >
-              {hourOptions.map((h) => (
-                <option key={h} value={h}>
-                  {h}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="fieldGroup">
-            <span className="label">{tWallet("minuteLabel")}</span>
-            <select
-              value={value.minute}
-              onChange={(e) => updatePart("minute", e.target.value)}
-              disabled={disabled}
-              className="field"
-            >
-              {minuteOptions.map((m) => (
-                <option key={m} value={m}>
-                  {m}
-                </option>
-              ))}
-            </select>
-          </label>
+          {camposHora.map((campo) => (
+            <label className="fieldGroup" key={campo.key}>
+              <span className="label">{campo.rotulo}</span>
+              <button
+                type="button"
+                onClick={() => setWheelOpen("time")}
+                disabled={disabled}
+                className="field"
+                style={{
+                  textAlign: "start",
+                  cursor: disabled ? "not-allowed" : "pointer",
+                }}
+              >
+                {campo.texto}
+              </button>
+            </label>
+          ))}
         </div>
       </div>
+      <WheelPanel
+        open={wheelOpen === "date"}
+        onClose={() => setWheelOpen(null)}
+        onConfirm={() => setWheelOpen(null)}
+        title={tCommon("date")}
+        confirmLabel={tCommon("save")}
+        closeAriaLabel={tCommon("closeAriaLabel")}
+        columns={[
+          {
+            key: "day",
+            label: tWallet("dayLabel"),
+            items: dayOptions.map((d) => ({ value: d, label: d })),
+            value: value.day,
+            onChange: (d) => updatePart("day", d),
+          },
+          {
+            key: "month",
+            label: tWallet("monthLabel"),
+            items: monthOptions,
+            value: value.month,
+            onChange: (m) => updatePart("month", m),
+            flex: 1.6,
+          },
+          {
+            key: "year",
+            label: tWallet("yearLabel"),
+            items: yearOptions.map((y) => ({ value: y, label: y })),
+            value: value.year,
+            onChange: (y) => updatePart("year", y),
+          },
+        ]}
+      />
+
+      <WheelPanel
+        open={wheelOpen === "time"}
+        onClose={() => setWheelOpen(null)}
+        onConfirm={() => setWheelOpen(null)}
+        title={tCommon("time")}
+        confirmLabel={tCommon("save")}
+        closeAriaLabel={tCommon("closeAriaLabel")}
+        columns={[
+          {
+            key: "hour",
+            label: tWallet("hourLabel"),
+            items: hourOptions.map((h) => ({ value: h, label: h })),
+            value: value.hour,
+            onChange: (h) => updatePart("hour", h),
+          },
+          {
+            key: "minute",
+            label: tWallet("minuteLabel"),
+            items: minuteOptions.map((m) => ({ value: m, label: m })),
+            value: value.minute,
+            onChange: (m) => updatePart("minute", m),
+          },
+        ]}
+      />
     </>
   );
 }

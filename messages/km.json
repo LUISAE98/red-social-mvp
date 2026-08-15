@@ -65,8 +65,7 @@
     "seeAllMessages": "មើលទាំងអស់",
     "settings": "ការកំណត់",
     "seeAllFollowing": "មើលទាំងអស់",
-    "seeAllCommunities": "មើលទាំងអស់",
-    "publishTo": "បង្ហោះទៅ"
+    "seeAllCommunities": "មើលទាំងអស់"
   },
   "common": {
     "accept": "ទទួលយក",
@@ -75,6 +74,8 @@
     "block": "ទប់ស្កាត់",
     "cancel": "បោះបង់",
     "edit": "កែសម្រួល",
+    "date": "កាលបរិច្ឆេទ",
+    "time": "ម៉ោង",
     "create": "បង្កើត",
     "understood": "យល់ហើយ",
     "changeLanguage": "ប្តូរភាសា",

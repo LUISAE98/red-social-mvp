@@ -65,8 +65,7 @@
     "seeAllMessages": "Ara kollha",
     "settings": "Issettjar",
     "seeAllFollowing": "Ara kollha",
-    "seeAllCommunities": "Ara kollha",
-    "publishTo": "Ippubblika fuq"
+    "seeAllCommunities": "Ara kollha"
   },
   "common": {
     "accept": "Aċċetta",
@@ -75,6 +74,8 @@
     "block": "Imblokka",
     "cancel": "Ikkanċella",
     "edit": "Editja",
+    "date": "Data",
+    "time": "Ħin",
     "create": "Oħloq",
     "understood": "Fhimt",
     "changeLanguage": "Ibdel il-lingwa",

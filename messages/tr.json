@@ -65,8 +65,7 @@
     "seeAllMessages": "Tümünü gör",
     "settings": "Ayarlar",
     "seeAllFollowing": "Tümünü gör",
-    "seeAllCommunities": "Tümünü gör",
-    "publishTo": "Şuraya gönder"
+    "seeAllCommunities": "Tümünü gör"
   },
   "common": {
     "accept": "Kabul et",
@@ -75,6 +74,8 @@
     "block": "Engelle",
     "cancel": "İptal",
     "edit": "Düzenle",
+    "date": "Tarih",
+    "time": "Saat",
     "create": "Oluştur",
     "understood": "Anladım",
     "changeLanguage": "Dili değiştir",

@@ -13,6 +13,19 @@ const db = admin.firestore();
 
 type StripeCustomer = { id?: string };
 
+/**
+ * Customer de Stripe ya existente, o `null`. NO lo crea.
+ *
+ * Sirve para comprobar de quién es un método de pago: `/payment_methods/{id}`
+ * devuelve cualquier método visible para la cuenta de Vibra, no solo los del
+ * comprador, así que hay que contrastar su `customer` con el de quien pide.
+ */
+export async function getExistingStripeCustomerId(uid: string): Promise<string | null> {
+  const snap = await db.collection("stripeCustomers").doc(uid).get();
+  const existing = String(snap.data()?.customerId ?? "").trim();
+  return existing || null;
+}
+
 /** Devuelve el Customer de Stripe del comprador (lo crea si no existe). */
 export async function getOrCreateStripeCustomer(uid: string, email?: string | null): Promise<string> {
   const ref = db.collection("stripeCustomers").doc(uid);

@@ -65,8 +65,7 @@
     "seeAllMessages": "전체 보기",
     "settings": "설정",
     "seeAllFollowing": "전체 보기",
-    "seeAllCommunities": "전체 보기",
-    "publishTo": "게시 위치"
+    "seeAllCommunities": "전체 보기"
   },
   "common": {
     "accept": "수락",
@@ -75,6 +74,8 @@
     "block": "차단",
     "cancel": "취소",
     "edit": "수정",
+    "date": "날짜",
+    "time": "시간",
     "create": "만들기",
     "understood": "알겠어요",
     "changeLanguage": "언어 변경",

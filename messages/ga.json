@@ -65,8 +65,7 @@
     "seeAllMessages": "Féach orthu uile",
     "settings": "Socruithe",
     "seeAllFollowing": "Féach orthu uile",
-    "seeAllCommunities": "Féach orthu uile",
-    "publishTo": "Postáil chuig"
+    "seeAllCommunities": "Féach orthu uile"
   },
   "common": {
     "accept": "Glac leis",
@@ -75,6 +74,8 @@
     "block": "Cuir bac air",
     "cancel": "Cealaigh",
     "edit": "Cuir in eagar",
+    "date": "Dáta",
+    "time": "Am",
     "create": "Cruthaigh",
     "understood": "Tuigim",
     "changeLanguage": "Athraigh an teanga",

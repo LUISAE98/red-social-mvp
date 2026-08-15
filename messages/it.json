@@ -65,8 +65,7 @@
     "seeAllMessages": "Vedi tutti",
     "settings": "Impostazioni",
     "seeAllFollowing": "Vedi tutti",
-    "seeAllCommunities": "Vedi tutte",
-    "publishTo": "Pubblica su"
+    "seeAllCommunities": "Vedi tutte"
   },
   "common": {
     "accept": "Accetta",
@@ -75,6 +74,8 @@
     "block": "Blocca",
     "cancel": "Annulla",
     "edit": "Modifica",
+    "date": "Data",
+    "time": "Ora",
     "create": "Crea",
     "understood": "Ho capito",
     "changeLanguage": "Cambia lingua",

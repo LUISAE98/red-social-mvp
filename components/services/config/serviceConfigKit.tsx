@@ -28,6 +28,13 @@ export function useCloseOnEscape(active: boolean, onClose: () => void, disabled 
 }
 
 // Emoji por servicio (título de cada card).
+// Estos dos viven ahora en lib/services/serviceDraft (lógica pura, testeable
+// sin React). Se reexportan aquí para no romper a quien los importaba del kit.
+export {
+  DEFAULT_DONATION_SUGGESTED_AMOUNTS,
+  normalizeSuggestedAmounts,
+} from "@/lib/services/serviceDraft";
+
 export const SERVICE_EMOJIS = {
   saludo: "👋",
   consejo: "💡",
@@ -53,17 +60,6 @@ export const CUSTOM_CLASS_MIN_MINUTES = 5; // Sesión exclusiva
 export const CUSTOM_CLASS_MAX_MINUTES = 90;
 
 // Montos sugeridos de donación por defecto (MXN crudo). Cada uno debe ser >= 50.
-export const DEFAULT_DONATION_SUGGESTED_AMOUNTS: string[] = ["50", "120", "250", "490"];
-
-// Normaliza cualquier entrada a EXACTAMENTE 4 montos (string): usa el valor
-// guardado si es un número válido (> 0), o el default de esa posición.
-export function normalizeSuggestedAmounts(input: unknown): string[] {
-  const arr = Array.isArray(input) ? input : [];
-  return DEFAULT_DONATION_SUGGESTED_AMOUNTS.map((def, i) => {
-    const n = Number(arr[i]);
-    return Number.isFinite(n) && n > 0 ? String(n) : def;
-  });
-}
 
 export function Switch({
   checked,

@@ -65,8 +65,7 @@
     "seeAllMessages": "عرض الكل",
     "settings": "الإعدادات",
     "seeAllFollowing": "عرض الكل",
-    "seeAllCommunities": "عرض الكل",
-    "publishTo": "النشر في"
+    "seeAllCommunities": "عرض الكل"
   },
   "common": {
     "accept": "قبول",
@@ -75,6 +74,8 @@
     "block": "حظر",
     "cancel": "إلغاء",
     "edit": "تعديل",
+    "date": "التاريخ",
+    "time": "الوقت",
     "create": "إنشاء",
     "understood": "فهمت",
     "changeLanguage": "تغيير اللغة",

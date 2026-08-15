@@ -4,6 +4,7 @@ import {
   getFirestore,
 } from "firebase-admin/firestore";
 import { HttpsError, onCall } from "firebase-functions/v2/https";
+import { consumeVideoUploadQuota } from "./quotas";
 
 import {
   createMuxClient,
@@ -213,6 +214,7 @@ export const createMuxDonationUpload = onCall<{ profileId: string }>(
     const profileId = normalizeRequiredString(request.data?.profileId, "profileId");
 
     await assertCanCreateProfileMuxUpload(uid, profileId);
+    await consumeVideoUploadQuota(uid);
 
     const originHeader = request.rawRequest.headers.origin;
     const corsOrigin =
@@ -290,6 +292,8 @@ export const createMuxGroupDonationUpload = onCall<{ groupId: string }>(
     if (group.ownerId !== uid) {
       throw new HttpsError("permission-denied", "Solo el owner puede configurar el video de donación.");
     }
+
+    await consumeVideoUploadQuota(uid);
 
     const originHeader = request.rawRequest.headers.origin;
     const corsOrigin =
@@ -375,6 +379,10 @@ export const createMuxDirectUpload = onCall<CreateMuxDirectUploadRequest>(
     } else {
       await assertCanCreateProfileMuxUpload(uid, profileId as string);
     }
+
+    // El techo se consume DESPUÉS de comprobar el permiso: a quien no puede
+    // publicar ahí no se le gasta la cuota del día por intentarlo.
+    await consumeVideoUploadQuota(uid);
 
     await expireStaleMuxUploads({
       uid,

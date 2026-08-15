@@ -6,25 +6,22 @@
  * Publica en TU PERFIL, no en una comunidad. Es el mismo `GroupPostComposer` que
  * usa el perfil (`contextType="profile"`) y la misma lógica de subida
  * (`lib/posts/createProfilePost`); aquí solo se añade lo que el home necesita:
- * decir a dónde va la publicación y avisar cuando termina para refrescar el feed.
+ * avisar cuando la publicación aterriza, para refrescar el feed.
  *
- * 🚨 EL DESTINO SE DICE EN VOZ ALTA 🚨
- * En el perfil no hay ambigüedad posible: estás en tu perfil, publicas en tu
- * perfil. El home es una superficie compartida y Vibra tiene comunidades como
- * pilar, así que alguien con comunidades propias puede asumir que aquí elige
- * dónde publicar. La etiqueta de destino evita ese error, que no se deshace
- * socialmente aunque borres el post. Hoy solo hay una opción; el hueco queda
- * listo para cuando se permita elegir comunidad.
+ * Incluye el compositor de live con el mismo `contextType="profile"`, así que
+ * transmitir desde el home crea la transmisión en tu perfil igual que hacerlo
+ * desde ahí.
  *
- * Sin botón de live a propósito: `onLiveClick` es opcional y, al no pasarlo, el
- * compositor no lo pinta. Transmitir tiene su propio flujo de preparación y no
- * es algo que se lance desde el home de pasada.
+ * Sin etiqueta de destino: se probó un "Publicar en · Mi perfil" y sobra. Si más
+ * adelante se permite publicar a comunidades desde el home, ENTONCES hará falta
+ * un selector — mientras solo haya un destino posible, anunciarlo es ruido.
  */
 
-import { useState, type CSSProperties } from "react";
+import { useState } from "react";
 import { useTranslations } from "next-intl";
 
 import GroupPostComposer from "@/app/groups/[groupId]/components/posts/GroupPostComposer";
+import LiveComposerModal from "@/app/components/LiveComposer/LiveComposerModal";
 import { createProfilePost } from "@/lib/posts/createProfilePost";
 import { clearAllPostFeedCaches } from "@/lib/posts/post-feed-cache";
 import { waitForOwnHomeFeedPost } from "@/lib/posts/waitForOwnHomeFeedPost";
@@ -52,9 +49,9 @@ export default function HomePostComposer({
   /** Se llama tras publicar, para que el home refresque su feed. */
   onPublished?: () => void;
 }) {
-  const tNav = useTranslations("nav");
   const tProfile = useTranslations("profile");
 
+  const [liveModalOpen, setLiveModalOpen] = useState(false);
   const [uploadStatus, setUploadStatus] = useState<string | null>(null);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -127,29 +124,26 @@ export default function HomePostComposer({
     }
   }
 
-  const destinationStyle: CSSProperties = {
-    display: "flex",
-    alignItems: "center",
-    gap: 6,
-    padding: "0 4px 6px",
-    fontSize: 12,
-    color: "rgba(255,255,255,0.5)",
-    lineHeight: 1.3,
-  };
-
   return (
     <section style={{ width: "100%", minWidth: 0, padding: "8px 12px 4px" }}>
-      <div style={destinationStyle}>
-        <span>{tNav("publishTo")}</span>
-        <span style={{ color: "rgba(255,255,255,0.82)", fontWeight: 600 }}>
-          {tNav("profile")}
-        </span>
-      </div>
-
       <GroupPostComposer
         contextType="profile"
         isOwner
         onSubmit={handleSubmit}
+        onLiveClick={() => setLiveModalOpen(true)}
+      />
+
+      {/* Mismo compositor de live del perfil, con el mismo contexto: la
+          transmisión se crea en TU perfil, no en una comunidad. */}
+      <LiveComposerModal
+        open={liveModalOpen}
+        onClose={() => setLiveModalOpen(false)}
+        onSuccess={() => {
+          clearAllPostFeedCaches();
+          onPublished?.();
+        }}
+        contextType="profile"
+        profileId={currentUserId}
       />
 
       {uploadStatus ? (

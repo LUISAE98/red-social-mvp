@@ -8,7 +8,6 @@
 // (base + $3) + IVA; el creador recibe 75% de la base. Cada llamada = un súper comentario.
 
 import { onCall, HttpsError } from "firebase-functions/v2/https";
-import * as crypto from "crypto";
 import * as admin from "firebase-admin";
 import { stripeFetch, stripeSecretKey } from "./stripeClient";
 import { getOrCreateStripeCustomer } from "./stripeCustomer";
@@ -19,6 +18,8 @@ import { cardOriginForCharge } from "./cardCountry";
 import { composeCharge, chargeFields } from "../../tax/composeCharge";
 import { reserveCreditAndSplit, materializeCreditOnlyPurchase } from "./chargeWithCredit";
 import { revertBuyerCreditSpend } from "../../wallet/buyerCredit";
+import { assertIsLivePost } from "./livePostGuard";
+import { stripeIdempotencyKey } from "./idempotency";
 
 if (admin.apps.length === 0) {
   admin.initializeApp();
@@ -90,9 +91,7 @@ export const createSuperCommentStripeIntent = onCall(
     if (!postSnap.exists) throw new HttpsError("not-found", "En vivo no encontrado.");
     const post = postSnap.data() as Record<string, unknown>;
 
-    if (!post.liveData && post.postType !== "live") {
-      throw new HttpsError("failed-precondition", "Esta publicación no es un en vivo.");
-    }
+    assertIsLivePost(post);
 
     const authorId = String(post.authorId ?? "");
     if (!authorId) throw new HttpsError("failed-precondition", "En vivo sin autor.");
@@ -280,7 +279,11 @@ export const createSuperCommentStripeIntent = onCall(
     // ── Tarjeta nueva: devuelve client_secret para confirmar con Elements ────
     const res = await stripeFetch<StripePaymentIntent>("/payment_intents", {
       method: "POST",
-      idempotencyKey: crypto.randomUUID(),
+      idempotencyKey: stripeIdempotencyKey(
+        externalReference,
+        presentment.amountForStripe,
+        presentment.currency
+      ),
       form: {
         amount: presentment.amountForStripe,
         currency: presentment.currency.toLowerCase(),

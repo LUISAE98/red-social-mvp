@@ -8,7 +8,6 @@
 // Precio autoritativo del servidor (NO del cliente). Todo en modo prueba.
 
 import { onCall, HttpsError } from "firebase-functions/v2/https";
-import * as crypto from "crypto";
 import * as admin from "firebase-admin";
 import { stripeFetch, stripeSecretKey } from "./stripeClient";
 import { getOrCreateStripeCustomer } from "./stripeCustomer";
@@ -19,6 +18,7 @@ import { cardOriginForCharge } from "./cardCountry";
 import { composeCharge, chargeFields } from "../../tax/composeCharge";
 import { reserveCreditAndSplit, materializeCreditOnlyPurchase } from "./chargeWithCredit";
 import { revertBuyerCreditSpend } from "../../wallet/buyerCredit";
+import { stripeIdempotencyKey } from "./idempotency";
 
 if (admin.apps.length === 0) {
   admin.initializeApp();
@@ -172,7 +172,11 @@ export const createServiceStripeIntent = onCall(
     // ── Tarjeta nueva: devuelve client_secret para confirmar con Elements ────
     const res = await stripeFetch<StripePaymentIntent>("/payment_intents", {
       method: "POST",
-      idempotencyKey: crypto.randomUUID(),
+      idempotencyKey: stripeIdempotencyKey(
+        externalReference,
+        presentment.amountForStripe,
+        presentment.currency
+      ),
       form: {
         amount: presentment.amountForStripe,
         currency: presentment.currency.toLowerCase(),

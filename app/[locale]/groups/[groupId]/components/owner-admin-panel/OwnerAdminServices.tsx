@@ -30,11 +30,11 @@ import type {
   CustomClassWeeklyAvailability,
 } from "@/types/group";
 
-import Subscription from "./services/Subscription";
-import Greetings from "./services/Greetings";
-import Advice from "./services/Advice";
-import MeetGreet from "./services/MeetGreet";
-import CustomClass from "./services/CustomClass";
+import Subscription from "@/components/services/config/Subscription";
+import Greetings from "@/components/services/config/Greetings";
+import Advice from "@/components/services/config/Advice";
+import MeetGreet from "@/components/services/config/MeetGreet";
+import CustomClass from "@/components/services/config/CustomClass";
 import {
   SERVICE_EMOJIS, SpinningGear, DonationModeButton,
   buildManualLegacyRemovalSuccessMessage, buildOffering, buildServiceBlockDraft,

@@ -7,7 +7,6 @@
 // Modelo SOLO MÉXICO: el comprador paga (base + $3) + IVA; el creador recibe 75% de la base.
 
 import { onCall, HttpsError } from "firebase-functions/v2/https";
-import * as crypto from "crypto";
 import * as admin from "firebase-admin";
 import { stripeFetch, stripeSecretKey } from "./stripeClient";
 import { getOrCreateStripeCustomer } from "./stripeCustomer";
@@ -18,6 +17,8 @@ import { cardOriginForCharge } from "./cardCountry";
 import { composeCharge, chargeFields } from "../../tax/composeCharge";
 import { reserveCreditAndSplit, materializeCreditOnlyPurchase } from "./chargeWithCredit";
 import { revertBuyerCreditSpend } from "../../wallet/buyerCredit";
+import { assertIsLivePost } from "./livePostGuard";
+import { stripeIdempotencyKey } from "./idempotency";
 
 if (admin.apps.length === 0) {
   admin.initializeApp();
@@ -52,12 +53,13 @@ export const createLiveAccessStripeIntent = onCall(
     if (post.requiresPayment !== true) {
       throw new HttpsError("failed-precondition", "Este en vivo no requiere ticket.");
     }
-    // Debe ser realmente un EN VIVO (tiene liveData). Un post premium también trae
+    // Debe ser realmente un EN VIVO. Un post premium también trae
     // requiresPayment:true; sin este guard, comprarlo por esta ruta crearía un liveAccess
     // en vez de desbloquear el contenido premium (postAccess) → cobro sin entregar acceso.
-    if (post.liveData == null) {
-      throw new HttpsError("failed-precondition", "Esta publicación no es un en vivo.");
-    }
+    //
+    // Antes bastaba con que trajera `liveData`, sin mirar el tipo. Ahora es el
+    // mismo criterio que donaciones y supercomentarios, en un solo sitio.
+    assertIsLivePost(post);
 
     const authorId = String(post.authorId ?? "");
     if (!authorId) throw new HttpsError("failed-precondition", "En vivo sin autor.");
@@ -208,7 +210,11 @@ export const createLiveAccessStripeIntent = onCall(
 
     const res = await stripeFetch<StripePaymentIntent>("/payment_intents", {
       method: "POST",
-      idempotencyKey: crypto.randomUUID(),
+      idempotencyKey: stripeIdempotencyKey(
+        externalReference,
+        presentment.amountForStripe,
+        presentment.currency
+      ),
       form: {
         amount: presentment.amountForStripe,
         currency: presentment.currency.toLowerCase(),

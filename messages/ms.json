@@ -65,8 +65,7 @@
     "seeAllMessages": "Lihat semua",
     "settings": "Tetapan",
     "seeAllFollowing": "Lihat semua",
-    "seeAllCommunities": "Lihat semua",
-    "publishTo": "Siar ke"
+    "seeAllCommunities": "Lihat semua"
   },
   "common": {
     "accept": "Terima",
@@ -75,6 +74,8 @@
     "block": "Sekat",
     "cancel": "Batal",
     "edit": "Sunting",
+    "date": "Tarikh",
+    "time": "Masa",
     "create": "Cipta",
     "understood": "Faham",
     "changeLanguage": "Tukar bahasa",

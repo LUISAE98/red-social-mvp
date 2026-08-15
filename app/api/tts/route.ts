@@ -41,6 +41,35 @@ function clientKey(request: NextRequest): string {
   return createHash("sha256").update(`tts:${ip}`).digest("hex").slice(0, 32);
 }
 
+/**
+ * Respaldo en memoria del proceso, por si el contador de Firestore falla.
+ *
+ * ⚠️ El `catch` de abajo deja pasar la petición a propósito —no se corta el audio
+ * de un directo en marcha porque la base parpadee—, pero eso significaba que
+ * mientras Firestore estuviera caído el endpoint se quedaba SIN NINGÚN tope, y es
+ * público. Este contador no sustituye al de Firestore: no se comparte entre
+ * instancias y se pierde al reciclarse. Solo pone un techo por instancia para que
+ * "fallo del contador" no equivalga a "barra libre".
+ */
+const RESPALDO_MAX = 600;
+const respaldoEnMemoria = new Map<string, { inicio: number; conteo: number }>();
+
+function dentroDelRespaldo(clave: string): boolean {
+  const ahora = Date.now();
+  const actual = respaldoEnMemoria.get(clave);
+
+  if (!actual || ahora - actual.inicio > RATE_LIMIT_WINDOW_MS) {
+    // Poda perezosa: sin esto el mapa crece sin límite en una instancia longeva.
+    if (respaldoEnMemoria.size > 5000) respaldoEnMemoria.clear();
+    respaldoEnMemoria.set(clave, { inicio: ahora, conteo: 1 });
+    return true;
+  }
+
+  if (actual.conteo >= RESPALDO_MAX) return false;
+  actual.conteo += 1;
+  return true;
+}
+
 async function withinRateLimit(request: NextRequest): Promise<boolean> {
   try {
     const db = getAdminFirestore();
@@ -64,8 +93,9 @@ async function withinRateLimit(request: NextRequest): Promise<boolean> {
       return true;
     });
   } catch {
-    // Si el contador falla, no se corta el audio de un live en marcha.
-    return true;
+    // Si el contador falla, no se corta el audio de un live en marcha — pero
+    // tampoco se queda sin ningún tope: manda el respaldo en memoria.
+    return dentroDelRespaldo(clientKey(request));
   }
 }
 

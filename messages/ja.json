@@ -65,8 +65,7 @@
     "seeAllMessages": "すべて見る",
     "settings": "設定",
     "seeAllFollowing": "すべて見る",
-    "seeAllCommunities": "すべて見る",
-    "publishTo": "投稿先"
+    "seeAllCommunities": "すべて見る"
   },
   "common": {
     "accept": "承認する",
@@ -75,6 +74,8 @@
     "block": "ブロック",
     "cancel": "キャンセル",
     "edit": "編集",
+    "date": "日付",
+    "time": "時刻",
     "create": "作成",
     "understood": "了解しました",
     "changeLanguage": "言語を変更",

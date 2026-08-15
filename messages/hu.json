@@ -65,8 +65,7 @@
     "seeAllMessages": "Összes megtekintése",
     "settings": "Beállítások",
     "seeAllFollowing": "Összes megtekintése",
-    "seeAllCommunities": "Összes megtekintése",
-    "publishTo": "Közzététel ide"
+    "seeAllCommunities": "Összes megtekintése"
   },
   "common": {
     "accept": "Elfogadás",
@@ -75,6 +74,8 @@
     "block": "Letiltás",
     "cancel": "Mégse",
     "edit": "Szerkesztés",
+    "date": "Dátum",
+    "time": "Időpont",
     "create": "Létrehozás",
     "understood": "Értem",
     "changeLanguage": "Nyelv módosítása",

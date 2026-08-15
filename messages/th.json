@@ -65,8 +65,7 @@
     "seeAllMessages": "ดูทั้งหมด",
     "settings": "การตั้งค่า",
     "seeAllFollowing": "ดูทั้งหมด",
-    "seeAllCommunities": "ดูทั้งหมด",
-    "publishTo": "โพสต์ไปที่"
+    "seeAllCommunities": "ดูทั้งหมด"
   },
   "common": {
     "accept": "ยอมรับ",
@@ -75,6 +74,8 @@
     "block": "บล็อก",
     "cancel": "ยกเลิก",
     "edit": "แก้ไข",
+    "date": "วันที่",
+    "time": "เวลา",
     "create": "สร้าง",
     "understood": "เข้าใจแล้ว",
     "changeLanguage": "เปลี่ยนภาษา",

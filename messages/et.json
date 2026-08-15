@@ -65,8 +65,7 @@
     "seeAllMessages": "Vaata kõiki",
     "settings": "Seaded",
     "seeAllFollowing": "Vaata kõiki",
-    "seeAllCommunities": "Vaata kõiki",
-    "publishTo": "Postita"
+    "seeAllCommunities": "Vaata kõiki"
   },
   "common": {
     "accept": "Nõustu",
@@ -75,6 +74,8 @@
     "block": "Blokeeri",
     "cancel": "Tühista",
     "edit": "Muuda",
+    "date": "Kuupäev",
+    "time": "Kellaaeg",
     "create": "Loo",
     "understood": "Selge",
     "changeLanguage": "Muuda keelt",

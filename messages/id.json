@@ -65,8 +65,7 @@
     "seeAllMessages": "Lihat semua",
     "settings": "Pengaturan",
     "seeAllFollowing": "Lihat semua",
-    "seeAllCommunities": "Lihat semua",
-    "publishTo": "Posting ke"
+    "seeAllCommunities": "Lihat semua"
   },
   "common": {
     "accept": "Terima",
@@ -75,6 +74,8 @@
     "block": "Blokir",
     "cancel": "Batal",
     "edit": "Edit",
+    "date": "Tanggal",
+    "time": "Waktu",
     "create": "Buat",
     "understood": "Mengerti",
     "changeLanguage": "Ubah bahasa",

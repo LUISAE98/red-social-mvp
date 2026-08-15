@@ -65,8 +65,7 @@
     "seeAllMessages": "Δες όλα",
     "settings": "Ρυθμίσεις",
     "seeAllFollowing": "Δες όλα",
-    "seeAllCommunities": "Δες όλες",
-    "publishTo": "Δημοσίευση σε"
+    "seeAllCommunities": "Δες όλες"
   },
   "common": {
     "accept": "Αποδοχή",
@@ -75,6 +74,8 @@
     "block": "Αποκλεισμός",
     "cancel": "Ακύρωση",
     "edit": "Επεξεργασία",
+    "date": "Ημερομηνία",
+    "time": "Ώρα",
     "create": "Δημιουργία",
     "understood": "Το κατάλαβα",
     "changeLanguage": "Αλλαγή γλώσσας",

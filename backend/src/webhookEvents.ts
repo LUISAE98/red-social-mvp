@@ -15,6 +15,12 @@ import * as admin from "firebase-admin";
 // Los docs de reclamo se limpian solos con una política de TTL sobre `expiresAt`.
 const RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
 
+/**
+ * Código gRPC de ALREADY_EXISTS, el único fallo de `create()` que significa
+ * "otra entrega ya reclamó este evento". El Admin SDK lo expone como número.
+ */
+const ALREADY_EXISTS = 6;
+
 export type WebhookClaim =
   | { claimed: true; release: () => Promise<void>; confirm: () => Promise<void> }
   | { claimed: false; release?: undefined; confirm?: undefined };
@@ -39,9 +45,21 @@ export async function claimWebhookEvent(
       receivedAt: admin.firestore.FieldValue.serverTimestamp(),
       expiresAt: new Date(Date.now() + RETENTION_MS),
     });
-  } catch {
-    // ALREADY_EXISTS — entrega duplicada.
-    return { claimed: false };
+  } catch (error) {
+    // ⚠️ Aquí antes se tragaba CUALQUIER error como "duplicado", y esa confusión
+    // costaba pagos. Si Firestore parpadeaba —indisponible, permisos, un fallo
+    // pasajero—, el webhook respondía "ya estaba hecho" y 200. El proveedor daba
+    // la entrega por buena y NO reintentaba, así que ese evento se perdía para
+    // siempre: un cobro sin acceso, una membresía sin activar, un video sin
+    // publicar. Y en silencio.
+    //
+    // Solo ALREADY_EXISTS (código gRPC 6) significa duplicado de verdad. Todo lo
+    // demás se propaga: el manejador devolverá un 5xx, el proveedor reintentará,
+    // y como el reclamo es atómico el reintento no duplica nada.
+    if ((error as { code?: number })?.code === ALREADY_EXISTS) {
+      return { claimed: false };
+    }
+    throw error;
   }
 
   return {

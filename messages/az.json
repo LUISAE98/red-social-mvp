@@ -65,8 +65,7 @@
     "seeAllMessages": "Hamısına bax",
     "settings": "Parametrlər",
     "seeAllFollowing": "Hamısına bax",
-    "seeAllCommunities": "Hamısına bax",
-    "publishTo": "Paylaş"
+    "seeAllCommunities": "Hamısına bax"
   },
   "common": {
     "accept": "Qəbul et",
@@ -75,6 +74,8 @@
     "block": "Blokla",
     "cancel": "Ləğv et",
     "edit": "Redaktə et",
+    "date": "Tarix",
+    "time": "Saat",
     "create": "Yarat",
     "understood": "Başa düşdüm",
     "changeLanguage": "Dili dəyiş",

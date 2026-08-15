@@ -20,6 +20,7 @@ import { onCall, HttpsError } from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
 import { logger } from "firebase-functions";
 import { stripeFetch, stripeSecretKey } from "./stripeClient";
+import { getExistingStripeCustomerId } from "./stripeCustomer";
 import { isChargeableCountry } from "../../tax/config";
 import { resolveTaxCountry } from "../../tax/resolveCountry";
 import { composeCharge, chargeFields } from "../../tax/composeCharge";
@@ -34,6 +35,8 @@ const REGION = "us-central1";
 
 type StripePaymentMethod = {
   id: string;
+  /** Cliente de Stripe al que está adjunta. `null` si todavía no se adjuntó a ninguno. */
+  customer?: string | null;
   card?: { country?: string | null } | null;
   billing_details?: { address?: { country?: string | null } | null } | null;
 };
@@ -88,6 +91,26 @@ export const repriceStripeIntentForCard = onCall(
     if (!pmRes.ok) {
       throw new HttpsError("internal", `No se pudo leer el método de pago (${pmRes.status}).`);
     }
+    // ⚠️ La tarjeta tiene que ser de QUIEN PIDE. `/payment_methods/{id}` devuelve
+    // cualquier método visible para la cuenta de Stripe de Vibra, no solo los del
+    // comprador, así que sin esta comprobación se podía pasar el `pm_...` de otra
+    // persona para que el país —y con él el impuesto— saliera distinto del de la
+    // tarjeta con la que luego se confirma el pago. Determinar el impuesto con
+    // una tarjeta y pagar con otra.
+    //
+    // Una tarjeta recién tecleada todavía NO está adjunta a ningún cliente
+    // (`customer: null`), y ese es el caso normal al pagar con tarjeta nueva: se
+    // acepta, porque para conocer su id hay que haberla creado uno mismo en el
+    // navegador. Lo que se rechaza es una tarjeta adjunta a OTRO cliente.
+    const pmCustomer = pmRes.data.customer ?? null;
+    if (pmCustomer) {
+      const buyerCustomerId = await getExistingStripeCustomerId(uid);
+      if (pmCustomer !== buyerCustomerId) {
+        logger.warn("reprice_payment_method_ajeno", { uid, externalReference, pmCustomer });
+        throw new HttpsError("permission-denied", "Ese método de pago no es tuyo.");
+      }
+    }
+
     const cardCountry = pmRes.data.card?.country ?? null;
     const billingCountry = pmRes.data.billing_details?.address?.country ?? null;
 

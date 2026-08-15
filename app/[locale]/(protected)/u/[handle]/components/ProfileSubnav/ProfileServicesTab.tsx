@@ -9,10 +9,10 @@ import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { BRAND_DOMAIN } from "@/lib/brand";
 
-import Greetings from "@/app/groups/[groupId]/components/owner-admin-panel/services/Greetings";
-import Advice from "@/app/groups/[groupId]/components/owner-admin-panel/services/Advice";
-import MeetGreet from "@/app/groups/[groupId]/components/owner-admin-panel/services/MeetGreet";
-import CustomClass from "@/app/groups/[groupId]/components/owner-admin-panel/services/CustomClass";
+import Greetings from "@/components/services/config/Greetings";
+import Advice from "@/components/services/config/Advice";
+import MeetGreet from "@/components/services/config/MeetGreet";
+import CustomClass from "@/components/services/config/CustomClass";
 import ProfileDonation from "./ProfileDonation";
 
 import { updateProfileOfferings } from "@/lib/profile/updateProfileOfferings";

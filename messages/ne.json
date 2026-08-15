@@ -65,8 +65,7 @@
     "seeAllMessages": "सबै हेर्नुहोस्",
     "settings": "सेटिङहरू",
     "seeAllFollowing": "सबै हेर्नुहोस्",
-    "seeAllCommunities": "सबै हेर्नुहोस्",
-    "publishTo": "पोस्ट गर्ने"
+    "seeAllCommunities": "सबै हेर्नुहोस्"
   },
   "common": {
     "accept": "स्वीकार गर्नुहोस्",
@@ -75,6 +74,8 @@
     "block": "ब्लक गर्नुहोस्",
     "cancel": "रद्द गर्नुहोस्",
     "edit": "सम्पादन",
+    "date": "मिति",
+    "time": "समय",
     "create": "सिर्जना गर्नुहोस्",
     "understood": "बुझेँ",
     "changeLanguage": "भाषा परिवर्तन गर्नुहोस्",

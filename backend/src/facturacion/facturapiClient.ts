@@ -21,6 +21,9 @@ import { defineSecret } from "firebase-functions/params";
 /** Base de la API REST de Facturapi (CFDI 4.0). */
 export const FACTURAPI_API_BASE = "https://www.facturapi.io/v2";
 
+/** Mismo criterio que en `stripeClient.ts`: no quedarse colgado pagando instancia. */
+const FACTURAPI_TIMEOUT_MS = 20_000;
+
 // Secretos.
 //  - FACTURAPI_TEST_KEY: secret key de la ORG de Vibra en modo PRUEBA (sk_test_...).
 //  - FACTURAPI_USER_KEY: llave de USUARIO (nivel cuenta) para administrar las
@@ -80,6 +83,7 @@ export async function facturapiFetch<T = unknown>(
       method: init.method ?? "GET",
       headers,
       body: init.body != null ? JSON.stringify(init.body) : undefined,
+      signal: AbortSignal.timeout(FACTURAPI_TIMEOUT_MS),
     });
 
     const text = await res.text().catch(() => "");

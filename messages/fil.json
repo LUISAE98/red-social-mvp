@@ -65,8 +65,7 @@
     "seeAllMessages": "Tingnan lahat",
     "settings": "Mga setting",
     "seeAllFollowing": "Tingnan lahat",
-    "seeAllCommunities": "Tingnan lahat",
-    "publishTo": "I-post sa"
+    "seeAllCommunities": "Tingnan lahat"
   },
   "common": {
     "accept": "Tanggapin",
@@ -75,6 +74,8 @@
     "block": "I-block",
     "cancel": "Kanselahin",
     "edit": "I-edit",
+    "date": "Petsa",
+    "time": "Oras",
     "create": "Gumawa",
     "understood": "Naintindihan ko",
     "changeLanguage": "Palitan ang wika",

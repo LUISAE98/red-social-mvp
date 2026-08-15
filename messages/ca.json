@@ -65,8 +65,7 @@
     "seeAllMessages": "Mostra-ho tot",
     "settings": "Configuració",
     "seeAllFollowing": "Mostra-ho tot",
-    "seeAllCommunities": "Mostra-ho tot",
-    "publishTo": "Publica a"
+    "seeAllCommunities": "Mostra-ho tot"
   },
   "common": {
     "accept": "Accepta",
@@ -75,6 +74,8 @@
     "block": "Bloqueja",
     "cancel": "Cancel·la",
     "edit": "Edita",
+    "date": "Data",
+    "time": "Hora",
     "create": "Crea",
     "understood": "Entesos",
     "changeLanguage": "Canvia d'idioma",

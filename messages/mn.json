@@ -65,8 +65,7 @@
     "seeAllMessages": "Бүгдийг харах",
     "settings": "Тохиргоо",
     "seeAllFollowing": "Бүгдийг харах",
-    "seeAllCommunities": "Бүгдийг харах",
-    "publishTo": "Нийтлэх"
+    "seeAllCommunities": "Бүгдийг харах"
   },
   "common": {
     "accept": "Зөвшөөрөх",
@@ -75,6 +74,8 @@
     "block": "Хориглох",
     "cancel": "Цуцлах",
     "edit": "Засах",
+    "date": "Огноо",
+    "time": "Цаг",
     "create": "Үүсгэх",
     "understood": "Ойлголоо",
     "changeLanguage": "Хэл солих",

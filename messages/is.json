@@ -65,8 +65,7 @@
     "seeAllMessages": "Sjá allt",
     "settings": "Stillingar",
     "seeAllFollowing": "Sjá allt",
-    "seeAllCommunities": "Skoða allt",
-    "publishTo": "Birta á"
+    "seeAllCommunities": "Skoða allt"
   },
   "common": {
     "accept": "Samþykkja",
@@ -75,6 +74,8 @@
     "block": "Loka á",
     "cancel": "Hætta við",
     "edit": "Breyta",
+    "date": "Dagsetning",
+    "time": "Tími",
     "create": "Búa til",
     "understood": "Skilið",
     "changeLanguage": "Skipta um tungumál",

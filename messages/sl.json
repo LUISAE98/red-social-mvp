@@ -65,8 +65,7 @@
     "seeAllMessages": "Prikaži vsa",
     "settings": "Nastavitve",
     "seeAllFollowing": "Prikaži vsa",
-    "seeAllCommunities": "Prikaži vsa",
-    "publishTo": "Objavi na"
+    "seeAllCommunities": "Prikaži vsa"
   },
   "common": {
     "accept": "Sprejmi",
@@ -75,6 +74,8 @@
     "block": "Blokiraj",
     "cancel": "Prekliči",
     "edit": "Uredi",
+    "date": "Datum",
+    "time": "Ura",
     "create": "Ustvari",
     "understood": "Razumem",
     "changeLanguage": "Spremeni jezik",

@@ -1,33 +1,26 @@
 "use client";
 
-// Tipos, helpers y sub-componentes (Switch, DonationModeButton, OverlayModal)
-// de ProfileServicesTab, aislados a nivel de módulo.
+// Fachada de ProfileServicesTab.
+//
+// Ya casi no contiene lógica propia: el modelo de borrador se comparte con el
+// panel de comunidad (lib/services/serviceDraft) y los primitivos visuales con
+// el kit (components/services/config/serviceConfigKit). Lo que queda aquí son
+// los re-exports que mantienen estable la API para ProfileServicesTab, y los
+// tres envoltorios atados a la superficie "profile".
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
-import { useTranslations } from "next-intl";
-import { useParams } from "next/navigation";
-import { createPortal } from "react-dom";
-import { useVibraToast } from "@/lib/hooks/useVibraToast";
-import VibraToast from "@/app/components/VibraToast/VibraToast";
-import { BRAND_DOMAIN } from "@/lib/brand";
-
-import Greetings from "@/app/groups/[groupId]/components/owner-admin-panel/services/Greetings";
-import Advice from "@/app/groups/[groupId]/components/owner-admin-panel/services/Advice";
-import MeetGreet from "@/app/groups/[groupId]/components/owner-admin-panel/services/MeetGreet";
-import CustomClass from "@/app/groups/[groupId]/components/owner-admin-panel/services/CustomClass";
-import ProfileDonation from "./ProfileDonation";
-
-import { updateProfileOfferings } from "@/lib/profile/updateProfileOfferings";
-import { usePriceFormat } from "@/lib/currency/usePriceFormat";
-import { WALLET_NET_RATE } from "@/lib/wallet/walletFinances";
-import type { DisplayCurrency } from "@/lib/currency/catalog";
+import {
+  buildOffering as buildOfferingShared,
+  createEmptyDraft as createEmptyDraftShared,
+  pickOffering as pickOfferingShared,
+  type DonationInput,
+  type OfferingInput,
+  type ServiceBlockDraft as ServiceBlockDraftShared,
+  type ServiceDraft as ServiceDraftShared,
+} from "@/lib/services/serviceDraft";
 
 import type {
-  Currency,
   CreatorServiceMeta,
   CreatorServiceType,
-  DonationMode,
   GroupDonationSettings,
   GroupOffering,
 } from "@/types/group";
@@ -80,24 +73,8 @@ export {
   CUSTOM_CLASS_MAX_MINUTES,
 };
 
-export type OfferingInput =
-  | {
-      type?: CreatorServiceType | string;
-      enabled?: boolean;
-      visible?: boolean;
-      visibility?: string;
-      displayOrder?: number | null;
-      memberPrice?: number | null;
-      publicPrice?: number | null;
-      currency?: Currency | null;
-      requiresApproval?: boolean;
-      sourceScope?: string;
-      meta?: CreatorServiceMeta | null;
-      price?: number | null;
-    }
-  | null;
-
-export type DonationInput = Partial<GroupDonationSettings> | null;
+// OfferingInput y DonationInput viven en lib/services/serviceDraft.
+export type { OfferingInput, DonationInput } from "@/lib/services/serviceDraft";
 
 export type Props = {
   profileUserId: string;
@@ -110,244 +87,56 @@ export type Props = {
   }) => void;
 };
 
-export type EditableServiceVisibility = "public" | "members";
+// ─── Modelo de borrador ──────────────────────────────────────────────────
+//
+// Los tipos y las funciones viven en lib/services/serviceDraft, compartidos con
+// el panel de comunidad. Aquí solo se atan a la superficie "profile" las tres
+// funciones cuyo comportamiento difiere entre perfil y comunidad, para que los
+// consumidores de este parts sigan llamándolas igual que siempre.
 
-export type FreeToSubscriptionPolicy = "legacy_free" | "require_subscription" | "";
-export type SubscriptionToFreePolicy = "keep_members_free" | "remove_all_members" | "";
-export type SubscriptionPriceIncreasePolicy =
-  | "keep_legacy_price"
-  | "require_resubscribe_new_price"
-  | "";
+export type {
+  EditableServiceVisibility,
+  FreeToSubscriptionPolicy,
+  SubscriptionToFreePolicy,
+  SubscriptionPriceIncreasePolicy,
+  ServiceBlockDraft,
+  SubscriptionDraft,
+  MeetGreetDraft,
+  AvailabilitySlotDraft,
+  WeeklyAvailabilityDraft,
+  CustomClassDraft,
+  ServiceDraft,
+} from "@/lib/services/serviceDraft";
 
-export type ServiceBlockDraft = {
-  enabled: boolean;
-  price: string;
-  currency: Currency;
-  visible: boolean;
-  visibility: EditableServiceVisibility;
-};
+export {
+  createEmptyWeeklyAvailability,
+  pickDonation,
+  normalizeDurationMeta,
+  buildServiceBlockDraft,
+  calcNetAmount,
+} from "@/lib/services/serviceDraft";
 
-export type SubscriptionDraft = {
-  enabled: boolean;
-  price: string;
-  currency: Currency;
-};
-
-export type MeetGreetDraft = ServiceBlockDraft & {
-  durationMinutes: string;
-};
-
-export type AvailabilitySlotDraft = {
-  start: string;
-  end: string;
-};
-
-export type WeeklyAvailabilityDraft = {
-  monday: AvailabilitySlotDraft[];
-  tuesday: AvailabilitySlotDraft[];
-  wednesday: AvailabilitySlotDraft[];
-  thursday: AvailabilitySlotDraft[];
-  friday: AvailabilitySlotDraft[];
-  saturday: AvailabilitySlotDraft[];
-  sunday: AvailabilitySlotDraft[];
-};
-
-export type CustomClassDraft = ServiceBlockDraft & {
-  durationMinutes: string;
-  availability: WeeklyAvailabilityDraft;
-};
-
-export type ServiceDraft = {
-  subscription: SubscriptionDraft;
-  saludo: ServiceBlockDraft;
-  consejo: ServiceBlockDraft;
-  meetGreet: MeetGreetDraft;
-  customClass: CustomClassDraft;
-  donationMode: DonationMode;
-  donationCurrency: Currency;
-  donationSuggestedAmounts: string[];
-  donationGoalLabel: string;
-  donationMessage: string;
-  donationVideoUrl: string;
-  donationPlaybackId: string;
-  freeToSubscriptionPolicy: FreeToSubscriptionPolicy;
-  subscriptionToFreePolicy: SubscriptionToFreePolicy;
-  subscriptionPriceIncreasePolicy: SubscriptionPriceIncreasePolicy;
-};
-
-
-export function createEmptyWeeklyAvailability(): WeeklyAvailabilityDraft {
-  return {
-    monday: [],
-    tuesday: [],
-    wednesday: [],
-    thursday: [],
-    friday: [],
-    saturday: [],
-    sunday: [],
-  };
+/** Un perfil no tiene miembros: sus servicios nacen públicos. */
+export function createEmptyDraft(): ServiceDraftShared {
+  return createEmptyDraftShared("profile");
 }
 
-export function createEmptyDraft(): ServiceDraft {
-  return {
-    subscription: {
-      enabled: false,
-      price: "",
-      currency: "MXN",
-    },
-    saludo: {
-      enabled: false,
-      price: "",
-      currency: "MXN",
-      visible: false,
-      visibility: "public",
-    },
-    consejo: {
-      enabled: false,
-      price: "",
-      currency: "MXN",
-      visible: false,
-      visibility: "public",
-    },
-    meetGreet: {
-      enabled: false,
-      price: "",
-      currency: "MXN",
-      visible: false,
-      visibility: "public",
-      durationMinutes: "",
-    },
-    customClass: {
-      enabled: false,
-      price: "",
-      currency: "MXN",
-      visible: false,
-      visibility: "public",
-      durationMinutes: "",
-      availability: createEmptyWeeklyAvailability(),
-    },
-    donationMode: "none",
-    donationCurrency: "MXN",
-    donationSuggestedAmounts: [...DEFAULT_DONATION_SUGGESTED_AMOUNTS],
-    donationGoalLabel: "",
-    donationMessage: "",
-    donationVideoUrl: "",
-    donationPlaybackId: "",
-    freeToSubscriptionPolicy: "",
-    subscriptionToFreePolicy: "",
-    subscriptionPriceIncreasePolicy: "",
-  };
-}
-
+/** El perfil vende a cualquiera, así que su precio de referencia es el público. */
 export function pickOffering(
   offerings: OfferingInput[] | null | undefined,
   type: CreatorServiceType
 ) {
-  const arr = Array.isArray(offerings) ? offerings : [];
-  const found = arr.find((o) => String(o?.type) === type);
-
-  const resolvedPrice =
-    found?.publicPrice ?? found?.memberPrice ?? found?.price ?? null;
-
-  const meta = found?.meta ?? null;
-
-  return {
-    enabled: found?.enabled === true,
-    price: resolvedPrice,
-    currency: (found?.currency ?? "MXN") as Currency,
-    visible:
-      typeof found?.visible === "boolean"
-        ? found.visible
-        : found?.enabled === true,
-    visibility:
-      found?.visibility === "members" || found?.visibility === "public"
-        ? found.visibility
-        : "public",
-    meta,
-  };
+  return pickOfferingShared("profile", offerings, type);
 }
 
-export function pickDonation(donation: DonationInput) {
-  const mode: DonationMode =
-    donation?.mode === "general" || donation?.mode === "wedding"
-      ? donation.mode
-      : "none";
-
-  const suggestedAmounts = normalizeSuggestedAmounts(donation?.suggestedAmounts);
-
-  return {
-    mode,
-    currency: (donation?.currency ?? "MXN") as Currency,
-    suggestedAmounts,
-    goalLabel: typeof donation?.goalLabel === "string" ? donation.goalLabel : "",
-    message: typeof donation?.message === "string" ? donation.message : "",
-    videoUrl: typeof donation?.videoUrl === "string" ? donation.videoUrl : "",
-    playbackId: typeof donation?.playbackId === "string" ? donation.playbackId : "",
-  };
-}
-
-export function normalizeDurationMeta(
-  meta: CreatorServiceMeta | null | undefined,
-  mode: "meetGreet" | "customClass"
-): string {
-  const raw =
-    mode === "meetGreet"
-      ? meta?.meetGreet?.durationMinutes
-      : meta?.customClass?.durationMinutes;
-
-  if (raw == null) return "";
-
-  const n = Number(raw);
-  return Number.isFinite(n) && n > 0 ? String(n) : "";
-}
-
-export function buildServiceBlockDraft(input: {
-  enabled: boolean;
-  price: number | null;
-  currency: Currency;
-  visible: boolean;
-  visibility: EditableServiceVisibility;
-}): ServiceBlockDraft {
-  return {
-    enabled: input.enabled,
-    price: input.price == null ? "" : String(input.price),
-    currency: input.currency,
-    visible: input.visible,
-    visibility: input.visibility,
-  };
-}
-
+/** Guarda con las reglas del perfil: sourceScope propio y visibilidad public/hidden. */
 export function buildOffering(params: {
   type: CreatorServiceType;
-  draft: ServiceBlockDraft;
+  draft: ServiceBlockDraftShared;
   displayOrder: number;
   meta?: CreatorServiceMeta | null;
 }): GroupOffering {
-  const priceNum = params.draft.price.trim() === "" ? null : Number(params.draft.price);
-
-  return {
-    type: params.type,
-    enabled: params.draft.enabled,
-    visible: params.draft.enabled ? params.draft.visible : false,
-    visibility: params.draft.enabled ? "public" : "hidden",
-    displayOrder: params.displayOrder,
-    memberPrice: params.draft.enabled ? priceNum : null,
-    publicPrice: params.draft.enabled ? priceNum : null,
-    // La moneda de liquidación es MXN (Mexico-first). Los precios de perfil se guardan
-    // SIEMPRE en MXN — nunca en el ancla USD legacy (evita el bug del ×tipo-de-cambio).
-    currency: params.draft.enabled ? "MXN" : null,
-    requiresApproval: true,
-    sourceScope: "profile",
-    meta: params.meta ?? null,
-    price: params.draft.enabled ? priceNum : null,
-  };
-}
-
-export function calcNetAmount(raw: string) {
-  const n = Number(raw);
-  if (raw.trim() === "" || Number.isNaN(n) || n <= 0) return null;
-  const net = n * WALLET_NET_RATE;
-  return { gross: n, net };
+  return buildOfferingShared({ ...params, surface: "profile" });
 }
 
 

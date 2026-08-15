@@ -65,8 +65,7 @@
     "seeAllMessages": "Zobraziť všetky",
     "settings": "Nastavenia",
     "seeAllFollowing": "Zobraziť všetky",
-    "seeAllCommunities": "Zobraziť všetky",
-    "publishTo": "Publikovať do"
+    "seeAllCommunities": "Zobraziť všetky"
   },
   "common": {
     "accept": "Prijať",
@@ -75,6 +74,8 @@
     "block": "Zablokovať",
     "cancel": "Zrušiť",
     "edit": "Upraviť",
+    "date": "Dátum",
+    "time": "Čas",
     "create": "Vytvoriť",
     "understood": "Rozumiem",
     "changeLanguage": "Zmeniť jazyk",

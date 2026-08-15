@@ -20,8 +20,8 @@ import type { LiveVisibilityMode, Post, PostLiveData } from "@/lib/posts/types";
 import { useAuth } from "@/app/providers";
 import { useOwnerWalletData, getWalletScheduleConflictResult } from "@/lib/wallet/ownerWallet";
 import ScheduleCalendarOverlay from "@/app/(protected)/wallet/components/ScheduleCalendarOverlay";
-import {
-  SelectWrapper, PANEL_CLOSE_THRESHOLD, fontStack,
+import WheelPanel from "@/components/ui/WheelPanel";
+import { PANEL_CLOSE_THRESHOLD, fontStack,
   buildCurrentYears, buildScheduledDate, deriveDefaultVisibility,
   getDaysInMonth, getVisibilityOptions, parseScheduledTimestamp, uploadLiveCover,
   type GroupForBroadcast, type LiveComposerModalProps, type MonthNames,
@@ -40,6 +40,9 @@ export default function LiveComposerModal({
   groupVisibility,
 }: LiveComposerModalProps) {
   const tCommon = useTranslations("common");
+  // Fecha y hora en paneles SEPARADOS: seis tambores a la vez son un muro, y
+  // casi siempre se cambia una cosa o la otra, no las dos.
+  const [wheelOpen, setWheelOpen] = useState<"date" | "time" | null>(null);
   const tLive = useTranslations("live");
   const locale = useLocale();
   const isEditMode = !!editPost;
@@ -76,6 +79,26 @@ export default function LiveComposerModal({
   const [hour, setHour] = useState("");
   const [minute, setMinute] = useState("");
   const [period, setPeriod] = useState<"AM" | "PM">("AM");
+  // De cinco en cinco: programar un live al minuto exacto no aporta nada.
+  const LIVE_MINUTES = [
+    "00", "05", "10", "15", "20", "25",
+    "30", "35", "40", "45", "50", "55",
+  ];
+
+  // Los seis campos que se ven fuera. Cada uno enseña su valor o, si aún no
+  // hay, el rótulo de lo que se espera.
+  const scheduleFields = [
+    { key: "day", texto: day, vacio: tLive("composerDay") },
+    {
+      key: "month",
+      texto: month ? (MONTHS[Number(month) - 1] ?? month) : "",
+      vacio: tLive("composerMonth"),
+    },
+    { key: "year", texto: year, vacio: tLive("composerYear") },
+    { key: "hour", texto: hour, vacio: tLive("composerHour") },
+    { key: "minute", texto: minute, vacio: tLive("composerMin") },
+    { key: "period", texto: period, vacio: period },
+  ];
   const [saving, setSaving] = useState(false);
   const { toast: liveComposerToast, showToast: showLiveComposerToast } = useVibraToast();
   const [accessType, setAccessType] = useState<"free" | "paid">("free");
@@ -812,68 +835,140 @@ export default function LiveComposerModal({
           {tLive("composerViewCalendar")}
         </button>
       </div>
+      {/* Los campos siguen separados, como antes: de un vistazo se ve que
+          falta por llenar. Lo que cambia es que ninguno es ya una lista del
+          sistema — cualquiera de los seis abre los mismos tambores. */}
       <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
-        <SelectWrapper>
-          <select value={day} onChange={(e) => setDay(e.target.value)} disabled={saving} style={selectStyle} className="vibra-live-select">
-            <option value="">{tLive("composerDay")}</option>
-            {Array.from({ length: daysInMonth }, (_, i) => i + 1).map((d) => (
-              <option key={d} value={String(d)}>{d}</option>
-            ))}
-          </select>
-        </SelectWrapper>
-        <SelectWrapper>
-          <select
-            value={month}
-            onChange={(e) => {
-              setMonth(e.target.value);
-              if (day && parseInt(day) > getDaysInMonth(e.target.value, year)) setDay("");
-            }}
+        {scheduleFields.slice(0, 3).map((campo) => (
+          <button
+            key={campo.key}
+            type="button"
+            onClick={() => setWheelOpen("date")}
             disabled={saving}
-            style={selectStyle}
-            className="vibra-live-select"
+            style={{
+              ...selectStyle,
+              flex: 1,
+              minWidth: 0,
+              textAlign: "start",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+              cursor: saving ? "not-allowed" : "pointer",
+              color: campo.texto ? "#fff" : "rgba(255,255,255,0.45)",
+            }}
           >
-            <option value="">{tLive("composerMonth")}</option>
-            {MONTHS.map((name, i) => (
-              <option key={i + 1} value={String(i + 1)}>{name}</option>
-            ))}
-          </select>
-        </SelectWrapper>
-        <SelectWrapper>
-          <select value={year} onChange={(e) => setYear(e.target.value)} disabled={saving} style={selectStyle} className="vibra-live-select">
-            <option value="">{tLive("composerYear")}</option>
-            {years.map((y) => (
-              <option key={y} value={String(y)}>{y}</option>
-            ))}
-          </select>
-        </SelectWrapper>
+            {campo.texto || campo.vacio}
+          </button>
+        ))}
       </div>
 
-      {/* Hora */}
       <label style={labelStyle}>{tLive("composerStartTimeLabel")}</label>
       <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
-        <SelectWrapper>
-          <select value={hour} onChange={(e) => setHour(e.target.value)} disabled={saving} style={selectStyle} className="vibra-live-select">
-            <option value="">{tLive("composerHour")}</option>
-            {Array.from({ length: 12 }, (_, i) => i + 1).map((h) => (
-              <option key={h} value={String(h)}>{h}</option>
-            ))}
-          </select>
-        </SelectWrapper>
-        <SelectWrapper>
-          <select value={minute} onChange={(e) => setMinute(e.target.value)} disabled={saving} style={selectStyle} className="vibra-live-select">
-            <option value="">{tLive("composerMin")}</option>
-            {["00","05","10","15","20","25","30","35","40","45","50","55"].map((m) => (
-              <option key={m} value={m}>{m}</option>
-            ))}
-          </select>
-        </SelectWrapper>
-        <SelectWrapper>
-          <select value={period} onChange={(e) => setPeriod(e.target.value as "AM" | "PM")} disabled={saving} style={selectStyle} className="vibra-live-select">
-            <option value="AM">AM</option>
-            <option value="PM">PM</option>
-          </select>
-        </SelectWrapper>
+        {scheduleFields.slice(3).map((campo) => (
+          <button
+            key={campo.key}
+            type="button"
+            onClick={() => setWheelOpen("time")}
+            disabled={saving}
+            style={{
+              ...selectStyle,
+              flex: 1,
+              minWidth: 0,
+              textAlign: "start",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+              cursor: saving ? "not-allowed" : "pointer",
+              color: campo.texto ? "#fff" : "rgba(255,255,255,0.45)",
+            }}
+          >
+            {campo.texto || campo.vacio}
+          </button>
+        ))}
       </div>
+
+      <WheelPanel
+        open={wheelOpen === "date"}
+        onClose={() => setWheelOpen(null)}
+        onConfirm={() => setWheelOpen(null)}
+        title={tCommon("date")}
+        confirmLabel={tCommon("save")}
+        closeAriaLabel={tCommon("closeAriaLabel")}
+        /* El compositor vive en 999999; sin subir esto, el panel se dibuja
+           DETRAS y parece que no abre. */
+        zIndexBase={1000010}
+        columns={[
+          {
+            key: "day",
+            label: tLive("composerDay"),
+            items: Array.from({ length: daysInMonth }, (_, i) => ({
+              value: String(i + 1),
+              label: String(i + 1),
+            })),
+            value: day || "1",
+            onChange: setDay,
+          },
+          {
+            key: "month",
+            label: tLive("composerMonth"),
+            items: MONTHS.map((name, i) => ({ value: String(i + 1), label: name })),
+            value: month || "1",
+            onChange: (m) => {
+              setMonth(m);
+              // El dia se cae si deja de existir en el mes nuevo.
+              if (day && parseInt(day) > getDaysInMonth(m, year)) setDay("");
+            },
+            loop: true,
+            flex: 1.6,
+          },
+          {
+            key: "year",
+            label: tLive("composerYear"),
+            items: years.map((y) => ({ value: String(y), label: String(y) })),
+            value: year || String(years[0] ?? ""),
+            onChange: setYear,
+          },
+        ]}
+      />
+
+      <WheelPanel
+        open={wheelOpen === "time"}
+        onClose={() => setWheelOpen(null)}
+        onConfirm={() => setWheelOpen(null)}
+        title={tCommon("time")}
+        confirmLabel={tCommon("save")}
+        closeAriaLabel={tCommon("closeAriaLabel")}
+        zIndexBase={1000010}
+        columns={[
+          {
+            key: "hour",
+            label: tLive("composerHour"),
+            items: Array.from({ length: 12 }, (_, i) => ({
+              value: String(i + 1),
+              label: String(i + 1),
+            })),
+            value: hour || "12",
+            onChange: setHour,
+          },
+          {
+            key: "minute",
+            label: tLive("composerMin"),
+            items: LIVE_MINUTES.map((m) => ({ value: m, label: m })),
+            value: minute || "00",
+            onChange: setMinute,
+          },
+          {
+            key: "period",
+            label: tLive("composerStartTimeLabel"),
+            items: [
+              { value: "AM", label: "AM" },
+              { value: "PM", label: "PM" },
+            ],
+            value: period,
+            onChange: (p) => setPeriod(p as "AM" | "PM"),
+          },
+        ]}
+      />
 
       {scheduleConflictMsg && (
         <div

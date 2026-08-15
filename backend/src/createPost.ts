@@ -51,6 +51,76 @@ const MAX_TEXT = 5000;
 const MAX_MEDIA = 10;
 const MAX_TAGS = 20;
 
+const PRECIO_MIN = 10;
+const PRECIO_MAX = 100000;
+
+// ── Esquema cerrado del borrador ────────────────────────────────────────────
+//
+// ⚠️ Antes el documento se escribía como `{...draft, ...autoritativos}`: los
+// campos que el servidor decide se pisaban, pero **cualquier otro campo del
+// cliente sobrevivía tal cual**. Eso dejaba sembrar estructuras arbitrarias en
+// `premium`, `liveData`, `videoData` y demás, que luego leen los cobros, los
+// triggers y los reproductores. El control de creación quedaba a medias.
+//
+// Ahora lo que no está en estas listas se descarta antes de escribir. Las listas
+// salen de los cinco puntos de creación del cliente (`post-service.create.ts` y
+// `post-service.create-media.ts`).
+
+const CAMPOS_DEL_CLIENTE = new Set([
+  "text", "postType", "media",
+  "access", "accessModel", "accessScope", "premium",
+  "requiresPayment", "requiresSubscription", "oneTimePrice", "currency", "purchaseType",
+  "liveData", "videoData", "scheduledData", "playback", "processing",
+  "groupCategory", "groupTags",
+  "shareTitle", "shareDescription", "shareImageUrl",
+]);
+
+const CAMPOS_PREMIUM = new Set([
+  "enabled", "kind", "accessMode", "freeFor", "price", "currency", "purchaseType",
+]);
+
+const CAMPOS_LIVE = new Set([
+  "status", "title", "description", "coverUrl",
+  "scheduledStartAt", "scheduleHasTime", "startedAt", "endedAt",
+  "streamProvider", "liveStreamId", "playbackId", "streamKey", "ingestUrl",
+  "createdFrom", "visibilityMode", "allowLoggedOutViewers",
+  "accessType", "ticketPrice", "currency", "paidAccessMode", "broadcastGroupIds",
+  "superCommentConfig",
+]);
+
+const CAMPOS_MEDIA = new Set([
+  "type", "id", "index", "url", "path", "thumbnailUrl", "thumbnailPath",
+  "altText", "width", "height", "size", "mimeType",
+  "provider", "status", "uploadId", "assetId", "playbackId", "hlsUrl", "duration",
+]);
+
+const CAMPOS_VIDEO_DATA = new Set([
+  "provider", "status", "assetId", "uploadId", "playbackId",
+  "duration", "thumbnailUrl", "sourceUrl", "sourcePath",
+]);
+
+const CAMPOS_PLAYBACK = new Set([
+  "url", "hlsUrl", "thumbnailUrl", "provider", "playbackId", "duration", "isReady",
+]);
+
+const CAMPOS_PROCESSING = new Set([
+  "status", "provider", "errorCode", "errorMessage", "updatedAt",
+]);
+
+/** Deja solo las claves permitidas. Lo demás se descarta en silencio. */
+function soloClaves(value: unknown, permitidas: Set<string>): Record<string, unknown> | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+
+  const salida: Record<string, unknown> = {};
+  for (const [clave, bruto] of Object.entries(value as Record<string, unknown>)) {
+    if (permitidas.has(clave)) salida[clave] = bruto;
+  }
+  return salida;
+}
+
+/** Modos de visibilidad de un directo. Cualquier otra cosa cae en el más cerrado. */
+const MODOS_DIRECTO = new Set(["everyone", "logged_in_only", "members_only"]);
+
 type Draft = Record<string, unknown>;
 
 /** Espejo de `pickString` en `lib/posts/post-service.helpers.ts`. */
@@ -387,23 +457,51 @@ export const createPost = onCall({ region: REGION }, async (request) => {
   const ctx = await resolverContexto(autor, draft);
 
   // ── Monetización: solo el dueño de la comunidad, y con precio acotado ───────
-  if (pideMonetizacion(draft)) {
+  //
+  // ⚠️ El precio vive por triplicado: `oneTimePrice`, `premium.price` y
+  // `liveData.ticketPrice`. Antes solo se validaba el primero, y **solo si venía
+  // presente**, así que omitirlo y poner el precio en cualquiera de los otros dos
+  // saltaba el tope entero: los cobros de Stripe leen `oneTimePrice ?? premium.price`
+  // y `oneTimePrice ?? liveData.ticketPrice`, o sea que el campo sin validar era
+  // exactamente el que acababa cobrándose.
+  //
+  // Ahora se resuelve UN precio efectivo, se valida ese, y se reescriben los tres
+  // con el mismo número. Se igualan en vez de quitar los alternativos a propósito:
+  // si concuerdan da igual cuál lea el cobro, y las publicaciones antiguas que solo
+  // tengan uno de ellos siguen funcionando.
+  const dePago = pideMonetizacion(draft);
+  let precioEfectivo: number | null = null;
+
+  if (dePago) {
     if (ctx.contextType === "group" && !ctx.esDuenoDelGrupo) {
       throw new HttpsError(
         "permission-denied",
         "Solo el dueño de la comunidad puede publicar contenido de pago."
       );
     }
-    const precio = draft.oneTimePrice;
-    if (precio != null) {
+
+    const premiumBruto = (draft.premium ?? null) as Record<string, unknown> | null;
+    const liveBruto = (draft.liveData ?? null) as Record<string, unknown> | null;
+
+    const candidatos = [draft.oneTimePrice, premiumBruto?.price, liveBruto?.ticketPrice];
+    const declarados = candidatos.filter((p) => p != null);
+
+    if (declarados.length > 0) {
+      const precio = declarados[0];
       if (
         typeof precio !== "number" ||
         !Number.isFinite(precio) ||
-        precio < 10 ||
-        precio > 100000
+        precio < PRECIO_MIN ||
+        precio > PRECIO_MAX
       ) {
         throw new HttpsError("invalid-argument", "El precio no es válido.");
       }
+      // Si vienen varios y no coinciden, es que alguien está enseñando un precio
+      // y cobrando otro. No se elige uno, se rechaza.
+      if (declarados.some((p) => p !== precio)) {
+        throw new HttpsError("invalid-argument", "El precio no es consistente.");
+      }
+      precioEfectivo = precio;
     }
   }
 
@@ -437,10 +535,16 @@ export const createPost = onCall({ region: REGION }, async (request) => {
   // backend de streaming — si el cliente pudiera sembrarlos, podría apuntar a
   // una transmisión ajena.
   const esDirecto = draft.postType === "live";
-  const liveDataBruto = (draft.liveData ?? null) as Record<string, unknown> | null;
+  const liveDataBruto = soloClaves(draft.liveData, CAMPOS_LIVE);
   const grupoOculto = ctx.groupVisibility === "hidden";
+  // ⚠️ Un modo desconocido caía antes en "everyone" por descarte, o sea que una
+  // cadena inventada abría el directo. Ahora lo que no esté en la lista se trata
+  // como el modo más cerrado.
   const modoDirecto =
-    typeof liveDataBruto?.visibilityMode === "string" ? liveDataBruto.visibilityMode : "everyone";
+    typeof liveDataBruto?.visibilityMode === "string" &&
+    MODOS_DIRECTO.has(liveDataBruto.visibilityMode)
+      ? liveDataBruto.visibilityMode
+      : "members_only";
 
   const liveData =
     esDirecto && liveDataBruto
@@ -448,7 +552,12 @@ export const createPost = onCall({ region: REGION }, async (request) => {
           ...liveDataBruto,
           status: "upcoming",
           createdFrom: ctx.contextType,
+          visibilityMode: modoDirecto,
           allowLoggedOutViewers: modoDirecto === "everyone" && !grupoOculto,
+          // El precio del ticket es el mismo que el del post. Sin esto, el cobro
+          // del ticket (`oneTimePrice ?? liveData.ticketPrice`) podía leer un
+          // número distinto del que se validó.
+          ticketPrice: precioEfectivo,
           startedAt: null,
           endedAt: null,
           streamProvider: null,
@@ -465,7 +574,12 @@ export const createPost = onCall({ region: REGION }, async (request) => {
   const ahora = admin.firestore.FieldValue.serverTimestamp();
   const searchTimestamp = admin.firestore.Timestamp.now();
 
-  const premium = (draft.premium ?? null) as Record<string, unknown> | null;
+  const premiumBase = soloClaves(draft.premium, CAMPOS_PREMIUM);
+  // Mismo criterio que con el ticket: el precio del bloque premium se iguala al
+  // validado, para que los tres campos de precio no puedan discrepar.
+  const premium: Record<string, unknown> | null = premiumBase
+    ? { ...premiumBase, price: precioEfectivo }
+    : null;
   const premiumActivo = premium?.enabled === true ? premium : null;
   const premiumComun = {
     premiumEnabled: premiumActivo?.enabled === true,
@@ -510,6 +624,28 @@ export const createPost = onCall({ region: REGION }, async (request) => {
           accessScope: "profile" as const,
           ...premiumComun,
         };
+
+  // ── Borrador saneado ───────────────────────────────────────────────────────
+  //
+  // Solo sobreviven las claves conocidas, y las estructuras anidadas se recortan
+  // a su propia lista. Lo que el cliente invente se descarta aquí, antes de
+  // llegar a la escritura.
+  const borrador: Record<string, unknown> = {};
+  for (const [clave, valor] of Object.entries(draft)) {
+    if (CAMPOS_DEL_CLIENTE.has(clave)) borrador[clave] = valor;
+  }
+
+  borrador.premium = premium;
+  borrador.oneTimePrice = precioEfectivo;
+  // Ningún camino de creación lo rellena, pero `scheduledData.status` SÍ se lee
+  // para pintar un post como programado o en vivo. Sembrarlo era una forma de
+  // aparentar un directo sin serlo, así que nace nulo. Si algún día hace falta,
+  // que se añada a propósito con su propia lista de campos.
+  borrador.scheduledData = null;
+  borrador.videoData = soloClaves(draft.videoData, CAMPOS_VIDEO_DATA);
+  borrador.playback = soloClaves(draft.playback, CAMPOS_PLAYBACK);
+  borrador.processing = soloClaves(draft.processing, CAMPOS_PROCESSING);
+  borrador.media = media.map((item) => soloClaves(item, CAMPOS_MEDIA)).filter(Boolean);
 
   // Campos que decide el SERVIDOR. Se aplican ENCIMA del borrador, así que da
   // igual lo que el cliente haya puesto en ellos.
@@ -604,7 +740,7 @@ export const createPost = onCall({ region: REGION }, async (request) => {
 
     const marca = admin.firestore.Timestamp.fromMillis(ahoraMs);
     tx.set(limiteRef, { lastAt: marca, hourTimestamps: [...previas, marca] });
-    tx.create(postRef, { ...draft, ...autoritativos });
+    tx.create(postRef, { ...borrador, ...autoritativos });
   });
 
   logger.info("createPost", {

@@ -33,6 +33,11 @@ export const createStripePaymentIntent = onCall(
 
     const res = await stripeFetch<PaymentIntent>("/payment_intents", {
       method: "POST",
+      // Aleatoria A PROPÓSITO, y es la única que se queda así. Esta función es
+      // una herramienta de prueba de pasarela: solo la puede llamar un
+      // supermoderador, el importe está topado a 500 y no representa ninguna
+      // compra real. Cada llamada debe crear un cobro nuevo aunque repita
+      // importe; deduplicarlas rompería justamente para lo que sirve.
       idempotencyKey: crypto.randomUUID(),
       form: {
         amount: amount * 100, // centavos

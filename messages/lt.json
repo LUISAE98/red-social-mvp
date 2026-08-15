@@ -65,8 +65,7 @@
     "seeAllMessages": "Rodyti visas",
     "settings": "Nustatymai",
     "seeAllFollowing": "Rodyti visas",
-    "seeAllCommunities": "Rodyti visus",
-    "publishTo": "Skelbti"
+    "seeAllCommunities": "Rodyti visus"
   },
   "common": {
     "accept": "Priimti",
@@ -75,6 +74,8 @@
     "block": "Blokuoti",
     "cancel": "Atšaukti",
     "edit": "Redaguoti",
+    "date": "Data",
+    "time": "Laikas",
     "create": "Sukurti",
     "understood": "Supratau",
     "changeLanguage": "Keisti kalbą",

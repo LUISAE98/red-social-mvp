@@ -65,8 +65,7 @@
     "seeAllMessages": "Shiko të gjitha",
     "settings": "Cilësimet",
     "seeAllFollowing": "Shiko të gjitha",
-    "seeAllCommunities": "Shiko të gjitha",
-    "publishTo": "Posto në"
+    "seeAllCommunities": "Shiko të gjitha"
   },
   "common": {
     "accept": "Prano",
@@ -75,6 +74,8 @@
     "block": "Blloko",
     "cancel": "Anulo",
     "edit": "Modifiko",
+    "date": "Data",
+    "time": "Ora",
     "create": "Krijo",
     "understood": "E kuptova",
     "changeLanguage": "Ndrysho gjuhën",

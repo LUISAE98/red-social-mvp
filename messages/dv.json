@@ -65,8 +65,7 @@
     "seeAllMessages": "ހުރިހާ ބައްލަވާ",
     "settings": "ސެޓިންގްސް",
     "seeAllFollowing": "ހުރިހާ ބައްލަވާ",
-    "seeAllCommunities": "ހުރިހާ ބައްލަވާ",
-    "publishTo": "ޕޯސްޓްކުރާނީ"
+    "seeAllCommunities": "ހުރިހާ ބައްލަވާ"
   },
   "common": {
     "accept": "ޤަބޫލުކުރައްވާ",
@@ -75,6 +74,8 @@
     "block": "ބްލޮކްކުރައްވާ",
     "cancel": "ކެންސަލްކުރައްވާ",
     "edit": "އެޑިޓް",
+    "date": "ތާރީޚް",
+    "time": "ވަގުތު",
     "create": "އުފައްދަވާ",
     "understood": "ދޭހަވެއްޖެ",
     "changeLanguage": "ބަސް ބަދަލުކުރައްވާ",

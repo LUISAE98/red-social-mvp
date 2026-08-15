@@ -82,6 +82,13 @@ type VibraResponsivePanelProps = {
    * cuenta y no quieren apagar la pantalla entera.
    */
   backdrop?: "dim" | "none";
+  /**
+   * Base de apilamiento. El velo se pinta aqui y el panel una unidad por encima.
+   *
+   * Hay que subirla cuando el panel se abre DESDE otro modal que ya esta mas
+   * alto: con el valor por omision se dibujaria detras y parece que no abre.
+   */
+  zIndexBase?: number;
 };
 
 export default function VibraResponsivePanel({
@@ -100,6 +107,7 @@ export default function VibraResponsivePanel({
   bareSurface = false,
   hideCloseButton = false,
   backdrop = "dim",
+  zIndexBase = 999990,
 }: VibraResponsivePanelProps) {
   // --- Ciclo de vida de animación ---
   const [shouldRender, setShouldRender] = useState(false);
@@ -363,7 +371,7 @@ export default function VibraResponsivePanel({
         style={{
           position: "fixed",
           inset: 0,
-          zIndex: 999990,
+          zIndex: zIndexBase,
           background: backdrop === "none" ? "transparent" : "rgba(0,0,0,0.52)",
           backdropFilter: backdrop === "none" ? "none" : "blur(10px)",
           WebkitBackdropFilter: backdrop === "none" ? "none" : "blur(10px)",
@@ -387,7 +395,7 @@ export default function VibraResponsivePanel({
             bottom: 0,
             insetInlineStart: 0,
             insetInlineEnd: 0,
-            zIndex: 999991,
+            zIndex: zIndexBase + 1,
             outline: "none",
             maxHeight: "calc(100dvh - 72px)",
             borderRadius: bareSurface ? 0 : "22px 22px 0 0",
@@ -481,7 +489,7 @@ export default function VibraResponsivePanel({
           style={{
             position: "fixed",
             inset: 0,
-            zIndex: 999991,
+            zIndex: zIndexBase + 1,
             display: "grid",
             placeItems: "center",
             paddingTop: "max(14px, env(safe-area-inset-top, 0px))",

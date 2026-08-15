@@ -4,9 +4,9 @@ import { useCallback, useEffect, useSyncExternalStore } from "react";
 import { doc, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
-/** Comisión de la plataforma (debe coincidir con backend/src/wallet/ledger.ts). */
-export const WALLET_COMMISSION_RATE = 0.25;
-export const WALLET_NET_RATE = 1 - WALLET_COMMISSION_RATE; // 0.75
+// Las tasas viven en lib/wallet/walletRates (constantes puras, sin Firebase).
+// Se reexportan para no romper a quien ya las importaba desde aquí.
+export { WALLET_COMMISSION_RATE, WALLET_NET_RATE } from "@/lib/wallet/walletRates";
 
 /**
  * Resumen agregado del wallet del creador. Lo mantiene el backend de forma

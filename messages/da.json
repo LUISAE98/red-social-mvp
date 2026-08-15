@@ -65,8 +65,7 @@
     "seeAllMessages": "Se alle",
     "settings": "Indstillinger",
     "seeAllFollowing": "Se alle",
-    "seeAllCommunities": "Se alle",
-    "publishTo": "Slå op på"
+    "seeAllCommunities": "Se alle"
   },
   "common": {
     "accept": "Accepter",
@@ -75,6 +74,8 @@
     "block": "Blokér",
     "cancel": "Annuller",
     "edit": "Redigér",
+    "date": "Dato",
+    "time": "Tid",
     "create": "Opret",
     "understood": "Forstået",
     "changeLanguage": "Skift sprog",

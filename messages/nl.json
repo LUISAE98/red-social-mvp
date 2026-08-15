@@ -65,8 +65,7 @@
     "seeAllMessages": "Alles bekijken",
     "settings": "Instellingen",
     "seeAllFollowing": "Alles bekijken",
-    "seeAllCommunities": "Alles bekijken",
-    "publishTo": "Plaatsen op"
+    "seeAllCommunities": "Alles bekijken"
   },
   "common": {
     "accept": "Accepteren",
@@ -75,6 +74,8 @@
     "block": "Blokkeren",
     "cancel": "Annuleren",
     "edit": "Bewerken",
+    "date": "Datum",
+    "time": "Tijd",
     "create": "Maken",
     "understood": "Begrepen",
     "changeLanguage": "Taal wijzigen",

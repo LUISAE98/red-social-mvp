@@ -2,19 +2,18 @@
 
 import { useState } from "react";
 
-import VibraResponsivePanel from "./VibraResponsivePanel";
-import WheelColumn, { WHEEL_HEIGHT, type WheelItem } from "./WheelColumn";
+import WheelPanel, { type WheelPanelColumn } from "./WheelPanel";
+import type { WheelItem } from "./WheelColumn";
 
 /**
  * Selector de fecha con tres tambores: día, mes y año.
  *
  * Sustituye a las tres listas desplegables. En celular, una lista de cien años
  * obliga a un desplazamiento largo dentro de una ventanita del sistema; aquí se
- * gira con el dedo y el valor se lee en la banda del centro.
+ * gira con el dedo y el valor elegido se lee en el centro.
  *
- * Los días se recortan al mes y al año elegidos —febrero de un año bisiesto
- * tiene 29 y de uno normal 28—, y si el día que estaba puesto ya no existe, baja
- * al último del mes en vez de quedarse en una fecha imposible.
+ * Es una especialización de `WheelPanel`: lo único que aporta es saber de
+ * calendario —cuántos días tiene cada mes— y armar las tres columnas.
  *
  * No usa claves de idioma propias: los textos llegan por props, porque el
  * componente lo pueden montar pantallas que viven en distintos espacios de
@@ -29,6 +28,14 @@ export function daysInMonth(year: number, month: number): number {
   if ([4, 6, 9, 11].includes(month)) return 30;
   const bisiesto = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
   return bisiesto ? 29 : 28;
+}
+
+/** Columnas de día y año a partir del mes y el año que estén girados. */
+export function buildDayItems(year: number, month: number): WheelItem[] {
+  return Array.from({ length: daysInMonth(year, month) }, (_, i) => ({
+    value: String(i + 1),
+    label: String(i + 1),
+  }));
 }
 
 export default function DateWheelPanel({
@@ -98,16 +105,6 @@ export default function DateWheelPanel({
 
   const maxDay = daysInMonth(Number(draft.year), Number(draft.month));
 
-  const dayItems: WheelItem[] = Array.from({ length: maxDay }, (_, i) => ({
-    value: String(i + 1),
-    label: String(i + 1),
-  }));
-
-  const yearItems: WheelItem[] = years.map((y) => ({
-    value: String(y),
-    label: String(y),
-  }));
-
   /**
    * El día se recorta en cuanto deja de existir en el mes elegido: pasar de
    * marzo 31 a febrero tiene que dejar 28 o 29, no un 31 imposible.
@@ -118,130 +115,43 @@ export default function DateWheelPanel({
    */
   const safeDay = String(Math.min(Number(draft.day) || 1, maxDay));
 
+  const columns: WheelPanelColumn[] = [
+    {
+      key: "day",
+      label: labels.day,
+      items: buildDayItems(Number(draft.year), Number(draft.month)),
+      value: safeDay,
+      onChange: (day) => setDraft((prev) => ({ ...prev, day })),
+    },
+    {
+      key: "month",
+      label: labels.month,
+      items: months,
+      value: draft.month,
+      onChange: (month) => setDraft((prev) => ({ ...prev, month })),
+      // El único cíclico: tras diciembre viene enero, y antes de enero,
+      // diciembre.
+      loop: true,
+      flex: 1.6,
+    },
+    {
+      key: "year",
+      label: labels.year,
+      items: years.map((y) => ({ value: String(y), label: String(y) })),
+      value: draft.year,
+      onChange: (year) => setDraft((prev) => ({ ...prev, year })),
+    },
+  ];
+
   return (
-    <VibraResponsivePanel
+    <WheelPanel
       open={open}
       onClose={cancel}
-      ariaLabel={title}
-      maxWidthDesktop={420}
-      // Sin caja: las ruedas y el botón flotan.
-      bareSurface
-      /* Sin cabecera. El título y el botón se pintan DENTRO del contenido, para
-         que queden bajo el mismo oscurecido: si se quedaran en la cabecera y en
-         el pie del panel, caerían fuera del degradado y se leerían sobre la
-         página, sin nada detrás. */
-      hideHeader
-      /* La página de detrás NO se apaga. Quien oscurece es el propio panel, con
-         un degradado que se desvanece hacia afuera, así que el sitio sigue a la
-         vista alrededor en vez de quedar tapado por una cortina. */
-      backdrop="none"
-    >
-      <div
-        style={{
-          display: "grid",
-          gap: 8,
-          /* El oscurecido propio. Es elíptico y arranca a apagarse antes de
-             llegar al borde, así que no deja un canto duro contra la página:
-             el panel se funde con lo que hay detrás en vez de recortarse.
-             Va con relleno generoso para que el degradado tenga por dónde
-             apagarse sin comerse las ruedas. */
-          margin: -20,
-          padding: 20,
-          background:
-            "radial-gradient(120% 100% at 50% 50%, rgba(6,6,9,0.94) 0%, rgba(6,6,9,0.88) 42%, rgba(6,6,9,0.55) 72%, rgba(6,6,9,0) 100%)",
-        }}
-      >
-        <div
-          style={{
-            fontSize: 14,
-            fontWeight: 650,
-            color: "#fff",
-            textAlign: "center",
-            marginBottom: 2,
-          }}
-        >
-          {title}
-        </div>
-
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1fr 1.6fr 1fr",
-            gap: 4,
-            fontSize: 10.5,
-            fontWeight: 600,
-            letterSpacing: "0.04em",
-            color: "rgba(255,255,255,0.42)",
-            textAlign: "center",
-          }}
-        >
-          <span>{labels.day}</span>
-          <span>{labels.month}</span>
-          <span>{labels.year}</span>
-        </div>
-
-        <div style={{ position: "relative", height: WHEEL_HEIGHT }}>
-          {/* Sin banda en el centro. Lo que marca el valor elegido es el propio
-              renglón: va en blanco y más grueso, mientras los de alrededor
-              quedan grises y se apagan hacia los extremos. */}
-          <div
-            style={{
-              position: "relative",
-              zIndex: 1,
-              display: "grid",
-              gridTemplateColumns: "1fr 1.6fr 1fr",
-              gap: 4,
-            }}
-          >
-            <WheelColumn
-              items={dayItems}
-              value={safeDay}
-              onChange={(day) => setDraft((prev) => ({ ...prev, day }))}
-              ariaLabel={labels.day}
-            />
-            {/* El único cíclico de los tres: tras diciembre viene enero, y
-                antes de enero, diciembre. */}
-            <WheelColumn
-              items={months}
-              value={draft.month}
-              onChange={(month) => setDraft((prev) => ({ ...prev, month }))}
-              ariaLabel={labels.month}
-              loop
-            />
-            <WheelColumn
-              items={yearItems}
-              value={draft.year}
-              onChange={(year) => setDraft((prev) => ({ ...prev, year }))}
-              ariaLabel={labels.year}
-            />
-          </div>
-        </div>
-
-        {/* Solo guardar. Para salir sin cambios están el toque fuera, el
-            arrastre hacia abajo y la tecla Esc. */}
-        <div style={{ display: "flex", justifyContent: "center", marginTop: 4 }}>
-          <button
-            type="button"
-            onClick={() => onConfirm({ ...draft, day: safeDay })}
-            style={{
-              width: "min(240px, 100%)",
-              minHeight: 42,
-              borderRadius: 5,
-              border: "none",
-              background: "linear-gradient(100deg, #ff2fb3 0%, #a855f7 35%, #4f46ff 70%)",
-              color: "#fff",
-              fontWeight: 600,
-              fontSize: 13,
-              fontFamily: "inherit",
-              display: "grid",
-              placeItems: "center",
-              cursor: "pointer",
-            }}
-          >
-            {labels.confirm}
-          </button>
-        </div>
-      </div>
-    </VibraResponsivePanel>
+      onConfirm={() => onConfirm({ ...draft, day: safeDay })}
+      title={title}
+      confirmLabel={labels.confirm}
+      closeAriaLabel={labels.closeAria}
+      columns={columns}
+    />
   );
 }

@@ -314,3 +314,185 @@ describe("createPost — el servidor manda sobre el borrador", () => {
     expect(codigo).toBe("permission-denied");
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// B5-C01 y B5-C02 — esquema cerrado y precio único.
+//
+// C01: el documento se escribía como `{...draft, ...autoritativos}`, así que
+// cualquier campo del cliente no pisado por el servidor sobrevivía tal cual.
+// C02: el precio vive por triplicado (`oneTimePrice`, `premium.price`,
+// `liveData.ticketPrice`) y los cobros de Stripe leen los alternativos como
+// respaldo. Solo se validaba el primero, y solo si venía: bastaba con omitirlo y
+// poner el precio en otro campo para saltarse el tope entero.
+// ─────────────────────────────────────────────────────────────────────────────
+describe("createPost — B5-C01: esquema cerrado", () => {
+  it("🔴 los campos inventados no llegan al documento", async () => {
+    const yo = uid();
+    await sembrarUsuario(yo);
+
+    const res = (await crear(
+      yo,
+      borrador({
+        contextType: "profile",
+        profileId: yo,
+        campoInventado: "loquesea",
+        featured: true,
+        verified: true,
+      })
+    )) as { postId: string };
+
+    const post = (await db.doc(`posts/${res.postId}`).get()).data() ?? {};
+    expect(post.campoInventado).toBeUndefined();
+    expect(post.featured).toBeUndefined();
+    expect(post.verified).toBeUndefined();
+  });
+
+  it("🔴 tampoco dentro de las estructuras anidadas", async () => {
+    const yo = uid();
+    await sembrarUsuario(yo);
+
+    const res = (await crear(
+      yo,
+      borrador({
+        contextType: "profile",
+        profileId: yo,
+        postType: "video",
+        videoData: { provider: "mux", status: "uploading", puertaTrasera: "x" },
+        playback: { provider: "mux", isReady: true, urlFalsa: "https://malo/x.m3u8" },
+      })
+    )) as { postId: string };
+
+    const post = (await db.doc(`posts/${res.postId}`).get()).data() ?? {};
+    expect((post.videoData as Record<string, unknown>)?.puertaTrasera).toBeUndefined();
+    expect((post.playback as Record<string, unknown>)?.urlFalsa).toBeUndefined();
+    // Lo legítimo sigue ahí.
+    expect((post.videoData as Record<string, unknown>)?.provider).toBe("mux");
+  });
+
+  it("🔴 un modo de directo inventado no abre la transmisión", async () => {
+    const yo = uid();
+    await sembrarUsuario(yo);
+
+    const res = (await crear(
+      yo,
+      borrador({
+        contextType: "profile",
+        profileId: yo,
+        postType: "live",
+        liveData: { title: "En vivo", visibilityMode: "todo_el_mundo_por_favor" },
+      })
+    )) as { postId: string };
+
+    const post = (await db.doc(`posts/${res.postId}`).get()).data() ?? {};
+    const live = post.liveData as Record<string, unknown>;
+    expect(live.visibilityMode).toBe("members_only");
+    expect(live.allowLoggedOutViewers).toBe(false);
+    expect(post.isShareable).toBe(false);
+  });
+
+  it("🔴 no se pueden sembrar los datos del stream", async () => {
+    const yo = uid();
+    await sembrarUsuario(yo);
+
+    const res = (await crear(
+      yo,
+      borrador({
+        contextType: "profile",
+        profileId: yo,
+        postType: "live",
+        liveData: {
+          title: "En vivo",
+          visibilityMode: "everyone",
+          playbackId: "robado",
+          streamKey: "robada",
+          ingestUrl: "https://malo/ingest",
+          status: "live",
+        },
+      })
+    )) as { postId: string };
+
+    const live = ((await db.doc(`posts/${res.postId}`).get()).data() ?? {})
+      .liveData as Record<string, unknown>;
+    expect(live.playbackId).toBeNull();
+    expect(live.streamKey).toBeNull();
+    expect(live.ingestUrl).toBeNull();
+    expect(live.status).toBe("upcoming");
+  });
+});
+
+describe("createPost — B5-C02: el precio no se puede colar por otro campo", () => {
+  let dueno: string;
+  let grupo: string;
+
+  beforeAll(async () => {
+    dueno = uid();
+    grupo = uid();
+    await sembrarUsuario(dueno);
+    await sembrarComunidad(grupo, dueno);
+  });
+
+  it("🔴 un precio desorbitado en `premium.price` con `oneTimePrice` ausente se rechaza", async () => {
+    const codigo = await codigoDeError(() =>
+      crear(
+        dueno,
+        borrador({
+          contextType: "group",
+          groupId: grupo,
+          premium: { enabled: true, accessMode: "members_only", price: 999999 },
+        })
+      )
+    );
+    expect(codigo).toBe("invalid-argument");
+  });
+
+  it("🔴 y tampoco por `liveData.ticketPrice`", async () => {
+    const codigo = await codigoDeError(() =>
+      crear(
+        dueno,
+        borrador({
+          contextType: "group",
+          groupId: grupo,
+          postType: "live",
+          requiresPayment: true,
+          liveData: { title: "En vivo", visibilityMode: "everyone", ticketPrice: 999999 },
+        })
+      )
+    );
+    expect(codigo).toBe("invalid-argument");
+  });
+
+  it("🔴 dos precios distintos a la vez se rechazan, no se elige uno", async () => {
+    const codigo = await codigoDeError(() =>
+      crear(
+        dueno,
+        borrador({
+          contextType: "group",
+          groupId: grupo,
+          oneTimePrice: 50,
+          premium: { enabled: true, accessMode: "members_only", price: 20000 },
+        })
+      )
+    );
+    expect(codigo).toBe("invalid-argument");
+  });
+
+  it("🟢 un precio válido queda igual en los tres campos", async () => {
+    const res = (await crear(
+      dueno,
+      borrador({
+        contextType: "group",
+        groupId: grupo,
+        postType: "live",
+        requiresPayment: true,
+        oneTimePrice: 150,
+        premium: { enabled: true, accessMode: "members_only", price: 150 },
+        liveData: { title: "En vivo", visibilityMode: "everyone", ticketPrice: 150 },
+      })
+    )) as { postId: string };
+
+    const post = (await db.doc(`posts/${res.postId}`).get()).data() ?? {};
+    expect(post.oneTimePrice).toBe(150);
+    expect((post.premium as Record<string, unknown>).price).toBe(150);
+    expect((post.liveData as Record<string, unknown>).ticketPrice).toBe(150);
+  });
+});

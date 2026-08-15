@@ -21,8 +21,13 @@ import { db, auth } from "@/lib/firebase";
  * ── Colecciones de compra actuales (4 tipos de experiencia) ──────────────────
  *  - greetingRequests         → saludo / consejo / mensaje. Excluye las creadas
  *                               sin pagar (`paymentStatus: "awaiting_payment"`).
- *  - meetGreetRequests        → meet & greet. Siempre pagadas ("simulated_paid"),
- *                               así que su sola existencia = compra.
+ *  - meetGreetRequests        → meet & greet. Su sola existencia = compra: se
+ *                               crean con el pago ya retenido ("authorized") y
+ *                               pasan a "paid" al capturar. ⚠️ NO son siempre
+ *                               "simulated_paid" — eso era el flujo simulado de
+ *                               antes de Stripe, y dar por hecho lo contrario
+ *                               dejó a `livekitTokens` negando el token de una
+ *                               sesión pagada de verdad.
  *  - exclusiveSessionRequests → sesión exclusiva. Idem: existencia = compra.
  *
  * Al crecer a 11 experiencias, agregar la fuente nueva a `SOURCES` (con su

@@ -65,8 +65,7 @@
     "seeAllMessages": "Vezi toate",
     "settings": "Setări",
     "seeAllFollowing": "Vezi toate",
-    "seeAllCommunities": "Vezi toate",
-    "publishTo": "Publică pe"
+    "seeAllCommunities": "Vezi toate"
   },
   "common": {
     "accept": "Acceptă",
@@ -75,6 +74,8 @@
     "block": "Blochează",
     "cancel": "Anulează",
     "edit": "Editează",
+    "date": "Data",
+    "time": "Ora",
     "create": "Creează",
     "understood": "Am înțeles",
     "changeLanguage": "Schimbă limba",

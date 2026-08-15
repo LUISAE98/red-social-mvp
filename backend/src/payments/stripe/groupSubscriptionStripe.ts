@@ -12,7 +12,6 @@
 // el reparto por creador vive en el ledger interno.
 
 import { onCall, HttpsError } from "firebase-functions/v2/https";
-import * as crypto from "crypto";
 import * as admin from "firebase-admin";
 import { logger } from "firebase-functions";
 import { stripeFetch, stripeSecretKey } from "./stripeClient";
@@ -23,6 +22,7 @@ import { resolvePresentment } from "../../tax/presentment";
 import { resolveTaxCountry } from "../../tax/resolveCountry";
 import { SETTLEMENT_CURRENCY } from "../../wallet/ledger";
 import { readGroupSub, validateInviteForGroup, computeMonthlyCharge } from "../groupSubscriptionCore";
+import { stripeIdempotencyKey } from "./idempotency";
 
 if (admin.apps.length === 0) {
   admin.initializeApp();
@@ -189,12 +189,23 @@ export const createGroupSubscription = onCall(
 
     const res = await stripeFetch<StripeSubscription>("/subscriptions", {
       method: "POST",
-      // Clave ÚNICA por intento. NO usar una estable por (grupo,usuario): Stripe cachea
-      // la clave 24h con sus params, así que un reintento con params distintos (p. ej.
-      // tras corregir el precio o el código) da idempotency_error. El doble-clic ya lo
-      // frena el flag `submitting` del modal; una suscripción incompleta sin confirmar
-      // se auto-cancela en ~23h.
-      idempotencyKey: crypto.randomUUID(),
+      // La clave era ÚNICA por intento (`randomUUID`) con este razonamiento: una
+      // estable por (grupo,usuario) daría `idempotency_error` al reintentar con
+      // parámetros distintos —precio corregido, otro código— porque Stripe cachea
+      // la clave 24 h junto con sus params.
+      //
+      // La objeción es correcta y por eso la clave incluye AHORA esos params. Un
+      // reintento con otro precio genera otra clave y no colisiona; un doble clic
+      // con los mismos datos deduplica. Antes no deduplicaba nada: dos envíos
+      // concurrentes creaban DOS suscripciones y la segunda sobrescribía el id
+      // guardado, dejando una huérfana viva en Stripe. Que el modal tenga un flag
+      // `submitting` no es una defensa del servidor.
+      idempotencyKey: stripeIdempotencyKey(
+        `groupSubscription__${groupId}_${uid}`,
+        unitAmount,
+        presentment.currency,
+        productId
+      ),
       form: {
         customer: customerId,
         // El nombre de la comunidad va en `description` (aparece en la factura de Stripe).

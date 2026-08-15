@@ -65,8 +65,7 @@
     "seeAllMessages": "Näytä kaikki",
     "settings": "Asetukset",
     "seeAllFollowing": "Näytä kaikki",
-    "seeAllCommunities": "Näytä kaikki",
-    "publishTo": "Julkaise kohteeseen"
+    "seeAllCommunities": "Näytä kaikki"
   },
   "common": {
     "accept": "Hyväksy",
@@ -75,6 +74,8 @@
     "block": "Estä",
     "cancel": "Peruuta",
     "edit": "Muokkaa",
+    "date": "Päivä",
+    "time": "Kellonaika",
     "create": "Luo",
     "understood": "Selvä",
     "changeLanguage": "Vaihda kieli",

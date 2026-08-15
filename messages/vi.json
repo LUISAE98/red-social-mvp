@@ -65,8 +65,7 @@
     "seeAllMessages": "Xem tất cả",
     "settings": "Cài đặt",
     "seeAllFollowing": "Xem tất cả",
-    "seeAllCommunities": "Xem tất cả",
-    "publishTo": "Đăng lên"
+    "seeAllCommunities": "Xem tất cả"
   },
   "common": {
     "accept": "Chấp nhận",
@@ -75,6 +74,8 @@
     "block": "Chặn",
     "cancel": "Hủy",
     "edit": "Sửa",
+    "date": "Ngày",
+    "time": "Giờ",
     "create": "Tạo",
     "understood": "Đã hiểu",
     "changeLanguage": "Đổi ngôn ngữ",

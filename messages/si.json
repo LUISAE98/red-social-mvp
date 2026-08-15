@@ -65,8 +65,7 @@
     "seeAllMessages": "සියල්ල බලන්න",
     "settings": "සැකසුම්",
     "seeAllFollowing": "සියල්ල බලන්න",
-    "seeAllCommunities": "සියල්ල බලන්න",
-    "publishTo": "පළ කරන්න"
+    "seeAllCommunities": "සියල්ල බලන්න"
   },
   "common": {
     "accept": "පිළිගන්න",
@@ -75,6 +74,8 @@
     "block": "අවහිර කරන්න",
     "cancel": "අවලංගු කරන්න",
     "edit": "සංස්කරණය",
+    "date": "දිනය",
+    "time": "වේලාව",
     "create": "සාදන්න",
     "understood": "තේරුණා",
     "changeLanguage": "භාෂාව වෙනස් කරන්න",

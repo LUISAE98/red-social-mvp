@@ -65,8 +65,7 @@
     "seeAllMessages": "Skatīt visas",
     "settings": "Iestatījumi",
     "seeAllFollowing": "Skatīt visas",
-    "seeAllCommunities": "Skatīt visus",
-    "publishTo": "Publicēt"
+    "seeAllCommunities": "Skatīt visus"
   },
   "common": {
     "accept": "Pieņemt",
@@ -75,6 +74,8 @@
     "block": "Bloķēt",
     "cancel": "Atcelt",
     "edit": "Rediģēt",
+    "date": "Datums",
+    "time": "Laiks",
     "create": "Izveidot",
     "understood": "Sapratu",
     "changeLanguage": "Mainīt valodu",

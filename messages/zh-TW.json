@@ -65,8 +65,7 @@
     "seeAllMessages": "查看全部",
     "settings": "設定",
     "seeAllFollowing": "查看全部",
-    "seeAllCommunities": "查看全部",
-    "publishTo": "發佈至"
+    "seeAllCommunities": "查看全部"
   },
   "common": {
     "accept": "接受",
@@ -75,6 +74,8 @@
     "block": "封鎖",
     "cancel": "取消",
     "edit": "編輯",
+    "date": "日期",
+    "time": "時間",
     "create": "建立",
     "understood": "我知道了",
     "changeLanguage": "變更語言",

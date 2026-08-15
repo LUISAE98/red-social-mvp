@@ -23,6 +23,7 @@ import ImageCropperModal from "@/components/media/ImageCropperModal";
 import { uploadProfileImage } from "@/lib/storage/uploadProfileImage";
 import SocialLinksEditor, { socialLinksToDraft } from "@/components/profile/SocialLinksEditor";
 import DateWheelPanel from "@/components/ui/DateWheelPanel";
+import { capitalizeFirst } from "@/i18n/locales";
 
 const vibraPink = "#ff2fb3";
 const vibraPurple = "#a855f7";
@@ -30,10 +31,20 @@ const vibraBlue = "#4f46ff";
 
 type Sex = "male" | "female" | "other" | "prefer_not_say";
 
+/**
+ * Los meses del idioma que toque. `Intl` los devuelve en minúscula en español y
+ * en muchos otros —"enero", "janvier"—, así que se sube la primera letra: en la
+ * rueda cada mes va solo, no dentro de una frase, y ahí una minúscula se lee
+ * como un descuido. `capitalizeFirst` respeta las reglas de cada idioma, y en
+ * los que no tienen mayúsculas devuelve el mismo texto.
+ */
 function getMonths(locale: string) {
   return Array.from({ length: 12 }, (_, i) => ({
     value: i + 1,
-    label: new Intl.DateTimeFormat(locale, { month: "long" }).format(new Date(2000, i, 1)),
+    label: capitalizeFirst(
+      new Intl.DateTimeFormat(locale, { month: "long" }).format(new Date(2000, i, 1)),
+      locale
+    ),
   }));
 }
 

@@ -112,6 +112,26 @@ Desde el 2026-08-14 un perfil restringido protege sus medios, pero **solo lo que
 
 ---
 
+### 8. Exigir App Check en las Cloud Functions (C06 del Bloque 5)
+
+**Estado:** en fase de OBSERVACIÓN, decidido por Luis el 2026-08-15. No hay nada que cambiar en el código todavía.
+
+Hay 98 callables y **ninguna** declara `enforceAppCheck: true`. La app cliente ya está preparada para mandar el sello (`lib/appCheck.ts`), pero el backend no lo comprueba: cualquiera con un token de Firebase válido puede llamar a las funciones directamente desde un script, saltándose los límites que solo existen en la interfaz.
+
+Se eligió observar antes de bloquear. Encender la exigencia a ciegas deja fuera a quien no mande el sello por cualquier motivo —una pestaña vieja, un móvil con caché, el flujo de compra sin cuenta— y eso se ve como "la app entera falla".
+
+**Los pasos, en orden. Los tres primeros son de Luis, en consola:**
+
+1. **Comprobar que la variable `NEXT_PUBLIC_APPCHECK_RECAPTCHA_SITE_KEY` está puesta en Vercel.** ⚠️ Es lo primero y es fácil de pasar por alto: si no está, el cliente **no manda ningún sello** y las métricas saldrán en 0 % verificado. Se concluiría que nadie manda sello cuando en realidad es que nunca se activó. No aparece en ningún `.env` del repositorio, así que solo se puede confirmar en Vercel.
+2. Dejar correr unos días y mirar en la consola de Firebase → App Check → Cloud Functions el reparto entre peticiones **verificadas**, **sin verificar** y **caducadas**.
+3. Decidir con esos números. Lo esperable si todo está bien es que casi todo llegue verificado.
+
+4. **Solo entonces**, encender la exigencia en el backend.
+
+⚠️ **Encender la exigencia obliga a redesplegar.** `enforceAppCheck` es una opción de despliegue de la función, no un interruptor en caliente. Si se quisiera poder apagarlo sin desplegar, habría que no usar esa opción y comprobar `request.app` a mano dentro de cada callable contra una bandera de configuración — más código y más sitios donde olvidarlo. Se decide cuando haya datos.
+
+---
+
 ### 7. Cobertura de los criterios que se movieron a callables — RESUELTO para C03 y C05
 
 **Estado:** cerrado el 2026-08-14.
@@ -123,6 +143,99 @@ Los criterios de **B4-C03** (no colarse en la comunidad de otro) y **B4-C05** (s
 Se lanza con `npm run test:emulator`, junto al resto de la suite del backend.
 
 **Sigue abierto en general:** cada vez que un criterio sale de las reglas hacia un callable, sale también de la suite de reglas. Conviene acordarse al mover el siguiente.
+
+---
+## Bloque 5 — Backend privilegiado, APIs y servicios externos (EN CURSO)
+
+### C05 — Sesiones pagadas sin poder entrar a la videollamada — RESUELTO
+
+**Cerrado y desplegado el 2026-08-15.** Era el único hallazgo del bloque que estaba **roto en producción**, no en riesgo.
+
+`getLivekitToken` solo aceptaba `paymentStatus === "simulated_paid"`, el estado del flujo simulado anterior a Stripe. El flujo real escribe `authorized` al retener y `paid` al capturar, así que una sesión pagada de verdad y bien agendada **no obtenía token**: comprador y creador se quedaban fuera con el dinero ya cobrado. Todos los demás sitios que miran el pago (`notifications.ts`, los triggers del ledger) aceptaban los dos valores desde siempre; este se quedó atrás.
+
+⚠️ **`authorized` NO se acepta, a propósito.** El cobro se captura **al agendar**, y esa misma operación deja el estado en `paid`. Lo que sigue en `authorized` es una retención sin cita a la que entrar.
+
+El comentario de `lib/experiences/useHasPurchasedExperiences.ts` afirmaba que los meet & greet son "siempre `simulated_paid`" — la misma suposición que causó el fallo. Corregido para que no lo repita nadie.
+
+Cobertura en `backend/test-emulator/livekitTokens.emulator.test.ts` (5 pruebas).
+
+### C01 + C02 — Esquema abierto en `createPost` y precio manipulable — RESUELTO
+
+**Cerrado y desplegado el 2026-08-15.** Son un solo problema y por eso se arreglaron juntos.
+
+**C01.** El documento se escribía como `{...draft, ...autoritativos}`: los campos que decide el servidor se pisaban, pero **cualquier otro del cliente sobrevivía tal cual**. Era el residuo que quedó documentado al hacer M04 del Bloque 4, y se subestimó. Ahora hay listas de campos permitidos, también para las estructuras anidadas (`premium`, `liveData`, `media`, `videoData`, `playback`, `processing`); lo que no esté se descarta antes de escribir.
+
+**C02.** El precio vive por triplicado —`oneTimePrice`, `premium.price`, `liveData.ticketPrice`— y los cobros de Stripe leen los alternativos como respaldo (`oneTimePrice ?? premium.price`). Solo se validaba el primero, **y solo si venía presente**: omitirlo y poner el precio en cualquiera de los otros dos saltaba el tope entero, y el campo sin validar era justo el que acababa cobrándose.
+
+Ahora se resuelve **un** precio efectivo, se valida ese, y se reescriben los tres iguales. Si llegan varios y no coinciden se rechaza, en vez de elegir uno: precios distintos significan enseñar uno y cobrar otro.
+
+⚠️ **Se igualan en vez de quitar los campos alternativos a propósito.** `buildPremiumAccessFields` escribe `premium.price` y `oneTimePrice` desde la misma variable, así que en el código actual siempre coinciden; igualarlos hace inofensivo el respaldo sin tener que apostar a que no exista ningún dato antiguo raro.
+
+**Dos cosas más que salieron al cerrarlo:**
+
+- `visibilityMode` de un directo aceptaba cualquier cadena y lo desconocido caía en abierto por descarte. Ahora lo que no esté en la lista se trata como `members_only`, el modo más cerrado.
+- `scheduledData` nace nulo. Ningún camino de creación lo rellena, pero `scheduledData.status` **sí se lee** para pintar un post como programado o en vivo, así que sembrarlo era una forma de aparentar un directo sin serlo.
+
+Cobertura en `backend/test-emulator/createPost.emulator.test.ts` (20 pruebas en total).
+
+### C03 — Un post cualquiera colaba como directo — RESUELTO
+
+**Cerrado y desplegado el 2026-08-15.** Tres sitios comprobaban lo mismo de tres formas y dos estaban mal:
+
+- donaciones y supercomentarios → `if (!post.liveData && post.postType !== "live")`, que solo rechaza cuando fallan **las dos**: pasaba un post normal con cualquier `liveData` colgando, y también un post marcado como live sin configuración;
+- ticket de acceso → `if (post.liveData == null)`, que ni siquiera miraba el tipo.
+
+Ahora hay un único guard, `payments/stripe/livePostGuard.ts`, que exige tipo `live` **y** configuración, y lo usan los tres. Mismo patrón que obligó a centralizar los guards de autorización en `authz.ts`: criterios duplicados que se separan con el tiempo.
+
+### M03 — Webhooks perdidos en silencio — RESUELTO
+
+**Cerrado y desplegado el 2026-08-15.**
+
+`claimWebhookEvent` tenía un `catch` que trataba **cualquier** error como entrega duplicada. Si Firestore parpadeaba —indisponible, permisos, un fallo pasajero—, el webhook respondía "ya estaba hecho" y 200: el proveedor daba la entrega por buena y **no reintentaba**, así que ese evento se perdía para siempre. Un cobro sin acceso, una membresía sin activar, un video sin publicar, y en silencio.
+
+Ahora solo `ALREADY_EXISTS` (código gRPC 6) cuenta como duplicado; lo demás se propaga. Verificado que en los cuatro webhooks (Stripe, Mux, Cloudflare, LiveKit) el reclamo se llama **fuera** de cualquier `try` que se lo trague, así que el error sube y el manejador devuelve 5xx para que el proveedor reintente. Como el reclamo es atómico, el reintento no duplica nada.
+
+Cobertura en `backend/test-emulator/webhookEvents.emulator.test.ts` (4 pruebas).
+
+### C04 — Objetos de pago duplicados en Stripe — RESUELTO
+
+**Cerrado y desplegado el 2026-08-15.**
+
+Ocho creaciones de cobro usaban `crypto.randomUUID()` como clave de idempotencia. Una clave aleatoria le dice a Stripe "esto es una operación nueva" **cada vez**, así que no deduplica nada. Y el flujo es leer estado → crear el objeto en Stripe → guardar su id: dos ejecuciones concurrentes de la misma compra —doble clic, dos pestañas, un reintento del cliente— creaban DOS PaymentIntents o DOS suscripciones, y la segunda sobrescribía el id guardado. El objeto huérfano se queda vivo y cobrable en Stripe sin que Vibra lo conozca. Que la materialización del acceso sea idempotente no arregla eso.
+
+La convención correcta ya estaba en el repositorio (`capture_${externalReference}` en `holdCapture.ts`); los que CREAN los cobros no la seguían. Ahora todos usan `stripeIdempotencyKey()`.
+
+⚠️ **La clave incluye los parámetros que pueden variar, no solo la referencia.** Stripe cachea la clave 24 h junto con sus params y devuelve `idempotency_error` si se reusa con otros distintos — y el importe cambia por motivos legítimos: aplicar saldo a favor, otro impuesto según el país de la tarjeta, otra moneda. Con el importe dentro de la clave, repetir la misma petición deduplica y una petición realmente distinta obtiene su propia clave.
+
+El comentario de `groupSubscriptionStripe.ts` rechazaba la clave estable justo por ese motivo, y tenía razón con la versión simple: la objeción se resuelve incluyendo los params, no volviendo a lo aleatorio.
+
+**Excepción a propósito:** `createStripePaymentIntent` mantiene la clave aleatoria. Es una herramienta de prueba de pasarela, solo para supermoderadores y topada a 500; cada llamada debe crear un cobro nuevo aunque repita importe.
+
+**Residuo conocido:** sigue sin haber reserva transaccional antes de llamar a Stripe. La clave estable cubre el caso que hace daño —mismos datos, dos envíos—; dos peticiones concurrentes con importes distintos son operaciones genuinamente distintas.
+
+Cobertura en `backend/test/idempotency.pure.test.ts` (6 pruebas).
+
+### C07 — Subidas de video sin techo — RESUELTO (parcial, ver alcance)
+
+**Cerrado y desplegado el 2026-08-15.** **Tope: 10 videos al día por persona** (decisión de Luis).
+
+Las tres funciones que crean subidas en Mux aceptaban cualquier UID autenticado sin tope persistente. Una granja de cuentas —o una sola comprometida— podía generar subidas indefinidamente, y la factura del proveedor la paga Vibra. No hacía falta vulnerar Firestore ni saltarse ninguna regla: bastaba con llamar a la función.
+
+`backend/src/quotas.ts` lleva un contador diario en `dailyQuotas/{uid}_{clave}`, en transacción. Lo usan `createMuxDirectUpload`, `createMuxDonationUpload` y `createMuxGroupDonationUpload`.
+
+⚠️ **No es lo mismo que `rateLimiter.ts`.** Aquel limita la VELOCIDAD (un post cada 10 s, 20 por hora) y su ventana se vacía sola; este pone un TECHO al día que no se recupera hasta el día siguiente. **Un abuso lento y constante pasa por debajo del control de ritmo sin despeinarse**, que es justo el caso que importa cuando lo que se gasta es dinero de un proveedor.
+
+Detalles que importan:
+
+- El día se cuenta con el reloj de **Ciudad de México**, no UTC. Con UTC el contador se reiniciaría a las 18:00 hora local y quien agotara la cuota por la mañana la recuperaría el mismo día.
+- La cuota se consume **después** de comprobar el permiso: a quien no puede publicar ahí no se le gasta el día por intentarlo.
+- Va en transacción porque leer y sumar por separado deja pasar dos llamadas simultáneas. Hay una prueba que lanza 15 a la vez y comprueba que solo entran 10.
+
+**Fuera de alcance a propósito:** `createGreetingMuxUpload`. Es la entrega de un saludo **ya pagado**; toparlo bloquearía a un creador con muchos pedidos y el abuso ahí está acotado por que cada uno exige un comprador que pagó.
+
+**Sigue abierto del hallazgo original:** no hay cuota todavía en la creación de inputs de directo (Mux/Cloudflare), el render animado por Egress, el render FFmpeg ni las llamadas a Facturapi. El mecanismo ya está hecho y aplicarlo a cada uno es añadir una línea; falta decidir el número de cada cual.
+
+Cobertura en `backend/test-emulator/quotas.emulator.test.ts` (4 pruebas).
 
 ---
 ## Bloques cerrados

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
+import DateWheelPanel from "@/components/ui/DateWheelPanel";
 
 type Props = {
   /** Fecha aplicada (YYYY-MM-DD) o "". */
@@ -82,18 +83,20 @@ const selectStyle: React.CSSProperties = {
   cursor: "pointer",
 };
 
-const optionStyle: React.CSSProperties = { background: "#141414", color: "#fff" };
-
 export default function SearchDateFilterMenu({ fromDate, toDate, onApply }: Props) {
   const [open, setOpen] = useState(false);
   const [closing, setClosing] = useState(false);
   const [fromParts, setFromParts] = useState<Parts>(() => parseParts(fromDate));
   const [toParts, setToParts] = useState<Parts>(() => parseParts(toDate));
+  // Cual de los dos extremos tiene la rueda abierta. Una sola rueda para los
+  // dos: nunca se giran a la vez.
+  const [wheelFor, setWheelFor] = useState<"from" | "to" | null>(null);
 
   const years = useMemo(() => {
     const now = new Date().getFullYear();
     const out: number[] = [];
-    for (let y = now + 1; y >= now - 6; y--) out.push(y);
+    // De menor a mayor, que es como se lee un tambor.
+    for (let y = now - 6; y <= now + 1; y++) out.push(y);
     return out;
   }, []);
 
@@ -115,24 +118,6 @@ export default function SearchDateFilterMenu({ fromDate, toDate, onApply }: Prop
       setOpen(false);
       setClosing(false);
     }, 150);
-  }
-
-  function updateFrom(next: Partial<Parts>) {
-    setFromParts((prev) => {
-      const merged = { ...prev, ...next };
-      const max = daysInMonth(merged.y, merged.m);
-      if (merged.d && Number(merged.d) > max) merged.d = "";
-      return merged;
-    });
-  }
-
-  function updateTo(next: Partial<Parts>) {
-    setToParts((prev) => {
-      const merged = { ...prev, ...next };
-      const max = daysInMonth(merged.y, merged.m);
-      if (merged.d && Number(merged.d) > max) merged.d = "";
-      return merged;
-    });
   }
 
   function handleAccept() {
@@ -159,71 +144,49 @@ export default function SearchDateFilterMenu({ fromDate, toDate, onApply }: Prop
     return () => document.removeEventListener("keydown", handleEscape);
   }, [open]);
 
-  function renderPicker(
-    title: string,
-    parts: Parts,
-    update: (next: Partial<Parts>) => void
-  ) {
+  function renderPicker(title: string, parts: Parts, which: "from" | "to") {
     const maxDay = daysInMonth(parts.y, parts.m);
     const dayValue = parts.d && Number(parts.d) <= maxDay ? parts.d : "";
+    const completo = dayValue && parts.m && parts.y;
+
+    // Los tres campos siguen separados, como estaban. Lo \u00fanico que cambia es
+    // que ya no son listas del sistema: cualquiera de los tres abre la rueda.
+    const campos = [
+      { key: "d", texto: dayValue, vacio: "D\u00eda" },
+      { key: "m", texto: parts.m ? (MONTHS[Number(parts.m) - 1] ?? parts.m) : "", vacio: "Mes" },
+      { key: "y", texto: parts.y, vacio: "A\u00f1o" },
+    ];
+
     return (
       <div style={{ display: "grid", gap: 6 }}>
         <span style={{ fontSize: 12, fontWeight: 600, color: "rgba(255,255,255,0.74)" }}>
           {title}
         </span>
         <div style={{ display: "flex", gap: 6 }}>
-          <select
-            aria-label={`${title} — día`}
-            value={dayValue}
-            onChange={(e) => update({ d: e.target.value })}
-            style={selectStyle}
-          >
-            <option value="" style={optionStyle}>
-              Día
-            </option>
-            {Array.from({ length: maxDay }, (_, i) => i + 1).map((d) => (
-              <option key={d} value={String(d)} style={optionStyle}>
-                {d}
-              </option>
-            ))}
-          </select>
-
-          <select
-            aria-label={`${title} — mes`}
-            value={parts.m}
-            onChange={(e) => update({ m: e.target.value })}
-            style={selectStyle}
-          >
-            <option value="" style={optionStyle}>
-              Mes
-            </option>
-            {MONTHS.map((name, i) => (
-              <option key={name} value={String(i + 1)} style={optionStyle}>
-                {name}
-              </option>
-            ))}
-          </select>
-
-          <select
-            aria-label={`${title} — año`}
-            value={parts.y}
-            onChange={(e) => update({ y: e.target.value })}
-            style={selectStyle}
-          >
-            <option value="" style={optionStyle}>
-              Año
-            </option>
-            {years.map((y) => (
-              <option key={y} value={String(y)} style={optionStyle}>
-                {y}
-              </option>
-            ))}
-          </select>
+          {campos.map((campo) => (
+            <button
+              key={campo.key}
+              type="button"
+              onClick={() => setWheelFor(which)}
+              style={{
+                ...selectStyle,
+                flex: 1,
+                minWidth: 0,
+                textAlign: "start",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+                cursor: "pointer",
+                color: campo.texto ? "#fff" : "rgba(255,255,255,0.45)",
+              }}
+            >
+              {campo.texto || campo.vacio}
+            </button>
+          ))}
         </div>
       </div>
     );
   }
-
   const panel = open
     ? createPortal(
         <>
@@ -291,8 +254,8 @@ export default function SearchDateFilterMenu({ fromDate, toDate, onApply }: Prop
               }}
             >
               <div style={{ padding: "16px 16px 10px", display: "grid", gap: 14 }}>
-                {renderPicker("Desde", fromParts, updateFrom)}
-                {renderPicker("Hasta", toParts, updateTo)}
+                {renderPicker("Desde", fromParts, "from")}
+                {renderPicker("Hasta", toParts, "to")}
               </div>
 
               {/* Acciones */}
@@ -350,6 +313,33 @@ export default function SearchDateFilterMenu({ fromDate, toDate, onApply }: Prop
       )
     : null;
 
+  // Una sola rueda para los dos extremos: nunca se giran a la vez. Va FUERA
+  // del menu para que no herede su recorte ni su animacion de cierre.
+  const partsAbiertas = wheelFor === "to" ? toParts : fromParts;
+  const rueda = wheelFor ? (
+    <DateWheelPanel
+      open
+      onClose={() => setWheelFor(null)}
+      value={{ day: partsAbiertas.d, month: partsAbiertas.m, year: partsAbiertas.y }}
+      months={MONTHS.map((name, i) => ({ value: String(i + 1), label: name }))}
+      years={years}
+      title={wheelFor === "to" ? "Hasta" : "Desde"}
+      labels={{
+        day: "D\u00eda",
+        month: "Mes",
+        year: "A\u00f1o",
+        confirm: "Aceptar",
+        closeAria: "Cerrar",
+      }}
+      onConfirm={({ day, month, year }) => {
+        const next = { d: day, m: month, y: year };
+        if (wheelFor === "to") setToParts(next);
+        else setFromParts(next);
+        setWheelFor(null);
+      }}
+    />
+  ) : null;
+
   return (
     <>
       <style jsx>{`
@@ -400,6 +390,7 @@ export default function SearchDateFilterMenu({ fromDate, toDate, onApply }: Prop
       </button>
 
       {panel}
+      {rueda}
     </>
   );
 }

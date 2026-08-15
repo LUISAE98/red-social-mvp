@@ -65,8 +65,7 @@
     "seeAllMessages": "Виж всички",
     "settings": "Настройки",
     "seeAllFollowing": "Виж всички",
-    "seeAllCommunities": "Виж всички",
-    "publishTo": "Публикуване в"
+    "seeAllCommunities": "Виж всички"
   },
   "common": {
     "accept": "Приеми",
@@ -75,6 +74,8 @@
     "block": "Блокирай",
     "cancel": "Отказ",
     "edit": "Редактирай",
+    "date": "Дата",
+    "time": "Час",
     "create": "Създай",
     "understood": "Разбрах",
     "changeLanguage": "Смени езика",
