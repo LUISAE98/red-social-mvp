@@ -707,129 +707,22 @@ describe("B3-C03 — una suscripción vencida no reconstruye el acceso", () => {
   });
 });
 
-describe("B4-C03 — no se puede colar un post en la comunidad de otro", () => {
-  const GRUPO_AJENO = "g_ajeno";
-
-  async function sembrarGrupoAjeno(visibility: string) {
-    await seedAll([
-      [`groups/${GRUPO_AJENO}`, { ownerId: "otra_persona", visibility, isActive: true }],
-      [`users/${REAL}`, profile(REAL, "realuser")],
-    ]);
-  }
-
-  /** El truco: post de PERFIL que además trae el groupId de otra comunidad. */
-  function postCruzado(extra: Record<string, unknown> = {}) {
-    return {
-      authorId: REAL,
-      profileId: REAL,
-      contextType: "group",
-      groupId: GRUPO_AJENO,
-      isDeleted: false,
-      text: "colado",
-      ...extra,
-    };
-  }
-
-  it("NO puede colarse en una comunidad pública de otro", async () => {
-    await sembrarGrupoAjeno("public");
-    await assertFails(setDoc(doc(realDb(), "posts/p_colado"), postCruzado()));
-  });
-
-  it("NO puede colarse en una comunidad OCULTA de otro", async () => {
-    await sembrarGrupoAjeno("hidden");
-    await assertFails(setDoc(doc(realDb(), "posts/p_colado"), postCruzado()));
-  });
-
-  it("NO puede marcarlo como live de esa comunidad", async () => {
-    await sembrarGrupoAjeno("public");
-    await assertFails(
-      setDoc(doc(realDb(), "posts/p_colado"), postCruzado({ postType: "live" }))
-    );
-  });
-
-  it("un post de perfil legítimo SÍ se crea", async () => {
-    await seedAll([[`users/${REAL}`, profile(REAL, "realuser")]]);
-    await assertSucceeds(
-      setDoc(doc(realDb(), "posts/p_perfil"), {
-        authorId: REAL,
-        profileId: REAL,
-        contextType: "profile",
-        isDeleted: false,
-        text: "mi post",
-      })
-    );
-  });
-});
-
-describe("B4-C05 — solo el dueño monetiza en su comunidad", () => {
-  const GRUPO = "g_ajeno2";
-
-  async function sembrar() {
-    await seedAll([
-      [
-        `groups/${GRUPO}`,
-        {
-          ownerId: "otra_persona",
-          visibility: "public",
-          isActive: true,
-          postingMode: "members",
-        },
-      ],
-      [`groups/${GRUPO}/members/${REAL}`, { userId: REAL, roleInGroup: "member", status: "active" }],
-      [`users/${REAL}`, profile(REAL, "realuser")],
-    ]);
-  }
-
-  function postDeGrupo(extra: Record<string, unknown> = {}) {
-    return {
-      authorId: REAL,
-      groupId: GRUPO,
-      contextType: "group",
-      isDeleted: false,
-      text: "hola",
-      ...extra,
-    };
-  }
-
-  it("un miembro NO puede crear contenido premium ahí", async () => {
-    await sembrar();
-    await assertFails(
-      setDoc(
-        doc(realDb(), "posts/p_premium"),
-        postDeGrupo({ premium: { enabled: true, kind: "video" }, oneTimePrice: 100 })
-      )
-    );
-  });
-
-  it("un miembro NO puede marcar el post como de pago", async () => {
-    await sembrar();
-    await assertFails(
-      setDoc(doc(realDb(), "posts/p_pago"), postDeGrupo({ requiresPayment: true }))
-    );
-  });
-
-  it("un miembro SÍ puede publicar gratis", async () => {
-    await sembrar();
-    await assertSucceeds(setDoc(doc(realDb(), "posts/p_gratis"), postDeGrupo()));
-  });
-});
-
 // ─────────────────────────────────────────────────────────────────────────────
-// B4-M04 — CREAR POSTS PASA A SER SOLO DEL SERVIDOR.
+// B4-M04 — CREAR POSTS ES SOLO DEL SERVIDOR.
 //
-// Publicar ya va por el callable `createPost` (`backend/src/createPost.ts`), que
+// Publicar va por el callable `createPost` (`backend/src/createPost.ts`), que
 // escribe con el Admin SDK: ahí el contador de ritmo y la escritura son la MISMA
-// transacción, cosa que una regla no puede exigir.
+// transacción, cosa que una regla no puede exigir. Por eso `posts` está en
+// `create: if false`.
 //
-// ⚠️ SKIP A PROPÓSITO. La regla sigue en `validCreatePost()` hasta que el
-// frontend nuevo esté desplegado en Vercel; cerrarla antes deja sin publicar a
-// quien siga con el sitio viejo. Al cambiarla a `allow create: if false`, quitar
-// el `.skip` de aquí y borrar los dos describe de arriba (B4-C03 y B4-C05), que
-// dejarán de aplicar: sus criterios se comprueban ahora dentro del callable, y
-// un test de reglas no puede ejercitarlos porque el Admin SDK no pasa por ellas.
-// Cubrirlos pide un test de integración contra el emulador de Functions.
+// ⚠️ Lo que se comprueba aquí es solo que la puerta está cerrada. Los criterios
+// que antes vivían en `validCreatePost()` —no colarse en la comunidad de otro
+// (B4-C03), que solo el dueño monetice (B4-C05)— se aplican ahora DENTRO del
+// callable, y un test de reglas no puede ejercitarlos porque el Admin SDK no
+// pasa por ellas. Cubrirlos pide un test de integración contra el emulador de
+// Functions, que hoy no existe.
 // ─────────────────────────────────────────────────────────────────────────────
-describe.skip("B4-M04 — la colección posts no acepta escrituras directas del cliente", () => {
+describe("B4-M04 — la colección posts no acepta escrituras directas del cliente", () => {
   const GRUPO_AJENO = "g_ajeno3";
 
   it("un post de perfil propio y legítimo tampoco pasa ya por el cliente", async () => {

@@ -28,12 +28,7 @@ export const SOCIAL_ICON_PATH: Record<SocialNetworkId, string> = {
     "M11.571 4.714h1.715v5.143H11.57zm4.715 0H18v5.143h-1.714zM6 0L1.714 4.286v15.428h5.143V24l4.286-4.286h3.428L22.286 12V0zm14.571 11.143l-3.428 3.428h-3.429l-3 3v-3H6.857V1.714h13.714Z",
 };
 
-/** Color de marca para el estado activo. */
-export const SOCIAL_ICON_BRAND: Record<SocialNetworkId, string> = {
-  instagram: "#ff0069",
-  tiktok: "#25f4ee",
-  youtube: "#ff0000",
-  x: "#ffffff",
-  facebook: "#0866ff",
-  twitch: "#9146ff",
-};
+// Los colores NO viven aquí. Cada marca se pinta distinto —Instagram es un
+// degradado, TikTok tres copias corridas, YouTube y Facebook llevan una pieza
+// blanca detrás—, así que una tabla de "un color por red" no servía para
+// ninguna de ellas. Todo eso está en `SocialIcon.tsx`, junto al render.

@@ -2,7 +2,6 @@
 
 import { listSocialLinks, type SocialLinks } from "@/lib/profile/socialNetworks";
 import SocialIcon from "./SocialIcon";
-import { SOCIAL_ICON_BRAND } from "./socialIconPaths";
 
 /**
  * Las redes del perfil en el card: una fila de íconos, sin texto.
@@ -15,7 +14,7 @@ import { SOCIAL_ICON_BRAND } from "./socialIconPaths";
  */
 export default function SocialLinksRow({
   links,
-  size = 18,
+  size = 22,
 }: {
   links: SocialLinks | null | undefined;
   size?: number;
@@ -32,36 +31,36 @@ export default function SocialLinksRow({
           align-items: center;
           justify-content: center;
           flex-wrap: wrap;
-          gap: 6px;
+          gap: 14px;
         }
 
+        /* Sin caja: el logotipo suelto, con sus propios colores. La separacion
+           entre ellos es la que los ordena. El area de toque sigue siendo
+           holgada por el acolchado, aunque no se vea. */
         .vb-social-link {
           display: grid;
           place-items: center;
-          width: 34px;
-          height: 34px;
+          padding: 2px;
           border-radius: 999px;
-          color: rgba(255, 255, 255, 0.72);
-          border: 1px solid rgba(255, 255, 255, 0.12);
-          background: rgba(255, 255, 255, 0.04);
           transition:
-            color 160ms ease,
-            border-color 160ms ease,
-            background 160ms ease;
+            transform 160ms ease,
+            opacity 160ms ease;
         }
 
-        /* El color de la marca solo aparece al pasar el cursor. En reposo los
-           seis van del mismo gris: una fila de logos a todo color le roba la
-           atencion al nombre y a la foto, que es de lo que va el card. */
         .vb-social-link:hover {
-          color: var(--vb-social-brand, #fff);
-          border-color: rgba(255, 255, 255, 0.28);
-          background: rgba(255, 255, 255, 0.09);
+          transform: scale(1.12);
+        }
+
+        .vb-social-link:active {
+          opacity: 0.75;
         }
 
         @media (prefers-reduced-motion: reduce) {
           .vb-social-link {
             transition: none;
+          }
+          .vb-social-link:hover {
+            transform: none;
           }
         }
       `}</style>
@@ -75,9 +74,6 @@ export default function SocialLinksRow({
           rel="me noopener noreferrer nofollow"
           title={`${item.label} · @${item.handle}`}
           aria-label={`${item.label}, @${item.handle}`}
-          style={
-            { "--vb-social-brand": SOCIAL_ICON_BRAND[item.id] } as React.CSSProperties
-          }
         >
           <SocialIcon id={item.id} size={size} />
         </a>

@@ -11,6 +11,7 @@ import {
   type SocialLinks,
   type SocialNetworkId,
 } from "@/lib/profile/socialNetworks";
+import { Input } from "@/components/ui";
 import SocialIcon from "./SocialIcon";
 
 /**
@@ -48,29 +49,27 @@ export default function SocialLinksEditor({
               style={{
                 display: "flex",
                 alignItems: "center",
-                gap: 8,
+                gap: 10,
                 minWidth: 0,
               }}
             >
+              {/* El logotipo suelto. Cada uno trae sus propios colores, así que
+                  aquí no se le impone ninguno. */}
               <span
                 aria-hidden="true"
                 style={{
                   display: "grid",
                   placeItems: "center",
-                  width: 28,
-                  height: 28,
+                  width: 24,
                   flexShrink: 0,
-                  borderRadius: 8,
-                  color: "rgba(255,255,255,0.72)",
-                  background: "rgba(255,255,255,0.05)",
-                  border: "1px solid rgba(255,255,255,0.10)",
                 }}
               >
-                <SocialIcon id={id} size={16} />
+                <SocialIcon id={id} size={20} />
               </span>
 
-              <input
-                type="text"
+              {/* El primitivo, no un campo a mano: es el estilo canónico de
+                  Vibra y trae el foco visible de `.vibra-field`. */}
+              <Input
                 inputMode="text"
                 autoComplete="off"
                 autoCapitalize="none"
@@ -84,22 +83,8 @@ export default function SocialLinksEditor({
                 // también vale.
                 placeholder={net.urlPrefix}
                 aria-label={net.label}
-                aria-invalid={invalid || undefined}
-                style={{
-                  flex: 1,
-                  minWidth: 0,
-                  height: 36,
-                  padding: "0 10px",
-                  borderRadius: 8,
-                  border: `1px solid ${
-                    invalid ? "rgba(248,113,113,0.55)" : "rgba(255,255,255,0.12)"
-                  }`,
-                  background: "rgba(255,255,255,0.04)",
-                  color: "#fff",
-                  fontFamily: "inherit",
-                  fontSize: 13,
-                  outline: "none",
-                }}
+                invalid={invalid}
+                style={{ flex: 1, minWidth: 0 }}
               />
             </span>
 
@@ -112,7 +97,7 @@ export default function SocialLinksEditor({
                   fontSize: 11,
                   lineHeight: 1.3,
                   color: "rgba(248,113,113,0.9)",
-                  paddingInlineStart: 36,
+                  paddingInlineStart: 34,
                 }}
               >
                 {tProfile("socialHandleInvalid", { network: net.label })}
@@ -123,7 +108,7 @@ export default function SocialLinksEditor({
                   fontSize: 11,
                   lineHeight: 1.3,
                   color: "rgba(255,255,255,0.45)",
-                  paddingInlineStart: 36,
+                  paddingInlineStart: 34,
                   wordBreak: "break-all",
                 }}
               >

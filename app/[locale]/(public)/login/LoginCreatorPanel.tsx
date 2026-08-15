@@ -5,6 +5,7 @@ import { useInView } from "./useInView";
 import VibraGradientText from "@/app/components/VibraGradientText/VibraGradientText";
 import { WALLET_COMMISSION_RATE, WALLET_NET_RATE } from "@/lib/wallet/walletFinances";
 import LoginWalletPhone from "./LoginWalletPhone";
+import LoginFaq from "./LoginFaq";
 
 /**
  * Panel de creador del login. Se abre desde "Descubre cómo monetizar en Vibra"
@@ -363,6 +364,9 @@ export default function LoginCreatorPanel() {
           <img src="/suscomunidades.webp" alt="" loading="lazy" />
         </div>
       </section>
+
+      {/* Cierre del panel: las dudas que quedan después de leerlo todo. */}
+      <LoginFaq />
     </div>
   );
 }
