@@ -745,6 +745,16 @@ const previousMedia =
     externalVideoElement.controls = false;
     slot.appendChild(externalVideoElement);
     externalVideoElement.style.objectFit = "contain";
+    /**
+     * El sonido pasa a mandarlo el visor, y se dice aquí en vez de confiar en
+     * que el efecto del silencio corra después.
+     *
+     * El elemento viene de la galería del feed, donde se crea MUDO a propósito
+     * —así puede arrancar solo— y donde el arranque del HLS se lo vuelve a
+     * poner. Al adoptarlo, si nadie le quita el silencio de forma explícita, el
+     * video se ve pero no se oye.
+     */
+    externalVideoElement.muted = videoMuted;
     if (useMobileLayout) {
       // Mobile: gesture container must receive touch events; video must not intercept them
       externalVideoElement.style.pointerEvents = "none";
@@ -857,7 +867,25 @@ const previousMedia =
       }
       const playPromise = video.play();
       if (playPromise && typeof playPromise.catch === "function") {
-        playPromise.catch(() => undefined);
+        playPromise.catch(() => {
+          /**
+           * iOS NO deja arrancar un video con sonido si la orden no sale de un
+           * toque directo. Abrir el visor sí viene de un toque, pero esto corre
+           * en un efecto —o sea, en otra tarea—, así que Safari lo trata como
+           * automático y lo rechaza.
+           *
+           * Antes el rechazo se tragaba en silencio y el video se quedaba
+           * congelado en su portada, sin decir por qué. Ahora se reintenta en
+           * mudo, que es lo único que iOS permite arrancar solo, y el botón de
+           * sonido —que ya existe— queda como la forma de recuperarlo con un
+           * toque.
+           */
+          const node = videoRef.current;
+          if (!node) return;
+          node.muted = true;
+          setVideoMuted(true);
+          void node.play().catch(() => undefined);
+        });
       }
       scheduleChromeHide();
     }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { useInView } from "./useInView";
 import VibraGradientText from "@/app/components/VibraGradientText/VibraGradientText";
 import { WALLET_COMMISSION_RATE, WALLET_NET_RATE } from "@/lib/wallet/walletFinances";
@@ -23,6 +24,7 @@ const NETO_PCT = Math.round(WALLET_NET_RATE * 100);
 const LLENADO_MS = 1100;
 
 export default function LoginCreatorPanel() {
+  const t = useTranslations("loginLanding");
   // Un observador por sección: cada una entra y sale por su cuenta al pasar
   // por delante, en vez de encenderse las tres cuando asoma la primera.
   const [splitRef, splitDentro] = useInView<HTMLElement>(0.25);
@@ -73,7 +75,9 @@ export default function LoginCreatorPanel() {
           /* MISMO aire arriba que la invitación a la que sustituye (74px), para
              que el panel arranque justo donde estaba la pregunta y no salte
              hacia arriba al abrirse. Si se cambia allá, hay que cambiarlo aquí. */
-          padding: 74px 20px 60px;
+          /* Abajo casi nada: el pie legal trae su propio relleno (22px) y sumar
+             los dos abría un hueco muerto tras la última pregunta. */
+          padding: 74px 20px 8px;
           box-sizing: border-box;
         }
 
@@ -300,22 +304,25 @@ export default function LoginCreatorPanel() {
 
       <section ref={splitRef} className={`split${splitDentro ? " seccionDentro" : ""}`}>
         <p className="creEyebrow">
-          <VibraGradientText>Tus ganancias</VibraGradientText>
+          <VibraGradientText>{t("earnEyebrow")}</VibraGradientText>
         </p>
         <h2 className="creTitle">
-          De cada venta, el{" "}
-          <span style={{ fontSize: "1.15em" }}>
-            <VibraGradientText>{NETO_PCT}% es para ti</VibraGradientText>
-          </span>
+          {t.rich("earnTitle", {
+            net: NETO_PCT,
+            vibra: (chunks) => (
+              <span style={{ fontSize: "1.15em" }}>
+                <VibraGradientText>{chunks}</VibraGradientText>
+              </span>
+            ),
+          })}
         </h2>
-        <p className="creText">
-          Vibra conserva una comisión del {COMISION_PCT}% por cada venta. Sin mensualidades ni
-          costos por publicar, solo ganamos cuando tú también ganas.
-        </p>
+        <p className="creText">{t("earnText", { commission: COMISION_PCT })}</p>
 
         <div className="barra" aria-hidden="true">
           <span className="barraFill" style={{ width: `${NETO_PCT * avance}%` }} />
-          <span className="barraLabel">{pctTuyo}% para ti</span>
+          {/* El número sube contando, así que el porcentaje va como dato del
+              texto y no escrito dentro de la frase. */}
+          <span className="barraLabel">{t("earnBarYours", { net: pctTuyo })}</span>
           <span className="barraResto">{pctNuestro}%</span>
         </div>
       </section>
@@ -325,17 +332,14 @@ export default function LoginCreatorPanel() {
 
         <div className="walletTexto">
           <p className="creEyebrow">
-            <VibraGradientText>Tu wallet</VibraGradientText>
+            <VibraGradientText>{t("walletEyebrow")}</VibraGradientText>
           </p>
           <h2 className="creTitle">
-            Todo lo que ganas,{" "}
-            <VibraGradientText>claro y en un solo lugar</VibraGradientText>
+            {t.rich("walletTitle", {
+              vibra: (chunks) => <VibraGradientText>{chunks}</VibraGradientText>,
+            })}
           </h2>
-          <p className="creText">
-            Consulta cuánto tienes disponible, de dónde viene cada ingreso y cuándo podrás
-            retirarlo. Tu wallet se actualiza con cada venta para que siempre tengas el control de
-            tus ganancias.
-          </p>
+          <p className="creText">{t("walletText")}</p>
         </div>
       </section>
 
@@ -346,16 +350,15 @@ export default function LoginCreatorPanel() {
             adorno. */}
         <div className="alcanceTexto">
           <p className="creEyebrow">
-            <VibraGradientText>Pagos internacionales</VibraGradientText>
+            <VibraGradientText>{t("intlEyebrow")}</VibraGradientText>
           </p>
           <h2 className="creTitle">
-            Tu contenido <VibraGradientText>llega lejos.</VibraGradientText> Tus ganancias
-            también.
+            {t.rich("intlTitle", {
+              vibra: (chunks) => <VibraGradientText>{chunks}</VibraGradientText>,
+            })}
           </h2>
           <p className="creText" style={{ marginInlineStart: "auto" }}>
-            Personas de distintos países pueden comprar tu contenido y experiencias usando su
-            moneda y medios de pago disponibles. Vibra procesa la conversión para que tú recibas
-            tus ganancias en la moneda de tu cuenta.
+            {t("intlText")}
           </p>
         </div>
 

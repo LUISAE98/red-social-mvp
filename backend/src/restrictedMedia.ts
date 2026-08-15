@@ -88,6 +88,40 @@ async function canReadGroup(groupId: string, uid: string): Promise<boolean> {
   return status === undefined || ["active", "subscribed", "muted"].includes(String(status));
 }
 
+/**
+ * ¿Puede este usuario ver los medios de un post de PERFIL?
+ *
+ * Un perfil restringido solo se lo lee su dueño — mismo criterio que
+ * `canReadProfileContent` en firestore.rules, donde no hay excepción ni para
+ * seguidores.
+ *
+ * ⚠️ Aquí antes no se comprobaba nada: "sin grupo es un post de perfil, no hay
+ * comunidad que restrinja nada". Cierto para la comunidad, falso para el perfil,
+ * así que cualquier cuenta con sesión podía pedir firmadas las fotos de un
+ * perfil privado.
+ *
+ * La restricción se lee del PERFIL, no de la copia `profileRestricted` que lleva
+ * el post: esa se escribe al publicar y no se actualiza si el perfil se cierra
+ * después.
+ */
+async function canReadProfilePost(
+  post: FirebaseFirestore.DocumentData,
+  uid: string
+): Promise<boolean> {
+  const profileId =
+    typeof post.profileId === "string" && post.profileId
+      ? post.profileId
+      : typeof post.authorId === "string" && post.authorId
+        ? post.authorId
+        : null;
+
+  if (!profileId) return false;
+  if (profileId === uid) return true;
+
+  const perfil = await db.collection("users").doc(profileId).get();
+  return perfil.get("profileRestricted") !== true;
+}
+
 export const getRestrictedMediaUrls = onCall<RequestData, Promise<ResponseData>>(
   { region: REGION },
   async (request) => {
@@ -117,9 +151,12 @@ export const getRestrictedMediaUrls = onCall<RequestData, Promise<ResponseData>>
     const post = postSnap.data() ?? {};
     const groupId = typeof post.groupId === "string" ? post.groupId : null;
 
-    // Sin grupo es un post de perfil: no hay comunidad que restrinja nada.
-    if (groupId && !(await canReadGroup(groupId, uid))) {
-      throw new HttpsError("permission-denied", "No tienes acceso a esta comunidad.");
+    if (groupId) {
+      if (!(await canReadGroup(groupId, uid))) {
+        throw new HttpsError("permission-denied", "No tienes acceso a esta comunidad.");
+      }
+    } else if (!(await canReadProfilePost(post, uid))) {
+      throw new HttpsError("permission-denied", "Este perfil es privado.");
     }
 
     // ⚠️ Antes se aceptaba cualquier ruta bajo `posts/{groupId}/`, o sea

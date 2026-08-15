@@ -176,6 +176,15 @@ const SWIPE_AXIS_SLOP = 6;
 const DRAFT_FADE_MS = 140;
 
 /**
+ * Cuánto se espera para volver a apuntar al final del hilo.
+ *
+ * Tiene que caer DESPUÉS de que el campo haya encogido (`DRAFT_FADE_MS`) y de
+ * que el globo nuevo haya terminado de entrar, porque las dos cosas cambian el
+ * alto del contenido mientras el scroll ya va en camino.
+ */
+const SCROLL_SETTLE_MS = 280;
+
+/**
  * Cuánto hay que mantener el dedo para abrir el menú de un mensaje.
  *
  * 480ms es el punto donde no se dispara sin querer al tocar, pero tampoco
@@ -472,14 +481,54 @@ export default function ConversationThread({
    * `scrollHeight` incluye el relleno inferior, así que el tope del scroll deja
    * el último mensaje justo por encima del compositor, no debajo.
    */
+  const settleTimerRef = useRef<number | null>(null);
+
   const scrollToBottom = useCallback((smooth: boolean) => {
     const container = scrollRef.current;
     if (!container) return;
+
     container.scrollTo({
       top: container.scrollHeight,
       behavior: smooth ? "smooth" : "auto",
     });
+
+    /**
+     * Segunda pasada, y es la que arregla el mensaje que aparecía DEBAJO del
+     * campo en vez de encima.
+     *
+     * Un scroll suave apunta al alto que había cuando arrancó y anima hacia ahí.
+     * Justo al mandar, ese alto cambia a media animación: el globo nuevo entra
+     * con la suya y el campo encoge de tres líneas a una, lo que recorta el hueco
+     * reservado abajo. El scroll terminaba en un destino que ya no era el final,
+     * y el último mensaje quedaba medio tapado.
+     *
+     * Aquí se vuelve a apuntar cuando todo cuajó. Lo que falta son decenas de
+     * píxeles, así que la corrección se ve como una continuación del mismo
+     * movimiento y no como un salto. Si mientras tanto te fuiste a leer hacia
+     * arriba, no se te arrastra.
+     */
+    if (settleTimerRef.current !== null) {
+      window.clearTimeout(settleTimerRef.current);
+    }
+    settleTimerRef.current = window.setTimeout(() => {
+      settleTimerRef.current = null;
+      const node = scrollRef.current;
+      if (!node || !stickToBottomRef.current) return;
+      node.scrollTo({
+        top: node.scrollHeight,
+        behavior: smooth ? "smooth" : "auto",
+      });
+    }, SCROLL_SETTLE_MS);
   }, []);
+
+  useEffect(
+    () => () => {
+      if (settleTimerRef.current !== null) {
+        window.clearTimeout(settleTimerRef.current);
+      }
+    },
+    []
+  );
 
   /** Alto aproximado del menú (hora + hasta 4 acciones). Solo decide el lado. */
   const MENU_ESTIMATED_HEIGHT = 190;
@@ -765,6 +814,13 @@ export default function ConversationThread({
     padding: 0,
   } as const;
   const [sending, setSending] = useState(false);
+  /**
+   * El mismo "está enviando" pero visible al instante. `sending` es estado y no
+   * cambia hasta el siguiente render, así que no sirve para frenar dos disparos
+   * dentro del mismo gesto — y ahora el botón dispara desde el dedo Y desde el
+   * clic que viene detrás.
+   */
+  const sendingRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const [busyAction, setBusyAction] = useState(false);
 
@@ -954,11 +1010,18 @@ export default function ConversationThread({
   }, [active, scrollToBottom]);
 
   async function handleSend() {
+    // Candado SÍNCRONO. `sending` es estado de React y no cambia hasta el
+    // siguiente render, así que dos disparos en el mismo gesto —el que sale del
+    // dedo y el `click` que viene detrás— lo dejaban pasar y mandaban el mensaje
+    // dos veces. Un ref se ve al instante.
+    if (sendingRef.current) return;
+
     const body = draft.trim();
 
     // En modo edición el compositor GUARDA en vez de enviar.
     if (editing) {
       if (!body || sending || !conversationId) return;
+      sendingRef.current = true;
       setSending(true);
       setError(null);
       try {
@@ -969,6 +1032,7 @@ export default function ConversationThread({
       } catch {
         setError(tChat("messageActionError"));
       } finally {
+        sendingRef.current = false;
         setSending(false);
       }
       return;
@@ -979,6 +1043,7 @@ export default function ConversationThread({
     // Lo que acabas de mandar se ve, estuvieras donde estuvieras leyendo.
     stickToBottomRef.current = true;
 
+    sendingRef.current = true;
     setSending(true);
     setError(null);
 
@@ -1006,6 +1071,7 @@ export default function ConversationThread({
       // vacíe el campo justo después de haberlo restaurado.
       setTimeout(() => setDraft(body), DRAFT_FADE_MS);
     } finally {
+      sendingRef.current = false;
       setSending(false);
     }
   }
@@ -2033,6 +2099,26 @@ export default function ConversationThread({
         >
           <button
             type="button"
+            /**
+             * Se manda desde el DEDO, no desde el clic, y con `preventDefault`.
+             *
+             * En iOS, tocar este botón con el teclado abierto quitaba el foco del
+             * campo, el teclado se cerraba, la pantalla crecía de golpe y el
+             * botón se movía de debajo del dedo ANTES de que llegara el `click`:
+             * el primer toque solo cerraba el teclado y había que dar un segundo.
+             *
+             * `preventDefault` en `pointerdown` impide que el foco se mueva, así
+             * que el teclado se queda abierto, nada se recoloca y el mensaje sale
+             * al primer toque.
+             */
+            onPointerDown={(e) => {
+              if (!canSend) return;
+              e.preventDefault();
+              void handleSend();
+            }}
+            // Se queda para quien no usa un puntero: teclado físico y lectores de
+            // pantalla, que activan el botón con un `click` sintético. El candado
+            // de `handleSend` evita que se mande dos veces.
             onClick={handleSend}
             disabled={!canSend}
             aria-label={tChat("send")}

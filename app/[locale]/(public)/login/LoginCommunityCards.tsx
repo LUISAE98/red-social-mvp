@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useInView } from "./useInView";
 import VibraGradientText from "@/app/components/VibraGradientText/VibraGradientText";
 import { useCarouselRail, type CarouselInfo } from "./useCarouselRail";
@@ -16,33 +17,17 @@ import { useCarouselRail, type CarouselInfo } from "./useCarouselRail";
  * que compita, así que el margen es lo único que las contiene.
  */
 
+/** Imagen y claves de texto de cada tipo. Los textos viven en `messages`. */
 const TARJETAS = [
-  {
-    imagen: "/comunidadpublica.webp",
-    etiqueta: "Comunidad pública",
-    titulo: "Abierta para descubrir y conectar",
-    texto:
-      "Cualquiera puede encontrarla, explorar lo que comparte y unirse a la conversación. Ideal para hacer crecer una audiencia, reunir personas con los mismos intereses y convertir cada publicación en una nueva oportunidad de conectar.",
-  },
-  {
-    imagen: "/comunidadprivada.webp",
-    etiqueta: "Comunidad privada",
-    titulo: "Un espacio reservado para quienes forman parte",
-    texto:
-      "La comunidad puede descubrirse, pero su contenido y experiencias quedan exclusivamente para sus miembros. Perfecta para compartir con mayor cercanía, cuidar cada interacción y crear un verdadero sentido de pertenencia.",
-  },
-  {
-    imagen: "/comunidadoculta.webp",
-    etiqueta: "Comunidad oculta",
-    titulo: "Solo entra quien recibe la invitación",
-    texto:
-      "No aparece en búsquedas ni puede descubrirse públicamente. Es un espacio discreto y exclusivo para grupos seleccionados, conversaciones especiales o comunidades que prefieren crecer únicamente entre personas invitadas.",
-  },
+  { imagen: "/comunidadpublica.webp", clave: "Public" },
+  { imagen: "/comunidadprivada.webp", clave: "Private" },
+  { imagen: "/comunidadoculta.webp", clave: "Hidden" },
 ] as const;
 
 export default function LoginCommunityCards() {
   // Aquí no hace falta `active` ni `isMobile`: no hay video que pausar y las
   // tres tarjetas se pintan igual estén o no a la vista.
+  const t = useTranslations("loginLanding");
   const { setRail, carousel } = useCarouselRail(TARJETAS.length);
 
   // Entrada al aparecer la sección, igual que los bloques de arriba: se rehace
@@ -204,7 +189,7 @@ export default function LoginCommunityCards() {
 
       <div className="commCards" ref={setRail}>
         {TARJETAS.map((c) => (
-          <article key={c.titulo} className="commCard">
+          <article key={c.clave} className="commCard">
             <div className="commCardImg">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={c.imagen} alt="" loading="lazy" />
@@ -213,16 +198,16 @@ export default function LoginCommunityCards() {
             {/* Puntos del carrusel, debajo de la imagen y dentro de la tarjeta,
                 igual que en las experiencias. Solo en celular: en laptop se ven
                 las tres a la vez y no hay nada que indicar. */}
-            {carousel && <Dots carousel={carousel} />}
+            {carousel && <Dots carousel={carousel} label={t("commDotLabel")} />}
 
             {/* El CSS pone el nombre en mayúsculas, así el texto se escribe
                 normal y cada idioma lo acentúa como debe. */}
             <p className="commCardLabel">
-              <VibraGradientText>{c.etiqueta}</VibraGradientText>
+              <VibraGradientText>{t(`comm${c.clave}Label`)}</VibraGradientText>
             </p>
 
-            <h3 className="commCardTitle">{c.titulo}</h3>
-            <p className="commCardText">{c.texto}</p>
+            <h3 className="commCardTitle">{t(`comm${c.clave}Title`)}</h3>
+            <p className="commCardText">{t(`comm${c.clave}Text`)}</p>
           </article>
         ))}
       </div>
@@ -230,7 +215,8 @@ export default function LoginCommunityCards() {
   );
 }
 
-function Dots({ carousel }: { carousel: CarouselInfo }) {
+/** @param label Texto accesible con {n}, el número de la tarjeta. */
+function Dots({ carousel, label }: { carousel: CarouselInfo; label: string }) {
   return (
     <div className="commDots">
       <style jsx>{`
@@ -247,7 +233,7 @@ function Dots({ carousel }: { carousel: CarouselInfo }) {
           key={i}
           type="button"
           onClick={() => carousel.onSelect(i)}
-          aria-label={`Ir a la comunidad ${i + 1}`}
+          aria-label={label.replace("{n}", String(i + 1))}
           aria-current={i === carousel.current ? "true" : undefined}
           style={{
             width: i === carousel.current ? 18 : 6,

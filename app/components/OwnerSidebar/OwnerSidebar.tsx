@@ -2052,6 +2052,8 @@ color: "rgba(255,255,255,0.94)",
         id: p.uid,
         name: p.displayName,
         avatarUrl: p.photoURL,
+        // El panel lo pinta como @usuario bajo el nombre y lo usa para buscar.
+        handle: p.handle,
       })),
     [followedProfiles]
   );

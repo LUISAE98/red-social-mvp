@@ -39,6 +39,26 @@ service firebase.storage {
       return groupId.matches('profile-.*');
     }
 
+    /**
+     * ¿Este perfil tiene el contenido restringido?
+     *
+     * Un perfil restringido solo se lo lee su dueño — mismo criterio que
+     * `canReadProfileContent` en firestore.rules, donde no hay excepción ni para
+     * seguidores. Las fotos no pueden ser más abiertas que el post que las lleva.
+     */
+    function isRestrictedProfile(uid) {
+      return firestore.exists(/databases/(default)/documents/users/$(uid))
+        && firestore.get(/databases/(default)/documents/users/$(uid)).data.get('profileRestricted', false) == true;
+    }
+
+    /** ¿El post de este comentario está restringido? Comunidad o perfil. */
+    function isRestrictedCommentPost(postId) {
+      return !firestore.exists(/databases/(default)/documents/posts/$(postId))
+        || (postGroupId(postId) == ''
+              ? firestore.get(/databases/(default)/documents/posts/$(postId)).data.get('profileRestricted', false) == true
+              : isRestrictedGroup(postGroupId(postId)));
+    }
+
     function isRestrictedGroup(groupId) {
       return firestore.exists(/databases/(default)/documents/groups/$(groupId))
         && firestore.get(/databases/(default)/documents/groups/$(groupId)).data.visibility in ['private', 'hidden'];
@@ -135,21 +155,24 @@ service firebase.storage {
       //
       //   1. `isOwnUpload` — quien subió el archivo lee el suyo. Es lo que hace
       //      `getDownloadURL` justo después de subir, o sea el camino de publicar.
-      //   2. `isProfileContainer` — un post de PERFIL no lleva comunidad en la
-      //      ruta sino el pseudo-contenedor `profile-{uid}`; no hay comunidad que
-      //      consultar. Sin colisión posible: los id de comunidad son
+      //   2. Para leer el archivo DE OTRO se mira si el sitio está restringido, y
+      //      cuál es "el sitio" depende de la ruta: un post de PERFIL no lleva
+      //      comunidad sino el pseudo-contenedor `profile-{uid}`, así que ahí lo
+      //      que manda es `profileRestricted` del perfil, no la visibilidad de
+      //      ninguna comunidad. Sin colisión posible: los id de comunidad son
       //      alfanuméricos de 20 caracteres y ninguno empieza por `profile-`.
-      //   3. Solo para leer el archivo DE OTRO en una comunidad se consulta si
-      //      está restringida.
+      //      En un contenedor de perfil el segundo segmento ES el dueño del
+      //      perfil, así que `uid` sirve para las dos cosas.
       //
-      // ⚠️ Si la lectura entre servicios de la cláusula 3 falla, la evaluación
+      // ⚠️ Si la lectura entre servicios de la cláusula 2 falla, la evaluación
       // ERROR-A y la regla deniega. Eso es correcto —falla cerrado— pero antes se
       // llevaba por delante también el camino de publicar, porque subir termina
       // leyendo el propio archivo. Con `isOwnUpload` delante, publicar ya no
       // depende de que esa consulta funcione.
       allow read: if isOwnUpload(uid)
-        || isProfileContainer(groupId)
-        || !isRestrictedGroup(groupId);
+        || (isProfileContainer(groupId)
+              ? !isRestrictedProfile(uid)
+              : !isRestrictedGroup(groupId));
 
       allow write: if isRealAccount()
         && request.auth.uid == uid
@@ -169,7 +192,12 @@ service firebase.storage {
       // Mismo motivo que en las imágenes de post: quien subió lee lo suyo sin
       // pasar por la consulta entre servicios, que es la que rompe el camino de
       // publicar cuando falla. Ver el comentario largo de arriba.
-      allow read: if isOwnUpload(uid) || !isRestrictedGroup(postGroupId(postId));
+      //
+      // ⚠️ El post puede ser de perfil, y entonces `postGroupId` viene vacío. Antes
+      // eso acababa consultando `groups/` sin id; ahora se resuelve por el
+      // `profileRestricted` del propio post, y un post que ya no existe cuenta
+      // como restringido.
+      allow read: if isOwnUpload(uid) || !isRestrictedCommentPost(postId);
 
       allow write: if isRealAccount()
         && request.auth.uid == uid

@@ -377,12 +377,6 @@ function Viewport({
           align-items: center;
           text-align: center;
         }
-        .availLabel {
-          font-size: 12.5px;
-          font-weight: 500;
-          color: rgba(255, 255, 255, 0.6);
-          letter-spacing: -0.01em;
-        }
         .availRow {
           display: flex;
           align-items: center;
@@ -636,7 +630,6 @@ function Viewport({
               </div>
 
               <div className="availWrap">
-                <div className="availLabel">Disponible para retirar el 15 de septiembre</div>
                 <div className="availRow">
                   <div className="availAmount">
                     {cifra(modo === "net" ? "$12,450.00" : "$16,600.00")}

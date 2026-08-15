@@ -103,6 +103,7 @@ async function applyAuthPersistence(keepSession: boolean) {
 
 export default function LoginClient() {
   const t = useTranslations("auth.login");
+  const tLanding = useTranslations("loginLanding");
   const tReset = useTranslations("auth.resetPassword");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -1295,26 +1296,26 @@ marginBottom: 6,
         <LoginExperienceRail>
         <LoginExperienceBlock
           itemsLeft
-          eyebrow="Experiencias personales"
-          title="Cuando es para ti, se siente distinto"
-          description="Un saludo para hacer inolvidable un momento. Un consejo para dar el siguiente paso. Pídelo a quien admiras o grábalo para alguien que eligió escucharte."
+          eyebrow={tLanding("exp1Eyebrow")}
+          title={tLanding("exp1Title")}
+          description={tLanding("exp1Desc")}
           videoSrc={fuenteVideo(VIDEOS_EXPERIENCIAS[0])}
           accentColor="#a855f7"
         />
 
         <LoginExperienceBlock
-          eyebrow="Encuentros exclusivos"
-          title="Cuando el tiempo es para ustedes, todo cambia"
-          description="Una conversación, una guía o una experiencia compartida en tiempo real. Reserva un momento con quien admiras o abre un espacio para quienes quieren conectar contigo."
+          eyebrow={tLanding("exp2Eyebrow")}
+          title={tLanding("exp2Title")}
+          description={tLanding("exp2Desc")}
           videoSrc={fuenteVideo(VIDEOS_EXPERIENCIAS[1])}
           accentColor="#ec4899"
         />
 
         <LoginExperienceBlock
           itemsLeft
-          eyebrow="Apoyo directo"
-          title="Cuando valoras lo que alguien crea, puedes hacerlo sentir"
-          description="Apoya desde su perfil o dentro de su comunidad y forma parte de lo que está construyendo. Comparte tu reconocimiento o recibe el impulso de quienes creen en ti."
+          eyebrow={tLanding("exp3Eyebrow")}
+          title={tLanding("exp3Title")}
+          description={tLanding("exp3Desc")}
           videoSrc={fuenteVideo(VIDEOS_EXPERIENCIAS[2])}
           accentColor="#38bdf8"
         />
@@ -1322,9 +1323,9 @@ marginBottom: 6,
         {/* Un solo card junta las tres experiencias del directo y el contenido
             de pago (ticket, supercomentarios y VOD). */}
         <LoginExperienceBlock
-          eyebrow="Streaming"
-          title="Hay experiencias que merecen vivirse más cerca"
-          description="Accede a transmisiones especiales, haz que tu mensaje destaque y disfruta contenido premium cuando tú quieras. En vivo o después, crea experiencias que tu comunidad estará dispuesta a elegir."
+          eyebrow={tLanding("exp4Eyebrow")}
+          title={tLanding("exp4Title")}
+          description={tLanding("exp4Desc")}
           videoSrc={fuenteVideo(VIDEOS_EXPERIENCIAS[3])}
           // El mismo rojo del directo (aro, badge LIVE, panel del creador), no
           // uno nuevo: el color ya significa "en vivo" en el resto de la app.
@@ -1333,9 +1334,9 @@ marginBottom: 6,
 
         <LoginExperienceBlock
           itemsLeft
-          eyebrow="Contenido exclusivo"
-          title="Lo mejor se comparte con quienes deciden estar más cerca"
-          description="Suscríbete para descubrir una parte diferente de quien sigues o accede solo a las publicaciones que elijas. Comparte algo más con tu comunidad y convierte cada publicación en una experiencia especial."
+          eyebrow={tLanding("exp5Eyebrow")}
+          title={tLanding("exp5Title")}
+          description={tLanding("exp5Desc")}
           videoSrc={fuenteVideo(VIDEOS_EXPERIENCIAS[4])}
           accentColor="#3b82f6"
         />
@@ -1345,13 +1346,15 @@ marginBottom: 6,
             de la presentación de abajo (34px, -0.03em), con "Vibra" en el
             degradado de marca. */}
         <h2 className="loginReachTitle">
-          {/* "Vibra" va más grande que el resto, como en el título de la
-              presentación. En em, para que crezca con el título en vez de
-              quedarse fija cuando el clamp lo achica en pantallas angostas. */}
-          <span className="heroVibraGradientText" style={{ fontSize: "1.25em" }}>
-            Vibra
-          </span>{" "}
-          con personas de más de 150 países alrededor del mundo
+          {tLanding.rich("reachTitle", {
+            // En em, para que crezca con el título en vez de quedarse fija
+            // cuando el clamp lo achica en pantallas angostas.
+            vibra: (chunks) => (
+              <span className="heroVibraGradientText" style={{ fontSize: "1.25em" }}>
+                {chunks}
+              </span>
+            ),
+          })}
         </h2>
 
         {/* Los tres tipos de comunidad. */}
@@ -1363,24 +1366,21 @@ marginBottom: 6,
         {!invitacionFuera && (
           <div className={`loginCreatorCta${verCreador ? " loginCreatorCtaOut" : ""}`}>
             <h2 className="loginCreatorQ">
-              ¿Eres{" "}
-              {/* En em, para que crezcan con el título cuando el clamp lo achica
-                  en pantallas angostas en vez de quedarse fijas. */}
-              <span className="heroVibraGradientText" style={{ fontSize: "1.2em" }}>
-                creador digital
-              </span>
-              ? Esto te va a interesar
+              {tLanding.rich("ctaTitle", {
+                vibra: (chunks) => (
+                  <span className="heroVibraGradientText" style={{ fontSize: "1.2em" }}>
+                    {chunks}
+                  </span>
+                ),
+              })}
             </h2>
-            <p className="loginCreatorSub">
-              Descubre todas las formas en que puedes monetizar tu contenido, ofrecer experiencias
-              exclusivas y generar ingresos con el apoyo de tu comunidad.
-            </p>
+            <p className="loginCreatorSub">{tLanding("ctaText")}</p>
             <button
               type="button"
               className="loginCreatorBtn"
               onClick={() => setVerCreador(true)}
             >
-              Descubre cómo monetizar en Vibra
+              {tLanding("ctaButton")}
             </button>
           </div>
         )}

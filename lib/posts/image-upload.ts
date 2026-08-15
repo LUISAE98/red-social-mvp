@@ -145,7 +145,7 @@ export async function uploadPostImage(params: {
   // En comunidad privada u oculta NO se pide la URL de descarga: esa lleva un
   // token permanente que abre el archivo sin sesión y para siempre. Se guardan
   // solo las rutas y la URL la firma (y la caduca) `getRestrictedMediaUrls`.
-  const restricted = await isRestrictedGroup(params.groupId);
+  const restricted = await isRestrictedContainer(params.groupId);
 
   const [url, thumbnailUrl] = restricted
     ? ["", null]
@@ -166,15 +166,10 @@ export async function uploadPostImage(params: {
 }
 
 /**
- * ¿Los medios de esta comunidad tienen que ir protegidos?
- *
- * Privada y oculta sí; pública no — ahí la URL directa es más barata y no hay
- * nada que proteger.
- *
- * Se cachea por proceso: subir cinco fotos a la misma comunidad no debe costar
- * cinco lecturas.
+ * Se cachea por proceso: subir cinco fotos al mismo sitio no debe costar cinco
+ * lecturas.
  */
-const RESTRICTED_GROUP_CACHE = new Map<string, boolean>();
+const RESTRICTED_CONTAINER_CACHE = new Map<string, boolean>();
 
 /**
  * Contenedor de un post de PERFIL. No es una comunidad: es el pseudo-id que usa
@@ -182,24 +177,36 @@ const RESTRICTED_GROUP_CACHE = new Map<string, boolean>();
  */
 const PROFILE_CONTAINER_PREFIX = "profile-";
 
-async function isRestrictedGroup(groupId: string): Promise<boolean> {
+/**
+ * ¿Los medios de este contenedor tienen que ir protegidos?
+ *
+ * Una comunidad privada u oculta sí; una pública no — ahí la URL directa es más
+ * barata y no hay nada que proteger. Un perfil marcado como restringido también
+ * sí: su contenido solo lo ve su dueño (`canReadProfileContent` en
+ * firestore.rules), y las fotos no pueden ser más abiertas que el post al que
+ * pertenecen.
+ *
+ * Protegido significa que NO se pide la URL de descarga —esa lleva un token
+ * permanente que abre el archivo sin sesión y para siempre—: se guarda solo la
+ * ruta y la URL la firma, y la caduca, `getRestrictedMediaUrls`.
+ */
+async function isRestrictedContainer(containerId: string): Promise<boolean> {
   // ⚠️ Un perfil NO se consulta como grupo. `groups/profile-{uid}` no existe, y
   // leer un documento inexistente en `groups` no devuelve "vacío": la regla
   // evalúa `resource.data.visibility` sobre null, falla, y el `getDoc` lanza
-  // permiso denegado. Eso caía en el `catch` de abajo y marcaba el perfil como
-  // restringido, así que las imágenes se guardaban con `url` vacía y luego
-  // `createMediaPost` las descartaba por no tener url: la publicación salía sin
-  // fotos y sin ningún error a la vista.
-  if (groupId.startsWith(PROFILE_CONTAINER_PREFIX)) return false;
+  // permiso denegado.
+  if (containerId.startsWith(PROFILE_CONTAINER_PREFIX)) {
+    return isRestrictedProfile(containerId.slice(PROFILE_CONTAINER_PREFIX.length));
+  }
 
-  const cached = RESTRICTED_GROUP_CACHE.get(groupId);
+  const cached = RESTRICTED_CONTAINER_CACHE.get(containerId);
   if (cached !== undefined) return cached;
 
   try {
-    const snap = await getDoc(doc(db, "groups", groupId));
+    const snap = await getDoc(doc(db, "groups", containerId));
     const visibility = snap.exists() ? snap.data()?.visibility : null;
     const restricted = visibility === "private" || visibility === "hidden";
-    RESTRICTED_GROUP_CACHE.set(groupId, restricted);
+    RESTRICTED_CONTAINER_CACHE.set(containerId, restricted);
     return restricted;
   } catch {
     // Ante la duda, protegido: es preferible una imagen que hay que firmar a
@@ -208,13 +215,40 @@ async function isRestrictedGroup(groupId: string): Promise<boolean> {
   }
 }
 
+async function isRestrictedProfile(uid: string): Promise<boolean> {
+  if (!uid) return true;
+
+  const clave = `${PROFILE_CONTAINER_PREFIX}${uid}`;
+  const cached = RESTRICTED_CONTAINER_CACHE.get(clave);
+  if (cached !== undefined) return cached;
+
+  try {
+    const snap = await getDoc(doc(db, "users", uid));
+    const restricted = snap.exists() && snap.data()?.profileRestricted === true;
+    RESTRICTED_CONTAINER_CACHE.set(clave, restricted);
+    return restricted;
+  } catch {
+    return true;
+  }
+}
+
 /** Igual que arriba pero partiendo del post, para las imágenes de comentario. */
 async function isRestrictedPost(postId: string): Promise<boolean> {
   try {
     const snap = await getDoc(doc(db, "posts", postId));
-    const groupId = snap.exists() ? snap.data()?.groupId : null;
-    if (typeof groupId !== "string" || !groupId) return false;
-    return isRestrictedGroup(groupId);
+    if (!snap.exists()) return true;
+
+    const data = snap.data();
+    const groupId = data?.groupId;
+
+    // Sin comunidad es un post de perfil: manda si el perfil está restringido.
+    // Antes se devolvía `false` sin más, así que el comentario de un perfil
+    // privado se guardaba con URL de token permanente.
+    if (typeof groupId !== "string" || !groupId) {
+      return data?.profileRestricted === true;
+    }
+
+    return isRestrictedContainer(groupId);
   } catch {
     return true;
   }

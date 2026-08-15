@@ -94,7 +94,10 @@ export default function ProfileSocialActions({
       : relationship.isFollowing
         ? tProfile("followingLabel")
         : relationship.isFollowedBy
-          ? tProfile("followMutual")
+          // Antes decía "Mutuo" aquí, que es justo lo contrario de lo que pasa:
+          // este estado es "ella me sigue y yo a ella no". El mutuo real es la
+          // rama de arriba.
+          ? tProfile("followsYou")
           : tCommon("follow");
 
   function handleFollowClick() {

@@ -28,6 +28,7 @@ import { useTranslations } from "next-intl";
 
 import LiveRingAvatar from "@/app/components/LiveRing/LiveRingAvatar";
 import VibraResponsivePanel from "@/components/ui/VibraResponsivePanel";
+import FollowStateButton from "@/components/profile/FollowStateButton";
 
 /** Compara ignorando mayúsculas y acentos: "Diseno" encuentra "Diseño". */
 function normalizeForSearch(value: string): string {
@@ -50,6 +51,8 @@ export type CommunityRailItem = {
   avatarUrl?: string | null;
   /** Solo comunidades. Se pinta en el panel de lista completa, no en el rail. */
   visibility?: string;
+  /** Solo perfiles. Se pinta como @usuario bajo el nombre, en el panel. */
+  handle?: string | null;
   memberRole?: "owner" | "mod" | "member" | null;
   memberStatus?: "active" | "subscribed" | "muted" | "banned" | "removed" | null;
 };
@@ -136,6 +139,24 @@ export default function CommunityRail({
    * que una línea base guardada no tendría a qué referirse.
    */
   const [newSinceClosed, setNewSinceClosed] = useState<number | null>(null);
+
+  /**
+   * Perfiles que dejaste de seguir SIN cerrar el panel.
+   *
+   * El renglón no se va en el acto a propósito: dejar de seguir con el pulgar es
+   * fácil de hacer sin querer, y si la fila desaparece de golpe ya no hay dónde
+   * arrepentirse. Se queda visible, con el botón en "Seguir", hasta que cierras
+   * el panel — ahí sí se limpia y la lista vuelve a reflejar la realidad.
+   */
+  const [unfollowed, setUnfollowed] = useState<Map<string, CommunityRailItem>>(
+    () => new Map()
+  );
+
+  function closeAllPanel() {
+    setAllOpen(false);
+    // Al cerrar se olvida la cortesía: la próxima apertura parte de la lista real.
+    setUnfollowed(new Map());
+  }
 
   /**
    * Amplía la tanda cuando el borde derecho de lo visible se acerca al final de
@@ -248,14 +269,23 @@ export default function CommunityRail({
   const badgeCount =
     newSinceClosed == null ? 0 : Math.max(0, totalNewPosts - newSinceClosed);
 
-  // El panel conserva el orden del rail (en vivo, novedades, historias,
-  // frecuencia) y solo filtra por texto.
+  // Lista del panel: la real más los perfiles que acabas de dejar de seguir sin
+  // cerrar, que se quedan al final para poder deshacer.
+  const retained = [...unfollowed.values()].filter(
+    (kept) => !items.some((item) => item.id === kept.id)
+  );
+  const panelItems = [...items, ...retained];
+
+  // Conserva el orden del rail (en vivo, novedades, historias, frecuencia) y
+  // solo filtra por texto.
   const query = normalizeForSearch(search);
   const filteredItems = query
-    ? items.filter((item) =>
-        normalizeForSearch(item.name ?? "").includes(query)
+    ? panelItems.filter(
+        (item) =>
+          normalizeForSearch(item.name ?? "").includes(query) ||
+          normalizeForSearch(item.handle ?? "").includes(query)
       )
-    : items;
+    : panelItems;
 
   const avatarSize = isMobile ? 60 : 52;
   // La tarjeta se ciñe al avatar (+10px de respiro). Antes sobraban casi 30px a
@@ -725,7 +755,7 @@ export default function CommunityRail({
           celular (su `mobileVariant` por omisión). */}
       <VibraResponsivePanel
         open={allOpen}
-        onClose={() => setAllOpen(false)}
+        onClose={closeAllPanel}
         title={title}
         closeAriaLabel={tCommon("closeAriaLabel")}
         maxWidthDesktop={420}
@@ -778,7 +808,7 @@ export default function CommunityRail({
                     key={item.id}
                     type="button"
                     onClick={() => {
-                      setAllOpen(false);
+                      closeAllPanel();
                       onOpen(item.id);
                     }}
                     style={{
@@ -805,7 +835,7 @@ export default function CommunityRail({
                       displayName={name}
                       size={40}
                       onClick={() => {
-                        setAllOpen(false);
+                        closeAllPanel();
                         onOpen(item.id);
                       }}
                     />
@@ -827,7 +857,10 @@ export default function CommunityRail({
                       {/* Bajo el nombre: qué tipo de comunidad es y, seguido, el
                           aviso de contenido nuevo en el mismo morado y formato
                           que en el rail. */}
-                      {visibilityLabel(item.visibility) || newPosts > 0 ? (
+                      {/* Bajo el nombre: @usuario en perfiles, tipo de comunidad
+                          en comunidades. En ambos casos el aviso morado va
+                          detrás, con el mismo formato del rail. */}
+                      {item.handle || visibilityLabel(item.visibility) || newPosts > 0 ? (
                         <span
                           style={{
                             display: "inline-flex",
@@ -839,7 +872,7 @@ export default function CommunityRail({
                             minWidth: 0,
                           }}
                         >
-                          {visibilityLabel(item.visibility) ? (
+                          {item.handle || visibilityLabel(item.visibility) ? (
                             <span
                               style={{
                                 overflow: "hidden",
@@ -847,7 +880,9 @@ export default function CommunityRail({
                                 whiteSpace: "nowrap",
                               }}
                             >
-                              {visibilityLabel(item.visibility)}
+                              {item.handle
+                                ? `@${item.handle}`
+                                : visibilityLabel(item.visibility)}
                             </span>
                           ) : null}
 
@@ -866,6 +901,27 @@ export default function CommunityRail({
                         </span>
                       ) : null}
                     </span>
+
+                    {/* En perfiles, el botón de seguimiento cierra el renglón. */}
+                    {entityType === "profile" && currentUserId ? (
+                      <FollowStateButton
+                        viewerUid={currentUserId}
+                        targetUid={item.id}
+                        // Se guarda el ITEM entero, no solo el id: en cuanto la
+                        // baja llega a Firestore el perfil sale de `items`, y sin
+                        // esta copia el renglón se esfumaría igualmente.
+                        onUnfollow={(uid) =>
+                          setUnfollowed((prev) => new Map(prev).set(uid, item))
+                        }
+                        onFollow={(uid) =>
+                          setUnfollowed((prev) => {
+                            const next = new Map(prev);
+                            next.delete(uid);
+                            return next;
+                          })
+                        }
+                      />
+                    ) : null}
 
                     {/* El estatus cierra el renglón, alineado a la derecha. */}
                     {showStatus ? (

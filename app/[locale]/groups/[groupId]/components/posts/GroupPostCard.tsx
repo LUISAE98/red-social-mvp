@@ -475,6 +475,16 @@ useEffect(() => {
   const saveDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const feedHlsRef = useRef<Hls | null>(null);
+
+  /**
+   * ¿El usuario quitó el silencio a mano en este video?
+   *
+   * El video del feed arranca silenciado porque los navegadores no dejan
+   * reproducir solo con sonido, y el feed reproduce solo al entrar en pantalla.
+   * Pero silenciar es el estado INICIAL, no una condena: en cuanto alguien
+   * levanta el sonido hay que dejar de pisárselo.
+   */
+  const userUnmutedRef = useRef(false);
   const feedVideoShellRef = useRef<HTMLDivElement | null>(null);
   const premiumClipIndexRef = useRef<number>(0);
   const premiumClipsRef = useRef<Array<{ start: number; end: number }>>([]);
@@ -2329,7 +2339,9 @@ const rootVideoShellAspectRatio =
     // Destroy any previous instance
     feedHlsRef.current?.destroy();
     feedHlsRef.current = null;
-    video.muted = true;
+    // Silenciado para que el autoplay del feed pueda arrancar, pero sin pisar
+    // al usuario si ya había levantado el sonido en este video.
+    if (!userUnmutedRef.current) video.muted = true;
 
     const isHls = videoPlaybackUrl.includes(".m3u8");
 
@@ -3541,12 +3553,21 @@ style={{
   <video
     ref={(el) => {
       videoRef.current = el;
-      if (el) el.muted = true;
+      // ⚠️ React vuelve a llamar a este callback en CADA render. Sin la guarda,
+      // cada render volvía a silenciar el video, así que el botón de sonido de
+      // los controles nativos no servía de nada: se oía un instante y se
+      // callaba solo. El resultado era que los videos no tenían audio nunca.
+      // La propiedad se fija a mano —y no solo con el prop `muted`— porque en
+      // iOS Safari el prop de React no siempre llega al DOM.
+      if (el && !userUnmutedRef.current) el.muted = true;
     }}
     muted
     controls={!isMobile}
     playsInline
     poster={videoThumbnailUrl ?? undefined}
+    onVolumeChange={(event) => {
+      userUnmutedRef.current = !event.currentTarget.muted;
+    }}
     onClick={(e) => {
       if (isMobile) {
         openMediaViewer(videoThumbnailUrl || videoPlaybackUrl, e.currentTarget.getBoundingClientRect());
