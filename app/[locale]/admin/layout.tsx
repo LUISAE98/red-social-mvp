@@ -19,6 +19,8 @@ const NAV_ITEMS = [
   { label: "Historial", href: "/admin/audit-log" },
   { label: "Comunidades ocultas", href: "/admin/hidden-communities" },
   { label: "Comunidades privadas", href: "/admin/private-communities" },
+  // Solo el dueño puede ejecutarlas; la función lo rechaza si no lo eres.
+  { label: "Migraciones", href: "/admin/migraciones" },
 ];
 
 const MOBILE_BREAKPOINT = 900;

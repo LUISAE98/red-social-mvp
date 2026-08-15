@@ -140,17 +140,29 @@ export async function addStoryFromGreeting(params: {
     creatorName = "";
   }
 
-  // Buscable: perfil siempre; grupo solo si la comunidad es pública.
-  let searchable = params.source === "profile";
-  if (params.source === "group" && params.groupId) {
+  // Legible por cualquiera: sin comunidad siempre; con comunidad solo si es
+  // pública.
+  //
+  // ⚠️ La condición mira `groupId`, NO `source`, porque es exactamente así como
+  // lo comprueba la regla de Firestore (`storyHasNoGroup || isGroupPublic`). Hoy
+  // los dos campos van siempre juntos, pero si alguna vez se separaran, decidir
+  // aquí por `source` y allá por `groupId` haría que la escritura se denegara sin
+  // una causa visible en el cliente.
+  let searchable = !params.groupId;
+  if (params.groupId) {
     try {
       const gSnap = await getDoc(doc(db, "groups", params.groupId));
       const g = gSnap.data() as Record<string, unknown> | undefined;
       searchable = g?.visibility === "public";
       // Historia de comunidad → hereda la categoría de la comunidad.
-      const cat = normalizeGroupCategory(g?.category);
-      categories = cat ? [cat] : [];
+      if (params.source === "group") {
+        const cat = normalizeGroupCategory(g?.category);
+        categories = cat ? [cat] : [];
+      }
     } catch {
+      // Si no se pudo leer la comunidad, se asume lo restrictivo. La regla exige
+      // que este valor coincida con la visibilidad REAL, así que una comunidad
+      // pública haría fallar la creación en vez de publicar algo mal marcado.
       searchable = false;
     }
   }
@@ -161,16 +173,56 @@ export async function addStoryFromGreeting(params: {
     params.type
   );
 
-  const docRef = await addDoc(collection(db, "stories"), {
-    ...params,
+  // ¿La publica el creador que grabó, o el comprador que la recibió? El reel solo
+  // muestra la del creador. Se congela aquí porque una consulta de Firestore no
+  // puede comparar `greetingCreatorId` con `creatorId`.
+  const byCreator = showcaseCreatorId === params.creatorId;
+
+  // Firestore RECHAZA `undefined` (no está `ignoreUndefinedProperties`), y tanto
+  // `instructions` como `greetingCreatorId` son opcionales en los dos sitios que
+  // llaman aquí. Cuando venían vacíos, `addDoc` lanzaba y la historia no se creaba
+  // nunca — el creador pulsaba "compartir" y no pasaba nada.
+  const payload: Record<string, unknown> = {
+    creatorId: params.creatorId,
+    type: params.type,
+    muxPlaybackId: params.muxPlaybackId,
+    thumbnailUrl: params.thumbnailUrl,
+    videoDuration: params.videoDuration,
+    greetingRequestId: params.greetingRequestId,
+    source: params.source,
+    groupId: params.groupId,
     creatorName,
     searchable,
     searchPrefixes,
     categories,
+    byCreator,
+    hiddenFromReel: false,
     viewsCount: 0,
     createdAt: serverTimestamp(),
-  });
+  };
+  if (params.greetingCreatorId !== undefined) {
+    payload.greetingCreatorId = params.greetingCreatorId;
+  }
+  if (params.instructions !== undefined) {
+    payload.instructions = params.instructions;
+  }
+
+  const docRef = await addDoc(collection(db, "stories"), payload);
   return docRef.id;
+}
+
+/**
+ * Retira una historia del feed de reels, o la devuelve, sin borrarla.
+ *
+ * Solo quien la publicó. Es la única escritura que las reglas dejan pasar sobre
+ * una historia ya creada, y a propósito: cualquier otro campo (en particular
+ * `searchable`) sostiene la regla de lectura.
+ */
+export async function setStoryHiddenFromReel(
+  storyId: string,
+  hidden: boolean,
+): Promise<void> {
+  await updateDoc(doc(db, "stories", storyId), { hiddenFromReel: hidden });
 }
 
 // Stories belonging to a creator's profile (source = "profile")

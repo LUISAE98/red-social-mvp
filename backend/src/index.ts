@@ -448,8 +448,13 @@ export { generateBuyerInvoice, downloadBuyerInvoice } from "./facturacion/genera
 // `onCall` con gate por email de admin, nunca `onRequest` abierto.
 // El código vive en el historial de git (commit anterior a este).
 
-// Historias: contador de vistas (trigger)
-export { onStoryViewed } from "./storyDiscovery";
+// Historias: contador de vistas (trigger), rescate del video cuando la historia
+// se publicó antes de que Mux terminara, y backfill de los campos del reel.
+export {
+  onStoryViewed,
+  onStoryCreatedPlaybackBackfill,
+  backfillStoriesReelFields,
+} from "./storyDiscovery";
 
 // Contadores de comentarios y respuestas: los lleva el SERVIDOR, no el cliente
 export {

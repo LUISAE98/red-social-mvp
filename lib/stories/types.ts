@@ -21,8 +21,24 @@ export type StoryDoc = {
   createdAt: Timestamp | null;
   /** Nombre del creador que grabó el saludo/consejo (denormalizado para búsqueda y display). */
   creatorName?: string;
-  /** Si la historia aparece en la búsqueda global: perfil siempre; grupo solo si es público. */
+  /**
+   * Legible por cualquiera. Perfil siempre; comunidad solo si es pública.
+   *
+   * Ya no gobierna solo la búsqueda: las reglas de Firestore lo usan como camino
+   * rápido de LECTURA para que el descubrimiento del reel no gaste un `get()`
+   * por documento. Lo valida el `create` y lo resincroniza un disparador cuando
+   * la comunidad cambia de visibilidad; el cliente nunca lo escribe a mano.
+   */
   searchable?: boolean;
+  /**
+   * La publicó el creador que grabó el video, no el comprador que lo recibió.
+   * El reel solo muestra las del creador, para no repetir el mismo video con dos
+   * caras distintas. Se congela al crear porque Firestore no compara dos campos
+   * entre sí dentro de una consulta.
+   */
+  byCreator?: boolean;
+  /** Retirada del reel por quien la publicó. Sigue viva en sus círculos. */
+  hiddenFromReel?: boolean;
   /** Prefijos de búsqueda (instructions + nombre del creador + tipo). */
   searchPrefixes?: string[];
   /**

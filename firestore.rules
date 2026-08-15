@@ -2202,9 +2202,30 @@ match /memberBlocks/{blockId} {
       //
       // Ahora una historia de comunidad sigue la regla de SU comunidad. Las de
       // perfil (sin groupId) siguen públicas, que es lo que se quiere.
-      allow read: if !("groupId" in resource.data)
-        || resource.data.groupId == null
-        || resource.data.groupId == ""
+      // ⚠️ El ORDEN de estas tres condiciones no es estético, es lo que hace
+      // viable el feed de reels.
+      //
+      // `canReadGroupContent()` hace un `get()` al documento de la comunidad. En
+      // una lectura de UN documento eso da igual, pero en un `list` la regla se
+      // evalúa por cada documento devuelto y los `get()` comparten un tope de 10
+      // para la consulta ENTERA. El descubrimiento pide decenas de candidatos: en
+      // cuanto unos pocos son de comunidad, se agota el tope y se cae la consulta
+      // COMPLETA, no solo esos documentos.
+      //
+      // Por eso delante va la comprobación barata: `searchable` ya guarda, sin
+      // consultar nada, si la historia es públicamente legible (perfil siempre;
+      // comunidad solo si es pública). Con `searchable == true` fijado en la
+      // consulta, ningún documento devuelto llega al `get()` y el descubrimiento
+      // cuesta cero lecturas de reglas.
+      //
+      // Esto solo es seguro mientras `searchable` sea honesto, y de eso responden
+      // TRES cosas juntas: se valida al crear (abajo), el cliente no puede
+      // tocarlo (el `update` de abajo solo deja `hiddenFromReel`), y un disparador
+      // lo resincroniza cuando la comunidad cambia de visibilidad
+      // (`syncStoriesSearchable` en backend/src/groupPostsVisibilitySync.ts). Si
+      // se rompe cualquiera de las tres, esta regla filtra.
+      allow read: if ("searchable" in resource.data && resource.data.searchable == true)
+        || storyHasNoGroup(resource.data)
         || canReadGroupContent(resource.data.groupId);
 
       // Only the authenticated creator can create their own story
@@ -2225,7 +2246,15 @@ match /memberBlocks/{blockId} {
           "instructions", "type", "source", "groupId",
           "muxPlaybackId", "thumbnailUrl", "videoDuration",
           "searchable", "searchPrefixes", "categories",
+          "byCreator", "hiddenFromReel",
           "viewsCount", "createdAt"
+        ])
+        // Los tres campos que gobiernan el descubrimiento son OBLIGATORIOS. Con
+        // solo `hasOnly` podían venir ausentes y las comprobaciones de abajo se
+        // saltaban solas.
+        && request.resource.data.keys().hasAll([
+          "creatorId", "type", "greetingRequestId",
+          "searchable", "byCreator", "hiddenFromReel"
         ])
         && request.resource.data.creatorId == request.auth.uid
         && request.resource.data.type in ["saludo", "consejo"]
@@ -2236,13 +2265,44 @@ match /memberBlocks/{blockId} {
           || isMember(request.resource.data.groupId)
           || isOwner(request.resource.data.groupId)
           || isModerator(request.resource.data.groupId)
-        );
+        )
+        // `searchable` = "cualquiera puede leer esto". Antes lo escribía el
+        // cliente sin comprobarse, y la regla de lectura no lo miraba, así que
+        // mentir solo estropeaba la búsqueda. Ahora la lectura SÍ se apoya en él,
+        // así que mentir sería abrir la historia al mundo: un miembro de una
+        // comunidad oculta podría delatarla. Se ata a la visibilidad real.
+        && request.resource.data.searchable == (
+          storyHasNoGroup(request.resource.data)
+          || isGroupPublic(request.resource.data.groupId)
+        )
+        // `byCreator` distingue la historia que publica el CREADOR de la que
+        // republica el COMPRADOR (mismo video, dos documentos). El reel solo
+        // muestra la del creador, y Firestore no sabe comparar dos campos entre
+        // sí en una consulta, así que la comparación se congela aquí.
+        && request.resource.data.byCreator == (
+          ("greetingCreatorId" in request.resource.data)
+            ? request.resource.data.greetingCreatorId == request.resource.data.creatorId
+            : true
+        )
+        // Nace visible. Sacarla del reel es un acto posterior y explícito.
+        && request.resource.data.hiddenFromReel == false;
 
       // Creator can delete their own stories
       allow delete: if notAnonymous()
         && resource.data.creatorId == request.auth.uid;
 
-      allow update: if false;
+      // Antes era `allow update: if false` y era lo correcto mientras las
+      // historias caducaban a las 24h. El reel las vuelve permanentes, así que
+      // quien publicó necesita poder retirarla del descubrimiento sin borrarla
+      // (borrarla también la quita de sus propios círculos, que es otra cosa).
+      //
+      // La rendija es de un solo campo. `affectedKeys().hasOnly` es lo que impide
+      // que por aquí se cuele un cambio de `searchable`, que tumbaría la regla de
+      // lectura de arriba.
+      allow update: if notAnonymous()
+        && resource.data.creatorId == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["hiddenFromReel"])
+        && request.resource.data.hiddenFromReel is bool;
     }
 
     // ==========================

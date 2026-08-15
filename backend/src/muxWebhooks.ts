@@ -20,6 +20,7 @@ import {
   notifyLiveVodReadyOwner,
   liveAudience,
 } from "./notifications";
+import { syncStoryPlaybackFromGreeting } from "./storyDiscovery";
 
 if (!getApps().length) {
   initializeApp();
@@ -226,6 +227,29 @@ async function markGreetingAssetReady(params: {
       );
     }
   });
+
+  // Si el creador ya había publicado la historia mientras Mux procesaba, se
+  // quedó sin `muxPlaybackId` y las reglas no dejan que el cliente lo arregle
+  // (`allow update` solo admite `hiddenFromReel`). Aquí sí se puede.
+  try {
+    const patched = await syncStoryPlaybackFromGreeting({
+      greetingRequestId,
+      playbackId,
+      duration,
+    });
+    if (patched > 0) {
+      logger.info("muxWebhook greeting asset.ready: historias parcheadas", {
+        greetingRequestId,
+        patched,
+      });
+    }
+  } catch (error) {
+    // No debe tumbar el webhook: el saludo ya se entregó y se cobró.
+    logger.error("muxWebhook greeting asset.ready: fallo al parchear historias", {
+      greetingRequestId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
 
   logger.info("muxWebhook greeting asset.ready processed", {
     greetingRequestId,
