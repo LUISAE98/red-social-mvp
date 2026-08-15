@@ -123,8 +123,38 @@ service cloud.firestore {
         "profileRestricted", "profileCommentsEnabled", "isActive", "createdAt",
         "updatedAt", "search",
         "showPosts", "showCreatedGroups", "followersCount", "profileGreeting",
-        "profileServices", "offerings", "donation", "monetization"
+        "profileServices", "offerings", "donation", "monetization",
+        "socialLinks"
       ]);
+    }
+
+    // Redes sociales del perfil. Se guarda el USUARIO de cada red, nunca la liga:
+    // este documento lo lee cualquiera y lo que se guarde aquí termina en un
+    // `href` público, así que dejar escribir la liga completa abriría la puerta a
+    // `javascript:`, a redirectores y a suplantaciones. La liga se arma en el
+    // cliente desde un catálogo cerrado (`lib/profile/socialNetworks.ts`); aquí
+    // solo hay que asegurar que sean esas seis claves y cadenas cortas.
+    // El tope de 40 es el mismo `SOCIAL_HANDLE_MAX` del catálogo.
+    function socialHandleValid(links, key) {
+      return !(key in links)
+        || (
+          links[key] is string
+          && links[key].size() >= 1
+          && links[key].size() <= 40
+        );
+    }
+
+    function profileSocialLinksValid(links) {
+      return links is map
+        && links.keys().hasOnly([
+          "instagram", "tiktok", "youtube", "x", "facebook", "twitch"
+        ])
+        && socialHandleValid(links, "instagram")
+        && socialHandleValid(links, "tiktok")
+        && socialHandleValid(links, "youtube")
+        && socialHandleValid(links, "x")
+        && socialHandleValid(links, "facebook")
+        && socialHandleValid(links, "twitch");
     }
 
     // Ata la identidad al TOKEN, no a lo que diga el cliente. Antes se podía
@@ -179,6 +209,9 @@ service cloud.firestore {
         // viven en el documento público.
         && (data.photoURL == null || data.photoURL is string)
         && (!("coverUrl" in data) || data.coverUrl == null || data.coverUrl is string)
+        && (!("socialLinks" in data)
+          || data.socialLinks == null
+          || profileSocialLinksValid(data.socialLinks))
         && (!("showPosts" in data) || data.showPosts is bool)
         && (!("showCreatedGroups" in data) || data.showCreatedGroups is bool)
         && (!("profileRestricted" in data) || data.profileRestricted is bool)
@@ -269,7 +302,12 @@ service cloud.firestore {
       ])
       && request.resource.data.userId == uid
       && request.resource.data.targetUserId == targetUid
-      && request.resource.data.createdAt is timestamp;
+      // ⚠️ La fecha la pone el SERVIDOR, no el cliente. Antes bastaba con que
+      // fuera un timestamp cualquiera, y esa fecha decide quién lleva 24 horas
+      // siguiendo a alguien para poder comentar en su perfil
+      // (`profileFollowIsOldEnoughForComment`): poniendo una fecha del año
+      // pasado, la espera desaparecía.
+      && request.resource.data.createdAt == request.time;
     }
 
     function validFollowerDoc(uid, followerUid) {
@@ -453,6 +491,10 @@ service cloud.firestore {
                     : resource.data.followersCount + 1
                 )
                 && existsAfter(/databases/$(database)/documents/users/$(uid)/followers/$(request.auth.uid))
+                // ⚠️ Y que ANTES no existiera. Sin esto, quien ya te seguía podía
+                // reescribir su propio documento de seguidor una y otra vez y
+                // sumarte +1 en cada pasada: el contador se inflaba sin límite.
+                && !exists(/databases/$(database)/documents/users/$(uid)/followers/$(request.auth.uid))
                 && getAfter(/databases/$(database)/documents/users/$(uid)/followers/$(request.auth.uid)).data.userId == uid
                 && getAfter(/databases/$(database)/documents/users/$(uid)/followers/$(request.auth.uid)).data.followerUserId == request.auth.uid
               )
@@ -464,6 +506,8 @@ service cloud.firestore {
                     : resource.data.followersCount - 1
                 )
                 && !existsAfter(/databases/$(database)/documents/users/$(uid)/followers/$(request.auth.uid))
+                // Y que antes SÍ existiera, para que dejar de seguir no reste dos veces.
+                && exists(/databases/$(database)/documents/users/$(uid)/followers/$(request.auth.uid))
               )
             )
           )
@@ -500,6 +544,16 @@ service cloud.firestore {
               || request.resource.data.bio == null
               || (request.resource.data.bio is string
                 && request.resource.data.bio.size() <= 300))
+          )
+          ||
+          (
+            request.resource.data.diff(resource.data).changedKeys().hasOnly([
+              "socialLinks",
+              "updatedAt"
+            ])
+            && (!("socialLinks" in request.resource.data)
+              || request.resource.data.socialLinks == null
+              || profileSocialLinksValid(request.resource.data.socialLinks))
           )
             )
           )
@@ -1880,16 +1934,6 @@ allow list: if
 
         let changed = request.resource.data.diff(resource.data).changedKeys();
 
-        let commerceOnlyKeys = [
-          "greetingsEnabled",
-          "monetization",
-          "offerings",
-          "donation",
-          "updatedAt"
-        ];
-
-        let isCommerceOnlyUpdate = changed.hasOnly(commerceOnlyKeys);
-
         return changed.hasOnly(allowedKeys)
           && request.resource.data.ownerId == resource.data.ownerId
           && request.resource.data.createdAt == resource.data.createdAt
@@ -1910,17 +1954,20 @@ allow list: if
           && (!("discoverable" in request.resource.data) || request.resource.data.discoverable is bool)
           && (!("isActive" in request.resource.data) || request.resource.data.isActive is bool)
           && (!("search" in request.resource.data) || validGroupSearchIndex(request.resource.data.search))
-          && (
-            isCommerceOnlyUpdate
-            ||
-            (
-              (!changed.hasAny(["permissions"]) || validPermissionsForCreate(request.resource.data))
-              && (!changed.hasAny(["monetization"]) || validMonetizationForUpdate(request.resource.data))
-              && (!changed.hasAny(["settings"]) || validSettingsForCreate(request.resource.data))
-              && (!changed.hasAny(["offerings"]) || offeringsValidForUpdate(request.resource.data))
-              && (!changed.hasAny(["donation"]) || donationValidForUpdate(request.resource.data))
-            )
-          )
+          // ⚠️ Aquí había un `isCommerceOnlyUpdate ||` delante, y hacía justo lo
+          // contrario de lo que parece: una actualización PURAMENTE comercial
+          // —monetización, servicios, donaciones— se saltaba sus propios
+          // validadores. O sea que los únicos cambios que nadie revisaba eran
+          // los que tocan el dinero, y de ahí salían mapas malformados que luego
+          // consumen los cobros.
+          //
+          // Los validadores `...ForUpdate` ya toleran cambios parciales (cada
+          // campo se comprueba solo si viene), así que el atajo no hacía falta.
+          && (!changed.hasAny(["permissions"]) || validPermissionsForCreate(request.resource.data))
+          && (!changed.hasAny(["monetization"]) || validMonetizationForUpdate(request.resource.data))
+          && (!changed.hasAny(["settings"]) || validSettingsForCreate(request.resource.data))
+          && (!changed.hasAny(["offerings"]) || offeringsValidForUpdate(request.resource.data))
+          && (!changed.hasAny(["donation"]) || donationValidForUpdate(request.resource.data))
 
           && validSubscriptionVisibilityPolicy(request.resource.data);
       }
@@ -2063,8 +2110,18 @@ match /memberBlocks/{blockId} {
     // STORIES
     // ==========================
     match /stories/{storyId} {
-      // Anyone can read stories (public profiles)
-      allow read: if true;
+      // ⚠️ Antes era `allow read: if true` para TODAS. El cliente marcaba las de
+      // comunidades no públicas como `searchable: false`, pero "no buscable" no
+      // es "no legible": con el id se leían igual, y con ellas el creador, las
+      // categorías y el `muxPlaybackId` del contenido. Por ahí se podía deducir
+      // quién participa en una comunidad que no debería saberse que existe.
+      //
+      // Ahora una historia de comunidad sigue la regla de SU comunidad. Las de
+      // perfil (sin groupId) siguen públicas, que es lo que se quiere.
+      allow read: if !("groupId" in resource.data)
+        || resource.data.groupId == null
+        || resource.data.groupId == ""
+        || canReadGroupContent(resource.data.groupId);
 
       // Only the authenticated creator can create their own story
       allow create: if notAnonymous()
@@ -2285,6 +2342,16 @@ function canReadPublicSharedPost() {
       (
         isGroupPostData(resource.data)
         && resource.data.groupVisibility == "public"
+        // ⚠️ La copia que lleva el post puede estar desfasada. Si una comunidad
+        // pasó a privada u oculta y algún post conservó `groupVisibility:
+        // "public"`, ese post seguía siendo legible por cualquiera con su id.
+        // Aquí se le pregunta a la comunidad DE VERDAD.
+        //
+        // Solo en la lectura por id: en los listados no cabe, cada documento
+        // gastaría un `get()` y revientan la cuota (ya pasó con el feed de
+        // guardados). Ahí la defensa es el trigger `groupPostsVisibilitySync`,
+        // que mantiene la copia al día.
+        && groupVisibility(resource.data.groupId) == "public"
         && (
           !("isShareable" in resource.data)
           || resource.data.isShareable == true
@@ -2518,12 +2585,70 @@ function canReadPostFromOwnSavedPosts() {
     );
 }
 
+// ¿Este post activa monetización? (premium, pago o precio).
+function postClaimsMonetization(data) {
+  return (
+    "premium" in data
+    && data.premium != null
+    && data.premium is map
+    && data.premium.get('enabled', false) == true
+  )
+  || data.get('requiresPayment', false) == true
+  || (data.get('accessModel', 'free') != 'free')
+  || data.get('oneTimePrice', null) != null;
+}
+
+/**
+ * Monetizar una publicación de comunidad es cosa del DUEÑO.
+ *
+ * ⚠️ Esto solo existía en el frontend (`lib/posts/premium.ts` dice literalmente
+ * "Solo el dueño de la comunidad puede crear publicaciones premium"), pero las
+ * reglas no lo comprobaban. Un miembro normal podía saltarse la interfaz, crear
+ * contenido de pago dentro de la comunidad de otro, y Stripe después le cobraba
+ * a los compradores y le acuñaba a él las ganancias, porque confía en el
+ * `authorId` del documento.
+ *
+ * También se acota el precio: sin esto se podía publicar a 0, negativo o a un
+ * millón, y el intent de pago lee ese número tal cual.
+ */
+function validPostMonetization(groupId) {
+  return !postClaimsMonetization(request.resource.data)
+    || (
+      isOwner(groupId)
+      && validPostPrice(request.resource.data)
+    );
+}
+
+function validPostPrice(data) {
+  return data.get('oneTimePrice', null) == null
+    || (
+      data.oneTimePrice is number
+      && data.oneTimePrice >= 10
+      && data.oneTimePrice <= 100000
+      && data.get('currency', 'MXN') == 'MXN'
+    );
+}
+
+// ⚠️ Las dos ramas de creación se combinan con OR, así que un post que engañe a
+// UNA de ellas entra. Antes la rama de perfil solo miraba `profileId == mi uid` y
+// no le importaba que el documento trajera ADEMÁS un `groupId` ajeno: se colaba
+// por la puerta de perfil y aterrizaba dentro de una comunidad de otra persona,
+// incluso oculta. Y de ahí los triggers lo repartían al feed de todos sus
+// miembros y disparaban notificaciones.
+//
+// Ahora cada rama exige que el post sea SOLO de su tipo. Son excluyentes.
+
 function validCreateGroupPost() {
   return notAnonymous()
     && request.resource.data.authorId == request.auth.uid
     && request.resource.data.isDeleted == false
     && request.resource.data.groupId is string
-    && canPostInGroup(request.resource.data.groupId);
+    // No puede venir disfrazado también de post de perfil.
+    && (!("contextType" in request.resource.data)
+        || request.resource.data.contextType == "group")
+    && !("profileId" in request.resource.data)
+    && canPostInGroup(request.resource.data.groupId)
+    && validPostMonetization(request.resource.data.groupId);
 }
 
 function validCreateProfilePost() {
@@ -2532,6 +2657,12 @@ function validCreateProfilePost() {
     && request.resource.data.isDeleted == false
     && request.resource.data.profileId is string
     && request.resource.data.profileId == request.auth.uid
+    // Y NO puede traer nada de comunidad: ese era el hueco.
+    && request.resource.data.contextType == "profile"
+    && !("groupId" in request.resource.data)
+    // En su propio perfil sí puede monetizar (es suyo), pero el precio se acota
+    // igual: el intent de pago lee ese número tal cual.
+    && validPostPrice(request.resource.data)
     && userExists(request.resource.data.profileId);
 }
 
@@ -2893,6 +3024,28 @@ allow list: if (canListOwnAuthoredPost()
   && guestAllowedForLive()
   && liveScopeAllowsViewer();
 
+      // ⏳ PASO PENDIENTE: cambiar a `allow create: if false;` EN CUANTO el
+      // frontend con `createPostOnServer` esté desplegado en Vercel. Mientras el
+      // sitio en producción siga siendo el viejo, cerrar esto deja a todo el
+      // mundo sin poder publicar: el cliente antiguo escribe directo aquí.
+      // El resto del trabajo (callable desplegado, cliente portado) ya está.
+      //
+      // CERRADO. Publicar pasa por el callable `createPost`
+      // (`backend/src/createPost.ts`), que escribe con el Admin SDK y por tanto
+      // no lo frena esta regla.
+      //
+      // Por qué se cerró: el límite de publicaciones vivía en una llamada APARTE
+      // (`checkRateLimitPost`), así que eran dos pasos independientes y bastaba
+      // con no dar el primero: quien escribiera aquí directamente publicaba sin
+      // que nadie contara nada. Una regla no puede exigir que ANTES ocurriera
+      // otra cosa; en el callable el contador y la escritura son la MISMA
+      // transacción. De paso, autor, contexto, visibilidad, `isShareable`,
+      // índice de búsqueda y fechas los pone el servidor y ya no se pueden
+      // falsear desde el cliente.
+      //
+      // `validCreatePost()` y sus auxiliares se conservan a propósito: son la
+      // especificación legible de lo que un post válido puede contener y siguen
+      // documentando el formato aunque ya no se evalúen.
       allow create: if validCreatePost();
 
       function canEditPost() {
@@ -2999,9 +3152,12 @@ allow list: if (canListOwnAuthoredPost()
           && request.resource.data.updatedAt is timestamp;
       }
 
+      // ⚠️ `canUpdateCommentCount` ya NO está aquí. Permitía que cualquiera
+      // con sesión sumara o restara el contador de comentarios de cualquier post
+      // conocido, sin escribir un solo comentario, porque el cliente lo subía en
+      // una escritura aparte y las reglas no podían atarla a nada. Ahora lo lleva
+      // el trigger `onPostCommentCreated` con Admin SDK.
       allow update: if canSoftDeletePost()
-        || canUpdateCommentCount(1)
-        || canUpdateCommentCount(-1)
         || canEditPost()
         || canEditLivePost()
         || canUnpinGroupPost()
@@ -3165,14 +3321,49 @@ allow list: if (canListOwnAuthoredPost()
             && request.resource.data.image is map;
         }
 
+        // ⚠️ Antes solo se exigía que `url` y `thumbnailUrl` fueran cadenas no
+        // vacías. Cualquier dirección externa valía, así que un comentario podía
+        // cargar una imagen de un servidor ajeno — que ve la IP de todo el que
+        // abra el hilo— o apuntar a la ruta de otra persona. Ahora tienen que
+        // ser de NUESTRO Storage, en la carpeta de ESTE post y de QUIEN comenta,
+        // y el mapa no admite campos de más.
+        // La URL va VACÍA en comunidades restringidas —ahí solo se guardan
+        // rutas y la URL la firma el backend—, así que vacía es válida. Lo que
+        // no vale es una dirección que no sea de nuestro Storage.
+        function commentImageUrlOk(value) {
+          return value is string
+            && (
+              value.size() == 0
+              || value.matches(
+                   '^https://firebasestorage\\.googleapis\\.com/v0/b/[^/]+/o/commentImages%2F'
+                   + postId + '%2F' + request.auth.uid + '%2F.*'
+                 )
+            );
+        }
+
+        // La ruta sí tiene que apuntar siempre a la carpeta de ESTE post y de
+        // QUIEN comenta.
+        function commentImagePathOk(field) {
+          return !(field in request.resource.data.image)
+            || (
+              request.resource.data.image[field] is string
+              && request.resource.data.image[field].matches(
+                   '^commentImages/' + postId + '/' + request.auth.uid + '/.*'
+                 )
+            );
+        }
+
         function commentImageValidIfPresent() {
           return !("image" in request.resource.data)
             || (
               request.resource.data.image is map
-              && request.resource.data.image.url is string
-              && request.resource.data.image.url.size() > 0
-              && request.resource.data.image.thumbnailUrl is string
-              && request.resource.data.image.thumbnailUrl.size() > 0
+              && request.resource.data.image.keys().hasOnly([
+                   'url', 'thumbnailUrl', 'path', 'thumbnailPath', 'width', 'height'
+                 ])
+              && commentImageUrlOk(request.resource.data.image.get('url', ''))
+              && commentImageUrlOk(request.resource.data.image.get('thumbnailUrl', ''))
+              && commentImagePathOk('path')
+              && commentImagePathOk('thumbnailPath')
             );
         }
 
@@ -3259,9 +3450,9 @@ function canUpdateReplyCount(delta) {
 
         allow create: if canCreateComment();
 
-        allow update: if canUpdateReplyCount(1)
-          || canUpdateReplyCount(-1)
-          || canEditComment()
+        // Mismo caso que el contador de comentarios: lo lleva el trigger
+        // `onCommentReplyCreated`, no el cliente.
+        allow update: if canEditComment()
           || canSoftDeleteComment();
 
         allow delete: if canDeleteComment();
@@ -3546,21 +3737,17 @@ function canUpdateReplyCount(delta) {
     // MODERACIÓN — REPORTES
     // ==========================
     match /reports/{reportId} {
-      // Cualquier usuario autenticado puede crear un reporte (solo el suyo)
-      allow create: if notAnonymous()
-        && request.resource.data.reporterUid == request.auth.uid
-        && request.resource.data.targetType in [
-             'post', 'comment', 'comment_reply', 'live',
-             'live_chat_message', 'greeting', 'user', 'community',
-             'meet_greet', 'exclusive_session', 'conversation'
-           ]
-        && request.resource.data.reason in [
-             'spam', 'hate_speech', 'violence', 'illegal_content',
-             'harassment', 'misinformation', 'other'
-           ]
-        && request.resource.data.status == 'pending'
-        && request.resource.data.claimedBy == null
-        && request.resource.data.createdAt is timestamp;
+      // ⚠️ Esta regla permitía al CLIENTE crear reportes directamente, y eso
+      // abría un boquete mayor que el de los campos de más: en el Bloque 3 se
+      // hizo que el servidor resolviera de quién es el contenido reportado,
+      // porque el moderador usa ese dato al bloquear una cuenta. Escribiendo el
+      // reporte directo en Firestore se saltaba esa resolución entera y se podía
+      // volver a señalar a un inocente.
+      //
+      // Todo el producto reporta por la callable `submitReport` (ReportModal y
+      // el chat), así que cerrar esto no quita nada: solo obliga a pasar por
+      // donde se comprueba.
+      allow create: if false;
 
       // Solo moderadores de plataforma pueden leer y actualizar reportes
       allow read, update: if isPlatformMod();
@@ -3831,6 +4018,26 @@ function canUpdateReplyCount(delta) {
           && request.resource.data.hiddenAt[request.auth.uid] == request.time;
       }
 
+      // ⚠️ `unread` y `lastReadAt` son mapas con una clave por participante, y
+      // la regla no miraba QUÉ clave se tocaba: cualquiera de los dos podía
+      // reescribir el mapa entero y marcar como leídos —o no leídos— los
+      // mensajes de la otra persona. No da acceso a nada ajeno, pero rompe la
+      // bandeja del otro y sus acuses de lectura.
+      //
+      // Ahora cada quien solo puede tocar SU casilla.
+      function onlyTouchesOwnReadState() {
+        return (
+          !("unread" in request.resource.data.diff(resource.data).affectedKeys())
+          || request.resource.data.unread.diff(resource.data.get('unread', {})).affectedKeys()
+               .hasOnly([request.auth.uid])
+        )
+        && (
+          !("lastReadAt" in request.resource.data.diff(resource.data).affectedKeys())
+          || request.resource.data.lastReadAt.diff(resource.data.get('lastReadAt', {})).affectedKeys()
+               .hasOnly([request.auth.uid])
+        );
+      }
+
       allow update: if isParticipant()
         && notAnonymous()
         && (
@@ -3838,6 +4045,7 @@ function canUpdateReplyCount(delta) {
             request.resource.data.diff(resource.data).affectedKeys()
               .hasOnly(['status', 'blockedBy', 'unread', 'lastReadAt', 'updatedAt'])
             && validStatusChange()
+            && onlyTouchesOwnReadState()
           )
           || onlyTogglesOwnMute()
           || onlyHidesConversationForSelf()

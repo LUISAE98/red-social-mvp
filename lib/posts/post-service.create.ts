@@ -2,10 +2,10 @@
 // Extraído de post-service.ts; post-service.ts lo re-exporta (barrel).
 
 import {
-  collection, doc, addDoc, getDoc, getDocs, query, where, limit,
+  collection, doc, getDoc, getDocs, query, where, limit,
   setDoc, serverTimestamp, writeBatch, Timestamp,
 } from "firebase/firestore";
-import { auth, db } from "@/lib/firebase";
+import { db } from "@/lib/firebase";
 import {
   pickString,
   assertValidId,
@@ -20,7 +20,7 @@ import { assertMembershipCanInteract, resolveEffectiveMembershipStatus } from ".
 import { buildPremiumAccessFields } from "./premium";
 import { buildPostSearchIndex } from "./postSearchIndex";
 import { MAX_POST_IMAGES, MAX_POST_VIDEOS } from "./types";
-import { callCheckRateLimit } from "./rateLimitClient";
+import { createPostOnServer } from "./createPostServer";
 import type {
   Post, PostContextType, PostLiveData, PostMedia, PostPremium, LiveVisibilityMode,
 } from "./types";
@@ -217,15 +217,10 @@ export function buildPostSearchIndexForContext(params: {
     premiumFreeFor: premium?.freeFor ?? null,
   };
 }
-// El conteo lo lleva el servidor (`checkRateLimitPost` en backend/rateLimiter.ts).
-// Antes esta lógica corría en el cliente escribiendo `rateLimits` directo, y como
-// el dueño podía escribir su propio documento, reiniciar `lastAt` bastaba para
-// saltarse el límite. Ver `lib/posts/rateLimitClient.ts`.
-export async function enforcePostRateLimit(): Promise<void> {
-  const user = auth.currentUser;
-  if (!user?.uid) throw new Error("Debes iniciar sesión.");
-  await callCheckRateLimit("checkRateLimitPost");
-}
+// El control de ritmo ya no se llama por separado desde el cliente: vive DENTRO
+// de la transacción del callable `createPost` (`backend/src/createPost.ts`).
+// Llamarlo aquí además consumiría dos cupos por publicación y el intervalo de
+// 10 s bloquearía la escritura que viene justo detrás.
 
 export async function createTextPost(params: {
   groupId: string;
@@ -247,18 +242,13 @@ export async function createTextPost(params: {
     throw new Error("Escribe un texto antes de publicar.");
   }
 
-  // Arrancar el rate limit inmediatamente — no necesita datos del autor
-  const rateLimitPromise = enforcePostRateLimit();
   const author = await getCurrentAuthorSnapshot();
-  const [context] = await Promise.all([
-    resolvePostCreationContext({
-      contextType: params.contextType,
-      groupId: params.groupId,
-      profileId: params.profileId,
-      author,
-    }),
-    rateLimitPromise,
-  ]);
+  const context = await resolvePostCreationContext({
+    contextType: params.contextType,
+    groupId: params.groupId,
+    profileId: params.profileId,
+    author,
+  });
 
   const shareMetadata = buildShareMetadata({
     text: cleanText,
@@ -278,7 +268,7 @@ export async function createTextPost(params: {
   const updatedAt = serverTimestamp();
   const searchTimestamp = Timestamp.now();
 
-  const ref = await addDoc(collection(db, "posts"), {
+  return createPostOnServer({
     ...buildPostContextPayload(context),
     authorId: author.uid,
     authorName: author.authorName,
@@ -340,7 +330,6 @@ export async function createTextPost(params: {
       updatedAt: null,
     },
   });
-  return ref.id;
 }
 
 export async function createLivePost(params: {
@@ -396,17 +385,13 @@ export async function createLivePost(params: {
     throw new Error("El título del live es obligatorio.");
   }
 
-  const rateLimitPromise = enforcePostRateLimit();
   const author = await getCurrentAuthorSnapshot();
-  const [context] = await Promise.all([
-    resolvePostCreationContext({
-      contextType: params.contextType,
-      groupId: params.groupId,
-      profileId: params.profileId,
-      author,
-    }),
-    rateLimitPromise,
-  ]);
+  const context = await resolvePostCreationContext({
+    contextType: params.contextType,
+    groupId: params.groupId,
+    profileId: params.profileId,
+    author,
+  });
 
   const createdFrom: "profile" | "group" =
     context.contextType === "profile" ? "profile" : "group";
@@ -458,7 +443,7 @@ export async function createLivePost(params: {
   const updatedAt = serverTimestamp();
   const searchTimestamp = Timestamp.now();
 
-  const ref = await addDoc(collection(db, "posts"), {
+  const postId = await createPostOnServer({
     ...buildPostContextPayload(context),
     authorId: author.uid,
     authorName: author.authorName,
@@ -517,9 +502,8 @@ export async function createLivePost(params: {
     },
   });
 
-  const postId = ref.id;
-
   // Auto-pin: desfijar cualquier post previamente fijado en el mismo contexto
+  // (el nuevo directo ya nace fijado desde el servidor)
   if (isGroupLive && params.groupId) {
     const prevPinnedSnap = await getDocs(
       query(

@@ -14,7 +14,15 @@ export type NewPostsEntity = { id: string; kind: "profile" | "group" };
 
 export function useNewPostsCounts(
   entities: NewPostsEntity[],
-  currentUserId: string | null | undefined
+  currentUserId: string | null | undefined,
+  /**
+   * Valor que, al cambiar, fuerza a recontar. Existe porque esto es un fetch,
+   * no un listener: al visitar una comunidad su `lastVisit` se actualiza en la
+   * página destino, pero el sidebar vive en el layout y no se remonta, así que
+   * sin esto el aviso de "2 nuevos" seguiría ahí después de haberlos visto.
+   * El consumidor pasa la ruta actual.
+   */
+  refreshKey?: string | number
 ): Record<string, number> {
   const [counts, setCounts] = useState<Record<string, number>>({});
 
@@ -77,7 +85,7 @@ export function useNewPostsCounts(
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [entityKey, currentUserId]);
+  }, [entityKey, currentUserId, refreshKey]);
 
   return counts;
 }

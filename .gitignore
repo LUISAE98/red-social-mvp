@@ -73,3 +73,6 @@ backend/.env
 backend/.env.local
 # Sentry Config File
 .env.sentry-build-plugin
+
+# Copia generada de shared/ (ver scripts/sync-shared.js)
+backend/src/shared/

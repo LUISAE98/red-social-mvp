@@ -122,17 +122,28 @@ export const getRestrictedMediaUrls = onCall<RequestData, Promise<ResponseData>>
       throw new HttpsError("permission-denied", "No tienes acceso a esta comunidad.");
     }
 
-    // Solo se firman rutas que pertenezcan A ESTE post. Sin esto, quien esté en
-    // una comunidad podría pedir medios de cualquier otra pasando sus rutas.
-    const allowedPrefixes = [
-      `commentImages/${postId}/`,
-      ...(groupId ? [`posts/${groupId}/`] : []),
-    ];
+    // ⚠️ Antes se aceptaba cualquier ruta bajo `posts/{groupId}/`, o sea
+    // cualquier archivo de la comunidad entera: bastaba con ser miembro y
+    // conocer la ruta para pedir firmados los medios de OTRO post, o de uno
+    // borrado, o un archivo huérfano. Ahora las rutas de post se comparan contra
+    // los medios de ESTE post, uno a uno.
+    //
+    // Las de comentario no lo necesitan: `commentImages/{postId}/` ya está atado
+    // al post por su propia forma.
+    const mediaPaths = new Set<string>();
+    const media = Array.isArray(post.media) ? post.media : [];
+    for (const item of media) {
+      if (!item || typeof item !== "object") continue;
+      const { path, thumbnailPath } = item as Record<string, unknown>;
+      if (typeof path === "string" && path) mediaPaths.add(path);
+      if (typeof thumbnailPath === "string" && thumbnailPath) mediaPaths.add(thumbnailPath);
+    }
+
     const allowed = paths.filter(
       (p) =>
         typeof p === "string" &&
         !p.includes("..") &&
-        allowedPrefixes.some((prefix) => p.startsWith(prefix))
+        (p.startsWith(`commentImages/${postId}/`) || mediaPaths.has(p))
     );
 
     const bucket = admin.storage().bucket();

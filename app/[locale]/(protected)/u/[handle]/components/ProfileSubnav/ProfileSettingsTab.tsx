@@ -15,6 +15,11 @@ import {
   type ProfileSettingsTabProps,
 } from "@/components/profile/ProfileSettings.parts";
 import MessagePolicySetting from "@/components/chat/MessagePolicySetting";
+import SocialLinksEditor, {
+  draftHasInvalidHandle,
+  socialLinksToDraft,
+} from "@/components/profile/SocialLinksEditor";
+import { listSocialLinks } from "@/lib/profile/socialNetworks";
 import type { MessagePolicy } from "@/lib/chat/types";
 
 export default function ProfileSettingsTab({
@@ -37,6 +42,8 @@ export default function ProfileSettingsTab({
   onUpdateDisplayName,
   bio = null,
   onUpdateBio,
+  socialLinks = null,
+  onUpdateSocialLinks,
   onSendPasswordReset,
 }: ProfileSettingsTabProps) {
   const [localRestricted, setLocalRestricted] = useState(isRestricted);
@@ -44,6 +51,13 @@ export default function ProfileSettingsTab({
   const [localMessagePolicy, setLocalMessagePolicy] = useState<MessagePolicy>(messagePolicy);
   const [editNameOpen, setEditNameOpen] = useState(false);
   const [editBioOpen, setEditBioOpen] = useState(false);
+  const [editSocialOpen, setEditSocialOpen] = useState(false);
+  const [draftSocial, setDraftSocial] = useState(() => socialLinksToDraft(socialLinks));
+  const [savingSocial, setSavingSocial] = useState(false);
+  // Las redes ya guardadas, para el resumen de la fila; y si lo tecleado tiene
+  // algo que no sirve, para no dejar guardar.
+  const savedSocial = listSocialLinks(socialLinks);
+  const socialDraftInvalid = draftHasInvalidHandle(draftSocial);
   const [blockedAccountsOpen, setBlockedAccountsOpen] = useState(false);
   const [sessionsOpen, setSessionsOpen] = useState(false);
   const [draftName, setDraftName] = useState(displayName ?? "");
@@ -245,6 +259,24 @@ export default function ProfileSettingsTab({
       setErr((error instanceof Error ? error.message : null) ?? tProfile("descriptionError"));
     } finally {
       setSavingBio(false);
+    }
+  }
+
+  async function handleSaveSocialLinks() {
+    if (!onUpdateSocialLinks) return;
+
+    setSavingSocial(true);
+    setMsg(null);
+    setErr(null);
+
+    try {
+      await onUpdateSocialLinks(draftSocial);
+      setMsg(tProfile("socialLinksUpdated"));
+      setEditSocialOpen(false);
+    } catch (error: unknown) {
+      setErr((error instanceof Error ? error.message : null) ?? tProfile("socialLinksError"));
+    } finally {
+      setSavingSocial(false);
     }
   }
 
@@ -708,6 +740,55 @@ export default function ProfileSettingsTab({
           </div>
         )}
 
+        {onUpdateSocialLinks && (
+          <div className="profile-setting-item" style={item}>
+            <div style={{ minWidth: 0 }}>
+              <div style={labelStyle}>{tProfile("socialLinksFieldLabel")}</div>
+              <div
+                style={{
+                  ...valueStyle,
+                  fontWeight: 400,
+                  color: savedSocial.length
+                    ? "rgba(255,255,255,0.82)"
+                    : "rgba(255,255,255,0.38)",
+                  wordBreak: "break-word",
+                }}
+              >
+                {savedSocial.length
+                  ? savedSocial.map((s) => s.label).join(" · ")
+                  : tProfile("socialLinksNone")}
+              </div>
+            </div>
+
+            <button
+              type="button"
+              style={{
+                justifySelf: "center",
+                alignSelf: "center",
+                border: "none",
+                background: "transparent",
+                padding: 0,
+                color: "#a855f7",
+                fontSize: 12,
+                fontWeight: 700,
+                fontFamily: fontStack,
+                cursor: "pointer",
+                whiteSpace: "nowrap",
+              }}
+              onClick={() => {
+                setErr(null);
+                setMsg(null);
+                // Se rearma desde lo guardado al abrir: si cancelaron la vez
+                // pasada, lo tecleado a medias no debe seguir ahí.
+                setDraftSocial(socialLinksToDraft(socialLinks));
+                setEditSocialOpen(true);
+              }}
+            >
+              {tProfile("editLabel")}
+            </button>
+          </div>
+        )}
+
         <div className="profile-setting-item profile-setting-item--action" style={item}>
           <div>
             <div style={labelStyle}>{tProfile("emailFieldLabel")}</div>
@@ -1009,6 +1090,64 @@ export default function ProfileSettingsTab({
             {draftBio.length}/300
           </div>
         </div>
+      </VibraResponsivePanel>
+
+      <VibraResponsivePanel
+        open={editSocialOpen}
+        onClose={() => !savingSocial && setEditSocialOpen(false)}
+        title={tProfile("socialLinksFieldLabel")}
+        closeAriaLabel={tCommon("closeAriaLabel")}
+        maxWidthDesktop={440}
+        footer={
+          <div style={{ display: "flex", gap: 10 }}>
+            <button
+              type="button"
+              onClick={handleSaveSocialLinks}
+              disabled={savingSocial || socialDraftInvalid}
+              style={
+                savingSocial || socialDraftInvalid
+                  ? panelPrimaryBtnDisabled
+                  : panelPrimaryBtn
+              }
+            >
+              {savingSocial ? (
+                <>
+                  <SpinningGear /> {tCommon("saving")}
+                </>
+              ) : (
+                tCommon("save")
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={() => !savingSocial && setEditSocialOpen(false)}
+              disabled={savingSocial}
+              style={{
+                flex: 1,
+                minHeight: 42,
+                borderRadius: 5,
+                border: "none",
+                background: "rgba(255,255,255,0.10)",
+                color: "rgba(255,255,255,0.70)",
+                fontWeight: 500,
+                fontSize: 13,
+                fontFamily: fontStack,
+                display: "grid",
+                placeItems: "center",
+                cursor: savingSocial ? "not-allowed" : "pointer",
+                opacity: savingSocial ? 0.7 : 1,
+              }}
+            >
+              {tCommon("cancel")}
+            </button>
+          </div>
+        }
+      >
+        <SocialLinksEditor
+          value={draftSocial}
+          onChange={setDraftSocial}
+          disabled={savingSocial}
+        />
       </VibraResponsivePanel>
 
       <BlockedAccountsOverlay

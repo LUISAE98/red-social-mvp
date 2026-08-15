@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useInView } from "./useInView";
 import VibraGradientText from "@/app/components/VibraGradientText/VibraGradientText";
 import { useCarouselRail, type CarouselInfo } from "./useCarouselRail";
 
@@ -47,27 +47,7 @@ export default function LoginCommunityCards() {
 
   // Entrada al aparecer la sección, igual que los bloques de arriba: se rehace
   // cada vez que vuelve a la vista.
-  const seccionRef = useRef<HTMLDivElement | null>(null);
-  const [dentro, setDentro] = useState(false);
-
-  useEffect(() => {
-    const node = seccionRef.current;
-    // Sin observador el contenido se muestra tal cual: el estado de partida es
-    // invisible, así que un fallo aquí lo escondería para siempre.
-    if (!node || typeof IntersectionObserver === "undefined") {
-      const id = requestAnimationFrame(() => setDentro(true));
-      return () => cancelAnimationFrame(id);
-    }
-    const obs = new IntersectionObserver(
-      (entries) => {
-        const ratio = Math.max(...entries.map((e) => (e.isIntersecting ? e.intersectionRatio : 0)));
-        setDentro(ratio >= 0.15);
-      },
-      { threshold: [0, 0.15, 0.5] },
-    );
-    obs.observe(node);
-    return () => obs.disconnect();
-  }, []);
+  const [seccionRef, dentro] = useInView<HTMLDivElement>(0.15);
 
   return (
     <div ref={seccionRef} className={`commWrap${dentro ? " commIn" : ""}`}>

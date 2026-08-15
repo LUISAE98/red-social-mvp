@@ -2,83 +2,34 @@
 
 Registro de las auditorías de seguridad por bloques y de lo que queda pendiente.
 
-Última actualización: **2026-08-14** (bloques 1, 2 y 3 cerrados)
+Última actualización: **2026-08-14** (bloques 1, 2, 3 y 4 cerrados)
 
 ---
-
 ## Pendientes
 
-Tres cosas siguen abiertas. Ninguna es un hallazgo sin arreglar — son pasos que dependen de la consola o de una decisión de producto.
+### 1. Separar el rol de supermoderador (H04 del Bloque 3)
 
-### 1. Diagnosticar App Check y activar la exigencia
-
-**Estado:** bloqueado. Es lo único que impide dar el Bloque 1 por cerrado.
-
-App Check está **integrado y desplegado** en el cliente (`lib/appCheck.ts`), con la clave de reCAPTCHA v3 en Vercel. El overlay de OBS también lo monta (`public/live-overlay.html`), porque es el único cliente de Vibra que habla con Firestore fuera del bundle de Next.
-
-Lo que falta es **activar la exigencia** en Firestore, Storage y Cloud Functions, o sea que empiecen a rechazar peticiones sin token válido.
-
-**No se puede activar todavía.** La consola marcaba `0% verificadas / 100% no verificadas` en Firestore. Con ese número, exigir dejaría fuera al 100% del tráfico y tumbaría la aplicación.
-
-**Diagnóstico pendiente.** Abrir `vibraon.com` en incógnito con DevTools:
-
-- Pestaña **Network**, filtrar por `appcheck`.
-- Buscar la petición a `firebaseappcheck.googleapis.com/.../exchangeRecaptchaV3Token`.
-
-| Resultado | Significado |
-|---|---|
-| `200` | Todo bien, solo retraso de métricas. Esperar 24 h y volver a mirar |
-| `400` o `403` | El cuerpo de la respuesta dice la causa exacta |
-| No aparece ninguna | App Check no arranca. Revisar la Console del navegador |
-
-**Sospecha principal:** que la clave registrada sea de **reCAPTCHA Enterprise** en vez de **v3 clásico**. El código usa `ReCaptchaV3Provider`, que no acepta una clave Enterprise y falla en silencio — se vería exactamente como ese 0%. Comprobar en <https://www.google.com/recaptcha/admin> que la clave figura como **v3** y que `vibraon.com` está en sus dominios.
-
-**Orden seguro para activar, cuando el porcentaje se acerque al 100%:**
-
-1. Firestore y Storage desde la consola de App Check.
-2. Las callables desde código (`enforceAppCheck: true`).
-
-Nunca al revés, y nunca antes de ver el porcentaje.
-
----
-
-### 2. Verificación en dos pasos exigible para moderadores
-
-**Estado:** cubierto en la práctica, no exigible.
-
-Corresponde al hallazgo **H07** del Bloque 2. Los moderadores entran con Google, y si esas cuentas tienen la verificación en dos pasos activada, ya hay segundo factor. Pero **Vibra no puede exigirlo ni comprobarlo**: el token que recibe no dice si hubo segundo factor, así que un moderador con la verificación apagada entraría igual.
-
-Ya está cerrado todo lo demás de la gestión de moderadores:
-
-- El claim de moderador exige sesión de Google en las reglas **y** en las callables, no solo en el cliente.
-- Dar o quitar el rol revoca los tokens al instante (`scripts/set-moderator.ts`).
-- Los cambios de rol quedan registrados en `adminAuditLog`.
-
-**Dos caminos para cerrarlo:**
-
-- **Gratis y suficiente:** si las cuentas de Google de moderación viven en un Google Workspace propio, obligar la verificación en dos pasos desde su consola de administración. Lo hace cumplir Google en vez de Vibra, pero es exigible y auditable.
-- **Completo:** subir a **Identity Platform**, que permite exigir MFA desde Firebase. Es el mismo salto que haría falta para la revocación de sesiones por dispositivo y, posiblemente, para la política de contraseñas.
-
----
-
-### 3. Separar el rol de supermoderador (H04 del Bloque 3)
-
-**Estado:** aplazado por decisión de producto. **No hacer todavía.**
+**Estado:** aplazado por decisión de producto. Es el único trabajo de seguridad que queda abierto de los tres bloques.
 
 Hoy una sola persona con el claim `role=moderator` puede moderar contenido, aprobar devoluciones de dinero, disparar reembolsos de Stripe y ejecutar healthchecks que manejan secretos. No hay separación entre moderador de contenido, soporte, finanzas y operador técnico.
 
 Se decidió dejarlo así **mientras el equipo sea Luis y poca gente de confianza**. Cuando entre gente nueva a moderar contenido, conviene partirlo en al menos dos roles: uno que solo toca contenido y otro que puede tocar dinero.
 
-Lo que ya se cerró alrededor, y reduce mucho el riesgo mientras tanto:
+**Qué haría falta:** un segundo claim (por ejemplo `role=finance`), cambiar `requirePlatformMod` en `backend/src/authz.ts` para distinguirlos, y reasignar los roles existentes. El guard ya está centralizado ahí, así que el cambio es acotado.
+
+**Lo que ya reduce el riesgo mientras tanto:**
 
 - El supermoderador **ya no puede leer toda la base de datos**. Ve contenido, reportes y solo las conversaciones privadas que alguien denunció. No ve datos fiscales, bancarios, wallets, sesiones ni claves de transmisión.
-- Todas las funciones privilegiadas, incluidas las de dinero, exigen claim **más** sesión de Google (`backend/src/authz.ts`).
+- Todas las funciones privilegiadas, incluidas las de dinero, exigen claim **más** sesión de Google.
+- Dar o quitar el rol revoca los tokens al instante y queda registrado en `adminAuditLog`.
 
-### 4. Exigir correo verificado para entrar
+---
+
+### 2. Exigir correo verificado para entrar
 
 **Estado:** aplazado a propósito. **No hacer todavía.**
 
-Corresponde al hallazgo **H02** del Bloque 2, que se excluyó de la auditoría por decisión de producto: la verificación de correo al crear cuenta está desactivada para poder usar cuentas de prueba sin verificar cada una.
+Corresponde al hallazgo **H02** del Bloque 2, excluido de la auditoría por decisión de producto: la verificación de correo al crear cuenta está desactivada para poder usar cuentas de prueba sin verificar cada una.
 
 Hoy el registro **envía** el correo de verificación, pero la cuenta queda autenticada y entra a la plataforma sin comprobar nada. No existe ninguna comprobación de `emailVerified` ni en el cliente, ni en las Firestore Rules, ni en las Cloud Functions.
 
@@ -93,6 +44,25 @@ Pendiente hasta que se decida el cambio, previsiblemente antes de producción.
 
 ---
 
+### 3. Esquemas cerrados en las creaciones (M01 del Bloque 4)
+
+**Estado:** aplazado. Necesita inventario antes que código.
+
+De las 61 declaraciones `allow create` de `firestore.rules`, muchas no fijan **qué campos** puede traer el documento (`keys().hasOnly([...])`). Se puede escribir un campo inventado y quedará guardado. No abre acceso a nada por sí solo, pero engorda documentos y deja sitio a que un campo colado confunda a una regla futura.
+
+**Qué haría falta:** listar las 61, separar las que ya están acotadas de las que no, y cerrar primero las que tocan dinero o acceso. Hacerlo a ciegas rompe escrituras legítimas, porque el esquema real de varias colecciones no está escrito en ningún sitio salvo el código que las escribe.
+
+---
+
+### 4. Limpieza de archivos huérfanos en Storage (M06 del Bloque 4)
+
+**Estado:** aplazado. Es coste y operación, no seguridad.
+
+Al borrar una publicación no se borran sus imágenes ni sus miniaturas de Storage. Siguen ahí, ocupando y facturando. No son accesibles por la app, pero los archivos con token de descarga siguen sirviéndose por URL directa.
+
+**Qué haría falta:** un trigger `onDocumentDeleted` sobre `posts` que barra el prefijo del post. Ojo con el borrado suave: hoy borrar un post lo marca, no lo elimina, así que el disparador correcto es el barrido de los marcados, no el borrado del documento.
+
+---
 ## Bloques cerrados
 
 ### Bloque 1 — Superficie de ataque y fronteras de confianza
@@ -108,7 +78,7 @@ Pendiente hasta que se decida el cambio, previsiblemente antes de producción.
 - **H03** Mutación anónima del estado de OBS.
 - **H04** Analítica de compras manipulable sin sesión.
 - **H05** Render caro (FFmpeg, egress) sin verificar propiedad del contenido.
-- **H06** App Check — integrado; **falta la exigencia, ver pendiente 1**.
+- **H06** App Check — integrado y desplegado; Luis confirmó la configuración en consola el 2026-08-14.
 - **Medios y bajos:** idempotencia de webhooks, rate limit del TTS, CSRF del logout, filtración de errores de proveedores, timeouts de salida, healthcheck.
 
 ### Bloque 2 — Identidad, autenticación, sesiones y cuentas
@@ -119,12 +89,12 @@ Pendiente hasta que se decida el cambio, previsiblemente antes de producción.
 - **C02** Acaparamiento ilimitado y permanente de nombres de usuario.
 - **C03** "Revocar sesión" no revocaba nada, y se deshacía sola al reabrir la app.
 - **H01** Correo, fecha de nacimiento y sexo eran de lectura pública. **Migrados** a `users/{uid}/private/identity`; los 11 perfiles existentes se migraron y se verificó que no quedó ningún campo personal en el documento público.
-- **H02** Correo verificado — **excluido a propósito, ver pendiente 3**.
+- **H02** Correo verificado — **excluido a propósito, ver pendiente 2**.
 - **H03** El perfil aceptaba correo, proveedor y campos arbitrarios inventados.
 - **H04** La edad mínima solo se comprobaba en el cliente.
 - **H05** La caché de Firestore en IndexedDB sobrevivía al cierre de sesión.
 - **H06** Bloquear una cuenta no revocaba sus tokens.
-- **H07** Gestión de moderadores — cerrado salvo el MFA, **ver pendiente 2**.
+- **H07** Gestión de moderadores — cerrado. El segundo factor lo aplica Google sobre las cuentas de moderación; Vibra no puede exigirlo sin Identity Platform, y se aceptó así.
 - **M05** Protección de rutas solo en cliente. **No se puede cerrar** sin un proyecto de sesión de servidor: el middleware corre en Edge, donde `firebase-admin` no funciona. Impacto bajo, las reglas y las funciones vuelven a autorizar.
 
 **Pruebas:** `test/rules/anonymousContainment.rules.test.ts` cubre la contención de anónimos, el acaparamiento de handles, la revocación de sesiones, la falsificación de perfil, el gate de edad, el proveedor de los moderadores, la lectura acotada del supermoderador y las suscripciones vencidas. La suite completa de reglas está en **205 tests**.
@@ -139,7 +109,7 @@ Pendiente hasta que se decida el cambio, previsiblemente antes de producción.
 - **H01** Desbanear devolvía el acceso completo aunque el ban hubiera cancelado la suscripción. **Decisión de Luis: tiene que volver a pagar.**
 - **H02** Las invitaciones a moderador de comunidad no caducaban ni se revalidaban al aceptar: se podía invitar con la comunidad pública, volverla oculta y aceptar después. **Decisión de Luis: caducan a los 30 días**, y al aceptar se revalida visibilidad y estado.
 - **H03** El reporte guardaba el "dueño del contenido" **que mandaba quien reporta**, y ese valor es el que usa el moderador al pulsar bloquear. Se podía señalar a un inocente. Ahora lo resuelve el servidor para los 11 tipos de reporte.
-- **H04** Un solo rol lo hace todo — **ver pendiente 3**.
+- **H04** Un solo rol lo hace todo — **ver pendiente 1**.
 - **H05** Las funciones de dinero (capturar cobros, resolver devoluciones, healthchecks con secretos) exigían el claim pero **no la sesión de Google**. Unificado en `backend/src/authz.ts`.
 - **H06** Dos backfills se autorizaban con un correo escrito en el código, sin claim ni proveedor. Incluida la migración de PII del Bloque 2, que se había escrito con ese mismo patrón.
 - **H07** El vencimiento de suscripciones depende de una tarea diaria, así que hay hasta 24 h de margen. **Decisión de Luis: se acepta.**
@@ -148,6 +118,24 @@ Pendiente hasta que se decida el cambio, previsiblemente antes de producción.
 - **M03** Un moderador silenciado era rechazado por las reglas pero aceptado por las callables.
 - **M04** `getMuxPlaybackToken` solo reconocía `role === "moderator"`, pero las promociones escriben `roleInGroup: "mod"`: se negaba el acceso a moderadores legítimos.
 - **M05** Cualquier moderador podía resolver un reporte que otro estaba atendiendo. Ahora se toma en transacción al resolver.
+
+### Bloque 4 — Datos, integridad y escrituras del cliente
+
+5 críticas, las altas y 4 de 6 medios. Los dos medios abiertos son los pendientes 3 y 4.
+
+- **C01** Los contadores de comentarios y respuestas los escribía el cliente en una escritura **aparte** del comentario, así que las reglas no podían atarlos: se podía inflar `counts.comments` sin comentar nada. Movidos a triggers (`backend/src/commentCounters.ts`).
+- **C02** Las imágenes de publicaciones y de comentarios de comunidades restringidas eran legibles por cualquiera que tuviera la ruta. Cerrado en `storage.rules` con `isRestrictedGroup()`.
+- **C03** Un post de perfil podía traer además el `groupId` de otra comunidad y aparecer dentro de ella. Perfil y comunidad son ahora mutuamente excluyentes.
+- **C04** Empezar una transmisión escribía `activeLivePostId` en la comunidad **sin comprobar** que quien transmite pueda hacerlo ahí (`canBroadcastToGroup`).
+- **C05** Cualquier miembro podía publicar contenido de pago en la comunidad de otro y cobrarlo. Ahora solo el dueño.
+- **M04** Crear publicaciones era una escritura directa del cliente, y el límite de publicaciones vivía en una llamada **aparte**: eran dos pasos independientes y bastaba con no dar el primero. Una regla no puede exigir que antes ocurriera otra cosa. Ahora todo va por el callable `createPost` (`backend/src/createPost.ts`), donde el contador y la escritura son la **misma transacción**. De paso, autor, contexto, visibilidad, `isShareable`, índice de búsqueda, fijado y fechas los decide el servidor. Los cinco puntos de creación del cliente (texto, imagen, medios, video, directo) pasan por ahí. **⏳ Falta el último paso:** cambiar `allow create` de `posts` a `if false` **después** de desplegar el frontend en Vercel — antes de eso, cerrarlo deja sin publicar a quien siga con el sitio viejo. Al hacerlo, quitar el `.skip` del describe `B4-M04` en `test/rules/anonymousContainment.rules.test.ts` y borrar los describe `B4-C03` y `B4-C05`.
+- **M05** La creación de comunidades hacía tres escrituras sueltas; si fallaba la segunda quedaba una comunidad sin dueño. Unificadas en un `writeBatch`.
+
+**Residuo aceptado en M04:** `groupCategory` y `groupTags` se siguen aceptando del cliente, solo saneados. Son copias de metadatos públicos de la comunidad que solo alimentan el ranking de recomendaciones; falsearlos mal-clasifica el propio post y no toca acceso, dinero ni exposición. Validarlos en el servidor obligaría a duplicar allí la tabla de categorías canónicas de `types/group.ts`.
+
+**Hueco de cobertura conocido:** los criterios de C03 y C05 ya no los aplican las reglas sino el callable, y un test de reglas no puede ejercitarlos porque el Admin SDK no pasa por ellas. Sus pruebas antiguas se sustituyeron por otras que solo verifican que la puerta está cerrada. Cubrirlos pide un test de integración contra el emulador de Functions, que hoy no existe.
+
+**Código compartido:** `shared/posts/` guarda la lógica pura que usan los dos lados (índice de búsqueda, metadatos de compartir). `scripts/sync-shared.js` la copia a `backend/src/shared/` en cada build, porque el backend tiene `rootDir: "src"` y no puede importar de fuera. El destino está en `.gitignore` y se regenera siempre, así que no puede divergir.
 
 ---
 

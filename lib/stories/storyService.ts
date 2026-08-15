@@ -72,11 +72,18 @@ async function patchMissingPlaybackIds(stories: StoryDoc[]): Promise<void> {
         // Mutate in-place so the callback renders with the image on first call
         s.muxPlaybackId = pid;
         s.thumbnailUrl = `https://image.mux.com/${pid}/thumbnail.jpg?time=0`;
-        // Background write — future loads won't need resolution
-        updateDoc(doc(db, "stories", s.id), {
-          muxPlaybackId: pid,
-          thumbnailUrl: `https://image.mux.com/${pid}/thumbnail.jpg?time=0`,
-        }).catch(() => {});
+
+        // Aquí había una escritura de vuelta a `stories` para no repetir esta
+        // resolución en cada carga. NUNCA funcionó: las reglas de historias son
+        // `allow update: if false`, así que fallaba siempre y el `.catch(() => {})`
+        // se lo tragaba en silencio. Se quitó para no aparentar una caché que no
+        // existe.
+        //
+        // La resolución en memoria sí funciona, así que la historia se ve bien;
+        // solo cuesta una lectura extra por carga. Persistirlo de verdad es
+        // trabajo del backend (el webhook de Mux no toca `stories` hoy), no del
+        // cliente: si se le abriera esta escritura, un creador podría apuntar su
+        // historia al video de otra persona.
       } catch {
         // best-effort — silently skip
       }

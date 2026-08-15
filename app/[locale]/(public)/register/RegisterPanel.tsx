@@ -21,6 +21,7 @@ import { isPasswordAcceptable } from "@/lib/auth/passwordPolicy";
 import { enablePush, isPushSupported } from "@/lib/push/fcm";
 import ImageCropperModal from "@/components/media/ImageCropperModal";
 import { uploadProfileImage } from "@/lib/storage/uploadProfileImage";
+import SocialLinksEditor, { socialLinksToDraft } from "@/components/profile/SocialLinksEditor";
 
 const vibraPink = "#ff2fb3";
 const vibraPurple = "#a855f7";
@@ -149,6 +150,7 @@ export default function RegisterPanel({
   // El copy del switch de notificaciones se reutiliza del panel de completar
   // perfil (misma feature, mismo texto) en vez de duplicar claves.
   const tCP = useTranslations("completeProfile");
+  const tProfile = useTranslations("profile");
   const locale = useLocale();
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -191,6 +193,8 @@ export default function RegisterPanel({
 
   // Bio (opcional): se guarda al crear la cuenta.
   const [bio, setBio] = useState("");
+  // Texto crudo por red; se limpia dentro de createUserProfileDoc.
+  const [socialDraft, setSocialDraft] = useState(() => socialLinksToDraft(null));
 
   // Revoca las object URLs al desmontar para no filtrar memoria.
   const avatarPreviewRef = useRef<string | null>(null);
@@ -363,6 +367,7 @@ export default function RegisterPanel({
         photoURL,
         coverUrl,
         bio,
+        socialLinks: socialDraft,
       });
 
       await sendEmailVerification(cred.user);
@@ -823,6 +828,26 @@ export default function RegisterPanel({
             maxLength={300}
           />
         </label>
+
+        {/* Redes sociales (opcional). El formulario ya es largo, así que van
+            plegadas: quien no las quiera ni las abre, y quien sí, las llena de
+            una vez y no tiene que volver a ajustes. */}
+        <details style={{ display: "grid", gap: 6 }}>
+          <summary
+            style={{
+              ...labelTextStyle,
+              cursor: "pointer",
+              listStyle: "revert",
+              userSelect: "none",
+            }}
+          >
+            {tProfile("socialLinksFieldLabel")}
+          </summary>
+
+          <div style={{ paddingTop: 6 }}>
+            <SocialLinksEditor value={socialDraft} onChange={setSocialDraft} />
+          </div>
+        </details>
 
         {pushSupported && (
           <div

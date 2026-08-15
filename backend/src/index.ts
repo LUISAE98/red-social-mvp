@@ -310,6 +310,9 @@ export { softDeleteGroup } from "./groupDeletion";
 // Rate limiting
 export { checkRateLimitPost, checkRateLimitComment } from "./rateLimiter";
 
+// Creación de publicaciones (server-authoritative: `posts` es create: if false)
+export { createPost } from "./createPost";
+
 // Video overlay download
 export { videoOverlayDownload } from "./videoOverlay";
 
@@ -440,6 +443,14 @@ export { generateBuyerInvoice, downloadBuyerInvoice } from "./facturacion/genera
 
 // Historias: contador de vistas (trigger)
 export { onStoryViewed } from "./storyDiscovery";
+
+// Contadores de comentarios y respuestas: los lleva el SERVIDOR, no el cliente
+export {
+  onCommentCountCreated,
+  onCommentCountDeleted,
+  onReplyCountCreated,
+  onReplyCountDeleted,
+} from "./commentCounters";
 
 // Posts: contador de vistas únicas por usuario (videos y VODs)
 export { onPostViewed } from "./postViews";

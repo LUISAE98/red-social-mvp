@@ -2,31 +2,18 @@
 // Separado de post-service.create.ts para mantenerlo bajo 1000 líneas; usa los
 // helpers de contexto compartidos, importados desde post-service.create.
 
-import {
-  collection, doc, addDoc, getDoc, getDocs, query, where, limit,
-  setDoc, serverTimestamp, writeBatch, runTransaction, Timestamp,
-} from "firebase/firestore";
-import { auth, db } from "@/lib/firebase";
-import {
-  pickString, assertValidId, normalizePostingMode,
-  normalizeGroupVisibility, readGroupAvatarUrl, readGroupName,
-} from "./post-service.helpers";
-import { getCurrentAuthorSnapshot, fetchProfileById, type AuthorSnapshot } from "./post-service.internal";
+import { serverTimestamp, Timestamp } from "firebase/firestore";
+import { assertValidId } from "./post-service.helpers";
+import { getCurrentAuthorSnapshot } from "./post-service.internal";
 import { buildShareMetadata } from "./post-service.hydration";
-import { assertMembershipCanInteract, resolveEffectiveMembershipStatus } from "./post-service.access";
 import { buildPremiumAccessFields } from "./premium";
-import { buildPostSearchIndex } from "./postSearchIndex";
+import { createPostOnServer } from "./createPostServer";
 import { MAX_POST_IMAGES, MAX_POST_VIDEOS } from "./types";
-import type {
-  Post, PostContextType, PostLiveData, PostMedia, PostPremium, LiveVisibilityMode,
-} from "./types";
-import { normalizeGroupCategory, normalizeGroupTags } from "@/types/group";
-import type { GroupVisibility, CanonicalGroupCategory } from "@/types/group";
+import type { Post, PostContextType, PostMedia, PostPremium } from "./types";
 import {
   resolvePostCreationContext,
   buildPostContextPayload,
   buildPostSearchIndexForContext,
-  enforcePostRateLimit,
   type PostCreationContext,
 } from "./post-service.create";
 
@@ -67,15 +54,12 @@ export async function createImagePost(params: {
   }
 
   const author = await getCurrentAuthorSnapshot();
-  const [context] = await Promise.all([
-    resolvePostCreationContext({
-      contextType: params.contextType,
-      groupId: params.groupId,
-      profileId: params.profileId,
-      author,
-    }),
-    enforcePostRateLimit(),
-  ]);
+  const context = await resolvePostCreationContext({
+    contextType: params.contextType,
+    groupId: params.groupId,
+    profileId: params.profileId,
+    author,
+  });
 
   const shareMetadata = buildShareMetadata({
     text: cleanText,
@@ -95,7 +79,7 @@ export async function createImagePost(params: {
   const updatedAt = serverTimestamp();
   const searchTimestamp = Timestamp.now();
 
-  await addDoc(collection(db, "posts"), {
+  await createPostOnServer({
     ...buildPostContextPayload(context),
     authorId: author.uid,
     authorName: author.authorName,
@@ -245,15 +229,12 @@ export async function createMediaPost(params: {
   }
 
   const author = await getCurrentAuthorSnapshot();
-  const [context] = await Promise.all([
-    resolvePostCreationContext({
-      contextType: params.contextType,
-      groupId: params.groupId,
-      profileId: params.profileId,
-      author,
-    }),
-    enforcePostRateLimit(),
-  ]);
+  const context = await resolvePostCreationContext({
+    contextType: params.contextType,
+    groupId: params.groupId,
+    profileId: params.profileId,
+    author,
+  });
 
   const videoMedia: PostMedia[] = cleanVideoUploads.map((item) => ({
     type: "video",
@@ -408,12 +389,8 @@ export async function createMediaPost(params: {
     }),
   };
 
-  if (params.postId) {
-    await setDoc(doc(db, "posts", params.postId), postPayload);
-    return;
-  }
-
-  await addDoc(collection(db, "posts"), postPayload);
+  // El flujo de video reserva el id antes de subir a Mux, así que se pasa fijo.
+  await createPostOnServer(postPayload, params.postId ?? null);
 }
 export async function createVideoPost(params: {
   groupId: string;
@@ -459,15 +436,12 @@ export async function createVideoPost(params: {
       : null;
 
   const author = await getCurrentAuthorSnapshot();
-  const [context] = await Promise.all([
-    resolvePostCreationContext({
-      contextType: params.contextType,
-      groupId: params.groupId,
-      profileId: params.profileId,
-      author,
-    }),
-    enforcePostRateLimit(),
-  ]);
+  const context = await resolvePostCreationContext({
+    contextType: params.contextType,
+    groupId: params.groupId,
+    profileId: params.profileId,
+    author,
+  });
 
   const premiumAccessFields = buildPremiumAccessFields({
     premium: params.premium,
@@ -535,7 +509,7 @@ export async function createVideoPost(params: {
   const updatedAt = serverTimestamp();
   const searchTimestamp = Timestamp.now();
 
-  await setDoc(doc(db, "posts", params.postId), {
+  await createPostOnServer({
     ...buildPostContextPayload(context),
     authorId: author.uid,
     authorName: author.authorName,
@@ -596,5 +570,5 @@ export async function createVideoPost(params: {
       updatedAt: searchTimestamp,
       premium: premiumAccessFields.premium,
     }),
-  }, { merge: true });
+  }, params.postId);
 }

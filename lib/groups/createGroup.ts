@@ -3,7 +3,7 @@ import {
   collection,
   doc,
   serverTimestamp,
-  setDoc,
+  writeBatch,
   type Timestamp,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -201,46 +201,25 @@ export async function createGroup(input: CreateGroupInput): Promise<string> {
     updatedAt: now,
   };
 
+  // Los tres documentos van en UN SOLO lote. Antes eran tres escrituras sueltas
+  // y en secuencia: si fallaba la segunda o la tercera quedaba una comunidad a
+  // medias —creada pero sin su dueño dentro, o sin aparecer en la lista de él— y
+  // no había vuelta atrás. Un lote entra entero o no entra.
   try {
-    await setDoc(groupRef, payload);
+    const batch = writeBatch(db);
+    batch.set(groupRef, payload);
+    batch.set(memberRef, ownerMemberPayload);
+    batch.set(userMembershipRef, userMembershipPayload);
+    await batch.commit();
   } catch (error: unknown) {
-    console.error("CREATE_GROUP_STEP_GROUP_DOC_FAILED", {
+    console.error("CREATE_GROUP_BATCH_FAILED", {
       error,
-      payload,
+      groupId,
+      ownerId: input.ownerId,
     });
 
     throw new Error(
-      `Falló creando groups/${groupId}: ${
-        (error instanceof Error ? error.message : null) ?? "Missing or insufficient permissions"
-      }`
-    );
-  }
-
-  try {
-    await setDoc(memberRef, ownerMemberPayload);
-  } catch (error: unknown) {
-    console.error("CREATE_GROUP_STEP_OWNER_MEMBER_FAILED", {
-      error,
-      ownerMemberPayload,
-    });
-
-    throw new Error(
-      `Falló creando groups/${groupId}/members/${input.ownerId}: ${
-        (error instanceof Error ? error.message : null) ?? "Missing or insufficient permissions"
-      }`
-    );
-  }
-
-  try {
-    await setDoc(userMembershipRef, userMembershipPayload);
-  } catch (error: unknown) {
-    console.error("CREATE_GROUP_STEP_USER_MEMBERSHIP_FAILED", {
-      error,
-      userMembershipPayload,
-    });
-
-    throw new Error(
-      `Falló creando users/${input.ownerId}/groupMemberships/${groupId}: ${
+      `Falló creando la comunidad ${groupId}: ${
         (error instanceof Error ? error.message : null) ?? "Missing or insufficient permissions"
       }`
     );

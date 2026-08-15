@@ -6,6 +6,7 @@
 
 import { intlLocale } from "@/i18n/locales";
 import type { MessagePolicy } from "@/lib/chat/types";
+import type { SocialLinks } from "@/lib/profile/socialNetworks";
 
 // Cooldown de cliente para el correo de cambio de contraseña. Firebase ya tiene
 // su propio throttling server-side, pero además bloqueamos el reenvío 60s desde
@@ -41,6 +42,9 @@ export type ProfileSettingsTabProps = {
   onUpdateDisplayName?: (nextName: string) => Promise<void> | void;
   bio?: string | null;
   onUpdateBio?: (nextBio: string) => Promise<void> | void;
+  socialLinks?: SocialLinks | null;
+  /** Recibe el texto crudo por red; la limpieza ocurre al guardar. */
+  onUpdateSocialLinks?: (draft: Record<string, string>) => Promise<void> | void;
   onSendPasswordReset?: () => Promise<void> | void;
 };
 

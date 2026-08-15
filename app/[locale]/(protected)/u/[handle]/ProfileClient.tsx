@@ -83,6 +83,9 @@ import {
 } from "@/lib/posts/post-service";
 import { uploadPostImages } from "@/lib/posts/image-upload";
 import StatsRow from "@/components/ui/StatsRow";
+import SocialLinksRow from "@/components/profile/SocialLinksRow";
+import { updateProfileSocialLinks } from "@/lib/profile/updateProfileSocialLinks";
+import type { SocialLinks } from "@/lib/profile/socialNetworks";
 import { clearAllPostFeedCaches } from "@/lib/posts/post-feed-cache";
 import RefreshableArea from "@/components/refresh/RefreshableArea";
 import { clearMediaGalleryCache } from "@/app/groups/[groupId]/components/posts/MediaGallery";
@@ -164,6 +167,7 @@ type UserDoc = {
   monetization?: Record<string, unknown> | null;
   interests?: import("@/types/group").CanonicalGroupCategory[] | null;
   followersCount?: number;
+  socialLinks?: SocialLinks | null;
 };
 
 // ─── Module-level profile cache ───────────────────────────────────────────────
@@ -1667,6 +1671,12 @@ async function handleUpdateBio(nextBio: string) {
   setUserDoc((prev) => (prev ? { ...prev, bio: nextBio.trim() } : prev));
 }
 
+async function handleUpdateSocialLinks(draft: Record<string, string>) {
+  if (!userDoc || !isOwner) return;
+  const saved = await updateProfileSocialLinks(draft);
+  setUserDoc((prev) => (prev ? { ...prev, socialLinks: saved } : prev));
+}
+
 async function handleSendPasswordReset() {
   const email = viewer?.email;
 
@@ -2644,6 +2654,10 @@ const res = (await createExclusiveSessionRequest({
                     </div>
                   )}
 
+                  {/* Solo íconos. Cada liga se arma desde el catálogo, nunca
+                      sale del documento tal cual. */}
+                  <SocialLinksRow links={userDoc.socialLinks} />
+
                   <StatsRow
                     items={[
                       // Emparejado porque no tiene cifra: "Perfil" arriba solo
@@ -2979,6 +2993,8 @@ const res = (await createExclusiveSessionRequest({
   onUpdateDisplayName={handleUpdateDisplayName}
   bio={userDoc.bio ?? null}
   onUpdateBio={handleUpdateBio}
+  socialLinks={userDoc.socialLinks ?? null}
+  onUpdateSocialLinks={handleUpdateSocialLinks}
   onSendPasswordReset={handleSendPasswordReset}
 />
               </section>

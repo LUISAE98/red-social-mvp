@@ -25,25 +25,18 @@ import LoginCommunityCards from "./LoginCommunityCards";
 import LoginCreatorPanel from "./LoginCreatorPanel";
 
 /**
- * ⚠️ TEMPORAL — video de muestra compartido por los bloques que todavía no
- * tienen el suyo. Cámbialo por los definitivos (uno por experiencia) cuando
- * existan: si son archivos del proyecto van en `public/`; si vienen de Mux hay
- * que reproducirlos con HLS, como el visor de posts.
+ * Videos de las cinco experiencias, EN ORDEN. Todos definitivos, recortados a
+ * 720×720 y sin audio (el círculo va siempre en silencio).
  *
- * Se usa el archivo local a propósito. Antes apuntaba a un video de muestra
- * remoto de ~158 MB y el navegador lo descargaba para CADA card, con lo que
- * todo se atragantaba.
+ * Constante estable: la precarga la memoriza y un literal por render la haría
+ * repetirse sin fin.
  */
-const VIDEO_MUESTRA = "/videosaludosyconsejos.mp4";
-
-/** Videos de las cinco experiencias, EN ORDEN. Constante estable: la precarga
- *  la memoriza y un literal por render la haría repetirse sin fin. */
 const VIDEOS_EXPERIENCIAS = [
   "/videosaludosyconsejos.mp4",
-  "/videosesiones3.mp4",
+  "/videosesiones.mp4",
   "/donacionesvideo.mp4",
   "/streamvideo.mp4",
-  VIDEO_MUESTRA,
+  "/suscripcionesvideo.mp4",
 ] as const;
 
 /** Cuántos se descargan enteros ANTES de abrir la página. El resto empieza en

@@ -452,9 +452,59 @@ export const onFollowerCreated = onDocumentCreated(
 const JOIN_REQUEST_BULK_THRESHOLD = 5;
 
 /**
- * Reconcilia las notificaciones de solicitud de unión del owner a partir del
- * estado real de solicitudes pendientes del grupo. Idempotente: maneja las
- * transiciones individual↔agregada sin duplicar ni dejar huérfanas.
+ * Quién debe enterarse de las solicitudes de una comunidad: el owner y TODOS sus
+ * moderadores.
+ *
+ * Los moderadores siempre pudieron aprobar y rechazar (ver `joinRequests.ts`),
+ * pero la notificación solo se le escribía al owner, así que un moderador nunca
+ * se enteraba de que había algo pendiente. Esto cierra ese hueco.
+ *
+ * Se consultan los dos campos de rol porque conviven en los documentos de
+ * miembro: `roleInGroup` es el canónico y `role` el heredado (`normalizeRole`
+ * lee el primero con el segundo de respaldo). Se aceptan las dos grafías de
+ * moderador. Banneados y expulsados quedan fuera: siguen siendo documentos de
+ * miembro, pero ya no gestionan nada.
+ */
+async function resolveJoinRequestRecipients(
+  groupId: string,
+  ownerId: string
+): Promise<string[]> {
+  const members = db.collection("groups").doc(groupId).collection("members");
+
+  const queries = await Promise.all(
+    (["roleInGroup", "role"] as const).flatMap((field) =>
+      (["mod", "moderator"] as const).map((value) =>
+        members
+          .where(field, "==", value)
+          .get()
+          .catch(() => null)
+      )
+    )
+  );
+
+  const recipients = new Set<string>([ownerId]);
+
+  for (const snap of queries) {
+    if (!snap) continue;
+    for (const doc of snap.docs) {
+      const status = str(doc.get("status"));
+      if (status === "banned" || status === "removed") continue;
+      if (doc.id) recipients.add(doc.id);
+    }
+  }
+
+  return Array.from(recipients);
+}
+
+/**
+ * Reconcilia las notificaciones de solicitud de unión a partir del estado real
+ * de solicitudes pendientes del grupo. Idempotente: maneja las transiciones
+ * individual↔agregada sin duplicar ni dejar huérfanas.
+ *
+ * Se ejecuta para el owner Y para cada moderador. Que la fuente de verdad sea la
+ * subcolección `joinRequests` (y no la notificación) es lo que evita respuestas
+ * duplicadas: en cuanto alguien resuelve, el documento se borra, el trigger
+ * dispara este reconcile y la notificación desaparece de TODAS las campanitas.
  */
 async function reconcileJoinRequestNotifications(groupId: string): Promise<void> {
   const group = await db.collection("groups").doc(groupId).get();
@@ -462,7 +512,23 @@ async function reconcileJoinRequestNotifications(groupId: string): Promise<void>
   const ownerId = str(group.get("ownerId"));
   if (!ownerId) return;
   const groupName = str(group.get("name"));
-  const notifs = db.collection("users").doc(ownerId).collection("notifications");
+
+  const recipients = await resolveJoinRequestRecipients(groupId, ownerId);
+
+  await Promise.all(
+    recipients.map((recipientId) =>
+      reconcileJoinRequestNotificationsFor(groupId, recipientId, groupName)
+    )
+  );
+}
+
+/** El reconcile de UN destinatario. La lógica original, con el uid parametrizado. */
+async function reconcileJoinRequestNotificationsFor(
+  groupId: string,
+  recipientId: string,
+  groupName: string | null
+): Promise<void> {
+  const notifs = db.collection("users").doc(recipientId).collection("notifications");
   const aggRef = notifs.doc(`join_request_${groupId}`);
 
   const pendingSnap = await db
@@ -476,7 +542,8 @@ async function reconcileJoinRequestNotifications(groupId: string): Promise<void>
       id: str(d.get("userId")) ?? d.id,
       ms: (d.get("createdAt") as { toMillis?: () => number } | undefined)?.toMillis?.() ?? 0,
     }))
-    .filter((p) => p.id !== ownerId);
+    // Nadie se ve a sí mismo en su propia campanita.
+    .filter((p) => p.id !== recipientId);
   const count = pending.length;
   const now = admin.firestore.FieldValue.serverTimestamp();
 
@@ -651,15 +718,26 @@ export const onJoinRequestRemoved = onDocumentDeleted(
     const { groupId, requesterId } = event.params;
     const group = await db.collection("groups").doc(groupId).get();
     const ownerId = group.exists ? str(group.get("ownerId")) : null;
+
     if (ownerId) {
-      await db
-        .collection("users")
-        .doc(ownerId)
-        .collection("notifications")
-        .doc(`join_request_${groupId}_${requesterId}`)
-        .delete()
-        .catch(() => {});
+      // Se borra en TODAS las campanitas, no solo en la del owner: si un
+      // moderador aprueba, la solicitud tiene que desaparecerle también al
+      // dueño y al resto de moderadores, para que nadie responda dos veces.
+      const recipients = await resolveJoinRequestRecipients(groupId, ownerId);
+
+      await Promise.all(
+        recipients.map((recipientId) =>
+          db
+            .collection("users")
+            .doc(recipientId)
+            .collection("notifications")
+            .doc(`join_request_${groupId}_${requesterId}`)
+            .delete()
+            .catch(() => {})
+        )
+      );
     }
+
     await reconcileJoinRequestNotifications(groupId);
   }
 );

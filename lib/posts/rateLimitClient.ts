@@ -5,11 +5,15 @@
 // solo lectura para el cliente: antes el dueño podía escribir su propio
 // documento y reiniciar la ventana, así que el límite era decorativo.
 //
-// ⚠️ RESIDUAL CONOCIDO: crear posts y comentarios sigue siendo una escritura
-// DIRECTA a Firestore desde el cliente, y las reglas no consultan el contador.
-// Quien llame a la API por su cuenta puede saltarse esta comprobación entera.
-// Cerrarlo del todo obliga a mover la creación a un callable server-authoritative,
-// que es un cambio de arquitectura en `post-service`, no un parche de seguridad.
+// ⚠️ RESIDUAL CONOCIDO — solo COMENTARIOS. Comentar sigue siendo una escritura
+// DIRECTA a Firestore, y las reglas no pueden consultar el contador: quien llame
+// a la API por su cuenta se salta esta comprobación entera.
+//
+// Las PUBLICACIONES ya no: `posts` es `create: if false` y todo pasa por el
+// callable `createPost`, donde el contador y la escritura son la MISMA
+// transacción. Cerrar los comentarios pide el mismo movimiento —moverlos a un
+// callable server-authoritative—, que es un cambio de arquitectura, no un
+// parche.
 
 import { httpsCallable } from "firebase/functions";
 import { functions } from "@/lib/firebase";

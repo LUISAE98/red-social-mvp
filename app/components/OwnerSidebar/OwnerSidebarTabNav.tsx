@@ -4,25 +4,15 @@ import { useTranslations } from "next-intl";
 import Image from "next/image";
 import type { CSSProperties, ReactNode } from "react";
 import type { TopView } from "./OwnerSidebar";
-import {
-  SidebarFollowingIcon,
-  SidebarMyCommunitiesIcon,
-  SidebarOtherCommunitiesIcon,
-} from "@/app/components/VibraServiceIcons/OwnerSidebarNavIcons/OwnerSidebarNavIcons";
+import { SidebarFollowingIcon } from "@/app/components/VibraServiceIcons/OwnerSidebarNavIcons/OwnerSidebarNavIcons";
 
 type Props = {
   /** Sección desplegada, o null si todas están cerradas. */
   openKey: TopView | null;
   /** Clic en una pestaña: abre esa sección o, si ya estaba abierta, la cierra. */
   onToggle: (view: TopView) => void;
-  requestedCount?: number;
-  deliveredCount?: number;
-  joinRequestsCount?: number;
   followedCount?: number;
-  myGroupsCount?: number;
-  joinedGroupsCount?: number;
   loadingFollowing?: boolean;
-  loadingGroups?: boolean;
   /** Contenido de cada sección; se despliega (acordeón) bajo su pestaña activa. */
   contentByKey?: Partial<Record<TopView, ReactNode>>;
 };
@@ -30,14 +20,8 @@ type Props = {
 export default function OwnerSidebarTabNav({
   openKey,
   onToggle,
-  requestedCount = 0,
-  deliveredCount = 0,
-  joinRequestsCount = 0,
   followedCount = 0,
-  myGroupsCount = 0,
-  joinedGroupsCount = 0,
   loadingFollowing = false,
-  loadingGroups = false,
   contentByKey,
 }: Props) {
   const tNav = useTranslations("nav");
@@ -46,8 +30,6 @@ export default function OwnerSidebarTabNav({
     'inherit';
 
   const showFollowing = loadingFollowing || followedCount > 0;
-  const showMyGroups = loadingGroups || myGroupsCount > 0;
-  const showOtherGroups = loadingGroups || joinedGroupsCount > 0;
 
   const tabs = [
     ...(showFollowing
@@ -56,30 +38,7 @@ export default function OwnerSidebarTabNav({
             key: "following" as const,
             label: tNav("tabFollowing"),
             title: tNav("tabFollowing"),
-            showBadge: false,
             icon: <SidebarFollowingIcon size={28} strokeWidth={1.6} />,
-          },
-        ]
-      : []),
-    ...(showMyGroups
-      ? [
-          {
-            key: "owned" as const,
-            label: tNav("tabOwnedCommunities"),
-            title: tNav("tabOwnedCommunities"),
-            showBadge: joinRequestsCount > 0,
-            icon: <SidebarMyCommunitiesIcon size={28} strokeWidth={1.6} />,
-          },
-        ]
-      : []),
-    ...(showOtherGroups
-      ? [
-          {
-            key: "communities" as const,
-            label: tNav("tabJoinedCommunities"),
-            title: tNav("tabJoinedCommunities"),
-            showBadge: false,
-            icon: <SidebarOtherCommunitiesIcon size={28} strokeWidth={1.6} />,
           },
         ]
       : []),
@@ -87,10 +46,12 @@ export default function OwnerSidebarTabNav({
     // (ver components/chat/SidebarMessages.tsx), no una sección plegable más.
     // "Experiencias" (estrella) se movió a la página /experiencias, accesible
     // desde el ícono junto a notificaciones. Ya no vive en el sidebar.
+    //
+    // "Mis comunidades" y "Comunidades que sigo" TAMPOCO viven ya aquí: son
+    // rails horizontales que se ven siempre (components/groups/CommunityRail),
+    // ordenados por las que más frecuentas, en vez de dos secciones que había
+    // que desplegar.
   ];
-
-  const badgeText = requestedCount > 99 ? "99+" : String(requestedCount);
-  const joinBadgeText = joinRequestsCount > 99 ? "99+" : String(joinRequestsCount);
 
   const wrapStyle: CSSProperties = {
     position: "relative",
@@ -140,29 +101,6 @@ export default function OwnerSidebarTabNav({
     textOverflow: "ellipsis",
   };
 
-  const badgeStyle: CSSProperties = {
-    position: "relative",
-    zIndex: 2,
-    minWidth: 18,
-    height: 18,
-    padding: "0 5px",
-    borderRadius: 999,
-    background: "#ff3b30",
-    color: "#fff",
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontSize: 10,
-    fontWeight: 700,
-    lineHeight: 1,
-    letterSpacing: -0.1,
-    border: "1px solid rgba(0,0,0,0.35)",
-    boxShadow: "0 4px 10px rgba(0,0,0,0.28)",
-    pointerEvents: "none",
-    boxSizing: "border-box",
-    flexShrink: 0,
-  };
-
   return (
     <div style={wrapStyle}>
       {tabs.map((tab) => {
@@ -196,12 +134,6 @@ export default function OwnerSidebarTabNav({
                   {tab.label}
                 </span>
               </span>
-
-              {tab.showBadge ? (
-                <span style={badgeStyle}>
-                  {tab.key === "owned" ? joinBadgeText : badgeText}
-                </span>
-              ) : null}
 
               {/* Planeta: siempre montado (invisible en las cerradas) para que
                   entre y salga con transición en vez de aparecer/desaparecer de golpe. */}

@@ -140,11 +140,11 @@ export default function LoginExperienceBlock({
     <section
       ref={sectionRef}
       className={`expBlock${itemsLeft ? " expBlockFlip" : ""}${
-        // En el carrusel la entrada se ata a "ser la tarjeta activa", así que se
-        // rehace en cada cambio, también al volver a una ya vista. Apilados en
-        // laptop se hace una sola vez, al aparecer: ahí repetirla en cada scroll
-        // sería mareante.
-        (carousel ? active : entered) ? " expBlockIn" : ""
+        // En el carrusel hacen falta las DOS condiciones: ser la tarjeta activa
+        // y que el bloque esté a la vista. Con solo la primera, la tarjeta
+        // visible se quedaba puesta para siempre y al bajar y volver a subir ya
+        // no entraba de nuevo.
+        (carousel ? active && entered : entered) ? " expBlockIn" : ""
       }`}
     >
       <style jsx>{`

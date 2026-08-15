@@ -6,6 +6,7 @@ import {
 } from "firebase/firestore";
 import type { User } from "firebase/auth";
 import { buildProfileSearchIndex } from "@/lib/profile/profileSearchIndex";
+import { sanitizeSocialLinks } from "@/lib/profile/socialNetworks";
 
 export const MONTHS = [
   { value: "1", label: "Enero" },
@@ -94,6 +95,12 @@ type CreateUserProfileInput = {
   photoURL?: string | null;
   /** URL de portada ya subida (opcional). */
   coverUrl?: string | null;
+  /**
+   * Redes sociales tal como se teclearon. Se limpian aquí, no en quien llama:
+   * los dos flujos de alta pasan por esta función y ninguno debe poder guardar
+   * un usuario que no cumpla la forma del catálogo.
+   */
+  socialLinks?: unknown;
 };
 
 // Fuente ÚNICA de la creación del documento de perfil. La usan los dos flujos de
@@ -166,6 +173,9 @@ export async function createUserProfileDoc(
       // birthDate, sex, email, provider y authProvider viven en
       // `users/{uid}/private/identity` — ver el comentario de arriba.
       bio: input.bio?.trim() ?? "",
+      // Solo el usuario de cada red, nunca la liga: este documento es de lectura
+      // pública y la liga se arma al pintarla, desde el catálogo.
+      socialLinks: sanitizeSocialLinks(input.socialLinks),
       role: "user",
       profileReserved: false,
       // Defaults de privacidad para usuarios nuevos:

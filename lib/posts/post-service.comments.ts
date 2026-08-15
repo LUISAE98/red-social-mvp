@@ -363,10 +363,10 @@ await addDoc(collection(db, "posts", params.postId, "comments"), {
   ...(authorIsGroupMember !== undefined ? { authorIsGroupMember } : {}),
 });
 
-await updateDoc(postRef, {
-  "counts.comments": increment(1),
-  updatedAt: serverTimestamp(),
-});
+// El contador lo lleva el trigger `onPostCommentCreated` en el backend. Antes se
+// subía desde aquí, y como iba en una escritura APARTE de la creación del
+// comentario, las reglas no podían atar una cosa a la otra: cualquiera con
+// sesión podía sumar o restar el contador de cualquier post sin comentar nada.
 
 clearPostCommentsCache(params.postId);
 }

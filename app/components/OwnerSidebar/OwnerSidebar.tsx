@@ -35,20 +35,24 @@ import {
 import { subscribeToMySidebarGroups } from "@/lib/groups/sidebarGroups";
 import { respondGreetingRequest } from "@/lib/greetings/greetingRequests";
 import LiveRingAvatar from "@/app/components/LiveRing/LiveRingAvatar";
-import OwnerSidebarTabNav from "./OwnerSidebarTabNav";
 import CreatorSessionCountdownBanner from "@/app/components/SessionCountdownBanner/CreatorSessionCountdownBanner";
 import SessionCountdownBanner from "@/app/components/SessionCountdownBanner/SessionCountdownBanner";
 import { useIsCompact } from "@/lib/hooks/useMediaQuery";
 import OwnerSidebarMyGroups from "./OwnerSidebarMyGroups";
-import OwnerSidebarOtherGroups from "./OwnerSidebarOtherGroups";
-import OwnerSidebarFollowedProfiles from "./OwnerSidebarFollowedProfiles";
+// OwnerSidebarOtherGroups ya no se monta: su pestaña se volvió un rail horizontal.
 import SidebarMessages from "@/components/chat/SidebarMessages";
 import { useChatDock } from "@/components/chat/ChatDockProvider";
 import { useInbox } from "@/lib/chat/useInbox";
 import { getOtherParticipant } from "@/lib/chat/types";
-import OwnerSidebarGreetings from "./OwnerSidebarGreetings";
 import OwnerSidebarSettings from "./OwnerSidebarSettings";
 import CreateCommunityCard from "@/components/groups/CreateCommunityCard";
+import CommunityRail from "@/components/groups/CommunityRail";
+import { useRailSignals, sortRailItems } from "@/lib/hooks/useRailSignals";
+import {
+  SidebarFollowingIcon,
+  SidebarMyCommunitiesIcon,
+  SidebarOtherCommunitiesIcon,
+} from "@/app/components/VibraServiceIcons/OwnerSidebarNavIcons/OwnerSidebarNavIcons";
 import CopyLinkButton from "@/components/ui/CopyLinkButton";
 import RefreshableArea from "@/components/refresh/RefreshableArea";
 import { useSidebarVisitCounts } from "@/lib/hooks/useSidebarVisitCounts";
@@ -69,7 +73,6 @@ import {
   normalizeOwnerSidebarNoShowStatus,
   normalizeSidebarMemberStatus,
   normalizeSidebarGroupRole,
-  sortGroupsWithModsFirst,
   resolveSidebarSubscriptionEnabled,
   resolveSidebarSubscriptionPrice,
   resolveSidebarSubscriptionCurrency,
@@ -107,9 +110,6 @@ export default function OwnerSidebar() {
   const tCommon = useTranslations("common");
   const locale = useLocale();
   const tGroups = useTranslations("groups");
-  const tWallet = useTranslations("wallet");
-  const tServices = useTranslations("services");
-  const tSessions = useTranslations("sessions");
   const { format: formatMoney } = usePriceFormat();
   const [isMobile, setIsMobile] = useState(false);
   const [ownerSidebarRefreshKey, setOwnerSidebarRefreshKey] = useState(0);
@@ -188,7 +188,15 @@ const handleOwnerSidebarPullRefresh = useCallback(async () => {
     ],
     [followedProfiles, joinedGroups, myGroups]
   );
-  const newPostsCounts = useNewPostsCounts(newPostsEntities, viewer?.uid ?? null);
+  // `pathname` como llave de refresco: al volver de una comunidad o un perfil,
+  // el conteo se rehace y el aviso morado de posts nuevos desaparece solo. Da
+  // igual desde dónde entraras (rail, panel de "ver todas", buscador o liga
+  // directa): quien marca la visita es la página destino.
+  const newPostsCounts = useNewPostsCounts(
+    newPostsEntities,
+    viewer?.uid ?? null,
+    pathname
+  );
 
   const [loadingGroups, setLoadingGroups] = useState(
     () => ownerSidebarCache?.loadingGroups ?? false
@@ -2001,117 +2009,97 @@ color: "rgba(255,255,255,0.94)",
     );
   }
 
-  const ownedGrouped = useMemo(() => {
-    const publics = myGroups.filter((g) => g.visibility === "public");
-    const privates = myGroups.filter((g) => g.visibility === "private");
-    const hiddens = myGroups.filter((g) => g.visibility === "hidden");
-    const others = myGroups.filter(
-      (g) =>
-        g.visibility !== "public" &&
-        g.visibility !== "private" &&
-        g.visibility !== "hidden"
-    );
+  // ownedGrouped / joinedGrouped agrupaban por visibilidad para las secciones
+  // verticales de las pestañas. Los rails no agrupan: ver railOwnedGroups /
+  // railJoinedGroups, ordenados por frecuencia de visita.
 
-    return [
-      { key: "public", title: visibilitySectionTitle("public", tGroups), items: publics },
-      {
-        key: "private",
-        title: visibilitySectionTitle("private", tGroups),
-        items: privates,
-      },
-      { key: "hidden", title: visibilitySectionTitle("hidden", tGroups), items: hiddens },
-      { key: "other", title: visibilitySectionTitle("other", tGroups), items: others },
-    ].filter((section) => section.items.length > 0);
-  }, [myGroups]);
+  // El orden de perfiles seguidos vive ahora en `railFollowedProfiles`, que
+  // además los traduce a la forma que pinta el rail.
 
-  const joinedGrouped = useMemo(() => {
+  // Listas PLANAS para los rails horizontales. A diferencia de `*Grouped`, que
+  // partía por visibilidad para las secciones verticales, aquí la tira se lee de
+  // corrido: primero quien está en vivo, luego quien tiene posts nuevos, luego
+  // quien tiene historias, y a igualdad de todo eso, lo que más frecuentas.
+  const railOwnedRaw = useMemo(() => [...myGroups], [myGroups]);
+
+  const railJoinedRaw = useMemo(() => {
     const myGroupIds = new Set(myGroups.map((g) => g.id));
-    const mergedMap = new Map<string, GroupDocLite>();
+    const merged = new Map<string, GroupDocLite>();
 
+    // Mismo merge que `joinedGrouped`: las comunidades ocultas donde tengo
+    // membresía llegan por otra vía y no deben aparecer dos veces, ni colarse
+    // aquí si además son mías.
     [...joinedGroups, ...hiddenSidebarMembershipGroups]
       .filter((g) => !myGroupIds.has(g.id))
-      .forEach((g) => {
-        mergedMap.set(g.id, g);
-      });
+      .forEach((g) => merged.set(g.id, g));
 
-    const allJoined = Array.from(mergedMap.values());
-
-    const publics = sortGroupsWithModsFirst(
-      allJoined.filter((g) => g.visibility === "public"),
-      locale
-    );
-    const privates = sortGroupsWithModsFirst(
-      allJoined.filter((g) => g.visibility === "private"),
-      locale
-    );
-    const hiddens = sortGroupsWithModsFirst(
-      allJoined.filter((g) => g.visibility === "hidden"),
-      locale
-    );
-    const others = sortGroupsWithModsFirst(
-      allJoined.filter(
-        (g) =>
-          g.visibility !== "public" &&
-          g.visibility !== "private" &&
-          g.visibility !== "hidden"
-      ),
-      locale
-    );
-
-    return [
-      { key: "public", title: visibilitySectionTitle("public", tGroups), items: publics },
-      {
-        key: "private",
-        title: visibilitySectionTitle("private", tGroups),
-        items: privates,
-      },
-      { key: "hidden", title: visibilitySectionTitle("hidden", tGroups), items: hiddens },
-      { key: "other", title: visibilitySectionTitle("other", tGroups), items: others },
-    ].filter((section) => section.items.length > 0);
+    return Array.from(merged.values());
   }, [joinedGroups, hiddenSidebarMembershipGroups, myGroups]);
 
-  const sortedFollowedProfiles = useMemo(
-    () => [...followedProfiles].sort((a, b) => (visitCounts[b.uid] ?? 0) - (visitCounts[a.uid] ?? 0)),
-    [followedProfiles, visitCounts]
+  const openGroupFromRail = useCallback(
+    (groupId: string) => {
+      incrementVisit(groupId);
+      router.push(`/groups/${groupId}`);
+    },
+    [incrementVisit, router]
   );
 
-  const sortedOwnedGrouped = useMemo(
-    () => ownedGrouped.map((section) => ({
-      ...section,
-      items: [...section.items].sort((a, b) => (visitCounts[b.id] ?? 0) - (visitCounts[a.id] ?? 0)),
-    })),
-    [ownedGrouped, visitCounts]
+  // Perfiles seguidos, con la misma forma que los rails de comunidades: el rail
+  // pinta `id`/`name`/`avatarUrl`, así que el perfil se traduce a eso.
+  const railFollowedRaw = useMemo(
+    () =>
+      followedProfiles.map((p) => ({
+        id: p.uid,
+        name: p.displayName,
+        avatarUrl: p.photoURL,
+      })),
+    [followedProfiles]
   );
 
-  const sortedJoinedGrouped = useMemo(
-    () => joinedGrouped.map((section) => ({
-      ...section,
-      items: [...section.items].sort((a, b) => (visitCounts[b.id] ?? 0) - (visitCounts[a.id] ?? 0)),
-    })),
-    [joinedGrouped, visitCounts]
+  // Señales de orden (en vivo / con historias) por tipo de entidad. Los grupos
+  // propios y los ajenos comparten consulta: son la misma colección.
+  const railGroupIds = useMemo(
+    () => [...railOwnedRaw, ...railJoinedRaw].map((g) => g.id),
+    [railOwnedRaw, railJoinedRaw]
+  );
+  const railProfileIds = useMemo(
+    () => railFollowedRaw.map((p) => p.id),
+    [railFollowedRaw]
   );
 
-  const browseGrouped = useMemo(() => {
-    const withoutJoined = browseGroups.filter(
-      (g) => !joinedGroups.some((j) => j.id === g.id)
-    );
+  const groupSignals = useRailSignals(railGroupIds, "group");
+  const profileSignals = useRailSignals(railProfileIds, "profile");
 
-    const publics = withoutJoined.filter((g) => g.visibility === "public");
-    const privates = withoutJoined.filter((g) => g.visibility === "private");
-    const others = withoutJoined.filter(
-      (g) => g.visibility !== "public" && g.visibility !== "private"
-    );
+  const railOwnedGroups = useMemo(
+    () => sortRailItems(railOwnedRaw, { signals: groupSignals, newPostsCounts, visitCounts }),
+    [railOwnedRaw, groupSignals, newPostsCounts, visitCounts]
+  );
 
-    return [
-      { key: "public", title: visibilitySectionTitle("public", tGroups), items: publics },
-      {
-        key: "private",
-        title: visibilitySectionTitle("private", tGroups),
-        items: privates,
-      },
-      { key: "other", title: visibilitySectionTitle("other", tGroups), items: others },
-    ].filter((section) => section.items.length > 0);
-  }, [browseGroups, joinedGroups]);
+  const railJoinedGroups = useMemo(
+    () => sortRailItems(railJoinedRaw, { signals: groupSignals, newPostsCounts, visitCounts }),
+    [railJoinedRaw, groupSignals, newPostsCounts, visitCounts]
+  );
+
+  const railFollowedProfiles = useMemo(
+    () => sortRailItems(railFollowedRaw, { signals: profileSignals, newPostsCounts, visitCounts }),
+    [railFollowedRaw, profileSignals, newPostsCounts, visitCounts]
+  );
+
+  const openProfileFromRail = useCallback(
+    (uid: string) => {
+      // El rail devuelve el uid; la ruta necesita el handle.
+      const handle = followedProfiles.find((p) => p.uid === uid)?.handle;
+      if (!handle) return;
+
+      incrementVisit(uid);
+      router.push(`/u/${handle}`);
+    },
+    [followedProfiles, incrementVisit, router]
+  );
+
+  // Los memos agrupados por visibilidad (sortedOwnedGrouped, sortedJoinedGrouped,
+  // browseGrouped) murieron con las pestañas: los rails usan listas planas
+  // ordenadas por frecuencia (railOwnedGroups / railJoinedGroups, arriba).
 
 
 if (!authReady) return null;
@@ -2522,122 +2510,68 @@ newPostsCounts={newPostsCounts}
 
 {/* Solo el menú de abajo scrollea, con difuminado en los bordes. */}
 <div className="profile-owner-sidebar-scroll">
-          <OwnerSidebarTabNav
-            openKey={accordionOpen ? activeView : null}
-            onToggle={(key) => {
-              // Re-clic en la sección abierta la cierra; clic en otra la abre.
-              if (accordionOpen && key === activeView) {
-                setAccordionOpen(false);
-              } else {
-                setActiveView(key);
-                setAccordionOpen(true);
-              }
-            }}
-            requestedCount={pendingCount}
-            deliveredCount={buyerDelivered.length}
-            joinRequestsCount={0}
-            followedCount={followedProfiles.length}
-            myGroupsCount={myGroups.length}
-            joinedGroupsCount={joinedGroups.length}
-            loadingFollowing={loadingFollowing}
-            loadingGroups={loadingGroups}
-            contentByKey={{
-              following: (
-                <OwnerSidebarFollowedProfiles
-                  loadingFollowing={loadingFollowing}
-                  followedProfiles={sortedFollowedProfiles}
-                  styles={styles}
-                  onOpenProfile={(handle) => router.push(`/u/${handle}`)}
-                  onProfileVisit={(uid) => incrementVisit(uid)}
-                  isMobile={isMobile}
-                  currentUserId={viewer?.uid ?? null}
-                  newPostsCounts={newPostsCounts}
-                />
-              ),
-              owned: (
-                <OwnerSidebarMyGroups
-                  loadingGroups={loadingGroups}
-                  myGroups={myGroups}
-                  meetGreetsByGroup={meetGreetsByGroup}
-                  exclusiveSessionsByGroup={exclusiveSessionsByGroup}
-                  ownedGrouped={sortedOwnedGrouped}
-                  openCommunities={openCommunities}
-                  joinRequestsByGroup={joinRequestsByGroup}
-                  greetingsByGroup={greetingsByGroup}
-                  greetingSectionOpen={greetingSectionOpen}
-                  joinSectionOpen={joinSectionOpen}
-                  seenCountsByGroup={seenCountsByGroup}
-                  userMiniMap={userMiniMap}
-                  styles={styles}
-                  getInitials={getInitials}
-                  renderUserLink={renderUserLink}
-                  setOpenCommunities={setOpenCommunities}
-                  setSeenCountsByGroup={setSeenCountsByGroup}
-                  setJoinSectionOpen={setJoinSectionOpen}
-                  setGreetingSectionOpen={setGreetingSectionOpen}
-                  handleApproveJoin={handleApproveJoin}
-                  handleRejectJoin={handleRejectJoin}
-                  handleGreetingAction={handleGreetingAction}
-                  onCreateCommunity={() => router.push("/groups/new")}
-                  joinBusyKey={joinBusyKey}
-                  greetingBusyId={greetingBusyId}
-                  newPostsCounts={newPostsCounts}
-                />
-              ),
-              communities: (
-                <OwnerSidebarOtherGroups
-                  currentUserId={viewer?.uid ?? null}
-                  loadingCommunities={loadingCommunities}
-                  joinedGroups={joinedGroups}
-                  pendingJoinRequestsSent={pendingJoinRequestsSent}
-                  browseGroups={browseGroups}
-                  joinedGrouped={sortedJoinedGrouped}
-                  subscriptionPendingGroups={subscriptionPendingGroups}
-                  browseGrouped={browseGrouped}
-                  groupMetaMap={groupMetaMap}
-                  styles={styles}
-                  fmtDate={(ts) => fmtDate(ts, locale)}
-                  renderCommunityCard={renderCommunityCard}
-                  joinRequestsByGroup={joinRequestsByGroup}
-                  joinSectionOpen={joinSectionOpen}
-                  setJoinSectionOpen={setJoinSectionOpen}
-                  handleApproveJoin={handleApproveJoin}
-                  handleRejectJoin={handleRejectJoin}
-                  joinBusyKey={joinBusyKey}
-                  userMiniMap={userMiniMap}
-                  getInitials={getInitials}
-                  renderUserLink={renderUserLink}
-                  onCreateCommunity={() => router.push("/groups/new")}
-                  newPostsCounts={newPostsCounts}
-                />
-              ),
-              greetings:
-                pendingCount > 0 || buyerDelivered.length > 0 || buyerRejectedGreetings.length > 0 ? (
-                  <OwnerSidebarGreetings
-                    buyerPending={buyerPending}
-                    buyerDelivered={buyerDelivered}
-                    buyerRejectedGreetings={buyerRejectedGreetings}
-                    buyerExclusiveSessions={buyerExclusiveSessions}
-                    exclusiveSessionsByGroup={{}}
-                    groupMetaMap={groupMetaMap}
-                    userMiniMap={userMiniMap}
-                    styles={styles}
-                    typeLabel={(type) => {
-                      if (type === "saludo") return tWallet("typeLabelGreeting");
-                      if (type === "consejo") return tWallet("typeLabelAdvice");
-                      if (type === "meet_greet_digital") return tSessions("meetGreetTitle");
-                      if (type === "exclusive_session" || type === "clase_personalizada" || type === "digital_exclusive_session") return tServices("exclusiveSession");
-                      return type;
-                    }}
-                    fmtDate={(ts) => fmtDate(ts, locale)}
-                    renderUserLink={renderUserLink}
-                    router={router}
-                    buyerMeetGreets={buyerMeetGreets}
-                    meetGreetsByGroup={{}}
-                  />
-                ) : null,
-            }}
+          {/* Comunidades: rails horizontales, no pestañas plegables. Se ven
+              siempre y se ordenan por las que más frecuentas.
+
+              Las bandejas de solicitudes de ingreso y de saludos que vivían
+              dentro de estas pestañas NO se replican aquí: las solicitudes
+              llegan a notificaciones (donde se aceptan y rechazan) y a la lista
+              de integrantes de cada comunidad. */}
+          {/* Orden de los rails: seguidos, mis comunidades, comunidades que sigo.
+              Dentro de cada uno manda la novedad: en vivo, posts nuevos,
+              historias y, a igualdad, lo que más frecuentas. */}
+          <CommunityRail
+            title={tNav("tabFollowing")}
+            icon={<SidebarFollowingIcon size={22} strokeWidth={1.6} />}
+            items={railFollowedProfiles}
+            currentUserId={viewer?.uid ?? null}
+            newPostsCounts={newPostsCounts}
+            onOpen={openProfileFromRail}
+            isMobile={isMobile}
+            // Un perfil seguido no tiene estado de membresía que mostrar.
+            showStatus={false}
+            entityType="profile"
+            loading={loadingFollowing}
+            seeAllLabel={tNav("seeAllFollowing")}
+            emptySearchLabel={tGroups("inviteModeratorEmpty")}
+            // Plegable solo en laptop: en celular los tres van siempre abiertos.
+            collapsible={!isMobile}
           />
+
+          <CommunityRail
+            title={tNav("tabOwnedCommunities")}
+            icon={<SidebarMyCommunitiesIcon size={22} strokeWidth={1.6} />}
+            items={railOwnedGroups}
+            currentUserId={viewer?.uid ?? null}
+            newPostsCounts={newPostsCounts}
+            onOpen={openGroupFromRail}
+            isMobile={isMobile}
+            // Son mías: repetir "Owner" en cada tarjeta no informa nada.
+            showStatus={false}
+            loading={loadingGroups}
+            seeAllLabel={tNav("seeAllCommunities")}
+            emptySearchLabel={tGroups("noGroupsFound")}
+            // Plegable solo en laptop: en celular los tres van siempre abiertos.
+            collapsible={!isMobile}
+          />
+
+          <CommunityRail
+            title={tNav("tabJoinedCommunities")}
+            icon={<SidebarOtherCommunitiesIcon size={22} strokeWidth={1.6} />}
+            items={railJoinedGroups}
+            currentUserId={viewer?.uid ?? null}
+            newPostsCounts={newPostsCounts}
+            onOpen={openGroupFromRail}
+            isMobile={isMobile}
+            loading={loadingCommunities}
+            seeAllLabel={tNav("seeAllCommunities")}
+            emptySearchLabel={tGroups("noGroupsFound")}
+            // Plegable solo en laptop: en celular los tres van siempre abiertos.
+            collapsible={!isMobile}
+          />
+
+          {/* El acordeón de pestañas desapareció: seguidos, mis comunidades y
+              comunidades que sigo son ahora los tres rails de arriba. */}
 
 {/* Mensajes: módulo INDEPENDIENTE del acordeón de arriba y siempre abierto.
     No es una sección plegable más — la bandeja o se ve, o no existe.

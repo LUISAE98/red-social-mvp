@@ -6,6 +6,43 @@ service firebase.storage {
       return request.auth != null;
     }
 
+    // Cuenta REAL, no un invitado de compra. Firebase Anonymous Auth cumple
+    // `request.auth != null`, así que sin esto un invitado podía subir archivos
+    // sin límite y usar el proyecto como almacén. Mismo criterio que
+    // `notAnonymous()` en firestore.rules.
+    function isRealAccount() {
+      return request.auth != null
+        && request.auth.token.firebase.sign_in_provider != 'anonymous';
+    }
+
+    /**
+     * ¿Las imágenes de esta comunidad son de acceso restringido?
+     *
+     * Privada u oculta sí; pública no. Los posts de PERFIL llevan el uid del
+     * autor en ese segmento de la ruta, así que el documento de grupo no existe
+     * y se resuelven como públicos — exactamente el mismo criterio que usa
+     * `isRestrictedGroup` en lib/posts/image-upload.ts al decidir si guardar o
+     * no una URL con token.
+     */
+    function isRestrictedGroup(groupId) {
+      return firestore.exists(/databases/(default)/documents/groups/$(groupId))
+        && firestore.get(/databases/(default)/documents/groups/$(groupId)).data.visibility in ['private', 'hidden'];
+    }
+
+    /** Un campo de la solicitud de saludo, o cadena vacía si no existe. */
+    function greetingField(requestId, field) {
+      return firestore.exists(/databases/(default)/documents/greetingRequests/$(requestId))
+        ? firestore.get(/databases/(default)/documents/greetingRequests/$(requestId)).data.get(field, '')
+        : '';
+    }
+
+    /** La comunidad a la que pertenece un post, o null si es de perfil. */
+    function postGroupId(postId) {
+      return firestore.exists(/databases/(default)/documents/posts/$(postId))
+        ? firestore.get(/databases/(default)/documents/posts/$(postId)).data.get('groupId', '')
+        : '';
+    }
+
     function isImage() {
       return request.resource.contentType.matches('image/.*');
     }
@@ -27,7 +64,7 @@ service firebase.storage {
       allow read: if true;
 
       // Solo el dueño puede escribir en su carpeta
-      allow write: if isSignedIn()
+      allow write: if isRealAccount()
         && request.auth.uid == uid
         && (folder == "avatar" || folder == "cover")
         && isImage()
@@ -61,34 +98,43 @@ service firebase.storage {
     // ==============================
     // POSTS (imagenes)
     //
-    // La lectura sigue abierta porque la inmensa mayoría del contenido es
-    // público y encarecerlo con una consulta a Firestore por imagen no compensa.
+    // ⚠️ Esto estuvo abierto (`allow read: if true`) por una decisión razonada
+    // que resultó estar a medias. El razonamiento era: las imágenes de
+    // comunidades restringidas ya no se guardan con URL de descarga, se piden
+    // firmadas a `getRestrictedMediaUrls`, y una URL firmada no consulta estas
+    // reglas — así que cerrar aquí "no añadiría nada".
     //
-    // Lo de comunidades PRIVADAS y OCULTAS no se protege desde aquí, y no por
-    // descuido: sus imágenes ya no se guardan con URL de descarga, así que no
-    // hay enlace que repartir. Se piden firmadas a `getRestrictedMediaUrls`, que
-    // comprueba la membresía y las caduca a la hora. Cerrar aquí no añadiría
-    // nada — una URL firmada no consulta estas reglas — y en cambio rompería
-    // todo el contenido público.
+    // Lo que se pasó por alto: quien conozca la RUTA puede pedir el archivo por
+    // el SDK de Storage sin URL ninguna, y ahí sí mandan estas reglas. Un
+    // expulsado que se hubiera guardado las rutas seguía descargándose el
+    // contenido de una comunidad privada, y la caducidad de una hora de las URLs
+    // firmadas no servía de nada.
+    //
+    // El coste que se temía tampoco aparece: el contenido PÚBLICO se sirve con
+    // URL de token, que no evalúa reglas, así que esta consulta a Firestore solo
+    // corre cuando alguien usa el SDK — al subir, o al hurgar.
     // ==============================
-match /posts/{groupId}/{uid}/{folder}/{fileName} {
-  allow read: if true;
+    match /posts/{groupId}/{uid}/{folder}/{fileName} {
+      allow read: if !isRestrictedGroup(groupId);
 
-  allow write: if isSignedIn()
-    && request.auth.uid == uid
-    && (folder == "images" || folder == "thumbnails")
-    && isImage()
-    && maxSize(10 * 1024 * 1024);
-}
+      allow write: if isRealAccount()
+        && request.auth.uid == uid
+        && (folder == "images" || folder == "thumbnails")
+        && isImage()
+        && maxSize(10 * 1024 * 1024);
+    }
 
     // ==============================
     // COMMENT IMAGES (imagen adjunta a comentarios/respuestas)
     // Path dedicado para poder gobernarlas aparte (moderación/limpieza).
+    //
+    // Mismo criterio que las imágenes de post, resolviendo la comunidad a través
+    // del post al que cuelga el comentario.
     // ==============================
     match /commentImages/{postId}/{uid}/{folder}/{fileName} {
-      allow read: if true;
+      allow read: if !isRestrictedGroup(postGroupId(postId));
 
-      allow write: if isSignedIn()
+      allow write: if isRealAccount()
         && request.auth.uid == uid
         && (folder == "images" || folder == "thumbnails")
         && isImage()
@@ -113,7 +159,7 @@ match /posts/{groupId}/{uid}/{folder}/{fileName} {
     match /dmImages/{conversationId}/{uid}/{folder}/{fileName} {
       allow read: if false;
 
-      allow write: if isSignedIn()
+      allow write: if isRealAccount()
         && request.auth.uid == uid
         && (folder == "images" || folder == "thumbnails")
         && isImage()
@@ -125,7 +171,7 @@ match /posts/{groupId}/{uid}/{folder}/{fileName} {
     // ==============================
     match /storyCovers/users/{uid}/{fileName} {
       allow read: if true;
-      allow write: if isSignedIn()
+      allow write: if isRealAccount()
         && request.auth.uid == uid
         && isImage()
         && maxSize(5 * 1024 * 1024);
@@ -143,7 +189,7 @@ match /posts/{groupId}/{uid}/{folder}/{fileName} {
     // ==============================
     match /live-covers/{uid}/{fileName} {
       allow read: if true;
-      allow write: if isSignedIn()
+      allow write: if isRealAccount()
         && request.auth.uid == uid
         && isImage()
         && maxSize(10 * 1024 * 1024);
@@ -152,11 +198,24 @@ match /posts/{groupId}/{uid}/{folder}/{fileName} {
     // ==============================
     // GREETINGS (videos)
     // ==============================
+    // ⚠️ Esto era lo más abierto del archivo: CUALQUIERA con sesión —incluido un
+    // invitado de compra— podía escribir sobre la solicitud de saludo de otra
+    // persona con solo conocer su id, y hasta 60 MB por archivo. Servía para
+    // pisar el video que un creador acababa de grabar, o para usar el proyecto
+    // como almacén gratuito.
+    //
+    // Ahora: solo el CREADOR al que le encargaron ese saludo puede subirlo, y
+    // solo el creador o quien lo compró pueden leerlo.
     match /greetings/{requestId}/{fileName} {
 
-      allow read: if isSignedIn();
+      allow read: if isRealAccount()
+        && (
+          greetingField(requestId, 'creatorId') == request.auth.uid
+          || greetingField(requestId, 'buyerId') == request.auth.uid
+        );
 
-      allow write: if isSignedIn()
+      allow write: if isRealAccount()
+        && greetingField(requestId, 'creatorId') == request.auth.uid
         && isVideo()
         && maxSize(60 * 1024 * 1024);
     }

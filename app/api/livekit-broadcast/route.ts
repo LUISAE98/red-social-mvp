@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { AccessToken, EgressClient, EncodingOptionsPreset, RoomServiceClient, StreamOutput, StreamProtocol } from "livekit-server-sdk";
 import { FieldValue } from "firebase-admin/firestore";
 import { getAdminAuth, getAdminFirestore } from "@/lib/firebase-admin";
-import { filterOwnedBroadcastGroupIds } from "@/lib/live/broadcastTargets";
+import { canBroadcastToGroup, filterOwnedBroadcastGroupIds } from "@/lib/live/broadcastTargets";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -130,7 +130,10 @@ export async function POST(req: NextRequest) {
   const setLiveUpdates: Promise<unknown>[] = [
     db.collection("users").doc(uid).update({ activeLivePostId: postId }),
   ];
-  if (liveGroupId) {
+  // Reautorizar ANTES de escribir en la comunidad: ser autor del post no basta
+  // (ver canBroadcastToGroup). Si ya no puede publicar ahí, el live sigue — solo
+  // no se le planta el anillo a esa comunidad.
+  if (liveGroupId && (await canBroadcastToGroup(db, uid, liveGroupId))) {
     setLiveUpdates.push(db.collection("groups").doc(liveGroupId).update({ activeLivePostId: postId }));
   }
   for (const gid of broadcastGroupIds) {
