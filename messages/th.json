@@ -742,6 +742,7 @@
     "nameFieldLabel": "ชื่อ",
     "bioFieldLabel": "คำอธิบายโปรไฟล์",
     "socialLinksFieldLabel": "โซเชียลมีเดีย",
+    "socialLinksAdd": "เพิ่มโซเชียลมีเดีย",
     "socialLinksNone": "ยังไม่ได้เพิ่ม",
     "socialHandleInvalid": "ชื่อผู้ใช้ {network} ไม่ถูกต้อง",
     "socialLinksHint": "วางลิงก์โปรไฟล์ของคุณ หรือพิมพ์แค่ชื่อผู้ใช้ เราเก็บแค่ชื่อผู้ใช้ และสร้างลิงก์ให้เอง",

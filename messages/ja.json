@@ -742,6 +742,7 @@
     "nameFieldLabel": "名前",
     "bioFieldLabel": "プロフィールの説明",
     "socialLinksFieldLabel": "ソーシャルメディア",
+    "socialLinksAdd": "ソーシャルメディアを追加",
     "socialLinksNone": "追加されていません",
     "socialHandleInvalid": "{network} のユーザー名が正しくありません",
     "socialLinksHint": "プロフィールのリンクを貼るか、ユーザー名だけを入力してください。保存するのはユーザー名だけで、リンクはこちらで作ります",

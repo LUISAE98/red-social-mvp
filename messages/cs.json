@@ -742,6 +742,7 @@
     "nameFieldLabel": "Jméno",
     "bioFieldLabel": "Popis profilu",
     "socialLinksFieldLabel": "Sociální sítě",
+    "socialLinksAdd": "Přidat sociální sítě",
     "socialLinksNone": "Žádná síť nebyla přidána",
     "socialHandleInvalid": "Uživatelské jméno na {network} není platné",
     "socialLinksHint": "Vlož odkaz na svůj profil nebo napiš jen uživatelské jméno. Ukládáme jen jméno a odkaz sestavíme my",

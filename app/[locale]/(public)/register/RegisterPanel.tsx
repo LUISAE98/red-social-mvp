@@ -193,8 +193,10 @@ export default function RegisterPanel({
 
   // Bio (opcional): se guarda al crear la cuenta.
   const [bio, setBio] = useState("");
-  // Texto crudo por red; se limpia dentro de createUserProfileDoc.
+  // Texto crudo por red; se limpia dentro de createUserProfileDoc. Vive aquí y
+  // no dentro del desplegable, así que cerrarlo no pierde lo ya escrito.
   const [socialDraft, setSocialDraft] = useState(() => socialLinksToDraft(null));
+  const [socialOpen, setSocialOpen] = useState(false);
 
   // Revoca las object URLs al desmontar para no filtrar memoria.
   const avatarPreviewRef = useRef<string | null>(null);
@@ -832,22 +834,54 @@ export default function RegisterPanel({
         {/* Redes sociales (opcional). El formulario ya es largo, así que van
             plegadas: quien no las quiera ni las abre, y quien sí, las llena de
             una vez y no tiene que volver a ajustes. */}
-        <details style={{ display: "grid", gap: 6 }}>
-          <summary
+        <div style={{ display: "grid", gap: 6, justifyItems: "start" }}>
+          <button
+            type="button"
+            onClick={() => setSocialOpen((v) => !v)}
+            aria-expanded={socialOpen}
+            aria-controls="registro-redes"
             style={{
-              ...labelTextStyle,
+              border: "none",
+              background: "transparent",
+              padding: 0,
+              color: vibraPurple,
+              fontSize: 13,
+              fontWeight: 600,
+              fontFamily: "inherit",
               cursor: "pointer",
-              listStyle: "revert",
-              userSelect: "none",
+              textAlign: "start",
             }}
           >
-            {tProfile("socialLinksFieldLabel")}
-          </summary>
+            {tProfile("socialLinksAdd")}
+          </button>
 
-          <div style={{ paddingTop: 6 }}>
-            <SocialLinksEditor value={socialDraft} onChange={setSocialDraft} />
+          {/* Se despliega de 0fr a 1fr: es la única forma de animar hasta un
+              alto que no se conoce de antemano sin medirlo a mano.
+              El editor NO se desmonta al cerrar. Lo tecleado vive en el estado
+              del formulario, así que se conservaría igual, pero desmontarlo
+              haría perder el foco y daría un parpadeo al reabrir. Cerrado va
+              deshabilitado para que el tabulador no entre en campos que no se
+              ven. */}
+          <div
+            id="registro-redes"
+            style={{
+              width: "100%",
+              display: "grid",
+              gridTemplateRows: socialOpen ? "1fr" : "0fr",
+              transition: "grid-template-rows 280ms cubic-bezier(0.22, 1, 0.36, 1)",
+            }}
+          >
+            <div style={{ minHeight: 0, overflow: "hidden" }}>
+              <div style={{ paddingTop: 6 }}>
+                <SocialLinksEditor
+                  value={socialDraft}
+                  onChange={setSocialDraft}
+                  disabled={!socialOpen}
+                />
+              </div>
+            </div>
           </div>
-        </details>
+        </div>
 
         {pushSupported && (
           <div

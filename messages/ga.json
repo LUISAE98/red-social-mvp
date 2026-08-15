@@ -742,6 +742,7 @@
     "nameFieldLabel": "Ainm",
     "bioFieldLabel": "Cur síos na próifíle",
     "socialLinksFieldLabel": "Líonraí sóisialta",
+    "socialLinksAdd": "Cuir líonraí sóisialta leis",
     "socialLinksNone": "Níor cuireadh ceann ar bith leis",
     "socialHandleInvalid": "Níl an t-ainm úsáideora {network} bailí",
     "socialLinksHint": "Greamaigh nasc do phróifíle nó clóscríobh d'ainm úsáideora amháin. Ní stórálaimid ach an t-ainm agus tógaimid an nasc sinn féin",

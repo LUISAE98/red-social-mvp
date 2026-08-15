@@ -125,6 +125,19 @@ export default function CommunityRail({
   const [search, setSearch] = useState("");
 
   /**
+   * Línea base para el globo de novedades del encabezado cerrado.
+   *
+   * `null` mientras el rail está abierto: si lo ves, no hay nada que avisar. Al
+   * cerrarlo se congela el total del momento, y el globo enseña SOLO lo que
+   * llegó después. Abrirlo vuelve a poner `null`, así que el aviso desaparece y
+   * el conteo arranca de cero aunque no entres a ninguna comunidad.
+   *
+   * No se persiste a propósito: los rails arrancan abiertos en cada carga, así
+   * que una línea base guardada no tendría a qué referirse.
+   */
+  const [newSinceClosed, setNewSinceClosed] = useState<number | null>(null);
+
+  /**
    * Amplía la tanda cuando el borde derecho de lo visible se acerca al final de
    * lo cargado. El umbral es LOAD_MORE_AT tarjetas antes del final: con la tanda
    * de 10, empieza a cargar al llegar a la sexta.
@@ -162,10 +175,10 @@ export default function CommunityRail({
     const el = scrollerRef.current;
     if (!el) return;
 
-    // Sin esto, al empezar el gesto encima de un avatar el navegador arranca SU
-    // propio arrastre de imagen (el fantasma que sigue al cursor) y se queda con
-    // el puntero: la tira no se movía, se movía la foto.
-    e.preventDefault();
+    // 🚨 NO llamar a preventDefault() aquí. Cancela los eventos de ratón que el
+    // navegador sintetiza después del pointerdown, incluido el `click`, y las
+    // tarjetas dejan de navegar. El arrastre nativo de la imagen ya lo frenan
+    // el `onDragStart` de la tira y el `-webkit-user-drag: none` del CSS.
 
     dragRef.current = {
       active: true,
@@ -226,6 +239,14 @@ export default function CommunityRail({
   if (items.length === 0 && !loading) return null;
 
   const visibleItems = items.slice(0, visibleCount);
+
+  // Total de novedades del rail y lo que corresponde enseñar en el globo.
+  const totalNewPosts = items.reduce(
+    (sum, item) => sum + (newPostsCounts[item.id] ?? 0),
+    0
+  );
+  const badgeCount =
+    newSinceClosed == null ? 0 : Math.max(0, totalNewPosts - newSinceClosed);
 
   // El panel conserva el orden del rail (en vivo, novedades, historias,
   // frecuencia) y solo filtra por texto.
@@ -458,10 +479,55 @@ export default function CommunityRail({
                 TODO: el enlace aún no lleva a ningún sitio; falta decidir su
                 destino. `stopPropagation` para que pulsarlo no pliegue el rail
                 al que pertenece. */}
-            {collapsible ? (
-              open ? (
-                seeAllLabel ? (
-                  <span
+            {/* El "+" solo existe donde se puede plegar (laptop) y solo cuando
+                está cerrado. El enlace de "ver todas" NO depende de eso: en
+                celular, donde los rails van siempre abiertos, es la única
+                puerta a la lista completa. */}
+            {/* Globo de novedades: solo con el rail cerrado, porque abierto ya
+                las estás viendo en las tarjetas. */}
+            {collapsible && !open && badgeCount > 0 ? (
+              <span
+                style={{
+                  flexShrink: 0,
+                  minWidth: 18,
+                  height: 18,
+                  padding: "0 5px",
+                  borderRadius: 999,
+                  background: "#a855f7",
+                  color: "#fff",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 10,
+                  fontWeight: 700,
+                  lineHeight: 1,
+                  boxSizing: "border-box",
+                }}
+              >
+                {badgeCount > 99 ? "99+" : badgeCount}
+              </span>
+            ) : null}
+
+            {collapsible && !open ? (
+              <span
+                aria-hidden
+                style={{
+                  flexShrink: 0,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  width: 18,
+                  height: 18,
+                  fontSize: 17,
+                  lineHeight: 1,
+                  fontWeight: 400,
+                  color: "rgba(255,255,255,0.62)",
+                }}
+              >
+                +
+              </span>
+            ) : seeAllLabel ? (
+              <span
                     role="link"
                     tabIndex={0}
                     // stopPropagation: el encabezado entero pliega el rail, y sin
@@ -488,27 +554,7 @@ export default function CommunityRail({
                     }}
                   >
                     {seeAllLabel}
-                  </span>
-                ) : null
-              ) : (
-                <span
-                  aria-hidden
-                  style={{
-                    flexShrink: 0,
-                    display: "inline-flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    width: 18,
-                    height: 18,
-                    fontSize: 17,
-                    lineHeight: 1,
-                    fontWeight: 400,
-                    color: "rgba(255,255,255,0.62)",
-                  }}
-                >
-                  +
-                </span>
-              )
+              </span>
             ) : null}
           </>
         );
@@ -518,7 +564,15 @@ export default function CommunityRail({
         return collapsible ? (
           <button
             type="button"
-            onClick={() => setOpen((prev) => !prev)}
+            onClick={() => {
+              setOpen((prev) => {
+                const next = !prev;
+                // Al cerrar se congela el total actual como línea base; al abrir
+                // se suelta, y con ello el globo desaparece y vuelve a cero.
+                setNewSinceClosed(next ? null : totalNewPosts);
+                return next;
+              });
+            }}
             aria-expanded={open}
             style={{
               ...headerStyle,
@@ -613,6 +667,10 @@ export default function CommunityRail({
                   photoURL={item.avatarUrl ?? null}
                   displayName={name}
                   size={avatarSize}
+                  // El avatar monta su propio <button> para abrir historias o el
+                  // live. Sin este onClick, cuando NO hay ni una cosa ni la otra
+                  // se queda sin acción y el clic muere ahí en vez de navegar.
+                  onClick={() => onOpen(item.id)}
                 />
               </span>
 
@@ -746,6 +804,10 @@ export default function CommunityRail({
                       photoURL={item.avatarUrl ?? null}
                       displayName={name}
                       size={40}
+                      onClick={() => {
+                        setAllOpen(false);
+                        onOpen(item.id);
+                      }}
                     />
 
                     <span style={{ flex: 1, minWidth: 0, display: "grid", gap: 2 }}>

@@ -742,6 +742,7 @@
     "nameFieldLabel": "Nume",
     "bioFieldLabel": "Descrierea profilului",
     "socialLinksFieldLabel": "Rețele sociale",
+    "socialLinksAdd": "Adaugă rețele sociale",
     "socialLinksNone": "Niciuna adăugată",
     "socialHandleInvalid": "Numele de utilizator {network} nu este valid",
     "socialLinksHint": "Lipește linkul profilului tău sau scrie doar numele de utilizator. Păstrăm doar numele, iar linkul îl construim noi",

@@ -742,6 +742,7 @@
     "nameFieldLabel": "Tên",
     "bioFieldLabel": "Mô tả hồ sơ",
     "socialLinksFieldLabel": "Mạng xã hội",
+    "socialLinksAdd": "Thêm mạng xã hội",
     "socialLinksNone": "Chưa thêm mạng nào",
     "socialHandleInvalid": "Tên người dùng {network} không hợp lệ",
     "socialLinksHint": "Dán liên kết hồ sơ của bạn hoặc chỉ cần nhập tên người dùng. Chúng tôi chỉ lưu tên người dùng và tự tạo liên kết",

@@ -742,6 +742,7 @@
     "nameFieldLabel": "Isem",
     "bioFieldLabel": "Deskrizzjoni tal-profil",
     "socialLinksFieldLabel": "Networks soċjali",
+    "socialLinksAdd": "Żid networks soċjali",
     "socialLinksNone": "L-ebda wieħed miżjud",
     "socialHandleInvalid": "L-isem tal-utent ta' {network} mhux validu",
     "socialLinksHint": "Waħħal il-link tal-profil tiegħek jew ikteb l-isem tal-utent biss. Naħżnu l-isem biss u l-link nibnuha aħna",

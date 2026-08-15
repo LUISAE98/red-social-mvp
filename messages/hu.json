@@ -742,6 +742,7 @@
     "nameFieldLabel": "Név",
     "bioFieldLabel": "Profil leírása",
     "socialLinksFieldLabel": "Közösségi hálózatok",
+    "socialLinksAdd": "Közösségi hálózatok hozzáadása",
     "socialLinksNone": "Nincs hozzáadva egy sem",
     "socialHandleInvalid": "A {network} felhasználónév nem érvényes",
     "socialLinksHint": "Illeszd be a profilod linkjét, vagy csak írd be a felhasználóneved. Csak a nevet tároljuk, a linket mi állítjuk össze",

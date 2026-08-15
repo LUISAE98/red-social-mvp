@@ -742,6 +742,7 @@
     "nameFieldLabel": "Nimi",
     "bioFieldLabel": "Profiili kirjeldus",
     "socialLinksFieldLabel": "Sotsiaalvõrgustikud",
+    "socialLinksAdd": "Lisa sotsiaalvõrgustikud",
     "socialLinksNone": "Ühtegi pole lisatud",
     "socialHandleInvalid": "{network} kasutajanimi ei ole sobiv",
     "socialLinksHint": "Kleebi oma profiili link või kirjuta lihtsalt kasutajanimi. Salvestame ainult nime ja lingi koostame ise",

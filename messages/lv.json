@@ -742,6 +742,7 @@
     "nameFieldLabel": "Vārds",
     "bioFieldLabel": "Profila apraksts",
     "socialLinksFieldLabel": "Sociālie tīkli",
+    "socialLinksAdd": "Pievienot sociālos tīklus",
     "socialLinksNone": "Neviens nav pievienots",
     "socialHandleInvalid": "{network} lietotājvārds nav derīgs",
     "socialLinksHint": "Ielīmē sava profila saiti vai vienkārši ieraksti lietotājvārdu. Mēs saglabājam tikai vārdu un saiti izveidojam paši",

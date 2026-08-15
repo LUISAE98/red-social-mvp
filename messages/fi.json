@@ -742,6 +742,7 @@
     "nameFieldLabel": "Nimi",
     "bioFieldLabel": "Profiilin kuvaus",
     "socialLinksFieldLabel": "Sosiaaliset verkostot",
+    "socialLinksAdd": "Lisää sosiaaliset verkostot",
     "socialLinksNone": "Ei yhtään lisättynä",
     "socialHandleInvalid": "{network}-käyttäjänimi ei kelpaa",
     "socialLinksHint": "Liitä profiilisi linkki tai kirjoita pelkkä käyttäjänimi. Tallennamme vain nimen ja rakennamme linkin itse",

@@ -408,12 +408,23 @@ export const createPost = onCall({ region: REGION }, async (request) => {
   }
 
   // ── Medios: cada ruta de Storage tiene que ser de este autor ───────────────
-  const prefijoPropio = `posts/${ctx.groupId ?? uid}/${uid}/`;
+  //
+  // El uploader escribe en `posts/{contenedor}/{uid}/{carpeta}/{archivo}`
+  // (`lib/posts/image-upload.ts`). El contenedor es la comunidad en un post de
+  // comunidad, pero en un post de PERFIL es el pseudo-id `profile-{uid}`: un
+  // perfil no es un grupo y no tiene id de grupo. Lo que de verdad protege es el
+  // SEGUNDO segmento —tiene que ser el uid del autor—, que es exactamente lo que
+  // exige `storage.rules` (`request.auth.uid == uid`).
+  const prefijosPropios =
+    ctx.contextType === "group"
+      ? [`posts/${ctx.groupId}/${uid}/`]
+      : [`posts/profile-${uid}/${uid}/`];
+
   for (const item of media) {
     if (!item || typeof item !== "object") continue;
     const { path, thumbnailPath } = item as Record<string, unknown>;
     for (const p of [path, thumbnailPath]) {
-      if (typeof p === "string" && p && !p.startsWith(prefijoPropio)) {
+      if (typeof p === "string" && p && !prefijosPropios.some((pre) => p.startsWith(pre))) {
         throw new HttpsError("permission-denied", "Un archivo de la publicación no te pertenece.");
       }
     }

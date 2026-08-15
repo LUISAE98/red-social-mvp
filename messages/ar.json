@@ -742,6 +742,7 @@
     "nameFieldLabel": "الاسم",
     "bioFieldLabel": "وصف الملف الشخصي",
     "socialLinksFieldLabel": "الشبكات الاجتماعية",
+    "socialLinksAdd": "إضافة شبكات اجتماعية",
     "socialLinksNone": "لم تُضف أي شبكة",
     "socialHandleInvalid": "اسم المستخدم في {network} غير صالح",
     "socialLinksHint": "الصق رابط ملفك الشخصي أو اكتب اسم المستخدم فقط. نحفظ الاسم فقط وننشئ الرابط نحن",

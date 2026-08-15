@@ -742,6 +742,7 @@
     "nameFieldLabel": "Nama",
     "bioFieldLabel": "Deskripsi profil",
     "socialLinksFieldLabel": "Jejaring sosial",
+    "socialLinksAdd": "Tambah jejaring sosial",
     "socialLinksNone": "Belum ada yang ditambahkan",
     "socialHandleInvalid": "Nama pengguna {network} tidak valid",
     "socialLinksHint": "Tempel tautan profilmu atau ketik nama penggunanya saja. Kami hanya menyimpan namanya dan membuat tautannya sendiri",

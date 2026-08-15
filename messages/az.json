@@ -742,6 +742,7 @@
     "nameFieldLabel": "Ad",
     "bioFieldLabel": "Profil təsviri",
     "socialLinksFieldLabel": "Sosial şəbəkələr",
+    "socialLinksAdd": "Sosial şəbəkə əlavə et",
     "socialLinksNone": "Heç bir şəbəkə əlavə edilməyib",
     "socialHandleInvalid": "{network} istifadəçi adı düzgün deyil",
     "socialLinksHint": "Profilinin linkini yapışdır və ya sadəcə istifadəçi adını yaz. Biz yalnız adı saxlayır və linki özümüz qururuq",

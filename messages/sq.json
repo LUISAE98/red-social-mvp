@@ -742,6 +742,7 @@
     "nameFieldLabel": "Emri",
     "bioFieldLabel": "Përshkrimi i profilit",
     "socialLinksFieldLabel": "Rrjete sociale",
+    "socialLinksAdd": "Shto rrjete sociale",
     "socialLinksNone": "Asnjë e shtuar",
     "socialHandleInvalid": "Emri i përdoruesit në {network} nuk është i vlefshëm",
     "socialLinksHint": "Ngjit lidhjen e profilit tënd ose shkruaj vetëm emrin e përdoruesit. Ruajmë vetëm emrin dhe lidhjen e ndërtojmë ne",

@@ -742,6 +742,7 @@
     "nameFieldLabel": "Nome",
     "bioFieldLabel": "Descrição do perfil",
     "socialLinksFieldLabel": "Redes sociais",
+    "socialLinksAdd": "Adicionar redes sociais",
     "socialLinksNone": "Nenhuma adicionada",
     "socialHandleInvalid": "O utilizador do {network} não é válido",
     "socialLinksHint": "Cola a ligação do teu perfil ou escreve só o teu utilizador. Guardamos apenas o utilizador e a ligação construímo-la nós",

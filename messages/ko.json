@@ -742,6 +742,7 @@
     "nameFieldLabel": "이름",
     "bioFieldLabel": "프로필 소개",
     "socialLinksFieldLabel": "소셜 네트워크",
+    "socialLinksAdd": "소셜 네트워크 추가",
     "socialLinksNone": "추가된 항목 없음",
     "socialHandleInvalid": "{network} 사용자 이름이 올바르지 않습니다",
     "socialLinksHint": "프로필 링크를 붙여넣거나 사용자 이름만 입력하세요. 저장하는 건 사용자 이름뿐이고 링크는 저희가 만듭니다",

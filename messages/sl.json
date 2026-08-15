@@ -742,6 +742,7 @@
     "nameFieldLabel": "Ime",
     "bioFieldLabel": "Opis profila",
     "socialLinksFieldLabel": "Družbena omrežja",
+    "socialLinksAdd": "Dodaj družbena omrežja",
     "socialLinksNone": "Nobenega ni dodanega",
     "socialHandleInvalid": "Uporabniško ime na {network} ni veljavno",
     "socialLinksHint": "Prilepi povezavo do svojega profila ali vpiši samo uporabniško ime. Shranimo samo ime, povezavo pa sestavimo mi",

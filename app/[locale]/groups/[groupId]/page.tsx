@@ -88,6 +88,7 @@ import {
   toCatalogOfferings,
 } from "@/lib/groups/groupAdapters";
 import StatsRow, { type StatItem } from "@/components/ui/StatsRow";
+import { capitalizeFirst } from "@/i18n/locales";
 import { fetchGroupPostsCount } from "@/lib/posts/post-service";
 
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
@@ -396,13 +397,18 @@ const groupStatsItems: StatItem[] = [
   {
     key: "members",
     top: formattedMemberCount ?? "—",
-    bottom: memberCount === 1 ? tCommon("member") : tCommon("members"),
+    bottom: capitalizeFirst(
+      memberCount === 1 ? tCommon("member") : tCommon("members"),
+      locale
+    ),
   },
   {
     key: "posts",
     top: formattedGroupPostsCount,
-    bottom:
+    bottom: capitalizeFirst(
       groupPostsCount === 1 ? tCommon("publication") : tCommon("publications"),
+      locale
+    ),
   },
 ];
 

@@ -742,6 +742,7 @@
     "nameFieldLabel": "Nafn",
     "bioFieldLabel": "Lýsing prófíls",
     "socialLinksFieldLabel": "Samfélagsmiðlar",
+    "socialLinksAdd": "Bæta við samfélagsmiðlum",
     "socialLinksNone": "Enginn skráður",
     "socialHandleInvalid": "Notandanafnið á {network} er ekki gilt",
     "socialLinksHint": "Límdu inn hlekkinn á prófílinn þinn eða skrifaðu bara notandanafnið. Við geymum aðeins nafnið og búum hlekkinn til sjálf",

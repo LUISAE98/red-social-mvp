@@ -742,6 +742,7 @@
     "nameFieldLabel": "Нэр",
     "bioFieldLabel": "Профайлын тайлбар",
     "socialLinksFieldLabel": "Олон нийтийн сүлжээ",
+    "socialLinksAdd": "Олон нийтийн сүлжээ нэмэх",
     "socialLinksNone": "Нэмээгүй байна",
     "socialHandleInvalid": "{network}-ийн хэрэглэгчийн нэр буруу байна",
     "socialLinksHint": "Профайлынхаа холбоосыг буулгах эсвэл зөвхөн хэрэглэгчийн нэрээ бичнэ үү. Бид зөвхөн нэрийг хадгалж, холбоосыг өөрсдөө үүсгэнэ",

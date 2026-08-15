@@ -183,6 +183,23 @@ export function intlLocale(code: string): string {
 }
 
 /**
+ * Pone en mayúscula la PRIMERA letra y deja el resto igual.
+ *
+ * No es `text-transform: capitalize`, que pone en mayúscula cada palabra: eso
+ * convertiría "người theo dõi" en "Người Theo Dõi", que en vietnamita se lee
+ * mal. Y no es `toUpperCase()` a secas, que en turco convierte la i en I y no en
+ * İ — de ahí el `toLocaleUpperCase` con el idioma en la mano.
+ *
+ * Los idiomas sin mayúsculas (japonés, árabe, tailandés…) devuelven el mismo
+ * carácter, así que llamarlo siempre no hace daño.
+ */
+export function capitalizeFirst(text: string, locale: string): string {
+  if (!text) return text;
+  const chars = Array.from(text);
+  return chars[0].toLocaleUpperCase(intlLocale(locale)) + chars.slice(1).join("");
+}
+
+/**
  * País de la UE (ISO-3166 alpha-2) → su idioma principal.
  *
  * Un país = un idioma, porque la geo-IP solo da país. En los multilingües se elige

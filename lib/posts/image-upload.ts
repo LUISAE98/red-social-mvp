@@ -169,16 +169,29 @@ export async function uploadPostImage(params: {
  * ¿Los medios de esta comunidad tienen que ir protegidos?
  *
  * Privada y oculta sí; pública no — ahí la URL directa es más barata y no hay
- * nada que proteger. El primer segmento de la ruta de un post de PERFIL es el
- * uid del autor, no un grupo, así que ahí simplemente no existe el documento y
- * se resuelve como no restringido.
+ * nada que proteger.
  *
  * Se cachea por proceso: subir cinco fotos a la misma comunidad no debe costar
  * cinco lecturas.
  */
 const RESTRICTED_GROUP_CACHE = new Map<string, boolean>();
 
+/**
+ * Contenedor de un post de PERFIL. No es una comunidad: es el pseudo-id que usa
+ * el composer del perfil para armar la ruta de Storage (`posts/{contenedor}/…`).
+ */
+const PROFILE_CONTAINER_PREFIX = "profile-";
+
 async function isRestrictedGroup(groupId: string): Promise<boolean> {
+  // ⚠️ Un perfil NO se consulta como grupo. `groups/profile-{uid}` no existe, y
+  // leer un documento inexistente en `groups` no devuelve "vacío": la regla
+  // evalúa `resource.data.visibility` sobre null, falla, y el `getDoc` lanza
+  // permiso denegado. Eso caía en el `catch` de abajo y marcaba el perfil como
+  // restringido, así que las imágenes se guardaban con `url` vacía y luego
+  // `createMediaPost` las descartaba por no tener url: la publicación salía sin
+  // fotos y sin ningún error a la vista.
+  if (groupId.startsWith(PROFILE_CONTAINER_PREFIX)) return false;
+
   const cached = RESTRICTED_GROUP_CACHE.get(groupId);
   if (cached !== undefined) return cached;
 

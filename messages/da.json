@@ -742,6 +742,7 @@
     "nameFieldLabel": "Navn",
     "bioFieldLabel": "Profilbeskrivelse",
     "socialLinksFieldLabel": "Sociale medier",
+    "socialLinksAdd": "Tilføj sociale medier",
     "socialLinksNone": "Ingen tilføjet",
     "socialHandleInvalid": "Brugernavnet på {network} er ikke gyldigt",
     "socialLinksHint": "Indsæt linket til din profil, eller skriv bare brugernavnet. Vi gemmer kun navnet og laver linket selv",

@@ -742,6 +742,7 @@
     "nameFieldLabel": "Pangalan",
     "bioFieldLabel": "Paglalarawan ng profile",
     "socialLinksFieldLabel": "Mga social network",
+    "socialLinksAdd": "Magdagdag ng social network",
     "socialLinksNone": "Wala pang naidagdag",
     "socialHandleInvalid": "Hindi valid ang username sa {network}",
     "socialLinksHint": "I-paste ang link ng profile mo o i-type lang ang username. Ang username lang ang iniimbak namin at kami na ang gagawa ng link",

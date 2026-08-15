@@ -742,6 +742,7 @@
     "nameFieldLabel": "Vardas",
     "bioFieldLabel": "Profilio aprašymas",
     "socialLinksFieldLabel": "Socialiniai tinklai",
+    "socialLinksAdd": "Pridėti socialinius tinklus",
     "socialLinksNone": "Nė vieno nepridėta",
     "socialHandleInvalid": "{network} naudotojo vardas netinkamas",
     "socialLinksHint": "Įklijuok savo profilio nuorodą arba tiesiog įrašyk naudotojo vardą. Saugome tik vardą, o nuorodą sudarome patys",

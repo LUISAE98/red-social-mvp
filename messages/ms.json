@@ -742,6 +742,7 @@
     "nameFieldLabel": "Nama",
     "bioFieldLabel": "Penerangan profil",
     "socialLinksFieldLabel": "Rangkaian sosial",
+    "socialLinksAdd": "Tambah rangkaian sosial",
     "socialLinksNone": "Tiada yang ditambah",
     "socialHandleInvalid": "Nama pengguna {network} tidak sah",
     "socialLinksHint": "Tampal pautan profil anda atau taip nama pengguna sahaja. Kami hanya menyimpan nama dan pautan kami yang bina",

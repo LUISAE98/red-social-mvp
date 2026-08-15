@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations, useLocale } from "next-intl";
-import { intlLocale } from "@/i18n/locales";
+import { capitalizeFirst, intlLocale } from "@/i18n/locales";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import { useScreenReady } from "@/lib/useScreenReady";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
@@ -578,6 +578,8 @@ useEffect(() => {
   const followersCountText = followersCount.toLocaleString(intlLocale(locale));
   const followersWord =
     followersCount === 1 ? tProfile("follower") : tProfile("followers");
+  // La etiqueta accesible va en minúscula, como se dice: "1,234 seguidores". La
+  // mayúscula es solo del renglón de la fila, donde la palabra va sola.
   const followersLabel = `${followersCountText} ${followersWord}`;
 
   // Publicaciones del perfil. `null` mientras no se sabe: el card enseña un
@@ -2672,13 +2674,17 @@ const res = (await createExclusiveSessionRequest({
                       {
                         key: "followers",
                         top: followersCountText,
-                        bottom: followersWord,
+                        bottom: capitalizeFirst(followersWord, locale),
                         // Solo el dueño puede abrir su lista de seguidores; para
                         // el resto es un dato y no un botón.
                         onClick: isOwner ? openFollowersOverlay : undefined,
                         ariaLabel: isOwner ? followersLabel : undefined,
                       },
-                      { key: "posts", top: postsCountText, bottom: postsWord },
+                      {
+                        key: "posts",
+                        top: postsCountText,
+                        bottom: capitalizeFirst(postsWord, locale),
+                      },
                     ]}
                   />
 

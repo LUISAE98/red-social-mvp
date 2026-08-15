@@ -742,6 +742,7 @@
     "nameFieldLabel": "නම",
     "bioFieldLabel": "පැතිකඩ විස්තරය",
     "socialLinksFieldLabel": "සමාජ ජාල",
+    "socialLinksAdd": "සමාජ ජාල එක් කරන්න",
     "socialLinksNone": "කිසිවක් එක් කර නැත",
     "socialHandleInvalid": "{network} පරිශීලක නාමය වලංගු නොවේ",
     "socialLinksHint": "ඔබේ පැතිකඩේ සබැඳිය අලවන්න හෝ පරිශීලක නාමය පමණක් ලියන්න. අප ගබඩා කරන්නේ නම පමණයි, සබැඳිය අප විසින්ම සාදනු ලැබේ",

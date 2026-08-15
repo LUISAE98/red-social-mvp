@@ -17,6 +17,25 @@ import {
   type PostCreationContext,
 } from "./post-service.create";
 
+/**
+ * ¿Esta imagen es utilizable en una publicación?
+ *
+ * ⚠️ No basta con exigir `url`. En una comunidad privada u oculta el uploader
+ * NO pide la URL de descarga a propósito —esa lleva un token permanente que abre
+ * el archivo sin sesión y para siempre— y devuelve `url: ""` con la `path`
+ * puesta; la URL la firma después `getRestrictedMediaUrls`. Filtrar por `url`
+ * descartaba justo esas imágenes, así que la publicación salía sin fotos y sin
+ * ningún error a la vista.
+ */
+function isUsableImageMedia(item: PostMedia): boolean {
+  if (item.type !== "image") return false;
+
+  const url = typeof item.url === "string" ? item.url.trim() : "";
+  const path = typeof item.path === "string" ? item.path.trim() : "";
+
+  return url.length > 0 || path.length > 0;
+}
+
 export async function createImagePost(params: {
   groupId: string;
   text?: string;
@@ -37,12 +56,7 @@ export async function createImagePost(params: {
 }): Promise<void> {
   const cleanText = params.text?.trim() ?? "";
   const cleanMedia = Array.isArray(params.media)
-    ? params.media.filter(
-        (item) =>
-          item.type === "image" &&
-          typeof item.url === "string" &&
-          item.url.trim().length > 0
-      )
+    ? params.media.filter(isUsableImageMedia)
     : [];
 
   if (cleanMedia.length > MAX_POST_IMAGES) {
@@ -196,12 +210,7 @@ export async function createMediaPost(params: {
   const cleanText = params.text?.trim() ?? "";
 
   const cleanImageMedia = Array.isArray(params.imageMedia)
-    ? params.imageMedia.filter(
-        (item) =>
-          item.type === "image" &&
-          typeof item.url === "string" &&
-          item.url.trim().length > 0
-      )
+    ? params.imageMedia.filter(isUsableImageMedia)
     : [];
 
   const cleanVideoUploads = Array.isArray(params.videoUploads)

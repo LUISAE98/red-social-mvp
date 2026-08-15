@@ -742,6 +742,7 @@
     "nameFieldLabel": "Name",
     "bioFieldLabel": "Profilbeschreibung",
     "socialLinksFieldLabel": "Soziale Netzwerke",
+    "socialLinksAdd": "Soziale Netzwerke hinzufügen",
     "socialLinksNone": "Kein Netzwerk hinzugefügt",
     "socialHandleInvalid": "Der Benutzername bei {network} ist ungültig",
     "socialLinksHint": "Füge den Link zu deinem Profil ein oder schreib einfach den Benutzernamen. Wir speichern nur den Namen und bauen den Link selbst",

@@ -742,6 +742,7 @@
     "nameFieldLabel": "ឈ្មោះ",
     "bioFieldLabel": "ការពិពណ៌នាប្រវត្តិរូប",
     "socialLinksFieldLabel": "បណ្តាញសង្គម",
+    "socialLinksAdd": "បន្ថែមបណ្តាញសង្គម",
     "socialLinksNone": "មិនទាន់បានបញ្ចូល",
     "socialHandleInvalid": "ឈ្មោះអ្នកប្រើ {network} មិនត្រឹមត្រូវ",
     "socialLinksHint": "បិទភ្ជាប់តំណប្រវត្តិរូបរបស់អ្នក ឬវាយបញ្ចូលតែឈ្មោះអ្នកប្រើ។ យើងរក្សាទុកតែឈ្មោះ ហើយបង្កើតតំណដោយខ្លួនយើង",

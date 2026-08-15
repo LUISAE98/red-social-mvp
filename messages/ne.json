@@ -742,6 +742,7 @@
     "nameFieldLabel": "नाम",
     "bioFieldLabel": "प्रोफाइल विवरण",
     "socialLinksFieldLabel": "सामाजिक सञ्जाल",
+    "socialLinksAdd": "सामाजिक सञ्जाल थप्नुहोस्",
     "socialLinksNone": "कुनै थपिएको छैन",
     "socialHandleInvalid": "{network} को प्रयोगकर्ता नाम मान्य छैन",
     "socialLinksHint": "आफ्नो प्रोफाइलको लिङ्क टाँस्नुहोस् वा प्रयोगकर्ता नाम मात्र टाइप गर्नुहोस्। हामी नाम मात्र राख्छौं र लिङ्क आफैं बनाउँछौं",

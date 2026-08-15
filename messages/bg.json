@@ -742,6 +742,7 @@
     "nameFieldLabel": "Име",
     "bioFieldLabel": "Описание на профила",
     "socialLinksFieldLabel": "Социални мрежи",
+    "socialLinksAdd": "Добави социални мрежи",
     "socialLinksNone": "Няма добавена мрежа",
     "socialHandleInvalid": "Потребителското име в {network} не е валидно",
     "socialLinksHint": "Постави връзката към профила си или напиши само потребителското име. Запазваме само името и създаваме връзката вместо теб",

@@ -133,8 +133,11 @@ export default function StatsRow({ items }: { items: StatItem[] }) {
           letter-spacing: 0.015em;
         }
 
+        /* Mas chico que la cifra de sus vecinas y apenas por encima de la
+           palabra: es un dato de texto, no una cantidad, y al tamano de una
+           cifra pesaba mas que las dos columnas que si la tienen. */
         .vb-stat-pair {
-          font-size: calc(14px * var(--vb-stat-scale));
+          font-size: calc(12px * var(--vb-stat-scale));
           font-weight: 600;
           line-height: 1.2;
           letter-spacing: -0.005em;

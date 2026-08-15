@@ -126,9 +126,35 @@ export default function LoginFaq() {
           line-height: 1.35;
           text-align: start;
           cursor: pointer;
+        }
+
+        /* El degradado de marca al pasar el cursor y mientras la pregunta está
+           abierta. Va en el TEXTO y no en el botón: el degradado se aplica
+           recortando el fondo contra las letras, y eso vuelve transparente todo
+           lo que haya dentro, incluida la flecha. */
+        .qText {
+          min-width: 0;
           transition: color 180ms ease;
         }
-        .q:hover {
+        .q:hover .qText,
+        .qOpen .qText {
+          background: linear-gradient(100deg, #ff2fb3 0%, #a855f7 45%, #4f46ff 100%);
+          background-size: 220% 220%;
+          -webkit-background-clip: text;
+          background-clip: text;
+          color: transparent;
+          animation: vibraTextFlow 4.5s ease-in-out infinite;
+        }
+        @keyframes vibraTextFlow {
+          0%,
+          100% {
+            background-position: 0% 50%;
+          }
+          50% {
+            background-position: 100% 50%;
+          }
+        }
+        .q:hover .chevron {
           color: #c084fc;
         }
 
@@ -158,13 +184,15 @@ export default function LoginFaq() {
         .panelInner {
           overflow: hidden;
         }
+        /* Sin tope de ancho: la respuesta usa todo el contenedor, igual que la
+           pregunta de arriba. El límite de caracteres por línea lo pone ya el
+           ancho de la sección. */
         .a {
           margin: 0;
           padding: 0 4px 20px;
           font-size: 13px;
           line-height: 1.7;
           color: rgba(255, 255, 255, 0.68);
-          max-width: 62ch;
         }
 
         @media (max-width: 900px) {
@@ -187,6 +215,12 @@ export default function LoginFaq() {
           .chevron {
             transition: none;
           }
+          /* El degradado se queda quieto, pero conserva sus colores. */
+          .q:hover .qText,
+          .qOpen .qText {
+            animation: none;
+            background-position: 50% 50%;
+          }
         }
       `}</style>
 
@@ -201,12 +235,12 @@ export default function LoginFaq() {
           <div key={item.p} className="item">
             <button
               type="button"
-              className="q"
+              className={`q${open ? " qOpen" : ""}`}
               aria-expanded={open}
               // Volver a pulsar la abierta la cierra; abrir otra cierra la anterior.
               onClick={() => setAbierta(open ? null : i)}
             >
-              {item.p}
+              <span className="qText">{item.p}</span>
               <svg
                 className={`chevron${open ? " chevronOpen" : ""}`}
                 width={18}

@@ -742,6 +742,7 @@
     "nameFieldLabel": "名稱",
     "bioFieldLabel": "個人檔案簡介",
     "socialLinksFieldLabel": "社群平台",
+    "socialLinksAdd": "新增社群平台",
     "socialLinksNone": "尚未新增",
     "socialHandleInvalid": "{network} 的使用者名稱無效",
     "socialLinksHint": "貼上你的個人檔案連結，或只填使用者名稱。我們只會保存名稱，連結由我們產生",
