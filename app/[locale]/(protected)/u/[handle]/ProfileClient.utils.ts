@@ -1,3 +1,6 @@
+// Los helpers de subida a Mux (getVideoDuration, uploadVideoFileToMux,
+// VIDEO_MAX_DURATION_SECONDS y CreateMuxDirectUploadResponse) se mudaron a
+// lib/posts/muxDirectUpload: los usa también el compositor del home.
 // ProfileClient.utils.ts
 // Helpers puros y tipos auxiliares extraídos de ProfileClient.tsx.
 // No dependen del estado del componente; manipulan archivos, imágenes y fechas.
@@ -13,17 +16,6 @@ export type FirestoreDateLike =
 
 export type CropMode = "avatar" | "cover";
 export type Area = { x: number; y: number; width: number; height: number };
-
-export type CreateMuxDirectUploadResponse = {
-  provider: "mux";
-  uploadId: string;
-  uploadUrl: string;
-  postId: string;
-  mediaId: string;
-  status: string;
-};
-
-export const VIDEO_MAX_DURATION_SECONDS = 60 * 30;
 
 export function initials(name: string) {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -107,55 +99,4 @@ export async function getCroppedBlob(
   });
 }
 
-export function getVideoDuration(file: File): Promise<number> {
-  return new Promise((resolve, reject) => {
-    const video = document.createElement("video");
-    const objectUrl = URL.createObjectURL(file);
 
-    video.preload = "metadata";
-
-    video.onloadedmetadata = () => {
-      URL.revokeObjectURL(objectUrl);
-      resolve(video.duration);
-    };
-
-    video.onerror = () => {
-      URL.revokeObjectURL(objectUrl);
-      reject(new Error("No se pudo leer la duración del video."));
-    };
-
-    video.src = objectUrl;
-  });
-}
-
-export function uploadVideoFileToMux(params: {
-  uploadUrl: string;
-  file: File;
-  onProgress: (progress: number) => void;
-}): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-
-    xhr.upload.onprogress = (event) => {
-      if (!event.lengthComputable) return;
-      params.onProgress(Math.round((event.loaded / event.total) * 100));
-    };
-
-    xhr.onload = () => {
-      if (xhr.status >= 200 && xhr.status < 300) {
-        resolve();
-        return;
-      }
-
-      reject(new Error(`Mux upload falló con status ${xhr.status}.`));
-    };
-
-    xhr.onerror = () => {
-      reject(new Error("Error de red al subir el video a Mux."));
-    };
-
-    xhr.open("PUT", params.uploadUrl);
-    xhr.setRequestHeader("Content-Type", params.file.type || "video/mp4");
-    xhr.send(params.file);
-  });
-}

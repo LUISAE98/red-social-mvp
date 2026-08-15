@@ -244,3 +244,59 @@ describe("liveOverlays — solo el autor del live alimenta su overlay", () => {
     await assertSucceeds(getDoc(doc(anonDb, `liveOverlays/${postId}`)));
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Historias — no se cuelan en el carrusel de una comunidad ajena.
+//
+// La creación exigía autor, tipo y un `greetingRequestId` no vacío, pero NO
+// comprobaba el `groupId`. Como la lectura y los carruseles se resuelven por ese
+// campo, cualquiera podía crear una historia con el id de una comunidad a la que
+// no pertenece y aparecer dentro. Mismo patrón que B4-C03 con las publicaciones.
+// ─────────────────────────────────────────────────────────────────────────────
+describe("stories create — el groupId tiene que ser de una comunidad propia", () => {
+  const AJENA = "g_stories_ajena";
+  const EXTRANO = "extrano_stories";
+
+  function historia(extra: Record<string, unknown> = {}) {
+    return {
+      creatorId: EXTRANO,
+      type: "saludo",
+      greetingRequestId: "req_1",
+      source: "group",
+      ...extra,
+    };
+  }
+
+  it("🔴 un no-miembro NO puede publicar una historia en una comunidad ajena", async () => {
+    await seed(`groups/${AJENA}`, { ownerId: "otro", visibility: "public", isActive: true });
+
+    const db = testEnv.authenticatedContext(EXTRANO).firestore();
+    await assertFails(
+      setDoc(doc(db, "stories/s_colada"), historia({ groupId: AJENA }))
+    );
+  });
+
+  it("🟢 un miembro SÍ puede", async () => {
+    await seed(`groups/${AJENA}`, { ownerId: "otro", visibility: "public", isActive: true });
+    await seed(`groups/${AJENA}/members/${EXTRANO}`, {
+      userId: EXTRANO,
+      roleInGroup: "member",
+      status: "active",
+    });
+
+    const db = testEnv.authenticatedContext(EXTRANO).firestore();
+    await assertSucceeds(
+      setDoc(doc(db, "stories/s_legitima"), historia({ groupId: AJENA }))
+    );
+  });
+
+  it("🟢 una historia de PERFIL, sin comunidad, sigue pasando", async () => {
+    const db = testEnv.authenticatedContext(EXTRANO).firestore();
+    await assertSucceeds(
+      setDoc(
+        doc(db, "stories/s_perfil"),
+        historia({ source: "profile", groupId: null })
+      )
+    );
+  });
+});

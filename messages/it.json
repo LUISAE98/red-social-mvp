@@ -65,7 +65,8 @@
     "seeAllMessages": "Vedi tutti",
     "settings": "Impostazioni",
     "seeAllFollowing": "Vedi tutti",
-    "seeAllCommunities": "Vedi tutte"
+    "seeAllCommunities": "Vedi tutte",
+    "publishTo": "Pubblica su"
   },
   "common": {
     "accept": "Accetta",
@@ -73,6 +74,7 @@
     "back": "Indietro",
     "block": "Blocca",
     "cancel": "Annulla",
+    "edit": "Modifica",
     "create": "Crea",
     "understood": "Ho capito",
     "changeLanguage": "Cambia lingua",
@@ -2638,7 +2640,6 @@
     "edited": "Modificato",
     "deleteForMe": "Elimina per me",
     "deleteForEveryone": "Elimina per tutti",
-    "editMessage": "Modifica",
     "editingMessage": "Modifica messaggio",
     "messageActionError": "Non è stato possibile completare l’azione.",
     "reply": "Rispondi",

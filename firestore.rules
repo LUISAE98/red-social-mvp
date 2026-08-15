@@ -825,8 +825,13 @@ match /joinRequestsSent/{groupId} {
   allow get, list: if signedIn()
     && request.auth.uid == uid;
 
+  // M01 — claves de `lib/groups/joinRequests.ts`. Es el espejo en el usuario de
+  // `groups/{groupId}/joinRequests/{uid}` y lleva los mismos campos.
   allow create, update: if notAnonymous()
     && request.auth.uid == uid
+    && request.resource.data.keys().hasOnly([
+      "userId", "groupId", "status", "createdAt", "updatedAt"
+    ])
     && request.resource.data.userId == uid
     && request.resource.data.groupId == groupId
     && request.resource.data.status == "pending";
@@ -839,8 +844,28 @@ match /groupMemberships/{groupId} {
   allow get, list: if signedIn()
     && request.auth.uid == uid;
 
+  // M01 — claves de `buildUserMembershipBaseFields` en `lib/groups/membership.ts`
+  // más las de `lib/groups/createGroup.ts`. Este documento duplica los datos de
+  // la comunidad con dos nombres (`groupName` y `name`, `groupVisibility` y
+  // `visibility`…), así que la lista es larga a propósito: son los dos juegos.
+  //
+  // ⚠️ Igual que en la membresía, los campos de sanción quedan fuera: en el alta
+  // viajan como `deleteField()` y no dejan rastro.
   allow create, update: if notAnonymous()
     && request.auth.uid == uid
+    && request.resource.data.keys().hasOnly([
+      "groupId", "userId", "roleInGroup", "status",
+      "accessType", "requiresSubscription", "subscriptionActive",
+      "subscriptionPriceMonthly", "subscriptionCurrency", "subscribedAt",
+      "legacyComplimentary", "legacyGrantedAt",
+      "transitionPendingAction",
+      "groupName", "groupDescription", "groupImageUrl", "groupAvatarUrl",
+      "groupCoverUrl", "groupOwnerId", "groupVisibility", "groupDiscoverable",
+      "groupIsActive", "groupCategory",
+      "name", "description", "imageUrl", "avatarUrl", "coverUrl",
+      "ownerId", "visibility", "discoverable", "isActive", "category",
+      "createdAt", "joinedAt", "updatedAt"
+    ])
     && request.resource.data.userId == uid
     && request.resource.data.groupId == groupId
     && request.resource.data.status in ["active", "subscribed", "muted"]
@@ -967,8 +992,16 @@ match /hiddenGroupTransitions/{groupId} {
       match /sessions/{sessionId} {
         allow get, list: if notAnonymous() && request.auth.uid == uid;
 
+        // M01 — claves de `registerSession` en `lib/sessions/sessions-service.ts`.
+        // Solo el alta se acota: el `update` de abajo lo hace el heartbeat con
+        // `updateDoc`, que manda campos sueltos, y la geolocalización la escribe
+        // una Cloud Function con Admin SDK, que no pasa por estas reglas.
         allow create: if notAnonymous()
           && request.auth.uid == uid
+          && request.resource.data.keys().hasOnly([
+            "userAgent", "deviceLabel", "timezone", "locationLabel",
+            "createdAt", "lastSeenAt", "revoked", "revokedAt"
+          ])
           && request.resource.data.get('revoked', false) == false;
 
         allow update: if notAnonymous()
@@ -984,7 +1017,13 @@ match /hiddenGroupTransitions/{groupId} {
       // push usa Admin SDK (Cloud Function) y no pasa por estas reglas.
       match /fcmTokens/{token} {
         allow get, list: if signedIn() && request.auth.uid == uid;
-        allow create, update, delete: if notAnonymous() && request.auth.uid == uid;
+        // M01 — claves de `lib/push/fcm.ts`.
+        allow create, update: if notAnonymous()
+          && request.auth.uid == uid
+          && request.resource.data.keys().hasOnly([
+            "token", "platform", "userAgent", "createdAt", "updatedAt"
+          ]);
+        allow delete: if notAnonymous() && request.auth.uid == uid;
       }
 
       allow delete: if false;
@@ -1003,6 +1042,9 @@ match /hiddenGroupTransitions/{groupId} {
       // de claves editables de `users`, cada uid queda con un handle y solo uno.
       allow create: if notAnonymous()
         && validHandle(handle)
+        // M01 — claves de `profileOnboarding.ts`. La reserva de nombre es un
+        // documento de tres campos; cualquier otra cosa sobra.
+        && request.resource.data.keys().hasOnly(["uid", "handle", "createdAt"])
         && request.resource.data.uid == request.auth.uid
         && !exists(/databases/$(database)/documents/handles/$(handle))
         && getAfter(/databases/$(database)/documents/users/$(request.auth.uid)).data.handle == handle;
@@ -1748,7 +1790,23 @@ function validPostSearchIndex(search) {
 }
 
     function validGroupCreateShape(data) {
-      return data.ownerId == request.auth.uid
+      // M01 — el conjunto de claves, no solo sus valores. Sin esto se podía crear
+      // la comunidad con campos inventados (`featured`, `verified`, lo que sea) y
+      // quedaban guardados. No concedían nada por sí solos, pero engordan el
+      // documento y dejan sitio a que una regla futura se fíe de uno de ellos.
+      // La lista sale de lo que escribe `lib/groups/createGroup.ts`, más los tres
+      // opcionales que ya validaban las funciones de abajo (`settings`,
+      // `offerings`, `donation`).
+      return data.keys().hasOnly([
+        "name", "description", "ownerId", "visibility", "discoverable", "isActive",
+        "imageUrl", "coverUrl", "avatarUrl",
+        "category", "tags",
+        "permissions", "monetization", "settings", "offerings", "donation",
+        "greetingsEnabled", "welcomeMessage",
+        "ageMin", "ageMax",
+        "search", "createdAt", "updatedAt"
+      ])
+        && data.ownerId == request.auth.uid
         && data.name is string
         && data.name.size() >= 1
         && data.name.size() <= 80
@@ -1787,7 +1845,24 @@ function validPostSearchIndex(search) {
 function validMemberCreateShape(groupId, userId) {
   let afterGroup = groupDocAfter(groupId).data;
 
-  return request.resource.data.userId == userId
+  // M01 — el conjunto de claves. La lista es la unión de los cuatro caminos que
+  // crean una membresía desde el cliente: alta del dueño al crear la comunidad
+  // (`lib/groups/createGroup.ts`) y las tres formas de entrar de
+  // `lib/groups/membership.ts` (normal, con suscripción y legacy gratuita).
+  //
+  // ⚠️ Los campos de sanción (`removedAt`, `mutedUntil`, `subscriptionEndedAt`…)
+  // NO están y es a propósito: en el alta se mandan como `deleteField()`, que en
+  // un documento nuevo no deja rastro. Aceptarlos aquí permitiría nacer con un
+  // estado de sanción falseado.
+  return request.resource.data.keys().hasOnly([
+    "userId", "roleInGroup", "status",
+    "accessType", "requiresSubscription", "subscriptionActive",
+    "subscriptionPriceMonthly", "subscriptionCurrency", "subscribedAt",
+    "legacyComplimentary", "legacyGrantedAt",
+    "transitionPendingAction",
+    "createdAt", "joinedAt", "updatedAt"
+  ])
+    && request.resource.data.userId == userId
     && (
       (
         request.resource.data.roleInGroup == "owner"
@@ -2055,6 +2130,10 @@ match /memberBlocks/{blockId} {
           // Un baneado no puede volver a solicitar ingreso (el kick/removed sí,
           // porque el kick es suave). effectiveMemberStatus es null para no-miembros.
           && effectiveMemberStatus(groupId, reqId) != "banned"
+          // M01 — claves de `lib/groups/joinRequests.ts`.
+          && request.resource.data.keys().hasOnly([
+            "userId", "groupId", "status", "createdAt", "updatedAt"
+          ])
           && request.resource.data.userId == reqId
           && request.resource.data.status == "pending";
 
@@ -2109,6 +2188,11 @@ match /memberBlocks/{blockId} {
     // ==========================
     // STORIES
     // ==========================
+    /** Una historia sin comunidad es de perfil. null y "" significan lo mismo. */
+    function storyHasNoGroup(data) {
+      return !("groupId" in data) || data.groupId == null || data.groupId == "";
+    }
+
     match /stories/{storyId} {
       // ⚠️ Antes era `allow read: if true` para TODAS. El cliente marcaba las de
       // comunidades no públicas como `searchable: false`, pero "no buscable" no
@@ -2124,11 +2208,35 @@ match /memberBlocks/{blockId} {
         || canReadGroupContent(resource.data.groupId);
 
       // Only the authenticated creator can create their own story
+      //
+      // ⚠️ Si la historia declara comunidad, hay que pertenecer a ella. Antes el
+      // `groupId` no se comprobaba en absoluto, así que cualquiera podía crear
+      // una historia con el id de una comunidad ajena y colarla en su carrusel
+      // sin ser miembro. Es el mismo patrón que B4-C03 con las publicaciones.
+      //
+      // El `groupId` sale de DÓNDE se publica (perfil o comunidad), no de la
+      // solicitud de la que nace la historia: publicar en el propio perfil un
+      // saludo pedido dentro de una comunidad es legítimo, y el comprador puede
+      // publicarlo como suyo. Por eso se comprueba pertenencia y no procedencia.
       allow create: if notAnonymous()
+        // M01 — claves de `addStoryFromGreeting` en lib/stories/storyService.ts.
+        && request.resource.data.keys().hasOnly([
+          "creatorId", "creatorName", "greetingCreatorId", "greetingRequestId",
+          "instructions", "type", "source", "groupId",
+          "muxPlaybackId", "thumbnailUrl", "videoDuration",
+          "searchable", "searchPrefixes", "categories",
+          "viewsCount", "createdAt"
+        ])
         && request.resource.data.creatorId == request.auth.uid
         && request.resource.data.type in ["saludo", "consejo"]
         && request.resource.data.greetingRequestId is string
-        && request.resource.data.greetingRequestId.size() > 0;
+        && request.resource.data.greetingRequestId.size() > 0
+        && (
+          storyHasNoGroup(request.resource.data)
+          || isMember(request.resource.data.groupId)
+          || isOwner(request.resource.data.groupId)
+          || isModerator(request.resource.data.groupId)
+        );
 
       // Creator can delete their own stories
       allow delete: if notAnonymous()
@@ -3185,8 +3293,11 @@ allow list: if (canListOwnAuthoredPost()
       // Registro histórico de espectadores únicos — solo se crea, nunca se borra
       match /liveUniqueViewers/{viewerId} {
         allow get, list: if signedIn() && postNotInHiddenGroupOrInsider();
+        // M01 — claves de `registerUniqueViewer` y `addWatchTime`
+        // (lib/liveKit/liveViewers.ts). `watchSeconds` se acumula con increment.
         allow create, update: if signedIn()
           && request.auth.uid == viewerId
+          && request.resource.data.keys().hasOnly(["uid", "isGuest", "watchSeconds"])
           && request.resource.data.uid == viewerId;
         allow delete: if false;
       }
@@ -3197,8 +3308,13 @@ allow list: if (canListOwnAuthoredPost()
       // en las estadísticas del live.
       match /liveViewers/{viewerId} {
         allow get, list: if signedIn() && postNotInHiddenGroupOrInsider();
+        // M01 — claves de `joinLivePresence` más el parche de latencia de
+        // `updateViewerLatency`, que llega por `update` sobre el mismo documento.
         allow create: if signedIn()
           && request.auth.uid == viewerId
+          && request.resource.data.keys().hasOnly([
+            "uid", "isGuest", "joinedAt", "latency", "latencyUpdatedAt"
+          ])
           && request.resource.data.uid == viewerId
           && request.resource.data.joinedAt is timestamp;
         allow delete: if signedIn() && request.auth.uid == viewerId;
@@ -3219,8 +3335,10 @@ allow list: if (canListOwnAuthoredPost()
       match /vodViewers/{viewerId} {
         allow get, list: if signedIn()
           && get(/databases/$(database)/documents/posts/$(postId)).data.authorId == request.auth.uid;
+        // M01 — `recordVodView` escribe un único campo.
         allow create, update: if signedIn()
           && request.auth.uid == viewerId
+          && request.resource.data.keys().hasOnly(["viewedAt"])
           && request.resource.data.viewedAt is timestamp;
         allow delete: if false;
       }
@@ -3288,8 +3406,12 @@ allow list: if (canListOwnAuthoredPost()
       }
 
       match /editHistory/{historyId} {
+        // M01 — el historial de un POST guarda además los medios anteriores.
         allow create: if notAnonymous()
           && get(/databases/$(database)/documents/posts/$(postId)).data.authorId == request.auth.uid
+          && request.resource.data.keys().hasOnly([
+            "editedAt", "editedBy", "previousText", "previousMedia"
+          ])
           && request.resource.data.editedBy == request.auth.uid
           && request.resource.data.editedAt is timestamp;
         allow read: if signedIn()
@@ -3454,6 +3576,8 @@ function canUpdateReplyCount(delta) {
         match /editHistory/{historyId} {
           allow create: if notAnonymous()
             && get(/databases/$(database)/documents/posts/$(postId)/comments/$(commentId)).data.authorId == request.auth.uid
+            // M01 — un comentario no lleva medios, así que su historial tampoco.
+            && request.resource.data.keys().hasOnly(["editedAt", "editedBy", "previousText"])
             && request.resource.data.editedBy == request.auth.uid
             && request.resource.data.editedAt is timestamp;
           allow read: if get(/databases/$(database)/documents/posts/$(postId)/comments/$(commentId)).data.authorId == request.auth.uid;
@@ -3520,6 +3644,8 @@ function canUpdateReplyCount(delta) {
           match /editHistory/{historyId} {
             allow create: if notAnonymous()
               && get(/databases/$(database)/documents/posts/$(postId)/comments/$(commentId)/replies/$(replyId)).data.authorId == request.auth.uid
+              // M01 — misma forma que el historial de un comentario.
+              && request.resource.data.keys().hasOnly(["editedAt", "editedBy", "previousText"])
               && request.resource.data.editedBy == request.auth.uid
               && request.resource.data.editedAt is timestamp;
             allow read: if get(/databases/$(database)/documents/posts/$(postId)/comments/$(commentId)/replies/$(replyId)).data.authorId == request.auth.uid;
@@ -3568,7 +3694,10 @@ function canUpdateReplyCount(delta) {
       // vista; el contador `viewsCount` lo incrementa la Cloud Function
       // onPostViewed (el cliente no puede tocar viewsCount del post).
       match /views/{userId} {
-        allow create, update: if signedIn() && request.auth.uid == userId;
+        // M01 — `registerPostView` escribe un único campo.
+        allow create, update: if signedIn()
+          && request.auth.uid == userId
+          && request.resource.data.keys().hasOnly(["viewedAt"]);
         allow get: if signedIn() && request.auth.uid == userId;
         allow list, delete: if false;
       }
@@ -3682,6 +3811,13 @@ function canUpdateReplyCount(delta) {
         && userNotMuted()
         && userNotBanned()
         && canWriteGroupLiveChat()
+        // M01 — claves de `sendLiveChatMessage` en lib/liveChat/live-chat-service.ts.
+        // Los campos de borrado quedan fuera: los pone el `update` de abajo, que
+        // ya los acota, y un mensaje no nace borrado.
+        && request.resource.data.keys().hasOnly([
+          "liveId", "userId", "username", "avatarUrl", "text",
+          "createdAt", "type", "isDeleted", "futureFlags"
+        ])
         && request.resource.data.userId == request.auth.uid
         && request.resource.data.liveId == liveId
         && request.resource.data.text is string

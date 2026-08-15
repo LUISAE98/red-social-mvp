@@ -60,6 +60,28 @@ type VibraResponsivePanelProps = {
    * pestaña a media pantalla para dos botones se siente desproporcionada.
    */
   mobileVariant?: "sheet" | "centered";
+  /**
+   * Quita el fondo, el borde y la sombra del panel: el contenido queda flotando
+   * sobre el velo, sin caja.
+   *
+   * Solo para contenidos que ya tienen forma propia y no necesitan un marco que
+   * los sostenga —el selector de fecha de tambores es el caso—. El resto del
+   * comportamiento no cambia: velo, arrastre, bloqueo de scroll, foco y Esc
+   * siguen igual.
+   */
+  bareSurface?: boolean;
+  /**
+   * Oculta SOLO el tache, conservando el título. Distinto de `hideHeader`, que
+   * se lleva los dos. Para paneles donde el contenido ya trae su propia salida,
+   * o donde el tache sin caja detrás se vería suelto.
+   */
+  hideCloseButton?: boolean;
+  /**
+   * El velo que oscurece la página de detrás. Con `"none"` sigue existiendo y
+   * cerrando al tocarlo, pero es transparente: para paneles que oscurecen por su
+   * cuenta y no quieren apagar la pantalla entera.
+   */
+  backdrop?: "dim" | "none";
 };
 
 export default function VibraResponsivePanel({
@@ -75,6 +97,9 @@ export default function VibraResponsivePanel({
   closeAriaLabel = "Cerrar",
   contentPadding,
   mobileVariant = "sheet",
+  bareSurface = false,
+  hideCloseButton = false,
+  backdrop = "dim",
 }: VibraResponsivePanelProps) {
   // --- Ciclo de vida de animación ---
   const [shouldRender, setShouldRender] = useState(false);
@@ -297,7 +322,7 @@ export default function VibraResponsivePanel({
     </div>
   );
 
-  const closeButton = (
+  const closeButton = hideCloseButton ? null : (
     <button
       type="button"
       onClick={onClose}
@@ -339,9 +364,9 @@ export default function VibraResponsivePanel({
           position: "fixed",
           inset: 0,
           zIndex: 999990,
-          background: "rgba(0,0,0,0.52)",
-          backdropFilter: "blur(10px)",
-          WebkitBackdropFilter: "blur(10px)",
+          background: backdrop === "none" ? "transparent" : "rgba(0,0,0,0.52)",
+          backdropFilter: backdrop === "none" ? "none" : "blur(10px)",
+          WebkitBackdropFilter: backdrop === "none" ? "none" : "blur(10px)",
           animation: isClosing
             ? "vbPanelBdOut 0.18s ease forwards"
             : "vbPanelBdIn 0.18s ease",
@@ -365,10 +390,10 @@ export default function VibraResponsivePanel({
             zIndex: 999991,
             outline: "none",
             maxHeight: "calc(100dvh - 72px)",
-            borderRadius: "22px 22px 0 0",
+            borderRadius: bareSurface ? 0 : "22px 22px 0 0",
             border: "1px solid transparent",
-            background: "rgba(8,9,11,0.96)",
-            boxShadow: "0 -24px 80px rgba(0,0,0,0.56)",
+            background: bareSurface ? "transparent" : "rgba(8,9,11,0.96)",
+            boxShadow: bareSurface ? "none" : "0 -24px 80px rgba(0,0,0,0.56)",
             color: "#fff",
             overflow: "hidden",
             display: "flex",
@@ -410,7 +435,7 @@ export default function VibraResponsivePanel({
                   gridTemplateColumns: "48px 1fr 48px",
                   alignItems: "center",
                   padding: hasTitle ? "0 12px 10px" : "0 12px 4px",
-                  borderBottom: hasTitle
+                  borderBottom: hasTitle && !bareSurface
                     ? "1px solid rgba(255,255,255,0.08)"
                     : "none",
                 }}
@@ -441,7 +466,7 @@ export default function VibraResponsivePanel({
             <div
               style={{
                 flexShrink: 0,
-                borderTop: "1px solid rgba(255,255,255,0.08)",
+                borderTop: bareSurface ? "none" : "1px solid rgba(255,255,255,0.08)",
                 padding: "12px 14px calc(14px + var(--vb-safe-bottom, 0px))",
               }}
             >
@@ -484,11 +509,12 @@ export default function VibraResponsivePanel({
               overflow: "hidden",
               display: "flex",
               flexDirection: "column",
-              borderRadius: 12,
-              border: "1px solid rgba(255,255,255,0.10)",
-              background: "rgba(8,9,11,0.985)",
-              boxShadow:
-                "0 30px 90px rgba(0,0,0,0.56), 0 0 0 1px rgba(255,255,255,0.035)",
+              borderRadius: bareSurface ? 0 : 12,
+              border: bareSurface ? "none" : "1px solid rgba(255,255,255,0.10)",
+              background: bareSurface ? "transparent" : "rgba(8,9,11,0.985)",
+              boxShadow: bareSurface
+                ? "none"
+                : "0 30px 90px rgba(0,0,0,0.56), 0 0 0 1px rgba(255,255,255,0.035)",
               color: "#fff",
               animation: isClosing
                 ? "vbPanelOut 0.18s ease-in forwards"
@@ -503,7 +529,7 @@ export default function VibraResponsivePanel({
                   gridTemplateColumns: "48px 1fr 48px",
                   alignItems: "center",
                   padding: hasTitle ? "8px 12px" : "6px 12px 0",
-                  borderBottom: hasTitle
+                  borderBottom: hasTitle && !bareSurface
                     ? "1px solid rgba(255,255,255,0.08)"
                     : "none",
                   flexShrink: 0,
@@ -532,7 +558,7 @@ export default function VibraResponsivePanel({
               <div
                 style={{
                   flexShrink: 0,
-                  borderTop: "1px solid rgba(255,255,255,0.08)",
+                  borderTop: bareSurface ? "none" : "1px solid rgba(255,255,255,0.08)",
                   padding: "14px 18px 18px",
                 }}
               >

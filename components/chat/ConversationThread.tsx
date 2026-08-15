@@ -1408,8 +1408,8 @@ export default function ConversationThread({
                     e.stopPropagation();
                     startEdit(message);
                   }}
-                  aria-label={tChat("editMessage")}
-                  title={tChat("editMessage")}
+                  aria-label={tCommon("edit")}
+                  title={tCommon("edit")}
                 >
                   <ActionIcon path={ICON_PENCIL} />
                 </button>
@@ -1819,7 +1819,7 @@ export default function ConversationThread({
                           tabIndex={expanded ? 0 : -1}
                         >
                           <MenuIcon path={ICON_PENCIL} />
-                          {tChat("editMessage")}
+                          {tCommon("edit")}
                         </button>
                       ) : null}
                     </>

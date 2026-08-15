@@ -12,6 +12,7 @@ import {
 } from "@/lib/stories/storyService";
 import type { StoryDoc, StoryGroupKey, StoryType } from "@/lib/stories/types";
 import StoryCircle from "./StoryCircle";
+import EditTextButton from "@/components/ui/EditTextButton";
 import StoryViewer from "./StoryViewer";
 import StoryCoverPicker from "./StoryCoverPicker";
 
@@ -124,7 +125,15 @@ export default function StoryCircles({ creatorId, currentUserId }: Props) {
         }}
       >
         {groups.map((g, i) => (
-          <div key={i} style={{ position: "relative", flexShrink: 0 }}>
+          <div
+            key={i}
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              flexShrink: 0,
+            }}
+          >
             <StoryCircle
               type={g.type}
               thumbnailUrl={getCoverThumbnail(g.key, g.list)}
@@ -132,14 +141,13 @@ export default function StoryCircles({ creatorId, currentUserId }: Props) {
               onClick={(e) => { setViewerSourceRect(e.currentTarget.getBoundingClientRect()); setViewerState({ stories: g.list, type: g.type }); }}
             />
             {isOwner && (
-              <button
-                type="button"
-                aria-label={tCommon("storyChangeCover", { label: `${g.type}s ${g.sublabel.toLowerCase()}` })}
+              <EditTextButton
+                ariaLabel={tCommon("storyChangeCover", { label: `${g.type}s ${g.sublabel.toLowerCase()}` })}
                 onClick={(e) => { e.stopPropagation(); setPickerGroup({ key: g.key, type: g.type, role: g.role }); }}
-                style={gearBtnStyle}
+                style={{ marginTop: 4 }}
               >
-                <GearIcon />
-              </button>
+                {tCommon("edit")}
+              </EditTextButton>
             )}
           </div>
         ))}
@@ -174,35 +182,5 @@ export default function StoryCircles({ creatorId, currentUserId }: Props) {
         />
       )}
     </>
-  );
-}
-
-const gearBtnStyle: React.CSSProperties = {
-  position: "absolute",
-  bottom: 22,
-  insetInlineEnd: -4,
-  width: 22,
-  height: 22,
-  borderRadius: "50%",
-  background: "rgba(10,10,16,0.96)",
-  border: "1.5px solid rgba(255,255,255,0.14)",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  cursor: "pointer",
-  padding: 0,
-  zIndex: 2,
-  boxShadow: "0 2px 8px rgba(0,0,0,0.5)",
-  WebkitTapHighlightColor: "transparent",
-};
-
-function GearIcon() {
-  return (
-    <svg width="11" height="11" viewBox="0 0 24 24" fill="none"
-      stroke="rgba(255,255,255,0.75)" strokeWidth="2.2"
-      strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="3" />
-      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-    </svg>
   );
 }

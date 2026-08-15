@@ -35,14 +35,13 @@ import {
 } from "firebase/firestore";
 import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import { onAuthStateChanged, sendPasswordResetEmail, type User } from "firebase/auth";
-import { httpsCallable } from "firebase/functions";
 import { updateProfileDisplayName } from "@/lib/profile/updateProfileDisplayName";
 import { updateMessagePolicy } from "@/lib/chat/messagePolicyService";
 import { usePrivateProfile } from "@/lib/auth/usePrivateProfile";
 import { DEFAULT_MESSAGE_POLICY, type MessagePolicy } from "@/lib/chat/types";
 import CreatorExperiencesSection from "@/components/services/CreatorExperiencesSection";
 import ProfileHeaderSkeleton from "@/components/profile/ProfileHeaderSkeleton";
-import EditPencilIcon from "@/components/profile/EditPencilIcon";
+import EditTextButton from "@/components/ui/EditTextButton";
 import PostReveal from "@/app/components/PostSkeleton/PostReveal";
 import CreatorServiceModals from "@/components/services/CreatorServiceModals";
 import { buildCurrentPathWithSearch } from "@/lib/auth-redirect";
@@ -60,7 +59,7 @@ import { createExclusiveSessionRequest } from "@/lib/exclusiveSession/exclusiveS
 import { getServiceByType, type NormalizedService } from "@/lib/services/normalizeServices";
 import type { CreatorServiceType } from "@/types/group";
 import SafeCropper from "@/components/media/SafeCropper";
-import { auth, db, storage, functions } from "@/lib/firebase";
+import { auth, db, storage } from "@/lib/firebase";
 import { normalizeImageFile } from "@/lib/uploads/image-normalizer";
 import ProfilePostsFeed from "./components/ProfilePostsFeed";
 import ProfileSubnav, {
@@ -76,12 +75,8 @@ import SharedCommunitiesBadge from "./components/SharedCommunitiesBadge";
 import ProfileFollowersOverlay from "./components/ProfileFollowersOverlay";
 import GroupPostComposer from "@/app/groups/[groupId]/components/posts/GroupPostComposer";
 import LiveComposerModal from "@/app/components/LiveComposer/LiveComposerModal";
-import {
-  createMediaPost,
-  createTextPost,
-  fetchProfilePostsCount,
-} from "@/lib/posts/post-service";
-import { uploadPostImages } from "@/lib/posts/image-upload";
+import { fetchProfilePostsCount } from "@/lib/posts/post-service";
+import { createProfilePost } from "@/lib/posts/createProfilePost";
 import StatsRow from "@/components/ui/StatsRow";
 import SocialLinksRow from "@/components/profile/SocialLinksRow";
 import { updateProfileSocialLinks } from "@/lib/profile/updateProfileSocialLinks";
@@ -89,7 +84,7 @@ import type { SocialLinks } from "@/lib/profile/socialNetworks";
 import { clearAllPostFeedCaches } from "@/lib/posts/post-feed-cache";
 import RefreshableArea from "@/components/refresh/RefreshableArea";
 import { clearMediaGalleryCache } from "@/app/groups/[groupId]/components/posts/MediaGallery";
-import type { Post, PostMedia, PostPremium } from "@/lib/posts/types";
+import type { Post, PostPremium } from "@/lib/posts/types";
 import dynamic from "next/dynamic";
 import { motion } from "framer-motion";
 import StoryCircles from "@/app/components/Stories/StoryCircles";
@@ -108,14 +103,10 @@ import {
   type FirestoreDateLike,
   type CropMode,
   type Area,
-  type CreateMuxDirectUploadResponse,
-  VIDEO_MAX_DURATION_SECONDS,
   initials,
   dataUrlFromFile,
   normalizeDateValue,
   getCroppedBlob,
-  getVideoDuration,
-  uploadVideoFileToMux,
 } from "./ProfileClient.utils";
 
 const LiveViewerModal = dynamic(
@@ -1382,195 +1373,31 @@ async function handleCreateProfilePost(payload: ProfileComposerSubmitPayload) {
     setProfileVideoUploadProgress(null);
     setProfileVideoUploadStatus(null);
 
-    const cleanText = payload.text.trim();
+    // La subida vive en lib/posts/createProfilePost para poder publicar también
+    // desde el home. Aquí solo queda conectar textos, progreso y errores.
+    const result = await createProfilePost({
+      profileUid: userDoc.uid,
+      payload,
+      labels: {
+        validatingVideos: tProfile("validatingVideos"),
+        uploadingCovers: tProfile("uploadingCovers"),
+        preparingUpload: tProfile("preparingUpload"),
+        preparePostError: tProfile("preparePostError"),
+        creatingPost: tProfile("creatingPost"),
+        uploadingVideo: (index, total) => tProfile("uploadingVideo", { index, total }),
+        videosUploaded: tProfile("videosUploaded"),
+      },
+      onStatus: setProfileVideoUploadStatus,
+      onProgress: setProfileVideoUploadProgress,
+    });
 
-    const orderedMediaItems: ProfileComposerMediaItem[] =
-      Array.isArray(payload.mediaItems) && payload.mediaItems.length > 0
-        ? payload.mediaItems
-        : [
-            ...(payload.imageFiles ?? []).map<ProfileComposerMediaItem>((file) => ({
-              type: "image",
-              file,
-              coverFile: null,
-            })),
-            ...(payload.videoFiles ?? []).map<ProfileComposerMediaItem>((file) => ({
-              type: "video",
-              file,
-              coverFile: null,
-            })),
-          ];
-
-    const imageItems = orderedMediaItems
-      .map((item, mediaIndex) => ({ ...item, mediaIndex }))
-      .filter((item) => item.type === "image");
-
-    const videoItems = orderedMediaItems
-      .map((item, mediaIndex) => ({ ...item, mediaIndex }))
-      .filter((item) => item.type === "video");
-
-    if (videoItems.length > 3) {
-      setProfileComposerError(tProfile("maxVideosError"));
+    if (!result.ok) {
+      setProfileComposerError(
+        result.reason === "tooManyVideos"
+          ? tProfile("maxVideosError")
+          : tProfile("videoDurationError")
+      );
       return;
-    }
-
-    if (videoItems.length > 0) {
-      setProfileVideoUploadProgress(0);
-      setProfileVideoUploadStatus(tProfile("validatingVideos"));
-
-      for (const videoItem of videoItems) {
-        const duration = await getVideoDuration(videoItem.file);
-
-        if (duration > VIDEO_MAX_DURATION_SECONDS) {
-          setProfileVideoUploadProgress(null);
-          setProfileVideoUploadStatus(null);
-          setProfileComposerError(tProfile("videoDurationError"));
-          return;
-        }
-      }
-    }
-
-    const uploadedImages: PostMedia[] =
-      imageItems.length > 0
-        ? (
-            await uploadPostImages({
-              groupId: `profile-${userDoc.uid}`,
-              files: imageItems.map((item) => item.file),
-            })
-          ).map((media, index) => ({
-            ...media,
-            index: imageItems[index]?.mediaIndex ?? index,
-          }))
-        : [];
-
-    const videoCoverItems = videoItems.filter(
-      (item) => item.coverFile instanceof File
-    );
-
-    const uploadedVideoCovers =
-      videoCoverItems.length > 0
-        ? (setProfileVideoUploadStatus(tProfile("uploadingCovers")),
-          await uploadPostImages({
-            groupId: `profile-${userDoc.uid}`,
-            files: videoCoverItems.map((item) => item.coverFile as File),
-          })).map((media, index) => ({
-            mediaIndex: videoCoverItems[index]?.mediaIndex ?? index,
-            thumbnailUrl: media.thumbnailUrl ?? media.url,
-            thumbnailPath: media.thumbnailPath ?? media.path ?? null,
-          }))
-        : [];
-
-    const videoCoversByMediaIndex = new Map(
-      uploadedVideoCovers.map((cover) => [cover.mediaIndex, cover])
-    );
-
-    if (videoItems.length > 0) {
-      setProfileVideoUploadStatus(tProfile("preparingUpload"));
-
-      const callable = httpsCallable<
-        {
-          contextType: "profile";
-          profileId: string;
-          postId?: string;
-          mediaIndex?: number;
-        },
-        CreateMuxDirectUploadResponse
-      >(functions, "createMuxDirectUpload");
-
-      const muxUploads: Array<{
-        uploadUrl: string;
-        uploadId: string;
-        postId: string;
-        mediaId: string;
-        file: File;
-        mediaIndex: number;
-        thumbnailUrl: string | null;
-        thumbnailPath: string | null;
-      }> = [];
-
-      let sharedPostId: string | null = null;
-
-      for (const videoItem of videoItems) {
-        const uploadResult = await callable({
-          contextType: "profile",
-          profileId: userDoc.uid,
-          postId: sharedPostId ?? undefined,
-          mediaIndex: videoItem.mediaIndex,
-        });
-
-        const uploadData = uploadResult.data as CreateMuxDirectUploadResponse;
-
-        if (!sharedPostId) {
-          sharedPostId = uploadData.postId;
-        }
-
-        const cover = videoCoversByMediaIndex.get(videoItem.mediaIndex) ?? null;
-
-        muxUploads.push({
-          uploadUrl: uploadData.uploadUrl,
-          uploadId: uploadData.uploadId,
-          postId: uploadData.postId,
-          mediaId: uploadData.mediaId,
-          file: videoItem.file,
-          mediaIndex: videoItem.mediaIndex,
-          thumbnailUrl: cover?.thumbnailUrl ?? null,
-          thumbnailPath: cover?.thumbnailPath ?? null,
-        });
-      }
-
-      if (!sharedPostId) {
-        throw new Error(tProfile("preparePostError"));
-      }
-
-      setProfileVideoUploadStatus(tProfile("creatingPost"));
-
-      const videoUploadsPayload = muxUploads.map((upload) => ({
-        uploadId: upload.uploadId,
-        mediaId: upload.mediaId,
-        mediaIndex: upload.mediaIndex,
-        thumbnailUrl: upload.thumbnailUrl,
-        thumbnailPath: upload.thumbnailPath,
-      }));
-
-      await createMediaPost({
-        contextType: "profile",
-        profileId: userDoc.uid,
-        postId: sharedPostId,
-        text: cleanText,
-        imageMedia: uploadedImages,
-        videoUploads: videoUploadsPayload,
-        premium: payload.premium ?? null,
-      });
-
-      for (let index = 0; index < muxUploads.length; index += 1) {
-        const upload = muxUploads[index];
-
-        setProfileVideoUploadStatus(
-          tProfile("uploadingVideo", { index: index + 1, total: muxUploads.length })
-        );
-
-        await uploadVideoFileToMux({
-          uploadUrl: upload.uploadUrl,
-          file: upload.file,
-          onProgress: setProfileVideoUploadProgress,
-        });
-      }
-
-      setProfileVideoUploadStatus(tProfile("videosUploaded"));
-    } else if (uploadedImages.length > 0) {
-      await createMediaPost({
-        contextType: "profile",
-        profileId: userDoc.uid,
-        text: cleanText,
-        imageMedia: uploadedImages,
-        videoUploads: [],
-        premium: null,
-      });
-    } else {
-      await createTextPost({
-        contextType: "profile",
-        profileId: userDoc.uid,
-        text: cleanText,
-      });
     }
 
     clearAllPostFeedCaches();
@@ -2122,12 +1949,6 @@ const res = (await createExclusiveSessionRequest({
             box-sizing: border-box;
           }
 
-          @media (max-width: 640px) {
-            .profile-card button[data-action="change-avatar"] {
-              inset-inline-end: -10px !important;
-              bottom: -2px !important;
-            }
-          }
 
 @media (max-width: 900px) {
   .profile-shell {
@@ -2381,48 +2202,22 @@ const res = (await createExclusiveSessionRequest({
         }}
       />
     </div>
-    <button
+    {/* Esquina inferior derecha de la portada. */}
+    <EditTextButton
       onClick={handlePickCover}
       disabled={uploading}
-      type="button"
-      aria-label={tProfile("ariaChangeCover")}
+      ariaLabel={tProfile("ariaChangeCover")}
       title={tProfile("ariaChangeCover")}
       style={{
         position: "absolute",
         insetInlineEnd: 14,
         bottom: 14,
         zIndex: 40,
-        width: 34,
-        height: 34,
-        borderRadius: "50%",
-        border: "none",
-        background:
-          "linear-gradient(135deg, rgb(3,3,6) 0%, rgb(8,5,13) 48%, rgb(0,0,0) 100%)",
-        color: "rgba(168,85,247,0.98)",
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: 0,
-        opacity: uploading ? 0.7 : 1,
-        cursor: uploading ? "not-allowed" : "pointer",
-        boxShadow:
-          "inset 0 1px 0 rgba(255,255,255,0.05), inset 0 -1px 0 rgba(255,255,255,0.02), 0 12px 24px rgba(0,0,0,0.5)",
-        backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)",
+        fontSize: 12,
       }}
     >
-      <span
-        aria-hidden="true"
-        style={{
-          fontSize: 17,
-          lineHeight: 1,
-          transform:
-            uploading && cropMode === "cover" ? "scale(0.9)" : "scale(1)",
-          transition: "transform 160ms ease",
-        }}
-      >
-        <EditPencilIcon size={17} />
-      </span>
-    </button>
+      {uploading && cropMode === "cover" ? "..." : tCommon("edit")}
+    </EditTextButton>
     </>
   )}
 </>
@@ -2595,46 +2390,31 @@ const res = (await createExclusiveSessionRequest({
                     )}
                   </button>
 
+                  {/* Debajo del avatar, no encima. Va en posición absoluta para
+                      no empujar nada: el avatar está montado sobre la portada y
+                      el hueco de abajo ya está calculado. */}
                   {isOwner && (
-                    <button
-                      type="button"
+                    <EditTextButton
                       onClick={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
                         handlePickAvatar();
                       }}
                       disabled={uploading}
+                      title={tProfile("ariaChangeAvatar")}
+                      ariaLabel={tProfile("ariaChangeAvatar")}
                       style={{
                         position: "absolute",
-                        insetInlineEnd: 8,
-                        bottom: 8,
-                        width: 34,
-                        height: 34,
-                        borderRadius: "50%",
-                        border: "none",
-                        background:
-                          "linear-gradient(135deg, rgb(3,3,6) 0%, rgb(8,5,13) 48%, rgb(0,0,0) 100%)",
-                        color: "rgba(168,85,247,0.98)",
-                        cursor: uploading ? "not-allowed" : "pointer",
-                        fontSize: 17,
-                        fontWeight: 600,
-                        display: "grid",
-                        placeItems: "center",
-                        boxShadow:
-                          "inset 0 1px 0 rgba(255,255,255,0.05), inset 0 -1px 0 rgba(255,255,255,0.02), 0 12px 24px rgba(0,0,0,0.5)",
-                        backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)",
+                        insetInlineStart: 0,
+                        insetInlineEnd: 0,
+                        bottom: -17,
+                        width: "100%",
+                        textAlign: "center",
                         zIndex: 200,
-                        pointerEvents: "auto",
-                        fontFamily: fontStack,
-                        lineHeight: 1,
-                        padding: 0,
                       }}
-                      title={tProfile("ariaChangeAvatar")}
-                      aria-label={tProfile("ariaChangeAvatar")}
-                      data-action="change-avatar"
                     >
-                      {uploading && cropMode === "avatar" ? "..." : <EditPencilIcon size={17} />}
-                    </button>
+                      {uploading && cropMode === "avatar" ? "..." : tCommon("edit")}
+                    </EditTextButton>
                   )}
                 </div>
               </div>

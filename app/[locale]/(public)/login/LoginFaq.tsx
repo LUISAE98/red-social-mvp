@@ -109,14 +109,37 @@ export default function LoginFaq() {
           min-width: 0;
           transition: color 180ms ease;
         }
-        .q:hover .qText,
+        /* Al TOCAR (celular) y mientras está abierta. El degradado se declara
+           una vez en una variable y se aplica igual en los dos casos y en el
+           del cursor, que vive aparte por vivir dentro de su media query. */
+        .q {
+          --degradadoVibra: linear-gradient(100deg, #ff2fb3 0%, #a855f7 45%, #4f46ff 100%);
+        }
+        .q:active .qText,
         .qOpen .qText {
-          background: linear-gradient(100deg, #ff2fb3 0%, #a855f7 45%, #4f46ff 100%);
+          background: var(--degradadoVibra);
           background-size: 220% 220%;
           -webkit-background-clip: text;
           background-clip: text;
           color: transparent;
           animation: vibraTextFlow 4.5s ease-in-out infinite;
+        }
+
+        /* Con cursor, además, al pasar por encima. Va detrás de (hover: hover)
+           porque en pantallas táctiles el :hover se queda pegado después de
+           tocar y dejaría preguntas cerradas con el degradado puesto. */
+        @media (hover: hover) and (pointer: fine) {
+          .q:hover .qText {
+            background: var(--degradadoVibra);
+            background-size: 220% 220%;
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            animation: vibraTextFlow 4.5s ease-in-out infinite;
+          }
+          .q:hover .chevron {
+            color: #c084fc;
+          }
         }
         @keyframes vibraTextFlow {
           0%,
@@ -127,7 +150,7 @@ export default function LoginFaq() {
             background-position: 100% 50%;
           }
         }
-        .q:hover .chevron {
+        .q:active .chevron {
           color: #c084fc;
         }
 
@@ -169,8 +192,16 @@ export default function LoginFaq() {
         }
 
         @media (max-width: 900px) {
+          /* De lado a lado con un margen mínimo. El margen negativo recupera el
+             relleno del panel que lo contiene, y el ancho pasa a AUTO para que
+             ese espacio se convierta en anchura: con el 100% fijo de la regla
+             base, el bloque conservaba su medida y el margen solo lo corría
+             hacia la izquierda. */
           .faq {
-            padding: 64px 20px 8px;
+            width: auto;
+            max-width: none;
+            margin-inline: -20px;
+            padding: 64px 16px 8px;
           }
           .q {
             font-size: 13.5px;
@@ -190,6 +221,7 @@ export default function LoginFaq() {
           }
           /* El degradado se queda quieto, pero conserva sus colores. */
           .q:hover .qText,
+          .q:active .qText,
           .qOpen .qText {
             animation: none;
             background-position: 50% 50%;

@@ -65,7 +65,8 @@
     "seeAllMessages": "Ver todas",
     "settings": "Definições",
     "seeAllFollowing": "Ver todas",
-    "seeAllCommunities": "Ver todas"
+    "seeAllCommunities": "Ver todas",
+    "publishTo": "Publicar em"
   },
   "common": {
     "accept": "Aceitar",
@@ -73,6 +74,7 @@
     "back": "Voltar",
     "block": "Bloquear",
     "cancel": "Cancelar",
+    "edit": "Editar",
     "create": "Criar",
     "understood": "Entendido",
     "changeLanguage": "Mudar idioma",
@@ -2638,7 +2640,6 @@
     "edited": "Editada",
     "deleteForMe": "Eliminar para mim",
     "deleteForEveryone": "Eliminar para todos",
-    "editMessage": "Editar",
     "editingMessage": "A editar a mensagem",
     "messageActionError": "Não foi possível concluir a ação.",
     "reply": "Responder",

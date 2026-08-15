@@ -88,6 +88,7 @@ import {
   toCatalogOfferings,
 } from "@/lib/groups/groupAdapters";
 import StatsRow, { type StatItem } from "@/components/ui/StatsRow";
+import EditTextButton from "@/components/ui/EditTextButton";
 import { capitalizeFirst } from "@/i18n/locales";
 import { fetchGroupPostsCount } from "@/lib/posts/post-service";
 
@@ -1848,35 +1849,32 @@ const avatarNode = (
         )}
       </button>
 
+      {/* Debajo del avatar, no encima. En posición absoluta para no empujar
+          nada: el avatar va montado sobre la portada. */}
       {isOwner && (
-        <button
-          type="button"
+        <EditTextButton
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
             handlePickAvatar();
           }}
           disabled={uploading}
+          title={tGroups("changeAvatarLabel")}
+          ariaLabel={tGroups("changeAvatarLabel")}
           style={{
-            ...groupRoundIconButtonStyle,
             position: "absolute",
-            insetInlineEnd: 8,
-            bottom: 8,
-            cursor: uploading ? "not-allowed" : "pointer",
-            fontSize: 17,
-            fontWeight: 600,
-            display: "grid",
-            placeItems: "center",
+            insetInlineStart: 0,
+            insetInlineEnd: 0,
+            bottom: -17,
+            width: "100%",
+            textAlign: "center",
             zIndex: 200,
             pointerEvents: "auto",
             fontFamily: groupPageFontStack,
-            lineHeight: 1,
           }}
-          title={tGroups("changeAvatarLabel")}
-          aria-label={tGroups("changeAvatarLabel")}
         >
-          {uploading && cropMode === "avatar" ? "..." : "✎"}
-        </button>
+          {uploading && cropMode === "avatar" ? "..." : tCommon("edit")}
+        </EditTextButton>
       )}
     </div>
   </div>
@@ -2678,36 +2676,24 @@ const avatarNode = (
                 </div>
               )}
 
+              {/* Esquina inferior derecha de la portada. */}
               {!coverSearchOpen && isOwner && (
-                <button
+                <EditTextButton
                   onClick={handlePickCover}
                   disabled={uploading}
-                  type="button"
+                  title={tGroups("chooseCover")}
+                  ariaLabel={tGroups("chooseCover")}
                   style={{
-                    ...groupRoundIconButtonStyle,
                     position: "absolute",
                     insetInlineEnd: 14,
                     bottom: 14,
-                    opacity: uploading ? 0.7 : 1,
-                    cursor: uploading ? "not-allowed" : "pointer",
                     zIndex: 40,
+                    fontSize: 12,
+                    fontFamily: groupPageFontStack,
                   }}
-                  title={tGroups("chooseCover")}
-                  aria-label={tGroups("chooseCover")}
                 >
-                  <span
-                    aria-hidden="true"
-                    style={{
-                      fontSize: 17,
-                      lineHeight: 1,
-                      transform:
-                        uploading && cropMode === "cover" ? "scale(0.9)" : "scale(1)",
-                      transition: "transform 160ms ease",
-                    }}
-                  >
-                    {uploading && cropMode === "cover" ? "..." : "✎"}
-                  </span>
-                </button>
+                  {uploading && cropMode === "cover" ? "..." : tCommon("edit")}
+                </EditTextButton>
               )}
             </div>
 

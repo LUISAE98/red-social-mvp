@@ -127,10 +127,13 @@ export default function LoginExperienceBlock({
     const obs = new IntersectionObserver(
       (entries) => {
         const ratio = Math.max(...entries.map((e) => (e.isIntersecting ? e.intersectionRatio : 0)));
-        setEntered(ratio >= 0.22);
+        // Entra con el 22% a la vista y no se apaga hasta bajar del 8%. Sin esa
+        // diferencia parpadea en el borde: la propia animación desplaza el
+        // bloque, eso cambia cuánto se ve, y se enciende y apaga en bucle.
+        setEntered((visible) => (visible ? ratio > 0.08 : ratio >= 0.22));
         setInView(ratio > 0);
       },
-      { threshold: [0, 0.1, 0.22, 0.5] },
+      { threshold: [0, 0.08, 0.22, 0.5] },
     );
     obs.observe(node);
     return () => obs.disconnect();

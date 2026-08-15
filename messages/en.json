@@ -65,7 +65,8 @@
     "seeAllMessages": "See all",
     "settings": "Settings",
     "seeAllFollowing": "See all",
-    "seeAllCommunities": "View all"
+    "seeAllCommunities": "View all",
+    "publishTo": "Post to"
   },
   "common": {
     "accept": "Accept",
@@ -73,6 +74,7 @@
     "back": "Back",
     "block": "Block",
     "cancel": "Cancel",
+    "edit": "Edit",
     "create": "Create",
     "understood": "Got it",
     "changeLanguage": "Change language",
@@ -2638,7 +2640,6 @@
     "edited": "Edited",
     "deleteForMe": "Delete for me",
     "deleteForEveryone": "Delete for everyone",
-    "editMessage": "Edit",
     "editingMessage": "Editing message",
     "messageActionError": "Could not complete the action.",
     "reply": "Reply",

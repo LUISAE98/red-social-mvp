@@ -44,29 +44,49 @@ Pendiente hasta que se decida el cambio, previsiblemente antes de producción.
 
 ---
 
-### 3. Esquemas cerrados en las creaciones (M01 del Bloque 4)
+### 3. Esquemas cerrados en las creaciones (M01 del Bloque 4) — RESUELTO
 
-**Estado:** aplazado. Necesita inventario antes que código.
+**Estado:** cerrado y desplegado el 2026-08-14. **Cero declaraciones sin esquema.**
 
-De las 61 declaraciones `allow create` de `firestore.rules`, muchas no fijan **qué campos** puede traer el documento (`keys().hasOnly([...])`). Se puede escribir un campo inventado y quedará guardado. No abre acceso a nada por sí solo, pero engorda documentos y deja sitio a que un campo colado confunda a una regla futura.
+Una regla que no fija **qué campos** admite el documento (`keys().hasOnly([...])`) deja escribir campos inventados, y quedan guardados. No abre acceso a nada por sí solo, pero engorda documentos y deja sitio a que un campo colado confunda a una regla futura.
 
-**Qué haría falta:** listar las 61, separar las que ya están acotadas de las que no, y cerrar primero las que tocan dinero o acceso. Hacerlo a ciegas rompe escrituras legítimas, porque el esquema real de varias colecciones no está escrito en ningún sitio salvo el código que las escribe.
+El inventario redimensiona el hallazgo. De **64** declaraciones `allow create`:
+
+- **36 están cerradas al cliente** (`allow create: if false`), fruto de las auditorías. No admiten nada, así que el esquema sobra.
+- **28 fijan el esquema**, algunas a través de funciones auxiliares (`userCreateKeysAllowed` y compañía). Diecisiete se cerraron en esta pasada, en dos tandas:
+  - **Acceso e identidad (7):** `groups`, `groups/{g}/members`, `groups/{g}/joinRequests`, `users/{u}/joinRequestsSent`, `users/{u}/groupMemberships`, `handles` y `users/{u}/sessions`.
+  - **Contenido y telemetría (10):** `stories`, `liveChats/{l}/messages`, `editHistory` (×3, y el del post admite además `previousMedia`), `liveViewers`, `liveUniqueViewers`, `vodViewers`, `views` y `fcmTokens`.
+- **0 sin esquema.**
+
+⚠️ **En `create` y `update`, `request.resource.data` es el documento RESULTANTE, no lo que se manda.** Varias de estas colecciones se escriben con `set(..., {merge:true})`, así que el `hasOnly` tiene que cubrir la UNIÓN de todos los campos que puede acabar teniendo el documento, no los de una sola llamada. Es el caso de `liveUniqueViewers`, donde `registerUniqueViewer` pone `uid`/`isGuest` y `addWatchTime` añade `watchSeconds` después.
+
+**Pruebas.** `test/rules/groupMembers.rules.test.ts` incluye los bloques `M01 — esquema cerrado en creaciones de acceso` y `M01 — esquema cerrado en contenido y telemetría`, que escriben el **payload exacto** del cliente (crear comunidad, alta del dueño, alta de miembro, reserva de handle, registro de sesión) y comprueba que pasa, más el mismo payload con un campo inventado y comprueba que no. Es cobertura imprescindible: el resto de la suite siembra con las reglas desactivadas, así que una lista de claves incompleta no la detectaría nadie y aparecería en producción como "no puedo crear comunidades".
+
+⚠️ **Detalle que costó un falso positivo:** `description` en `groups` se valida como `is string` sin rama para null. El código real escribe `input.description.trim()`, así que sin descripción llega `""` y pasa; un fixture con `null` falla por un motivo que en producción no existe.
+
+El script del inventario está en `scripts/` si hay que repetirlo: resuelve también los esquemas definidos en funciones auxiliares, no solo los `hasOnly` escritos dentro del propio `allow`.
 
 ---
 
-### 4. Limpieza de archivos huérfanos en Storage (M06 del Bloque 4)
+### 4. Limpieza de archivos huérfanos en Storage (M06 del Bloque 4) — RESUELTO
 
-**Estado:** aplazado. Es coste y operación, no seguridad.
+**Estado:** cerrado y desplegado el 2026-08-14.
 
-Al borrar una publicación no se borran sus imágenes ni sus miniaturas de Storage. Siguen ahí, ocupando y facturando. No son accesibles por la app, pero los archivos con token de descarga siguen sirviéndose por URL directa.
+Al borrar una publicación no se borraban sus imágenes ni sus miniaturas de Storage. Seguían ahí, ocupando, facturando y —lo que importa— accesibles por su URL de token para quien la tuviera guardada.
 
-**Qué haría falta:** un trigger `onDocumentDeleted` sobre `posts` que barra el prefijo del post. Ojo con el borrado suave: hoy borrar un post lo marca, no lo elimina, así que el disparador correcto es el barrido de los marcados, no el borrado del documento.
+`backend/src/postMediaCleanup.ts` barre imágenes, miniaturas, la portada del video y todo el prefijo `commentImages/{postId}/`. Dos disparadores: `onPostSoftDeletedCleanupMedia` para el camino normal y `onPostDeletedCleanupMedia` para las limpiezas administrativas con Admin SDK.
+
+⚠️ **El disparador principal es la ACTUALIZACIÓN, no el borrado del documento.** Borrar un post es lógico (`isDeleted: true`) para no romper contadores ni hilos de comentarios; engancharse solo a `onDocumentDeleted` no habría limpiado nunca nada. Y solo actúa en la transición `false → true`, porque si no, cualquier actualización de un post ya borrado relanzaría el barrido.
+
+**Fuera de alcance a propósito:** los videos de Mux, que viven en Mux con su propio ciclo de vida y su propia facturación. Retirarlos es otro trabajo.
+
+Cobertura en `backend/test/postMediaCleanup.pure.test.ts`.
 
 ---
 
-### 5. Habilitar la lectura entre servicios de las reglas de Storage
+### 5. Lectura entre servicios de las reglas de Storage — RESUELTO
 
-**Estado:** bloqueado, lo tienes que hacer tú en consola. **Hay un apaño desplegado que sostiene el producto mientras tanto.**
+**Estado:** cerrado el 2026-08-14. Luis concedió el permiso en consola y las subidas a comunidades volvieron a funcionar. Se deja escrito porque la causa no es evidente y puede repetirse.
 
 El gate de lectura que cerró **B4-C02** consulta Firestore desde `storage.rules` (`firestore.exists(/databases/(default)/documents/groups/$(groupId))`) para saber si la comunidad es privada u oculta. Esa consulta **entre servicios** no está funcionando: la evaluación lanza error y la regla deniega. El síntoma era `storage/unauthorized` al subir cualquier imagen o portada de video a un post de comunidad.
 
@@ -74,7 +94,35 @@ El gate de lectura que cerró **B4-C02** consulta Firestore desde `storage.rules
 
 **Apaño desplegado:** en `storage.rules`, `allow read` de `posts/…` y `commentImages/…` empieza por `isOwnUpload(uid)`. Como `||` cortocircuita, quien sube lee su propio archivo sin tocar Firestore, que es lo que hace `getDownloadURL` justo después de subir. Publicar dejó de depender de la consulta rota. Leer el archivo **de otro** en una comunidad sigue pasando por ella y, mientras falle, se deniega — falla cerrado, que es lo correcto, y no afecta al producto porque el contenido público se sirve por token y el restringido lo firma `getRestrictedMediaUrls` con el Admin SDK.
 
-**Qué falta:** conceder el permiso al agente de servicio de reglas sobre Firestore. Consola de Firebase → Storage → Reglas; al guardar debería aparecer el aviso para habilitarlo. Si no aparece, hay que darlo a mano en IAM y conviene mirar juntos cuál es la cuenta exacta antes de tocar nada.
+**Cómo se resolvió:** concediendo el permiso al agente de servicio de reglas sobre Firestore desde la consola de Firebase (Storage → Reglas). El apaño de `isOwnUpload(uid)` se queda puesto igualmente: publicar no debe depender de una consulta entre servicios, aunque ahora funcione.
+
+---
+
+### 6. Tokens de descarga de las fotos ya publicadas en perfiles restringidos — CERRADO POR DECISIÓN
+
+**Estado:** cerrado el 2026-08-14. **Decisión de Luis: no se hace el barrido de tokens; se borrarán todas las fotos viejas.**
+
+Borrar la foto resuelve el problema de raíz y mejor que quitarle el token: sin archivo no hay nada que abrir. Y desde M06 (pendiente 4) esa limpieza es automática — al marcar un post como borrado, `onPostSoftDeletedCleanupMedia` se lleva sus archivos de Storage.
+
+Queda registrado el motivo por si reaparece el mismo caso más adelante.
+
+Desde el 2026-08-14 un perfil restringido protege sus medios, pero **solo lo que se sube a partir de ahí**. Lo publicado antes tiene su token de descarga ya creado, y un token abre el archivo sin sesión y para siempre: no lo revoca ningún cambio de reglas.
+
+**Qué haría falta:** un barrido que recorra los medios de los posts de perfiles restringidos y borre el metadato `firebaseStorageDownloadTokens` de cada archivo. Es acotado, pero toca archivos en producción y no tiene vuelta atrás — borrado el token, la única vía es la URL firmada, que es justo lo que se quiere.
+
+---
+
+### 7. Cobertura de los criterios que se movieron a callables — RESUELTO para C03 y C05
+
+**Estado:** cerrado el 2026-08-14.
+
+Los criterios de **B4-C03** (no colarse en la comunidad de otro) y **B4-C05** (solo el dueño monetiza) ya no los aplican las reglas sino el callable `createPost`, y un test de reglas no puede ejercitarlos porque el Admin SDK no pasa por ellas. Al cerrar la puerta de `posts`, sus pruebas antiguas pasaron a verificar solo que está cerrada.
+
+`backend/test-emulator/createPost.emulator.test.ts` los cubre disparando el callable con `firebase-functions-test` contra el emulador de Firestore — **sin emulador de Functions**: lo que se prueba es la lógica de autorización, no el transporte HTTPS. 12 pruebas: los dos criterios, el miembro baneado cuyo documento sigue existiendo, la cuenta de invitado, el archivo de Storage ajeno y que autor, contadores y estado no se pueden falsear desde el borrador.
+
+Se lanza con `npm run test:emulator`, junto al resto de la suite del backend.
+
+**Sigue abierto en general:** cada vez que un criterio sale de las reglas hacia un callable, sale también de la suite de reglas. Conviene acordarse al mover el siguiente.
 
 ---
 ## Bloques cerrados
@@ -146,6 +194,10 @@ El gate de lectura que cerró **B4-C02** consulta Firestore desde `storage.rules
 - **M05** La creación de comunidades hacía tres escrituras sueltas; si fallaba la segunda quedaba una comunidad sin dueño. Unificadas en un `writeBatch`.
 
 **Fotos de un perfil restringido (decisión de Luis, 2026-08-14).** Un perfil con `profileRestricted: true` ya protege sus medios igual que una comunidad privada. La protección estaba atada solo a la visibilidad de la **comunidad**, así que las fotos de un perfil cerrado se servían con URL de token, o sea públicas para cualquiera con el enlace. El criterio es el mismo que ya aplicaba `canReadProfileContent` a los posts: **solo el dueño**, sin excepción para seguidores — las fotos no pueden ser más abiertas que el post que las lleva. Cerrado en las tres capas: al subir no se pide URL de descarga (`lib/posts/image-upload.ts`), `storage.rules` deniega la lectura ajena, y `getRestrictedMediaUrls` comprueba el perfil antes de firmar. La restricción se lee del perfil y no de la copia `profileRestricted` del post, que no se actualiza si el perfil se cierra después de publicar. Incluye las imágenes de comentarios, que tenían el mismo hueco.
+
+**Historias en comunidad ajena (2026-08-14).** Crear una historia exigía autor, tipo y un `greetingRequestId` no vacío, pero **no comprobaba el `groupId`**. Como la lectura y los carruseles se resuelven por ese campo, cualquiera podía crear una historia con el id de una comunidad a la que no pertenece y aparecer dentro. Mismo patrón que C03 con las publicaciones. Ahora se exige pertenencia a la comunidad declarada.
+
+⚠️ **Lo que NO era:** al principio se diagnosticó como que el `groupId` debía atarse al de la solicitud de saludo de la que nace la historia. Es falso, y atarlo así habría roto dos flujos legítimos: el `groupId` sale de **dónde se publica** (perfil o comunidad), no de dónde salió el saludo, y el **comprador** también puede publicar la historia como suya (`StoryCoverPicker`). Se comprueba pertenencia, no procedencia.
 
 **Residuo aceptado en M04:** `groupCategory` y `groupTags` se siguen aceptando del cliente, solo saneados. Son copias de metadatos públicos de la comunidad que solo alimentan el ranking de recomendaciones; falsearlos mal-clasifica el propio post y no toca acceso, dinero ni exposición. Validarlos en el servidor obligaría a duplicar allí la tabla de categorías canónicas de `types/group.ts`.
 

@@ -120,7 +120,11 @@ export default function CommunityRail({
   // tanda visible, así una lista de cien comunidades no monta cien avatares
   // (cada uno con sus listeners de aro) para enseñar seis.
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
-  const [open, setOpen] = useState(true);
+
+  // Cerrados de entrada: tres tiras de avatares abiertas a la vez son mucho
+  // ruido nada más entrar. Solo afecta a laptop — en celular `collapsible` es
+  // false y los rails se pintan siempre abiertos, ignorando este estado.
+  const [open, setOpen] = useState(false);
 
   // Panel de "ver todas": la lista completa, con buscador. Sin paginar — aquí
   // vienes precisamente a encontrar algo que el rail no alcanzaba a mostrar.
@@ -135,10 +139,15 @@ export default function CommunityRail({
    * llegó después. Abrirlo vuelve a poner `null`, así que el aviso desaparece y
    * el conteo arranca de cero aunque no entres a ninguna comunidad.
    *
-   * No se persiste a propósito: los rails arrancan abiertos en cada carga, así
-   * que una línea base guardada no tendría a qué referirse.
+   * Arranca en 0, no en `null`, porque los rails ahora empiezan cerrados: con
+   * `null` el globo no aparecería nunca hasta que plegaras uno a mano, y al
+   * entrar no habría ninguna señal de que hay cosas nuevas ahí dentro. Con 0 de
+   * línea base, el globo enseña de entrada todo lo que está sin ver.
+   *
+   * No se persiste: el estado plegado tampoco sobrevive a la recarga, así que
+   * una línea base guardada no tendría a qué referirse.
    */
-  const [newSinceClosed, setNewSinceClosed] = useState<number | null>(null);
+  const [newSinceClosed, setNewSinceClosed] = useState<number | null>(0);
 
   /**
    * Perfiles que dejaste de seguir SIN cerrar el panel.
@@ -151,6 +160,23 @@ export default function CommunityRail({
   const [unfollowed, setUnfollowed] = useState<Map<string, CommunityRailItem>>(
     () => new Map()
   );
+
+  /**
+   * Orden congelado del panel, capturado al abrirlo.
+   *
+   * La lista de fondo se reordena sola (en vivo, posts nuevos, historias) y
+   * encoge cuando dejas de seguir a alguien. Si el panel siguiera esos vaivenes,
+   * los renglones se moverían bajo tu dedo justo cuando intentas tocarlos. Aquí
+   * cada fila se queda donde estaba hasta que cierras y vuelves a abrir.
+   */
+  const [panelOrder, setPanelOrder] = useState<string[]>([]);
+
+  function openAllPanel() {
+    setSearch("");
+    setUnfollowed(new Map());
+    setPanelOrder(items.map((item) => item.id));
+    setAllOpen(true);
+  }
 
   function closeAllPanel() {
     setAllOpen(false);
@@ -269,12 +295,24 @@ export default function CommunityRail({
   const badgeCount =
     newSinceClosed == null ? 0 : Math.max(0, totalNewPosts - newSinceClosed);
 
-  // Lista del panel: la real más los perfiles que acabas de dejar de seguir sin
-  // cerrar, que se quedan al final para poder deshacer.
-  const retained = [...unfollowed.values()].filter(
-    (kept) => !items.some((item) => item.id === kept.id)
-  );
-  const panelItems = [...items, ...retained];
+  // Lista del panel, respetando el orden congelado al abrir. Los perfiles que
+  // dejaste de seguir siguen ahí, EN SU SITIO, porque el orden se guardó por id
+  // y su ficha se conserva aparte aunque ya no esté en la lista real.
+  const byId = new Map(items.map((item) => [item.id, item]));
+  for (const [id, kept] of unfollowed) {
+    if (!byId.has(id)) byId.set(id, kept);
+  }
+
+  const ordered = panelOrder
+    .map((id) => byId.get(id))
+    .filter((item): item is CommunityRailItem => item != null);
+
+  // Lo que llegó después de abrir el panel se añade al final, que es el único
+  // sitio donde aparecer no empuja a nada de lo que ya estabas mirando.
+  const knownIds = new Set(panelOrder);
+  const arrivals = items.filter((item) => !knownIds.has(item.id));
+
+  const panelItems = panelOrder.length > 0 ? [...ordered, ...arrivals] : items;
 
   // Conserva el orden del rail (en vivo, novedades, historias, frecuencia) y
   // solo filtra por texto.
@@ -451,10 +489,12 @@ export default function CommunityRail({
           }
         }
 
-        /* Placeholder canónico de Vibra (vibra_style.md): atenuado en 0.42,
-           con opacity 1 para que Firefox no lo baje todavía más. */
+        /* Placeholder discreto: por debajo del 0.42 canónico, porque aquí no es
+           una instrucción que haya que leer —la lupa y el contexto ya dicen que
+           se busca— sino una pista que no debe competir con los nombres.
+           opacity 1 evita que Firefox lo atenúe todavía más. */
         .communityRailSearch::placeholder {
-          color: rgba(255, 255, 255, 0.42);
+          color: rgba(255, 255, 255, 0.28);
           opacity: 1;
         }
 
@@ -564,15 +604,13 @@ export default function CommunityRail({
                     // esto pulsar "ver todas" lo cerraría en vez de abrir la lista.
                     onClick={(e) => {
                       e.stopPropagation();
-                      setSearch("");
-                      setAllOpen(true);
+                      openAllPanel();
                     }}
                     onKeyDown={(e) => {
                       if (e.key !== "Enter" && e.key !== " ") return;
                       e.preventDefault();
                       e.stopPropagation();
-                      setSearch("");
-                      setAllOpen(true);
+                      openAllPanel();
                     }}
                     style={{
                       flexShrink: 0,
@@ -770,11 +808,13 @@ export default function CommunityRail({
             // media lista antes de que llegues a verla.
             style={{
               width: "100%",
-              minHeight: 44,
+              minHeight: 42,
               padding: "10px 12px",
               borderRadius: 12,
               border: "none",
-              background: "rgba(255,255,255,0.06)",
+              // Caja más tenue que el 0.06 habitual: el buscador es una ayuda,
+              // no el protagonista del panel.
+              background: "rgba(255,255,255,0.04)",
               color: "#fff",
               outline: "none",
               fontSize: 14,

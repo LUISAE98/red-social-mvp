@@ -65,7 +65,8 @@
     "seeAllMessages": "Tout voir",
     "settings": "Paramètres",
     "seeAllFollowing": "Tout voir",
-    "seeAllCommunities": "Tout voir"
+    "seeAllCommunities": "Tout voir",
+    "publishTo": "Publier sur"
   },
   "common": {
     "accept": "Accepter",
@@ -73,6 +74,7 @@
     "back": "Retour",
     "block": "Bloquer",
     "cancel": "Annuler",
+    "edit": "Modifier",
     "create": "Créer",
     "understood": "J'ai compris",
     "changeLanguage": "Changer de langue",
@@ -2638,7 +2640,6 @@
     "edited": "Modifié",
     "deleteForMe": "Supprimer pour moi",
     "deleteForEveryone": "Supprimer pour tous",
-    "editMessage": "Modifier",
     "editingMessage": "Modification du message",
     "messageActionError": "Impossible de terminer l’action.",
     "reply": "Répondre",

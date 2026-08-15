@@ -12,6 +12,7 @@ import {
 } from "@/lib/stories/storyService";
 import type { StoryDoc, StoryType } from "@/lib/stories/types";
 import StoryCircle from "./StoryCircle";
+import EditTextButton from "@/components/ui/EditTextButton";
 import StoryViewer from "./StoryViewer";
 import StoryCoverPicker from "./StoryCoverPicker";
 
@@ -115,41 +116,39 @@ export default function GroupStoryCircles({
         }}
       >
         {saludos.length > 0 && (
-          <div style={{ position: "relative", flexShrink: 0 }}>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flexShrink: 0 }}>
             <StoryCircle
               type="saludo"
               thumbnailUrl={getCoverThumbnail("saludo", saludos)}
               onClick={(e) => { setViewerSourceRect(e.currentTarget.getBoundingClientRect()); setViewerType("saludo"); }}
             />
             {isOwner && (
-              <button
-                type="button"
-                aria-label={tCommon("storyChangeCover", { label: tCommon("storySaludos").toLowerCase() })}
+              <EditTextButton
+                ariaLabel={tCommon("storyChangeCover", { label: tCommon("storySaludos").toLowerCase() })}
                 onClick={(e) => { e.stopPropagation(); setPickerType("saludo"); }}
-                style={gearBtnStyle}
+                style={{ marginTop: 4 }}
               >
-                <GearIcon />
-              </button>
+                {tCommon("edit")}
+              </EditTextButton>
             )}
           </div>
         )}
 
         {consejos.length > 0 && (
-          <div style={{ position: "relative", flexShrink: 0 }}>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flexShrink: 0 }}>
             <StoryCircle
               type="consejo"
               thumbnailUrl={getCoverThumbnail("consejo", consejos)}
               onClick={(e) => { setViewerSourceRect(e.currentTarget.getBoundingClientRect()); setViewerType("consejo"); }}
             />
             {isOwner && (
-              <button
-                type="button"
-                aria-label={tCommon("storyChangeCover", { label: tCommon("storyConsejos").toLowerCase() })}
+              <EditTextButton
+                ariaLabel={tCommon("storyChangeCover", { label: tCommon("storyConsejos").toLowerCase() })}
                 onClick={(e) => { e.stopPropagation(); setPickerType("consejo"); }}
-                style={gearBtnStyle}
+                style={{ marginTop: 4 }}
               >
-                <GearIcon />
-              </button>
+                {tCommon("edit")}
+              </EditTextButton>
             )}
           </div>
         )}
@@ -180,34 +179,5 @@ export default function GroupStoryCircles({
         />
       )}
     </>
-  );
-}
-
-const gearBtnStyle: React.CSSProperties = {
-  position: "absolute",
-  bottom: 22,
-  insetInlineEnd: -3,
-  width: 20,
-  height: 20,
-  borderRadius: "50%",
-  background: "rgba(14,14,20,0.90)",
-  border: "1.5px solid rgba(255,255,255,0.18)",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  cursor: "pointer",
-  padding: 0,
-  zIndex: 2,
-  boxShadow: "0 1px 4px rgba(0,0,0,0.4)",
-};
-
-function GearIcon() {
-  return (
-    <svg width="11" height="11" viewBox="0 0 24 24" fill="none"
-      stroke="rgba(255,255,255,0.75)" strokeWidth="2.2"
-      strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="3" />
-      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-    </svg>
   );
 }

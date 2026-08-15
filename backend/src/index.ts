@@ -248,6 +248,13 @@ export {
   onCommentReplyDeletedCleanupImage,
 } from "./commentImageCleanup";
 
+// Medios de una publicación borrada (M06): imágenes, miniaturas, portadas de
+// video y las imágenes de sus comentarios.
+export {
+  onPostSoftDeletedCleanupMedia,
+  onPostDeletedCleanupMedia,
+} from "./postMediaCleanup";
+
 // Medios de comunidades privadas/ocultas (URL firmada que caduca)
 export { getRestrictedMediaUrls } from "./restrictedMedia";
 export { backfillRestrictedMedia } from "./restrictedMediaBackfill";

@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/app/providers";
 import HomePostsFeed from "./HomePostsFeed";
+import HomePostComposer from "./HomePostComposer";
 import HomeStoriesRow, { invalidateStoriesCache } from "@/app/components/Stories/HomeStoriesRow";
 import RefreshableArea from "@/components/refresh/RefreshableArea";
 import { invalidateRecommendationCache } from "@/app/components/GroupRecommendations/recommendation-engine";
@@ -97,6 +98,16 @@ const pageWrap: CSSProperties = {
             return refreshRef.current();
           }}>
             <HomeStoriesRow currentUserId={effectiveUid} />
+
+            {/* Compositor: bajo las historias y sobre los posts. Publica en el
+                perfil de quien mira, nunca en una comunidad. */}
+            <HomePostComposer
+              currentUserId={effectiveUid}
+              onPublished={() => {
+                void refreshRef.current();
+              }}
+            />
+
             <HomePostsFeed currentUserId={effectiveUid} refreshRef={refreshRef} />
           </RefreshableArea>
         </div>

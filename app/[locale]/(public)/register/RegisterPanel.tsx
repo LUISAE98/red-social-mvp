@@ -22,6 +22,7 @@ import { enablePush, isPushSupported } from "@/lib/push/fcm";
 import ImageCropperModal from "@/components/media/ImageCropperModal";
 import { uploadProfileImage } from "@/lib/storage/uploadProfileImage";
 import SocialLinksEditor, { socialLinksToDraft } from "@/components/profile/SocialLinksEditor";
+import DateWheelPanel from "@/components/ui/DateWheelPanel";
 
 const vibraPink = "#ff2fb3";
 const vibraPurple = "#a855f7";
@@ -119,18 +120,26 @@ function calculateAgeFromBirthDate(birthDate: string) {
   return age;
 }
 
+/**
+ * De menor a mayor, que es como se lee un tambor: arriba 1989, en medio 1990 y
+ * abajo 1991. Al revés obligaba a girar hacia arriba para avanzar en el tiempo,
+ * que es justo lo contrario de lo que espera la mano.
+ */
 function getYearOptions() {
   const currentYear = new Date().getFullYear();
   const maxYear = currentYear - 18;
   const minYear = currentYear - 120;
   const years: number[] = [];
 
-  for (let y = maxYear; y >= minYear; y -= 1) {
+  for (let y = minYear; y <= maxYear; y += 1) {
     years.push(y);
   }
 
   return years;
 }
+
+/** Dónde se abre la rueda cuando aún no hay fecha. */
+const DEFAULT_BIRTH_YEAR = 1990;
 
 export default function RegisterPanel({
   email,
@@ -151,6 +160,7 @@ export default function RegisterPanel({
   // perfil (misma feature, mismo texto) en vez de duplicar claves.
   const tCP = useTranslations("completeProfile");
   const tProfile = useTranslations("profile");
+  const tCommon = useTranslations("common");
   const locale = useLocale();
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -158,6 +168,7 @@ export default function RegisterPanel({
   const [birthDay, setBirthDay] = useState("");
   const [birthMonth, setBirthMonth] = useState("");
   const [birthYear, setBirthYear] = useState("");
+  const [birthPanelOpen, setBirthPanelOpen] = useState(false);
   const [sex, setSex] = useState<Sex>("prefer_not_say");
   const [password, setPassword] = useState("");
   const [password2, setPassword2] = useState("");
@@ -255,12 +266,8 @@ export default function RegisterPanel({
   }, [password, password2]);
 
   const years = useMemo(() => getYearOptions(), []);
-  const days = useMemo(() => {
-    const y = Number(birthYear);
-    const m = Number(birthMonth);
-    const total = getDaysInMonth(y, m);
-    return Array.from({ length: total }, (_, i) => i + 1);
-  }, [birthYear, birthMonth]);
+  // Los días ya no se arman aquí: los calcula el panel de tambores según el mes
+  // y el año que estén girados en ese momento.
 
   const birthDate = useMemo(
     () => buildBirthDate(birthYear, birthMonth, birthDay),
@@ -697,74 +704,66 @@ export default function RegisterPanel({
         <div style={{ display: "grid", gap: 4 }}>
           <span style={labelTextStyle}>{t("birthdateLabel")}{req}</span>
 
+          {/* Tres campos, como antes, pero ya no son listas del sistema:
+              cualquiera de los tres abre los tambores. Se conservan separados
+              porque de un vistazo se ve qué falta por llenar, cosa que un solo
+              campo con la fecha junta no dice. */}
           <div className="reg-birthdate-grid">
-            <select
-              value={birthDay}
-              onChange={(e) => setBirthDay(e.target.value)}
-              style={{ ...selectStyle, ...birthBorder }}
-            >
-              <option value="">{t("dayPlaceholder")}</option>
-              {days.map((day) => (
-                <option key={day} value={String(day)}>
-                  {day}
-                </option>
-              ))}
-            </select>
-
-            <select
-              value={birthMonth}
-              onChange={(e) => {
-                const nextMonth = e.target.value;
-                setBirthMonth(nextMonth);
-
-                const y = Number(birthYear);
-                const m = Number(nextMonth);
-                const d = Number(birthDay);
-
-                if (d && y && m) {
-                  const maxDay = getDaysInMonth(y, m);
-                  if (d > maxDay) {
-                    setBirthDay("");
-                  }
-                }
-              }}
-              style={{ ...selectStyle, ...birthBorder }}
-            >
-              <option value="">{t("monthPlaceholder")}</option>
-              {getMonths(locale).map((month) => (
-                <option key={month.value} value={String(month.value)}>
-                  {month.label}
-                </option>
-              ))}
-            </select>
-
-            <select
-              value={birthYear}
-              onChange={(e) => {
-                const nextYear = e.target.value;
-                setBirthYear(nextYear);
-
-                const y = Number(nextYear);
-                const m = Number(birthMonth);
-                const d = Number(birthDay);
-
-                if (d && y && m) {
-                  const maxDay = getDaysInMonth(y, m);
-                  if (d > maxDay) {
-                    setBirthDay("");
-                  }
-                }
-              }}
-              style={{ ...selectStyle, ...birthBorder }}
-            >
-              <option value="">{t("yearPlaceholder")}</option>
-              {years.map((year) => (
-                <option key={year} value={String(year)}>
-                  {year}
-                </option>
-              ))}
-            </select>
+            {[
+              { key: "day", texto: birthDay, vacio: t("dayPlaceholder") },
+              {
+                key: "month",
+                texto:
+                  getMonths(locale).find((m) => String(m.value) === birthMonth)?.label ?? "",
+                vacio: t("monthPlaceholder"),
+              },
+              { key: "year", texto: birthYear, vacio: t("yearPlaceholder") },
+            ].map((campo) => (
+              <button
+                key={campo.key}
+                type="button"
+                onClick={() => setBirthPanelOpen(true)}
+                style={{
+                  ...selectStyle,
+                  ...birthBorder,
+                  textAlign: "start",
+                  cursor: "pointer",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                  color: campo.texto ? "#fff" : "rgba(255,255,255,0.42)",
+                }}
+              >
+                {campo.texto || campo.vacio}
+              </button>
+            ))}
           </div>
+
+          <DateWheelPanel
+            open={birthPanelOpen}
+            onClose={() => setBirthPanelOpen(false)}
+            value={{ day: birthDay, month: birthMonth, year: birthYear }}
+            months={getMonths(locale).map((m) => ({
+              value: String(m.value),
+              label: m.label,
+            }))}
+            years={years}
+            defaultYear={DEFAULT_BIRTH_YEAR}
+            title={t("birthdateLabel")}
+            labels={{
+              day: t("dayPlaceholder"),
+              month: t("monthPlaceholder"),
+              year: t("yearPlaceholder"),
+              confirm: tCommon("save"),
+              closeAria: tCommon("closeAriaLabel"),
+            }}
+            onConfirm={({ day, month, year }) => {
+              setBirthDay(day);
+              setBirthMonth(month);
+              setBirthYear(year);
+              setBirthPanelOpen(false);
+            }}
+          />
 
           {isUnder18 ? (
             <span style={errorTextStyle}>{t("under18Error")}</span>
