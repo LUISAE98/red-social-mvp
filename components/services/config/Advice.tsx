@@ -267,7 +267,19 @@ export default function Consejos({
     if (!draft.consejo.enabled) return null;
 
     return (
-      <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 12 }}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "flex-end",
+          justifyContent: "space-between",
+          gap: 12,
+          // El precio va a 31px, con moneda y el "+ 3 MXN" al lado, y su bloque
+          // tiene flexShrink: 0. En un teléfono angosto esa fila no cabe junto al
+          // botón de la izquierda y se salía por la derecha. Con wrap, el precio
+          // baja a su propia línea en vez de desbordar la tarjeta.
+          flexWrap: "wrap",
+        }}
+      >
         {/* Izquierda: cuánto ganas, visibilidad y botón Modificar. */}
         <div style={{ display: "grid", gap: 8, minWidth: 0 }}>
           <button

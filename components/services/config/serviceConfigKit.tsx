@@ -568,6 +568,9 @@ export type ServiceConfigStyles = {
 // Se usa en perfil y comunidad para que ambos se vean EXACTAMENTE igual.
 export function makeServiceConfigStyles(): ServiceConfigStyles {
   const panelStyle: React.CSSProperties = {
+    // Los hijos de una rejilla usan min-width:auto: sin esto, cualquier contenido
+    // ancho estira la pista y saca el panel por la derecha en pantallas angostas.
+    minWidth: 0,
     padding: "10px",
     borderRadius: 0,
     border: "1px solid rgba(255,255,255,0.08)",
@@ -633,7 +636,7 @@ export function makeServiceConfigStyles(): ServiceConfigStyles {
   };
 
   return {
-    contentStyle: { display: "grid", gap: 8 },
+    contentStyle: { display: "grid", gap: 8, minWidth: 0 },
     panelStyle,
     plainPanelStyle: makePlainPanelStyle(panelStyle),
     subtleStyle,

@@ -90,7 +90,7 @@ import {
   toCatalogOfferings,
 } from "@/lib/groups/groupAdapters";
 import StatsRow, { type StatItem } from "@/components/ui/StatsRow";
-import EditTextButton from "@/components/ui/EditTextButton";
+import EditTextButton, { avatarEditButtonStyle } from "@/components/ui/EditTextButton";
 import { capitalizeFirst } from "@/i18n/locales";
 import { fetchGroupPostsCount } from "@/lib/posts/post-service";
 
@@ -1696,7 +1696,11 @@ const groupVisualUi = {
   coverHeight: "clamp(240px, 38vw, 360px)",
   avatarSize: mobileRefreshEnabled ? "clamp(146px, 31.2vw, 286px)" : "clamp(112px, 24vw, 220px)",
   avatarOffsetTop: mobileRefreshEnabled ? "calc(clamp(146px, 31.2vw, 286px) / -2)" : "calc(clamp(112px, 24vw, 220px) / -2)",
-  contentTopPadding: mobileRefreshEnabled ? "calc((clamp(146px, 31.2vw, 286px) / 2) + 22px)" : "calc((clamp(112px, 24vw, 220px) / 2) + 22px)",
+  // El hueco bajo el avatar solo tiene que dar cabida al "Editar" cuando la
+  // comunidad es tuya; a quien visita no le sobra espacio muerto.
+  contentTopPadding: mobileRefreshEnabled
+    ? `calc((clamp(146px, 31.2vw, 286px) / 2) + ${isOwner ? 40 : 22}px)`
+    : `calc((clamp(112px, 24vw, 220px) / 2) + ${isOwner ? 36 : 22}px)`,
   liveDotOuter: mobileRefreshEnabled ? "clamp(18px, 3.8vw, 30px)" : "clamp(14px, 2.8vw, 24px)",
   liveDotInner: mobileRefreshEnabled ? "clamp(10px, 2.1vw, 16px)" : "clamp(8px, 1.6vw, 13px)",
   liveDotShell: mobileRefreshEnabled ? "clamp(22px, 4.8vw, 34px)" : "clamp(18px, 3.6vw, 28px)",
@@ -1870,13 +1874,10 @@ const avatarNode = (
           title={tGroups("changeAvatarLabel")}
           ariaLabel={tGroups("changeAvatarLabel")}
           style={{
-            position: "absolute",
-            insetInlineStart: 0,
-            insetInlineEnd: 0,
-            bottom: -17,
-            width: "100%",
-            textAlign: "center",
-            zIndex: 200,
+            ...avatarEditButtonStyle({
+              mobile: mobileRefreshEnabled,
+              live: groupIsLive,
+            }),
             pointerEvents: "auto",
             fontFamily: groupPageFontStack,
           }}

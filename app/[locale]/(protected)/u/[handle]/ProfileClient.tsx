@@ -41,7 +41,7 @@ import { usePrivateProfile } from "@/lib/auth/usePrivateProfile";
 import { DEFAULT_MESSAGE_POLICY, type MessagePolicy } from "@/lib/chat/types";
 import CreatorExperiencesSection from "@/components/services/CreatorExperiencesSection";
 import ProfileHeaderSkeleton from "@/components/profile/ProfileHeaderSkeleton";
-import EditTextButton from "@/components/ui/EditTextButton";
+import EditTextButton, { avatarEditButtonStyle } from "@/components/ui/EditTextButton";
 import PostReveal from "@/app/components/PostSkeleton/PostReveal";
 import CreatorServiceModals from "@/components/services/CreatorServiceModals";
 import { buildCurrentPathWithSearch } from "@/lib/auth-redirect";
@@ -453,7 +453,6 @@ const liveDotOuter = mobileRefreshEnabled ? "clamp(18px, 3.8vw, 30px)" : "clamp(
 const liveDotInner = mobileRefreshEnabled ? "clamp(10px, 2.1vw, 16px)" : "clamp(8px, 1.6vw, 13px)";
 const liveDotShell = mobileRefreshEnabled ? "clamp(22px, 4.8vw, 34px)" : "clamp(18px, 3.6vw, 28px)";
 const avatarOffsetTopSz = mobileRefreshEnabled ? "calc(clamp(146px, 31.2vw, 286px) / -2)" : "calc(clamp(112px, 24vw, 220px) / -2)";
-const contentTopPaddingSz = mobileRefreshEnabled ? "calc((clamp(146px, 31.2vw, 286px) / 2) + 22px)" : "calc((clamp(112px, 24vw, 220px) / 2) + 22px)";
 const [profileVideoUploadProgress, setProfileVideoUploadProgress] = useState<number | null>(null);
 const [profileVideoUploadStatus, setProfileVideoUploadStatus] = useState<string | null>(null);
 const [followersOverlayOpen, setFollowersOverlayOpen] = useState(false);
@@ -499,6 +498,13 @@ useEffect(() => {
 
   const isOwner = !!viewer && !!userDoc && viewer.uid === userDoc.uid;
   const profileUid = userDoc?.uid ?? null;
+
+  // El hueco bajo el avatar solo tiene que dar cabida al "Editar" cuando el
+  // perfil es tuyo; a quien visita no le sobra espacio muerto.
+  const avatarBottomReserve = isOwner ? (mobileRefreshEnabled ? 40 : 36) : 22;
+  const contentTopPaddingSz = mobileRefreshEnabled
+    ? `calc((clamp(146px, 31.2vw, 286px) / 2) + ${avatarBottomReserve}px)`
+    : `calc((clamp(112px, 24vw, 220px) / 2) + ${avatarBottomReserve}px)`;
 
   // Datos personales del perfil (fecha de nacimiento, sexo, correo). Solo los
   // puede leer su dueño: viven fuera del documento público.
@@ -2403,15 +2409,10 @@ const res = (await createExclusiveSessionRequest({
                       disabled={uploading}
                       title={tProfile("ariaChangeAvatar")}
                       ariaLabel={tProfile("ariaChangeAvatar")}
-                      style={{
-                        position: "absolute",
-                        insetInlineStart: 0,
-                        insetInlineEnd: 0,
-                        bottom: -17,
-                        width: "100%",
-                        textAlign: "center",
-                        zIndex: 200,
-                      }}
+                      style={avatarEditButtonStyle({
+                        mobile: mobileRefreshEnabled,
+                        live: profileIsLive,
+                      })}
                     >
                       {uploading && cropMode === "avatar" ? "..." : tCommon("edit")}
                     </EditTextButton>

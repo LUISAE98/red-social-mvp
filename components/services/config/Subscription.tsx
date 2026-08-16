@@ -537,7 +537,18 @@ function handleModify() {
     if (!draft.subscription.enabled || disabledByVisibility) return null;
 
     return (
-      <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 12 }}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "flex-end",
+          justifyContent: "space-between",
+          gap: 12,
+          // Mismo desborde que en las tarjetas de servicio: el precio grande no
+          // se encoge ni se parte, y en un teléfono angosto empujaba la tarjeta
+          // fuera del margen. Con wrap baja a su propia línea.
+          flexWrap: "wrap",
+        }}
+      >
         {/* Izquierda: botón Modificar (texto plano, color del precio). */}
         <div style={{ display: "grid", gap: 8, minWidth: 0 }}>
           <button

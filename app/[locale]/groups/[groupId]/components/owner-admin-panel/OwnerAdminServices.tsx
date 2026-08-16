@@ -300,6 +300,10 @@ export default function OwnerAdminServices({
   const contentStyle: React.CSSProperties = {
     display: "grid",
     gap: 8,
+    // Los hijos de una rejilla usan min-width:auto: sin esto, un precio largo
+    // estira la pista y saca la tarjeta por la derecha. Se nota más aquí porque
+    // las cards llevan margen negativo para ir de lado a lado.
+    minWidth: 0,
   };
 
 

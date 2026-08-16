@@ -179,9 +179,14 @@ export default function ProfileServicesTab({
   const contentStyle: React.CSSProperties = {
     display: "grid",
     gap: 8,
+    // Sin esto los hijos de la rejilla usan min-width:auto y cualquier contenido
+    // ancho (un precio largo, un nombre sin espacios) estira la pista y saca el
+    // panel por la derecha en pantallas angostas.
+    minWidth: 0,
   };
 
   const panelStyle: React.CSSProperties = {
+    minWidth: 0,
     padding: "10px",
     borderRadius: 0,
     border: "1px solid rgba(255,255,255,0.08)",
