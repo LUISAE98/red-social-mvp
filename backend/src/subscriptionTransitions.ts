@@ -788,7 +788,7 @@ export const applyGroupSubscriptionTransition = onCall(
     if (ownerId !== actorUid) {
       throw new HttpsError(
         "permission-denied",
-        "Solo el owner puede aplicar esta transición."
+        "Solo el creador puede aplicar esta transición."
       );
     }
 
@@ -1098,7 +1098,7 @@ export const removeLegacyFreeMembersAfterSubscriptionTransition = onCall(
     if (ownerId !== actorUid) {
       throw new HttpsError(
         "permission-denied",
-        "Solo el owner puede ejecutar esta acción."
+        "Solo el creador puede ejecutar esta acción."
       );
     }
 

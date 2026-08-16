@@ -75,6 +75,7 @@ import type { PostAccess } from "@/lib/posts/post-access-types";
 import { getOrCreateGuestId } from "@/lib/guest-id";
 import { useReport } from "@/lib/moderation/useReport";
 import ReportModal from "@/app/components/ReportModal/ReportModal";
+import { useConfirm } from "@/lib/hooks/useConfirm";
 import {
   type InteractionBlockedReason,
   type ModerationAction,
@@ -100,6 +101,16 @@ import {
   MediaGridVideoItem,
   type MediaGridVideoItemHandle,
 } from "./GroupPostCard.components";
+
+/**
+ * El menú de los tres puntos, del que salen estas preguntas, sube al techo de la
+ * pila (2147483646/47) cuando se abre desde el visor de medios. Con el valor por
+ * omisión del panel de confirmación (999990) la pregunta quedaría detrás y
+ * parecería que no abre, así que se sube al máximo: el cuerpo del panel toma
+ * este valor + 1 y empata con el techo, y al montarse después en el body gana el
+ * desempate por orden en el DOM.
+ */
+const CONFIRM_Z_BASE = 2147483646;
 
 type GroupPostCardProps = {
   post: Post & {
@@ -245,6 +256,7 @@ onToggleProfilePin,
   const locale = useLocale();
   const priceFmt = usePriceFormat();
   const router = useRouter();
+  const { confirm, confirmPanel } = useConfirm();
 
   // ── Contenido de pago: el playbackId NO viene en el doc del post ────────────
   // En un post de pago las coordenadas reproducibles viven en el subdocumento
@@ -1257,9 +1269,13 @@ async function handleLoadOlderComments() {
     async function handleBlockPostAuthor() {
     if (socialRelationshipLoading) return;
 
-    const confirmed = window.confirm(
-      "¿Seguro que quieres bloquear a este usuario?"
-    );
+    const confirmed = await confirm({
+      title: tCommon("block"),
+      body: tCommon("confirmBlockUser"),
+      confirmLabel: tCommon("block"),
+      tone: "danger",
+      zIndexBase: CONFIRM_Z_BASE,
+    });
 
     if (!confirmed) return;
 
@@ -1290,9 +1306,13 @@ async function handleLoadOlderComments() {
   async function handleBlockPostAuthorInGroup() {
     if (groupMemberBlockLoading) return;
 
-    const confirmed = window.confirm(
-      tGroups("confirmBlockInGroup")
-    );
+    const confirmed = await confirm({
+      title: tGroups("blockInGroup"),
+      body: tGroups("confirmBlockInGroup"),
+      confirmLabel: tCommon("block"),
+      tone: "danger",
+      zIndexBase: CONFIRM_Z_BASE,
+    });
 
     if (!confirmed) return;
 
@@ -5106,6 +5126,8 @@ padding: "0 0 2px 0",
       }
     />
   )}
+
+  {confirmPanel}
 
   <style>
   {`

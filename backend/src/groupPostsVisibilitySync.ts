@@ -163,7 +163,22 @@ export async function syncStoriesSearchable(
 }
 
 export const onGroupVisibilityPostsSync = onDocumentUpdated(
-  { document: "groups/{groupId}", region: REGION },
+  {
+    document: "groups/{groupId}",
+    region: REGION,
+    // ⚠️ SIN `retry: true` este trigger se ejecuta UNA vez y ya. Y como los dos
+    // `catch` de abajo se tragaban el error, Firebase daba el evento por bueno:
+    // un fallo pasajero de Firestore dejaba los posts con `groupVisibility:
+    // "public"` PARA SIEMPRE mientras la comunidad ya era oculta. Las reglas de
+    // listado deciden con esa copia —no pueden consultar el grupo documento a
+    // documento sin reventar la cuota de `get()`—, así que la copia congelada ES
+    // la fuga.
+    //
+    // Con reintentos, el evento se reintenta hasta que salga bien. La
+    // resincronización es idempotente (reescribe los mismos campos), así que
+    // repetirla no hace daño.
+    retry: true,
+  },
   async (event) => {
     const before = event.data?.before.data();
     const after = event.data?.after.data();
@@ -172,8 +187,25 @@ export const onGroupVisibilityPostsSync = onDocumentUpdated(
     if (before.visibility === after.visibility) return;
 
     const groupId = event.params.groupId;
+
+    // ⚠️ La visibilidad se relee del grupo AHORA, no se toma del evento.
+    //
+    // Un reintento puede llegar horas después. Si entretanto la comunidad cambió
+    // otra vez, aplicar el valor que traía el evento la dejaría con una copia
+    // vieja — y encima "correcta" a ojos del trigger, que ya no volvería a
+    // dispararse. Releyendo, cada reintento converge a la verdad de hoy.
+    const fresco = await db.collection("groups").doc(groupId).get();
+    if (!fresco.exists) {
+      logger.warn("groupPostsVisibilitySync: la comunidad ya no existe", { groupId });
+      return;
+    }
     const groupVisibility =
-      typeof after.visibility === "string" ? after.visibility : null;
+      typeof fresco.get("visibility") === "string" ? fresco.get("visibility") : null;
+
+    // Los dos barridos se lanzan por separado y se juntan los fallos al final: si
+    // el de posts falla, el de historias TIENE que correr igual —es el que sostiene
+    // la lectura del reel— y luego se lanza para que el evento se reintente entero.
+    const fallos: string[] = [];
 
     try {
       const result = await syncPostsVisibility(groupId, groupVisibility);
@@ -188,12 +220,9 @@ export const onGroupVisibilityPostsSync = onDocumentUpdated(
         groupId,
         error: error instanceof Error ? error.message : String(error),
       });
+      fallos.push(`posts: ${error instanceof Error ? error.message : String(error)}`);
     }
 
-    // Try aparte, no por orden: si falla la pasada de posts, la de historias
-    // sigue siendo obligatoria. Es la que sostiene la regla de lectura del reel,
-    // y dejarla sin correr deja historias de una comunidad ya privada abiertas a
-    // cualquiera.
     try {
       const storiesResult = await syncStoriesSearchable(groupId, groupVisibility);
       logger.info("groupPostsVisibilitySync: historias resincronizadas", {
@@ -207,6 +236,13 @@ export const onGroupVisibilityPostsSync = onDocumentUpdated(
         groupId,
         error: error instanceof Error ? error.message : String(error),
       });
+      fallos.push(`historias: ${error instanceof Error ? error.message : String(error)}`);
+    }
+
+    // Lanzar es lo que provoca el reintento. Tragarse el error aquí era, en la
+    // práctica, dejar contenido de una comunidad oculta abierto al público.
+    if (fallos.length > 0) {
+      throw new Error(`resincronización incompleta de ${groupId} → ${fallos.join(" | ")}`);
     }
   }
 );

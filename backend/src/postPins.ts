@@ -56,7 +56,7 @@ export const toggleGroupPostPin = onCall<TogglePostPinInput>(async (request) => 
     if (!group || group.ownerId !== uid) {
       throw new HttpsError(
         "permission-denied",
-        "Solo el dueño del grupo puede fijar o desfijar publicaciones."
+        "Solo el creador de la comunidad puede fijar o desfijar publicaciones."
       );
     }
 

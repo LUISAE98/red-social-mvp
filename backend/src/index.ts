@@ -13,6 +13,7 @@ import { sessionRemindersHandler } from "./sessionLifecycle";
 import { expireGroupSubscriptionsHandler } from "./payments/groupSubscriptionCore";
 import { stripeSecretKey } from "./payments/stripe/stripeClient";
 import { cleanupAbandonedCreditReservationsHandler } from "./payments/stripe/creditReservationCleanup";
+import { sweepGroupVisibilityDriftHandler } from "./groupVisibilityDriftSweep";
 
 // Healthcheck público
 export const healthcheck = onRequest(
@@ -153,6 +154,24 @@ export const expireGroupSubscriptions = onSchedule(
     logger.info("expireGroupSubscriptions started");
     await expireGroupSubscriptionsHandler();
     logger.info("expireGroupSubscriptions finished");
+  }
+);
+
+// Red de seguridad de la visibilidad: busca comunidades privadas u ocultas cuyos
+// posts sigan declarándose públicos y las resincroniza. El trigger de cambio de
+// visibilidad ya reintenta, pero no puede arreglar la deriva anterior a él ni la
+// de reintentos agotados — y esa deriva es contenido de una comunidad cerrada
+// abierto a cualquiera, porque las reglas de listado deciden con la copia.
+export const sweepGroupVisibilityDrift = onSchedule(
+  {
+    schedule: "every 24 hours",
+    timeZone: "America/Mexico_City",
+    region: "us-central1",
+  },
+  async () => {
+    logger.info("sweepGroupVisibilityDrift started");
+    const result = await sweepGroupVisibilityDriftHandler();
+    logger.info("sweepGroupVisibilityDrift finished", result);
   }
 );
 

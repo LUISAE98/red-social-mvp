@@ -57,7 +57,21 @@ function byDateDesc(a: StoryDoc, b: StoryDoc): number {
   return (b.createdAt?.toMillis() ?? 0) - (a.createdAt?.toMillis() ?? 0);
 }
 
-/** Historias de PERFIL de quienes sigue el usuario. Sin ventana temporal. */
+/** Cuántas historias como mucho se traen por cada tanda de 30 seguidos. */
+const FOLLOWED_PER_CHUNK = 40;
+
+/**
+ * Historias de PERFIL de quienes sigue el usuario. Sin ventana temporal.
+ *
+ * ⚠️ Va ACOTADA. Antes pedía todas las historias de hasta 200 personas de una
+ * sola vez, sin tope: con el histórico completo eso crece para siempre y lo paga
+ * el usuario en lecturas y en memoria cada vez que abre el feed. Ahora cada tanda
+ * trae solo las más recientes.
+ *
+ * El filtro `source == "profile"` se aplica en memoria y no en la consulta, para
+ * poder ordenar por fecha con el índice que ya existe (`creatorId` + `createdAt`)
+ * en vez de necesitar uno nuevo de tres campos.
+ */
 export async function fetchFollowedReelStories(uid: string): Promise<StoryDoc[]> {
   if (!uid) return [];
   try {
@@ -73,7 +87,8 @@ export async function fetchFollowedReelStories(uid: string): Promise<StoryDoc[]>
           query(
             collection(db, "stories"),
             where("creatorId", "in", batch),
-            where("source", "==", "profile"),
+            orderBy("createdAt", "desc"),
+            limit(FOLLOWED_PER_CHUNK),
           ),
         ).catch(() => null),
       ),
@@ -84,9 +99,7 @@ export async function fetchFollowedReelStories(uid: string): Promise<StoryDoc[]>
       if (!snap) continue;
       for (const d of snap.docs) {
         const story = toStory(d);
-        // El reel muestra la copia del CREADOR, no la que republica el comprador,
-        // para no repetir el mismo video con dos caras. Y respeta el retiro.
-        if (story.byCreator === false) continue;
+        if (story.source !== "profile") continue;
         if (story.hiddenFromReel) continue;
         if (!story.muxPlaybackId) continue;
         merged.set(story.id, story);
@@ -109,7 +122,6 @@ export async function fetchDiscoveryReelPage(
       query(
         collection(db, "stories"),
         where("searchable", "==", true),
-        where("byCreator", "==", true),
         where("hiddenFromReel", "==", false),
         orderBy("createdAt", "desc"),
         ...(cursor ? [startAfter(cursor)] : []),
@@ -137,4 +149,15 @@ export function dedupeStories(stories: StoryDoc[]): StoryDoc[] {
     out.push(s);
   }
   return out;
+}
+
+/**
+ * Identidad del VIDEO, no del documento.
+ *
+ * El mismo saludo puede estar publicado dos veces, por quien lo grabó y por quien
+ * lo compró. En el reel circula UNA sola copia, y da igual cuál de las dos sea,
+ * porque la cabecera siempre muestra a quien lo grabó.
+ */
+export function storyVideoKey(story: StoryDoc): string {
+  return story.greetingRequestId || story.id;
 }

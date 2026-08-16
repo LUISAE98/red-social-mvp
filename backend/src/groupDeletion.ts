@@ -3,6 +3,7 @@ import { getApps, initializeApp } from "firebase-admin/app";
 import { FieldValue, getFirestore } from "firebase-admin/firestore";
 import * as logger from "firebase-functions/logger";
 import { cancelGroupSubscriptions } from "./payments/stripe/cancelGroupSubscriptions";
+import { stripeSecretKey } from "./payments/stripe/stripeClient";
 
 if (!getApps().length) {
   initializeApp();
@@ -222,24 +223,29 @@ async function softDeleteGroupInternal(params: {
   if (ownerId !== actorUid) {
     throw new HttpsError(
       "permission-denied",
-      "Solo el owner puede eliminar esta comunidad."
+      "Solo el creador puede eliminar esta comunidad."
     );
   }
 
-  if (isGroupAlreadyDeleted(groupData)) {
-    return {
-      ok: true,
-      groupId,
-      alreadyDeleted: true,
-      postsUpdated: 0,
-      membersUpdated: 0,
-      userMembershipsUpdated: 0,
-      homeFeedDeleted: 0,
-      joinRequestsUpdated: 0,
-      userJoinRequestsDeleted: 0,
-      inviteLinksUpdated: 0,
-    };
-  }
+  // ⚠️ Estar marcada como borrada NO significa que el borrado terminara.
+  //
+  // Antes se salía aquí mismo. Y el orden es: marcar primero, limpiar después —
+  // así que si la limpieza fallaba a media (posts, miembros, invitaciones,
+  // suscripciones), el reintento veía la marca, decía "ya estaba borrada" y se
+  // iba. La comunidad quedaba a medio borrar **para siempre**, con suscripciones
+  // cobrando y sin ninguna forma de reanudar.
+  //
+  // Ahora la marca solo evita volver a marcar. Todo lo demás se reejecuta: son
+  // escrituras idempotentes (parches con `merge` y borrados), así que repetirlas
+  // no hace daño y sí termina lo que quedó a medias.
+  const yaMarcada = isGroupAlreadyDeleted(groupData);
+
+  // ⚠️ EL DINERO PRIMERO. La cancelación de las suscripciones iba al final, después
+  // de barrer posts, miembros, solicitudes e invitaciones — así que cualquier
+  // fallo previo dejaba a los compradores pagando cada mes una comunidad que ya
+  // no existe. De todo lo que hace esta función, esto es lo único que le cuesta
+  // dinero a alguien si no ocurre; el resto solo deja documentos sin limpiar.
+  const subscriptionsCancelled = await cancelGroupSubscriptions(groupId);
 
   const [postsSnap, membersSnap, joinRequestsSnap, inviteLinksSnap] =
     await Promise.all([
@@ -307,7 +313,7 @@ async function softDeleteGroupInternal(params: {
     if (freshOwnerId !== actorUid) {
       throw new HttpsError(
         "permission-denied",
-        "Solo el owner puede eliminar esta comunidad."
+        "Solo el creador puede eliminar esta comunidad."
       );
     }
 
@@ -391,13 +397,6 @@ async function softDeleteGroupInternal(params: {
     commitBatches(homeFeedRefs, "delete"),
   ]);
 
-  // ⚠️ Cancelar los cobros recurrentes es lo ÚLTIMO y lo más importante para el
-  // comprador (B6-H05). Borrar la comunidad ocultaba el contenido, revocaba las
-  // invitaciones y quitaba las membresías, pero **nadie tocaba Stripe**: las
-  // suscripciones seguían vivas y cobrando cada mes por una comunidad que ya no
-  // existe. Y en la renovación siguiente el webhook recreaba la membresía.
-  const subscriptionsCancelled = await cancelGroupSubscriptions(groupId);
-
   logger.info("softDeleteGroup completed", {
     groupId,
     actorUid,
@@ -414,7 +413,9 @@ async function softDeleteGroupInternal(params: {
   return {
     ok: true,
     groupId,
-    alreadyDeleted: false,
+    // `true` = ya estaba marcada y esta pasada fue una REANUDACIÓN: se volvió a
+    // barrer lo que hubiera quedado a medias, no un borrado nuevo.
+    alreadyDeleted: yaMarcada,
     postsUpdated,
     membersUpdated,
     userMembershipsUpdated,
@@ -430,6 +431,13 @@ export const softDeleteGroup = onCall(
     region: REGION,
     timeoutSeconds: 540,
     memory: "1GiB",
+    // ⚠️ SIN esto, cancelar las suscripciones en Stripe falla SIEMPRE y en
+    // silencio: `stripeSecretKey.value()` devuelve vacío, `stripeFetch` responde
+    // "falta el secreto" y el helper —que es tolerante a fallos— lo registra y
+    // sigue. O sea que la comunidad se borraba y los compradores seguían pagando,
+    // que es justo lo que ese arreglo venía a impedir. Declarar el secreto es
+    // parte del arreglo, no un detalle de configuración.
+    secrets: [stripeSecretKey],
   },
   async (request) => {
     const actorUid = requireAuth(request);

@@ -456,3 +456,116 @@ describe("M01 — esquema cerrado en contenido y telemetría", () => {
     );
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// B7-A3 — el índice de búsqueda tiene que decir lo mismo que la comunidad.
+//
+// `validGroupSearchIndex` comprobaba los TIPOS de cada campo pero no que
+// concordaran con el documento: era válido guardar la comunidad como `hidden` y
+// declarar a la vez `search.visibility: "public"` y `search.discoverable: true`.
+// Y el descubrimiento decide con el índice —`allow list` filtra por esos campos—,
+// así que una comunidad oculta podía aparecer en resultados de búsqueda.
+// ─────────────────────────────────────────────────────────────────────────────
+describe("B7-A3 — índice de búsqueda coherente con la visibilidad", () => {
+  const DUENO = "dueno_a3";
+  const ahora = new Date();
+
+  function indice(extra: Record<string, unknown> = {}) {
+    return {
+      nameNormalized: "mi comunidad",
+      descriptionNormalized: "",
+      categoryNormalized: "otros",
+      categoryLabelNormalized: "otros",
+      tagsNormalized: [],
+      tokens: ["mi", "comunidad"],
+      prefixes: ["mi", "co"],
+      visibility: "hidden",
+      discoverable: false,
+      isActive: true,
+      version: 1,
+      updatedAt: ahora,
+      ...extra,
+    };
+  }
+
+  function comunidad(visibility: string, search: Record<string, unknown>) {
+    return {
+      name: "Mi comunidad",
+      description: "",
+      ownerId: DUENO,
+      visibility,
+      discoverable: visibility === "public",
+      isActive: true,
+      imageUrl: null,
+      coverUrl: null,
+      avatarUrl: null,
+      category: "otros",
+      tags: [],
+      permissions: { postingMode: "members", commentsEnabled: true },
+      monetization: { isPaid: false, subscriptionsEnabled: false },
+      greetingsEnabled: false,
+      welcomeMessage: null,
+      ageMin: null,
+      ageMax: null,
+      search,
+      createdAt: ahora,
+      updatedAt: ahora,
+    };
+  }
+
+  it("🔴 una comunidad OCULTA no puede declararse pública en su índice", async () => {
+    const db = testEnv.authenticatedContext(DUENO).firestore();
+    await assertFails(
+      setDoc(
+        doc(db, "groups/g_a3_mentirosa"),
+        comunidad("hidden", indice({ visibility: "public", discoverable: true }))
+      )
+    );
+  });
+
+  it("🔴 tampoco puede declararse descubrible", async () => {
+    const db = testEnv.authenticatedContext(DUENO).firestore();
+    await assertFails(
+      setDoc(
+        doc(db, "groups/g_a3_descubrible"),
+        comunidad("hidden", indice({ visibility: "hidden", discoverable: true }))
+      )
+    );
+  });
+
+  it("🟢 una comunidad oculta con su índice coherente SÍ se crea", async () => {
+    const db = testEnv.authenticatedContext(DUENO).firestore();
+    await assertSucceeds(
+      setDoc(
+        doc(db, "groups/g_a3_coherente"),
+        comunidad("hidden", indice({ visibility: "hidden", discoverable: false }))
+      )
+    );
+  });
+
+  it("🟢 y una pública con el suyo también", async () => {
+    const db = testEnv.authenticatedContext(DUENO).firestore();
+    await assertSucceeds(
+      setDoc(
+        doc(db, "groups/g_a3_publica"),
+        comunidad("public", indice({ visibility: "public", discoverable: true }))
+      )
+    );
+  });
+
+  it("🔴 no se puede volver oculta dejando el índice en público", async () => {
+    // El caso que de verdad ocurre: la comunidad nace pública y luego se cierra.
+    await seed("groups/g_a3_update", {
+      ...comunidad("public", indice({ visibility: "public", discoverable: true })),
+    });
+
+    const db = testEnv.authenticatedContext(DUENO).firestore();
+    await assertFails(
+      setDoc(
+        doc(db, "groups/g_a3_update"),
+        { visibility: "hidden", discoverable: false },
+        { merge: true }
+      )
+    );
+  });
+});

@@ -86,7 +86,7 @@ export const createGroupSubscription = onCall(
       throw new HttpsError("failed-precondition", "Esta comunidad no tiene suscripción activa.");
     }
     const ownerId = String(group.ownerId ?? "");
-    if (!ownerId) throw new HttpsError("failed-precondition", "Comunidad sin dueño.");
+    if (!ownerId) throw new HttpsError("failed-precondition", "Comunidad sin creador.");
     if (ownerId === uid) throw new HttpsError("failed-precondition", "No puedes suscribirte a tu propia comunidad.");
 
     // Estado de MI suscripción actual (Stripe es la fuente de verdad). Tres casos:

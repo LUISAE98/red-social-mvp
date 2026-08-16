@@ -86,7 +86,7 @@ export async function assertUserCanCommentOnProfilePost(params: {
   }
 
   if (!profile.profileCommentsEnabled) {
-    throw new Error("Solo el dueño puede comentar en este perfil.");
+    throw new Error("Solo el creador puede comentar en este perfil.");
   }
 
   const followSnap = await getDoc(
@@ -293,7 +293,7 @@ export async function ensureUserCanCommentInGroup(groupId: string, userUid: stri
   assertMembershipCanInteract(access.membershipStatus);
 
   if (!access.commentsEnabled) {
-    throw new Error("Solo el owner puede comentar en esta comunidad.");
+    throw new Error("Solo el creador puede comentar en esta comunidad.");
   }
 }
 

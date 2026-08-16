@@ -346,7 +346,7 @@ async function resolverContexto(autor: Autor, draft: Draft): Promise<Contexto> {
     const permisos = (grupo.permissions ?? {}) as Record<string, unknown>;
     const modo = permisos.postingMode ?? grupo.postingMode;
     if (modo === "owner_only") {
-      throw new HttpsError("permission-denied", "Solo el dueño puede publicar en esta comunidad.");
+      throw new HttpsError("permission-denied", "Solo el creador puede publicar en esta comunidad.");
     }
   }
 
@@ -476,7 +476,7 @@ export const createPost = onCall({ region: REGION }, async (request) => {
     if (ctx.contextType === "group" && !ctx.esDuenoDelGrupo) {
       throw new HttpsError(
         "permission-denied",
-        "Solo el dueño de la comunidad puede publicar contenido de pago."
+        "Solo el creador de la comunidad puede publicar contenido de pago."
       );
     }
 

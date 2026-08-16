@@ -7,6 +7,7 @@ import { useParams } from "next/navigation";
 import { createPortal } from "react-dom";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
+import GreetingReviewOverlay from "@/app/components/OwnerSidebar/GreetingReviewOverlay";
 import { BRAND_DOMAIN } from "@/lib/brand";
 
 import Greetings from "@/components/services/config/Greetings";
@@ -74,6 +75,9 @@ export default function ProfileServicesTab({
   const [err, setErr] = useState<string | null>(null);
   const { toast, showToast } = useVibraToast();
   useEffect(() => { if (err) showToast(err, "error"); }, [err]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Grabador de muestras: guarda qué servicio se está ejemplificando.
+  const [sampleType, setSampleType] = useState<"saludo" | "consejo" | null>(null);
 
   const lastHydratedProfileIdRef = useRef<string | null>(null);
   const skipHydrationWhileSavingRef = useRef(false);
@@ -641,6 +645,7 @@ export default function ProfileServicesTab({
         SwitchComponent={Switch}
         OverlayModalComponent={SaludoOverlay}
         publishSuccess={publishSuccessConfig}
+        onAddSample={() => setSampleType("saludo")}
         onSaveDraft={(d) => saveServicesFromDraft(d as unknown as ServiceDraft)}
       />
       </div>
@@ -662,6 +667,7 @@ export default function ProfileServicesTab({
         SwitchComponent={Switch}
         OverlayModalComponent={ConsejoOverlay}
         publishSuccess={publishSuccessConfig}
+        onAddSample={() => setSampleType("consejo")}
         onSaveDraft={(d) => saveServicesFromDraft(d as unknown as ServiceDraft)}
       />
       </div>
@@ -735,6 +741,43 @@ export default function ProfileServicesTab({
           en pantalla incluso las últimas cards (si no, el scroll se topa con el
           fondo de la página y las de abajo se quedan cortas). */}
       <div aria-hidden="true" style={{ height: "55vh" }} />
+
+      {/* Grabador de MUESTRAS.
+          Reusa el mismo panel con el que el creador graba los saludos que ya le
+          compraron. Se le pasa una solicitud SINTÉTICA: no existe en Firestore
+          ni tiene comprador, solo lleva los ocho campos que el panel lee para
+          pintarse. */}
+      {sampleType ? (
+        <GreetingReviewOverlay
+          viewMode
+          // Se abre DESDE el panel de configurar, que está en 999999. Sin subirlo
+          // el grabador quedaba detrás.
+          zIndex={1000000}
+          items={[
+            {
+              id: `sample-${sampleType}`,
+              data: {
+                buyerId: "",
+                creatorId: profileUserId,
+                groupId: null,
+                instructions: "",
+                muxPlaybackId: null,
+                source: "profile",
+                type: sampleType,
+                videoDuration: null,
+              },
+            },
+          ] as never}
+          buyers={{}}
+          greetingBusyId={null}
+          onReject={() => setSampleType(null)}
+          onClose={() => setSampleType(null)}
+          getInitials={(name) => (name ?? "").trim().charAt(0).toUpperCase() || "?"}
+          // El panel solo usa esta etiqueta para su encabezado; con la muestra
+          // ya sabemos de qué servicio se trata.
+          typeLabel={(t) => t}
+        />
+      ) : null}
 
       <VibraToast toast={toast} />
       </div>

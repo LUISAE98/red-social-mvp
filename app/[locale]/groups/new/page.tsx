@@ -443,7 +443,7 @@ const onCropComplete = useCallback(
 
   async function confirmCrop() {
     if (!cropImageSrc || !croppedAreaPixels) {
-      setError(tGroups("cropError"));
+      setError(tCommon("cropError"));
       return;
     }
 
@@ -474,7 +474,7 @@ const onCropComplete = useCallback(
       setCroppedAreaPixels(null);
       setCropImageSrc("");
     } catch {
-      setError(tGroups("cropError"));
+      setError(tCommon("cropError"));
     } finally {
       setCroppingBusy(false);
     }
@@ -485,7 +485,7 @@ const onCropComplete = useCallback(
     setError(null);
 
     if (!user) {
-      setError(tGroups("mustLogin"));
+      setError(tCommon("mustBeSignedIn"));
       return;
     }
 

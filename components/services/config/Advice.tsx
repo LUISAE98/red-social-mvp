@@ -494,10 +494,8 @@ export default function Consejos({
         </div>
 
         {/* Muestras: el creador graba ejemplos para que su vitrina no esté en
-            cero y el comprador vea qué va a recibir. Solo aparece si quien monta
-            este panel sabe qué hacer con el botón. */}
-        {onAddSample ? (
-          <div
+            cero y el comprador vea qué va a recibir. */}
+        <div
             style={{
               display: "flex",
               flexDirection: "column",
@@ -543,7 +541,6 @@ export default function Consejos({
               {tServices("addSampleHint")}
             </span>
           </div>
-        ) : null}
         </>
         )}
       </OverlayModalComponent>

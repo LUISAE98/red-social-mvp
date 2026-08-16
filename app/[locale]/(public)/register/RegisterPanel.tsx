@@ -25,6 +25,8 @@ import SocialLinksEditor, { socialLinksToDraft } from "@/components/profile/Soci
 import DateWheelPanel from "@/components/ui/DateWheelPanel";
 import OptionWheelPanel from "@/components/ui/OptionWheelPanel";
 import { capitalizeFirst } from "@/i18n/locales";
+import VibraToast from "@/app/components/VibraToast/VibraToast";
+import { useVibraToast } from "@/lib/hooks/useVibraToast";
 
 const vibraPink = "#ff2fb3";
 const vibraPurple = "#a855f7";
@@ -66,13 +68,20 @@ function isValidName(s: string) {
   return v.length >= 1 && v.length <= 40;
 }
 
-function friendlyAuthErrorKey(err: unknown): string {
+/**
+ * Los avisos que esta pantalla comparte con entrar y con restablecer viven en
+ * `auth.shared`, con una sola redacción. `compartido` dice de cuál de los dos
+ * grupos hay que sacar el texto.
+ */
+type ClaveAviso = { compartido: boolean; clave: string };
+
+function friendlyAuthErrorKey(err: unknown): ClaveAviso {
   const code = (err as { code?: string } | null)?.code;
-  if (code === "auth/email-already-in-use") return "errEmailInUse";
-  if (code === "auth/invalid-email") return "errInvalidEmail";
-  if (code === "auth/weak-password") return "errWeakPassword";
-  if (code === "auth/network-request-failed") return "errNetworkFailed";
-  return "errUnexpected";
+  if (code === "auth/email-already-in-use") return { compartido: false, clave: "errEmailInUse" };
+  if (code === "auth/invalid-email") return { compartido: true, clave: "errInvalidEmail" };
+  if (code === "auth/weak-password") return { compartido: false, clave: "errWeakPassword" };
+  if (code === "auth/network-request-failed") return { compartido: true, clave: "errNetworkFailed" };
+  return { compartido: true, clave: "errUnexpected" };
 }
 
 function friendlyProfileErrorKey(err: unknown): string {
@@ -173,6 +182,15 @@ export default function RegisterPanel({
   const tCP = useTranslations("completeProfile");
   const tProfile = useTranslations("profile");
   const tCommon = useTranslations("common");
+  const tShared = useTranslations("auth.shared");
+  // El aviso sale por el toast de Vibra, no como caja bajo el formulario.
+  const { toast, showToast } = useVibraToast();
+
+  /** Saca el texto del grupo que toque, compartido o propio de crear cuenta. */
+  const textoAviso = (aviso: ClaveAviso) =>
+    aviso.compartido
+      ? tShared(aviso.clave as Parameters<typeof tShared>[0])
+      : t(aviso.clave as Parameters<typeof t>[0]);
   const locale = useLocale();
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -185,6 +203,7 @@ export default function RegisterPanel({
   const [password, setPassword] = useState("");
   const [password2, setPassword2] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
+  useEffect(() => { if (msg) showToast(msg, "error"); }, [msg]); // eslint-disable-line react-hooks/exhaustive-deps
   const [loading, setLoading] = useState(false);
 
   // Notificaciones: activadas por defecto al crear la cuenta (igual que en
@@ -410,7 +429,7 @@ export default function RegisterPanel({
     } catch (err: unknown) {
       const errCode = (err as { code?: string } | null)?.code;
       if (typeof errCode === "string" && errCode.startsWith("auth/")) {
-        setMsg(t(friendlyAuthErrorKey(err) as Parameters<typeof t>[0]));
+        setMsg(textoAviso(friendlyAuthErrorKey(err)));
       } else {
         setMsg(t(friendlyProfileErrorKey(err) as Parameters<typeof t>[0]));
       }
@@ -990,7 +1009,6 @@ export default function RegisterPanel({
         </button>
       </form>
 
-      {msg ? <div style={noticeStyle}>{msg}</div> : null}
 
       <ImageCropperModal
         open={cropOpen}
@@ -1002,6 +1020,8 @@ export default function RegisterPanel({
         onClose={closeCrop}
         onConfirm={handleCropConfirm}
       />
+
+      <VibraToast toast={toast} />
     </>
   );
 }

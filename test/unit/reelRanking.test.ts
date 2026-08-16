@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { mixByQuota, rankStories, splitLanes, type ReelLane } from "@/lib/reels/reelRanking";
+import {
+  mixByQuota,
+  rankStories,
+  spreadByCreator,
+  splitLanes,
+  type ReelLane,
+} from "@/lib/reels/reelRanking";
 import type { StoryDoc, StoryType } from "@/lib/stories/types";
 import type { CanonicalGroupCategory } from "@/types/group";
 
@@ -13,12 +19,13 @@ function story(
     ageDays?: number;
     views?: number;
     categories?: CanonicalGroupCategory[];
+    creatorId?: string;
   } = {},
 ): StoryDoc {
   const createdMs = NOW - (opts.ageDays ?? 0) * DAY_MS;
   return {
     id,
-    creatorId: `creator-${id}`,
+    creatorId: opts.creatorId ?? `creator-${id}`,
     type: opts.type ?? "consejo",
     muxPlaybackId: `pb-${id}`,
     thumbnailUrl: null,
@@ -170,6 +177,90 @@ describe("mixByQuota", () => {
 
     expect(consejos).toEqual(["c0", "c1", "c2"]);
     expect(saludos).toEqual(["s0", "s1"]);
+  });
+});
+
+describe("spreadByCreator", () => {
+  it("no arranca con una ráfaga del mismo creador", () => {
+    const stories = [
+      story("a1", { creatorId: "ana" }),
+      story("a2", { creatorId: "ana" }),
+      story("a3", { creatorId: "ana" }),
+      story("b1", { creatorId: "beto" }),
+      story("c1", { creatorId: "caro" }),
+    ];
+
+    const out = spreadByCreator(stories, 2).map((s) => s.creatorId);
+
+    // Sin reparto saldrían ana, ana, ana de entrada. Lo que se puede exigir es
+    // que la cabeza esté repartida; que las últimas de Ana acaben pegadas es
+    // inevitable cuando ya no queda nadie con quien alternar.
+    expect(new Set(out.slice(0, 3)).size).toBe(3);
+  });
+
+  it("con material suficiente, nunca deja dos del mismo creador seguidas", () => {
+    const stories = [
+      story("a1", { creatorId: "ana" }),
+      story("a2", { creatorId: "ana" }),
+      story("b1", { creatorId: "beto" }),
+      story("b2", { creatorId: "beto" }),
+      story("c1", { creatorId: "caro" }),
+      story("c2", { creatorId: "caro" }),
+    ];
+
+    const out = spreadByCreator(stories, 2).map((s) => s.creatorId);
+
+    for (let i = 1; i < out.length; i++) {
+      expect(out[i]).not.toBe(out[i - 1]);
+    }
+  });
+
+  it("no pierde ni duplica ninguna historia", () => {
+    const stories = [
+      story("a1", { creatorId: "ana" }),
+      story("a2", { creatorId: "ana" }),
+      story("a3", { creatorId: "ana" }),
+      story("b1", { creatorId: "beto" }),
+    ];
+
+    const out = spreadByCreator(stories, 3);
+
+    expect(out).toHaveLength(4);
+    expect(new Set(out.map((s) => s.id)).size).toBe(4);
+  });
+
+  it("si TODAS son del mismo creador, las devuelve en su orden", () => {
+    const stories = [
+      story("a1", { creatorId: "ana" }),
+      story("a2", { creatorId: "ana" }),
+      story("a3", { creatorId: "ana" }),
+    ];
+
+    const out = spreadByCreator(stories, 3).map((s) => s.id);
+
+    expect(out).toEqual(["a1", "a2", "a3"]);
+  });
+
+  it("mira quién GRABÓ, no quién publicó la copia", () => {
+    // Dos copias del mismo creador publicadas por compradores distintos: para el
+    // espectador son la misma cara y no deben salir pegadas.
+    const a = { ...story("pub1", { creatorId: "luis" }), greetingCreatorId: "ana" };
+    const b = { ...story("pub2", { creatorId: "mario" }), greetingCreatorId: "ana" };
+    const c = story("otro", { creatorId: "beto" });
+
+    const out = spreadByCreator([a, b, c], 2).map((s) => s.id);
+
+    expect(out[1]).toBe("otro");
+  });
+
+  it("respeta el orden cuando no hay nada que separar", () => {
+    const stories = [
+      story("a", { creatorId: "ana" }),
+      story("b", { creatorId: "beto" }),
+      story("c", { creatorId: "caro" }),
+    ];
+
+    expect(spreadByCreator(stories, 2).map((s) => s.id)).toEqual(["a", "b", "c"]);
   });
 });
 

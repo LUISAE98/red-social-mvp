@@ -10,6 +10,7 @@ import {
   revokeAllSessions,
   subscribeUserSessions,
 } from "@/lib/sessions/sessions-service";
+import { useConfirm } from "@/lib/hooks/useConfirm";
 
 type SessionsOverlayProps = {
   open: boolean;
@@ -136,6 +137,7 @@ export default function SessionsOverlay({
   const [sessions, setSessions] = useState<UserSession[]>([]);
   const [loading, setLoading] = useState(false);
   const [busyKey, setBusyKey] = useState<string | null>(null);
+  const { confirm, confirmPanel } = useConfirm();
   const [error, setError] = useState<string | null>(null);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
 
@@ -194,7 +196,13 @@ export default function SessionsOverlay({
   // bastaba con no ejecutar el JavaScript de la app. Se confirma antes.
   async function handleRevokeOne(session: UserSession) {
     if (!uid || busyKey) return;
-    if (!window.confirm(tProfile("sessionRevokeAllConfirm"))) return;
+    const ok = await confirm({
+      title: tProfile("sessionsRevokeOthers"),
+      body: tProfile("sessionRevokeAllConfirm"),
+      confirmLabel: tProfile("sessionRevoke"),
+      tone: "danger",
+    });
+    if (!ok) return;
 
     setBusyKey(session.id);
     setError(null);
@@ -213,7 +221,13 @@ export default function SessionsOverlay({
 
   async function handleRevokeOthers() {
     if (!uid || !currentSessionId || busyKey) return;
-    if (!window.confirm(tProfile("sessionRevokeAllConfirm"))) return;
+    const ok = await confirm({
+      title: tProfile("sessionsRevokeOthers"),
+      body: tProfile("sessionRevokeAllConfirm"),
+      confirmLabel: tProfile("sessionRevoke"),
+      tone: "danger",
+    });
+    if (!ok) return;
 
     setBusyKey("__others__");
     setError(null);
@@ -423,6 +437,7 @@ export default function SessionsOverlay({
           })}
         </main>
       </div>
+      {confirmPanel}
     </VibraResponsivePanel>
   );
 }

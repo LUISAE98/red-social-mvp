@@ -26,6 +26,11 @@ type Props = {
   onLoadMore?: () => void;
   /** Una historia se dio por vista. */
   onStoryViewed?: (storyId: string) => void;
+  /**
+   * Cuánto se quedó mirando cada historia al salir de ella. Es lo que distingue
+   * "me interesó" de "pasé de largo", y alimenta el vector de intereses.
+   */
+  onEngagement?: (engagement: { story: StoryDoc; dwellMs: number; completion: number }) => void;
   /** Espacio inferior que ocupa el nav del anfitrión. */
   safeBottom?: string;
 };
@@ -34,6 +39,7 @@ export default function ReelFeed({
   stories,
   onLoadMore,
   onStoryViewed,
+  onEngagement,
   safeBottom = "0px",
 }: Props) {
   const [activeIndex, setActiveIndex] = useState(0);
@@ -43,6 +49,52 @@ export default function ReelFeed({
   const scrollerRef = useRef<HTMLDivElement | null>(null);
   // Última página pedida, para no pedir la misma varias veces mientras llega.
   const lastLoadRequestRef = useRef(-1);
+
+  // Medición de permanencia. Se cierra al SALIR de una historia, que es cuando se
+  // sabe cuánto duró; medir al entrar solo diría que entró.
+  const dwellRef = useRef<{ index: number; startedAt: number } | null>(null);
+  const completionRef = useRef(0);
+  // Se guardan en refs para que `closeDwell` no cambie de identidad y no
+  // reinicie la medición cada vez que el padre repinta. Se actualizan en un
+  // efecto, no al pintar.
+  const onEngagementRef = useRef(onEngagement);
+  const storiesRef = useRef(stories);
+  useEffect(() => {
+    onEngagementRef.current = onEngagement;
+    storiesRef.current = stories;
+  });
+
+  const closeDwell = useCallback(() => {
+    const open = dwellRef.current;
+    dwellRef.current = null;
+    if (!open) return;
+    const story = storiesRef.current[open.index];
+    if (!story) return;
+    onEngagementRef.current?.({
+      story,
+      dwellMs: Date.now() - open.startedAt,
+      completion: completionRef.current,
+    });
+    completionRef.current = 0;
+  }, []);
+
+  // Abre la medición de la historia activa y cierra la anterior.
+  useEffect(() => {
+    if (stories.length === 0) return;
+    closeDwell();
+    dwellRef.current = { index: activeIndex, startedAt: Date.now() };
+    return () => {
+      closeDwell();
+    };
+  }, [activeIndex, stories.length, closeDwell]);
+
+  // Salir de la app cuenta como salir de la historia. Sin esto, la última que
+  // miras —que suele ser la que más te interesó— nunca registra nada.
+  useEffect(() => {
+    const onHide = () => closeDwell();
+    window.addEventListener("pagehide", onHide);
+    return () => window.removeEventListener("pagehide", onHide);
+  }, [closeDwell]);
 
   // El índice activo sale de la posición del scroll y no de un IntersectionObserver:
   // con anclaje obligatorio siempre hay una historia justo en el borde superior, así
@@ -125,6 +177,16 @@ export default function ReelFeed({
                   safeTop="env(safe-area-inset-top, 0px)"
                   safeBottom="12px"
                   onViewed={() => onStoryViewed?.(story.id)}
+                  onProgress={
+                    i === activeIndex
+                      ? (ratio) => {
+                          // Se guarda el MÁXIMO alcanzado, no el instante de
+                          // salida: si repite, el progreso vuelve a cero y no
+                          // debe borrar que ya lo había visto entero.
+                          if (ratio > completionRef.current) completionRef.current = ratio;
+                        }
+                      : undefined
+                  }
                 />
               )}
             </div>

@@ -89,7 +89,6 @@ export default function ReelStorySlide({
     photo: string | null;
     handle: string | null;
   } | null>(null);
-  const [greetingAuthorName, setGreetingAuthorName] = useState<string | null>(null);
   const [contextOpen, setContextOpen] = useState(false);
 
   const resolvedPlaybackId = story.muxPlaybackId ?? fetchedPlaybackId;
@@ -148,13 +147,16 @@ export default function ReelStorySlide({
     };
   }, [story.instructions, story.greetingRequestId]);
 
-  // Quien SE MUESTRA es quien publicó la historia; a quien SE LE ENCARGA es quien
-  // grabó el video. Suelen ser el mismo, pero no cuando el comprador republica.
+  // La cabecera muestra SIEMPRE a quien GRABÓ el video, nunca a quien publicó la
+  // historia. Son distintos cuando el comprador republica en su perfil el saludo
+  // que le hicieron, y en ese caso la cara que corresponde sigue siendo la del
+  // creador: es su trabajo, y es a él a quien se le encarga uno nuevo desde el
+  // botón de comprar. Antes se leía `story.creatorId`, que es el publicador, así
+  // que esa misma historia salía con dos caras distintas según quién la subiera.
   useEffect(() => {
-    const creatorId = story.creatorId;
-    if (!creatorId) return;
+    if (!greetingAuthorUid) return;
     let cancelled = false;
-    getDoc(doc(db, "users", creatorId))
+    getDoc(doc(db, "users", greetingAuthorUid))
       .then((snap) => {
         if (cancelled) return;
         const d = snap.data();
@@ -163,21 +165,6 @@ export default function ReelStorySlide({
           photo: typeof d?.photoURL === "string" ? d.photoURL : null,
           handle: typeof d?.handle === "string" ? d.handle : null,
         });
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, [story.creatorId]);
-
-  useEffect(() => {
-    if (!greetingAuthorUid) return;
-    let cancelled = false;
-    getDoc(doc(db, "users", greetingAuthorUid))
-      .then((snap) => {
-        if (cancelled) return;
-        const name = snap.data()?.displayName;
-        if (typeof name === "string") setGreetingAuthorName(name);
       })
       .catch(() => {});
     return () => {
@@ -198,7 +185,7 @@ export default function ReelStorySlide({
 
   const purchase = useGreetingPurchase({
     creatorId: greetingAuthorUid,
-    creatorName: greetingAuthorName,
+    creatorName: creator?.name ?? null,
     creatorPhoto: creator?.photo ?? null,
     type: effectiveType,
     source: story.source === "group" ? "group" : "profile",
@@ -353,7 +340,12 @@ export default function ReelStorySlide({
           ref={videoRef}
           src={videoUrl}
           poster={thumbUrl ?? undefined}
-          autoPlay
+          // Solo la que está en pantalla descarga video. Las vecinas se montan
+          // para que el cambio de slide sea inmediato, pero con `metadata` el
+          // navegador pide cabeceras y para. Antes las tres bajaban el MP4
+          // entero, y en datos móviles eso es triple consumo por cada scroll.
+          preload={paused ? "metadata" : "auto"}
+          autoPlay={!paused}
           playsInline
           loop={loop}
           muted={muted}

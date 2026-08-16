@@ -109,7 +109,7 @@ export const inviteGroupModerator = onCall({ region: REGION }, async (request) =
     throw new HttpsError("invalid-argument", "groupId y userId son requeridos.");
   }
   if (userId === callerUid) {
-    throw new HttpsError("failed-precondition", "Ya eres el dueño de la comunidad.");
+    throw new HttpsError("failed-precondition", "Ya eres el creador de la comunidad.");
   }
 
   const groupRef = db.collection("groups").doc(groupId);
@@ -122,7 +122,7 @@ export const inviteGroupModerator = onCall({ region: REGION }, async (request) =
   if (str(groupData.ownerId) !== callerUid) {
     throw new HttpsError(
       "permission-denied",
-      "Solo el dueño puede invitar moderadores."
+      "Solo el creador puede invitar moderadores."
     );
   }
 
@@ -247,14 +247,14 @@ export const respondGroupModeratorInvite = onCall(
         );
         throw new HttpsError(
           "failed-precondition",
-          "Esta invitación caducó. Pídele al dueño que te invite de nuevo."
+          "Esta invitación caducó. Pídele al creador que te invite de nuevo."
         );
       }
 
       if (str(groupData.visibility) === "hidden") {
         throw new HttpsError(
           "failed-precondition",
-          "Esta comunidad pasó a ser oculta. El dueño debe invitarte desde dentro."
+          "Esta comunidad pasó a ser oculta. El creador debe invitarte desde dentro."
         );
       }
 

@@ -93,7 +93,7 @@ export default function WheelPanel({
             disabled={confirmDisabled}
             style={{
               width: "min(240px, 100%)",
-              minHeight: 42,
+              minHeight: 36,
               borderRadius: 5,
               border: "none",
               background: confirmDisabled

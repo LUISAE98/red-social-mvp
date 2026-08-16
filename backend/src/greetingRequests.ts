@@ -343,13 +343,13 @@ const profileUserId =
     const ownerId = group?.ownerId;
 
     if (!ownerId) {
-      throw new HttpsError("failed-precondition", "Group has no ownerId.");
+      throw new HttpsError("failed-precondition", "La comunidad no tiene creador configurado.");
     }
 
     if (buyerId === ownerId) {
       throw new HttpsError(
         "failed-precondition",
-        "Owner cannot purchase own greeting."
+        "El creador no puede comprar su propio saludo."
       );
     }
 

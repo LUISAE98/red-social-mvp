@@ -57,7 +57,14 @@ const vibraPink = "#ff2fb3";
 const vibraPurple = "#a855f7";
 const vibraBlue = "#4f46ff";
 
-function friendlyAuthErrorKey(err: unknown): string {
+/**
+ * Los avisos que entrar, crear cuenta y restablecer decían por triplicado viven
+ * ahora en `auth.shared`, con una sola redacción. `compartido` dice de cuál de
+ * los dos grupos hay que sacar el texto.
+ */
+type ClaveAviso = { compartido: boolean; clave: string };
+
+function friendlyAuthErrorKey(err: unknown): ClaveAviso {
   const code = (err as { code?: string } | null)?.code;
   // `user-not-found` y `wrong-password` se colapsan en un único mensaje a
   // propósito. Distinguirlos le confirma a quien pruebe correos cuáles tienen
@@ -69,25 +76,25 @@ function friendlyAuthErrorKey(err: unknown): string {
     code === "auth/user-not-found" ||
     code === "auth/wrong-password"
   ) {
-    return "errInvalidCredential";
+    return { compartido: false, clave: "errInvalidCredential" };
   }
-  if (code === "auth/too-many-requests") return "errTooManyRequests";
-  if (code === "auth/network-request-failed") return "errNetworkFailed";
-  if (code === "auth/unauthorized-domain") return "errUnauthorizedDomain";
-  if (code === "auth/operation-not-allowed") return "errOperationNotAllowed";
-  if (code === "auth/account-exists-with-different-credential") return "errAccountExistsDiff";
-  if (code === "auth/cancelled-popup-request") return "errCancelledPopup";
-  if (code === "auth/popup-closed-by-user") return "errPopupClosed";
-  if (code === "auth/popup-blocked") return "errPopupBlocked";
-  return "errUnexpected";
+  if (code === "auth/too-many-requests") return { compartido: true, clave: "errTooManyRequests" };
+  if (code === "auth/network-request-failed") return { compartido: true, clave: "errNetworkFailed" };
+  if (code === "auth/unauthorized-domain") return { compartido: false, clave: "errUnauthorizedDomain" };
+  if (code === "auth/operation-not-allowed") return { compartido: false, clave: "errOperationNotAllowed" };
+  if (code === "auth/account-exists-with-different-credential") return { compartido: false, clave: "errAccountExistsDiff" };
+  if (code === "auth/cancelled-popup-request") return { compartido: false, clave: "errCancelledPopup" };
+  if (code === "auth/popup-closed-by-user") return { compartido: false, clave: "errPopupClosed" };
+  if (code === "auth/popup-blocked") return { compartido: false, clave: "errPopupBlocked" };
+  return { compartido: true, clave: "errUnexpected" };
 }
 
-function friendlyResetErrorKey(err: unknown): string {
+function friendlyResetErrorKey(err: unknown): ClaveAviso {
   const code = (err as { code?: string } | null)?.code;
-  if (code === "auth/invalid-email") return "errInvalidEmail";
-  if (code === "auth/too-many-requests") return "errTooManyRequests";
-  if (code === "auth/network-request-failed") return "errNetworkFailed";
-  return "errUnexpected";
+  if (code === "auth/invalid-email") return { compartido: true, clave: "errInvalidEmail" };
+  if (code === "auth/too-many-requests") return { compartido: true, clave: "errTooManyRequests" };
+  if (code === "auth/network-request-failed") return { compartido: true, clave: "errNetworkFailed" };
+  return { compartido: true, clave: "errUnexpected" };
 }
 
 async function applyAuthPersistence(keepSession: boolean) {
@@ -107,6 +114,13 @@ export default function LoginClient() {
   const t = useTranslations("auth.login");
   const tLanding = useTranslations("loginLanding");
   const tReset = useTranslations("auth.resetPassword");
+  const tShared = useTranslations("auth.shared");
+
+  /** Saca el texto del grupo que toque, compartido o propio de esta pantalla. */
+  const textoAviso = (aviso: ClaveAviso, propio: typeof t | typeof tReset) =>
+    aviso.compartido
+      ? tShared(aviso.clave as Parameters<typeof tShared>[0])
+      : propio(aviso.clave as Parameters<typeof propio>[0]);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [keepSession, setKeepSession] = useState(true);
@@ -288,10 +302,10 @@ router.replace(nextPath);
         if (!maybeFirebaseError.code) {
           setMsg(err.message);
         } else {
-          setMsg(t(friendlyAuthErrorKey(maybeFirebaseError) as Parameters<typeof t>[0]));
+          setMsg(textoAviso(friendlyAuthErrorKey(maybeFirebaseError), t));
         }
       } else {
-        setMsg(t("errUnexpected"));
+        setMsg(tShared("errUnexpected"));
       }
     } finally {
       setLoading(false);
@@ -344,11 +358,11 @@ router.replace(nextPath);
     const maybeFirebaseError = err as Error & { code?: string };
 
     if (maybeFirebaseError?.code) {
-      setMsg(t(friendlyAuthErrorKey(maybeFirebaseError) as Parameters<typeof t>[0]));
+      setMsg(textoAviso(friendlyAuthErrorKey(maybeFirebaseError), t));
     } else if (err instanceof Error) {
       setMsg(err.message);
     } else {
-      setMsg(t("errUnexpected"));
+      setMsg(tShared("errUnexpected"));
     }
   } finally {
     setLoading(false);
@@ -371,7 +385,7 @@ async function handleReset(e: React.FormEvent) {
     if (code === "auth/user-not-found") {
       setResetMsg(tReset("successMsg"));
     } else {
-      setResetMsg(tReset(friendlyResetErrorKey(err) as Parameters<typeof tReset>[0]));
+      setResetMsg(textoAviso(friendlyResetErrorKey(err), tReset));
     }
   } finally {
     setResetLoading(false);

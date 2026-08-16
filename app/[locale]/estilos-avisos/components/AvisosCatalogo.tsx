@@ -3,7 +3,13 @@
 import { useState } from "react";
 
 import VibraToast from "@/app/components/VibraToast/VibraToast";
+import ConfirmPanel, { type ConfirmTone } from "@/components/ui/ConfirmPanel";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
+import {
+  CONDICIONES,
+  TOTAL_CONDICIONES,
+  type Formato,
+} from "./condicionesPermanentes";
 
 /**
  * Catálogo de los avisos de error y acierto de la plataforma.
@@ -20,7 +26,7 @@ const TEXTO_EXITO = "Se guardó correctamente.";
 
 export default function AvisosCatalogo() {
   const { toast, showToast } = useVibraToast();
-  const [confirmResultado, setConfirmResultado] = useState<string | null>(null);
+  const [confirmAbierto, setConfirmAbierto] = useState<number | null>(null);
 
   return (
     <div style={{ minHeight: "100dvh", background: "#0b0b0d", color: "#eeecf2" }}>
@@ -33,7 +39,6 @@ export default function AvisosCatalogo() {
         .cat-tag { font-size: 10.5px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
         .cat-tag--vive { color: #4ade80; }
         .cat-tag--pend { color: #fbbf24; }
-        .cat-tag--fuera { color: rgba(255,255,255,0.35); }
         .cat-sec-t { margin: 0; font-size: 15.5px; font-weight: 650; }
         .cat-count { font-size: 11.5px; color: rgba(255,255,255,0.45); }
         .cat-src { font-size: 11px; color: rgba(255,255,255,0.38); line-height: 1.5; margin: 2px 0 10px; word-break: break-word; }
@@ -44,6 +49,18 @@ export default function AvisosCatalogo() {
         .cat-btn:hover { border-color: #a855f7; }
         .cat-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
         .cat-lista { margin: 0; padding-inline-start: 18px; font-size: 12px; line-height: 1.7; color: rgba(255,255,255,0.6); }
+        .cond-chip { font-size: 10px; font-weight: 600; letter-spacing: 0.02em; border-radius: 999px; padding: 3px 9px; white-space: nowrap; }
+        .cond-chip--pantalla { background: rgba(239,68,68,0.14); color: #fca5a5; }
+        .cond-chip--overlay { background: rgba(251,191,36,0.14); color: #fbbf24; }
+        .cond-chip--bloque { background: rgba(147,197,253,0.14); color: #93c5fd; }
+        .cond-chip--linea { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.6); }
+        .cond-chip--accion { background: rgba(74,222,128,0.14); color: #4ade80; }
+        .cond-chip--sin { background: rgba(168,85,247,0.16); color: #d8b4fe; }
+        .cond-texto { margin: 0; font-size: 13px; line-height: 1.5; color: #fff; }
+        .cond-cuando { margin: 0; font-size: 12px; line-height: 1.5; color: rgba(255,255,255,0.62); }
+        .cond-cuando b, .cond-accion b { color: rgba(255,255,255,0.85); font-weight: 650; }
+        .cond-accion { margin: 0; font-size: 12px; line-height: 1.5; color: rgba(134,239,172,0.85); }
+        .cond-sin-accion { margin: 0; font-size: 12px; color: rgba(255,255,255,0.35); }
       `}</style>
 
       <div className="cat-wrap">
@@ -132,104 +149,226 @@ export default function AvisosCatalogo() {
           </div>
         </section>
 
-        {/* ── PENDIENTE ─────────────────────────────────────────────────── */}
+
         <section className="cat-sec">
           <div className="cat-sec-h">
-            <span className="cat-tag cat-tag--pend">Pendiente</span>
-            <h2 className="cat-sec-t">window.confirm nativo</h2>
-            <span className="cat-count">19 llamadas · 6 archivos</span>
+            <span className="cat-tag cat-tag--vive">Se queda</span>
+            <h2 className="cat-sec-t">ConfirmPanel</h2>
+            <span className="cat-count">preguntas · 10 distintas, 19 sitios</span>
           </div>
-          <p className="cat-src">
-            PostCommentThread.parts.tsx (12) · SessionsOverlay.tsx ·
-            GroupPostCard.tsx · admin/refunds · experiencias · ProfileMoreMenu.tsx
-          </p>
+          <p className="cat-src">components/ui/ConfirmPanel.tsx</p>
           <div className="cat-box">
+            <p className="cat-ok">
+              Cancelar a la izquierda y en gris, confirmar a la derecha y con
+              color. Rojo para lo que destruye o no se deshace; morado para el
+              resto. Con el destructivo a la derecha, el pulgar que va rápido cae
+              antes en cancelar.
+            </p>
             <div className="cat-row">
-              <button
-                className="cat-btn"
-                onClick={() =>
-                  setConfirmResultado(
-                    window.confirm("¿Eliminar este comentario?") ? "Aceptó" : "Canceló"
-                  )
-                }
-              >
-                Ver el diálogo del sistema
-              </button>
-              {confirmResultado ? (
-                <span style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
-                  {confirmResultado}
-                </span>
-              ) : null}
+              {CONFIRMACIONES.map((c, i) => (
+                <button key={c.title} className="cat-btn" onClick={() => setConfirmAbierto(i)}>
+                  {c.corto}
+                </button>
+              ))}
             </div>
-            <p className="cat-note">
-              No son avisos, son preguntas: necesitan dos botones. Van a
-              `VibraResponsivePanel`, que ya hace este trabajo en el chat.
+            <p className="cat-ok">
+              Los dos de dinero llevan el importe destacado aparte: dentro de una
+              frase larga se pasa por alto justo el dato que hay que leer.
             </p>
           </div>
         </section>
 
         <section className="cat-sec">
           <div className="cat-sec-h">
-            <span className="cat-tag cat-tag--pend">Pendiente</span>
+            <span className="cat-tag cat-tag--pend">Por revisar</span>
             <h2 className="cat-sec-t">Condiciones permanentes</h2>
-            <span className="cat-count">revisión una por una</span>
+            <span className="cat-count">
+              {TOTAL_CONDICIONES} en {CONDICIONES.length} áreas
+            </span>
           </div>
           <div className="cat-box">
             <p className="cat-note">
-              No se migraron porque no son eventos: siguen siendo verdad mientras
-              estés en la pantalla. Un toast de cuatro segundos las perdería.
+              No son eventos: siguen siendo verdad mientras estés en la pantalla,
+              y casi siempre explican por qué algo no se puede hacer. Un aviso de
+              cuatro segundos las perdería.
             </p>
-            <ul className="cat-lista">
-              <li>Comunidad pausada y baneo — groups/[groupId]/page.tsx</li>
-              <li>Bloqueo y solicitud pendiente — ConversationThread.tsx</li>
-              <li>Transmisión finalizada, con reintento — LiveViewerModal.tsx</li>
-              <li>Invitación inválida — invite/[token]/page.tsx</li>
-              <li>Motivo de rechazo y de devolución — sessions y overlays</li>
-              <li>Pantalla de error de ruta — RouteError.tsx</li>
-            </ul>
+            <p className="cat-ok">
+              Las que llevan una acción dentro difícilmente pueden irse: ese botón
+              suele ser el único camino que le queda a la persona. Las que son
+              solo texto son las candidatas.
+            </p>
+            <div className="cat-row">
+              <span className="cond-chip cond-chip--pantalla">pantalla completa</span>
+              <span className="cond-chip cond-chip--overlay">sobre el contenido</span>
+              <span className="cond-chip cond-chip--bloque">bloque</span>
+              <span className="cond-chip cond-chip--linea">línea suelta</span>
+              <span className="cond-chip cond-chip--accion">con acción</span>
+              <span className="cond-chip cond-chip--sin">sin traducir</span>
+            </div>
           </div>
         </section>
 
-        {/* ── FUERA ─────────────────────────────────────────────────────── */}
-        <section className="cat-sec">
-          <div className="cat-sec-h">
-            <span className="cat-tag cat-tag--fuera">Eliminados</span>
-            <h2 className="cat-sec-t">Los siete que se fueron</h2>
-          </div>
-          <div className="cat-box">
-            <ul className="cat-lista">
-              <li>
-                <b>WalletErrorBox</b> — el único componente reutilizable, encerrado
-                en wallet. Borrado, con sus tres consumidores migrados.
-              </li>
-              <li>
-                <b>Cajas rojas a mano</b> — seis rojos distintos en ~25 archivos.
-              </li>
-              <li>
-                <b>Caja gris neutra</b> — donde el error y el acierto se veían
-                idénticos y no había forma de saber qué pasó.
-              </li>
-              <li>
-                <b>Cajas verdes de acierto</b> — dos verdes distintos.
-              </li>
-              <li>
-                <b>noticeStyles con cuatro tonos</b> — la idea correcta, encerrada
-                en un módulo.
-              </li>
-              <li>
-                <b>Tipo deducido del emoji</b> — en el toast y también en
-                admin/refunds, que lo decidía con un ✓.
-              </li>
-              <li>
-                <b>Doble pintado</b> — el mismo error en dos cajas de distinto
-                color, en saludos y en mis comunidades.
-              </li>
-            </ul>
-          </div>
-        </section>
+        {CONDICIONES.map((area) => (
+          <section className="cat-sec" key={area.area}>
+            <div className="cat-sec-h">
+              <h2 className="cat-sec-t">{area.area}</h2>
+              <span className="cat-count">{area.items.length}</span>
+            </div>
+
+            <div style={{ display: "grid", gap: 8 }}>
+              {area.items.map((c) => (
+                <div className="cat-box" key={c.ruta + c.nombre}>
+                  <div className="cat-row">
+                    <b style={{ fontSize: 13.5 }}>{c.nombre}</b>
+                    <span className={`cond-chip cond-chip--${c.formato}`}>
+                      {FORMATO_TEXTO[c.formato]}
+                    </span>
+                    {c.accion ? (
+                      <span className="cond-chip cond-chip--accion">con acción</span>
+                    ) : null}
+                    {c.sinTraducir ? (
+                      <span className="cond-chip cond-chip--sin">sin traducir</span>
+                    ) : null}
+                  </div>
+
+                  <p className="cond-texto">{c.texto}</p>
+
+                  <p className="cond-cuando">
+                    <b>Cuándo aparece.</b> {c.cuando}
+                  </p>
+
+                  {c.accion ? (
+                    <p className="cond-accion">
+                      <b>Salida.</b> {c.accion}
+                    </p>
+                  ) : (
+                    <p className="cond-sin-accion">Sin salida: solo texto.</p>
+                  )}
+
+                  <p className="cat-src" style={{ margin: 0 }}>
+                    {c.ruta}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </section>
+        ))}
+
       </div>
+
+      {confirmAbierto !== null ? (
+        <ConfirmPanel
+          open
+          onClose={() => setConfirmAbierto(null)}
+          onConfirm={() => {
+            showToast(CONFIRMACIONES[confirmAbierto].corto + ": confirmado", "success");
+            setConfirmAbierto(null);
+          }}
+          title={CONFIRMACIONES[confirmAbierto].title}
+          body={CONFIRMACIONES[confirmAbierto].body}
+          highlight={CONFIRMACIONES[confirmAbierto].highlight}
+          confirmLabel={CONFIRMACIONES[confirmAbierto].confirmLabel}
+          cancelLabel="Cancelar"
+          tone={CONFIRMACIONES[confirmAbierto].tone}
+        />
+      ) : null}
 
       <VibraToast toast={toast} />
     </div>
   );
 }
+
+/**
+ * Los nueve casos reales que hoy salen por `window.confirm`. Los textos son
+ * los que están en los catálogos de idioma, sin retocar: la propuesta es de
+ * forma, no de copy.
+ */
+const CONFIRMACIONES: Array<{
+  corto: string;
+  title: string;
+  body?: string;
+  highlight?: string;
+  confirmLabel: string;
+  tone: ConfirmTone;
+}> = [
+  {
+    corto: "Bloquear",
+    title: "Bloquear a este usuario",
+    body: "¿Seguro que quieres bloquear a este usuario? Dejará de poder escribirte y de ver lo que publiques.",
+    confirmLabel: "Bloquear",
+    tone: "danger",
+  },
+  {
+    corto: "Bloquear el perfil",
+    title: "Bloquear de mi perfil",
+    body: "¿Seguro que quieres bloquear el perfil de este usuario?",
+    confirmLabel: "Bloquear",
+    tone: "danger",
+  },
+  {
+    corto: "Bloquear en la comunidad",
+    title: "Bloquear en esta comunidad",
+    body: "¿Seguro que quieres bloquear a este usuario en este grupo?",
+    confirmLabel: "Bloquear",
+    tone: "danger",
+  },
+  {
+    corto: "Quitar silencio",
+    title: "Quitar el silencio",
+    body: "¿Quitar el mute a este usuario? Volverá a poder comentar.",
+    confirmLabel: "Quitar",
+    tone: "neutral",
+  },
+  {
+    corto: "Banear",
+    title: "Banear de la comunidad",
+    body: "¿Seguro que quieres banear a este usuario de la comunidad?",
+    confirmLabel: "Banear",
+    tone: "danger",
+  },
+  {
+    corto: "Quitar ban",
+    title: "Quitar el ban",
+    body: "¿Quitar el ban a este usuario? Podrá volver a entrar.",
+    confirmLabel: "Quitar",
+    tone: "neutral",
+  },
+  {
+    corto: "Expulsar",
+    title: "Expulsar de la comunidad",
+    body: "¿Seguro que quieres expulsar a este usuario de la comunidad?",
+    confirmLabel: "Expulsar",
+    tone: "danger",
+  },
+  {
+    corto: "Cerrar sesiones",
+    title: "Cerrar todas las sesiones",
+    body: "Se cerrará la sesión en todos tus dispositivos, incluido este. Tendrás que volver a entrar.",
+    confirmLabel: "Cerrar todas",
+    tone: "danger",
+  },
+  {
+    corto: "Pedir reembolso",
+    title: "Pedir tu saldo de vuelta",
+    body: "Se devolverá a tu tarjeta original. Un administrador lo revisará, y mientras tanto ese saldo queda apartado.",
+    highlight: "$1,240.00 MXN",
+    confirmLabel: "Solicitar",
+    tone: "neutral",
+  },
+  {
+    corto: "Aprobar reembolso",
+    title: "Aprobar el reembolso",
+    body: "Se devolverá a la tarjeta original de Daniel Tapia. Esta acción dispara el reembolso en Stripe y no se puede deshacer.",
+    highlight: "$450.00 MXN",
+    confirmLabel: "Reembolsar",
+    tone: "danger",
+  },
+];
+
+/** Cómo se llama cada formato en la etiqueta. */
+const FORMATO_TEXTO: Record<Formato, string> = {
+  pantalla: "pantalla completa",
+  overlay: "sobre el contenido",
+  bloque: "bloque",
+  linea: "línea suelta",
+};

@@ -34,7 +34,7 @@ export default function ReelsPage() {
   const router = useRouter();
   const tCommon = useTranslations("common");
 
-  const { stories, ready, loadMore } = useReelFeed(user?.uid);
+  const { stories, ready, loadMore, recordEngagement } = useReelFeed(user?.uid);
 
   useScreenReady(ready);
 
@@ -92,6 +92,7 @@ export default function ReelsPage() {
       stories={stories}
       onLoadMore={loadMore}
       onStoryViewed={handleStoryViewed}
+      onEngagement={recordEngagement}
       safeBottom={NAV_CLEARANCE}
     />
   );

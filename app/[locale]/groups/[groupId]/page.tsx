@@ -317,7 +317,9 @@ const formattedMemberCount = useMemo(() => {
   // Los avisos de RESULTADO de una acción salen por el toast. Las condiciones
   // permanentes de la pantalla (baneado, comunidad pausada) siguen fijas.
   const { toast, showToast } = useVibraToast();
-  useEffect(() => { if (error) showToast(error, "error"); }, [error]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Solo el resultado de una acción. El fallo de carga ya tiene su propia
+  // pantalla más abajo; sacarlo también por el toast lo decía dos veces.
+  useEffect(() => { if (actionError) showToast(actionError, "error"); }, [actionError]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (leaveError) showToast(leaveError, "error"); }, [leaveError]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const currentGroupState = group as GroupDoc | null;
@@ -1493,7 +1495,7 @@ const openCropWithFile = useCallback(
     if (!group) return;
     if (!isOwner) return;
     if (!cropImageSrc || !croppedAreaPixels) {
-      setActionError(`${tGroups("groupCropError")}`);
+      setActionError(`${tCommon("cropError")}`);
       return;
     }
 

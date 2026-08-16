@@ -47,7 +47,11 @@ function peekIds(uid: string): IdsEntry | null {
   return e;
 }
 
-export function invalidateStoriesCache(uid: string) {
+/**
+ * Olvida a quién sigue el usuario. El feed en sí lo refresca `refreshReelFeed`,
+ * que es lo que de verdad vuelve a pedir las historias.
+ */
+export function invalidateFollowedIdsCache(uid: string) {
   idsCache.delete(uid);
 }
 
@@ -81,7 +85,17 @@ export default function HomeStoriesRow({ currentUserId }: Props) {
   const [mounted, setMounted] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
   // Misma fuente, mismo orden y misma cuota que el reel de celular.
-  const { stories } = useReelFeed(currentUserId);
+  const { stories, ready, loadMore } = useReelFeed(currentUserId);
+  const scrollerRef = useRef<HTMLDivElement | null>(null);
+
+  // Pide más al acercarse al final del rail. En celular lo dispara el scroll
+  // vertical del reel; aquí es el horizontal, pero la fuente es la misma.
+  const handleRailScroll = useCallback(() => {
+    const el = scrollerRef.current;
+    if (!el) return;
+    const remaining = el.scrollWidth - el.scrollLeft - el.clientWidth;
+    if (remaining < SQUARE_CARD_SIZE * 3) loadMore();
+  }, [loadMore]);
   const [creatorIds, setCreatorIds] = useState<string[]>(
     () => peekIds(currentUserId)?.creatorIds ?? [],
   );
@@ -287,11 +301,33 @@ export default function HomeStoriesRow({ currentUserId }: Props) {
   ];
 
   if (!mounted || !isDesktop) return null;
-  if (stories.length === 0 && liveEntities.length === 0) return null;
+
+  // Mientras carga NO se pinta nada, para no meter un salto de maquetación en el
+  // home. Vacío de verdad sí se dice, en vez de desaparecer sin más.
+  if (!ready && liveEntities.length === 0) return null;
+
+  if (ready && stories.length === 0 && liveEntities.length === 0) {
+    return (
+      <div
+        style={{
+          padding: "14px 16px 10px",
+          marginBottom: 14,
+          color: "rgba(255,255,255,0.45)",
+          fontSize: 12.5,
+          lineHeight: 1.5,
+          fontFamily: fontStack,
+        }}
+      >
+        {tCommon("noStoriesYet")}
+      </div>
+    );
+  }
 
   return (
     <>
       <div
+        ref={scrollerRef}
+        onScroll={handleRailScroll}
         style={{
           display: "flex",
           gap: 14,

@@ -193,7 +193,7 @@ export const createInviteLink = onCall(async (request) => {
   if (groupData?.ownerId !== callerUid) {
     throw new HttpsError(
       "permission-denied",
-      "Solo el owner puede generar links."
+      "Solo el creador puede generar links."
     );
   }
 
@@ -523,7 +523,7 @@ export const consumeInviteLink = onCall(async (request) => {
           groupName: groupData?.name ?? "",
           visibility: groupData?.visibility ?? null,
           outcome: "owner",
-          message: "Eres el owner de esta comunidad.",
+          message: "Eres el creador de esta comunidad.",
         };
       }
 
@@ -829,7 +829,7 @@ export const revokeInviteLink = onCall(async (request) => {
     throw new HttpsError("not-found", "Comunidad no existe.");
   }
   if ((groupSnap.data() as { ownerId?: string })?.ownerId !== callerUid) {
-    throw new HttpsError("permission-denied", "Solo el owner puede matar links.");
+    throw new HttpsError("permission-denied", "Solo el creador puede matar links.");
   }
 
   const inviteRef = groupRef.collection("inviteLinks").doc(inviteLinkId);
@@ -876,7 +876,7 @@ export const listInviteLinks = onCall(async (request) => {
   if ((groupSnap.data() as { ownerId?: string })?.ownerId !== callerUid) {
     throw new HttpsError(
       "permission-denied",
-      "Solo el owner puede ver los links."
+      "Solo el creador puede ver los links."
     );
   }
 

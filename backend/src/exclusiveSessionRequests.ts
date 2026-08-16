@@ -594,7 +594,7 @@ if (source === "profile") {
   creatorId = groupData.data.ownerId as string | undefined;
 
   if (!creatorId) {
-    throw new HttpsError("failed-precondition", "El grupo no tiene owner configurado.");
+    throw new HttpsError("failed-precondition", "La comunidad no tiene creador configurado.");
   }
 }
     if (creatorId === uid) {

@@ -117,7 +117,7 @@ export async function resolvePostCreationContext(params: {
     assertMembershipCanInteract(membershipStatus);
 
     if (postingMode === "owner_only") {
-      throw new Error("Solo el owner puede publicar en esta comunidad.");
+      throw new Error("Solo el creador puede publicar en esta comunidad.");
     }
   }
 

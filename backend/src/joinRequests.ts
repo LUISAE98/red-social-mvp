@@ -156,7 +156,7 @@ async function getActorContextOrThrow(groupId: string, actorUid: string) {
   if (actorRole !== "mod") {
     throw new HttpsError(
       "permission-denied",
-      "Solo el owner o un moderador pueden gestionar solicitudes."
+      "Solo el creador o un moderador pueden gestionar solicitudes."
     );
   }
 

@@ -132,7 +132,7 @@ export function getPremiumCapabilities(params: {
       canEnablePremium: false,
       allowedAccessModes: [],
       allowedFreeForOptions: [],
-      disabledReason: "Solo el dueño de la comunidad puede crear publicaciones premium.",
+      disabledReason: "Solo el creador de la comunidad puede crear publicaciones premium.",
     };
   }
 

@@ -1704,6 +1704,44 @@ function validMonetizationTransitions(transitions) {
         );
     }
     
+    /**
+     * El índice de búsqueda tiene que DECIR LO MISMO que la comunidad.
+     *
+     * ⚠️ `validGroupSearchIndex` comprueba los TIPOS de cada campo, pero no que
+     * concuerden con el documento. Era válido guardar la comunidad como `hidden`
+     * y a la vez declarar `search.visibility: "public"` y
+     * `search.discoverable: true` — y el descubrimiento decide con el índice
+     * (`allow list` filtra por `search.visibility` y `search.discoverable`), así
+     * que una comunidad oculta podía salir en resultados de búsqueda.
+     *
+     * Es el mismo fallo de fondo que la deriva de `groupVisibility` en los posts:
+     * dos copias del mismo dato y nada que obligue a que coincidan.
+     *
+     * Los valores por defecto replican los de `buildGroupSearchIndex`
+     * (`lib/groups/groupSearchIndex.ts`): un campo ausente en la comunidad
+     * significa `true`, así que el índice debe reflejar eso mismo.
+     */
+    function searchIndexMatchesGroup(data) {
+      return !("search" in data)
+        || data.search == null
+        || !(data.search is map)
+        || (
+          (
+            !("visibility" in data.search)
+            || data.search.visibility == null
+            || data.search.visibility == data.visibility
+          )
+          && (
+            !("discoverable" in data.search)
+            || data.search.discoverable == (data.get('discoverable', true) != false)
+          )
+          && (
+            !("isActive" in data.search)
+            || data.search.isActive == (data.get('isActive', true) != false)
+          )
+        );
+    }
+
     function validGroupSearchIndex(search) {
   return search == null
     || (
@@ -1825,6 +1863,7 @@ function validPostSearchIndex(search) {
 && (!("category" in data) || data.category is string)
         && (!("tags" in data) || data.tags is list)
 && (!("search" in data) || validGroupSearchIndex(data.search))
+&& searchIndexMatchesGroup(data)
 && (!("welcomeMessage" in data) || data.welcomeMessage == null || data.welcomeMessage is string)
         && (!("ageMin" in data) || data.ageMin == null || data.ageMin is number)
         && (!("ageMax" in data) || data.ageMax == null || data.ageMax is number);
@@ -2029,6 +2068,7 @@ allow list: if
           && (!("discoverable" in request.resource.data) || request.resource.data.discoverable is bool)
           && (!("isActive" in request.resource.data) || request.resource.data.isActive is bool)
           && (!("search" in request.resource.data) || validGroupSearchIndex(request.resource.data.search))
+          && searchIndexMatchesGroup(request.resource.data)
           // ⚠️ Aquí había un `isCommerceOnlyUpdate ||` delante, y hacía justo lo
           // contrario de lo que parece: una actualización PURAMENTE comercial
           // —monetización, servicios, donaciones— se saltaba sus propios
@@ -2321,6 +2361,17 @@ match /memberBlocks/{blockId} {
         && resource.data.creatorId == request.auth.uid
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["hiddenFromReel"])
         && request.resource.data.hiddenFromReel is bool;
+    }
+
+    // ==========================
+    // SEÑALES DEL FEED DE REELS
+    // ==========================
+    //
+    // Qué palabras del contexto retienen a cada persona, deducido del tiempo que
+    // se queda mirando. Es un perfil de gustos, así que solo lo ve y lo escribe
+    // su dueño; ni siquiera los moderadores tienen por qué leerlo.
+    match /users/{userId}/reelSignals/{docId} {
+      allow read, write: if notAnonymous() && request.auth.uid == userId;
     }
 
     // ==========================

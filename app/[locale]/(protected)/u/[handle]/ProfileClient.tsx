@@ -1539,7 +1539,7 @@ async function handleSendPasswordReset() {
     if (!userDoc || !isOwner) return;
 
     if (!cropImageSrc || !croppedAreaPixels) {
-      showProfileToast(tProfile("cropError"), "error");
+      showProfileToast(tCommon("cropError"), "error");
       return;
     }
 

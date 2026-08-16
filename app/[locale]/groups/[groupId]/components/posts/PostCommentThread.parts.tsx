@@ -34,7 +34,18 @@ import {
 } from "@/lib/groups/groupModeration";
 import { useReport } from "@/lib/moderation/useReport";
 import ReportModal from "@/app/components/ReportModal/ReportModal";
+import { useConfirm } from "@/lib/hooks/useConfirm";
 import { useTranslations } from "next-intl";
+
+/**
+ * En móvil el hilo de comentarios vive dentro del panel de PostCommentsPanel,
+ * que se dibuja al tope absoluto de la pila (2147483646/47). Con el valor por
+ * omisión del panel de confirmación (999990) la pregunta quedaría detrás y
+ * parecería que no abre, así que se sube al máximo: el cuerpo del panel toma
+ * este valor + 1 y empata con el techo, y al montarse después en el body gana
+ * el desempate por orden en el DOM.
+ */
+const CONFIRM_Z_BASE = 2147483646;
 
 export type PostCommentThreadProps = {
   postId: string;
@@ -479,6 +490,7 @@ export function ReplyActionsPortal({
 }) {
   const tGroups = useTranslations("groups");
   const tCommon = useTranslations("common");
+  const { confirm, confirmPanel } = useConfirm();
 
   const isOwnReply = currentUserId === reply.authorId;
   const canDeleteReply = isOwner || isModerator || isOwnReply;
@@ -509,7 +521,13 @@ export function ReplyActionsPortal({
 
   async function handleBlockInGroup() {
     if (blockLoading) return;
-    const confirmed = window.confirm(tGroups("confirmBlockInGroup"));
+    const confirmed = await confirm({
+      title: tGroups("blockInGroup"),
+      body: tGroups("confirmBlockInGroup"),
+      confirmLabel: tCommon("block"),
+      tone: "danger",
+      zIndexBase: CONFIRM_Z_BASE,
+    });
     if (!confirmed) return;
     try { onError(null); await block(); onClose(); await onBlockComplete?.(); }
     catch (e: unknown) { onError((e as Error)?.message ?? tGroups("errorBlockInGroup")); }
@@ -536,7 +554,14 @@ export function ReplyActionsPortal({
 
   async function handleUnmute() {
     if (!groupId || moderationBusy) return;
-    if (!window.confirm(tGroups("confirmUnmuteUser"))) return;
+    const ok = await confirm({
+      title: tGroups("unmute"),
+      body: tGroups("confirmUnmuteUser"),
+      confirmLabel: tGroups("unmute"),
+      tone: "neutral",
+      zIndexBase: CONFIRM_Z_BASE,
+    });
+    if (!ok) return;
     try {
       setModerationBusy(true);
       await unmuteGroupMember(groupId, reply.authorId);
@@ -548,7 +573,14 @@ export function ReplyActionsPortal({
 
   async function handleBan() {
     if (!groupId || moderationBusy) return;
-    if (!window.confirm(tGroups("confirmBanUser"))) return;
+    const ok = await confirm({
+      title: tGroups("ban"),
+      body: tGroups("confirmBanUser"),
+      confirmLabel: tGroups("ban"),
+      tone: "danger",
+      zIndexBase: CONFIRM_Z_BASE,
+    });
+    if (!ok) return;
     try {
       setModerationBusy(true);
       await banGroupMember(groupId, reply.authorId);
@@ -560,7 +592,14 @@ export function ReplyActionsPortal({
 
   async function handleUnban() {
     if (!groupId || moderationBusy) return;
-    if (!window.confirm(tGroups("confirmUnbanUser"))) return;
+    const ok = await confirm({
+      title: tGroups("unban"),
+      body: tGroups("confirmUnbanUser"),
+      confirmLabel: tGroups("unban"),
+      tone: "neutral",
+      zIndexBase: CONFIRM_Z_BASE,
+    });
+    if (!ok) return;
     try {
       setModerationBusy(true);
       await unbanGroupMember(groupId, reply.authorId);
@@ -572,7 +611,14 @@ export function ReplyActionsPortal({
 
   async function handleRemove() {
     if (!groupId || moderationBusy) return;
-    if (!window.confirm(tGroups("confirmRemoveUser"))) return;
+    const ok = await confirm({
+      title: tGroups("remove"),
+      body: tGroups("confirmRemoveUser"),
+      confirmLabel: tGroups("remove"),
+      tone: "danger",
+      zIndexBase: CONFIRM_Z_BASE,
+    });
+    if (!ok) return;
     try {
       setModerationBusy(true);
       await removeGroupMember(groupId, reply.authorId);
@@ -583,7 +629,14 @@ export function ReplyActionsPortal({
   }
 
   async function handleSocialBlock() {
-    if (!window.confirm(tCommon("confirmBlockProfile"))) return;
+    const ok = await confirm({
+      title: tGroups("blockProfile"),
+      body: tCommon("confirmBlockProfile"),
+      confirmLabel: tCommon("block"),
+      tone: "danger",
+      zIndexBase: CONFIRM_Z_BASE,
+    });
+    if (!ok) return;
     try { await socialBlock(); onClose(); }
     catch (e: unknown) { onError((e as Error)?.message ?? tCommon("errorBlockProfile")); }
   }
@@ -684,6 +737,8 @@ export function ReplyActionsPortal({
         </div>,
         document.body,
       )}
+
+      {confirmPanel}
     </>
   );
 }
@@ -730,6 +785,7 @@ export function CommentActionsPortal({
 }) {
   const tGroups = useTranslations("groups");
   const tCommon = useTranslations("common");
+  const { confirm, confirmPanel } = useConfirm();
 
   const isOwnComment = currentUserId === comment.authorId;
   const canEditOwnComment = isOwnComment;
@@ -759,7 +815,13 @@ export function CommentActionsPortal({
 
   async function handleBlockInGroup() {
     if (groupBlockLoading) return;
-    const confirmed = window.confirm(tGroups("confirmBlockInGroup"));
+    const confirmed = await confirm({
+      title: tGroups("blockInGroup"),
+      body: tGroups("confirmBlockInGroup"),
+      confirmLabel: tCommon("block"),
+      tone: "danger",
+      zIndexBase: CONFIRM_Z_BASE,
+    });
     if (!confirmed) return;
     try { onError(null); await blockInGroup(); onClose(); await onBlockComplete?.(); }
     catch (e: unknown) { onError((e as Error)?.message ?? tGroups("errorBlockInGroup")); }
@@ -786,7 +848,14 @@ export function CommentActionsPortal({
 
   async function handleUnmute() {
     if (!groupId || moderationBusy) return;
-    if (!window.confirm(tGroups("confirmUnmuteUser"))) return;
+    const ok = await confirm({
+      title: tGroups("unmute"),
+      body: tGroups("confirmUnmuteUser"),
+      confirmLabel: tGroups("unmute"),
+      tone: "neutral",
+      zIndexBase: CONFIRM_Z_BASE,
+    });
+    if (!ok) return;
     try {
       setModerationBusy(true);
       await unmuteGroupMember(groupId, comment.authorId);
@@ -798,7 +867,14 @@ export function CommentActionsPortal({
 
   async function handleBan() {
     if (!groupId || moderationBusy) return;
-    if (!window.confirm(tGroups("confirmBanUser"))) return;
+    const ok = await confirm({
+      title: tGroups("ban"),
+      body: tGroups("confirmBanUser"),
+      confirmLabel: tGroups("ban"),
+      tone: "danger",
+      zIndexBase: CONFIRM_Z_BASE,
+    });
+    if (!ok) return;
     try {
       setModerationBusy(true);
       await banGroupMember(groupId, comment.authorId);
@@ -810,7 +886,14 @@ export function CommentActionsPortal({
 
   async function handleUnban() {
     if (!groupId || moderationBusy) return;
-    if (!window.confirm(tGroups("confirmUnbanUser"))) return;
+    const ok = await confirm({
+      title: tGroups("unban"),
+      body: tGroups("confirmUnbanUser"),
+      confirmLabel: tGroups("unban"),
+      tone: "neutral",
+      zIndexBase: CONFIRM_Z_BASE,
+    });
+    if (!ok) return;
     try {
       setModerationBusy(true);
       await unbanGroupMember(groupId, comment.authorId);
@@ -822,7 +905,14 @@ export function CommentActionsPortal({
 
   async function handleRemove() {
     if (!groupId || moderationBusy) return;
-    if (!window.confirm(tGroups("confirmRemoveUser"))) return;
+    const ok = await confirm({
+      title: tGroups("remove"),
+      body: tGroups("confirmRemoveUser"),
+      confirmLabel: tGroups("remove"),
+      tone: "danger",
+      zIndexBase: CONFIRM_Z_BASE,
+    });
+    if (!ok) return;
     try {
       setModerationBusy(true);
       await removeGroupMember(groupId, comment.authorId);
@@ -833,7 +923,14 @@ export function CommentActionsPortal({
   }
 
   async function handleSocialBlock() {
-    if (!window.confirm(tCommon("confirmBlockProfile"))) return;
+    const ok = await confirm({
+      title: tGroups("blockProfile"),
+      body: tCommon("confirmBlockProfile"),
+      confirmLabel: tCommon("block"),
+      tone: "danger",
+      zIndexBase: CONFIRM_Z_BASE,
+    });
+    if (!ok) return;
     try { await socialBlock(); onClose(); }
     catch (e: unknown) { onError((e as Error)?.message ?? tCommon("errorBlockProfile")); }
   }
@@ -934,6 +1031,8 @@ export function CommentActionsPortal({
         </div>,
         document.body,
       )}
+
+      {confirmPanel}
     </>
   );
 }

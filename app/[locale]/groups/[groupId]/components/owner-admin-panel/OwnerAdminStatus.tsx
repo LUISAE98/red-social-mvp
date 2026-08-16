@@ -249,7 +249,7 @@ export default function OwnerAdminStatus({
 
       setStatusMsg(
         nextMode === "owner_only"
-          ? "Ahora solo el owner puede publicar."
+          ? "Ahora solo el creador puede publicar."
           : "Ahora cualquier miembro puede publicar."
       );
     } catch (e: unknown) {
@@ -284,7 +284,7 @@ export default function OwnerAdminStatus({
       setStatusMsg(
         nextValue
           ? "Ahora cualquier miembro autorizado puede comentar."
-          : "Ahora solo el owner puede comentar."
+          : "Ahora solo el creador puede comentar."
       );
     } catch (e: unknown) {
       setCommentsEnabled(previousValue);
@@ -386,7 +386,7 @@ export default function OwnerAdminStatus({
 
         <PermissionSwitchRow
           label="Comentarios"
-          description="Define si los comentarios quedan abiertos para miembros o reservados al owner."
+          description="Define si los comentarios quedan abiertos para miembros o reservados al creador."
           checked={!commentsEnabled}
           busy={commentsBusy}
           leftLabel="Cualquier miembro puede comentar"

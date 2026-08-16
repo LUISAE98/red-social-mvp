@@ -4,13 +4,16 @@ import { useTranslations } from "next-intl";
 
 // Maps normalized (lowercased, trimmed) Spanish backend messages to cf namespace keys.
 // Backend functions stay unchanged; this utility provides progressive translation on the client.
+//
+// Las llaves con prefijo `common:` viven en el grupo compartido y no en `cf`:
+// son textos que ya decía otra pantalla y que ahora tienen una sola redacción.
 const MSG_TO_KEY: Record<string, string> = {
   // authentication
-  "debes iniciar sesión.": "mustBeSignedIn",
-  "debes iniciar sesión": "mustBeSignedIn",
-  "debes iniciar sesión para reaccionar.": "mustBeSignedIn",
-  "debes iniciar sesión para subir video.": "mustBeSignedIn",
-  "debes iniciar sesión para guardar publicaciones.": "mustBeSignedIn",
+  "debes iniciar sesión.": "common:mustBeSignedIn",
+  "debes iniciar sesión": "common:mustBeSignedIn",
+  "debes iniciar sesión para reaccionar.": "common:mustBeSignedIn",
+  "debes iniciar sesión para subir video.": "common:mustBeSignedIn",
+  "debes iniciar sesión para guardar publicaciones.": "common:mustBeSignedIn",
   "debes estar autenticado.": "mustBeAuthenticated",
   "debes estar autenticado": "mustBeAuthenticated",
 
@@ -36,14 +39,14 @@ const MSG_TO_KEY: Record<string, string> = {
 
   // permissions
   "no tienes permisos para realizar esta acción.": "noPermission",
-  "solo el owner o un moderador pueden realizar esta acción.": "noPermission",
-  "solo el owner o un moderador pueden gestionar solicitudes.": "noPermission",
+  "solo el creador o un moderador pueden realizar esta acción.": "noPermission",
+  "solo el creador o un moderador pueden gestionar solicitudes.": "noPermission",
   "solo el creador puede hacer esta acción.": "onlyCreatorCanAct",
   "solo el creador puede configurar este live.": "onlyCreatorCanAct",
   "solo el comprador puede hacer esta acción.": "onlyBuyerCanAct",
-  "solo el owner de la comunidad puede realizar esta acción.": "onlyOwnerCanAct",
-  "solo el owner puede generar links.": "onlyOwnerCanAct",
-  "solo el dueño del grupo puede fijar o desfijar publicaciones.": "onlyOwnerCanAct",
+  "solo el creador de la comunidad puede realizar esta acción.": "onlyOwnerCanAct",
+  "solo el creador puede generar links.": "onlyOwnerCanAct",
+  "solo el creador de la comunidad puede fijar o desfijar publicaciones.": "onlyOwnerCanAct",
   "solo puedes fijar o desfijar publicaciones en tu propio perfil.": "onlyOwnerCanAct",
   "solo puedes subir video a tu propio perfil.": "onlyOwnerCanAct",
 
@@ -129,11 +132,15 @@ function resolveKey(rawMessage: string): string | null {
  */
 export function useCfError() {
   const t = useTranslations("cf");
+  const tCommon = useTranslations("common");
 
   return function cfError(err: unknown): string {
     const raw = (err as { message?: string } | null)?.message ?? "";
     const key = resolveKey(raw);
     if (key) {
+      if (key.startsWith("common:")) {
+        return tCommon(key.slice("common:".length) as Parameters<typeof tCommon>[0]);
+      }
       return t(key as Parameters<typeof t>[0]);
     }
     return raw || t("internalError");

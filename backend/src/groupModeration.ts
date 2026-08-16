@@ -181,7 +181,7 @@ async function getMemberRefOrThrow(groupId: string, targetUserId: string) {
   if (role === "owner") {
     throw new HttpsError(
       "failed-precondition",
-      "No se puede moderar al owner de la comunidad."
+      "No se puede moderar al creador de la comunidad."
     );
   }
 
@@ -243,7 +243,7 @@ async function getActorContextOrThrow(groupId: string, actorUid: string) {
   if (actorRole !== "mod") {
     throw new HttpsError(
       "permission-denied",
-      "Solo el owner o un moderador pueden realizar esta acción."
+      "Solo el creador o un moderador pueden realizar esta acción."
     );
   }
 
@@ -270,7 +270,7 @@ function ensureActorCanModerateTarget(
   if (targetRole === "owner") {
     throw new HttpsError(
       "failed-precondition",
-      "No se puede moderar al owner de la comunidad."
+      "No se puede moderar al creador de la comunidad."
     );
   }
 
@@ -286,7 +286,7 @@ function ensureOwnerOnly(actorRole: CanonicalGroupRole) {
   if (actorRole !== "owner") {
     throw new HttpsError(
       "permission-denied",
-      "Solo el owner de la comunidad puede realizar esta acción."
+      "Solo el creador de la comunidad puede realizar esta acción."
     );
   }
 }

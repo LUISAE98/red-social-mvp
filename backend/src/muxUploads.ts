@@ -180,7 +180,7 @@ async function assertCanCreateMuxUpload(uid: string, groupId: string) {
   if (postingMode === "owner_only") {
     throw new HttpsError(
       "permission-denied",
-      "Solo el owner puede publicar en esta comunidad."
+      "Solo el creador puede publicar en esta comunidad."
     );
   }
 }
@@ -290,7 +290,7 @@ export const createMuxGroupDonationUpload = onCall<{ groupId: string }>(
     const group = groupSnap.data() || {};
 
     if (group.ownerId !== uid) {
-      throw new HttpsError("permission-denied", "Solo el owner puede configurar el video de donación.");
+      throw new HttpsError("permission-denied", "Solo el creador puede configurar el video de donación.");
     }
 
     await consumeVideoUploadQuota(uid);

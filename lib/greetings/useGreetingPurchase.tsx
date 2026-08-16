@@ -105,7 +105,7 @@ export function useGreetingPurchase({
       setPayAmount(res.priceSnapshot ?? null);
       setPayOpen(true);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : tWallet("requestError"));
+      setError(err instanceof Error ? err.message : tServices("requestError"));
     } finally {
       setSubmitting(false);
     }

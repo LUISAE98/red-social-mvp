@@ -24,6 +24,7 @@ import { useBuyerCredit } from "@/lib/wallet/useBuyerCredit";
 import { useBuyerCashout } from "@/lib/wallet/useBuyerCashout";
 import { requestCashout, dismissCashoutNotice } from "@/lib/wallet/cashout";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
+import { useConfirm } from "@/lib/hooks/useConfirm";
 
 type Tab = "requested" | "rejected" | "delivered";
 
@@ -113,6 +114,7 @@ export default function ExperienciasPage() {
   const credit = useBuyerCredit(user?.uid); // Saldo a favor (crédito por devoluciones)
   const cashout = useBuyerCashout(user?.uid); // Solicitud de efectivo pendiente (B7)
   const [cashoutBusy, setCashoutBusy] = useState(false);
+  const { confirm, confirmPanel } = useConfirm();
   const [cashoutError, setCashoutError] = useState<string | null>(null);
   const pf = usePriceFormat();
   const [tab, setTab] = useState<Tab>("requested");
@@ -121,9 +123,15 @@ export default function ExperienciasPage() {
   // Modelo B: todo el saldo restante es reembolsable. El superadmin lo revisa en "Devoluciones".
   async function handleRequestCashout() {
     if (cashoutBusy) return;
-    const ok = window.confirm(
-      tWallet("cashoutConfirm", { amount: pf.format(credit.balance, { baseCurrency: "MXN", code: true }) })
-    );
+    // Morado y no rojo: el comprador solo lo SOLICITA, y hay una revisión de
+    // por medio antes de que el dinero se mueva.
+    const ok = await confirm({
+      title: tWallet("cashoutRequestTitle"),
+      body: tWallet("cashoutConfirmBody"),
+      highlight: pf.format(credit.balance, { baseCurrency: "MXN", code: true }),
+      confirmLabel: tCommon("confirm"),
+      tone: "neutral",
+    });
     if (!ok) return;
     setCashoutBusy(true);
     setCashoutError(null);
@@ -777,6 +785,7 @@ export default function ExperienciasPage() {
           </div>
         </div>
       )}
+      {confirmPanel}
     </div>
   );
 }

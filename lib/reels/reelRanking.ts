@@ -49,6 +49,13 @@ export type ScoreInput = {
   /** Vector de gustos del usuario. Vacío = arranque en frío. */
   taste: Map<CanonicalGroupCategory, number>;
   nowMs: number;
+  /**
+   * Afinidad con lo que la persona SE QUEDA VIENDO, de 0 a 1. Sale del texto del
+   * contexto cruzado con el tiempo de permanencia (ver `reelInterest`). Pesa más
+   * que la categoría porque describe el contenido real y no los intereses
+   * declarados de quien lo grabó.
+   */
+  interest?: number;
 };
 
 /**
@@ -60,7 +67,7 @@ export type ScoreInput = {
  * la frescura pasa a ser un decaimiento suave y el peso se mueve a la afinidad y
  * a la popularidad, que son las que envejecen bien.
  */
-export function scoreStory({ story, taste, nowMs }: ScoreInput): number {
+export function scoreStory({ story, taste, nowMs, interest = 0 }: ScoreInput): number {
   let affinity = 0;
   if (Array.isArray(story.categories)) {
     for (const raw of story.categories) {
@@ -81,9 +88,17 @@ export function scoreStory({ story, taste, nowMs }: ScoreInput): number {
   // Las tres ya van de 0 a 1, así que el peso decide de verdad. Con gusto
   // definido, una afinidad plena (3) gana a una popularidad plena (1.5) por el
   // doble; una afinidad floja no, y eso es correcto.
+  const interestNorm = clamp01(interest);
+
+  // La permanencia pesa 4, por encima de la categoría (3). Es la única señal que
+  // viene del comportamiento real de esta persona con este contenido; las demás
+  // son declaradas o agregadas.
+  //
+  // En frío hay una excepción: aunque no haya categorías, si ya se ha quedado
+  // viendo cosas la permanencia manda igual. Por eso entra en las dos ramas.
   return taste.size > 0
-    ? affinityNorm * 3 + popularityNorm * 1.5 + recency * 1
-    : popularityNorm * 3 + recency * 1.5; // frío total → lo popular y lo fresco
+    ? interestNorm * 4 + affinityNorm * 3 + popularityNorm * 1.5 + recency * 1
+    : interestNorm * 4 + popularityNorm * 3 + recency * 1.5;
 }
 
 /**
@@ -99,6 +114,7 @@ export function rankStories(
   taste: Map<CanonicalGroupCategory, number>,
   viewedAt: Map<string, number>,
   nowMs: number,
+  interestOf?: (story: StoryDoc) => number,
 ): StoryDoc[] {
   const fresh: Array<{ story: StoryDoc; score: number }> = [];
   const seen: Array<{ story: StoryDoc; viewedAt: number }> = [];
@@ -106,7 +122,10 @@ export function rankStories(
   for (const story of stories) {
     const seenAt = viewedAt.get(story.id);
     if (seenAt === undefined) {
-      fresh.push({ story, score: scoreStory({ story, taste, nowMs }) });
+      fresh.push({
+        story,
+        score: scoreStory({ story, taste, nowMs, interest: interestOf?.(story) ?? 0 }),
+      });
     } else {
       seen.push({ story, viewedAt: seenAt });
     }
@@ -169,6 +188,47 @@ export function mixByQuota(
     // Quien sale paga una unidad; los demás acumulan su cuota.
     debt[pick]! -= 1;
     for (const lane of active) debt[lane]! += quota[lane];
+  }
+
+  return out;
+}
+
+/**
+ * Separa historias del mismo creador para que no salgan seguidas.
+ *
+ * El ranking ordena por calidad y el mezclador reparte entre consejos y saludos,
+ * pero ninguno de los dos mira de QUIÉN es cada historia. Con pocos creadores
+ * —que es siempre el principio de una plataforma— eso saca cinco seguidas de la
+ * misma persona y el feed se siente repetitivo aunque el orden sea "correcto".
+ *
+ * Es un reparto conservador, no una reordenación: se avanza por la lista y, si
+ * el siguiente es de un creador que ya salió dentro de la ventana, se busca al
+ * primero que no lo esté. Si no hay ninguno, sale igual. Nunca se pierde nada ni
+ * se altera el orden más de lo imprescindible.
+ *
+ * Se mira quién GRABÓ el video, no quién publicó la copia.
+ */
+export function spreadByCreator(stories: StoryDoc[], minGap = 3): StoryDoc[] {
+  if (stories.length <= 2 || minGap < 1) return stories;
+
+  const pending = [...stories];
+  const out: StoryDoc[] = [];
+  /** Últimos creadores emitidos, del más reciente al más antiguo. */
+  const recent: string[] = [];
+
+  const authorOf = (s: StoryDoc) => s.greetingCreatorId ?? s.creatorId ?? "";
+
+  while (pending.length > 0) {
+    let pick = pending.findIndex((s) => !recent.includes(authorOf(s)));
+    // Todos los que quedan son de creadores recientes: se acepta el primero.
+    if (pick === -1) pick = 0;
+
+    const [chosen] = pending.splice(pick, 1);
+    if (!chosen) break;
+    out.push(chosen);
+
+    recent.unshift(authorOf(chosen));
+    if (recent.length > minGap) recent.length = minGap;
   }
 
   return out;

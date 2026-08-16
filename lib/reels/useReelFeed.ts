@@ -14,7 +14,7 @@
 // por fecha, se rankea entera y se sirve. Rankear de a una daría un orden que en
 // realidad es solo cronológico.
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { collection, getDocs, limit, orderBy, query, type QueryDocumentSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { getUserTasteVector } from "@/app/components/GroupRecommendations/recommendation-engine";
@@ -24,8 +24,22 @@ import {
   dedupeStories,
   fetchDiscoveryReelPage,
   fetchFollowedReelStories,
+  storyVideoKey,
 } from "./reelStories";
-import { mixByQuota, rankStories, splitLanes } from "./reelRanking";
+import { mixByQuota, rankStories, spreadByCreator, splitLanes } from "./reelRanking";
+import {
+  getReelFeedGeneration,
+  getReelFeedGenerationServer,
+  subscribeToReelFeedRefresh,
+} from "./reelFeedRefresh";
+import {
+  applyEngagement,
+  loadTermVector,
+  saveTermVector,
+  termAffinity,
+  type ReelEngagement,
+  type TermVector,
+} from "./reelInterest";
 
 /** Cuántas candidatas se traen por tanda antes de rankear. */
 const POOL_SIZE = 60;
@@ -77,20 +91,47 @@ async function fetchViewedMap(uid: string): Promise<Map<string, number>> {
 export function useReelFeed(uid: string | null | undefined) {
   const [state, setState] = useState<State>(EMPTY);
 
+  // Cambia cuando alguien pide refrescar (tirar hacia abajo, publicar, quitar).
+  // Entra en las dependencias del efecto de carga, así que rearma el feed entero
+  // sin que este hook tenga que saber quién lo pidió.
+  const generation = useSyncExternalStore(
+    subscribeToReelFeedRefresh,
+    getReelFeedGeneration,
+    getReelFeedGenerationServer,
+  );
+
   const tasteRef = useRef<Map<CanonicalGroupCategory, number>>(new Map());
   const viewedRef = useRef<Map<string, number>>(new Map());
   const cursorRef = useRef<QueryDocumentSnapshot | null>(null);
   const exhaustedRef = useRef(false);
   const loadingRef = useRef(false);
   const seenIdsRef = useRef<Set<string>>(new Set());
+  // Se recuerda el VIDEO, no el documento: el mismo saludo puede estar publicado
+  // dos veces (por quien lo grabó y por quien lo compró) y en el reel circula una
+  // sola copia.
+  const seenVideosRef = useRef<Set<string>>(new Set());
+  const interestRef = useRef<TermVector>(new Map());
+  // De quién es el vector que hay en memoria.
+  const interestUidRef = useRef<string | null>(null);
+  // Solo se escribe si de verdad cambió algo durante la sesión.
+  const interestDirtyRef = useRef(false);
 
   /** Rankea y reparte una tanda cruda de descubrimiento. */
   const arrange = useCallback((pool: StoryDoc[]): StoryDoc[] => {
-    const fresh = pool.filter((s) => !seenIdsRef.current.has(s.id));
+    const fresh = pool.filter(
+      (s) => !seenIdsRef.current.has(s.id) && !seenVideosRef.current.has(storyVideoKey(s)),
+    );
     if (fresh.length === 0) return [];
-    const ranked = rankStories(fresh, tasteRef.current, viewedRef.current, Date.now());
-    const mixed = mixByQuota(splitLanes(ranked));
-    for (const s of mixed) seenIdsRef.current.add(s.id);
+    const ranked = rankStories(fresh, tasteRef.current, viewedRef.current, Date.now(), (s) =>
+      termAffinity(s, interestRef.current),
+    );
+    // Primero la cuota entre consejos y saludos, y DESPUÉS se separan los del
+    // mismo creador. Al revés, la cuota volvería a juntarlos.
+    const mixed = spreadByCreator(mixByQuota(splitLanes(ranked)));
+    for (const s of mixed) {
+      seenIdsRef.current.add(s.id);
+      seenVideosRef.current.add(storyVideoKey(s));
+    }
     return mixed;
   }, []);
 
@@ -105,11 +146,23 @@ export function useReelFeed(uid: string | null | undefined) {
     cursorRef.current = null;
     exhaustedRef.current = false;
     seenIdsRef.current = new Set();
+    seenVideosRef.current = new Set();
+
+    // El vector de intereses se ata al USUARIO, no a la recarga. Un refresco no
+    // puede tirar lo aprendido en esta sesión, que aún no está guardado: se
+    // escribe una sola vez al salir del feed.
+    const sameUser = interestUidRef.current === uid;
+    if (!sameUser) {
+      interestRef.current = new Map();
+      interestDirtyRef.current = false;
+      interestUidRef.current = uid;
+    }
 
     (async () => {
-      const [taste, viewed, followed, pool] = await Promise.all([
+      const [taste, viewed, interest, followed, pool] = await Promise.all([
         getUserTasteVector(uid).catch(() => new Map<CanonicalGroupCategory, number>()),
         fetchViewedMap(uid),
+        sameUser ? Promise.resolve(interestRef.current) : loadTermVector(uid),
         fetchFollowedReelStories(uid),
         fetchDiscoveryReelPage(null, POOL_SIZE),
       ]);
@@ -117,13 +170,23 @@ export function useReelFeed(uid: string | null | undefined) {
 
       tasteRef.current = taste;
       viewedRef.current = viewed;
+      interestRef.current = interest;
       cursorRef.current = pool.cursor;
       exhaustedRef.current = pool.exhausted;
 
       // Los seguidos van a la cabeza y sin cuota, pero sí con lo no visto
       // delante: si sigues a alguien, lo nuevo suyo es lo primero que quieres.
-      const head = rankStories(followed, taste, viewed, Date.now());
-      for (const s of head) seenIdsRef.current.add(s.id);
+      //
+      // También aquí se deduplica por video: si sigues al creador Y al comprador
+      // del mismo saludo, te llegan las dos copias y solo debe circular una.
+      const head: StoryDoc[] = [];
+      for (const s of rankStories(followed, taste, viewed, Date.now())) {
+        const videoKey = storyVideoKey(s);
+        if (seenVideosRef.current.has(videoKey)) continue;
+        seenVideosRef.current.add(videoKey);
+        seenIdsRef.current.add(s.id);
+        head.push(s);
+      }
 
       const tail = arrange(pool.stories);
 
@@ -133,7 +196,7 @@ export function useReelFeed(uid: string | null | undefined) {
     return () => {
       cancelled = true;
     };
-  }, [uid, arrange]);
+  }, [uid, arrange, generation]);
 
   /**
    * Pide más hasta CONSEGUIR algo nuevo, no hasta pedir una vez.
@@ -175,7 +238,34 @@ export function useReelFeed(uid: string | null | undefined) {
     })();
   }, [arrange]);
 
+  /**
+   * Registra cuánto se quedó mirando una historia.
+   *
+   * Se acumula en memoria, no se escribe en cada scroll. Un feed son decenas de
+   * cambios por minuto y eso sería una escritura por cada uno.
+   */
+  const recordEngagement = useCallback((engagement: ReelEngagement) => {
+    applyEngagement(interestRef.current, engagement);
+    interestDirtyRef.current = true;
+  }, []);
+
+  // Una sola escritura al salir del feed. `pagehide` cubre cerrar la pestaña y
+  // el cambio de app en móvil, donde `beforeunload` no llega en iOS.
+  useEffect(() => {
+    if (!uid) return;
+    const flush = () => {
+      if (!interestDirtyRef.current) return;
+      interestDirtyRef.current = false;
+      void saveTermVector(uid, interestRef.current);
+    };
+    window.addEventListener("pagehide", flush);
+    return () => {
+      window.removeEventListener("pagehide", flush);
+      flush();
+    };
+  }, [uid]);
+
   // Si el estado es de otra sesión, se ignora hasta que llegue el de esta.
   const current = state.uid === uid ? state : EMPTY;
-  return { stories: current.stories, ready: current.ready, loadMore };
+  return { stories: current.stories, ready: current.ready, loadMore, recordEngagement };
 }

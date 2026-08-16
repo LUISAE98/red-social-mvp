@@ -684,7 +684,7 @@ async function handleToggleProfilePin(postId: string): Promise<void> {
 
       removePostFromAllFeedCaches(postId);
     } catch (e: unknown) {
-      setError((e instanceof Error ? e.message : null) ?? t("unknownError"));
+      setError((e instanceof Error ? e.message : null) ?? t("generalError"));
       throw e;
     }
   }
@@ -694,7 +694,7 @@ async function handleToggleProfilePin(postId: string): Promise<void> {
       setError(null);
       return await fetchPostComments(postId);
     } catch (e: unknown) {
-      setError((e instanceof Error ? e.message : null) ?? t("unknownError"));
+      setError((e instanceof Error ? e.message : null) ?? t("generalError"));
       throw e;
     }
   }
@@ -729,7 +729,7 @@ async function handleToggleProfilePin(postId: string): Promise<void> {
       await createPostComment({ postId, text, mentions, image });
       return await syncPostCommentsCount(postId);
     } catch (e: unknown) {
-      setError((e instanceof Error ? e.message : null) ?? t("unknownError"));
+      setError((e instanceof Error ? e.message : null) ?? t("generalError"));
       throw e;
     }
   }
@@ -743,7 +743,7 @@ async function handleToggleProfilePin(postId: string): Promise<void> {
       await deletePostComment({ postId, commentId });
       return await syncPostCommentsCount(postId);
     } catch (e: unknown) {
-      setError((e instanceof Error ? e.message : null) ?? t("unknownError"));
+      setError((e instanceof Error ? e.message : null) ?? t("generalError"));
       throw e;
     }
   }

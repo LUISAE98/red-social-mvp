@@ -17,6 +17,7 @@ import { resolveCashout, devCaptureAndCredit, type CashoutRequestDoc } from "@/l
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { useVibraToast, type ToastType } from "@/lib/hooks/useVibraToast";
 import { useAdminPreview } from "../context";
+import { useConfirm } from "@/lib/hooks/useConfirm";
 
 const TYPE_LABELS: Record<string, string> = {
   greetingRequest: "Saludo / consejo",
@@ -57,6 +58,7 @@ export default function AdminRefundsPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [creatorNames, setCreatorNames] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
+  const { confirm, confirmPanel } = useConfirm();
   const [error, setError] = useState<string | null>(null);
   const [devPi, setDevPi] = useState("");
   const [devBusy, setDevBusy] = useState(false);
@@ -155,9 +157,15 @@ export default function AdminRefundsPage() {
   async function handleResolve(action: "approve" | "reject", note?: string) {
     if (!selected) return;
     if (action === "approve") {
-      const ok = window.confirm(
-        `¿Aprobar y reembolsar ${money(selected.amount, locale)} a la tarjeta original de ${selected.buyerName || "el comprador"}? Esta acción dispara reembolsos en Stripe.`
-      );
+      // Rojo: aqui SI sale el dinero. Dispara el reembolso en Stripe y no se
+      // puede deshacer.
+      const ok = await confirm({
+        title: "Aprobar el reembolso",
+        body: `Se devolvera a la tarjeta original de ${selected.buyerName || "el comprador"}. Esta accion dispara el reembolso en Stripe y no se puede deshacer.`,
+        highlight: money(selected.amount, locale),
+        confirmLabel: "Reembolsar",
+        tone: "danger",
+      });
       if (!ok) return;
     }
     setBusy(true);
@@ -386,6 +394,7 @@ export default function AdminRefundsPage() {
         </div>
       )}
 
+      {confirmPanel}
       <VibraToast toast={toast} />
     </div>
   );

@@ -6,7 +6,8 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/app/providers";
 import HomePostsFeed from "./HomePostsFeed";
 import HomePostComposer from "./HomePostComposer";
-import HomeStoriesRow, { invalidateStoriesCache } from "@/app/components/Stories/HomeStoriesRow";
+import HomeStoriesRow, { invalidateFollowedIdsCache } from "@/app/components/Stories/HomeStoriesRow";
+import { refreshReelFeed } from "@/lib/reels/reelFeedRefresh";
 import RefreshableArea from "@/components/refresh/RefreshableArea";
 import { invalidateRecommendationCache } from "@/app/components/GroupRecommendations/recommendation-engine";
 import { useScreenReady } from "@/lib/useScreenReady";
@@ -92,7 +93,8 @@ const pageWrap: CSSProperties = {
         <div style={feedWrap}>
           <RefreshableArea onRefresh={() => {
             if (effectiveUid) {
-              invalidateStoriesCache(effectiveUid);
+              invalidateFollowedIdsCache(effectiveUid);
+              refreshReelFeed();
               invalidateRecommendationCache(effectiveUid);
             }
             return refreshRef.current();

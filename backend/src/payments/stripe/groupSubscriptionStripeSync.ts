@@ -105,33 +105,28 @@ async function invoiceSub(inv: StripeInvoiceObj): Promise<{ subId: string; meta:
 }
 
 /**
- * Marca el uso de la invitación (best-effort; solo en la 1ª factura). TRANSACCIONAL con
- * re-chequeo del tope: `validateInviteForGroup` (en el callable) valida el límite con una
- * lectura simple mucho antes de que llegue esta factura, así que sin transacción el contador
- * podría pasarse de `maxUses` con checkouts concurrentes. Aquí se re-lee dentro de la
- * transacción, NO se incrementa si ya está agotado, y se desactiva el enlace al llegar al tope.
+ * Deja constancia de que una reserva acabó en alta pagada. **NO cuenta usos.**
+ *
+ * ⚠️ El cupo lo consume `reserveInviteSlot` al empezar el checkout, antes de
+ * cobrar. Esta función incrementaba también, así que cada alta gastaba DOS usos y
+ * un enlace de diez se agotaba con cinco personas. Solo sella metadatos.
+ *
+ * Best-effort a propósito: que no se pueda sellar el enlace no debe tumbar la
+ * activación de una membresía ya pagada.
  */
-async function markInviteUsed(groupId: string, inviteToken: string, uid: string): Promise<void> {
+async function stampInviteUsed(groupId: string, inviteToken: string, uid: string): Promise<void> {
   const inv = await db.collectionGroup("inviteLinks").where("token", "==", inviteToken).limit(1).get();
   const ref = inv.empty ? null : inv.docs[0].ref;
   if (!ref) return;
-  await db
-    .runTransaction(async (tx) => {
-      const snap = await tx.get(ref);
-      if (!snap.exists) return;
-      const d = snap.data() as { usedCount?: number; maxUses?: number | null };
-      const used = typeof d.usedCount === "number" ? d.usedCount : 0;
-      const max = typeof d.maxUses === "number" ? d.maxUses : null;
-      if (max !== null && used >= max) return; // ya agotado: no sobre-incrementar
-      const next = used + 1;
-      tx.update(ref, {
-        usedCount: next,
+  await ref
+    .set(
+      {
         lastUsedAt: FieldValue.serverTimestamp(),
         lastUsedBy: uid,
         updatedAt: FieldValue.serverTimestamp(),
-        ...(max !== null && next >= max ? { isActive: false } : {}),
-      });
-    })
+      },
+      { merge: true }
+    )
     .catch(() => undefined);
 }
 
@@ -222,13 +217,17 @@ export async function reconcileStripeSubscriptionEvent(type: string, object: Rec
       });
     }
 
-    // Primera factura → marca el uso de la invitación. SOLO en `invoice.paid` (no en
-    // `invoice.payment_succeeded`): Stripe emite AMBOS eventos por la misma factura con
-    // event.id distintos, así que el dedup de `stripeEvents` no los junta; como
-    // `markInviteUsed` hace `increment(1)` (no idempotente), correr en los dos subiría
-    // `usedCount` +2 y agotaría el enlace al doble. `invoice.paid` siempre se emite al pagar.
+    // ⚠️ EL CUPO YA SE CONSUMIÓ AL EMPEZAR EL CHECKOUT, no aquí.
+    //
+    // `reserveInviteSlot` (en `createGroupSubscription`) incrementa `usedCount`
+    // ANTES de cobrar, para que dos personas con el último cupo no entren las dos.
+    // Este sitio incrementaba también, así que cada alta gastaba DOS usos: un
+    // enlace de diez se agotaba con cinco personas.
+    //
+    // Aquí ya no se cuenta nada; solo se deja constancia de que esa reserva acabó
+    // en un alta pagada, que es lo que se ve en el panel de invitaciones.
     if (type === "invoice.paid" && inv.billing_reason === "subscription_create" && meta.inviteToken) {
-      await markInviteUsed(groupId, meta.inviteToken, uid);
+      await stampInviteUsed(groupId, meta.inviteToken, uid);
     }
     logger.info("stripe subscription invoice.paid", { groupId, uid, invoiceId: inv.id });
     return;

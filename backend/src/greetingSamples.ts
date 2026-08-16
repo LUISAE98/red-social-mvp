@@ -115,7 +115,7 @@ export const createGreetingSampleUpload = onCall(
       if (groupSnap.get("ownerId") !== creatorId) {
         throw new HttpsError(
           "permission-denied",
-          "Solo el dueño puede agregar muestras a esta comunidad."
+          "Solo el creador puede agregar muestras a esta comunidad."
         );
       }
     }

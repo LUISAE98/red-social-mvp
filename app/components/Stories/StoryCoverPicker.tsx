@@ -7,7 +7,12 @@ import { useTranslations } from "next-intl";
 import { createPortal } from "react-dom";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { storage } from "@/lib/firebase";
-import { addStoryFromGreeting, deleteStory } from "@/lib/stories/storyService";
+import {
+  addStoryFromGreeting,
+  deleteStory,
+  setStoryHiddenFromReel,
+} from "@/lib/stories/storyService";
+import { refreshReelFeed } from "@/lib/reels/reelFeedRefresh";
 import {
   usePublishableGreetings,
   type PublishableGreeting,
@@ -312,8 +317,32 @@ export default function StoryCoverPicker({
 
   const handleRemove = async (storyId: string, greetingId: string) => {
     setProcessingId(greetingId);
-    try { await deleteStory(storyId); }
-    finally { setProcessingId(null); }
+    try {
+      await deleteStory(storyId);
+      refreshReelFeed();
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  /**
+   * Enciende o apaga la circulación en el feed de Historias.
+   *
+   * Publicar manda la historia a DOS sitios, el perfil o la comunidad y el
+   * descubrimiento. Este interruptor apaga solo el segundo, así que sigue estando
+   * para quien entre al perfil pero deja de aparecerle a desconocidos. Nace
+   * encendido; la regla de Firestore exige que se cree en `false`.
+   */
+  const handleToggleReel = async (storyId: string, greetingId: string, show: boolean) => {
+    setProcessingId(greetingId);
+    try {
+      await setStoryHiddenFromReel(storyId, !show);
+      refreshReelFeed();
+    } catch (err) {
+      console.error("[setStoryHiddenFromReel]", err);
+    } finally {
+      setProcessingId(null);
+    }
   };
 
   useBodyScrollLock(true);
@@ -778,6 +807,66 @@ export default function StoryCoverPicker({
                       >
                         {isProcessing ? "..." : "Quitar"}
                       </button>
+                    ) : null}
+
+                    {/* Circulación en el feed. Solo tiene sentido en lo que YA
+                        está publicado, así que acompaña al botón de quitar. */}
+                    {publishedStory ? (
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+                        <span
+                          style={{
+                            fontSize: 10.5,
+                            color: "rgba(255,255,255,0.42)",
+                            fontFamily: fontStack,
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {tCommon("storyShowInReel")}
+                        </span>
+                        <button
+                          type="button"
+                          role="switch"
+                          aria-checked={!publishedStory.hiddenFromReel}
+                          aria-label={tCommon("storyShowInReel")}
+                          disabled={isProcessing}
+                          onClick={() =>
+                            handleToggleReel(
+                              publishedStory.id,
+                              item.id,
+                              !!publishedStory.hiddenFromReel,
+                            )
+                          }
+                          style={{
+                            position: "relative",
+                            flexShrink: 0,
+                            width: 36,
+                            height: 20,
+                            borderRadius: 999,
+                            padding: 0,
+                            border: "1px solid rgba(255,255,255,0.18)",
+                            background: publishedStory.hiddenFromReel
+                              ? "rgba(255,255,255,0.10)"
+                              : VIBRA_GRADIENT,
+                            cursor: isProcessing ? "not-allowed" : "pointer",
+                            transition: "all 0.2s ease",
+                            opacity: isProcessing ? 0.5 : 1,
+                          }}
+                        >
+                          <span
+                            style={{
+                              position: "absolute",
+                              top: 2,
+                              insetInlineStart: publishedStory.hiddenFromReel ? 2 : 18,
+                              width: 14,
+                              height: 14,
+                              borderRadius: "50%",
+                              background: "#fff",
+                              transition: "all 0.2s ease",
+                              display: "block",
+                            }}
+                          />
+                        </button>
+                      </div>
                     ) : item.greeting ? (
                       <button
                         type="button"

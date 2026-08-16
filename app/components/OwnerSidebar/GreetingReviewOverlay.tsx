@@ -76,6 +76,12 @@ type Props = {
   buyerSourceName?: string;
   buyerSourceAvatar?: string | null;
   readOnly?: boolean;
+  /**
+   * Capa del overlay. Por omisión 10050, que basta cuando se abre desde el
+   * sidebar o notificaciones. Al abrirlo DESDE otro panel —el de configurar
+   * experiencias usa 999999— hay que subirlo o queda detrás.
+   */
+  zIndex?: number;
 };
 
 function formatDateDisplay(date: Date, locale: string): string {
@@ -95,6 +101,7 @@ export default function GreetingReviewOverlay({
   buyerSourceName,
   buyerSourceAvatar,
   readOnly = false,
+  zIndex = 10050,
 }: Props) {
   const tCommon = useTranslations("common");
   const cfError = useCfError();
@@ -438,7 +445,7 @@ export default function GreetingReviewOverlay({
     ? `${tServices("viewRequest")} ${typeLabel}`
     : `${tServices("readMessage")} ${typeLabel}`;
 
-  const cameraTitleText = viewMode ? titleText : `${tServices("readMessage")} ${typeLabel}`;
+  // El título del estudio ya no depende del tipo: va fuera de los paneles.
 
   // Resuelve la URL pública del avatar del creador para pasarla a la plantilla de
   // grabación animada (que la carga directa). Prioridad: prop → mapa buyers → Firestore.
@@ -1564,7 +1571,7 @@ export default function GreetingReviewOverlay({
     const handlePanelTouchEnd = () => setMobilePanelDragging(false);
 
     return createPortal(
-      <div style={{ position: "fixed", inset: 0, zIndex: 10050, fontFamily: fontStack }}>
+      <div style={{ position: "fixed", inset: 0, zIndex, fontFamily: fontStack }}>
 
         {/* ── Camera / playback area — fills from top to panel ── */}
         <div style={{
@@ -1824,44 +1831,89 @@ export default function GreetingReviewOverlay({
   // ─── DESKTOP CAMERA VIEW ─────────────────────────────────────────────────────
   if (viewState === "camera" && !isMobile) {
     return createPortal(
+      <>
+      <style>{`
+        /* Pop de entrada: escala con un ligero rebote —la curva se pasa de 1 y
+           regresa— en vez de un fundido plano. Los dos paneles entran a la vez.
+           Se respeta a quien pidió menos movimiento en su sistema. */
+        @keyframes vibraGreetingPanelPop {
+          from { opacity: 0; transform: scale(0.92) translateY(12px); }
+          to   { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          @keyframes vibraGreetingPanelPop {
+            from { opacity: 0; transform: none; }
+            to   { opacity: 1; transform: none; }
+          }
+        }
+      `}</style>
       <div style={{
-        position: "fixed", inset: 0, zIndex: 10050,
-        background: "rgba(0,0,0,0.8)",
-        display: "flex", alignItems: "center", justifyContent: "center",
-        padding: "20px 24px", boxSizing: "border-box", fontFamily: fontStack,
+        position: "fixed", inset: 0, zIndex,
+        // Mismo fondo que el visor de post: negro alto con desenfoque detrás.
+        background: "rgba(0,0,0,0.86)",
+        backdropFilter: "blur(12px)",
+        WebkitBackdropFilter: "blur(12px)",
+        // Columna: el título arriba y los dos paneles debajo.
+        display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+        gap: 18,
+        padding: "24px 10vw", boxSizing: "border-box", fontFamily: fontStack,
       }}
         onClick={handleClose}
       >
+        {/* Título del estudio: fuera de los paneles y centrado en pantalla, no
+            dentro de la columna de información como estaba antes. */}
+        <div
+          style={{
+            color: "#fff",
+            fontWeight: 500,
+            fontSize: 22,
+            letterSpacing: "-0.02em",
+            textAlign: "center",
+            flexShrink: 0,
+            animation: "vibraGreetingPanelPop 220ms cubic-bezier(0.34, 1.56, 0.64, 1)",
+          }}
+        >
+          {req.type === "consejo"
+            ? tServices("recordAdviceTitle")
+            : tServices("recordGreetingTitle")}
+        </div>
+
+        {/* Fila con los dos paneles. El hueco entre ellos es el del visor. */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 14,
+            width: "100%",
+            minHeight: 0,
+          }}
+        >
+        {/* Panel IZQUIERDO: la información. */}
         <div style={{
-          ...containerBase,
-          width: "90vw",
-          maxWidth: 1100,
-          height: "min(82vh, 720px)",
+          width: "clamp(220px, 24%, 300px)",
+          flexShrink: 0,
+          minWidth: 0,
           display: "flex",
-          flexDirection: "row",
-          gap: 24,
-          alignItems: "stretch",
-          overflow: "hidden",
-          padding: 0,
+          flexDirection: "column",
+          gap: 16,
+          overflowY: "auto",
+          padding: 20,
+          boxSizing: "border-box",
+          background: "rgba(14,14,16,0.98)",
+          // Aspecto del visor de post: negro, esquinas 16, borde tenue y sombra
+          // profunda. Cada panel es independiente; el hueco lo da el gap del fondo.
+          borderRadius: 16,
+          border: "1px solid rgba(255,255,255,0.10)",
+          boxShadow: "0 24px 80px rgba(0,0,0,0.64)",
+          height: "min(72dvh, 688px)",
+          animation: "vibraGreetingPanelPop 220ms cubic-bezier(0.34, 1.56, 0.64, 1)",
         }}
           onClick={(e) => e.stopPropagation()}
         >
-          {/* Left: info panel — narrow, scrollable */}
-          <div style={{
-            width: "clamp(220px, 24%, 280px)",
-            flexShrink: 0,
-            display: "flex",
-            flexDirection: "column",
-            gap: 16,
-            overflowY: "auto",
-            padding: 20,
-            borderInlineEnd: "1px solid rgba(255,255,255,0.06)",
-          }}>
-            {/* Header */}
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <span style={{ color: "#fff", fontWeight: 500, fontSize: 16, letterSpacing: "-0.02em" }}>
-                {cameraTitleText}
-              </span>
+            {/* Header. El título salió de aquí: ahora va fuera de los paneles,
+                centrado en la pantalla. Solo queda la X, alineada a la derecha. */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end" }}>
               <button type="button" onClick={handleClose} style={{
                 background: "transparent", border: "none", color: "rgba(255,255,255,0.45)",
                 cursor: "pointer", padding: "4px 6px", fontSize: 16, lineHeight: 1, borderRadius: 8,
@@ -1989,12 +2041,30 @@ export default function GreetingReviewOverlay({
                 </>
               )}
             </div>
-          </div>
 
           {fileInput}
-          {/* Right: camera / playback fills remaining height */}
-          <div style={{ flex: 1, minWidth: 0, padding: "20px 20px 20px 0", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <div style={{ position: "relative", height: "100%", width: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        </div>
+
+        {/* Panel DERECHO: la cámara. Negro puro como el del visor de post. */}
+        <div
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            flex: 1,
+            minWidth: 0,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            overflow: "hidden",
+            background: "#000",
+            boxSizing: "border-box",
+            borderRadius: 16,
+            border: "1px solid rgba(255,255,255,0.10)",
+            boxShadow: "0 24px 80px rgba(0,0,0,0.64)",
+            height: "min(72dvh, 688px)",
+            animation: "vibraGreetingPanelPop 220ms cubic-bezier(0.34, 1.56, 0.64, 1)",
+          }}
+        >
+            <div style={{ position: "relative", height: "100%", width: "100%" }}>
               {(viewMode || buyerViewMode) ? (
                 viewMp4Url ? (
                   <div style={{ position: "relative", height: "100%", width: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -2012,9 +2082,8 @@ export default function GreetingReviewOverlay({
                       onPause={() => setVpPlaying(false)}
                       onEnded={() => setVpPlaying(false)}
                       style={{
-                        height: "100%", width: "auto", maxWidth: "100%",
-                        borderRadius: 14, objectFit: "contain", background: "#000",
-                        border: "1px solid rgba(255,255,255,0.08)",
+                        height: "100%", width: "100%",
+                        objectFit: "cover", background: "#000",
                       }}
                     />
                     {vpControlsOverlay}
@@ -2033,8 +2102,8 @@ export default function GreetingReviewOverlay({
                     disablePictureInPicture
                     onContextMenu={(e) => e.preventDefault()}
                     style={{
-                      height: "100%", width: "auto", maxWidth: "100%",
-                      borderRadius: 14, objectFit: "contain", background: "#000",
+                      height: "100%", width: "100%",
+                      objectFit: "cover", background: "#000",
                       display: recordPhase === "done" ? "none" : "block",
                       border: "1px solid rgba(255,255,255,0.08)",
                     }}
@@ -2054,9 +2123,9 @@ export default function GreetingReviewOverlay({
                       onPause={() => setVpPlaying(false)}
                       onEnded={() => setVpPlaying(false)}
                       style={{
-                        height: "100%", width: "auto", maxWidth: "100%",
-                        borderRadius: 14, objectFit: "contain", background: "#000",
-                        display: "block", border: "1px solid rgba(255,255,255,0.08)",
+                        height: "100%", width: "100%",
+                        objectFit: "cover", background: "#000",
+                        display: "block",
                       }}
                     />
                     {vpControlsOverlay}
@@ -2091,7 +2160,8 @@ export default function GreetingReviewOverlay({
             </div>
           </div>
         </div>
-      </div>,
+      </div>
+      </>,
       document.body
     );
   }
@@ -2140,7 +2210,7 @@ export default function GreetingReviewOverlay({
         <div
           onClick={handleReviewBackdropClose}
           style={{
-            position: "fixed", inset: 0, zIndex: 10050,
+            position: "fixed", inset: 0, zIndex,
             background: "rgba(0,0,0,0.52)",
             backdropFilter: "blur(10px)",
             WebkitBackdropFilter: "blur(10px)",
@@ -2251,7 +2321,7 @@ export default function GreetingReviewOverlay({
         ${REVIEW_BG_CSS}
       `}</style>
       <div style={{
-        position: "fixed", inset: 0, zIndex: 10050,
+        position: "fixed", inset: 0, zIndex,
         background: "rgba(0,0,0,0.88)",
         display: "flex", alignItems: "center", justifyContent: "center",
         padding: 24, boxSizing: "border-box", fontFamily: fontStack,

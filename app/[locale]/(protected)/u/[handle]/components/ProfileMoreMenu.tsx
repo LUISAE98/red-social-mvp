@@ -7,6 +7,7 @@ import { useTranslations } from "next-intl";
 import { useSocialRelationship } from "@/lib/social/useSocialRelationship";
 import { useReport, type ReportTarget } from "@/lib/moderation/useReport";
 import ReportModal from "@/app/components/ReportModal/ReportModal";
+import { useConfirm } from "@/lib/hooks/useConfirm";
 
 type Props = {
   viewerUid: string | null | undefined;
@@ -89,12 +90,18 @@ export default function ProfileMoreMenu({ viewerUid, profileUid, onBlockSuccess,
   }, [menuOpen, closeMenu]);
 
   useBodyScrollLock(menuOpen);
+  const { confirm, confirmPanel } = useConfirm();
 
   if (!viewerUid || isOwnProfile || relationship.isBlockedBy) return null;
 
   async function handleBlockClick() {
     if (loading) return;
-    const confirmed = window.confirm(tCommon("confirmBlockUser"));
+    const confirmed = await confirm({
+      title: tCommon("block"),
+      body: tCommon("confirmBlockUser"),
+      confirmLabel: tCommon("block"),
+      tone: "danger",
+    });
     if (!confirmed) return;
     closeMenu();
     await block();
@@ -286,6 +293,7 @@ export default function ProfileMoreMenu({ viewerUid, profileUid, onBlockSuccess,
       )}
 
       {reportTarget && <ReportModal target={reportTarget} onClose={closeReport} />}
+      {confirmPanel}
     </>
   );
 }

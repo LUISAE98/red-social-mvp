@@ -228,7 +228,7 @@ export default function ReportDetailPage() {
         <Row label="Estado" value={report.status} />
         <Row label="ID del contenido" value={report.targetId} mono />
         {report.parentId && <Row label="ID del padre" value={report.parentId} mono />}
-        <Row label="ID del propietario" value={report.targetOwnerId} mono />
+        <Row label="ID del creador" value={report.targetOwnerId} mono />
         <Row
           label="Reportado"
           value={report.createdAt.toLocaleString(intlLocale(locale), { dateStyle: "medium", timeStyle: "short" })}
