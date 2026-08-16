@@ -265,7 +265,9 @@
     "actionCompletionError": "Níorbh fhéidir an gníomh a chur i gcrích.",
     "imageUploadError": "Níorbh fhéidir an íomhá a uaslódáil.",
     "minLength3": "Caithfidh 3 charachtar ar a laghad a bheith ann.",
-    "videoUploadError": "Níorbh fhéidir an físeán a uaslódáil."
+    "videoUploadError": "Níorbh fhéidir an físeán a uaslódáil.",
+    "priceMin": "Is é ${min} an t-íosphraghas",
+    "shareStory": "Comhroinn scéal"
   },
   "groups": {
     "title": "Pobail",
@@ -1684,7 +1686,6 @@
     "subscriptionSummaryPriceLabel": "Praghas míosúil cumraithe",
     "subscriptionCalculationMessage": "As síntiús {price}, tuilleann tú {netAmount}.",
     "subscriptionEarningsLegend": "Leis an bpraghas sin, tuillfidh tú <amount>{net}</amount> sa mhí.",
-    "subscriptionPriceMinLegend": "Is é ${min} an t-íosphraghas",
     "subscriptionModifyButton": "Cuir in eagar",
     "subscriptionConfigModalTitle": "Cumraigh an síntiús míosúil",
     "subscriptionDeactivateModalTitle": "Múch an síntiús míosúil",

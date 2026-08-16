@@ -265,7 +265,9 @@
     "actionCompletionError": "Tindakan tidak dapat diselesaikan.",
     "imageUploadError": "Imej tidak dapat dimuat naik.",
     "minLength3": "Mesti sekurang-kurangnya 3 aksara.",
-    "videoUploadError": "Video tidak dapat dimuat naik."
+    "videoUploadError": "Video tidak dapat dimuat naik.",
+    "priceMin": "Harga minimum ialah ${min}",
+    "shareStory": "Kongsi cerita"
   },
   "groups": {
     "title": "Komuniti",
@@ -1684,7 +1686,6 @@
     "subscriptionSummaryPriceLabel": "Harga bulanan yang ditetapkan",
     "subscriptionCalculationMessage": "Untuk langganan {price}, anda memperoleh {netAmount}.",
     "subscriptionEarningsLegend": "Dengan harga itu, anda memperoleh <amount>{net}</amount> sebulan.",
-    "subscriptionPriceMinLegend": "Harga minimum ialah ${min}",
     "subscriptionModifyButton": "Sunting",
     "subscriptionConfigModalTitle": "Konfigurasikan langganan bulanan",
     "subscriptionDeactivateModalTitle": "Matikan langganan bulanan",

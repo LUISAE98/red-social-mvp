@@ -265,7 +265,9 @@
     "actionCompletionError": "មិនអាចបញ្ចប់សកម្មភាពបានទេ។",
     "imageUploadError": "មិនអាចផ្ទុករូបភាពឡើងបានទេ។",
     "minLength3": "ត្រូវមានយ៉ាងតិច 3 តួអក្សរ។",
-    "videoUploadError": "មិនអាចផ្ទុកវីដេអូឡើងបានទេ។"
+    "videoUploadError": "មិនអាចផ្ទុកវីដេអូឡើងបានទេ។",
+    "priceMin": "តម្លៃអប្បបរមាគឺ ${min}",
+    "shareStory": "ចែករំលែករឿងរ៉ាវ"
   },
   "groups": {
     "title": "សហគមន៍",
@@ -1684,7 +1686,6 @@
     "subscriptionSummaryPriceLabel": "តម្លៃប្រចាំខែដែលបានកំណត់",
     "subscriptionCalculationMessage": "សម្រាប់ការជាវ {price} អ្នករកបាន {netAmount}។",
     "subscriptionEarningsLegend": "ជាមួយតម្លៃនោះ អ្នកនឹងរកបាន <amount>{net}</amount> ក្នុងមួយខែ។",
-    "subscriptionPriceMinLegend": "តម្លៃអប្បបរមាគឺ ${min}",
     "subscriptionModifyButton": "កែសម្រួល",
     "subscriptionConfigModalTitle": "កំណត់រចនាសម្ព័ន្ធការជាវប្រចាំខែ",
     "subscriptionDeactivateModalTitle": "បិទការជាវប្រចាំខែ",

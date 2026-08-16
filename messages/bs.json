@@ -265,7 +265,9 @@
     "actionCompletionError": "Radnju nije bilo moguće dovršiti.",
     "imageUploadError": "Sliku nije bilo moguće prenijeti.",
     "minLength3": "Mora imati barem 3 znaka.",
-    "videoUploadError": "Video nije bilo moguće poslati."
+    "videoUploadError": "Video nije bilo moguće poslati.",
+    "priceMin": "Najniža cijena je ${min}",
+    "shareStory": "Podijeli priču"
   },
   "groups": {
     "title": "Zajednice",
@@ -1684,7 +1686,6 @@
     "subscriptionSummaryPriceLabel": "Postavljena mjesečna cijena",
     "subscriptionCalculationMessage": "Uz pretplatu od {price} zarađuješ {netAmount}.",
     "subscriptionEarningsLegend": "Uz tu cijenu zarađuješ <amount>{net}</amount> mjesečno.",
-    "subscriptionPriceMinLegend": "Najniža cijena je ${min}",
     "subscriptionModifyButton": "Uredi",
     "subscriptionConfigModalTitle": "Postavi mjesečnu pretplatu",
     "subscriptionDeactivateModalTitle": "Isključi mjesečnu pretplatu",

@@ -76,6 +76,14 @@ const FIELD: React.CSSProperties = {
   fontSize: 14, fontFamily: "inherit", lineHeight: 1.5, outline: "none",
 };
 
+/**
+ * El mismo aviso para los cuatro archivos que pide este panel. Estaba escrito
+ * cuatro veces y solo cambiaba la extensión y el objeto.
+ */
+function avisoExtension(extension: string, queEs: string) {
+  return `Ese no es un archivo ${extension}, sube ${queEs} con extensión ${extension}.`;
+}
+
 export default function WithdrawFiscalPanel({ open, onClose, uid, availableLabel, ivaLabel, totalLabel }: Props) {
   const locale = useLocale();
   const { profile, loading, hasData, csdReady } = useCreatorTaxProfile(uid);
@@ -115,12 +123,12 @@ export default function WithdrawFiscalPanel({ open, onClose, uid, availableLabel
 
   function pickCer(f: File | null) {
     if (!f) return;
-    if (!/\.cer$/i.test(f.name)) { setCer(null); setCerError("Ese no es un archivo .cer. Sube el certificado con extensión .cer."); return; }
+    if (!/\.cer$/i.test(f.name)) { setCer(null); setCerError(avisoExtension(".cer", "el certificado")); return; }
     setCerError(null); setCer(f);
   }
   function pickKey(f: File | null) {
     if (!f) return;
-    if (!/\.key$/i.test(f.name)) { setKeyFile(null); setKeyError("Ese no es un archivo .key. Sube la llave con extensión .key."); return; }
+    if (!/\.key$/i.test(f.name)) { setKeyFile(null); setKeyError(avisoExtension(".key", "la llave")); return; }
     setKeyError(null); setKeyFile(f);
   }
 
@@ -134,12 +142,12 @@ export default function WithdrawFiscalPanel({ open, onClose, uid, availableLabel
 
   function pickPdf(f: File | null) {
     if (!f) return;
-    if (!/\.pdf$/i.test(f.name)) { setPdf(null); setPdfError("Ese no es un archivo .pdf. Sube el PDF de tu factura."); return; }
+    if (!/\.pdf$/i.test(f.name)) { setPdf(null); setPdfError(avisoExtension(".pdf", "el PDF de tu factura")); return; }
     setPdfError(null); setPdf(f);
   }
   function pickXml(f: File | null) {
     if (!f) return;
-    if (!/\.xml$/i.test(f.name)) { setXml(null); setXmlError("Ese no es un archivo .xml. Sube el XML de tu factura."); return; }
+    if (!/\.xml$/i.test(f.name)) { setXml(null); setXmlError(avisoExtension(".xml", "el XML de tu factura")); return; }
     setXmlError(null); setXml(f);
   }
 

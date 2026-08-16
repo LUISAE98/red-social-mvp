@@ -265,7 +265,9 @@
     "actionCompletionError": "ดำเนินการไม่สำเร็จ",
     "imageUploadError": "อัปโหลดรูปภาพไม่สำเร็จ",
     "minLength3": "ต้องมีอย่างน้อย 3 ตัวอักษร",
-    "videoUploadError": "อัปโหลดวิดีโอไม่สำเร็จ"
+    "videoUploadError": "อัปโหลดวิดีโอไม่สำเร็จ",
+    "priceMin": "ราคาขั้นต่ำคือ ${min}",
+    "shareStory": "แชร์สตอรี่"
   },
   "groups": {
     "title": "ชุมชน",
@@ -1684,7 +1686,6 @@
     "subscriptionSummaryPriceLabel": "ราคารายเดือนที่ตั้งไว้",
     "subscriptionCalculationMessage": "ค่าสมาชิก {price} คุณจะได้รับ {netAmount}",
     "subscriptionEarningsLegend": "ด้วยราคานี้ คุณจะได้รับ <amount>{net}</amount> ต่อเดือน",
-    "subscriptionPriceMinLegend": "ราคาขั้นต่ำคือ ${min}",
     "subscriptionModifyButton": "แก้ไข",
     "subscriptionConfigModalTitle": "ตั้งค่าค่าสมาชิกรายเดือน",
     "subscriptionDeactivateModalTitle": "ปิดค่าสมาชิกรายเดือน",

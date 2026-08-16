@@ -265,7 +265,9 @@
     "actionCompletionError": "कार्य पूरा गर्न सकिएन।",
     "imageUploadError": "छवि अपलोड गर्न सकिएन।",
     "minLength3": "कम्तीमा 3 वर्ण हुनुपर्छ।",
-    "videoUploadError": "भिडियो अपलोड गर्न सकिएन।"
+    "videoUploadError": "भिडियो अपलोड गर्न सकिएन।",
+    "priceMin": "न्यूनतम मूल्य ${min} हो",
+    "shareStory": "कथा साझा गर्नुहोस्"
   },
   "groups": {
     "title": "समुदायहरू",
@@ -1684,7 +1686,6 @@
     "subscriptionSummaryPriceLabel": "कन्फिगर गरिएको मासिक मूल्य",
     "subscriptionCalculationMessage": "{price} को सदस्यताका लागि तपाईंले {netAmount} कमाउनुहुन्छ।",
     "subscriptionEarningsLegend": "त्यो मूल्यमा तपाईंले प्रति महिना <amount>{net}</amount> कमाउनुहुनेछ।",
-    "subscriptionPriceMinLegend": "न्यूनतम मूल्य ${min} हो",
     "subscriptionModifyButton": "सम्पादन",
     "subscriptionConfigModalTitle": "मासिक सदस्यता कन्फिगर गर्नुहोस्",
     "subscriptionDeactivateModalTitle": "मासिक सदस्यता निष्क्रिय गर्नुहोस्",

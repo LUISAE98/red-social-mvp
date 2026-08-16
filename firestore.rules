@@ -2466,7 +2466,69 @@ match /memberBlocks/{blockId} {
             : true
         )
         // Nace visible. Sacarla del reel es un acto posterior y explícito.
-        && request.resource.data.hiddenFromReel == false;
+        && request.resource.data.hiddenFromReel == false
+        // ── B8-H05: forma y tamaño de lo que se guarda ────────────────────
+        //
+        // `hasOnly` fija QUÉ claves pueden venir, pero no lo que traen dentro.
+        // La fecha, el contador, los prefijos de búsqueda y las categorías no
+        // se comprobaban en absoluto: se podía publicar una historia fechada en
+        // 2099 para que se quedara clavada arriba del reel, estrenar con
+        // `viewsCount` inflado, o meter miles de prefijos y categorías para
+        // aparecer en toda búsqueda y toda recomendación.
+        //
+        // Los topes son los que ya aplica `lib/stories/storyService.ts`: 80
+        // prefijos (`buildStorySearchPrefixes`) y 19 categorías canónicas, 20
+        // por dejar margen.
+        //
+        // ⚠️ `request.time` es la hora del SERVIDOR y es exactamente en lo que
+        // se resuelve el `serverTimestamp()` que manda el cliente. Fijarla aquí
+        // es lo que impide fechar una historia a voluntad.
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.get('viewsCount', 0) == 0
+        && (
+          !("searchPrefixes" in request.resource.data)
+          || (request.resource.data.searchPrefixes is list
+              && request.resource.data.searchPrefixes.size() <= 80)
+        )
+        && (
+          !("categories" in request.resource.data)
+          || (request.resource.data.categories is list
+              && request.resource.data.categories.size() <= 20)
+        )
+        && (
+          !("creatorName" in request.resource.data)
+          || (request.resource.data.creatorName is string
+              && request.resource.data.creatorName.size() <= 120)
+        )
+        && (
+          !("instructions" in request.resource.data)
+          || request.resource.data.instructions == null
+          || (request.resource.data.instructions is string
+              && request.resource.data.instructions.size() <= 2000)
+        )
+        && (
+          !("muxPlaybackId" in request.resource.data)
+          || request.resource.data.muxPlaybackId == null
+          || (request.resource.data.muxPlaybackId is string
+              && request.resource.data.muxPlaybackId.size() <= 200)
+        )
+        && (
+          !("videoDuration" in request.resource.data)
+          || request.resource.data.videoDuration == null
+          || (request.resource.data.videoDuration is number
+              && request.resource.data.videoDuration >= 0
+              && request.resource.data.videoDuration <= 86400)
+        )
+        // La portada sale de Mux. Anclar el host evita que la historia sirva
+        // como baliza para registrar la IP de quien abra el reel.
+        && (
+          !("thumbnailUrl" in request.resource.data)
+          || request.resource.data.thumbnailUrl == null
+          || (request.resource.data.thumbnailUrl is string
+              && request.resource.data.thumbnailUrl
+                   .matches('https://[a-zA-Z0-9._-]+[.](mux[.]com|cloudflarestream[.]com)(/.*)?'))
+        )
+        && request.resource.data.source in ["profile", "group"];
 
       // Creator can delete their own stories
       allow delete: if notAnonymous()

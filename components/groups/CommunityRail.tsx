@@ -18,6 +18,7 @@
 
 import {
   useCallback,
+  useEffect,
   useRef,
   useState,
   type CSSProperties,
@@ -37,6 +38,35 @@ function normalizeForSearch(value: string): string {
     .replace(/[̀-ͯ]/g, "")
     .toLowerCase()
     .trim();
+}
+
+/**
+ * Memoria del globo de novedades del encabezado, por rail.
+ *
+ * Guarda cuántas novedades había la última vez que abriste ese rail, para que
+ * una recarga no vuelva a avisarte de lo que ya miraste. Es el mismo principio
+ * que `lib/utils/visitTimestamps` usa para los conteos por avatar, aplicado al
+ * encabezado.
+ */
+const RAIL_SEEN_KEY = (railId: string) => `vibra:rail-seen-total:${railId}`;
+
+function readRailSeenTotal(railId: string | undefined): number {
+  if (!railId || typeof window === "undefined") return 0;
+  try {
+    const raw = window.localStorage.getItem(RAIL_SEEN_KEY(railId));
+    if (!raw) return 0;
+    const value = parseInt(raw, 10);
+    return Number.isFinite(value) && value > 0 ? value : 0;
+  } catch {
+    return 0;
+  }
+}
+
+function writeRailSeenTotal(railId: string | undefined, total: number): void {
+  if (!railId || typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(RAIL_SEEN_KEY(railId), String(total));
+  } catch {}
 }
 
 /** Tarjetas por tanda. */
@@ -71,6 +101,7 @@ export default function CommunityRail({
   collapsible = false,
   seeAllLabel,
   emptySearchLabel,
+  railId,
 }: {
   title: string;
   /**
@@ -110,6 +141,13 @@ export default function CommunityRail({
   seeAllLabel?: string;
   /** Texto cuando la búsqueda no encuentra nada. También depende del contenido. */
   emptySearchLabel?: string;
+  /**
+   * Identificador ESTABLE del rail, para recordar entre recargas qué novedades
+   * ya te enseñó el globo del encabezado. No usar el título: está traducido a 47
+   * idiomas y cambiaría de clave al cambiar de idioma. Sin esto el rail funciona
+   * igual, solo que sin memoria.
+   */
+  railId?: string;
 }) {
   const tGroups = useTranslations("groups");
   const tCommon = useTranslations("common");
@@ -132,22 +170,43 @@ export default function CommunityRail({
   const [search, setSearch] = useState("");
 
   /**
-   * Línea base para el globo de novedades del encabezado cerrado.
+   * Línea base para el globo de novedades del encabezado cerrado: cuántas
+   * novedades había la última vez que abriste este rail.
    *
-   * `null` mientras el rail está abierto: si lo ves, no hay nada que avisar. Al
-   * cerrarlo se congela el total del momento, y el globo enseña SOLO lo que
-   * llegó después. Abrirlo vuelve a poner `null`, así que el aviso desaparece y
-   * el conteo arranca de cero aunque no entres a ninguna comunidad.
+   * SE PERSISTE, y esa es la parte importante. Antes vivía solo en memoria y el
+   * globo volvía a salir en cada recarga avisando de lo mismo que ya habías
+   * mirado. Los conteos por avatar ("3 nuevos") no tenían ese problema porque su
+   * marca sí vive en localStorage (`lib/utils/visitTimestamps`) — el globo del
+   * encabezado era el único que se olvidaba.
    *
-   * Arranca en 0, no en `null`, porque los rails ahora empiezan cerrados: con
-   * `null` el globo no aparecería nunca hasta que plegaras uno a mano, y al
-   * entrar no habría ninguna señal de que hay cosas nuevas ahí dentro. Con 0 de
-   * línea base, el globo enseña de entrada todo lo que está sin ver.
-   *
-   * No se persiste: el estado plegado tampoco sobrevive a la recarga, así que
-   * una línea base guardada no tendría a qué referirse.
+   * Sin `railId` no se guarda nada y el rail se comporta como antes.
    */
-  const [newSinceClosed, setNewSinceClosed] = useState<number | null>(0);
+  const [seenTotal, setSeenTotal] = useState<number>(() =>
+    readRailSeenTotal(railId)
+  );
+
+  // Total de novedades del rail. Se calcula aquí arriba, y no junto al globo,
+  // porque el efecto de abajo lo necesita y los hooks van antes del `return null`
+  // de la lista vacía.
+  const totalNewPosts = items.reduce(
+    (sum, item) => sum + (newPostsCounts[item.id] ?? 0),
+    0
+  );
+
+  // ¿El rail está mostrando su contenido? En celular `collapsible` es false y se
+  // pinta siempre desplegado, así que ahí cuenta como visto sin tocar nada. Sin
+  // esta distinción, mirar el sidebar en el móvil no descontaba nada y al volver
+  // a la laptop el globo avisaba de novedades que ya habías visto.
+  const isExpanded = !collapsible || open;
+
+  // Mientras el rail muestra su contenido, lo que va llegando se da por visto:
+  // lo tienes delante, con su conteo bajo cada avatar. Se escribe aquí y no solo
+  // en el clic porque los conteos llegan por fetch y pueden aterrizar DESPUÉS de
+  // que abriste; sin esto, esa tanda tardía volvería a avisarte tras recargar.
+  useEffect(() => {
+    if (!isExpanded) return;
+    writeRailSeenTotal(railId, totalNewPosts);
+  }, [isExpanded, railId, totalNewPosts]);
 
   /**
    * Perfiles que dejaste de seguir SIN cerrar el panel.
@@ -287,13 +346,13 @@ export default function CommunityRail({
 
   const visibleItems = items.slice(0, visibleCount);
 
-  // Total de novedades del rail y lo que corresponde enseñar en el globo.
-  const totalNewPosts = items.reduce(
-    (sum, item) => sum + (newPostsCounts[item.id] ?? 0),
-    0
-  );
-  const badgeCount =
-    newSinceClosed == null ? 0 : Math.max(0, totalNewPosts - newSinceClosed);
+  // Si el total actual bajó por debajo de la línea base es que entraste a ver
+  // posts, así que la base baja con él. Sin este tope, después de mirar una
+  // tanda grande el globo se quedaría mudo hasta superar aquel pico viejo: te
+  // perderías las novedades siguientes.
+  const effectiveSeen = Math.min(seenTotal, totalNewPosts);
+  // Desplegado no hay nada que avisar: los conteos por avatar ya están a la vista.
+  const badgeCount = isExpanded ? 0 : Math.max(0, totalNewPosts - effectiveSeen);
 
   // Lista del panel, respetando el orden congelado al abrir. Los perfiles que
   // dejaste de seguir siguen ahí, EN SU SITIO, porque el orden se guardó por id
@@ -633,13 +692,11 @@ export default function CommunityRail({
           <button
             type="button"
             onClick={() => {
-              setOpen((prev) => {
-                const next = !prev;
-                // Al cerrar se congela el total actual como línea base; al abrir
-                // se suelta, y con ello el globo desaparece y vuelve a cero.
-                setNewSinceClosed(next ? null : totalNewPosts);
-                return next;
-              });
+              // Abrir o cerrar, lo que hay ahora queda por visto: al abrirlo lo
+              // estás mirando, y al cerrarlo ya lo miraste. El globo solo vuelve
+              // con lo que llegue DESPUÉS.
+              setSeenTotal(totalNewPosts);
+              setOpen((prev) => !prev);
             }}
             aria-expanded={open}
             style={{

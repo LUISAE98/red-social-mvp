@@ -265,7 +265,9 @@
     "actionCompletionError": "Veiksmo nepavyko užbaigti.",
     "imageUploadError": "Paveikslėlio nepavyko įkelti.",
     "minLength3": "Turi būti bent 3 simboliai.",
-    "videoUploadError": "Nepavyko įkelti vaizdo įrašo."
+    "videoUploadError": "Nepavyko įkelti vaizdo įrašo.",
+    "priceMin": "Mažiausia kaina yra ${min}",
+    "shareStory": "Bendrinti istoriją"
   },
   "groups": {
     "title": "Bendruomenės",
@@ -1684,7 +1686,6 @@
     "subscriptionSummaryPriceLabel": "Nustatyta mėnesio kaina",
     "subscriptionCalculationMessage": "Už {price} prenumeratą uždirbi {netAmount}.",
     "subscriptionEarningsLegend": "Su tokia kaina uždirbi <amount>{net}</amount> per mėnesį.",
-    "subscriptionPriceMinLegend": "Mažiausia kaina yra ${min}",
     "subscriptionModifyButton": "Redaguoti",
     "subscriptionConfigModalTitle": "Nustatyti mėnesinę prenumeratą",
     "subscriptionDeactivateModalTitle": "Išjungti mėnesinę prenumeratą",

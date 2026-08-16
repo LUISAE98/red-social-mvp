@@ -265,7 +265,9 @@
     "actionCompletionError": "Nie udało się dokończyć akcji.",
     "imageUploadError": "Nie udało się przesłać obrazu.",
     "minLength3": "Musi mieć co najmniej 3 znaki.",
-    "videoUploadError": "Nie udało się przesłać wideo."
+    "videoUploadError": "Nie udało się przesłać wideo.",
+    "priceMin": "Cena minimalna to {min} $",
+    "shareStory": "Udostępnij relację"
   },
   "groups": {
     "title": "Społeczności",
@@ -1684,7 +1686,6 @@
     "subscriptionSummaryPriceLabel": "Ustawiona cena miesięczna",
     "subscriptionCalculationMessage": "Przy subskrypcji {price} zarabiasz {netAmount}.",
     "subscriptionEarningsLegend": "Przy tej cenie zarobisz <amount>{net}</amount> miesięcznie.",
-    "subscriptionPriceMinLegend": "Cena minimalna to {min} $",
     "subscriptionModifyButton": "Edytuj",
     "subscriptionConfigModalTitle": "Skonfiguruj subskrypcję miesięczną",
     "subscriptionDeactivateModalTitle": "Wyłącz subskrypcję miesięczną",

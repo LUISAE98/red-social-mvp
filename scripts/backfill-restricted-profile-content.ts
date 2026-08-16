@@ -91,6 +91,13 @@ async function main() {
     const authorId = doc.get("authorId");
     if (typeof authorId !== "string") continue;
 
+    // ⚠️ SOLO las publicaciones de perfil. En las de comunidad este campo vale
+    // `null` a propósito (`createPost`), y las dos consultas y las dos ramas de
+    // reglas que lo miran filtran antes por `contextType == "profile"`. Sin este
+    // filtro el simulacro señalaba 62 documentos "mal" que en realidad estaban
+    // bien, todos de comunidad.
+    if (doc.get("contextType") !== "profile") continue;
+
     // Un autor que ya no existe se trata como cerrado: lo restrictivo.
     const publico = publicoPorUid.get(authorId) ?? false;
     const deseado = !publico;

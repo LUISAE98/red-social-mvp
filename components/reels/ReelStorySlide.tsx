@@ -24,6 +24,10 @@ import { db } from "@/lib/firebase";
 import type { StoryDoc, StoryType } from "@/lib/stories/types";
 import { useTextReader, scrollCursorIntoView } from "@/lib/tts/useTextReader";
 import { useGreetingPurchase } from "@/lib/greetings/useGreetingPurchase";
+import { buildStoryUrl } from "@/lib/reels/reelStories";
+import { useVibraToast } from "@/lib/hooks/useVibraToast";
+import VibraToast from "@/app/components/VibraToast/VibraToast";
+import VibraShareIcon from "@/app/components/VibraServiceIcons/VibraShareIcon";
 
 const VIBRA_RING = "linear-gradient(135deg, #ec4899 0%, #9333ea 52%, #3b82f6 100%)";
 const FONT = "inherit";
@@ -75,6 +79,36 @@ export default function ReelStorySlide({
   const tCommon = useTranslations("common");
   const tWallet = useTranslations("wallet");
   const tServices = useTranslations("services");
+  const tGroups = useTranslations("groups");
+  const { toast: shareToast, showToast: showShareToast } = useVibraToast(2400);
+
+  /**
+   * Comparte el enlace directo a ESTA historia.
+   *
+   * En móvil abre la hoja del sistema; donde no existe, copia al portapapeles.
+   * Mismo comportamiento que compartir una publicación, para que no haya dos
+   * formas distintas de compartir en la misma app.
+   */
+  async function handleShare() {
+    const url = buildStoryUrl(story.id);
+    const copy = async () => {
+      await navigator.clipboard.writeText(url);
+      showShareToast(tCommon("linkCopiedToClipboard"), "success");
+    };
+    try {
+      if (navigator.share) {
+        await navigator.share({ url });
+        return;
+      }
+      await copy();
+    } catch {
+      try {
+        await copy();
+      } catch {
+        showShareToast(tGroups("copyManuallyError"), "error");
+      }
+    }
+  }
 
   // Lo que ya viene en el documento se DERIVA, no se copia a estado. El estado
   // guarda solo lo que hubo que ir a buscar. Copiarlo obligaba a un efecto por
@@ -440,6 +474,18 @@ export default function ReelStorySlide({
               </svg>
             )}
           </button>
+          <button
+            type="button"
+            aria-label={tCommon("shareStory")}
+            title={tCommon("shareStory")}
+            onClick={(e) => {
+              e.stopPropagation();
+              void handleShare();
+            }}
+            style={{ background: "none", border: "none", cursor: "pointer", padding: "0 5px", display: "flex", alignItems: "center", justifyContent: "center" }}
+          >
+            <VibraShareIcon size={compact ? 20 : 23} color="rgba(255,255,255,0.9)" />
+          </button>
           {topRightActions}
         </div>
 
@@ -594,6 +640,7 @@ export default function ReelStorySlide({
       </div>
 
       {purchase.modals}
+      <VibraToast toast={shareToast} />
     </>
   );
 }

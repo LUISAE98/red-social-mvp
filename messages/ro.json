@@ -265,7 +265,9 @@
     "actionCompletionError": "Acțiunea nu a putut fi finalizată.",
     "imageUploadError": "Imaginea nu a putut fi încărcată.",
     "minLength3": "Trebuie să aibă cel puțin 3 caractere.",
-    "videoUploadError": "Videoclipul nu a putut fi încărcat."
+    "videoUploadError": "Videoclipul nu a putut fi încărcat.",
+    "priceMin": "Prețul minim este {min} $",
+    "shareStory": "Distribuie povestea"
   },
   "groups": {
     "title": "Comunități",
@@ -1684,7 +1686,6 @@
     "subscriptionSummaryPriceLabel": "Preț lunar configurat",
     "subscriptionCalculationMessage": "La un abonament de {price}, câștigi {netAmount}.",
     "subscriptionEarningsLegend": "La acest preț vei câștiga <amount>{net}</amount> pe lună.",
-    "subscriptionPriceMinLegend": "Prețul minim este {min} $",
     "subscriptionModifyButton": "Editează",
     "subscriptionConfigModalTitle": "Configurează abonamentul lunar",
     "subscriptionDeactivateModalTitle": "Dezactivează abonamentul lunar",

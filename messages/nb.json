@@ -265,7 +265,9 @@
     "actionCompletionError": "Handlingen kunne ikke gjennomføres.",
     "imageUploadError": "Bildet kunne ikke uploades.",
     "minLength3": "Må være minst 3 tegn.",
-    "videoUploadError": "Videoen kunne ikke lastes opp."
+    "videoUploadError": "Videoen kunne ikke lastes opp.",
+    "priceMin": "Minsteprisen er ${min}",
+    "shareStory": "Del historie"
   },
   "groups": {
     "title": "Communities",
@@ -1684,7 +1686,6 @@
     "subscriptionSummaryPriceLabel": "Fastsatt månedspris",
     "subscriptionCalculationMessage": "For et abonnement på {price} tjener du {netAmount}.",
     "subscriptionEarningsLegend": "Med den pris tjener du <amount>{net}</amount> om måneden.",
-    "subscriptionPriceMinLegend": "Minsteprisen er ${min}",
     "subscriptionModifyButton": "Rediger",
     "subscriptionConfigModalTitle": "Innstil månedsabonnementet",
     "subscriptionDeactivateModalTitle": "Slå månedsabonnementet fra",

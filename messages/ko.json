@@ -265,7 +265,9 @@
     "actionCompletionError": "작업을 완료하지 못했습니다.",
     "imageUploadError": "이미지를 업로드하지 못했습니다.",
     "minLength3": "3자 이상이어야 합니다.",
-    "videoUploadError": "동영상을 업로드하지 못했습니다."
+    "videoUploadError": "동영상을 업로드하지 못했습니다.",
+    "priceMin": "최소 가격은 ${min}입니다",
+    "shareStory": "스토리 공유"
   },
   "groups": {
     "title": "커뮤니티",
@@ -1684,7 +1686,6 @@
     "subscriptionSummaryPriceLabel": "설정한 월 가격",
     "subscriptionCalculationMessage": "{price} 구독이면 {netAmount}을(를) 받습니다.",
     "subscriptionEarningsLegend": "이 가격이면 매달 <amount>{net}</amount>을(를) 받습니다.",
-    "subscriptionPriceMinLegend": "최소 가격은 ${min}입니다",
     "subscriptionModifyButton": "수정",
     "subscriptionConfigModalTitle": "월 구독 설정",
     "subscriptionDeactivateModalTitle": "월 구독 끄기",

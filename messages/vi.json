@@ -265,7 +265,9 @@
     "actionCompletionError": "Không hoàn tất được thao tác.",
     "imageUploadError": "Không tải được ảnh lên.",
     "minLength3": "Phải có ít nhất 3 ký tự.",
-    "videoUploadError": "Không tải lên được video."
+    "videoUploadError": "Không tải lên được video.",
+    "priceMin": "Giá tối thiểu là ${min}",
+    "shareStory": "Chia sẻ câu chuyện"
   },
   "groups": {
     "title": "Cộng đồng",
@@ -1684,7 +1686,6 @@
     "subscriptionSummaryPriceLabel": "Giá hằng tháng đã đặt",
     "subscriptionCalculationMessage": "Với gói đăng ký {price}, bạn nhận {netAmount}.",
     "subscriptionEarningsLegend": "Với mức giá đó, bạn nhận <amount>{net}</amount> mỗi tháng.",
-    "subscriptionPriceMinLegend": "Giá tối thiểu là ${min}",
     "subscriptionModifyButton": "Sửa",
     "subscriptionConfigModalTitle": "Thiết lập gói đăng ký hằng tháng",
     "subscriptionDeactivateModalTitle": "Tắt gói đăng ký hằng tháng",

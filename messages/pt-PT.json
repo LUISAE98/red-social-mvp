@@ -265,7 +265,9 @@
     "actionCompletionError": "Não foi possível concluir a ação.",
     "imageUploadError": "Não foi possível carregar a imagem.",
     "minLength3": "Tem de ter pelo menos 3 caracteres.",
-    "videoUploadError": "Não foi possível carregar o vídeo."
+    "videoUploadError": "Não foi possível carregar o vídeo.",
+    "priceMin": "O preço mínimo é ${min}",
+    "shareStory": "Partilhar história"
   },
   "groups": {
     "title": "Comunidades",
@@ -1684,7 +1686,6 @@
     "subscriptionSummaryPriceLabel": "Preço mensal definido",
     "subscriptionCalculationMessage": "Por uma subscrição de {price}, ganhas {netAmount}.",
     "subscriptionEarningsLegend": "Com esse preço, vais ganhar <amount>{net}</amount> por mês.",
-    "subscriptionPriceMinLegend": "O preço mínimo é ${min}",
     "subscriptionModifyButton": "Editar",
     "subscriptionConfigModalTitle": "Configurar a subscrição mensal",
     "subscriptionDeactivateModalTitle": "Desativar a subscrição mensal",

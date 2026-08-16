@@ -24,6 +24,7 @@ import {
   dedupeStories,
   fetchDiscoveryReelPage,
   fetchFollowedReelStories,
+  preferCreatorCopy,
   storyVideoKey,
 } from "./reelStories";
 import { mixByQuota, rankStories, spreadByCreator, splitLanes } from "./reelRanking";
@@ -118,7 +119,10 @@ export function useReelFeed(uid: string | null | undefined) {
 
   /** Rankea y reparte una tanda cruda de descubrimiento. */
   const arrange = useCallback((pool: StoryDoc[]): StoryDoc[] => {
-    const fresh = pool.filter(
+    // Dentro de la tanda puede venir el mismo video dos veces (la copia del
+    // creador y la del comprador). Se queda la del creador, para que las vistas
+    // y la popularidad se acumulen en SU documento.
+    const fresh = preferCreatorCopy(pool).filter(
       (s) => !seenIdsRef.current.has(s.id) && !seenVideosRef.current.has(storyVideoKey(s)),
     );
     if (fresh.length === 0) return [];
@@ -180,7 +184,7 @@ export function useReelFeed(uid: string | null | undefined) {
       // También aquí se deduplica por video: si sigues al creador Y al comprador
       // del mismo saludo, te llegan las dos copias y solo debe circular una.
       const head: StoryDoc[] = [];
-      for (const s of rankStories(followed, taste, viewed, Date.now())) {
+      for (const s of rankStories(preferCreatorCopy(followed), taste, viewed, Date.now())) {
         const videoKey = storyVideoKey(s);
         if (seenVideosRef.current.has(videoKey)) continue;
         seenVideosRef.current.add(videoKey);

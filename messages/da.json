@@ -265,7 +265,9 @@
     "actionCompletionError": "Handlingen kunne ikke gennemføres.",
     "imageUploadError": "Billedet kunne ikke uploades.",
     "minLength3": "Skal være på mindst 3 tegn.",
-    "videoUploadError": "Videoen kunne ikke uploades."
+    "videoUploadError": "Videoen kunne ikke uploades.",
+    "priceMin": "Mindsteprisen er ${min}",
+    "shareStory": "Del historie"
   },
   "groups": {
     "title": "Communities",
@@ -1684,7 +1686,6 @@
     "subscriptionSummaryPriceLabel": "Fastsat månedspris",
     "subscriptionCalculationMessage": "For et abonnement på {price} tjener du {netAmount}.",
     "subscriptionEarningsLegend": "Med den pris tjener du <amount>{net}</amount> om måneden.",
-    "subscriptionPriceMinLegend": "Mindsteprisen er ${min}",
     "subscriptionModifyButton": "Redigér",
     "subscriptionConfigModalTitle": "Indstil månedsabonnementet",
     "subscriptionDeactivateModalTitle": "Slå månedsabonnementet fra",

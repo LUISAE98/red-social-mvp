@@ -1,11 +1,11 @@
 "use client";
 
-// Fuente del feed de reels: saludos y consejos, uno detrás de otro.
+// Consultas del feed de reels: saludos y consejos, uno detrás de otro.
 //
-// PROVISIONAL. Aquí todavía no vive la mezcla 70/15/15 ni el ranking por afinidad
-// y vistas; eso es B3. De momento el orden es simple, primero lo de quien sigues y
-// después descubrimiento por fecha. Lo que sí es definitivo es la FORMA de las
-// consultas, porque de eso depende que las reglas no las tumben.
+// Aquí solo vive el ACCESO A DATOS. El orden, la mezcla por cuota y el ranking
+// están en `reelRanking` (lógica pura, con tests) y se orquestan en `useReelFeed`.
+// Lo importante de este archivo es la FORMA de las consultas, porque de eso
+// depende que las reglas de Firestore no las tumben.
 //
 // ⚠️ Las dos consultas fijan campos que hacen innecesario el `get()` de la regla
 // de lectura:
@@ -29,6 +29,7 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { StoryDoc } from "@/lib/stories/types";
+import { getBaseAppUrl } from "@/lib/posts/share-url";
 
 /** Cuántas historias trae cada página de descubrimiento. */
 export const REEL_PAGE_SIZE = 12;
@@ -155,9 +156,44 @@ export function dedupeStories(stories: StoryDoc[]): StoryDoc[] {
  * Identidad del VIDEO, no del documento.
  *
  * El mismo saludo puede estar publicado dos veces, por quien lo grabó y por quien
- * lo compró. En el reel circula UNA sola copia, y da igual cuál de las dos sea,
- * porque la cabecera siempre muestra a quien lo grabó.
+ * lo compró. En el reel circula UNA sola copia.
  */
 export function storyVideoKey(story: StoryDoc): string {
   return story.greetingRequestId || story.id;
+}
+
+/**
+ * Deja una sola copia por video, prefiriendo la del CREADOR.
+ *
+ * Cuál de las dos circula no da igual, aunque en pantalla se vean idénticas: las
+ * vistas se cuentan por documento, y `viewsCount` alimenta la popularidad del
+ * ranking. Si circulara la copia del comprador, el trabajo del creador sumaría
+ * reputación al documento equivocado y su propia historia quedaría a cero.
+ *
+ * Para esto sirve `byCreator`, que si no sería un campo muerto desde que la
+ * deduplicación se hace por video.
+ */
+export function preferCreatorCopy(stories: StoryDoc[]): StoryDoc[] {
+  const best = new Map<string, StoryDoc>();
+  for (const story of stories) {
+    const key = storyVideoKey(story);
+    const current = best.get(key);
+    if (!current) {
+      best.set(key, story);
+      continue;
+    }
+    // Solo se sustituye si la nueva es del creador y la guardada no.
+    if (current.byCreator === false && story.byCreator !== false) best.set(key, story);
+  }
+  return [...best.values()];
+}
+
+/** Ruta pública de una historia dentro del feed. */
+export function buildStoryPath(storyId: string): string {
+  const clean = storyId.trim();
+  return clean ? `/reels/${encodeURIComponent(clean)}` : "/reels";
+}
+
+export function buildStoryUrl(storyId: string): string {
+  return `${getBaseAppUrl()}${buildStoryPath(storyId)}`;
 }

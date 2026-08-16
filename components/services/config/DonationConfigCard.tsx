@@ -570,7 +570,7 @@ export default function DonationConfigCard({
                 <div>
                   <div style={{ maxHeight: belowMinI ? 22 : 0, opacity: belowMinI ? 1 : 0, transform: belowMinI ? "translateY(0)" : "translateY(4px)", overflow: "hidden", transition: "max-height 220ms ease, opacity 220ms ease, transform 220ms ease" }}>
                     <div style={{ color: "#f87171", fontSize: 12, marginTop: 2 }}>
-                      {`El mínimo es $${DONATION_MIN_PER_AMOUNT}`}
+                      {tCommon("priceMin", { min: DONATION_MIN_PER_AMOUNT })}
                     </div>
                   </div>
                   <div style={{ maxHeight: showEarnI ? 22 : 0, opacity: showEarnI ? 1 : 0, transform: showEarnI ? "translateY(0)" : "translateY(4px)", overflow: "hidden", transition: "max-height 220ms ease, opacity 220ms ease, transform 220ms ease" }}>

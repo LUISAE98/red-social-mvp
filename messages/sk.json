@@ -265,7 +265,9 @@
     "actionCompletionError": "Akciu sa nepodarilo dokončiť.",
     "imageUploadError": "Obrázok sa nepodarilo nahrať.",
     "minLength3": "Musí mať aspoň 3 znaky.",
-    "videoUploadError": "Video sa nepodarilo nahrať."
+    "videoUploadError": "Video sa nepodarilo nahrať.",
+    "priceMin": "Minimálna cena je ${min}",
+    "shareStory": "Zdieľať príbeh"
   },
   "groups": {
     "title": "Komunity",
@@ -1684,7 +1686,6 @@
     "subscriptionSummaryPriceLabel": "Nastavená mesačná cena",
     "subscriptionCalculationMessage": "Pri predplatnom {price} zarobíš {netAmount}.",
     "subscriptionEarningsLegend": "Pri tejto cene zarobíš <amount>{net}</amount> mesačne.",
-    "subscriptionPriceMinLegend": "Minimálna cena je ${min}",
     "subscriptionModifyButton": "Upraviť",
     "subscriptionConfigModalTitle": "Nastaviť mesačné predplatné",
     "subscriptionDeactivateModalTitle": "Vypnúť mesačné predplatné",

@@ -265,7 +265,9 @@
     "actionCompletionError": "تعذّر إتمام الإجراء.",
     "imageUploadError": "تعذّر رفع الصورة.",
     "minLength3": "يجب ألّا يقل عن 3 أحرف.",
-    "videoUploadError": "تعذر رفع الفيديو."
+    "videoUploadError": "تعذر رفع الفيديو.",
+    "priceMin": "الحد الأدنى للسعر هو ${min}",
+    "shareStory": "مشاركة القصة"
   },
   "groups": {
     "title": "المجتمعات",
@@ -1684,7 +1686,6 @@
     "subscriptionSummaryPriceLabel": "السعر الشهري المحدد",
     "subscriptionCalculationMessage": "مقابل اشتراك بقيمة {price} تحصل على {netAmount}.",
     "subscriptionEarningsLegend": "بهذا السعر ستحصل على <amount>{net}</amount> شهريًا.",
-    "subscriptionPriceMinLegend": "الحد الأدنى للسعر هو ${min}",
     "subscriptionModifyButton": "تعديل",
     "subscriptionConfigModalTitle": "إعداد الاشتراك الشهري",
     "subscriptionDeactivateModalTitle": "تعطيل الاشتراك الشهري",

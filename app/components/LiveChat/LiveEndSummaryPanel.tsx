@@ -252,7 +252,7 @@ export default function LiveEndSummaryPanel({ open, onClose, post }: Props) {
               {/* 3 leyendas que COLAPSAN suave: mínimo rojo / cuánto ganas (75%) / cargo Stripe. */}
               <div style={{ marginTop: 8 }}>
                 <div style={{ maxHeight: vodBelowMin ? 24 : 0, opacity: vodBelowMin ? 1 : 0, transform: vodBelowMin ? "translateY(0)" : "translateY(4px)", overflow: "hidden", transition: "max-height 220ms ease, opacity 220ms ease, transform 220ms ease" }}>
-                  <span style={{ display: "block", color: "#f87171", fontSize: 12, lineHeight: 1.45, fontFamily: FONT }}>{`El mínimo es $${PREMIUM_MIN_PRICE_MXN}`}</span>
+                  <span style={{ display: "block", color: "#f87171", fontSize: 12, lineHeight: 1.45, fontFamily: FONT }}>{tCommon("priceMin", { min: PREMIUM_MIN_PRICE_MXN })}</span>
                 </div>
                 <div style={{ maxHeight: vodEarningsVisible ? 24 : 0, opacity: vodEarningsVisible ? 1 : 0, transform: vodEarningsVisible ? "translateY(0)" : "translateY(4px)", overflow: "hidden", transition: "max-height 220ms ease, opacity 220ms ease, transform 220ms ease" }}>
                   <span style={{ display: "block", color: "rgba(255,255,255,0.55)", fontSize: 12, lineHeight: 1.45, fontFamily: FONT }}>

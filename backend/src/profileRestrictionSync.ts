@@ -183,10 +183,24 @@ export const onProfileRestrictionChanged = onDocumentUpdated(
     // Las publicaciones llevan la copia al revés: `profileRestricted`.
     const restringido = !despuesPublico;
 
+    // ⚠️ SOLO las publicaciones de perfil. En las de comunidad este campo vale
+    // `null` A PROPÓSITO (`createPost` lo escribe así), y tanto las dos consultas
+    // que lo usan como las dos ramas de reglas filtran antes por
+    // `contextType == "profile"`. Pisar ese `null` con true/false no cambiaría
+    // nada visible, pero rompería la convención y escribiría en cientos de
+    // documentos para nada.
+    //
+    // El filtro va en código y no en la consulta para no depender de un índice
+    // compuesto: `authorId` solo ya está indexado.
     await actualizarPorLotes(
       db().collection("posts").where("authorId", "==", uid),
-      (doc) => (doc.get("profileRestricted") === restringido ? null : { profileRestricted: restringido }),
-      `posts de ${uid} → profileRestricted=${restringido}`
+      (doc) => {
+        if (doc.get("contextType") !== "profile") return null;
+        return doc.get("profileRestricted") === restringido
+          ? null
+          : { profileRestricted: restringido };
+      },
+      `posts de perfil de ${uid} → profileRestricted=${restringido}`
     );
 
     await resincronizarHistorias(uid, despuesPublico);

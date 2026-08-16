@@ -265,7 +265,9 @@
     "actionCompletionError": "Dejanja ni bilo mogoče dokončati.",
     "imageUploadError": "Slike ni bilo mogoče naložiti.",
     "minLength3": "Imeti mora vsaj 3 znake.",
-    "videoUploadError": "Videa ni bilo mogoče naložiti."
+    "videoUploadError": "Videa ni bilo mogoče naložiti.",
+    "priceMin": "Najnižja cena je ${min}",
+    "shareStory": "Deli zgodbo"
   },
   "groups": {
     "title": "Skupnosti",
@@ -1684,7 +1686,6 @@
     "subscriptionSummaryPriceLabel": "Določena mesečna cena",
     "subscriptionCalculationMessage": "Pri naročnini {price} zaslužiš {netAmount}.",
     "subscriptionEarningsLegend": "Pri tej ceni zaslužiš <amount>{net}</amount> na mesec.",
-    "subscriptionPriceMinLegend": "Najnižja cena je ${min}",
     "subscriptionModifyButton": "Uredi",
     "subscriptionConfigModalTitle": "Nastavi mesečno naročnino",
     "subscriptionDeactivateModalTitle": "Izklopi mesečno naročnino",

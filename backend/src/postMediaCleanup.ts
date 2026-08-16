@@ -95,10 +95,14 @@ export function separarRutasDelPost(post: Record<string, unknown> | undefined): 
  * `ignoreNotFound` porque reintentar el trigger es normal: la segunda vuelta se
  * encuentra los archivos ya borrados y eso NO es un error.
  */
-async function borrarArchivos(rutas: string[], postId: string): Promise<number> {
-  if (rutas.length === 0) return 0;
+async function borrarArchivos(
+  rutas: string[],
+  postId: string
+): Promise<{ borrados: number; fallidos: string[] }> {
+  if (rutas.length === 0) return { borrados: 0, fallidos: [] };
 
   const bucket = getStorage().bucket();
+  const fallidos: string[] = [];
   let borrados = 0;
 
   await Promise.all(
@@ -107,25 +111,36 @@ async function borrarArchivos(rutas: string[], postId: string): Promise<number> 
         await bucket.file(ruta).delete({ ignoreNotFound: true });
         borrados++;
       } catch (error) {
-        // Un archivo que no se deja borrar no debe tumbar el resto ni dejar el
-        // trigger reintentando en bucle: se registra y se sigue.
+        // ⚠️ B8-medio. Antes esto solo se registraba y ahí moría: un archivo que
+        // fallara UNA vez se quedaba en Storage para siempre, facturando y
+        // accesible por su URL de token. El usuario cree que borró y no borró,
+        // que es justo lo que esta función existe para evitar.
+        //
+        // La intención original —no tumbar el resto de archivos ni dejar el
+        // disparador en bucle— se conserva: se sigue intentando con TODOS y solo
+        // al final se avisa del fallo. Ahí `retry: true` reintenta el conjunto,
+        // con la espera creciente de Firebase, y acaba rindiéndose. Reintentar
+        // un rato es mejor que no reintentar nunca.
+        fallidos.push(ruta);
         logger.error("postMediaCleanup: no se pudo borrar", { postId, ruta, error });
       }
     })
   );
 
-  return borrados;
+  return { borrados, fallidos };
 }
 
 /** Las imágenes de los comentarios del post cuelgan todas del mismo prefijo. */
-async function borrarImagenesDeComentarios(postId: string): Promise<void> {
+async function borrarImagenesDeComentarios(postId: string): Promise<boolean> {
   try {
     await getStorage().bucket().deleteFiles({ prefix: `commentImages/${postId}/` });
+    return true;
   } catch (error) {
     logger.error("postMediaCleanup: no se pudieron borrar las imágenes de comentarios", {
       postId,
       error,
     });
+    return false;
   }
 }
 
@@ -143,15 +158,25 @@ async function limpiar(postId: string, post: Record<string, unknown> | undefined
     });
   }
 
-  const borrados = await borrarArchivos(propias, postId);
-  await borrarImagenesDeComentarios(postId);
+  const { borrados, fallidos } = await borrarArchivos(propias, postId);
+  const comentariosOk = await borrarImagenesDeComentarios(postId);
 
   logger.info("postMediaCleanup", {
     postId,
     encontrados: propias.length,
     ignoradas: ajenas.length,
     borrados,
+    fallidos: fallidos.length,
   });
+
+  // Se avisa al FINAL, después de haberlo intentado todo, para que un archivo
+  // atascado no impida borrar los demás. `retry: true` se encarga del resto.
+  if (fallidos.length > 0 || !comentariosOk) {
+    throw new Error(
+      `postMediaCleanup: quedaron archivos sin borrar del post ${postId} ` +
+        `(${fallidos.length} medios, imágenes de comentarios: ${comentariosOk ? "ok" : "fallaron"})`
+    );
+  }
 }
 
 /**
@@ -161,7 +186,7 @@ async function limpiar(postId: string, post: Record<string, unknown> | undefined
  * actualización de un post ya borrado volvería a lanzar el barrido.
  */
 export const onPostSoftDeletedCleanupMedia = onDocumentUpdated(
-  { document: "posts/{postId}", region: REGION },
+  { document: "posts/{postId}", region: REGION, retry: true },
   async (event) => {
     const antes = event.data?.before.data();
     const despues = event.data?.after.data();
@@ -174,7 +199,7 @@ export const onPostSoftDeletedCleanupMedia = onDocumentUpdated(
 
 /** Camino administrativo: el documento se elimina de verdad con el Admin SDK. */
 export const onPostDeletedCleanupMedia = onDocumentDeleted(
-  { document: "posts/{postId}", region: REGION },
+  { document: "posts/{postId}", region: REGION, retry: true },
   async (event) => {
     await limpiar(event.params.postId, event.data?.data());
   }

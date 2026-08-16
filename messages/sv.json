@@ -265,7 +265,9 @@
     "actionCompletionError": "Det gick inte att slutföra åtgärden.",
     "imageUploadError": "Det gick inte att ladda upp bilden.",
     "minLength3": "Måste vara minst 3 tecken.",
-    "videoUploadError": "Videon kunde inte laddas upp."
+    "videoUploadError": "Videon kunde inte laddas upp.",
+    "priceMin": "Lägsta pris är ${min}",
+    "shareStory": "Dela berättelse"
   },
   "groups": {
     "title": "Communities",
@@ -1684,7 +1686,6 @@
     "subscriptionSummaryPriceLabel": "Inställt månadspris",
     "subscriptionCalculationMessage": "För en prenumeration på {price} tjänar du {netAmount}.",
     "subscriptionEarningsLegend": "Med det priset tjänar du <amount>{net}</amount> per månad.",
-    "subscriptionPriceMinLegend": "Lägsta pris är ${min}",
     "subscriptionModifyButton": "Redigera",
     "subscriptionConfigModalTitle": "Ställ in månadsprenumeration",
     "subscriptionDeactivateModalTitle": "Stäng av månadsprenumeration",

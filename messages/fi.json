@@ -265,7 +265,9 @@
     "actionCompletionError": "Toimintoa ei voitu viedä loppuun.",
     "imageUploadError": "Kuvaa ei voitu lähettää.",
     "minLength3": "Pituuden on oltava vähintään 3 merkkiä.",
-    "videoUploadError": "Videota ei voitu ladata."
+    "videoUploadError": "Videota ei voitu ladata.",
+    "priceMin": "Vähimmäishinta on ${min}",
+    "shareStory": "Jaa tarina"
   },
   "groups": {
     "title": "Yhteisöt",
@@ -1684,7 +1686,6 @@
     "subscriptionSummaryPriceLabel": "Asetettu kuukausihinta",
     "subscriptionCalculationMessage": "Hinnalla {price} tilauksesta ansaitset {netAmount}.",
     "subscriptionEarningsLegend": "Tällä hinnalla ansaitset <amount>{net}</amount> kuukaudessa.",
-    "subscriptionPriceMinLegend": "Vähimmäishinta on ${min}",
     "subscriptionModifyButton": "Muokkaa",
     "subscriptionConfigModalTitle": "Määritä kuukausitilaus",
     "subscriptionDeactivateModalTitle": "Poista kuukausitilaus käytöstä",

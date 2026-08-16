@@ -265,7 +265,9 @@
     "actionCompletionError": "無法完成這項操作。",
     "imageUploadError": "無法上傳圖片。",
     "minLength3": "至少要 3 個字元。",
-    "videoUploadError": "無法上傳影片。"
+    "videoUploadError": "無法上傳影片。",
+    "priceMin": "最低價格是 ${min}",
+    "shareStory": "分享限時動態"
   },
   "groups": {
     "title": "社群",
@@ -1684,7 +1686,6 @@
     "subscriptionSummaryPriceLabel": "已設定的月費",
     "subscriptionCalculationMessage": "{price} 的訂閱，你會賺到 {netAmount}。",
     "subscriptionEarningsLegend": "以這個價格，你每個月會賺到 <amount>{net}</amount>。",
-    "subscriptionPriceMinLegend": "最低價格是 ${min}",
     "subscriptionModifyButton": "編輯",
     "subscriptionConfigModalTitle": "設定月訂閱",
     "subscriptionDeactivateModalTitle": "關閉月訂閱",

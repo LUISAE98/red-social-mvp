@@ -616,7 +616,7 @@ export default function LiveComposerModal({
               }}
             >
               <span style={{ display: "block", color: "#f87171", fontSize: 12, lineHeight: 1.45, fontFamily: fontStack }}>
-                {`El mínimo es $${LIVE_TICKET_MIN_PRICE_MXN}`}
+                {tCommon("priceMin", { min: LIVE_TICKET_MIN_PRICE_MXN })}
               </span>
             </div>
 

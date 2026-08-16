@@ -265,7 +265,9 @@
     "actionCompletionError": "Darbību neizdevās pabeigt.",
     "imageUploadError": "Attēlu neizdevās augšupielādēt.",
     "minLength3": "Jābūt vismaz 3 rakstzīmēm.",
-    "videoUploadError": "Video neizdevās augšupielādēt."
+    "videoUploadError": "Video neizdevās augšupielādēt.",
+    "priceMin": "Minimālā cena ir ${min}",
+    "shareStory": "Kopīgot stāstu"
   },
   "groups": {
     "title": "Kopienas",
@@ -1684,7 +1686,6 @@
     "subscriptionSummaryPriceLabel": "Iestatītā mēneša cena",
     "subscriptionCalculationMessage": "Par {price} abonementu tu nopelni {netAmount}.",
     "subscriptionEarningsLegend": "Ar šādu cenu tu nopelnīsi <amount>{net}</amount> mēnesī.",
-    "subscriptionPriceMinLegend": "Minimālā cena ir ${min}",
     "subscriptionModifyButton": "Rediģēt",
     "subscriptionConfigModalTitle": "Konfigurēt mēneša abonementu",
     "subscriptionDeactivateModalTitle": "Izslēgt mēneša abonementu",

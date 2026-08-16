@@ -454,6 +454,36 @@ Cerrado y desplegado el 2026-08-15 **todo lo que no depende de Stripe USA**: 4 c
 ⚠️ **La suite de emulador corre en SECUENCIAL** (`fileParallelism: false`). Con 12 archivos en paralelo fallaban tests distintos en cada corrida, siempre clavados en el timeout; se subió el tope tres veces (20 → 45 → 90 s) creyendo que eran lentos y no lo eran. Secuencial tarda menos y es determinista.
 
 ---
+## Bloque 8 — Publicaciones, comentarios, historias, feeds y visibilidad (PARCIAL)
+
+Desplegado el 2026-08-16: los 4 críticos, 6 de los altos y 2 medios. Lo que falta está abajo con su motivo.
+
+**El patrón del bloque:** la creación de publicaciones se cerró y se hizo autoritativa en el bloque 4, y todas las garantías que da se podían deshacer **editando después**. La auditoría lo resumió bien: "las rutas posteriores a la creación rompen esas garantías".
+
+- **C01** Firmar y borrar archivos ajenos. `media` se reescribe al editar y las Firestore Rules **no saben validar los elementos de una lista**, así que el autor podía meter ahí cualquier ruta del bucket. Dos funciones con privilegios de administrador la obedecían: `getRestrictedMediaUrls` la FIRMABA y `postMediaCleanup` la BORRABA. Ponías en tu post la ruta de la foto de otra comunidad, pedías el enlace firmado, te la descargabas y borrabas tu post para borrársela a su dueño. Cerrado en los dos consumidores con una invariante única (`posts/{contexto}/{uid}/`, en `backend/src/postMediaPaths.ts`), que ata cada ruta al post Y a su autor. ⚠️ **Falta el lado de la escritura**, ver pendientes.
+- **C02** `profileFeed` público. La copia denormalizada del post en `users/{uid}/profileFeed` se leía **sin sesión siquiera**; excluía las comunidades ocultas pero no las privadas, y el backend materializa ahí el post entero. Lo que lo hacía invisible es que **ningún cliente lee esa copia**: la parrilla del perfil consulta `posts` directamente y allí sí se exige `isShareable`. Era un camino paralelo sin ninguno de esos filtros. Cerrada al dueño, igual que sus hermanas `homeFeed` y `savedPosts`.
+- **C03** Historias de perfil cerrado, públicas. La regla daba por legible toda historia sin comunidad, sin mirar `profileRestricted`, `showPosts` ni los bloqueos; las publicaciones sí lo miraban desde hacía bloques. ⚠️ El comentario del código decía "las de perfil siguen públicas, que es lo que se quiere", y era cierto para lo que se estaba resolviendo entonces (perfil vs comunidad); que un perfil CERRADO siguiera enseñándolas nunca se decidió, simplemente no se miró. Decisión de Luis: desaparecen del feed público.
+- **C04** Monetizar editando. `createPost` garantiza tres cosas —en una comunidad solo cobra su creador, precio entre 10 y 100000, y los tres campos de precio iguales— y la edición deshacía las tres. El cobro lee `oneTimePrice ?? premium.price` y acredita a `post.authorId`: era un cobro real a nombre de quien no tenía permiso. ⚠️ Los caminos `canUpdateLivePeakViewers` / `canUpdateLiveRuntimeData` solo dejan tocar `liveData`, **pero el precio del ticket vive dentro de `liveData`**; había que atarlos también.
+- **H01/H07** Los 11 disparadores de `homeFeed`/`profileFeed` no tenían `retry`, y el borrado de una copia de comunidad recién oculta iba dentro de un `.catch(() => {})`. Un fallo dejaba contenido revocado visible para siempre. Misma lección que B7-C01.
+- **H02** Cerrar el perfil no alcanzaba a lo ya publicado. Disparador nuevo + backfill.
+- **H04** Menciones sin tope. `emitMentions` recorría todas con un `await` dentro del bucle: un solo comentario podía lanzar miles de notificaciones. Tope de 5 (decisión de Luis) en el disparador, que es el único sitio que ve la escritura venga de donde venga.
+- **H05** Historias sin límites de forma. `hasOnly` fijaba qué claves podían venir pero no lo que traían: se podía fechar una historia en 2099 para dejarla clavada arriba del reel, estrenar con vistas infladas, o meter miles de prefijos y categorías. `createdAt == request.time` es lo que ancla la fecha.
+- **Medios cerrados:** las portadas de historias eran `allow read: if true` aunque el perfil o la comunidad estuvieran cerrados; y `postMediaCleanup` registraba los borrados fallidos sin relanzarlos, así que un archivo que fallara una vez se quedaba para siempre.
+
+**Cobertura:** `postMediaPaths.pure.test.ts` (15) en el backend; `postMonetizationEdit.rules.test.ts` y `storiesProfilePrivacy.rules.test.ts` en las reglas. Suite de reglas: **297 verdes**.
+
+### Pendientes del bloque 8
+
+| Qué | Por qué no está |
+|---|---|
+| **C01 lado escritura** — callable `updatePost` + cerrar `media` en las reglas | El ataque está muerto en los dos consumidores, pero el documento todavía puede guardar rutas ajenas. Las reglas no pueden validar los elementos de una lista, así que la única solución es mover la edición al servidor, como se hizo con `createPost`. Necesita despliegue de frontend. |
+| **C03 cliente `searchable`** | Escrito y compilado, esperando Vercel. Mientras tanto lo cubre `onStoryCreatedEnforceSearchable`, con una ventana de segundos. |
+| **H04 tope de menciones en las reglas** | El disparador ya lo aplica (que es donde está el daño). La regla se retiene hasta que Vercel despliegue el cliente con el mismo tope, o denegaría comentarios con más de 5 menciones escritos por el cliente viejo. |
+| **H03 saltarse el límite de comentarios** | Mismo patrón que las publicaciones: el límite vive en una llamada aparte (`checkRateLimitComment`) y el comentario se escribe directo después, así que basta con no dar el primer paso. Una regla no puede exigir que ANTES ocurriera otra cosa. Necesita un callable `createComment`. |
+| **H06 bloqueos dentro de comunidades** | Decisión de Luis: que desaparezca de verdad. ⚠️ En un `list` no es viable con reglas: comprobar el bloqueo cuesta dos `get()` por documento y el tope es 10 para la consulta ENTERA. En el feed de inicio ya está resuelto server-side (`onHomeFeedBlockedUserCreated`); el hueco es el listado de la comunidad, que se consulta directo. Cerrarlo de verdad pide materializar el listado por persona, que es una decisión de arquitectura, no un parche. |
+| **Medios sueltos** | Esquema cerrado en comentarios y respuestas; validación de longitud, número de medios y hosts de URL al editar; el historial de edición se escribe aparte del cambio. |
+
+---
 ## Bloque 7 — Comunidades, membresías y moderación (CERRADO)
 
 Cerrado y desplegado el 2026-08-16: 2 críticos, 6 altos, 4 medios y los 2 bajos.

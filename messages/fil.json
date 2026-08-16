@@ -265,7 +265,9 @@
     "actionCompletionError": "Hindi nakumpleto ang aksyon.",
     "imageUploadError": "Hindi na-upload ang larawan.",
     "minLength3": "Kailangang hindi bababa sa 3 karakter.",
-    "videoUploadError": "Hindi na-upload ang video."
+    "videoUploadError": "Hindi na-upload ang video.",
+    "priceMin": "Ang pinakamababang presyo ay ${min}",
+    "shareStory": "Ibahagi ang kuwento"
   },
   "groups": {
     "title": "Mga komunidad",
@@ -1684,7 +1686,6 @@
     "subscriptionSummaryPriceLabel": "Naka-configure na buwanang presyo",
     "subscriptionCalculationMessage": "Para sa subscription na {price}, kikita ka ng {netAmount}.",
     "subscriptionEarningsLegend": "Sa presyong iyon, kikita ka ng <amount>{net}</amount> kada buwan.",
-    "subscriptionPriceMinLegend": "Ang pinakamababang presyo ay ${min}",
     "subscriptionModifyButton": "I-edit",
     "subscriptionConfigModalTitle": "I-configure ang buwanang subscription",
     "subscriptionDeactivateModalTitle": "I-off ang buwanang subscription",

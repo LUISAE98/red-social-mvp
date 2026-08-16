@@ -265,7 +265,9 @@
     "actionCompletionError": "Əməliyyatı tamamlamaq mümkün olmadı.",
     "imageUploadError": "Şəkli yükləmək mümkün olmadı.",
     "minLength3": "Ən azı 3 simvol olmalıdır.",
-    "videoUploadError": "Video yüklənə bilmədi."
+    "videoUploadError": "Video yüklənə bilmədi.",
+    "priceMin": "Minimum qiymət ${min}",
+    "shareStory": "Hekayəni paylaş"
   },
   "groups": {
     "title": "İcmalar",
@@ -1684,7 +1686,6 @@
     "subscriptionSummaryPriceLabel": "Təyin edilmiş aylıq qiymət",
     "subscriptionCalculationMessage": "{price} məbləğində abunəlik üçün {netAmount} qazanırsan.",
     "subscriptionEarningsLegend": "Bu qiymətlə ayda <amount>{net}</amount> qazanırsan.",
-    "subscriptionPriceMinLegend": "Minimum qiymət ${min}",
     "subscriptionModifyButton": "Redaktə et",
     "subscriptionConfigModalTitle": "Aylıq abunəliyi tənzimlə",
     "subscriptionDeactivateModalTitle": "Aylıq abunəliyi söndür",

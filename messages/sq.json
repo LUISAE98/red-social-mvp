@@ -265,7 +265,9 @@
     "actionCompletionError": "Veprimi nuk u përfundua dot.",
     "imageUploadError": "Imazhi nuk u ngarkua dot.",
     "minLength3": "Duhet të ketë të paktën 3 karaktere.",
-    "videoUploadError": "Videoja nuk u ngarkua dot."
+    "videoUploadError": "Videoja nuk u ngarkua dot.",
+    "priceMin": "Çmimi minimal është ${min}",
+    "shareStory": "Shpërnda historinë"
   },
   "groups": {
     "title": "Komunitete",
@@ -1684,7 +1686,6 @@
     "subscriptionSummaryPriceLabel": "Çmimi mujor i caktuar",
     "subscriptionCalculationMessage": "Për një abonim prej {price}, fiton {netAmount}.",
     "subscriptionEarningsLegend": "Me atë çmim, do të fitosh <amount>{net}</amount> në muaj.",
-    "subscriptionPriceMinLegend": "Çmimi minimal është ${min}",
     "subscriptionModifyButton": "Modifiko",
     "subscriptionConfigModalTitle": "Konfiguro abonimin mujor",
     "subscriptionDeactivateModalTitle": "Çaktivizo abonimin mujor",

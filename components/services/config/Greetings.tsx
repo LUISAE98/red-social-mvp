@@ -466,7 +466,7 @@ export default function Saludos({
           }}
         >
           <div style={{ color: "#f87171", fontSize: 12, marginTop: 2 }}>
-            {`El precio mínimo es $${minPrice}`}
+            {tCommon("priceMin", { min: minPrice })}
           </div>
         </div>
         <div

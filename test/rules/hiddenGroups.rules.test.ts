@@ -6,7 +6,7 @@ import {
   assertSucceeds,
   type RulesTestEnvironment,
 } from "@firebase/rules-unit-testing";
-import { doc, getDoc, getDocs, collection, setDoc } from "firebase/firestore";
+import { doc, getDoc, getDocs, collection, setDoc, serverTimestamp } from "firebase/firestore";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Privacidad de COMUNIDADES OCULTAS.
@@ -267,6 +267,13 @@ describe("stories create — el groupId tiene que ser de una comunidad propia", 
    * pública y una historia de perfil. Este fixture se quedó viejo cuando la regla
    * se endureció, y fallaba por eso, no por lo que se está probando.
    */
+  /**
+   * ⚠️ B8-H05: `createdAt` pasó a ser obligatorio y tiene que valer
+   * EXACTAMENTE `request.time`, que es en lo que se resuelve el
+   * `serverTimestamp()` que manda el cliente. Sin eso se podía fechar una
+   * historia en 2099 y dejarla clavada arriba del reel. El fixture no lo
+   * mandaba y por eso fallaba, no por lo que se está probando aquí.
+   */
   function historia(extra: Record<string, unknown> = {}) {
     return {
       creatorId: EXTRANO,
@@ -276,6 +283,8 @@ describe("stories create — el groupId tiene que ser de una comunidad propia", 
       searchable: true,
       byCreator: true,
       hiddenFromReel: false,
+      viewsCount: 0,
+      createdAt: serverTimestamp(),
       ...extra,
     };
   }

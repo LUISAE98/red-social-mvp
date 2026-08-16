@@ -315,6 +315,7 @@ export default function Subscription({
   onRemoveLegacyMembers,
 }: Props) {
   const tServices = useTranslations("services");
+  const tCommon = useTranslations("common");
   const { currency: displayCurrency } = usePriceFormat();
   const [overlayMode, setOverlayMode] = useState<SubscriptionOverlayMode>(null);
   const [overlayDraft, setOverlayDraft] = useState<ServiceDraft>(draft);
@@ -802,7 +803,7 @@ function handleModify() {
             }}
           >
             <div style={{ color: "#f87171", fontSize: 12, marginTop: 2 }}>
-              {tServices("subscriptionPriceMinLegend", { min: minPrice })}
+              {tCommon("priceMin", { min: minPrice })}
             </div>
           </div>
           {/* Leyenda: cuánto ganas al mes (net), animada, solo si net > 0. */}

@@ -265,7 +265,9 @@
     "actionCompletionError": "Could not complete the action.",
     "imageUploadError": "Could not upload the image.",
     "minLength3": "Must be at least 3 characters.",
-    "videoUploadError": "The video could not be uploaded."
+    "videoUploadError": "The video could not be uploaded.",
+    "priceMin": "The minimum price is ${min}",
+    "shareStory": "Share story"
   },
   "groups": {
     "title": "Communities",
@@ -1684,7 +1686,6 @@
     "subscriptionSummaryPriceLabel": "Configured monthly price",
     "subscriptionCalculationMessage": "For a {price} subscription, you earn {netAmount}.",
     "subscriptionEarningsLegend": "With that price, you'll earn <amount>{net}</amount> per month.",
-    "subscriptionPriceMinLegend": "The minimum price is ${min}",
     "subscriptionModifyButton": "Edit",
     "subscriptionConfigModalTitle": "Configure monthly subscription",
     "subscriptionDeactivateModalTitle": "Turn off monthly subscription",

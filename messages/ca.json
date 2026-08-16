@@ -265,7 +265,9 @@
     "actionCompletionError": "No s'ha pogut completar l'acció.",
     "imageUploadError": "No s'ha pogut pujar la imatge.",
     "minLength3": "Ha de tenir com a mínim 3 caràcters.",
-    "videoUploadError": "No s’ha pogut pujar el vídeo."
+    "videoUploadError": "No s’ha pogut pujar el vídeo.",
+    "priceMin": "El preu mínim és ${min}",
+    "shareStory": "Compartir història"
   },
   "groups": {
     "title": "Comunitats",
@@ -1684,7 +1686,6 @@
     "subscriptionSummaryPriceLabel": "Preu mensual configurat",
     "subscriptionCalculationMessage": "Per una subscripció de {price}, guanyes {netAmount}.",
     "subscriptionEarningsLegend": "Amb aquest preu, guanyaràs <amount>{net}</amount> al mes.",
-    "subscriptionPriceMinLegend": "El preu mínim és ${min}",
     "subscriptionModifyButton": "Edita",
     "subscriptionConfigModalTitle": "Configura la subscripció mensual",
     "subscriptionDeactivateModalTitle": "Desactiva la subscripció mensual",

@@ -265,7 +265,9 @@
     "actionCompletionError": "Ekki tókst að ljúka aðgerðinni.",
     "imageUploadError": "Ekki tókst að hlaða myndinni upp.",
     "minLength3": "Verður að vera minnst 3 stafir.",
-    "videoUploadError": "Ekki tókst að hlaða upp myndbandinu."
+    "videoUploadError": "Ekki tókst að hlaða upp myndbandinu.",
+    "priceMin": "Lágmarksverðið er ${min}",
+    "shareStory": "Deila sögu"
   },
   "groups": {
     "title": "Samfélög",
@@ -1684,7 +1686,6 @@
     "subscriptionSummaryPriceLabel": "Uppsett mánaðarverð",
     "subscriptionCalculationMessage": "Fyrir áskrift upp á {price} færð þú {netAmount}.",
     "subscriptionEarningsLegend": "Með því verði færð þú <amount>{net}</amount> á mánuði.",
-    "subscriptionPriceMinLegend": "Lágmarksverðið er ${min}",
     "subscriptionModifyButton": "Breyta",
     "subscriptionConfigModalTitle": "Stilla mánaðaráskrift",
     "subscriptionDeactivateModalTitle": "Slökkva á mánaðaráskrift",

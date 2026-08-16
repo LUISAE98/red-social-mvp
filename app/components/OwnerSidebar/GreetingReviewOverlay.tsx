@@ -1863,21 +1863,35 @@ export default function GreetingReviewOverlay({
         onClick={handleClose}
       >
 
-        {/* Fila con los dos paneles. El hueco entre ellos es el del visor. */}
+        {/* UN SOLO panel de grabación. La información ya no es un panel
+            hermano: va superpuesta sobre su lado izquierdo, para que el video
+            aproveche todo el ancho. Alto un 20% mayor que antes
+            (72dvh/688px → 86dvh/826px). */}
         <div
+          onClick={(e) => e.stopPropagation()}
           style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 14,
+            position: "relative",
             width: "100%",
-            minHeight: 0,
+            maxWidth: 1180,
+            height: "min(86dvh, 826px)",
+            overflow: "hidden",
+            background: "#000",
+            boxSizing: "border-box",
+            borderRadius: 16,
+            border: "1px solid rgba(255,255,255,0.10)",
+            boxShadow: "0 24px 80px rgba(0,0,0,0.64)",
+            animation: "vibraGreetingPanelPop 220ms cubic-bezier(0.34, 1.56, 0.64, 1)",
           }}
         >
-        {/* Panel IZQUIERDO: la información. */}
+        {/* La INFORMACIÓN, superpuesta sobre el lado izquierdo de la grabación.
+            Ya no es un panel hermano: flota encima del video. */}
         <div style={{
-          width: "clamp(220px, 24%, 300px)",
-          flexShrink: 0,
+          position: "absolute",
+          insetInlineStart: 0,
+          top: 0,
+          bottom: 0,
+          zIndex: 3,
+          width: "clamp(230px, 26%, 320px)",
           minWidth: 0,
           display: "flex",
           flexDirection: "column",
@@ -1885,14 +1899,15 @@ export default function GreetingReviewOverlay({
           overflowY: "auto",
           padding: 20,
           boxSizing: "border-box",
-          background: "rgba(14,14,16,0.98)",
-          // Aspecto del visor de post: negro, esquinas 16, borde tenue y sombra
-          // profunda. Cada panel es independiente; el hueco lo da el gap del fondo.
-          borderRadius: 16,
-          border: "1px solid rgba(255,255,255,0.10)",
-          boxShadow: "0 24px 80px rgba(0,0,0,0.64)",
-          height: "min(72dvh, 688px)",
-          animation: "vibraGreetingPanelPop 220ms cubic-bezier(0.34, 1.56, 0.64, 1)",
+          // Velo oscuro con desenfoque: el texto tiene que leerse sobre lo que
+          // esté pasando en el video, que puede ser claro y con movimiento. Se
+          // difumina hacia la derecha para no cortar la imagen con una línea.
+          background:
+            "linear-gradient(to right, rgba(8,8,10,0.92) 0%, rgba(8,8,10,0.86) 62%, rgba(8,8,10,0) 100%)",
+          backdropFilter: "blur(10px)",
+          WebkitBackdropFilter: "blur(10px)",
+          maskImage: "linear-gradient(to right, #000 76%, transparent 100%)",
+          WebkitMaskImage: "linear-gradient(to right, #000 76%, transparent 100%)",
         }}
           onClick={(e) => e.stopPropagation()}
         >
@@ -2031,23 +2046,16 @@ export default function GreetingReviewOverlay({
           {fileInput}
         </div>
 
-        {/* Panel DERECHO: la cámara. Negro puro como el del visor de post. */}
+        {/* La grabación ocupa el contenedor entero. Sin caja propia: el borde,
+            las esquinas y la sombra los pone el panel de arriba. */}
         <div
-          onClick={(e) => e.stopPropagation()}
           style={{
-            flex: 1,
-            minWidth: 0,
+            position: "absolute",
+            inset: 0,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             overflow: "hidden",
-            background: "#000",
-            boxSizing: "border-box",
-            borderRadius: 16,
-            border: "1px solid rgba(255,255,255,0.10)",
-            boxShadow: "0 24px 80px rgba(0,0,0,0.64)",
-            height: "min(72dvh, 688px)",
-            animation: "vibraGreetingPanelPop 220ms cubic-bezier(0.34, 1.56, 0.64, 1)",
           }}
         >
             <div style={{ position: "relative", height: "100%", width: "100%" }}>

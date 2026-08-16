@@ -2532,6 +2532,9 @@ newPostsCounts={newPostsCounts}
             loading={loadingFollowing}
             seeAllLabel={tNav("seeAllFollowing")}
             emptySearchLabel={tGroups("inviteModeratorEmpty")}
+            // Clave estable para recordar entre recargas qué novedades ya te
+            // enseñó el globo del encabezado. Nunca el título: va traducido.
+            railId="followed-profiles"
             // Plegable solo en laptop: en celular los tres van siempre abiertos.
             collapsible={!isMobile}
           />
@@ -2551,6 +2554,7 @@ newPostsCounts={newPostsCounts}
             emptySearchLabel={tGroups("noGroupsFound")}
             // Plegable solo en laptop: en celular los tres van siempre abiertos.
             collapsible={!isMobile}
+            railId="owned-groups"
           />
 
           <CommunityRail
@@ -2566,6 +2570,7 @@ newPostsCounts={newPostsCounts}
             emptySearchLabel={tGroups("noGroupsFound")}
             // Plegable solo en laptop: en celular los tres van siempre abiertos.
             collapsible={!isMobile}
+            railId="joined-groups"
           />
 
           {/* El acordeón de pestañas desapareció: seguidos, mis comunidades y

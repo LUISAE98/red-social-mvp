@@ -265,7 +265,9 @@
     "actionCompletionError": "Δεν ήταν δυνατή η ολοκλήρωση της ενέργειας.",
     "imageUploadError": "Δεν ήταν δυνατό το ανέβασμα της εικόνας.",
     "minLength3": "Πρέπει να έχει τουλάχιστον 3 χαρακτήρες.",
-    "videoUploadError": "Το βίντεο δεν ανέβηκε."
+    "videoUploadError": "Το βίντεο δεν ανέβηκε.",
+    "priceMin": "Η ελάχιστη τιμή είναι {min} $",
+    "shareStory": "Κοινοποίηση ιστορίας"
   },
   "groups": {
     "title": "Κοινότητες",
@@ -1684,7 +1686,6 @@
     "subscriptionSummaryPriceLabel": "Ορισμένη μηνιαία τιμή",
     "subscriptionCalculationMessage": "Για συνδρομή {price}, κερδίζεις {netAmount}.",
     "subscriptionEarningsLegend": "Με αυτή την τιμή θα κερδίζεις <amount>{net}</amount> τον μήνα.",
-    "subscriptionPriceMinLegend": "Η ελάχιστη τιμή είναι {min} $",
     "subscriptionModifyButton": "Επεξεργασία",
     "subscriptionConfigModalTitle": "Ρύθμιση μηνιαίας συνδρομής",
     "subscriptionDeactivateModalTitle": "Απενεργοποίηση μηνιαίας συνδρομής",

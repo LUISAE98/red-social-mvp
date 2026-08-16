@@ -265,7 +265,9 @@
     "actionCompletionError": "Үйлдлийг гүйцээж чадсангүй.",
     "imageUploadError": "Зургийг байршуулж чадсангүй.",
     "minLength3": "Хамгийн багадаа 3 тэмдэгт байх ёстой.",
-    "videoUploadError": "Видеог байршуулж чадсангүй."
+    "videoUploadError": "Видеог байршуулж чадсангүй.",
+    "priceMin": "Хамгийн бага үнэ нь ${min}",
+    "shareStory": "Түүхийг хуваалцах"
   },
   "groups": {
     "title": "Нийгэмлэгүүд",
@@ -1684,7 +1686,6 @@
     "subscriptionSummaryPriceLabel": "Тохируулсан сарын үнэ",
     "subscriptionCalculationMessage": "{price} захиалгын хувьд та {netAmount} олно.",
     "subscriptionEarningsLegend": "Тэр үнээр та сард <amount>{net}</amount> олно.",
-    "subscriptionPriceMinLegend": "Хамгийн бага үнэ нь ${min}",
     "subscriptionModifyButton": "Засах",
     "subscriptionConfigModalTitle": "Сарын захиалгыг тохируулах",
     "subscriptionDeactivateModalTitle": "Сарын захиалгыг унтраах",

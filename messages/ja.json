@@ -265,7 +265,9 @@
     "actionCompletionError": "操作を完了できませんでした。",
     "imageUploadError": "画像をアップロードできませんでした。",
     "minLength3": "3文字以上にしてください。",
-    "videoUploadError": "動画をアップロードできませんでした。"
+    "videoUploadError": "動画をアップロードできませんでした。",
+    "priceMin": "最低料金は${min}です",
+    "shareStory": "ストーリーを共有"
   },
   "groups": {
     "title": "コミュニティ",
@@ -1684,7 +1686,6 @@
     "subscriptionSummaryPriceLabel": "設定した月額料金",
     "subscriptionCalculationMessage": "{price}のサブスクリプションで、{netAmount}の収益になります。",
     "subscriptionEarningsLegend": "その料金なら、毎月<amount>{net}</amount>の収益になります。",
-    "subscriptionPriceMinLegend": "最低料金は${min}です",
     "subscriptionModifyButton": "編集",
     "subscriptionConfigModalTitle": "月額サブスクリプションを設定",
     "subscriptionDeactivateModalTitle": "月額サブスクリプションをオフにする",

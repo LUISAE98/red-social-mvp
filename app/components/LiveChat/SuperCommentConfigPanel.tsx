@@ -31,6 +31,7 @@ type Props = {
 
 export default function SuperCommentConfigPanel({ open, onClose, postId }: Props) {
   const tLive = useTranslations("live");
+  const tCommon = useTranslations("common");
   const {
     format: formatMoney,
     toDisplayForInput,
@@ -254,7 +255,7 @@ export default function SuperCommentConfigPanel({ open, onClose, postId }: Props
                   {/* Aviso mínimo (rojo) — colapsa suave. */}
                   <div style={{ maxHeight: belowMin ? 22 : 0, opacity: belowMin ? 1 : 0, transform: belowMin ? "translateY(0)" : "translateY(4px)", overflow: "hidden", transition: collapse }}>
                     <p style={{ margin: "5px 0 0", fontSize: 10.5, color: "#f87171", fontFamily: FONT, lineHeight: 1.4 }}>
-                      {`El mínimo es $${SUPER_COMMENT_MIN_PRICE_MXN}`}
+                      {tCommon("priceMin", { min: SUPER_COMMENT_MIN_PRICE_MXN })}
                     </p>
                   </div>
 

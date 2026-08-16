@@ -265,7 +265,9 @@
     "actionCompletionError": "L-azzjoni ma setgħetx titlesta.",
     "imageUploadError": "Ma setgħetx tittella' l-immaġni.",
     "minLength3": "Irid ikun mill-inqas 3 karattri.",
-    "videoUploadError": "Il-video ma setax jittella."
+    "videoUploadError": "Il-video ma setax jittella.",
+    "priceMin": "Il-prezz minimu huwa ${min}",
+    "shareStory": "Aqsam l-istorja"
   },
   "groups": {
     "title": "Komunitajiet",
@@ -1684,7 +1686,6 @@
     "subscriptionSummaryPriceLabel": "Prezz ta' kull xahar ikkonfigurat",
     "subscriptionCalculationMessage": "Għal abbonament ta' {price}, taqla' {netAmount}.",
     "subscriptionEarningsLegend": "B'dak il-prezz, taqla' <amount>{net}</amount> fix-xahar.",
-    "subscriptionPriceMinLegend": "Il-prezz minimu huwa ${min}",
     "subscriptionModifyButton": "Editja",
     "subscriptionConfigModalTitle": "Ikkonfigura l-abbonament ta' kull xahar",
     "subscriptionDeactivateModalTitle": "Itfi l-abbonament ta' kull xahar",

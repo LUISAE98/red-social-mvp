@@ -265,7 +265,9 @@
     "actionCompletionError": "Die Aktion konnte nicht abgeschlossen werden.",
     "imageUploadError": "Das Bild konnte nicht hochgeladen werden.",
     "minLength3": "Muss mindestens 3 Zeichen lang sein.",
-    "videoUploadError": "Das Video konnte nicht hochgeladen werden."
+    "videoUploadError": "Das Video konnte nicht hochgeladen werden.",
+    "priceMin": "Der Mindestpreis beträgt {min} $",
+    "shareStory": "Story teilen"
   },
   "groups": {
     "title": "Communitys",
@@ -1684,7 +1686,6 @@
     "subscriptionSummaryPriceLabel": "Konfigurierter Monatspreis",
     "subscriptionCalculationMessage": "Bei einem Abo von {price} verdienst du {netAmount}.",
     "subscriptionEarningsLegend": "Bei diesem Preis verdienst du <amount>{net}</amount> pro Monat.",
-    "subscriptionPriceMinLegend": "Der Mindestpreis beträgt {min} $",
     "subscriptionModifyButton": "Bearbeiten",
     "subscriptionConfigModalTitle": "Monatsabo konfigurieren",
     "subscriptionDeactivateModalTitle": "Monatsabo deaktivieren",

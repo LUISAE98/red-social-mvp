@@ -265,7 +265,9 @@
     "actionCompletionError": "Действието не можа да бъде завършено.",
     "imageUploadError": "Изображението не можа да бъде качено.",
     "minLength3": "Трябва да е поне 3 знака.",
-    "videoUploadError": "Видеото не можа да се качи."
+    "videoUploadError": "Видеото не можа да се качи.",
+    "priceMin": "Минималната цена е ${min}",
+    "shareStory": "Споделяне на историята"
   },
   "groups": {
     "title": "Общности",
@@ -1684,7 +1686,6 @@
     "subscriptionSummaryPriceLabel": "Зададена месечна цена",
     "subscriptionCalculationMessage": "При абонамент от {price} печелиш {netAmount}.",
     "subscriptionEarningsLegend": "При тази цена печелиш <amount>{net}</amount> на месец.",
-    "subscriptionPriceMinLegend": "Минималната цена е ${min}",
     "subscriptionModifyButton": "Редактирай",
     "subscriptionConfigModalTitle": "Настрой месечния абонамент",
     "subscriptionDeactivateModalTitle": "Изключи месечния абонамент",

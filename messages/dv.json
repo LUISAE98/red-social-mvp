@@ -265,7 +265,9 @@
     "actionCompletionError": "ޢަމަލު ފުރިހަމަނުކުރެވުނު.",
     "imageUploadError": "ފޮޓޯ އަޕްލޯޑްނުކުރެވުނު.",
     "minLength3": "މަދުވެގެން 3 އަކުރު ހުންނަންޖެހޭ.",
-    "videoUploadError": "ވީޑިއޯ އަޕްލޯޑްނުކުރެވުނު."
+    "videoUploadError": "ވީޑިއޯ އަޕްލޯޑްނުކުރެވުނު.",
+    "priceMin": "އެންމެ ދަށް އަގަކީ ${min}",
+    "shareStory": "ވާހަކަ ޚިއްޞާކުރޭ"
   },
   "groups": {
     "title": "ކޮމިއުނިޓީތައް",
@@ -1684,7 +1686,6 @@
     "subscriptionSummaryPriceLabel": "ކަނޑައެޅިފައިވާ މަހު އަގު",
     "subscriptionCalculationMessage": "{price} ގެ ސަބްސްކްރިޕްޝަނަކުން ތިޔަބޭފުޅާއަށް {netAmount} ލިބޭ.",
     "subscriptionEarningsLegend": "އެ އަގުގައި ތިޔަބޭފުޅާއަށް މަހަކު <amount>{net}</amount> ލިބިވަޑައިގަންނަވާނެ.",
-    "subscriptionPriceMinLegend": "އެންމެ ދަށް އަގަކީ ${min}",
     "subscriptionModifyButton": "އެޑިޓް",
     "subscriptionConfigModalTitle": "މަހު ސަބްސްކްރިޕްޝަން ހަމަޖައްސަވާ",
     "subscriptionDeactivateModalTitle": "މަހު ސަބްސްކްރިޕްޝަން ނިއްވާލައްވާ",

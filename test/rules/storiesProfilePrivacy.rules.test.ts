@@ -6,7 +6,7 @@ import {
   assertSucceeds,
   type RulesTestEnvironment,
 } from "@firebase/rules-unit-testing";
-import { doc, setDoc, getDoc } from "firebase/firestore";
+import { doc, setDoc, getDoc, serverTimestamp, Timestamp } from "firebase/firestore";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // B8-C03 — las historias de un perfil CERRADO eran públicas.
@@ -126,5 +126,96 @@ describe("B8-C03 — historias de un perfil cerrado", () => {
     // garantizan el cliente y `onStoryCreatedEnforceSearchable`, no esta regla.
     await historiaDePerfil("sMentirosa", CERRADO, true);
     await assertSucceeds(leer(CURIOSO, "sMentirosa"));
+  });
+});
+
+// ═════════════════════════════════════════════════════════════════════════════
+// B8-H05 — forma y tamaño de lo que se guarda al crear una historia.
+//
+// `hasOnly` fijaba QUÉ claves podían venir, pero no lo que traían dentro. La
+// fecha, el contador de vistas, los prefijos de búsqueda y las categorías no se
+// comprobaban en absoluto.
+// ═════════════════════════════════════════════════════════════════════════════
+describe("B8-H05 — límites al crear una historia", () => {
+  const AUTOR = "uAutorHistoria";
+
+  function historia(extra: Record<string, unknown> = {}) {
+    return {
+      creatorId: AUTOR,
+      creatorName: "Alguien",
+      type: "saludo",
+      source: "profile",
+      greetingRequestId: "req_1",
+      muxPlaybackId: "pb123",
+      thumbnailUrl: "https://image.mux.com/pb123/thumbnail.jpg?time=0",
+      videoDuration: 10,
+      searchable: true,
+      searchPrefixes: ["al", "alg"],
+      categories: ["musica"],
+      byCreator: true,
+      hiddenFromReel: false,
+      viewsCount: 0,
+      createdAt: serverTimestamp(),
+      ...extra,
+    };
+  }
+
+  function crear(id: string, extra: Record<string, unknown> = {}) {
+    return setDoc(
+      doc(testEnv.authenticatedContext(AUTOR).firestore(), `stories/${id}`),
+      historia(extra)
+    );
+  }
+
+  beforeEach(async () => {
+    await seed(`users/${AUTOR}`, { profileRestricted: false, showPosts: true });
+  });
+
+  it("🟢 una historia normal se crea", async () => {
+    await assertSucceeds(crear("sNormal"));
+  });
+
+  it("🔴 fechada en el futuro para quedarse clavada arriba del reel", async () => {
+    await assertFails(
+      crear("sFutura", { createdAt: Timestamp.fromDate(new Date("2099-01-01")) })
+    );
+  });
+
+  it("🔴 fechada en el pasado", async () => {
+    await assertFails(
+      crear("sPasada", { createdAt: Timestamp.fromDate(new Date("2020-01-01")) })
+    );
+  });
+
+  it("🔴 estrenando con el contador de vistas inflado", async () => {
+    await assertFails(crear("sInflada", { viewsCount: 99999 }));
+  });
+
+  it("🔴 con miles de prefijos para salir en toda búsqueda", async () => {
+    const muchos = Array.from({ length: 500 }, (_, i) => `p${i}`);
+    await assertFails(crear("sPrefijos", { searchPrefixes: muchos }));
+  });
+
+  it("🔴 con más categorías que las que existen, para salir en toda recomendación", async () => {
+    const muchas = Array.from({ length: 50 }, (_, i) => `cat${i}`);
+    await assertFails(crear("sCategorias", { categories: muchas }));
+  });
+
+  it("🔴 con una portada apuntando fuera de Mux (baliza de IP)", async () => {
+    await assertFails(
+      crear("sBaliza", { thumbnailUrl: "https://rastreador.example.com/pixel.gif" })
+    );
+  });
+
+  it("🟢 la portada real de Mux sí pasa", async () => {
+    await assertSucceeds(
+      crear("sMux", {
+        thumbnailUrl: "https://image.mux.com/AbC123/thumbnail.jpg?time=0",
+      })
+    );
+  });
+
+  it("🔴 una duración imposible", async () => {
+    await assertFails(crear("sEterna", { videoDuration: 999_999 }));
   });
 });

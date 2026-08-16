@@ -265,7 +265,9 @@
     "actionCompletionError": "Toimingut ei õnnestunud lõpule viia.",
     "imageUploadError": "Pilti ei õnnestunud üles laadida.",
     "minLength3": "Peab olema vähemalt 3 tähemärki.",
-    "videoUploadError": "Videot ei õnnestunud üles laadida."
+    "videoUploadError": "Videot ei õnnestunud üles laadida.",
+    "priceMin": "Miinimumhind on ${min}",
+    "shareStory": "Jaga lugu"
   },
   "groups": {
     "title": "Kogukonnad",
@@ -1684,7 +1686,6 @@
     "subscriptionSummaryPriceLabel": "Määratud kuuhind",
     "subscriptionCalculationMessage": "{price} tellimuse eest teenid {netAmount}.",
     "subscriptionEarningsLegend": "Sellise hinnaga teenid <amount>{net}</amount> kuus.",
-    "subscriptionPriceMinLegend": "Miinimumhind on ${min}",
     "subscriptionModifyButton": "Muuda",
     "subscriptionConfigModalTitle": "Seadista kuutellimus",
     "subscriptionDeactivateModalTitle": "Lülita kuutellimus välja",

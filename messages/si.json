@@ -265,7 +265,9 @@
     "actionCompletionError": "ක්‍රියාව සම්පූර්ණ කළ නොහැකි විය.",
     "imageUploadError": "රූපය උඩුගත කළ නොහැකි විය.",
     "minLength3": "අවම වශයෙන් අකුරු 3ක් තිබිය යුතුය.",
-    "videoUploadError": "වීඩියෝව උඩුගත කළ නොහැකි විය."
+    "videoUploadError": "වීඩියෝව උඩුගත කළ නොහැකි විය.",
+    "priceMin": "අවම මිල ${min}",
+    "shareStory": "කථාව බෙදාගන්න"
   },
   "groups": {
     "title": "ප්‍රජාවන්",
@@ -1684,7 +1686,6 @@
     "subscriptionSummaryPriceLabel": "සකසන ලද මාසික මිල",
     "subscriptionCalculationMessage": "{price} දායකත්වයකට ඔබ {netAmount} උපයයි.",
     "subscriptionEarningsLegend": "එම මිලට ඔබ මසකට <amount>{net}</amount> උපයනු ඇත.",
-    "subscriptionPriceMinLegend": "අවම මිල ${min}",
     "subscriptionModifyButton": "සංස්කරණය",
     "subscriptionConfigModalTitle": "මාසික දායකත්වය සකසන්න",
     "subscriptionDeactivateModalTitle": "මාසික දායකත්වය අක්‍රීය කරන්න",

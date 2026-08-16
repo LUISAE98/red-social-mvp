@@ -245,8 +245,19 @@ service firebase.storage {
     // ==============================
     // STORY COVERS (foto portada)
     // ==============================
+    // B8-medio. Las portadas eran `allow read: if true` aunque el perfil o la
+    // comunidad estuvieran cerrados: exactamente el hueco que ya se cerró para
+    // los avatares de comunidad y los medios de publicación. La portada de una
+    // historia enseña la cara de quien la publicó.
+    //
+    // ⚠️ El dueño va DELANTE del `||` a propósito. La lectura entre servicios
+    // (`firestore.get` desde storage.rules) ERROR-A si falla, y un error deniega:
+    // sin esta primera cláusula, subir la portada dependería de que esa consulta
+    // funcione, porque subir termina leyendo el propio archivo.
     match /storyCovers/users/{uid}/{fileName} {
-      allow read: if true;
+      allow read: if (request.auth != null && request.auth.uid == uid)
+        || !isRestrictedProfile(uid);
+
       allow write: if isRealAccount()
         && request.auth.uid == uid
         && isImage()
@@ -254,7 +265,8 @@ service firebase.storage {
     }
 
     match /storyCovers/groups/{groupId}/{fileName} {
-      allow read: if true;
+      allow read: if isGroupOwner(groupId) || !isRestrictedGroup(groupId);
+
       allow write: if isGroupOwner(groupId)
         && isImage()
         && maxSize(5 * 1024 * 1024);

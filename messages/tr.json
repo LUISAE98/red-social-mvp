@@ -265,7 +265,9 @@
     "actionCompletionError": "İşlem tamamlanamadı.",
     "imageUploadError": "Görsel yüklenemedi.",
     "minLength3": "En az 3 karakter olmalı.",
-    "videoUploadError": "Video yüklenemedi."
+    "videoUploadError": "Video yüklenemedi.",
+    "priceMin": "En düşük fiyat ${min}",
+    "shareStory": "Hikâyeyi paylaş"
   },
   "groups": {
     "title": "Topluluklar",
@@ -1684,7 +1686,6 @@
     "subscriptionSummaryPriceLabel": "Belirlenen aylık fiyat",
     "subscriptionCalculationMessage": "{price} tutarındaki bir abonelik için {netAmount} kazanırsın.",
     "subscriptionEarningsLegend": "Bu fiyatla ayda <amount>{net}</amount> kazanırsın.",
-    "subscriptionPriceMinLegend": "En düşük fiyat ${min}",
     "subscriptionModifyButton": "Düzenle",
     "subscriptionConfigModalTitle": "Aylık aboneliği yapılandır",
     "subscriptionDeactivateModalTitle": "Aylık aboneliği kapat",

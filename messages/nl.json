@@ -265,7 +265,9 @@
     "actionCompletionError": "De actie kon niet worden voltooid.",
     "imageUploadError": "De afbeelding kon niet worden geüpload.",
     "minLength3": "Moet minstens 3 tekens lang zijn.",
-    "videoUploadError": "De video kon niet worden geüpload."
+    "videoUploadError": "De video kon niet worden geüpload.",
+    "priceMin": "De minimumprijs is {min} $",
+    "shareStory": "Verhaal delen"
   },
   "groups": {
     "title": "Community's",
@@ -1684,7 +1686,6 @@
     "subscriptionSummaryPriceLabel": "Ingestelde maandprijs",
     "subscriptionCalculationMessage": "Bij een abonnement van {price} verdien je {netAmount}.",
     "subscriptionEarningsLegend": "Met die prijs verdien je <amount>{net}</amount> per maand.",
-    "subscriptionPriceMinLegend": "De minimumprijs is {min} $",
     "subscriptionModifyButton": "Bewerken",
     "subscriptionConfigModalTitle": "Maandabonnement instellen",
     "subscriptionDeactivateModalTitle": "Maandabonnement uitzetten",

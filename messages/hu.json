@@ -265,7 +265,9 @@
     "actionCompletionError": "A műveletet nem sikerült befejezni.",
     "imageUploadError": "A képet nem sikerült feltölteni.",
     "minLength3": "Legalább 3 karakter kell legyen.",
-    "videoUploadError": "A videót nem sikerült feltölteni."
+    "videoUploadError": "A videót nem sikerült feltölteni.",
+    "priceMin": "A minimális ár {min} $",
+    "shareStory": "Történet megosztása"
   },
   "groups": {
     "title": "Közösségek",
@@ -1684,7 +1686,6 @@
     "subscriptionSummaryPriceLabel": "Beállított havi ár",
     "subscriptionCalculationMessage": "{price} előfizetésnél {netAmount} a kereseted.",
     "subscriptionEarningsLegend": "Ezzel az árral havonta <amount>{net}</amount> a kereseted.",
-    "subscriptionPriceMinLegend": "A minimális ár {min} $",
     "subscriptionModifyButton": "Szerkesztés",
     "subscriptionConfigModalTitle": "Havi előfizetés beállítása",
     "subscriptionDeactivateModalTitle": "Havi előfizetés kikapcsolása",
