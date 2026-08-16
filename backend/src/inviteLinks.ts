@@ -715,6 +715,14 @@ export const consumeInviteLink = onCall(async (request) => {
             createdAt: FieldValue.serverTimestamp(),
             updatedAt: FieldValue.serverTimestamp(),
             source: "invite_link",
+            // ⚠️ Se guarda QUÉ invitación trajo a esta persona.
+            //
+            // En una comunidad privada el uso no se cuenta aquí (todavía no es
+            // miembro, solo hay una solicitud), y al aprobarla no había forma de
+            // saber de qué enlace venía: el uso no se contaba NUNCA. `maxUses`
+            // era decorativo en privadas — un enlace de 10 admitía a los que
+            // hiciera falta.
+            inviteToken: token,
           };
 
           tx.set(joinRequestRef, joinRequestPatch, { merge: true });

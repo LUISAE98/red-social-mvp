@@ -737,7 +737,7 @@ export default function ConversationThread({
       message.id,
       selfUid,
       !isLikedByMe(message)
-    ).catch(() => setError(tChat("messageActionError")));
+    ).catch(() => setError(tCommon("actionCompletionError")));
   }
 
   /**
@@ -802,7 +802,7 @@ export default function ConversationThread({
       await action();
       setExpandedMessage(null);
     } catch {
-      setError(tChat("messageActionError"));
+      setError(tCommon("actionCompletionError"));
     }
   }
 
@@ -1034,7 +1034,7 @@ export default function ConversationThread({
         setDraft("");
         if (inputRef.current) inputRef.current.style.height = "auto";
       } catch {
-        setError(tChat("messageActionError"));
+        setError(tCommon("actionCompletionError"));
       } finally {
         sendingRef.current = false;
         setSending(false);
@@ -1883,7 +1883,7 @@ export default function ConversationThread({
             <button
               type="button"
               onClick={() =>
-                runAction(() => acceptConversationRequest(conversationId!), "requestActionError")
+                runAction(() => acceptConversationRequest(conversationId!), "actionCompletionError")
               }
               disabled={busyAction}
               style={{ ...secondaryButtonStyle, background: "#a855f7", fontWeight: 600 }}
@@ -1895,7 +1895,7 @@ export default function ConversationThread({
               onClick={() =>
                 runAction(
                   () => rejectConversationRequest(conversationId!, selfUid!),
-                  "requestActionError"
+                  "actionCompletionError"
                 )
               }
               disabled={busyAction}

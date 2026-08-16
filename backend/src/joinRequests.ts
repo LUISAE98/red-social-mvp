@@ -204,6 +204,11 @@ export const approveJoinRequest = onCall(async (request) => {
     .collection("joinRequestsSent")
     .doc(groupId);
 
+  // Se guarda fuera para poder contar el uso de la invitación después de que la
+  // transacción confirme: el enlace vive en otro documento que esta transacción
+  // no leyó.
+  let inviteTokenDeLaSolicitud: string | null = null;
+
   await db.runTransaction(async (tx) => {
     const joinSnap = await tx.get(joinRequestRef);
     if (!joinSnap.exists) {
@@ -214,6 +219,8 @@ export const approveJoinRequest = onCall(async (request) => {
     if (joinData?.status !== "pending") {
       throw new HttpsError("failed-precondition", "Solicitud ya procesada.");
     }
+    inviteTokenDeLaSolicitud =
+      typeof joinData.inviteToken === "string" ? joinData.inviteToken : null;
 
     // No reactivar a un usuario baneado (la solicitud pudo crearse antes del ban).
     // Lectura dentro de la transacción, antes de cualquier escritura.
@@ -259,8 +266,66 @@ export const approveJoinRequest = onCall(async (request) => {
     tx.delete(joinRequestRef);
   });
 
+  // ⚠️ El uso de la invitación se cuenta AL ADMITIR, que es cuando la persona
+  // entra de verdad.
+  //
+  // En una comunidad privada, usar el enlace solo crea una solicitud pendiente,
+  // así que ahí no se contaba —correcto—, pero al aprobarla tampoco: el uso no
+  // se contaba nunca y `maxUses` era decorativo. Un enlace de 10 admitía a
+  // cuantos el creador aprobara.
+  //
+  // Va FUERA de la transacción a propósito: la invitación vive en otro documento
+  // que la transacción no leyó, y meterla dentro obligaría a rehacer el flujo
+  // entero. Si esto falla, la persona ya entró —que es lo que el creador quiso—
+  // y solo queda el contador corto, no un acceso indebido.
+  if (inviteTokenDeLaSolicitud) {
+    await contarUsoDeInvitacion(inviteTokenDeLaSolicitud, userId).catch((error) => {
+      logger.error("approveJoinRequest: no se pudo contar el uso de la invitación", {
+        groupId,
+        userId,
+        error,
+      });
+    });
+  }
+
   return { success: true };
 });
+
+/**
+ * Suma un uso a la invitación y la desactiva si llegó a su tope.
+ *
+ * ⚠️ Si ya estaba agotada NO se rechaza a la persona: el creador la aprobó
+ * explícitamente y esa decisión manda. Se cuenta igual y se desactiva el enlace
+ * para que no siga trayendo gente. Es distinto del alta automática por
+ * suscripción, donde nadie revisa y por eso ahí sí se reserva antes de cobrar.
+ */
+async function contarUsoDeInvitacion(token: string, uid: string): Promise<void> {
+  const encontrada = await db
+    .collectionGroup("inviteLinks")
+    .where("token", "==", token)
+    .limit(1)
+    .get();
+
+  if (encontrada.empty) return;
+  const ref = encontrada.docs[0].ref;
+
+  await db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    if (!snap.exists) return;
+
+    const usados = typeof snap.get("usedCount") === "number" ? snap.get("usedCount") : 0;
+    const max = typeof snap.get("maxUses") === "number" ? snap.get("maxUses") : null;
+    const siguiente = usados + 1;
+
+    tx.update(ref, {
+      usedCount: siguiente,
+      lastUsedAt: FieldValue.serverTimestamp(),
+      lastUsedBy: uid,
+      updatedAt: FieldValue.serverTimestamp(),
+      ...(max !== null && siguiente >= max ? { isActive: false } : {}),
+    });
+  });
+}
 
 /**
  * REJECT JOIN REQUEST

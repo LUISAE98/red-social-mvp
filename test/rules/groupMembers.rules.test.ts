@@ -6,7 +6,7 @@ import {
   assertSucceeds,
   type RulesTestEnvironment,
 } from "@firebase/rules-unit-testing";
-import { doc, setDoc } from "firebase/firestore";
+import { doc, setDoc, getDocs, collection, deleteDoc } from "firebase/firestore";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Test de seguridad de las Firestore Rules: nadie puede auto-concederse una
@@ -567,5 +567,130 @@ describe("B7-A3 — índice de búsqueda coherente con la visibilidad", () => {
         { merge: true }
       )
     );
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// B7-A4 — la lista de miembros respeta el ajuste del creador también al LISTAR.
+//
+// El ajuste `membersListVisibility` se aplicaba al leer un miembro suelto pero no
+// al enumerarlos todos: cualquier cuenta con sesión podía sacar el listado
+// completo de una comunidad privada aunque el creador lo hubiera cerrado. Y
+// enumerar es justo la forma en que se extraen los datos.
+//
+// El valor por defecto es `owner_only`, aquí y en el cliente.
+// ─────────────────────────────────────────────────────────────────────────────
+describe("B7-A4 — enumerar miembros", () => {
+  const CREADOR = "creador_a4";
+  const MIEMBRO = "miembro_a4";
+  const EXTRANO = "extrano_a4";
+
+  async function sembrarComunidad(gid: string, membersListVisibility?: string) {
+    await seed(`groups/${gid}`, {
+      ownerId: CREADOR,
+      visibility: "private",
+      isActive: true,
+      ...(membersListVisibility ? { settings: { membersListVisibility } } : {}),
+    });
+    await seed(`groups/${gid}/members/${CREADOR}`, {
+      userId: CREADOR,
+      roleInGroup: "owner",
+      status: "active",
+    });
+    await seed(`groups/${gid}/members/${MIEMBRO}`, {
+      userId: MIEMBRO,
+      roleInGroup: "member",
+      status: "active",
+    });
+  }
+
+  function listar(uid: string, gid: string) {
+    return getDocs(collection(testEnv.authenticatedContext(uid).firestore(), `groups/${gid}/members`));
+  }
+
+  it("🔴 un EXTRAÑO no puede enumerar los miembros de una comunidad privada", async () => {
+    const gid = "g_a4_privada";
+    await sembrarComunidad(gid);
+    await assertFails(listar(EXTRANO, gid));
+  });
+
+  it("🔴 ni un MIEMBRO, si el creador dejó la lista cerrada (valor por defecto)", async () => {
+    const gid = "g_a4_cerrada";
+    await sembrarComunidad(gid);
+    await assertFails(listar(MIEMBRO, gid));
+  });
+
+  it("🟢 un MIEMBRO sí, cuando el creador la abre a los miembros", async () => {
+    const gid = "g_a4_abierta";
+    await sembrarComunidad(gid, "members");
+    await assertSucceeds(listar(MIEMBRO, gid));
+  });
+
+  it("🔴 pero un EXTRAÑO sigue sin poder aunque esté abierta a miembros", async () => {
+    const gid = "g_a4_abierta2";
+    await sembrarComunidad(gid, "members");
+    await assertFails(listar(EXTRANO, gid));
+  });
+
+  it("🟢 el CREADOR siempre puede, esté como esté el ajuste", async () => {
+    const gid = "g_a4_dueno";
+    await sembrarComunidad(gid);
+    await assertSucceeds(listar(CREADOR, gid));
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// B7-M12 — expulsar de una comunidad pública es DEFINITIVO.
+//
+// Decisión de producto (Luis, 2026-08-16): quien es expulsado no vuelve nunca,
+// igual que un baneado.
+//
+// La regla de salida bloqueaba `banned` y `muted` pero NO `removed`, así que el
+// expulsado podía borrar su propio documento de miembro y volver a crearlo como
+// activo — `create` solo exige que no exista. La sanción se deshacía sola.
+// ─────────────────────────────────────────────────────────────────────────────
+describe("B7-M12 — la expulsión no se puede deshacer solo", () => {
+  const CREADOR = "creador_m12";
+  const EXPULSADO = "expulsado_m12";
+
+  async function sembrar(gid: string, status: string) {
+    await seed(`groups/${gid}`, { ownerId: CREADOR, visibility: "public", isActive: true });
+    await seed(`groups/${gid}/members/${EXPULSADO}`, {
+      userId: EXPULSADO,
+      roleInGroup: "member",
+      status,
+    });
+  }
+
+  function salir(gid: string) {
+    return deleteDoc(
+      doc(testEnv.authenticatedContext(EXPULSADO).firestore(), `groups/${gid}/members/${EXPULSADO}`)
+    );
+  }
+
+  it("🔴 un EXPULSADO no puede borrar su documento para volver a entrar", async () => {
+    const gid = "g_m12_removed";
+    await sembrar(gid, "removed");
+    await assertFails(salir(gid));
+  });
+
+  it("🔴 tampoco con los otros nombres del mismo estado", async () => {
+    for (const estado of ["kicked", "expelled"]) {
+      const gid = `g_m12_${estado}`;
+      await sembrar(gid, estado);
+      await assertFails(salir(gid));
+    }
+  });
+
+  it("🔴 un BANEADO tampoco, como antes", async () => {
+    const gid = "g_m12_banned";
+    await sembrar(gid, "banned");
+    await assertFails(salir(gid));
+  });
+
+  it("🟢 un miembro ACTIVO sí puede salirse por su cuenta", async () => {
+    const gid = "g_m12_activo";
+    await sembrar(gid, "active");
+    await assertSucceeds(salir(gid));
   });
 });

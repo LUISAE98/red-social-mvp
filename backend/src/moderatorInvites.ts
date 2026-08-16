@@ -30,6 +30,14 @@ const REGION = "us-central1";
 
 // Caducidad de una invitación a moderador. Sin tope, una invitación pendiente
 // vivía para siempre y podía aceptarse cuando la comunidad ya era otra cosa.
+/**
+ * Estados que impiden aceptar una invitación de moderador.
+ *
+ * `muted` también entra: si un silenciado pudiera aceptar, este mismo flujo lo
+ * reescribiría como `active` con rol de moderador y se auto-levantaría la sanción.
+ */
+const ESTADOS_SANCIONADOS = new Set(["banned", "removed", "kicked", "expelled", "muted"]);
+
 const INVITE_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
 
 type AnyRecord = Record<string, unknown>;
@@ -192,11 +200,10 @@ export const respondGroupModeratorInvite = onCall(
 
     if (!groupId) throw new HttpsError("invalid-argument", "groupId es requerido.");
 
+    // La comunidad NO se lee aquí: se lee dentro de la transacción, junto con la
+    // invitación y la membresía. Leerla antes solo servía para validar contra un
+    // retrato viejo, que es justo lo que hacía inútil la transacción.
     const groupRef = db.collection("groups").doc(groupId);
-    const groupSnap = await groupRef.get();
-    if (!groupSnap.exists) throw new HttpsError("not-found", "La comunidad no existe.");
-
-    const groupData = (groupSnap.data() ?? {}) as AnyRecord;
     const inviteRef = groupRef.collection("moderatorInvites").doc(callerUid);
     const memberRef = groupRef.collection("members").doc(callerUid);
     const membershipRef = db
@@ -208,10 +215,29 @@ export const respondGroupModeratorInvite = onCall(
     let invitedBy: string | null = null;
 
     await db.runTransaction(async (tx) => {
-      const inviteSnap = await tx.get(inviteRef);
+      // ⚠️ Los TRES documentos se leen DENTRO de la transacción.
+      //
+      // El estado de la comunidad se leía antes de abrirla (`groupSnap`, arriba) y
+      // se validaba aquí con esa copia. Entre una cosa y otra la comunidad puede
+      // volverse oculta, pausarse o borrarse, y la transacción no protegía nada:
+      // aceptaba contra un retrato viejo. Leyéndola aquí, si cambia mientras
+      // tanto Firestore aborta y reintenta con el estado nuevo.
+      //
+      // Las tres lecturas van juntas y ANTES de cualquier escritura, que es lo
+      // que exige una transacción de Firestore.
+      const [inviteSnap, grupoSnap, memberSnap] = await Promise.all([
+        tx.get(inviteRef),
+        tx.get(groupRef),
+        tx.get(memberRef),
+      ]);
+
       if (!inviteSnap.exists) {
         throw new HttpsError("not-found", "La invitación ya no existe.");
       }
+      if (!grupoSnap.exists) {
+        throw new HttpsError("not-found", "La comunidad ya no existe.");
+      }
+      const grupo = (grupoSnap.data() ?? {}) as AnyRecord;
 
       const invite = inviteSnap.data() ?? {};
       if (invite.status !== "pending") {
@@ -251,26 +277,39 @@ export const respondGroupModeratorInvite = onCall(
         );
       }
 
-      if (str(groupData.visibility) === "hidden") {
+      if (str(grupo.visibility) === "hidden") {
         throw new HttpsError(
           "failed-precondition",
           "Esta comunidad pasó a ser oculta. El creador debe invitarte desde dentro."
         );
       }
 
-      if ("isActive" in groupData && groupData.isActive !== true) {
+      if (("isActive" in grupo && grupo.isActive !== true) || grupo.isDeleted === true) {
         throw new HttpsError(
           "failed-precondition",
           "Esta comunidad ya no está activa."
         );
       }
 
-      // Un baneado no puede colarse aceptando una invitación vieja.
-      const memberSnap = await tx.get(memberRef);
-      if (memberSnap.exists && memberSnap.data()?.status === "banned") {
+      // ⚠️ NINGÚN estado sancionado puede colarse aceptando una invitación vieja.
+      //
+      // Antes solo se miraba `banned`. Pero expulsar a alguien tampoco borra su
+      // invitación pendiente, y `removed`/`kicked`/`expelled` pasaban el filtro:
+      // el expulsado aceptaba y este mismo código lo reescribía como
+      // `status: "active"` con rol de moderador. O sea que echar a alguien no
+      // servía de nada si le quedaba una invitación viva.
+      const estado = (str(memberSnap.data()?.status) ?? "").toLowerCase();
+      if (ESTADOS_SANCIONADOS.has(estado)) {
+        // La invitación se marca consumida: dejarla pendiente es dejar la puerta
+        // abierta para el siguiente intento.
+        tx.set(
+          inviteRef,
+          { status: "revoked", respondedAt: now, revokedReason: `member_${estado}`, updatedAt: now },
+          { merge: true }
+        );
         throw new HttpsError(
           "failed-precondition",
-          "No puedes aceptar: estás baneado de esta comunidad."
+          "No puedes aceptar esta invitación con tu estado actual en la comunidad."
         );
       }
 
@@ -299,7 +338,10 @@ export const respondGroupModeratorInvite = onCall(
           ...buildModeratorMembershipSummary({
             groupId,
             userId: callerUid,
-            groupData,
+            // La copia FRESCA leída en la transacción, no la de antes de abrirla:
+            // si no, la membresía nace con el nombre, el avatar o la visibilidad
+            // que tenía la comunidad hace un rato.
+            groupData: grupo,
           }),
           ...(alreadyMember ? {} : { joinedAt: now }),
         },

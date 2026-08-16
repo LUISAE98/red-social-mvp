@@ -3,7 +3,6 @@
 import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { useState } from "react";
-import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
 import { useAuth } from "@/app/providers";
 import { clearClientSession } from "@/lib/auth/clearClientSession";
@@ -70,30 +69,16 @@ async function handleLogout() {
   window.location.replace("/login");
 }
 
-// Black overlay rendered via portal — covers the entire screen immediately
-// when the user clicks logout, preventing any flash of unauthenticated content.
-const overlay =
-  loading && typeof document !== "undefined"
-    ? createPortal(
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "#000",
-            zIndex: 999999,
-            pointerEvents: "none",
-          }}
-        />,
-        document.body
-      )
-    : null;
+// Antes aquí vivía un rectángulo negro por portal que tapaba la pantalla al
+// cerrar sesión. Tapaba, sí, pero lo que se veía era negro durante segundos —el
+// signOut, la limpieza de IndexedDB y la recarga— y parecía que la app se había
+// caído. Ahora quien cubre es el splash de marca, que `startAuthTransition`
+// enciende (ver lib/splash.ts) y no se apaga hasta que login está pintado.
 
   if (variant === "headerIcon") {
     // Solo el icono (puerta abierta + flecha hacia afuera), en blanco, para el
     // header de escritorio. Misma lógica de cierre de sesión que las demás.
     return (
-      <>
-        {overlay}
         <button
           onClick={handleLogout}
           disabled={loading}
@@ -131,14 +116,11 @@ const overlay =
             <line x1="21" y1="12" x2="9" y2="12" />
           </svg>
         </button>
-      </>
     );
   }
 
   if (variant === "settings") {
     return (
-      <>
-        {overlay}
         <button
           onClick={handleLogout}
           disabled={loading}
@@ -173,13 +155,10 @@ padding: "8px 14px",
         >
          {tCommon("logout")}
         </button>
-      </>
     );
   }
 
   return (
-    <>
-      {overlay}
       <button
         onClick={handleLogout}
         disabled={loading}
@@ -221,6 +200,5 @@ padding: "8px 14px",
   {tCommon("logout")}
 </span>
       </button>
-    </>
   );
 }

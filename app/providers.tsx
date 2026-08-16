@@ -12,6 +12,7 @@ import { onAuthStateChanged, User } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { useSessionRegistry } from "@/lib/sessions/useSessionRegistry";
+import { showSplash } from "@/lib/splash";
 
 type AuthTransitionMode = "idle" | "checking" | "entering" | "exiting";
 
@@ -110,6 +111,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useSessionRegistry(user);
 
   const startAuthTransition = (mode: "entering" | "exiting") => {
+    // El splash cubre TODA la transición de sesión, entrando y saliendo. Va aquí
+    // y no en cada botón porque todos los caminos —el de salir, los cuatro de
+    // entrar y las tres redirecciones del guardián— pasan por esta función, y
+    // basta que uno se olvide para que se vuelva a asomar el negro.
+    //
+    // Síncrono, antes del setState: esperar a que React re-renderice deja un
+    // frame con la pantalla al aire, y ese frame es justo lo que se veía.
+    showSplash();
     setAuthTransitionMode(mode);
     // El cierre de sesión ("exiting") siempre termina en una recarga a /login,
     // que reinicia todo el estado. Le damos un margen amplio al temporizador

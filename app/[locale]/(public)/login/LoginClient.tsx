@@ -47,6 +47,7 @@ import RegisterPanel from "@/app/[locale]/(public)/register/RegisterPanel";
 import CompleteProfilePanel from "@/app/[locale]/(public)/complete-profile/CompleteProfilePanel";
 import { useProfileOnboarding } from "@/app/[locale]/(public)/complete-profile/useProfileOnboarding";
 import { useScreenReady } from "@/lib/useScreenReady";
+import { showSplash } from "@/lib/splash";
 import { useExperienceVideos } from "./useExperienceVideos";
 import CurrencySwitcher from "@/app/components/CurrencySwitcher";
 import LanguageSwitcher from "@/app/components/LanguageSwitcher";
@@ -197,14 +198,13 @@ useEffect(() => {
   return () => clearTimeout(id);
 }, [verCreador]);
 
-// Transición al entrar a login desde una acción de invitado (comprar, iniciar
-// sesión, etc.): en LAPTOP se re-muestra el splash de marca; en CELULAR la página
-// entra deslizando desde la derecha (animación CSS de `.loginSplitPage`). Se activa
-// al montar /login, así funciona venga de donde venga la navegación.
+// Llegar a login siempre re-muestra el splash de marca, venga de donde venga la
+// navegación: una acción de invitado, un cierre de sesión o el guardián de rutas.
+// Antes solo pasaba en laptop y el celular se quedaba con el negro intermedio
+// mientras login resolvía. La animación de entrada de `.loginSplitPage` sigue
+// corriendo debajo; el splash se aparta cuando la página ya está pintada.
 useEffect(() => {
-  if (typeof window === "undefined") return;
-  const isMobile = window.matchMedia("(max-width: 900px)").matches;
-  if (!isMobile) window.dispatchEvent(new Event("vibra:auth-splash"));
+  showSplash();
 }, []);
 
 useEffect(() => {

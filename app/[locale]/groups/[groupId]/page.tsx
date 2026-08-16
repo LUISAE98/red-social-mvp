@@ -55,7 +55,7 @@ import PaymentSuccessCard from "@/components/payments/PaymentSuccessCard";
 import { createGreetingStripeIntent, createServiceStripeIntent, createGroupSubscription, cancelGroupSubscriptionStripe } from "@/lib/stripe/stripePayments";
 import { FIXED_SERVICE_FEE_MXN } from "@/lib/currency/catalog";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
-import { useVibraToast } from "@/lib/hooks/useVibraToast";
+import { useVibraToast, type ToastType } from "@/lib/hooks/useVibraToast";
 import { createMeetGreetRequest } from "@/lib/meetGreet/meetGreetRequests";
 import { createExclusiveSessionRequest } from "@/lib/exclusiveSession/exclusiveSessionRequests";
 import {
@@ -223,6 +223,15 @@ useSetMobileHeader(group?.avatarUrl ?? null, group?.name ?? null);
 
 const [joining, setJoining] = useState(false);
 const [actionError, setActionError] = useState<string | null>(null);
+// El color viaja con el texto: si no, un aviso rojo posterior heredaría el
+// gris del anterior.
+const [actionErrorTono, setActionErrorTono] = useState<ToastType>("error");
+
+/** Avisa en rojo, o en gris cuando no es un fallo sino un estado. */
+const avisarAccion = (texto: string | null, tono: ToastType = "error") => {
+  setActionErrorTono(tono);
+  setActionError(texto);
+};
 const [leaveOverlayOpen, setLeaveOverlayOpen] = useState(false);
 const [leaving, setLeaving] = useState(false);
 // Estado de MI suscripción a esta comunidad (preapproval MP): fecha de acceso y
@@ -319,7 +328,7 @@ const formattedMemberCount = useMemo(() => {
   const { toast, showToast } = useVibraToast();
   // Solo el resultado de una acción. El fallo de carga ya tiene su propia
   // pantalla más abajo; sacarlo también por el toast lo decía dos veces.
-  useEffect(() => { if (actionError) showToast(actionError, "error"); }, [actionError]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (actionError) showToast(actionError, actionErrorTono); }, [actionError]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (leaveError) showToast(leaveError, "error"); }, [leaveError]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const currentGroupState = group as GroupDoc | null;
@@ -856,7 +865,7 @@ function redirectToLogin() {
       return;
     }
     setSubscriptionError(null);
-    setActionError(null);
+    avisarAccion(null);
     setSubscriptionOpen(false);
     setSubscriptionPayOpen(true);
   }
@@ -930,17 +939,17 @@ function redirectToLogin() {
     }
 
     if (groupIsPausedForAccess) {
-      setActionError(tGroups("communityPaused"));
+      avisarAccion(tGroups("communityPaused"), "warning");
       return;
     }
 
     setJoining(true);
-    setActionError(null);
+    avisarAccion(null);
 
     try {
       await joinGroup(groupId, user.uid);
     } catch (e: unknown) {
-      setActionError((e instanceof Error ? e.message : null) ?? tGroups("joinError"));
+      avisarAccion((e instanceof Error ? e.message : null) ?? tGroups("joinError"));
     } finally {
       setJoining(false);
     }
@@ -965,7 +974,7 @@ function redirectToLogin() {
   async function handleCancelSubscription() {
     if (!user || cancellingSub) return;
     setCancellingSub(true);
-    setActionError(null);
+    avisarAccion(null);
     try {
       await cancelGroupSubscriptionStripe(groupId);
       setCancelSubOpen(false);
@@ -976,7 +985,7 @@ function redirectToLogin() {
         setServiceToast((current) => (current === msg ? null : current));
       }, 5000);
     } catch (e: unknown) {
-      setActionError((e instanceof Error ? e.message : null) ?? tGroups("cancelSubscriptionError"));
+      avisarAccion((e instanceof Error ? e.message : null) ?? tGroups("cancelSubscriptionError"));
     } finally {
       setCancellingSub(false);
     }
@@ -989,12 +998,12 @@ function redirectToLogin() {
     }
 
         if (groupIsPausedForAccess) {
-      setActionError(tGroups("communityPausedAccess"));
+      avisarAccion(tGroups("communityPaused"), "warning");
       return;
     }
 
     setJoining(true);
-    setActionError(null);
+    avisarAccion(null);
 
     try {
       await requestToJoin(groupId, user.uid);
@@ -1005,7 +1014,7 @@ function redirectToLogin() {
         return;
       }
 
-      setActionError(errMsg ?? tGroups("requestError"));
+      avisarAccion(errMsg ?? tGroups("requestError"));
     } finally {
       setJoining(false);
     }
@@ -1018,12 +1027,12 @@ function redirectToLogin() {
     }
 
     setJoining(true);
-    setActionError(null);
+    avisarAccion(null);
 
     try {
       await cancelJoinRequest(groupId, user.uid);
     } catch (e: unknown) {
-      setActionError((e instanceof Error ? e.message : null) ?? tGroups("cancelRequestError"));
+      avisarAccion((e instanceof Error ? e.message : null) ?? tGroups("cancelRequestError"));
     } finally {
       setJoining(false);
     }
@@ -1136,7 +1145,7 @@ function redirectToLogin() {
     }
 
     if (isOwner) {
-      setMeetGreetError(tGroups("ownCommunityMeetGreet"));
+      setMeetGreetError(tGroups("ownCommunityService"));
       return;
     }
 
@@ -1204,7 +1213,7 @@ function redirectToLogin() {
     }
 
     if (isOwner) {
-      setExclusiveSessionError(tGroups("ownCommunitySession"));
+      setExclusiveSessionError(tGroups("ownCommunityService"));
       return;
     }
 
@@ -1301,7 +1310,7 @@ function redirectToLogin() {
       }
 
       if (isOwner) {
-        setServiceToast(tGroups("ownCommunityMeetGreet"));
+        setServiceToast(tGroups("ownCommunityService"));
         clearServiceQuery();
         return;
       }
@@ -1328,7 +1337,7 @@ function redirectToLogin() {
       }
 
       if (isOwner) {
-        setServiceToast(tGroups("ownCommunitySession"));
+        setServiceToast(tGroups("ownCommunityService"));
         clearServiceQuery();
         return;
       }
@@ -1452,7 +1461,7 @@ const openCropWithFile = useCallback(
   async (mode: CropMode, file: File) => {
     if (!isOwner) return;
 
-    setActionError(null);
+    avisarAccion(null);
 
     try {
       const normalized = await normalizeImageFile(file, {
@@ -1468,7 +1477,7 @@ const openCropWithFile = useCallback(
       setCroppedAreaPixels(null);
       setCropOpen(true);
     } catch (e: unknown) {
-      setActionError((e instanceof Error ? e.message : null) ?? `${tGroups("groupImageReadError")}`);
+      avisarAccion((e instanceof Error ? e.message : null) ?? `${tCommon("imageReadError")}`);
     }
   },
   [isOwner, tGroups]
@@ -1495,12 +1504,12 @@ const openCropWithFile = useCallback(
     if (!group) return;
     if (!isOwner) return;
     if (!cropImageSrc || !croppedAreaPixels) {
-      setActionError(`${tCommon("cropError")}`);
+      avisarAccion(`${tCommon("cropError")}`);
       return;
     }
 
     setUploading(true);
-    setActionError(null);
+    avisarAccion(null);
 
     try {
       const blob = await getCroppedBlob(
@@ -1534,9 +1543,9 @@ const openCropWithFile = useCallback(
       setZoom(1);
     } catch (e: unknown) {
       const err = e as { code?: string; message?: string } | null;
-      setActionError(
+      avisarAccion(
         err?.code === "permission-denied"
-          ? `${tGroups("groupStoragePermissionError")}`
+          ? `${tCommon("storagePermissionError")}`
           : `${tGroups("groupImageUploadError")}: ${err?.message ?? "error"}`
       );
     } finally {

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useAuth } from "@/app/providers";
+import { hideSplash } from "@/lib/splash";
 
 // Duración mínima que el splash permanece visible (carga inicial y transición a
 // login), para que sea un momento de marca y no un parpadeo.
@@ -33,20 +34,18 @@ export default function DesktopRefreshSplash() {
     };
   }, []);
 
-  // Transición a login (solo laptop): LoginClient dispara este evento al montar.
-  // Volvemos a mostrar el splash al instante y esperamos a que login se pinte
-  // (nuevo `vibra:screen-ready`) para desvanecerlo.
+  // Cualquier transición de sesión (entrar, salir, llegar a login) pasa por
+  // `showSplash()`, que ya dejó el splash visible y despachó este evento. Aquí
+  // solo reiniciamos la espera: sin esto el splash se apagaría en el siguiente
+  // efecto, porque `screenReady` sigue en true de la pantalla anterior.
   useEffect(() => {
     function onAuthSplash() {
-      const splash = document.getElementById("desktop-refresh-splash");
-      if (!splash) return;
-      splash.classList.remove("desktop-refresh-splash-hidden"); // cubrir al instante
       setScreenReady(false);
       setMinimumTimeDone(false);
-      // Safety por si login no avisara: no dejar el splash colgado. Login se
-      // toma hasta 7 s (espera a que sus primeros videos estén completos, ver
-      // useExperienceVideos), así que este tope va por encima: si cortara
-      // antes, la espera de login no serviría de nada.
+      // Safety por si la pantalla destino no avisara: no dejar el splash
+      // colgado. Login se toma hasta 7 s (espera a que sus primeros videos
+      // estén completos, ver useExperienceVideos), así que este tope va por
+      // encima: si cortara antes, la espera de login no serviría de nada.
       window.setTimeout(() => setScreenReady(true), 8000);
     }
     window.addEventListener("vibra:auth-splash", onAuthSplash);
@@ -59,14 +58,12 @@ export default function DesktopRefreshSplash() {
     if (authTransitionMode === "checking") return;
     // No quitamos el splash hasta que la pantalla de fondo ya esté pintada.
     if (!screenReady) return;
+    // Ni mientras siga corriendo una transición de sesión: `screenReady` puede
+    // llegar de la pantalla que estamos abandonando, y descubrirla a media
+    // salida es exactamente el parpadeo que veníamos a quitar.
+    if (authTransitionMode === "entering" || authTransitionMode === "exiting") return;
 
-    const splash = document.getElementById("desktop-refresh-splash");
-
-    if (!splash) return;
-
-    requestAnimationFrame(() => {
-      splash.classList.add("desktop-refresh-splash-hidden");
-    });
+    requestAnimationFrame(hideSplash);
   }, [minimumTimeDone, loading, authTransitionMode, screenReady]);
 
   return null;

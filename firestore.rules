@@ -2095,17 +2095,34 @@ allow list: if
             || canMemberListBeSeen(groupId)
           );
 
+// ⚠️ El `list` tiene que respetar el MISMO ajuste que el `get` de arriba.
+//
+// Antes bastaba con que la comunidad fuera pública o privada: cualquier cuenta
+// con sesión podía ENUMERAR a todos sus miembros aunque el creador hubiera
+// cerrado la lista con `membersListVisibility: "owner_only"`. El ajuste se
+// respetaba al leer un miembro suelto y se saltaba al listarlos todos, que es
+// justo la forma en que se sacan los datos.
+//
+// El valor por defecto es `owner_only` tanto aquí como en el cliente
+// (`page.tsx` hace `?? "owner_only"` y esconde la pestaña), así que cerrar esto
+// no quita nada que la interfaz enseñara: alinea el servidor con lo que ya
+// esperaba el cliente.
+//
+// ORDEN IMPORTANTE. En un `list`, `resource.data` solo trae los campos que la
+// consulta fija con `==`; tocar cualquier otro es un ERROR de evaluación. Por eso
+// `resource.data.userId` va AL FINAL: las ramas que no miran el documento se
+// resuelven antes y, si alguna es cierta, el error ni se alcanza.
+//
+// Coste: `canMemberListBeSeen` y `canModerateGroup` leen el documento de la
+// comunidad y el de MI membresía. Son los MISMOS dos documentos para todos los
+// elementos de la consulta, así que cuentan una vez contra el tope de 10 `get()`
+// y listar 200 miembros sigue costando dos lecturas.
 allow list: if signedIn()
   && (
-    request.auth.uid == resource.data.userId
-    || isPlatformMod()
-    || (
-      exists(/databases/$(database)/documents/groups/$(groupId))
-      && (
-        get(/databases/$(database)/documents/groups/$(groupId)).data.visibility in ["public", "private"]
-        || canModerateGroup(groupId)
-      )
-    )
+    isPlatformMod()
+    || canModerateGroup(groupId)
+    || canMemberListBeSeen(groupId)
+    || request.auth.uid == resource.data.userId
   );
 
         allow create: if notAnonymous()
@@ -2122,10 +2139,17 @@ allow list: if signedIn()
         // pudiera borrarlo, se auto-desbanearía/desmutearía y recrearía el doc
         // como "active" (create exige !exists). El status queda persistente hasta
         // que un mod lo levante por callable.
+        //
+        // ⚠️ `removed` faltaba en esta lista y eso deshacía la expulsión entera.
+        // Expulsar a alguien de una comunidad PÚBLICA es definitivo —decisión de
+        // producto de Luis, 2026-08-16: "ya no puede volver nunca, como si hubiera
+        // sido bloqueado"—, pero el expulsado podía borrar su propio documento y
+        // volver a crearlo como `active`, porque `create` solo exige que NO exista.
+        // La sanción se limpiaba sola en dos clics.
         allow delete: if notAnonymous()
           && request.auth.uid == userId
           && groupDoc(groupId).data.ownerId != request.auth.uid
-          && !(normalizeMemberStatus(resource.data) in ["banned", "muted"]);
+          && !(normalizeMemberStatus(resource.data) in ["banned", "muted", "removed"]);
 
         allow update: if false;
       }

@@ -287,7 +287,13 @@ export default async function RootLayout({
         />
       </head>
 
-      <body className={`${plusJakarta.variable} antialiased`} suppressHydrationWarning>
+      {/* `vb-splash` va desde el servidor porque el splash ya se está pintando en
+          este mismo HTML. Anula el safe-area inferior mientras cubre; lo quita
+          DesktopRefreshSplash al desvanecerlo (ver lib/splash.ts). */}
+      <body
+        className={`${plusJakarta.variable} antialiased vb-splash`}
+        suppressHydrationWarning
+      >
         <script
           dangerouslySetInnerHTML={{
             __html: `

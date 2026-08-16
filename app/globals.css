@@ -62,6 +62,15 @@ body.vb-authed {
   --vb-safe-bottom: 20px;
 }
 
+/* Mientras el splash cubre la pantalla NO hay safe-area, sin excepción.
+   `body.vb-authed` se alterna siguiendo a la sesión, que resuelve en momentos
+   distintos según caché y red, así que bajo el splash el inset de 20px aparecía
+   y desaparecía solo. Los dos selectores de clase (0,2,1) ganan a `body.vb-authed`
+   (0,1,1) sin depender del orden del archivo. La pone lib/splash.ts. */
+body.vb-authed.vb-splash {
+  --vb-safe-bottom: 0px;
+}
+
 @theme inline {
   /* ── Tipografía ── */
   --font-sans: var(--font-jakarta);

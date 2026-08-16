@@ -1024,7 +1024,7 @@ const uploadedVideoCovers =
     } catch (e: unknown) {
       setError(
         (e instanceof Error ? e.message : null) ??
-          "No se pudo fijar o desfijar la publicación en tu perfil.",
+          "No se pudo fijar o desfijar la publicación.",
       );
       throw e;
     }

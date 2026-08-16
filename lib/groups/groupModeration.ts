@@ -57,7 +57,7 @@ export async function muteGroupMember(
   assertIds(groupId, targetUserId);
 
   if (!Number.isInteger(durationDays) || durationDays < 1 || durationDays > 365) {
-    throw new Error("durationDays debe ser un entero entre 1 y 365.");
+    throw new Error("Debes elegir entre 1 y 365.");
   }
 
   const callable = httpsCallable<MutePayload, { ok: true; mutedUntil: string }>(

@@ -1333,7 +1333,7 @@ useEffect(() => {
         setCroppedAreaPixels(null);
         setCropOpen(true);
       } catch (e: unknown) {
-        showProfileToast((e instanceof Error ? e.message : null) ?? tProfile("imageReadError"), "error");
+        showProfileToast((e instanceof Error ? e.message : null) ?? tCommon("imageReadError"), "error");
       }
     },
     [isOwner]
@@ -1589,7 +1589,7 @@ async function handleSendPasswordReset() {
       const err = e as { code?: string; message?: string } | null;
       showProfileToast(
         err?.code === "permission-denied"
-          ? tProfile("storagePermissionError")
+          ? tCommon("storagePermissionError")
           : tProfile("imageUploadError"),
         "error"
       );

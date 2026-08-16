@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
-import { useVibraToast } from "@/lib/hooks/useVibraToast";
+import { useVibraToast, type ToastType } from "@/lib/hooks/useVibraToast";
 import {
   CSSProperties,
   useEffect,
@@ -107,8 +107,17 @@ export default function GroupMembersTab({
   );
   const [loading, setLoading] = useState(() => !membersMemoryCache.has(groupId));
   const [error, setError] = useState<string | null>(null);
+  // El color viaja con el texto: si no, un aviso rojo posterior heredaría el
+  // gris del anterior.
+  const [errorTono, setErrorTono] = useState<ToastType>("error");
   const { toast: membersToast, showToast: showMembersToast } = useVibraToast();
-  useEffect(() => { if (error) showMembersToast(error, "error"); }, [error]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (error) showMembersToast(error, errorTono); }, [error]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /** Avisa en rojo, o en gris cuando no es un fallo sino un estado. */
+  const avisar = (texto: string | null, tono: ToastType = "error") => {
+    setErrorTono(tono);
+    setError(texto);
+  };
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<FilterValue>("all");
   const [savingVisibility, setSavingVisibility] = useState(false);
@@ -168,7 +177,7 @@ export default function GroupMembersTab({
     if (!canViewList) {
       setMembers([]);
       setLoading(false);
-      setError(null);
+      avisar(null);
       return;
     }
 
@@ -177,7 +186,7 @@ export default function GroupMembersTab({
     if (!membersMemoryCache.has(groupId)) {
       setLoading(true);
     }
-    setError(null);
+    avisar(null);
 
     const membersRef = collection(db, "groups", groupId, "members");
 
@@ -249,13 +258,13 @@ export default function GroupMembersTab({
           setLoading(false);
         } catch (e: unknown) {
           console.error(e);
-          setError((e instanceof Error ? e.message : null) ?? tGroups("membersLoadError"));
+          avisar((e instanceof Error ? e.message : null) ?? tGroups("membersLoadError"), "warning");
           setLoading(false);
         }
       },
       (e) => {
         console.error(e);
-        setError(e?.message ?? tGroups("membersLoadError"));
+        avisar(e?.message ?? tGroups("membersLoadError"), "warning");
         setLoading(false);
       }
     );
@@ -325,7 +334,7 @@ export default function GroupMembersTab({
     if (!isOwner) return;
 
     setSavingVisibility(true);
-    setError(null);
+    avisar(null);
 
     try {
       await updateDoc(doc(db, "groups", groupId), {
@@ -335,8 +344,9 @@ export default function GroupMembersTab({
       });
     } catch (e: unknown) {
       console.error(e);
-      setError(
-        (e instanceof Error ? e.message : null) ?? tGroups("visibilityUpdateError")
+      avisar(
+        (e instanceof Error ? e.message : null) ?? tGroups("visibilityUpdateError"),
+        "warning"
       );
     } finally {
       setSavingVisibility(false);
@@ -404,7 +414,7 @@ export default function GroupMembersTab({
     const targetUserId = member.resolvedUid;
     if (!targetUserId) return;
 
-    setError(null);
+    avisar(null);
     setActionMessage(null);
     setActionLoadingForUid(targetUserId);
 
@@ -428,7 +438,7 @@ export default function GroupMembersTab({
       setOpenMenuForUid(null);
     } catch (e: unknown) {
       console.error(e);
-      setError((e instanceof Error ? e.message : null) ?? tGroups("actionCompletionError"));
+      avisar((e instanceof Error ? e.message : null) ?? tCommon("actionCompletionError"));
     } finally {
       setActionLoadingForUid(null);
     }
@@ -436,7 +446,7 @@ export default function GroupMembersTab({
 
   function handleMemberAction(member: EnrichedMember, action: MemberAction) {
     if (action === "mute") {
-      setError(null);
+      avisar(null);
       setActionMessage(null);
       setMuteTarget(member);
       setMuteDays("7");
@@ -460,11 +470,11 @@ export default function GroupMembersTab({
 
     const durationDays = Number(muteDays);
     if (!Number.isInteger(durationDays) || durationDays < 1 || durationDays > 365) {
-      setError("durationDays debe ser un entero entre 1 y 365.");
+      avisar("Debes elegir entre 1 y 365.");
       return;
     }
 
-    setError(null);
+    avisar(null);
     setActionMessage(null);
     setActionLoadingForUid(muteTarget.resolvedUid);
 
@@ -476,7 +486,7 @@ export default function GroupMembersTab({
       closeMuteModal();
     } catch (e: unknown) {
       console.error(e);
-      setError((e instanceof Error ? e.message : null) ?? tGroups("actionCompletionError"));
+      avisar((e instanceof Error ? e.message : null) ?? tCommon("actionCompletionError"));
     } finally {
       setActionLoadingForUid(null);
     }

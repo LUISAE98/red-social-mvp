@@ -59,7 +59,7 @@ function normalizeDurationDays(value: unknown) {
   if (!Number.isInteger(days) || days < 1 || days > 365) {
     throw new HttpsError(
       "invalid-argument",
-      "durationDays debe ser un entero entre 1 y 365."
+      "Debes elegir entre 1 y 365."
     );
   }
   return days;
@@ -84,22 +84,6 @@ function normalizeStatus(raw: unknown): CanonicalMemberStatus {
   return "active";
 }
 
-async function getGroupOrThrow(groupId: string) {
-  const groupRef = db.collection("groups").doc(groupId);
-  const groupSnap = await groupRef.get();
-
-  if (!groupSnap.exists) {
-    throw new HttpsError("not-found", "La comunidad no existe.");
-  }
-
-  const data = groupSnap.data() as Record<string, unknown>;
-
-  return {
-    groupRef,
-    data,
-    ownerId: typeof data?.ownerId === "string" ? data.ownerId : "",
-  };
-}
 
 /**
  * Rastro inmutable de una acción de moderación de comunidad.
@@ -162,96 +146,124 @@ async function hasCurrentSubscription(groupId: string, uid: string): Promise<boo
   return accessUntil.toMillis() > Date.now();
 }
 
-async function getMemberRefOrThrow(groupId: string, targetUserId: string) {
-  const memberRef = db
-    .collection("groups")
-    .doc(groupId)
-    .collection("members")
-    .doc(targetUserId);
 
-  const memberSnap = await memberRef.get();
 
-  if (!memberSnap.exists) {
-    throw new HttpsError("not-found", "La membresía no existe.");
-  }
+/**
+ * Ejecuta una acción de moderación con la autorización COMPROBADA DENTRO de la
+ * misma transacción que escribe.
+ *
+ * ── El problema ──────────────────────────────────────────────────────────────
+ * Los siete flujos hacían: leer mi rol → comprobar → leer al objetivo →
+ * comprobar → escribir con un `batch`. Y un batch no es una transacción: no
+ * detecta conflictos. Entre la comprobación y la escritura, el creador podía
+ * haberme degradado o expulsado, y mi acción entraba igual.
+ *
+ * La ventana es corta y el daño reversible, pero es una comprobación de permisos
+ * que no protege nada en el momento que importa. Con una transacción, si
+ * cualquiera de los tres documentos cambia mientras tanto, Firestore aborta y
+ * reintenta con el estado nuevo.
+ *
+ * ⚠️ Lo que NO va aquí dentro: llamadas a Stripe y notificaciones. Una
+ * transacción se reintenta, y reintentar un cobro o un aviso los duplicaría.
+ * Esas se quedan fuera, como estaban.
+ */
+async function runModerationAction<T>(params: {
+  groupId: string;
+  actorUid: string;
+  targetUserId: string;
+  /** Acciones que solo puede hacer el creador (ascender y degradar). */
+  ownerOnly?: boolean;
+  /** Estados del objetivo que la acción admite. Vacío = cualquiera. */
+  estadosValidosDelObjetivo?: CanonicalMemberStatus[];
+  run: (ctx: {
+    tx: FirebaseFirestore.Transaction;
+    group: Record<string, unknown>;
+    actorRole: CanonicalGroupRole;
+    memberRef: FirebaseFirestore.DocumentReference;
+    userMembershipRef: FirebaseFirestore.DocumentReference;
+    targetData: Record<string, unknown>;
+    targetRole: CanonicalGroupRole;
+    targetStatus: CanonicalMemberStatus;
+  }) => T;
+}): Promise<T> {
+  const { groupId, actorUid, targetUserId } = params;
 
-  const memberData = memberSnap.data() as Record<string, unknown>;
-  const role = normalizeRole(memberData?.roleInGroup ?? memberData?.role);
+  const groupRef = db.collection("groups").doc(groupId);
+  const actorMemberRef = groupRef.collection("members").doc(actorUid);
+  const memberRef = groupRef.collection("members").doc(targetUserId);
+  const userMembershipRef = getUserMembershipRef(groupId, targetUserId);
 
-  if (role === "owner") {
-    throw new HttpsError(
-      "failed-precondition",
-      "No se puede moderar al creador de la comunidad."
-    );
-  }
+  return db.runTransaction(async (tx) => {
+    // Las tres lecturas juntas y antes de cualquier escritura, que es lo que
+    // exige una transacción de Firestore.
+    const [groupSnap, actorSnap, targetSnap] = await Promise.all([
+      tx.get(groupRef),
+      tx.get(actorMemberRef),
+      tx.get(memberRef),
+    ]);
 
-  return {
-    memberRef,
-    memberSnap,
-    memberData,
-    role,
-    status: normalizeStatus(memberData?.status),
-  };
-}
+    if (!groupSnap.exists) {
+      throw new HttpsError("not-found", "La comunidad no existe.");
+    }
+    const group = (groupSnap.data() ?? {}) as Record<string, unknown>;
+    const ownerId = typeof group.ownerId === "string" ? group.ownerId : "";
 
-async function getActorContextOrThrow(groupId: string, actorUid: string) {
-  const { ownerId } = await getGroupOrThrow(groupId);
+    // ── Quién soy YO, ahora mismo ──────────────────────────────────────────
+    let actorRole: CanonicalGroupRole;
+    if (ownerId === actorUid) {
+      actorRole = "owner";
+    } else {
+      if (!actorSnap.exists) {
+        throw new HttpsError("permission-denied", "No perteneces a esta comunidad.");
+      }
+      const actorData = (actorSnap.data() ?? {}) as Record<string, unknown>;
+      actorRole = normalizeRole(actorData.roleInGroup ?? actorData.role);
+      const actorStatus = normalizeStatus(actorData.status);
 
-  if (ownerId === actorUid) {
-    return {
-      actorUid,
-      actorRole: "owner" as CanonicalGroupRole,
-      ownerId,
-    };
-  }
+      // `muted` también queda fuera: las Firestore Rules solo aceptan a un
+      // moderador en `active` o `subscribed`, y estas callables usan Admin SDK,
+      // que se las salta. Un dato antiguo podía dejar `mod` + `muted`.
+      if (actorStatus === "banned" || actorStatus === "removed" || actorStatus === "muted") {
+        throw new HttpsError("permission-denied", "Tu estado no permite moderar.");
+      }
+      if (actorRole !== "mod") {
+        throw new HttpsError("permission-denied", "No tienes permisos de moderación.");
+      }
+    }
 
-  const actorMemberRef = db
-    .collection("groups")
-    .doc(groupId)
-    .collection("members")
-    .doc(actorUid);
+    if (params.ownerOnly) ensureOwnerOnly(actorRole);
 
-  const actorMemberSnap = await actorMemberRef.get();
+    // ── A quién estoy moderando ────────────────────────────────────────────
+    if (!targetSnap.exists) {
+      throw new HttpsError("not-found", "El miembro no existe en la comunidad.");
+    }
+    const targetData = (targetSnap.data() ?? {}) as Record<string, unknown>;
+    const targetRole = normalizeRole(targetData.roleInGroup ?? targetData.role);
+    const targetStatus = normalizeStatus(targetData.status);
 
-  if (!actorMemberSnap.exists) {
-    throw new HttpsError(
-      "permission-denied",
-      "No perteneces a esta comunidad."
-    );
-  }
+    ensureActorCanModerateTarget(actorRole, actorUid, targetUserId, targetRole);
 
-  const actorData = actorMemberSnap.data() as Record<string, unknown>;
-  const actorRole = normalizeRole(actorData?.roleInGroup ?? actorData?.role);
-  const actorStatus = normalizeStatus(actorData?.status);
+    if (
+      params.estadosValidosDelObjetivo?.length &&
+      !params.estadosValidosDelObjetivo.includes(targetStatus)
+    ) {
+      throw new HttpsError(
+        "failed-precondition",
+        "El estado actual de este miembro no permite esta acción."
+      );
+    }
 
-  // `muted` también queda fuera. Las Firestore Rules solo aceptan a un moderador
-  // en `active` o `subscribed`, pero aquí se colaba: un moderador silenciado era
-  // rechazado por las reglas y aceptado por estas callables, que usan Admin SDK y
-  // se saltan las reglas. Normalmente silenciar a un moderador también lo degrada,
-  // pero un dato antiguo o a medio migrar podía dejar `mod` + `muted`.
-  if (
-    actorStatus === "banned" ||
-    actorStatus === "removed" ||
-    actorStatus === "muted"
-  ) {
-    throw new HttpsError(
-      "permission-denied",
-      "No tienes permisos para realizar esta acción."
-    );
-  }
-
-  if (actorRole !== "mod") {
-    throw new HttpsError(
-      "permission-denied",
-      "Solo el creador o un moderador pueden realizar esta acción."
-    );
-  }
-
-  return {
-    actorUid,
-    actorRole,
-    ownerId,
-  };
+    return params.run({
+      tx,
+      group,
+      actorRole,
+      memberRef,
+      userMembershipRef,
+      targetData,
+      targetRole,
+      targetStatus,
+    });
+  });
 }
 
 function ensureActorCanModerateTarget(
@@ -329,37 +341,36 @@ export const promoteGroupMemberToAdmin = onCall(async (request) => {
   const groupId = normalizeString(request.data?.groupId, "groupId");
   const targetUserId = normalizeString(request.data?.targetUserId, "targetUserId");
 
-  const { actorRole } = await getActorContextOrThrow(groupId, actorUid);
-  ensureOwnerOnly(actorRole);
+  const yaEraMod = await runModerationAction({
+    groupId,
+    actorUid,
+    targetUserId,
+    ownerOnly: true,
+    run: ({ tx, memberRef, userMembershipRef, targetRole, targetStatus }) => {
+      if (targetRole === "mod") return true; // idempotente
 
-  const { memberRef, role, status } = await getMemberRefOrThrow(groupId, targetUserId);
+      if (targetStatus !== "active") {
+        throw new HttpsError(
+          "failed-precondition",
+          "Solo puedes promover miembros activos."
+        );
+      }
 
-  if (role === "mod") {
-    return { ok: true, roleInGroup: "mod" };
-  }
+      const patch = {
+        roleInGroup: "mod",
+        role: "mod",
+        updatedAt: FieldValue.serverTimestamp(),
+        roleUpdatedAt: FieldValue.serverTimestamp(),
+        roleUpdatedBy: actorUid,
+      };
 
-  if (status !== "active") {
-    throw new HttpsError(
-      "failed-precondition",
-      "Solo puedes promover miembros activos."
-    );
-  }
+      tx.set(memberRef, patch, { merge: true });
+      tx.set(userMembershipRef, patch, { merge: true });
+      return false;
+    },
+  });
 
-  const userMembershipRef = getUserMembershipRef(groupId, targetUserId);
-  const batch = db.batch();
-
-  const patch = {
-    roleInGroup: "mod",
-    role: "mod",
-    updatedAt: FieldValue.serverTimestamp(),
-    roleUpdatedAt: FieldValue.serverTimestamp(),
-    roleUpdatedBy: actorUid,
-  };
-
-  batch.set(memberRef, patch, { merge: true });
-  batch.set(userMembershipRef, patch, { merge: true });
-
-  await batch.commit();
+  if (yaEraMod) return { ok: true, roleInGroup: "mod" };
 
   await logGroupModeration({
     groupId,
@@ -376,30 +387,29 @@ export const demoteGroupAdminToMember = onCall(async (request) => {
   const groupId = normalizeString(request.data?.groupId, "groupId");
   const targetUserId = normalizeString(request.data?.targetUserId, "targetUserId");
 
-  const { actorRole } = await getActorContextOrThrow(groupId, actorUid);
-  ensureOwnerOnly(actorRole);
+  const noEraMod = await runModerationAction({
+    groupId,
+    actorUid,
+    targetUserId,
+    ownerOnly: true,
+    run: ({ tx, memberRef, userMembershipRef, targetRole }) => {
+      if (targetRole !== "mod") return true; // idempotente
 
-  const { memberRef, role } = await getMemberRefOrThrow(groupId, targetUserId);
+      const patch = {
+        roleInGroup: "member",
+        role: "member",
+        updatedAt: FieldValue.serverTimestamp(),
+        roleUpdatedAt: FieldValue.serverTimestamp(),
+        roleUpdatedBy: actorUid,
+      };
 
-  if (role !== "mod") {
-    return { ok: true, roleInGroup: "member" };
-  }
+      tx.set(memberRef, patch, { merge: true });
+      tx.set(userMembershipRef, patch, { merge: true });
+      return false;
+    },
+  });
 
-  const userMembershipRef = getUserMembershipRef(groupId, targetUserId);
-  const batch = db.batch();
-
-  const patch = {
-    roleInGroup: "member",
-    role: "member",
-    updatedAt: FieldValue.serverTimestamp(),
-    roleUpdatedAt: FieldValue.serverTimestamp(),
-    roleUpdatedBy: actorUid,
-  };
-
-  batch.set(memberRef, patch, { merge: true });
-  batch.set(userMembershipRef, patch, { merge: true });
-
-  await batch.commit();
+  if (noEraMod) return { ok: true, roleInGroup: "member" };
 
   await logGroupModeration({
     groupId,
@@ -417,30 +427,27 @@ export const muteGroupMember = onCall(async (request) => {
   const targetUserId = normalizeString(request.data?.targetUserId, "targetUserId");
   const durationDays = normalizeDurationDays(request.data?.durationDays);
 
-  const { actorRole } = await getActorContextOrThrow(groupId, actorUid);
-  const { memberRef, role: targetRole } = await getMemberRefOrThrow(groupId, targetUserId);
-
-  ensureActorCanModerateTarget(actorRole, actorUid, targetUserId, targetRole);
-
   const mutedUntilDate = new Date(
     Date.now() + durationDays * 24 * 60 * 60 * 1000
   );
 
-  const userMembershipRef = getUserMembershipRef(groupId, targetUserId);
-  const batch = db.batch();
+  await runModerationAction({
+    groupId,
+    actorUid,
+    targetUserId,
+    run: ({ tx, memberRef, userMembershipRef }) => {
+      const patch = {
+        status: "muted",
+        mutedUntil: Timestamp.fromDate(mutedUntilDate),
+        updatedAt: FieldValue.serverTimestamp(),
+        moderatedBy: actorUid,
+        ...buildRoleDowngradePatch(actorUid),
+      };
 
-  const patch = {
-    status: "muted",
-    mutedUntil: Timestamp.fromDate(mutedUntilDate),
-    updatedAt: FieldValue.serverTimestamp(),
-    moderatedBy: actorUid,
-    ...buildRoleDowngradePatch(actorUid),
-  };
-
-  batch.set(memberRef, patch, { merge: true });
-  batch.set(userMembershipRef, patch, { merge: true });
-
-  await batch.commit();
+      tx.set(memberRef, patch, { merge: true });
+      tx.set(userMembershipRef, patch, { merge: true });
+    },
+  });
 
   await safeNotifyModeration(groupId, targetUserId, "muted");
 
@@ -462,25 +469,22 @@ export const unmuteGroupMember = onCall(async (request) => {
   const groupId = normalizeString(request.data?.groupId, "groupId");
   const targetUserId = normalizeString(request.data?.targetUserId, "targetUserId");
 
-  const { actorRole } = await getActorContextOrThrow(groupId, actorUid);
-  const { memberRef, role: targetRole } = await getMemberRefOrThrow(groupId, targetUserId);
+  await runModerationAction({
+    groupId,
+    actorUid,
+    targetUserId,
+    run: ({ tx, memberRef, userMembershipRef }) => {
+      const patch = {
+        status: "active",
+        mutedUntil: null,
+        updatedAt: FieldValue.serverTimestamp(),
+        moderatedBy: actorUid,
+      };
 
-  ensureActorCanModerateTarget(actorRole, actorUid, targetUserId, targetRole);
-
-  const userMembershipRef = getUserMembershipRef(groupId, targetUserId);
-  const batch = db.batch();
-
-  const patch = {
-    status: "active",
-    mutedUntil: null,
-    updatedAt: FieldValue.serverTimestamp(),
-    moderatedBy: actorUid,
-  };
-
-  batch.set(memberRef, patch, { merge: true });
-  batch.set(userMembershipRef, patch, { merge: true });
-
-  await batch.commit();
+      tx.set(memberRef, patch, { merge: true });
+      tx.set(userMembershipRef, patch, { merge: true });
+    },
+  });
 
   await logGroupModeration({
     groupId,
@@ -497,48 +501,27 @@ export const banGroupMember = onCall({ secrets: [stripeSecretKey] }, async (requ
   const groupId = normalizeString(request.data?.groupId, "groupId");
   const targetUserId = normalizeString(request.data?.targetUserId, "targetUserId");
 
-  const { actorRole } = await getActorContextOrThrow(groupId, actorUid);
-  const { memberRef, role: targetRole } = await getMemberRefOrThrow(groupId, targetUserId);
-
-  ensureActorCanModerateTarget(actorRole, actorUid, targetUserId, targetRole);
-
-  const joinRequestRef = getJoinRequestRef(groupId, targetUserId);
-    const userMembershipRef = getUserMembershipRef(groupId, targetUserId);
-  const userJoinRequestSentRef = getUserJoinRequestSentRef(
+  await runModerationAction({
     groupId,
-    targetUserId
-  );
-  const batch = db.batch();
+    actorUid,
+    targetUserId,
+    run: ({ tx, memberRef, userMembershipRef }) => {
+      const patch = {
+        status: "banned",
+        mutedUntil: null,
+        bannedAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+        moderatedBy: actorUid,
+        ...buildRoleDowngradePatch(actorUid),
+      };
 
-  batch.set(
-    memberRef,
-    {
-      status: "banned",
-      mutedUntil: null,
-      bannedAt: FieldValue.serverTimestamp(),
-      updatedAt: FieldValue.serverTimestamp(),
-      moderatedBy: actorUid,
-      ...buildRoleDowngradePatch(actorUid),
+      tx.set(memberRef, patch, { merge: true });
+      tx.set(userMembershipRef, patch, { merge: true });
+
+      tx.delete(getJoinRequestRef(groupId, targetUserId));
+      tx.delete(getUserJoinRequestSentRef(groupId, targetUserId));
     },
-    { merge: true }
-  );
-    batch.set(
-    userMembershipRef,
-    {
-      status: "banned",
-      mutedUntil: null,
-      bannedAt: FieldValue.serverTimestamp(),
-      updatedAt: FieldValue.serverTimestamp(),
-      moderatedBy: actorUid,
-      ...buildRoleDowngradePatch(actorUid),
-    },
-    { merge: true }
-  );
-
-  batch.delete(joinRequestRef);
-  batch.delete(userJoinRequestSentRef);
-
-  await batch.commit();
+  });
 
   // Cancela INMEDIATAMENTE la suscripción de pago del baneado (deja de cobrarle) y
   // revoca el acceso ligado a ella. Best-effort: no bloquea el ban si Stripe falla.
@@ -561,17 +544,6 @@ export const unbanGroupMember = onCall(async (request) => {
   const groupId = normalizeString(request.data?.groupId, "groupId");
   const targetUserId = normalizeString(request.data?.targetUserId, "targetUserId");
 
-  const { actorRole } = await getActorContextOrThrow(groupId, actorUid);
-  const { memberRef, role: targetRole } = await getMemberRefOrThrow(groupId, targetUserId);
-
-  ensureActorCanModerateTarget(actorRole, actorUid, targetUserId, targetRole);
-
-  const joinRequestRef = getJoinRequestRef(groupId, targetUserId);
-  const userMembershipRef = getUserMembershipRef(groupId, targetUserId);
-  const userJoinRequestSentRef = getUserJoinRequestSentRef(
-    groupId,
-    targetUserId
-  );
   // Desbanear NO puede regalar una suscripción. Al banear a alguien se le cancela
   // el cobro en Stripe, así que ponerlo de vuelta en `active` le devolvía TODO el
   // contenido de pago sin volver a pagar — y bastaba con hacerse banear y
@@ -582,44 +554,38 @@ export const unbanGroupMember = onCall(async (request) => {
   const groupRequiresPayment = await groupIsSubscriptionBased(groupId);
   const restoreAsMember = !groupRequiresPayment || paidAccessStillValid;
 
-  const batch = db.batch();
+  // Las dos consultas de suscripción se hacen ARRIBA, fuera de la transacción:
+  // leen documentos que la transacción no vigila y meterlas dentro solo alargaría
+  // la ventana de reintento sin ganar nada.
+  await runModerationAction({
+    groupId,
+    actorUid,
+    targetUserId,
+    run: ({ tx, memberRef, userMembershipRef }) => {
+      if (restoreAsMember) {
+        const restoredStatus =
+          paidAccessStillValid && groupRequiresPayment ? "subscribed" : "active";
 
-  if (restoreAsMember) {
-    const restoredStatus = paidAccessStillValid && groupRequiresPayment ? "subscribed" : "active";
+        const patch = {
+          status: restoredStatus,
+          mutedUntil: null,
+          updatedAt: FieldValue.serverTimestamp(),
+          unbannedAt: FieldValue.serverTimestamp(),
+          moderatedBy: actorUid,
+        };
 
-    batch.set(
-      memberRef,
-      {
-        status: restoredStatus,
-        mutedUntil: null,
-        updatedAt: FieldValue.serverTimestamp(),
-        unbannedAt: FieldValue.serverTimestamp(),
-        moderatedBy: actorUid,
-      },
-      { merge: true }
-    );
+        tx.set(memberRef, patch, { merge: true });
+        tx.set(userMembershipRef, patch, { merge: true });
+      } else {
+        // Comunidad de pago y sin suscripción viva: se va la membresía entera.
+        tx.delete(memberRef);
+        tx.delete(userMembershipRef);
+      }
 
-    batch.set(
-      userMembershipRef,
-      {
-        status: restoredStatus,
-        mutedUntil: null,
-        updatedAt: FieldValue.serverTimestamp(),
-        unbannedAt: FieldValue.serverTimestamp(),
-        moderatedBy: actorUid,
-      },
-      { merge: true }
-    );
-  } else {
-    // Comunidad de pago y sin suscripción viva: se va la membresía entera.
-    batch.delete(memberRef);
-    batch.delete(userMembershipRef);
-  }
-
-  batch.delete(joinRequestRef);
-  batch.delete(userJoinRequestSentRef);
-
-  await batch.commit();
+      tx.delete(getJoinRequestRef(groupId, targetUserId));
+      tx.delete(getUserJoinRequestSentRef(groupId, targetUserId));
+    },
+  });
 
   logger.info("unbanGroupMember", {
     groupId,
@@ -645,36 +611,29 @@ export const removeGroupMember = onCall(async (request) => {
   const groupId = normalizeString(request.data?.groupId, "groupId");
   const targetUserId = normalizeString(request.data?.targetUserId, "targetUserId");
 
-  const { actorRole } = await getActorContextOrThrow(groupId, actorUid);
-  const { memberRef, role: targetRole } = await getMemberRefOrThrow(groupId, targetUserId);
-
-  ensureActorCanModerateTarget(actorRole, actorUid, targetUserId, targetRole);
-
-  const joinRequestRef = getJoinRequestRef(groupId, targetUserId);
-    const userMembershipRef = getUserMembershipRef(groupId, targetUserId);
-  const userJoinRequestSentRef = getUserJoinRequestSentRef(
+  await runModerationAction({
     groupId,
-    targetUserId
-  );
-  const batch = db.batch();
+    actorUid,
+    targetUserId,
+    run: ({ tx, memberRef, userMembershipRef }) => {
+      tx.set(
+        memberRef,
+        {
+          status: "removed",
+          mutedUntil: null,
+          removedAt: FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
+          moderatedBy: actorUid,
+          ...buildRoleDowngradePatch(actorUid),
+        },
+        { merge: true }
+      );
 
-  batch.set(
-    memberRef,
-    {
-      status: "removed",
-      mutedUntil: null,
-      removedAt: FieldValue.serverTimestamp(),
-      updatedAt: FieldValue.serverTimestamp(),
-      moderatedBy: actorUid,
-      ...buildRoleDowngradePatch(actorUid),
+      tx.delete(getJoinRequestRef(groupId, targetUserId));
+      tx.delete(userMembershipRef);
+      tx.delete(getUserJoinRequestSentRef(groupId, targetUserId));
     },
-    { merge: true }
-  );
-
-  batch.delete(joinRequestRef);
-  batch.delete(userMembershipRef);
-  batch.delete(userJoinRequestSentRef);
-  await batch.commit();
+  });
 
   await safeNotifyModeration(groupId, targetUserId, "kicked");
 

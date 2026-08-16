@@ -122,7 +122,18 @@ service firebase.storage {
 
     match /groups/{groupId}/{folder}/{fileName} {
 
-      allow read: if true;
+      // El avatar y la portada de una comunidad RESTRINGIDA no se sirven por el
+      // SDK. Estaba en `if true`, así que la identidad visual de una comunidad
+      // oculta quedaba accesible a quien tuviera la ruta — no revela su
+      // existencia por sí solo, pero contradice la promesa de ocultarla.
+      //
+      // ⚠️ Esto NO cambia lo que se ve en la app. Estas imágenes se muestran con
+      // URL de token, que no evalúa reglas: el descubrimiento y los listados
+      // siguen igual. Lo que se cierra es la vía de pedir el archivo por el SDK
+      // conociendo la ruta.
+      //
+      // El creador conserva el acceso porque es quien sube y reemplaza la imagen.
+      allow read: if !isRestrictedGroup(groupId) || isGroupOwner(groupId);
 
       allow write: if isGroupOwner(groupId)
         && (folder == "avatar" || folder == "cover")

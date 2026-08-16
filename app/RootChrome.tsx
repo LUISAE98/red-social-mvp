@@ -153,11 +153,15 @@ const isOverlayRoute =
     // efectos de arriba siguen usando el `user` real para redirigir.
     const renderUser = hydrated ? user : null;
     if (authTransitionMode === "exiting") {
-  // Pantalla negra CONTINUA durante el cierre de sesión (en vez de null).
-  // Como RootChrome vive en el layout raíz y no se desmonta al navegar, este
-  // negro cubre toda la transición (redirect del guardián + recarga) sin los
-  // parpadeos que se veían cuando el overlay del botón se desmontaba a media
-  // transición o cuando aquí se devolvía null y se asomaba el fondo.
+  // Lo que la persona VE durante el cierre de sesión es el splash de marca, que
+  // `startAuthTransition` enciende (ver lib/splash.ts) y que va muy por encima
+  // de esto en z-index. Este negro se queda de respaldo por si el nodo del
+  // splash no estuviera: sin él, devolver null aquí asomaría el fondo.
+  //
+  // Sigue siendo necesario devolver algo en vez de `children`: RootChrome vive
+  // en el layout raíz y no se desmonta al navegar, así que dejar el árbol de la
+  // app montado durante la salida reaparecía contenido de la sesión a media
+  // transición. No lo cambies por `children` pensando que el splash ya tapa.
   return (
     <div
       aria-hidden="true"
