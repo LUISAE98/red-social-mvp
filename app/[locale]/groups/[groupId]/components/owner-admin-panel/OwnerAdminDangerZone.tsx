@@ -48,6 +48,9 @@ export default function OwnerAdminDangerZone({
 
       await updateDoc(doc(db, "groups", groupId), {
         isActive: false,
+        // El descubrimiento filtra por `search.isActive`, así que sin esta línea
+        // una comunidad pausada seguía apareciendo en las búsquedas.
+        "search.isActive": false,
         updatedAt: serverTimestamp(),
       });
 

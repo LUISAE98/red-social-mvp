@@ -533,18 +533,6 @@ export default function RegisterPanel({
     overflow: "hidden",
   };
 
-  const noticeStyle: React.CSSProperties = {
-    marginTop: 10,
-    marginBottom: 0,
-    borderRadius: 9,
-    border: "1px solid rgba(168,85,255,0.18)",
-    background: "rgba(255,255,255,0.035)",
-    padding: "7px 9px",
-    fontSize: 10.5,
-    lineHeight: 1.35,
-    color: "rgba(255,255,255,0.84)",
-  };
-
   const birthBorder = isUnder18
     ? { border: "1px solid rgba(255,107,107,0.72)" }
     : {};

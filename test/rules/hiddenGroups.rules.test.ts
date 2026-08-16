@@ -257,12 +257,25 @@ describe("stories create — el groupId tiene que ser de una comunidad propia", 
   const AJENA = "g_stories_ajena";
   const EXTRANO = "extrano_stories";
 
+  /**
+   * ⚠️ `searchable`, `byCreator` y `hiddenFromReel` son OBLIGATORIOS al crear, y
+   * `searchable` además tiene que COINCIDIR con la visibilidad real: la regla lo
+   * ata a `storyHasNoGroup || isGroupPublic(groupId)`, porque la lectura se apoya
+   * en ese campo y mentir abriría la historia al mundo.
+   *
+   * Por eso aquí va `true`: los dos casos que deben pasar son una comunidad
+   * pública y una historia de perfil. Este fixture se quedó viejo cuando la regla
+   * se endureció, y fallaba por eso, no por lo que se está probando.
+   */
   function historia(extra: Record<string, unknown> = {}) {
     return {
       creatorId: EXTRANO,
       type: "saludo",
       greetingRequestId: "req_1",
       source: "group",
+      searchable: true,
+      byCreator: true,
+      hiddenFromReel: false,
       ...extra,
     };
   }

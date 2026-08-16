@@ -217,6 +217,13 @@ export default function OwnerAdminStatus({
     try {
       await updateDoc(doc(db, "groups", groupId), {
         isActive,
+        // ⚠️ El índice de búsqueda va junto, no después.
+        //
+        // El descubrimiento filtra por `search.isActive`, no por `isActive`. Al
+        // pausar solo se escribía el segundo, así que **la comunidad pausada
+        // seguía saliendo en búsquedas**. Y al reactivar pasaba lo contrario si
+        // el índice se había quedado en `false`.
+        "search.isActive": isActive,
         updatedAt: serverTimestamp(),
       });
 

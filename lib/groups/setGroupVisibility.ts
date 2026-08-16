@@ -29,6 +29,13 @@ export async function setGroupVisibility(
     description?: string | null;
     category?: string | null;
     tags?: string[] | null;
+    /**
+     * ⚠️ Estado real de la comunidad. Antes se pasaba `true` a ciegas al índice,
+     * así que cambiar la visibilidad de una comunidad PAUSADA la devolvía a las
+     * búsquedas — el descubrimiento filtra por `search.isActive`, no por
+     * `isActive`. Ausente se toma como activa, que es el caso normal.
+     */
+    isActive?: boolean | null;
   }
 ): Promise<void> {
   const discoverable = getDiscoverableFromVisibility(nextVisibility);
@@ -47,7 +54,7 @@ export async function setGroupVisibility(
       tags: group.tags ?? [],
       visibility: nextVisibility,
       discoverable,
-      isActive: true,
+      isActive: group.isActive !== false,
       updatedAt,
     }),
   });
