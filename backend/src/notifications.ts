@@ -28,6 +28,15 @@ if (admin.apps.length === 0) {
 const db = admin.firestore();
 const REGION = "us-central1";
 
+/**
+ * Cuántas personas se pueden mencionar con @ en un solo comentario.
+ *
+ * B8-H04. Decisión de producto de Luis (2026-08-16). El mismo número está en el
+ * cliente (`sanitizeCommentMentions`) y en las Firestore Rules; si cambia, cambia
+ * en los tres.
+ */
+const MAX_MENCIONES = 5;
+
 /** Cuántos actores recientes conservamos para mostrar avatares apilados. */
 const MAX_VISIBLE_ACTORS = 5;
 /** Tope de ids que guardamos para de-duplicar (evita documentos gigantes). */
@@ -226,6 +235,25 @@ async function emitMentions(
     if (!m || m.type !== "profile" || !id) continue;
     if (seen.has(id) || excludeIds.has(id)) continue;
     seen.add(id);
+
+    // ⚠️ B8-H04. Este bucle no tenía tope y las reglas no limitan el tamaño de
+    // `mentions`, así que un solo comentario escrito directamente contra
+    // Firestore podía traer miles de menciones y este `await` dentro del bucle
+    // las convertía en miles de transacciones seguidas: bombardeo de
+    // notificaciones a quien quisieras y factura de Functions a cambio de nada.
+    //
+    // El tope vive AQUÍ además de en el cliente y en las reglas porque es el
+    // único sitio que ve la escritura venga de donde venga: el Admin SDK no
+    // pasa por las reglas.
+    if (seen.size > MAX_MENCIONES) {
+      logger.warn("emitMentions: se superó el tope de menciones, se ignora el resto", {
+        groupKey,
+        recibidas: mentions.length,
+        tope: MAX_MENCIONES,
+      });
+      return;
+    }
+
     await emit({ recipientId: id, groupKey, type: "mention", actor, target });
   }
 }

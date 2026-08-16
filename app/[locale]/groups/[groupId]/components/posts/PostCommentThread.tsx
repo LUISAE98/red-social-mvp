@@ -69,6 +69,7 @@ export default function PostCommentThread({
   focusCommentId = null,
 }: PostCommentThreadProps) {
   const tCommon = useTranslations("common");
+  const tFeed = useTranslations("feed");
   const locale = useLocale();
   const tPosts = useTranslations("posts");
   const { reportTarget, openReport, closeReport } = useReport();
@@ -226,7 +227,7 @@ export default function PostCommentThread({
       const nextReplies = await onLoadReplies(postId, comment.id);
       setReplies(nextReplies);
     } catch (e: unknown) {
-      setInlineError((e instanceof Error ? e.message : null) ?? tPosts("errorLoadReplies"));
+      setInlineError((e instanceof Error ? e.message : null) ?? tFeed("loadRepliesError"));
     } finally {
       setLoadingReplies(false);
     }
@@ -263,7 +264,7 @@ export default function PostCommentThread({
       });
       setHasOlderReplies(page.hasMore);
     } catch {
-      setInlineError(tPosts("errorLoadReplies"));
+      setInlineError(tFeed("loadRepliesError"));
     } finally {
       setLoadingOlderReplies(false);
     }
@@ -310,7 +311,7 @@ export default function PostCommentThread({
       setReplies(nextReplies);
       setLocalReplyCount(nextReplies.length);
     } catch (e: unknown) {
-      setInlineError((e instanceof Error ? e.message : null) ?? tPosts("errorDeleteReply"));
+      setInlineError((e instanceof Error ? e.message : null) ?? tFeed("deleteReplyError"));
     } finally {
       setDeletingReplyId(null);
     }
@@ -411,7 +412,7 @@ export default function PostCommentThread({
     } catch (e: unknown) {
       setCommentLiked(previousLiked);
       setCommentLikes(previousLikes);
-      setInlineError((e instanceof Error ? e.message : null) ?? tPosts("errorFlame"));
+      setInlineError((e instanceof Error ? e.message : null) ?? tFeed("errorUpdateFlame"));
     } finally {
       setCommentFlameBusy(false);
     }

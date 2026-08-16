@@ -1131,7 +1131,7 @@ export default function ConversationThread({
       // La foto va sola: el pie de foto se escribe como un mensaje aparte.
       await deliver("", uploaded, null);
     } catch {
-      setError(tChat("imageUploadError"));
+      setError(tCommon("imageUploadError"));
     } finally {
       setUploadingIds((prev) => prev.filter((id) => id !== uploadId));
       // Permite volver a elegir el MISMO fichero justo después.

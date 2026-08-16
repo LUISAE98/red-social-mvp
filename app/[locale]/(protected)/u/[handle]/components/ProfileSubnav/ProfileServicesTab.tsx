@@ -9,6 +9,7 @@ import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import GreetingReviewOverlay from "@/app/components/OwnerSidebar/GreetingReviewOverlay";
 import { BRAND_DOMAIN } from "@/lib/brand";
+import { AVISOS_SERVICIOS, avisoRangoMinutos } from "@/lib/services/avisosServicios";
 
 import Greetings from "@/components/services/config/Greetings";
 import Advice from "@/components/services/config/Advice";
@@ -338,7 +339,7 @@ export default function ProfileServicesTab({
           Number.isNaN(saludoPriceNum) ||
           saludoPriceNum <= 0)
       ) {
-        setErr("❌ Precio inválido para saludos.");
+        setErr(AVISOS_SERVICIOS.precioSaludos);
         return;
       }
 
@@ -348,7 +349,7 @@ export default function ProfileServicesTab({
           Number.isNaN(consejoPriceNum) ||
           consejoPriceNum <= 0)
       ) {
-        setErr("❌ Precio inválido para consejos.");
+        setErr(AVISOS_SERVICIOS.precioConsejos);
         return;
       }
 
@@ -358,7 +359,7 @@ export default function ProfileServicesTab({
           Number.isNaN(meetGreetPriceNum) ||
           meetGreetPriceNum <= 0)
       ) {
-        setErr("❌ Precio inválido para Tiempo contigo.");
+        setErr(AVISOS_SERVICIOS.precioMeetGreet);
         return;
       }
 
@@ -368,7 +369,7 @@ export default function ProfileServicesTab({
           Number.isNaN(customClassPriceNum) ||
           customClassPriceNum <= 0)
       ) {
-        setErr("❌ Precio inválido para sesión exclusiva.");
+        setErr(AVISOS_SERVICIOS.precioSesion);
         return;
       }
 
@@ -380,7 +381,7 @@ export default function ProfileServicesTab({
           !Number.isInteger(meetGreetDurationNum))
       ) {
         setErr(
-          "❌ Debes definir una duración válida en minutos para Tiempo contigo."
+          AVISOS_SERVICIOS.duracionMeetGreet
         );
         return;
       }
@@ -392,7 +393,7 @@ export default function ProfileServicesTab({
           meetGreetDurationNum > MEET_GREET_MAX_MINUTES)
       ) {
         showToast(
-          `⚠️ Tiempo contigo solo permite entre ${MEET_GREET_MIN_MINUTES} y ${MEET_GREET_MAX_MINUTES} minutos.`,
+          avisoRangoMinutos("Tiempo contigo", MEET_GREET_MIN_MINUTES, MEET_GREET_MAX_MINUTES),
           "warning"
         );
         return;
@@ -406,7 +407,7 @@ export default function ProfileServicesTab({
           !Number.isInteger(customClassDurationNum))
       ) {
         setErr(
-          "❌ Debes definir una duración válida en minutos para la sesión exclusiva."
+          AVISOS_SERVICIOS.duracionSesion
         );
         return;
       }
@@ -418,7 +419,7 @@ export default function ProfileServicesTab({
           customClassDurationNum > CUSTOM_CLASS_MAX_MINUTES)
       ) {
         showToast(
-          `⚠️ La sesión exclusiva solo permite entre ${CUSTOM_CLASS_MIN_MINUTES} y ${CUSTOM_CLASS_MAX_MINUTES} minutos.`,
+          avisoRangoMinutos("La sesión exclusiva", CUSTOM_CLASS_MIN_MINUTES, CUSTOM_CLASS_MAX_MINUTES),
           "warning"
         );
         return;
@@ -429,7 +430,7 @@ export default function ProfileServicesTab({
         (donationSuggestedNums.length !== 4 ||
           donationSuggestedNums.some((n) => !Number.isFinite(n) || n < 50))
       ) {
-        setErr("❌ Cada monto sugerido de la donación debe ser al menos 50.");
+        setErr(AVISOS_SERVICIOS.donacionMontoMinimo);
         return;
       }
 
@@ -437,7 +438,7 @@ export default function ProfileServicesTab({
         workingDraft.donationMode === "wedding" &&
         !workingDraft.donationGoalLabel.trim()
       ) {
-        setErr("❌ Debes escribir el texto visible para la donación de boda.");
+        setErr(AVISOS_SERVICIOS.donacionTextoBoda);
         return;
       }
 
@@ -578,10 +579,10 @@ export default function ProfileServicesTab({
         donation: nextDonation,
       });
 
-      showToast("Servicios del perfil guardados.", "success");
+      showToast(AVISOS_SERVICIOS.guardado, "success");
       return true;
     } catch (e: unknown) {
-      showToast("No se pudieron guardar los servicios del perfil.", "error");
+      showToast(AVISOS_SERVICIOS.noGuardado, "error");
       return false;
     } finally {
       skipHydrationWhileSavingRef.current = false;
@@ -596,20 +597,19 @@ export default function ProfileServicesTab({
            contenedor (transparente): .profile-content va sin padding para
            servicios, así el contenido queda simétrico y centrado. En laptop el
            margen lo sigue dando .profile-content (aquí no se aplica). */
-        @media (max-width: 900px) {
-          .services-tab-margins {
-            padding-inline-start: 10px;
-            padding-inline-end: 10px;
-          }
-        }
+        /* Sin padding propio: el de .profile-content ya sirve, y añadir otro obligaba
+           a que el contenedor se quedara sin el suyo (lo que movía la card de arriba
+           al cambiar de pestaña). */
         /* En celular cada card de experiencia llega de lado a lado (full-bleed):
            se anula EXACTAMENTE el padding lateral de .services-tab-margins (10px),
            así queda edge-to-edge y SIMÉTRICO (sin depender de 50vw, que con el
            scrollbar-gutter descentraba). El heading queda inset. */
         @media (max-width: 900px) {
           .services-tab-margins :global(.serviceActivationPanel) {
-            margin-inline-start: -10px;
-            margin-inline-end: -10px;
+            /* 12px = padding lateral de .profile-content en celular. Así la card
+               llega al borde sin que el contenedor tenga que perder el suyo. */
+            margin-inline-start: -12px;
+            margin-inline-end: -12px;
           }
         }
       `}</style>

@@ -271,7 +271,7 @@ export default function OwnerSidebarSettings({
     const nextName = draftName.trim();
 
     if (nextName.length < 3) {
-      onToast(tProfile("nameMinLengthError"), "error");
+      onToast(tCommon("minLength3"), "error");
       return;
     }
 

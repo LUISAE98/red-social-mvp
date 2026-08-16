@@ -555,6 +555,7 @@ export function WalletServiceRow({
   );
 
   const tCommon = useTranslations("common");
+  const tSessions = useTranslations("sessions");
   const tServices = useTranslations("services");
   const tWallet = useTranslations("wallet");
   const locale = useLocale();
@@ -668,9 +669,9 @@ export function WalletServiceRow({
         action,
       });
 
-      showWalletRowToast(action === "accept" ? tWallet("greetingAccepted") : tWallet("greetingRejected"));
+      showWalletRowToast(action === "accept" ? tServices("successRequestAccepted") : tServices("successRequestRejected"));
     } catch (e: unknown) {
-      showWalletRowToast((e instanceof Error ? e.message : null) ?? tWallet("greetingUpdateError"), "error");
+      showWalletRowToast((e instanceof Error ? e.message : null) ?? tCommon("errorUpdateRequest"), "error");
     } finally {
       setBusy(false);
     }
@@ -682,15 +683,15 @@ export function WalletServiceRow({
     try {
       if (isExclusiveSession) {
         await acceptExclusiveSessionRequest({ requestId: row.id });
-        showWalletRowToast(tWallet("exclusiveAccepted"));
+        showWalletRowToast(tServices("successRequestAccepted"));
       } else {
         await acceptMeetGreetRequest({ requestId: row.id });
-        showWalletRowToast(tWallet("liveAccepted"));
+        showWalletRowToast(tServices("successRequestAccepted"));
       }
 
       setScheduleOpen(true);
     } catch (e: unknown) {
-      showWalletRowToast((e instanceof Error ? e.message : null) ?? tWallet("acceptError"), "error");
+      showWalletRowToast((e instanceof Error ? e.message : null) ?? tServices("errorAcceptRequest"), "error");
     } finally {
       setBusy(false);
     }
@@ -705,18 +706,18 @@ export function WalletServiceRow({
           requestId: row.id,
           rejectionReason: rejectReason || null,
         });
-        showWalletRowToast(tWallet("exclusiveRejected"));
+        showWalletRowToast(tServices("successRequestRejected"));
       } else {
         await rejectMeetGreetRequest({
           requestId: row.id,
           rejectionReason: rejectReason || null,
         });
-        showWalletRowToast(tWallet("liveRejected"));
+        showWalletRowToast(tServices("successRequestRejected"));
       }
 
       setRejectOpen(false);
     } catch (e: unknown) {
-      showWalletRowToast((e instanceof Error ? e.message : null) ?? tWallet("rejectError"), "error");
+      showWalletRowToast((e instanceof Error ? e.message : null) ?? tServices("errorRejectRequest"), "error");
     } finally {
       setBusy(false);
     }
@@ -726,7 +727,7 @@ export function WalletServiceRow({
     const scheduledAt = schedulePartsToIso(scheduleParts);
 
     if (!scheduledAt) {
-      showWalletRowToast(tWallet("selectDateTimeError"), "error");
+      showWalletRowToast(tServices("selectDateTimeError"), "error");
       return;
     }
 
@@ -753,11 +754,11 @@ export function WalletServiceRow({
         await proposeMeetGreetSchedule(payload);
       }
 
-      showWalletRowToast(tWallet("dateSaved"));
+      showWalletRowToast(tServices("successDateProposed"));
       setScheduleOpen(false);
       setCalendarOpen(false);
     } catch (e: unknown) {
-      showWalletRowToast((e instanceof Error ? e.message : null) ?? tWallet("dateSaveError"), "error");
+      showWalletRowToast((e instanceof Error ? e.message : null) ?? tServices("errorSaveDate"), "error");
     } finally {
       setBusy(false);
     }
@@ -781,7 +782,7 @@ export function WalletServiceRow({
 
       setPreparationOpen(true);
     } catch (e: unknown) {
-      showWalletRowToast((e instanceof Error ? e.message : null) ?? tWallet("prepareError"), "error");
+      showWalletRowToast((e instanceof Error ? e.message : null) ?? tServices("errorOpenPreparation"), "error");
     } finally {
       setBusy(false);
     }
@@ -1224,7 +1225,7 @@ export function WalletServiceRow({
                                 });
                                 window.location.href = url;
                               } catch {
-                                setDownloadError(tWallet("downloadError"));
+                                setDownloadError(tSessions("downloadError"));
                               } finally {
                                 setDownloadBusy(false);
                               }
@@ -1248,7 +1249,7 @@ export function WalletServiceRow({
                     })()
                   ) : row.recordingStatus === "failed" ? (
                     <div className="walletServiceErrorBox">
-                      {tWallet("recordingFailed")}
+                      {tSessions("recordingFailed")}
                     </div>
                   ) : null}
                 </div>

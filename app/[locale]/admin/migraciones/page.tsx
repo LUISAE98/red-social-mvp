@@ -26,6 +26,17 @@ type BackfillResult = {
   playbackFixed: number;
 };
 
+type MuxCleanupResult = {
+  dryRun: boolean;
+  playbackIdsRevisados: number;
+  playbackIdsMuertos: number;
+  historiasRevisadas: number;
+  historiasBorradas: number;
+  postsRevisados: number;
+  postsLimpiados: number;
+  erroresConsultandoMux: number;
+};
+
 type Phase = "idle" | "running" | "done" | "error";
 
 export default function AdminMigrationsPage() {
@@ -72,7 +83,34 @@ export default function AdminMigrationsPage() {
     }
   }
 
+  const [muxPhase, setMuxPhase] = useState<Phase>("idle");
+  const [muxResult, setMuxResult] = useState<MuxCleanupResult | null>(null);
+  const [muxDryRunDone, setMuxDryRunDone] = useState(false);
+
+  async function runMux(dryRun: boolean) {
+    if (muxPhase === "running") return;
+    if (!dryRun && !muxDryRunDone) return;
+
+    setMuxPhase("running");
+    setMuxResult(null);
+
+    try {
+      const fn = httpsCallable<{ dryRun: boolean }, MuxCleanupResult>(
+        functions,
+        "cleanupDeletedMuxVideos",
+      );
+      const res = await fn({ dryRun });
+      setMuxResult(res.data);
+      setMuxPhase("done");
+      if (dryRun) setMuxDryRunDone(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+      setMuxPhase("error");
+    }
+  }
+
   const running = phase === "running";
+  const muxRunning = muxPhase === "running";
 
   return (
     <>
@@ -313,6 +351,99 @@ export default function AdminMigrationsPage() {
                 </p>
               )}
             </>
+          )}
+        </div>
+
+        <div className="card">
+          <h2 className="title">Videos borrados en Mux</h2>
+          <p className="body">
+            Borrar un asset en Mux no avisa a Firestore. El documento se queda con
+            un <code>playbackId</code> que parece sano y lo que falla es el video
+            al reproducirlo. En un rail era una miniatura gris; en el feed de
+            reels es un slide negro a pantalla completa.
+          </p>
+          <p className="body" style={{ marginTop: 8 }}>
+            Revisa historias, VOD de en vivos y videos de publicaciones, pregunta
+            a Mux por cada <code>playbackId</code> y limpia lo que ya no existe.
+          </p>
+
+          <div className="warn">
+            Las dos colecciones NO se tratan igual. Una historia sin video no es
+            nada, así que se borra el documento. Un post puede tener texto e
+            imágenes, así que solo se limpia la referencia rota y el post
+            sobrevive. Si Mux responde con un error que no sea 404, se asume que
+            el video sigue vivo y no se toca nada.
+          </div>
+
+          <div className="actions">
+            <button
+              type="button"
+              className="btn"
+              disabled={muxRunning}
+              onClick={() => void runMux(true)}
+            >
+              {muxRunning ? "Corriendo..." : "Pasada en seco"}
+            </button>
+            <button
+              type="button"
+              className="btn btnDanger"
+              disabled={muxRunning || !muxDryRunDone}
+              onClick={() => void runMux(false)}
+              title={
+                muxDryRunDone
+                  ? "Borra las historias rotas y limpia los posts"
+                  : "Corre antes la pasada en seco"
+              }
+            >
+              Aplicar limpieza
+            </button>
+          </div>
+
+          {muxResult && (
+            <div className="rows">
+              <div style={{ background: "#0d0d0d", padding: "10px 12px 0" }}>
+                <span className={`badge ${muxResult.dryRun ? "badgeDry" : "badgeLive"}`}>
+                  {muxResult.dryRun ? "Pasada en seco, no escribió nada" : "Aplicado en producción"}
+                </span>
+              </div>
+              <div className="row">
+                <span className="rowLabel">Videos preguntados a Mux</span>
+                <span className="rowValue">{muxResult.playbackIdsRevisados}</span>
+              </div>
+              <div className="row">
+                <span className="rowLabel">Ya no existen en Mux</span>
+                <span className="rowValue">{muxResult.playbackIdsMuertos}</span>
+              </div>
+              <div className="row">
+                <span className="rowLabel">Historias revisadas</span>
+                <span className="rowValue">{muxResult.historiasRevisadas}</span>
+              </div>
+              <div className="row">
+                <span className="rowLabel">
+                  {muxResult.dryRun ? "Historias a borrar" : "Historias borradas"}
+                </span>
+                <span className="rowValue">{muxResult.historiasBorradas}</span>
+              </div>
+              <div className="row">
+                <span className="rowLabel">Publicaciones revisadas</span>
+                <span className="rowValue">{muxResult.postsRevisados}</span>
+              </div>
+              <div className="row">
+                <span className="rowLabel">
+                  {muxResult.dryRun ? "Publicaciones a limpiar" : "Publicaciones limpiadas"}
+                </span>
+                <span className="rowValue">{muxResult.postsLimpiados}</span>
+              </div>
+              <div className="row">
+                <span className="rowLabel">Consultas a Mux fallidas</span>
+                <span className="rowValue">{muxResult.erroresConsultandoMux}</span>
+              </div>
+              <div className="rowHint">
+                Fallos que no son 404. Esos videos se dejaron intactos por si el
+                error era de red o de cuota. Si el número es alto, conviene
+                repetir la pasada antes de aplicar.
+              </div>
+            </div>
           )}
         </div>
       </div>

@@ -220,7 +220,7 @@ export default function ProfileSettingsTab({
     const nextName = draftName.trim();
 
     if (nextName.length < 3) {
-      setErr(tProfile("nameMinLengthError"));
+      setErr(tCommon("minLength3"));
       return;
     }
 

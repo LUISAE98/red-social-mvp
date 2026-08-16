@@ -900,7 +900,7 @@ export default function GreetingReviewOverlay({
       // Último recurso si el render falla (blip de red, egress caído): abrir el
       // video plano de Mux — SIN el diseño viejo, que ya no existe.
       console.error("[handleDownload] animated render failed:", err);
-      setUploadError(tServices("errorProcess"));
+      setUploadError(tCommon("errorUpdateRequest"));
       window.open(mp4Url, "_blank");
     } finally {
       setDownloading(false);
@@ -1214,17 +1214,19 @@ export default function GreetingReviewOverlay({
           {buyerLetter}
         </div>
       )}
+      {/* Sin la ganancia al lado, el nombre dispone de toda la fila y ya no hace
+          falta cortarlo con puntos suspensivos: se muestra completo, partiendo
+          en varias líneas si hace falta. */}
       <div style={{ minWidth: 0, flex: 1 }}>
         {buyer?.handle ? (
           <Link href={`/u/${buyer.handle}`} onClick={handleClose} style={{
-            color: "#fff", fontWeight: 600, fontSize: 13, lineHeight: 1.2,
-            textDecoration: "none", display: "block", overflow: "hidden",
-            textOverflow: "ellipsis", whiteSpace: "nowrap",
+            color: "#fff", fontWeight: 600, fontSize: 13, lineHeight: 1.25,
+            textDecoration: "none", display: "block", overflowWrap: "anywhere",
           }}>
             {buyer.displayName}
           </Link>
         ) : (
-          <span style={{ color: "#fff", fontWeight: 600, fontSize: 13, lineHeight: 1.2 }}>
+          <span style={{ color: "#fff", fontWeight: 600, fontSize: 13, lineHeight: 1.25, overflowWrap: "anywhere" }}>
             {buyer?.displayName ?? tCommon("user")}
           </span>
         )}
@@ -1232,20 +1234,22 @@ export default function GreetingReviewOverlay({
           {getGreetingStatusLabel(req.status, tServices)}
         </span>
       </div>
-      {earningFormatted && (
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", flexShrink: 0, gap: 2 }}>
-          <span style={{ color: "#86efac", fontWeight: 500, fontSize: 11, letterSpacing: "0.01em", lineHeight: 1 }}>
-            Tu ganancia
-          </span>
-          <span style={{ color: "#86efac", fontWeight: 700, fontSize: 22, letterSpacing: "-0.03em", lineHeight: 1 }}>
-            {earningFormatted}
-          </span>
-        </div>
-      )}
     </div>
   );
 
   const divider = <div style={{ height: 1, background: "rgba(255,255,255,0.06)" }} />;
+
+  /** La ganancia, ahora bajo la línea que separa al comprador del contenido. */
+  const earningRow = earningFormatted ? (
+    <div style={{ display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
+      <span style={{ color: "#86efac", fontWeight: 500, fontSize: 11, letterSpacing: "0.01em", lineHeight: 1 }}>
+        Tu ganancia
+      </span>
+      <span style={{ color: "#86efac", fontWeight: 700, fontSize: 22, letterSpacing: "-0.03em", lineHeight: 1 }}>
+        {earningFormatted}
+      </span>
+    </div>
+  ) : null;
 
   const infoSection = (
     <>
@@ -1853,30 +1857,11 @@ export default function GreetingReviewOverlay({
         background: "rgba(0,0,0,0.86)",
         backdropFilter: "blur(12px)",
         WebkitBackdropFilter: "blur(12px)",
-        // Columna: el título arriba y los dos paneles debajo.
-        display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-        gap: 18,
+        display: "flex", alignItems: "center", justifyContent: "center",
         padding: "24px 10vw", boxSizing: "border-box", fontFamily: fontStack,
       }}
         onClick={handleClose}
       >
-        {/* Título del estudio: fuera de los paneles y centrado en pantalla, no
-            dentro de la columna de información como estaba antes. */}
-        <div
-          style={{
-            color: "#fff",
-            fontWeight: 500,
-            fontSize: 22,
-            letterSpacing: "-0.02em",
-            textAlign: "center",
-            flexShrink: 0,
-            animation: "vibraGreetingPanelPop 220ms cubic-bezier(0.34, 1.56, 0.64, 1)",
-          }}
-        >
-          {req.type === "consejo"
-            ? tServices("recordAdviceTitle")
-            : tServices("recordGreetingTitle")}
-        </div>
 
         {/* Fila con los dos paneles. El hueco entre ellos es el del visor. */}
         <div
@@ -1924,6 +1909,7 @@ export default function GreetingReviewOverlay({
             <div style={{ display: "flex", flexDirection: "column", gap: 16, ...slideStyle }}>
               {buyerRow}
               {divider}
+              {earningRow}
               {infoSection}
             </div>
             <div style={{ marginTop: "auto", paddingTop: 8, display: "flex", flexDirection: "column", gap: 8 }}>

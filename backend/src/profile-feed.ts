@@ -215,8 +215,12 @@ async function upsertProfileFeedEntry(params: {
   // Seguridad: NO materializar posts de comunidades OCULTAS en el profileFeed —
   // su copia denormalizada (nombre/avatar/texto) no debe exponerse a no-miembros.
   // Si el grupo pasó a oculto, elimina cualquier entrada previa.
+  // ⚠️ B8-H07. El `.catch(() => {})` se tragaba el fallo entero: si el borrado
+  // no salía, la copia de una comunidad recién convertida en oculta se quedaba
+  // ahí, y como el disparador no reintentaba, no había segunda oportunidad.
+  // Ahora se deja subir para que Firebase reintente (`retry: true`).
   if (groupData?.visibility === "hidden") {
-    await deleteProfileFeedEntry({ postId, authorId }).catch(() => {});
+    await deleteProfileFeedEntry({ postId, authorId });
     return;
   }
 
@@ -273,6 +277,7 @@ export const onProfileFeedPostCreated = onDocumentCreated(
   {
     document: "posts/{postId}",
     region: REGION,
+    retry: true,
   },
   async (event) => {
     const snapshot = event.data;
@@ -299,6 +304,7 @@ export const onProfileFeedPostUpdated = onDocumentUpdated(
   {
     document: "posts/{postId}",
     region: REGION,
+    retry: true,
   },
   async (event) => {
     const beforeData = event.data?.before.data();
@@ -347,6 +353,7 @@ export const onProfileFeedPostDeleted = onDocumentDeleted(
   {
     document: "posts/{postId}",
     region: REGION,
+    retry: true,
   },
   async (event) => {
     const snapshot = event.data;
@@ -377,6 +384,7 @@ export const onProfileFeedGroupUpdated = onDocumentUpdated(
   {
     document: "groups/{groupId}",
     region: REGION,
+    retry: true,
   },
   async (event) => {
     const beforeData = event.data?.before.data();

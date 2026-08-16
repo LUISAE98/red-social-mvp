@@ -81,8 +81,8 @@ const MSG_TO_KEY: Record<string, string> = {
   "no puedes guardar una publicación eliminada.": "deletedPost",
 
   // video upload
-  "no se pudo crear la subida de video.": "videoUploadFailed",
-  "no se pudo crear la subida de video en mux.": "videoUploadFailed",
+  "no se pudo crear la subida de video.": "common:videoUploadError",
+  "no se pudo crear la subida de video en mux.": "common:videoUploadError",
 
   // service availability
   "este perfil no tiene activo el servicio de sesión exclusiva.": "serviceNotEnabled",

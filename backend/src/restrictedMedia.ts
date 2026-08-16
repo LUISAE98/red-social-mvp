@@ -18,6 +18,7 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
 import * as logger from "firebase-functions/logger";
+import { rutaPerteneceAlPost } from "./postMediaPaths";
 
 if (admin.apps.length === 0) {
   admin.initializeApp();
@@ -176,12 +177,31 @@ export const getRestrictedMediaUrls = onCall<RequestData, Promise<ResponseData>>
       if (typeof thumbnailPath === "string" && thumbnailPath) mediaPaths.add(thumbnailPath);
     }
 
+    // ⚠️ B8-C01. Estar en `post.media` NO basta: ese campo lo reescribe el autor
+    // al editar y las reglas no saben validar los elementos de una lista, así
+    // que el autor podía meter ahí la ruta de un archivo ajeno y pedirlo firmado
+    // desde aquí. Ahora, además de estar declarada en el post, la ruta tiene que
+    // caer bajo el prefijo de ESTE post y de SU autor.
     const allowed = paths.filter(
       (p) =>
         typeof p === "string" &&
         !p.includes("..") &&
-        (p.startsWith(`commentImages/${postId}/`) || mediaPaths.has(p))
+        (p.startsWith(`commentImages/${postId}/`) ||
+          (mediaPaths.has(p) && rutaPerteneceAlPost(p, post)))
     );
+
+    const rechazadas = paths.filter(
+      (p) => typeof p === "string" && mediaPaths.has(p) && !rutaPerteneceAlPost(p, post)
+    );
+    if (rechazadas.length > 0) {
+      // Una ruta ajena declarada en `media` no es un fallo del sistema: es
+      // alguien probando. Se registra con nombre y apellidos.
+      logger.warn("getRestrictedMediaUrls: rutas ajenas declaradas en el post", {
+        postId,
+        uid,
+        rechazadas,
+      });
+    }
 
     const bucket = admin.storage().bucket();
     const expires = Date.now() + URL_TTL_MS;

@@ -208,6 +208,9 @@ const MAX_COMMENT_MENTIONS = 20;
  * Devuelve `null` cuando no queda ninguna mención válida, para no escribir el
  * campo en Firestore innecesariamente.
  */
+/** Máximo de menciones @ por comentario. Ver `backend/src/notifications.ts`. */
+const MAX_MENCIONES_POR_COMENTARIO = 5;
+
 function sanitizeCommentMentions(
   input: unknown,
   text: string
@@ -218,6 +221,12 @@ function sanitizeCommentMentions(
   const result: CommentMention[] = [];
 
   for (const raw of input) {
+    // ⚠️ B8-H04. Cada mención de perfil dispara una notificación, y este bucle
+    // no tenía tope: un comentario podía lanzar miles. Tope de producto de Luis
+    // (2026-08-16). El mismo número vive en `backend/src/notifications.ts` y en
+    // las Firestore Rules; si cambia, cambia en los tres.
+    if (result.length >= MAX_MENCIONES_POR_COMENTARIO) break;
+
     if (!raw || typeof raw !== "object") continue;
 
     const candidate = raw as Record<string, unknown>;

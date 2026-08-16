@@ -159,6 +159,7 @@ export default function OwnerAdminGeneral({
   currentVisibility = "public",
 }: Props) {
   const tCommon = useTranslations("common");
+  const tProfile = useTranslations("profile");
   const isOwner = useMemo(
     () => ownerId === currentUserId,
     [ownerId, currentUserId]
@@ -406,7 +407,7 @@ await updateDoc(groupRef, {
 });
 
         setName(nextName);
-        setGeneralMsg("Nombre actualizado.");
+        setGeneralMsg(tProfile("nameUpdated"));
       }
 
       if (editField === "description") {
@@ -423,7 +424,7 @@ await updateDoc(groupRef, {
 });
 
         setDescription(nextDescription);
-        setGeneralMsg("Descripción actualizada.");
+        setGeneralMsg(tProfile("descriptionUpdated"));
       }
 
       if (editField === "visibility") {

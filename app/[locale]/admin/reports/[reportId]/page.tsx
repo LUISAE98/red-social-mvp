@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useLocale } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { intlLocale } from "@/i18n/locales";
 import {
   collection,
@@ -124,6 +124,7 @@ async function fetchContentPreview(report: Report): Promise<string | null> {
 }
 
 export default function ReportDetailPage() {
+  const tAdmin = useTranslations("admin");
   const locale = useLocale();
   const params = useParams();
   const router = useRouter();
@@ -176,7 +177,7 @@ export default function ReportDetailPage() {
       await resolveReport(reportId, action, notes.trim() || undefined);
       router.push("/admin/reports");
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Error al resolver el reporte");
+      setError(e instanceof Error ? e.message : tAdmin("attendReportError"));
       setSubmitting(false);
     }
   }

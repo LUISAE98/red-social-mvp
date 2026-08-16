@@ -28,6 +28,7 @@ function applyPanelOffset(raw: number): number {
 
 export default function LiveEndSummaryPanel({ open, onClose, post }: Props) {
   const tCommon = useTranslations("common");
+  const tWallet = useTranslations("wallet");
   const tLive = useTranslations("live");
   const { format: formatMoney, toDisplayForInput, currency: displayCurrency } =
     usePriceFormat();
@@ -115,7 +116,7 @@ export default function LiveEndSummaryPanel({ open, onClose, post }: Props) {
     // a USD). Es la base — el backend cobra base + $3 + IVA (VOD = post premium, postAccess).
     const typedPrice = vodAvailable && vodPaid ? (parseFloat(priceInput) || null) : null;
     if (vodAvailable && vodPaid && (!typedPrice || typedPrice <= 0)) {
-      showSummaryToast(tLive("invalidPrice"), "error");
+      showSummaryToast(tWallet("payErrorInvalidAmount"), "error");
       return;
     }
     if (vodAvailable && vodPaid && typedPrice != null && typedPrice < PREMIUM_MIN_PRICE_MXN) {
@@ -135,7 +136,7 @@ export default function LiveEndSummaryPanel({ open, onClose, post }: Props) {
       });
       onClose();
     } catch {
-      showSummaryToast(tLive("saveFailed"), "error");
+      showSummaryToast(tLive("saveLiveError"), "error");
     } finally {
       setSaving(false);
     }

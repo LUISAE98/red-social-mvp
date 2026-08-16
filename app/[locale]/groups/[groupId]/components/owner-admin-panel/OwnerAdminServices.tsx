@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { AVISOS_SERVICIOS } from "@/lib/services/avisosServicios";
 import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
@@ -69,6 +70,7 @@ export default function OwnerAdminServices({
   currentDonation = null,
   onChangeVisibility,
 }: Props) {
+  const tServices = useTranslations("services");
   const priceFmt = usePriceFormat();
   const formatMoney = (value: number, currency?: string) =>
     priceFmt.format(value, { baseCurrency: currency ?? "MXN", code: true });
@@ -426,7 +428,7 @@ export default function OwnerAdminServices({
           Number.isNaN(subscriptionPriceNum) ||
           subscriptionPriceNum <= 0)
       ) {
-        setErr("❌ Precio inválido para la suscripción mensual.");
+        setErr(AVISOS_SERVICIOS.precioSuscripcion);
         return;
       }
 
@@ -436,7 +438,7 @@ export default function OwnerAdminServices({
           Number.isNaN(saludoPriceNum) ||
           saludoPriceNum <= 0)
       ) {
-        setErr("❌ Precio inválido para saludos.");
+        setErr(AVISOS_SERVICIOS.precioSaludos);
         return;
       }
 
@@ -446,7 +448,7 @@ export default function OwnerAdminServices({
           Number.isNaN(consejoPriceNum) ||
           consejoPriceNum <= 0)
       ) {
-        setErr("❌ Precio inválido para consejos.");
+        setErr(AVISOS_SERVICIOS.precioConsejos);
         return;
       }
 
@@ -456,7 +458,7 @@ export default function OwnerAdminServices({
           Number.isNaN(meetGreetPriceNum) ||
           meetGreetPriceNum <= 0)
       ) {
-        setErr("❌ Precio inválido para Tiempo contigo.");
+        setErr(AVISOS_SERVICIOS.precioMeetGreet);
         return;
       }
 
@@ -466,7 +468,7 @@ export default function OwnerAdminServices({
           Number.isNaN(customClassPriceNum) ||
           customClassPriceNum <= 0)
       ) {
-        setErr("❌ Precio inválido para sesión exclusiva.");
+        setErr(AVISOS_SERVICIOS.precioSesion);
         return;
       }
 
@@ -478,7 +480,7 @@ export default function OwnerAdminServices({
           !Number.isInteger(meetGreetDurationNum))
       ) {
         setErr(
-          "❌ Debes definir una duración válida en minutos para Tiempo contigo."
+          AVISOS_SERVICIOS.duracionMeetGreet
         );
         return;
       }
@@ -491,14 +493,14 @@ export default function OwnerAdminServices({
           !Number.isInteger(customClassDurationNum))
       ) {
         setErr(
-          "❌ Debes definir una duración válida en minutos para la sesión exclusiva."
+          AVISOS_SERVICIOS.duracionSesion
         );
         return;
       }
 
       if (isPublic && workingDraft.subscription.enabled) {
         setErr(
-          "❌ Las comunidades públicas no pueden activar suscripción mensual."
+          tServices("subscriptionPublicDisabledToast")
         );
         return;
       }
@@ -561,7 +563,7 @@ export default function OwnerAdminServices({
         (donationSuggestedNums.length !== 4 ||
           donationSuggestedNums.some((n) => !Number.isFinite(n) || n < 50))
       ) {
-        setErr("❌ Cada monto sugerido de la donación debe ser al menos 50.");
+        setErr(AVISOS_SERVICIOS.donacionMontoMinimo);
         return;
       }
 
@@ -569,7 +571,7 @@ export default function OwnerAdminServices({
         workingDraft.donationMode === "wedding" &&
         !workingDraft.donationGoalLabel.trim()
       ) {
-        setErr("❌ Debes escribir el texto visible para la donación de boda.");
+        setErr(AVISOS_SERVICIOS.donacionTextoBoda);
         return;
       }
 
@@ -917,7 +919,7 @@ export default function OwnerAdminServices({
       showAdminServicesToast(successMessage);
       return true;
     } catch (e: unknown) {
-      showAdminServicesToast((e instanceof Error ? e.message : null) ?? "❌ No se pudieron guardar los servicios.", "error");
+      showAdminServicesToast((e instanceof Error ? e.message : null) ?? AVISOS_SERVICIOS.noGuardado, "error");
       return false;
     } finally {
       skipHydrationWhileSavingRef.current = false;

@@ -140,6 +140,30 @@ export async function addStoryFromGreeting(params: {
     creatorName = "";
   }
 
+  // ⚠️ El perfil que decide si esto es público es el de QUIEN PUBLICA
+  // (`creatorId`), no el de quien grabó el saludo (`showcaseCreatorId`). Son
+  // distintos cuando el comprador republica el saludo de otro, y la regla de
+  // Firestore mira `resource.data.creatorId`: elegir aquí el otro perfil haría
+  // que la escritura se denegara sin causa visible en el cliente.
+  //
+  // Si la lectura falla se asume lo restrictivo. La regla exige que este valor
+  // coincida con el estado REAL, así que un perfil abierto haría fallar la
+  // creación en vez de publicar algo mal marcado.
+  let perfilPublico = false;
+  try {
+    const publicadorSnap =
+      showcaseCreatorId === params.creatorId
+        ? await getDoc(doc(db, "users", showcaseCreatorId))
+        : await getDoc(doc(db, "users", params.creatorId));
+    const publicador = publicadorSnap.data() as Record<string, unknown> | undefined;
+    perfilPublico =
+      !!publicador &&
+      publicador.showPosts !== false &&
+      publicador.profileRestricted !== true;
+  } catch {
+    perfilPublico = false;
+  }
+
   // Legible por cualquiera: sin comunidad siempre; con comunidad solo si es
   // pública.
   //
@@ -148,12 +172,22 @@ export async function addStoryFromGreeting(params: {
   // los dos campos van siempre juntos, pero si alguna vez se separaran, decidir
   // aquí por `source` y allá por `groupId` haría que la escritura se denegara sin
   // una causa visible en el cliente.
-  let searchable = !params.groupId;
+  // ⚠️ B8-C03. Antes bastaba con no tener comunidad para ser públicamente
+  // legible, así que un perfil CERRADO seguía saliendo en el feed de reels y en
+  // las búsquedas con su vídeo y su nombre. Las publicaciones sí respetaban
+  // `profileRestricted`/`showPosts`; las historias se quedaron fuera.
+  //
+  // Decisión de producto de Luis (2026-08-16): al cerrar el perfil, las
+  // historias desaparecen del feed público.
+  //
+  // El perfil cerrado manda en los DOS casos: también esconde del feed público
+  // una historia publicada en una comunidad pública.
+  let searchable = !params.groupId && perfilPublico;
   if (params.groupId) {
     try {
       const gSnap = await getDoc(doc(db, "groups", params.groupId));
       const g = gSnap.data() as Record<string, unknown> | undefined;
-      searchable = g?.visibility === "public";
+      searchable = g?.visibility === "public" && perfilPublico;
       // Historia de comunidad → hereda la categoría de la comunidad.
       if (params.source === "group") {
         const cat = normalizeGroupCategory(g?.category);

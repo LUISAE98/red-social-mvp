@@ -255,6 +255,7 @@ function CoverSearchLupaIcon() {
 
 export default function ProfileClient() {
   const tProfile = useTranslations("profile");
+  const tGroups = useTranslations("groups");
 
   const locale = useLocale();
   const tCommon = useTranslations("common");
@@ -1141,7 +1142,7 @@ function handleUnblockFailed() {
   }
 
   if (viewer.uid === userDoc.uid) {
-    setServiceToast(tProfile("ownServicesError"));
+    setServiceToast(tGroups("ownCommunityService"));
     closeServiceQueryParam();
     return;
   }
@@ -1590,7 +1591,7 @@ async function handleSendPasswordReset() {
       showProfileToast(
         err?.code === "permission-denied"
           ? tCommon("storagePermissionError")
-          : tProfile("imageUploadError"),
+          : tCommon("imageUploadError"),
         "error"
       );
     } finally {
@@ -1981,14 +1982,10 @@ const res = (await createExclusiveSessionRequest({
    lateral aquí; el margen lo da un contenedor transparente dentro de la propia
    pestaña (.services-tab-margins), que es la única fuente del margen simétrico y
    centrado. El subnav se re-alinea a ese mismo margen para que quede parejo. */
-.profile-content--services {
-  padding-inline-start: 0;
-  padding-inline-end: 0;
-}
-.profile-content--services .profile-subnav-wrap {
-  padding-inline-start: 10px;
-  padding-inline-end: 10px;
-}
+/* Antes esta regla le quitaba el padding lateral a TODO .profile-content al
+   entrar en experiencias, y con ello la card de arriba y el subnav se movían
+   al cambiar de pestaña. El contenedor ya no se toca: las cards que quieran
+   llegar al borde lo hacen con margen negativo (ver ProfileServicesTab). */
 
 .shared-communities-cover {
   inset-inline-start: 12px;
@@ -2136,7 +2133,7 @@ const res = (await createExclusiveSessionRequest({
     {!shouldHideProfileSocialContent && (
       <CopyLinkButton
         href={profileShareHref}
-        copiedLabel={tCommon("linkCopiedOk")}
+        copiedLabel={tCommon("linkCopiedToClipboard")}
         title={tCommon("copyProfileLink")}
         style={{
           width: 34,
@@ -2193,7 +2190,7 @@ const res = (await createExclusiveSessionRequest({
       </button>
       <CopyLinkButton
         href={profileShareHref}
-        copiedLabel={tCommon("linkCopiedOk")}
+        copiedLabel={tCommon("linkCopiedToClipboard")}
         title={tCommon("copyProfileLink")}
         style={{
           width: 34,

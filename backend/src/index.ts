@@ -274,6 +274,14 @@ export {
   onPostDeletedCleanupMedia,
 } from "./postMediaCleanup";
 
+// B8-C03/H02 — cerrar el perfil tiene que alcanzar al contenido ya publicado:
+// la copia `profileRestricted` de las publicaciones y el `searchable` de las
+// historias, del que depende entera la regla de lectura de historias.
+export {
+  onProfileRestrictionChanged,
+  onStoryCreatedEnforceSearchable,
+} from "./profileRestrictionSync";
+
 // Medios de comunidades privadas/ocultas (URL firmada que caduca)
 export { getRestrictedMediaUrls } from "./restrictedMedia";
 export { backfillRestrictedMedia } from "./restrictedMediaBackfill";
@@ -482,6 +490,10 @@ export {
   onStoryCreatedPlaybackBackfill,
   backfillStoriesReelFields,
 } from "./storyDiscovery";
+
+// Limpieza de referencias a videos borrados en Mux (historias, VOD y videos de
+// publicaciones). Borrar un asset en Mux no avisa a Firestore.
+export { cleanupDeletedMuxVideos } from "./muxOrphanCleanup";
 
 // Contadores de comentarios y respuestas: los lleva el SERVIDOR, no el cliente
 export {

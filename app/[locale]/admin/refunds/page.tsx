@@ -79,7 +79,7 @@ export default function AdminRefundsPage() {
     try {
       const res = await devCaptureAndCredit(pi);
       setDevMsgType("success");
-      setDevMsg(`Capturado y acreditado $${(res.credited ?? 0).toFixed(2)} (${res.externalReference}). Ahora el comprador puede pedir efectivo.`);
+      setDevMsg(`Capturado y acreditado $${(res.credited ?? 0).toFixed(2)} (${res.externalReference}), ahora el comprador puede pedir efectivo.`);
       setDevPi("");
     } catch (e: unknown) {
       setDevMsgType("error");

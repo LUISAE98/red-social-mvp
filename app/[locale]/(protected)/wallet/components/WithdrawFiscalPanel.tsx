@@ -248,7 +248,7 @@ export default function WithdrawFiscalPanel({ open, onClose, uid, availableLabel
         document.body.removeChild(ta);
         setCopied(true);
       } catch {
-        setError("No se pudo copiar. Copia los datos manualmente.");
+        setError("No se pudo copiar, copia los datos manualmente.");
       }
     }
   }

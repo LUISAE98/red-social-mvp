@@ -13,6 +13,7 @@ import OwnerSidebar from "@/app/components/OwnerSidebar/OwnerSidebar";
 import LanguageSwitcher from "@/app/components/LanguageSwitcher";
 import CurrencySwitcher from "@/app/components/CurrencySwitcher";
 import MobileBottomNav from "@/app/components/MobileBottomNav";
+import ScrollToTopFAB from "@/app/components/ScrollToTopFAB/ScrollToTopFAB";
 import GroupsSearchPanel from "@/app/components/SearchToolbar/GroupsSearchPanel";
 import { useWalletVisibility } from "@/lib/wallet/useWalletVisibility";
 import { useHasPurchasedExperiences } from "@/lib/experiences/useHasPurchasedExperiences";
@@ -1013,6 +1014,10 @@ const contentAreaClassName = isEmbed
           )}
         </div>
 
+       {/* El propio botón decide si toca pintarse; aquí solo cae dentro del feed
+           de una comunidad (`/groups/{id}`). Ver isFeedRoute en el componente.
+           La `key` lo remonta limpio en cada ruta. */}
+       {!isEmbed && <ScrollToTopFAB key={pathname} />}
        {!isEmbed && <MobileBottomNav showWallet={!!user} showExperiences={hasPurchasedExperiences} experiencesBadge={experiencesBadge} />}
       </div>
 

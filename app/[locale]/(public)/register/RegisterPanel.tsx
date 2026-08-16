@@ -340,12 +340,12 @@ export default function RegisterPanel({
     }
 
     if (!Number.isFinite(calculatedAge) || calculatedAge < 18) {
-      setMsg(t("errUnder18"));
+      // El aviso ya sale en rojo bajo el campo de la fecha.
       return;
     }
 
     if (password !== password2) {
-      setMsg(t("errPasswordMismatch"));
+      // El aviso ya sale en rojo bajo el campo de confirmar contraseña.
       return;
     }
 

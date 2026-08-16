@@ -491,7 +491,7 @@ export default function StripePaymentModal({
         expEl.mount(`#${ID_EXP}-${selectedMethod}`);
         cvcEl.mount(`#${ID_CVC}-${selectedMethod}`);
       } catch {
-        setError(tWallet("payErrorForm"));
+        setError(tWallet("payErrorLoad"));
       }
     });
 
@@ -557,7 +557,7 @@ export default function StripePaymentModal({
             payment_method: pmId,
             payment_method_options: { card: { cvc: cvcEl } },
           });
-          if (result.error) { setError(result.error.message || tWallet("payErrorGeneric")); setSubmitting(false); return; }
+          if (result.error) { setError(result.error.message || tWallet("payErrorRetry")); setSubmitting(false); return; }
           if (result.paymentIntent?.status === "succeeded" || result.paymentIntent?.status === "processing" || result.paymentIntent?.status === "requires_capture") { markPaid(result.paymentIntent?.status); return; }
           throw new Error("rejected");
         }
@@ -566,7 +566,7 @@ export default function StripePaymentModal({
         // Requiere autenticación adicional (SCA): completa el 3DS con el client_secret.
         if (res.clientSecret) {
           const result = await stripe.confirmCardPayment(res.clientSecret);
-          if (result.error) { setError(result.error.message || tWallet("payErrorGeneric")); setSubmitting(false); return; }
+          if (result.error) { setError(result.error.message || tWallet("payErrorRetry")); setSubmitting(false); return; }
           if (result.paymentIntent?.status === "succeeded" || result.paymentIntent?.status === "processing" || result.paymentIntent?.status === "requires_capture") { markPaid(result.paymentIntent?.status); return; }
         }
         throw new Error("rejected");
@@ -591,7 +591,7 @@ export default function StripePaymentModal({
         payment_method: existingPm ?? { card: numberEl, billing_details: { name: cardName.trim() } },
       });
       if (result.error) {
-        setError(result.error.message || tWallet("payErrorGeneric"));
+        setError(result.error.message || tWallet("payErrorRetry"));
         setSubmitting(false);
         return;
       }

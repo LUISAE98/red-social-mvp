@@ -1,6 +1,39 @@
 "use client";
 
 import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { usePathname } from "@/i18n/navigation";
+
+/**
+ * Dónde tiene sentido este botón: en las pantallas con un FEED largo, donde
+ * volver arriba a pulso es un viaje. Son tres, y solo tres.
+ *
+ * Fuera de ahí estorba: en una conversación, en la wallet, en los avisos o en
+ * reels no hay a dónde volver, y el botón tapa contenido a media pantalla.
+ *
+ * La regla vive aquí y no en los layouts que lo montan porque el botón se pinta
+ * desde dos sitios —`(protected)/layout.tsx` y `groups/layout.tsx`— y partir el
+ * criterio en dos deja la puerta abierta a que uno se desactualice.
+ *
+ * `usePathname` de `@/i18n/navigation` ya devuelve la ruta SIN el prefijo de
+ * idioma, así que estas comparaciones valen igual en los 47 locales.
+ *
+ * NOTA para quien lo monte: va con `key={pathname}`. El botón vive en el layout
+ * y no se desmonta al navegar, así que sin la key arrastraría el estado de la
+ * pantalla anterior — aparecería ya visible estando arriba del todo y, peor, su
+ * `wasAboveThreshold` se quedaría en true, con lo que al bajar en la pantalla
+ * nueva el listener creería que ya lo mostró y no volvería a hacerlo. Con la key
+ * React lo remonta limpio en cada ruta, sin código de reinicio que mantener.
+ */
+function isFeedRoute(pathname: string): boolean {
+  // Home.
+  if (pathname === "/") return true;
+  // Perfil: `/u/{handle}`, solo su raíz.
+  if (/^\/u\/[^/]+$/.test(pathname)) return true;
+  // Comunidad: `/groups/{groupId}`. `/groups/new` es un formulario, no un feed,
+  // y `/groups` a secas es el índice — ninguno de los dos entra.
+  if (pathname !== "/groups/new" && /^\/groups\/[^/]+$/.test(pathname)) return true;
+  return false;
+}
 
 const DURATION = 500;
 const INNER_SIZE = 46;
@@ -12,6 +45,9 @@ const CIRCUMFERENCE = 2 * Math.PI * RING_R;
 type ExitAnim = "pop" | "slide" | null;
 
 export default function ScrollToTopFAB() {
+  const pathname = usePathname();
+  const enabled = isFeedRoute(pathname);
+
   const [visible, setVisible] = useState(false);
   const [progress, setProgress] = useState(0);
   const [pressing, setPressing] = useState(false);
@@ -24,6 +60,8 @@ export default function ScrollToTopFAB() {
   const wasAboveThreshold = useRef(false);
 
   useEffect(() => {
+    if (!enabled) return;
+
     const onScroll = () => {
       if (exitingRef.current) return;
       const aboveThreshold = window.scrollY > 300;
@@ -44,7 +82,7 @@ export default function ScrollToTopFAB() {
     };
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
-  }, []);
+  }, [enabled]);
 
   useEffect(() => {
     return () => {
@@ -93,7 +131,7 @@ export default function ScrollToTopFAB() {
     setProgress(0);
   };
 
-  if (!visible) return null;
+  if (!enabled || !visible) return null;
 
   const dashoffset = CIRCUMFERENCE * (1 - progress);
   const cx = RING_SIZE / 2;

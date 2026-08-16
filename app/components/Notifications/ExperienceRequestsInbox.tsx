@@ -282,7 +282,7 @@ export default function ExperienceRequestsInbox({
         await acceptMeetGreetRequest({ requestId: sessionOverlay.id });
       }
     } catch (e) {
-      setFeedbackError((e instanceof Error ? e.message : null) ?? tWallet("cannotAccept"));
+      setFeedbackError((e instanceof Error ? e.message : null) ?? tServices("errorAcceptRequest"));
     } finally {
       setBusy(false);
     }
@@ -306,7 +306,7 @@ export default function ExperienceRequestsInbox({
       }
       closeSession();
     } catch (e) {
-      setFeedbackError((e instanceof Error ? e.message : null) ?? tWallet("cannotReject"));
+      setFeedbackError((e instanceof Error ? e.message : null) ?? tServices("errorRejectRequest"));
     } finally {
       setBusy(false);
     }
@@ -331,10 +331,10 @@ export default function ExperienceRequestsInbox({
           creatorTimezone,
         });
       }
-      setFeedbackSuccess(tWallet("sessionScheduled"));
+      setFeedbackSuccess(tServices("successDateProposed"));
       setTimeout(closeSession, 900);
     } catch (e) {
-      setFeedbackError((e instanceof Error ? e.message : null) ?? tWallet("cannotSchedule"));
+      setFeedbackError((e instanceof Error ? e.message : null) ?? tServices("errorScheduleSession"));
     } finally {
       setBusy(false);
     }
@@ -388,10 +388,10 @@ export default function ExperienceRequestsInbox({
             creatorTimezone,
           });
       }
-      setFeedbackSuccess(tWallet("sessionAcceptedAndScheduled"));
+      setFeedbackSuccess(tServices("successSessionAcceptedAndScheduled"));
       setTimeout(closeSession, 900);
     } catch (e) {
-      setFeedbackError((e instanceof Error ? e.message : null) ?? tWallet("cannotAcceptAndSchedule"));
+      setFeedbackError((e instanceof Error ? e.message : null) ?? tServices("errorScheduleSession"));
     } finally {
       setBusy(false);
     }

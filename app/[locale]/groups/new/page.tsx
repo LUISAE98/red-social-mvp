@@ -493,7 +493,7 @@ const onCropComplete = useCallback(
     const trimmedDesc = description.trim();
 
     if (trimmedName.length < 3) {
-      setError(tGroups("nameMinLength"));
+      setError(tCommon("minLength3"));
       return;
     }
 

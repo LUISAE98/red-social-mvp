@@ -700,21 +700,26 @@ match /homeFeed/{postId} {
 }
 
 match /profileFeed/{postId} {
-  // Seguridad: excluye posts de comunidades OCULTAS (su copia denormalizada no
-  // debe ser legible por no-miembros). Los supermoderadores sí ven todo.
-  // Además replica el gate de `posts`: un LIVE restringido (logged_in_only /
-  // members_only → `liveData.allowLoggedOutViewers != true`) NO es legible por un
-  // invitado (sin sesión o anónimo) tampoco en esta copia denormalizada. Solo cuentas
-  // reales. (Los posts no-live y los lives "everyone" no se restringen.)
-  allow get, list: if resource.data.authorId == uid
-    && resource.data.isDeleted == false
-    && (resource.data.groupVisibility != "hidden" || isPlatformMod())
-    && (
-      !("liveData" in resource.data)
-      || !(resource.data.liveData is map)
-      || resource.data.liveData.get('allowLoggedOutViewers', true) == true
-      || notAnonymous()
-    );
+  // ⚠️ B8-C02. Esta regla dejaba leer la copia a CUALQUIERA, sin sesión
+  // siquiera. Excluía las comunidades OCULTAS, pero no las PRIVADAS: el backend
+  // materializa aquí el post entero —texto, medios, metadatos, nombre de la
+  // comunidad, autor y datos del live— de cualquier comunidad que no sea oculta.
+  // O sea que el contenido de una comunidad privada, y de paso quién publica en
+  // ella, se leía desde fuera con solo pedir la colección.
+  //
+  // Lo que lo hacía invisible: la parrilla del perfil NO lee esta copia. Lee
+  // `posts` directamente (`fetchProfileFeedDocs` en
+  // `lib/posts/post-service.queries.ts`), y allí sí se exige `isShareable` y se
+  // limita lo de comunidades privadas al premium de alcance público. Esta
+  // subcolección se quedó como superficie de ataque pura: un camino paralelo,
+  // sin ninguno de esos filtros, hacia el mismo contenido.
+  //
+  // Decisión de producto de Luis (2026-08-16): lo de dentro de una comunidad
+  // privada se queda dentro. Y como ningún cliente la lee, cerrarla al dueño
+  // —igual que `homeFeed` y `savedPosts`, sus hermanas de al lado— no quita
+  // nada de la interfaz.
+  allow get, list: if signedIn()
+    && request.auth.uid == uid;
 
   allow create, update, delete: if false;
 }
@@ -868,6 +873,7 @@ match /groupMemberships/{groupId} {
     ])
     && request.resource.data.userId == uid
     && request.resource.data.groupId == groupId
+    && membershipMirrorIsCoherent(groupId, request.resource.data)
     && request.resource.data.status in ["active", "subscribed", "muted"]
     && request.resource.data.roleInGroup in ["member", "mod", "moderator", "owner"]
     && (
@@ -1746,13 +1752,22 @@ function validMonetizationTransitions(transitions) {
   return search == null
     || (
       search is map
-      && (!("nameNormalized" in search) || search.nameNormalized is string)
-      && (!("descriptionNormalized" in search) || search.descriptionNormalized is string)
-      && (!("categoryNormalized" in search) || search.categoryNormalized == null || search.categoryNormalized is string)
-      && (!("categoryLabelNormalized" in search) || search.categoryLabelNormalized is string)
-      && (!("tagsNormalized" in search) || search.tagsNormalized is list)
-      && (!("tokens" in search) || search.tokens is list)
-      && (!("prefixes" in search) || search.prefixes is list)
+      // B7-bajo14 — los topes salen de `lib/search/normalize.ts` y
+      // `lib/groups/groupSearchIndex.ts`, que ya recortan con `.slice()`. Estaban
+      // SOLO en el cliente: la regla se conformaba con `is list`, así que quien
+      // escribiera saltándose la interfaz podía meter un índice con miles de
+      // entradas y engordar el documento hasta el límite de 1 MiB de Firestore.
+      //
+      // Las reglas no saben recorrer una lista, así que aquí solo se puede
+      // comprobar el TAMAÑO. El tipo de cada elemento sigue dependiendo del
+      // cliente; no hay forma de cerrarlo desde aquí.
+      && (!("nameNormalized" in search) || (search.nameNormalized is string && search.nameNormalized.size() <= 200))
+      && (!("descriptionNormalized" in search) || (search.descriptionNormalized is string && search.descriptionNormalized.size() <= 2000))
+      && (!("categoryNormalized" in search) || search.categoryNormalized == null || (search.categoryNormalized is string && search.categoryNormalized.size() <= 120))
+      && (!("categoryLabelNormalized" in search) || (search.categoryLabelNormalized is string && search.categoryLabelNormalized.size() <= 120))
+      && (!("tagsNormalized" in search) || (search.tagsNormalized is list && search.tagsNormalized.size() <= 20))
+      && (!("tokens" in search) || (search.tokens is list && search.tokens.size() <= 40))
+      && (!("prefixes" in search) || (search.prefixes is list && search.prefixes.size() <= 80))
 && (
   !("visibility" in search)
   || search.visibility == null
@@ -1762,6 +1777,39 @@ function validMonetizationTransitions(transitions) {
       && (!("isActive" in search) || search.isActive is bool)
       && (!("updatedAt" in search) || search.updatedAt is timestamp)
       && (!("version" in search) || search.version == 1)
+    );
+}
+
+// B7-bajo14 — edad, etiquetas y categoría.
+//
+// Las reglas solo pedían `is number` y `is list`. Los límites de verdad
+// —18 a 99, `ageMin <= ageMax`, 10 etiquetas— vivían únicamente en
+// `lib/groups/createGroup.ts`, o sea en el cliente, o sea en ningún sitio: se
+// saltan escribiendo directo contra Firestore.
+//
+// Peor todavía, el `update` no comprobaba NADA de esto. Se podía crear la
+// comunidad con una edad válida y corregirla después a lo que fuera.
+function validGroupAudienceFields(data) {
+  return (
+    data.get("ageMin", null) == null
+    || (data.ageMin is number && data.ageMin >= 18 && data.ageMin <= 99)
+  )
+    && (
+      data.get("ageMax", null) == null
+      || (data.ageMax is number && data.ageMax >= 18 && data.ageMax <= 99)
+    )
+    && (
+      data.get("ageMin", null) == null
+      || data.get("ageMax", null) == null
+      || data.ageMin <= data.ageMax
+    )
+    && (
+      data.get("tags", null) == null
+      || (data.tags is list && data.tags.size() <= 10)
+    )
+    && (
+      data.get("category", null) == null
+      || (data.category is string && data.category.size() <= 120)
     );
 }
 
@@ -1860,19 +1908,54 @@ function validPostSearchIndex(search) {
 && (!("imageUrl" in data) || data.imageUrl == null || data.imageUrl is string)
 && (!("coverUrl" in data) || data.coverUrl == null || data.coverUrl is string)
 && (!("avatarUrl" in data) || data.avatarUrl == null || data.avatarUrl is string)
-&& (!("category" in data) || data.category is string)
-        && (!("tags" in data) || data.tags is list)
 && (!("search" in data) || validGroupSearchIndex(data.search))
 && searchIndexMatchesGroup(data)
 && (!("welcomeMessage" in data) || data.welcomeMessage == null || data.welcomeMessage is string)
-        && (!("ageMin" in data) || data.ageMin == null || data.ageMin is number)
-        && (!("ageMax" in data) || data.ageMax == null || data.ageMax is number);
+        && validGroupAudienceFields(data);
     }
 
     // ==========================
     // MEMBER SHAPE / ACCESS
     // ==========================
-    function validMembershipAccessType(value) {
+    // B7-bajo13 — el espejo de la membresía en `users/{uid}/groupMemberships` copia
+// datos de la comunidad, y el usuario escribe su propia copia.
+//
+// El rol y el estado ya estaban atados al documento real de miembro, así que
+// nunca hubo escalada de privilegios. Lo que quedaba suelto eran los datos
+// copiados de la comunidad, y uno de ellos gobierna una función de privacidad,
+// `OwnerSidebar` esconde las comunidades ocultas de tu lista mirando
+// `visibility` DE ESTA COPIA. Bastaba con escribir "public" en tu propio espejo
+// para que una comunidad oculta reapareciera. Solo en tu pantalla —nadie más
+// puede leer este documento— pero una decisión de privacidad no puede apoyarse
+// en un campo que escribe la persona vigilada.
+//
+// `null` se acepta a propósito: cuando el cliente no puede leer la comunidad,
+// `getGroupMembershipSummary` devuelve null entero y el alta escribe null en
+// todos estos campos. Rechazarlo rompería el alta legítima.
+//
+// El nombre, la descripción y las imágenes se quedan libres a propósito: son
+// cosméticos, y fijarlos haría que renombrar una comunidad tumbara las altas
+// que estuvieran en vuelo con la copia de hace un segundo.
+function mirrorFieldMatchesGroup(groupId, data, mirrorKey, groupKey) {
+  return data.get(mirrorKey, null) == null
+    || data.get(mirrorKey, null) == groupDocAfter(groupId).data.get(groupKey, null);
+}
+
+function membershipMirrorIsCoherent(groupId, data) {
+  return !groupExistsAfter(groupId)
+    || (
+      mirrorFieldMatchesGroup(groupId, data, "groupOwnerId", "ownerId")
+      && mirrorFieldMatchesGroup(groupId, data, "ownerId", "ownerId")
+      && mirrorFieldMatchesGroup(groupId, data, "groupVisibility", "visibility")
+      && mirrorFieldMatchesGroup(groupId, data, "visibility", "visibility")
+      && mirrorFieldMatchesGroup(groupId, data, "groupIsActive", "isActive")
+      && mirrorFieldMatchesGroup(groupId, data, "isActive", "isActive")
+      && mirrorFieldMatchesGroup(groupId, data, "groupDiscoverable", "discoverable")
+      && mirrorFieldMatchesGroup(groupId, data, "discoverable", "discoverable")
+    );
+}
+
+function validMembershipAccessType(value) {
       return value in [
         "standard",
         "subscription",
@@ -2069,6 +2152,7 @@ allow list: if
           && (!("isActive" in request.resource.data) || request.resource.data.isActive is bool)
           && (!("search" in request.resource.data) || validGroupSearchIndex(request.resource.data.search))
           && searchIndexMatchesGroup(request.resource.data)
+          && validGroupAudienceFields(request.resource.data)
           // ⚠️ Aquí había un `isCommerceOnlyUpdate ||` delante, y hacía justo lo
           // contrario de lo que parece: una actualización PURAMENTE comercial
           // —monetización, servicios, donaciones— se saltaba sus propios
@@ -2306,8 +2390,23 @@ match /memberBlocks/{blockId} {
       // lo resincroniza cuando la comunidad cambia de visibilidad
       // (`syncStoriesSearchable` en backend/src/groupPostsVisibilitySync.ts). Si
       // se rompe cualquiera de las tres, esta regla filtra.
+      // ⚠️ B8-C03. La segunda condición era `storyHasNoGroup(...)` a secas: TODA
+      // historia de perfil era legible por cualquiera, sin mirar si el perfil
+      // está cerrado (`profileRestricted`), si oculta sus publicaciones
+      // (`showPosts`) ni si hay un bloqueo entre las dos personas. Las
+      // publicaciones sí lo miraban —`canReadProfileContent` existe desde hace
+      // bloques— y las historias se quedaron fuera.
+      //
+      // El comentario de arriba decía "las de perfil siguen públicas, que es lo
+      // que se quiere", y era cierto para el caso que se estaba resolviendo
+      // entonces (perfil vs comunidad). Nunca se decidió que un perfil CERRADO
+      // siguiera enseñando sus historias; simplemente no se miró.
+      //
+      // El orden se conserva: `searchable == true` sigue delante y sigue
+      // costando cero `get()`, que es lo que hace viable el feed de reels. La
+      // comprobación cara solo se paga al abrir una historia concreta.
       allow read: if ("searchable" in resource.data && resource.data.searchable == true)
-        || storyHasNoGroup(resource.data)
+        || (storyHasNoGroup(resource.data) && canReadProfileContent(resource.data.creatorId))
         || canReadGroupContent(resource.data.groupId);
 
       // Only the authenticated creator can create their own story
@@ -3303,16 +3402,93 @@ allow list: if (canListOwnAuthoredPost()
       // documentando el formato aunque ya no se evalúen.
       allow create: if false;
 
+      // ⚠️ B8-C04. `premium` YA NO se puede cambiar aquí.
+      //
+      // `createPost` garantiza tres cosas sobre el dinero: en una comunidad solo
+      // monetiza su creador, el precio va entre 10 y 100000, y los tres campos
+      // donde vive el precio (`oneTimePrice`, `premium.price`,
+      // `liveData.ticketPrice`) se escriben iguales. Esta regla dejaba deshacer
+      // las tres editando después: publicabas gratis en la comunidad de otro y
+      // luego te ponías `premium: {enabled: true, price: ...}`. El cobro de
+      // Stripe lee `oneTimePrice ?? premium.price` y acredita a `post.authorId`,
+      // así que era un cobro real a nombre de quien no tenía permiso de cobrar.
+      //
+      // Quitarlo no cuesta nada: el cliente ya evitaba escribirlo a propósito
+      // (`void params.premium` en `lib/posts/post-service.ts`), porque cambiar
+      // `premium` sin poder cambiar `oneTimePrice` dejaba el post enseñando un
+      // precio y cobrando otro. La regla se queda alineada con eso.
       function canEditPost() {
         return signedIn()
           && resource.data.authorId == request.auth.uid
           && resource.data.get('isDeleted', false) != true
           && request.resource.data.diff(resource.data).changedKeys().hasOnly([
-            "text", "media", "premium", "editedAt", "updatedAt"
+            "text", "media", "editedAt", "updatedAt"
           ])
           && request.resource.data.authorId == resource.data.authorId
           && request.resource.data.editedAt is timestamp
           && request.resource.data.updatedAt is timestamp;
+      }
+
+      // ── B8-C04: el dinero de un post que ya existe ────────────────────────
+      //
+      // Un live SÍ se edita de verdad (`updateLivePost` cambia título, alcance,
+      // tipo de acceso y precio del ticket), así que aquí no se puede cerrar en
+      // seco. Lo que se hace es replicar los candados de `createPost`.
+
+      /** Un precio válido, o ninguno. Los mismos topes que `createPost`. */
+      function precioEnRango(valor) {
+        return valor == null
+          || (valor is number && valor >= 10 && valor <= 100000);
+      }
+
+      function mapaDe(data, clave) {
+        return data.get(clave, {}) is map ? data.get(clave, {}) : {};
+      }
+
+      function precioUnico(data) {
+        return data.get('oneTimePrice', null);
+      }
+
+      /**
+       * El precio vive por triplicado y los cobros leen `oneTimePrice ?? otro`.
+       * Si discrepan, la tarjeta enseña uno y Stripe cobra el otro.
+       */
+      function preciosDelPostCoherentes() {
+        return precioEnRango(precioUnico(request.resource.data))
+          && precioEnRango(mapaDe(request.resource.data, 'premium').get('price', null))
+          && precioEnRango(mapaDe(request.resource.data, 'liveData').get('ticketPrice', null))
+          && (
+            precioUnico(request.resource.data) == null
+            || mapaDe(request.resource.data, 'premium').get('price', null) == null
+            || mapaDe(request.resource.data, 'premium').price == precioUnico(request.resource.data)
+          )
+          && (
+            precioUnico(request.resource.data) == null
+            || mapaDe(request.resource.data, 'liveData').get('ticketPrice', null) == null
+            || mapaDe(request.resource.data, 'liveData').ticketPrice == precioUnico(request.resource.data)
+          );
+      }
+
+      /** ¿Queda de pago después de esta escritura? */
+      function postQuedaDePago() {
+        return request.resource.data.get('requiresPayment', false) == true
+          || request.resource.data.get('accessModel', '') == 'paid'
+          || mapaDe(request.resource.data, 'premium').get('enabled', false) == true;
+      }
+
+      /**
+       * En una comunidad, cobrar es cosa de su creador —igual que en
+       * `createPost`—. En un perfil, cada quien cobra por lo suyo.
+       */
+      function puedeMonetizarEstePost() {
+        return !postQuedaDePago()
+          || (
+            preciosDelPostCoherentes()
+            && (
+              !isGroupPostData(resource.data)
+              || isOwner(resource.data.groupId)
+            )
+          );
       }
 
       function canUnpinGroupPost() {
@@ -3361,10 +3537,15 @@ allow list: if (canListOwnAuthoredPost()
             "currency", "purchaseType", "editedAt", "updatedAt"
           ])
           && request.resource.data.authorId == resource.data.authorId
+          && puedeMonetizarEstePost()
           && request.resource.data.editedAt is timestamp
           && request.resource.data.updatedAt is timestamp;
       }
 
+      // ⚠️ Estos dos caminos solo dejan tocar `liveData`, pero el precio del
+      // ticket VIVE dentro de `liveData`, y el cobro del live lee
+      // `oneTimePrice ?? liveData.ticketPrice`. Sin `preciosDelPostCoherentes()`
+      // quedaba una rendija para separar los dos precios por aquí.
       function canUpdateLivePeakViewers() {
         return signedIn()
           && resource.data.authorId == request.auth.uid
@@ -3372,6 +3553,7 @@ allow list: if (canListOwnAuthoredPost()
           && liveHlsUrlIsTrustedHost()
           && request.resource.data.diff(resource.data).changedKeys().hasOnly(["liveData", "updatedAt"])
           && request.resource.data.authorId == resource.data.authorId
+          && preciosDelPostCoherentes()
           && request.resource.data.updatedAt is timestamp;
       }
 
@@ -3383,6 +3565,7 @@ allow list: if (canListOwnAuthoredPost()
           && liveHlsUrlIsTrustedHost()
           && request.resource.data.diff(resource.data).changedKeys().hasOnly(["liveData", "updatedAt"])
           && request.resource.data.authorId == resource.data.authorId
+          && preciosDelPostCoherentes()
           && request.resource.data.updatedAt is timestamp;
       }
 
@@ -3404,6 +3587,7 @@ allow list: if (canListOwnAuthoredPost()
             "access", "accessModel", "requiresPayment", "oneTimePrice", "currency", "purchaseType"
           ])
           && request.resource.data.authorId == resource.data.authorId
+          && puedeMonetizarEstePost()
           && request.resource.data.updatedAt is timestamp;
       }
 

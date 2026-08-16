@@ -77,6 +77,7 @@ export default function LiveChatViewer({
   creatorAvatarUrl,
 }: Props) {
   const tLive = useTranslations("live");
+  const tChat = useTranslations("chat");
   const locale = useLocale();
   const pf = usePriceFormat();
   // El monto guardado (`amount`) es la BASE del creador en MXN. Lo que se MUESTRA es el
@@ -174,7 +175,7 @@ export default function LiveChatViewer({
         text: messageText,
       });
     } catch {
-      showChatToast(tLive("sendError"), "error");
+      showChatToast(tChat("sendError"), "error");
       setText(messageText);
     }
   }, [user, senderInfo, text, send]);

@@ -41,8 +41,9 @@ export default function CopyLinkButton({
   iconOnly = true,
 }: CopyLinkButtonProps) {
   const tCommon = useTranslations("common");
+  const tGroups = useTranslations("groups");
   const resolvedLabel = label ?? tCommon("copyLink");
-  const resolvedCopiedLabel = copiedLabel ?? tCommon("linkCopiedOk");
+  const resolvedCopiedLabel = copiedLabel ?? tCommon("linkCopiedToClipboard");
   const resolvedTitle = title ?? tCommon("copyLinkTitle");
   const [copied, setCopied] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
@@ -78,7 +79,7 @@ useEffect(() => {
     try {
       await navigator.clipboard.writeText(absoluteUrl);
       setCopied(true);
-      showCopyToast(tCommon("linkCopiedOk"), "success");
+      showCopyToast(tCommon("linkCopiedToClipboard"), "success");
     } catch {
       try {
         const textarea = document.createElement("textarea");
@@ -94,9 +95,9 @@ useEffect(() => {
         document.body.removeChild(textarea);
 
         setCopied(true);
-        showCopyToast(tCommon("linkCopiedOk"), "success");
+        showCopyToast(tCommon("linkCopiedToClipboard"), "success");
       } catch {
-        showCopyToast(tCommon("linkCopyError"), "error");
+        showCopyToast(tGroups("copyManuallyError"), "error");
       }
     }
   }

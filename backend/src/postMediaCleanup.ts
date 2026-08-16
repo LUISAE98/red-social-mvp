@@ -26,6 +26,7 @@
 import { getStorage } from "firebase-admin/storage";
 import { onDocumentDeleted, onDocumentUpdated } from "firebase-functions/v2/firestore";
 import * as logger from "firebase-functions/logger";
+import { separarRutas } from "./postMediaPaths";
 
 const REGION = "us-central1";
 
@@ -45,7 +46,27 @@ function texto(value: unknown): string | null {
  * (qué se recoge y qué se ignora), el resto es borrar.
  */
 export function rutasDelPost(post: Record<string, unknown> | undefined): string[] {
-  if (!post) return [];
+  return separarRutasDelPost(post).propias;
+}
+
+/**
+ * Las rutas declaradas, separadas en las que de verdad son de este post y las
+ * que no.
+ *
+ * ⚠️ B8-C01. Antes esto devolvía TODO lo que hubiera en `media`, y `media` lo
+ * reescribe el autor al editar. O sea: escribías en tu post la ruta de un
+ * archivo de otra comunidad, borrabas tu post, y esta función se lo borraba a su
+ * dueño con privilegios de administrador. Borrado arbitrario de cualquier
+ * archivo del bucket, disparado por el borrado más normal del mundo.
+ *
+ * Ahora solo se borra lo que cae bajo el prefijo de este post y de su autor. Las
+ * ajenas se devuelven aparte para dejarlas registradas.
+ */
+export function separarRutasDelPost(post: Record<string, unknown> | undefined): {
+  propias: string[];
+  ajenas: string[];
+} {
+  if (!post) return { propias: [], ajenas: [] };
 
   const rutas = new Set<string>();
 
@@ -65,7 +86,7 @@ export function rutasDelPost(post: Record<string, unknown> | undefined): string[
     if (sourcePath) rutas.add(sourcePath);
   }
 
-  return [...rutas];
+  return separarRutas([...rutas], post);
 }
 
 /**
@@ -109,11 +130,28 @@ async function borrarImagenesDeComentarios(postId: string): Promise<void> {
 }
 
 async function limpiar(postId: string, post: Record<string, unknown> | undefined) {
-  const rutas = rutasDelPost(post);
-  const borrados = await borrarArchivos(rutas, postId);
+  const { propias, ajenas } = separarRutasDelPost(post);
+
+  if (ajenas.length > 0) {
+    // Nunca debería pasar por la vía normal: el callable `updatePost` no deja
+    // escribirlas. Si aparece aquí es un documento envenenado antes de este
+    // cambio, o un camino de escritura nuevo que se dejó abierto.
+    logger.error("postMediaCleanup: rutas AJENAS declaradas, no se borran", {
+      postId,
+      autorId: post?.authorId,
+      ajenas,
+    });
+  }
+
+  const borrados = await borrarArchivos(propias, postId);
   await borrarImagenesDeComentarios(postId);
 
-  logger.info("postMediaCleanup", { postId, encontrados: rutas.length, borrados });
+  logger.info("postMediaCleanup", {
+    postId,
+    encontrados: propias.length,
+    ignoradas: ajenas.length,
+    borrados,
+  });
 }
 
 /**

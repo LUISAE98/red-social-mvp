@@ -106,6 +106,7 @@ export default function OwnerSidebar() {
   const router = useRouter();
   const pathname = usePathname();
   const tNav = useTranslations("nav");
+  const tServices = useTranslations("services");
   const cfError = useCfError();
   const tCommon = useTranslations("common");
   const locale = useLocale();
@@ -1771,7 +1772,7 @@ const groupsForSeen = [
       }));
 
       await rejectJoinRequest(groupId, userId);
-      showSidebarToast(tCommon("successRejectJoin"));
+      showSidebarToast(tServices("successRequestRejected"));
     } catch (e: unknown) {
       const friendly = friendlyJoinErrorMessage(e, tCommon("generalError"));
       if (friendly) setGroupsErr(friendly);
@@ -1802,8 +1803,8 @@ const groupsForSeen = [
       await respondGreetingRequest({ requestId, action });
       showSidebarToast(
         action === "accept"
-          ? tCommon("successServiceAccepted")
-          : tCommon("successServiceRejected")
+          ? tServices("successRequestAccepted")
+          : tServices("successRequestRejected")
       );
     } catch (e: unknown) {
       showSidebarToast((e instanceof Error ? cfError(e) : null) ?? tCommon("errorUpdateRequest"), "error");

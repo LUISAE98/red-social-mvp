@@ -1546,7 +1546,7 @@ const openCropWithFile = useCallback(
       avisarAccion(
         err?.code === "permission-denied"
           ? `${tCommon("storagePermissionError")}`
-          : `${tGroups("groupImageUploadError")}: ${err?.message ?? "error"}`
+          : `${tCommon("imageUploadError")}: ${err?.message ?? "error"}`
       );
     } finally {
       setUploading(false);
@@ -2060,6 +2060,26 @@ const avatarNode = (
               box-sizing: border-box;
             }
 
+/* Celular: el contenido de las pestañas necesita aire lateral. Antes iba pegado
+   al borde y los textos de integrantes, configuración y demás quedaban cortados
+   contra el marco del teléfono. 12px es el mismo valor que usa el perfil, para
+   que las dos superficies se vean igual.
+
+   Lo que debe seguir llegando de borde a borde —el feed y las cards de
+   experiencias— se lo descuenta con margen negativo, en vez de quitarle el
+   padding al contenedor (que fue justo lo que hacía saltar la card del perfil). */
+@media (max-width: 900px) {
+  .group-tab-panel {
+    padding-inline-start: 12px;
+    padding-inline-end: 12px;
+  }
+
+  .group-tab-panel.group-feed-wrap,
+  .group-tab-panel :global(.serviceActivationPanel) {
+    margin-inline-start: -12px;
+    margin-inline-end: -12px;
+  }
+}
 @media (max-width: 900px) {
   .group-shell {
     max-width: none;

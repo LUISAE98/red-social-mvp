@@ -602,7 +602,7 @@ async function handleCreatorSchedule(
         await declineMeetGreetReschedule(requestId);
       }
     } catch (e: unknown) {
-      showGreetingsToast((e instanceof Error ? cfError(e) : null) ?? tServices("errorProcess"), "error");
+      showGreetingsToast((e instanceof Error ? cfError(e) : null) ?? tCommon("errorUpdateRequest"), "error");
     } finally {
       setBusy(requestId, false);
     }

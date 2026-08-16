@@ -434,7 +434,7 @@ export default function LiveDirectBroadcast({
             wakeLockRef.current = null;
             releaseTracks();
             setStatus("error");
-            setError(tLive("errorConnectionLostReconnect"));
+            setError(tLive("errorConnectionLostRetry"));
             initCamera();
           }
         }

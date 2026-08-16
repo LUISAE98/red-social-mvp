@@ -182,6 +182,7 @@ export default function SearchPostsResults({
   indicatorTop,
 }: SearchPostsResultsProps) {
   const tCommon = useTranslations("common");
+  const tFeed = useTranslations("feed");
   const tPosts = useTranslations("posts");
   const userId = currentUser?.uid ?? null;
   // Desbloqueo premium persistente del viewer (cualquier dispositivo).
@@ -378,7 +379,7 @@ export default function SearchPostsResults({
         } as Post["counts"],
       });
     } catch (e: unknown) {
-      setError((e instanceof Error ? e.message : null) ?? tPosts("errorFlame"));
+      setError((e instanceof Error ? e.message : null) ?? tFeed("errorUpdateFlame"));
       throw e;
     }
   }

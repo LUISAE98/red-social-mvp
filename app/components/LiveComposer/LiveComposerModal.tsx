@@ -438,7 +438,7 @@ export default function LiveComposerModal({
       onSuccess?.();
       onClose();
     } catch (e) {
-      showLiveComposerToast(e instanceof Error ? e.message : isEditMode ? tLive("saveLiveError") : tLive("createLiveError"), "error");
+      showLiveComposerToast(e instanceof Error ? e.message : isEditMode ? tLive("saveLiveError") : tLive("saveLiveError"), "error");
     } finally {
       setSaving(false);
     }

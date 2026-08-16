@@ -31,6 +31,29 @@ import LogoutButton from "@/app/LogoutButton";
 import PushEnablePrompt from "@/app/components/PushEnablePrompt";
 
 
+/**
+ * Secciones que ya animan su contenido por dentro.
+ *
+ * La wallet tiene su propio subnav y desliza la pestaña nueva con el `motion.div`
+ * de `wallet/layout.tsx`. Moverse dentro de una de estas secciones NO debe
+ * deslizar la columna principal: esa animación arrastra TODO lo que hay dentro,
+ * y aquí el título de la sección y su subnav tienen que quedarse quietos —
+ * solo se mueve lo que va debajo del subnav.
+ *
+ * Entrar a la sección desde fuera sí desliza, como cualquier cambio de pantalla.
+ */
+const SELF_ANIMATED_SECTIONS = ["/wallet"];
+
+function isNavWithinSelfAnimatedSection(
+  prev: string | null,
+  next: string
+): boolean {
+  if (prev === null) return false;
+  return SELF_ANIMATED_SECTIONS.some(
+    (section) => prev.startsWith(section) && next.startsWith(section)
+  );
+}
+
 function PublicProfileShell({
   children,
 }: {
@@ -116,6 +139,9 @@ const pendingAnimDirRef = useRef<"left" | "right" | null>(null);
 // desde la izquierda (como en iOS) y avanzar entre desde la derecha.
 const poppedRef = useRef(false);
 const firstRenderRef = useRef(true);
+// Ruta anterior, para distinguir "entré a una sección" de "me moví dentro de
+// ella". Ver SELF_ANIMATED_SECTIONS.
+const prevPathnameRef = useRef<string | null>(null);
 
 // Estado para header contextual (avatar + nombre que pasan las páginas hijas)
 const [headerData, setHeaderData] = useState<MobileHeaderData>({ avatarUrl: null, name: null });
@@ -168,6 +194,9 @@ useLayoutEffect(() => {
     const wasBack = poppedRef.current;
     poppedRef.current = false;
 
+    const prevPathname = prevPathnameRef.current;
+    prevPathnameRef.current = pathname;
+
     // Arranque en frío: no hubo navegación, así que no hay nada que deslizar.
     // Sin esto la app "entraría" desplazándose en cada carga, que se lee como
     // un salto, no como una transición.
@@ -175,6 +204,12 @@ useLayoutEffect(() => {
       firstRenderRef.current = false;
       if (!explicit) return;
     }
+
+    // Moverse DENTRO de una sección que ya anima lo suyo (hoy, las pestañas de
+    // la wallet): la columna principal se queda quieta y anima la sección. Si
+    // deslizáramos aquí también, se irían con ella el título y el subnav, que
+    // son justo lo que debe permanecer fijo mientras cambia lo de abajo.
+    if (isNavWithinSelfAnimatedSection(prevPathname, pathname)) return;
 
     if (explicit) {
       // Navegación del subnav: además restaura el scroll que tenía esa página.
@@ -1108,7 +1143,9 @@ const contentAreaClassName = isEmbed
           )}
         </div>
 
-       {!isEmbed && <ScrollToTopFAB />}
+       {/* El propio botón decide en qué rutas se pinta (solo feeds). La `key`
+           lo remonta limpio en cada ruta; ver la nota en el componente. */}
+       {!isEmbed && <ScrollToTopFAB key={pathname} />}
        {!isEmbed && <MobileBottomNav showWallet={!!user} showExperiences={hasPurchasedExperiences} experiencesBadge={experiencesBadge} />}
        {!isEmbed && <PushEnablePrompt />}
       </div>

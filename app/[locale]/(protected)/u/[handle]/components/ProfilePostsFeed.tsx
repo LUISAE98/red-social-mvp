@@ -756,7 +756,7 @@ async function handleToggleProfilePin(postId: string): Promise<void> {
       setError(null);
       return await fetchCommentReplies({ postId, commentId });
     } catch (e: unknown) {
-      setError((e instanceof Error ? e.message : null) ?? tPosts("errorLoadReplies"));
+      setError((e instanceof Error ? e.message : null) ?? tFeed("loadRepliesError"));
       throw e;
     }
   }
@@ -794,7 +794,7 @@ async function handleToggleProfilePin(postId: string): Promise<void> {
 
       return await fetchCommentReplies({ postId, commentId });
     } catch (e: unknown) {
-      setError((e instanceof Error ? e.message : null) ?? tPosts("errorDeleteReply"));
+      setError((e instanceof Error ? e.message : null) ?? tFeed("deleteReplyError"));
       throw e;
     }
   }

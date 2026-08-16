@@ -52,6 +52,7 @@ import {
 
 export default function SavedPostsFeed() {
   const tSaved = useTranslations("saved");
+  const tFeed = useTranslations("feed");
   const [currentUserId, setCurrentUserId] = useState<string | null>(
     auth.currentUser?.uid ?? null
   );
@@ -557,7 +558,7 @@ if (!trigger.isConnected) return;
         } as Post["counts"],
       });
     } catch (e: unknown) {
-      setError((e instanceof Error ? e.message : null) ?? tSaved("flameError"));
+      setError((e instanceof Error ? e.message : null) ?? tFeed("errorUpdateFlame"));
       throw e;
     }
   }
@@ -598,7 +599,7 @@ if (!trigger.isConnected) return;
         } as Post["counts"],
       });
     } catch (e: unknown) {
-      setError((e instanceof Error ? e.message : null) ?? tSaved("saveError"));
+      setError((e instanceof Error ? e.message : null) ?? tFeed("errorUpdateSave"));
       throw e;
     }
   }
@@ -620,7 +621,7 @@ if (!trigger.isConnected) return;
       setError(null);
       return await fetchPostComments(postId);
     } catch (e: unknown) {
-      setError((e instanceof Error ? e.message : null) ?? tSaved("commentsError"));
+      setError((e instanceof Error ? e.message : null) ?? tFeed("errorLoadComments"));
       throw e;
     }
   }
@@ -682,7 +683,7 @@ if (!trigger.isConnected) return;
       setError(null);
       return await fetchCommentReplies({ postId, commentId });
     } catch (e: unknown) {
-      setError((e instanceof Error ? e.message : null) ?? tSaved("repliesError"));
+      setError((e instanceof Error ? e.message : null) ?? tFeed("loadRepliesError"));
       throw e;
     }
   }
@@ -700,7 +701,7 @@ if (!trigger.isConnected) return;
       await syncPostCommentsCount(postId);
       return await fetchCommentReplies({ postId, commentId });
     } catch (e: unknown) {
-      setError((e instanceof Error ? e.message : null) ?? tSaved("replyCreateError"));
+      setError((e instanceof Error ? e.message : null) ?? tFeed("createReplyError"));
       throw e;
     }
   }
@@ -716,7 +717,7 @@ if (!trigger.isConnected) return;
       await syncPostCommentsCount(postId);
       return await fetchCommentReplies({ postId, commentId });
     } catch (e: unknown) {
-      setError((e instanceof Error ? e.message : null) ?? tSaved("replyDeleteError"));
+      setError((e instanceof Error ? e.message : null) ?? tFeed("deleteReplyError"));
       throw e;
     }
   }

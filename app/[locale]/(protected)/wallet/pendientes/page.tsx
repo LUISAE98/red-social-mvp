@@ -94,6 +94,7 @@ function rowToFakeRequest(row: WalletServiceItem): MeetGreetRequestDoc {
 
 export default function WalletPendientesPage() {
   const tWallet = useTranslations("wallet");
+  const tServices = useTranslations("services");
   const { format: formatMoney } = usePriceFormat();
   const { user } = useAuth();
 
@@ -193,7 +194,7 @@ export default function WalletPendientesPage() {
         await acceptMeetGreetRequest({ requestId: viewItem.id });
       }
     } catch (e) {
-      setFeedbackError((e instanceof Error ? e.message : null) ?? tWallet("cannotAccept"));
+      setFeedbackError((e instanceof Error ? e.message : null) ?? tServices("errorAcceptRequest"));
     } finally {
       setBusy(false);
     }
@@ -211,7 +212,7 @@ export default function WalletPendientesPage() {
       }
       closeViewItem();
     } catch (e) {
-      setFeedbackError((e instanceof Error ? e.message : null) ?? tWallet("cannotReject"));
+      setFeedbackError((e instanceof Error ? e.message : null) ?? tServices("errorRejectRequest"));
     } finally {
       setBusy(false);
     }
@@ -228,10 +229,10 @@ export default function WalletPendientesPage() {
       } else {
         await proposeMeetGreetSchedule({ requestId: viewItem.id, scheduledAt: scheduledAtIso, creatorTimezone });
       }
-      setFeedbackSuccess(tWallet("sessionScheduled"));
+      setFeedbackSuccess(tServices("successDateProposed"));
       setTimeout(closeViewItem, 900);
     } catch (e) {
-      setFeedbackError((e instanceof Error ? e.message : null) ?? tWallet("cannotSchedule"));
+      setFeedbackError((e instanceof Error ? e.message : null) ?? tServices("errorScheduleSession"));
     } finally {
       setBusy(false);
     }
@@ -250,10 +251,10 @@ export default function WalletPendientesPage() {
         await acceptMeetGreetRequest({ requestId: viewItem.id });
         if (scheduledAtIso) await proposeMeetGreetSchedule({ requestId: viewItem.id, scheduledAt: scheduledAtIso, creatorTimezone });
       }
-      setFeedbackSuccess(tWallet("sessionAcceptedAndScheduled"));
+      setFeedbackSuccess(tServices("successSessionAcceptedAndScheduled"));
       setTimeout(closeViewItem, 900);
     } catch (e) {
-      setFeedbackError((e instanceof Error ? e.message : null) ?? tWallet("cannotAcceptAndSchedule"));
+      setFeedbackError((e instanceof Error ? e.message : null) ?? tServices("errorScheduleSession"));
     } finally {
       setBusy(false);
     }
@@ -270,7 +271,7 @@ export default function WalletPendientesPage() {
         await setMeetGreetPreparing({ requestId: viewItem.id, role: "creator" });
       }
     } catch (e) {
-      setFeedbackError((e instanceof Error ? e.message : null) ?? tWallet("cannotPrepare"));
+      setFeedbackError((e instanceof Error ? e.message : null) ?? tServices("errorOpenPreparation"));
     } finally {
       setBusy(false);
     }

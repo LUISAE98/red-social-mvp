@@ -16,6 +16,7 @@ type AdminProfile = {
 
 export default function AdminProfilePage() {
   const tAdmin = useTranslations("admin");
+  const tCommon = useTranslations("common");
 
   const locale = useLocale();
   const [viewer, setViewer] = useState<User | null>(null);
@@ -67,7 +68,7 @@ export default function AdminProfilePage() {
       setProfile((prev) => ({ ...prev, avatarUrl: url }));
     } catch (err: unknown) {
       setError(
-        (err instanceof Error ? err.message : null) ?? tAdmin("uploadImageError")
+        (err instanceof Error ? err.message : null) ?? tCommon("imageUploadError")
       );
     } finally {
       setUploading(false);

@@ -3,6 +3,7 @@
 // Tipos, helpers y sub-componentes (SpinningGear, Switch, DonationModeButton) de OwnerAdminServices.
 
 import React from "react";
+import { AVISOS_SERVICIOS } from "@/lib/services/avisosServicios";
 import type {
   Currency,
   GroupOffering,
@@ -392,7 +393,7 @@ export function buildTransitionSuccessMessage(params: {
     return `✅ Configuración guardada. Se retiró el acceso a ${removedMembers} suscriptor(es) actuales para que deban suscribirse de nuevo con el nuevo precio. Actualizados: ${updatedMembers}. Omitidos: ${skippedMembers}.`;
   }
 
-  return "✅ Configuración guardada.";
+  return AVISOS_SERVICIOS.guardado;
 }
 
 export function buildManualLegacyRemovalSuccessMessage(params: {

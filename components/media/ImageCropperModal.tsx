@@ -96,7 +96,7 @@ export default function ImageCropperModal({
       );
       onConfirm(blob);
     } catch (e: unknown) {
-      setErr((e instanceof Error ? e.message : null) ?? "Error al recortar la imagen.");
+      setErr((e instanceof Error ? e.message : null) ?? tCommon("cropError"));
     } finally {
       setProcessing(false);
     }

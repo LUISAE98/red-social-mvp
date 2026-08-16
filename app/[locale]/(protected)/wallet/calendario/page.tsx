@@ -170,6 +170,7 @@ function ViewModeIconButton({
   onClick: () => void;
 }) {
   const tWallet = useTranslations("wallet");
+  const tServices = useTranslations("services");
   const isList = mode === "list";
 
   return (
@@ -1140,6 +1141,7 @@ function MonthCard({
 
 export default function WalletCalendarioPage() {
   const tWalletPage = useTranslations("wallet");
+  const tServices = useTranslations("services");
   const locale = useLocale();
   const { format: formatMoney } = usePriceFormat();
   const { user } = useAuth();
@@ -1242,11 +1244,11 @@ export default function WalletCalendarioPage() {
           creatorTimezone,
         });
       }
-      setFeedbackSuccess(tWalletPage("calendarRescheduled"));
+      setFeedbackSuccess(tServices("successRescheduled"));
       setTimeout(closeViewItem, 900);
     } catch (e: unknown) {
       setFeedbackError(
-        (e instanceof Error ? e.message : null) ?? tWalletPage("calendarRescheduleError")
+        (e instanceof Error ? e.message : null) ?? tServices("errorSaveDate")
       );
     } finally {
       setBusy(false);

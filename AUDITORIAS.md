@@ -454,6 +454,21 @@ Cerrado y desplegado el 2026-08-15 **todo lo que no depende de Stripe USA**: 4 c
 ⚠️ **La suite de emulador corre en SECUENCIAL** (`fileParallelism: false`). Con 12 archivos en paralelo fallaban tests distintos en cada corrida, siempre clavados en el timeout; se subió el tope tres veces (20 → 45 → 90 s) creyendo que eran lentos y no lo eran. Secuencial tarda menos y es determinista.
 
 ---
+## Bloque 7 — Comunidades, membresías y moderación (CERRADO)
+
+Cerrado y desplegado el 2026-08-16: 2 críticos, 6 altos, 4 medios y los 2 bajos.
+
+- **C01** Una comunidad **oculta** podía tener contenido público: los posts guardaban una copia de la visibilidad y esa copia no se actualizaba al ocultar la comunidad. La sincronización ahora reintenta (`retry: true`), relee la visibilidad real dentro del handler y **lanza** si algo falla, más un barrido diario que caza lo que se haya escapado.
+- **C02** La creación de posts era del cliente, así que el precio, el modo del directo y las banderas de premium venían de quien publicaba. Movida al backend con un DTO cerrado, un precio efectivo único escrito en los tres campos y los modos de directo desconocidos aplastados a `members_only`.
+- **A3–A8** Invitaciones de moderador que no comprobaban sanciones, listas de miembros enumerables saltándose `membersListVisibility`, portadas y avatares de comunidades restringidas legibles por URL, la invitación consumida dos veces, y `softDeleteGroup` sin declarar `secrets` — con lo que la cancelación de suscripciones del bloque 6 **no hacía nada en silencio**.
+- **M09–M11** Esquemas `hasOnly` en 17 declaraciones, coherencia del índice de búsqueda con la comunidad, y la autorización de los **siete** flujos de moderación movida DENTRO de la transacción que escribe (antes se comprobaba el rol, se escribía con un `batch` y un `batch` no detecta conflictos).
+- **M12** ⚠️ **Expulsar de una comunidad pública es definitivo** —decisión de producto de Luis— y no lo era. La regla de salida bloqueaba `banned` y `muted` pero no `removed`, así que el expulsado borraba su propio documento de miembro y lo recreaba como activo: `create` solo exige que no exista. Dos clics y la sanción desaparecía. Cerrado con los tres nombres del estado (`removed`, `kicked`, `expelled`).
+- **bajo 13** El espejo de la membresía en `users/{uid}/groupMemberships` copia datos de la comunidad y lo escribe el propio usuario. El rol y el estado ya estaban atados al documento real de miembro —nunca hubo escalada— pero la visibilidad copiada no, y `OwnerSidebar` la usa para esconder las comunidades ocultas de tu lista. Ahora la copia tiene que coincidir con la comunidad real en dueño, visibilidad, actividad y descubribilidad. ⚠️ **`null` se acepta a propósito**: cuando el cliente no puede leer la comunidad, `getGroupMembershipSummary` devuelve null entero y el alta legítima escribe null en todos. El nombre y las imágenes se dejan libres: son cosméticos y fijarlos tumbaría las altas en vuelo al renombrar.
+- **bajo 14** Edad, etiquetas y el índice de búsqueda tenían sus límites de verdad solo en el cliente, y el `update` de la comunidad **no comprobaba ninguno de los tres**: se podía crear con una edad válida y corregirla después a lo que fuera. Fijados en las reglas los topes que ya usaba el código (18–99 con `ageMin <= ageMax`, 10 etiquetas, 20 etiquetas normalizadas, 40 tokens, 80 prefijos) y aplicados también al `update`. ⚠️ Las reglas **no saben recorrer una lista**: solo se puede comprobar el tamaño, el tipo de cada elemento sigue dependiendo del cliente.
+
+**Cobertura:** `groupModeration.emulator.test.ts` (14) en el backend; `groupMembers.rules.test.ts` y el nuevo `groupMetadataIntegrity.rules.test.ts` en las reglas. Suite de reglas: 268 verdes.
+
+---
 ## Bloques cerrados
 
 ### Bloque 1 — Superficie de ataque y fronteras de confianza

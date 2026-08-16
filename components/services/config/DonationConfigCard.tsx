@@ -211,7 +211,7 @@ export default function DonationConfigCard({
       amountsNum.length !== 4 ||
       amountsNum.some((n) => !Number.isFinite(n) || n < DONATION_MIN_PER_AMOUNT)
     ) {
-      setSaveErr(tProfile("donationInvalidAmount"));
+      setSaveErr(tServices("donationMinAmountError"));
       return;
     }
 
@@ -317,7 +317,7 @@ export default function DonationConfigCard({
       });
       playbackListenerRef.current = unsub;
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : tProfile("donationUploadDefault");
+      const msg = err instanceof Error ? err.message : tCommon("videoUploadError");
       setUploadErr(msg);
     } finally {
       setUploadProgress(null);

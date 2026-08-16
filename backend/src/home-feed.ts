@@ -384,6 +384,7 @@ export const onHomeFeedPostCreated = onDocumentCreated(
   {
     document: "posts/{postId}",
     region: REGION,
+    retry: true,
   },
   async (event) => {
     const snapshot = event.data;
@@ -470,6 +471,7 @@ export const onHomeFeedPostUpdated = onDocumentUpdated(
   {
     document: "posts/{postId}",
     region: REGION,
+    retry: true,
   },
   async (event) => {
     const afterData = event.data?.after.data();
@@ -553,6 +555,7 @@ export const onHomeFeedMembershipCreated = onDocumentCreated(
   {
     document: "groups/{groupId}/members/{userId}",
     region: REGION,
+    retry: true,
   },
   async (event) => {
     const snapshot = event.data;
@@ -593,6 +596,7 @@ export const onHomeFeedMembershipDeleted = onDocumentDeleted(
   {
     document: "groups/{groupId}/members/{userId}",
     region: REGION,
+    retry: true,
   },
   async (event) => {
     const membership = event.data?.data() ?? null;
@@ -623,6 +627,7 @@ export const onHomeFeedMemberStatusChanged = onDocumentUpdated(
   {
     document: "groups/{groupId}/members/{userId}",
     region: REGION,
+    retry: true,
   },
   async (event) => {
     const beforeData = event.data?.before.data();
@@ -674,6 +679,7 @@ export const onHomeFeedFollowingDeleted = onDocumentDeleted(
   {
     document: "users/{userId}/following/{targetUserId}",
     region: REGION,
+    retry: true,
   },
   async (event) => {
     const userId = event.params.userId;
@@ -695,6 +701,7 @@ export const onHomeFeedBlockedUserCreated = onDocumentCreated(
   {
     document: "users/{userId}/blockedUsers/{blockedUserId}",
     region: REGION,
+    retry: true,
   },
   async (event) => {
     const userId = event.params.userId;

@@ -18,6 +18,7 @@ const fontStack =
 
 export default function PostShareButton({ postId }: PostShareButtonProps) {
   const tCommon = useTranslations("common");
+  const tGroups = useTranslations("groups");
   const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState(false);
   const { toast: shareToast, showToast: showShareToast } = useVibraToast(2400);
@@ -72,7 +73,7 @@ export default function PostShareButton({ postId }: PostShareButtonProps) {
       try {
         await copyUrl(url);
       } catch {
-        showShareToast(tCommon("linkCopyError"), "error");
+        showShareToast(tGroups("copyManuallyError"), "error");
       }
     } finally {
       setBusy(false);
