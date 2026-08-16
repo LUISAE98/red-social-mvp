@@ -65,7 +65,8 @@
     "seeAllMessages": "Tümünü gör",
     "settings": "Ayarlar",
     "seeAllFollowing": "Tümünü gör",
-    "seeAllCommunities": "Tümünü gör"
+    "seeAllCommunities": "Tümünü gör",
+    "reels": "Hikâyeler"
   },
   "common": {
     "accept": "Kabul et",
@@ -254,7 +255,13 @@
     "reportSubmit": "Bildirimi gönder",
     "reportSentTitle": "Bildirim gönderildi",
     "reportSentDesc": "Ekibimiz inceleyecek. Topluluğu güvende tutmaya yardım ettiğin için teşekkürler.",
-    "reportSubmitError": "Bildirim gönderilirken bir hata oluştu. Lütfen tekrar dene."
+    "reportSubmitError": "Bildirim gönderilirken bir hata oluştu. Lütfen tekrar dene.",
+    "noStoriesYet": "Henüz hikâye yok.",
+    "storyNothingToPublish": "Burada henüz yayımlanacak bir şey yok.",
+    "storyAddStories": "Hikâye ekle",
+    "storyNeedsBuyerPermission": "Siparişlerin var ama alıcı yayımlanmasına izin vermedi.",
+    "storyFromHiddenCommunity": "Gizli bir topluluktan geliyorlar ve profiline eklenemez.",
+    "storyNotReadyYet": "Video henüz hazır değil."
   },
   "groups": {
     "title": "Topluluklar",
@@ -1980,7 +1987,9 @@
     "premiumPostPreviewSubsDescUser": "Topluluğun üyesi veya abonesiysen ücretsiz görürsün.",
     "premiumPostPreviewPriceLabelUser": "Kilit açma fiyatı",
     "premiumPostPreviewPriceDescUser": "Gönderinin kilidini açmanın kaça mal olacağını içerik üreticisi belirler.",
-    "mergeDonationSupportDesc": "İçerik üreticisine desteğini göstermek için istediğin tutarda katkıda bulun."
+    "mergeDonationSupportDesc": "İçerik üreticisine desteğini göstermek için istediğin tutarda katkıda bulun.",
+    "addSampleAriaLabel": "Örnek ekle",
+    "addSampleHint": "Alıcıların ne alacağını görmesi için bir örnek kaydet"
   },
   "live": {
     "accessTicket": "Giriş bileti",

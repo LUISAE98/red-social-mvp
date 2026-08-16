@@ -15,6 +15,8 @@
 import { createPortal } from "react-dom";
 import { useEffect, useMemo, useState } from "react";
 import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
+import VibraToast from "@/app/components/VibraToast/VibraToast";
+import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import { REGIMENES, USOS_CFDI, type SatEntry } from "@/lib/facturacion/satCatalogs";
 import type { PriceFormatOptions } from "@/lib/currency/usePriceFormat";
 import {
@@ -88,6 +90,8 @@ export default function BuyerInvoicePanel({ open, onClose, uid, concepts, format
 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { toast, showToast } = useVibraToast();
+  useEffect(() => { if (error) showToast(error, "error"); }, [error]); // eslint-disable-line react-hooks/exhaustive-deps
   // Resultado del timbrado (vista de éxito con el folio fiscal + correo de envío).
   const [doneInfo, setDoneInfo] = useState<{ invoiceId: string; uuid: string | null; total: number | null; email: string | null } | null>(null);
 
@@ -297,12 +301,6 @@ export default function BuyerInvoicePanel({ open, onClose, uid, concepts, format
             </div>
           ) : (
           <>
-          {error && (
-            <div style={{ marginBottom: 14, borderRadius: 13, border: "1px solid rgba(255,90,90,0.24)", background: "rgba(120,18,18,0.28)", color: "#ffdada", padding: "10px 12px", fontSize: 13, lineHeight: 1.4 }}>
-              {error}
-            </div>
-          )}
-
           {/* ── DATOS DE FACTURACIÓN (a quién facturamos) ── */}
           <div style={SECTION_LABEL}>Datos de facturación</div>
 
@@ -426,6 +424,8 @@ export default function BuyerInvoicePanel({ open, onClose, uid, concepts, format
           )}
         </div>
       </section>
+
+      <VibraToast toast={toast} />
     </div>,
     document.body
   );

@@ -27,6 +27,9 @@ import { buildFileName } from "@/lib/storage/fileNaming";
 import { buildCurrentPathWithSearch } from "@/lib/auth-redirect";
 import { normalizeImageFile } from "@/lib/uploads/image-normalizer";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
+import OptionWheelPanel from "@/components/ui/OptionWheelPanel";
+import VibraToast from "@/app/components/VibraToast/VibraToast";
+import { useVibraToast } from "@/lib/hooks/useVibraToast";
 
 
 function parseTags(raw: string): string[] {
@@ -149,64 +152,6 @@ function ToggleSwitch({
         }}
       />
     </button>
-  );
-}
-
-function SelectField({
-  value,
-  onChange,
-  children,
-  disabled = false,
-}: {
-  value: string;
-  onChange: (value: string) => void;
-  children: React.ReactNode;
-  disabled?: boolean;
-}) {
-  return (
-    <div style={{ position: "relative" }}>
-      <select
-        value={value}
-        disabled={disabled}
-        onChange={(e) => onChange(e.target.value)}
-        style={{
-          width: "100%",
-          borderRadius: 12,
-          border: "none",
-          backgroundColor: "rgba(255,255,255,0.11)",
-          color: "rgba(255,255,255,0.85)",
-          padding: "10px 36px 10px 12px",
-          fontSize: 13,
-          fontWeight: 400,
-          fontFamily: "inherit",
-          lineHeight: 1.5,
-          outline: "none",
-          appearance: "none",
-          WebkitAppearance: "none",
-          MozAppearance: "none",
-          boxSizing: "border-box",
-          cursor: disabled ? "not-allowed" : "pointer",
-          opacity: disabled ? 0.55 : 1,
-        }}
-      >
-        {children}
-      </select>
-
-      <span
-        aria-hidden="true"
-        style={{
-          position: "absolute",
-          insetInlineEnd: 11,
-          top: "50%",
-          transform: "translateY(-50%)",
-          pointerEvents: "none",
-          color: "rgba(255,255,255,0.68)",
-          fontSize: 11,
-        }}
-      >
-        ▼
-      </span>
-    </div>
   );
 }
 
@@ -398,6 +343,8 @@ const { user, loading: authLoading } = useAuth();
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { toast, showToast } = useVibraToast();
+  useEffect(() => { if (error) showToast(error, "error"); }, [error]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [cropOpen, setCropOpen] = useState(false);
   const [cropMode, setCropMode] = useState<CropMode>("avatar");
@@ -796,22 +743,6 @@ const onCropComplete = useCallback(
             </p>
           </div>
 
-          {error && (
-            <div
-              style={{
-                marginBottom: 14,
-                borderRadius: 12,
-                border: "1px solid rgba(255,120,120,0.25)",
-                background: "rgba(255,90,90,0.10)",
-                padding: "10px 12px",
-                fontSize: 12,
-                color: "rgba(255,220,220,0.95)",
-              }}
-            >
-              {error}
-            </div>
-          )}
-
           <form onSubmit={onSubmit} style={{ display: "grid", gap: 14 }}>
             <div style={sectionGroup}>
               <div>
@@ -841,14 +772,18 @@ const onCropComplete = useCallback(
                 <label style={fieldLabel}>
                   {tGroups("visibility")}
                 </label>
-                <SelectField
+                <OptionWheelPanel
                   value={visibility}
                   onChange={(value) => setVisibility(value as GroupVisibility)}
-                >
-                  <option value="public">{tGroups("visibilityPublic")}</option>
-                  <option value="private">{tGroups("visibilityPrivate")}</option>
-                  <option value="hidden">{tGroups("visibilityHidden")}</option>
-                </SelectField>
+                  title={tGroups("visibility")}
+                  confirmLabel={tCommon("save")}
+            closeAriaLabel={tCommon("closeAriaLabel")}
+                  options={[
+                    { value: "public", label: tGroups("visibilityPublic") },
+                    { value: "private", label: tGroups("visibilityPrivate") },
+                    { value: "hidden", label: tGroups("visibilityHidden") },
+                  ]}
+                />
               </div>
             </div>
 
@@ -1142,16 +1077,17 @@ const onCropComplete = useCallback(
                 <label style={fieldLabel}>
                   {tGroups("category")}
                 </label>
-                <SelectField
+                <OptionWheelPanel
                   value={category}
                   onChange={(value) => setCategory(value as CanonicalGroupCategory)}
-                >
-                  {GROUP_CATEGORY_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </SelectField>
+                  title={tGroups("category")}
+                  confirmLabel={tCommon("save")}
+            closeAriaLabel={tCommon("closeAriaLabel")}
+                  options={GROUP_CATEGORY_OPTIONS.map((option) => ({
+                    value: option.value,
+                    label: option.label,
+                  }))}
+                />
               </div>
 
               <div>
@@ -1249,13 +1185,17 @@ const onCropComplete = useCallback(
                 <label style={fieldLabel}>
                   {tGroups("whoCanPost")}
                 </label>
-                <SelectField
+                <OptionWheelPanel
                   value={postingMode}
                   onChange={(value) => setPostingMode(value as PostingMode)}
-                >
-                  <option value="members">{tGroups("members")}</option>
-                  <option value="owner_only">{tGroups("ownerOnly")}</option>
-                </SelectField>
+                  title={tGroups("whoCanPost")}
+                  confirmLabel={tCommon("save")}
+            closeAriaLabel={tCommon("closeAriaLabel")}
+                  options={[
+                    { value: "members", label: tGroups("members") },
+                    { value: "owner_only", label: tGroups("ownerOnly") },
+                  ]}
+                />
               </div>
 
               <div
@@ -1576,6 +1516,8 @@ const onCropComplete = useCallback(
           </div>
         </div>
       )}
+
+      <VibraToast toast={toast} />
     </>
   );
 }

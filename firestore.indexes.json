@@ -33,6 +33,14 @@
       ]
     },
     {
+      "collectionGroup": "greetingRequests",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "creatorId", "order": "ASCENDING" },
+        { "fieldPath": "groupId", "order": "ASCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "exclusiveSessionRequests",
       "queryScope": "COLLECTION",
       "fields": [

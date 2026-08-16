@@ -21,7 +21,7 @@ import { isChargeableCountry, chargeCurrencyForCountry } from "../../tax/config"
 import { resolvePresentment } from "../../tax/presentment";
 import { resolveTaxCountry } from "../../tax/resolveCountry";
 import { SETTLEMENT_CURRENCY } from "../../wallet/ledger";
-import { readGroupSub, validateInviteForGroup, computeMonthlyCharge } from "../groupSubscriptionCore";
+import { readGroupSub, reserveInviteSlot, computeMonthlyCharge } from "../groupSubscriptionCore";
 import { stripeIdempotencyKey } from "./idempotency";
 
 if (admin.apps.length === 0) {
@@ -73,6 +73,13 @@ export const createGroupSubscription = onCall(
     const groupSnap = await db.collection("groups").doc(groupId).get();
     if (!groupSnap.exists) throw new HttpsError("not-found", "Comunidad no encontrada.");
     const group = groupSnap.data() as Record<string, unknown>;
+
+    // B6-H06: una comunidad borrada o desactivada sigue existiendo en Firestore
+    // —el borrado es lógico—, así que "existe" no bastaba: se podía empezar a
+    // pagar una suscripción a una comunidad que ya no está.
+    if (group.isActive === false || group.isDeleted === true) {
+      throw new HttpsError("failed-precondition", "Esta comunidad ya no está disponible.");
+    }
 
     const sub = readGroupSub(group);
     if (!sub.enabled || sub.price <= 0) {
@@ -128,7 +135,12 @@ export const createGroupSubscription = onCall(
       if (!inviteToken) {
         throw new HttpsError("permission-denied", "Necesitas una invitación válida para suscribirte a esta comunidad.");
       }
-      await validateInviteForGroup(groupId, inviteToken); // lanza si no es válido
+      // RESERVA el cupo aquí, antes de crear el cobro. Antes solo se validaba con
+      // una lectura simple y el tope se re-comprobaba al llegar la factura, pero
+      // ahí ya era tarde: si estaba agotada, el webhook dejaba de contar y
+      // activaba la membresía igual. Dos personas con el último cupo pagaban las
+      // dos y entraban las dos a una comunidad oculta.
+      await reserveInviteSlot(groupId, inviteToken, uid);
     }
 
     // País fiscal: lo decide el SERVIDOR con la IP del request, nunca el payload del cliente.

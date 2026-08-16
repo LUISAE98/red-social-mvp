@@ -65,7 +65,8 @@
     "seeAllMessages": "Prikaži vsa",
     "settings": "Nastavitve",
     "seeAllFollowing": "Prikaži vsa",
-    "seeAllCommunities": "Prikaži vsa"
+    "seeAllCommunities": "Prikaži vsa",
+    "reels": "Zgodbe"
   },
   "common": {
     "accept": "Sprejmi",
@@ -254,7 +255,13 @@
     "reportSubmit": "Pošlji prijavo",
     "reportSentTitle": "Prijava je poslana",
     "reportSentDesc": "Naša ekipa jo bo pregledala. Hvala, ker pomagaš ohranjati skupnost varno.",
-    "reportSubmitError": "Pri pošiljanju prijave je prišlo do napake. Poskusi znova."
+    "reportSubmitError": "Pri pošiljanju prijave je prišlo do napake. Poskusi znova.",
+    "noStoriesYet": "Zgodb še ni.",
+    "storyNothingToPublish": "Tu še ni ničesar za objavo.",
+    "storyAddStories": "Dodaj zgodbe",
+    "storyNeedsBuyerPermission": "Imate naročila, a kupec ni dovolil njihove objave.",
+    "storyFromHiddenCommunity": "Prihajajo iz skrite skupnosti in ne morejo na vaš profil.",
+    "storyNotReadyYet": "Videoposnetek še ni pripravljen."
   },
   "groups": {
     "title": "Skupnosti",
@@ -1980,7 +1987,9 @@
     "premiumPostPreviewSubsDescUser": "Če si član ali naročnik skupnosti, jo vidiš brez plačila.",
     "premiumPostPreviewPriceLabelUser": "Cena odklepa",
     "premiumPostPreviewPriceDescUser": "Ustvarjalec določi, koliko stane odklep objave.",
-    "mergeDonationSupportDesc": "Prispevaj znesek, ki ga želiš, in pokaži ustvarjalcu svojo podporo."
+    "mergeDonationSupportDesc": "Prispevaj znesek, ki ga želiš, in pokaži ustvarjalcu svojo podporo.",
+    "addSampleAriaLabel": "Dodaj primer",
+    "addSampleHint": "Posnemi primer, da kupci vidijo, kaj bodo dobili"
   },
   "live": {
     "accessTicket": "Vstopnica",

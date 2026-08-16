@@ -65,7 +65,8 @@
     "seeAllMessages": "Összes megtekintése",
     "settings": "Beállítások",
     "seeAllFollowing": "Összes megtekintése",
-    "seeAllCommunities": "Összes megtekintése"
+    "seeAllCommunities": "Összes megtekintése",
+    "reels": "Történetek"
   },
   "common": {
     "accept": "Elfogadás",
@@ -254,7 +255,13 @@
     "reportSubmit": "Jelentés elküldése",
     "reportSentTitle": "Jelentés elküldve",
     "reportSentDesc": "A csapatunk átnézi. Köszönjük, hogy segítesz biztonságban tartani a közösséget.",
-    "reportSubmitError": "Hiba történt a jelentés küldése közben. Próbáld újra."
+    "reportSubmitError": "Hiba történt a jelentés küldése közben. Próbáld újra.",
+    "noStoriesYet": "Még nincsenek történetek.",
+    "storyNothingToPublish": "Itt még nincs mit közzétenni.",
+    "storyAddStories": "Történetek hozzáadása",
+    "storyNeedsBuyerPermission": "Vannak megrendeléseid, de a vásárló nem engedélyezte a közzétételt.",
+    "storyFromHiddenCommunity": "Rejtett közösségből származnak, és nem tehetők ki a profilodra.",
+    "storyNotReadyYet": "A videó még nincs kész."
   },
   "groups": {
     "title": "Közösségek",
@@ -1980,7 +1987,9 @@
     "premiumPostPreviewSubsDescUser": "Ha tagja vagy előfizetője vagy a közösségnek, ingyen látod.",
     "premiumPostPreviewPriceLabelUser": "Feloldási ár",
     "premiumPostPreviewPriceDescUser": "Az alkotó szabja meg, mennyibe kerül a bejegyzés feloldása.",
-    "mergeDonationSupportDesc": "Adj annyit, amennyit akarsz, hogy kimutasd a támogatásod az alkotónak."
+    "mergeDonationSupportDesc": "Adj annyit, amennyit akarsz, hogy kimutasd a támogatásod az alkotónak.",
+    "addSampleAriaLabel": "Minta hozzáadása",
+    "addSampleHint": "Vegyél fel egy példát, hogy a vásárlók lássák, mit kapnak"
   },
   "live": {
     "accessTicket": "Belépőjegy",

@@ -33,13 +33,15 @@ export const muxWebhookSecret = defineSecret("MUX_WEBHOOK_SECRET");
 type MuxPassthrough = {
   postId?: string;
   authorId?: string;
-  contextType?: "group" | "profile" | "greeting";
+  contextType?: "group" | "profile" | "greeting" | "greeting_sample";
   groupId?: string | null;
   profileId?: string | null;
   mediaId?: string;
   mediaIndex?: number;
   source?: string;
   greetingRequestId?: string;
+  /** Muestra de saludo/consejo. No es una compra: nunca dispara cobros. */
+  sampleId?: string;
   creatorId?: string;
 };
 
@@ -157,6 +159,52 @@ async function findMuxUploadDoc(params: {
   }
 
   return null;
+}
+
+/**
+ * Cierra una MUESTRA cuando Mux termina de procesarla.
+ *
+ * Deliberadamente escueto comparado con `markGreetingAssetReady`: no captura
+ * cobros, no avisa a ningún comprador, no arranca plazos de entrega. Una muestra
+ * es contenido del creador para su propia vitrina y nada más.
+ */
+async function markGreetingSampleAssetReady(params: {
+  sampleId: string;
+  assetId: string;
+  playbackId: string;
+  duration: number | null;
+  uploadRef: DocumentReference<DocumentData> | null;
+}) {
+  const { sampleId, assetId, playbackId, duration, uploadRef } = params;
+
+  const sampleRef = db.collection("greetingSamples").doc(sampleId);
+  const snap = await sampleRef.get();
+
+  if (!snap.exists) {
+    logger.warn("muxWebhook greeting_sample: la muestra no existe", { sampleId });
+    return;
+  }
+
+  const now = FieldValue.serverTimestamp();
+
+  await sampleRef.update({
+    muxAssetId: assetId,
+    muxPlaybackId: playbackId,
+    videoDuration: duration,
+    status: "ready",
+    updatedAt: now,
+  });
+
+  if (uploadRef) {
+    await uploadRef.update({
+      status: "ready",
+      assetId,
+      playbackId,
+      updatedAt: now,
+    });
+  }
+
+  logger.info("muxWebhook greeting_sample listo", { sampleId, playbackId });
 }
 
 async function markGreetingAssetReady(params: {
@@ -324,12 +372,14 @@ async function markAssetReady(event: MuxWebhookEvent) {
 
   let postId = passthrough.postId ?? null;
   let authorId = passthrough.authorId ?? null;
-  let contextType: "group" | "profile" | "greeting" =
+  let contextType: "group" | "profile" | "greeting" | "greeting_sample" =
     passthrough.contextType === "profile"
       ? "profile"
-      : passthrough.contextType === "greeting"
-        ? "greeting"
-        : "group";
+      : passthrough.contextType === "greeting_sample"
+        ? "greeting_sample"
+        : passthrough.contextType === "greeting"
+          ? "greeting"
+          : "group";
   let groupId = passthrough.groupId ?? null;
   let profileId = passthrough.profileId ?? null;
   let mediaId = passthrough.mediaId ?? null;
@@ -455,6 +505,32 @@ async function markAssetReady(event: MuxWebhookEvent) {
 
     await markDonationVideoAssetReady({
       profileId: resolvedProfileId,
+      assetId,
+      playbackId,
+      duration,
+      uploadRef,
+    });
+    return;
+  }
+
+  // 🚨 Las MUESTRAS se resuelven ANTES que los saludos reales y por su propia
+  // rama. La de abajo captura el cobro del comprador; una muestra no tiene
+  // comprador ni cobro que capturar, así que no debe pasar nunca por ahí.
+  if (contextType === "greeting_sample") {
+    const sampleId = passthrough.sampleId ?? null;
+
+    if (!sampleId || !assetId || !playbackId) {
+      logger.warn("muxWebhook greeting_sample asset.ready sin datos", {
+        sampleId,
+        assetId,
+        playbackId,
+        uploadId,
+      });
+      return;
+    }
+
+    await markGreetingSampleAssetReady({
+      sampleId,
       assetId,
       playbackId,
       duration,

@@ -6,31 +6,29 @@ import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
 import { useTranslations } from "next-intl";
 import { createPortal } from "react-dom";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { collection, getDocs, query, where } from "firebase/firestore";
-import { storage, db } from "@/lib/firebase";
+import { storage } from "@/lib/firebase";
 import { addStoryFromGreeting, deleteStory } from "@/lib/stories/storyService";
+import {
+  usePublishableGreetings,
+  type PublishableGreeting,
+} from "@/lib/stories/usePublishableGreetings";
 import type { StoryDoc, StoryType } from "@/lib/stories/types";
 
 const fontStack =
   'inherit';
-
-type GreetingItem = {
-  id: string;
-  toName: string;
-  instructions: string;
-  muxPlaybackId: string | null;
-  videoDuration: number | null;
-  creatorId: string;
-  groupId: string | null;
-};
 
 type Props = {
   stories: StoryDoc[];
   type: StoryType;
   entityId: string;
   entityType: "profile" | "group";
-  /** "creator" = fetch greetings where creatorId === entityId (enviados); "buyer" = buyerId === entityId (recibidos) */
-  role?: "creator" | "buyer";
+  /** Uid de quien está usando el panel. En perfil coincide con `entityId`. */
+  currentUserId: string;
+  /**
+   * Qué se lista. "creator" = lo que grabaste; "buyer" = lo que compraste;
+   * "both" = todo lo publicable, que es como entra desde el círculo con `+`.
+   */
+  role?: "creator" | "buyer" | "both";
   currentCoverStoryId: string | null;
   currentCustomPhotoUrl: string | null;
   uploadStoragePath: string;
@@ -114,6 +112,7 @@ export default function StoryCoverPicker({
   type,
   entityId,
   entityType,
+  currentUserId,
   role = "creator",
   currentCoverStoryId,
   currentCustomPhotoUrl,
@@ -127,7 +126,6 @@ export default function StoryCoverPicker({
   const [closing, setClosing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [greetingList, setGreetingList] = useState<GreetingItem[]>([]);
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [isDesktop, setIsDesktop] = useState(false);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
@@ -146,42 +144,83 @@ export default function StoryCoverPicker({
     return () => mql.removeEventListener("change", handler);
   }, []);
 
-  // Fetch delivered greetings that have story permission
-  useEffect(() => {
-    const constraint =
-      entityType === "group"
-        ? where("groupId", "==", entityId)
-        : role === "buyer"
-          ? where("buyerId", "==", entityId)
-          : where("creatorId", "==", entityId);
-    getDocs(query(collection(db, "greetingRequests"), constraint))
-      .then((snap) => {
-        const items: GreetingItem[] = [];
-        for (const d of snap.docs) {
-          const g = d.data();
-          const hasPermission =
-            role === "buyer" ? true : g.allowCreatorStory !== false;
-          if (
-            g.type === type &&
-            g.status === "delivered" &&
-            hasPermission &&
-            g.muxPlaybackId
-          ) {
-            items.push({
-              id: d.id,
-              toName: g.toName ?? "",
-              instructions: g.instructions ?? "",
-              muxPlaybackId: g.muxPlaybackId ?? null,
-              videoDuration: g.videoDuration ?? null,
-              creatorId: g.creatorId ?? entityId,
-              groupId: g.groupId ?? null,
-            });
-          }
-        }
-        setGreetingList(items);
-      })
-      .catch(console.error);
-  }, [entityId, entityType, role, type]);
+  const {
+    items: publishable,
+    loading: publishableLoading,
+    stats,
+  } = usePublishableGreetings({
+    uid: currentUserId,
+    type,
+    scope: entityType === "group" ? { kind: "group", groupId: entityId } : { kind: "profile" },
+  });
+
+  // El panel puede abrirse acotado a un lado (desde "editar" de un círculo de
+  // enviados o de recibidos) o completo (desde el círculo con `+`).
+  const greetingList: PublishableGreeting[] =
+    role === "both" ? publishable : publishable.filter((g) => g.role === role);
+
+  // Lo YA PUBLICADO entra siempre, aunque su encargo ya no sea publicable.
+  //
+  // Antes la lista salía solo de los encargos publicables, así que una historia
+  // viva cuyo encargo dejó de calificar —le borraron el video en Mux, cambió de
+  // estado, o el permiso ya no aplica— desaparecía de aquí. Se veía la historia
+  // activa en el rail y el panel decía que no había nada, y encima no había forma
+  // de quitarla. La lista es la UNIÓN de las dos cosas.
+  const rows: Array<{
+    id: string;
+    toName: string;
+    instructions: string;
+    muxPlaybackId: string | null;
+    greeting: PublishableGreeting | null;
+    publishedStory: StoryDoc | null;
+  }> = (() => {
+    const byGreeting = new Map<string, {
+      id: string;
+      toName: string;
+      instructions: string;
+      muxPlaybackId: string | null;
+      greeting: PublishableGreeting | null;
+      publishedStory: StoryDoc | null;
+    }>();
+
+    for (const g of greetingList) {
+      byGreeting.set(g.id, {
+        id: g.id,
+        toName: g.toName,
+        instructions: g.instructions,
+        muxPlaybackId: g.muxPlaybackId,
+        greeting: g,
+        publishedStory: null,
+      });
+    }
+
+    for (const s of stories) {
+      if (!s.greetingRequestId) continue;
+      const existing = byGreeting.get(s.greetingRequestId);
+      if (existing) {
+        existing.publishedStory = s;
+        continue;
+      }
+      byGreeting.set(s.greetingRequestId, {
+        id: s.greetingRequestId,
+        toName: "",
+        instructions: s.instructions ?? "",
+        muxPlaybackId: s.muxPlaybackId,
+        greeting: null,
+        publishedStory: s,
+      });
+    }
+
+    return [...byGreeting.values()];
+  })();
+
+  /** Motivo real de que no haya nada, en vez de suponer uno. */
+  const emptyReason = (() => {
+    if (stats.noPermission > 0) return tCommon("storyNeedsBuyerPermission");
+    if (stats.hiddenGroup > 0) return tCommon("storyFromHiddenCommunity");
+    if (stats.noVideo > 0 || stats.notDelivered > 0) return tCommon("storyNotReadyYet");
+    return tCommon("storyNothingToPublish");
+  })();
 
   const updateScrollState = () => {
     const el = scrollRef.current;
@@ -242,12 +281,18 @@ export default function StoryCoverPicker({
     }
   };
 
-  const handleShare = async (item: GreetingItem) => {
+  const handleShare = async (item: PublishableGreeting) => {
     setProcessingId(item.id);
     try {
       await addStoryFromGreeting({
-        // buyer publishes as themselves; creator publishes as themselves (item.creatorId === entityId)
-        creatorId: role === "buyer" ? entityId : item.creatorId,
+        // Publica SIEMPRE quien está usando el panel. Cuando lo grabó otro (lo
+        // compraste tú), `greetingCreatorId` guarda a su autor y de ahí sale
+        // `byCreator: false`, que es lo que mantiene esa copia fuera del reel
+        // para no repetir el mismo video con dos caras.
+        //
+        // El lado se decide POR ITEM y no por el panel: desde el círculo con `+`
+        // conviven en una sola lista lo que grabaste y lo que compraste.
+        creatorId: entityType === "group" ? entityId : currentUserId,
         greetingCreatorId: item.creatorId,
         instructions: item.instructions || undefined,
         type,
@@ -602,13 +647,32 @@ export default function StoryCoverPicker({
             )}
           </div>
 
+          {/* Antes, con la lista vacía no se pintaba NADA: ni título ni aviso. El
+              bloque entero desaparecía y se leía como que la función de publicar
+              ya no existía. Ahora dice por qué no hay nada. */}
+          {!publishableLoading && rows.length === 0 && (
+            <div
+              style={{
+                margin: "4px 16px 12px",
+                padding: "12px 14px",
+                borderRadius: 10,
+                background: "rgba(255,255,255,0.04)",
+                border: "1px solid rgba(255,255,255,0.08)",
+                color: "rgba(255,255,255,0.5)",
+                fontSize: 12,
+                lineHeight: 1.5,
+                fontFamily: fontStack,
+              }}
+            >
+              {emptyReason}
+            </div>
+          )}
+
           {/* Greeting list */}
-          {greetingList.length > 0 && (
+          {rows.length > 0 && (
             <>
-              {greetingList.map((item) => {
-                const publishedStory = stories.find(
-                  (s) => s.greetingRequestId === item.id,
-                );
+              {rows.map((item) => {
+                const publishedStory = item.publishedStory;
                 const isProcessing = processingId === item.id;
                 const thumb = item.muxPlaybackId
                   ? `https://image.mux.com/${item.muxPlaybackId}/thumbnail.jpg?time=0`
@@ -714,11 +778,11 @@ export default function StoryCoverPicker({
                       >
                         {isProcessing ? "..." : "Quitar"}
                       </button>
-                    ) : (
+                    ) : item.greeting ? (
                       <button
                         type="button"
                         disabled={isProcessing}
-                        onClick={() => handleShare(item)}
+                        onClick={() => handleShare(item.greeting!)}
                         style={{
                           ...actionBtnStyle,
                           background: "rgba(168,85,247,0.14)",
@@ -732,7 +796,7 @@ export default function StoryCoverPicker({
                       >
                         {isProcessing ? "..." : "Compartir"}
                       </button>
-                    )}
+                    ) : null}
                   </div>
                 );
               })}

@@ -40,6 +40,8 @@ import {
   CommentImageLightbox,
   type CommentImageLightboxTarget,
 } from "@/app/[locale]/groups/[groupId]/components/posts/CommentImageUI";
+import VibraToast from "@/app/components/VibraToast/VibraToast";
+import { useVibraToast } from "@/lib/hooks/useVibraToast";
 
 /**
  * Hilo de conversación SIN chrome: solo el área de mensajes y el pie de acción.
@@ -822,6 +824,8 @@ export default function ConversationThread({
    */
   const sendingRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
+  const { toast, showToast } = useVibraToast();
+  useEffect(() => { if (error) showToast(error, "error"); }, [error]); // eslint-disable-line react-hooks/exhaustive-deps
   const [busyAction, setBusyAction] = useState(false);
 
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
@@ -2536,40 +2540,35 @@ export default function ConversationThread({
           pointerEvents: "none",
         }}
       >
-        {/* El aviso de error lleva su propio "Reintentar" cuando lo que falló
-            fue un envío: el texto ya volvió al campo, así que reintentar es
-            mandarlo otra vez sin que haya que reescribir nada. */}
-        {error ? (
+        {/* El texto del error se fue al toast; aquí solo queda el "Reintentar",
+            que es una acción y no un aviso: el texto ya volvió al campo, así que
+            reintentar es mandarlo otra vez sin que haya que reescribir nada. */}
+        {error && draft.trim().length > 0 && !sending ? (
           <div
             style={{
               pointerEvents: "auto",
               display: "flex",
               alignItems: "center",
-              gap: 10,
-              fontSize: 11.5,
-              color: "#fca5a5",
+              justifyContent: "flex-end",
             }}
           >
-            <span style={{ flex: 1, minWidth: 0 }}>{error}</span>
-            {draft.trim().length > 0 && !sending ? (
-              <button
-                type="button"
-                onClick={() => void handleSend()}
-                style={{
-                  border: "none",
-                  background: "transparent",
-                  color: "#a855f7",
-                  fontSize: 11.5,
-                  fontWeight: 600,
-                  fontFamily: "inherit",
-                  cursor: "pointer",
-                  padding: 0,
-                  flexShrink: 0,
-                }}
-              >
-                {tChat("retry")}
-              </button>
-            ) : null}
+            <button
+              type="button"
+              onClick={() => void handleSend()}
+              style={{
+                border: "none",
+                background: "transparent",
+                color: "#a855f7",
+                fontSize: 11.5,
+                fontWeight: 600,
+                fontFamily: "inherit",
+                cursor: "pointer",
+                padding: 0,
+                flexShrink: 0,
+              }}
+            >
+              {tChat("retry")}
+            </button>
           </div>
         ) : null}
         <div style={{ pointerEvents: "auto" }}>{renderFooter()}</div>
@@ -2579,6 +2578,8 @@ export default function ConversationThread({
           que cubre la app entera y sirve igual en la pestaña de laptop que en la
           página de celular. */}
       <CommentImageLightbox target={lightbox} onClose={() => setLightbox(null)} />
+
+      <VibraToast toast={toast} />
     </div>
   );
 }

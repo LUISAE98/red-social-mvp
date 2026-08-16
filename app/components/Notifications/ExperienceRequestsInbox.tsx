@@ -12,6 +12,8 @@ import {
 import { getInitials } from "@/app/components/OwnerSidebar/OwnerSidebar.utils";
 import GreetingReviewOverlay from "@/app/components/OwnerSidebar/GreetingReviewOverlay";
 import SessionRequestOverlay from "@/app/components/OwnerSidebar/SessionRequestOverlay";
+import VibraToast from "@/app/components/VibraToast/VibraToast";
+import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import { respondGreetingRequest } from "@/lib/greetings/greetingRequests";
 import {
   acceptMeetGreetRequest,
@@ -164,6 +166,9 @@ export default function ExperienceRequestsInbox({
   const [busy, setBusy] = useState(false);
   const [feedbackError, setFeedbackError] = useState<string | null>(null);
   const [feedbackSuccess, setFeedbackSuccess] = useState<string | null>(null);
+  const { toast: inboxToast, showToast: showInboxToast } = useVibraToast();
+  useEffect(() => { if (feedbackError) showInboxToast(feedbackError, "error"); }, [feedbackError]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (feedbackSuccess) showInboxToast(feedbackSuccess, "success"); }, [feedbackSuccess]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Notifica al contenedor cuando se abre/cierra un overlay de detalle.
   const detailOpen = reviewState !== null || sessionOpen;
@@ -719,8 +724,6 @@ export default function ExperienceRequestsInbox({
           serviceKind={sessionOverlay.serviceKind}
           earning={earningOf(sessionOverlay.req.priceSnapshot, sessionOverlay.req.currency)}
           busy={busy}
-          feedbackError={feedbackError}
-          feedbackSuccess={feedbackSuccess}
           ownerCalendarItems={[]}
           getInitials={getInitials}
           onAccept={handleAccept}
@@ -732,6 +735,8 @@ export default function ExperienceRequestsInbox({
           onKeepSchedule={handleKeepSchedule}
         />
       )}
+
+      <VibraToast toast={inboxToast} />
 
       <style jsx>{`
         .expInbox {

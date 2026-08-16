@@ -19,6 +19,8 @@ import { buildCurrentPathWithSearch } from "@/lib/auth-redirect";
 import StripePaymentModal from "@/components/payments/StripePaymentModal";
 import { createGroupSubscription } from "@/lib/stripe/stripePayments";
 import { FIXED_SERVICE_FEE_MXN } from "@/lib/currency/catalog";
+import VibraToast from "@/app/components/VibraToast/VibraToast";
+import { useVibraToast } from "@/lib/hooks/useVibraToast";
 
 type InvitePreview = {
   success: boolean;
@@ -65,6 +67,10 @@ const { user } = useAuth();
   const [data, setData] = useState<InvitePreview | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [consuming, setConsuming] = useState(false);
+  // Los errores de acción (usar la invitación) salen por el toast. El error de
+  // carga sigue pintándose como pantalla completa, porque no hay nada más que ver.
+  const { toast, showToast } = useVibraToast();
+  useEffect(() => { if (error && data) showToast(error, "error"); }, [error]); // eslint-disable-line react-hooks/exhaustive-deps
   // Paso de pago simulado (solo comunidades ocultas de suscripción).
   const [payOpen, setPayOpen] = useState(false);
 
@@ -558,12 +564,6 @@ const { user } = useAuth();
                       : "Esta invitación te permitirá solicitar acceso a la comunidad.")}
                 </div>
 
-                {error && (
-                  <div style={{ ...messageBox, marginTop: 12 }}>
-                    {error}
-                  </div>
-                )}
-
                 <div className="invite-actions-row" style={{ marginTop: 14 }}>
                   {!showGroupInfo ? (
                     <button
@@ -645,6 +645,8 @@ const { user } = useAuth();
           window.setTimeout(() => router.replace(`/groups/${group.id}`), 1600);
         }}
       />
+
+      <VibraToast toast={toast} />
     </main>
   );
 }

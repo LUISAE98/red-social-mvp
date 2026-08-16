@@ -228,6 +228,32 @@ useEffect(() => {
   const [meetGreetSuccessMap, setMeetGreetSuccessMap] = useState<TextMap>({});
   const { toast: myGroupsToast, showToast: showMyGroupsToast } = useVibraToast();
 
+  // Los mapas de aviso por solicitud se reflejan en el toast. Se compara contra
+  // el valor anterior para avisar solo de lo que acaba de cambiar, y no de lo
+  // que ya estaba puesto en otra solicitud.
+  const prevMeetGreetErrorMapRef = useRef<TextMap>({});
+  const prevMeetGreetSuccessMapRef = useRef<TextMap>({});
+
+  useEffect(() => {
+    for (const [id, text] of Object.entries(meetGreetErrorMap)) {
+      if (text && text !== prevMeetGreetErrorMapRef.current[id]) {
+        showMyGroupsToast(text, "error");
+        break;
+      }
+    }
+    prevMeetGreetErrorMapRef.current = meetGreetErrorMap;
+  }, [meetGreetErrorMap]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    for (const [id, text] of Object.entries(meetGreetSuccessMap)) {
+      if (text && text !== prevMeetGreetSuccessMapRef.current[id]) {
+        showMyGroupsToast(text, "success");
+        break;
+      }
+    }
+    prevMeetGreetSuccessMapRef.current = meetGreetSuccessMap;
+  }, [meetGreetSuccessMap]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const [meetGreetSectionOpen, setMeetGreetSectionOpen] = useState<Record<string, boolean>>({});
   const [sessionOverlayData, setSessionOverlayData] = useState<{
     id: string;
@@ -573,47 +599,6 @@ if (scheduleConflict.hasConflict) {
     } finally {
       setMeetGreetBusy(requestId, false);
     }
-  }
-
-    function renderMeetGreetFeedback(requestId: string) {
-    const error = meetGreetErrorMap[requestId];
-    const success = meetGreetSuccessMap[requestId];
-
-    return (
-      <>
-        {error ? (
-          <div
-            style={{
-              borderRadius: 10,
-              border: "1px solid rgba(248,113,113,0.18)",
-              background: "rgba(248,113,113,0.08)",
-              padding: "7px 8px",
-              fontSize: 12,
-              lineHeight: 1.3,
-              color: "#fecaca",
-            }}
-          >
-            {error}
-          </div>
-        ) : null}
-
-        {success ? (
-          <div
-            style={{
-              borderRadius: 10,
-              border: "1px solid rgba(34,197,94,0.18)",
-              background: "rgba(34,197,94,0.08)",
-              padding: "7px 8px",
-              fontSize: 12,
-              lineHeight: 1.3,
-              color: "#bbf7d0",
-            }}
-          >
-            {success}
-          </div>
-        ) : null}
-      </>
-    );
   }
 
   function renderPreparationPanel(
@@ -1765,8 +1750,6 @@ maxWidth: 220,
               : null
           }
           busy={!!meetGreetBusyMap[sessionOverlayData.id]}
-          feedbackError={meetGreetErrorMap[sessionOverlayData.id] ?? null}
-          feedbackSuccess={meetGreetSuccessMap[sessionOverlayData.id] ?? null}
           ownerCalendarItems={ownerCalendarItems}
           getInitials={getInitials}
           onAccept={() => handleCreatorAccept(sessionOverlayData.id, sessionOverlayData.serviceKind)}

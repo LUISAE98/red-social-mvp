@@ -7,6 +7,8 @@ import { doc, getDoc, setDoc } from "firebase/firestore";
 import { useTranslations, useLocale } from "next-intl";
 import { auth, db } from "@/lib/firebase";
 import { uploadFile } from "@/lib/storage/uploadFile";
+import VibraToast from "@/app/components/VibraToast/VibraToast";
+import { useVibraToast } from "@/lib/hooks/useVibraToast";
 
 type AdminProfile = {
   avatarUrl?: string | null;
@@ -23,6 +25,8 @@ export default function AdminProfilePage() {
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const { toast, showToast } = useVibraToast();
+  useEffect(() => { if (error) showToast(error, "error"); }, [error]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -215,20 +219,6 @@ export default function AdminProfilePage() {
             />
           </div>
 
-          {error && (
-            <div
-              style={{
-                fontSize: 11.5,
-                color: "#f87171",
-                background: "rgba(239,68,68,0.08)",
-                border: "1px solid rgba(239,68,68,0.18)",
-                borderRadius: 6,
-                padding: "6px 10px",
-              }}
-            >
-              {error}
-            </div>
-          )}
         </div>
 
         {/* UID */}
@@ -250,6 +240,8 @@ export default function AdminProfilePage() {
         </div>
 
       </div>
+
+      <VibraToast toast={toast} />
     </>
   );
 }

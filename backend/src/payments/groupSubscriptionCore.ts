@@ -220,6 +220,74 @@ export async function validateInviteForGroup(
   return invDoc.ref;
 }
 
+/**
+ * RESERVA el cupo de una invitación antes de cobrar nada.
+ *
+ * ── Por qué reservar y no comprobar ──────────────────────────────────────────
+ * Antes se validaba el tope con una lectura simple al empezar el checkout, y el
+ * webhook lo re-comprobaba al llegar la factura: si ya estaba agotado, dejaba de
+ * incrementar el contador **pero activaba la membresía igual**. Dos personas
+ * usando el último cupo a la vez pagaban las dos y entraban las dos a una
+ * comunidad oculta, con el contador aparentando estar bien.
+ *
+ * Reservando aquí, quien llega cuando ya no hay cupo se queda fuera **sin haber
+ * pagado**. Desaparece el problema de qué hacer con alguien a quien ya le
+ * cobraste, que no tiene buena respuesta.
+ *
+ * ⚠️ La reserva es por persona e idempotente: reintentar el checkout no consume
+ * otro cupo. Se guarda en `inviteReservations/{token}_{uid}`.
+ *
+ * ⚠️ **Residuo conocido:** quien reserva y abandona el pago retiene el cupo. Se
+ * prefiere así —un cupo retenido se arregla con una invitación nueva; un intruso
+ * en una comunidad oculta, no—. Si molesta, se libera con un cron como el de las
+ * reservas de saldo.
+ */
+export async function reserveInviteSlot(
+  groupId: string,
+  inviteToken: string,
+  uid: string
+): Promise<void> {
+  const reservaRef = db.collection("inviteReservations").doc(`${inviteToken}_${uid}`);
+
+  // ⚠️ La reserva propia se mira ANTES de validar la invitación, y el orden no es
+  // cosmético. `validateInviteForGroup` exige que quede cupo y que el enlace siga
+  // activo, y al reservar el último cupo el enlace se desactiva: quien acababa de
+  // reservar chocaba contra su propia reserva al reintentar el pago.
+  if ((await reservaRef.get()).exists) return;
+
+  const ref = await validateInviteForGroup(groupId, inviteToken);
+
+  await db.runTransaction(async (tx) => {
+    const [invSnap, reservaSnap] = await Promise.all([tx.get(ref), tx.get(reservaRef)]);
+
+    if (reservaSnap.exists) return; // ya tenía cupo: reintento del mismo comprador
+
+    const d = (invSnap.data() ?? {}) as { usedCount?: number; maxUses?: number | null };
+    const usados = typeof d.usedCount === "number" ? d.usedCount : 0;
+    const max = typeof d.maxUses === "number" ? d.maxUses : null;
+
+    if (max !== null && usados >= max) {
+      throw new HttpsError("permission-denied", "Esta invitación ya no tiene cupos disponibles.");
+    }
+
+    const siguiente = usados + 1;
+    tx.update(ref, {
+      usedCount: siguiente,
+      lastUsedAt: admin.firestore.FieldValue.serverTimestamp(),
+      lastUsedBy: uid,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      ...(max !== null && siguiente >= max ? { isActive: false } : {}),
+    });
+
+    tx.set(reservaRef, {
+      token: inviteToken,
+      groupId,
+      uid,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+  });
+}
+
 export type MonthlyCharge = {
   base: number; // base mensual del creador (ganancia = 75% de esto)
   fixedFee: number; // $3 fijo que absorbe el comprador

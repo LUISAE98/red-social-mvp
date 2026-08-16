@@ -115,7 +115,11 @@ const DISPLAY_CURRENCIES = [
 const RATES_URL = "https://open.er-api.com/v6/latest/USD";
 
 export async function updateExchangeRatesHandler(): Promise<void> {
-  const res = await fetch(RATES_URL);
+  // Con tope de espera: sin él, un proveedor lento retiene la instancia hasta el
+  // timeout global de la función. Mismo criterio que en los clientes de Stripe y
+  // Facturapi. Si falla, la tarea reintenta mañana y `resolvePresentment` cae a
+  // MXN en cuanto las tasas pasen de 48 h.
+  const res = await fetch(RATES_URL, { signal: AbortSignal.timeout(20_000) });
   if (!res.ok) {
     throw new Error(`rates fetch failed: ${res.status}`);
   }

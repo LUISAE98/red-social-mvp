@@ -18,6 +18,7 @@ import { useInbox } from "@/lib/chat/useInbox";
 
 type NavIconKey =
   | "home"
+  | "reels"
   | "groups"
   | "messages"
   | "notifications"
@@ -49,6 +50,26 @@ function NavHomeIconFilled() {
       <path fill="white" d="M3.5 11.2 12 4l8.5 7.2" />
       <path fill="white" d="M5.8 10.2V20h12.4v-9.8" />
       <path fill="#000000" d="M9.5 20v-5.8h5V20" />
+    </svg>
+  );
+}
+
+// Historias: un marco vertical con el triángulo de reproducir. Vertical, para
+// que se lea como video a pantalla completa y no como una galería.
+function NavReelsIcon() {
+  return (
+    <svg width={30} height={30} viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="5" y="3" width="14" height="18" rx="3.2" />
+      <path d="M10.6 8.9v6.2l5-3.1z" />
+    </svg>
+  );
+}
+
+function NavReelsIconFilled() {
+  return (
+    <svg width={30} height={30} viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="5" y="3" width="14" height="18" rx="3.2" fill="white" />
+      <path d="M10.6 8.9v6.2l5-3.1z" fill="#000000" stroke="#000000" />
     </svg>
   );
 }
@@ -340,8 +361,18 @@ export default function MobileBottomNav({
         type: "icon",
         iconKey: "home",
       },
-      // Mensajes ocupa el segundo hueco. Las comunidades pasaron al menú del
-      // avatar (`/menu`), que es donde vive el OwnerSidebar.
+      // Historias, pegado a home. El rail de historias del home desapareció en
+      // celular y su contenido vive aquí, a pantalla completa.
+      {
+        key: "reels",
+        href: "/reels",
+        active: pathname.startsWith("/reels"),
+        label: t("reels"),
+        type: "icon",
+        iconKey: "reels",
+      },
+      // Las comunidades pasaron al menú del avatar (`/menu`), que es donde vive
+      // el OwnerSidebar.
       {
         key: "messages",
         href: "/mensajes",
@@ -638,6 +669,8 @@ export default function MobileBottomNav({
                       <ProfileAvatarIcon src={photoURL} active={isActive} />
                     ) : item.iconKey === "home" ? (
                       isActive ? <NavHomeIconFilled /> : <NavHomeIcon />
+                    ) : item.iconKey === "reels" ? (
+                      isActive ? <NavReelsIconFilled /> : <NavReelsIcon />
                     ) : item.iconKey === "notifications" ? (
                       <>
                         {isActive ? <NavBellIconFilled /> : <NavBellIcon />}

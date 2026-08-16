@@ -16,6 +16,7 @@ import { logger } from "firebase-functions";
 import * as admin from "firebase-admin";
 import { stripeFetch } from "./stripeClient";
 import { reverseEarning } from "../../wallet/ledger";
+import { revokeAccessForSource } from "./revokeAccessOnRefund";
 
 if (admin.apps.length === 0) {
   admin.initializeApp();
@@ -79,6 +80,11 @@ async function reverseForCharge(charge: StripeChargeObj, reason: string): Promis
     logger.warn("refundSync: no se pudo resolver sourceType/sourceId", { chargeId: charge.id, reason });
     return;
   }
+  // El acceso se retira SIEMPRE, haya asiento de ledger o no. Antes esta función
+  // salía temprano cuando no encontraba el asiento, y con ella se iba también lo
+  // único que quitaba el contenido comprado.
+  await revokeAccessForSource(src.sourceType, src.sourceId, reason);
+
   const creatorId = await findCreatorId(src.sourceType, src.sourceId);
   if (!creatorId) {
     logger.warn("refundSync: sin asiento de ledger para revertir", { ...src, reason });

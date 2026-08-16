@@ -65,7 +65,8 @@
     "seeAllMessages": "Xem tất cả",
     "settings": "Cài đặt",
     "seeAllFollowing": "Xem tất cả",
-    "seeAllCommunities": "Xem tất cả"
+    "seeAllCommunities": "Xem tất cả",
+    "reels": "Câu chuyện"
   },
   "common": {
     "accept": "Chấp nhận",
@@ -254,7 +255,13 @@
     "reportSubmit": "Gửi báo cáo",
     "reportSentTitle": "Đã gửi báo cáo",
     "reportSentDesc": "Đội ngũ của chúng tôi sẽ xem xét. Cảm ơn bạn đã giúp giữ cộng đồng an toàn.",
-    "reportSubmitError": "Đã xảy ra lỗi khi gửi báo cáo. Vui lòng thử lại."
+    "reportSubmitError": "Đã xảy ra lỗi khi gửi báo cáo. Vui lòng thử lại.",
+    "noStoriesYet": "Chưa có câu chuyện nào.",
+    "storyNothingToPublish": "Chưa có gì để đăng ở đây.",
+    "storyAddStories": "Thêm câu chuyện",
+    "storyNeedsBuyerPermission": "Bạn có đơn hàng, nhưng người mua không cho phép đăng.",
+    "storyFromHiddenCommunity": "Chúng đến từ một cộng đồng ẩn nên không thể đưa lên hồ sơ của bạn.",
+    "storyNotReadyYet": "Video vẫn chưa sẵn sàng."
   },
   "groups": {
     "title": "Cộng đồng",
@@ -1980,7 +1987,9 @@
     "premiumPostPreviewSubsDescUser": "Nếu bạn là thành viên hoặc người đăng ký của cộng đồng, bạn xem miễn phí.",
     "premiumPostPreviewPriceLabelUser": "Giá mở khóa",
     "premiumPostPreviewPriceDescUser": "Nhà sáng tạo quyết định chi phí mở khóa bài viết.",
-    "mergeDonationSupportDesc": "Góp số tiền tùy ý để thể hiện sự ủng hộ với nhà sáng tạo."
+    "mergeDonationSupportDesc": "Góp số tiền tùy ý để thể hiện sự ủng hộ với nhà sáng tạo.",
+    "addSampleAriaLabel": "Thêm mẫu",
+    "addSampleHint": "Quay một ví dụ để người mua thấy họ sẽ nhận được gì"
   },
   "live": {
     "accessTicket": "Vé vào cửa",

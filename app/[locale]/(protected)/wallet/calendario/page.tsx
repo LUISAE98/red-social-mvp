@@ -19,8 +19,9 @@ import type { MeetGreetRequestDoc } from "@/app/components/OwnerSidebar/OwnerSid
 import WalletSectionShell from "../components/WalletSectionShell";
 import {
   WalletCard,
-  WalletErrorBox,
 } from "../components/WalletUi";
+import VibraToast from "@/app/components/VibraToast/VibraToast";
+import { useVibraToast } from "@/lib/hooks/useVibraToast";
 
 type CalendarViewMode = "calendar" | "list";
 
@@ -1143,6 +1144,8 @@ export default function WalletCalendarioPage() {
   const { format: formatMoney } = usePriceFormat();
   const { user } = useAuth();
   const walletData = useWalletData();
+  const { toast, showToast } = useVibraToast();
+  useEffect(() => { if (walletData.error) showToast(walletData.error, "error"); }, [walletData.error]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [viewMode, setViewMode] = useState<CalendarViewMode>("calendar");
   const [selectedDayKey, setSelectedDayKey] = useState<string | null>(null);
@@ -1151,6 +1154,8 @@ export default function WalletCalendarioPage() {
   const [busy, setBusy] = useState(false);
   const [feedbackError, setFeedbackError] = useState<string | null>(null);
   const [feedbackSuccess, setFeedbackSuccess] = useState<string | null>(null);
+  useEffect(() => { if (feedbackError) showToast(feedbackError, "error"); }, [feedbackError]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (feedbackSuccess) showToast(feedbackSuccess, "success"); }, [feedbackSuccess]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Muestra sesiones + lives en el calendario. Los lives son solo guía visual.
   const calendarItems = useMemo(
@@ -1266,8 +1271,6 @@ export default function WalletCalendarioPage() {
 
   return (
     <WalletSectionShell activeTab="calendar">
-      {walletData.error ? <WalletErrorBox message={walletData.error} /> : null}
-
       <WalletCard title={tWalletPage("calendarTitle")} transparent>
         <style jsx>{`
           .cardButtonSlot {
@@ -1403,8 +1406,6 @@ export default function WalletCalendarioPage() {
             serviceKind={viewItem.source as "meet_greet" | "exclusive_session"}
             earning={viewItemEarning}
             busy={busy}
-            feedbackError={feedbackError}
-            feedbackSuccess={feedbackSuccess}
             ownerCalendarItems={walletData.calendar}
             getInitials={(name) => name?.charAt(0).toUpperCase() ?? "?"}
             onAccept={() => {}}
@@ -1416,6 +1417,8 @@ export default function WalletCalendarioPage() {
           />
         )}
       </WalletCard>
+
+      <VibraToast toast={toast} />
     </WalletSectionShell>
   );
 }

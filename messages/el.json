@@ -65,7 +65,8 @@
     "seeAllMessages": "Δες όλα",
     "settings": "Ρυθμίσεις",
     "seeAllFollowing": "Δες όλα",
-    "seeAllCommunities": "Δες όλες"
+    "seeAllCommunities": "Δες όλες",
+    "reels": "Ιστορίες"
   },
   "common": {
     "accept": "Αποδοχή",
@@ -254,7 +255,13 @@
     "reportSubmit": "Αποστολή αναφοράς",
     "reportSentTitle": "Η αναφορά στάλθηκε",
     "reportSentDesc": "Η ομάδα μας θα την εξετάσει. Ευχαριστούμε που βοηθάς να μείνει η κοινότητα ασφαλής.",
-    "reportSubmitError": "Παρουσιάστηκε σφάλμα κατά την αποστολή της αναφοράς. Δοκίμασε ξανά."
+    "reportSubmitError": "Παρουσιάστηκε σφάλμα κατά την αποστολή της αναφοράς. Δοκίμασε ξανά.",
+    "noStoriesYet": "Δεν υπάρχουν ακόμη ιστορίες.",
+    "storyNothingToPublish": "Δεν υπάρχει ακόμη κάτι για δημοσίευση εδώ.",
+    "storyAddStories": "Προσθήκη ιστοριών",
+    "storyNeedsBuyerPermission": "Έχετε παραγγελίες, αλλά ο αγοραστής δεν επέτρεψε τη δημοσίευση.",
+    "storyFromHiddenCommunity": "Προέρχονται από κρυφή κοινότητα και δεν μπορούν να δημοσιευτούν στο προφίλ σας.",
+    "storyNotReadyYet": "Το βίντεο δεν είναι ακόμη έτοιμο."
   },
   "groups": {
     "title": "Κοινότητες",
@@ -1980,7 +1987,9 @@
     "premiumPostPreviewSubsDescUser": "Αν είσαι μέλος ή συνδρομητής της κοινότητας, τη βλέπεις δωρεάν.",
     "premiumPostPreviewPriceLabelUser": "Τιμή ξεκλειδώματος",
     "premiumPostPreviewPriceDescUser": "Ο δημιουργός ορίζει πόσο κοστίζει το ξεκλείδωμα της δημοσίευσης.",
-    "mergeDonationSupportDesc": "Συνεισφέρεις όσο θέλεις για να δείξεις στον δημιουργό τη στήριξή σου."
+    "mergeDonationSupportDesc": "Συνεισφέρεις όσο θέλεις για να δείξεις στον δημιουργό τη στήριξή σου.",
+    "addSampleAriaLabel": "Προσθήκη δείγματος",
+    "addSampleHint": "Κατέγραψε ένα παράδειγμα για να δουν οι αγοραστές τι θα λάβουν"
   },
   "live": {
     "accessTicket": "Εισιτήριο πρόσβασης",

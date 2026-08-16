@@ -4,6 +4,8 @@ import React, { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
+import VibraToast from "@/app/components/VibraToast/VibraToast";
+import { useVibraToast } from "@/lib/hooks/useVibraToast";
 
 type DonationMode = "none" | "general" | "wedding";
 type Currency = "MXN" | "USD";
@@ -73,6 +75,11 @@ export default function DonationEntryPoint({
   const [customAmount, setCustomAmount] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  // Error y acierto compartían la misma caja gris; ahora salen por el toast, cada
+  // uno con su tipo.
+  const { toast, showToast } = useVibraToast();
+  useEffect(() => { if (error) showToast(error, "error"); }, [error]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (success) showToast(success, "success"); }, [success]); // eslint-disable-line react-hooks/exhaustive-deps
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -175,7 +182,7 @@ export default function DonationEntryPoint({
 
       if (!Number.isFinite(parsed) || parsed < resolvedMinimumAmount) {
         setError(
-          `❌ El monto debe ser igual o mayor a ${formatMoney(
+          `El monto debe ser igual o mayor a ${formatMoney(
             resolvedMinimumAmount,
             { baseCurrency: resolvedNormalized.currency }
           )}.`
@@ -198,13 +205,13 @@ export default function DonationEntryPoint({
       });
 
       setSuccess(
-        `✅ Donación preparada por ${formatMoney(
+        `Donación preparada por ${formatMoney(
           finalAmount,
           { baseCurrency: resolvedNormalized.currency }
         )}. El pago real se conectará en el siguiente paso.`
       );
     } catch (e: unknown) {
-      setError((e instanceof Error ? e.message : null) ?? "❌ No se pudo preparar la donación.");
+      setError((e instanceof Error ? e.message : null) ?? "No se pudo preparar la donación.");
     } finally {
       setSubmitting(false);
     }
@@ -426,9 +433,6 @@ export default function DonationEntryPoint({
             />
           )}
 
-          {error ? <div style={infoBoxStyle}>{error}</div> : null}
-          {success ? <div style={infoBoxStyle}>{success}</div> : null}
-
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
             <button
               type="button"
@@ -496,6 +500,8 @@ export default function DonationEntryPoint({
       </button>
 
       {open && mounted ? createPortal(modal, document.body) : null}
+
+      <VibraToast toast={toast} />
     </>
   );
 }

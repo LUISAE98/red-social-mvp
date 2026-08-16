@@ -65,7 +65,8 @@
     "seeAllMessages": "عرض الكل",
     "settings": "الإعدادات",
     "seeAllFollowing": "عرض الكل",
-    "seeAllCommunities": "عرض الكل"
+    "seeAllCommunities": "عرض الكل",
+    "reels": "القصص"
   },
   "common": {
     "accept": "قبول",
@@ -254,7 +255,13 @@
     "reportSubmit": "إرسال البلاغ",
     "reportSentTitle": "تم إرسال البلاغ",
     "reportSentDesc": "سيراجعه فريقنا. شكرًا لمساعدتك في الحفاظ على أمان المجتمع.",
-    "reportSubmitError": "حدث خطأ أثناء إرسال البلاغ. يُرجى المحاولة مرة أخرى."
+    "reportSubmitError": "حدث خطأ أثناء إرسال البلاغ. يُرجى المحاولة مرة أخرى.",
+    "noStoriesYet": "لا توجد قصص بعد.",
+    "storyNothingToPublish": "لا يوجد شيء لنشره هنا بعد.",
+    "storyAddStories": "إضافة قصص",
+    "storyNeedsBuyerPermission": "لديك طلبات لكن المشتري لم يسمح بنشرها.",
+    "storyFromHiddenCommunity": "هذه تأتي من مجتمع مخفي ولا يمكن نشرها في ملفك.",
+    "storyNotReadyYet": "الفيديو لم يصبح جاهزًا بعد."
   },
   "groups": {
     "title": "المجتمعات",
@@ -1980,7 +1987,9 @@
     "premiumPostPreviewSubsDescUser": "إن كنت عضوًا أو مشتركًا في المجتمع، فستراه مجانًا.",
     "premiumPostPreviewPriceLabelUser": "سعر فتح القفل",
     "premiumPostPreviewPriceDescUser": "يحدد صانع المحتوى كم يكلّف فتح قفل المنشور.",
-    "mergeDonationSupportDesc": "ساهم بالمبلغ الذي تريده لتُظهر لصانع المحتوى دعمك."
+    "mergeDonationSupportDesc": "ساهم بالمبلغ الذي تريده لتُظهر لصانع المحتوى دعمك.",
+    "addSampleAriaLabel": "إضافة عينة",
+    "addSampleHint": "سجّل مثالاً ليرى المشترون ما سيحصلون عليه"
   },
   "live": {
     "accessTicket": "تذكرة دخول",

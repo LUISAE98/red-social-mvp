@@ -20,6 +20,7 @@
 import * as admin from "firebase-admin";
 import { HttpsError } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
+import { assertAccountNotBanned } from "./accountStatus";
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -32,6 +33,44 @@ const db = admin.firestore();
  * (2026-08-15): 10 al día cubre de sobra el uso normal de un creador.
  */
 export const MAX_VIDEOS_POR_DIA = 10;
+
+/**
+ * Los demás techos diarios, todos decididos por Luis el 2026-08-15.
+ *
+ * ⚠️ El de intentos de pago va HOLGADO a propósito. Una tarjeta rechazada hace
+ * que el comprador reintente varias veces y esos son intentos legítimos: ponerlo
+ * bajo no frena a un abusador, pierde ventas de gente que sí quería pagar.
+ */
+export const TOPES_DIARIOS = {
+  /** Arrancar una transmisión (Mux o Cloudflare). Cada arranque crea un canal. */
+  liveStart: 10,
+  /** Render de la grabación animada de un saludo (Egress). */
+  greetingRender: 20,
+  /** Render del video con el marco puesto (FFmpeg). */
+  videoOverlay: 20,
+  /** Intentos de pago contra Stripe. */
+  paymentAttempt: 30,
+  /** Facturas emitidas. Facturapi cobra por cada una. */
+  invoice: 10,
+} as const;
+
+const MENSAJES: Record<keyof typeof TOPES_DIARIOS, string> = {
+  liveStart: "Alcanzaste el límite de transmisiones por hoy. Inténtalo mañana.",
+  greetingRender: "Alcanzaste el límite de descargas por hoy. Inténtalo mañana.",
+  videoOverlay: "Alcanzaste el límite de descargas por hoy. Inténtalo mañana.",
+  paymentAttempt: "Demasiados intentos de pago por hoy. Inténtalo mañana.",
+  invoice: "Alcanzaste el límite de facturas por hoy. Inténtalo mañana.",
+};
+
+/**
+ * Consume uno de los techos de arriba.
+ *
+ * Los mensajes siguen todos la misma forma —qué pasó y qué hacer— para que la
+ * interfaz los muestre tal cual, sin tener que interpretarlos.
+ */
+export async function consumeQuota(uid: string, tipo: keyof typeof TOPES_DIARIOS): Promise<void> {
+  await consumeDailyQuota(uid, tipo, TOPES_DIARIOS[tipo], MENSAJES[tipo]);
+}
 
 /**
  * El día según el reloj de Ciudad de México, no UTC.
@@ -84,8 +123,15 @@ export async function consumeDailyQuota(
   });
 }
 
-/** Atajo para las subidas de video, que son las tres que comparten el techo. */
+/**
+ * Atajo para las subidas de video, que son las tres que comparten el techo.
+ *
+ * Comprueba además que la cuenta no esté suspendida: las tres funciones que lo
+ * llaman crean recursos que cuestan factura, y es el paso por el que pasan todas.
+ */
 export async function consumeVideoUploadQuota(uid: string): Promise<void> {
+  await assertAccountNotBanned(uid);
+
   await consumeDailyQuota(
     uid,
     "videoUpload",

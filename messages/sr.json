@@ -65,7 +65,8 @@
     "seeAllMessages": "Prikaži sve",
     "settings": "Postavke",
     "seeAllFollowing": "Prikaži sve",
-    "seeAllCommunities": "Prikaži sve"
+    "seeAllCommunities": "Prikaži sve",
+    "reels": "Приче"
   },
   "common": {
     "accept": "Prihvati",
@@ -254,7 +255,13 @@
     "reportSubmit": "Pošalji prijavu",
     "reportSentTitle": "Prijava je poslata",
     "reportSentDesc": "Naš tim će je pregledati. Hvala ti što pomažeš da zajednica ostane sigurna.",
-    "reportSubmitError": "Došlo je do greške pri slanju prijave. Pokušaj ponovo."
+    "reportSubmitError": "Došlo je do greške pri slanju prijave. Pokušaj ponovo.",
+    "noStoriesYet": "Још нема прича.",
+    "storyNothingToPublish": "Овде још нема шта да се објави.",
+    "storyAddStories": "Додај приче",
+    "storyNeedsBuyerPermission": "Имате поруџбине, али купац није дозволио објављивање.",
+    "storyFromHiddenCommunity": "Долазе из скривене заједнице и не могу на ваш профил.",
+    "storyNotReadyYet": "Видео још није спреман."
   },
   "groups": {
     "title": "Zajednice",
@@ -1980,7 +1987,9 @@
     "premiumPostPreviewSubsDescUser": "Ako si član ili pretplatnik zajednice, vidiš je bez plaćanja.",
     "premiumPostPreviewPriceLabelUser": "Cena otključavanja",
     "premiumPostPreviewPriceDescUser": "Kreator određuje koliko stoji otključavanje objave.",
-    "mergeDonationSupportDesc": "Doprinesi iznosom koji želiš i pokaži kreatoru svoju podršku."
+    "mergeDonationSupportDesc": "Doprinesi iznosom koji želiš i pokaži kreatoru svoju podršku.",
+    "addSampleAriaLabel": "Додај пример",
+    "addSampleHint": "Сними пример да купци виде шта добијају"
   },
   "live": {
     "accessTicket": "Ulaznica",

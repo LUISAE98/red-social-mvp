@@ -129,6 +129,12 @@ type Props = {
   publishSuccess?: { shareUrl: string; entityKind: "profile" | "community" };
 
   onSaveDraft: (nextDraft: ServiceDraft) => Promise<boolean | void>;
+
+  /**
+   * Abre el grabador de muestras. Sin esto el botón "+" no se pinta, así que
+   * el panel sigue funcionando igual donde todavía no se haya conectado.
+   */
+  onAddSample?: () => void;
 };
 
 type OverlayMode = null | "activate" | "edit";
@@ -151,6 +157,7 @@ export default function Saludos({
   OverlayModalComponent,
   publishSuccess,
   onSaveDraft,
+  onAddSample,
 }: Props) {
   const tServices = useTranslations("services");
   const tCommon = useTranslations("common");
@@ -479,6 +486,58 @@ export default function Saludos({
           A todas las experiencias se les suman $3 MXN por el cargo de procesamiento de Stripe.
         </div>
         </div>
+
+        {/* Muestras: el creador graba ejemplos para que su vitrina no esté en
+            cero y el comprador vea qué va a recibir. Solo aparece si quien monta
+            este panel sabe qué hacer con el botón. */}
+        {onAddSample ? (
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: 8,
+              marginTop: 18,
+            }}
+          >
+            <button
+              type="button"
+              onClick={onAddSample}
+              aria-label={tServices("addSampleAriaLabel")}
+              title={tServices("addSampleAriaLabel")}
+              style={{
+                width: 56,
+                height: 56,
+                borderRadius: "50%",
+                border: "none",
+                background: "rgba(255,255,255,0.10)",
+                color: "rgba(255,255,255,0.72)",
+                fontSize: 28,
+                fontWeight: 300,
+                lineHeight: 1,
+                display: "grid",
+                placeItems: "center",
+                cursor: "pointer",
+                fontFamily: "inherit",
+                WebkitTapHighlightColor: "transparent",
+                transition: "background 160ms ease",
+              }}
+            >
+              +
+            </button>
+
+            <span
+              style={{
+                ...subtleStyle,
+                fontSize: 11.5,
+                textAlign: "center",
+                maxWidth: 260,
+              }}
+            >
+              {tServices("addSampleHint")}
+            </span>
+          </div>
+        ) : null}
         </>
         )}
       </OverlayModalComponent>

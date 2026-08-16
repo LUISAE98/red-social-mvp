@@ -65,7 +65,8 @@
     "seeAllMessages": "See all",
     "settings": "Settings",
     "seeAllFollowing": "See all",
-    "seeAllCommunities": "View all"
+    "seeAllCommunities": "View all",
+    "reels": "Stories"
   },
   "common": {
     "accept": "Accept",
@@ -254,7 +255,13 @@
     "reportSubmit": "Submit report",
     "reportSentTitle": "Report submitted",
     "reportSentDesc": "Our team will review it. Thank you for helping keep the community safe.",
-    "reportSubmitError": "An error occurred while submitting the report. Please try again."
+    "reportSubmitError": "An error occurred while submitting the report. Please try again.",
+    "noStoriesYet": "No stories yet.",
+    "storyNothingToPublish": "Nothing to publish here yet.",
+    "storyAddStories": "Add stories",
+    "storyNeedsBuyerPermission": "You have orders, but the buyer didn't allow publishing them.",
+    "storyFromHiddenCommunity": "These come from a hidden community and can't go on your profile.",
+    "storyNotReadyYet": "The video isn't ready yet."
   },
   "groups": {
     "title": "Communities",
@@ -1980,7 +1987,9 @@
     "premiumPostPreviewSubsDescUser": "If you're a member or subscriber of the community, you see it for free.",
     "premiumPostPreviewPriceLabelUser": "Unlock price",
     "premiumPostPreviewPriceDescUser": "The creator sets how much it costs to unlock the post.",
-    "mergeDonationSupportDesc": "Contribute any amount you want to show the creator your support."
+    "mergeDonationSupportDesc": "Contribute any amount you want to show the creator your support.",
+    "addSampleAriaLabel": "Add a sample",
+    "addSampleHint": "Record an example so buyers see what they will get"
   },
   "live": {
     "accessTicket": "Access ticket",

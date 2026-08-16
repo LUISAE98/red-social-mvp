@@ -65,7 +65,8 @@
     "seeAllMessages": "Ver todos",
     "settings": "Configuración",
     "seeAllFollowing": "Ver todos",
-    "seeAllCommunities": "Ver todas"
+    "seeAllCommunities": "Ver todas",
+    "reels": "Historias"
   },
   "common": {
     "accept": "Aceptar",
@@ -254,7 +255,13 @@
     "reportSubmit": "Enviar reporte",
     "reportSentTitle": "Reporte enviado",
     "reportSentDesc": "Nuestro equipo lo revisará. Gracias por ayudar a mantener la comunidad segura.",
-    "reportSubmitError": "Ocurrió un error al enviar el reporte. Intenta de nuevo."
+    "reportSubmitError": "Ocurrió un error al enviar el reporte. Intenta de nuevo.",
+    "noStoriesYet": "Todavía no hay historias.",
+    "storyNothingToPublish": "Aún no hay nada que publicar aquí.",
+    "storyAddStories": "Agregar historias",
+    "storyNeedsBuyerPermission": "Tienes encargos, pero el comprador no autorizó publicarlos.",
+    "storyFromHiddenCommunity": "Vienen de una comunidad oculta y no pueden publicarse en tu perfil.",
+    "storyNotReadyYet": "El video todavía no está listo."
   },
   "groups": {
     "title": "Comunidades",
@@ -1980,7 +1987,9 @@
     "premiumPostPreviewSubsDescUser": "Si eres miembro o suscriptor de la comunidad, la ves sin pagar.",
     "premiumPostPreviewPriceLabelUser": "Precio de desbloqueo",
     "premiumPostPreviewPriceDescUser": "El creador define cuánto cuesta desbloquear la publicación.",
-    "mergeDonationSupportDesc": "Aportas el monto que tú quieras para demostrarle tu apoyo al creador."
+    "mergeDonationSupportDesc": "Aportas el monto que tú quieras para demostrarle tu apoyo al creador.",
+    "addSampleAriaLabel": "Agregar muestra",
+    "addSampleHint": "Graba un ejemplo para que los compradores vean qué van a recibir"
   },
   "live": {
     "accessTicket": "Ticket de acceso",

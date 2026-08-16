@@ -178,8 +178,25 @@ export async function reconcileStripeSubscriptionEvent(type: string, object: Rec
     );
 
     // Membresía suscrita (acceso). No al dueño.
+    //
+    // ⚠️ Que el documento EXISTA no basta. El borrado de una comunidad es lógico:
+    // el documento se queda con `isDeleted: true`. Sin esta comprobación, la
+    // renovación de una suscripción que sobreviviera a la cancelación volvía a
+    // crear la membresía de una comunidad borrada, mes tras mes.
     const groupSnap = await db.collection("groups").doc(groupId).get();
-    if (groupSnap.exists && ownerId && ownerId !== uid) {
+    const grupoVivo =
+      groupSnap.exists &&
+      groupSnap.get("isDeleted") !== true &&
+      groupSnap.get("isActive") !== false;
+
+    if (!grupoVivo) {
+      logger.warn("subSync: renovación de una comunidad que ya no está, no se activa", {
+        groupId,
+        uid,
+      });
+    }
+
+    if (grupoVivo && ownerId && ownerId !== uid) {
       await activateSubscribedMembership(groupId, uid, groupSnap.data() as Record<string, unknown>, {
         ownerId,
         priceMonthly: meta.base,

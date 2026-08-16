@@ -36,6 +36,7 @@ import {
 import { extractS3Key } from "./recordingDownload";
 import { safeLocale } from "./locales";
 import { isGreetingParticipant } from "./greetingAccess";
+import { consumeQuota } from "./quotas";
 
 if (admin.apps.length === 0) admin.initializeApp();
 
@@ -92,6 +93,16 @@ export const greetingAnimatedDownload = onRequest(
     if (!(await isGreetingParticipant(uid, playbackId))) {
       logger.warn("greetingAnimatedDownload_forbidden", { uid, playbackId });
       res.status(403).json({ error: "Forbidden" });
+      return;
+    }
+
+    // Un egress de LiveKit de hasta 9 minutos por llamada. Va después del
+    // permiso para no gastarle el día a quien no es parte del saludo, y se
+    // traduce a un 429 con el mismo texto que las demás cuotas.
+    try {
+      await consumeQuota(uid, "greetingRender");
+    } catch (err) {
+      res.status(429).json({ error: (err as { message?: string })?.message ?? "Límite alcanzado." });
       return;
     }
 

@@ -2,7 +2,72 @@
 
 Registro de las auditorías de seguridad por bloques y de lo que queda pendiente.
 
-Última actualización: **2026-08-14** (bloques 1, 2, 3 y 4 cerrados)
+Última actualización: **2026-08-15** (bloques 1 a 5 cerrados; el 6 parcial a propósito, ver pendiente 9)
+
+---
+
+## Mapa maestro de auditoría — 18 bloques
+
+Esta es la división oficial de la auditoría técnica y de seguridad de Vibra. Los
+"bloques" mencionados en documentos fiscales, legales o de implementación interna
+no sustituyen esta numeración. Al terminar los 18 bloques se repetirá la auditoría
+completa desde el Bloque 1 para comprobar correcciones, regresiones y pendientes.
+
+1. **Superficie de ataque y fronteras de confianza.** Inventario de aplicaciones,
+   rutas públicas/protegidas, Firebase, servicios, secretos, entradas externas y
+   límites entre cliente, backend y proveedores.
+2. **Identidad, autenticación, sesiones y cuentas.** Registro, login, proveedores,
+   correo verificado, sesiones, tokens, cuentas anónimas, recuperación, bloqueo,
+   suspensión y eliminación de cuentas.
+3. **Autorización, roles y escalamiento de privilegios.** Claims, owner, moderadores,
+   administradores, separación de funciones, operaciones privilegiadas y prevención
+   de escalamiento horizontal o vertical.
+4. **Datos, integridad y escrituras del cliente.** Firestore Rules, esquemas,
+   validaciones, campos autoritativos, transacciones, concurrencia, datos
+   desnormalizados y escrituras directas desde clientes.
+5. **Backend privilegiado, Cloud Functions, APIs y servicios externos.** Callables,
+   endpoints HTTP, webhooks, Admin SDK, App Check, rate limits, cuotas, idempotencia,
+   timeouts y confianza en Mux, Cloudflare, LiveKit, Stripe, Facturapi y otros.
+6. **Pagos, wallet, ledger, impuestos, reembolsos y facturación.** Stripe, intents,
+   suscripciones, conciliación, crédito del comprador, cash-out, ingresos del
+   creador, Connect/payouts, divisas, impuestos, CFDI y Facturapi.
+7. **Comunidades, membresías y control de acceso.** Comunidades públicas, privadas y
+   ocultas; invitaciones, solicitudes, membresías, suscripciones, roles internos,
+   expulsiones, baneos, eliminación y prevención de fugas de contenido o miembros.
+8. **Publicaciones, comentarios, historias, feeds y visibilidad.** Creación y ciclo de
+   vida del contenido, audiencias, perfiles restringidos, premium, borrados,
+   bloqueos, recomendaciones y propagación correcta de la visibilidad.
+9. **Mensajes directos, chat y privacidad en tiempo real.** Creación de
+   conversaciones, participantes, lectura/escritura, adjuntos, mensajes reportados,
+   bloqueos, presencia, notificaciones y prevención de acceso a DM ajenos.
+10. **Storage, medios, video, streaming y videollamadas.** Reglas de Storage, tokens y
+    URLs firmadas, imágenes, audio, Mux, Cloudflare Stream, R2, lives, grabaciones,
+    LiveKit, uploads, procesamiento, eliminación y control de costos.
+11. **Servicios y experiencias pagadas del creador.** Saludos, consejos, sesiones,
+    Tiempo contigo, meet & greet, donaciones y supercomentarios; disponibilidad,
+    compra, aceptación, entrega, expiración, rechazo, reprogramación y disputas.
+12. **Moderación, reportes, abuso y seguridad de usuarios.** Reportes, evidencias,
+    sanciones, bloqueos, apelaciones, anti-spam, fraude, suplantación, contenido
+    ilegal, auditoría de moderadores y resistencia a abuso coordinado.
+13. **Notificaciones, búsqueda, descubrimiento y compartición.** Push/FCM,
+    notificaciones internas, índices, búsqueda, sugerencias, enlaces compartidos,
+    metadatos y prevención de filtraciones por sistemas secundarios.
+14. **Frontend, estado, navegación y seguridad del cliente.** Manejo de estado,
+    guards de rutas, cachés, hidratación, errores, i18n, moneda, PWA, responsive,
+    accesibilidad y supuestos de seguridad que sólo existan en la interfaz.
+15. **Privacidad, PII, retención, exportación y eliminación de datos.** Datos
+    personales, fiscales y financieros; minimización, consentimiento, descargas,
+    borrado de cuenta, retención, logs, archivos huérfanos y cumplimiento legal.
+16. **Infraestructura, configuración y operación de producción.** Proyectos y
+    ambientes, IAM, secretos, dominios, CORS, headers, Firebase/Vercel, despliegues,
+    índices, backups, observabilidad, alertas, costos y recuperación ante desastres.
+17. **Dependencias, cadena de suministro, scripts, tests y CI/CD.** Dependencias y
+    vulnerabilidades, lockfiles, scripts, lint, typecheck, builds, emuladores,
+    cobertura, pipelines, permisos de automatización y artefactos de entrega.
+18. **Auditoría integral de producción y resiliencia extremo a extremo.** Recorrido de
+    flujos reales, conciliación entre sistemas, fallos parciales, reintentos,
+    degradación, incident response, runbooks, checklist de lanzamiento y
+    reevaluación final de riesgos antes de producción.
 
 ---
 ## Pendientes
@@ -112,26 +177,6 @@ Desde el 2026-08-14 un perfil restringido protege sus medios, pero **solo lo que
 
 ---
 
-### 8. Exigir App Check en las Cloud Functions (C06 del Bloque 5)
-
-**Estado:** en fase de OBSERVACIÓN, decidido por Luis el 2026-08-15. No hay nada que cambiar en el código todavía.
-
-Hay 98 callables y **ninguna** declara `enforceAppCheck: true`. La app cliente ya está preparada para mandar el sello (`lib/appCheck.ts`), pero el backend no lo comprueba: cualquiera con un token de Firebase válido puede llamar a las funciones directamente desde un script, saltándose los límites que solo existen en la interfaz.
-
-Se eligió observar antes de bloquear. Encender la exigencia a ciegas deja fuera a quien no mande el sello por cualquier motivo —una pestaña vieja, un móvil con caché, el flujo de compra sin cuenta— y eso se ve como "la app entera falla".
-
-**Los pasos, en orden. Los tres primeros son de Luis, en consola:**
-
-1. **Comprobar que la variable `NEXT_PUBLIC_APPCHECK_RECAPTCHA_SITE_KEY` está puesta en Vercel.** ⚠️ Es lo primero y es fácil de pasar por alto: si no está, el cliente **no manda ningún sello** y las métricas saldrán en 0 % verificado. Se concluiría que nadie manda sello cuando en realidad es que nunca se activó. No aparece en ningún `.env` del repositorio, así que solo se puede confirmar en Vercel.
-2. Dejar correr unos días y mirar en la consola de Firebase → App Check → Cloud Functions el reparto entre peticiones **verificadas**, **sin verificar** y **caducadas**.
-3. Decidir con esos números. Lo esperable si todo está bien es que casi todo llegue verificado.
-
-4. **Solo entonces**, encender la exigencia en el backend.
-
-⚠️ **Encender la exigencia obliga a redesplegar.** `enforceAppCheck` es una opción de despliegue de la función, no un interruptor en caliente. Si se quisiera poder apagarlo sin desplegar, habría que no usar esa opción y comprobar `request.app` a mano dentro de cada callable contra una bandera de configuración — más código y más sitios donde olvidarlo. Se decide cuando haya datos.
-
----
-
 ### 7. Cobertura de los criterios que se movieron a callables — RESUELTO para C03 y C05
 
 **Estado:** cerrado el 2026-08-14.
@@ -144,8 +189,87 @@ Se lanza con `npm run test:emulator`, junto al resto de la suite del backend.
 
 **Sigue abierto en general:** cada vez que un criterio sale de las reglas hacia un callable, sale también de la suite de reglas. Conviene acordarse al mover el siguiente.
 
+
 ---
-## Bloque 5 — Backend privilegiado, APIs y servicios externos (EN CURSO)
+
+### 8. Exigir App Check en las Cloud Functions (C06 del Bloque 5)
+
+**Estado:** en fase de OBSERVACIÓN, decidido por Luis el 2026-08-15. No hay nada que cambiar en el código todavía.
+
+Hay 98 callables y **ninguna** declara `enforceAppCheck: true`. La app cliente ya está preparada para mandar el sello (`lib/appCheck.ts`), pero el backend no lo comprueba: cualquiera con un token de Firebase válido puede llamar a las funciones directamente desde un script, saltándose los límites que solo existen en la interfaz.
+
+Se eligió observar antes de bloquear. Encender la exigencia a ciegas deja fuera a quien no mande el sello por cualquier motivo —una pestaña vieja, un móvil con caché, el flujo de compra sin cuenta— y eso se ve como "la app entera falla".
+
+**Los pasos, en orden. Los tres primeros son de Luis, en consola:**
+
+1. ~~Comprobar que la variable `NEXT_PUBLIC_APPCHECK_RECAPTCHA_SITE_KEY` está puesta en Vercel.~~ **Confirmado por Luis el 2026-08-15.**
+2. **← AQUÍ ESTAMOS.** Dejar correr unos días y mirar en la consola de Firebase → App Check → Cloud Functions el reparto entre peticiones **verificadas**, **sin verificar** y **caducadas**.
+3. Decidir con esos números. Lo esperable si todo está bien es que casi todo llegue verificado.
+
+4. **Solo entonces**, encender la exigencia en el backend.
+
+⚠️ **Encender la exigencia obliga a redesplegar.** `enforceAppCheck` es una opción de despliegue de la función, no un interruptor en caliente. Si se quisiera poder apagarlo sin desplegar, habría que no usar esa opción y comprobar `request.app` a mano dentro de cada callable contra una bandera de configuración — más código y más sitios donde olvidarlo. Se decide cuando haya datos.
+
+---
+
+### 9. BLOQUEADO POR LA LLC — todo lo que necesita Stripe USA
+
+**Estado:** aplazado a propósito, no es deuda ni descuido. **Decisión de Luis (2026-08-15):** Vibra migra de Stripe México a Stripe USA y está esperando la LLC para abrir la cuenta. Hacer ahora este trabajo sobre el modelo mexicano es trabajo que se tira: cambia el emisor, el país fiscal, la moneda de liquidación, el régimen de retenciones y el comprobante que hay que emitir.
+
+Lo que sí se pudo hacer sin la cuenta nueva —lógica, concurrencia, revocación de accesos, idempotencia— **ya está hecho y desplegado**. Lo de abajo es lo que de verdad depende de la cuenta.
+
+#### Del Bloque 6 — Pagos, wallet, reembolsos y facturación
+
+**A. Cobro al creador (Stripe Connect y payouts). No existe nada todavía.**
+
+`backend/src/payments/stripe/stripeConnect.ts` solo define tipos y funciones puras; el propio archivo dice que aún no llama a Stripe. Falta entero: crear cuentas conectadas, los Account Links de alta, el webhook `account.updated`, transferencias, payouts, conciliar transferencias y payouts fallidos, actualizar `withdrawnGross`/`withdrawnNet` y el bloqueo fiscal previo al pago.
+
+**Consecuencia hoy:** la wallet calcula lo que gana el creador, pero **no hay forma de sacarlo**. No es un agujero de seguridad, es una pieza sin construir.
+
+⚠️ **Mínimo de retiro: 400 USD** (regla de Luis). Va aquí, en el retiro del CREADOR — **no** en `cashout.ts`, que es otra cosa: la devolución a un COMPRADOR del saldo que le quedó de una compra rechazada. Ponerlo ahí impediría a alguien recuperar sus propios 300 pesos hasta juntar 400 dólares. **Falta que Luis lo confirme.**
+
+**B. H04 — Reembolsos parciales dejan la wallet inflada.**
+
+Un reembolso parcial solo se registra; el asiento del ledger se revierte entero o nada. El creador sigue viendo un ingreso del que parte ya salió de Stripe.
+
+**Por qué espera:** arreglarlo bien exige reversas proporcionales, que es un cambio en el modelo de datos del ledger —área sensible—. Y el daño está contenido: **sin payouts, una wallet inflada no puede convertirse en dinero que se vaya**. Hoy es un número mal mostrado. Conviene hacerlo junto con los payouts, con el modelo nuevo, en vez de dos veces.
+
+**C. H02 — Procedencia del crédito en pagos mixtos.**
+
+`buildOrigins` usa `chargedAmount` como techo reembolsable, pero cuando una compra se pagó en parte con saldo, el cobro de Stripe solo tiene el resto de tarjeta: el cash-out puede intentar devolver más de lo que ese cargo tiene. Falta además contabilidad por lotes de crédito. Atado al modelo de cobro que cambia.
+
+**D. H07 — Las suscripciones congelan país, impuesto, precio y dueño.**
+
+La metadata fiscal se fija al crear la suscripción y se reutiliza en cada renovación: un cambio de residencia no actualiza impuestos, una tasa nueva no afecta a las existentes, y la renovación usa el `ownerId` de entonces. Además `computeMonthlyCharge` no aplica el mismo 2 % de FX que `composeCharge`. **Todo esto lo redefine el modelo fiscal de EE. UU.**
+
+**E. Facturación mexicana completa (H09, H10 y el resto de C05).**
+
+- **H09** — el CFDI aplica 16 % fijo, reconstruye la base como total/1.16, fija la forma de pago a tarjeta de crédito, no distingue débito ni saldo ni pago mixto, y el respaldo trata `grossAmount`/`taxAmount` como USD aunque el ledger opere en MXN.
+- **H10** — cambiar de RFC, razón social, régimen o código postal conserva el `csdStatus: ready` del certificado anterior.
+- **C05 (resto)** — la duplicación por ids repetidos y el tope ya se cerraron; **falta la carrera** entre dos llamadas simultáneas, que pueden timbrar dos CFDI de la misma compra. Necesita reserva transaccional y clave idempotente contra Facturapi.
+- **Sin empezar:** CFDI del creador hacia Vibra, autofacturación, retenciones de ISR e IVA, notas de crédito y cancelaciones, comprobante para extranjeros, factura global mensual y conciliación Facturapi ↔ Firestore.
+
+⚠️ **Todo lo emitido hoy es de PRUEBA.** Las callables usan `FACTURAPI_TEST_KEY`; no hay evidencia fiscal productiva. El paso a llave real es parte de este mismo tramo. Ver [[project_facturapi_cutover]] — el RFC solo valida con llave LIVE.
+
+#### De los Bloques 1 al 5
+
+**Nada.** Ningún pendiente de esos bloques depende de Stripe. Los que siguen abiertos son los pendientes 1, 2 y 8 de este documento, y ninguno tiene que ver con pagos.
+
+#### Qué hacer cuando llegue la LLC
+
+En este orden, porque cada uno depende del anterior:
+
+1. Abrir Stripe USA y decidir el modelo fiscal nuevo (emisor, país, moneda de liquidación, retenciones).
+2. Connect y payouts, con el mínimo de 400 USD y el bloqueo fiscal previo.
+3. H04 y H02 con el modelo nuevo, ya con payouts existiendo.
+4. H07: recalcular impuestos en cada renovación en vez de congelarlos.
+5. Facturación: lo que aplique al nuevo régimen, y la llave LIVE.
+
+---
+
+## Bloque 5 — Backend privilegiado, APIs y servicios externos (CERRADO)
+
+Todos los altos y medios cerrados y desplegados. Lo único abierto es **App Check**, que está en fase de observación (pendiente 8), y **M07**, resuelto con la opción B más abajo.
 
 ### C05 — Sesiones pagadas sin poder entrar a la videollamada — RESUELTO
 
@@ -233,9 +357,101 @@ Detalles que importan:
 
 **Fuera de alcance a propósito:** `createGreetingMuxUpload`. Es la entrega de un saludo **ya pagado**; toparlo bloquearía a un creador con muchos pedidos y el abuso ahí está acotado por que cada uno exige un comprador que pagó.
 
-**Sigue abierto del hallazgo original:** no hay cuota todavía en la creación de inputs de directo (Mux/Cloudflare), el render animado por Egress, el render FFmpeg ni las llamadas a Facturapi. El mecanismo ya está hecho y aplicarlo a cada uno es añadir una línea; falta decidir el número de cada cual.
+**Completado el 2026-08-15** con los cinco topes restantes que decidió Luis, todos por persona y por día:
+
+| Recurso | Tope | Dónde |
+|---|---|---|
+| Arrancar una transmisión (Mux y Cloudflare) | 10 | `liveMux.ts`, `liveCF.ts` |
+| Render animado de un saludo (Egress) | 20 | `greetingRender.ts` |
+| Render con marco (FFmpeg) | 20 | `videoOverlay.ts` |
+| Intentos de pago | 30 | `getOrCreateStripeCustomer` |
+| Facturas emitidas | 10 | `generateBuyerInvoice.ts` |
+
+⚠️ **El de intentos de pago va holgado a propósito.** Una tarjeta rechazada hace que el comprador reintente varias veces y esos son intentos legítimos: ponerlo bajo no frena a un abusador, pierde ventas de gente que sí quería pagar.
+
+Los dos que son `onRequest` en vez de `onCall` (los dos renders) traducen el tope a un **429** con el mismo texto que las demás cuotas.
+
+Todos los topes se consumen **después** de comprobar el permiso, para no gastarle el día a quien ni siquiera podía hacer la acción.
 
 Cobertura en `backend/test-emulator/quotas.emulator.test.ts` (4 pruebas).
+
+### M02 — Método de pago ajeno para decidir el impuesto — RESUELTO
+
+**Cerrado y desplegado el 2026-08-15.**
+
+`/payment_methods/{id}` devuelve **cualquier** método visible para la cuenta de Stripe de Vibra, no solo los del comprador. Ni `repriceForCard` ni `cardCountry` comprobaban el dueño, así que se podía pasar el `pm_...` de otra persona para que el país fiscal —y con él el impuesto— saliera del de OTRA tarjeta, y confirmar el pago con una distinta.
+
+Ahora se contrasta el `customer` del método contra el del comprador (`stripeCustomers/{uid}.customerId`, vía `getExistingStripeCustomerId`).
+
+⚠️ **Una tarjeta recién tecleada NO está adjunta a ningún cliente** (`customer: null`), y ese es el caso normal al pagar con tarjeta nueva. Exigir que coincida siempre habría roto todos los pagos con tarjeta nueva. Se acepta la no adjunta —para conocer su id hay que haberla creado uno mismo en el navegador— y se rechaza la adjunta a otro cliente.
+
+El hallazgo señalaba solo `repriceForCard`, pero `cardCountry.ts` tenía el mismo agujero y lo usan **todos** los cobros. Ahí no se lanza excepción sino que se ignora la tarjeta y el país cae a la IP: ese módulo tiene el contrato de no tumbar nunca un cobro. La vía de tarjeta guardada ya validaba el dueño contra Firestore.
+
+### M04 — Clientes de Stripe y Facturapi sin tope de espera — RESUELTO
+
+**Cerrado y desplegado el 2026-08-15.** 20 s en ambos. Sin `AbortSignal`, una conexión lenta retiene la instancia hasta el timeout global de la Cloud Function —minutos—: se paga ese tiempo, se ocupa concurrencia y el cliente se queda colgado. Las rutas proxy de Next ya lo hacían; los clientes centrales, no.
+
+### M01 — TTS sin tope cuando falla el contador — MITIGADO
+
+**Desplegado el 2026-08-15 (va con el frontend).**
+
+El endpoint es público por diseño: lo consumen espectadores y el Browser Source de OBS con `new Audio(url)`, que no manda cabeceras. El `catch` del contador dejaba pasar la petición a propósito para no cortar el audio de un directo en marcha — pero eso significaba que **mientras Firestore estuviera caído el endpoint quedaba sin ningún tope**, siendo público.
+
+Ahora hay un respaldo en memoria del proceso (600/hora por clave). No sustituye al de Firestore: no se comparte entre instancias y se pierde al reciclarse. Solo evita que "falla el contador" equivalga a "barra libre".
+
+**Sin resolver del hallazgo:** la clave sigue saliendo del primer valor de `x-forwarded-for`. En Vercel esa cabecera la pone la plataforma, pero un abuso distribuido con muchas IP sigue siendo posible. Sin cabecera fiable no hay identificador mejor para un endpoint que no puede exigir sesión.
+
+### M05 — Telemetría de compras con datos del cliente — SIN CAMBIOS, YA DOCUMENTADO
+
+El hallazgo es correcto, pero ya estaba anotado en el propio código como límite conocido con su razonamiento: volver autoritativos `creatorId`, `serviceType` y `grossAmount` exige una referencia de compra que escribe un webhook **de forma asíncrona**, y esta llamada ocurre justo al concretar el pago, cuando a menudo todavía no existe. Registrar la geo desde el webhook pierde la IP del comprador, que es el dato que da sentido al mapa. Mitigado con sesión obligatoria, control de ritmo y tope de importe. **Solo corrompe la analítica del planeta 3D; nunca toca el ledger ni el saldo.**
+
+### M07 — No hay política común de cuenta habilitada — PENDIENTE DE DECISIÓN
+
+**Confirmado, pero MÁS PEQUEÑO de lo que sugería el hallazgo.** Ninguna callable comprueba que la cuenta de quien llama siga habilitada — `isActive` aparece por todo el backend pero **siempre referido a comunidades**, nunca a usuarios.
+
+⚠️ **Lo que el hallazgo no vio:** el bloqueo real no depende de Firestore. `blockUser` (`backend/src/moderation.ts`) deshabilita la cuenta en **Firebase Auth** y además **revoca los refresh tokens**; la marca `platformBanned` de Firestore es solo para pintar la interfaz. O sea que un baneado no puede acuñar llaves nuevas y la que tenga muere en ~1 h.
+
+**El hueco que queda de verdad son esos ~60 minutos**, más el caso de marcar `platformBanned` a mano en la consola sin pasar por `blockUser`, que no bloquea nada.
+
+**Decisión de Luis (2026-08-15): opción B — cerrar la ventana solo donde duele**, dinero y recursos con factura, no en las 98 callables. Comprobarlo en todas obligaría a una lectura extra en cada llamada de cada usuario, todo el día, por un caso que ocurre de tarde en tarde.
+
+**Desplegado el 2026-08-15.** `backend/src/accountStatus.ts` → `assertAccountNotBanned(uid)`, aplicado en:
+
+- **`getOrCreateStripeCustomer`** — es el paso por el que pasan las ocho creaciones de intent más la herramienta de prueba. Un sitio en vez de nueve, y ninguno que se olvide al añadir el siguiente servicio de pago.
+- **`requestCashout`** — sacar dinero.
+- **`consumeVideoUploadQuota`** — cubre las tres subidas de video a Mux.
+- **`createGreetingMuxUpload`** — la otra subida con factura.
+
+⚠️ **Dos casos que NO son un baneo, y tratarlos como tal rompería el producto:**
+
+- **Ficha inexistente.** Los compradores invitados usan sesión anónima y muchos no tienen documento en `users`; darlo por baneado dejaría sin pagar a todo ese flujo.
+- **Fallo de lectura.** Si Firestore parpadea no se bloquea el cobro: se registra y se sigue. Lo contrario convertiría una incidencia de base de datos en una caída de los pagos, y el baneo real ya lo sostiene Firebase Auth — esto solo cubre la hora de gracia.
+
+**Efecto secundario buscado:** hasta ahora marcar `platformBanned` a mano en la consola no bloqueaba nada, porque lo que bloquea de verdad es Auth. Ahora esa marca sí surte efecto en las funciones protegidas.
+
+Cobertura en `backend/test-emulator/accountStatus.emulator.test.ts` (5 pruebas).
+
+⚠️ **Nota de la suite:** al llegar a nueve archivos de emulador volvieron a fallar tres por contención de arranque —en archivos distintos y clavados en el timeout—, y cada uno pasaba solo al correrlo aparte. Se subió el timeout de 45 s a 90 s en `vitest.emulator.config.ts`. Si reaparece al sumar archivos, el síntoma es ese.
+
+---
+## Bloque 6 — Pagos, wallet, reembolsos y facturación (PARCIAL A PROPÓSITO)
+
+Cerrado y desplegado el 2026-08-15 **todo lo que no depende de Stripe USA**: 4 críticos, 5 altos y 5 medios. Lo que falta está en el **pendiente 9** con su motivo.
+
+- **C01** El saldo a favor se podía gastar dos veces. El cron devolvía el crédito de un checkout abandonado pero **no cancelaba el cobro en Stripe**: bastaba guardar el `client_secret`, esperar 6 h, cobrar el resto con tarjeta y quedarse además con el saldo. Ahora se cancela el cobro PRIMERO y, si la cancelación falla, no se devuelve nada. La comprobación del estado se relee dentro de la transacción.
+- **C02** El webhook aprobaba con cualquier cobro. De una misma compra pueden colgar varios cobros de Stripe —recotizar por el país de la tarjeta cambia el importe y nace otro—, y un cobro viejo y barato podía aprobar la versión nueva y cara. ⚠️ **Solo se compara el id, no el importe**: `repriceForCard` corrige legítimamente el importe DEL MISMO cobro, así que compararlo rechazaría compras buenas. Está escrito en el código para que nadie "complete" la comprobación.
+- **C03** Un contracargo no quitaba nada. Se devolvía el dinero y el comprador conservaba el post de pago, la entrada del directo o la comunidad. Ahora se retira el acceso —sin vetar la recompra, decisión de Luis— y **antes** de buscar el asiento del ledger, porque esa función salía temprano si no lo encontraba.
+- **C04** Dos personas con el último cupo de una invitación entraban las dos. El cupo se **reserva antes de cobrar**, así que quien llega tarde se queda fuera sin haber pagado y desaparece el dilema de qué hacer con alguien ya cobrado. ⚠️ La reserva se consulta ANTES de validar la invitación: al reservar el último cupo el enlace se desactiva, y sin ese orden el comprador chocaba contra su propia reserva al reintentar.
+- **H01** El cash-out se marcaba aprobado aunque faltara dinero por devolver. Ahora queda `partially_refunded`, dice cuánto falta y se puede retomar. **No se puede rechazar en ese estado**: devolvería el saldo entero a quien ya recibió parte en efectivo.
+- **H03** El saldo se descontaba y la solicitud se creaba después; si eso fallaba, el comprador perdía saldo sin dejar solicitud que nadie pudiera encontrar. Ahora se revierte, y si hasta la reversión falla se registra como incidencia que necesita mano humana.
+- **H05** Borrar una comunidad **no cancelaba sus suscripciones**: seguían cobrando cada mes y la renovación recreaba la membresía. Cerrado por los dos lados, y la cancelación es inmediata, no al final del periodo.
+- **H06** Se podía empezar a pagar una suscripción a una comunidad borrada: el borrado es lógico, así que "existe" no bastaba.
+- **H08** Si el proceso se caía entre capturar el cobro en Stripe y escribirlo en Firestore, el comprador quedaba cobrado y la solicitud congelada en "autorizada" para siempre. Ahora el webhook la recupera; al revés nunca.
+- **Medios:** tasas de cambio con caducidad de 48 h (una tasa vieja cobra mal en silencio), tope de espera al proveedor de divisas, clave off-session con importe y moneda, deduplicación y tope en facturación, y los eventos de Stripe que solo se registraban — pago fallido y cancelado **liberan el saldo reservado al instante** en vez de dejarlo secuestrado 6 h, disputa abierta se marca sin tocar el acceso (se puede ganar), y reembolso fallido reabre el cash-out.
+
+**Cobertura:** `intentBinding`, `revokeAccess`, `inviteReservation` y `accountStatus` en `backend/test-emulator/`. H05 y H08 no llevan prueba propia — viven dentro de flujos que no se pueden disparar sin montar medio Stripe, y se prefirió no fabricar una imitación.
+
+⚠️ **La suite de emulador corre en SECUENCIAL** (`fileParallelism: false`). Con 12 archivos en paralelo fallaban tests distintos en cada corrida, siempre clavados en el timeout; se subió el tope tres veces (20 → 45 → 90 s) creyendo que eran lentos y no lo eran. Secuencial tarda menos y es determinista.
 
 ---
 ## Bloques cerrados

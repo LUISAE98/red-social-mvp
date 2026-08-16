@@ -3,6 +3,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { doc, serverTimestamp, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import VibraToast from "@/app/components/VibraToast/VibraToast";
+import { useVibraToast } from "@/lib/hooks/useVibraToast";
 
 type PostingMode = "members" | "owner_only";
 
@@ -189,6 +191,10 @@ export default function OwnerAdminStatus({
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
   const [statusErr, setStatusErr] = useState<string | null>(null);
 
+  const { toast, showToast } = useVibraToast();
+  useEffect(() => { if (statusErr) showToast(statusErr, "error"); }, [statusErr]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (statusMsg) showToast(statusMsg, "success"); }, [statusMsg]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const [statusBusy, setStatusBusy] = useState(false);
   const [postingBusy, setPostingBusy] = useState(false);
   const [commentsBusy, setCommentsBusy] = useState(false);
@@ -304,16 +310,6 @@ export default function OwnerAdminStatus({
     fontSize: 10.5,
     color: "rgba(255,255,255,0.60)",
     lineHeight: 1.35,
-  };
-
-  const noticeStyle: React.CSSProperties = {
-    borderRadius: 9,
-    border: "1px solid rgba(255,255,255,0.08)",
-    background: "rgba(255,255,255,0.035)",
-    padding: "8px 10px",
-    fontSize: 10.5,
-    lineHeight: 1.35,
-    color: "rgba(255,255,255,0.84)",
   };
 
   const sectionTitleStyle: React.CSSProperties = {
@@ -461,15 +457,14 @@ export default function OwnerAdminStatus({
         </div>
       </div>
 
-      {statusErr && <div style={noticeStyle}>{statusErr}</div>}
-      {statusMsg && <div style={noticeStyle}>{statusMsg}</div>}
-
       <div style={subtleTextStyle}>
         Esta pantalla guarda como fuente de verdad únicamente{" "}
         <code>permissions.postingMode</code>,{" "}
         <code>permissions.commentsEnabled</code>, <code>isActive</code> y{" "}
         <code>updatedAt</code>.
       </div>
+
+      <VibraToast toast={toast} />
     </div>
   );
 }

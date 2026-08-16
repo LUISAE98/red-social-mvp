@@ -50,6 +50,8 @@ import { useScreenReady } from "@/lib/useScreenReady";
 import { useExperienceVideos } from "./useExperienceVideos";
 import CurrencySwitcher from "@/app/components/CurrencySwitcher";
 import LanguageSwitcher from "@/app/components/LanguageSwitcher";
+import VibraToast from "@/app/components/VibraToast/VibraToast";
+import { useVibraToast } from "@/lib/hooks/useVibraToast";
 
 const vibraPink = "#ff2fb3";
 const vibraPurple = "#a855f7";
@@ -227,6 +229,14 @@ useEffect(() => {
 
   const registered = searchParams.get("registered") === "1";
   const nextPath = getNextFromSearchParams(searchParams, "/");
+
+  // Todos los avisos de esta pantalla salen por el toast de Vibra.
+  const { toast, showToast } = useVibraToast();
+  useEffect(() => { if (registered) showToast(t("accountCreated"), "success"); }, [registered]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (msg) showToast(msg, "error"); }, [msg]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (resetMsg) showToast(resetMsg, resetMsg === tReset("successMsg") ? "success" : "error");
+  }, [resetMsg]); // eslint-disable-line react-hooks/exhaustive-deps
 
 async function createSessionFromUser(user: User) {
   const idToken = await user.getIdToken(true);
@@ -538,17 +548,6 @@ const forgotLinkStyle: React.CSSProperties = {
     borderRadius: "50%",
     background: "#fff",
     transition: "all 0.2s ease",
-  };
-
-  const noticeStyle: React.CSSProperties = {
-    marginBottom: 10,
-    borderRadius: 9,
-    border: "1px solid rgba(168,85,255,0.18)",
-    background: "rgba(255,255,255,0.035)",
-    padding: "7px 9px",
-    fontSize: 10.5,
-    lineHeight: 1.35,
-    color: "rgba(255,255,255,0.84)",
   };
 
   return (
@@ -974,12 +973,6 @@ body.loginPageBg {
   <p style={subtitleStyle}>{t("subtitle")}</p>
 </div>
 
-            {registered && (
-              <div style={noticeStyle}>
-                {t("accountCreated")}
-              </div>
-            )}
-
             <form onSubmit={handleLogin} style={{ display: "grid", gap: 11 }}>
               <label style={{ display: "grid", gap: 4 }}>
                 <span style={labelTextStyle}>{t("emailLabel")}</span>
@@ -1141,21 +1134,6 @@ marginBottom: 6,
   {t("googleContinue")}
 </button>
             </form>
-
-{msg && (
-  <div
-    style={{
-      ...noticeStyle,
-      marginTop: 10,
-      marginBottom: 0,
-      border: "1px solid rgba(255, 80, 80, 0.45)",
-      background: "rgba(255, 40, 40, 0.10)",
-      color: "rgba(255, 190, 190, 0.95)",
-    }}
-  >
-    {msg}
-  </div>
-)}
                   </>
                 )}
 
@@ -1235,18 +1213,6 @@ marginBottom: 6,
                       {resetLoading ? tReset("submitting") : tReset("submit")}
                     </button>
                   </form>
-
-                  {resetMsg && (
-                    <div
-                      style={{
-                        ...noticeStyle,
-                        marginTop: 10,
-                        marginBottom: 0,
-                      }}
-                    >
-                      {resetMsg}
-                    </div>
-                  )}
                   </>
                 )}
 
@@ -1395,6 +1361,8 @@ marginBottom: 6,
           panel placeholder; el contenido real llega cuando cada documento se
           valide (ver docs/legal/README.md). */}
       <LegalLinksFooter />
+
+      <VibraToast toast={toast} />
     </>
   );
 }

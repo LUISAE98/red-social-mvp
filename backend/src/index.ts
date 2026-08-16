@@ -326,6 +326,14 @@ export { videoOverlayDownload } from "./videoOverlay";
 // Descarga animada de saludos/consejos (Web Egress "hornea" intro + esquina + outro)
 export { greetingAnimatedDownload } from "./greetingRender";
 
+// Muestras de saludo/consejo: contenido del creador para su vitrina. Viven
+// aparte de greetingRequests a propósito — no mueven dinero.
+export {
+  createGreetingSampleUpload,
+  updateGreetingSampleContext,
+  deleteGreetingSample,
+} from "./greetingSamples";
+
 // Live streams (Mux — OBS/RTMP flow)
 export { createMuxLiveStream } from "./liveMux";
 

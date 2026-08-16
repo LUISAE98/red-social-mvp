@@ -16,6 +16,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocale } from "next-intl";
 import { intlLocale } from "@/i18n/locales";
 import { Modal } from "@/components/ui";
+import VibraToast from "@/app/components/VibraToast/VibraToast";
+import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import {
   useCreatorTaxProfile,
   saveCreatorTaxProfile,
@@ -82,6 +84,8 @@ export default function WithdrawFiscalPanel({ open, onClose, uid, availableLabel
 
   const [view, setView] = useState<View>("method");
   const [error, setError] = useState<string | null>(null);
+  const { toast, showToast } = useVibraToast();
+  useEffect(() => { if (error) showToast(error, "error"); }, [error]); // eslint-disable-line react-hooks/exhaustive-deps
   const [busy, setBusy] = useState(false);
   const [manualSaved, setManualSaved] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -550,12 +554,9 @@ export default function WithdrawFiscalPanel({ open, onClose, uid, availableLabel
         </button>
       )}
 
-      {error && (
-        <div style={{ marginBottom: 14, borderRadius: 13, border: "1px solid rgba(255,90,90,0.24)", background: "rgba(120,18,18,0.28)", color: "#ffdada", padding: "10px 12px", fontSize: 13, lineHeight: 1.4 }}>
-          {error}
-        </div>
-      )}
       {body}
+
+      <VibraToast toast={toast} />
     </Modal>
   );
 }

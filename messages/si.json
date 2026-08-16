@@ -65,7 +65,8 @@
     "seeAllMessages": "සියල්ල බලන්න",
     "settings": "සැකසුම්",
     "seeAllFollowing": "සියල්ල බලන්න",
-    "seeAllCommunities": "සියල්ල බලන්න"
+    "seeAllCommunities": "සියල්ල බලන්න",
+    "reels": "කථා"
   },
   "common": {
     "accept": "පිළිගන්න",
@@ -254,7 +255,13 @@
     "reportSubmit": "වාර්තාව යවන්න",
     "reportSentTitle": "වාර්තාව යවන ලදී",
     "reportSentDesc": "අපගේ කණ්ඩායම එය සමාලෝචනය කරනු ඇත. ප්‍රජාව ආරක්ෂිතව තබා ගැනීමට උදව් කිරීම ගැන ස්තුතියි.",
-    "reportSubmitError": "වාර්තාව යැවීමේදී දෝෂයක් සිදු විය. නැවත උත්සාහ කරන්න."
+    "reportSubmitError": "වාර්තාව යැවීමේදී දෝෂයක් සිදු විය. නැවත උත්සාහ කරන්න.",
+    "noStoriesYet": "තවම කථා නැත.",
+    "storyNothingToPublish": "තවම මෙහි ප්‍රකාශයට පත් කිරීමට කිසිවක් නැත.",
+    "storyAddStories": "කථා එක් කරන්න",
+    "storyNeedsBuyerPermission": "ඔබට ඇණවුම් තිබේ, නමුත් ගැනුම්කරු ප්‍රකාශයට පත් කිරීමට අවසර දුන්නේ නැත.",
+    "storyFromHiddenCommunity": "මේවා සැඟවුණු ප්‍රජාවකින් පැමිණෙන අතර ඔබේ පැතිකඩට එක් කළ නොහැක.",
+    "storyNotReadyYet": "වීඩියෝව තවම සූදානම් නැත."
   },
   "groups": {
     "title": "ප්‍රජාවන්",
@@ -1980,7 +1987,9 @@
     "premiumPostPreviewSubsDescUser": "ඔබ ප්‍රජාවේ සාමාජිකයෙකු හෝ දායකයෙකු නම්, ඔබ එය නොමිලේ දකියි.",
     "premiumPostPreviewPriceLabelUser": "අගුළු ඇරීමේ මිල",
     "premiumPostPreviewPriceDescUser": "පළකිරීම අගුළු ඇරීමට කොපමණ වැයවේදැයි නිර්මාණකරු නියම කරයි.",
-    "mergeDonationSupportDesc": "නිර්මාණකරුට ඔබේ සහාය පෙන්වීමට ඔබට කැමති මුදලක් දායක කරන්න."
+    "mergeDonationSupportDesc": "නිර්මාණකරුට ඔබේ සහාය පෙන්වීමට ඔබට කැමති මුදලක් දායක කරන්න.",
+    "addSampleAriaLabel": "නියැදියක් එක් කරන්න",
+    "addSampleHint": "ගැනුම්කරුවන්ට ලැබෙන දේ පෙනෙන උදාහරණයක් පටිගත කරන්න"
   },
   "live": {
     "accessTicket": "ප්‍රවේශ ප්‍රවේශපත්‍රය",

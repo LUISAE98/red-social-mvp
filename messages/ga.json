@@ -65,7 +65,8 @@
     "seeAllMessages": "Féach orthu uile",
     "settings": "Socruithe",
     "seeAllFollowing": "Féach orthu uile",
-    "seeAllCommunities": "Féach orthu uile"
+    "seeAllCommunities": "Féach orthu uile",
+    "reels": "Scéalta"
   },
   "common": {
     "accept": "Glac leis",
@@ -254,7 +255,13 @@
     "reportSubmit": "Seol an tuairisc",
     "reportSentTitle": "Tuairisc seolta",
     "reportSentDesc": "Déanfaidh ár bhfoireann athbhreithniú air. Go raibh maith agat as an bpobal a choinneáil sábháilte.",
-    "reportSubmitError": "Tharla earráid agus an tuairisc á seoladh. Bain triail eile as."
+    "reportSubmitError": "Tharla earráid agus an tuairisc á seoladh. Bain triail eile as.",
+    "noStoriesYet": "Níl aon scéal ann go fóill.",
+    "storyNothingToPublish": "Níl aon rud le foilsiú anseo go fóill.",
+    "storyAddStories": "Cuir scéalta leis",
+    "storyNeedsBuyerPermission": "Tá orduithe agat, ach níor cheadaigh an ceannaitheoir iad a fhoilsiú.",
+    "storyFromHiddenCommunity": "Tagann siad ó phobal folaithe agus ní féidir iad a chur ar do phróifíl.",
+    "storyNotReadyYet": "Níl an físeán réidh fós."
   },
   "groups": {
     "title": "Pobail",
@@ -1980,7 +1987,9 @@
     "premiumPostPreviewSubsDescUser": "Más ball nó síntiúsóir den phobal thú, feiceann tú í saor in aisce.",
     "premiumPostPreviewPriceLabelUser": "Praghas an díghlasála",
     "premiumPostPreviewPriceDescUser": "Socraíonn an cruthaitheoir cé mhéad a chosnaíonn sé an phostáil a dhíghlasáil.",
-    "mergeDonationSupportDesc": "Tabhair pé méid is mian leat chun do thacaíocht a thaispeáint don chruthaitheoir."
+    "mergeDonationSupportDesc": "Tabhair pé méid is mian leat chun do thacaíocht a thaispeáint don chruthaitheoir.",
+    "addSampleAriaLabel": "Cuir sampla leis",
+    "addSampleHint": "Taifead sampla le go bhfeicfidh ceannaitheoirí a bhfaighidh siad"
   },
   "live": {
     "accessTicket": "Ticéad rochtana",

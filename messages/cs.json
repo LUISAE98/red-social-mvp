@@ -65,7 +65,8 @@
     "seeAllMessages": "Zobrazit vše",
     "settings": "Nastavení",
     "seeAllFollowing": "Zobrazit vše",
-    "seeAllCommunities": "Zobrazit vše"
+    "seeAllCommunities": "Zobrazit vše",
+    "reels": "Příběhy"
   },
   "common": {
     "accept": "Přijmout",
@@ -254,7 +255,13 @@
     "reportSubmit": "Odeslat hlášení",
     "reportSentTitle": "Hlášení odesláno",
     "reportSentDesc": "Náš tým ho posoudí. Díky, že pomáháš udržet komunitu bezpečnou.",
-    "reportSubmitError": "Při odesílání hlášení došlo k chybě. Zkus to znovu."
+    "reportSubmitError": "Při odesílání hlášení došlo k chybě. Zkus to znovu.",
+    "noStoriesYet": "Zatím tu nejsou žádné příběhy.",
+    "storyNothingToPublish": "Zatím tu není co zveřejnit.",
+    "storyAddStories": "Přidat příběhy",
+    "storyNeedsBuyerPermission": "Máte objednávky, ale kupující nepovolil jejich zveřejnění.",
+    "storyFromHiddenCommunity": "Pocházejí ze skryté komunity a nelze je zveřejnit na profilu.",
+    "storyNotReadyYet": "Video ještě není hotové."
   },
   "groups": {
     "title": "Komunity",
@@ -1980,7 +1987,9 @@
     "premiumPostPreviewSubsDescUser": "Pokud jsi člen nebo odběratel komunity, vidíš ho zdarma.",
     "premiumPostPreviewPriceLabelUser": "Cena odemknutí",
     "premiumPostPreviewPriceDescUser": "Kolik stojí odemknutí příspěvku, určuje tvůrce.",
-    "mergeDonationSupportDesc": "Přispěj částkou, jakou chceš, a projev tvůrci svou podporu."
+    "mergeDonationSupportDesc": "Přispěj částkou, jakou chceš, a projev tvůrci svou podporu.",
+    "addSampleAriaLabel": "Přidat ukázku",
+    "addSampleHint": "Nahraj příklad, aby kupující viděli, co dostanou"
   },
   "live": {
     "accessTicket": "Vstupenka",

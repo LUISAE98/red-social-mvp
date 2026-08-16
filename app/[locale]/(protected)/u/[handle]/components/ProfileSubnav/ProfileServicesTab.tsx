@@ -35,6 +35,7 @@ import {
   MeetGreetOverlay, SaludoOverlay, Switch,
   buildOffering, buildServiceBlockDraft, calcNetAmount, createEmptyDraft,
   createEmptyWeeklyAvailability, normalizeDurationMeta, pickDonation, pickOffering,
+  sameDraft,
   DEFAULT_DONATION_SUGGESTED_AMOUNTS,
   type Props, type ServiceDraft,
 } from "./ProfileServicesTab.parts";
@@ -66,7 +67,9 @@ export default function ProfileServicesTab({
   const publishSuccessConfig = { shareUrl: profileShareUrl, entityKind: "profile" as const };
 
   const [draft, setDraft] = useState<ServiceDraft>(createEmptyDraft());
-  const [, setSavedDraft] = useState<ServiceDraft>(createEmptyDraft());
+  // `savedDraft` es lo último que se sabe guardado. Se compara contra el
+  // borrador vivo para no pisar ediciones sin guardar cuando llega un snapshot.
+  const [savedDraft, setSavedDraft] = useState<ServiceDraft>(createEmptyDraft());
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const { toast, showToast } = useVibraToast();
@@ -152,9 +155,21 @@ export default function ProfileServicesTab({
       return;
     }
 
-    setDraft(nextDraft);
-    setSavedDraft(nextDraft);
-  }, [profileUserId, isOwner, currentOfferings, currentDonation]);
+    // 🚨 No pisar lo que se está editando.
+    //
+    // Este efecto se dispara cada vez que cambian `currentOfferings` o
+    // `currentDonation`, que llegan del documento del perfil. Antes reemplazaba
+    // el borrador siempre: si entraba un snapshot mientras escribías un precio,
+    // te lo borraba. Es la misma guarda que ya tenía el panel de comunidad.
+    setSavedDraft((prevSaved) =>
+      sameDraft(prevSaved, nextDraft) ? prevSaved : nextDraft
+    );
+
+    setDraft((prevDraft) => {
+      const hasUnsavedChanges = !sameDraft(prevDraft, savedDraft);
+      return hasUnsavedChanges ? prevDraft : nextDraft;
+    });
+  }, [profileUserId, isOwner, currentOfferings, currentDonation, savedDraft]);
 
   if (!isOwner) return null;
 

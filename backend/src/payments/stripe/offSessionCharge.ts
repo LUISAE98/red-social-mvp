@@ -11,6 +11,7 @@
 import { HttpsError } from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
 import { stripeFetch } from "./stripeClient";
+import { stripeIdempotencyKey } from "./idempotency";
 
 if (admin.apps.length === 0) {
   admin.initializeApp();
@@ -71,7 +72,17 @@ export async function chargeSavedCardOffSession(opts: {
     // Clave de idempotencia ESTABLE por externalReference: si el callable se reintenta
     // con la MISMA referencia (reintento de red tras un cobro que sí pasó, doble clic),
     // Stripe devuelve el MISMO PaymentIntent en vez de cobrar dos veces.
-    idempotencyKey: `offsession_${metadata.externalReference}`,
+    //
+    // ⚠️ Incluye importe y moneda, no solo la referencia. Stripe cachea la clave
+    // 24 h junto con sus parámetros y devuelve `idempotency_error` si se reusa con
+    // otros distintos — y el importe cambia por motivos legítimos: aplicar saldo a
+    // favor, otro impuesto según el país de la tarjeta, otra moneda. Con la clave
+    // pelada, corregir el precio dentro de esa ventana tumbaba el cobro.
+    idempotencyKey: stripeIdempotencyKey(
+      `offsession_${metadata.externalReference}`,
+      amountCents,
+      currency
+    ),
     form: {
       amount: amountCents,
       currency: currency.toLowerCase(),

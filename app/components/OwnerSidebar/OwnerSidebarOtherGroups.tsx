@@ -21,11 +21,13 @@ import { Chevron, CountBadge } from "./OwnerSidebar";
 import {
   LeaveGroupActionCard,
   buildAccessNotice, buildJoinedSubtitle, isActuallyJoinedStatus,
-  isJoinedLikeState, normalizeMemberRole, normalizeMemberStatus, noticeStyles,
+  isJoinedLikeState, noticeToneToToastType, normalizeMemberRole, normalizeMemberStatus,
   readDismissedLegacyBanners, resolveAccessState, shouldShowGroup,
   writeDismissedLegacyBanners,
   type Props,
 } from "./OwnerSidebarOtherGroups.parts";
+import VibraToast from "@/app/components/VibraToast/VibraToast";
+import { useVibraToast } from "@/lib/hooks/useVibraToast";
 
 export default function OwnerSidebarOtherGroups({
   currentUserId,
@@ -96,6 +98,9 @@ export default function OwnerSidebarOtherGroups({
       return next;
     });
   }
+
+  const { toast: otherGroupsToast, showToast: showOtherGroupsToast } =
+    useVibraToast();
 
   const [leaveTargetGroup, setLeaveTargetGroup] = useState<GroupDocLite | null>(
   null
@@ -177,6 +182,35 @@ async function handleConfirmLeaveGroup() {
       .filter((section) => section.items.length > 0);
   }, [joinedGrouped, dismissedGroupIds]);
 
+  // Los avisos de acceso (suscripción requerida, acceso conservado, acceso
+  // restringido) salen por el toast, no por una caja de color bajo la tarjeta.
+  // El ref evita repetirlos: uno por comunidad y por montaje.
+  const noticedGroupIdsRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    const groups = visibleJoinedGrouped.flatMap((section) => section.items);
+
+    for (const g of groups) {
+      if (noticedGroupIdsRef.current.has(g.id)) continue;
+
+      const notice = buildAccessNotice(g, tGroups, formatMoney);
+      if (!notice) continue;
+      if (notice.closable && legacyBannerDismissedIds.has(g.id)) continue;
+
+      noticedGroupIdsRef.current.add(g.id);
+      showOtherGroupsToast(
+        notice.title ? `${notice.title} · ${notice.text}` : notice.text,
+        noticeToneToToastType(notice.tone)
+      );
+
+      // El aviso informativo (acceso conservado) se da por visto en cuanto sale
+      // una vez: ya no tiene una ⨯ con la que cerrarlo.
+      if (notice.closable) dismissLegacyBanner(g.id);
+      break;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visibleJoinedGrouped, legacyBannerDismissedIds]);
+
  const visiblePendingJoinRequestsSent: OutgoingJoinRequestRow[] =
   pendingJoinRequestsSent.filter((row: OutgoingJoinRequestRow) => {
     const community = groupMetaMap[row.groupId] ?? null;
@@ -251,82 +285,26 @@ return (
   leaveLabel={tCommon("leave")}
 />
 
-    {notice &&
-      !(notice.closable && legacyBannerDismissedIds.has(g.id)) && (
-      <div
-        style={
-          notice.closable
-            ? {
-                // Banner legado: fondo con la imagen de suscripciones oscurecida
-                // (para no encimarse con el texto), sin contorno, texto blanco.
-                ...noticeStyles(notice.tone, isMobile),
-                position: "relative",
-                paddingInlineEnd: 34,
-                border: "none",
-                overflow: "hidden",
-                color: "#fff",
-                background:
-                  "linear-gradient(rgba(8,8,12,0.68), rgba(8,8,12,0.68)), url('/suscripciones.png') center / cover no-repeat",
-              }
-            : noticeStyles(notice.tone, isMobile)
-        }
-      >
-        {notice.closable && (
-          <button
-            type="button"
-            onClick={() => dismissLegacyBanner(g.id)}
-            aria-label={tCommon("close")}
-            title={tCommon("close")}
-            style={{
-              position: "absolute",
-              top: 8,
-              insetInlineEnd: 8,
-              width: 22,
-              height: 22,
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              padding: 0,
-              border: "none",
-              background: "transparent",
-              color: "#fff",
-              fontSize: 13,
-              lineHeight: 1,
-              cursor: "pointer",
-            }}
-          >
-            ✕
-          </button>
-        )}
-        {notice.title ? (
-          <div style={{ fontWeight: 700 }}>
-            {notice.title}
-          </div>
-        ) : null}
-
-        <div>{notice.text}</div>
-
-        {notice.showSubscribeCta && (
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 2 }}>
-            <button
-              type="button"
-              onClick={() => handleSubscribe(g.id)}
-              style={{
-                padding: "8px 12px",
-                borderRadius: 10,
-                border: "1px solid rgba(255,255,255,0.16)",
-                background: "#fff",
-                color: "#000",
-                fontSize: 12,
-                fontWeight: 700,
-                lineHeight: 1.1,
-                cursor: "pointer",
-              }}
-            >
-              {buildSubscribeLabel(g)}
-            </button>
-          </div>
-        )}
+    {/* El texto del aviso sale por el toast; aquí solo queda la acción. */}
+    {notice?.showSubscribeCta && (
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 2 }}>
+        <button
+          type="button"
+          onClick={() => handleSubscribe(g.id)}
+          style={{
+            padding: "8px 12px",
+            borderRadius: 10,
+            border: "1px solid rgba(255,255,255,0.16)",
+            background: "#fff",
+            color: "#000",
+            fontSize: 12,
+            fontWeight: 700,
+            lineHeight: 1.1,
+            cursor: "pointer",
+          }}
+        >
+          {buildSubscribeLabel(g)}
+        </button>
       </div>
     )}
   </div>
@@ -391,66 +369,9 @@ return (
                     </button>
                   </div>
 
+                  {/* El texto del aviso sale por el toast; aquí solo quedan las acciones. */}
                   {accessNotice &&
-                    !(
-                      accessNotice.closable &&
-                      legacyBannerDismissedIds.has(g.id)
-                    ) && (
-                    <div
-                      style={
-                        accessNotice.closable
-                          ? {
-                              // Banner legado: fondo con la imagen de suscripciones
-                              // oscurecida (para no encimarse con el texto), sin
-                              // contorno y con texto blanco.
-                              ...noticeStyles(accessNotice.tone, isMobile),
-                              position: "relative",
-                              paddingInlineEnd: 34,
-                              border: "none",
-                              overflow: "hidden",
-                              color: "#fff",
-                              background:
-                                "linear-gradient(rgba(8,8,12,0.68), rgba(8,8,12,0.68)), url('/suscripciones.png') center / cover no-repeat",
-                            }
-                          : noticeStyles(accessNotice.tone, isMobile)
-                      }
-                    >
-                      {accessNotice.closable && (
-                        <button
-                          type="button"
-                          onClick={() => dismissLegacyBanner(g.id)}
-                          aria-label={tCommon("close")}
-                          title={tCommon("close")}
-                          style={{
-                            position: "absolute",
-                            top: 8,
-                            insetInlineEnd: 8,
-                            width: 22,
-                            height: 22,
-                            display: "inline-flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            padding: 0,
-                            borderRadius: 999,
-                            border: "none",
-                            background: "rgba(0,0,0,0.45)",
-                            color: "#fff",
-                            fontSize: 13,
-                            lineHeight: 1,
-                            cursor: "pointer",
-                          }}
-                        >
-                          ✕
-                        </button>
-                      )}
-                      {accessNotice.title ? (
-                        <div style={{ fontWeight: 700 }}>
-                          {accessNotice.title}
-                        </div>
-                      ) : null}
-                      <div>{accessNotice.text}</div>
-
-                      {(accessNotice.showSubscribeCta ||
+                    (accessNotice.showSubscribeCta ||
                         accessNotice.showDismissCta) && (
                         <div
                           style={{
@@ -509,8 +430,6 @@ return (
                           )}
                         </div>
                       )}
-                    </div>
-                  )}
 
                   <div
                     style={{
@@ -832,6 +751,7 @@ return (
     </div>
   </div>
 )}
+      <VibraToast toast={otherGroupsToast} />
     </>
   );
 }

@@ -219,6 +219,12 @@ const handleOwnerSidebarPullRefresh = useCallback(async () => {
   );
   const { toast: sidebarToast, showToast: showSidebarToast } = useVibraToast();
 
+  // Los dos avisos del sidebar (perfil que no carga y grupos que fallan) salen
+  // por el toast; el estado se conserva porque la caché y el reintento de
+  // permisos lo siguen leyendo.
+  useEffect(() => { if (msg) showSidebarToast(msg, "error"); }, [msg]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (groupsErr) showSidebarToast(groupsErr, "error"); }, [groupsErr]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const [activeView, setActiveView] = useState<TopView>(
     () => ownerSidebarCache?.activeView ?? "owned"
   );
@@ -411,15 +417,6 @@ const ui = {
       lineHeight: 1.1,
       cursor: "pointer",
       fontFamily: fontStack,
-    },
-    message: {
-      padding: "10px 12px",
-      borderRadius: 12,
-      border: "1px solid rgba(255,255,255,0.08)",
-      background: "rgba(255,255,255,0.03)",
-      color: "#fff",
-      fontSize: 12,
-      lineHeight: 1.35,
     },
 sectionTitle: {
   fontSize: 11,
@@ -2424,8 +2421,6 @@ className="profile-owner-sidebar-fixed"
   }
 >
 <div className="profile-owner-sidebar-content">
-          {msg && <div style={styles.message}>{msg}</div>}
-          {groupsErr && <div style={styles.message}>{groupsErr}</div>}
 
 {/* Skeleton de "mi perfil" mientras carga (home fresco / refresh). Mismo estilo
     canónico .vb-skel / vbSkelWave de vibra_style.md. */}

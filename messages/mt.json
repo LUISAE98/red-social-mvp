@@ -65,7 +65,8 @@
     "seeAllMessages": "Ara kollha",
     "settings": "Issettjar",
     "seeAllFollowing": "Ara kollha",
-    "seeAllCommunities": "Ara kollha"
+    "seeAllCommunities": "Ara kollha",
+    "reels": "Stejjer"
   },
   "common": {
     "accept": "Aċċetta",
@@ -254,7 +255,13 @@
     "reportSubmit": "Ibgħat ir-rapport",
     "reportSentTitle": "Rapport mibgħut",
     "reportSentDesc": "It-tim tagħna se jirrevedih. Grazzi talli tgħin biex il-komunità tibqa' sigura.",
-    "reportSubmitError": "Seħħ żball waqt li ntbagħat ir-rapport. Erġa' pprova."
+    "reportSubmitError": "Seħħ żball waqt li ntbagħat ir-rapport. Erġa' pprova.",
+    "noStoriesYet": "Għad m'hemmx stejjer.",
+    "storyNothingToPublish": "Għad m'hemm xejn x'tippubblika hawn.",
+    "storyAddStories": "Żid stejjer",
+    "storyNeedsBuyerPermission": "Għandek ordnijiet, imma x-xerrej ma ppermettiex li jiġu ppubblikati.",
+    "storyFromHiddenCommunity": "Ġejjin minn komunità moħbija u ma jistgħux jitpoġġew fil-profil tiegħek.",
+    "storyNotReadyYet": "Il-vidjo għadu mhux lest."
   },
   "groups": {
     "title": "Komunitajiet",
@@ -1980,7 +1987,9 @@
     "premiumPostPreviewSubsDescUser": "Jekk int membru jew abbonat tal-komunità, tarah b'xejn.",
     "premiumPostPreviewPriceLabelUser": "Prezz tal-ftuħ",
     "premiumPostPreviewPriceDescUser": "Il-kreatur jistabbilixxi kemm tiswa biex jinfetaħ il-post.",
-    "mergeDonationSupportDesc": "Agħti kemm trid biex turi s-sapport tiegħek lill-kreatur."
+    "mergeDonationSupportDesc": "Agħti kemm trid biex turi s-sapport tiegħek lill-kreatur.",
+    "addSampleAriaLabel": "Żid kampjun",
+    "addSampleHint": "Irrekordja eżempju biex ix-xerrejja jaraw x'se jieħdu"
   },
   "live": {
     "accessTicket": "Biljett ta' aċċess",

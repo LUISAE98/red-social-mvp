@@ -1,11 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { doc, serverTimestamp, updateDoc } from "firebase/firestore";
 import { useTranslations } from "next-intl";
 import { db } from "@/lib/firebase";
 import { softDeleteGroup } from "@/lib/groups/groupDeletion";
+import VibraToast from "@/app/components/VibraToast/VibraToast";
+import { useVibraToast } from "@/lib/hooks/useVibraToast";
 
 type OwnerAdminDangerZoneProps = {
   groupId: string;
@@ -27,6 +29,9 @@ export default function OwnerAdminDangerZone({
   const [isPausing, setIsPausing] = useState(false);
   const [showFinalOverlay, setShowFinalOverlay] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const { toast, showToast } = useVibraToast();
+  useEffect(() => { if (errorMessage) showToast(errorMessage, "error"); }, [errorMessage]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const normalizedConfirmText = confirmText.trim().toUpperCase();
 
@@ -231,23 +236,6 @@ export default function OwnerAdminDangerZone({
               />
             </label>
 
-            {errorMessage ? (
-              <p
-                style={{
-                  margin: 0,
-                  borderRadius: 10,
-                  border: "1px solid rgba(255,80,80,0.24)",
-                  background: "rgba(255,80,80,0.08)",
-                  color: "#ffb3b3",
-                  padding: "9px 10px",
-                  fontSize: 12,
-                  lineHeight: 1.4,
-                }}
-              >
-                {errorMessage}
-              </p>
-            ) : null}
-
             <div
               style={{
                 display: "flex",
@@ -429,6 +417,8 @@ export default function OwnerAdminDangerZone({
           </div>
         </div>
       ) : null}
+
+      <VibraToast toast={toast} />
     </>
   );
 }

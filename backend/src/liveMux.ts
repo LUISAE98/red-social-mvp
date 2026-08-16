@@ -2,6 +2,7 @@ import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { logger } from "firebase-functions";
 import * as admin from "firebase-admin";
 import { createMuxClient, muxTokenId, muxTokenSecret } from "./mux";
+import { consumeQuota } from "./quotas";
 
 if (admin.apps.length === 0) {
   admin.initializeApp();
@@ -36,6 +37,10 @@ export const createMuxLiveStream = onCall(
     if (post.authorId !== uid) {
       throw new HttpsError("permission-denied", "Solo el creador puede configurar este live.");
     }
+
+    // Arrancar una transmisión crea un canal en el proveedor, y eso factura.
+    // Va DESPUÉS del permiso: a quien no es el creador no se le gasta el día.
+    await consumeQuota(uid, "liveStart");
     if (post.postType !== "live") {
       throw new HttpsError("invalid-argument", "Este post no es un live.");
     }

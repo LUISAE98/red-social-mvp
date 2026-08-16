@@ -65,7 +65,8 @@
     "seeAllMessages": "Sjá allt",
     "settings": "Stillingar",
     "seeAllFollowing": "Sjá allt",
-    "seeAllCommunities": "Skoða allt"
+    "seeAllCommunities": "Skoða allt",
+    "reels": "Sögur"
   },
   "common": {
     "accept": "Samþykkja",
@@ -254,7 +255,13 @@
     "reportSubmit": "Senda tilkynningu",
     "reportSentTitle": "Tilkynning send",
     "reportSentDesc": "Teymið okkar fer yfir hana. Takk fyrir að hjálpa til við að halda samfélaginu öruggu.",
-    "reportSubmitError": "Villa kom upp við að senda tilkynninguna. Reyndu aftur."
+    "reportSubmitError": "Villa kom upp við að senda tilkynninguna. Reyndu aftur.",
+    "noStoriesYet": "Engar sögur enn sem komið er.",
+    "storyNothingToPublish": "Ekkert til að birta hér enn.",
+    "storyAddStories": "Bæta við sögum",
+    "storyNeedsBuyerPermission": "Þú átt pantanir en kaupandinn leyfði ekki birtingu.",
+    "storyFromHiddenCommunity": "Þær koma úr faldu samfélagi og mega ekki fara á prófílinn þinn.",
+    "storyNotReadyYet": "Myndbandið er ekki tilbúið enn."
   },
   "groups": {
     "title": "Samfélög",
@@ -1980,7 +1987,9 @@
     "premiumPostPreviewSubsDescUser": "Ef þú ert meðlimur eða áskrifandi samfélagsins sérð þú hana ókeypis.",
     "premiumPostPreviewPriceLabelUser": "Verð fyrir opnun",
     "premiumPostPreviewPriceDescUser": "Höfundurinn ákveður hvað það kostar að opna færsluna.",
-    "mergeDonationSupportDesc": "Leggðu fram þá upphæð sem þú vilt til að sýna höfundinum stuðning."
+    "mergeDonationSupportDesc": "Leggðu fram þá upphæð sem þú vilt til að sýna höfundinum stuðning.",
+    "addSampleAriaLabel": "Bæta við sýnishorni",
+    "addSampleHint": "Taktu upp dæmi svo kaupendur sjái hvað þeir fá"
   },
   "live": {
     "accessTicket": "Aðgangsmiði",

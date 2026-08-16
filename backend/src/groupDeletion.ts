@@ -2,6 +2,7 @@ import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { getApps, initializeApp } from "firebase-admin/app";
 import { FieldValue, getFirestore } from "firebase-admin/firestore";
 import * as logger from "firebase-functions/logger";
+import { cancelGroupSubscriptions } from "./payments/stripe/cancelGroupSubscriptions";
 
 if (!getApps().length) {
   initializeApp();
@@ -390,9 +391,17 @@ async function softDeleteGroupInternal(params: {
     commitBatches(homeFeedRefs, "delete"),
   ]);
 
+  // ⚠️ Cancelar los cobros recurrentes es lo ÚLTIMO y lo más importante para el
+  // comprador (B6-H05). Borrar la comunidad ocultaba el contenido, revocaba las
+  // invitaciones y quitaba las membresías, pero **nadie tocaba Stripe**: las
+  // suscripciones seguían vivas y cobrando cada mes por una comunidad que ya no
+  // existe. Y en la renovación siguiente el webhook recreaba la membresía.
+  const subscriptionsCancelled = await cancelGroupSubscriptions(groupId);
+
   logger.info("softDeleteGroup completed", {
     groupId,
     actorUid,
+    subscriptionsCancelled,
     postsUpdated,
     membersUpdated,
     userMembershipsUpdated,

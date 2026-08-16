@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import type { Timestamp } from "firebase/firestore";
 import { useAuth } from "@/app/providers";
@@ -10,10 +10,11 @@ import WalletSectionShell from "../components/WalletSectionShell";
 import WalletMonthlyStats from "../components/WalletMonthlyStats";
 import {
   WalletCard,
-  WalletErrorBox,
   WalletFilterMenu,
   WalletList,
 } from "../components/WalletUi";
+import VibraToast from "@/app/components/VibraToast/VibraToast";
+import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import { WalletCardsSkeleton } from "../components/WalletListSkeleton";
 import GreetingReviewOverlay from "@/app/components/OwnerSidebar/GreetingReviewOverlay";
 import type { GreetingRequestDoc, UserMini } from "@/app/components/OwnerSidebar/OwnerSidebar";
@@ -142,6 +143,8 @@ export default function WalletHistorialPage() {
   const tWallet = useTranslations("wallet");
   const { user } = useAuth();
   const walletData = useWalletData();
+  const { toast, showToast } = useVibraToast();
+  useEffect(() => { if (walletData.error) showToast(walletData.error, "error"); }, [walletData.error]); // eslint-disable-line react-hooks/exhaustive-deps
   const [filter, setFilter] = useState<HistoryFilter[]>(["all"]);
   const [viewRow, setViewRow] = useState<WalletServiceItem | null>(null);
 
@@ -215,8 +218,6 @@ const filteredItems = useMemo(() => {
   return (
     <>
     <WalletSectionShell activeTab="history">
-      {walletData.error ? <WalletErrorBox message={walletData.error} /> : null}
-
       <WalletMonthlyStats uid={user?.uid} />
 
       <WalletCard
@@ -270,8 +271,6 @@ const filteredItems = useMemo(() => {
         serviceKind={sessionViewRow.source as "meet_greet" | "exclusive_session"}
         earning={null}
         busy={false}
-        feedbackError={null}
-        feedbackSuccess={null}
         ownerCalendarItems={[]}
         getInitials={(name) => (name ?? "?").charAt(0).toUpperCase()}
         onAccept={() => {}}
@@ -282,6 +281,8 @@ const filteredItems = useMemo(() => {
         readOnly={true}
       />
     )}
+
+    <VibraToast toast={toast} />
   </>
   );
 }

@@ -325,6 +325,82 @@ export function buildOffering(params: {
   };
 }
 
+/** Los siete días, en orden. La clave es la del borrador; la etiqueta se traduce aparte. */
+export const WEEKDAY_KEYS: Array<keyof WeeklyAvailabilityDraft> = [
+  "monday",
+  "tuesday",
+  "wednesday",
+  "thursday",
+  "friday",
+  "saturday",
+  "sunday",
+];
+
+/**
+ * Comparadores de borrador.
+ *
+ * Sirven para UNA cosa concreta: cuando llega un snapshot de Firestore mientras
+ * el creador está editando, decidir si se puede refrescar el formulario o si
+ * hay cambios sin guardar que no deben pisarse. Sin esto, escribir un precio y
+ * que entre un snapshot a medias te borra lo tecleado.
+ *
+ * Se comparan campo a campo en vez de con JSON.stringify porque el orden de las
+ * claves no está garantizado y daría falsos "cambió" que reiniciarían el
+ * formulario sin motivo.
+ */
+export function sameServiceBlock(a: ServiceBlockDraft, b: ServiceBlockDraft) {
+  return (
+    a.enabled === b.enabled &&
+    a.price === b.price &&
+    a.currency === b.currency &&
+    a.visible === b.visible &&
+    a.visibility === b.visibility
+  );
+}
+
+export function sameSubscriptionBlock(a: SubscriptionDraft, b: SubscriptionDraft) {
+  return a.enabled === b.enabled && a.price === b.price && a.currency === b.currency;
+}
+
+export function sameWeeklyAvailability(
+  a: WeeklyAvailabilityDraft,
+  b: WeeklyAvailabilityDraft
+) {
+  return WEEKDAY_KEYS.every((key) => {
+    const aSlots = a[key];
+    const bSlots = b[key];
+    if (aSlots.length !== bSlots.length) return false;
+
+    return aSlots.every(
+      (slot, index) =>
+        slot.start === bSlots[index]?.start && slot.end === bSlots[index]?.end
+    );
+  });
+}
+
+export function sameDraft(a: ServiceDraft, b: ServiceDraft) {
+  return (
+    sameSubscriptionBlock(a.subscription, b.subscription) &&
+    sameServiceBlock(a.saludo, b.saludo) &&
+    sameServiceBlock(a.consejo, b.consejo) &&
+    sameServiceBlock(a.meetGreet, b.meetGreet) &&
+    a.meetGreet.durationMinutes === b.meetGreet.durationMinutes &&
+    sameServiceBlock(a.customClass, b.customClass) &&
+    a.customClass.durationMinutes === b.customClass.durationMinutes &&
+    sameWeeklyAvailability(a.customClass.availability, b.customClass.availability) &&
+    a.donationMode === b.donationMode &&
+    a.donationCurrency === b.donationCurrency &&
+    a.donationSuggestedAmounts.join(",") === b.donationSuggestedAmounts.join(",") &&
+    a.donationGoalLabel === b.donationGoalLabel &&
+    a.donationMessage === b.donationMessage &&
+    a.donationVideoUrl === b.donationVideoUrl &&
+    a.donationPlaybackId === b.donationPlaybackId &&
+    a.freeToSubscriptionPolicy === b.freeToSubscriptionPolicy &&
+    a.subscriptionToFreePolicy === b.subscriptionToFreePolicy &&
+    a.subscriptionPriceIncreasePolicy === b.subscriptionPriceIncreasePolicy
+  );
+}
+
 export function calcNetAmount(raw: string) {
   const n = Number(raw);
   if (raw.trim() === "" || Number.isNaN(n) || n <= 0) return null;

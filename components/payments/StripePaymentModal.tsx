@@ -18,6 +18,8 @@ import { auth, db } from "@/lib/firebase";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import { useBuyerCredit } from "@/lib/wallet/useBuyerCredit";
 import { FIXED_SERVICE_FEE_MXN } from "@/lib/currency/catalog";
+import VibraToast from "@/app/components/VibraToast/VibraToast";
+import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import { isChargeableCountry } from "@/lib/tax/config";
 import { loadStripe, type StripeLike, type StripeElement } from "@/lib/stripe/loadStripe";
 import VibraPayBrand from "./VibraPayBrand";
@@ -150,6 +152,8 @@ export default function StripePaymentModal({
   const [loading, setLoading] = useState(true);
   const [sdkReady, setSdkReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { toast, showToast } = useVibraToast();
+  useEffect(() => { if (error) showToast(error, "error"); }, [error]); // eslint-disable-line react-hooks/exhaustive-deps
   const [submitting, setSubmitting] = useState(false);
   const [paid, setPaid] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
@@ -1008,7 +1012,6 @@ export default function StripePaymentModal({
         </>
       )}
 
-      {error && <p style={{ margin: 0, color: "#c0392b", fontSize: 11, textAlign: "center" }}>{error}</p>}
 
       {/* Aviso sutil cuando la tarjeta cambió el país respecto al que dijo la IP: le explica
           al comprador por qué el precio se movió, sin agregarle un paso ni pedirle confirmar. */}
@@ -1088,6 +1091,7 @@ export default function StripePaymentModal({
           </div>
         )}
       </div>
+      <VibraToast toast={toast} />
     </div>,
     (isSheet ? container : null) ?? document.body
   );

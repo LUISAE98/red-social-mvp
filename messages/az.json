@@ -65,7 +65,8 @@
     "seeAllMessages": "Hamısına bax",
     "settings": "Parametrlər",
     "seeAllFollowing": "Hamısına bax",
-    "seeAllCommunities": "Hamısına bax"
+    "seeAllCommunities": "Hamısına bax",
+    "reels": "Hekayələr"
   },
   "common": {
     "accept": "Qəbul et",
@@ -254,7 +255,13 @@
     "reportSubmit": "Şikayəti göndər",
     "reportSentTitle": "Şikayət göndərildi",
     "reportSentDesc": "Komandamız onu nəzərdən keçirəcək. İcmanı təhlükəsiz saxlamağa kömək etdiyin üçün təşəkkürlər.",
-    "reportSubmitError": "Şikayət göndərilərkən xəta baş verdi. Zəhmət olmasa yenidən cəhd et."
+    "reportSubmitError": "Şikayət göndərilərkən xəta baş verdi. Zəhmət olmasa yenidən cəhd et.",
+    "noStoriesYet": "Hələ heç bir hekayə yoxdur.",
+    "storyNothingToPublish": "Burada hələ dərc ediləcək bir şey yoxdur.",
+    "storyAddStories": "Hekayə əlavə et",
+    "storyNeedsBuyerPermission": "Sifarişləriniz var, amma alıcı onların dərcinə icazə vermədi.",
+    "storyFromHiddenCommunity": "Bunlar gizli bir icmadan gəlir və profilinizdə dərc edilə bilməz.",
+    "storyNotReadyYet": "Video hələ hazır deyil."
   },
   "groups": {
     "title": "İcmalar",
@@ -1980,7 +1987,9 @@
     "premiumPostPreviewSubsDescUser": "İcmanın üzvü və ya abunəçisisənsə, pulsuz görürsən.",
     "premiumPostPreviewPriceLabelUser": "Kilid açma qiyməti",
     "premiumPostPreviewPriceDescUser": "Paylaşımın kilidini açmağın nə qədər olacağını yaradıcı təyin edir.",
-    "mergeDonationSupportDesc": "Yaradıcıya dəstəyini göstərmək üçün istədiyin məbləğdə töhfə ver."
+    "mergeDonationSupportDesc": "Yaradıcıya dəstəyini göstərmək üçün istədiyin məbləğdə töhfə ver.",
+    "addSampleAriaLabel": "Nümunə əlavə et",
+    "addSampleHint": "Alıcıların nə alacağını görməsi üçün nümunə çək"
   },
   "live": {
     "accessTicket": "Giriş bileti",

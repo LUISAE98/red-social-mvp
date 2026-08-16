@@ -9,6 +9,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import ImageCropperModal from "@/components/media/ImageCropperModal";
+import VibraToast from "@/app/components/VibraToast/VibraToast";
+import { useVibraToast } from "@/lib/hooks/useVibraToast";
 
 const vibraPink = "#ff2fb3";
 const vibraPurple = "#a855f7";
@@ -57,6 +59,9 @@ export default function CompleteProfilePanel({
   onCancel: () => void;
 }) {
   const t = useTranslations("completeProfile");
+  // El aviso de error sale por el toast de Vibra, no como caja bajo el formulario.
+  const { toast, showToast } = useVibraToast();
+  useEffect(() => { if (msg) showToast(msg, "error"); }, [msg]); // eslint-disable-line react-hooks/exhaustive-deps
   const fontStack = "inherit";
 
   // Recorte de foto/portada (interno; entrega blobs al padre).
@@ -184,17 +189,6 @@ export default function CompleteProfilePanel({
     background: "rgba(255,255,255,0.08)",
     backgroundImage: "none",
     boxShadow: "none",
-  };
-
-  const noticeStyle: React.CSSProperties = {
-    marginTop: 10,
-    borderRadius: 9,
-    border: "1px solid rgba(255, 80, 80, 0.45)",
-    background: "rgba(255, 40, 40, 0.10)",
-    padding: "7px 9px",
-    fontSize: 10.5,
-    lineHeight: 1.35,
-    color: "rgba(255, 190, 190, 0.95)",
   };
 
   // Asterisco morado para marcar campos obligatorios.
@@ -438,8 +432,6 @@ export default function CompleteProfilePanel({
             </button>
           </form>
 
-          {msg && <div style={noticeStyle}>{msg}</div>}
-
       <ImageCropperModal
         open={cropOpen}
         title={cropMode === "avatar" ? t("cropPhotoTitle") : t("cropCoverTitle")}
@@ -450,6 +442,8 @@ export default function CompleteProfilePanel({
         onClose={closeCrop}
         onConfirm={handleCropConfirm}
       />
+
+      <VibraToast toast={toast} />
     </>
   );
 }

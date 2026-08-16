@@ -15,6 +15,8 @@ import { db } from "@/lib/firebase";
 import { claimReport } from "@/lib/moderation/reportService";
 import type { Report } from "@/lib/moderation/types";
 import { REPORT_REASON_LABELS } from "@/lib/moderation/types";
+import VibraToast from "@/app/components/VibraToast/VibraToast";
+import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import Link from "next/link";
 
 type FireReport = Omit<Report, "createdAt" | "claimedAt" | "resolvedAt"> & {
@@ -62,6 +64,8 @@ export default function AdminReportsPage() {
   const [loading, setLoading] = useState(true);
   const [claiming, setClaiming] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const { toast, showToast } = useVibraToast();
+  useEffect(() => { if (error) showToast(error, "error"); }, [error]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const q = query(
@@ -105,12 +109,6 @@ export default function AdminReportsPage() {
           {tAdmin("pendingReportsNote")}
         </p>
       </div>
-
-      {error && (
-        <div style={{ padding: "10px 14px", background: "#1f0a0a", border: "1px solid #7f1d1d", borderRadius: 8, color: "#f87171", fontSize: 13, marginBottom: 16 }}>
-          {error}
-        </div>
-      )}
 
       {loading ? (
         <div style={{ color: "#555", fontSize: 14 }}>{tAdmin("reportsLoading")}</div>
@@ -180,6 +178,8 @@ export default function AdminReportsPage() {
           ))}
         </div>
       )}
+
+      <VibraToast toast={toast} />
     </div>
   );
 }

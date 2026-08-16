@@ -3,7 +3,8 @@ import { useRef, useState } from "react";
 export type ToastType = "success" | "error" | "warning";
 export type ToastState = { text: string; type: ToastType } | null;
 
-export function useVibraToast(duration = 3500) {
+/** Cuánto se queda el aviso en pantalla antes de irse solo. */
+export function useVibraToast(duration = 4000) {
   const [toast, setToast] = useState<ToastState>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 

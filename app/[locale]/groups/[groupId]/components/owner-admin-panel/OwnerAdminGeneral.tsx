@@ -8,6 +8,10 @@ import { doc, onSnapshot, serverTimestamp, updateDoc, type Timestamp } from "fir
 import { db } from "@/lib/firebase";
 import { buildGroupSearchIndex } from "@/lib/groups/groupSearchIndex";
 import type { Group } from "@/types/group";
+import { GROUP_CATEGORY_OPTIONS, normalizeGroupCategory } from "@/types/group";
+import OptionWheelPanel from "@/components/ui/OptionWheelPanel";
+import VibraToast from "@/app/components/VibraToast/VibraToast";
+import { useVibraToast } from "@/lib/hooks/useVibraToast";
 
 type GroupVisibility = "public" | "private" | "hidden";
 type EditField = "name" | "description" | "visibility" | "category" | "tags";
@@ -173,6 +177,10 @@ export default function OwnerAdminGeneral({
   const [savingGeneral, setSavingGeneral] = useState(false);
   const [generalMsg, setGeneralMsg] = useState<string | null>(null);
   const [generalErr, setGeneralErr] = useState<string | null>(null);
+
+  const { toast, showToast } = useVibraToast();
+  useEffect(() => { if (generalErr) showToast(generalErr, "error"); }, [generalErr]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (generalMsg) showToast(generalMsg, "success"); }, [generalMsg]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const initializedGroupRef = useRef<string | null>(null);
 
@@ -570,8 +578,6 @@ await updateDoc(groupRef, {
         </button>
       </div>
 
-      {generalMsg && <div style={noticeStyle}>{generalMsg}</div>}
-
       <FullScreenModal open={!!editField} onClose={closeEdit}>
         <div style={modalCardStyle} onClick={(e) => e.stopPropagation()}>
           <strong style={{ fontSize: 16, color: "#fff", lineHeight: 1.2 }}>
@@ -594,38 +600,44 @@ await updateDoc(groupRef, {
                 Esta comunidad oculta no puede cambiar a público o privado.
               </div>
             ) : (
-              <select
-                style={inputStyle}
+              <OptionWheelPanel
                 value={draftValue}
-                onChange={(e) => setDraftValue(e.target.value)}
-              >
-                <option value="public">Público</option>
-                <option value="private">Privado</option>
-              </select>
+                onChange={setDraftValue}
+                title="Visibilidad"
+                confirmLabel="Guardar"
+                closeAriaLabel="Cerrar"
+                options={[
+                  { value: "public", label: "Público" },
+                  { value: "private", label: "Privado" },
+                ]}
+              />
             )
           ) : editField === "category" ? (
-            <select
-              style={inputStyle}
-              value={draftValue || "otros"}
-              onChange={(e) => setDraftValue(e.target.value)}
-            >
-              <option value="otros">Otros</option>
-              <option value="entretenimiento">Entretenimiento</option>
-              <option value="influencer">Influencer</option>
-              <option value="actor">Actor</option>
-              <option value="comediante">Comediante</option>
-              <option value="cantante">Cantante</option>
-              <option value="youtuber">YouTuber</option>
-              <option value="streamer">Streamer</option>
-              <option value="podcaster">Podcaster</option>
-              <option value="tecnologia">Tecnología</option>
-              <option value="videojuegos">Videojuegos</option>
-              <option value="fitness">Fitness</option>
-              <option value="negocios">Negocios</option>
-              <option value="educacion">Educación</option>
-              <option value="viajes">Viajes</option>
-              <option value="comida">Comida</option>
-            </select>
+            /**
+             * Las MISMAS categorías que al crear la comunidad.
+             *
+             * Aquí había dieciséis escritas a mano que no coincidían con las
+             * canónicas: incluían valores viejos —"influencer", "actor",
+             * "videojuegos"— y les faltaban la mitad de las actuales. O sea que
+             * la misma comunidad ofrecía un juego de categorías al crearla y
+             * otro al editarla, y desde aquí se le podía poner una que ya no
+             * existe en el catálogo, con lo que dejaba de aparecer en las
+             * recomendaciones y en la búsqueda, que sí van por las canónicas.
+             *
+             * Las viejas siguen leyéndose bien: `normalizeGroupCategory` las
+             * traduce a su equivalente actual.
+             */
+            <OptionWheelPanel
+              value={normalizeGroupCategory(draftValue) ?? draftValue}
+              onChange={setDraftValue}
+              title="Categoría"
+              confirmLabel="Guardar"
+                closeAriaLabel="Cerrar"
+              options={GROUP_CATEGORY_OPTIONS.map((option) => ({
+                value: option.value,
+                label: option.label,
+              }))}
+            />
           ) : (
             <input
               style={inputStyle}
@@ -639,8 +651,6 @@ await updateDoc(groupRef, {
               Máximo 10 tags separadas por coma.
             </div>
           )}
-
-          {generalErr && <div style={noticeStyle}>{generalErr}</div>}
 
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
             <button
@@ -681,6 +691,8 @@ await updateDoc(groupRef, {
           </div>
         </div>
       </FullScreenModal>
+
+      <VibraToast toast={toast} />
     </div>
   );
 }

@@ -7,6 +7,7 @@ import { stripeSecretKey } from "./payments/stripe/stripeClient";
 import { capturePaymentIntentForRef, cancelPaymentIntentForRef } from "./payments/stripe/holdCapture";
 import { revertBuyerCreditSpend } from "./wallet/buyerCredit";
 import { refundExperienceToCredit, mirrorCardReturnPurchase } from "./wallet/refundToCredit";
+import { assertAccountNotBanned } from "./accountStatus";
 
 if (admin.apps.length === 0) {
   admin.initializeApp();
@@ -458,6 +459,10 @@ export const createGreetingMuxUpload = onCall(
     }
 
     const actorId = auth.uid;
+    // Subir a Mux cuesta factura: no se le concede a una cuenta suspendida
+    // aunque su token todavía no haya caducado.
+    await assertAccountNotBanned(actorId);
+
     const greetingRequestId = assertString(request.data?.greetingRequestId, "greetingRequestId", 200);
 
     const reqRef = db.doc(`greetingRequests/${greetingRequestId}`);

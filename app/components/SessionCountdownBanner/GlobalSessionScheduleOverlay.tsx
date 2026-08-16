@@ -13,6 +13,8 @@ import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useOwnerWalletData } from "@/lib/wallet/ownerWallet";
 import SessionRequestOverlay from "@/app/components/OwnerSidebar/SessionRequestOverlay";
+import VibraToast from "@/app/components/VibraToast/VibraToast";
+import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import type {
   MeetGreetRequestDoc,
   ExclusiveSessionRequestDoc,
@@ -47,6 +49,9 @@ export default function GlobalSessionScheduleOverlay() {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { toast: scheduleToast, showToast: showScheduleToast } = useVibraToast();
+
+  useEffect(() => { if (error) showScheduleToast(error, "error"); }, [error]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // El operador del card ES el creador; sus sesiones agendadas alimentan la
   // detección de conflictos en vivo del panel. Con creatorId null no monta
@@ -114,6 +119,8 @@ export default function GlobalSessionScheduleOverlay() {
   }
 
   return (
+    <>
+    <VibraToast toast={scheduleToast} />
     <SessionRequestOverlay
       open={open}
       onClose={close}
@@ -122,8 +129,6 @@ export default function GlobalSessionScheduleOverlay() {
       serviceKind={serviceKind}
       earning={null}
       busy={busy}
-      feedbackError={error}
-      feedbackSuccess={null}
       ownerCalendarItems={calendar}
       getInitials={(name) => (name ?? "?").charAt(0).toUpperCase()}
       onAccept={() =>
@@ -175,5 +180,6 @@ export default function GlobalSessionScheduleOverlay() {
         )
       }
     />
+    </>
   );
 }

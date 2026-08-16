@@ -65,7 +65,8 @@
     "seeAllMessages": "Vezi toate",
     "settings": "Setări",
     "seeAllFollowing": "Vezi toate",
-    "seeAllCommunities": "Vezi toate"
+    "seeAllCommunities": "Vezi toate",
+    "reels": "Povești"
   },
   "common": {
     "accept": "Acceptă",
@@ -254,7 +255,13 @@
     "reportSubmit": "Trimite raportarea",
     "reportSentTitle": "Raportare trimisă",
     "reportSentDesc": "Echipa noastră o va analiza. Mulțumim că ne ajuți să păstrăm comunitatea în siguranță.",
-    "reportSubmitError": "A apărut o eroare la trimiterea raportării. Încearcă din nou."
+    "reportSubmitError": "A apărut o eroare la trimiterea raportării. Încearcă din nou.",
+    "noStoriesYet": "Încă nu există povești.",
+    "storyNothingToPublish": "Încă nu e nimic de publicat aici.",
+    "storyAddStories": "Adaugă povești",
+    "storyNeedsBuyerPermission": "Ai comenzi, dar cumpărătorul nu a permis publicarea lor.",
+    "storyFromHiddenCommunity": "Vin dintr-o comunitate ascunsă și nu pot ajunge pe profilul tău.",
+    "storyNotReadyYet": "Videoclipul nu este încă gata."
   },
   "groups": {
     "title": "Comunități",
@@ -1980,7 +1987,9 @@
     "premiumPostPreviewSubsDescUser": "Dacă ești membru sau abonat al comunității, o vezi gratuit.",
     "premiumPostPreviewPriceLabelUser": "Preț de deblocare",
     "premiumPostPreviewPriceDescUser": "Creatorul stabilește cât costă deblocarea postării.",
-    "mergeDonationSupportDesc": "Contribuie cu suma pe care o vrei ca să îi arăți creatorului sprijinul tău."
+    "mergeDonationSupportDesc": "Contribuie cu suma pe care o vrei ca să îi arăți creatorului sprijinul tău.",
+    "addSampleAriaLabel": "Adaugă un exemplu",
+    "addSampleHint": "Înregistrează un exemplu ca cumpărătorii să vadă ce vor primi"
   },
   "live": {
     "accessTicket": "Bilet de acces",

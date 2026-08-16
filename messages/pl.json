@@ -65,7 +65,8 @@
     "seeAllMessages": "Zobacz wszystkie",
     "settings": "Ustawienia",
     "seeAllFollowing": "Zobacz wszystkie",
-    "seeAllCommunities": "Zobacz wszystkie"
+    "seeAllCommunities": "Zobacz wszystkie",
+    "reels": "Relacje"
   },
   "common": {
     "accept": "Akceptuj",
@@ -254,7 +255,13 @@
     "reportSubmit": "Wyślij zgłoszenie",
     "reportSentTitle": "Zgłoszenie wysłane",
     "reportSentDesc": "Nasz zespół je sprawdzi. Dziękujemy, że pomagasz dbać o bezpieczeństwo społeczności.",
-    "reportSubmitError": "Podczas wysyłania zgłoszenia wystąpił błąd. Spróbuj ponownie."
+    "reportSubmitError": "Podczas wysyłania zgłoszenia wystąpił błąd. Spróbuj ponownie.",
+    "noStoriesYet": "Nie ma jeszcze żadnych relacji.",
+    "storyNothingToPublish": "Nie ma tu jeszcze nic do opublikowania.",
+    "storyAddStories": "Dodaj relacje",
+    "storyNeedsBuyerPermission": "Masz zlecenia, ale kupujący nie zgodził się na ich publikację.",
+    "storyFromHiddenCommunity": "Pochodzą z ukrytej społeczności i nie mogą trafić na Twój profil.",
+    "storyNotReadyYet": "Wideo nie jest jeszcze gotowe."
   },
   "groups": {
     "title": "Społeczności",
@@ -1980,7 +1987,9 @@
     "premiumPostPreviewSubsDescUser": "Jeśli jesteś członkiem albo subskrybentem społeczności, widzisz go za darmo.",
     "premiumPostPreviewPriceLabelUser": "Cena odblokowania",
     "premiumPostPreviewPriceDescUser": "Twórca ustala, ile kosztuje odblokowanie posta.",
-    "mergeDonationSupportDesc": "Dorzuć tyle, ile chcesz, aby okazać twórcy wsparcie."
+    "mergeDonationSupportDesc": "Dorzuć tyle, ile chcesz, aby okazać twórcy wsparcie.",
+    "addSampleAriaLabel": "Dodaj przykład",
+    "addSampleHint": "Nagraj przykład, aby kupujący zobaczyli, co dostaną"
   },
   "live": {
     "accessTicket": "Bilet wstępu",

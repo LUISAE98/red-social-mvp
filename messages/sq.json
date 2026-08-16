@@ -65,7 +65,8 @@
     "seeAllMessages": "Shiko të gjitha",
     "settings": "Cilësimet",
     "seeAllFollowing": "Shiko të gjitha",
-    "seeAllCommunities": "Shiko të gjitha"
+    "seeAllCommunities": "Shiko të gjitha",
+    "reels": "Histori"
   },
   "common": {
     "accept": "Prano",
@@ -254,7 +255,13 @@
     "reportSubmit": "Dërgo raportin",
     "reportSentTitle": "Raporti u dërgua",
     "reportSentDesc": "Ekipi ynë do ta shqyrtojë. Faleminderit që ndihmon ta mbajmë komunitetin të sigurt.",
-    "reportSubmitError": "Ndodhi një gabim gjatë dërgimit të raportit. Provo sërish."
+    "reportSubmitError": "Ndodhi një gabim gjatë dërgimit të raportit. Provo sërish.",
+    "noStoriesYet": "Ende nuk ka histori.",
+    "storyNothingToPublish": "Ende nuk ka asgjë për të publikuar këtu.",
+    "storyAddStories": "Shto histori",
+    "storyNeedsBuyerPermission": "Ke porosi, por blerësi nuk lejoi publikimin e tyre.",
+    "storyFromHiddenCommunity": "Vijnë nga një komunitet i fshehur dhe nuk mund të shkojnë në profilin tënd.",
+    "storyNotReadyYet": "Videoja nuk është ende gati."
   },
   "groups": {
     "title": "Komunitete",
@@ -1980,7 +1987,9 @@
     "premiumPostPreviewSubsDescUser": "Nëse je anëtar ose i abonuar i komunitetit, e sheh falas.",
     "premiumPostPreviewPriceLabelUser": "Çmimi i shkyçjes",
     "premiumPostPreviewPriceDescUser": "Krijuesi cakton sa kushton shkyçja e postimit.",
-    "mergeDonationSupportDesc": "Kontribuo me shumën që dëshiron për t'i treguar krijuesit mbështetjen tënde."
+    "mergeDonationSupportDesc": "Kontribuo me shumën që dëshiron për t'i treguar krijuesit mbështetjen tënde.",
+    "addSampleAriaLabel": "Shto një mostër",
+    "addSampleHint": "Regjistro një shembull që blerësit të shohin çfarë do të marrin"
   },
   "live": {
     "accessTicket": "Biletë hyrjeje",

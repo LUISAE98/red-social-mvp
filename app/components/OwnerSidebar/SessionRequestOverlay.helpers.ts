@@ -40,8 +40,6 @@ export type SessionRequestOverlayProps = {
   serviceKind: "meet_greet" | "exclusive_session";
   earning: string | null;
   busy: boolean;
-  feedbackError: string | null;
-  feedbackSuccess: string | null;
   ownerCalendarItems: WalletServiceItem[];
   getInitials: (name?: string | null) => string;
   onAccept: () => void;

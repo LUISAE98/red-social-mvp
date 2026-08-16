@@ -65,7 +65,8 @@
     "seeAllMessages": "すべて見る",
     "settings": "設定",
     "seeAllFollowing": "すべて見る",
-    "seeAllCommunities": "すべて見る"
+    "seeAllCommunities": "すべて見る",
+    "reels": "ストーリー"
   },
   "common": {
     "accept": "承認する",
@@ -254,7 +255,13 @@
     "reportSubmit": "通報を送信",
     "reportSentTitle": "通報を送信しました",
     "reportSentDesc": "運営チームが確認します。コミュニティを安全に保つためのご協力ありがとうございます。",
-    "reportSubmitError": "通報の送信中にエラーが発生しました。もう一度お試しください。"
+    "reportSubmitError": "通報の送信中にエラーが発生しました。もう一度お試しください。",
+    "noStoriesYet": "まだストーリーがありません。",
+    "storyNothingToPublish": "ここに公開できるものはまだありません。",
+    "storyAddStories": "ストーリーを追加",
+    "storyNeedsBuyerPermission": "依頼はありますが、購入者が公開を許可していません。",
+    "storyFromHiddenCommunity": "非公開のコミュニティのものなので、プロフィールには掲載できません。",
+    "storyNotReadyYet": "動画がまだ準備できていません。"
   },
   "groups": {
     "title": "コミュニティ",
@@ -1980,7 +1987,9 @@
     "premiumPostPreviewSubsDescUser": "コミュニティのメンバーまたはサブスクライバーなら無料で見られます。",
     "premiumPostPreviewPriceLabelUser": "ロック解除の価格",
     "premiumPostPreviewPriceDescUser": "投稿のロック解除にかかる金額はクリエイターが設定します。",
-    "mergeDonationSupportDesc": "好きな金額を送って、クリエイターに応援の気持ちを伝えましょう。"
+    "mergeDonationSupportDesc": "好きな金額を送って、クリエイターに応援の気持ちを伝えましょう。",
+    "addSampleAriaLabel": "サンプルを追加",
+    "addSampleHint": "購入者が受け取る内容がわかる例を録画"
   },
   "live": {
     "accessTicket": "アクセスチケット",

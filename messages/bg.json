@@ -65,7 +65,8 @@
     "seeAllMessages": "Виж всички",
     "settings": "Настройки",
     "seeAllFollowing": "Виж всички",
-    "seeAllCommunities": "Виж всички"
+    "seeAllCommunities": "Виж всички",
+    "reels": "Истории"
   },
   "common": {
     "accept": "Приеми",
@@ -254,7 +255,13 @@
     "reportSubmit": "Изпрати доклада",
     "reportSentTitle": "Докладът е изпратен",
     "reportSentDesc": "Екипът ни ще го прегледа. Благодарим ти, че помагаш общността да е безопасна.",
-    "reportSubmitError": "Възникна грешка при изпращането на доклада. Опитай отново."
+    "reportSubmitError": "Възникна грешка при изпращането на доклада. Опитай отново.",
+    "noStoriesYet": "Все още няма истории.",
+    "storyNothingToPublish": "Още няма какво да се публикува тук.",
+    "storyAddStories": "Добавяне на истории",
+    "storyNeedsBuyerPermission": "Имате заявки, но купувачът не разреши да се публикуват.",
+    "storyFromHiddenCommunity": "Те идват от скрита общност и не могат да се публикуват в профила ви.",
+    "storyNotReadyYet": "Видеото още не е готово."
   },
   "groups": {
     "title": "Общности",
@@ -1980,7 +1987,9 @@
     "premiumPostPreviewSubsDescUser": "Ако си член или абонат на общността, я виждаш, без да плащаш.",
     "premiumPostPreviewPriceLabelUser": "Цена за отключване",
     "premiumPostPreviewPriceDescUser": "Създателят определя колко струва отключването на публикацията.",
-    "mergeDonationSupportDesc": "Дай сумата, която пожелаеш, за да покажеш подкрепата си към създателя."
+    "mergeDonationSupportDesc": "Дай сумата, която пожелаеш, за да покажеш подкрепата си към създателя.",
+    "addSampleAriaLabel": "Добави мостра",
+    "addSampleHint": "Запиши пример, за да видят купувачите какво ще получат"
   },
   "live": {
     "accessTicket": "Билет за достъп",

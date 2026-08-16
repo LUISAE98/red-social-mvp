@@ -18,6 +18,7 @@ import { logger } from "firebase-functions";
 import * as admin from "firebase-admin";
 import { facturapiFetch, facturapiDownload, facturapiTestKey } from "./facturapiClient";
 import { productForType } from "./satProductCatalog";
+import { consumeQuota } from "../quotas";
 
 if (admin.apps.length === 0) {
   admin.initializeApp();
@@ -27,6 +28,9 @@ const REGION = "us-central1";
 
 // Tasa de IVA de México (el CFDI es solo para México). El comprador pagó base+IVA.
 const IVA_RATE = 0.16;
+
+/** Un CFDI con más conceptos que esto no es una factura, es un error. */
+const MAX_COMPRAS_POR_FACTURA = 50;
 
 function round2(n: number): number {
   return Math.round((n + Number.EPSILON) * 100) / 100;
@@ -51,10 +55,31 @@ export const generateBuyerInvoice = onCall(
     if (!uid) throw new HttpsError("unauthenticated", "Debes iniciar sesión.");
 
     const data = (request.data ?? {}) as Record<string, unknown>;
-    const purchaseIds = Array.isArray(data.purchaseIds) ? data.purchaseIds.map((x) => String(x)) : [];
+    // ⚠️ Sin duplicados y con tope.
+    //
+    // El mismo id repetido creaba VARIOS conceptos en el CFDI por una sola compra
+    // —una factura por más de lo que se cobró— y al final solo se marcaba una vez
+    // como facturada. Y sin tope, una llamada con miles de ids salía cara en
+    // lecturas y podía timbrar un documento absurdo.
+    const purchaseIds = Array.from(
+      new Set(
+        (Array.isArray(data.purchaseIds) ? data.purchaseIds : []).map((x) => String(x).trim())
+      )
+    ).filter(Boolean);
+
+    if (purchaseIds.length > MAX_COMPRAS_POR_FACTURA) {
+      throw new HttpsError(
+        "invalid-argument",
+        `Puedes facturar hasta ${MAX_COMPRAS_POR_FACTURA} movimientos por factura.`
+      );
+    }
     const billingProfileId = String(data.billingProfileId ?? "").trim();
     if (purchaseIds.length === 0) throw new HttpsError("invalid-argument", "Selecciona al menos un movimiento.");
     if (!billingProfileId) throw new HttpsError("invalid-argument", "Falta el perfil de facturación.");
+
+    // Facturapi cobra por factura emitida. Va después de validar la petición
+    // para no gastarle el día a quien mandó datos incompletos.
+    await consumeQuota(uid, "invoice");
 
     // 1) Perfil de facturación (customer de Facturapi + uso de CFDI).
     const profSnap = await db.doc(`users/${uid}/billingProfiles/${billingProfileId}`).get();

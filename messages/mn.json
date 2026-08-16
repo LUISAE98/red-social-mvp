@@ -65,7 +65,8 @@
     "seeAllMessages": "Бүгдийг харах",
     "settings": "Тохиргоо",
     "seeAllFollowing": "Бүгдийг харах",
-    "seeAllCommunities": "Бүгдийг харах"
+    "seeAllCommunities": "Бүгдийг харах",
+    "reels": "Түүх"
   },
   "common": {
     "accept": "Зөвшөөрөх",
@@ -254,7 +255,13 @@
     "reportSubmit": "Мэдээллийг илгээх",
     "reportSentTitle": "Мэдээлэл илгээгдлээ",
     "reportSentDesc": "Манай баг үүнийг хянана. Нийгэмлэгийг аюулгүй байлгахад тусалсанд баярлалаа.",
-    "reportSubmitError": "Мэдээллийг илгээх үед алдаа гарлаа. Дахин оролдоно уу."
+    "reportSubmitError": "Мэдээллийг илгээх үед алдаа гарлаа. Дахин оролдоно уу.",
+    "noStoriesYet": "Одоогоор түүх алга.",
+    "storyNothingToPublish": "Энд одоогоор нийтлэх зүйл алга.",
+    "storyAddStories": "Түүх нэмэх",
+    "storyNeedsBuyerPermission": "Захиалга байгаа ч худалдан авагч нийтлэхийг зөвшөөрөөгүй.",
+    "storyFromHiddenCommunity": "Эдгээр нь нуугдсан нийгэмлэгээс тул профайлд тавих боломжгүй.",
+    "storyNotReadyYet": "Видео хараахан бэлэн болоогүй."
   },
   "groups": {
     "title": "Нийгэмлэгүүд",
@@ -1980,7 +1987,9 @@
     "premiumPostPreviewSubsDescUser": "Хэрэв та нийгэмлэгийн гишүүн эсвэл захиалагч бол үүнийг үнэгүй харна.",
     "premiumPostPreviewPriceLabelUser": "Нээх үнэ",
     "premiumPostPreviewPriceDescUser": "Нийтлэлийг нээхэд хэдийг төлөхийг бүтээгч тогтооно.",
-    "mergeDonationSupportDesc": "Бүтээгчид дэмжлэгээ харуулахын тулд хүссэн хэмжээгээ оруулаарай."
+    "mergeDonationSupportDesc": "Бүтээгчид дэмжлэгээ харуулахын тулд хүссэн хэмжээгээ оруулаарай.",
+    "addSampleAriaLabel": "Жишээ нэмэх",
+    "addSampleHint": "Худалдан авагчид юу авахаа харахын тулд жишээ бичээрэй"
   },
   "live": {
     "accessTicket": "Хандах тасалбар",

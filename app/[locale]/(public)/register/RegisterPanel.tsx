@@ -23,6 +23,7 @@ import ImageCropperModal from "@/components/media/ImageCropperModal";
 import { uploadProfileImage } from "@/lib/storage/uploadProfileImage";
 import SocialLinksEditor, { socialLinksToDraft } from "@/components/profile/SocialLinksEditor";
 import DateWheelPanel from "@/components/ui/DateWheelPanel";
+import OptionWheelPanel from "@/components/ui/OptionWheelPanel";
 import { capitalizeFirst } from "@/i18n/locales";
 
 const vibraPink = "#ff2fb3";
@@ -781,19 +782,22 @@ export default function RegisterPanel({
           ) : null}
         </div>
 
-        <label style={{ display: "grid", gap: 4 }}>
+        <div style={{ display: "grid", gap: 4 }}>
           <span style={labelTextStyle}>{t("sexLabel")}</span>
-          <select
+          <OptionWheelPanel
             value={sex}
-            onChange={(e) => setSex(e.target.value as Sex)}
-            style={selectStyle}
-          >
-            <option value="prefer_not_say">{t("sexPreferNotSay")}</option>
-            <option value="male">{t("sexMale")}</option>
-            <option value="female">{t("sexFemale")}</option>
-            <option value="other">{t("sexOther")}</option>
-          </select>
-        </label>
+            onChange={(v) => setSex(v as Sex)}
+            title={t("sexLabel")}
+            confirmLabel={tCommon("save")}
+            closeAriaLabel={tCommon("closeAriaLabel")}
+            options={[
+              { value: "prefer_not_say", label: t("sexPreferNotSay") },
+              { value: "male", label: t("sexMale") },
+              { value: "female", label: t("sexFemale") },
+              { value: "other", label: t("sexOther") },
+            ]}
+          />
+        </div>
 
         <label style={{ display: "grid", gap: 4 }}>
           <span style={labelTextStyle}>{t("passwordLabel")}{req}</span>

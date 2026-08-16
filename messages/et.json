@@ -65,7 +65,8 @@
     "seeAllMessages": "Vaata kõiki",
     "settings": "Seaded",
     "seeAllFollowing": "Vaata kõiki",
-    "seeAllCommunities": "Vaata kõiki"
+    "seeAllCommunities": "Vaata kõiki",
+    "reels": "Lood"
   },
   "common": {
     "accept": "Nõustu",
@@ -254,7 +255,13 @@
     "reportSubmit": "Saada teade",
     "reportSentTitle": "Teade saadetud",
     "reportSentDesc": "Meie tiim vaatab selle üle. Aitäh, et aitad kogukonda turvalisena hoida.",
-    "reportSubmitError": "Teate saatmisel tekkis viga. Proovi uuesti."
+    "reportSubmitError": "Teate saatmisel tekkis viga. Proovi uuesti.",
+    "noStoriesYet": "Lugusid veel pole.",
+    "storyNothingToPublish": "Siin pole veel midagi avaldada.",
+    "storyAddStories": "Lisa lugusid",
+    "storyNeedsBuyerPermission": "Sul on tellimusi, kuid ostja ei lubanud neid avaldada.",
+    "storyFromHiddenCommunity": "Need on peidetud kogukonnast ja neid ei saa profiilile panna.",
+    "storyNotReadyYet": "Video pole veel valmis."
   },
   "groups": {
     "title": "Kogukonnad",
@@ -1980,7 +1987,9 @@
     "premiumPostPreviewSubsDescUser": "Kui oled kogukonna liige või tellija, näed seda tasuta.",
     "premiumPostPreviewPriceLabelUser": "Avamise hind",
     "premiumPostPreviewPriceDescUser": "Looja määrab, kui palju postituse avamine maksab.",
-    "mergeDonationSupportDesc": "Anna nii palju kui soovid, et loojale oma toetust näidata."
+    "mergeDonationSupportDesc": "Anna nii palju kui soovid, et loojale oma toetust näidata.",
+    "addSampleAriaLabel": "Lisa näidis",
+    "addSampleHint": "Salvesta näide, et ostjad näeksid, mida saavad"
   },
   "live": {
     "accessTicket": "Ligipääsupilet",

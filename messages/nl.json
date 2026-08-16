@@ -65,7 +65,8 @@
     "seeAllMessages": "Alles bekijken",
     "settings": "Instellingen",
     "seeAllFollowing": "Alles bekijken",
-    "seeAllCommunities": "Alles bekijken"
+    "seeAllCommunities": "Alles bekijken",
+    "reels": "Verhalen"
   },
   "common": {
     "accept": "Accepteren",
@@ -254,7 +255,13 @@
     "reportSubmit": "Rapport versturen",
     "reportSentTitle": "Rapport verstuurd",
     "reportSentDesc": "Ons team bekijkt het. Bedankt dat je helpt de community veilig te houden.",
-    "reportSubmitError": "Er is een fout opgetreden bij het versturen van het rapport. Probeer het opnieuw."
+    "reportSubmitError": "Er is een fout opgetreden bij het versturen van het rapport. Probeer het opnieuw.",
+    "noStoriesYet": "Er zijn nog geen verhalen.",
+    "storyNothingToPublish": "Hier is nog niets te publiceren.",
+    "storyAddStories": "Verhalen toevoegen",
+    "storyNeedsBuyerPermission": "Je hebt opdrachten, maar de koper gaf geen toestemming om ze te publiceren.",
+    "storyFromHiddenCommunity": "Ze komen uit een verborgen community en kunnen niet op je profiel.",
+    "storyNotReadyYet": "De video is nog niet klaar."
   },
   "groups": {
     "title": "Community's",
@@ -1980,7 +1987,9 @@
     "premiumPostPreviewSubsDescUser": "Ben je lid of abonnee van de community, dan zie je hem gratis.",
     "premiumPostPreviewPriceLabelUser": "Ontgrendelprijs",
     "premiumPostPreviewPriceDescUser": "De creator bepaalt hoeveel het kost om de post te ontgrendelen.",
-    "mergeDonationSupportDesc": "Draag het bedrag bij dat je wilt om de creator je steun te tonen."
+    "mergeDonationSupportDesc": "Draag het bedrag bij dat je wilt om de creator je steun te tonen.",
+    "addSampleAriaLabel": "Voorbeeld toevoegen",
+    "addSampleHint": "Neem een voorbeeld op zodat kopers zien wat ze krijgen"
   },
   "live": {
     "accessTicket": "Toegangsticket",

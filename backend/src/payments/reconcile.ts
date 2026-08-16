@@ -116,7 +116,39 @@ async function materializeFromIntent(
       tx.get(intentRef),
     ]);
 
-    if (targetSnap.exists) return; // ya materializado (idempotente)
+    if (targetSnap.exists) {
+      // ⚠️ Salir aquí sin más dejaba tirado el camino del auth-hold (B6-H08).
+      //
+      // Una experiencia con retención nace como `authorized`. Al agendarla se
+      // captura el cobro y el propio flujo la pasa a `paid`, que es lo que
+      // dispara el ledger. Pero si el proceso se cae ENTRE la captura en Stripe y
+      // la escritura en Firestore, el comprador queda cobrado y la solicitud
+      // congelada en `authorized`: sin ingreso para el creador y sin forma de
+      // recuperarlo, porque el webhook de Stripe llegaba aquí y se iba.
+      //
+      // Ahora, si Stripe confirma el cobro y el documento sigue en `authorized`,
+      // se corrige. Al revés nunca: un `authorized` que llega tarde no degrada
+      // algo ya pagado.
+      const estadoActual = targetSnap.get("paymentStatus");
+      if (paymentStatus === "paid" && estadoActual === "authorized") {
+        tx.set(
+          targetRef,
+          {
+            paymentStatus: "paid",
+            paidAt: FieldValue.serverTimestamp(),
+            updatedAt: FieldValue.serverTimestamp(),
+            recoveredByWebhook: true,
+          },
+          { merge: true }
+        );
+        logger.warn("reconcile: hold capturado recuperado por webhook", {
+          externalReference,
+          targetCollection,
+          sourceId,
+        });
+      }
+      return; // ya materializado (idempotente)
+    }
 
     const intentData = intentSnap.exists ? intentSnap.data() : undefined;
     const pending = intentData?.[pendingField] as Record<string, unknown> | undefined;

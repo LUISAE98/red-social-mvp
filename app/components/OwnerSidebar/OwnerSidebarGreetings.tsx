@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useCfError } from "@/lib/i18n/cfError";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import { WALLET_NET_RATE } from "@/lib/wallet/walletFinances";
@@ -128,6 +128,43 @@ export default function OwnerSidebarGreetings({
   const [deliveredScheduledSectionOpen, setDeliveredScheduledSectionOpen] = useState(false);
   const [downloadBusyMap, setDownloadBusyMap] = useState<Record<string, boolean>>({});
   const [downloadErrorMap, setDownloadErrorMap] = useState<Record<string, string | null>>({});
+
+  // Los mapas de aviso por solicitud se reflejan en el toast. Se compara contra
+  // el valor anterior para avisar solo de lo que acaba de cambiar, y no de lo
+  // que ya estaba puesto en otra solicitud.
+  const prevErrorMapRef = useRef<TextMap>({});
+  const prevSuccessMapRef = useRef<TextMap>({});
+  const prevDownloadErrorMapRef = useRef<Record<string, string | null>>({});
+
+  useEffect(() => {
+    for (const [id, text] of Object.entries(errorMap)) {
+      if (text && text !== prevErrorMapRef.current[id]) {
+        showGreetingsToast(text, "error");
+        break;
+      }
+    }
+    prevErrorMapRef.current = errorMap;
+  }, [errorMap]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    for (const [id, text] of Object.entries(successMap)) {
+      if (text && text !== prevSuccessMapRef.current[id]) {
+        showGreetingsToast(text, "success");
+        break;
+      }
+    }
+    prevSuccessMapRef.current = successMap;
+  }, [successMap]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    for (const [id, text] of Object.entries(downloadErrorMap)) {
+      if (text && text !== prevDownloadErrorMapRef.current[id]) {
+        showGreetingsToast(text, "error");
+        break;
+      }
+    }
+    prevDownloadErrorMapRef.current = downloadErrorMap;
+  }, [downloadErrorMap]); // eslint-disable-line react-hooks/exhaustive-deps
 
 
   const incomingMeetGreets = useMemo<ScheduledRow[]>(
@@ -591,47 +628,6 @@ async function handleCreatorSchedule(
     } finally {
       setBusy(requestId, false);
     }
-  }
-
-  function renderRequestFeedback(requestId: string) {
-    const error = errorMap[requestId];
-    const success = successMap[requestId];
-
-    return (
-      <>
-        {error ? (
-          <div
-            style={{
-              borderRadius: 10,
-              border: "1px solid rgba(248,113,113,0.18)",
-              background: "rgba(248,113,113,0.08)",
-              padding: "7px 8px",
-              fontSize: 12,
-              lineHeight: 1.3,
-              color: "#fecaca",
-            }}
-          >
-            {error}
-          </div>
-        ) : null}
-
-        {success ? (
-          <div
-            style={{
-              borderRadius: 10,
-              border: "1px solid rgba(34,197,94,0.18)",
-              background: "rgba(34,197,94,0.08)",
-              padding: "7px 8px",
-              fontSize: 12,
-              lineHeight: 1.3,
-              color: "#bbf7d0",
-            }}
-          >
-            {success}
-          </div>
-        ) : null}
-      </>
-    );
   }
 
   function renderPreparationPanel(
@@ -1321,7 +1317,6 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
     const completedTs = req.updatedAt as { toDate: () => Date } | undefined;
     const relTime = completedTs ? getRelativeTime(completedTs, tCommon) : null;
     const downloadBusy = !!downloadBusyMap[row.id];
-    const downloadError = downloadErrorMap[row.id] ?? null;
     // Contador descendente 30 → 0 para descargar la grabación de la sesión.
     const dlRef = toDateSafe(req.scheduledAt);
     const dlElapsed = dlRef
@@ -1447,9 +1442,6 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
           {canDownload && downloadButton}
         </div>
 
-        {downloadError && (
-          <div style={{ fontSize: 10, color: "#fca5a5", textAlign: "center", textShadow: "0 1px 3px rgba(0,0,0,0.8)" }}>{downloadError}</div>
-        )}
       </div>
     );
   }
@@ -1962,8 +1954,6 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
             : null
         }
         busy={!!busyMap[incomingSessionOverlayData.id]}
-        feedbackError={errorMap[incomingSessionOverlayData.id] ?? null}
-        feedbackSuccess={successMap[incomingSessionOverlayData.id] ?? null}
         ownerCalendarItems={buildCalendarItems}
         getInitials={(name) => name?.charAt(0).toUpperCase() ?? "?"}
         onAccept={() => handleCreatorAccept(incomingSessionOverlayData.id, incomingSessionOverlayData.serviceKind)}

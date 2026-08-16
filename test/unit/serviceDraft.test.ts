@@ -6,10 +6,13 @@ import {
   buildServiceBlockDraft,
   calcNetAmount,
   createEmptyDraft,
+  createEmptyWeeklyAvailability,
   normalizeDurationMeta,
   normalizeSuggestedAmounts,
   pickDonation,
   pickOffering,
+  sameDraft,
+  sameWeeklyAvailability,
   type DonationInput,
   type ServiceBlockDraft,
 } from "../../lib/services/serviceDraft";
@@ -201,6 +204,73 @@ describe("Guardado de un servicio · las reglas que separan perfil de comunidad"
       displayOrder: 0,
     });
     expect(offering.price).toBeNull();
+  });
+});
+
+describe("Comparadores · protegen lo que estás editando", () => {
+  it("dos borradores recién creados de la misma superficie son iguales", () => {
+    expect(sameDraft(createEmptyDraft("profile"), createEmptyDraft("profile"))).toBe(true);
+  });
+
+  it("🚨 detecta un cambio de precio, que es lo que se estaría pisando", () => {
+    const a = createEmptyDraft("profile");
+    const b = createEmptyDraft("profile");
+    b.saludo.price = "150";
+    expect(sameDraft(a, b)).toBe(false);
+  });
+
+  it("detecta cambios en cualquiera de los servicios, no solo en el primero", () => {
+    for (const key of ["saludo", "consejo", "meetGreet", "customClass"] as const) {
+      const a = createEmptyDraft("profile");
+      const b = createEmptyDraft("profile");
+      b[key].enabled = true;
+      expect(sameDraft(a, b), `no detectó el cambio en ${key}`).toBe(false);
+    }
+  });
+
+  it("detecta cambios en la duración, que no está en el bloque común", () => {
+    const a = createEmptyDraft("profile");
+    const b = createEmptyDraft("profile");
+    b.meetGreet.durationMinutes = "15";
+    expect(sameDraft(a, b)).toBe(false);
+  });
+
+  it("detecta cambios en los datos de donación", () => {
+    const a = createEmptyDraft("profile");
+    const b = createEmptyDraft("profile");
+    b.donationGoalLabel = "Para el estudio";
+    expect(sameDraft(a, b)).toBe(false);
+
+    const c = createEmptyDraft("profile");
+    c.donationSuggestedAmounts = ["1", "2", "3", "4"];
+    expect(sameDraft(a, c)).toBe(false);
+  });
+
+  it("🚨 perfil y comunidad NO son iguales: difieren en la visibilidad de origen", () => {
+    expect(sameDraft(createEmptyDraft("profile"), createEmptyDraft("community"))).toBe(false);
+  });
+
+  it("la disponibilidad semanal compara horarios, no solo cantidad", () => {
+    const vacia = createEmptyWeeklyAvailability();
+
+    const conFranja = createEmptyWeeklyAvailability();
+    conFranja.monday = [{ start: "09:00", end: "10:00" }];
+    expect(sameWeeklyAvailability(vacia, conFranja)).toBe(false);
+
+    const otraHora = createEmptyWeeklyAvailability();
+    otraHora.monday = [{ start: "11:00", end: "12:00" }];
+    expect(sameWeeklyAvailability(conFranja, otraHora)).toBe(false);
+
+    const igual = createEmptyWeeklyAvailability();
+    igual.monday = [{ start: "09:00", end: "10:00" }];
+    expect(sameWeeklyAvailability(conFranja, igual)).toBe(true);
+  });
+
+  it("compara los siete días, no solo el lunes", () => {
+    const a = createEmptyWeeklyAvailability();
+    const b = createEmptyWeeklyAvailability();
+    b.sunday = [{ start: "08:00", end: "09:00" }];
+    expect(sameWeeklyAvailability(a, b)).toBe(false);
   });
 });
 

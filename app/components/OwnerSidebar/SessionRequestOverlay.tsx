@@ -44,8 +44,6 @@ export default function SessionRequestOverlay({
   serviceKind,
   earning,
   busy,
-  feedbackError,
-  feedbackSuccess,
   ownerCalendarItems,
   getInitials,
   onAccept,
@@ -113,6 +111,9 @@ export default function SessionRequestOverlay({
   const [ownerPhotoFromDb, setOwnerPhotoFromDb] = useState<string | null>(null);
   const [downloadBusy, setDownloadBusy] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
+
+  // El fallo al pedir la descarga de la grabación sale por el toast del panel.
+  useEffect(() => { if (downloadError) showRescheduleToast(downloadError, "error"); }, [downloadError]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     const uid = auth.currentUser?.uid;
     if (!uid) return;
@@ -640,18 +641,6 @@ export default function SessionRequestOverlay({
         </div>
       )}
 
-      {/* Feedback */}
-      {feedbackError && (
-        <div style={{ borderRadius: 13, border: "1px solid rgba(255,90,90,0.24)", background: "rgba(120,18,18,0.28)", color: "#ffdada", padding: "10px 12px", fontSize: 13, lineHeight: 1.4 }}>
-          {feedbackError}
-        </div>
-      )}
-      {feedbackSuccess && (
-        <div style={{ borderRadius: 13, border: "1px solid rgba(34,197,94,0.24)", background: "rgba(10,40,20,0.30)", color: "#bbf7d0", padding: "10px 12px", fontSize: 13, lineHeight: 1.4 }}>
-          {feedbackSuccess}
-        </div>
-      )}
-
       {/* Panel de preparación */}
       {preparationNode}
     </div>
@@ -682,9 +671,6 @@ export default function SessionRequestOverlay({
               ? tServices("downloadDaysLeft", { days: downloadDaysLeft })
               : tServices("downloadExpired")}
           </div>
-          {downloadError && (
-            <div style={{ fontSize: 12, color: "#fca5a5", textAlign: "center" }}>{downloadError}</div>
-          )}
           <div style={{ display: "flex", gap: 8 }}>
             <button
               type="button"

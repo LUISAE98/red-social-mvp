@@ -10,6 +10,8 @@ import {
   fetchLiveStreamCredentials,
   saveLiveBroadcastMode,
 } from "@/lib/posts/post-service";
+import VibraToast from "@/app/components/VibraToast/VibraToast";
+import { useVibraToast } from "@/lib/hooks/useVibraToast";
 
 const fontStack = "inherit";
 const PANEL_CLOSE_THRESHOLD = 130;
@@ -141,6 +143,8 @@ export default function LiveStreamSetup({
   const [loadingCreds, setLoadingCreds] = useState(false);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { toast, showToast } = useVibraToast();
+  useEffect(() => { if (error) showToast(error, "error"); }, [error]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Swipe to close (mobile)
   const [panelOffsetY, setPanelOffsetY] = useState(0);
@@ -524,19 +528,6 @@ export default function LiveStreamSetup({
         </div>
       )}
 
-      {/* Error */}
-      {error && (
-        <div style={{
-          marginTop: 14, borderRadius: 13,
-          border: "1px solid rgba(255,90,90,0.24)",
-          background: "rgba(120,18,18,0.28)",
-          color: "#ffdada", padding: "10px 12px",
-          fontSize: 13, lineHeight: 1.4, fontFamily: fontStack,
-        }}>
-          {error}
-        </div>
-      )}
-
     </div>
   );
 
@@ -729,6 +720,7 @@ export default function LiveStreamSetup({
           </div>
         )}
       </div>
+      <VibraToast toast={toast} />
     </>,
     document.body
   );

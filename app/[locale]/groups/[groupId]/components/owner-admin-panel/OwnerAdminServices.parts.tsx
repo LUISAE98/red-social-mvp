@@ -28,9 +28,7 @@ import {
   type SubscriptionPriceIncreasePolicy,
   type SubscriptionToFreePolicy,
   type OfferingInput,
-  type ServiceBlockDraft,
   type ServiceBlockDraft as ServiceBlockDraftShared,
-  type ServiceDraft,
   type ServiceDraft as ServiceDraftShared,
   type SubscriptionDraft,
   type WeeklyAvailabilityDraft,
@@ -54,11 +52,28 @@ export type {
 
 export {
   createEmptyWeeklyAvailability,
+  sameDraft,
+  sameServiceBlock,
+  sameSubscriptionBlock,
+  sameWeeklyAvailability,
   pickDonation,
   normalizeDurationMeta,
   buildServiceBlockDraft,
   calcNetAmount,
 } from "@/lib/services/serviceDraft";
+
+// Primitivos visuales y de datos: viven en el kit compartido y en
+// lib/services/serviceDraft. Se reexportan para que OwnerAdminServices y sus
+// modales sigan importándolos desde este parts, como siempre.
+//
+// El Switch local se eliminó sin sustituto: nadie lo importaba. El panel usa
+// el del kit (RichSwitch) desde hace tiempo, así que era código muerto.
+export {
+  DonationModeButton,
+  SERVICE_EMOJIS,
+  DEFAULT_DONATION_SUGGESTED_AMOUNTS,
+  normalizeSuggestedAmounts,
+} from "@/components/services/config/serviceConfigKit";
 
 /** Una comunidad tiene miembros: sus servicios nacen restringidos a ellos. */
 export function createEmptyDraft(): ServiceDraftShared {
@@ -159,27 +174,8 @@ export const WEEKDAY_OPTIONS: Array<{
   { key: "sunday", label: "Domingo" },
 ];
 
-// Montos sugeridos de donación por defecto (MXN crudo). Cada uno debe ser >= 50.
-export const DEFAULT_DONATION_SUGGESTED_AMOUNTS: string[] = ["50", "120", "250", "490"];
 
-// Normaliza cualquier entrada a EXACTAMENTE 4 montos (string): usa el valor
-// guardado si es un número válido (> 0), o el default de esa posición.
-export function normalizeSuggestedAmounts(input: unknown): string[] {
-  const arr = Array.isArray(input) ? input : [];
-  return DEFAULT_DONATION_SUGGESTED_AMOUNTS.map((def, i) => {
-    const n = Number(arr[i]);
-    return Number.isFinite(n) && n > 0 ? String(n) : def;
-  });
-}
 
-export const SERVICE_EMOJIS = {
-  subscription: "💎",
-  saludo: "👋",
-  consejo: "💡",
-  meetGreet: "🤝",
-  customClass: "👑",
-  donation: "🎁",
-};
 
 
 export function isValidTimeValue(value: unknown): value is string {
@@ -319,148 +315,11 @@ export function SpinningGear() {
   );
 }
 
-export function Switch({
-  checked,
-  onChange,
-  disabled = false,
-  label,
-}: {
-  checked: boolean;
-  onChange: (next: boolean) => void;
-  disabled?: boolean;
-  label?: string;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={() => !disabled && onChange(!checked)}
-      disabled={disabled}
-      aria-pressed={checked}
-      title={label}
-      style={{
-        width: 40,
-        height: 22,
-        borderRadius: 999,
-        border: "1px solid rgba(255,255,255,0.14)",
-        background: checked ? "#ffffff" : "rgba(255,255,255,0.08)",
-        padding: 2,
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: checked ? "flex-end" : "flex-start",
-        cursor: disabled ? "not-allowed" : "pointer",
-        opacity: disabled ? 0.55 : 1,
-        transition: "all 160ms ease",
-        flexShrink: 0,
-      }}
-    >
-      <span
-        style={{
-          width: 16,
-          height: 16,
-          borderRadius: "50%",
-          background: checked ? "#000" : "#fff",
-          boxShadow: "0 2px 8px rgba(0,0,0,0.35)",
-          transition: "all 160ms ease",
-        }}
-      />
-    </button>
-  );
-}
 
-export function DonationModeButton({
-  active,
-  disabled,
-  label,
-  onClick,
-}: {
-  active: boolean;
-  disabled?: boolean;
-  label: string;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      disabled={disabled}
-      onClick={onClick}
-      style={{
-        padding: "10px 12px",
-        borderRadius: 12,
-        border: active
-          ? "1px solid rgba(255,255,255,0.92)"
-          : "1px solid rgba(255,255,255,0.12)",
-        background: active ? "#fff" : "rgba(255,255,255,0.04)",
-        color: active ? "#000" : "#fff",
-        cursor: disabled ? "not-allowed" : "pointer",
-        fontWeight: 700,
-        fontSize: 12,
-        fontFamily:
-          'inherit',
-        transition: "all 160ms ease",
-        minHeight: 42,
-      }}
-    >
-      {label}
-    </button>
-  );
-}
 
-export function sameServiceBlock(a: ServiceBlockDraft, b: ServiceBlockDraft) {
-  return (
-    a.enabled === b.enabled &&
-    a.price === b.price &&
-    a.currency === b.currency &&
-    a.visible === b.visible &&
-    a.visibility === b.visibility
-  );
-}
 
-export function sameSubscriptionBlock(a: SubscriptionDraft, b: SubscriptionDraft) {
-  return (
-    a.enabled === b.enabled &&
-    a.price === b.price &&
-    a.currency === b.currency
-  );
-}
 
-export function sameWeeklyAvailability(
-  a: WeeklyAvailabilityDraft,
-  b: WeeklyAvailabilityDraft
-) {
-  return WEEKDAY_OPTIONS.every((day) => {
-    const aSlots = a[day.key];
-    const bSlots = b[day.key];
-    if (aSlots.length !== bSlots.length) return false;
 
-    return aSlots.every(
-      (slot, index) =>
-        slot.start === bSlots[index]?.start && slot.end === bSlots[index]?.end
-    );
-  });
-}
-
-export function sameDraft(a: ServiceDraft, b: ServiceDraft) {
-  return (
-    sameSubscriptionBlock(a.subscription, b.subscription) &&
-    sameServiceBlock(a.saludo, b.saludo) &&
-    sameServiceBlock(a.consejo, b.consejo) &&
-    sameServiceBlock(a.meetGreet, b.meetGreet) &&
-    a.meetGreet.durationMinutes === b.meetGreet.durationMinutes &&
-    sameServiceBlock(a.customClass, b.customClass) &&
-    a.customClass.durationMinutes === b.customClass.durationMinutes &&
-    sameWeeklyAvailability(a.customClass.availability, b.customClass.availability) &&
-    a.donationMode === b.donationMode &&
-    a.donationCurrency === b.donationCurrency &&
-    a.donationSuggestedAmounts.join(",") === b.donationSuggestedAmounts.join(",") &&
-    a.donationGoalLabel === b.donationGoalLabel &&
-    a.donationMessage === b.donationMessage &&
-    a.donationVideoUrl === b.donationVideoUrl &&
-    a.donationPlaybackId === b.donationPlaybackId &&
-    a.freeToSubscriptionPolicy === b.freeToSubscriptionPolicy &&
-    a.subscriptionToFreePolicy === b.subscriptionToFreePolicy &&
-    a.subscriptionPriceIncreasePolicy === b.subscriptionPriceIncreasePolicy
-  );
-}
 
 
 export function buildTransitionSuccessMessage(params: {

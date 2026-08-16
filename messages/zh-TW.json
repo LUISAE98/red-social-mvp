@@ -65,7 +65,8 @@
     "seeAllMessages": "查看全部",
     "settings": "設定",
     "seeAllFollowing": "查看全部",
-    "seeAllCommunities": "查看全部"
+    "seeAllCommunities": "查看全部",
+    "reels": "限時動態"
   },
   "common": {
     "accept": "接受",
@@ -254,7 +255,13 @@
     "reportSubmit": "送出檢舉",
     "reportSentTitle": "檢舉已送出",
     "reportSentDesc": "我們的團隊會進行審查。謝謝你協助維護社群的安全。",
-    "reportSubmitError": "送出檢舉時發生錯誤。請再試一次。"
+    "reportSubmitError": "送出檢舉時發生錯誤。請再試一次。",
+    "noStoriesYet": "目前還沒有限時動態。",
+    "storyNothingToPublish": "目前這裡沒有可以發佈的內容。",
+    "storyAddStories": "新增限時動態",
+    "storyNeedsBuyerPermission": "你有委託，但買家沒有同意公開。",
+    "storyFromHiddenCommunity": "這些來自隱藏社群，無法放到你的個人檔案。",
+    "storyNotReadyYet": "影片還沒準備好。"
   },
   "groups": {
     "title": "社群",
@@ -1980,7 +1987,9 @@
     "premiumPostPreviewSubsDescUser": "如果你是社群的成員或訂閱者，就能免費看到。",
     "premiumPostPreviewPriceLabelUser": "解鎖價格",
     "premiumPostPreviewPriceDescUser": "解鎖貼文要多少錢，由創作者設定。",
-    "mergeDonationSupportDesc": "想給多少就給多少，讓創作者感受到你的支持。"
+    "mergeDonationSupportDesc": "想給多少就給多少，讓創作者感受到你的支持。",
+    "addSampleAriaLabel": "新增範例",
+    "addSampleHint": "錄製範例，讓買家看到會收到什麼"
   },
   "live": {
     "accessTicket": "觀看門票",

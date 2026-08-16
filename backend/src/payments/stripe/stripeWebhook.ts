@@ -17,6 +17,8 @@ import { stripeFetch, stripeSecretKey } from "./stripeClient";
 import { reconcileStripeSubscriptionEvent } from "./groupSubscriptionStripeSync";
 import { reconcileStripeRefundEvent } from "./stripeRefundSync";
 import { claimWebhookEvent } from "../../webhookEvents";
+import { assertIntentMatchesCharge } from "./intentBinding";
+import { releaseFailedIntent } from "./releaseFailedIntent";
 
 if (admin.apps.length === 0) {
   admin.initializeApp();
@@ -136,6 +138,34 @@ export const stripeWebhook = onRequest(
         // externalReference de la metadata. Reusa TODA la lógica de MP (reconcile).
         const externalReference = String(pi.metadata?.externalReference ?? "").trim();
         if (externalReference) {
+          // ⚠️ El pago que llega tiene que ser EL pago vigente de esa compra.
+          //
+          // Antes se materializaba lo que hubiera en `paymentIntents/{ref}` sin
+          // mirar de qué cobro venía el evento. Y de la misma referencia pueden
+          // colgar VARIOS cobros de Stripe: al recotizar por el país de la
+          // tarjeta cambia el importe, y con él la clave de idempotencia, así que
+          // nace otro. Un cobro viejo y más barato podía aprobar la versión nueva
+          // y cara de la compra.
+          const vigente = await assertIntentMatchesCharge(externalReference, {
+            id: pi.id ?? null,
+            amount: typeof pi.amount === "number" ? pi.amount : null,
+            currency: typeof pi.currency === "string" ? pi.currency : null,
+          });
+
+          if (!vigente) {
+            // No se procesa, pero se responde 200: reintentarlo daría el mismo
+            // resultado. Queda el registro para revisarlo a mano.
+            logger.error("stripeWebhook: cobro que no corresponde a la compra vigente", {
+              externalReference,
+              id: pi.id,
+              amount: pi.amount,
+              currency: pi.currency,
+            });
+            await claim.confirm?.();
+            res.status(200).send("stale-intent");
+            return;
+          }
+
           await applyApprovedPaymentToSource(externalReference, { mpOrderId: null, mpPaymentId: pi.id ?? null });
           await upsertPaymentIntentStatus(externalReference, { status: "paid" });
           logger.info("stripeWebhook materialized", { externalReference, id: pi.id });
@@ -184,8 +214,81 @@ export const stripeWebhook = onRequest(
         // Reembolso o contracargo perdido → revierte el ledger (fuente de verdad
         // universal para los 11 servicios). Idempotente.
         await reconcileStripeRefundEvent(event.type, event.data.object);
+      } else if (
+        event.type === "payment_intent.payment_failed" ||
+        event.type === "payment_intent.canceled"
+      ) {
+        // ⚠️ Un cobro que muere hay que CERRARLO, no solo anotarlo.
+        //
+        // Antes caían en el "solo se registran" de abajo, y eso dejaba dos cosas
+        // colgando: el intent se quedaba en `awaiting_payment` para siempre, y el
+        // saldo a favor que el comprador hubiera aplicado seguía reservado —o sea
+        // descontado de su saldo— hasta que el cron de las 6 h lo soltara. Alguien
+        // cuya tarjeta se rechaza no debería quedarse sin su saldo durante horas.
+        const pi = event.data.object as { id?: string; metadata?: Record<string, unknown> };
+        const externalReference = String(pi.metadata?.externalReference ?? "").trim();
+        if (externalReference) {
+          await releaseFailedIntent(
+            externalReference,
+            event.type === "payment_intent.canceled" ? "canceled" : "failed"
+          );
+        }
+        logger.info("stripeWebhook: cobro cerrado", { type: event.type, externalReference, id: pi.id });
+      } else if (event.type === "charge.dispute.created") {
+        // Se ABRE una disputa. No se toca el acceso todavía: la disputa puede
+        // ganarse, y quitarle el contenido a quien tiene razón sería peor que
+        // esperar. Se marca para que aparezca en el panel y no pase inadvertida;
+        // el acceso se retira en `charge.dispute.closed` si se pierde.
+        const dispute = event.data.object as { id?: string; charge?: string; amount?: number };
+        await db
+          .collection("stripeDisputes")
+          .doc(String(dispute.id ?? event.id))
+          .set(
+            {
+              disputeId: dispute.id ?? null,
+              chargeId: dispute.charge ?? null,
+              amount: dispute.amount ?? null,
+              status: "open",
+              openedAt: admin.firestore.FieldValue.serverTimestamp(),
+            },
+            { merge: true }
+          );
+        logger.error("stripeWebhook: DISPUTA ABIERTA", { disputeId: dispute.id, chargeId: dispute.charge });
+      } else if (event.type === "refund.failed" || event.type === "refund.updated") {
+        // ⚠️ Un reembolso puede fallar DESPUÉS de que Stripe respondiera 200.
+        //
+        // El cash-out daba por devuelto todo lo que Stripe aceptó, sin mirar si el
+        // objeto Refund acababa bien. Un reembolso fallido dejaba al comprador sin
+        // saldo y sin efectivo, con la solicitud cerrada.
+        const refund = event.data.object as { id?: string; status?: string; metadata?: Record<string, unknown> };
+        if (refund.status === "failed" || refund.status === "canceled") {
+          const cashoutId = String(refund.metadata?.cashoutId ?? "").trim();
+          logger.error("stripeWebhook: REEMBOLSO FALLIDO", {
+            refundId: refund.id,
+            status: refund.status,
+            cashoutId,
+          });
+          if (cashoutId) {
+            await db
+              .collection("cashoutRequests")
+              .doc(cashoutId)
+              .set(
+                {
+                  status: "partially_refunded",
+                  failedRefunds: admin.firestore.FieldValue.arrayUnion({
+                    refundId: refund.id ?? null,
+                    status: refund.status,
+                  }),
+                  lastError: `Un reembolso falló en Stripe (${refund.status}).`,
+                  lastErrorAt: admin.firestore.FieldValue.serverTimestamp(),
+                },
+                { merge: true }
+              );
+          }
+        }
       } else {
-        // Otros eventos (payment_intent.payment_failed, etc.): por ahora solo se registran.
+        // El resto se registra a propósito: sirve para ver qué manda Stripe antes
+        // de decidir si merece un manejo propio.
         logger.info("stripeWebhook event", { type: event.type, id: event.id });
       }
 

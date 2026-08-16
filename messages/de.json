@@ -65,7 +65,8 @@
     "seeAllMessages": "Alle ansehen",
     "settings": "Einstellungen",
     "seeAllFollowing": "Alle ansehen",
-    "seeAllCommunities": "Alle ansehen"
+    "seeAllCommunities": "Alle ansehen",
+    "reels": "Storys"
   },
   "common": {
     "accept": "Annehmen",
@@ -254,7 +255,13 @@
     "reportSubmit": "Meldung senden",
     "reportSentTitle": "Meldung gesendet",
     "reportSentDesc": "Unser Team prüft sie. Danke, dass du hilfst, die Community sicher zu halten.",
-    "reportSubmitError": "Beim Senden der Meldung ist ein Fehler aufgetreten. Bitte versuche es erneut."
+    "reportSubmitError": "Beim Senden der Meldung ist ein Fehler aufgetreten. Bitte versuche es erneut.",
+    "noStoriesYet": "Noch keine Storys vorhanden.",
+    "storyNothingToPublish": "Hier gibt es noch nichts zu veröffentlichen.",
+    "storyAddStories": "Storys hinzufügen",
+    "storyNeedsBuyerPermission": "Du hast Aufträge, aber der Käufer hat die Veröffentlichung nicht erlaubt.",
+    "storyFromHiddenCommunity": "Sie stammen aus einer verborgenen Community und können nicht in deinem Profil erscheinen.",
+    "storyNotReadyYet": "Das Video ist noch nicht fertig."
   },
   "groups": {
     "title": "Communitys",
@@ -1980,7 +1987,9 @@
     "premiumPostPreviewSubsDescUser": "Wenn du Mitglied oder Abonnent der Community bist, siehst du ihn kostenlos.",
     "premiumPostPreviewPriceLabelUser": "Freischaltpreis",
     "premiumPostPreviewPriceDescUser": "Der Creator legt fest, wie viel die Freischaltung des Beitrags kostet.",
-    "mergeDonationSupportDesc": "Steuere jeden Betrag bei, den du möchtest, um dem Creator deine Unterstützung zu zeigen."
+    "mergeDonationSupportDesc": "Steuere jeden Betrag bei, den du möchtest, um dem Creator deine Unterstützung zu zeigen.",
+    "addSampleAriaLabel": "Beispiel hinzufügen",
+    "addSampleHint": "Nimm ein Beispiel auf, damit Käufer sehen, was sie bekommen"
   },
   "live": {
     "accessTicket": "Zugangsticket",

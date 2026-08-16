@@ -65,7 +65,8 @@
     "seeAllMessages": "सबै हेर्नुहोस्",
     "settings": "सेटिङहरू",
     "seeAllFollowing": "सबै हेर्नुहोस्",
-    "seeAllCommunities": "सबै हेर्नुहोस्"
+    "seeAllCommunities": "सबै हेर्नुहोस्",
+    "reels": "कथाहरू"
   },
   "common": {
     "accept": "स्वीकार गर्नुहोस्",
@@ -254,7 +255,13 @@
     "reportSubmit": "रिपोर्ट पठाउनुहोस्",
     "reportSentTitle": "रिपोर्ट पठाइयो",
     "reportSentDesc": "हाम्रो टोलीले यसको समीक्षा गर्नेछ। समुदायलाई सुरक्षित राख्न मद्दत गर्नुभएकोमा धन्यवाद।",
-    "reportSubmitError": "रिपोर्ट पठाउँदा त्रुटि भयो। कृपया पुनः प्रयास गर्नुहोस्।"
+    "reportSubmitError": "रिपोर्ट पठाउँदा त्रुटि भयो। कृपया पुनः प्रयास गर्नुहोस्।",
+    "noStoriesYet": "अहिलेसम्म कुनै कथा छैन।",
+    "storyNothingToPublish": "यहाँ अझै प्रकाशन गर्न केही छैन।",
+    "storyAddStories": "कथाहरू थप्नुहोस्",
+    "storyNeedsBuyerPermission": "तपाईंसँग अर्डरहरू छन्, तर खरिदकर्ताले प्रकाशन गर्न अनुमति दिएनन्।",
+    "storyFromHiddenCommunity": "यी लुकेको समुदायबाट आएका हुन् र प्रोफाइलमा राख्न मिल्दैन।",
+    "storyNotReadyYet": "भिडियो अझै तयार छैन।"
   },
   "groups": {
     "title": "समुदायहरू",
@@ -1980,7 +1987,9 @@
     "premiumPostPreviewSubsDescUser": "तपाईं समुदायको सदस्य वा ग्राहक हुनुहुन्छ भने यो निःशुल्क देख्नुहुन्छ।",
     "premiumPostPreviewPriceLabelUser": "अनलक मूल्य",
     "premiumPostPreviewPriceDescUser": "सर्जकले पोस्ट अनलक गर्न कति लाग्छ तोक्छन्।",
-    "mergeDonationSupportDesc": "सर्जकलाई आफ्नो सहयोग देखाउन चाहेजति रकम योगदान गर्नुहोस्।"
+    "mergeDonationSupportDesc": "सर्जकलाई आफ्नो सहयोग देखाउन चाहेजति रकम योगदान गर्नुहोस्।",
+    "addSampleAriaLabel": "नमुना थप्नुहोस्",
+    "addSampleHint": "खरिदकर्ताले के पाउँछन् देख्न उदाहरण रेकर्ड गर्नुहोस्"
   },
   "live": {
     "accessTicket": "पहुँच टिकट",

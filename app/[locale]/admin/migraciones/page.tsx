@@ -12,9 +12,11 @@
 // exigen además ser el dueño. Un moderador que entre aquí verá el error que
 // devuelve la propia función, no una pantalla en blanco.
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { httpsCallable, type HttpsCallableResult } from "firebase/functions";
 import { functions } from "@/lib/firebase";
+import VibraToast from "@/app/components/VibraToast/VibraToast";
+import { useVibraToast } from "@/lib/hooks/useVibraToast";
 
 type BackfillResult = {
   dryRun: boolean;
@@ -34,6 +36,17 @@ export default function AdminMigrationsPage() {
   // botón de escritura no se habilita hasta que la pasada en seco haya corrido
   // en ESTA sesión.
   const [dryRunDone, setDryRunDone] = useState(false);
+
+  const { toast, showToast } = useVibraToast();
+  useEffect(() => {
+    if (!error) return;
+    // La nota del dueño acompañaba al error dentro de la caja. Va pegada al
+    // texto para no perderla al salir por el aviso flotante.
+    const extra = error.toLowerCase().includes("permission")
+      ? " Esta migración exige ser el dueño de la plataforma, con sesión iniciada por Google. Ser moderador no basta."
+      : "";
+    showToast(`${error}${extra}`, "error");
+  }, [error]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function run(dryRun: boolean) {
     if (phase === "running") return;
@@ -203,18 +216,6 @@ export default function AdminMigrationsPage() {
           background: #181004;
           color: #d9a441;
         }
-
-        .error {
-          margin-top: 14px;
-          padding: 10px 12px;
-          border-radius: 8px;
-          border: 1px solid #3d1515;
-          background: #140606;
-          color: #f87171;
-          font-size: 12px;
-          line-height: 1.5;
-          word-break: break-word;
-        }
       `}</style>
 
       <div className="wrap">
@@ -313,20 +314,10 @@ export default function AdminMigrationsPage() {
               )}
             </>
           )}
-
-          {error && (
-            <div className="error">
-              {error}
-              {error.toLowerCase().includes("permission") && (
-                <div style={{ marginTop: 6, color: "#a15757" }}>
-                  Esta migración exige ser el dueño de la plataforma, con sesión
-                  iniciada por Google. Ser moderador no basta.
-                </div>
-              )}
-            </div>
-          )}
         </div>
       </div>
+
+      <VibraToast toast={toast} />
     </>
   );
 }

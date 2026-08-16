@@ -23,6 +23,15 @@ if (admin.apps.length === 0) {
 }
 const db = admin.firestore();
 
+/**
+ * Cuánto puede envejecer la tabla de cambio antes de dejar de usarla.
+ *
+ * La tarea que la actualiza corre a diario, así que 48 h deja margen para un
+ * fallo puntual sin dejar de cobrar en moneda local, pero corta en seco si la
+ * tarea lleva días rota.
+ */
+const MAX_ANTIGUEDAD_TASAS_MS = 48 * 60 * 60 * 1000;
+
 // El formato de importes vive en un módulo puro (lo comparte un test del frontend).
 // Se re-exporta para no romper a quien lo importe desde aquí.
 import { NICE_STEP, roundNice, toStripeAmount, meetsStripeMinimum, type Presentment } from "./presentmentFormat";
@@ -70,6 +79,27 @@ export async function resolvePresentment(
 
   const snap = await db.doc("config/exchangeRates").get();
   const rates = (snap.data()?.rates ?? {}) as Record<string, number>;
+
+  // ⚠️ Una tasa vieja es peor que ninguna tasa.
+  //
+  // Antes solo se comprobaba que la tasa EXISTIERA. La actualiza una tarea diaria;
+  // si esa tarea se rompe —el proveedor cae, cambia de formato, expira algo— el
+  // documento se queda congelado y Vibra sigue cobrando en moneda extranjera con
+  // la cotización de hace semanas, sin que nada avise. Cobrar de menos es pérdida
+  // directa; cobrar de más es una queja del comprador.
+  //
+  // Pasado el margen se cae a MXN, que es el comportamiento que ya existía cuando
+  // falta la tasa: se cobra en la moneda de liquidación y no se inventa un cambio.
+  const actualizadaMs =
+    typeof snap.get("updatedAt")?.toMillis === "function" ? snap.get("updatedAt").toMillis() : 0;
+
+  if (!actualizadaMs || Date.now() - actualizadaMs > MAX_ANTIGUEDAD_TASAS_MS) {
+    return fallback(
+      actualizadaMs
+        ? `tasas caducadas (${Math.round((Date.now() - actualizadaMs) / 3_600_000)} h)`
+        : "tasas sin fecha de actualización"
+    );
+  }
 
   const mxnPerUsd = rates[SETTLEMENT_CURRENCY];
   const targetPerUsd = rates[target];

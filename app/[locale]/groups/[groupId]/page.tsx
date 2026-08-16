@@ -54,6 +54,8 @@ import StripePaymentModal from "@/components/payments/StripePaymentModal";
 import PaymentSuccessCard from "@/components/payments/PaymentSuccessCard";
 import { createGreetingStripeIntent, createServiceStripeIntent, createGroupSubscription, cancelGroupSubscriptionStripe } from "@/lib/stripe/stripePayments";
 import { FIXED_SERVICE_FEE_MXN } from "@/lib/currency/catalog";
+import VibraToast from "@/app/components/VibraToast/VibraToast";
+import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import { createMeetGreetRequest } from "@/lib/meetGreet/meetGreetRequests";
 import { createExclusiveSessionRequest } from "@/lib/exclusiveSession/exclusiveSessionRequests";
 import {
@@ -311,6 +313,12 @@ const formattedMemberCount = useMemo(() => {
 }, [memberCount, locale]);
 
   const error = actionError ?? realtimeError;
+
+  // Los avisos de RESULTADO de una acción salen por el toast. Las condiciones
+  // permanentes de la pantalla (baneado, comunidad pausada) siguen fijas.
+  const { toast, showToast } = useVibraToast();
+  useEffect(() => { if (error) showToast(error, "error"); }, [error]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (leaveError) showToast(leaveError, "error"); }, [leaveError]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const currentGroupState = group as GroupDoc | null;
 
@@ -1458,7 +1466,7 @@ const openCropWithFile = useCallback(
       setCroppedAreaPixels(null);
       setCropOpen(true);
     } catch (e: unknown) {
-      setActionError((e instanceof Error ? e.message : null) ?? `❌ ${tGroups("groupImageReadError")}`);
+      setActionError((e instanceof Error ? e.message : null) ?? `${tGroups("groupImageReadError")}`);
     }
   },
   [isOwner, tGroups]
@@ -1485,7 +1493,7 @@ const openCropWithFile = useCallback(
     if (!group) return;
     if (!isOwner) return;
     if (!cropImageSrc || !croppedAreaPixels) {
-      setActionError(`❌ ${tGroups("groupCropError")}`);
+      setActionError(`${tGroups("groupCropError")}`);
       return;
     }
 
@@ -1526,8 +1534,8 @@ const openCropWithFile = useCallback(
       const err = e as { code?: string; message?: string } | null;
       setActionError(
         err?.code === "permission-denied"
-          ? `❌ ${tGroups("groupStoragePermissionError")}`
-          : `❌ ${tGroups("groupImageUploadError")}: ${err?.message ?? "error"}`
+          ? `${tGroups("groupStoragePermissionError")}`
+          : `${tGroups("groupImageUploadError")}: ${err?.message ?? "error"}`
       );
     } finally {
       setUploading(false);
@@ -2800,28 +2808,20 @@ const avatarNode = (
                 </div>
               </div>
 
-              {((!isOwner && !effectiveIsMember && group.visibility === "public" && memberStatus === "banned") || !!error) && (
+              {!isOwner && !effectiveIsMember && group.visibility === "public" && memberStatus === "banned" && (
               <div className="group-actions-wrap">
-                {!isOwner && !effectiveIsMember && group.visibility === "public" && memberStatus === "banned" && (
-                  <div
-                    style={{
-                      ...messageBox,
-                      textAlign: "center",
-                      border: "1px solid rgba(255,80,80,0.4)",
-                      background: "rgba(255,80,80,0.08)",
-                      color: "#ffb3b3",
-                      fontWeight: 500,
-                    }}
-                  >
-                    {tGroups("communityBannedMessage")}
-                  </div>
-                )}
-
-                {error && (
-                  <div style={{ ...messageBox, textAlign: "center" }}>
-                    {error}
-                  </div>
-                )}
+                <div
+                  style={{
+                    ...messageBox,
+                    textAlign: "center",
+                    border: "1px solid rgba(255,80,80,0.4)",
+                    background: "rgba(255,80,80,0.08)",
+                    color: "#ffb3b3",
+                    fontWeight: 500,
+                  }}
+                >
+                  {tGroups("communityBannedMessage")}
+                </div>
               </div>
               )}
             </div>
@@ -3380,23 +3380,9 @@ const avatarNode = (
             : tGroups("leaveConfirm")}
         </p>
 
-        {leaveError && (
-          <div
-            style={{
-              marginTop: 14,
-              borderRadius: 13,
-              border: "1px solid rgba(255,90,90,0.24)",
-              background: "rgba(120,18,18,0.28)",
-              color: "#ffdada",
-              padding: "10px 12px",
-              fontSize: 13,
-              lineHeight: 1.4,
-            }}
-          >
-            {leaveError}
-          </div>
-        )}
       </Modal>
+
+      <VibraToast toast={toast} />
     </>
   );
 }

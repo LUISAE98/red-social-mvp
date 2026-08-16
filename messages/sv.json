@@ -65,7 +65,8 @@
     "seeAllMessages": "Visa alla",
     "settings": "Inställningar",
     "seeAllFollowing": "Visa alla",
-    "seeAllCommunities": "Visa alla"
+    "seeAllCommunities": "Visa alla",
+    "reels": "Berättelser"
   },
   "common": {
     "accept": "Acceptera",
@@ -254,7 +255,13 @@
     "reportSubmit": "Skicka anmälan",
     "reportSentTitle": "Anmälan skickad",
     "reportSentDesc": "Vårt team granskar den. Tack för att du hjälper till att hålla communityn trygg.",
-    "reportSubmitError": "Ett fel uppstod när anmälan skickades. Försök igen."
+    "reportSubmitError": "Ett fel uppstod när anmälan skickades. Försök igen.",
+    "noStoriesYet": "Det finns inga berättelser än.",
+    "storyNothingToPublish": "Inget att publicera här än.",
+    "storyAddStories": "Lägg till berättelser",
+    "storyNeedsBuyerPermission": "Du har beställningar, men köparen tillät inte att de publiceras.",
+    "storyFromHiddenCommunity": "De kommer från en dold gemenskap och kan inte hamna på din profil.",
+    "storyNotReadyYet": "Videon är inte klar än."
   },
   "groups": {
     "title": "Communities",
@@ -1980,7 +1987,9 @@
     "premiumPostPreviewSubsDescUser": "Om du är medlem eller prenumerant i communityn ser du det gratis.",
     "premiumPostPreviewPriceLabelUser": "Pris för att låsa upp",
     "premiumPostPreviewPriceDescUser": "Kreatören bestämmer vad det kostar att låsa upp inlägget.",
-    "mergeDonationSupportDesc": "Bidra med det belopp du vill för att visa kreatören ditt stöd."
+    "mergeDonationSupportDesc": "Bidra med det belopp du vill för att visa kreatören ditt stöd.",
+    "addSampleAriaLabel": "Lägg till exempel",
+    "addSampleHint": "Spela in ett exempel så köpare ser vad de får"
   },
   "live": {
     "accessTicket": "Inträdesbiljett",

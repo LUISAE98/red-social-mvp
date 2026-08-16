@@ -65,7 +65,8 @@
     "seeAllMessages": "전체 보기",
     "settings": "설정",
     "seeAllFollowing": "전체 보기",
-    "seeAllCommunities": "전체 보기"
+    "seeAllCommunities": "전체 보기",
+    "reels": "스토리"
   },
   "common": {
     "accept": "수락",
@@ -254,7 +255,13 @@
     "reportSubmit": "신고 보내기",
     "reportSentTitle": "신고를 접수했습니다",
     "reportSentDesc": "저희 팀이 검토하겠습니다. 커뮤니티를 안전하게 지켜 주셔서 감사합니다.",
-    "reportSubmitError": "신고를 보내는 중 오류가 발생했습니다. 다시 시도해 주세요."
+    "reportSubmitError": "신고를 보내는 중 오류가 발생했습니다. 다시 시도해 주세요.",
+    "noStoriesYet": "아직 스토리가 없습니다.",
+    "storyNothingToPublish": "아직 여기에 게시할 항목이 없습니다.",
+    "storyAddStories": "스토리 추가",
+    "storyNeedsBuyerPermission": "요청은 있지만 구매자가 공개를 허용하지 않았습니다.",
+    "storyFromHiddenCommunity": "숨겨진 커뮤니티의 항목이라 프로필에 올릴 수 없습니다.",
+    "storyNotReadyYet": "영상이 아직 준비되지 않았습니다."
   },
   "groups": {
     "title": "커뮤니티",
@@ -1980,7 +1987,9 @@
     "premiumPostPreviewSubsDescUser": "커뮤니티의 멤버나 구독자라면 무료로 봅니다.",
     "premiumPostPreviewPriceLabelUser": "잠금 해제 가격",
     "premiumPostPreviewPriceDescUser": "게시물의 잠금 해제 비용은 크리에이터가 정합니다.",
-    "mergeDonationSupportDesc": "원하는 금액을 후원해 크리에이터에게 응원을 보여 주세요."
+    "mergeDonationSupportDesc": "원하는 금액을 후원해 크리에이터에게 응원을 보여 주세요.",
+    "addSampleAriaLabel": "샘플 추가",
+    "addSampleHint": "구매자가 받을 내용을 볼 수 있도록 예시를 녹화하세요"
   },
   "live": {
     "accessTicket": "입장 티켓",

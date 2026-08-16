@@ -23,6 +23,8 @@ import {
   where,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import VibraToast from "@/app/components/VibraToast/VibraToast";
+import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import type { Post } from "@/lib/posts/types";
 
 const LiveViewerModal = dynamic(
@@ -91,6 +93,8 @@ export default function GroupRecommendationsRail({
   const [loading, setLoading] = useState<boolean>(() => !getCachedResult(currentUserId));
   const [savingOnboarding, setSavingOnboarding] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { toast, showToast } = useVibraToast();
+  useEffect(() => { if (error) showToast(error, "error"); }, [error]); // eslint-disable-line react-hooks/exhaustive-deps
   // Paginación del selector: renglones y columnas fijos por aparato (3 × 3 en
   // celular, 8 × 2 en laptop). El ancho medido ya no decide cuántas caben, solo
   // de qué tamaño salen.
@@ -830,22 +834,6 @@ export default function GroupRecommendationsRail({
       className={className}
       style={{ width: "100%", color: "#fff" }}
     >
-      {error ? (
-        <div
-          style={{
-            marginBottom: 12,
-            borderRadius: 12,
-            background: "rgba(255, 80, 80, 0.12)",
-            border: "1px solid rgba(255, 80, 80, 0.25)",
-            padding: 12,
-            fontSize: 13,
-            fontFamily: fontStack,
-          }}
-        >
-          {error}
-        </div>
-      ) : null}
-
       {loading ? <SkeletonRail /> : null}
 
       {showOnboarding ? (
@@ -1225,6 +1213,8 @@ export default function GroupRecommendationsRail({
           </div>
         </div>
       ) : null}
+
+      <VibraToast toast={toast} />
     </section>
   );
 }

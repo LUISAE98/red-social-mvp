@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import type { Timestamp } from "firebase/firestore";
 import { useAuth } from "@/app/providers";
@@ -16,10 +16,11 @@ import { useWalletData } from "../components/WalletDataContext";
 import WalletSectionShell from "../components/WalletSectionShell";
 import {
   WalletCard,
-  WalletErrorBox,
   WalletFilterMenu,
   WalletList,
 } from "../components/WalletUi";
+import VibraToast from "@/app/components/VibraToast/VibraToast";
+import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import WalletFigureSkeleton from "../components/WalletFigureSkeleton";
 import { WalletCardsSkeleton } from "../components/WalletListSkeleton";
 import GreetingReviewOverlay from "@/app/components/OwnerSidebar/GreetingReviewOverlay";
@@ -109,6 +110,8 @@ export default function WalletPendientesPage() {
     return tWallet("typeLabelGreeting");
   }
   const walletData = useWalletData();
+  const { toast, showToast } = useVibraToast();
+  useEffect(() => { if (walletData.error) showToast(walletData.error, "error"); }, [walletData.error]); // eslint-disable-line react-hooks/exhaustive-deps
   const [filter, setFilter] = useState<PendingFilter[]>(["all"]);
   const [recordRow, setRecordRow] = useState<WalletServiceItem | null>(null);
   const [greetingBusyId, setGreetingBusyId] = useState<string | null>(null);
@@ -117,6 +120,8 @@ export default function WalletPendientesPage() {
   const [busy, setBusy] = useState(false);
   const [feedbackError, setFeedbackError] = useState<string | null>(null);
   const [feedbackSuccess, setFeedbackSuccess] = useState<string | null>(null);
+  useEffect(() => { if (feedbackError) showToast(feedbackError, "error"); }, [feedbackError]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (feedbackSuccess) showToast(feedbackSuccess, "success"); }, [feedbackSuccess]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const safePendingItems = useMemo(() => {
     return walletData.pendingCurrent.filter((item) => {
@@ -273,8 +278,6 @@ export default function WalletPendientesPage() {
 
   return (
     <WalletSectionShell activeTab="pending">
-      {walletData.error ? <WalletErrorBox message={walletData.error} /> : null}
-
       {/* Cifra "Total a liberar" — arriba de la card (como WalletMonthlyStats en
           historial), para que el título quede DEBAJO de la cifra. */}
       {walletData.loading ? (
@@ -401,8 +404,6 @@ export default function WalletPendientesPage() {
           requestId={viewItem.id}
           serviceKind={viewItem.source as "meet_greet" | "exclusive_session"}
           busy={busy}
-          feedbackError={feedbackError}
-          feedbackSuccess={feedbackSuccess}
           earning={viewItemEarning}
           ownerCalendarItems={walletData.calendar}
           getInitials={(name) => name?.charAt(0).toUpperCase() ?? "?"}
@@ -414,6 +415,8 @@ export default function WalletPendientesPage() {
           onKeepSchedule={async () => closeViewItem()}
         />
       )}
+
+      <VibraToast toast={toast} />
     </WalletSectionShell>
   );
 }

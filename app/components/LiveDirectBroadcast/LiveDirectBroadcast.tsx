@@ -2,6 +2,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { getAuth } from "firebase/auth";
+import VibraToast from "@/app/components/VibraToast/VibraToast";
+import { useVibraToast } from "@/lib/hooks/useVibraToast";
 const FONT = "inherit";
 
 const ICE_SERVERS: RTCIceServer[] = [
@@ -56,6 +58,8 @@ export default function LiveDirectBroadcast({
   const [micMuted, setMicMuted] = useState(false);
   const [camOff, setCamOff] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { toast, showToast } = useVibraToast();
+  useEffect(() => { if (error) showToast(error, "error"); }, [error]); // eslint-disable-line react-hooks/exhaustive-deps
   const [hasMedia, setHasMedia] = useState(false);
 
   // ── Headphone detection ───────────────────────────────────────────────────
@@ -608,17 +612,6 @@ export default function LiveDirectBroadcast({
         )}
       </div>
 
-      {error && (
-        <div style={{
-          padding: "8px 14px",
-          background: "rgba(239,68,68,0.12)",
-          borderTop: "1px solid rgba(239,68,68,0.3)",
-          color: "#fca5a5", fontSize: 12, lineHeight: 1.4,
-        }}>
-          {error}
-        </div>
-      )}
-
       <div style={{
         display: "flex", alignItems: "center", gap: 8,
         paddingTop: 10,
@@ -684,6 +677,8 @@ export default function LiveDirectBroadcast({
           </button>
         )}
       </div>
+
+      <VibraToast toast={toast} />
     </div>
   );
 }

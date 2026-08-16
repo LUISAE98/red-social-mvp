@@ -11,6 +11,8 @@ import {
   type ReportReason,
 } from "@/lib/moderation/types";
 import type { ReportTarget } from "@/lib/moderation/useReport";
+import VibraToast from "@/app/components/VibraToast/VibraToast";
+import { useVibraToast } from "@/lib/hooks/useVibraToast";
 
 type Props = {
   target: ReportTarget;
@@ -61,6 +63,8 @@ export default function ReportModal({ target, onClose, onReported }: Props) {
   const [description, setDescription] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { toast, showToast } = useVibraToast();
+  useEffect(() => { if (error) showToast(error, "error"); }, [error]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     setMounted(true);
@@ -180,12 +184,6 @@ export default function ReportModal({ target, onClose, onReported }: Props) {
               />
             )}
 
-            {error && (
-              <p style={{ fontSize: 13, color: "#f87171", margin: "12px 0 0" }}>
-                {error}
-              </p>
-            )}
-
             <div style={{ display: "flex", gap: 10, marginTop: 18 }}>
               <button
                 onClick={onClose}
@@ -255,6 +253,7 @@ export default function ReportModal({ target, onClose, onReported }: Props) {
           </div>
         )}
       </div>
+      <VibraToast toast={toast} />
     </div>
   );
 

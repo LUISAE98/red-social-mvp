@@ -11,7 +11,9 @@ import {
   subscribeToCreatorStories,
 } from "@/lib/stories/storyService";
 import type { StoryDoc, StoryGroupKey, StoryType } from "@/lib/stories/types";
+import { usePublishableGreetings } from "@/lib/stories/usePublishableGreetings";
 import StoryCircle from "./StoryCircle";
+import AddStoryCircle from "./AddStoryCircle";
 import EditTextButton from "@/components/ui/EditTextButton";
 import StoryViewer from "./StoryViewer";
 import StoryCoverPicker from "./StoryCoverPicker";
@@ -29,7 +31,11 @@ function resolveThumb(story: StoryDoc | null): string | null {
 }
 
 type ViewerState = { stories: StoryDoc[]; type: StoryType } | null;
-type PickerGroup = { key: StoryGroupKey; type: StoryType; role: "creator" | "buyer" } | null;
+type PickerGroup = {
+  key: StoryGroupKey;
+  type: StoryType;
+  role: "creator" | "buyer" | "both";
+} | null;
 
 export default function StoryCircles({ creatorId, currentUserId }: Props) {
   const [stories, setStories] = useState<StoryDoc[]>([]);
@@ -41,6 +47,21 @@ export default function StoryCircles({ creatorId, currentUserId }: Props) {
 
   const tCommon = useTranslations("common");
   const isOwner = !!currentUserId && currentUserId === creatorId;
+
+  // Cuánto hay publicable de cada tipo, para decidir si sale el círculo con `+`.
+  // Solo se consulta si eres el dueño; a un visitante no le incumbe.
+  const { items: publishableSaludos } = usePublishableGreetings({
+    uid: currentUserId,
+    type: "saludo",
+    scope: { kind: "profile" },
+    enabled: isOwner,
+  });
+  const { items: publishableConsejos } = usePublishableGreetings({
+    uid: currentUserId,
+    type: "consejo",
+    scope: { kind: "profile" },
+    enabled: isOwner,
+  });
 
   useEffect(() => {
     if (!creatorId) return;
@@ -103,7 +124,17 @@ export default function StoryCircles({ creatorId, currentUserId }: Props) {
   ];
   const groups = allGroups.filter((g) => g.list.length > 0);
 
-  if (groups.length === 0) return null;
+  // El rail ya no depende de que HAYA historias publicadas. Si eres el dueño y
+  // tienes algo publicable, aparece igual con los círculos de `+`, que es de
+  // donde sale la primera historia de tu perfil.
+  const addCircles = isOwner
+    ? ([
+        { type: "saludo" as StoryType, count: publishableSaludos.length },
+        { type: "consejo" as StoryType, count: publishableConsejos.length },
+      ].filter((c) => c.count > 0))
+    : [];
+
+  if (groups.length === 0 && addCircles.length === 0) return null;
 
   const getCoverThumbnail = (key: string, list: StoryDoc[]): string | null => {
     if (storyCoverPhoto[key]) return storyCoverPhoto[key]!;
@@ -151,6 +182,24 @@ export default function StoryCircles({ creatorId, currentUserId }: Props) {
             )}
           </div>
         ))}
+
+        {addCircles.map((c) => (
+          <AddStoryCircle
+            key={`add-${c.type}`}
+            type={c.type}
+            label={tCommon("storyAddStories")}
+            ariaLabel={tCommon("storyAddStories")}
+            onClick={() =>
+              setPickerGroup({
+                // La portada que se edita al publicar desde aquí es la del lado
+                // "enviados", que es el circuito principal del creador.
+                key: c.type === "saludo" ? "saludo_sent" : "consejo_sent",
+                type: c.type,
+                role: "both",
+              })
+            }
+          />
+        ))}
       </div>
 
       {viewerState && (
@@ -165,14 +214,20 @@ export default function StoryCircles({ creatorId, currentUserId }: Props) {
 
       {pickerGroup && (
         <StoryCoverPicker
-          stories={stories.filter((s) =>
-            s.type === pickerGroup.type &&
-            (pickerGroup.role === "buyer" ? !isSent(s) : isSent(s))
+          stories={stories.filter(
+            (s) =>
+              s.type === pickerGroup.type &&
+              (pickerGroup.role === "both"
+                ? true
+                : pickerGroup.role === "buyer"
+                  ? !isSent(s)
+                  : isSent(s)),
           )}
           type={pickerGroup.type}
           role={pickerGroup.role}
           entityId={creatorId}
           entityType="profile"
+          currentUserId={creatorId}
           currentCoverStoryId={storyCovers[pickerGroup.key] ?? null}
           currentCustomPhotoUrl={storyCoverPhoto[pickerGroup.key] ?? null}
           uploadStoragePath={`storyCovers/users/${creatorId}/${pickerGroup.key}`}

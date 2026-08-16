@@ -6,6 +6,7 @@ import * as path from "path";
 import * as os from "os";
 import { spawn } from "child_process";
 import { isGreetingParticipant } from "./greetingAccess";
+import { consumeQuota } from "./quotas";
 
 if (admin.apps.length === 0) admin.initializeApp();
 
@@ -61,6 +62,19 @@ export const videoOverlayDownload = onRequest(
     if (!(await isGreetingParticipant(uid, playbackId))) {
       logger.warn("videoOverlayDownload: acceso denegado", { uid, playbackId });
       res.status(403).json({ error: "Forbidden" });
+      return;
+    }
+
+    // Este render levanta FFmpeg con 2 GiB durante hasta 5 minutos: es de lo más
+    // caro que se puede disparar desde fuera. Va después del permiso para no
+    // gastarle el día a quien ni siquiera es parte del saludo.
+    //
+    // Es `onRequest`, no `onCall`, así que el tope se traduce a un 429 con el
+    // mismo texto que usan las demás cuotas.
+    try {
+      await consumeQuota(uid, "videoOverlay");
+    } catch (err) {
+      res.status(429).json({ error: (err as { message?: string })?.message ?? "Límite alcanzado." });
       return;
     }
 

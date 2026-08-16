@@ -65,7 +65,8 @@
     "seeAllMessages": "Näytä kaikki",
     "settings": "Asetukset",
     "seeAllFollowing": "Näytä kaikki",
-    "seeAllCommunities": "Näytä kaikki"
+    "seeAllCommunities": "Näytä kaikki",
+    "reels": "Tarinat"
   },
   "common": {
     "accept": "Hyväksy",
@@ -254,7 +255,13 @@
     "reportSubmit": "Lähetä ilmoitus",
     "reportSentTitle": "Ilmoitus lähetetty",
     "reportSentDesc": "Tiimimme käy sen läpi. Kiitos, että autat pitämään yhteisön turvallisena.",
-    "reportSubmitError": "Ilmoitusta lähetettäessä tapahtui virhe. Yritä uudelleen."
+    "reportSubmitError": "Ilmoitusta lähetettäessä tapahtui virhe. Yritä uudelleen.",
+    "noStoriesYet": "Tarinoita ei ole vielä.",
+    "storyNothingToPublish": "Täällä ei ole vielä julkaistavaa.",
+    "storyAddStories": "Lisää tarinoita",
+    "storyNeedsBuyerPermission": "Sinulla on tilauksia, mutta ostaja ei sallinut niiden julkaisua.",
+    "storyFromHiddenCommunity": "Ne ovat piilotetusta yhteisöstä eikä niitä voi julkaista profiilissasi.",
+    "storyNotReadyYet": "Video ei ole vielä valmis."
   },
   "groups": {
     "title": "Yhteisöt",
@@ -1980,7 +1987,9 @@
     "premiumPostPreviewSubsDescUser": "Jos olet yhteisön jäsen tai tilaaja, näet sen maksamatta.",
     "premiumPostPreviewPriceLabelUser": "Avaamisen hinta",
     "premiumPostPreviewPriceDescUser": "Sisällöntuottaja määrittää, paljonko julkaisun avaaminen maksaa.",
-    "mergeDonationSupportDesc": "Anna haluamasi summa osoittaaksesi tukesi sisällöntuottajalle."
+    "mergeDonationSupportDesc": "Anna haluamasi summa osoittaaksesi tukesi sisällöntuottajalle.",
+    "addSampleAriaLabel": "Lisää näyte",
+    "addSampleHint": "Tallenna esimerkki, jotta ostajat näkevät mitä saavat"
   },
   "live": {
     "accessTicket": "Pääsylippu",

@@ -65,7 +65,8 @@
     "seeAllMessages": "Tingnan lahat",
     "settings": "Mga setting",
     "seeAllFollowing": "Tingnan lahat",
-    "seeAllCommunities": "Tingnan lahat"
+    "seeAllCommunities": "Tingnan lahat",
+    "reels": "Mga Kuwento"
   },
   "common": {
     "accept": "Tanggapin",
@@ -254,7 +255,13 @@
     "reportSubmit": "Ipadala ang report",
     "reportSentTitle": "Naipadala ang report",
     "reportSentDesc": "Susuriin ito ng team namin. Salamat sa pagtulong na panatilihing ligtas ang komunidad.",
-    "reportSubmitError": "May naganap na error habang ipinapadala ang report. Pakisubukan ulit."
+    "reportSubmitError": "May naganap na error habang ipinapadala ang report. Pakisubukan ulit.",
+    "noStoriesYet": "Wala pang mga kuwento.",
+    "storyNothingToPublish": "Wala pang mailalathala rito.",
+    "storyAddStories": "Magdagdag ng kuwento",
+    "storyNeedsBuyerPermission": "May mga order ka, pero hindi pinayagan ng mamimili na ilathala.",
+    "storyFromHiddenCommunity": "Galing ang mga ito sa nakatagong komunidad at hindi puwede sa profile mo.",
+    "storyNotReadyYet": "Hindi pa handa ang video."
   },
   "groups": {
     "title": "Mga komunidad",
@@ -1980,7 +1987,9 @@
     "premiumPostPreviewSubsDescUser": "Kung miyembro o subscriber ka ng komunidad, libre mo itong makikita.",
     "premiumPostPreviewPriceLabelUser": "Presyo ng pag-unlock",
     "premiumPostPreviewPriceDescUser": "Ang creator ang nagtatakda kung magkano ang halaga para i-unlock ang post.",
-    "mergeDonationSupportDesc": "Mag-ambag ng kahit anong halagang gusto mo para ipakita sa creator ang suporta mo."
+    "mergeDonationSupportDesc": "Mag-ambag ng kahit anong halagang gusto mo para ipakita sa creator ang suporta mo.",
+    "addSampleAriaLabel": "Magdagdag ng sample",
+    "addSampleHint": "Mag-record ng halimbawa para makita ng mga bibili ang matatanggap nila"
   },
   "live": {
     "accessTicket": "Access ticket",

@@ -65,7 +65,8 @@
     "seeAllMessages": "Skatīt visas",
     "settings": "Iestatījumi",
     "seeAllFollowing": "Skatīt visas",
-    "seeAllCommunities": "Skatīt visus"
+    "seeAllCommunities": "Skatīt visus",
+    "reels": "Stāsti"
   },
   "common": {
     "accept": "Pieņemt",
@@ -254,7 +255,13 @@
     "reportSubmit": "Nosūtīt ziņojumu",
     "reportSentTitle": "Ziņojums nosūtīts",
     "reportSentDesc": "Mūsu komanda to izskatīs. Paldies, ka palīdzi kopienai palikt drošai.",
-    "reportSubmitError": "Sūtot ziņojumu, radās kļūda. Mēģini vēlreiz."
+    "reportSubmitError": "Sūtot ziņojumu, radās kļūda. Mēģini vēlreiz.",
+    "noStoriesYet": "Stāstu pagaidām nav.",
+    "storyNothingToPublish": "Šeit vēl nav ko publicēt.",
+    "storyAddStories": "Pievienot stāstus",
+    "storyNeedsBuyerPermission": "Tev ir pasūtījumi, bet pircējs neatļāva tos publicēt.",
+    "storyFromHiddenCommunity": "Tie nāk no slēptas kopienas un nevar nonākt tavā profilā.",
+    "storyNotReadyYet": "Video vēl nav gatavs."
   },
   "groups": {
     "title": "Kopienas",
@@ -1980,7 +1987,9 @@
     "premiumPostPreviewSubsDescUser": "Ja esi kopienas dalībnieks vai abonents, tu to redzi bez maksas.",
     "premiumPostPreviewPriceLabelUser": "Atbloķēšanas cena",
     "premiumPostPreviewPriceDescUser": "Veidotājs nosaka, cik maksā ieraksta atbloķēšana.",
-    "mergeDonationSupportDesc": "Ziedo tik, cik vēlies, lai parādītu veidotājam savu atbalstu."
+    "mergeDonationSupportDesc": "Ziedo tik, cik vēlies, lai parādītu veidotājam savu atbalstu.",
+    "addSampleAriaLabel": "Pievienot paraugu",
+    "addSampleHint": "Ieraksti piemēru, lai pircēji redz, ko saņems"
   },
   "live": {
     "accessTicket": "Piekļuves biļete",

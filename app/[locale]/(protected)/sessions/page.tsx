@@ -20,6 +20,8 @@ import { usePriceFormat } from "@/lib/currency/usePriceFormat";
 import { formatScheduledAt } from "@/lib/utils/timezoneDisplay";
 import { formatDateTime } from "@/lib/i18n/dateTime";
 import type { LiveKitSessionRecordingStatus } from "@/types/livekit";
+import VibraToast from "@/app/components/VibraToast/VibraToast";
+import { useVibraToast } from "@/lib/hooks/useVibraToast";
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -176,6 +178,10 @@ function SessionCard({ session }: { session: BuyerSession }) {
   const [joinError, setJoinError] = useState<string | null>(null);
   const [downloadBusy, setDownloadBusy] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
+
+  const { toast, showToast } = useVibraToast();
+  useEffect(() => { if (joinError) showToast(joinError, "error"); }, [joinError]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (downloadError) showToast(downloadError, "error"); }, [downloadError]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const joinable = canJoin(session);
   const isCompleted = session.status === "completed";
@@ -338,11 +344,6 @@ function SessionCard({ session }: { session: BuyerSession }) {
                           : ""}
                       </button>
                       {expiryLabelStr ? <span style={expiryLabel}>{expiryLabelStr}</span> : null}
-                      {downloadError ? (
-                        <span style={{ ...expiryLabel, color: "#fca5a5" }}>
-                          {downloadError}
-                        </span>
-                      ) : null}
                     </div>
                   );
                 })()
@@ -350,10 +351,6 @@ function SessionCard({ session }: { session: BuyerSession }) {
                 <div style={failedBadge}>{tSessions("recordingFailed")}</div>
               ) : null}
             </>
-          ) : null}
-
-          {joinError ? (
-            <div style={errorBox}>{joinError}</div>
           ) : null}
         </div>
       ) : null}
@@ -396,6 +393,8 @@ function SessionCard({ session }: { session: BuyerSession }) {
           ) : null}
         </div>
       ) : null}
+
+      <VibraToast toast={toast} />
     </div>
   );
 }

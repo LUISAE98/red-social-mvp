@@ -22,6 +22,7 @@ import { spendBuyerCredit, revertBuyerCreditSpend } from "./buyerCredit";
 import { capturePaymentIntentForRef } from "../payments/stripe/holdCapture";
 import { refundExperienceToCredit } from "./refundToCredit";
 import { requirePlatformMod } from "../authz";
+import { assertAccountNotBanned } from "../accountStatus";
 
 if (admin.apps.length === 0) {
   admin.initializeApp();
@@ -139,6 +140,10 @@ export const requestCashout = onCall(
       throw new HttpsError("permission-denied", "No disponible para invitados.");
     }
 
+    // Sacar dinero es lo último que debe poder hacer una cuenta suspendida en la
+    // hora de gracia que le queda al token ya emitido.
+    await assertAccountNotBanned(uid);
+
     const balance = await readBalance(uid);
     if (balance <= 0) {
       throw new HttpsError(
@@ -187,17 +192,38 @@ export const requestCashout = onCall(
       throw new HttpsError("failed-precondition", "No hay saldo disponible para reembolsar.");
     }
 
-    await cashoutRef.set({
-      buyerId: uid,
-      buyerName: str(buyer.displayName) || str(buyer.name) || str(buyer.username),
-      buyerUsername: str(buyer.username),
-      amount: reserved,
-      currency: "MXN",
-      status: "pending",
-      origins,
-      refunds: [],
-      createdAt: FieldValue.serverTimestamp(),
-    });
+    // ⚠️ Si la solicitud no llega a escribirse, hay que DEVOLVER el saldo (B6-H03).
+    //
+    // El crédito se descuenta arriba y la solicitud se crea aquí, en dos pasos.
+    // Si el segundo fallaba —red, cuota, un índice— el comprador se quedaba sin
+    // saldo y sin ninguna solicitud que un moderador pudiera encontrar ni
+    // rechazar: su dinero desaparecía del producto sin dejar rastro accionable.
+    //
+    // No se pueden unir en una transacción porque `spendBuyerCredit` ya corre en
+    // la suya. Lo que sí se puede es no dejarlo a medias: si falla, se revierte.
+    try {
+      await cashoutRef.set({
+        buyerId: uid,
+        buyerName: str(buyer.displayName) || str(buyer.name) || str(buyer.username),
+        buyerUsername: str(buyer.username),
+        amount: reserved,
+        currency: "MXN",
+        status: "pending",
+        origins,
+        refunds: [],
+        createdAt: FieldValue.serverTimestamp(),
+      });
+    } catch (error) {
+      await revertBuyerCreditSpend(uid, { sourceType: "cashout", sourceId: cashoutId }).catch(
+        (fallo) => {
+          // Si hasta la reversión falla, el saldo queda retenido: se registra en
+          // grande porque necesita mano humana.
+          logger.error("cashout_reserve_orphan", { cashoutId, uid, amount: reserved, fallo });
+        }
+      );
+      logger.error("cashout_request_write_failed", { cashoutId, uid, error });
+      throw new HttpsError("internal", "No se pudo registrar la solicitud. Tu saldo sigue intacto.");
+    }
 
     logger.info("cashout_requested", { cashoutId, uid, amount: reserved, origins: origins.length });
     return { ok: true, amount: reserved };
@@ -306,8 +332,20 @@ export const resolveCashout = onCall(
     const snap = await ref.get();
     if (!snap.exists) throw new HttpsError("not-found", "Solicitud no encontrada.");
     const data = snap.data() ?? {};
-    if (str(data.status) !== "pending") {
+    // `partially_refunded` SÍ se puede retomar: es una devolución a medias que
+    // hay que terminar, no una solicitud resuelta. Reaprobarla reintenta solo lo
+    // que falta, porque cada reembolso lleva su propia clave de idempotencia.
+    const estado = str(data.status);
+    if (estado !== "pending" && estado !== "partially_refunded") {
       throw new HttpsError("failed-precondition", "La solicitud ya fue resuelta.");
+    }
+    if (estado === "partially_refunded" && action === "reject") {
+      // Rechazarla devolvería el saldo entero al comprador cuando ya se le
+      // reembolsó parte en efectivo: se le pagaría dos veces.
+      throw new HttpsError(
+        "failed-precondition",
+        "Esta solicitud ya tiene reembolsos hechos; no se puede rechazar, hay que completarla."
+      );
     }
     const buyerId = str(data.buyerId);
     const total = num(data.amount);
@@ -378,9 +416,46 @@ export const resolveCashout = onCall(
       remaining = round2(remaining - alloc);
     }
 
+    // ⚠️ APROBADA solo si se devolvió TODO (B6-H01).
+    //
+    // Antes se marcaba `approved` pase lo que pase, incluso con `remaining > 0`.
+    // Y quedar corto es fácil: si los cargos originales ya no admiten más
+    // reembolso —porque se reembolsaron antes, en parte o del todo—, el bucle
+    // recorre los orígenes, devuelve menos de lo pedido y sale. El comprador se
+    // quedaba con el saldo consumido, sin todo su dinero, y con la solicitud
+    // cerrada como si estuviera resuelta. Nadie volvía a mirarla.
+    //
+    // Ahora esa solicitud queda `partially_refunded`: sigue abierta, dice cuánto
+    // falta, y reaprobarla reintenta solo lo que falta (los reembolsos ya hechos
+    // no se repiten, van por clave de idempotencia).
+    const faltante = round2(total - refundedSoFar);
+
+    if (faltante > 0) {
+      await ref.update({
+        status: "partially_refunded",
+        refundedAmount: refundedSoFar,
+        pendingAmount: faltante,
+        resolvedBy: moderatorUid,
+        resolvedAt: FieldValue.serverTimestamp(),
+        lastError: FieldValue.delete(),
+      });
+      logger.error("cashout_partially_refunded", {
+        cashoutId,
+        buyerId,
+        total,
+        refundedAmount: refundedSoFar,
+        pendingAmount: faltante,
+      });
+      throw new HttpsError(
+        "failed-precondition",
+        `Solo se pudieron devolver $${refundedSoFar} de $${total}. Faltan $${faltante} y la solicitud queda abierta.`
+      );
+    }
+
     await ref.update({
       status: "approved",
       refundedAmount: refundedSoFar,
+      pendingAmount: 0,
       resolvedBy: moderatorUid,
       resolvedAt: FieldValue.serverTimestamp(),
       lastError: FieldValue.delete(),

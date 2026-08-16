@@ -36,6 +36,9 @@ export {
 } from "@/lib/services/serviceDraft";
 
 export const SERVICE_EMOJIS = {
+  // Solo lo usa la comunidad —un perfil no tiene suscripción—, pero el mapa vive
+  // completo en un único sitio en vez de tener dos versiones que se desincronizan.
+  subscription: "💎",
   saludo: "👋",
   consejo: "💡",
   meetGreet: "🤝",

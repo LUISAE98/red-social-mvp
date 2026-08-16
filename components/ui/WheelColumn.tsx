@@ -109,6 +109,54 @@ export default function WheelColumn({
     []
   );
 
+  /**
+   * La rueda del ratón avanza UN renglón por muesca.
+   *
+   * Sin esto, una sola muesca del ratón mueve unos cien píxeles —dos renglones y
+   * medio— así que en una lista corta se saltaba del primero al último y había
+   * opciones a las que no se podía llegar. En un tambor, una muesca es un paso.
+   *
+   * Va con `passive: false` porque hace falta cancelar el desplazamiento normal,
+   * y React no deja pedir eso desde `onWheel`.
+   */
+  useEffect(() => {
+    const node = scrollerRef.current;
+    if (!node) return;
+
+    let bloqueado = false;
+    let timer: number | null = null;
+
+    function onWheel(e: WheelEvent) {
+      e.preventDefault();
+      if (bloqueado || !node) return;
+
+      // Un pequeño candado: sin él, el gesto continuo de un trackpad dispara
+      // decenas de eventos y la rueda vuelve a volar.
+      bloqueado = true;
+      timer = window.setTimeout(() => {
+        bloqueado = false;
+      }, 110);
+
+      const paso = e.deltaY > 0 ? 1 : -1;
+      const actual = Math.round(node.scrollTop / WHEEL_ITEM_H);
+      const destino = actual + paso;
+
+      // Sin dar la vuelta no se sale de la lista; con vuelta, el reajuste del
+      // final se encarga de devolver a la copia central.
+      const limitado = loop
+        ? destino
+        : Math.max(0, Math.min(destino, items.length - 1));
+
+      node.scrollTo({ top: limitado * WHEEL_ITEM_H, behavior: "smooth" });
+    }
+
+    node.addEventListener("wheel", onWheel, { passive: false });
+    return () => {
+      node.removeEventListener("wheel", onWheel);
+      if (timer !== null) window.clearTimeout(timer);
+    };
+  }, [items.length, loop]);
+
   function handleScroll() {
     userScrollingRef.current = true;
 
@@ -211,6 +259,11 @@ export default function WheelColumn({
           display: flex;
           align-items: center;
           justify-content: center;
+          width: 100%;
+          border: none;
+          background: transparent;
+          padding: 0;
+          font-family: inherit;
           scroll-snap-align: center;
           scroll-snap-stop: always;
           font-size: 15px;
@@ -218,7 +271,13 @@ export default function WheelColumn({
           color: rgba(255, 255, 255, 0.55);
           white-space: nowrap;
           user-select: none;
+          cursor: pointer;
+          -webkit-tap-highlight-color: transparent;
           transition: color 140ms ease;
+        }
+
+        .vb-wheel-item:hover {
+          color: rgba(255, 255, 255, 0.85);
         }
 
         .vb-wheel-item[data-selected="true"] {
@@ -238,16 +297,27 @@ export default function WheelColumn({
       {rendered.map((item, i) => (
         // La clave lleva el índice porque al dar la vuelta el mismo valor sale
         // varias veces, una por copia.
-        <div
+        <button
           key={`${item.value}-${i}`}
+          type="button"
           className="vb-wheel-item"
           data-selected={item.value === value}
           role="option"
           aria-selected={item.value === value}
           style={{ height: WHEEL_ITEM_H }}
+          /**
+           * Tocar un renglón lo trae al centro. Es lo que la mano espera al ver
+           * una opción encima o debajo: se pulsa, no se busca cómo girar. Y en
+           * laptop es la salida cuando el ratón no tiene rueda.
+           */
+          onClick={() => {
+            const node = scrollerRef.current;
+            if (node) node.scrollTo({ top: i * WHEEL_ITEM_H, behavior: "smooth" });
+            if (item.value !== value) onChange(item.value);
+          }}
         >
           {item.label}
-        </div>
+        </button>
       ))}
 
       <div style={{ height: PAD }} aria-hidden="true" />

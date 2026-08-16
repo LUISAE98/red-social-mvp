@@ -21,6 +21,7 @@ import type {
 } from "./OwnerSidebar";
 import { dismissHiddenGroupTransition } from "@/lib/groups/sidebarGroups";
 import { Chevron, CountBadge } from "./OwnerSidebar";
+import type { ToastType } from "@/lib/hooks/useVibraToast";
 
 export type Props = {
   currentUserId: string | null;
@@ -408,42 +409,11 @@ export function buildAccessNotice(
   return null;
 }
 
-export function noticeStyles(
-  tone: NoticeTone,
-  isMobile: boolean
-): React.CSSProperties {
-  return {
-    borderRadius: 10,
-    border:
-      tone === "warning"
-        ? "1px solid rgba(251,191,36,0.28)"
-        : tone === "success"
-        ? "1px solid rgba(134,239,172,0.22)"
-        : tone === "danger"
-        ? "1px solid rgba(252,165,165,0.24)"
-        : "1px solid rgba(147,197,253,0.22)",
-    background:
-      tone === "warning"
-        ? "rgba(251,191,36,0.08)"
-        : tone === "success"
-        ? "rgba(134,239,172,0.08)"
-        : tone === "danger"
-        ? "rgba(252,165,165,0.08)"
-        : "rgba(147,197,253,0.08)",
-    padding: "8px 10px",
-    fontSize: isMobile ? 10 : 11,
-    lineHeight: 1.35,
-    color:
-      tone === "warning"
-        ? "rgba(255,235,180,0.96)"
-        : tone === "success"
-        ? "rgba(220,255,230,0.96)"
-        : tone === "danger"
-        ? "rgba(255,220,220,0.96)"
-        : "rgba(220,236,255,0.96)",
-    display: "grid",
-    gap: 6,
-  };
+/** El tono del aviso de acceso, traducido al tipo del toast de Vibra. */
+export function noticeToneToToastType(tone: NoticeTone): ToastType {
+  if (tone === "success") return "success";
+  if (tone === "danger") return "error";
+  return "warning";
 }
 
 export function LeaveGroupActionCard(params: {

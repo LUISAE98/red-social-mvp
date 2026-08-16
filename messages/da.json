@@ -65,7 +65,8 @@
     "seeAllMessages": "Se alle",
     "settings": "Indstillinger",
     "seeAllFollowing": "Se alle",
-    "seeAllCommunities": "Se alle"
+    "seeAllCommunities": "Se alle",
+    "reels": "Historier"
   },
   "common": {
     "accept": "Accepter",
@@ -254,7 +255,13 @@
     "reportSubmit": "Send anmeldelse",
     "reportSentTitle": "Anmeldelsen er sendt",
     "reportSentDesc": "Vores team gennemgår den. Tak, fordi du hjælper med at holde communityet trygt.",
-    "reportSubmitError": "Der opstod en fejl, da anmeldelsen skulle sendes. Prøv igen."
+    "reportSubmitError": "Der opstod en fejl, da anmeldelsen skulle sendes. Prøv igen.",
+    "noStoriesYet": "Der er endnu ingen historier.",
+    "storyNothingToPublish": "Der er endnu intet at udgive her.",
+    "storyAddStories": "Tilføj historier",
+    "storyNeedsBuyerPermission": "Du har bestillinger, men køberen tillod ikke at udgive dem.",
+    "storyFromHiddenCommunity": "De kommer fra et skjult fællesskab og kan ikke udgives på din profil.",
+    "storyNotReadyYet": "Videoen er ikke klar endnu."
   },
   "groups": {
     "title": "Communities",
@@ -1980,7 +1987,9 @@
     "premiumPostPreviewSubsDescUser": "Er du medlem eller abonnent i communityet, ser du det gratis.",
     "premiumPostPreviewPriceLabelUser": "Pris for at låse op",
     "premiumPostPreviewPriceDescUser": "Creatoren fastsætter, hvad det koster at låse opslaget op.",
-    "mergeDonationSupportDesc": "Bidrag med det beløb, du har lyst til, for at vise creatoren din støtte."
+    "mergeDonationSupportDesc": "Bidrag med det beløb, du har lyst til, for at vise creatoren din støtte.",
+    "addSampleAriaLabel": "Tilføj prøve",
+    "addSampleHint": "Optag et eksempel, så købere ser hvad de får"
   },
   "live": {
     "accessTicket": "Adgangsbillet",

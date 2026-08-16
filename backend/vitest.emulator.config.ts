@@ -10,12 +10,21 @@ export default defineConfig({
   test: {
     include: ["test-emulator/**/*.test.ts"],
     environment: "node",
-    // 20s se quedaba corto al pasar de 3 a 4 archivos: arrancan en paralelo y
-    // el primer test de cada uno espera a que su propio firebase-admin termine
-    // de inicializar contra un emulador compartido (los `import` tardan ~50s
-    // sumados). No es lentitud del test, es contención de arranque.
-    testTimeout: 45000,
-    hookTimeout: 45000,
+    // ⚠️ Los archivos corren de UNO EN UNO. Todos hablan con el MISMO emulador, y
+    // cada uno inicializa su propio firebase-admin al arrancar; en paralelo se
+    // pisan y el emulador deja de responder a tiempo.
+    //
+    // El síntoma es inconfundible y costó dos rondas reconocerlo: fallan tests
+    // DISTINTOS en cada corrida, siempre clavados en el timeout, y cada uno pasa
+    // al ejecutarlo solo. Se fue subiendo el tope (20s → 45s → 90s) creyendo que
+    // eran tests lentos; no lo eran. Subir el timeout solo alarga la corrida
+    // antes de volver a fallar cuando se suma un archivo más.
+    //
+    // Secuencial tarda más de reloj pero es determinista, que es lo que se
+    // necesita de una suite que decide si el dinero cuadra.
+    fileParallelism: false,
+    testTimeout: 30000,
+    hookTimeout: 30000,
     // Cada archivo en su propio proceso aislado (pool forks, isolate). Así cada
     // uno inicializa su propia instancia de firebase-admin / firebase-functions-test
     // sin interferir con los demás. Los tests usan ids únicos, así que compartir el

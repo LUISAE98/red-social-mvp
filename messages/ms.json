@@ -65,7 +65,8 @@
     "seeAllMessages": "Lihat semua",
     "settings": "Tetapan",
     "seeAllFollowing": "Lihat semua",
-    "seeAllCommunities": "Lihat semua"
+    "seeAllCommunities": "Lihat semua",
+    "reels": "Cerita"
   },
   "common": {
     "accept": "Terima",
@@ -254,7 +255,13 @@
     "reportSubmit": "Hantar laporan",
     "reportSentTitle": "Laporan dihantar",
     "reportSentDesc": "Pasukan kami akan menyemaknya. Terima kasih kerana membantu memastikan komuniti kekal selamat.",
-    "reportSubmitError": "Ralat berlaku semasa menghantar laporan. Cuba lagi."
+    "reportSubmitError": "Ralat berlaku semasa menghantar laporan. Cuba lagi.",
+    "noStoriesYet": "Belum ada cerita lagi.",
+    "storyNothingToPublish": "Belum ada apa-apa untuk diterbitkan di sini.",
+    "storyAddStories": "Tambah cerita",
+    "storyNeedsBuyerPermission": "Anda ada tempahan, tetapi pembeli tidak membenarkan penerbitannya.",
+    "storyFromHiddenCommunity": "Ia datang daripada komuniti tersembunyi dan tidak boleh masuk profil anda.",
+    "storyNotReadyYet": "Video belum sedia."
   },
   "groups": {
     "title": "Komuniti",
@@ -1980,7 +1987,9 @@
     "premiumPostPreviewSubsDescUser": "Jika anda ahli atau pelanggan komuniti itu, anda melihatnya secara percuma.",
     "premiumPostPreviewPriceLabelUser": "Harga untuk membuka",
     "premiumPostPreviewPriceDescUser": "Pencipta menetapkan berapa kosnya untuk membuka hantaran itu.",
-    "mergeDonationSupportDesc": "Beri seberapa banyak yang anda mahu untuk menunjukkan sokongan anda kepada pencipta."
+    "mergeDonationSupportDesc": "Beri seberapa banyak yang anda mahu untuk menunjukkan sokongan anda kepada pencipta.",
+    "addSampleAriaLabel": "Tambah sampel",
+    "addSampleHint": "Rakam contoh supaya pembeli nampak apa yang akan diterima"
   },
   "live": {
     "accessTicket": "Tiket akses",

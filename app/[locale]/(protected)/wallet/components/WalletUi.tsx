@@ -323,27 +323,6 @@ export function WalletCard({
   );
 }
 
-export function WalletErrorBox({ message }: { message: string }) {
-  return (
-    <>
-      <style jsx>{`
-        .errorBox {
-          margin-bottom: 14px;
-          padding: 12px 14px;
-          border-radius: 16px;
-          border: 1px solid rgba(248, 113, 113, 0.24);
-          background: rgba(248, 113, 113, 0.09);
-          color: #fca5a5;
-          font-size: 13px;
-          line-height: 1.5;
-        }
-      `}</style>
-
-      <div className="errorBox">{message}</div>
-    </>
-  );
-}
-
 export function PlaceholderRow({
   title,
   subtitle,

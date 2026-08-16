@@ -11,7 +11,9 @@ import {
   subscribeToGroupStories,
 } from "@/lib/stories/storyService";
 import type { StoryDoc, StoryType } from "@/lib/stories/types";
+import { usePublishableGreetings } from "@/lib/stories/usePublishableGreetings";
 import StoryCircle from "./StoryCircle";
+import AddStoryCircle from "./AddStoryCircle";
 import EditTextButton from "@/components/ui/EditTextButton";
 import StoryViewer from "./StoryViewer";
 import StoryCoverPicker from "./StoryCoverPicker";
@@ -43,6 +45,21 @@ export default function GroupStoryCircles({
   const [pickerType, setPickerType] = useState<StoryType | null>(null);
   const [storyCovers, setStoryCovers] = useState<Partial<Record<StoryType, string>>>({});
   const [storyCoverPhoto, setStoryCoverPhoto] = useState<Partial<Record<StoryType, string>>>({});
+
+  // Solo lo que el dueño grabó DENTRO de esta comunidad y con permiso del
+  // comprador. Se consulta únicamente si es el dueño.
+  const { items: publishableSaludos } = usePublishableGreetings({
+    uid: currentUserId,
+    type: "saludo",
+    scope: { kind: "group", groupId },
+    enabled: isOwner,
+  });
+  const { items: publishableConsejos } = usePublishableGreetings({
+    uid: currentUserId,
+    type: "consejo",
+    scope: { kind: "group", groupId },
+    enabled: isOwner,
+  });
 
   useEffect(() => {
     if (!groupId || !canView) return;
@@ -93,7 +110,14 @@ export default function GroupStoryCircles({
   const saludos = stories.filter((s) => s.type === "saludo");
   const consejos = stories.filter((s) => s.type === "consejo");
 
-  if (saludos.length === 0 && consejos.length === 0) return null;
+  // Igual que en el perfil, el rail ya no exige historias YA publicadas. Si el
+  // dueño tiene algo publicable en esta comunidad, sale el círculo con `+`.
+  const addCircles = [
+    { type: "saludo" as StoryType, count: publishableSaludos.length },
+    { type: "consejo" as StoryType, count: publishableConsejos.length },
+  ].filter((c) => c.count > 0);
+
+  if (saludos.length === 0 && consejos.length === 0 && addCircles.length === 0) return null;
 
   const getCoverThumbnail = (type: StoryType, list: StoryDoc[]): string | null => {
     if (storyCoverPhoto[type]) return storyCoverPhoto[type]!;
@@ -152,6 +176,16 @@ export default function GroupStoryCircles({
             )}
           </div>
         )}
+
+        {addCircles.map((c) => (
+          <AddStoryCircle
+            key={`add-${c.type}`}
+            type={c.type}
+            label={tCommon("storyAddStories")}
+            ariaLabel={tCommon("storyAddStories")}
+            onClick={() => setPickerType(c.type)}
+          />
+        ))}
       </div>
 
       {viewerType && (
@@ -170,6 +204,7 @@ export default function GroupStoryCircles({
           type={pickerType}
           entityId={groupId}
           entityType="group"
+          currentUserId={currentUserId ?? ""}
           currentCoverStoryId={storyCovers[pickerType] ?? null}
           currentCustomPhotoUrl={storyCoverPhoto[pickerType] ?? null}
           uploadStoragePath={`storyCovers/groups/${groupId}/${pickerType}`}

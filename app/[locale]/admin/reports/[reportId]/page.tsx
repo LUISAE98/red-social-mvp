@@ -21,6 +21,8 @@ import {
   MODERATOR_ACTIONS,
   MODERATOR_ACTION_LABELS,
 } from "@/lib/moderation/types";
+import VibraToast from "@/app/components/VibraToast/VibraToast";
+import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 
@@ -135,6 +137,8 @@ export default function ReportDetailPage() {
   const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { toast, showToast } = useVibraToast();
+  useEffect(() => { if (error) showToast(error, "error"); }, [error]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!reportId) return;
@@ -351,22 +355,6 @@ export default function ReportDetailPage() {
             }}
           />
 
-          {error && (
-            <div
-              style={{
-                padding: "8px 12px",
-                background: "#1f0a0a",
-                border: "1px solid #7f1d1d",
-                borderRadius: 8,
-                color: "#f87171",
-                fontSize: 13,
-                marginBottom: 12,
-              }}
-            >
-              {error}
-            </div>
-          )}
-
           <button
             onClick={handleSubmit}
             disabled={!action || submitting}
@@ -387,6 +375,8 @@ export default function ReportDetailPage() {
           </button>
         </div>
       )}
+
+      <VibraToast toast={toast} />
     </div>
   );
 }

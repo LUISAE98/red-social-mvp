@@ -11,6 +11,8 @@ import { useTranslations } from "next-intl";
 import SafeCropper from "@/components/media/SafeCropper";
 import { cropImageToBlob } from "@/lib/storage/cropImage";
 import { useBodyScrollLock } from "@/lib/hooks/useBodyScrollLock";
+import VibraToast from "@/app/components/VibraToast/VibraToast";
+import { useVibraToast } from "@/lib/hooks/useVibraToast";
 
 type CropArea = { x: number; y: number; width: number; height: number };
 
@@ -46,6 +48,8 @@ export default function ImageCropperModal({
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<CropArea | null>(null);
   const [processing, setProcessing] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const { toast, showToast } = useVibraToast();
+  useEffect(() => { if (err) showToast(err, "error"); }, [err]); // eslint-disable-line react-hooks/exhaustive-deps
   // Montaje en cliente: createPortal necesita document (evita desajuste SSR).
   const [mounted, setMounted] = useState(false);
   // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -267,23 +271,6 @@ export default function ImageCropperModal({
 
         {/* Contenido */}
         <div style={{ flex: 1, overflowY: "auto", minHeight: 0, padding: "18px 20px 8px" }}>
-          {err && (
-            <div
-              style={{
-                marginBottom: 14,
-                borderRadius: 13,
-                border: "1px solid rgba(255,90,90,0.24)",
-                background: "rgba(120,18,18,0.28)",
-                color: "#ffdada",
-                padding: "10px 12px",
-                fontSize: 13,
-                lineHeight: 1.4,
-              }}
-            >
-              {err}
-            </div>
-          )}
-
           <div
             style={{
               position: "relative",
@@ -351,6 +338,7 @@ export default function ImageCropperModal({
           </button>
         </div>
       </section>
+      <VibraToast toast={toast} />
     </div>,
     document.body
   );

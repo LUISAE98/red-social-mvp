@@ -110,6 +110,10 @@ export type {
 
 export {
   createEmptyWeeklyAvailability,
+  sameDraft,
+  sameServiceBlock,
+  sameSubscriptionBlock,
+  sameWeeklyAvailability,
   pickDonation,
   normalizeDurationMeta,
   buildServiceBlockDraft,

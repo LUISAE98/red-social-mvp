@@ -14,6 +14,8 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { resolveCashout, devCaptureAndCredit, type CashoutRequestDoc } from "@/lib/wallet/cashout";
+import VibraToast from "@/app/components/VibraToast/VibraToast";
+import { useVibraToast, type ToastType } from "@/lib/hooks/useVibraToast";
 import { useAdminPreview } from "../context";
 
 const TYPE_LABELS: Record<string, string> = {
@@ -59,8 +61,13 @@ export default function AdminRefundsPage() {
   const [devPi, setDevPi] = useState("");
   const [devBusy, setDevBusy] = useState(false);
   const [devMsg, setDevMsg] = useState<string | null>(null);
+  const [devMsgType, setDevMsgType] = useState<ToastType>("success");
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [rejectNote, setRejectNote] = useState("");
+
+  const { toast, showToast } = useVibraToast();
+  useEffect(() => { if (error) showToast(error, "error"); }, [error]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (devMsg) showToast(devMsg, devMsgType); }, [devMsg]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleDevCapture() {
     const pi = devPi.trim();
@@ -69,9 +76,11 @@ export default function AdminRefundsPage() {
     setDevMsg(null);
     try {
       const res = await devCaptureAndCredit(pi);
-      setDevMsg(`✓ Capturado y acreditado $${(res.credited ?? 0).toFixed(2)} (${res.externalReference}). Ahora el comprador puede pedir efectivo.`);
+      setDevMsgType("success");
+      setDevMsg(`Capturado y acreditado $${(res.credited ?? 0).toFixed(2)} (${res.externalReference}). Ahora el comprador puede pedir efectivo.`);
       setDevPi("");
     } catch (e: unknown) {
+      setDevMsgType("error");
       setDevMsg(e instanceof Error ? e.message : "No se pudo capturar/acreditar.");
     } finally {
       setDevBusy(false);
@@ -176,12 +185,6 @@ export default function AdminRefundsPage() {
         </p>
       </div>
 
-      {error && (
-        <div style={{ padding: "10px 14px", background: "#1f0a0a", border: "1px solid #7f1d1d", borderRadius: 8, color: "#f87171", fontSize: 13, marginBottom: 16 }}>
-          {error}
-        </div>
-      )}
-
       {/* 🧪 Herramienta de PRUEBA (QA): captura un hold por su pi_... y emite crédito
           reembolsable, para poder probar el cash-out sin esperar el día-6 ni el rechazo. */}
       <div style={{ padding: "12px 14px", background: "#0d0d0d", border: "1px dashed #2a2a2a", borderRadius: 10, marginBottom: 18 }}>
@@ -204,9 +207,6 @@ export default function AdminRefundsPage() {
             {devBusy ? "…" : "Capturar + acreditar"}
           </button>
         </div>
-        {devMsg && (
-          <div style={{ fontSize: 12, color: devMsg.startsWith("✓") ? "#34d399" : "#f87171", marginTop: 8 }}>{devMsg}</div>
-        )}
       </div>
 
       {loading ? (
@@ -385,6 +385,8 @@ export default function AdminRefundsPage() {
           })}
         </div>
       )}
+
+      <VibraToast toast={toast} />
     </div>
   );
 }

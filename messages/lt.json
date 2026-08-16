@@ -65,7 +65,8 @@
     "seeAllMessages": "Rodyti visas",
     "settings": "Nustatymai",
     "seeAllFollowing": "Rodyti visas",
-    "seeAllCommunities": "Rodyti visus"
+    "seeAllCommunities": "Rodyti visus",
+    "reels": "Istorijos"
   },
   "common": {
     "accept": "Priimti",
@@ -254,7 +255,13 @@
     "reportSubmit": "Siųsti pranešimą",
     "reportSentTitle": "Pranešimas išsiųstas",
     "reportSentDesc": "Mūsų komanda jį peržiūrės. Ačiū, kad padedi išlaikyti bendruomenę saugią.",
-    "reportSubmitError": "Siunčiant pranešimą įvyko klaida. Bandyk dar kartą."
+    "reportSubmitError": "Siunčiant pranešimą įvyko klaida. Bandyk dar kartą.",
+    "noStoriesYet": "Istorijų kol kas nėra.",
+    "storyNothingToPublish": "Čia kol kas nėra ką skelbti.",
+    "storyAddStories": "Pridėti istorijų",
+    "storyNeedsBuyerPermission": "Turite užsakymų, bet pirkėjas neleido jų skelbti.",
+    "storyFromHiddenCommunity": "Jie iš paslėptos bendruomenės ir negali būti jūsų profilyje.",
+    "storyNotReadyYet": "Vaizdo įrašas dar neparuoštas."
   },
   "groups": {
     "title": "Bendruomenės",
@@ -1980,7 +1987,9 @@
     "premiumPostPreviewSubsDescUser": "Jei esi bendruomenės narys ar prenumeratorius, matai jį nemokėdamas.",
     "premiumPostPreviewPriceLabelUser": "Atrakinimo kaina",
     "premiumPostPreviewPriceDescUser": "Kūrėjas nustato, kiek kainuoja atrakinti įrašą.",
-    "mergeDonationSupportDesc": "Prisidėk tokia suma, kokia nori, kad parodytum kūrėjui savo palaikymą."
+    "mergeDonationSupportDesc": "Prisidėk tokia suma, kokia nori, kad parodytum kūrėjui savo palaikymą.",
+    "addSampleAriaLabel": "Pridėti pavyzdį",
+    "addSampleHint": "Įrašyk pavyzdį, kad pirkėjai matytų, ką gaus"
   },
   "live": {
     "accessTicket": "Prieigos bilietas",

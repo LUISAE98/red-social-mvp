@@ -65,7 +65,8 @@
     "seeAllMessages": "Mostra-ho tot",
     "settings": "Configuració",
     "seeAllFollowing": "Mostra-ho tot",
-    "seeAllCommunities": "Mostra-ho tot"
+    "seeAllCommunities": "Mostra-ho tot",
+    "reels": "Històries"
   },
   "common": {
     "accept": "Accepta",
@@ -254,7 +255,13 @@
     "reportSubmit": "Envia la denúncia",
     "reportSentTitle": "Denúncia enviada",
     "reportSentDesc": "El nostre equip la revisarà. Gràcies per ajudar a mantenir la comunitat segura.",
-    "reportSubmitError": "Hi ha hagut un error en enviar la denúncia. Torna-ho a provar."
+    "reportSubmitError": "Hi ha hagut un error en enviar la denúncia. Torna-ho a provar.",
+    "noStoriesYet": "Encara no hi ha històries.",
+    "storyNothingToPublish": "Encara no hi ha res per publicar aquí.",
+    "storyAddStories": "Afegir històries",
+    "storyNeedsBuyerPermission": "Tens encàrrecs, però el comprador no va autoritzar publicar-los.",
+    "storyFromHiddenCommunity": "Vénen d'una comunitat oculta i no es poden publicar al teu perfil.",
+    "storyNotReadyYet": "El vídeo encara no està llest."
   },
   "groups": {
     "title": "Comunitats",
@@ -1980,7 +1987,9 @@
     "premiumPostPreviewSubsDescUser": "Si ets membre o subscriptor de la comunitat, la veus gratis.",
     "premiumPostPreviewPriceLabelUser": "Preu de desbloqueig",
     "premiumPostPreviewPriceDescUser": "El creador fixa quant costa desbloquejar la publicació.",
-    "mergeDonationSupportDesc": "Aporta l'import que vulguis per mostrar al creador el teu suport."
+    "mergeDonationSupportDesc": "Aporta l'import que vulguis per mostrar al creador el teu suport.",
+    "addSampleAriaLabel": "Afegeix una mostra",
+    "addSampleHint": "Grava un exemple perquè els compradors vegin què rebran"
   },
   "live": {
     "accessTicket": "Entrada d'accés",

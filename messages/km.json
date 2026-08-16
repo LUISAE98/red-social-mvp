@@ -65,7 +65,8 @@
     "seeAllMessages": "មើលទាំងអស់",
     "settings": "ការកំណត់",
     "seeAllFollowing": "មើលទាំងអស់",
-    "seeAllCommunities": "មើលទាំងអស់"
+    "seeAllCommunities": "មើលទាំងអស់",
+    "reels": "រឿងរ៉ាវ"
   },
   "common": {
     "accept": "ទទួលយក",
@@ -254,7 +255,13 @@
     "reportSubmit": "ផ្ញើរបាយការណ៍",
     "reportSentTitle": "បានផ្ញើរបាយការណ៍",
     "reportSentDesc": "ក្រុមការងាររបស់យើងនឹងពិនិត្យវា។ អរគុណដែលបានជួយរក្សាសហគមន៍ឱ្យមានសុវត្ថិភាព។",
-    "reportSubmitError": "មានកំហុសក្នុងការផ្ញើរបាយការណ៍។ សូមព្យាយាមម្តងទៀត។"
+    "reportSubmitError": "មានកំហុសក្នុងការផ្ញើរបាយការណ៍។ សូមព្យាយាមម្តងទៀត។",
+    "noStoriesYet": "មិនទាន់មានរឿងរ៉ាវនៅឡើយទេ។",
+    "storyNothingToPublish": "មិនទាន់មានអ្វីត្រូវផ្សព្វផ្សាយនៅទីនេះទេ។",
+    "storyAddStories": "បន្ថែមរឿងរ៉ាវ",
+    "storyNeedsBuyerPermission": "អ្នកមានការបញ្ជាទិញ ប៉ុន្តែអ្នកទិញមិនអនុញ្ញាតឱ្យផ្សព្វផ្សាយទេ។",
+    "storyFromHiddenCommunity": "ទាំងនេះមកពីសហគមន៍លាក់ និងមិនអាចដាក់លើប្រវត្តិរូបបានទេ។",
+    "storyNotReadyYet": "វីដេអូមិនទាន់រួចរាល់ទេ។"
   },
   "groups": {
     "title": "សហគមន៍",
@@ -1980,7 +1987,9 @@
     "premiumPostPreviewSubsDescUser": "ប្រសិនបើអ្នកជាសមាជិក ឬអ្នកជាវនៃសហគមន៍ អ្នកឃើញវាដោយឥតគិតថ្លៃ។",
     "premiumPostPreviewPriceLabelUser": "តម្លៃដោះសោ",
     "premiumPostPreviewPriceDescUser": "អ្នកបង្កើតកំណត់ថាការដោះសោការបង្ហោះត្រូវចំណាយប៉ុន្មាន។",
-    "mergeDonationSupportDesc": "ចូលរួមចំណែកចំនួនប៉ុន្មានក៏បានតាមចិត្តដើម្បីបង្ហាញការគាំទ្ររបស់អ្នកដល់អ្នកបង្កើត។"
+    "mergeDonationSupportDesc": "ចូលរួមចំណែកចំនួនប៉ុន្មានក៏បានតាមចិត្តដើម្បីបង្ហាញការគាំទ្ររបស់អ្នកដល់អ្នកបង្កើត។",
+    "addSampleAriaLabel": "បន្ថែមគំរូ",
+    "addSampleHint": "ថតឧទាហរណ៍ ដើម្បីឲ្យអ្នកទិញឃើញអ្វីដែលនឹងទទួលបាន"
   },
   "live": {
     "accessTicket": "សំបុត្រចូល",
